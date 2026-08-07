@@ -1501,7 +1501,17 @@ def test_EVERY_live_case_declares_an_exact_expect_after_Flip_C():
     # presenting as one failure was two. Bumping the number is the whole fix: the
     # corpus really did grow by one, and an equality is what makes a corpus that
     # grows silently impossible.
-    assert live == 47, f"the live case list is {live}, not 47 — this rail lost its subject"
+    # ⭐⭐ 47 → 48 AT PHASE D TASK 16, AND THIS TIME ALL THREE COUNTERS MOVED
+    # TOGETHER. Task 6's lesson, applied: the two JS counters
+    # (`parityGateBlindness.test.js`, `flipCRecord.test.js`) and this one guard the
+    # same corpus, and leaving this one behind hid the gap for a whole task because
+    # the `unregioned` assertion above fires first and stops the test before it
+    # gets here. The new live case is `ast_user_formula_sma20`, PROMOTED rather
+    # than added: it was a placeholder at 0 changed pixels with a fail-proof that
+    # also read 0 (nothing installed a user definition into the registry the binder
+    # resolves through), and it reads 140,925 px, 5/5 runs, zero variance now that
+    # `nativeRegistry.installUserDefinitions` exists.
+    assert live == 48, f"the live case list is {live}, not 48 — this rail lost its subject"
     probe = cp.case_entry({**defaults, "name": "probe"}, tolerance=0, expect=None)
     assert probe["expect"] is None, "case_entry invents an expect — the check above is vacuous"
 

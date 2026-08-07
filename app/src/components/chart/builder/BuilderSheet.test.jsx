@@ -11,7 +11,11 @@ import { parseFormula, astHash } from '../engine/ast/parse'
 import { sentenceFor } from '../engine/ast/sentence'
 import { lintRepaint, REPAINT_MODES } from '../engine/ast/lint'
 import { checkBudget } from '../engine/ast/budget'
-import { registerUserDefinitions } from '../engine/nativeRegistry'
+import { validateUserDefinitions, getDefinition, clearUserDefinitions } from '../engine/nativeRegistry'
+// ⚠️ THE NAMESPACE, because `normalizeInstances` takes a REGISTRY and the
+// namespace import is the shape `StockChart.jsx` hands it.
+import * as engineRegistry from '../engine/nativeRegistry'
+import { normalizeInstances } from '../engine/instances'
 
 // ─── THE FIRST TASK OF PHASE D A USER CAN SEE ───────────────────────────────
 //
@@ -353,8 +357,8 @@ describe('the stored document', () => {
     })
   }
 
-  it('passes the SHIPPED registration door — `registerUserDefinitions`, not a second validator', () => {
-    const { defs, errors } = registerUserDefinitions([docFor('sma(close, 20)')])
+  it('passes the SHIPPED registration door — `validateUserDefinitions`, not a second validator', () => {
+    const { defs, errors } = validateUserDefinitions([docFor('sma(close, 20)')])
     expect(errors).toEqual([])
     expect(defs).toHaveLength(1)
     expect(defs[0].compute.kind).toBe('ast')
@@ -365,13 +369,13 @@ describe('the stored document', () => {
     expect(doc.meta.repaint).toBe('non-repainting')
     // over-claiming…
     const over = { ...doc, meta: { ...doc.meta, repaint: 'repaints' } }
-    expect(registerUserDefinitions([over]).errors.join('\n')).toMatch(/meta\.repaint/)
-    expect(registerUserDefinitions([over]).defs).toHaveLength(0)
+    expect(validateUserDefinitions([over]).errors.join('\n')).toMatch(/meta\.repaint/)
+    expect(validateUserDefinitions([over]).defs).toHaveLength(0)
     // …and the badge missing altogether.
     const none = { ...doc, meta: { ...doc.meta } }
     delete none.meta.repaint
-    expect(registerUserDefinitions([none]).errors.join('\n')).toMatch(/meta\.repaint/)
-    expect(registerUserDefinitions([none]).defs).toHaveLength(0)
+    expect(validateUserDefinitions([none]).errors.join('\n')).toMatch(/meta\.repaint/)
+    expect(validateUserDefinitions([none]).defs).toHaveLength(0)
   })
 
   it('`compute.fn` IS the astHash, and `compute.source` parses back to `compute.ast`', () => {
@@ -384,7 +388,7 @@ describe('the stored document', () => {
     const doc = docFor('sma(close, 20)')
     expect(doc.plots).toHaveLength(1)
     const two = { ...doc, plots: [...doc.plots, { ...doc.plots[0], key: 'second' }] }
-    expect(registerUserDefinitions([two]).errors.join('\n')).toMatch(/one data-bearing plot/i)
+    expect(validateUserDefinitions([two]).errors.join('\n')).toMatch(/one data-bearing plot/i)
   })
 
   it('`meta.description` IS the read-back — derived from the tree, never typed', () => {
@@ -712,5 +716,141 @@ describe('evaluateFormula', () => {
     expect(r.ok).toBe(false)
     expect(r.error).toBeNull()
     expect(r.empty).toBe(true)
+  })
+})
+
+// ─── 🔴 THE BUILDER ADDS AN INSTANCE ON SAVE (PHASE D TASK 16) ──────────────
+//
+// Task 11 deliberately did NOT, and measured why: nothing installed a user
+// definition into the registry the binder resolves through, so an instance
+// written here would name a definition `getDefinition` answered null for and
+// `normalizeInstances` would drop it on the very next paint. `installUserDefinitions`
+// closes that, so the write is now honest — and these cases are what make
+// "honest" a thing that can fail.
+
+describe('🔴 saving a formula puts it ON THE CHART', () => {
+  /** Mount with the settings pair `ChartToolbar` passes, recording every write. */
+  function mountWithChart({ settings = { indicators: {}, indicatorInstances: [] } } = {}) {
+    const writes = []
+    const utils = render(
+      <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
+        <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
+          <BuilderSheet
+            open
+            onClose={() => {}}
+            onSaved={() => {}}
+            settings={settings}
+            onChange={(next) => writes.push(next)}
+          />
+        </SWRConfig>
+      </AuthContext.Provider>,
+    )
+    return { ...utils, writes }
+  }
+
+  afterEach(() => { clearUserDefinitions() })
+
+  it('installs the STORED definition and writes ONE instance naming the STORE\'s id', async () => {
+    // ⛔ THE SERVER MINTS THE ID. `draftDefId()` is a placeholder that exists only
+    // so the document can be validated before it is sent; the store overwrites it
+    // (`user_definitions.create_definition` sets `definition["id"] = def_id`). An
+    // instance naming the draft would be dropped by `normalizeInstances` on the
+    // next paint — the defect this task closes, re-created one field over.
+    const { writes } = mountWithChart()
+    await typeFormula('sma(close, 20)')
+    await nameIt('My line')
+    await act(async () => { fireEvent.click(saveBtn()) })
+    await flush()
+
+    expect(getDefinition('u_aaaaaaaaaaaa'),
+      'the saved definition did not install — an instance for it would be dropped').toBeTruthy()
+    expect(writes, 'no settings write — the formula saved and the chart never heard about it')
+      .toHaveLength(1)
+
+    const list = writes[0].indicatorInstances
+    expect(list).toHaveLength(1)
+    expect(list[0].defId, 'the instance names the DRAFT id, not the one the store minted')
+      .toBe('u_aaaaaaaaaaaa')
+
+    // ⭐ AND THE INSTANCE IS ONE `normalizeInstances` KEEPS. This is the whole
+    // claim: a control that writes an instance the renderer drops is the "live
+    // control that writes nowhere" defect wearing a success message.
+    const norm = normalizeInstances(list, engineRegistry)
+    expect(norm.dropped.map(d => d.reason)).toEqual([])
+    expect(norm.kept).toHaveLength(1)
+  })
+
+  it('⛔ writes NOTHING when the store REFUSES the save', async () => {
+    // The instance must not exist for a definition the store never took. Writing
+    // one would put a formula on the chart that no reload can bring back.
+    const { writes } = mountWithChart()
+    H.writeResponse = { ok: false, status: 400, json: async () => ({ detail: 'nope' }) }
+    await typeFormula('sma(close, 20)')
+    await nameIt('My line')
+    await act(async () => { fireEvent.click(saveBtn()) })
+    await flush()
+
+    expect(screen.getByTestId('store-error')).toBeTruthy()
+    expect(writes, 'the chart was written for a formula the store refused').toEqual([])
+  })
+
+  it('⛔ writes NOTHING, and SAYS SO, when the definition cannot INSTALL', async () => {
+    // A definition the store accepts and the registry refuses — here because a
+    // SHIPPED id already owns the name the store handed back. The save stands;
+    // the instance does not; and the refusal reaches the user rather than being
+    // swallowed into a success message. ⚠️ Silence here is indistinguishable
+    // from a save that worked, which is the failure mode this whole phase exists
+    // to retire.
+    const { writes } = mountWithChart()
+    H.writeResponse = { ok: true, status: 200, json: async () => ({ def_id: 'rsi', version: 1, rev: 1 }) }
+    await typeFormula('sma(close, 20)')
+    await nameIt('My line')
+    await act(async () => { fireEvent.click(saveBtn()) })
+    await flush()
+
+    expect(writes).toEqual([])
+    expect(screen.getByTestId('store-error').textContent)
+      .toMatch(/a SHIPPED definition already owns this id/)
+    // …and the shipped definition really is untouched.
+    expect(getDefinition('rsi').compute.kind).toBe('native')
+  })
+
+  it('a READ-ONLY mount still saves and still refuses to touch a chart it has no handle on', async () => {
+    // `ChartToolbar` renders the builder only behind `chartSettings &&
+    // onUpdateSettings`, so this pair is never half-present in the product — but
+    // the component must not assume it. Without the guard this throws inside the
+    // save and the user loses the formula they just wrote.
+    const writes = []
+    render(
+      <AuthContext.Provider value={{ user: { id: 7 }, isPaid: true, loading: false }}>
+        <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, revalidateOnFocus: false }}>
+          <BuilderSheet open onClose={() => {}} onSaved={() => {}} />
+        </SWRConfig>
+      </AuthContext.Provider>,
+    )
+    await typeFormula('sma(close, 20)')
+    await nameIt('My line')
+    await act(async () => { fireEvent.click(saveBtn()) })
+    await flush()
+
+    expect(screen.getByTestId('saved-note')).toBeTruthy()
+    expect(writes).toEqual([])
+    // The definition still installs: it is this TAB's registry, and the sheet
+    // may be mounted beside a chart that is about to read it.
+    expect(getDefinition('u_aaaaaaaaaaaa')).toBeTruthy()
+  })
+
+  it('⛔ THE COMMENT THAT WAS FALSIFIED IS REWRITTEN IN THE PAST TENSE, NOT DELETED', () => {
+    // B5 Task 4's rule, applied to the paragraph this task made false. Task 11's
+    // refusal was a MEASUREMENT and it is the reason the wiring is in the order
+    // it is in; deleting it would leave the next reader asking why the install
+    // happens between the store write and the instance write.
+    const src = read('app/src/components/chart/builder/BuilderSheet.jsx')
+    expect(src, 'the falsified paragraph was deleted rather than inverted')
+      .toContain('IT ADDS AN INSTANCE TO THE CHART ON SAVE')
+    expect(src).toContain('UNTIL\n// TASK 16 IT DELIBERATELY DID NOT')
+    // The quoted original, verbatim enough to be recognisable as the old claim.
+    expect(src).toContain('an instance written here would validate against a definition the renderer')
+    expect(src).toContain('cannot resolve and be DROPPED on the next paint')
   })
 })

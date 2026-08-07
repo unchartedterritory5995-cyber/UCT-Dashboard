@@ -44,10 +44,21 @@
  * has not been a sentence about this registry since.
  *
  * ⚠️ `ast` IS EMPTY AND THAT IS A CLAIM, NOT A PLACEHOLDER. Phase D Task 8 built
- * the lane — `defSchema` validates an `ast` definition, `registerUserDefinitions`
+ * the lane — `defSchema` validates an `ast` definition, `validateUserDefinitions`
  * budgets and lints it, `computeFor` interprets it — and registered NOTHING on
  * it, because an `ast` definition is a user's formula and arrives per user. The
  * day this repo ships one, this list is what says so.
+ *
+ * ⛔⛔ AND A USER'S FORMULA STILL DOES NOT COUNT HERE — PHASE D TASK 16. That
+ * task gave the registry a RUNTIME index so an installed user definition
+ * resolves through `getDefinition` and draws; this manifest is untouched by it
+ * ON PURPOSE. `listDefinitions()` remains the SHIPPED catalogue and is what the
+ * equality below is compared against, so `ast: []` and `REGISTRY_SIZES.ast === 0`
+ * stay claims about this BUILD rather than about whoever happens to be signed
+ * in. A manifest that counted session state would read green in every suite that
+ * installs nothing and mean nothing in the one that does — the vacuous-gate shape
+ * this whole file is written against. `nativeRegistry.test.js` asserts it by
+ * installing a valid user definition and re-checking all three rails.
  */
 export const SHIPPED_DEF_IDS = Object.freeze({
   native: Object.freeze([

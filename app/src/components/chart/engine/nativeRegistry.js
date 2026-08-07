@@ -84,7 +84,7 @@ import {
 // commit `interpret`, `checkBudget` and `lintRepaint` were shipped and had NO
 // caller in the product — deliberately, each task landing its piece pure and
 // unwired. This module is where they stop being unwired: `computeFor` runs
-// `interpret`, and `registerUserDefinitions` runs the other two. That makes them
+// `interpret`, and `validateUserDefinitions` runs the other two. That makes them
 // reachable from `StockChart.jsx`'s module graph rather than only from a test,
 // which is a fact `__tests__/enumerationSites.test.js` asserts by walking
 // IMPORTS rather than by grepping for a name (a plain substring search for these
@@ -1069,7 +1069,7 @@ function astPlotKey(def) {
  * `interpret` returns a single `Float64Array` of `bars.length` — the columnar
  * contract already, with no adaptation to do — so the only question this
  * function answers is WHICH KEY it goes under, and there can be exactly one
- * answer. `registerUserDefinitions` refuses a definition that declares more
+ * answer. `validateUserDefinitions` refuses a definition that declares more
  * than one data plot; this throw is the backstop for a definition that reached
  * `computeFor` without passing through that door.
  *
@@ -1536,7 +1536,19 @@ function validateAstLane(def) {
 }
 
 /**
- * Register definitions THIS CLIENT DID NOT AUTHOR — the `supportedKinds` door.
+ * VALIDATE definitions THIS CLIENT DID NOT AUTHOR — the `supportedKinds` door.
+ *
+ * ⭐⭐ IT WAS CALLED `registerUserDefinitions` UNTIL PHASE D TASK 16, AND THE
+ * NAME IS PART OF WHY THE FEATURE WAS DEAD FOR SIX TASKS. "Register" reads as
+ * "put it in the registry", and every caller — the builder, the plan, three
+ * comments in this file — read it that way. It never did: it runs `defSchema`,
+ * the lane filter and the `ast` gates, and RETURNS `{defs, errors}`. Nothing was
+ * installed anywhere, so a user's saved formula validated cleanly and then could
+ * not be resolved by `getDefinition`, dropped out of `normalizeInstances` and
+ * drew nothing on any chart. The function is unchanged; the name now says what
+ * it does, and `installUserDefinitions` (below) is the one that does the other
+ * thing. A rename rather than a comment because the comment would have to be
+ * read to help, and six tasks of evidence say the name is what gets read.
  *
  * ⭐ THE SENTENCE `defSchema.js` HAS CARRIED SINCE B1 — *"the registry's
  * `supportedKinds` filter decides what a given client will actually run"* — and
@@ -1561,7 +1573,7 @@ function validateAstLane(def) {
  *
  * @returns {{defs: object[], errors: string[]}}
  */
-export function registerUserDefinitions(rawDefs) {
+export function validateUserDefinitions(rawDefs) {
   const base = registerDefinitions(rawDefs)
   const errors = [...base.errors]
   const defs = []
@@ -1681,7 +1693,8 @@ export const SERVER_DEFS = Object.freeze(_serverRegistered.defs)
  * ⭐ TASK 8 BUILDS THE LANE AND REGISTERS NOTHING ON IT, AND THE EMPTY ARRAY IS
  * THE DELIVERABLE'S SHAPE, not an oversight. An `ast` definition is a USER's
  * formula: it arrives from the builder or the concierge, through
- * `registerUserDefinitions`, and is stored per user. A repo-authored one would
+ * `validateUserDefinitions`, and is INSTALLED per session by
+ * `installUserDefinitions` below rather than listed here. A repo-authored one would
  * be a native wearing a formula — the same maths this file already computes in
  * `NATIVE_COMPUTE`, on a lane with a budget and an interpreter between it and
  * the screen, for no gain.
@@ -1736,9 +1749,143 @@ export const CARVED_OUT_INDICATOR_KEYS = Object.freeze(new Set(['volumeProfile']
  *  instance the chart drops on the floor — visible as nothing at all. */
 const _byId = new Map([...NATIVE_DEFS, ...SERVER_DEFS, ...AST_DEFS].map(d => [d.id, d]))
 
-/** @returns {object|null} the definition, or null when nothing is registered under `defId`. */
+// ─── the RUNTIME lane: definitions installed by THIS SESSION ────────────────
+//
+// 🔴 PHASE D TASK 16 — THE DOOR THAT DID NOT EXIST, AND THE SIX TASKS IT COST.
+// Task 11 shipped a builder a trader could type `sma(close, 20)` into. It
+// parsed, budgeted, linted, passed `validateUserDefinitions` and persisted to
+// `/api/user-definitions` — and could not draw one pixel on any chart. The cause
+// was one line: `_byId` above is built ONCE at module import out of three FROZEN
+// arrays, `AST_DEFS` is deliberately `[]`, and the ONLY operation this file ever
+// performed on `_byId` was `.get`. So `getDefinition('u_…')` answered null,
+// `validateInstance` failed with *"names no registered definition"*,
+// `normalizeInstances` dropped the instance before layout, and the chart built
+// two panes where three were asked for. ~6,100 frontend tests were green over
+// it: every component was correct alone, and the defect lived in the CONTRACT
+// between them — the fifth on this project, and the reason the repo's own lesson
+// says budget a live-surface pass on every visual feature.
+//
+// ⛔ IT IS A SECOND INDEX, NOT A MUTATION OF `_byId` OR OF `AST_DEFS`, and the
+// separation is the design rather than an implementation detail. `NATIVE_DEFS` /
+// `SERVER_DEFS` / `AST_DEFS` are frozen catalogues of WHAT SHIPS;
+// `registrySizes.js` is a hand-written manifest this registry must PROVE it
+// equals, by lane and by name, and it imports NOTHING so it cannot derive from
+// the thing it checks. A user's formula is not shipped — it arrives per user,
+// per session — and it must not be able to make that manifest true by joining
+// it. Two indexes keep both facts sayable at once, and the split is by QUESTION:
+// `listDefinitions()` answers *what does this build ship*, `getDefinition`
+// answers *what can this chart resolve*.
+
+/** User definitions installed at RUNTIME — one tab's worth, never persisted.
+ *
+ *  The durable copy is the append-only store behind `/api/user-definitions`;
+ *  this Map is an index a reload rebuilds from it. A module that remembered
+ *  across reloads would be a fourth place a definition lives. */
+const _userById = new Map()
+
+/**
+ * Bumped iff the installed SET actually changed.
+ *
+ * ⚠️ IT EXISTS BECAUSE A DERIVED SET WAS MEMOISED FOREVER. `paneLayout`'s
+ * `paneTargetIds()` cached "the ids that reserve a pane" on its FIRST call and
+ * never again — correct while the catalogue was frozen at import, and silently
+ * wrong the moment a definition can arrive later: a user's oscillator installed
+ * after the first paint would never get a band, so the series would be created
+ * into a pane the layout never reserved. Any memo over this registry must be
+ * keyed on this counter rather than on `null`.
+ *
+ * @returns {number}
+ */
+let _generation = 0
+
+export function registryGeneration() { return _generation }
+
+/** `id@version#fn` — the identity an install compares on.
+ *
+ *  Two documents with the same id, version and compute handle are the SAME
+ *  CLAIM, so re-installing one must not bump the generation: `useUserDefinitions`
+ *  is an SWR list that revalidates, and a bump per poll would rebuild every
+ *  registry-derived memo on the chart path each time the tab regained focus. */
+function installKey(def) {
+  return `${def.id}@${def.version}#${def.compute && def.compute.fn}`
+}
+
+/**
+ * Install user definitions so `getDefinition` — and through it the instance
+ * validator, the binder and the pane layout — can resolve them.
+ *
+ * ⛔ VALIDATION IS NEITHER SKIPPED NOR DUPLICATED. This calls
+ * `validateUserDefinitions`, the one door, and installs ONLY what comes back in
+ * `defs`. A definition whose repaint badge disagrees with the linter, whose
+ * budget is blown, whose lane this client cannot run or which declares two
+ * data-bearing plots is refused HERE exactly as it is refused in the builder —
+ * because "it is already saved" is not a reason to draw something the gates say
+ * is wrong. ⚠️ Task 10 named this directly: a stored verdict goes STALE. A
+ * closed-table entry removed, a budget cap lowered or a linter that learns
+ * something new can invalidate a definition that was legal the day it was
+ * written, and the honest outcome is that it stops drawing and returns a
+ * sentence — not that it draws on a verdict nobody re-measured.
+ *
+ * ⛔ A SHIPPED ID IS NOT OVERWRITABLE. A user definition claiming `rsi` would
+ * shadow the native for every chart in the tab: the settings row, the legend
+ * chip, the alert address and the pane height all resolve through one lookup.
+ * `getDefinition` consults the shipped index FIRST, and an install under a
+ * shipped id is REFUSED with a sentence rather than silently ignored — a silent
+ * ignore reads, from the builder, exactly like a save that worked.
+ *
+ * @param {object[]} rawDefs
+ * @returns {{installed: object[], errors: string[]}} `installed` is what
+ *          `getDefinition` will now answer with — never the input documents.
+ */
+export function installUserDefinitions(rawDefs) {
+  const { defs, errors } = validateUserDefinitions(rawDefs)
+  const installed = []
+  for (const def of defs) {
+    if (_byId.has(def.id)) {
+      errors.push(
+        `${def.id}: a SHIPPED definition already owns this id — installing over it would shadow ` +
+        `the one this repo authored for every chart in this tab, and the settings row, the legend ` +
+        `chip, the alert address and the pane height all resolve through the same lookup.`,
+      )
+      continue
+    }
+    const prev = _userById.get(def.id)
+    if (prev && installKey(prev) === installKey(def)) { installed.push(prev); continue }
+    _userById.set(def.id, def)
+    _generation += 1
+    installed.push(def)
+  }
+  return { installed, errors }
+}
+
+/** Forget every installed user definition — a sign-out, or a test's teardown.
+ *
+ *  ⚠️ CALLERS MUST NOT USE THIS AS A GENERAL "the fetch failed" RESET. A
+ *  transport failure is not evidence that a user has no definitions, and
+ *  clearing on one would take a drawn indicator off a chart on a network blip.
+ *  `useInstalledUserDefinitions` clears only on an AUTHORITATIVE refusal. */
+export function clearUserDefinitions() {
+  if (_userById.size === 0) return
+  _userById.clear()
+  _generation += 1
+}
+
+/** @returns {object[]} the user definitions installed in THIS session. */
+export function listUserDefinitions() {
+  return [..._userById.values()]
+}
+
+/**
+ * @returns {object|null} the definition, or null when nothing is registered under `defId`.
+ *
+ * ⭐ IT READS BOTH INDEXES AND THE SHIPPED ONE FIRST. This is the door every
+ * consumer that has to RESOLVE an id goes through — `instances.validateInstance`,
+ * `binder`, `paneLayout.paneHeightFor`, `flipState.engineOwnsDefId` and through
+ * it `ENGINE_OWNED.has` — so widening it here is what makes a user's formula
+ * addressable everywhere at once, with no second lookup anybody can forget.
+ */
 export function getDefinition(defId) {
-  return _byId.get(defId) || null
+  return _byId.get(defId) || _userById.get(defId) || null
 }
 
 /**
@@ -1758,4 +1905,48 @@ export function getDefinition(defId) {
  */
 export function listDefinitions() {
   return [...NATIVE_DEFS, ...SERVER_DEFS, ...AST_DEFS]
+}
+
+/**
+ * Every definition THIS CHART CAN RESOLVE — the shipped catalogue plus the user
+ * definitions installed in this session, shipped first.
+ *
+ * ⭐⭐ THE SPLIT IS PHASE D TASK 16'S ONE EXPLICIT DECISION, AND IT IS ASSERTED
+ * RATHER THAN INTENDED. The alternative — teaching `listDefinitions()` to answer
+ * with the session too — was rejected because THREE rails read that function to
+ * prove what SHIPS:
+ *
+ *   * `idsByLane(listDefinitions())` must equal `SHIPPED_DEF_IDS`, ordered, by
+ *     lane, by name — the one equality thirty-three hand-typed assertions
+ *     collapsed into;
+ *   * `listDefinitions().length` must equal `REGISTRY_SIZES.total`;
+ *   * `REGISTRY_SIZES.ast` must be 0, which is the claim *"Task 8 built the lane
+ *     and registered nothing on it"*.
+ *
+ * `registrySizes.js` imports NOTHING precisely so the manifest cannot derive
+ * from the registry it checks (asserted by AST, with a positive control). If
+ * `listDefinitions()` answered with installed definitions, all three of those
+ * rails would silently become statements about WHO IS SIGNED IN — and they would
+ * still pass in a suite that installs nothing, which is the worst outcome
+ * available: a gate that reads green while measuring something other than what
+ * it says. A user's formula is not a shipped definition and must never be able
+ * to make the shipped manifest true by joining it.
+ *
+ * So: `listDefinitions()` = the CATALOGUE. `getDefinition` = the SESSION.
+ * This function = the session's whole answer, for the two places that need the
+ * set rather than one id (`paneLayout.paneTargetIds`, and any future catalogue
+ * that means to offer a user their own formulas). `nativeRegistry.test.js`
+ * proves the choice cannot weaken the rails by INSTALLING a valid user
+ * definition and re-checking all three while `getDefinition` resolves it.
+ *
+ * ⚠️ SHIPPED FIRST, AND THE ORDER IS LOAD-BEARING WHERE IT IS READ AS Z-ORDER.
+ * `instanceControls.stackOrderRank` ranks by position in the SHIPPED list and
+ * files anything unranked last, so a user's formula already stacks below the
+ * shipped overlays; this function keeps the same relation for any caller that
+ * takes its order from here instead.
+ *
+ * @returns {object[]}
+ */
+export function listAllDefinitions() {
+  return [...listDefinitions(), ...listUserDefinitions()]
 }

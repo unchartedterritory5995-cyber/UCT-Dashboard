@@ -1112,6 +1112,14 @@ function ChartToolbar({
           <BuilderSheet
             open={builderOpen}
             onClose={() => setBuilderOpen(false)}
+            /* ⭐ PHASE D TASK 16 — the same pair `IndicatorLibraryDialog` takes,
+               and for the same reason: adding a formula to the chart is the same
+               act as ticking one in the library, so it goes through the same
+               `settings`/`onChange` contract and the same `addInstance` door.
+               Both are inside `canManageIndicators`, so a read-only chart still
+               cannot write an instance. */
+            settings={cs}
+            onChange={onUpdateSettings}
           />
         )}
 

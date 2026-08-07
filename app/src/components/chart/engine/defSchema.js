@@ -120,7 +120,7 @@ export const RESERVED_PLOT_STYLES = Object.freeze(['zones', 'bgband', 'barcolor'
  *  mechanism nobody wrote, sitting in the file whose job is to fail closed.
  *  Measured 2026-08-06 (Task 3: repo-wide, zero identifiers, this comment plus
  *  spec §3.1); made real 2026-08-07 by the constant below and its one consumer,
- *  `nativeRegistry.registerUserDefinitions`. */
+ *  `nativeRegistry.validateUserDefinitions`. */
 export const COMPUTE_KINDS = Object.freeze(['native', 'server', 'ast', 'script'])
 
 /**
@@ -140,7 +140,7 @@ export const COMPUTE_KINDS = Object.freeze(['native', 'server', 'ast', 'script']
  *     must be able to describe.
  *
  * So `validateDefinition` accepts every member of `COMPUTE_KINDS` — a `script`
- * definition is WELL-FORMED — and `registerUserDefinitions` is where a kind
+ * definition is WELL-FORMED — and `validateUserDefinitions` is where a kind
  * outside this list is refused, by name, with a message that says "cannot run"
  * rather than "malformed".
  */
@@ -520,7 +520,7 @@ function validateCompute(compute, errors) {
   //
   // ⚠️ CHECKED AGAINST `COMPUTE_KINDS`, NOT `SUPPORTED_KINDS`, AND THAT IS THE
   // WHOLE POINT OF THERE BEING TWO. A `script` definition is well-formed; it is
-  // merely unrunnable here, which is `registerUserDefinitions`' sentence to say.
+  // merely unrunnable here, which is `validateUserDefinitions`' sentence to say.
   checkVocabulary(compute.kind, COMPUTE_KINDS, [], 'compute.kind', 'compute kind', errors)
 
   if (!isNonEmptyString(compute.fn)) {

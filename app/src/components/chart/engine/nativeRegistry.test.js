@@ -10,7 +10,7 @@
 //   4. the two bespoke behaviours that a naive adapter would silently change:
 //      MACD's masked head and SAR's `isUptrend` third field.
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 import { parse as parseJs } from 'acorn'
@@ -26,9 +26,20 @@ import {
   columnKeys,
   hasAnyFinite,
   registerDefinitions,
-  registerUserDefinitions,
+  validateUserDefinitions,
   AST_LANE_TIER,
+  // ⭐ PHASE D TASK 16 — the runtime install layer.
+  installUserDefinitions,
+  clearUserDefinitions,
+  listUserDefinitions,
+  listAllDefinitions,
+  registryGeneration,
 } from './nativeRegistry'
+// ⚠️ THE MODULE ITSELF, because `normalizeInstances` takes a REGISTRY (an object
+// exposing `getDefinition`) and the namespace import IS the shape the product
+// hands it — `StockChart.jsx` passes `import * as engineRegistry`. Reconstructing
+// a `{getDefinition}` literal here would test a registry the product never uses.
+import * as REGISTRY_MODULE from './nativeRegistry'
 import {
   validateDefinition, COMPUTE_KINDS, SUPPORTED_KINDS, PLOT_STYLES, RESERVED_PLOT_STYLES,
   SCHEMA_VERSION as SCHEMA_VERSION_JS,
@@ -36,7 +47,8 @@ import {
 import { SHIPPED_DEF_IDS, REGISTRY_SIZES, REGISTRY_LANES, idsByLane } from './registrySizes'
 import { parseFormula, astHash } from './ast/parse'
 import { DEFAULT_BUDGET } from './ast/budget'
-import { migrateLegacyToInstances } from './instances'
+import { migrateLegacyToInstances, normalizeInstances } from './instances'
+import { computePaneLayout } from './paneLayout'
 // ⚠️ FROM `flipState`, NOT `StockChart`. `StockChart.jsx` re-exports this set
 // (`:66`) and the B3 plan's snippet imports it from there — but flipState is
 // where it is DECLARED, and the two are the same frozen Set object. Importing
@@ -885,7 +897,7 @@ describe('`supportedKinds` is a FILTER now, not a sentence (Phase D Task 8)', ()
     // server lane from a client that simply has an older bundle.
     const d = astDef('sma(close, 20)')
     d.compute = { kind: 'script', fn: 'x', rev: 1 }
-    const res = registerUserDefinitions([d])
+    const res = validateUserDefinitions([d])
     expect(res.defs.map(x => x.id)).toEqual([])
     expect(res.errors.join('\n')).toMatch(/kind "script" is declared but this client cannot run it/)
     // ⛔ AND IT IS NOT A VALIDATION FAILURE. The same definition is well-formed —
@@ -901,7 +913,7 @@ describe('`supportedKinds` is a FILTER now, not a sentence (Phase D Task 8)', ()
     const native = NATIVE_DEFS[0]
     const server = SERVER_DEFS[0]
     const ast = astDef('sma(close, 20)')
-    const res = registerUserDefinitions([native, server, ast])
+    const res = validateUserDefinitions([native, server, ast])
     expect(res.errors, JSON.stringify(res.errors)).toEqual([])
     expect(res.defs.map(d => d.compute.kind).sort()).toEqual(['ast', 'native', 'server'])
   })
@@ -909,7 +921,7 @@ describe('`supportedKinds` is a FILTER now, not a sentence (Phase D Task 8)', ()
 
 describe('the `ast` lane REGISTERS, and the three gates it registers through', () => {
   it('an ast definition registers and COMPUTES a real column', () => {
-    const res = registerUserDefinitions([astDef('sma(close, 20)')])
+    const res = validateUserDefinitions([astDef('sma(close, 20)')])
     expect(res.errors, JSON.stringify(res.errors)).toEqual([])
     const [def] = res.defs
     const cols = computeFor(def, BARS, {})
@@ -930,7 +942,7 @@ describe('the `ast` lane REGISTERS, and the three gates it registers through', (
     // fires FIRST — the lane registers, validates, budgets and lints, and then
     // can never draw. It is an ordering fact, and this asserts the ordering
     // rather than a value: the SAME definition must not reach the throw.
-    const [def] = registerUserDefinitions([astDef('ema(close, 9)')]).defs
+    const [def] = validateUserDefinitions([astDef('ema(close, 9)')]).defs
     expect(def.compute.fn).toMatch(/^sha256:/)
     expect(Object.keys(computeFor(def, BARS, {}))).toEqual(['out'])
     expect(() => computeFor(def, BARS, {}), 'the ast lane fell through to the native lookup')
@@ -954,7 +966,7 @@ describe('the `ast` lane REGISTERS, and the three gates it registers through', (
         { key: 'other', label: 'G', style: 'line', color: '$color', width: 1, role: 'secondary' },
       ],
     })
-    const res = registerUserDefinitions([d])
+    const res = validateUserDefinitions([d])
     expect(res.defs).toEqual([])
     expect(res.errors.join('\n')).toMatch(/computes ONE column/)
     // …and an `hlines` GUIDE is not a data plot, so it stays legal.
@@ -964,7 +976,7 @@ describe('the `ast` lane REGISTERS, and the three gates it registers through', (
         { key: 'zero', label: '0', style: 'hlines', levels: [0], color: '$color', width: 1, role: 'context' },
       ],
     })
-    expect(registerUserDefinitions([withGuide]).errors).toEqual([])
+    expect(validateUserDefinitions([withGuide]).errors).toEqual([])
   })
 
   it('GATE 1b — an ast definition that declares an EVENT is refused BY THE EXISTING DOOR', () => {
@@ -974,7 +986,7 @@ describe('the `ast` lane REGISTERS, and the three gates it registers through', (
     // simply never comes back, and `validateEventColumns` refuses it by name at
     // the door it was built for. A refusal from the right door, measured.
     const d = astDef('sma(close, 20)', { events: [{ key: 'fired', label: 'Fired' }] })
-    const res = registerUserDefinitions([d])
+    const res = validateUserDefinitions([d])
     expect(res.defs).toEqual([])
     expect(res.errors.join('\n')).toMatch(/"fired" returned no column/)
   })
@@ -985,7 +997,7 @@ describe('the `ast` lane REGISTERS, and the three gates it registers through', (
     // throws at compute. Registration-only lets a definition registered under one
     // budget run forever under a later, smaller one.
     const deep = `sma(${'sma('.repeat(0)}close, ${DEFAULT_BUDGET.maxLookback + 10})`
-    const res = registerUserDefinitions([astDef(deep)])
+    const res = validateUserDefinitions([astDef(deep)])
     expect(res.defs).toEqual([])
     expect(res.errors.join('\n')).toMatch(/exceeds the lookback budget/)
     expect(res.errors.join('\n')).toMatch(/budget:lookback/)
@@ -998,7 +1010,7 @@ describe('the `ast` lane REGISTERS, and the three gates it registers through', (
     d.compute.ast = bogus
     d.compute.fn = astHash(bogus)
     d.compute.source = 'nope(close)'
-    const r2 = registerUserDefinitions([d])
+    const r2 = validateUserDefinitions([d])
     expect(r2.defs).toEqual([])
     expect(r2.errors.join('\n')).toMatch(/resolve:function/)
     expect(r2.errors.join('\n'), 'a resolve refusal was reported as a budget refusal')
@@ -1011,7 +1023,7 @@ describe('the `ast` lane REGISTERS, and the three gates it registers through', (
     // are `undecidable-hand-written` and their badges are unauditable claims. An
     // ast definition's compute IS a tree this repo can read.
     const over = astDef('sma(close, 20)', { meta: { repaint: 'repaints' } })
-    const res = registerUserDefinitions([over])
+    const res = validateUserDefinitions([over])
     expect(res.defs, 'a false badge registered').toEqual([])
     expect(res.errors.join('\n')).toMatch(/the linter MEASURES "non-repainting"/)
     // ⛔ UNDER-CLAIMING IS AS FALSE AS OVER-CLAIMING — a user reads the badge and
@@ -1019,9 +1031,194 @@ describe('the `ast` lane REGISTERS, and the three gates it registers through', (
     // (That IS the case above: `sma` is clean and the declaration said it repaints.)
     const missing = astDef('sma(close, 20)')
     delete missing.meta.repaint
-    expect(registerUserDefinitions([missing]).errors.join('\n')).toMatch(/meta\.repaint — required/)
+    expect(validateUserDefinitions([missing]).errors.join('\n')).toMatch(/meta\.repaint — required/)
     // …and the honest one registers, which is what stops this being a gate that
     // refuses everything.
-    expect(registerUserDefinitions([astDef('sma(close, 20)')]).errors).toEqual([])
+    expect(validateUserDefinitions([astDef('sma(close, 20)')]).errors).toEqual([])
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE D TASK 16 — THE RUNTIME INSTALL LAYER, AND THE RAILS IT MAY NOT WEAKEN
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('🔴 the RUNTIME lane — a user definition installs, and the SHIPPED manifest does not move', () => {
+  // ⚠️ TEARDOWN UNDOES WHAT SETUP CREATED. The installed index is module-scoped,
+  // so a case that leaves one behind changes the answer every LATER case in this
+  // file gets from `listDefinitions()`, `idsByLane` and `getDefinition` — and it
+  // would do so in the direction that makes the manifest rails above pass for the
+  // wrong reason. vitest gives each FILE its own module registry, so this is the
+  // whole blast radius.
+  const USER_ID = 'u_0123456789ab'
+  const userDef = (source = 'sma(close, 20)', over = {}) => {
+    const d = astDef(source, over)
+    d.id = USER_ID
+    return d
+  }
+
+  afterEach(() => { clearUserDefinitions() })
+
+  it('installs — and it is the door `validateUserDefinitions` never was', () => {
+    // The defect, stated as a contrast. Validation alone leaves the registry
+    // unable to resolve the definition, which is precisely what shipped from
+    // Task 8 to Task 15 and what the parity case measured as 0 changed pixels
+    // with AND without its own perturbation.
+    const def = userDef()
+    const validated = validateUserDefinitions([def])
+    expect(validated.errors, JSON.stringify(validated.errors)).toEqual([])
+    expect(validated.defs).toHaveLength(1)
+    expect(getDefinition(USER_ID),
+      'validation INSTALLED — then the two doors are one door and the rename is a lie')
+      .toBeNull()
+
+    const installed = installUserDefinitions([def])
+    expect(installed.errors, JSON.stringify(installed.errors)).toEqual([])
+    expect(installed.installed.map(d => d.id)).toEqual([USER_ID])
+    expect(getDefinition(USER_ID)).toBeTruthy()
+    expect(listUserDefinitions().map(d => d.id)).toEqual([USER_ID])
+  })
+
+  it('⛔⛔ …and the THREE SHIPPED RAILS still hold WHILE it is installed', () => {
+    // 🔴 THE DECISION, ASSERTED RATHER THAN INTENDED. `listDefinitions()` is the
+    // shipped CATALOGUE and `getDefinition` is the SESSION. If the two were one
+    // function, every rail below would silently become a statement about who is
+    // signed in — and would still pass in every suite that installs nothing,
+    // which is the worst outcome available: green, and measuring something other
+    // than what it says.
+    expect(installUserDefinitions([userDef()]).installed).toHaveLength(1)
+    // The definition really is resolvable — otherwise this case asserts that
+    // nothing changed by changing nothing.
+    expect(getDefinition(USER_ID)).toBeTruthy()
+
+    expect(idsByLane(listDefinitions()),
+      'an installed user definition reached the SHIPPED manifest').toEqual(SHIPPED_DEF_IDS)
+    expect(listDefinitions()).toHaveLength(REGISTRY_SIZES.total)
+    expect(REGISTRY_SIZES.ast, 'REGISTRY_SIZES started counting user definitions').toBe(0)
+    expect(AST_DEFS, 'the frozen ast lane was mutated').toEqual([])
+    expect(SHIPPED_DEF_IDS.ast).toEqual([])
+
+    // …and `listAllDefinitions` is the one that DID move, by exactly one, with
+    // the shipped catalogue first and unreordered.
+    expect(listAllDefinitions()).toHaveLength(REGISTRY_SIZES.total + 1)
+    expect(listAllDefinitions().slice(0, REGISTRY_SIZES.total).map(d => d.id))
+      .toEqual(listDefinitions().map(d => d.id))
+    expect(listAllDefinitions()[REGISTRY_SIZES.total].id).toBe(USER_ID)
+  })
+
+  it('⛔ an INVALID definition does not install — the negative, asserted', () => {
+    // Task 10: a stored verdict goes STALE. A badge that disagrees with the
+    // linter is refused in both directions at validation, and the install must
+    // not be a way around that — "it is already saved" is not a reason to draw
+    // something the gates say is wrong.
+    const res = installUserDefinitions([userDef('sma(close, 20)', { meta: { repaint: 'repaints' } })])
+    expect(res.installed, 'an invalid definition INSTALLED').toEqual([])
+    expect(res.errors.join('\n')).toMatch(/the linter MEASURES "non-repainting"/)
+    expect(getDefinition(USER_ID)).toBeNull()
+    expect(listUserDefinitions()).toEqual([])
+
+    // ⭐ THE POSITIVE CONTROL FOR THIS CASE. A door that refused EVERYTHING would
+    // satisfy every line above, and it is the same fixture one field apart.
+    expect(installUserDefinitions([userDef()]).installed).toHaveLength(1)
+    expect(getDefinition(USER_ID)).toBeTruthy()
+  })
+
+  it('⛔ a SHIPPED id cannot be installed over — the shadow is refused BY NAME', () => {
+    // A user definition claiming `rsi` would shadow the native for every chart in
+    // the tab: the settings row, the legend chip, the alert address and the pane
+    // height all resolve through one lookup.
+    const shipped = NATIVE_DEFS[0].id
+    const impostor = userDef()
+    impostor.id = shipped
+    const res = installUserDefinitions([impostor])
+    expect(res.installed).toEqual([])
+    expect(res.errors.join('\n')).toMatch(/a SHIPPED definition already owns this id/)
+    // …and the native is untouched: the same object, on the same lane.
+    expect(getDefinition(shipped)).toBe(NATIVE_DEFS[0])
+    expect(idsByLane(listDefinitions())).toEqual(SHIPPED_DEF_IDS)
+  })
+
+  it('the GENERATION changes iff the installed SET changed', () => {
+    // ⚠️ WHY THIS IS A CONTRACT AND NOT AN OPTIMISATION. `paneLayout` memoises
+    // "the ids that reserve a pane" against this number, and `StockChart` carries
+    // it in `updateChart`'s dependency list. A counter that never moved would
+    // reproduce the ordering bug in both places at once; a counter that moved on
+    // every call would rebuild the pane-target set and repaint the whole chart on
+    // every SWR revalidation, i.e. every time the tab regained focus.
+    const g0 = registryGeneration()
+    const def = userDef()
+
+    installUserDefinitions([def])
+    const g1 = registryGeneration()
+    expect(g1, 'installing a new definition did not move the generation').not.toBe(g0)
+
+    // The SAME claim again — same id, same version, same compute handle.
+    installUserDefinitions([def])
+    expect(registryGeneration(), 'a re-install of an unchanged definition moved the generation')
+      .toBe(g1)
+
+    // A MATHS change under the same id is a different claim and must move it.
+    const edited = userDef('sma(close, 30)')
+    expect(edited.compute.fn).not.toBe(def.compute.fn)
+    installUserDefinitions([edited])
+    const g2 = registryGeneration()
+    expect(g2, 'an edited formula did not move the generation').not.toBe(g1)
+    expect(getDefinition(USER_ID).compute.source).toBe('sma(close, 30)')
+
+    // And clearing moves it once, then not again.
+    clearUserDefinitions()
+    const g3 = registryGeneration()
+    expect(g3).not.toBe(g2)
+    clearUserDefinitions()
+    expect(registryGeneration(), 'clearing an empty index moved the generation').toBe(g3)
+  })
+
+  it('an installed definition RESOLVES everywhere ONE id is resolved', () => {
+    // The point of widening `getDefinition` rather than adding a second lookup:
+    // the instance validator, the ownership facade and the pane geometry all go
+    // through it, so none of them has to learn anything new.
+    const inst = {
+      instanceId: `inst:${USER_ID}:0`,
+      defId: USER_ID,
+      defVersion: 1,
+      inputs: { color: 'token:info' },
+      placement: { target: 'pane' },
+      hidden: false,
+    }
+    installUserDefinitions([userDef()])
+
+    // ⛔ THE EXACT DROP THE DEFECT PRODUCED, shown in both directions on one
+    // fixture — the second half is the pre-Task-16 behaviour, reproduced.
+    expect(normalizeInstances([inst], REGISTRY_MODULE).kept).toHaveLength(1)
+    expect(ENGINE_OWNED.has(USER_ID)).toBe(true)
+    const bands = computePaneLayout([inst], { hasVolumeBand: false }).bands
+    expect(Object.keys(bands)).toContain(USER_ID)
+
+    clearUserDefinitions()
+    expect(normalizeInstances([inst], REGISTRY_MODULE).kept).toEqual([])
+    expect(ENGINE_OWNED.has(USER_ID)).toBe(false)
+    expect(Object.keys(computePaneLayout([inst], { hasVolumeBand: false }).bands))
+      .not.toContain(USER_ID)
+  })
+
+  it('⛔ THE PANE MEMO IS NOT FROZEN AT FIRST CALL — the layout half of the ordering bug', () => {
+    // 🔴 THE MUTATION THIS CASE EXISTS FOR: memoise `paneTargetIds` on `null`
+    // again. `computePaneLayout` is called FIRST here, with nothing installed, so
+    // the memo fills with the shipped sixteen — exactly the state every real
+    // chart is in when a user's definitions arrive from SWR after the first
+    // paint. Under the old memo the band below never appears, whatever the
+    // registry says.
+    const inst = {
+      instanceId: `inst:${USER_ID}:0`, defId: USER_ID, defVersion: 1,
+      inputs: { color: 'token:info' }, placement: { target: 'pane' }, hidden: false,
+    }
+    expect(Object.keys(computePaneLayout([inst], { hasVolumeBand: false }).bands))
+      .not.toContain(USER_ID)
+
+    installUserDefinitions([userDef()])
+
+    expect(Object.keys(computePaneLayout([inst], { hasVolumeBand: false }).bands),
+      'the pane-target set was frozen at first call — a definition installed after the '
+      + 'first paint reserves no band, and its series is created into a pane the layout '
+      + 'never asked for').toContain(USER_ID)
   })
 })

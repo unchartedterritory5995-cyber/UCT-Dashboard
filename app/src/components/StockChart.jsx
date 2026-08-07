@@ -94,6 +94,7 @@ import ContextPopover from './mobile/ContextPopover'
 import IndicatorSettingsDialog from './chart/IndicatorSettingsDialog'
 import { usePatternDetections } from '../hooks/usePatternDetections'
 import { useSignatureIndicators } from '../hooks/useSignatureIndicators'
+import { useInstalledUserDefinitions } from '../hooks/useUserDefinitions'
 import { useIsPaid } from '../context/AuthContext'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStore'
@@ -1683,6 +1684,41 @@ export default function StockChart({
   const isPaidUser = useIsPaid()
   const { dpLines, dpZones, gexLines, flowMarkers } =
     useSignatureIndicators(sym, exactDateRange ? undefined : cs.signature, isPaidUser, resolvedTf)
+
+  // ── 🔴 PHASE D TASK 16 — USER DEFINITIONS, INSTALLED BEFORE THE BINDER READS ──
+  //
+  // The hook fetches this user's saved formulas and installs the ones that still
+  // VALIDATE into `engineRegistry`, DURING RENDER. Until Task 16 nothing did:
+  // `registerUserDefinitions` (now `validateUserDefinitions`) returned a checked
+  // definition and installed it nowhere, so `getDefinition('u_…')` answered null,
+  // `normalizeInstances(…, engineRegistry).kept` DROPPED the instance below, and
+  // a saved formula drew nothing on any surface. Measured by the parity case
+  // `ast_user_formula_sma20`, which read 0 changed pixels with AND without its
+  // own perturbation.
+  //
+  // ⚠️ `userDefsGeneration` IS IN `updateChart`'s DEPENDENCY LIST, AND IT IS
+  // REDUNDANT TODAY — MEASURED, NOT ASSUMED. The rows arrive from SWR after the
+  // first paint, so the repaint that already dropped the instance has to run
+  // again; the number changes iff the installed set changed, which is the
+  // React-idiomatic way to depend on module state a hook mutates. Task 16's
+  // gauntlet then REMOVED it (mutation M3) and every test stayed green: some
+  // other entry in that 38-item list is already unstable across renders, so
+  // `updateChart` is recreated on every render of this component anyway and the
+  // repaint happens without this dep. It is reported as **SURVIVED**, not
+  // dressed up as a kill.
+  //
+  // ⛔ IT STAYS ANYWAY, and the reason is the direction of the risk. It is the
+  // ONLY entry in that list that names this dependency, and the redundancy is an
+  // accident of a perf property nobody declared — the day somebody stabilises
+  // whatever is unstable there (this repo runs perf passes), a chart that reads
+  // module state with no dependency on its version stops drawing user formulas
+  // with nothing to say so. What actually PROTECTS the feature is
+  // `userDefinitionDraws.test.jsx`'s ordering case, which fails on the composite;
+  // this is the declaration beside it. `errors` is not surfaced here: an invalid
+  // stored definition is the BUILDER's sentence to say (this chart's honest
+  // behaviour is to draw nothing for it), and a toast on a render path would fire
+  // on every chart.
+  const { generation: userDefsGeneration } = useInstalledUserDefinitions()
 
   const mergedMarkers = useMemo(
     () => {
@@ -7783,7 +7819,15 @@ export default function StockChart({
     prevBarsRef.current = filteredBars
     // Baseline for the next render plan — the bars this paint actually put on screen.
     prevPaintBarsRef.current = displayBars
-  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady])
+    // ⚠️ `userDefsGeneration` IS A DEPENDENCY ON MODULE STATE, AND IT IS
+    // REDUNDANT TODAY. This body resolves every instance through
+    // `engineRegistry.getDefinition`, and a user's saved definition is installed
+    // asynchronously (SWR) after the first paint — so the version of that state
+    // belongs here. Task 16's gauntlet measured that removing it changes nothing
+    // (mutation M3 SURVIVED): something else in this list is already unstable per
+    // render. Kept as the one declaration that names this dependency; the full
+    // reasoning is at the `useInstalledUserDefinitions` call site above.
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {

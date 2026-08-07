@@ -373,7 +373,7 @@ function doc(tier) {
 
 const cases = {}
 for (const [name, tier] of [['premium', 'premium'], ['free', 'free'], ['omitted', null]]) {
-  const res = registry.registerUserDefinitions([doc(tier)])
+  const res = registry.validateUserDefinitions([doc(tier)])
   cases[name] = {
     ids: res.defs.map(d => d.id),
     tiers: res.defs.map(d => d.meta.tier),

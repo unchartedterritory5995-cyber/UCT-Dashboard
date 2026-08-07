@@ -27,19 +27,28 @@
 // re-measured against a key called `userDefinitions`. A feature that silently
 // forgets is worse than one that refuses.
 //
-// ⚠️ AND IT DOES NOT ADD AN INSTANCE TO THE CHART, WHICH IS A DELIBERATE
-// REFUSAL, MEASURED. `StockChart` hands the binder `registry: engineRegistry`
-// and calls `normalizeInstances(source, engineRegistry).kept` (StockChart.jsx
-// ~:6443) — a module-level index built at import from
+// ✅ IT ADDS AN INSTANCE TO THE CHART ON SAVE — PHASE D TASK 16 — AND UNTIL
+// TASK 16 IT DELIBERATELY DID NOT.
+//
+// What stood here, in Task 11's own words: *"AND IT DOES NOT ADD AN INSTANCE TO
+// THE CHART, WHICH IS A DELIBERATE REFUSAL, MEASURED. `StockChart` hands the
+// binder `registry: engineRegistry` and calls `normalizeInstances(source,
+// engineRegistry).kept` — a module-level index built at import from
 // `[...NATIVE_DEFS, ...SERVER_DEFS, ...AST_DEFS]`, where `AST_DEFS` is
 // deliberately `[]`. Nothing in the product installs a USER definition into it,
 // so an instance written here would validate against a definition the renderer
 // cannot resolve and be DROPPED on the next paint. Writing it anyway is exactly
-// the "live control that writes nowhere" defect this phase retires. The
-// definition is saved and listed — every claim this surface makes is one it
-// keeps — and installing user definitions into the registry the binder reads is
-// a change to `StockChart.jsx` / `nativeRegistry.js`, which this task does not
-// own.
+// the 'live control that writes nowhere' defect this phase retires."*
+//
+// Every sentence of that was TRUE and is now FALSE, and it is kept rather than
+// deleted because it is the reason the wiring below is in this order.
+// `nativeRegistry.installUserDefinitions` is the door that did not exist; the
+// instance is written only AFTER the saved document installs through it, and
+// only after the STORE has minted the real id — so the instance names a
+// definition the renderer can already resolve, on this chart, on this paint. If
+// the install refuses (a stored verdict gone stale, a shipped id), the save
+// still stands, the instance is NOT written, and the refusal is shown: a formula
+// that cannot draw is reported as one, never quietly added to the chart.
 
 import { Component, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Sheet from '../../mobile/Sheet'
@@ -47,7 +56,9 @@ import UIcon from '../../ui/UIcon'
 import { PORTAL_POPUP_ATTR } from '../ColorPicker'
 import { SCHEMA_VERSION } from '../engine/defSchema'
 import { astHash } from '../engine/ast/parse'
-import { registerUserDefinitions } from '../engine/nativeRegistry'
+import * as engineRegistry from '../engine/nativeRegistry'
+import { validateUserDefinitions, installUserDefinitions } from '../engine/nativeRegistry'
+import { addInstance } from '../engine/instanceControls'
 import {
   useUserDefinitions, saveUserDefinition, deleteUserDefinition,
 } from '../../../hooks/useUserDefinitions'
@@ -70,7 +81,7 @@ const REPAINT_LABEL = {
 /** A client-side id, replaced by the server on a create.
  *
  *  ⛔ THE SERVER MINTS THE REAL ONE. This exists only so the document can be run
- *  through `registerUserDefinitions` — the shipped registration door — BEFORE it
+ *  through `validateUserDefinitions` — the shipped validation door — BEFORE it
  *  is sent, and `defSchema`'s `ID_RE` needs something to look at. Sending a
  *  guessed id as authoritative would let one member write into another's
  *  namespace, which is why `POST` overwrites whatever arrives. */
@@ -156,7 +167,9 @@ export class BuilderBoundary extends Component {
   }
 }
 
-export default function BuilderSheet({ open, onClose, onSaved = null }) {
+export default function BuilderSheet({
+  open, onClose, onSaved = null, settings = null, onChange = null,
+}) {
   const [source, setSource] = useState('')
   const [name, setName] = useState('')
   const [result, setResult] = useState(() => evaluateFormula(''))
@@ -263,13 +276,19 @@ export default function BuilderSheet({ open, onClose, onSaved = null }) {
       mode: result.verdict.mode,
       readback: result.readback,
     })
-    // ⭐ THE SHIPPED REGISTRATION DOOR, NOT A SECOND ONE. `registerUserDefinitions`
+    // ⭐ THE SHIPPED VALIDATION DOOR, NOT A SECOND ONE. `validateUserDefinitions`
     // is `defSchema` + the `supportedKinds` filter + the ast lane's three gates
     // (one formula is one series · the budget, naming the guard that fired · the
     // repaint badge, refused in both directions). A form that validated its own
     // document would be a second authority on what a definition is, and the two
     // rot apart the first time a gate moves.
-    const { defs, errors } = registerUserDefinitions([doc])
+    //
+    // ⚠️ VALIDATE FIRST, INSTALL LATER. Installing the DRAFT would put a
+    // definition under `draftDefId()` into the registry — an id the store is
+    // about to replace — so the tab would carry a resolvable definition that
+    // nothing stored and nothing else can ever name. The refusal has to happen
+    // before the network write either way, which is what this call is for.
+    const { defs, errors } = validateUserDefinitions([doc])
     if (errors.length || defs.length !== 1) {
       setStoreError(errors.join('\n') || 'The registry refused this definition.')
       setSaving(false)
@@ -278,9 +297,48 @@ export default function BuilderSheet({ open, onClose, onSaved = null }) {
     const res = await saveUserDefinition(doc)
     setSaving(false)
     if (!res.ok) { setStoreError(res.error); return }
-    setSavedRow(res.row || { def_id: doc.id, version: 1, rev: 1 })
+    const row = res.row || { def_id: doc.id, version: 1, rev: 1 }
+    setSavedRow(row)
+
+    // ── the definition the STORE holds, not the draft ────────────────────────
+    //
+    // ⛔ THE SERVER MINTS THE ID (`user_definitions.create_definition` overwrites
+    // `definition["id"]`), so the document that must be installed and the id the
+    // instance must name are the STORE's, never `draftDefId()`'s. An instance
+    // pointing at the draft id would be dropped by `normalizeInstances` on the
+    // very next paint — the defect this task exists to close, re-created one
+    // field over. ⚠️ `compute.rev` is reconciled from the row for the same
+    // reason: the store computes the authoritative rev and Task 11 recorded that
+    // the blob's copy was left to lag it.
+    const storedDoc = {
+      ...doc,
+      id: row.def_id || doc.id,
+      compute: {
+        ...doc.compute,
+        ...(Number.isInteger(row.rev) ? { rev: row.rev } : {}),
+      },
+    }
+    const { installed, errors: installErrors } = installUserDefinitions([storedDoc])
+    if (installErrors.length || installed.length !== 1) {
+      // Saved, but not drawable. Saying so is the whole point: the alternative
+      // is a checkbox-shaped silence where a formula exists in the list and
+      // never appears on a chart, which is the state this phase retires.
+      setStoreError(
+        installErrors.join('\n')
+        || 'Saved, but this formula could not be added to the chart.',
+      )
+    } else if (settings && onChange) {
+      // ⛔ THROUGH `addInstance`, THE ONE CONTROL DOOR — not a hand-built
+      // instance object. It reads the DEFINITION for the input defaults and the
+      // placement, mints the id `newInstanceId` would, sorts the list into the
+      // shipped stack order and sets the legacy mirror, exactly as the indicator
+      // library's checkbox does. A second way to add an instance is a second
+      // shape of instance, and `normalizeInstances` is the thing that would tell
+      // us — on the user's chart, by making it disappear.
+      onChange(addInstance(settings, installed[0].id, engineRegistry))
+    }
     onSaved?.(res.row)
-  }, [result, acknowledged, name, onSaved])
+  }, [result, acknowledged, name, onSaved, settings, onChange])
 
   const remove = useCallback(async (defId) => { await deleteUserDefinition(defId) }, [])
 

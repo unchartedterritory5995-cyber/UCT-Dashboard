@@ -28,7 +28,8 @@
 //      settings AND (in fixed-bars mode) the bar fixture have landed, or a
 //      screenshot can be taken mid-theme and the gate goes intermittently red.
 //   2. `#chart-export` — the harness screenshots that ELEMENT, not the page.
-//   3. `?fixedbars=` + `?indicators=` + `?instances=` — see the param block below.
+//   3. `?fixedbars=` + `?indicators=` + `?instances=` + `?userdefs=` — see the
+//      param block below.
 //      Live bars make two runs differ, which is the whole reason the repo had no
 //      diffing before. `?instances=` is what lets ONE build render the same
 //      indicator two ways (legacy vs engine) so the parity diff measures the
@@ -48,6 +49,7 @@ import StockChart from '../components/StockChart'
 import { mergeSettingsOverride } from '../components/chart/chartDefaults'
 import { currentPaneManifest } from '../components/chart/engine/paneLayout'
 import { paneHeightAlerts } from '../components/chart/engine/binder'
+import { installUserDefinitions } from '../components/chart/engine/nativeRegistry'
 import uctLogo from '../components/intro/assets/compass-mark.png'
 
 const TOKEN = import.meta.env.VITE_CHART_RENDER_TOKEN || ''
@@ -79,6 +81,29 @@ function decodeSettingsParam(raw) {
 
 /** `?instances=` — an ARRAY of engine indicator instances. */
 function decodeInstancesParam(raw) {
+  const parsed = decodeB64UrlJson(raw)
+  return (Array.isArray(parsed) && parsed.length) ? parsed : null
+}
+
+/** `?userdefs=` — an ARRAY of USER DEFINITION documents (Phase D Task 16).
+ *
+ *  ⭐ WHY THE PARITY ROUTE NEEDS ITS OWN DOOR AT ALL. In the product a chart
+ *  gets user definitions from `useInstalledUserDefinitions`, which fetches
+ *  `/api/user-definitions` — and under `?fixedbars=` this page short-circuits
+ *  EVERY `/api/` call to a 503 on purpose, so the gate can run against a bare
+ *  `vite dev` with no backend and so a live server cannot move a stored
+ *  baseline. A hermetic capture therefore cannot fetch a definition, which is
+ *  exactly why Task 11's case could not be made to draw and reported 0 changed
+ *  pixels with AND without its own perturbation.
+ *
+ *  ⛔ IT IS NOT A SECOND VALIDATOR AND NOT A BACK DOOR INTO THE REGISTRY. The
+ *  documents go through `installUserDefinitions`, the same door the product
+ *  caller uses, which runs every gate (`defSchema`, the `supportedKinds`
+ *  filter, one-data-plot, the budget, the repaint badge in both directions) and
+ *  refuses a shipped id. A malformed or invalid definition installs NOTHING
+ *  here, exactly as it installs nothing for a user — which is what makes the
+ *  negative parity control mean something. */
+function decodeUserDefsParam(raw) {
   const parsed = decodeB64UrlJson(raw)
   return (Array.isArray(parsed) && parsed.length) ? parsed : null
 }
@@ -172,6 +197,18 @@ export default function ChartRender() {
   //            flag since Flip B, and all four are flipped.
   const indicatorsParam = useMemo(() => decodeSettingsParam(sp.get('indicators')), [sp])
   const instancesParam = useMemo(() => decodeInstancesParam(sp.get('instances')), [sp])
+  //   ?userdefs=<base64url JSON array>  USER DEFINITION DOCUMENTS, installed into
+  //            the registry before `StockChart` below renders. ⛔ A `useMemo`, NOT
+  //            a `useEffect`: this parent must have installed them before the
+  //            child's first repaint resolves its instances, and an effect runs
+  //            after that render — the "works on the second paint only" defect.
+  //            React renders parents before children, so a memo here is ordered
+  //            ahead of every lookup the chart makes.
+  const userDefsParam = useMemo(() => decodeUserDefsParam(sp.get('userdefs')), [sp])
+  const userDefsInstall = useMemo(
+    () => (userDefsParam ? installUserDefinitions(userDefsParam) : { installed: [], errors: [] }),
+    [userDefsParam],
+  )
   // Sanitised: this value indexes a dynamic import, so it may only ever name a
   // file, never traverse to one.
   const fixedBars = (sp.get('fixedbars') || '').replace(/[^A-Za-z0-9_-]/g, '')
@@ -493,6 +530,33 @@ export default function ChartRender() {
       try { delete window.__paneHeightAlerts } catch { /* non-configurable */ }
     }
   }, [fixedBars])
+
+  // ── `window.__userDefinitions` — did `?userdefs=` actually install? ─────────
+  //
+  // ⛔ A NON-VACUITY READ, NOT A CONVENIENCE. A capture that installed NOTHING
+  // and a capture that installed a definition the chart then failed to draw
+  // produce the same picture — two panes and no series — and the whole reason
+  // Task 11 refused to report its zero is that a zero with no discriminator is
+  // not a measurement. The harness records `{installed, errors}` beside the pane
+  // manifest, so "the definition was refused" and "the definition installed and
+  // the renderer ignored it" can never again be read off the same image.
+  //
+  // Published only in fixed-bars mode, for the same reason the manifest is: an
+  // always-on global on the export path is a thing the gate has to be told to
+  // ignore, and a thing nobody remembers to tell it.
+  useEffect(() => {
+    if (!fixedBars) return undefined
+    Object.defineProperty(window, '__userDefinitions', {
+      configurable: true,
+      get: () => ({
+        installed: userDefsInstall.installed.map((d) => d && d.id),
+        errors: userDefsInstall.errors,
+      }),
+    })
+    return () => {
+      try { delete window.__userDefinitions } catch { /* non-configurable */ }
+    }
+  }, [fixedBars, userDefsInstall])
 
   if (TOKEN && token !== TOKEN) return <div style={{ color: '#e74c3c', padding: 20 }}>unauthorized</div>
   if (!sym) return <div style={{ color: '#888', padding: 20 }}>no symbol</div>
