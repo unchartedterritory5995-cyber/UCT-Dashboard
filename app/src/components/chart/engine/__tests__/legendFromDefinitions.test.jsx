@@ -722,6 +722,295 @@ describe('B4 Task 10 — the legend renders from the definitions, on both lanes'
   })
 })
 
+
+// ─── TASK 2 — EVERY DEFINITION THAT DRAWS A LINE CAN NAME ITSELF ────────────
+//
+// 🔴 MEASURED 2026-08-06: NINE of the seventeen definitions declared NO `legend`
+// block at all — a user who added MFI, CCI, Williams %R, ADX, OBV, Donchian, BB,
+// VWAP or AVWAP got a line on the chart with no label AT ANY TIME, hovering or
+// not, because `readout.chipsFrom:167` emits nothing for a plot with no `legend`.
+// That is strictly worse than "the legend is hover-gated": for those nine there
+// was nothing to gate.
+//
+// ⛔ AND NO TEST IN THE REPO COULD SEE IT. This file's fixture (`ALL_NINE_ON`)
+// enables only the SIX definitions that already had chips, so the nine silent
+// ones were never drawn in a case that reads the legend; the pixel gate is blind
+// twice over (a headless capture has no cursor AND `ChartRender.jsx:527` injects
+// `#chart-export [class*="legend" i]{display:none !important}` into the only
+// route `tools/chart_parity.py` photographs, so a TOTAL regression of this task
+// reports 0 changed pixels on all 46 live cases). The rail below is the gate.
+//
+// ⭐ IT IS DERIVED FROM THE REGISTRY, NOT HAND-LISTED, and that is the whole
+// difference between this rail and a fixture. A set written down by hand cannot
+// fail for a definition it has never heard of, so the FIRST thing the next author
+// does — add a sixteenth indicator — is the thing it would not catch. The rule is
+// extracted as `silentDefinitions(defs)` and applied to TWO lists: the real
+// registry, and a synthetic list carrying a PLANTED chip-less definition that
+// `registerDefinitions` accepts without complaint. The planted case is what
+// proves the rail discriminates rather than merely agreeing with today's tree.
+
+/**
+ * `pool.js:608-610`'s predicate, INLINED VERBATIM — never re-derived.
+ *
+ * ⛔ A HELPER THAT REIMPLEMENTS THE LOGIC INSTEAD OF CALLING IT is the
+ * mutation-harness failure this repo has already recorded, so the inline is
+ * pinned to the shipped source by the case below rather than trusted: `pool.js`
+ * does not export this function, and copying a predicate without a rail on the
+ * copy is how the two quietly stop meaning the same thing.
+ */
+const dataPlotsOf = (def) => (def.plots || []).filter(
+  p => p && p.style !== 'hlines' && typeof p.key === 'string')
+
+/** The predicate as it must still read INSIDE `pool.js`. */
+const DATA_PLOTS_PREDICATE_SRC =
+  "(def.plots || []).filter(p => p && p.style !== 'hlines' && typeof p.key === 'string')"
+
+const POOL_PATH = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)), '../pool.js')
+
+/** The plots that put a VISIBLE chip in the readout — `readout.chipsFrom:167`'s
+ *  own test (`!plot.legend || plot.legend.hide === true` ⇒ no chip), expressed
+ *  over plot OBJECTS and restricted to the data-bearing ones, because a `legend`
+ *  on an `hlines` guide names no series and can never reach the readout. */
+const chipPlotsOf = (def) => dataPlotsOf(def).filter(
+  p => p.legend && p.legend.hide !== true)
+
+/**
+ * THE RULE, AS A FUNCTION OF A DEFINITION LIST.
+ *
+ * ⭐ THIS IS WHAT MAKES THE RAIL DERIVED. It takes the list rather than reading
+ * the registry itself, so the identical rule can be pointed at a synthetic list
+ * — see the planted-definition case — and a future definition that lands without
+ * a chip fails BY CONSTRUCTION rather than by somebody remembering to add a row.
+ *
+ * @returns {string[]} the ids that bind a data plot and declare no visible chip.
+ */
+const silentDefinitions = (defs) => defs
+  .filter(d => dataPlotsOf(d).length > 0 && chipPlotsOf(d).length === 0)
+  .map(d => d.id)
+
+/**
+ * A definition that would REGISTER CLEANLY TODAY and draw a line nobody can name.
+ *
+ * ⚠️ It is deliberately built the way `nativeRegistry`'s own definitions are —
+ * through `registerDefinitions`, so the case can assert that the SCHEMA raises
+ * nothing. "The schema does not catch it" is half the reason this rail exists.
+ */
+const plantSilentDefinition = (id = 'plantedSilentDef') => ({
+  schemaVersion: registry.NATIVE_DEFS[0].schemaVersion,
+  id,
+  version: 1,
+  compute: { kind: 'native', fn: 'rsi', rev: 1 },
+  meta: {
+    name: 'A Planted Silent Indicator', shortName: 'PLANT', category: 'Momentum',
+    description: 'A definition that binds a data plot and declares no chip.',
+    tags: ['oscillator'], tier: 'free', repaint: 'non-repainting',
+  },
+  placement: { target: 'pane', pane: { height: 0.15 } },
+  inputs: [{ key: 'period', type: 'int', label: 'Period', default: 14, min: 2, max: 100, step: 1 }],
+  plots: [{ key: 'rsi', label: 'Planted', style: 'line', color: '#ffffff', width: 1, role: 'primary' }],
+})
+
+describe('⭐ TASK 2 — every definition that draws a line can name itself', () => {
+  it('the subject is not empty, and the rule reads the SHIPPED predicate — the controls', () => {
+    // ⛔ EVERY ZERO NEEDS A POSITIVE CONTROL. `toEqual([])` below is vacuously
+    // true over an empty registry, and `dataPlotsOf` returning nothing for
+    // everything would make it vacuously true over a full one.
+    const defs = registry.listDefinitions()
+    expect(defs.length, 'no definitions — this case proves nothing').toBeGreaterThan(10)
+    expect(defs.filter(d => dataPlotsOf(d).length > 0).length,
+      'no definition binds a data plot — the predicate is reading nothing')
+      .toBeGreaterThan(10)
+
+    // …and the inlined predicate is still the one `pool.js` uses. A copy with no
+    // rail on the copy is how two spellings of one rule diverge.
+    const poolSrc = readFileSync(POOL_PATH, 'utf-8')
+    expect(poolSrc.length, 'the pool.js probe read nothing').toBeGreaterThan(10_000)
+    expect(poolSrc, 'pool.js no longer contains dataPlots — the inline above is orphaned')
+      .toContain('function dataPlots(def)')
+    expect(poolSrc,
+      'pool.js::dataPlots and the predicate inlined in this file have diverged — one of '
+      + 'them is now a SECOND implementation of "which plots bear data"')
+      .toContain(DATA_PLOTS_PREDICATE_SRC)
+  })
+
+  it('a definition that binds a data plot declares at least ONE chip', () => {
+    const silent = silentDefinitions(registry.listDefinitions())
+    expect(silent,
+      'these definitions draw a line the user can never put a name to — on any surface, '
+      + 'hovering or not, because readout.chipsFrom emits nothing for a plot with no '
+      + '`legend` block. Declare `plots[].legend` on the primary plot.')
+      .toEqual([])
+  })
+
+  it('⛔ …and the rail is DERIVED: a PLANTED chip-less definition fails it by construction', () => {
+    // ⭐ THE PROOF THAT THIS IS NOT A FIXTURE. A hand-listed set of "the nine"
+    // could not possibly flag an id it has never heard of, so the rule is pointed
+    // at a list the registry does not contain and must still name it.
+    const raw = plantSilentDefinition()
+    const { defs: planted, errors } = registry.registerDefinitions([raw])
+    // …and the SCHEMA is blind to it, which is why the rail has to exist at all.
+    expect(errors, 'the schema rejected the plant — then this case is measuring the schema, '
+      + 'not the rail').toEqual([])
+    expect(planted, 'the plant did not register').toHaveLength(1)
+
+    expect(silentDefinitions([...registry.listDefinitions(), ...planted]),
+      'a definition that binds a data plot and declares no chip did NOT fail the rail — '
+      + 'the rail is agreeing with today\'s registry rather than checking it')
+      .toEqual(['plantedSilentDef'])
+
+    // …and the control: the same definition WITH a chip passes. Without this the
+    // case above would also pass for a rail that flags everything.
+    const named = registry.registerDefinitions([{
+      ...raw,
+      id: 'plantedNamedDef',
+      plots: [{ ...raw.plots[0], legend: { decimals: 1 } }],
+    }])
+    expect(named.errors).toEqual([])
+    expect(silentDefinitions([...registry.listDefinitions(), ...named.defs]),
+      'a definition that DOES declare a chip was flagged — the rail flags everything')
+      .toEqual([])
+  })
+
+  it('every declared chip has a PRIMARY plot behind it, so the chip names the main series', () => {
+    let checked = 0
+    for (const def of registry.listDefinitions()) {
+      const chips = chipPlotsOf(def)
+      if (!chips.length) continue
+      checked++
+      expect(chips.some(p => p.role === 'primary'), `${def.id}: every chip is on a secondary plot`)
+        .toBe(true)
+    }
+    expect(checked, 'no definition declares a chip — the loop above asserted nothing')
+      .toBeGreaterThan(5)
+  })
+
+  /**
+   * WHAT EACH NEWLY-NAMED DEFINITION WAS DECIDED TO PRINT.
+   *
+   * ⚠️ A TABLE, NOT A COUNT. A count rots green the moment the registry grows,
+   * and `expected 17, got 18` tells the next reader nothing. Every row is a
+   * DECISION — the stem, the precision, and whether the chip carries parameters —
+   * and each is the thing a reader would otherwise have to re-derive.
+   *
+   * ⛔ AND IT IS AN EQUALITY OVER THE WHOLE CHIP SET, not a per-row lookup. A loop
+   * over the rows catches a chip that DISAPPEARS and is blind to one that APPEARS:
+   * `adx::plusDI` gaining a `legend` in passing would put a third number in ADX's
+   * readout and no row-wise check could see it. `chipPlotsOf` returns every
+   * visible chip a definition declares, so the arrays below are length-1 by
+   * assertion rather than by convention.
+   *
+   * ⚠️ `params` IS `meta.legendParams`, AND ITS `undefined`s ARE LOAD-BEARING.
+   * `readout.chipLabel:107` returns `legend.label` BEFORE it ever looks at
+   * `legendParams`, so a row carrying both would be declaring a control that does
+   * nothing — the `stoch` trap. `donchian` is the only row with a label, and it is
+   * the only row that must have no params.
+   */
+  const DECIDED = {
+    // id            plotKey      stem          decimals  meta.legendParams
+    bb:        [['middle',     'BB',          2, ['period', 'stdDev']]],
+    vwap:      [['vwap',       'VWAP',        2, undefined]],
+    mfi:       [['mfi',        'MFI',         1, ['period']]],
+    cci:       [['cci',        'CCI',         1, ['period']]],
+    williamsR: [['williams_r', '%R',          1, ['period']]],
+    adx:       [['adx',        'ADX',         1, ['period']]],
+    obv:       [['obv',        'OBV',         0, undefined]],
+    donchian:  [['middle',     'DC',          2, undefined]],
+    avwap:     [['avwap',      'AVWAP',       2, ['anchor']]],
+    atrBands:  [['middle',     'ATR Bands',   2, ['period', 'multiplier']]],
+  }
+
+  it('⭐ the TEN newly-named definitions declare what was DECIDED, not a default', () => {
+    const shape = (defId) => {
+      const def = registry.getDefinition(defId)
+      expect(def, `${defId} is no longer in the registry`).toBeTruthy()
+      return chipPlotsOf(def).map(p => [
+        p.key,
+        // `chipLabel`'s own resolution: an explicit label, else the shortName.
+        p.legend.label ?? (def.meta.shortName || def.id),
+        p.legend.decimals,
+        def.meta.legendParams,
+      ])
+    }
+    const actual = Object.fromEntries(Object.keys(DECIDED).map(id => [id, shape(id)]))
+    expect(actual,
+      'a newly-named definition prints something other than what was decided — a missing '
+      + 'chip, a spurious second one, a precision that drifted, or a `legend.label` and '
+      + '`meta.legendParams` declared together (the label wins and the params are inert)')
+      .toEqual(DECIDED)
+    // …and every precision really is DECLARED, never `readout.DEFAULT_DECIMALS`
+    // arriving at the same number by accident.
+    for (const [id, rows] of Object.entries(actual)) {
+      for (const [plotKey, , decimals] of rows) {
+        expect(Number.isInteger(decimals), `${id}::${plotKey}: decimals not declared`).toBe(true)
+      }
+    }
+  })
+
+  it('⭐ …and each one PRINTS it, through the one formatting pipeline', async () => {
+    // ⛔ THE DECLARATION IS NOT THE CHIP. `readout.chipsFrom` is the single
+    // pipeline spec §6 names — it drives the Style-tab precision, the chip value
+    // and the crosshair readout alike — so the decided text is asserted through
+    // IT rather than re-assembled here from the same fields the case above reads.
+    // A second rounding path invented in this file would agree with itself.
+    const { chipsFrom } = await import('../readout')
+    const V = 12.3456789
+    const WANT = {
+      bb: 'BB(20, 2) 12.35',
+      vwap: 'VWAP 12.35',
+      mfi: 'MFI(14) 12.3',
+      cci: 'CCI(20) 12.3',
+      williamsR: '%R(14) 12.3',
+      adx: 'ADX(14) 12.3',
+      obv: 'OBV 12',
+      donchian: 'DC 12.35',
+      avwap: 'AVWAP(session) 12.35',
+      atrBands: 'ATR Bands(14, 2) 12.35',
+    }
+    const got = {}
+    for (const [defId, [[plotKey]]] of Object.entries(DECIDED)) {
+      const series = { __id: `${defId}::${plotKey}` }
+      const chips = chipsFrom(
+        [{ defId, plotKey, series }], new Map([[series, { value: V }]]), registry, () => ({}))
+      got[defId] = chips.length === 1 ? chips[0].text : `<${chips.length} chips>`
+    }
+    expect(got, 'a newly-named definition does not print what was decided')
+      .toEqual(WANT)
+    H.reset()
+  })
+
+  it('⛔ the COMPLETE chip set is an equality — a chip cannot appear or vanish unseen', () => {
+    // ⭐ THE RAIL THE NINE-CHIP RECORDS USED TO BE, WIDENED RATHER THAN LOOSENED.
+    // `readout.test.js` and `enumerationSites.test.js` froze the chip set at *the
+    // nine the 2026 legend rendered* (ten with `rsLine`), which is what kept these
+    // ten definitions silent. The protection those records gave — a user's chip
+    // cannot disappear — is kept HERE as a full equality over both lanes; what is
+    // given up is only the claim that no chip may ever be ADDED, which was never
+    // the thing being protected and was costing ten indicators their names.
+    const declared = registry.listDefinitions()
+      .flatMap(d => chipPlotsOf(d).map(p => `${d.id}::${p.key}`)).sort()
+    expect(declared,
+      'the chip set moved. A DROP is a user\'s chip disappearing silently (no pixel gate '
+      + 'can see it — a headless capture has no cursor, and ChartRender hides the legend '
+      + 'outright); an ADDITION is a number in the readout nobody decided on.')
+      .toEqual([
+        // the ten Task 2 declared…
+        'adx::adx', 'atrBands::middle', 'avwap::avwap', 'bb::middle', 'cci::cci',
+        'donchian::middle', 'mfi::mfi', 'obv::obv', 'vwap::vwap', 'williamsR::williams_r',
+        // …and the ten that already shipped, untouched by it.
+        'atr::atr', 'ichimoku::kijun', 'ichimoku::tenkan', 'macd::macd', 'macd::signal',
+        'rsLine::rsLine', 'rsi::rsi', 'sar::sar', 'stoch::d', 'stoch::k',
+      ].sort())
+    // …and the control: the shipped nine are still in it, character for character,
+    // read off the SHIPPED ARTIFACT rather than re-typed above.
+    for (const key of Object.keys(SHIPPED)) {
+      expect(declared, `${key} lost its chip — that is a REGRESSION, not a widening`)
+        .toContain(key)
+    }
+    expect(Object.keys(SHIPPED).length, 'the shipped-legend probe parsed nothing').toBe(9)
+  })
+})
+
 /** `#rrggbb` → the `rgb(r, g, b)` jsdom reports for an inline style. */
 function hexToRgb(hex) {
   const h = hex.replace('#', '')
