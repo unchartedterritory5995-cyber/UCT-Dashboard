@@ -3549,18 +3549,32 @@ export default function StockChart({
                     : (_memBars?.length
                         ? _memBars
                         : (_aggBars?.length ? _aggBars : (_idbProvisional || null)))))))
-  // True only while the on-screen bars ARE the provisional stale-intraday layer
-  // (no net/mem/agg data resolved yet for this key). The live-bar writers consult
-  // this to freeze until the forced full refetch replaces the data — BUT only when
-  // the stale tail is from a PRIOR session (>8h old: overnight / weekend / multi-day),
-  // which is the "fuse a live spike onto old history" danger this gate exists for.
-  // A SAME-SESSION tail that's merely >15min stale is safely EXTENDED by a live tick
-  // (isSaneLivePrice already rejects a wrong price), so freezing there just left the
-  // price permanently stuck with the feed connected until a timeframe flip (owner
-  // report: 5m loads only to 3:15pm, LIVE badge green but price frozen). Same-session
-  // → paint provisionally AND keep ticking so the developing candle advances.
-  const _provStaleSecs = (typeof idbSinceRef.current === 'number') ? (Date.now() / 1000 - idbSinceRef.current) : 0
-  provisionalStaleRef.current = !!_idbProvisional && bars === _idbProvisional && !_netMatches && _provStaleSecs > 8 * 3600
+  // The live-bar writers consult this to freeze until a CURRENT-session payload
+  // replaces the data — BUT only when the stale tail is from a PRIOR session
+  // (>8h old: overnight / weekend / multi-day), which is the "fuse a live spike
+  // onto old history" danger this gate exists for. A SAME-SESSION tail that's
+  // merely >15min stale is safely EXTENDED by a live tick (isSaneLivePrice already
+  // rejects a wrong price), so freezing there just left the price permanently stuck
+  // with the feed connected until a timeframe flip (owner report: 5m loads only to
+  // 3:15pm, LIVE badge green but price frozen). Same-session → keep ticking so the
+  // developing candle advances.
+  // Freeze the live-bar writers whenever the intraday series ON SCREEN ends on a
+  // PRIOR-SESSION tail (>8h old) — regardless of whether that tail came from the
+  // IDB provisional layer OR a stale NETWORK response the backend served before
+  // today's bars landed. The old form keyed off `!_netMatches`, so the freeze
+  // dropped the instant ANY network payload matched — even a stale one whose
+  // newest bar is yesterday's close — and a live tick then fused a giant
+  // developing candle onto that stale tail (the QQQ "yesterday's full session +
+  // one huge candle up to now" / SPCX "only yesterday" reports). Keying purely on
+  // the chosen `bars` tail age keeps the freeze on until a CURRENT-session payload
+  // replaces it (the forced full refetch), then writers resume. 8h is well above
+  // same-session staleness (a normal developing tail is ≤ a couple intervals old),
+  // so an active RTH chart is never falsely frozen; only a missing-session tail is.
+  const _barsTailT = (Array.isArray(bars) && bars.length)
+    ? (typeof bars[bars.length - 1]?.t === 'number' ? bars[bars.length - 1].t : null)
+    : null
+  const _barsTailSecs = (typeof _barsTailT === 'number') ? (Date.now() / 1000 - _barsTailT) : 0
+  provisionalStaleRef.current = isIntraday && _barsTailT != null && _barsTailSecs > 8 * 3600
   // Mirror the exact array the drawing overlay indexes (its `bars` prop) so the
   // Ctrl+drag trendline below maps x → bar time the SAME way toChart does — its
   // point.time is then guaranteed to resolve in the overlay's timeToIndex.
