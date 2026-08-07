@@ -416,6 +416,29 @@ ADDRESS_PARTITIONS: tuple[AddressFuncs, ...] = (
     INDICATOR_FUNCS, EVENT_FUNCS, PRICE_FUNCS,
 )
 
+# ─── PHASE D TASK 12: THE FOURTH PARTITION, AND WHY IT IS NOT ABOVE ──────────
+#
+# ⭐ `alert_user_series.USER_FUNCS` IS THE FOURTH ADDRESS PARTITION AND IT IS
+# DELIBERATELY ABSENT FROM `ADDRESS_PARTITIONS`. Everything above is GLOBAL:
+# `rsi` means the same thing for every account. A user address (`u_<12 hex>
+# .<plotKey>`) means something to exactly one account, so it cannot live in a
+# table keyed by the bare address without one person's formula being able to
+# answer for another — `USER_FUNCS` is keyed `<user_id>\x1f<address>` instead and
+# is reachable ONLY through `alert_user_series.user_value_function(user_id, …)`.
+#
+# ⛔ AND THE ABSENCE IS THE HEADLINE GATE OF THAT TASK, NOT A DETAIL.
+# `tools/alert_replay.py::build_alert_grid` generates the frozen replay grid by
+# iterating `INDICATOR_FUNCS`, in order; 685,193 recorded fires hang off that
+# iteration and `--diff` covers 31 addresses because `all_addresses()` walks
+# exactly the three tuples above. Phase C Task 3 split `EVENT_FUNCS` off rather
+# than growing `INDICATOR_FUNCS` for that reason, Task 10 split `PRICE_FUNCS` off
+# on the same argument, and this is the third time the same argument is made.
+# Adding the user table to either place changes the shape of the instrument every
+# other gate in Phases B, C and D is measured with.
+#
+# The two rails that hold it: `all_addresses()` is asserted to hold no user
+# address, and `value_function()` is asserted to answer `None` for one.
+
 
 def all_addresses() -> list[str]:
     """Every alertable address, in catalog order. THE one enumeration."""
@@ -1002,6 +1025,25 @@ def _parse_params(alert: dict) -> dict:
         return {}
 
 
+def _user_value_function(alert: dict):
+    """The alert row's USER formula, or ``None`` if it names a builtin address.
+
+    ⚠️ IT READS THE RAW `indicator`, NOT `resolve_address`'s answer.
+    `resolve_address` case-folds and falls back to the LOWERCASED input for an
+    unknown address, and a user plot key may be camelCase (`u_abc.fastLine`) —
+    folding it would look up a key the definition does not declare and answer
+    "no such plot" for a plot that exists. The builtin tables need folding
+    because eight legacy keys are stored lowercase; the user namespace has no
+    legacy and keeps the spelling the definition uses.
+
+    ⛔ RAISES `alert_user_series.AdmissionRefused` for a user address whose
+    definition no longer passes admission. `None` means only "not a user
+    address".
+    """
+    from api.services import alert_user_series
+    return alert_user_series.value_function_for_alert(alert)
+
+
 def _evaluate_one(alert: dict, bars: Optional[list[dict]] = None, *,
                   mode: Optional[str] = None,
                   now_epoch: Optional[float] = None) -> tuple[Optional[float], bool]:
@@ -1034,6 +1076,17 @@ def _evaluate_one(alert: dict, bars: Optional[list[dict]] = None, *,
     # `_CANONICAL_ADDRESS`.
     indicator = resolve_address(alert.get("indicator"))
     fn = value_function(indicator)
+    if fn is None:
+        # ⭐ PHASE D TASK 12 — THE USER LANE, AND IT IS RESOLVED OUTSIDE THE
+        # try/except BELOW ON PURPOSE. `alert_user_series` RAISES
+        # `AdmissionRefused` naming the gate that refused (repaint / budget /
+        # definition / lane); swallowing that into `(None, False)` would make a
+        # refused user alert byte-identical to an admitted one on a quiet market,
+        # which is the *"refused by a different door"* defect this branch has
+        # measured five times. It propagates to `_run_one_cycle`'s per-alert
+        # handler, which logs it and counts an error — visible, attributable, and
+        # never silent.
+        fn = _user_value_function(alert)
     if fn is None:
         return None, False
 
@@ -1405,7 +1458,16 @@ def _evaluate_one_closed(alert: dict, bars: Optional[list[dict]] = None, *,
     from api.services import alert_series
 
     address = resolve_address(alert.get("indicator"))
-    if alert_series.series_function(address) is None:
+    series_fn = alert_series.series_function(address)
+    if series_fn is None:
+        # PHASE D TASK 12 — the user lane's COLUMN. Same seam, same reason it sits
+        # outside the try/except below: an `AdmissionRefused` here is attributable
+        # and must not be flattened into a quiet no-fire. `fn.column` is the value
+        # function's OWN column, so the two lanes cannot resolve a user definition
+        # twice and disagree about which tree was admitted.
+        user_fn = _user_value_function(alert)
+        series_fn = getattr(user_fn, "column", None) if user_fn is not None else None
+    if series_fn is None:
         return None, False, None
 
     if bars is None:
@@ -1422,7 +1484,15 @@ def _evaluate_one_closed(alert: dict, bars: Optional[list[dict]] = None, *,
 
     params = _parse_params(alert)
     try:
-        series = alert_series.series_for(address, bars, params)
+        series = series_fn(bars, params)
+        if len(series) != len(bars):
+            # The identical assertion `alert_series.series_for` makes, kept HERE
+            # because resolving the function up front is what lets one call site
+            # serve both the builtin table and the user partition. A column one
+            # element short shifts every bar index silently and this lane would
+            # read the wrong bar forever.
+            raise AssertionError(
+                f"{address}: series is {len(series)} long for {len(bars)} bars")
     except AssertionError:
         # A misaligned column is a BUG in a series function, not a quiet bar.
         raise
@@ -1491,6 +1561,67 @@ _LEDGER_TIMEFRAME: dict[str, str] = {
 
 _NOT_LEDGER_GRADE = "forming-bar fires are not ledger-grade"
 
+# ⭐⭐ PHASE D TASK 12 — SPEC §12: THE DOOR STAYS SHUT FOR USER-AUTHORED FORMULAS.
+#
+# Phase D lets a user's own formula reach a path that can send a notification.
+# It does NOT let one accrue a RECEIPT. The Signature ledger is append-only, has
+# no rewrite path, and is the store the brand's positioning rests on (§10:
+# receipts aimed at burned-vendor customers). A row in it says *UCT's rule fired
+# here*; a user-authored signal in the same table says the same sentence about
+# arithmetic UCT never saw. Spec §12 puts user publishing out of scope **until
+# the ledger can hold publishers accountable**, and until it can, a receipt that
+# cannot be un-published must not be issuable by an account.
+#
+# ⛔ THE MESSAGE IS DISJOINT FROM EVERY OTHER REFUSAL IN THIS FILE, BY
+# MEASUREMENT AND NOT BY CARE. Phase C Task 9's M1 found two gates sharing the
+# phrase "forming-bar fires are not ledger-grade", so `pytest.raises(match=…)`
+# STILL MATCHED WITH THE MODE LOCK DELETED — the test would have passed on a tree
+# with the safety removed. `test_every_ledger_refusal_fragment_names_exactly_one_
+# gate` drives every gate in this door for real and requires each fragment to
+# appear in exactly one of the messages produced.
+_NOT_LEDGER_ELIGIBLE = "user-authored definitions do not accrue receipts"
+
+
+class LedgerAdmissionRefused(RuntimeError):
+    """The ledger door saying no — a NAMED type, still a `RuntimeError`.
+
+    ⛔ SUBCLASSING `RuntimeError` IS DELIBERATE AND IS NOT A COMPROMISE. Every
+    refusal this door has raised since Phase C Task 9 was a bare `RuntimeError`,
+    and its callers and tests catch that. Narrowing the type without widening
+    what the existing rails catch would have quietly stopped them catching
+    anything — the class of change that reads as "tightened" and measures as
+    "removed". `except RuntimeError` still catches every one; `except
+    LedgerAdmissionRefused` now says which door.
+    """
+
+
+def _is_user_authored(alert: dict) -> bool:
+    """Was this fire produced by arithmetic an ACCOUNT wrote?
+
+    ⛔ TWO SIGNALS, DELIBERATELY, AND EACH IS SEPARATELY MEASURED. This is not
+    the accidental redundancy the `AlertBell` fix removed (where a second guard
+    made the first one unkillable); it is Task 9's deliberate kind, where each
+    half answers a question the other cannot:
+
+      * ``def_source == "user"`` is the DURABLE statement, written on the row at
+        arm time. It survives a definition being deleted afterwards, which is
+        exactly when the address no longer resolves to anything.
+      * the ADDRESS being in the user namespace is the STRUCTURAL statement, and
+        it holds for a dict assembled by a caller that never went through
+        `indicator_alert_service.create` — this door takes a mapping, not a row,
+        and a future writer that builds one by hand would carry no column.
+
+    Both spellings of the address are tried because `resolve_address` case-folds
+    and a user plot key may be camelCase; a fire must not become ledger-eligible
+    by being spelled the way the resolver leaves it.
+    """
+    from api.services import alert_user_series
+    if str(alert.get("def_source") or "").strip().lower() == "user":
+        return True
+    raw = alert.get("indicator")
+    return (alert_user_series.is_user_address(raw)
+            or alert_user_series.is_user_address(resolve_address(raw)))
+
 
 def ledger_timeframe(tf: str) -> str:
     """A bars-store timeframe code → the product label the ledger keys on.
@@ -1502,7 +1633,7 @@ def ledger_timeframe(tf: str) -> str:
     """
     label = _LEDGER_TIMEFRAME.get(str(tf or "").strip().upper())
     if label is None:
-        raise RuntimeError(
+        raise LedgerAdmissionRefused(
             f"no product timeframe label for {tf!r} — the ledger keys on the "
             f"label the surface shows ({sorted(set(_LEDGER_TIMEFRAME.values()))}), "
             f"and this lane will not invent one"
@@ -1559,9 +1690,27 @@ def admit_alert_fire(alert: dict, value: Optional[float],
     """
     from api.services.signature import ledger
 
+    # ⭐ THE USER GATE RUNS FIRST, AND THE ORDER IS LOAD-BEARING. Every gate below
+    # is a fact about the LANE or about ONE BAR AND ONE CLOCK — all of them
+    # conditional, all of them things Task 8's cutover and a later wiring change
+    # will move. Whether a formula was authored by an account is none of those:
+    # it is true in every mode, on every bar, at every clock, so a fire from one
+    # must be refused before anything that could report a different reason. Put
+    # last, a user fire in `"forming"` mode would be refused for the MODE — which
+    # is a true sentence about the wrong thing, and the exact "refused by a
+    # different door" reading this branch has now measured five times.
+    if _is_user_authored(alert):
+        raise LedgerAdmissionRefused(
+            f"{_NOT_LEDGER_ELIGIBLE}: alert {alert.get('id')!r} names "
+            f"{alert.get('indicator')!r} (def_source={alert.get('def_source')!r}). "
+            f"The Signature ledger is append-only and its rows are UCT's own "
+            f"published signals; spec §12 keeps user publishing out of scope "
+            f"until the ledger can hold publishers accountable."
+        )
+
     mode = eval_mode()
     if mode != "closed":
-        raise RuntimeError(
+        raise LedgerAdmissionRefused(
             f"{_NOT_LEDGER_GRADE}: ALERT_EVAL_MODE is {mode!r}. The lane that "
             f"produced this fire judges the bar that is still forming, so the "
             f"fire may exist only because of when the loop looked."
@@ -1569,7 +1718,7 @@ def admit_alert_fire(alert: dict, value: Optional[float],
 
     if (not isinstance(bar_index, int) or isinstance(bar_index, bool)
             or not bars or not 0 <= bar_index < len(bars)):
-        raise RuntimeError(
+        raise LedgerAdmissionRefused(
             f"bar_index {bar_index!r} is not a position in the {len(bars or [])}-bar "
             f"window handed in — a receipt must name a bar that exists"
         )
@@ -1585,20 +1734,20 @@ def admit_alert_fire(alert: dict, value: Optional[float],
     # would make the mode test above pass on a tree with the mode gate deleted —
     # the refusal would still match the string while checking something else.
     if close_at is None or now < close_at:
-        raise RuntimeError(
+        raise LedgerAdmissionRefused(
             f"bar {bar_index} (t={bar.get('t')!r}, tf={tf_key!r}) has not closed "
             f"as of {now!r} (closes at {close_at!r}) — a row the store can still "
             f"move is not a receipt"
         )
 
     if not (bar_index < len(bars) - 1 or now >= close_at):   # (3), see docstring
-        raise RuntimeError(
+        raise LedgerAdmissionRefused(
             f"bar {bar_index} is the newest bar in the window and the clock does "
             f"not say it closed"
         )
 
     if value is None:
-        raise RuntimeError(
+        raise LedgerAdmissionRefused(
             "a fire with no value is not a receipt — refusing rather than "
             "recording a signal whose number nobody can read back"
         )
