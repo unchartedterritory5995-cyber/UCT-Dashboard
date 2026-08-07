@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { engineChips, chipsFrom } from './readout'
+import { engineChips, chipsFrom, legendChips } from './readout'
 import * as engineRegistry from './nativeRegistry'
 // ⛔ DERIVED FROM THE SHIPPED ARTIFACT, NEVER HAND-TYPED — and shared with
 // `__tests__/legendFromDefinitions.test.jsx`, which gates the same nine chips
@@ -389,5 +389,129 @@ describe('the chip declarations cannot silently lose — or gain — a chip', ()
     expect(engineRegistry.getDefinition('atr').meta.legendParams).toEqual(['period'])
     expect(engineRegistry.getDefinition('sar').meta.legendParams).toBeUndefined()
     expect(engineRegistry.getDefinition('ichimoku').meta.legendParams).toBeUndefined()
+  })
+})
+
+// ─── TASK 3 — `legendChips`: A CHIP FOR EVERY LIVE INSTANCE ─────────────────
+//
+// ⛔ `engineChips` WALKS BINDINGS AND THAT IS WHY IT CANNOT BE THE LEGEND'S
+// SOURCE. `pool.planBindings` drops a hidden instance so the binder can release
+// the series and give the pane back — right for the RENDERER, wrong for the
+// READOUT: the chip is the only surface an un-hide can be reached from, so a
+// hidden instance with no chip makes "Hide" a one-way door.
+describe('legendChips — a chip for every LIVE instance, hidden ones included', () => {
+  const INSTANCES = [
+    { instanceId: 'legacy:rsi', defId: 'rsi', inputs: { period: 14 }, hidden: false },
+    { instanceId: 'inst:rsi:1', defId: 'rsi', inputs: { period: 7 }, hidden: true },
+  ]
+  const fakeSeries = { __id: 'rsi/rsi' }
+  const BINDINGS = [
+    { defId: 'rsi', plotKey: 'rsi', instanceId: 'legacy:rsi', series: fakeSeries, lastValue: 54.321 },
+  ]
+
+  it('a BOUND instance prints its value off-cursor, from lastValue', () => {
+    const chips = legendChips(BINDINGS, null, engineRegistry, INSTANCES)
+    const bound = chips.find(c => c.instanceId === 'legacy:rsi')
+    expect(bound.hidden).toBe(false)
+    expect(bound.value).toBeCloseTo(54.321, 5)
+    expect(bound.text).toBe('RSI(14) 54.3')
+  })
+
+  it('⭐ a HIDDEN instance still gets a chip — a chip you cannot see is one you cannot un-hide from', () => {
+    const chips = legendChips(BINDINGS, null, engineRegistry, INSTANCES)
+    const hidden = chips.find(c => c.instanceId === 'inst:rsi:1')
+    expect(hidden, 'the hidden instance vanished from the strip').toBeTruthy()
+    expect(hidden.hidden).toBe(true)
+    expect(hidden.value).toBe(null)
+    expect(hidden.text).toBe('RSI(7)')
+    expect(hidden.color, 'a hidden chip must still wear its line colour').toBeTruthy()
+  })
+
+  it('…and a hidden instance WITH a binding still prints no value — the guard is not `planBindings`\'s accident', () => {
+    // ⛔ THE CONTRACT IS TESTED, NOT INHERITED. `legendChips` checks `hidden`
+    // BEFORE it looks a binding up, so the promise *"a hidden chip carries no
+    // value"* survives a planner that one day parks a hidden series instead of
+    // releasing it. Reading the binding first would make this case print
+    // `RSI(7) 54.3` — a live number for a line that is not on the chart.
+    const stillBound = [...BINDINGS,
+      { defId: 'rsi', plotKey: 'rsi', instanceId: 'inst:rsi:1', series: { __id: 'rsi/hidden' }, lastValue: 99.9 }]
+    const chips = legendChips(stillBound, null, engineRegistry, INSTANCES)
+    const hidden = chips.find(c => c.instanceId === 'inst:rsi:1')
+    expect(hidden.value, 'a HIDDEN instance printed a live value').toBe(null)
+    expect(hidden.text).toBe('RSI(7)')
+    // …and the control: the same call still values the VISIBLE one, so this is
+    // not passing because the whole lookup broke.
+    expect(chips.find(c => c.instanceId === 'legacy:rsi').text).toBe('RSI(14) 54.3')
+  })
+
+  it('the crosshair value WINS over lastValue when seriesData carries the point', () => {
+    // ⚠️ 71.14, NOT 71.05. `(71.05).toFixed(1)` is `'71.0'` — 71.05 has no exact
+    // binary form and lands a hair BELOW the midpoint — so a `71.05 → '71.1'`
+    // expectation fails on arithmetic while looking like a lane failure. The
+    // claim here is about WHICH SOURCE won, so the value is chosen not to argue.
+    const map = new Map([[fakeSeries, { value: 71.14 }]])
+    const chips = legendChips(BINDINGS, map, engineRegistry, INSTANCES)
+    const bound = chips.find(c => c.instanceId === 'legacy:rsi')
+    expect(bound.text).toBe('RSI(14) 71.1')
+    expect(bound.text, 'the chip fell back to lastValue with a point on the cursor')
+      .not.toBe('RSI(14) 54.3')
+  })
+
+  it('a TOMBSTONE contributes nothing', () => {
+    const chips = legendChips(BINDINGS, null, engineRegistry,
+      [...INSTANCES, { instanceId: 'inst:rsi:2', deleted: true }])
+    expect(chips.filter(c => c.instanceId === 'inst:rsi:2')).toEqual([])
+  })
+
+  it('⛔ the VALUED half is `chipsFrom`\'s output, not a second formatter', () => {
+    // ONE FORMATTING PIPELINE (spec §6). Every valued chip `legendChips` returns
+    // is byte-identical to the one `engineChips` — i.e. `chipsFrom` — produced for
+    // the same binding, `hidden` aside. A re-implemented `toFixed` here would be
+    // the second precision table Task 5 refused to add for the Style tab.
+    const viaEngine = engineChips(BINDINGS, null, engineRegistry, INSTANCES)
+    expect(viaEngine, 'the comparison below would be vacuous').toHaveLength(1)
+    const withoutHidden = (c) => { const copy = { ...c }; delete copy.hidden; return copy }
+    const viaLegend = legendChips(BINDINGS, null, engineRegistry, INSTANCES)
+      .filter(c => c.value !== null)
+    expect(viaLegend.map(withoutHidden)).toEqual(viaEngine)
+    // …and `hidden` really is the ONLY field added, so "byte-identical aside from
+    // hidden" is not hiding a second difference.
+    expect(viaLegend.every(c => 'hidden' in c)).toBe(true)
+  })
+
+  it('chips come out in INSTANCE order × PLOT order, hidden ones in place', () => {
+    // The order the strip prints, and the reason a hidden chip does not sink to
+    // the end: it is rendered where its instance sits in the stack, which is
+    // where the user will look for the thing they hid.
+    const chips = legendChips(BINDINGS, null, engineRegistry, [
+      { instanceId: 'inst:macd:1', defId: 'macd', inputs: {}, hidden: true },
+      ...INSTANCES,
+    ])
+    expect(chips.map(c => `${c.instanceId}::${c.plotKey}`)).toEqual([
+      'inst:macd:1::macd', 'inst:macd:1::signal', 'legacy:rsi::rsi', 'inst:rsi:1::rsi',
+    ])
+  })
+
+  it('is total over the registry: every definition yields at least one chip per instance', () => {
+    // The Task 2 totality, held from the READOUT side. A definition that binds a
+    // data plot but declares no chip would appear here as an instance that
+    // contributes nothing — the exact "unlabelled coloured line" wall.
+    const instances = engineRegistry.listDefinitions()
+      .map((d, i) => ({ instanceId: `inst:${d.id}:${i}`, defId: d.id, inputs: {}, hidden: false }))
+    const chips = legendChips([], null, engineRegistry, instances)
+    const silent = instances
+      .filter(inst => !chips.some(c => c.instanceId === inst.instanceId))
+      .map(inst => inst.defId)
+    expect(silent, 'a definition contributes NO chip — that indicator is an unlabelled line')
+      .toEqual([])
+    // …and the control: the rail is not simply passing on an empty answer.
+    expect(chips.length).toBeGreaterThanOrEqual(instances.length)
+  })
+
+  it('shrugs off junk the way `chipsFrom` does', () => {
+    expect(legendChips(null, null, null, null)).toEqual([])
+    expect(legendChips([], null, engineRegistry, [null, undefined, {}, { instanceId: 5 }])).toEqual([])
+    expect(legendChips([], null, engineRegistry,
+      [{ instanceId: 'x', defId: 'nope-not-a-definition', inputs: {} }])).toEqual([])
   })
 })

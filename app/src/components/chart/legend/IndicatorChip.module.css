@@ -1,0 +1,108 @@
+/* app/src/components/chart/legend/IndicatorChip.module.css
+ *
+ * ⛔ NO CLASS IN THIS FILE MAY CONTAIN THE SUBSTRING "legend". The export route
+ * (`pages/ChartRender.jsx`) hides `[class*="legend" i]` and then re-shows
+ * `[class*="volLegend" i]`; a chip class that matched the second rule would
+ * un-hide the strip inside every branded export and move all 46 pixel-parity
+ * baselines. The chip inherits the hide as a DESCENDANT of the legend box, which
+ * is the whole reason it renders there.
+ */
+
+/* One line, 20px, truncating at ~200px — spec §7's chip anatomy.
+ *
+ * ⛔ `inline-block`, NOT `inline-flex`, AND NO INNER `.chipText` SPAN. The chip
+ * is ONE element with ONE text node so a `querySelectorAll('span')` read counts
+ * it once — a nested text span made `stockChartWiring.test.jsx` see two MACD
+ * chips where the chart drew one. `text-overflow` needs the ellipsis to sit on
+ * the element that HOLDS the text, which is why it is here and not on a child. */
+.chip {
+  display: inline-block;
+  height: 20px;
+  line-height: 20px;
+  max-width: 200px;
+  font: 600 11px 'Instrument Sans', sans-serif;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+}
+
+/* GRAY = intentional (spec §6's colour language: red broken / amber degraded /
+   gray intentional). A hidden indicator is not an error. */
+.chipHidden { opacity: 0.45; }
+
+/* ── THE `+N` FOLD ─────────────────────────────────────────────────────────
+ *
+ * The tail past `CHIP_COLLAPSE_AT` carries this class and the `+N` button
+ * expands it in place. `display: none` and not a `.slice()` in the render, for
+ * two measured reasons:
+ *
+ *   1. THE SHIPPED LEGEND IS ONE BOX FOR THE WHOLE CHART, not one per pane (the
+ *      controller's ruling), and spec §7's four is a PER-PANE budget. Dropping
+ *      the fifth chip out of the DOM over the whole strip would delete chips the
+ *      spec would have shown, and it would silently falsify the six-file
+ *      invariant that says the legend prints every chip its definitions declare.
+ *   2. Task 4 anchors a popover to a chip. A chip that UNMOUNTS when a sibling
+ *      appears loses focus mid-interaction.
+ *
+ * A folded chip is exactly as invisible to the user as a sliced one — it is out
+ * of the layout AND out of the accessibility tree.
+ */
+.chipFolded { display: none; }
+
+/* ⛔ `pointer-events: auto` IS LOAD-BEARING, NOT POLISH. `StockChart.module.css`
+ * `.legend` is `pointer-events: none` — the legend box sits over the chart and
+ * must not swallow the crosshair — and that inherits, so WITHOUT this line the
+ * `+N` button cannot be clicked in a browser at all and the fold becomes a trap:
+ * five chips hidden with no way back.
+ *
+ * ⚠️ IT SHIPPED THAT WAY FOR AN HOUR AND THE TEST WAS GREEN. jsdom does not
+ * implement pointer-events hit-testing, so `button.click()` fires regardless —
+ * the interaction case passed against a control no user could reach. That is why
+ * the gate for this line is an assertion on THIS FILE (in
+ * `legendFromDefinitions.test.jsx`'s `+N` case), not on a synthetic click. */
+.chipMore {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  min-width: 22px;
+  padding: 0 5px;
+  border: 1px solid rgba(232, 230, 224, 0.28);
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font: 600 11px 'Instrument Sans', sans-serif;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  opacity: 0.75;
+}
+.chipMore:hover { opacity: 1; border-color: rgba(201, 168, 76, 0.6); }
+
+/* ── PHONE: THE STRIP COLLAPSES TO DOTS ────────────────────────────────────
+ *
+ * ⚠️ CSS `@media`, NOT `useMediaQuery` — the hook seeds from `matchMedia` at
+ * MOUNT and only updates on a `change` event, so in a fixed mobile context it
+ * renders the desktop variant on a phone (the app-wide first-paint trap). The
+ * hook is for click-triggered rendering only.
+ *
+ * 640px is the canonical phone breakpoint (`styles/breakpoints.css`). The label
+ * is still in the DOM for the tooltip and for Task 4's tap target.
+ */
+@media (max-width: 640px) {
+  .chip {
+    width: 10px;
+    min-width: 10px;
+    max-width: 10px;
+    height: 10px;
+    line-height: 10px;
+    border-radius: 50%;
+    background: currentColor;
+    /* The label stays in the DOM — for the `title` tooltip, for Task 4's tap
+       target, and so a text read of the legend is the same on every width. */
+    text-indent: -9999px;
+    overflow: hidden;
+  }
+}

@@ -1216,8 +1216,15 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // …and the replacements are really there, on all three sides.
     const SC = read('app/src/components/StockChart.jsx')
     expect(SC).toContain('crosshairData.chips')
-    expect(SC).toContain('engineChips(engineRef.current.binder.bindings()')
+    // ⚠️ `legendChips`, NOT `engineChips` — chart-UX-walls Task 3 moved the call
+    // site one function out. `engineChips` walks BINDINGS and `planBindings`
+    // drops a hidden instance, so the chip a user has to click to UN-hide was
+    // never emitted; `legendChips` walks the INSTANCE list and calls
+    // `engineChips` for the valued half, so this is still ONE pipeline and the
+    // control below still names its bottom.
+    expect(SC).toContain('legendChips(engineRef.current.binder.bindings()')
     expect(read('app/src/components/chart/engine/readout.js')).toContain('export function chipsFrom(')
+    expect(read('app/src/components/chart/engine/readout.js')).toContain('export function legendChips(')
 
     // ⭐ AND B5 TASK 6 RETIRED THE SECOND LANE ITSELF. Four identifiers, read off
     // COMMENT-STRIPPED source: `StockChart.jsx` names every one of them in the

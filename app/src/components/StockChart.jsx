@@ -69,8 +69,15 @@ import {
   paneMode, computePaneLayout, paneStackHeightPx, SEPARATOR_PX, NO_STACK_MAIN_MARGINS,
 } from './chart/engine/paneLayout'
 import { setIndicatorEnabled, isIndicatorEnabled, findInstance } from './chart/engine/instanceControls'
-import { engineChips } from './chart/engine/readout'
+// ⭐ `legendChips`, NOT `engineChips` (chart-UX-walls Task 3). `engineChips`
+// walks BINDINGS and `planBindings` drops a hidden instance, so a hidden
+// indicator had no chip — and a chip you cannot see is one you cannot un-hide
+// from. `legendChips` walks the INSTANCE list and calls `engineChips` for the
+// valued half, so there is still exactly one formatting pipeline.
+import { legendChips } from './chart/engine/readout'
 import * as engineRegistry from './chart/engine/nativeRegistry'
+import IndicatorChip from './chart/legend/IndicatorChip'
+import chipStyles from './chart/legend/IndicatorChip.module.css'
 import IndicatorSettingsDialog from './chart/IndicatorSettingsDialog'
 import { usePatternDetections } from '../hooks/usePatternDetections'
 import { useSignatureIndicators } from '../hooks/useSignatureIndicators'
@@ -93,6 +100,17 @@ const EMPTY_INSTANCES = Object.freeze([])
 // the same reason as the one above: the hover path runs once per animation frame
 // and must allocate nothing when there are no indicators on the chart.
 const EMPTY_CHIPS = Object.freeze([])
+
+/** Spec §7: ">4 chips collapses to +N". Four is the shipped number and it is a
+ *  DESIGN constant, not a tuning knob — a fifth chip is where a 200px-wide strip
+ *  starts middle-truncating labels.
+ *
+ *  ⚠️ THE SPEC'S FOUR IS PER PANE AND THE SHIPPED LEGEND IS ONE BOX FOR THE
+ *  WHOLE CHART (controller ruling: per-pane placement is out of scope). So the
+ *  tail is FOLDED, not dropped — `chipStyles.chipFolded` takes it out of the
+ *  layout and out of the accessibility tree, the `+N` button brings it back, and
+ *  the chips stay mounted. See that class's comment for the two reasons. */
+const CHIP_COLLAPSE_AT = 4
 
 // ⛔ `LEGACY_CHIP_ORDER` STOOD HERE AND IS DELETED (B5 Task 6). It was the order
 // the LEGACY lane's chips appeared in, derived from the registry so that a chart
@@ -2018,6 +2036,9 @@ export default function StockChart({
   // ── Drawing tools state ──
   // ── Crosshair legend state ──
   const [crosshairData, setCrosshairData] = useState(null)
+  // The `+N` fold, expanded in place. False on every mount on purpose: a strip
+  // that reopens itself is a strip the user closed for nothing.
+  const [chipsExpanded, setChipsExpanded] = useState(false)
   const legendHoveringRef = useRef(false)
   // True while a SYNCED (external) crosshair is applied to this chart. The
   // always-show-legend refreshers below must stand down for it exactly as they
@@ -2033,6 +2054,22 @@ export default function StockChart({
   // gain use. computeLatestCrosshair prefers this so the legend's price / change
   // match the theme tracker instead of the laggy Finnhub feed.
   const liveTickRef = useRef(null)
+  /**
+   * The chips for the LAST bar — no crosshair, so no `seriesData`.
+   *
+   * ⚠️ `engineInstancesRef` is declared BELOW this function, and that is safe:
+   * `latestChips` is only ever CALLED from effects and handlers, long after
+   * every `useRef` in the component body has run. Do not "fix" it by moving the
+   * ref — the declaration order below it is what the rest of the file depends on.
+   */
+  const latestChips = () => {
+    try {
+      const engine = engineRef.current
+      if (!engine) return EMPTY_CHIPS
+      const chips = legendChips(engine.binder.bindings(), null, engineRegistry, engineInstancesRef.current)
+      return chips.length ? chips : EMPTY_CHIPS
+    } catch { return EMPTY_CHIPS }
+  }
   // Build the legend payload for the LATEST bar (used when the cursor is off the
   // chart and alwaysShowLegend is on). Reads live refs; safe to call from effects.
   const computeLatestCrosshair = () => {
@@ -2135,12 +2172,21 @@ export default function StockChart({
       dollarVol: (Number.isFinite(vol) && Number.isFinite(c)) ? vol * c : null,
       volAvg: (vma && vma.length) ? vma[vma.length - 1].value : null,
       volMaPeriod: volMaPeriodEff || null,
-      // ⚠️ NO INDICATOR CHIPS, WHICH IS WHAT THE SHIPPED LEGEND DID TOO. This is
-      // the OFF-CHART legend (`alwaysShowLegend` with the cursor away), and the
-      // nine `crosshairData.<indicator>` fields it replaced were all hard `null`
-      // here — so the always-on legend has never printed an indicator value.
-      // Frozen + shared so the 500 ms refresher allocates nothing per tick.
-      overlays, chips: EMPTY_CHIPS, compare: null,
+      // ⭐ THE CHIPS THE OFF-CURSOR LEGEND NOW PRINTS. This line read
+      // `chips: EMPTY_CHIPS` with a comment saying "the always-on legend has
+      // never printed an indicator value" — which was true, and was Wall 1's
+      // display half in one field: `alwaysShowLegend` ships on 12 ChartPane
+      // mount modules and on `/r/chart`, and the OHLCV half of this same box
+      // already prints the last bar off-cursor, so a blank indicator row
+      // disagreed with the row directly above it.
+      //
+      // `legendChips` walks the INSTANCE list (not the bindings) so a hidden
+      // instance still gets a chip to un-hide from, and takes its value from
+      // `binding.lastValue`, the binder's own record of the final point it set.
+      // Wrapped inside `latestChips` because a disposed binder throwing here
+      // would take the legend down; EMPTY_CHIPS is the honest fallback, and it
+      // is still the frozen shared one when there is nothing to print.
+      overlays, chips: latestChips(), compare: null,
     }
   }
   const crosshairSubRef = useRef(null)
@@ -8629,10 +8675,16 @@ export default function StockChart({
       //
       // Wrapped, because this runs on the rAF flush: a disposed binder throwing
       // here would take the whole legend down mid-hover.
+      //
+      // ⭐ AND IT IS `legendChips`, NOT `engineChips` (chart-UX-walls Task 3), so
+      // the hovering legend and the OFF-CURSOR legend produce the same rows. The
+      // difference is the hidden instance: `planBindings` drops it, so walking
+      // the bindings printed nothing for it and the only way back from "Hide"
+      // was the settings modal.
       let chips = EMPTY_CHIPS
       try {
         const engine = engineRef.current
-          ? engineChips(engineRef.current.binder.bindings(), param.seriesData,
+          ? legendChips(engineRef.current.binder.bindings(), param.seriesData,
               engineRegistry, engineInstancesRef.current)
           : EMPTY_CHIPS
         if (engine.length) chips = engine
@@ -10542,12 +10594,33 @@ export default function StockChart({
         // and a signed-percentage format (`AAPL +1.23%`) that no `legend` block
         // can express. It is appended AFTER the indicator chips, which is where
         // it shipped.
-        const legChips = [
-          ...(crosshairData.chips || EMPTY_CHIPS).map(c => [`${c.defId}::${c.plotKey}`, c.color, c.text]),
-          ...((crosshairData.compare != null && compareSymbol)
-            ? [['cmp', '#fb923c', `${compareSymbol.toUpperCase()} ${crosshairData.compare > 0 ? '+' : ''}${crosshairData.compare.toFixed(2)}%`]]
-            : []),
-        ]
+        //
+        // ⭐ ONE ROW PER CHIP, AND THE ROW IS A COMPONENT NOW rather than a bare
+        // `<span>`: it carries its own hidden state today and Task 4's hover
+        // controls tomorrow. It renders INSIDE this container and that is an
+        // invariant, not a preference — `ChartRender.jsx` hides
+        // `[class*="legend" i]` from the export, so a chip rendered as a SIBLING
+        // would appear in every branded newsletter screenshot and move all 46
+        // pixel-parity baselines at once.
+        //
+        // `+N` COLLAPSE (spec §7): past `CHIP_COLLAPSE_AT` the tail is FOLDED —
+        // it keeps its DOM node and loses its box — and one `+N` button expands
+        // it in place. The spec's four is per PANE; the shipped legend is one box
+        // for the whole chart, so the threshold is over the strip and the tail is
+        // folded rather than dropped. See `CHIP_COLLAPSE_AT`.
+        // ⛔ THE THREE BRANCHES INLINE THE STRIP, AND THE DUPLICATION IS THE
+        // POINT. The first draft hoisted it into `renderChips()` / `moreButton`
+        // consts — and `parityGateBlindness.test.js` immediately refused, because
+        // the JSX then sits LEXICALLY OUTSIDE the legend element and no static
+        // proof of containment is possible any more. A helper const is exactly
+        // where a chip could later drift out of the legend without any gate
+        // seeing it, and the export CSS is the only thing keeping the strip out
+        // of every branded newsletter screenshot. Only these three values are
+        // shared; the elements themselves stay inside the box that hides them.
+        const indChips = crosshairData.chips || EMPTY_CHIPS
+        const overflow = !chipsExpanded && indChips.length > CHIP_COLLAPSE_AT
+        const foldedFrom = overflow ? CHIP_COLLAPSE_AT : indChips.length
+        const moreCount = indChips.length - CHIP_COLLAPSE_AT
         return (
         <div
           ref={legendRef}
@@ -10580,9 +10653,24 @@ export default function StockChart({
                 {crosshairData.volume != null && (
                   <span className={styles.legendLabel} style={legBase}>Vol <span className={styles.legendVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></span>
                 )}
-                {legChips.map(([key, color, text]) => (
-                  <span key={key} style={{ color }}>{text}</span>
+                {indChips.map((c, i) => (
+                  <IndicatorChip
+                    key={`${c.instanceId}::${c.plotKey}`}
+                    chip={c}
+                    className={i >= foldedFrom ? chipStyles.chipFolded : undefined}
+                  />
                 ))}
+                {overflow && (
+                  <button type="button" className={chipStyles.chipMore}
+                    onClick={() => setChipsExpanded(true)}
+                    aria-label={`Show ${moreCount} more indicators`}
+                  >+{moreCount}</button>
+                )}
+                {crosshairData.compare != null && compareSymbol && (
+                  <span style={{ color: '#fb923c' }}>
+                    {compareSymbol.toUpperCase()} {crosshairData.compare > 0 ? '+' : ''}{crosshairData.compare.toFixed(2)}%
+                  </span>
+                )}
                 {crosshairData.overlays.map((ov, i) => (
                   <span key={'ov' + i} style={{ color: ov.color }}>{ov.label} <strong>{ov.value?.toFixed(2)}</strong></span>
                 ))}
@@ -10608,9 +10696,24 @@ export default function StockChart({
                 <span key={'l' + i} className={styles.vlLabel} style={{ color: ov.color }}>{ov.label}</span>,
                 <span key={'v' + i} className={styles.vlVal} style={{ color: ov.color }}>{ov.value?.toFixed(2)}</span>,
               ])}
-              {legChips.map(([key, color, text]) => (
-                <span key={key} className={styles.vlFull} style={{ color }}>{text}</span>
+              {indChips.map((c, i) => (
+                <IndicatorChip
+                  key={`${c.instanceId}::${c.plotKey}`}
+                  chip={c}
+                  className={`${styles.vlFull}${i >= foldedFrom ? ' ' + chipStyles.chipFolded : ''}`}
+                />
               ))}
+              {overflow && (
+                <button type="button" className={chipStyles.chipMore}
+                  onClick={() => setChipsExpanded(true)}
+                  aria-label={`Show ${moreCount} more indicators`}
+                >+{moreCount}</button>
+              )}
+              {crosshairData.compare != null && compareSymbol && (
+                <span style={{ color: '#fb923c' }}>
+                  {compareSymbol.toUpperCase()} {crosshairData.compare > 0 ? '+' : ''}{crosshairData.compare.toFixed(2)}%
+                </span>
+              )}
             </>
           ) : (
           <>
@@ -10638,9 +10741,24 @@ export default function StockChart({
           {crosshairData.overlays.map((ov, i) => (
             <span key={i} style={{ color: ov.color }}>{ov.label} <strong>{ov.value?.toFixed(2)}</strong></span>
           ))}
-          {legChips.map(([key, color, text]) => (
-            <span key={key} style={{ color }}>{text}</span>
+          {indChips.map((c, i) => (
+            <IndicatorChip
+              key={`${c.instanceId}::${c.plotKey}`}
+              chip={c}
+              className={i >= foldedFrom ? chipStyles.chipFolded : undefined}
+            />
           ))}
+          {overflow && (
+            <button type="button" className={chipStyles.chipMore}
+              onClick={() => setChipsExpanded(true)}
+              aria-label={`Show ${moreCount} more indicators`}
+            >+{moreCount}</button>
+          )}
+          {crosshairData.compare != null && compareSymbol && (
+            <span style={{ color: '#fb923c' }}>
+              {compareSymbol.toUpperCase()} {crosshairData.compare > 0 ? '+' : ''}{crosshairData.compare.toFixed(2)}%
+            </span>
+          )}
           </>
           )}
         </div>
