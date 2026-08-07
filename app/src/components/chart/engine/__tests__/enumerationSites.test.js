@@ -2698,6 +2698,22 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
       plotsWithOwnBadge: defs.flatMap(d => (d.plots || [])
         .filter(p => p && Object.prototype.hasOwnProperty.call(p, 'repaint'))
         .map(p => `${d.id}.${p.key}`)),
+      // ⛔⭐⭐ THE FLOOR UNDER THE PER-PLOT CLAUSE, AND IT WAS ADDED ON A
+      // MEASUREMENT RATHER THAN A HUNCH. A default-to-empty read of the plots
+      // field answers empty for a definition shape that renamed it — so a RENAME
+      // makes `plotsWithOwnBadge` `[]` and the third clause of
+      // `recordAgreesWithTheCode` `true`, and the entire per-plot half of this
+      // biconditional passes while asserting NOTHING. Proven by mutation, not
+      // argued: renaming `plots` → `plotsRENAMED` in both reads left this case
+      // GREEN. Since the owner's ruling is per PLOT, that is the one clause
+      // guaranteed to matter at Task 7, and it was the one with no floor.
+      //
+      // ⚠️ A LIST, NOT A COUNT, ON PURPOSE. An exact plot total would go red
+      // every time anybody adds a plot to any definition — churn that teaches
+      // people to bump the number without reading it. This asks the structural
+      // question instead: *is there a definition the plot walk cannot see?* On a
+      // rename EVERY id lands in this list and the failure names them all.
+      defsWithNoPlots: defs.filter(d => !(d.plots || []).length).map(d => d.id),
       // …and the catalogue is not empty, which is what stops the three `[]`s
       // above being satisfied by a registry that lists nothing.
       definitionCount: defs.length > 0,
@@ -2727,6 +2743,7 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
       badgeValues: ['non-repainting'],
       definitionsBadgedRepaints: [],
       plotsWithOwnBadge: [],
+      defsWithNoPlots: [],
       definitionCount: true,
       recordAgreesWithTheCode: true,
     })
@@ -2793,11 +2810,29 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
       'docs/decisions/2026-08-03-engine-enabled-settings-migration.md',
       'docs/decisions/2026-08-06-machine-repaint-linter.md',
     ]
-    const md = RECORDS.map(r => read(r)
-      .split('\n').map(l => l.replace(/^(?:\s*>)+\s?/, '')).join('\n')).join('\n')
-      .replace(/\s+/g, ' ')
-    const cited = [...md.matchAll(/`([A-Za-z]+\.test\.jsx?)`\s*→\s*\*"([^"]+)"\*/g)]
-      .map(m => ({ file: m[1], title: m[2] }))
+    const CITATION = /`([A-Za-z]+\.test\.jsx?)`\s*→\s*\*"([^"]+)"\*/g
+    const perRecord = RECORDS.map(r => ({
+      record: r,
+      cites: [...read(r)
+        .split('\n').map(l => l.replace(/^(?:\s*>)+\s?/, '')).join('\n')
+        .replace(/\s+/g, ' ')
+        .matchAll(CITATION)].map(m => ({ file: m[1], title: m[2] })),
+    }))
+    const cited = perRecord.flatMap(x => x.cites)
+
+    // ⛔⭐⭐ THE FLOOR IS PER RECORD, AND THAT WAS A DEFECT FOUND BY MUTATION.
+    // A single `cited.length >= 3` over the CONCATENATION of both records is
+    // satisfied by EITHER of them alone — measured: stripping all four
+    // citations out of the repaint record left this case GREEN, because the
+    // engine-enabled record still carried three. The moment a second record
+    // joined this list, the aggregate floor stopped being a floor for either
+    // one. Asked per record, and BY NAME, a record whose citations all vanish
+    // says which record it was.
+    expect(perRecord.filter(x => x.cites.length === 0).map(x => x.record),
+      'a decision record on this list cites no test title at all. Either its citations were ' +
+      'removed (and the record now points at nothing — worse than no pointer, because prose ' +
+      'still reads as evidence), or the citation form changed and this scan is stale.',
+    ).toEqual([])
 
     expect(cited.length,
       'the record cites no test title at all — either the citation form changed and this scan ' +
