@@ -2102,6 +2102,13 @@ export default function StockChart({
   // FREEZE while this is set so a live tick can't grow a phantom candle on the stale
   // tail before authoritative bars swap in. Set in the `bars` selector each render.
   const provisionalStaleRef = useRef(false)
+  // Self-heal throttle: when a live push bar arrives >1 interval ahead of the frozen
+  // series tail (the steady-state SWR delta poll stalled — e.g. a deploy dropped the
+  // SSE + the visibility-gated refresh paused), the contiguity guard forces an SWR
+  // revalidation to pull the missing bars. Throttled so it fires at most once per
+  // window instead of on every push tick while the chart is catching up.
+  const gapHealAtRef = useRef(0)
+  const barsMutateRef = useRef(null)  // latest SWR mutate() for the bars key (stale-closure-safe)
   const barStartVolRef = useRef(0)    // Cumulative volume at start of current bar (for per-bar delta)
   // Session preview owns the D/W/M developing bar during pre/post market on the
   // workspace (synthetic pre-market candle / frozen-at-4pm regular candle) — a
@@ -3371,6 +3378,11 @@ export default function StockChart({
       onErrorRetry: barsSwrOnErrorRetry,
     }
   )
+  // Expose the latest mutate() to the live-bar writers (stale-closure-safe) so the
+  // contiguity-guard self-heal can force an immediate revalidation. mutate() fires
+  // even when refreshInterval polling is paused (hidden/popped-out window), which is
+  // exactly the stall it recovers from.
+  barsMutateRef.current = mutate
 
   // ── Custom timeframe: fetch the NATIVE base, resample client-side ──
   // (_isCustomTf / _customBaseTf / _customSpec are declared ABOVE the native SWR so
@@ -3585,18 +3597,32 @@ export default function StockChart({
                     : (_memBars?.length
                         ? _memBars
                         : (_aggBars?.length ? _aggBars : (_idbProvisional || null)))))))
-  // True only while the on-screen bars ARE the provisional stale-intraday layer
-  // (no net/mem/agg data resolved yet for this key). The live-bar writers consult
-  // this to freeze until the forced full refetch replaces the data — BUT only when
-  // the stale tail is from a PRIOR session (>8h old: overnight / weekend / multi-day),
-  // which is the "fuse a live spike onto old history" danger this gate exists for.
-  // A SAME-SESSION tail that's merely >15min stale is safely EXTENDED by a live tick
-  // (isSaneLivePrice already rejects a wrong price), so freezing there just left the
-  // price permanently stuck with the feed connected until a timeframe flip (owner
-  // report: 5m loads only to 3:15pm, LIVE badge green but price frozen). Same-session
-  // → paint provisionally AND keep ticking so the developing candle advances.
-  const _provStaleSecs = (typeof idbSinceRef.current === 'number') ? (Date.now() / 1000 - idbSinceRef.current) : 0
-  provisionalStaleRef.current = !!_idbProvisional && bars === _idbProvisional && !_netMatches && _provStaleSecs > 8 * 3600
+  // The live-bar writers consult this to freeze until a CURRENT-session payload
+  // replaces the data — BUT only when the stale tail is from a PRIOR session
+  // (>8h old: overnight / weekend / multi-day), which is the "fuse a live spike
+  // onto old history" danger this gate exists for. A SAME-SESSION tail that's
+  // merely >15min stale is safely EXTENDED by a live tick (isSaneLivePrice already
+  // rejects a wrong price), so freezing there just left the price permanently stuck
+  // with the feed connected until a timeframe flip (owner report: 5m loads only to
+  // 3:15pm, LIVE badge green but price frozen). Same-session → keep ticking so the
+  // developing candle advances.
+  // Freeze the live-bar writers whenever the intraday series ON SCREEN ends on a
+  // PRIOR-SESSION tail (>8h old) — regardless of whether that tail came from the
+  // IDB provisional layer OR a stale NETWORK response the backend served before
+  // today's bars landed. The old form keyed off `!_netMatches`, so the freeze
+  // dropped the instant ANY network payload matched — even a stale one whose
+  // newest bar is yesterday's close — and a live tick then fused a giant
+  // developing candle onto that stale tail (the QQQ "yesterday's full session +
+  // one huge candle up to now" / SPCX "only yesterday" reports). Keying purely on
+  // the chosen `bars` tail age keeps the freeze on until a CURRENT-session payload
+  // replaces it (the forced full refetch), then writers resume. 8h is well above
+  // same-session staleness (a normal developing tail is ≤ a couple intervals old),
+  // so an active RTH chart is never falsely frozen; only a missing-session tail is.
+  const _barsTailT = (Array.isArray(bars) && bars.length)
+    ? (typeof bars[bars.length - 1]?.t === 'number' ? bars[bars.length - 1].t : null)
+    : null
+  const _barsTailSecs = (typeof _barsTailT === 'number') ? (Date.now() / 1000 - _barsTailT) : 0
+  provisionalStaleRef.current = isIntraday && _barsTailT != null && _barsTailSecs > 8 * 3600
   // Mirror the exact array the drawing overlay indexes (its `bars` prop) so the
   // Ctrl+drag trendline below maps x → bar time the SAME way toChart does — its
   // point.time is then guaranteed to resolve in the overlay's timeToIndex.
@@ -3628,6 +3654,58 @@ export default function StockChart({
   const { prices: livePrices, staleSymbols, isStreaming } = useRealtimePrices(liveUpdates && sym ? [sym] : [])
   const isStale = !!(sym && staleSymbols && staleSymbols.has(String(sym).toUpperCase()))
   const feed = streamStatus({ isStreaming, isStale })
+
+  // ── Frozen-chart watchdog (independent of the live-bar writers) ──
+  // Uses the existing livePricesRef (assigned each render below) — stale-closure-safe.
+  // The live-bar writers only self-heal a stalled chart when they actually FIRE
+  // (a push/Finnhub tick arrives AND isn't suppressed). But the exact reported bug
+  // — "price keeps updating in the header + watchlist, yet the chart is frozen and
+  // the tick isn't moving" — is a state where the developing-bar writer isn't
+  // advancing the series while the live-price feed clearly IS live. The header/
+  // watchlist price rides the /api/live-prices path (livePrices here), so when that
+  // price is running MORE than ~2 intervals ahead of the chart's rendered tail, the
+  // bars SWR poll has stalled (post-deploy SSE drop + visibility-gated refresh not
+  // resuming). Force a throttled revalidation — mutate() fires even while interval
+  // polling is paused, and the backend is authoritative + proven fresh, so the tail
+  // catches up. Runs only for intraday; a same-session live price naturally sits
+  // within a bar or two of the tail, so this never fires on a healthy chart.
+  useEffect(() => {
+    if (!sym || !isIntraday) return
+    const id = setInterval(() => {
+      try {
+        const lp = livePricesRef.current?.[sym]
+        const tail = lastBarRef.current
+        if (!lp || !Number.isFinite(lp.updated_at) || !tail || !Number.isFinite(tail.time)) return
+        const period = PERIOD_SECONDS[resolvedTf] || 300
+        // tail.time is (server unix seconds + _ET_OFFSET); lp.updated_at is raw unix
+        // seconds — undo the offset to compare like-for-like.
+        const tailServerSec = tail.time - _ET_OFFSET
+        if (lp.updated_at - tailServerSec <= 2.5 * period) return
+        const nowMs = Date.now()
+        if (nowMs - gapHealAtRef.current <= 6000) return
+        gapHealAtRef.current = nowMs
+        // Fetch the fresh FULL series directly (no `since`) and INJECT it into SWR's
+        // cache via mutate(payload, {revalidate:false}). This deterministically drives
+        // the `[data]` effect's non-delta REPLACE branch → setData → the tail advances,
+        // instead of relying on mutate()'s revalidation actually re-firing the paused
+        // poll. Bounded: throttled 6s, only while the chart is demonstrably behind the
+        // live feed, and a no-op REPLACE once caught up (the price sits within 2.5
+        // intervals of the tail again → this branch stops firing).
+        const _sym = sym, _tf = resolvedTf
+        fetch(`/api/bars/${encodeURIComponent(_sym)}?tf=${_tf}&bars=${barCount}`)
+          .then(r => (r.ok ? r.json() : null))
+          .then(payload => {
+            // Guard against a ticker/tf switch mid-fetch, and against a stale payload.
+            if (!payload?.bars?.length) return
+            if (sym !== _sym || resolvedTf !== _tf) return
+            if (payload.ticker && payload.ticker !== String(_sym).toUpperCase()) return
+            barsMutateRef.current?.(payload, { revalidate: false })
+          })
+          .catch(() => { /* transient — next tick retries */ })
+      } catch { /* watchdog must never throw */ }
+    }, 8000)
+    return () => clearInterval(id)
+  }, [sym, resolvedTf, isIntraday, barCount])
 
   // Keep lastPriceRef / lastChangePctRef in sync for screenshot composition.
   // Prefers live stream values; falls back to last bar close / intra-bar change.
@@ -5103,7 +5181,21 @@ export default function StockChart({
     const barTime = decision.time != null ? decision.time : last.time
 
     try {
-      if (decision.kind === 'skip') return
+      if (decision.kind === 'skip') {
+        // Intraday 'skip' from classifyLiveBar means the tick's bucket is PAST the
+        // tail (its contiguity / REST-floor behind-guard fired) → the series has
+        // stalled behind live (the stalled-SWR-poll freeze; same class Writer B
+        // self-heals). Force a throttled SWR revalidation to pull the missing bars.
+        // D/W/M 'skip' is an unconfirmed-session case (not a gap) — don't heal there.
+        if (isIntradayTf) {
+          const _nowMs = Date.now()
+          if (_nowMs - gapHealAtRef.current > 4000) {
+            gapHealAtRef.current = _nowMs
+            try { barsMutateRef.current?.() } catch { /* mutate unbound mid-mount */ }
+          }
+        }
+        return
+      }
       if (decision.kind === 'new') {
         // ── NEW CANDLE ──
         const isDailyWeekly = !isIntradayTf
@@ -5237,6 +5329,43 @@ export default function StockChart({
       return
     }
 
+    // ── Contiguity guard (mirror of classifyLiveBar's intraday guard) ──
+    // Writer B plants push bars by their OWN bucket time via series.update(). If the
+    // on-screen tail (lastBarRef, seeded from the fetched series on every setData) is
+    // MORE than one interval behind this push bar, the buckets in between are missing
+    // — the REST/SWR series is stale or still loading (post-deploy cold start, a slow
+    // ticker-switch, an in-flight full refetch). Planting here drops a LONE developing
+    // candle detached from the stale tail: the reported "yesterday's full session +
+    // one giant candle up to now" and "4-5 candles missing before the live one"
+    // artifacts. classifyLiveBar already guards the Finnhub writers against exactly
+    // this, but Writer B bypasses it — so replicate the guard here. SKIP; the
+    // stale-tail full refetch (idbStaleIntraday, keyed off the same tail) fills the
+    // gap, then push bars land contiguously. Intraday only — D/W/M new-session
+    // handling differs (see classifyLiveBar). Also skips the legit overnight/weekend
+    // session jump until the refetch lands the new session's earlier bars.
+    if (!['D', 'W', 'M'].includes(resolvedTf)) {
+      const _pbTail = lastBarRef.current
+      const _periodB = PERIOD_SECONDS[resolvedTf] || 300
+      if (_pbTail && Number.isFinite(_pbTail.time) && tSec - _pbTail.time > _periodB) {
+        // Behind: the series tail lags this live push bar by >1 interval, so the
+        // steady-state advance (the 30s SWR delta poll) has STALLED — e.g. a deploy
+        // dropped every SSE and the visibility-gated refreshInterval never resumed,
+        // freezing the chart at its load point (reported: half a watchlist stuck at
+        // the same minute, tick not moving, across TSLA/NVDA/MU). Skipping alone
+        // would keep it frozen forever (every push bar stays ahead of the stale
+        // tail). Self-heal: force an immediate SWR revalidation (throttled) — mutate()
+        // fires even while interval polling is paused, and the backend is
+        // authoritative + proven fresh, so the refetch replaces/merges the missing
+        // closed bars; once the tail catches up, push bars plant contiguously again.
+        const _nowMs = Date.now()
+        if (_nowMs - gapHealAtRef.current > 4000) {
+          gapHealAtRef.current = _nowMs
+          try { barsMutateRef.current?.() } catch { /* mutate unbound mid-mount */ }
+        }
+        return
+      }
+    }
+
     // Merge, don't overwrite: a Massive WS rollup for the CURRENT bucket may have only
     // accumulated since we subscribed (fresh ticker / tf switch), so its o/h/l can be a
     // partial slice of the bucket. Preserve the true OPEN and only EXTEND high/low from
@@ -5290,6 +5419,16 @@ export default function StockChart({
   }, [cs.chartType, sym, resolvedTf, replayMode, _extendOverlaysLive])
 
   const onRealtimeReconnect = useCallback((lastBarT) => {
+    // On ANY (re)connect of the bars stream, ALSO revalidate the closed-bar SWR poll.
+    // The `since` backfill below only patches the DEVELOPING candle (via onRealtimeBar);
+    // the CLOSED bars come from the /api/bars SWR poll, which uses refreshWhenHidden:false
+    // and does NOT auto-revalidate on an SSE reconnect (SWR's revalidateOnReconnect fires
+    // only on navigator.onLine). So a backend restart — every deploy drops all SSE at once
+    // — leaves the closed-bar series frozen at its load point until something kicks it (the
+    // "frozen after deploy" class). mutate() fires even while interval polling is paused.
+    // This is what makes a reconnect invisible for the chart, the way the price feed's 2s
+    // poll already makes reconnects invisible for the header/watchlist price.
+    try { barsMutateRef.current?.() } catch { /* mutate unbound mid-mount */ }
     // Gap-backfill on reconnect — uses the existing `since` param of /api/bars.
     // `since` filters with strict > (see _get_bars_since_response). Subtract 1ms
     // so the bar at lastBarT is INCLUDED — covers the case where a bar updated
@@ -5310,6 +5449,27 @@ export default function StockChart({
         if (e?.message) console.warn('[StockChart] gap-backfill failed:', e.message)
       })
   }, [sym, resolvedTf, onRealtimeBar])
+
+  // Revalidate the closed-bar poll when the tab/window becomes visible or refocuses.
+  // The bars SWR uses refreshWhenHidden:false + revalidateOnFocus:false, so a backgrounded
+  // tab silently pauses the 30s poll and never resumes on refocus — freezing the closed
+  // bars while the live-price feed keeps updating (price moves in the header, chart stuck).
+  // Force a revalidation on visibility/focus so the chart catches up the instant the user
+  // looks at it (pro-tool behavior), independent of the 8s watchdog. Intraday only — D/W/M
+  // evolve slowly and their 5-min poll is fine.
+  useEffect(() => {
+    if (typeof document === 'undefined' || !isIntraday) return
+    const revalidate = () => {
+      if (document.hidden) return
+      try { barsMutateRef.current?.() } catch { /* mutate unbound mid-mount */ }
+    }
+    document.addEventListener('visibilitychange', revalidate)
+    window.addEventListener('focus', revalidate)
+    return () => {
+      document.removeEventListener('visibilitychange', revalidate)
+      window.removeEventListener('focus', revalidate)
+    }
+  }, [isIntraday])
 
   // Reactivity for the canary flag: setting/clearing localStorage 'uct.barsPush.enabled'
   // takes effect on the next render with NO page reload (the plan's instant runtime
@@ -10378,6 +10538,11 @@ export default function StockChart({
           // appends a legit new bar. (The deeper single-writer fix is Phase C.)
           const _lastT = lastBarRef.current?.time
           if (typeof _lastT === 'number' && tSec < _lastT) return
+          // Forward-contiguity guard (mirror of classifyLiveBar / Writer B): don't
+          // plant a 1m bar MORE than one interval past the tail — the minutes in
+          // between are missing (stale/loading series), and a detached bar is the
+          // "gap before the live candle" artifact. Skip; the refetch fills the gap.
+          if (typeof _lastT === 'number' && tSec - _lastT > 60) return
           if (useOhlc) {
             candleSeriesRef.current.update({
               time: tSec,

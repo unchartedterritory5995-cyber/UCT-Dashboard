@@ -574,6 +574,24 @@ def build_levels(tickers: list[str], closes: np.ndarray, volumes: np.ndarray,
     vmax, _ = _rolling_tail(volumes, n52 - 1, _tail_max)
     lv["vol_max52"] = vmax
 
+    # Today's volume over the prior 20 sessions' average — the collector's
+    # `volumes.iloc[-21:-1].mean()`. This frame holds COMPLETED sessions only,
+    # so its last 20 columns are exactly that window; there is no today column
+    # here to exclude.
+    #
+    # Summed rather than np.nanmean'd: a name that printed no volume in any of
+    # the last 20 sessions is an all-NaN slice, and nanmean warns on every one
+    # of them. The answer is the same NaN either way, so the warning is pure
+    # noise on a path that runs once a day for the whole market.
+    if n_dates >= 20:
+        win = volumes[:, -20:]
+        seen = np.count_nonzero(~np.isnan(win), axis=1)
+        lv["vol_avg20"] = np.where(seen > 0,
+                                   np.nansum(win, axis=1) / np.maximum(seen, 1),
+                                   np.nan)
+    else:
+        lv["vol_avg20"] = np.full(len(tickers), np.nan)
+
     net_adv = _net_advance_series(closes)
     e19 = e39 = None
     for v in net_adv:
@@ -624,8 +642,27 @@ def _pct(above: np.ndarray, valid: np.ndarray) -> Optional[float]:
     return round(float((above & valid).sum() / total * 100), 1)
 
 
+# Metrics whose cell opens a drill list. Mirrors the `drillKey` set the Monitor
+# declares, MINUS anything in NOT_LIVE: a carried number's names belong to the
+# session it came from, not to today.
+DRILLABLE = frozenset({
+    "universe_count",
+    "up_4pct_today", "down_4pct_today",
+    "up_20pct_5d", "down_20pct_5d",
+    "up_25pct_quarter", "down_25pct_quarter",
+    "up_25pct_month", "down_25pct_month",
+    "up_50pct_month", "down_50pct_month",
+    "magna_up", "magna_down",
+    "stage2_count", "stage4_count",
+    "new_52w_highs", "new_52w_lows",
+    "new_20d_highs", "new_20d_lows",
+    "new_ath", "hvc_52w",
+})
+
+
 def compute_metrics(levels: dict, prices: dict[str, float],
-                    volumes: Optional[dict[str, float]] = None) -> dict:
+                    volumes: Optional[dict[str, float]] = None,
+                    members: Optional[dict] = None) -> dict:
     """Breadth for one instant: `prices` is today's price per ticker.
 
     Every definition mirrors `breadth_collector`. Where the collector's rolling
@@ -648,8 +685,18 @@ def compute_metrics(levels: dict, prices: dict[str, float],
             if v is not None and v > 0:
                 vol[i] = v
 
+    # A drill list MUST come off the same mask as its count. Deriving it a
+    # second way lets the two drift the moment a definition moves, and the
+    # drift is silent: the cell says 47 and the modal lists 45.
+    _tk = np.asarray(tickers)
+
+    def _keep(key: str, mask) -> None:
+        if members is not None and key in DRILLABLE:
+            members[key] = _tk[mask].tolist()
+
     m: dict = {}
     m["universe_count"] = int(have.sum())
+    _keep("universe_count", have)
 
     # ── pct above moving averages ────────────────────────────────────────────
     for w, key in ((5, "pct_above_5sma"), (10, "pct_above_10sma"),
@@ -686,30 +733,43 @@ def compute_metrics(levels: dict, prices: dict[str, float],
             safe = np.where(past == 0, np.nan, past)
             ret = (px - past) / safe
         valid = ~np.isnan(ret)
-        m[up_key] = int((ret[valid] >= thresh).sum())
-        m[dn_key] = int((ret[valid] <= -thresh).sum())
+        with np.errstate(invalid="ignore"):
+            up_mask = valid & (ret >= thresh)
+            dn_mask = valid & (ret <= -thresh)
+        m[up_key] = int(up_mask.sum())
+        m[dn_key] = int(dn_mask.sum())
+        _keep(up_key, up_mask)
+        _keep(dn_key, dn_mask)
 
     # ── new highs / lows ─────────────────────────────────────────────────────
     # rolling(n).max() INCLUDES today, so "curr >= rolling_max * 0.999" reduces
     # exactly to "curr >= prior_max * 0.999": when today IS the max the test is
     # trivially true, and it is also true against the smaller prior max.
-    def _hi(level_key: str, ok_key: str) -> int:
+    # Each returns the FULL-LENGTH mask, not a count over the compressed
+    # `px[valid]` slice — a compressed boolean cannot index the ticker array, so
+    # the list and the count would have to be built differently, which is the
+    # drift this whole design exists to prevent.
+    def _hi(key: str, level_key: str, ok_key: str) -> int:
         lvl, ok = levels[level_key], levels[ok_key]
         valid = have & ok & ~np.isnan(lvl)
         with np.errstate(invalid="ignore"):
-            return int((px[valid] >= lvl[valid] * 0.999).sum())
+            mask = valid & (px >= lvl * 0.999)
+        _keep(key, mask)
+        return int(mask.sum())
 
-    def _lo(level_key: str, ok_key: str) -> int:
+    def _lo(key: str, level_key: str, ok_key: str) -> int:
         lvl, ok = levels[level_key], levels[ok_key]
         valid = have & ok & ~np.isnan(lvl)
         with np.errstate(invalid="ignore"):
-            return int((px[valid] <= lvl[valid] * 1.001).sum())
+            mask = valid & (px <= lvl * 1.001)
+        _keep(key, mask)
+        return int(mask.sum())
 
-    m["new_52w_highs"] = _hi("max52", "max52_ok")
-    m["new_52w_lows"] = _lo("min52", "min52_ok")
-    m["new_20d_highs"] = _hi("max20", "max20_ok")
-    m["new_20d_lows"] = _lo("min20", "min20_ok")
-    m["new_ath"] = _hi("maxath", "maxath_ok")
+    m["new_52w_highs"] = _hi("new_52w_highs", "max52", "max52_ok")
+    m["new_52w_lows"] = _lo("new_52w_lows", "min52", "min52_ok")
+    m["new_20d_highs"] = _hi("new_20d_highs", "max20", "max20_ok")
+    m["new_20d_lows"] = _lo("new_20d_lows", "min20", "min20_ok")
+    m["new_ath"] = _hi("new_ath", "maxath", "maxath_ok")
 
     # near_52w_high: distance from the 52-week high, which includes today.
     hi52, ok52 = levels["max52"], levels["max52_ok"]
@@ -727,7 +787,9 @@ def compute_metrics(levels: dict, prices: dict[str, float],
         valid = (have & ~np.isnan(vol) & ~np.isnan(vmax) & (vmax > 0)
                  & levels["sma_ok"][10] & ~np.isnan(sma10))
         with np.errstate(invalid="ignore"):
-            m["hvc_52w"] = int(((vol >= vmax) & (px > sma10) & valid).sum())
+            hvc_mask = (vol >= vmax) & (px > sma10) & valid
+        m["hvc_52w"] = int(hvc_mask.sum())
+        _keep("hvc_52w", hvc_mask)
     else:
         m["hvc_52w"] = None
 
@@ -740,10 +802,14 @@ def compute_metrics(levels: dict, prices: dict[str, float],
         valid = (have & levels["sma_ok"][50] & levels["sma_ok"][150]
                  & levels["sma_ok"][200] & ~np.isnan(s200p))
         with np.errstate(invalid="ignore"):
-            m["stage2_count"] = int(((px > s50) & (s50 > s150) & (s150 > s200)
-                                     & (s200 >= s200p) & valid).sum())
-            m["stage4_count"] = int(((px < s50) & (s50 < s150) & (s150 < s200)
-                                     & (s200 <= s200p) & valid).sum())
+            s2_mask = ((px > s50) & (s50 > s150) & (s150 > s200)
+                       & (s200 >= s200p) & valid)
+            s4_mask = ((px < s50) & (s50 < s150) & (s150 < s200)
+                       & (s200 <= s200p) & valid)
+        m["stage2_count"] = int(s2_mask.sum())
+        m["stage4_count"] = int(s4_mask.sum())
+        _keep("stage2_count", s2_mask)
+        _keep("stage4_count", s4_mask)
     else:
         m["stage2_count"] = m["stage4_count"] = None
 
@@ -1127,7 +1193,8 @@ def compute_live(force: bool = False) -> dict:
     traded_share = traded / len(universe) if universe else 0.0
     session_live = _session_started() and traded_share >= MIN_TRADED_SHARE
 
-    metrics = compute_metrics(levels, prices, vols)
+    members: dict = {}
+    metrics = compute_metrics(levels, prices, vols, members=members)
     metrics.update(compute_index_metrics(levels.get("index") or {}, prices))
 
     basis = None
@@ -1173,7 +1240,96 @@ def compute_live(force: bool = False) -> dict:
     with _live_lock:
         _live_cache["payload"] = payload
         _live_cache["at"] = now
+        # Beside the payload, never IN it: this endpoint is polled every 60s by
+        # every user on the Dashboard against a single-process pod, and the
+        # lists are only wanted on a click.
+        _live_cache["members"] = members
+        _live_cache["prices"] = prices
+        _live_cache["vols"] = vols
+        _live_cache["levels"] = levels
     return payload
+
+
+def _name_of(ticker: str) -> Optional[str]:
+    """Company name, or None. The modal renders `item.n ?? ''`, so an unknown
+    name is a blank cell rather than a missing row."""
+    try:
+        from api.routers.ticker_search import _name_from_cache
+        return _name_from_cache(ticker)
+    except Exception:
+        return None
+
+
+# The monitor's columns pass a `drillKey`, not a metric key — usually the metric
+# plus "_list", but these three predate that convention. Resolving here means the
+# live endpoint takes exactly what the recorded one takes, so the frontend has
+# one URL shape instead of two and cannot get the mapping wrong per cell.
+_DRILL_KEY_ALIASES = {
+    "universe_list": "universe_count",
+    "stage2_list": "stage2_count",
+    "stage4_list": "stage4_count",
+}
+
+
+def _metric_key_of(drill_key: str) -> str:
+    if drill_key in _DRILL_KEY_ALIASES:
+        return _DRILL_KEY_ALIASES[drill_key]
+    return drill_key[:-5] if drill_key.endswith("_list") else drill_key
+
+
+def live_drill(metric_key: str) -> dict:
+    """The names behind one live cell, in the recorded drill's item shape.
+
+    `atr`/`a50` are absent by construction — they need intraday high/low the
+    market snapshot does not carry, which is why `atr_ext_7` is in NOT_LIVE.
+    The modal already renders a missing one as an em dash.
+    """
+    with _live_lock:
+        cached = dict(_live_cache)
+    payload = cached.get("payload")
+    members = cached.get("members")
+    if not payload or members is None:
+        return {"ok": False, "items": [], "reason": "no live read cached", "as_of": None}
+    key = _metric_key_of(metric_key)
+    if key not in DRILLABLE:
+        return {"ok": False, "items": [],
+                "reason": f"{key} is carried from a prior session, not measured live",
+                "as_of": payload.get("as_of")}
+
+    names = members.get(key) or []
+    levels = cached.get("levels") or {}
+    prices = cached.get("prices") or {}
+    vols = cached.get("vols") or {}
+    idx = {t: i for i, t in enumerate(levels.get("tickers") or [])}
+    prev = levels.get("prev_close")
+    avg20 = levels.get("vol_avg20")
+
+    items = []
+    for t in names:
+        c = prices.get(t)
+        if c is None:
+            continue
+        item = {"t": t, "c": round(float(c), 2)}
+        i = idx.get(t)
+        if i is not None and prev is not None:
+            p = float(prev[i])
+            if p and not np.isnan(p):
+                item["pct"] = round((float(c) - p) / p * 100, 1)
+        v = vols.get(t)
+        if i is not None and avg20 is not None and v:
+            a = float(avg20[i])
+            item["vr"] = round(float(v) / a, 1) if a and not np.isnan(a) else None
+        n = _name_of(t)
+        if n:
+            item["n"] = n
+        items.append(item)
+
+    # Biggest mover first, the order the recorded drill list uses. A name whose
+    # prior close is missing has no change to sort on and sinks to the bottom
+    # rather than leading the list from a null.
+    items.sort(key=lambda x: x.get("pct") if x.get("pct") is not None else -1e9,
+               reverse=True)
+    return {"ok": True, "items": items, "reason": None, "as_of": payload.get("as_of")}
 
 
 # ── The gate ──────────────────────────────────────────────────────────────────
