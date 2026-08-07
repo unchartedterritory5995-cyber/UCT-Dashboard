@@ -18,6 +18,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
+import { useLiveBreadth } from '../../../hooks/useLiveBreadth'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import UIcon from '../../../components/ui/UIcon'
 import {
@@ -145,8 +146,8 @@ export default function BreadthWidget({ opts, onOptsChange }) {
   }, [opts, onOptsChange])
 
   // ── Data — same endpoint the Breadth page reads; 90 sessions covers the
-  // percentile windows + timeline/scoreboard history. 5-min refresh (the
-  // backend snapshot is daily; intraday patches land via the monitor page).
+  // percentile windows + timeline/scoreboard history. 5-min refresh (the stored
+  // rows only change once a day at the 4:15pm collector).
   const { data } = useMobileSWR('/api/breadth-monitor?days=90', fetcher, {
     refreshInterval: 300_000,
     dedupingInterval: 60_000,
@@ -154,9 +155,24 @@ export default function BreadthWidget({ opts, onOptsChange }) {
   })
   const rows = useMemo(() => data?.rows ?? [], [data])
 
-  // Forward-fill the weekly/sparse sentiment keys (same as BreadthViews).
+  // LIVE intraday breadth — same source + machinery the Breadth page uses. The
+  // hook polls /api/breadth-monitor/live (60s) and returns a provisional row
+  // (anchored/reconciled server-side) that sits on TOP of the stored history as
+  // "today", or null once the 4:15pm collector supersedes it (then the stored
+  // row stands). Without this the widget showed only the last EOD row all day.
+  const liveBreadth = useLiveBreadth({ enabled: true })
+  // Rows used for the CURRENT reading + recent-history views: live row prepended
+  // as today. Percentiles below stay on the STORED history so the live value is
+  // ranked AGAINST history, not against itself.
+  const displayRows = useMemo(
+    () => (liveBreadth.row ? [liveBreadth.row, ...rows] : rows),
+    [liveBreadth.row, rows],
+  )
+
+  // Forward-fill the weekly/sparse sentiment keys (same as BreadthViews). The
+  // live row (newest) inherits the sparse keys forward-filled from prior rows.
   const filledRows = useMemo(() => {
-    const asc = [...rows].reverse()
+    const asc = [...displayRows].reverse()
     const carry = {}
     const result = []
     for (const row of asc) {
@@ -168,7 +184,7 @@ export default function BreadthWidget({ opts, onOptsChange }) {
       result.push(filled)
     }
     return result.reverse()
-  }, [rows])
+  }, [displayRows])
 
   const currentRow = filledRows[0]
   const prevRow = filledRows[3]
