@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, cleanup, act } from '@testing-library/react'
+import { render, cleanup, act, fireEvent } from '@testing-library/react'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -302,15 +302,87 @@ const legendRowOf = (view) => {
  * comparison chip is still identified the old way, because it is still a
  * hand-written class-less span and is still asserted to be LAST.
  */
-const chipTexts = (view) => [...legendRowOf(view).children]
-  .filter(el => el.tagName === 'SPAN' && (
-    el.hasAttribute('data-instance-id') || (!el.className && !el.querySelector('strong'))))
-  .map(el => el.textContent)
+const chipTexts = (view) => {
+  expectFoldShape(view)
+  return [...legendRowOf(view).children]
+    .filter(el => el.tagName === 'SPAN' && (
+      el.hasAttribute('data-instance-id') || (!el.className && !el.querySelector('strong'))))
+    .map(el => el.textContent)
+}
 
 /** The chip ELEMENTS, same predicate — for the cases that assert on state
  *  (`data-hidden`, the fold class) rather than on text. */
-const chipEls = (view) => [...legendRowOf(view).children]
+const chipEls = (view) => {
+  expectFoldShape(view)
+  return chipElsRaw(view)
+}
+
+/** The chip elements with NO fold assertion — what `expectFoldShape` reads, and
+ *  the only reader that may be used inside it. */
+const chipElsRaw = (view) => [...legendRowOf(view).children]
   .filter(el => el.tagName === 'SPAN' && el.hasAttribute('data-instance-id'))
+
+/** The `+N` control, or `null`. It is the legend row's only BUTTON. */
+const moreButtonOf = (view) =>
+  [...legendRowOf(view).children].find(el => el.tagName === 'BUTTON') || null
+
+/**
+ * ⭐ THE FOLD SHAPE, ASSERTED AT EVERY CHIP READ (chart-UX-walls Task 4).
+ *
+ * 🔴 THE WEAKENING THIS REPAIRS, NAMED. Task 3 chose to FOLD the tail past
+ * `CHIP_COLLAPSE_AT` (`display: none` + a `+N`) rather than SLICE it, because the
+ * spec's four is a PER-PANE budget and the shipped legend is one box for the whole
+ * chart — a slice would have made ~25 assertions across four files simply FALSE,
+ * including five engine-vs-legacy legend PARITY cases. Its report flagged the
+ * price honestly: **a folded chip's TEXT IS STILL IN THE DOM**, so every case in
+ * this file that reads chip text now passes whether or not the strip is correctly
+ * folded. Presence stopped implying visibility, and 23 reads went quiet about it.
+ *
+ * ⭐ THIS IS THE STRENGTHENING, AND IT IS ONE PLACE RATHER THAN 23. Both readers
+ * above go through it, so EVERY chip read in this file now also proves WHICH
+ * chips the user can see: the first `threshold` are laid out, the rest are folded
+ * behind a control that restores them.
+ *
+ * ⛔ THE THRESHOLD IS DERIVED FROM THE `+N` BUTTON'S OWN COUNT (`n - N`), NEVER
+ * TYPED. `CHIP_COLLAPSE_AT` is a module-private const in `StockChart.jsx`; a
+ * literal 4 here would be a second copy of it, and the day it moved this rail
+ * would fail for a reason that has nothing to do with the fold. Deriving it also
+ * makes the button and the fold agree BY CONSTRUCTION — a `+5` beside four folded
+ * chips fails here.
+ *
+ * ⛔ FALSIFIABLE IN BOTH DIRECTIONS, WHICH A "nothing before index 4 is folded"
+ * CHECK WOULD NOT BE. It is an EQUALITY against `i >= threshold`, so a chip
+ * wrongly FOLDED (an index below the threshold) and a chip wrongly SHOWN (an
+ * index at or above it) each break the same assertion. Both were driven with a
+ * byte-level mutation of `StockChart.jsx`'s `foldedFrom` before this shipped.
+ *
+ * No button ⇒ nothing may be folded, which is the ≤4 case and the post-expansion
+ * case, and is what stops this rail from being vacuous on a short strip.
+ */
+const expectFoldShape = (view) => {
+  const els = chipElsRaw(view)
+  const folded = els.map(el => el.className.includes('chipFolded'))
+  const more = moreButtonOf(view)
+  if (!more) {
+    expect(folded.filter(Boolean).length,
+      'a chip is FOLDED with no `+N` control to unfold it — those chips are unreachable, '
+      + 'and every text assertion in this file still passes because the text is in the DOM')
+      .toBe(0)
+    return els
+  }
+  const n = Number(String(more.textContent || '').replace(/^\+/, ''))
+  expect(Number.isInteger(n) && n > 0,
+    `the +N control reads ${JSON.stringify(more.textContent)} — this rail derives the fold `
+    + 'threshold from that number and cannot read it').toBe(true)
+  const threshold = els.length - n
+  expect(folded,
+    'the strip is not folded where the `+N` button says it is. A folded chip is `display: '
+    + 'none` and its TEXT IS STILL IN THE DOM, so the text assertions in this case pass '
+    + 'either way — this is the only thing that sees it. Left = what is folded, right = '
+    + `what must be (index >= ${threshold}, derived from "+${n}" over ${els.length} chips).`)
+    .toEqual(els.map((_, i) => i >= threshold))
+  return els
+}
 
 /** What the chip for `key` reads when its series carries `v`. */
 const expected = (key, v) => `${SHIPPED[key].label} ${v.toFixed(SHIPPED[key].decimals)}`
@@ -1252,6 +1324,218 @@ describe('⭐ TASK 2 — every definition that draws a line can name itself', ()
         .toContain(key)
     }
     expect(Object.keys(SHIPPED).length, 'the shipped-legend probe parsed nothing').toBe(9)
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ⭐ chart-UX-walls TASK 4 — THE CHIP CONTROLS, DRIVEN ON A REAL CHART
+//
+// The unit gates live beside the component (`legend/IndicatorChip.test.jsx`,
+// `legend/chipMenu.test.js`). These are the WIRING: that the eye/gear/× a user
+// actually sees on a mounted StockChart reach `instanceControls`' per-INSTANCE
+// door and persist the right blob, and that a refused row is refused IN THE DOM
+// rather than only in the pure function that decided it.
+//
+// ⛔ A GREEN CLICK IN JSDOM IS NOT REACHABILITY. jsdom implements no
+// pointer-events hit-testing and `.legend` is `pointer-events: none`, which
+// INHERITS — so every click below would fire on a control no human could reach.
+// The gate for THAT is the CSS-artifact assertion in
+// `legend/IndicatorChip.test.jsx`, in both directions. These cases are about
+// which handler ran and what it wrote.
+// ═══════════════════════════════════════════════════════════════════════════
+describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () => {
+  /** rsi(1) + stoch(%K,%D) + atr(1) = FOUR chips — at the fold threshold, so
+   *  every chip is laid out and reachable without expanding anything. */
+  const FOUR = () => mergeChartSettings({
+    indicators: Object.fromEntries(['rsi', 'stoch', 'atr'].map(id => [id, { enabled: true }])),
+  })
+
+  /** A chart whose writes are observable. `onSettingsPersist` is StockChart's
+   *  FIRST branch in `handleUpdateChartSettings`, so it intercepts the whole
+   *  merged blob before the preference write — which is exactly what a grid cell
+   *  does in production, not a test-only seam. */
+  const drawObserved = (settings, onPersist, extra) => render(
+    <StockChart sym="AAPL" tf="D" barsOverride={BARS}
+      settingsOverride={settings} onSettingsPersist={onPersist} {...extra} />)
+
+  const chipFor = (view, label) => {
+    const el = chipEls(view).find(e => (e.textContent || '').startsWith(label))
+    expect(el, `no ${label} chip on the strip — this case is asserting on nothing`).toBeTruthy()
+    return el
+  }
+  const liveInstance = (blob, id) =>
+    (blob.indicatorInstances || []).find(i => i && i.instanceId === id) || null
+  const menuRows = () => [...document.body.querySelectorAll('[role="menu"] button')]
+
+  it('the EYE hides THAT instance, through the per-INSTANCE door, and nothing else moves', async () => {
+    const persist = vi.fn()
+    const view = drawObserved(FOUR(), persist)
+    await settledLegend(view, crosshairWith({ 'rsi::rsi': 54.321 }))
+    const chip = chipFor(view, 'RSI')
+    const id = chip.getAttribute('data-instance-id')
+    expect(chip.getAttribute('data-hidden')).toBe('false')
+
+    await act(async () => { chip.querySelector('[aria-label^="Hide "]').click() })
+    expect(persist, 'the eye wrote nothing — the chip control is decorative').toHaveBeenCalledTimes(1)
+    const next = persist.mock.calls[0][0]
+    expect(liveInstance(next, id).hidden,
+      'the eye did not hide the instance it names').toBe(true)
+    // …and it moved ONE instance. A door addressing the DEFINITION would take
+    // every copy with it, which is exactly what makes this door door EIGHT.
+    const others = (next.indicatorInstances || []).filter(i => i && i.instanceId !== id)
+    expect(others.length, 'the fixture drew only one instance — "nothing else moved" is vacuous')
+      .toBeGreaterThan(1)
+    expect(others.some(i => i.hidden === true || i.deleted === true),
+      'hiding one chip disturbed a sibling instance').toBe(false)
+    view.unmount()
+  })
+
+  it('…and it goes BOTH WAYS: the eye on a HIDDEN chip shows it again', async () => {
+    // The un-hide door Task 3 built the hidden chip FOR. Without this half, a
+    // handler that wrote the CURRENT value back (rather than its negation) would
+    // pass the case above and leave Hide a one-way door with a live-looking
+    // control on it.
+    const base = FOUR()
+    const rsiId = base.indicatorInstances.find(i => i.defId === 'rsi').instanceId
+    const hidden = {
+      ...base,
+      indicatorInstances: base.indicatorInstances.map(i =>
+        (i.instanceId === rsiId ? { ...i, hidden: true } : i)),
+    }
+    const persist = vi.fn()
+    const view = drawObserved(hidden, persist)
+    await settledLegend(view, crosshairWith({}))
+    const chip = chipFor(view, 'RSI')
+    expect(chip.getAttribute('data-hidden'), 'the fixture did not start hidden').toBe('true')
+    const btn = chip.querySelector('[aria-label^="Show "]')
+    expect(btn, 'a hidden chip still offers "Hide" — the control lies about its direction').toBeTruthy()
+
+    await act(async () => { btn.click() })
+    expect(persist).toHaveBeenCalledTimes(1)
+    expect(liveInstance(persist.mock.calls[0][0], rsiId).hidden,
+      'the eye on a hidden chip did not un-hide it — Hide is a one-way door again')
+      .toBe(false)
+    view.unmount()
+  })
+
+  it('the GEAR opens the settings dialog on THAT instance', async () => {
+    const view = drawObserved(FOUR(), vi.fn())
+    await settledLegend(view, crosshairWith({}))
+    const chip = chipFor(view, 'ATR')
+    const id = chip.getAttribute('data-instance-id')
+    expect(id, 'the ATR chip does not name an atr instance').toContain('atr')
+    await act(async () => { chip.querySelector('[aria-label$="settings"]').click() })
+    // Task 5's dialog, mounted on `settingsInstanceId`. It names the instance it
+    // opened on, which is how "RSI(7) settings" differs from "RSI(14) settings".
+    const dialog = document.body.querySelector('[role="dialog"]')
+    expect(dialog, 'the gear opened no settings dialog').toBeTruthy()
+    expect(dialog.textContent, 'the dialog opened on some other indicator').toMatch(/ATR/i)
+    view.unmount()
+  })
+
+  it('the × removes THAT instance and leaves its siblings drawing', async () => {
+    const persist = vi.fn()
+    const view = drawObserved(FOUR(), persist)
+    await settledLegend(view, crosshairWith({}))
+    const chip = chipFor(view, 'ATR')
+    const id = chip.getAttribute('data-instance-id')
+    await act(async () => { chip.querySelector('[aria-label^="Remove "]').click() })
+    expect(persist).toHaveBeenCalledTimes(1)
+    const next = persist.mock.calls[0][0]
+    expect(liveInstance(next, id).deleted, '× did not tombstone the instance').toBe(true)
+    for (const other of ['rsi', 'stoch']) {
+      expect((next.indicatorInstances || []).some(i => i && i.defId === other && !i.deleted),
+        `removing ATR took ${other} with it`).toBe(true)
+    }
+    view.unmount()
+  })
+
+  it('a RIGHT-CLICK opens spec §6’s six rows, on the shipped ContextPopover', async () => {
+    const view = drawObserved(FOUR(), vi.fn())
+    await settledLegend(view, crosshairWith({}))
+    fireEvent.contextMenu(chipFor(view, 'RSI'), { clientX: 120, clientY: 60 })
+    const menu = document.body.querySelector('[role="menu"]')
+    expect(menu, 'the right-click opened no menu').toBeTruthy()
+    const text = menu.textContent
+    for (const row of ['Settings', 'Hide RSI', 'Move to', 'Add alert on RSI', 'About', 'Remove']) {
+      expect(text, `${row} is missing from the chip menu`).toContain(row)
+    }
+    // …and it is the shipped primitive, PORTALLED: not inside the legend, which
+    // the export route hides, and not a second menu implementation.
+    expect(view.container.querySelector('[role="menu"]'),
+      'the menu rendered inside the chart — it would be hidden in every export')
+      .toBeNull()
+    view.unmount()
+  })
+
+  it('⛔ a REFUSED move target is disabled IN THE DOM, with the reason on screen', async () => {
+    // The whole point of a disabled REASON. `chipMenu.test.js` proves the verdict
+    // against the real `resolvePlacement`; this proves the verdict REACHES the
+    // button — a row that renders live and writes an unresolvable placement takes
+    // the indicator off the chart with its box still ticked.
+    const view = drawObserved(FOUR(), vi.fn())
+    await settledLegend(view, crosshairWith({}))
+    fireEvent.contextMenu(chipFor(view, 'RSI'), { clientX: 120, clientY: 60 })
+    const move = menuRows().find(b => (b.textContent || '').startsWith('Move to'))
+    expect(move, 'no Move row').toBeTruthy()
+    expect(move.disabled, 'a pane oscillator has nowhere to move — re-derive the refusals').toBe(false)
+    await act(async () => { move.click() })
+
+    const rows = menuRows()
+    const byLabel = (t) => rows.find(b => (b.textContent || '').startsWith(t))
+    const volume = byLabel('Volume pane')
+    expect(volume, 'the Move page does not offer the volume target at all').toBeTruthy()
+    expect(volume.disabled,
+      'the volume target is live. `resolvePlacement` reads the overlay decision from '
+      + '`cs.volumeOverlayIndicators` and NEVER from the instance target, so this row would '
+      + 'persist a placement that changes nothing — with a tick beside it')
+      .toBe(true)
+    expect(volume.textContent,
+      'the refusal reason is not on screen — the user is left clicking a grey line')
+      .toMatch(/chart-wide toggle/)
+    // The CURRENT placement is refused too, and for a different reason.
+    expect(byLabel('Its own pane').disabled, 'the CURRENT target is offered as a destination')
+      .toBe(true)
+    // ⛔ …and the control: one row on this page IS live, so "disabled" is a
+    // property of these two and not of the page.
+    expect(rows.filter(b => !b.disabled).map(b => (b.textContent || '').slice(0, 11)),
+      'every row on the Move page is dead, or none is — the verdict is not discriminating')
+      .toContain('Price pane')
+    view.unmount()
+  })
+
+  it('⛔ …and a PRICE overlay cannot be moved at all — the ROW itself is dead', async () => {
+    const view = drawObserved(mergeChartSettings({
+      indicators: { rsi: { enabled: true }, bb: { enabled: true } },
+    }), vi.fn())
+    await settledLegend(view, crosshairWith({}))
+    fireEvent.contextMenu(chipFor(view, 'BB'), { clientX: 120, clientY: 60 })
+    const move = menuRows().find(b => (b.textContent || '').startsWith('Move to'))
+    expect(move, 'no Move row on the BB chip').toBeTruthy()
+    expect(move.disabled,
+      'BB can be moved. `computePaneLayout` gives a PRICE-declared definition no pane, so '
+      + '`resolvePlacement` returns null and the binder binds nothing — the indicator would '
+      + 'silently vanish').toBe(true)
+    view.unmount()
+  })
+
+  it('⛔ a READ-ONLY mount gets chips with NO controls at all', async () => {
+    // Model Book, a grid cell and the `/r/chart` export route all pass
+    // `showDrawingTools={false}`: no toolbar, no settings panel, and now no chip
+    // controls — the same gate the region menu's `<label> settings…` row uses.
+    const view = drawObserved(FOUR(), vi.fn(), { showDrawingTools: false })
+    await settledLegend(view, crosshairWith({}))
+    const chips = chipEls(view)
+    expect(chips.length, 'no chips at all — the absence below is vacuous').toBe(4)
+    for (const chip of chips) {
+      expect(chip.querySelectorAll('button').length,
+        'a read-only chart sprouted a chip control that writes to the global preference')
+        .toBe(0)
+    }
+    fireEvent.contextMenu(chips[0], { clientX: 10, clientY: 10 })
+    expect(document.body.querySelector('[role="menu"]'),
+      'a read-only chart opened a chip menu').toBeNull()
+    view.unmount()
   })
 })
 

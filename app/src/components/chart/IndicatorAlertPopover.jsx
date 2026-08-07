@@ -87,7 +87,14 @@ function fmtTriggeredAt(epochSec) {
   return formatET(epochSec * 1000)
 }
 
-export default function IndicatorAlertPopover({ sym, onClose, chartInstances = [] }) {
+/**
+ * @param {object} [initial] `{instanceId, plotKey}` — the legend chip this
+ *   popover was opened from (chart-UX-walls Task 4). ONE prop, and it is the
+ *   whole difference between "Add alert on MACD" opening a MACD form and opening
+ *   whatever the catalog happens to list first. Absent ⇒ byte-identical
+ *   behaviour to before it existed.
+ */
+export default function IndicatorAlertPopover({ sym, onClose, chartInstances = [], initial = null }) {
   const ownSym = sym ? String(sym).toUpperCase() : ''
   const { alerts } = useIndicatorAlerts()
   const { catalog, isLoading: catalogLoading, error: catalogError } = useIndicatorAlertCatalog()
@@ -189,14 +196,54 @@ export default function IndicatorAlertPopover({ sym, onClose, chartInstances = [
     selectPlot(plotsOf(e)[0])
   }, [selectPlot])
 
+  /** The served ADDRESS this popover was opened ON, when it was opened from a
+   *  legend chip (`initial = {instanceId, plotKey}`), else ''.
+   *
+   *  ⛔ DERIVED THROUGH `instancesForAddress`, NOT THROUGH A SECOND BRIDGE. The
+   *  caller knows a definition (`williamsR`) and this file knows an address
+   *  (`williams_r`); `alertSets` measured the naive `address === defId` map as a
+   *  LIE for exactly that pair and solved it in ONE direction only. So the search
+   *  runs that shipped, tested bridge FORWARDS over every served address and asks
+   *  which one owns the instance the chip named — no new mapping, and an address
+   *  that names no definition (`close`, `price_vs_ma`) simply never matches.
+   *
+   *  The chip's PLOT breaks the tie: a MACD signal chip opens on `macd.signal`
+   *  rather than on `macd`, because `ichimoku` alone names five different series
+   *  and picking the first would be a guess with a tick beside it. */
+  const initialAddress = useMemo(() => {
+    const wantInstance = initial && initial.instanceId
+    if (!wantInstance || !catalog.length) return ''
+    const owning = [...byAddress.keys()].filter((addr) =>
+      instancesForAddress(chartInstances, addr).some((i) => i.instanceId === wantInstance))
+    if (!owning.length) return ''
+    const suffix = initial.plotKey ? `.${initial.plotKey}` : null
+    return (suffix && owning.find((a) => a.endsWith(suffix))) || owning[0]
+  }, [initial, catalog, byAddress, chartInstances])
+
   // Seed (and re-seed) from whatever the server actually offers. While the
   // catalog is empty — loading, or failed — `indicator` stays '' and the form
   // has nothing to submit, which is the intended state, not a bug to paper over.
+  //
+  // ⭐ …AND FROM THE CHIP THAT OPENED IT, WHEN THERE WAS ONE (chart-UX-walls
+  // Task 4). "Add alert…" on the MACD chip opening an RSI form is the row that
+  // looks live and is not; `initialAddress` is resolved through the catalog, so a
+  // chip whose definition the evaluator cannot evaluate falls back to
+  // `catalog[0]` exactly as before rather than seeding something unsubmittable.
   useEffect(() => {
     if (!catalog.length) return
     if (byIndicator.has(indicator)) return
+    if (initialAddress) {
+      const entry = catalog.find((e) => plotsOf(e).some((p) => p.value === initialAddress))
+      const plot = entry && plotsOf(entry).find((p) => p.value === initialAddress)
+      if (entry && plot) {
+        setIndicator(entry.indicator)
+        selectPlot(plot)
+        if (initial && initial.instanceId) setInstanceId(initial.instanceId)
+        return
+      }
+    }
     selectEntry(catalog[0])
-  }, [catalog, byIndicator, indicator, selectEntry])
+  }, [catalog, byIndicator, indicator, selectEntry, selectPlot, initialAddress, initial])
 
   const conditionEntry = conditionOptions.find((c) => c.value === condition) || null
   const needsThreshold = !!conditionEntry?.needs_threshold

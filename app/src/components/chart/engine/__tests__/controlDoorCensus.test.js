@@ -427,8 +427,9 @@ describe('the control-door census — how many doors, and whether an eighth exis
 
   // ─── DOOR EIGHT ────────────────────────────────────────────────────────
   //
-  // ⭐ THE PER-INSTANCE DOOR IS SHIPPED, AND AS OF TASK 5 IT HAS EXACTLY ONE
-  //    CALLER — `IndicatorSettingsDialog`, spec §6's per-instance settings form.
+  // ⭐ THE PER-INSTANCE DOOR IS SHIPPED, AND AS OF TASK 4 IT HAS EXACTLY TWO
+  //    CALLERS — `IndicatorSettingsDialog` (spec §6's per-instance settings form,
+  //    Task 5) and `StockChart` (the LEGEND CHIP's own controls, Task 4).
   //
   // `setInstanceHidden` / `setInstanceInput` / `removeInstance` / `addInstance`
   // live in the SAME module as the seven above, but they are a DOOR and not a use
@@ -446,10 +447,27 @@ describe('the control-door census — how many doors, and whether an eighth exis
   // the dialog is the surface that makes "RSI(7) settings" mean something
   // different from "RSI(14) settings", which is what the door was built for.
   //
-  // ⚠️ `StockChart.jsx` IS DELIBERATELY NOT HERE. It mounts the dialog and
-  // resolves a `defId` to an instance id through `findInstance` — a READER — and
-  // writes nothing per instance itself. A door name appearing there would mean a
-  // second writer had grown beside the one the dialog routes at.
+  // 🔴 `StockChart.jsx` USED TO BE DELIBERATELY ABSENT FROM THIS LEDGER, AND THE
+  // PARAGRAPH SAYING SO IS INVERTED RATHER THAN DELETED. It read: *"It mounts the
+  // dialog and resolves a `defId` to an instance id through `findInstance` — a
+  // READER — and writes nothing per instance itself. A door name appearing there
+  // would mean a second writer had grown beside the one the dialog routes at."*
+  //
+  // ⭐ A DOOR NAME DOES APPEAR THERE NOW, AND IT IS NOT A SECOND WRITER — IT IS A
+  // SECOND SURFACE ON THE SAME ONE. chart-UX-walls Task 4 gives every legend chip
+  // its own eye / gear / × and a right-click menu, and those are the FIRST
+  // controls in the product that address a chip: a chip is per INSTANCE (the
+  // readout has been keyed by `instanceId` since before this phase), so hiding
+  // "the RSI you right-clicked" is only expressible through this door. Every one
+  // of them calls `instanceControls` — `setInstanceHidden`, `removeInstance`,
+  // `withInstances` — through ONE local `writeInstance` guard, and none of them
+  // touches `cs.indicatorInstances` by hand; the raw-write scan above is what
+  // would catch it if one did.
+  //
+  // ⚠️ THE `settingsInstanceId` MOUNT IS STILL NOT A DOOR. The chip's gear sets
+  // that state and the DIALOG does the writing, exactly as the right-click
+  // `<label> settings…` row already did — which is why this file's ledger names
+  // the two files that CALL the door and not the three surfaces that open them.
   it('⭐ door EIGHT — the per-INSTANCE door has exactly the callers this census names', () => {
     // ⚠️ CHECKED AGAINST THE MODULE, not merely typed here. A renamed door would
     // otherwise narrow the scan to a name nothing has, and its result would mean
@@ -464,6 +482,13 @@ describe('the control-door census — how many doors, and whether an eighth exis
       ['app/src/components/chart/IndicatorSettingsDialog.jsx',
        'spec §6 settings form, per instance (Task 5): setInstanceInput on the generated ' +
        'input rows, setInstanceHidden on the Visibility tab eye'],
+      ['app/src/components/StockChart.jsx',
+       'spec §6 legend chip controls (chart-UX-walls Task 4): the chip\'s eye is ' +
+       'setInstanceHidden, its × is removeInstance, and its ContextPopover "Move to" is ' +
+       'withInstances. A chip IS an instance — the readout has been keyed by instanceId ' +
+       'since before this phase — so "hide the RSI you right-clicked" cannot be said ' +
+       'through any of doors 1-7, every one of which takes legacyInstanceId(defId) and ' +
+       'therefore always means the first copy'],
     ]
 
     const perInstance = new RegExp('\\b(' + DOORS.join('|') + ')\\s*\\(')

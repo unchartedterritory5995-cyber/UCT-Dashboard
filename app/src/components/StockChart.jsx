@@ -68,7 +68,15 @@ import { ENGINE_OWNED, engineDrawsAnything, engineDrawnDefIds } from './chart/en
 import {
   paneMode, computePaneLayout, paneStackHeightPx, SEPARATOR_PX, NO_STACK_MAIN_MARGINS,
 } from './chart/engine/paneLayout'
-import { setIndicatorEnabled, isIndicatorEnabled, findInstance } from './chart/engine/instanceControls'
+// ⭐ chart-UX-walls TASK 4 — `setInstanceHidden` / `removeInstance` join the two
+// readers already here. They are DOOR EIGHT (the per-INSTANCE door), and the chip
+// strip is its second caller after `IndicatorSettingsDialog`;
+// `engine/__tests__/controlDoorCensus.test.js` ledgers this file BY NAME with the
+// reason, and went red the moment the names appeared.
+import {
+  setIndicatorEnabled, isIndicatorEnabled, findInstance,
+  setInstanceHidden, removeInstance, withInstances,
+} from './chart/engine/instanceControls'
 // ⭐ `legendChips`, NOT `engineChips` (chart-UX-walls Task 3). `engineChips`
 // walks BINDINGS and `planBindings` drops a hidden instance, so a hidden
 // indicator had no chip — and a chip you cannot see is one you cannot un-hide
@@ -78,6 +86,8 @@ import { legendChips } from './chart/engine/readout'
 import * as engineRegistry from './chart/engine/nativeRegistry'
 import IndicatorChip from './chart/legend/IndicatorChip'
 import chipStyles from './chart/legend/IndicatorChip.module.css'
+import { chipMenuItems } from './chart/legend/chipMenu'
+import ContextPopover from './mobile/ContextPopover'
 import IndicatorSettingsDialog from './chart/IndicatorSettingsDialog'
 import { usePatternDetections } from '../hooks/usePatternDetections'
 import { useSignatureIndicators } from '../hooks/useSignatureIndicators'
@@ -111,6 +121,39 @@ const EMPTY_CHIPS = Object.freeze([])
  *  layout and out of the accessibility tree, the `+N` button brings it back, and
  *  the chips stay mounted. See that class's comment for the two reasons. */
 const CHIP_COLLAPSE_AT = 4
+
+/**
+ * One `chipMenu` row → one `ContextPopover` row.
+ *
+ * ⛔ THE ICON IS A `UIcon` NAME IN `chipMenu.js` AND A `UIcon` ELEMENT HERE, and
+ * that split is deliberate: `chipMenu.js` is pure (no React, so it can be driven
+ * against the real placement resolver in a plain unit test), while
+ * `ContextPopover` renders `it.icon` VERBATIM — its own doc example passes an
+ * emoji, which this codebase does not do (`UIcon` is the single source of
+ * iconography). The name crosses the boundary; the element is built here.
+ *
+ * ⛔ AND A REFUSED ROW SHOWS ITS REASON. `chipMenu`'s `disabled` is a SENTENCE,
+ * not a boolean, precisely so the user is told why "Move to → Volume pane" is
+ * dead instead of clicking a grey line repeatedly. `ContextPopover` renders the
+ * label node as-is, so the reason rides along beside it.
+ */
+function chipMenuRowToPopoverRow(it) {
+  if (it.separator) return it
+  const icon = it.icon ? <UIcon name={it.icon} size={13} gold={false} /> : undefined
+  if (!it.disabled) return { ...it, icon }
+  return {
+    ...it,
+    icon,
+    label: (
+      <>
+        <span>{it.label}</span>
+        <span style={{ display: 'block', fontSize: 10.5, opacity: 0.62, lineHeight: 1.35, marginTop: 1 }}>
+          {it.disabled}
+        </span>
+      </>
+    ),
+  }
+}
 
 // ⛔ `LEGACY_CHIP_ORDER` STOOD HERE AND IS DELETED (B5 Task 6). It was the order
 // the LEGACY lane's chips appeared in, derived from the registry so that a chart
@@ -1594,6 +1637,24 @@ export default function StockChart({
   // Task 1. Task 4's chip gear sets this too.
   const [settingsInstanceId, setSettingsInstanceId] = useState(null)
 
+  // ── chart-UX-walls TASK 4 — THE CHIP MENU ────────────────────────────────
+  //
+  // `{instanceId, anchor:{x,y}}` while a chip's ContextPopover is open, else null.
+  // Anchored per chip because the popover is per INSTANCE: with two RSIs on the
+  // chart, "which one did you right-click" is the only thing that distinguishes
+  // Hide from Hide.
+  const [chipMenu, setChipMenu] = useState(null)
+  // Which PAGE of that one popover is showing: null = the six rows, 'move' = the
+  // three placement targets. ⛔ A PAGE, NOT A NESTED MENU — `ContextPopover`
+  // renders a flat list and IGNORES an `it.submenu`, so a "Move to ▸" row handed
+  // to it verbatim would render as a live button that does nothing at all. That
+  // is the exact defect this task exists to remove, one layer up.
+  const [chipPage, setChipPage] = useState(null)
+  // The instance whose ABOUT page the same popover is showing (spec §6's About
+  // row). A second PAGE of one popover rather than a second popover: the text is
+  // `def.meta.description`, which every definition already declares.
+  const [chipAbout, setChipAbout] = useState(null)
+
   // ── Journal 2.0 markers + entry/stop price lines for this symbol ──
   // Returns empty arrays for unauth'd users. Merged with prop-supplied
   // markers/priceLines below so consumers (e.g. TradeDrawer) keep working.
@@ -2305,6 +2366,59 @@ export default function StockChart({
     setPref('chart_settings', JSON.stringify(persisted))
   }, [setPref, settingsOverride, csBase, cs, onSettingsPersist])
 
+  // ═══ chart-UX-walls TASK 4 — EVERY CHIP ACTION, THROUGH ONE WRITER ════════
+  //
+  // ⭐ ONE WRITER. Every chip action routes at `instanceControls` — the same
+  // module the right-click doors, the four keyboard chords, the generated
+  // settings rows, the library dialog and the voice bus already share. A REFUSED
+  // write returns the settings object BY IDENTITY (a dead instance id, an illegal
+  // value), so the guard below is `!==` and nothing persists.
+  //
+  // ⛔ THE IDENTITY GUARD IS NOT AN OPTIMISATION. `handleUpdateChartSettings`
+  // WRITES THE GLOBAL PREF. Persisting `cs` back over itself on a refused write
+  // would stamp `preset: 'custom'` on a user who never successfully changed
+  // anything — and on a grid cell it would flush the whole blob through
+  // `onSettingsPersist` for a no-op.
+  const writeInstance = useCallback((next) => {
+    if (next !== cs) handleUpdateChartSettings({ ...next, preset: 'custom' })
+  }, [cs, handleUpdateChartSettings])
+
+  const handleChipHidden = useCallback((instanceId) => {
+    const inst = findInstance(cs, instanceId)
+    if (!inst) return
+    writeInstance(setInstanceHidden(cs, instanceId, !inst.hidden, engineRegistry))
+  }, [cs, writeInstance])
+
+  // ⛔ `removeInstance`, NOT `setIndicatorEnabled(defId, false)`. The second one
+  // TOMBSTONES EVERY LIVE INSTANCE OF THE DEFINITION (`instanceControls:225`), so
+  // × on one of two RSIs would delete both — silently, and identically to the
+  // correct behaviour while only one exists. See the report: that substitution
+  // SURVIVES today's tests and its kill belongs to the task that ships a second
+  // instance.
+  const handleChipRemove = useCallback((instanceId) => {
+    writeInstance(removeInstance(cs, instanceId, engineRegistry))
+  }, [cs, writeInstance])
+
+  // ⛔ NO RAW `{...cs, indicatorInstances}` HERE. `withInstances` is the writer's
+  // own list-setter: it re-sorts by definition stack order and stamps
+  // `preset: 'custom'`, and a hand-spread list would silently drop the sort — the
+  // panes and the legend read that ONE list and would stop agreeing.
+  //
+  // ⛔ AND IT REFUSES BY IDENTITY, exactly like every other door: a dead instance
+  // id, or a target this instance cannot resolve, returns `cs` and persists
+  // nothing. `chipMenu.moveTargetRefusal` is what stops such a row being offered
+  // at all; this is the belt behind it.
+  const handleChipMove = useCallback((instanceId, target) => {
+    const inst = findInstance(cs, instanceId)
+    if (!inst) return
+    if ((inst.placement && inst.placement.target) === target) return
+    const list = (cs.indicatorInstances || []).map(i => (
+      i && i.instanceId === instanceId
+        ? { ...i, placement: { ...(i.placement || {}), target } }
+        : i))
+    writeInstance(withInstances(cs, list, engineRegistry))
+  }, [cs, writeInstance])
+
   // Toolbar EXT/RTH button — flips the same "Extended hours" setting the settings
   // panel toggles, so both stay in lockstep (one logical state, two entry points).
   const handleToggleExtended = useCallback((val) => {
@@ -2318,6 +2432,45 @@ export default function StockChart({
   // addDrawing is created later (useChartDrawings, below); bridge via ref so a
   // menu item can draw a horizontal line at the clicked price.
   const addDrawingRef = useRef(null)
+
+  // ⭐ chart-UX-walls TASK 4 — "Add alert on <label>…", from the chip AND from the
+  // right-click region menu, through the SAME popover the 🔔 button opens.
+  //
+  // ⛔ ONE POPOVER, NOT A SECOND MOUNT. `ChartToolbar` owns `IndicatorAlertPopover`
+  // (it is the surface that knows the symbol and the read-only gate), so this is
+  // an imperative call onto the existing one, exactly like `openIndicatorLibrary`
+  // and `openSettings` above. A second mount would be a second alert form that
+  // could disagree with the first about which chart's instances it is offering.
+  //
+  // It returns FALSE when there is no toolbar or no symbol, and the caller turns
+  // that into a DISABLED row rather than a live one that opens nothing.
+  const chipAlertsRefusal = showDrawingTools && sym
+    ? undefined
+    : 'this chart has no alert form (read-only mount)'
+  const handleChipAlerts = useCallback((instanceId, plotKey) => {
+    try { toolbarRef.current?.openAlerts({ instanceId, plotKey }) } catch { /* noop */ }
+  }, [])
+
+  const handleChipMenu = useCallback((chip, anchor) => {
+    setChipPage(null)
+    setChipAbout(null)
+    setChipMenu({ chip, anchor })
+  }, [])
+
+  /** The chip's four handlers, or NULL on a read-only mount.
+   *
+   * ⛔ THE SAME GATE THE REGION MENU'S `<label> settings…` ROW USES, and for the
+   * same reason it gives: a mount with no drawing tools (Model Book, a grid cell,
+   * the `/r/chart` export route) renders no toolbar and is not the surface a user
+   * edits their chart on. `IndicatorChip` renders NO control at all when it gets
+   * no handlers, so those surfaces keep exactly the inert chip Task 3 shipped —
+   * and the export route keeps a legend with no buttons in it. */
+  const chipHandlers = useMemo(() => (showDrawingTools ? {
+    onToggleHidden: handleChipHidden,
+    onOpenSettings: setSettingsInstanceId,
+    onRemove: handleChipRemove,
+    onMenu: handleChipMenu,
+  } : null), [showDrawingTools, handleChipHidden, handleChipRemove, handleChipMenu])
   const buildRegionSections = useCallback((region, clickPrice) => {
     const setCs = (path, value) => {
       const next = { ...cs }
@@ -2521,9 +2674,26 @@ export default function StockChart({
       const settingsRow = (showDrawingTools && instId)
         ? [{ id: 'i-set', label: `${label} settings…`, onSelect: () => setSettingsInstanceId(instId) }]
         : settingsLink('i-set', `${label} settings…`)
+      // ⭐ chart-UX-walls TASK 4 — the region menu's own alert door, beside
+      // `Hide <label>` and `<label> settings…`. It opens the SAME popover the 🔔
+      // button and the chip's Alerts row open (`toolbarRef.openAlerts`), scoped to
+      // the same live instance the settings row resolved — so right-clicking the
+      // RSI pane offers an RSI alert rather than whatever the catalog lists first.
+      //
+      // ⛔ SAME READ-ONLY GATE AS THE ROW ABOVE IT, and for the same reason: with
+      // no toolbar there is no popover, and a row that opens nothing is the defect
+      // class this phase retires rather than a smaller version of it.
+      const alertRow = (showDrawingTools && instId)
+        ? [{
+            id: 'i-alert',
+            label: `Add alert on ${label}…`,
+            onSelect: () => { try { toolbarRef.current?.openAlerts({ instanceId: instId }) } catch { /* noop */ } },
+          }]
+        : []
       secs.push({ id: 'region', title: label, items: [
         { id: 'i-hide', label: `Hide ${label}`, kind: 'toggle', checked: true, onSelect: () => setIndEnabled(key, false) },
         ...settingsRow,
+        ...alertRow,
       ] })
     } else if (region.type === 'overlay') {
       const ov = resolvedOverlays?.[region.index]
@@ -10329,6 +10499,88 @@ export default function StockChart({
           onClose={() => setSettingsInstanceId(null)}
         />
       )}
+      {/* ─── chart-UX-walls TASK 4 — THE CHIP MENU (spec §6) ──────────────────
+          Tap / right-click / long-press a chip → Settings · Hide · Move · Alerts
+          · About · Remove. ONE shipped primitive, unmodified: `ContextPopover` is
+          already a bottom sheet on touch and an anchored menu on desktop, with
+          44px rows, outside-click and Escape (`mobile/ContextPopover`).
+
+          ⛔ MOUNTED OUTSIDE THE LEGEND, AND THAT IS NOT THE CONTRADICTION IT
+          LOOKS LIKE. Task 3's invariant is that a CHIP stays inside the legend
+          container, because the export route hides `[class*="legend" i]` and a
+          chip outside it would appear in every branded newsletter screenshot. A
+          MENU is not part of the export frame at all — it only exists while a
+          user is pointing at something — and `ContextPopover` portals to
+          `<body>` regardless, so its position in this tree is inert.
+
+          ⛔ AND IT IS RESOLVED FROM `cs` AT RENDER, not from the snapshot: the
+          Move submenu's tick has to follow the placement the user just chose. */}
+      {chipMenu && (() => {
+        const c = chipMenu.chip
+        const def = engineRegistry.getDefinition(c.defId)
+        const inst = findInstance(cs, c.instanceId)
+        const close = () => { setChipMenu(null); setChipPage(null) }
+        const items = chipMenuItems(
+          { ...c, placementTarget: inst && inst.placement && inst.placement.target },
+          def,
+          {
+            onSettings: (id) => { close(); setSettingsInstanceId(id) },
+            onToggleHidden: (id) => { close(); handleChipHidden(id) },
+            onMove: (id, t) => { close(); handleChipMove(id, t) },
+            onAlerts: (id) => { close(); handleChipAlerts(id, c.plotKey) },
+            onAbout: () => { close(); setChipAbout({ chip: c, anchor: chipMenu.anchor }) },
+            onRemove: (id) => { close(); handleChipRemove(id) },
+          },
+          { alertsRefusal: chipAlertsRefusal },
+        )
+        const move = items.find((i) => i.key === 'move')
+        const page = (chipPage === 'move' && move && !move.disabled)
+          ? [
+              { key: '_back', label: c.label, icon: 'collapse', keepOpen: true,
+                onClick: () => setChipPage(null) },
+              { separator: true },
+              ...move.submenu.map((s) => ({ ...s, icon: s.checked ? 'check' : 'expand' })),
+            ]
+          : items.map((it) => (it.key === 'move' && !it.disabled
+              ? { ...it, keepOpen: true, onClick: () => setChipPage('move') }
+              : it))
+        return (
+          <ContextPopover
+            open
+            onClose={close}
+            anchor={chipMenu.anchor}
+            title={c.label}
+            width={260}
+            items={page.map(chipMenuRowToPopoverRow)}
+          />
+        )
+      })()}
+      {/* ⭐ ABOUT — a second PAGE of the same popover, spec §6's sixth row. The
+          text is `def.meta.description`, which every definition already declares,
+          so this needs no new data and no new fetch. */}
+      {chipAbout && (() => {
+        const def = engineRegistry.getDefinition(chipAbout.chip.defId)
+        const meta = (def && def.meta) || {}
+        return (
+          <ContextPopover
+            open
+            onClose={() => setChipAbout(null)}
+            anchor={chipAbout.anchor}
+            title={meta.name || chipAbout.chip.defId}
+            width={280}
+          >
+            <div style={{ padding: '4px 10px 10px', fontSize: 12, lineHeight: 1.55, color: 'var(--text-secondary, #b8b3a5)' }}>
+              {meta.description || 'This indicator declares no description.'}
+              {meta.repaint && (
+                <div style={{ marginTop: 8, fontSize: 11, opacity: 0.75 }}>
+                  {String(meta.repaint).replace(/-/g, ' ')}
+                  {meta.category ? ` · ${meta.category}` : ''}
+                </div>
+              )}
+            </div>
+          </ContextPopover>
+        )
+      })()}
       {enabledComparisons.length > 0 && (
         <div className={styles.comparisonLegend}>
           <span className={styles.legendLabel}>vs {sym}:</span>
@@ -10658,6 +10910,7 @@ export default function StockChart({
                     key={`${c.instanceId}::${c.plotKey}`}
                     chip={c}
                     className={i >= foldedFrom ? chipStyles.chipFolded : undefined}
+                    {...chipHandlers}
                   />
                 ))}
                 {overflow && (
@@ -10701,6 +10954,7 @@ export default function StockChart({
                   key={`${c.instanceId}::${c.plotKey}`}
                   chip={c}
                   className={`${styles.vlFull}${i >= foldedFrom ? ' ' + chipStyles.chipFolded : ''}`}
+                  {...chipHandlers}
                 />
               ))}
               {overflow && (
@@ -10746,6 +11000,7 @@ export default function StockChart({
               key={`${c.instanceId}::${c.plotKey}`}
               chip={c}
               className={i >= foldedFrom ? chipStyles.chipFolded : undefined}
+              {...chipHandlers}
             />
           ))}
           {overflow && (
