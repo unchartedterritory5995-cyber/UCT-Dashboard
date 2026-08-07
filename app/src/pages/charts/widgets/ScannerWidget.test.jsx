@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { vi } from 'vitest'
 import ScannerWidget from './ScannerWidget'
 
@@ -8,7 +8,7 @@ vi.mock('../../../hooks/usePreferences', () => ({
   parsePref: (_v, d) => d,
 }))
 
-test('renders the scanner picker shell (title + preset section)', () => {
+test('renders the scanner picker (title + preset section)', () => {
   render(<ScannerWidget opts={{}} onOptsChange={() => {}} />)
   expect(screen.getByText('Add a Scanner')).toBeInTheDocument()
   expect(screen.getByText('Preset Scanners')).toBeInTheDocument()
@@ -26,8 +26,13 @@ test('exposes a settings gear', () => {
   expect(screen.getByTitle('Scanner settings')).toBeInTheDocument()
 })
 
-test('no preset scans are wired yet (no scan rows)', () => {
-  render(<ScannerWidget opts={{}} onOptsChange={() => {}} />)
-  // Only the disabled create button + the empty-state copy — no clickable scan rows.
-  expect(screen.getByText(/Relative Strength Leaders/i)).toBeInTheDocument() // in the empty-state hint
+test('lists the Highest Volume (1-Year) preset and selecting it sets scanKey', () => {
+  const onOptsChange = vi.fn()
+  render(<ScannerWidget opts={{}} onOptsChange={onOptsChange} />)
+  const row = screen.getByRole('button', { name: /highest volume \(1-year\)/i })
+  expect(row).toBeInTheDocument()
+  fireEvent.click(row)
+  expect(onOptsChange).toHaveBeenCalledWith(
+    expect.objectContaining({ scanKey: 'highest-volume-1y', scanName: 'Highest Volume (1-Year)' }),
+  )
 })

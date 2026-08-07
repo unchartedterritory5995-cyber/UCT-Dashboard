@@ -1,34 +1,47 @@
 import { useCallback } from 'react'
 import ScannerPicker from './ScannerPicker'
+import ScannerResults from './ScannerResults'
 
-// The Scanner widget: open a scan (e.g. "Relative Strength Leaders") and load its
-// results into the SAME watchlist-style table — identical columns, tint/weight,
-// resize-drag, column presets, and ⚙ settings (it reuses the watchlist machinery).
+// The Scanner widget: open a scan (e.g. "Highest Volume (1-Year)") and load its
+// live results into a watchlist-style table. No scan chosen → the picker (preset
+// scans + a disabled "create your own"); a scan chosen → its results.
 //
-// For now the widget is the PICKER SHELL: a "Preset Scanners" section (empty until
-// we add scans) and a disabled "Create your own scan" (until the custom scan-builder
-// lands). Per-widget appearance lives in `opts.settings` (a watchlist-settings blob),
-// so each scanner owns its canvas/colors/text and one widget's look never touches
-// another — same isolation model as the watchlist and chart widgets.
-export default function ScannerWidget({ opts, onOptsChange }) {
+// Per-widget appearance lives in `opts.settings` (a watchlist-settings blob), so
+// each scanner owns its canvas/colors/text — same isolation as the watchlist/chart
+// widgets. `opts.scanKey`/`scanName` remember the selected scan.
+export default function ScannerWidget({ color, opts, onOptsChange }) {
+  const scanKey = opts?.scanKey || null
   const settingsOverride = opts?.settings || null
   const persistSettings = useCallback(
     (next) => onOptsChange?.({ ...(opts || {}), settings: next }),
     [opts, onOptsChange],
   )
-  // Picking a scan persists a `scanKey` into the widget's opts. No preset scans
-  // exist yet, so this stays on the picker; once scans land, a chosen scan will
-  // render the watchlist-style results table here (Watchlists embedded).
   const pickScan = useCallback(
     (sel) => onOptsChange?.({ ...(opts || {}), scanKey: sel?.key || null, scanName: sel?.name || null }),
     [opts, onOptsChange],
   )
+  const exitScan = useCallback(
+    () => onOptsChange?.({ ...(opts || {}), scanKey: null, scanName: null }),
+    [opts, onOptsChange],
+  )
 
+  if (!scanKey) {
+    return (
+      <ScannerPicker
+        onPick={pickScan}
+        settingsOverride={settingsOverride}
+        onSettingsPersist={persistSettings}
+      />
+    )
+  }
   return (
-    <ScannerPicker
-      onPick={pickScan}
+    <ScannerResults
+      scanKey={scanKey}
+      scanName={opts?.scanName}
+      color={color}
       settingsOverride={settingsOverride}
       onSettingsPersist={persistSettings}
+      onExit={exitScan}
     />
   )
 }

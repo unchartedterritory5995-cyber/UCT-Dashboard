@@ -19,9 +19,15 @@ import { menuThemeVars } from '../../../utils/dividerColor'
 import styles from './WatchlistPicker.module.css'
 import sc from './ScannerPicker.module.css'
 
-// Preset scans — deliberately EMPTY for now (the widget shell). Each future entry:
-// { key, name, description }. Picking one will load its results into the table.
-const PRESET_SCANS = []
+// Preset scans. Each entry { key, name, description }; `key` maps to a scan
+// endpoint in ScannerResults. Picking one loads its live results.
+const PRESET_SCANS = [
+  {
+    key: 'highest-volume-1y',
+    name: 'Highest Volume (1-Year)',
+    description: 'Trading their highest volume in a year',
+  },
+]
 
 export default function ScannerPicker({ onPick, settingsOverride = null, onSettingsPersist = null }) {
   // Match the widget's own watchlist appearance (canvas / colors) + expose the
@@ -104,18 +110,14 @@ export default function ScannerPicker({ onPick, settingsOverride = null, onSetti
         </button>
 
         {/* Preset scanners */}
+        <div className={sc.sectionLabel}>Preset Scanners</div>
         {presets.length === 0 ? (
-          <div className={styles.emptyWrap}>
-            <UIcon name="search" size={22} gold />
-            <div className={styles.emptyTitle}>Preset Scanners</div>
-            <div className={styles.emptyText}>
-              {query ? 'No matches.' : 'Curated scans (e.g. Relative Strength Leaders) are coming soon.'}
-            </div>
-          </div>
+          <div className={styles.empty}>{query ? 'No matches.' : 'No preset scans yet.'}</div>
         ) : presets.map(s => (
           <button key={s.key} type="button" className={styles.row} onClick={() => onPick?.({ key: s.key, name: s.name })}>
             <span className={styles.rowIcon}><UIcon name="search" size={13} gold={false} /></span>
             <span className={styles.rowName}>{s.name}</span>
+            {s.description && <span className={styles.rowMeta}>{s.description}</span>}
           </button>
         ))}
       </div>
