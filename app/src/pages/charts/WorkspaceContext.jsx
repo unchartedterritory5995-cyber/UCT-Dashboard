@@ -23,6 +23,9 @@ const FALLBACK = {
   // Replay mode: an ISO 'YYYY-MM-DD' cutoff; linked charts hide every bar after it.
   replayCutoff: null,
   exitReplay: () => {},
+  // Custom-Period Sort "Mark start date": an ISO 'YYYY-MM-DD'; linked charts draw a
+  // thin gold vertical line at it. Cleared by exitReplay.
+  startMarker: null,
 }
 
 export function useWorkspace() {

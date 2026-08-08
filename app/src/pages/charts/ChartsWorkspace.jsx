@@ -556,16 +556,18 @@ export default function ChartsWorkspace() {
   const [periodSortPanel, setPeriodSortPanel] = useState(null) // { start, end, group } | null
   // Replay mode: an ISO 'YYYY-MM-DD' cutoff — linked charts hide every bar after it.
   const [replayCutoff, setReplayCutoff] = useState(null)
+  // "Mark start date": an ISO 'YYYY-MM-DD' — linked charts draw a gold vertical line at it.
+  const [startMarker, setStartMarker] = useState(null)
   const handlePeriodSelected = useCallback((sym, start, end, pct) => {
     setPeriodSortMode(false)
     setPeriodSortSel({ sym, start, end, pct })
   }, [])
   const handlePeriodCancel = useCallback(() => setPeriodSortMode(false), [])
-  const exitReplay = useCallback(() => setReplayCutoff(null), [])
+  const exitReplay = useCallback(() => { setReplayCutoff(null); setStartMarker(null) }, [])
 
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay }),
-    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay],
+    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker }),
+    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker],
   )
 
   // Debounced layout persist (500ms).
@@ -1437,12 +1439,15 @@ export default function ChartsWorkspace() {
           <PeriodSortConfig
             sel={periodSortSel}
             onCancel={() => setPeriodSortSel(null)}
-            onSort={(start, end, replay, group, tf) => {
+            onSort={(start, end, replay, group, tf, markStart) => {
               setPeriodSortSel(null)
               setPeriodSortPanel({ start, end, group: group || null })
               // Replay: cut every linked chart off at the End date (ISO). Off = clear it.
               const s = String(end)
               setReplayCutoff(replay ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` : null)
+              // Mark start date: gold vertical line at the Start date (ISO) on every chart.
+              const st = String(start)
+              setStartMarker(markStart ? `${st.slice(0, 4)}-${st.slice(4, 6)}-${st.slice(6, 8)}` : null)
               // Timeframe: switch every chart to the chosen D/W/M (composes with replay).
               applyTfToCharts(tf)
             }}

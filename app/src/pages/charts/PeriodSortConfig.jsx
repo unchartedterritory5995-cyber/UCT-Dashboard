@@ -11,11 +11,12 @@ export default function PeriodSortConfig({ sel, onSort, onCancel }) {
   const [start, setStart] = useState(ymdToInput(sel.start))
   const [end, setEnd] = useState(ymdToInput(sel.end))
   const [replay, setReplay] = useState(false)
+  const [markStart, setMarkStart] = useState(false)  // gold vertical line at the start date
   const [groupBy, setGroupBy] = useState('stocks')   // stocks | theme | sector | industry
   const [tf, setTf] = useState('D')                  // D | W | M — linked charts switch to this
   const valid = start && end && inputToYmd(start) < inputToYmd(end)
 
-  const sort = () => { if (valid) onSort(inputToYmd(start), inputToYmd(end), replay, groupBy === 'stocks' ? null : groupBy, tf) }
+  const sort = () => { if (valid) onSort(inputToYmd(start), inputToYmd(end), replay, groupBy === 'stocks' ? null : groupBy, tf, markStart) }
 
   return (
     <div className={styles.cfgBackdrop} onMouseDown={(e) => { if (e.target === e.currentTarget) onCancel() }}>
@@ -52,6 +53,12 @@ export default function PeriodSortConfig({ sel, onSort, onCancel }) {
           <label className={styles.cfgReplay}>
             <input type="checkbox" checked={replay} onChange={(e) => setReplay(e.target.checked)} />
             <span>Replay mode <span className={styles.cfgReplayHint}>— hide bars past the end date on linked charts</span></span>
+          </label>
+          {/* Mark start date: a thin gold vertical line at the start date on every linked
+              chart; cleared on exit replay. */}
+          <label className={styles.cfgReplay}>
+            <input type="checkbox" checked={markStart} onChange={(e) => setMarkStart(e.target.checked)} />
+            <span>Mark start date <span className={styles.cfgReplayHint}>— gold vertical line at the start date on linked charts</span></span>
           </label>
         </div>
         <div className={styles.cfgActions}>

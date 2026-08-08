@@ -20,7 +20,7 @@ import {
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
-  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay } = useWorkspace()
+  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker } = useWorkspace()
   const { createAlert } = useWatchlistAlerts()
   // Imperative handle on the pane: the right-click menu opens its settings
   // modal, and the leverage picker routes its symbol change through it so the
@@ -287,7 +287,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           // Replay mode: hide every bar after this ISO date (null = normal chart) + show
           // the "Exit Replay Mode" pill centered in this chart's clear top area.
           replayCutoff: replayCutoff || null,
-          onExitReplay: replayCutoff ? exitReplay : undefined,
+          onExitReplay: (replayCutoff || startMarker) ? exitReplay : undefined,
+          // Custom-Period Sort: thin gold vertical line marking the sort's start date.
+          startMarker: startMarker || null,
         }}
         slots={{
           /* Chart tab strip — renders only once ≥1 extra tab exists, so a

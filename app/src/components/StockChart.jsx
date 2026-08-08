@@ -27,6 +27,7 @@ import { toHeikinAshi } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartCalloutOverlay from './chart/ChartCalloutOverlay'
+import ChartVLineOverlay from './chart/ChartVLineOverlay'
 import SetupMoveOverlay from './chart/SetupMoveOverlay'
 import { classifyLiveBar } from './chart/liveBarClassify'
 import { applySessionCandle, computeSessionTagLines, etMinutes } from './chart/sessionPreview'
@@ -1144,7 +1145,8 @@ export default function StockChart({
   onPeriodSelected = null,    // (startYmd:int, endYmd:int, pct:number) => void — the highlighted [start, end] as YYYYMMDD ints + the symbol's close-to-close % move.
   onPeriodCancel = null,      // () => void — the ✕ on the "Highlight time period" banner cancels the mode.
   replayCutoff = null,        // Replay mode: 'YYYY-MM-DD' — hide every bar after this calendar day + re-frame to default zoom + freeze live. null = normal chart.
-  onExitReplay = null,        // () => void — when set + replayCutoff active, shows an "Exit Replay Mode" pill centered in the chart's clear top area.
+  onExitReplay = null,        // () => void — when set + replayCutoff/startMarker active, shows an "Exit Replay Mode" pill centered in the chart's clear top area.
+  startMarker = null,         // 'YYYY-MM-DD' — Custom-Period Sort: draw a thin gold vertical line at this date on the chart. null = none.
   verticalLegend = false,     // Charts workspace: stack the crosshair OHLCV legend single-file down the left instead of a horizontal row near the toolbar.
   lockWatermark = false,      // Charts workspace: disable the watermark hover-arm + drag so hovering it never moves it.
   alwaysShowLegend = false,   // Charts workspace: keep the legend visible with the latest bar's values when the cursor is off the chart (instead of hiding).
@@ -11580,11 +11582,11 @@ export default function StockChart({
       {/* Replay mode: an "Exit Replay Mode" pill centered in THIS chart's TOOLBAR row
           (the ~30px drawing-toolbar band, between the drawing tools and Indicators) so it
           auto-positions per chart and never sits over the candles. */}
-      {replayCutoff && onExitReplay && (
+      {(replayCutoff || startMarker) && onExitReplay && (
         <button
           type="button"
           onClick={() => onExitReplay()}
-          title="Exit replay mode — restore all bars"
+          title="Exit replay mode — restore all bars + clear the start-date line"
           style={{ position: 'absolute', top: 3, left: '50%', transform: 'translateX(-50%)', zIndex: 30,
             display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer',
             background: '#c9a84c', color: '#ffffff', border: 'none', borderRadius: 999, padding: '4px 15px',
@@ -12040,6 +12042,13 @@ export default function StockChart({
               hideCountdown
             />
           )}
+        </div>
+      )}
+      {/* Custom-Period Sort: thin gold vertical line marking the sort's START date,
+          full chart height. Spans price + volume panes; rides the time axis on pan/zoom. */}
+      {startMarker && bars?.length > 0 && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
+          <ChartVLineOverlay chartRef={chartRef} seriesRef={candleSeriesRef} bars={bars} date={startMarker} color="#c9a84c" />
         </div>
       )}
       {/* Catalyst callouts (Model Book): labels in blank space + leader lines. */}
