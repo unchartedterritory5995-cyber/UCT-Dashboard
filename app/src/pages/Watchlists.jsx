@@ -1154,6 +1154,25 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     ? 'flagged'
     : (pickList?.startsWith('user:') ? pickList.slice(5) : null)
 
+  // Number of stocks in the picked list — shown in the widget footer (watchlist widgets).
+  const pickCount = useMemo(() => {
+    if (!pickList || scanMode) return 0
+    if (pickList === 'flagged') return flagged.length
+    if (pickList.startsWith('tag:')) {
+      const color = pickList.slice(4)
+      return Object.values(tags).filter(c => c === color).length
+    }
+    if (pickList.startsWith('user:')) {
+      const wl = (myLists || []).find(w => `user:${w.id}` === pickList)
+      return wl ? (wl.items || []).length : 0
+    }
+    if (pickList.startsWith('community:')) {
+      const wl = (communityLists || []).find(w => `community:${w.id}` === pickList)
+      return wl ? (wl.items || []).length : 0
+    }
+    return 0
+  }, [pickList, scanMode, flagged, tags, myLists, communityLists])
+
   // ── Sort-order freeze ──────────────────────────────────────────────────────
   // When sorting by a live column (% Chg / Price / Volume) the rows would jump
   // around every tick as quotes update — annoying. Instead we sort against a
@@ -1983,6 +2002,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         {/* Scanner footer (count · last updated · manual refresh) — pinned below the
             scrolling list, flex sibling of .listBody. */}
         {scanMode && scanFooter}
+        {/* Watchlist widget footer — just the stock count (no refresh / last-updated). */}
+        {pickList && !scanMode && (
+          <div className={styles.wlCountFooter}>
+            <span className={styles.wlCountText}>{pickCount} {pickCount === 1 ? 'stock' : 'stocks'}</span>
+          </div>
+        )}
       </div>
 
       {/* ── Right panel: chart ── */}
@@ -2116,7 +2141,6 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 {c.label}
               </button>
             ))}
-            <div className={styles.colMenuDivider} />
             {EXTRA_COLS.map(c => (
               <button key={c.key} type="button" className={styles.colMenuItem} onClick={() => toggleExtraCol(c.key)}>
                 <span className={styles.colMenuCheck}>{orderedKeys.includes(c.key) ? <UIcon name="check" size={11} /> : null}</span>
