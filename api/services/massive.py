@@ -643,6 +643,62 @@ def get_daily_agg(symbol: str, from_date: str, to_date: str, *,
         return []
 
 
+def get_grouped_daily_closes(day_iso: str, adjusted: bool = True) -> dict:
+    """{TICKER: close} for ONE date — the whole US equities market in a single call.
+
+    Provider-form tickers (BRK.B). adjusted=True → split-adjusted to the current basis
+    (so a return measured against an old close is correct across any split). Returns {}
+    for a non-trading day (the endpoint answers with zero results) or on error. Powers the
+    Top-Gainers scans' whole-market N-day reference."""
+    try:
+        client = _get_client()
+        adj = "true" if adjusted else "false"
+        url = (
+            f"{_REST_BASE}/v2/aggs/grouped/locale/us/market/stocks/"
+            f"{day_iso}?adjusted={adj}&apiKey={client._api_key}"
+        )
+        data = client._get(url) or {}
+    except Exception:
+        return {}
+    out: dict[str, float] = {}
+    for r in (data.get("results") or []):
+        tk, c = r.get("T"), r.get("c")
+        if tk and isinstance(c, (int, float)) and c > 0:
+            out[str(tk).upper()] = float(c)
+    return out
+
+
+def get_split_tickers(from_iso: str, to_iso: str) -> set:
+    """Set of tickers (provider-form) with a stock split whose execution_date falls in
+    [from_iso, to_iso]. Paginated /v3/reference/splits — a handful of calls covers the
+    whole market for a 30–90 day window.
+
+    Lets a return computation tell a REAL split (trust the split-adjusted close) from the
+    provider's PHANTOM adjustment (a name with no real split whose adjusted feed is still
+    divided by a bogus factor → trust the raw close). set() on error."""
+    out: set = set()
+    try:
+        client = _get_client()
+        url = (
+            f"{_REST_BASE}/v3/reference/splits"
+            f"?execution_date.gte={from_iso}&execution_date.lte={to_iso}"
+            f"&limit=1000&apiKey={client._api_key}"
+        )
+        for _ in range(20):  # safety cap on pagination
+            data = client._get(url) or {}
+            for r in (data.get("results") or []):
+                t = r.get("ticker")
+                if t:
+                    out.add(str(t).upper())
+            nxt = data.get("next_url")
+            if not nxt:
+                break
+            url = f"{nxt}&apiKey={client._api_key}"
+    except Exception:
+        return set()
+    return out
+
+
 def get_agg_bars_minute(ticker: str, multiplier: int, from_date: str, to_date: str) -> list[dict]:
     """Return intraday minute-aggregated OHLCV bars for a ticker over a date
     range from the Massive agg endpoint (timespan=minute). Follows ``next_url``

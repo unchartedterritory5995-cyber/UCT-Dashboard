@@ -413,3 +413,66 @@ def test_volume_scan_helpers(tmp_path, monkeypatch):
     # window opens before it, excluded when it opens after.
     assert bs.recent_first_trade(20260101) == {"AAA": 20260601}
     assert bs.recent_first_trade(20260701) == {}
+
+    # close_n_sessions_back (Top-Gainers reference): distinct closes so rank order shows.
+    bs.put_bars("BBB", "D", [
+        {"t": "2026-06-01", "o": 1, "h": 1, "l": 1, "c": 10, "v": 1},
+        {"t": "2026-06-02", "o": 1, "h": 1, "l": 1, "c": 20, "v": 1},
+        {"t": "2026-06-03", "o": 1, "h": 1, "l": 1, "c": 30, "v": 1},
+    ], date_tf=True)
+    # Before 2026-07-01, DESC by ts: 06-03(30)=rn1, 06-02(20)=rn2, 06-01(10)=rn3.
+    assert bs.close_n_sessions_back(1, 20260701)["BBB"] == 30.0
+    assert bs.close_n_sessions_back(2, 20260701)["BBB"] == 20.0
+    assert bs.close_n_sessions_back(3, 20260701)["BBB"] == 10.0
+    # Fewer than N completed sessions → absent (a recent IPO can't form an N-day move).
+    assert "BBB" not in bs.close_n_sessions_back(4, 20260701)
+    # before_ymd excludes today-and-later: only 06-01 remains before 06-02 → rn1 = 10.
+    assert bs.close_n_sessions_back(1, 20260602)["BBB"] == 10.0
+
+    # first_trade_dates (IPO Date column): earliest daily bar per requested ticker.
+    assert bs.first_trade_dates(["AAA", "BBB"]) == {"AAA": 20260601, "BBB": 20260601}
+    assert bs.first_trade_dates(["NOPE"]) == {}   # unknown ticker → absent
+    assert bs.first_trade_dates([]) == {}
+
+
+def test_current_listing_starts_detects_ticker_reuse(tmp_path, monkeypatch):
+    """A recycled ticker is dated by its NEW listing (after the gap + price jump), not the
+    old security's bars — the reuse-aware key both the IPO + gainers scans rely on."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    bs = _reload_bars_sqlite()
+    bs.init_db()
+    # REUSE: an old $2 security, a long gap, then a new $150 listing (75× jump).
+    bs.put_bars("REUSE", "D", [
+        {"t": "2024-01-02", "o": 2, "h": 2, "l": 2, "c": 2.0, "v": 1},
+        {"t": "2024-01-03", "o": 2, "h": 2, "l": 2, "c": 2.0, "v": 1},
+        {"t": "2026-06-15", "o": 150, "h": 150, "l": 150, "c": 150.0, "v": 1},
+        {"t": "2026-06-16", "o": 151, "h": 151, "l": 151, "c": 151.0, "v": 1},
+    ], date_tf=True)
+    # CONT: continuous, no reuse gap.
+    bs.put_bars("CONT", "D", [
+        {"t": "2026-05-01", "o": 10, "h": 10, "l": 10, "c": 10.0, "v": 1},
+        {"t": "2026-05-04", "o": 11, "h": 11, "l": 11, "c": 11.0, "v": 1},
+    ], date_tf=True)
+
+    starts = bs.current_listing_starts(20230101)
+    assert starts["REUSE"] == 20260615     # NEW listing, not the old 2024 bars
+    assert starts["CONT"] == 20260501      # earliest in-window bar (continuous)
+
+    # avg_dollar_volume_bulk: AVG(close*volume) over the last N sessions per ticker.
+    bs.put_bars("DV", "D", [
+        {"t": "2026-06-01", "o": 1, "h": 1, "l": 1, "c": 10.0, "v": 100},   # $1,000
+        {"t": "2026-06-02", "o": 1, "h": 1, "l": 1, "c": 20.0, "v": 200},   # $4,000
+        {"t": "2026-06-03", "o": 1, "h": 1, "l": 1, "c": 30.0, "v": 300},   # $9,000
+    ], date_tf=True)
+    dv = bs.avg_dollar_volume_bulk(20, 20260701, 20230101)   # all 3 sessions → avg of 1k/4k/9k
+    assert round(dv["DV"], 2) == round((1000 + 4000 + 9000) / 3, 2)
+    # sessions=2 → only the two most-recent sessions (4k, 9k).
+    dv2 = bs.avg_dollar_volume_bulk(2, 20260701, 20230101)
+    assert round(dv2["DV"], 2) == round((4000 + 9000) / 2, 2)
+
+    # recent_relisting_candidates: the reuse OVERLAY for the IPO scan — only the recycled
+    # ticker whose resume is within the window, never the continuous one (no gap).
+    cands = bs.recent_relisting_candidates(20260101, 20230101)   # since=2026-01-01
+    assert cands == {"REUSE": 20260615}    # CONT has no gap → excluded
+    # A resume BEFORE `since` is not a recent relisting.
+    assert bs.recent_relisting_candidates(20260701, 20230101) == {}

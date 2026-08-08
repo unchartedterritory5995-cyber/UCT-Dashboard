@@ -30,18 +30,33 @@ import sc from './ScannerPicker.module.css'
 export const PRESET_SCANS = [
   {
     key: 'highest-volume-1y',
-    name: 'Highest Volume In 1-Year (HV1)',
+    name: 'Highest Volume In 1-Year',
     description: 'Trading their highest volume in a year',
   },
   {
     key: 'highest-volume-ever',
-    name: 'Highest Volume Ever (HVE)',
+    name: 'Highest Volume Ever',
     description: 'Trading their highest volume ever',
   },
   {
     key: 'ipo-1y',
     name: 'IPO in Last 1-Year',
     description: 'First traded within the last year',
+  },
+  {
+    key: 'top-gainers-30d',
+    name: 'Top Gainers (30-Day)',
+    description: 'Top 5% by 30-day gain',
+  },
+  {
+    key: 'top-gainers-60d',
+    name: 'Top Gainers (60-Day)',
+    description: 'Top 5% by 60-day gain',
+  },
+  {
+    key: 'top-gainers-90d',
+    name: 'Top Gainers (90-Day)',
+    description: 'Top 5% by 90-day gain',
   },
 ]
 

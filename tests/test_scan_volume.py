@@ -29,7 +29,7 @@ def test_ref_max_vol_needs_min_prior_sessions(monkeypatch):
 
 def test_scan_reports_computing_until_reference_ready(monkeypatch):
     _reset()
-    monkeypatch.setattr(sv, "_universe", lambda: [])
+    monkeypatch.setattr(sv, "_etf_symbols", lambda: set())
     monkeypatch.setattr(sv._sqlite, "max_daily_volume_in_range", lambda *a, **k: {})
     out = sv.get_highest_volume_1y()
     assert out["status"] == "computing"
@@ -37,11 +37,12 @@ def test_scan_reports_computing_until_reference_ready(monkeypatch):
     _reset()
 
 
-def test_build_reference_uses_sql_and_intersects_universe(monkeypatch):
-    # The whole reference comes from ONE aggregate query; restrict to the cap universe.
+def test_build_reference_scans_whole_universe_minus_etfs(monkeypatch):
+    # The whole reference comes from ONE aggregate query over ALL tracked tickers (no
+    # static cap-list restriction); only the ETF/fund set is removed.
     monkeypatch.setattr(sv._sqlite, "max_daily_volume_in_range",
-                        lambda *a, **k: {"AAA": 1000, "BBB": 2000, "ZZZ": 50})
-    ref = sv._build_reference(365, {"AAA", "BBB"})   # ZZZ outside the universe → dropped
+                        lambda *a, **k: {"AAA": 1000, "BBB": 2000, "SPXL": 50})
+    ref = sv._build_reference(365, {"SPXL"})   # SPXL (leveraged ETF) excluded
     assert ref == {"AAA": 1000, "BBB": 2000}
 
 
@@ -54,7 +55,7 @@ def test_build_reference_all_time_queries_from_zero(monkeypatch):
         return {"AAA": 42}
 
     monkeypatch.setattr(sv._sqlite, "max_daily_volume_in_range", _fake)
-    sv._build_reference(None, {"AAA"})
+    sv._build_reference(None, set())
     assert seen["from_ymd"] == 0
 
 
@@ -75,6 +76,7 @@ def test_scan_returns_only_qualifiers_sorted_by_ratio(monkeypatch):
             return snap
 
     monkeypatch.setattr(sv.massive, "_get_client", lambda: _Client())
+    monkeypatch.setattr(sv, "_tradable", lambda *a, **k: True)  # filter tested separately
 
     out = sv.get_highest_volume_1y()
     assert out["status"] == "ok"
@@ -96,6 +98,7 @@ def test_all_time_scan_uses_its_own_reference(monkeypatch):
             return snap
 
     monkeypatch.setattr(sv.massive, "_get_client", lambda: _Client())
+    monkeypatch.setattr(sv, "_tradable", lambda *a, **k: True)  # filter tested separately
 
     out = sv.get_highest_volume_ever()
     assert [r["sym"] for r in out["results"]] == ["AAA"]
@@ -115,8 +118,23 @@ def test_scan_maps_class_share_symbology(monkeypatch):
             return snap
 
     monkeypatch.setattr(sv.massive, "_get_client", lambda: _Client())
+    monkeypatch.setattr(sv, "_tradable", lambda *a, **k: True)  # filter tested separately
     monkeypatch.setattr(sv.massive, "to_polygon_symbol", lambda s: s.replace("-", "."))
 
     out = sv.get_highest_volume_1y()
     assert [r["sym"] for r in out["results"]] == ["BRK-B"]
     _reset()
+
+
+def test_tradable_price_and_avg_dollar_volume_floor():
+    # Above $1 + >= $1M avg dollar volume from bars.db → tradable.
+    assert sv._tradable("AAA", {"last_price": 5.0}, {"AAA": 2_000_000}) is True
+    # At/below $1 → excluded regardless of volume.
+    assert sv._tradable("AAA", {"last_price": 1.0}, {"AAA": 9_000_000}) is False
+    assert sv._tradable("AAA", {"last_price": 0.5}, {"AAA": 9_000_000}) is False
+    # Below the $ volume floor → excluded.
+    assert sv._tradable("AAA", {"last_price": 5.0}, {"AAA": 500_000}) is False
+    # Not tracked in bars.db → falls back to the snapshot's prev-day dollar volume.
+    assert sv._tradable("NEW", {"last_price": 5.0, "prev_close": 10.0, "prev_vol": 300_000}, {}) is True   # $3M
+    assert sv._tradable("NEW", {"last_price": 5.0, "prev_close": 10.0, "prev_vol": 50_000}, {}) is False   # $0.5M
+    assert sv._tradable("X", None, {}) is False

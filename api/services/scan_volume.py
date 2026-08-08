@@ -34,6 +34,50 @@ _REF_FETCH = 260       # pull a few extra daily bars so we can drop today's part
 _SCAN_TTL = 60         # live-scan cache (seconds) — matches the snapshot's usefulness
 _MIN_PRIOR = 2         # need at least this many prior sessions to have a real high
 
+# ── Shared tradability floors (applied by EVERY preset scan) ──────────────────
+_MIN_PRICE = 1.0            # last price must be strictly ABOVE this
+_MIN_AVG_DVOL = 1_000_000   # avg daily dollar-volume floor ("actually tradable")
+_AVG_DVOL_KEY = "scan_avg_dvol"
+_AVG_DVOL_TTL = 6 * 3600
+_AVG_DVOL_SESSIONS = 20     # ~1 month of sessions for the average
+_AVG_DVOL_FLOOR_DAYS = 45   # calendar window that comfortably covers 20 sessions
+
+
+def _avg_dollar_volume() -> dict:
+    """{TICKER: avg daily dollar volume over the last ~20 completed sessions} for the tracked
+    universe — one bulk window query over bars.db, cached ~6h. The shared liquidity metric;
+    tickers bars.db doesn't cover fall back to the live snapshot inside `_tradable`."""
+    cached = cache.get(_AVG_DVOL_KEY)
+    if cached is not None:
+        return cached
+    now = _now_et()
+    before = int(now.strftime("%Y%m%d"))
+    floor = int((now - timedelta(days=_AVG_DVOL_FLOOR_DAYS)).strftime("%Y%m%d"))
+    try:
+        m = _sqlite.avg_dollar_volume_bulk(_AVG_DVOL_SESSIONS, before, floor)
+    except Exception:
+        m = {}
+    cache.set(_AVG_DVOL_KEY, m, ttl=_AVG_DVOL_TTL if m else 300)
+    return m
+
+
+def _tradable(app_ticker: str, s: dict, avg_dvol: dict) -> bool:
+    """Shared scan floor: last price > $1 AND avg daily dollar volume >= $1M. The average
+    comes from bars.db (`avg_dvol`) when the ticker is tracked; otherwise it falls back to
+    the most-recent completed session's dollar volume from the snapshot (prev_close x
+    prev_vol) — the best available for an un-charted recent IPO. `s` is the snapshot row."""
+    if not s:
+        return False
+    price = s.get("last_price")
+    if not isinstance(price, (int, float)) or price <= _MIN_PRICE:
+        return False
+    dvol = avg_dvol.get(app_ticker)
+    if not dvol:
+        prev, pv = s.get("prev_close"), s.get("prev_vol")
+        dvol = (prev or 0) * (pv or 0)
+    return dvol >= _MIN_AVG_DVOL
+
+
 _ref_lock = threading.Lock()
 # Per-scan reference state, keyed by scan id ('1y' | 'ever'). Each is
 # {date, map, building, built_at, universe}. Built lazily per ET day.
@@ -98,12 +142,14 @@ def _ref_max_vol(ticker: str) -> int | None:
     return max(vols)
 
 
-def _build_reference(days: int | None, universe_set: set | None = None) -> dict:
-    """{TICKER: max daily volume over the lookback} for the cap universe.
+def _build_reference(days: int | None, exclude_set: set | None = None) -> dict:
+    """{TICKER: max daily volume over the lookback} for the WHOLE bars.db universe.
 
     days=365 → trailing ~1 trading year; days=None → since inception (all-time).
     One indexed GROUP BY over bars.db daily bars (exclusive of today) — near-instant.
-    Restricted to the $300M+ cap universe so OTC/index/delisted noise never surfaces.
+    Scans EVERY tracked US ticker (NOT the static $300M+ cap list — so recent names that
+    aren't in that file are never dropped), minus `exclude_set` (ETFs/ETNs/funds). The
+    live pass's snapshot-presence check then removes delisted / non-equity noise.
     """
     now = _now_et()
     to_ymd = int(now.strftime("%Y%m%d"))                       # exclude today's partial
@@ -112,9 +158,8 @@ def _build_reference(days: int | None, universe_set: set | None = None) -> dict:
         m = _sqlite.max_daily_volume_in_range(from_ymd, to_ymd, _MIN_PRIOR)
     except Exception:
         return {}
-    uni = universe_set if universe_set is not None else set(_universe())
-    if uni:
-        m = {t: v for t, v in m.items() if t in uni}
+    if exclude_set:
+        m = {t: v for t, v in m.items() if t not in exclude_set}
     return m
 
 
@@ -134,14 +179,17 @@ def _ensure_reference(scan_id: str, days: int | None) -> dict | None:
         st["building"] = True
 
     def _job():
-        uni = set(_universe())
         try:
-            m = _build_reference(days, uni)
+            etfs = _etf_symbols()   # stocks-only: drop ETFs/ETNs/funds from the reference
+        except Exception:
+            etfs = set()
+        try:
+            m = _build_reference(days, etfs)
         except Exception:
             m = {}
         with _ref_lock:
             _state(scan_id).update(date=date, map=m, built_at=_time.time(),
-                                   building=False, universe=len(uni))
+                                   building=False, universe=len(m))
 
     threading.Thread(target=_job, daemon=True, name=f"volscan-ref-{scan_id}").start()
     return None
@@ -156,6 +204,69 @@ def _snap_lookup(snap: dict, sym: str):
         return snap.get(massive.to_polygon_symbol(sym))
     except Exception:
         return None
+
+
+# ── ETF exclusion (shared by the IPO + Top-Gainers scans) ─────────────────────
+# Polygon `type` codes for exchange-traded products to EXCLUDE from stocks-only scans:
+# ETF, ETN, ETV (structured products), ETS (single-stock ETFs), FUND (closed-end/mutual).
+_ETF_TYPES = ("ETF", "ETN", "ETV", "ETS", "FUND")
+_ETF_CACHE_KEY = "scan_etf_set"
+_ETF_TTL = 24 * 3600
+
+
+_LISTING_STARTS_KEY = "scan_listing_starts"
+_LISTING_STARTS_TTL = 6 * 3600
+_LISTING_LOOKBACK_DAYS = 800   # ~2y floor — enough to place any listing begun in the last year
+
+
+def _listing_starts() -> dict:
+    """{TICKER: current-listing-start YYYYMMDD} for the tracked universe — reuse-aware +
+    cached ~6h. Shared by the IPO scan (a recent current-listing = a recent IPO) and the
+    gainers scans (drop a name whose current listing began AFTER the lookback start = a
+    recycled ticker). The underlying window query is heavy, so it's memoized here."""
+    cached = cache.get(_LISTING_STARTS_KEY)
+    if cached is not None:
+        return cached
+    floor = int((_now_et() - timedelta(days=_LISTING_LOOKBACK_DAYS)).strftime("%Y%m%d"))
+    try:
+        m = _sqlite.current_listing_starts(floor)
+    except Exception:
+        m = {}
+    cache.set(_LISTING_STARTS_KEY, m, ttl=_LISTING_STARTS_TTL if m else 300)
+    return m
+
+
+def _etf_symbols() -> set:
+    """Set of ETF/ETN/fund tickers (app-form) to exclude from stocks-only scans.
+
+    Bulk-fetched (paginated) from Polygon reference tickers, cached 24h. Fail-OPEN:
+    on any error returns the last cached set (possibly empty) so a reference hiccup
+    never drops real stocks — it only means ETFs slip through until it recovers.
+    """
+    cached = cache.get(_ETF_CACHE_KEY)
+    if cached is not None:
+        return cached
+    out: set = set()
+    try:
+        cli = massive._get_client()
+        for typ in _ETF_TYPES:
+            url = (f"{massive._REST_BASE}/v3/reference/tickers"
+                   f"?type={typ}&market=stocks&active=true&limit=1000&apiKey={cli._api_key}")
+            for _ in range(30):  # safety cap on pagination
+                j = cli._get(url) or {}
+                for r in (j.get("results") or []):
+                    t = (r.get("ticker") or "").upper().replace(".", "-")  # provider→app form
+                    if t:
+                        out.add(t)
+                nxt = j.get("next_url")
+                if not nxt:
+                    break
+                url = f"{nxt}&apiKey={cli._api_key}"
+    except Exception:
+        return cache.get(_ETF_CACHE_KEY) or set()
+    # Cache a real result for the day; a transiently-empty result only briefly.
+    cache.set(_ETF_CACHE_KEY, out, ttl=_ETF_TTL if out else 300)
+    return out
 
 
 def _run_scan(scan_id: str, days: int | None) -> dict:
@@ -184,12 +295,15 @@ def _run_scan(scan_id: str, days: int | None) -> dict:
         cache.set(ck, out, ttl=15)
         return out
 
+    avg_dvol = _avg_dollar_volume()
     results = []
     for sym, rmax in ref.items():
         if rmax <= 0:
             continue
         s = _snap_lookup(snap, sym)
         if not s:
+            continue
+        if not _tradable(sym, s, avg_dvol):   # price > $1 + avg $ volume floor
             continue
         tv = int(s.get("today_vol") or 0)
         if tv <= rmax:

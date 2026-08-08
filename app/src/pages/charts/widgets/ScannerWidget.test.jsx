@@ -30,13 +30,18 @@ test('exposes a settings gear', () => {
   expect(screen.getByTitle('Scanner settings')).toBeInTheDocument()
 })
 
-// ⚠️ THE LABEL IS READ OUT OF `SCANS`, NOT TYPED. `6e974ef7` renamed the volume
-// presets ("Highest Volume (1-Year)" -> "Highest Volume In 1-Year (HV1)") and left
-// this test asserting the OLD name, so it went red on master the moment it landed.
-// A typed display string is a second authority over a label the picker already
-// owns; deriving it means the next rename moves the test with the source instead
-// of against it. The KEY stays typed on purpose — `highest-volume-1y` is the wire
-// contract with `/api/scans/highest-volume-1y`, and a rename of THAT must fail here.
+// ⚠️ THE LABEL IS READ OUT OF `PRESET_SCANS`, NOT TYPED — and the history is the
+// argument. That preset was named "Highest Volume (1-Year)", then "Highest Volume
+// In 1-Year (HV1)" (`6e974ef7`), then "Highest Volume In 1-Year" (`f2700efa`) —
+// THREE names in one evening. A typed assertion went red on master twice, and both
+// times the repair was to retype the new string, which reloads the trap for the
+// next rename. The picker owns the display copy; a test that retypes it is a second
+// authority over one label.
+//
+// Resolved at the merge in favour of deriving. The KEY stays typed ON PURPOSE:
+// `highest-volume-1y` is the wire contract with `/api/scans/highest-volume-1y`, so
+// a silent rename of THAT must fail here — `name` and `key` are different kinds of
+// thing and this test now treats them differently.
 test('lists the first volume preset and selecting it sets scanKey', () => {
   const preset = PRESET_SCANS.find(s => s.key === 'highest-volume-1y')
   expect(preset, 'no highest-volume-1y preset in PRESET_SCANS — this test has no subject').toBeTruthy()

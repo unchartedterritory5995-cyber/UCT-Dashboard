@@ -371,6 +371,43 @@ def recent_first_trade(since_ymd: int) -> dict:
     return {str(r[0]).upper(): int(r[1]) for r in rows}
 
 
+def recent_relisting_candidates(since_ymd: int, floor_ymd: int,
+                                gap_days: int = 21, price_factor: float = 4.0) -> dict:
+    """{TICKER: resume YYYYMMDD} for tickers that RESUMED trading on/after since_ymd after a
+    long gap with a big price jump — a recycled symbol whose NEW listing is recent (SPCX).
+
+    Deliberately requires an ACTUAL gap (never a ticker's first bar), so continuous names and
+    short-history on-demand names are NOT flagged — this is the small reuse OVERLAY for the
+    IPO scan (recent_first_trade already covers normal IPOs), and callers verify each hit
+    against the chart sanitize. Matches bars_sanitize's metadata-free reuse signal (gap >=
+    gap_days days + a >= price_factor / <= 1/price_factor close jump). `floor_ymd` bounds the
+    window scan for performance."""
+    lo = 1.0 / price_factor if price_factor else 0.0
+    rows = _conn().execute(
+        """
+        WITH parsed AS (
+          SELECT ticker, ts, c,
+                 julianday(substr(printf('%08d', ts),1,4)||'-'||
+                           substr(printf('%08d', ts),5,2)||'-'||
+                           substr(printf('%08d', ts),7,2)) AS jd
+          FROM ohlcv WHERE tf='D' AND c>0 AND ts>=?
+        ),
+        seg AS (
+          SELECT ticker, ts,
+                 jd - LAG(jd) OVER w AS gap_days,
+                 c*1.0 / NULLIF(LAG(c) OVER w, 0) AS ratio
+          FROM parsed
+          WINDOW w AS (PARTITION BY ticker ORDER BY ts)
+        )
+        SELECT ticker, MAX(ts) FROM seg
+        WHERE gap_days>=? AND (ratio>=? OR ratio<=?) AND ts>=?
+        GROUP BY ticker
+        """,
+        (int(floor_ymd), int(gap_days), float(price_factor), float(lo), int(since_ymd)),
+    ).fetchall()
+    return {str(r[0]).upper(): int(r[1]) for r in rows}
+
+
 def avg_daily_volume(tickers, sessions: int = 20, before_ymd: int | None = None) -> dict:
     """{TICKER: average daily volume over its last `sessions` COMPLETED daily bars}.
 
@@ -397,6 +434,115 @@ def avg_daily_volume(tickers, sessions: int = 20, before_ymd: int | None = None)
         if row and row[0]:
             out[tu] = int(round(row[0]))
     return out
+
+
+def first_trade_dates(tickers) -> dict:
+    """{TICKER: earliest daily-bar ts (YYYYMMDD)} for the GIVEN tickers — a proxy for the
+    IPO / first-trade date, given bars.db's since-inception daily coverage for the tracked
+    universe. One indexed GROUP BY over a bounded ticker list. Powers the watchlist
+    'IPO Date' column (callers pass the meta batch's ≤100 tickers)."""
+    syms = [str(t).upper() for t in (tickers or []) if t]
+    if not syms:
+        return {}
+    ph = ",".join("?" * len(syms))
+    rows = _conn().execute(
+        f"""SELECT ticker, MIN(ts) AS first_ts FROM ohlcv
+            WHERE tf='D' AND ticker IN ({ph}) GROUP BY ticker HAVING first_ts>0""",
+        syms,
+    ).fetchall()
+    return {str(r[0]).upper(): int(r[1]) for r in rows}
+
+
+def current_listing_starts(since_ymd: int, gap_days: int = 21, price_factor: float = 4.0) -> dict:
+    """{TICKER: current-listing-start YYYYMMDD} — the first daily bar of each ticker's
+    MOST-RECENT continuous listing, detecting ticker REUSE (a recycled symbol whose new
+    security starts after a long gap with a big price discontinuity: SPCX, DRAM, RMIX…).
+
+    A reuse boundary is a gap ≥ `gap_days` calendar days WITH a ≥ `price_factor` (or
+    ≤ 1/price_factor) close jump — the same metadata-free signal bars_sanitize uses. The
+    scan is bounded to bars on/after `since_ymd` (a ~2-year floor is plenty to place any
+    listing that began within the last year and keeps the window query fast). Continuous
+    names report their earliest IN-WINDOW bar — fine, since callers only test recency /
+    an as-of date, never treat it as the true multi-year IPO date.
+
+    One window-function pass (julianday gap + close-ratio) — powers the reuse-aware IPO
+    scan and the gainers scans' "listed after the lookback start ⇒ drop" filter."""
+    lo = 1.0 / price_factor if price_factor else 0.0
+    rows = _conn().execute(
+        """
+        WITH parsed AS (
+          SELECT ticker, ts, c,
+                 julianday(substr(printf('%08d', ts),1,4)||'-'||
+                           substr(printf('%08d', ts),5,2)||'-'||
+                           substr(printf('%08d', ts),7,2)) AS jd
+          FROM ohlcv WHERE tf='D' AND c>0 AND ts>=?
+        ),
+        seg AS (
+          SELECT ticker, ts,
+                 jd - LAG(jd) OVER w AS gap_days,
+                 c*1.0 / NULLIF(LAG(c) OVER w, 0) AS ratio
+          FROM parsed
+          WINDOW w AS (PARTITION BY ticker ORDER BY ts)
+        )
+        SELECT ticker, MAX(ts) FROM seg
+        WHERE gap_days IS NULL OR (gap_days>=? AND (ratio>=? OR ratio<=?))
+        GROUP BY ticker
+        """,
+        (int(since_ymd), int(gap_days), float(price_factor), float(lo)),
+    ).fetchall()
+    return {str(r[0]).upper(): int(r[1]) for r in rows}
+
+
+def nth_recent_trading_date(n: int, before_ymd: int) -> int | None:
+    """The Nth most-recent DISTINCT daily-bar date (YYYYMMDD int) strictly before
+    before_ymd — the market trading calendar (distinct ts across all tickers, so a
+    single-name gap can't skew it). Powers the Top-Gainers scans' "N trading days back"
+    reference date. None when fewer than N sessions exist."""
+    row = _conn().execute(
+        """SELECT ts FROM (
+               SELECT DISTINCT ts FROM ohlcv WHERE tf='D' AND ts<? ORDER BY ts DESC LIMIT ?
+           ) ORDER BY ts ASC LIMIT 1""",
+        (int(before_ymd), int(n)),
+    ).fetchone()
+    return int(row[0]) if row and row[0] else None
+
+
+def close_n_sessions_back(n: int, before_ymd: int) -> dict:
+    """{TICKER: close} of the Nth most-recent COMPLETED daily session strictly BEFORE
+    before_ymd (YYYYMMDD int) — the reference close for an "N-day change" measured against
+    a live price (matches the frontend's N-day column: N trading days back).
+
+    One window-function pass over daily bars. Tickers with fewer than N completed sessions
+    are absent (they can't form an N-day move — e.g. recent IPOs). Powers the Top-Gainers
+    scans."""
+    rows = _conn().execute(
+        """SELECT ticker, c FROM (
+               SELECT ticker, c,
+                      ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY ts DESC) AS rn
+               FROM ohlcv
+               WHERE tf='D' AND ts<? AND c>0
+           ) WHERE rn=?""",
+        (int(before_ymd), int(n)),
+    ).fetchall()
+    return {str(r[0]).upper(): float(r[1]) for r in rows}
+
+
+def avg_dollar_volume_bulk(sessions: int, before_ymd: int, floor_ymd: int) -> dict:
+    """{TICKER: AVG(close*volume) over its last `sessions` COMPLETED daily bars strictly
+    before before_ymd} — the tradability metric for the preset scans. One window-function
+    pass, bounded to bars on/after floor_ymd for speed (floor should cover `sessions` days)."""
+    rows = _conn().execute(
+        """
+        WITH recent AS (
+          SELECT ticker, c*v AS dv,
+                 ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY ts DESC) AS rn
+          FROM ohlcv WHERE tf='D' AND ts<? AND ts>=? AND c>0 AND v>0
+        )
+        SELECT ticker, AVG(dv) FROM recent WHERE rn<=? GROUP BY ticker
+        """,
+        (int(before_ymd), int(floor_ymd), int(sessions)),
+    ).fetchall()
+    return {str(r[0]).upper(): float(r[1]) for r in rows if r[1]}
 
 
 def get_all_tickers() -> list[tuple]:

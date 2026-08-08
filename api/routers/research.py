@@ -102,6 +102,16 @@ def research_snapshot_batch(tickers: list[str] = Body(..., embed=True)):
         avg = {}
     for sym in out:
         out[sym]["avg_vol_20d"] = avg.get(sym)
+
+    # First-trade (IPO) date — for the optional 'IPO Date' column. One bulk GROUP BY
+    # over bars.db's since-inception daily coverage; YYYYMMDD int per ticker.
+    try:
+        from api.services import bars_sqlite as _bs
+        ftd = _bs.first_trade_dates(list(out.keys()))
+    except Exception:
+        ftd = {}
+    for sym in out:
+        out[sym]["ipo_date"] = ftd.get(sym)
     return out
 
 
