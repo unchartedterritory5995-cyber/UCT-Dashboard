@@ -106,3 +106,35 @@
   font-size: calc(11px * var(--wl-font-scale, 1));
   line-height: 1.5;
 }
+
+/* Footer: "N stocks · Updated 1:26 PM ET · ⟳" — pinned below the scrolling list. */
+.scanFooter {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  font-size: calc(10px * var(--wl-font-scale, 1));
+  color: var(--wl-text, var(--text-muted));
+  border-top: 1px solid var(--widget-divider-strong, var(--wl-divider-strong, rgba(255, 255, 255, 0.11)));
+  background: var(--wl-bg-solid, var(--wl-bg, var(--bg)));
+  white-space: nowrap;
+  overflow: hidden;
+}
+.scanCount { font-weight: 700; color: var(--wl-text-strong, var(--text-bright)); flex: 0 0 auto; }
+.scanUpdated { overflow: hidden; text-overflow: ellipsis; }
+.scanRefresh {
+  margin-left: auto;
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--wl-text, var(--text-muted));
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+}
+.scanRefresh:hover { color: var(--wl-accent, var(--ut-gold)); background: var(--wl-row-hover, rgba(255, 255, 255, 0.06)); }
+.scanRefreshSpin { animation: scanSpin 0.7s linear infinite; }
+@keyframes scanSpin { to { transform: rotate(360deg); } }

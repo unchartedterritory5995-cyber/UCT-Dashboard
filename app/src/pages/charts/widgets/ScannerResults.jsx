@@ -8,11 +8,22 @@
 import { useMemo, useCallback, useId } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import Watchlists from '../../Watchlists'
+import UIcon from '../../../components/ui/UIcon'
 import { WL_COLS_LS } from '../../watchlist/watchlistTemplates'
 import { ChartsSymContext } from '../ChartsSymContext'
 import { useWorkspace } from '../WorkspaceContext'
+import styles from './ScannerResults.module.css'
 
 const fetcher = url => fetch(url, { credentials: 'include' }).then(r => (r.ok ? r.json() : null)).catch(() => null)
+
+// Backend `as_of` (ISO, ET-clock offset) → "1:26 PM" in market (ET) time.
+function fmtScanTime(iso) {
+  if (!iso) return ''
+  try {
+    return new Date(iso).toLocaleTimeString('en-US',
+      { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' })
+  } catch { return '' }
+}
 
 // The scanner keeps its OWN column layouts, independent of the watchlist widgets
 // (which share the global WL_COLS_LS key) AND independent PER SCAN — each preset
@@ -113,7 +124,7 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
 
   const url = SCAN_ENDPOINTS[scanKey] || null
   // Live all day: poll every 30s (the server recomputes at most ~once/min).
-  const { data } = useMobileSWR(url, fetcher, {
+  const { data, mutate, isValidating } = useMobileSWR(url, fetcher, {
     refreshInterval: 30_000,
     dedupingInterval: 15_000,
     revalidateOnFocus: false,
@@ -165,6 +176,25 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
     return out
   }, [data, scanKey])
 
+  // Footer: how many stocks the scan holds, when it was last computed (ET), and a manual
+  // refresh. Prices tick live already; this re-ranks membership on demand instead of
+  // waiting for the 30s poll.
+  const scanFooter = (
+    <div className={styles.scanFooter}>
+      <span className={styles.scanCount}>{symbols.length} {symbols.length === 1 ? 'stock' : 'stocks'}</span>
+      {data?.as_of && <span className={styles.scanUpdated}>· Updated {fmtScanTime(data.as_of)} ET</span>}
+      <button
+        type="button"
+        className={styles.scanRefresh}
+        onClick={() => mutate()}
+        title="Refresh scan"
+        aria-label="Refresh scan"
+      >
+        <UIcon name="refresh" size={12} gold={false} className={isValidating ? styles.scanRefreshSpin : undefined} />
+      </button>
+    </div>
+  )
+
   return (
     <ChartsSymContext.Provider value={scopedSymContext}>
       <Watchlists
@@ -182,6 +212,7 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
         defaultColCfg={defaultColCfg}
         metaOverride={metaOverride}
         perfOverride={perfOverride}
+        scanFooter={scanFooter}
       />
     </ChartsSymContext.Provider>
   )

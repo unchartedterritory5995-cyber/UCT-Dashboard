@@ -392,7 +392,7 @@ const WatchRow = React.memo(function WatchRow({
 // "+" beside the ⚙ gear (single-list widget / pick mode). Community lists show no "+"
 // — they aren't yours to write to.
 
-export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null }) {
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null }) {
   // Column layout persists in localStorage. The watchlist widgets all share the
   // global key; the scanner passes its OWN key so its columns are independent.
   const _colKey = colStorageKey || WL_COLS_LS
@@ -1949,6 +1949,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             </>
           )}
         </div>
+        {/* Scanner footer (count · last updated · manual refresh) — pinned below the
+            scrolling list, flex sibling of .listBody. */}
+        {scanMode && scanFooter}
       </div>
 
       {/* ── Right panel: chart ── */}
