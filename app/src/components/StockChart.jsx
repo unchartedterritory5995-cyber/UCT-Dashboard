@@ -3409,10 +3409,17 @@ export default function StockChart({
   // barsOverride (Model Book uploaded data) short-circuits all fetching.
   const _overrideArr = Array.isArray(barsOverride) && barsOverride.length > 0
   const _hasOverride = _overrideArr || barsOverridePending
+  // Replay mode: fetch the bars ENDING AT the cutoff (server serves this pre-cutoff
+  // window fast from SQLite) instead of the full 'ending today' set — which for an old
+  // cutoff is a big, slow fetch that paints nothing until it lands (the "chart stuck on
+  // the previous ticker" bug). `to` implies a full window (no `since`).
+  const _toParam = replayCutoff && !_isCustomTf ? replayCutoff : null
   const swrUrl = (_hasOverride || _isCustomTf)
     ? null
     : ((sym && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`)
-        ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}${_sinceParam != null ? `&since=${encodeURIComponent(String(_sinceParam))}` : ''}`
+        ? (_toParam != null
+            ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}&to=${encodeURIComponent(_toParam)}`
+            : `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}${_sinceParam != null ? `&since=${encodeURIComponent(String(_sinceParam))}` : ''}`)
         : null)
 
   // Self-healing poll cadence: with no refreshInterval, the chart was frozen

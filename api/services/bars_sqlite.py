@@ -431,6 +431,20 @@ def get_bars(ticker: str, tf: str, max_bars: int) -> list[tuple]:
     ).fetchall()
 
 
+def get_bars_before(ticker: str, tf: str, max_bars: int, to_key: int) -> list[tuple]:
+    """Up to max_bars rows with ts <= to_key, oldest-first — the pre-cutoff window used
+    by replay mode. Uses the (ticker, tf, ts DESC) index, so it's a fast index seek even
+    for a deep window. (ts is YYYYMMDD for D/W/M, unix seconds for intraday.)"""
+    return _conn().execute(
+        """SELECT ts,o,h,l,c,v FROM (
+               SELECT ts,o,h,l,c,v FROM ohlcv
+               WHERE ticker=? AND tf=? AND ts<=?
+               ORDER BY ts DESC LIMIT ?
+           ) ORDER BY ts ASC""",
+        (ticker.upper(), tf, int(to_key), max_bars),
+    ).fetchall()
+
+
 def get_bars_since(ticker: str, tf: str, since_ts: int) -> list[tuple]:
     """Return bars with ts > since_ts, oldest-first (for browser delta sync)."""
     return _conn().execute(
