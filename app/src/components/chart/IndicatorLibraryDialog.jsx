@@ -21,6 +21,21 @@
 // list built from definitions alone drops `volumeProfile` — the user-facing
 // regression B3 Task 11 refused.
 //
+// 🔴 …AND SINCE THIS FIX, ∪ THE MEMBER'S OWN FORMULAS. Phase D built every part
+// of authoring one but the last: it saved, it installed, it DREW, and
+// `getDefinition` resolved it — while this dialog, the one screen called "the
+// indicator library", read the shipped catalogue only. A member had to already
+// know their formula existed to find it. `userCatalogRows()` is the read;
+// `catalogGeneration()` is the memo dependency that makes it arrive (the rows
+// install from SWR AFTER first paint, and the registry module namespace is the
+// same object forever, so a memo keyed on `[registry]` alone never recomputes —
+// the same class of not-wired defect, one memo over).
+//
+// ⛔ THE UNION IS MADE HERE AND NOWHERE ELSE. `catalogRows()` stays the SHIPPED
+// catalogue for the share link, the voice bus, the right-click submenu, the
+// on-count and three registry rails — see `indicatorCatalog.js`'s header. This
+// is the one surface whose job is to offer a member their own formulas.
+//
 // 🐛 THE PORTAL TRAP, INHERITED AND HANDLED. `Sheet` renders into
 // `document.body`, and `ChartToolbar`'s close-on-outside-mousedown asks
 // `ref.contains(e.target)` — so without an exemption, the mousedown of the very
@@ -32,7 +47,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import Sheet from '../mobile/Sheet'
 import { PORTAL_POPUP_ATTR } from './ColorPicker'
-import { catalogRows } from './indicatorCatalog'
+import { catalogRows, userCatalogRows, catalogGeneration } from './indicatorCatalog'
 import { isIndicatorEnabled, setIndicatorEnabled, addInstance } from './engine/instanceControls'
 import { ENGINE_OWNED } from './engine/flipState'
 import styles from './IndicatorLibraryDialog.module.css'
@@ -67,7 +82,20 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   // "hit the chord, type three letters, Enter" without a pointer.
   useEffect(() => { if (open) searchRef.current?.focus() }, [open])
 
-  const all = useMemo(() => catalogRows(registry), [registry])
+  // ⛔ `generation` IS NOT DECORATION IN THIS DEPENDENCY LIST. `registry` is a
+  // module NAMESPACE — the same object for the lifetime of the tab — so a memo
+  // keyed on it alone computes once, at first open, and never again. The user
+  // rows arrive from SWR after first paint, so without this the member's own
+  // formulas would be missing from the very dialog that is meant to list them
+  // on every mount that opened before the fetch landed.
+  const generation = catalogGeneration(registry)
+  // Member's formulas LAST, so their section heading lands at the bottom of the
+  // list rather than wherever an alphabet would have put it, and so the shipped
+  // rows a user is pre-trained on keep the positions they have always had.
+  const all = useMemo(
+    () => [...catalogRows(registry), ...userCatalogRows(registry)],
+    [registry, generation],
+  )
   const rows = useMemo(() => all.filter((r) => matches(r, query)), [all, query])
 
   // Groups are DERIVED, in first-appearance order. Adding a definition in a new
@@ -142,8 +170,15 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                     role="option"
                     aria-selected={on}
                     data-def-id={row.id}
+                    /* ⭐ THE PROVENANCE, ON THE ROW ITSELF. A member's formula is
+                       a different KIND of thing from a shipped indicator — they
+                       wrote it, only they have it, and it is theirs to delete —
+                       so it is marked structurally (this attribute + the class
+                       below + the pill) rather than only by which heading it
+                       happens to sit under. */
+                    data-user-defined={row.userDefined ? 'true' : 'false'}
                     tabIndex={0}
-                    className={`${styles.row} ${on ? styles.rowOn : ''}`}
+                    className={`${styles.row} ${on ? styles.rowOn : ''} ${row.userDefined ? styles.rowMine : ''}`}
                     onClick={() => toggle(row)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(row) }
@@ -157,6 +192,10 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                             the generated settings rows take the full one. */}
                         <span className={styles.name}>{row.name}</span>
                         <span className={styles.chip}>{row.shortName}</span>
+                        {/* ⭐ NAMED, NOT JUST TINTED. A colour alone is not a
+                            distinction for a member who cannot see it, and the
+                            heading scrolls out of view on a long list. */}
+                        {row.userDefined && <span className={styles.mine}>Your formula</span>}
                         {row.sessionOnly && <span className={styles.pill}>Intraday only</span>}
                         {row.repaint && <span className={styles.badge}>{labelForRepaint(row.repaint)}</span>}
                         {/* Tier is shown only when it is NOT free. Every native

@@ -33,6 +33,7 @@ import {
   fetchCurrentValue,
 } from '../../hooks/useIndicatorAlerts'
 import { formatET } from '../../utils/timeAgo'
+import AlertStateLine from './alertState'
 import { instancesForAddress } from './engine/alertSets'
 import { NATIVE_TFS, tfLabel } from './timeframes'
 import UIcon from '../ui/UIcon'
@@ -87,16 +88,41 @@ function fmtTriggeredAt(epochSec) {
   return formatET(epochSec * 1000)
 }
 
+// ─── THE LIFECYCLE STATES A USER HAS TO BE TOLD ABOUT ───────────────────────
+//
+// ⭐ `sweep_silent_alerts` DIAGNOSES an alert that has gone quiet and writes
+// `state='needs_attention'` with a `state_detail` sentence naming the cause.
+// This surface was the first reader of that pair (`afbf0470`).
+//
+// 🔴 THE READING NOW LIVES IN `./alertState`, BECAUSE THERE IS A SECOND
+// SURFACE. The alert manager on `/settings` shows every symbol's alerts, and it
+// is where a member actually DISCOVERS that one of theirs can never fire — a
+// second component deciding for itself what counts as a fault, and writing its
+// own fallback sentence, is a twin whose drift would be SILENCE. One module
+// owns `ATTENTION_STATES` and the line; both surfaces mount it. See that file
+// for why only the two fault states qualify (`rearm` and `snooze` both write a
+// `state_detail` under a HEALTHY state).
+
 /**
  * @param {object} [initial] `{instanceId, plotKey}` — the legend chip this
  *   popover was opened from (chart-UX-walls Task 4). ONE prop, and it is the
  *   whole difference between "Add alert on MACD" opening a MACD form and opening
  *   whatever the catalog happens to list first. Absent ⇒ byte-identical
  *   behaviour to before it existed.
+ * @param {string|null} [chartId] ⭐ PHASE C TASK 12 — the surface's own stable
+ *   chart id (a `/charts` widget slot, a Multi-Chart grid cell). It is what
+ *   makes the listing request carry `?scope=`, and what a "this chart only"
+ *   alert is scoped TO. Absent ⇒ the unscoped listing and no scope control,
+ *   which is exactly what every mount site had before a producer existed.
  */
-export default function IndicatorAlertPopover({ sym, onClose, chartInstances = [], initial = null }) {
+export default function IndicatorAlertPopover({
+  sym, onClose, chartInstances = [], initial = null, chartId = null,
+}) {
   const ownSym = sym ? String(sym).toUpperCase() : ''
-  const { alerts } = useIndicatorAlerts()
+  // ⭐ THE CHART ID REACHES THE REQUEST. `useIndicatorAlerts` turns it into
+  // `GET /api/indicator-alerts?scope=<chartId>` — the parameter the backend has
+  // implemented since Task 12 and that no client had ever sent.
+  const { alerts } = useIndicatorAlerts(chartId)
   const { catalog, isLoading: catalogLoading, error: catalogError } = useIndicatorAlertCatalog()
 
   const [indicator, setIndicator] = useState('')
@@ -115,6 +141,13 @@ export default function IndicatorAlertPopover({ sym, onClose, chartInstances = [
   // (`instancesForAddress`), and an address that names no definition yields
   // NOTHING rather than a plausible wrong id.
   const [instanceId, setInstanceId] = useState('')
+  // ⭐ PHASE C TASK 12 — WHICH CHART. Unchecked is GLOBAL, and that default is
+  // the migration: every alert that exists carries `scope = NULL`, which the
+  // server reads as "on every chart", so an unchecked box creates exactly the
+  // row this popover has always created. Only offered when the mount site
+  // actually supplies a chart id — a "this chart only" box on a surface with no
+  // chart identity would scope an alert to nothing.
+  const [chartOnly, setChartOnly] = useState(false)
   const [tf, setTf] = useState('D')
   const [submitting, setSubmitting] = useState(false)
   // ⭐ WHY THE LAST ATTEMPT WAS REFUSED — the server's own sentence, held so it
@@ -324,6 +357,10 @@ export default function IndicatorAlertPopover({ sym, onClose, chartInstances = [
     // still the truth the evaluator reads — the id says which instance it was
     // armed FROM, so that deleting that instance can be reported.
     if (instanceId) payload.instance_id = instanceId
+    // ⚠️ ONLY WHEN THE USER ASKED FOR IT. An omitted `scope` is GLOBAL on the
+    // server (`_clean_scope` stores NULL), so the unchecked path is the shape
+    // every existing row has and the shape every previous client sent.
+    if (chartOnly && chartId) payload.scope = chartId
     if (needsThreshold) {
       const num = parseFloat(threshold)
       if (!Number.isFinite(num)) return
@@ -503,6 +540,22 @@ export default function IndicatorAlertPopover({ sym, onClose, chartInstances = [
           </select>
         </div>
 
+        {/* ⭐ WHICH CHART THIS ALERT BELONGS TO (spec §5 / Task 12). Rendered
+            only where a chart id exists, unchecked by default, so a surface
+            that supplies none — and a user who leaves it alone — creates the
+            GLOBAL alert this popover has always created. */}
+        {chartId && (
+          <label className={styles.scopeRow}>
+            <input
+              type="checkbox"
+              checked={chartOnly}
+              aria-label="Only on this chart"
+              onChange={(e) => setChartOnly(e.target.checked)}
+            />
+            <span>Only on this chart</span>
+          </label>
+        )}
+
         {/* ⭐ WHY THE LAST ATTEMPT WAS REFUSED, immediately above the button
             that was pressed. Rendered verbatim — the create path's 400s explain
             themselves ("a live price alert belongs to the watchlist alert
@@ -579,6 +632,12 @@ export default function IndicatorAlertPopover({ sym, onClose, chartInstances = [
                         — still watching {indLbl}
                       </span>
                     )}
+                    {/* ⭐ THE SERVER'S OWN DIAGNOSIS, VERBATIM — through the ONE
+                        module that decides what a fault state is. Rendering
+                        `null` for a healthy row is the component's own contract,
+                        so it is mounted unconditionally and the state test lives
+                        in exactly one place for both surfaces. */}
+                    <AlertStateLine alert={a} className={styles.needsAttention} />
                     {trigAt && (
                       <>
                         <span className={styles.trigCheck}><UIcon name="check" size={13} /></span>

@@ -1164,6 +1164,54 @@ def register_pattern_vision_jobs(scheduler):
     return True
 
 
+def idb_cache_logic_version(src_path: str | None = None) -> int | None:
+    """`CACHE_LOGIC_VERSION` as it is DECLARED in `app/src/utils/barsIDB.js`.
+
+    ⛔ THE FINGERPRINT USED TO CARRY A HARDCODED `idb_cache_logic_version=4` AND
+    THE CONSTANT HAD BEEN 5 SINCE 2026-07-14. That line exists, in CLAUDE.md's
+    own words, "for grep verification" — so the designated verification artifact
+    confirmed a stale number, and an agent told to "bump to 5 or higher" to
+    invalidate poisoned browser caches would bump it TO THE VALUE ALREADY LIVE,
+    invalidate nothing, and then grep this line and read green. A fingerprint
+    that can disagree with the thing it fingerprints is worse than no
+    fingerprint.
+
+    Returns `None` when the source file is not on disk (a runtime image that
+    ships only `app/dist`), and also when the declaration is absent or
+    AMBIGUOUS, so the fingerprint can say `unreadable` — which is a true
+    statement — rather than a number nobody checked.
+
+    ⚠️ IT READS THE DECLARATION, NOT A MENTION. The first cut of this function
+    was `re.search(r"CACHE_LOGIC_VERSION\\s*=\\s*(\\d+)")` over the whole file
+    and its own control caught it: `barsIDB.js` explains the constant in the
+    COMMENT BLOCK ABOVE IT, so a prose sentence naming an old value would be
+    read as the value. Same defect as the `(\\d+) passed` regexes in
+    `tools/*_mutations.py` — a scan that reads prose answers a different
+    question than the one it was asked.
+    """
+    import re as _re
+    from pathlib import Path as _Path
+    path = _Path(src_path) if src_path else (
+        _Path(__file__).resolve().parents[1] / "app" / "src" / "utils" / "barsIDB.js")
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    found = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(("//", "*", "/*")):
+            continue
+        m = _re.match(r"(?:export\s+)?const\s+CACHE_LOGIC_VERSION\s*=\s*(\d+)\b",
+                      stripped)
+        if m:
+            found.append(int(m.group(1)))
+    # Exactly one declaration, or we do not know. Two declarations means the
+    # answer depends on which one the bundler picks, and guessing there is how a
+    # fingerprint starts lying again.
+    return found[0] if len(found) == 1 else None
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Bump the anyio/starlette thread pool so sync endpoints don't queue
@@ -2016,13 +2064,16 @@ async def lifespan(app: FastAPI):
 
     # Chart pipeline mode fingerprint -- one line so a grep on Tuesday morning
     # tells the operator EXACTLY which fixes are active in this deploy.
+    # `idb_cache_logic_version` is READ from barsIDB.js, never typed -- see
+    # `idb_cache_logic_version()` for the stale-4-vs-live-5 defect that caused it.
+    _idb_ver = idb_cache_logic_version()
     print(
         "[startup] chart-realtime-mode: "
         "fmp_tz_fix=on yfinance_tz_fix=on heal_v1=ran-once heal_v2=ran-once heal_v3_60day=ran-once "
         "needs_fresh_post_market=on "
         "swr_refresh_interval=30s_intraday "
         "tf60_ws_streaming=on bucket_canonical=bars_fetch.bucket_60_et_unix_seconds "
-        "delta_intraday_filter=>= idb_cache_logic_version=4 "
+        f"delta_intraday_filter=>= idb_cache_logic_version={_idb_ver if _idb_ver is not None else 'unreadable'} "
         "weekly_dating=friday-close heal_weekly_close=ran-once "
         f"reconciliation_worker={'on' if os.environ.get('RECONCILE_ENABLED', '1') != '0' else 'off'}"
     )
@@ -4490,6 +4541,8 @@ app.include_router(engine_data.router)
 app.include_router(earnings.router)
 app.include_router(news.router)
 app.include_router(screener.router)
+from api.routers import scans as scans_router
+app.include_router(scans_router.router)
 # DEPRECATED 2026-06-02 -- Model Book is no longer a trade log (rebuilt as a
 # curated library of top stocks; see api/routers/modelbook.py). The /api/trades
 # endpoints + data/trades.json are kept as a rollback backup; schedule a manual

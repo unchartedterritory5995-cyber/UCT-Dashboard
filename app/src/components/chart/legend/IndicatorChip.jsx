@@ -63,9 +63,25 @@ import styles from './IndicatorChip.module.css'
  *   the menu's title, its `Hide <label>` row and the alert address it opens on
  *   are all per-PLOT. The row is already in hand here; the caller would otherwise
  *   have to look it up and pick the first, which is a guess.
+ * @param {object}   [repaint]        `engine/repaintVerdict.plotRepaintNotice` for
+ *   THIS chip's plot, or null. `{mode, label, sentence, forward}`.
+ *
+ *   ⭐⭐ PER PLOT, NOT PER DEFINITION, WHICH IS THE OWNER'S RULING ARRIVING IN THE
+ *   DOM. `ichimoku` draws five columns and exactly one of them moves under the
+ *   user; a mark keyed on the definition would brand `TK` and `KJ`, which are
+ *   clean by construction, and that trades a false "safe" for a false "unsafe".
+ *   The prop is a per-(instance, plot) value because a chip is.
+ *
+ *   ⛔ NULL IS "NO OPINION", NOT "CLEAN", AND THIS FILE NEVER RENDERS THE
+ *   DIFFERENCE. Sixteen of seventeen shipped computes are hand-written and the
+ *   linter cannot read a line of them, so most chips get null because nothing
+ *   measured them — not because something did. A green tick here would write
+ *   *"the linter agreed"* over silence, which is the sentence the whole
+ *   decidability vocabulary exists to make impossible. So: a mark when there is a
+ *   measured problem, and nothing at all otherwise.
  */
 export default function IndicatorChip({
-  chip, className, onToggleHidden, onOpenSettings, onRemove, onMenu,
+  chip, className, onToggleHidden, onOpenSettings, onRemove, onMenu, repaint,
 }) {
   const interactive = typeof onToggleHidden === 'function'
     && typeof onOpenSettings === 'function'
@@ -107,6 +123,15 @@ export default function IndicatorChip({
       {...(interactive ? longPress : null)}
     >
       {chip.text}
+      {repaint && (
+        <span
+          className={styles.chipRepaint}
+          data-repaint={repaint.mode}
+          role="img"
+          aria-label={`${chip.label} ${String(repaint.mode).replace(/-/g, ' ')} — ${repaint.sentence}`}
+          title={`${String(repaint.mode).replace(/-/g, ' ')} — ${repaint.sentence}`}
+        ><UIcon name="warning" size={11} gold={false} /></span>
+      )}
       {interactive && (
         <span className={styles.chipControls}>
           {/* ⚠️ EVERY `aria-label` NAMES THE CHIP. "Hide" on nine chips is nine

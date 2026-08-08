@@ -235,6 +235,15 @@ def test_the_harness_agrees_with_the_evaluators_own_evaluate_one(wick, forming):
     which consults both — so `sar.priceCrossedSar` evaluated to `(None, False)` in
     the harness and fired 39 times in the shipped lane. A rail that iterates the
     same list the code under test does can only ever see what that list contains.
+
+    ⛔ `mode="forming"` IS PASSED EXPLICITLY SINCE THE CUTOVER, AND IT IS NOT A
+    WEAKENING. `make_forming_evaluate` is the FORMING adapter; comparing it
+    against an unqualified `_evaluate_one` after `ALERT_EVAL_MODE` became
+    `"closed"` would compare two different lanes and report the cutover as a
+    harness fork. The closed adapter has its own equality rail
+    (`test_alert_closed_bar.py::test_the_closed_adapter_agrees_with_the_
+    evaluators_own_evaluate_one_closed`, 1,000+ combinations), so both adapters
+    are still pinned to the function they re-express.
     """
     window = wick[-ar.PROD_BAR_WINDOW:]
     prevs = [None, -50.0, 0.0, 1.0, 50.0, 69.0, 70.0, 101.0]
@@ -248,7 +257,8 @@ def test_the_harness_agrees_with_the_evaluators_own_evaluate_one(wick, forming):
                              "indicator": address, "condition": cond["value"],
                              "threshold": thr, "params_json": None,
                              "last_value": prev, "alert_key": "k"}
-                    want = ev._evaluate_one(dict(alert), bars=window)
+                    want = ev._evaluate_one(dict(alert), bars=window,
+                                            mode="forming")
                     got = forming(dict(alert), window)
                     assert got == want, (address, cond["value"], thr, prev, got, want)
                     compared += 1
@@ -492,6 +502,42 @@ def test_the_fire_log_is_recorded_against_the_live_address_count(fire_log):
     assert fire_log["address_count"] == len(ev.INDICATOR_FUNCS) == 28
     assert fire_log["prod_bar_window"] == ar.PROD_BAR_WINDOW == 200
     assert fire_log["ks"] == list(ar.RECORD_KS)
+
+
+def test_a_MOVED_CATALOG_FAILS_the_check_instead_of_printing_a_warning(
+        fire_log, monkeypatch, capsys):
+    """⛔ THE TOOL'S VERDICT COULD NOT SAY THE ONE THING IT HAD NOTICED.
+
+    `cmd_check` compared `log["address_count"]` to the live catalog and, on a
+    mismatch, printed `!! the catalog grew or shrank` — and left `bad`
+    untouched. So it went on to print the literal **`FIRE LOG MATCHES`** and
+    return 0, satisfying `docs/runbooks/ast-conformance-gate.md` §4.1's gate
+    sentence word for word. It is not theoretical: a NEW address that fires
+    nothing — the un-fireable-offer class this programme exists to close
+    (`vwap`, then `sar`) — leaves every `(fixture, k)` digest byte-identical, so
+    the printed line was the entire signal and nothing consumed it. The tree was
+    covered only by a literal `== 28` typed into three test files; the gate an
+    operator runs BY HAND was not.
+
+    ⭐ CONTROL FIRST: the guard is quiet on today's catalog, so the exit-1 below
+    is attributable to the mutation and to nothing else. (Measured on the real
+    tool the same day: unmutated `--check` = `FIRE LOG MATCHES`, exit 0.)
+    """
+    import argparse
+
+    assert fire_log["address_count"] == len(ev.INDICATOR_FUNCS), (
+        "control: the size guard must be SILENT before it is provoked")
+
+    grown = dict(ev.INDICATOR_FUNCS)
+    grown["__probe_address_that_fires_nothing__"] = lambda *a, **k: []
+    monkeypatch.setattr(ev, "INDICATOR_FUNCS", grown)
+
+    rc = ar.cmd_check(argparse.Namespace(only=None))
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "NOT COMPARABLE" in out
+    # …and it refuses BEFORE replaying, so it cannot end on the runbook's word.
+    assert "FIRE LOG MATCHES" not in out
 
 
 def test_the_fire_log_is_not_vacuous(fire_log):

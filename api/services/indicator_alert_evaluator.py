@@ -117,7 +117,7 @@ _thread: Optional[threading.Thread] = None
 # asserted by IMPORTING this module and CALLING the closed lane directly
 # (`tests/test_alert_closed_bar.py`), which is the evidence the JS side could not
 # produce.
-ALERT_EVAL_MODE = "forming"        # "forming" | "closed"
+ALERT_EVAL_MODE = "closed"         # "forming" | "closed"
 
 EVAL_MODES: tuple[str, ...] = ("forming", "closed")
 
@@ -886,13 +886,27 @@ def instance_label(address: str, params: Optional[dict] = None) -> str:
     return f"{base}({', '.join(parts)})"
 
 
-def alert_catalog() -> list[dict]:
+def alert_catalog(user_id: Optional[Any] = None) -> list[dict]:
     """What the alert dropdown may offer, grouped by indicator.
 
     Keyed off the three address partitions, so an entry cannot exist for
     something that cannot be evaluated. Raises ``KeyError`` on a value function
     with no condition list — a new address has to fail HERE rather than render
     an empty condition dropdown and an un-submittable form.
+
+    ⭐ `user_id` APPENDS THAT ACCOUNT'S OWN FORMULAS, AND IT APPENDS THEM — the
+    global groups above are computed first and are not touched. Omitting it is
+    the enumeration every rail in this phase measures (`all_addresses()` 31,
+    `--diff` 31/31, 16 groups) and it reaches no store at all, so a caller that
+    does not have an account in hand gets byte-for-byte what this always
+    returned.
+
+    ⛔ AND THE USER ENTRIES DO NOT COME FROM A FOURTH PARTITION. `USER_FUNCS` is
+    keyed `<user_id>\\x1f<address>` and is absent from `ADDRESS_PARTITIONS` on
+    purpose (see the block above it); they are assembled by
+    `alert_user_series.user_catalog`, which is handed the id. That is what makes
+    "a user formula is offerable" and "the global address space is frozen" both
+    true at once, instead of trading one for the other.
 
     ⭐ EACH PLOT CARRIES ITS `inputs` (PHASE C TASK 10). That is the INSTANCE's
     shape — the knobs whose values make `RSI(7)` a different alert from
@@ -952,6 +966,9 @@ def alert_catalog() -> list[dict]:
             "default_threshold": plots[0]["default_threshold"],
             "plots": plots,
         })
+    if user_id:
+        from api.services import alert_user_series
+        entries.extend(alert_user_series.user_catalog(user_id))
     return entries
 
 
@@ -1143,8 +1160,9 @@ def _evaluate_one(alert: dict, bars: Optional[list[dict]] = None, *,
 
 # ─── THE CLOSED-BAR LANE (spec §8) ───────────────────────────────────────────
 #
-# Everything below is reachable today only by asking for it (`mode="closed"`).
-# `ALERT_EVAL_MODE` is `"forming"`, so no armed alert reaches any of it.
+# Everything below IS the shipped lane as of the cutover: `ALERT_EVAL_MODE` is
+# `"closed"`, so every armed alert reaches it. The forming lane above is now the
+# one reachable only by asking (`mode="forming"`, or the rollback variable).
 
 # Minutes per intraday timeframe code. `D`/`W`/`M` are NOT here: their bars are
 # stored as YYYYMMDD calendar keys and a month is not a fixed number of seconds,
@@ -1535,10 +1553,14 @@ def _evaluate_one_closed(alert: dict, bars: Optional[list[dict]] = None, *,
 # fire-once cannot survive"*. A refusal that returned False would be that lie,
 # and it would be indistinguishable from the steady state.
 #
-# ⛔ NOTHING CALLS THIS YET, AND THAT IS DELIBERATE. `_run_one_cycle` is the live
-# lane; while `ALERT_EVAL_MODE` is `"forming"` a call from there would raise on
-# every fire. Wiring belongs AFTER the cutover, never as part of it — spec §8 and
-# the phase plan both say the door opens after the flip, not with it.
+# ⛔ NOTHING CALLS THIS YET, AND THAT IS STILL DELIBERATE AFTER THE CUTOVER.
+# Spec §8 and the phase plan both say the ledger door opens AFTER the flip and
+# never as part of it: the cutover is one revertible line, and a commit that also
+# started writing append-only rows into the Signature ledger would not be. The
+# mode gate below is now satisfied, which is exactly why the wiring is a separate
+# decision with its own evidence — `admit_alert_fire` has one definition and zero
+# call sites, asserted by AST because a grep here has lied three times (it counts
+# the prose in this very comment).
 
 # The ledger's `version` column exists so a rule whose ARITHMETIC changed
 # produces a distinguishable row rather than silently reusing a key
@@ -2096,6 +2118,46 @@ def _release_failed_delivery(alert: dict, fire_id: Optional[int],
             "was not held by this dispatch: %s", alert.get("id"), fire_id, error)
 
 
+def _evaluate_for_cycle(alert: dict, bars: list[dict], *,
+                        mode: Optional[str] = None,
+                        now_epoch: Optional[float] = None,
+                        ) -> tuple[Optional[float], bool, Optional[int]]:
+    """``(value, triggered, judged_index)`` — the cycle's ONE evaluation call.
+
+    ⭐ THE INDEX IS AN OUTPUT OF THE EVALUATION, WHICH IS THE WHOLE POINT.
+    `_run_one_cycle` needs two things from a fire: the number, and the bar the
+    number is about. Before this existed it took the first from `_evaluate_one`
+    and computed the second itself as `len(bars) - 1` — correct on the forming
+    lane and WRONG on the closed one, where the judged bar is
+    `closed_bar_index(...)` and `bars[-1]` is the bar still being built. The
+    receipt would have named a bar the value did not come from, in the lane
+    whose entire purpose is receipts that can be trusted.
+
+    ⛔ AND IT IS NOT "ASK `closed_bar_index` AGAIN". That is two functions
+    agreeing rather than one answer: `_evaluate_one_closed` resolves the index
+    against ITS `now_epoch`, and a second call a few microseconds later can land
+    on the next bar — one fire in a hundred thousand naming the wrong bar is
+    exactly the class of defect this branch keeps finding by measurement. The
+    closed lane already returns the index it used; this reads it.
+
+    ⚠️ MODE-DERIVED, NOT COMMIT-DERIVED. `eval_mode()` is a RUNTIME value —
+    `ALERT_EVAL_MODE` is the committed default and the Railway variable can
+    override it without a deploy — so a cycle wired for one lane by commit
+    ordering would name the wrong bar the moment the rollback lever is pulled.
+    Left `None`, `mode` asks `eval_mode()`, the module's only reader.
+    """
+    resolved = mode if mode is not None else eval_mode()
+    if resolved == "closed":
+        return _evaluate_one_closed(alert, bars, now_epoch=now_epoch)
+    value, triggered = _evaluate_one(alert, bars=bars, mode="forming",
+                                     now_epoch=now_epoch)
+    # ⛔ THE FORMING LANE JUDGES THE NEWEST BAR, SO THAT IS THE BAR IT NAMES.
+    # `_evaluate_one` computes the whole column and reads its last computable
+    # value, and `prev` is the previous POLL's number — so the bar under
+    # judgement is `bars[-1]`, whatever the clock says about whether it closed.
+    return value, triggered, (len(bars) - 1 if bars else None)
+
+
 def _run_one_cycle() -> dict[str, Any]:
     """One pass: evaluate every active alert, record + dispatch as needed.
 
@@ -2146,7 +2208,8 @@ def _run_one_cycle() -> dict[str, Any]:
                 if _rev.consume_if_suppressed(alert, bars=bars):
                     summary["suppressed"] += 1
                     continue
-                value, triggered = _evaluate_one(alert, bars=bars)
+                value, triggered, judged_index = _evaluate_for_cycle(
+                    alert, bars)
                 if value is None:
                     continue
                 summary["evaluated"] += 1
@@ -2154,25 +2217,16 @@ def _run_one_cycle() -> dict[str, Any]:
                     summary["triggered"] += 1
                     # ⭐ THE BAR THE DECISION WAS MADE ON — the receipt's own
                     # `bar_time`, NULL on every row of `indicator_alert_fires`
-                    # until this line existed.
+                    # until `dd2da6f7` stamped it.
                     #
-                    # ⛔ THE FORMING LANE JUDGES THE NEWEST BAR, SO THAT IS THE
-                    # BAR IT NAMES. `_evaluate_one` computes the whole column and
-                    # reads its last computable value, and `prev` is the previous
-                    # POLL's number — so the bar under judgement is `bars[-1]`,
-                    # whatever the clock says about whether it has closed.
-                    #
-                    # ⚠️ TASK 8 (THE CLOSED-BAR CUTOVER) CHANGES EXACTLY ONE
-                    # THING HERE: `_evaluate_one_closed` already RETURNS the
-                    # index it judged, so the flip is
-                    # `value, triggered, judged_index = _evaluate_one_closed(...)`
-                    # and this assignment goes away. It is written as a named
-                    # index rather than inlined as `bars[-1]["t"]` so that the
-                    # swap is one line and cannot be overlooked — a receipt that
-                    # named the FORMING bar while the value came from the CLOSED
-                    # one would be a wrong receipt in the lane built to make
-                    # receipts trustworthy.
-                    judged_index = len(bars) - 1
+                    # ⛔ AND THE INDEX COMES OUT OF THE EVALUATION, NOT OUT OF A
+                    # SECOND CALCULATION. `_evaluate_for_cycle` returns the bar
+                    # its own answer is about — `bars[-1]` on the forming lane,
+                    # `closed_bar_index` on the closed one — so the receipt
+                    # cannot name a bar the value did not come from. Recomputing
+                    # `closed_bar_index` here would be two functions agreeing,
+                    # and they would stop agreeing the first time the wall clock
+                    # ticked between them.
                     bar_time = _fire_bar_time(bars, judged_index)
                     ias.record_trigger(alert["id"], last_value=value,
                                        bar_time=bar_time)

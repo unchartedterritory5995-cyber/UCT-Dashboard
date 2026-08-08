@@ -382,6 +382,33 @@ export function lintRepaint(ast, opts = {}) {
 // --------------------------------------------------------------------------- //
 
 /**
+ * A plot's OWN declared forward window, read in the three forms this module
+ * already understands, or `undefined` when it declares none.
+ *
+ * ⛔ `undefined` AND `0` ARE DIFFERENT ANSWERS AND MUST STAY DIFFERENT. `0` is a
+ * plot that says *"I read no bar after my own index"* — a decidable, clean
+ * verdict. `undefined` is a plot that says NOTHING, which on a hand-written lane
+ * is `undecidable-hand-written` and carries no verdict at all. Collapsing them
+ * would brand every un-declared plot in the catalogue `non-repainting` on the
+ * strength of its silence — which is precisely the shared default this whole
+ * record exists about, rebuilt one level down.
+ *
+ * ⛔ AND AN UNRECOGNISED SHAPE IS `UNKNOWN`, NOT `undefined`. A plot that
+ * declares `forward: 'soon'` HAS made a declaration and this linter cannot read
+ * it; answering `undefined` would silently downgrade that to "declared nothing"
+ * and hide it among forty-one honest silences. `UNKNOWN` fails closed to
+ * `repaints`, which is the cheap side of the asymmetry.
+ */
+function plotForward(plot) {
+  if (!plot || typeof plot !== 'object') return undefined
+  if (!Object.prototype.hasOwnProperty.call(plot, 'forward')) return undefined
+  const v = plot.forward
+  if (v === UNBOUNDED) return UNBOUNDED
+  if (typeof v === 'number' && Number.isInteger(v) && v >= 0) return v
+  return UNKNOWN
+}
+
+/**
  * ⭐⭐ OBLIGATION 9 — PER-PLOT GRANULARITY, EXPRESSIBLE BEFORE ANY BADGE MOVES.
  *
  * The owner's ruling (record §4) is per PLOT: `ichimoku` reads `non-repainting`
@@ -406,6 +433,26 @@ export function lintRepaint(ast, opts = {}) {
  *        `tests/test_ast_lint.py` for the Python lane's source (the golden
  *        suite's `TRAILING_PAD`) and `lint.test.js` for the JS lane's (the
  *        trailing null run measured off the committed golden fixtures).
+ *
+ * ⭐⭐ AND `plots[].forward` IS THE SAME FACT ARRIVING FROM THE DEFINITION, WHICH
+ * IS WHAT MAKES THE PER-PLOT VERDICT AVAILABLE IN A BROWSER AT ALL. The golden
+ * fixtures are a test artefact; a chart cannot read them. So the DEFINITION may
+ * declare the plot's forward window — a WINDOW, in bars, exactly the shape
+ * `closedTable.json` declares per function — and this module turns it into the
+ * badge through `modeFromReach`, the same three lines that decide the `ast` lane.
+ *
+ * ⛔ A WINDOW, NEVER A BADGE, AND THE DIFFERENCE IS THE WHOLE POINT. `defSchema`
+ * REFUSES a `plots[].repaint` outright, so a plot can state the fact it knows and
+ * can never state the verdict it does not get to choose. A hand-set badge stays
+ * impossible in both directions; a hand-set window is the only thing a
+ * hand-written compute has ever been able to tell this linter, and the record's
+ * §3.1 already writes down what that costs (*"a compute whose real window is
+ * wider than its declaration would be branded on the declaration"*).
+ *
+ * ⛔ WHEN BOTH ARRIVE, THE WORSE ONE WINS — `maxReach`, the same lattice the tree
+ * sum uses. A declaration that under-claims cannot launder a measured artefact,
+ * and a handed-in fact cannot launder a declared unbounded window. Failing closed
+ * in the direction of the badge is the asymmetry this whole module is built on.
  */
 export function lintDefinition(def, opts = {}) {
   const facts = opts.declaredForwardFacts || {}
@@ -428,10 +475,18 @@ export function lintDefinition(def, opts = {}) {
     //
     // Spec §11 forbids static analysis of hand-written JS, so the linter cannot
     // read this compute at all. It says so, per plot, rather than reporting a
-    // clean answer it did not earn.
+    // clean answer it did not earn — UNLESS somebody outside hands it the one
+    // fact it cannot derive: how far ahead of its own index this column reads.
     const factKey = `${fn}.${plotKey}`
-    if (Object.prototype.hasOwnProperty.call(facts, factKey)) {
-      const forward = facts[factKey]
+    const handed = Object.prototype.hasOwnProperty.call(facts, factKey) ? facts[factKey] : undefined
+    const declared = plotForward(plot)
+    if (handed !== undefined || declared !== undefined) {
+      const forward = (handed !== undefined && declared !== undefined)
+        ? maxReach(handed, declared)
+        : (handed !== undefined ? handed : declared)
+      const sources = []
+      if (handed !== undefined) sources.push('PINNED outside this repo\'s source and handed in')
+      if (declared !== undefined) sources.push('DECLARED by the plot as its forward window')
       return {
         address,
         defId: def.id,
@@ -442,10 +497,13 @@ export function lintDefinition(def, opts = {}) {
         forward,
         back: UNKNOWN,
         reasons: [
-          `the compute is hand-written and unreadable to this linter, but a forward dependency of ` +
-          `${forward} bar${forward === 1 ? '' : 's'} is PINNED outside it and was handed in — ` +
-          `bar i's value is written to index i-${forward}, so the point at a historical index ` +
-          `moves while the newest bar forms and is final the moment that bar closes`,
+          (isUnknown(forward) || isUnbounded(forward))
+            ? `the compute is hand-written and unreadable to this linter, and the forward window it ` +
+              `was handed (${forward}) names no bar after which the value is final`
+            : `the compute is hand-written and unreadable to this linter, but a forward dependency of ` +
+              `${forward} bar${forward === 1 ? '' : 's'} was ${sources.join(' and ')} — ` +
+              `bar i's value is written to index i-${forward}, so the point at a historical index ` +
+              `moves while the newest bar forms and is final the moment that bar closes`,
         ],
       }
     }

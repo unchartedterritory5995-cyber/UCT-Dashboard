@@ -19,7 +19,7 @@ import {
 // WORKSPACE: color groups, chart tabs, the crosshair bus, hotkey arbitration,
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
-export default function ChartWidget({ color, opts, onOptsChange }) {
+export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
   const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef } = useWorkspace()
   const { createAlert } = useWatchlistAlerts()
   // Imperative handle on the pane: the right-click menu opens its settings
@@ -37,6 +37,24 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   const isMainTab = activeTabIdx === 0
   const activeExtra = isMainTab ? null : (extraTabs[activeTabIdx - 1] || null)
   const activeColor = isMainTab ? color : (activeExtra?.color || color)
+
+  // ⭐ PHASE C TASK 12 — THE CHART ID THIS SURFACE PUBLISHES.
+  //
+  // `WidgetHost` supplies the slot's persisted id; a chart TAB is an
+  // independent chart profile with its own settings blob, so it gets its own
+  // identity rather than sharing the slot's — otherwise two tabs in one widget
+  // would share an alert set while showing different charts.
+  //
+  // ⛔ NOT `widgetIdRef` BELOW. That one is `w${Math.random()}`, minted per
+  // MOUNT: scoping an alert to it would bind the alert to a chart that ceases
+  // to exist on the next refresh. Both ids the producers hand down here are
+  // persisted (`charts_workspace_layout`, and the tab's own `id`).
+  //
+  // ⚠️ A HOST THAT PASSES NONE STAYS GLOBAL, which is what every alert created
+  // before this producer existed already is.
+  const paneChartId = !chartId
+    ? null
+    : (isMainTab || !activeExtra ? chartId : `${chartId}:${activeExtra.id}`)
 
   // Debounce the linked ticker (~90ms): during a fast arrow-scan through a watchlist,
   // the group sym changes many times/sec — without this every intermediate ticker
@@ -255,6 +273,10 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           subscribeCrosshair,
           hotkeysActive: hotkeysIsActive,
           onBarContextMenu: handleBarContextMenu,
+          // ⭐ WHICH CHART (Phase C Task 12). `ChartPane` spreads
+          // `stockChartProps` onto `StockChart`, which forwards it to
+          // `ChartToolbar` → `IndicatorAlertPopover` → the `?scope=` request.
+          chartId: paneChartId,
         }}
         slots={{
           /* Chart tab strip — renders only once ≥1 extra tab exists, so a

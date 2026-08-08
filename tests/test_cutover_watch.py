@@ -22,6 +22,15 @@ assertions here are not what a normal test file would carry:
     bar fetch dead, the disagreement counts are 0 and the verdict is still
     NO-GO, because "the lanes agree" and "nothing was evaluated" must not print
     the same thing.
+  * ⏰ EVERY TEST THAT REASONS ABOUT A SESSION BUCKET STATES ITS INSTANT
+    (`_freeze_cutover_clock`). Three of them used to stamp a row at
+    `time.time() - 30` and then assert an exact bucket count, so the row landed
+    in whichever session the SUITE happened to run in -- and the file was green
+    only on a weekday between 16:00 and 24:00 ET. That is the one window in
+    which `tools/cutover_watch.py` is NOT used. `test_a_healthy_store_reads_go`
+    now reads at 09:47 on a Monday, the instant the cron fires, and
+    `test_the_verdict_flips_with_the_minute_not_with_the_test_run` proves the
+    pinning did not turn the clock into a constant.
 """
 
 from __future__ import annotations
@@ -34,7 +43,7 @@ import pathlib
 import sqlite3
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -72,6 +81,113 @@ def _run(fx, bars=None, **kw):
     return cw.build_report(fx.auth, fx.shadow,
                            bars_provider=cw._provider(_bars() if bars is None
                                                       else bars), **kw)
+
+
+# ─── the clock, PINNED -- and the seam DERIVED rather than typed ─────────────
+#
+# WHY THIS EXISTS. `cutover_watch` reasons about RTH windows on purpose; that is
+# its entire job. The defect was that its TESTS read an ambient clock: they
+# stamped a freshness row at `time.time() - 30` and then asserted exact session
+# counts, so the row joined `rth`, `pre`, `post` or `weekend` depending on when
+# the suite ran. Measured, on the pre-fix file, with the ambient clock
+# simulated: green at Fri 21:30 ET; at Mon 09:47 ET three tests failed
+# (`assert 1 == 0`, `assert 21 == 20`, `assert False is True`); at Mon 07:15 and
+# Sun 12:00 one failed (`assert 40 == 41`). 09:47 Monday is when the cron that
+# calls this instrument runs, so the gate certifying the instrument was red
+# exactly when the instrument was used.
+#
+# THE SEAM IS DERIVED BY AST, NOT BY GREP. Walking from each of the three tests
+# through every function it transitively reaches -- 84 of them, across
+# `cutover_watch`, `indicator_alert_service`, `indicator_alert_evaluator`,
+# `alert_shadow_log`, `alert_series` and `indicator_compute` -- finds wall-clock
+# reads at exactly FIVE module-level names:
+#
+#   cutover_watch.time             .time()  build_report, synthetic_bars,
+#                                           selftest_cases (x3)
+#   cutover_watch.datetime         .now()   et_instant
+#   indicator_alert_service.time   .time()  _now, create   (snooze_until writes)
+#   alert_shadow_log.time          .time()  _row_tuple     -- DEFAULT ONLY
+#   indicator_alert_evaluator.time .time()  _evaluate_one_closed -- DEFAULT ONLY
+#
+# The last two are defaults these tests never take (`Fixture.shadow_rows` always
+# passes `recorded_at`; `_lane_pair` always passes `now_epoch`). They are pinned
+# anyway, so the freeze is provably TOTAL rather than merely sufficient today.
+#
+# `datetime.fromtimestamp` is deliberately NOT in the seam: `session_bucket` and
+# `shadow_report` are pure functions of the epoch they are handed, which is why
+# pinning the clock cannot delete the behaviour under test.
+#
+# ⛔ DELIBERATELY NOT THE SEAM: stubbing `session_bucket` or `shadow_report`
+# (that would delete the classifier along with the clock), and patching the
+# GLOBAL `time` module (that reaches sqlite, pytest and every other test sharing
+# this process). Each name below is rebound on ONE module object.
+
+#: The instant the whole exercise is about: the cron fires 09:47 ET on a Monday
+#: and asks this instrument for a GO/NO-GO. 2026-08-10 is a Monday.
+_MONDAY_0947_ET = "2026-08-10 09:47:00"
+
+#: 2h30 after the close on that same session -- the reading that produced the
+#: 8,130-rows-after-16:52 defect this file's RTH tests exist for.
+_MONDAY_EVENING_ET = "2026-08-10 18:30:00"
+
+
+def _et_epoch(spec: str) -> float:
+    """'YYYY-MM-DD HH:MM:SS' as ET WALL CLOCK -> epoch, via the IANA zone.
+
+    The same `indicator_compute._et_zone()` the tool itself resolves buckets
+    with, so a pinned instant and the classifier cannot disagree about what
+    "09:30 ET" means on a given date (EST vs EDT).
+    """
+    return datetime.strptime(spec, "%Y-%m-%d %H:%M:%S").replace(
+        tzinfo=ic._et_zone()).timestamp()
+
+
+class _FrozenTime:
+    """The real `time` module with `time()` pinned; everything else delegates."""
+
+    def __init__(self, epoch: float):
+        self._epoch = float(epoch)
+
+    def time(self) -> float:
+        return self._epoch
+
+    def __getattr__(self, name):
+        return getattr(time, name)
+
+
+def _frozen_datetime(epoch: float):
+    """`datetime` with `now`/`utcnow` pinned. `fromtimestamp`/`strptime` are
+    inherited untouched -- the tool's bucket maths must keep working normally."""
+
+    class _Frozen(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime.fromtimestamp(epoch, tz=tz)
+
+        @classmethod
+        def utcnow(cls):
+            # Naive UTC, which is what the stdlib `utcnow` returns. No caller in
+            # the derived seam reaches it -- it is pinned so that a future one
+            # cannot silently fall through to the real clock, and it is pinned
+            # CORRECTLY so it can never hand back an ET reading labelled UTC.
+            return datetime.fromtimestamp(epoch, tz=timezone.utc).replace(
+                tzinfo=None)
+
+    return _Frozen
+
+
+def _freeze_cutover_clock(monkeypatch, instant: float) -> float:
+    """Pin every clock the report path can consult, and NOTHING else.
+
+    `monkeypatch.setattr` is used WITHOUT `raising=False` on purpose: if one of
+    these modules ever stops importing `time`, this must fail loudly rather than
+    leave a hole in the freeze that reads as a pass.
+    """
+    shim = _FrozenTime(instant)
+    for module in (cw, ias, shadow, ev):
+        monkeypatch.setattr(module, "time", shim)
+    monkeypatch.setattr(cw, "datetime", _frozen_datetime(instant))
+    return float(instant)
 
 
 # ─── the names are derived, never typed ──────────────────────────────────────
@@ -195,15 +311,26 @@ def test_session_bucket_boundaries():
     assert cw.session_bucket(saturday.timestamp(), zone) == "weekend"
 
 
-def test_after_hours_only_rows_are_never_counted_as_rth(store):
+def test_after_hours_only_rows_are_never_counted_as_rth(store, monkeypatch):
     """THE MUTATION TARGET. 8,130 rows, all after 16:52 ET, once read as a soak.
 
     If `session_bucket` stops filtering -- or the verdict starts reading
-    `total_rows` -- `rth_rows` becomes 40 and this test fails.
+    `total_rows` -- `rth_rows` becomes 41 and this test fails.
+
+    ⏰ THE CLOCK IS PINNED TO 18:30 ET, AND EVERY ROW STATES ITS OWN INSTANT.
+    This test asserts EXACT bucket counts, so it cannot afford a row stamped
+    "now": the 41st row used to be `time.time() - 30`, which is an `rth` row at
+    09:47 on a Monday (`assert 1 == 0`), a `pre` row at 07:15 and a `weekend`
+    row on a Sunday (`assert 40 == 41`, both). 18:30 is the reading the defect
+    was found at -- 8,130 rows recorded, every one of them after 16:52 ET.
     """
+    now = _freeze_cutover_clock(monkeypatch, _et_epoch(_MONDAY_EVENING_ET))
     store.arm("rsi", "above", -1e9)
-    store.shadow_rows(40, when=_et(18, 5))
-    store.shadow_rows(1, when=time.time() - 30)
+    # 18:05 back to 17:26 at the 60 s step -- 40 rows, all after the close.
+    store.shadow_rows(40, when=_et_epoch("2026-08-10 18:05:00"))
+    # The freshness row, so the lane is LIVE rather than stopped: 18:29:30 ET,
+    # 30 s before the pinned instant, and therefore `post` BY STATEMENT.
+    store.shadow_rows(1, when=now - 30)
     report = _run(store)
     sh = report["shadow"]
     assert sh["total_rows"] == 41
@@ -262,6 +389,78 @@ def test_the_total_is_never_the_only_row_count_reported(store):
            if r["code"] == "no-rth-shadow-rows"][0]
     assert "0 row(s) inside 09:30-16:00 ET" in msg
     assert "out of 30 total" in msg
+
+
+#: (label, the row's ET wall clock, the bucket it must land in, GO?)
+#: Two pairs 60 SECONDS APART that straddle the session boundaries, plus a
+#: weekend. The store is IDENTICAL in every row of this table and the shadow row
+#: is 30 s old in every one of them -- only its wall clock moves.
+_FLIP_INSTANTS = (
+    ("pre_0929",  "2026-08-10 09:29:00", "pre",     False),
+    ("rth_0930",  "2026-08-10 09:30:00", "rth",     True),
+    ("rth_1559",  "2026-08-10 15:59:00", "rth",     True),
+    ("post_1600", "2026-08-10 16:00:00", "post",    False),
+    ("sunday",    "2026-08-09 12:00:00", "weekend", False),
+)
+
+
+def test_the_verdict_flips_with_the_minute_not_with_the_test_run(tmp_path):
+    """🔴 NON-VACUITY: pinning the clock must not have removed the behaviour.
+
+    A pinned clock can hide a test that has stopped measuring anything, so the
+    pinning has to be shown to still MOVE the answer. One armed alert, ONE
+    shadow row, the same 30-second age every time, the real `session_bucket`,
+    the real `verdict` -- and the GO/NO-GO must invert across a boundary the
+    clock crosses in 60 seconds:
+
+        09:29 -> pre      -> rth_rows 0 -> no-rth-shadow-rows -> NO-GO
+        09:30 -> rth      -> rth_rows 1 ->                       GO
+        15:59 -> rth      -> rth_rows 1 ->                       GO
+        16:00 -> post     -> rth_rows 0 -> no-rth-shadow-rows -> NO-GO
+        Sun   -> weekend  -> rth_rows 0 -> no-rth-shadow-rows -> NO-GO
+
+    Because `newest_age_sec` is 30 in EVERY row, nothing about the row's age can
+    produce that shape; only which side of 09:30/16:00 ET its wall clock fell on
+    can. A frozen clock that had become a constant would return one answer five
+    times and the last assertion would fail.
+    """
+    seen, buckets, ages = {}, {}, set()
+    for label, row_et, bucket, expect_go in _FLIP_INSTANTS:
+        row_at = _et_epoch(row_et)
+        case_dir = tmp_path / label
+        case_dir.mkdir()
+        with pytest.MonkeyPatch.context() as mp:
+            # The report is taken 30 s after the row, so the lane is live in
+            # every case and staleness can never be the thing that moved.
+            _freeze_cutover_clock(mp, row_at + 30)
+            with cw.Fixture(str(case_dir)) as fx:
+                fx.arm("rsi", "above", -1e9)
+                fx.shadow_rows(1, when=row_at)
+                report = cw.build_report(
+                    fx.auth, fx.shadow,
+                    bars_provider=cw._provider(cw.synthetic_bars(300)))
+        sh = report["shadow"]
+        assert sh["total_rows"] == 1, label
+        assert sh[bucket + "_rows"] == 1, (label, sh)
+        assert sh["rth_rows"] == (1 if bucket == "rth" else 0), (label, sh)
+        assert sh["partition_holds"] is True, label
+        assert report["verdict"]["go"] is expect_go, (label, report["verdict"])
+        assert ("no-rth-shadow-rows" in report["verdict"]["codes"]) \
+            is not expect_go, (label, report["verdict"]["codes"])
+        seen[label] = report["verdict"]["go"]
+        buckets[label] = bucket
+        ages.add(sh["newest_age_sec"])
+
+    # ⭐ THE PAIRS ARE 60 SECONDS APART AND THEY INVERT, IN BOTH DIRECTIONS.
+    assert seen["pre_0929"] is False and seen["rth_0930"] is True
+    assert seen["rth_1559"] is True and seen["post_1600"] is False
+    # ⭐ AND THE ROW IS THE SAME AGE IN ALL FIVE, so the verdict is not an age
+    # function wearing a clock's clothes.
+    assert ages == {30}
+    # ⭐ AND THE ANSWER ACTUALLY MOVED. A pinned clock that had collapsed into a
+    # constant would put one value in here and this is what would catch it.
+    assert sorted(set(seen.values())) == [False, True]
+    assert len(set(buckets.values())) == 4
 
 
 # ─── 2 + 3. the two lanes ────────────────────────────────────────────────────
@@ -662,6 +861,52 @@ def test_every_nogo_branch_fires_and_the_exit_code_follows():
             assert r["codes"] == [], r
 
 
+#: The four windows `--self-test` can be run in. The first is the one that
+#: matters: the cron fires at 09:47 ET on a Monday.
+_SELF_TEST_HOURS = (
+    ("weekday RTH -- THE CRON INSTANT", _MONDAY_0947_ET),
+    ("weekday pre-market", "2026-08-10 07:15:00"),
+    ("weekday post-close", _MONDAY_EVENING_ET),
+    ("weekend", "2026-08-09 12:00:00"),
+)
+
+
+@pytest.mark.parametrize("label,instant", _SELF_TEST_HOURS,
+                         ids=[h[1][:16] for h in _SELF_TEST_HOURS])
+def test_the_self_test_can_refuse_at_every_hour_it_will_be_run_at(
+        label, instant, monkeypatch):
+    """⏰ THE SHIPPED `--self-test` COMMAND, PINNED TO EACH HOUR IT CAN FIRE AT.
+
+    The test above runs `run_self_test()` at whatever hour the SUITE runs, which
+    is a real canary but proves nothing about 09:47 on a Monday. This one names
+    the hours, and it exists because the instrument's own gate WAS red at one of
+    them: `case_no_rth` seeded its freshness row at `time.time() - 30`, that row
+    landed inside RTH during the session, `rth_rows` read 1 instead of 0, the
+    `no-rth-shadow-rows` branch went silent, and `python tools/cutover_watch.py
+    --self-test` exited 1. Measured before the fix: exit 1 at 09:47 ET, exit 0
+    at 07:15 / Sunday 12:00 / 21:30 -- a safety net that was down for exactly
+    the six and a half hours it was needed.
+
+    ⛔ This is a gate over the ARTIFACT, not a proxy for it: it calls the same
+    `run_self_test()` / `self_test_summary()` pair that `_self_test_main()`
+    turns into the process exit code, so a re-regression cannot leave this green
+    while the command is red.
+    """
+    _freeze_cutover_clock(monkeypatch, _et_epoch(instant))
+    results = cw.run_self_test()
+    summary = cw.self_test_summary(results)
+    assert summary["never_forced"] == [], (label, summary)
+    assert summary["all_fired"] is True, (label, summary)
+    assert summary["all_exit_codes_follow"] is True, (label, summary)
+    assert summary["controls_green"] is True, (label, summary)
+    assert summary["ok"] is True, (label, summary)
+    # The branch that was silent is named explicitly, so a future fixture that
+    # quietly stops forcing it fails HERE rather than in a summary boolean.
+    forced = [r for r in results if r["expected"] == "no-rth-shadow-rows"]
+    assert len(forced) == 1 and "no-rth-shadow-rows" in forced[0]["codes"], \
+        (label, forced)
+
+
 def test_the_self_test_covers_every_declared_branch():
     """Totality DERIVED from `NOGO_REASONS`, not from a list somebody extended."""
     cases, _ = cw.selftest_cases()
@@ -719,16 +964,30 @@ def test_min_rth_rows_is_configurable_and_is_the_number_that_gates(store):
     assert codes == ["no-rth-shadow-rows"]
 
 
-def test_a_healthy_store_reads_go(store):
-    """The control for every NO-GO above: this instrument can also say yes."""
+def test_a_healthy_store_reads_go(store, monkeypatch):
+    """The control for every NO-GO above: this instrument can also say yes.
+
+    ⏰ AND IT SAYS YES AT 09:47 ON A MONDAY -- the instant the cron fires and
+    asks for the GO/NO-GO, which is the only instant this control's answer has
+    ever mattered at. It used to read the ambient clock and assert
+    `rth_rows == 20`, so it was green in the evening and red during the session
+    (`assert 21 == 20`): the GO control was unavailable exactly when a GO would
+    be acted on.
+    """
+    now = _freeze_cutover_clock(monkeypatch, _et_epoch(_MONDAY_0947_ET))
     store.arm("rsi", "above", -1e9)
-    store.shadow_rows(20, when=_et(10, 30))
-    store.shadow_rows(1, when=time.time() - 30)
+    # 20 rows inside the PRIOR session (Friday 10:30 ET back to 10:11).
+    store.shadow_rows(20, when=_et_epoch("2026-08-07 10:30:00"))
+    # The freshness row at 09:46:30 ET. At 09:47 that row is ITSELF an RTH row,
+    # which is why the count below is 21 and not 20 -- stated, not ambient.
+    store.shadow_rows(1, when=now - 30)
     report = _run(store)
     assert report["verdict"]["reasons"] == []
     assert report["verdict"]["go"] is True
     assert report["verdict"]["exit_code"] == 0
-    assert report["shadow"]["rth_rows"] == 20
+    assert report["shadow"]["rth_rows"] == 21
+    assert report["shadow"]["rth_rows_today"] == 1
+    assert report["shadow"]["newest_age_sec"] == 30
     assert report["lanes"]["evaluated_both"] == 1
     text = cw.render(report)
     assert "VERDICT: GO" in text
@@ -764,14 +1023,19 @@ def test_the_report_names_the_EFFECTIVE_lane_and_the_lever_that_set_it(
     environment.
     """
     store.arm("rsi", "above", -1e9)
-    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "closed")
+    # ⚠️ THE OVERRIDE IS `"forming"` SINCE THE CUTOVER, AND IT HAS TO BE. The
+    # committed constant is now `"closed"`, so overriding to `"closed"` would
+    # agree with it and this test could not tell the header's two answers apart —
+    # exactly the vacuous shape it exists to refuse. `"forming"` is also the only
+    # override an operator will ever actually type now: it is the rollback.
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "forming")
     mode = _run(store)["mode"]
     assert mode["lever_known"] is True
-    assert mode["effective"] == "closed" == mode["eval_mode()"]
+    assert mode["effective"] == "forming" == mode["eval_mode()"]
     assert mode["override_applied"] is True
-    assert mode["ALERT_EVAL_MODE"] == "forming", (
-        "the committed constant is Task 8's to change, and the override must "
-        "not have edited it")
+    assert mode["ALERT_EVAL_MODE"] == "closed", (
+        "the committed constant reads something other than the value Task 8's "
+        "cutover commit left, or the override edited it")
 
 
 def test_the_lever_refuses_the_flip_in_all_THREE_of_its_broken_states():

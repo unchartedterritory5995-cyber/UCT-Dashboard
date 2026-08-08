@@ -27,7 +27,7 @@ from __future__ import annotations
 import asyncio
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -42,6 +42,83 @@ _STALE_BAR_ET = datetime(2026, 8, 7, 9, 15, tzinfo=_ET)
 _NOW_ET = datetime(2026, 8, 7, 9, 56, tzinfo=_ET)
 _STALE_BAR_TS = int(_STALE_BAR_ET.timestamp())
 _NOW_TS = _NOW_ET.timestamp()
+
+
+# ─── the clock, PINNED ───────────────────────────────────────────────────────
+# `bars_fetch._needs_fresh` is a function of two things: the bar's age, and the
+# WALL CLOCK. On a trading weekday between 04:00 and 20:00 ET it applies the
+# standard per-timeframe threshold; overnight and at weekends it keeps the
+# conservative 30h gate. That rule is deliberate and documented (CLAUDE.md,
+# "Bars Correctness Layer") — it stops a chart opened at 17:00 ET sitting on
+# noon data without hammering providers at 03:00, when nothing new prints.
+#
+# The product is right. The TESTS were wrong: they asserted against that rule
+# while reading whatever hour the suite happened to run at, so five of them went
+# red every evening and all weekend — precisely when this repo ships, and
+# precisely when someone reads the suite to decide whether to.
+# [[lesson_weekday_only_test_time_bombs]]
+#
+# THE SEAM IS DERIVED, NOT GUESSED. An AST walk of `_needs_fresh` plus every
+# in-module function it reaches (`_is_market_open`, `_last_weekday_yyyymmdd`,
+# `_is_cold_stale_intraday`, `_expected_latest_session_yyyymmdd`) puts its clock
+# reads at exactly two module-level names:
+#
+#     bars_fetch.datetime  -> .now(tz) x3, .utcnow() x1
+#     bars_fetch._time     -> .time()   x2
+#
+# and its one cross-module call, `bar_rollup.bucket_start`, is a pure function
+# of the timestamp it is handed. So rebinding those two names pins every clock
+# the predicate can consult — and pins nothing else: the pacing and deadline
+# tests below keep their own real `time.monotonic`.
+#
+# ⛔ NOT by stubbing `_needs_fresh`, and NOT by stubbing `_is_market_open`.
+# Either would delete the behaviour under test along with the ambient clock, and
+# the tests would pass at any hour for the wrong reason. The gate on that is
+# `test_the_freshness_verdict_flips_with_the_hour_not_with_the_test_run`, which
+# hands the SAME bar to the real predicate at instants two minutes apart and
+# demands opposite answers.
+
+def _frozen_datetime(instant: datetime):
+    """`datetime` with `now`/`utcnow` pinned to `instant`; the rest is real.
+
+    Returns PLAIN `datetime` objects (not subclass instances) so the arithmetic
+    downstream in `_last_weekday_yyyymmdd` is the production arithmetic.
+    """
+
+    class _Frozen(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            if tz is not None:
+                return instant.astimezone(tz)
+            return instant.astimezone().replace(tzinfo=None)
+
+        @classmethod
+        def utcnow(cls):
+            return instant.astimezone(timezone.utc).replace(tzinfo=None)
+
+    return _Frozen
+
+
+class _FrozenTime:
+    """The `time` module with `time()` pinned. Everything else delegates, so a
+    `_time.sleep` / `_time.monotonic` anywhere in the module still behaves."""
+
+    def __init__(self, epoch: float, real):
+        self._epoch = epoch
+        self._real = real
+
+    def time(self) -> float:
+        return self._epoch
+
+    def __getattr__(self, name):
+        return getattr(self._real, name)
+
+
+def _freeze_bars_clock(monkeypatch, instant: datetime):
+    """Pin `bars_fetch`'s clock to `instant`. Undone at test teardown."""
+    from api.services import bars_fetch as bf
+    monkeypatch.setattr(bf, "datetime", _frozen_datetime(instant))
+    monkeypatch.setattr(bf, "_time", _FrozenTime(instant.timestamp(), bf._time))
 
 
 # ─── a real store, in a temp dir ─────────────────────────────────────────────
@@ -176,15 +253,67 @@ def test_the_defect_armed_group_is_41_minutes_stale(store, monkeypatch):
     assert _STALE_BAR_TS < int(datetime(2026, 8, 7, 9, 30, tzinfo=_ET).timestamp())
 
 
-def test_the_defect_is_visible_to_the_freshness_predicate_the_chart_lane_uses(store):
+def test_the_defect_is_visible_to_the_freshness_predicate_the_chart_lane_uses(
+        store, monkeypatch):
     """`/api/bars` would have called this stale. The alert lane never asked.
 
     This is the whole root cause in one assertion: the predicate that would have
     caught it existed the entire time, in `bars_fetch`, unconsulted.
+
+    Asserted AT THE INSTANT OF THE PRODUCTION READING — 09:56 ET on Friday
+    2026-08-07, mid-session — because `_needs_fresh` reads the wall clock and
+    the claim ("`/api/bars` would have called this stale") is only meaningful
+    about a moment. Without the pin this asserted about whatever hour the suite
+    ran at, and said False every evening.
+    """
+    from api.services import bars_fetch as bf
+    _freeze_bars_clock(monkeypatch, _NOW_ET)
+    _seed_stale_spy(store)
+    assert bf._needs_fresh(_STALE_BAR_TS, "5") is True
+
+
+def test_the_freshness_verdict_flips_with_the_hour_not_with_the_test_run(
+        store, monkeypatch):
+    """⛔ NON-VACUITY GATE for every `_freeze_bars_clock` call in this file.
+
+    Pinning a clock can quietly un-test the thing. A test that stopped depending
+    on the hour could just as easily have stopped depending on the BEHAVIOUR —
+    and a `_needs_fresh` stubbed to a constant would sail through every other
+    test here at any hour, in either direction. So: hand ONE bar to the REAL
+    predicate at several instants and require the answer to MOVE.
+
+    The pairs are two minutes apart on purpose. Across each pair the bar ages by
+    sixty seconds and the verdict inverts, so the verdict cannot be a function of
+    the frozen age — it is reading the weekday 04:00–20:00 ET window, which is
+    the product rule these pins exist to respect rather than erase.
+
+    Note the two True instants: the bar is 10.7h old at the first and 66.8h old
+    at the last. Older reads FRESHER at 03:59 Monday than at 04:00. Nothing
+    monotonic in the bar's age can produce that shape.
     """
     from api.services import bars_fetch as bf
     _seed_stale_spy(store)
-    assert bf._needs_fresh(_STALE_BAR_TS, "5") is True
+
+    def verdict_at(instant):
+        _freeze_bars_clock(monkeypatch, instant)
+        return bf._needs_fresh(_STALE_BAR_TS, "5")
+
+    # Mid-session Friday: the session is open and a 5-minute bar 41 minutes old
+    # is stale by the standard threshold.
+    assert verdict_at(_NOW_ET) is True
+
+    # The 20:00 ET edge. 19:59 is still inside the extended-hours window;
+    # 20:00 is the overnight 30h gate, under which a 10.75h-old bar is fresh
+    # ENOUGH. THIS is the verdict that turned this suite red every evening.
+    assert verdict_at(datetime(2026, 8, 7, 19, 59, tzinfo=_ET)) is True
+    assert verdict_at(datetime(2026, 8, 7, 20, 0, tzinfo=_ET)) is False
+
+    # The weekend keeps the same conservative gate — nothing prints on Sunday.
+    assert verdict_at(datetime(2026, 8, 9, 12, 0, tzinfo=_ET)) is False
+
+    # The 04:00 ET edge on the next trading day, flipping back the other way.
+    assert verdict_at(datetime(2026, 8, 10, 3, 59, tzinfo=_ET)) is False
+    assert verdict_at(datetime(2026, 8, 10, 4, 0, tzinfo=_ET)) is True
 
 
 # ═══ 2. THE FIX, AND ITS NON-VACUITY ═════════════════════════════════════════
@@ -194,7 +323,13 @@ def test_refresh_adds_new_bars_by_identity_and_the_staleness_is_gone(store, monk
 
     ⛔ NOT by a row count. A no-op and a re-write of the same 60 bars both leave
     the count at 60. Only new `ts` values prove the store gained bars.
+
+    Runs at 09:56 ET — the same instant it measures staleness against — because
+    the gate it drives is the REAL `bars_fetch._needs_fresh`, deliberately (see
+    `test_an_already_fresh_group_costs_no_network_call`). A refresh is only the
+    right answer at an hour when the bar is actually stale.
     """
+    _freeze_bars_clock(monkeypatch, _NOW_ET)
     _seed_stale_spy(store)
     _fake_active(monkeypatch, [("SPY", "5")])
 
@@ -238,7 +373,12 @@ def test_a_refresh_that_writes_nothing_is_never_reported_as_success(store, monke
     is the failure this asserts against — an empty sweep that says it worked is
     exactly the shape of the 739-symbol sweep that 429'd on its first call and
     reported success.
+
+    Pinned to 09:56 ET: the real `_needs_fresh` must let the group THROUGH to
+    the fetch, or the sweep would report `already_fresh` and this would pass
+    without ever exercising the empty-fetch path.
     """
+    _freeze_bars_clock(monkeypatch, _NOW_ET)
     _seed_stale_spy(store)
     _fake_active(monkeypatch, [("SPY", "5")])
     before_ts = _ts_set(store, "SPY", "5")
@@ -263,7 +403,12 @@ def test_an_empty_fetch_is_not_cached_as_a_value_and_the_group_is_retried(
     skipped for the whole interval — the sweep would have converted a cooldown
     into "up to date". So: empty must NOT stamp, and the very next sweep must
     ask again. Then a real answer lands and IS written.
+
+    Pinned to 09:56 ET so the real `_needs_fresh` calls the group stale on all
+    three sweeps — an off-hours run would skip every one as already-fresh and
+    assert nothing about cooldowns.
     """
+    _freeze_bars_clock(monkeypatch, _NOW_ET)
     _seed_stale_spy(store)
     _fake_active(monkeypatch, [("SPY", "5")])
 
@@ -295,7 +440,12 @@ def test_a_successful_refresh_suppresses_a_second_call_inside_the_interval(
     Both derive the same armed set from the same function. Without this gate the
     pod would issue two upstream calls per group per minute for one group's worth
     of value.
+
+    Pinned to 09:56 ET: the FIRST sweep has to actually fetch (real
+    `_needs_fresh`) before the success gate has anything to suppress. Off-hours
+    both sweeps skip as already-fresh and `skipped_recent` never increments.
     """
+    _freeze_bars_clock(monkeypatch, _NOW_ET)
     _seed_stale_spy(store)
     _fake_active(monkeypatch, [("SPY", "5")])
     fresh = _five_min_bars(_STALE_BAR_TS + 300, 4, close=505.0)

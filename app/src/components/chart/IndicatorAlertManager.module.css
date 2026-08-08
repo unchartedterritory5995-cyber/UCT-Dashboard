@@ -1,0 +1,124 @@
+/* The alert manager on /settings (audit-not-wired finding 5). Read-only, so
+   nothing here is a control: no hover affordance, no cursor:pointer, no tap
+   target. Tokens only — the same vocabulary IndicatorAlertPopover.module.css
+   uses, so one alert row reads the same on both surfaces. */
+
+.wrap { display: flex; flex-direction: column; gap: 14px; }
+
+.empty {
+  padding: 6px 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted, #888);
+}
+
+.summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text-muted, #888);
+}
+
+/* Amber, matching `.needsAttention` below — the same claim at list level: these
+   alerts are not firing right now, and each row says why. ⛔ Not red: red on
+   this surface means an alert that can NEVER fire. */
+.summaryWarn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--warning, #e0a83b);
+}
+
+.group { display: flex; flex-direction: column; gap: 4px; }
+
+.groupHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 2px 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+.sym { color: var(--text-bright, #eee); }
+
+.count {
+  padding: 0 6px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted, #888);
+  background: var(--bg-surface, #161616);
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: 999px;
+}
+
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: var(--bg-surface, #161616);
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: 4px;
+}
+
+/* A disabled alert is dimmed, exactly as it is in the popover, so "OFF" is
+   legible at a glance down a twelve-row list. */
+.inactive { opacity: 0.55; }
+
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+
+.headline {
+  font-size: 12px;
+  color: var(--text-bright, #eee);
+  overflow-wrap: anywhere;
+}
+
+.sub {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-muted, #888);
+}
+
+.scopeChip {
+  padding: 0 5px;
+  color: var(--info, #6ba8e0);
+  background: var(--info-bg, rgba(107, 168, 224, 0.12));
+  border: 1px solid var(--info-border, rgba(107, 168, 224, 0.3));
+  border-radius: 3px;
+}
+
+/* Red: this alert can never fire as armed. */
+.cannotFire { color: var(--loss, #f55); }
+
+/* ⭐ The lifecycle line — AMBER, and the distinction from the red above is the
+   same one the popover draws: red can NEVER fire, amber is not firing right now
+   and the sentence says why. `white-space: normal` because `.sub` is a wrapping
+   flex row and a truncated diagnosis is no diagnosis. */
+.needsAttention {
+  flex-basis: 100%;
+  color: var(--warning, #e0a83b);
+  white-space: normal;
+  line-height: 1.4;
+}
+
+.state {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted, #888);
+  background: var(--bg-elevated, #1c1c1c);
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: 3px;
+}
+.state.on { color: var(--gain, #4ade80); border-color: rgba(74, 222, 128, 0.35); }

@@ -13,6 +13,7 @@ import VoiceSessionsPanel from '../components/voice/VoiceSessionsPanel'
 import VoiceDocumentsPanel from '../components/voice/VoiceDocumentsPanel'
 import VoiceInsightsPanel from '../components/voice/VoiceInsightsPanel'
 import BrokerConnectionsCard from './journal-2-0/components/BrokerConnectionsCard'
+import IndicatorAlertManager from '../components/chart/IndicatorAlertManager'
 import { useVoice } from '../context/VoiceContext'
 import { formatETDate } from '../utils/timeAgo'
 import UIcon from '../components/ui/UIcon'
@@ -1553,6 +1554,7 @@ const SEARCH_INDEX = [
   { card: 'referral',       section: 'billing',     title: 'Referral Program',           keywords: 'referral invite share friends rewards link' },
   { card: 'prefs',          section: 'preferences', title: 'Preferences',                keywords: 'theme dark oled dim system default chart timeframe appearance' },
   { card: 'notifications',  section: 'preferences', title: 'Notifications',              keywords: 'alert sound tone browser desktop notification' },
+  { card: 'indicatorAlerts', section: 'preferences', title: 'Indicator Alerts',          keywords: 'indicator alert rsi macd chart alerts armed not firing needs attention manager list all symbols' },
   { card: 'digest',         section: 'preferences', title: 'Watchlist Digest',           keywords: 'email digest daily weekly summary watchlist' },
   { card: 'tags',           section: 'preferences', title: 'Color Tags',                 keywords: 'tag color label ticker right click rename' },
   { card: 'chartSettings',  section: 'charts',      title: 'Chart Settings',             keywords: 'candles hollow bars line area colors indicators sma ema volume hvc crosshair watermark drawing preset background grid reset' },
@@ -2090,6 +2092,18 @@ export default function Settings() {
         </TileCard>
   )
 
+  /* 🔴 THE ALERT MANAGER (audit-not-wired finding 5). `list_for_user`'s own
+     docstring calls the unscoped listing "the alert manager's view" and there
+     was no alert manager: `IndicatorAlertPopover` filters to the chart's symbol,
+     so a member with alerts on twelve names had to navigate a chart to each
+     exact ticker to find them. Read-only, no new endpoint — the rows were
+     already being fetched and thrown away. See `IndicatorAlertManager.jsx`. */
+  const indicatorAlertsCard = (
+        <TileCard icon="bell" title="Indicator Alerts">
+          <IndicatorAlertManager />
+        </TileCard>
+  )
+
   const digestCard = (
         <TileCard icon="document" title="Watchlist Digest">
           <div className={styles.section}>
@@ -2285,6 +2299,7 @@ export default function Settings() {
     preferences: [
       card('prefs', preferencesCard),
       card('notifications', notificationsCard),
+      card('indicatorAlerts', indicatorAlertsCard),
       card('digest', digestCard),
       card('tags', tagsCard),
     ],

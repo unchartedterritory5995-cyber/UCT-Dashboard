@@ -90,6 +90,10 @@ import * as engineRegistry from './chart/engine/nativeRegistry'
 import IndicatorChip from './chart/legend/IndicatorChip'
 import chipStyles from './chart/legend/IndicatorChip.module.css'
 import { chipMenuItems } from './chart/legend/chipMenu'
+// ⭐ THE PER-PLOT REPAINT VERDICT — DERIVED BY THE LINTER, NEVER READ OFF A
+// BADGE. See `engine/repaintVerdict.js`'s header for why it is computed rather
+// than stored and how it relates to the definition's own `meta.repaint`.
+import { plotRepaintNotice, repaintNotices } from './chart/engine/repaintVerdict'
 import ContextPopover from './mobile/ContextPopover'
 import IndicatorSettingsDialog from './chart/IndicatorSettingsDialog'
 import { usePatternDetections } from '../hooks/usePatternDetections'
@@ -1235,6 +1239,19 @@ export default function StockChart({
   // meaningful on D/W/M — inert on intraday.
   sessionView = null,
   hideExtHoursToolbarToggle = false,  // charts workspace moves the intraday EXT/RTH toggle into the widget header, so hide the toolbar one
+  // ⭐ PHASE C TASK 12 — WHICH CHART THIS IS. A stable per-surface id: the
+  // `/charts` widget slot (`WidgetHost`'s `groupId`) or a Multi-Chart grid
+  // cell's persisted `cell.id`. Forwarded to `ChartToolbar` → the alert
+  // popover, which is what makes the alert listing request carry `?scope=` —
+  // the parameter `indicator_alert_service.list_for_user` has implemented since
+  // Task 12 and that no client had ever sent.
+  //
+  // ⚠️ IT MUST BE STABLE ACROSS RELOADS, not per-mount. A random id would scope
+  // an alert to a chart that ceases to exist the moment the tab is refreshed —
+  // which is worse than no scoping at all. Both producers persist theirs
+  // (`charts_workspace_layout`, `multichart_state`); a surface without one
+  // passes nothing and stays global.
+  chartId = null,
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -2088,19 +2105,40 @@ export default function StockChart({
   // developing-bar writer; the Finnhub-fed writers early-return. A ref so writers read the
   // latest without re-subscribing.
   //
-  // ⚠️ EVERY developing-bar writer MUST consult this flag — the FOUR that exist today, and
-  // any FIFTH one added later. A writer that forgets the guard dual-writes or paints the
+  // ⚠️ EVERY developing-bar writer MUST consult this flag, or be DISJOINT from push by
+  // construction and say so. A writer that forgets the guard dual-writes or paints the
   // wrong candle — exactly how the Heikin-Ashi raw-candle bug shipped (retro audit 2026-07-06).
-  // The four writer sites (grep `barsPushActiveRef` to find them; keep these refs ~in sync):
-  //   • Writer A — livePrices tick effect      (~L2748):  if (barsPushActiveRef.current) return
-  //   • Writer B — onRealtimeBar, Massive push (~L2890):  if (!barsPushActiveRef.current) return  ← B IS the writer
-  //   • Writer C — realtimeCandle registry     (~L5785):  if (barsPushActiveRef.current) return
-  //   • Writer D — post-setData re-top         (~L3336):  branch — push-owned re-top vs Finnhub re-top
+  //
+  // ⛔ THIS INDEX IS NO LONGER MAINTAINED BY HAND, AND THE REASON IS THAT IT ROTTED.
+  // It said "the FOUR that exist today, and any FIFTH one added later" and listed A-D with
+  // line numbers (~L2748 / ~L2890 / ~L5785 / ~L3336). Measured 2026-08-07: there are SIX
+  // writers, and all four cited line numbers were off by 2,300-4,700 lines in an
+  // 11,700-line file. Both E and F were CORRECT when found — the defect was the artifact
+  // the next engineer audits against, which is the very bug class the paragraph above
+  // cites. The set is now DERIVED from this file's AST by
+  // `engine/__tests__/singleWriterIndex.test.js` (every `.update()` on
+  // `candleSeriesRef.current`, alias-resolved), which pins the count and each writer's
+  // guard. Adding a seventh writer fails that test by name. This list is the reader's
+  // map; that test is the authority.
+  //   • Writer A — livePrices tick effect (Finnhub)  : if (barsPushActiveRef.current) return
+  //   • Writer B — onRealtimeBar, Massive push       : if (!barsPushActiveRef.current) return  ← B IS the writer
+  //   • Writer C — realtimeCandle registry (Finnhub) : if (barsPushActiveRef.current) return
+  //   • Writer D — updateChart post-setData re-top   : branch — push-owned re-top vs Finnhub re-top
+  //   • Writer E — fast D/W/M candle on the bars-WS 1-min tick : folded into the daily-plus guard
+  //   • Writer F — custom-TF live developing bar     : NO GUARD, and must not have one.
+  //       `_pushOptIn` requires `realtimeTfEligible`, a membership test against the five
+  //       NATIVE intraday codes, so barsPushActiveRef is structurally false on a custom TF.
+  //       A guard there would be dead code, which is worse than none: it reads as protection.
   const barsPushActiveRef = useRef(false)
   // When true, the on-screen bars are a PROVISIONAL stale-intraday cache paint
-  // (instant sym-switch, forced full refetch in flight). All four live-bar writers
-  // FREEZE while this is set so a live tick can't grow a phantom candle on the stale
-  // tail before authoritative bars swap in. Set in the `bars` selector each render.
+  // (instant sym-switch, forced full refetch in flight). Writers A/B/C/D FREEZE while this
+  // is set so a live tick can't grow a phantom candle on the stale tail before
+  // authoritative bars swap in. Set in the `bars` selector each render.
+  // ⚠️ It said "all FOUR live-bar writers" when four was also the writer count; those are
+  // two different numbers now. E and F do NOT consult this ref and do not need to:
+  // `provisionalStaleRef` is `isIntraday &&`-gated on the same five native intraday codes,
+  // E is daily-plus only and F is custom-TF only, so it is structurally false in both.
+  // That disjointness is asserted in `singleWriterIndex.test.js`, not assumed here.
   const provisionalStaleRef = useRef(false)
   // Self-heal throttle: when a live push bar arrives >1 interval ahead of the frozen
   // series tail (the steady-state SWR delta poll stalled — e.g. a deploy dropped the
@@ -8063,11 +8101,17 @@ export default function StockChart({
     return () => { if (raf) cancelAnimationFrame(raf) }
   }, [sessionTagsIntraday])
 
-  // ── Custom-TF live developing bar ──
+  // ── Writer F of the single-writer invariant (index @ barsPushActiveRef decl):
+  // custom-TF live developing bar ──
   // Custom intraday TFs skip the native single-writer machinery (that's keyed on the
   // 8 native codes), so their candle+quote would freeze. Give them a lightweight live
   // writer: fold the live price into the last visible candle every tick. Runs AFTER
   // updateChart so it wins over the 30s setData; native TFs untouched (_isCustomTf).
+  // ⚠️ IT CONSULTS NEITHER barsPushActiveRef NOR provisionalStaleRef, AND THAT IS
+  // CORRECT — both are gated on the five NATIVE intraday codes (`realtimeTfEligible`
+  // inside `_pushOptIn`; `isIntraday &&` on provisionalStaleRef), so both are
+  // structurally false whenever this effect runs. It went unindexed until 2026-08-07;
+  // `engine/__tests__/singleWriterIndex.test.js` now derives it and pins that premise.
   useEffect(() => {
     if (!_isCustomTf || !_customBaseIntraday || cs.heikinAshi) return   // HA shows transformed bars, not raw
     const series = candleSeriesRef.current
@@ -9190,7 +9234,8 @@ export default function StockChart({
         const c = data?.bar?.c ?? data?.trade?.p
         if (!Number.isFinite(c)) return
         liveTickRef.current = { price: c, ts: Date.now() }
-        // ── Writer E: fast developing candle for D/W/M ──
+        // ── Writer E of the single-writer invariant (index @ barsPushActiveRef decl):
+        // fast developing candle for D/W/M ──
         // The Massive PUSH feed (writer B) streams intraday rollups only, so on
         // D/W/M the developing candle otherwise crawls on the slow Finnhub feed.
         // Paint it imperatively here from the fast 1-min tick so the candle + the
@@ -10786,10 +10831,35 @@ export default function StockChart({
       })()}
       {/* ⭐ ABOUT — a second PAGE of the same popover, spec §6's sixth row. The
           text is `def.meta.description`, which every definition already declares,
-          so this needs no new data and no new fetch. */}
+          so this needs no new data and no new fetch.
+
+          ⭐⭐ AND IT IS THE ONLY SURFACE ON THIS CHART THAT CAN REACH A PLOT WITH
+          NO CHIP, WHICH IS WHY THE PER-PLOT REPAINT NOTICES LIVE HERE. Measured:
+          `ichimoku`'s `chikou` declares no `plots[].legend` block, so `legendChips`
+          emits nothing for it and it has no chip to mark — and `chikou` is the
+          ONE column the owner's ruling is about. A chip-only surface would have
+          shipped a per-plot badge that is invisible for the exact plot it exists
+          for. This page is per DEFINITION, so it lists every column the linter
+          measured, chip or no chip.
+
+          ⛔ AND `meta.repaint` IS DELIBERATELY NO LONGER PRINTED HERE. It used to
+          render as bare prose — "non repainting · Momentum" — on all seventeen
+          definitions, and record §1 measured what that sentence actually is: a
+          shared default from ONE helper that every native inherits and none
+          overrides, i.e. an unset column wearing the costume of an audit.
+          Printing an unaudited default as a fact to a trader is the defect the
+          decision record is about, and on `ichimoku` it was printing a claim the
+          machine linter contradicts. What renders now is the MEASUREMENT, and
+          only when there is one: sixteen definitions show nothing at all, which
+          is the owner's own reasoning — *"a badge that every indicator wears
+          carries no information"* (record §4). `meta.repaint` keeps its meaning
+          and its consumers (the library dialog's row badge; `validateAstLane`'s
+          both-directions refusal on the one lane where it is checkable) — it is
+          the definition's CLAIM, and this is the maths. */}
       {chipAbout && (() => {
         const def = engineRegistry.getDefinition(chipAbout.chip.defId)
         const meta = (def && def.meta) || {}
+        const notices = repaintNotices(def)
         return (
           <ContextPopover
             open
@@ -10800,12 +10870,25 @@ export default function StockChart({
           >
             <div style={{ padding: '4px 10px 10px', fontSize: 12, lineHeight: 1.55, color: 'var(--text-secondary, #b8b3a5)' }}>
               {meta.description || 'This indicator declares no description.'}
-              {meta.repaint && (
-                <div style={{ marginTop: 8, fontSize: 11, opacity: 0.75 }}>
-                  {String(meta.repaint).replace(/-/g, ' ')}
-                  {meta.category ? ` · ${meta.category}` : ''}
-                </div>
+              {meta.category && (
+                <div style={{ marginTop: 8, fontSize: 11, opacity: 0.75 }}>{meta.category}</div>
               )}
+              {notices.map((n) => (
+                <div
+                  key={n.plotKey}
+                  data-repaint-plot={`${chipAbout.chip.defId}.${n.plotKey}`}
+                  data-repaint={n.mode}
+                  style={{
+                    marginTop: 8, padding: '6px 8px', borderRadius: 4, fontSize: 11, lineHeight: 1.5,
+                    background: 'rgba(240, 180, 41, 0.12)',
+                    borderLeft: '2px solid var(--color-warning, #f0b429)',
+                    color: 'var(--chart-panel-text-strong-low, #e2dfd6)',
+                  }}
+                >
+                  <strong>{n.label} — {String(n.mode).replace(/-/g, ' ')}</strong>
+                  <div style={{ opacity: 0.85 }}>{n.sentence}</div>
+                </div>
+              ))}
             </div>
           </ContextPopover>
         )
@@ -11141,6 +11224,14 @@ export default function StockChart({
                     key={`${c.instanceId}::${c.plotKey}`}
                     chip={c}
                     className={i >= foldedFrom ? chipStyles.chipFolded : undefined}
+                    /* ⛔ RESOLVED PER CHIP, AND PER CHIP MEANS PER (INSTANCE, PLOT).
+                       `plotRepaintNotice` answers null unless the LINTER decided
+                       this exact column is not clean — so a definition with one
+                       repainting column marks that column and leaves its siblings
+                       alone, which is the owner's per-plot ruling in the DOM. It is
+                       memoised on the definition object, so this is a Map lookup
+                       per chip per crosshair move and not a tree walk. */
+                    repaint={plotRepaintNotice(engineRegistry.getDefinition(c.defId), c.plotKey)}
                     {...chipHandlers}
                   />
                 ))}
@@ -11447,6 +11538,11 @@ export default function StockChart({
                `updateChart`), so the popover can never offer an instance this
                chart is not drawing. */
             chartInstances={engineInstancesRef.current}
+            /* ⭐ WHICH CHART (Phase C Task 12) — see the `chartId` prop. */
+            chartId={chartId}
+            /* ⭐ THE WINDOW THE USER SEES (Phase D Task 13) — the concierge's
+               compute stage runs on these. Same array the chart is drawing. */
+            bars={bars}
             activeTool={activeTool}
             setActiveTool={setActiveTool}
             color={drawColor}
@@ -11589,6 +11685,8 @@ export default function StockChart({
           {annotationsEditable && (
             <ChartToolbar
               chartInstances={engineInstancesRef.current}
+              chartId={chartId}
+              bars={bars}
               activeTool={activeTool}
               setActiveTool={setActiveTool}
               color={drawColor}
@@ -11680,6 +11778,8 @@ export default function StockChart({
           {indexAnnotationsEditable && (
             <ChartToolbar
               chartInstances={engineInstancesRef.current}
+              chartId={chartId}
+              bars={bars}
               activeTool={indexActiveTool}
               setActiveTool={setIndexActiveTool}
               color={drawColor}

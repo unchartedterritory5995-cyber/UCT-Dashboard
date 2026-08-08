@@ -19,9 +19,46 @@ import { menuThemeVars } from '../../../utils/dividerColor'
 import styles from './WatchlistPicker.module.css'
 import sc from './ScannerPicker.module.css'
 
-// Preset scans — deliberately EMPTY for now (the widget shell). Each future entry:
-// { key, name, description }. Picking one will load its results into the table.
-const PRESET_SCANS = []
+// Preset scans. Each entry { key, name, description }; `key` maps to a scan
+// endpoint in ScannerResults. Picking one loads its live results.
+//
+// ⚠️ EXPORTED SO A TEST CAN READ A LABEL RATHER THAN RETYPE ONE. `6e974ef7`
+// renamed two of these and left `ScannerWidget.test.jsx` asserting the old
+// string, which went red on master. `name` is display copy and will be renamed
+// again; `key` is the wire contract with `/api/scans/<key>` and must NOT move
+// silently, so tests derive the name from here and keep the key typed.
+export const PRESET_SCANS = [
+  {
+    key: 'highest-volume-1y',
+    name: 'Highest Volume In 1-Year',
+    description: 'Trading their highest volume in a year',
+  },
+  {
+    key: 'highest-volume-ever',
+    name: 'Highest Volume Ever',
+    description: 'Trading their highest volume ever',
+  },
+  {
+    key: 'ipo-1y',
+    name: 'IPO in Last 1-Year',
+    description: 'First traded within the last year',
+  },
+  {
+    key: 'top-gainers-30d',
+    name: 'Top Gainers (30-Day)',
+    description: 'Top 5% by 30-day gain',
+  },
+  {
+    key: 'top-gainers-60d',
+    name: 'Top Gainers (60-Day)',
+    description: 'Top 5% by 60-day gain',
+  },
+  {
+    key: 'top-gainers-90d',
+    name: 'Top Gainers (90-Day)',
+    description: 'Top 5% by 90-day gain',
+  },
+]
 
 export default function ScannerPicker({ onPick, settingsOverride = null, onSettingsPersist = null }) {
   // Match the widget's own watchlist appearance (canvas / colors) + expose the
@@ -104,18 +141,14 @@ export default function ScannerPicker({ onPick, settingsOverride = null, onSetti
         </button>
 
         {/* Preset scanners */}
+        <div className={sc.sectionLabel}>Preset Scanners</div>
         {presets.length === 0 ? (
-          <div className={styles.emptyWrap}>
-            <UIcon name="search" size={22} gold />
-            <div className={styles.emptyTitle}>Preset Scanners</div>
-            <div className={styles.emptyText}>
-              {query ? 'No matches.' : 'Curated scans (e.g. Relative Strength Leaders) are coming soon.'}
-            </div>
-          </div>
+          <div className={styles.empty}>{query ? 'No matches.' : 'No preset scans yet.'}</div>
         ) : presets.map(s => (
           <button key={s.key} type="button" className={styles.row} onClick={() => onPick?.({ key: s.key, name: s.name })}>
             <span className={styles.rowIcon}><UIcon name="search" size={13} gold={false} /></span>
             <span className={styles.rowName}>{s.name}</span>
+            {s.description && <span className={styles.rowMeta}>{s.description}</span>}
           </button>
         ))}
       </div>

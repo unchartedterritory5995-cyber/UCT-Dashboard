@@ -155,7 +155,8 @@ def test_evaluate_one_rsi_above_triggers():
         "params_json": None,
         "last_value": None,
     }
-    value, triggered = evaluator._evaluate_one(alert, bars=bars)
+    value, triggered = evaluator._evaluate_one(alert, bars=bars,
+                                              mode="forming")
     assert value is not None
     # Constant uptrend → RSI saturates at 100.
     assert value == pytest.approx(100.0, abs=0.5)
@@ -177,7 +178,8 @@ def test_evaluate_one_rsi_below_threshold_no_trigger():
         "params_json": None,
         "last_value": None,
     }
-    value, triggered = evaluator._evaluate_one(alert, bars=bars)
+    value, triggered = evaluator._evaluate_one(alert, bars=bars,
+                                              mode="forming")
     assert value is not None
     assert value > 30.0
     assert triggered is False
@@ -197,7 +199,8 @@ def test_evaluate_one_rsi_below_triggers_on_downtrend():
         "params_json": None,
         "last_value": None,
     }
-    value, triggered = evaluator._evaluate_one(alert, bars=bars)
+    value, triggered = evaluator._evaluate_one(alert, bars=bars,
+                                              mode="forming")
     assert value is not None
     assert value == pytest.approx(0.0, abs=0.5)
     assert triggered is True
@@ -217,7 +220,8 @@ def test_evaluate_one_unknown_indicator_returns_none():
         "params_json": None,
         "last_value": None,
     }
-    value, triggered = evaluator._evaluate_one(alert, bars=bars)
+    value, triggered = evaluator._evaluate_one(alert, bars=bars,
+                                              mode="forming")
     assert value is None
     assert triggered is False
 
@@ -485,7 +489,8 @@ def test_a_vwap_alert_can_now_actually_fire():
         "condition": "above", "threshold": 1.0, "tf": "5",
         "params_json": None, "last_value": None,
     }
-    value, triggered = evaluator._evaluate_one(alert, bars=bars)
+    value, triggered = evaluator._evaluate_one(alert, bars=bars,
+                                              mode="forming")
     assert value is not None, "vwap still computes nothing — the gap is not closed"
     assert triggered is True
     # …and the number is the VWAP of those bars, not some other column that
@@ -575,7 +580,14 @@ def test_all_seven_previously_unalertable_definitions_are_reachable():
     "bb.upper", "bb.middle", "bb.lower",
 ])
 def test_every_new_address_produces_a_number(address):
-    """No new address may be an offer that cannot fire — the original defect."""
+    """No new address may be an offer that cannot fire — the original defect.
+
+    ⛔ THE CLAIM IS ABOUT THE COLUMN, SO IT IS DRIVEN THROUGH THE FORMING LANE.
+    The closed-lane version of the same question has a DIFFERENT and measured
+    answer — `ichimoku.chikou` is displaced 26 bars and has no value at the bar
+    the closed lane judges — and it lives in the test below rather than being
+    smuggled in here as a parametrize exception.
+    """
     value, _ = evaluator._evaluate_one(
         {
             "id": 1, "user_id": 1, "sym": "TEST", "indicator": address,
@@ -583,8 +595,45 @@ def test_every_new_address_produces_a_number(address):
             "params_json": None, "last_value": None,
         },
         bars=_intraday_bars(160),
+        mode="forming",
     )
     assert value is not None, f"{address} is offered and computes nothing"
+
+
+def test_on_the_CLOSED_lane_exactly_one_offered_address_produces_nothing():
+    """⭐ THE CUTOVER'S ONE CASUALTY, AS A CENSUS OVER THE WHOLE CATALOG.
+
+    The rail above says every offered address computes SOMETHING on the forming
+    lane. The shipped lane is the closed one, and there the same census has one
+    exception — so it is measured here, not asserted as an exception up there,
+    and the expected set is DERIVED from the same measurement the create-path
+    gate uses rather than typed.
+
+    ⚠️ AN ADDRESS THAT JOINS THAT SET IN FUTURE FAILS HERE FIRST, which is the
+    point: it would be a new indicator that is offered and can never fire.
+    """
+    from api.services import indicator_alert_service as ias
+    bars = _intraday_bars(160)
+    silent = set()
+    for address in sorted(evaluator.all_addresses()):
+        value, _, _i = evaluator._evaluate_one_closed(
+            {
+                "id": 1, "user_id": 1, "sym": "TEST", "indicator": address,
+                "condition": "above", "threshold": -1e12, "tf": "5",
+                "params_json": None, "last_value": None,
+            },
+            bars,
+            now_epoch=bars[-1]["t"] + 10_000,
+        )
+        if value is None:
+            silent.add(address)
+
+    assert silent == {"ichimoku.chikou"}, silent
+    assert silent == set(ias.closed_lane_dead_addresses()), (
+        "the census and the create-path gate disagree about which addresses the "
+        "closed lane cannot answer — one of them is refusing the wrong thing")
+    # the non-vacuity floor: the loop really did drive the whole catalog.
+    assert len(evaluator.all_addresses()) == 31
 
 
 def test_every_plot_address_resolves_to_the_column_it_names():
@@ -605,7 +654,7 @@ def test_every_plot_address_resolves_to_the_column_it_names():
                 "params_json": None if params is None else json.dumps(params),
                 "last_value": None,
             },
-            bars=bars,
+            bars=bars, mode="forming",
         )
         assert v is not None, f"{address} computed nothing"
         return v
@@ -625,7 +674,7 @@ def test_every_plot_address_resolves_to_the_column_it_names():
                 "condition": "above", "threshold": -1e12, "tf": "D",
                 "params_json": None, "last_value": None,
             },
-            bars=rising,
+            bars=rising, mode="forming",
         )
         return v
 
@@ -844,14 +893,19 @@ def test_a_malformed_operand_is_loud_at_the_boundary_not_a_silent_no_fire():
         "condition": "above", "threshold": 70.0, "tf": "D",
         "params_json": None, "last_value": None,
     }
-    # The control: unmutated, this evaluates cleanly.
-    assert evaluator._evaluate_one(dict(alert), bars=bars)[0] is not None
+    # The control: unmutated, this evaluates cleanly. The lane is pinned
+    # because `_ramp_bars` numbers its `t` 0, 1, 2 - a counter, not a bar
+    # clock - so `bar_close_epoch` cannot resolve it and the closed lane
+    # declines the window entirely, which is the safe direction and not what
+    # this test is about.
+    assert evaluator._evaluate_one(dict(alert), bars=bars,
+                                   mode="forming")[0] is not None
 
     original = dict(evaluator.THRESHOLD_OPERAND)
     evaluator.THRESHOLD_OPERAND[("rsi", "above")] = {"kind": "vibes"}
     try:
         with pytest.raises(ValueError, match="unknown operand kind"):
-            evaluator._evaluate_one(dict(alert), bars=bars)
+            evaluator._evaluate_one(dict(alert), bars=bars, mode="forming")
     finally:
         evaluator.THRESHOLD_OPERAND.clear()
         evaluator.THRESHOLD_OPERAND.update(original)
@@ -998,7 +1052,15 @@ def test_catalog_route_is_registered_and_auth_gated():
     assert "GET" in route.methods
     deps = [d.call for d in route.dependant.dependencies]
     assert get_current_user in deps, "the catalog is an enumeration of internals — gate it"
-    assert route.endpoint() == {"catalog": evaluator.alert_catalog()}
+    # ⚠️ THE HANDLER IS HANDED A USER NOW, BECAUSE THE CATALOG IS SERVED SCOPED:
+    # `alert_catalog(user_id)` APPENDS that account's own formulas to the global
+    # groups. This called `route.endpoint()` with NO arguments, which worked only
+    # while the handler ignored its dependency. An EMPTY id is the account-less
+    # case by construction — `alert_user_series.user_catalog` returns `[]` for a
+    # falsy id without touching the definitions store — so this still asserts
+    # exactly what it always asserted: the GLOBAL enumeration, served verbatim.
+    # The scoped half has its own rail in `tests/test_alert_user_router.py`.
+    assert route.endpoint(user={"id": ""}) == {"catalog": evaluator.alert_catalog()}
 
 
 def test_the_catalog_route_is_declared_before_any_id_route_that_could_swallow_it():
@@ -1333,7 +1395,8 @@ def test_the_replay_fails_when_an_address_is_repointed():
                 "params_json": None if row["params"] is None else json.dumps(row["params"]),
                 "last_value": row["prev"],
             }
-            value, triggered = evaluator._evaluate_one(alert, bars=bars)
+            value, triggered = evaluator._evaluate_one(alert, bars=bars,
+                                              mode="forming")
             if value != row["value"] or triggered != row["triggered"]:
                 changed += 1
     finally:

@@ -153,6 +153,14 @@ const ICONS = {
       <path d="M12 2.5v2.6M12 18.9v2.6M21.5 12h-2.6M5.1 12H2.5M18.7 5.3l-1.8 1.8M7.1 16.9l-1.8 1.8M18.7 18.7l-1.8-1.8M7.1 7.1L5.3 5.3" />
     </>
   ),
+  // Two horizontal sliders — the "filter / criteria" control.
+  sliders: (
+    <>
+      <path d="M4 8h2M10 8h10M4 16h10M18 16h2" />
+      <circle cx="8" cy="8" r="2.1" />
+      <circle cx="16" cy="16" r="2.1" />
+    </>
+  ),
   globe: (
     <>
       <circle cx="12" cy="12" r="8.5" />

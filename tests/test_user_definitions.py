@@ -34,6 +34,7 @@ from fastapi.testclient import TestClient
 from api.middleware.auth_middleware import get_current_user_with_plan
 from api.routers import user_definitions as router_mod
 from api.services import alert_rev_migration as rev
+from api.services import alert_series
 from api.services import indicator_alert_evaluator as ev
 from api.services import indicator_alert_service as ias
 from api.services import user_definitions as svc
@@ -65,10 +66,36 @@ def _bars() -> list[dict]:
 
 
 def _sma(bars: list[dict], period: int):
+    """The average on the LAST bar — the forming lane's shape.
+
+    ⛔ DERIVED FROM `_sma_column`, NOT A SECOND IMPLEMENTATION. The two lanes are
+    fed from one arithmetic on purpose: hand-writing the scalar beside the column
+    is how a LANE difference would quietly become an ARITHMETIC difference, and
+    then `_unmigrated_fires`' per-lane table would be describing a rounding bug.
+    """
+    column = _sma_column(bars, period)
+    return column[-1] if column else None
+
+
+def _sma_column(bars: list[dict], period: int) -> list:
+    """The SAME average as `_sma`, as a FULL COLUMN aligned to ``bars``.
+
+    ⛔ THE CLOSED LANE DOES NOT READ A VALUE FUNCTION AT ALL. `_evaluate_one`
+    resolves through `value_function()` (the three `ADDRESS_PARTITIONS`), but
+    `_evaluate_one_closed` resolves through `alert_series.series_function()` and
+    indexes the answer by BAR (`series[i]`, `series[i-1]`). An address registered
+    only in `INDICATOR_FUNCS` is therefore INVISIBLE to the closed lane, and
+    `_evaluate_one_closed` returns `(None, False, None)` for it — a quiet cycle
+    that says nothing about any migration. That is the exact "refused by a
+    different door" defect this file's header names, and it is why
+    `_register_address` registers BOTH tables from this ONE function: two
+    hand-written implementations could disagree about the number, and then a
+    lane difference would be an arithmetic difference wearing a lane costume.
+    """
     closes = [b["c"] for b in bars]
-    if len(closes) < period:
-        return None
-    return round(sum(closes[-period:]) / period, 4)
+    return [None if i + 1 < period
+            else round(sum(closes[i + 1 - period:i + 1]) / period, 4)
+            for i in range(len(closes))]
 
 
 def _ast_sma(period: int) -> dict:
@@ -280,6 +307,30 @@ def env(tmp_path, monkeypatch):
     sent: list[dict] = []
     monkeypatch.setattr(wls, "deliver_alert_payload",
                         lambda **kwargs: sent.append(kwargs))
+
+    # ⛔ THE LANE IS NAMED, NEVER INHERITED FROM THE PROCESS DEFAULT.
+    #
+    # `ALERT_EVAL_MODE` is a CUTOVER LEVER: it moved forming -> closed in
+    # `0183a9b1` and the Railway variable can move it back with no deploy. A test
+    # that reads whichever lane happens to be committed is a test whose meaning
+    # changes under it — which is exactly what happened: the cutover landed and
+    # four tests in this section went red overnight without a line of them
+    # changing. So the fixture pins `"forming"` as the file's DEFAULT (it is the
+    # lane `alert_rev_migration`'s reset was designed against, and the lane the
+    # rollback restores) and section 4 OVERRIDES it per-lane, so both are
+    # measured and neither is assumed.
+    #
+    # ⚠️ THE PIN IS NOT WHAT MADE THE FOUR TESTS PASS AGAIN, AND THE DIFFERENCE
+    # MATTERS. Measured on this tree: with the address registered in BOTH lanes'
+    # tables (see `_register_address`), the closed lane honours every guarantee
+    # this section states — the first post-edit cycle is quiet, the second is
+    # correct, deleting the suppression makes the first cycle noisy, and a rename
+    # eats nothing. What the closed lane changes is the SHAPE of the fabricated
+    # fire, not whether one exists: `prev` comes from `series[i-1]` on one
+    # version's own column, so the CROSSING half is unreachable, while the LEVEL
+    # half (`below` never reads `prev`) still fires on the moved anchor. The
+    # suppression is what covers that half, on BOTH lanes.
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "forming")
     return {"bars": bars, "sent": sent, "state": state, "db": alert_db,
             "monkeypatch": monkeypatch}
 
@@ -288,7 +339,8 @@ DEF_ID = "u_0123456789ab"
 
 
 def _register_address(env, def_id: str = DEF_ID):
-    """Make the user's definition EVALUABLE, and say why that is not cheating.
+    """Make the user's definition EVALUABLE ON EITHER LANE, and say why that is
+    not cheating.
 
     ⛔ WITHOUT THIS THE WHOLE MEASUREMENT IS A WRONG DOOR. `value_function`
     answers `None` for an address it has never heard of, `_evaluate_one` returns
@@ -297,11 +349,34 @@ def _register_address(env, def_id: str = DEF_ID):
     door` runs the same scenario WITHOUT this registration and shows the cycle
     stays quiet even with the suppression deleted, which is what makes this
     helper load-bearing rather than convenient.
+
+    ⛔⛔ AND IT REGISTERS TWO TABLES, BECAUSE THE TWO LANES RESOLVE AN ADDRESS
+    THROUGH DIFFERENT ONES. This helper used to seed `INDICATOR_FUNCS` alone.
+    That is the forming lane's table (`value_function` walks
+    `ADDRESS_PARTITIONS`); `_evaluate_one_closed` never consults it — it asks
+    `alert_series.series_function()` and then `_user_value_function(...).column`.
+    So the moment `0183a9b1` flipped `ALERT_EVAL_MODE` to `"closed"`, this
+    helper silently stopped registering anything the running lane could see, and
+    four tests in section 4 went quiet FOR THE WRONG REASON — the very defect
+    the paragraph above exists to prevent, arriving through the helper written
+    to prevent it. MEASURED, not reasoned: under the closed lane with only
+    `INDICATOR_FUNCS` seeded, `_evaluate_one_closed` returns `(None, False,
+    None)` and `_run_one_cycle` reports `evaluated: 0`.
+
+    ⚠️ IT IS NOT "THE CLOSED LANE HAS NO CLOSED BAR". On these fixture bars
+    `closed_bar_index` answers index 578 — the LAST of the 579 — because the
+    parity fixture is months old, so every bar is closed by the clock and the
+    judged bar is `bars[-1]`, the same bar the forming lane reads. The quiet was
+    address resolution, and nothing else.
     """
     def _fn(bars, params):
         return _sma(bars, env["state"]["period"])
 
+    def _col(bars, params):
+        return _sma_column(bars, env["state"]["period"])
+
     env["monkeypatch"].setitem(ev.INDICATOR_FUNCS, def_id, _fn)
+    env["monkeypatch"].setitem(alert_series.SERIES_FUNCS, def_id, _col)
 
 
 def _arm(alert_id: int, *, last_value, last_evaluated_at):
@@ -575,24 +650,88 @@ def test_the_user_is_NOTIFIED_through_the_REAL_transport(env):
 
 
 # ═══ 4. the first cycle is quiet — and the quiet is ATTRIBUTABLE ════════════
+#
+# ⭐ EVERY SCENARIO BELOW RUNS ON BOTH EVALUATION LANES, AND THE LIST OF LANES IS
+# DERIVED FROM `ev.EVAL_MODES` RATHER THAN TYPED. Until `0183a9b1` these tests
+# silently read whichever lane was committed; the cutover flipped it and four of
+# them went red without a line of them changing — the tests had never said which
+# arithmetic they were describing. A third lane added to `EVAL_MODES` now shows
+# up here as a failing parameter instead of as an untested branch.
 
-def test_WITHOUT_the_edit_the_new_maths_FABRICATES_A_CROSSING(env):
+
+@pytest.fixture(params=ev.EVAL_MODES)
+def lane(request, env):
+    """One NAMED evaluation lane — and a proof that it is the lane that runs.
+
+    ⛔ THE ASSERT IS THE POINT, NOT CEREMONY. `eval_mode()` resolves the
+    environment override against the committed constant, so a lever that stopped
+    working (or a `eval_mode()` hardcoded to one lane — Task 8's own mandated
+    mutation) would leave every "closed" parameter quietly running `forming` and
+    both parameters agreeing for the wrong reason. Reading it back through the
+    module's ONE reader is what makes the parameter mean something.
+    """
+    env["monkeypatch"].setenv(ev.ALERT_EVAL_MODE_ENV, request.param)
+    assert ev.eval_mode() == request.param, (
+        f"asked for the {request.param!r} lane and `eval_mode()` answers "
+        f"{ev.eval_mode()!r} — every assertion below would describe the wrong "
+        "arithmetic")
+    return request.param
+
+
+def _unmigrated_fires(lane: str, cross: int, level: int) -> list[int]:
+    """Which bindings an UN-MIGRATED maths edit delivers, PER LANE — sorted.
+
+    ⛔ THIS IS A MECHANISM, NOT AN OBSERVATION. The two lanes disagree about ONE
+    binding and the reason is structural:
+
+      * the FORMING lane's `prev` is `alert["last_value"]` — the number the
+        previous 60-second poll stored, computed by the OLD formula. An edit
+        therefore meets rev-1's 112.68 against rev-2's 111.45 and `cross_below`
+        reports a crossing NO BAR PRODUCED. That is the defect Phase C exists to
+        close, and it is why the forming lane fires BOTH.
+      * the CLOSED lane's `prev` is `series[i-1]` — the bar before the judged
+        one, off the SAME column, i.e. one version's own arithmetic. A
+        cross-version pair is not a state it can reach, so `cross_below` cannot
+        be fabricated at all. `0183a9b1` priced exactly this: 405,781 forming
+        fires removed, "most of the removals are above/below re-evaluating every
+        60-second poll".
+
+    ⭐ WHAT DOES NOT DIFFER, AND IT IS THE HALF THAT MATTERS HERE: `below` never
+    reads `prev` on either lane, so the LEVEL binding fires on BOTH the instant
+    the anchor moves. The control is therefore still a control on the closed
+    lane — it goes noisy, and the suppression is still preventing something real.
+    """
+    assert lane in ev.EVAL_MODES, f"{lane!r} names no lane"
+    expected = sorted([cross, level]) if lane == "forming" else [level]
+    assert level in expected, (
+        "the level binding dropped out of the expectation — the un-migrated edit "
+        "would then fabricate NOTHING and every suppression test below would be "
+        "preventing nothing on this lane")
+    return expected
+
+
+def test_WITHOUT_the_edit_the_new_maths_FABRICATES_A_CROSSING(env, lane):
     """⭐ THE POSITIVE CONTROL, AND IT IS THE WHOLE ARGUMENT FOR THE TASK.
 
     Swap the maths under an alert still holding the old number and run one
-    ordinary cycle. Both bindings fire. The crossing one is a lie — no bar took
-    the average through 112; the FORMULA moved.
+    ordinary cycle. A fire lands that no bar produced — the FORMULA moved.
+
+    ⚠️ ON THE FORMING LANE THAT IS BOTH BINDINGS AND THE CROSSING IS THE LOUDER
+    LIE; on the closed lane the crossing is structurally unreachable and the
+    LEVEL binding carries the control on its own. `_unmigrated_fires` states
+    which, and why, and refuses an empty expectation — a positive control that
+    could pass while firing nothing is not a control.
     """
     _register_address(env)
     cross, level = _armed_pair(armed_at=int(time.time()) - 7200)
     env["state"]["period"] = 50                    # the edit, with NO migration
     ev._run_one_cycle()
-    assert sorted(_fires(env["sent"])) == sorted([cross, level]), (
-        "the un-migrated edit did NOT re-fire — the suppression tests below "
-        "would then be preventing nothing")
+    assert sorted(_fires(env["sent"])) == _unmigrated_fires(lane, cross, level), (
+        f"on the {lane!r} lane the un-migrated edit did NOT re-fire as declared — "
+        "the suppression tests below would then be preventing nothing")
 
 
-def test_a_USER_EDIT_makes_the_first_cycle_QUIET_and_the_second_correct(env):
+def test_a_USER_EDIT_makes_the_first_cycle_QUIET_and_the_second_correct(env, lane):
     """⭐ THE HEADLINE. Phase C proved this for a DEPLOY with a positive control;
     this proves the same for a USER EDIT, which is the population C's record says
     it never had.
@@ -600,6 +739,13 @@ def test_a_USER_EDIT_makes_the_first_cycle_QUIET_and_the_second_correct(env):
     ⚠️ THE MEASUREMENT IS A FIRE, NOT A FLAG. `rev_migrated_at` being set asserts
     the bookkeeping; NO NOTIFICATION LEAVING THE BUILDING asserts the thing the
     user experiences.
+
+    ⭐ AND IT IS LANE-INDEPENDENT BY CONSTRUCTION — asserted here on both.
+    `consume_if_suppressed` runs in `_run_one_cycle` BEFORE `_evaluate_for_cycle`
+    picks a lane, so the quiet cycle cannot be an artefact of either arithmetic.
+    The second cycle agrees too: the crossing binding stays silent on the forming
+    lane because the reset NULLed its `prev`, and on the closed lane because
+    `series[i-1]` never crossed — two mechanisms, one outcome.
     """
     _register_address(env)
     cross, level = _armed_pair(armed_at=int(time.time()) - 7200)
@@ -624,20 +770,30 @@ def test_a_USER_EDIT_makes_the_first_cycle_QUIET_and_the_second_correct(env):
         "old-formula number can never be a new-formula `prev`; a late crossing "
         "is the same lie, one cycle later")
     assert cross not in _fires(env["sent"])
+    # ⛔ AND THE SECOND CYCLE ACTUALLY EVALUATED. Without this the whole test is
+    # satisfiable by an alert nothing can compute: `evaluated: 0` would deliver
+    # `[]` on cycle one and `[level]` on cycle two only if `level` never fired at
+    # all, which `_fires(...) == [level]` already forbids — but a future edit
+    # that drops the level binding would leave a green test measuring silence.
+    assert summary["evaluated"] == 2, (
+        f"the post-suppression cycle evaluated {summary['evaluated']} of 2 "
+        f"alerts on the {lane!r} lane — a quiet cycle here is the wrong door, "
+        "not a working suppression")
 
 
-def test_the_QUIET_STOPS_when_the_SUPPRESSION_IS_DELETED(env):
+def test_the_QUIET_STOPS_when_the_SUPPRESSION_IS_DELETED(env, lane):
     """⭐⭐ THE ATTRIBUTION TEST — which mechanism produced the quiet?
 
     The defect this branch has produced four times is a correct answer from the
     wrong door. So the claim "`suppress_first_cycle` made the first cycle quiet"
     is checked the only way it can be: DELETE IT and watch the cycle go noisy.
 
-    ⚠️ AND THE NOISE IS THE *LEVEL* BINDING ONLY, which is the second half of the
-    finding: the reset covers the crossing (`cross_*` needs a `prev`) and the
-    suppression covers the level (`below` never reads one). Two mechanisms, two
-    disjoint halves — a file that measured only crossings would go green with the
-    suppression deleted.
+    ⚠️ AND THE NOISE IS THE *LEVEL* BINDING ONLY, on BOTH lanes, which is the
+    second half of the finding: the crossing is covered by the reset on the
+    forming lane and is unreachable on the closed one (`cross_*` needs a `prev`),
+    while the level is covered by the suppression on both (`below` never reads
+    one). Two mechanisms, two disjoint halves — a file that measured only
+    crossings would go green with the suppression deleted.
     """
     _register_address(env)
     cross, level = _armed_pair(armed_at=int(time.time()) - 7200)
@@ -649,21 +805,28 @@ def test_the_QUIET_STOPS_when_the_SUPPRESSION_IS_DELETED(env):
     env["monkeypatch"].setattr(rev, "suppress_first_cycle", lambda alert: False)
     ev._run_one_cycle()
     assert _fires(env["sent"]) == [level], (
-        "the first cycle stayed quiet with the suppression DELETED — the quiet "
-        "in the headline test is produced by some other mechanism, and that is "
-        "the 'refused by a different door' defect this branch has hit four times")
+        f"on the {lane!r} lane the first cycle stayed quiet with the suppression "
+        "DELETED — the quiet in the headline test is produced by some other "
+        "mechanism, and that is the 'refused by a different door' defect this "
+        "branch has hit four times")
 
 
-def test_the_quiet_is_NOT_the_wrong_door(env):
-    """⛔ THE OTHER DOOR, NAMED AND MEASURED.
+def test_the_quiet_is_NOT_the_wrong_door(env, lane):
+    """⛔ THE OTHER DOOR, NAMED AND MEASURED — ON BOTH LANES.
 
     `value_function` answers `None` for an address the evaluator has never heard
-    of, and `_evaluate_one` then returns `(None, False)` — a quiet cycle that
-    says nothing about any migration. This runs the ATTRIBUTION scenario with the
-    address UNREGISTERED and shows the cycle is quiet even with the suppression
-    deleted, which is exactly the vacuous green `_register_address` exists to
-    prevent. Both runs are here so the difference between them is the
-    measurement.
+    of, and `_evaluate_one` then returns `(None, False)`; `series_function` and
+    `_user_value_function` answer the same way for the closed lane's
+    `_evaluate_one_closed`, which returns `(None, False, None)`. Either way: a
+    quiet cycle that says nothing about any migration. This runs the ATTRIBUTION
+    scenario with the address UNREGISTERED and shows the cycle is quiet even with
+    the suppression deleted, which is exactly the vacuous green
+    `_register_address` exists to prevent. Both runs are here so the difference
+    between them is the measurement.
+
+    ⚠️ BOTH RESOLVERS ARE ASSERTED, because seeding only ONE of them is not a
+    hypothetical: it is what this file did until the closed-bar cutover made the
+    omission visible.
     """
     cross, level = _armed_pair(armed_at=int(time.time()) - 7200)
     svc.save(USER, DEF_ID, defn(20, def_id=DEF_ID))
@@ -671,7 +834,8 @@ def test_the_quiet_is_NOT_the_wrong_door(env):
     env["state"]["period"] = 50
     env["sent"].clear()
 
-    assert ev.value_function(DEF_ID) is None
+    assert ev.value_function(DEF_ID) is None            # the forming lane's table
+    assert alert_series.series_function(DEF_ID) is None  # the closed lane's table
     env["monkeypatch"].setattr(rev, "suppress_first_cycle", lambda alert: False)
     ev._run_one_cycle()
     assert _fires(env["sent"]) == [], (
@@ -708,9 +872,18 @@ def test_a_USER_EDIT_CANNOT_TOUCH_A_NATIVE_BINDING(env):
     assert ev.plot_base(ev.resolve_address(DEF_ID)) != "rsi"
 
 
-def test_a_RENAME_does_not_eat_a_cycle(env):
+def test_a_RENAME_does_not_eat_a_cycle(env, lane):
     """The other direction of the biconditional, as a DELIVERY rather than a
-    flag: a label change must not silence a user's alerts for a cycle."""
+    flag: a label change must not silence a user's alerts for a cycle.
+
+    ⚠️ "NOT EATEN" IS THE GUARANTEE; the fire SET is the lane's arithmetic.
+    `_unmigrated_fires` is the same table the positive control uses, and for the
+    same reason — a rename leaves the binding un-migrated, so a rename's cycle IS
+    the un-migrated cycle. Asserting `evaluated == 2` alongside it is what makes
+    "not eaten" mean *evaluated*, not merely *noisy*: on the closed lane the
+    crossing binding is evaluated and correctly does not trigger, and a cycle
+    that skipped it entirely would look identical from the delivery list alone.
+    """
     _register_address(env)
     cross, level = _armed_pair(armed_at=int(time.time()) - 7200)
     svc.save(USER, DEF_ID, defn(20, def_id=DEF_ID))
@@ -718,9 +891,12 @@ def test_a_RENAME_does_not_eat_a_cycle(env):
     svc.save(USER, DEF_ID, defn(20, name="renamed", def_id=DEF_ID))
     env["sent"].clear()
 
-    ev._run_one_cycle()
-    assert sorted(_fires(env["sent"])) == sorted([cross, level]), (
-        "a rename suppressed a cycle — every label change would deafen the "
+    summary = ev._run_one_cycle()
+    assert summary["suppressed"] == 0 and summary["evaluated"] == 2, (
+        f"a rename ate a cycle on the {lane!r} lane ({summary}) — every label "
+        "change would deafen the user's alerts for one evaluation")
+    assert sorted(_fires(env["sent"])) == _unmigrated_fires(lane, cross, level), (
+        "a rename suppressed a delivery — every label change would deafen the "
         "user's alerts for one evaluation")
     assert _notices(env["sent"]) == []
 

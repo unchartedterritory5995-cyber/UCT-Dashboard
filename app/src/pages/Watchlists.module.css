@@ -164,7 +164,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--widget-text-strong, var(--wl-text-strong, var(--text-bright)));
+  color: var(--wl-text-strong, var(--widget-text-strong, var(--text-bright)));
   text-transform: none;   /* labels render as provided: Symbol / Price / Volume / % Change */
   white-space: nowrap;
   overflow: hidden;
@@ -176,7 +176,7 @@
    gridline (left of Symbol) would vanish. Give it the same height as the label cells. */
 .gridHead .hFlag { min-height: 15px; }
 .gridHead .hSym:hover,
-.gridHead .hCol:hover { color: var(--widget-text-strong, var(--wl-text-strong, var(--text-bright))); }
+.gridHead .hCol:hover { color: var(--wl-text-strong, var(--widget-text-strong, var(--text-bright))); }
 /* Active sort column — faint gold. */
 .gridHead .hSortActive,
 .gridHead .hSortActive:hover { color: var(--widget-accent, var(--wl-accent, var(--ut-gold, #c9a84c))); }
@@ -224,6 +224,40 @@
 .colMenuCheck { width: 12px; color: var(--ut-gold, #c9a84c); flex-shrink: 0; }
 .colMenuDivider { height: 1px; background: var(--border, #2e3127); margin: 4px 0; }
 
+/* Scanner criteria popover — read-only list of what the preset filters on. */
+.criteriaPop {
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  z-index: 3000;
+  min-width: 190px;
+  max-width: 260px;
+  background: var(--bg-elevated, #16181c);
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 6px;
+  padding: 8px 10px;
+  box-shadow: var(--shadow-popover, 0 8px 24px rgba(0,0,0,0.5));
+  font-family: var(--font-sans);
+}
+.criteriaTitle {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted, #8c8674);
+  margin-bottom: 6px;
+}
+.criteriaItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-bright, #e0dac8);
+  padding: 2px 0;
+}
+.criteriaDot { color: var(--ut-gold, #c9a84c); flex-shrink: 0; }
+
 .listRow {
   display: grid;
   grid-template-columns: var(--wl-grid);
@@ -241,7 +275,9 @@
 /* Vertical gridlines on the RIGHT of every column (so the LAST column gets one too),
    full-height (align-items:stretch) → they connect to the horizontal lines = one grid.
    Data cells get text padding; the flag column gets none so its star centers cleanly. */
-.symCell, .priceCell, .volCell, .changeCell, .metaCell, .textCell { border-right: 1px solid var(--widget-divider-strong, var(--wl-divider-strong, rgba(255, 255, 255, 0.11))); padding: 0 7px; }
+/* Data rows have NO vertical gridlines — only the horizontal row separators. The
+   column separators live ONLY on the header (.gridHead > span). */
+.symCell, .priceCell, .volCell, .changeCell, .metaCell, .textCell { padding: 0 7px; }
 /* Market Cap / Next Earnings / UCT Rating cells — same layout as Price/Volume. */
 .metaCell {
   display: flex; align-items: center; justify-content: center;
@@ -266,8 +302,7 @@
   width: 100%;
   min-width: 0;
   background: transparent;
-  border: none;
-  border-right: 1px solid var(--widget-divider-strong, var(--wl-divider-strong, rgba(255, 255, 255, 0.11)));   /* flag|sym gridline */
+  border: none;   /* no flag|sym vertical gridline on data rows (header keeps it) */
   cursor: pointer;
   color: rgba(255, 255, 255, 0.22);
   padding: 0;
@@ -1194,7 +1229,8 @@
   opacity: 0.5;
   transition: opacity 0.15s, background 0.15s;
 }
-.wlActionBtn:hover { opacity: 1; background: var(--bg-hover); }
+/* Hover = a soft canvas-matched grey (like a widget tab), not the dark --bg-hover box. */
+.wlActionBtn:hover { opacity: 1; background: var(--wl-row-hover, var(--widget-row-hover, rgba(255, 255, 255, 0.08))); }
 .wlActionBtnActive {
   color: var(--ut-gold);
   opacity: 1;

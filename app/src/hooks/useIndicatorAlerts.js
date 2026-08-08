@@ -18,6 +18,44 @@ const fetcher = (url) =>
 const KEY = '/api/indicator-alerts'
 const CATALOG_KEY = '/api/indicator-alerts/catalog'
 
+/**
+ * ⭐ PHASE C TASK 12 — THE `?scope=` PRODUCER.
+ *
+ * `GET /api/indicator-alerts?scope=<chartId>` has been implemented since Task
+ * 12 (`indicator_alert_service.list_for_user` + `_clean_scope`) and NO CLIENT
+ * EVER SENT THE PARAMETER, so per-chart alert sets existed as a column, a
+ * filter and a pure module with no entry. This is the entry: the chart id a
+ * surface hands `useIndicatorAlerts` becomes the query string of the request
+ * that actually leaves.
+ *
+ * ⛔ ONE FUNCTION FOR THE CACHE KEY AND THE URL, and that is not tidiness. SWR
+ * fetches the key it is given, so a second function that built the URL would
+ * let the two disagree — two charts sharing one cache entry while their
+ * requests differed, which is exactly the bug this feature is meant to prevent.
+ *
+ * ⚠️ A BLANK / ABSENT CHART ID IS GLOBAL, deliberately: the server reads an
+ * omitted `scope` as "the alert manager's view", which is byte-for-byte what
+ * every surface got before a chart id existed. `?scope=` is ADDITIVE on the
+ * server (global rows PLUS this chart's), so sending one can never hide an
+ * alert that has always been visible.
+ */
+export function alertsKey(chartId) {
+  const scope = typeof chartId === 'string' ? chartId.trim() : ''
+  return scope ? `${KEY}?scope=${encodeURIComponent(scope)}` : KEY
+}
+
+/** Revalidate EVERY listing this browser holds — the global one and each
+ *  chart's.
+ *
+ *  ⛔ `mutate(KEY)` WAS CORRECT ONLY WHILE THERE WAS ONE KEY. Now that a scoped
+ *  chart keys on `…?scope=<id>`, a create/delete/toggle that refreshed the bare
+ *  key alone would leave the popover that issued it showing a stale list — the
+ *  row would not appear until the 30s poll. The predicate is anchored on `?` so
+ *  it can never sweep `/catalog`, which is a different resource with a
+ *  different fetcher. */
+const revalidateListings = () =>
+  mutate((key) => typeof key === 'string' && (key === KEY || key.startsWith(`${KEY}?`)))
+
 /** ⚠️ THROWS on a bad response, unlike `fetcher` above.
  *
  *  The alerts fetcher answers a failed request with `{alerts: []}` — for a LIST
@@ -34,9 +72,16 @@ const catalogFetcher = async (url) => {
   return body.catalog
 }
 
-export function useIndicatorAlerts() {
+/**
+ * @param {string|null} [chartId] the surface's own stable chart id — a
+ *   `/charts` widget slot or a Multi-Chart grid cell. Absent ⇒ the unscoped
+ *   listing, i.e. byte-identical to every call site that predates per-chart
+ *   sets.
+ */
+export function useIndicatorAlerts(chartId = null) {
   const { user } = useAuth()
-  const { data, error, isLoading } = useSWR(user ? KEY : null, fetcher, {
+  const key = alertsKey(chartId)
+  const { data, error, isLoading } = useSWR(user ? key : null, fetcher, {
     refreshInterval: 30000,
     dedupingInterval: 10000,
   })
@@ -44,7 +89,7 @@ export function useIndicatorAlerts() {
   return {
     alerts,
     isLoading: isLoading && !data && !error,
-    refresh: () => mutate(KEY),
+    refresh: () => mutate(key),
   }
 }
 
@@ -125,7 +170,7 @@ export async function createIndicatorAlert(payload) {
     return { ok: false, error: 'Could not reach the server — check your connection and try again.' }
   }
   if (r.ok) {
-    mutate(KEY)
+    revalidateListings()
     let id = null
     try { id = (await r.json())?.id ?? null } catch { /* a body-less 200 is still an accepted alert */ }
     return { ok: true, id }
@@ -170,7 +215,7 @@ export async function fetchCurrentValue({ sym, tf, indicator, params }) {
 export async function deleteIndicatorAlert(id) {
   try {
     await fetch(`${KEY}/${id}`, { method: 'DELETE', credentials: 'include' })
-    mutate(KEY)
+    revalidateListings()
   } catch {
     // ignore
   }
@@ -179,7 +224,7 @@ export async function deleteIndicatorAlert(id) {
 export async function toggleIndicatorAlert(id) {
   try {
     const r = await fetch(`${KEY}/${id}/toggle`, { method: 'POST', credentials: 'include' })
-    mutate(KEY)
+    revalidateListings()
     return r.ok ? await r.json() : null
   } catch {
     return null

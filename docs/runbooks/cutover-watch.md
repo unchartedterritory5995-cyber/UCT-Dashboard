@@ -168,6 +168,15 @@ acceptance is keyed on `(address, shape)` and not on the address.
   date**; 27 of 31 would deliver on the first cycle past it. Inside 7 days this
   refuses. The fix is one command: `tools/alert_soak_matrix.py --arm` (idempotent) or
   `--disarm`.
+  ⚠️ **READ `--arm`'s EXIT CODE.** It used to print its own `verify()` and
+  `return 0` regardless, so a half-finished arm exited SUCCESS with the JSON of
+  its own failure on stdout. It now exits **1** when its own verify refuses, on
+  the same predicate `--verify` uses. And `--verify` on an EMPTY store is now
+  exit 1 as well — every refusal was written `if armed and …`, so zero armed
+  rows short-circuited all four and the tool reported success on the exact
+  condition it exists to detect (after a `--disarm`, a wrong `AUTH_DB_PATH`, the
+  wrong service, or a rebuilt volume). Measured 2026-08-07: pre-fix `--verify`
+  against a schema-only auth.db exited 0; post-fix it exits 1.
 
 ---
 

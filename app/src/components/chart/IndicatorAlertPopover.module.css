@@ -209,3 +209,29 @@
 .cannotFire {
   color: var(--loss, #f55);
 }
+
+/* ⭐ The lifecycle line: `state='needs_attention'`/`'error'` + the sweep's own
+   `state_detail`. AMBER, not the red above, and the difference is a claim: the
+   red one can NEVER fire, this one is not firing right now and the sentence
+   beside it says why. `white-space: normal` because these are real sentences —
+   `.alertSub` is a nowrap-ish flex row and a truncated diagnosis is no
+   diagnosis. */
+.needsAttention {
+  color: var(--warning, #e0a83b);
+  white-space: normal;
+  line-height: 1.35;
+}
+
+/* "Only on this chart" — the per-chart scope choice on the create form. */
+.scopeRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted, #888);
+  cursor: pointer;
+}
+.scopeRow input {
+  accent-color: var(--ut-gold, #c9a84c);
+  cursor: pointer;
+}

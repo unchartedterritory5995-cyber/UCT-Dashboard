@@ -576,17 +576,26 @@ def test_the_shadow_job_is_registered_as_its_OWN_scheduler_job():
     assert "indicator_alert_evaluator.start_evaluator" in src
 
 
-def test_ALERT_EVAL_MODE_is_still_forming():
+def test_ALERT_EVAL_MODE_is_the_CLOSED_lane_and_is_assigned_exactly_once():
     """⛔ TASK 8 IS THE ONLY COMMIT PERMITTED TO CHANGE WHEN A LIVE ALERT FIRES.
 
-    Shadow mode exists precisely so that day is a decision and not a side effect.
+    Shadow mode exists precisely so that day was a decision and not a side
+    effect. It has now happened, in one commit, and this pins the value it left
+    behind — a SECOND assignment would import with the second value and an
+    equality check against the module attribute would happily agree with it.
+
+    ⚠️ THE SHADOW LANE OUTLIVED ITS OWN PURPOSE HERE AND THAT IS A SEPARATE
+    DECISION. `ALERT_SHADOW_ENABLED` is still an environment flag on production
+    and `alert_shadow_fires` still grows at ~30 rows/minute, 24/7, with no
+    retention. Turning it off is an operational step, not a code one, so it is
+    named in the cutover record rather than silently assumed done.
     """
-    assert ev.ALERT_EVAL_MODE == "forming"
-    assert ev.eval_mode() == "forming"
+    assert ev.ALERT_EVAL_MODE == "closed"
+    assert ev.eval_mode() == "closed"
     src = (_ROOT / "api" / "services" / "indicator_alert_evaluator.py").read_text(
         encoding="utf-8")
     assigns = [n for n in ast.walk(ast.parse(src))
                if isinstance(n, ast.Assign)
                and any(isinstance(t, ast.Name) and t.id == "ALERT_EVAL_MODE"
                        for t in n.targets)]
-    assert len(assigns) == 1 and assigns[0].value.value == "forming"
+    assert len(assigns) == 1 and assigns[0].value.value == "closed"

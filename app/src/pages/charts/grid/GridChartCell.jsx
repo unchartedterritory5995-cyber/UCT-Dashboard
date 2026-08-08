@@ -391,6 +391,19 @@ function GridChartCell({
           <StockChart
             sym={sym}
             tf={cell.tf}
+            /* ⭐ PHASE C TASK 12 — WHICH CHART. `cell.id` is minted by
+               `gridLayouts.genId()` and PERSISTED in `multichart_state`, so it
+               survives a reload; that is the whole requirement for scoping an
+               alert to a cell.
+
+               ⚠️ INERT UNTIL THIS CELL HAS A TOOLBAR. The alert bell lives in
+               `ChartToolbar`, which `StockChart` mounts only under
+               `showDrawingTools` — and this cell passes `false` (see below). So
+               today this supplies the id and nothing consumes it; it is here so
+               that whenever the grid gains the toolbar the id is the PERSISTED
+               one rather than a fresh per-mount guess, which is the failure the
+               `chartId` prop's own comment names. */
+            chartId={cell.id}
             onSymbolChange={handleSymbolChange}
             onTfChange={handleTfChange}
             onOpenSettings={onOpenSettings}

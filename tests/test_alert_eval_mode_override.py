@@ -1,11 +1,20 @@
 """The ROLLBACK LEVER: `ALERT_EVAL_MODE` as an environment override.
 
-⭐ WHY THIS EXISTS. Task 8 flips the committed constant after Friday's close. If
-the closed lane misbehaves, that is discovered MONDAY, DURING THE SESSION — and
-rolling back used to mean a code edit, a push and a Railway build (~10 minutes),
-except that the pre-push hook BLOCKS pushes 09:15-16:20 ET, which is exactly the
-window in which the rollback would be wanted. That is a full trading session of
-wrong alert behaviour with no mitigation. The lever is one Railway variable.
+⭐ WHY THIS EXISTS, AND IT IS NOW LOAD-BEARING RATHER THAN PRECAUTIONARY. Task 8
+has flipped the committed constant to `"closed"`. If the closed lane misbehaves,
+that is discovered DURING A SESSION — and rolling back used to mean a code edit,
+a push and a Railway build (~10 minutes), except that the pre-push hook BLOCKS
+pushes 09:15-16:20 ET, which is exactly the window in which the rollback would be
+wanted. That is a full trading session of wrong alert behaviour with no
+mitigation. The lever is one Railway variable:
+
+    railway variables --service web --set "ALERT_EVAL_MODE=forming"
+
+⚠️ SINCE THE CUTOVER THE TWO DIRECTIONS HAVE SWAPPED WHICH ONE IS EASY. Every
+test that overrides to `"closed"` is now agreeing with the default and proves
+nothing on its own, so the file drives `"forming"` wherever the point is that the
+override MOVED something, and keeps a constant-patched test for the other
+direction so neither lane is a special case of what happens to be committed.
 
 ⛔ EVERY ASSERTION HERE THAT CARES ABOUT A LANE IS BEHAVIOURAL. `eval_mode()`
 returning the string "closed" and the evaluator RUNNING the closed lane are two
@@ -120,10 +129,10 @@ def test_the_fixture_really_does_separate_the_two_lanes(bars):
     assert forming != closed
 
 
-# ─── 1. the committed default is untouched ──────────────────────────────────
+# ─── 1. the committed default ───────────────────────────────────────────────
 
-def test_the_committed_constant_is_STILL_forming_and_is_assigned_once():
-    """⛔ THE CUTOVER IS TASK 8's. This task adds the lever, not the flip.
+def test_the_committed_constant_is_closed_and_is_assigned_once():
+    """⛔ TASK 8 FLIPPED IT, IN ITS OWN COMMIT, AFTER THE SOAK.
 
     Read off the AST rather than off the imported value, because a module that
     assigned the constant twice would import with the second value and an
@@ -136,56 +145,59 @@ def test_the_committed_constant_is_STILL_forming_and_is_assigned_once():
                 and any(getattr(t, "id", None) == "ALERT_EVAL_MODE"
                         for t in n.targets)]
     assert len(assigned) == 1, "ALERT_EVAL_MODE is assigned more than once"
-    assert assigned[0].value.value == "forming"
-    assert ev.ALERT_EVAL_MODE == "forming"
+    assert assigned[0].value.value == "closed"
+    assert ev.ALERT_EVAL_MODE == "closed"
 
 
-def test_with_no_variable_set_NOTHING_about_the_lane_changed(bars):
-    """The inert state, which is production today and production tomorrow.
+def test_with_no_variable_set_the_COMMITTED_lane_is_the_one_that_runs(bars):
+    """The inert state, which is production.
 
-    The lever ships dark: until somebody sets the variable, `eval_mode()` is the
-    constant, byte for byte what it was before this seam existed.
+    Until somebody sets the variable, `eval_mode()` is the constant — and the
+    lane the evaluator actually takes is that one, asserted behaviourally rather
+    than as a string.
     """
-    assert ev.eval_mode() == "forming"
-    assert _lane_that_ran(bars) == "forming"
+    assert ev.eval_mode() == "closed"
+    assert _lane_that_ran(bars) == "closed"
     report = ev.eval_mode_report()
     assert report["override_present"] is False
     assert report["override_applied"] is False
     assert report["override_refused"] is False
-    assert report["effective"] == "forming"
+    assert report["effective"] == "closed"
 
 
 # ─── 2. the override actually moves the lane ────────────────────────────────
 
-def test_the_override_moves_the_LANE_not_merely_the_STRING(bars, monkeypatch):
-    """🔴 THE MUTATION RAIL FOR "the override is ignored entirely".
+def test_the_ROLLBACK_moves_the_LANE_not_merely_the_STRING(bars, monkeypatch):
+    """🔴 THE MUTATION RAIL FOR "the override is ignored entirely" — AND SINCE
+    THE CUTOVER IT IS ALSO THE DIRECTION THAT MATTERS MONDAY MORNING.
 
     A lever that reports itself pulled and changes nothing is worse than no
     lever: the operator stops looking for the problem. So this asserts the
-    evaluator's own answer, through a call that passes no `mode`.
+    evaluator's own answer, through a call that passes no `mode`. With the
+    committed constant now `"closed"`, the environment saying `"forming"` IS the
+    rollback — the whole reason the seam was built before the flip.
     """
-    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "closed")
-    assert ev.eval_mode() == "closed"
-    assert _lane_that_ran(bars) == "closed"
-    assert ev.eval_mode_report()["override_applied"] is True
-
-
-def test_the_ROLLBACK_direction_works_on_a_tree_whose_constant_says_closed(
-        bars, monkeypatch):
-    """⭐ THE DIRECTION THAT MATTERS MONDAY MORNING.
-
-    Every other test here overrides `forming` -> `closed`, which is the easy
-    direction and NOT the one the lever exists for. After Task 8 the committed
-    constant reads "closed"; the rollback is the environment saying "forming"
-    and the evaluator obeying it. The constant is patched here rather than
-    edited, so this test keeps measuring the real thing after Task 8 lands.
-    """
-    monkeypatch.setattr(ev, "ALERT_EVAL_MODE", "closed")
-    assert _lane_that_ran(bars) == "closed", "the patched constant did not take"
-
     monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "forming")
     assert ev.eval_mode() == "forming"
     assert _lane_that_ran(bars) == "forming"
+    assert ev.eval_mode_report()["override_applied"] is True
+
+
+def test_the_override_works_in_the_OTHER_direction_too(bars, monkeypatch):
+    """⭐ BOTH DIRECTIONS, SO NEITHER IS A SPECIAL CASE OF THE COMMITTED VALUE.
+
+    The constant is PATCHED here rather than edited, so this measures the lever
+    on a tree whose default is the opposite of today's. Before the cutover this
+    test was the rollback direction and the one above was the easy one; the
+    cutover swapped which is which, and keeping both is what stops the file from
+    quietly becoming a set of assertions that all agree with the default.
+    """
+    monkeypatch.setattr(ev, "ALERT_EVAL_MODE", "forming")
+    assert _lane_that_ran(bars) == "forming", "the patched constant did not take"
+
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "closed")
+    assert ev.eval_mode() == "closed"
+    assert _lane_that_ran(bars) == "closed"
     assert ev.eval_mode_report()["override_applied"] is True
 
 
@@ -196,9 +208,13 @@ def test_the_value_is_trimmed_and_case_folded(bars, monkeypatch):
     whitespace and folding case normalises the SAME token; it never invents a
     lane, which is what the refusal below is about.
     """
-    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "  Closed\n")
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "  Forming\n")
+    assert ev.eval_mode() == "forming"
+    assert _lane_that_ran(bars) == "forming"
+    # …and the other spelling of the other lane, so the fold is not being
+    # measured only against the committed default (which would agree anyway).
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "\tCLOSED ")
     assert ev.eval_mode() == "closed"
-    assert _lane_that_ran(bars) == "closed"
 
 
 # ─── 3. an unrecognised value is refused, and refused LOUDLY ────────────────
@@ -218,9 +234,9 @@ def test_an_unrecognised_value_keeps_the_COMMITTED_DEFAULT_lane(bars,
     a single test they shared every killer and neither was diagnostic.
     """
     monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "closd")
-    assert ev.eval_mode() == "forming", (
+    assert ev.eval_mode() == "closed", (
         "an unrecognised value picked a lane instead of being refused")
-    assert _lane_that_ran(bars) == "forming"
+    assert _lane_that_ran(bars) == "closed"
 
 
 def test_the_readback_ACCOUNTS_for_a_refused_override(monkeypatch):
@@ -297,8 +313,8 @@ def test_a_BLANK_variable_is_a_stood_down_lever_not_a_typo(raw, bars,
     """
     monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, raw)
     with caplog.at_level(logging.ERROR, logger=ev._logger.name):
-        assert ev.eval_mode() == "forming"
-    assert _lane_that_ran(bars) == "forming"
+        assert ev.eval_mode() == "closed"
+    assert _lane_that_ran(bars) == "closed"
     report = ev.eval_mode_report()
     assert report["override_present"] is False
     assert report["override_refused"] is False
@@ -309,12 +325,13 @@ def test_a_BLANK_variable_is_a_stood_down_lever_not_a_typo(raw, bars,
 # ─── 4. the report cannot disagree with the lane ────────────────────────────
 
 @pytest.mark.parametrize("raw,expected", [
-    (None, "forming"),
+    (None, "closed"),
     ("closed", "closed"),
     ("forming", "forming"),
     ("CLOSED", "closed"),
-    ("closd", "forming"),
-    ("", "forming"),
+    ("FORMING", "forming"),
+    ("closd", "closed"),
+    ("", "closed"),
 ])
 def test_the_report_names_the_lane_that_ACTUALLY_RAN(raw, expected, bars,
                                                      monkeypatch):
@@ -408,13 +425,22 @@ def test_the_endpoint_reports_the_effective_mode_and_its_provenance(monkeypatch)
     """
     from api.routers import indicator_alerts as router
 
-    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "closed")
+    # No override: the committed lane, and the closed lane's worst case includes
+    # the time a bar takes to finish — the honest price of not repainting.
     body = router.get_alert_latency(user={"id": "u"})
     assert body["mode"] == "closed"
     assert body["eval_mode"]["effective"] == body["mode"]
-    assert body["eval_mode"]["override_applied"] is True
+    assert body["eval_mode"]["override_present"] is False
     assert body["eval_mode"]["env_var"] == ev.ALERT_EVAL_MODE_ENV
-    # The latency answer follows the EFFECTIVE lane, not the constant: the
-    # closed lane's worst case includes the time a bar takes to finish.
     assert (body["worst_case_seconds"]["5"]
             > body["cycle_seconds"]), json.dumps(body["worst_case_seconds"])
+
+    # …and the ROLLBACK is visible in the same body, in one read: the lane, the
+    # provenance, AND the latency all move together.
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "forming")
+    rolled = router.get_alert_latency(user={"id": "u"})
+    assert rolled["mode"] == "forming"
+    assert rolled["eval_mode"]["effective"] == rolled["mode"]
+    assert rolled["eval_mode"]["override_applied"] is True
+    assert rolled["worst_case_seconds"]["5"] == rolled["cycle_seconds"], (
+        "the latency answer did not follow the effective lane")

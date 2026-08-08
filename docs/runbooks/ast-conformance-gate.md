@@ -3,7 +3,13 @@
 **Subject:** `tools/ast_conformance.py`, `tools/phase_d_gauntlet.py`,
 `tests/fixtures/ast/corpus.json`, `tests/fixtures/ast/escapes.json`,
 `tests/test_ast_conformance.py`.
-**Phase:** D, Task 2. **Status of the instrument:** built; both lanes still absent.
+**Phase:** D — this file was written at Task 2 and updated at the phase close.
+**Status of the instrument:** built, and **BOTH LANES SHIPPED** —
+`api/services/ast_interpret.py` and `app/src/components/chart/engine/ast/interpret.js`,
+each raising its own `TableRefusal`. ⚰️ This line read *"built; both lanes still
+absent"* in the present tense until 2026-08-07, which told an operator that the
+two interpreters they were about to compare did not exist. **§4.1 is the current
+reading; §1–§3 are Task-2's record and are dated as such.**
 
 Phase B's gate was pixels. Phase C's gate was a fire log and a repaint oracle.
 **Phase D's output is a formula the user wrote, and neither instrument covers it.**
@@ -69,10 +75,20 @@ ESCAPED            : 16      <-- unguarded control
 ESCAPED            : 16      <-- "guarded" run; guard state = absent
 ```
 
-**Both read 16, and that is correct today.** Task 6 owes the first zero, and the
-zero can only mean something because this reads non-zero now. A census that read
-zero before anything had been built would be measuring nothing, would then read
-zero forever, and would be cited as safety.
+**Both read 16, and that WAS correct ON 2026-08-06, WITH NO GUARD BUILT.** Task 6
+owed the first zero, and the zero can only mean something because this read
+non-zero then. A census that read zero before anything had been built would be
+measuring nothing, would then read zero forever, and would be cited as safety.
+
+> 🔴 **DO NOT READ THE BLOCK ABOVE AS A CURRENT EXPECTATION.** It said *"Both read
+> 16, and that is correct today"* in the present tense until 2026-08-07 — in §3,
+> the mandatory-record section, which is what an operator under pressure reads.
+> Task 6 paid the zero. **A guarded run reading 16 TODAY means the closed table
+> has been breached**, which is the opposite of what that sentence tells you.
+> The current pair is in §4.1: `--escapes --unguarded` **16 of 16**, `--escapes`
+> **CLOSED, 0 escaped of 16 parsed**. The corpora hold 17 cases each now (16 of
+> the escape cases carry `parses: true`), so the "16" is the PARSED count and not
+> the corpus size.
 
 Of the 16:
 
@@ -126,6 +142,79 @@ regression is invisible to a gate whose entire job is to see the chart.
 | **The repaint linter** | nothing here decides a repaint badge. | Task 7's `must_repaint.json` corpus |
 | **Anything on a canvas** | this task mounts nothing, registers no definition and draws no pixel. | nothing — and that is the point: **a total regression of Phase D would report 0 changed pixels** |
 | **Budget arithmetic** | `too_many_nodes` and `nested_lookback` are declared to exceed budgets that **do not exist yet**. | Task 6 makes budgets real; until then those two cases only prove nothing refuses them |
+
+---
+
+## 4.1 THE PHASE-D CLOSING TABLE — per deliverable, the suite that is the REAL gate
+
+⛔ **The single most important sentence in this runbook, restated at the close
+because it is the one a future reader will be tempted to disbelieve:**
+
+> **The parity route mounts no builder, opens no concierge, runs no interpreter
+> for a typed formula and answers no concierge request. A total regression of
+> every user-visible thing Phase D built would report 0 changed pixels on 46 of
+> its 48 cases.**
+
+The table above is Task 2's, written when every row said *"Task N owes this"*.
+This one is written at the close, when they have been paid, and it is organised
+the other way round: **per deliverable, what actually gates it, and what the
+pixel number is entitled to say about it.**
+
+| deliverable | the REAL gate | what the pixel gate says about it |
+|---|---|---|
+| the parser | `parse.test.js` + the escape corpus; `jsep` pinned **exact** and the `binary_ops` stale-copy control | nothing |
+| the two interpreters | `ast_conformance.py --check` — per-case, per-bar digests at `REL_TOL = 1e-9`: **`CONFORMANCE LOG MATCHES, 17 asts × 579 bars`**, exit 0 | nothing |
+| the closed table | `--escapes` **CLOSED, 0 escaped of 16 parsed**, ⛔ **with `--escapes --unguarded` reading 16 of 16** — the pair, never the zero alone — plus `declared == fired` for all 16 and **0 lane disagreements** | nothing |
+| totality | `--coverage`: **31 declared entries, ALL COVERED**, both directions, the floor a **31-name LIST and not the count** | nothing |
+| budgets | `budget.test.js` + `test_ast_budget.py` — refusal **at the boundary**, the guard NAMED, and `try` forbidden in both lanes by AST because the behavioural test provably could not reach the case | nothing |
+| the repaint linter | `must_repaint.json` — **11 cases, 7 dirty / 4 clean** (measured; a ratio, not a count) + the shipped-definition verdict table + TWO guard-deletion controls returning 3-of-7 and 4-of-7 wrongly clean, **the difference proving they are different deletions** | nothing |
+| the `ast` lane registering | `defSchema.test.js`, `nativeRegistry.test.js`, and the ONE equality that replaced eleven count literals: `idsByLane(listDefinitions())` **toEqual** `SHIPPED_DEF_IDS` | nothing |
+| the read-back | the sentence round-trip, its argument-swap control, and `explainSentence`'s pre-order trace re-derived independently for **all 11 functions and all 15 operators** | nothing |
+| persistence + rev migration | `test_user_definitions.py` + the append-only rails (no UPDATE, no DELETE, by AST over the store's own source, with a control that the same walk finds its INSERTs) | nothing |
+| **the builder UI** | `BuilderSheet.test.jsx` + `ast_user_formula_sma20` under `--same-build --repeat 5`, and ⛔ **the gate is that its FAIL-PROOF MOVES, not that anything is zero.** Task 11 read **0 px with AND without the perturbation** and refused to call it a pass — correctly: a case that cannot report a difference has measured nothing. Re-measured on the merged tree 2026-08-07: **140,925 px, 5/5, distinct set `{140925}`**, perturbation **141,551**, the **+626 entirely inside `osc_strip`** with every other region byte-unchanged | **this is the one row where it says something** — and what it says is that the corpus's other 46 cases must not move. It said nothing at all until Task 16 gave it something to see |
+| alert admission | `alert_replay.py --check` printing the literal **`FIRE LOG MATCHES`** at **exit 0** + `--diff` **EVERY DIFFERENCE IS DECLARED, 31 of 31** + `len(INDICATOR_FUNCS)` unchanged at 28. ⛔ **NOT a total** — see §4.2 | nothing |
+| the concierge | `test_definition_concierge.py` — the **structural** `sentence` assertion over `propose`'s own AST, with its synthetic-module control | nothing |
+| tiering | the per-route 402 sweep with its count **derived from `router.routes`**, never typed | nothing |
+
+**What follows from the right-hand column.** Every gate in this phase that can
+fail is a SUITE. The pixel number is a regression fence around 46 cases and a
+single live proof that one install path works. Treating it as the phase's gate
+would be reading a 0 that a total regression also produces.
+
+## 4.2 ⛔ THE FIRE LOG HAS NO TOTAL, AND IT NEVER DID
+
+Phase D's plan quoted **`685,193`** as the frozen fire log in **17 places**, and
+every one of them was stale on the day it was typed. Measured 2026-08-07:
+
+```
+python tools/alert_replay.py --check
+  -> 22 blocks over 11 fixtures (ks=[1, 4]), summing to 1,153,245
+  -> `685,193` appears NOWHERE in the output
+  -> FIRE LOG MATCHES        exit 0
+```
+
+`685,193` was a sum over an **8-block / 4-fixture** corpus (chart-ux-walls Task
+7). The corpus grew across Phases C and D — and **every gate stayed green the
+whole time, because the gate compares PER-BLOCK DIGESTS against a stored frozen
+artifact.** Task 12 proved the stronger form: `--check` stdout is **byte-identical**
+to its pre-task baseline.
+
+⛔ **So the gate is: the literal `FIRE LOG MATCHES`, exit 0, per block.** Do not
+write a total down; the last three that were written down all rotted, and the
+plan's own §2689 warns against exactly this **seventeen lines above where it does
+it**. ⛔ **And nobody may "fix" code to make a total match.**
+
+⚠️ **THAT SENTENCE WAS SATISFIABLE OVER A CATALOG THAT HAD MOVED, until
+2026-08-07.** `cmd_check` compared `log["address_count"]` to the live
+`INDICATOR_FUNCS`, printed `!! the catalog grew or shrank` on a mismatch, and
+left its verdict untouched — so it went on to print `FIRE LOG MATCHES` and exit
+0. A NEW address that fires nothing (the un-fireable-offer class: `vwap`, then
+`sar`) leaves every block digest byte-identical, so that printed line was the
+whole signal and the gate consumed none of it. It is now a **refusal**: the run
+prints `CATALOG SIZE MOVED — NOT COMPARABLE` and exits 1 **before replaying**, so
+the two words this gate is written on can no longer appear over a different
+instrument. Rail:
+`tests/test_alert_replay.py::test_a_MOVED_CATALOG_FAILS_the_check_instead_of_printing_a_warning`.
 
 ---
 
