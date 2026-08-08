@@ -1759,8 +1759,12 @@ async def lifespan(app: FastAPI):
             _t.sleep(90)
             from api.services import bars_sqlite as _bs
             _bs.ensure_daily_bydate_index()
+            # Then pre-warm the shared ticker-reuse map (its whole-universe scan was the
+            # 3-5-min-per-range cost for pre-2004 sorts) so it's ready before anyone sorts.
+            from api.services import scan_period as _sp
+            _sp.warm_reuse_map()
         except Exception as e:
-            print(f"[startup] by-date daily index pre-build error (non-fatal): {e}")
+            print(f"[startup] by-date daily index / reuse-map pre-build error (non-fatal): {e}")
     threading.Thread(target=_build_bydate_index_bg, daemon=True, name="sqlite-bydate-index").start()
 
     try:

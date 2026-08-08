@@ -6,6 +6,8 @@ to the nearest trading day) give split-adjusted closes for the entire market, so
 % change = (end_close - start_close) / start_close for every ticker in two calls. Filtered
 to US common stock (currently trading), sorted gainers-first. Cached per date range.
 """
+import json
+import os
 import threading
 import time as _time
 from datetime import date, timedelta
@@ -17,6 +19,60 @@ from api.services.scan_ipo import _common_stock_symbols
 
 _TTL = 300           # results cache (s) — the range is fixed; only live price/vol drift
 _GROUP_STEPS = 9     # snap a target date back over a holiday/weekend up to this many days (covers year-end gaps)
+
+# Ticker-reuse map (recycled-symbol detection) shared across ALL period ranges. Computed
+# ONCE with a fixed early floor — its whole-universe window scan was the 3-5-min-per-range
+# cost. Reuse boundaries are static historical data, so the map is cached in memory AND on
+# disk (survives redeploys) and pre-warmed at startup. Correct for any start date >= floor.
+_REUSE_FLOOR = 19900101
+_REUSE_CK = "scan_period_reuse_map"
+_REUSE_FILE = os.path.join(os.environ.get("DATA_DIR", "/data"), "period_reuse_map.json")
+_REUSE_FILE_TTL = 7 * 86400
+_reuse_lock = threading.Lock()
+
+
+def _reuse_map() -> dict:
+    """{TICKER: current-listing-start YYYYMMDD} for the whole warmed universe, floored at
+    _REUSE_FLOOR. In-memory cache → durable /data file → compute (the slow whole-universe
+    scan) once. Serialized so a stampede of pre-2004 requests computes it a single time."""
+    cached = cache.get(_REUSE_CK)
+    if cached is not None:
+        return cached
+    with _reuse_lock:
+        cached = cache.get(_REUSE_CK)          # re-check under lock (a peer may have filled it)
+        if cached is not None:
+            return cached
+        try:
+            if os.path.exists(_REUSE_FILE) and (_time.time() - os.path.getmtime(_REUSE_FILE)) < _REUSE_FILE_TTL:
+                with open(_REUSE_FILE) as fh:
+                    m = json.load(fh)
+                cache.set(_REUSE_CK, m, ttl=86400)
+                return m
+        except Exception:
+            pass
+        try:
+            from api.services import bars_sqlite
+            m = bars_sqlite.current_listing_starts(_REUSE_FLOOR)
+        except Exception:
+            m = {}
+        cache.set(_REUSE_CK, m, ttl=86400)
+        try:
+            tmp = _REUSE_FILE + ".tmp"
+            with open(tmp, "w") as fh:
+                json.dump(m, fh)
+            os.replace(tmp, _REUSE_FILE)
+        except Exception:
+            pass
+        return m
+
+
+def warm_reuse_map() -> None:
+    """Pre-warm the reuse map (startup background) so a pre-2004 sort never pays its
+    one-time whole-universe scan on the compute path."""
+    try:
+        _reuse_map()
+    except Exception:
+        pass
 
 
 def _to_date(ymd: int) -> date:
@@ -77,11 +133,17 @@ def _assemble(start_closes: dict, end_closes: dict, sd: date, ed: date, partial:
         snap = {}
     # Partial (bars.db) path: drop RECYCLED tickers whose CURRENT listing began after the
     # start date — their start close belongs to a different, prior company (SQ, WTW, RMIX…).
+    # The reuse boundaries are STATIC historical data, so use the shared, cached, fixed-floor
+    # map (computed once, not per range — that whole-universe window scan was the 3-5 min/range
+    # cost). Only for start dates at/after the floor; a rare pre-floor sort computes its own.
     reuse = {}
     if partial:
         try:
-            from api.services import bars_sqlite
-            reuse = bars_sqlite.current_listing_starts(int(start_ymd))
+            if int(start_ymd) >= _REUSE_FLOOR:
+                reuse = _reuse_map()
+            else:
+                from api.services import bars_sqlite
+                reuse = bars_sqlite.current_listing_starts(int(start_ymd))
         except Exception:
             reuse = {}
 
@@ -217,6 +279,9 @@ def debug_period(start_ymd: int, end_ymd: int) -> dict:
         out["cs_universe_size"] = len(cs) if cs else 0
     except Exception as e:
         out["cs_universe_size"] = f"error: {e}"
+    rm = cache.get(_REUSE_CK)
+    out["reuse_map"] = {"warm": rm is not None, "size": (len(rm) if rm else 0),
+                        "file": os.path.exists(_REUSE_FILE)}
     return out
 
 
