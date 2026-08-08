@@ -5,16 +5,21 @@ Options-flow classification fixes (2026-07-28):
 """
 
 import os
-import sys
-import types
 import tempfile
 
 os.environ.setdefault("RAILWAY_VOLUME_MOUNT_PATH", tempfile.mkdtemp(prefix="lmr_"))
-_fake_auth = types.ModuleType("api.flow_admin_auth")
-_fake_auth.require_flow_admin = lambda *a, **k: {}
-_fake_auth.require_flow_user = lambda *a, **k: {}
-sys.modules.setdefault("api.flow_admin_auth", _fake_auth)
 
+# ⛔ NO `sys.modules.setdefault("api.flow_admin_auth", <two lambdas>)` HERE.
+# This file used to install one at import time and never remove it, so THE
+# FIRST IMPORTER DECIDED WHAT EVERY OTHER TEST IN THE PROCESS BOUND. Measured:
+# `pytest test_flow_classification.py test_flow_proxy_auth.py` = 7 failed;
+# the same two files reversed = 27 passed.
+#
+# The stub was VESTIGIAL. Its comment said the auth chain pulls bcrypt — bcrypt
+# is installed, `import api.flow_admin_auth` succeeds, and these tests never
+# resolve a FastAPI dependency (they call pure functions), so the real module
+# costs nothing. Deleting beats fixturing. `tests/test_shared_state_landmines.py`
+# is the rail: it reads every test module's AST and fails if one comes back.
 import pytest
 from api import live_massive_router as m
 
