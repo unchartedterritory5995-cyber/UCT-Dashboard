@@ -48,20 +48,49 @@ def _today_et() -> date:
     return datetime.now(_ET).date()
 
 
-def _week_dates() -> list[date]:
-    today = _today_et()
-    dow = today.weekday()  # Mon=0 … Sun=6
-    # On weekends jump forward to next Monday; on weekdays anchor to this Monday
-    if dow >= 5:
-        monday = today + timedelta(days=7 - dow)
-    else:
-        monday = today - timedelta(days=dow)
-    return [monday + timedelta(days=i) for i in range(5)]
+def _next_session_day(d: date) -> date:
+    """`d` if it is a weekday; the next Monday if it is a Saturday or Sunday.
+
+    An earnings week IS Monday–Friday, so a weekend date has no session of its
+    own — it belongs to the week that is about to start.
+    """
+    dow = d.weekday()                       # Mon=0 … Sun=6
+    return d + timedelta(days=7 - dow) if dow >= 5 else d
 
 
 def _monday_of(d: date) -> date:
     """ISO Monday of the week containing d (Sat/Sun snap back to that Monday)."""
     return d - timedelta(days=d.weekday())
+
+
+def _current_week_monday(today: date) -> date:
+    """⭐ THE AUTHORITATIVE ANCHOR: the Monday of the week the calendar SHOWS.
+
+    PRODUCT DECISION, not an accident: a member who opens the calendar on a
+    Saturday sees the UPCOMING week, because the week just past is over. So the
+    rule is "the ISO Monday of the next session day" — identity on a weekday,
+    a roll forward on Sat/Sun.
+
+    ⛔ There must be exactly ONE rule, and this is it. The frontend used to
+    carry a SECOND, contradictory one (`mondayOf(todayIso())`, which snaps
+    BACK), so on every Saturday and Sunday the two sides were 7 days apart:
+    "Next week ▶" navigated to a `?week=` this function resolves to the very
+    payload already on screen (a visual no-op) and "◀ Prev week" skipped a
+    week. The frontend now derives THIS rule, once, in
+    `app/src/pages/calendar/weekAnchor.js::currentWeekMonday`, and
+    `tests/test_calendar_week_anchor.py` executes both implementations and
+    compares them on every day of the week. Change one side and that test goes
+    red; do not change one side alone.
+
+    Pure in `today` on purpose: the clock is read exactly once, by the caller,
+    so a test can pin the day without pinning a clock (and two derivations of
+    "now" can never straddle a boundary — see commit 184042e5).
+    """
+    return _monday_of(_next_session_day(today))
+
+
+def _week_dates() -> list[date]:
+    return _week_dates_for(_current_week_monday(_today_et()))
 
 
 def _week_dates_for(monday: date) -> list[date]:
@@ -2235,9 +2264,10 @@ def get_calendar_ipos(
     from_date = from_
     to_date   = to
     if from_date is None:
-        dow = today.weekday()
-        monday = today - timedelta(days=dow) if dow < 5 else today + timedelta(days=7 - dow)
-        from_date = monday.strftime("%Y-%m-%d")
+        # Was a verbatim RE-STATEMENT of `_current_week_monday`'s rule. Two
+        # copies of one rule is exactly how the frontend/backend disagreement
+        # started — call the anchor, never restate it.
+        from_date = _current_week_monday(today).strftime("%Y-%m-%d")
     if to_date is None:
         from_dt = date.fromisoformat(from_date)
         to_date = (from_dt + timedelta(days=4)).strftime("%Y-%m-%d")

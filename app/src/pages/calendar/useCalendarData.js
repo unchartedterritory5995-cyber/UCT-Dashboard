@@ -1,9 +1,19 @@
 // app/src/pages/calendar/useCalendarData.js
 import useSWR from 'swr'
 import useMobileSWR from '../../hooks/useMobileSWR'
+import { localIso } from './weekAnchor'
 
 const fetcher = (url) => fetch(url).then(r => r.ok ? r.json() : null)
 
+// The five rendered days of a week, Monday → Friday.
+//
+// ⛔ `toISOString()` is NOT usable here and used to be: `new Date(ws+'T00:00:00')`
+// is LOCAL midnight, and `.toISOString()` converts to UTC — so for every
+// browser east of UTC (Tokyo UTC+9, NZDT UTC+13) local midnight is still the
+// PREVIOUS day in UTC and all five dates came out one day early. That silently
+// shifted the whole week: Mon–Fri rendered as Sun–Thu, the payload's day keys
+// no longer matched (`days` memo iterates THIS array), and Friday's reporters
+// vanished off the end. `localIso` reads the local calendar parts instead.
 export function buildWeekDates(weekStart) {
   if (!weekStart) return []
   const out = []
@@ -11,7 +21,7 @@ export function buildWeekDates(weekStart) {
   for (let i = 0; i < 5; i++) {
     const d = new Date(start)
     d.setDate(start.getDate() + i)
-    out.push(d.toISOString().slice(0, 10))
+    out.push(localIso(d))
   }
   return out
 }

@@ -295,20 +295,37 @@ describe('deep link lands on the week the symbol actually reports in (Task 14)',
   // the same thing at every instant, and both tests above would still pass —
   // vacuously. So: hold the URL, the symbol, the store and the fixture dates
   // COMPLETELY FIXED, move ONLY the clock, across ONE MINUTE spanning the
-  // Sun->Mon week rollover, and require the verdict to INVERT.
+  // week rollover, and require the verdict to INVERT.
   //
   // The decision under the microscope is Calendar.jsx's `weekParam`:
-  //     monday === mondayOf(todayIso()) ? null : monday
-  // At 23:59 ET Sunday, `mondayOf(today)` is still 2026-08-03, so `?week=
-  // 2026-08-03` reads as "the current week" -> the bare ('current') key, which
-  // holds AMD -> resolved, no fallback. At 00:00 ET Monday it is 2026-08-10,
-  // so the same param is now an EXPLICIT past week -> the '2026-08-03' key,
-  // which does NOT hold AMD -> a real miss against real data -> the ladder
-  // legitimately asks /next-report.
+  //     monday === currentWeekMonday(todayIso()) ? null : monday
+  //
+  // ⚠️ THE BOUNDARY MOVED, ON PURPOSE — it used to be Sun 23:59 -> Mon 00:00.
+  // That was the rollover of the OLD frontend rule (`mondayOf(todayIso())`,
+  // which snapped a weekend BACK to the Monday just past, so its anchor changed
+  // at Sunday midnight). That rule was the weekend bug: the backend's
+  // `_current_week_monday` rolls FORWARD, so its anchor changes at FRIDAY
+  // midnight, and for two days out of every seven the two sides named weeks 7
+  // days apart. Now that the frontend derives the backend's rule, Sun->Mon no
+  // longer moves anything (Sun and Mon both anchor on 2026-08-10) and asserting
+  // on it would be a gate that cannot fail. Fri->Sat is where the one rule
+  // actually turns over, so that is where the verdict must invert.
+  //
+  // This makes the test a REGRESSION RAIL on the fix, not just on the pin:
+  // restore the old snap-back rule and BOTH instants answer 2026-08-03, the
+  // verdict stops inverting, and this test goes red (verified — see the report's
+  // control section).
+  //
+  // At 23:59 ET Friday, `currentWeekMonday(today)` is 2026-08-03, so
+  // `?week=2026-08-03` reads as "the current week" -> the bare ('current') key,
+  // which holds AMD -> resolved, no fallback. Sixty seconds later it is
+  // Saturday and the anchor is 2026-08-10, so the same param is now an EXPLICIT
+  // past week -> the '2026-08-03' key, which does NOT hold AMD -> a real miss
+  // against real data -> the ladder legitimately asks /next-report.
   //
   // Sixty seconds apart, identical inputs, opposite outcomes.
-  const SUN_2359_ET = new Date('2026-08-10T03:59:00Z')  // Sun 2026-08-09 23:59 ET
-  const MON_0000_ET = new Date('2026-08-10T04:00:00Z')  // Mon 2026-08-10 00:00 ET
+  const FRI_2359_ET = new Date('2026-08-08T03:59:00Z')  // Fri 2026-08-07 23:59 ET
+  const SAT_0000_ET = new Date('2026-08-08T04:00:00Z')  // Sat 2026-08-08 00:00 ET
 
   async function askedNextReportAt(instant) {
     vi.setSystemTime(instant)
@@ -330,20 +347,20 @@ describe('deep link lands on the week the symbol actually reports in (Task 14)',
   }
 
   it('the week verdict flips with the MINUTE, not with the day the suite runs', async () => {
-    const sun = await askedNextReportAt(SUN_2359_ET)
-    const mon = await askedNextReportAt(MON_0000_ET)
+    const fri = await askedNextReportAt(FRI_2359_ET)
+    const sat = await askedNextReportAt(SAT_0000_ET)
 
     // The mechanism: which week key the page asked for.
-    expect(sun.keys).toContain('current')
-    expect(sun.keys).not.toContain(MONDAY)
-    expect(mon.keys).toContain(MONDAY)
+    expect(fri.keys).toContain('current')
+    expect(fri.keys).not.toContain(MONDAY)
+    expect(sat.keys).toContain(MONDAY)
 
     // The user-visible consequence, inverted across sixty seconds.
-    expect(sun.asked).toBe(false)
-    expect(mon.asked).toBe(true)
+    expect(fri.asked).toBe(false)
+    expect(sat.asked).toBe(true)
 
     // Belt and braces: a collapsed/constant clock returns ONE answer twice,
     // and this is what catches that.
-    expect([sun.asked, mon.asked].sort()).toEqual([false, true])
+    expect([fri.asked, sat.asked].sort()).toEqual([false, true])
   })
 })
