@@ -221,23 +221,28 @@ def ensure_daily_bydate_index() -> bool:
         return True
     import time as _t
     t0 = _t.time()
-    # Build on a DEDICATED connection with a LONG lock-wait — the shared web
-    # connection's 2s busy_timeout would make CREATE INDEX fail against normal
-    # bar-write traffic and never finish. _WRITE_LOCK keeps our own writers off it.
+    # Build on a DEDICATED connection with a LONG lock-wait. CRITICAL: do NOT hold
+    # _WRITE_LOCK here. CREATE INDEX holds a SQLite write transaction for its ENTIRE
+    # (multi-minute) build, and every put_bars acquires _WRITE_LOCK — so holding it
+    # across the build BLOCKS EVERY bar write site-wide for minutes, which stalls any
+    # chart that needs to persist a freshly-fetched deep bar (the "MSFT won't load for
+    # a minute" outage). Without the lock, put_bars still serializes among ITSELF and
+    # merely contends with this build at the SQLite level (fail-fast 2s + retry) — a
+    # brief transient during a one-time build instead of a hard site-wide stall. The
+    # build's own 10-min busy_timeout lets it wait out those quick writes.
     try:
-        with _WRITE_LOCK:
-            bc = sqlite3.connect(_DB_PATH, check_same_thread=False)
-            try:
-                bc.execute("PRAGMA journal_mode=WAL")
-                bc.execute("PRAGMA busy_timeout=600000")   # wait up to 10 min for the lock
-                bc.execute("PRAGMA temp_store=MEMORY")
-                bc.execute(
-                    f"CREATE INDEX IF NOT EXISTS {_DAILY_BYDATE_INDEX} "
-                    "ON ohlcv(ts, ticker, c) WHERE tf='D'"
-                )
-                bc.commit()
-            finally:
-                bc.close()
+        bc = sqlite3.connect(_DB_PATH, check_same_thread=False)
+        try:
+            bc.execute("PRAGMA journal_mode=WAL")
+            bc.execute("PRAGMA busy_timeout=600000")   # wait up to 10 min for the lock
+            bc.execute("PRAGMA temp_store=MEMORY")
+            bc.execute(
+                f"CREATE INDEX IF NOT EXISTS {_DAILY_BYDATE_INDEX} "
+                "ON ohlcv(ts, ticker, c) WHERE tf='D'"
+            )
+            bc.commit()
+        finally:
+            bc.close()
         print(f"[sqlite-index] built {_DAILY_BYDATE_INDEX} in {_t.time() - t0:.1f}s")
         return True
     except Exception as e:

@@ -193,9 +193,11 @@ _partial_lock = threading.Lock()
 def _partial_bg(ck: str, start_ymd: int, end_ymd: int):
     try:
         from api.services import bars_sqlite
-        # Build the by-date daily index once (fast no-op once present, incl. after the
-        # startup pre-build) so the two whole-market reads are index-only range scans.
-        indexed = bars_sqlite.ensure_daily_bydate_index()
+        # Only USE the by-date index if the startup pre-build already made it — never
+        # trigger the build from here. A CREATE INDEX holds a multi-minute SQLite write
+        # transaction; kicking it off mid-session would make bar writes contend site-wide.
+        # If it's not ready yet, fall back to per-ticker seeks (slower, but no build).
+        indexed = bars_sqlite.daily_bydate_index_ready()
         sc, sd = _bars_near(_to_date(start_ymd), indexed)
         ec, ed = _bars_near(_to_date(end_ymd), indexed)
         if not sc or not ec:
@@ -206,12 +208,56 @@ def _partial_bg(ck: str, start_ymd: int, end_ymd: int):
             return
         out = _assemble(sc, ec, sd, ed, True, start_ymd)
         cache.set(ck, out, ttl=_TTL if out.get("results") else 3600)
+        if out.get("status") == "ok":
+            _kick_period_daily_warm(ck, out.get("results"))
     except Exception:
         cache.set(ck, {"status": "unavailable", "results": [], "count": 0,
                        "error": "Couldn't load data for this period.", "as_of": None}, ttl=300)
     finally:
         with _partial_lock:
             _partial_inflight.discard(ck)
+
+
+# ── Server-side deep-daily warm (make the lists bulletproof) ──────────────────
+# When a sort produces results, pre-build the DEEP daily history for the top-ranked
+# tickers into the SAME serve caches /api/bars reads (via _get_bars_inner), so opening
+# any of them is an instant cache hit instead of a cold multi-second provider build —
+# the frontend warm races the user, this guarantees the server side is ready.
+#
+# SAFE + CHEAP by construction: bounded (the shared max-4 _bars_warm_pool), DAILY only,
+# capped (_PERIOD_WARM_CAP), deduped per range (fires once, not per poll), and
+# _get_bars_inner short-circuits already-cached tickers — so a re-sort costs ~0 and only
+# genuinely-cold names ever touch the provider (then disk-cached ~48h). Flag-killable.
+_PERIOD_WARM_ENABLED = os.environ.get("PERIOD_WARM_ENABLED", "1") == "1"
+_PERIOD_WARM_CAP = int(os.environ.get("PERIOD_WARM_CAP", "600"))
+_DEEP_DAILY_BARS = 12500          # matches the frontend fullBarsFor('D') deep request
+_period_warm_seen: set = set()
+_period_warm_lock = threading.Lock()
+
+
+def _kick_period_daily_warm(ck: str, results) -> None:
+    if not _PERIOD_WARM_ENABLED or not results:
+        return
+    with _period_warm_lock:
+        if ck in _period_warm_seen:
+            return
+        _period_warm_seen.add(ck)
+        if len(_period_warm_seen) > 500:      # bound the dedup set (many distinct ranges)
+            _period_warm_seen.clear()
+            _period_warm_seen.add(ck)
+    syms = [r.get("sym") for r in results[:_PERIOD_WARM_CAP] if r.get("sym")]
+
+    def _run():
+        try:
+            from api.services.bars_fetch import _get_bars_inner, _bars_warm_pool
+            for s in syms:
+                try:
+                    _bars_warm_pool.submit(_get_bars_inner, s, "D", _DEEP_DAILY_BARS)
+                except RuntimeError:          # pool shutting down
+                    break
+        except Exception:
+            pass
+    threading.Thread(target=_run, daemon=True, name="period-daily-warm").start()
 
 
 def get_period_change(start_ymd: int, end_ymd: int) -> dict:
@@ -224,6 +270,8 @@ def get_period_change(start_ymd: int, end_ymd: int) -> dict:
     ck = f"scan_period_{start_ymd}_{end_ymd}"
     cached = cache.get(ck)
     if cached is not None:
+        if cached.get("status") == "ok":
+            _kick_period_daily_warm(ck, cached.get("results"))
         return cached
 
     start_closes, sd = _grouped_near(_to_date(start_ymd))   # fast (grouped-daily only)
@@ -231,6 +279,8 @@ def get_period_change(start_ymd: int, end_ymd: int) -> dict:
     if start_closes and end_closes:
         out = _assemble(start_closes, end_closes, sd, ed, False, start_ymd)
         cache.set(ck, out, ttl=_TTL if out.get("results") else 15)
+        if out.get("status") == "ok":
+            _kick_period_daily_warm(ck, out.get("results"))
         return out
 
     # Grouped empty. A recent date may still be warming ("computing"); a date well in the
