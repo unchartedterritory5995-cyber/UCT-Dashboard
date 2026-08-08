@@ -224,6 +224,23 @@
 .colMenuCheck { width: 12px; color: var(--ut-gold, #c9a84c); flex-shrink: 0; }
 .colMenuDivider { height: 1px; background: var(--border, #2e3127); margin: 4px 0; }
 
+/* Watchlist widget footer — stock count only, pinned below the scrolling list (mirrors
+   the scanner footer's look; count uses the Text Color). */
+.wlCountFooter {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding: 5px 16px;
+  font-family: var(--font-sans);
+  font-size: calc(10px * var(--wl-font-scale, 1));
+  color: var(--wl-text, var(--text-muted));
+  border-top: 1px solid var(--widget-divider-strong, var(--wl-divider-strong, rgba(255, 255, 255, 0.11)));
+  background: var(--wl-bg-solid, var(--wl-bg, var(--bg)));
+  white-space: nowrap;
+  overflow: hidden;
+}
+.wlCountText { font-weight: 600; color: var(--wl-sym, var(--text-bright)); }
+
 /* Scanner criteria popover — read-only list of what the preset filters on. */
 .criteriaPop {
   position: absolute;
