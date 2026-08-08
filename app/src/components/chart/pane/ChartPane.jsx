@@ -15,6 +15,10 @@ import useMarketOpen from '../../../hooks/useMarketOpen'
 import { getExtSessionCached } from '../../../utils/extSession'
 import { useFlagged } from '../../../hooks/useFlagged'
 import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
+import useWatchlistPerformance from '../../../hooks/useWatchlistPerformance'
+import {
+  HEADER_FIELD_BY_KEY, PERF_HEADER_KEYS, PERF_HEADER_PERIOD, headerFieldKeys,
+} from '../headerFields'
 import usePreferences from '../../../hooks/usePreferences'
 import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
 import useTickerMeta from '../../../hooks/useTickerMeta'
@@ -254,6 +258,35 @@ function ChartPane({
   // item keeps its built-in color (see chartDefaults header.colors).
   const hdrColors = hdr.colors || {}
 
+  // Info Row — the fields the user picked (migrates a legacy show* blob). Perf fields need
+  // the perf batch; only fetch it (for THIS one symbol) when a perf field is actually shown.
+  const infoFieldKeys = useMemo(() => headerFieldKeys(hdr), [hdr])
+  const wantsPerf = infoFieldKeys.some((k) => PERF_HEADER_KEYS.has(k))
+  const { perfData } = useWatchlistPerformance(
+    (!compact && !mini && showTfBar && wantsPerf) ? [sym] : [],
+  )
+  const metaItems = useMemo(() => {
+    return infoFieldKeys.map((key) => {
+      const f = HEADER_FIELD_BY_KEY[key]
+      if (!f) return null
+      let value = null
+      let color = f.colorKey ? (hdrColors[f.colorKey] || f.dflt) : f.dflt
+      if (key === 'mcap') value = mktCap
+      else if (key === 'earn') value = nextEarnStr
+      else if (key === 'rating') value = uctRating != null ? String(uctRating) : null
+      else if (key === 'sector') value = fund?.sector || null
+      else if (key === 'industry') value = fund?.industry || null
+      else if (PERF_HEADER_KEYS.has(key)) {
+        const v = perfData?.[sym]?.[PERF_HEADER_PERIOD[key]]
+        if (typeof v === 'number') {
+          value = `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`
+          color = v >= 0 ? '#1ae51a' : '#ff3b47'
+        }
+      }
+      return { key, label: f.label, value, color }
+    }).filter(Boolean)
+  }, [infoFieldKeys, hdrColors, mktCap, nextEarnStr, uctRating, fund, perfData, sym])
+
   // Chart-settings modal (opened by the gear, by StockChart's own settings entry
   // point, or imperatively by the host through the ref).
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -408,14 +441,7 @@ function ChartPane({
           styles={styles}
         >
           {!compact && !mini && (
-            <ChartMetaRow
-              marketCap={mktCap}
-              nextEarnings={nextEarnStr}
-              uctRating={uctRating}
-              show={{ marketCap: hdr.showMarketCap, nextEarnings: hdr.showNextEarnings, uctRating: hdr.showUctRating }}
-              colors={hdrColors}
-              styles={styles}
-            />
+            <ChartMetaRow items={metaItems} styles={styles} />
           )}
           <div className={styles.tfBarRight}>
             {slots?.tfBarRight}

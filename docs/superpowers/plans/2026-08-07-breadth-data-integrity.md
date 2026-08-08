@@ -18,7 +18,7 @@ first time. Dashboard shipped to master (`030e69bc..f97983e7`) and verified live
 | P1b score | dissolved — it is derived at read time, so it corrected itself |
 | P2 metrics | `uct_exposure` fabrication found + repaired `cc5e433`; a NEW window bug found + fixed `a80b1ea1`; the other five verified sound |
 | P3 slope | tightened to strict `>`/`<` in all three copies `c4c4ed4` / `23dde7cc` |
-| P4 NAAIM | sources exhausted — the publisher withdrew the data. Owner decision. |
+| P4 NAAIM | sources exhausted — the publisher withdrew the data. **Chatter route ACCEPTED 8/8**; selection reworked to newest-survey-wins |
 | P5 ship | pushed, deployed, verified live; freeze audit clean |
 
 **Found during the work, not in the original plan:**
@@ -53,8 +53,9 @@ first time. Dashboard shipped to master (`030e69bc..f97983e7`) and verified live
    field in that row; the table is mutable current state. **Different moments,
    not different facts.** Leaving them is the justified default; adopting the
    table's value would put a post-close revision in one field of a 4:15 row.
-3. **NAAIM.** Every free route closed 2026-08-01 (see P4). Accept the chatter
-   route, pay, or drop it from the score.
+3. ~~**NAAIM.**~~ ✅ **DECIDED — chatter route accepted, no subscription.**
+   Selection reworked to newest-survey-wins; YCharts added; wire cache demoted
+   to a fallback tier. See P4.
 4. **Labels** (P3 items 1–2): closing-basis new highs, and Stage 2 = MA stack
    only. Both are internally correct but narrower than the published NH/NL and
    the full Minervini template. Keep, relabel, or add a variant.
@@ -305,8 +306,33 @@ There was never a latency win available to find.
 79.7 is transparently attributed to the 2026-07-29 survey rather than passing as
 current.
 
-**Owner decision:** accept the chatter route (blind-tested 9 correct / 0 wrong /
-2 no-call), pay, or drop NAAIM from `breadth_score`'s 10 points.
+✅ **OWNER DECIDED 2026-08-08: accept the chatter route.** No subscription.
+
+That made source SELECTION load-bearing, and ordering had quietly stopped being
+safe: a frozen aggregator stays inside the 21-day staleness window for three
+weeks after it stops, so anything ranked above chatter would have served a
+value one survey behind while chatter carried the current week.
+
+`_fetch_naaim` now asks **every** source and takes the **newest survey date**;
+confidence only settles ties on the same date. New scrapers can be added
+anywhere in the list without reasoning about precedence.
+
+- **YCharts added** as a scraped, dated source (a named vendor outranks tweet
+  consensus on ties). Frozen at 2026-07-29 today so it loses on recency; if
+  licensing resumes it wins again on its own. **Verified live: YCharts and
+  chatter independently corroborate at 79.70.**
+- **The wire cache is a separate FALLBACK tier**, tried only when no live source
+  answers. Its date means when it was *cached*, not the survey date — ranked
+  together, a cache stamped today beats a survey from four days ago on every
+  run, which is the cache permanently shadowing a live fetch. A pre-existing
+  test caught this.
+- **The source table holds NAMES, not function objects.** A tuple of references
+  resolves at import and severs every source from
+  `monkeypatch.setattr(bc, "_naaim_from_…")` — the same private-copy trap as
+  `from module import fn`. Ten tests silently started hitting the live network
+  (2.6s → 211s, one real 429) before it was switched to late binding.
+- The log now separates **corroboration** from **CONFLICT** — two sources naming
+  the same survey with different numbers is the only case worth a human's time.
 
 ⚠️ Guards that exist because the backtest produced a WRONG answer without them:
 require decimals; exclude the prior week's value (21 accounts once "agreed" on

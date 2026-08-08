@@ -11,6 +11,8 @@ import {
 // "superseded, not absorbed" looks like at the consumer.
 import * as engineRegistry from './engine/nativeRegistry'
 import usePreferences, { parsePref } from '../../hooks/usePreferences'
+import UIcon from '../ui/UIcon'
+import { HEADER_FIELDS, HEADER_FIELD_BY_KEY, headerFieldKeys } from './headerFields'
 import styles from './ChartSettingsModal.module.css'
 
 // A user's saved chart-settings templates live in ONE global pref so they're
@@ -131,16 +133,6 @@ const TITLE_MODES = [
   { val: 'company', label: 'Company' },
   { val: 'both', label: 'Both' },
 ]
-// Header "Show" rows: a visibility toggle + one or more color swatches. Day change
-// carries TWO swatches (up-day / down-day colors); the rest carry one. Each swatch
-// is [color target, picker label].
-const HEADER_ROWS = [
-  { key: 'showChange', label: 'Day change ($ / %)', swatches: [['hdrDayUp', 'Up-day color'], ['hdrDayDown', 'Down-day color']] },
-  { key: 'showMarketCap', label: 'Market cap', swatches: [['hdrMarketCap', 'Market cap color']] },
-  { key: 'showNextEarnings', label: 'Next earnings', swatches: [['hdrNextEarnings', 'Next earnings color']] },
-  { key: 'showUctRating', label: 'UCT rating', swatches: [['hdrUctRating', 'UCT rating color']] },
-  { key: 'showLegend', label: 'Chart legend', swatches: [['hdrLegend', 'Chart legend color']] },
-]
 // Shape of the on-chart OHLCV legend. Horizontal is the flat, box-less strip.
 const LEGEND_LAYOUTS = [
   { val: 'vertical', label: 'Vertical' },
@@ -174,6 +166,18 @@ export default function ChartSettingsModal({
   const [tplName, setTplName] = useState('')
   const tplInputRef = useRef(null)
   useEffect(() => { if (savingTpl && tplInputRef.current) { tplInputRef.current.focus(); tplInputRef.current.select() } }, [savingTpl])
+  // Info Row field-picker menu (Header tab).
+  const [fieldMenuOpen, setFieldMenuOpen] = useState(false)
+  const [fieldQuery, setFieldQuery] = useState('')
+  const fieldWrapRef = useRef(null)
+  useEffect(() => {
+    if (!fieldMenuOpen) return
+    const onDown = (e) => {
+      if (fieldWrapRef.current && !fieldWrapRef.current.contains(e.target)) setFieldMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDown, true)   // capture: beats the panel's stopPropagation
+    return () => document.removeEventListener('mousedown', onDown, true)
+  }, [fieldMenuOpen])
 
   const persistTemplates = (arr) => setPref(CHART_TEMPLATES_KEY, JSON.stringify(arr.slice(0, MAX_TEMPLATES)))
   const commitSaveTemplate = () => {
@@ -415,6 +419,12 @@ export default function ChartSettingsModal({
   // Header tab.
   const header = settings?.header || {}
   const setHeader = (patch) => setSetting({ header: { ...header, ...patch } })
+  // Info Row — the picked fields (migrates a legacy show* blob); the picker menu state
+  // lives up top with the other hooks (this code runs after the `!open` early return).
+  const infoFields = headerFieldKeys(header)
+  const toggleInfoField = (key) => setHeader({
+    fields: infoFields.includes(key) ? infoFields.filter((k) => k !== key) : [...infoFields, key],
+  })
   const hdrColors = header.colors || {}
   // Markers tab.
   const swing = settings?.swingLabels || {}
@@ -441,6 +451,27 @@ export default function ChartSettingsModal({
       onClick={() => setActiveTarget({ target, label })}
     />
   )
+
+  // A "Show X" row: color swatch(es) (only while on) + an on/off switch. Shared by the
+  // Title's Day-change row and the Chart-legend row.
+  const renderShowRow = (key, label, swatches = []) => {
+    const on = header[key] !== false
+    return (
+      <div className={styles.field} key={key}>
+        <span className={styles.fieldLabel}>{label}</span>
+        <div className={styles.hdrRowCtl}>
+          {on && swatches.map(([target, pickerLabel]) => (
+            <span key={target}>{colorSwatch(target, pickerLabel)}</span>
+          ))}
+          <button
+            type="button" role="switch" aria-checked={on}
+            className={`${styles.toggle} ${on ? styles.toggleOn : ''}`}
+            onClick={() => setHeader({ [key]: header[key] === false })}
+          ><span className={styles.toggleKnob} /></button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -755,6 +786,8 @@ export default function ChartSettingsModal({
           </>)}
 
           {activeTab === 'header' && (<>
+          {/* TITLE — the ticker/company label + its color + the day-change readout that
+              sits right beside it (all "the title line", so they're grouped together). */}
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Title</div>
             <div className={styles.modeRow}>
@@ -776,35 +809,18 @@ export default function ChartSettingsModal({
               <span className={styles.fieldLabel}>Title color</span>
               <div className={styles.hdrRowCtl}>{colorSwatch('hdrTitle', 'Title color')}</div>
             </div>
+            {/* Day change ($ / %) — reads beside the title, so it lives in this section. */}
+            {renderShowRow('showChange', 'Day change ($ / %)',
+              [['hdrDayUp', 'Up-day color'], ['hdrDayDown', 'Down-day color']])}
           </section>
 
+          {/* CHART LEGEND — its own section (the on-chart OHLCV readout + its shape). */}
           <section className={styles.section}>
-            <div className={styles.sectionLabel}>Show</div>
+            <div className={styles.sectionLabel}>Chart Legend</div>
             <div className={styles.card}>
-              {HEADER_ROWS.map(({ key, label, swatches }) => {
-                const on = header[key] !== false
-                return (
-                  <div className={styles.field} key={key}>
-                    <span className={styles.fieldLabel}>{label}</span>
-                    <div className={styles.hdrRowCtl}>
-                      {/* Color swatch(es) — only meaningful when the item is shown. */}
-                      {on && swatches.map(([target, pickerLabel]) => (
-                        <span key={target}>{colorSwatch(target, pickerLabel)}</span>
-                      ))}
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={on}
-                        className={`${styles.toggle} ${on ? styles.toggleOn : ''}`}
-                        onClick={() => setHeader({ [key]: header[key] === false })}
-                      ><span className={styles.toggleKnob} /></button>
-                    </div>
-                  </div>
-                )
-              })}
-              {/* Legend shape. Only meaningful while the legend is shown, and only
-                  the Charts workspace honors it (other surfaces keep their own
-                  inline row) — so it lives with the legend toggle, not on its own. */}
+              {renderShowRow('showLegend', 'Chart legend', [['hdrLegend', 'Chart legend color']])}
+              {/* Legend shape. Only meaningful while the legend is shown, and only the
+                  Charts workspace honors it (other surfaces keep their own inline row). */}
               {header.showLegend !== false && (
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Legend layout</span>
@@ -821,6 +837,60 @@ export default function ChartSettingsModal({
                 </div>
               )}
             </div>
+          </section>
+
+          {/* INFO ROW — pick which stats show in the strip above the chart. */}
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Info Row</div>
+            <div className={styles.fieldPickWrap} ref={fieldWrapRef}>
+              <button
+                type="button"
+                className={styles.fieldPickBtn}
+                onClick={() => setFieldMenuOpen((o) => !o)}
+                aria-expanded={fieldMenuOpen}
+              >
+                <span>{infoFields.length ? `${infoFields.length} field${infoFields.length === 1 ? '' : 's'} shown` : 'No fields shown'}</span>
+                <span className={styles.fieldPickCaret}>▾</span>
+              </button>
+              {fieldMenuOpen && (
+                <div className={styles.fieldMenu}>
+                  <input
+                    className={styles.fieldSearch}
+                    placeholder="Search fields…"
+                    value={fieldQuery}
+                    onChange={(e) => setFieldQuery(e.target.value)}
+                    autoFocus
+                  />
+                  <div className={styles.fieldList}>
+                    {HEADER_FIELDS
+                      .filter((f) => !fieldQuery || f.label.toLowerCase().includes(fieldQuery.toLowerCase()))
+                      .map((f) => {
+                        const on = infoFields.includes(f.key)
+                        return (
+                          <button key={f.key} type="button" className={styles.fieldItem} onClick={() => toggleInfoField(f.key)}>
+                            <span className={styles.fieldCheck}>{on ? <UIcon name="check" size={11} /> : null}</span>
+                            {f.label}
+                          </button>
+                        )
+                      })}
+                  </div>
+                </div>
+              )}
+            </div>
+            {/* Color per selected field that supports one (market cap / next earnings / UCT rating). */}
+            {infoFields.some((k) => HEADER_FIELD_BY_KEY[k]?.colorKey) && (
+              <div className={styles.card}>
+                {infoFields.filter((k) => HEADER_FIELD_BY_KEY[k]?.colorKey).map((k) => {
+                  const f = HEADER_FIELD_BY_KEY[k]
+                  return (
+                    <div className={styles.field} key={k}>
+                      <span className={styles.fieldLabel}>{f.label} color</span>
+                      <div className={styles.hdrRowCtl}>{colorSwatch(f.swatch, `${f.label} color`)}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </section>
           {/* Timeframes/Favorites are managed on the chart's own timeframe menu (the
               ⌄ button) — star to favorite there; no separate settings section. */}
