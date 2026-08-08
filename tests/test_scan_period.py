@@ -72,3 +72,46 @@ def test_snaps_holiday_start_date_back_to_a_trading_day(monkeypatch):
     assert out["start"] == 20260331          # snapped back off the "holiday"
     assert "2026-04-01" in seen and "2026-03-31" in seen
     _reset()
+
+
+_STOCK_CHG = {
+    "status": "ok",
+    "results": [
+        {"sym": "AAA", "period_change": 10.0},
+        {"sym": "BBB", "period_change": 20.0},
+        {"sym": "CCC", "period_change": -5.0},
+    ],
+    "start": 20260401, "end": 20260601, "as_of": "x",
+}
+
+
+def test_group_by_theme_ranks_by_owner_mean(monkeypatch):
+    monkeypatch.setattr(sp, "get_period_change", lambda a, b: _STOCK_CHG)
+    monkeypatch.setattr("api.services.theme_db.get_all_themes", lambda: {"themes": [
+        {"name": "Growth", "holdings": [{"sym": "AAA", "source": "owner"}, {"sym": "BBB", "source": "owner"}]},
+        {"name": "Value", "holdings": [{"sym": "CCC", "source": "owner"}, {"sym": "ENG", "source": "engine"}]},
+    ]})
+    out = sp.get_period_change_groups(20260401, 20260601, "theme")
+    assert out["status"] == "ok" and out["group"] == "theme"
+    # Growth = mean(10,20)=15 leads; Value = -5 (the engine-overlay member is excluded).
+    assert [r["name"] for r in out["results"]] == ["Growth", "Value"]
+    assert out["results"][0]["period_change"] == 15.0 and out["results"][0]["members"] == ["AAA", "BBB"]
+    assert out["results"][1]["period_change"] == -5.0
+
+
+def test_group_by_sector_ranks_and_carries_members(monkeypatch):
+    monkeypatch.setattr(sp, "get_period_change", lambda a, b: _STOCK_CHG)
+    monkeypatch.setattr(sp, "_sector_industry_map", lambda: {
+        "AAA": {"sector": "Tech", "industry": "Software"},
+        "BBB": {"sector": "Tech", "industry": "Semis"},
+        "CCC": {"sector": "Energy", "industry": "Oil"},
+    })
+    out = sp.get_period_change_groups(20260401, 20260601, "sector")
+    assert out["status"] == "ok"
+    assert [r["name"] for r in out["results"]] == ["Tech", "Energy"]   # Tech mean 15 > Energy -5
+    assert out["results"][0]["count"] == 2 and set(out["results"][0]["members"]) == {"AAA", "BBB"}
+
+
+def test_group_rejects_bad_group():
+    out = sp.get_period_change_groups(20260401, 20260601, "bogus")
+    assert out["status"] == "error"

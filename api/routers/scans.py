@@ -137,3 +137,11 @@ def period_change(start: int, end: int, _user: dict = Depends(require_paid)):
     the Custom-Period Sort tool. Whole-market via two grouped-daily calls; sorted gainers-first."""
     from api.services import scan_period
     return JSONResponse(content=scan_period.get_period_change(int(start), int(end)))
+
+
+@router.get("/api/scans/period-change-groups")
+def period_change_groups(start: int, end: int, group: str, _user: dict = Depends(require_paid)):
+    """Themes / sectors / industries ranked by equal-weight mean % change over [start, end].
+    `group` ∈ {theme, sector, industry}; each result carries its member symbols for drill-down."""
+    from api.services import scan_period
+    return JSONResponse(content=scan_period.get_period_change_groups(int(start), int(end), group))

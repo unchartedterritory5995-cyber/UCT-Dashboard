@@ -100,3 +100,95 @@ def get_period_change(start_ymd: int, end_ymd: int) -> dict:
     }
     cache.set(ck, out, ttl=_TTL if results else 15)
     return out
+
+
+def _sector_industry_map():
+    """{app_sym: {'sector', 'industry'}} read from the prewarmed ticker_meta disk cache
+    (the only whole-universe sector/industry source — no bulk API exists). Globbing ~4k
+    small JSON files is ~1s, so cache it for 6h."""
+    ck = "period_sector_industry_map"
+    cached = cache.get(ck)
+    if cached is not None:
+        return cached
+    import glob
+    import json
+    import os
+    from api.services.ticker_meta import _CACHE_DIR
+    out = {}
+    try:
+        for path in glob.glob(os.path.join(_CACHE_DIR, "*.json")):
+            sym = os.path.splitext(os.path.basename(path))[0]
+            try:
+                with open(path) as fh:
+                    d = json.load(fh)
+            except Exception:
+                continue
+            out[sym] = {"sector": d.get("sector"), "industry": d.get("industry")}
+    except Exception:
+        pass
+    cache.set(ck, out, ttl=21600)
+    return out
+
+
+def get_period_change_groups(start_ymd: int, end_ymd: int, group: str) -> dict:
+    """Rank THEMES / SECTORS / INDUSTRIES by their equal-weight mean % change over
+    [start, end], reusing the whole-market per-stock period_change. Each group carries its
+    member symbols so the UI can drill into it. `group` ∈ {'theme','sector','industry'}."""
+    if group not in ("theme", "sector", "industry"):
+        return {"status": "error", "group": group, "results": [], "count": 0, "error": "bad group"}
+    base = get_period_change(start_ymd, end_ymd)
+    if base.get("status") != "ok":
+        return {"status": base.get("status", "computing"), "group": group, "results": [], "count": 0}
+    chg = {r["sym"]: r["period_change"] for r in base["results"]}
+
+    buckets = {}  # name -> {"_sum", "count", "members"}
+    if group == "theme":
+        from api.services import theme_db
+        try:
+            themes = theme_db.get_all_themes().get("themes", [])
+        except Exception:
+            themes = []
+        for th in themes:
+            name = th.get("name")
+            if not name:
+                continue
+            members, vals = [], []
+            for h in th.get("holdings", []):
+                if h.get("source") == "engine":   # owner-only aggregate (matches every UCT group metric)
+                    continue
+                s = str(h.get("sym", "")).replace(".", "-")   # taxonomy is dot-form; scan is hyphen-form
+                if s in chg:
+                    members.append(s)
+                    vals.append(chg[s])
+            if vals:
+                buckets[name] = {"_sum": sum(vals), "count": len(vals), "members": members}
+    else:
+        smap = _sector_industry_map()
+        field = group  # 'sector' | 'industry'
+        for sym, c in chg.items():
+            g = (smap.get(sym) or {}).get(field)
+            if not g:
+                continue
+            b = buckets.setdefault(g, {"_sum": 0.0, "count": 0, "members": []})
+            b["_sum"] += c
+            b["count"] += 1
+            b["members"].append(sym)
+
+    results = []
+    for name, b in buckets.items():
+        results.append({
+            "name": name,
+            "period_change": round(b["_sum"] / b["count"], 2) if b["count"] else 0.0,
+            "count": b["count"],
+            "members": b["members"],
+        })
+    results.sort(key=lambda r: r["period_change"], reverse=True)
+    return {
+        "status": "ok",
+        "group": group,
+        "results": results,
+        "count": len(results),
+        "start": base.get("start"),
+        "end": base.get("end"),
+        "as_of": base.get("as_of"),
+    }
