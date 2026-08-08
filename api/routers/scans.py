@@ -90,3 +90,11 @@ def top_gainers_90d():
 def top_gainers_90d_status():
     from api.services import scan_gainers
     return scan_gainers.status("90d")
+
+
+@router.get("/api/scans/period-change")
+def period_change(start: int, end: int):
+    """Every US common stock ranked by % change over [start, end] (YYYYMMDD ints) — powers
+    the Custom-Period Sort tool. Whole-market via two grouped-daily calls; sorted gainers-first."""
+    from api.services import scan_period
+    return JSONResponse(content=scan_period.get_period_change(int(start), int(end)))
