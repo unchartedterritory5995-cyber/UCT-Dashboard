@@ -7662,7 +7662,41 @@ export default function OptionsFlowDashboard() {
               // mode: shows positions regardless of when they opened, so an older
               // still-open build (e.g. a Jan-2028 put opened months ago) still
               // appears; the Status column marks which are open. 2026-07-21.
-              const _tkTradesFull = (tk && tk.t ? tk.t.slice() : []).sort((_a, _b) => (_b.P||0) - (_a.P||0));
+              //
+              // 2026-08-08: was `tk.t` (the capped, biggest-single-print rep cache),
+              // which SILENTLY DROPPED accumulation contracts — e.g. an OKLO Oct $50C
+              // that builds $2.3M across many small prints has no single top-10 print,
+              // so it never entered tk.t and vanished the instant you switched to
+              // Still-open, even while BUILDING. Fix: aggregate the SAME all-time
+              // directional prints per contract, exactly mirroring the window-scoped
+              // rollup above — every contract with all-time flow now appears, with
+              // tk.t metadata (grade/entry/status/OI) merged where present. This is
+              // the all-dates twin of the 2026-07-25 scoped fix.
+              const _tkAllPrints = (_uncapped ? (_uncapped.all_directional || []) : (D.all_directional || []))
+                .filter(t => t.S === tk.s && !t._rescueDerived);
+              const _fullByContract = {};
+              for (const _t of _tkAllPrints) {
+                const _ck = _t.CP + "|" + _t.K + "|" + _t.E;
+                const _e = _fullByContract[_ck] || (_fullByContract[_ck] = { P:0, V:0, bull:0, bear:0, OI:0, DTE:_t.DTE, Dt:_t.Dt, pxSum:0, pxN:0 });
+                _e.P += _t.P; _e.V += _t.V;
+                if (_t.D === "BULL") _e.bull += _t.P; else if (_t.D === "BEAR") _e.bear += _t.P;
+                if ((_t.OI||0) > _e.OI) _e.OI = _t.OI||0;
+                if (_t.price > 0) { _e.pxSum += _t.price; _e.pxN++; }
+                if (_t.Dt) { _e.Dt = _t.Dt; _e.DTE = _t.DTE; }
+              }
+              const _tkTradesFull = Object.entries(_fullByContract)
+                .map(([_ck, _w]) => {
+                  const _netD = _w.bull > _w.bear ? "BULL" : _w.bear > _w.bull ? "BEAR" : null;
+                  const _dirPrem = _netD === "BULL" ? _w.bull : _netD === "BEAR" ? _w.bear : _w.P;
+                  const _meta = _tkByContract[_ck];
+                  if (_meta) return { ..._meta, P: _w.P, V: _w.V, dirPrem: _dirPrem, dispD: _netD };
+                  const _p = _ck.split("|");
+                  return { S: tk.s, CP: _p[0], K: parseFloat(_p[1]), E: _p[2], P: _w.P, V: _w.V,
+                           dirPrem: _dirPrem, dispD: _netD, OI: _w.OI, maxOI: _w.OI, DTE: _w.DTE, Dt: _w.Dt,
+                           price: _w.pxN ? _w.pxSum / _w.pxN : 0 };
+                })
+                .sort((_a, _b) => (_b.dirPrem != null ? _b.dirPrem : _b.P) - (_a.dirPrem != null ? _a.dirPrem : _a.P))
+                .slice(0, 40);
               const _rangeLabel = (dateFrom && dateTo) ? (dateFrom + "\u2013" + dateTo)
                 : dateFilter === "All" ? "all dates"
                 : (typeof dateFilter === "string" && dateFilter.startsWith("Last")) ? ("last " + dateFilter.slice(4) + " days")
@@ -7701,8 +7735,7 @@ export default function OptionsFlowDashboard() {
               // (e.g. the Jan-2028 put) — matches the table's Still-open mode, which
               // uses all-time tk.t. The window-scoped ccTrades still drives the
               // "In window" raw totals below. 2026-07-21.
-              const _tkAllPrintsDte = (_uncapped ? (_uncapped.all_directional||[]) : (D.all_directional||[]))
-                .filter(t => t.S===tk.s && !t._rescueDerived).filter(dteF);
+              const _tkAllPrintsDte = _tkAllPrints.filter(dteF);
               // Raw totals — clean-classified directional flow only.
               let ccB=0, ccR=0;
               ccTrades.forEach(t => { if(t.D==="BULL") ccB+=t.P; else if(t.D==="BEAR") ccR+=t.P; });
