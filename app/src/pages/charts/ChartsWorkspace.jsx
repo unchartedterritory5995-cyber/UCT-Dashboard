@@ -646,6 +646,31 @@ export default function ChartsWorkspace() {
     })
   }, [scheduleSave])
 
+  // Custom-Period Sort → Timeframe selector: force EVERY chart (base widget + any
+  // chart wtab) to the chosen TF (D/W/M). ChartWidget derives its tf from opts.tf,
+  // so writing opts.tf re-renders the chart at that timeframe; the user can still
+  // switch it manually afterward. Composes with replay (cutoff is by date, TF-agnostic).
+  const applyTfToCharts = useCallback((tf) => {
+    if (!tf) return
+    setLayout(prev => {
+      let changed = false
+      const withTf = (o) => ({ ...(o || {}), tf })
+      const widgets = prev.widgets.map(w => {
+        let nw = w
+        if (w.type === 'chart') { nw = { ...nw, opts: withTf(nw.opts) }; changed = true }
+        if (Array.isArray(w.wtabs) && w.wtabs.some(t => t?.type === 'chart')) {
+          nw = { ...nw, wtabs: nw.wtabs.map(t => (t?.type === 'chart' ? { ...t, opts: withTf(t.opts) } : t)) }
+          changed = true
+        }
+        return nw
+      })
+      if (!changed) return prev
+      const next = { ...prev, widgets }
+      scheduleSave(next)
+      return next
+    })
+  }, [scheduleSave])
+
   // Replace a whole widget object in place — used by the widget-level tab system,
   // which routes every tab add/close/select and per-active-tab color/opts edit
   // through one atomic swap (the reducer already computed the next widget). Keeps
@@ -1412,12 +1437,14 @@ export default function ChartsWorkspace() {
           <PeriodSortConfig
             sel={periodSortSel}
             onCancel={() => setPeriodSortSel(null)}
-            onSort={(start, end, replay, group) => {
+            onSort={(start, end, replay, group, tf) => {
               setPeriodSortSel(null)
               setPeriodSortPanel({ start, end, group: group || null })
               // Replay: cut every linked chart off at the End date (ISO). Off = clear it.
               const s = String(end)
               setReplayCutoff(replay ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` : null)
+              // Timeframe: switch every chart to the chosen D/W/M (composes with replay).
+              applyTfToCharts(tf)
             }}
           />
         )}

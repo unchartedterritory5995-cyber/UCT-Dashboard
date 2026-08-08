@@ -12,9 +12,10 @@ export default function PeriodSortConfig({ sel, onSort, onCancel }) {
   const [end, setEnd] = useState(ymdToInput(sel.end))
   const [replay, setReplay] = useState(false)
   const [groupBy, setGroupBy] = useState('stocks')   // stocks | theme | sector | industry
+  const [tf, setTf] = useState('D')                  // D | W | M — linked charts switch to this
   const valid = start && end && inputToYmd(start) < inputToYmd(end)
 
-  const sort = () => { if (valid) onSort(inputToYmd(start), inputToYmd(end), replay, groupBy === 'stocks' ? null : groupBy) }
+  const sort = () => { if (valid) onSort(inputToYmd(start), inputToYmd(end), replay, groupBy === 'stocks' ? null : groupBy, tf) }
 
   return (
     <div className={styles.cfgBackdrop} onMouseDown={(e) => { if (e.target === e.currentTarget) onCancel() }}>
@@ -37,6 +38,14 @@ export default function PeriodSortConfig({ sel, onSort, onCancel }) {
           <div className={styles.cfgRow}>
             <span className={styles.cfgLabel}>End</span>
             <input type="date" className={styles.cfgDate} value={end} onChange={(e) => setEnd(e.target.value)} />
+          </div>
+          <div className={styles.cfgRow}>
+            <span className={styles.cfgLabel}>Timeframe</span>
+            <select className={styles.cfgSelect} value={tf} onChange={(e) => setTf(e.target.value)}>
+              <option value="D">Daily</option>
+              <option value="W">Weekly</option>
+              <option value="M">Monthly</option>
+            </select>
           </div>
           {/* Replay mode: charts linked to the results cut off every bar past the End date
               (TradingView-style), re-framed to default zoom, until you exit replay mode. */}
