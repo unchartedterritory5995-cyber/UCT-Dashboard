@@ -184,27 +184,36 @@ export const HM_METRICS = [
   { key: 'mcclellan_osc', label: 'McClellan',       group: 'Regime',
     getTier: r => { const v = r.mcclellan_osc; return v == null ? '' : v > 200 ? 'a' : v > 80 ? 'g3' : v > 20 ? 'g2' : v > 0 ? 'g1' : v > -20 ? 'r1' : v > -80 ? 'r2' : v > -200 ? 'r3' : 'a' },
     getFmt:  r => r.mcclellan_osc == null ? '—' : Number(r.mcclellan_osc).toFixed(1) },
-  { key: 'stage2_count', label: 'Stage 2',          group: 'Regime',
+  // ⚠️ MA STACK ONLY: price > SMA50 > SMA150 > SMA200 with a rising SMA200.
+  // Minervini's full trend template also wants the name ≥30% above its 52-week
+  // low, within 25% of its high, and an RS rating — so this counts MORE names
+  // than the template would. Defensible as a breadth measure, but "Stage 2"
+  // unqualified means the template to anyone who reads Minervini.
+  { key: 'stage2_count', label: 'Stage 2 (MA Stack)', group: 'Regime',
     getTier: r => pairedUpColor(r.stage2_count, r.stage4_count),
     getFmt:  r => r.stage2_count ?? '—' },
-  { key: 'stage4_count', label: 'Stage 4',          group: 'Regime',
+  { key: 'stage4_count', label: 'Stage 4 (MA Stack)', group: 'Regime',
     getTier: r => pairedDnColor(r.stage2_count, r.stage4_count),
     getFmt:  r => r.stage4_count ?? '—' },
 
   { key: '__h_highs', label: 'HIGHS / LOWS',        isHeader: true, group: 'Highs/Lows' },
-  { key: 'new_52w_highs', label: '52W Highs',       group: 'Highs/Lows', drillKey: 'new_52w_highs_list',
+  // ⚠️ CLOSING basis, all of them — `count_nd_highs` uses the rolling max of
+  // CLOSES. Published NH/NL (NYSE, WSJ, Barchart) are INTRADAY basis and run
+  // systematically higher, so the labels name the basis rather than inviting a
+  // comparison that can never tie out.
+  { key: 'new_52w_highs', label: '52W Highs (Close)', group: 'Highs/Lows', drillKey: 'new_52w_highs_list',
     getTier: r => pairedUpColor(r.new_52w_highs, r.new_52w_lows),
     getFmt:  r => r.new_52w_highs ?? '—' },
-  { key: 'new_52w_lows',  label: '52W Lows',        group: 'Highs/Lows', drillKey: 'new_52w_lows_list',
+  { key: 'new_52w_lows',  label: '52W Lows (Close)',  group: 'Highs/Lows', drillKey: 'new_52w_lows_list',
     getTier: r => pairedDnColor(r.new_52w_highs, r.new_52w_lows),
     getFmt:  r => r.new_52w_lows ?? '—' },
-  { key: 'new_20d_highs', label: '20D Highs',       group: 'Highs/Lows', drillKey: 'new_20d_highs_list',
+  { key: 'new_20d_highs', label: '20D Highs (Close)', group: 'Highs/Lows', drillKey: 'new_20d_highs_list',
     getTier: r => pairedUpColor(r.new_20d_highs, r.new_20d_lows),
     getFmt:  r => r.new_20d_highs ?? '—' },
-  { key: 'new_20d_lows',  label: '20D Lows',        group: 'Highs/Lows', drillKey: 'new_20d_lows_list',
+  { key: 'new_20d_lows',  label: '20D Lows (Close)',  group: 'Highs/Lows', drillKey: 'new_20d_lows_list',
     getTier: r => pairedDnColor(r.new_20d_highs, r.new_20d_lows),
     getFmt:  r => r.new_20d_lows ?? '—' },
-  { key: 'new_ath',       label: 'ATH Count',       group: 'Highs/Lows',
+  { key: 'new_ath',       label: 'ATH Count (Close)', group: 'Highs/Lows',
     // Re-derived 2026-08-06 with the collector's all-time-high fix (~0.59x the
     // old value); the previous 200/100/40 was calibrated on 52-week highs.
     getTier: r => { const v = r.new_ath; return v == null ? '' : v > 120 ? 'g3' : v > 60 ? 'g2' : v > 25 ? 'g1' : '' },

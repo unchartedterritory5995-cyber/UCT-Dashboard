@@ -196,10 +196,13 @@ export const COLS = [
     colorFn: v => v == null ? '' : v < 14 ? 'g3' : v < 18 ? 'g2' : v < 20 ? 'g1' : v < 22 ? 'a' : v < 25 ? 'r1' : v < 30 ? 'r2' : 'r3' },
   { key: 'mcclellan_osc', label: 'McClellan', group: G.REGIME, fmt: v => fmtDec(v, 1),
     colorFn: v => v == null ? '' : v > 200 ? 'a' : v > 80 ? 'g3' : v > 20 ? 'g2' : v > 0 ? 'g1' : v > -20 ? 'r1' : v > -80 ? 'r2' : v > -200 ? 'r3' : 'a' },
-  { key: 'stage2_count', label: 'Stage 2', group: G.REGIME,
+  // MA stack only — see the note in heatmapMetrics.js. Minervini's full trend
+  // template adds 52-week-low/high distance and an RS rating, so this counts
+  // more names than the template would.
+  { key: 'stage2_count', label: 'Stage 2 (MA Stack)', group: G.REGIME,
     rowColorFn: row => pairedUpColor(row.stage2_count, row.stage4_count),
     drillKey: 'stage2_list' },
-  { key: 'stage4_count', label: 'Stage 4', group: G.REGIME,
+  { key: 'stage4_count', label: 'Stage 4 (MA Stack)', group: G.REGIME,
     rowColorFn: row => pairedDnColor(row.stage2_count, row.stage4_count),
     drillKey: 'stage4_list' },
 
@@ -693,8 +696,8 @@ const ANALOGUE_METRIC_LABELS = {
   vix: 'VIX',
   mcclellan_osc: 'McClellan',
   ratio_5day: '5D Ratio',
-  new_52w_highs: '52W Highs',
-  new_52w_lows: '52W Lows',
+  new_52w_highs: '52W Highs (Close)',
+  new_52w_lows: '52W Lows (Close)',
   cnn_fear_greed: 'CNN F/G',
   aaii_spread: 'AAII B-B',
   sp500_close: 'S&P 500',

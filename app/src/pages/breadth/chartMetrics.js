@@ -69,17 +69,23 @@ export const CHART_GROUPS = [
     ],
   },
   {
+    // ⚠️ Every high/low here is CLOSING basis — `count_nd_highs` takes the
+    // rolling max of CLOSES and counts `close >= max * 0.999`. NYSE, WSJ and
+    // Barchart publish INTRADAY-basis NH/NL, which is systematically higher, so
+    // an unqualified "52W Highs" invites a comparison that will never tie out.
+    // The convention is deliberate (it is Stockbee's) — the labels just have to
+    // say so.
     group: 'Highs / Lows',
     metrics: [
-      { key: 'new_52w_highs', label: '52W Highs' },
-      { key: 'new_52w_lows',  label: '52W Lows' },
-      { key: 'new_20d_highs', label: '20D Highs' },
-      { key: 'new_20d_lows',  label: '20D Lows' },
-      { key: 'new_ath',       label: 'ATH Count' },
+      { key: 'new_52w_highs', label: '52W Highs (Close)' },
+      { key: 'new_52w_lows',  label: '52W Lows (Close)' },
+      { key: 'new_20d_highs', label: '20D Highs (Close)' },
+      { key: 'new_20d_lows',  label: '20D Lows (Close)' },
+      { key: 'new_ath',       label: 'ATH Count (Close)' },
       { key: 'hvc_52w',       label: 'HVC (52W Vol Hi)' },
       { key: 'atr_ext_7',     label: '>7× ATR Ext (50SMA)' },
-      { key: 'hi_ratio',      label: '% at 52W Highs' },
-      { key: 'lo_ratio',      label: '% at 52W Lows' },
+      { key: 'hi_ratio',      label: '% at 52W Highs (Close)' },
+      { key: 'lo_ratio',      label: '% at 52W Lows (Close)' },
       { key: 'near_52w_high', label: 'Within 5% of High' },
     ],
   },
