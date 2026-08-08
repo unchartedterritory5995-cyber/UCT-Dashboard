@@ -23,72 +23,32 @@ def test_reports_computing_until_reference_ready(monkeypatch):
     _reset()
 
 
-def test_build_reference_picks_adjusted_for_real_splits_raw_otherwise(monkeypatch):
-    # MVIS really split → its adjusted close is right; TPC has NO real split (phantom-
-    # adjusted feed) → its raw close is right. SPCX is a recycled ticker whose current
-    # listing began after the reference date → dropped entirely.
+def test_sanitized_ref_close_distinguishes_missing_from_insufficient(monkeypatch):
+    from api.services import bars_fetch
+    # 100 clean bars → close 30 sessions back = bars[-31].
+    monkeypatch.setattr(sg._sqlite, "get_bars",
+                        lambda t, tf, n: ([("x",)] * 100 if t == "HAS" else
+                                          [("x",)] * 8 if t == "SHORT" else []))
+    monkeypatch.setattr(bars_fetch, "_fmt_sqlite_bars",
+                        lambda rows, tf, ticker: [{"c": float(i)} for i in range(len(rows))])
+    assert sg._sanitized_ref_close("HAS", 30) == 69.0     # bars[-31] of 0..99
+    assert sg._sanitized_ref_close("MISS", 30) is None    # not tracked in bars.db
+    assert sg._sanitized_ref_close("SHORT", 30) is False  # tracked but too little clean history
+
+
+def test_build_reference_verifies_movers_and_filters(monkeypatch):
     monkeypatch.setattr(sg._sqlite, "nth_recent_trading_date", lambda n, before: 20260401)
-
-    def _grouped(day_iso, adjusted=True):
-        assert day_iso == "2026-04-01"
-        return ({"MVIS": 20.0, "TPC": 17.8, "SPCX": 22.0} if adjusted        # adjusted feed
-                else {"MVIS": 0.58, "TPC": 75.0, "SPCX": 22.0})              # raw feed
-
-    monkeypatch.setattr(sg.massive, "get_grouped_daily_closes", _grouped)
-    monkeypatch.setattr(sg.massive, "get_split_tickers", lambda a, b: {"MVIS"})
-    monkeypatch.setattr(sg, "_listing_starts", lambda: {"SPCX": 20260615})   # relisted after ref
-
-    ref = sg._build_reference(30)
-    assert ref == {"MVIS": 20.0, "TPC": 75.0}    # MVIS→adjusted, TPC→raw, SPCX dropped
-
-
-def test_build_reference_defaults_to_adjusted_when_no_split_feed(monkeypatch):
-    # If the split calendar can't be fetched (empty), fall back to the adjusted close so
-    # real splits (the common, MVIS-style case) stay correct.
-    monkeypatch.setattr(sg._sqlite, "nth_recent_trading_date", lambda n, before: 20260401)
+    grouped = {"GOOD": 100.0, "SPXL": 100.0, "THIN": 100.0, "ZVZZT": 100.0,
+               "SPCX": 22.0, "OBSC": 50.0}
     monkeypatch.setattr(sg.massive, "get_grouped_daily_closes",
-                        lambda iso, adjusted=True: ({"MVIS": 20.0} if adjusted else {"MVIS": 0.58}))
-    monkeypatch.setattr(sg.massive, "get_split_tickers", lambda a, b: set())
-    monkeypatch.setattr(sg, "_listing_starts", lambda: {})
-    assert sg._build_reference(30) == {"MVIS": 20.0}   # adjusted default
-
-
-def test_ranks_by_n_day_change_and_keeps_top_5pct(monkeypatch):
-    # 40 stocks → top 5% = 2 names. Each ref close is 100; live price sets the gain.
-    _reset()
-    ref = {f"S{i:02d}": 100.0 for i in range(40)}
-    with sg._ref_lock:
-        sg._state("30d").update(date=sg._session_date(), map=ref, building=False)
-    # S39 up 40%, S38 up 39%, … S00 up 1%. Descending, so the top 2 are S39, S38.
-    snap = {sym: _row(100.0 * (1 + (i + 1) / 100.0), 100.0) for i, sym in enumerate(ref)}
-
-    class _Client:
-        def get_full_market_snapshot(self):
-            return snap
-
-    monkeypatch.setattr(sg.massive, "_get_client", lambda: _Client())
-    monkeypatch.setattr(sg, "_etf_symbols", lambda: set())
-
-    out = sg.get_top_gainers_30d()
-    assert out["status"] == "ok"
-    assert out["count"] == 2                                  # ceil(40 * 0.05) = 2
-    assert [r["sym"] for r in out["results"]] == ["S39", "S38"]
-    assert out["results"][0]["change_nd"] == 40.0            # (140-100)/100
-    assert out["results"][0]["ref_close"] == 100.0           # exposed for the live column
-    _reset()
-
-
-def test_excludes_etfs_and_illiquid_and_reuse_artifacts(monkeypatch):
-    _reset()
-    ref = {"GOOD": 100.0, "SPXL": 100.0, "THIN": 100.0, "RMIX": 1.0, "ZVZZT": 100.0}
-    with sg._ref_lock:
-        sg._state("60d").update(date=sg._session_date(), map=ref, building=False)
+                        lambda iso, adjusted=True: grouped)
     snap = {
-        "GOOD": _row(150.0, 148.0),                                   # +50%, liquid → kept
-        "SPXL": _row(300.0, 295.0),                                   # ETF → dropped
-        "THIN": {"last_price": 150.0, "prev_close": 148.0, "prev_vol": 10},  # $1.5K dvol → dropped
-        "RMIX": _row(62.0, 61.0),                                     # +6100% vs 1.0 ref → artifact
-        "ZVZZT": _row(200.0, 195.0),                                  # Polygon test ticker → dropped
+        "GOOD": _row(150.0, 148.0),                                   # liquid mover
+        "SPXL": _row(300.0, 295.0),                                   # ETF
+        "THIN": {"last_price": 150.0, "prev_close": 148.0, "prev_vol": 10},  # illiquid
+        "ZVZZT": _row(200.0, 195.0),                                  # Polygon test ticker
+        "SPCX": _row(133.0, 130.0),                                   # recycled → sanitize=False
+        "OBSC": _row(90.0, 88.0),                                     # not tracked → grouped kept
     }
 
     class _Client:
@@ -97,17 +57,44 @@ def test_excludes_etfs_and_illiquid_and_reuse_artifacts(monkeypatch):
 
     monkeypatch.setattr(sg.massive, "_get_client", lambda: _Client())
     monkeypatch.setattr(sg, "_etf_symbols", lambda: {"SPXL"})
+    monkeypatch.setattr(sg, "_sanitized_ref_close",
+                        lambda t, n: {"GOOD": 149.0, "SPCX": False, "OBSC": None}.get(t, None))
 
-    out = sg.get_top_gainers_60d()
-    assert [r["sym"] for r in out["results"]] == ["GOOD"]     # only the real, liquid mover
+    built = sg._build_reference(30)
+    assert built["liquid"] == 3                       # GOOD, SPCX, OBSC (ETF/illiquid/test excluded)
+    # GOOD → chart-true 149; SPCX dropped (reuse); OBSC → grouped fallback 50.
+    assert built["map"] == {"GOOD": 149.0, "OBSC": 50.0}
+
+
+def test_ranks_by_change_and_keeps_top_5pct(monkeypatch):
+    # 40-name liquid universe → top 5% = 2. The verified reference is set directly.
+    _reset()
+    ref = {f"S{i:02d}": 100.0 for i in range(40)}
+    with sg._ref_lock:
+        sg._state("30d").update(date=sg._session_date(), map=ref, building=False, universe=40)
+    snap = {sym: _row(100.0 * (1 + (i + 1) / 100.0), 100.0) for i, sym in enumerate(ref)}
+
+    class _Client:
+        def get_full_market_snapshot(self):
+            return snap
+
+    monkeypatch.setattr(sg.massive, "_get_client", lambda: _Client())
+
+    out = sg.get_top_gainers_30d()
+    assert out["status"] == "ok"
+    assert out["count"] == 2                                  # ceil(40 * 0.05)
+    assert [r["sym"] for r in out["results"]] == ["S39", "S38"]
+    assert out["results"][0]["change_nd"] == 40.0            # (140-100)/100
+    assert out["results"][0]["ref_close"] == 100.0
     _reset()
 
 
 def test_maps_class_share_symbology(monkeypatch):
-    """Grouped/snapshot are provider-form (BRK.B); results + the ETF check use app-form."""
+    """Reference is app-form (BRK-B); the snapshot is provider-form (BRK.B)."""
     _reset()
     with sg._ref_lock:
-        sg._state("60d").update(date=sg._session_date(), map={"BRK.B": 100.0}, building=False)
+        sg._state("60d").update(date=sg._session_date(), map={"BRK-B": 100.0},
+                                building=False, universe=1)
     snap = {"BRK.B": _row(150.0, 148.0)}
 
     class _Client:
@@ -115,9 +102,9 @@ def test_maps_class_share_symbology(monkeypatch):
             return snap
 
     monkeypatch.setattr(sg.massive, "_get_client", lambda: _Client())
-    monkeypatch.setattr(sg, "_etf_symbols", lambda: set())
+    monkeypatch.setattr(sg.massive, "to_polygon_symbol", lambda s: s.replace("-", "."))
 
     out = sg.get_top_gainers_60d()
-    assert [r["sym"] for r in out["results"]] == ["BRK-B"]    # provider→app form on output
+    assert [r["sym"] for r in out["results"]] == ["BRK-B"]
     assert out["results"][0]["change_nd"] == 50.0
     _reset()

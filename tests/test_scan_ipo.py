@@ -11,21 +11,18 @@ def _reset():
 
 def test_ipo_scan_reports_computing_before_set(monkeypatch):
     _reset()
-    monkeypatch.setattr(si, "_listing_starts", lambda: {})
+    monkeypatch.setattr(si._sqlite, "recent_first_trade", lambda since: {})
     out = si.get_ipo_last_1y()
     assert out["status"] == "computing"
     assert out["results"] == []
     _reset()
 
 
-def test_build_ipo_set_filters_current_listings_to_the_window(monkeypatch):
-    # Reuse-aware + no cap-universe restriction: keyed on the CURRENT listing start, and
-    # anything whose current listing began before the 1-year window is dropped.
-    monkeypatch.setattr(si, "_listing_starts",
-                        lambda: {"AAA": 20260101, "CBRS": 20260528, "OLD": 20200101})
-    out = si._build_ipo_set()
-    assert "AAA" in out and "CBRS" in out
-    assert "OLD" not in out          # current listing > 1 year ago → not a recent IPO
+def test_build_ipo_set_returns_recent_first_trades(monkeypatch):
+    # No cap-universe restriction — recent IPOs (e.g. CBRS) aren't in that static list.
+    monkeypatch.setattr(si._sqlite, "recent_first_trade",
+                        lambda since: {"AAA": 20260101, "CBRS": 20260528})
+    assert si._build_ipo_set() == {"AAA": 20260101, "CBRS": 20260528}
 
 
 def test_ipo_scan_skips_names_not_in_snapshot(monkeypatch):
