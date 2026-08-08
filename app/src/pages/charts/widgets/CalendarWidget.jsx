@@ -17,6 +17,15 @@ import { menuThemeVars } from '../../../utils/dividerColor'
 import UIcon from '../../../components/ui/UIcon'
 import CompanyLogo from '../../../components/CompanyLogo'
 import NewsSettingsPanel from './NewsSettingsPanel'
+// ⭐ THE ONE anchor. This widget's week intent ("the week of the most recent
+// session") is DIFFERENT from /calendar's ("the current-or-upcoming week") — on
+// a Saturday they are seven days apart — but both are derived from this module,
+// as two named intents, rather than hand-rolled here. See the "TWO named
+// intents, ONE anchor" block in weekAnchor.js.
+// ⛔ Do NOT reintroduce a local Monday/weekend derivation: the AST rail in
+// CalendarWidget.weekIntent.test.jsx traces both intents back to an import from
+// weekAnchor and fails on anything locally declared.
+import { mondayOf, lastSessionDay } from '../../calendar/weekAnchor'
 import {
   mergeCalendarWidgetSettings, calendarWidgetStyleVars, calendarDefaultsForTheme,
 } from './calendarWidgetSettings'
@@ -29,7 +38,8 @@ function isoParts(iso) { const [y, m, d] = iso.split('-').map(Number); return { 
 function isoToUTC(iso) { const { y, m, d } = isoParts(iso); return new Date(Date.UTC(y, m - 1, d)) }
 function addDaysISO(iso, n) { const dt = isoToUTC(iso); dt.setUTCDate(dt.getUTCDate() + n); return dt.toISOString().slice(0, 10) }
 function isoWeekday(iso) { return isoToUTC(iso).getUTCDay() }   // 0=Sun … 6=Sat
-function mondayOfISO(iso) { const wd = isoWeekday(iso); return addDaysISO(iso, wd === 0 ? -6 : 1 - wd) }
+// Step ONE trading day in a direction. This is day NAVIGATION, not a week
+// derivation — it never answers "which week is this", so it stays local.
 function addTradingDay(iso, dir) {
   let next = addDaysISO(iso, dir)
   let wd = isoWeekday(next)
@@ -265,12 +275,13 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
   }, [settings])
 
   // ── Selected day + navigation. Opens on the current trading day each load (a
-  // weekend snaps back to Friday so you see the last session, not an empty day). ──
-  const todayView = useMemo(() => {
-    const now = todayET()
-    const wd = isoWeekday(now)
-    return (wd === 0 || wd === 6) ? addTradingDay(now, -1) : now
-  }, [])
+  // weekend snaps back to Friday so you see the last session, not an empty day).
+  //
+  // ⭐ That snap-back is `lastSessionDay`, ONE of the anchor's two named
+  // intents — not a weekend branch written here. /calendar asks the anchor its
+  // OTHER question (`currentWeekMonday`, which rolls a weekend FORWARD), so the
+  // two surfaces show different weeks on a Saturday BY DECLARATION. ──
+  const todayView = useMemo(() => lastSessionDay(todayET()), [])
   const [selected, setSelected] = useState(todayView)
   const isToday = selected === todayView
   const [tbdOpen, setTbdOpen] = useState(false)
@@ -282,8 +293,11 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
 
   // ── Data — the whole week for the selected date (same-week nav reuses the cache).
   // full_impact=1 gets ALL econ impacts + an `impact` level for the star filter. ──
-  const monday = mondayOfISO(selected)
-  const { data, isLoading } = useSWR(`/api/calendar?week=${monday}&full_impact=1`, fetcher, {
+  // The week that CONTAINS the selected day — the anchor's `mondayOf`, the same
+  // function /calendar normalizes a `?week=` deep link with and the same rule
+  // the backend's `_monday_of` applies to the param it receives.
+  const weekParam = mondayOf(selected)
+  const { data, isLoading } = useSWR(`/api/calendar?week=${weekParam}&full_impact=1`, fetcher, {
     refreshInterval: 300000, dedupingInterval: 60000,
   })
   const day = data?.days?.[selected] || null
