@@ -9541,6 +9541,7 @@ export default function StockChart({
 
   const periodSelectCanvasRef = useRef(null)
   const periodSelectStateRef = useRef(null)   // { startX, startLogical } while dragging a Custom-Period highlight
+  const [periodDragging, setPeriodDragging] = useState(false)   // hide the hint banner once the drag starts
 
   // ── Go to date (Alt+G): a tiny date box that scrolls the chart to a session ──
   const [dateJumpOpen, setDateJumpOpen] = useState(false)
@@ -9802,7 +9803,7 @@ export default function StockChart({
       const c = periodSelectCanvasRef.current; if (!c) return
       const ctx = c.getContext('2d'); if (ctx) ctx.clearRect(0, 0, c.width, c.height)
     }
-    const drawBand = (x1, x2, w, h) => {
+    const drawBand = (x1, y1, x2, y2, w, h) => {
       const c = periodSelectCanvasRef.current; if (!c) return
       const dpr = window.devicePixelRatio || 1
       const W = Math.round(w * dpr), H = Math.round(h * dpr)
@@ -9815,12 +9816,19 @@ export default function StockChart({
       ctx.fillRect(lo, 0, hi - lo, h)
       ctx.strokeStyle = 'rgba(201,168,76,0.9)'; ctx.lineWidth = 1; ctx.setLineDash([4, 3])
       ctx.beginPath(); ctx.moveTo(lo + 0.5, 0); ctx.lineTo(lo + 0.5, h); ctx.moveTo(hi - 0.5, 0); ctx.lineTo(hi - 0.5, h); ctx.stroke()
+      // Diagonal measure line from the press point to the cursor (same dashed look as the
+      // Shift+drag measure tool) so you see the exact move you're highlighting.
+      if (y1 != null && y2 != null) {
+        const _measC = themeColors.crosshairColor || (canvasTheme === 'sunrise' ? 'rgba(45,58,72,0.9)' : 'rgba(224,218,200,0.85)')
+        ctx.strokeStyle = _measC; ctx.setLineDash([5, 4])
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
+      }
       ctx.setLineDash([])
     }
     const onMove = (e) => {
       const st = periodSelectStateRef.current; if (!st) return
       const { x, y, w, h } = getPos(e)
-      drawBand(st.startX, Math.max(0, Math.min(w, x)), w, h)
+      drawBand(st.startX, st.startY, Math.max(0, Math.min(w, x)), y, w, h)
       // Reuse the measure readout: show % move + bars/days as you highlight.
       const series = candleSeriesRef.current, chart = chartRef.current
       if (series && chart && st.startPrice != null) {
@@ -9845,7 +9853,7 @@ export default function StockChart({
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', end)
       window.removeEventListener('pointercancel', end)
-      clearBand(); setMeasureReadout(null)
+      clearBand(); setMeasureReadout(null); setPeriodDragging(false)
       if (!st) return
       const { x: ex } = getPos(e)
       if (Math.abs(ex - st.startX) < 4) return   // a click, not a drag
@@ -9867,6 +9875,7 @@ export default function StockChart({
       e.preventDefault()
       try { chart.applyOptions({ handleScroll: false, handleScale: false }) } catch { /* noop */ }
       periodSelectStateRef.current = { startX: x, startY: y, startLogical, startPrice }
+      setPeriodDragging(true)
       window.addEventListener('pointermove', onMove)
       window.addEventListener('pointerup', end)
       window.addEventListener('pointercancel', end)
@@ -9877,9 +9886,9 @@ export default function StockChart({
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', end)
       window.removeEventListener('pointercancel', end)
-      clearBand()
+      clearBand(); setPeriodDragging(false)
     }
-  }, [periodSelect, chartReady, frozen, onPeriodSelected])
+  }, [periodSelect, chartReady, frozen, onPeriodSelected, canvasTheme, themeColors.crosshairColor])
 
   // ── Ctrl+drag to draw a trendline ─────────────────────────────────────────
   // Mirrors the Shift+drag measure: listens on the chart container so it works
@@ -11488,7 +11497,9 @@ export default function StockChart({
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
           background: '#0e0f0d', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '9px 14px',
           boxShadow: '0 12px 32px -14px rgba(0,0,0,0.8)', pointerEvents: 'none', whiteSpace: 'nowrap',
-          fontFamily: "'Instrument Sans', system-ui, sans-serif" }}>
+          fontFamily: "'Instrument Sans', system-ui, sans-serif",
+          /* Fade out the moment the drag starts so it never blocks the chart. */
+          opacity: periodDragging ? 0 : 1, transition: 'opacity 140ms ease' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 12.5, fontWeight: 600, color: '#ededed', letterSpacing: '0.01em' }}>Highlight time period</span>
             <button
@@ -11496,11 +11507,11 @@ export default function StockChart({
               onClick={() => onPeriodCancel?.()}
               title="Cancel"
               aria-label="Cancel"
-              style={{ pointerEvents: 'auto', border: 'none', background: 'transparent', color: '#9a9a9a',
+              style={{ pointerEvents: 'auto', border: 'none', background: 'transparent', color: '#c9c9c9',
                 fontSize: 13, lineHeight: 1, cursor: 'pointer', padding: 0 }}
             >✕</button>
           </div>
-          <span style={{ fontSize: 10.5, color: '#8a8a8a', letterSpacing: '0.01em' }}>Click, hold, and drag across the chart</span>
+          <span style={{ fontSize: 11, color: '#c2c2c2', letterSpacing: '0.01em' }}>Click, hold, and drag across the chart</span>
         </div>
       </>)}
       {/* Go to date (Alt+G): pick a date, the chart scrolls to that session. */}
