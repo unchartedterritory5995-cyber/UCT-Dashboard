@@ -4,7 +4,7 @@ Offline patches generator for backfilling a single date from raw Massive OPRA.
 Reads a Massive trades flat file (2026-MM-DD_csv.gz), feeds it through
 massive_processor.batch_process to get aggregated events with Type/Color
 already classified, then applies tick-test Side classification per contract
-(same logic as backfill_tick_test.py applied offline against the full day's
+(same logic as backfill_ticktest.py applied offline against the full day's
 raw T-print history rather than the limited live deque).
 
 Emits patches-DATE.json in the format backfill_from_patches.py expects:
@@ -61,7 +61,7 @@ def _tick_test_side(prev_price: float, this_price: float,
                     prev_diff: float | None) -> str:
     """Lee-Ready tick test with zero-tick fallback.
 
-    Same logic as backfill_tick_test.py and the live worker's Phase 1
+    Same logic as backfill_ticktest.py and the live worker's Phase 1
     classifier. Returns 'A', 'B', or ''.
     """
     if prev_price is None or prev_price <= 0:

@@ -4950,7 +4950,7 @@ async def _massive_backfill_ticktest(target_date: str = None):
     target_date: 'M/D/YYYY' format (e.g. '6/26/2026'). Defaults to today.
     """
     try:
-        from api.backfill_tick_test import run_backfill
+        from api.backfill_ticktest import run_backfill
         stats = run_backfill(target_date)
         return {"ok": True, "stats": stats}
     except Exception as e:

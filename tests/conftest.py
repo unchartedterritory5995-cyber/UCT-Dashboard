@@ -1,6 +1,5 @@
 import os
 import sys
-import tempfile
 
 import pytest
 
@@ -31,9 +30,16 @@ import pytest
 # therefore before those six capture anything — and the session fixture below
 # repairs any module that was already imported (a run that collects `api/…`
 # tests first gets there ahead of this file).
-_ISOLATED_AUTH_DIR = tempfile.mkdtemp(prefix="uct_tests_authdb_")
-ISOLATED_AUTH_DB = os.path.join(_ISOLATED_AUTH_DIR, "auth.db")
-os.environ["AUTH_DB_PATH"] = ISOLATED_AUTH_DB
+#
+# ⚠️ THE STORE IS MINTED BY THE REPO-ROOT `conftest.py`, NOT HERE. A conftest
+# only reaches its own directory, and the 93 test files under `api/**` have none
+# — so `pytest api/...` ran with no isolation whatsoever and wrote into the real
+# C:\data\auth.db. Root conftest.py sets AUTH_DB_PATH before any other conftest
+# is imported; this file READS it back so the session has exactly ONE isolated
+# store. Minting a second one here would point the six import-time capturers at
+# a different file from the seven journal_two per-call readers. A KeyError here
+# means the root conftest was deleted — which is the failure we want, loudly.
+ISOLATED_AUTH_DB = os.environ["AUTH_DB_PATH"]
 
 
 def unisolated_auth_db_path() -> str:
