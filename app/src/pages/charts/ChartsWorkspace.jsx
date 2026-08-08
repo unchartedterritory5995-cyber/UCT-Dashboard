@@ -536,10 +536,11 @@ export default function ChartsWorkspace() {
     setPeriodSortMode(false)
     setPeriodSortSel({ sym, start, end, pct })
   }, [])
+  const handlePeriodCancel = useCallback(() => setPeriodSortMode(false), [])
 
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected }),
-    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected],
+    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel }),
+    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel],
   )
 
   // Debounced layout persist (500ms).
@@ -1343,35 +1344,16 @@ export default function ChartsWorkspace() {
           <PeriodSortConfig
             sel={periodSortSel}
             onCancel={() => setPeriodSortSel(null)}
-            onSort={(start, end, popout) => { setPeriodSortSel(null); setPeriodSortPanel({ start, end, popout }) }}
+            onSort={(start, end) => { setPeriodSortSel(null); setPeriodSortPanel({ start, end }) }}
           />
         )}
-        {periodSortPanel && !periodSortPanel.popout && (
+        {periodSortPanel && (
           <PeriodSortPanel
             start={periodSortPanel.start}
             end={periodSortPanel.end}
             onClose={() => setPeriodSortPanel(null)}
             onPickSym={(s) => setGroupSym('A', s)}
           />
-        )}
-        {periodSortPanel && periodSortPanel.popout && (
-          <PopoutWindow
-            title="UCT — US Common Stocks"
-            width={520}
-            height={640}
-            onClose={() => setPeriodSortPanel(null)}
-            onBlocked={() => { setPeriodSortPanel(null); setPopoutNotice(POPUP_BLOCKED_MSG) }}
-          >
-            <PopoutShell theme={chartsTheme}>
-              <PeriodSortPanel
-                start={periodSortPanel.start}
-                end={periodSortPanel.end}
-                embedded
-                onClose={() => setPeriodSortPanel(null)}
-                onPickSym={(s) => setGroupSym('A', s)}
-              />
-            </PopoutShell>
-          </PopoutWindow>
         )}
       </div>
     </WorkspaceContext.Provider>

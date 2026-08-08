@@ -10,13 +10,9 @@ const inputToYmd = (v) => parseInt(String(v).replace(/-/g, ''), 10)
 export default function PeriodSortConfig({ sel, onSort, onCancel }) {
   const [start, setStart] = useState(ymdToInput(sel.start))
   const [end, setEnd] = useState(ymdToInput(sel.end))
-  const pct = sel.pct
   const valid = start && end && inputToYmd(start) < inputToYmd(end)
 
-  const sort = (popout) => {
-    if (!valid) return
-    onSort(inputToYmd(start), inputToYmd(end), popout)
-  }
+  const sort = () => { if (valid) onSort(inputToYmd(start), inputToYmd(end)) }
 
   return (
     <div className={styles.cfgBackdrop} onMouseDown={(e) => { if (e.target === e.currentTarget) onCancel() }}>
@@ -31,17 +27,10 @@ export default function PeriodSortConfig({ sel, onSort, onCancel }) {
             <span className={styles.cfgLabel}>End</span>
             <input type="date" className={styles.cfgDate} value={end} onChange={(e) => setEnd(e.target.value)} />
           </div>
-          <div className={styles.cfgRow}>
-            <span className={styles.cfgLabel}><span className={styles.cfgSym}>{sel.sym}</span> over period</span>
-            <span className={`${styles.cfgPct} ${pct == null ? '' : pct >= 0 ? styles.up : styles.down}`}>
-              {pct == null ? '—' : `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`}
-            </span>
-          </div>
         </div>
         <div className={styles.cfgActions}>
           <button type="button" className={`${styles.cfgBtn} ${styles.cfgBtnGhost}`} onClick={onCancel}>Cancel</button>
-          <button type="button" className={styles.cfgBtn} disabled={!valid} onClick={() => sort(true)}>Sort in New Window</button>
-          <button type="button" className={`${styles.cfgBtn} ${styles.cfgBtnPrimary}`} disabled={!valid} onClick={() => sort(false)}>Sort</button>
+          <button type="button" className={styles.cfgBtn} disabled={!valid} onClick={sort}>Sort</button>
         </div>
       </div>
     </div>

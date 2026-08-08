@@ -20,7 +20,7 @@ import {
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
-  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef, periodSortMode, onPeriodSelected: wsOnPeriodSelected } = useWorkspace()
+  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel } = useWorkspace()
   const { createAlert } = useWatchlistAlerts()
   // Imperative handle on the pane: the right-click menu opens its settings
   // modal, and the leverage picker routes its symbol change through it so the
@@ -283,6 +283,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           onPeriodSelected: periodSortMode
             ? (start, end, pct) => wsOnPeriodSelected?.(sym, start, end, pct)
             : undefined,
+          onPeriodCancel: periodSortMode ? wsOnPeriodCancel : undefined,
         }}
         slots={{
           /* Chart tab strip — renders only once ≥1 extra tab exists, so a

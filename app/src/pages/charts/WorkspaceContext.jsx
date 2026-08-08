@@ -19,6 +19,7 @@ const FALLBACK = {
   // completed drag calls onPeriodSelected(sym, startYmd, endYmd, pctChange).
   periodSortMode: false,
   onPeriodSelected: () => {},
+  onPeriodCancel: () => {},
 }
 
 export function useWorkspace() {

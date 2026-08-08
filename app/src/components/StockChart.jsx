@@ -1141,7 +1141,8 @@ export default function StockChart({
   hideCrosshair = false,      // suppress the hover crosshair lines + axis labels entirely (Setup Library examples)
   dragMeasure = false,        // Charts workspace: plain left-drag draws a transient measure line + % / bars / time readout (TC2000-style) instead of panning. Cursor mode only; mouse only.
   periodSelect = false,       // Custom-Period Sort: plain left-drag highlights a time period (translucent band) instead of panning; fires onPeriodSelected(startYmd, endYmd) on release.
-  onPeriodSelected = null,    // (startYmd:int, endYmd:int) => void — the highlighted [start, end] as YYYYMMDD ints.
+  onPeriodSelected = null,    // (startYmd:int, endYmd:int, pct:number) => void — the highlighted [start, end] as YYYYMMDD ints + the symbol's close-to-close % move.
+  onPeriodCancel = null,      // () => void — the ✕ on the "Highlight time period" banner cancels the mode.
   verticalLegend = false,     // Charts workspace: stack the crosshair OHLCV legend single-file down the left instead of a horizontal row near the toolbar.
   lockWatermark = false,      // Charts workspace: disable the watermark hover-arm + drag so hovering it never moves it.
   alwaysShowLegend = false,   // Charts workspace: keep the legend visible with the latest bar's values when the cursor is off the chart (instead of hiding).
@@ -9818,8 +9819,24 @@ export default function StockChart({
     }
     const onMove = (e) => {
       const st = periodSelectStateRef.current; if (!st) return
-      const { x, w, h } = getPos(e)
+      const { x, y, w, h } = getPos(e)
       drawBand(st.startX, Math.max(0, Math.min(w, x)), w, h)
+      // Reuse the measure readout: show % move + bars/days as you highlight.
+      const series = candleSeriesRef.current, chart = chartRef.current
+      if (series && chart && st.startPrice != null) {
+        const curPrice = series.coordinateToPrice(y)
+        const curLogical = chart.timeScale().coordinateToLogical(x)
+        if (curPrice != null && curLogical != null) {
+          const dollar = curPrice - st.startPrice
+          const pct = st.startPrice ? (dollar / st.startPrice) * 100 : 0
+          const barsN = Math.abs(Math.round(curLogical - st.startLogical))
+          const arr = prevBarsRef.current || []
+          const clamp = (i) => Math.max(0, Math.min(arr.length - 1, Math.round(i)))
+          const b1 = arr[clamp(st.startLogical)], b2 = arr[clamp(curLogical)]
+          const span = (b1 && b2) ? _formatMeasureSpan(b1.t, b2.t) : ''
+          setMeasureReadout({ x, y, dollar, pct, bars: barsN, span, flip: x > w - 200 })
+        }
+      }
     }
     const end = (e) => {
       const st = periodSelectStateRef.current
@@ -9828,7 +9845,7 @@ export default function StockChart({
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', end)
       window.removeEventListener('pointercancel', end)
-      clearBand()
+      clearBand(); setMeasureReadout(null)
       if (!st) return
       const { x: ex } = getPos(e)
       if (Math.abs(ex - st.startX) < 4) return   // a click, not a drag
@@ -9843,12 +9860,13 @@ export default function StockChart({
     const onDown = (e) => {
       if (e.button !== 0 || (e.pointerType && e.pointerType !== 'mouse')) return
       const chart = chartRef.current; if (!chart) return
-      const { x } = getPos(e)
+      const { x, y } = getPos(e)
       let startLogical = null; try { startLogical = chart.timeScale().coordinateToLogical(x) } catch { return }
       if (startLogical == null) return
+      let startPrice = null; try { startPrice = candleSeriesRef.current?.coordinateToPrice(y) } catch { /* noop */ }
       e.preventDefault()
       try { chart.applyOptions({ handleScroll: false, handleScale: false }) } catch { /* noop */ }
-      periodSelectStateRef.current = { startX: x, startLogical }
+      periodSelectStateRef.current = { startX: x, startY: y, startLogical, startPrice }
       window.addEventListener('pointermove', onMove)
       window.addEventListener('pointerup', end)
       window.addEventListener('pointercancel', end)
@@ -11459,17 +11477,30 @@ export default function StockChart({
           style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 5 }}
         />
       )}
-      {/* Custom-Period Sort: translucent highlight band while dragging + a hint banner. */}
+      {/* Custom-Period Sort: translucent highlight band while dragging + a hint banner
+          (black canvas / white text to match the Chart Settings menu). */}
       {periodSelect && (<>
         <canvas
           ref={periodSelectCanvasRef}
           style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 6 }}
         />
-        <div style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', zIndex: 30,
-          font: '11px "Instrument Sans", sans-serif', color: '#c9a84c', letterSpacing: '0.06em', textTransform: 'uppercase',
-          background: 'rgba(20,22,28,0.94)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 20, padding: '5px 14px',
-          boxShadow: '0 8px 24px -12px rgba(0,0,0,0.7)', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
-          Highlight time period
+        <div style={{ position: 'absolute', top: 58, left: '50%', transform: 'translateX(-50%)', zIndex: 30,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+          background: '#0e0f0d', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '9px 14px',
+          boxShadow: '0 12px 32px -14px rgba(0,0,0,0.8)', pointerEvents: 'none', whiteSpace: 'nowrap',
+          fontFamily: "'Instrument Sans', system-ui, sans-serif" }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: '#ededed', letterSpacing: '0.01em' }}>Highlight time period</span>
+            <button
+              type="button"
+              onClick={() => onPeriodCancel?.()}
+              title="Cancel"
+              aria-label="Cancel"
+              style={{ pointerEvents: 'auto', border: 'none', background: 'transparent', color: '#9a9a9a',
+                fontSize: 13, lineHeight: 1, cursor: 'pointer', padding: 0 }}
+            >✕</button>
+          </div>
+          <span style={{ fontSize: 10.5, color: '#8a8a8a', letterSpacing: '0.01em' }}>Click, hold, and drag across the chart</span>
         </div>
       </>)}
       {/* Go to date (Alt+G): pick a date, the chart scrolls to that session. */}
@@ -11517,7 +11548,7 @@ export default function StockChart({
           {chartToast}
         </div>
       )}
-      {dragMeasure && measureReadout && (
+      {(dragMeasure || periodSelect) && measureReadout && (
         <div style={{
           position: 'absolute',
           left: measureReadout.x, top: measureReadout.y,
