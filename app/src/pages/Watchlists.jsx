@@ -552,6 +552,28 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     if (hubSym && hubSym !== selectedSym) setSelectedSym(hubSym)
   }, [hubSym]) // intentionally do NOT depend on selectedSym (avoid feedback loop)
 
+  // Group mode: member sym → its group name (UPPERCASE, matching scanGroups keys + row syms).
+  const memberToGroup = useMemo(() => {
+    if (!groupMode || !scanGroups) return null
+    const m = {}
+    for (const [name, members] of Object.entries(scanGroups)) {
+      for (const mem of (members || [])) m[String(mem).toUpperCase()] = name
+    }
+    return m
+  }, [groupMode, scanGroups])
+  // When the linked chart's ticker is a member of a group, auto-OPEN that group (accordion)
+  // so its row shows + highlights (the scroll-to-selectedSym effect handles the rest). Fires
+  // once per selected-sym change, so a manual collapse afterward isn't fought.
+  const lastAutoExpandRef = useRef(null)
+  useEffect(() => {
+    if (!groupMode || !selectedSym || !memberToGroup) return
+    if (lastAutoExpandRef.current === selectedSym) return
+    const g = memberToGroup[String(selectedSym).toUpperCase()]
+    if (!g) return
+    lastAutoExpandRef.current = selectedSym
+    setExpandedGroups(prev => (prev.has(g) ? prev : new Set([g])))
+  }, [groupMode, selectedSym, memberToGroup])
+
   // Single-list "pick" mode (widget scoped to one chosen list): force the right
   // tab + force the picked group expanded so it opens straight to the tickers.
   useEffect(() => {
