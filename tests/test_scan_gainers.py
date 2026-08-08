@@ -23,25 +23,34 @@ def test_reports_computing_until_reference_ready(monkeypatch):
     _reset()
 
 
-def test_build_reference_uses_grouped_daily_for_the_nth_session_date(monkeypatch):
-    seen = {}
+def test_build_reference_picks_adjusted_for_real_splits_raw_otherwise(monkeypatch):
+    # MVIS really split → its adjusted close is right; TPC has NO real split (phantom-
+    # adjusted feed) → its raw close is right. SPCX is a recycled ticker whose current
+    # listing began after the reference date → dropped entirely.
+    monkeypatch.setattr(sg._sqlite, "nth_recent_trading_date", lambda n, before: 20260401)
 
-    def _fake_nth(n, before):
-        seen["n"] = n
-        return 20260401
+    def _grouped(day_iso, adjusted=True):
+        assert day_iso == "2026-04-01"
+        return ({"MVIS": 20.0, "TPC": 17.8, "SPCX": 22.0} if adjusted        # adjusted feed
+                else {"MVIS": 0.58, "TPC": 75.0, "SPCX": 22.0})              # raw feed
 
-    def _fake_grouped(day_iso, adjusted=True):
-        seen["iso"] = day_iso
-        seen["adjusted"] = adjusted
-        return {"AAA": 10.0, "BBB": 20.0}
+    monkeypatch.setattr(sg.massive, "get_grouped_daily_closes", _grouped)
+    monkeypatch.setattr(sg.massive, "get_split_tickers", lambda a, b: {"MVIS"})
+    monkeypatch.setattr(sg, "_listing_starts", lambda: {"SPCX": 20260615})   # relisted after ref
 
-    monkeypatch.setattr(sg._sqlite, "nth_recent_trading_date", _fake_nth)
-    monkeypatch.setattr(sg.massive, "get_grouped_daily_closes", _fake_grouped)
     ref = sg._build_reference(30)
-    assert seen["n"] == 30
-    assert seen["iso"] == "2026-04-01"    # YYYYMMDD → ISO for the grouped endpoint
-    assert seen["adjusted"] is False      # RAW closes — dodges the provider's phantom splits
-    assert ref == {"AAA": 10.0, "BBB": 20.0}
+    assert ref == {"MVIS": 20.0, "TPC": 75.0}    # MVIS→adjusted, TPC→raw, SPCX dropped
+
+
+def test_build_reference_defaults_to_adjusted_when_no_split_feed(monkeypatch):
+    # If the split calendar can't be fetched (empty), fall back to the adjusted close so
+    # real splits (the common, MVIS-style case) stay correct.
+    monkeypatch.setattr(sg._sqlite, "nth_recent_trading_date", lambda n, before: 20260401)
+    monkeypatch.setattr(sg.massive, "get_grouped_daily_closes",
+                        lambda iso, adjusted=True: ({"MVIS": 20.0} if adjusted else {"MVIS": 0.58}))
+    monkeypatch.setattr(sg.massive, "get_split_tickers", lambda a, b: set())
+    monkeypatch.setattr(sg, "_listing_starts", lambda: {})
+    assert sg._build_reference(30) == {"MVIS": 20.0}   # adjusted default
 
 
 def test_ranks_by_n_day_change_and_keeps_top_5pct(monkeypatch):

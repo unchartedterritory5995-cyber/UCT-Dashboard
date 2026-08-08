@@ -7,18 +7,23 @@ liquidity floor (so illiquid micro-cap pumps don't bury the real movers), and a
 change-magnitude guard against ticker-reuse / bad-data artifacts.
 
 Whole-market by construction:
-  reference   ONE grouped-daily call for the date N trading sessions ago returns EVERY
+  reference   grouped-daily calls for the date N trading sessions ago return EVERY
               ticker's close — the entire market, not a static list, so recent runners
               that aren't in cap_universe (e.g. OTLK, EXFY) are ranked too. Built once/day.
   live scan   ONE get_full_market_snapshot() gives every ticker's current price; we
               compute the gain, rank, and keep the top 5% (cached ~60s).
 
-We rank off RAW closes (adjusted=false), NOT the provider's split-adjusted feed. That
-feed occasionally mis-applies a split factor to a name with no real price discontinuity
-(TPC read ~$17.8 for a $75 close → a bogus +456%). Raw closes match what the chart shows
-for the ~99% of names with no split in the window; the rare genuine split is a soft error
-(a forward-split gainer is understated, a reverse split is caught by the magnitude cap)
-rather than a loud false positive at the top of the list.
+Getting the reference close RIGHT is the whole game (a wrong close is a wrong %). Two
+provider data hazards, each handled at the reference:
+  • SPLITS — the adjusted feed is correct for a REAL split (MVIS reverse-split: raw
+    90-days-ago ~$0.58 vs adjusted ~$20 → raw would fake +479%), but occasionally
+    PHANTOM-adjusts a name with no real split (TPC read ~$17.8 vs a $75 close → adjusted
+    fakes +456%). We fetch the split CALENDAR and pick per ticker: adjusted close if it
+    really split in the window, else the raw close. (No split feed → adjusted default, so
+    real splits stay correct.)
+  • TICKER REUSE — a recycled symbol (SPCX = SPAC ETF then, SpaceX now) whose current
+    listing began AFTER the reference date is dropped (its ref close is a different
+    security). A +1000% magnitude cap is the final backstop.
 """
 import math
 import threading
@@ -27,8 +32,10 @@ import time as _time
 from api.services import bars_sqlite as _sqlite
 from api.services import massive
 from api.services.cache import cache
-# Shared scan helpers (ET clock, session date, provider symbology, ETF set).
-from api.services.scan_volume import _now_et, _session_date, _snap_lookup, _etf_symbols
+# Shared scan helpers (ET clock, session date, provider symbology, ETF set, reuse map).
+from api.services.scan_volume import (
+    _now_et, _session_date, _snap_lookup, _etf_symbols, _listing_starts,
+)
 
 # scan id → N completed sessions back (matches the frontend perf30d/60d/90d columns).
 _PERIODS = {"30d": 30, "60d": 60, "90d": 90}
@@ -54,21 +61,47 @@ def _state(pid: str) -> dict:
     return st
 
 
-def _build_reference(n_sessions: int) -> dict:
-    """{TICKER (provider-form): RAW close N trading days ago} — whole US market.
+def _ymd_to_iso(ymd: int) -> str:
+    s = str(int(ymd))
+    return f"{s[0:4]}-{s[4:6]}-{s[6:8]}"
 
-    The reference DATE comes from bars.db's trading calendar (Nth distinct daily ts back);
-    the reference CLOSES come from ONE grouped-daily call for that date. adjusted=false —
-    the provider's split-adjusted feed mis-applies phantom splits (see module docstring),
-    so raw closes track the chart for the no-split majority.
+
+def _build_reference(n_sessions: int) -> dict:
+    """{TICKER (provider-form): reference close N trading days ago} — whole US market.
+
+    The reference DATE is bars.db's trading calendar (Nth distinct daily ts back). Per
+    ticker the close is chosen to dodge both split hazards (see module docstring): the
+    split-ADJUSTED close for a name that really split in the window, else the RAW close;
+    and recycled tickers whose current listing began after the reference date are dropped.
     """
     today = int(_now_et().strftime("%Y%m%d"))
     ref_ymd = _sqlite.nth_recent_trading_date(n_sessions, today)
     if not ref_ymd:
         return {}
-    s = str(ref_ymd)
-    iso = f"{s[0:4]}-{s[4:6]}-{s[6:8]}"
-    return massive.get_grouped_daily_closes(iso, adjusted=False)
+    ref_iso = _ymd_to_iso(ref_ymd)
+
+    adj = massive.get_grouped_daily_closes(ref_iso, adjusted=True)
+    if not adj:
+        return {}
+    raw = massive.get_grouped_daily_closes(ref_iso, adjusted=False)
+    split_tk = massive.get_split_tickers(ref_iso, _ymd_to_iso(today))
+    starts = _listing_starts()
+
+    out: dict[str, float] = {}
+    for prov, adj_c in adj.items():
+        app = prov.replace(".", "-")
+        ls = starts.get(app)
+        if ls and ls > ref_ymd:
+            continue    # ticker reuse: current listing began after the reference date
+        # Real split → adjusted (MVIS); no real split → raw (dodges phantom-split TPC).
+        # No split feed at all (empty set) → adjusted default so real splits stay correct.
+        if split_tk:
+            ref_c = adj_c if prov in split_tk else raw.get(prov, adj_c)
+        else:
+            ref_c = adj_c
+        if isinstance(ref_c, (int, float)) and ref_c > 0:
+            out[prov] = float(ref_c)
+    return out
 
 
 def _ensure_reference(pid: str, n_sessions: int) -> dict | None:

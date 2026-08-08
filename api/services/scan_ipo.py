@@ -16,8 +16,8 @@ from datetime import timedelta
 from api.services import bars_sqlite as _sqlite
 from api.services import massive
 from api.services.cache import cache
-# Reuse the shared scan helpers (ET clock, provider symbology, ETF exclusion set).
-from api.services.scan_volume import _now_et, _snap_lookup, _etf_symbols
+# Reuse the shared scan helpers (ET clock, provider symbology, ETF set, reuse-aware map).
+from api.services.scan_volume import _now_et, _snap_lookup, _etf_symbols, _listing_starts
 
 _LOCK = threading.Lock()
 _state = {"date": None, "map": None, "building": False, "built_at": 0.0}
@@ -31,20 +31,22 @@ def _session_date() -> str:
 
 
 def _build_ipo_set() -> dict:
-    """{TICKER: first-daily-bar YYYYMMDD} for stocks first traded in the last
-    _LOOKBACK_DAYS (from bars.db).
+    """{TICKER: current-listing-start YYYYMMDD} for stocks whose CURRENT listing began in
+    the last _LOOKBACK_DAYS.
 
-    NOT restricted to the static cap universe — recent IPOs (the whole point of this
-    scan) aren't in that file yet (e.g. CBRS). The live pass filters to currently-
-    trading names via the market snapshot instead, which naturally includes recent
-    IPOs and drops delisted/non-equity noise.
+    Reuse-aware: a recycled ticker (SPCX = SpaceX now, a SPAC ETF before June 2026) is
+    dated by its NEW listing, not the old security's years-old bars — so a recent IPO
+    behind a reused symbol is no longer hidden by MIN(ts). NOT restricted to the static
+    cap universe (recent IPOs like CBRS aren't in that file). The live pass filters to
+    currently-trading names via the snapshot and drops ETFs.
     """
     now = _now_et()
     since = int((now - timedelta(days=_LOOKBACK_DAYS)).strftime("%Y%m%d"))
     try:
-        return _sqlite.recent_first_trade(since)
+        starts = _listing_starts()
     except Exception:
         return {}
+    return {t: d for t, d in starts.items() if d >= since}
 
 
 def _ensure_ipo_set() -> dict | None:

@@ -433,3 +433,27 @@ def test_volume_scan_helpers(tmp_path, monkeypatch):
     assert bs.first_trade_dates(["AAA", "BBB"]) == {"AAA": 20260601, "BBB": 20260601}
     assert bs.first_trade_dates(["NOPE"]) == {}   # unknown ticker → absent
     assert bs.first_trade_dates([]) == {}
+
+
+def test_current_listing_starts_detects_ticker_reuse(tmp_path, monkeypatch):
+    """A recycled ticker is dated by its NEW listing (after the gap + price jump), not the
+    old security's bars — the reuse-aware key both the IPO + gainers scans rely on."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    bs = _reload_bars_sqlite()
+    bs.init_db()
+    # REUSE: an old $2 security, a long gap, then a new $150 listing (75× jump).
+    bs.put_bars("REUSE", "D", [
+        {"t": "2024-01-02", "o": 2, "h": 2, "l": 2, "c": 2.0, "v": 1},
+        {"t": "2024-01-03", "o": 2, "h": 2, "l": 2, "c": 2.0, "v": 1},
+        {"t": "2026-06-15", "o": 150, "h": 150, "l": 150, "c": 150.0, "v": 1},
+        {"t": "2026-06-16", "o": 151, "h": 151, "l": 151, "c": 151.0, "v": 1},
+    ], date_tf=True)
+    # CONT: continuous, no reuse gap.
+    bs.put_bars("CONT", "D", [
+        {"t": "2026-05-01", "o": 10, "h": 10, "l": 10, "c": 10.0, "v": 1},
+        {"t": "2026-05-04", "o": 11, "h": 11, "l": 11, "c": 11.0, "v": 1},
+    ], date_tf=True)
+
+    starts = bs.current_listing_starts(20230101)
+    assert starts["REUSE"] == 20260615     # NEW listing, not the old 2024 bars
+    assert starts["CONT"] == 20260501      # earliest in-window bar (continuous)

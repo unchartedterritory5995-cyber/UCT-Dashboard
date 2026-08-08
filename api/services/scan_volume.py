@@ -170,6 +170,28 @@ _ETF_CACHE_KEY = "scan_etf_set"
 _ETF_TTL = 24 * 3600
 
 
+_LISTING_STARTS_KEY = "scan_listing_starts"
+_LISTING_STARTS_TTL = 6 * 3600
+_LISTING_LOOKBACK_DAYS = 800   # ~2y floor — enough to place any listing begun in the last year
+
+
+def _listing_starts() -> dict:
+    """{TICKER: current-listing-start YYYYMMDD} for the tracked universe — reuse-aware +
+    cached ~6h. Shared by the IPO scan (a recent current-listing = a recent IPO) and the
+    gainers scans (drop a name whose current listing began AFTER the lookback start = a
+    recycled ticker). The underlying window query is heavy, so it's memoized here."""
+    cached = cache.get(_LISTING_STARTS_KEY)
+    if cached is not None:
+        return cached
+    floor = int((_now_et() - timedelta(days=_LISTING_LOOKBACK_DAYS)).strftime("%Y%m%d"))
+    try:
+        m = _sqlite.current_listing_starts(floor)
+    except Exception:
+        m = {}
+    cache.set(_LISTING_STARTS_KEY, m, ttl=_LISTING_STARTS_TTL if m else 300)
+    return m
+
+
 def _etf_symbols() -> set:
     """Set of ETF/ETN/fund tickers (app-form) to exclude from stocks-only scans.
 

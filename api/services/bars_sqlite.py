@@ -416,6 +416,46 @@ def first_trade_dates(tickers) -> dict:
     return {str(r[0]).upper(): int(r[1]) for r in rows}
 
 
+def current_listing_starts(since_ymd: int, gap_days: int = 21, price_factor: float = 4.0) -> dict:
+    """{TICKER: current-listing-start YYYYMMDD} — the first daily bar of each ticker's
+    MOST-RECENT continuous listing, detecting ticker REUSE (a recycled symbol whose new
+    security starts after a long gap with a big price discontinuity: SPCX, DRAM, RMIX…).
+
+    A reuse boundary is a gap ≥ `gap_days` calendar days WITH a ≥ `price_factor` (or
+    ≤ 1/price_factor) close jump — the same metadata-free signal bars_sanitize uses. The
+    scan is bounded to bars on/after `since_ymd` (a ~2-year floor is plenty to place any
+    listing that began within the last year and keeps the window query fast). Continuous
+    names report their earliest IN-WINDOW bar — fine, since callers only test recency /
+    an as-of date, never treat it as the true multi-year IPO date.
+
+    One window-function pass (julianday gap + close-ratio) — powers the reuse-aware IPO
+    scan and the gainers scans' "listed after the lookback start ⇒ drop" filter."""
+    lo = 1.0 / price_factor if price_factor else 0.0
+    rows = _conn().execute(
+        """
+        WITH parsed AS (
+          SELECT ticker, ts, c,
+                 julianday(substr(printf('%08d', ts),1,4)||'-'||
+                           substr(printf('%08d', ts),5,2)||'-'||
+                           substr(printf('%08d', ts),7,2)) AS jd
+          FROM ohlcv WHERE tf='D' AND c>0 AND ts>=?
+        ),
+        seg AS (
+          SELECT ticker, ts,
+                 jd - LAG(jd) OVER w AS gap_days,
+                 c*1.0 / NULLIF(LAG(c) OVER w, 0) AS ratio
+          FROM parsed
+          WINDOW w AS (PARTITION BY ticker ORDER BY ts)
+        )
+        SELECT ticker, MAX(ts) FROM seg
+        WHERE gap_days IS NULL OR (gap_days>=? AND (ratio>=? OR ratio<=?))
+        GROUP BY ticker
+        """,
+        (int(since_ymd), int(gap_days), float(price_factor), float(lo)),
+    ).fetchall()
+    return {str(r[0]).upper(): int(r[1]) for r in rows}
+
+
 def nth_recent_trading_date(n: int, before_ymd: int) -> int | None:
     """The Nth most-recent DISTINCT daily-bar date (YYYYMMDD int) strictly before
     before_ymd — the market trading calendar (distinct ts across all tickers, so a
