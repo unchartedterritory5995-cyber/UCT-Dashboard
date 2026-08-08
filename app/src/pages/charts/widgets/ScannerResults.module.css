@@ -107,13 +107,16 @@
   line-height: 1.5;
 }
 
-/* Footer: "N stocks · Updated 1:26 PM ET · ⟳" — pinned below the scrolling list. */
+/* Footer: "N stocks · Updated 1:26 PM ET · ⟳" — pinned below the scrolling list. The count
+   and the refresh button sit evenly inset from each corner (symmetric side padding; the
+   button's own 2px inset is offset with a matching negative margin so the icon lines up). */
 .scanFooter {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 9px;
+  padding: 5px 16px;
+  font-family: var(--font-sans);
   font-size: calc(10px * var(--wl-font-scale, 1));
   color: var(--wl-text, var(--text-muted));
   border-top: 1px solid var(--widget-divider-strong, var(--wl-divider-strong, rgba(255, 255, 255, 0.11)));
@@ -121,10 +124,12 @@
   white-space: nowrap;
   overflow: hidden;
 }
-.scanCount { font-weight: 700; color: var(--wl-text-strong, var(--text-bright)); flex: 0 0 auto; }
+/* Count uses the widget's Text Color (same var + font as the row data). */
+.scanCount { font-weight: 600; color: var(--wl-sym, var(--text-bright)); flex: 0 0 auto; }
 .scanUpdated { overflow: hidden; text-overflow: ellipsis; }
 .scanRefresh {
   margin-left: auto;
+  margin-right: -2px;   /* cancel the button's own padding so the icon aligns with the count inset */
   flex: 0 0 auto;
   background: transparent;
   border: none;
