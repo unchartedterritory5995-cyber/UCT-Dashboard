@@ -1157,6 +1157,14 @@ export default function OptionsFlowDashboard() {
     // page the user is reading doesn't blank out or lose their selection.
     const sameRange = _lastCsvFile.current === csvFile;
     const silent = sameRange && _hasRows.current;
+    // A range-only change (SAME dataset base — e.g. /api/flow/data — only days=
+    // differs) must PRESERVE the Search selection. The Search tab holds its own
+    // all-dates data (searchFull, keyed by ticker not range) and re-scopes it via
+    // _scopeAllDirectional, so a timeframe switch should just update the flow.
+    // Clearing the ticker instead nulled searchFull and blanked the page. A MODE
+    // change (stocks↔index → different base) still resets. 2026-08-08.
+    const _prevBase = (_lastCsvFile.current || "").split("?")[0];
+    const _rangeOnlyChange = _prevBase !== "" && _prevBase === csvFile.split("?")[0];
     _lastCsvFile.current = csvFile;
 
     // Instant re-entry. parsedRows lives in component state, so leaving the page
@@ -1191,11 +1199,15 @@ export default function OptionsFlowDashboard() {
       setCsvLoading(true);
       setCsvError(null);
       setSelectedConv(null);
-      setSelectedItem(null);
-      setSelectedTicker(null);
-      setSearch("");
       setOiSearch("");
       setCapFilter("All");
+      // Keep the Search ticker + its drilled contract across a range-only change
+      // (the view re-scopes in place); a mode change clears them.
+      if (!_rangeOnlyChange) {
+        setSelectedItem(null);
+        setSelectedTicker(null);
+        setSearch("");
+      }
     }
     // 7/9: Preserve current tab across data refetches. This effect fires
     // whenever csvFile changes, which includes background dataVersion bumps
