@@ -659,8 +659,8 @@ export default function ChartsWorkspace() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   const { global: globalLayouts, mine: myLayouts, saveLayout, deleteLayout, isLoading: templatesLoading } = useChartLayouts()
-  const [openMenuOpen, setOpenMenuOpen] = useState(false)
-  const [saveMenuOpen, setSaveMenuOpen] = useState(false)
+  const [, setOpenMenuOpen] = useState(false)  // menu now nested under Layouts ▾
+  const [, setSaveMenuOpen] = useState(false)  // nested under Layouts ▾
   // Which template's ✕ is awaiting delete confirmation (id), or null.
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const [saveAsName, setSaveAsName] = useState('')
@@ -884,7 +884,7 @@ export default function ChartsWorkspace() {
     if (active?.id === id) applyUctDefault()
   }, [deleteLayout, prefs?.charts_active_template, applyUctDefault])
 
-  const [addMenuOpen, setAddMenuOpen] = useState(false)
+  const [, setAddMenuOpen] = useState(false)  // nested under Widgets ▾
 
   const [popoutNotice, setPopoutNotice] = useState(null)
 
@@ -942,7 +942,18 @@ export default function ChartsWorkspace() {
 
   // ── Multi-Chart grid mode (fixed N×M grid of independent chart cells) ──
   const mc = useMultiChartState()
-  const [mcMenuOpen, setMcMenuOpen] = useState(false)
+  const [, setMcMenuOpen] = useState(false)  // nested under Layouts ▾
+  // Consolidated top-level toolbar dropdowns: "Widgets" and "Layouts". Each shows a small
+  // action list; `*Sub` picks a nested panel (e.g. the widget-type list or the save form).
+  const [widgetsMenuOpen, setWidgetsMenuOpen] = useState(false)
+  const [widgetsSub, setWidgetsSub] = useState(null)   // null | 'add'
+  const [layoutsMenuOpen, setLayoutsMenuOpen] = useState(false)
+  const [layoutsSub, setLayoutsSub] = useState(null)   // null | 'open' | 'save' | 'mc'
+  const closeToolbarMenus = useCallback(() => {
+    setWidgetsMenuOpen(false); setWidgetsSub(null)
+    setLayoutsMenuOpen(false); setLayoutsSub(null)
+    setAddMenuOpen(false); setOpenMenuOpen(false); setSaveMenuOpen(false); setMcMenuOpen(false)
+  }, [])
   // (Flyout grace-timer machinery removed: Multi Chart is now its own header
   // button with a plain click-toggled dropdown — the hover flyout it guarded
   // no longer exists, which structurally fixes mega-review #10/#16.)
@@ -1084,195 +1095,134 @@ export default function ChartsWorkspace() {
       <div className={styles.workspace} data-charts-theme={chartsTheme}>
         <header className={styles.workspaceHeader}>
           <span className={styles.workspaceTitle}><UIcon name="equity" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />Charts</span>
-          {!gridMode && (<>
-          <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
-            <button
-              type="button"
-              className={styles.toolbarBtn}
-              onClick={() => { setAddMenuOpen(o => !o); setOpenMenuOpen(false); setSaveMenuOpen(false); setMcMenuOpen(false) }}
-            >+ Add Widget</button>
-            {addMenuOpen && (
-              <div className={styles.addMenu} onMouseLeave={() => setAddMenuOpen(false)}>
-                {WIDGET_TYPES.map(t => (
-                  <button
-                    key={t}
-                    type="button"
-                    className={styles.addMenuItem}
-                    onClick={() => { handleAddWidget(t); setAddMenuOpen(false) }}
-                  >{WIDGET_LABELS[t]}</button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* New layout — wipe to a blank board to build from scratch. */}
-          <button type="button" className={styles.toolbarBtn} onClick={handleNewLayout}>
-            New Layout
-          </button>
-          </>)}
-
-          {/* Open a saved / prebuilt layout — visible in BOTH modes (it hosts
-              the Multi Chart flyout, the grid mode's only entry point). */}
-          <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
-            <button
-              type="button"
-              className={styles.toolbarBtn}
-              onClick={() => { setOpenMenuOpen(o => !o); setAddMenuOpen(false); setSaveMenuOpen(false); setMcMenuOpen(false) }}
-            >Open layout ▾</button>
-            {openMenuOpen && (
-              <div className={styles.addMenu} style={{ minWidth: 210 }} onMouseLeave={() => { setOpenMenuOpen(false); setConfirmDeleteId(null) }}>
-                <div className={styles.menuSection}>Prebuilt</div>
-                {/* UCT Default — the LOCKED canonical layout (frozen shell +
-                    chart settings, UCT_DEFAULT_LAYOUT / _CHART_SETTINGS_JSON).
-                    Applying loads the frozen state into the working board and
-                    never writes back, so no in-app edit can mutate the default. */}
-                <div className={styles.menuRow}>
-                  <button
-                    type="button"
-                    className={styles.addMenuItem}
-                    style={{ flex: 1 }}
-                    onClick={applyUctDefault}
-                  >UCT Default</button>
-                </div>
-                {/* TSDR — Sunset (formerly "Sunrise"): the light sky-gradient theme.
-                    Re-added as a THEME toggle for now (internal chartsTheme key is
-                    still 'sunrise' — the CSS/StockChart look; only the label changed).
-                    ✓ shows when active. Pending: an owner "manual override" to
-                    capture a tweaked version into a LOCKED prebuilt template like
-                    UCT Default. See charts-layout-presets-snapshot. */}
-                <div className={styles.menuRow}>
-                  <button
-                    type="button"
-                    className={styles.addMenuItem}
-                    style={{ flex: 1, ...(chartsTheme === 'sunrise' ? { color: 'var(--ut-green-bright, #1ae51a)' } : {}) }}
-                    onClick={() => { setChartsTheme('sunrise'); setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS)); setOpenMenuOpen(false) }}
-                  >{chartsTheme === 'sunrise' ? '✓ ' : ''}TSDR — Sunset</button>
-                </div>
-                {wsGlobalLayouts.map(t => (
-                  <div key={`g${t.id}`} className={styles.menuRow}>
-                    <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { applyTemplate(t); if (gridMode) mc.exitGrid() }}>{t.name}</button>
-                    {isAdmin && (
-                      confirmDeleteId === t.id ? (
-                        <DeleteConfirm
-                          onYes={() => { handleDeleteTemplate(t.id); setConfirmDeleteId(null) }}
-                          onCancel={() => setConfirmDeleteId(null)}
-                        />
-                      ) : (
-                        <button type="button" className={styles.menuDel} title="Delete prebuilt template" onClick={() => setConfirmDeleteId(t.id)}>✕</button>
-                      )
-                    )}
-                  </div>
-                ))}
-                {wsMyLayouts.length > 0 && <div className={styles.menuSection}>My layouts</div>}
-                {wsMyLayouts.map(t => (
-                  <div key={`m${t.id}`} className={styles.menuRow}>
-                    <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { applyTemplate(t); if (gridMode) mc.exitGrid() }}>{t.name}</button>
-                    {confirmDeleteId === t.id ? (
-                      <DeleteConfirm
-                        onYes={() => { handleDeleteTemplate(t.id); setConfirmDeleteId(null) }}
-                        onCancel={() => setConfirmDeleteId(null)}
-                      />
-                    ) : (
-                      <button type="button" className={styles.menuDel} title="Delete" onClick={() => setConfirmDeleteId(t.id)}>✕</button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Save current arrangement / save as a named template */}
+          {/* WIDGETS — add a widget (opens the widget-type menu) or merge the board. */}
           {!gridMode && (
           <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
             <button
               type="button"
               className={styles.toolbarBtn}
-              onClick={() => { setSaveMenuOpen(o => !o); setAddMenuOpen(false); setOpenMenuOpen(false); setMcMenuOpen(false) }}
-            >{savedFlash ? 'Saved ✓' : 'Save layout ▾'}</button>
-            {saveMenuOpen && (
-              <div className={styles.addMenu} style={{ minWidth: 230 }}>
-                <button type="button" className={styles.addMenuItem} onClick={() => { handleSaveLayout(); setSaveMenuOpen(false) }}>
-                  Save current arrangement
-                </button>
-                <div className={styles.menuDivider} />
-                <div className={styles.menuForm}>
-                  <div className={styles.menuSection} style={{ padding: 0 }}>Save as template</div>
-                  <input
-                    className={styles.menuInput}
-                    placeholder="Template name"
-                    value={saveAsName}
-                    maxLength={60}
-                    onChange={e => { setSaveAsName(e.target.value); setSaveErr('') }}
-                    onKeyDown={e => { if (e.key === 'Enter') handleSaveAsTemplate() }}
-                  />
-                  {isAdmin && (
-                    <label className={styles.menuCheck}>
-                      <input
-                        type="checkbox"
-                        checked={saveAsScope === 'global'}
-                        onChange={e => setSaveAsScope(e.target.checked ? 'global' : 'user')}
-                      />
-                      Prebuilt (available to all users)
-                    </label>
-                  )}
-                  <button type="button" className={styles.toolbarBtn} style={{ alignSelf: 'flex-start' }} onClick={handleSaveAsTemplate}>
-                    Save template
-                  </button>
-                  {saveErr && <div className={styles.menuErr}>{saveErr}</div>}
-                </div>
+              onClick={() => { const n = !widgetsMenuOpen; closeToolbarMenus(); setWidgetsMenuOpen(n) }}
+            >Widgets ▾</button>
+            {widgetsMenuOpen && (
+              <div className={styles.addMenu} onMouseLeave={() => { setWidgetsMenuOpen(false); setWidgetsSub(null) }}>
+                {widgetsSub === 'add' ? (<>
+                  <button type="button" className={styles.addMenuItem} onClick={() => setWidgetsSub(null)}>‹ Back</button>
+                  <div className={styles.menuDivider} />
+                  {WIDGET_TYPES.map(t => (
+                    <button
+                      key={t}
+                      type="button"
+                      className={styles.addMenuItem}
+                      onClick={() => { handleAddWidget(t); setWidgetsMenuOpen(false); setWidgetsSub(null) }}
+                    >{WIDGET_LABELS[t]}</button>
+                  ))}
+                </>) : (<>
+                  <button type="button" className={styles.addMenuItem} onClick={() => setWidgetsSub('add')}>＋ Add Widget ▸</button>
+                  <button
+                    type="button"
+                    className={styles.addMenuItem}
+                    style={merged ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                    onClick={() => { toggleMerged(); setWidgetsMenuOpen(false) }}
+                    title={merged
+                      ? 'Unlock the board and restore widget borders'
+                      : 'Lock the board in place, remove all borders, and blend every widget together'}
+                  >{merged ? '⧉ Unmerge Widgets' : '⧉ Merge Widgets'}</button>
+                </>)}
               </div>
             )}
           </div>
           )}
 
-          {/* Multi Chart — its own top-level dropdown (moved out of Open layout).
-              Visible in BOTH modes: it's the grid-mode entry point AND hosts the
-              layout presets / N×M / sync toggles / saved grids / "Back to
-              workspace" once in grid mode. Same MultiChartMenu, now anchored
-              below this button instead of flying out beside the Open menu. */}
+          {/* LAYOUTS — new / open / save / multi-chart / pop-out. Shown in BOTH modes;
+              grid mode surfaces only the layout-relevant actions (Open + Multi Chart). */}
           <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
             <button
               type="button"
               className={styles.toolbarBtn}
               style={gridMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
-              onClick={() => { setMcMenuOpen(o => !o); setOpenMenuOpen(false); setAddMenuOpen(false); setSaveMenuOpen(false) }}
-            >{gridMode ? '✓ ' : ''}▦ Multi Chart ▾</button>
-            {mcMenuOpen && (
-              <MultiChartMenu
-                mc={mc}
-                onClose={() => setMcMenuOpen(false)}
-              />
+              onClick={() => { const n = !layoutsMenuOpen; closeToolbarMenus(); setLayoutsMenuOpen(n) }}
+            >Layouts ▾</button>
+            {layoutsMenuOpen && (
+              <div className={styles.addMenu} style={{ minWidth: 230 }} onMouseLeave={() => { setLayoutsMenuOpen(false); setLayoutsSub(null); setConfirmDeleteId(null) }}>
+                {layoutsSub === 'open' ? (<>
+                  <button type="button" className={styles.addMenuItem} onClick={() => setLayoutsSub(null)}>‹ Back</button>
+                  <div className={styles.menuDivider} />
+                  <div className={styles.menuSection}>Prebuilt</div>
+                  <div className={styles.menuRow}>
+                    <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { applyUctDefault(); closeToolbarMenus() }}>UCT Default</button>
+                  </div>
+                  <div className={styles.menuRow}>
+                    <button
+                      type="button"
+                      className={styles.addMenuItem}
+                      style={{ flex: 1, ...(chartsTheme === 'sunrise' ? { color: 'var(--ut-green-bright, #1ae51a)' } : {}) }}
+                      onClick={() => { setChartsTheme('sunrise'); setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS)); closeToolbarMenus() }}
+                    >{chartsTheme === 'sunrise' ? '✓ ' : ''}TSDR — Sunset</button>
+                  </div>
+                  {wsGlobalLayouts.map(t => (
+                    <div key={`g${t.id}`} className={styles.menuRow}>
+                      <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { applyTemplate(t); if (gridMode) mc.exitGrid(); closeToolbarMenus() }}>{t.name}</button>
+                      {isAdmin && (confirmDeleteId === t.id ? (
+                        <DeleteConfirm onYes={() => { handleDeleteTemplate(t.id); setConfirmDeleteId(null) }} onCancel={() => setConfirmDeleteId(null)} />
+                      ) : (
+                        <button type="button" className={styles.menuDel} title="Delete prebuilt template" onClick={() => setConfirmDeleteId(t.id)}>✕</button>
+                      ))}
+                    </div>
+                  ))}
+                  {wsMyLayouts.length > 0 && <div className={styles.menuSection}>My layouts</div>}
+                  {wsMyLayouts.map(t => (
+                    <div key={`m${t.id}`} className={styles.menuRow}>
+                      <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { applyTemplate(t); if (gridMode) mc.exitGrid(); closeToolbarMenus() }}>{t.name}</button>
+                      {confirmDeleteId === t.id ? (
+                        <DeleteConfirm onYes={() => { handleDeleteTemplate(t.id); setConfirmDeleteId(null) }} onCancel={() => setConfirmDeleteId(null)} />
+                      ) : (
+                        <button type="button" className={styles.menuDel} title="Delete" onClick={() => setConfirmDeleteId(t.id)}>✕</button>
+                      )}
+                    </div>
+                  ))}
+                </>) : layoutsSub === 'save' ? (<>
+                  <button type="button" className={styles.addMenuItem} onClick={() => setLayoutsSub(null)}>‹ Back</button>
+                  <div className={styles.menuDivider} />
+                  <button type="button" className={styles.addMenuItem} onClick={() => { handleSaveLayout(); closeToolbarMenus() }}>Save current arrangement</button>
+                  <div className={styles.menuDivider} />
+                  <div className={styles.menuForm}>
+                    <div className={styles.menuSection} style={{ padding: 0 }}>Save as template</div>
+                    <input
+                      className={styles.menuInput}
+                      placeholder="Template name"
+                      value={saveAsName}
+                      maxLength={60}
+                      onChange={e => { setSaveAsName(e.target.value); setSaveErr('') }}
+                      onKeyDown={e => { if (e.key === 'Enter') handleSaveAsTemplate() }}
+                    />
+                    {isAdmin && (
+                      <label className={styles.menuCheck}>
+                        <input type="checkbox" checked={saveAsScope === 'global'} onChange={e => setSaveAsScope(e.target.checked ? 'global' : 'user')} />
+                        Prebuilt (available to all users)
+                      </label>
+                    )}
+                    <button type="button" className={styles.toolbarBtn} style={{ alignSelf: 'flex-start' }} onClick={handleSaveAsTemplate}>Save template</button>
+                    {saveErr && <div className={styles.menuErr}>{saveErr}</div>}
+                  </div>
+                </>) : layoutsSub === 'mc' ? (
+                  <MultiChartMenu mc={mc} onClose={() => { setLayoutsMenuOpen(false); setLayoutsSub(null) }} />
+                ) : (<>
+                  {!gridMode && <button type="button" className={styles.addMenuItem} onClick={() => { handleNewLayout(); closeToolbarMenus() }}>New Layout</button>}
+                  <button type="button" className={styles.addMenuItem} onClick={() => setLayoutsSub('open')}>Open Layout ▸</button>
+                  {!gridMode && <button type="button" className={styles.addMenuItem} onClick={() => setLayoutsSub('save')}>{savedFlash ? 'Saved ✓' : 'Save Layout ▸'}</button>}
+                  <button
+                    type="button"
+                    className={styles.addMenuItem}
+                    style={gridMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                    onClick={() => setLayoutsSub('mc')}
+                  >{gridMode ? '✓ ' : ''}▦ Multi Chart ▸</button>
+                  {!gridMode && (
+                    <button type="button" className={styles.addMenuItem} disabled={!visibleWidgets.length} onClick={() => { handlePopOutLayout(); closeToolbarMenus() }}>⧉ Pop Out Layout</button>
+                  )}
+                </>)}
+              </div>
             )}
           </div>
-
-          {/* Merge widgets — locks the board, removes borders/headers, blends all
-              widgets seamlessly with a thin seam. Workspace mode only. */}
-          {!gridMode && (
-            <button
-              type="button"
-              className={styles.toolbarBtn}
-              style={merged ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
-              onClick={toggleMerged}
-              title={merged
-                ? 'Unlock the board and restore widget borders'
-                : 'Lock the board in place, remove all borders, and blend every widget together'}
-            >{merged ? '⧉ Unmerge widgets' : '⧉ Merge widgets'}</button>
-          )}
-
-          {/* Pop the whole board into its own window to drag onto another
-              monitor. Main returns to a blank board so the next layout can be
-              built and popped onto the monitor after that. */}
-          {!gridMode && (
-            <button
-              type="button"
-              className={styles.toolbarBtn}
-              onClick={handlePopOutLayout}
-              disabled={!visibleWidgets.length}
-              title={visibleWidgets.length
-                ? 'Open this whole layout in its own window you can drag to another monitor'
-                : 'Add a widget first — there is no layout to pop out'}
-            >⧉ Pop out layout</button>
-          )}
 
           {gridMode && (
             <button type="button" className={styles.toolbarBtn} onClick={mc.exitGrid}>
