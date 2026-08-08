@@ -1042,7 +1042,7 @@ def _parse_params(alert: dict) -> dict:
         return {}
 
 
-def _user_value_function(alert: dict):
+def _user_value_function(alert: dict, bars: Optional[list[dict]] = None):
     """The alert row's USER formula, or ``None`` if it names a builtin address.
 
     ⚠️ IT READS THE RAW `indicator`, NOT `resolve_address`'s answer.
@@ -1056,9 +1056,17 @@ def _user_value_function(alert: dict):
     ⛔ RAISES `alert_user_series.AdmissionRefused` for a user address whose
     definition no longer passes admission. `None` means only "not a user
     address".
+
+    ⭐ `bars` IS FORWARDED, AND THAT IS NOT AN OPTIMISATION. On a registry miss
+    the user lane RE-ENTERS the arm-time 1e-9 cross-lane proof (an edit moved the
+    tree, or this process is fresh), and that proof has to be taken on the SAME
+    series the value is then computed from — this cycle's fetch for this (sym,
+    tf) group. Left to fetch its own it would prove the equality on a second read
+    of the tape and compute the number from the first. `None` falls back to
+    `_fetch_bars_for_alert`, which is what a genuine arm does.
     """
     from api.services import alert_user_series
-    return alert_user_series.value_function_for_alert(alert)
+    return alert_user_series.value_function_for_alert(alert, bars)
 
 
 def _evaluate_one(alert: dict, bars: Optional[list[dict]] = None, *,
@@ -1103,7 +1111,7 @@ def _evaluate_one(alert: dict, bars: Optional[list[dict]] = None, *,
         # measured five times. It propagates to `_run_one_cycle`'s per-alert
         # handler, which logs it and counts an error — visible, attributable, and
         # never silent.
-        fn = _user_value_function(alert)
+        fn = _user_value_function(alert, bars)
     if fn is None:
         return None, False
 
@@ -1483,7 +1491,7 @@ def _evaluate_one_closed(alert: dict, bars: Optional[list[dict]] = None, *,
         # and must not be flattened into a quiet no-fire. `fn.column` is the value
         # function's OWN column, so the two lanes cannot resolve a user definition
         # twice and disagree about which tree was admitted.
-        user_fn = _user_value_function(alert)
+        user_fn = _user_value_function(alert, bars)
         series_fn = getattr(user_fn, "column", None) if user_fn is not None else None
     if series_fn is None:
         return None, False, None

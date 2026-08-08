@@ -613,8 +613,19 @@ def test_a_registry_MISS_rebuilds_from_the_store_rather_than_going_quiet(
 
     `USER_FUNCS` is per-process. If it were the AUTHORITY on admission, every
     redeploy would silently un-admit every armed user alert — a user alert that
-    stops firing for a reason nobody can see. So it is a cache: a miss re-runs
-    the deterministic gates and rebuilds.
+    stops firing for a reason nobody can see. So a miss REBUILDS rather than
+    refusing: the four deterministic gates re-run and a value function comes back.
+
+    ⚰️ AND IT USED TO REGISTER WHAT IT REBUILT — the line asserted here was
+    `assert aus.USER_FUNCS, "the rebuild did not register anything"`, and that
+    registration is what made the cross-lane proof forgeable. An entry in
+    `USER_FUNCS` is read by the alert lane as "this tree was proven at 1e-9 in
+    this process", and this path proves nothing (it has no bars to prove anything
+    ON — it is reached by `GET /api/indicator-alerts/current-value`'s prefill
+    with none in hand). So the rebuild still ANSWERS and no longer WRITES, and
+    `alert_user_series.value_function_for_alert` — the seam that does hold the
+    alert's bars — re-enters the whole admission chain instead. See
+    `tests/test_user_definition_reproof.py`.
     """
     save(USER_A, defn())
     aus.admit_user_definition(USER_A, DEF_ID, bars=real_bars)
@@ -623,7 +634,15 @@ def test_a_registry_MISS_rebuilds_from_the_store_rather_than_going_quiet(
 
     fn = aus.user_value_function(USER_A, ADDRESS)      # the "after a redeploy" read
     assert fn is not None and fn(real_bars, {}) is not None
-    assert aus.USER_FUNCS, "the rebuild did not register anything"
+    assert aus.USER_FUNCS == {}, (
+        "the rebuild registered a value function it never proved cross-lane — "
+        "the next evaluation cycle would read that entry as an admission")
+
+    # …and the ALERT lane, which does hold bars, re-admits rather than borrowing:
+    alert = {"id": 1, "user_id": USER_A, "sym": "TEST", "tf": "5",
+             "indicator": ADDRESS, "condition": "above", "threshold": -1e9}
+    assert aus.value_function_for_alert(alert, real_bars) is not None
+    assert aus.USER_FUNCS, "the alert seam did not re-admit after a miss"
 
 
 def test_a_rebuild_still_passes_through_the_repaint_gate(defs_db, real_bars):

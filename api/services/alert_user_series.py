@@ -167,10 +167,22 @@ USER_FUNCS: dict[str, Callable[[list, dict], Optional[float]]] = {}
 #: is one uvicorn process today (`CLAUDE.md`'s single-process invariant), but a
 #: registry that were the AUTHORITY on admission would mean a redeploy silently
 #: un-admits every armed user alert — the "quiet is indistinguishable from
-#: refused" defect, arriving by restart. So it is a CACHE and never an authority:
-#: `user_value_function` rebuilds a missing entry from the store through the same
-#: deterministic gates, and only the cross-lane equality (which needs a node
-#: process) is not re-run. What that costs is stated on `user_value_function`.
+#: refused" defect, arriving by restart. So a MISS is not a refusal: it is
+#: re-admitted, through the whole chain, by `value_function_for_alert`.
+#:
+#: ⭐⭐ AND AN ENTRY IN `USER_FUNCS` IS A PROOF RECEIPT, WHICH IS WHY EXACTLY ONE
+#: FUNCTION MAY WRITE ONE. `admit_user_definition` is that function, and it only
+#: reaches the write after `_gate_cross_lane` has proved THIS tree equal at 1e-9
+#: on real bars. So "the key is present" MEANS "the tree behind it was proven in
+#: this process", and every other path has to earn one rather than borrow it.
+#:
+#: ⚰️ `user_value_function` USED TO WRITE HERE TOO, and that made the receipt
+#: forgeable: `GET /api/indicator-alerts/current-value` resolves through it, so a
+#: PREFILL — a read-only display — could seed the registry with a tree nothing had
+#: proven, and the next evaluation cycle would read that entry as an admission and
+#: never look again. The rebuild now returns a function WITHOUT registering it.
+#: `tests/test_user_definition_reproof.py` walks this module's AST for the
+#: subscript-assignment and fails on a second writer by name.
 _REGISTRY_LOCK = threading.Lock()
 
 
@@ -205,6 +217,14 @@ def forget(user_id: Any = None) -> int:
     Called when a definition is edited (its maths moved, so its admission was
     granted against a tree that no longer exists) and by tests, which must not
     inherit each other's admissions. Returns how many entries were dropped.
+
+    ⭐ WHAT IT DROPS IS A PROOF RECEIPT, NOT JUST A CACHED CLOSURE. Because
+    `admit_user_definition` is the only writer, dropping an entry means the next
+    evaluation of an alert on that address MUST re-enter the whole admission
+    chain — including the 1e-9 cross-lane equality — on the tree the store now
+    holds. That is the mechanism that makes an EDIT re-prove rather than inherit:
+    `user_definitions.save` calls this on every append, so the proof and the tree
+    can never drift apart without a refusal in between.
     """
     with _REGISTRY_LOCK:
         if user_id is None:
@@ -625,18 +645,25 @@ def user_value_function(user_id: Any, address: str
     path into `USER_FUNCS` — the keys are scoped — so an address alone cannot
     reach anybody's column, and account B's id cannot reach account A's.
 
-    ⚠️ A REGISTRY MISS REBUILDS FROM THE STORE THROUGH THE DETERMINISTIC GATES,
-    AND THAT COSTS ONE THING WHICH IS STATED HERE. The registry is per-process:
-    after a redeploy it is empty, and an alert armed yesterday must not silently
-    stop firing (that is exactly the "quiet is indistinguishable from refused"
-    defect). So the definition/lane/repaint/budget gates re-run — all four are
-    pure functions of the stored blob and need no subprocess — and the CROSS-LANE
-    equality does NOT: it needs a node process, and re-running it inside a
-    60-second cycle would put a subprocess spawn on the evaluator thread. What
-    that means precisely: the cross-lane proof is a property of (tree, bars) that
-    was established at ARM time and is not re-established per cycle. A stored
-    definition whose maths CHANGES gets a new `ast_hash`, a `compute.rev` bump
-    and a `forget`, so the tree this rebuilds is the tree that was proven.
+    ⚠️ A REGISTRY MISS REBUILDS FROM THE STORE THROUGH THE FOUR DETERMINISTIC
+    GATES AND **DOES NOT REGISTER WHAT IT BUILDS**. All four are pure functions of
+    the stored blob and need no subprocess, so this is the right answer for a
+    caller that wants a NUMBER — `GET /api/indicator-alerts/current-value`'s
+    prefill is the one in the product. It is the wrong answer for the alert lane,
+    which needs the 1e-9 cross-lane equality as well, so the alert lane goes
+    through `value_function_for_alert` and that function re-admits.
+
+    ⚰️ THIS USED TO CACHE ITS REBUILD INTO `USER_FUNCS`, AND THE PARAGRAPH THAT
+    JUSTIFIED IT WAS FALSIFIED BY THE EDIT PATH. It said: *"the cross-lane proof
+    is a property of (tree, bars) established at ARM time … A stored definition
+    whose maths CHANGES gets a new `ast_hash`, a `compute.rev` bump and a
+    `forget`, so the tree this rebuilds is the tree that was proven."* The first
+    two clauses are still true and the CONCLUSION was never true: a `forget`
+    drops the entry, and what this rebuilt afterwards was the NEW tree — served
+    under a proof taken against the OLD one, and then cached so nothing would
+    ever look again. Worse, the prefill route reaches this function, so a
+    read-only display could mint that receipt for an alert that had never been
+    armed at all. The rebuild is now unregistered and the alert seam re-proves.
 
     RAISES `AdmissionRefused` on a definition that no longer passes — it does not
     return `None`. `None` here means "this is not a user address", which the
@@ -662,23 +689,60 @@ def user_value_function(user_id: Any, address: str
             "definition",
             f"{address!r} {REFUSAL_FRAGMENTS['definition']} — "
             f"{def_id} declares plots {sorted(keys)}")
-    rebuilt = _make_value_fn(def_id, plot_key, definition)
-    with _REGISTRY_LOCK:
-        USER_FUNCS[key] = rebuilt
-    return rebuilt
+    return _make_value_fn(def_id, plot_key, definition)
 
 
-def value_function_for_alert(alert: Mapping[str, Any]
+def value_function_for_alert(alert: Mapping[str, Any], bars: Optional[list] = None
                              ) -> Optional[Callable[[list, dict], Optional[float]]]:
     """The alert row's user value function, or `None` if it names a builtin.
 
     The evaluator's seam. It reads `user_id` off the ROW, which is the only place
-    a background cycle can learn whose formula this is.
+    a background cycle can learn whose formula this is — and, because it holds the
+    row, the only place that knows which SYMBOL and TIMEFRAME the formula is about
+    to be judged on. That is what makes it the layer that can re-prove.
+
+    🔴 A REGISTRY MISS RE-ENTERS THE ARM PATH. Not a rebuild — `arm_for_alert`,
+    the same function `indicator_alert_service.create` calls, which fetches this
+    alert's own bars and runs all five gates including the 1e-9 cross-lane
+    equality. The audit's finding, in one sentence: *with `forget()` now firing on
+    every edit, the rebuilt tree is the NEW tree, admitted on a cross-lane proof
+    taken against the OLD one.* An armed alert is now re-proven on the tree it
+    will actually evaluate, or it is refused.
+
+    ⛔ REFUSED, NEVER ADMITTED-BY-DEFAULT. `_gate_cross_lane` turns a lane that
+    cannot RUN (`LaneUnavailable` — no node, no interpreter) into a `cross-lane`
+    refusal rather than a pass, and an empty bar set into a `bars` refusal. A box
+    that cannot prove the equality admits nothing; the alternative is a formula
+    computing one number on the server and another on the author's chart with
+    nothing to say so. `refusal_for_alert` is the read-out either way.
+
+    ⚠️ WHAT IT COSTS, STATED: one node subprocess PER MISS — not per cycle. A
+    miss happens exactly twice: after a process restart, and after the author
+    saves (`user_definitions.save` forgets on every append). Everything in
+    between is a dict lookup, byte-for-byte what it was before.
+
+    ⭐ `bars` IS THE CYCLE'S OWN FETCH, PASSED DOWN — and passing it is not just a
+    saved request. `_evaluate_one` is handed a (sym, tf) group's bars so one fetch
+    serves every alert on it; re-fetching here would prove the equality on a
+    SECOND read of the tape, which is a different series from the one the value is
+    then computed on. Same tree AND same bars is what "proven on what it will
+    actually evaluate" means. `None` (or an empty list, which is the same
+    absence wearing a different type) falls back to the evaluator's own fetcher,
+    which is what `arm_for_alert` does at genuine arm time.
     """
     address = str(alert.get("indicator") or "")
     if not is_user_address(address):
         return None
-    return user_value_function(alert.get("user_id"), address)
+    user_id = alert.get("user_id")
+    fn = USER_FUNCS.get(scoped_key(user_id, address))
+    if fn is not None:
+        return fn
+    arm_for_alert(user_id, address, str(alert.get("sym") or ""),
+                  str(alert.get("tf") or ""), bars=bars or None)
+    # Re-read rather than trusting the admission's own list: a definition that
+    # no longer declares THIS plot admits its other plots fine, and the refusal
+    # that names the missing plot is `user_value_function`'s to raise.
+    return user_value_function(user_id, address)
 
 
 def refusal_for_alert(alert: Mapping[str, Any]) -> Optional[AdmissionRefused]:
@@ -901,6 +965,11 @@ def arm_for_alert(user_id: Any, indicator: str, sym: str, tf: str,
     Fetches the alert's own bars through the evaluator's own fetcher, so the
     formula is proven equal on the series it will actually be evaluated against
     rather than on a fixture.
+
+    ⭐ AND IT IS NOW ALSO THE RE-ARM PATH. `value_function_for_alert` calls this
+    on a registry miss, so "armed once" and "re-proven after an edit" are the
+    SAME code — a second re-proof routine would be a second definition of what
+    admission means, on the one number this phase's contract rests on.
     """
     if not is_user_address(indicator):
         return None

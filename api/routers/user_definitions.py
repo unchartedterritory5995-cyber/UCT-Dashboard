@@ -148,7 +148,30 @@ def get_definition(def_id: str,
 @router.put("/{def_id}")
 def save_definition(def_id: str, body: DefinitionIn,
                     user: dict = Depends(require_paid)):
-    """An EDIT. A maths change bumps `rev` and force-migrates every binding."""
+    """An EDIT. A maths change bumps `rev` and force-migrates every binding.
+
+    ⭐ AND AS OF THIS COMMIT IT HAS A PRODUCT CALLER. `BuilderSheet` opens a saved
+    formula, and its Save button routes here through the SAME document builder,
+    the SAME `validateUserDefinitions` door and the SAME `installUserDefinitions`
+    that a create goes through — one write path, not two. Until now this route
+    existed in shape only, which is why `compute.rev` in every stored blob had
+    stayed `1` since Phase D shipped: nothing in the product could move it.
+
+    ⛔ AN EDIT REQUIRES SOMETHING TO EDIT — 404, NOT AN UPSERT. `save()` is happy
+    to append version 1 at any id in the caller's own namespace, so this route
+    used to let a client CHOOSE its definition ids by PUTting one that did not
+    exist. That is exactly the property `create_definition` refuses ("THE SERVER
+    MINTS THE ID"), arriving one route over, and it makes a typo'd id a silent
+    second definition rather than a 404. `history()` is read rather than `get()`
+    so a RESURRECT still works: a tombstoned definition has versions, and saving
+    over it is an edit that brings it back.
+    """
+    try:
+        exists = bool(svc.history(user["id"], def_id))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not exists:
+        raise HTTPException(status_code=404, detail="Not found")
     definition = dict(body.definition or {})
     definition["id"] = def_id
     return _save_or_400(user["id"], def_id, definition)

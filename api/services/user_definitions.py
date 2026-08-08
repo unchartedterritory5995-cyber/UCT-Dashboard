@@ -545,10 +545,18 @@ def save(user_id: Any, def_id: str, definition: dict) -> dict:
     # commit the worst case is a reader that caches the NEW tree a moment before
     # this drops it and rebuilds the same thing.
     #
-    # ⚠️ THIS IS A CACHE DROP, NOT A DE-ADMISSION. `user_value_function` rebuilds
-    # a miss from the store through the four deterministic gates, so an armed
-    # alert does not go quiet — see its docstring for what the rebuild does NOT
-    # re-run.
+    # ⚠️ THIS IS A DE-ADMISSION, AND THE SENTENCE THAT STOOD HERE UNDERSOLD IT.
+    # It said: *"THIS IS A CACHE DROP, NOT A DE-ADMISSION. `user_value_function`
+    # rebuilds a miss from the store through the four deterministic gates, so an
+    # armed alert does not go quiet."* True, and the reason it was DANGEROUS: the
+    # rebuild ran FOUR gates and the fifth — the 1e-9 cross-lane equality — was
+    # not among them, so the tree this line makes current was served under a proof
+    # taken against the tree it replaced. An entry in `USER_FUNCS` is now a proof
+    # receipt with exactly one writer, and dropping one obliges the alert seam
+    # (`alert_user_series.value_function_for_alert`) to RE-ENTER the arm path on
+    # the alert's own bars — re-proven on the tree it will actually evaluate, or
+    # refused with a gate name. The alert still does not go quiet: a refusal is
+    # attributable through `refusal_for_alert`, which a silence never is.
     from api.services import alert_user_series
     alert_user_series.forget(user_id)
 

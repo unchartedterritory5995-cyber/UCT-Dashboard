@@ -65,7 +65,26 @@ export const FORMULA_DEBOUNCE_MS = 250
  * (`repaints`) for a tree it cannot bound, which is why both facts are true of
  * `foo(close, 3)` at once and only one of them is the reason.
  *
+ * 🔴 `inputs` REACHES THE LINTER AND THE READ-BACK, AND UNTIL NOW IT REACHED
+ * NEITHER. `parse.js` turns every identifier into a `series` node, and
+ * `buildDefinition` puts `lineWidth` and `color` on EVERY document this surface
+ * writes — so `close * lineWidth` is one keystroke away for every member. This
+ * function passed no scope to `lintRepaint`, which badged it `repaints`
+ * ("`lineWidth` is not a series this table declares"), and none to `sentenceFor`,
+ * which refused the read-back at `sentence:name`. Both doors were correct about a
+ * scope that was empty because nobody filled it, and the whole lane behind them —
+ * both interpreters, the budget, the 1e-9 cross-lane proof, the registration door
+ * and `ias.create` — now handles a declared input. The UI was refusing it one
+ * door too early.
+ *
+ * ⛔ ONE VOCABULARY, AND THE SCOPE IS BUILT BY `lint.declaredInputs` — the same
+ * reader `lintDefinition` uses, on `inputs[].key`, with `name` NOT a fallback.
+ * ⛔ AND AN UNDECLARED NAME STILL REFUSES. Only a name the DEFINITION declares
+ * resolves; `close * nosuch` is still `sentence:name` and still `repaints`, and
+ * both directions are asserted.
+ *
  * @param {string} source
+ * @param {object} [inputs] the definition's declared inputs, BY NAME
  * @returns {{source: string, ok: boolean, ast: object|null, guard: string|null,
  *            error: string|null, readback: string|null, verdict: object|null,
  *            measured: object|null}}
@@ -90,7 +109,7 @@ export function evaluateFormula(source, inputs = undefined) {
   // raised here would take the whole surface down over a badge.
   let verdict = null
   try {
-    verdict = lintRepaint(ast)
+    verdict = lintRepaint(ast, { inputs })
   } catch (err) {
     verdict = {
       mode: 'repaints',
@@ -170,6 +189,12 @@ function msg(err) {
  * @param {string}   value        the current source (controlled)
  * @param {Function} onChange     (source) => void, on every keystroke
  * @param {Function} onEvaluated  (result) => void, once per SETTLE
+ * @param {object}   [inputs]     the declared-input scope for the read-back and
+ *                                the linter — `BuilderSheet.BUILDER_INPUT_SCOPE`,
+ *                                derived from the very array `buildDefinition`
+ *                                writes into the document, so the names the
+ *                                sentence may say are the names the saved
+ *                                definition actually declares.
  */
 export default function FormulaField({
   value,
@@ -179,6 +204,7 @@ export default function FormulaField({
   result = null,
   inputId = 'uct-formula',
   autoFocus = false,
+  inputs = undefined,
 }) {
   const onEvaluatedRef = useRef(onEvaluated)
   onEvaluatedRef.current = onEvaluated
@@ -192,12 +218,16 @@ export default function FormulaField({
   // characters and fourteen of them are a tree the user has not finished
   // describing — evaluating those is fourteen parses, fourteen budget walks and
   // fourteen read-backs of a formula nobody asked about.
+  // ⚠️ `inputs` IS IN THE DEPENDENCY LIST AND THE CALLER MUST HAND A STABLE
+  // OBJECT. `BuilderSheet` exports one module-level scope for exactly that
+  // reason: a fresh object per render would restart the 250 ms timer on every
+  // render and the box would never settle.
   useEffect(() => {
     const id = setTimeout(() => {
-      onEvaluatedRef.current?.(evaluateFormula(value))
+      onEvaluatedRef.current?.(evaluateFormula(value, inputs))
     }, debounceMs)
     return () => clearTimeout(id)
-  }, [value, debounceMs])
+  }, [value, debounceMs, inputs])
 
   const handle = useCallback((e) => { onChange?.(e.target.value) }, [onChange])
 
