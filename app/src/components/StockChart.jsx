@@ -11535,17 +11535,18 @@ export default function StockChart({
           <span style={{ fontSize: 11, color: '#c2c2c2', letterSpacing: '0.01em' }}>Click, hold, and drag across the chart</span>
         </div>
       </>)}
-      {/* Replay mode: an "Exit Replay Mode" pill centered in THIS chart's clear top area
-          (below the toolbars/legend) so it auto-positions per chart without overlapping. */}
+      {/* Replay mode: an "Exit Replay Mode" pill centered in THIS chart's TOOLBAR row
+          (the ~30px drawing-toolbar band, between the drawing tools and Indicators) so it
+          auto-positions per chart and never sits over the candles. */}
       {replayCutoff && onExitReplay && (
         <button
           type="button"
           onClick={() => onExitReplay()}
           title="Exit replay mode — restore all bars"
-          style={{ position: 'absolute', top: 58, left: '50%', transform: 'translateX(-50%)', zIndex: 30,
+          style={{ position: 'absolute', top: 3, left: '50%', transform: 'translateX(-50%)', zIndex: 30,
             display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer',
-            background: '#c9a84c', color: '#ffffff', border: 'none', borderRadius: 999, padding: '7px 16px',
-            font: "700 12.5px 'Instrument Sans', system-ui, sans-serif", letterSpacing: '0.02em',
+            background: '#c9a84c', color: '#ffffff', border: 'none', borderRadius: 999, padding: '4px 15px',
+            font: "700 12px 'Instrument Sans', system-ui, sans-serif", letterSpacing: '0.02em',
             textShadow: '0 1px 3px rgba(0,0,0,0.55)', boxShadow: '0 8px 24px -8px rgba(201,168,76,0.6)',
             whiteSpace: 'nowrap' }}
         >⟲ Exit Replay Mode</button>
