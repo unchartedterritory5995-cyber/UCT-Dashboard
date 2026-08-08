@@ -554,6 +554,8 @@ export default function ChartsWorkspace() {
   const [periodSortMode, setPeriodSortMode] = useState(false)
   const [periodSortSel, setPeriodSortSel] = useState(null)     // { sym, start, end, pct } | null
   const [periodSortPanel, setPeriodSortPanel] = useState(null) // { start, end, popout } | null
+  // Replay mode: an ISO 'YYYY-MM-DD' cutoff — linked charts hide every bar after it.
+  const [replayCutoff, setReplayCutoff] = useState(null)
   const handlePeriodSelected = useCallback((sym, start, end, pct) => {
     setPeriodSortMode(false)
     setPeriodSortSel({ sym, start, end, pct })
@@ -561,8 +563,8 @@ export default function ChartsWorkspace() {
   const handlePeriodCancel = useCallback(() => setPeriodSortMode(false), [])
 
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel }),
-    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel],
+    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff }),
+    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff],
   )
 
   // Debounced layout persist (500ms).
@@ -1409,8 +1411,19 @@ export default function ChartsWorkspace() {
           <PeriodSortConfig
             sel={periodSortSel}
             onCancel={() => setPeriodSortSel(null)}
-            onSort={(start, end) => { setPeriodSortSel(null); setPeriodSortPanel({ start, end }) }}
+            onSort={(start, end, replay) => {
+              setPeriodSortSel(null)
+              setPeriodSortPanel({ start, end })
+              // Replay: cut every linked chart off at the End date (ISO). Off = clear it.
+              const s = String(end)
+              setReplayCutoff(replay ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` : null)
+            }}
           />
+        )}
+        {replayCutoff && (
+          <button type="button" className={styles.exitReplayBtn} onClick={() => setReplayCutoff(null)}>
+            ⟲ Exit Replay Mode
+          </button>
         )}
         {periodSortPanel && (
           <PeriodSortPanel

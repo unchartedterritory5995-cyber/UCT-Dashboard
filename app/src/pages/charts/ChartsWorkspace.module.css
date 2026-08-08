@@ -93,6 +93,17 @@
 }
 .popoutNotice button:hover { color: var(--text, #e5e7eb); }
 
+/* Replay mode: a prominent gold pill at bottom-center to leave replay + restore all bars. */
+.exitReplayBtn {
+  position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+  z-index: 9100; cursor: pointer;
+  background: var(--ut-gold, #c9a84c); color: #14110a;
+  border: none; border-radius: 999px; padding: 9px 18px;
+  font: 600 12.5px 'Instrument Sans', system-ui, sans-serif; letter-spacing: 0.02em;
+  box-shadow: 0 8px 26px -8px rgba(201, 168, 76, 0.6);
+}
+.exitReplayBtn:hover { background: #d8b95a; }
+
 .widget {
   background: var(--widget-canvas, var(--bg-elevated, #0f141b));
   border: 1px solid var(--border, #1f2937);

@@ -20,6 +20,8 @@ const FALLBACK = {
   periodSortMode: false,
   onPeriodSelected: () => {},
   onPeriodCancel: () => {},
+  // Replay mode: an ISO 'YYYY-MM-DD' cutoff; linked charts hide every bar after it.
+  replayCutoff: null,
 }
 
 export function useWorkspace() {

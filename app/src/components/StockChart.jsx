@@ -1143,6 +1143,7 @@ export default function StockChart({
   periodSelect = false,       // Custom-Period Sort: plain left-drag highlights a time period (translucent band) instead of panning; fires onPeriodSelected(startYmd, endYmd) on release.
   onPeriodSelected = null,    // (startYmd:int, endYmd:int, pct:number) => void — the highlighted [start, end] as YYYYMMDD ints + the symbol's close-to-close % move.
   onPeriodCancel = null,      // () => void — the ✕ on the "Highlight time period" banner cancels the mode.
+  replayCutoff = null,        // Replay mode: 'YYYY-MM-DD' — hide every bar after this calendar day + re-frame to default zoom + freeze live. null = normal chart.
   verticalLegend = false,     // Charts workspace: stack the crosshair OHLCV legend single-file down the left instead of a horizontal row near the toolbar.
   lockWatermark = false,      // Charts workspace: disable the watermark hover-arm + drag so hovering it never moves it.
   alwaysShowLegend = false,   // Charts workspace: keep the legend visible with the latest bar's values when the cursor is off the chart (instead of hiding).
@@ -3884,6 +3885,10 @@ export default function StockChart({
 
   // ── Replay / Time Machine state ──
   const [replayMode, setReplayMode] = useState(false)
+  // Replay-cutoff (Custom-Period Sort replay): a live ref so the developing-bar writers
+  // freeze the moment a cutoff is set, without re-subscribing on every cutoff change.
+  const replayCutoffRef = useRef(null)
+  replayCutoffRef.current = replayCutoff
   const [replayIndex, setReplayIndex] = useState(null)
   const [replayPlaying, setReplayPlaying] = useState(false)
   const [replaySpeed, setReplaySpeed] = useState(1)
@@ -4002,10 +4007,22 @@ export default function StockChart({
           }
         }
       }
-      return (replayMode && replayIndex != null) ? src?.slice(0, replayIndex + 1) : src
+      let out = (replayMode && replayIndex != null) ? src?.slice(0, replayIndex + 1) : src
+      // Replay-cutoff (Custom-Period Sort replay mode): drop every bar AFTER the cutoff
+      // calendar day, so the chart ends exactly on the selected end date. Compared by
+      // calendar day — daily/weekly/monthly `t` is already 'YYYY-MM-DD'; intraday `t` is
+      // unix seconds, converted to its ET day (so all of the cutoff day's bars are kept).
+      if (replayCutoff && out?.length) {
+        out = out.filter(b => (
+          typeof b.t === 'number'
+            ? new Date(b.t * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) <= replayCutoff
+            : String(b.t).slice(0, 10) <= replayCutoff
+        ))
+      }
+      return out
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- _sliceHold/_exKey/exitDate are render-derived (mutated in the block above); exactSliceEnd already tracks the hold
-    [sessionBars, replayMode, replayIndex, exactDateRange, exactSliceEnd, keepBarsAfterExit, entryDate, frameRightPadFrac]
+    [sessionBars, replayMode, replayIndex, replayCutoff, exactDateRange, exactSliceEnd, keepBarsAfterExit, entryDate, frameRightPadFrac]
   )
 
   // Curated book charts (exactDateRange) frame a specific historical window.
@@ -5102,7 +5119,7 @@ export default function StockChart({
     const liveData = livePrices[sym]
     if (!liveData?.price) return
     // Skip live updates when replay mode is active — don't corrupt historical view.
-    if (replayMode) return
+    if (replayMode || replayCutoffRef.current) return   // replay/cutoff freezes the developing bar
     // HA bars depend on the full series history — skip tick-by-tick updates.
     // The chart still refreshes every 15s via SWR, which re-runs toHeikinAshi on
     // the full filteredBars array and calls setData() — accurate enough for HA.
@@ -5319,7 +5336,7 @@ export default function StockChart({
     // Never paint a live bar onto a historical replay (mirror of writers A + C). When
     // push is authoritative B is THE writer, so without this it would append a live
     // candle onto the replayed slice (review #4).
-    if (replayMode) return
+    if (replayMode || replayCutoffRef.current) return   // replay/cutoff freezes the developing bar
     // Defensive: a POOLED bars connection carries many (sym,tf) pairs. The pool
     // dispatches by key, but never apply a bar that isn't ours — cross-symbol
     // application (MSFT's OHLC on the AAPL series) is a data-doubt bug, so guard
@@ -7691,7 +7708,10 @@ export default function StockChart({
     //     PROPORTIONAL position — scaled to its own price range, never showing the old
     //     stock's absolute prices. Double-click the axis won't clear it; use the
     //     "Auto-scale" context-menu item to reset to default headroom.
-    const zoomKey = `${sym}_${resolvedTf}`
+    // Fold the replay cutoff in so entering/leaving replay (or changing the cutoff) counts
+    // as a "fresh load" → routes through the default-zoom path so the chart re-frames to the
+    // default window with the cutoff bar as the newest visible candle.
+    const zoomKey = `${sym}_${resolvedTf}_${replayCutoff ?? ''}`
     // Capture the outgoing view BEFORE deciding. setData() preserves the logical
     // range NUMERICALLY, so this reflects where the user was — on the previous
     // ticker (sym switch) or right now (same-ticker data-phase swap / backfill).
@@ -9316,7 +9336,7 @@ export default function StockChart({
   useEffect(() => {
     if (!chartReady || !liveUpdates) return undefined
     const id = setInterval(() => {
-      if (replayMode || resolvedTfRef.current !== 'D') return
+      if (replayMode || replayCutoffRef.current || resolvedTfRef.current !== 'D') return
       const r = computeLatestCrosshair()
       if (!r || !Number.isFinite(r.close)) return
       // ONLY publish today's live developing bar. A regular-hours daily chart (or
@@ -10668,7 +10688,7 @@ export default function StockChart({
   useEffect(() => {
     if (!sym) return
     if (!candleSeriesRef.current) return
-    if (replayMode) return
+    if (replayMode || replayCutoffRef.current) return   // replay/cutoff freezes the developing bar
     if (cs.heikinAshi) return
     const isIntradayTf = ['1', '5', '15', '30', '60'].includes(resolvedTf)
     if (!isIntradayTf) return

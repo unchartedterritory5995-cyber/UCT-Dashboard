@@ -263,6 +263,9 @@
 .cfgBody { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
 .cfgRow { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .cfgLabel { color: var(--text-bright, #e0dac8); font-weight: 500; }
+.cfgReplay { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-bright, #e0dac8); font-weight: 500; }
+.cfgReplay input { accent-color: var(--accent, #c9a84c); width: 15px; height: 15px; cursor: pointer; }
+.cfgReplayHint { color: var(--text-muted, #8c8674); font-weight: 400; font-size: 11px; }
 .cfgDate {
   background: var(--bg-surface, #1a1c17);
   border: 1px solid var(--border, #2e3127);

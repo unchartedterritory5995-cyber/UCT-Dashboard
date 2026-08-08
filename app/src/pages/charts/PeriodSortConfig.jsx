@@ -10,9 +10,10 @@ const inputToYmd = (v) => parseInt(String(v).replace(/-/g, ''), 10)
 export default function PeriodSortConfig({ sel, onSort, onCancel }) {
   const [start, setStart] = useState(ymdToInput(sel.start))
   const [end, setEnd] = useState(ymdToInput(sel.end))
+  const [replay, setReplay] = useState(false)
   const valid = start && end && inputToYmd(start) < inputToYmd(end)
 
-  const sort = () => { if (valid) onSort(inputToYmd(start), inputToYmd(end)) }
+  const sort = () => { if (valid) onSort(inputToYmd(start), inputToYmd(end), replay) }
 
   return (
     <div className={styles.cfgBackdrop} onMouseDown={(e) => { if (e.target === e.currentTarget) onCancel() }}>
@@ -27,6 +28,12 @@ export default function PeriodSortConfig({ sel, onSort, onCancel }) {
             <span className={styles.cfgLabel}>End</span>
             <input type="date" className={styles.cfgDate} value={end} onChange={(e) => setEnd(e.target.value)} />
           </div>
+          {/* Replay mode: charts linked to the results cut off every bar past the End date
+              (TradingView-style), re-framed to default zoom, until you exit replay mode. */}
+          <label className={styles.cfgReplay}>
+            <input type="checkbox" checked={replay} onChange={(e) => setReplay(e.target.checked)} />
+            <span>Replay mode <span className={styles.cfgReplayHint}>— hide bars past the end date on linked charts</span></span>
+          </label>
         </div>
         <div className={styles.cfgActions}>
           <button type="button" className={`${styles.cfgBtn} ${styles.cfgBtnGhost}`} onClick={onCancel}>Cancel</button>
