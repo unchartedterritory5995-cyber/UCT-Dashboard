@@ -158,6 +158,47 @@ def _snap_lookup(snap: dict, sym: str):
         return None
 
 
+# ── ETF exclusion (shared by the IPO + Top-Gainers scans) ─────────────────────
+# Polygon `type` codes for exchange-traded products to EXCLUDE from stocks-only scans:
+# ETF, ETN, ETV (structured products), ETS (single-stock ETFs), FUND (closed-end/mutual).
+_ETF_TYPES = ("ETF", "ETN", "ETV", "ETS", "FUND")
+_ETF_CACHE_KEY = "scan_etf_set"
+_ETF_TTL = 24 * 3600
+
+
+def _etf_symbols() -> set:
+    """Set of ETF/ETN/fund tickers (app-form) to exclude from stocks-only scans.
+
+    Bulk-fetched (paginated) from Polygon reference tickers, cached 24h. Fail-OPEN:
+    on any error returns the last cached set (possibly empty) so a reference hiccup
+    never drops real stocks — it only means ETFs slip through until it recovers.
+    """
+    cached = cache.get(_ETF_CACHE_KEY)
+    if cached is not None:
+        return cached
+    out: set = set()
+    try:
+        cli = massive._get_client()
+        for typ in _ETF_TYPES:
+            url = (f"{massive._REST_BASE}/v3/reference/tickers"
+                   f"?type={typ}&market=stocks&active=true&limit=1000&apiKey={cli._api_key}")
+            for _ in range(30):  # safety cap on pagination
+                j = cli._get(url) or {}
+                for r in (j.get("results") or []):
+                    t = (r.get("ticker") or "").upper().replace(".", "-")  # provider→app form
+                    if t:
+                        out.add(t)
+                nxt = j.get("next_url")
+                if not nxt:
+                    break
+                url = f"{nxt}&apiKey={cli._api_key}"
+    except Exception:
+        return cache.get(_ETF_CACHE_KEY) or set()
+    # Cache a real result for the day; a transiently-empty result only briefly.
+    cache.set(_ETF_CACHE_KEY, out, ttl=_ETF_TTL if out else 300)
+    return out
+
+
 def _run_scan(scan_id: str, days: int | None) -> dict:
     """Tickers whose today_vol exceeds their `scan_id` max daily volume.
 

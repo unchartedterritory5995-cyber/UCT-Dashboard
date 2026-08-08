@@ -399,6 +399,43 @@ def avg_daily_volume(tickers, sessions: int = 20, before_ymd: int | None = None)
     return out
 
 
+def first_trade_dates(tickers) -> dict:
+    """{TICKER: earliest daily-bar ts (YYYYMMDD)} for the GIVEN tickers — a proxy for the
+    IPO / first-trade date, given bars.db's since-inception daily coverage for the tracked
+    universe. One indexed GROUP BY over a bounded ticker list. Powers the watchlist
+    'IPO Date' column (callers pass the meta batch's ≤100 tickers)."""
+    syms = [str(t).upper() for t in (tickers or []) if t]
+    if not syms:
+        return {}
+    ph = ",".join("?" * len(syms))
+    rows = _conn().execute(
+        f"""SELECT ticker, MIN(ts) AS first_ts FROM ohlcv
+            WHERE tf='D' AND ticker IN ({ph}) GROUP BY ticker HAVING first_ts>0""",
+        syms,
+    ).fetchall()
+    return {str(r[0]).upper(): int(r[1]) for r in rows}
+
+
+def close_n_sessions_back(n: int, before_ymd: int) -> dict:
+    """{TICKER: close} of the Nth most-recent COMPLETED daily session strictly BEFORE
+    before_ymd (YYYYMMDD int) — the reference close for an "N-day change" measured against
+    a live price (matches the frontend's N-day column: N trading days back).
+
+    One window-function pass over daily bars. Tickers with fewer than N completed sessions
+    are absent (they can't form an N-day move — e.g. recent IPOs). Powers the Top-Gainers
+    scans."""
+    rows = _conn().execute(
+        """SELECT ticker, c FROM (
+               SELECT ticker, c,
+                      ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY ts DESC) AS rn
+               FROM ohlcv
+               WHERE tf='D' AND ts<? AND c>0
+           ) WHERE rn=?""",
+        (int(before_ymd), int(n)),
+    ).fetchall()
+    return {str(r[0]).upper(): float(r[1]) for r in rows}
+
+
 def get_all_tickers() -> list[tuple]:
     """Return all (ticker, tf) pairs that have at least one row stored, ordered by ticker."""
     return _conn().execute(

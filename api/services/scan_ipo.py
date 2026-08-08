@@ -16,54 +16,14 @@ from datetime import timedelta
 from api.services import bars_sqlite as _sqlite
 from api.services import massive
 from api.services.cache import cache
-# Reuse the shared scan helpers (ET clock, provider symbology).
-from api.services.scan_volume import _now_et, _snap_lookup
+# Reuse the shared scan helpers (ET clock, provider symbology, ETF exclusion set).
+from api.services.scan_volume import _now_et, _snap_lookup, _etf_symbols
 
 _LOCK = threading.Lock()
 _state = {"date": None, "map": None, "building": False, "built_at": 0.0}
 _TTL = 120                     # live-scan cache (s) — the IPO set is daily; only price moves
 _CACHE_KEY = "scan_ipo1y"
 _LOOKBACK_DAYS = 365
-
-# Exchange-traded products to EXCLUDE (the scan is IPO'd STOCKS only, no ETFs/funds).
-# Polygon `type` codes: ETF, ETN, ETV (structured products), ETS (single-stock ETFs),
-# FUND (closed-end/mutual). Fetched in bulk once/day from the reference endpoint.
-_ETF_TYPES = ("ETF", "ETN", "ETV", "ETS", "FUND")
-_ETF_CACHE_KEY = "scan_ipo_etf_set"
-_ETF_TTL = 24 * 3600
-
-
-def _etf_symbols() -> set:
-    """Set of ETF/ETN/fund tickers (app-form) to exclude from the IPO scan.
-
-    Bulk-fetched (paginated) from Polygon reference tickers, cached 24h. Fail-OPEN:
-    on any error returns the last cached set (possibly empty) so a reference hiccup
-    never drops real stock IPOs — it only means ETFs slip through until it recovers.
-    """
-    cached = cache.get(_ETF_CACHE_KEY)
-    if cached is not None:
-        return cached
-    out: set = set()
-    try:
-        cli = massive._get_client()
-        for typ in _ETF_TYPES:
-            url = (f"{massive._REST_BASE}/v3/reference/tickers"
-                   f"?type={typ}&market=stocks&active=true&limit=1000&apiKey={cli._api_key}")
-            for _ in range(30):  # safety cap on pagination
-                j = cli._get(url) or {}
-                for r in (j.get("results") or []):
-                    t = (r.get("ticker") or "").upper().replace(".", "-")  # provider→app form
-                    if t:
-                        out.add(t)
-                nxt = j.get("next_url")
-                if not nxt:
-                    break
-                url = f"{nxt}&apiKey={cli._api_key}"
-    except Exception:
-        return cache.get(_ETF_CACHE_KEY) or set()
-    # Cache a real result for the day; a transiently-empty result only briefly.
-    cache.set(_ETF_CACHE_KEY, out, ttl=_ETF_TTL if out else 300)
-    return out
 
 
 def _session_date() -> str:

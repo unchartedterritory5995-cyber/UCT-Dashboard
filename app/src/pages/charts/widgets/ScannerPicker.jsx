@@ -37,6 +37,21 @@ const PRESET_SCANS = [
     name: 'IPO in Last 1-Year',
     description: 'First traded within the last year',
   },
+  {
+    key: 'top-gainers-30d',
+    name: 'Top Gainers (30-Day)',
+    description: 'Top 5% by 30-day gain',
+  },
+  {
+    key: 'top-gainers-60d',
+    name: 'Top Gainers (60-Day)',
+    description: 'Top 5% by 60-day gain',
+  },
+  {
+    key: 'top-gainers-90d',
+    name: 'Top Gainers (90-Day)',
+    description: 'Top 5% by 90-day gain',
+  },
 ]
 
 export default function ScannerPicker({ onPick, settingsOverride = null, onSettingsPersist = null }) {

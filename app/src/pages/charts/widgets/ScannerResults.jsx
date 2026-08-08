@@ -28,14 +28,48 @@ const VOLUME_DEFAULT_COLS = {
   sort: { key: 'rvol', dir: 'desc' },
 }
 const IPO_DEFAULT_COLS = {
-  order: ['flag', 'sym', 'price', 'vol', 'chg', 'rvol'],
-  sort: null,   // null → applyColSort preserves input order (server sorts newest IPO first)
+  order: ['flag', 'sym', 'price', 'vol', 'chg', 'ipoDate'],
+  sort: { key: 'ipoDate', dir: 'desc' },   // most recent IPO first
 }
+// Top-Gainers scans show + sort by the matching N-day change column so the biggest
+// gainer leads the list by default (until the user re-sorts).
+const gainersDefaultCols = (perfKey) => ({
+  order: ['flag', 'sym', 'price', 'chg', perfKey],
+  sort: { key: perfKey, dir: 'desc' },
+})
 const SCAN_DEFAULT_COLS = {
   'highest-volume-1y': VOLUME_DEFAULT_COLS,
   'highest-volume-ever': VOLUME_DEFAULT_COLS,
   'ipo-1y': IPO_DEFAULT_COLS,
+  'top-gainers-30d': gainersDefaultCols('perf30d'),
+  'top-gainers-60d': gainersDefaultCols('perf60d'),
+  'top-gainers-90d': gainersDefaultCols('perf90d'),
 }
+
+// One-time migration: the IPO scan's default column changed from RVOL to IPO Date
+// (sorted newest-first). Anyone who opened the IPO scan under the old default has a
+// saved ipo-1y config carrying rvol; swap rvol→ipoDate and apply the IPO-date sort
+// ONCE (idempotent via a flag), preserving any other saved column state. Runs at
+// module load, before any scanner reads its config.
+const _IPO_COLS_KEY = scanColsKey('ipo-1y')
+const _IPO_DATE_MIGRATION_FLAG = `${_IPO_COLS_KEY}.ipodate1`
+try {
+  if (typeof localStorage !== 'undefined' && !localStorage.getItem(_IPO_DATE_MIGRATION_FLAG)) {
+    const raw = localStorage.getItem(_IPO_COLS_KEY)
+    if (raw) {
+      let cfg = {}
+      try { cfg = JSON.parse(raw) || {} } catch { cfg = {} }
+      if (cfg && typeof cfg === 'object' && Array.isArray(cfg.order)) {
+        const order = cfg.order.map(k => (k === 'rvol' ? 'ipoDate' : k))
+        if (!order.includes('ipoDate')) order.push('ipoDate')
+        localStorage.setItem(_IPO_COLS_KEY, JSON.stringify({
+          ...cfg, order, sort: { key: 'ipoDate', dir: 'desc' },
+        }))
+      }
+    }
+    localStorage.setItem(_IPO_DATE_MIGRATION_FLAG, '1')
+  }
+} catch { /* ignore */ }
 
 // Per-scan empty-state copy: distinguishes "still building the reference" from
 // "genuinely nothing qualifies yet".
@@ -43,6 +77,9 @@ const SCAN_EMPTY_TEXT = {
   'highest-volume-1y': { building: 'Building the volume baseline…', none: 'No stocks at a volume high yet today.' },
   'highest-volume-ever': { building: 'Building the volume baseline…', none: 'No stocks at an all-time volume high yet today.' },
   'ipo-1y': { building: 'Finding recent IPOs…', none: 'No recent IPOs trading yet today.' },
+  'top-gainers-30d': { building: 'Ranking 30-day gainers…', none: 'No gainers to rank yet.' },
+  'top-gainers-60d': { building: 'Ranking 60-day gainers…', none: 'No gainers to rank yet.' },
+  'top-gainers-90d': { building: 'Ranking 90-day gainers…', none: 'No gainers to rank yet.' },
 }
 
 // scanKey → endpoint. New presets add a line here + one in ScannerPicker's PRESET_SCANS.
@@ -50,6 +87,9 @@ const SCAN_ENDPOINTS = {
   'highest-volume-1y': '/api/scans/highest-volume-1y',
   'highest-volume-ever': '/api/scans/highest-volume-ever',
   'ipo-1y': '/api/scans/ipo-1y',
+  'top-gainers-30d': '/api/scans/top-gainers-30d',
+  'top-gainers-60d': '/api/scans/top-gainers-60d',
+  'top-gainers-90d': '/api/scans/top-gainers-90d',
 }
 
 export default function ScannerResults({ scanKey, scanName, color, settingsOverride = null, onSettingsPersist = null, onExit }) {
@@ -87,6 +127,19 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
   const colStorageKey = scanColsKey(scanKey)
   const defaultColCfg = SCAN_DEFAULT_COLS[scanKey] || VOLUME_DEFAULT_COLS
 
+  // Per-symbol fields the scan itself supplies (the IPO scan returns ipo_date for EVERY
+  // result, past the meta batch's 100-ticker cap) — merged over the meta batch in the
+  // table so the IPO Date column + its sort see every row. Keyed by content so a 30s
+  // poll returning the same rows doesn't rebuild it.
+  const metaOverride = useMemo(() => {
+    const rows = data?.results || []
+    let out = null
+    for (const r of rows) {
+      if (r && r.ipo_date != null) (out ||= {})[r.sym] = { ipo_date: r.ipo_date }
+    }
+    return out
+  }, [data])
+
   return (
     <ChartsSymContext.Provider value={scopedSymContext}>
       <Watchlists
@@ -102,6 +155,7 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
         colStorageKey={colStorageKey}
         scanEmptyText={scanEmptyText}
         defaultColCfg={defaultColCfg}
+        metaOverride={metaOverride}
       />
     </ChartsSymContext.Provider>
   )

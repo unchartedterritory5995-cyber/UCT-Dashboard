@@ -73,11 +73,11 @@ const COL_META = {
   flag: { def: 30, min: 16 }, sym: { def: 96, min: 56 }, price: { def: 62, min: 44 },
   vol: { def: 56, min: 40 }, chg: { def: 68, min: 50 },
   // Optional data columns (added via the + button).
-  rvol: { def: 64, min: 46 },
+  rvol: { def: 64, min: 46 }, ipoDate: { def: 84, min: 60 },
   mcap: { def: 82, min: 56 }, earn: { def: 92, min: 62 }, rating: { def: 78, min: 54 },
   // Intraday quote-derived columns (computed client-side from the live quote).
   dchg: { def: 70, min: 50 }, fromopen: { def: 76, min: 54 }, fromhigh: { def: 76, min: 54 },
-  fromlow: { def: 76, min: 54 }, dcr: { def: 58, min: 42 },
+  fromlow: { def: 76, min: 54 }, dcr: { def: 58, min: 42 }, dolvol: { def: 78, min: 54 },
   // Fundamentals text columns (from the meta batch) + N-day performance (perf batch).
   sector: { def: 116, min: 70 }, industry: { def: 136, min: 80 }, theme: { def: 124, min: 74 },
   perf5d: { def: 66, min: 48 }, perf30d: { def: 68, min: 48 }, perf60d: { def: 68, min: 48 }, perf90d: { def: 70, min: 50 },
@@ -86,21 +86,22 @@ const DEFAULT_COL_ORDER = ['flag', 'sym', 'price', 'vol', 'chg']   // reorderabl
 // [full label, abbreviation] + the min column width to still show the full word.
 const COL_LABELS = {
   flag: ['', ''], sym: ['Symbol', 'Sym'], price: ['Price', 'Price'], vol: ['Volume', 'Vol'], chg: ['% Change', '% Chg'],
-  rvol: ['RVOL', 'RVOL'],
+  rvol: ['RVOL', 'RVOL'], ipoDate: ['IPO Date', 'IPO'],
   mcap: ['Market Cap', 'Mkt Cap'], earn: ['Next Earnings', 'Earnings'], rating: ['UCT Rating', 'UCT'],
   dchg: ['$ Change', '$ Chg'], fromopen: ['% from Open', '% Open'], fromhigh: ['% from High', '% High'],
-  fromlow: ['% from Low', '% Low'], dcr: ['DCR', 'DCR'],
+  fromlow: ['% from Low', '% Low'], dcr: ['DCR', 'DCR'], dolvol: ['Dollar Volume', 'Dol Vol'],
   sector: ['Sector', 'Sector'], industry: ['Industry', 'Industry'], theme: ['Theme', 'Theme'],
   perf5d: ['5-Day', '5-day'], perf30d: ['30-Day', '30-day'], perf60d: ['60-Day', '60-day'], perf90d: ['90-Day', '90-day'],
 }
 const COL_FULL_MINW = {
-  sym: 62, price: 46, vol: 60, chg: 80, rvol: 52, mcap: 78, earn: 108, rating: 82,
-  dchg: 84, fromopen: 92, fromhigh: 92, fromlow: 88, dcr: 40,
+  sym: 62, price: 46, vol: 60, chg: 80, rvol: 52, ipoDate: 60, mcap: 78, earn: 108, rating: 82,
+  dchg: 84, fromopen: 92, fromhigh: 92, fromlow: 88, dcr: 40, dolvol: 92,
   sector: 40, industry: 40, theme: 40, perf5d: 40, perf30d: 40, perf60d: 40, perf90d: 40,
 }
 // Extra data columns the user can ADD via the + button (not shown by default).
 const EXTRA_COLS = [
   { key: 'rvol', label: 'RVOL' },
+  { key: 'ipoDate', label: 'IPO Date' },
   { key: 'mcap', label: 'Market Cap' },
   { key: 'earn', label: 'Next Earnings' },
   { key: 'rating', label: 'UCT Rating' },
@@ -109,6 +110,7 @@ const EXTRA_COLS = [
   { key: 'fromhigh', label: '% from High' },
   { key: 'fromlow', label: '% from Low' },
   { key: 'dcr', label: 'Daily Closing Range' },
+  { key: 'dolvol', label: 'Dollar Volume' },
   { key: 'sector', label: 'Sector' },
   { key: 'industry', label: 'Industry' },
   { key: 'theme', label: 'Theme' },
@@ -121,7 +123,7 @@ const EXTRA_KEYS = new Set(EXTRA_COLS.map(c => c.key))
 // Subset of EXTRA columns whose data comes from the /api/research/snapshot-batch
 // meta fetch (vs the live quote feed). Only these trigger useWatchlistMeta; the
 // quote-derived ones (dchg/fromopen/…) read fields already on prices[sym].
-const META_KEYS = new Set(['rvol', 'mcap', 'earn', 'rating', 'sector', 'industry'])
+const META_KEYS = new Set(['rvol', 'ipoDate', 'mcap', 'earn', 'rating', 'sector', 'industry'])
 // Text columns — sorted alphabetically, not numerically.
 const TEXT_COLS = new Set(['sector', 'industry', 'theme'])
 // N-day performance columns → their key in perfData (from /api/watchlist-performance).
@@ -154,12 +156,37 @@ const colDerived = {
     if (!Number.isFinite(h) || !Number.isFinite(l) || !Number.isFinite(p) || h <= l) return null
     return Math.max(0, Math.min(100, ((p - l) / (h - l)) * 100))
   },
+  // Dollar volume: today's live price × today's cumulative volume (a $ turnover figure).
+  dolvol: (q) => {
+    const p = q?.price, v = q?.volume
+    return (Number.isFinite(p) && Number.isFinite(v)) ? p * v : null
+  },
 }
 
 // ISO date → compact M/D for the Next Earnings column.
 function fmtEarn(iso) {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '')
   return m ? `${+m[2]}/${+m[3]}` : '—'
+}
+// Dollar volume (price × volume) → compact "$1.2B" / "$482M" / "$12K".
+function fmtDolVol(v) {
+  if (v == null || !Number.isFinite(v)) return '—'
+  const a = Math.abs(v)
+  if (a >= 1e12) return `$${(v / 1e12).toFixed(1)}T`
+  if (a >= 1e9) return `$${(v / 1e9).toFixed(1)}B`
+  if (a >= 1e6) return `$${(v / 1e6).toFixed(1)}M`
+  if (a >= 1e3) return `$${(v / 1e3).toFixed(0)}K`
+  return `$${v.toFixed(0)}`
+}
+// IPO / first-trade date (YYYYMMDD int, or ISO string) → compact M/D/YY.
+function fmtIpo(ymd) {
+  const m = /^(\d{4})-?(\d{2})-?(\d{2})/.exec(ymd == null ? '' : String(ymd))
+  return m ? `${+m[2]}/${+m[3]}/${m[1].slice(2)}` : '—'
+}
+// IPO date sorts by calendar date — YYYYMMDD int (or ISO) → YYYYMMDD number.
+function ipoSortValue(ymd) {
+  const m = /^(\d{4})-?(\d{2})-?(\d{2})/.exec(ymd == null ? '' : String(ymd))
+  return m ? Number(`${m[1]}${m[2]}${m[3]}`) : null
 }
 // Market cap arrives PRE-FORMATTED from the backend ("$1.23T" / "$482.10B" / "$950M" /
 // "$12,345") — parse the display string back to a number so the column can sort.
@@ -264,7 +291,8 @@ const FlashCell = React.memo(function FlashCell({ value, display, className, tin
 const WatchRow = React.memo(function WatchRow({
   sym, name, price, changePct, volume, flagged, selected, orderedKeys,
   showLogos = true, tintEnabled = true, logoSize = 16, mcap = null, earn = null, rating = null,
-  dchg = null, fromOpen = null, fromHigh = null, fromLow = null, dcr = null, rvol = null,
+  ipoDate = null,
+  dchg = null, fromOpen = null, fromHigh = null, fromLow = null, dcr = null, dolvol = null, rvol = null,
   sector = null, industry = null, theme = null,
   perf5d = null, perf30d = null, perf60d = null, perf90d = null,
   isOwner, wlId,
@@ -323,11 +351,18 @@ const WatchRow = React.memo(function WatchRow({
     if (key === 'dcr') return (
       <span key="dcr" className={styles.metaCell}>{dcr != null ? `${dcr.toFixed(0)}%` : '—'}</span>
     )
+    // Dollar volume (price × volume) — compact currency, live-updating with volume.
+    if (key === 'dolvol') return (
+      <FlashCell key="dolvol" value={dolvol} className={styles.metaCell} flashEnabled={tintEnabled}
+        display={fmtDolVol(dolvol)} />
+    )
     // Relative volume: today's live volume vs the 20-session average, as a multiple
     // (2.0x = twice the average). Value is stored ×100 (sort-compatible); shown /100.
     if (key === 'rvol') return (
       <span key="rvol" className={styles.metaCell}>{rvol != null ? `${(rvol / 100).toFixed(1)}x` : '—'}</span>
     )
+    // IPO / first-trade date (compact M/D/YY).
+    if (key === 'ipoDate') return <span key="ipoDate" className={styles.metaCell}>{fmtIpo(ipoDate)}</span>
     // Fundamentals text columns (left-aligned, ellipsized, full value on hover).
     if (key === 'sector') return <span key="sector" className={styles.textCell} title={sector || ''}>{sector || '—'}</span>
     if (key === 'industry') return <span key="industry" className={styles.textCell} title={industry || ''}>{industry || '—'}</span>
@@ -357,7 +392,7 @@ const WatchRow = React.memo(function WatchRow({
 // "+" beside the ⚙ gear (single-list widget / pick mode). Community lists show no "+"
 // — they aren't yours to write to.
 
-export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null }) {
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null }) {
   // Column layout persists in localStorage. The watchlist widgets all share the
   // global key; the scanner passes its OWN key so its columns are independent.
   const _colKey = colStorageKey || WL_COLS_LS
@@ -1165,7 +1200,16 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // least one is actually shown (fundamentals are heavy per ticker). The quote-derived
   // columns ($ chg / % from open·high·low / DCR) read prices[sym] — no meta fetch.
   const extraVisible = orderedKeys.some(k => META_KEYS.has(k))
-  const { metaData } = useWatchlistMeta(extraVisible ? allTickers : [])
+  const { metaData: rawMetaData } = useWatchlistMeta(extraVisible ? allTickers : [])
+  // Scan-provided per-symbol fields (e.g. the IPO scan's ipo_date for EVERY result,
+  // beyond the meta batch's 100-ticker cap) merge over the batch meta so the column
+  // + its sort see every row.
+  const metaData = useMemo(() => {
+    if (!metaOverride) return rawMetaData
+    const merged = { ...rawMetaData }
+    for (const s in metaOverride) merged[s] = { ...(merged[s] || {}), ...metaOverride[s] }
+    return merged
+  }, [rawMetaData, metaOverride])
 
   // Extra data columns (Market Cap / Next Earnings / UCT Rating) toggle on/off from the
   // right-click COLUMNS menu. Checking one APPENDS it to the RIGHT of the column order
@@ -1263,6 +1307,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         const av = m?.avg_vol_20d, v = q?.volume
         return (Number.isFinite(av) && av > 0 && Number.isFinite(v)) ? (v / av) * 100 : null
       }
+      if (key === 'ipoDate') return ipoSortValue(m?.ipo_date)
       if (key === 'mcap') return parseMcap(m?.market_cap)
       if (key === 'earn') return earnSortValue(m?.next_earnings)
       if (key === 'rating') return Number.isFinite(Number(m?.composite)) ? Number(m.composite) : null
@@ -1396,6 +1441,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         fromHigh={colDerived.fromhigh(q)}
         fromLow={colDerived.fromlow(q)}
         dcr={colDerived.dcr(q)}
+        dolvol={colDerived.dolvol(q)}
         rvol={rvolVal}
         sector={metaData[sym]?.sector ?? null}
         industry={metaData[sym]?.industry ?? null}
@@ -1413,6 +1459,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         mcap={metaData[sym]?.market_cap ?? null}
         earn={metaData[sym]?.next_earnings ?? null}
         rating={metaData[sym]?.composite ?? null}
+        ipoDate={metaData[sym]?.ipo_date ?? null}
         isOwner={isOwner}
         wlId={wlId}
         onSelect={onRowSelect}

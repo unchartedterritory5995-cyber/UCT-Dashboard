@@ -51,3 +51,42 @@ def ipo_1y_status():
     """Recent-IPO set readiness (no auth — read-only diagnostics)."""
     from api.services import scan_ipo
     return scan_ipo.status()
+
+
+@router.get("/api/scans/top-gainers-30d")
+def top_gainers_30d():
+    """Top 5% of non-ETF stocks by 30-trading-day % change. Live all day."""
+    from api.services import scan_gainers
+    return JSONResponse(content=scan_gainers.get_top_gainers_30d())
+
+
+@router.get("/api/scans/top-gainers-30d/status")
+def top_gainers_30d_status():
+    from api.services import scan_gainers
+    return scan_gainers.status("30d")
+
+
+@router.get("/api/scans/top-gainers-60d")
+def top_gainers_60d():
+    """Top 5% of non-ETF stocks by 60-trading-day % change. Live all day."""
+    from api.services import scan_gainers
+    return JSONResponse(content=scan_gainers.get_top_gainers_60d())
+
+
+@router.get("/api/scans/top-gainers-60d/status")
+def top_gainers_60d_status():
+    from api.services import scan_gainers
+    return scan_gainers.status("60d")
+
+
+@router.get("/api/scans/top-gainers-90d")
+def top_gainers_90d():
+    """Top 5% of non-ETF stocks by 90-trading-day % change. Live all day."""
+    from api.services import scan_gainers
+    return JSONResponse(content=scan_gainers.get_top_gainers_90d())
+
+
+@router.get("/api/scans/top-gainers-90d/status")
+def top_gainers_90d_status():
+    from api.services import scan_gainers
+    return scan_gainers.status("90d")

@@ -413,3 +413,23 @@ def test_volume_scan_helpers(tmp_path, monkeypatch):
     # window opens before it, excluded when it opens after.
     assert bs.recent_first_trade(20260101) == {"AAA": 20260601}
     assert bs.recent_first_trade(20260701) == {}
+
+    # close_n_sessions_back (Top-Gainers reference): distinct closes so rank order shows.
+    bs.put_bars("BBB", "D", [
+        {"t": "2026-06-01", "o": 1, "h": 1, "l": 1, "c": 10, "v": 1},
+        {"t": "2026-06-02", "o": 1, "h": 1, "l": 1, "c": 20, "v": 1},
+        {"t": "2026-06-03", "o": 1, "h": 1, "l": 1, "c": 30, "v": 1},
+    ], date_tf=True)
+    # Before 2026-07-01, DESC by ts: 06-03(30)=rn1, 06-02(20)=rn2, 06-01(10)=rn3.
+    assert bs.close_n_sessions_back(1, 20260701)["BBB"] == 30.0
+    assert bs.close_n_sessions_back(2, 20260701)["BBB"] == 20.0
+    assert bs.close_n_sessions_back(3, 20260701)["BBB"] == 10.0
+    # Fewer than N completed sessions → absent (a recent IPO can't form an N-day move).
+    assert "BBB" not in bs.close_n_sessions_back(4, 20260701)
+    # before_ymd excludes today-and-later: only 06-01 remains before 06-02 → rn1 = 10.
+    assert bs.close_n_sessions_back(1, 20260602)["BBB"] == 10.0
+
+    # first_trade_dates (IPO Date column): earliest daily bar per requested ticker.
+    assert bs.first_trade_dates(["AAA", "BBB"]) == {"AAA": 20260601, "BBB": 20260601}
+    assert bs.first_trade_dates(["NOPE"]) == {}   # unknown ticker → absent
+    assert bs.first_trade_dates([]) == {}
