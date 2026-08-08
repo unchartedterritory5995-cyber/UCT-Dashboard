@@ -1522,7 +1522,15 @@ async def lifespan(app: FastAPI):
     # through the existing watchlist-alert delivery pipeline.
     try:
         from api.services import indicator_alert_service, indicator_alert_evaluator
+        from api.services import alert_rev_migration as _alert_rev
         indicator_alert_service.init_schema()
+        # ⭐ AT BOOT, NOT ON THE FIRST ALERT. `alert_rev_migration.init_schema()`
+        # ALTERs `indicator_alert_rev` to add `def_hash`, and it had no startup
+        # caller — so the column would have appeared on whichever request first
+        # touched the alert lane, i.e. inside a member's call rather than during
+        # a deploy. Idempotent and additive (the ALTER is skipped once present),
+        # so running it here costs a no-op on every boot after the first.
+        _alert_rev.init_schema()
         indicator_alert_evaluator.start_evaluator(interval_sec=60)
         logging.getLogger(__name__).info("[startup] indicator alert evaluator started")
     except Exception:
