@@ -117,13 +117,28 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     expect(screen.getByRole('option', { name: /Volume Profile/ }).getAttribute('aria-selected')).toBe('false')
   })
 
-  it('shows the repaint and tier badges the definition declares — never self-disclosed prose', () => {
+  // ⚰️ THE REPAINT HALF OF THIS CASE IS RETIRED, NOT DELETED, AND THE REASON IS
+  // THE DEFECT IT WAS PART OF. It asserted `within(row).getByText('Non-repainting')`
+  // on the VWAP row — i.e. it REQUIRED this surface to print the definition's
+  // DECLARED badge. That badge is written once, by `nativeRegistry.nativeDef`,
+  // before the `...meta` spread, so all seventeen definitions inherit it and
+  // nothing audited anything (decision record §1); on `ichimoku` the machine
+  // linter contradicts it outright. So this case did not merely fail to catch
+  // the lie — it PINNED it, the same shape as the retired
+  // `d.meta.repaint === 'non-repainting'` assertion in `indicatorCatalog.test.js`
+  // (an honest badge was blocked BY A TEST). The badge is now the LINTER'S
+  // measurement, and its gate — both directions, plus the per-plot separation —
+  // is `IndicatorLibraryDialog.repaintBadge.test.jsx`.
+  //
+  // What survives here is the TIER half, which is unrelated and still true, plus
+  // the "no badge on the carved-out row" clause, which is now true for a better
+  // reason: `volumeProfile` has no definition, so there is nothing to measure.
+  it('shows the tier badge the definition declares — and no repaint badge nobody measured', () => {
     open()
     const row = screen.getByRole('option', { name: /Session VWAP/ })
-    expect(within(row).getByText('Non-repainting')).toBeTruthy()
     expect(within(row).queryByText(/premium/i)).toBeNull()   // every native is tier: free
-    // …and the badge is DECLARED, not defaulted: a definition with no `repaint`
-    // shows none rather than claiming the safe answer.
+    expect(row.querySelector('[data-repaint]'),
+      'a hand-written compute the linter may not read wears a repaint badge').toBeNull()
     const carved = screen.getByRole('option', { name: /Volume Profile/ })
     expect(within(carved).queryByText(/repaint/i)).toBeNull()
   })

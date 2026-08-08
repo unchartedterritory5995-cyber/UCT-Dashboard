@@ -1060,7 +1060,18 @@ def test_catalog_route_is_registered_and_auth_gated():
     # falsy id without touching the definitions store — so this still asserts
     # exactly what it always asserted: the GLOBAL enumeration, served verbatim.
     # The scoped half has its own rail in `tests/test_alert_user_router.py`.
-    assert route.endpoint(user={"id": ""}) == {"catalog": evaluator.alert_catalog()}
+    #
+    # ⭐ AND THE RESPONSE NOW CARRIES A SECOND KEY: `refusals`, the read-out that
+    # says why a member's saved formula is NOT among the offerings (the alert
+    # half of `918e3c8a`). It is asserted as its own clause rather than folded
+    # into a whole-dict equality, so this case keeps meaning "the catalog half is
+    # the untouched global enumeration" — which is the claim it was written for —
+    # while a third key added later still fails it. `[]` for an account-less
+    # caller, by the same "falsy id reaches no store" rule as the line above.
+    body = route.endpoint(user={"id": ""})
+    assert body["catalog"] == evaluator.alert_catalog()
+    assert body["refusals"] == []
+    assert set(body) == {"catalog", "refusals"}
 
 
 def test_the_catalog_route_is_declared_before_any_id_route_that_could_swallow_it():

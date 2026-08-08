@@ -45,7 +45,16 @@
 // it. ⚠️ `fireEvent.click` sends NO mousedown and passes on the broken build —
 // the case that guards this uses `userEvent`.
 //
-// 🔴 …AND SINCE THIS FIX, THE ONES THE GATES REFUSED SAY SO. A member could save
+// 🔴 …AND SINCE THIS FIX, THE REPAINT BADGE IS THE LINTER'S MEASUREMENT. It used
+// to be `meta.repaint`, the definition's declared CLAIM — a value one shared
+// helper writes for all seventeen definitions before the `...meta` spread, so it
+// audited nothing (decision record §1) and on `ichimoku` it CONTRADICTED the
+// machine linter, which measures `chikou` as `preview-repaints` from the
+// `i - kijunPeriod` back-shift. This surface was telling a member a line they
+// might trade off cannot move. The row now reads `definitionRollUp` and names
+// the PLOTS that carry the verdict; see `repaintNotice` at the foot of this file.
+//
+// 🔴 …AND SINCE AN EARLIER FIX, THE ONES THE GATES REFUSED SAY SO. A member could save
 // a formula, have the STORE accept it, and then simply not be offered it — the
 // catalog omits a definition `installUserDefinitions` refuses, which is correct
 // per its contract and completely silent. The reason has existed in
@@ -61,6 +70,7 @@ import {
   catalogRows, userCatalogRows, catalogGeneration, userRefusalRows, REFUSED_CATEGORY,
 } from './indicatorCatalog'
 import { isIndicatorEnabled, setIndicatorEnabled, addInstance } from './engine/instanceControls'
+import { CLEAN } from './engine/repaintVerdict'
 import { ENGINE_OWNED } from './engine/flipState'
 import styles from './IndicatorLibraryDialog.module.css'
 
@@ -247,7 +257,9 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                             heading scrolls out of view on a long list. */}
                         {row.userDefined && <span className={styles.mine}>Your formula</span>}
                         {row.sessionOnly && <span className={styles.pill}>Intraday only</span>}
-                        {row.repaint && <span className={styles.badge}>{labelForRepaint(row.repaint)}</span>}
+                        {/* ⭐⭐ THE LINTER'S MEASUREMENT, PER PLOT — never the
+                            definition's declared badge. See `repaintNotice`. */}
+                        {repaintNotice(row)}
                         {/* Tier is shown only when it is NOT free. Every native
                             is free today, so this renders for nothing — which is
                             why the test asserts its ABSENCE rather than its text. */}
@@ -332,10 +344,59 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   )
 }
 
-/** `non-repainting` → `Non-repainting`. The definition's vocabulary is the
- *  authority; this only cases it for display. ⛔ Informational styling, never
- *  error-coloured (spec §6 state 9) — a factual property is not a warning. */
-function labelForRepaint(value) {
-  const s = String(value).replace(/-/g, '-')
+/** `preview-repaints` → `Preview-repaints`. The LINTER's vocabulary is the
+ *  authority (`ast/lint.REPAINT_MODES`); this only cases it for display. */
+export function labelForRepaint(value) {
+  const s = String(value)
   return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
+/**
+ * 🔴 THE ROW'S REPAINT BADGE — THE LINTER'S MEASUREMENT, PER PLOT.
+ *
+ * ⚰️ WHAT THIS REPLACED, AND WHY THAT WAS A DEFECT RATHER THAN A STYLE. The row
+ * used to render `row.repaint` — `meta.repaint`, the definition's own DECLARED
+ * claim. Measured (decision record §1): `nativeRegistry.nativeDef` writes
+ * `repaint: 'non-repainting'` in ONE shared helper before the `...meta` spread,
+ * so all seventeen definitions inherit it and no definition overrides it. It was
+ * a uniform column, which is indistinguishable from an unset one — and on
+ * `ichimoku` it was worse than uniform, it was FALSE: `computeIchimoku` writes
+ * bar `i`'s close to index `i - kijunPeriod`, so a plotted point at a historical
+ * index moves while the newest bar forms, which is spec §4's own definition of
+ * repainting. This surface was printing that claim to a member as a fact.
+ *
+ * `5387d97e` built the machinery and the owner took the call: **accept the
+ * machine linter's reading.** So the badge is `engine/repaintVerdict`'s
+ * `definitionRollUp` — DERIVED from `ast/lint.lintDefinition` on every read,
+ * stored nowhere, and unspellable by an author (`defSchema` refuses a
+ * `plots[].repaint` by name, and `validateAstLane` refuses a `meta.repaint` that
+ * disagrees with the tree in BOTH directions).
+ *
+ * ⛔ AND IT NAMES THE PLOTS, WHICH IS THE WHOLE RULING. `ichimoku` draws five
+ * columns and exactly one — `chikou` — carries the verdict; Tenkan, Kijun,
+ * Span A and Span B genuinely do not repaint. A badge that said only *"Ichimoku
+ * repaints"* would slander four honest columns, trading a false "safe" for a
+ * false "unsafe" — the second of the three moves record §4.1 refused.
+ *
+ * ⚠️ SILENCE IS "NO OPINION OR CLEAN", AND IT IS NEVER RENDERED AS A GREEN TICK.
+ * Sixteen definitions are hand-written computes spec §11 forbids analysing, so
+ * `definitionRollUp` answers `null` for them; a formula the linter reads and
+ * finds clean answers `CLEAN`. Both show NOTHING, because *"a badge that every
+ * indicator wears carries no information"* — and because painting an undecidable
+ * plot green would write *"the linter agreed"* over silence, which is the one
+ * sentence obligation 8 exists to make impossible.
+ */
+function repaintNotice(row) {
+  const mode = row.measuredRepaint
+  if (!mode || mode === CLEAN) return null
+  const notices = row.repaintingPlots || []
+  return (
+    <span
+      className={styles.badgeRepaint}
+      data-repaint={mode}
+      data-repaint-plots={notices.map((n) => n.plotKey).join(' ')}
+      /* The linter's own settling sentence, per plot, untouched. */
+      title={notices.map((n) => `${n.label} — ${n.sentence}`).join(' ')}
+    >{labelForRepaint(mode)}{notices.length ? ` — ${notices.map((n) => n.label).join(', ')}` : ''}</span>
+  )
 }
