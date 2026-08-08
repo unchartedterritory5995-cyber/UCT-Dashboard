@@ -23,8 +23,10 @@ function fmtScanTime(iso) {
 }
 
 const SEP = String.fromCharCode(1)   // symbol-list content-key separator (never appears in a name/ticker)
-// Stocks: Flag · Symbol · % Change · Price · Volume (thin flag to save space).
-const DEFAULT_COLS_STOCK = { order: ['flag', 'sym', 'periodchg', 'price', 'vol'], sort: { key: 'periodchg', dir: 'desc' }, widths: { flag: 18 } }
+// Stocks: Flag · Symbol · % Change · Industry (thin flag; wide industry so the longest
+// labels — e.g. "Drug Manufacturers - Specialty & Generic" — never clip). The panel opens
+// exactly this wide (stockDefW in PeriodSortPanel). Owner default for US Common Stocks only.
+const DEFAULT_COLS_STOCK = { order: ['flag', 'sym', 'periodchg', 'industry'], sort: { key: 'periodchg', dir: 'desc' }, widths: { flag: 18, industry: 280 } }
 // Groups: Flag · Name · % Change · Stocks (no price/volume — meaningless for a group). Wide
 // name column so full theme/sector/industry names fit; thin flag.
 const DEFAULT_COLS_GROUP = { order: ['flag', 'sym', 'periodchg', 'grpcount'], sort: { key: 'periodchg', dir: 'desc' }, widths: { flag: 18, sym: 250 } }

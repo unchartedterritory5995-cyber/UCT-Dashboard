@@ -8,11 +8,11 @@ import UIcon from '../../components/ui/UIcon'
 import styles from './PeriodSortPanel.module.css'
 
 // Default size fits the default columns with no blank filler. Stocks (flag18 + sym96 +
-// periodchg84 + price62 + vol56 ≈ 316 + chrome) → 364. Groups have a wide name column
-// (flag18 + sym250 + periodchg84 + count60 ≈ 412 + chrome) → 450, so full names fit.
-// MIN is tiny — the header (grab dots, colour dot, buttons) stays; the table just clips.
+// periodchg84 + industry280 ≈ 478 + chrome) → 528, so full industry labels never clip.
+// Groups have a wide name column (flag18 + sym250 + periodchg84 + count60 ≈ 412 + chrome)
+// → 450. MIN is tiny — the header (grab dots, colour dot, buttons) stays; the table clips.
 const DEF_H = 560, MIN_W = 150, MIN_H = 40
-const stockDefW = 364, groupDefW = 450
+const stockDefW = 528, groupDefW = 450
 const COLORS = ['A', 'B', 'C', 'D', 'N']
 const COLOR_HEX = { A: '#c9a84c', B: '#60a5fa', C: '#4ade80', D: '#c084fc', N: '#6b7280' }
 
