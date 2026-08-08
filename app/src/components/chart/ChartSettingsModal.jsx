@@ -839,43 +839,43 @@ export default function ChartSettingsModal({
             </div>
           </section>
 
-          {/* INFO ROW — pick which stats show in the strip above the chart. */}
+          {/* INFO ROW — an "Add Field" button (beside the label) opens a searchable menu of
+              every field that can go in the strip above the chart. */}
           <section className={styles.section}>
-            <div className={styles.sectionLabel}>Info Row</div>
-            <div className={styles.fieldPickWrap} ref={fieldWrapRef}>
-              <button
-                type="button"
-                className={styles.fieldPickBtn}
-                onClick={() => setFieldMenuOpen((o) => !o)}
-                aria-expanded={fieldMenuOpen}
-              >
-                <span>{infoFields.length ? `${infoFields.length} field${infoFields.length === 1 ? '' : 's'} shown` : 'No fields shown'}</span>
-                <span className={styles.fieldPickCaret}>▾</span>
-              </button>
-              {fieldMenuOpen && (
-                <div className={styles.fieldMenu}>
-                  <input
-                    className={styles.fieldSearch}
-                    placeholder="Search fields…"
-                    value={fieldQuery}
-                    onChange={(e) => setFieldQuery(e.target.value)}
-                    autoFocus
-                  />
-                  <div className={styles.fieldList}>
-                    {HEADER_FIELDS
-                      .filter((f) => !fieldQuery || f.label.toLowerCase().includes(fieldQuery.toLowerCase()))
-                      .map((f) => {
-                        const on = infoFields.includes(f.key)
-                        return (
-                          <button key={f.key} type="button" className={styles.fieldItem} onClick={() => toggleInfoField(f.key)}>
-                            <span className={styles.fieldCheck}>{on ? <UIcon name="check" size={11} /> : null}</span>
-                            {f.label}
-                          </button>
-                        )
-                      })}
+            <div className={styles.infoRowHead}>
+              <span className={styles.sectionLabel} style={{ padding: 0 }}>Info Row</span>
+              <div className={styles.addFieldWrap} ref={fieldWrapRef}>
+                <button
+                  type="button"
+                  className={styles.addFieldBtn}
+                  onClick={() => setFieldMenuOpen((o) => !o)}
+                  aria-expanded={fieldMenuOpen}
+                >＋ Add Field</button>
+                {fieldMenuOpen && (
+                  <div className={styles.fieldMenu}>
+                    <input
+                      className={styles.fieldSearch}
+                      placeholder="Search fields…"
+                      value={fieldQuery}
+                      onChange={(e) => setFieldQuery(e.target.value)}
+                      autoFocus
+                    />
+                    <div className={styles.fieldList}>
+                      {HEADER_FIELDS
+                        .filter((f) => !fieldQuery || f.label.toLowerCase().includes(fieldQuery.toLowerCase()))
+                        .map((f) => {
+                          const on = infoFields.includes(f.key)
+                          return (
+                            <button key={f.key} type="button" className={styles.fieldItem} onClick={() => toggleInfoField(f.key)}>
+                              <span className={styles.fieldCheck}>{on ? <UIcon name="check" size={11} /> : null}</span>
+                              {f.label}
+                            </button>
+                          )
+                        })}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
             {/* Color per selected field that supports one (market cap / next earnings / UCT rating). */}
             {infoFields.some((k) => HEADER_FIELD_BY_KEY[k]?.colorKey) && (

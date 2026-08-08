@@ -38,10 +38,12 @@ first time. Dashboard shipped to master (`030e69bc..f97983e7`) and verified live
 
 ### Open — owner decisions only
 
-1. **Universe history.** ~1/3 of 120 sessions were collected on the wrong
-   population. Leave / normalise at display / backfill / mark. The audit now
-   carries a `STEP_CHANGE` kind that reports these every run as context and
-   **fails the gate on any NEW swap** (`STEP_GATE_FROM = "2026-08-08"`).
+1. **Universe history — DECIDED: backfill. Scoped, proven feasible, NOT yet
+   executed.** 26 sessions (not ~1/3), including a 23-session consecutive block.
+   The full method and the two ways to get it wrong are in P0 above — **read
+   that section before starting.** The audit's `STEP_CHANGE` kind reports these
+   every run as context and **fails the gate on any NEW swap**
+   (`STEP_GATE_FROM = "2026-08-08"`); move that floor once this is done.
 2. ~~**72 `uct_exposure` rows disagree with `market_regimes`.**~~ ✅ **RESOLVED —
    not a defect.** In all 72 the regime row was created BEFORE the snapshot
    (2026-03-23: regime 12:31, snapshot 21:31), so the collector did read a real
@@ -166,9 +168,48 @@ cache instead of the filtered ~2,700.
    swaps that happened.
 3. ✅ 27 tests (`test_breadth_universe_continuity.py`).
 
-**Still open — owner decision:** ~1/3 of the 120 stored sessions were collected
-on the wrong population. Leave them, normalise at display time, backfill, or
-mark them. Not rewritten without asking.
+**History repair — OWNER SAID BACKFILL 2026-08-08. Scoped and proven feasible;
+NOT yet executed.** Read this before starting: two of my earlier claims were
+wrong and the cheap version of this job is actively harmful.
+
+**Corrected scope: 26 of 150 sessions, not ~1/3.** And they are **not
+scattered** — 2026-04-06, 2026-05-26, then a **23-session consecutive block
+2026-06-22 → 2026-07-24**.
+
+**⛔ Do NOT re-derive under today's universe.** 340 of the 2,970 names in the
+2026-01-02 universe (11.4%) are gone from the 2026-08-07 one — acquired or
+delisted, and the buyout sweep actively prunes M&A targets. That swaps a
+*visible* step artifact for an *invisible* survivorship bias, which is worse: a
+spike can be seen, a smooth lie cannot.
+
+**⛔ Do NOT recompute from the local OHLCV cache either.** It carries 2,685
+tickers — today's universe — and is missing **174–214 names (6–8%)** of each
+historical universe (`AB`, `ACA`, `ACLX`, `ADCT`, `AERO`, `AGX`, `AIT`). Same
+bias, smaller and harder to notice.
+
+**The method that works.** `universe_list` is stored per date back to
+2026-01-02, so each bad day's population comes from its nearest GOOD neighbour —
+point-in-time, no survivorship. Steps:
+
+1. For each of the 26, resolve the neighbour universe (prev good session; all 23
+   of the block resolve to **2026-06-18**).
+2. Union those ticker sets, diff against the cache, and re-download the missing
+   ~250 from Massive. **Verified: Massive serves delisted names** — `AERO` and
+   `AGX` both return the full 43-bar Jun–Jul window. `ACLX` returns 0, so a
+   handful are unrecoverable and must be reported, not silently dropped.
+3. Recompute via `_compute_metrics_for_date` with frames restricted to that
+   ticker set, and PATCH only the COUNT metrics.
+4. Dry-run → canary 2 → apply → **re-run the dry run for 0 changes**, then
+   `breadth_freeze_audit --days 150` (STEP_CHANGE should drop from 7 steps).
+
+**Known residual, state it rather than hide it:** the 23-session block all uses
+the 2026-06-18 universe, so by 07-24 that population is five weeks stale. That
+is a ~1–2% drift against the ~30% error it replaces — worth doing, worth
+labelling.
+
+⚠️ **A bulk PATCH sweep needs retries.** A previous repair lost 13 dates and
+left a silently half-repaired series. Do not start this without finishing and
+verifying it.
 
 ✅ **`STEP_CHANGE` shipped in `breadth_freeze_audit.py`.** Fires when a metric in
 `STEP_METRICS` (currently `universe_count`, 5%) moves more session-over-session
