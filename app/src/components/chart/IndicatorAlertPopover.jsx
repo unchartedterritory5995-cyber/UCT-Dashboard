@@ -123,7 +123,20 @@ export default function IndicatorAlertPopover({
   // `GET /api/indicator-alerts?scope=<chartId>` — the parameter the backend has
   // implemented since Task 12 and that no client had ever sent.
   const { alerts } = useIndicatorAlerts(chartId)
-  const { catalog, isLoading: catalogLoading, error: catalogError } = useIndicatorAlertCatalog()
+  const {
+    catalog,
+    // 🔴 WHY A SAVED FORMULA IS NOT IN THE DROPDOWN ABOVE. See the section at
+    // the bottom of this component for what is and is not done with it.
+    refusals: servedRefusals,
+    isLoading: catalogLoading,
+    error: catalogError,
+  } = useIndicatorAlertCatalog()
+  // ⚠️ NORMALISED ONCE, HERE. The hook contracts to answer an array on every
+  // branch; a surface that read `refusals.length` off whatever it was handed
+  // would crash the whole popover on a hook (or a test double) that predates the
+  // key, and losing the alert form is a far worse failure than losing an
+  // explanation.
+  const refusals = Array.isArray(servedRefusals) ? servedRefusals : []
 
   const [indicator, setIndicator] = useState('')
   const [plot, setPlot] = useState('')
@@ -576,6 +589,82 @@ export default function IndicatorAlertPopover({
           {submitting ? 'Adding…' : 'Add Alert'}
         </button>
       </form>
+
+      {/* ═══ SAVED, AND NOT OFFERED — WITH THE REASON ═══════════════════════
+          🔴 `user_catalog` runs the admission gates over every stored formula
+          and `continue`s past what a gate refuses. Correct per its own contract
+          — *"the dropdown cannot offer an alert that cannot fire"* — and
+          completely silent: a member typed a formula, the STORE accepted it,
+          `GET /api/user-definitions` lists it, the indicator library shows it,
+          and the Indicator dropdown directly above simply did not have it.
+
+          This is the same section `IndicatorLibraryDialog` renders one surface
+          over (`918e3c8a`), on the alert half, and it sits immediately under the
+          dropdown it explains.
+
+          ⛔ NOT AN OPTION, AND NOT A ROW IN THE LISTBOX. There is no installed
+          definition behind these, so there is no address to submit: an entry
+          among the offerings would be a control that arms nothing. Not
+          `role="alert"` either — nothing just happened; this is standing state
+          about the member's own saved work. */}
+      {refusals.length > 0 && (
+        <div className={styles.refused} data-testid="alert-catalog-refusals">
+          <div className={styles.listHeader}>
+            Saved formulas not offered ({refusals.length})
+          </div>
+          {/* The one sentence this surface writes for itself, and it says WHAT
+              happened, never WHY — the why is the gate's, printed untouched
+              below it. Same split the library dialog draws. */}
+          <p className={styles.refusedLede}>
+            These saved formulas cannot be alerted on. The reason below comes
+            from the check that refused each one.
+          </p>
+          <ul className={styles.refusedList}>
+            {refusals.map((row) => (
+              <li
+                key={row.id}
+                className={styles.refusedRow}
+                data-testid="alert-catalog-refusal"
+                data-def-id={row.id}
+                // ⚠️ THE DOOR'S NAME AS DATA, NOT AS A SECOND PRINTED
+                // ATTRIBUTION. `gate` is already inside the sentence below
+                // (`[gate:<name>]`); rendering it again as a chip would print
+                // the same fact twice in two spellings, which is how a second
+                // vocabulary starts. `null` when the service could not attribute
+                // the refusal, and an absent attribute is the honest shape for
+                // that — never a guessed door.
+                data-gate={row.gate || undefined}
+              >
+                <span className={styles.refusedName}>{row.label || row.id}</span>
+                {/* ⛔⛔ THE GATE'S OWN SENTENCE, WHOLE AND UNEDITED — INCLUDING
+                    ITS `[gate:<name>]` SUFFIX, WHICH IS SIGNAL AND NOT NOISE.
+                    A member reads this to learn why their formula is not offered,
+                    and the suffix is the only thing that names WHICH check
+                    refused it: `REFUSAL_FRAGMENTS`' pairwise disjointness is a
+                    SAFETY property asserted server-side (two gates once shared a
+                    phrase and a `raises(match=…)` still passed with the safety
+                    DELETED), and the attribution is what makes a support report
+                    actionable rather than a paraphrase of a paraphrase. The
+                    backend's own mutation B6 killed "the `[gate:]` attribution is
+                    stripped"; stripping it HERE would rebuild exactly that defect
+                    one layer up, where no backend test can see it.
+
+                    ⛔ AND EVERY MESSAGE, NOT THE FIRST. `messages` is a LIST
+                    because a formula can fail more than one door; the gates
+                    short-circuit today, and a surface that renders `[0]` would
+                    hide the second reason silently the day they stop. */}
+                {(row.messages || []).map((message, i) => (
+                  <span
+                    key={i}
+                    className={styles.refusedWhy}
+                    data-testid="alert-catalog-refusal-reason"
+                  >{message}</span>
+                ))}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className={styles.listHeader}>
         Active alerts {ownSym ? `for ${ownSym}` : ''} ({symAlerts.length})

@@ -69,7 +69,24 @@ const catalogFetcher = async (url) => {
   if (!r.ok) throw new Error(`catalog ${r.status}`)
   const body = await r.json()
   if (!Array.isArray(body?.catalog)) throw new Error('catalog: malformed response')
-  return body.catalog
+  // 🔴 THE WHOLE ANSWER, NOT JUST THE OFFERINGS. This returned `body.catalog`,
+  // so `refusals` — the block that says why a member's OWN formula is not in
+  // that array — was discarded one line after it arrived, and no component could
+  // ever see it. The endpoint served it, the popover was ready to render it, and
+  // the member still got silence: the ninth instance this week of a correct
+  // backend, a correct component, and nothing joining them.
+  //
+  // ⚠️ A MISSING `refusals` IS `[]`, NOT AN ERROR, AND THE ASYMMETRY WITH
+  // `catalog` ABOVE IS DELIBERATE. An absent catalog is a SAFETY failure — an
+  // empty-but-enabled dropdown a user can submit from — which is why that one
+  // rejects. An absent refusals block is only the silence that existed before it
+  // shipped, so a browser holding this bundle against a server that predates the
+  // key degrades to yesterday rather than losing the whole picker over an
+  // explanation. Nothing here invents one: the sentences are the gates' own.
+  return {
+    catalog: body.catalog,
+    refusals: Array.isArray(body?.refusals) ? body.refusals : [],
+  }
 }
 
 /**
@@ -109,7 +126,19 @@ export function useIndicatorAlerts(chartId = null) {
  * null key then, so it reports neither, and "offer nothing, disable submit" is
  * the safe reading of that state.
  *
- * @returns {{catalog: Array, isLoading: boolean, error: any}}
+ * 🔴 …AND `refusals` IS WHY A STORED FORMULA IS **NOT** IN THAT LIST. Served as
+ * a second key by the same endpoint (`indicator_alert_service
+ * .user_definition_refusals`), carrying each refusing door's own sentence
+ * verbatim. It is deliberately NOT merged into `catalog`: a refused formula has
+ * no address to submit, so a row among the offerings would arm nothing — the
+ * same reason the indicator library puts its refusals outside `role="listbox"`.
+ *
+ * ⚠️ `[]` FOR EVERY STATE THAT IS NOT A SERVED ANSWER — loading, error,
+ * signed-out. "Nothing was refused" and "we could not ask" render identically
+ * here on purpose: both mean this surface has nothing true to say about a
+ * member's own formulas, and the error branch already says so in its own words.
+ *
+ * @returns {{catalog: Array, refusals: Array, isLoading: boolean, error: any}}
  */
 export function useIndicatorAlertCatalog() {
   const { user } = useAuth()
@@ -118,7 +147,8 @@ export function useIndicatorAlertCatalog() {
     dedupingInterval: 300000,
   })
   return {
-    catalog: Array.isArray(data) ? data : [],
+    catalog: Array.isArray(data?.catalog) ? data.catalog : [],
+    refusals: Array.isArray(data?.refusals) ? data.refusals : [],
     isLoading: !user || (isLoading && !data && !error),
     error: error || null,
   }

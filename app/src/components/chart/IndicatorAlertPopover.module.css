@@ -222,6 +222,67 @@
   line-height: 1.35;
 }
 
+/* ─── SAVED, AND NOT OFFERED ────────────────────────────────────────────────
+   The formulas the admission gates refused, with each door's own sentence.
+   Rendered only when something was actually refused, so a member whose formulas
+   all install sees no heading and no warning about nothing. */
+.refused {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border, #2a2a2a);
+}
+.refusedLede {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text-muted, #888);
+}
+.refusedList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  /* Capped so a member with several refused formulas cannot push the active
+     alert list out of a 320px popover. `overflow-y` only — an `overflow-x`
+     here would compute `overflow-y` to auto as well and clip nothing usefully. */
+  max-height: 140px;
+  overflow-y: auto;
+}
+.refusedRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: var(--bg-surface, #161616);
+}
+.refusedName {
+  font-family: var(--font-mono);
+  color: var(--text-heading, #f0f0f0);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+/* The gate's own sentence. ⚠️ WARNING-COLOURED because this is not a property
+   of an indicator — it is a REFUSAL of the member's own work, and something
+   they may be able to fix.
+   ⛔ `--ind-warn`, NEVER `--warn`: tokens.css states outright that `--warn` IS
+   the premium gold, so using it for a warning conflates "warning" with
+   "premium brand". Same choice, same reason, as `.refusedWhy` on the library
+   dialog one surface over.
+   `white-space: normal` + `overflow-wrap` because these are real sentences and
+   a truncated refusal is no refusal — the `[gate:…]` suffix is at the END. */
+.refusedWhy {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--ind-warn);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 /* "Only on this chart" — the per-chart scope choice on the create form. */
 .scopeRow {
   display: flex;
