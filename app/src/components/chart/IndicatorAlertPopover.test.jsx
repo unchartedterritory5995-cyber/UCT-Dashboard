@@ -931,10 +931,15 @@ describe('Phase C Task 11 — a mute alert says what is wrong with it', () => {
   })
 
   it('⛔ the two fault states are the SERVICE\'s two — not two strings typed here', () => {
-    // The component holds `ATTENTION_STATES`, which is a twin of the service's
-    // `STATE_NEEDS_ATTENTION` / `STATE_ERROR`. A twin that nothing compares is
-    // how the read went missing in the first place, so the comparison is made
-    // against the service's own source.
+    // `ATTENTION_STATES` is a twin of the service's `STATE_NEEDS_ATTENTION` /
+    // `STATE_ERROR`. A twin that nothing compares is how the read went missing
+    // in the first place, so the comparison is made against the service's own
+    // source.
+    //
+    // ⚠️ IT MOVED TO `alertState.jsx` AND THE PROBE MOVED WITH IT. The alert
+    // manager on `/settings` is a second surface that must treat exactly the
+    // same states as faults; the constant is shared so it cannot be two
+    // answers, and this rail follows the constant rather than the component.
     const CONTROL = 'STATE_ARMED = "armed"\nSTATE_NEEDS_ATTENTION = "needs_attention"\nSTATE_ERROR = "error"\n'
     const faultStates = (src) => ['STATE_NEEDS_ATTENTION', 'STATE_ERROR'].map((name) => {
       const m = new RegExp('^' + name + '[ ]*=[ ]*"([^"]+)"', 'm').exec(src)
@@ -947,14 +952,23 @@ describe('Phase C Task 11 — a mute alert says what is wrong with it', () => {
 
     const py = fs.readFileSync(path.join(ROOT, 'api/services/indicator_alert_service.py'), 'utf8')
     const jsx = fs.readFileSync(
-      path.join(ROOT, 'app/src/components/chart/IndicatorAlertPopover.jsx'), 'utf8',
+      path.join(ROOT, 'app/src/components/chart/alertState.jsx'), 'utf8',
     )
-    const declared = /const\s+ATTENTION_STATES\s*=\s*new\s+Set\(\[([^\]]*)\]\)/.exec(jsx)
-    expect(declared, 'ATTENTION_STATES could not be read from IndicatorAlertPopover.jsx').toBeTruthy()
+    const declared = /ATTENTION_STATES\s*=\s*new\s+Set\(\[([^\]]*)\]\)/.exec(jsx)
+    expect(declared, 'ATTENTION_STATES could not be read from alertState.jsx').toBeTruthy()
     const rendered = [...declared[1].matchAll(/'([^']+)'/g)].map((m) => m[1])
     expect(new Set(rendered),
-      'the states the popover treats as a fault are no longer the service\'s fault states — ' +
+      'the states the UI treats as a fault are no longer the service\'s fault states — ' +
       'a sweep that flags an alert the UI does not render is the silence Task 11 closed.')
       .toEqual(new Set(faultStates(py)))
+
+    // ⛔ AND BOTH SURFACES READ THAT ONE MODULE. A shared constant proves
+    // nothing if a surface stops importing it and inlines its own — which is
+    // precisely how the popover and the manager would drift back apart.
+    for (const f of ['IndicatorAlertPopover.jsx', 'IndicatorAlertManager.jsx']) {
+      const src = fs.readFileSync(path.join(ROOT, 'app/src/components/chart', f), 'utf8')
+      expect(src, `${f} no longer mounts the shared lifecycle line`).toContain('AlertStateLine')
+      expect(src, `${f} declares its own fault-state set again`).not.toMatch(/ATTENTION_STATES\s*=/)
+    }
   })
 })

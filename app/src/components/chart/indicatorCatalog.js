@@ -26,6 +26,21 @@
 // flags any shipped module naming four or more; this file must never reach that
 // threshold, because the moment it does it has become a sixteenth hand-written
 // list wearing the name of the thing that was meant to end them.
+//
+// ⛔⛔ AND `catalogRows()` IS STILL THE SHIPPED CATALOGUE — `userCatalogRows()`
+// IS A SECOND FUNCTION ON PURPOSE. A user's formula is addressable, drawable and
+// (as of this change) BROWSABLE, and it is still not something this build ships.
+// Three rails read `listDefinitions()` to prove what ships — `idsByLane(...)`
+// equals `SHIPPED_DEF_IDS`, `.length` equals `REGISTRY_SIZES.total`, and
+// `REGISTRY_SIZES.ast` is 0 — and `indicatorCatalog.test.js` compares
+// `catalogRows()` against `listDefinitions()` id-for-id. Folding session state
+// into that function would turn every one of those into a statement about WHO IS
+// SIGNED IN, and they would all still read green in a suite that installs
+// nothing: the vacuous-gate shape `registrySizes.js` imports nothing to avoid.
+// So the union is made at the ONE surface that means to offer a member their own
+// formulas (`IndicatorLibraryDialog`), and the share link, the voice bus, the
+// right-click submenu and the on-count keep reading the shipped list they have
+// always read — none of them can resolve another member's `u_…` id anyway.
 
 import * as defaultRegistry from './engine/nativeRegistry'
 import { CHART_DEFAULTS } from './chartDefaults'
@@ -54,6 +69,9 @@ export const CARVED_OUT_ROWS = Object.freeze([
     target: 'canvas',
     carvedOut: true,
     engineOwned: false,
+    // Shipped chrome, not a member's formula. Declared rather than left absent
+    // so `userDefined` is a field every row answers, on both branches.
+    userDefined: false,
     description: 'Traded volume binned by price over the visible range, with the point of control marked.',
     tags: Object.freeze(['volume', 'profile']),
     // ⛔ DECLARED, NOT INVENTED. The library dialog renders a repaint badge from
@@ -78,16 +96,32 @@ function defs(registry) {
   return typeof r.listDefinitions === 'function' ? r.listDefinitions() : []
 }
 
-function rowFor(def) {
+/** The heading a member's own formulas are grouped under in the library.
+ *
+ *  ⚠️ It is a CATEGORY, so it rides the dialog's existing derived-groups
+ *  machinery (`[...new Set(rows.map(r => r.category))]`) and needs no second
+ *  grouping path — but it is assigned by `rowFor` rather than read from the
+ *  stored document, for the reason stated there. */
+export const USER_CATEGORY = 'My formulas'
+
+function rowFor(def, userDefined = false) {
   const meta = def.meta || {}
   return {
     id: def.id,
     name: meta.name || def.id,
     shortName: meta.shortName || def.id,
-    category: meta.category || 'Other',
+    // ⛔ A MEMBER'S FORMULA IS FILED BY PROVENANCE, NOT BY ITS OWN `meta.category`.
+    // `BuilderSheet.buildDefinition` writes `'Custom'` today, but the category
+    // comes off a STORED document, so a row installed from an older or
+    // hand-edited one could land in `Volume` or `Momentum` and sit unmarked
+    // between two shipped indicators. The section heading IS the distinction
+    // this surface owes the user, so it is not left to a field the author's
+    // document controls.
+    category: userDefined ? USER_CATEGORY : (meta.category || 'Other'),
     target: (def.placement && def.placement.target) || 'pane',
     carvedOut: false,
     engineOwned: true,
+    userDefined,
     description: meta.description || '',
     tags: Array.isArray(meta.tags) ? meta.tags : [],
     // ── the three facts the library dialog badges, all DECLARED ──────────────
@@ -104,9 +138,58 @@ function rowFor(def) {
 }
 
 /** Every indicator the settings blob has a section for, in registry order, with
- *  the carved-out ones appended. */
+ *  the carved-out ones appended.
+ *
+ *  ⛔ SHIPPED ONLY. See the header — this is the function three registry rails
+ *  and fifteen call sites read, and a member's formula must never be able to
+ *  make the shipped manifest true by joining it. `userCatalogRows` is the other
+ *  half. */
 export function catalogRows(registry) {
-  return [...defs(registry).map(rowFor), ...CARVED_OUT_ROWS]
+  return [...defs(registry).map(d => rowFor(d, false)), ...CARVED_OUT_ROWS]
+}
+
+/**
+ * 🔴 THE MEMBER'S OWN FORMULAS, AS LIBRARY ROWS — the read that did not exist.
+ *
+ * Phase D shipped every part of this but the last one: a member could author a
+ * formula (Task 11), it saved (Task 10), it INSTALLED into the registry and
+ * DREW (Task 16), and `getDefinition` resolved it everywhere — and the indicator
+ * library read `listDefinitions()`, which is deliberately shipped-only, so the
+ * formula appeared on no screen a member would look at. They had to already know
+ * it existed.
+ *
+ * ⛔ IT READS `listUserDefinitions()`, NOT `listAllDefinitions()`. The union is
+ * made by the caller, because the caller is what decides ORDER and what needs
+ * the two halves separable; taking the pre-unioned list would leave this function
+ * re-deriving which rows are the member's by set difference, which is a second
+ * way to answer a question the registry already answers by index.
+ *
+ * ⚠️ SESSION STATE. `_userById` is populated by `installUserDefinitions`, which
+ * `useInstalledUserDefinitions` calls during `StockChart`'s render once SWR
+ * answers — i.e. AFTER first paint. Any memo over this must therefore depend on
+ * `catalogGeneration()`; a memo keyed on the registry module alone never
+ * recomputes, because the module namespace is the same object forever. That is
+ * the exact shape of the bug this whole task is about, one memo over.
+ *
+ * @param {object} [registry]
+ * @returns {object[]} `[]` when nothing is installed — so the section simply
+ *   does not exist for a member who has authored nothing.
+ */
+export function userCatalogRows(registry) {
+  const r = registry || defaultRegistry
+  const list = typeof r.listUserDefinitions === 'function' ? r.listUserDefinitions() : []
+  return list.map(d => rowFor(d, true))
+}
+
+/** The registry's install generation — the ONE value a memo over
+ *  `userCatalogRows` has to depend on. Exported from here rather than imported
+ *  from `nativeRegistry` by each surface so a caller that was handed a custom
+ *  `registry` asks THAT registry, the same way every other function in this
+ *  file does. `0` for a registry that does not publish one: a stable number is
+ *  the correct answer for a registry whose contents cannot change. */
+export function catalogGeneration(registry) {
+  const r = registry || defaultRegistry
+  return typeof r.registryGeneration === 'function' ? r.registryGeneration() : 0
 }
 
 function find(id, registry) {

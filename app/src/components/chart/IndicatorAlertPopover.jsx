@@ -33,6 +33,7 @@ import {
   fetchCurrentValue,
 } from '../../hooks/useIndicatorAlerts'
 import { formatET } from '../../utils/timeAgo'
+import AlertStateLine from './alertState'
 import { instancesForAddress } from './engine/alertSets'
 import { NATIVE_TFS, tfLabel } from './timeframes'
 import UIcon from '../ui/UIcon'
@@ -89,27 +90,18 @@ function fmtTriggeredAt(epochSec) {
 
 // ─── THE LIFECYCLE STATES A USER HAS TO BE TOLD ABOUT ───────────────────────
 //
-// ⭐ `sweep_silent_alerts` (api/services/indicator_alert_service.py:1358) runs
-// in production every five minutes, DIAGNOSES an alert that has gone quiet, and
-// writes `state='needs_attention'` with a `state_detail` sentence naming the
-// cause — missing tzdata, no stored bars, an address that resolves to nothing.
-// Both fields have been served by `_row_to_dict` since Task 11 and NO FRONTEND
-// MODULE READ EITHER ONE, so a broken alert rendered byte-identically to a
-// healthy one that simply had not triggered.
+// ⭐ `sweep_silent_alerts` DIAGNOSES an alert that has gone quiet and writes
+// `state='needs_attention'` with a `state_detail` sentence naming the cause.
+// This surface was the first reader of that pair (`afbf0470`).
 //
-// 🔴 AND IT IS LOAD-BEARING FOR A DECISION MADE TODAY: `ichimoku.chikou` alerts
-// can never fire on a closed bar and the ruling was that they stay ACTIVE and
-// "surface as `needs_attention` with a `state_detail`". With nothing rendering
-// the pair, that ruling produces a silent death with a database column.
-//
-// ⛔ ONLY THE FAULT STATES. `state_detail` is NOT a fault marker on its own —
-// `rearm` writes one under `armed` ("re-armed by …") and `snooze` writes
-// "snoozed for 60 min" under `snoozed`. Rendering every detail as an error line
-// would report a snooze the user just asked for as a broken alert. The two
-// members below are `STATE_NEEDS_ATTENTION` and `STATE_ERROR`; that they still
-// spell these exact strings is asserted against the service's own source, so
-// this cannot rot into silence the way the missing read did.
-const ATTENTION_STATES = new Set(['needs_attention', 'error'])
+// 🔴 THE READING NOW LIVES IN `./alertState`, BECAUSE THERE IS A SECOND
+// SURFACE. The alert manager on `/settings` shows every symbol's alerts, and it
+// is where a member actually DISCOVERS that one of theirs can never fire — a
+// second component deciding for itself what counts as a fault, and writing its
+// own fallback sentence, is a twin whose drift would be SILENCE. One module
+// owns `ATTENTION_STATES` and the line; both surfaces mount it. See that file
+// for why only the two fault states qualify (`rearm` and `snooze` both write a
+// `state_detail` under a HEALTHY state).
 
 /**
  * @param {object} [initial] `{instanceId, plotKey}` — the legend chip this
@@ -611,10 +603,6 @@ export default function IndicatorAlertPopover({
             // silently never fires. Only assertable once the catalog has
             // ACTUALLY arrived — while it is loading every row would look dead.
             const cannotFire = catalogReady && !byAddress.has(a.indicator)
-            // ⭐ THE LIFECYCLE STATE THE SWEEP WRITES. See `ATTENTION_STATES`.
-            // Unlike `cannotFire` this needs NO catalog: the server has already
-            // decided, and it says why.
-            const needsAttention = ATTENTION_STATES.has(a.state)
             return (
               <div
                 key={a.id}
@@ -644,22 +632,12 @@ export default function IndicatorAlertPopover({
                         — still watching {indLbl}
                       </span>
                     )}
-                    {/* ⭐ THE SERVER'S OWN DIAGNOSIS, VERBATIM. `state_detail`
-                        is written by `sweep_silent_alerts` after it re-runs the
-                        compute and names the cause; a paraphrase here would be
-                        a second, rotting copy of a sentence the server already
-                        wrote for this exact row. The fallback names the STATE
-                        rather than guessing a cause — a fault with no recorded
-                        detail is still a fault the member must be told about. */}
-                    {needsAttention && (
-                      <span
-                        className={styles.needsAttention}
-                        data-testid="alert-state-detail"
-                        data-state={a.state}
-                      >
-                        {a.state_detail || `This alert is not firing (${a.state}).`}
-                      </span>
-                    )}
+                    {/* ⭐ THE SERVER'S OWN DIAGNOSIS, VERBATIM — through the ONE
+                        module that decides what a fault state is. Rendering
+                        `null` for a healthy row is the component's own contract,
+                        so it is mounted unconditionally and the state test lives
+                        in exactly one place for both surfaces. */}
+                    <AlertStateLine alert={a} className={styles.needsAttention} />
                     {trigAt && (
                       <>
                         <span className={styles.trigCheck}><UIcon name="check" size={13} /></span>

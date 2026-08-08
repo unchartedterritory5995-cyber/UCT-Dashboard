@@ -64,6 +64,13 @@
 }
 .rowOn { background: var(--bg-elevated); border-color: var(--border-accent); }
 
+/* A member's OWN formula. ⛔ A LEADING RULE, NOT A BACKGROUND WASH: `.rowOn`
+   already owns this row's background and border-colour, and a second background
+   here would either fight it or silently win, so the provenance mark is a channel
+   `.rowOn` does not use. Colour is never the only signal — the row also carries
+   `data-user-defined` and the "Your formula" pill. */
+.rowMine { border-left: 2px solid var(--ut-gold-glow); border-radius: 6px; }
+
 .check {
   flex: 0 0 16px;
   padding-top: 2px;
@@ -112,6 +119,18 @@
   color: var(--text-muted);
   background: var(--bg-surface);
   border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+/* "Your formula" — provenance, stated in words. Reuses the informational
+   treatment `.pill` already carries rather than minting a third badge colour:
+   this is a fact about who authored the row, not a warning and not a tier. */
+.mine {
+  padding: 1px 6px;
+  font-size: 10px;
+  color: var(--info);
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
   border-radius: 4px;
 }
 
