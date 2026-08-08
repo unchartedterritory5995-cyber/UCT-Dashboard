@@ -1088,7 +1088,7 @@ function computePL(alert, currentSpot) {
 }
 
 // ─── Single row ───────────────────────────────────────────────────────────
-function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickContract, onClickTier, onOpenChart, isAdmin, onPush, pushState }) {
+function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickContract, onClickTier, onOpenChart, isAdmin, onPush, pushState, showDate }) {
   const tier = alert._tierKey || "algo";
   const meta = TIER_META[tier];
   const dirIsBull = alert._direction === "Bull";
@@ -1167,7 +1167,12 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
       alignItems: "center",
       ...flashStyle,
     }}>
-      <span style={{ color: rowColor, whiteSpace: "nowrap", textAlign: "center" }}>
+      <span style={{ color: rowColor, whiteSpace: "nowrap", textAlign: "center", lineHeight: 1.25 }}>
+        {showDate && (
+          <span style={{ display: "block", fontSize: 10, fontWeight: 700, color: P.dm }}>
+            {fmtDay(alert.timestamp)}
+          </span>
+        )}
         {fmtTime(alert.timestamp)}
       </span>
       <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, overflow: "hidden" }}>
@@ -4575,6 +4580,7 @@ export default function LiveFlowMassive() {
             isAdmin={isTuneMode}
             onPush={handlePush}
             pushState={pushStates[a.id]}
+            showDate={symbolScoped && lookbackDays > 1}
           />
         );
       })}
