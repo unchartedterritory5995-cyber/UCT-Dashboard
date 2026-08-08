@@ -4,11 +4,13 @@
 // gold corner resize on all four corners) and can dock into the grid or become a tab.
 import { useState, useCallback } from 'react'
 import PeriodSortResults from './widgets/PeriodSortResults'
+import UIcon from '../../components/ui/UIcon'
 import styles from './PeriodSortPanel.module.css'
 
 // Default size fits the default columns (flag 30 + sym 96 + period% 84 + price 62 + vol 56
 // = 328, + 16 row padding + ~17 scrollbar + 2 border) so there's no blank filler column.
-const DEF_W = 364, DEF_H = 560, MIN_W = 300, MIN_H = 240
+// MIN is tiny — the header (grab dots, colour dot, buttons) stays; the table just clips.
+const DEF_W = 364, DEF_H = 560, MIN_W = 150, MIN_H = 40
 const COLORS = ['A', 'B', 'C', 'D', 'N']
 const COLOR_HEX = { A: '#c9a84c', B: '#60a5fa', C: '#4ade80', D: '#c084fc', N: '#6b7280' }
 
@@ -82,7 +84,7 @@ export default function PeriodSortPanel({ start, end, onClose, onDock, onAddAsTa
           {onDock && (
             <button type="button" className={styles.iconBtn} onClick={onDock} title="Dock into the workspace as a widget" aria-label="Dock">⧉</button>
           )}
-          <button type="button" className={styles.close} onClick={onClose} title="Close" aria-label="Close">✕</button>
+          <button type="button" className={styles.close} onClick={onClose} title="Close" aria-label="Close"><UIcon name="x" size={13} gold={false} /></button>
         </div>
       </div>
       <div className={styles.panelBody}>

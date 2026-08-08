@@ -8,10 +8,11 @@
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  background: var(--bg-elevated, #22251e);
+  background: var(--widget-canvas, var(--bg-elevated, #22251e));
+  /* Same flat black outline as the workspace widgets (1px border, 4px radius) — no big
+     drop shadow. */
   border: 1px solid var(--border, #2e3127);
-  border-radius: 8px;
-  box-shadow: 0 24px 64px -24px rgba(0, 0, 0, 0.6);
+  border-radius: 4px;
   z-index: 4000;
   overflow: hidden;
   color: var(--text, #b6b09d);
@@ -57,7 +58,7 @@
   font-size: 11px;
   color: var(--text-muted, #8c8674);
 }
-.headBtns { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.headBtns { margin-left: auto; display: flex; align-items: center; gap: 6px; }
 .iconBtn, .close {
   width: 20px;
   height: 20px;
@@ -67,26 +68,40 @@
   border: none;
   background: transparent;
   color: var(--text-muted, #8c8674);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1;
   cursor: pointer;
   border-radius: 4px;
+  padding: 0;
 }
-.iconBtn:hover, .close:hover { background: var(--bg-hover, #2a2d24); color: var(--text-bright, #e0dac8); }
-.close:hover { color: var(--loss, #e74c3c); }
+.iconBtn:hover { color: var(--ut-gold, #c9a84c); }
+.close { color: var(--text-muted, #8c8674); }
+.close:hover { color: var(--text-bright, #e0dac8); }
 
-/* Gold resize corners — an L-shaped gold mark at each of the four corners. */
+/* Gold resize corners — IDENTICAL to the workspace widgets' RGL handles: a 16px grab box
+   with an inset L-mark (6px, 2px gold border on right+bottom) rotated so it hugs each
+   corner from INSIDE the panel (react-grid-layout .react-resizable-handle::after spec). */
 .corner {
   position: absolute;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   z-index: 20;
 }
-.cornerNW { left: 0; top: 0; cursor: nwse-resize; border-top: 2px solid var(--ut-gold, #c9a84c); border-left: 2px solid var(--ut-gold, #c9a84c); border-top-left-radius: 8px; }
-.cornerNE { right: 0; top: 0; cursor: nesw-resize; border-top: 2px solid var(--ut-gold, #c9a84c); border-right: 2px solid var(--ut-gold, #c9a84c); border-top-right-radius: 8px; }
-.cornerSW { left: 0; bottom: 0; cursor: nesw-resize; border-bottom: 2px solid var(--ut-gold, #c9a84c); border-left: 2px solid var(--ut-gold, #c9a84c); border-bottom-left-radius: 8px; }
-.cornerSE { right: 0; bottom: 0; cursor: nwse-resize; border-bottom: 2px solid var(--ut-gold, #c9a84c); border-right: 2px solid var(--ut-gold, #c9a84c); border-bottom-right-radius: 8px; }
-.corner:hover { filter: drop-shadow(0 0 3px var(--ut-gold, #c9a84c)); }
+.corner::after {
+  content: "";
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid rgba(201, 168, 76, 0.55);
+  border-bottom: 2px solid rgba(201, 168, 76, 0.55);
+}
+.corner:hover::after { border-right-color: rgba(201, 168, 76, 0.95); border-bottom-color: rgba(201, 168, 76, 0.95); }
+.cornerSE { right: 0; bottom: 0; cursor: se-resize; }
+.cornerSW { left: 0; bottom: 0; cursor: sw-resize; transform: rotate(90deg); }
+.cornerNW { left: 0; top: 0; cursor: nw-resize; transform: rotate(180deg); }
+.cornerNE { right: 0; top: 0; cursor: ne-resize; transform: rotate(270deg); }
 
 /* Add-as-tab dropdown (floating panel header). */
 .tabMenu {
