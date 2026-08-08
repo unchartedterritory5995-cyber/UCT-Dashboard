@@ -84,6 +84,8 @@ const COL_META = {
   perf5d: { def: 66, min: 48 }, perf30d: { def: 68, min: 48 }, perf60d: { def: 68, min: 48 }, perf90d: { def: 70, min: 50 },
   // Custom-Period Sort: % change over a user-picked date range (fed via perfOverride).
   periodchg: { def: 84, min: 58 },
+  // Custom-Period Sort GROUP rows: how many stocks are in the theme/sector/industry.
+  grpcount: { def: 60, min: 44 },
 }
 const DEFAULT_COL_ORDER = ['flag', 'sym', 'price', 'vol', 'chg']   // reorderable by dragging a header
 // [full label, abbreviation] + the min column width to still show the full word.
@@ -96,11 +98,12 @@ const COL_LABELS = {
   sector: ['Sector', 'Sector'], industry: ['Industry', 'Industry'], theme: ['Theme', 'Theme'],
   perf5d: ['5-Day', '5-day'], perf30d: ['30-Day', '30-day'], perf60d: ['60-Day', '60-day'], perf90d: ['90-Day', '90-day'],
   periodchg: ['% Change', '% Chg'],
+  grpcount: ['Stocks', 'Stocks'],
 }
 const COL_FULL_MINW = {
   sym: 62, price: 46, vol: 60, chg: 80, rvol: 52, ipoDate: 60, mcap: 78, earn: 108, rating: 82,
   dchg: 84, fromopen: 92, fromhigh: 92, fromlow: 88, dcr: 40, dolvol: 92,
-  sector: 40, industry: 40, theme: 40, perf5d: 40, perf30d: 40, perf60d: 40, perf90d: 40, periodchg: 40,
+  sector: 40, industry: 40, theme: 40, perf5d: 40, perf30d: 40, perf60d: 40, perf90d: 40, periodchg: 40, grpcount: 40,
 }
 // Extra data columns the user can ADD via the + button (not shown by default).
 const EXTRA_COLS = [
@@ -301,6 +304,10 @@ const WatchRow = React.memo(function WatchRow({
   perf5d = null, perf30d = null, perf60d = null, perf90d = null, periodchg = null,
   isOwner, wlId,
   onSelect, onToggleFlag, onIntent, onCtx,
+  // Custom-Period Sort GROUP rows (theme/sector/industry): a group row has no logo/flag,
+  // an expand caret + ellipsized name, a stock-count cell, and toggles instead of selecting.
+  // Member rows (a group's stocks, shown when expanded) render as normal stock rows, indented.
+  isGroup = false, expanded = false, isMember = false, grpcount = null, onToggleGroup = null,
 }) {
   // Signed % cell (green/red text + day-direction tint flash) — shared by the
   // %-from-open/high/low columns so they read like the % Change column.
@@ -310,20 +317,32 @@ const WatchRow = React.memo(function WatchRow({
       display={v != null ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}%` : '—'} />
   )
   const cellFor = (key) => {
-    if (key === 'flag') return (
-      <button
-        key="flag"
-        className={`${styles.flagStar}${flagged ? ' ' + styles.flagStarActive : ''}`}
-        onClick={e => { e.stopPropagation(); onToggleFlag(sym) }}
-        title={flagged ? 'Remove from Flagged' : 'Add to Flagged (Shift+F)'}
-      >{flagged ? <UIcon name="star-fill" size={13} /> : <UIcon name="star" size={13} />}</button>
-    )
-    if (key === 'sym') return (
-      <span key="sym" className={styles.symCell} onContextMenu={wlId ? (e => onCtx(e, sym, wlId, isOwner)) : undefined}>
-        {showLogos && <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={logoSize} round /></span>}
-        <span className={styles.rowSym}>{sym}</span>
-      </span>
-    )
+    if (key === 'flag') {
+      if (isGroup) return <span key="flag" className={styles.flagStar} style={{ pointerEvents: 'none' }} />
+      return (
+        <button
+          key="flag"
+          className={`${styles.flagStar}${flagged ? ' ' + styles.flagStarActive : ''}`}
+          onClick={e => { e.stopPropagation(); onToggleFlag(sym) }}
+          title={flagged ? 'Remove from Flagged' : 'Add to Flagged (Shift+F)'}
+        >{flagged ? <UIcon name="star-fill" size={13} /> : <UIcon name="star" size={13} />}</button>
+      )
+    }
+    if (key === 'sym') {
+      // Group row: expand caret + ellipsized name, no company logo (a theme/sector isn't a stock).
+      if (isGroup) return (
+        <span key="sym" className={styles.symCell} title={sym}>
+          <span className={styles.grpCaret}>{expanded ? '▾' : '▸'}</span>
+          <span className={styles.grpName}>{sym}</span>
+        </span>
+      )
+      return (
+        <span key="sym" className={styles.symCell} style={isMember ? { paddingLeft: 20 } : undefined} onContextMenu={wlId ? (e => onCtx(e, sym, wlId, isOwner)) : undefined}>
+          {showLogos && <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={logoSize} round /></span>}
+          <span className={styles.rowSym}>{sym}</span>
+        </span>
+      )
+    }
     if (key === 'price') return (
       <FlashCell key="price" value={price} className={styles.priceCell} flashEnabled={tintEnabled}
         display={price != null ? price.toFixed(2) : '—'} />
@@ -377,15 +396,17 @@ const WatchRow = React.memo(function WatchRow({
     if (key === 'perf60d') return pctCell('perf60d', perf60d)
     if (key === 'perf90d') return pctCell('perf90d', perf90d)
     if (key === 'periodchg') return pctCell('periodchg', periodchg)
+    // Stock-count of a theme/sector/industry (group rows only; blank for stocks).
+    if (key === 'grpcount') return <span key="grpcount" className={styles.metaCell}>{grpcount != null ? grpcount : '—'}</span>
     return null
   }
   return (
     <div
       data-watch-sym={sym}
       className={`${styles.listRow} ${styles.wlRow}${selected ? ' ' + styles.listRowSelected : ''}`}
-      onClick={() => onSelect(sym)}
-      onPointerEnter={() => onIntent(sym)}
-      onFocus={() => onIntent(sym)}
+      onClick={() => (isGroup ? onToggleGroup?.(sym) : onSelect(sym))}
+      onPointerEnter={() => (isGroup ? undefined : onIntent(sym))}
+      onFocus={() => (isGroup ? undefined : onIntent(sym))}
     >
       {orderedKeys.map(cellFor)}
     </div>
@@ -410,7 +431,8 @@ function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange }) {
   useEffect(() => {
     if (!onVisibleChange) return
     const syms = []
-    for (let i = first; i <= last && i < items.length; i++) { const s = items[i]?.sym; if (s) syms.push(s) }
+    // Group rows (theme/sector/industry names) have no live data — only stream real stocks.
+    for (let i = first; i <= last && i < items.length; i++) { const it = items[i]; if (it?.sym && !it.isGroup) syms.push(it.sym) }
     onVisibleChange(syms)
   }, [first, last, items, onVisibleChange])
   if (items.length === 0) return <div className={styles.wlEmpty}>{emptyText}</div>
@@ -438,7 +460,7 @@ function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange }) {
 // "+" beside the ⚙ gear (single-list widget / pick mode). Community lists show no "+"
 // — they aren't yours to write to.
 
-export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, ephemeralCols = false }) {
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, ephemeralCols = false, scanGroups = null }) {
   // Column layout persists in localStorage. The watchlist widgets all share the
   // global key; the scanner passes its OWN key so its columns are independent.
   const _colKey = colStorageKey || WL_COLS_LS
@@ -447,6 +469,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // menu, sort, flag-star, live prices) but no add/remove/reorder/notes (membership
   // comes from the scan). Callers pass pickList="__scan__" + scanSymbols=[...].
   const scanMode = Array.isArray(scanSymbols)
+  // Group mode (Custom-Period Sort by theme/sector/industry): scan rows ARE groups; each can
+  // expand inline to its member stocks (like Theme Tracker). scanGroups maps name → members[].
+  const groupMode = scanMode && scanGroups && typeof scanGroups === 'object'
+  const [expandedGroups, setExpandedGroups] = useState(() => new Set())
+  const toggleGroupExpand = useCallback((name) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev)
+      if (next.has(name)) next.delete(name); else next.add(name)
+      return next
+    })
+  }, [])
   const scanWl = useMemo(
     () => (scanMode
       ? { id: '__scan__', name: pickName || 'Scan',
@@ -1458,8 +1491,20 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       const bySym = new Map(sorted.map(i => [i.sym, i]))   // O(n) reorder (find-in-loop is O(n²))
       sorted = order.map(s => bySym.get(s)).filter(Boolean)
     }
-    return sorted
-  }, [scanMode, scanWl, colSort, sortAndFilterItems, applyColSort])
+    if (!groupMode) return sorted
+    // Group mode: flatten to [group, ...its members when expanded], members ranked by their
+    // own period change (from perfData/perfOverride). isGroup/isMember drive the row render.
+    const flat = []
+    for (const g of sorted) {
+      flat.push({ ...g, isGroup: true })
+      if (expandedGroups.has(g.sym)) {
+        const members = (scanGroups[g.sym] || []).slice()
+        members.sort((a, b) => (perfData[b]?.period ?? -1e12) - (perfData[a]?.period ?? -1e12))
+        for (const m of members) flat.push({ id: `${g.sym}::${m}`, sym: m, isMember: true })
+      }
+    }
+    return flat
+  }, [scanMode, scanWl, colSort, sortAndFilterItems, applyColSort, groupMode, expandedGroups, scanGroups, perfData])
 
   // Column header. Labels click to sort / right-click to hide-show. Gridlines are
   // SEPARATE draggable dividers overlaid on the header (positioned at each column
@@ -1530,7 +1575,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Thin wrapper: compute this row's primitive props + hand it the stable callbacks.
   // `wlId` (owner watchlist rows only) enables the right-click row menu, which is
   // where notes / price alerts / remove all live.
-  function renderTickerRow({ sym, name = null, isOwner = false, wlId = null }) {
+  function renderTickerRow({ sym, name = null, isOwner = false, wlId = null, isGroup = false, isMember = false, expanded = false }) {
     const q = prices[sym]
     // N-day % change, computed LIVE from the current price vs the reference close N
     // trading days ago (backend `refs`), so these columns tick/flash/tint with every
@@ -1571,6 +1616,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         perf60d={perfLive('60d')}
         perf90d={perfLive('90d')}
         periodchg={perfLive('period')}
+        grpcount={metaData[sym]?.group_count ?? null}
         flagged={isFlagged(sym)}
         selected={selectedSym === sym}
         orderedKeys={orderedKeys}
@@ -1583,6 +1629,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         ipoDate={metaData[sym]?.ipo_date ?? null}
         isOwner={isOwner}
         wlId={wlId}
+        isGroup={isGroup}
+        isMember={isMember}
+        expanded={expanded}
+        onToggleGroup={toggleGroupExpand}
         onSelect={onRowSelect}
         onToggleFlag={onRowFlag}
         onIntent={onRowIntent}
@@ -1973,7 +2023,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             <ScanRows
               scrollRef={listBodyRef}
               items={scanSortedItems}
-              renderRow={(item) => renderTickerRow({ sym: item.sym, name: item.name, isOwner: false, wlId: null })}
+              renderRow={(item) => renderTickerRow({
+                sym: item.sym, name: item.name, isOwner: false, wlId: null,
+                isGroup: !!item.isGroup, isMember: !!item.isMember,
+                expanded: item.isGroup ? expandedGroups.has(item.sym) : false,
+              })}
               emptyText={scanWl.items.length === 0 ? (scanEmptyText || 'No matches yet.') : 'No matches.'}
               onVisibleChange={setScanVisibleSyms}
             />

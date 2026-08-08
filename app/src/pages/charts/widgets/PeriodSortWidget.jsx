@@ -24,6 +24,7 @@ export default function PeriodSortWidget({ color, opts = {}, onOptsChange }) {
       start={start}
       end={end}
       color={color}
+      group={opts.group || null}
       settingsOverride={settingsOverride}
       onSettingsPersist={persistSettings}
     />

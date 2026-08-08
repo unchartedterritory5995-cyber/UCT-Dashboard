@@ -554,7 +554,6 @@ export default function ChartsWorkspace() {
   const [periodSortMode, setPeriodSortMode] = useState(false)
   const [periodSortSel, setPeriodSortSel] = useState(null)     // { sym, start, end, pct } | null
   const [periodSortPanel, setPeriodSortPanel] = useState(null) // { start, end, group } | null
-  const [periodSortDrill, setPeriodSortDrill] = useState(null) // { start, end, name, members } | null — a group's stocks
   // Replay mode: an ISO 'YYYY-MM-DD' cutoff — linked charts hide every bar after it.
   const [replayCutoff, setReplayCutoff] = useState(null)
   const handlePeriodSelected = useCallback((sym, start, end, pct) => {
@@ -690,7 +689,7 @@ export default function ChartsWorkspace() {
 
   // Custom-Period Sort → dock the floating results as a real grid widget (carrying the
   // highlighted range), or fold it into an existing widget as a Period-Sort tab.
-  const handleDockPeriodSort = useCallback((start, end) => {
+  const handleDockPeriodSort = useCallback((start, end, group = null) => {
     setPeriodSortPanel(null)
     setLayout(prev => {
       const defaults = WIDGET_DEFAULTS.periodsort
@@ -712,19 +711,19 @@ export default function ChartsWorkspace() {
         id: `w-periodsort-${Date.now()}`,
         type: 'periodsort', color,
         x: place.x, y: place.y, w: place.w, h: place.h,
-        opts: { start, end },
+        opts: { start, end, group: group || null },
       }
       const next = { ...prev, widgets: clampWidgetsToRows([...widgets, newWidget]) }
       scheduleSave(next)
       return next
     })
   }, [scheduleSave, groupSyms])
-  const handlePeriodSortToTab = useCallback((widgetId, start, end) => {
+  const handlePeriodSortToTab = useCallback((widgetId, start, end, group = null) => {
     setPeriodSortPanel(null)
     setLayout(prev => {
       const target = prev.widgets.find(w => w.id === widgetId)
       if (!target) return prev
-      const nextWidget = addWidgetTab(target, { type: 'periodsort', color: 'N', opts: { start, end } })
+      const nextWidget = addWidgetTab(target, { type: 'periodsort', color: 'N', opts: { start, end, group: group || null } })
       const next = { ...prev, widgets: prev.widgets.map(w => w.id === widgetId ? { ...nextWidget, x: w.x, y: w.y, w: w.w, h: w.h } : w) }
       scheduleSave(next)
       return next
@@ -1415,7 +1414,6 @@ export default function ChartsWorkspace() {
             onCancel={() => setPeriodSortSel(null)}
             onSort={(start, end, replay, group) => {
               setPeriodSortSel(null)
-              setPeriodSortDrill(null)
               setPeriodSortPanel({ start, end, group: group || null })
               // Replay: cut every linked chart off at the End date (ISO). Off = clear it.
               const s = String(end)
@@ -1428,25 +1426,10 @@ export default function ChartsWorkspace() {
             start={periodSortPanel.start}
             end={periodSortPanel.end}
             group={periodSortPanel.group}
-            onClose={() => { setPeriodSortPanel(null); setPeriodSortDrill(null) }}
-            onDock={periodSortPanel.group ? undefined : () => handleDockPeriodSort(periodSortPanel.start, periodSortPanel.end)}
-            tabTargets={periodSortPanel.group ? [] : visibleWidgets.map(w => ({ id: w.id, label: WIDGET_LABELS[w.type] || w.type }))}
-            onAddAsTab={periodSortPanel.group ? undefined : (widgetId) => handlePeriodSortToTab(widgetId, periodSortPanel.start, periodSortPanel.end)}
-            onPickGroup={(name, members) => setPeriodSortDrill({ start: periodSortPanel.start, end: periodSortPanel.end, name, members })}
-          />
-        )}
-        {periodSortDrill && (
-          <PeriodSortPanel
-            key={periodSortDrill.name}
-            start={periodSortDrill.start}
-            end={periodSortDrill.end}
-            symbolsFilter={periodSortDrill.members}
-            titlePrefix={periodSortDrill.name}
-            offset={430}
-            onClose={() => setPeriodSortDrill(null)}
-            onDock={() => handleDockPeriodSort(periodSortDrill.start, periodSortDrill.end)}
+            onClose={() => setPeriodSortPanel(null)}
+            onDock={() => handleDockPeriodSort(periodSortPanel.start, periodSortPanel.end, periodSortPanel.group)}
             tabTargets={visibleWidgets.map(w => ({ id: w.id, label: WIDGET_LABELS[w.type] || w.type }))}
-            onAddAsTab={(widgetId) => handlePeriodSortToTab(widgetId, periodSortDrill.start, periodSortDrill.end)}
+            onAddAsTab={(widgetId) => handlePeriodSortToTab(widgetId, periodSortPanel.start, periodSortPanel.end, periodSortPanel.group)}
           />
         )}
       </div>
