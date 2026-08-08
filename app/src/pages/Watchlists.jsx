@@ -473,12 +473,10 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // expand inline to its member stocks (like Theme Tracker). scanGroups maps name → members[].
   const groupMode = scanMode && scanGroups && typeof scanGroups === 'object'
   const [expandedGroups, setExpandedGroups] = useState(() => new Set())
+  // Accordion: only ONE group's stocks are open at a time — clicking a new group
+  // closes whichever was open (clicking the open group collapses it).
   const toggleGroupExpand = useCallback((name) => {
-    setExpandedGroups(prev => {
-      const next = new Set(prev)
-      if (next.has(name)) next.delete(name); else next.add(name)
-      return next
-    })
+    setExpandedGroups(prev => (prev.has(name) ? new Set() : new Set([name])))
   }, [])
   const scanWl = useMemo(
     () => (scanMode
