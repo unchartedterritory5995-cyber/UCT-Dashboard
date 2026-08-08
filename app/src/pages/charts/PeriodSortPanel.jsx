@@ -7,18 +7,22 @@ import PeriodSortResults from './widgets/PeriodSortResults'
 import UIcon from '../../components/ui/UIcon'
 import styles from './PeriodSortPanel.module.css'
 
-// Default size fits the default columns (flag 30 + sym 96 + period% 84 + price 62 + vol 56
-// = 328, + 16 row padding + ~17 scrollbar + 2 border) so there's no blank filler column.
+// Default size fits the default columns with no blank filler. Stocks (flag18 + sym96 +
+// periodchg84 + price62 + vol56 ≈ 316 + chrome) → 364. Groups have a wide name column
+// (flag18 + sym250 + periodchg84 + count60 ≈ 412 + chrome) → 450, so full names fit.
 // MIN is tiny — the header (grab dots, colour dot, buttons) stays; the table just clips.
-const DEF_W = 364, DEF_H = 560, MIN_W = 150, MIN_H = 40
+const DEF_H = 560, MIN_W = 150, MIN_H = 40
+const stockDefW = 364, groupDefW = 450
 const COLORS = ['A', 'B', 'C', 'D', 'N']
 const COLOR_HEX = { A: '#c9a84c', B: '#60a5fa', C: '#4ade80', D: '#c084fc', N: '#6b7280' }
 
 export default function PeriodSortPanel({ start, end, onClose, onDock, onAddAsTab, tabTargets = [], group = null, symbolsFilter = null, titlePrefix = null, offset = 0 }) {
+  // Group panels open wider so the theme/sector/industry names fit; stock panels stay snug.
+  const defW = group ? groupDefW : stockDefW
   // Open centered over the workspace (i.e. over the chart), not pinned to the left. A drill
   // window (offset) opens beside its parent so both are visible.
-  const [pos, setPos] = useState(() => ({ x: Math.max(12, Math.round((window.innerWidth - DEF_W) / 2)) + offset, y: 96 + (offset ? 24 : 0) }))
-  const [size, setSize] = useState({ w: DEF_W, h: DEF_H })
+  const [pos, setPos] = useState(() => ({ x: Math.max(12, Math.round((window.innerWidth - defW) / 2)) + offset, y: 96 + (offset ? 24 : 0) }))
+  const [size, setSize] = useState({ w: defW, h: DEF_H })
   const [tabMenuOpen, setTabMenuOpen] = useState(false)
   const [panelColor, setPanelColor] = useState('A')
 

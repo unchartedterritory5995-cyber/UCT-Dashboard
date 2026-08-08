@@ -5,7 +5,7 @@
 //    virtualized + visible-only streaming).
 //  • GROUPS (theme/sector/industry): the groups ranked by their mean % change, each an
 //    expandable row (click → its stocks inline). Feeds the same table with group NAMES as
-//    rows + a Stocks-count column; price/volume/etc are naturally blank (—) for a group.
+//    rows + a Stocks-count column; group rows show name · % · count (no price/volume).
 import { useMemo, useCallback, useId } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import Watchlists from '../../Watchlists'
@@ -21,8 +21,12 @@ function fmtScanTime(iso) {
   try { return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) } catch { return '' }
 }
 
-const DEFAULT_COLS_STOCK = { order: ['flag', 'sym', 'periodchg', 'price', 'vol'], sort: { key: 'periodchg', dir: 'desc' } }
-const DEFAULT_COLS_GROUP = { order: ['flag', 'sym', 'periodchg', 'price', 'vol', 'grpcount'], sort: { key: 'periodchg', dir: 'desc' } }
+const SEP = String.fromCharCode(1)   // symbol-list content-key separator (never appears in a name/ticker)
+// Stocks: Flag · Symbol · % Change · Price · Volume (thin flag to save space).
+const DEFAULT_COLS_STOCK = { order: ['flag', 'sym', 'periodchg', 'price', 'vol'], sort: { key: 'periodchg', dir: 'desc' }, widths: { flag: 18 } }
+// Groups: Flag · Name · % Change · Stocks (no price/volume — meaningless for a group). Wide
+// name column so full theme/sector/industry names fit; thin flag.
+const DEFAULT_COLS_GROUP = { order: ['flag', 'sym', 'periodchg', 'grpcount'], sort: { key: 'periodchg', dir: 'desc' }, widths: { flag: 18, sym: 250 } }
 const GROUP_LABEL = { theme: 'Themes', sector: 'Sectors', industry: 'Industries' }
 const GROUP_UNIT = { theme: 'theme', sector: 'sector', industry: 'industry' }
 
@@ -46,17 +50,19 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
   })
 
   const data = group ? groupData : stockData
-  const mutate = group ? groupMutate : stockMutate
   const isValidating = group ? groupVal : stockVal
 
   const filterSet = useMemo(() => (Array.isArray(symbolsFilter) ? new Set(symbolsFilter) : null), [symbolsFilter])
-  const stockSymKey = (stockData?.results || []).filter((r) => !filterSet || filterSet.has(r.sym)).map((r) => r.sym).join(',')
-  const groupSymKey = (groupData?.results || []).map((r) => r.name).join(',')
+  // Content-key the symbol list so an identical poll doesn't rebuild the table. SEP (a
+  // control char), NOT a comma — group NAMES can contain commas ("Oil, Gas & Fuels"), which
+  // would otherwise shift every later row out of sync with its data + members.
+  const stockSymKey = (stockData?.results || []).filter((r) => !filterSet || filterSet.has(r.sym)).map((r) => r.sym).join(SEP)
+  const groupSymKey = (groupData?.results || []).map((r) => r.name).join(SEP)
 
-  // The rows shown at the top level: group NAMES in group mode, stock syms otherwise.
+  // Top-level rows: group NAMES in group mode, stock syms otherwise.
   const symbols = useMemo(() => {
     const key = group ? groupSymKey : stockSymKey
-    return key ? key.split(',') : []
+    return key ? key.split(SEP) : []
   }, [group, groupSymKey, stockSymKey])
 
   // Group → member stocks (for inline expansion).
@@ -107,6 +113,7 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
   const scanFooter = (
     <div className={styles.scanFooter}>
       <span className={styles.scanCount}>{symbols.length.toLocaleString()} {symbols.length === 1 ? unit : `${unit}s`}</span>
+      {data?.partial && <span className={styles.scanUpdated}>· surviving universe</span>}
       {data?.as_of && <span className={styles.scanUpdated}>· {fmtScanTime(data.as_of)} ET</span>}
       <button type="button" className={styles.scanRefresh} onClick={() => { stockMutate(); if (group) groupMutate() }} title="Refresh" aria-label="Refresh">
         <UIcon name="refresh" size={12} gold={false} className={isValidating ? styles.scanRefreshSpin : undefined} />
