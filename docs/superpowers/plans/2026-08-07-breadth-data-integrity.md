@@ -4,6 +4,51 @@ Written to survive a context compaction. **This file is the source of truth for
 what is done, what is not, and what to do next.** It assumes no memory of the
 session that produced it.
 
+---
+
+## STATUS — 2026-08-08: P0–P5 COMPLETE, three owner decisions open
+
+`breadth_freeze_audit.py --days 150` reports **0 unexplained, exit 0** for the
+first time. Dashboard shipped to master (`030e69bc..f97983e7`) and verified live.
+
+| item | outcome |
+|---|---|
+| P0 universe | fixed `f3d4dc8` — last-good fallback + 5% step warning |
+| P1 cboe | **86 rows re-dated** `22c42ff`; second dry run 150/150 correct |
+| P1b score | dissolved — it is derived at read time, so it corrected itself |
+| P2 metrics | `uct_exposure` fabrication found + repaired `cc5e433`; a NEW window bug found + fixed `a80b1ea1`; the other five verified sound |
+| P3 slope | tightened to strict `>`/`<` in all three copies `c4c4ed4` / `23dde7cc` |
+| P4 NAAIM | sources exhausted — the publisher withdrew the data. Owner decision. |
+| P5 ship | pushed, deployed, verified live; freeze audit clean |
+
+**Found during the work, not in the original plan:**
+
+- **`get_history(days)` let the request change the answer.** Rolling metrics were
+  derived over only the rows fetched, so the same date returned different values
+  from a 30-day vs a 200-day read (`ratio_5day` 3.77 vs 1.16; `adv_decline_cum`
+  wrong on 30 of 30). `get_latest()` calls `get_history(1)`, making the most-read
+  row the worst one. Fixed with a 15-row warm-up + an absolute A/D seed;
+  **verified live: 0 disagreements across all five fields.**
+- **`uct_exposure` was fabricated on 33 January–February sessions**, all reading
+  exactly 14.0, all written in one backfill run on 2026-03-22. It drives position
+  sizing. Nulled; there is no source to recover the true values from.
+- **`^VIX6M` went dark after 2026-07-17**, like `^VXMT` before it. The
+  `.dropna().iloc[-1]` shape in both readers carried 22.28 forward — this repair
+  *introduced* that and the freeze audit caught it the same hour.
+
+### Open — owner decisions only
+
+1. **Universe history.** ~1/3 of 120 sessions were collected on the wrong
+   population. Leave / normalise at display / backfill / mark.
+2. **72 `uct_exposure` rows disagree with `market_regimes`.** Not the fabricated
+   ones — these came from normal daily runs, so the table was rewritten after the
+   collector read it. Which store is authoritative?
+3. **NAAIM.** Every free route closed 2026-08-01 (see P4). Accept the chatter
+   route, pay, or drop it from the score.
+4. **Labels** (P3 items 1–2): closing-basis new highs, and Stage 2 = MA stack
+   only. Both are internally correct but narrower than the published NH/NL and
+   the full Minervini template. Keep, relabel, or add a variant.
+
 Worktree: `C:\Users\Patrick\uct-worktrees\breadth-live` (branch
 `feat/breadth-live`). Sister repos: `C:\Users\Patrick\uct-intelligence`
 (collector + audit tools), `C:\Users\Patrick\morning-wire` (wire engine).
