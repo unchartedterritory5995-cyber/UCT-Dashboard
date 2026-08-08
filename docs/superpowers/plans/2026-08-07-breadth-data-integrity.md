@@ -39,10 +39,20 @@ first time. Dashboard shipped to master (`030e69bc..f97983e7`) and verified live
 ### Open — owner decisions only
 
 1. **Universe history.** ~1/3 of 120 sessions were collected on the wrong
-   population. Leave / normalise at display / backfill / mark.
-2. **72 `uct_exposure` rows disagree with `market_regimes`.** Not the fabricated
-   ones — these came from normal daily runs, so the table was rewritten after the
-   collector read it. Which store is authoritative?
+   population. Leave / normalise at display / backfill / mark. The audit now
+   carries a `STEP_CHANGE` kind that reports these every run as context and
+   **fails the gate on any NEW swap** (`STEP_GATE_FROM = "2026-08-08"`).
+2. ~~**72 `uct_exposure` rows disagree with `market_regimes`.**~~ ✅ **RESOLVED —
+   not a defect.** In all 72 the regime row was created BEFORE the snapshot
+   (2026-03-23: regime 12:31, snapshot 21:31), so the collector did read a real
+   value. `record_market_regime` is an UPSERT whose DO UPDATE rewrites
+   `exposure_pct` but touches neither `source` nor `created_at` — both describe
+   only the FIRST writer, so a row labelled `morning_wire` can hold a value the
+   brain wrote later — and `autonomous_brain` re-upserts five times a day. The
+   snapshot is the 4:15 PM ET reading, as-of the same moment as every other
+   field in that row; the table is mutable current state. **Different moments,
+   not different facts.** Leaving them is the justified default; adopting the
+   table's value would put a post-close revision in one field of a 4:15 row.
 3. **NAAIM.** Every free route closed 2026-08-01 (see P4). Accept the chatter
    route, pay, or drop it from the score.
 4. **Labels** (P3 items 1–2): closing-basis new highs, and Stage 2 = MA stack
@@ -159,8 +169,18 @@ cache instead of the filtered ~2,700.
 on the wrong population. Leave them, normalise at display time, backfill, or
 mark them. Not rewritten without asking.
 
-⏳ Not done: a STEP_CHANGE kind in `breadth_freeze_audit.py`. The collector-side
-warning covers it going forward; the audit kind would catch it retrospectively.
+✅ **`STEP_CHANGE` shipped in `breadth_freeze_audit.py`.** Fires when a metric in
+`STEP_METRICS` (currently `universe_count`, 5%) moves more session-over-session
+than the market can explain. On the stored history it finds **7 steps over 5%,
+worst 2731→3711 (+35.9%) on 2026-05-26**.
+
+Steps before `STEP_GATE_FROM = "2026-08-08"` print every run as context but do
+not fail the gate — flagging the known pre-fix swaps forever would train whoever
+reads it to ignore the detector, which is exactly how the 93-session NAAIM
+freeze survived. They are never hidden. A NEW swap fails loudly, and a new step
+beside old ones still fails (the worst step is chosen from the GATED set).
+9 tests, 6/6 mutations killed. **Move the floor only when the history behind it
+is actually repaired.**
 
 ---
 
