@@ -2233,6 +2233,8 @@ def recent_massive_alerts(
     sort_by: str = Query(default="recent", description="recent|conviction|premium"),
     tier: str = Query(default=None, description="Filter to one tier (alpha|size|bullish|bearish|leaps|unusual|algo). When set, common-tier alerts can't crowd out rare-tier ones — useful for 'show me all the day's Alpha Golds' even hours after they fired."),
     curated: bool = Query(default=False, description="Apply Curated-mode stacking filter: tiers like Size/Alpha need ≥N stacked signals (premium/V-OI/hits/grade), Unusual needs its own dedicated criteria, Algo always excluded. Thresholds are tunable via /thresholds endpoint."),
+    symbol: str = Query(default=None, description="Ticker scope: return ALL notable prints for this one underlying across the last `lookback_days` trading days ending at target_date (search-a-ticker-in-historical By-Print feed). Uncapped by tier — the client's tier chips narrow it. Cheap (one symbol → a handful of rows/day)."),
+    lookback_days: int = Query(default=1, ge=1, le=31, description="With `symbol`: aggregate the print feed across the last N trading days ending at target_date (multi-day historical window). 1 = that day only. Ignored without `symbol`."),
 ):
     """
     Return recent MAGENTA + YELLOW rows from FlowDB as alert objects shaped
@@ -2255,6 +2257,15 @@ def recent_massive_alerts(
     # single INSERT + cache-update when a restart is detected. See
     # /restart-log endpoint below for the read side.
     _log_startup_if_new()
+
+    # Ticker-scoped multi-day print feed (search-a-ticker-in-historical): show
+    # ALL notable prints for one underlying across the window, so the By-Print
+    # tape + tier chips can drill a single name over the whole historical range
+    # instead of being forced into the By-Contract rollup. Own cache +
+    # single-flight; never the live-tape warming path.
+    if symbol:
+        return _cached_symbol_recent(
+            today, lookback_days, limit, min_grade, sort_by, curated, symbol)
 
     # Snapshot cache (single-flight + serve-stale) — see _recent_cache above.
     # NEVER block a user request on the heavy scan:
@@ -2790,6 +2801,74 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated, only_symbol
     status["skipped_curated"] = meta.get("skipped_curated", 0)
     status["returned"] = len(alerts)
     return {"status": status, "alerts": alerts}
+
+
+# ── Ticker-scoped multi-day print feed ──────────────────────────────────────
+# When the user searches a ticker while viewing a historical range, By Print
+# should show ALL that ticker's notable prints across the whole window — NOT the
+# single-day top-N tape (which caps + can't span days) and NOT the By-Contract
+# rollup (contracts, not a print tape). Scoping the scan to ONE underlying makes
+# it cheap: each day classifies a handful of rows, so a 5-day symbol fetch costs
+# ~one normal single-day scan. The per-contract aggregates stay EXACT because we
+# pull every one of that symbol's rows per day (only_symbols is built for this).
+_symbol_recent_cache: dict = {}
+_symbol_recent_lock = threading.Lock()
+
+
+def _compute_recent_symbol(today, lookback_days, limit, min_grade, sort_by, curated, symbol):
+    """All notable prints for ONE underlying across the last `lookback_days`
+    trading days ending at `today`, newest-first. Reuses the pure per-day core
+    with only_symbols scoping; NO auto-push (historical, read-only)."""
+    sym = str(symbol or "").strip().upper()
+    lookback_days = max(1, min(int(lookback_days or 1), 31))
+    # Resolve the actual trading days present in the data (mirrors the By-Contract
+    # rollup's date-building so the two windows agree).
+    if lookback_days <= 1:
+        target_dates = [today]
+    else:
+        _c = sqlite3.connect(DB_PATH, timeout=10)
+        try:
+            all_dates = [r[0] for r in _c.execute(
+                "SELECT DISTINCT CreatedDate FROM flow").fetchall() if r[0]]
+        finally:
+            _c.close()
+        today_key = _parse_mdy(today)
+        dated = sorted([d for d in all_dates if _parse_mdy(d) <= today_key],
+                       key=_parse_mdy, reverse=True)
+        target_dates = dated[:lookback_days] or [today]
+
+    all_alerts, total_scanned = [], 0
+    if sym:
+        for dt in target_dates:
+            day_alerts, meta = _compute_recent_core(
+                dt, limit, min_grade, sort_by, None, curated, only_symbols=[sym])
+            all_alerts.extend(day_alerts)
+            total_scanned += meta.get("rows_scanned", 0)
+    # Newest-first across the whole window; the client's column-sort re-orders.
+    all_alerts.sort(key=lambda a: (a.get("timestamp") or 0, a.get("id") or 0),
+                    reverse=True)
+    all_alerts = all_alerts[:limit]
+    status = _get_worker_status()
+    status["query_date"] = today
+    status["symbol_scope"] = sym
+    status["lookback_days"] = lookback_days
+    status["curated"] = curated
+    status["rows_scanned"] = total_scanned
+    status["returned"] = len(all_alerts)
+    return {"status": status, "alerts": all_alerts}
+
+
+def _cached_symbol_recent(today, lookback_days, limit, min_grade, sort_by, curated, symbol):
+    """Serve-fresh/serve-stale/single-flight wrapper around _compute_recent_symbol.
+    Today gets the short live TTL; historical dates get the long bounded TTL (a
+    T+1 backfill mutating a past day is eventually picked up)."""
+    sym = str(symbol or "").strip().upper()
+    is_today = (today == _today_mdyyyy())
+    ttl = _RECENT_CACHE_TTL if is_today else _HISTORICAL_TTL
+    key = (today, int(lookback_days or 1), int(limit), min_grade, sort_by, bool(curated), sym)
+    return _cached_single_flight(
+        _symbol_recent_cache, key, _symbol_recent_lock, ttl,
+        lambda: _compute_recent_symbol(today, lookback_days, limit, min_grade, sort_by, curated, sym))
 
 
 _diagnostic_cache: dict = {}          # date -> (ts, payload)

@@ -3122,6 +3122,14 @@ export default function LiveFlowMassive() {
   // feed (ephemeral; intentionally not persisted so a stale query never
   // silently hides the tape on reload).
   const [search, setSearch] = useState("");
+  // Debounced mirror of `search` — drives the historical ticker-scoped By-Print
+  // fetch (below) so typing a ticker doesn't refetch on every keystroke. The
+  // client-side substring filter still keys off the raw `search`.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(t);
+  }, [search]);
   // By Print (live tape) vs By Contract (accumulation rollup). Persisted.
   const [viewMode, setViewMode] = useState(() => {
     // "openflow" (the removed searchable board) falls back to print so a stale
@@ -3157,6 +3165,35 @@ export default function LiveFlowMassive() {
     setLookback(Math.max(1, Math.min(31, days || 1)));
     setTargetDate(endMdy || null);
   };
+  // Historical ticker-scoped By-Print feed (search-a-ticker-in-historical). When
+  // a historical date is active AND the user has typed a ticker, the poll below
+  // fetches ALL of that underlying's notable prints across the lookback window
+  // (multi-day) and we force By-Print so the tier chips (Alpha Gold/Size/Bulls)
+  // drill one name over the whole range. scopeKey is what the poll keys on — it's
+  // "" in live mode, so typing live never refetches (search stays a client-side
+  // substring filter there).
+  const symbolScoped = !!(targetDate && debouncedSearch.trim());
+  const scopeKey = symbolScoped
+    ? `${debouncedSearch.trim().toUpperCase()}|${lookbackDays}`
+    : "";
+  // Auto-switch to By-Print when scope begins; restore the prior view when it ends.
+  const _prevScopedRef = useRef(false);
+  const _preSearchViewRef = useRef(null);
+  const _viewModeRef = useRef(viewMode);
+  useEffect(() => { _viewModeRef.current = viewMode; }, [viewMode]);
+  useEffect(() => {
+    const was = _prevScopedRef.current;
+    _prevScopedRef.current = symbolScoped;
+    if (symbolScoped && !was) {
+      if (_viewModeRef.current !== "print") {
+        _preSearchViewRef.current = _viewModeRef.current;
+        setViewMode("print");
+      }
+    } else if (!symbolScoped && was && _preSearchViewRef.current) {
+      setViewMode(_preSearchViewRef.current);
+      _preSearchViewRef.current = null;
+    }
+  }, [symbolScoped]);
   // Per-column table sort. Defaults to time/desc, which is identical to the
   // page's prior always-time-descending behavior. `sortBy` above still selects
   // WHICH alerts the backend returns (recent/conviction/premium top-N); this
@@ -3512,23 +3549,31 @@ export default function LiveFlowMassive() {
       try {
         abort = new AbortController();
         const numericLimit = rowLimit === "All" ? ROW_LIMIT_ALL_VALUE : rowLimit;
+        // Historical ticker-scoped feed: pull the ONE ticker's full flow across
+        // the lookback window, uncapped (ALL), so the tier chips narrow client-side.
+        const scoped = !!(targetDate && debouncedSearch.trim());
         const params = new URLSearchParams({
-          limit: String(numericLimit),
+          limit: String(scoped ? ROW_LIMIT_ALL_VALUE : numericLimit),
           sort_by: sortBy,
           min_grade: minGrade,
         });
         if (targetDate) params.set("target_date", targetDate);
+        if (scoped) {
+          params.set("symbol", debouncedSearch.trim().toUpperCase());
+          params.set("lookback_days", String(lookbackDays));
+        }
         // When user has isolated a single tier (e.g. Alpha Gold only),
         // ask backend to filter to that tier. This way the rowLimit slot
         // is spent on alerts of that tier exclusively, letting rare tiers
         // (Alpha Gold, Size) show full-day history even hours after
         // they fired. Without this, common tiers (Algo, Bullish) crowd out
-        // the rare ones in the "latest N" window.
+        // the rare ones in the "latest N" window. SKIPPED when ticker-scoped:
+        // we want ALL of the ticker's tiers so the chips can drill client-side.
         const isolatedTier = (() => {
           const ons = TIER_ORDER.filter(t => filters[t]);
           return ons.length === 1 ? ons[0] : null;
         })();
-        if (isolatedTier) params.set("tier", isolatedTier);
+        if (isolatedTier && !scoped) params.set("tier", isolatedTier);
         if (curated) params.set("curated", "true");
         const r = await fetch(`/api/live/massive/recent?${params}`, { signal: abort.signal });
         if (!r.ok) throw new Error("HTTP " + r.status);
@@ -3582,7 +3627,10 @@ export default function LiveFlowMassive() {
     };
     // reconcileNonce: an SSE (re)connect bumps it to force an immediate catch-up
     // poll so prints missed during a stream gap appear without waiting a cycle.
-  }, [sortBy, minGrade, targetDate, rowLimit, filters, curated, reconcileNonce]);
+    // scopeKey: the historical ticker-scoped feed (symbol|lookbackDays) — re-fetch
+    // when the searched ticker or window changes; "" in live mode so live search
+    // (client-side substring) never triggers a refetch.
+  }, [sortBy, minGrade, targetDate, rowLimit, filters, curated, reconcileNonce, scopeKey]);
 
   // ── Live SSE stream (dark, VITE_MASSIVE_STREAM=1) ──────────────────────────
   // Prepends new prints the instant the server tailer sees them — NO /recent
@@ -4330,7 +4378,7 @@ export default function LiveFlowMassive() {
         targetDate={targetDate}
         onDateChange={setTargetDate}
         onRange={applyRange}
-        rangeDays={viewMode === "contract" ? lookbackDays : 1}
+        rangeDays={(viewMode === "contract" || symbolScoped) ? lookbackDays : 1}
         onOiFetch={handleOiFetch}
         oiFetchState={oiFetchState}
         nullOICount={alerts.filter(a => a.priorOI == null).length}
@@ -4341,9 +4389,11 @@ export default function LiveFlowMassive() {
           padding: 10, background: P.cd, color: P.ac, marginBottom: 12,
           border: `1px solid ${P.ac}`, borderRadius: 4, fontSize: 12,
         }}>
-          📅 {viewMode === "contract" && lookbackDays > 1
-            ? `Historical range: last ${lookbackDays} trading days ending ${targetDate}`
-            : `Historical view: ${targetDate}`} (remove ?date param to return to live)
+          📅 {symbolScoped
+            ? `${debouncedSearch.trim().toUpperCase()} — all notable flow, last ${lookbackDays} trading day${lookbackDays > 1 ? "s" : ""} ending ${targetDate}`
+            : viewMode === "contract" && lookbackDays > 1
+              ? `Historical range: last ${lookbackDays} trading days ending ${targetDate}`
+              : `Historical view: ${targetDate}`} (remove ?date param to return to live)
         </div>
       )}
 
