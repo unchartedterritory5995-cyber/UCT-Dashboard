@@ -3237,6 +3237,28 @@ export default function LiveFlowMassive() {
   const [stockEtfFilter, setStockEtfFilter] = useState(() =>
     localStorage.getItem(LS_KEY_STOCK_ETF) || "all"
   );
+  // A ticker SEARCH forces the Stocks/ETFs partition to "all" so the searched
+  // name shows whether it's classified as a stock (e.g. SPCX) or an ETF — the
+  // partition tab must never hide the exact ticker you asked for. The prior tab
+  // is restored when the search is cleared (mirrors the By-Print view-switch).
+  const _prevSearchOnRef = useRef(false);
+  const _prePartitionRef = useRef(null);
+  const _stockEtfRef = useRef(stockEtfFilter);
+  useEffect(() => { _stockEtfRef.current = stockEtfFilter; }, [stockEtfFilter]);
+  useEffect(() => {
+    const on = search.trim().length > 0;
+    const was = _prevSearchOnRef.current;
+    _prevSearchOnRef.current = on;
+    if (on && !was) {
+      if (_stockEtfRef.current !== "all") {
+        _prePartitionRef.current = _stockEtfRef.current;
+        setStockEtfFilter("all");
+      }
+    } else if (!on && was && _prePartitionRef.current) {
+      setStockEtfFilter(_prePartitionRef.current);
+      _prePartitionRef.current = null;
+    }
+  }, [search]);
   // Curated mode — show only alerts that meet stacked criteria (best-of-best).
   // Default ON for product mode; admin can flip to "All Flow" for the firehose.
   // Cards stay day-scoped to FULL classifiable flow regardless — only the
@@ -4079,6 +4101,8 @@ export default function LiveFlowMassive() {
       // 7/7 + 7/9: Stocks / ETFs partition filter. PREFER the authoritative
       // backend source (Massive ticker_types); fall back to KNOWN_ETFS_INDEXES
       // only when source is absent. (Was set-only, which mis-partitioned SPCX etc.)
+      // A ticker SEARCH forces the partition to "all" (below), so a searched name
+      // shows whether it's a stock or an ETF — this block is a no-op while searching.
       if (stockEtfFilter !== "all") {
         const isEtf = a.source ? a.source === "indexes" : KNOWN_ETFS_INDEXES.has(a.ticker);
         if (stockEtfFilter === "stocks" && isEtf) return false;
