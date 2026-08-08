@@ -25,6 +25,7 @@ import sqlite3
 import subprocess
 import tempfile
 import time
+import types
 from pathlib import Path
 
 import pytest
@@ -923,6 +924,225 @@ def test_a_RENAME_does_not_eat_a_cycle(env, lane):
         "a rename suppressed a delivery — every label change would deafen the "
         "user's alerts for one evaluation")
     assert _notices(env["sent"]) == []
+
+
+# ═══ 4b. TRANSITION vs RECONCILIATION - the interleaving, CONSTRUCTED ══
+#
+# save() computes `rev` as `prev["rev"] + 1` from the row it read in phase 1 and
+# then does three things in order: MIGRATE (phase 2), APPEND (phase 3), FORGET
+# (phase 4). If the migration lands and the append does NOT, the stored
+# predecessor never moves - so the user's NEXT edit, a completely different
+# formula, computes the SAME `rev`. Keyed on that number alone the migration read
+# it as "already migrated" and skipped it, and the second edit reached every
+# binding with no reset and no suppression: the fabricated crossing, delivered by
+# the mechanism built to prevent it.
+#
+# The interleaving below is CONSTRUCTED, not described. The append is failed at
+# its own INSERT - narrowly, so phase 2 really does commit first - and the second
+# edit is then made for real.
+
+
+class _NoAppendConn:
+    """A LIVE connection that refuses exactly one statement: the version append.
+
+    The failure is narrow on purpose. Phase 3 also runs `_ensure` and the
+    concurrency re-read, and a connection that refused everything would abort
+    before `save()` could reach the state this section is about: the migration
+    committed, nothing appended.
+    """
+
+    def __init__(self, inner):
+        self._inner = inner
+
+    def execute(self, sql, *args, **kwargs):
+        if "INSERT INTO user_definitions" in sql:
+            raise sqlite3.OperationalError("disk I/O error")
+        return self._inner.execute(sql, *args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._inner, name)
+
+
+def _half_land_an_edit(period: int, *, at: int) -> str:
+    """One edit whose migration COMMITS at `at` and whose append RAISES.
+
+    Returns the `ast_hash` of the tree the bindings were migrated onto - the tree
+    now recorded against them, which is NOT the tree in the store.
+
+    ⚠️ THE MIGRATION'S CLOCK IS PINNED, and only `alert_rev_migration`'s view of
+    it. Seconds are integers and this whole scenario runs inside one of them, so
+    an un-pinned edit A would stamp `rev_migrated_at` in the same second as
+    edit B's and as the cycles between them - and then "the first cycle after
+    edit B was quiet" could not be told apart from "edit A's suppression was
+    never spent". That is the module's own documented trap (`_consume_cycle`
+    carries a `+1` for it); pinning A into the past is what makes the measurement
+    below about the migration rather than about the clock.
+    """
+    with pytest.MonkeyPatch.context() as mp:
+        real_connect = svc._connect
+        mp.setattr(svc, "_connect", lambda: _NoAppendConn(real_connect()))
+        mp.setattr(rev, "time", types.SimpleNamespace(time=lambda: float(at)))
+        with pytest.raises(sqlite3.OperationalError):
+            svc.save(USER, DEF_ID, defn(period, def_id=DEF_ID))
+    return svc.ast_hash(_ast_sma(period))
+
+
+def test_a_DIFFERENT_edit_at_the_SAME_rev_REACHES_ITS_BINDINGS(env, lane):
+    """⭐ THE HEADLINE OF THIS SECTION, AS A DELIVERY AND AS STATE.
+
+    Edit A migrates and fails to store. Edit B - different maths, same revision
+    NUMBER - must still reset and suppress, because the bindings are recorded on
+    A's tree and are about to be evaluated on B's.
+
+    Edit A's own suppression is SPENT before B arrives, by two ordinary cycles on
+    the tree that is actually stored. Without that the quiet after B would be A's
+    and this would be a gate that cannot fail.
+    """
+    _register_address(env)
+    now = int(time.time())
+    cross, level = _armed_pair(armed_at=now - 7200)
+    svc.save(USER, DEF_ID, defn(20, def_id=DEF_ID))          # v1, rev 1
+    stored_v1 = svc.get(USER, DEF_ID)
+
+    hash_a = _half_land_an_edit(30, at=now - 7200)           # edit A: 30-period
+
+    # The store did not move; the bindings did.
+    still = svc.get(USER, DEF_ID)
+    assert still["version"] == stored_v1["version"] == 1
+    assert still["rev"] == 1 and still["ast_hash"] == stored_v1["ast_hash"]
+    for aid in (cross, level):
+        row = rev.rev_row(aid)
+        assert row is not None and row["def_rev"] == 2 and row["def_hash"] == hash_a, (
+            "edit A's migration did not commit - the interleaving this test is "
+            "about was never constructed")
+        assert row["rev_migrated_at"] == now - 7200
+
+    # SPEND edit A's suppression on the STORED tree, so the quiet after edit B
+    # can only be edit B's.
+    ev._run_one_cycle()                                      # the suppressed one
+    summary = ev._run_one_cycle()                            # a real evaluation
+    assert summary["suppressed"] == 0 and summary["evaluated"] == 2
+    for aid in (cross, level):
+        assert rev.suppress_first_cycle(ias.get(aid)) is False
+        assert ias.get(aid)["last_value"] is not None, (
+            "the bindings never re-populated on the STORED tree - the quiet "
+            "below would be an empty pipe rather than a suppression")
+    env["sent"].clear()
+
+    # ...edit B: a DIFFERENT tree that computes edit A's revision number.
+    edited = svc.save(USER, DEF_ID, defn(50, def_id=DEF_ID))
+    env["state"]["period"] = 50
+    assert edited["rev"] == 2, (
+        f"edit B computed rev {edited['rev']}, not edit A's 2 - the number "
+        "collision this test is built on no longer occurs")
+    assert edited["ast_hash"] != hash_a
+    assert edited["migrated"] == 2, (
+        "the DIFFERENT edit was skipped as already-migrated. Its maths reaches "
+        "every binding with no `last_value` reset and no suppression, which is "
+        "exactly the fabricated crossing this whole lane exists to prevent")
+
+    # RECONCILED: the bindings are on the tree that is ACTUALLY STORED.
+    stored = svc.get(USER, DEF_ID)
+    recorded = rev.bindings_on(DEF_ID)
+    assert {b["alert_id"] for b in recorded} == {cross, level}
+    for b in recorded:
+        assert b["def_rev"] == stored["rev"] and b["def_hash"] == stored["ast_hash"], (
+            f"binding {b['alert_id']} is recorded on tree {b['def_hash']!r} at "
+            f"rev {b['def_rev']} while the store holds {stored['ast_hash']!r} at "
+            f"rev {stored['rev']}")
+    assert edited["bindings_on_this_tree"] == 2
+    for aid in (cross, level):
+        assert ias.get(aid)["last_value"] is None, (
+            f"alert {aid} still holds a number computed by the tree it was "
+            "migrated OFF - that number becomes the next cycle's `prev`")
+
+    # ...and the delivery agrees. `_unmigrated_fires` is the same table the
+    # positive control uses, so an empty first cycle is a measurement.
+    assert _unmigrated_fires(lane, cross, level), "the control fires nothing"
+    summary = ev._run_one_cycle()
+    assert _fires(env["sent"]) == [], (
+        f"on the {lane!r} lane the first cycle after edit B fired "
+        f"{_fires(env['sent'])} - the edit reached the bindings unmigrated")
+    assert summary["suppressed"] == 2
+
+
+def test_a_RETRY_of_the_SAME_edit_is_still_a_NO_OP(env):
+    """The other direction, and the reason the skip is NARROWED rather than
+    removed: retrying the edit whose append failed must not re-suppress.
+
+    The bindings are already on this exact tree, so the retry migrates nothing -
+    and `bindings_on_this_tree` is what tells the caller they are nonetheless all
+    on it. `migrated` alone reports 0 and reads as "no alerts affected".
+    """
+    _register_address(env)
+    now = int(time.time())
+    cross, level = _armed_pair(armed_at=now - 7200)
+    svc.save(USER, DEF_ID, defn(20, def_id=DEF_ID))
+    hash_a = _half_land_an_edit(30, at=now - 7200)
+    stamps = {aid: rev.rev_row(aid)["rev_migrated_at"] for aid in (cross, level)}
+    env["sent"].clear()
+
+    retried = svc.save(USER, DEF_ID, defn(30, def_id=DEF_ID))   # the SAME edit
+    assert retried["appended"] is True and retried["ast_hash"] == hash_a
+    assert retried["migrated"] == 0, (
+        "the retry re-migrated a lane already on this tree - every failed append "
+        "would cost the user a second deaf cycle")
+    assert _notices(env["sent"]) == []
+    assert retried["bindings_on_this_tree"] == 2, (
+        "`migrated` is 0 and nothing else says the bindings ARE on this tree - a "
+        "caller reporting `migrated` alone tells the member 0 alerts were "
+        "updated when all of them were")
+    for aid in (cross, level):
+        assert rev.rev_row(aid)["rev_migrated_at"] == stamps[aid]
+
+
+def test_a_binding_created_AFTER_a_migration_is_NOT_stamped_DEFAULT_REV(env):
+    """⛔ THE GAP FROM THE OTHER SIDE.
+
+    A binding armed after a migration has no `indicator_alert_rev` row, so
+    `from_rev` fell back to `DEFAULT_REV` and its owner was told "revision 1 -> 3"
+    about an alert that was armed on revision 2. `save()` now hands the migration
+    the definition's own pre-edit revision, which IS the arm-time revision of any
+    binding with no record: every bump migrates, and a migration records every
+    binding that existed.
+
+    The assertion is on the NOTICE as well as on the row, because the row is
+    bookkeeping and the notice is the sentence a member reads.
+    """
+    _register_address(env)
+    now = int(time.time())
+    early, _level = _armed_pair(armed_at=now - 7200)
+    svc.save(USER, DEF_ID, defn(20, def_id=DEF_ID))               # rev 1
+    svc.save(USER, DEF_ID, defn(50, def_id=DEF_ID))               # rev 2
+    assert rev.rev_row(early)["def_rev"] == 2
+    assert rev.rev_row(early)["from_rev"] == 1
+
+    # ...a binding armed NOW is armed on revision 2, and has no record saying so.
+    late = ias.create(user_id=USER, sym="PARITY", indicator=DEF_ID,
+                      condition="below", threshold=STRADDLE, tf="5")
+    _arm(late, last_value=REV2_SMA, last_evaluated_at=now - 60)
+    assert rev.rev_row(late) is None
+    assert [b["migrated"] for b in rev.bindings_on(DEF_ID)
+            if b["alert_id"] == late] == [False]
+    env["sent"].clear()
+
+    svc.save(USER, DEF_ID, defn(30, def_id=DEF_ID))               # rev 3
+    row = rev.rev_row(late)
+    assert row["def_rev"] == 3
+    assert row["from_rev"] == 2, (
+        f"a binding armed on revision 2 was stamped from_rev={row['from_rev']} - "
+        "DEFAULT_REV is a fabricated number in the one notice whose entire job "
+        "is to be honest about which maths changed")
+    # ...while a binding that HAS a record still keeps its own number.
+    assert rev.rev_row(early)["from_rev"] == 2
+
+    notices = [n for n in _notices(env["sent"])
+               if n["extra_data"]["alert_id"] == late]
+    assert len(notices) == 1
+    assert notices[0]["extra_data"]["from_rev"] == 2
+    assert "revision 2" in notices[0]["message"], (
+        f"the member is told {notices[0]['message']!r} about an alert that was "
+        "armed on revision 2")
 
 
 # ═══ 5. the caps ════════════════════════════════════════════════════════════

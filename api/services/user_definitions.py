@@ -456,7 +456,7 @@ def save(user_id: Any, def_id: str, definition: dict) -> dict:
                     "— delete one before creating another")
 
         if prev is None:
-            prev_version = None
+            prev_version = prior_rev = None
             version, rev, rev_bumped = 1, FIRST_REV, False
         else:
             # ⚠️ A BYTE-IDENTICAL RE-SAVE IS NOT AN EDIT. An autosaving editor is
@@ -466,10 +466,12 @@ def save(user_id: Any, def_id: str, definition: dict) -> dict:
                 return {
                     "def_id": def_id, "version": prev["version"], "rev": prev["rev"],
                     "rev_bumped": False, "migrated": 0, "notified": 0,
+                    "bindings_on_this_tree": 0,
                     "ast_hash": prev["ast_hash"], "repaint": json.loads(prev["repaint"]),
                     "appended": False,
                 }
             prev_version = prev["version"]
+            prior_rev = prev["rev"]
             version = prev["version"] + 1
             rev_bumped = prev["ast_hash"] != new_hash
             rev = prev["rev"] + 1 if rev_bumped else prev["rev"]
@@ -487,11 +489,34 @@ def save(user_id: Any, def_id: str, definition: dict) -> dict:
     # `deliver_alert_payload` is synchronous multi-channel I/O; holding a
     # process-wide store lock across it would serialise every other user's save
     # behind one member's outbound network.
+    #
+    # 🔴 `def_hash` AND `prior_rev` ARE WHAT MAKE THIS A RECONCILIATION RATHER
+    # THAN A TRANSITION, AND THE GAP THEY CLOSE WAS REAL AND NAMED TWICE BEFORE
+    # IT WAS SHUT.
+    #
+    # `rev` is `prev["rev"] + 1` — derived from the STORED predecessor. So if this
+    # migration lands and the append in phase 3 then FAILS, the predecessor does
+    # not move, and the user's NEXT edit — a completely different formula —
+    # computes the SAME `rev`. Keyed on the number alone, the migration read that
+    # as "already migrated", skipped it, and the second edit reached every binding
+    # with no `last_value` reset and no first-cycle suppression: the fabricated
+    # crossing, arriving through the mechanism built to prevent it. Passing the
+    # tree's own `ast_hash` makes the question *"are these bindings already on
+    # THIS tree"* instead of *"on this NUMBER"*.
+    #
+    # `prior_rev` is the other side of the same gap. A binding created AFTER a
+    # migration has no `indicator_alert_rev` row, so `from_rev` fell back to
+    # `DEFAULT_REV` and the notice told its owner "revision 1 → 4" about an alert
+    # armed at revision 3. `prev["rev"]` is that binding's true arm-time revision:
+    # every rev bump migrates, and a migration records every binding that existed,
+    # so an unrecorded binding can only have been created since the last bump.
     migrated = notified = 0
     if rev_bumped:
         result = alert_rev_migration.migrate_bindings_to_rev(
             def_id, rev,
             notify=alert_rev_migration.deliver_migration_notice,
+            def_hash=new_hash,
+            prior_rev=prior_rev,
         )
         migrated = result["migrated"]
         notified = result["notified"]
@@ -560,9 +585,30 @@ def save(user_id: Any, def_id: str, definition: dict) -> dict:
     from api.services import alert_user_series
     alert_user_series.forget(user_id)
 
+    # ── phase 5: RECONCILE — read the bindings back out of the side table ────
+    #
+    # ⭐ `migrated` COUNTS WHAT THIS CALL DID. `bindings_on_this_tree` COUNTS
+    # WHAT IS TRUE, read from `indicator_alert_rev` AFTER the append, against the
+    # tree that actually got stored. The two differ exactly when an earlier
+    # attempt half-landed: retrying an edit whose migration succeeded and whose
+    # append failed correctly skips (the bindings are already on this tree) and
+    # reports `migrated=0` — and a caller with only that number tells the member
+    # "0 alerts updated" about alerts that were all updated.
+    #
+    # ⛔ IT IS A REPORT, NOT A SECOND MIGRATION. Re-migrating anything found "off
+    # the tree" here would eat a cycle on every save for every binding that has
+    # never been migrated at all — which is every binding on a definition still
+    # at its first revision, and which is running the stored tree correctly.
+    bindings_on_this_tree = 0
+    if rev_bumped:
+        bindings_on_this_tree = sum(
+            1 for b in alert_rev_migration.bindings_on(def_id)
+            if b["def_rev"] == rev and b["def_hash"] == new_hash)
+
     return {
         "def_id": def_id, "version": version, "rev": rev,
         "rev_bumped": rev_bumped, "migrated": migrated, "notified": notified,
+        "bindings_on_this_tree": bindings_on_this_tree,
         "ast_hash": new_hash, "repaint": json.loads(repaint), "appended": True,
     }
 

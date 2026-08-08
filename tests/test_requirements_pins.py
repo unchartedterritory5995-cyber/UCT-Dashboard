@@ -95,3 +95,58 @@ def test_requirements_file_parses() -> None:
     decls = _declarations()
     assert len(decls) > 20, f"only parsed {len(decls)} requirements — parser broke?"
     assert "fastapi" in decls
+
+
+# --- the timeout bound: pinned, AND actually enforced -----------------------
+
+
+def test_the_timeout_bound_is_ENFORCED_not_decorative(pytestconfig):
+    """A GATE THAT COULD NOT FAIL, CLOSED FROM BOTH ENDS.
+
+    `@pytest.mark.timeout(10)` decorated two tests in
+    `api/routers/stream_bars_test.py` while `pytest-timeout` was NOT installed.
+    An unregistered mark is silently ignored, so those two tests carried a
+    wall-clock bound that had never once been applied -- and that same file went
+    on to hang the whole suite behind a stale assertion, which is precisely what
+    the bound existed to catch. The fix there had to be a hand-rolled
+    `faulthandler` watchdog.
+
+    Both halves fail silently on their own: an uninstalled plugin makes a marker
+    a no-op, and an unknown ini option in `pytest.ini` only warns. So this reads
+    the LIVE config rather than the file: `getini("timeout")` raises `ValueError`
+    for an option nobody registered, which no amount of typing in `pytest.ini`
+    can fake.
+    """
+    with pytest.raises(ValueError):
+        pytestconfig.getini("a-name-no-plugin-registers")   # the control
+
+    try:
+        budget = pytestconfig.getini("timeout")
+    except ValueError:                                       # pragma: no cover
+        pytest.fail(
+            "`timeout` is not a registered ini option, so pytest-timeout is not "
+            "loaded and every `@pytest.mark.timeout` in this repo -- and the "
+            "repo-wide default in pytest.ini -- is decorative. Reinstall it: "
+            "`pip install pytest-timeout==2.4.0` (it is pinned in "
+            "requirements.txt).")
+
+    assert str(budget).strip(), (
+        "pytest.ini declares no `timeout`, so pytest-timeout is loaded and "
+        "bounding nothing: only tests carrying an explicit marker are covered, "
+        "and a hang anywhere else still consumes the whole run")
+    assert float(budget) > 0, (
+        f"pytest.ini declares timeout={budget!r}; a zero budget disables the "
+        "plugin and nothing in this repo bounds a hanging test")
+    assert float(budget) >= 120, (
+        f"the repo-wide per-test budget is {budget}s. Measured on this box the "
+        "slowest single test is ~84s, and on Windows pytest-timeout has no "
+        "SIGALRM so it uses the `thread` method, which KILLS THE RUN instead of "
+        "failing one test -- a tight budget turns a slow chunk into a chunk with "
+        "no summary at all.")
+
+    spec = _declarations().get("pytest-timeout", "")
+    assert spec.startswith("=="), (
+        f"pytest-timeout is declared as `{spec!r}` in requirements.txt. It has "
+        "to be there and pinned: this box has it installed, so an unpinned or "
+        "missing declaration passes locally and silently disarms every bound "
+        "everywhere else.")

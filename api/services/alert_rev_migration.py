@@ -95,10 +95,42 @@ CREATE TABLE IF NOT EXISTS indicator_alert_rev (
   address TEXT NOT NULL,
   def_rev INTEGER NOT NULL,
   from_rev INTEGER,
-  rev_migrated_at INTEGER NOT NULL
+  rev_migrated_at INTEGER NOT NULL,
+  def_hash TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_indicator_alert_rev_addr ON indicator_alert_rev(address);
 """
+
+# ⭐ `def_hash` — WHICH TREE, NOT JUST WHICH NUMBER. THE MEASUREMENT IS BELOW.
+#
+# 🔴 A REVISION NUMBER DOES NOT IDENTIFY A TREE, AND THE IDEMPOTENCY SKIP WAS
+# KEYED ON THE NUMBER ALONE. `user_definitions.save()` derives `new_rev` from the
+# STORED predecessor (`prev["rev"] + 1`), so if the migration lands and the append
+# then fails, the predecessor does not move and the NEXT edit — a DIFFERENT tree —
+# computes the SAME `new_rev`. `stored_rev == new_rev` then read as
+# "already migrated" and the second edit reached every binding with NO reset and
+# NO suppression: exactly the fabricated crossing this whole module exists to
+# prevent, arriving through the guard written to prevent it.
+#
+# Measured on a real store (`test_a_DIFFERENT_edit_at_the_SAME_rev_is_NOT_skipped`):
+# migrate(rev 2, tree A) → append raises → migrate(rev 2, tree B) reported
+# `migrated=0 skipped=2` and left both bindings holding tree-A's `last_value`.
+# With the hash in the key it reports `migrated=2 skipped=0`.
+#
+# ⛔ IT HAS TO BE AN `ALTER`, NOT A LINE IN `_SCHEMA` ABOVE. `CREATE TABLE IF NOT
+# EXISTS` is a NO-OP on every box that already has this table — which is every box
+# that has ever run the alert lane, including the soak store — so adding the
+# column to the CREATE alone would leave the running file at the old shape and the
+# fix would apply to fresh databases only. Same reason, same shape, as
+# `indicator_alert_service._MIGRATIONS`.
+#
+# NULL means "the caller did not identify a tree": every row written before this
+# column existed, and every BUILTIN migration (a deploy bumping `ADDRESS_REVS`
+# names an address, not an `ast_hash`). The skip below reads NULL as "compare the
+# number only", i.e. exactly the behaviour those callers already had.
+_MIGRATIONS: tuple[tuple[str, str], ...] = (
+    ("def_hash", "ALTER TABLE indicator_alert_rev ADD COLUMN def_hash TEXT"),
+)
 
 
 def db_path() -> str:
@@ -121,12 +153,20 @@ def _conn():
 
 
 def init_schema() -> None:
+    # ⛔ `_ensure_schema`, NOT a bare `executescript(_SCHEMA)`. On a database that
+    # already holds this table the CREATE is a no-op, so the explicit initialiser
+    # would be the ONE path that never applied `_MIGRATIONS` — and it is the path
+    # startup and every fixture call.
     with _conn() as db:
-        db.executescript(_SCHEMA)
+        _ensure_schema(db)
 
 
 def _ensure_schema(db) -> None:
     db.executescript(_SCHEMA)
+    have = {r[1] for r in db.execute("PRAGMA table_info(indicator_alert_rev)")}
+    for column, sql in _MIGRATIONS:
+        if column not in have:
+            db.execute(sql)
 
 
 def rev_row(alert_id: int) -> Optional[dict]:
@@ -134,7 +174,7 @@ def rev_row(alert_id: int) -> Optional[dict]:
     with _conn() as db:
         _ensure_schema(db)
         row = db.execute(
-            "SELECT alert_id, address, def_rev, from_rev, rev_migrated_at "
+            "SELECT alert_id, address, def_rev, from_rev, rev_migrated_at, def_hash "
             "FROM indicator_alert_rev WHERE alert_id=?",
             (int(alert_id),),
         ).fetchone()
@@ -146,7 +186,54 @@ def rev_row(alert_id: int) -> Optional[dict]:
         "def_rev": row[2],
         "from_rev": row[3],
         "rev_migrated_at": row[4],
+        "def_hash": row[5],
     }
+
+
+def bindings_on(address: str) -> list[dict]:
+    """⭐ THE READ-BACK: what every binding on ``address`` is RECORDED as running.
+
+    ⛔ THIS IS WHAT MAKES A CALLER A RECONCILIATION RATHER THAN A TRANSITION.
+    `user_definitions.save()` used to decide everything from its own two local
+    facts — the predecessor row it read and the tree it is about to write — and
+    never asked the bindings what they are actually on. A transition computed
+    from a stale predecessor is silently wrong the moment a previous attempt
+    half-landed; a reconciliation reads the current state of the thing it is
+    reconciling. This is that read.
+
+    Every binding on the address's BASE is returned, including ones with NO row
+    in `indicator_alert_rev` — those come back with ``def_rev=None`` and
+    ``migrated=False``. Omitting them would make "every binding is on the stored
+    tree" satisfiable by a table containing nothing, which is the shape of a
+    check that cannot fail.
+    """
+    from api.services.indicator_alert_evaluator import plot_base, resolve_address
+
+    target = plot_base(resolve_address(address))
+    out: list[dict] = []
+    with _conn() as db:
+        _ensure_schema(db)
+        rows = db.execute(
+            "SELECT a.id, a.user_id, a.indicator, r.def_rev, r.from_rev, "
+            "       r.rev_migrated_at, r.def_hash "
+            "FROM indicator_alerts a "
+            "LEFT JOIN indicator_alert_rev r ON r.alert_id = a.id "
+            "ORDER BY a.id"
+        ).fetchall()
+    for alert_id, user_id, indicator, def_rev, from_rev, migrated_at, def_hash in rows:
+        if plot_base(resolve_address(indicator)) != target:
+            continue
+        out.append({
+            "alert_id": alert_id,
+            "user_id": user_id,
+            "address": resolve_address(indicator),
+            "def_rev": def_rev,
+            "from_rev": from_rev,
+            "rev_migrated_at": migrated_at,
+            "def_hash": def_hash,
+            "migrated": def_rev is not None,
+        })
+    return out
 
 
 # ─── the migration ───────────────────────────────────────────────────────────
@@ -188,7 +275,9 @@ def deliver_migration_notice(payload: dict) -> None:
 
 def migrate_bindings_to_rev(address: str, new_rev: int, *,
                             notify: Callable[[dict], Any],
-                            now: Optional[int] = None) -> dict:
+                            now: Optional[int] = None,
+                            def_hash: Optional[str] = None,
+                            prior_rev: Optional[int] = None) -> dict:
     """Force-migrate every alert bound to ``address``, and tell its owner.
 
     ``address`` is a DEFINITION (``vwap``, ``ichimoku``); every stored binding
@@ -200,12 +289,31 @@ def migrate_bindings_to_rev(address: str, new_rev: int, *,
     migration with no notification honours neither, so ``notify=None`` raises
     here rather than being accepted as "no notification wanted".
 
-    Idempotent: a binding already recorded at ``new_rev`` is left completely
-    alone — not reset, not re-stamped, not re-notified. Re-running a migration
-    must not re-suppress a lane that has already been migrated.
+    Idempotent: a binding already recorded at ``new_rev`` **on the same tree** is
+    left completely alone — not reset, not re-stamped, not re-notified. Re-running
+    a migration must not re-suppress a lane that has already been migrated.
 
-    Returns ``{address, new_rev, alert_ids, migrated, skipped, notified,
-    notify_errors, rev_migrated_at}``.
+    ``def_hash`` IDENTIFIES THE TREE, and it is what makes that idempotency safe
+    rather than merely convenient. A revision NUMBER is derived from a stored
+    predecessor, so two DIFFERENT trees reach the same number whenever an earlier
+    attempt migrated and then failed to store (see `_MIGRATIONS` above). With a
+    hash the skip asks *"are these bindings already on THIS tree"*; without one it
+    asks only *"are they already on this NUMBER"*, which is the question that let
+    an unmigrated edit through. ``None`` (a deploy bumping `ADDRESS_REVS` names an
+    address, not an `ast_hash`) keeps the number-only behaviour those callers
+    already had.
+
+    ``prior_rev`` is the revision this definition was at BEFORE this migration,
+    used as ``from_rev`` for a binding that has no record of its own. Without it
+    such a binding is stamped `DEFAULT_REV`, and the user is told *"revision 1 →
+    4"* about an alert that was armed at revision 3 — a fabricated number in the
+    one notice whose entire job is to be honest about a maths change. A binding
+    with no record can only have been created since the last bump (every bump
+    migrates, and a migration records every binding that existed), so the
+    definition's own pre-migration revision IS its arm-time revision.
+
+    Returns ``{address, new_rev, def_hash, alert_ids, migrated, skipped,
+    notified, notify_errors, rev_migrated_at}``.
     """
     if not callable(notify):
         raise ValueError(
@@ -215,17 +323,23 @@ def migrate_bindings_to_rev(address: str, new_rev: int, *,
         )
     if not isinstance(new_rev, int) or isinstance(new_rev, bool) or new_rev < 1:
         raise ValueError(f"new_rev must be an integer >= 1, got {new_rev!r}")
+    if def_hash is not None and not isinstance(def_hash, str):
+        raise ValueError(f"def_hash must be a string or None, got {def_hash!r}")
+    if prior_rev is not None and (not isinstance(prior_rev, int)
+                                  or isinstance(prior_rev, bool) or prior_rev < 1):
+        raise ValueError(f"prior_rev must be an integer >= 1 or None, got {prior_rev!r}")
 
     from api.services import indicator_alert_service as ias
     from api.services.indicator_alert_evaluator import plot_base, resolve_address
 
     target = plot_base(resolve_address(address))
     stamp = int(now if now is not None else time.time())
+    unrecorded_from_rev = DEFAULT_REV if prior_rev is None else int(prior_rev)
 
     with _conn() as db:
         _ensure_schema(db)
         rows = db.execute(
-            "SELECT a.id, a.user_id, a.sym, a.indicator, a.tf, r.def_rev "
+            "SELECT a.id, a.user_id, a.sym, a.indicator, a.tf, r.def_rev, r.def_hash "
             "FROM indicator_alerts a "
             "LEFT JOIN indicator_alert_rev r ON r.alert_id = a.id "
             "ORDER BY a.id"
@@ -233,13 +347,18 @@ def migrate_bindings_to_rev(address: str, new_rev: int, *,
 
         payloads: list[dict] = []
         skipped = 0
-        for alert_id, user_id, sym, indicator, tf, stored_rev in rows:
+        for alert_id, user_id, sym, indicator, tf, stored_rev, stored_hash in rows:
             if plot_base(resolve_address(indicator)) != target:
                 continue
-            if stored_rev is not None and int(stored_rev) == int(new_rev):
+            # ⛔ THE SKIP IS ON THE TREE, NOT ON THE NUMBER — see `_MIGRATIONS`.
+            # `def_hash is None` means the caller did not identify a tree (a
+            # deploy, an ops re-run), and then this reduces EXACTLY to the
+            # number-only test those callers were written against.
+            if stored_rev is not None and int(stored_rev) == int(new_rev) \
+                    and (def_hash is None or stored_hash == def_hash):
                 skipped += 1
                 continue
-            from_rev = DEFAULT_REV if stored_rev is None else int(stored_rev)
+            from_rev = unrecorded_from_rev if stored_rev is None else int(stored_rev)
             # ⛔ THE THREE EFFECTS, TOGETHER OR NOT AT ALL. A reset that lands
             # without its stamp is the worst of both: the crossings are gone and
             # the first cycle is NOT suppressed, so every `above` binding fires
@@ -250,16 +369,16 @@ def migrate_bindings_to_rev(address: str, new_rev: int, *,
             )
             db.execute(
                 "INSERT OR REPLACE INTO indicator_alert_rev "
-                "(alert_id, address, def_rev, from_rev, rev_migrated_at) "
-                "VALUES (?, ?, ?, ?, ?)",
+                "(alert_id, address, def_rev, from_rev, rev_migrated_at, def_hash) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
                 (int(alert_id), resolve_address(indicator), int(new_rev),
-                 from_rev, stamp),
+                 from_rev, stamp, def_hash),
             )
             payloads.append({
                 "alert_id": int(alert_id), "user_id": user_id, "sym": sym,
                 "address": resolve_address(indicator), "tf": tf,
                 "from_rev": from_rev, "def_rev": int(new_rev),
-                "rev_migrated_at": stamp,
+                "def_hash": def_hash, "rev_migrated_at": stamp,
             })
 
     # ⚠️ NOTIFICATION HAPPENS AFTER THE COMMIT, DELIBERATELY. Delivery is bell +
@@ -284,6 +403,7 @@ def migrate_bindings_to_rev(address: str, new_rev: int, *,
     return {
         "address": target,
         "new_rev": int(new_rev),
+        "def_hash": def_hash,
         "alert_ids": [p["alert_id"] for p in payloads],
         "migrated": len(payloads),
         "skipped": skipped,
