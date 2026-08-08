@@ -1,15 +1,23 @@
 // Custom-Period Sort — the draggable, resizable floating "sort window". Its body is the
 // real scanner/watchlist table (PeriodSortResults) for the highlighted [start, end]; its
-// chrome mirrors a workspace widget (compact header, grab dots, colour dot, corner resize)
-// and can dock into the grid as a widget or fold into a widget as a Period-Sort tab.
+// chrome mirrors a workspace widget (compact header, grab dots, clickable colour dot,
+// gold corner resize on all four corners) and can dock into the grid or become a tab.
 import { useState, useCallback } from 'react'
 import PeriodSortResults from './widgets/PeriodSortResults'
 import styles from './PeriodSortPanel.module.css'
 
+// Default size fits the default columns (flag 30 + sym 96 + period% 84 + price 62 + vol 56
+// = 328, + 16 row padding + ~17 scrollbar + 2 border) so there's no blank filler column.
+const DEF_W = 364, DEF_H = 560, MIN_W = 300, MIN_H = 240
+const COLORS = ['A', 'B', 'C', 'D', 'N']
+const COLOR_HEX = { A: '#c9a84c', B: '#60a5fa', C: '#4ade80', D: '#c084fc', N: '#6b7280' }
+
 export default function PeriodSortPanel({ start, end, onClose, onDock, onAddAsTab, tabTargets = [] }) {
-  const [pos, setPos] = useState({ x: 140, y: 96 })
-  const [size, setSize] = useState({ w: 500, h: 580 })
+  // Open centered over the workspace (i.e. over the chart), not pinned to the left.
+  const [pos, setPos] = useState(() => ({ x: Math.max(12, Math.round((window.innerWidth - DEF_W) / 2)), y: 96 }))
+  const [size, setSize] = useState({ w: DEF_W, h: DEF_H })
   const [tabMenuOpen, setTabMenuOpen] = useState(false)
+  const [panelColor, setPanelColor] = useState('A')
 
   const onHeaderPointerDown = useCallback((e) => {
     if (e.target.closest('[data-no-drag]')) return
@@ -25,24 +33,38 @@ export default function PeriodSortPanel({ start, end, onClose, onDock, onAddAsTa
     })
   }, [])
 
-  const onResizePointerDown = useCallback((e) => {
+  // Resize from any corner: e/s grow width/height; w/n also shift the panel's origin.
+  const startResize = (corner) => (e) => {
     e.preventDefault(); e.stopPropagation()
     const sx = e.clientX, sy = e.clientY
-    setSize((s) => {
-      const ow = s.w, oh = s.h
-      const move = (ev) => setSize({ w: Math.max(340, ow + (ev.clientX - sx)), h: Math.max(280, oh + (ev.clientY - sy)) })
-      const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up) }
-      window.addEventListener('pointermove', move)
-      window.addEventListener('pointerup', up)
-      return s
-    })
-  }, [])
+    const o = { x: pos.x, y: pos.y, w: size.w, h: size.h }
+    const move = (ev) => {
+      const dx = ev.clientX - sx, dy = ev.clientY - sy
+      let { x, y, w, h } = o
+      if (corner.includes('e')) w = Math.max(MIN_W, o.w + dx)
+      if (corner.includes('s')) h = Math.max(MIN_H, o.h + dy)
+      if (corner.includes('w')) { const nw = Math.max(MIN_W, o.w - dx); x = o.x + (o.w - nw); w = nw }
+      if (corner.includes('n')) { const nh = Math.max(MIN_H, o.h - dy); y = o.y + (o.h - nh); h = nh }
+      setPos({ x, y }); setSize({ w, h })
+    }
+    const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up) }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
 
   return (
     <div className={styles.panel} style={{ left: pos.x, top: pos.y, width: size.w, height: size.h }}>
       <div className={styles.header} onPointerDown={onHeaderPointerDown}>
         <span className={styles.grip} aria-hidden="true" />
-        <span className={styles.colorDot} aria-hidden="true" />
+        <button
+          type="button"
+          data-no-drag
+          className={styles.colorDot}
+          style={{ background: COLOR_HEX[panelColor] }}
+          onClick={() => setPanelColor((c) => COLORS[(COLORS.indexOf(c) + 1) % COLORS.length])}
+          title={`Colour group: ${panelColor === 'N' ? 'not linked' : panelColor} (click to change)`}
+          aria-label="Colour group"
+        />
         <div className={styles.headBtns} data-no-drag>
           {onAddAsTab && tabTargets.length > 0 && (
             <div style={{ position: 'relative' }}>
@@ -64,9 +86,13 @@ export default function PeriodSortPanel({ start, end, onClose, onDock, onAddAsTa
         </div>
       </div>
       <div className={styles.panelBody}>
-        <PeriodSortResults start={start} end={end} color="A" />
+        <PeriodSortResults start={start} end={end} color={panelColor} />
       </div>
-      <span className={styles.resizeHandle} onPointerDown={onResizePointerDown} title="Resize" />
+      {/* Gold resize corners — grab any of the four to resize. */}
+      <span className={`${styles.corner} ${styles.cornerNW}`} onPointerDown={startResize('nw')} />
+      <span className={`${styles.corner} ${styles.cornerNE}`} onPointerDown={startResize('ne')} />
+      <span className={`${styles.corner} ${styles.cornerSW}`} onPointerDown={startResize('sw')} />
+      <span className={`${styles.corner} ${styles.cornerSE}`} onPointerDown={startResize('se')} />
     </div>
   )
 }

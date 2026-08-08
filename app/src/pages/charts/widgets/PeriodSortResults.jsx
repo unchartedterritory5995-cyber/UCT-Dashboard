@@ -8,7 +8,6 @@ import { useMemo, useCallback, useId } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import Watchlists from '../../Watchlists'
 import UIcon from '../../../components/ui/UIcon'
-import { WL_COLS_LS } from '../../watchlist/watchlistTemplates'
 import { ChartsSymContext } from '../ChartsSymContext'
 import { useWorkspace } from '../WorkspaceContext'
 import styles from './ScannerResults.module.css'
@@ -20,8 +19,10 @@ function fmtScanTime(iso) {
   try { return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) } catch { return '' }
 }
 
-// Lead with the Period % column, sorted biggest-gainer first (users can re-sort / add cols).
-const DEFAULT_COLS = { order: ['flag', 'sym', 'price', 'vol', 'periodchg'], sort: { key: 'periodchg', dir: 'desc' } }
+// Fixed default column view every run: Symbol · Period % · Price · Volume, sorted
+// biggest-gainer first. `ephemeralCols` keeps this from ever persisting/loading a prior
+// layout — only the colour template (appearance) is remembered.
+const DEFAULT_COLS = { order: ['flag', 'sym', 'periodchg', 'price', 'vol'], sort: { key: 'periodchg', dir: 'desc' } }
 
 export default function PeriodSortResults({ start, end, color, settingsOverride = null, onSettingsPersist = null, onExit = null }) {
   const { groupSyms, setGroupSym } = useWorkspace() || {}
@@ -83,7 +84,7 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
         settingsOverride={settingsOverride}
         onSettingsPersist={onSettingsPersist}
         widgetKey={widgetId}
-        colStorageKey={`${WL_COLS_LS}.periodsort`}
+        ephemeralCols
         scanEmptyText={scanEmptyText}
         defaultColCfg={DEFAULT_COLS}
         perfOverride={perfOverride}

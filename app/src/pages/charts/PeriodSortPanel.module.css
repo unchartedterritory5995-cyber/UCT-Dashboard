@@ -33,8 +33,9 @@
   background: var(--widget-canvas, var(--bg-elevated, #22251e));
 }
 .header:active { cursor: grabbing; }
-/* Gold colour-code dot, matching the standard widget header's Group-A dot. */
-.colorDot { width: 9px; height: 9px; border-radius: 50%; background: #c9a84c; flex-shrink: 0; }
+/* Clickable colour-code dot — cycles the group (A/B/C/D/N) like the standard widget. */
+.colorDot { width: 11px; height: 11px; border-radius: 50%; background: #c9a84c; flex-shrink: 0; border: none; padding: 0; cursor: pointer; }
+.colorDot:hover { box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.25); }
 /* Six-dot drag grip (pure CSS, no icon dependency). */
 .grip {
   width: 8px;
@@ -74,20 +75,18 @@
 .iconBtn:hover, .close:hover { background: var(--bg-hover, #2a2d24); color: var(--text-bright, #e0dac8); }
 .close:hover { color: var(--loss, #e74c3c); }
 
-/* Bottom-right corner resize grip. */
-.resizeHandle {
+/* Gold resize corners — an L-shaped gold mark at each of the four corners. */
+.corner {
   position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 16px;
-  height: 16px;
-  cursor: nwse-resize;
+  width: 14px;
+  height: 14px;
   z-index: 20;
-  background:
-    linear-gradient(135deg, transparent 0 50%, var(--text-muted, #8c8674) 50% 60%, transparent 60% 72%, var(--text-muted, #8c8674) 72% 82%, transparent 82%);
-  opacity: 0.5;
 }
-.resizeHandle:hover { opacity: 0.9; }
+.cornerNW { left: 0; top: 0; cursor: nwse-resize; border-top: 2px solid var(--ut-gold, #c9a84c); border-left: 2px solid var(--ut-gold, #c9a84c); border-top-left-radius: 8px; }
+.cornerNE { right: 0; top: 0; cursor: nesw-resize; border-top: 2px solid var(--ut-gold, #c9a84c); border-right: 2px solid var(--ut-gold, #c9a84c); border-top-right-radius: 8px; }
+.cornerSW { left: 0; bottom: 0; cursor: nesw-resize; border-bottom: 2px solid var(--ut-gold, #c9a84c); border-left: 2px solid var(--ut-gold, #c9a84c); border-bottom-left-radius: 8px; }
+.cornerSE { right: 0; bottom: 0; cursor: nwse-resize; border-bottom: 2px solid var(--ut-gold, #c9a84c); border-right: 2px solid var(--ut-gold, #c9a84c); border-bottom-right-radius: 8px; }
+.corner:hover { filter: drop-shadow(0 0 3px var(--ut-gold, #c9a84c)); }
 
 /* Add-as-tab dropdown (floating panel header). */
 .tabMenu {

@@ -438,7 +438,7 @@ function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange }) {
 // "+" beside the ⚙ gear (single-list widget / pick mode). Community lists show no "+"
 // — they aren't yours to write to.
 
-export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null }) {
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, ephemeralCols = false }) {
   // Column layout persists in localStorage. The watchlist widgets all share the
   // global key; the scanner passes its OWN key so its columns are independent.
   const _colKey = colStorageKey || WL_COLS_LS
@@ -797,6 +797,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // Column config (persisted per-user in localStorage) — declared HERE, above the
   // perf/theme fetches, so those can gate on which columns are shown.
   const [colCfg, setColCfg] = useState(() => {
+    // ephemeralCols (Custom-Period Sort): ALWAYS start from the caller's default columns,
+    // never a saved layout — every run shows the same column view.
+    if (ephemeralCols) return defaultColCfg || {}
     // Saved config wins; otherwise the caller's default (the scanner seeds RVOL on +
     // RVOL-sorted). Once the user edits columns, saveColCfg persists over this.
     try { const s = JSON.parse(localStorage.getItem(_colKey)); if (s && typeof s === 'object') return s } catch { /* ignore */ }
@@ -1182,8 +1185,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // the meta/perf/theme fetches, so those fetches can gate on which columns show.)
   const saveColCfg = useCallback((next) => {
     setColCfg(next)
+    // ephemeralCols: in-session edits still apply, but nothing persists (so the next run
+    // reverts to the default column view).
+    if (ephemeralCols) return
     try { localStorage.setItem(_colKey, JSON.stringify(next)) } catch { /* ignore */ }
-  }, [_colKey])
+  }, [_colKey, ephemeralCols])
   const [liveResize, setLiveResize] = useState(null)   // {key,width} during a drag
   const [colMenu, setColMenu] = useState(null)         // {x,y} right-click menu
   const resizingRef = useRef(false)                    // suppress the header sort-click after a resize
