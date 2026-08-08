@@ -16,7 +16,7 @@ from api.services.scan_volume import _now_et, _snap_lookup, _etf_symbols
 from api.services.scan_ipo import _common_stock_symbols
 
 _TTL = 300           # results cache (s) — the range is fixed; only live price/vol drift
-_GROUP_STEPS = 6     # snap a target date back over a holiday/weekend up to this many days
+_GROUP_STEPS = 9     # snap a target date back over a holiday/weekend up to this many days (covers year-end gaps)
 
 
 def _to_date(ymd: int) -> date:
@@ -52,6 +52,18 @@ def get_period_change(start_ymd: int, end_ymd: int) -> dict:
     start_closes, sd = _grouped_near(_to_date(start_ymd))
     end_closes, ed = _grouped_near(_to_date(end_ymd))
     if not start_closes or not end_closes:
+        # Distinguish a genuine coverage gap from a transient warm-up: whole-market
+        # grouped-daily data begins ~2003 (provider limit), so a date well in the past that
+        # returns nothing after snapping back over holidays is a hard boundary, not
+        # "still computing" — say so clearly + cache it so we don't re-hit the empty
+        # endpoint every 30s poll. A RECENT empty (today still warming) stays "computing".
+        bad = _to_date(start_ymd) if not start_closes else _to_date(end_ymd)
+        if (_now_et().date() - bad).days > 30:
+            out = {"status": "unavailable", "results": [], "count": 0,
+                   "error": "Market-wide data isn't available this far back — it begins around 2003.",
+                   "as_of": None}
+            cache.set(ck, out, ttl=3600)
+            return out
         return {"status": "computing", "results": [], "count": 0, "as_of": None}
 
     cs = _common_stock_symbols()
@@ -138,7 +150,7 @@ def get_period_change_groups(start_ymd: int, end_ymd: int, group: str) -> dict:
         return {"status": "error", "group": group, "results": [], "count": 0, "error": "bad group"}
     base = get_period_change(start_ymd, end_ymd)
     if base.get("status") != "ok":
-        return {"status": base.get("status", "computing"), "group": group, "results": [], "count": 0}
+        return {"status": base.get("status", "computing"), "group": group, "results": [], "count": 0, "error": base.get("error")}
     chg = {r["sym"]: r["period_change"] for r in base["results"]}
 
     buckets = {}  # name -> {"_sum", "count", "members"}

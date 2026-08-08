@@ -89,7 +89,13 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
     return out
   }, [group, groupData])
 
-  const scanEmptyText = !data ? 'Loading…' : data.status === 'computing' ? 'Ranking the market…' : 'No results.'
+  const scanEmptyText = !data
+    ? 'Loading…'
+    : data.status === 'computing'
+      ? 'Ranking the market…'
+      : (data.status === 'unavailable' || data.status === 'error')
+        ? (data.error || 'Data isn’t available for this period.')
+        : 'No results.'
   const scanCriteria = useMemo(() => (group
     ? [`Every ${GROUP_UNIT[group]}`, start && end ? `Mean % change from ${fmtYmd(start)} to ${fmtYmd(end)}` : 'Ranked by mean % change']
     : ['Every US Common Stock', start && end ? `% Change from ${fmtYmd(start)} to ${fmtYmd(end)}` : 'Ranked by % change over the period']), [group, start, end])
