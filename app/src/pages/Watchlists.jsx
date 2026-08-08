@@ -27,6 +27,7 @@
 //     mistake already cost one design rework (2026-07-31).
 //
 import React, { useState, useEffect, useMemo, useCallback, useRef, lazy, Suspense } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import useSWR from 'swr'
 import UIcon from '../components/ui/UIcon'
 import CompanyLogo from '../components/CompanyLogo'
@@ -81,6 +82,8 @@ const COL_META = {
   // Fundamentals text columns (from the meta batch) + N-day performance (perf batch).
   sector: { def: 116, min: 70 }, industry: { def: 136, min: 80 }, theme: { def: 124, min: 74 },
   perf5d: { def: 66, min: 48 }, perf30d: { def: 68, min: 48 }, perf60d: { def: 68, min: 48 }, perf90d: { def: 70, min: 50 },
+  // Custom-Period Sort: % change over a user-picked date range (fed via perfOverride).
+  periodchg: { def: 84, min: 58 },
 }
 const DEFAULT_COL_ORDER = ['flag', 'sym', 'price', 'vol', 'chg']   // reorderable by dragging a header
 // [full label, abbreviation] + the min column width to still show the full word.
@@ -92,11 +95,12 @@ const COL_LABELS = {
   fromlow: ['% from Low', '% Low'], dcr: ['DCR', 'DCR'], dolvol: ['Dollar Volume', '$ Vol'],
   sector: ['Sector', 'Sector'], industry: ['Industry', 'Industry'], theme: ['Theme', 'Theme'],
   perf5d: ['5-Day', '5-day'], perf30d: ['30-Day', '30-day'], perf60d: ['60-Day', '60-day'], perf90d: ['90-Day', '90-day'],
+  periodchg: ['% Change', '% Chg'],
 }
 const COL_FULL_MINW = {
   sym: 62, price: 46, vol: 60, chg: 80, rvol: 52, ipoDate: 60, mcap: 78, earn: 108, rating: 82,
   dchg: 84, fromopen: 92, fromhigh: 92, fromlow: 88, dcr: 40, dolvol: 92,
-  sector: 40, industry: 40, theme: 40, perf5d: 40, perf30d: 40, perf60d: 40, perf90d: 40,
+  sector: 40, industry: 40, theme: 40, perf5d: 40, perf30d: 40, perf60d: 40, perf90d: 40, periodchg: 40,
 }
 // Extra data columns the user can ADD via the + button (not shown by default).
 const EXTRA_COLS = [
@@ -127,7 +131,7 @@ const META_KEYS = new Set(['rvol', 'ipoDate', 'mcap', 'earn', 'rating', 'sector'
 // Text columns — sorted alphabetically, not numerically.
 const TEXT_COLS = new Set(['sector', 'industry', 'theme'])
 // N-day performance columns → their key in perfData (from /api/watchlist-performance).
-const PERF_KEY_MAP = { perf5d: '5d', perf30d: '30d', perf60d: '60d', perf90d: '90d' }
+const PERF_KEY_MAP = { perf5d: '5d', perf30d: '30d', perf60d: '60d', perf90d: '90d', periodchg: 'period' }
 const PERF_COL_KEYS = new Set(Object.keys(PERF_KEY_MAP))
 // Intraday quote-derived column VALUES (numbers or null). Shared by row rendering
 // AND column sorting so the two never drift. Each takes the live quote (prices[sym]).
@@ -294,7 +298,7 @@ const WatchRow = React.memo(function WatchRow({
   ipoDate = null,
   dchg = null, fromOpen = null, fromHigh = null, fromLow = null, dcr = null, dolvol = null, rvol = null,
   sector = null, industry = null, theme = null,
-  perf5d = null, perf30d = null, perf60d = null, perf90d = null,
+  perf5d = null, perf30d = null, perf60d = null, perf90d = null, periodchg = null,
   isOwner, wlId,
   onSelect, onToggleFlag, onIntent, onCtx,
 }) {
@@ -372,6 +376,7 @@ const WatchRow = React.memo(function WatchRow({
     if (key === 'perf30d') return pctCell('perf30d', perf30d)
     if (key === 'perf60d') return pctCell('perf60d', perf60d)
     if (key === 'perf90d') return pctCell('perf90d', perf90d)
+    if (key === 'periodchg') return pctCell('periodchg', periodchg)
     return null
   }
   return (
@@ -386,6 +391,47 @@ const WatchRow = React.memo(function WatchRow({
     </div>
   )
 })
+
+// Virtualized row list for SCAN mode (read-only lists that can be thousands of rows, e.g.
+// Custom-Period Sort's whole-market ranking). Renders only the visible window inside the
+// shared `.listBody` scroll container (the sticky column header sits above it), and reports
+// the visible symbols up so ONLY those get live-streamed — the whole point that lets a
+// ~5,000-row scan render without opening ~100 SSE streams or mounting 5,000 DOM rows.
+function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange }) {
+  const virt = useVirtualizer({
+    count: items.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 30,
+    overscan: 12,
+  })
+  const vItems = virt.getVirtualItems()
+  const first = vItems.length ? vItems[0].index : 0
+  const last = vItems.length ? vItems[vItems.length - 1].index : -1
+  useEffect(() => {
+    if (!onVisibleChange) return
+    const syms = []
+    for (let i = first; i <= last && i < items.length; i++) { const s = items[i]?.sym; if (s) syms.push(s) }
+    onVisibleChange(syms)
+  }, [first, last, items, onVisibleChange])
+  if (items.length === 0) return <div className={styles.wlEmpty}>{emptyText}</div>
+  return (
+    <div className={styles.wlItems} style={{ height: virt.getTotalSize(), position: 'relative', width: '100%' }}>
+      {vItems.map((vi) => {
+        const item = items[vi.index]
+        return (
+          <div
+            key={item.id || item.sym}
+            data-index={vi.index}
+            ref={virt.measureElement}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start}px)` }}
+          >
+            {renderRow(item)}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
 // NOTE: adding a symbol is a single predictive `TickerCombobox` inline row, opened
 // from a "+" button: the per-list "+" in each list header (standalone page) and the
@@ -682,10 +728,22 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const [alertPrice, setAlertPrice] = useState('')
   const [alertDir, setAlertDir] = useState('above')
 
+  // In scan mode, only the symbols in the virtualized visible window are live-streamed
+  // (a ~5,000-row scan can't stream every row). The ScanRows virtualizer reports them here.
+  const [scanVisibleSyms, setScanVisibleSyms] = useState([])
   // Collect all visible tickers for live prices
   const allTickers = useMemo(() => {
     const tickers = []
-    if (scanMode) { (scanWl?.items || []).forEach(i => { if (i.sym) tickers.push(i.sym) }); return tickers }
+    if (scanMode) {
+      const all = scanWl?.items || []
+      // A whole-market scan (e.g. Custom-Period Sort, ~5,000 rows) streams ONLY the
+      // visible window — streaming every row would open ~100 SSE connections. Small
+      // scans (top-gainers/volume, a few hundred) still stream every row so their
+      // data-dependent sorts (RVOL/meta, which need all rows) rank correctly.
+      if (all.length > 800) return scanVisibleSyms
+      all.forEach(i => { if (i.sym) tickers.push(i.sym) })
+      return tickers
+    }
     if (activeTab === 'mine' && expandedLists.has('flagged')) {
       tickers.push(...flagged)
     }
@@ -703,7 +761,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         .forEach(wl => (wl.items || []).forEach(i => { if (i.sym) tickers.push(i.sym) }))
     }
     return tickers
-  }, [activeTab, flagged, tags, myLists, communityLists, expandedLists, scanMode, scanWl])
+  }, [activeTab, flagged, tags, myLists, communityLists, expandedLists, scanMode, scanWl, scanVisibleSyms])
 
   const { prices: feedPrices } = useRealtimePrices(allTickers)
   // Mirror the chart: when a StockChart of the same ticker is open, its published
@@ -745,9 +803,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     return defaultColCfg || {}
   })
   const _colKeys = Array.isArray(colCfg.order) ? colCfg.order : []
-  // Perf batch: fetched when a legacy perf pill OR an N-day column is active.
+  // Perf batch: fetched when a legacy perf pill OR an N-day column is active. `periodchg`
+  // is excluded — its value always arrives via perfOverride (the period scan), never the
+  // /api/watchlist-performance endpoint, so it must not fire a 5,000-ticker perf fetch.
   const { perfData: rawPerfData } = useWatchlistPerformance(
-    (visiblePerf.size > 0 || _colKeys.some(k => PERF_COL_KEYS.has(k))) ? allTickers : [],
+    (visiblePerf.size > 0 || _colKeys.some(k => PERF_COL_KEYS.has(k) && k !== 'periodchg')) ? allTickers : [],
   )
   // Scan-provided N-day returns (the gainers scans already compute the ranking metric +
   // its reference close for EVERY result) merge over the perf batch — which is capped at
@@ -1383,6 +1443,22 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     })
   }, [colSort, sortBasis, prices, metaData, perfData, themeData])
 
+  // Scan mode: the sorted row list, MEMOIZED so a huge (~5,000-row) scan re-sorts only
+  // when the data/sort actually changes — NOT on every scroll frame (which updates
+  // scanVisibleSyms → re-renders). Keyed on the sort callbacks (they already change
+  // identity when prices/perfData/colSort change), so live re-sorting still works but
+  // scrolling is cheap. Deliberately excludes scanVisibleSyms.
+  const scanSortedItems = useMemo(() => {
+    if (!scanMode) return []
+    let sorted = sortAndFilterItems(scanWl.items)
+    if (colSort) {
+      const order = applyColSort(sorted.map(i => i.sym))
+      const bySym = new Map(sorted.map(i => [i.sym, i]))   // O(n) reorder (find-in-loop is O(n²))
+      sorted = order.map(s => bySym.get(s)).filter(Boolean)
+    }
+    return sorted
+  }, [scanMode, scanWl, colSort, sortAndFilterItems, applyColSort])
+
   // Column header. Labels click to sort / right-click to hide-show. Gridlines are
   // SEPARATE draggable dividers overlaid on the header (positioned at each column
   // boundary), so dragging a gridline only resizes — never sorts/selects a column.
@@ -1492,6 +1568,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         perf30d={perfLive('30d')}
         perf60d={perfLive('60d')}
         perf90d={perfLive('90d')}
+        periodchg={perfLive('period')}
         flagged={isFlagged(sym)}
         selected={selectedSym === sym}
         orderedKeys={orderedKeys}
@@ -1885,26 +1962,18 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
 
           {columnHeader}
 
-          {/* ── SCANNER mode — the scan's symbols as a read-only single list ── */}
-          {scanMode && (() => {
-            const items = scanWl.items
-            let sortedItems = sortAndFilterItems(items)
-            if (colSort) {
-              const order = applyColSort(sortedItems.map(i => i.sym))
-              sortedItems = order.map(s => sortedItems.find(i => i.sym === s)).filter(Boolean)
-            }
-            return (
-              <div className={styles.wlItems}>
-                {sortedItems.length === 0
-                  ? <div className={styles.wlEmpty}>{items.length === 0 ? (scanEmptyText || 'No matches yet.') : 'No matches.'}</div>
-                  : sortedItems.map(item => (
-                    <React.Fragment key={item.id}>
-                      {renderTickerRow({ sym: item.sym, name: item.name, isOwner: false, wlId: null })}
-                    </React.Fragment>
-                  ))}
-              </div>
-            )
-          })()}
+          {/* ── SCANNER mode — the scan's symbols as a read-only single list ──
+              Virtualized (ScanRows) so a whole-market scan (thousands of rows) renders
+              only the visible window; the sticky columnHeader above stays put. */}
+          {scanMode && (
+            <ScanRows
+              scrollRef={listBodyRef}
+              items={scanSortedItems}
+              renderRow={(item) => renderTickerRow({ sym: item.sym, name: item.name, isOwner: false, wlId: null })}
+              emptyText={scanWl.items.length === 0 ? (scanEmptyText || 'No matches yet.') : 'No matches.'}
+              onVisibleChange={setScanVisibleSyms}
+            />
+          )}
 
           {/* ── My Lists tab — Flagged pinned at top + tag groups + user lists ── */}
           {!scanMode && activeTab === 'mine' && (

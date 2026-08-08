@@ -1417,7 +1417,6 @@ export default function ChartsWorkspace() {
             start={periodSortPanel.start}
             end={periodSortPanel.end}
             onClose={() => setPeriodSortPanel(null)}
-            onPickSym={(s) => setGroupSym('A', s)}
             onDock={() => handleDockPeriodSort(periodSortPanel.start, periodSortPanel.end)}
             tabTargets={visibleWidgets.map(w => ({ id: w.id, label: WIDGET_LABELS[w.type] || w.type }))}
             onAddAsTab={(widgetId) => handlePeriodSortToTab(widgetId, periodSortPanel.start, periodSortPanel.end)}

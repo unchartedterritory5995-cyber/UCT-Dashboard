@@ -1,12 +1,12 @@
-// Custom-Period Sort — the draggable floating results window. Wraps the shared
-// PeriodSortTable (identical to the docked Period-Sort widget) in a movable panel whose
-// header can dock the results into the grid as a widget or fold them into an existing
-// widget as a Period-Sort tab.
+// Custom-Period Sort — the draggable floating "sort window". Its body is the real
+// scanner/watchlist table (PeriodSortResults) for the highlighted [start, end], so it has
+// every watchlist feature; the header can dock it into the grid as a widget or fold it
+// into an existing widget as a Period-Sort tab.
 import { useState, useCallback } from 'react'
-import PeriodSortTable from './PeriodSortTable'
+import PeriodSortResults from './widgets/PeriodSortResults'
 import styles from './PeriodSortPanel.module.css'
 
-export default function PeriodSortPanel({ start, end, onClose, onPickSym, onDock, onAddAsTab, tabTargets = [] }) {
+export default function PeriodSortPanel({ start, end, onClose, onDock, onAddAsTab, tabTargets = [] }) {
   const [pos, setPos] = useState({ x: 140, y: 96 })
   const [tabMenuOpen, setTabMenuOpen] = useState(false)
   const onHeaderPointerDown = useCallback((e) => {
@@ -48,7 +48,9 @@ export default function PeriodSortPanel({ start, end, onClose, onPickSym, onDock
           <button type="button" className={styles.close} onClick={onClose} title="Close" aria-label="Close">✕</button>
         </div>
       </div>
-      <PeriodSortTable start={start} end={end} onPickSym={onPickSym} />
+      <div className={styles.panelBody}>
+        <PeriodSortResults start={start} end={end} color="A" />
+      </div>
     </div>
   )
 }
