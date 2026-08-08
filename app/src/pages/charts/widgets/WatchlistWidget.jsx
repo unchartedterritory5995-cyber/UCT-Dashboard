@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useRef } from 'react'
+import { useMemo, useCallback, useId } from 'react'
 import Watchlists from '../../Watchlists'
 import WatchlistPicker from './WatchlistPicker'
 import { ChartsSymContext } from '../ChartsSymContext'
@@ -7,8 +7,7 @@ import { useWorkspace } from '../WorkspaceContext'
 export default function WatchlistWidget({ color, opts, onOptsChange }) {
   const { groupSyms, setGroupSym, activeWatchlistRef } = useWorkspace()
   // Stable id so this widget can claim "active" (owns arrow keys + its own scroll).
-  const widgetIdRef = useRef(null)
-  if (!widgetIdRef.current) widgetIdRef.current = `wl${Math.random().toString(36).slice(2, 9)}`
+  const widgetId = useId()
   // Scoped context: routes the wrapped Watchlists' useChartsSym calls
   // into THIS widget's color group, not Group A. setSym is a STABLE callback (not
   // re-created when groupSyms changes) so the memoized watchlist rows' select handler
@@ -59,7 +58,7 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
         pickName={opts?.watchName || null}
         onExitPick={exitPick}
         activeRef={activeWatchlistRef}
-        widgetKey={widgetIdRef.current}
+        widgetKey={widgetId}
         settingsOverride={wlSettingsOverride}
         onSettingsPersist={persistWlSettings}
       />
