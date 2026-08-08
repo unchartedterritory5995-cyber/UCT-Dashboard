@@ -3279,7 +3279,13 @@ export default function StockChart({
   // year that the shallow first-paint window can miss entirely (a 2020 example
   // would silently frame "now"), and they skip the pan-to-backfill path — so
   // they must fetch the full depth up front.
-  const _pinnedFull = !!(entryDate || exactDateRange)
+  //
+  // Replay mode (replayCutoff) is the same situation: the shallow window is the ~600
+  // bars ending TODAY, but replay hides everything after the cutoff, so most of that
+  // window is thrown away and almost NO pre-cutoff history is loaded (the "nothing
+  // before ~March 2024" bug). Depending on the dwell-warm/prefetch race to backfill it
+  // is unreliable — pin full depth so the whole history up to the cutoff loads at once.
+  const _pinnedFull = !!(entryDate || exactDateRange || replayCutoff)
   const barCount = (_overlayActive || _pinnedFull) ? _fullTarget : fetchDepth
 
   // Intraday refetches more often to keep candles current during market hours
@@ -10569,7 +10575,7 @@ export default function StockChart({
   // modes (they already fetch full) and pinned charts (entryDate / exactDateRange
   // / barsOverride). Mirrors the existing visible-range subscription pattern.
   useEffect(() => {
-    if (_overlayActive || entryDate || exactDateRange || _hasOverride) return undefined
+    if (_overlayActive || entryDate || exactDateRange || _hasOverride || replayCutoff) return undefined
     if (fetchDepth >= _fullTarget) return undefined
     const chart = chartRef.current
     if (!chart) return undefined
@@ -10619,12 +10625,12 @@ export default function StockChart({
   // keep the short dwell delay to skip warming on quick ticker-flips, and multi-
   // chart grid cells still pass backgroundWarm=false to avoid a cold-open herd.
   useEffect(() => {
-    if (_overlayActive || entryDate || exactDateRange || _hasOverride) return undefined
+    if (_overlayActive || entryDate || exactDateRange || _hasOverride || replayCutoff) return undefined
     if (!backgroundWarm && !deepWarm) return undefined
     if (fetchDepth >= _fullTarget) return undefined
     const id = setTimeout(() => setFetchDepth(_fullTarget), 900)
     return () => clearTimeout(id)
-  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, backgroundWarm, deepWarm])
+  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, backgroundWarm, deepWarm, replayCutoff])
 
   // Cleanup: destroy chart only on unmount
   useEffect(() => {
