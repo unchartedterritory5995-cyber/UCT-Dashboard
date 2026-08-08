@@ -133,6 +133,16 @@ import { serverColumnsFor } from './serverCompute'
  *  A disagreement between the linter and a shipped badge is a FINDING FOR THE
  *  OWNER (record §2). Editing it fails three separate rails on purpose.
  *
+ *  ⭐ WHAT DID MOVE IS THE SURFACE, AND IT MOVED ONE LEVEL DOWN. The owner's
+ *  ruling is per PLOT, so `chikou` now declares `plots[].forward` — the number of
+ *  bars ahead of its own index that column reads — and `ast/lint.js` derives
+ *  `preview-repaints` from it. That is a WINDOW, not a badge: `defSchema` REFUSES
+ *  a `plots[].repaint`, so this field stays the only per-definition statement of
+ *  the badge in the file and no plot may ever contradict or duplicate it. The
+ *  chart's About page renders the linter's per-plot MEASUREMENT and no longer
+ *  prints this shared default as prose; the library dialog still reads it. See
+ *  record §4.2 and `engine/repaintVerdict.js`.
+ *
  *  ⏳ The TIER half of the original sentence is ALSO a shared default, and Task 14
  *  — the commit this paragraph was left standing for — DELIBERATELY DID NOT MOVE
  *  IT. The owner's ruling of 2026-08-06 is *"everything is paid, almost nothing is
@@ -221,6 +231,32 @@ const colorInput = (key, label, dflt) => ({ key, type: 'color', label, default: 
 const periodInput = (key, label, dflt, min, max) => ({
   key, type: 'int', label, default: dflt, min, max, step: 1,
 })
+
+/** ⭐⭐ ICHIMOKU'S KIJUN PERIOD, HOISTED, BECAUSE IT IS TWO FACTS THAT ARE ONE
+ *  NUMBER — and the whole point of `plots[].forward` is that the number is not
+ *  typed a second time.
+ *
+ *  `indicators.computeIchimoku` opens with `const displacement = kijunPeriod` and
+ *  then writes `chikou[i - displacement].value = bars[i].c`. So the Kijun period
+ *  IS the lagging line's back-shift, which IS its forward dependency: the point
+ *  drawn at index `i - 26` is bar `i`'s close, and it moves until bar `i` closes.
+ *  Declared once here and read twice below — as the input's default and as
+ *  `chikou`'s forward window — so a change to one is a change to both.
+ *
+ *  ⚠️ THE OBJECT, NOT A `find()` OVER THE INPUT LIST. A lookup by key returns
+ *  `undefined` the day somebody renames the input, and `undefined.default` throws
+ *  at module load — i.e. the whole chart registry fails to import because a label
+ *  changed. One binding cannot be got wrong that way.
+ *
+ *  ⛔ AND THE NUMBER IS STILL A DECLARATION, WHICH IS SAID HERE RATHER THAN
+ *  DISCOVERED LATER. Nothing in this file reads `computeIchimoku`'s source —
+ *  spec §11 forbids static analysis of hand-written JS, so the compute and this
+ *  declaration are held equal by a TEST that measures the artefact (the trailing
+ *  null run in the committed golden fixture, `ast/lint.test.js`) rather than by
+ *  the type system. That is the same standing the Python lane's `TRAILING_PAD`
+ *  has, and its own comment says why it is a declaration rather than a waiver:
+ *  *"change the back-shift and this goes red with the two numbers in hand."* */
+const ICHIMOKU_KIJUN = periodInput('kijunPeriod', 'Kijun', 26, 1, 200)
 
 // ─── the definitions ─────────────────────────────────────────────────────────
 //
@@ -539,7 +575,7 @@ const RAW_DEFS = [
       // so these defaults are the values the chart already uses. Declaring them
       // is additive: identical numbers, and the Style tab gains them for free.
       periodInput('tenkanPeriod', 'Tenkan', 9, 1, 100),
-      periodInput('kijunPeriod', 'Kijun', 26, 1, 200),
+      ICHIMOKU_KIJUN,
       periodInput('senkouBPeriod', 'Senkou B', 52, 1, 400),
       colorInput('tenkanColor', 'Tenkan', '#26C6DA'),
       colorInput('kijunColor', 'Kijun', '#EF5350'),
@@ -563,7 +599,25 @@ const RAW_DEFS = [
       // centre series. Expressing the cloud is a B3 decision with a pixel change.
       { key: 'spanA', label: 'Span A', style: 'line', color: '$spanAColor', width: 1, role: 'secondary' },
       { key: 'spanB', label: 'Span B', style: 'line', color: '$spanBColor', width: 1, role: 'secondary' },
-      { key: 'chikou', label: 'Chikou', style: 'line', color: '$chikouColor', width: 1, lineStyle: 'dashed', role: 'secondary' },
+      // ⭐⭐⭐ THE ONE PLOT IN THE CATALOGUE THAT DECLARES A FORWARD WINDOW, AND
+      // THE OWNER'S PER-PLOT RULING IS WHY IT IS HERE AND ON NOTHING ELSE.
+      //
+      // `forward` is a FACT about the maths, not a badge: this column's value at
+      // index `i - kijun` is bar `i`'s CLOSE, so it reads `kijun` bars ahead of
+      // the index it writes. `ast/lint.js` turns that number into the verdict
+      // through `modeFromReach` — a known finite window is `preview-repaints`,
+      // which is the value the owner took on 2026-08-07 (record §4.1) and the
+      // first thing in this catalogue ever to emit it. Nothing here declares the
+      // verdict; `defSchema` refuses a plot that tries.
+      //
+      // ⛔ AND IT SITS ON `chikou` ALONE, WHICH IS THE ENTIRE POINT. `tenkan`,
+      // `kijun`, `spanA` and `spanB` read `[i-n, i]` and declare nothing, so the
+      // linter has no opinion on them and no surface badges them. Putting a
+      // window on the DEFINITION would have slandered four honest columns —
+      // record §4 in the owner's own words: *"a per-definition badge cannot
+      // express this without lying in one direction or the other."*
+      { key: 'chikou', label: 'Chikou', style: 'line', color: '$chikouColor', width: 1, lineStyle: 'dashed', role: 'secondary',
+        forward: ICHIMOKU_KIJUN.default },
     ]),
 
   // ── MFI ──────────────────────────────────────────────────────────────────
@@ -1531,6 +1585,34 @@ function validateAstLane(def) {
       `\`rsLine\`'s correction (Phase C Task 13, confirmed by the owner rather than waived) ` +
       `applied to the lane that declares the same dependency.`,
     )
+  }
+  // ⭐ GATE 5 — AN `ast` PLOT MAY NOT DECLARE ITS OWN FORWARD WINDOW, AND THIS IS
+  // THE SAME SENTENCE AS 3, ONE LEVEL DOWN.
+  //
+  // `plots[].forward` exists so a HAND-WRITTEN compute can tell the linter the
+  // one fact it cannot derive (`defSchema` documents it; `ichimoku.chikou` is the
+  // one shipped user). On this lane the linter has the TREE, so the window is an
+  // answer rather than a claim — and a declaration beside it is a second source
+  // for one number that nothing keeps honest. Left accepted, an author could
+  // widen a clean formula's window by hand and move its badge without touching a
+  // line of maths, which is a hand-set badge taking the long way round.
+  //
+  // ⚠️ AND THE PYTHON LANE IS THE SECOND REASON, MEASURED RATHER THAN ASSUMED.
+  // `api/services/user_definitions.lint_verdict` stores `{plotKey: mode}` from
+  // `api/services/ast_lint.lint_definition`, which reads the tree and knows
+  // nothing about this field. Accepting it here would let a stored definition
+  // carry a verdict the two lanes computed differently — the cross-lane
+  // divergence `tools/ast_conformance.py` exists to make impossible.
+  for (const plot of (Array.isArray(def.plots) ? def.plots : [])) {
+    if (plot && Object.prototype.hasOwnProperty.call(plot, 'forward')) {
+      errors.push(
+        `plots[].forward — declared on ${JSON.stringify(plot.key)}, but an "ast" definition's ` +
+        `forward window is DERIVED from its tree (${JSON.stringify(String(verdict.forward))} bars, ` +
+        `measured). The field exists for a hand-written compute the linter cannot read; on this ` +
+        `lane it is a second declaration of a number the linter already knows, and the two have ` +
+        `nothing keeping them equal.`,
+      )
+    }
   }
   return errors
 }

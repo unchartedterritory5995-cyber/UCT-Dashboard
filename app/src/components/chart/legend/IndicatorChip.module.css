@@ -104,6 +104,40 @@
    gray intentional). A hidden indicator is not an error. */
 .chipHidden { opacity: 0.45; }
 
+/* ── THE PER-PLOT REPAINT MARK ─────────────────────────────────────────────
+ *
+ * AMBER = degraded, spec §6's colour language — this line is drawable and
+ * useful, it just cannot be trusted at its right-hand edge. Deliberately NOT red
+ * (nothing is broken) and NOT the chip's own colour (the plot's colour is the
+ * user's, and a warning that inherits a user-chosen colour can be styled away).
+ *
+ * ⛔ NO TEXT, EVER — the same invariant the control strip lives under. `.chip` is
+ * ONE element with ONE text node so `querySelectorAll('span')` counts it once and
+ * `textContent` reads exactly what the chart drew; a mark carrying a glyph or a
+ * word would put a second MACD in `stockChartWiring.test.jsx` and change every
+ * chip-text assertion in the suite. It is an `svg` and a `title`, and the sentence
+ * lives in the chip menu's About page where there is room to say it properly.
+ *
+ * ⛔ AND IT IS NOT INSIDE `.chipControls`. That strip is collapsed to zero width
+ * until hover and is rendered only on an INTERACTIVE mount — so a warning parked
+ * inside it would be invisible on a Model Book chart, invisible on a grid cell,
+ * and invisible on desktop until the pointer happened to land on the chip. A
+ * claim about whether a line can be trusted is not a hover affordance. */
+.chipRepaint {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  vertical-align: bottom;
+  /* ⚠️ `--color-warning` IS NOT IN `styles/tokens.css` — measured, not assumed.
+     Every chart-family user of it therefore carries a literal fallback, and this
+     one matches `IndicatorSettingsDialog.module.css`'s rather than inventing a
+     third amber. (`BuilderSheet.module.css` omits the fallback entirely, so on
+     this tree its `.badgeWarn` inherits whatever colour is above it — a real
+     defect, in a file this task does not own.) */
+  color: var(--color-warning, #f0b429);
+  pointer-events: auto;
+}
+
 /* ── THE `+N` FOLD ─────────────────────────────────────────────────────────
  *
  * The tail past `CHIP_COLLAPSE_AT` carries this class and the `+N` button
@@ -230,4 +264,9 @@
     background: currentColor;
   }
   .chipControls { display: none; }
+  /* The chip is a 10 px dot here and its text is indented off-screen; a 10 px
+     amber triangle beside it would be unreadable and would drag the dot off
+     centre. On touch the surface that carries the sentence is the long-press
+     bottom sheet, which is where the About page lives anyway. */
+  .chipRepaint { display: none; }
 }

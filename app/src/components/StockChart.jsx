@@ -90,6 +90,10 @@ import * as engineRegistry from './chart/engine/nativeRegistry'
 import IndicatorChip from './chart/legend/IndicatorChip'
 import chipStyles from './chart/legend/IndicatorChip.module.css'
 import { chipMenuItems } from './chart/legend/chipMenu'
+// ⭐ THE PER-PLOT REPAINT VERDICT — DERIVED BY THE LINTER, NEVER READ OFF A
+// BADGE. See `engine/repaintVerdict.js`'s header for why it is computed rather
+// than stored and how it relates to the definition's own `meta.repaint`.
+import { plotRepaintNotice, repaintNotices } from './chart/engine/repaintVerdict'
 import ContextPopover from './mobile/ContextPopover'
 import IndicatorSettingsDialog from './chart/IndicatorSettingsDialog'
 import { usePatternDetections } from '../hooks/usePatternDetections'
@@ -10827,10 +10831,35 @@ export default function StockChart({
       })()}
       {/* ⭐ ABOUT — a second PAGE of the same popover, spec §6's sixth row. The
           text is `def.meta.description`, which every definition already declares,
-          so this needs no new data and no new fetch. */}
+          so this needs no new data and no new fetch.
+
+          ⭐⭐ AND IT IS THE ONLY SURFACE ON THIS CHART THAT CAN REACH A PLOT WITH
+          NO CHIP, WHICH IS WHY THE PER-PLOT REPAINT NOTICES LIVE HERE. Measured:
+          `ichimoku`'s `chikou` declares no `plots[].legend` block, so `legendChips`
+          emits nothing for it and it has no chip to mark — and `chikou` is the
+          ONE column the owner's ruling is about. A chip-only surface would have
+          shipped a per-plot badge that is invisible for the exact plot it exists
+          for. This page is per DEFINITION, so it lists every column the linter
+          measured, chip or no chip.
+
+          ⛔ AND `meta.repaint` IS DELIBERATELY NO LONGER PRINTED HERE. It used to
+          render as bare prose — "non repainting · Momentum" — on all seventeen
+          definitions, and record §1 measured what that sentence actually is: a
+          shared default from ONE helper that every native inherits and none
+          overrides, i.e. an unset column wearing the costume of an audit.
+          Printing an unaudited default as a fact to a trader is the defect the
+          decision record is about, and on `ichimoku` it was printing a claim the
+          machine linter contradicts. What renders now is the MEASUREMENT, and
+          only when there is one: sixteen definitions show nothing at all, which
+          is the owner's own reasoning — *"a badge that every indicator wears
+          carries no information"* (record §4). `meta.repaint` keeps its meaning
+          and its consumers (the library dialog's row badge; `validateAstLane`'s
+          both-directions refusal on the one lane where it is checkable) — it is
+          the definition's CLAIM, and this is the maths. */}
       {chipAbout && (() => {
         const def = engineRegistry.getDefinition(chipAbout.chip.defId)
         const meta = (def && def.meta) || {}
+        const notices = repaintNotices(def)
         return (
           <ContextPopover
             open
@@ -10841,12 +10870,25 @@ export default function StockChart({
           >
             <div style={{ padding: '4px 10px 10px', fontSize: 12, lineHeight: 1.55, color: 'var(--text-secondary, #b8b3a5)' }}>
               {meta.description || 'This indicator declares no description.'}
-              {meta.repaint && (
-                <div style={{ marginTop: 8, fontSize: 11, opacity: 0.75 }}>
-                  {String(meta.repaint).replace(/-/g, ' ')}
-                  {meta.category ? ` · ${meta.category}` : ''}
-                </div>
+              {meta.category && (
+                <div style={{ marginTop: 8, fontSize: 11, opacity: 0.75 }}>{meta.category}</div>
               )}
+              {notices.map((n) => (
+                <div
+                  key={n.plotKey}
+                  data-repaint-plot={`${chipAbout.chip.defId}.${n.plotKey}`}
+                  data-repaint={n.mode}
+                  style={{
+                    marginTop: 8, padding: '6px 8px', borderRadius: 4, fontSize: 11, lineHeight: 1.5,
+                    background: 'rgba(240, 180, 41, 0.12)',
+                    borderLeft: '2px solid var(--color-warning, #f0b429)',
+                    color: 'var(--chart-panel-text-strong-low, #e2dfd6)',
+                  }}
+                >
+                  <strong>{n.label} — {String(n.mode).replace(/-/g, ' ')}</strong>
+                  <div style={{ opacity: 0.85 }}>{n.sentence}</div>
+                </div>
+              ))}
             </div>
           </ContextPopover>
         )
@@ -11182,6 +11224,14 @@ export default function StockChart({
                     key={`${c.instanceId}::${c.plotKey}`}
                     chip={c}
                     className={i >= foldedFrom ? chipStyles.chipFolded : undefined}
+                    /* ⛔ RESOLVED PER CHIP, AND PER CHIP MEANS PER (INSTANCE, PLOT).
+                       `plotRepaintNotice` answers null unless the LINTER decided
+                       this exact column is not clean — so a definition with one
+                       repainting column marks that column and leaves its siblings
+                       alone, which is the owner's per-plot ruling in the DOM. It is
+                       memoised on the definition object, so this is a Map lookup
+                       per chip per crosshair move and not a tree walk. */
+                    repaint={plotRepaintNotice(engineRegistry.getDefinition(c.defId), c.plotKey)}
                     {...chipHandlers}
                   />
                 ))}

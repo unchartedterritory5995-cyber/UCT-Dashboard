@@ -75,6 +75,16 @@
 // exactly ONE. A second comparison written here by hand would be a second
 // grammar, which is the thing that ruling exists to prevent.
 import { parseFormula, astHash } from './ast/parse'
+// ⭐ THE SECOND IMPORT, ADDED WITH `plots[].forward`, AND IT COSTS THE PURITY
+// CLAIM ABOVE NOTHING FOR THE SAME REASON THE FIRST ONE DOES NOT: `UNBOUNDED` is
+// a frozen string constant, and `./ast/parse` — which this module already pulls
+// in — is `./ast/lint`'s only import, so the dependency graph does not grow by
+// one module's worth of anything. It is imported rather than retyped because a
+// vocabulary written down twice is the `williams_r`/`williamsR` shape: the day
+// the linter learns a fourth window form, a hand-copied literal here would keep
+// refusing it while the linter accepted it, and the two would disagree about
+// what a definition means.
+import { UNBOUNDED as FORWARD_UNBOUNDED } from './ast/lint'
 
 /** Schema major. A definition MUST declare exactly this to register. */
 export const SCHEMA_VERSION = 1
@@ -1140,6 +1150,53 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
         errors.push(`${path}.legend.hide: expected true or false, got ${fmt(plot.legend.hide)}`)
       }
     }
+  }
+  // ─── the per-plot repaint surface: a WINDOW is declarable, a BADGE is not ───
+  //
+  // ⭐⭐ THE OWNER'S RULING (decision record §4) IS PER PLOT: `ichimoku` is
+  // `non-repainting` on four columns and something else on the fifth, and a
+  // per-definition badge "cannot express this without lying in one direction or
+  // the other". These two clauses are what makes the ruling expressible, and the
+  // asymmetry between them is the entire design.
+  //
+  // ⛔ `plots[].forward` — HOW FAR AHEAD OF ITS OWN INDEX THIS COLUMN READS, in
+  // bars. A FACT about the maths, in the same units and the same three forms
+  // `ast/closedTable.json` declares per function (`n >= 0`, or `"unbounded"`).
+  // `ast/lint.js` turns it into a badge through `modeFromReach`; it is the only
+  // thing a hand-written compute has ever been able to tell that linter, and
+  // record §3.1 already writes down what the declaration costs — *"a compute
+  // whose real window is wider than its declaration would be branded on the
+  // declaration and the linter would be wrong"*.
+  //
+  // ⛔ `plots[].repaint` — REFUSED, BY NAME, AND THIS IS A HOLE BEING CLOSED
+  // RATHER THAN A RULE BEING INVENTED. Phase D Task 15 measured it: a
+  // `plots[].repaint` was **accepted and ignored** — preserved by the
+  // unknown-KEY policy, read by nothing, and therefore a badge an author could
+  // write that no user would ever see and no gate would ever check. That is the
+  // `styleOverrides`/`legendParams` shape this phase exists to retire, and on the
+  // one field the brand is sold on. A badge is the LINTER'S ANSWER, never an
+  // author's claim, so the field a plot may write is the one the linter reads.
+  if (plot.forward !== undefined) {
+    const fw = plot.forward
+    const ok = fw === FORWARD_UNBOUNDED || (Number.isInteger(fw) && fw >= 0)
+    if (!ok) {
+      errors.push(
+        `${path}.forward: expected a non-negative integer (how many bars AHEAD of its own index ` +
+        `this column reads) or ${fmt(FORWARD_UNBOUNDED)}, got ${fmt(fw)}. Omit the field for a ` +
+        `column whose window nobody has measured — omitting it means "undecided", and 0 means ` +
+        `"measured, reads nothing ahead". Those are different claims and the schema will not ` +
+        `guess which one an unreadable value meant.`,
+      )
+    }
+  }
+  if (Object.prototype.hasOwnProperty.call(plot, 'repaint')) {
+    errors.push(
+      `${path}.repaint — a plot may not declare a repaint badge. The badge is the linter's ` +
+      `MEASUREMENT (docs/decisions/2026-08-06-machine-repaint-linter.md §5), and a field an author ` +
+      `fills in by hand is the audited metadata that record exists to replace. Declare ` +
+      `${path}.forward — the number of bars ahead of its own index this column reads — and ` +
+      `ast/lint.js derives the badge from it.`,
+    )
   }
   if (plot.role !== undefined) {
     checkVocabulary(plot.role, PLOT_ROLES, [], `${path}.role`, 'plot role', errors)

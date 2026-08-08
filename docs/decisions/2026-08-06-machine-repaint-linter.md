@@ -295,6 +295,64 @@ armed rows must stay armed and surface as `needs_attention` with a
 cutover, and Phase D neither implemented it nor may. Recorded as
 decided-and-scheduled in spec §11, row **D-A6**.
 
+## 4.2 The render surface SHIPPED — and it moved no badge, which is why this header still says `OPEN`
+
+**The scheduled work in §4.1 is built.** `ichimoku.chikou` now visibly carries
+`preview-repaints` on the chart, its four siblings carry nothing, and sixteen of
+the seventeen definitions carry nothing at all. What §4.1 named as three parts
+shipped as three, with one substitution that is the whole design:
+
+| §4.1 named | what shipped | why |
+|---|---|---|
+| (1) a `plots[].repaint` field in `defSchema` | **`plots[].forward`** — a WINDOW, in bars — and `plots[].repaint` is now **REFUSED BY NAME** | a badge is the linter's answer, never an author's claim |
+| (2) a consumer that rolls per-plot badges up | `engine/repaintVerdict.js` — derives, caches, rolls up; nothing is stored | Task 10 already recorded that a stored verdict goes stale |
+| (3) a decision about the definition-level badge when its plots disagree | `meta.repaint` is the **CLAIM**; the roll-up is the **MEASUREMENT**; a disagreement stays a finding | §2 forbids resolving one by editing the other |
+
+⭐ **THE SUBSTITUTION IN ROW (1) IS THE POINT, NOT A DETAIL.** A plot declares
+*how many bars ahead of its own index it reads* — the same three forms
+`ast/closedTable.json` already declares per function — and `ast/lint.js` turns
+that number into a badge through `modeFromReach`, the same three lines that
+decide the `ast` lane. So the badge stays a **derivation** on every lane. A
+`plots[].repaint` would have been the audited metadata §1 measured to have
+audited nothing, one level down, and Task 15 measured that the field was already
+**accepted and ignored** — writable, invisible, uncheckable. It is now an error.
+
+⛔ **AND `chikou`'s NUMBER IS NOT TYPED TWICE.** `computeIchimoku` opens with
+`const displacement = kijunPeriod`, so the lagging line's forward reach IS the
+Kijun period — declared once in `nativeRegistry.js` and read twice, as the
+input's default and as the plot's window. A test then ties that declaration to
+the **artefact**: the trailing null run in the committed golden fixture, which is
+the compute's own output and which `TRAILING_PAD` describes from the other lane.
+Neither lane holds a literal, and moving the back-shift goes red in both.
+
+### Why the `**Status:**` header did NOT flip
+
+⚠️ **Because the biconditional's own terms are still true, and they are true by
+CONSTRUCTION now rather than by coincidence.** The header means *"the badge is
+still the shared default that no definition overrides and no plot carries."*
+After this commit: `nativeDef`'s shared default is untouched, no definition
+overrides it, and **no plot may ever carry a badge** — the schema refuses one.
+What a plot carries is a fact about its maths.
+
+That is not a loophole being walked through, and the difference is worth stating
+plainly because it is exactly the shape this branch keeps getting wrong. The
+clause was written as a probe for a plot-level `repaint` KEY; a change that
+shipped a per-plot badge through a differently-named key while that probe stayed
+green would be the *"structural guard misses behavioural clobber"* defect, and it
+would be worse here than anywhere else. So the clause was made **stronger**
+instead of side-stepped: `plotsWithOwnBadge` used to be empty because nobody had
+written one, and is now empty because the registration door rejects one.
+
+**What is still open is what §4.1 said was open and is not this task's:** the
+badge on `ichimoku`'s DEFINITION still reads `non-repainting` while one of its
+columns is measured `preview-repaints`. That is the recorded disagreement, it is
+the owner's to resolve, and three rails in three files exist to keep it loud.
+The chart no longer repeats the claim to a member — the About page prints the
+measurement and nothing else — but `indicatorCatalog.js` still hands the library
+dialog `meta.repaint`, so the row badge there is unchanged. **A per-definition
+row badge that reads its plots' roll-up is the next piece**, and it belongs with
+whoever owns that file.
+
 ⛔ **And the badge is still not a thing a task may edit to make a rail green.**
 The biconditional in `enumerationSites.test.js` says so in its own failure
 message, and it is right: a disagreement between the linter and a shipped badge
