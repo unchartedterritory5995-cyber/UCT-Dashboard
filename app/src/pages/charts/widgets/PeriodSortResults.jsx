@@ -6,12 +6,13 @@
 //  • GROUPS (theme/sector/industry): the groups ranked by their mean % change, each an
 //    expandable row (click → its stocks inline). Feeds the same table with group NAMES as
 //    rows + a Stocks-count column; group rows show name · % · count (no price/volume).
-import { useMemo, useCallback, useId } from 'react'
+import { useMemo, useCallback, useEffect, useRef, useId } from 'react'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import Watchlists from '../../Watchlists'
 import UIcon from '../../../components/ui/UIcon'
 import { ChartsSymContext } from '../ChartsSymContext'
 import { useWorkspace } from '../WorkspaceContext'
+import { prefetchListDeep } from '../../../utils/prefetchBars'
 import styles from './ScannerResults.module.css'
 
 const fetcher = (url) => fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : null)).catch(() => null)
@@ -102,6 +103,20 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
     for (const r of (groupData?.results || [])) (out ||= {})[String(r.name).toUpperCase()] = { group_count: r.count }
     return out
   }, [group, groupData])
+
+  // As soon as the ranked list is in, warm the DEEP (zoomed-out) history for the
+  // top stocks into the server + SWR cache — so opening one on a Weekly/Monthly
+  // chart already has its pre-2024 tail loaded instead of a seconds-long cold
+  // fetch. Bounded + idle-deferred (prefetchListDeep). Warm once per date range.
+  const _deepWarmedRef = useRef(null)
+  useEffect(() => {
+    const syms = (stockData?.results || []).map((r) => r.sym).filter(Boolean)
+    if (!syms.length) return
+    const key = `${start}_${end}`
+    if (_deepWarmedRef.current === key) return
+    _deepWarmedRef.current = key
+    prefetchListDeep(syms)
+  }, [stockData, start, end])
 
   const scanEmptyText = !data
     ? 'Loading…'

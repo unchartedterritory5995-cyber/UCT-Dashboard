@@ -13,7 +13,7 @@ import { preload } from 'swr'
 import { prefetchTickerMeta } from '../hooks/useTickerMeta'
 import { idbGet, idbPut } from './barsIDB'
 import { memHas, memPut } from './barsMemCache'
-import { FIRST_PAINT_BARS } from './barsBackfill'
+import { FIRST_PAINT_BARS, fullBarsFor } from './barsBackfill'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -231,6 +231,66 @@ export function warmMemFromIDB(tickers, tfs = SCAN_WARM_TFS) {
       }).catch(() => { /* best-effort accelerator; IDB stays the fallback */ })
     }
   }
+}
+
+// ── Deep-history prefetch (SWR + server-cache warm) ──────────────────────────
+// The warmers above cover only the shallow first-paint window (FIRST_PAINT_BARS).
+// DEEP history — the pre-2024 tail you see when a Weekly/Monthly chart is zoomed
+// out — is fetched on-DEMAND by StockChart's dwell-warm/backfill at
+// bars=fullBarsFor(tf), a COLD server build that takes seconds the first time.
+// This warms that exact deep URL through SWR `preload` so (a) the server disk-
+// caches the deep set (shared across users, durable ~48h for D/W/M) and (b)
+// StockChart's own deep fetch becomes an instant SWR cache hit — the deep history
+// is already loaded by the time the user scrolls into it.
+//
+// Deliberately NOT written to IDB: StockChart's cold D/W/M fetch (bars=
+// FIRST_PAINT_BARS, no `since`) REPLACES the IDB entry on open, so a deep IDB
+// write would just be truncated back — the SWR + server cache is the real win.
+// Separate bounded queue (big payloads) so it never starves the active chart.
+const _deepQueue = []
+let _deepActive = 0
+const _DEEP_MAX = 2
+const _deepSeen = new Set()
+let _deepKick = null
+
+function _deepUrl(sym, tf) {
+  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${fullBarsFor(tf)}`
+}
+function _deepPump() {
+  while (_deepActive < _DEEP_MAX && _deepQueue.length) {
+    const url = _deepQueue.shift()
+    _deepActive++
+    Promise.resolve(preload(url, fetcher)).finally(() => { _deepActive--; _deepPump() })
+  }
+}
+function _deepKickSoon() {
+  if (_deepKick) return
+  const go = () => { _deepKick = null; _deepPump() }
+  if (typeof requestIdleCallback === 'function') _deepKick = requestIdleCallback(go, { timeout: 2500 })
+  else _deepKick = setTimeout(go, 1200)
+}
+
+// Zoomed-out TFs first (W/M are cheap — a few thousand bars — and are exactly the
+// user's complaint), Daily last (12500 bars, the big payload).
+const DEEP_WARM_TFS = ['W', 'M', 'D']
+const DEEP_WARM_CAP = 120
+export function prefetchListDeep(tickers, { tfs = DEEP_WARM_TFS, cap = DEEP_WARM_CAP } = {}) {
+  if (!tickers?.length) return
+  const list = [...new Set(tickers.filter(Boolean))].slice(0, cap)
+  if (!list.length) return
+  // TF-outer: warm ALL symbols' cheap W (then M, then D) before the expensive D
+  // pass, so the zoomed-out history the user asked about is ready first.
+  for (const tf of tfs) {
+    for (const sym of list) {
+      const url = _deepUrl(sym, tf)
+      if (_deepSeen.has(url)) continue
+      _deepSeen.add(url)
+      setTimeout(() => _deepSeen.delete(url), 300000) // 5-min re-warm window
+      _deepQueue.push(url)
+    }
+  }
+  for (const sym of list) prefetchTickerMeta(sym)
+  _deepKickSoon()
 }
 
 // ── Intent prefetch (hover / keyboard focus) ─────────────────────────────────
