@@ -1497,13 +1497,21 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     }
     if (!groupMode) return sorted
     // Group mode: flatten to [group, ...its members when expanded], members ranked by their
-    // own period change (from perfData/perfOverride). isGroup/isMember drive the row render.
+    // own period change (from perfData/perfOverride). The member order FOLLOWS the widget's
+    // % Change sort direction — biggest-losers-first when the list is sorted losers-first —
+    // so a group's stocks read the same way as the groups above them. isGroup/isMember
+    // drive the row render. Missing-data members always sink to the bottom.
+    const memberAsc = colSort?.key === 'periodchg' && colSort?.dir === 'asc'
+    const miss = memberAsc ? 1e12 : -1e12
     const flat = []
     for (const g of sorted) {
       flat.push({ ...g, isGroup: true })
       if (expandedGroups.has(g.sym)) {
         const members = (scanGroups[g.sym] || []).slice()
-        members.sort((a, b) => (perfData[b]?.period ?? -1e12) - (perfData[a]?.period ?? -1e12))
+        members.sort((a, b) => {
+          const pa = perfData[a]?.period ?? miss, pb = perfData[b]?.period ?? miss
+          return memberAsc ? (pa - pb) : (pb - pa)
+        })
         for (const m of members) flat.push({ id: `${g.sym}::${m}`, sym: m, isMember: true })
       }
     }
