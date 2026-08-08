@@ -3,32 +3,33 @@
 // resolver its data context (fundamentals + live quote + meta + perf + theme) and passes
 // the resulting label/value/color items to ChartMetaRow.
 //
-// `colorKey` (+ `swatch`) is the header.colors override key + its settings swatch id, so the
-// legacy market-cap / next-earnings / UCT-rating fields keep their color customization.
-// `dflt` is the fallback color (absent = inherit the row's text color).
+// `colorKey` is the header.colors override key for that field (every field has one, so any
+// selected field can be recolored). The three legacy fields keep their original keys so a
+// stored color isn't lost. `dflt` is the fallback color; null = "auto" (sign-tinted green/
+// red for change fields, or inherit the row's text color otherwise) unless the user overrides.
 
 export const HEADER_FIELDS = [
-  { key: 'price', label: 'Price' },
-  { key: 'vol', label: 'Volume' },
-  { key: 'chg', label: '% Change' },
-  { key: 'rvol', label: 'RVOL' },
-  { key: 'ipoDate', label: 'IPO Date' },
-  { key: 'mcap', label: 'Market Cap', colorKey: 'marketCap', swatch: 'hdrMarketCap', dflt: '#c9a84c' },
-  { key: 'earn', label: 'Next Earnings', colorKey: 'nextEarnings', swatch: 'hdrNextEarnings', dflt: '#6ba3be' },
-  { key: 'rating', label: 'UCT Rating', colorKey: 'uctRating', swatch: 'hdrUctRating', dflt: '#1ae51a' },
-  { key: 'dchg', label: '$ Change' },
-  { key: 'fromopen', label: '% from Open' },
-  { key: 'fromhigh', label: '% from High' },
-  { key: 'fromlow', label: '% from Low' },
-  { key: 'dcr', label: 'Daily Closing Range' },
-  { key: 'dolvol', label: 'Dollar Volume' },
-  { key: 'sector', label: 'Sector', dflt: '#9b9684' },
-  { key: 'industry', label: 'Industry', dflt: '#9b9684' },
-  { key: 'theme', label: 'Theme', dflt: '#9b9684' },
-  { key: 'perf5d', label: '5-Day Change' },
-  { key: 'perf30d', label: '30-Day Change' },
-  { key: 'perf60d', label: '60-Day Change' },
-  { key: 'perf90d', label: '90-Day Change' },
+  { key: 'price', label: 'Price', colorKey: 'price', dflt: null },
+  { key: 'vol', label: 'Volume', colorKey: 'vol', dflt: null },
+  { key: 'chg', label: '% Change', colorKey: 'chg', dflt: null },
+  { key: 'rvol', label: 'RVOL', colorKey: 'rvol', dflt: null },
+  { key: 'ipoDate', label: 'IPO Date', colorKey: 'ipoDate', dflt: null },
+  { key: 'mcap', label: 'Market Cap', colorKey: 'marketCap', dflt: '#c9a84c' },
+  { key: 'earn', label: 'Next Earnings', colorKey: 'nextEarnings', dflt: '#6ba3be' },
+  { key: 'rating', label: 'UCT Rating', colorKey: 'uctRating', dflt: '#1ae51a' },
+  { key: 'dchg', label: '$ Change', colorKey: 'dchg', dflt: null },
+  { key: 'fromopen', label: '% from Open', colorKey: 'fromopen', dflt: null },
+  { key: 'fromhigh', label: '% from High', colorKey: 'fromhigh', dflt: null },
+  { key: 'fromlow', label: '% from Low', colorKey: 'fromlow', dflt: null },
+  { key: 'dcr', label: 'Daily Closing Range', colorKey: 'dcr', dflt: null },
+  { key: 'dolvol', label: 'Dollar Volume', colorKey: 'dolvol', dflt: null },
+  { key: 'sector', label: 'Sector', colorKey: 'sector', dflt: '#9b9684' },
+  { key: 'industry', label: 'Industry', colorKey: 'industry', dflt: '#9b9684' },
+  { key: 'theme', label: 'Theme', colorKey: 'theme', dflt: '#9b9684' },
+  { key: 'perf5d', label: '5-Day Change', colorKey: 'perf5d', dflt: null },
+  { key: 'perf30d', label: '30-Day Change', colorKey: 'perf30d', dflt: null },
+  { key: 'perf60d', label: '60-Day Change', colorKey: 'perf60d', dflt: null },
+  { key: 'perf90d', label: '90-Day Change', colorKey: 'perf90d', dflt: null },
 ]
 
 export const HEADER_FIELD_BY_KEY = Object.fromEntries(HEADER_FIELDS.map((f) => [f.key, f]))

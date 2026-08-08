@@ -271,7 +271,8 @@ function ChartPane({
       const f = HEADER_FIELD_BY_KEY[key]
       if (!f) return null
       const { value, color } = resolveHeaderField(key, ctx)
-      const finalColor = color || (f.colorKey ? (hdrColors[f.colorKey] || f.dflt) : f.dflt) || null
+      // Precedence: user override → sign tint (change fields) → field default → inherit.
+      const finalColor = (f.colorKey ? hdrColors[f.colorKey] : null) || color || f.dflt || null
       return { key, label: f.label, value, color: finalColor }
     }).filter(Boolean)
   }, [infoFieldKeys, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, sym])
