@@ -11,6 +11,8 @@ import {
 // "superseded, not absorbed" looks like at the consumer.
 import * as engineRegistry from './engine/nativeRegistry'
 import usePreferences, { parsePref } from '../../hooks/usePreferences'
+import UIcon from '../ui/UIcon'
+import { HEADER_FIELDS, HEADER_FIELD_BY_KEY, headerFieldKeys } from './headerFields'
 import styles from './ChartSettingsModal.module.css'
 
 // A user's saved chart-settings templates live in ONE global pref so they're
@@ -164,6 +166,18 @@ export default function ChartSettingsModal({
   const [tplName, setTplName] = useState('')
   const tplInputRef = useRef(null)
   useEffect(() => { if (savingTpl && tplInputRef.current) { tplInputRef.current.focus(); tplInputRef.current.select() } }, [savingTpl])
+  // Info Row field-picker menu (Header tab).
+  const [fieldMenuOpen, setFieldMenuOpen] = useState(false)
+  const [fieldQuery, setFieldQuery] = useState('')
+  const fieldWrapRef = useRef(null)
+  useEffect(() => {
+    if (!fieldMenuOpen) return
+    const onDown = (e) => {
+      if (fieldWrapRef.current && !fieldWrapRef.current.contains(e.target)) setFieldMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDown, true)   // capture: beats the panel's stopPropagation
+    return () => document.removeEventListener('mousedown', onDown, true)
+  }, [fieldMenuOpen])
 
   const persistTemplates = (arr) => setPref(CHART_TEMPLATES_KEY, JSON.stringify(arr.slice(0, MAX_TEMPLATES)))
   const commitSaveTemplate = () => {
@@ -405,6 +419,12 @@ export default function ChartSettingsModal({
   // Header tab.
   const header = settings?.header || {}
   const setHeader = (patch) => setSetting({ header: { ...header, ...patch } })
+  // Info Row — the picked fields (migrates a legacy show* blob); the picker menu state
+  // lives up top with the other hooks (this code runs after the `!open` early return).
+  const infoFields = headerFieldKeys(header)
+  const toggleInfoField = (key) => setHeader({
+    fields: infoFields.includes(key) ? infoFields.filter((k) => k !== key) : [...infoFields, key],
+  })
   const hdrColors = header.colors || {}
   // Markers tab.
   const swing = settings?.swingLabels || {}
@@ -819,14 +839,58 @@ export default function ChartSettingsModal({
             </div>
           </section>
 
-          {/* INFO ROW — the fields shown in the strip above the chart. */}
+          {/* INFO ROW — pick which stats show in the strip above the chart. */}
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Info Row</div>
-            <div className={styles.card}>
-              {renderShowRow('showMarketCap', 'Market cap', [['hdrMarketCap', 'Market cap color']])}
-              {renderShowRow('showNextEarnings', 'Next earnings', [['hdrNextEarnings', 'Next earnings color']])}
-              {renderShowRow('showUctRating', 'UCT rating', [['hdrUctRating', 'UCT rating color']])}
+            <div className={styles.fieldPickWrap} ref={fieldWrapRef}>
+              <button
+                type="button"
+                className={styles.fieldPickBtn}
+                onClick={() => setFieldMenuOpen((o) => !o)}
+                aria-expanded={fieldMenuOpen}
+              >
+                <span>{infoFields.length ? `${infoFields.length} field${infoFields.length === 1 ? '' : 's'} shown` : 'No fields shown'}</span>
+                <span className={styles.fieldPickCaret}>▾</span>
+              </button>
+              {fieldMenuOpen && (
+                <div className={styles.fieldMenu}>
+                  <input
+                    className={styles.fieldSearch}
+                    placeholder="Search fields…"
+                    value={fieldQuery}
+                    onChange={(e) => setFieldQuery(e.target.value)}
+                    autoFocus
+                  />
+                  <div className={styles.fieldList}>
+                    {HEADER_FIELDS
+                      .filter((f) => !fieldQuery || f.label.toLowerCase().includes(fieldQuery.toLowerCase()))
+                      .map((f) => {
+                        const on = infoFields.includes(f.key)
+                        return (
+                          <button key={f.key} type="button" className={styles.fieldItem} onClick={() => toggleInfoField(f.key)}>
+                            <span className={styles.fieldCheck}>{on ? <UIcon name="check" size={11} /> : null}</span>
+                            {f.label}
+                          </button>
+                        )
+                      })}
+                  </div>
+                </div>
+              )}
             </div>
+            {/* Color per selected field that supports one (market cap / next earnings / UCT rating). */}
+            {infoFields.some((k) => HEADER_FIELD_BY_KEY[k]?.colorKey) && (
+              <div className={styles.card}>
+                {infoFields.filter((k) => HEADER_FIELD_BY_KEY[k]?.colorKey).map((k) => {
+                  const f = HEADER_FIELD_BY_KEY[k]
+                  return (
+                    <div className={styles.field} key={k}>
+                      <span className={styles.fieldLabel}>{f.label} color</span>
+                      <div className={styles.hdrRowCtl}>{colorSwatch(f.swatch, `${f.label} color`)}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </section>
           {/* Timeframes/Favorites are managed on the chart's own timeframe menu (the
               ⌄ button) — star to favorite there; no separate settings section. */}
