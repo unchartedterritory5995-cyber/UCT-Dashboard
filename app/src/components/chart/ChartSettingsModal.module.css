@@ -588,31 +588,38 @@
 }
 .indNum:disabled, .indSelect:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* Info Row field picker (Header tab) — a searchable, scrollable field menu. */
-.fieldPickWrap { position: relative; }
-.fieldPickBtn {
-  width: 100%;
+/* Info Row field picker (Header tab) — an "Add Field" button beside the label opens a
+   searchable, scrollable field menu. */
+.infoRowHead {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 11px;
+  margin-bottom: 6px;
+}
+.addFieldWrap { position: relative; }
+.addFieldBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
   background: var(--menu-input-bg, rgba(255, 255, 255, 0.04));
   border: 1px solid var(--menu-border, #2c2c30);
-  border-radius: 8px;
+  border-radius: 6px;
   color: var(--menu-text, #ededed);
   font: inherit;
-  font-size: 12px;
+  font-size: 11px;
   cursor: pointer;
 }
-.fieldPickBtn:hover { border-color: var(--menu-accent, rgba(201, 168, 76, 0.45)); }
-.fieldPickCaret { color: var(--menu-text-dim, #8a8a8f); font-size: 10px; }
+.addFieldBtn:hover { border-color: var(--menu-accent, rgba(201, 168, 76, 0.45)); color: var(--menu-accent, #f0b23a); }
 .fieldMenu {
   position: absolute;
   z-index: 10;
   top: calc(100% + 5px);
-  left: 0;
   right: 0;
+  left: auto;
+  width: 240px;
+  max-width: 84vw;
   background: var(--menu-bg, #141416);
   border: 1px solid var(--menu-border, #2c2c30);
   border-radius: 8px;

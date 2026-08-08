@@ -16,8 +16,12 @@ import { getExtSessionCached } from '../../../utils/extSession'
 import { useFlagged } from '../../../hooks/useFlagged'
 import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
 import useWatchlistPerformance from '../../../hooks/useWatchlistPerformance'
+import useWatchlistMeta from '../../../hooks/useWatchlistMeta'
+import useWatchlistThemes from '../../../hooks/useWatchlistThemes'
+import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import {
-  HEADER_FIELD_BY_KEY, PERF_HEADER_KEYS, PERF_HEADER_PERIOD, headerFieldKeys,
+  HEADER_FIELD_BY_KEY, PERF_HEADER_KEYS, QUOTE_HEADER_KEYS, META_HEADER_KEYS,
+  THEME_HEADER_KEYS, headerFieldKeys, resolveHeaderField,
 } from '../headerFields'
 import usePreferences from '../../../hooks/usePreferences'
 import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
@@ -121,16 +125,6 @@ function ChartPane({
   // loop — on whether that row can even render, so a compact/mini/no-tf-bar
   // pane across ~20 surfaces never opens a request it can't show.
   const { data: fund } = useFundamentalSnapshot(sym, !compact && !mini && showTfBar)
-  const mktCap = fund?.metrics?.market_cap || null
-  const nextEarnStr = (() => {
-    const iso = fund?.next_earnings
-    if (!iso) return null
-    const [y, mo, da] = String(iso).split('-').map(Number)
-    return (y && mo && da) ? `${mo}/${da}/${y}` : null
-  })()
-
-  // UCT rating (composite 1–99) — colored by tier.
-  const uctRating = Number.isFinite(fund?.composite) ? fund.composite : null
   const [flagToast, setFlagToast] = useState(null)
   useEffect(() => {
     if (!flagToast) return
@@ -258,34 +252,29 @@ function ChartPane({
   // item keeps its built-in color (see chartDefaults header.colors).
   const hdrColors = hdr.colors || {}
 
-  // Info Row — the fields the user picked (migrates a legacy show* blob). Perf fields need
-  // the perf batch; only fetch it (for THIS one symbol) when a perf field is actually shown.
+  // Info Row — the fields the user picked (migrates a legacy show* blob). Each extra data
+  // source (live quote / perf / rvol+ipo meta / theme) is fetched for THIS one symbol ONLY
+  // when a field that needs it is actually shown.
   const infoFieldKeys = useMemo(() => headerFieldKeys(hdr), [hdr])
-  const wantsPerf = infoFieldKeys.some((k) => PERF_HEADER_KEYS.has(k))
-  const { perfData } = useWatchlistPerformance(
-    (!compact && !mini && showTfBar && wantsPerf) ? [sym] : [],
-  )
+  const infoGate = !compact && !mini && showTfBar
+  const wantsQuote = infoGate && infoFieldKeys.some((k) => QUOTE_HEADER_KEYS.has(k))
+  const wantsMeta = infoGate && infoFieldKeys.some((k) => META_HEADER_KEYS.has(k))
+  const wantsTheme = infoGate && infoFieldKeys.some((k) => THEME_HEADER_KEYS.has(k))
+  const wantsPerf = infoGate && infoFieldKeys.some((k) => PERF_HEADER_KEYS.has(k))
+  const { prices: hdrPrices } = useRealtimePrices(wantsQuote ? [sym] : [])
+  const { metaData: hdrMeta } = useWatchlistMeta(wantsMeta ? [sym] : [])
+  const { themeData: hdrTheme } = useWatchlistThemes(wantsTheme ? [sym] : [])
+  const { perfData } = useWatchlistPerformance(wantsPerf ? [sym] : [])
   const metaItems = useMemo(() => {
+    const ctx = { fund, quote: hdrPrices?.[sym], meta: hdrMeta?.[sym], perf: perfData?.[sym], theme: hdrTheme?.[sym] }
     return infoFieldKeys.map((key) => {
       const f = HEADER_FIELD_BY_KEY[key]
       if (!f) return null
-      let value = null
-      let color = f.colorKey ? (hdrColors[f.colorKey] || f.dflt) : f.dflt
-      if (key === 'mcap') value = mktCap
-      else if (key === 'earn') value = nextEarnStr
-      else if (key === 'rating') value = uctRating != null ? String(uctRating) : null
-      else if (key === 'sector') value = fund?.sector || null
-      else if (key === 'industry') value = fund?.industry || null
-      else if (PERF_HEADER_KEYS.has(key)) {
-        const v = perfData?.[sym]?.[PERF_HEADER_PERIOD[key]]
-        if (typeof v === 'number') {
-          value = `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`
-          color = v >= 0 ? '#1ae51a' : '#ff3b47'
-        }
-      }
-      return { key, label: f.label, value, color }
+      const { value, color } = resolveHeaderField(key, ctx)
+      const finalColor = color || (f.colorKey ? (hdrColors[f.colorKey] || f.dflt) : f.dflt) || null
+      return { key, label: f.label, value, color: finalColor }
     }).filter(Boolean)
-  }, [infoFieldKeys, hdrColors, mktCap, nextEarnStr, uctRating, fund, perfData, sym])
+  }, [infoFieldKeys, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, sym])
 
   // Chart-settings modal (opened by the gear, by StockChart's own settings entry
   // point, or imperatively by the host through the ref).
