@@ -15,7 +15,10 @@
 
 // Types offerable as a tab + their labels. The short label rides the compact tab
 // chip in the header; the menu label matches the "+ Add Widget" menu wording.
-export const WIDGET_TAB_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth', 'aisearch', 'news', 'profile', 'alerts', 'calendar', 'optionsflow', 'periodsort']
+// 'periodsort' is intentionally NOT offered in the +add-tab menu — it's reachable only
+// from Tools → Custom-Period Sort (add-as-tab). Its labels stay below so existing
+// periodsort tabs still render their chip/menu text.
+export const WIDGET_TAB_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth', 'aisearch', 'news', 'profile', 'alerts', 'calendar', 'optionsflow']
 export const WIDGET_TAB_LABEL = {
   chart: 'Chart', watchlist: 'Watchlist', themes: 'Themes', scanner: 'Scanner',
   fundamentals: 'Fundamentals', breadth: 'Breadth', aisearch: 'AI Search',
