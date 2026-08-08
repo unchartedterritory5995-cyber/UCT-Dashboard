@@ -7866,6 +7866,24 @@ export default function OptionsFlowDashboard() {
               const stN = ccAll.filter(t=>t.DTE>=0&&t.DTE<60).length;
               const ltN = ccAll.filter(t=>t.DTE>=60&&t.DTE<180).length;
               const leN = ccAll.filter(t=>t.DTE>=180).length;
+              // Fetch live OI/prices for EVERY unique contract on this ticker
+              // (directional + top-trades + consolidated). Shared by the explicit
+              // "Fetch Live OI & Prices" button and the auto-fetch fired when the
+              // Still-open tab is opened, so there's one code path. 2026-08-08.
+              const _fetchAllSearchOI = () => {
+                const seen = new Set();
+                const contracts = [];
+                const pushUnique = (S, CP, K, E) => {
+                  const key = S+"|"+CP+"|"+K+"|"+E;
+                  if (seen.has(key)) return;
+                  seen.add(key);
+                  contracts.push({ sym:S, cp:CP, strike:K, exp:E });
+                };
+                ccAll.forEach(r => pushUnique(r.S, r.CP, r.K, r.E));
+                (tk.t||[]).forEach(r => pushUnique(r.S, r.CP, r.K, r.E));
+                (tk.c||[]).forEach(r => pushUnique(r.S, r.CP, r.K, r.E));
+                if (contracts.length) fetchPrices(contracts);
+              };
               return (
                 <>
                   <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
@@ -7906,17 +7924,23 @@ export default function OptionsFlowDashboard() {
                         {_windowBtnLabel}
                       </button>
                       <button
-                        onClick={()=> { if (stillOpenComputable) setOiConfirmedOnly(true); }}
-                        disabled={!stillOpenComputable}
+                        onClick={()=> {
+                          // One click: switch to still-open AND auto-fetch live OI if
+                          // it isn't loaded yet \u2014 no separate "Fetch Live OI" click.
+                          // _useOpen stays false until the fetch lands (stillOpenComputable),
+                          // so the view flips to still-open automatically when OI arrives.
+                          setOiConfirmedOnly(true);
+                          if (!stillOpenComputable && !fetchLoading) _fetchAllSearchOI();
+                        }}
                         style={{
                           padding:"4px 12px", borderRadius:"0 16px 16px 0", border:"1.5px solid "+(oiConfirmedOnly?P.bu:P.bd),
-                          cursor:!stillOpenComputable?"not-allowed":"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
+                          cursor:fetchLoading?"wait":"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
                           background:oiConfirmedOnly?P.bu+"22":"transparent",
-                          color:oiConfirmedOnly?P.bu:(stillOpenComputable?P.mt:"#555"), opacity:stillOpenComputable?1:0.6,
+                          color:oiConfirmedOnly?P.bu:P.mt,
                         }}
-                        title={stillOpenComputable ? "Positions still open by Live OI, regardless of when they opened (range-independent). Older builds still on the book appear here." : "Fetch Live OI & Prices first (blue button), then switch to still-open."}
+                        title={stillOpenComputable ? "Positions still open by Live OI, regardless of when they opened (range-independent). Older builds still on the book appear here." : "Positions still open by Live OI. Clicking auto-fetches live OI, then shows what's still on the book."}
                       >
-                        {stillOpenComputable ? "Still open (all)" : "Still open \u00b7 fetch OI"}
+                        {(fetchLoading && oiConfirmedOnly && !stillOpenComputable) ? "Still open \u00b7 fetching\u2026" : "Still open (all)"}
                       </button>
                       {oiConfirmError && (
                         <span style={{ fontSize:9, color:P.be }} title={oiConfirmError}>err</span>
@@ -8037,36 +8061,7 @@ export default function OptionsFlowDashboard() {
                     </div>
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                    <button onClick={()=>{
-                      // Send ALL unique directional contracts for the ticker to
-                      // Schwab, not just the top-10 visible + consolidated.
-                      // Without this, "Still open" % was capped by tiny coverage
-                      // (e.g., 14/106 contracts). Schwab batches dynamically so
-                      // 100+ contracts still completes in a few seconds.
-                      const seen = new Set();
-                      const contracts = [];
-                      const pushUnique = (S, CP, K, E) => {
-                        const key = S+"|"+CP+"|"+K+"|"+E;
-                        if (seen.has(key)) return;
-                        seen.add(key);
-                        contracts.push({sym:S, cp:CP, strike:K, exp:E});
-                      };
-                      // ccAll = all directional trades for this ticker
-                      // (unfiltered by DTE; user might switch DTE later and
-                      // we want priced data ready regardless)
-                      ccAll.forEach(r => pushUnique(r.S, r.CP, r.K, r.E));
-                      // Also price the trades actually SHOWN in the Top-Trades
-                      // table (tk.t). It's ranked by premium across ALL trades,
-                      // so it includes non-directional / rescue-derived prints
-                      // that ccAll (directional-only) excludes. Without this they
-                      // render Now / Live OI / ΔOI as "—" even though the status
-                      // reads "N priced of N" (N = the directional contract count).
-                      (tk.t||[]).forEach(r => pushUnique(r.S, r.CP, r.K, r.E));
-                      // Also include consolidated rows in case any aren't
-                      // covered by trade-level data
-                      (tk.c||[]).forEach(r => pushUnique(r.S, r.CP, r.K, r.E));
-                      fetchPrices(contracts);
-                    }} disabled={fetchLoading}
+                    <button onClick={_fetchAllSearchOI} disabled={fetchLoading}
                       style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                         fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
                       {fetchLoading?"Fetching…":"⚡ Fetch Live OI & Prices"}
