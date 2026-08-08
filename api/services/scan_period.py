@@ -25,11 +25,9 @@ def _to_date(ymd: int) -> date:
 
 
 def _grouped_near(target: date):
-    """({TICKER: adjusted close}, actual_date, partial) for the first trading day on/before
-    target. Tries the whole-market grouped-daily endpoint first; if it's empty across the
-    snap-back window (a PRE-~2003 date the provider doesn't cover), falls back to bars.db's
-    deep per-ticker history (yfinance-sourced). partial=True marks the bars.db fallback —
-    it's SURVIVORSHIP-BIASED (only names still in the warmed universe, no delisted tail)."""
+    """({TICKER: adjusted close}, actual_date) via the whole-market grouped-daily endpoint,
+    for the first trading day on/before target. FAST (two REST calls). Empty for a PRE-~2003
+    date the provider doesn't cover — the caller then falls back to bars.db (off-thread)."""
     dt = target
     for _ in range(_GROUP_STEPS):
         try:
@@ -37,52 +35,30 @@ def _grouped_near(target: date):
         except Exception:
             m = {}
         if m:
-            return m, dt, False
+            return m, dt
         dt = dt - timedelta(days=1)
-    # Provider floor — reach into bars.db's deep daily history (one windowed scan snaps over
-    # holidays). App/hyphen-form keys; partial coverage.
+    return {}, target
+
+
+def _bars_near(target: date):
+    """({TICKER: close}, actual_date) from bars.db's deep (yfinance-sourced) daily history —
+    the PRE-~2003 fallback. ⚠️ SLOW (full-scan of the multi-GB daily partition; no (tf,ts)
+    index) — call ONLY from the background thread, never the request path. App/hyphen keys,
+    survivorship-biased coverage."""
     from api.services import bars_sqlite
     try:
         frm = target - timedelta(days=_GROUP_STEPS + 4)
         m = bars_sqlite.closes_near_date(int(target.strftime("%Y%m%d")), int(frm.strftime("%Y%m%d")))
     except Exception:
         m = {}
-    if m:
-        return m, target, True
-    return {}, target, False
+    return m, target
 
 
-def get_period_change(start_ymd: int, end_ymd: int) -> dict:
-    """Every US common stock's % change over [start, end], sorted desc (biggest gainers
-    first). Shape: {status, results:[{sym, period_change, net_change, start_close,
-    end_close}], count, start, end, as_of}."""
-    if start_ymd >= end_ymd:
-        return {"status": "error", "results": [], "count": 0, "error": "start must be before end"}
-    ck = f"scan_period_{start_ymd}_{end_ymd}"
-    cached = cache.get(ck)
-    if cached is not None:
-        return cached
-
-    start_closes, sd, sp = _grouped_near(_to_date(start_ymd))
-    end_closes, ed, ep = _grouped_near(_to_date(end_ymd))
-    partial = sp or ep   # bars.db fallback was used (pre-coverage) → surviving universe only
-    if not start_closes or not end_closes:
-        # Distinguish a genuine coverage gap from a transient warm-up: whole-market
-        # grouped-daily data begins ~2003 (provider limit), so a date well in the past that
-        # returns nothing after snapping back over holidays is a hard boundary, not
-        # "still computing" — say so clearly + cache it so we don't re-hit the empty
-        # endpoint every 30s poll. A RECENT empty (today still warming) stays "computing".
-        bad = _to_date(start_ymd) if not start_closes else _to_date(end_ymd)
-        if (_now_et().date() - bad).days > 30:
-            out = {"status": "unavailable", "results": [], "count": 0,
-                   "error": "Market-wide data isn't available this far back — it begins around 2003.",
-                   "as_of": None}
-            cache.set(ck, out, ttl=3600)
-            return out
-        return {"status": "computing", "results": [], "count": 0, "as_of": None}
-
-    # Normalize both sides to app/hyphen form so grouped (BRK.B) and bars.db (BRK-B) keys
-    # join. The main loop then works purely in app-form.
+def _assemble(start_closes: dict, end_closes: dict, sd: date, ed: date, partial: bool, start_ymd: int) -> dict:
+    """Turn two {ticker: close} maps into the ranked result set: normalize keys, filter to
+    currently-trading common stock, (on the partial/bars.db path) drop recycled tickers, and
+    compute % change per name."""
+    # Normalize both sides to app/hyphen form so grouped (BRK.B) and bars.db (BRK-B) keys join.
     start_closes = {k.replace(".", "-"): v for k, v in start_closes.items()}
     end_closes = {k.replace(".", "-"): v for k, v in end_closes.items()}
 
@@ -94,9 +70,8 @@ def get_period_change(start_ymd: int, end_ymd: int) -> dict:
         snap = massive._get_client().get_full_market_snapshot()
     except Exception:
         snap = {}
-    # On the bars.db (pre-coverage) path, drop RECYCLED tickers whose CURRENT listing began
-    # after the start date — their start close belongs to a different, prior company (SQ,
-    # WTW, RMIX…), which would otherwise show a wildly wrong % change.
+    # Partial (bars.db) path: drop RECYCLED tickers whose CURRENT listing began after the
+    # start date — their start close belongs to a different, prior company (SQ, WTW, RMIX…).
     reuse = {}
     if partial:
         try:
@@ -115,10 +90,9 @@ def get_period_change(start_ymd: int, end_ymd: int) -> dict:
         if app not in cs or app in etfs or app.endswith("ZZT"):
             continue
         if partial and reuse.get(app, 0) > int(start_ymd):
-            continue   # recycled symbol — start close is a different company
+            continue
         # Currently-trading filter (whole-market path): require the ticker in the live
-        # snapshot to drop delisted names. On the partial path we KEEP names bars.db has
-        # even if the live snapshot doesn't (price/volume just show blank).
+        # snapshot to drop delisted names. On the partial path we KEEP names bars.db has.
         s = snap.get(app) or _snap_lookup(snap, app) if snap else None
         if snap and not s and not partial:
             continue
@@ -128,25 +102,76 @@ def get_period_change(start_ymd: int, end_ymd: int) -> dict:
             "net_change": round(ec - sc, 2),
             "start_close": round(sc, 4),
             "end_close": round(ec, 4),
-            # Live-ish baseline for the results table (SWR-refreshed; not per-row streamed).
             "price": (s.get("last_price") if s else None),
             "volume": (s.get("today_vol") if s else None),
         })
-
     results.sort(key=lambda r: r["period_change"], reverse=True)
-    out = {
+    return {
         "status": "ok",
         "results": results,
         "count": len(results),
-        "start": int(sd.strftime("%Y%m%d")),   # the trading days actually used
+        "start": int(sd.strftime("%Y%m%d")),
         "end": int(ed.strftime("%Y%m%d")),
         "as_of": _now_et().isoformat(),
-        # True = a pre-coverage date sourced from bars.db (surviving-universe only, so the
-        # delisted tail is missing) — the UI flags it rather than claiming "every stock".
         "partial": partial,
     }
-    cache.set(ck, out, ttl=_TTL if results else 15)
-    return out
+
+
+# In-flight pre-coverage (bars.db) computes — the slow full-scans run once per range on a
+# background thread; concurrent requests for the same range just get "computing".
+_partial_inflight: set = set()
+_partial_lock = threading.Lock()
+
+
+def _partial_bg(ck: str, start_ymd: int, end_ymd: int):
+    try:
+        sc, sd = _bars_near(_to_date(start_ymd))   # SLOW full-scans — off the request path
+        ec, ed = _bars_near(_to_date(end_ymd))
+        if not sc or not ec:
+            out = {"status": "unavailable", "results": [], "count": 0,
+                   "error": "Market-wide data isn't available this far back — it begins around 2003.",
+                   "as_of": None}
+            cache.set(ck, out, ttl=3600)
+            return
+        out = _assemble(sc, ec, sd, ed, True, start_ymd)
+        cache.set(ck, out, ttl=_TTL if out.get("results") else 3600)
+    except Exception:
+        cache.set(ck, {"status": "unavailable", "results": [], "count": 0,
+                       "error": "Couldn't load data for this period.", "as_of": None}, ttl=300)
+    finally:
+        with _partial_lock:
+            _partial_inflight.discard(ck)
+
+
+def get_period_change(start_ymd: int, end_ymd: int) -> dict:
+    """Every US common stock's % change over [start, end], sorted desc (biggest gainers
+    first). Whole-market via two fast grouped-daily calls; PRE-~2003 ranges fall back to
+    bars.db on a BACKGROUND thread (returns "computing" until ready) so the slow scan never
+    hangs the request. Shape: {status, results, count, start, end, as_of, partial}."""
+    if start_ymd >= end_ymd:
+        return {"status": "error", "results": [], "count": 0, "error": "start must be before end"}
+    ck = f"scan_period_{start_ymd}_{end_ymd}"
+    cached = cache.get(ck)
+    if cached is not None:
+        return cached
+
+    start_closes, sd = _grouped_near(_to_date(start_ymd))   # fast (grouped-daily only)
+    end_closes, ed = _grouped_near(_to_date(end_ymd))
+    if start_closes and end_closes:
+        out = _assemble(start_closes, end_closes, sd, ed, False, start_ymd)
+        cache.set(ck, out, ttl=_TTL if out.get("results") else 15)
+        return out
+
+    # Grouped empty. A recent date may still be warming ("computing"); a date well in the
+    # past is a provider-coverage boundary → kick the bars.db fallback onto a background
+    # thread and report "computing" until it caches a result (never full-scan synchronously).
+    bad = _to_date(start_ymd) if not start_closes else _to_date(end_ymd)
+    if (_now_et().date() - bad).days > 30:
+        with _partial_lock:
+            if ck not in _partial_inflight:
+                _partial_inflight.add(ck)
+                threading.Thread(target=_partial_bg, args=(ck, start_ymd, end_ymd), daemon=True).start()
+    return {"status": "computing", "results": [], "count": 0, "as_of": None}
 
 
 def _sector_industry_map():
