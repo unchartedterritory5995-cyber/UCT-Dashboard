@@ -52,10 +52,27 @@
   font-size: 11px;
   color: var(--text-muted, #8c8674);
 }
+.headBtns { margin-left: auto; display: flex; align-items: center; gap: 2px; }
+.iconBtn {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #8c8674);
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 5px;
+}
+.iconBtn:hover { background: var(--bg-hover, #2a2d24); color: var(--text-bright, #e0dac8); }
 .close {
-  margin-left: auto;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   background: transparent;
   color: var(--text-muted, #8c8674);
@@ -64,6 +81,10 @@
   border-radius: 5px;
 }
 .close:hover { background: var(--bg-hover, #2a2d24); color: var(--text-bright, #e0dac8); }
+
+/* Table wrapper — flex-fills the panel/widget body below the header. */
+.tableWrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.footRange { margin-left: auto; }
 
 /* Column layout — one grid template shared by the header + every row. */
 .colHead, .row {
