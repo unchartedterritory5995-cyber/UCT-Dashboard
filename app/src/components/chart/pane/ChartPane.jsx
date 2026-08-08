@@ -21,7 +21,7 @@ import useWatchlistThemes from '../../../hooks/useWatchlistThemes'
 import useRealtimePrices from '../../../hooks/useRealtimePrices'
 import {
   HEADER_FIELD_BY_KEY, PERF_HEADER_KEYS, QUOTE_HEADER_KEYS, META_HEADER_KEYS,
-  THEME_HEADER_KEYS, headerFieldKeys, resolveHeaderField,
+  THEME_HEADER_KEYS, headerFieldKeys, resolveHeaderField, SIGN_POS, SIGN_NEG,
 } from '../headerFields'
 import usePreferences from '../../../hooks/usePreferences'
 import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
@@ -270,9 +270,16 @@ function ChartPane({
     return infoFieldKeys.map((key) => {
       const f = HEADER_FIELD_BY_KEY[key]
       if (!f) return null
-      const { value, color } = resolveHeaderField(key, ctx)
-      // Precedence: user override → sign tint (change fields) → field default → inherit.
-      const finalColor = (f.colorKey ? hdrColors[f.colorKey] : null) || color || f.dflt || null
+      const { value, color, sign } = resolveHeaderField(key, ctx)
+      // Signed fields (% change, $ change, N-day…): pick the pos/neg override by the value's
+      // sign, falling back to the green/red default tint. Non-signed: user override → default.
+      let finalColor
+      if (f.signed) {
+        const s = sign || 'pos'
+        finalColor = hdrColors[`${f.colorKey}:${s}`] || color || (s === 'neg' ? SIGN_NEG : SIGN_POS)
+      } else {
+        finalColor = (f.colorKey ? hdrColors[f.colorKey] : null) || color || f.dflt || null
+      }
       return { key, label: f.label, value, color: finalColor }
     }).filter(Boolean)
   }, [infoFieldKeys, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, sym])

@@ -12,7 +12,7 @@ import {
 import * as engineRegistry from './engine/nativeRegistry'
 import usePreferences, { parsePref } from '../../hooks/usePreferences'
 import UIcon from '../ui/UIcon'
-import { HEADER_FIELDS, HEADER_FIELD_BY_KEY, headerFieldKeys } from './headerFields'
+import { HEADER_FIELDS, HEADER_FIELD_BY_KEY, headerFieldKeys, SIGN_POS, SIGN_NEG } from './headerFields'
 import styles from './ChartSettingsModal.module.css'
 
 // A user's saved chart-settings templates live in ONE global pref so they're
@@ -186,11 +186,13 @@ export default function ChartSettingsModal({
   useLayoutEffect(() => {
     if (!fieldMenuOpen || !panelRef.current) { setFieldMenuPos(null); return }
     const r = panelRef.current.getBoundingClientRect()
-    const b = fieldWrapRef.current?.getBoundingClientRect()
-    const W = 240, gap = 12, H = 340
+    // Top-align the field menu to the settings modal's top edge, and give it enough
+    // height that every field shows without scrolling (H tracks the full list); if it
+    // would spill past the viewport bottom, nudge it up.
+    const W = 240, gap = 12, H = Math.min(760, window.innerHeight - 24)
     let left = r.right + gap
     if (left + W > window.innerWidth - 8) left = Math.max(8, r.left - W - gap)  // flip left if tight
-    let top = b ? b.top : r.top + 60
+    let top = r.top
     if (top + H > window.innerHeight - 8) top = Math.max(8, window.innerHeight - 8 - H)
     setFieldMenuPos({ left, top })
   }, [fieldMenuOpen, pos])
@@ -396,6 +398,9 @@ export default function ChartSettingsModal({
       const key = t.slice(5)
       const ov = settings?.header?.colors?.[key]
       if (ov) return ov
+      // Signed field halves (`<colorKey>:pos` / `:neg`) default to green / red.
+      if (key.endsWith(':pos')) return SIGN_POS
+      if (key.endsWith(':neg')) return SIGN_NEG
       const hf = HEADER_FIELDS.find((x) => x.colorKey === key)
       return (hf && hf.dflt) || '#9b9684'   // neutral placeholder for auto/sign-tinted fields
     }
@@ -888,10 +893,17 @@ export default function ChartSettingsModal({
                 {infoFields.map((k) => {
                   const f = HEADER_FIELD_BY_KEY[k]
                   if (!f) return null
+                  // Signed fields (% change, $ change, N-day…) get TWO swatches: the left
+                  // colors positive values, the right colors negative values.
                   return (
                     <div className={styles.field} key={k}>
                       <span className={styles.fieldLabel}>{f.label} color</span>
-                      <div className={styles.hdrRowCtl}>{colorSwatch(`hdrf:${f.colorKey}`, `${f.label} color`)}</div>
+                      <div className={styles.hdrRowCtl}>
+                        {f.signed ? (<>
+                          {colorSwatch(`hdrf:${f.colorKey}:pos`, `${f.label} — positive`)}
+                          {colorSwatch(`hdrf:${f.colorKey}:neg`, `${f.label} — negative`)}
+                        </>) : colorSwatch(`hdrf:${f.colorKey}`, `${f.label} color`)}
+                      </div>
                     </div>
                   )
                 })}

@@ -7,32 +7,40 @@
 // selected field can be recolored). The three legacy fields keep their original keys so a
 // stored color isn't lost. `dflt` is the fallback color; null = "auto" (sign-tinted green/
 // red for change fields, or inherit the row's text color otherwise) unless the user overrides.
+//
+// `signed: true` marks a plus/minus field (% change, $ change, % from open/high/low, N-day
+// change). These get TWO color overrides — one for positive values, one for negative — stored
+// under `<colorKey>:pos` / `<colorKey>:neg` in header.colors, defaulting to green / red.
 
 export const HEADER_FIELDS = [
   { key: 'price', label: 'Price', colorKey: 'price', dflt: null },
   { key: 'vol', label: 'Volume', colorKey: 'vol', dflt: null },
-  { key: 'chg', label: '% Change', colorKey: 'chg', dflt: null },
+  { key: 'chg', label: '% Change', colorKey: 'chg', dflt: null, signed: true },
   { key: 'rvol', label: 'RVOL', colorKey: 'rvol', dflt: null },
   { key: 'ipoDate', label: 'IPO Date', colorKey: 'ipoDate', dflt: null },
   { key: 'mcap', label: 'Market Cap', colorKey: 'marketCap', dflt: '#c9a84c' },
   { key: 'earn', label: 'Next Earnings', colorKey: 'nextEarnings', dflt: '#6ba3be' },
   { key: 'rating', label: 'UCT Rating', colorKey: 'uctRating', dflt: '#1ae51a' },
-  { key: 'dchg', label: '$ Change', colorKey: 'dchg', dflt: null },
-  { key: 'fromopen', label: '% from Open', colorKey: 'fromopen', dflt: null },
-  { key: 'fromhigh', label: '% from High', colorKey: 'fromhigh', dflt: null },
-  { key: 'fromlow', label: '% from Low', colorKey: 'fromlow', dflt: null },
+  { key: 'dchg', label: '$ Change', colorKey: 'dchg', dflt: null, signed: true },
+  { key: 'fromopen', label: '% from Open', colorKey: 'fromopen', dflt: null, signed: true },
+  { key: 'fromhigh', label: '% from High', colorKey: 'fromhigh', dflt: null, signed: true },
+  { key: 'fromlow', label: '% from Low', colorKey: 'fromlow', dflt: null, signed: true },
   { key: 'dcr', label: 'Daily Closing Range', colorKey: 'dcr', dflt: null },
   { key: 'dolvol', label: 'Dollar Volume', colorKey: 'dolvol', dflt: null },
   { key: 'sector', label: 'Sector', colorKey: 'sector', dflt: '#9b9684' },
   { key: 'industry', label: 'Industry', colorKey: 'industry', dflt: '#9b9684' },
   { key: 'theme', label: 'Theme', colorKey: 'theme', dflt: '#9b9684' },
-  { key: 'perf5d', label: '5-Day Change', colorKey: 'perf5d', dflt: null },
-  { key: 'perf30d', label: '30-Day Change', colorKey: 'perf30d', dflt: null },
-  { key: 'perf60d', label: '60-Day Change', colorKey: 'perf60d', dflt: null },
-  { key: 'perf90d', label: '90-Day Change', colorKey: 'perf90d', dflt: null },
+  { key: 'perf5d', label: '5-Day Change', colorKey: 'perf5d', dflt: null, signed: true },
+  { key: 'perf30d', label: '30-Day Change', colorKey: 'perf30d', dflt: null, signed: true },
+  { key: 'perf60d', label: '60-Day Change', colorKey: 'perf60d', dflt: null, signed: true },
+  { key: 'perf90d', label: '90-Day Change', colorKey: 'perf90d', dflt: null, signed: true },
 ]
 
 export const HEADER_FIELD_BY_KEY = Object.fromEntries(HEADER_FIELDS.map((f) => [f.key, f]))
+
+// Default plus/minus tints for signed fields (green up / red down).
+export const SIGN_POS = '#1ae51a'
+export const SIGN_NEG = '#ff3b47'
 
 // perf field key → its period in the /api/watchlist-performance response.
 export const PERF_HEADER_PERIOD = { perf5d: '5d', perf30d: '30d', perf60d: '60d', perf90d: '90d' }
@@ -56,10 +64,9 @@ export function headerFieldKeys(header) {
 }
 
 // ── formatters (kept in sync with the watchlist columns) ──────────────────────
-const GREEN = '#1ae51a'
-const RED = '#ff3b47'
 const num = (v) => (typeof v === 'number' && Number.isFinite(v))
-const signColor = (v) => (num(v) ? (v >= 0 ? GREEN : RED) : null)
+const signColor = (v) => (num(v) ? (v >= 0 ? SIGN_POS : SIGN_NEG) : null)
+const signOf = (v) => (num(v) ? (v >= 0 ? 'pos' : 'neg') : null)
 const pct = (v) => (num(v) ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}%` : null)
 function fmtVol(v) {
   if (!num(v)) return null
@@ -102,27 +109,27 @@ export function resolveHeaderField(key, ctx) {
     case 'industry': return { value: fund?.industry || null }
     case 'theme': return { value: theme || null }
     case 'price': return { value: num(p) ? p.toFixed(2) : null }
-    case 'chg': return { value: pct(q.change_pct), color: signColor(q.change_pct) }
+    case 'chg': return { value: pct(q.change_pct), color: signColor(q.change_pct), sign: signOf(q.change_pct) }
     case 'vol': return { value: fmtVol(q.volume) }
     case 'dolvol': return { value: (num(p) && num(q.volume)) ? fmtDolVol(p * q.volume) : null }
     case 'dchg': {
       const d = num(q.change) ? q.change : ((num(p) && num(q.prev_close)) ? p - q.prev_close : null)
-      return { value: num(d) ? `${d >= 0 ? '+' : ''}${d.toFixed(2)}` : null, color: signColor(d) }
+      return { value: num(d) ? `${d >= 0 ? '+' : ''}${d.toFixed(2)}` : null, color: signColor(d), sign: signOf(d) }
     }
     case 'fromopen': {
       const o = q.day_open
       const v = (num(o) && o > 0 && num(p)) ? ((p - o) / o) * 100 : null
-      return { value: pct(v), color: signColor(v) }
+      return { value: pct(v), color: signColor(v), sign: signOf(v) }
     }
     case 'fromhigh': {
       const h = q.day_high
       const v = (num(h) && h > 0 && num(p)) ? ((p - h) / h) * 100 : null
-      return { value: pct(v), color: signColor(v) }
+      return { value: pct(v), color: signColor(v), sign: signOf(v) }
     }
     case 'fromlow': {
       const l = q.day_low
       const v = (num(l) && l > 0 && num(p)) ? ((p - l) / l) * 100 : null
-      return { value: pct(v), color: signColor(v) }
+      return { value: pct(v), color: signColor(v), sign: signOf(v) }
     }
     case 'dcr': {
       const h = q.day_high, l = q.day_low
@@ -138,7 +145,7 @@ export function resolveHeaderField(key, ctx) {
     default:
       if (PERF_HEADER_KEYS.has(key)) {
         const v = perf?.[PERF_HEADER_PERIOD[key]]
-        return { value: pct(v), color: signColor(v) }
+        return { value: pct(v), color: signColor(v), sign: signOf(v) }
       }
       return { value: null }
   }
