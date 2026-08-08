@@ -3101,6 +3101,34 @@ export default function LiveFlowMassive() {
     setSearchParams(next, { replace: true });
   };
 
+  // ── Market-closed fallback (2026-08-08) ──────────────────────────────────
+  // On a weekend / holiday / pre-open, LIVE has no session so the tape is blank.
+  // Pull the trading-day list; if today isn't a data day we auto-open the LAST
+  // session ONCE (a clear banner marks it), so the page shows real flow instead
+  // of an empty page. "Once per load" so clicking LIVE to sit on the empty live
+  // view is respected — we never bounce them back.
+  const [latestDataDay, setLatestDataDay] = useState(null);
+  const _marketClosed = !!latestDataDay && latestDataDay !== _etTodayMDY();
+  const [showClosedBanner, setShowClosedBanner] = useState(false);
+  const _autoFellBackRef = useRef(false);
+  useEffect(() => {
+    let dead = false;
+    fetch("/api/flow/dates?source=stocks")
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (!dead && d && Array.isArray(d.dates) && d.dates.length) setLatestDataDay(d.dates[d.dates.length - 1]); })
+      .catch(() => {});
+    return () => { dead = true; };
+  }, []);
+  useEffect(() => {
+    if (_autoFellBackRef.current) return;
+    if (!targetDate && _marketClosed) {
+      _autoFellBackRef.current = true;
+      setShowClosedBanner(true);
+      setLookback(1);
+      setTargetDate(latestDataDay);
+    }
+  }, [targetDate, _marketClosed, latestDataDay]);   // eslint-disable-line react-hooks/exhaustive-deps
+
   const [alerts, setAlerts] = useState([]);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
@@ -4433,16 +4461,38 @@ export default function LiveFlowMassive() {
       />
 
       {targetDate && (
-        <div style={{
-          padding: 10, background: P.cd, color: P.ac, marginBottom: 12,
-          border: `1px solid ${P.ac}`, borderRadius: 4, fontSize: 12,
-        }}>
-          📅 {symbolScoped
-            ? `${debouncedSearch.trim().toUpperCase()} — all notable flow, last ${lookbackDays} trading day${lookbackDays > 1 ? "s" : ""} ending ${targetDate}`
-            : (viewMode === "contract" && lookbackDays > 1) || printRangeKey
-              ? `Historical range: last ${lookbackDays} trading days ending ${targetDate}`
-              : `Historical view: ${targetDate}`} (remove ?date param to return to live)
-        </div>
+        (showClosedBanner && targetDate === latestDataDay) ? (
+          <div style={{
+            padding: 10, background: P.cd, color: P.ac, marginBottom: 12,
+            border: `1px solid ${P.ac}`, borderRadius: 4, fontSize: 12,
+            display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+          }}>
+            <span>🌙 Markets are closed — showing the last session ({(() => {
+              const d = _mdyToDate(latestDataDay);
+              return d ? `${DOW_SHORT[d.getDay()]}, ${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}` : latestDataDay;
+            })()}).</span>
+            <button
+              onClick={() => { setShowClosedBanner(false); onSelectDate(null); }}
+              style={{
+                background: "transparent", color: P.ac, border: `1px solid ${P.ac}`,
+                borderRadius: 3, padding: "2px 10px", cursor: "pointer", fontSize: 11,
+                fontFamily: "inherit", fontWeight: 700,
+              }}
+              title="Return to the live tape (empty until the market opens)"
+            >● Back to live</button>
+          </div>
+        ) : (
+          <div style={{
+            padding: 10, background: P.cd, color: P.ac, marginBottom: 12,
+            border: `1px solid ${P.ac}`, borderRadius: 4, fontSize: 12,
+          }}>
+            📅 {symbolScoped
+              ? `${debouncedSearch.trim().toUpperCase()} — all notable flow, last ${lookbackDays} trading day${lookbackDays > 1 ? "s" : ""} ending ${targetDate}`
+              : (viewMode === "contract" && lookbackDays > 1) || printRangeKey
+                ? `Historical range: last ${lookbackDays} trading days ending ${targetDate}`
+                : `Historical view: ${targetDate}`} (remove ?date param to return to live)
+          </div>
+        )
       )}
 
       {error && (
@@ -4638,9 +4688,24 @@ export default function LiveFlowMassive() {
                 ? "Still loading — the tape is taking unusually long. Try refreshing (Ctrl+Shift+R)."
                 : "Loading today's flow…")
             : (alerts.length === 0
-                ? (workerLive
-                    ? "Waiting for live flow… (markets may be closed, or no conviction prints yet today)"
-                    : "No flow for today yet — markets may be closed, or nothing has cleared the conviction filter. Use History or ?date=M/D/YYYY to view a past session.")
+                ? (!targetDate && _marketClosed && latestDataDay
+                    ? (<>
+                        <div style={{ marginBottom: 12, color: P.wh, fontSize: 14 }}>🌙 Markets are closed — no live flow right now.</div>
+                        <button
+                          onClick={() => { setShowClosedBanner(true); setLookback(1); setTargetDate(latestDataDay); }}
+                          style={{
+                            background: P.ac, color: P.bg, border: "none", borderRadius: 4,
+                            padding: "7px 16px", cursor: "pointer", fontSize: 12, fontWeight: 700,
+                            fontFamily: "inherit",
+                          }}
+                        >View last session ({(() => {
+                          const d = _mdyToDate(latestDataDay);
+                          return d ? `${DOW_SHORT[d.getDay()]} ${d.getMonth() + 1}/${d.getDate()}` : latestDataDay;
+                        })()}) →</button>
+                      </>)
+                    : workerLive
+                        ? "Waiting for live flow… (markets may be closed, or no conviction prints yet today)"
+                        : "No flow for today yet — markets may be closed, or nothing has cleared the conviction filter. Use History or ?date=M/D/YYYY to view a past session.")
                 : `No alerts match your filters. (${alerts.length} total alerts hidden)`)}
         </div>
       )}
