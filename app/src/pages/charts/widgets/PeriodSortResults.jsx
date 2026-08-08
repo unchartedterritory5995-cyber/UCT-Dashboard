@@ -65,11 +65,14 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
     return key ? key.split(SEP) : []
   }, [group, groupSymKey, stockSymKey])
 
+  // NOTE: the watchlist UPPERCASES every row sym (it's built for tickers). So a group NAME
+  // shows/keys as its uppercase form — perfData/metaData/scanGroups must be keyed the SAME
+  // way or the lookup misses (that's why only "GLP-1", already all-caps, used to work).
   // Group → member stocks (for inline expansion).
   const scanGroups = useMemo(() => {
     if (!group) return null
     const m = {}
-    for (const r of (groupData?.results || [])) m[r.name] = r.members || []
+    for (const r of (groupData?.results || [])) m[String(r.name).toUpperCase()] = r.members || []
     return m
   }, [group, groupData])
 
@@ -81,7 +84,7 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
     }
     if (group) {
       for (const r of (groupData?.results || [])) {
-        if (r && r.period_change != null) (out ||= {})[r.name] = { period: r.period_change }
+        if (r && r.period_change != null) (out ||= {})[String(r.name).toUpperCase()] = { period: r.period_change }
       }
     }
     return out
@@ -91,7 +94,7 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
   const metaOverride = useMemo(() => {
     if (!group) return null
     let out = null
-    for (const r of (groupData?.results || [])) (out ||= {})[r.name] = { group_count: r.count }
+    for (const r of (groupData?.results || [])) (out ||= {})[String(r.name).toUpperCase()] = { group_count: r.count }
     return out
   }, [group, groupData])
 
