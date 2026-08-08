@@ -55,9 +55,9 @@ first time. Dashboard shipped to master (`030e69bc..f97983e7`) and verified live
 3. ~~**NAAIM.**~~ ✅ **DECIDED — chatter route accepted, no subscription.**
    Selection reworked to newest-survey-wins; YCharts added; wire cache demoted
    to a fallback tier. See P4.
-4. **Labels** (P3 items 1–2): closing-basis new highs, and Stage 2 = MA stack
-   only. Both are internally correct but narrower than the published NH/NL and
-   the full Minervini template. Keep, relabel, or add a variant.
+4. ~~**Labels.**~~ ✅ **RELABELLED 2026-08-08** — `(Close)` on every closing-basis
+   high/low, `(MA Stack)` on Stage 2/4, across all three label registries. Maths
+   unchanged. See P3.
 
 Worktree: `C:\Users\Patrick\uct-worktrees\breadth-live` (branch
 `feat/breadth-live`). Sister repos: `C:\Users\Patrick\uct-intelligence`
@@ -325,8 +325,19 @@ disagreements on all five fields.**
    the user clicked. The dashboard's `test_reference_matches_collector_source`
    AST-compares its mirrored copy and caught the refactor immediately.
 
-Items 1 and 2 remain **owner decisions** and are deliberately not implemented.
-Both definitions are now written down in `count_stage`'s docstring.
+Items 1 and 2 — ✅ **RELABELLED 2026-08-08.** Both definitions were internally
+correct and externally misleading, which is the worst combination: a reader
+compares to a published number, finds a gap, and distrusts the surface. The
+maths is unchanged (the closing basis is Stockbee's convention and deliberate);
+only the labels moved.
+
+- `52W Highs` → `52W Highs (Close)`, same for 52W lows, 20D highs/lows, ATH
+  count and the hi/lo ratios.
+- `Stage 2` → `Stage 2 (MA Stack)`, same for Stage 4.
+
+Applied across **all three** label registries — `chartMetrics`, `heatmapMetrics`
+and the `Breadth.jsx` table/analogue maps. They are separate lists, so changing
+one would have left two surfaces naming the same metric differently.
 
 ---
 
