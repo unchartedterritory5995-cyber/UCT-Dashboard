@@ -55,14 +55,32 @@ def _target_date() -> str:
     return _week_dates()[0].isoformat()
 
 
-_CALENDAR_WEEKLY = {
-    "days": {
-        _target_date(): {
-            "bmo": [{"sym": "AAPL"}],
-            "amc": [{"sym": "NVDA"}],
+def _calendar_weekly(target: str) -> dict:
+    """The mocked `calendar_weekly` cache, keyed by the target the CALLER resolved.
+
+    ⚠️ TIME BOMB #3, AND THE FIRST TWO ARE ALREADY IN `_target_date()`'s docstring.
+    This was a module-level constant that called `_target_date()` at IMPORT while
+    `_run_enrichment` called it again at RUN — TWO DERIVATIONS OF ONE VALUE. They
+    agree on every day except across a boundary that moves `_week_dates()`, and a
+    full-suite run that STRADDLES MIDNIGHT INTO A WEEKEND crosses exactly that one:
+    measured 2026-08-03 at import vs 2026-08-10 at runtime, a 7-day skew, because
+    `_week_dates()` rolls forward to next Monday once the week is over. The mock
+    missed and all ten cases died on `KeyError: 'AAPL'` — while the same file
+    passed 19/19 in isolation minutes later, because then both derivations fell on
+    the same side of midnight.
+
+    A pinned clock would also have worked, but the real defect is the SECOND
+    derivation, not the clock: the fix is that the key can only be computed once,
+    by the caller, and handed in.
+    """
+    return {
+        "days": {
+            target: {
+                "bmo": [{"sym": "AAPL"}],
+                "amc": [{"sym": "NVDA"}],
+            }
         }
     }
-}
 
 
 def _make_enrichment_client():
@@ -84,14 +102,27 @@ class TestHistStats:
         app.include_router(router)
         tc = TestClient(app)
 
+        # ⭐ ONE derivation, handed to the mock. See `_calendar_weekly`: this used
+        # to be resolved twice (once here, once at import) and the two disagreed
+        # whenever a run crossed midnight into a weekend.
         target = _target_date()
+        weekly = _calendar_weekly(target)
+        # ⚠️ NOT `target in weekly["days"]` — that is TRUE BY CONSTRUCTION and would
+        # be a gate that cannot fail. The real hazard is the week rolling over WHILE
+        # the test runs (the suite that found this was 22 minutes long and crossed
+        # midnight), so re-derive and compare: this fires exactly when the router's
+        # idea of the week has moved out from under the mock built moments ago.
+        assert target == _target_date(), (
+            f"the week rolled over mid-test: the mock is keyed {target!r} but the "
+            f"router now resolves {_target_date()!r}. Not a product defect — re-run."
+        )
         cache_data = {
             f"calendar_enrichment_{target}": None,  # miss → build
         }
 
         def _cache_get(key):
             if key == "calendar_weekly":
-                return _CALENDAR_WEEKLY
+                return weekly
             return cache_data.get(key)
 
         hm = hist_moves if hist_moves is not None else _SAMPLE_HIST_MOVES
