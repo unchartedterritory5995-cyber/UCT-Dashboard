@@ -3957,19 +3957,23 @@ export default function StockChart({
     && Number.isFinite(_sessionLive.ext_price) && _sessionLive.ext_price > 0)
     ? _sessionLive.ext_price : null
   // Include-mode: synthesize/extend the D/W/M candle from extended-hours data.
-  const sessionCandleActive = _sessionActive && sessionView === 'extended' && _inExtWindow && !replayMode
+  // replayCutoff (Custom-Period Sort replay) suppresses ALL live extended-hours session
+  // preview — the candle, the freeze, and the Pre/Post right-axis tags — just like the
+  // internal replayMode does: a live "Post" price tag is meaningless on a replayed
+  // historical period (owner request). Restored the moment replay is exited.
+  const sessionCandleActive = _sessionActive && sessionView === 'extended' && _inExtWindow && !replayMode && !replayCutoff
   // Regular-mode post-market: freeze today's candle at the 4pm close (don't let
   // the live writers fold post-market prints into it). Pre-market regular mode
   // already leaves yesterday's bar untouched (day_open==0 → classifyLiveBar skip).
-  const sessionFreezeActive = _sessionActive && sessionView === 'regular' && marketSession === 'post' && !replayMode
+  const sessionFreezeActive = _sessionActive && sessionView === 'regular' && marketSession === 'post' && !replayMode && !replayCutoff
   // Show the locked-close + Pre/Post tags whenever it's pre/post market on the
   // workspace, regardless of the toggle (matches TradingView).
-  const sessionTagsActive = _sessionActive && _inExtWindow && !replayMode
+  const sessionTagsActive = _sessionActive && _inExtWindow && !replayMode && !replayCutoff
   // Same two right-axis tags on INTRADAY charts (1m..1h) on the workspace — the
   // prev-day close + live Pre/Post price — regardless of the Regular/Extended
   // toggle. Intraday has no synthetic session candle (that's D/W/M only); it just
   // gets the price-scale references, sourced straight from the live feed.
-  const sessionTagsIntraday = sessionView != null && !_isDWM && _inExtWindow && !replayMode
+  const sessionTagsIntraday = sessionView != null && !_isDWM && _inExtWindow && !replayMode && !replayCutoff
   // (sessionPreviewLastBar — the muted-white preview paint — is derived below, once
   // we know whether the session candle actually got applied to the bars.)
   // Writers A + D yield the D/W/M last bar to the memo-driven setData while owned.
