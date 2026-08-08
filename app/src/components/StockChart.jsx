@@ -3304,6 +3304,13 @@ export default function StockChart({
   const [idbLoaded, setIdbLoaded] = useState(false)
   const idbSinceRef     = useRef(null)
   const idbReadyForRef  = useRef(null)  // string `${sym}_${tf}` once IDB load completes
+  // Always-current mirror of idbBars. The SWR-merge effect keys on [data] and would
+  // otherwise read a STALE closured idbBars: when the shallow full set resolves right
+  // after a deep IDB paint, the closure can still be pre-deep → the deep-preserve check
+  // misfires and truncates (the "deep flashes then reloads" bug). Declared BEFORE the
+  // merge effect so within any single commit this sync runs first.
+  const idbBarsRef = useRef(null)
+  useEffect(() => { idbBarsRef.current = idbBars }, [idbBars])
   // TEMP DIAGNOSTIC (window.__uctBarsDebug) — the sym this chart last PAINTED, so
   // updateChart can log ticker transitions. Captures the "random chart appears for
   // a blip then goes away when switching to BLZE with a 2nd widget" report: a blip
@@ -3513,11 +3520,15 @@ export default function StockChart({
       // healing as a replace, minus the truncation), so scrolling into deep history
       // is instant instead of paying a cold deep fetch. Only when the fresh set is a
       // recent SUFFIX of the deeper one (same sym/tf, starts at/after the deep start).
-      const deeperInIdb = sameSymTf && idbBars?.length > data.bars.length
-        && data.bars[0] && idbBars[0] && data.bars[0].t >= idbBars[0].t
-      const next = deeperInIdb ? mergeDelta(idbBars, data.bars) : data.bars
+      // Read the authoritative CURRENT idb bars from the ref, not the [data]-closured
+      // state (which can lag a just-committed deep IDB paint and cause the truncation).
+      const curIdb = idbBarsRef.current
+      const deeperInIdb = sameSymTf && curIdb?.length > data.bars.length
+        && data.bars[0] && curIdb[0] && data.bars[0].t >= curIdb[0].t
+      const next = deeperInIdb ? mergeDelta(curIdb, data.bars) : data.bars
       if (_dbg) console.log('[bars-delta]', sym, resolvedTf,
-        deeperInIdb ? `=> KEPT DEEP (${idbBars.length}) + healed tail (${data.bars.length})` : `=> REPLACED (full) with ${data.bars.length}`)
+        deeperInIdb ? `=> KEPT DEEP (${curIdb.length}) + healed tail (${data.bars.length})` : `=> REPLACED (full) with ${data.bars.length}`)
+      idbBarsRef.current = next        // keep the mirror current for any same-tick re-run
       setIdbBars(next)
       idbSinceRef.current = next[next.length - 1]?.t ?? null
       idbPut(sym, resolvedTf, next)
