@@ -3660,7 +3660,14 @@ export default function StockChart({
     : (barsOverridePending
         ? null  // override expected but not here yet → render nothing (spinner), don't fall back to provider data
         : ((_netMatches && !data.delta)
-            ? data.bars
+            // Server returned a full (non-delta) set. Normally render it — it's the
+            // authoritative heal. BUT if fresh IDB holds a strictly DEEPER history than
+            // this (shallow first-paint) fetch, render THAT: otherwise a deep-warmed
+            // chart flashes its full history from IDB, then this shallow fetch truncates
+            // it back to ~600 bars until the dwell-warm re-fetches deep (the "cuts off
+            // pre-2024 then reloads" flicker). The merge effect still heals idbBars's
+            // recent tail from data.bars (server wins on overlap), so this stays correct.
+            ? ((_idbFresh && idbBars.length > data.bars.length) ? idbBars : data.bars)
             : (_idbFresh
                 ? idbBars
                 : (_netMatches
