@@ -38,12 +38,9 @@ first time. Dashboard shipped to master (`030e69bc..f97983e7`) and verified live
 
 ### Open — owner decisions only
 
-1. **Universe history — DECIDED: backfill. Scoped, proven feasible, NOT yet
-   executed.** 26 sessions (not ~1/3), including a 23-session consecutive block.
-   The full method and the two ways to get it wrong are in P0 above — **read
-   that section before starting.** The audit's `STEP_CHANGE` kind reports these
-   every run as context and **fails the gate on any NEW swap**
-   (`STEP_GATE_FROM = "2026-08-08"`); move that floor once this is done.
+1. ~~**Universe history.**~~ ✅ **BACKFILLED 2026-08-08** — 26 sessions, 541
+   fields, verified continuous. One residual `STEP_CHANGE` (−6.6% on 2026-03-24)
+   is undiagnosed and reported every run. See P0.
 2. ~~**72 `uct_exposure` rows disagree with `market_regimes`.**~~ ✅ **RESOLVED —
    not a defect.** In all 72 the regime row was created BEFORE the snapshot
    (2026-03-23: regime 12:31, snapshot 21:31), so the collector did read a real
@@ -168,9 +165,28 @@ cache instead of the filtered ~2,700.
    swaps that happened.
 3. ✅ 27 tests (`test_breadth_universe_continuity.py`).
 
-**History repair — OWNER SAID BACKFILL 2026-08-08. Scoped and proven feasible;
-NOT yet executed.** Read this before starting: two of my earlier claims were
-wrong and the cheap version of this job is actively harmful.
+**History repair — ✅ DONE 2026-08-08 (`ee7e9fe`, `--patch-universe-history`).**
+26 sessions recomputed, **541 fields written**, verified. `STEP_CHANGE` fell from
+**7 steps (worst +35.9%) to 1 (worst −6.6% on 2026-03-24)**, and that survivor is
+a different phenomenon — 2988→2790, both inside the *filtered* range, so not a
+cap-cache swap. Undiagnosed, reported every run.
+
+Continuity across every former step boundary — the test named below as the
+sharpest — now holds:
+
+    04-06   637 → [891 → 627] → 647
+    05-26   825 → [1207 → 788] → 821
+    06-22   806 → [1163 → 772]
+    07-24         [1147 → 797] → 763
+
+⚠️ **One PATCH exhausted its 3 retries** (`2026-07-02.new_20d_lows`) and the
+re-run could NOT find it again — the selector is `universe_count >= 3300`, which
+is exactly what the repair had just fixed. It was stale (308; correct 253) and
+was closed out separately. **A repair whose selector is the symptom cannot
+re-find its own failures.** Next time, select on a durable marker.
+
+The rest of this section is kept because it is why the job was done this way —
+two of my earlier claims were wrong and the cheap version is actively harmful.
 
 **Corrected scope: 26 of 150 sessions, not ~1/3.** And they are **not
 scattered** — 2026-04-06, 2026-05-26, then a **23-session consecutive block

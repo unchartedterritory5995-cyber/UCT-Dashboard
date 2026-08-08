@@ -1,0 +1,194 @@
+/* Custom-Period Sort — the draggable results panel + the config popover. Dark, gold-
+   accented, matching the Charts workspace menu palette. */
+
+.panel {
+  position: fixed;
+  width: 460px;
+  max-width: 94vw;
+  height: 560px;
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--menu-bg, #141416);
+  border: 1px solid var(--menu-border, #2c2c30);
+  border-radius: 10px;
+  box-shadow: 0 24px 64px -24px rgba(0, 0, 0, 0.8);
+  z-index: 4000;
+  overflow: hidden;
+  color: var(--menu-text, #ededed);
+  font: 12px 'Instrument Sans', system-ui, sans-serif;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  cursor: grab;
+  user-select: none;
+  border-bottom: 1px solid var(--menu-divider, #202022);
+  background: linear-gradient(180deg, rgba(201, 168, 76, 0.08), transparent);
+}
+.header:active { cursor: grabbing; }
+/* Six-dot drag grip (pure CSS, no icon dependency). */
+.grip {
+  width: 8px;
+  height: 12px;
+  flex-shrink: 0;
+  background-image: radial-gradient(currentColor 1px, transparent 1.2px);
+  background-size: 4px 4px;
+  color: var(--menu-text-faint, #6f6f6f);
+  opacity: 0.7;
+}
+.title {
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--ut-gold, #c9a84c);
+}
+.range {
+  margin-left: 2px;
+  font-size: 11px;
+  color: var(--menu-text-faint, #8a8a8a);
+}
+.close {
+  margin-left: auto;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: transparent;
+  color: var(--menu-text-faint, #8a8a8a);
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 5px;
+}
+.close:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.06)); color: var(--menu-text, #ededed); }
+
+/* Column layout — one grid template shared by the header + every row. */
+.colHead, .row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 1.1fr 1fr;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+}
+.colHead {
+  height: 28px;
+  border-bottom: 1px solid var(--menu-divider, #202022);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--menu-text-faint, #8a8a8a);
+}
+.cSym { text-align: left; }
+.cNum { text-align: right; font-variant-numeric: tabular-nums; }
+.sortBtn {
+  border: none;
+  background: transparent;
+  color: var(--ut-gold, #c9a84c);
+  font: inherit;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  gap: 3px;
+  justify-content: flex-end;
+  align-items: center;
+}
+.caret { font-size: 8px; }
+
+.body { flex: 1; overflow-y: auto; overflow-x: hidden; }
+.row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+.row:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.05)); }
+.cSym { font-weight: 600; color: var(--menu-text, #ededed); }
+.up { color: #1ae51a; }
+.down { color: #ff3b47; }
+
+.msg { padding: 24px; text-align: center; color: var(--menu-text-faint, #8a8a8a); }
+.footer {
+  height: 26px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-top: 1px solid var(--menu-divider, #202022);
+  font-size: 11px;
+  color: var(--menu-text-faint, #8a8a8a);
+}
+
+/* ── Config popover (shown right after the drag) ─────────────────────────────── */
+.cfgBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 4100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+}
+.cfg {
+  width: 340px;
+  max-width: 92vw;
+  background: var(--menu-bg, #141416);
+  border: 1px solid var(--menu-border, #2c2c30);
+  border-radius: 12px;
+  box-shadow: 0 24px 64px -24px rgba(0, 0, 0, 0.8);
+  color: var(--menu-text, #ededed);
+  font: 12px 'Instrument Sans', system-ui, sans-serif;
+  overflow: hidden;
+}
+.cfgHead {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--menu-divider, #202022);
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--ut-gold, #c9a84c);
+  letter-spacing: 0.02em;
+}
+.cfgBody { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+.cfgRow { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.cfgLabel { color: var(--menu-text-faint, #9a9a9a); }
+.cfgDate {
+  background: var(--menu-input-bg, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--menu-border, #2c2c30);
+  border-radius: 6px;
+  color: var(--menu-text, #ededed);
+  font: inherit;
+  padding: 5px 8px;
+  color-scheme: dark;
+}
+.cfgPct { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.cfgSym { font-weight: 600; color: var(--menu-text, #ededed); }
+.cfgActions {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--menu-divider, #202022);
+  justify-content: flex-end;
+}
+.cfgBtn {
+  border: 1px solid var(--menu-border, #2c2c30);
+  background: var(--menu-input-bg, rgba(255, 255, 255, 0.04));
+  color: var(--menu-text, #ededed);
+  font: inherit;
+  padding: 7px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.cfgBtn:hover { border-color: var(--menu-accent, rgba(201, 168, 76, 0.5)); }
+.cfgBtnPrimary {
+  border-color: var(--ut-gold, #c9a84c);
+  background: rgba(201, 168, 76, 0.16);
+  color: var(--ut-gold, #f0c869);
+  font-weight: 600;
+}
+.cfgBtnGhost { margin-right: auto; }

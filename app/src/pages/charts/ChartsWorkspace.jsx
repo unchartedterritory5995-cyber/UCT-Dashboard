@@ -24,6 +24,8 @@ import useMultiChartState from './grid/useMultiChartState'
 import PopoutWindow from './popout/PopoutWindow'
 import PopoutShell from './popout/PopoutShell'
 import PoppedLayout from './popout/PoppedLayout'
+import PeriodSortPanel from './PeriodSortPanel'
+import PeriodSortConfig from './PeriodSortConfig'
 import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y as _MARGIN_Y, BODY_PAD as _BODY_PAD } from './rowHeight'
 import styles from './ChartsWorkspace.module.css'
 
@@ -523,9 +525,21 @@ export default function ChartsWorkspace() {
     return out
   }, [layout.widgets, poppedLayouts, chartsTheme])
 
+  // ── Custom-Period Sort ────────────────────────────────────────────────────
+  // Tools → Custom-Period Sort arms drag-to-highlight on every chart (periodSortMode).
+  // A completed drag opens the config popover (periodSortSel); "Sort" opens the results
+  // panel (periodSortPanel) ranking every US common stock over that span.
+  const [periodSortMode, setPeriodSortMode] = useState(false)
+  const [periodSortSel, setPeriodSortSel] = useState(null)     // { sym, start, end, pct } | null
+  const [periodSortPanel, setPeriodSortPanel] = useState(null) // { start, end, popout } | null
+  const handlePeriodSelected = useCallback((sym, start, end, pct) => {
+    setPeriodSortMode(false)
+    setPeriodSortSel({ sym, start, end, pct })
+  }, [])
+
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef }),
-    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById],
+    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected }),
+    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected],
   )
 
   // Debounced layout persist (500ms).
@@ -949,9 +963,10 @@ export default function ChartsWorkspace() {
   const [widgetsSub, setWidgetsSub] = useState(null)   // null | 'add'
   const [layoutsMenuOpen, setLayoutsMenuOpen] = useState(false)
   const [layoutsSub, setLayoutsSub] = useState(null)   // null | 'open' | 'save' | 'mc'
+  const [toolsMenuOpen, setToolsMenuOpen] = useState(false)
   const closeToolbarMenus = useCallback(() => {
     setWidgetsMenuOpen(false); setWidgetsSub(null)
-    setLayoutsMenuOpen(false); setLayoutsSub(null)
+    setLayoutsMenuOpen(false); setLayoutsSub(null); setToolsMenuOpen(false)
     setAddMenuOpen(false); setOpenMenuOpen(false); setSaveMenuOpen(false); setMcMenuOpen(false)
   }, [])
   // (Flyout grace-timer machinery removed: Multi Chart is now its own header
@@ -1224,6 +1239,29 @@ export default function ChartsWorkspace() {
             )}
           </div>
 
+          {/* TOOLS — chart-analysis utilities. Custom-Period Sort ranks the whole US
+              market by % change over a time period you highlight on the chart. */}
+          {!gridMode && (
+          <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              className={styles.toolbarBtn}
+              style={periodSortMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+              onClick={() => { const n = !toolsMenuOpen; closeToolbarMenus(); setToolsMenuOpen(n) }}
+            >Tools ▾</button>
+            {toolsMenuOpen && (
+              <div className={styles.addMenu} style={{ minWidth: 200 }} onMouseLeave={() => setToolsMenuOpen(false)}>
+                <button
+                  type="button"
+                  className={styles.addMenuItem}
+                  style={periodSortMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                  onClick={() => { setPeriodSortSel(null); setPeriodSortMode(true); closeToolbarMenus() }}
+                >{periodSortMode ? '✓ ' : ''}Custom-Period Sort</button>
+              </div>
+            )}
+          </div>
+          )}
+
           {gridMode && (
             <button type="button" className={styles.toolbarBtn} onClick={mc.exitGrid}>
               Workspace
@@ -1298,6 +1336,42 @@ export default function ChartsWorkspace() {
             {popoutNotice}
             <button type="button" onClick={() => setPopoutNotice(null)} aria-label="Dismiss">✕</button>
           </div>
+        )}
+
+        {/* Custom-Period Sort: config popover (after a drag) → results panel. */}
+        {periodSortSel && (
+          <PeriodSortConfig
+            sel={periodSortSel}
+            onCancel={() => setPeriodSortSel(null)}
+            onSort={(start, end, popout) => { setPeriodSortSel(null); setPeriodSortPanel({ start, end, popout }) }}
+          />
+        )}
+        {periodSortPanel && !periodSortPanel.popout && (
+          <PeriodSortPanel
+            start={periodSortPanel.start}
+            end={periodSortPanel.end}
+            onClose={() => setPeriodSortPanel(null)}
+            onPickSym={(s) => setGroupSym('A', s)}
+          />
+        )}
+        {periodSortPanel && periodSortPanel.popout && (
+          <PopoutWindow
+            title="UCT — US Common Stocks"
+            width={520}
+            height={640}
+            onClose={() => setPeriodSortPanel(null)}
+            onBlocked={() => { setPeriodSortPanel(null); setPopoutNotice(POPUP_BLOCKED_MSG) }}
+          >
+            <PopoutShell theme={chartsTheme}>
+              <PeriodSortPanel
+                start={periodSortPanel.start}
+                end={periodSortPanel.end}
+                embedded
+                onClose={() => setPeriodSortPanel(null)}
+                onPickSym={(s) => setGroupSym('A', s)}
+              />
+            </PopoutShell>
+          </PopoutWindow>
         )}
       </div>
     </WorkspaceContext.Provider>
