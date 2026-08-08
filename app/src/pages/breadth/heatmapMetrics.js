@@ -229,8 +229,21 @@ export const HM_METRICS = [
 ]
 
 // Keys that are weekly/sparse and should be forward-filled so rows don't show
-// black "no data" cells on off-survey days
-export const FFILL_KEYS = ['aaii_bulls', 'aaii_neutral', 'aaii_bears', 'aaii_spread', 'naaim', 'cboe_putcall']
+// black "no data" cells on off-survey days.
+//
+// ⚠️ Everything here must genuinely be a WEEKLY survey, where carrying the
+// reading across the days between surveys is what the number means. AAII and
+// NAAIM qualify — and NAAIM ships `naaim_date` alongside, so the age of a
+// carried reading stays visible.
+//
+// `cboe_putcall` was in this list and did not belong: it is a DAILY series that
+// prints every session. Carrying it forward only ever fires when a session is
+// genuinely unpublished — which is exactly the case the collector was changed
+// to represent as an honest gap, after 86 of 150 stored rows turned out to hold
+// the PREVIOUS session's ratio. Forward-filling it here re-created that defect
+// one layer up: the API says "absent", two surfaces render yesterday's number
+// as today's, and a put/call spike appears the day after it happened.
+export const FFILL_KEYS = ['aaii_bulls', 'aaii_neutral', 'aaii_bears', 'aaii_spread', 'naaim']
 
 // Keys that have a single numeric field we can compute percentile rank on
 export const PCTILE_KEYS = new Set([

@@ -85,18 +85,25 @@ on a wrong definition. Verify definitions separately from implementations.
   disabled, accuracy tiers re-graded. Master `c27b7a85`.
 - Phone strip wrap fix; heat map intact.
 
-### Committed but NOT deployed
+### Shipped 2026-08-08 — all of the below are on master and deployed
 | commit | repo | what |
 |---|---|---|
 | `498bb759` | dashboard | breadth_score renormalization |
 | `a95e012b` | dashboard | 20 Data Charts presets + browser gate |
+| `a80b1ea1` | dashboard | **get_history window fix** (warm-up + absolute A/D seed) |
+| `23dde7cc` | dashboard | strict stage slope + mirrored test copy |
 | `937d34d` | uct-intelligence | cboe date fix, `^VIX6M`, `iwm_close` |
-| `d70baeb` | morning-wire | dist_days from state |
+| `22c42ff` | uct-intelligence | **`--patch-cboe-date`** — 86 rows re-dated |
+| `cc5e433` | uct-intelligence | **`--patch-exposure-gaps`** — 34 fabricated rows nulled |
+| `c4c4ed4` | uct-intelligence | strict stage slope + shared `_stage_mask` |
+| `f05bb86` | uct-intelligence | 6-month VIX date-exact, no walk-back |
+| `f3d4dc8` | uct-intelligence | universe last-good fallback + 5% step warning |
 | `a6e2d10` | uct-intelligence | freeze audit: NULL_TAIL / ALL_NULL / MISSING |
+| `d70baeb` | morning-wire | dist_days from state |
 
-⚠️ The dashboard commits are on `feat/breadth-live`, **not master**. The
-collector/wire commits are local to their repos and take effect on the next
-scheduled run (collector 3:15 PM CT weekdays; wire 6:35 AM CT).
+Dashboard pushed `030e69bc..3d60525b`. Collector/wire commits are local to their
+repos and take effect on the next scheduled run (collector 3:15 PM CT weekdays;
+wire 6:35 AM CT) — the **history** repairs were applied directly and verified.
 
 ⚠️ **Deploy window: web pushes only ≥4:20 PM ET or <9:15 AM ET**, enforced by
 `.git/hooks/pre-push`. Master moves constantly from parallel sessions — always
@@ -106,7 +113,7 @@ scheduled run (collector 3:15 PM CT weekdays; wire 6:35 AM CT).
 
 ## 2. Work items, in priority order
 
-### P0 — Universe bimodality (the biggest, and unstarted)
+### P0 — Universe bimodality ✅ FORWARD FIX DONE (`f3d4dc8`); history is the open owner decision
 
 **Symptom.** `universe_count` oscillates between ~2,650–2,750 and ~3,600–3,736.
 Not drift — a switch. 39 of 119 sessions moved >1%; full range 36.7%.
@@ -133,69 +140,91 @@ count). That design decision is load-bearing — preserve it.
 market-cap/liquidity-filtered subset. Suspect the collector sometimes takes a
 fallback universe path. **Prove it before fixing.**
 
-**Steps.**
-1. Find every place the collector resolves its ticker list
-   (`uct-intelligence/scripts/breadth_collector.py`). Identify the branch that
-   yields ~3,700 vs ~2,700.
-2. Determine which is *intended*. The stored `universe_list` drill payload per
-   date is the evidence — diff a 3,700-day against a 2,700-day and characterise
-   what the extra ~1,000 names are (micro caps? ETFs? OTC?).
-3. Fix so one definition is used every day. Log the universe size and the
-   branch taken on every run.
-4. Add a guard: refuse to store a snapshot whose `universe_count` deviates
-   >5% from the trailing median, or store it flagged. A silent 35% jump must
-   become loud.
-5. **History repair decision (ask the owner):** either backfill affected days
-   under the canonical universe, or add a `universe_count`-normalised view so
-   charts stop showing artifacts. Do not rewrite history without asking.
-6. Extend `breadth_freeze_audit.py` with a STEP_CHANGE kind — a >5%
-   session-over-session move in `universe_count` — so this can never run for
-   months again.
+**Root cause, proven.** Three universe paths. The `cap_universe_cache.json`
+fallback is a bare ~3,729-ticker list with **no cap data**, so the CS/ADRC +
+$300M + price + volume filters cannot be reapplied to it — there is nothing to
+filter on. When the clean path failed, the collector silently measured the whole
+cache instead of the filtered ~2,700.
 
-**Verification.** Recompute a known step day both ways and show the count
-metrics no longer jump. The 7/24→7/27 pair is the sharpest test case.
+**Fixed (`f3d4dc8`).**
+1. ✅ A `breadth_universe_last_good.json` fallback (atomic write) sits ahead of
+   the cap cache. Yesterday's filtered universe misses a day of new listings —
+   a rounding error next to a 1,000-name population swap.
+2. ✅ `_warn_on_universe_step()` shouts when the count moves ≥5%
+   (`UNIVERSE_STEP_WARN_PCT`), far above organic churn and far below the ~35%
+   swaps that happened.
+3. ✅ 27 tests (`test_breadth_universe_continuity.py`).
 
----
+**Still open — owner decision:** ~1/3 of the 120 stored sessions were collected
+on the wrong population. Leave them, normalise at display time, backfill, or
+mark them. Not rewritten without asking.
 
-### P1 — `cboe_putcall` history repair
-
-The forward fix is committed (`937d34d`): it now fetches a specific date and
-returns None when unpublished, instead of walking back and stamping another
-day's value as today's. **History is still misdated.**
-
-Measured 2026-08-07: **12 of 13 sessions stored the previous session's ratio.**
-The 13th only "matched" because two consecutive days both printed 0.91 — the
-true rate is 13/13.
-
-**Steps.**
-1. Use the existing `--backfill-cboe` path (`breadth_collector.py` ~line 2780,
-   `m["cboe_putcall"] = cboe_hist.get(date_str)`) which already keys by date.
-2. **Dry run first**, diffing every date old vs new. Expect ~every row to shift
-   by one session.
-3. Canary 2 rows, verify, then full apply, then re-run the dry run — it must
-   report 0 changes (idempotent). This is the sequence that worked for the
-   NAAIM repair.
-4. **`breadth_score` was computed FROM the shifted value** (10 of 100 points).
-   After re-dating, recompute stored scores for affected rows — or accept and
-   document the drift. Owner's call; flag it.
+⏳ Not done: a STEP_CHANGE kind in `breadth_freeze_audit.py`. The collector-side
+warning covers it going forward; the audit kind would catch it retrospectively.
 
 ---
 
-### P2 — Verify the remaining unverified metrics
+### P1 — `cboe_putcall` history repair ✅ DONE (`22c42ff`)
 
-Never independently checked. Same method that worked: compare against a
-*different* provider or the upstream's own publication, not the feed that
-produced the value.
+Forward fix was `937d34d`. History repaired 2026-08-08 with a NEW flag,
+**`--patch-cboe-date`** (an earlier draft of this plan named a `--backfill-cboe`
+that never existed).
 
-| metric | why it matters | how to check |
-|---|---|---|
-| `uct_exposure` | 0–150, drives position sizing | pushed by the wire; recompute from its inputs and diff |
-| `ratio_5day`, `ratio_10day` | 15 of 100 score points | derived in `get_history`; recompute by hand from up/down_4pct history |
-| `hi_ratio`, `lo_ratio` | 10 score points | derived; confirm the denominator is universe_count and not a stale constant |
-| `atr_ext_7` | in `froth` preset | integer-valued in storage — confirm that is intended, not truncation |
-| `market_phase` | regime label | compare against the wire's own classification |
-| `is_ftd` / `manual_ftd` | follow-through day | sparse by design; confirm the sparse path is deliberate |
-| `up_vol_ratio`, `hvc_52w` | partial-session by design | confirm the EOD value settles correctly |
+Measured over all 150 stored rows, not the 13-row sample: **78 of 86 checkable
+sessions held the previous session's ratio**; 6 of the 8 "matches" were
+coincidence (adjacent days printing the same number) and only 2026-07-09 and
+2026-07-10 were genuinely right. The misdating **starts 2026-03-23** — everything
+before that is correct.
+
+Built as a **date lookup, never a shift**: a blind `shift(+1)` would have
+corrupted the two days the collector got right. 86 rows changed, 64 already
+correct, second dry run reports 150/150 correct.
+
+Two things it surfaced:
+- The date list must come from the SNAPSHOTS. The sibling patchers read
+  `market_regimes`, which starts 2026-02-20 and carries weekend/holiday rows —
+  it would have skipped 34 Jan/Feb snapshots and reported 12 phantom gaps.
+- The 90-day history cap was a politeness budget, not a limit of the source
+  (the CDN serves 2025-11-04 fine). It was capping the repair.
+
+**P1b dissolved.** `breadth_score` is computed at READ time
+(`breadth_monitor.py:274/319`) and never written by the collector, so re-dating
+the input corrected the score automatically — verified on the canary
+(2026-03-23: cboe 1.01→0.99, score recomputed to 41.6).
+
+---
+
+### P2 — Verify the remaining unverified metrics ✅ DONE
+
+| metric | verdict |
+|---|---|
+| `uct_exposure` | 🔴 **FABRICATED on 33 sessions** — see below (`cc5e433`) |
+| `ratio_5day`, `ratio_10day` | 🔴 **request-dependent** — see below (`a80b1ea1`) |
+| `hi_ratio`, `lo_ratio` | ✅ denominator IS `universe_count`, not a constant |
+| `atr_ext_7` | ✅ integer is correct — it is a COUNT (2–34), not a truncated ratio |
+| `market_phase` | ✅ returns nothing rather than something when the table has no row |
+| `is_ftd` / `manual_ftd` | ✅ sparse by design — 9 of 150, `manual_ftd` overrides 4 |
+| `up_vol_ratio`, `hvc_52w` | ✅ 115 distinct values over 0.22–5.73; `hvc_52w` a count 0–163 |
+
+**`uct_exposure` was fabricated.** `_fetch_uct_exposure` falls back to
+`wire_data.json`, which holds TODAY'S live exposure with no date attached.
+`market_regimes` begins 2026-02-20, so every backfilled date before that took
+the fallback: **33 sessions from 2026-01-02 to 2026-02-19 all stored exactly
+14.0**, and `_created_at` confirms all 33 were written in the same backfill run
+on 2026-03-22. This metric drives position sizing. A request for a past date the
+table has no record of now returns None, and the 34 unbacked rows are nulled —
+there is no source to recover the true values from.
+
+**A defect not in this plan: `get_history(days)` let the request change the
+answer.** The derivation loop reaches backward past the row it computes (`w10` 9
+rows, `qqq_day_pct` 1, the `is_ftd` drawdown window 15) but the fetch was
+`LIMIT days`, so the same date returned different numbers per request. Measured
+days=30 vs days=200 over their 30-day overlap: `ratio_5day` 4/30 (3.77 vs 1.16),
+`ratio_10day` 9/30, `avg_10d_cpc` 8/30 (None vs 0.92 — a manufactured absence),
+`breadth_score` 2/30, `adv_decline_cum` **30/30** (1538 vs 11640). `get_latest()`
+calls `get_history(1)`, which made the most-read row the worst case. Fixed with
+a 15-row warm-up prefix plus an absolute A/D seed; **verified live: 0
+disagreements on all five fields.**
 
 ---
 
@@ -210,9 +239,16 @@ produced the value.
    ≥ 22 sessions ago). Minervini's full template also requires ≥30% above the
    52-week low, within 25% of the high, and an RS rating. Defensible
    simplification — decide whether to relabel or extend.
-3. **Cosmetic:** the slope test uses `>=` for stage 2 and `<=` for stage 4, so a
-   perfectly flat SMA200 satisfies both. Harmless today (the price/MA ordering
-   conditions are mutually exclusive) but sloppy — tighten to `>` / `<`.
+3. ~~**Cosmetic:** the slope test uses `>=` / `<=`.~~ ✅ **DONE** — tightened to
+   strict `>` / `<` in all THREE copies (`c4c4ed4`, `23dde7cc`): collector
+   `count_stage`, collector `list_stage`, and the dashboard live path. The two
+   collector copies now share one `_stage_mask`, because a drift between the
+   count and its drill list would surface as a modal disagreeing with the number
+   the user clicked. The dashboard's `test_reference_matches_collector_source`
+   AST-compares its mirrored copy and caught the refactor immediately.
+
+Items 1 and 2 remain **owner decisions** and are deliberately not implemented.
+Both definitions are now written down in `count_stage`'s docstring.
 
 ---
 
@@ -223,18 +259,34 @@ produced the value.
 9 correct / 0 wrong vs naive consensus 3/5), and the settle-polling job
 ("UCT NAAIM Settle", Thu+Fri 14:00 CT every 2h for 20h).
 
-**Unsolved: latency.** Median +47h to first public mention, +57h to
-corroboration. naaim.org's own free page states a three-month delay, so chatter
-is the floor via that route.
+**Latency: SOURCES EXHAUSTED 2026-08-08. There is nothing left to find — the
+publisher withdrew the data.**
 
-Owner's direction: find it elsewhere via search + the Twitter API rather than
-paying. Ideas not yet tried:
-- Aggregators that may republish faster: MacroMicro, YCharts, CEIC, Koyfin.
-- NAAIM member firms publishing the figure in their own weekly notes.
-- Newsletter/RSS syndication that quotes it on publication day.
-- Widening the X search beyond the current blanket query — **but note the
-  window is deliberately capped at the 7-day publication cadence; widening it
-  to +9d immediately returned the NEXT survey's number.**
+| source | latest available | status |
+|---|---|---|
+| naaim.org public page/chart | 2026-04-29 | **three-month delay, stated policy on the page** |
+| @NAAIM_Official on X | 2026-07-31 (79.70) | stopped — that post says "the LAST WEEK of free public access" |
+| YCharts | 2026-07-29, updated 07-30 | feed stopped |
+| MacroMicro | 2026-07-29 | feed stopped |
+| CEIC | Jul 2026 | feed stopped |
+| Barchart, TradingView, Yardeni, Nasdaq Data Link | — | 404/403, no series |
+| StockCharts, isabelnet, naaim tag page | — | no dated readings |
+
+The aggregators did not lag; they **lost the feed on 2026-08-01** along with
+everyone else. YCharts even published on a Thursday 10:00 EDT schedule (~21h
+post-survey) right up to the cutoff — that was a licensed feed, and it is gone.
+
+**The reframe that matters:** even when it was free, @NAAIM_Official posted the
+number on **Fridays**, ~48h after the Wednesday survey. The chatter route's +47h
+median is already AT the speed of the fastest free channel that ever existed.
+There was never a latency win available to find.
+
+✅ Not a defect: `naaim_date` is correctly populated on every row, so a carried
+79.7 is transparently attributed to the 2026-07-29 survey rather than passing as
+current.
+
+**Owner decision:** accept the chatter route (blind-tested 9 correct / 0 wrong /
+2 no-call), pay, or drop NAAIM from `breadth_score`'s 10 points.
 
 ⚠️ Guards that exist because the backtest produced a WRONG answer without them:
 require decimals; exclude the prior week's value (21 accounts once "agreed" on
@@ -244,16 +296,30 @@ missing one — ambiguity must return None.**
 
 ---
 
-### P5 — Ship what is already committed
+### P5 — Ship ✅ DONE
 
-1. Push `feat/breadth-live` to master (presets + breadth_score renormalization).
-   Window ≥4:20 PM ET. Merge master in first; it moves constantly.
-2. Confirm the collector fixes land on the next scheduled run: `vxmt` and
-   `vix_term_structure` populate (expect ~21.0 and ~1.41), `iwm_close`
-   populates (~301), `cboe_putcall` is either the correct date or null.
-3. Confirm the wire fix writes `spy_dist_days` / `qqq_dist_days` (expect 2 / 3).
-4. Re-run `python scripts/breadth_freeze_audit.py --days 150` — the three
-   currently-unexplained findings should clear as the fixes take effect.
+1. ✅ Pushed `030e69bc..3d60525b` (Sat 2026-08-08 ~01:36 ET, window open, tape
+   closed). Master had moved 43 commits — merged, re-verified, pushed. Never
+   forced.
+2. ✅ `vxmt` = 21.02 and `vix_term_structure` = 1.411 on 2026-08-07 — exactly the
+   ~21.0 / ~1.41 predicted here. `iwm_close` filled (0 rows now missing it).
+   `cboe_putcall` is date-correct on 150/150.
+   ⚠️ These did NOT come from the scheduled run — they needed a source change.
+   yfinance dropped the **whole CBOE index family** on 2026-07-17 (`^VIX6M`,
+   `^VIX3M`, `^VIX9D`, `^VIX1D` all stop the same day; `^VXMT`/`^VXV` return
+   nothing; plain `^VIX` keeps printing). The 6-month VIX now comes from CBOE's
+   own CDN — `.../delayed_quotes/charts/historical/_VIX6M.json`, 4,679 bars back
+   to 2008 — with yfinance as fallback.
+3. ⏳ Wire writes `spy_dist_days` / `qqq_dist_days` on its next run (Mon 6:35 AM
+   CT). State already holds exactly the predicted 2 SPY / 3 QQQ.
+4. ✅ `breadth_freeze_audit.py --days 150` → **0 unexplained, exit 0**, first
+   time ever. The 3 remaining findings are the documented known-ok ones.
+
+⚠️ **The repair introduced a bug and the audit caught it the same hour.** The
+first `--patch-rsp-vix3m` run used `.dropna().iloc[-1]`, which stamped 22.28
+across 16 sessions. Re-running an old backfill after a source goes quiet is how
+a walk-back gets written into history — check the audit after every repair, not
+just before.
 
 ---
 
@@ -261,7 +327,14 @@ missing one — ambiguity must return None.**
 
 | tool | purpose |
 |---|---|
-| `uct-intelligence/scripts/breadth_freeze_audit.py` | CONSTANT / FROZEN / NULL_TAIL / ALL_NULL / MISSING. Exit 1 on unexplained. 19 tests. |
+| `uct-intelligence/scripts/breadth_freeze_audit.py` | CONSTANT / FROZEN / NULL_TAIL / ALL_NULL / MISSING. Exit 1 on unexplained. 19 tests. **Run it after every repair, not just before.** |
+| `breadth_collector.py --patch-cboe-date` | re-date `cboe_putcall` by published date. Idempotent. `--limit N` for canary runs. |
+| `breadth_collector.py --patch-exposure-gaps` | null `uct_exposure` where it was never measured; REPORTS the 72 disagreements without writing them. |
+| `breadth_collector.py --patch-rsp-vix3m` | 6-month VIX (CBOE→yfinance), RSP/SPY, IWM/QQQ; fills `iwm_close` only where null. |
+
+⚠️ `--patch-*` and `--backfill` runs now bypass the holiday guard — a repair of
+past dates does not care whether the market is open today, and being gated there
+sent it to a `SystemExit` that prints one line and vanishes.
 | `tools/breadth_preset_check.py` | Clicks all 36 Data Charts presets in a browser, asserts **ink on the canvas**. |
 | `tools/breadth_live_open_check.py` | Scheduled market-open checks (`--phase preopen/open/session`); also guards the dividend basis. |
 | `tools/breadth_live_visual_check.py` | Serves local `app/dist`, proxies `/api` to production. |
@@ -281,8 +354,17 @@ Thu+Fri; collector 3:15 PM CT; dividend sweep 4:40 ET.
   tight round-trip or the push is rejected non-fast-forward.
 - **`reconcile` is expensive** — back-to-back calls 502/524 the single-process
   web pod.
-- **`^VXMT` and `^CPC` are both delisted from yfinance.** Assume any yfinance
-  symbol can vanish; check `rows == 0` rather than trusting a None.
+- **yfinance dropped the entire CBOE index family on 2026-07-17**, not just one
+  symbol: `^VIX6M`, `^VIX3M`, `^VIX9D`, `^VIX1D` all stop the same day, `^VXMT`
+  and `^VXV` return nothing, `^CPC` is gone, and plain `^VIX` keeps printing.
+  Chasing individual replacements treated a provider outage as a run of
+  coincidences — **when one symbol dies, check its siblings before swapping it.**
+  Prefer the exchange's own CDN. Check `rows == 0` rather than trusting a None.
+- **A forward-fill at the display layer can undo a fix in the data layer.**
+  `FFILL_KEYS` carried `cboe_putcall`, a DAILY series, so the one case it ever
+  fired was an unpublished session — exactly the case the collector had just
+  been changed to show as an honest gap. Two surfaces rendered yesterday's ratio
+  as today's. Anything forward-filled must be genuinely weekly.
 - **My own probes were wrong 6+ times** — `Number(null) === 0`, a 60-point
   downsample cap read as a dead sampler, `clock` read from a field the API never
   had, `window.echarts` not being global, `$?` after a pipe returning `tail`'s
