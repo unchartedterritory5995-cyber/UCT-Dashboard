@@ -643,6 +643,31 @@ def get_daily_agg(symbol: str, from_date: str, to_date: str, *,
         return []
 
 
+def get_grouped_daily_closes(day_iso: str, adjusted: bool = True) -> dict:
+    """{TICKER: close} for ONE date — the whole US equities market in a single call.
+
+    Provider-form tickers (BRK.B). adjusted=True → split-adjusted to the current basis
+    (so a return measured against an old close is correct across any split). Returns {}
+    for a non-trading day (the endpoint answers with zero results) or on error. Powers the
+    Top-Gainers scans' whole-market N-day reference."""
+    try:
+        client = _get_client()
+        adj = "true" if adjusted else "false"
+        url = (
+            f"{_REST_BASE}/v2/aggs/grouped/locale/us/market/stocks/"
+            f"{day_iso}?adjusted={adj}&apiKey={client._api_key}"
+        )
+        data = client._get(url) or {}
+    except Exception:
+        return {}
+    out: dict[str, float] = {}
+    for r in (data.get("results") or []):
+        tk, c = r.get("T"), r.get("c")
+        if tk and isinstance(c, (int, float)) and c > 0:
+            out[str(tk).upper()] = float(c)
+    return out
+
+
 def get_agg_bars_minute(ticker: str, multiplier: int, from_date: str, to_date: str) -> list[dict]:
     """Return intraday minute-aggregated OHLCV bars for a ticker over a date
     range from the Massive agg endpoint (timespan=minute). Follows ``next_url``

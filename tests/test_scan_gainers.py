@@ -9,21 +9,38 @@ def _reset():
         sg._ref_states.clear()
 
 
+# A snapshot row that clears the liquidity floor (price × prev_vol ≥ $1M) at $10+.
+def _row(last, prev):
+    return {"last_price": last, "prev_close": prev, "prev_vol": 1_000_000, "today_vol": 1_000_000}
+
+
 def test_reports_computing_until_reference_ready(monkeypatch):
     _reset()
-    monkeypatch.setattr(sg, "_universe", lambda: [])
-    monkeypatch.setattr(sg, "_etf_symbols", lambda: set())
-    monkeypatch.setattr(sg._sqlite, "close_n_sessions_back", lambda *a, **k: {})
+    monkeypatch.setattr(sg._sqlite, "nth_recent_trading_date", lambda n, before: None)
     out = sg.get_top_gainers_30d()
     assert out["status"] == "computing"
     assert out["results"] == []
     _reset()
 
 
-def test_build_reference_intersects_non_etf_universe(monkeypatch):
-    monkeypatch.setattr(sg._sqlite, "close_n_sessions_back",
-                        lambda n, before: {"AAA": 10.0, "BBB": 20.0, "ZZZ": 5.0})
-    ref = sg._build_reference(30, {"AAA", "BBB"})   # ZZZ outside the universe → dropped
+def test_build_reference_uses_grouped_daily_for_the_nth_session_date(monkeypatch):
+    seen = {}
+
+    def _fake_nth(n, before):
+        seen["n"] = n
+        return 20260401
+
+    def _fake_grouped(day_iso, adjusted=True):
+        seen["iso"] = day_iso
+        seen["adjusted"] = adjusted
+        return {"AAA": 10.0, "BBB": 20.0}
+
+    monkeypatch.setattr(sg._sqlite, "nth_recent_trading_date", _fake_nth)
+    monkeypatch.setattr(sg.massive, "get_grouped_daily_closes", _fake_grouped)
+    ref = sg._build_reference(30)
+    assert seen["n"] == 30
+    assert seen["iso"] == "2026-04-01"    # YYYYMMDD → ISO for the grouped endpoint
+    assert seen["adjusted"] is True       # split-adjusted closes
     assert ref == {"AAA": 10.0, "BBB": 20.0}
 
 
@@ -34,59 +51,63 @@ def test_ranks_by_n_day_change_and_keeps_top_5pct(monkeypatch):
     with sg._ref_lock:
         sg._state("30d").update(date=sg._session_date(), map=ref, building=False)
     # S39 up 40%, S38 up 39%, … S00 up 1%. Descending, so the top 2 are S39, S38.
-    snap = {sym: {"last_price": 100.0 * (1 + (i + 1) / 100.0), "prev_close": 100.0}
-            for i, sym in enumerate(ref)}
+    snap = {sym: _row(100.0 * (1 + (i + 1) / 100.0), 100.0) for i, sym in enumerate(ref)}
 
     class _Client:
         def get_full_market_snapshot(self):
             return snap
 
     monkeypatch.setattr(sg.massive, "_get_client", lambda: _Client())
+    monkeypatch.setattr(sg, "_etf_symbols", lambda: set())
 
     out = sg.get_top_gainers_30d()
     assert out["status"] == "ok"
     assert out["count"] == 2                                  # ceil(40 * 0.05) = 2
     assert [r["sym"] for r in out["results"]] == ["S39", "S38"]
     assert out["results"][0]["change_nd"] == 40.0            # (140-100)/100
-    # ref_close is exposed so the client recomputes the column live vs the streaming price.
-    assert out["results"][0]["ref_close"] == 100.0
+    assert out["results"][0]["ref_close"] == 100.0           # exposed for the live column
     _reset()
 
 
-def test_excludes_etfs_from_reference(monkeypatch):
-    # The reference build subtracts the ETF set from the universe before ranking.
-    seen = {}
-
-    def _fake_close(n, before):
-        return {"AAA": 10.0, "SNXX": 5.0}
-
-    monkeypatch.setattr(sg._sqlite, "close_n_sessions_back", _fake_close)
-    monkeypatch.setattr(sg, "_universe", lambda: ["AAA", "SNXX"])
-    monkeypatch.setattr(sg, "_etf_symbols", lambda: {"SNXX"})
-
-    # Drive the background build synchronously by calling _build_reference with the
-    # ETF-pruned universe the way _ensure_reference's job does.
-    uni = set(sg._universe()) - sg._etf_symbols()
-    assert uni == {"AAA"}
-    ref = sg._build_reference(30, uni)
-    assert ref == {"AAA": 10.0}   # SNXX (ETF) excluded
-
-
-def test_maps_class_share_symbology(monkeypatch):
-    """Universe is app-form (BRK-B); snapshot is provider-form (BRK.B)."""
+def test_excludes_etfs_and_illiquid_and_reuse_artifacts(monkeypatch):
     _reset()
+    ref = {"GOOD": 100.0, "SPXL": 100.0, "THIN": 100.0, "RMIX": 1.0}
     with sg._ref_lock:
-        sg._state("60d").update(date=sg._session_date(), map={"BRK-B": 100.0}, building=False)
-    snap = {"BRK.B": {"last_price": 150.0, "prev_close": 140.0}}
+        sg._state("60d").update(date=sg._session_date(), map=ref, building=False)
+    snap = {
+        "GOOD": _row(150.0, 148.0),                                   # +50%, liquid → kept
+        "SPXL": _row(300.0, 295.0),                                   # ETF → dropped
+        "THIN": {"last_price": 150.0, "prev_close": 148.0, "prev_vol": 10},  # $1.5K dvol → dropped
+        "RMIX": _row(62.0, 61.0),                                     # +6100% vs 1.0 ref → artifact
+    }
 
     class _Client:
         def get_full_market_snapshot(self):
             return snap
 
     monkeypatch.setattr(sg.massive, "_get_client", lambda: _Client())
-    monkeypatch.setattr(sg.massive, "to_polygon_symbol", lambda s: s.replace("-", "."))
+    monkeypatch.setattr(sg, "_etf_symbols", lambda: {"SPXL"})
 
     out = sg.get_top_gainers_60d()
-    assert [r["sym"] for r in out["results"]] == ["BRK-B"]
+    assert [r["sym"] for r in out["results"]] == ["GOOD"]     # only the real, liquid mover
+    _reset()
+
+
+def test_maps_class_share_symbology(monkeypatch):
+    """Grouped/snapshot are provider-form (BRK.B); results + the ETF check use app-form."""
+    _reset()
+    with sg._ref_lock:
+        sg._state("60d").update(date=sg._session_date(), map={"BRK.B": 100.0}, building=False)
+    snap = {"BRK.B": _row(150.0, 148.0)}
+
+    class _Client:
+        def get_full_market_snapshot(self):
+            return snap
+
+    monkeypatch.setattr(sg.massive, "_get_client", lambda: _Client())
+    monkeypatch.setattr(sg, "_etf_symbols", lambda: set())
+
+    out = sg.get_top_gainers_60d()
+    assert [r["sym"] for r in out["results"]] == ["BRK-B"]    # provider→app form on output
     assert out["results"][0]["change_nd"] == 50.0
     _reset()

@@ -416,6 +416,20 @@ def first_trade_dates(tickers) -> dict:
     return {str(r[0]).upper(): int(r[1]) for r in rows}
 
 
+def nth_recent_trading_date(n: int, before_ymd: int) -> int | None:
+    """The Nth most-recent DISTINCT daily-bar date (YYYYMMDD int) strictly before
+    before_ymd — the market trading calendar (distinct ts across all tickers, so a
+    single-name gap can't skew it). Powers the Top-Gainers scans' "N trading days back"
+    reference date. None when fewer than N sessions exist."""
+    row = _conn().execute(
+        """SELECT ts FROM (
+               SELECT DISTINCT ts FROM ohlcv WHERE tf='D' AND ts<? ORDER BY ts DESC LIMIT ?
+           ) ORDER BY ts ASC LIMIT 1""",
+        (int(before_ymd), int(n)),
+    ).fetchone()
+    return int(row[0]) if row and row[0] else None
+
+
 def close_n_sessions_back(n: int, before_ymd: int) -> dict:
     """{TICKER: close} of the Nth most-recent COMPLETED daily session strictly BEFORE
     before_ymd (YYYYMMDD int) — the reference close for an "N-day change" measured against
