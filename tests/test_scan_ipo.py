@@ -13,6 +13,7 @@ def test_ipo_scan_reports_computing_before_set(monkeypatch):
     _reset()
     monkeypatch.setattr(si._sqlite, "recent_first_trade", lambda since: {})
     monkeypatch.setattr(si, "_recent_relistings", lambda since: {})
+    monkeypatch.setattr(si, "_whole_market_ipos", lambda since: {})
     out = si.get_ipo_last_1y()
     assert out["status"] == "computing"
     assert out["results"] == []
@@ -24,15 +25,62 @@ def test_build_ipo_set_returns_recent_first_trades(monkeypatch):
     monkeypatch.setattr(si._sqlite, "recent_first_trade",
                         lambda since: {"AAA": 20260101, "CBRS": 20260528})
     monkeypatch.setattr(si, "_recent_relistings", lambda since: {})
+    monkeypatch.setattr(si, "_whole_market_ipos", lambda since: {})
     assert si._build_ipo_set() == {"AAA": 20260101, "CBRS": 20260528}
 
 
-def test_build_ipo_set_merges_reuse_overlay(monkeypatch):
-    # A recycled ticker (SPCX) is hidden from MIN(ts) by its old bars; the reuse overlay
-    # adds it with its sanitize-verified current-listing date.
-    monkeypatch.setattr(si._sqlite, "recent_first_trade", lambda since: {"CBRS": 20260528})
+def test_build_ipo_set_merges_all_overlays(monkeypatch):
+    # Base (bars.db) + reuse overlay (SPCX) + whole-market overlay (AIB, not charted). The
+    # whole-market list_date wins for a ticker known to both (exact IPO date > first bar).
+    monkeypatch.setattr(si._sqlite, "recent_first_trade",
+                        lambda since: {"CBRS": 20260528, "AIB": 20260610})
     monkeypatch.setattr(si, "_recent_relistings", lambda since: {"SPCX": 20260615})
-    assert si._build_ipo_set() == {"CBRS": 20260528, "SPCX": 20260615}
+    monkeypatch.setattr(si, "_whole_market_ipos", lambda since: {"AIB": 20260605, "APMD": 20260701})
+    assert si._build_ipo_set() == {
+        "CBRS": 20260528, "SPCX": 20260615, "AIB": 20260605, "APMD": 20260701,
+    }  # AIB uses the whole-market list_date (20260605), not the bars.db first bar (20260610)
+
+
+def test_whole_market_ipos_surfaces_common_stock_not_in_bars_db(monkeypatch):
+    calls = []
+
+    def _fake_near(d):
+        calls.append(d)
+        return {"AIB", "APMD", "ANCHOR"} if len(calls) == 1 else {"ANCHOR"}   # now vs ~1y ago
+
+    monkeypatch.setattr(si, "_grouped_symbols_near", _fake_near)
+    monkeypatch.setattr(si, "_common_stock_symbols", lambda: {"AIB", "APMD"})
+    monkeypatch.setattr(si, "_list_date", lambda t: {"AIB": 20260601, "APMD": 20260701}.get(t))
+    out = si._whole_market_ipos(20250807)
+    assert out == {"AIB": 20260601, "APMD": 20260701}
+
+
+def test_whole_market_ipos_filters_non_cs_and_old_listings(monkeypatch):
+    calls = []
+
+    def _fake_near(d):
+        calls.append(d)
+        return {"AIB", "WARR", "OLDIPO", "ANCHOR"} if len(calls) == 1 else {"ANCHOR"}
+
+    monkeypatch.setattr(si, "_grouped_symbols_near", _fake_near)
+    monkeypatch.setattr(si, "_common_stock_symbols", lambda: {"AIB", "OLDIPO"})  # WARR not CS
+    monkeypatch.setattr(si, "_list_date", lambda t: {"AIB": 20260601, "OLDIPO": 20240101}.get(t))
+    out = si._whole_market_ipos(20250807)
+    assert out == {"AIB": 20260601}     # WARR excluded (not CS); OLDIPO listed before the window
+
+
+def test_list_date_parses_common_stock_only(monkeypatch):
+    cache.delete_prefix("ipo_listdate_")
+    details = {
+        "AIB": {"type": "CS", "list_date": "2026-06-01"},
+        "WARR": {"type": "WARRANT", "list_date": "2026-05-01"},
+        "NODATE": {"type": "CS"},
+    }
+    monkeypatch.setattr(si.massive, "get_ticker_details", lambda t: details.get(t, {}))
+    assert si._list_date("AIB") == 20260601
+    assert si._list_date("WARR") is None    # not common stock
+    assert si._list_date("NODATE") is None  # no list_date
+    cache.delete_prefix("ipo_listdate_")
 
 
 def test_recent_relistings_verifies_candidates_via_sanitize(monkeypatch):
