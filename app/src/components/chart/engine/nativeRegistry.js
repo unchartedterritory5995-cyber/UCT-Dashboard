@@ -91,7 +91,7 @@ import {
 // on this branch returned ten matches and every one was prose in a comment).
 import { interpret } from './ast/interpret'
 import { checkBudget } from './ast/budget'
-import { lintRepaint } from './ast/lint'
+import { lintRepaint, declaredInputs } from './ast/lint'
 import {
   computeRSI,
   computeMACD,
@@ -1532,7 +1532,14 @@ function validateAstLane(def) {
 
   let verdict
   try {
-    verdict = lintRepaint(ast)
+    // ⭐ THE DEFINITION'S OWN DECLARED INPUTS, DERIVED — the same set
+    // `lintDefinition` (and therefore `repaintVerdict`, and therefore the legend
+    // chip) derives. `parse.js` turns every identifier into a `series` node, so
+    // a formula naming a declared knob reads as an unknown series to a linter
+    // handed no inputs; this door and the chip would then disagree about one
+    // definition, which is the contract divergence this pair keeps paying for.
+    // Every definition that declares no inputs gets `{}` and is unmoved.
+    verdict = lintRepaint(ast, { inputs: declaredInputs(def) })
   } catch (err) {
     errors.push(
       `compute.ast: the repaint linter could not read this tree ` +

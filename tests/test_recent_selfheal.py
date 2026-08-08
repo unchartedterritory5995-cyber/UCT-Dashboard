@@ -10,20 +10,17 @@ while flow.db ingested normally. Tests the isolatable pieces:
 """
 
 import os
-import sys
 import time
-import types
 import tempfile
 
 os.environ.setdefault("RAILWAY_VOLUME_MOUNT_PATH", tempfile.mkdtemp(prefix="lmr_"))
 
-# Stub the heavy auth import chain (flow_admin_auth -> auth_service -> bcrypt ...)
-# so the router imports headlessly; we only exercise pure threading/cache logic.
-_fake_auth = types.ModuleType("api.flow_admin_auth")
-_fake_auth.require_flow_admin = lambda *a, **k: {}
-_fake_auth.require_flow_user = lambda *a, **k: {}
-sys.modules.setdefault("api.flow_admin_auth", _fake_auth)
-
+# ⛔ NO `sys.modules.setdefault("api.flow_admin_auth", <two lambdas>)` HERE —
+# see the note in `tests/test_flow_classification.py`. The stub claimed to keep
+# the router headless because "the auth chain pulls bcrypt"; bcrypt is
+# installed, so the claim expired, and what remained was an import-time
+# mutation of a process-global that no fixture undid. Rail:
+# `tests/test_shared_state_landmines.py`.
 import pytest
 from api import live_massive_router as m
 

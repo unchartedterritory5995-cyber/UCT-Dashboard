@@ -24,20 +24,18 @@ the steal path so the capacity guard can never gate that lane.
 """
 
 import os
-import sys
 import time
-import types
 import tempfile
 import threading
 
 os.environ.setdefault("RAILWAY_VOLUME_MOUNT_PATH", tempfile.mkdtemp(prefix="lmr_lease_"))
 
-# Same headless-import stub as test_recent_selfheal.py (auth chain pulls bcrypt).
-_fake_auth = types.ModuleType("api.flow_admin_auth")
-_fake_auth.require_flow_admin = lambda *a, **k: {}
-_fake_auth.require_flow_user = lambda *a, **k: {}
-sys.modules.setdefault("api.flow_admin_auth", _fake_auth)
-
+# ⛔ NO `sys.modules.setdefault("api.flow_admin_auth", <two lambdas>)` HERE —
+# see the note in `tests/test_flow_classification.py`. The stub was vestigial
+# (bcrypt is installed, the real module imports, and nothing here resolves a
+# FastAPI dependency), and leaving it installed let import ORDER decide what
+# every other test in the process bound. Rail:
+# `tests/test_shared_state_landmines.py`.
 import pytest
 from api import live_massive_router as m
 from api.services import liveflow_monitor as mon

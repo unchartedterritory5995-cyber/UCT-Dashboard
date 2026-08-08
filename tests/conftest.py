@@ -1,4 +1,124 @@
+import os
+import sys
+
 import pytest
+
+# ─── AUTH_DB_PATH isolation ────────────────────────────────────────────────
+#
+# `AUTH_DB_PATH` was unset and `C:\data` EXISTS on this box, so every
+# auth-touching test in the repo wrote to ONE persistent shared file —
+# `C:\data\auth.db`, 20,640 users deep at measurement and still growing — that
+# survived every run. Any test ordering by `created_at`, counting users, or
+# asserting on "the newest row" sat on that trapdoor; it is what turned five
+# voice failures from flaky into deterministic.
+#
+# ⚠️ THE OBVIOUS FIX IS A GATE THAT CANNOT FAIL. `monkeypatch.setenv(
+# "AUTH_DB_PATH", ...)` inside a fixture reaches NOTHING in `auth_db`:
+#
+#     api/services/auth_db.py:9   _DB_PATH = os.environ.get("AUTH_DB_PATH", ...)
+#
+# is executed ONCE, at import. `get_connection()` closes over that module
+# global, never over `os.environ`. Measured: pop the env var, import
+# `auth_db`, set the env var, call `get_connection()` — `PRAGMA database_list`
+# still reports `C:\data\auth.db`. An AST census puts SIX product modules in
+# that import-time class (auth_db, awareness.regime_snapshots, bar_provenance,
+# bar_quarantine, bars_audit, indicator_alert_service) against seven
+# journal_two modules that re-read per call. Roughly forty tests in this repo
+# `setenv` and only ever reached the second group.
+#
+# So this runs at CONFTEST IMPORT — before pytest imports a single test module,
+# therefore before those six capture anything — and the session fixture below
+# repairs any module that was already imported (a run that collects `api/…`
+# tests first gets there ahead of this file).
+#
+# ⚠️ THE STORE IS MINTED BY THE REPO-ROOT `conftest.py`, NOT HERE. A conftest
+# only reaches its own directory, and the 93 test files under `api/**` have none
+# — so `pytest api/...` ran with no isolation whatsoever and wrote into the real
+# C:\data\auth.db. Root conftest.py sets AUTH_DB_PATH before any other conftest
+# is imported; this file READS it back so the session has exactly ONE isolated
+# store. Minting a second one here would point the six import-time capturers at
+# a different file from the seven journal_two per-call readers. A KeyError here
+# means the root conftest was deleted — which is the failure we want, loudly.
+ISOLATED_AUTH_DB = os.environ["AUTH_DB_PATH"]
+
+
+def unisolated_auth_db_path() -> str:
+    """The file the product WOULD open with no isolation — derived, not typed.
+
+    Re-executes `api/services/auth_db.py`'s own two-line resolution against an
+    absent `AUTH_DB_PATH`, so the shared-store rail in
+    `tests/test_shared_state_landmines.py` can never drift from the code it is
+    protecting (and never hard-codes `C:\\data\\auth.db`).
+    """
+    path = "/data/auth.db"
+    if not os.path.exists(os.path.dirname(path)):
+        import api.services.auth_db as _adb
+
+        path = os.path.join(os.path.dirname(_adb.__file__), "..", "..", "data", "auth.db")
+    return path
+
+
+def _captured_auth_db_holders():
+    """Every ALREADY-IMPORTED module holding a module-level auth.db path.
+
+    Derived by VALUE from `sys.modules` rather than from a typed list of module
+    names: a module qualifies when one of its module-level attributes is a
+    string equal to a path the un-isolated resolution produces. A seventh
+    import-time reader added tomorrow is picked up for free.
+    """
+    stale = {os.path.normcase(os.path.abspath(p)) for p in
+             ("/data/auth.db", unisolated_auth_db_path())}
+    found = []
+    for name, mod in list(sys.modules.items()):
+        if not name.startswith("api.") or mod is None:
+            continue
+        try:
+            items = list(vars(mod).items())
+        except Exception:  # noqa: BLE001 — a module without a __dict__
+            continue
+        for attr, val in items:
+            if (isinstance(val, str) and val.endswith("auth.db")
+                    and os.path.normcase(os.path.abspath(val)) in stale):
+                found.append((mod, attr))
+    return found
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _repair_auth_db_paths_captured_before_conftest():
+    """Close the one gap the env var cannot: modules imported ahead of us."""
+    holders = _captured_auth_db_holders()
+    saved = [(m, a, getattr(m, a)) for m, a in holders]
+    for mod, attr in holders:
+        setattr(mod, attr, ISOLATED_AUTH_DB)
+    yield
+    for mod, attr, old in saved:
+        setattr(mod, attr, old)
+
+
+@pytest.fixture(scope="session")
+def isolated_auth_db() -> str:
+    """The per-session store every auth-touching test writes to."""
+    return ISOLATED_AUTH_DB
+
+
+@pytest.fixture(scope="session")
+def shared_auth_db_path() -> str:
+    """The file the product would open with no isolation (see above)."""
+    return unisolated_auth_db_path()
+
+
+@pytest.fixture(autouse=True)
+def _isolate_auth_db(monkeypatch):
+    """Per-test: keep the env var pointed at the isolated store.
+
+    Several test modules assign `os.environ["AUTH_DB_PATH"]` at import time and
+    never restore it, which would silently redirect the per-call readers
+    (journal_two) for the rest of the session. This re-pins it around every
+    test. A test that sets its own path afterwards still wins — its fixtures
+    run after this one and monkeypatch unwinds in reverse.
+    """
+    monkeypatch.setenv("AUTH_DB_PATH", ISOLATED_AUTH_DB)
+    yield
 
 
 @pytest.fixture(autouse=True)

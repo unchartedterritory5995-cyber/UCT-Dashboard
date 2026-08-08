@@ -22,6 +22,7 @@ import {
   useIpos,
   useDividends,
 } from './calendar/useCalendarData'
+import { mondayOf, currentWeekMonday, localIso } from './calendar/weekAnchor'
 import { DEFAULT_FILTERS, applyFilters } from './calendar/filterLogic'
 import { tierWeek, FEATURED_CAP } from './calendar/importance'
 import CalendarHeader, { DEFAULT_EVENT_TYPES } from './calendar/CalendarHeader'
@@ -47,23 +48,16 @@ function fmtWeekRange(start, end) {
 }
 
 // ── Time helpers (Week Navigator) ────────────────────────────────────────────
-
-// Format a Date's LOCAL calendar parts as ISO — never toISOString(), which
-// converts to UTC and shifts the date for UTC+13/+14 browsers (NZDT, Samoa).
-function localIso(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-// Monday (ISO date string) of the week containing an ISO date string.
-// Returns null for calendar-invalid input ('2026-13-05' passes the URL regex
-// but must fall back to the current week, not crash the render).
-export function mondayOf(iso) {
-  const d = new Date(iso + 'T12:00:00')       // noon-anchored: DST-safe date math
-  if (Number.isNaN(d.getTime())) return null
-  const shift = (d.getDay() + 6) % 7          // Mon=0 … Sun=6
-  d.setDate(d.getDate() - shift)
-  return localIso(d)
-}
+//
+// `mondayOf` / `localIso` / `currentWeekMonday` now live in ./calendar/weekAnchor.js
+// — read its header before touching week math. The short version: `mondayOf`
+// answers "which week CONTAINS this date" (used for a URL param or a payload
+// day), `currentWeekMonday` answers "which week is the calendar SHOWING right
+// now", and only the second one rolls a weekend forward. They are NOT
+// interchangeable: using `mondayOf(todayIso())` as the current-week anchor is
+// precisely the bug that made week navigation a no-op every weekend.
+// `mondayOf` is re-exported so existing importers keep working.
+export { mondayOf }
 
 // `todayIso`/`shouldUnwindHistory` moved to ./calendar/earningsModalRow.js
 // (T11 review round 1, minor) — that module is already imported by BOTH
@@ -96,8 +90,11 @@ export default function Calendar() {
     const monday = mondayOf(rawWeek)   // null for calendar-invalid dates
     if (!monday) return null
     // The current week rides the bare endpoint (legacy calendar_weekly cache
-    // key) — treat an explicit current-week param as "no param".
-    return monday === mondayOf(todayIso()) ? null : monday
+    // key) — treat an explicit current-week param as "no param". "Current"
+    // MUST be the backend's answer (`currentWeekMonday`), not the week
+    // containing today: on a Saturday those are 7 days apart, and the bare
+    // endpoint serves the FORWARD one.
+    return monday === currentWeekMonday(todayIso()) ? null : monday
   }, [rawWeek])
   const dParam = searchParams.get('d')
 
@@ -563,13 +560,20 @@ export default function Calendar() {
   // ── Navigation handlers ────────────────────────────────────────────────────
   const gotoWeek = useCallback((mondayIso, dayIso = null) => {
     const next = {}
-    if (mondayIso && mondayIso !== mondayOf(todayIso())) next.week = mondayIso
+    // Same anchor as `weekParam` above — these two decisions have to be the
+    // same decision, or a "go to this week" lands somewhere the reader of the
+    // URL disagrees with.
+    if (mondayIso && mondayIso !== currentWeekMonday(todayIso())) next.week = mondayIso
     if (dayIso) next.d = dayIso
     setSearchParams(next)
   }, [setSearchParams])
 
   const shiftWeek = useCallback((deltaDays) => {
-    const base = weekParam || mondayOf(todayIso())
+    // The base for ±7 must be the week ON SCREEN. With no `?week=` that is the
+    // backend's current week; anchoring on `mondayOf(todayIso())` instead made
+    // "next" resolve to the displayed week (no-op) and "prev" skip one, every
+    // Saturday and Sunday.
+    const base = weekParam || currentWeekMonday(todayIso())
     if (!base) return
     const d = new Date(base + 'T12:00:00')
     if (Number.isNaN(d.getTime())) return

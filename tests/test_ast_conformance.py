@@ -270,6 +270,163 @@ def test_the_real_manifest_coverage_is_armed_and_task_3_owes_the_first_pass():
     ac.assert_corpus_covers_the_table(manifest, ac.load_corpus())
 
 
+def test_a_cases_own_DECLARED_input_is_not_a_stray_name():
+    """`parse.js` turns every identifier into a `series` node, so `names_in` sees
+    an input reference exactly as it sees `close`. A rail that read a declared
+    knob as *"a corpus case calling something the manifest does not declare"*
+    would make an input case unwritable -- which is how a corpus stops covering
+    the thing production does."""
+    manifest = {"functions": {}, "operators": {"*": {}}, "series": {"close": {}}}
+    corpus = {"cases": [{"id": "x", "inputs": {"lineWidth": 1},
+                         "ast": {"type": "op", "name": "*", "args": [
+                             {"type": "series", "name": "close"},
+                             {"type": "series", "name": "lineWidth"}]}}]}
+    assert ac.assert_corpus_covers_the_table(manifest, corpus) == {"*", "close"}
+
+
+def test_an_input_that_SHADOWS_a_table_name_aborts_the_coverage_rail():
+    """⛔ AND THE SUBTRACTION ABOVE IS BOUNDED. `interpret` raises a plain error
+    for an input whose key shadows a table name -- in BOTH lanes, because it is a
+    wiring defect rather than a formula the table refuses -- so a case declaring
+    one measures the wrong thing in the direction that looks like coverage."""
+    manifest = {"functions": {}, "operators": {}, "series": {"close": {}}}
+    corpus = {"cases": [{"id": "x", "inputs": {"close": 1},
+                         "ast": {"type": "series", "name": "close"}}]}
+    with pytest.raises(AssertionError, match=r"SHADOW a table name.*close"):
+        ac.assert_corpus_covers_the_table(manifest, corpus)
+
+
+# --------------------------------------------------------------------------- #
+# the input map -- ONE reader, BOTH lanes
+# --------------------------------------------------------------------------- #
+#
+# 🔴 THE DEFECT THE AUDIT NAMED: *"the arm-time 'lanes agree at 1e-9' proof runs
+# on an input map neither production lane uses."* `run_js` and `run_py` called
+# `interpret(ast, bars)` with no inputs at all, so every equality this file
+# records was taken over `{}` while `alert_user_series._make_value_fn` evaluates
+# the same tree with the definition's declared knobs -- and any tree that
+# REFERENCED one was refused `resolve:name` before a single row was compared.
+
+def _calls_named(fn: pyast.AST, name: str) -> int:
+    return sum(1 for n in pyast.walk(fn)
+               if isinstance(n, pyast.Call) and isinstance(n.func, pyast.Name)
+               and n.func.id == name)
+
+
+def test_BOTH_lanes_read_their_inputs_through_the_SAME_reader():
+    """⛔ STRUCTURAL, AND IT IS THE HALF A BEHAVIOURAL CASE CANNOT COVER.
+
+    A lane that quietly stopped threading inputs would still agree with itself on
+    every case in the committed corpus, because not one of them declares any --
+    the equality would go on reading green while the production shape it exists
+    to cover was refused. So both lanes are required BY AST to call
+    `case_inputs`, and the control below proves the walk can see its absence.
+    """
+    for lane in ("run_js", "run_py"):
+        assert _calls_named(_module_fn(lane), "case_inputs") == 1, (
+            f"{lane} does not read the case's inputs through `case_inputs`. Two "
+            "readers is how the two lanes come to be handed different maps, and "
+            "an equality over two different input maps reports as agreement.")
+
+
+def test_control_the_call_walk_can_see_an_absent_reader():
+    """Two green filters prove only that a counter returned 1 twice."""
+    fn = pyast.parse("def f(cases, bars):\n    return interpret(cases, bars)\n").body[0]
+    assert _calls_named(fn, "case_inputs") == 0
+    fn2 = pyast.parse("def f(c):\n    return case_inputs(c)\n").body[0]
+    assert _calls_named(fn2, "case_inputs") == 1
+
+
+def test_NEITHER_lane_takes_a_second_channel_for_an_input_map():
+    """⛔ THE MAP RIDES ON THE CASE, AND THERE IS NO OTHER DOOR.
+
+    A `run_js(cases, bars, inputs=...)` parameter would be exactly the shape that
+    lets a caller hand one map to node and another to Python -- and a cross-lane
+    equality taken over two different inputs is an equality about nothing that
+    reads precisely like agreement.
+    """
+    for lane in ("run_js", "run_py"):
+        args = _module_fn(lane).args
+        names = [a.arg for a in args.posonlyargs + args.args + args.kwonlyargs]
+        assert names == ["cases", "bars"], (
+            f"{lane} grew a parameter: {names}")
+
+
+def test_case_inputs_reads_the_map_off_the_case_and_defaults_to_empty():
+    assert ac.case_inputs({"id": "x", "inputs": {"lineWidth": 3.0}}) == {"lineWidth": 3.0}
+    assert ac.case_inputs({"id": "x"}) == {}
+    assert ac.case_inputs({"id": "x", "inputs": None}) == {}
+    assert ac.case_inputs({"id": "x", "inputs": [1, 2]}) == {}
+    assert ac.case_inputs(None) == {}
+    # a COPY, so a lane cannot mutate the corpus out from under the other one
+    case = {"id": "x", "inputs": {"lineWidth": 1.0}}
+    ac.case_inputs(case)["lineWidth"] = 99.0
+    assert case["inputs"] == {"lineWidth": 1.0}
+
+
+def test_no_committed_corpus_case_declares_inputs_so_the_frozen_LOG_cannot_have_moved():
+    """⛔ THE INVARIANCE, AND IT IS WHY THIS CHANGE IS SAFE TO MAKE AT ALL.
+
+    `--record` is one-shot and its output is the oracle. `interpret(ast, bars,
+    {})` is byte-identical to the no-argument call both lanes made before, so as
+    long as every committed case declares nothing, every digest in
+    `conformance_log.json` is arithmetically unmoved. The day somebody adds an
+    input case this test is what tells them the log moves with it.
+    """
+    declaring = [c["id"] for c in ac.load_corpus()["cases"] if ac.case_inputs(c)]
+    assert declaring == [], (
+        f"{declaring} declare inputs, so the frozen conformance log no longer "
+        "describes the values these lanes produce. Read the --record warning "
+        "before touching it.")
+    escaping = [c["id"] for c in ac.load_escapes()["cases"] if ac.case_inputs(c)]
+    assert escaping == [], (
+        f"{escaping} declare inputs, so the escape census is measuring a "
+        "different corpus than the one recorded CLOSED, 0 of 16")
+
+
+@pytest.mark.skipif(not ac.js_lane_available() or not ac.py_lane_available(),
+                    reason="both interpreters are needed to compare them")
+def test_an_input_referencing_TREE_is_evaluated_and_AGREES_across_both_lanes():
+    """⭐ THE BEHAVIOURAL HALF: the shape production runs, through both lanes.
+
+    `close * lineWidth` is what `BuilderSheet.buildDefinition` is one keystroke
+    from producing. Before this it could not be compared at all.
+    """
+    bars = ac.corpus_bars()
+    tree = {"type": "op", "name": "*", "args": [
+        {"type": "series", "name": "close"},
+        {"type": "series", "name": "lineWidth"}]}
+    cases = [{"id": "with_input", "ast": tree, "inputs": {"lineWidth": 3.0}}]
+
+    js = ac.run_js(cases, bars)
+    py = ac.run_py(cases, bars)
+    report = ac.compare_lanes(js, py)
+    assert report["differences"] == []
+    assert report["compared"] == len(bars)
+    # …and the NUMBER is the one the input produces, not the bare close.
+    assert py["with_input"][-1] == pytest.approx(bars[-1]["c"] * 3.0)
+
+
+@pytest.mark.skipif(not ac.js_lane_available() or not ac.py_lane_available(),
+                    reason="both interpreters are needed to compare them")
+def test_control_the_SAME_tree_with_no_inputs_is_refused_by_BOTH_lanes():
+    """⛔ THE NON-VACUITY OF THE CASE ABOVE. If the map were inert, dropping it
+    would change nothing and the equality would be proving something else. Both
+    lanes refuse `resolve:name` without it -- which is exactly the state every
+    input-referencing formula's arm-time proof was in."""
+    bars = ac.corpus_bars()
+    tree = {"type": "op", "name": "*", "args": [
+        {"type": "series", "name": "close"},
+        {"type": "series", "name": "lineWidth"}]}
+    cases = [{"id": "no_input", "ast": tree}]
+
+    with pytest.raises(ac.LaneUnavailable, match="lineWidth"):
+        ac.run_js(cases, bars)
+    mod = __import__(ac.PY_INTERPRET_MODULE, fromlist=["TableRefusal"])
+    with pytest.raises(mod.TableRefusal, match="lineWidth"):
+        ac.run_py(cases, bars)
+
+
 # --------------------------------------------------------------------------- #
 # the escape corpus
 # --------------------------------------------------------------------------- #

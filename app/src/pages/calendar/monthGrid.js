@@ -12,7 +12,11 @@
  * @returns {Array<Array<{ds,dayNum,inMonth,isToday,syms,mineSyms,hasMacro}>>}
  */
 export function buildMonthGrid(year, month, daysMap, _sources) {
-  const todayStr = new Date().toISOString().slice(0, 10)
+  // ⛔ NOT `new Date().toISOString().slice(0,10)` — that is the UTC day, and
+  // every cell's own `ds` comes from `_iso()` (LOCAL parts), so east of UTC the
+  // two disagreed and `isToday` highlighted YESTERDAY's cell (or none, on the
+  // 1st of a month). One formatter for both sides.
+  const todayStr = _iso(new Date())
 
   // First day of month (0=Sun … 6=Sat → convert to Mon=0 index)
   const firstOfMonth = new Date(year, month - 1, 1)

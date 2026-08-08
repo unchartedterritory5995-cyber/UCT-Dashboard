@@ -181,6 +181,103 @@ export function userCatalogRows(registry) {
   return list.map(d => rowFor(d, true))
 }
 
+/** The heading a member's REFUSED formulas are grouped under.
+ *
+ *  ⛔ A SEPARATE HEADING FROM `USER_CATEGORY`, NOT A BADGE INSIDE IT. A refused
+ *  formula is not a row that can be ticked — there is no installed definition to
+ *  instantiate, so `setIndicatorEnabled` would return the settings BY IDENTITY
+ *  and the control would be a live-looking toggle that writes nowhere: the exact
+ *  defect `volumeProfile`'s "+ Add another" exemption exists to avoid, one
+ *  surface over. Its own section keeps it out of `role="option"` entirely. */
+export const REFUSED_CATEGORY = 'My formulas — not available'
+
+/** The id `nativeRegistry.registerDefinitions` writes when a document carries
+ *  none of its own (`raw && raw.id ? raw.id : '<unknown>'`). Named here so the
+ *  unattributable bucket below is the door's own literal rather than a second
+ *  one that happens to look like it. */
+export const UNATTRIBUTED_DEF_ID = '<unknown>'
+
+/**
+ * 🔴 THE FORMULAS THE GATES REFUSED, PAIRED WITH THE DOOR'S OWN SENTENCE.
+ *
+ * `userCatalogRows` above answers "what can this member draw"; a definition the
+ * gates refuse is absent from `listUserDefinitions()` and therefore absent from
+ * that list — CORRECT, and completely silent. The author saved a formula, the
+ * store ACCEPTED it, and it then appeared on no screen with nothing anywhere
+ * saying why. `installUserDefinitions` has returned the reason in `errors` since
+ * Phase D Task 16 and had **zero production consumers**: `StockChart` declines
+ * to render it (a toast on a render path would fire on every chart) and nothing
+ * else read it. This function is what makes that array reach a person.
+ *
+ * ⛔ THE MESSAGE IS THE DOOR'S, VERBATIM, WHOLE. Every gate on this path already
+ * writes a precise, disjoint sentence — the repaint gate names the mode it
+ * MEASURED, the budget gate names the guard that fired and the caps it measured
+ * against, the closed-table resolver names the symbol, the shipped-id clash
+ * names what would have been shadowed. Not one of them is re-worded here and no
+ * second vocabulary is invented: this repo has already measured what two
+ * vocabularies cost (`williams_r` vs `williamsR`), and `afbf0470` established
+ * the pattern of rendering a gate's own sentence verbatim, gated on the right
+ * states. The strings pass through untouched.
+ *
+ * ⚠️ THE `<id>: ` PREFIX IS PARSED FOR ATTRIBUTION ONLY, NEVER FOR DISPLAY. Both
+ * doors write it — `registerDefinitions` maps `e => \`${id}: ${e}\`` and
+ * `validateUserDefinitions` maps `e => \`${def.id}: ${e}\`` — so grouping on the
+ * FIRST `': '` is reading the format they publish, not paraphrasing it. A
+ * message that carries no prefix is NOT dropped: it lands under
+ * `UNATTRIBUTED_DEF_ID` and still renders, because a refusal nobody could
+ * attribute is still a refusal the member has to be told about. Silently
+ * discarding it would rebuild the bug at one remove.
+ *
+ * @param {object[]} docs   the STORED documents (`rows.map(r => r.definition)`)
+ *   — used ONLY to put the name the member typed on the row. A refusal whose
+ *   document is missing is still reported, under its id.
+ * @param {string[]} errors verbatim from `installUserDefinitions`.
+ * @returns {object[]} `[{id, name, shortName, category, tags, userDefined,
+ *   refused, messages}]` — in first-appearance order, `[]` when nothing was
+ *   refused, so a member whose formulas all install sees no new section at all.
+ *   The shape carries `matches()`'s five fields so the search box filters these
+ *   rows through the SAME predicate as every other row rather than a second one.
+ */
+export function userRefusalRows(docs, errors) {
+  const list = (Array.isArray(errors) ? errors : []).filter(
+    (e) => typeof e === 'string' && e.trim() !== '',
+  )
+  if (!list.length) return []
+
+  const labelById = new Map()
+  for (const doc of (Array.isArray(docs) ? docs : [])) {
+    if (!doc || typeof doc !== 'object' || typeof doc.id !== 'string' || !doc.id) continue
+    const meta = doc.meta || {}
+    labelById.set(doc.id, {
+      name: meta.name || doc.id,
+      shortName: meta.shortName || doc.id,
+    })
+  }
+
+  const order = []
+  const byId = new Map()
+  for (const message of list) {
+    const at = message.indexOf(': ')
+    const id = at > 0 ? message.slice(0, at) : UNATTRIBUTED_DEF_ID
+    if (!byId.has(id)) { byId.set(id, []); order.push(id) }
+    byId.get(id).push(message)
+  }
+
+  return order.map((id) => {
+    const label = labelById.get(id) || {}
+    return {
+      id,
+      name: label.name || id,
+      shortName: label.shortName || id,
+      category: REFUSED_CATEGORY,
+      tags: [],
+      userDefined: true,
+      refused: true,
+      messages: byId.get(id),
+    }
+  })
+}
+
 /** The registry's install generation — the ONE value a memo over
  *  `userCatalogRows` has to depend on. Exported from here rather than imported
  *  from `nativeRegistry` by each surface so a caller that was handed a custom

@@ -17,6 +17,16 @@ def client():
 
 
 def _login(client, plan="pro", role="member"):
+    """Create + authenticate a fresh user; RETURNS that user's id — use it.
+
+    Do not re-derive the id with `SELECT id FROM users ORDER BY created_at DESC
+    LIMIT 1`. auth.db is a shared, persistent file (20k+ rows here), and rows
+    seeded by other suites carry a frozen `created_at` that sorts ABOVE a row
+    written now — so that query returns a stranger, deterministically, even in
+    an isolated run. Five tests below used it and were addressing the wrong
+    user: the cap they saturated, the session they created, and the memory fact
+    they stored all belonged to someone the client was not logged in as.
+    """
     user = create_user(f"vroute_{__import__('uuid').uuid4()}@example.com", "password123")
     # Force plan + role for test
     from api.services.auth_db import get_connection
@@ -517,15 +527,8 @@ def test_session_token_returns_ephemeral_secret(client):
 
 
 def test_session_token_blocks_when_cap_exceeded(client):
-    _login(client, plan="pro")
+    uid = _login(client, plan="pro")
     from api.services.voice_usage import record_mode_c_seconds, MODE_C_DEFAULT_CAP_SECONDS
-    from api.services.auth_db import get_connection
-    conn = get_connection()
-    try:
-        row = conn.execute("SELECT id FROM users ORDER BY created_at DESC LIMIT 1").fetchone()
-        uid = row["id"]
-    finally:
-        conn.close()
     record_mode_c_seconds(uid, MODE_C_DEFAULT_CAP_SECONDS)
 
     fake_mint = {"session_id": "sess_x", "client_secret": "ek", "expires_at": 0, "model": "x"}
@@ -541,15 +544,8 @@ def test_exec_requires_paid(client):
 
 
 def test_exec_runs_tool_and_returns_envelope(client):
-    _login(client, plan="pro")
+    uid = _login(client, plan="pro")
     from api.services.voice_session_service import create_session
-    from api.services.auth_db import get_connection
-    conn = get_connection()
-    try:
-        row = conn.execute("SELECT id FROM users ORDER BY created_at DESC LIMIT 1").fetchone()
-        uid = row["id"]
-    finally:
-        conn.close()
     sid = create_session(user_id=uid, mode="c", source="orb", page_context="global")
 
     with patch("api.routers.voice.run_tool", return_value={
@@ -576,15 +572,8 @@ def test_exec_rejects_session_owned_by_another_user(client):
 
 
 def test_transcript_appends(client):
-    _login(client, plan="pro")
+    uid = _login(client, plan="pro")
     from api.services.voice_session_service import create_session, get_transcripts
-    from api.services.auth_db import get_connection
-    conn = get_connection()
-    try:
-        row = conn.execute("SELECT id FROM users ORDER BY created_at DESC LIMIT 1").fetchone()
-        uid = row["id"]
-    finally:
-        conn.close()
     sid = create_session(user_id=uid, mode="c", source="orb", page_context="global")
 
     r = client.post("/api/voice/transcript", json={
@@ -597,15 +586,8 @@ def test_transcript_appends(client):
 
 
 def test_session_end_records_duration(client):
-    _login(client, plan="pro")
+    uid = _login(client, plan="pro")
     from api.services.voice_session_service import create_session, get_session
-    from api.services.auth_db import get_connection
-    conn = get_connection()
-    try:
-        row = conn.execute("SELECT id FROM users ORDER BY created_at DESC LIMIT 1").fetchone()
-        uid = row["id"]
-    finally:
-        conn.close()
     sid = create_session(user_id=uid, mode="c", source="orb", page_context="global")
 
     r = client.post("/api/voice/session/end", json={
@@ -618,15 +600,8 @@ def test_session_end_records_duration(client):
 
 
 def test_session_token_injects_user_memory(client):
-    _login(client, plan="pro")
-    from api.services.auth_db import get_connection
+    uid = _login(client, plan="pro")
     from api.services.voice_memory_service import add_fact
-    conn = get_connection()
-    try:
-        row = conn.execute("SELECT id FROM users ORDER BY created_at DESC LIMIT 1").fetchone()
-        uid = row["id"]
-    finally:
-        conn.close()
     add_fact(uid, text="I trade small caps under $5B", category="style")
 
     captured_instructions = {}

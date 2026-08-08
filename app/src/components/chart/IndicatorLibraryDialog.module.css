@@ -71,6 +71,48 @@
    `data-user-defined` and the "Your formula" pill. */
 .rowMine { border-left: 2px solid var(--ut-gold-glow); border-radius: 6px; }
 
+/* A member's formula the gates REFUSED. ⛔ NOT A CONTROL: it reuses `.row`'s
+   geometry so it reads as the same kind of thing in the same list, and overrides
+   the two properties that would make it look clickable. `default` rather than
+   `not-allowed` — nothing here is disabled-pending-permission; there is simply
+   nothing to click. */
+.refusedRow { cursor: default; }
+.refusedRow:hover {
+  background: none;
+  border-color: transparent;
+  /* `.row:hover` sets `border-color` wholesale, which would take out the gold
+     leading rule `.rowMine` puts on this row. Restored explicitly. */
+  border-left-color: var(--ut-gold-glow);
+}
+
+/* The surface's own one-line framing. Muted, because the sentence that matters
+   is the gate's underneath it. */
+.refusedLede {
+  margin: 0 0 2px;
+  padding: 0 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+/* The gate's own sentence. ⚠️ WARNING-COLOURED, and that is the one place this
+   surface departs from `.badge`'s "a fact is not a warning" rule — because this
+   is not a property of an indicator, it is a REFUSAL of the member's own work
+   and something they may be able to fix.
+   ⛔ `--ind-warn`, NEVER `--warn`: tokens.css states outright that `--warn` IS
+   the premium gold and that using it for a warning conflates "warning" with
+   "premium brand" (there is a designTokens test on exactly that). This surface's
+   header also allows itself at most ONE gold element and that is `.tier`.
+   `overflow-wrap` because these sentences are long by design — they name the
+   guard, the measurement and the caps — and a sentence clipped at the sheet's
+   edge is the silence this whole block exists to remove. */
+.refusedWhy {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ind-warn);
+  overflow-wrap: anywhere;
+}
+
 .check {
   flex: 0 0 16px;
   padding-top: 2px;

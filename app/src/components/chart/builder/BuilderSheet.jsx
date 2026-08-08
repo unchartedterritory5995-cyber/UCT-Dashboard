@@ -49,6 +49,29 @@
 // the install refuses (a stored verdict gone stale, a shipped id), the save
 // still stands, the instance is NOT written, and the refusal is shown: a formula
 // that cannot draw is reported as one, never quietly added to the chart.
+//
+// ✅ AND A SAVED FORMULA CAN NOW BE OPENED AND CHANGED — THE EDIT PATH.
+//
+// `PUT /api/user-definitions/{def_id}` shipped with Task 10 and had NO PRODUCT
+// CALLER, which is why `compute.rev` in every stored blob had stayed `1` since
+// Phase D shipped: the store models an edit exactly right — append a version,
+// bump `rev` iff the maths moved, force-migrate every bound alert — and nothing
+// on any screen could reach it. A member could author a formula, chart it, find
+// it and alert on it, and never change it.
+//
+// ⛔ ONE WRITE DOOR, NOT TWO. Editing reuses `buildDefinition` →
+// `validateUserDefinitions` → `saveUserDefinition` → `installUserDefinitions`
+// verbatim; the ONLY differences are the id (the store's, not a fresh draft),
+// the HTTP verb (`saveUserDefinition`'s second argument), and that an edit does
+// NOT call `addInstance` — the instance already exists and naming it twice would
+// draw the same formula twice on the same chart. A second save routine would be
+// a second set of gates to keep in step, which is the shape this phase retires.
+//
+// ⛔ AND A REFUSED EDIT LEAVES THE OLD VERSION WORKING. The validation door runs
+// BEFORE the network write, so a formula the registry refuses never reaches the
+// store: no version is appended, no `rev` moves, no migration fires, and the
+// definition the chart is already drawing is never re-installed. A broken edit
+// must not brick a working indicator.
 
 import { Component, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Sheet from '../../mobile/Sheet'
@@ -56,6 +79,10 @@ import UIcon from '../../ui/UIcon'
 import { PORTAL_POPUP_ATTR } from '../ColorPicker'
 import { SCHEMA_VERSION } from '../engine/defSchema'
 import { astHash } from '../engine/ast/parse'
+// ⛔ THE INPUTS THE SAVED DOCUMENT DECLARES AND THE SCOPE THE READ-BACK IS GIVEN
+// COME FROM ONE MODULE, so "the sentence may name it" and "the document declares
+// it" are the same fact rather than two lists somebody keeps in step.
+import { BUILDER_INPUTS, BUILDER_INPUT_SCOPE } from './builderInputs'
 import * as engineRegistry from '../engine/nativeRegistry'
 import { validateUserDefinitions, installUserDefinitions } from '../engine/nativeRegistry'
 import { addInstance } from '../engine/instanceControls'
@@ -127,10 +154,10 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
       repaint: mode,
     },
     placement: { target: 'pane', pane: { height: 0.15 } },
-    inputs: [
-      { key: 'color', type: 'color', label: 'Color', default: '#c9a84c' },
-      { key: 'lineWidth', type: 'int', label: 'Line width', default: 1, min: 1, max: 4, step: 1 },
-    ],
+    // ⛔ SPREAD FROM `BUILDER_INPUTS`, WHICH IS ALSO WHAT THE READ-BACK'S SCOPE IS
+    // DERIVED FROM. Copied so a caller cannot mutate the frozen source array's
+    // members through the document it just received.
+    inputs: BUILDER_INPUTS.map((spec) => ({ ...spec })),
     // ⛔ EXACTLY ONE DATA-BEARING PLOT. One formula is one series
     // (`nativeRegistry.validateAstLane`); a second plot is a key nothing fills.
     plots: [{
@@ -173,12 +200,17 @@ export default function BuilderSheet({
 }) {
   const [source, setSource] = useState('')
   const [name, setName] = useState('')
-  const [result, setResult] = useState(() => evaluateFormula(''))
+  const [result, setResult] = useState(() => evaluateFormula('', BUILDER_INPUT_SCOPE))
   const [acknowledged, setAcknowledged] = useState(false)
   const [storeError, setStoreError] = useState(null)
   const [saving, setSaving] = useState(false)
   const [savedRow, setSavedRow] = useState(null)
   const [copied, setCopied] = useState(false)
+  // ⭐ THE EDIT TARGET: `{defId, version}` off the STORE's row, or null for a
+  // create. It is the id the store minted — never `draftDefId()`'s — because the
+  // instance already on the chart names that one and a PUT at any other id is a
+  // second definition wearing an edit's clothes.
+  const [editing, setEditing] = useState(null)
   const rootRef = useRef(null)
 
   const { rows, error: listError } = useUserDefinitions()
@@ -187,9 +219,39 @@ export default function BuilderSheet({
   // Save button whose read-back describes a tree the box no longer shows.
   useEffect(() => {
     if (!open) return
-    setSource(''); setName(''); setResult(evaluateFormula(''))
+    setSource(''); setName(''); setResult(evaluateFormula('', BUILDER_INPUT_SCOPE))
     setAcknowledged(false); setStoreError(null); setSavedRow(null); setCopied(false)
+    setEditing(null)
   }, [open])
+
+  /** Open a stored formula for editing — its SOURCE, its name, and its id.
+   *
+   *  ⛔ `compute.source` IS WHAT GOES BACK IN THE BOX, NOT THE TREE. The source is
+   *  what the author typed and what `parseFormula` round-trips; re-deriving text
+   *  from the AST would put a sentence the user never wrote into the field they
+   *  are about to edit, and the two would diverge the first time the printer and
+   *  the parser disagreed about precedence. A row with no stored source cannot be
+   *  edited here and says so rather than opening an empty box over a live
+   *  definition. */
+  const openForEdit = useCallback((row) => {
+    const src = row?.definition?.compute?.source
+    setStoreError(null); setSavedRow(null); setCopied(false); setAcknowledged(false)
+    if (typeof src !== 'string' || src.trim() === '') {
+      setEditing(null)
+      setStoreError('This formula was stored without its source text, so it cannot be edited here.')
+      return
+    }
+    setEditing({ defId: row.def_id, version: Number(row.version) || 1 })
+    setName(String(row?.definition?.meta?.name || ''))
+    setSource(src)
+    setResult(evaluateFormula(src, BUILDER_INPUT_SCOPE))
+  }, [])
+
+  const cancelEdit = useCallback(() => {
+    setEditing(null); setSource(''); setName('')
+    setResult(evaluateFormula('', BUILDER_INPUT_SCOPE))
+    setAcknowledged(false); setStoreError(null); setSavedRow(null)
+  }, [])
 
   // A new evaluation invalidates an acknowledgement of the OLD one. Carrying it
   // forward would let a user acknowledge a bounded forward reference and then
@@ -269,8 +331,15 @@ export default function BuilderSheet({
     if (!canSaveFormula(result, acknowledged) || !name.trim()) return
     setSaving(true)
     setStoreError(null)
+    // ⚠️ THE DOCUMENT'S OWN `version` MOVES ON AN EDIT, AND IT HAS TO.
+    // `nativeRegistry.installKey` is `id@version#compute.fn`, so a rename — same
+    // id, same tree, same hash — is byte-identical to the installed document and
+    // is SKIPPED, leaving the registry (and therefore the legend, the settings row
+    // and the pane label) showing the old name. The store's `version` column moves
+    // on every append; the blob's copy of it now moves with it.
     const doc = buildDefinition({
-      defId: draftDefId(),
+      defId: editing ? editing.defId : draftDefId(),
+      version: editing ? editing.version + 1 : 1,
       name,
       source: result.source,
       ast: result.ast,
@@ -295,11 +364,16 @@ export default function BuilderSheet({
       setSaving(false)
       return
     }
-    const res = await saveUserDefinition(doc)
+    // ⭐ THE SECOND ARGUMENT IS THE WHOLE DIFFERENCE BETWEEN A CREATE AND AN EDIT.
+    // `saveUserDefinition` POSTs without it and PUTs with it — one function, one
+    // set of error words, one SWR invalidation. The route it reaches then bumps
+    // `compute.rev` if the maths moved and force-migrates every bound alert.
+    const res = await saveUserDefinition(doc, editing ? editing.defId : null)
     setSaving(false)
     if (!res.ok) { setStoreError(res.error); return }
-    const row = res.row || { def_id: doc.id, version: 1, rev: 1 }
+    const row = res.row || { def_id: doc.id, version: doc.version, rev: 1 }
     setSavedRow(row)
+    if (editing && row.def_id) setEditing({ defId: row.def_id, version: Number(row.version) || editing.version + 1 })
 
     // ── the definition the STORE holds, not the draft ────────────────────────
     //
@@ -314,6 +388,7 @@ export default function BuilderSheet({
     const storedDoc = {
       ...doc,
       id: row.def_id || doc.id,
+      ...(Number.isInteger(row.version) ? { version: row.version } : {}),
       compute: {
         ...doc.compute,
         ...(Number.isInteger(row.rev) ? { rev: row.rev } : {}),
@@ -328,7 +403,7 @@ export default function BuilderSheet({
         installErrors.join('\n')
         || 'Saved, but this formula could not be added to the chart.',
       )
-    } else if (settings && onChange) {
+    } else if (!editing && settings && onChange) {
       // ⛔ THROUGH `addInstance`, THE ONE CONTROL DOOR — not a hand-built
       // instance object. It reads the DEFINITION for the input defaults and the
       // placement, mints the id `newInstanceId` would, sorts the list into the
@@ -336,10 +411,15 @@ export default function BuilderSheet({
       // library's checkbox does. A second way to add an instance is a second
       // shape of instance, and `normalizeInstances` is the thing that would tell
       // us — on the user's chart, by making it disappear.
+      //
+      // ⛔ ON A CREATE ONLY. An EDIT's instance is already on the chart naming
+      // this very id, and `installUserDefinitions` above has just replaced the
+      // definition it resolves through — so the existing binding redraws with the
+      // new maths and adding a second instance would draw the same formula twice.
       onChange(addInstance(settings, installed[0].id, engineRegistry))
     }
     onSaved?.(res.row)
-  }, [result, acknowledged, name, onSaved, settings, onChange])
+  }, [result, acknowledged, name, onSaved, settings, onChange, editing])
 
   const remove = useCallback(async (defId) => { await deleteUserDefinition(defId) }, [])
 
@@ -348,7 +428,13 @@ export default function BuilderSheet({
   if (!open) return null
 
   return (
-    <Sheet open={open} onClose={onClose} variant="auto" title="New formula" maxWidth={640}>
+    <Sheet
+      open={open}
+      onClose={onClose}
+      variant="auto"
+      title={editing ? 'Edit formula' : 'New formula'}
+      maxWidth={640}
+    >
       {/* The portal exemption — `ChartToolbar` closes its settings panel on any
           outside mousedown, and `Sheet` renders into `document.body`, so without
           this the mousedown of the very click that opens this sheet would unmount
@@ -387,6 +473,7 @@ export default function BuilderSheet({
             onEvaluated={handleEvaluated}
             result={result}
             autoFocus
+            inputs={BUILDER_INPUT_SCOPE}
           />
 
           {/* ── THE READ-BACK ────────────────────────────────────────────────
@@ -469,17 +556,38 @@ export default function BuilderSheet({
             <p className={styles.saved} data-testid="saved-note">
               <UIcon name="check" size={14} />
               Saved — version {savedRow.version}, rev {savedRow.rev}.
+              {/* ⭐ THE MIGRATION, SAID OUT LOUD. Spec §3.1's contract is *"you
+                  will never be silently switched"*, and the store returns the
+                  count it actually migrated — so this is the number of alerts
+                  that were reset and suppressed for one cycle, not a guess about
+                  them. Rendered only when it is non-zero: "0 alerts" beside a
+                  rename is noise, and `rev_bumped` alone would claim a migration
+                  on a definition nothing is bound to. */}
+              {savedRow.rev_bumped && savedRow.migrated > 0 && (
+                <span data-testid="migrated-note">
+                  {' '}The maths changed, so {savedRow.migrated} alert
+                  {savedRow.migrated === 1 ? '' : 's'} bound to it moved onto the new
+                  calculation and will skip one evaluation.
+                </span>
+              )}
             </p>
           )}
 
           <div className={styles.actions}>
+            {editing && (
+              <button
+                type="button"
+                className={styles.ghostBtn}
+                onClick={cancelEdit}
+              >New formula</button>
+            )}
             <button type="button" className={styles.ghostBtn} onClick={onClose}>Cancel</button>
             <button
               type="button"
               className={styles.saveBtn}
               onClick={save}
               disabled={!canSave}
-            >{saving ? 'Saving…' : 'Save'}</button>
+            >{saving ? 'Saving…' : (editing ? 'Save changes' : 'Save')}</button>
           </div>
 
           {rows.length > 0 && (
@@ -490,6 +598,12 @@ export default function BuilderSheet({
                   <li key={row.def_id} className={styles.listRow}>
                     <span className={styles.listName}>{row.definition?.meta?.name || row.def_id}</span>
                     <span className={styles.listSource}>{row.definition?.compute?.source}</span>
+                    <button
+                      type="button"
+                      className={styles.ghostBtn}
+                      aria-label={`Edit ${row.definition?.meta?.name || row.def_id}`}
+                      onClick={() => openForEdit(row)}
+                    ><UIcon name="edit" size={14} /></button>
                     <button
                       type="button"
                       className={styles.ghostBtn}

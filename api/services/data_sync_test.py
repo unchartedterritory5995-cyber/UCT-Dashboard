@@ -3,10 +3,14 @@
 Tests the local tar/untar round-trip and SQLite backup integration without
 any S3 — just file I/O. S3 calls are tested manually after deploy by
 hitting /api/health/cache (web) and /internal/health (worker)."""
+import datetime as _dt
 import io
+import os
+import shutil
 import sqlite3
 import tarfile
 import time
+from zoneinfo import ZoneInfo as _ZoneInfo
 
 import pytest
 
@@ -19,35 +23,121 @@ def _reload_data_sync():
     return data_sync
 
 
+@pytest.fixture(autouse=True)
+def _restore_data_sync_after_each_test():
+    """`_reload_data_sync()` mutates the ONE shared module object.
+
+    Every test here reloads it against its own tmp DATA_DIR (and the cadence
+    tests against their own env-overridden constants), and nothing put it back —
+    so `api.services.data_sync` was left pointing at a deleted tmp dir for every
+    later test file in the session. Reload once more on the way out so the next
+    file gets the module the real environment describes."""
+    yield
+    _reload_data_sync()
+
+
+# ── snapshot DB fixtures ───────────────────────────────────────────────────
+#
+# `_assert_shippable_db` (665059ad) gates every snapshot BEFORE it is tarred:
+# PRAGMA integrity_check must be "ok" AND the ohlcv table must hold at least
+# SNAPSHOT_MIN_OHLCV_ROWS rows. That gate is the fix for the 2026-07-03 outage,
+# where an emptied recovery DB shipped to R2, deleted every web pod's local copy
+# and installed nothing — so these fixtures make the source realistic rather
+# than making the gate lenient.
+
+_OHLCV_DDL = (
+    "CREATE TABLE ohlcv (ticker TEXT NOT NULL, tf TEXT NOT NULL, ts INTEGER NOT NULL, "
+    "o REAL, h REAL, l REAL, c REAL, v INTEGER, PRIMARY KEY (ticker,tf,ts))"
+)
+
+
+def _write_bars_db(db_path, rows: int, wal: bool = False):
+    """Create a bars.db holding exactly `rows` ohlcv bars.
+
+    Returns the OPEN connection — the WAL test needs it left open so the rows
+    stay in -wal rather than the main file. Callers that don't care may close it.
+    """
+    con = sqlite3.connect(str(db_path))
+    if wal:
+        con.execute("PRAGMA journal_mode=WAL")
+    con.execute(_OHLCV_DDL)
+    con.executemany(
+        "INSERT INTO ohlcv (ticker,tf,ts,o,h,l,c,v) VALUES (?,?,?,?,?,?,?,?)",
+        [("AAPL", "D", i, 1.0, 2.0, 0.5, float(i), 100 + i) for i in range(rows)],
+    )
+    con.commit()
+    return con
+
+
+def _shippable_row_count(data_sync) -> int:
+    """The smallest row count the gate accepts, DERIVED from the constant.
+
+    Typing 1000 here would make the fixture a second authority over the floor:
+    raising SNAPSHOT_MIN_OHLCV_ROWS would leave this fixture quietly under it and
+    every round-trip test would start failing for a reason unrelated to tarring.
+    """
+    return data_sync.SNAPSHOT_MIN_OHLCV_ROWS
+
+
+def _extract(tar_path, extract_dir):
+    """Extract a snapshot tarball, then remove the temp dir `_make_tarball`
+    handed us — its docstring makes the CALLER responsible for that."""
+    extract_dir.mkdir(exist_ok=True)
+    try:
+        assert os.path.getsize(tar_path) > 0
+        with tarfile.open(tar_path, mode="r:gz") as tar:
+            tar.extractall(extract_dir)
+    finally:
+        shutil.rmtree(os.path.dirname(tar_path), ignore_errors=True)
+
+
 def test_make_tarball_round_trip(tmp_path, monkeypatch):
     """A real SQLite file written under DATA_DIR survives a tarball round-trip
-    and is still a queryable SQLite DB after extraction."""
+    and is still a queryable SQLite DB after extraction.
+
+    bars_cache/ is OPT-IN (`SNAPSHOT_INCLUDE_CACHE=1`) — the default sync path
+    reads only bars.db out of the snapshot — so this turns it on to keep
+    covering the path that ships it."""
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
-    # Prep: create a real SQLite DB (the backup API only works on real DBs)
-    db_path = tmp_path / "bars.db"
-    src = sqlite3.connect(str(db_path))
-    src.execute("CREATE TABLE t (k INT PRIMARY KEY, v TEXT)")
-    src.execute("INSERT INTO t VALUES (1, 'hello')")
-    src.commit()
-    src.close()
+    monkeypatch.setenv("SNAPSHOT_INCLUDE_CACHE", "1")
+    data_sync = _reload_data_sync()
+
+    rows = _shippable_row_count(data_sync)
+    _write_bars_db(tmp_path / "bars.db", rows).close()
     cache = tmp_path / "bars_cache"
     cache.mkdir()
     (cache / "AAPL_D.json").write_text('{"bars":[]}')
 
-    data_sync = _reload_data_sync()
-    data = data_sync._make_tarball()
-    assert len(data) > 0
+    _extract(data_sync._make_tarball(), tmp_path / "extracted")
 
     extract_dir = tmp_path / "extracted"
-    extract_dir.mkdir()
-    with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:
-        tar.extractall(extract_dir)
-    # Extracted DB must still be queryable
     extracted = sqlite3.connect(str(extract_dir / "bars.db"))
-    rows = extracted.execute("SELECT k, v FROM t").fetchall()
-    extracted.close()
-    assert rows == [(1, "hello")]
+    try:
+        assert extracted.execute("SELECT COUNT(*) FROM ohlcv").fetchone()[0] == rows
+        assert extracted.execute(
+            "SELECT c, v FROM ohlcv WHERE ticker='AAPL' AND tf='D' AND ts=7"
+        ).fetchone() == (7.0, 107)
+    finally:
+        extracted.close()
     assert (extract_dir / "bars_cache" / "AAPL_D.json").read_text() == '{"bars":[]}'
+
+
+def test_make_tarball_excludes_bars_cache_by_default(tmp_path, monkeypatch):
+    """bars_cache/ is dead weight on the default sync path, so it ships only
+    under SNAPSHOT_INCLUDE_CACHE=1. Without this the round-trip test above
+    would be the only reader of that flag and could not tell the two apart."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.delenv("SNAPSHOT_INCLUDE_CACHE", raising=False)
+    data_sync = _reload_data_sync()
+
+    _write_bars_db(tmp_path / "bars.db", _shippable_row_count(data_sync)).close()
+    cache = tmp_path / "bars_cache"
+    cache.mkdir()
+    (cache / "AAPL_D.json").write_text('{"bars":[]}')
+
+    _extract(data_sync._make_tarball(), tmp_path / "extracted")
+    assert (tmp_path / "extracted" / "bars.db").exists()
+    assert not (tmp_path / "extracted" / "bars_cache").exists()
 
 
 def test_make_tarball_empty_dir_raises(tmp_path, monkeypatch):
@@ -58,6 +148,61 @@ def test_make_tarball_empty_dir_raises(tmp_path, monkeypatch):
         data_sync._make_tarball()
 
 
+def test_make_tarball_refuses_an_empty_ohlcv_snapshot(tmp_path, monkeypatch):
+    """The 2026-07-03 poison shape: a bars.db that opens cleanly and passes
+    integrity_check but holds NO bars — exactly what force_resync leaves behind
+    when no R2 snapshot installs. Shipping it made 'latest' an empty schema and
+    503'd every chart across the fleet until reboot.
+
+    This is the only coverage of the thing 665059ad was written for: if the gate
+    is ever weakened to make a fixture pass, this test is what fails."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    data_sync = _reload_data_sync()
+    _write_bars_db(tmp_path / "bars.db", 0).close()
+
+    with pytest.raises(data_sync.SnapshotIntegrityError) as exc:
+        data_sync._make_tarball()
+    assert "ohlcv row count 0" in str(exc.value)
+
+
+def test_make_tarball_refuses_a_snapshot_below_the_row_floor(tmp_path, monkeypatch):
+    """A truncated (not empty) DB is refused too — the floor is a floor, not an
+    emptiness check. The row count is derived from the constant so the test
+    cannot drift away from the gate it guards."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    data_sync = _reload_data_sync()
+    _write_bars_db(tmp_path / "bars.db", _shippable_row_count(data_sync) - 1).close()
+
+    with pytest.raises(data_sync.SnapshotIntegrityError):
+        data_sync._make_tarball()
+
+
+def test_upload_snapshot_puts_nothing_when_the_gate_refuses(tmp_path, monkeypatch):
+    """The gate only protects R2 if the caller honours it: a refused snapshot
+    must produce ZERO S3 calls, so `latest.txt` keeps pointing at the last good
+    tarball instead of a fleet-wide empty one."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("DATA_SYNC_ENDPOINT_URL", "https://example.test")
+    monkeypatch.setenv("DATA_SYNC_ACCESS_KEY", "x")
+    monkeypatch.setenv("DATA_SYNC_SECRET_KEY", "y")
+    monkeypatch.setenv("DATA_SYNC_BUCKET", "test-bucket")
+    data_sync = _reload_data_sync()
+    _write_bars_db(tmp_path / "bars.db", 0).close()
+
+    calls: list = []
+
+    class _RecordingClient:
+        def __getattr__(self, name):
+            def _call(*a, **kw):
+                calls.append(name)
+            return _call
+
+    monkeypatch.setattr(data_sync, "_client", lambda: _RecordingClient())
+
+    assert data_sync.upload_snapshot() is None
+    assert calls == [], f"a refused snapshot still touched S3: {calls}"
+
+
 def test_make_tarball_captures_wal_writes(tmp_path, monkeypatch):
     """Critical regression test: bars.db is in WAL mode and the prewarmer
     writes continuously. Naive tar of bars.db would miss anything still in
@@ -65,32 +210,29 @@ def test_make_tarball_captures_wal_writes(tmp_path, monkeypatch):
     snapshot's bars.db (via backup API) contains those committed-but-not-
     checkpointed rows."""
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
-    db_path = tmp_path / "bars.db"
-    src = sqlite3.connect(str(db_path))
-    src.execute("PRAGMA journal_mode=WAL")
-    src.execute("CREATE TABLE t (k INT PRIMARY KEY, v TEXT)")
-    src.execute("INSERT INTO t VALUES (1, 'in_wal')")
-    src.commit()
+    data_sync = _reload_data_sync()
+
+    rows = _shippable_row_count(data_sync)
+    src = _write_bars_db(tmp_path / "bars.db", rows, wal=True)
     # Deliberately do NOT checkpoint — leave the data sitting in -wal.
     # Keep src open: a checkpoint won't run automatically, AND closing
     # would drain the WAL on some configs. We want a torn-state simulation.
+    assert (tmp_path / "bars.db-wal").exists(), "fixture did not leave a WAL to capture"
 
-    data_sync = _reload_data_sync()
-    data = data_sync._make_tarball()
+    tar_path = data_sync._make_tarball()
     src.close()
 
-    extract_dir = tmp_path / "extracted"
-    extract_dir.mkdir()
-    with tarfile.open(fileobj=io.BytesIO(data), mode="r:gz") as tar:
-        tar.extractall(extract_dir)
-    extracted = sqlite3.connect(str(extract_dir / "bars.db"))
-    rows = extracted.execute("SELECT k, v FROM t").fetchall()
-    extracted.close()
+    _extract(tar_path, tmp_path / "extracted")
+    extracted = sqlite3.connect(str(tmp_path / "extracted" / "bars.db"))
+    try:
+        got = extracted.execute("SELECT COUNT(*) FROM ohlcv").fetchone()[0]
+    finally:
+        extracted.close()
     # If the backup API was used correctly, the WAL data is there.
-    # If we'd naively tar'd the live bars.db, this row would be missing.
-    assert rows == [(1, "in_wal")], (
-        "Snapshot is missing data that was committed but lived in -wal. "
-        "_backup_sqlite_db is not being used correctly."
+    # If we'd naively tar'd the live bars.db, these rows would be missing.
+    assert got == rows, (
+        f"Snapshot is missing data that was committed but lived in -wal "
+        f"({got} of {rows} rows). _backup_sqlite_db is not being used correctly."
     )
 
 
@@ -151,11 +293,79 @@ def test_client_returns_none_without_credentials(monkeypatch):
     assert data_sync._client() is None
 
 
-def test_snapshot_interval_is_five_minutes():
-    """Sanity check the interval constant — anything other than 300s would
-    surprise the operator and contradict the docs."""
+# ── upload cadence ─────────────────────────────────────────────────────────
+#
+# This block replaces `test_snapshot_interval_is_five_minutes`, which asserted
+# `SNAPSHOT_INTERVAL_SECONDS == 300` and had been red since the constant moved to
+# 1200 — under a NAME that stated a fact about the product that stopped being
+# true. Restating a typed constant in a test makes the test a second authority
+# over one value: it can only ever agree (proving nothing) or disagree (a false
+# alarm). So these assert the PROPERTIES the cadence exists to hold, and derive
+# every number from the code rather than repeating it.
+
+# The egress budget the slow cadence exists to buy. data_sync prices a 300s
+# cadence at "~130 GB/day egress" across the active window and says 1200s "drops
+# that ~4x"; expressed as uploads-per-active-window that is ~192 vs ~48. A
+# ceiling of 60 is that statement turned into a bound the code must satisfy —
+# the shipped default clears it, and a revert to 300s (or anything under ~960s)
+# fails it loudly instead of quadrupling the R2 bill silently.
+_MAX_UPLOADS_PER_ACTIVE_WINDOW = 60
+
+
+def _active_window_seconds(data_sync) -> int:
+    """Length of the weekday active window, PROBED from in_active_data_window().
+
+    The window is the product's to define; typing "16 hours" here would be the
+    same second-authority mistake this block replaces."""
+    et_midnight = _dt.datetime(2026, 8, 5, 0, 0, tzinfo=_ZoneInfo("America/New_York"))
+    return sum(
+        3600
+        for h in range(24)
+        if data_sync.in_active_data_window(et_midnight.replace(hour=h))
+    )
+
+
+def test_snapshot_interval_is_env_overridable():
+    """Both cadences are operator-tunable without a deploy — that override is
+    the actual contract, and the one an operator reaches for when egress or
+    freshness needs to move."""
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setenv("SNAPSHOT_INTERVAL_SECONDS", "77")
+        mp.setenv("SNAPSHOT_INTERVAL_IDLE_SECONDS", "888")
+        data_sync = _reload_data_sync()
+        assert data_sync.SNAPSHOT_INTERVAL_SECONDS == 77
+        assert data_sync.SNAPSHOT_INTERVAL_IDLE_SECONDS == 888
+
+        mp.setattr(data_sync, "in_active_data_window", lambda *a, **k: True)
+        assert data_sync.snapshot_interval_seconds() == 77
+        mp.setattr(data_sync, "in_active_data_window", lambda *a, **k: False)
+        assert data_sync.snapshot_interval_seconds() == 888
+
+
+def test_the_idle_cadence_is_slower_than_the_active_one():
+    """Two constants only earn their keep if the idle one is strictly slower —
+    bars are static overnight and on weekends, so uploading at the active rate
+    there is pure egress for nothing."""
     from api.services import data_sync
-    assert data_sync.SNAPSHOT_INTERVAL_SECONDS == 300
+    assert data_sync.SNAPSHOT_INTERVAL_SECONDS > 0
+    assert data_sync.SNAPSHOT_INTERVAL_SECONDS < data_sync.SNAPSHOT_INTERVAL_IDLE_SECONDS
+
+
+def test_the_active_upload_cadence_stays_inside_the_egress_budget():
+    """The whole reason the interval is not 300s. The full tarball ships on
+    essentially every active-window cycle (the prewarmer keeps writing, so
+    skip-if-unchanged only helps overnight), so uploads-per-window IS the
+    egress bill."""
+    from api.services import data_sync
+    window = _active_window_seconds(data_sync)
+    assert window > 0, "in_active_data_window() is never true — probe is vacuous"
+
+    uploads = window / data_sync.SNAPSHOT_INTERVAL_SECONDS
+    assert uploads <= _MAX_UPLOADS_PER_ACTIVE_WINDOW, (
+        f"SNAPSHOT_INTERVAL_SECONDS={data_sync.SNAPSHOT_INTERVAL_SECONDS} gives "
+        f"{uploads:.0f} full-snapshot uploads per {window // 3600}h active window, "
+        f"over the {_MAX_UPLOADS_PER_ACTIVE_WINDOW} the egress budget allows."
+    )
 
 
 def test_download_snapshot_bumps_db_epoch(tmp_path, monkeypatch):

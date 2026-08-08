@@ -124,6 +124,54 @@ export const UNBOUNDED = 'unbounded'
  *  the one that ships. */
 const ARG_REF = /^arg(\d+)$/
 
+const own = (o, k) => o != null && Object.prototype.hasOwnProperty.call(o, k)
+const sortedKeys = (o) => Object.keys(o || {}).sort()
+
+// --------------------------------------------------------------------------- //
+// the definition's own inputs — a DECLARED SCALAR, never an undeclared series
+// --------------------------------------------------------------------------- //
+
+/**
+ * The input names a DEFINITION declares — `inputs[].key`, and nothing else.
+ *
+ * ⭐⭐ AN INPUT REFERENCE IS A SCALAR, AND THAT IS WHY IT HAS NO WINDOW.
+ * `parse.js` turns every identifier into a `series` node — deliberately, so the
+ * parser needs no table — and `interpret` seeds a declared input into the scope
+ * as ONE NUMBER, not a column. A per-instance constant is the same value at
+ * every bar, so its dependency window is `[i, i]`: back 0, forward 0. Until this
+ * existed the linter had no way to say that, badged `close * lineWidth`
+ * `repaints` on the strength of *"`lineWidth` is not a series this table
+ * declares"*, and `BuilderSheet.buildDefinition` puts `lineWidth` on every
+ * definition it builds — so an input-referencing formula could not be armed at
+ * all.
+ *
+ * ⛔ ONE VOCABULARY, AND IT IS `key`. `defSchema.validateInput` REQUIRES
+ * `input.key`, `nativeRegistry.resolveInputs` reads it, and the server's
+ * `signature/registry_defs.resolve_inputs` reads `spec["key"]`. `name` is NOT
+ * accepted as a fallback: a reader that took either would be the second
+ * vocabulary for one field that `alert_user_series._inputs_for` already cost
+ * this branch once.
+ *
+ * ⛔ THE VALUE IS DISCARDED, ON PURPOSE. Reading it would let a per-instance
+ * number decide a WINDOW — `resolveDeclaration` still refuses an `argK` that is
+ * not a literal `num` node, so `sma(close, period)` stays unanalysable and fails
+ * closed even though `period` is declared. A window that changed with a knob is
+ * a window the badge cannot promise anything about.
+ *
+ * @param {object} def a registered definition
+ * @returns {object} a null-prototype object whose OWN KEYS are the input names
+ */
+export function declaredInputs(def) {
+  const out = Object.create(null)
+  const specs = Array.isArray(def && def.inputs) ? def.inputs : []
+  for (const spec of specs) {
+    if (spec && typeof spec === 'object' && typeof spec.key === 'string' && spec.key) {
+      out[spec.key] = true
+    }
+  }
+  return out
+}
+
 /**
  * Resolve one declaration (`lookback` or `forward`) against a call's argument
  * nodes. Returns a finite integer, `UNBOUNDED`, or `UNKNOWN`.
@@ -223,6 +271,12 @@ export function astReach(ast, opts = {}) {
   const table = opts.table || TABLE
   const functions = (table && table.functions) || {}
   const seriesNames = (table && table.series) || {}
+  /** `opts.inputs` — the definition's declared inputs, BY NAME. The same shape
+   *  `sentence.js::explainSentence` already takes and the same shape `interpret`
+   *  takes; only the KEYS are read here (see `declaredInputs`). `lintDefinition`
+   *  derives it from the definition itself, so a caller cannot widen a
+   *  definition's own input set by handing in another one. */
+  const inputs = opts.inputs || {}
   const reasons = []
 
   // Post-order over an explicit stack: `[node, visitedChildren]`.
@@ -251,11 +305,24 @@ export function astReach(ast, opts = {}) {
         break
       }
       case 'series': {
-        if (!Object.prototype.hasOwnProperty.call(seriesNames, node.name)) {
-          reachOf.set(node, noteUnknown(`\`${node.name}\` is not a series this table declares`))
+        // ⛔ THE TABLE IS CONSULTED FIRST AND THE ORDER IS LOAD-BEARING —
+        // verbatim `sentence.js::renderName`'s reasoning, for the same reason. A
+        // definition whose input shadows `close` is a wiring defect `interpret`
+        // throws on outright; what this must never do is let the ANSWER depend
+        // on which map was consulted second.
+        if (own(seriesNames, node.name)) {
+          reachOf.set(node, { back: 0, forward: 0 })
           break
         }
-        reachOf.set(node, { back: 0, forward: 0 })
+        if (own(inputs, node.name)) {
+          // A DECLARED SCALAR. One number for the whole column, so it depends on
+          // no bar at all — least of all a later one.
+          reachOf.set(node, { back: 0, forward: 0 })
+          break
+        }
+        reachOf.set(node, noteUnknown(
+          `\`${node.name}\` is not a series this table declares, and this definition declares `
+          + `${sortedKeys(inputs).join(', ') || 'no inputs'}`))
         break
       }
       case 'op': {
@@ -361,6 +428,13 @@ export function modeFromReach(forward) {
  *        allow-list, never keyed by an indicator id, and the corpus is the only
  *        caller that supplies one, so a future grammar can be linted before it
  *        ships rather than after.
+ * @param {object} [opts.inputs] the DEFINITION's declared inputs, by name — the
+ *        same shape `sentence.js` and `interpret` take. A `series` node naming
+ *        one of them is a per-instance SCALAR and reaches no bar; a name in
+ *        neither map is unanalysable and fails closed, exactly as before. It is
+ *        not an allow-list either: `lintDefinition` DERIVES it from
+ *        `def.inputs`, so what a definition may call a scalar is what that
+ *        definition itself declares.
  * @returns {{mode: string, reasons: string[], forward: number|string, back: number|string}}
  */
 export function lintRepaint(ast, opts = {}) {
@@ -467,7 +541,12 @@ export function lintDefinition(def, opts = {}) {
     // ── the lane this linter was built for ────────────────────────────────
     if (lane === 'ast') {
       const ast = def.compute.ast
-      const verdict = lintRepaint(ast, opts)
+      // ⭐ THE DEFINITION'S OWN INPUTS ARE DERIVED HERE, NEVER ACCEPTED FROM THE
+      // CALLER. A caller cannot widen a definition's scalar set by handing one
+      // in — which is what would turn a declared knob into a general escape
+      // hatch for any name at all. The closed table stays closed; what an input
+      // adds is exactly the names the DOCUMENT declares.
+      const verdict = lintRepaint(ast, { ...opts, inputs: declaredInputs(def) })
       return { address, defId: def.id, plotKey, lane, decidability: 'decided', ...verdict }
     }
 

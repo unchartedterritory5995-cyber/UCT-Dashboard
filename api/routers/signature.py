@@ -1279,8 +1279,22 @@ def confluence_scan(
     exactly as it always was, and now it is dropped before `scanned` counts it
     rather than after — a symbol that could never be scanned was never a scan.
 
-    PROTOTYPE: pass your unusual-DP watchlist; the auto-universe (DP-unusual ∩
-    notable-flow) scanner is the follow-up.
+    🔴 PROTOTYPE, AND IT IS A DECISION NOW — SPEC §11 ROW **D-A8** (2026-08-08).
+    ⛔ BEFORE YOU OPTIMISE THIS AGAIN: **no member can call it.** The string
+    `confluence` occurs nowhere under `app/`, and two commits of performance work
+    have already been spent on a request nobody makes. That was audited
+    (`audit-not-wired` finding 4), the server lane was MEASURED as a home for it,
+    and it does not fit: `confluence.evaluate` scores `bars[-1]` — one
+    current-state verdict whose signal carries no `barTime` — so there is nothing
+    `registry_defs.event_columns` can key a column on, and this endpoint answers
+    about a LIST of tickers, which is a screener contract and not a chart one.
+    The reasoning, including why synthesising the history would be cheap and
+    dishonest, is in the spec row; `tests/test_confluence_prototype.py` makes the
+    measurement executable and will go RED if a `dpc` definition ever joins
+    `registry_defs.SERVER_DEFS` while that row still says "not wired".
+
+    Pass your unusual-DP watchlist; the auto-universe (DP-unusual ∩ notable-flow)
+    scanner is the follow-up, and it is a SURFACE, not another lane.
     """
     raw, seen = [], set()
     for t in (syms or "").split(","):
