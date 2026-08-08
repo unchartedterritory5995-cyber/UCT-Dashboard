@@ -397,7 +397,7 @@ const WatchRow = React.memo(function WatchRow({
     if (key === 'perf90d') return pctCell('perf90d', perf90d)
     if (key === 'periodchg') return pctCell('periodchg', periodchg)
     // Stock-count of a theme/sector/industry (group rows only; blank for stocks).
-    if (key === 'grpcount') return <span key="grpcount" className={styles.metaCell}>{grpcount != null ? grpcount : '—'}</span>
+    if (key === 'grpcount') return <span key="grpcount" className={styles.metaCell}>{grpcount != null ? grpcount : ''}</span>
     return null
   }
   return (
