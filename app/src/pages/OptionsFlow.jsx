@@ -7695,6 +7695,29 @@ export default function OptionsFlowDashboard() {
                            dirPrem: _dirPrem, dispD: _netD, OI: _w.OI, maxOI: _w.OI, DTE: _w.DTE, Dt: _w.Dt,
                            price: _w.pxN ? _w.pxSum / _w.pxN : 0 };
                 })
+                .filter(_r => {
+                  // "Still open (all)" should list only positions still on the book:
+                  // drop EXPIRED and FULLY-CLOSED contracts. Expired = past expiry as
+                  // of today (mirrors computeStillOpen's guard). Fully-closed = live OI
+                  // down to <15% of peak — the exact CLOSED band the Status column uses.
+                  // When live OI is UNKNOWN (no quote yet — the "164 missing OI" tail)
+                  // we KEEP the row: "can't tell yet" must never hide a possibly-open
+                  // position, the same principle as the still-open premium math. 2026-08-08.
+                  if (_r.E) {
+                    const _exp = mdyToDate(_r.E);
+                    if (_exp && !isNaN(_exp)) {
+                      const _t0 = new Date(); _t0.setHours(0, 0, 0, 0);
+                      if (_exp < _t0) return false;                 // expired
+                    }
+                  }
+                  const _px = getPrice(_r.S || tk.s, _r.CP, _r.K, _r.E);
+                  const _curOI = _px ? _px.oi : 0;
+                  const _baseOI = Math.max(_r.OI || 0, _r.maxOI || 0);
+                  if (_curOI > 0 && _baseOI > 0) {
+                    if (_curOI / Math.max(_baseOI, _curOI) < 0.15) return false;  // CLOSED band
+                  }
+                  return true;
+                })
                 .sort((_a, _b) => (_b.dirPrem != null ? _b.dirPrem : _b.P) - (_a.dirPrem != null ? _a.dirPrem : _a.P))
                 .slice(0, 40);
               const _rangeLabel = (dateFrom && dateTo) ? (dateFrom + "\u2013" + dateTo)
