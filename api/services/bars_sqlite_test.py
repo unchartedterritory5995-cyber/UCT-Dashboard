@@ -457,3 +457,10 @@ def test_current_listing_starts_detects_ticker_reuse(tmp_path, monkeypatch):
     starts = bs.current_listing_starts(20230101)
     assert starts["REUSE"] == 20260615     # NEW listing, not the old 2024 bars
     assert starts["CONT"] == 20260501      # earliest in-window bar (continuous)
+
+    # recent_relisting_candidates: the reuse OVERLAY for the IPO scan — only the recycled
+    # ticker whose resume is within the window, never the continuous one (no gap).
+    cands = bs.recent_relisting_candidates(20260101, 20230101)   # since=2026-01-01
+    assert cands == {"REUSE": 20260615}    # CONT has no gap → excluded
+    # A resume BEFORE `since` is not a recent relisting.
+    assert bs.recent_relisting_candidates(20260701, 20230101) == {}

@@ -12,6 +12,7 @@ def _reset():
 def test_ipo_scan_reports_computing_before_set(monkeypatch):
     _reset()
     monkeypatch.setattr(si._sqlite, "recent_first_trade", lambda since: {})
+    monkeypatch.setattr(si, "_recent_relistings", lambda since: {})
     out = si.get_ipo_last_1y()
     assert out["status"] == "computing"
     assert out["results"] == []
@@ -22,7 +23,27 @@ def test_build_ipo_set_returns_recent_first_trades(monkeypatch):
     # No cap-universe restriction — recent IPOs (e.g. CBRS) aren't in that static list.
     monkeypatch.setattr(si._sqlite, "recent_first_trade",
                         lambda since: {"AAA": 20260101, "CBRS": 20260528})
+    monkeypatch.setattr(si, "_recent_relistings", lambda since: {})
     assert si._build_ipo_set() == {"AAA": 20260101, "CBRS": 20260528}
+
+
+def test_build_ipo_set_merges_reuse_overlay(monkeypatch):
+    # A recycled ticker (SPCX) is hidden from MIN(ts) by its old bars; the reuse overlay
+    # adds it with its sanitize-verified current-listing date.
+    monkeypatch.setattr(si._sqlite, "recent_first_trade", lambda since: {"CBRS": 20260528})
+    monkeypatch.setattr(si, "_recent_relistings", lambda since: {"SPCX": 20260615})
+    assert si._build_ipo_set() == {"CBRS": 20260528, "SPCX": 20260615}
+
+
+def test_recent_relistings_verifies_candidates_via_sanitize(monkeypatch):
+    # Candidate resumes from the reuse-signature scan are confirmed + dated by the chart
+    # sanitize; a candidate whose sanitized listing is OUTSIDE the window is dropped.
+    monkeypatch.setattr(si._sqlite, "recent_relisting_candidates",
+                        lambda since, floor, **k: {"SPCX": 20260610, "FAKE": 20260101})
+    monkeypatch.setattr(si, "_sanitized_first_date",
+                        lambda t: {"SPCX": 20260615, "FAKE": 20240101}.get(t))
+    out = si._recent_relistings(20250807)
+    assert out == {"SPCX": 20260615}     # FAKE's sanitized listing (2024) is before `since`
 
 
 def test_ipo_scan_skips_names_not_in_snapshot(monkeypatch):

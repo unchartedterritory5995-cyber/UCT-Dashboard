@@ -24,27 +24,73 @@ _state = {"date": None, "map": None, "building": False, "built_at": 0.0}
 _TTL = 120                     # live-scan cache (s) — the IPO set is daily; only price moves
 _CACHE_KEY = "scan_ipo1y"
 _LOOKBACK_DAYS = 365
+_RELIST_FLOOR_DAYS = 800       # ~2y window for the reuse-candidate scan (bounds the query)
+_RELIST_VERIFY_CAP = 600       # safety cap on candidates verified via sanitize
 
 
 def _session_date() -> str:
     return _now_et().strftime("%Y-%m-%d")
 
 
-def _build_ipo_set() -> dict:
-    """{TICKER: first-daily-bar YYYYMMDD} for stocks first traded in the last
-    _LOOKBACK_DAYS (from bars.db).
+def _sanitized_first_date(ticker: str):
+    """The date (YYYYMMDD) of a ticker's FIRST bar AFTER the chart sanitize pass, which
+    drops a recycled ticker's pre-listing history — so for a reused symbol this is its NEW
+    listing date, not the old security's. None if unavailable."""
+    try:
+        from api.services import bars_fetch as _bf
+        rows = _sqlite.get_bars(ticker, "D", 400)
+        if not rows:
+            return None
+        bars = _bf._fmt_sqlite_bars(rows, "D", ticker)   # applies sanitize_daily_bars
+        if not bars:
+            return None
+        t = str(bars[0].get("t") or "").replace("-", "")
+        return int(t[:8]) if len(t) >= 8 and t[:8].isdigit() else None
+    except Exception:
+        return None
 
-    NOT restricted to the static cap universe — recent IPOs (the whole point of this
-    scan) aren't in that file yet (e.g. CBRS). The live pass filters to currently-
-    trading names via the market snapshot, which naturally includes recent IPOs and
-    drops delisted/non-equity noise.
+
+def _recent_relistings(since_ymd: int) -> dict:
+    """{TICKER: current-listing YYYYMMDD} for recycled symbols relisted within the window.
+
+    A SMALL candidate set (reuse-signature resume via bars.db) is confirmed + dated against
+    the chart sanitize, so only real, correctly-dated reuses (SPCX) are added to the IPO set.
+    Recent_first_trade already covers ordinary IPOs; this is just the reuse overlay.
+    """
+    now = _now_et()
+    floor = int((now - timedelta(days=_RELIST_FLOOR_DAYS)).strftime("%Y%m%d"))
+    try:
+        cands = _sqlite.recent_relisting_candidates(since_ymd, floor)
+    except Exception:
+        return {}
+    out: dict = {}
+    for t in list(cands)[:_RELIST_VERIFY_CAP]:
+        d = _sanitized_first_date(t)
+        if d and d >= since_ymd:      # sanitize confirms a NEW listing inside the window
+            out[t] = d
+    return out
+
+
+def _build_ipo_set() -> dict:
+    """{TICKER: listing YYYYMMDD} for stocks whose CURRENT listing began in the last
+    _LOOKBACK_DAYS.
+
+    Base = recent_first_trade (MIN daily ts) for ordinary IPOs. Overlay = recycled tickers
+    (SPCX = SpaceX now, a SPAC ETF before) whose old bars make MIN(ts) look old but whose
+    CURRENT listing is recent — found via a reuse-signature scan and dated by the chart
+    sanitize. NOT restricted to the static cap universe (recent IPOs like CBRS aren't in
+    it). The live pass filters to currently-trading names via the snapshot and drops ETFs.
     """
     now = _now_et()
     since = int((now - timedelta(days=_LOOKBACK_DAYS)).strftime("%Y%m%d"))
     try:
-        return _sqlite.recent_first_trade(since)
+        base = _sqlite.recent_first_trade(since)
     except Exception:
-        return {}
+        base = {}
+    # Overlay recycled tickers whose CURRENT listing is recent (SPCX) — their old bars
+    # hide them from MIN(ts). The overlay's sanitize-verified date wins.
+    base.update(_recent_relistings(since))
+    return base
 
 
 def _ensure_ipo_set() -> dict | None:

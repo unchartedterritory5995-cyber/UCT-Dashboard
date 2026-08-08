@@ -371,6 +371,43 @@ def recent_first_trade(since_ymd: int) -> dict:
     return {str(r[0]).upper(): int(r[1]) for r in rows}
 
 
+def recent_relisting_candidates(since_ymd: int, floor_ymd: int,
+                                gap_days: int = 21, price_factor: float = 4.0) -> dict:
+    """{TICKER: resume YYYYMMDD} for tickers that RESUMED trading on/after since_ymd after a
+    long gap with a big price jump — a recycled symbol whose NEW listing is recent (SPCX).
+
+    Deliberately requires an ACTUAL gap (never a ticker's first bar), so continuous names and
+    short-history on-demand names are NOT flagged — this is the small reuse OVERLAY for the
+    IPO scan (recent_first_trade already covers normal IPOs), and callers verify each hit
+    against the chart sanitize. Matches bars_sanitize's metadata-free reuse signal (gap >=
+    gap_days days + a >= price_factor / <= 1/price_factor close jump). `floor_ymd` bounds the
+    window scan for performance."""
+    lo = 1.0 / price_factor if price_factor else 0.0
+    rows = _conn().execute(
+        """
+        WITH parsed AS (
+          SELECT ticker, ts, c,
+                 julianday(substr(printf('%08d', ts),1,4)||'-'||
+                           substr(printf('%08d', ts),5,2)||'-'||
+                           substr(printf('%08d', ts),7,2)) AS jd
+          FROM ohlcv WHERE tf='D' AND c>0 AND ts>=?
+        ),
+        seg AS (
+          SELECT ticker, ts,
+                 jd - LAG(jd) OVER w AS gap_days,
+                 c*1.0 / NULLIF(LAG(c) OVER w, 0) AS ratio
+          FROM parsed
+          WINDOW w AS (PARTITION BY ticker ORDER BY ts)
+        )
+        SELECT ticker, MAX(ts) FROM seg
+        WHERE gap_days>=? AND (ratio>=? OR ratio<=?) AND ts>=?
+        GROUP BY ticker
+        """,
+        (int(floor_ymd), int(gap_days), float(price_factor), float(lo), int(since_ymd)),
+    ).fetchall()
+    return {str(r[0]).upper(): int(r[1]) for r in rows}
+
+
 def avg_daily_volume(tickers, sessions: int = 20, before_ymd: int | None = None) -> dict:
     """{TICKER: average daily volume over its last `sessions` COMPLETED daily bars}.
 
