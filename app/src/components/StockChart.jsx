@@ -3506,11 +3506,22 @@ export default function StockChart({
       idbPut(sym, resolvedTf, merged)
       memPut(sym, resolvedTf, merged)
     } else if (!data.delta && data.bars.length) {
-      if (_dbg) console.log('[bars-delta]', sym, resolvedTf, `=> REPLACED (full) with ${data.bars.length}`)
-      setIdbBars(data.bars)
-      idbSinceRef.current = data.bars[data.bars.length - 1]?.t ?? null
-      idbPut(sym, resolvedTf, data.bars)
-      memPut(sym, resolvedTf, data.bars)
+      // If IDB already holds a DEEPER history than this (shallow, recent) full set —
+      // e.g. the Custom-Period-Sort deep prefetch pre-warmed the full pre-2024 tail —
+      // don't truncate it back to the first-paint window. mergeDelta keeps the deep
+      // bars and lets the fresh server bars WIN on the overlapping recent tail (same
+      // healing as a replace, minus the truncation), so scrolling into deep history
+      // is instant instead of paying a cold deep fetch. Only when the fresh set is a
+      // recent SUFFIX of the deeper one (same sym/tf, starts at/after the deep start).
+      const deeperInIdb = sameSymTf && idbBars?.length > data.bars.length
+        && data.bars[0] && idbBars[0] && data.bars[0].t >= idbBars[0].t
+      const next = deeperInIdb ? mergeDelta(idbBars, data.bars) : data.bars
+      if (_dbg) console.log('[bars-delta]', sym, resolvedTf,
+        deeperInIdb ? `=> KEPT DEEP (${idbBars.length}) + healed tail (${data.bars.length})` : `=> REPLACED (full) with ${data.bars.length}`)
+      setIdbBars(next)
+      idbSinceRef.current = next[next.length - 1]?.t ?? null
+      idbPut(sym, resolvedTf, next)
+      memPut(sym, resolvedTf, next)
     }
   }, [data])  // eslint-disable-line react-hooks/exhaustive-deps
 

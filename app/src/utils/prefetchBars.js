@@ -243,10 +243,12 @@ export function warmMemFromIDB(tickers, tfs = SCAN_WARM_TFS) {
 // StockChart's own deep fetch becomes an instant SWR cache hit — the deep history
 // is already loaded by the time the user scrolls into it.
 //
-// Deliberately NOT written to IDB: StockChart's cold D/W/M fetch (bars=
-// FIRST_PAINT_BARS, no `since`) REPLACES the IDB entry on open, so a deep IDB
-// write would just be truncated back — the SWR + server cache is the real win.
-// Separate bounded queue (big payloads) so it never starves the active chart.
+// Written to BOTH the server/SWR cache AND IndexedDB. StockChart's cold D/W/M fetch
+// used to truncate a deep IDB entry back to the first-paint window on open, but it
+// now PRESERVES a deeper IDB history (mergeDelta-heals the recent tail instead of
+// replacing), so a pre-warmed deep entry paints the full pre-2024 history INSTANTLY
+// on the first render — no dwell, no cold deep fetch. Separate bounded queue (big
+// payloads) so it never starves the active chart.
 const _deepQueue = []
 let _deepActive = 0
 const _DEEP_MAX = 2
@@ -256,11 +258,25 @@ let _deepKick = null
 function _deepUrl(sym, tf) {
   return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${fullBarsFor(tf)}`
 }
+async function _deepWarmOne(sym, tf) {
+  try {
+    const target = fullBarsFor(tf)
+    const have = await idbGet(sym, tf)
+    // Already deep enough in IDB → nothing to do (a short-history name never
+    // reaches `target`, but the 5-min _deepSeen window keeps it from re-fetching).
+    if (have?.bars?.length >= target * 0.9) return
+    const json = await preload(_deepUrl(sym, tf), fetcher) // dedupes + warms SWR + server
+    if (json?.bars?.length && !json.delta) {
+      await idbPut(sym, tf, json.bars)   // durable: the click paints deep from IDB
+      memPut(sym, tf, json.bars)
+    }
+  } catch { /* best-effort; the chart's own dwell-warm remains the fallback */ }
+}
 function _deepPump() {
   while (_deepActive < _DEEP_MAX && _deepQueue.length) {
-    const url = _deepQueue.shift()
+    const { sym, tf } = _deepQueue.shift()
     _deepActive++
-    Promise.resolve(preload(url, fetcher)).finally(() => { _deepActive--; _deepPump() })
+    _deepWarmOne(sym, tf).finally(() => { _deepActive--; _deepPump() })
   }
 }
 function _deepKickSoon() {
@@ -282,11 +298,11 @@ export function prefetchListDeep(tickers, { tfs = DEEP_WARM_TFS, cap = DEEP_WARM
   // pass, so the zoomed-out history the user asked about is ready first.
   for (const tf of tfs) {
     for (const sym of list) {
-      const url = _deepUrl(sym, tf)
-      if (_deepSeen.has(url)) continue
-      _deepSeen.add(url)
-      setTimeout(() => _deepSeen.delete(url), 300000) // 5-min re-warm window
-      _deepQueue.push(url)
+      const key = `${sym}_${tf}`
+      if (_deepSeen.has(key)) continue
+      _deepSeen.add(key)
+      setTimeout(() => _deepSeen.delete(key), 300000) // 5-min re-warm window
+      _deepQueue.push({ sym, tf })
     }
   }
   for (const sym of list) prefetchTickerMeta(sym)
