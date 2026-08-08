@@ -82,9 +82,67 @@
 }
 .close:hover { background: var(--bg-hover, #2a2d24); color: var(--text-bright, #e0dac8); }
 
+/* Add-as-tab dropdown (floating panel header). */
+.tabMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 60;
+  min-width: 160px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--bg-elevated, #22251e);
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 8px;
+  box-shadow: 0 16px 40px -18px rgba(0, 0, 0, 0.6);
+}
+.tabMenuHead { padding: 6px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #8c8674); }
+.tabMenuItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-bright, #e0dac8);
+  font: inherit;
+  font-size: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.tabMenuItem:hover { background: var(--bg-hover, #2a2d24); }
+
 /* Table wrapper — flex-fills the panel/widget body below the header. */
 .tableWrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .footRange { margin-left: auto; }
+
+/* ── Docked widget form (fills the workspace slot) ───────────────────────────── */
+.widgetRoot { width: 100%; height: 100%; display: flex; flex-direction: column; min-height: 0; background: var(--bg-elevated, #22251e); }
+.widgetBar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--border, #2e3127);
+  background: var(--bg-surface, #1a1c17);
+}
+.widgetRange { font-size: 11px; color: var(--text-muted, #8c8674); font-variant-numeric: tabular-nums; }
+.gearPop {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 8px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--bg-elevated, #22251e);
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 10px;
+  box-shadow: 0 16px 40px -18px rgba(0, 0, 0, 0.6);
+}
 
 /* Column layout — one grid template shared by the header + every row. */
 .colHead, .row {

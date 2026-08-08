@@ -26,6 +26,7 @@ import PopoutShell from './popout/PopoutShell'
 import PoppedLayout from './popout/PoppedLayout'
 import PeriodSortPanel from './PeriodSortPanel'
 import PeriodSortConfig from './PeriodSortConfig'
+import { addWidgetTab } from './widgetTabs'
 import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y as _MARGIN_Y, BODY_PAD as _BODY_PAD } from './rowHeight'
 import styles from './ChartsWorkspace.module.css'
 
@@ -180,13 +181,14 @@ const WIDGET_DEFAULTS = {
   alerts:    { w: 6,  h: 10, minW: 2, minH: 4 },
   calendar:  { w: 6,  h: 10, minW: 2, minH: 4 },
   optionsflow: { w: 8, h: 12, minW: 4, minH: 5 },
+  periodsort: { w: 7,  h: 12, minW: 3, minH: 5 },
 }
 
 // A blocked window.open returns null with no error, so this is the only way the
 // user learns why their board didn't appear on the other monitor.
 const POPUP_BLOCKED_MSG = 'Your browser blocked the pop-out window. Allow pop-ups for this site, then try again.'
 
-const WIDGET_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth', 'aisearch', 'news', 'profile', 'alerts', 'calendar', 'optionsflow']
+const WIDGET_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth', 'aisearch', 'news', 'profile', 'alerts', 'calendar', 'optionsflow', 'periodsort']
 const WIDGET_LABELS = {
   chart: 'Chart',
   watchlist: 'Watchlist',
@@ -200,6 +202,7 @@ const WIDGET_LABELS = {
   alerts: 'Alerts',
   calendar: 'Calendar',
   optionsflow: 'Options Flow',
+  periodsort: 'Period Sort',
 }
 
 function parseLayout(raw) {
@@ -640,7 +643,7 @@ export default function ChartsWorkspace() {
     })
   }, [scheduleSave])
 
-  const handleAddWidget = useCallback((type) => {
+  const handleAddWidget = useCallback((type, seedOpts) => {
     setLayout(prev => {
       const color = pickWidgetColor(prev.widgets, groupSyms)
       const defaults = WIDGET_DEFAULTS[type]
@@ -654,13 +657,31 @@ export default function ChartsWorkspace() {
         id: `w-${type}-${Date.now()}`,
         type, color,
         x, y, w, h,
-        opts: {},
+        opts: seedOpts && typeof seedOpts === 'object' ? { ...seedOpts } : {},
       }
       const next = { ...prev, widgets: clampWidgetsToRows([...prev.widgets, newWidget]) }
       scheduleSave(next)
       return next
     })
   }, [scheduleSave, groupSyms])
+
+  // Custom-Period Sort → dock the floating results as a real grid widget (carrying the
+  // highlighted range), or fold it into an existing widget as a Period-Sort tab.
+  const handleDockPeriodSort = useCallback((start, end) => {
+    setPeriodSortPanel(null)
+    handleAddWidget('periodsort', { start, end })
+  }, [handleAddWidget])
+  const handlePeriodSortToTab = useCallback((widgetId, start, end) => {
+    setPeriodSortPanel(null)
+    setLayout(prev => {
+      const target = prev.widgets.find(w => w.id === widgetId)
+      if (!target) return prev
+      const nextWidget = addWidgetTab(target, { type: 'periodsort', color: 'N', opts: { start, end } })
+      const next = { ...prev, widgets: prev.widgets.map(w => w.id === widgetId ? { ...nextWidget, x: w.x, y: w.y, w: w.w, h: w.h } : w) }
+      scheduleSave(next)
+      return next
+    })
+  }, [scheduleSave])
 
   const [savedFlash, setSavedFlash] = useState(false)
   const savedFlashTimerRef = useRef(null)
@@ -1353,6 +1374,9 @@ export default function ChartsWorkspace() {
             end={periodSortPanel.end}
             onClose={() => setPeriodSortPanel(null)}
             onPickSym={(s) => setGroupSym('A', s)}
+            onDock={() => handleDockPeriodSort(periodSortPanel.start, periodSortPanel.end)}
+            tabTargets={visibleWidgets.map(w => ({ id: w.id, label: WIDGET_LABELS[w.type] || w.type }))}
+            onAddAsTab={(widgetId) => handlePeriodSortToTab(widgetId, periodSortPanel.start, periodSortPanel.end)}
           />
         )}
       </div>

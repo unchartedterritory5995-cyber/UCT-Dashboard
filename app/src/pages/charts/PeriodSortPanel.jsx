@@ -1,13 +1,14 @@
 // Custom-Period Sort — the draggable floating results window. Wraps the shared
-// PeriodSortTable (identical to the docked Period-Sort widget) in a movable panel with a
-// header that can dock the results into the grid, become a tab, or open settings.
+// PeriodSortTable (identical to the docked Period-Sort widget) in a movable panel whose
+// header can dock the results into the grid as a widget or fold them into an existing
+// widget as a Period-Sort tab.
 import { useState, useCallback } from 'react'
 import PeriodSortTable from './PeriodSortTable'
 import styles from './PeriodSortPanel.module.css'
 
-export default function PeriodSortPanel({ start, end, onClose, onPickSym, onDock, onAddAsTab, onSettings }) {
-  // Draggable window (pointer-drag on the header bar).
+export default function PeriodSortPanel({ start, end, onClose, onPickSym, onDock, onAddAsTab, tabTargets = [] }) {
   const [pos, setPos] = useState({ x: 140, y: 96 })
+  const [tabMenuOpen, setTabMenuOpen] = useState(false)
   const onHeaderPointerDown = useCallback((e) => {
     if (e.target.closest('[data-no-drag]')) return
     e.preventDefault()
@@ -28,11 +29,18 @@ export default function PeriodSortPanel({ start, end, onClose, onPickSym, onDock
         <span className={styles.grip} aria-hidden="true" />
         <span className={styles.title}>US Common Stocks</span>
         <div className={styles.headBtns} data-no-drag>
-          {onSettings && (
-            <button type="button" className={styles.iconBtn} onClick={onSettings} title="Settings" aria-label="Settings">⚙</button>
-          )}
-          {onAddAsTab && (
-            <button type="button" className={styles.iconBtn} onClick={onAddAsTab} title="Add as a tab in a widget" aria-label="Add as tab">⊞</button>
+          {onAddAsTab && tabTargets.length > 0 && (
+            <div style={{ position: 'relative' }}>
+              <button type="button" className={styles.iconBtn} onClick={() => setTabMenuOpen((o) => !o)} title="Add as a tab in a widget" aria-label="Add as tab">⊞</button>
+              {tabMenuOpen && (
+                <div className={styles.tabMenu} onMouseLeave={() => setTabMenuOpen(false)}>
+                  <div className={styles.tabMenuHead}>Add as tab in…</div>
+                  {tabTargets.map((t) => (
+                    <button key={t.id} type="button" className={styles.tabMenuItem} onClick={() => { setTabMenuOpen(false); onAddAsTab(t.id) }}>{t.label}</button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
           {onDock && (
             <button type="button" className={styles.iconBtn} onClick={onDock} title="Dock into the workspace as a widget" aria-label="Dock">⧉</button>
