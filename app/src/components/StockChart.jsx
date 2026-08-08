@@ -1235,6 +1235,19 @@ export default function StockChart({
   // meaningful on D/W/M — inert on intraday.
   sessionView = null,
   hideExtHoursToolbarToggle = false,  // charts workspace moves the intraday EXT/RTH toggle into the widget header, so hide the toolbar one
+  // ⭐ PHASE C TASK 12 — WHICH CHART THIS IS. A stable per-surface id: the
+  // `/charts` widget slot (`WidgetHost`'s `groupId`) or a Multi-Chart grid
+  // cell's persisted `cell.id`. Forwarded to `ChartToolbar` → the alert
+  // popover, which is what makes the alert listing request carry `?scope=` —
+  // the parameter `indicator_alert_service.list_for_user` has implemented since
+  // Task 12 and that no client had ever sent.
+  //
+  // ⚠️ IT MUST BE STABLE ACROSS RELOADS, not per-mount. A random id would scope
+  // an alert to a chart that ceases to exist the moment the tab is refreshed —
+  // which is worse than no scoping at all. Both producers persist theirs
+  // (`charts_workspace_layout`, `multichart_state`); a surface without one
+  // passes nothing and stays global.
+  chartId = null,
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -11447,6 +11460,11 @@ export default function StockChart({
                `updateChart`), so the popover can never offer an instance this
                chart is not drawing. */
             chartInstances={engineInstancesRef.current}
+            /* ⭐ WHICH CHART (Phase C Task 12) — see the `chartId` prop. */
+            chartId={chartId}
+            /* ⭐ THE WINDOW THE USER SEES (Phase D Task 13) — the concierge's
+               compute stage runs on these. Same array the chart is drawing. */
+            bars={bars}
             activeTool={activeTool}
             setActiveTool={setActiveTool}
             color={drawColor}
@@ -11589,6 +11607,8 @@ export default function StockChart({
           {annotationsEditable && (
             <ChartToolbar
               chartInstances={engineInstancesRef.current}
+              chartId={chartId}
+              bars={bars}
               activeTool={activeTool}
               setActiveTool={setActiveTool}
               color={drawColor}
@@ -11680,6 +11700,8 @@ export default function StockChart({
           {indexAnnotationsEditable && (
             <ChartToolbar
               chartInstances={engineInstancesRef.current}
+              chartId={chartId}
+              bars={bars}
               activeTool={indexActiveTool}
               setActiveTool={setIndexActiveTool}
               color={drawColor}

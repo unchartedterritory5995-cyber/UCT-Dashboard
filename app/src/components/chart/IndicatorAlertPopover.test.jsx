@@ -836,3 +836,125 @@ describe('the alert timeframe vocabulary is ONE vocabulary', () => {
       .toEqual(new Set(NATIVE_TFS))
   })
 })
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PHASE C TASK 11 — THE LIFECYCLE STATE REACHES THE MEMBER.
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// `sweep_silent_alerts` has run in production every five minutes since Task 11.
+// It notices an alert that has gone quiet, RE-RUNS the compute to find out why,
+// and writes `state='needs_attention'` with a `state_detail` sentence naming the
+// cause. `_row_to_dict` has served both fields the whole time and NO FRONTEND
+// MODULE READ EITHER ONE — so the alert a member needed to fix rendered exactly
+// like a healthy one that had simply not triggered yet.
+//
+// 🔴 IT IS ALSO LOAD-BEARING FOR THE `ichimoku.chikou` RULING: those alerts can
+// never fire on a closed bar and the decision was that they stay ACTIVE and
+// "surface as needs_attention with a state_detail". Without this read, that
+// decision is a silent death with a database column.
+//
+// ⛔ BOTH DIRECTIONS, and the negative one is not the easy one. A row that is
+// merely HEALTHY would also pass against an implementation that renders every
+// `state_detail` it is handed — and `rearm` writes a detail under `armed`,
+// `snooze` writes one under `snoozed`. So the control row carries a detail AND
+// is healthy: only an implementation that reads the STATE can tell them apart.
+
+/** A served row, in the shape `indicator_alert_service._row_to_dict` returns. */
+const alertRow = (over = {}) => ({
+  id: 1,
+  sym: 'AAPL',
+  indicator: 'rsi',
+  condition: 'above',
+  threshold: 70,
+  tf: 'D',
+  active: true,
+  last_value: null,
+  triggered_at: null,
+  trigger_count: 0,
+  created_at: 1_700_000_000,
+  state: 'armed',
+  state_detail: null,
+  instance_missing: false,
+  scope: null,
+  ...over,
+})
+
+/** The real sentence the sweep writes for the tzdata case — quoted from
+ *  `indicator_alert_service.diagnose`'s own vocabulary rather than invented, so
+ *  a component that paraphrased instead of rendering would stop matching. */
+const SWEEP_DETAIL =
+  'ZoneInfoNotFoundError: No time zone found with key America/New_York'
+
+describe('Phase C Task 11 — a mute alert says what is wrong with it', () => {
+  it('⭐ `state=needs_attention` renders the server\'s own `state_detail` on the row', () => {
+    mockCatalog(RSI_ONLY)
+    H.alerts = [alertRow({ id: 11, state: 'needs_attention', state_detail: SWEEP_DETAIL })]
+    render(<IndicatorAlertPopover sym="AAPL" onClose={() => {}} />)
+    const line = screen.getByTestId('alert-state-detail')
+    // ⛔ EQUALITY. The sweep's sentence names the cause; a client-side summary
+    // of it ("this alert is broken") would be a second, rotting description of
+    // a diagnosis the server already wrote for this exact row.
+    expect(line.textContent).toBe(SWEEP_DETAIL)
+    expect(line.getAttribute('data-state')).toBe('needs_attention')
+  })
+
+  it('⭐ `state=error` is surfaced too — the other fault state the service writes', () => {
+    mockCatalog(RSI_ONLY)
+    H.alerts = [alertRow({ id: 12, state: 'error', state_detail: 'no stored bars for AAPL on D' })]
+    render(<IndicatorAlertPopover sym="AAPL" onClose={() => {}} />)
+    expect(screen.getByTestId('alert-state-detail').textContent).toBe('no stored bars for AAPL on D')
+  })
+
+  it('⛔ CONTROL: a HEALTHY row shows no lifecycle line — even when it carries a detail', () => {
+    // `rearm` writes `state_detail` under `armed` and `snooze` writes "snoozed
+    // for 60 min" under `snoozed`. An implementation that rendered every detail
+    // it was handed would report both of those as broken alerts, and would pass
+    // a control that only checked a detail-less healthy row.
+    mockCatalog(RSI_ONLY)
+    H.alerts = [
+      alertRow({ id: 13, state: 'armed', state_detail: 're-armed by the evaluator' }),
+      alertRow({ id: 14, state: 'snoozed', state_detail: 'snoozed for 60 min' }),
+    ]
+    render(<IndicatorAlertPopover sym="AAPL" onClose={() => {}} />)
+    expect(screen.queryByTestId('alert-state-detail')).toBeNull()
+    expect(screen.queryByText('re-armed by the evaluator')).toBeNull()
+    expect(screen.queryByText('snoozed for 60 min')).toBeNull()
+  })
+
+  it('a fault with NO recorded detail still says the alert is not firing', () => {
+    // `_set_state` can move a row to a fault state without a sentence. Silence
+    // there is the exact failure this task closes, one field over.
+    mockCatalog(RSI_ONLY)
+    H.alerts = [alertRow({ id: 15, state: 'needs_attention', state_detail: null })]
+    render(<IndicatorAlertPopover sym="AAPL" onClose={() => {}} />)
+    expect(screen.getByTestId('alert-state-detail').textContent).toMatch(/not firing/i)
+  })
+
+  it('⛔ the two fault states are the SERVICE\'s two — not two strings typed here', () => {
+    // The component holds `ATTENTION_STATES`, which is a twin of the service's
+    // `STATE_NEEDS_ATTENTION` / `STATE_ERROR`. A twin that nothing compares is
+    // how the read went missing in the first place, so the comparison is made
+    // against the service's own source.
+    const CONTROL = 'STATE_ARMED = "armed"\nSTATE_NEEDS_ATTENTION = "needs_attention"\nSTATE_ERROR = "error"\n'
+    const faultStates = (src) => ['STATE_NEEDS_ATTENTION', 'STATE_ERROR'].map((name) => {
+      const m = new RegExp('^' + name + '[ ]*=[ ]*"([^"]+)"', 'm').exec(src)
+      return m ? m[1] : null
+    })
+    // The probe finds them when they ARE there — a null claim from a broken
+    // pattern would report any file as agreeing.
+    expect(faultStates(CONTROL)).toEqual(['needs_attention', 'error'])
+    expect(faultStates('nothing here')).toEqual([null, null])
+
+    const py = fs.readFileSync(path.join(ROOT, 'api/services/indicator_alert_service.py'), 'utf8')
+    const jsx = fs.readFileSync(
+      path.join(ROOT, 'app/src/components/chart/IndicatorAlertPopover.jsx'), 'utf8',
+    )
+    const declared = /const\s+ATTENTION_STATES\s*=\s*new\s+Set\(\[([^\]]*)\]\)/.exec(jsx)
+    expect(declared, 'ATTENTION_STATES could not be read from IndicatorAlertPopover.jsx').toBeTruthy()
+    const rendered = [...declared[1].matchAll(/'([^']+)'/g)].map((m) => m[1])
+    expect(new Set(rendered),
+      'the states the popover treats as a fault are no longer the service\'s fault states — ' +
+      'a sweep that flags an alert the UI does not render is the silence Task 11 closed.')
+      .toEqual(new Set(faultStates(py)))
+  })
+})

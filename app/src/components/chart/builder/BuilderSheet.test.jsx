@@ -854,3 +854,117 @@ describe('🔴 saving a formula puts it ON THE CHART', () => {
     expect(src).toContain('cannot resolve and be DROPPED on the next paint')
   })
 })
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PHASE D TASK 13 — THE AI DOOR IS MOUNTED ON THIS SHEET.
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// `ConciergeBox.jsx` shipped complete: a documented prop contract, a
+// derived-from-the-tree read-back, and twelve of its own green cases. It had
+// ZERO non-test importers. `BuilderSheet` — the one surface that could host it,
+// and the one `ChartToolbar` mounts — imported `FormulaField` and nothing from
+// `ConciergeBox`, so `POST /api/user-definitions/propose` (cost-guarded,
+// `MAX_MODEL_CALLS = 2`) had no product caller and "describe an indicator in
+// English" existed on no screen in the product.
+//
+// ⛔ SO EVERY CASE HERE DRIVES THE BOX **THROUGH THE SHEET**. Rendering
+// `ConciergeBox` on its own is what `ConciergeBox.test.jsx` already does twelve
+// times, and all twelve stayed green for the entire time the feature was
+// unreachable. These fail if the mount is removed while both components remain
+// perfectly correct — which is the only thing that distinguishes a wiring test
+// from a component test.
+
+describe('the AI door is reachable FROM the builder (Task 13)', () => {
+  // DERIVED: the tree, the read-back and the badge all come from the shipped
+  // evaluator, so a renamed function or a reworded sentence can never leave this
+  // asserting against a formula the parser would refuse.
+  const PROPOSED_SOURCE = 'sma(close, 20)'
+  const PROPOSED = evaluateFormula(PROPOSED_SOURCE)
+
+  /** A server `sentence` that is fluent, plausible, and about a DIFFERENT
+   *  indicator. The box is contracted to ignore it; the sheet must show the
+   *  tree's read-back, which is the same claim one hop further out. */
+  const LIE = 'a nine-bar momentum oscillator of the high'
+
+  const englishBox = () => screen.getByLabelText(/plain English/i)
+  const draftBtn = () => screen.getByRole('button', { name: /draft a formula/i })
+  const useBtn = () => screen.getByRole('button', { name: /use this formula/i })
+
+  async function draft(prompt = 'the twenty bar average of the close') {
+    H.writeResponse = {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        ast: PROPOSED.ast,
+        source: PROPOSED_SOURCE,
+        repaint: PROPOSED.verdict.mode,
+        sentence: LIE,
+      }),
+    }
+    fireEvent.change(englishBox(), { target: { value: prompt } })
+    await act(async () => { fireEvent.click(draftBtn()) })
+    await flush()
+  }
+
+  it('⭐ the box is mounted INSIDE the sheet, above the typed field', async () => {
+    mount()
+    await flush()
+    const panel = document.querySelector('[role="dialog"]')
+    const box = screen.getByTestId('concierge-box')
+    // `panel.contains` is the whole claim: an importable component that nothing
+    // renders satisfies every other assertion in this file.
+    expect(panel.contains(box)).toBe(true)
+    expect(box.compareDocumentPosition(field()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('⭐ drafting from the sheet issues the REAL propose request', async () => {
+    // ⚠️ NO `fetchImpl`. The box's injection point is for tests only, and
+    // `lesson_injected_dependency_hides_the_fetch` is precisely the trap: 996
+    // green tests once shipped a feature that ran in 0 of 24 charts because
+    // every test handed in a fake. The sheet passes no fake, so this observes
+    // the request that actually leaves.
+    mount()
+    await draft()
+    const propose = H.requests.filter(r => r.url.includes('/api/user-definitions/propose'))
+    expect(propose, 'the sheet issued no propose request — the AI door is not wired')
+      .toHaveLength(1)
+    expect(propose[0].method).toBe('POST')
+    expect(JSON.parse(propose[0].body).prompt).toBe('the twenty bar average of the close')
+  })
+
+  it('⭐⭐ accepting a proposal lands in the SHEET\'S OWN formula state', async () => {
+    mount()
+    await draft()
+    expect(screen.getByTestId('concierge-proposal')).toBeTruthy()
+
+    await act(async () => { fireEvent.click(useBtn()) })
+    await act(async () => { vi.advanceTimersByTime(FORMULA_DEBOUNCE_MS) })
+    await flush()
+
+    // The accepted source is in the field the user types in — so the proposal
+    // goes through the SAME parse, budget walk, linter and read-back a typed
+    // formula does. Handing `body.ast` straight to `buildDefinition` would be a
+    // second write path with a second set of gates to keep in step.
+    expect(field().value).toBe(PROPOSED_SOURCE)
+    expect(screen.getByTestId('readback')).toHaveTextContent(PROPOSED.readback)
+    expect(screen.getByTestId('repaint-badge').getAttribute('data-mode')).toBe(PROPOSED.verdict.mode)
+    // …and the server's sentence reached no pixel, one hop further out than
+    // `ConciergeBox.test.jsx` can assert it.
+    expect(screen.queryByText(LIE)).toBeNull()
+    // Save is still the user's decision: the name is still empty.
+    expect(saveBtn()).toBeDisabled()
+  })
+
+  it('⛔ THE BOX STILL NEVER SAVES — accepting writes nothing', async () => {
+    // The reason it is worth mounting at all: `onAccept` fills a text field and
+    // the ordinary Save button does the writing, through the one store door.
+    mount()
+    await draft()
+    await act(async () => { fireEvent.click(useBtn()) })
+    await flush()
+    const writes = H.requests.filter(r => r.method !== 'GET' && !r.url.includes('/propose'))
+    expect(writes, 'accepting a proposal wrote a definition — the concierge has become a second write path')
+      .toEqual([])
+  })
+})

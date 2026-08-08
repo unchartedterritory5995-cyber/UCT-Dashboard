@@ -41,7 +41,10 @@ function WidgetBody({ groupId, type, color, opts, onOptsChange }) {
   // so two "not linked" tabs in the same slot stay independent.
   const key = color === 'N' ? `N:${groupId}` : color
   switch (type) {
-    case 'chart':     return <ChartWidget     color={key} opts={opts} onOptsChange={onOptsChange} />
+    // ⭐ `chartId` (Phase C Task 12): the slot's own PERSISTED id, which is what
+    // makes a chart's alerts scopable to it. `groupId` is already per-tab and
+    // already stable across reloads — see its declaration in `WidgetHost`.
+    case 'chart':     return <ChartWidget     color={key} opts={opts} onOptsChange={onOptsChange} chartId={groupId} />
     case 'watchlist': return <WatchlistWidget color={key} opts={opts} onOptsChange={onOptsChange} />
     case 'themes':    return <ThemesWidget    color={key} opts={opts} />
     case 'scanner':   return <ScannerWidget   color={key} opts={opts} onOptsChange={onOptsChange} />

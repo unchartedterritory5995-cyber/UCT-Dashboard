@@ -716,6 +716,17 @@ function ChartToolbar({
   // no instance is offered and the alert carries no `instance_id`, which is
   // what every row created before this producer existed carries.
   chartInstances = [],
+  // ⭐ PHASE C TASK 12 — the surface's own stable chart id, forwarded to the
+  // alert popover so its listing request carries `?scope=` and a "this chart
+  // only" alert has something to be scoped TO. Default `null`, so every mount
+  // site that passes none keeps the unscoped listing it has always had.
+  chartId = null,
+  // ⭐ PHASE D TASK 13 — the bars this chart is holding, forwarded to the
+  // builder's concierge box, whose compute stage runs on the window the user is
+  // looking at (`definition_concierge._validate`). Default `null`: the server
+  // skips the compute check on an empty list rather than refusing, so a mount
+  // site with no bars still gets a parseable proposal.
+  bars = null,
 }, ref) {
   const [showColors, setShowColors] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
@@ -1042,6 +1053,7 @@ function ChartToolbar({
               onClose={() => setAlertPopoverOpen(false)}
               chartInstances={chartInstances}
               initial={alertInitial}
+              chartId={chartId}
             />
           )}
         </div>
@@ -1120,6 +1132,9 @@ function ChartToolbar({
                cannot write an instance. */
             settings={cs}
             onChange={onUpdateSettings}
+            /* ⭐ PHASE D TASK 13 — the concierge's compute stage runs on the
+               window the user sees. See the `bars` prop's declaration. */
+            bars={bars}
           />
         )}
 

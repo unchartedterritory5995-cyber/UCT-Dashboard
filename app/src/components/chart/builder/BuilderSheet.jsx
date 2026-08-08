@@ -63,6 +63,7 @@ import {
   useUserDefinitions, saveUserDefinition, deleteUserDefinition,
 } from '../../../hooks/useUserDefinitions'
 import FormulaField, { evaluateFormula, canSaveFormula } from './FormulaField'
+import ConciergeBox from './ConciergeBox'
 import styles from './BuilderSheet.module.css'
 
 const FOCUSABLE = 'button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),'
@@ -168,7 +169,7 @@ export class BuilderBoundary extends Component {
 }
 
 export default function BuilderSheet({
-  open, onClose, onSaved = null, settings = null, onChange = null,
+  open, onClose, onSaved = null, settings = null, onChange = null, bars = null,
 }) {
   const [source, setSource] = useState('')
   const [name, setName] = useState('')
@@ -354,6 +355,32 @@ export default function BuilderSheet({
           the panel underneath it. Same trap `IndicatorLibraryDialog` documents. */}
       <div className={styles.body} ref={rootRef} {...{ [PORTAL_POPUP_ATTR]: 'formula-builder' }}>
         <BuilderBoundary>
+          {/* ── THE AI DOOR (Phase D Task 13) ────────────────────────────────
+              ⭐ IT IS MOUNTED HERE, ABOVE THE TYPED FIELD, AND UNTIL NOW IT WAS
+              MOUNTED NOWHERE. `ConciergeBox` shipped complete — a prop
+              contract, a derived read-back, a full test file — with ZERO
+              non-test importers, so `POST /api/user-definitions/propose` (cost
+              -guarded, `MAX_MODEL_CALLS = 2`) had no product caller and
+              "describe an indicator in English" existed on no screen.
+
+              ⛔ `onAccept` WRITES THE SOURCE AND NOTHING ELSE. The box
+              deliberately never saves; handing its `source` to the field the
+              user already types in means the proposal goes through the SAME
+              parse, the SAME budget walk, the SAME linter and the SAME
+              read-back as a typed formula, and the Save button below stays the
+              one and only write path. Taking `body.ast` straight to
+              `buildDefinition` would be a second door with a second set of
+              gates to keep in step — the exact shape this phase retires.
+
+              ⚠️ NO `fetchImpl`. The box's injection point is for tests only;
+              production uses the global `fetch`, so what this surface issues is
+              a real request (`lesson_injected_dependency_hides_the_fetch`). */}
+          <ConciergeBox
+            bars={bars}
+            disabled={saving}
+            onAccept={(proposal) => setSource(proposal?.source || '')}
+          />
+
           <FormulaField
             value={source}
             onChange={setSource}
