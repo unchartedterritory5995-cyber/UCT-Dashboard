@@ -279,6 +279,166 @@ def test_control_the_unmutated_linter_brands_every_dirty_case_dirty():
 
 
 # --------------------------------------------------------------------------- #
+# THE DEFINITION'S OWN INPUTS -- a DECLARED SCALAR, never an undeclared series
+# --------------------------------------------------------------------------- #
+#
+# 🔴 THE DEFECT. ``parse.js`` turns every identifier into a ``series`` node and
+# ``BuilderSheet.buildDefinition`` puts ``lineWidth`` on every definition it
+# builds, so the first member to type a knob's name into a formula got
+# ``repaints`` -- *"unanalysable: `lineWidth` is not a series this table
+# declares"* -- and could never arm it. An input is a per-instance SCALAR: one
+# number for the whole column, so its window is ``[i, i]``.
+#
+# ⛔ AND THE CLOSED TABLE STAYS CLOSED. What an input adds is exactly the names
+# the DOCUMENT declares. Everything below asserts BOTH directions of that.
+
+#: `close * lineWidth` -- the audit's own example.
+INPUT_TIMES_CLOSE = {"type": "op", "name": "*", "args": [
+    {"type": "series", "name": "close"},
+    {"type": "series", "name": "lineWidth"},
+]}
+
+
+def _defn(tree, inputs=None):
+    return {"id": "u_probe", "compute": {"kind": "ast", "ast": tree},
+            "plots": [{"key": "value"}],
+            "inputs": inputs if inputs is not None
+            else [{"key": "lineWidth", "type": "int", "default": 1}]}
+
+
+def test_a_reference_to_a_DECLARED_input_is_a_scalar_and_reaches_no_bar():
+    """⭐ THE FIX, AS THE SMALLEST POSSIBLE STATEMENT -- and its own control."""
+    declared = al.lint_repaint(INPUT_TIMES_CLOSE, {"inputs": {"lineWidth": 1.0}})
+    assert (declared["mode"], declared["back"], declared["forward"]) == (
+        "non-repainting", 0, 0)
+
+    # ⛔ THE CONTROL, AND IT IS THE FAIL-OPEN DIRECTION. Handed no inputs the
+    # SAME tree is unanalysable, exactly as before -- so "non-repainting" above
+    # is not what this function says about every tree with a name in it.
+    bare = al.lint_repaint(INPUT_TIMES_CLOSE)
+    assert bare["mode"] == "repaints"
+    assert "lineWidth" in " ".join(bare["reasons"])
+
+
+def test_lint_definition_DERIVES_the_scalar_set_from_the_definition_itself():
+    """⛔ ``inputs[].key``, THE ONE VOCABULARY, AND ``name`` IS NOT A FALLBACK.
+
+    ``defSchema.validateInput`` REQUIRES ``input.key``, ``nativeRegistry
+    .resolveInputs`` reads it and ``registry_defs.resolve_inputs`` reads
+    ``spec["key"]``. ``alert_user_series._inputs_for`` read ``spec.get("name")``
+    for its whole life and so agreed with nobody; a linter that accepted either
+    would rebuild that divergence one level down.
+    """
+    assert al.lint_definition(_defn(INPUT_TIMES_CLOSE))["plots"][0]["mode"] \
+        == "non-repainting"
+    legacy = _defn(INPUT_TIMES_CLOSE, [{"name": "lineWidth", "default": 1}])
+    assert al.declared_inputs(legacy) == {}
+    assert al.lint_definition(legacy)["plots"][0]["mode"] == "repaints"
+
+
+def test_a_caller_cannot_WIDEN_a_definitions_own_input_set():
+    """⛔ NOT AN ALLOW-LIST. ``lint_definition`` overwrites ``opts["inputs"]``
+    with the definition's own declaration, so a caller handing one in cannot turn
+    a declared knob into a general escape hatch for any name at all."""
+    smuggled = al.lint_definition(_defn(INPUT_TIMES_CLOSE, []),
+                                  {"inputs": {"lineWidth": 1.0}})
+    assert smuggled["plots"][0]["mode"] == "repaints"
+
+
+def test_a_declared_input_may_not_decide_a_WINDOW():
+    """⛔ ``sma(close, lineWidth)`` -- DECLARED, RESOLVABLE, STILL FAIL-CLOSED.
+
+    ``_resolve_declaration`` bounds an ``argK`` from a literal ``num`` node and a
+    per-instance knob is not one. Reading the knob's VALUE is the tempting fix
+    and it is the wrong one: the window would then change with a setting, and the
+    badge promises a property of the FORMULA.
+    """
+    tree = {"type": "call", "name": "sma", "args": [
+        {"type": "series", "name": "close"},
+        {"type": "series", "name": "lineWidth"}]}
+    verdict = al.lint_definition(_defn(tree))["plots"][0]
+    assert verdict["mode"] == "repaints"
+    assert "sma" in " ".join(verdict["reasons"])
+
+
+def test_the_TABLE_is_consulted_first_so_a_shadowing_input_changes_nothing():
+    """⛔ THE ORDER IS LOAD-BEARING -- verbatim ``sentence.js::renderName``'s.
+
+    A definition whose input shadows ``close`` is a wiring defect ``interpret``
+    raises on outright. What the linter must never do is let the ANSWER depend on
+    which map was consulted second.
+    """
+    shadowing = _defn({"type": "series", "name": "close"},
+                      [{"key": "close", "default": 7.0}])
+    verdict = al.lint_definition(shadowing)["plots"][0]
+    assert (verdict["mode"], verdict["back"], verdict["forward"]) == (
+        "non-repainting", 0, 0)
+
+
+def test_an_input_reference_does_NOT_launder_a_genuinely_repainting_tree():
+    """⭐ THE OTHER DIRECTION, ON THE CORPUS'S OWN DIRTY CASES.
+
+    Multiplying a dirty subtree by a declared scalar must not make it clean --
+    the operator is POINTWISE, so the forward reach of the whole is the forward
+    reach of the dirty half. Every dirty case in the corpus is checked, so this
+    cannot pass by covering only the one shape somebody thought of.
+    """
+    for case in _dirty_cases():
+        wrapped = {"type": "op", "name": "*", "args": [
+            case["ast"], {"type": "series", "name": "lineWidth"}]}
+        got = al.lint_repaint(wrapped, {"table": CORPUS_TABLE,
+                                        "inputs": {"lineWidth": 1.0}})
+        assert got["mode"] == case["expect"], (
+            "%s went %s once a declared input was multiplied into it"
+            % (case["id"], got["mode"]))
+    # …and the clean half stays clean, so the loop above is not asserting that
+    # this linter says `repaints` about everything.
+    clean = [c for c in CORPUS["cases"] if c["expect"] == "non-repainting"]
+    assert clean
+    for case in clean:
+        wrapped = {"type": "op", "name": "*", "args": [
+            case["ast"], {"type": "series", "name": "lineWidth"}]}
+        assert al.lint_repaint(wrapped, {"table": CORPUS_TABLE,
+                                         "inputs": {"lineWidth": 1.0}})["mode"] \
+            == "non-repainting"
+
+
+def test_with_the_input_MEMBERSHIP_test_deleted_any_name_at_all_reads_clean():
+    """⭐ THE GUARD-DELETED CONTROL FOR THIS BRANCH, IN THE FAIL-OPEN DIRECTION.
+
+    The dangerous mutation is not *"inputs stop working"* -- that is loud, the
+    tests above go red and nobody can arm anything. It is the membership test
+    quietly going away, so that ANY identifier is treated as a declared scalar
+    and the closed table is open again with every gate still green.
+
+    With it deleted, the corpus's own ``unknown_series`` case -- a name nothing
+    declares -- comes back ``non-repainting``. The unmutated linter is asserted
+    against the same case, so this is a control and not a coincidence.
+    """
+    mutant = _mutated_linter(
+        "            elif isinstance(name, str) and name in inputs:",
+        "            elif isinstance(name, str):")
+    unknown = case_by_id("unknown_series")
+    assert unknown["expect"] == "repaints"
+    assert mutant["lint_repaint"](unknown["ast"], {"table": CORPUS_TABLE})["mode"] \
+        == "non-repainting", (
+        "deleting the input membership test did not open the door, so the test "
+        "is not the thing keeping an undeclared name out")
+    assert al.lint_repaint(unknown["ast"], {"table": CORPUS_TABLE})["mode"] \
+        == "repaints"
+
+
+def test_declared_inputs_ignores_everything_that_is_not_a_string_key():
+    """A malformed ``inputs[]`` is a document a render surface must survive, and
+    the safe answer is *"declares nothing"*, never *"declares whatever that
+    was"*."""
+    assert al.declared_inputs(None) == {}
+    assert al.declared_inputs({"inputs": "lineWidth"}) == {}
+    assert al.declared_inputs({"inputs": [None, 3, {"key": ""}, {"key": 7},
+                                          {"key": "ok"}]}) == {"ok": True}
+
+
+# --------------------------------------------------------------------------- #
 # obligation 6 -- no exemption surface, proven structurally
 # --------------------------------------------------------------------------- #
 

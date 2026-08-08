@@ -74,10 +74,22 @@ the subject. So this file states its own inheritances up front:
      three lanes read, so it is a strength -- but if that digest is wrong, every
      number here is wrong with it.
 
+  6. THE INPUT MAP IS THE CASE'S, AND UNTIL 2026-08-08 THERE WAS NONE. `run_js`
+     and `run_py` called `interpret(ast, bars)` with no inputs, so every equality
+     this file recorded was taken over `{}` -- while the production caller
+     (`alert_user_series._make_value_fn`) evaluates the same tree with the
+     definition's declared knobs, and any tree that REFERENCED one was refused
+     `resolve:name` before a single row was compared. A gate measuring an input
+     map neither production lane uses is a gate measuring nothing. `case_inputs`
+     is now the ONE reader both lanes are built from; what it still cannot see is
+     a definition whose ALERT ROW overrides a default (`params_json`), because
+     admission is per (definition, version) and there is no row yet.
+
 Produces: `load_corpus()`, `load_escapes()`, `load_manifest()`, `names_in(ast)`,
-`assert_corpus_covers_the_table(manifest, corpus)`, `ast_digest(ast_id, rows)`,
-`run_js(cases, bars)`, `run_py(cases, bars)`, `run_js_escapes(cases, bars)`,
-`compare_lanes(js, py)`, `escape_census(*, unguarded)`.
+`case_inputs(case)`, `assert_corpus_covers_the_table(manifest, corpus)`,
+`ast_digest(ast_id, rows)`, `run_js(cases, bars)`, `run_py(cases, bars)`,
+`run_js_escapes(cases, bars)`, `compare_lanes(js, py)`,
+`escape_census(*, unguarded)`.
 """
 from __future__ import annotations
 
@@ -251,6 +263,32 @@ def generate_ast(spec: str) -> dict:
     raise ValueError(f"unknown AST generator spec: {spec!r}")
 
 
+def case_inputs(case: Any) -> dict:
+    """The declared inputs ONE case is evaluated with -- read ONCE, for BOTH lanes.
+
+    ⭐⭐ THIS IS THE FIX FOR THE DEEPER HALF OF THE INPUT DEFECT, AND THE ONE THE
+    AUDIT NAMED: *"the arm-time 'lanes agree at 1e-9' proof runs on an input map
+    neither production lane uses."* `run_js` and `run_py` took NO inputs, so the
+    equality was established for `{}` while `alert_user_series._make_value_fn`
+    evaluates the same tree with the definition's declared knobs -- and any tree
+    that REFERENCED one was refused outright (`TableRefusal('resolve:name')`) at
+    a gate that had nothing to say about the two lanes agreeing. A gate measuring
+    something nobody runs is the shape this whole phase exists to retire.
+
+    ⛔ ONE READER, SO THE TWO LANES CANNOT BE HANDED DIFFERENT MAPS. Both lanes
+    call THIS function on the SAME case object; there is deliberately no second
+    parameter through which a caller could pass one map to node and another to
+    Python, because a cross-lane equality taken over two different inputs is an
+    equality about nothing and would read exactly like agreement.
+
+    ⛔ AND A MISSING OR MALFORMED `inputs` IS `{}`, NEVER an error: every case in
+    the committed corpus declares none, and `interpret(ast, bars, {})` is
+    byte-identical to the no-argument call both lanes made before.
+    """
+    inputs = case.get("inputs") if isinstance(case, dict) else None
+    return dict(inputs) if isinstance(inputs, dict) else {}
+
+
 def corpus_bars(doc: Optional[dict] = None) -> list[dict]:
     """The frozen bars the corpus is measured against.
 
@@ -320,15 +358,30 @@ def assert_corpus_covers_the_table(manifest: dict, corpus: dict) -> set:
                 | set(manifest["operators"])
                 | set(manifest["series"]))
     used: set = set()
+    # ⭐ A CASE'S OWN DECLARED INPUTS ARE NAMES THE TABLE IS NOT SUPPOSED TO HOLD.
+    # `parse.js` turns every identifier into a `series` node, so `names_in` sees
+    # an input reference exactly as it sees `close`; without this the `stray`
+    # assertion below would read a legitimate declared knob as *"a corpus case
+    # calling something the manifest does not declare"*. It is subtracted from
+    # STRAY ONLY -- an input can never make a table entry count as covered.
+    case_input_names: set = set()
     for case in corpus["cases"]:
         used |= names_in(case["ast"])
+        case_input_names |= set(case_inputs(case))
+    shadowed = sorted(case_input_names & declared)
+    assert not shadowed, (
+        f"{len(shadowed)} corpus case inputs SHADOW a table name: {shadowed}. "
+        "`interpret` raises a plain error for that in both lanes -- it is a "
+        "wiring defect, not a formula the table refuses -- so a case declaring "
+        "one measures the wrong thing in the direction that looks like coverage."
+    )
     missing = sorted(declared - used)
     assert not missing, (
         f"{len(missing)} table entries have NO corpus coverage: {missing}. The "
         "conformance log pins nothing about them, so the two lanes may already "
         "disagree on them and every gate would stay green."
     )
-    stray = sorted(used - declared)
+    stray = sorted(used - declared - case_input_names)
     assert not stray, (
         f"{len(stray)} corpus names are NOT in the table: {stray}. A corpus case "
         "calling something the manifest does not declare is measuring an "
@@ -440,10 +493,13 @@ if (typeof interpret !== 'function') {
 //   2. `JSON.stringify` of a TypedArray emits an OBJECT (`{"0":…,"1":…}`), not an
 //      array, so `compare_lanes` would be handed a shape it cannot compare.
 // `Array.from(col, fn)` produces a plain Array and keeps the null.
+// ⛔ `c.inputs` IS PASSED, AND IT IS THE SAME OBJECT THE PYTHON LANE READS OFF
+// THE SAME CASE (`case_inputs`). A lane evaluated with no inputs while the other
+// had them would be an equality over two different formulas.
 const out = {}
 for (const c of payload.cases) {
   out[c.id] = Array.from(
-    interpret(c.ast, payload.bars),
+    interpret(c.ast, payload.bars, c.inputs || {}),
     (v) => (v === null || v === undefined || Number.isNaN(v) ? null : v))
 }
 process.stdout.write(JSON.stringify({ ok: true, columns: out }))
@@ -668,7 +724,8 @@ def run_js(cases: list[dict], bars: list[dict]) -> dict:
             "would make every cross-lane equality below a claim about nothing.")
 
     payload = {"interpreter": JS_INTERPRET_PATH, "bars": bars,
-               "cases": [{"id": c["id"], "ast": c["ast"]} for c in cases]}
+               "cases": [{"id": c["id"], "ast": c["ast"],
+                          "inputs": case_inputs(c)} for c in cases]}
     return _node_run(_JS_DRIVER, payload)["columns"]
 
 
@@ -719,7 +776,10 @@ def run_py(cases: list[dict], bars: list[dict]) -> dict:
     interpret: Callable = getattr(mod, "interpret")
     out = {}
     for case in cases:
-        col = interpret(case["ast"], bars)
+        # ⛔ `case_inputs`, THE SAME READER THE JS LANE'S PAYLOAD IS BUILT WITH.
+        # See its docstring: two lanes evaluated with two input maps agree about
+        # nothing and report it as agreement.
+        col = interpret(case["ast"], bars, case_inputs(case))
         out[case["id"]] = [None if (v is None or (isinstance(v, float) and math.isnan(v)))
                            else v for v in col]
     return out

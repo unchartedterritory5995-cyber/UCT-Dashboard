@@ -157,6 +157,47 @@ def _resolve_declaration(decl: Any, arg_nodes: List[Any]) -> Reach:
     return UNKNOWN
 
 
+# --------------------------------------------------------------------------- #
+# the definition's own inputs -- a DECLARED SCALAR, never an undeclared series
+# --------------------------------------------------------------------------- #
+
+
+def declared_inputs(defn: Any) -> Dict[str, bool]:
+    """The input names a DEFINITION declares -- ``inputs[].key``, and nothing else.
+
+    ⭐⭐ AN INPUT REFERENCE IS A SCALAR, AND THAT IS WHY IT HAS NO WINDOW.
+    ``parse.js`` turns every identifier into a ``series`` node -- deliberately, so
+    the parser needs no table -- and ``interpret`` seeds a declared input into the
+    scope as ONE NUMBER, not a column. A per-instance constant is the same value
+    at every bar, so its dependency window is ``[i, i]``: back 0, forward 0. Until
+    this existed the linter had no way to say that, badged ``close * lineWidth``
+    ``repaints`` on the strength of *"`lineWidth` is not a series this table
+    declares"*, and every builder definition carries ``lineWidth`` -- so an
+    input-referencing formula could not be armed at all.
+
+    ⛔ ONE VOCABULARY, AND IT IS ``key``. ``defSchema.validateInput`` REQUIRES
+    ``input.key``, ``nativeRegistry.resolveInputs`` reads it, and the house's own
+    server-side reader ``signature/registry_defs.resolve_inputs`` reads
+    ``spec["key"]``. ``name`` is NOT accepted as a fallback: a reader that took
+    either would be the second vocabulary for one field that
+    ``alert_user_series._inputs_for`` already cost this branch once.
+
+    ⛔ THE VALUE IS DISCARDED, ON PURPOSE. Reading it would let a per-instance
+    number decide a WINDOW -- ``_resolve_declaration`` still refuses an ``argK``
+    that is not a literal ``num`` node, so ``sma(close, period)`` stays
+    unanalysable and fails closed even though ``period`` is declared. A window
+    that changed with a knob is a window the badge cannot promise anything about.
+    """
+    out: Dict[str, bool] = {}
+    specs = defn.get("inputs") if isinstance(defn, dict) else None
+    for spec in (specs if isinstance(specs, list) else []):
+        if isinstance(spec, dict):
+            key = spec.get("key")
+            if isinstance(key, str) and key:
+                out[key] = True
+    return out
+
+
 def _own_window(spec: Any, arg_nodes: List[Any]) -> Tuple[Reach, Reach]:
     """``(back, forward)`` for a call's OWN window, from the manifest.
 
@@ -228,6 +269,12 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
     functions = table.get("functions") or {}
     series_names = table.get("series") or {}
     operators = table.get("operators") or {}
+    #: ⭐ ``opts["inputs"]`` -- the definition's declared inputs, BY NAME. The same
+    #: shape ``sentence.js::explainSentence`` already takes and the same shape
+    #: ``interpret`` takes; only the KEYS are read here (see ``declared_inputs``).
+    #: ``lint_definition`` derives it from the definition itself, so a caller
+    #: cannot widen a definition's own input set by handing in another one.
+    inputs = opts.get("inputs") or {}
     reasons: List[str] = []
 
     order: List[Any] = []
@@ -254,11 +301,23 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
         if kind == "num":
             reach_of[id(node)] = (0, 0)
         elif kind == "series":
-            if node.get("name") not in series_names:
-                reach_of[id(node)] = unknown(
-                    "`%s` is not a series this table declares" % node.get("name"))
-            else:
+            name = node.get("name")
+            # ⛔ THE TABLE IS CONSULTED FIRST AND THE ORDER IS LOAD-BEARING --
+            # verbatim ``sentence.js::renderName``'s reasoning, for the same
+            # reason. A definition whose input shadows ``close`` is a wiring
+            # defect ``interpret`` raises on outright; what this must never do is
+            # let the ANSWER depend on which map was consulted second.
+            if isinstance(name, str) and name in series_names:
                 reach_of[id(node)] = (0, 0)
+            elif isinstance(name, str) and name in inputs:
+                # A DECLARED SCALAR. One number for the whole column, so it
+                # depends on no bar at all -- least of all a later one.
+                reach_of[id(node)] = (0, 0)
+            else:
+                reach_of[id(node)] = unknown(
+                    "`%s` is not a series this table declares, and this "
+                    "definition declares %s"
+                    % (name, ", ".join(sorted(inputs)) or "no inputs"))
         elif kind == "op":
             spec = operators.get(node.get("name"))
             if not spec or spec.get("arity") != len(args):
@@ -348,6 +407,13 @@ def lint_repaint(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, 
 
     ``opts["table"]`` is a GRAMMAR keyed by function name -- never an allow-list,
     never keyed by an indicator id. It defaults to the shipped manifest.
+
+    ``opts["inputs"]`` is the DEFINITION's declared inputs, by name -- the same
+    shape ``sentence.js`` and ``interpret`` take. A ``series`` node naming one of
+    them is a per-instance SCALAR and reaches no bar; a name in neither map is
+    unanalysable and fails closed, exactly as before. It is NOT an allow-list
+    either: ``lint_definition`` derives it from ``defn["inputs"]``, so what a
+    definition may call a scalar is what that definition itself declares.
     """
     reach = ast_reach(tree, opts)
     mode = mode_from_reach(reach["forward"])
@@ -379,6 +445,13 @@ def lint_definition(defn: Dict[str, Any], opts: Optional[Dict[str, Any]] = None)
     PINNED forward dependency for a lane this linter cannot read. The linter owns
     no such fact and cannot invent one; it is handed them by a caller that read
     them from where they are already pinned.
+
+    ⭐ THE DEFINITION'S OWN INPUTS ARE DERIVED HERE, NEVER ACCEPTED FROM THE
+    CALLER. ``opts["inputs"]`` is overwritten with ``declared_inputs(defn)`` on
+    the ``ast`` lane, so a caller cannot widen a definition's scalar set by
+    handing one in -- which is what would turn a declared knob into a general
+    escape hatch for any name at all. The closed table stays closed; what an
+    input adds is exactly the names the DOCUMENT declares.
     """
     opts = opts or {}
     facts = opts.get("declared_forward_facts") or {}
@@ -393,7 +466,8 @@ def lint_definition(defn: Dict[str, Any], opts: Optional[Dict[str, Any]] = None)
         address = "%s.%s" % (defn.get("id"), plot_key)
 
         if lane == "ast":
-            verdict = lint_repaint(compute.get("ast"), opts)
+            verdict = lint_repaint(compute.get("ast"),
+                                   dict(opts, inputs=declared_inputs(defn)))
             rows.append(dict(address=address, defId=defn.get("id"), plotKey=plot_key,
                              lane=lane, decidability="decided", **verdict))
             continue

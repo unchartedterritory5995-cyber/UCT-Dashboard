@@ -477,15 +477,26 @@ def _conformance():
 ARM_CASE_ID = "arm"
 
 
-def cross_lane_report(tree: Any, bars: list) -> dict:
-    """Run BOTH lanes over `tree` on `bars` and return `compare_lanes`' verdict.
+def cross_lane_report(tree: Any, bars: list, inputs: Optional[Mapping] = None) -> dict:
+    """Run BOTH lanes over `tree` on `bars`, WITH `inputs`, and return `compare_lanes`' verdict.
 
     Separated from the gate so a test can read the numbers (`compared`,
     `differences`) rather than only observe a raise — a gate whose measurement
     cannot be printed is a gate nobody can audit.
+
+    ⚰️ THIS TOOK NO `inputs` AND THE HARNESS BEHIND IT HAD NO CONCEPT OF ONE, so
+    the 1e-9 equality was established for an EMPTY input map while
+    `_make_value_fn` evaluates the same tree with `_inputs_for(definition,
+    params)` — the audit's own finding: *"the arm-time 'lanes agree at 1e-9'
+    proof runs on an input map neither production lane uses."* And a formula that
+    REFERENCED a declared input never got as far as a row: `run_py` raised
+    `TableRefusal('resolve:name')`, `_gate_cross_lane` turned it into a
+    `cross-lane` refusal, and no member could arm a formula naming their own
+    knob. ONE case object carries the map into both lanes (`ast_conformance
+    .case_inputs`), so the two can never be handed different ones.
     """
     conf = _conformance()
-    cases = [{"id": ARM_CASE_ID, "ast": tree}]
+    cases = [{"id": ARM_CASE_ID, "ast": tree, "inputs": dict(inputs or {})}]
     js = conf.run_js(cases, bars)
     py = conf.run_py(cases, bars)
     return conf.compare_lanes(js, py)
@@ -512,7 +523,19 @@ def _gate_cross_lane(definition: Mapping[str, Any], def_id: str,
             "bars", f"{REFUSAL_FRAGMENTS['bars']}: {def_id}")
     compute = definition.get("compute") or {}
     try:
-        report = cross_lane_report(compute.get("ast"), bars)
+        # ⭐ THE DEFINITION'S OWN DECLARED DEFAULTS, WHICH IS WHAT PRODUCTION
+        # EVALUATES. `_inputs_for` is the ONE reader of `inputs[].key` on this
+        # lane and `_make_value_fn` calls it on every evaluation; proving the
+        # lanes equal with `{}` would be proving it about a formula nobody runs.
+        #
+        # ⚠️ DEFAULTS, NOT AN ALERT ROW'S `params_json`, AND THAT IS A STATED
+        # BOUND rather than an oversight: admission is per (definition, version)
+        # and there is no row yet, so a proof taken on one row's knobs would be
+        # cited for every other row's. What the knobs move is the VALUE, not
+        # which names resolve — but a lane divergence that only appears at some
+        # other knob setting is outside what this measurement covers.
+        report = cross_lane_report(compute.get("ast"), bars,
+                                   _inputs_for(definition, None))
     except AdmissionRefused:
         raise
     except Exception as exc:

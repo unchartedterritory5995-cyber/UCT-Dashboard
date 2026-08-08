@@ -463,6 +463,139 @@ describe('the linter is demonstrated CAPABLE OF BEING WRONG — the guard-delete
 })
 
 // --------------------------------------------------------------------------- //
+// THE DEFINITION'S OWN INPUTS — a DECLARED SCALAR, never an undeclared series
+// --------------------------------------------------------------------------- //
+//
+// 🔴 THE DEFECT. `parse.js` turns every identifier into a `series` node and
+// `BuilderSheet.buildDefinition` puts `lineWidth` on every definition it builds,
+// so the first member to type a knob's name into a formula got `repaints` —
+// "unanalysable: `lineWidth` is not a series this table declares" — and could
+// never arm it. An input is a per-instance SCALAR: one number for the whole
+// column, so its window is `[i, i]`.
+//
+// ⛔ AND THE CLOSED TABLE STAYS CLOSED. What an input adds is exactly the names
+// the DOCUMENT declares — nothing else — and both directions are asserted here
+// and in `tests/test_ast_lint.py`, which is the mirrored pair this file exists
+// to keep from diverging.
+
+/** `close * lineWidth` — the audit's own example. */
+const INPUT_TIMES_CLOSE = {
+  type: 'op',
+  name: '*',
+  args: [{ type: 'series', name: 'close' }, { type: 'series', name: 'lineWidth' }],
+}
+
+const defnWith = (ast, inputs) => ({
+  id: 'u_probe',
+  compute: { kind: 'ast', ast },
+  plots: [{ key: 'value' }],
+  inputs: inputs === undefined ? [{ key: 'lineWidth', type: 'int', default: 1 }] : inputs,
+})
+
+describe('a reference to a DECLARED input is a scalar, and an undeclared name still is not', () => {
+  it('a declared input reaches no bar at all — back 0, forward 0, non-repainting', () => {
+    const declared = lint.lintRepaint(INPUT_TIMES_CLOSE, { inputs: { lineWidth: 1 } })
+    expect({ mode: declared.mode, back: declared.back, forward: declared.forward })
+      .toEqual({ mode: 'non-repainting', back: 0, forward: 0 })
+  })
+
+  it('control: handed NO inputs the same tree is unanalysable, exactly as before', () => {
+    const bare = lint.lintRepaint(INPUT_TIMES_CLOSE)
+    expect(bare.mode).toBe('repaints')
+    expect(bare.reasons.join(' ')).toContain('lineWidth')
+  })
+
+  it('lintDefinition DERIVES the scalar set from the definition — `inputs[].key`, and `name` is not a fallback', () => {
+    expect(lint.lintDefinition(defnWith(INPUT_TIMES_CLOSE)).plots[0].mode).toBe('non-repainting')
+    // ⛔ ONE VOCABULARY. `defSchema.validateInput` REQUIRES `input.key`;
+    // `alert_user_series._inputs_for` read `name` for its whole life and agreed
+    // with nobody. A linter that took either would rebuild that divergence.
+    const legacy = defnWith(INPUT_TIMES_CLOSE, [{ name: 'lineWidth', default: 1 }])
+    expect(lint.declaredInputs(legacy)).toEqual({})
+    expect(lint.lintDefinition(legacy).plots[0].mode).toBe('repaints')
+  })
+
+  it('a caller cannot WIDEN a definition\'s own input set', () => {
+    // ⛔ NOT AN ALLOW-LIST. `lintDefinition` overwrites `opts.inputs` with the
+    // definition's own declaration, so a caller handing one in cannot turn a
+    // declared knob into a general escape hatch for any name at all.
+    expect(lint.lintDefinition(defnWith(INPUT_TIMES_CLOSE, []), { inputs: { lineWidth: 1 } })
+      .plots[0].mode).toBe('repaints')
+  })
+
+  it('a declared input may NOT decide a window — `sma(close, lineWidth)` still fails closed', () => {
+    // `resolveDeclaration` bounds an `argK` from a literal `num` node and a
+    // per-instance knob is not one. Reading the knob's VALUE is the tempting fix
+    // and it is the wrong one: the window would then change with a setting, and
+    // the badge promises a property of the FORMULA.
+    const tree = {
+      type: 'call',
+      name: 'sma',
+      args: [{ type: 'series', name: 'close' }, { type: 'series', name: 'lineWidth' }],
+    }
+    const verdict = lint.lintDefinition(defnWith(tree)).plots[0]
+    expect(verdict.mode).toBe('repaints')
+    expect(verdict.reasons.join(' ')).toContain('sma')
+  })
+
+  it('the TABLE is consulted first, so an input that shadows `close` changes nothing', () => {
+    // ⛔ THE ORDER IS LOAD-BEARING — verbatim `sentence.js::renderName`'s
+    // reasoning. A shadowing input is a wiring defect `interpret` throws on; what
+    // this must never do is let the ANSWER depend on which map was second.
+    const shadowing = defnWith({ type: 'series', name: 'close' }, [{ key: 'close', default: 7 }])
+    const verdict = lint.lintDefinition(shadowing).plots[0]
+    expect({ mode: verdict.mode, back: verdict.back, forward: verdict.forward })
+      .toEqual({ mode: 'non-repainting', back: 0, forward: 0 })
+  })
+
+  it('a prototype name is NOT an input just because the map has a prototype', () => {
+    // `own()`, never `inputs[name]` — the same lock `interpret`'s scope carries.
+    for (const name of ['toString', 'constructor', '__proto__', 'valueOf']) {
+      expect(lint.lintRepaint({ type: 'series', name }, { inputs: {} }).mode).toBe('repaints')
+    }
+  })
+
+  it('an input reference does NOT launder a genuinely repainting tree', () => {
+    // The operator is POINTWISE, so the forward reach of the whole is the
+    // forward reach of the dirty half. EVERY dirty corpus case is checked, so
+    // this cannot pass by covering only the one shape somebody thought of.
+    const wrap = (ast) => ({ type: 'op', name: '*', args: [ast, { type: 'series', name: 'lineWidth' }] })
+    const opts = { table: CORPUS_TABLE, inputs: { lineWidth: 1 } }
+    const moved = CORPUS.cases.filter((c) => lint.lintRepaint(wrap(c.ast), opts).mode !== c.expect)
+    expect(moved.map((c) => c.id),
+      'multiplying a declared scalar into a corpus case changed its verdict',
+    ).toEqual([])
+  })
+
+  it('declaredInputs ignores everything that is not a non-empty string key', () => {
+    expect(lint.declaredInputs(null)).toEqual({})
+    expect(lint.declaredInputs({ inputs: 'lineWidth' })).toEqual({})
+    expect(lint.declaredInputs({ inputs: [null, 3, { key: '' }, { key: 7 }, { key: 'ok' }] }))
+      .toEqual({ ok: true })
+  })
+
+  it('THE GUARD-DELETED CONTROL, IN THE FAIL-OPEN DIRECTION: with the membership test gone, any name reads clean', async () => {
+    // ⭐ The dangerous mutation is not "inputs stop working" — that is loud and
+    // every case above goes red. It is the MEMBERSHIP test quietly going away,
+    // so that any identifier is treated as a declared scalar and the closed
+    // table is open again with every gate still green.
+    const unknown = caseById('unknown_series')
+    expect(unknown.expect).toBe('repaints')
+    const mutatedMode = await withDeletion(
+      '        if (own(inputs, node.name)) {\n',
+      "        if (typeof node.name === 'string') {\n",
+      (mutated) => mutated.lintRepaint(unknown.ast, { table: CORPUS_TABLE }).mode,
+    )
+    expect(mutatedMode,
+      'deleting the input membership test did not open the door, so the test is not the thing ' +
+      'keeping an undeclared name out',
+    ).toBe('non-repainting')
+    // …and the unmutated module, so the line above is a control and not chance.
+    expect(lint.lintRepaint(unknown.ast, { table: CORPUS_TABLE }).mode).toBe('repaints')
+  })
+})
+
+// --------------------------------------------------------------------------- //
 // obligation 6 — no exemption surface, proven structurally
 // --------------------------------------------------------------------------- //
 

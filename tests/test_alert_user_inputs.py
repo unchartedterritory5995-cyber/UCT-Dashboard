@@ -21,24 +21,31 @@ So this file asserts the SEAM twice, in the two ways a seam can be asserted:
     formula reading `lineWidth` is evaluated THROUGH THE EVALUATOR on both lanes,
     with and without an alert row's `params_json`, and the number has to move.
 
-🔴 A MEASURED GAP THIS FILE RIDES OVER, RECORDED RATHER THAN HIDDEN. Fixing
-`_inputs_for` is NECESSARY AND NOT SUFFICIENT for a formula that REFERENCES an
-input, because two more components have no `inputs` concept either:
+⚰️ A MEASURED GAP THIS FILE RODE OVER — RECORDED WHEN IT WAS LIVE, AND CLOSED
+2026-08-08. Fixing `_inputs_for` was NECESSARY AND NOT SUFFICIENT for a formula
+that REFERENCES an input, because two more components had no `inputs` concept
+either, and both refused such a definition UPSTREAM of the map:
 
-  1. `ast_lint.lint_repaint` badges `close * lineWidth` **`repaints`**
-     ("unanalysable: `lineWidth` is not a series this table declares"), measured
-     on this tree — so `user_definitions.save` STORES a `repaints` verdict and
-     `_gate_repaint` refuses the definition outright;
-  2. `tools/ast_conformance.run_js` / `run_py` take no inputs, so the arm-time
-     1e-9 proof evaluates the same tree with an EMPTY input map — `run_py` raises
-     `TableRefusal('resolve:name')` and the cross-lane gate refuses it.
+  1. `ast_lint.lint_repaint` badged `close * lineWidth` **`repaints`**
+     ("unanalysable: `lineWidth` is not a series this table declares") — so
+     `user_definitions.save` STORED a `repaints` verdict and `_gate_repaint`
+     refused the definition outright;
+  2. `tools/ast_conformance.run_js` / `run_py` took no inputs, so the arm-time
+     1e-9 proof evaluated the same tree with an EMPTY input map — `run_py` raised
+     `TableRefusal('resolve:name')` and the cross-lane gate refused it.
 
-So the tests below that need an input-referencing formula OVERRIDE THE STORED
-REPAINT VERDICT — the same technique, for the same stated reason,
-`tests/test_alert_user_admission.py::save` documents: what the gate READS is the
-verdict stored at save time, so writing that verdict is how a test drives the
-door rather than the linter. Neither of those two components is this task's to
-edit, and both are reported as follow-ups.
+Both now have one: `ast_lint.declared_inputs` / `lint.js::declaredInputs` reads
+`inputs[].key` off the DEFINITION and treats such a name as the per-instance
+SCALAR it is, and `ast_conformance.case_inputs` threads ONE map into BOTH lanes.
+The end-to-end arm — authored, saved, linted, budgeted, cross-lane proven, armed,
+FIRED, with nothing overridden — is `tests/test_ast_inputs_end_to_end.py`.
+
+⚠️ THE OVERRIDES BELOW ARE LEFT IN PLACE AND ARE NOW REDUNDANT, NOT WRONG. They
+write the verdict the linter itself produces, so each still drives exactly the
+door it names — `_gate_repaint` reads what `save` stored, which is the technique
+`tests/test_alert_user_admission.py::save` documents. Deleting them would be a
+second change riding on this one; what they no longer are is the only way an
+input-referencing formula can reach the gate.
 
 ⚠️ AND THE UNGATED HALF IS REAL TODAY: a definition that DECLARES `lineWidth`
 without referencing it (which `BuilderSheet.buildDefinition` produces for every

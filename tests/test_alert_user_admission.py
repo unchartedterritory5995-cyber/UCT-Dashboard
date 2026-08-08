@@ -227,6 +227,15 @@ def save(user_id: str, definition: dict, *, repaint: dict | None = None) -> dict
     STORED at save time — Task 10 pinned that deliberately so a linter change
     cannot silently re-badge an admitted definition — so writing that stored
     verdict is exactly the input the gate is built to refuse.
+
+    ⚰️ *"THE ONLY WAY TO REACH THE GATE"* IS NO LONGER TRUE, and the correction is
+    worth having in writing. The linter fails CLOSED on any shape it cannot
+    bound, so `sma(close, <a declared input>)` measures `repaints` on the SHIPPED
+    manifest with nothing written by hand — `tests/test_ast_inputs_end_to_end.py`
+    drives `_gate_repaint` that way, with no override at all. The override is
+    still the only way to reach the gate with a verdict the shipped table cannot
+    otherwise produce (`preview-repaints`, and a DECLARED unbounded window), and
+    that is what the cases below use it for.
     """
     row = ud.save(user_id, definition["id"], definition)
     if repaint is not None:
