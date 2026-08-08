@@ -44,6 +44,17 @@ import sys
 _HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(_HERE, ".."))
 
+# ⛔ THE SUMMARY PARSER IS IMPORTED, NOT RE-TYPED — a third copy of a predicate
+# two harnesses already got wrong is how the wrong one survives. See `_pytest`.
+# ⚠️ Importing it reconfigures stdout/stderr to UTF-8 (a module-level statement
+# in `phase_d_gauntlet`). That is compatible with this file's own cp1252 defence
+# rather than a replacement for it: `_say` still emits ASCII only, because the
+# failure being defended against is a harness that dies mid-run and leaves a
+# mutation applied, and belt-and-braces is the point.
+if ROOT not in sys.path:
+    sys.path.insert(0, ROOT)
+from tools.phase_d_gauntlet import _parse_pytest_summary  # noqa: E402
+
 TEST_FILE = "tests/test_alert_replay.py"
 REPLAY = os.path.join(ROOT, "tools", "alert_replay.py")
 BARS = os.path.join(ROOT, "tests", "fixtures", "alerts", "replay_bars.json")
@@ -88,6 +99,18 @@ def _pytest(args: list[str], why: bool = False) -> tuple[int, int, int, list[str
     that never looks can be satisfied by an import error, a fixture teardown, or
     the same catch-all assertion firing three times — which is how "three kills"
     can mean "one rail".
+
+    ⛔ THE COUNTS COME FROM PYTEST'S SUMMARY LINE, VIA THE SHARED PARSER. This
+    file used to run a bare `re.search(r"(\\d+) passed", out)` over the WHOLE
+    capture, and sum `collected` from every `N passed|failed|error` anywhere in
+    it. That is verbatim the defect `docs/runbooks/ast-conformance-gate.md` §9
+    documents and `phase_d_gauntlet` fixed after MEASURING it: pytest echoes a
+    failing test's DOCSTRING into the capture, and one docstring containing the
+    words "5 passed rc=0" turned a real `1 failed, 1 passed, 41 deselected` into
+    `passed=5`. Prose inside the subject could satisfy CONTROL A and CONTROL B.
+    Bounded here — the kill verdict is `rc != 0` and a poisoned count could only
+    LOOSEN a control, never manufacture a kill — but a control that can be
+    talked into passing is not a control.
     """
     env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
     cmd = [sys.executable, "-m", "pytest", *args, "-q", "-p", "no:cacheprovider"]
@@ -95,12 +118,14 @@ def _pytest(args: list[str], why: bool = False) -> tuple[int, int, int, list[str
         cmd += ["--tb=line"]
     proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, env=env)
     out = _ANSI.sub(b"", proc.stdout + proc.stderr).decode("utf-8", "replace")
-    passed = -1
-    m = re.search(r"(\d+) passed", out)
-    if m:
-        passed = int(m.group(1))
-    counts = re.findall(r"(\d+) (?:passed|failed|errors?)", out)
-    collected = sum(int(n) for n in counts) if counts else -1
+    summary = _parse_pytest_summary(out)
+    # No summary line at all = pytest never got as far as reporting (usage error,
+    # collection crash). -1 on BOTH numbers so every caller's `<= 0` aborts.
+    if summary["summary"] is None:
+        passed, collected = -1, -1
+    else:
+        passed = summary["passed"] if summary["passed"] is not None else -1
+        collected = summary["selected"]
     if "no tests ran" in out or "collected 0 items" in out:
         collected = 0
     reasons = []

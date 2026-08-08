@@ -3,7 +3,13 @@
 **Subject:** `tools/ast_conformance.py`, `tools/phase_d_gauntlet.py`,
 `tests/fixtures/ast/corpus.json`, `tests/fixtures/ast/escapes.json`,
 `tests/test_ast_conformance.py`.
-**Phase:** D, Task 2. **Status of the instrument:** built; both lanes still absent.
+**Phase:** D — this file was written at Task 2 and updated at the phase close.
+**Status of the instrument:** built, and **BOTH LANES SHIPPED** —
+`api/services/ast_interpret.py` and `app/src/components/chart/engine/ast/interpret.js`,
+each raising its own `TableRefusal`. ⚰️ This line read *"built; both lanes still
+absent"* in the present tense until 2026-08-07, which told an operator that the
+two interpreters they were about to compare did not exist. **§4.1 is the current
+reading; §1–§3 are Task-2's record and are dated as such.**
 
 Phase B's gate was pixels. Phase C's gate was a fire log and a repaint oracle.
 **Phase D's output is a formula the user wrote, and neither instrument covers it.**
@@ -69,10 +75,20 @@ ESCAPED            : 16      <-- unguarded control
 ESCAPED            : 16      <-- "guarded" run; guard state = absent
 ```
 
-**Both read 16, and that is correct today.** Task 6 owes the first zero, and the
-zero can only mean something because this reads non-zero now. A census that read
-zero before anything had been built would be measuring nothing, would then read
-zero forever, and would be cited as safety.
+**Both read 16, and that WAS correct ON 2026-08-06, WITH NO GUARD BUILT.** Task 6
+owed the first zero, and the zero can only mean something because this read
+non-zero then. A census that read zero before anything had been built would be
+measuring nothing, would then read zero forever, and would be cited as safety.
+
+> 🔴 **DO NOT READ THE BLOCK ABOVE AS A CURRENT EXPECTATION.** It said *"Both read
+> 16, and that is correct today"* in the present tense until 2026-08-07 — in §3,
+> the mandatory-record section, which is what an operator under pressure reads.
+> Task 6 paid the zero. **A guarded run reading 16 TODAY means the closed table
+> has been breached**, which is the opposite of what that sentence tells you.
+> The current pair is in §4.1: `--escapes --unguarded` **16 of 16**, `--escapes`
+> **CLOSED, 0 escaped of 16 parsed**. The corpora hold 17 cases each now (16 of
+> the escape cases carry `parses: true`), so the "16" is the PARSED count and not
+> the corpus size.
 
 Of the 16:
 
@@ -187,6 +203,18 @@ to its pre-task baseline.
 write a total down; the last three that were written down all rotted, and the
 plan's own §2689 warns against exactly this **seventeen lines above where it does
 it**. ⛔ **And nobody may "fix" code to make a total match.**
+
+⚠️ **THAT SENTENCE WAS SATISFIABLE OVER A CATALOG THAT HAD MOVED, until
+2026-08-07.** `cmd_check` compared `log["address_count"]` to the live
+`INDICATOR_FUNCS`, printed `!! the catalog grew or shrank` on a mismatch, and
+left its verdict untouched — so it went on to print `FIRE LOG MATCHES` and exit
+0. A NEW address that fires nothing (the un-fireable-offer class: `vwap`, then
+`sar`) leaves every block digest byte-identical, so that printed line was the
+whole signal and the gate consumed none of it. It is now a **refusal**: the run
+prints `CATALOG SIZE MOVED — NOT COMPARABLE` and exits 1 **before replaying**, so
+the two words this gate is written on can no longer appear over a different
+instrument. Rail:
+`tests/test_alert_replay.py::test_a_MOVED_CATALOG_FAILS_the_check_instead_of_printing_a_warning`.
 
 ---
 

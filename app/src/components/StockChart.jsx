@@ -2101,19 +2101,40 @@ export default function StockChart({
   // developing-bar writer; the Finnhub-fed writers early-return. A ref so writers read the
   // latest without re-subscribing.
   //
-  // ⚠️ EVERY developing-bar writer MUST consult this flag — the FOUR that exist today, and
-  // any FIFTH one added later. A writer that forgets the guard dual-writes or paints the
+  // ⚠️ EVERY developing-bar writer MUST consult this flag, or be DISJOINT from push by
+  // construction and say so. A writer that forgets the guard dual-writes or paints the
   // wrong candle — exactly how the Heikin-Ashi raw-candle bug shipped (retro audit 2026-07-06).
-  // The four writer sites (grep `barsPushActiveRef` to find them; keep these refs ~in sync):
-  //   • Writer A — livePrices tick effect      (~L2748):  if (barsPushActiveRef.current) return
-  //   • Writer B — onRealtimeBar, Massive push (~L2890):  if (!barsPushActiveRef.current) return  ← B IS the writer
-  //   • Writer C — realtimeCandle registry     (~L5785):  if (barsPushActiveRef.current) return
-  //   • Writer D — post-setData re-top         (~L3336):  branch — push-owned re-top vs Finnhub re-top
+  //
+  // ⛔ THIS INDEX IS NO LONGER MAINTAINED BY HAND, AND THE REASON IS THAT IT ROTTED.
+  // It said "the FOUR that exist today, and any FIFTH one added later" and listed A-D with
+  // line numbers (~L2748 / ~L2890 / ~L5785 / ~L3336). Measured 2026-08-07: there are SIX
+  // writers, and all four cited line numbers were off by 2,300-4,700 lines in an
+  // 11,700-line file. Both E and F were CORRECT when found — the defect was the artifact
+  // the next engineer audits against, which is the very bug class the paragraph above
+  // cites. The set is now DERIVED from this file's AST by
+  // `engine/__tests__/singleWriterIndex.test.js` (every `.update()` on
+  // `candleSeriesRef.current`, alias-resolved), which pins the count and each writer's
+  // guard. Adding a seventh writer fails that test by name. This list is the reader's
+  // map; that test is the authority.
+  //   • Writer A — livePrices tick effect (Finnhub)  : if (barsPushActiveRef.current) return
+  //   • Writer B — onRealtimeBar, Massive push       : if (!barsPushActiveRef.current) return  ← B IS the writer
+  //   • Writer C — realtimeCandle registry (Finnhub) : if (barsPushActiveRef.current) return
+  //   • Writer D — updateChart post-setData re-top   : branch — push-owned re-top vs Finnhub re-top
+  //   • Writer E — fast D/W/M candle on the bars-WS 1-min tick : folded into the daily-plus guard
+  //   • Writer F — custom-TF live developing bar     : NO GUARD, and must not have one.
+  //       `_pushOptIn` requires `realtimeTfEligible`, a membership test against the five
+  //       NATIVE intraday codes, so barsPushActiveRef is structurally false on a custom TF.
+  //       A guard there would be dead code, which is worse than none: it reads as protection.
   const barsPushActiveRef = useRef(false)
   // When true, the on-screen bars are a PROVISIONAL stale-intraday cache paint
-  // (instant sym-switch, forced full refetch in flight). All four live-bar writers
-  // FREEZE while this is set so a live tick can't grow a phantom candle on the stale
-  // tail before authoritative bars swap in. Set in the `bars` selector each render.
+  // (instant sym-switch, forced full refetch in flight). Writers A/B/C/D FREEZE while this
+  // is set so a live tick can't grow a phantom candle on the stale tail before
+  // authoritative bars swap in. Set in the `bars` selector each render.
+  // ⚠️ It said "all FOUR live-bar writers" when four was also the writer count; those are
+  // two different numbers now. E and F do NOT consult this ref and do not need to:
+  // `provisionalStaleRef` is `isIntraday &&`-gated on the same five native intraday codes,
+  // E is daily-plus only and F is custom-TF only, so it is structurally false in both.
+  // That disjointness is asserted in `singleWriterIndex.test.js`, not assumed here.
   const provisionalStaleRef = useRef(false)
   // Self-heal throttle: when a live push bar arrives >1 interval ahead of the frozen
   // series tail (the steady-state SWR delta poll stalled — e.g. a deploy dropped the
@@ -8076,11 +8097,17 @@ export default function StockChart({
     return () => { if (raf) cancelAnimationFrame(raf) }
   }, [sessionTagsIntraday])
 
-  // ── Custom-TF live developing bar ──
+  // ── Writer F of the single-writer invariant (index @ barsPushActiveRef decl):
+  // custom-TF live developing bar ──
   // Custom intraday TFs skip the native single-writer machinery (that's keyed on the
   // 8 native codes), so their candle+quote would freeze. Give them a lightweight live
   // writer: fold the live price into the last visible candle every tick. Runs AFTER
   // updateChart so it wins over the 30s setData; native TFs untouched (_isCustomTf).
+  // ⚠️ IT CONSULTS NEITHER barsPushActiveRef NOR provisionalStaleRef, AND THAT IS
+  // CORRECT — both are gated on the five NATIVE intraday codes (`realtimeTfEligible`
+  // inside `_pushOptIn`; `isIntraday &&` on provisionalStaleRef), so both are
+  // structurally false whenever this effect runs. It went unindexed until 2026-08-07;
+  // `engine/__tests__/singleWriterIndex.test.js` now derives it and pins that premise.
   useEffect(() => {
     if (!_isCustomTf || !_customBaseIntraday || cs.heikinAshi) return   // HA shows transformed bars, not raw
     const series = candleSeriesRef.current
@@ -9203,7 +9230,8 @@ export default function StockChart({
         const c = data?.bar?.c ?? data?.trade?.p
         if (!Number.isFinite(c)) return
         liveTickRef.current = { price: c, ts: Date.now() }
-        // ── Writer E: fast developing candle for D/W/M ──
+        // ── Writer E of the single-writer invariant (index @ barsPushActiveRef decl):
+        // fast developing candle for D/W/M ──
         // The Massive PUSH feed (writer B) streams intraday rollups only, so on
         // D/W/M the developing candle otherwise crawls on the slow Finnhub feed.
         // Paint it imperatively here from the fast 1-min tick so the candle + the

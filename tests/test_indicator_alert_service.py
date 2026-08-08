@@ -1248,3 +1248,77 @@ def test_the_soak_stays_VISIBLE_to_the_shadow_lane_through_all_of_it(tmp_db):
     assert all(ias.snooze_active(a) for a in soak.soak_rows())
     assert soak.verify()["deliverable_now"] == 0
     assert all(ias.record_trigger(aid, 99.0) is False for aid in ids)
+
+
+def test_verify_REFUSES_AN_EMPTY_ROOM_instead_of_reporting_success(tmp_db, capsys):
+    """🔴 THE GATE THAT COULD NOT FAIL WHERE IT MATTERED MOST.
+
+    Every refusal in `--verify` was written `if out["armed"] and …`, so
+    `armed == 0` short-circuited ALL FOUR and the CLI returned **0** with the
+    whole catalog sitting in `missing` — an empty room reported as a healthy
+    soak, which is the precise failure the module docstring says it exists to
+    prevent. Reachable without any bug: after `--disarm`, against a wrong
+    `AUTH_DB_PATH` (the service defaults it to `/data/auth.db`), against the
+    wrong service, or after a rebuilt volume.
+
+    ⛔ NON-VACUITY, AND IT IS THE SHAPE OF THE BUG. Three of the four numbers
+    are GENUINELY FINE on an empty room (nothing is deliverable, nothing is
+    invisible, nothing is expiring) — so three of the four refusals could never
+    have fired here whatever prefix they carried. The fourth, `missing`, was
+    screaming the whole catalog and was gagged by its own `armed and`. That is
+    why the floor is asserted BY ITS MESSAGE and not merely by the exit code:
+    an exit code alone cannot tell "the room is empty" from "one address is
+    unarmed", and those are different emergencies.
+
+    Measured against the real store this fix was written for: pre-fix
+    `--verify` on a schema-only auth.db exited **0**; post-fix it exits **1**.
+    """
+    from tools import alert_soak_matrix as soak
+
+    report = soak.verify()
+    assert report["armed"] == 0
+    # the one number that was already loud, and could not speak
+    assert report["missing"] == sorted(s["address"] for s in soak.catalog_addresses())
+    # the three that are honestly fine on an empty room
+    assert report["deliverable_now"] == 0
+    assert report["visible_to_shadow"] == report["armed"]
+    assert report["expiring_soon"] == 0
+
+    assert soak.main(["--verify"]) == 1
+    assert "ZERO soak rows are armed" in capsys.readouterr().err
+
+
+def test_arm_exits_NONZERO_WHEN_ITS_OWN_VERIFY_REFUSES(tmp_db, monkeypatch, capsys):
+    """⛔ `--arm` PRINTED `verify()` AND `return 0` — its verdict was rendered
+    and DISCARDED.
+
+    `docs/runbooks/cutover-watch.md` calls `--arm` "the fix, one command"; a fix
+    whose own check fails and still exits success is a fix nobody can trust. A
+    half-finished arm is the realistic shape: one `ias.snooze` that does not
+    take leaves a row ARMED AND DELIVERABLE on the owner's account.
+
+    CONTROL FIRST, so the exit-1 below is attributable to the flake and not to
+    the harness.
+    """
+    from tools import alert_soak_matrix as soak
+
+    assert soak.main(["--arm", "--user-id", "owner-1"]) == 0, "control: a clean arm is green"
+    assert soak.verify()["deliverable_now"] == 0
+    capsys.readouterr()
+
+    soak.disarm()
+    real_snooze = ias.snooze
+    missed: list[int] = []
+
+    def _flaky_snooze(alert_id, minutes):
+        if not missed:                      # the first muzzle does not take
+            missed.append(alert_id)
+            return None
+        return real_snooze(alert_id, minutes)
+
+    monkeypatch.setattr(soak.ias, "snooze", _flaky_snooze)
+    rc = soak.main(["--arm", "--user-id", "owner-1"])
+    assert missed, "the flake never applied — the run below proves nothing"
+    assert soak.verify()["deliverable_now"] == len(missed)
+    assert rc == 1
+    assert "DELIVERABLE" in capsys.readouterr().err

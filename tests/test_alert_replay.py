@@ -504,6 +504,42 @@ def test_the_fire_log_is_recorded_against_the_live_address_count(fire_log):
     assert fire_log["ks"] == list(ar.RECORD_KS)
 
 
+def test_a_MOVED_CATALOG_FAILS_the_check_instead_of_printing_a_warning(
+        fire_log, monkeypatch, capsys):
+    """⛔ THE TOOL'S VERDICT COULD NOT SAY THE ONE THING IT HAD NOTICED.
+
+    `cmd_check` compared `log["address_count"]` to the live catalog and, on a
+    mismatch, printed `!! the catalog grew or shrank` — and left `bad`
+    untouched. So it went on to print the literal **`FIRE LOG MATCHES`** and
+    return 0, satisfying `docs/runbooks/ast-conformance-gate.md` §4.1's gate
+    sentence word for word. It is not theoretical: a NEW address that fires
+    nothing — the un-fireable-offer class this programme exists to close
+    (`vwap`, then `sar`) — leaves every `(fixture, k)` digest byte-identical, so
+    the printed line was the entire signal and nothing consumed it. The tree was
+    covered only by a literal `== 28` typed into three test files; the gate an
+    operator runs BY HAND was not.
+
+    ⭐ CONTROL FIRST: the guard is quiet on today's catalog, so the exit-1 below
+    is attributable to the mutation and to nothing else. (Measured on the real
+    tool the same day: unmutated `--check` = `FIRE LOG MATCHES`, exit 0.)
+    """
+    import argparse
+
+    assert fire_log["address_count"] == len(ev.INDICATOR_FUNCS), (
+        "control: the size guard must be SILENT before it is provoked")
+
+    grown = dict(ev.INDICATOR_FUNCS)
+    grown["__probe_address_that_fires_nothing__"] = lambda *a, **k: []
+    monkeypatch.setattr(ev, "INDICATOR_FUNCS", grown)
+
+    rc = ar.cmd_check(argparse.Namespace(only=None))
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "NOT COMPARABLE" in out
+    # …and it refuses BEFORE replaying, so it cannot end on the runbook's word.
+    assert "FIRE LOG MATCHES" not in out
+
+
 def test_the_fire_log_is_not_vacuous(fire_log):
     """The recorder's own three assertions, re-checked from the COMMITTED file.
 

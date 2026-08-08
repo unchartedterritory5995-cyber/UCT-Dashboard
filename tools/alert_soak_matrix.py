@@ -8,17 +8,23 @@ ARMED — and production's `indicator_alerts` table has **zero rows**. Left alon
 the soak would run for three sessions, observe nothing, and the gate would pass
 VACUOUSLY: a green light produced by an instrument pointed at an empty room.
 
-This arms one alert for every one of the **30 catalog addresses** (28
-`INDICATOR_FUNCS` + 2 `EVENT_FUNCS`) — the same 30 Task 6's `--diff` enumerates,
-read from `alert_catalog()` at runtime so the matrix cannot drift from the
-catalog it is supposed to cover.
+This arms one alert for every **plot address** in `alert_catalog()` — the same
+set Task 6's `--diff` enumerates — read at runtime so the matrix cannot drift
+from the catalog it is supposed to cover.
+
+⚠️ THE ADDRESS COUNT IS NOT THE FUNCTION COUNT, and this docstring used to say
+it was ("the 30 catalog addresses (28 `INDICATOR_FUNCS` + 2 `EVENT_FUNCS`)").
+An address is a `plots[i]["value"]`, and an indicator that publishes more than
+one plot contributes more than one address, so the catalog yields MORE addresses
+than it has functions. No number is written here on purpose: `catalog_addresses()`
+is the answer and `tests/test_indicator_alert_service.py` is where it is pinned.
 
 🔒 THE SPAM GUARANTEE, AND IT IS STRUCTURAL RATHER THAN HOPEFUL.
 Every soak alert is created and then **snoozed** for `--snooze-days` (default
 30). A snoozed alert is:
 
-  * still `active=1`, so `list_active()` returns it and the shadow lane sees all
-    30 addresses — the observation is exactly what the soak needs;
+  * still `active=1`, so `list_active()` returns it and the shadow lane sees
+    every catalog address — the observation is exactly what the soak needs;
   * still evaluated by the live lane, so its `last_value` stays current and the
     matrix is not a special case anywhere;
   * **never delivered.** `record_trigger` returns False for a snoozed alert
@@ -33,8 +39,8 @@ Every soak alert is created and then **snoozed** for `--snooze-days` (default
   stop the spam — and it would stop `list_active()` returning them, which is
   precisely what the shadow lane reads. The soak would then observe nothing and
   the gate would pass vacuously anyway, which is the failure this tool exists to
-  prevent. `--verify` asserts the difference: 30 rows visible to `list_active()`
-  and 0 of them deliverable.
+  prevent. `--verify` asserts the difference: the WHOLE catalog visible to
+  `list_active()` and 0 of them deliverable.
 
 USAGE — arm (safe against production):
 
@@ -245,6 +251,65 @@ def verify() -> dict:
     }
 
 
+def verify_refusals(report: dict) -> list[str]:
+    """Every reason the soak is NOT healthy, as lines. Empty list = healthy.
+
+    ⛔ EXIT CODES ARE A CHECK. A soak that observes nothing, or one that can mail
+    the owner, must not read as success in a runbook.
+
+    🔴 THE FLOOR IS FIRST BECAUSE ITS ABSENCE MADE EVERY OTHER REFUSAL
+    UNREACHABLE. Each of the four checks below was written `if report["armed"]
+    and …`, so `armed == 0` short-circuited ALL FOUR and `--verify` returned 0
+    with the entire catalog sitting in `missing`. That is not a corner case: it
+    is the state after `--disarm`, after a `--verify` whose `AUTH_DB_PATH`
+    resolved somewhere else (`indicator_alert_service` defaults it to
+    `/data/auth.db`, and this box has a real `C:\\data`), after a run against the
+    wrong service, and after a rebuilt volume. **An empty room is the exact
+    failure this tool exists to detect, and it was the one reading it as
+    success.** `cutover_watch.verdict` already carried a `no-armed-alerts`
+    floor for the same reason; the soak's own exit code is the one an operator
+    reads after running the runbook's remedy, and it did not.
+
+    Returning EARLY on the floor is deliberate, and the shape of the bug is why.
+    On an empty room three of the four numbers below are GENUINELY fine —
+    nothing is deliverable, nothing is invisible, nothing is expiring — so they
+    could never have fired here whatever prefix they carried. The fourth,
+    `missing`, was screaming the whole catalog and was gagged by its own
+    `armed and`. Falling through would report it as "31 addresses unarmed",
+    which is true and is the WRONG EMERGENCY: an operator needs to know the
+    store is empty, not that it is 31 short.
+    """
+    if not report["armed"]:
+        return ["REFUSED: ZERO soak rows are armed — the shadow lane observes "
+                f"NOTHING and its gate would pass vacuously. db={report['db']} "
+                f"(all {report['addresses_expected']} catalog addresses are "
+                "missing). Run --arm, or check that AUTH_DB_PATH resolves to the "
+                "store you meant."]
+    bad: list[str] = []
+    if report["deliverable_now"]:
+        bad.append("REFUSED: a soak alert is DELIVERABLE")
+    if report["visible_to_shadow"] != report["armed"]:
+        bad.append("REFUSED: armed rows the shadow lane cannot see")
+    if report["missing"]:
+        bad.append(f"REFUSED: {len(report['missing'])} catalog addresses unarmed")
+    # ⛔ THE COUNTDOWN IS ITSELF A FAILURE, AND IT HAS TO BE LOUD BEFORE THE
+    # EMAILS, NOT AFTER. Re-running `--arm` re-snoozes every row and is
+    # idempotent, so this is one command to clear — but only if it is said.
+    if report["expiring_soon"]:
+        bad.append(f"REFUSED: {report['expiring_soon']} soak rows lose their "
+                   f"muzzle in {report['muzzle_expires_in_days']} days — re-run "
+                   "--arm (it is idempotent) or --disarm")
+    return bad
+
+
+def _report_and_verdict(report: dict) -> int:
+    print(json.dumps(report, indent=2))
+    bad = verify_refusals(report)
+    for line in bad:
+        print(line, file=sys.stderr)
+    return 1 if bad else 0
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     p.add_argument("--arm", action="store_true")
@@ -261,35 +326,19 @@ def main(argv=None) -> int:
         out = arm(resolve_user(args.email, args.user_id), args.sym, args.tf,
                   args.snooze_days)
         print(json.dumps(out, indent=2))
-        print(json.dumps(verify(), indent=2))
-        return 0
+        # ⛔ `--arm` USED TO PRINT `verify()` AND `return 0` — its own verdict
+        # was rendered to stdout and DISCARDED, so a half-finished arm (an
+        # `ias.snooze` that raised, an address that failed to create) exited
+        # SUCCESS with the JSON of its own failure on screen. The runbook's
+        # one-command remedy now stands or falls on the same predicate `--verify`
+        # uses; a tool whose fix cannot report that it did not work is a fix
+        # nobody can trust.
+        return _report_and_verdict(verify())
     if args.disarm:
         print(json.dumps(disarm(), indent=2))
         return 0
     if args.verify:
-        out = verify()
-        print(json.dumps(out, indent=2))
-        # ⛔ EXIT CODES ARE A CHECK. A soak that observes nothing, or one that
-        # can mail the owner, must not read as success in a runbook.
-        if out["armed"] and out["deliverable_now"]:
-            print("REFUSED: a soak alert is DELIVERABLE", file=sys.stderr)
-            return 1
-        if out["armed"] and out["visible_to_shadow"] != out["armed"]:
-            print("REFUSED: armed rows the shadow lane cannot see", file=sys.stderr)
-            return 1
-        if out["armed"] and out["missing"]:
-            print(f"REFUSED: {len(out['missing'])} catalog addresses unarmed",
-                  file=sys.stderr)
-            return 1
-        # ⛔ THE COUNTDOWN IS ITSELF A FAILURE, AND IT HAS TO BE LOUD BEFORE THE
-        # EMAILS, NOT AFTER. Re-running `--arm` re-snoozes every row and is
-        # idempotent, so this is one command to clear — but only if it is said.
-        if out["armed"] and out["expiring_soon"]:
-            print(f"REFUSED: {out['expiring_soon']} soak rows lose their muzzle "
-                  f"in {out['muzzle_expires_in_days']} days — re-run --arm (it "
-                  f"is idempotent) or --disarm", file=sys.stderr)
-            return 1
-        return 0
+        return _report_and_verdict(verify())
     p.print_help()
     return 2
 

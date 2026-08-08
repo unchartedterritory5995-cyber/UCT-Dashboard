@@ -304,7 +304,7 @@ already shipping. That is worth having. It is not a gate on anything below.
 | T7 `compute.rev` force-migration | the `_run_one_cycle` guard, `ADDRESS_REVS` | `tests/test_alert_rev_migration.py`, driven through the REAL cycle | **no** |
 | T9 the ledger door | `admit_alert_fire` | `tests/test_alert_ledger_admission.py` + the **AST** zero-call-site rail | **no** |
 | T10 alerts name the instance · `INDICATOR_FUNCS` retires | derived value table, `PRICE_FUNCS`, `instance_id` | `tests/test_indicator_alert_evaluator.py` · `IndicatorAlertPopover.test.jsx` | **no** — the popover is not mounted by `/r/chart` |
-| T11 fire-once · re-arm · fired log · soak matrix | `alert_fired_log.py`, `tools/alert_soak_matrix.py` | `tests/test_alert_fired_log.py` + `--verify` (exits 1 on deliverable / invisible / unarmed) | **no** |
+| T11 fire-once · re-arm · fired log · soak matrix | `alert_fired_log.py`, `tools/alert_soak_matrix.py` | `tests/test_alert_fired_log.py` + `--verify` (exits 1 on deliverable / invisible / unarmed / **ZERO armed** / expiring-within-7-days; `--arm` exits 1 when its own verify refuses) | **no** |
 | T12 per-chart alert sets · templates | `engine/alertSets.js` | `alertSets.test.js` + the `mergeChartSettings` corpus digest | **partly** — a merge change WOULD move pixels, so the 0 covers that half and only that half |
 | T13 Signature on a generic server lane | `engine/serverCompute.js`, `/api/signature/columns` | `tests/test_signature_router.py`, whose route list is DERIVED from `sig.router.routes` | **no** — and see §6.3 |
 | T14 AVWAP · ATR bands | `computeAVWAP`, `computeATRBands`, both lanes | `tests/test_indicator_golden.py` (1e-9, both lanes) **and** the two parity cases below | **yes**, and they are now measured |
