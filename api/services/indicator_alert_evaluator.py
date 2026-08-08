@@ -1561,14 +1561,23 @@ def _evaluate_one_closed(alert: dict, bars: Optional[list[dict]] = None, *,
 # fire-once cannot survive"*. A refusal that returned False would be that lie,
 # and it would be indistinguishable from the steady state.
 #
-# ⛔ NOTHING CALLS THIS YET, AND THAT IS STILL DELIBERATE AFTER THE CUTOVER.
+# ⭐ THE DOOR IS OPEN, AND `_accrue_ledger_receipt` IS ITS ONE CALLER.
 # Spec §8 and the phase plan both say the ledger door opens AFTER the flip and
 # never as part of it: the cutover is one revertible line, and a commit that also
 # started writing append-only rows into the Signature ledger would not be. The
-# mode gate below is now satisfied, which is exactly why the wiring is a separate
-# decision with its own evidence — `admit_alert_fire` has one definition and zero
-# call sites, asserted by AST because a grep here has lied three times (it counts
-# the prose in this very comment).
+# flip shipped, `ALERT_EVAL_MODE` reads `"closed"`, the mode gate below is
+# satisfied — and this is that separate decision, taken with its own evidence.
+# It had to be taken: spec §12's Phase E row needs the ledger to hold
+# public-worthy HISTORY, and a door with no caller writes no receipts, so that
+# history could never begin.
+#
+# ⛔ ONE CALL SITE, AND THE COUNT IS STILL A GATE — IT MOVED, IT WAS NOT DELETED.
+# The zero was asserted for eight tasks precisely so an accidental second writer
+# would be caught; the ONE is asserted the same way and for the same reason, by
+# `tests/test_alert_ledger_admission.py::test_the_door_has_EXACTLY_ONE_production
+# _call_site`, which resolves every call in `api/` + `tools/` through each file's
+# own imports. A grep cannot do this job and has lied about it three times on
+# this branch — it counts the prose in this very comment.
 
 # The ledger's `version` column exists so a rule whose ARITHMETIC changed
 # produces a distinguishable row rather than silently reusing a key
@@ -1802,6 +1811,63 @@ def admit_alert_fire(alert: dict, value: Optional[float],
             "barIndex": bar_index,
         },
     )
+
+
+def _accrue_ledger_receipt(alert: dict, value: Optional[float],
+                           bar_index: Optional[int], bars: list[dict]) -> None:
+    """The door's ONE production call site. Bookkeeping, and it is never in the
+    way of a member's alert.
+
+    ⭐ EVERY REFUSAL THIS SWALLOWS IS SWALLOWED ON PURPOSE, AND THE ALTERNATIVE
+    IS MEASURED. `admit_alert_fire` RAISES rather than returning False (False is
+    spoken for: `ledger.record_signal` uses it for "already recorded" and
+    nothing else). A caller that let one propagate would hand it to
+    `_run_one_cycle`'s per-alert `except`, which logs, counts an error and moves
+    to the next alert — so a member would lose their notification because a
+    RECEIPT was refused. That is the ledger deciding whether an alert fires,
+    which is precisely backwards: the ledger is a record OF the alert lane, not
+    a gate ON it. Refusing a receipt must never silence an alert.
+
+    ⛔ AND THAT IS ALSO WHY THIS RUNS *AFTER* `_dispatch_delivery`, NOT BEFORE.
+    A `try/except` makes a refusal harmless; the ORDER makes the whole store
+    harmless. `ledger.record_signal` takes a process-wide `threading.Lock` and
+    opens SQLite on `/data/signal_ledger.db` with `timeout=10.0` — and the
+    nightly Signature sweep (`signature_sweep`, registered in `api/main.py`)
+    writes that same file from this same process, so the lock is genuinely
+    contended. Placed in front of the notification, a slow or locked ledger
+    would sit between a member and their alert for up to ten seconds per fire.
+    Nothing this store can do — refuse, block, or fail to open its file — may
+    reach a member.
+
+    ⭐ THE CALLER GATES ON `record_trigger`, WHICH IS WHY THERE IS EXACTLY ONE
+    RECEIPT PER FIRE and why this function does not need a dedup of its own. See
+    `_run_one_cycle`; the reasoning is written there, beside the call.
+
+    ⚠️ TWO DIFFERENT LOG LEVELS, BECAUSE THEY ARE TWO DIFFERENT EVENTS. A
+    `LedgerAdmissionRefused` is the door working — a user-authored formula, or
+    the forming lane after a rollback — and it happens on every such fire, so it
+    is INFO and it names the reason. Anything else (a `ValueError` from the
+    store's own data rails, an unopenable database) is a defect nobody would
+    otherwise hear about, so it is logged with a traceback.
+    """
+    try:
+        admitted = admit_alert_fire(alert, value, bar_index, bars)
+    except LedgerAdmissionRefused as refused:
+        _logger.info("[alert-eval] no ledger receipt for alert %s: %s",
+                     alert.get("id"), refused)
+        return
+    except Exception:
+        _logger.exception(
+            "[alert-eval] the ledger REFUSED TO RECORD the fire for alert %s "
+            "for a reason the door does not name — the alert was delivered, the "
+            "receipt was not written", alert.get("id"))
+        return
+    if not admitted:
+        # `record_trigger` said this fire is new and the ledger says the row
+        # already exists: two alerts on the same address/sym/tf/bar, which is
+        # the store keying one SIGNAL once across many members. Not a fault.
+        _logger.debug("[alert-eval] ledger already held the signal for alert %s",
+                      alert.get("id"))
 
 
 # ─── cycle + delivery ────────────────────────────────────────────────────────
@@ -2236,9 +2302,27 @@ def _run_one_cycle() -> dict[str, Any]:
                     # and they would stop agreeing the first time the wall clock
                     # ticked between them.
                     bar_time = _fire_bar_time(bars, judged_index)
-                    ias.record_trigger(alert["id"], last_value=value,
-                                       bar_time=bar_time)
+                    recorded = ias.record_trigger(alert["id"], last_value=value,
+                                                  bar_time=bar_time)
                     _dispatch_delivery(alert, value, bar_time=bar_time)
+                    # ⭐ THE LEDGER DOOR, OPENED — GATED ON THE FIRE-ONCE
+                    # GUARANTEE ITSELF RATHER THAN ON A SECOND RULE BESIDE IT.
+                    # `record_trigger` returns True exactly when a new row landed
+                    # under `UNIQUE(alert_id, fire_key)`, so "one receipt per
+                    # fire" is the SAME decision the fire log already made, not a
+                    # copy of it that can drift. Two consequences, both wanted:
+                    # a level condition keys on its ARMED EPISODE, so "RSI is
+                    # still above 70" accrues ONE receipt for the episode instead
+                    # of one per bar it stays true; and the retry above (a
+                    # released lease re-delivering on a later cycle) returns
+                    # False here, so a second DELIVERY of one fire cannot become
+                    # a second receipt.
+                    #
+                    # ⛔ THIS IS NOT `if record_trigger(...): _dispatch_delivery`
+                    # — the ruling Task 8 measured and refused. The dispatch
+                    # above stays UNCONDITIONAL; only the receipt is gated.
+                    if recorded:
+                        _accrue_ledger_receipt(alert, value, judged_index, bars)
                 else:
                     ias.record_evaluation(alert["id"], last_value=value)
             except Exception:

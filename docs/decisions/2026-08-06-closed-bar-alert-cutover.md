@@ -450,9 +450,19 @@ outcome. A flagged alert is honest.
   soak's purpose is served; turning it off is an operational step.
 * **The 31 soak rows are still armed and snoozed.** `--disarm` at the cutover is
   task #56; `verify()` exits 1 seven days before the muzzle expires.
-* **The ledger door stays shut.** `admit_alert_fire` has one definition and zero
-  call sites (AST — `git grep -c` says 3 and all three are prose). Its mode gate
-  is now satisfied, which is exactly why wiring it is a separate decision.
+* ~~**The ledger door stays shut.**~~ **CLOSED 2026-08-08 — the door is WIRED.**
+  It had one definition and zero call sites; it now has one definition and
+  **exactly one** production call site,
+  `indicator_alert_evaluator._accrue_ledger_receipt`, and the count is still a
+  gate (`test_the_door_has_EXACTLY_ONE_production_call_site`, `==` on an
+  AST-derived set — `git grep -c` says 3 and all three are prose). The wiring was
+  the separate decision this bullet asked for: spec §12's Phase E row needs the
+  ledger to hold public-worthy history, and a door with no caller writes no
+  receipts, so that history could never begin. The receipt is gated on
+  `record_trigger` (i.e. on `UNIQUE(alert_id, fire_key)` itself) and accrued
+  **after** `_dispatch_delivery` with every refusal swallowed, so nothing the
+  ledger does can cost a member an alert. **The fire log did not move:**
+  `alert_replay --check` is byte-identical across the change.
 
 ### 5.8 Three consequences the pricing had not predicted, found by running it
 

@@ -354,10 +354,17 @@ nothing below is reversed by it:
   forming lane's first cycle measures its crossing against a `prev` the *closed* lane
   produced. Expect one cycle of that, per alert, and do not read a single odd
   first-cycle result as evidence the rollback failed.
-* **The signature-receipts ledger, if Task 8 wired the door.** `admit_alert_fire`
-  refuses unless the lane is `closed`, so the rollback shuts the door for **future**
-  fires only; rows already admitted to `signature.ledger` remain admitted. Removing
-  them is a separate, deliberate operation.
+* **The signature-receipts ledger. ⚠️ THE DOOR IS WIRED — since 2026-08-08 this is
+  no longer conditional.** Every delivered fire on a shipped definition accrues a
+  row. `admit_alert_fire` refuses unless the lane is `closed`, so the rollback shuts
+  the door for **future** fires only; rows already admitted to `signature.ledger`
+  remain admitted, and that store is append-only with no rewrite path. Removing them
+  is a separate, deliberate operation. ✅ **The rollback does NOT silence anything** —
+  the receipt is accrued *after* `_dispatch_delivery` and the mode refusal is
+  swallowed and logged at INFO, so a forming-lane cycle still tells the member
+  (`test_the_FORMING_lane_writes_no_receipt_and_still_tells_the_member`). Expect one
+  `no ledger receipt for alert …: forming-bar fires are not ledger-grade` line per
+  fire while the lever is pulled; that line is the door working.
 * **The variable itself.** It persists across redeploys and outlives the incident.
   Clearing it (empty value, or delete it) is a second deliberate step — and until you
   take it, `cutover_watch` will keep saying NO-GO, which is the point.

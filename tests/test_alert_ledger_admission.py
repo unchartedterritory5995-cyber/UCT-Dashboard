@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import ast
 import json
+import os
 import pathlib
 import sqlite3
 import sys
@@ -37,7 +38,13 @@ if str(_ROOT / "tools") not in sys.path:
     sys.path.insert(0, str(_ROOT / "tools"))
 
 import alert_replay as ar                                        # noqa: E402
+import api.services.alerts as _alerts_mod                        # noqa: E402
+from api.services import alert_fired_log as fl                   # noqa: E402
+from api.services import alert_user_series as aus                # noqa: E402
 from api.services import indicator_alert_evaluator as ev         # noqa: E402
+from api.services import indicator_alert_service as ias          # noqa: E402
+from api.services import user_definitions as ud                  # noqa: E402
+from api.services import watchlist_alert_service as wls          # noqa: E402
 from api.services.signature import ledger                        # noqa: E402
 
 
@@ -795,3 +802,599 @@ def test_the_module_names_the_GATE_rather_than_asserting_an_absence():
                   "THE FIRES THESE PRODUCE ARE NOT LEDGER-GRADE"):
         assert stale not in src, f"a stale absence-claim survives: {stale!r}"
     assert "admit_alert_fire" in src
+
+
+# ═══ THE DOOR IS OPEN — THE CYCLE ACCRUES A RECEIPT ══════════════════════════
+#
+# ⭐ EVERYTHING ABOVE THIS LINE PASSED ON A TREE WHERE NOTHING CALLED THE DOOR.
+# 26 test call sites, 0 production ones, and the zero was itself asserted — the
+# door was written to be wired and deliberately left shut so the closed-bar
+# cutover stayed one revertible line. The flip shipped; spec §12's Phase E row
+# needs the ledger to hold public-worthy HISTORY; a door with no caller writes no
+# receipts, so that history could never begin. This section is the wiring.
+#
+# ⛔ SO EVERY TEST BELOW DRIVES `_run_one_cycle` FOR REAL. A door proven only by
+# its own unit tests is a door whose CALLER is unmeasured, and the caller is
+# where all four of this section's claims live: that a delivered fire lands
+# exactly one receipt, that the fire-once guarantee is what makes it exactly one,
+# that a user-authored fire lands none, and that a refusal never costs a member
+# their alert.
+
+_EVALUATOR_MODULE = "api.services.indicator_alert_evaluator"
+_DOOR = "admit_alert_fire"
+
+
+def _door_bindings(tree: ast.AST, path: pathlib.Path) -> tuple[set[str], set[str]]:
+    """(names bound to the EVALUATOR module, names bound to the door itself).
+
+    ⛔ THE DEFINING MODULE IS SEEDED WITH THE BARE NAME, and that is the whole
+    difficulty here. `record_signal`'s census only ever had to resolve IMPORTS,
+    because no ledger writer lives inside `ledger.py`. The door's one production
+    caller lives in the same file as the door, so it reaches it as a bare
+    `admit_alert_fire(...)` with no import to resolve — a scanner built on
+    imports alone would report ZERO and go on reporting zero after a second
+    in-file writer appeared. `test_the_census_SEES_a_second_writer_planted_INSIDE
+    _the_evaluator` is the control that this half works.
+    """
+    module_names: set[str] = set()
+    direct_names: set[str] = set()
+    if path.name == "indicator_alert_evaluator.py":
+        direct_names.add(_DOOR)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for a in node.names:
+                if a.name == _EVALUATOR_MODULE:
+                    module_names.add(a.asname or a.name)
+        elif isinstance(node, ast.ImportFrom):
+            mod = node.module or ""
+            # `from api.services import indicator_alert_evaluator as ev`, and the
+            # relative spellings (`mod` is "" at level>0 for `from . import x`).
+            if mod == "api.services" or mod.endswith(".services") or mod in ("", "services"):
+                for a in node.names:
+                    if a.name == "indicator_alert_evaluator":
+                        module_names.add(a.asname or a.name)
+            if mod == _EVALUATOR_MODULE or mod.endswith(".indicator_alert_evaluator"):
+                for a in node.names:
+                    if a.name == _DOOR:
+                        direct_names.add(a.asname or a.name)
+                    elif a.name == "*":
+                        direct_names.add(_DOOR)
+    return module_names, direct_names
+
+
+def _enclosing_function_names(tree: ast.AST) -> dict:
+    """`id(node)` → the name of the OUTERMOST function containing it.
+
+    A call site is reported as `path::function` rather than `path` alone: the
+    question this gate answers is *which code writes receipts*, and a file-level
+    answer would let a second writer be added to a file that already appears.
+    """
+    out: dict = {}
+    for fn in ast.walk(tree):
+        if isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            for n in ast.walk(fn):
+                out.setdefault(id(n), fn.name)
+    return out
+
+
+def _door_call_sites(scan_roots, rel_to: pathlib.Path) -> set[str]:
+    """Every resolved `admit_alert_fire(...)` CALL under ``scan_roots``."""
+    sites: set[str] = set()
+    for root in scan_roots:
+        for path in sorted(root.rglob("*.py")):
+            if "__pycache__" in path.parts:
+                continue
+            try:
+                tree = ast.parse(path.read_text(encoding="utf-8"))
+            except (SyntaxError, UnicodeDecodeError):        # pragma: no cover
+                continue
+            module_names, direct_names = _door_bindings(tree, path)
+            enclosing = _enclosing_function_names(tree)
+            rel = path.relative_to(rel_to).as_posix()
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                fn = node.func
+                hit = False
+                if isinstance(fn, ast.Attribute) and fn.attr == _DOOR:
+                    dotted = _dotted(fn) or ""
+                    head = dotted.rsplit(".", 1)[0] if "." in dotted else ""
+                    hit = (head in module_names
+                           or dotted.endswith(f"{_EVALUATOR_MODULE}.{_DOOR}"))
+                elif isinstance(fn, ast.Name) and fn.id in direct_names:
+                    hit = True
+                if hit:
+                    sites.add(f"{rel}::{enclosing.get(id(node), '<module>')}")
+    return sites
+
+
+def test_the_door_has_EXACTLY_ONE_production_call_site():
+    """🔴 THE GATE THAT MOVED FROM ZERO TO ONE — DELIBERATELY, NOT DELETED.
+
+    For eight tasks this number was ZERO and the zero was asserted, because an
+    accidental writer into an append-only store with no rewrite path is
+    unfixable. Opening the door does not retire that concern, it re-prices it:
+    the expected number is now ONE and it is asserted the same way, by `==` on
+    the DERIVED set rather than by `in`. A containment check cannot find a caller
+    nobody thought of; an equality fails the moment a second one appears, and
+    names it.
+
+    ⛔ AN AST, NEVER A GREP, AND THIS NAME IS THE REPO'S OWN WORKED EXAMPLE OF
+    WHY. `git grep -c admit_alert_fire` has answered 2, then 3, then 5 on this
+    branch and EVERY ONE of those hits was prose in a comment — including the
+    comment above the door that explains this very gate.
+    """
+    tree = ast.parse((_ROOT / "api" / "services"
+                      / "indicator_alert_evaluator.py").read_text(encoding="utf-8"))
+    defs = [n for n in ast.walk(tree)
+            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and n.name == _DOOR]
+    assert len(defs) == 1, (
+        f"{len(defs)} definitions of {_DOOR} — a second one would be a second "
+        f"door, and every gate above guards only the first")
+
+    sites = _door_call_sites((_ROOT / "api", _ROOT / "tools"), _ROOT)
+    assert sites == {
+        # ⭐ THE ONE CALLER, wired 2026-08-08. It swallows every refusal and runs
+        # AFTER `_dispatch_delivery`, so the ledger can never cost a member an
+        # alert; `_run_one_cycle` gates it on `record_trigger`, so the receipt
+        # inherits `UNIQUE(alert_id, fire_key)` instead of copying it.
+        "api/services/indicator_alert_evaluator.py::_accrue_ledger_receipt",
+    }
+
+
+@pytest.mark.parametrize("relpath,source,expected", [
+    # the shipped shape: a bare call inside the defining module
+    ("api/services/indicator_alert_evaluator.py",
+     "def f():\n    admit_alert_fire(a, v, i, b)\n", True),
+    # …and a second in-file writer, which is the thing this gate exists to catch
+    ("api/services/indicator_alert_evaluator.py",
+     "def g():\n    return admit_alert_fire(a, v, i, b)\n", True),
+    ("api/services/other.py",
+     "from api.services import indicator_alert_evaluator as ev\n"
+     "def f():\n    ev.admit_alert_fire(a, v, i, b)\n", True),
+    ("api/services/other.py",
+     "from api.services.indicator_alert_evaluator import admit_alert_fire\n"
+     "def f():\n    admit_alert_fire(a, v, i, b)\n", True),
+    ("api/services/other.py",
+     "import api.services.indicator_alert_evaluator\n"
+     "def f():\n    api.services.indicator_alert_evaluator.admit_alert_fire("
+     "a, v, i, b)\n", True),
+    # a bare call in a file that never imported it — a DIFFERENT function
+    ("api/services/other.py",
+     "def f():\n    admit_alert_fire(a, v, i, b)\n", False),
+    # prose only: the three hits a grep has counted on this branch
+    ("api/services/other.py",
+     "# admit_alert_fire is the ledger door\nX = 'admit_alert_fire'\n", False),
+])
+def test_the_census_SEES_a_second_writer_planted_INSIDE_the_evaluator(
+        tmp_path, relpath, source, expected):
+    """⛔ A NEGATIVE FIXTURE MUST TRIP THE RAW SCAN, and a positive one must not.
+
+    Phase C Task 1 measured the failure this prevents: a fixture written in a
+    shape the scanner structurally could not match left the scan asserting
+    nothing while staying green. So the scanner is driven against files that do
+    not exist in the tree — five ways of reaching the door (including the two
+    in-file spellings, which no import resolves) and two that are not reaching it
+    at all.
+    """
+    planted = tmp_path / relpath
+    planted.parent.mkdir(parents=True, exist_ok=True)
+    planted.write_text(source, encoding="utf-8")
+    sites = _door_call_sites((tmp_path,), tmp_path)
+    assert bool(sites) is expected, sites
+
+
+# ─── the real cycle ──────────────────────────────────────────────────────────
+
+#: 80 rising 5m bars, every one of them long closed by any wall clock, so the
+#: closed lane judges `bars[-1]` and `rsi` pins at its ceiling. A LEVEL condition
+#: on purpose: it stays true on every later cycle, which is what makes "exactly
+#: one receipt" a measurement rather than an accident of the tape.
+_CYCLE_BARS = [{"t": 1_700_000_000 + i * 300, "o": 100.0 + i, "h": 100.6 + i,
+                "l": 99.4 + i, "c": 100.0 + i, "v": 100_000} for i in range(80)]
+
+_USER_DEF_ID = "u_1234567890ab"
+_USER_ADDRESS = f"{_USER_DEF_ID}.value"
+
+
+def _user_definition() -> dict:
+    """A schema-v1 `ast`-kind definition — arithmetic an ACCOUNT wrote."""
+    return {
+        "schemaVersion": 1, "id": _USER_DEF_ID, "version": 1,
+        "meta": {"name": "My Average", "shortName": "MA"},
+        "compute": {"kind": "ast", "ast": {
+            "type": "call", "name": "sma", "args": [
+                {"type": "series", "name": "close"},
+                {"type": "num", "value": 5},
+            ]}},
+        "placement": {"target": "price"},
+        "plots": [{"key": "value", "style": "line", "role": "primary"}],
+        "inputs": [],
+    }
+
+
+@pytest.fixture
+def cycle_env(tmp_path, monkeypatch, tmp_ledger):
+    """A real alerts store + a real ledger + stubbed bars and channels.
+
+    ⛔ THE SPY SITS AT THE TRANSPORT (`wls.add_alert`), NOT AT
+    `deliver_alert_payload`. Phase C Task 11's shape: the claim/release lease and
+    the fire-once gate live INSIDE `deliver_alert_payload`, so a spy that
+    replaced it would replace the gate and every count below would be measuring
+    the stub.
+    """
+    auth = tmp_path / "auth.db"
+    monkeypatch.setenv("AUTH_DB_PATH", str(auth))
+    monkeypatch.setattr(ias, "_DB_PATH", str(auth))
+    ias.init_schema()
+
+    monkeypatch.setattr(ev, "_fetch_bars_for_alert",
+                        lambda sym, tf, count=200: [dict(b) for b in _CYCLE_BARS])
+
+    delivered: list = []
+    monkeypatch.setattr(wls, "add_alert", lambda *a, **k: delivered.append(k))
+    monkeypatch.setattr(wls, "send_email", lambda *a, **k: None)
+    monkeypatch.setattr(wls, "_get_user_email", lambda uid: None)
+    monkeypatch.setattr(_alerts_mod, "_fire_discord", lambda payload: None)
+    return {"ledger": tmp_ledger, "auth": auth, "delivered": delivered}
+
+
+@pytest.fixture
+def defs_db(tmp_path, monkeypatch):
+    """A private definitions store, with an EMPTY registry either side.
+
+    `USER_FUNCS` is a module-level dict; a test inheriting a previous
+    admission would prove that admission grants access, not that THIS one does
+    (`lesson_teardown_must_undo_what_setup_created`).
+    """
+    path = tmp_path / "user_definitions.db"
+    monkeypatch.setenv("USER_DEFINITIONS_DB_PATH", str(path))
+    monkeypatch.setattr(ud, "_DB_PATH", str(path))
+    ud._init_db()
+    aus.forget()
+    try:
+        yield path
+    finally:
+        aus.forget()
+
+
+def _the_shipped_lane_is_closed():
+    assert ev.eval_mode() == "closed", (
+        "the shipped lane is {!r}, so no fire in this file can be ledger-grade "
+        "and every receipt assertion below would be vacuous. This is the cutover "
+        "having moved, not a defect in the door.".format(ev.eval_mode()))
+
+
+def test_a_delivered_fire_lands_EXACTLY_ONE_receipt_through_the_REAL_cycle(
+        cycle_env):
+    """🔴 THE WHOLE POINT OF OPENING THE DOOR, MEASURED END TO END.
+
+    One armed builtin alert, one cycle: the member is told once and the ledger
+    holds exactly one row, read field by field off the file.
+
+    Then the hard half — **a second DELIVERY of the SAME fire.** The lease is
+    handed back exactly as a 429 does, the next cycle re-delivers (which is
+    deliberate: gating the dispatch would delete the retry), and the receipt does
+    NOT double. It cannot, because the receipt is gated on `record_trigger` — the
+    fire-once guarantee `UNIQUE(alert_id, fire_key)` itself — rather than on a
+    second rule beside it that could drift.
+    """
+    _the_shipped_lane_is_closed()
+    aid = ias.create(user_id="u-ledger", sym="TEST", indicator="rsi",
+                     condition="above", threshold=10.0, tf="5")
+    ev._run_one_cycle()
+
+    assert len(cycle_env["delivered"]) == 1, cycle_env["delivered"]
+    assert fl.count_fires(aid) == 1
+
+    signals = ledger.get_signals("TEST")
+    assert len(signals) == 1, signals
+    row = signals[0]
+    assert row["indicator"] == "rsi", "the row is not keyed on the ALERT-lane address"
+    assert row["version"] == ev.ALERT_LEDGER_VERSION
+    assert row["sym"] == "TEST"
+    assert row["tf"] == "5m", "the row carries the bars-store key, not the label"
+    assert row["direction"] == "above", "the row invented a market opinion"
+    assert row["bar_time"] == _CYCLE_BARS[-1]["t"]
+    assert row["price"] == pytest.approx(_CYCLE_BARS[-1]["c"])
+    meta = json.loads(row["meta_json"])
+    assert meta["lane"] == "closed"
+    assert meta["address"] == "rsi" and meta["condition"] == "above"
+    assert meta["threshold"] == pytest.approx(10.0)
+    assert meta["alertId"] == aid
+    assert meta["barIndex"] == len(_CYCLE_BARS) - 1
+    assert meta["value"] == pytest.approx(ev._evaluate_for_cycle(
+        ias.get(aid), [dict(b) for b in _CYCLE_BARS])[0])
+
+    before = _all_rows(cycle_env["ledger"])
+
+    # ── the second DELIVERY of that one fire ──
+    fire = fl.fires_for_alert(aid)[0]
+    out = fl.release_delivery(fire["id"], error="429 Too Many Requests")
+    assert out["released"] is True and out["terminal"] is False, out
+    assert ias.record_trigger(aid, last_value=99.0,
+                              bar_time=_CYCLE_BARS[-1]["t"]) is False, (
+        "the episode key moved, so the next cycle would be a NEW fire and this "
+        "would prove nothing about a second DELIVERY of the same one")
+
+    ev._run_one_cycle()
+
+    assert len(cycle_env["delivered"]) == 2, (
+        "the released lease was never picked up — with no second delivery, "
+        "'no duplicate receipt' is satisfied by nothing having happened")
+    assert fl.count_fires(aid) == 1, "the retry recorded a SECOND fire"
+    assert _all_rows(cycle_env["ledger"]) == before, (
+        "the second delivery moved the ledger — `first_seen_at` included")
+
+
+def test_a_level_condition_accrues_ONE_receipt_for_the_EPISODE_not_one_per_bar(
+        cycle_env, monkeypatch):
+    """🔴 WHY THE RECEIPT RIDES `record_trigger` AND NOT `triggered`.
+
+    "RSI is above 70" stays true for as long as it stays true. Its fire key is
+    the ARMED EPISODE, so the alert lane calls that ONE fire — and a track record
+    aimed at burned-vendor customers must say the same thing, or the ledger fills
+    with a row per bar restating a level that has not moved. That is not a
+    signal; it is a state, and publishing it as a signal would be the kind of
+    thing the ledger exists to make impossible.
+
+    ⛔ THE BAR MUST ADVANCE BETWEEN THE TWO CYCLES OR THIS PROVES NOTHING. The
+    ledger keys on `(indicator, version, sym, tf, bar_time, direction)`, so a
+    second cycle on the SAME window is deduped by the STORE and the guard could
+    be deleted with every assertion still green. A new closed bar gives the
+    second cycle a genuinely new ledger key — the only state in which the two
+    designs differ.
+    """
+    _the_shipped_lane_is_closed()
+    window = [dict(b) for b in _CYCLE_BARS]
+    monkeypatch.setattr(ev, "_fetch_bars_for_alert",
+                        lambda sym, tf, count=200: [dict(b) for b in window])
+    aid = ias.create(user_id="u-episode", sym="TEST", indicator="rsi",
+                     condition="above", threshold=10.0, tf="5")
+
+    ev._run_one_cycle()
+    assert _rows_on_disk(cycle_env["ledger"]) == 1
+
+    nxt = dict(window[-1])
+    nxt.update(t=window[-1]["t"] + 300, o=window[-1]["c"], c=window[-1]["c"] + 1,
+               h=window[-1]["c"] + 1.6, l=window[-1]["c"] - 0.4)
+    window.append(nxt)
+
+    value, triggered, idx = ev._evaluate_for_cycle(ias.get(aid),
+                                                   [dict(b) for b in window])
+    assert triggered is True and idx == len(window) - 1, (
+        f"the condition stopped being true on the new bar ({value}, {triggered}, "
+        f"{idx}) — 'one receipt' would mean nothing")
+    assert ev._fire_bar_time(window, idx) != _CYCLE_BARS[-1]["t"], (
+        "the judged bar did not advance, so the ledger key is unchanged and the "
+        "STORE would dedup this even with the guard deleted")
+
+    ev._run_one_cycle()
+
+    assert len(cycle_env["delivered"]) == 1, (
+        "the member was told twice about one armed episode")
+    assert _rows_on_disk(cycle_env["ledger"]) == 1, (
+        "a level that merely stayed true accrued a SECOND receipt — the ledger "
+        "is recording a state, not a signal")
+
+
+def test_a_USER_AUTHORED_fire_lands_ZERO_receipts_beside_a_builtin_that_lands_ONE(
+        cycle_env, defs_db, caplog):
+    """🔴 PHASE D TASK 12's GATE, RE-ASSERTED NOW THAT THE DOOR IS OPEN.
+
+    The door refuses an `ast` fire FIRST, before the mode gate, because whether
+    an account authored the arithmetic is true in every mode. That order was
+    proven against the door directly; this proves it survives the WIRING — which
+    is the only place it could now be lost.
+
+    ⛔ THE ZERO IS NOT VACUOUS, AND THE CONTROL IS IN THE SAME CYCLE. A builtin
+    alert on the same bars, in the same pass, lands its row. So "zero" is a
+    statement about PROVENANCE and not about a cycle that evaluated nothing: both
+    alerts fire, both members are told, one receipt exists and it is the
+    builtin's.
+    """
+    _the_shipped_lane_is_closed()
+    ud.save("u-author", _USER_DEF_ID, _user_definition())
+    user_aid = ias.create(user_id="u-author", sym="TEST", indicator=_USER_ADDRESS,
+                          condition="above", threshold=120.0, tf="5")
+    builtin_aid = ias.create(user_id="u-author", sym="TEST", indicator="rsi",
+                             condition="above", threshold=10.0, tf="5")
+    row = ias.get(user_aid)
+    assert row["def_source"] == ias.DEF_SOURCE_USER, (
+        "the row does not record that an account authored its arithmetic — the "
+        "door would have nothing to refuse")
+
+    # the refused fire is a REAL closed-bar fire, measured before it is refused
+    value, triggered, idx = ev._evaluate_for_cycle(
+        row, [dict(b) for b in _CYCLE_BARS])
+    assert triggered is True and value is not None and idx is not None, (
+        f"the user formula did not fire — there is nothing to refuse "
+        f"({value}, {triggered}, {idx})")
+
+    with caplog.at_level("INFO", logger="api.services.indicator_alert_evaluator"):
+        ev._run_one_cycle()
+
+    assert len(cycle_env["delivered"]) == 2, (
+        "both alerts must reach their member — refusing a receipt may not "
+        "silence an alert")
+    assert fl.count_fires(user_aid) == 1, "the user alert did not even fire"
+    assert fl.count_fires(builtin_aid) == 1
+
+    signals = ledger.get_signals("TEST")
+    assert len(signals) == 1, (
+        f"{len(signals)} receipts for one builtin and one user-authored fire: "
+        f"{[s['indicator'] for s in signals]}")
+    assert signals[0]["indicator"] == "rsi"
+    assert json.loads(signals[0]["meta_json"])["alertId"] == builtin_aid
+
+    # …and the cycle REACHED the door and was refused BY NAME — not skipped.
+    refusals = [r.getMessage() for r in caplog.records
+                if ev._NOT_LEDGER_ELIGIBLE in r.getMessage()]
+    assert len(refusals) == 1, (
+        f"the user gate did not report a refusal; the cycle may never have "
+        f"reached the door at all. Records: {[r.getMessage() for r in caplog.records]}")
+    assert str(user_aid) in refusals[0]
+
+    # …and the refusal really is a RAISE of the named type, not a log line the
+    # door writes on its way to returning something.
+    with pytest.raises(ev.LedgerAdmissionRefused, match=ev._NOT_LEDGER_ELIGIBLE):
+        ev.admit_alert_fire(ias.get(user_aid), value, bar_index=idx,
+                            bars=[dict(b) for b in _CYCLE_BARS])
+
+
+def test_the_FORMING_lane_writes_no_receipt_and_still_tells_the_member(
+        cycle_env, monkeypatch):
+    """⛔ THE ROLLBACK MUST NOT COST ANYBODY AN ALERT.
+
+    `ALERT_EVAL_MODE=forming` is the operator's mitigation, pulled mid-incident
+    with no deploy. It stops receipts — that is the mode gate doing its job, and
+    a forming-bar fire is a coin toss no track record should carry. What it must
+    NOT do is stop notifications, and the shape of the wiring is what guarantees
+    that: the door is called AFTER the dispatch, and its refusal is swallowed.
+    """
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "forming")
+    assert ev.eval_mode() == "forming", "the lever did not move the lane"
+    ias.create(user_id="u-rollback", sym="TEST", indicator="rsi",
+               condition="above", threshold=10.0, tf="5")
+
+    ev._run_one_cycle()
+
+    assert len(cycle_env["delivered"]) == 1, "a rollback silenced the alert"
+    assert _rows_on_disk(cycle_env["ledger"]) == 0, (
+        "a forming-bar fire accrued a receipt")
+
+
+def test_a_LEDGER_FAILURE_that_is_not_a_refusal_still_tells_the_member(
+        cycle_env, monkeypatch, caplog):
+    """⛔ THE OTHER ARM, AND IT IS THE ONE A `except LedgerAdmissionRefused`
+    ALONE WOULD MISS.
+
+    The store raises `ValueError` on every data-shaped refusal of its own, and an
+    unopenable `/data/signal_ledger.db` raises `sqlite3.OperationalError` — from
+    a lock, a read-only volume, a missing mount. None of those is a
+    `LedgerAdmissionRefused`, and every one of them is a reason a member must
+    still be told. Driven by making the STORE fail, not the door.
+    """
+    _the_shipped_lane_is_closed()
+
+    def _explode(*a, **k):
+        raise sqlite3.OperationalError("unable to open database file")
+
+    monkeypatch.setattr(ledger, "record_signal", _explode)
+    ias.create(user_id="u-brokenledger", sym="TEST", indicator="rsi",
+               condition="above", threshold=10.0, tf="5")
+
+    with caplog.at_level("ERROR", logger="api.services.indicator_alert_evaluator"):
+        ev._run_one_cycle()
+
+    assert len(cycle_env["delivered"]) == 1, (
+        "an unwritable ledger silenced the alert — the store is bookkeeping and "
+        "must never be upstream of a notification")
+    assert _rows_on_disk(cycle_env["ledger"]) == 0
+    assert any("REFUSED TO RECORD" in r.getMessage() for r in caplog.records), (
+        "the failure was swallowed with no trace — a receipt nobody knows was "
+        "lost is worse than one that was refused out loud")
+
+
+def test_the_receipt_is_accrued_AFTER_the_dispatch_and_the_refusal_is_CAUGHT():
+    """⛔ BOTH HALVES, STRUCTURAL, BECAUSE ONE OF THEM CANNOT BE BEHAVIOURAL.
+
+    The try/except is observable (the tests above drive it). The ORDER is not:
+    with the except in place, moving the call in front of `_dispatch_delivery`
+    changes no assertion anywhere — and it is the half that matters most under
+    load, because `ledger.record_signal` takes a process-wide lock and opens
+    SQLite with `timeout=10.0` on a file the nightly Signature sweep writes from
+    this same process. In front of the notification, that is up to ten seconds
+    between a member and their alert, on a path nothing measures.
+    """
+    tree = ast.parse((_ROOT / "api" / "services"
+                      / "indicator_alert_evaluator.py").read_text(encoding="utf-8"))
+    fns = {n.name: n for n in ast.walk(tree)
+           if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+
+    # 1. the door's caller catches the named refusal AND everything else
+    caller = fns["_accrue_ledger_receipt"]
+    handlers = [h for t in ast.walk(caller) if isinstance(t, ast.Try)
+                for h in t.handlers]
+    caught = {ast.unparse(h.type) if h.type is not None else "" for h in handlers}
+    assert "LedgerAdmissionRefused" in caught, (
+        f"the named refusal is not caught here: {caught}")
+    assert "Exception" in caught, (
+        f"only the named refusal is caught, so a ValueError from the store or an "
+        f"unopenable database would propagate into the cycle: {caught}")
+
+    # 2. the cycle calls it AFTER the dispatch, and gates it on record_trigger
+    cycle = fns["_run_one_cycle"]
+    order = [n for n in ast.walk(cycle) if isinstance(n, ast.Call)
+             and isinstance(n.func, ast.Name)
+             and n.func.id in ("_dispatch_delivery", "_accrue_ledger_receipt")]
+    assert [n.func.id for n in order] == ["_dispatch_delivery",
+                                          "_accrue_ledger_receipt"], (
+        "the cycle no longer calls exactly one dispatch and one accrual")
+    assert order[0].lineno < order[1].lineno, (
+        "the ledger write is in FRONT of the member's notification")
+
+    dispatch, accrual = order
+    # ⚠️ THE **INNERMOST** ENCLOSING `if`, NOT THE FIRST ONE `ast.walk` YIELDS.
+    # `ast.walk` is breadth-first, so the first hit is `if triggered:` — the
+    # branch BOTH calls live in — and a rail that read that one would report
+    # "gated" for a tree with the receipt guard deleted.
+    enclosing = [n for n in ast.walk(cycle) if isinstance(n, ast.If)
+                 and any(c is accrual for c in ast.walk(n))]
+    assert enclosing, (
+        "the accrual is not gated at all — every triggering cycle would attempt "
+        "a receipt, and a level condition would accrue one per bar")
+    guard = max(enclosing, key=lambda n: n.lineno)
+    assert isinstance(guard.test, ast.Name), (
+        f"the accrual is gated on {ast.unparse(guard.test)!r} rather than on a "
+        f"plain name — it must ride `record_trigger`'s answer, not a second rule "
+        f"beside it that can drift from the fire log")
+    assigned = [n for n in ast.walk(cycle) if isinstance(n, ast.Assign)
+                and any(getattr(t, "id", None) == guard.test.id for t in n.targets)]
+    assert len(assigned) == 1 and "record_trigger" in ast.unparse(assigned[0]), (
+        f"the accrual's guard is not `record_trigger`'s return: "
+        f"{[ast.unparse(a) for a in assigned]}")
+
+    # …and the dispatch is OUTSIDE that guard — Task 8's ruling, unmoved.
+    assert not any(c is dispatch for c in ast.walk(guard)), (
+        "the dispatch moved inside the receipt guard. `record_trigger` returns "
+        "False on every cycle after the first for a level condition, so a "
+        "released delivery lease would never be picked up and the member would "
+        "never be told.")
+
+
+def test_the_suite_wide_ledger_isolation_reaches_the_MODULE_GLOBAL(
+        tmp_path_factory):
+    """🔴 THE RAIL ON THE CONFTEST FIXTURE THIS WIRING MADE NECESSARY.
+
+    `ledger._DB_PATH` is `os.environ.get(...)` executed ONCE at import and
+    `_connect()` closes over that global — the exact class the AUTH_DB_PATH block
+    in `tests/conftest.py` documents. Until the door was wired nothing a test
+    drove could reach this store; now a dozen tests drive `_run_one_cycle` with a
+    builtin alert on a closed bar, and `/data` EXISTS on this box, so without the
+    autouse fixture every one of them would append to the REAL append-only
+    ledger. A row written there cannot be taken back.
+
+    ⛔ SO THE ASSERTION IS ON THE CONNECTION THE STORE ACTUALLY OPENS, not on the
+    environment variable — a `setenv`-only fixture passes an env check and
+    reaches nothing. This test takes NO ledger fixture of its own; it is
+    measuring the suite-wide one.
+    """
+    base = pathlib.Path(tmp_path_factory.getbasetemp()).resolve()
+    ledger._ensure_init()
+    conn = ledger._connect()
+    try:
+        opened = [r[2] for r in conn.execute("PRAGMA database_list").fetchall()]
+    finally:
+        conn.close()
+    main = [p for p in opened if p]
+    assert main, f"the store opened no file at all: {opened}"
+    resolved = pathlib.Path(main[0]).resolve()
+    assert base in resolved.parents, (
+        f"the ledger this test session writes is {resolved} — outside pytest's "
+        f"temp tree ({base}). Every cycle-driving test in the repo is appending "
+        f"to a real, un-rewritable ledger.")
+    assert os.environ.get("SIGNAL_LEDGER_DB_PATH") == ledger._DB_PATH, (
+        "the env var and the module global name different files, so which one a "
+        "reader gets depends on whether it was imported before the fixture ran")

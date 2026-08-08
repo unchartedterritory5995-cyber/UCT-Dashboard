@@ -132,6 +132,43 @@ def _isolate_fundamentals_snapshot_store(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _isolate_signal_ledger(tmp_path, monkeypatch):
+    """Point the Signature signal ledger at a per-test temp DB.
+
+    🔴 THIS BECAME NECESSARY THE MOMENT THE LEDGER DOOR WAS WIRED. Until then
+    `admit_alert_fire` had zero call sites, so nothing a test drove could reach
+    `signature/ledger.py`; now `_run_one_cycle` accrues a receipt on every fire,
+    and roughly a dozen tests drive that cycle for real with a builtin alert on
+    a closed bar. `_DB_PATH` defaults to `/data/signal_ledger.db` — and `C:\\data`
+    EXISTS on this box, exactly as the AUTH_DB_PATH block above records — so
+    every one of those tests would append rows to the REAL, APPEND-ONLY ledger.
+    That store has no rewrite path: a test row in it is a test row forever.
+
+    ⚠️ THE ENV VAR ALONE REACHES NOTHING, for the reason this file already
+    documents at length: `ledger._DB_PATH` is `os.environ.get(...)` executed ONCE
+    at import, and `_connect()` closes over the module global. So BOTH are set,
+    plus `_INITED` — otherwise the schema is created in the first test's temp
+    file and every later one reads a database with no tables.
+
+    The module is imported here rather than looked up in `sys.modules` because
+    `admit_alert_fire` imports it LAZILY, inside the call: a `sys.modules` probe
+    would find nothing on the first test to touch the door, the env var would be
+    captured then, and every subsequent test would inherit that one test's temp
+    path. It is a stdlib-only module (sqlite3/json/threading), so importing it
+    for every test costs nothing.
+
+    A test that wants its own ledger still wins — its fixtures run after this
+    one and monkeypatch unwinds in reverse.
+    """
+    from api.services.signature import ledger
+
+    path = tmp_path / "signal_ledger.db"
+    monkeypatch.setenv("SIGNAL_LEDGER_DB_PATH", str(path))
+    monkeypatch.setattr(ledger, "_DB_PATH", str(path))
+    monkeypatch.setattr(ledger, "_INITED", False)
+
+
+@pytest.fixture(autouse=True)
 def _reset_calendar_serve_stale():
     """Clear the Calendar's serve-stale slots between tests.
 
