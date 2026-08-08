@@ -363,10 +363,37 @@ def _sector_industry_map():
     return out
 
 
+def _robust_group_pct(vals) -> float:
+    """A group's representative % change, robust to a single moonshot outlier.
+
+    UPSIDE-WINSORIZED MEAN: cap the top ~10% of members (at least 1) down to the
+    next-highest member's return, then take the equal-weight mean. This keeps the
+    group's MAGNITUDE (it still averages every member's real move) but stops one absurd
+    gainer — e.g. CVNA +2641% inside Auto & Truck Dealerships — from dragging the whole
+    group to #1. The DOWNSIDE is left untouched: a genuinely weak group should rank low,
+    and simple returns are already bounded at -100%, so there's no runaway there.
+    Single-member groups return that member; empty → 0."""
+    n = len(vals)
+    if n == 0:
+        return 0.0
+    if n <= 2:
+        # Too small to separate an outlier from a trend meaningfully — but still don't
+        # let a lone moonshot define a 2-name group: cap the max to the min.
+        return (min(vals) if n == 2 and max(vals) > min(vals) * 3 and max(vals) > 100
+                else sum(vals) / n)
+    s = sorted(vals)
+    k = max(1, round(n * 0.10))          # how many top members to winsorize
+    cap = s[n - k - 1]                    # the return just below the winsorized top block
+    capped = [v if v <= cap else cap for v in s]
+    return sum(capped) / n
+
+
 def get_period_change_groups(start_ymd: int, end_ymd: int, group: str) -> dict:
-    """Rank THEMES / SECTORS / INDUSTRIES by their equal-weight mean % change over
+    """Rank THEMES / SECTORS / INDUSTRIES by their (outlier-robust) % change over
     [start, end], reusing the whole-market per-stock period_change. Each group carries its
-    member symbols so the UI can drill into it. `group` ∈ {'theme','sector','industry'}."""
+    member symbols so the UI can drill into it. `group` ∈ {'theme','sector','industry'}.
+    Ranking uses `_robust_group_pct` (upside-winsorized mean) so one moonshot can't top a
+    group; members still show their own raw % change."""
     if group not in ("theme", "sector", "industry"):
         return {"status": "error", "group": group, "results": [], "count": 0, "error": "bad group"}
     base = get_period_change(start_ymd, end_ymd)
@@ -374,7 +401,7 @@ def get_period_change_groups(start_ymd: int, end_ymd: int, group: str) -> dict:
         return {"status": base.get("status", "computing"), "group": group, "results": [], "count": 0, "error": base.get("error")}
     chg = {r["sym"]: r["period_change"] for r in base["results"]}
 
-    buckets = {}  # name -> {"_sum", "count", "members"}
+    buckets = {}  # name -> {"vals": [member % changes], "members": [syms]}
     if group == "theme":
         from api.services import theme_db
         try:
@@ -394,7 +421,7 @@ def get_period_change_groups(start_ymd: int, end_ymd: int, group: str) -> dict:
                     members.append(s)
                     vals.append(chg[s])
             if vals:
-                buckets[name] = {"_sum": sum(vals), "count": len(vals), "members": members}
+                buckets[name] = {"vals": vals, "members": members}
     else:
         smap = _sector_industry_map()
         field = group  # 'sector' | 'industry'
@@ -402,17 +429,16 @@ def get_period_change_groups(start_ymd: int, end_ymd: int, group: str) -> dict:
             g = (smap.get(sym) or {}).get(field)
             if not g:
                 continue
-            b = buckets.setdefault(g, {"_sum": 0.0, "count": 0, "members": []})
-            b["_sum"] += c
-            b["count"] += 1
+            b = buckets.setdefault(g, {"vals": [], "members": []})
+            b["vals"].append(c)
             b["members"].append(sym)
 
     results = []
     for name, b in buckets.items():
         results.append({
             "name": name,
-            "period_change": round(b["_sum"] / b["count"], 2) if b["count"] else 0.0,
-            "count": b["count"],
+            "period_change": round(_robust_group_pct(b["vals"]), 2),
+            "count": len(b["vals"]),
             "members": b["members"],
         })
     results.sort(key=lambda r: r["period_change"], reverse=True)

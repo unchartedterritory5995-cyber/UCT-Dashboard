@@ -115,3 +115,39 @@ def test_group_by_sector_ranks_and_carries_members(monkeypatch):
 def test_group_rejects_bad_group():
     out = sp.get_period_change_groups(20260401, 20260601, "bogus")
     assert out["status"] == "error"
+
+
+def test_robust_group_pct_neutralizes_a_single_moonshot():
+    # Auto & Truck Dealerships style: one CVNA-like +2641% outlier must NOT define the group.
+    outlier = [8, 12, -3, 2641, 15, 5, -8, 20]
+    assert sum(outlier) / len(outlier) > 300          # raw mean is dominated by the outlier
+    assert sp._robust_group_pct(outlier) < 15          # winsorized: reflects the real members
+    # A genuinely broad-strength group is barely touched (magnitude preserved).
+    strong = [50, 45, 40, 35, 60, 55]
+    assert abs(sp._robust_group_pct(strong) - sum(strong) / len(strong)) < 2
+    # Tiny groups: a 2-name moonshot collapses to the non-moonshot; a normal pair is unchanged.
+    assert sp._robust_group_pct([10, 2000]) == 10
+    assert sp._robust_group_pct([10, 20]) == 15.0
+    assert sp._robust_group_pct([-5]) == -5.0
+    assert sp._robust_group_pct([]) == 0.0
+
+
+def test_group_ranking_uses_robust_not_raw_mean(monkeypatch):
+    # A group carried by one outlier must rank BELOW a broadly-strong group.
+    chg = {"status": "ok", "results": [
+        {"sym": "OUT1", "period_change": 5.0}, {"sym": "OUT2", "period_change": 8.0},
+        {"sym": "MOON", "period_change": 3000.0},
+        {"sym": "BRD1", "period_change": 60.0}, {"sym": "BRD2", "period_change": 70.0},
+        {"sym": "BRD3", "period_change": 55.0},
+    ]}
+    monkeypatch.setattr(sp, "get_period_change", lambda a, b: chg)
+    monkeypatch.setattr(sp, "_sector_industry_map", lambda: {
+        "OUT1": {"sector": "Outlierland", "industry": "x"},
+        "OUT2": {"sector": "Outlierland", "industry": "x"},
+        "MOON": {"sector": "Outlierland", "industry": "x"},
+        "BRD1": {"sector": "Broad", "industry": "y"},
+        "BRD2": {"sector": "Broad", "industry": "y"},
+        "BRD3": {"sector": "Broad", "industry": "y"},
+    })
+    out = sp.get_period_change_groups(20260401, 20260601, "sector")
+    assert [r["name"] for r in out["results"]] == ["Broad", "Outlierland"]  # raw mean would flip this
