@@ -190,6 +190,52 @@ def init_db() -> None:
     c.commit()
 
 
+_DAILY_BYDATE_INDEX = "idx_ohlcv_daily_bydate"
+
+
+def daily_bydate_index_ready() -> bool:
+    """True if the by-date daily index exists — a cheap catalog check (no build)."""
+    try:
+        return _conn().execute(
+            "SELECT 1 FROM sqlite_master WHERE type='index' AND name=?",
+            (_DAILY_BYDATE_INDEX,),
+        ).fetchone() is not None
+    except Exception:
+        return False
+
+
+def ensure_daily_bydate_index() -> bool:
+    """Build (once) a PARTIAL, COVERING index over daily rows keyed BY DATE, so a
+    whole-market "every ticker's close on date X" read is one contiguous index range-
+    scan instead of a scan of the multi-GB daily partition.
+
+    The base index (ticker, tf, ts DESC) leads with `ticker`, so `WHERE tf='D' AND
+    ts BETWEEN…` can't use it — that read (the pre-~2004 Custom-Period Sort fallback)
+    took MINUTES on cold, network-backed storage. `(ts, ticker, c) WHERE tf='D'` is
+    daily-ONLY (the `WHERE` keeps the huge intraday partitions out, so it's small) and
+    COVERING (ticker + c live in the index → no table lookups), so the windowed read is
+    index-only and fast even cold. Idempotent + guarded by the catalog check → the
+    ~1-2 min build runs at most once per pod volume, then persists. Returns True when
+    the index exists."""
+    if daily_bydate_index_ready():
+        return True
+    import time as _t
+    t0 = _t.time()
+    try:
+        with _WRITE_LOCK:
+            conn = _conn()
+            conn.execute(
+                f"CREATE INDEX IF NOT EXISTS {_DAILY_BYDATE_INDEX} "
+                "ON ohlcv(ts, ticker, c) WHERE tf='D'"
+            )
+            conn.commit()
+        print(f"[sqlite-index] built {_DAILY_BYDATE_INDEX} in {_t.time() - t0:.1f}s")
+        return True
+    except Exception as e:
+        print(f"[sqlite-index] {_DAILY_BYDATE_INDEX} build failed: {e}")
+        return False
+
+
 def delete_bars(ticker: str | None = None, tf: str | None = None) -> int:
     """Delete rows by (ticker, tf). Either may be None to wildcard.
     Returns rows deleted."""
@@ -363,9 +409,11 @@ def closes_near_date(to_ymd: int, from_ymd: int) -> dict:
     on the nearest trading day on/before `to_ymd` within the window (one scan handles
     holidays). This is bars.db's deep (yfinance-sourced) fallback for whole-market grouped
     closes on PRE-~2004 dates, which the provider's grouped-daily endpoint doesn't cover.
-    Tickers are app/hyphen form (BRK-B), matching storage. Full-scan of the daily partition
-    (no (tf,ts) index) — cache the result. ⚠️ SURVIVORSHIP-BIASED: only names still in the
-    warmed universe are present; companies delisted before now are absent."""
+    Tickers are app/hyphen form (BRK-B), matching storage. With idx_ohlcv_daily_bydate
+    (see ensure_daily_bydate_index) this is an index-only range scan of the ~9-day window
+    (fast even cold); WITHOUT it, a full scan of the daily partition — so the caller must
+    ensure the index first. ⚠️ SURVIVORSHIP-BIASED: only names still in the warmed universe
+    are present; companies delisted before now are absent."""
     rows = _conn().execute(
         "SELECT ticker, ts, c FROM ohlcv WHERE tf='D' AND ts<=? AND ts>=? AND c>0",
         (int(to_ymd), int(from_ymd)),

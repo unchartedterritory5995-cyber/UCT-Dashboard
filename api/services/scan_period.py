@@ -40,15 +40,20 @@ def _grouped_near(target: date):
     return {}, target
 
 
-def _bars_near(target: date, symbols):
+def _bars_near(target: date, indexed: bool):
     """({TICKER: close}, actual_date) from bars.db's deep (yfinance-sourced) daily history —
-    the PRE-~2003 fallback. FAST: one INDEXED per-ticker as-of seek over the CS universe
-    (`closes_asof`), NOT the old full-partition scan — seconds, not minutes. App/hyphen keys,
-    survivorship-biased coverage."""
+    the PRE-~2003 fallback. With the by-date daily index built (`indexed`), ONE contiguous
+    windowed range-scan (`closes_near_date`) — fast even on cold storage. If the index isn't
+    ready yet, fall back to per-ticker as-of seeks over the CS universe (`closes_asof`), which
+    use the base index and avoid a full scan. App/hyphen keys, survivorship-biased coverage."""
     from api.services import bars_sqlite
     try:
         frm = target - timedelta(days=_GROUP_STEPS + 7)
-        m = bars_sqlite.closes_asof(symbols, int(target.strftime("%Y%m%d")), int(frm.strftime("%Y%m%d")))
+        to_i, from_i = int(target.strftime("%Y%m%d")), int(frm.strftime("%Y%m%d"))
+        if indexed:
+            m = bars_sqlite.closes_near_date(to_i, from_i)
+        else:
+            m = bars_sqlite.closes_asof(list(_common_stock_symbols()), to_i, from_i)
     except Exception:
         m = {}
     return m, target
@@ -125,9 +130,12 @@ _partial_lock = threading.Lock()
 
 def _partial_bg(ck: str, start_ymd: int, end_ymd: int):
     try:
-        symbols = list(_common_stock_symbols())    # the universe we'll keep anyway — seek only these
-        sc, sd = _bars_near(_to_date(start_ymd), symbols)   # indexed per-ticker seeks (fast)
-        ec, ed = _bars_near(_to_date(end_ymd), symbols)
+        from api.services import bars_sqlite
+        # Build the by-date daily index once (fast no-op once present, incl. after the
+        # startup pre-build) so the two whole-market reads are index-only range scans.
+        indexed = bars_sqlite.ensure_daily_bydate_index()
+        sc, sd = _bars_near(_to_date(start_ymd), indexed)
+        ec, ed = _bars_near(_to_date(end_ymd), indexed)
         if not sc or not ec:
             out = {"status": "unavailable", "results": [], "count": 0,
                    "error": "Market-wide data isn't available this far back — it begins around 2003.",
