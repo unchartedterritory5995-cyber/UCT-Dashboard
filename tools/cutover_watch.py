@@ -1547,7 +1547,27 @@ def selftest_cases() -> list:
         # filtering, these count and this case stops firing.
         fx.shadow_rows(40, when=et_instant(zone, days_ago=1, hour=18, minute=5),
                        alert_id=aid)
-        fx.shadow_rows(1, when=time.time() - 30, alert_id=aid)
+        # ⏰ NO "NOW" ROW HERE, AND THAT IS THE FIX, NOT AN OMISSION. This case
+        # used to seed `fx.shadow_rows(1, when=time.time() - 30)` to keep the
+        # lane looking live -- a row stamped at the ambient clock, which lands in
+        # whichever session bucket the OPERATOR happened to run in. Run at 09:47
+        # on a Monday it landed inside RTH, `rth_rows` read 1, this branch went
+        # silent, and `--self-test` exited 1: the cutover watch's own gate read
+        # red at the one instant the cutover is taken. (Measured: exit 1 at
+        # 09:47 ET, exit 0 at 07:15 / Sunday / 21:30.)
+        #
+        # The row cannot simply be MOVED to a stated off-hours instant either,
+        # because it has to be younger than STALE_SHADOW_SEC to count as live --
+        # so it is always in the CURRENT bucket. And that is the real point:
+        # "the lane is live AND has zero RTH rows" is a CONTRADICTION during
+        # RTH. A lane recording every 60 s inside 09:30-16:00 necessarily has
+        # RTH rows. So the only coherent fixture for this branch is a lane that
+        # has stopped, and this case now also fires `shadow-lane-stale` -- which
+        # is honest, costs nothing (the case asserts `expected in codes`), and
+        # leaves the branch under test exactly as forceable as before: mutate
+        # `session_bucket` to stop filtering and `rth_rows` becomes 40, this
+        # case stops firing, and the self-test goes red. `case_stale` remains
+        # the dedicated, independent case for the staleness branch.
         return {}
 
     def case_stale(fx):
