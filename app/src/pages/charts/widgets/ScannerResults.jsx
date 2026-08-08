@@ -102,12 +102,12 @@ const SCAN_EMPTY_TEXT = {
 // Per-scan criteria — the read-only list shown in the ⓘ/filter popover, so a user can see
 // at a glance what a preset actually screens for.
 const SCAN_CRITERIA = {
-  'highest-volume-1y': ['Trading their highest daily volume in the last 1 year', 'US stocks only — no ETFs / ETNs / funds'],
-  'highest-volume-ever': ['Trading their highest daily volume ever (since inception)', 'US stocks only — no ETFs / ETNs / funds'],
-  'ipo-1y': ['First listed within the last 1 year', 'US stocks only — no ETFs / ETNs / funds'],
-  'top-gainers-30d': ['Top 5% of the market by 30-trading-day % gain', 'Liquid US stocks only — no ETFs / ETNs / funds'],
-  'top-gainers-60d': ['Top 5% of the market by 60-trading-day % gain', 'Liquid US stocks only — no ETFs / ETNs / funds'],
-  'top-gainers-90d': ['Top 5% of the market by 90-trading-day % gain', 'Liquid US stocks only — no ETFs / ETNs / funds'],
+  'highest-volume-1y': ['Highest Daily Volume In The Last 1-Year', 'US Common Stock'],
+  'highest-volume-ever': ['Highest Daily Volume Ever', 'US Common Stock'],
+  'ipo-1y': ['Listed Within The Last 1-Year', 'US Common Stock'],
+  'top-gainers-30d': ['Top 5% By Percent Change In 30 Trading Days', 'US Common Stock'],
+  'top-gainers-60d': ['Top 5% By Percent Change In 60 Trading Days', 'US Common Stock'],
+  'top-gainers-90d': ['Top 5% By Percent Change In 90 Trading Days', 'US Common Stock'],
 }
 
 // scanKey → endpoint. New presets add a line here + one in ScannerPicker's PRESET_SCANS.
