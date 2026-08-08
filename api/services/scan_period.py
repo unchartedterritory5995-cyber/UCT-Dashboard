@@ -25,7 +25,11 @@ def _to_date(ymd: int) -> date:
 
 
 def _grouped_near(target: date):
-    """({TICKER: adjusted close}, actual_date) for the first trading day on/before target."""
+    """({TICKER: adjusted close}, actual_date, partial) for the first trading day on/before
+    target. Tries the whole-market grouped-daily endpoint first; if it's empty across the
+    snap-back window (a PRE-~2003 date the provider doesn't cover), falls back to bars.db's
+    deep per-ticker history (yfinance-sourced). partial=True marks the bars.db fallback —
+    it's SURVIVORSHIP-BIASED (only names still in the warmed universe, no delisted tail)."""
     dt = target
     for _ in range(_GROUP_STEPS):
         try:
@@ -33,9 +37,19 @@ def _grouped_near(target: date):
         except Exception:
             m = {}
         if m:
-            return m, dt
+            return m, dt, False
         dt = dt - timedelta(days=1)
-    return {}, target
+    # Provider floor — reach into bars.db's deep daily history (one windowed scan snaps over
+    # holidays). App/hyphen-form keys; partial coverage.
+    from api.services import bars_sqlite
+    try:
+        frm = target - timedelta(days=_GROUP_STEPS + 4)
+        m = bars_sqlite.closes_near_date(int(target.strftime("%Y%m%d")), int(frm.strftime("%Y%m%d")))
+    except Exception:
+        m = {}
+    if m:
+        return m, target, True
+    return {}, target, False
 
 
 def get_period_change(start_ymd: int, end_ymd: int) -> dict:
@@ -49,8 +63,9 @@ def get_period_change(start_ymd: int, end_ymd: int) -> dict:
     if cached is not None:
         return cached
 
-    start_closes, sd = _grouped_near(_to_date(start_ymd))
-    end_closes, ed = _grouped_near(_to_date(end_ymd))
+    start_closes, sd, sp = _grouped_near(_to_date(start_ymd))
+    end_closes, ed, ep = _grouped_near(_to_date(end_ymd))
+    partial = sp or ep   # bars.db fallback was used (pre-coverage) → surviving universe only
     if not start_closes or not end_closes:
         # Distinguish a genuine coverage gap from a transient warm-up: whole-market
         # grouped-daily data begins ~2003 (provider limit), so a date well in the past that
@@ -66,6 +81,11 @@ def get_period_change(start_ymd: int, end_ymd: int) -> dict:
             return out
         return {"status": "computing", "results": [], "count": 0, "as_of": None}
 
+    # Normalize both sides to app/hyphen form so grouped (BRK.B) and bars.db (BRK-B) keys
+    # join. The main loop then works purely in app-form.
+    start_closes = {k.replace(".", "-"): v for k, v in start_closes.items()}
+    end_closes = {k.replace(".", "-"): v for k, v in end_closes.items()}
+
     cs = _common_stock_symbols()
     if not cs:
         return {"status": "computing", "results": [], "count": 0, "as_of": None}
@@ -74,21 +94,33 @@ def get_period_change(start_ymd: int, end_ymd: int) -> dict:
         snap = massive._get_client().get_full_market_snapshot()
     except Exception:
         snap = {}
+    # On the bars.db (pre-coverage) path, drop RECYCLED tickers whose CURRENT listing began
+    # after the start date — their start close belongs to a different, prior company (SQ,
+    # WTW, RMIX…), which would otherwise show a wildly wrong % change.
+    reuse = {}
+    if partial:
+        try:
+            from api.services import bars_sqlite
+            reuse = bars_sqlite.current_listing_starts(int(start_ymd))
+        except Exception:
+            reuse = {}
 
     results = []
-    for prov, sc in start_closes.items():
+    for app, sc in start_closes.items():
         if not sc or sc <= 0:
             continue
-        ec = end_closes.get(prov)
+        ec = end_closes.get(app)
         if not ec or ec <= 0:
             continue
-        app = prov.replace(".", "-")
         if app not in cs or app in etfs or app.endswith("ZZT"):
             continue
-        # Currently-trading filter: if we have a snapshot, require the ticker to be in it
-        # (drops delisted names). No liquidity floor — this tool lists EVERY common stock.
-        s = snap.get(prov) or _snap_lookup(snap, app) if snap else None
-        if snap and not s:
+        if partial and reuse.get(app, 0) > int(start_ymd):
+            continue   # recycled symbol — start close is a different company
+        # Currently-trading filter (whole-market path): require the ticker in the live
+        # snapshot to drop delisted names. On the partial path we KEEP names bars.db has
+        # even if the live snapshot doesn't (price/volume just show blank).
+        s = snap.get(app) or _snap_lookup(snap, app) if snap else None
+        if snap and not s and not partial:
             continue
         results.append({
             "sym": app,
@@ -109,6 +141,9 @@ def get_period_change(start_ymd: int, end_ymd: int) -> dict:
         "start": int(sd.strftime("%Y%m%d")),   # the trading days actually used
         "end": int(ed.strftime("%Y%m%d")),
         "as_of": _now_et().isoformat(),
+        # True = a pre-coverage date sourced from bars.db (surviving-universe only, so the
+        # delisted tail is missing) — the UI flags it rather than claiming "every stock".
+        "partial": partial,
     }
     cache.set(ck, out, ttl=_TTL if results else 15)
     return out

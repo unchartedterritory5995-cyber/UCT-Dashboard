@@ -358,6 +358,28 @@ def max_daily_volume_in_range(from_ymd: int, to_ymd: int, min_sessions: int = 2)
     return {str(r[0]).upper(): int(r[1]) for r in rows}
 
 
+def closes_near_date(to_ymd: int, from_ymd: int) -> dict:
+    """{TICKER: most-recent daily close with from_ymd <= ts <= to_ymd} — each ticker's close
+    on the nearest trading day on/before `to_ymd` within the window (one scan handles
+    holidays). This is bars.db's deep (yfinance-sourced) fallback for whole-market grouped
+    closes on PRE-~2004 dates, which the provider's grouped-daily endpoint doesn't cover.
+    Tickers are app/hyphen form (BRK-B), matching storage. Full-scan of the daily partition
+    (no (tf,ts) index) — cache the result. ⚠️ SURVIVORSHIP-BIASED: only names still in the
+    warmed universe are present; companies delisted before now are absent."""
+    rows = _conn().execute(
+        "SELECT ticker, ts, c FROM ohlcv WHERE tf='D' AND ts<=? AND ts>=? AND c>0",
+        (int(to_ymd), int(from_ymd)),
+    ).fetchall()
+    out: dict[str, float] = {}
+    best: dict[str, int] = {}
+    for t, ts, c in rows:
+        u = str(t).upper()
+        if ts > best.get(u, 0):
+            best[u] = ts
+            out[u] = float(c)
+    return out
+
+
 def recent_first_trade(since_ymd: int) -> dict:
     """{TICKER: earliest daily-bar ts (YYYYMMDD)} for tickers whose FIRST daily bar is
     on/after since_ymd — a proxy for "first traded (IPO'd) within the window", given
