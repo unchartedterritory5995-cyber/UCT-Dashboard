@@ -1196,17 +1196,13 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // widget's appearance (patchSettings) and the shared column layout (saveColCfg);
   // saving captures the current look.
   const { templates: wlTemplates, saveTemplate: saveWlTemplate, removeTemplate: removeWlTemplate } = useWatchlistTemplates()
+  // A look template applies ONLY the appearance settings (the ⚙ settings menu) — NOT the
+  // column layout. Columns are per-list (e.g. Custom-Period Sort's period column must
+  // survive applying a template), so a template never touches which columns show or their
+  // widths. (Older templates may still carry a `cols` blob; it's deliberately ignored.)
   const applyWlTemplate = useCallback((tpl) => {
-    if (!tpl) return
-    if (tpl.settings) patchSettings(tpl.settings)   // replaces every appearance key
-    if (tpl.cols) {
-      const next = { ...(colCfg || {}) }
-      if (Array.isArray(tpl.cols.order)) next.order = tpl.cols.order
-      if (tpl.cols.hidden) next.hidden = tpl.cols.hidden
-      if (tpl.cols.widths) next.widths = tpl.cols.widths
-      saveColCfg(next)
-    }
-  }, [patchSettings, colCfg, saveColCfg])
+    if (tpl?.settings) patchSettings(tpl.settings)   // replaces every appearance key
+  }, [patchSettings])
 
   // Which list this single-list widget scopes to, IF it's one the user owns
   // (community lists aren't yours to add to). Drives the header "+" add button.
@@ -1863,7 +1859,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
             My Lists / Community tabs. */}
         {pickList ? (
           <div className={styles.pickHeader}>
-            <button className={styles.pickBackBtn} onClick={() => onExitPick?.()} title="Choose a different list">{backLabel || '‹ Lists'}</button>
+            {/* Back-to-list-picker button only when there IS a picker to return to
+                (onExitPick set). Custom-Period Sort has none, so it shows no dead button. */}
+            {onExitPick && <button className={styles.pickBackBtn} onClick={() => onExitPick()} title="Choose a different list">{backLabel || '‹ Lists'}</button>}
             <span className={styles.pickTitle}>{pickName || 'Watchlist'}</span>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
               {/* Add a symbol — only on lists you own (community lists aren't yours).

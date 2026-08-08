@@ -16,17 +16,6 @@ export const WATCHLIST_TEMPLATES_KEY = 'watchlist_templates'
 // here so both the page and the picker (create-from-template) write the same key.
 export const WL_COLS_LS = 'uct.watchlist.cols'
 
-// Keep only the layout-defining parts of the column config in a template — NOT the
-// transient sort (which is a per-session ranking, not a saved "look").
-function pickCols(colCfg) {
-  const c = colCfg && typeof colCfg === 'object' ? colCfg : {}
-  return {
-    order: Array.isArray(c.order) ? c.order : undefined,
-    hidden: c.hidden && typeof c.hidden === 'object' ? c.hidden : undefined,
-    widths: c.widths && typeof c.widths === 'object' ? c.widths : undefined,
-  }
-}
-
 /** Write a template's column layout to the shared watchlist column config. Merges over
  *  whatever is stored so we never drop an unrelated field (e.g. a live sort). */
 export function applyTemplateColumns(cols) {
@@ -57,7 +46,7 @@ export function useWatchlistTemplates() {
     return Array.isArray(raw) ? raw.filter(t => t && t.id && t.name) : []
   }, [prefs])
 
-  const saveTemplate = useCallback(({ name, settings, cols }) => {
+  const saveTemplate = useCallback(({ name, settings }) => {
     const clean = (name || '').trim().slice(0, 60)
     if (!clean) return null
     const id = genId()
@@ -65,9 +54,10 @@ export function useWatchlistTemplates() {
       id,
       name: clean,
       // Normalize appearance through the same merge the panel uses so a partial/older
-      // blob still applies cleanly later.
+      // blob still applies cleanly later. A template is APPEARANCE ONLY — it deliberately
+      // does NOT store the column layout (order/hidden/widths), so applying a template
+      // never changes which columns show or removes a list-specific column.
       settings: mergeWatchlistSettings(settings),
-      cols: pickCols(cols),
     }
     // Upsert by case-insensitive name so re-saving under an existing name replaces it.
     const rest = templates.filter(t => t.name.toLowerCase() !== clean.toLowerCase())

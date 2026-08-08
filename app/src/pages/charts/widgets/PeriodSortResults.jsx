@@ -57,10 +57,13 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
     [start, end],
   )
 
+  // Title carries the dates (e.g. "Custom-Period Sort (3/31/2026 – 6/11/2026)"); the
+  // footer keeps just the count + freshness (no date range — that moved to the title).
+  const ds = data?.start ?? start, de = data?.end ?? end
+  const title = `Custom-Period Sort (${fmtYmd(ds)} – ${fmtYmd(de)})`
   const scanFooter = (
     <div className={styles.scanFooter}>
       <span className={styles.scanCount}>{symbols.length.toLocaleString()} {symbols.length === 1 ? 'stock' : 'stocks'}</span>
-      {data?.start && <span className={styles.scanUpdated}>· {fmtYmd(data.start)} – {fmtYmd(data.end)}</span>}
       {data?.as_of && <span className={styles.scanUpdated}>· {fmtScanTime(data.as_of)} ET</span>}
       <button type="button" className={styles.scanRefresh} onClick={() => mutate()} title="Refresh" aria-label="Refresh">
         <UIcon name="refresh" size={12} gold={false} className={isValidating ? styles.scanRefreshSpin : undefined} />
@@ -74,7 +77,7 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
         embedded
         pickList="__scan__"
         scanSymbols={symbols}
-        pickName="US Common Stocks"
+        pickName={title}
         backLabel={onExit ? '‹ Back' : null}
         onExitPick={onExit}
         settingsOverride={settingsOverride}

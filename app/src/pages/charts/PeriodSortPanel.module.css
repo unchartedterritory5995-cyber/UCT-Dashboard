@@ -4,15 +4,13 @@
 
 .panel {
   position: fixed;
-  width: 460px;
-  max-width: 94vw;
-  height: 560px;
-  max-height: 82vh;
+  max-width: 96vw;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
   background: var(--bg-elevated, #22251e);
   border: 1px solid var(--border, #2e3127);
-  border-radius: 10px;
+  border-radius: 8px;
   box-shadow: 0 24px 64px -24px rgba(0, 0, 0, 0.6);
   z-index: 4000;
   overflow: hidden;
@@ -20,17 +18,23 @@
   font: 12px 'Instrument Sans', system-ui, sans-serif;
 }
 
+/* Compact header that mirrors a workspace widget's header (grab dots + colour dot on the
+   left, thin buttons on the right, no title — the title lives on the list's own header). */
 .header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 9px 12px;
+  padding: 4px 8px;
+  min-height: 30px;
+  box-sizing: border-box;
   cursor: grab;
   user-select: none;
-  border-bottom: 1px solid var(--border, #2e3127);
-  background: var(--bg-surface, #1a1c17);
+  border-bottom: 1px solid var(--widget-divider, var(--border, #2e3127));
+  background: var(--widget-canvas, var(--bg-elevated, #22251e));
 }
 .header:active { cursor: grabbing; }
+/* Gold colour-code dot, matching the standard widget header's Group-A dot. */
+.colorDot { width: 9px; height: 9px; border-radius: 50%; background: #c9a84c; flex-shrink: 0; }
 /* Six-dot drag grip (pure CSS, no icon dependency). */
 .grip {
   width: 8px;
@@ -52,35 +56,38 @@
   font-size: 11px;
   color: var(--text-muted, #8c8674);
 }
-.headBtns { margin-left: auto; display: flex; align-items: center; gap: 2px; }
-.iconBtn {
-  width: 24px;
-  height: 24px;
+.headBtns { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+.iconBtn, .close {
+  width: 20px;
+  height: 20px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: none;
   background: transparent;
   color: var(--text-muted, #8c8674);
-  font-size: 13px;
+  font-size: 12px;
+  line-height: 1;
   cursor: pointer;
-  border-radius: 5px;
+  border-radius: 4px;
 }
-.iconBtn:hover { background: var(--bg-hover, #2a2d24); color: var(--text-bright, #e0dac8); }
-.close {
-  width: 24px;
-  height: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  color: var(--text-muted, #8c8674);
-  font-size: 13px;
-  cursor: pointer;
-  border-radius: 5px;
+.iconBtn:hover, .close:hover { background: var(--bg-hover, #2a2d24); color: var(--text-bright, #e0dac8); }
+.close:hover { color: var(--loss, #e74c3c); }
+
+/* Bottom-right corner resize grip. */
+.resizeHandle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  z-index: 20;
+  background:
+    linear-gradient(135deg, transparent 0 50%, var(--text-muted, #8c8674) 50% 60%, transparent 60% 72%, var(--text-muted, #8c8674) 72% 82%, transparent 82%);
+  opacity: 0.5;
 }
-.close:hover { background: var(--bg-hover, #2a2d24); color: var(--text-bright, #e0dac8); }
+.resizeHandle:hover { opacity: 0.9; }
 
 /* Add-as-tab dropdown (floating panel header). */
 .tabMenu {

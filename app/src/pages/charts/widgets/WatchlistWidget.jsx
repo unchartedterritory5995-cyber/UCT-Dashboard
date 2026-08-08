@@ -3,7 +3,6 @@ import Watchlists from '../../Watchlists'
 import WatchlistPicker from './WatchlistPicker'
 import { ChartsSymContext } from '../ChartsSymContext'
 import { useWorkspace } from '../WorkspaceContext'
-import { applyTemplateColumns } from '../../watchlist/watchlistTemplates'
 
 export default function WatchlistWidget({ color, opts, onOptsChange }) {
   const { groupSyms, setGroupSym, activeWatchlistRef } = useWorkspace()
@@ -23,8 +22,7 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
   const watchKey = opts?.watchKey || null
   const pick = useCallback((sel) => {
     // Creating a list from a saved look Template seeds the widget's appearance
-    // (opts.settings) and applies its column layout (shared localStorage config).
-    if (sel?.cols) applyTemplateColumns(sel.cols)
+    // (opts.settings) only — a template never controls the column layout.
     const next = { ...(opts || {}), watchKey: sel?.key || null, watchName: sel?.name || null }
     if (sel?.settings) next.settings = sel.settings
     onOptsChange?.(next)
