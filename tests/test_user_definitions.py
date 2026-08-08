@@ -272,8 +272,32 @@ def js():
 
 @pytest.fixture
 def store(tmp_path, monkeypatch):
+    """The definition store — AND the alert DB the rev-migration reads.
+
+    ⚠️ THIS FIXTURE USED TO REPOINT ONLY `svc._DB_PATH`, AND SIX TESTS PASSED
+    BECAUSE OF POLLUTION. A rev-bumping `save()` calls the force-migration, which
+    reads `indicator_alerts` out of `ias._DB_PATH` — left at the default, that is
+    the shared `C:\\data\\auth.db` (964 MB, ~20k users), where the alert SOAK had
+    happened to leave a real `indicator_alerts` table. The tests were reading
+    another suite's residue and calling it a fixture.
+
+    They surfaced the moment `conftest.py` started isolating `AUTH_DB_PATH` for
+    real — i.e. the isolation did not break them, it revealed that they had never
+    been passing on their own. `env` twelve lines below already did this
+    correctly; `store` now matches it.
+
+    ⛔ `AUTH_DB_PATH` alone is NOT enough: six product modules capture that env var
+    at IMPORT, so setting it after the import does nothing. The attribute is what
+    has to move.
+    """
     monkeypatch.setattr(svc, "_DB_PATH", str(tmp_path / "user_definitions.db"))
     svc._init_db()
+
+    alert_db = tmp_path / "auth.db"
+    monkeypatch.setenv("AUTH_DB_PATH", str(alert_db))
+    monkeypatch.setattr(ias, "_DB_PATH", str(alert_db))
+    ias.init_schema()
+    rev.init_schema()
     return tmp_path
 
 
