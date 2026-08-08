@@ -188,7 +188,26 @@ const WIDGET_DEFAULTS = {
 // user learns why their board didn't appear on the other monitor.
 const POPUP_BLOCKED_MSG = 'Your browser blocked the pop-out window. Allow pop-ups for this site, then try again.'
 
-const WIDGET_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth', 'aisearch', 'news', 'profile', 'alerts', 'calendar', 'optionsflow', 'periodsort']
+// Docking makes room by SPLITTING an existing widget in two: `candidate` keeps the top
+// half, the docked widget takes the bottom half (same column). Returns the adjusted
+// widget list + the placement, or null if the candidate can't shrink below its min.
+function splitToFit(widgets, defaults, candidate) {
+  if (!candidate) return null
+  const candMin = (WIDGET_DEFAULTS[candidate.type]?.minH) || 2
+  const newH = Math.max(defaults.minH, Math.min(defaults.h, Math.floor(candidate.h / 2)))
+  const shrunkH = candidate.h - newH
+  if (shrunkH < candMin) return null
+  const w = Math.max(defaults.minW, Math.min(defaults.w, candidate.w))
+  return {
+    widgets: widgets.map(x => (x.id === candidate.id ? { ...x, h: shrunkH } : x)),
+    place: { x: candidate.x, y: candidate.y + shrunkH, w, h: newH },
+  }
+}
+
+// NOTE: 'periodsort' is intentionally NOT here — it's reachable only from Tools →
+// Custom-Period Sort (dock / add-as-tab), not the Add Widget menu. It stays registered
+// in WIDGET_DEFAULTS / WIDGET_LABELS / WidgetHost dispatch so docked instances render.
+const WIDGET_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth', 'aisearch', 'news', 'profile', 'alerts', 'calendar', 'optionsflow']
 const WIDGET_LABELS = {
   chart: 'Chart',
   watchlist: 'Watchlist',
@@ -669,8 +688,33 @@ export default function ChartsWorkspace() {
   // highlighted range), or fold it into an existing widget as a Period-Sort tab.
   const handleDockPeriodSort = useCallback((start, end) => {
     setPeriodSortPanel(null)
-    handleAddWidget('periodsort', { start, end })
-  }, [handleAddWidget])
+    setLayout(prev => {
+      const defaults = WIDGET_DEFAULTS.periodsort
+      const fit = findPlacement(prev.widgets, defaults, COLS.lg, FIXED_ROWS)
+      let widgets = prev.widgets
+      let place = fit
+      // If the normal placement would land off-screen (grid full), open room by splitting
+      // an existing widget — prefer a non-chart side widget (like the watchlist) so the
+      // main chart isn't shrunk; fall back to the tallest widget overall.
+      if (fit.y + fit.h > FIXED_ROWS) {
+        const tallestOf = (arr) => arr.reduce((a, b) => (!a || b.h > a.h ? b : a), null)
+        const nonChart = prev.widgets.filter(w => w.type !== 'chart')
+        const split = splitToFit(prev.widgets, defaults, tallestOf(nonChart))
+          || splitToFit(prev.widgets, defaults, tallestOf(prev.widgets))
+        if (split) { widgets = split.widgets; place = split.place }
+      }
+      const color = pickWidgetColor(widgets, groupSyms)
+      const newWidget = {
+        id: `w-periodsort-${Date.now()}`,
+        type: 'periodsort', color,
+        x: place.x, y: place.y, w: place.w, h: place.h,
+        opts: { start, end },
+      }
+      const next = { ...prev, widgets: clampWidgetsToRows([...widgets, newWidget]) }
+      scheduleSave(next)
+      return next
+    })
+  }, [scheduleSave, groupSyms])
   const handlePeriodSortToTab = useCallback((widgetId, start, end) => {
     setPeriodSortPanel(null)
     setLayout(prev => {
