@@ -561,10 +561,11 @@ export default function ChartsWorkspace() {
     setPeriodSortSel({ sym, start, end, pct })
   }, [])
   const handlePeriodCancel = useCallback(() => setPeriodSortMode(false), [])
+  const exitReplay = useCallback(() => setReplayCutoff(null), [])
 
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff }),
-    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff],
+    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay }),
+    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay],
   )
 
   // Debounced layout persist (500ms).
@@ -1419,11 +1420,6 @@ export default function ChartsWorkspace() {
               setReplayCutoff(replay ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` : null)
             }}
           />
-        )}
-        {replayCutoff && (
-          <button type="button" className={styles.exitReplayBtn} onClick={() => setReplayCutoff(null)}>
-            ⟲ Exit Replay Mode
-          </button>
         )}
         {periodSortPanel && (
           <PeriodSortPanel

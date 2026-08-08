@@ -93,19 +93,8 @@
 }
 .popoutNotice button:hover { color: var(--text, #e5e7eb); }
 
-/* Replay mode: a prominent gold pill at TOP-center of the chart area (roughly where the
-   "highlight time period" tab appears) to leave replay + restore all bars. White bold text
-   with a soft shadow so it stands out on the gold. */
-.exitReplayBtn {
-  position: fixed; top: 94px; left: 50%; transform: translateX(-50%);
-  z-index: 9100; cursor: pointer;
-  background: var(--ut-gold, #c9a84c); color: #ffffff;
-  border: none; border-radius: 999px; padding: 8px 18px;
-  font: 700 13px 'Instrument Sans', system-ui, sans-serif; letter-spacing: 0.02em;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
-  box-shadow: 0 8px 26px -8px rgba(201, 168, 76, 0.65);
-}
-.exitReplayBtn:hover { background: #d8b95a; }
+/* (The "Exit Replay Mode" pill now renders INSIDE each chart via StockChart's onExitReplay,
+   so it auto-centers in the chart's clear top area — no workspace-level button needed.) */
 
 .widget {
   background: var(--widget-canvas, var(--bg-elevated, #0f141b));

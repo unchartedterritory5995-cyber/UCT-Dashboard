@@ -22,6 +22,7 @@ const FALLBACK = {
   onPeriodCancel: () => {},
   // Replay mode: an ISO 'YYYY-MM-DD' cutoff; linked charts hide every bar after it.
   replayCutoff: null,
+  exitReplay: () => {},
 }
 
 export function useWorkspace() {

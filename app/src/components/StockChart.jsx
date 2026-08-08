@@ -1144,6 +1144,7 @@ export default function StockChart({
   onPeriodSelected = null,    // (startYmd:int, endYmd:int, pct:number) => void — the highlighted [start, end] as YYYYMMDD ints + the symbol's close-to-close % move.
   onPeriodCancel = null,      // () => void — the ✕ on the "Highlight time period" banner cancels the mode.
   replayCutoff = null,        // Replay mode: 'YYYY-MM-DD' — hide every bar after this calendar day + re-frame to default zoom + freeze live. null = normal chart.
+  onExitReplay = null,        // () => void — when set + replayCutoff active, shows an "Exit Replay Mode" pill centered in the chart's clear top area.
   verticalLegend = false,     // Charts workspace: stack the crosshair OHLCV legend single-file down the left instead of a horizontal row near the toolbar.
   lockWatermark = false,      // Charts workspace: disable the watermark hover-arm + drag so hovering it never moves it.
   alwaysShowLegend = false,   // Charts workspace: keep the legend visible with the latest bar's values when the cursor is off the chart (instead of hiding).
@@ -11534,6 +11535,21 @@ export default function StockChart({
           <span style={{ fontSize: 11, color: '#c2c2c2', letterSpacing: '0.01em' }}>Click, hold, and drag across the chart</span>
         </div>
       </>)}
+      {/* Replay mode: an "Exit Replay Mode" pill centered in THIS chart's clear top area
+          (below the toolbars/legend) so it auto-positions per chart without overlapping. */}
+      {replayCutoff && onExitReplay && (
+        <button
+          type="button"
+          onClick={() => onExitReplay()}
+          title="Exit replay mode — restore all bars"
+          style={{ position: 'absolute', top: 58, left: '50%', transform: 'translateX(-50%)', zIndex: 30,
+            display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+            background: '#c9a84c', color: '#ffffff', border: 'none', borderRadius: 999, padding: '7px 16px',
+            font: "700 12.5px 'Instrument Sans', system-ui, sans-serif", letterSpacing: '0.02em',
+            textShadow: '0 1px 3px rgba(0,0,0,0.55)', boxShadow: '0 8px 24px -8px rgba(201,168,76,0.6)',
+            whiteSpace: 'nowrap' }}
+        >⟲ Exit Replay Mode</button>
+      )}
       {/* Go to date (Alt+G): pick a date, the chart scrolls to that session. */}
       {dateJumpOpen && (
         <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 30, display: 'flex', gap: 6, alignItems: 'center',
