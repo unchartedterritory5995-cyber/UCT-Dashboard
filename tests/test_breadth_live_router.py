@@ -40,9 +40,15 @@ def _payload(**over):
         "as_of": "2026-08-05T13:44:00-04:00",
         "session_date": "2026-08-05", "session_live": True,
         "anchored": True, "degraded": False,
+        # Carries enough scoring weight to produce a headline. Since 2026-08-07
+        # `breadth_score` renormalizes over PRESENT inputs and withholds below
+        # 60 of 100 points rather than extrapolating from a fraction of the
+        # evidence — and a real live row carries ~70 before any carried field.
         "metrics": {"pct_above_50sma": 65.3, "up_4pct_today": 163,
                     "down_4pct_today": 61, "adv_decline": -370,
-                    "universe_count": 2701, "new_52w_highs": 133},
+                    "universe_count": 2701, "new_52w_highs": 133,
+                    "magna_up": 880, "magna_down": 320, "stage2_count": 410,
+                    "vix": 15.4},
     }
     base.update(over)
     return base

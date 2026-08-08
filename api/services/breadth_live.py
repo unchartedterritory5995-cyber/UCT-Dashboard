@@ -801,11 +801,17 @@ def compute_metrics(levels: dict, prices: dict[str, float],
         s200p = levels["sma200_back21"]
         valid = (have & levels["sma_ok"][50] & levels["sma_ok"][150]
                  & levels["sma_ok"][200] & ~np.isnan(s200p))
+        # Slope is STRICT, matching `breadth_collector._stage_mask`. It was `>=`
+        # / `<=` on both sides, which let a perfectly flat SMA200 satisfy stage 2
+        # and stage 4 at once. Nothing was ever double-counted — the price/MA
+        # ordering clauses are mutually exclusive — but "trending up" is the
+        # claim, and this must move in lockstep with the collector or reconcile
+        # starts reporting a divergence that is really just two definitions.
         with np.errstate(invalid="ignore"):
             s2_mask = ((px > s50) & (s50 > s150) & (s150 > s200)
-                       & (s200 >= s200p) & valid)
+                       & (s200 > s200p) & valid)
             s4_mask = ((px < s50) & (s50 < s150) & (s150 < s200)
-                       & (s200 <= s200p) & valid)
+                       & (s200 < s200p) & valid)
         m["stage2_count"] = int(s2_mask.sum())
         m["stage4_count"] = int(s4_mask.sum())
         _keep("stage2_count", s2_mask)

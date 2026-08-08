@@ -121,6 +121,14 @@ def count_52w_vol_highs(volumes, closes):
     return int((vol_hi & above_sma).sum())
 
 
+def _stage_mask(c, sma50, sma150, sma200, sma200_prev, stage):
+    if stage == 2:
+        return ((c > sma50) & (sma50 > sma150) & (sma150 > sma200)
+                & (sma200 > sma200_prev))
+    return ((c < sma50) & (sma50 < sma150) & (sma150 < sma200)
+            & (sma200 < sma200_prev))
+
+
 def count_stage(closes, stage):
     if len(closes) < 220:
         return None
@@ -131,12 +139,7 @@ def count_stage(closes, stage):
     sma200_prev = closes.rolling(200).mean().iloc[-22]
     valid = (c.notna() & sma50.notna() & sma150.notna()
              & sma200.notna() & sma200_prev.notna())
-    if stage == 2:
-        mask = ((c > sma50) & (sma50 > sma150) & (sma150 > sma200)
-                & (sma200 >= sma200_prev))
-    else:
-        mask = ((c < sma50) & (sma50 < sma150) & (sma150 < sma200)
-                & (sma200 <= sma200_prev))
+    mask = _stage_mask(c, sma50, sma150, sma200, sma200_prev, stage)
     return int(mask[valid].sum())
 
 
@@ -376,12 +379,21 @@ def test_todays_volume_equal_to_the_prior_52w_max_is_a_volume_high():
     assert live["hvc_52w"] == count_52w_vol_highs(vdf, cdf) == 5
 
 
-def test_a_flat_200ma_still_qualifies_as_stage_2():
-    """`sma200 >= sma200_prev` — flat counts as trending, and the tie is exact.
+def test_a_flat_200ma_qualifies_as_neither_stage():
+    """`sma200 > sma200_prev` — flat is not trending, and the tie is exact.
 
     Built so the 200-bar window today and the one 21 sessions back hold the
     same total: the newest 21 bars (2730) are mirrored by the 21 bars that drop
     out of the window. Every value is an integer, so the sums are exact.
+
+    The slope test was `>=` / `<=` until 2026-08-08, which let a perfectly flat
+    SMA200 satisfy stage 2 and stage 4 at once. Nothing was ever double-counted
+    — the price/MA ordering clauses are mutually exclusive — but "trending up"
+    is the claim the classification makes, and `>=` does not say it.
+
+    What this test is really for is the LAST line: whatever the definition is,
+    the live path and the collector must agree on it. That is the assertion to
+    preserve if the definition ever moves again.
     """
     cdf, vdf = _flat(n_tickers=2, n_dates=300)
     ramp = list(range(120, 140)) + [140]                 # prior[-20:] + today
@@ -396,7 +408,8 @@ def test_a_flat_200ma_still_qualifies_as_stage_2():
     assert sma200 == levels["sma200_back21"][0]          # the tie is genuinely exact
 
     live = bl.compute_metrics(levels, prices, vols)
-    assert live["stage2_count"] == count_stage(cdf, 2) == 1
+    assert live["stage2_count"] == count_stage(cdf, 2) == 0
+    assert live["stage4_count"] == count_stage(cdf, 4) == 0
 
 
 def test_an_index_sitting_on_its_moving_average_is_not_above_it():
