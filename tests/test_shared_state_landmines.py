@@ -9,7 +9,7 @@ Each test here exists because the thing it guards was measured broken:
      the same two files reversed = 27 passed.
 
   2. `AUTH_DB_PATH` was unset and `C:\data` exists on this box, so every
-     auth-touching test wrote to ONE persistent shared file (20,494 users)
+     auth-touching test wrote to ONE persistent shared file (20,640 users)
      that survived runs — the trapdoor under every "newest row" query.
 
   3. That shared file holds 38/100/58-row clusters stamped at exactly
@@ -137,25 +137,39 @@ def _user_count(path: str):
         con.close()
 
 
-def test_the_connection_the_product_opens_is_the_isolated_file(isolated_auth_db):
-    """Resolved the way the PRODUCT resolves it, not the way a fixture hoped.
+def _attached_main_db() -> str:
+    """The file `auth_db` ACTUALLY opens — asked of the live connection.
 
-    `auth_db._DB_PATH` is read once, at import, so `monkeypatch.setenv` proves
-    nothing. This asks the live connection which file it is attached to.
+    Not `os.environ`, not `auth_db._DB_PATH`, not what a fixture intended:
+    `PRAGMA database_list` is the artifact.
     """
     con = auth_db.get_connection()
     try:
-        attached = [r[2] for r in con.execute("PRAGMA database_list") if r[1] == "main"]
+        main = [r[2] for r in con.execute("PRAGMA database_list") if r[1] == "main"]
     finally:
         con.close()
-    assert len(attached) == 1
-    assert os.path.normcase(os.path.abspath(attached[0])) == \
-        os.path.normcase(os.path.abspath(isolated_auth_db)), (
-            f"auth_db opened {attached[0]!r}, not the isolated store")
+    assert len(main) == 1, f"expected one main database, got {main!r}"
+    return main[0]
 
 
-def test_creating_users_leaves_the_shared_auth_db_untouched(
-        isolated_auth_db, shared_auth_db_path):
+def test_the_connection_the_product_opens_is_never_the_shared_store(shared_auth_db_path):
+    """`auth_db._DB_PATH` is read once, at import, so `setenv` proves nothing.
+
+    ⚠️ The invariant is "never the SHARED store", not "always the session
+    store". A handful of test modules (e.g.
+    `tests/test_auth_last_login_throttle.py`) assign `os.environ["AUTH_DB_PATH"]`
+    at their own import time, and whichever of those pytest imports first
+    decides what `auth_db` captured — a per-module temp file is still
+    isolation, so demanding OUR file here would make this rail itself
+    order-dependent, which is the disease.
+    """
+    attached = _attached_main_db()
+    assert os.path.normcase(os.path.abspath(attached)) != \
+        os.path.normcase(os.path.abspath(shared_auth_db_path)), (
+            f"auth_db opened the SHARED store {attached!r}")
+
+
+def test_creating_users_leaves_the_shared_auth_db_untouched(shared_auth_db_path):
     """The count in the SHARED file must not move while a test creates users."""
     try:
         before = _user_count(shared_auth_db_path)
@@ -180,9 +194,9 @@ def test_creating_users_leaves_the_shared_auth_db_untouched(
             con.close()
         assert leaked == [], f"rows written here landed in {shared_auth_db_path}: {leaked}"
 
-    # …and they ARE in the isolated store, so this cannot pass because nothing
-    # was written at all.
-    con = sqlite3.connect(isolated_auth_db, timeout=10)
+    # …and they ARE in the file auth_db is attached to, so this cannot pass
+    # because nothing was written at all.
+    con = sqlite3.connect(_attached_main_db(), timeout=10)
     try:
         q = ",".join("?" * len(made))
         here = con.execute(
@@ -194,7 +208,7 @@ def test_creating_users_leaves_the_shared_auth_db_untouched(
 
 # ─── 3. the fabricated, future-dated clock ──────────────────────────────────
 
-def test_create_user_stamps_a_real_advancing_clock(isolated_auth_db):
+def test_create_user_stamps_a_real_advancing_clock():
     """`create_user` is the ONLY writer of `users.created_at` in this repo.
 
     The shared store holds whole-minute clusters dated ahead of today, which
@@ -207,7 +221,7 @@ def test_create_user_stamps_a_real_advancing_clock(isolated_auth_db):
     auth_db.init_db()
     ids = [auth_service.create_user(f"clock_{uuid.uuid4()}@example.com", "pw")["id"]
            for _ in range(3)]
-    con = sqlite3.connect(isolated_auth_db, timeout=10)
+    con = sqlite3.connect(_attached_main_db(), timeout=10)
     try:
         q = ",".join("?" * len(ids))
         stamps = [r[0] for r in con.execute(

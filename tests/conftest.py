@@ -8,10 +8,10 @@ import pytest
 #
 # `AUTH_DB_PATH` was unset and `C:\data` EXISTS on this box, so every
 # auth-touching test in the repo wrote to ONE persistent shared file —
-# `C:\data\auth.db`, 20,494 users deep and growing — that survived every run.
-# Any test ordering by `created_at`, counting users, or asserting on "the
-# newest row" sat on that trapdoor; it is what turned five voice failures from
-# flaky into deterministic.
+# `C:\data\auth.db`, 20,640 users deep at measurement and still growing — that
+# survived every run. Any test ordering by `created_at`, counting users, or
+# asserting on "the newest row" sat on that trapdoor; it is what turned five
+# voice failures from flaky into deterministic.
 #
 # ⚠️ THE OBVIOUS FIX IS A GATE THAT CANNOT FAIL. `monkeypatch.setenv(
 # "AUTH_DB_PATH", ...)` inside a fixture reaches NOTHING in `auth_db`:
