@@ -186,13 +186,13 @@ export default function ChartSettingsModal({
   useLayoutEffect(() => {
     if (!fieldMenuOpen || !panelRef.current) { setFieldMenuPos(null); return }
     const r = panelRef.current.getBoundingClientRect()
-    const b = fieldWrapRef.current?.getBoundingClientRect()
-    // H tracks the tall field list (~all fields visible) so a menu opened low on the
-    // screen anchors upward instead of spilling past the viewport bottom.
-    const W = 240, gap = 12, H = Math.min(700, window.innerHeight - 16)
+    // Top-align the field menu to the settings modal's top edge, and give it enough
+    // height that every field shows without scrolling (H tracks the full list); if it
+    // would spill past the viewport bottom, nudge it up.
+    const W = 240, gap = 12, H = Math.min(760, window.innerHeight - 24)
     let left = r.right + gap
     if (left + W > window.innerWidth - 8) left = Math.max(8, r.left - W - gap)  // flip left if tight
-    let top = b ? b.top : r.top + 60
+    let top = r.top
     if (top + H > window.innerHeight - 8) top = Math.max(8, window.innerHeight - 8 - H)
     setFieldMenuPos({ left, top })
   }, [fieldMenuOpen, pos])

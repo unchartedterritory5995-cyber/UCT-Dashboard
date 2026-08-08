@@ -639,9 +639,9 @@
   outline: none;
 }
 .fieldSearch::placeholder { color: var(--menu-text-faint, #6b6b6b); }
-/* Tall enough to show the whole field catalog without scrolling on a normal screen;
-   the overflow stays as a safety valve on short viewports. */
-.fieldList { max-height: min(640px, 74vh); overflow-y: auto; padding: 4px; }
+/* Tall enough to show the whole field catalog without scrolling; the list is only as
+   tall as its content, capped near the viewport height (overflow = short-screen valve). */
+.fieldList { max-height: calc(100vh - 96px); overflow-y: auto; padding: 4px; }
 .fieldItem {
   display: flex;
   align-items: center;
