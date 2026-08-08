@@ -147,6 +147,25 @@ def _assemble(start_closes: dict, end_closes: dict, sd: date, ed: date, partial:
         except Exception:
             reuse = {}
 
+    # Whole-market (grouped) path: cross-check against bars.db to drop tickers whose grouped
+    # START close is BOGUS — recently-listed / recycled names (e.g. QH showing +3941%) that
+    # didn't actually trade in their current listing at the start date. Signal: bars.db has
+    # the name NEAR THE END but NOT at the start (its listing began after the start), or the
+    # bars.db %-change wildly contradicts grouped (a stale/mis-adjusted start close). Fast:
+    # two windowed range scans via the by-date index — skipped (not blocking) if it isn't built.
+    bdb_start, bdb_end = {}, {}
+    if not partial:
+        try:
+            from api.services import bars_sqlite
+            if bars_sqlite.daily_bydate_index_ready():
+                s_hi = int(sd.strftime("%Y%m%d")); s_lo = int((sd - timedelta(days=15)).strftime("%Y%m%d"))
+                e_hi = int(ed.strftime("%Y%m%d")); e_lo = int((ed - timedelta(days=15)).strftime("%Y%m%d"))
+                bdb_start = bars_sqlite.closes_near_date(s_hi, s_lo)
+                bdb_end = bars_sqlite.closes_near_date(e_hi, e_lo)
+        except Exception:
+            bdb_start, bdb_end = {}, {}
+    _xcheck = bool(bdb_start and bdb_end)   # only filter when both bars.db sides are present
+
     results = []
     for app, sc in start_closes.items():
         if not sc or sc <= 0:
@@ -158,6 +177,15 @@ def _assemble(start_closes: dict, end_closes: dict, sd: date, ed: date, partial:
             continue
         if partial and reuse.get(app, 0) > int(start_ymd):
             continue
+        if _xcheck and app in bdb_end and app not in bdb_start:
+            continue   # trades now but not at the start → listing began after start → bogus start close
+        if _xcheck:
+            bs, be = bdb_start.get(app), bdb_end.get(app)
+            if bs and be and bs > 0:
+                gp = (ec - sc) / sc * 100      # grouped % change
+                bp = (be - bs) / bs * 100      # bars.db % change (independent source)
+                if abs(gp) > 150 and abs(gp - bp) > 150 and abs(gp) > 3 * abs(bp) + 100:
+                    continue   # the two sources wildly disagree → grouped start close is suspect
         # Currently-trading filter (whole-market path): require the ticker in the live
         # snapshot to drop delisted names. On the partial path we KEEP names bars.db has.
         s = snap.get(app) or _snap_lookup(snap, app) if snap else None

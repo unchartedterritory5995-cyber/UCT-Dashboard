@@ -117,6 +117,28 @@ def test_group_rejects_bad_group():
     assert out["status"] == "error"
 
 
+def test_assemble_drops_ticker_that_did_not_trade_at_start(monkeypatch):
+    # QH-style artifact: bars.db has it near the END but NOT at the start (listed after) →
+    # its grouped start close is bogus (+3941%) → dropped. A real moonshot present at BOTH
+    # ends (CVNA) is kept.
+    from api.services import bars_sqlite as bs
+    sc = {"QH": 0.11, "CVNA": 10.0, "AAPL": 100.0}
+    ec = {"QH": 4.38, "CVNA": 271.0, "AAPL": 110.0}
+
+    def _cnd(hi, lo):
+        return ({"CVNA": 10.0, "AAPL": 100.0} if hi < 20260500      # start window: no QH
+                else {"QH": 4.4, "CVNA": 271.0, "AAPL": 110.0})     # end window: QH present
+    monkeypatch.setattr(bs, "daily_bydate_index_ready", lambda: True)
+    monkeypatch.setattr(bs, "closes_near_date", _cnd)
+    monkeypatch.setattr(sp, "_common_stock_symbols", lambda: {"QH", "CVNA", "AAPL"})
+    monkeypatch.setattr(sp, "_etf_symbols", lambda: set())
+    monkeypatch.setattr(sp.massive, "_get_client",
+                        lambda: type("C", (), {"get_full_market_snapshot": staticmethod(lambda: {})})())
+    out = sp._assemble(sc, ec, date(2026, 3, 30), date(2026, 6, 3), False, 20260330)
+    syms = [r["sym"] for r in out["results"]]
+    assert "QH" not in syms and "CVNA" in syms and "AAPL" in syms
+
+
 def test_robust_group_pct_neutralizes_a_single_moonshot():
     # Auto & Truck Dealerships style: one CVNA-like +2641% outlier must NOT define the group.
     outlier = [8, 12, -3, 2641, 15, 5, -8, 20]
