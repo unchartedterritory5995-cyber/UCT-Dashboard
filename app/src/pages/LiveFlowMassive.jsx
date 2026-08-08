@@ -3170,6 +3170,13 @@ export default function LiveFlowMassive() {
     setLookback(Math.max(1, Math.min(31, days || 1)));
     setTargetDate(endMdy || null);
   };
+  // Selecting a SINGLE day (calendar day-cell or the LIVE button) must CLEAR any
+  // active multi-day range — otherwise lookbackDays stayed at e.g. 5 and the pick
+  // only moved the END of a 5-day window instead of showing that one day. 2026-08-08.
+  const onSelectDate = (dateStr) => {
+    setLookback(1);
+    setTargetDate(dateStr || null);
+  };
   // Historical ticker-scoped By-Print feed (search-a-ticker-in-historical). When
   // a historical date is active AND the user has typed a ticker, the poll below
   // fetches ALL of that underlying's notable prints across the lookback window
@@ -4417,7 +4424,7 @@ export default function LiveFlowMassive() {
         contractFilter={contractFilter}
         onClearFilters={handleClearFilters}
         targetDate={targetDate}
-        onDateChange={setTargetDate}
+        onDateChange={onSelectDate}
         onRange={applyRange}
         rangeDays={(viewMode === "contract" || symbolScoped || printRangeKey) ? lookbackDays : 1}
         onOiFetch={handleOiFetch}
