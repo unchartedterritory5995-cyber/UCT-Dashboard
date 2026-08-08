@@ -6,13 +6,19 @@ liquid, non-ETF universe. Filters: ETFs/ETNs/funds excluded, a price + dollar-vo
 liquidity floor (so illiquid micro-cap pumps don't bury the real movers), and a
 change-magnitude guard against ticker-reuse / bad-data artifacts.
 
-Whole-market + accurate by construction:
+Whole-market by construction:
   reference   ONE grouped-daily call for the date N trading sessions ago returns EVERY
-              ticker's split-ADJUSTED close (`adjusted=true`) — the entire market, not a
-              static list, so recent runners that aren't in cap_universe (e.g. OTLK,
-              EXFY) are ranked too, and splits can't distort the return. Built once/ET-day.
+              ticker's close — the entire market, not a static list, so recent runners
+              that aren't in cap_universe (e.g. OTLK, EXFY) are ranked too. Built once/day.
   live scan   ONE get_full_market_snapshot() gives every ticker's current price; we
               compute the gain, rank, and keep the top 5% (cached ~60s).
+
+We rank off RAW closes (adjusted=false), NOT the provider's split-adjusted feed. That
+feed occasionally mis-applies a split factor to a name with no real price discontinuity
+(TPC read ~$17.8 for a $75 close → a bogus +456%). Raw closes match what the chart shows
+for the ~99% of names with no split in the window; the rare genuine split is a soft error
+(a forward-split gainer is understated, a reverse split is caught by the magnitude cap)
+rather than a loud false positive at the top of the list.
 """
 import math
 import threading
@@ -49,10 +55,12 @@ def _state(pid: str) -> dict:
 
 
 def _build_reference(n_sessions: int) -> dict:
-    """{TICKER (provider-form): split-adjusted close N trading days ago} — whole US market.
+    """{TICKER (provider-form): RAW close N trading days ago} — whole US market.
 
     The reference DATE comes from bars.db's trading calendar (Nth distinct daily ts back);
-    the reference CLOSES come from ONE grouped-daily call for that date (adjusted=true).
+    the reference CLOSES come from ONE grouped-daily call for that date. adjusted=false —
+    the provider's split-adjusted feed mis-applies phantom splits (see module docstring),
+    so raw closes track the chart for the no-split majority.
     """
     today = int(_now_et().strftime("%Y%m%d"))
     ref_ymd = _sqlite.nth_recent_trading_date(n_sessions, today)
@@ -60,7 +68,7 @@ def _build_reference(n_sessions: int) -> dict:
         return {}
     s = str(ref_ymd)
     iso = f"{s[0:4]}-{s[4:6]}-{s[6:8]}"
-    return massive.get_grouped_daily_closes(iso, adjusted=True)
+    return massive.get_grouped_daily_closes(iso, adjusted=False)
 
 
 def _ensure_reference(pid: str, n_sessions: int) -> dict | None:
@@ -120,6 +128,8 @@ def _run_gainers(pid: str, n_sessions: int) -> dict:
         if not ref_close or ref_close <= 0:
             continue
         app = provider_tk.replace(".", "-")   # provider→app form (BRK.B → BRK-B)
+        if app.endswith("ZZT"):
+            continue    # Polygon test symbols (ZVZZT/ZWZZT/ZXZZT/…) — not real stocks
         if app in etfs:
             continue
         s = snap.get(provider_tk) or _snap_lookup(snap, app)

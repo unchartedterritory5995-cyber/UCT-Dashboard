@@ -40,7 +40,7 @@ def test_build_reference_uses_grouped_daily_for_the_nth_session_date(monkeypatch
     ref = sg._build_reference(30)
     assert seen["n"] == 30
     assert seen["iso"] == "2026-04-01"    # YYYYMMDD → ISO for the grouped endpoint
-    assert seen["adjusted"] is True       # split-adjusted closes
+    assert seen["adjusted"] is False      # RAW closes — dodges the provider's phantom splits
     assert ref == {"AAA": 10.0, "BBB": 20.0}
 
 
@@ -71,7 +71,7 @@ def test_ranks_by_n_day_change_and_keeps_top_5pct(monkeypatch):
 
 def test_excludes_etfs_and_illiquid_and_reuse_artifacts(monkeypatch):
     _reset()
-    ref = {"GOOD": 100.0, "SPXL": 100.0, "THIN": 100.0, "RMIX": 1.0}
+    ref = {"GOOD": 100.0, "SPXL": 100.0, "THIN": 100.0, "RMIX": 1.0, "ZVZZT": 100.0}
     with sg._ref_lock:
         sg._state("60d").update(date=sg._session_date(), map=ref, building=False)
     snap = {
@@ -79,6 +79,7 @@ def test_excludes_etfs_and_illiquid_and_reuse_artifacts(monkeypatch):
         "SPXL": _row(300.0, 295.0),                                   # ETF → dropped
         "THIN": {"last_price": 150.0, "prev_close": 148.0, "prev_vol": 10},  # $1.5K dvol → dropped
         "RMIX": _row(62.0, 61.0),                                     # +6100% vs 1.0 ref → artifact
+        "ZVZZT": _row(200.0, 195.0),                                  # Polygon test ticker → dropped
     }
 
     class _Client:
