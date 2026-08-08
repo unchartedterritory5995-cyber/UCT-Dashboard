@@ -3181,6 +3181,11 @@ export default function LiveFlowMassive() {
   const scopeKey = symbolScoped
     ? `${debouncedSearch.trim().toUpperCase()}|${lookbackDays}`
     : "";
+  // General multi-day By-Print (no search): By Print spans the whole historical
+  // range. Keyed so the poll re-fetches when the range or the print/contract view
+  // changes; "" otherwise (single-day / contract / live) so nothing extra fires.
+  const printRangeKey = (!symbolScoped && viewMode === "print" && targetDate && lookbackDays > 1)
+    ? `p${lookbackDays}` : "";
   // Auto-switch to By-Print when scope begins; restore the prior view when it ends.
   const _prevScopedRef = useRef(false);
   const _preSearchViewRef = useRef(null);
@@ -3579,6 +3584,11 @@ export default function LiveFlowMassive() {
         // Historical ticker-scoped feed: pull the ONE ticker's full flow across
         // the lookback window, uncapped (ALL), so the tier chips narrow client-side.
         const scoped = !!(targetDate && debouncedSearch.trim());
+        // General multi-day By-Print: when By Print is showing a historical range
+        // (no ticker search), span the whole window so a tier isolation (Alpha
+        // Gold) shows every one across the range and switching from By-Contract
+        // keeps the range instead of collapsing to the last day.
+        const printMultiDay = !scoped && viewMode === "print" && !!targetDate && lookbackDays > 1;
         const params = new URLSearchParams({
           limit: String(scoped ? ROW_LIMIT_ALL_VALUE : numericLimit),
           sort_by: sortBy,
@@ -3587,6 +3597,8 @@ export default function LiveFlowMassive() {
         if (targetDate) params.set("target_date", targetDate);
         if (scoped) {
           params.set("symbol", debouncedSearch.trim().toUpperCase());
+          params.set("lookback_days", String(lookbackDays));
+        } else if (printMultiDay) {
           params.set("lookback_days", String(lookbackDays));
         }
         // When user has isolated a single tier (e.g. Alpha Gold only),
@@ -3657,7 +3669,7 @@ export default function LiveFlowMassive() {
     // scopeKey: the historical ticker-scoped feed (symbol|lookbackDays) — re-fetch
     // when the searched ticker or window changes; "" in live mode so live search
     // (client-side substring) never triggers a refetch.
-  }, [sortBy, minGrade, targetDate, rowLimit, filters, curated, reconcileNonce, scopeKey]);
+  }, [sortBy, minGrade, targetDate, rowLimit, filters, curated, reconcileNonce, scopeKey, printRangeKey]);
 
   // ── Live SSE stream (dark, VITE_MASSIVE_STREAM=1) ──────────────────────────
   // Prepends new prints the instant the server tailer sees them — NO /recent
@@ -4407,7 +4419,7 @@ export default function LiveFlowMassive() {
         targetDate={targetDate}
         onDateChange={setTargetDate}
         onRange={applyRange}
-        rangeDays={(viewMode === "contract" || symbolScoped) ? lookbackDays : 1}
+        rangeDays={(viewMode === "contract" || symbolScoped || printRangeKey) ? lookbackDays : 1}
         onOiFetch={handleOiFetch}
         oiFetchState={oiFetchState}
         nullOICount={alerts.filter(a => a.priorOI == null).length}
@@ -4420,7 +4432,7 @@ export default function LiveFlowMassive() {
         }}>
           📅 {symbolScoped
             ? `${debouncedSearch.trim().toUpperCase()} — all notable flow, last ${lookbackDays} trading day${lookbackDays > 1 ? "s" : ""} ending ${targetDate}`
-            : viewMode === "contract" && lookbackDays > 1
+            : (viewMode === "contract" && lookbackDays > 1) || printRangeKey
               ? `Historical range: last ${lookbackDays} trading days ending ${targetDate}`
               : `Historical view: ${targetDate}`} (remove ?date param to return to live)
         </div>
@@ -4604,7 +4616,7 @@ export default function LiveFlowMassive() {
             isAdmin={isTuneMode}
             onPush={handlePush}
             pushState={pushStates[a.id]}
-            showDate={symbolScoped && lookbackDays > 1}
+            showDate={(symbolScoped && lookbackDays > 1) || !!printRangeKey}
           />
         );
       })}
