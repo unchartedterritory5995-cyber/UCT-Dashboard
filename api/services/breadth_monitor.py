@@ -161,8 +161,31 @@ def _compute_breadth_score(row: dict) -> Optional[float]:
     return round(min(100, max(0, earned / have * 100)), 1)
 
 
+# The derivation loop below reaches BACKWARD past the row it is computing:
+# `w10` needs 9 prior rows, `qqq_day_pct` needs 1, and the `is_ftd` drawdown
+# window reaches 15. Fetching exactly `days` rows meant the oldest rows of every
+# fetch were computed against a truncated window, so the SAME DATE returned
+# different numbers depending on how many days the caller asked for. Measured
+# 2026-08-08, days=30 vs days=200 over their 30-day overlap:
+#
+#     ratio_5day       4/30 disagreed   (2026-06-26: 3.77 vs 1.16)
+#     ratio_10day      9/30
+#     avg_10d_cpc      8/30             (None vs 0.92 — a manufactured absence)
+#     breadth_score    2/30             (89.9 vs 83.5; it consumes the above)
+#
+# Worst case was `get_latest()`, which calls get_history(1): every rolling
+# metric on the newest row came from a single row, `qqq_day_pct` was forced to
+# None by the i==0 branch, and `is_ftd` could never fire because of `i >= 3`.
+_ROLLING_WARMUP = 15
+
+
 def get_history(days: int = 90) -> list:
     """Return last N trading days, newest first. Ratios computed from stored data.
+
+    Fetches `days + _ROLLING_WARMUP` rows, derives over all of them, and returns
+    only the newest `days`. The warm-up rows exist to be looked back AT, never
+    to be returned — that is what makes a derived value a property of its date
+    rather than of the request.
 
     Cached (5 min) keyed by `days`: breadth data updates once daily (afternoon
     push), so this recomputed the full rolling-metric pass on EVERY request for
@@ -178,8 +201,19 @@ def get_history(days: int = 90) -> list:
         with _conn() as c:
             rows = c.execute(
                 "SELECT date, metrics, created_at FROM breadth_snapshots ORDER BY date DESC LIMIT ?",
-                (days,),
+                (days + _ROLLING_WARMUP,),
             ).fetchall()
+            # The cumulative A/D line has no window — it is a running total from
+            # the first snapshot ever stored. Seeding it at 0 at whatever row the
+            # fetch happened to start on made it disagree with itself on all 30
+            # overlapping dates (1538 vs 11640). Sum the rows we did not fetch.
+            adv_decline_seed = 0
+            if rows:
+                adv_decline_seed = c.execute(
+                    "SELECT COALESCE(SUM(json_extract(metrics, '$.adv_decline')), 0) "
+                    "FROM breadth_snapshots WHERE date < ?",
+                    (rows[-1]["date"],),
+                ).fetchone()[0] or 0
     except Exception as e:
         print(f"[breadth_monitor] get_history error: {e}")
         return []
@@ -197,7 +231,7 @@ def get_history(days: int = 90) -> list:
     # Need oldest-first to compute rolling windows, then reverse back
     result_asc = list(reversed(result))
 
-    adv_decline_cum = 0  # running total for cumulative A/D line
+    adv_decline_cum = adv_decline_seed  # running total from the FIRST snapshot
 
     for i, row in enumerate(result_asc):
         w5  = result_asc[max(0, i - 4):  i + 1]
@@ -273,8 +307,9 @@ def get_history(days: int = 90) -> list:
 
         row["breadth_score"] = _compute_breadth_score(row)
 
-    # Return newest-first
-    out = list(reversed(result_asc))
+    # Return newest-first, dropping the warm-up rows off the OLD end. They were
+    # fetched to be looked back at, not to be served.
+    out = list(reversed(result_asc))[:days]
     cache.set(ck, out, ttl=300)
     return out
 
