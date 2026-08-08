@@ -164,7 +164,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--widget-text-strong, var(--wl-text-strong, var(--text-bright)));
+  color: var(--wl-text-strong, var(--widget-text-strong, var(--text-bright)));
   text-transform: none;   /* labels render as provided: Symbol / Price / Volume / % Change */
   white-space: nowrap;
   overflow: hidden;
@@ -176,7 +176,7 @@
    gridline (left of Symbol) would vanish. Give it the same height as the label cells. */
 .gridHead .hFlag { min-height: 15px; }
 .gridHead .hSym:hover,
-.gridHead .hCol:hover { color: var(--widget-text-strong, var(--wl-text-strong, var(--text-bright))); }
+.gridHead .hCol:hover { color: var(--wl-text-strong, var(--widget-text-strong, var(--text-bright))); }
 /* Active sort column — faint gold. */
 .gridHead .hSortActive,
 .gridHead .hSortActive:hover { color: var(--widget-accent, var(--wl-accent, var(--ut-gold, #c9a84c))); }

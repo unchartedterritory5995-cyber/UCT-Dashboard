@@ -155,6 +155,9 @@ export function watchlistStyleVars(s) {
     vars['--wl-accent'] = chrome.accent
     vars['--wl-accent-bg'] = chrome.accentBg
   }
+  // The Text Color also drives the column-header labels (Symbol/Price/Vol/% Change), so the
+  // headers stay in sync with the row text below them. The gold sort accent stays from chrome.
+  vars['--wl-text-strong'] = text
   const hover = toolbarFor(solid)
   if (hover) vars['--wl-row-hover'] = hover.bg
 
