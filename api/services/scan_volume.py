@@ -98,12 +98,14 @@ def _ref_max_vol(ticker: str) -> int | None:
     return max(vols)
 
 
-def _build_reference(days: int | None, universe_set: set | None = None) -> dict:
-    """{TICKER: max daily volume over the lookback} for the cap universe.
+def _build_reference(days: int | None, exclude_set: set | None = None) -> dict:
+    """{TICKER: max daily volume over the lookback} for the WHOLE bars.db universe.
 
     days=365 → trailing ~1 trading year; days=None → since inception (all-time).
     One indexed GROUP BY over bars.db daily bars (exclusive of today) — near-instant.
-    Restricted to the $300M+ cap universe so OTC/index/delisted noise never surfaces.
+    Scans EVERY tracked US ticker (NOT the static $300M+ cap list — so recent names that
+    aren't in that file are never dropped), minus `exclude_set` (ETFs/ETNs/funds). The
+    live pass's snapshot-presence check then removes delisted / non-equity noise.
     """
     now = _now_et()
     to_ymd = int(now.strftime("%Y%m%d"))                       # exclude today's partial
@@ -112,9 +114,8 @@ def _build_reference(days: int | None, universe_set: set | None = None) -> dict:
         m = _sqlite.max_daily_volume_in_range(from_ymd, to_ymd, _MIN_PRIOR)
     except Exception:
         return {}
-    uni = universe_set if universe_set is not None else set(_universe())
-    if uni:
-        m = {t: v for t, v in m.items() if t in uni}
+    if exclude_set:
+        m = {t: v for t, v in m.items() if t not in exclude_set}
     return m
 
 
@@ -134,14 +135,17 @@ def _ensure_reference(scan_id: str, days: int | None) -> dict | None:
         st["building"] = True
 
     def _job():
-        uni = set(_universe())
         try:
-            m = _build_reference(days, uni)
+            etfs = _etf_symbols()   # stocks-only: drop ETFs/ETNs/funds from the reference
+        except Exception:
+            etfs = set()
+        try:
+            m = _build_reference(days, etfs)
         except Exception:
             m = {}
         with _ref_lock:
             _state(scan_id).update(date=date, map=m, built_at=_time.time(),
-                                   building=False, universe=len(uni))
+                                   building=False, universe=len(m))
 
     threading.Thread(target=_job, daemon=True, name=f"volscan-ref-{scan_id}").start()
     return None

@@ -29,7 +29,7 @@ def test_ref_max_vol_needs_min_prior_sessions(monkeypatch):
 
 def test_scan_reports_computing_until_reference_ready(monkeypatch):
     _reset()
-    monkeypatch.setattr(sv, "_universe", lambda: [])
+    monkeypatch.setattr(sv, "_etf_symbols", lambda: set())
     monkeypatch.setattr(sv._sqlite, "max_daily_volume_in_range", lambda *a, **k: {})
     out = sv.get_highest_volume_1y()
     assert out["status"] == "computing"
@@ -37,11 +37,12 @@ def test_scan_reports_computing_until_reference_ready(monkeypatch):
     _reset()
 
 
-def test_build_reference_uses_sql_and_intersects_universe(monkeypatch):
-    # The whole reference comes from ONE aggregate query; restrict to the cap universe.
+def test_build_reference_scans_whole_universe_minus_etfs(monkeypatch):
+    # The whole reference comes from ONE aggregate query over ALL tracked tickers (no
+    # static cap-list restriction); only the ETF/fund set is removed.
     monkeypatch.setattr(sv._sqlite, "max_daily_volume_in_range",
-                        lambda *a, **k: {"AAA": 1000, "BBB": 2000, "ZZZ": 50})
-    ref = sv._build_reference(365, {"AAA", "BBB"})   # ZZZ outside the universe → dropped
+                        lambda *a, **k: {"AAA": 1000, "BBB": 2000, "SPXL": 50})
+    ref = sv._build_reference(365, {"SPXL"})   # SPXL (leveraged ETF) excluded
     assert ref == {"AAA": 1000, "BBB": 2000}
 
 
@@ -54,7 +55,7 @@ def test_build_reference_all_time_queries_from_zero(monkeypatch):
         return {"AAA": 42}
 
     monkeypatch.setattr(sv._sqlite, "max_daily_volume_in_range", _fake)
-    sv._build_reference(None, {"AAA"})
+    sv._build_reference(None, set())
     assert seen["from_ymd"] == 0
 
 
