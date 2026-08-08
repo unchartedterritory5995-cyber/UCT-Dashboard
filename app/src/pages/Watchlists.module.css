@@ -224,6 +224,40 @@
 .colMenuCheck { width: 12px; color: var(--ut-gold, #c9a84c); flex-shrink: 0; }
 .colMenuDivider { height: 1px; background: var(--border, #2e3127); margin: 4px 0; }
 
+/* Scanner criteria popover — read-only list of what the preset filters on. */
+.criteriaPop {
+  position: absolute;
+  top: calc(100% + 5px);
+  right: 0;
+  z-index: 3000;
+  min-width: 190px;
+  max-width: 260px;
+  background: var(--bg-elevated, #16181c);
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 6px;
+  padding: 8px 10px;
+  box-shadow: var(--shadow-popover, 0 8px 24px rgba(0,0,0,0.5));
+  font-family: var(--font-sans);
+}
+.criteriaTitle {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted, #8c8674);
+  margin-bottom: 6px;
+}
+.criteriaItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-bright, #e0dac8);
+  padding: 2px 0;
+}
+.criteriaDot { color: var(--ut-gold, #c9a84c); flex-shrink: 0; }
+
 .listRow {
   display: grid;
   grid-template-columns: var(--wl-grid);

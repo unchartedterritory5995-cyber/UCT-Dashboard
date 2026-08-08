@@ -392,7 +392,7 @@ const WatchRow = React.memo(function WatchRow({
 // "+" beside the ⚙ gear (single-list widget / pick mode). Community lists show no "+"
 // — they aren't yours to write to.
 
-export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null }) {
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null }) {
   // Column layout persists in localStorage. The watchlist widgets all share the
   // global key; the scanner passes its OWN key so its columns are independent.
   const _colKey = colStorageKey || WL_COLS_LS
@@ -432,6 +432,16 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   }, [settingsOverride, onSettingsPersist, prefs])
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsBtnRef = useRef(null)
+  const [filterOpen, setFilterOpen] = useState(false)   // scanner "criteria" popover
+  const filterWrapRef = useRef(null)
+  useEffect(() => {
+    if (!filterOpen) return
+    const onDown = (e) => { if (filterWrapRef.current && !filterWrapRef.current.contains(e.target)) setFilterOpen(false) }
+    const onKey = (e) => { if (e.key === 'Escape') setFilterOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey) }
+  }, [filterOpen])
   const patchSettings = useCallback((patch) => {
     const next = { ...wlSettings, ...patch }
     if (onSettingsPersist) onSettingsPersist(next)
@@ -1772,6 +1782,27 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                   title="Add a symbol"
                   aria-label="Add a symbol"
                 ><UIcon name="plus" size={15} /></button>
+              )}
+              {/* Scan criteria — a read-only popover listing what the preset filters on. */}
+              {scanMode && scanCriteria && scanCriteria.length > 0 && (
+                <div ref={filterWrapRef} style={{ position: 'relative', display: 'flex' }}>
+                  <button
+                    className={`${styles.wlActionBtn}${filterOpen ? ' ' + styles.wlActionBtnActive : ''}`}
+                    onClick={() => setFilterOpen(o => !o)}
+                    title="Scan criteria"
+                    aria-label="Scan criteria"
+                  ><UIcon name="sliders" size={14} /></button>
+                  {filterOpen && (
+                    <div className={styles.criteriaPop} role="dialog" aria-label="Scan criteria">
+                      <div className={styles.criteriaTitle}>Scan criteria</div>
+                      {scanCriteria.map((c, i) => (
+                        <div key={i} className={styles.criteriaItem}>
+                          <span className={styles.criteriaDot}>•</span><span>{c}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
               {/* ⚙ Watchlist settings (canvas/colors + Templates). */}
               <button

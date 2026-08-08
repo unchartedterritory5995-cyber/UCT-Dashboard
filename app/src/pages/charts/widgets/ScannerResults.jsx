@@ -99,6 +99,17 @@ const SCAN_EMPTY_TEXT = {
   'top-gainers-90d': { building: 'Ranking 90-day gainers…', none: 'No gainers to rank yet.' },
 }
 
+// Per-scan criteria — the read-only list shown in the ⓘ/filter popover, so a user can see
+// at a glance what a preset actually screens for.
+const SCAN_CRITERIA = {
+  'highest-volume-1y': ['Trading their highest daily volume in the last 1 year', 'US stocks only — no ETFs / ETNs / funds'],
+  'highest-volume-ever': ['Trading their highest daily volume ever (since inception)', 'US stocks only — no ETFs / ETNs / funds'],
+  'ipo-1y': ['First listed within the last 1 year', 'US stocks only — no ETFs / ETNs / funds'],
+  'top-gainers-30d': ['Top 5% of the market by 30-trading-day % gain', 'Liquid US stocks only — no ETFs / ETNs / funds'],
+  'top-gainers-60d': ['Top 5% of the market by 60-trading-day % gain', 'Liquid US stocks only — no ETFs / ETNs / funds'],
+  'top-gainers-90d': ['Top 5% of the market by 90-trading-day % gain', 'Liquid US stocks only — no ETFs / ETNs / funds'],
+}
+
 // scanKey → endpoint. New presets add a line here + one in ScannerPicker's PRESET_SCANS.
 const SCAN_ENDPOINTS = {
   'highest-volume-1y': '/api/scans/highest-volume-1y',
@@ -213,6 +224,7 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
         metaOverride={metaOverride}
         perfOverride={perfOverride}
         scanFooter={scanFooter}
+        scanCriteria={SCAN_CRITERIA[scanKey]}
       />
     </ChartsSymContext.Provider>
   )
