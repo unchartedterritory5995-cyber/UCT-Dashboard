@@ -45,6 +45,12 @@ const SCAN_DEFAULT_COLS = {
   'top-gainers-60d': gainersDefaultCols('perf60d'),
   'top-gainers-90d': gainersDefaultCols('perf90d'),
 }
+// Gainers scanKey → the perfData period its server-computed N-day return maps to.
+const GAINERS_PERIOD = {
+  'top-gainers-30d': '30d',
+  'top-gainers-60d': '60d',
+  'top-gainers-90d': '90d',
+}
 
 // One-time migration: the IPO scan's default column changed from RVOL to IPO Date
 // (sorted newest-first). Anyone who opened the IPO scan under the old default has a
@@ -140,6 +146,25 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
     return out
   }, [data])
 
+  // Gainers scans compute the N-day return + its reference close server-side for EVERY
+  // result. Feed those into the table's perf data so the 30/60/90-Day column shows a
+  // value for the WHOLE list (the /api/watchlist-performance batch caps at 100 + can
+  // time out) and stays live via the ref close vs the streaming price.
+  const perfOverride = useMemo(() => {
+    const period = GAINERS_PERIOD[scanKey]
+    if (!period) return null
+    const rows = data?.results || []
+    let out = null
+    for (const r of rows) {
+      if (!r) continue
+      const entry = {}
+      if (r.change_nd != null) entry[period] = r.change_nd
+      if (r.ref_close != null) entry.refs = { [period]: r.ref_close }
+      if (entry[period] != null || entry.refs) (out ||= {})[r.sym] = entry
+    }
+    return out
+  }, [data, scanKey])
+
   return (
     <ChartsSymContext.Provider value={scopedSymContext}>
       <Watchlists
@@ -156,6 +181,7 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
         scanEmptyText={scanEmptyText}
         defaultColCfg={defaultColCfg}
         metaOverride={metaOverride}
+        perfOverride={perfOverride}
       />
     </ChartsSymContext.Provider>
   )

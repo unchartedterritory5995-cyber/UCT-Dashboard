@@ -392,7 +392,7 @@ const WatchRow = React.memo(function WatchRow({
 // "+" beside the ⚙ gear (single-list widget / pick mode). Community lists show no "+"
 // — they aren't yours to write to.
 
-export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null }) {
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null }) {
   // Column layout persists in localStorage. The watchlist widgets all share the
   // global key; the scanner passes its OWN key so its columns are independent.
   const _colKey = colStorageKey || WL_COLS_LS
@@ -736,9 +736,22 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   })
   const _colKeys = Array.isArray(colCfg.order) ? colCfg.order : []
   // Perf batch: fetched when a legacy perf pill OR an N-day column is active.
-  const { perfData } = useWatchlistPerformance(
+  const { perfData: rawPerfData } = useWatchlistPerformance(
     (visiblePerf.size > 0 || _colKeys.some(k => PERF_COL_KEYS.has(k))) ? allTickers : [],
   )
+  // Scan-provided N-day returns (the gainers scans already compute the ranking metric +
+  // its reference close for EVERY result) merge over the perf batch — which is capped at
+  // 100 tickers and can time out on a big list, blanking the back half. The override
+  // guarantees every scan row has a value AND (via the ref close) keeps it live vs price.
+  const perfData = useMemo(() => {
+    if (!perfOverride) return rawPerfData
+    const merged = { ...rawPerfData }
+    for (const s in perfOverride) {
+      const ov = perfOverride[s], base = merged[s] || {}
+      merged[s] = { ...base, ...ov, refs: { ...(base.refs || {}), ...(ov.refs || {}) } }
+    }
+    return merged
+  }, [rawPerfData, perfOverride])
   // Theme batch: only when the Theme column is shown.
   const { themeData } = useWatchlistThemes(_colKeys.includes('theme') ? allTickers : [])
 

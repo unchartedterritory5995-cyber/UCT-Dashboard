@@ -130,7 +130,8 @@ def _run_gainers(pid: str, n_sessions: int) -> dict:
                    if isinstance(prev, (int, float)) and prev > 0 else None)
         gains.append({
             "sym": sym,
-            "change_nd": change_nd,   # the ranking metric (N-day % move)
+            "change_nd": change_nd,     # the ranking metric (N-day % move)
+            "ref_close": ref_close,     # close N sessions ago → client recomputes live % vs price
             "price": price,
             "prev_close": prev,
             "change_pct": day_chg,

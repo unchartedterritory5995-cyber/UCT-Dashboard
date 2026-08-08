@@ -48,6 +48,8 @@ def test_ranks_by_n_day_change_and_keeps_top_5pct(monkeypatch):
     assert out["count"] == 2                                  # ceil(40 * 0.05) = 2
     assert [r["sym"] for r in out["results"]] == ["S39", "S38"]
     assert out["results"][0]["change_nd"] == 40.0            # (140-100)/100
+    # ref_close is exposed so the client recomputes the column live vs the streaming price.
+    assert out["results"][0]["ref_close"] == 100.0
     _reset()
 
 
