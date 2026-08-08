@@ -75,7 +75,8 @@ def get_period_change(start_ymd: int, end_ymd: int) -> dict:
             continue
         # Currently-trading filter: if we have a snapshot, require the ticker to be in it
         # (drops delisted names). No liquidity floor — this tool lists EVERY common stock.
-        if snap and not (snap.get(prov) or _snap_lookup(snap, app)):
+        s = snap.get(prov) or _snap_lookup(snap, app) if snap else None
+        if snap and not s:
             continue
         results.append({
             "sym": app,
@@ -83,6 +84,9 @@ def get_period_change(start_ymd: int, end_ymd: int) -> dict:
             "net_change": round(ec - sc, 2),
             "start_close": round(sc, 4),
             "end_close": round(ec, 4),
+            # Live-ish baseline for the results table (SWR-refreshed; not per-row streamed).
+            "price": (s.get("last_price") if s else None),
+            "volume": (s.get("today_vol") if s else None),
         })
 
     results.sort(key=lambda r: r["period_change"], reverse=True)

@@ -1140,6 +1140,8 @@ export default function StockChart({
   onDeleteColor = null,       //   (hex) => void
   hideCrosshair = false,      // suppress the hover crosshair lines + axis labels entirely (Setup Library examples)
   dragMeasure = false,        // Charts workspace: plain left-drag draws a transient measure line + % / bars / time readout (TC2000-style) instead of panning. Cursor mode only; mouse only.
+  periodSelect = false,       // Custom-Period Sort: plain left-drag highlights a time period (translucent band) instead of panning; fires onPeriodSelected(startYmd, endYmd) on release.
+  onPeriodSelected = null,    // (startYmd:int, endYmd:int) => void — the highlighted [start, end] as YYYYMMDD ints.
   verticalLegend = false,     // Charts workspace: stack the crosshair OHLCV legend single-file down the left instead of a horizontal row near the toolbar.
   lockWatermark = false,      // Charts workspace: disable the watermark hover-arm + drag so hovering it never moves it.
   alwaysShowLegend = false,   // Charts workspace: keep the legend visible with the latest bar's values when the cursor is off the chart (instead of hiding).
@@ -9536,6 +9538,9 @@ export default function StockChart({
   const trendDragCanvasRef = useRef(null)
   const trendDragStateRef = useRef(null)   // { startX, startY, a: { time, price } } while dragging
 
+  const periodSelectCanvasRef = useRef(null)
+  const periodSelectStateRef = useRef(null)   // { startX, startLogical } while dragging a Custom-Period highlight
+
   // ── Go to date (Alt+G): a tiny date box that scrolls the chart to a session ──
   const [dateJumpOpen, setDateJumpOpen] = useState(false)
   const jumpToDate = useCallback((dateStr) => {
@@ -9762,6 +9767,101 @@ export default function StockChart({
     el.addEventListener('pointerdown', onDown)
     return () => { el.removeEventListener('pointerdown', onDown); end() }
   }, [dragMeasure, chartReady, activeTool, frozen, canvasTheme, themeColors.crosshairColor])
+
+  // ── Custom-Period Sort: drag to highlight a time period ───────────────────────
+  // Plain left-drag while `periodSelect` is on paints a translucent gold band between
+  // two vertical edges (TC2000-style) and, on release, reports the [start, end] calendar
+  // dates (YYYYMMDD ints) so the workspace can rank the whole market over that span.
+  // Locks pan/zoom for the drag; maps pixels→dates via the same coordinateToLogical →
+  // drawBarsRef lookup the trendline/measure handlers use.
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || !chartReady || !periodSelect) return undefined
+
+    const getPos = (e) => { const r = el.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, w: r.width, h: r.height } }
+    const ymdOf = (t) => {
+      if (t == null) return null
+      if (typeof t === 'number') {   // intraday: unix seconds → ET calendar day
+        const s = new Date(t * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+        return parseInt(s.replace(/-/g, ''), 10)
+      }
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(t))   // D/W/M: 'YYYY-MM-DD'
+      return m ? parseInt(m[1] + m[2] + m[3], 10) : null
+    }
+    const barAtX = (x) => {
+      const chart = chartRef.current; if (!chart) return null
+      let logical = null; try { logical = chart.timeScale().coordinateToLogical(x) } catch { return null }
+      if (logical == null) return null
+      const arr = drawBarsRef.current || []
+      if (!arr.length) return null
+      const idx = Math.max(0, Math.min(arr.length - 1, Math.round(logical)))
+      return arr[idx] || null
+    }
+    const clearBand = () => {
+      const c = periodSelectCanvasRef.current; if (!c) return
+      const ctx = c.getContext('2d'); if (ctx) ctx.clearRect(0, 0, c.width, c.height)
+    }
+    const drawBand = (x1, x2, w, h) => {
+      const c = periodSelectCanvasRef.current; if (!c) return
+      const dpr = window.devicePixelRatio || 1
+      const W = Math.round(w * dpr), H = Math.round(h * dpr)
+      if (c.width !== W || c.height !== H) { c.width = W; c.height = H; c.style.width = w + 'px'; c.style.height = h + 'px' }
+      const ctx = c.getContext('2d'); if (!ctx) return
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      ctx.clearRect(0, 0, w, h)
+      const lo = Math.min(x1, x2), hi = Math.max(x1, x2)
+      ctx.fillStyle = 'rgba(201,168,76,0.14)'
+      ctx.fillRect(lo, 0, hi - lo, h)
+      ctx.strokeStyle = 'rgba(201,168,76,0.9)'; ctx.lineWidth = 1; ctx.setLineDash([4, 3])
+      ctx.beginPath(); ctx.moveTo(lo + 0.5, 0); ctx.lineTo(lo + 0.5, h); ctx.moveTo(hi - 0.5, 0); ctx.lineTo(hi - 0.5, h); ctx.stroke()
+      ctx.setLineDash([])
+    }
+    const onMove = (e) => {
+      const st = periodSelectStateRef.current; if (!st) return
+      const { x, w, h } = getPos(e)
+      drawBand(st.startX, Math.max(0, Math.min(w, x)), w, h)
+    }
+    const end = (e) => {
+      const st = periodSelectStateRef.current
+      periodSelectStateRef.current = null
+      try { chartRef.current?.applyOptions({ handleScroll: frozen ? false : true, handleScale: !frozen }) } catch { /* noop */ }
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', end)
+      window.removeEventListener('pointercancel', end)
+      clearBand()
+      if (!st) return
+      const { x: ex } = getPos(e)
+      if (Math.abs(ex - st.startX) < 4) return   // a click, not a drag
+      const bA = barAtX(st.startX), bB = barAtX(ex)
+      const a = ymdOf(bA?.t), b = ymdOf(bB?.t)
+      if (a == null || b == null || a === b) return
+      // earlier date first; % change is this chart symbol's own close-to-close move.
+      const [lo, hi, cLo, cHi] = a <= b ? [a, b, bA?.c, bB?.c] : [b, a, bB?.c, bA?.c]
+      const pct = (cLo > 0 && cHi > 0) ? ((cHi - cLo) / cLo) * 100 : null
+      onPeriodSelected?.(lo, hi, pct)
+    }
+    const onDown = (e) => {
+      if (e.button !== 0 || (e.pointerType && e.pointerType !== 'mouse')) return
+      const chart = chartRef.current; if (!chart) return
+      const { x } = getPos(e)
+      let startLogical = null; try { startLogical = chart.timeScale().coordinateToLogical(x) } catch { return }
+      if (startLogical == null) return
+      e.preventDefault()
+      try { chart.applyOptions({ handleScroll: false, handleScale: false }) } catch { /* noop */ }
+      periodSelectStateRef.current = { startX: x, startLogical }
+      window.addEventListener('pointermove', onMove)
+      window.addEventListener('pointerup', end)
+      window.addEventListener('pointercancel', end)
+    }
+    el.addEventListener('pointerdown', onDown)
+    return () => {
+      el.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', end)
+      window.removeEventListener('pointercancel', end)
+      clearBand()
+    }
+  }, [periodSelect, chartReady, frozen, onPeriodSelected])
 
   // ── Ctrl+drag to draw a trendline ─────────────────────────────────────────
   // Mirrors the Shift+drag measure: listens on the chart container so it works
@@ -11359,6 +11459,19 @@ export default function StockChart({
           style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 5 }}
         />
       )}
+      {/* Custom-Period Sort: translucent highlight band while dragging + a hint banner. */}
+      {periodSelect && (<>
+        <canvas
+          ref={periodSelectCanvasRef}
+          style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 6 }}
+        />
+        <div style={{ position: 'absolute', top: 8, left: '50%', transform: 'translateX(-50%)', zIndex: 30,
+          font: '11px "Instrument Sans", sans-serif', color: '#c9a84c', letterSpacing: '0.06em', textTransform: 'uppercase',
+          background: 'rgba(20,22,28,0.94)', border: '1px solid rgba(201,168,76,0.4)', borderRadius: 20, padding: '5px 14px',
+          boxShadow: '0 8px 24px -12px rgba(0,0,0,0.7)', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+          Highlight time period
+        </div>
+      </>)}
       {/* Go to date (Alt+G): pick a date, the chart scrolls to that session. */}
       {dateJumpOpen && (
         <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 30, display: 'flex', gap: 6, alignItems: 'center',
