@@ -1229,7 +1229,8 @@
   opacity: 0.5;
   transition: opacity 0.15s, background 0.15s;
 }
-.wlActionBtn:hover { opacity: 1; background: var(--bg-hover); }
+/* Hover = a soft canvas-matched grey (like a widget tab), not the dark --bg-hover box. */
+.wlActionBtn:hover { opacity: 1; background: var(--wl-row-hover, var(--widget-row-hover, rgba(255, 255, 255, 0.08))); }
 .wlActionBtnActive {
   color: var(--ut-gold);
   opacity: 1;
