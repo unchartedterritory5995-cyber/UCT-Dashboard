@@ -44,10 +44,22 @@
 // surface over. `PORTAL_POPUP_ATTR` is the contract and the body wrapper carries
 // it. ⚠️ `fireEvent.click` sends NO mousedown and passes on the broken build —
 // the case that guards this uses `userEvent`.
+//
+// 🔴 …AND SINCE THIS FIX, THE ONES THE GATES REFUSED SAY SO. A member could save
+// a formula, have the STORE accept it, and then simply not be offered it — the
+// catalog omits a definition `installUserDefinitions` refuses, which is correct
+// per its contract and completely silent. The reason has existed in
+// `useInstalledUserDefinitions().errors` since Task 16 with zero production
+// consumers. It is rendered here, VERBATIM, because this is the surface whose
+// job is to offer a member their own formulas and therefore the surface that
+// owes them a sentence when it cannot. See `indicatorCatalog.userRefusalRows`.
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import Sheet from '../mobile/Sheet'
 import { PORTAL_POPUP_ATTR } from './ColorPicker'
-import { catalogRows, userCatalogRows, catalogGeneration } from './indicatorCatalog'
+import { useUserDefinitions, useInstalledUserDefinitions } from '../../hooks/useUserDefinitions'
+import {
+  catalogRows, userCatalogRows, catalogGeneration, userRefusalRows, REFUSED_CATEGORY,
+} from './indicatorCatalog'
 import { isIndicatorEnabled, setIndicatorEnabled, addInstance } from './engine/instanceControls'
 import { ENGINE_OWNED } from './engine/flipState'
 import styles from './IndicatorLibraryDialog.module.css'
@@ -82,6 +94,35 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   // "hit the chord, type three letters, Enter" without a pointer.
   useEffect(() => { if (open) searchRef.current?.focus() }, [open])
 
+  // ─── THE MEMBER'S STORED FORMULAS: WHAT INSTALLED, AND WHAT DID NOT ───────
+  //
+  // ⛔⛔ THESE TWO CALLS RUN BEFORE `catalogGeneration` BELOW, AND THE ORDER IS
+  // LOAD-BEARING — MEASURED, NOT ASSUMED. `useInstalledUserDefinitions` performs
+  // the install DURING RENDER (that is its documented ordering point), so a
+  // `generation` read ABOVE it is the value from BEFORE this render's install.
+  // With the calls the other way round, the render in which a member's formulas
+  // first arrive from SWR computed the catalogue memo against the stale number
+  // and nothing re-rendered afterwards — the formulas appeared only if something
+  // else happened to repaint the dialog. This file's own accepted-formula CONTROL
+  // caught it on its first run. Reading the generation after the install makes
+  // "arrived" and "listed" the same render.
+  //
+  // ⚠️ TWO HOOKS, ONE REQUEST. `useInstalledUserDefinitions` calls
+  // `useUserDefinitions` itself and both hand SWR the SAME key, so the second
+  // call is deduped into the first — no extra fetch, and no second copy of the
+  // install (it is idempotent by `installKey`, which is a documented property of
+  // the door rather than a hope). `errors` is the only place the refusal
+  // sentence exists; `storedRows` is the only place the NAME the member typed
+  // exists, because a refused document never becomes a registry definition.
+  //
+  // ⚠️ NEITHER READS THE `registry` PROP, DELIBERATELY. The install door is the
+  // module registry — it is what `StockChart` draws through and what the store's
+  // documents are validated against — so a caller that injected a fake registry
+  // for the CATALOGUE still gets the real refusals rather than an empty list
+  // that would read as "nothing was refused".
+  const { rows: storedRows } = useUserDefinitions()
+  const { errors: installErrors } = useInstalledUserDefinitions()
+
   // ⛔ `generation` IS NOT DECORATION IN THIS DEPENDENCY LIST. `registry` is a
   // module NAMESPACE — the same object for the lifetime of the tab — so a memo
   // keyed on it alone computes once, at first open, and never again. The user
@@ -97,6 +138,15 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
     [registry, generation],
   )
   const rows = useMemo(() => all.filter((r) => matches(r, query)), [all, query])
+
+  // ─── THE FORMULAS THAT ARE NOT ON THAT LIST, AND WHY ──────────────────────
+  const refusals = useMemo(
+    () => userRefusalRows(
+      (storedRows || []).map((r) => r && r.definition),
+      installErrors,
+    ).filter((r) => matches(r, query)),
+    [storedRows, installErrors, query],
+  )
 
   // Groups are DERIVED, in first-appearance order. Adding a definition in a new
   // category brings its own heading; there is no group array to forget to edit —
@@ -155,7 +205,7 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        {rows.length === 0 && (
+        {rows.length === 0 && refusals.length === 0 && (
           <div className={styles.empty}>No indicator matches “{query}”.</div>
         )}
         {groups.map((category) => (
@@ -228,6 +278,55 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
             </ul>
           </section>
         ))}
+        {/* 🔴 SAVED, AND NOT OFFERED — WITH THE REASON. Rendered LAST, and only
+            when something was actually refused, so a member whose formulas all
+            install sees no new section, no empty heading and no warning about
+            nothing. */}
+        {refusals.length > 0 && (
+          <section className={styles.group} data-testid="user-definition-refusals">
+            <h3 className={styles.groupHead}>{REFUSED_CATEGORY}</h3>
+            {/* The ONE sentence this surface writes for itself, and it says WHAT
+                happened, never WHY — the why is the gate's and is printed
+                untouched below it. Same split `useUserDefinitions` draws when it
+                refuses to paraphrase the store's refusal. */}
+            <p className={styles.refusedLede}>
+              These saved formulas are not being offered on this chart. The reason
+              below comes from the check that refused each one.
+            </p>
+            {/* ⛔ NOT a `role="listbox"` and NOT `role="option"`. There is no
+                installed definition behind these rows, so there is nothing to
+                tick: an option here would be a control that writes nowhere. */}
+            <ul className={styles.list}>
+              {refusals.map((row) => (
+                <li
+                  key={row.id}
+                  className={`${styles.row} ${styles.refusedRow} ${styles.rowMine}`}
+                  data-testid="user-definition-refusal"
+                  data-def-id={row.id}
+                >
+                  <span className={styles.main}>
+                    <span className={styles.titleRow}>
+                      <span className={styles.name}>{row.name}</span>
+                      <span className={styles.mine}>Your formula</span>
+                    </span>
+                    {/* ⛔ THE GATE'S OWN SENTENCE, WHOLE AND UNEDITED — including
+                        the `<id>: ` prefix the door itself writes. A definition
+                        can fail more than one gate, and every sentence is shown:
+                        dropping all but the first would hide a second reason
+                        that has to be fixed too. */}
+                    {row.messages.map((message, i) => (
+                      <span
+                        key={i}
+                        className={styles.refusedWhy}
+                        data-testid="user-definition-refusal-reason"
+                      >{message}</span>
+                    ))}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
     </Sheet>
   )
