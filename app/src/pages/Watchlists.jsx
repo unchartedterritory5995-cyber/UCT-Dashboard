@@ -418,7 +418,7 @@ const WatchRow = React.memo(function WatchRow({
 // shared `.listBody` scroll container (the sticky column header sits above it), and reports
 // the visible symbols up so ONLY those get live-streamed — the whole point that lets a
 // ~5,000-row scan render without opening ~100 SSE streams or mounting 5,000 DOM rows.
-function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange }) {
+function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scrollToSym }) {
   const virt = useVirtualizer({
     count: items.length,
     getScrollElement: () => scrollRef.current,
@@ -435,6 +435,14 @@ function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange }) {
     for (let i = first; i <= last && i < items.length; i++) { const it = items[i]; if (it?.sym && !it.isGroup) syms.push(it.sym) }
     onVisibleChange(syms)
   }, [first, last, items, onVisibleChange])
+  // Scroll a searched/selected symbol INTO VIEW — DOM querySelector can't find a
+  // virtualized row that isn't rendered yet, so drive the virtualizer by index. Re-runs
+  // on `items` too, so it scrolls once a just-expanded group's member row exists.
+  useEffect(() => {
+    if (!scrollToSym) return
+    const idx = items.findIndex((it) => it?.sym === scrollToSym && !it.isGroup)
+    if (idx >= 0) { try { virt.scrollToIndex(idx, { align: 'center' }) } catch { /* mid-mount */ } }
+  }, [scrollToSym, items]) // eslint-disable-line react-hooks/exhaustive-deps
   if (items.length === 0) return <div className={styles.wlEmpty}>{emptyText}</div>
   return (
     <div className={styles.wlItems} style={{ height: virt.getTotalSize(), position: 'relative', width: '100%' }}>
@@ -561,18 +569,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     }
     return m
   }, [groupMode, scanGroups])
-  // When the linked chart's ticker is a member of a group, auto-OPEN that group (accordion)
-  // so its row shows + highlights (the scroll-to-selectedSym effect handles the rest). Fires
-  // once per selected-sym change, so a manual collapse afterward isn't fought.
-  const lastAutoExpandRef = useRef(null)
-  useEffect(() => {
-    if (!groupMode || !selectedSym || !memberToGroup) return
-    if (lastAutoExpandRef.current === selectedSym) return
-    const g = memberToGroup[String(selectedSym).toUpperCase()]
-    if (!g) return
-    lastAutoExpandRef.current = selectedSym
-    setExpandedGroups(prev => (prev.has(g) ? prev : new Set([g])))
-  }, [groupMode, selectedSym, memberToGroup])
+  const lastAutoExpandRef = useRef(null)   // auto-expand effect lives below metaData (needs it)
 
   // Single-list "pick" mode (widget scoped to one chosen list): force the right
   // tab + force the picked group expanded so it opens straight to the tickers.
@@ -1374,6 +1371,27 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     return merged
   }, [rawMetaData, metaOverride])
 
+  // When the linked chart's ticker belongs to one of the ranked groups, auto-OPEN that
+  // group (accordion) so its row shows + the scroll-to-selected effect brings it into view.
+  // PRIMARY: the backend member→group map. FALLBACK: the ticker's own industry/sector (from
+  // the meta layer) matched to a group name — so a name missing from the backend member list
+  // (e.g. a classification gap) still opens the right group. Fires once per selected-sym.
+  useEffect(() => {
+    if (!groupMode || !selectedSym || !memberToGroup) return
+    if (lastAutoExpandRef.current === selectedSym) return
+    const up = String(selectedSym).toUpperCase()
+    let g = memberToGroup[up]
+    if (!g && scanGroups) {
+      const md = metaData?.[selectedSym] || metaData?.[up]
+      for (const field of [md?.industry, md?.sector]) {
+        if (field && scanGroups[String(field).toUpperCase()]) { g = String(field).toUpperCase(); break }
+      }
+    }
+    if (!g) return
+    lastAutoExpandRef.current = selectedSym
+    setExpandedGroups(prev => (prev.has(g) ? prev : new Set([g])))
+  }, [groupMode, selectedSym, memberToGroup, scanGroups, metaData])
+
   // Extra data columns (Market Cap / Next Earnings / UCT Rating) toggle on/off from the
   // right-click COLUMNS menu. Checking one APPENDS it to the RIGHT of the column order
   // (the grid below shrinks the others to fit); unchecking removes it.
@@ -2064,6 +2082,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               })}
               emptyText={scanWl.items.length === 0 ? (scanEmptyText || 'No matches yet.') : 'No matches.'}
               onVisibleChange={handleScanVisible}
+              scrollToSym={selectedSym}
             />
           )}
 

@@ -166,6 +166,13 @@ def _assemble(start_closes: dict, end_closes: dict, sd: date, ed: date, partial:
             bdb_start, bdb_end = {}, {}
     _xcheck = bool(bdb_start and bdb_end)   # only filter when both bars.db sides are present
 
+    # Attach each name's industry/sector from the in-memory map so the frontend's Industry
+    # column is PRE-LOADED for every row (no per-scroll meta fetch, no "—" flash). 6h-cached.
+    try:
+        smap = _sector_industry_map()
+    except Exception:
+        smap = {}
+
     results = []
     for app, sc in start_closes.items():
         if not sc or sc <= 0:
@@ -191,6 +198,7 @@ def _assemble(start_closes: dict, end_closes: dict, sd: date, ed: date, partial:
         s = snap.get(app) or _snap_lookup(snap, app) if snap else None
         if snap and not s and not partial:
             continue
+        _si = smap.get(app) or {}
         results.append({
             "sym": app,
             "period_change": round((ec - sc) / sc * 100, 2),
@@ -199,6 +207,8 @@ def _assemble(start_closes: dict, end_closes: dict, sd: date, ed: date, partial:
             "end_close": round(ec, 4),
             "price": (s.get("last_price") if s else None),
             "volume": (s.get("today_vol") if s else None),
+            "industry": _si.get("industry"),
+            "sector": _si.get("sector"),
         })
     results.sort(key=lambda r: r["period_change"], reverse=True)
     return {

@@ -98,13 +98,23 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
     return out
   }, [stockData, group, groupData])
 
-  // The Stocks-count column for group rows.
+  // Column overrides fed into the watchlist meta layer:
+  //  • STOCK rows get industry/sector PRE-ATTACHED by the backend, so the Industry column
+  //    is loaded for every row up front — no per-scroll meta fetch, no "—" flash.
+  //  • GROUP rows get their Stocks count.
   const metaOverride = useMemo(() => {
-    if (!group) return null
     let out = null
-    for (const r of (groupData?.results || [])) (out ||= {})[String(r.name).toUpperCase()] = { group_count: r.count }
+    for (const r of (stockData?.results || [])) {
+      if (r && (r.industry || r.sector)) (out ||= {})[r.sym] = { industry: r.industry || null, sector: r.sector || null }
+    }
+    if (group) {
+      for (const r of (groupData?.results || [])) {
+        const k = String(r.name).toUpperCase()
+        ;(out ||= {})[k] = { ...(out[k] || {}), group_count: r.count }
+      }
+    }
     return out
-  }, [group, groupData])
+  }, [stockData, group, groupData])
 
   // As soon as the ranked list is in, warm the DEEP (zoomed-out) history for the
   // top stocks into the server + SWR cache — so opening one on a Weekly/Monthly
