@@ -249,9 +249,9 @@ export function warmMemFromIDB(tickers, tfs = SCAN_WARM_TFS) {
 // replacing), so a pre-warmed deep entry paints the full pre-2024 history INSTANTLY
 // on the first render — no dwell, no cold deep fetch. Separate bounded queue (big
 // payloads) so it never starves the active chart.
-const _deepQueue = []
+const _deepQueue = []   // [{ sym, tf, key }]
 let _deepActive = 0
-const _DEEP_MAX = 2
+const _DEEP_MAX = 3
 const _deepSeen = new Set()
 let _deepKick = null
 
@@ -286,25 +286,34 @@ function _deepKickSoon() {
   else _deepKick = setTimeout(go, 1200)
 }
 
-// Zoomed-out TFs first (W/M are cheap — a few thousand bars — and are exactly the
-// user's complaint), Daily last (12500 bars, the big payload).
-const DEEP_WARM_TFS = ['W', 'M', 'D']
+// DAILY FIRST — it's the timeframe the chart is actually showing, so warming it before
+// the zoomed-out W/M is what makes the NEXT ticker's history instant. (Warming W/M first
+// left daily — what's on screen — as the LAST ~240 jobs in the queue, which is why a few
+// stragglers were still cold. W/M follow daily now.)
+const DEEP_WARM_TFS = ['D', 'W', 'M']
 const DEEP_WARM_CAP = 120
-export function prefetchListDeep(tickers, { tfs = DEEP_WARM_TFS, cap = DEEP_WARM_CAP } = {}) {
+export function prefetchListDeep(tickers, { tfs = DEEP_WARM_TFS, cap = DEEP_WARM_CAP, priority = false } = {}) {
   if (!tickers?.length) return
   const list = [...new Set(tickers.filter(Boolean))].slice(0, cap)
   if (!list.length) return
-  // TF-outer: warm ALL symbols' cheap W (then M, then D) before the expensive D
-  // pass, so the zoomed-out history the user asked about is ready first.
+  // Build the batch in TF-outer order (Daily first). `priority` (on-screen rows) pulls
+  // it — and any of these already queued behind the background trickle — to the FRONT,
+  // preserving order, so what the user is about to click warms before the top-N tail.
+  const batch = []
   for (const tf of tfs) {
     for (const sym of list) {
       const key = `${sym}_${tf}`
-      if (_deepSeen.has(key)) continue
-      _deepSeen.add(key)
-      setTimeout(() => _deepSeen.delete(key), 300000) // 5-min re-warm window
-      _deepQueue.push({ sym, tf })
+      const at = _deepQueue.findIndex((j) => j.key === key)
+      if (at >= 0) {
+        if (priority) batch.push(_deepQueue.splice(at, 1)[0])   // re-front an already-queued job
+        continue
+      }
+      if (_deepSeen.has(key) && !priority) continue
+      if (!_deepSeen.has(key)) { _deepSeen.add(key); setTimeout(() => _deepSeen.delete(key), 300000) }
+      batch.push({ sym, tf, key })
     }
   }
+  if (batch.length) (priority ? _deepQueue.unshift(...batch) : _deepQueue.push(...batch))
   for (const sym of list) prefetchTickerMeta(sym)
   _deepKickSoon()
 }

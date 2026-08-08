@@ -122,7 +122,9 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
   // the top-N warmed on mount), so opening a row deep in the list is instant too.
   // prefetchListDeep dedupes (5-min window) + is bounded, so per-scroll calls are cheap.
   const warmVisibleDeep = useCallback((syms) => {
-    if (syms?.length) prefetchListDeep(syms, { cap: 60 })
+    // priority: what's ON SCREEN jumps ahead of the background top-N trickle (Daily first),
+    // so the ticker you're about to click is warmed before you get to it.
+    if (syms?.length) prefetchListDeep(syms, { cap: 60, priority: true })
   }, [])
 
   const scanEmptyText = !data
