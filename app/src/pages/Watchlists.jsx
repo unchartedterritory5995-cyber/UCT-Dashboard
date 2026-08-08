@@ -460,7 +460,7 @@ function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange }) {
 // "+" beside the ⚙ gear (single-list widget / pick mode). Community lists show no "+"
 // — they aren't yours to write to.
 
-export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, ephemeralCols = false, scanGroups = null }) {
+export default function Watchlists({ embedded = false, pickList = null, pickName = null, onExitPick = null, activeRef = null, widgetKey = null, settingsOverride = null, onSettingsPersist = null, scanSymbols = null, backLabel = null, colStorageKey = null, scanEmptyText = null, defaultColCfg = null, metaOverride = null, perfOverride = null, scanFooter = null, scanCriteria = null, ephemeralCols = false, scanGroups = null, onScanVisibleSyms = null }) {
   // Column layout persists in localStorage. The watchlist widgets all share the
   // global key; the scanner passes its OWN key so its columns are independent.
   const _colKey = colStorageKey || WL_COLS_LS
@@ -762,6 +762,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // In scan mode, only the symbols in the virtualized visible window are live-streamed
   // (a ~5,000-row scan can't stream every row). The ScanRows virtualizer reports them here.
   const [scanVisibleSyms, setScanVisibleSyms] = useState([])
+  // Report the visible scan window to the caller too (e.g. Custom-Period Sort warms
+  // the deep chart history of what's on-screen as you scroll), then update local state.
+  const handleScanVisible = useCallback((syms) => {
+    onScanVisibleSyms?.(syms)
+    setScanVisibleSyms(syms)
+  }, [onScanVisibleSyms])
   // Collect all visible tickers for live prices
   const allTickers = useMemo(() => {
     const tickers = []
@@ -2027,7 +2033,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                 expanded: item.isGroup ? expandedGroups.has(item.sym) : false,
               })}
               emptyText={scanWl.items.length === 0 ? (scanEmptyText || 'No matches yet.') : 'No matches.'}
-              onVisibleChange={setScanVisibleSyms}
+              onVisibleChange={handleScanVisible}
             />
           )}
 

@@ -118,6 +118,13 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
     prefetchListDeep(syms)
   }, [stockData, start, end])
 
+  // Scroll-aware: warm the deep history of whatever stocks scroll into view (beyond
+  // the top-N warmed on mount), so opening a row deep in the list is instant too.
+  // prefetchListDeep dedupes (5-min window) + is bounded, so per-scroll calls are cheap.
+  const warmVisibleDeep = useCallback((syms) => {
+    if (syms?.length) prefetchListDeep(syms, { cap: 60 })
+  }, [])
+
   const scanEmptyText = !data
     ? 'Loading…'
     : data.status === 'computing'
@@ -164,6 +171,7 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
         metaOverride={metaOverride}
         scanFooter={scanFooter}
         scanCriteria={scanCriteria}
+        onScanVisibleSyms={warmVisibleDeep}
       />
     </ChartsSymContext.Provider>
   )
