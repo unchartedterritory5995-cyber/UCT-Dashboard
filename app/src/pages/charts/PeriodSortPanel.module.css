@@ -9,9 +9,10 @@
   display: flex;
   flex-direction: column;
   background: var(--widget-canvas, var(--bg-elevated, #22251e));
-  /* Same flat black outline as the workspace widgets (1px border, 4px radius) — no big
-     drop shadow. */
-  border: 1px solid var(--border, #2e3127);
+  /* Same flat near-black outline the workspace widgets render (they re-assert
+     `--border: #1e1e1e` even on a white canvas) — a thin dark line, NOT the ambient
+     light-grey border. 1px / 4px radius, no drop shadow. */
+  border: 1px solid #1e1e1e;
   border-radius: 4px;
   z-index: 4000;
   overflow: hidden;
