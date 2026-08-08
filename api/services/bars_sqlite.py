@@ -380,6 +380,28 @@ def closes_near_date(to_ymd: int, from_ymd: int) -> dict:
     return out
 
 
+def closes_asof(symbols, to_ymd: int, from_ymd: int) -> dict:
+    """{TICKER: close on the nearest daily trading day in [from_ymd, to_ymd]} via ONE
+    INDEXED point-lookup per ticker — the fast pre-~2004 whole-market fallback.
+
+    closes_near_date() does a single `WHERE tf='D' AND ts BETWEEN…` which the only index
+    (ticker, tf, ts DESC) can't serve → a full scan of the multi-GB daily partition (minutes).
+    Here each `WHERE ticker=? AND tf='D' AND ts<=? AND ts>=? ORDER BY ts DESC LIMIT 1` IS a
+    pure index seek, so looping the ~CS universe (a few thousand seeks) resolves in seconds.
+    Pass app/hyphen-form tickers (BRK-B), matching storage. SURVIVORSHIP-BIASED like
+    closes_near_date (only names still warmed are present)."""
+    conn = _conn()
+    q = ("SELECT c FROM ohlcv WHERE ticker=? AND tf='D' AND ts<=? AND ts>=? AND c>0 "
+         "ORDER BY ts DESC LIMIT 1")
+    to_i, from_i = int(to_ymd), int(from_ymd)
+    out: dict[str, float] = {}
+    for s in symbols:
+        row = conn.execute(q, (s, to_i, from_i)).fetchone()
+        if row and row[0] and row[0] > 0:
+            out[str(s).upper()] = float(row[0])
+    return out
+
+
 def recent_first_trade(since_ymd: int) -> dict:
     """{TICKER: earliest daily-bar ts (YYYYMMDD)} for tickers whose FIRST daily bar is
     on/after since_ymd — a proxy for "first traded (IPO'd) within the window", given

@@ -40,15 +40,15 @@ def _grouped_near(target: date):
     return {}, target
 
 
-def _bars_near(target: date):
+def _bars_near(target: date, symbols):
     """({TICKER: close}, actual_date) from bars.db's deep (yfinance-sourced) daily history —
-    the PRE-~2003 fallback. ⚠️ SLOW (full-scan of the multi-GB daily partition; no (tf,ts)
-    index) — call ONLY from the background thread, never the request path. App/hyphen keys,
+    the PRE-~2003 fallback. FAST: one INDEXED per-ticker as-of seek over the CS universe
+    (`closes_asof`), NOT the old full-partition scan — seconds, not minutes. App/hyphen keys,
     survivorship-biased coverage."""
     from api.services import bars_sqlite
     try:
-        frm = target - timedelta(days=_GROUP_STEPS + 4)
-        m = bars_sqlite.closes_near_date(int(target.strftime("%Y%m%d")), int(frm.strftime("%Y%m%d")))
+        frm = target - timedelta(days=_GROUP_STEPS + 7)
+        m = bars_sqlite.closes_asof(symbols, int(target.strftime("%Y%m%d")), int(frm.strftime("%Y%m%d")))
     except Exception:
         m = {}
     return m, target
@@ -125,8 +125,9 @@ _partial_lock = threading.Lock()
 
 def _partial_bg(ck: str, start_ymd: int, end_ymd: int):
     try:
-        sc, sd = _bars_near(_to_date(start_ymd))   # SLOW full-scans — off the request path
-        ec, ed = _bars_near(_to_date(end_ymd))
+        symbols = list(_common_stock_symbols())    # the universe we'll keep anyway — seek only these
+        sc, sd = _bars_near(_to_date(start_ymd), symbols)   # indexed per-ticker seeks (fast)
+        ec, ed = _bars_near(_to_date(end_ymd), symbols)
         if not sc or not ec:
             out = {"status": "unavailable", "results": [], "count": 0,
                    "error": "Market-wide data isn't available this far back — it begins around 2003.",

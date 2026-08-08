@@ -40,13 +40,18 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
   // The whole-market stock scan (always) — for stock rows, drill-down members, AND the
   // per-stock % of a group's expanded members.
   const stockUrl = start && end ? `/api/scans/period-change?start=${start}&end=${end}` : null
+  // Poll fast (3s) while the pre-~2004 bars.db fallback is still "computing" so the result
+  // lands within seconds of the background thread finishing; back off once it's ready.
+  // dedupingInterval must sit BELOW the fast poll or SWR would dedupe those 3s revalidations.
   const { data: stockData, mutate: stockMutate, isValidating: stockVal } = useMobileSWR(stockUrl, fetcher, {
-    refreshInterval: 30_000, dedupingInterval: 15_000, revalidateOnFocus: false,
+    refreshInterval: (d) => (!d || d.status === 'computing') ? 3_000 : 30_000,
+    dedupingInterval: 2_500, revalidateOnFocus: false,
   })
   // The group ranking (only in group mode).
   const groupUrl = group && start && end ? `/api/scans/period-change-groups?start=${start}&end=${end}&group=${group}` : null
   const { data: groupData, mutate: groupMutate, isValidating: groupVal } = useMobileSWR(groupUrl, fetcher, {
-    refreshInterval: 60_000, dedupingInterval: 30_000, revalidateOnFocus: false,
+    refreshInterval: (d) => (!d || d.status === 'computing') ? 3_000 : 60_000,
+    dedupingInterval: 2_500, revalidateOnFocus: false,
   })
 
   const data = group ? groupData : stockData
