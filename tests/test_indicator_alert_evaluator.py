@@ -1052,7 +1052,15 @@ def test_catalog_route_is_registered_and_auth_gated():
     assert "GET" in route.methods
     deps = [d.call for d in route.dependant.dependencies]
     assert get_current_user in deps, "the catalog is an enumeration of internals — gate it"
-    assert route.endpoint() == {"catalog": evaluator.alert_catalog()}
+    # ⚠️ THE HANDLER IS HANDED A USER NOW, BECAUSE THE CATALOG IS SERVED SCOPED:
+    # `alert_catalog(user_id)` APPENDS that account's own formulas to the global
+    # groups. This called `route.endpoint()` with NO arguments, which worked only
+    # while the handler ignored its dependency. An EMPTY id is the account-less
+    # case by construction — `alert_user_series.user_catalog` returns `[]` for a
+    # falsy id without touching the definitions store — so this still asserts
+    # exactly what it always asserted: the GLOBAL enumeration, served verbatim.
+    # The scoped half has its own rail in `tests/test_alert_user_router.py`.
+    assert route.endpoint(user={"id": ""}) == {"catalog": evaluator.alert_catalog()}
 
 
 def test_the_catalog_route_is_declared_before_any_id_route_that_could_swallow_it():

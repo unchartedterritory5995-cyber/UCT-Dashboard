@@ -886,13 +886,27 @@ def instance_label(address: str, params: Optional[dict] = None) -> str:
     return f"{base}({', '.join(parts)})"
 
 
-def alert_catalog() -> list[dict]:
+def alert_catalog(user_id: Optional[Any] = None) -> list[dict]:
     """What the alert dropdown may offer, grouped by indicator.
 
     Keyed off the three address partitions, so an entry cannot exist for
     something that cannot be evaluated. Raises ``KeyError`` on a value function
     with no condition list — a new address has to fail HERE rather than render
     an empty condition dropdown and an un-submittable form.
+
+    ⭐ `user_id` APPENDS THAT ACCOUNT'S OWN FORMULAS, AND IT APPENDS THEM — the
+    global groups above are computed first and are not touched. Omitting it is
+    the enumeration every rail in this phase measures (`all_addresses()` 31,
+    `--diff` 31/31, 16 groups) and it reaches no store at all, so a caller that
+    does not have an account in hand gets byte-for-byte what this always
+    returned.
+
+    ⛔ AND THE USER ENTRIES DO NOT COME FROM A FOURTH PARTITION. `USER_FUNCS` is
+    keyed `<user_id>\\x1f<address>` and is absent from `ADDRESS_PARTITIONS` on
+    purpose (see the block above it); they are assembled by
+    `alert_user_series.user_catalog`, which is handed the id. That is what makes
+    "a user formula is offerable" and "the global address space is frozen" both
+    true at once, instead of trading one for the other.
 
     ⭐ EACH PLOT CARRIES ITS `inputs` (PHASE C TASK 10). That is the INSTANCE's
     shape — the knobs whose values make `RSI(7)` a different alert from
@@ -952,6 +966,9 @@ def alert_catalog() -> list[dict]:
             "default_threshold": plots[0]["default_threshold"],
             "plots": plots,
         })
+    if user_id:
+        from api.services import alert_user_series
+        entries.extend(alert_user_series.user_catalog(user_id))
     return entries
 
 

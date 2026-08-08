@@ -252,19 +252,37 @@ def _inputs_for(definition: Mapping[str, Any], params: Optional[Mapping]) -> dic
     type it. Passing it through raw would turn a client typo into an exception
     inside the evaluator's per-alert handler — logged, counted as an error, and
     invisible to the person who armed it.
+
+    ⚰️ THIS READ `spec.get("name")`, AND `name` IS NOT IN THE INPUT VOCABULARY AT
+    ALL — so `out` was ALWAYS `{}` and the second loop, gated on `if name in out`,
+    could never let an alert row's `params_json` reach a formula either. Both
+    halves of spec §8's per-instance knobs were structurally inert.
+    `defSchema.validateInput` (`app/src/components/chart/engine/defSchema.js`)
+    REQUIRES `input.key`; `nativeRegistry.resolveInputs` reads `input.key`; and
+    the house's own server-side reader, `signature/registry_defs.resolve_inputs`,
+    reads `spec["key"]`. Three components on one vocabulary and this one on
+    another is what made the defect survive: every component was individually
+    correct and only the SEAM was wrong, which is why the rail on it
+    (`test_alert_user_inputs.py`) DERIVES the key both sides read rather than
+    retyping it.
+
+    ⛔ AND `name` IS NOT KEPT AS A FALLBACK. A reader that accepted either would
+    be a second vocabulary for one field — the twin this phase retires — and it
+    would make the divergence unobservable again the moment somebody re-typed the
+    wrong one.
     """
     out: dict[str, float] = {}
     for spec in (definition.get("inputs") or []):
         if not isinstance(spec, dict):
             continue
-        name, default = spec.get("name"), spec.get("default")
-        if isinstance(name, str) and isinstance(default, (int, float)) \
+        key, default = spec.get("key"), spec.get("default")
+        if isinstance(key, str) and isinstance(default, (int, float)) \
                 and not isinstance(default, bool) and math.isfinite(float(default)):
-            out[name] = float(default)
-    for name, value in (params or {}).items():
-        if name in out and isinstance(value, (int, float)) \
+            out[key] = float(default)
+    for key, value in (params or {}).items():
+        if key in out and isinstance(value, (int, float)) \
                 and not isinstance(value, bool) and math.isfinite(float(value)):
-            out[name] = float(value)
+            out[key] = float(value)
     return out
 
 
@@ -654,14 +672,208 @@ def refusal_for_alert(alert: Mapping[str, Any]) -> Optional[AdmissionRefused]:
     return None
 
 
+# ─── THE PER-USER CATALOG — SCOPED RESOLUTION, NOT A FOURTH GLOBAL ENTRY ─────
+#
+# ⭐ WHY THIS IS A SECOND FUNCTION AND NOT A FOURTH PARTITION. Everything above
+# says it: `ADDRESS_PARTITIONS` is GLOBAL, `build_alert_grid` iterates
+# `INDICATOR_FUNCS`, and 685,193 recorded fires plus a 31/31 `--diff` hang off
+# those enumerations staying exactly the size they are. So the user namespace is
+# reached the only way a per-user namespace CAN be reached — with a user id in
+# hand — and the dropdown is assembled from `alert_catalog()` (global, unmoved)
+# PLUS this (scoped), at the one layer that holds a signed-in account: the router.
+#
+# ⛔ AND IT OFFERS ONLY WHAT THE DETERMINISTIC GATES ADMIT. `alert_catalog`'s own
+# contract is that the dropdown *"cannot offer an alert that cannot fire"*; a
+# definition the repaint or budget gate refuses is exactly such an alert. The
+# cross-lane gate is deliberately NOT run here — it spawns a node process per
+# definition and this is a dropdown fetch — so this list is a SUPERSET of what
+# will arm, and the arm path stays the authority: a POST that gets refused there
+# returns the gate's own sentence rather than a silence.
+
+
+def _definition_label(definition: Mapping[str, Any], def_id: str) -> str:
+    """What a user called their formula, or its id when they called it nothing."""
+    meta = definition.get("meta") or {}
+    for key in ("name", "shortName"):
+        value = meta.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return str(def_id)
+
+
+def _plot_label(definition: Mapping[str, Any], plot: Any, plot_key: str,
+                def_id: str) -> str:
+    """One plot's label. Qualified by the plot only when there is more than one.
+
+    A single-plot definition is the overwhelming case and "My Average · value"
+    reads as a bug next to "RSI"; a two-plot one has to say which line, or the
+    dropdown offers the same words twice.
+    """
+    base = _definition_label(definition, def_id)
+    if isinstance(plot, dict):
+        for key in ("name", "label", "title"):
+            value = plot.get(key)
+            if isinstance(value, str) and value.strip():
+                return f"{base} · {value.strip()}"
+    if len((definition.get("plots") or [])) <= 1:
+        return base
+    return f"{base} · {plot_key}"
+
+
+def _instance_label(definition: Mapping[str, Any], def_id: str,
+                    params: Optional[Mapping] = None) -> str:
+    """`"My Average(20)"` — spec §8's instance naming, for a user formula.
+
+    ⛔ THE KNOBS COME FROM `_inputs_for`, WHICH IS THE FUNCTION THE EVALUATION
+    USES. `indicator_alert_evaluator.instance_label` states the same rule for the
+    builtins (*"the knobs are DERIVED, never listed"*), and it matters more here:
+    a label built from a second reader of `inputs` could name a parameter the
+    formula never receives, which is the divergence `_inputs_for`'s own tombstone
+    is about.
+    """
+    base = _definition_label(definition, def_id)
+    inputs = _inputs_for(definition, params)
+    if not inputs:
+        return base
+    parts = [str(int(v)) if float(v).is_integer() else str(v)
+             for v in inputs.values()]
+    return f"{base}({', '.join(parts)})"
+
+
+def _plots_of(definition: Mapping[str, Any]) -> list[tuple]:
+    """`[(plot, key), …]` for every plot that HAS a key.
+
+    ⛔ THE PAIR IS BUILT ONCE, NOT ZIPPED FROM TWO LISTS. A definition carrying a
+    keyless plot makes the two lists different lengths, and `zip` would then pair
+    every later plot with the PREVIOUS one's key — labelling one line with
+    another's name while every address stayed valid, which is a defect nothing
+    downstream can detect.
+    """
+    out = []
+    for plot in (definition.get("plots") or []):
+        key = plot.get("key") if isinstance(plot, dict) else plot
+        if key:
+            out.append((plot, str(key)))
+    return out
+
+
+def _plot_keys(definition: Mapping[str, Any]) -> list[str]:
+    return [key for _plot, key in _plots_of(definition)]
+
+
+def instance_label_for(user_id: Any, address: str,
+                       params: Optional[Mapping] = None) -> Optional[str]:
+    """The INSTANCE label for one account's user address, or `None` if not one.
+
+    The user-lane counterpart of `indicator_alert_evaluator.instance_label`, and
+    the reason it takes a user id: a bare address names nobody's formula.
+    """
+    if not is_user_address(address):
+        return None
+    from api.services import user_definitions
+    def_id, plot_key = split_user_address(address)
+    row = user_definitions.get(user_id, def_id, None)
+    if row is None:
+        return None
+    definition = row.get("definition") or {}
+    label = _instance_label(definition, def_id, params)
+    if len(_plot_keys(definition)) <= 1:
+        return label
+    return f"{label} · {plot_key}"
+
+
+def user_catalog(user_id: Any) -> list[dict]:
+    """This ACCOUNT's own formulas, in `alert_catalog()`'s entry shape.
+
+    `[]` for an account with none, and `[]` for no account at all — the second is
+    what makes `alert_catalog()` with no user id byte-identical to what it always
+    returned, and it reaches no store, so the frozen instruments cannot move.
+
+    Every entry carries `source: "user"` so a surface can tell one apart; the
+    GLOBAL entries are deliberately left alone rather than gaining a matching
+    `"builtin"`, because that would edit the shape 31 addresses and a 685,193-fire
+    log are enumerated with, to say something a client can already infer.
+    """
+    if not user_id:
+        return []
+    from api.services import indicator_alert_evaluator as ev
+    from api.services import user_definitions
+
+    # ⛔ DERIVED FROM THE PRICE ADDRESS'S OWN ROW, NEVER RETYPED. A user formula
+    # is a LEVEL — one number per bar, no declared `THRESHOLD_OPERAND` — and
+    # `close` is the one address in the table with exactly that shape, so its
+    # condition list IS the answer to "what can you ask of a bare level".
+    # Retyping the four here is the twin `IndicatorAlertPopover` already had.
+    conditions = [dict(c) for c in ev.ALERT_CONDITIONS["close"]]
+
+    entries: list[dict] = []
+    for row in user_definitions.list_for_user(user_id):
+        def_id = str(row.get("def_id"))
+        try:
+            definition = _gate_lane(row)
+            _gate_repaint(row, definition)
+            _gate_budget(definition, def_id)
+        except AdmissionRefused:
+            continue
+        except Exception:  # noqa: BLE001 — a TableRefusal out of `check_budget`
+            # The TABLE refusing a tree is not this function's to relabel (see
+            # `_gate_budget`), and a formula the table refuses cannot fire, so it
+            # is not offered. It stays visible where a user manages it —
+            # `GET /api/user-definitions` — and `refusal_for_alert` is the
+            # attribution read-out for anything already armed on it.
+            continue
+        pairs = _plots_of(definition)
+        if not pairs:
+            continue
+        plots = [
+            {
+                "value": f"{def_id}.{plot_key}",
+                "label": _plot_label(definition, plot, plot_key, def_id),
+                "conditions": [dict(c) for c in conditions],
+                # ⛔ NO DEFAULT THRESHOLD, EVER. `_DEFAULT_THRESHOLDS` only ever
+                # holds the bounded oscillators; a user formula's scale is
+                # unknowable from here and a guessed number in the box is wrong
+                # for every formula but the one it was guessed from.
+                "default_threshold": None,
+                "inputs": _inputs_for(definition, None),
+                "instance_label": _instance_label(definition, def_id),
+            }
+            for plot, plot_key in pairs
+        ]
+        entries.append({
+            "indicator": def_id,
+            "label": _definition_label(definition, def_id),
+            "source": "user",
+            "conditions": [dict(c) for c in plots[0]["conditions"]],
+            "default_threshold": None,
+            "plots": plots,
+        })
+    return entries
+
+
 def arm_for_alert(user_id: Any, indicator: str, sym: str, tf: str,
                   *, bars: Optional[list] = None) -> Optional[dict]:
     """⭐ THE ARM-TIME CALL SITE. Returns `None` for a builtin address.
 
     ⛔ THIS IS WHY THE EQUALITY IS NOT A FUNCTION NOBODY CALLS. It is invoked from
-    `indicator_alert_service.create` — the real arm path, the one the router
-    posts to — so the mandated mutation "drop the arm-time cross-lane check" is a
-    mutation to shipped behaviour and not to a test's private helper.
+    `indicator_alert_service.create`, which is the real arm path — and as of this
+    commit it is also the path the router posts to.
+
+    ⚰️ THAT SECOND CLAUSE SAID *"the real arm path, the one the router posts to"*
+    AND THE SECOND HALF WAS FALSE FOR THE WHOLE OF ITS LIFE. `ias.create` really
+    was the invoker; what nothing checked was whether anything could REACH it.
+    `api/routers/indicator_alerts.py::create_alert` refused every address that
+    `indicator_alert_evaluator.value_function()` misses, two statements before it
+    could call `create` — and `value_function` walks the three GLOBAL partitions,
+    from which `USER_FUNCS` is deliberately absent. So `POST /api/indicator-alerts
+    {"indicator": "u_….value"}` was a 400 *"not an indicator this chart can
+    evaluate"*, this entire admission chain sat BELOW that refusal, and both sides
+    were individually correct and individually tested: the seam was dead. The
+    router now resolves a user address in the account's own scope and lets the
+    refusal come from the gate that means it — and the rail on that is a POST
+    through the router (`test_alert_user_router.py`), not a call to this function,
+    because a call to this function is exactly what stayed green while the door
+    was shut.
 
     Fetches the alert's own bars through the evaluator's own fetcher, so the
     formula is proven equal on the series it will actually be evaluated against

@@ -516,6 +516,42 @@ def save(user_id: Any, def_id: str, definition: dict) -> dict:
         )
         c.commit()
 
+    # ── phase 4: FORGET. The registry holds a CAPTURED tree; this row replaces it.
+    #
+    # 🔴 THIS CALL DID NOT EXIST, AND `alert_user_series.forget` HAD NO PRODUCTION
+    # CALL SITE AT ALL (AST-verified over `api/**`, `tools/**`, `tests/**`: every
+    # caller was a test). `_make_value_fn` CAPTURES the tree and `USER_FUNCS` is
+    # keyed `(user_id, address)` with NO version in the key, so after an edit the
+    # registry kept serving the SAME FUNCTION OBJECT — measured end to end:
+    # `rev_bumped=True`, the migration notice delivered, and then `sma20` still
+    # reading rev-1's 112.685 instead of rev-2's 111.4522, forever, until the pod
+    # restarted. A member is told *"you have been switched to new maths"* and then
+    # evaluated on the old. `user_value_function`'s own docstring already asserted
+    # this call happened (*"gets a new `ast_hash`, a `compute.rev` bump and a
+    # `forget`"*); it is true now.
+    #
+    # ⛔ ON EVERY APPEND, NOT ONLY ON A `rev` BUMP — and that is a MEASURED
+    # widening of the one-line fix, not a flourish. What is captured is the whole
+    # `definition`, and `_inputs_for` reads `definition["inputs"]` out of that
+    # capture on every evaluation. `ast_hash` covers `compute.ast` ONLY, so
+    # changing an input's DEFAULT moves what the formula computes and bumps
+    # nothing — the identical staleness with no rev to hang it on. A byte-identical
+    # re-save returns above without reaching here, which is the one case that must
+    # not forget.
+    #
+    # ⛔ AND AFTER THE APPEND, NOT BEFORE IT. Forgetting first opens a window in
+    # which a concurrent read rebuilds from the row still in the table — i.e.
+    # re-caches the OLD tree — and the staleness survives its own fix. After the
+    # commit the worst case is a reader that caches the NEW tree a moment before
+    # this drops it and rebuilds the same thing.
+    #
+    # ⚠️ THIS IS A CACHE DROP, NOT A DE-ADMISSION. `user_value_function` rebuilds
+    # a miss from the store through the four deterministic gates, so an armed
+    # alert does not go quiet — see its docstring for what the rebuild does NOT
+    # re-run.
+    from api.services import alert_user_series
+    alert_user_series.forget(user_id)
+
     return {
         "def_id": def_id, "version": version, "rev": rev,
         "rev_bumped": rev_bumped, "migrated": migrated, "notified": notified,
