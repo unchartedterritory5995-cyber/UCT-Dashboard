@@ -101,13 +101,14 @@ const SCAN_EMPTY_TEXT = {
 
 // Per-scan criteria — the read-only list shown in the ⓘ/filter popover, so a user can see
 // at a glance what a preset actually screens for.
+const SCAN_FLOORS = ['Price Above $1', 'Over $1M Average Daily Dollar Volume']
 const SCAN_CRITERIA = {
-  'highest-volume-1y': ['Highest Daily Volume In The Last 1-Year', 'US Common Stock'],
-  'highest-volume-ever': ['Highest Daily Volume Ever', 'US Common Stock'],
-  'ipo-1y': ['Listed Within The Last 1-Year', 'US Common Stock'],
-  'top-gainers-30d': ['Top 5% By Percent Change In 30 Trading Days', 'US Common Stock'],
-  'top-gainers-60d': ['Top 5% By Percent Change In 60 Trading Days', 'US Common Stock'],
-  'top-gainers-90d': ['Top 5% By Percent Change In 90 Trading Days', 'US Common Stock'],
+  'highest-volume-1y': ['Highest Daily Volume In The Last 1-Year', 'US Common Stock', ...SCAN_FLOORS],
+  'highest-volume-ever': ['Highest Daily Volume Ever', 'US Common Stock', ...SCAN_FLOORS],
+  'ipo-1y': ['Listed Within The Last 1-Year', 'US Common Stock', ...SCAN_FLOORS],
+  'top-gainers-30d': ['Top 5% By Percent Change In 30 Trading Days', 'US Common Stock', ...SCAN_FLOORS],
+  'top-gainers-60d': ['Top 5% By Percent Change In 60 Trading Days', 'US Common Stock', ...SCAN_FLOORS],
+  'top-gainers-90d': ['Top 5% By Percent Change In 90 Trading Days', 'US Common Stock', ...SCAN_FLOORS],
 }
 
 // scanKey → endpoint. New presets add a line here + one in ScannerPicker's PRESET_SCANS.

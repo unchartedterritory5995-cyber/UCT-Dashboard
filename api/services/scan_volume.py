@@ -34,6 +34,50 @@ _REF_FETCH = 260       # pull a few extra daily bars so we can drop today's part
 _SCAN_TTL = 60         # live-scan cache (seconds) — matches the snapshot's usefulness
 _MIN_PRIOR = 2         # need at least this many prior sessions to have a real high
 
+# ── Shared tradability floors (applied by EVERY preset scan) ──────────────────
+_MIN_PRICE = 1.0            # last price must be strictly ABOVE this
+_MIN_AVG_DVOL = 1_000_000   # avg daily dollar-volume floor ("actually tradable")
+_AVG_DVOL_KEY = "scan_avg_dvol"
+_AVG_DVOL_TTL = 6 * 3600
+_AVG_DVOL_SESSIONS = 20     # ~1 month of sessions for the average
+_AVG_DVOL_FLOOR_DAYS = 45   # calendar window that comfortably covers 20 sessions
+
+
+def _avg_dollar_volume() -> dict:
+    """{TICKER: avg daily dollar volume over the last ~20 completed sessions} for the tracked
+    universe — one bulk window query over bars.db, cached ~6h. The shared liquidity metric;
+    tickers bars.db doesn't cover fall back to the live snapshot inside `_tradable`."""
+    cached = cache.get(_AVG_DVOL_KEY)
+    if cached is not None:
+        return cached
+    now = _now_et()
+    before = int(now.strftime("%Y%m%d"))
+    floor = int((now - timedelta(days=_AVG_DVOL_FLOOR_DAYS)).strftime("%Y%m%d"))
+    try:
+        m = _sqlite.avg_dollar_volume_bulk(_AVG_DVOL_SESSIONS, before, floor)
+    except Exception:
+        m = {}
+    cache.set(_AVG_DVOL_KEY, m, ttl=_AVG_DVOL_TTL if m else 300)
+    return m
+
+
+def _tradable(app_ticker: str, s: dict, avg_dvol: dict) -> bool:
+    """Shared scan floor: last price > $1 AND avg daily dollar volume >= $1M. The average
+    comes from bars.db (`avg_dvol`) when the ticker is tracked; otherwise it falls back to
+    the most-recent completed session's dollar volume from the snapshot (prev_close x
+    prev_vol) — the best available for an un-charted recent IPO. `s` is the snapshot row."""
+    if not s:
+        return False
+    price = s.get("last_price")
+    if not isinstance(price, (int, float)) or price <= _MIN_PRICE:
+        return False
+    dvol = avg_dvol.get(app_ticker)
+    if not dvol:
+        prev, pv = s.get("prev_close"), s.get("prev_vol")
+        dvol = (prev or 0) * (pv or 0)
+    return dvol >= _MIN_AVG_DVOL
+
+
 _ref_lock = threading.Lock()
 # Per-scan reference state, keyed by scan id ('1y' | 'ever'). Each is
 # {date, map, building, built_at, universe}. Built lazily per ET day.
@@ -251,12 +295,15 @@ def _run_scan(scan_id: str, days: int | None) -> dict:
         cache.set(ck, out, ttl=15)
         return out
 
+    avg_dvol = _avg_dollar_volume()
     results = []
     for sym, rmax in ref.items():
         if rmax <= 0:
             continue
         s = _snap_lookup(snap, sym)
         if not s:
+            continue
+        if not _tradable(sym, s, avg_dvol):   # price > $1 + avg $ volume floor
             continue
         tv = int(s.get("today_vol") or 0)
         if tv <= rmax:

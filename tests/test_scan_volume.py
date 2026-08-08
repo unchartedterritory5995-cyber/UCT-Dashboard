@@ -76,6 +76,7 @@ def test_scan_returns_only_qualifiers_sorted_by_ratio(monkeypatch):
             return snap
 
     monkeypatch.setattr(sv.massive, "_get_client", lambda: _Client())
+    monkeypatch.setattr(sv, "_tradable", lambda *a, **k: True)  # filter tested separately
 
     out = sv.get_highest_volume_1y()
     assert out["status"] == "ok"
@@ -97,6 +98,7 @@ def test_all_time_scan_uses_its_own_reference(monkeypatch):
             return snap
 
     monkeypatch.setattr(sv.massive, "_get_client", lambda: _Client())
+    monkeypatch.setattr(sv, "_tradable", lambda *a, **k: True)  # filter tested separately
 
     out = sv.get_highest_volume_ever()
     assert [r["sym"] for r in out["results"]] == ["AAA"]
@@ -116,8 +118,23 @@ def test_scan_maps_class_share_symbology(monkeypatch):
             return snap
 
     monkeypatch.setattr(sv.massive, "_get_client", lambda: _Client())
+    monkeypatch.setattr(sv, "_tradable", lambda *a, **k: True)  # filter tested separately
     monkeypatch.setattr(sv.massive, "to_polygon_symbol", lambda s: s.replace("-", "."))
 
     out = sv.get_highest_volume_1y()
     assert [r["sym"] for r in out["results"]] == ["BRK-B"]
     _reset()
+
+
+def test_tradable_price_and_avg_dollar_volume_floor():
+    # Above $1 + >= $1M avg dollar volume from bars.db → tradable.
+    assert sv._tradable("AAA", {"last_price": 5.0}, {"AAA": 2_000_000}) is True
+    # At/below $1 → excluded regardless of volume.
+    assert sv._tradable("AAA", {"last_price": 1.0}, {"AAA": 9_000_000}) is False
+    assert sv._tradable("AAA", {"last_price": 0.5}, {"AAA": 9_000_000}) is False
+    # Below the $ volume floor → excluded.
+    assert sv._tradable("AAA", {"last_price": 5.0}, {"AAA": 500_000}) is False
+    # Not tracked in bars.db → falls back to the snapshot's prev-day dollar volume.
+    assert sv._tradable("NEW", {"last_price": 5.0, "prev_close": 10.0, "prev_vol": 300_000}, {}) is True   # $3M
+    assert sv._tradable("NEW", {"last_price": 5.0, "prev_close": 10.0, "prev_vol": 50_000}, {}) is False   # $0.5M
+    assert sv._tradable("X", None, {}) is False

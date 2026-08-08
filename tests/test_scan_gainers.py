@@ -57,6 +57,7 @@ def test_build_reference_verifies_movers_and_filters(monkeypatch):
 
     monkeypatch.setattr(sg.massive, "_get_client", lambda: _Client())
     monkeypatch.setattr(sg, "_etf_symbols", lambda: {"SPXL"})
+    monkeypatch.setattr(sg, "_avg_dollar_volume", lambda: {})   # → _tradable uses the snapshot
     monkeypatch.setattr(sg, "_sanitized_ref_close",
                         lambda t, n: {"GOOD": 149.0, "SPCX": False, "OBSC": None}.get(t, None))
 

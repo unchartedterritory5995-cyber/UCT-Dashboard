@@ -17,8 +17,10 @@ from datetime import timedelta
 from api.services import bars_sqlite as _sqlite
 from api.services import massive
 from api.services.cache import cache
-# Reuse the shared scan helpers (ET clock, provider symbology, ETF exclusion set).
-from api.services.scan_volume import _now_et, _snap_lookup, _etf_symbols
+# Reuse the shared scan helpers (ET clock, symbology, ETF set, tradability floor).
+from api.services.scan_volume import (
+    _now_et, _snap_lookup, _etf_symbols, _avg_dollar_volume, _tradable,
+)
 
 _LOCK = threading.Lock()
 _state = {"date": None, "map": None, "building": False, "built_at": 0.0}
@@ -252,6 +254,7 @@ def get_ipo_last_1y() -> dict:
         snap = {}
 
     etfs = _etf_symbols()   # ETFs/ETNs/funds to exclude (stocks-only scan)
+    avg_dvol = _avg_dollar_volume()
 
     results = []
     for sym, first_ts in ipos.items():
@@ -263,6 +266,10 @@ def get_ipo_last_1y() -> dict:
         # (keeps recent IPOs, drops delisted/non-equity). If the snapshot is empty
         # (transient/off-market), fall back to showing the set with no price.
         if snap and not s:
+            continue
+        # Tradability floor (price > $1 + avg $ volume). Only applied when we have a snapshot
+        # row to judge from; the no-snapshot fallback below shows the set unfiltered.
+        if s and not _tradable(sym, s, avg_dvol):
             continue
         price = s.get("last_price") if s else None
         prev = s.get("prev_close") if s else None

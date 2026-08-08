@@ -108,6 +108,7 @@ def test_ipo_scan_skips_names_not_in_snapshot(monkeypatch):
             return snap
 
     monkeypatch.setattr(si.massive, "_get_client", lambda: _Client())
+    monkeypatch.setattr(si, "_tradable", lambda *a, **k: True)  # filter tested separately
     out = si.get_ipo_last_1y()
     assert [r["sym"] for r in out["results"]] == ["CBRS"]
     _reset()
@@ -130,6 +131,7 @@ def test_ipo_scan_excludes_etfs(monkeypatch):
             return snap
 
     monkeypatch.setattr(si.massive, "_get_client", lambda: _Client())
+    monkeypatch.setattr(si, "_tradable", lambda *a, **k: True)  # filter tested separately
     monkeypatch.setattr(si, "_etf_symbols", lambda: {"SNXX"})
 
     out = si.get_ipo_last_1y()
@@ -152,6 +154,7 @@ def test_ipo_scan_returns_recent_ipos_newest_first(monkeypatch):
             return snap
 
     monkeypatch.setattr(si.massive, "_get_client", lambda: _Client())
+    monkeypatch.setattr(si, "_tradable", lambda *a, **k: True)  # filter tested separately
 
     out = si.get_ipo_last_1y()
     assert out["status"] == "ok"

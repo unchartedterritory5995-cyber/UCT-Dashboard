@@ -527,6 +527,24 @@ def close_n_sessions_back(n: int, before_ymd: int) -> dict:
     return {str(r[0]).upper(): float(r[1]) for r in rows}
 
 
+def avg_dollar_volume_bulk(sessions: int, before_ymd: int, floor_ymd: int) -> dict:
+    """{TICKER: AVG(close*volume) over its last `sessions` COMPLETED daily bars strictly
+    before before_ymd} — the tradability metric for the preset scans. One window-function
+    pass, bounded to bars on/after floor_ymd for speed (floor should cover `sessions` days)."""
+    rows = _conn().execute(
+        """
+        WITH recent AS (
+          SELECT ticker, c*v AS dv,
+                 ROW_NUMBER() OVER (PARTITION BY ticker ORDER BY ts DESC) AS rn
+          FROM ohlcv WHERE tf='D' AND ts<? AND ts>=? AND c>0 AND v>0
+        )
+        SELECT ticker, AVG(dv) FROM recent WHERE rn<=? GROUP BY ticker
+        """,
+        (int(before_ymd), int(floor_ymd), int(sessions)),
+    ).fetchall()
+    return {str(r[0]).upper(): float(r[1]) for r in rows if r[1]}
+
+
 def get_all_tickers() -> list[tuple]:
     """Return all (ticker, tf) pairs that have at least one row stored, ordered by ticker."""
     return _conn().execute(

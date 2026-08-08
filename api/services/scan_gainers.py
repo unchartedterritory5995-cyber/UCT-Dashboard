@@ -25,17 +25,16 @@ import time as _time
 from api.services import bars_sqlite as _sqlite
 from api.services import massive
 from api.services.cache import cache
-# Shared scan helpers (ET clock, session date, provider symbology, ETF set).
-from api.services.scan_volume import _now_et, _session_date, _snap_lookup, _etf_symbols
+# Shared scan helpers (ET clock, symbology, ETF set, tradability floor).
+from api.services.scan_volume import (
+    _now_et, _session_date, _snap_lookup, _etf_symbols, _avg_dollar_volume, _tradable,
+)
 
 # scan id → N completed sessions back (matches the frontend perf30d/60d/90d columns).
 _PERIODS = {"30d": 30, "60d": 60, "90d": 90}
 _TOP_FRACTION = 0.05          # keep the top 5% of the liquid universe
 _SCAN_TTL = 60               # live-scan cache (s)
 
-# Liquidity + sanity filters (keep the list to real, tradable movers).
-_MIN_PRICE = 1.0             # skip sub-$1 names (penny / junk noise)
-_MIN_DOLLAR_VOL = 1_000_000  # prev-day $ turnover floor (price × prev_vol)
 _MAX_CHANGE_PCT = 1000.0     # final backstop vs any artifact that slips verification
 _MAX_VERIFY = 800            # shortlist size sent to chart-true verification
 _SANITIZE_FETCH = 400        # daily bars pulled for the sanitize pass (≥ 90 + reuse context)
@@ -100,6 +99,7 @@ def _build_reference(n_sessions: int):
         return None
 
     etfs = _etf_symbols()
+    avg_dvol = _avg_dollar_volume()
     liquid = 0
     cand = []   # (app, grouped_adj_close, grouped_adj_change)
     for prov, adj_c in adj.items():
@@ -109,14 +109,9 @@ def _build_reference(n_sessions: int):
         if app in etfs or app.endswith("ZZT"):   # ETFs + Polygon test symbols
             continue
         s = snap.get(prov) or _snap_lookup(snap, app)
-        if not s:
+        if not _tradable(app, s, avg_dvol):       # price > $1 + avg $ volume floor
             continue
         price = s.get("last_price")
-        if not isinstance(price, (int, float)) or price < _MIN_PRICE:
-            continue
-        prev, pv = s.get("prev_close"), s.get("prev_vol")
-        if (prev or 0) * (pv or 0) < _MIN_DOLLAR_VOL:
-            continue
         liquid += 1
         cand.append((app, float(adj_c), (price - adj_c) / adj_c * 100))
 

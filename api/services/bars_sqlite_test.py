@@ -458,6 +458,18 @@ def test_current_listing_starts_detects_ticker_reuse(tmp_path, monkeypatch):
     assert starts["REUSE"] == 20260615     # NEW listing, not the old 2024 bars
     assert starts["CONT"] == 20260501      # earliest in-window bar (continuous)
 
+    # avg_dollar_volume_bulk: AVG(close*volume) over the last N sessions per ticker.
+    bs.put_bars("DV", "D", [
+        {"t": "2026-06-01", "o": 1, "h": 1, "l": 1, "c": 10.0, "v": 100},   # $1,000
+        {"t": "2026-06-02", "o": 1, "h": 1, "l": 1, "c": 20.0, "v": 200},   # $4,000
+        {"t": "2026-06-03", "o": 1, "h": 1, "l": 1, "c": 30.0, "v": 300},   # $9,000
+    ], date_tf=True)
+    dv = bs.avg_dollar_volume_bulk(20, 20260701, 20230101)   # all 3 sessions → avg of 1k/4k/9k
+    assert round(dv["DV"], 2) == round((1000 + 4000 + 9000) / 3, 2)
+    # sessions=2 → only the two most-recent sessions (4k, 9k).
+    dv2 = bs.avg_dollar_volume_bulk(2, 20260701, 20230101)
+    assert round(dv2["DV"], 2) == round((4000 + 9000) / 2, 2)
+
     # recent_relisting_candidates: the reuse OVERLAY for the IPO scan — only the recycled
     # ticker whose resume is within the window, never the continuous one (no gap).
     cands = bs.recent_relisting_candidates(20260101, 20230101)   # since=2026-01-01
