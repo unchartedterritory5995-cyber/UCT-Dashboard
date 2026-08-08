@@ -83,6 +83,50 @@ function renderWS() {
   )
 }
 
+// ── Toolbar navigation ──────────────────────────────────────────────────────
+// The header used to be seven flat buttons and is now two dropdowns ("Widgets ▾"
+// / "Layouts ▾") with sub-panels — and it will very plausibly be regrouped again.
+// What these tests care about is that an action is REACHABLE and does what it
+// says, not which menu currently holds it, so the PATH is discovered rather than
+// typed. Re-nesting an action moves nothing here; only deleting it breaks a test.
+//
+// Discovery only ever clicks DROPDOWN TRIGGERS, never plain action buttons: a
+// trigger sits inside its own positioned group (so its menu can render as a
+// sibling), while a plain action — e.g. grid mode's "Workspace" exit — sits
+// directly in the <header>. Probing blindly would fire those actions as a side
+// effect of merely looking for something else.
+function toolbarDropdownTriggers() {
+  const header = document.querySelector('header')
+  if (!header) return []
+  return [...header.querySelectorAll('button')].filter(b => b.parentElement?.parentElement === header)
+}
+
+/** The toolbar button matching `name`, opening menus as needed. Null if nothing offers it. */
+function toolbarButton(name) {
+  // queryAll (not query) so a duplicate label reports as a normal miss/hit rather
+  // than throwing out of the search.
+  const found = () => screen.queryAllByRole('button', { name })[0] || null
+  if (found()) return found()
+  for (const trigger of toolbarDropdownTriggers()) {
+    // A trigger TOGGLES, and a previous search may have left some menu open, so
+    // probe both of its states — and re-check after every click, never only after
+    // the first (that miss is how a "close it again" click silently skips a hit).
+    for (let i = 0; i < 2; i++) {
+      act(() => { trigger.click() })
+      if (found()) return found()
+    }
+  }
+  return null
+}
+
+/** Click a toolbar action wherever it currently lives. */
+function clickToolbar(name) {
+  const btn = toolbarButton(name)
+  expect(btn, `the toolbar offers nothing matching ${name}`).toBeTruthy()
+  act(() => { btn.click() })
+  return btn
+}
+
 beforeEach(() => {
   setPref.mockReset()
   mockPrefs = {}
@@ -96,12 +140,43 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-test('renders the workspace header buttons', () => {
+test('every workspace action a member needs is still reachable from the toolbar', () => {
   renderWS()
-  expect(screen.getByRole('button', { name: /\+ add widget/i })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: /new layout/i })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: /open layout/i })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: /save layout/i })).toBeInTheDocument()
+  // Names, not places. The toolbar consolidation moved every one of these behind a
+  // dropdown without removing any; that regrouping is a layout decision and must
+  // not be able to fail this file. Losing one outright still must.
+  for (const name of [
+    /add widget/i, /merge widgets/i, /new layout/i, /open layout/i,
+    /save layout/i, /multi chart/i, /pop out layout/i,
+  ]) {
+    expect(toolbarButton(name), `the toolbar no longer reaches ${name}`).toBeTruthy()
+  }
+})
+
+test('a widget can be added to the board from the toolbar', () => {
+  mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
+  renderWS()
+  const onBoard = () => document.querySelectorAll('[data-testid^="body-"]').length
+  expect(onBoard()).toBe(0)
+
+  // Captured with every menu closed, so "what a menu revealed" is a set difference
+  // rather than a hard-coded list of widget names.
+  const rootButtons = new Set(document.querySelector('header').querySelectorAll('button'))
+  const widgetChoices = () => {
+    clickToolbar(/add widget/i)
+    return [...document.querySelector('header').querySelectorAll('button')].filter(b => !rootButtons.has(b))
+  }
+
+  const offered = widgetChoices()
+  expect(offered.length, 'Add Widget offered nothing to add').toBeGreaterThan(0)
+  // The widget catalog's labels are the source's to own, so this asserts the
+  // CAPABILITY — some offered choice puts a widget on the board — instead of
+  // naming a type (or naming the panel's own back control to skip it).
+  for (let i = 0; i < offered.length && onBoard() === 0; i++) {
+    const choices = widgetChoices()
+    act(() => { choices[i].click() })
+  }
+  expect(onBoard(), 'no choice under Add Widget reached the board').toBe(1)
 })
 
 test('first visit (no saved layout) applies the frozen UCT Default arrangement once prefs + templates settle', () => {
@@ -120,7 +195,7 @@ test('clicking "UCT Default" applies the frozen layout AND writes the frozen cha
   // Start from a corrupted/empty board, then open the locked default.
   mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
   renderWS()
-  act(() => { screen.getByRole('button', { name: /open layout/i }).click() })
+  clickToolbar(/open layout/i)
   act(() => { screen.getByRole('button', { name: /^UCT Default$/ }).click() })
   // Frozen arrangement is on the board.
   expect(screen.getByTestId('body-chart')).toBeInTheDocument()
@@ -189,7 +264,7 @@ function expectEngineKeysFollowTheDefault(parsed) {
 test('site #22: "UCT Default" persists engine keys that FOLLOW the default, not the frozen capture', () => {
   mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
   renderWS()
-  act(() => { screen.getByRole('button', { name: /open layout/i }).click() })
+  clickToolbar(/open layout/i)
   act(() => { screen.getByRole('button', { name: /^UCT Default$/ }).click() })
   const parsed = persistedChartSettings()
   // Still the frozen capture in every respect it was actually a capture of.
@@ -199,7 +274,7 @@ test('site #22: "UCT Default" persists engine keys that FOLLOW the default, not 
 
 test('site #22: "New Layout" persists the same engine keys (it writes the same blob)', () => {
   renderWS()
-  act(() => { screen.getByRole('button', { name: /new layout/i }).click() })
+  clickToolbar(/new layout/i)
   expectEngineKeysFollowTheDefault(persistedChartSettings())
 })
 
@@ -279,7 +354,7 @@ test('Save-as-template captures the current chart settings into the saved templa
   const cs = { chartType: 'candles', header: { titleMode: 'both' }, theme: 'dark' }
   mockPrefs = { chart_settings: JSON.stringify(cs) }
   renderWS()
-  fireEvent.click(screen.getByRole('button', { name: /save layout/i }))
+  clickToolbar(/save layout/i)
   fireEvent.change(screen.getByPlaceholderText(/template name/i), { target: { value: 'My Setup' } })
   fireEvent.click(screen.getByRole('button', { name: /^Save template$/ }))
   expect(mockLayouts.saveLayout).toHaveBeenCalledTimes(1)
@@ -302,7 +377,7 @@ test('opening a My-layouts template restores its saved chart settings (not leake
   }]
   mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
   renderWS()
-  act(() => { screen.getByRole('button', { name: /open layout/i }).click() })
+  clickToolbar(/open layout/i)
   act(() => { screen.getByRole('button', { name: /^My Setup$/ }).click() })
   // Arrangement applied.
   expect(screen.getByTestId('body-scanner')).toBeInTheDocument()
@@ -327,7 +402,7 @@ test('Save current arrangement updates the open custom template in place (arrang
     charts_active_template: JSON.stringify({ id: 42, name: 'My Setup', scope: 'user' }),
   }
   renderWS()
-  act(() => { screen.getByRole('button', { name: /save layout/i }).click() })
+  clickToolbar(/save layout/i)
   await act(async () => { screen.getByRole('button', { name: /save current arrangement/i }).click() })
   expect(mockLayouts.saveLayout).toHaveBeenCalledTimes(1)
   const payload = mockLayouts.saveLayout.mock.calls[0][0]
@@ -343,7 +418,7 @@ test('Save current arrangement does NOT touch any template when none is active',
     charts_active_template: 'null',
   }
   renderWS()
-  act(() => { screen.getByRole('button', { name: /save layout/i }).click() })
+  clickToolbar(/save layout/i)
   act(() => { screen.getByRole('button', { name: /save current arrangement/i }).click() })
   expect(mockLayouts.saveLayout).not.toHaveBeenCalled()
 })
@@ -351,7 +426,7 @@ test('Save current arrangement does NOT touch any template when none is active',
 test('deleting a layout asks to confirm; Go back cancels without deleting', () => {
   mockLayouts.mine = [{ id: 42, name: 'My Setup', scope: 'user', layout: { widgets: [], cols: 24 } }]
   renderWS()
-  act(() => { screen.getByRole('button', { name: /open layout/i }).click() })
+  clickToolbar(/open layout/i)
   act(() => { screen.getByRole('button', { name: '✕' }).click() })
   expect(screen.getByText('Delete?')).toBeInTheDocument()
   act(() => { screen.getByRole('button', { name: /go back/i }).click() })
@@ -369,7 +444,7 @@ test('confirming delete of the OPEN layout deletes it and falls back to UCT Defa
     charts_active_template: JSON.stringify({ id: 42, name: 'My Setup', scope: 'user' }),
   }
   renderWS()
-  act(() => { screen.getByRole('button', { name: /open layout/i }).click() })
+  clickToolbar(/open layout/i)
   act(() => { screen.getByRole('button', { name: '✕' }).click() })
   await act(async () => { screen.getByRole('button', { name: /^Yes$/ }).click() })
   expect(mockLayouts.deleteLayout).toHaveBeenCalledWith(42)
@@ -453,7 +528,7 @@ test('New Layout wipes the board to empty and persists the blank state', () => {
   }
   renderWS()
   expect(screen.getByTestId('body-scanner')).toBeInTheDocument()
-  act(() => { screen.getByRole('button', { name: /new layout/i }).click() })
+  clickToolbar(/new layout/i)
   expect(screen.queryByTestId('body-scanner')).not.toBeInTheDocument()
   expect(setPref).toHaveBeenCalledWith(
     'charts_workspace_layout',
@@ -466,13 +541,10 @@ test('New Layout wipes the board to empty and persists the blank state', () => {
   )
 })
 
-test('Multi Chart is a top-level toolbar dropdown that opens the MultiChartMenu', () => {
+test('the toolbar opens the MultiChartMenu', () => {
   renderWS()
-  // Multi Chart moved OUT of the Open-layout menu into its own header button.
-  const btn = screen.getByRole('button', { name: /Multi Chart/ })
-  expect(btn).toBeInTheDocument()
   expect(screen.queryByTestId('multichart-menu')).not.toBeInTheDocument()
-  act(() => { btn.click() })
+  clickToolbar(/multi chart/i)
   expect(screen.getByTestId('multichart-menu')).toBeInTheDocument()
 })
 
@@ -481,14 +553,16 @@ test('grid mode renders MultiChartGrid when multichart_state has mode:"grid"', (
   renderWS()
   expect(screen.getByTestId('multichart-grid')).toBeInTheDocument()
   expect(screen.queryByTestId('rgl-responsive')).not.toBeInTheDocument()
-  // Workspace-only toolbar buttons hide in grid mode; a Workspace exit shows.
-  expect(screen.queryByRole('button', { name: /\+ add widget/i })).not.toBeInTheDocument()
-  expect(screen.queryByRole('button', { name: /save layout/i })).not.toBeInTheDocument()
+  // Workspace-only actions go away entirely in grid mode — not merely off the
+  // top level, so this asks the whole toolbar (every dropdown included), which is
+  // the only way the absence means what it says now that things nest.
+  expect(toolbarButton(/add widget/i), 'Add Widget is still offered in grid mode').toBeNull()
+  expect(toolbarButton(/save layout/i), 'Save Layout is still offered in grid mode').toBeNull()
   expect(screen.getByRole('button', { name: 'Workspace' })).toBeInTheDocument()
   // Open layout + Multi Chart stay available in grid mode (both are the entry
   // points that persist across modes).
-  expect(screen.getByRole('button', { name: /open layout/i })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: /Multi Chart/ })).toBeInTheDocument()
+  expect(toolbarButton(/open layout/i)).toBeTruthy()
+  expect(toolbarButton(/multi chart/i)).toBeTruthy()
 })
 
 // ── Pop-out ────────────────────────────────────────────────────────────────
@@ -522,7 +596,7 @@ test('popping out the layout empties the main board and moves the widgets into t
     renderWS()
     expect(screen.getByTestId('body-chart')).toBeInTheDocument()
 
-    act(() => { screen.getByRole('button', { name: /pop out layout/i }).click() })
+    clickToolbar(/pop out layout/i)
 
     // Main goes back to a blank board, ready for the next layout.
     expect(screen.queryByTestId('body-chart')).not.toBeInTheDocument()
@@ -539,7 +613,7 @@ test('closing a popped-out layout docks its widgets back into the main board', (
   const openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
   try {
     renderWS()
-    act(() => { screen.getByRole('button', { name: /pop out layout/i }).click() })
+    clickToolbar(/pop out layout/i)
     expect(screen.queryByTestId('body-chart')).not.toBeInTheDocument()
 
     act(() => { fake._fire('beforeunload') })
@@ -555,7 +629,7 @@ test('a blocked popup leaves the board intact instead of losing the layout', () 
   const openSpy = vi.spyOn(window, 'open').mockReturnValue(null)
   try {
     renderWS()
-    act(() => { screen.getByRole('button', { name: /pop out layout/i }).click() })
+    clickToolbar(/pop out layout/i)
 
     expect(screen.getByTestId('body-chart')).toBeInTheDocument()
     expect(screen.getByRole('alert')).toHaveTextContent(/blocked/i)
@@ -565,7 +639,7 @@ test('a blocked popup leaves the board intact instead of losing the layout', () 
 test('pop out layout is disabled while the board is empty', () => {
   mockPrefs = { charts_workspace_layout: JSON.stringify({ widgets: [], cols: 24 }) }
   renderWS()
-  expect(screen.getByRole('button', { name: /pop out layout/i })).toBeDisabled()
+  expect(toolbarButton(/pop out layout/i)).toBeDisabled()
 })
 
 test('a popped-out layout is not disturbed by opening a different layout on the main tab', () => {
@@ -573,11 +647,11 @@ test('a popped-out layout is not disturbed by opening a different layout on the 
   const openSpy = vi.spyOn(window, 'open').mockReturnValue(fake)
   try {
     renderWS()
-    act(() => { screen.getByRole('button', { name: /pop out layout/i }).click() })
+    clickToolbar(/pop out layout/i)
     expect(popped(fake, 'chart')).toBeTruthy()
 
     // Load a fresh layout into the now-blank main tab.
-    act(() => { screen.getByRole('button', { name: /open layout/i }).click() })
+    clickToolbar(/open layout/i)
     act(() => { screen.getByRole('button', { name: /^UCT Default$/ }).click() })
 
     // Main has its own board again...

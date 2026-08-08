@@ -12,7 +12,7 @@ import {
 import * as engineRegistry from './engine/nativeRegistry'
 import usePreferences, { parsePref } from '../../hooks/usePreferences'
 import UIcon from '../ui/UIcon'
-import { HEADER_FIELDS, HEADER_FIELD_BY_KEY, headerFieldKeys } from './headerFields'
+import { HEADER_FIELDS, HEADER_FIELD_BY_KEY, headerFieldKeys, SIGN_POS, SIGN_NEG } from './headerFields'
 import styles from './ChartSettingsModal.module.css'
 
 // A user's saved chart-settings templates live in ONE global pref so they're
@@ -166,18 +166,36 @@ export default function ChartSettingsModal({
   const [tplName, setTplName] = useState('')
   const tplInputRef = useRef(null)
   useEffect(() => { if (savingTpl && tplInputRef.current) { tplInputRef.current.focus(); tplInputRef.current.select() } }, [savingTpl])
-  // Info Row field-picker menu (Header tab).
+  // Info Row field-picker menu (Header tab) — pops out to the RIGHT of the modal (like the
+  // color panel) so it never gets clipped by the modal's bottom.
   const [fieldMenuOpen, setFieldMenuOpen] = useState(false)
   const [fieldQuery, setFieldQuery] = useState('')
+  const [fieldMenuPos, setFieldMenuPos] = useState(null)
   const fieldWrapRef = useRef(null)
+  const fieldMenuRef = useRef(null)
   useEffect(() => {
     if (!fieldMenuOpen) return
     const onDown = (e) => {
-      if (fieldWrapRef.current && !fieldWrapRef.current.contains(e.target)) setFieldMenuOpen(false)
+      const inWrap = fieldWrapRef.current && fieldWrapRef.current.contains(e.target)
+      const inMenu = fieldMenuRef.current && fieldMenuRef.current.contains(e.target)
+      if (!inWrap && !inMenu) setFieldMenuOpen(false)
     }
     document.addEventListener('mousedown', onDown, true)   // capture: beats the panel's stopPropagation
     return () => document.removeEventListener('mousedown', onDown, true)
   }, [fieldMenuOpen])
+  useLayoutEffect(() => {
+    if (!fieldMenuOpen || !panelRef.current) { setFieldMenuPos(null); return }
+    const r = panelRef.current.getBoundingClientRect()
+    // Top-align the field menu to the settings modal's top edge, and give it enough
+    // height that every field shows without scrolling (H tracks the full list); if it
+    // would spill past the viewport bottom, nudge it up.
+    const W = 240, gap = 12, H = Math.min(760, window.innerHeight - 24)
+    let left = r.right + gap
+    if (left + W > window.innerWidth - 8) left = Math.max(8, r.left - W - gap)  // flip left if tight
+    let top = r.top
+    if (top + H > window.innerHeight - 8) top = Math.max(8, window.innerHeight - 8 - H)
+    setFieldMenuPos({ left, top })
+  }, [fieldMenuOpen, pos])
 
   const persistTemplates = (arr) => setPref(CHART_TEMPLATES_KEY, JSON.stringify(arr.slice(0, MAX_TEMPLATES)))
   const commitSaveTemplate = () => {
@@ -335,6 +353,13 @@ export default function ChartSettingsModal({
       onChange?.({ ...settings, watermark: { ...watermark, color: rgb, opacity: a }, preset: 'custom' })
       return
     }
+    // Per-field Info Row colors: `hdrf:<colorKey>` → header.colors[colorKey].
+    if (target.startsWith('hdrf:')) {
+      const key = target.slice(5)
+      const h = settings?.header || {}
+      onChange?.({ ...settings, header: { ...h, colors: { ...(h.colors || {}), [key]: hex } }, preset: 'custom' })
+      return
+    }
     const path = COLOR_PATHS[target]; if (!path) return
     const next = { ...settings }
     let o = next
@@ -368,6 +393,16 @@ export default function ChartSettingsModal({
     if (isIndTarget(t)) {
       const { rowId, field } = splitIndTarget(t)
       return indRowById(rowId)?.values?.[field] || '#c9a84c'
+    }
+    if (t.startsWith('hdrf:')) {
+      const key = t.slice(5)
+      const ov = settings?.header?.colors?.[key]
+      if (ov) return ov
+      // Signed field halves (`<colorKey>:pos` / `:neg`) default to green / red.
+      if (key.endsWith(':pos')) return SIGN_POS
+      if (key.endsWith(':neg')) return SIGN_NEG
+      const hf = HEADER_FIELDS.find((x) => x.colorKey === key)
+      return (hf && hf.dflt) || '#9b9684'   // neutral placeholder for auto/sign-tinted fields
     }
     switch (t) {
       case 'bodyUp': return candles.upColor || '#1ae51a'
@@ -839,53 +874,36 @@ export default function ChartSettingsModal({
             </div>
           </section>
 
-          {/* INFO ROW — pick which stats show in the strip above the chart. */}
+          {/* INFO ROW — an "Add Field" button (beside the label) opens the searchable field
+              menu (pops out to the RIGHT of the modal). Every selected field then lists here
+              with a color swatch. */}
           <section className={styles.section}>
-            <div className={styles.sectionLabel}>Info Row</div>
-            <div className={styles.fieldPickWrap} ref={fieldWrapRef}>
+            <div className={styles.infoRowHead}>
+              <span className={styles.sectionLabel} style={{ padding: 0 }}>Info Row</span>
               <button
                 type="button"
-                className={styles.fieldPickBtn}
+                ref={fieldWrapRef}
+                className={styles.addFieldBtn}
                 onClick={() => setFieldMenuOpen((o) => !o)}
                 aria-expanded={fieldMenuOpen}
-              >
-                <span>{infoFields.length ? `${infoFields.length} field${infoFields.length === 1 ? '' : 's'} shown` : 'No fields shown'}</span>
-                <span className={styles.fieldPickCaret}>▾</span>
-              </button>
-              {fieldMenuOpen && (
-                <div className={styles.fieldMenu}>
-                  <input
-                    className={styles.fieldSearch}
-                    placeholder="Search fields…"
-                    value={fieldQuery}
-                    onChange={(e) => setFieldQuery(e.target.value)}
-                    autoFocus
-                  />
-                  <div className={styles.fieldList}>
-                    {HEADER_FIELDS
-                      .filter((f) => !fieldQuery || f.label.toLowerCase().includes(fieldQuery.toLowerCase()))
-                      .map((f) => {
-                        const on = infoFields.includes(f.key)
-                        return (
-                          <button key={f.key} type="button" className={styles.fieldItem} onClick={() => toggleInfoField(f.key)}>
-                            <span className={styles.fieldCheck}>{on ? <UIcon name="check" size={11} /> : null}</span>
-                            {f.label}
-                          </button>
-                        )
-                      })}
-                  </div>
-                </div>
-              )}
+              >＋ Add Field</button>
             </div>
-            {/* Color per selected field that supports one (market cap / next earnings / UCT rating). */}
-            {infoFields.some((k) => HEADER_FIELD_BY_KEY[k]?.colorKey) && (
+            {infoFields.length > 0 && (
               <div className={styles.card}>
-                {infoFields.filter((k) => HEADER_FIELD_BY_KEY[k]?.colorKey).map((k) => {
+                {infoFields.map((k) => {
                   const f = HEADER_FIELD_BY_KEY[k]
+                  if (!f) return null
+                  // Signed fields (% change, $ change, N-day…) get TWO swatches: the left
+                  // colors positive values, the right colors negative values.
                   return (
                     <div className={styles.field} key={k}>
                       <span className={styles.fieldLabel}>{f.label} color</span>
-                      <div className={styles.hdrRowCtl}>{colorSwatch(f.swatch, `${f.label} color`)}</div>
+                      <div className={styles.hdrRowCtl}>
+                        {f.signed ? (<>
+                          {colorSwatch(`hdrf:${f.colorKey}:pos`, `${f.label} — positive`)}
+                          {colorSwatch(`hdrf:${f.colorKey}:neg`, `${f.label} — negative`)}
+                        </>) : colorSwatch(`hdrf:${f.colorKey}`, `${f.label} color`)}
+                      </div>
                     </div>
                   )
                 })}
@@ -1151,6 +1169,38 @@ export default function ChartSettingsModal({
               onStyle: (s) => setSetting({ crosshair: { ...crosshair, style: s } }),
             } : null}
           />
+        </div>,
+        document.body,
+      )}
+      {/* Field picker — portaled to the RIGHT of the modal (like the color panel) so it
+          never gets clipped by the modal's bottom. */}
+      {fieldMenuOpen && fieldMenuPos && createPortal(
+        <div
+          ref={fieldMenuRef}
+          className={styles.fieldMenu}
+          style={{ position: 'fixed', left: fieldMenuPos.left, top: fieldMenuPos.top, right: 'auto', zIndex: 9200 }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <input
+            className={styles.fieldSearch}
+            placeholder="Search fields…"
+            value={fieldQuery}
+            onChange={(e) => setFieldQuery(e.target.value)}
+            autoFocus
+          />
+          <div className={styles.fieldList}>
+            {HEADER_FIELDS
+              .filter((f) => !fieldQuery || f.label.toLowerCase().includes(fieldQuery.toLowerCase()))
+              .map((f) => {
+                const on = infoFields.includes(f.key)
+                return (
+                  <button key={f.key} type="button" className={styles.fieldItem} onClick={() => toggleInfoField(f.key)}>
+                    <span className={styles.fieldCheck}>{on ? <UIcon name="check" size={11} /> : null}</span>
+                    {f.label}
+                  </button>
+                )
+              })}
+          </div>
         </div>,
         document.body,
       )}

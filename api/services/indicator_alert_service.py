@@ -943,6 +943,132 @@ def diagnose(alert: dict, bars: Optional[list]) -> tuple[bool, Optional[str]]:
     return False, None
 
 
+# ─── WHY A SAVED FORMULA IS NOT IN THE PICKER — THE OTHER SILENCE ────────────
+#
+# 🔴 THE DEFECT, IN ONE SENTENCE. `alert_user_series.user_catalog` runs the
+# admission gates over every stored formula and `continue`s past the ones a gate
+# refuses. That is CORRECT per `alert_catalog`'s own contract — *"the dropdown
+# cannot offer an alert that cannot fire"* — and it is completely SILENT. A
+# member typed a formula, the STORE accepted it, `GET /api/user-definitions`
+# lists it, the library dialog shows it, and the alert picker simply does not
+# have it, with nothing anywhere saying why. The reason existed the whole time,
+# in `AdmissionRefused`, and had no consumer on this path at all.
+#
+# ⭐ THIS IS THE ALERT HALF OF `918e3c8a`, DELIBERATELY BUILT THE SAME WAY. That
+# commit closed the identical silence on the LIBRARY half
+# (`indicatorCatalog.userRefusalRows` → `IndicatorLibraryDialog`); the alert half
+# was named as still-open in its own report and is this. Same rule, same shape,
+# so a member reads one sentence about their formula rather than two.
+#
+# ⛔ THE MESSAGE IS THE DOOR'S, VERBATIM AND WHOLE. `AdmissionRefused` already
+# writes a precise sentence per gate and appends its own `[gate:<name>]`
+# attribution; `TableRefusal` writes one of six pairwise-disjoint sentences and
+# carries `.guard`. Neither is re-worded here, neither is truncated, and NO
+# SECOND VOCABULARY IS INVENTED. This repo has measured what two vocabularies
+# cost (`williams_r` vs `williamsR`), and `REFUSAL_FRAGMENTS`' disjointness is a
+# SAFETY property — `test_every_admission_refusal_fragment_names_exactly_one_gate`
+# exists because two gates once shared a phrase and a `raises(match=…)` passed
+# with the safety deleted. A paraphrase here would put a second, unasserted
+# spelling of every refusal on the wire.
+#
+# ⛔⛔ AND THE SET IS THE CATALOG'S OWN COMPLEMENT, NOT A SECOND RUN OF THE GATES.
+# If this decided independently which formulas are refused, the two answers could
+# drift and a formula could end up absent from BOTH lists — the original bug,
+# rebuilt one remove out, and silent in exactly the same way. So the offered ids
+# come from `user_catalog(user_id)` ITSELF and everything the store holds that is
+# not in that list is reported. The GATES are asked only for the SENTENCE.
+# `test_every_stored_formula_is_either_OFFERED_or_REFUSED` is the biconditional.
+#
+# ⚠️ IT LIVES HERE, BESIDE `diagnose`, ON PURPOSE. `diagnose` answers *"why is
+# this alert silent"* about a row that already exists; this answers the same
+# question one step earlier, for a formula that never got to be a row. Both are
+# read-outs about silence and neither is a gate — the gates stay in
+# `alert_user_series`, which is the only module allowed to refuse.
+
+#: The ONE sentence this module writes for itself, for the one omission NO DOOR
+#: refuses: `user_catalog` also skips a definition with no keyed plot, and a
+#: definition with no plot has no `<def>.<plot>` ADDRESS for a picker to offer.
+#: There is no gate to quote because nothing gated it, so this says WHAT happened
+#: and does not dress itself up as a door's sentence — the same split
+#: `IndicatorLibraryDialog`'s lede draws one surface over. It exists so the
+#: complement above is TOTAL: a formula nobody can find must never fall through
+#: this function into the same silence it was written to end.
+NO_PLOT_TO_OFFER = (
+    "declares no plot, so it has no series address an alert could name")
+
+
+def _refusal_of(row: dict, def_id: str) -> tuple[Optional[str], str]:
+    """`(door, sentence)` for a stored formula the picker does not offer.
+
+    ⛔ IT DRIVES THE REAL GATES, IN `user_catalog`'s ORDER, AND CATCHES WHAT IT
+    CATCHES. The two `except` arms below are the two `user_catalog` itself has:
+    `AdmissionRefused` (this module's own doors) and everything else, which is
+    the closed TABLE refusing a tree — `_gate_budget`'s docstring is explicit
+    that `interpret:node` / `resolve:function` / `resolve:arity` /
+    `resolve:window` propagate as THEMSELVES rather than being relabelled as
+    budget refusals, and relabelling them here would be the same wrong-door
+    defect one layer up.
+
+    Both exception types name their own door (`.gate` / `.guard`), so the
+    attribution is the door's too. `None` for a door means "this function could
+    not attribute it", which is a different sentence from naming the wrong one.
+    """
+    from api.services import alert_user_series as aus
+    try:
+        definition = aus._gate_lane(row)
+        aus._gate_repaint(row, definition)
+        aus._gate_budget(definition, def_id)
+    except aus.AdmissionRefused as exc:
+        return exc.gate, str(exc)
+    except Exception as exc:  # noqa: BLE001 - a TableRefusal out of `check_budget`
+        return getattr(exc, "guard", None), str(exc)
+    return None, f"{def_id} {NO_PLOT_TO_OFFER}"
+
+
+def user_definition_refusals(user_id: Optional[Any] = None) -> list[dict]:
+    """Every stored formula the alert catalog does NOT offer, with the reason.
+
+    Served beside `catalog` by `GET /api/indicator-alerts/catalog`, so the
+    surface that offers a member their own formulas is also the one that says why
+    it cannot — which is the rule `918e3c8a` set on the library half.
+
+    ``[]`` for an account with nothing refused, and ``[]`` for no account at all
+    — the second is what keeps the endpoint's answer for a caller with no id
+    exactly what it always was, and it reaches no store.
+
+    :returns: ``[{id, label, gate, messages}]`` in the store's own order.
+      ``messages`` is a LIST because the shape has to survive a formula failing
+      more than one door; today the gates short-circuit on the first, and
+      reporting only a first reason out of a scalar field would be a shape that
+      hides the second the day they stop.
+    """
+    if not user_id:
+        return []
+    from api.services import alert_user_series as aus
+    from api.services import user_definitions
+
+    offered = {str(entry.get("indicator"))
+               for entry in aus.user_catalog(user_id)}
+
+    out: list[dict] = []
+    for row in user_definitions.list_for_user(user_id):
+        def_id = str(row.get("def_id"))
+        if def_id in offered:
+            continue
+        gate, message = _refusal_of(row, def_id)
+        out.append({
+            "id": def_id,
+            # ⛔ THE DOOR'S OWN LABELLER, NOT A SECOND READ OF `meta.name`.
+            # `alert_user_series._definition_label` is what names this formula
+            # everywhere else in the picker; a private copy here would let the
+            # refused row and the offered row call one formula two things.
+            "label": aus._definition_label(row.get("definition") or {}, def_id),
+            "gate": gate,
+            "messages": [message],
+        })
+    return out
+
+
 # ─── WHAT THE CREATE PATH REFUSES, AND WHY EACH REFUSAL IS MODE-HONEST ───────
 #
 # ⭐ THE GAP THIS CLOSES. `diagnose` above answers *"why is this alert silent"*

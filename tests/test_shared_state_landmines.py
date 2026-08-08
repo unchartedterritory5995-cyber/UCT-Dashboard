@@ -38,6 +38,16 @@ import pytest
 # import deferred, removing the conftest fix left them GREEN).
 from api.services import auth_db, auth_service  # noqa: E402
 
+# ⭐ CAPTURED AT *THIS MODULE'S* IMPORT, WHICH IS COLLECTION TIME.
+#
+# pytest completes collection before it runs a single test body, and every
+# rebinding of `auth_db._DB_PATH` in this repo lives inside a function (measured
+# — see `test_the_connection_...` below). So this value is the path the six
+# import-time readers captured, observed before anything could move it, and an
+# assertion on it is ORDER-INDEPENDENT in a way an assertion on the live
+# connection is not.
+_DB_PATH_AT_IMPORT = auth_db._DB_PATH
+
 REPO = Path(__file__).resolve().parents[1]
 
 
@@ -152,21 +162,167 @@ def _attached_main_db() -> str:
     return main[0]
 
 
-def test_the_connection_the_product_opens_is_never_the_shared_store(shared_auth_db_path):
-    """`auth_db._DB_PATH` is read once, at import, so `setenv` proves nothing.
+def _module_level_auth_db_path_assignments():
+    """AST, never grep: collected test modules that set `AUTH_DB_PATH` at IMPORT.
 
-    ⚠️ The invariant is "never the SHARED store", not "always the session
-    store". A handful of test modules (e.g.
-    `tests/test_auth_last_login_throttle.py`) assign `os.environ["AUTH_DB_PATH"]`
-    at their own import time, and whichever of those pytest imports first
-    decides what `auth_db` captured — a per-module temp file is still
-    isolation, so demanding OUR file here would make this rail itself
-    order-dependent, which is the disease.
+    This is the census that decides whether the rail below can be stated in its
+    strong form. A module-level `os.environ["AUTH_DB_PATH"] = …` is captured by
+    the six import-time readers if pytest imports that module before
+    `api.services.auth_db` — so a single one of these makes "always MY store"
+    depend on collection order. Depth is tracked so an assignment inside a
+    fixture or a test body (which monkeypatch or a `finally` can undo, and which
+    cannot beat conftest to the import) is not counted.
     """
-    attached = _attached_main_db()
-    assert os.path.normcase(os.path.abspath(attached)) != \
-        os.path.normcase(os.path.abspath(shared_auth_db_path)), (
-            f"auth_db opened the SHARED store {attached!r}")
+    hits = []
+
+    def is_environ_key(node, key):
+        return (isinstance(node, ast.Subscript)
+                and isinstance(node.value, ast.Attribute)
+                and node.value.attr == "environ"
+                and isinstance(node.slice, ast.Constant)
+                and node.slice.value == key)
+
+    for path in _test_module_files():
+        tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"), str(path))
+
+        def walk(node, depth):
+            for child in ast.iter_child_nodes(node):
+                deeper = depth + 1 if isinstance(
+                    child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) else depth
+                if depth == 0:
+                    if isinstance(child, ast.Assign) and any(
+                            is_environ_key(t, "AUTH_DB_PATH") for t in child.targets):
+                        hits.append(f"{path.relative_to(REPO)}:{child.lineno}")
+                    if (isinstance(child, ast.Call)
+                            and isinstance(child.func, ast.Attribute)
+                            and child.func.attr == "setdefault"
+                            and isinstance(child.func.value, ast.Attribute)
+                            and child.func.value.attr == "environ"
+                            and child.args
+                            and isinstance(child.args[0], ast.Constant)
+                            and child.args[0].value == "AUTH_DB_PATH"):
+                        hits.append(f"{path.relative_to(REPO)}:{child.lineno} (setdefault)")
+                walk(child, deeper)
+
+        walk(tree, 0)
+    return sorted(hits)
+
+
+def test_no_collected_test_module_claims_AUTH_DB_PATH_at_import_time():
+    """The precondition of the strong rail below, asserted separately.
+
+    ⚠️ THIS IS WHY THE RAIL BELOW COULD ONLY EVER SAY "NEVER THE SHARED STORE".
+    `tests/test_auth_last_login_throttle.py:19` did exactly this — a temp file,
+    so nothing leaked, but it meant `auth_db._DB_PATH` for the whole session was
+    decided by which module pytest imported first. Deleted rather than fixtured:
+    the repo-root `conftest.py` already mints one isolated store before any test
+    module is imported, so the assignment had nothing left to buy.
+
+    Kept as its OWN test rather than folded into the rail, so a regression names
+    the file and line instead of reporting a mismatched path.
+    """
+    offenders = _module_level_auth_db_path_assignments()
+    assert offenders == [], (
+        "a collected test module sets AUTH_DB_PATH at import time:\n  "
+        + "\n  ".join(offenders)
+        + "\nThe repo-root conftest.py owns this value. A module-level assignment "
+          "here races it: whichever import lands first decides what all six "
+          "import-time readers capture, which is precisely the order-dependence "
+          "these rails exist to remove. Point the test at `isolated_auth_db` (or "
+          "monkeypatch the module ATTRIBUTE inside a fixture) instead.")
+
+
+def _reload_sites_of_authdb_capturers():
+    """Every `importlib.reload(...)` of a module that reads `AUTH_DB_PATH` at
+    import — the shape that rebinds the attribute and that NOTHING can undo.
+
+    AST, never grep, and the alias is resolved from the file's own imports so
+    `reload(adb)` and `reload(auth_db)` both count. This is a MEASUREMENT used to
+    explain the boundary between the two rails below; it is deliberately not an
+    assertion on the count, which would be a ratchet on 41 files owned by other
+    work.
+    """
+    capturers = {"auth_db", "regime_snapshots", "bar_provenance",
+                 "bar_quarantine", "bars_audit", "indicator_alert_service"}
+    conftests = [p for base in (REPO / "tests", REPO / "api")
+                 for p in base.rglob("conftest.py")
+                 if "__pycache__" not in p.parts]
+    sites = []
+    for path in _test_module_files() + conftests:
+        if not path.exists():
+            continue
+        tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"), str(path))
+        alias = {}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for a in node.names:
+                    alias[a.asname or a.name.split(".")[0]] = a.name
+            elif isinstance(node, ast.ImportFrom):
+                for a in node.names:
+                    alias[a.asname or a.name] = (
+                        f"{node.module}.{a.name}" if node.module else a.name)
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "reload" and node.args):
+                arg = ast.unparse(node.args[0])
+                if alias.get(arg, arg).split(".")[-1] in capturers:
+                    sites.append(f"{path.relative_to(REPO)}:{node.lineno}")
+    return sorted(sites)
+
+
+def test_the_path_the_product_CAPTURED_AT_IMPORT_is_the_sessions_own_store(
+        isolated_auth_db, shared_auth_db_path):
+    """⭐ THE "ALWAYS MY STORE" FORM, STATED WHERE IT ACTUALLY HOLDS.
+
+    `auth_db._DB_PATH` is read ONCE, at import, so what matters is what it read
+    THEN. `tests/test_auth_last_login_throttle.py:19` used to assign
+    `os.environ["AUTH_DB_PATH"]` at ITS import, so whichever module pytest
+    imported first decided this value — and the rail could only manage the weaker
+    "never the SHARED store" (measured at the time: 3 failed / 5 passed on the
+    strong form, depending purely on order). With that assignment deleted and the
+    repo-root conftest owning the value, the strong form holds, and it holds
+    ORDER-INDEPENDENTLY: pytest finishes collection before it runs a test body,
+    and every rebinding in this repo happens inside one.
+
+    "Not the shared store" is satisfied by ANY file. This says it is MINE, which
+    is what keeps the six import-time readers and the seven per-call journal_two
+    readers pointed at one database instead of two.
+    """
+    assert os.path.normcase(os.path.abspath(_DB_PATH_AT_IMPORT)) == \
+        os.path.normcase(os.path.abspath(isolated_auth_db)), (
+            f"at import, auth_db captured {_DB_PATH_AT_IMPORT!r} rather than this "
+            f"session's store {isolated_auth_db!r} — something set AUTH_DB_PATH "
+            "before the repo-root conftest, or instead of it")
+    assert os.path.normcase(os.path.abspath(_DB_PATH_AT_IMPORT)) != \
+        os.path.normcase(os.path.abspath(shared_auth_db_path))
+
+
+def test_the_connection_the_product_opens_is_never_the_shared_store(shared_auth_db_path):
+    """The LIVE connection — `PRAGMA database_list`, not the env var, not
+    `auth_db._DB_PATH`, not what a fixture intended.
+
+    ⚠️ THIS ONE STAYS AT "NEVER THE SHARED STORE", AND THE REASON IS MEASURED
+    RATHER THAN ASSUMED. 45 sites across 41 collected test files call
+    `importlib.reload()` on a module that captures `AUTH_DB_PATH` at import
+    (`_reload_sites_of_authdb_capturers` derives the list). A reload re-executes
+    the module body under whatever the env var says AT THAT MOMENT, so the
+    attribute moves to that test's `tmp_path` — and `monkeypatch` unwinds the env
+    var but CANNOT unwind a reload. Every later test in the process therefore
+    opens an earlier test's temp file until the next reload moves it again.
+
+    That is a split session, not a leak: each of those paths is still isolated,
+    so the shared store stays untouched, which is exactly what this rail asserts
+    and all it can honestly assert. The durable fix is a per-test restore of the
+    attribute in `tests/conftest.py`, which is a change to 41 other files' worth
+    of behaviour and is deliberately not made here.
+    """
+    attached = os.path.normcase(os.path.abspath(_attached_main_db()))
+    sites = _reload_sites_of_authdb_capturers()
+    assert sites, (
+        "no reload sites found — then the weaker form below is no longer "
+        "justified and this rail should be strengthened to 'always my store'")
+    assert attached != os.path.normcase(os.path.abspath(shared_auth_db_path)), (
+        f"auth_db opened the SHARED store {attached!r}")
 
 
 def test_creating_users_leaves_the_shared_auth_db_untouched(shared_auth_db_path):

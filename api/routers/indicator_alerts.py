@@ -143,8 +143,24 @@ def get_alert_catalog(user: dict = Depends(get_current_user)):
     producer at all, not merely a missing one. `alert_catalog(user_id)` APPENDS
     this account's own formulas after the global groups; called without an id it
     is byte-for-byte the enumeration every rail in this phase measures.
+
+    🔴 …AND `refusals` IS WHY A FORMULA IS **NOT** IN THAT LIST. `user_catalog`
+    omits what the gates refuse — correct, and silent: a member saved a formula,
+    the store accepted it, and the picker did not have it with nothing anywhere
+    saying why. This is the alert half of `918e3c8a`, which closed the identical
+    silence in the indicator library, and it carries the GATE'S OWN SENTENCE
+    verbatim (see `indicator_alert_service.user_definition_refusals`).
+
+    ⛔ IT IS A SECOND KEY, NEVER A ROW IN `catalog`. A refused formula has no
+    address to submit, so an entry among the offerings would be an option that
+    arms nothing — the same reason the library dialog puts its refusals in their
+    own section outside `role="listbox"`. It also keeps `catalog` byte-unmoved,
+    which `test_the_GLOBAL_catalog_is_BYTE_UNMOVED_by_the_scoped_one` reads.
     """
-    return {"catalog": indicator_alert_evaluator.alert_catalog(user["id"])}
+    return {
+        "catalog": indicator_alert_evaluator.alert_catalog(user["id"]),
+        "refusals": ias.user_definition_refusals(user["id"]),
+    }
 
 
 @router.get("/fired")

@@ -44,6 +44,7 @@
 
 import * as defaultRegistry from './engine/nativeRegistry'
 import { CHART_DEFAULTS } from './chartDefaults'
+import { definitionRollUp, repaintNotices } from './engine/repaintVerdict'
 
 /** A settings section with no engine definition. Hand-written BY NAME, so a
  *  sixteenth one has to be argued for here rather than joining a silent
@@ -74,13 +75,21 @@ export const CARVED_OUT_ROWS = Object.freeze([
     userDefined: false,
     description: 'Traded volume binned by price over the visible range, with the point of control marked.',
     tags: Object.freeze(['volume', 'profile']),
-    // ⛔ DECLARED, NOT INVENTED. The library dialog renders a repaint badge from
-    // this field and NOTHING else — a badge is a factual claim about the
-    // indicator, and self-disclosed prose is how a product ends up telling users
-    // a repainting indicator does not repaint. This section has no definition to
-    // declare it, so it declares `null` and the row shows no badge, which is the
-    // honest answer for a canvas overlay that rebins on every range change.
+    // ⛔ DECLARED, NOT INVENTED — the definition's own CLAIM, which is what this
+    // field has always been. ⚰️ It also used to be what the library dialog
+    // badged, and that clause is retired rather than deleted: the row now
+    // renders `measuredRepaint` (see `rowFor`), because a badge is a factual
+    // claim about the indicator and self-disclosed prose is how a product ends
+    // up telling users a repainting indicator does not repaint. This section has
+    // no definition at all, so it declares `null` and measures `null`, which is
+    // the honest answer for a canvas overlay that rebins on every range change.
     repaint: null,
+    // ⛔ THE MEASUREMENT, AND IT IS `null` BY CONSTRUCTION HERE. There is no
+    // definition for the linter to read, and `null` means NO OPINION — never
+    // "clean". Declared rather than left absent so every row answers the field
+    // on both branches, the way `userDefined` above does.
+    measuredRepaint: null,
+    repaintingPlots: Object.freeze([]),
     tier: 'free',
     sessionOnly: false,
     fields: Object.freeze([
@@ -124,12 +133,48 @@ function rowFor(def, userDefined = false) {
     userDefined,
     description: meta.description || '',
     tags: Array.isArray(meta.tags) ? meta.tags : [],
-    // ── the three facts the library dialog badges, all DECLARED ──────────────
+    // ── what the library dialog badges ───────────────────────────────────────
     // `repaint` and `tier` come straight off the definition; a definition that
     // declares neither gets no badge rather than a default one, because "free"
     // and "non-repainting" are claims and a missing declaration is not a claim.
+    //
+    // ⚰️ `repaint` IS STILL SERVED AND IS NO LONGER THE ROW'S BADGE. It is the
+    // definition's CLAIM, and on every lane but `ast` it is an unauditable one:
+    // `nativeRegistry.nativeDef` writes `non-repainting` in ONE shared helper
+    // before the `...meta` spread, so all seventeen inherit it and nothing
+    // audited anything (decision record §1). On `ichimoku` the machine linter
+    // CONTRADICTS it — `compute_ichimoku_raw` writes bar `i`'s close to index
+    // `i - kijunPeriod`, so a plotted point at a historical index moves while
+    // the newest bar forms — and the library was printing the claim to a member
+    // as a fact, on the axis this brand is sold on. The field keeps its other
+    // consumers and its meaning; the BADGE moved to the measurement below.
     repaint: meta.repaint || null,
     tier: meta.tier || null,
+    // ── …and what the LINTER measured, which is what the row badges ──────────
+    //
+    // ⭐⭐ DERIVED, EVERY TIME, BY `engine/repaintVerdict`. There is deliberately
+    // no second derivation here and no stored field to read: `defSchema` refuses
+    // a `plots[].repaint` by name, `nativeRegistry.validateAstLane` refuses a
+    // `meta.repaint` that disagrees with the tree in BOTH directions (under-
+    // claiming is exactly as false as over-claiming), and this reads
+    // `definitionRollUp`, which reads `ast/lint.lintDefinition`. A badge an
+    // author can type is the audited-metadata defect one level down.
+    //
+    // ⛔ `null` IS NOT `non-repainting`. Sixteen definitions are hand-written
+    // computes spec §11 forbids analysing, so the linter has NO OPINION on them
+    // and the row shows nothing — which is also what a definition the linter
+    // measured and found CLEAN shows, because *"a badge that every indicator
+    // wears carries no information"* is the owner's own reason for the per-plot
+    // ruling. Silence here is "no opinion or clean", and no surface may render
+    // it as a green tick.
+    measuredRepaint: definitionRollUp(def),
+    // ⛔ AND THE SEPARATION IS THE POINT, SO THE PLOTS ARE NAMED. `ichimoku`
+    // draws five columns and exactly ONE of them — `chikou` — is the subject of
+    // the ruling; the cloud and the conversion/base lines genuinely do not
+    // repaint. A row badge that said only "this indicator repaints" would trade
+    // a false "safe" for a false "unsafe", which is the second move record §4.1
+    // refused. Empty for every clean and every undecidable definition.
+    repaintingPlots: repaintNotices(def),
     // …and "intraday only" is DERIVED from the timeframe list the definition
     // publishes, the same derivation the generated settings row's label uses. A
     // definition with no timeframe list runs on every timeframe.

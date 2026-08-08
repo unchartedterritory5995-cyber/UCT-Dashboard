@@ -1,4 +1,4 @@
-"""Regression test for the 2026-07-01 event-loop/threadpool-exhaustion incident.
+r"""Regression test for the 2026-07-01 event-loop/threadpool-exhaustion incident.
 
 `validate_session()` runs on EVERY authenticated request. It used to issue an
 `UPDATE users SET last_login_at ... ` + commit on every call — a serialized SQLite
@@ -8,15 +8,31 @@ threads through a write-lock contention and starved the whole app (Cloudflare 52
 The fix throttles that write to at most once per user per `_LAST_LOGIN_MIN_INTERVAL`
 seconds via an in-process guard. `last_login_at` is display-only, so coarse
 granularity is fine. These tests pin the throttle behavior so it can't regress.
+
+⛔ THIS FILE DELIBERATELY DOES NOT SET `AUTH_DB_PATH`, AND THAT IS THE FIX.
+
+It used to open with
+
+    _TMP_DB = os.path.join(tempfile.gettempdir(), "uct_test_auth_last_login.db")
+    os.environ["AUTH_DB_PATH"] = _TMP_DB
+
+at MODULE level, unrestored. The reason was real — `auth_db` reads the path once,
+at import, so a fixture `setenv` reaches nothing — but the remedy was global: the
+six product modules that capture `AUTH_DB_PATH` at import bind to whichever
+assignment pytest imported FIRST, so this line decided the whole session's auth
+store whenever this file happened to be collected before `api.services.auth_db`.
+It never leaked to the shared `C:\data\auth.db` (its target was a temp file), but
+it is why the isolation rail could only assert "never the SHARED store" instead of
+the stronger "always MY store": demanding one file made the rail pass in one
+collection order and fail in the other.
+
+The repo-root `conftest.py` (`5479acb4`) now mints ONE isolated store and sets
+`AUTH_DB_PATH` at conftest import — before any test module is imported, therefore
+before any of those six can capture anything. So this file has nothing left to do,
+and `tests/test_shared_state_landmines.py::
+test_the_connection_the_product_opens_is_ALWAYS_the_sessions_own_store` is now the
+stronger rail that removing this comment's advice would break.
 """
-
-import os
-import tempfile
-
-# Point auth.db at a temp file BEFORE importing the auth modules (they read the
-# path at import time).
-_TMP_DB = os.path.join(tempfile.gettempdir(), "uct_test_auth_last_login.db")
-os.environ["AUTH_DB_PATH"] = _TMP_DB
 
 
 def test_should_write_last_login_throttles_within_window():

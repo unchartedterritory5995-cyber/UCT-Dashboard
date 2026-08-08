@@ -154,13 +154,36 @@
 
 /* The repaint badge. ⛔ INFORMATIONAL, NEVER ERROR-COLOURED (spec §6 state 9):
    "non-repainting" is a factual property of the indicator, and painting a fact
-   red teaches users to read a correct indicator as a broken one. */
+   red teaches users to read a correct indicator as a broken one.
+   ⚰️ NO ROW RENDERS THIS TODAY — `.badgeRepaint` below replaced it when the badge
+   became the LINTER'S measurement instead of the definition's declared claim. It
+   is kept because the geometry is shared and because a class deleted with its
+   reasoning is a reasoning nobody can find. */
 .badge {
   padding: 1px 6px;
   font-size: 10px;
   color: var(--text-muted);
   background: var(--bg-surface);
   border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+/* The MEASURED repaint badge — `.badge`'s geometry, warning-coloured.
+   ⚠️ THIS IS THE SECOND PLACE THIS SURFACE DEPARTS FROM "a fact is not a
+   warning", and for `.refusedWhy`'s reason one step over: the neutral treatment
+   is right for a property a member cannot act on, and wrong for one that says a
+   line they are about to trade off can still move under them. It renders on
+   exactly the definitions the linter MEASURED and found not clean — one of
+   seventeen today — so it is never the uniform column the neutral badge was.
+   ⛔ `--ind-warn`, NEVER `--warn`: tokens.css states outright that `--warn` IS
+   the premium gold, and this header allows itself at most ONE gold element
+   (`.tier`). */
+.badgeRepaint {
+  padding: 1px 6px;
+  font-size: 10px;
+  color: var(--ind-warn);
+  background: var(--ind-warn-bg);
+  border: 1px solid var(--ind-warn-border);
   border-radius: 4px;
 }
 

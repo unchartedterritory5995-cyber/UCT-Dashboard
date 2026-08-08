@@ -15,6 +15,10 @@ const FALLBACK = {
   // after a hover, only the active widget's document keydown fires, so a TF
   // key no longer retimes every mounted chart / fires N duplicate pref POSTs.
   activeChartRef: null,
+  // Custom-Period Sort: when true, chart widgets enter drag-to-highlight mode; a
+  // completed drag calls onPeriodSelected(sym, startYmd, endYmd, pctChange).
+  periodSortMode: false,
+  onPeriodSelected: () => {},
 }
 
 export function useWorkspace() {
