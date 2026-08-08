@@ -4,6 +4,7 @@
 // gold corner resize on all four corners) and can dock into the grid or become a tab.
 import { useState, useCallback } from 'react'
 import PeriodSortResults from './widgets/PeriodSortResults'
+import PeriodSortGroups from './widgets/PeriodSortGroups'
 import UIcon from '../../components/ui/UIcon'
 import styles from './PeriodSortPanel.module.css'
 
@@ -14,9 +15,10 @@ const DEF_W = 364, DEF_H = 560, MIN_W = 150, MIN_H = 40
 const COLORS = ['A', 'B', 'C', 'D', 'N']
 const COLOR_HEX = { A: '#c9a84c', B: '#60a5fa', C: '#4ade80', D: '#c084fc', N: '#6b7280' }
 
-export default function PeriodSortPanel({ start, end, onClose, onDock, onAddAsTab, tabTargets = [] }) {
-  // Open centered over the workspace (i.e. over the chart), not pinned to the left.
-  const [pos, setPos] = useState(() => ({ x: Math.max(12, Math.round((window.innerWidth - DEF_W) / 2)), y: 96 }))
+export default function PeriodSortPanel({ start, end, onClose, onDock, onAddAsTab, tabTargets = [], group = null, onPickGroup = null, symbolsFilter = null, titlePrefix = null, offset = 0 }) {
+  // Open centered over the workspace (i.e. over the chart), not pinned to the left. A drill
+  // window (offset) opens beside its parent so both are visible.
+  const [pos, setPos] = useState(() => ({ x: Math.max(12, Math.round((window.innerWidth - DEF_W) / 2)) + offset, y: 96 + (offset ? 24 : 0) }))
   const [size, setSize] = useState({ w: DEF_W, h: DEF_H })
   const [tabMenuOpen, setTabMenuOpen] = useState(false)
   const [panelColor, setPanelColor] = useState('A')
@@ -88,7 +90,11 @@ export default function PeriodSortPanel({ start, end, onClose, onDock, onAddAsTa
         </div>
       </div>
       <div className={styles.panelBody}>
-        <PeriodSortResults start={start} end={end} color={panelColor} />
+        {group ? (
+          <PeriodSortGroups start={start} end={end} group={group} onPickGroup={onPickGroup} />
+        ) : (
+          <PeriodSortResults start={start} end={end} color={panelColor} symbolsFilter={symbolsFilter} titlePrefix={titlePrefix} />
+        )}
       </div>
       {/* Gold resize corners — grab any of the four to resize. */}
       <span className={`${styles.corner} ${styles.cornerNW}`} onPointerDown={startResize('nw')} />

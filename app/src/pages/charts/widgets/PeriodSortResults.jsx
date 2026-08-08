@@ -24,7 +24,7 @@ function fmtScanTime(iso) {
 // layout — only the colour template (appearance) is remembered.
 const DEFAULT_COLS = { order: ['flag', 'sym', 'periodchg', 'price', 'vol'], sort: { key: 'periodchg', dir: 'desc' } }
 
-export default function PeriodSortResults({ start, end, color, settingsOverride = null, onSettingsPersist = null, onExit = null }) {
+export default function PeriodSortResults({ start, end, color, settingsOverride = null, onSettingsPersist = null, onExit = null, symbolsFilter = null, titlePrefix = null }) {
   const { groupSyms, setGroupSym } = useWorkspace() || {}
   const widgetId = useId()
 
@@ -36,9 +36,12 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
     refreshInterval: 30_000, dedupingInterval: 15_000, revalidateOnFocus: false,
   })
 
+  // Drill-down: when a member list is supplied (a theme/sector/industry's stocks), show only
+  // those (still ranked by their period_change from the same whole-market scan).
+  const filterSet = useMemo(() => (Array.isArray(symbolsFilter) ? new Set(symbolsFilter) : null), [symbolsFilter])
   // Backend returns rows already ranked; keep that as the symbol order (the table's default
   // sort is periodchg desc, which matches). Content-keyed so a 30s poll doesn't rebuild.
-  const symKey = (data?.results || []).map((r) => r.sym).join(',')
+  const symKey = (data?.results || []).filter((r) => !filterSet || filterSet.has(r.sym)).map((r) => r.sym).join(',')
   const symbols = useMemo(() => (symKey ? symKey.split(',') : []), [symKey])
 
   // The period % per symbol → the `periodchg` column via perfOverride (static: the period
@@ -61,7 +64,7 @@ export default function PeriodSortResults({ start, end, color, settingsOverride 
   // Title carries the dates (e.g. "Custom-Period Sort (3/31/2026 – 6/11/2026)"); the
   // footer keeps just the count + freshness (no date range — that moved to the title).
   const ds = data?.start ?? start, de = data?.end ?? end
-  const title = `Custom-Period Sort (${fmtYmd(ds)} – ${fmtYmd(de)})`
+  const title = `${titlePrefix || 'Custom-Period Sort'} (${fmtYmd(ds)} – ${fmtYmd(de)})`
   const scanFooter = (
     <div className={styles.scanFooter}>
       <span className={styles.scanCount}>{symbols.length.toLocaleString()} {symbols.length === 1 ? 'stock' : 'stocks'}</span>

@@ -278,6 +278,17 @@
   accent-color: var(--accent, #c9a84c);
 }
 :global([data-theme='light']) .cfgDate { color-scheme: light; }
+.cfgSelect {
+  background: var(--bg-surface, #1a1c17);
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 6px;
+  color: var(--text-bright, #e0dac8);
+  font: inherit;
+  padding: 5px 8px;
+  cursor: pointer;
+  color-scheme: dark;
+}
+:global([data-theme='light']) .cfgSelect { color-scheme: light; }
 .cfgActions {
   display: flex;
   gap: 8px;

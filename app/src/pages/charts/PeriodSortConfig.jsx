@@ -11,15 +11,25 @@ export default function PeriodSortConfig({ sel, onSort, onCancel }) {
   const [start, setStart] = useState(ymdToInput(sel.start))
   const [end, setEnd] = useState(ymdToInput(sel.end))
   const [replay, setReplay] = useState(false)
+  const [groupBy, setGroupBy] = useState('stocks')   // stocks | theme | sector | industry
   const valid = start && end && inputToYmd(start) < inputToYmd(end)
 
-  const sort = () => { if (valid) onSort(inputToYmd(start), inputToYmd(end), replay) }
+  const sort = () => { if (valid) onSort(inputToYmd(start), inputToYmd(end), replay, groupBy === 'stocks' ? null : groupBy) }
 
   return (
     <div className={styles.cfgBackdrop} onMouseDown={(e) => { if (e.target === e.currentTarget) onCancel() }}>
       <div className={styles.cfg} role="dialog" aria-label="Custom-Period Sort">
         <div className={styles.cfgHead}>Custom-Period Sort</div>
         <div className={styles.cfgBody}>
+          <div className={styles.cfgRow}>
+            <span className={styles.cfgLabel}>Sort</span>
+            <select className={styles.cfgSelect} value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
+              <option value="stocks">US Common Stocks</option>
+              <option value="theme">Themes</option>
+              <option value="sector">Sectors</option>
+              <option value="industry">Industries</option>
+            </select>
+          </div>
           <div className={styles.cfgRow}>
             <span className={styles.cfgLabel}>Start</span>
             <input type="date" className={styles.cfgDate} value={start} onChange={(e) => setStart(e.target.value)} />

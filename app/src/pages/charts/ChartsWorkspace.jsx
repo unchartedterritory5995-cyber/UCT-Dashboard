@@ -553,7 +553,8 @@ export default function ChartsWorkspace() {
   // panel (periodSortPanel) ranking every US common stock over that span.
   const [periodSortMode, setPeriodSortMode] = useState(false)
   const [periodSortSel, setPeriodSortSel] = useState(null)     // { sym, start, end, pct } | null
-  const [periodSortPanel, setPeriodSortPanel] = useState(null) // { start, end, popout } | null
+  const [periodSortPanel, setPeriodSortPanel] = useState(null) // { start, end, group } | null
+  const [periodSortDrill, setPeriodSortDrill] = useState(null) // { start, end, name, members } | null — a group's stocks
   // Replay mode: an ISO 'YYYY-MM-DD' cutoff — linked charts hide every bar after it.
   const [replayCutoff, setReplayCutoff] = useState(null)
   const handlePeriodSelected = useCallback((sym, start, end, pct) => {
@@ -1412,9 +1413,10 @@ export default function ChartsWorkspace() {
           <PeriodSortConfig
             sel={periodSortSel}
             onCancel={() => setPeriodSortSel(null)}
-            onSort={(start, end, replay) => {
+            onSort={(start, end, replay, group) => {
               setPeriodSortSel(null)
-              setPeriodSortPanel({ start, end })
+              setPeriodSortDrill(null)
+              setPeriodSortPanel({ start, end, group: group || null })
               // Replay: cut every linked chart off at the End date (ISO). Off = clear it.
               const s = String(end)
               setReplayCutoff(replay ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` : null)
@@ -1425,10 +1427,26 @@ export default function ChartsWorkspace() {
           <PeriodSortPanel
             start={periodSortPanel.start}
             end={periodSortPanel.end}
-            onClose={() => setPeriodSortPanel(null)}
-            onDock={() => handleDockPeriodSort(periodSortPanel.start, periodSortPanel.end)}
+            group={periodSortPanel.group}
+            onClose={() => { setPeriodSortPanel(null); setPeriodSortDrill(null) }}
+            onDock={periodSortPanel.group ? undefined : () => handleDockPeriodSort(periodSortPanel.start, periodSortPanel.end)}
+            tabTargets={periodSortPanel.group ? [] : visibleWidgets.map(w => ({ id: w.id, label: WIDGET_LABELS[w.type] || w.type }))}
+            onAddAsTab={periodSortPanel.group ? undefined : (widgetId) => handlePeriodSortToTab(widgetId, periodSortPanel.start, periodSortPanel.end)}
+            onPickGroup={(name, members) => setPeriodSortDrill({ start: periodSortPanel.start, end: periodSortPanel.end, name, members })}
+          />
+        )}
+        {periodSortDrill && (
+          <PeriodSortPanel
+            key={periodSortDrill.name}
+            start={periodSortDrill.start}
+            end={periodSortDrill.end}
+            symbolsFilter={periodSortDrill.members}
+            titlePrefix={periodSortDrill.name}
+            offset={430}
+            onClose={() => setPeriodSortDrill(null)}
+            onDock={() => handleDockPeriodSort(periodSortDrill.start, periodSortDrill.end)}
             tabTargets={visibleWidgets.map(w => ({ id: w.id, label: WIDGET_LABELS[w.type] || w.type }))}
-            onAddAsTab={(widgetId) => handlePeriodSortToTab(widgetId, periodSortPanel.start, periodSortPanel.end)}
+            onAddAsTab={(widgetId) => handlePeriodSortToTab(widgetId, periodSortDrill.start, periodSortDrill.end)}
           />
         )}
       </div>
