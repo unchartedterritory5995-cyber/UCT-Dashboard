@@ -221,19 +221,65 @@ def ensure_daily_bydate_index() -> bool:
         return True
     import time as _t
     t0 = _t.time()
+    # Build on a DEDICATED connection with a LONG lock-wait — the shared web
+    # connection's 2s busy_timeout would make CREATE INDEX fail against normal
+    # bar-write traffic and never finish. _WRITE_LOCK keeps our own writers off it.
     try:
         with _WRITE_LOCK:
-            conn = _conn()
-            conn.execute(
-                f"CREATE INDEX IF NOT EXISTS {_DAILY_BYDATE_INDEX} "
-                "ON ohlcv(ts, ticker, c) WHERE tf='D'"
-            )
-            conn.commit()
+            bc = sqlite3.connect(_DB_PATH, check_same_thread=False)
+            try:
+                bc.execute("PRAGMA journal_mode=WAL")
+                bc.execute("PRAGMA busy_timeout=600000")   # wait up to 10 min for the lock
+                bc.execute("PRAGMA temp_store=MEMORY")
+                bc.execute(
+                    f"CREATE INDEX IF NOT EXISTS {_DAILY_BYDATE_INDEX} "
+                    "ON ohlcv(ts, ticker, c) WHERE tf='D'"
+                )
+                bc.commit()
+            finally:
+                bc.close()
         print(f"[sqlite-index] built {_DAILY_BYDATE_INDEX} in {_t.time() - t0:.1f}s")
         return True
     except Exception as e:
-        print(f"[sqlite-index] {_DAILY_BYDATE_INDEX} build failed: {e}")
+        print(f"[sqlite-index] {_DAILY_BYDATE_INDEX} build failed after {_t.time() - t0:.1f}s: {e}")
         return False
+
+
+def daily_coverage_probe(start_ymd: int, end_ymd: int) -> dict:
+    """Fast diagnostic: does bars.db actually HOLD daily data near these dates?
+    Uses the by-date index when present (else best-effort). Answers the real question
+    behind a stuck pre-2004 sort — is it slow, or is the deep history simply absent on
+    this pod?"""
+    import time as _t
+    out = {"index_ready": daily_bydate_index_ready(), "path": _DB_PATH}
+    c = _conn()
+
+    def _window(to_ymd):
+        frm = int(to_ymd) - 30
+        t0 = _t.time()
+        try:
+            n = c.execute(
+                "SELECT COUNT(*) FROM ohlcv WHERE tf='D' AND ts<=? AND ts>=? AND c>0",
+                (int(to_ymd), frm),
+            ).fetchone()[0]
+            samp = [r[0] for r in c.execute(
+                "SELECT DISTINCT ticker FROM ohlcv WHERE tf='D' AND ts<=? AND ts>=? AND c>0 LIMIT 8",
+                (int(to_ymd), frm),
+            ).fetchall()]
+        except Exception as e:
+            return {"error": str(e), "ms": round((_t.time() - t0) * 1000)}
+        return {"count": n, "sample": samp, "ms": round((_t.time() - t0) * 1000)}
+
+    try:
+        t0 = _t.time()
+        row = c.execute("SELECT MIN(ts), MAX(ts) FROM ohlcv WHERE tf='D'").fetchone()
+        out["daily_min_ts"], out["daily_max_ts"] = (row or (None, None))
+        out["minmax_ms"] = round((_t.time() - t0) * 1000)
+    except Exception as e:
+        out["minmax_error"] = str(e)
+    out["start_window"] = _window(start_ymd)
+    out["end_window"] = _window(end_ymd)
+    return out
 
 
 def delete_bars(ticker: str | None = None, tf: str | None = None) -> int:

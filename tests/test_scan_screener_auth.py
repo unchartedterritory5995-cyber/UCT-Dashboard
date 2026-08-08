@@ -70,7 +70,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 #: ⛔ ASSERTED, NOT INFORMATIONAL. A fourteenth scan or a thirteenth screener
 #: route must cost a DELIBERATE edit here, which is what makes it land covered.
-EXPECTED_SCANS_ROUTES = 13
+EXPECTED_SCANS_ROUTES = 15
 EXPECTED_SCREENER_ROUTES = 12
 
 #: The 402 sentence each router speaks. Asserted rather than imported so a quiet
@@ -90,7 +90,7 @@ SHARE_TOKEN = "tok-public-sample"
 PATH_PARAM_SAMPLES = {"sid": "1", "share_token": SHARE_TOKEN}
 
 #: Sample values for every REQUIRED query parameter. Same self-policing rule.
-QUERY_PARAM_SAMPLES = {"start": 20260601, "end": 20260701}
+QUERY_PARAM_SAMPLES = {"start": 20260601, "end": 20260701, "group": "sector"}
 
 #: Bodies for the paid 200 pass only. The refusal passes deliberately send NO
 #: body: dependencies are solved BEFORE `request_params_to_args`, so a gated

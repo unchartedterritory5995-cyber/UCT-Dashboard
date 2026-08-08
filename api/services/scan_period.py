@@ -183,6 +183,43 @@ def get_period_change(start_ymd: int, end_ymd: int) -> dict:
     return {"status": "computing", "results": [], "count": 0, "as_of": None}
 
 
+def debug_period(start_ymd: int, end_ymd: int) -> dict:
+    """Synchronous ground-truth probe for a stuck pre-2004 sort (admin diagnostic).
+    Reports whether grouped-daily covers the dates, whether bars.db actually HOLDS
+    daily data near them, the by-date index state, and the current cache/inflight
+    state — so we can tell "slow" from "the deep history isn't on this pod." Bounded;
+    does NOT full-scan (relies on the by-date index for counts)."""
+    import time as _t
+    from api.services import bars_sqlite
+    ck = f"scan_period_{start_ymd}_{end_ymd}"
+    out = {"start": start_ymd, "end": end_ymd, "cache_key": ck}
+
+    t0 = _t.time()
+    sc, sd = _grouped_near(_to_date(start_ymd))
+    ec, ed = _grouped_near(_to_date(end_ymd))
+    out["grouped"] = {
+        "start_count": len(sc), "start_snapped": int(sd.strftime("%Y%m%d")),
+        "end_count": len(ec), "end_snapped": int(ed.strftime("%Y%m%d")),
+        "covers_both": bool(sc and ec), "ms": round((_t.time() - t0) * 1000),
+    }
+    try:
+        out["bars_db"] = bars_sqlite.daily_coverage_probe(start_ymd, end_ymd)
+    except Exception as e:
+        out["bars_db"] = {"error": str(e)}
+    cached = cache.get(ck)
+    out["cache"] = {"present": cached is not None,
+                    "status": (cached or {}).get("status"),
+                    "count": (cached or {}).get("count")}
+    with _partial_lock:
+        out["inflight"] = ck in _partial_inflight
+    try:
+        cs = _common_stock_symbols()
+        out["cs_universe_size"] = len(cs) if cs else 0
+    except Exception as e:
+        out["cs_universe_size"] = f"error: {e}"
+    return out
+
+
 def _sector_industry_map():
     """{app_sym: {'sector', 'industry'}} read from the prewarmed ticker_meta disk cache
     (the only whole-universe sector/industry source — no bulk API exists). Globbing ~4k
