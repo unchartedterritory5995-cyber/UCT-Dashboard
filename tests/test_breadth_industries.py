@@ -14,6 +14,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from api.services import industry_map as im
+from tests.authclients import PAID_MEMBER, authorize
 
 
 FAKE_FINVIZ = [
@@ -228,6 +229,11 @@ def client(monkeypatch):
         from api.routers import breadth_monitor
         app = FastAPI()
         app.include_router(breadth_monitor.router)
+        # `POST /api/breadth/industries` + `/industries/status` are
+        # `require_paid` since the 2026-08-09 auth sweep. This app is built here
+        # rather than imported, so it needs the caller installed on it directly
+        # — the identity, never the gate, so the real `require_paid` still runs.
+        authorize(app, PAID_MEMBER)
         yield TestClient(app)
 
 

@@ -4,6 +4,14 @@ import pytest
 from unittest.mock import patch
 from fastapi.testclient import TestClient
 
+# The COT read surface is `require_paid` and `POST /api/cot/refresh` is
+# `require_admin` since the 2026-08-09 auth sweep — all of it answered anonymous
+# callers, and the refresh is a full CFTC re-download. These are BEHAVIOUR
+# tests, so each gets the caller it always implied; the gate is owned by
+# tests/test_exposed_routes_gated.py and asserted exactly once, there.
+from tests.authclients import ADMIN, signed_in_as  # noqa: E402
+from tests.authclients import as_a_paid_member  # noqa: F401  (autouse fixture)
+
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
@@ -94,7 +102,10 @@ def test_get_cot_returns_correct_shape(client, tmp_path, monkeypatch):
 
 
 def test_manual_refresh_accepted(client):
-    with patch("api.services.cot_service.refresh_from_current", return_value=42):
+    # ⚠️ ADMIN, not paid: a ten-year CFTC re-download is an operator action, and
+    # `refresh_from_current` is patched out so this probe never fires one.
+    with patch("api.services.cot_service.refresh_from_current", return_value=42), \
+            signed_in_as(ADMIN):
         resp = client.post("/api/cot/refresh")
     assert resp.status_code == 200
     assert resp.json()["status"] == "refresh started"

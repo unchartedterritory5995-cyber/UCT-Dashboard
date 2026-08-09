@@ -4,6 +4,7 @@ from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from api.main import app
 from api.services.cache import cache as _real_cache
+from tests.authclients import PAID_MEMBER, signed_in_as
 
 
 # ── Task 1 tests ──────────────────────────────────────────────────────────────
@@ -264,7 +265,11 @@ def test_theme_performance_endpoint_returns_200():
 
     # Patch at the service level (not the router alias) so the mock is reliable
     # even when api.main is already cached in sys.modules from prior test imports.
-    with patch("api.services.theme_performance.get_theme_performance", return_value=MOCK_RESULT):
+    # `/api/theme-performance` is `require_paid` since the 2026-08-09 auth
+    # sweep; this is a shape test, so it gets the caller it always implied. The
+    # gate is owned by tests/test_exposed_routes_gated.py, asserted once, there.
+    with patch("api.services.theme_performance.get_theme_performance", return_value=MOCK_RESULT), \
+            signed_in_as(PAID_MEMBER):
         client = TestClient(app)
         resp = client.get("/api/theme-performance")
 
