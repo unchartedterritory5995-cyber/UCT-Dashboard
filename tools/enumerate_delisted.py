@@ -88,7 +88,8 @@ def main():
             if k in seen:
                 continue
             seen.add(k); uniq.append(e)
-        reused = (sym in live) or (len(uniq) > 1)
+        bare_live = sym in live          # the bare symbol is a CURRENTLY-LIVE ticker
+        reused = bare_live or (len(uniq) > 1)
         year_ct = {}
         for e in uniq:
             if reused:
@@ -97,11 +98,16 @@ def main():
                 key = base if n == 0 else f"{base}-{n + 1}"
             else:
                 key = sym
-            entries.append({
+            rec = {
                 "ticker": key, "provider_symbol": sym, "name": e["name"],
                 "delisted_date": e["delisted_date"], "last_date": e["delisted_date"],
                 "source": "massive",
-            })
+            }
+            # Mark when the bare symbol is a live ticker — the registry then must NOT alias
+            # the bare symbol to this dead entity (that would mislabel the live one).
+            if bare_live:
+                rec["bare_live"] = True
+            entries.append(rec)
 
     entries.sort(key=lambda x: x["ticker"])
     with open(OUT, "w", encoding="utf-8") as fh:

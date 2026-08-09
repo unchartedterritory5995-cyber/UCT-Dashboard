@@ -37,6 +37,11 @@ _DEFAULT_FIRST_DATE = "1990-01-01"
 
 _lock = threading.Lock()
 _by_ticker: dict = {}
+# provider_symbol -> primary key, for DEAD bare symbols (safe to alias). Lets a user who
+# charts the bare reused symbol (e.g. "BSC") get the clean primary delisted entity
+# ("BSC-OLD") instead of the provider's combined multi-era tape. NEVER includes a bare
+# symbol that is currently live (bare_live), so a live ticker is never redirected/mislabeled.
+_provider_alias: dict = {}
 _loaded = False
 
 
@@ -67,6 +72,7 @@ def _coerce(entry: dict) -> Optional[dict]:
         "last_date": entry.get("last_date") or delisted_date,  # upper clamp = delisting date
         "reason": entry.get("reason") or None,
         "source": entry.get("source") or "massive",            # massive | csv | ...
+        "bare_live": bool(entry.get("bare_live")),             # the bare symbol is a LIVE ticker
     }
 
 
@@ -96,18 +102,52 @@ def _ensure_loaded() -> None:
             c = _coerce(rec) if isinstance(rec, dict) else None
             if c:
                 out[c["ticker"]] = c
+        # Build the bare-provider alias map so a user who charts the bare reused symbol gets
+        # the clean primary entity (not the provider's combined tape). Skip providers that are
+        # themselves a key (non-reused — direct hit) or whose bare symbol is LIVE (bare_live —
+        # aliasing would redirect/mislabel a live ticker).
+        prov_groups: dict = {}
+        prov_live: set = set()
+        for rec in out.values():
+            p = rec["provider_symbol"]
+            prov_groups.setdefault(p, []).append(rec)
+            if rec.get("bare_live"):
+                prov_live.add(p)
+        alias: dict = {}
+        for p, recs in prov_groups.items():
+            if p in out or p in prov_live:
+                continue
+            # Primary = a curated entry (has sector) if any, else the most-recently-delisted
+            # holder of the symbol.
+            pool = [r for r in recs if r.get("sector")] or recs
+            primary = max(pool, key=lambda r: (r.get("last_date") or ""))
+            alias[p] = primary["ticker"]
+
         _by_ticker = out
         globals()["_by_ticker"] = out
+        globals()["_provider_alias"] = alias
         _loaded = True
 
 
-def is_delisted(sym: str) -> bool:
+def resolve(sym: str) -> Optional[dict]:
+    """The delisted record for `sym` — matching an exact key OR a DEAD bare provider symbol
+    (so bare 'BSC' resolves to the 'BSC-OLD' Bear Stearns entity). Returns None for a live
+    ticker (incl. a live reused symbol, which is never aliased). This is what every external
+    caller (bars serve, /api/delisted) should use; `get` stays an exact-key lookup."""
     _ensure_loaded()
-    return _norm(sym) in _by_ticker
+    s = _norm(sym)
+    if s in _by_ticker:
+        return _by_ticker[s]
+    ak = _provider_alias.get(s)
+    return _by_ticker.get(ak) if ak else None
+
+
+def is_delisted(sym: str) -> bool:
+    return resolve(sym) is not None
 
 
 def get(sym: str) -> Optional[dict]:
-    """Metadata dict for a delisted ticker, or None if it isn't one."""
+    """Exact-key metadata lookup (no bare-provider aliasing — use `resolve` for that)."""
     _ensure_loaded()
     return _by_ticker.get(_norm(sym))
 
