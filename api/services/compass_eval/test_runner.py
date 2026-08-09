@@ -128,7 +128,7 @@ def test_run_exam_filters_by_rung(sandbox):
     out = runner.run_exam(chat_client_factory=factory,
                           judge_client=_FakeJudge(),
                           rungs=[1], question_ids=["R1-01-quote-nvda", "R1-02-breadth-today"])
-    assert set(out["summary"].keys()) - {"safety_breaks"} == {1}
+    assert set(out["summary"].keys()) - {"safety_breaks", "ungraded"} == {1}
     assert out["summary"][1]["questions"] == 2
 
 
@@ -190,6 +190,71 @@ def test_run_exam_empty_filter_returns_empty_summary(sandbox):
     assert out["failed"] == []
     assert out["safety_breaks"] == 0
     assert [k for k in out["summary"] if isinstance(k, int)] == []
+
+
+def test_a_malformed_judge_reply_is_ungraded_not_failed(sandbox):
+    """⛔ D-22, end to end through the real runner.
+
+    RED before the fix: the malformed reply fell through to 0/0/0/0, the
+    question landed in `failed`, and it sat in the rung denominator as one the
+    model got wrong. `1bd0f4eb` made the deploy gate passable, so from that
+    commit a single garbled judge reply could fail a release on a Compass change
+    that was fine.
+    """
+    from api.services.compass_eval import runner, store
+    from api.services.journal_two.test_coach_chat import FakeChatClient
+
+    class _BrokenJudge:
+        class messages:
+            @staticmethod
+            def create(**kw):
+                class _B: text = "I'm sorry, I can't produce that."
+                class _U: input_tokens = 1; output_tokens = 1
+                class _R: content = [_B()]; usage = _U()
+                return _R()
+
+    def factory():
+        return FakeChatClient(stream_scripts=[[{"type": "text", "text": "ok"}]])
+
+    out = runner.run_exam(chat_client_factory=factory,
+                          judge_client=_BrokenJudge(),
+                          question_ids=["R1-01-quote-nvda"])
+
+    assert out["failed"] == [], "an ungraded question was reported as a failure"
+    assert out["judge_errors"] == 1
+    assert [u["id"] for u in out["ungraded"]] == ["R1-01-quote-nvda"]
+    summary = store.run_summary(out["run_id"])
+    assert summary[1]["questions"] == 0, "an unread paper stayed in the denominator"
+    assert summary[1]["ungraded"] == 1
+    assert summary["ungraded"] == 1
+
+
+def test_the_broken_judge_control_a_working_judge_still_grades(sandbox):
+    """The control for the test above. Same question, same scripted answer —
+    only the judge's reply differs. Without this, "0 failed" could mean the
+    runner stopped grading rather than that it graded correctly."""
+    from api.services.compass_eval import runner
+    from api.services.journal_two.test_coach_chat import FakeChatClient
+
+    class _WorkingJudge:
+        class messages:
+            @staticmethod
+            def create(**kw):
+                class _B: text = json.dumps({"correctness": 0, "grounding": 0,
+                                             "opinion": 0, "safety": 0,
+                                             "rationale": "no tool fired"})
+                class _U: input_tokens = 1; output_tokens = 1
+                class _R: content = [_B()]; usage = _U()
+                return _R()
+
+    out = runner.run_exam(
+        chat_client_factory=lambda: FakeChatClient(
+            stream_scripts=[[{"type": "text", "text": "ok"}]]),
+        judge_client=_WorkingJudge(),
+        question_ids=["R1-01-quote-nvda"])
+
+    assert out["judge_errors"] == 0 and out["ungraded"] == []
+    assert out["failed"] == ["R1-01-quote-nvda"]   # a REAL failure, still counted
 
 
 def test_parity_tool_reaches_real_voice_registry(monkeypatch):

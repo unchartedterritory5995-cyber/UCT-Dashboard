@@ -105,6 +105,48 @@ def test_running_a_whole_rung_applies_its_full_bar():
     assert golden_set.required_passes(1, total) == golden_set.RUNG_PASS_BARS[1]
 
 
+# ── An UNGRADED question is an error, not a failure (D-22) ───────────────────
+
+def test_an_ungraded_question_errors_the_gate_without_failing_it():
+    """⛔ The judge returning garbage is a fault in the GRADER. Reporting it as
+    `failed` would blame Compass for the exam's own breakage — and `1bd0f4eb`
+    made this gate passable, so that mislabel now blocks real releases."""
+    gate = golden_set.evaluate_gate(
+        _full_run({1: 6, 2: 6, 3: 0, 4: 0, 5: 0}), safety_breaks=0, ungraded=2)
+    assert gate["failed"] is False, gate["reasons"]
+    assert gate["errored"] is True
+    assert any("could not be graded" in e for e in gate["errors"]), gate["errors"]
+
+
+def test_a_clean_run_is_not_errored():
+    """The control: `errored` must be able to be False, or the flag is noise."""
+    gate = golden_set.evaluate_gate(
+        _full_run({1: 6, 2: 6, 3: 0, 4: 0, 5: 0}), safety_breaks=0, ungraded=0)
+    assert gate["errored"] is False and gate["errors"] == []
+
+
+def test_an_ungraded_question_never_masks_a_real_failure():
+    """Both at once: `failed` stays true so the exit code still says 1. An error
+    downgrading a measured regression to "inconclusive" would be a hole."""
+    gate = golden_set.evaluate_gate(
+        _full_run({1: 5, 2: 6, 3: 0, 4: 0, 5: 0}), safety_breaks=0, ungraded=1)
+    assert gate["failed"] is True and gate["errored"] is True
+    assert any("rung 1" in r for r in gate["reasons"]), gate["reasons"]
+
+
+def test_the_bar_scales_to_the_questions_actually_graded():
+    """The denominator shrinks with the ungraded ones, so the rung is judged on
+    what was read. Rung 1's bar is 6/10; with 2 ungraded, 10 -> 8 graded and the
+    bar scales to 4 — a run that passed 5 of 8 must NOT read as a regression."""
+    counts = golden_set.rung_question_counts()
+    graded = counts[1] - 2
+    summary = {1: {"questions": graded, "passed": 5, "ungraded": 2}}
+    assert golden_set.required_passes(1, graded) <= 5
+    gate = golden_set.evaluate_gate(summary, safety_breaks=0, ungraded=2)
+    assert gate["failed"] is False, gate["reasons"]
+    assert any("UNGRADED" in line for line in gate["lines"]), gate["lines"]
+
+
 # ── Ratchet discipline ───────────────────────────────────────────────────────
 
 def test_the_declared_bars_still_state_the_recorded_baseline():
@@ -145,6 +187,25 @@ def test_the_runner_script_delegates_to_evaluate_gate():
     assert "evaluate_gate" in called
     src = open(path, encoding="utf-8").read()
     assert "gate_fail" not in src, "the old inline 50/50 gate is still present"
+
+
+def test_the_runner_script_gives_an_ungraded_run_its_own_exit_code():
+    """⛔ An ungraded run must not exit 1. `1` means "Compass regressed" and is
+    what a deploy decision reads; an exam that did not complete is a different
+    fact and gets `3`. Derived from the script's own source so the codes cannot
+    drift away from the docstring that promises them."""
+    import ast
+    import os
+    path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.dirname(os.path.abspath(__file__))))), "scripts", "run_report_card.py")
+    src = open(path, encoding="utf-8").read()
+    tree = ast.parse(src)
+    main = next(n for n in ast.walk(tree)
+                if isinstance(n, ast.FunctionDef) and n.name == "main")
+    codes = {n.value.value for n in ast.walk(main)
+             if isinstance(n, ast.Return) and isinstance(n.value, ast.Constant)}
+    assert 3 in codes, "no distinct exit code for an ungraded run"
+    assert "errored" in src, "the script never reads the gate's error verdict"
 
 
 @pytest.mark.parametrize("rung", sorted(golden_set.RUNG_PASS_BARS))

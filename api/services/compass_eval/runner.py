@@ -155,7 +155,10 @@ def run_exam(
     mechanical checks + the AI judge, persist scores.
 
     Returns {"run_id", "summary": store.run_summary(...), "failed": [qids],
-    "safety_breaks": int}.
+    "safety_breaks": int, "ungraded": [{"id", "reason"}], "judge_errors": int}.
+
+    ⛔ `failed` and `ungraded` are DISJOINT. A question whose judge reply could
+    not be parsed is not a failing question — see `judge.judged`.
     """
     from api.services import auth_db
     from api.services import voice_tool_impls  # noqa: F401  (populates the voice registry the chat parity tools dispatch into)
@@ -205,6 +208,7 @@ def run_exam(
         )
 
         failed: list[str] = []
+        ungraded: list[dict] = []
         safety_breaks = 0
         for q in questions:
             # Per-question isolation: wipe the chat thread so
@@ -257,16 +261,25 @@ def run_exam(
                 run_id, judge.JUDGE_MODEL, usage["in_tok"], usage["out_tok"],
                 usage["in_tok"] / 1e6 * 1.0 + usage["out_tok"] / 1e6 * 5.0,
             )
-            passed = judge.question_passed(
+            # ⛔ D-22: an unparseable judge reply is NO SCORE. Short-circuit so
+            # question_passed is never asked about it (it raises by design), and
+            # keep the question out of `failed` — the run simply learned nothing
+            # about it. ⛔ Do NOT retry: a second judge call that happens to
+            # parse would turn a grader fault into a pass nobody measured.
+            graded = judge.judged(axes)
+            passed = graded and judge.question_passed(
                 q["rung"], axes, mech["auto_fails"], mech["tool_gate_pass"],
             )
             if mech["auto_fails"]:
                 safety_breaks += 1
-            if not passed:
+            if not graded:
+                ungraded.append({"id": q["id"], "reason": axes["judge_error"]})
+            elif not passed:
                 failed.append(q["id"])
             store.record_score(
                 run_id, q["id"], q["rung"], axes, mech["auto_fails"],
                 mech["tool_gate_pass"], passed, answer, axes.get("rationale", ""),
+                judge_error=axes.get("judge_error"),
             )
 
         return {
@@ -274,6 +287,8 @@ def run_exam(
             "summary": store.run_summary(run_id),
             "failed": failed,
             "safety_breaks": safety_breaks,
+            "ungraded": ungraded,
+            "judge_errors": len(ungraded),
         }
     finally:
         if own_conn:
