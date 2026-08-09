@@ -20,6 +20,9 @@ from api.services import watchlist_service as wl
 _log = logging.getLogger(__name__)
 
 _LISTS_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "prebuilt_lists.json")
+_THEME_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "theme_lists.json")
+# Every committed prebuilt config file, in picker/display order (ETF lists then theme lists).
+_CONFIG_PATHS = [_LISTS_PATH, _THEME_PATH]
 # Durable overlay written by the monthly auto-refresh (watchlist_prebuilt_refresh):
 # a fresh liquidity ranking for 'Liquid Major ETFs' + a delisted-ticker set pruned from
 # EVERY list. Survives deploys. Absent = pure committed config (first boot before a refresh).
@@ -45,23 +48,25 @@ _DEFAULT_CATEGORY = "UCT ETF Lists"
 
 
 def _load_committed():
-    """[{name, desc, category, tickers[]}] straight from the committed config — the baseline."""
-    try:
-        with open(_LISTS_PATH, encoding="utf-8") as fh:
-            out = []
-            for row in json.load(fh):
-                name = str(row.get("name") or "").strip()
-                tickers = [str(t).upper() for t in (row.get("tickers") or []) if t]
-                if name and tickers:
-                    out.append({
-                        "name": name,
-                        "desc": str(row.get("desc") or ""),
-                        "category": str(row.get("category") or _DEFAULT_CATEGORY),
-                        "tickers": tickers,
-                    })
-            return out
-    except Exception:
-        return []
+    """[{name, desc, category, tickers[]}] from every committed config file (ETF + theme
+    lists) — the curated baseline the overlay is layered onto."""
+    out = []
+    for path in _CONFIG_PATHS:
+        try:
+            with open(path, encoding="utf-8") as fh:
+                for row in json.load(fh):
+                    name = str(row.get("name") or "").strip()
+                    tickers = [str(t).upper() for t in (row.get("tickers") or []) if t]
+                    if name and tickers:
+                        out.append({
+                            "name": name,
+                            "desc": str(row.get("desc") or ""),
+                            "category": str(row.get("category") or _DEFAULT_CATEGORY),
+                            "tickers": tickers,
+                        })
+        except Exception:
+            continue
+    return out
 
 
 def category_map():
