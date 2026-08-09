@@ -525,7 +525,7 @@ def build_sections(days: int = 1, top_n: int = 10, min_notional: float = 5e6,
             # equals the VWAP on a single day → a flat 0%).
             perf = ((close - vwap) / vwap * 100.0) if (vwap > 0 and close > 0) else None
             rows.append({
-                "t": s, "n": n, "c": it.get("c") or 0, "last": last,
+                "t": s, "n": n, "c": it.get("c") or 0, "last": it.get("last"),
                 "zoneLo": zlo, "zoneHi": zhi, "pctADV": pct_adv, "perf": perf,
                 "bigN": it.get("bigPrintN"), "bigPx": it.get("bigPrint"),
                 "sector": sector,
