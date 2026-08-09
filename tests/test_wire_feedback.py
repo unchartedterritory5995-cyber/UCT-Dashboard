@@ -80,6 +80,15 @@ def test_internal_requires_bearer():
 
 
 def test_internal_valid_bearer_returns_votes_list():
+    # ⚠️ THE 200 USED TO COME FROM A PRODUCTION FILE. Nothing here creates the
+    # `wire_feedback` table: the route reached `C:\data\wire_feedback.db`, the
+    # owner's live store, which of course has it. The `_fresh_store()` tests
+    # above do reload the module onto a temp DB, but the root conftest restores
+    # every env-derived path global at teardown (`b45204e3`), so by the time
+    # this test runs the store points back at the session default — and the
+    # moment that default stops being production, this 200 becomes a 500 on
+    # `no such table: wire_feedback`. Build the schema this asserts against.
+    _fresh_store()
     r = client.get("/api/wire-feedback/recent-internal",
                    headers={"Authorization": "Bearer test-secret-123"})
     assert r.status_code == 200

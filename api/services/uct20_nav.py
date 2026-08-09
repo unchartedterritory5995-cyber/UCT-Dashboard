@@ -25,7 +25,20 @@ from typing import Optional
 
 from api.services.massive import get_agg_bars
 
-_COMPOSITIONS_FILE = "/data/uct20_compositions.json"
+# 🔴 THE LEDGER THIS NAMES IS IRREPLACEABLE, AND THE TEST SUITE WAS REWRITING IT.
+# `POST /api/push` calls `record_composition`, so every run of
+# `tests/test_push.py` load-modify-wrote this file — and on this Windows box
+# `/data` is a real directory, so "this file" was `C:\data\uct20_compositions.json`:
+# the ledger the comment below calls "the only surviving record of the published
+# list per date", the one that rebuilt the corrupted portfolio history on
+# 2026-07-15. `_save_compositions` swallows every exception, so nothing ever
+# said so.
+#
+# `UCT20_COMPOSITIONS_FILE` is the override a test process sets. The default is
+# byte-identical to what it always was, so production resolves exactly as before
+# whether or not anything sets it.
+_COMPOSITIONS_FILE = os.environ.get(
+    "UCT20_COMPOSITIONS_FILE", "/data/uct20_compositions.json")
 _MAX_HISTORY_DAYS = 420   # ~14 months, matches theme_performance bar window
 # The compositions LEDGER is the only surviving record of the published list
 # per date (it rebuilt the corrupted portfolio history on 2026-07-15) — it is

@@ -38,6 +38,7 @@ Usage:
         # passes gate
 """
 
+import os
 import sqlite3
 import logging
 import time
@@ -46,6 +47,19 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 log = logging.getLogger(__name__)
+
+# The flow store this module colocates its `ticker_baselines` table in.
+#
+# ⚠️ This used to be the bare literal `"/data/flow.db"` spelled out as the
+# default argument of `init_db` / `refresh_baselines` / `load_baselines`, and
+# `api/liveflow_worker.py` calls the first two AT MODULE IMPORT with no
+# argument. `/data` exists on the Windows dev box, so every pytest process that
+# imported `liveflow_worker` connected to — and ran `CREATE TABLE IF NOT EXISTS`
+# against — the REAL `C:\data\flow.db`. Reading `FLOW_DB_PATH` here is what the
+# other twenty flow modules already do (`flow_router`, `flow_summary`,
+# `oi_snapshots`, …); the production value is unchanged because Railway sets it,
+# and the literal stays as the same fallback it always was.
+_DEFAULT_DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
 
 # In-memory cache. Populated by load_baselines() at worker startup, and
 # refreshed by refresh_baselines() on demand. Reads are lock-free since
@@ -94,7 +108,7 @@ def _conn(db_path: str):
         conn.close()
 
 
-def init_db(db_path: str = "/data/flow.db"):
+def init_db(db_path: str = _DEFAULT_DB_PATH):
     """Create the ticker_baselines table if it doesn't exist. Idempotent.
 
     Lives in the same SQLite file as the source flow data — keeps related
@@ -159,7 +173,7 @@ def _date_filter_clause(days_back: int) -> tuple[str, list]:
 
 
 def refresh_baselines(
-    db_path: str = "/data/flow.db",
+    db_path: str = _DEFAULT_DB_PATH,
     days_back: int = 180,
     source: str = "stocks",
     min_premium: float = MIN_PREMIUM_FOR_BASELINE,
@@ -398,7 +412,7 @@ def refresh_baselines(
     }
 
 
-def load_baselines(db_path: str = "/data/flow.db") -> int:
+def load_baselines(db_path: str = _DEFAULT_DB_PATH) -> int:
     """
     Load ticker_baselines from disk into the in-memory _baselines_cache.
 
