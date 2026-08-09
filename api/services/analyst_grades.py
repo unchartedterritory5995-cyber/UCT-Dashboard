@@ -133,26 +133,41 @@ def get_analyst_grades(ticker: str) -> Optional[dict]:
     # shape as research/ownership.py's yf_ok/insider_ok.
     all_answered = True
 
-    try:
-        consensus = _consensus(ticker)
-    except Exception:
-        consensus = None
-        all_answered = False
-    try:
-        price_target = _price_target(ticker)
-    except Exception:
-        price_target = None
-        all_answered = False
-    try:
-        actions = _recent_actions(ticker)
-    except Exception:
-        actions = []
-        all_answered = False
-    try:
-        trend = _trend(ticker)
-    except Exception:
-        trend = []
-        all_answered = False
+    # The four legs are INDEPENDENT provider calls. Run sequentially they cost
+    # ~3.25s end-to-end — over the 2-3s budget this panel is held to — while
+    # each leg is only ~0.8s. Fan them out and the endpoint costs the slowest
+    # leg instead of their sum.
+    #
+    # Its OWN executor, not a plain run_in_threadpool: this handler is a sync
+    # `def`, so it is already occupying one anyio worker thread. Borrowing three
+    # more from that same shared pool is what starves the request path under
+    # load.
+    from concurrent.futures import ThreadPoolExecutor
+
+    legs = (("consensus", _consensus, None),
+            ("price_target", _price_target, None),
+            ("actions", _recent_actions, []),
+            ("trend", _trend, []))
+    got: dict = {}
+    with ThreadPoolExecutor(max_workers=len(legs),
+                            thread_name_prefix="grades") as ex:
+        futures = [(name, on_fail, ex.submit(fn, ticker))
+                   for name, fn, on_fail in legs]
+        for name, on_fail, fut in futures:
+            try:
+                got[name] = fut.result()
+            except Exception:
+                # Per-leg isolation is preserved exactly: one failing endpoint
+                # nulls only its own slice and flips all_answered, which is what
+                # separates "no analyst coverage" (hold 6h) from "provider
+                # blipped" (retry in 5 min).
+                got[name] = on_fail
+                all_answered = False
+
+    consensus = got["consensus"]
+    price_target = got["price_target"]
+    actions = got["actions"]
+    trend = got["trend"]
 
     if not (consensus or price_target or actions):
         # No data. Hold it 6h only if every provider actually ANSWERED — that
