@@ -3,6 +3,8 @@ import { render, screen, cleanup, fireEvent, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import fs from 'node:fs'
 import path from 'node:path'
+import { Parser } from 'acorn'
+import acornJsx from 'acorn-jsx'
 
 import BuilderSheet, { BuilderBoundary, buildDefinition, draftDefId } from './BuilderSheet'
 import FormulaField, { evaluateFormula, canSaveFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
@@ -50,6 +52,8 @@ const ROOT = (() => {
 // the source, and a rail that reports it as a defect trains you to ignore it.
 const read = (rel) =>
   fs.readFileSync(path.join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n')
+
+const JSXParser = Parser.extend(acornJsx())
 
 const H = vi.hoisted(() => ({ requests: [], writeResponse: null }))
 
@@ -678,21 +682,141 @@ describe('focus is trapped inside the panel', () => {
 
 // ─── 9. THE ENTRY POINT ─────────────────────────────────────────────────────
 
+/**
+ * 🔴 THIS RAIL USED TO COUNT `<BuilderSheet` WITH A REGEX OVER THE RAW FILE,
+ * AND A COMMENT REDDED IT — which is not a hypothetical: `ChartToolbar.jsx`
+ * carries a paragraph that has to explain, in prose, that it must not spell the
+ * JSX tag, or the rail reports a second mount. The source was contorted to
+ * please a broken probe.
+ *
+ * ⛔ AND THE FAILURE IS WORSE THAN NOISE, because of how it reads. "2 mounts
+ * expected 1" tells the next engineer *"you added a second mount"* — a true
+ * sentence about a file where nothing was added — so the fix they reach for is
+ * deleting a mount that does not exist, or deleting the comment that explains
+ * why it must not be deleted. `lesson_probe_names_must_be_derived_not_typed`:
+ * **verify with an AST, never a grep.**
+ *
+ * The three claims below are the same three the regex was standing in for,
+ * asserted against the parse tree instead of the bytes.
+ */
+const toolbarTree = () => JSXParser.parse(read('app/src/components/chart/ChartToolbar.jsx'),
+  { ecmaVersion: 'latest', sourceType: 'module' })
+
+function walkAst(node, fn) {
+  if (!node || typeof node.type !== 'string') return
+  fn(node)
+  for (const k of Object.keys(node)) {
+    const v = node[k]
+    if (Array.isArray(v)) v.forEach(c => walkAst(c, fn))
+    else if (v && typeof v.type === 'string') walkAst(v, fn)
+  }
+}
+
+/** Every real `<Name …>` ELEMENT in a tree. Comments are not in the AST at all,
+ *  which is the entire point. */
+function jsxMountsOf(tree, name) {
+  const found = []
+  walkAst(tree, (n) => {
+    if (n.type === 'JSXElement' && n.openingElement?.name?.name === name) found.push(n)
+  })
+  return found
+}
+
+/** Is `node` inside a `<guard> && …` short-circuit? */
+function guardedBy(tree, node, guard) {
+  let guarded = false
+  walkAst(tree, (n) => {
+    if (n.type !== 'LogicalExpression' || n.operator !== '&&') return
+    let mentionsGuard = false
+    walkAst(n.left, (m) => {
+      if (m.type === 'Identifier' && m.name === guard) mentionsGuard = true
+    })
+    if (!mentionsGuard) return
+    walkAst(n.right, (m) => { if (m === node) guarded = true })
+  })
+  return guarded
+}
+
 describe('the one entry point', () => {
   it('`ChartToolbar` mounts the builder behind the SAME pair the library uses', () => {
     const src = read('app/src/components/chart/ChartToolbar.jsx')
     expect(src).toContain("import BuilderSheet from './builder/BuilderSheet'")
-    // One launcher, one mount, both behind `canManageIndicators` — a read-only
-    // chart passes no `onUpdateSettings` and therefore sprouts no author
-    // surface (spec §5's mount-site scoping). Three occurrences: the panel's
-    // prop, its onClick, and the toolbar's binding.
-    expect((src.match(/onOpenFormulaBuilder/g) || []).length).toBe(3)
-    const mounts = src.match(/<BuilderSheet/g) || []
-    expect(mounts.length).toBe(1)
-    const at = src.indexOf('<BuilderSheet')
-    // ⚠️ NO MULTI-LINE `\n` ANCHOR. This worktree is CRLF and a `\n`-joined
-    // anchor matches ZERO times — the trap that has fired on nine tasks here.
-    expect(src.slice(Math.max(0, at - 300), at)).toContain('canManageIndicators')
+
+    const tree = toolbarTree()
+    const mounts = jsxMountsOf(tree, 'BuilderSheet')
+    expect(mounts, 'the builder is mounted somewhere other than exactly once')
+      .toHaveLength(1)
+
+    // A read-only chart passes no `onUpdateSettings`, so `canManageIndicators`
+    // is false and no author surface exists (spec §5's mount-site scoping).
+    expect(guardedBy(tree, mounts[0], 'canManageIndicators'),
+      'the builder mount escaped its `canManageIndicators &&` guard — a chart '
+      + 'with no `onUpdateSettings` now sprouts an authoring surface').toBe(true)
+  })
+
+  it('the launcher is WIRED, not merely named — passed down and bound back', () => {
+    // ⛔ REPLACES `(src.match(/onOpenFormulaBuilder/g)||[]).length === 3`. That
+    // number was a proxy for three RELATIONSHIPS (the panel's prop, its
+    // onClick, the toolbar's binding); a hand-typed count beside the thing it
+    // describes is this repo's most-repeated defect, and it counted comments.
+    const tree = toolbarTree()
+    let declared = false   // the toolbar receives it
+    let passedDown = false // …and hands it to the panel as a prop
+    let invoked = false    // …and something calls it
+    walkAst(tree, (n) => {
+      if (n.type === 'Property' && n.key?.name === 'onOpenFormulaBuilder') declared = true
+      if (n.type === 'JSXAttribute' && n.name?.name === 'onOpenFormulaBuilder') passedDown = true
+      // ⚠️ THE CALL IS OPTIONAL (`onOpenFormulaBuilder?.()`), so acorn wraps it
+      // in a `ChainExpression` and the callee is a bare Identifier — not the
+      // MemberExpression shape a first guess reaches for. Both are accepted.
+      if (n.type === 'CallExpression'
+          && (n.callee?.name === 'onOpenFormulaBuilder'
+              || n.callee?.property?.name === 'onOpenFormulaBuilder')) invoked = true
+    })
+    expect(declared, '`onOpenFormulaBuilder` is not a declared prop of ChartToolbar').toBe(true)
+    expect(passedDown, '`onOpenFormulaBuilder` is never handed to a child — the '
+      + 'settings panel cannot open the builder').toBe(true)
+    expect(invoked, '`onOpenFormulaBuilder` is passed but never called').toBe(true)
+  })
+
+  // ── the controls: a rail nobody has seen fire is not a rail ────────────────
+
+  it('🔴 A COMMENT NAMING THE TAG NO LONGER REDS IT', () => {
+    // The exact regression. `ChartToolbar.jsx` really does discuss the mount in
+    // prose, and under the old probe that prose was a second mount.
+    const withProse = `
+      import BuilderSheet from './builder/BuilderSheet'
+      export default function T({ canManageIndicators }) {
+        /* one sheet, two openers — the <BuilderSheet /> below is the only mount */
+        return <>{canManageIndicators && <BuilderSheet open />}</>
+      }`
+    const tree = JSXParser.parse(withProse, { ecmaVersion: 'latest', sourceType: 'module' })
+    const mounts = jsxMountsOf(tree, 'BuilderSheet')
+    expect(mounts).toHaveLength(1)
+    expect(guardedBy(tree, mounts[0], 'canManageIndicators')).toBe(true)
+    // …and the probe the AST replaced would have said two, which is the proof
+    // this control is measuring a real difference and not restating itself.
+    expect((withProse.match(/<BuilderSheet/g) || []).length).toBe(2)
+  })
+
+  it('🔴 A REAL SECOND MOUNT STILL DOES', () => {
+    // The other direction. Without this the case above is satisfied by a probe
+    // that returns 1 for everything.
+    const twice = `
+      export default function T({ canManageIndicators }) {
+        return <>{canManageIndicators && <BuilderSheet open />}<BuilderSheet open /></>
+      }`
+    const tree = JSXParser.parse(twice, { ecmaVersion: 'latest', sourceType: 'module' })
+    expect(jsxMountsOf(tree, 'BuilderSheet')).toHaveLength(2)
+  })
+
+  it('🔴 AN UNGUARDED MOUNT STILL DOES', () => {
+    const bare = `
+      export default function T() { return <BuilderSheet open /> }`
+    const tree = JSXParser.parse(bare, { ecmaVersion: 'latest', sourceType: 'module' })
+    const mounts = jsxMountsOf(tree, 'BuilderSheet')
+    expect(mounts).toHaveLength(1)
+    expect(guardedBy(tree, mounts[0], 'canManageIndicators')).toBe(false)
   })
 })
 
