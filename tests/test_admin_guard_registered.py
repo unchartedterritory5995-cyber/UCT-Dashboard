@@ -308,6 +308,18 @@ def test_the_inline_gate_it_relies_on_actually_refuses():
     class _R:
         headers = {"Authorization": "Bearer nope"}
 
+    # ⛔ SAVE AND RESTORE, NEVER POP. `lesson_teardown_must_undo_what_setup_
+    # created`, in the direction that is easy to miss: the teardown was
+    # `os.environ.pop("PUSH_SECRET", None)`, which DELETED a variable this test
+    # did not create. The session inherits a real `PUSH_SECRET`, so every later
+    # test in the same process that exercises a bearer-gated internal route saw
+    # it vanish — measured 2026-08-09 as four order-dependent failures
+    # (`test_catalysts_internal::test_internal_valid_secret_returns_payload`,
+    # `test_push::test_push_valid_secret_returns_ok`,
+    # `test_push::test_push_data_stored_in_cache`,
+    # `test_wire_feedback::test_internal_valid_bearer_returns_votes_list`), all
+    # green in isolation and all 401 the moment this file ran first.
+    _prev_push_secret = os.environ.get("PUSH_SECRET")
     os.environ["PUSH_SECRET"] = "the-real-secret"
     try:
         with pytest.raises(HTTPException) as e:
@@ -318,7 +330,10 @@ def test_the_inline_gate_it_relies_on_actually_refuses():
             headers = {"Authorization": "Bearer the-real-secret"}
         _check_admin_auth(_Ok())               # must NOT raise
     finally:
-        os.environ.pop("PUSH_SECRET", None)
+        if _prev_push_secret is None:
+            os.environ.pop("PUSH_SECRET", None)
+        else:
+            os.environ["PUSH_SECRET"] = _prev_push_secret
 
 
 def test_the_fixture_app_tests_cannot_see_this_and_that_is_the_finding(real_app):
