@@ -87,97 +87,11 @@
           "screen": "starter_leaders_pullback"
         }
       ]
-    },
-    "VCP": {
-      "source": "rs_rank >= 80 && tight_consolidation",
-      "ast": {
-        "type": "op",
-        "name": "&&",
-        "args": [
-          {
-            "type": "op",
-            "name": ">=",
-            "args": [
-              {
-                "type": "series",
-                "name": "rs_rank"
-              },
-              {
-                "type": "num",
-                "value": 80
-              }
-            ]
-          },
-          {
-            "type": "series",
-            "name": "tight_consolidation"
-          }
-        ]
-      },
-      "grounding": [
-        {
-          "kind": "starter_screen",
-          "screen": "starter_high_rs_bases"
-        },
-        {
-          "kind": "filter_preset",
-          "key": "pattern",
-          "preset": "VCP"
-        }
-      ]
-    },
-    "HVC": {
-      "source": "vol_ratio >= 2 && close_position >= 0.66",
-      "ast": {
-        "type": "op",
-        "name": "&&",
-        "args": [
-          {
-            "type": "op",
-            "name": ">=",
-            "args": [
-              {
-                "type": "series",
-                "name": "vol_ratio"
-              },
-              {
-                "type": "num",
-                "value": 2
-              }
-            ]
-          },
-          {
-            "type": "op",
-            "name": ">=",
-            "args": [
-              {
-                "type": "series",
-                "name": "close_position"
-              },
-              {
-                "type": "num",
-                "value": 0.66
-              }
-            ]
-          }
-        ]
-      },
-      "grounding": [
-        {
-          "kind": "filter_preset",
-          "key": "vol_ratio",
-          "preset": "Over 2×"
-        },
-        {
-          "kind": "filter_preset",
-          "key": "close_position",
-          "preset": "Top third (>0.66)"
-        }
-      ]
     }
   },
   "_ungrounded": {
     "High Tight Flag (Powerplay)": "High Tight Flag (Powerplay) turns on a PRIOR RUN -- roughly a double in four to eight weeks -- and then a shallow, tight flag on top of it. The table declares `chg_pct_1m` and `pullback_depth_pct`, but the screener publishes no preset on `chg_pct_1m` at all, so the size of the run that makes a flag 'high and tight' is nobody's written-down number. Publish a `chg_pct_1m` preset and this becomes expressible.",
+    "VCP": "VCP is the VOLATILITY CONTRACTION pattern, and the contraction SEQUENCE is the tell. The firm's own pattern engine names it `Volatility Contraction Pattern (VCP)` and defines it as successive shallower pullbacks with drying volume into a tight pivot; the Compass coach teaches it as a series of tighter and tighter ranges; the course teaches the scan filter as `recent pullbacks contracting, each swing smaller than the last`. The firm DETECTS exactly that -- `screener/patterns.py::detect_patterns` measures three consecutive ~10-bar swing ranges and emits `vcp` when each is smaller than the last -- but it detects it into `screener_rows.patterns`, a TEXT column, and `closedTable.json` excludes text columns by construction. That is the identical blocker that already refuses `Flat Base Breakout`, and the fix is the same: a per-pattern 0/1 column, not a formula. The nearest declared boolean, `tight_consolidation`, is a DIFFERENT measurement -- the coefficient of variation of the last ten closes, one flat window with no sequence in it -- and the firm's own screen built from it is named `High-RS tight bases`, not VCP. Ship that screen under its own name, or declare a `vcp` column.",
     "Flat Base Breakout": "Flat Base Breakout is a pattern the firm ALREADY DETECTS -- `FILTERS['pattern']` ships a `Flat Base` preset -- but it detects it into `screener_rows.patterns`, a TEXT column, and `closedTable.json` excludes text columns by construction. There is no boolean `flat_base` scalar to screen on, and `pattern_conf_max` carries a confidence with no pattern name attached. The fix is a per-pattern 0/1 column, not a formula.",
     "IPO Base": "IPO Base is defined by how long the symbol has been listed, and the table declares no listing-date or days-since-IPO column. Nothing here can tell a first base from a fourth one.",
     "Parabolic Short": "Parabolic Short is a judgement about the ANGLE of a three-to-five day blow-off and how far it has stretched above its averages. `pct_vs_sma20` and `pct_vs_ema20` are declared, but the only `pct_vs_ema20` preset the firm publishes is `Within 2%` -- a proximity band, the opposite end of the same column -- so the extension that makes a move parabolic is unpublished.",
@@ -194,6 +108,7 @@
     "Classic U&R": "Classic U&R undercuts a PROMINENT PRIOR LOW and reclaims it. `lowest(low, N)` can name a prior low, but which N makes a low prominent is nobody's published number, and the reclaim is a two-bar relationship the table's offset-free grammar cannot state.",
     "Launchpad": "Launchpad's tell is CONVERGENCE, and the closed table cannot say it. The firm's own playbook names the 8-EMA, 21-EMA, 30-SMA and 50-SMA bunched closely together with price consolidating across them, and calls the setup symmetrical: it breaks long or short, and the environment picks the side. The table can say that averages are STACKED, but a stacked and widely SEPARATED trend is the opposite of a coiled bundle, and no artifact at the firm publishes the band that makes a bundle tight. A long-only stack-and-tighten scan would put the firm's name on a different setup. Publish a convergence threshold -- how close the averages must sit to each other -- and this becomes expressible.",
     "Go Signal": "Go Signal is a catalyst gap digesting into a short average and then one wide candle closing above the catalyst high. Both halves fail: there is no catalyst column, and the 9-period average the setup is defined against is not a window any firm artifact publishes.",
+    "HVC": "HVC's tell is a LEVEL, and the trade is not the day the level is made. The firm's glossary reads `the highest-volume day's close becomes the line the stock must hold`; the Setup Library calls it `a surge on the highest volume in the lookback, closing strong -- that day's close becomes the pivot price must defend`; and the lesson that teaches it says of the high-volume bar itself `no trade here -- mark the level the day the volume prints, then wait`, with the entry arriving weeks later over the candle that holds the level. Two things are missing. The superlative IS sayable -- `volume >= highest(volume, 252)`, and 252 is the window the firm's own `computeHVC` chart highlight uses -- but `vol_ratio` is a ratio against a 30-day average, so `vol_ratio >= 2` names a common heavy day rather than the highest volume in the lookback, and a level marked on a merely-heavy day is not the one the tape remembers. And naming `that day's close` on a LATER bar needs a bar offset the closed table does not carry (`_no_offset`) -- the same gap that leaves `Kicker Candle`, `Oops Reversal` and `Remount` ungrounded. Publish the lookback as a citable window and the mark-the-level half becomes expressible; the return-and-hold half needs the offset.",
     "Wick Play": "Wick Play is a single-bar discretionary read on where the wick sits relative to the range. `upper_wick_pct` and `lower_wick_pct` ARE declared scalars -- but the screener publishes no preset on either, so every threshold this scan could use would be the catalogue author's. Publish a wick preset and Wick Play becomes expressible in one line.",
     "Slingshot": "Slingshot is defined against the 4-period exponential average OF THE HIGHS. `ema` takes a series, and the closed table declares `high` -- but 4 is not a window any firm artifact publishes, and a starter that picked one would be inventing the setup's own definition.",
     "Oops Reversal": "Oops Reversal gaps BELOW the prior day's low and closes the gap. `gap_pct` publishes `Down >3%`, so the gap down is sayable; 'below the prior day's LOW' and 'closed the gap' both need the previous bar, which the closed table's offset-free grammar cannot name.",

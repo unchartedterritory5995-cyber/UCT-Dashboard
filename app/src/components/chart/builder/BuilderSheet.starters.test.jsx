@@ -29,6 +29,7 @@ import { evaluateFormula, canSaveFormula, FORMULA_DEBOUNCE_MS } from './FormulaF
 import { BUILDER_INPUT_SCOPE } from './builderInputs'
 import { AuthContext } from '../../../context/AuthContext'
 import { parseFormula, astHash } from '../engine/ast/parse'
+import { fromAst } from './criteria'
 
 const H = vi.hoisted(() => ({ requests: [] }))
 
@@ -109,28 +110,9 @@ function savedDocument() {
   return JSON.parse(write.body).definition ?? JSON.parse(write.body)
 }
 
-// ⛔ THE TWO NAMES ARE READ OFF THE CATALOGUE, NEVER TYPED. A test that spelled
-// a setup name would keep passing against a library that had dropped it.
+// ⛔ THE NAME IS READ OFF THE CATALOGUE, NEVER TYPED. A test that spelled a
+// setup name would keep passing against a library that had dropped it.
 const ANY = Object.keys(STARTERS)[0]
-// A starter every row of which is a comparison, so the Conditions picker can
-// show it as rows. Chosen by SHAPE from the catalogue, not by name.
-const ALL_ROWS = Object.values(STARTERS).find(
-  (e) => e.ast.name === '&&' && countComparisons(e.ast) >= 2
-    && countBareScalars(e.ast) === 0)
-
-function countComparisons(node) {
-  if (!node || node.type !== 'op') return 0
-  if (['>', '>=', '<', '<=', '==', '!='].includes(node.name)) return 1
-  return (node.args || []).reduce((n, a) => n + countComparisons(a), 0)
-}
-
-function countBareScalars(node) {
-  if (!node) return 0
-  if (node.type === 'op' && node.name === '&&') {
-    return (node.args || []).reduce((n, a) => n + countBareScalars(a), 0)
-  }
-  return node.type === 'series' ? 1 : 0
-}
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -185,13 +167,41 @@ describe('🔴 the starter library is REACHABLE from the sheet', () => {
     expect(screen.queryByTestId('starter-library')).toBeNull()
   })
 
-  it('picking a starter fills the SHARED source, and the picker can show it', async () => {
-    expect(ALL_ROWS, 'no all-comparison starter to drive the picker with').toBeTruthy()
-    mount()
-    await pickStarter(ALL_ROWS.setup)
-    expect(field()).toHaveValue(STARTERS[ALL_ROWS.setup].source)
-    fireEvent.click(tab(/conditions/i))
-    expect(screen.getAllByTestId('picker-row').length).toBeGreaterThan(1)
+  it('picking a starter fills the SHARED source, and Conditions shows it as ROWS or REFUSES BY NAME', async () => {
+    // ⭐ ASSERTED FOR EVERY STARTER, AND THE BRANCH IS THE PICKER'S OWN VERDICT.
+    // This case used to select one starter with a hand-rolled "every leaf is a
+    // comparison" walk — a SECOND AUTHORITY over a decision `criteria.fromAst`
+    // already owns. It agreed with the catalogue on the day it was written and
+    // went `undefined` the first time the shipped set moved, which would have
+    // red-ed the case for a reason that has nothing to do with the sheet.
+    //
+    // ⛔ The case encodes NO expectation about which starters are pickable. It
+    // asks `fromAst` per starter, so it follows the catalogue in both
+    // directions. (Today: none. Every shipped starter carries a BARE BOOLEAN
+    // SCALAR — `above_50sma` — and `criteria.js` still answers
+    // `picker:not-a-condition` for a bare series in condition position, which
+    // is false for a scalar the manifest declares `yields: 'bool'`. That is the
+    // same correction the crossing row already made for boolean FUNCTIONS, one
+    // node type over, and it is reported to the owner rather than patched here.)
+    expect(Object.keys(STARTERS).length).toBeGreaterThan(0)
+    for (const entry of Object.values(STARTERS)) {
+      mount()
+      await pickStarter(entry.setup)
+      expect(field()).toHaveValue(STARTERS[entry.setup].source)
+      fireEvent.click(tab(/conditions/i))
+      await settle()
+      const read = fromAst(entry.ast)
+      if (read.ok) {
+        expect(screen.getAllByTestId('picker-row').length).toBeGreaterThan(0)
+      } else {
+        expect(screen.queryAllByTestId('picker-row')).toHaveLength(0)
+        // ⛔ THE REFUSAL'S OWN SENTENCE, read off `criteria.REFUSALS` through
+        // `fromAst` — never retyped here. A member who cannot edit a starter in
+        // the picker must be told why, in the words the manifest owns.
+        expect(screen.getByTestId('picker-note')).toHaveTextContent(read.reason)
+      }
+      cleanup()
+    }
   })
 
   it('and it lands on the FORMULA tab with the tree\'s own read-back showing', async () => {
