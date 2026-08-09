@@ -88,6 +88,14 @@ _BAND_ORDER = [
 # TLT→Large) — instead route anything the aggregator tagged as a fund straight to
 # the ETFs & Index section, and reserve market-cap bucketing for actual stocks.
 _ETF_CATS = {"Indexes", "Sector ETFs", "Bond ETFs", "Intl/EM ETFs", "Commodity ETFs"}
+
+# Funds the automated detection misses — chiefly single-stock leveraged ETFs
+# (e.g. GOOGN) that FMP doesn't flag as ETFs and that aren't in the aggregator's
+# lists. Seeded + env-extendable (DARKPOOL_EOD_ETF_EXTRA, comma-separated) so a
+# new straggler can be added without a code change.
+_ETF_OVERRIDE = {"GOOGN"} | {
+    s.strip().upper() for s in os.getenv("DARKPOOL_EOD_ETF_EXTRA", "").split(",") if s.strip()
+}
 # Friendly ETF-type label for the SECTOR column (a fund has no GICS sector — FMP
 # returns a bogus "Financial Services", so show what KIND of fund it is instead).
 _ETF_TYPE = {"Indexes": "Index", "Sector ETFs": "Sector", "Bond ETFs": "Bond",
@@ -425,7 +433,7 @@ def build_sections(days: int = 1, top_n: int = 10, min_notional: float = 5e6):
 
     def _rough(it) -> str:
         cat = (it.get("cat") or "").strip()
-        if cat in _ETF_CATS:
+        if cat in _ETF_CATS or sym_of(it) in _ETF_OVERRIDE:
             return "ETF/Index"
         mc = float(caps.get(sym_of(it)) or it.get("mktcap") or 0)
         if mc > 0:
@@ -450,7 +458,7 @@ def build_sections(days: int = 1, top_n: int = 10, min_notional: float = 5e6):
     def _bucket(it) -> str:
         s = sym_of(it)
         cat = (it.get("cat") or "").strip()
-        if cat in _ETF_CATS or (metas.get(s) or {}).get("isEtf"):
+        if cat in _ETF_CATS or s in _ETF_OVERRIDE or (metas.get(s) or {}).get("isEtf"):
             return "ETF/Index"
         mc = float(caps.get(s) or it.get("mktcap") or 0)
         if mc > 0:
