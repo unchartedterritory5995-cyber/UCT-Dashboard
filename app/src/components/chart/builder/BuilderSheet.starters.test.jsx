@@ -177,12 +177,18 @@ describe('🔴 the starter library is REACHABLE from the sheet', () => {
     //
     // ⛔ The case encodes NO expectation about which starters are pickable. It
     // asks `fromAst` per starter, so it follows the catalogue in both
-    // directions. (Today: none. Every shipped starter carries a BARE BOOLEAN
-    // SCALAR — `above_50sma` — and `criteria.js` still answers
-    // `picker:not-a-condition` for a bare series in condition position, which
-    // is false for a scalar the manifest declares `yields: 'bool'`. That is the
-    // same correction the crossing row already made for boolean FUNCTIONS, one
-    // node type over, and it is reported to the owner rather than patched here.)
+    // directions — which is why it needed no edit when the answer moved.
+    //
+    // ⚰️ IT USED TO BE NONE, AND THE REASON IS WORTH KEEPING RATHER THAN
+    // DELETING. Every shipped starter carries a BARE BOOLEAN SCALAR
+    // (`above_50sma`), and `criteria.js` answered `picker:not-a-condition` for a
+    // bare series in condition position — false for a scalar the manifest
+    // declares `yields: 'bool'`, and the same correction the crossing row had
+    // already made for boolean FUNCTIONS one node type over. That is fixed: a
+    // boolean NAME is now a picker row, and a NEGATIVE LITERAL (`>= -2`, the
+    // other half of the same starter) is now a picker TERM. The gate on the
+    // model side is `criteria.test.js`'s starter block, which walks the frozen
+    // trees; this case is the one that fails when the SHEET stops showing them.
     expect(Object.keys(STARTERS).length).toBeGreaterThan(0)
     for (const entry of Object.values(STARTERS)) {
       mount()

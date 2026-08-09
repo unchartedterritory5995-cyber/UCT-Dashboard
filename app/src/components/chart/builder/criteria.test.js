@@ -62,16 +62,24 @@ function genCorpus(seed, n) {
   const names = [...VOCAB.series, ...VOCAB.scalars]
   const fns = [...VOCAB.functions.keys()]
   const cmps = [...VOCAB.comparators]
-  // ⭐ THE SECOND ROW SHAPE IS IN THE CORPUS, DERIVED. A crossing row that the
-  // 400 cases never generated would leave every property below true of a picker
-  // that could not spell one, which is exactly the state E-4 shipped.
+  // ⭐ EVERY ROW SHAPE IS IN THE CORPUS, DERIVED. A shape the 400 cases never
+  // generated would leave every property below true of a picker that could not
+  // spell one, which is exactly the state E-4 shipped for crossings and the
+  // state the picker was in for a BARE BOOLEAN NAME until this task.
   const crosses = [...VOCAB.crossings.keys()]
+  const flags = [...VOCAB.flags.keys()]
   const other = (join) => (join === 'and' ? 'or' : 'and')
 
   const term = () => {
     const roll = r()
     if (roll < 0.35) return { t: 'name', name: pick(names) }
-    if (roll < 0.55) return { t: 'num', value: Math.floor(r() * 400) }
+    if (roll < 0.48) return { t: 'num', value: Math.floor(r() * 400) }
+    // ⭐ AND NEGATIVE LITERALS. The grammar has no negative `num` — `-2` is an
+    // OPERATOR node over a positive one — so a corpus of non-negative numbers
+    // leaves every property below true of a picker that cannot show the firm's
+    // own `pct_vs_ema20 >= -2`. ⚠️ Never `-0`: it spells back as `0`, which is a
+    // DIFFERENT tree, and `readTerm` refuses it for exactly that reason.
+    if (roll < 0.55) return { t: 'num', value: -(1 + Math.floor(r() * 400)) }
     const name = pick(fns)
     const spec = VOCAB.functions.get(name)
     return {
@@ -82,9 +90,12 @@ function genCorpus(seed, n) {
         : { t: 'name', name: pick(names) })),
     }
   }
-  const row = () => (crosses.length && r() < 0.25
-    ? { kind: 'cross', left: term(), fn: pick(crosses), right: term() }
-    : { kind: 'row', left: term(), cmp: pick(cmps), right: term() })
+  const row = () => {
+    const roll = r()
+    if (flags.length && roll < 0.15) return { kind: 'flag', name: pick(flags) }
+    if (crosses.length && roll < 0.40) return { kind: 'cross', left: term(), fn: pick(crosses), right: term() }
+    return { kind: 'row', left: term(), cmp: pick(cmps), right: term() }
+  }
   const group = (depth, join) => {
     const k = 2 + Math.floor(r() * 3)
     const children = []
@@ -115,27 +126,51 @@ describe('the corpus is not vacuous', () => {
       if (n.kind === 'group') return n.children.forEach(walk)
       if (n.kind === 'row') { seen.add(n.cmp); [n.left, n.right].forEach(walkTerm) }
       if (n.kind === 'cross') { seen.add(n.fn); [n.left, n.right].forEach(walkTerm) }
+      if (n.kind === 'flag') seen.add(n.name)
       return undefined
     }
     CORPUS.forEach(walk)
     const declared = [...VOCAB.series, ...VOCAB.scalars, ...VOCAB.functions.keys(),
-      ...VOCAB.comparators, ...VOCAB.crossings.keys()]
+      ...VOCAB.comparators, ...VOCAB.crossings.keys(), ...VOCAB.flags.keys()]
     expect(declared.length, 'the vocabulary itself is empty — this census would pass on nothing').toBeGreaterThan(50)
     const missing = declared.filter((n) => !seen.has(n))
     expect(missing, 'raise the corpus size or the generator is not reaching these').toEqual([])
   })
 
-  it('and it contains BOTH ROW SHAPES — a corpus of comparisons proves nothing about crossings', () => {
+  it('and it contains EVERY ROW SHAPE — a corpus of comparisons proves nothing about the others', () => {
     // ⭐ THE CENSUS THAT SEES A GENERATOR THAT QUIETLY STOPPED EMITTING ONE.
     // Every property below is `it.each` over CORPUS, so a corpus with no `cross`
-    // node leaves all 400 identity cases green while `toSource`/`fromAst` have
-    // no crossing support at all — E-4's M4 one shape later.
+    // node — or no `flag` node — leaves all 400 identity cases green while
+    // `toSource`/`fromAst` have no support for that shape at all. E-4 shipped
+    // exactly that state for crossings; the picker was in it for a bare boolean
+    // name until this task.
     const kinds = new Set()
     const walk = (n) => { kinds.add(n.kind); if (n.kind === 'group') n.children.forEach(walk) }
     CORPUS.forEach(walk)
     expect(VOCAB.crossings.size, 'the manifest declares no crossing — this census would pass on nothing')
       .toBeGreaterThan(0)
-    expect([...kinds].sort()).toEqual(['cross', 'group', 'row'])
+    expect(VOCAB.flags.size, 'the manifest declares no boolean name — this census would pass on nothing')
+      .toBeGreaterThan(0)
+    expect([...kinds].sort()).toEqual(['cross', 'flag', 'group', 'row'])
+  })
+
+  it('and it contains a NEGATIVE literal — the other half of what the shipped starter needs', () => {
+    // ⛔ THE SAME CENSUS ONE LAYER DOWN, for the term rather than the row. A
+    // generator that stopped emitting negatives would leave all 400 identity
+    // cases green while `-2` — which the firm's own surviving starter screens
+    // on — could not be shown at all.
+    let negatives = 0
+    const walkTerm = (t) => {
+      if (t.t === 'num' && t.value < 0) negatives += 1
+      if (t.t === 'call') t.args.forEach(walkTerm)
+    }
+    const walk = (n) => {
+      if (n.kind === 'group') { n.children.forEach(walk); return }
+      if (n.kind === 'flag') return
+      ;[n.left, n.right].forEach(walkTerm)
+    }
+    CORPUS.forEach(walk)
+    expect(negatives).toBeGreaterThan(0)
   })
 
   it('and the corpus contains both joins and at least one nested group', () => {
@@ -484,6 +519,270 @@ describe('⭐ THE CROSSING ROW — the second shape, and the asymmetry it closes
       { kind: 'group', join: 'and', children: [{ kind: 'cross', left: { t: 'name', name: 'close' }, fn, right: { t: 'name', name: 'open' } }] },
       narrowed,
     )).toThrow(/comparison/i)
+  })
+})
+
+describe('⭐ THE FLAG ROW — a name that answers yes-or-no IS a condition', () => {
+  // 🔴 THE DEFECT THIS BLOCK CLOSES. `criteria.js` answered
+  // `picker:not-a-condition` for a BARE `series` node while the manifest
+  // declares `above_50sma` with `yields: "bool"` — so the picker told a member
+  // that a yes-or-no fact "produces a number", and the ONE starter the library
+  // ships could not be opened in the door that exists to teach the syntax. It is
+  // the SAME correction the crossing row already made for boolean FUNCTIONS, one
+  // node type over, and it is made the same way: by reading `yields`.
+
+  it('the flag set is a PARTITION of the manifest\'s boolean NAMES, across BOTH sections', () => {
+    // ⛔ NO NAME, NO COUNT AND NO SECTION. A bar field and a table scalar are
+    // the same NODE (E-1), so which section an entry lives in cannot decide
+    // whether it is a condition — only `yields` can, and this is the identity
+    // that a hand-list cannot satisfy by accident.
+    expect(VOCAB.flags.size).toBeGreaterThan(0)
+    const owed = [...Object.entries(TABLE.series), ...Object.entries(TABLE.scalars)]
+      .filter(([, s]) => s.yields === 'bool')
+      .map(([n]) => n)
+      .filter((n) => !VOCAB.flags.has(n))
+    expect(owed, 'a boolean name the manifest declares and the picker does not offer').toEqual([])
+    for (const name of VOCAB.flags.keys()) {
+      const spec = TABLE.series[name] || TABLE.scalars[name]
+      expect(spec, name).toBeTruthy()
+      expect(spec.yields, name).toBe('bool')
+    }
+    // …and every flag is still a NAME the picker knows, so a flag row's source
+    // is a name both directions already resolve.
+    expect([...VOCAB.flags.keys()].filter((n) => !VOCAB.series.has(n) && !VOCAB.scalars.has(n))).toEqual([])
+  })
+
+  it('⭐ EVERY DECLARED NAME, DERIVED: `yields` decides, and the answer is total', () => {
+    // ⭐⭐ THE GATE, AND IT COVERS A 55th ENTRY AUTOMATICALLY. The assertion is
+    // not "these six open and `close` refuses" — it is that the picker's verdict
+    // on EVERY name the manifest declares is exactly what that name's `yields`
+    // says, in both directions. A name added to `closedTable.json` tomorrow is
+    // already asserted here, and a hand-list that agreed with today's manifest
+    // would still have to agree with tomorrow's.
+    const names = [...Object.entries(TABLE.series), ...Object.entries(TABLE.scalars)]
+    expect(names.length).toBeGreaterThan(50)
+    const bools = names.filter(([, s]) => s.yields === 'bool')
+    const others = names.filter(([, s]) => s.yields !== 'bool')
+    expect(bools.length, 'no boolean name declared — this case would pass on nothing').toBeGreaterThan(0)
+    expect(others.length, 'no non-boolean name declared — the refusal half would pass on nothing').toBeGreaterThan(0)
+
+    for (const [name] of bools) {
+      const back = fromSource(name)
+      expect(back.ok, `${name} is declared bool and the picker refused it: ${back.reason}`).toBe(true)
+      expect(back.group.children).toEqual([{ kind: 'flag', name }])
+      expect(isCanonical(back.group)).toBe(true)
+      // …and it re-spells to the SAME TREE, which is what makes it editable
+      // rather than merely visible.
+      expect(astHash(parseFormula(toSource(back.group)).ast)).toBe(astHash(parseFormula(name).ast))
+    }
+    for (const [name] of others) {
+      // ⛔ THE OTHER HALF, AND WITHOUT IT THIS TASK HAS TRADED A FALSE REFUSAL
+      // FOR A FALSE ACCEPTANCE. A price is not a yes-or-no answer, and the
+      // picker must still say so — in the sentence it already had.
+      const back = fromSource(name)
+      expect(back.ok, `${name} yields a number and the picker accepted it as a condition`).toBe(false)
+      expect(back.guard, name).toBe('picker:not-a-condition')
+      expect(back.group, name).toBeUndefined()
+    }
+  })
+
+  it('a flag alone at the top is a ONE-ROW GROUP, like any other single condition', () => {
+    const name = [...VOCAB.flags.keys()][0]
+    const back = fromSource(name)
+    expect(back.ok, back.reason).toBe(true)
+    expect(back.group.kind).toBe('group')
+    expect(back.group.children).toEqual([{ kind: 'flag', name }])
+  })
+
+  it('⛔ AND IT IS DERIVED: a PLANTED boolean SCALAR is offered with no edit here', () => {
+    const planted = JSON.parse(JSON.stringify(TABLE))
+    planted.scalars.uct_planted_flag = {
+      source: { store: 'screener_rows', column: 'uct_planted_flag' },
+      as_of: { column: 'snapshot_date', grain: 'date' },
+      cadence: 'nightly', yields: 'bool', sentence: 'whether the planted probe is set',
+    }
+    const v = vocabulary(planted)
+    expect(VOCAB.flags.has('uct_planted_flag')).toBe(false)
+    expect(v.flags.has('uct_planted_flag')).toBe(true)
+    const res = fromAst(parseFormula('uct_planted_flag').ast, v)
+    expect(res.ok, res.reason).toBe(true)
+    expect(res.group.children[0]).toEqual({ kind: 'flag', name: 'uct_planted_flag' })
+    // …and the SHIPPED vocabulary still refuses it, so the planted table is
+    // demonstrably what made the difference.
+    expect(fromAst(parseFormula('uct_planted_flag').ast, VOCAB).guard).toBe('picker:not-a-condition')
+  })
+
+  it('⛔ AND THE SECTION IS NOT WHAT DECIDES — a planted boolean BAR FIELD is offered too', () => {
+    // ⭐ THE CASE TODAY'S MANIFEST CANNOT REACH: every declared bar field yields
+    // a number, so a reader that filtered on the SCALARS section alone would
+    // pass every other case in this block. A scalar and a bar field are the same
+    // NODE, so only `yields` may decide.
+    const planted = JSON.parse(JSON.stringify(TABLE))
+    planted.series.uct_planted_bar_flag = { key: 'c', yields: 'bool', sentence: 'whether the planted bar is set' }
+    const v = vocabulary(planted)
+    expect(VOCAB.flags.has('uct_planted_bar_flag')).toBe(false)
+    expect(v.flags.has('uct_planted_bar_flag')).toBe(true)
+    const res = fromAst({ type: 'series', name: 'uct_planted_bar_flag' }, v)
+    expect(res.ok, res.reason).toBe(true)
+    expect(res.group.children[0]).toEqual({ kind: 'flag', name: 'uct_planted_bar_flag' })
+  })
+
+  it('⛔ AND A REMOVED `yields: bool` TAKES ONE BACK OUT, refusing what it used to read', () => {
+    const name = [...VOCAB.flags.keys()][0]
+    const planted = JSON.parse(JSON.stringify(TABLE))
+    planted.scalars[name].yields = 'num'
+    const v = vocabulary(planted)
+    expect(VOCAB.flags.has(name)).toBe(true)
+    expect(v.flags.has(name)).toBe(false)
+    expect(fromAst(parseFormula(name).ast, v).guard).toBe('picker:not-a-condition')
+  })
+
+  it('the flag\'s label is the MANIFEST\'S OWN SENTENCE, and it MOVES with the manifest', () => {
+    // ⛔ A PROPERTY, NOT A RESTATEMENT. Retyping "whether the price is above its
+    // 50-day average" here would be a second authority over a string the
+    // manifest owns — this repo's most-repeated defect. The planted case is what
+    // proves the label is READ rather than written.
+    for (const [name, spec] of VOCAB.flags) {
+      const declared = (TABLE.series[name] || TABLE.scalars[name]).sentence
+      expect(spec.label, name).toBeTruthy()
+      expect(spec.label, name).not.toMatch(/[{}]/)
+      const stray = spec.label.split(/\s+/).filter((w) => !declared.includes(w))
+      expect(stray, `${name}'s label says something its sentence does not`).toEqual([])
+    }
+    const first = [...VOCAB.flags.keys()][0]
+    const planted = JSON.parse(JSON.stringify(TABLE))
+    planted.scalars[first].sentence = 'uctplantedfact'
+    expect(vocabulary(planted).flags.get(first).label).toBe('uctplantedfact')
+    expect(VOCAB.flags.get(first).label).not.toBe('uctplantedfact')
+  })
+
+  it('a flag whose name the vocabulary does not offer is REFUSED, never spelled', () => {
+    // ⛔ AND WITH THE READ SIDE'S OWN SENTENCE. A name that is not a flag yields
+    // a NUMBER, which is exactly what `picker:not-a-condition` says, so the two
+    // directions cannot drift into telling a member two different things.
+    const narrowed = { ...VOCAB, flags: new Map() }
+    const group = { kind: 'group', join: 'and', children: [{ kind: 'flag', name: [...VOCAB.flags.keys()][0] }] }
+    expect(() => toSource(group, narrowed)).toThrow(/yes-or-no/i)
+    expect(toSource(group, VOCAB)).toBe([...VOCAB.flags.keys()][0])
+  })
+
+  it('⚠️ A BOOLEAN NAME IS STILL A TERM TOO, and that is deliberate', () => {
+    // The grammar has no boolean node — `_booleans` says a condition IS a 0/1
+    // column — so `above_50sma == 1` is a legal comparison and it opened in the
+    // picker before this task. Refusing it now would REMOVE something a member
+    // can do today in the name of consistency with the crossing decision, which
+    // is a narrowing and an owner call, not a bug fix. It is recorded here so
+    // the asymmetry is a decision on the record rather than an oversight.
+    const name = [...VOCAB.flags.keys()][0]
+    const back = fromSource(`${name} == 1`)
+    expect(back.ok, back.reason).toBe(true)
+    expect(back.group.children[0].kind).toBe('row')
+    expect(back.group.children[0].left).toEqual({ t: 'name', name })
+  })
+})
+
+describe('⭐ A NEGATIVE LITERAL IS A NUMBER, not arithmetic', () => {
+  // 🔴 THE OTHER HALF OF WHY THE SHIPPED STARTER COULD NOT BE OPENED. The
+  // canonical tree has no negative `num` — `_canonical` says unary minus is
+  // spelled `u-` — so `pct_vs_ema20 >= -2` arrives with an OPERATOR in a term
+  // slot, and a picker that read the node's TYPE refused a plain number.
+
+  it('the negation set is DERIVED, and every member is an arity-1 numeric operator', () => {
+    // ⛔ NO NAME. Which operator negates is a fact about the INTERPRETER, so it
+    // is measured by running it — the same idiom the join/comparator split uses.
+    // What is asserted here is read off the manifest, never typed.
+    expect(VOCAB.negations.size).toBeGreaterThan(0)
+    for (const name of VOCAB.negations) {
+      expect(TABLE.operators[name].arity, name).toBe(1)
+      expect(TABLE.operators[name].yields, name).toBe('num')
+    }
+    // …and the LOGICAL not did not leak in: it is arity 1 too, and the picker
+    // must still refuse `!(close > open)` as a construction it has no row for.
+    expect(fromSource('!(close > open)').guard).toBe('picker:node')
+  })
+
+  it('a negative literal reads back as a NUMBER and re-spells to the SAME TREE', () => {
+    const src = 'pct_vs_ema20 >= -2'
+    const parsed = parseFormula(src)
+    expect(parsed.ok, parsed.error).toBe(true)
+    const back = fromAst(parsed.ast, VOCAB)
+    expect(back.ok, back.reason).toBe(true)
+    expect(back.group.children[0].right).toEqual({ t: 'num', value: -2 })
+    expect(astHash(parseFormula(toSource(back.group)).ast)).toBe(astHash(parsed.ast))
+  })
+
+  it('⛔ AND IT IS DERIVED: a vocabulary with no negation FAILS CLOSED, exactly as before', () => {
+    // The direction that matters. Delete the operator from the manifest and the
+    // picker goes back to refusing a negative literal BY NAME rather than
+    // silently spelling something the parser would read differently.
+    const narrowed = { ...VOCAB, negations: new Set() }
+    expect(fromAst(parseFormula('pct_vs_ema20 >= -2').ast, narrowed).guard).toBe('picker:term')
+    expect(fromAst(parseFormula('pct_vs_ema20 >= -2').ast, VOCAB).ok).toBe(true)
+  })
+
+  it('⛔ THE OPERAND MUST BE A LITERAL — a negated EXPRESSION is still arithmetic', () => {
+    // This widens nothing but the one shape the grammar forces. `-close` is a
+    // term that is a tree, which is the arithmetic row shape that has not been
+    // taken and is still refused BY NAME.
+    expect(fromSource('-close > 1').guard).toBe('picker:term')
+    expect(fromSource('-(close + open) > 1').guard).toBe('picker:term')
+  })
+
+  it('⛔ AND NOT `-0`, because it would spell back as a DIFFERENT TREE', () => {
+    // `String(-0)` is `0`, which parses to `num 0` rather than to a negation —
+    // so admitting it would make the AST identity property false for a shape no
+    // member can reach by any other route. It refuses instead.
+    const parsed = parseFormula('close > -0')
+    expect(parsed.ok, parsed.error).toBe(true)
+    expect(fromAst(parsed.ast, VOCAB).guard).toBe('picker:term')
+  })
+
+  it('⛔ AND NEVER INSIDE A CALL — refused in BOTH directions, so they cannot disagree', () => {
+    // A negative argument spells `sma(close, -2)`, whose canonical form puts an
+    // OPERATOR in the argument slot, and `readTerm` refuses an operator there.
+    // Spelling one would produce source the picker could not read back — the
+    // exact asymmetry the identity property exists to catch.
+    expect(fromSource('sma(close, -2) > 1').guard).toBe('picker:term')
+    expect(() => toSource({
+      kind: 'group',
+      join: 'and',
+      children: [{
+        kind: 'row',
+        left: { t: 'call', name: 'sma', args: [{ t: 'name', name: 'close' }, { t: 'num', value: -2 }] },
+        cmp: [...VOCAB.comparators][0],
+        right: { t: 'num', value: 1 },
+      }],
+    }, VOCAB)).toThrow(/longer expression/i)
+  })
+})
+
+describe('🔴 THE SHIPPED STARTERS OPEN IN THE PICKER, and come back as the same tree', () => {
+  // ⭐ THE PRODUCT CLAIM, MEASURED ON THE ARTIFACT MEMBERS ACTUALLY MEET. The
+  // Library is the builder's default tab and it ships a small number of the
+  // firm's own scans; a starter that cannot be opened in the Conditions door is
+  // an example that cannot be edited, which is the whole reason the gallery
+  // exists. ⛔ READ FROM THE CATALOGUE, so a starter added tomorrow is asserted
+  // the day it lands and one retired takes its case with it.
+  const STARTERS = readJson('app/src/components/chart/engine/ast/starterScans.json').starters
+  const CASES = Object.entries(STARTERS)
+
+  it('the catalogue is not empty — this block would otherwise assert nothing', () => {
+    expect(CASES.length).toBeGreaterThan(0)
+  })
+
+  it.each(CASES)('%s opens, is canonical, and re-spells to the SAME TREE', (name, entry) => {
+    // ⛔ THE FROZEN TREE AND THE SOURCE ARE CHECKED AGAINST EACH OTHER FIRST.
+    // Reading one of them alone would let a catalogue whose two halves had
+    // drifted pass this case.
+    const parsed = parseFormula(entry.source)
+    expect(parsed.ok, `${name}: ${entry.source} did not parse — ${parsed.error}`).toBe(true)
+    expect(astHash(parsed.ast), `${name}: the frozen tree is not what its source spells`)
+      .toBe(astHash(entry.ast))
+
+    const back = fromAst(entry.ast, VOCAB)
+    expect(back.ok, `${name} cannot be opened in the picker: ${back.reason}`).toBe(true)
+    expect(isCanonical(back.group), name).toBe(true)
+    expect(astHash(parseFormula(toSource(back.group)).ast), name).toBe(astHash(entry.ast))
   })
 })
 

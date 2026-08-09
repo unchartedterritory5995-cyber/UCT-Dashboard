@@ -255,6 +255,102 @@ describe('⭐ THE CROSSING ROW is offered in the SAME control as a comparison', 
   })
 })
 
+describe('⭐ THE FLAG ROW — a yes-or-no name sits beside the comparisons', () => {
+  // 🔴 THE WIRE FOR THE THIRD SHAPE. `criteria.js` can spell a flag and read one
+  // back with this component rendering nothing for it — every case in
+  // `criteria.test.js` stays green while a member opening the firm's own starter
+  // sees a row that is not there, or a comparison with no terms in it. This is
+  // the file that fails when the flag control is cut.
+
+  const someFlag = () => [...VOCAB.flags.keys()][0]
+  const flagSelect = () => screen.getByLabelText('Condition 0 fact')
+
+  it('a TYPED boolean name renders as ONE row of its own kind, and shows nothing back', () => {
+    const name = someFlag()
+    const { onSourceChange } = mount({ ast: astOf(name) })
+    expect(screen.getAllByTestId('picker-row')).toHaveLength(1)
+    expect(screen.getByTestId('picker-row')).toHaveAttribute('data-kind', 'flag')
+    expect(flagSelect()).toHaveValue(name)
+    // ⛔ AND IT HAS NO COMPARISON. A flag rendered through the comparison editor
+    // would put a relation dropdown and two empty term slots on screen for a
+    // formula that says none of that.
+    expect(screen.queryByLabelText('Condition 0 comparison')).toBeNull()
+    expect(screen.queryByLabelText('Condition 0 left side')).toBeNull()
+    expect(onSourceChange).not.toHaveBeenCalled()
+  })
+
+  it('the flag control offers EXACTLY the vocabulary\'s flags, with the manifest\'s own words', () => {
+    // ⛔ DERIVED, so a manifest that declares another boolean scalar reaches this
+    // control with no edit here — and a control cut back to a curated list fails
+    // BY NAME. The labels are read off the vocabulary, never retyped.
+    mount({ ast: astOf(someFlag()) })
+    expect(VOCAB.flags.size).toBeGreaterThan(0)
+    const options = [...flagSelect().options]
+    expect(options.map((o) => o.value).sort()).toEqual([...VOCAB.flags.keys()].sort())
+    const byValue = new Map(options.map((o) => [o.value, o.textContent]))
+    for (const [name, spec] of VOCAB.flags) {
+      expect(byValue.get(name), name).toBe(spec.label)
+      expect(byValue.get(name), name).not.toBe(name)
+    }
+  })
+
+  it('changing the flag emits the string `toSource` would spell', () => {
+    const names = [...VOCAB.flags.keys()]
+    const { onSourceChange } = mount({ ast: astOf(names[0]) })
+    fireEvent.change(flagSelect(), { target: { value: names[1] } })
+    const emitted = onSourceChange.mock.calls.at(-1)[0]
+    expect(emitted).toBe(toSource({
+      kind: 'group', join: 'and', children: [{ kind: 'flag', name: names[1] }],
+    }, VOCAB))
+    expect(parseFormula(emitted).ok, emitted).toBe(true)
+  })
+
+  it('a flag can be ADDED with clicks, and what it emits parses', () => {
+    const { onSourceChange } = mount({ ast: astOf('close > open') })
+    fireEvent.click(screen.getByRole('button', { name: /add a yes-or-no fact/i }))
+    const emitted = onSourceChange.mock.calls.at(-1)[0]
+    expect(parseFormula(emitted).ok, emitted).toBe(true)
+    expect(screen.getAllByTestId('picker-row')).toHaveLength(2)
+    expect(screen.getAllByTestId('picker-row')[1]).toHaveAttribute('data-kind', 'flag')
+    expect(astHash(parseFormula(emitted).ast))
+      .toBe(astHash(astOf(`(close > open) && ${[...VOCAB.flags.keys()][0]}`)))
+  })
+
+  it('🔴 THE SHIPPED STARTER\'S SHAPE renders BOTH kinds and round-trips through the picker', () => {
+    // ⭐ THE CASE THE WHOLE TASK IS FOR: the firm's surviving starter is a
+    // comparison, a bare boolean scalar and a NEGATIVE threshold in one group.
+    // Before this task the picker rendered none of it.
+    const src = 'rs_rank >= 80 && above_50sma && pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2'
+    const { onSourceChange } = mount({ ast: astOf(src) })
+    const rows = screen.getAllByTestId('picker-row')
+    expect(rows.map((r) => r.getAttribute('data-kind'))).toEqual(['row', 'flag', 'row', 'row'])
+    expect(onSourceChange).not.toHaveBeenCalled()
+    // …and one edit re-emits the WHOLE group, negative threshold intact.
+    fireEvent.change(screen.getByLabelText('Condition 0 right side value'), { target: { value: '90' } })
+    const emitted = onSourceChange.mock.calls.at(-1)[0]
+    expect(astHash(parseFormula(emitted).ast)).toBe(astHash(astOf(
+      'rs_rank >= 90 && above_50sma && pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2')))
+  })
+
+  it('a NEGATIVE threshold is EDITABLE, and a function\'s window is still not', () => {
+    // ⛔ THE ASYMMETRY IS THE MANIFEST'S. A row's term is a magnitude and the
+    // firm screens on a negative one; a function's `int` argument is a LOOKBACK
+    // (`lookback: "arg1"`), and `criteria.leafSource` refuses a negative literal
+    // inside a call — so a control that offered one would build source the
+    // picker could not read back.
+    const { onSourceChange } = mount({ ast: astOf('pct_vs_ema20 >= 2') })
+    fireEvent.change(screen.getByLabelText('Condition 0 right side value'), { target: { value: '-2' } })
+    expect(onSourceChange.mock.calls.at(-1)[0]).toBe('(pct_vs_ema20 >= -2)')
+
+    cleanup()
+    const second = mount({ ast: astOf('close > sma(open, 50)') })
+    const window = screen.getByLabelText('Condition 0 right side sma argument 2')
+    expect(window).toHaveAttribute('min', '0')
+    fireEvent.change(window, { target: { value: '-5' } })
+    expect(second.onSourceChange.mock.calls.at(-1)[0]).toBe('(close > sma(open, 0))')
+  })
+})
+
 describe('no new chrome', () => {
   it('every glyph is a UIcon and not one emoji reaches the DOM', () => {
     const { container } = mount({ ast: astOf('(close > open) && (high > low)') })

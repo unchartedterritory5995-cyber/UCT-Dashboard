@@ -53,6 +53,14 @@ const RELATION_OPTIONS = Object.freeze([
 const RELATION_BY_VALUE = new Map(RELATION_OPTIONS.map((o) => [o.value, o]))
 const CMP_OPTIONS = Object.freeze(RELATION_OPTIONS.filter((o) => o.kind === 'row').map((o) => o.value))
 
+/** ⭐ THE THIRD ROW SHAPE — a name that answers yes-or-no ON ITS OWN. It has no
+ *  relation and no second side, so it cannot ride the dropdown above: its row is
+ *  ONE control. ⛔ The list and every label are the vocabulary's, read off
+ *  `yields`, so a boolean scalar the manifest declares tomorrow arrives here
+ *  with no edit — and if the manifest ever declares NONE, this is empty and the
+ *  control that offers it is not rendered at all rather than rendered blank. */
+const FLAG_OPTIONS = Object.freeze([...VOCAB.flags].map(([name, spec]) => ({ value: name, label: spec.label })))
+
 /** The value the relation control shows for a row of either shape. */
 const relationOf = (row) => (row.kind === 'cross' ? row.fn : row.cmp)
 
@@ -81,6 +89,8 @@ const defaultRow = () => ({
   cmp: CMP_OPTIONS[0],
   right: { t: 'name', name: NAME_OPTIONS[1] || NAME_OPTIONS[0] },
 })
+
+const defaultFlag = () => ({ kind: 'flag', name: FLAG_OPTIONS[0].value })
 
 function defaultTermFor(kind) {
   if (kind === NUMBER_OPTION) return { t: 'num', value: 0 }
@@ -115,18 +125,26 @@ function withChild(group, i, next) {
   }
 }
 
-function NumberField({ value, label, onChange }) {
+/** ⚠️ `allowNegative` IS NOT A STYLE CHOICE, IT IS THE TWO SLOTS BEING DIFFERENT
+ *  KINDS. A row's TERM is a magnitude and the firm's own starter screens on a
+ *  negative one (`pct_vs_ema20 >= -2`); a function's `int` argument is a
+ *  LOOKBACK — the manifest says so with `lookback: "arg1"` — and a negative
+ *  window is not a formula the parser accepts. `criteria.leafSource` refuses a
+ *  negative literal inside a call for exactly that reason, so a control that
+ *  offered one here would build source the picker could not read back. */
+function NumberField({ value, label, onChange, allowNegative = false }) {
   return (
     <input
       type="number"
       className={styles.pickerNum}
       aria-label={label}
-      min="0"
+      {...(allowNegative ? {} : { min: '0' })}
       step="any"
       value={Number.isFinite(value) ? value : 0}
       onChange={(e) => {
         const n = Number(e.target.value)
-        onChange(Number.isFinite(n) && n >= 0 ? n : 0)
+        if (!Number.isFinite(n)) { onChange(0); return }
+        onChange(allowNegative || n >= 0 ? n : 0)
       }}
     />
   )
@@ -149,6 +167,7 @@ function TermEditor({ term, label, onChange }) {
         <NumberField
           value={term.value}
           label={`${label} value`}
+          allowNegative
           onChange={(v) => onChange({ t: 'num', value: v })}
         />
       )}
@@ -218,6 +237,32 @@ function RowEditor({ row, where, onChange, onRemove }) {
   )
 }
 
+/** ⭐ THE THIRD SHAPE, AND IT IS THE SAME ROW. Same `data-testid`, same remove
+ *  button, same class — because to a member this is a condition sitting beside
+ *  the others, not a different kind of thing. What it is NOT is a comparison
+ *  with an empty right-hand side: there is one control, and its options carry
+ *  the manifest's own sentence, so the row reads as the sentence it will save. */
+function FlagEditor({ row, where, onChange, onRemove }) {
+  return (
+    <div className={styles.pickerRow} data-testid="picker-row" data-kind={row.kind}>
+      <select
+        className={styles.pickerSelect}
+        aria-label={`Condition ${where} fact`}
+        value={row.name}
+        onChange={(e) => onChange({ kind: 'flag', name: e.target.value })}
+      >
+        {FLAG_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+      <button
+        type="button"
+        className={styles.pickerIconBtn}
+        aria-label={`Remove condition ${where}`}
+        onClick={onRemove}
+      ><UIcon name="trash" size={14} /></button>
+    </div>
+  )
+}
+
 function GroupEditor({ group, path, onChange, onRemove }) {
   const where = path.length ? path.join('-') : 'top'
   const otherJoin = group.join === 'and' ? 'or' : 'and'
@@ -248,23 +293,33 @@ function GroupEditor({ group, path, onChange, onRemove }) {
         )}
       </div>
 
-      {group.children.map((child, i) => (child.kind === 'group' ? (
-        <GroupEditor
-          key={`g${i}`}
-          group={child}
-          path={[...path, i]}
-          onChange={(next) => onChange(withChild(group, i, next))}
-          onRemove={() => onChange(withChild(group, i, { kind: 'group', join: child.join, children: [] }))}
-        />
-      ) : (
-        <RowEditor
-          key={`r${i}`}
-          row={child}
-          where={[...path, i].join('-')}
-          onChange={(next) => onChange(withChild(group, i, next))}
-          onRemove={() => onChange({ ...group, children: group.children.filter((_, j) => j !== i) })}
-        />
-      )))}
+      {group.children.map((child, i) => {
+        if (child.kind === 'group') {
+          return (
+            <GroupEditor
+              key={`g${i}`}
+              group={child}
+              path={[...path, i]}
+              onChange={(next) => onChange(withChild(group, i, next))}
+              onRemove={() => onChange(withChild(group, i, { kind: 'group', join: child.join, children: [] }))}
+            />
+          )
+        }
+        // ⛔ ONE EDITOR PER ROW SHAPE, CHOSEN BY THE SHAPE'S OWN `kind`. A
+        // default that fell through to `RowEditor` would render a flag as a
+        // comparison with no terms — the picker showing a member something
+        // their formula does not say.
+        const Editor = child.kind === 'flag' ? FlagEditor : RowEditor
+        return (
+          <Editor
+            key={`r${i}`}
+            row={child}
+            where={[...path, i].join('-')}
+            onChange={(next) => onChange(withChild(group, i, next))}
+            onRemove={() => onChange({ ...group, children: group.children.filter((_, j) => j !== i) })}
+          />
+        )
+      })}
 
       <div className={styles.pickerJoinRow}>
         <button
@@ -272,6 +327,19 @@ function GroupEditor({ group, path, onChange, onRemove }) {
           className={styles.ghostBtn}
           onClick={() => onChange({ ...group, children: [...group.children, defaultRow()] })}
         ><UIcon name="plus" size={14} />{path.length ? `Add condition to group ${where}` : 'Add condition'}</button>
+        {/* ⛔ RENDERED ONLY WHEN THE MANIFEST HAS ONE. A control offering an
+            empty list is a door onto nothing, and `defaultFlag` would have no
+            first option to reach for. */}
+        {FLAG_OPTIONS.length > 0 && (
+          <button
+            type="button"
+            className={styles.ghostBtn}
+            onClick={() => onChange({ ...group, children: [...group.children, defaultFlag()] })}
+          >
+            <UIcon name="plus" size={14} />
+            {path.length ? `Add a yes-or-no fact to group ${where}` : 'Add a yes-or-no fact'}
+          </button>
+        )}
         <button
           type="button"
           className={styles.ghostBtn}
