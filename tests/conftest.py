@@ -197,6 +197,51 @@ def _reset_calendar_serve_stale():
 
 
 @pytest.fixture(autouse=True)
+def _reset_broker_partner_health_cache():
+    """Clear the SnapTrade partner-info cache between tests.
+
+    Third instance of the hazard the two fixtures above already exist for, and
+    the only one that was still live. `partner_health._cache` is a module-level
+    dict with a **30-MINUTE TTL** — longer than any test session — so the first
+    test to populate it answers for every later test in the process.
+
+    MEASURED, and it took running the suite in a SECOND file order to see it:
+
+        pytest tests/test_broker_partner_health.py tests/test_broker_fleet_monitor.py
+          -> EXIT 1 · 5 failed
+        pytest tests/test_broker_fleet_monitor.py tests/test_broker_partner_health.py
+          -> EXIT 0
+
+    `test_broker_partner_health.py` seeds a fixture payload in which WEBULL is
+    `is_degraded: True`. `fleet_monitor.run_fleet_check()` then reads
+    `partner_health.degraded_connected_brokers()`
+    (`fleet_monitor.py:261`) off that stale cache and reports an extra
+    `{"kind": "broker_degraded", "userId": None}` finding — so
+    `test_healthy_fleet_pings_nothing` sees a ping, and the assertions that
+    enumerate findings see one too many. The victim's own fixture is not at
+    fault: it isolates its DB correctly, and no DB row is involved.
+
+    ⚠️ The module SHIPS `_reset_cache_for_tests()` for exactly this and nothing
+    ever called it. Looked up through `sys.modules` rather than imported, like
+    the fixtures above, so this never drags the broker stack into unrelated
+    tests as a side effect of itself.
+    """
+    import sys
+
+    def _clear():
+        mod = sys.modules.get("api.services.journal_two.broker.partner_health")
+        if mod is None:
+            return
+        reset = getattr(mod, "_reset_cache_for_tests", None)
+        if reset is not None:
+            reset()
+
+    _clear()
+    yield
+    _clear()
+
+
+@pytest.fixture(autouse=True)
 def _reset_signature_serve_stale():
     """Clear the Signature router's cross-test module state.
 
