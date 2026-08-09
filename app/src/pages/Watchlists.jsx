@@ -418,7 +418,7 @@ const WatchRow = React.memo(function WatchRow({
 // shared `.listBody` scroll container (the sticky column header sits above it), and reports
 // the visible symbols up so ONLY those get live-streamed — the whole point that lets a
 // ~5,000-row scan render without opening ~100 SSE streams or mounting 5,000 DOM rows.
-function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scrollToSym }) {
+function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scrollToSym, noScrollRef }) {
   const virt = useVirtualizer({
     count: items.length,
     getScrollElement: () => scrollRef.current,
@@ -445,6 +445,9 @@ function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scr
   useEffect(() => {
     if (!scrollToSym) { scrolledForRef.current = null; return }
     if (scrolledForRef.current === scrollToSym) return   // already snapped to it — allow free scroll
+    // A CLICK-selection (not a search): don't move the list — just mark it handled so a later
+    // search of a different ticker still snaps. Only an external search scrolls the list.
+    if (noScrollRef?.current === scrollToSym) { scrolledForRef.current = scrollToSym; noScrollRef.current = null; return }
     const idx = items.findIndex((it) => it?.sym === scrollToSym && !it.isGroup)
     if (idx < 0) return                                  // row not rendered yet — retry on next items change
     try { virt.scrollToIndex(idx, { align: 'center' }) } catch { /* mid-mount */ }
@@ -562,6 +565,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
 
   const [activeTab, setActiveTab] = useState('mine')
   const [selectedSym, setSelectedSym] = useState(null)
+  // A ticker the user CLICKED in the list (vs searched): the scan list must NOT scroll to
+  // it — only the gold highlight moves. The list only snaps on an external SEARCH.
+  const clickSelectRef = useRef(null)
   const { sym: hubSym, setSym: setHubSym } = useChartsSym()
   useEffect(() => {
     if (hubSym && hubSym !== selectedSym) setSelectedSym(hubSym)
@@ -1621,7 +1627,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // never changes even as the underlying value does. ──
   const rowStateRef = useRef({})
   rowStateRef.current = { setHubSym, toggleFlag, setCtxMenu, myLists, communityLists }
-  const onRowSelect = useCallback((sym) => { setSelectedSym(sym); rowStateRef.current.setHubSym(sym) }, [])
+  const onRowSelect = useCallback((sym) => { clickSelectRef.current = sym; setSelectedSym(sym); rowStateRef.current.setHubSym(sym) }, [])
   const onRowFlag = useCallback((sym) => rowStateRef.current.toggleFlag(sym), [])
   const onRowIntent = useCallback((sym) => prefetchBarOnIntent(sym, 'D'), [])
   const onRowCtx = useCallback((e, sym, wlId, isOwner) => {
@@ -2090,6 +2096,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               emptyText={scanWl.items.length === 0 ? (scanEmptyText || 'No matches yet.') : 'No matches.'}
               onVisibleChange={handleScanVisible}
               scrollToSym={selectedSym}
+              noScrollRef={clickSelectRef}
             />
           )}
 
