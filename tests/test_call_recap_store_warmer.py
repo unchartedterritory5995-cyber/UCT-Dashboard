@@ -466,3 +466,57 @@ class TestRecentReporters:
                                       fmp_get=fmp_get)
 
         assert out == ["KNOWN", "UNK"]
+
+
+class TestSweepSingleFlight:
+    """Two sweeps must not walk the same queue at once.
+
+    A sweep runs for up to MAX_SECONDS (an hour) and the boot sweep and the
+    next cron are separate APScheduler jobs, so they overlap rather than queue.
+    Both would see store.has() == False for the same symbol and both would pay
+    to generate it, out of one capped daily budget.
+    """
+
+    def test_a_second_concurrent_sweep_is_refused(self, store, warmer):
+        import threading
+        started, release = threading.Event(), threading.Event()
+
+        def slow_warm(sym):
+            started.set()
+            release.wait(5)
+            return "warmed"
+
+        first = threading.Thread(
+            target=lambda: warmer.run_sweep(["AAA"], warm=slow_warm,
+                                            sleep=lambda _: None, store=store))
+        first.start()
+        assert started.wait(5), "first sweep never got going"
+
+        out = warmer.run_sweep(["BBB"], warm=lambda s: "warmed",
+                               sleep=lambda _: None, store=store)
+
+        release.set()
+        first.join(5)
+        assert out == {"skipped": "already_running"}
+
+    def test_the_lock_is_released_so_the_next_sweep_runs(self, store, warmer):
+        warmer.run_sweep(["AAA"], warm=lambda s: "warmed",
+                         sleep=lambda _: None, store=store)
+        out = warmer.run_sweep(["BBB"], warm=lambda s: "warmed",
+                               sleep=lambda _: None, store=store)
+        assert out.get("queued") == 1
+
+    def test_an_exception_does_not_leak_the_lock(self, store, warmer):
+        # A leaked lock would wedge every future sweep permanently — the store
+        # would simply stop filling, silently, and look exactly like "no
+        # reporters today".
+        def boom(sym):
+            raise RuntimeError("provider died mid-sweep")
+
+        with pytest.raises(RuntimeError):
+            warmer.run_sweep(["AAA"], warm=boom, sleep=lambda _: None,
+                             store=store)
+
+        out = warmer.run_sweep(["BBB"], warm=lambda s: "warmed",
+                               sleep=lambda _: None, store=store)
+        assert out.get("queued") == 1

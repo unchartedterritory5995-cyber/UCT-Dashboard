@@ -22,6 +22,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import threading
 import time
 from datetime import datetime
 from typing import Any, Callable, Optional
@@ -34,6 +35,9 @@ LOOKBACK_DAYS = int(os.environ.get("CALL_RECAP_WARM_LOOKBACK_DAYS", "7"))
 MAX_SECONDS = int(os.environ.get("CALL_RECAP_WARM_MAX_SECONDS", "3600"))
 # Politeness between generations — this shares an Anthropic budget with Compass.
 PACE_SECONDS = float(os.environ.get("CALL_RECAP_WARM_PACE_SECONDS", "1.0"))
+
+
+_SWEEP_LOCK = threading.Lock()
 
 
 def enabled() -> bool:
@@ -262,6 +266,24 @@ def run_sweep(reporters: list[str], *, now=time.monotonic, sleep=time.sleep,
     """Warm the reporter set in priority order, within budget and clock."""
     if not enabled():
         return {"skipped": "disabled"}
+
+    # Single-flight. A sweep can run for up to MAX_SECONDS (an hour), and the
+    # boot sweep plus the next cron are separate APScheduler jobs, so they
+    # overlap rather than queue. Two sweeps walking the same queue both see
+    # store.has() == False for the same symbol and both pay to generate it.
+    # Not incorrect — last write wins — but it buys the same recap twice out of
+    # a capped daily budget.
+    if not _SWEEP_LOCK.acquire(blocking=False):
+        _log.info("[recap_warm] a sweep is already running; skipping this one")
+        return {"skipped": "already_running"}
+    try:
+        return _run_sweep_locked(reporters, now=now, sleep=sleep, warm=warm,
+                                 store=store)
+    finally:
+        _SWEEP_LOCK.release()
+
+
+def _run_sweep_locked(reporters: list[str], *, now, sleep, warm, store):
     if store is None:
         from api.services import call_recap_store as store
     store.init_db()
