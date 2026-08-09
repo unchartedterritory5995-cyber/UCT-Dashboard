@@ -22,7 +22,10 @@ from api.services.call_recap import (
 )
 from api.services.earnings_audio import get_audio
 from api.services.av_transcripts import get_transcript
-from api.services.fmp_transcripts import get_transcript as get_fmp_transcript
+from api.services.fmp_transcripts import (
+    get_transcript as get_fmp_transcript,
+    list_quarters as list_fmp_quarters,
+)
 from api.services.analyst_grades import get_analyst_grades
 
 _log = logging.getLogger(__name__)
@@ -91,6 +94,23 @@ def sentiment_endpoint(ticker: str, user: dict = Depends(get_current_user)):
         return None
 
 
+def _with_qa_boundary(res):
+    """Attach where prepared remarks end, when the transcript actually says.
+
+    Derived, not guessed: three of seven live transcripts (DIS, MSFT, JPM) carry
+    no question-and-answer phrasing at all, so this is None for them and the UI
+    simply omits the chip rather than pointing at an invented boundary.
+    """
+    if not res or not res.get("segments"):
+        return res
+    try:
+        from api.services.call_recap_grounded import prepared_remarks_end
+        res["prepared_remarks_end"] = prepared_remarks_end(res["segments"])
+    except Exception:
+        res["prepared_remarks_end"] = None
+    return res
+
+
 @router.get("/api/earnings/transcript/{ticker}")
 def transcript_endpoint(
     ticker: str,
@@ -115,15 +135,33 @@ def transcript_endpoint(
     try:
         res = get_fmp_transcript(sym, quarter=quarter or None)
         if res and res.get("segments"):
-            return res
+            return _with_qa_boundary(res)
     except Exception as e:
         _log.warning("[earnings_intel] fmp transcript failed for %s: %s", sym, e)
     # AlphaVantage fallback (rate-limited) only when FMP came up empty.
     try:
-        return get_transcript(sym, quarter=quarter or None)
+        return _with_qa_boundary(get_transcript(sym, quarter=quarter or None))
     except Exception as e:
         _log.warning("[earnings_intel] av transcript failed for %s: %s", sym, e)
         return None
+
+
+@router.get("/api/earnings/transcript-quarters/{ticker}")
+def transcript_quarters_endpoint(ticker: str, user: dict = Depends(get_current_user)):
+    """Quarters with a published transcript, newest first.
+
+    Cheap (one cached FMP index call, no transcript bodies) and it is what lets
+    the reader step back through prior calls instead of only seeing the latest.
+    Never raises; an empty list simply means no selector is offered.
+    """
+    sym = (ticker or "").upper().strip()
+    if not sym:
+        return {"symbol": "", "quarters": []}
+    try:
+        return {"symbol": sym, "quarters": list_fmp_quarters(sym)}
+    except Exception as e:
+        _log.warning("[earnings_intel] quarter list failed for %s: %s", sym, e)
+        return {"symbol": sym, "quarters": []}
 
 
 @router.get("/api/earnings/analyst-grades/{ticker}")

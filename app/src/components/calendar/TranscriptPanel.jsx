@@ -19,6 +19,7 @@
 // when it grows a search bar of its own.
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import useTranscript from '../../hooks/useTranscript'
+import useTranscriptQuarters from '../../hooks/useTranscriptQuarters'
 import UIcon from '../ui/UIcon'
 import { escapeLiteral, findMatches, segmentsWithMatches, stepIndex } from './transcriptSearch'
 import styles from './CallRecapSection.module.css'
@@ -73,10 +74,21 @@ export default function TranscriptPanel({ sym = null, query = '', quarter = null
   const [debounced, setDebounced] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
   const [onlyMatching, setOnlyMatching] = useState(false)
+  const [pickedQuarter, setPickedQuarter] = useState(null)
+  const [speaker, setSpeaker] = useState('')
   const utteranceRef = useRef(null)
   const segmentsRef = useRef(null)
 
-  const { data: transcript, isLoading } = useTranscript(sym, { enabled: open, quarter })
+  // The reader's pick wins over the caller's default; null = newest available.
+  const activeQuarter = pickedQuarter ?? quarter
+  const { data: transcript, isLoading } = useTranscript(sym, {
+    enabled: open, quarter: activeQuarter,
+  })
+  const { quarters } = useTranscriptQuarters(sym, { enabled: open })
+
+  // A different call is a different set of speakers — a stale filter would hide
+  // every turn of the quarter just opened.
+  useEffect(() => { setSpeaker('') }, [activeQuarter])
 
   // Only what is being TYPED here is debounced — an externally-supplied `query`
   // (a parent search box) is already a settled value, so delaying it would just
@@ -95,6 +107,17 @@ export default function TranscriptPanel({ sym = null, query = '', quarter = null
     [segments, effectiveQuery],
   )
   const matchingSegs = useMemo(() => segmentsWithMatches(matches), [matches])
+
+  // Derived from the transcript, never a typed list — a hardcoded roster would
+  // drift the moment a company changes its CFO.
+  const speakerNames = useMemo(() => {
+    const seen = []
+    for (const s of segments || []) {
+      const n = (s.speaker || '').trim()
+      if (n && !seen.includes(n)) seen.push(n)
+    }
+    return seen
+  }, [segments])
 
   // A shorter result list must never leave the cursor pointing past the end.
   useEffect(() => { setActiveIndex(0) }, [effectiveQuery, segments])
@@ -135,6 +158,15 @@ export default function TranscriptPanel({ sym = null, query = '', quarter = null
     const t = setTimeout(() => el.removeAttribute('data-flash'), 1600)
     return () => clearTimeout(t)
   }, [focusSeg, focus?.nonce, open, transcript])
+
+  const jumpTo = useCallback(idx => {
+    setOnlyMatching(false)
+    setSpeaker('')          // a filter would hide the very turn being jumped to
+    requestAnimationFrame(() => {
+      const el = segmentsRef.current?.querySelector(`[data-segment="${idx}"]`)
+      if (el?.scrollIntoView) el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    })
+  }, [])
 
   const onSearchKeyDown = useCallback(e => {
     if (e.key === 'Enter') { e.preventDefault(); go(e.shiftKey ? -1 : 1) }
@@ -214,8 +246,45 @@ export default function TranscriptPanel({ sym = null, query = '', quarter = null
           {transcript?.segments?.length > 0 && (
             <>
               <div className={styles.transcriptHeader}>
-                {transcript.quarter && (
+                {quarters.length > 1 ? (
+                  <select
+                    className={search.quarterSelect}
+                    value={transcript.quarter || ''}
+                    onChange={e => setPickedQuarter(e.target.value)}
+                    aria-label="Transcript quarter"
+                  >
+                    {quarters.map(q => (
+                      <option key={q.quarter} value={q.quarter}>{q.quarter}</option>
+                    ))}
+                  </select>
+                ) : transcript.quarter ? (
                   <span className={styles.transcriptQuarter}>{transcript.quarter}</span>
+                ) : null}
+
+                {/* Only when the transcript actually states the boundary. Three
+                    of seven live calls never say "question-and-answer", so the
+                    chip is absent rather than pointing somewhere invented. */}
+                {Number.isInteger(transcript.prepared_remarks_end) && (
+                  <button
+                    type="button"
+                    className={search.jumpChip}
+                    onClick={() => jumpTo(transcript.prepared_remarks_end)}
+                    title="Jump to the analyst Q&A"
+                  >
+                    Jump to Q&amp;A
+                  </button>
+                )}
+
+                {speakerNames.length > 1 && (
+                  <select
+                    className={search.quarterSelect}
+                    value={speaker}
+                    onChange={e => setSpeaker(e.target.value)}
+                    aria-label="Filter by speaker"
+                  >
+                    <option value="">All speakers</option>
+                    {speakerNames.map(n => <option key={n} value={n}>{n}</option>)}
+                  </select>
                 )}
                 {hasSpeechSynthesis() && (
                   <button
@@ -271,7 +340,8 @@ export default function TranscriptPanel({ sym = null, query = '', quarter = null
 
               <div className={styles.transcriptSegments} ref={segmentsRef}>
                 {transcript.segments.map((seg, i) => (
-                  (kw && onlyMatching && !matchingSegs.has(i)) ? null : (
+                  (kw && onlyMatching && !matchingSegs.has(i)) ||
+                  (speaker && (seg.speaker || '').trim() !== speaker) ? null : (
                   <div key={i} className={styles.transcriptSegment} data-segment={i}>
                     {(seg.speaker || seg.title) && (
                       <div className={styles.transcriptSpeaker}>

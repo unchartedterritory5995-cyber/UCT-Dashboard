@@ -93,3 +93,29 @@
 @media (prefers-reduced-motion: reduce) {
   :global([data-flash="true"]) { animation: none; outline: 2px solid var(--ut-gold, #c9a84c); }
 }
+
+.quarterSelect {
+  min-height: var(--tap-min, 44px);
+  max-width: 180px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--text, #e8e6df);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.quarterSelect:focus { outline: none; border-color: var(--ut-gold, #c9a84c); }
+
+.jumpChip {
+  min-height: var(--tap-min, 44px);
+  padding: 0 10px;
+  font-size: 11px;
+  color: var(--ut-gold, #c9a84c);
+  background: rgba(201, 168, 76, 0.08);
+  border: 1px solid rgba(201, 168, 76, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.jumpChip:hover { background: rgba(201, 168, 76, 0.16); }

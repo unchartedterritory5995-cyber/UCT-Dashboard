@@ -41,6 +41,10 @@ function type(value) {
 
 beforeEach(() => {
   vi.useFakeTimers()
+  // requestAnimationFrame never fires under fake timers in jsdom, and the jump
+  // helper defers its scroll through it. Run it inline so the scroll is
+  // observable without the test having to know that scheduling detail.
+  vi.stubGlobal('requestAnimationFrame', cb => { cb(); return 0 })
   mockUseTranscript.mockReturnValue({ data: TRANSCRIPT, isLoading: false })
 })
 
@@ -103,7 +107,10 @@ describe('TranscriptPanel — search', () => {
     // The matching turn's text is split across <mark> nodes, so assert on the
     // rendered textContent rather than a single text node.
     expect(document.body.textContent).toContain('further margin leverage next year')
-    expect(screen.getByText('Hugh Johnston')).toBeTruthy()
+    // The speaker <select> also lists "Hugh Johnston", so scope this to the
+    // rendered turns rather than matching an <option> by the same text.
+    expect(screen.getAllByText('Hugh Johnston')
+      .some(el => el.tagName !== 'OPTION')).toBe(true)
   })
 
   it('Enter advances, Shift+Enter goes back', () => {
@@ -130,5 +137,99 @@ describe('TranscriptPanel — search', () => {
     // 'ESPN' has a single hit; a stale index of 1 would render "2 / 1".
     type('ESPN')
     expect(screen.getByRole('status').textContent).toBe('1 / 1')
+  })
+})
+
+// ── Quarter history, speaker filter, Q&A jump ────────────────────────────────
+
+const QUARTERS = {
+  quarters: [
+    { quarter: '2026Q3', year: 2026, q: 3 },
+    { quarter: '2026Q2', year: 2026, q: 2 },
+    { quarter: '2025Q4', year: 2025, q: 4 },
+  ],
+}
+
+describe('TranscriptPanel — reaching prior quarters', () => {
+  beforeEach(() => {
+    global.fetch = vi.fn(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve(QUARTERS) }))
+  })
+
+  it('offers the quarters FMP actually has, newest first', async () => {
+    openPanel()
+    await act(async () => { await Promise.resolve() })
+    const select = screen.getByLabelText('Transcript quarter')
+    expect([...select.options].map(o => o.value)).toEqual(['2026Q3', '2026Q2', '2025Q4'])
+  })
+
+  it('picking a quarter re-fetches THAT quarter', async () => {
+    openPanel()
+    await act(async () => { await Promise.resolve() })
+    mockUseTranscript.mockClear()
+    fireEvent.change(screen.getByLabelText('Transcript quarter'), { target: { value: '2025Q4' } })
+    const asked = mockUseTranscript.mock.calls.map(([, o]) => o?.quarter)
+    expect(asked).toContain('2025Q4')
+  })
+
+  it('falls back to a plain label when there is only one quarter', async () => {
+    global.fetch = vi.fn(() => Promise.resolve({
+      ok: true, json: () => Promise.resolve({ quarters: [{ quarter: '2026Q3' }] }),
+    }))
+    openPanel()
+    await act(async () => { await Promise.resolve() })
+    expect(screen.queryByLabelText('Transcript quarter')).toBeNull()
+    expect(screen.getByText('2026Q3')).toBeTruthy()
+  })
+})
+
+describe('TranscriptPanel — speaker filter', () => {
+  beforeEach(() => {
+    global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(QUARTERS) }))
+  })
+
+  it('is built from the transcript, not a typed roster', () => {
+    openPanel()
+    const opts = [...screen.getByLabelText('Filter by speaker').options].map(o => o.value)
+    // Order of first appearance, deduped, with an all-speakers escape.
+    expect(opts).toEqual(['', 'Operator', 'Hugh Johnston', 'Benjamin Daniel Swinburne, C.F.A.'])
+  })
+
+  it('shows only that speaker’s turns', () => {
+    openPanel()
+    fireEvent.change(screen.getByLabelText('Filter by speaker'),
+      { target: { value: 'Hugh Johnston' } })
+    expect(document.body.textContent).toContain('margin expansion')
+    expect(document.body.textContent).not.toContain('Welcome to the call')
+  })
+
+  it('resets when the reader switches quarter — a stale filter would blank it', async () => {
+    openPanel()
+    await act(async () => { await Promise.resolve() })
+    fireEvent.change(screen.getByLabelText('Filter by speaker'), { target: { value: 'Operator' } })
+    expect(document.body.textContent).not.toContain('margin expansion')
+    fireEvent.change(screen.getByLabelText('Transcript quarter'), { target: { value: '2026Q2' } })
+    expect(screen.getByLabelText('Filter by speaker').value).toBe('')
+  })
+})
+
+describe('TranscriptPanel — Q&A jump chip', () => {
+  it('is absent when the transcript never states a boundary', () => {
+    // DIS, MSFT and JPM genuinely contain no question-and-answer phrasing.
+    mockUseTranscript.mockReturnValue({
+      data: { ...TRANSCRIPT, prepared_remarks_end: null }, isLoading: false })
+    openPanel()
+    expect(screen.queryByRole('button', { name: /jump to q&a/i })).toBeNull()
+  })
+
+  it('appears and scrolls when the boundary is known', () => {
+    const spy = vi.fn()
+    Element.prototype.scrollIntoView = spy
+    mockUseTranscript.mockReturnValue({
+      data: { ...TRANSCRIPT, prepared_remarks_end: 2 }, isLoading: false })
+    openPanel()
+    fireEvent.click(screen.getByRole('button', { name: /jump to q&a/i }))
+    act(() => { vi.advanceTimersByTime(50) })
+    expect(spy).toHaveBeenCalled()
   })
 })

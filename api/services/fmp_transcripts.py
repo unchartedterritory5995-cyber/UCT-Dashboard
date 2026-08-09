@@ -159,6 +159,36 @@ def _available(symbol: str) -> list[tuple[int, int]]:
     return out
 
 
+# A hit is stable — a company gains a quarter roughly four times a year.
+# A MISS must expire fast: reusing the 6h transcript miss-TTL here would hide
+# a company's first-ever transcript for most of a day after it publishes.
+_TTL_QUARTERS      = 12 * 3_600   # 12h
+_TTL_QUARTERS_MISS = 900          # 15 min
+
+
+def list_quarters(ticker: str) -> list[dict]:
+    """Every quarter FMP has a transcript for, newest first.
+
+    DIS has 81. `useTranscript` has always accepted a `quarter` argument and
+    nothing ever passed one, so all of that history was unreachable from the UI.
+    """
+    ticker = (ticker or "").upper().strip()
+    if not ticker:
+        return []
+    ck = f"fmp_transcript_quarters_{ticker}"
+    hit = cache.get(ck)
+    if hit is not None:
+        return hit
+    try:
+        rows = _available(ticker)
+    except Exception as exc:
+        _log.warning("[fmp_transcripts] quarter list failed for %s: %s", ticker, exc)
+        return []
+    out = [{"quarter": f"{y}Q{q}", "year": y, "q": q} for y, q in rows]
+    cache.set(ck, out, ttl=_TTL_QUARTERS if out else _TTL_QUARTERS_MISS)
+    return out
+
+
 def get_transcript(ticker: str, quarter: Optional[str] = None) -> Optional[dict]:
     """Verbatim transcript from FMP. `quarter` like '2025Q1'; omit to auto-resolve
     the newest available. Returns the av_transcripts-compatible dict or None."""

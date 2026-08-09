@@ -83,9 +83,12 @@ describe('TranscriptPanel', () => {
     mockUseTranscript.mockReturnValue({ data: SAMPLE_TRANSCRIPT, isLoading: false })
     render(<TranscriptPanel sym="AAPL" />)
     fireEvent.click(screen.getByRole('button', { name: /FULL TRANSCRIPT/i }))
-    // speakerName has CSS text-transform:uppercase — DOM text is unchanged; match case-insensitively
-    expect(screen.getByText('Tim Cook')).toBeTruthy()
-    expect(screen.getByText('Luca Maestri')).toBeTruthy()
+    // speakerName has CSS text-transform:uppercase — DOM text is unchanged.
+    // The speaker-filter <select> now lists the same names, so assert a NON-option
+    // element carries each one rather than matching the dropdown entry.
+    const spoken = name => screen.getAllByText(name).some(el => el.tagName !== 'OPTION')
+    expect(spoken('Tim Cook')).toBe(true)
+    expect(spoken('Luca Maestri')).toBe(true)
   })
 
   it('shows loading message while transcript is fetching', () => {
