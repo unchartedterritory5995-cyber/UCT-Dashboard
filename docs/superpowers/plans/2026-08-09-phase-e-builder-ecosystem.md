@@ -87,7 +87,7 @@ Every task's requirements implicitly include this section. Values are copied ver
 | `--escapes` CLOSED **with a non-zero unguarded control** | a `scalar` is a declared name, not an escape hatch |
 | 🔴 **picker ⇄ formula round-trip is the IDENTITY**, over a generated corpus | a one-way builder is TC2000's PCF seam re-created — **this is the product claim** |
 | 🔴 **pod-degradation budget** — a sweep must not raise p99 on an unrelated endpoint beyond a stated bound, **measured under concurrent load** | the 524 class; "fast alone" ≠ "safe together" |
-| 🔴 **coverage is part of the result** — `{evaluated, answered, dropped, dropped_symbols}` | see below |
+| 🔴 **coverage is part of the result** — `{evaluated, answered, dropped, not_computable, dropped_symbols}` ⚠️ **FIVE keys.** Controller resolution 5 grants `not_computable`: "could not compute at the last confirmed bar" and "something broke" are different facts to a member, and folding them is what makes a coverage report untrustworthy | see below |
 | NL emits a **tree**, never a sentence — re-assert by parsing `propose`'s own AST, **with a control** | D-A5 must survive the extension |
 | entitlement derived from `router.routes`, **count asserted** | a hand-listed path set let two paid endpoints ride uncovered in Phase C |
 | 🔴 **a wire-cut test per user-facing surface** | eight features shipped this week built, tested, green and **unreachable** |

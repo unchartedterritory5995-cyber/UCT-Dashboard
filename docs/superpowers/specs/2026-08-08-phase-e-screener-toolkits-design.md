@@ -55,7 +55,7 @@ Which means the scan builder inherits, at zero marginal design cost:
 
 A formula today may name **five** things: `open, high, low, close, volume`.
 
-A TC2000-class scan needs what the screener already computes nightly — **60 columns**, including:
+A TC2000-class scan needs what the screener already computes nightly — **65 columns** (⚠️ this document said 60 until 2026-08-09; measured 65), including:
 
 - **fundamentals** — `market_cap`, `pe_ttm`, `pe_fwd`, `peg`, `ps`, `pb`, `eps_growth`, `rev_growth`, `op_margin`, `roe`, `roa`, `debt_to_equity`, `beta`, `inst_pct`
 - **UCT ratings** — `uct_composite`, `rs_rank`, `rs_return`, `accdis`
@@ -65,9 +65,9 @@ A TC2000-class scan needs what the screener already computes nightly — **60 co
 
 🔴 **These are a different KIND from `close`.** `close` is a time series; `market_cap` is **one scalar per symbol, dated to a nightly snapshot**. Conflating them would be the same category error as `chart_settings` vs `charts_workspace_layout`.
 
-### E-A7 — the table gains a third section, `scalars`
+### E-A7 — the table gains a FOURTH section, `scalars`  ⚠️ (said "third" until 2026-08-09; the manifest already has three)
 
-`closedTable.json` today has `series` (5), `operators` (15), `functions` (11) = **31 names**. E adds **`scalars`**: a declared, closed list of snapshot-dated per-symbol values, each with a **`source`** and an **`as_of`** provenance.
+`closedTable.json` today has THREE sections — `series` (5), `operators` (15), `functions` (11) = **31 names**. E adds a FOURTH, **`scalars`**: a declared, closed list of snapshot-dated per-symbol values, each with a **`source`** and an **`as_of`** provenance.
 
 ⚠️ **This is a SPEC decision and the manifest says so in its own words:**
 
@@ -95,7 +95,7 @@ A scan definition is an ordinary definition whose tree yields 0/1 on the last co
 |---|---|
 | widen `screener_rows` per definition | ⛔ unbounded schema, per-user DDL, breaks its 8 indexes |
 | generic EAV on `screener_rows` | ⛔ destroys the indexed SQL that makes it fast |
-| **narrow side table + join** | ⭐ existing 60-column screener untouched; results append-only and prunable |
+| **narrow side table + join** | ⭐ existing 65-column screener untouched; results append-only and prunable |
 
 ### E3 — The evaluator: off the request path, sequential, always
 **Copy `screener/snapshot_builder`, not `rs_ranking`.**
@@ -262,7 +262,7 @@ Read out of the owner's stated goals — *"reach a wide audience"*, *"the ecosys
 
 TC2000 and TradingView both ship dozens of built-in scans, and it is not decoration — **it is the onboarding path.** A member who opens an empty text field and does not know the syntax leaves.
 
-Measured: `app/src/constants/setupGroups.js` declares **31 named setups** across 4 families, and `brain_service.lookup_playbook(setup)` resolves a canonical template out of the firm's KB with `setup_winrate(setup, regime)` beside it.
+Measured 2026-08-09 (⚠️ CORRECTED — an earlier draft of this amendment said "31 named setups across 4 families", which was wrong on both numbers AND conflated two separate files): **`app/src/constants/setupGroups.js` declares 32 setups**; the SEPARATE **`app/src/pages/modelbook/setupCatalog.js` carries 26 entries across 5 families**. ⛔ Any task must DERIVE these counts at run time, never restate them. And `brain_service.lookup_playbook(setup)` resolves a canonical template out of the firm's KB with `setup_winrate(setup, regime)` beside it.
 
 ⭐ **One asset, three uses, and this is the highest-leverage observation in the phase:**
 1. **the starter scan library** — a member picks "High Tight Flag" and gets a working scan they can then *edit*, which is how people learn a syntax
