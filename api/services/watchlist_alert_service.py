@@ -141,8 +141,21 @@ def _get_user_email(user_id: str) -> str | None:
         conn.close()
 
 
-def check_alerts_against_prices(price_data: dict) -> list[dict]:
-    """Check all active alerts against current prices. Returns triggered alerts."""
+def check_alerts_against_prices(price_data: dict,
+                                reports: list | None = None) -> list[dict]:
+    """Check all active alerts against current prices. Returns triggered alerts.
+
+    ⭐ ``reports`` IS AN OUT-LIST, and it exists because "triggered" and
+    "delivered" are different facts. The returned list says the price crossed —
+    which is true whether or not a single channel landed. Handed a list, this
+    appends one `_delivery_report` per fire so the caller can say which members
+    were actually told; handed nothing, it behaves exactly as before.
+
+    ⛔ NOT ON THE RETURNED ALERT DICTS. Those rows are the `watchlist_alerts`
+    records; a delivery-status key on them would be a second authority over the
+    same fact, in the artifact rather than beside it. Same shape as
+    `add_alert`'s `channels` out-dict, for the same reason.
+    """
     conn = get_connection()
     try:
         active = conn.execute(
@@ -173,21 +186,59 @@ def check_alerts_against_prices(price_data: dict) -> list[dict]:
             triggered_alert = _trigger_alert(alert["id"])
             if triggered_alert:
                 triggered.append(triggered_alert)
-                _deliver_alert(triggered_alert, current_price)
+                report = _deliver_alert(triggered_alert, current_price)
+                if reports is not None:
+                    reports.append(report)
 
     return triggered
 
 
-def _deliver_alert(alert: dict, current_price: float):
-    """Multi-channel delivery: AlertBell + Email + Discord."""
+def _deliver_alert(alert: dict, current_price: float) -> dict:
+    """Multi-channel delivery: AlertBell + Email + Discord. **Reports per channel.**
+
+    🔴 THE OTHER LANE OF THE SAME DEFECT `deliver_alert_payload` CLOSED IN
+    `c5e1bb2c`, left deliberately then and closed now. Every channel was wrapped
+    in its own `try/except` and this returned ``None`` whether all three landed
+    or all three raised, so a member whose email bounced and whose webhook 403'd
+    was byte-indistinguishable from one told on every channel. The alert is
+    deactivated BEFORE delivery (`_trigger_alert`), so the silence was terminal:
+    there is no second attempt in this lane and nothing anywhere said a member
+    missed the alert they had asked for.
+
+    ⛔ THE DEDUP IS UNTOUCHED, AND IT IS NOT A CAS HERE. This lane fires once
+    because `_trigger_alert` sets `is_active = 0` before any channel runs, so
+    the next poll cycle no longer selects the row. That ordering is deliberate —
+    an alert that fired must never re-fire because a channel was slow — and
+    nothing below moves it. ⚠️ It also means a failed delivery is NOT retried,
+    which is exactly why the report has to exist: the failure is permanent and
+    must at least be visible.
+
+    ⭐ THREE STATES, AND PARTIAL SUCCESS IS REPRESENTABLE — the same vocabulary
+    `alerts.py` owns (`ok` / `failed` / `skipped`). A member with no address on
+    file is SKIPPED, not failed: read as a failure it sends somebody hunting a
+    Resend outage that does not exist. The counts are DERIVED from the channel
+    map by `_delivery_report`; there is no counter beside it to drift.
+
+    :returns: ``{"claimed", "channels", "channels_ok", "channels_failed",
+        "errors"}``. ``claimed`` is always True — reaching this function IS the
+        claim in this lane, because the row was already deactivated.
+    """
     sym = alert["sym"]
     direction = alert["direction"]
     target = alert["target_price"]
     msg = f"{sym} {'crossed above' if direction == 'above' else 'dropped below'} ${target:.2f} (now ${current_price:.2f})"
 
+    channels: dict[str, str] = {}
+    errors: dict[str, str] = {}
+
     # 1. AlertBell (in-app) — PRIVATE to the member who set the alert.
     # `user_id` is what keeps this out of the broadcast feed every other member
     # reads. Without it a price alert is visible to the whole membership.
+    #
+    # ⭐ …and 3. Discord, which `add_alert` fires itself and therefore reports on
+    # itself (see the note at the foot of this function). `channels` is its
+    # out-dict; this layer never restates what that function said.
+    in_app_raised = False
     try:
         add_alert(
             "price_alert",
@@ -196,13 +247,27 @@ def _deliver_alert(alert: dict, current_price: float):
             severity="warning",
             data={"symbol": sym, "target_price": target, "current_price": current_price, "direction": direction},
             user_id=alert["user_id"],
+            channels=channels,
         )
     except Exception as e:
+        in_app_raised = True
         _logger.warning("AlertBell delivery failed: %s", e)
+        errors[CHANNEL_IN_APP] = f"{type(e).__name__}: {e}"
+    # ⚠️ `setdefault`, NEVER AN ASSIGNMENT — `add_alert` is the authority on the
+    # two channels it owns. 🔴 And the in-app default is keyed on whether it
+    # RAISED, not on whether it reported: a silent-but-successful call defaulted
+    # to `failed` is a false negative, and this repo has already measured that
+    # one turning a quiet alert into three deliveries in the indicator lane.
+    channels.setdefault(CHANNEL_IN_APP,
+                        CHANNEL_FAILED if in_app_raised else CHANNEL_OK)
+    channels.setdefault(CHANNEL_DISCORD, CHANNEL_SKIPPED)
 
     # 2. Email
     try:
         email = _get_user_email(alert["user_id"])
+        if not email:
+            # No address on file. Nothing was attempted and nothing failed.
+            channels[CHANNEL_EMAIL] = CHANNEL_SKIPPED
         if email:
             html = _wrap_html(f"""
                 <h2 style="color:#c9a84c;font-size:16px;margin:0 0 16px;">Price Alert Triggered</h2>
@@ -217,11 +282,21 @@ def _deliver_alert(alert: dict, current_price: float):
                     This alert has been deactivated. Set a new one in your Watchlists.
                 </p>
             """)
-            send_email(email, f"UCT Alert: {sym} hit ${target:.2f}", html)
+            # ⭐ `send_email` HAS RETURNED A BOOL SINCE IT WAS WRITTEN, and this
+            # call site threw it away. Resend unconfigured, a 10s timeout and a
+            # 429 all return False there and all read as a sent email here — the
+            # production failure mode is a False RETURN, not a raise.
+            ok = send_email(email, f"UCT Alert: {sym} hit ${target:.2f}", html)
+            channels[CHANNEL_EMAIL] = CHANNEL_OK if ok else CHANNEL_FAILED
+            if not ok:
+                errors[CHANNEL_EMAIL] = "send_email reported failure (see email log)"
     except Exception as e:
         _logger.warning("Email delivery failed: %s", e)
+        channels[CHANNEL_EMAIL] = CHANNEL_FAILED
+        errors[CHANNEL_EMAIL] = f"{type(e).__name__}: {e}"
 
-    # 3. Discord — ALREADY FIRED, by `add_alert` in step 1.
+    # 3. Discord — ALREADY FIRED, by `add_alert` in step 1, WHICH IS ALSO WHERE
+    #    ITS OUTCOME COMES FROM (`channels["discord"]`, filled by that function).
     #
     # ⛔ DO NOT RE-ADD AN EXPLICIT `_fire_discord` HERE. `add_alert` posts to the
     # webhook itself for severity warning/critical, and step 1 passes
@@ -230,6 +305,10 @@ def _deliver_alert(alert: dict, current_price: float):
     # production 2026-08-06). `add_alert` is the single owner of the webhook;
     # `tests/test_alerts_privacy.py` counts real `requests.post` calls and fails
     # at two.
+    #
+    # ⛔ AND DO NOT "FIX" THE REPORTING BY POSTING ONE HERE TO SEE THE RESULT.
+    # That is the double-post again, wearing the words of this task.
+    return _delivery_report(True, channels, errors)
 
 
 def deliver_alert_payload(
@@ -405,9 +484,23 @@ def run_alert_check(price_data: dict):
     def _work():
         try:
             prices_flat = {sym: info["price"] if isinstance(info, dict) else info for sym, info in price_data.items()}
-            triggered = check_alerts_against_prices(prices_flat)
+            reports: list[dict] = []
+            triggered = check_alerts_against_prices(prices_flat, reports=reports)
             if triggered:
+                # 🔴 THE ONLY PLACE THIS LANE EVER SAYS ANYTHING, so it may not
+                # say "triggered" and mean "delivered". A fire that reached
+                # nobody is not retried here — the row is already deactivated —
+                # so this line is the whole audit trail and it names the
+                # channels that failed instead of counting to N and stopping.
                 _logger.info("Triggered %d price alert(s)", len(triggered))
+                bad = [r for r in reports if r["channels_failed"]]
+                if bad:
+                    _logger.warning(
+                        "PRICE ALERT DELIVERY INCOMPLETE: %d of %d fire(s) missed "
+                        "a channel and will NOT be retried — %s",
+                        len(bad), len(reports),
+                        [r["errors"] or r["channels"] for r in bad],
+                    )
         except Exception as e:
             _logger.warning("Alert check failed: %s", e)
         finally:
