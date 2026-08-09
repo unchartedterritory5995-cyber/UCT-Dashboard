@@ -144,3 +144,29 @@ def test_theme_warm_is_throttled_and_capped(monkeypatch):
 
     assert len(warm_calls) == 1, "second immediate poll should be throttled"
     assert len(warm_calls[0]) <= 30, "warm list must be capped, not ~200+"
+
+
+# ── 🔴 THE GAP EVERY TEST ABOVE HAD ──────────────────────────────────────────
+#
+# Every admin-guard test in this file runs against `_guard_app()` — a FastAPI
+# app this file BUILDS and adds the middleware to itself. All 8 of them were
+# green for months while `app.add_middleware(AdminGuardMiddleware)` appeared
+# NOWHERE in `api/main.py`, so the ~30 destructive ops under
+# `/api/admin/{massive,oi,ticker-types,flow}/*` and `/api/live/admin/*` answered
+# anonymous callers on the internet. Both halves of a severed wire stay
+# individually correct; a fixture app can never tell you production is wired.
+#
+# The full rail — end-to-end through the real ASGI stack, plus the boot audit —
+# is `tests/test_admin_guard_registered.py`. This one assertion lives HERE
+# because this file is where the next engineer reading about the admin guard
+# will actually look.
+def test_the_admin_guard_is_installed_on_the_REAL_app_not_just_the_fixture():
+    from api.main import app
+    import api.middleware.admin_guard as ag
+
+    installed = [getattr(m.cls, "__name__", str(m.cls)) for m in app.user_middleware]
+    assert "AdminGuardMiddleware" in installed, (
+        "every test above passes and production has NO admin guard: "
+        f"{', '.join(ag.GUARDED_PREFIXES)} are open. "
+        "See tests/test_admin_guard_registered.py."
+    )

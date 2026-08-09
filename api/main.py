@@ -2962,8 +2962,13 @@ async def lifespan(app: FastAPI):
         # -- Indicator alerts: the CLOSED-BAR SHADOW LANE (Phase C Task 6) ------
         # ⭐ BOTH LANES RUN, ONE LANE DELIVERS. The live evaluator
         # (`indicator_alert_evaluator.start_evaluator`, its own daemon thread,
-        # started far above) is untouched and keeps delivering on the FORMING
-        # lane. This job evaluates the SAME alerts on the SAME bars through the
+        # started far above) is untouched and delivers on whichever lane
+        # `eval_mode()` names AT CALL TIME — the CLOSED lane since the 2026-08-08
+        # cutover, and the forming lane only if `ALERT_EVAL_MODE` is rolled back.
+        # (This said "keeps delivering on the FORMING lane", which was true when
+        # it was written and became false at the cutover. Read the running answer
+        # from `GET /api/indicator-alerts/latency`, never from this comment.)
+        # This job evaluates the SAME alerts on the SAME bars through the
         # closed lane and writes what it WOULD have fired to its own database —
         # no delivery, no record_trigger, no record_evaluation, no ledger, no
         # email. Its worst failure mode is a wasted cycle.
@@ -4578,6 +4583,27 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="UCT Dashboard", lifespan=lifespan)
 app.add_middleware(MaintenanceMiddleware)
 app.add_middleware(CompassPaywallMiddleware)
+# 🔴 THE FAIL-CLOSED ADMIN GATE. `api/middleware/admin_guard.py` shipped
+# complete, fails closed, and carried 8 passing tests — and this line did not
+# exist, on this branch or on origin/master, so the ~30 destructive ops under
+# `/api/admin/{massive,oi,ticker-types,flow}/*`, `/api/admin/alert-tester` and
+# `/api/live/admin/*` answered ANY caller. Built, tested, green and connected to
+# nothing, in its most expensive form: the unreachable thing was a security
+# guard. The 8 tests could not see it because `tests/test_launch_hardening.py`
+# builds its OWN FastAPI app and adds the middleware itself — both halves of a
+# severed wire stay individually correct.
+# ⛔ DO NOT DELETE WITHOUT DELETING THE MODULE. The rail is
+# `tests/test_admin_guard_registered.py`, which drives the REAL `api.main:app`,
+# and `auth_surface_check.audit_routes`, which reads `app.user_middleware` at
+# boot and reports every guarded admin route as UNGATED the moment this line
+# goes away.
+# ⭐ ORDER: added AFTER CompassPaywall and BEFORE CORS, so it runs INSIDE the
+# CORS layer (a browser still gets CORS headers on the 403) and OUTSIDE the
+# paywall/maintenance layers (an anonymous caller is refused before either does
+# any work). Starlette prepends, so the execution order is
+# GZip → CORS → AdminGuard → CompassPaywall → Maintenance → router.
+from api.middleware.admin_guard import AdminGuardMiddleware as _AdminGuard
+app.add_middleware(_AdminGuard)
 from starlette.middleware.cors import CORSMiddleware as _CORS
 app.add_middleware(_CORS, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 from starlette.middleware.gzip import GZipMiddleware as _GZipBase
