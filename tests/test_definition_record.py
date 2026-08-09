@@ -641,22 +641,26 @@ def _writer_sites(scan_roots, rel_to: pathlib.Path) -> set:
     return sites
 
 
-def test_the_record_has_NO_PRODUCTION_WRITER_YET_and_the_ZERO_is_ASSERTED():
-    """⭐ THE PHASE-C IDIOM: a door deliberately left shut, with the shut asserted.
+def test_the_record_has_EXACTLY_ONE_PRODUCTION_WRITER_and_it_is_NAMED():
+    """⭐ THE PHASE-C IDIOM, NOW AT ONE: a door with exactly one caller, named.
 
-    E6 is independent of E1–E5 and lands first, so the universe sweep that will
-    call `record_pass` nightly does not exist yet. That means this store is
-    EMPTY IN PRODUCTION on the day it ships — which the design says out loud
-    rather than hiding — and it also means an accidental writer into an
-    append-only store with no rewrite path would be unfixable. So the expected
-    number is ZERO and it is asserted by `==` on the DERIVED set, not by `in`.
+    E6 shipped with ZERO writers and said in this docstring that *"when the sweep
+    lands, this number becomes one and this test is edited to say so — deleting it
+    instead is how a second writer arrives unnoticed."* **E3 landed the sweep on
+    2026-08-09 and this is that edit.** The set is still asserted by `==` on the
+    DERIVED census, so a SECOND writer — a route, a warmer, a backfill script —
+    fails here BY NAME rather than appending to a store with no rewrite path.
 
-    ⚠️ WHEN THE SWEEP LANDS, THIS NUMBER BECOMES ONE AND THIS TEST IS EDITED TO
-    SAY SO — the same way `test_the_door_has_EXACTLY_ONE_production_call_site`
-    moved from zero to one. Deleting it instead is how a second writer arrives
-    unnoticed.
+    ⭐ AND THE ONE WRITER WRITES AT **MONTHLY** GRAIN. §4's measurement is why: at
+    241.9 B/row over 3,742 tickers a DAILY row per symbol per session is 114 GB/yr
+    at 500 definitions, which a Railway volume will not hold past ~10. The sweep
+    folds a completed month of sessions into ONE window row — lever 1 in the
+    runbook, *"recommended default for E3"* — and plants a one-bar origin on the
+    first sweep so nothing is ever recorded for sessions that ran before the
+    definition existed.
     """
-    assert _writer_sites((_ROOT / "api", _ROOT / "tools"), _ROOT) == set()
+    assert _writer_sites((_ROOT / "api", _ROOT / "tools"), _ROOT) == {
+        "api/services/screener/scan_evaluator.py::_write_rule_record"}
 
 
 @pytest.mark.parametrize("relpath,source,expected", [

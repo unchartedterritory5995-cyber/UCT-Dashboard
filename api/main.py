@@ -1102,6 +1102,47 @@ def register_screener_jobs(scheduler):
     scheduler.add_job(_run, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
                       id="screener_snapshot_nightly", max_instances=1,
                       replace_existing=True)
+
+    # -- the scan sweep: a SEPARATE job at a LATER hour ------------------------
+    #
+    # ⛔ NOT A CALL APPENDED TO `run_build`, and both reasons are measured.
+    # `run_build` is capped at SCREENER_SNAPSHOT_MAX_PER_RUN = 4000 and its
+    # DURATION IS NOT MEASURED ANYWHERE (GT §6.4 names it the one number most
+    # worth having) — so chaining would put an unmeasured job behind an
+    # unmeasured job in one `max_instances=1` slot. And the sweep's own
+    # precondition is that the snapshot is CURRENT, which it cannot assert about
+    # a build it is running inside.
+    #
+    # ⏳ THE HOUR IS THE OWNER'S (design §8.5) and lives in exactly ONE place:
+    # `scan_evaluator.SWEEP_HOUR_ET`. Read, never retyped.
+    #
+    # ⭐ AND ONE HOUR IS ENOUGH TODAY BECAUSE THE CEILING IS A PROPERTY OF THE
+    # TREE, NOT OF THIS SCHEDULE. All 54 declared scalars are `cadence: nightly`
+    # out of `screener_rows` (measured over the manifest), so a scan naming any of
+    # them re-read at noon returns the same answer off the same 03:00 snapshot —
+    # a true number implying something false. `scan_evaluator.cadence_ceiling`
+    # derives that per definition from the manifest's own declarations; adding an
+    # intraday job would only ever be honest for bars-only trees.
+    #
+    # ⛔ AND IT IS OFF BY DEFAULT. E-4 has not wired a surface to these results,
+    # so a sweep that ran by default would spend the pod's night writing rows
+    # nothing can read.
+    from api.services.screener import scan_evaluator
+
+    def _run_scan_sweep():
+        try:
+            scan_evaluator.sweep_job()
+        except Exception as e:
+            print(f"[scheduler] screener scan sweep error: {e}")
+
+    if scan_evaluator.enabled():
+        scheduler.add_job(
+            _run_scan_sweep,
+            trigger=CronTrigger(hour=scan_evaluator.SWEEP_HOUR_ET,
+                                minute=scan_evaluator.SWEEP_MINUTE_ET,
+                                timezone=_ET),
+            id="screener_scan_sweep", max_instances=1, replace_existing=True)
+
     start_screener_snapshot_warm()
     return True
 

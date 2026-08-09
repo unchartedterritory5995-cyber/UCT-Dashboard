@@ -593,6 +593,36 @@ def known_symbols(def_hash: str, rev: int, tf: str) -> list[str]:
             (def_hash, rev, tf))]
 
 
+def latest_through_by_symbol(def_hash: str, rev: int, tf: str) -> dict:
+    """``{sym: newest through_bar_time}`` for this definition revision, in ONE query.
+
+    ⭐ THE BATCHING DOOR, AND IT IS ON THIS MODULE BECAUSE IT HAS TO BE. A
+    universe sweep needs to know, per symbol, how far its record already reaches
+    before it can decide which window it owes; asking `latest_evaluation` 3,742
+    times opens 3,742 connections to answer one question. E6's own concern 2 names
+    the remedy — *"the fix is a batching door on this module, ⛔ never a caller
+    opening its own connection to this table"* — because a caller with its own
+    connection is a second authority over one value, and the first thing it would
+    duplicate is the definition key.
+
+    ⚠️ A READ, AND ONLY A READ. It writes nothing, it creates nothing, and it
+    cannot move a horizon. `test_the_module_has_NO_UPDATE_and_NO_DELETE_outside_the_prune`
+    is the rail on that and this addition is invisible to it.
+
+    The query rides the UNIQUE constraint's own index, whose leading columns are
+    exactly `(def_hash, rev, tf, sym, first_bar_time)` — the same prefix
+    `latest_evaluation` and `covers` seek on, so this needs no index of its own.
+    """
+    def_hash, rev, tf = _definition_key(def_hash, rev, tf)
+    _ensure_init()
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            f"SELECT sym, MAX(through_bar_time) AS t FROM {TABLE_NAME}"
+            " WHERE def_hash=? AND rev=? AND tf=? GROUP BY sym",
+            (def_hash, rev, tf)).fetchall()
+    return {r["sym"]: int(r["t"]) for r in rows if r["t"] is not None}
+
+
 def claim_for(def_hash: str, rev: int, tf: str, *,
               first_bar_time: Any, through_bar_time: Any,
               syms: Optional[Sequence[str]] = None) -> dict:

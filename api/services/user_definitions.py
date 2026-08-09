@@ -675,6 +675,31 @@ def list_for_user(user_id: Any) -> list[dict]:
     return [_row_to_dict(r) for r in rows if r["deleted_at"] is None]
 
 
+def live_definitions() -> list[dict]:
+    """Every live definition's newest version, ACROSS EVERY MEMBER, oldest first.
+
+    ⭐ THE SWEEP'S DOOR, AND IT LIVES HERE FOR ONE REASON: *"whose newest version
+    is not a tombstone"* is a fact about THIS table's shape, and it is already
+    spelled twice in this file (`_live_def_count`, `list_for_user`). A background
+    job that wrote its own copy of that subquery would be a third authority over
+    which row is live, and the day a tombstone rule changed the job would go on
+    sweeping deleted formulas with every test green.
+
+    ⚠️ IT IS THE ONLY MEMBER-SHAPED READ THE SWEEP MAKES, and the sweep collapses
+    it immediately: results are keyed on the MATHS (`ast_hash`), never on the
+    member, so two people who typed the same formula cost the pod one evaluation.
+    """
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        rows = c.execute(
+            "SELECT * FROM user_definitions u WHERE version = ("
+            "  SELECT MAX(version) FROM user_definitions v"
+            "   WHERE v.user_id=u.user_id AND v.def_id=u.def_id)"
+            " ORDER BY u.id",
+        ).fetchall()
+    return [_row_to_dict(r) for r in rows if r["deleted_at"] is None]
+
+
 def history(user_id: Any, def_id: str) -> list[dict]:
     """Every version of one definition, oldest first — tombstones included."""
     _check_def_id(def_id)
