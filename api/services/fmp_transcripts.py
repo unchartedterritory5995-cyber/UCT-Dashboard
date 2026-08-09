@@ -200,7 +200,12 @@ def get_transcript(ticker: str, quarter: Optional[str] = None) -> Optional[dict]
     resolved = False
     try:
         if year is None or q is None:
-            avail = _available(ticker)
+            # Go through the CACHED quarter index, not `_available` directly.
+            # Every transcript request without an explicit quarter was making a
+            # live `earning-call-transcript-dates` call before touching the
+            # cached body, so a repeat open cost ~1.5s instead of ~10ms even
+            # though the transcript itself was cached for 30 days.
+            avail = [(row["year"], row["q"]) for row in list_quarters(ticker)]
             if not avail:
                 return None
             year, q = avail[0]

@@ -6,9 +6,10 @@ import useSWR from 'swr'
 
 const fetcher = url => fetch(url).then(r => r.ok ? r.json() : null).catch(() => null)
 
-export default function useCallRecap(ticker) {
+export default function useCallRecap(ticker, quarter = null) {
+  const qs = quarter ? `?quarter=${encodeURIComponent(quarter)}` : ''
   return useSWR(
-    ticker ? `/api/earnings/call-recap/${ticker}` : null,
+    ticker ? `/api/earnings/call-recap/${ticker}${qs}` : null,
     fetcher,
     {
       // A warmed recap is a SQLite point-read and arrives with the first

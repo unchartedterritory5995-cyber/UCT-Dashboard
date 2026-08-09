@@ -67,7 +67,8 @@ function highlight(text, kw, activeOrdinal = -1) {
  * @param {string} [query]     — keyword to highlight within segment text
  * @param {string} [quarter]   — e.g. "2026Q3"; omit to auto-resolve the newest
  */
-export default function TranscriptPanel({ sym = null, query = '', quarter = null, focus = null }) {
+export default function TranscriptPanel({ sym = null, query = '', quarter = null,
+                                          focus = null, onQuarterChange = null }) {
   const [open, setOpen] = useState(false)
   const [ttsActive, setTtsActive] = useState(false)
   const [typed, setTyped] = useState('')
@@ -250,7 +251,13 @@ export default function TranscriptPanel({ sym = null, query = '', quarter = null
                   <select
                     className={search.quarterSelect}
                     value={transcript.quarter || ''}
-                    onChange={e => setPickedQuarter(e.target.value)}
+                    onChange={e => {
+                      setPickedQuarter(e.target.value)
+                      // The recap above is per-quarter too; without this the
+                      // reader steps back six years in the transcript while a
+                      // recap of THIS quarter sits on top of it, silently.
+                      onQuarterChange?.(e.target.value)
+                    }}
                     aria-label="Transcript quarter"
                   >
                     {quarters.map(q => (

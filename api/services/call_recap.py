@@ -176,7 +176,7 @@ def _pplx_earnings_highlights(ticker: str) -> str:
 
 # ── get_call_recap ────────────────────────────────────────────────────────────
 
-def get_call_recap(ticker: str) -> Optional[dict[str, Any]]:
+def get_call_recap(ticker: str, quarter: Optional[str] = None) -> Optional[dict[str, Any]]:
     """Return AI-synthesized earnings call recap for the most recent quarter.
 
     Shape: {headline, sentiment, bullets[], quotes[], guidance, qa_highlights[]}
@@ -186,7 +186,9 @@ def get_call_recap(ticker: str) -> Optional[dict[str, Any]]:
     if not sym:
         return None
 
-    ck = f"call_recap::{sym}"
+    # Keyed by quarter: a reader stepping back to an older call must not be
+    # handed the newest quarter's recap under it.
+    ck = f"call_recap::{sym}::{quarter or 'latest'}"
     hit = _cache().get(ck)
     if hit is not None:
         return hit if hit != "__null__" else None
@@ -197,13 +199,19 @@ def get_call_recap(ticker: str) -> Optional[dict[str, Any]]:
     # --- schedule and this is a SQLite point-read of the result. It also
     # --- survives redeploys, which the in-process cache did not.
     try:
-        stored = _store().get(sym)
+        stored = _store().get(sym, quarter)
     except Exception as exc:
         _log.debug("[call_recap] store read failed for %s: %s", sym, exc)
         stored = None
     if stored:
         _cache().set(ck, stored, _RECAP_TTL)
         return stored
+
+    if quarter:
+        # An explicitly-requested past quarter has no web-context equivalent —
+        # the fallback below is about "what happened on the LATEST call". Return
+        # nothing so the UI can say which quarter it lacks a recap for.
+        return None
 
     market_date = _today_date()
     guard = _cost_guard()

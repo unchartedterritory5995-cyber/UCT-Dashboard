@@ -88,22 +88,46 @@ PROBE_JS = r"""
 """
 
 
+_INTRO_SEL = '[role="dialog"][aria-label="Welcome"]'
+
+
 def _dismiss_intro(page):
-    """The cinematic intro overlay plays on every page load — skip it so we
-    screenshot the real page. Tries the Skip button, then Escape, then a click."""
-    try:
-        skip = page.query_selector('[aria-label="Skip intro"]')
-        if skip:
-            skip.click(timeout=1000)
-            page.wait_for_timeout(400)
+    """Dismiss the cinematic intro so we screenshot the real page.
+
+    ⛔ THIS SILENTLY PRODUCED A CLEAN AUDIT OF THE INTRO ITSELF. The runner sets
+    `reduced_motion="reduce"`, which makes IntroAnimation render its
+    reduced-motion branch — and that branch has NO Skip button (it dismisses via
+    `onClick` on the overlay). The docstring here claimed a click fallback;
+    the code only ever tried the Skip button and Escape, neither of which
+    exists on that branch. Both quietly failed, the overlay stayed up, and
+    /calendar scored `overflowX=0 small=0` on a page showing "Welcome, Local."
+
+    So: try all three, then VERIFY the overlay is gone and raise if it isn't. A
+    layout audit of a page that never rendered is worse than no audit — it
+    reports safety it did not measure.
+    """
+    for attempt in (
+        lambda: page.click('[aria-label="Skip intro"]', timeout=1000),
+        lambda: page.click(_INTRO_SEL, timeout=1000),      # reduced-motion branch
+        lambda: page.keyboard.press("Escape"),
+    ):
+        try:
+            attempt()
+            page.wait_for_timeout(300)
+        except Exception:  # noqa: BLE001
+            continue
+        if page.query_selector(_INTRO_SEL) is None:
             return
-    except Exception:  # noqa: BLE001
-        pass
+
+    # Last resort: the reduced-motion fade is ~1.6s and self-finishes.
     try:
-        page.keyboard.press("Escape")
-        page.wait_for_timeout(400)
+        page.wait_for_selector(_INTRO_SEL, state="detached", timeout=12000)
+        return
     except Exception:  # noqa: BLE001
         pass
+
+    raise RuntimeError(
+        "intro overlay still present — refusing to audit it as if it were the page")
 
 
 def slug(route: str) -> str:

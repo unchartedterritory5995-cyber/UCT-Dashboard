@@ -35,11 +35,14 @@ export default function CallSection({ sym, lifecycle }) {
   // The recap and the transcript are separate components by design (the whole
   // point of Phase 0), so the jump target lives in their common parent. The
   // nonce makes a repeat click on the same link re-scroll instead of no-op.
+  // ONE owner for the quarter, because the recap and the transcript must
+  // always describe the same call. null = whatever the newest is.
+  const [quarter, setQuarter] = useState(null)
   const [focus, setFocus] = useState(null)
   const jumpToSegment = useCallback(
     segment => setFocus(f => ({ segment, nonce: (f?.nonce || 0) + 1 })), [])
 
-  const { data: payload } = useCallRecap(sym)
+  const { data: payload } = useCallRecap(sym, quarter)
   const { data: audio } = useEarningsAudio(sym)
   const recap = normalizeCallRecap(payload)
 
@@ -48,21 +51,29 @@ export default function CallSection({ sym, lifecycle }) {
     return (
       <div className={styles.wrap}>
         <p className={styles.provenance} data-testid="call-provenance">{PROVENANCE}</p>
-        <SentimentGauge ticker={sym} />
+        {/* The gauge scores the LATEST call. Leaving it up while the reader is
+            looking at an older quarter is the same mismatch as the recap. */}
+        {!quarter && <SentimentGauge ticker={sym} />}
         {lifecycle === 'CALL_LIVE' && webcast && (
           <a className={styles.listen} href={webcast} target="_blank" rel="noopener noreferrer">
             Listen live →
           </a>
         )}
+        {/* Naming the quarter matters: stepping back to an older call is a
+            deliberate act, and "No call recap yet" there reads as a failure
+            rather than as "recaps are written for the latest call". */}
         <EmptyState
           icon="chat"
-          title="No call recap yet"
-          hint="A recap is written once there is enough source material on this call."
+          title={quarter ? `No recap for ${quarter}` : 'No call recap yet'}
+          hint={quarter
+            ? 'Recaps are written for the most recent call. The full transcript for this quarter is below.'
+            : 'A recap is written once there is enough source material on this call.'}
         />
         {/* Independent of the recap above: FMP publishes the verbatim
             transcript with no LLM in the path, so it must stay reachable
             when synthesis has not run, has failed, or is capped. */}
-        <TranscriptPanel sym={sym} focus={focus} />
+        <TranscriptPanel sym={sym} focus={focus} quarter={quarter}
+                         onQuarterChange={setQuarter} />
       </div>
     )
   }
@@ -72,7 +83,8 @@ export default function CallSection({ sym, lifecycle }) {
       <p className={styles.provenance} data-testid="call-provenance">{PROVENANCE}</p>
       <SentimentGauge ticker={sym} />
       <CallRecapSection recap={recap} audio={audio ?? null} onJumpToSegment={jumpToSegment} />
-      <TranscriptPanel sym={sym} focus={focus} />
+      <TranscriptPanel sym={sym} focus={focus} quarter={quarter}
+                       onQuarterChange={setQuarter} />
     </div>
   )
 }

@@ -17,7 +17,7 @@
 // quarters available and FY26Q3 published three days earlier, while the panel
 // said "No transcript yet".
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 import CallSection from './CallSection'
@@ -156,5 +156,48 @@ describe('CallSection — a recap claim links back to the passage it came from',
     renderCall()
     expect(screen.getByText(/Management expects margin expansion/)).toBeTruthy()
     expect(screen.queryByRole('button', { name: /in transcript/i })).toBeNull()
+  })
+})
+
+describe('CallSection — the recap and the transcript always describe ONE call', () => {
+  // The bug: TranscriptPanel owned the quarter internally, so stepping back to
+  // an older call swapped the transcript while a recap of THIS quarter stayed
+  // above it — silently mismatched, and worse than having no selector at all.
+  const askedFor = []
+
+  beforeEach(() => {
+    askedFor.length = 0
+    global.fetch = vi.fn(url => {
+      if (String(url).includes('transcript-quarters')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({
+          quarters: [{ quarter: '2026Q3' }, { quarter: '2019Q2' }] }) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(null) })
+    })
+  })
+
+  it('asks the recap endpoint for the quarter the reader selected', async () => {
+    vi.doMock('../../../hooks/useCallRecap', () => ({
+      default: (sym, quarter) => { askedFor.push(quarter); return { data: recapData } },
+    }))
+    const { default: Fresh } = await import('./CallSection?quarterwire')
+    const user = userEvent.setup()
+    render(<Fresh sym="DIS" row={{ sym: 'DIS' }} lifecycle="PRINTED" />)
+
+    await user.click(screen.getByRole('button', { name: /full transcript/i }))
+    await act(async () => { await Promise.resolve() })
+    fireEvent.change(screen.getByLabelText('Transcript quarter'), { target: { value: '2019Q2' } })
+
+    // Latest first, then the explicitly chosen quarter — never stuck on latest.
+    expect(askedFor[0]).toBeNull()
+    expect(askedFor).toContain('2019Q2')
+    vi.doUnmock('../../../hooks/useCallRecap')
+  })
+
+  it('names the quarter it has no recap for, instead of reading as a failure', () => {
+    recapData = { ticker: 'DIS', recap: null, webcast_url: null, rating_changes: [] }
+    renderCall()
+    expect(screen.getByText(/no call recap yet/i)).toBeTruthy()
+    expect(screen.queryByText(/No recap for 2019Q2/)).toBeNull()
   })
 })

@@ -136,6 +136,20 @@ def warm_symbol(symbol: str, *, fetch_transcript: Callable = None,
     if not recap:
         return "failed"
 
+    # Measured over HTTP: a warmed recap still took 4.55s because the endpoint
+    # also calls get_webcast_url (a Perplexity round-trip) and
+    # get_rating_changes (a provider call) in the same handler. Warming them
+    # here makes the served payload complete — otherwise the store read is
+    # instant and the response is not.
+    for key, fn in (("webcast_url", "get_webcast_url"),
+                    ("rating_changes", "get_rating_changes")):
+        try:
+            from api.services import call_recap as _cr
+            recap[key] = getattr(_cr, fn)(sym)
+        except Exception as exc:
+            _log.debug("[recap_warm] %s failed for %s: %s", key, sym, exc)
+            recap.setdefault(key, None)
+
     store.record_spend(sym, recap.get("_usage") or {})
     store.put(sym, quarter, recap)
     return "warmed"

@@ -33,7 +33,11 @@ router = APIRouter()
 
 
 @router.get("/api/earnings/call-recap/{ticker}")
-def call_recap_endpoint(ticker: str, user: dict = Depends(get_current_user)):
+def call_recap_endpoint(
+    ticker: str,
+    quarter: Optional[str] = Query(default=None, description="e.g. 2026Q3; omit for latest"),
+    user: dict = Depends(get_current_user),
+):
     """AI-synthesized earnings call recap.
 
     Returns {headline, sentiment, bullets[], quotes[], guidance, qa_highlights[]}
@@ -44,9 +48,16 @@ def call_recap_endpoint(ticker: str, user: dict = Depends(get_current_user)):
     if not sym:
         return None
     try:
-        recap = get_call_recap(sym)
-        webcast = get_webcast_url(sym)
-        ratings = get_rating_changes(sym)
+        recap = get_call_recap(sym, quarter=quarter or None)
+        # A warmed recap carries these already. Calling the providers anyway is
+        # what kept the endpoint at ~4.5s despite the recap itself being a ~1ms
+        # point-read — the store read was instant, the RESPONSE was not.
+        if recap and "webcast_url" in recap:
+            webcast = recap.get("webcast_url")
+            ratings = recap.get("rating_changes") or []
+        else:
+            webcast = get_webcast_url(sym)
+            ratings = get_rating_changes(sym)
         return {
             "ticker": sym,
             "recap": recap,
