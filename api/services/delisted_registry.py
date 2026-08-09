@@ -25,6 +25,9 @@ import threading
 from typing import Optional
 
 _SEED_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "delisted_tickers.json")
+# Bulk auto-enumerated set (~6k US common stocks delisted 2004+, from Massive active=false).
+# Regenerate with scripts/enumerate_delisted (reuse-aware keys, date-clamped by construction).
+_BULK_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "delisted_tickers_bulk.json")
 # Durable runtime overlay (CSV imports append here; survives redeploys). Merged over the seed.
 _OVERLAY_PATH = os.path.join(os.environ.get("DATA_DIR", "/data"), "delisted_tickers_overlay.json")
 
@@ -84,8 +87,12 @@ def _ensure_loaded() -> None:
         if _loaded:
             return
         out: dict = {}
-        # Seed first, then overlay wins on conflict (runtime imports / corrections).
-        for rec in _read_file(_SEED_PATH) + _read_file(_OVERLAY_PATH):
+        # Load order = precedence (later wins on key conflict): bulk (~6k auto-enumerated
+        # from Massive active=false) → seed (the hand-curated legends, with real
+        # sector/industry) → overlay (runtime CSV-import additions/corrections). Bulk
+        # already excludes the seed's provider symbols, so there's normally no conflict;
+        # the ordering just guarantees the curated versions win if one ever appears twice.
+        for rec in _read_file(_BULK_PATH) + _read_file(_SEED_PATH) + _read_file(_OVERLAY_PATH):
             c = _coerce(rec) if isinstance(rec, dict) else None
             if c:
                 out[c["ticker"]] = c
@@ -152,9 +159,14 @@ def add_entry(entry: dict, persist: bool = True) -> Optional[dict]:
         if persist:
             try:
                 os.makedirs(os.path.dirname(_OVERLAY_PATH), exist_ok=True)
-                # Persist only the non-seed (overlay) additions so the seed stays canonical.
-                seed_tickers = {_norm(r.get("ticker")) for r in _read_file(_SEED_PATH) if isinstance(r, dict)}
-                overlay = [rec for tk, rec in _by_ticker.items() if tk not in seed_tickers]
+                # Persist ONLY genuinely-runtime additions — exclude anything already in the
+                # shipped seed OR bulk files, so the overlay doesn't balloon with ~6k bulk rows.
+                file_tickers = {
+                    _norm(r.get("ticker"))
+                    for r in (_read_file(_SEED_PATH) + _read_file(_BULK_PATH))
+                    if isinstance(r, dict)
+                }
+                overlay = [rec for tk, rec in _by_ticker.items() if tk not in file_tickers]
                 tmp = _OVERLAY_PATH + ".tmp"
                 with open(tmp, "w", encoding="utf-8") as fh:
                     json.dump(overlay, fh, indent=2)
