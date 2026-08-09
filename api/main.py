@@ -1601,6 +1601,49 @@ def register_call_recap_warm_jobs(scheduler):
     return True
 
 
+def register_transcript_index_jobs(scheduler):
+    """Keep the cross-company transcript search corpus current.
+
+    FMP Ultimate is uncapped, so the only cost is wall-clock and disk — which
+    is why this runs on a schedule rather than on the request path, and why the
+    index is pruned to a retention window instead of growing forever on a
+    shared volume.
+
+    Twice daily plus a one-shot after boot: transcripts publish through the
+    evening, and a deploy should not leave search a day stale.
+    """
+    import os
+    if os.environ.get("TRANSCRIPT_INDEX_ENABLED", "").strip() != "1":
+        return False
+    from apscheduler.triggers.cron import CronTrigger
+
+    _ilog = logging.getLogger(__name__)
+
+    def _run_index_sweep():
+        try:
+            from api.services import transcript_index as ix
+            from api.services import transcript_indexer as ixr
+            _ilog.info("[tindex] %s", ixr.run_index_sweep())
+            dropped = ix.prune()
+            if dropped:
+                _ilog.info("[tindex] pruned %s calls past the retention window", dropped)
+        except Exception as exc:
+            _ilog.warning("[tindex] sweep failed: %s", exc)
+
+    for hour, minute in ((6, 45), (20, 45)):
+        scheduler.add_job(
+            _run_index_sweep,
+            trigger=CronTrigger(hour=hour, minute=minute, timezone=_ET),
+            id=f"transcript_index_{hour:02d}{minute:02d}", replace_existing=True)
+
+    from datetime import datetime as _dt2, timedelta as _td2
+    scheduler.add_job(
+        _run_index_sweep, trigger="date",
+        run_date=_dt2.now(_ET) + _td2(seconds=180),
+        id="transcript_index_boot", replace_existing=True)
+    return True
+
+
 def register_transcript_keyword_jobs(scheduler):
     """Cross-company transcript keyword alerts — "tell anyone who follows the word
     'tariff' when any company says it on a call".
@@ -3938,6 +3981,9 @@ async def lifespan(app: FastAPI):
                     "[startup] call-recap warm sweeps: 07:30/12:30/17:15/21:30 ET")
             if register_transcript_keyword_jobs(_scheduler):
                 logging.getLogger(__name__).info("[startup] transcript keyword alerts: 18:30 ET weekdays")
+            if register_transcript_index_jobs(_scheduler):
+                logging.getLogger(__name__).info(
+                    "[startup] transcript search index: 06:45/20:45 ET + boot")
             register_wire_watchdog_job(_scheduler)
         except Exception as e:
             print(f"[scheduler] screener job registration error: {e}")

@@ -375,3 +375,40 @@ def call_audio_endpoint(
         _iter(), status_code=upstream.status_code,
         media_type=passthrough.get("content-type", "audio/mpeg"),
         headers=passthrough)
+
+
+# ── Cross-company transcript search ──────────────────────────────────────────
+#
+# The panel search finds a word inside ONE transcript already open. This
+# answers the question that moves money: who said "tariff" this quarter, and
+# what did they say — across every company that reported.
+
+@router.get("/api/earnings/transcript-search")
+def transcript_search_endpoint(
+    q: str = Query(..., min_length=2, description="keyword, or \"exact phrase\""),
+    limit: int = Query(default=40, ge=1, le=200),
+    symbol: Optional[str] = Query(default=None),
+    since: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
+    user: dict = Depends(require_paid),
+):
+    """Ranked hits with highlighted snippets, across the indexed corpus."""
+    try:
+        from api.services import transcript_index as ix
+        return ix.search(q, limit=limit, symbol=symbol, since=since)
+    except Exception as e:
+        _log.warning("[earnings_intel] transcript search failed for %r: %s", q, e)
+        return {"query": q, "hits": [], "total": 0, "error": "search unavailable"}
+
+
+@router.get("/api/admin/transcript-index-status")
+def transcript_index_status():
+    """Corpus size and span — read this to answer "is search covering today?"
+
+    A search that returns nothing looks identical whether the corpus is empty
+    or the term is genuinely absent, so the corpus has to be observable.
+    """
+    try:
+        from api.services import transcript_index as ix
+        return ix.stats()
+    except Exception as e:
+        return {"error": str(e)}
