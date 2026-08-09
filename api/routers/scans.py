@@ -154,3 +154,13 @@ def period_change_debug(start: int, end: int, _user: dict = Depends(require_paid
     the current cache/inflight state. Paid, like every route here."""
     from api.services import scan_period
     return JSONResponse(content=scan_period.debug_period(int(start), int(end)))
+
+
+@router.get("/api/scans/period-change-coverage")
+def period_change_coverage(start: int, end: int, _user: dict = Depends(require_paid)):
+    """Would serving [start, end] from bars.db (skipping the provider) give the SAME list?
+    Reports result-level coverage vs the authoritative provider set, which names bars.db
+    would DROP (and whether any are big movers), and price agreement on the overlap — so we
+    can decide if the 'bars.db-primary' speedup is safe before shipping it."""
+    from api.services import scan_period
+    return JSONResponse(content=scan_period.coverage_probe(int(start), int(end)))
