@@ -33,9 +33,9 @@ def _enum(key, label, category, column, presets, options_column=None):
                  "unit": None, "options_column": options_column}
 
 
-def _open_range(key, label, category, column, unit=None):
-    """A range control with NO preset thresholds — only ``Any`` and the custom
-    min/max the member types.
+def _open_range(key, label, category, column, unit=None, factual=()):
+    """A range control with no EDITORIAL preset thresholds — only ``Any``, the
+    custom min/max the member types, and any FACTUAL presets passed in.
 
     🔴 WHY THESE SHIP BARE, when `pe_fwd` beside them offers "Under 20".
     A preset is an EDITORIAL CLAIM: shipping *"P/E: Cheap (under 15)"* under
@@ -49,11 +49,32 @@ def _open_range(key, label, category, column, unit=None):
     can screen `current_ratio` between 1.5 and 3 on the day this lands. When
     the owner decides what "low P/E" means at this firm, the presets drop into
     the list beneath the same control and nothing else moves.
+
+    ⭐ `factual` IS THE ONE EXCEPTION, AND IT IS NOT A LOOSENING OF THE RULE.
+    E-8 forbids shipping the firm's OPINION unpublished. Some thresholds are not
+    opinions — they are DEFINITIONS, true by arithmetic, and they read the same
+    to every trader alive:
+
+      dividend_yield > 0  is what "pays a dividend" MEANS
+      debt_to_equity == 0 is what "debt-free" MEANS
+      beta < 1            is what "less volatile than the market" MEANS
+
+    Nobody has to publish those; disagreeing with one is disagreeing with the
+    words. ⛔ THE TEST IS WHETHER A REASONABLE TRADER COULD PICK A DIFFERENT
+    NUMBER. For "pays a dividend" there is no other number — the boundary is
+    zero or the phrase is false. For "cheap P/E" there are a hundred, which is
+    exactly why `pe_ttm` still ships bare and must keep doing so.
+
+    ⚠️ `presets_deferred` STAYS TRUE on these. It means "no editorial threshold
+    has been decided", which is still the case; `factual_presets` records which
+    labels are exempt so the rails can tell a definition from an opinion instead
+    of counting entries. Both are properties of the filter, never a list of keys
+    retyped in a test.
     """
-    key, spec = _range(key, label, category, column, [{"label": "Any"}], unit)
-    # The marker a rail reads, so "this filter is deliberately preset-free" is a
-    # PROPERTY of the filter rather than a list of keys retyped in a test.
+    presets = [{"label": "Any"}] + [dict(p) for p in factual]
+    key, spec = _range(key, label, category, column, presets, unit)
     spec["presets_deferred"] = True
+    spec["factual_presets"] = tuple(p["label"] for p in factual)
     return key, spec
 
 
@@ -82,7 +103,13 @@ FILTERS = dict([
     # company PROFILE beside sector and exchange, and it describes the
     # instrument's character rather than today's setup. ⚠️ It genuinely ranges
     # (-43.73, 10.00) over this universe — there is no clamp, by design.
-    _open_range("beta", "Beta", "descriptive", "beta"),
+    # ⭐ "Less volatile than the market" is the DEFINITION of beta < 1 — the
+    # market IS 1.0 by construction, so the boundary is not a number anyone
+    # chose. `lt`, not `lte`: a beta of exactly 1.00 moves WITH the market, and
+    # a control labelled "less volatile" that returns it is simply wrong.
+    _open_range("beta", "Beta", "descriptive", "beta", factual=[
+        {"label": "Less volatile than the market", "op": "lt", "max": 1},
+    ]),
     _range("market_cap", "Market Cap", "descriptive", "market_cap",
            [{"label": "Any"},
             {"label": "Mega (>$200B)", "op": "gte", "min": 2e11},
@@ -143,8 +170,14 @@ FILTERS = dict([
     _open_range("pe_ttm", "P/E (TTM)", "fundamental", "pe_ttm"),
     _open_range("ps", "P/S", "fundamental", "ps"),
     _open_range("pb", "P/B", "fundamental", "pb"),
+    # ⭐ "Pays a dividend" is the DEFINITION of a yield above zero. ⚠️ `gt`, not
+    # `gte`: 205 rows hold a corroborated 0.0, and `>= 0` would return every one
+    # of them under a label that says they pay one. There is no epsilon to
+    # choose here — an epsilon would BE an invented threshold.
     _open_range("dividend_yield", "Dividend Yield", "fundamental",
-                "dividend_yield", unit="%"),
+                "dividend_yield", unit="%", factual=[
+                    {"label": "Pays a dividend", "op": "gt", "min": 0},
+                ]),
     _open_range("gross_margin", "Gross Margin", "fundamental", "gross_margin",
                 unit="%"),
     _open_range("net_margin", "Net Margin", "fundamental", "net_margin",
@@ -153,8 +186,14 @@ FILTERS = dict([
     # ⚠️ RATIOS, NOT PERCENTS — AAPL's D/E is 0.78, not 78. The registry used to
     # claim otherwise for a column that had never held a value; see the module
     # docstring. A member typing `2` here means twice equity.
+    # ⭐ "Debt-free" is the DEFINITION of D/E == 0, corroborated on 238 rows.
+    # ⚠️ `eq`, NOT `lte 0`. D/E goes negative on negative equity, and a
+    # company with negative equity is the opposite of debt-free — `<= 0` would
+    # return exactly the distressed names the label promises to exclude.
     _open_range("debt_to_equity", "Debt / Equity", "fundamental",
-                "debt_to_equity"),
+                "debt_to_equity", factual=[
+                    {"label": "Debt-free", "op": "eq", "value": 0},
+                ]),
     # ⚠️ ~163 banks, insurers and BDCs have NO current ratio and are NULL rather
     # than 0 (FMP prints 0 for "undefined"; `fundamentals_bulk` refuses it). So
     # `current_ratio < 1` correctly returns no financials — which is a true
@@ -206,6 +245,7 @@ FILTERS = dict([
            [{"label": "Any"},
             {"label": "Top third (>0.66)", "op": "gte", "min": 0.66},
             {"label": "Bottom third (<0.33)", "op": "lte", "max": 0.33}]),
+    _range("close_pos_dupe", "Close Position", "single_candle", "close_position", [{"label": "Any"}]),
     # ── multi candle ──
     _bool("tight_consolidation", "Tight Consolidation", "multi_candle", "tight_consolidation"),
     _bool("nr7", "NR7 (narrowest of 7)", "multi_candle", "nr7"),
@@ -229,8 +269,13 @@ FILTERS = dict([
            {"label": "Death Cross", "op": "contains", "value": "death_cross"}]),
 ])
 
+# ⚠️ `gt`/`lt`/`eq` JOINED "range" FOR THE FACTUAL PRESETS, and the strictness
+# is the point in all three cases: `>= 0` returns the 205 zero-yield rows under
+# "pays a dividend", `<= 0` returns negative-equity names under "debt-free", and
+# `<= 1` returns a beta of exactly 1.00 under "less volatile than the market".
+# An inclusive operator here would make each label state something untrue.
 _VALID_OPS = {
-    "range": {"gte", "lte", "between"},
+    "range": {"gte", "lte", "between", "gt", "lt", "eq"},
     "enum": {"eq", "in", "contains"},
     "bool": {"eq"},
 }
