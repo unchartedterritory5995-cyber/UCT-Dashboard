@@ -13,7 +13,7 @@ import { preload } from 'swr'
 import { prefetchTickerMeta } from '../hooks/useTickerMeta'
 import { idbGet, idbPut } from './barsIDB'
 import { memHas, memPut } from './barsMemCache'
-import { FIRST_PAINT_BARS } from './barsBackfill'
+import { FIRST_PAINT_BARS, fullBarsFor } from './barsBackfill'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -231,6 +231,91 @@ export function warmMemFromIDB(tickers, tfs = SCAN_WARM_TFS) {
       }).catch(() => { /* best-effort accelerator; IDB stays the fallback */ })
     }
   }
+}
+
+// ── Deep-history prefetch (SWR + server-cache warm) ──────────────────────────
+// The warmers above cover only the shallow first-paint window (FIRST_PAINT_BARS).
+// DEEP history — the pre-2024 tail you see when a Weekly/Monthly chart is zoomed
+// out — is fetched on-DEMAND by StockChart's dwell-warm/backfill at
+// bars=fullBarsFor(tf), a COLD server build that takes seconds the first time.
+// This warms that exact deep URL through SWR `preload` so (a) the server disk-
+// caches the deep set (shared across users, durable ~48h for D/W/M) and (b)
+// StockChart's own deep fetch becomes an instant SWR cache hit — the deep history
+// is already loaded by the time the user scrolls into it.
+//
+// Written to BOTH the server/SWR cache AND IndexedDB. StockChart's cold D/W/M fetch
+// used to truncate a deep IDB entry back to the first-paint window on open, but it
+// now PRESERVES a deeper IDB history (mergeDelta-heals the recent tail instead of
+// replacing), so a pre-warmed deep entry paints the full pre-2024 history INSTANTLY
+// on the first render — no dwell, no cold deep fetch. Separate bounded queue (big
+// payloads) so it never starves the active chart.
+const _deepQueue = []   // [{ sym, tf, key }]
+let _deepActive = 0
+const _DEEP_MAX = 3
+const _deepSeen = new Set()
+let _deepKick = null
+
+function _deepUrl(sym, tf) {
+  return `/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${fullBarsFor(tf)}`
+}
+async function _deepWarmOne(sym, tf) {
+  try {
+    const target = fullBarsFor(tf)
+    const have = await idbGet(sym, tf)
+    // Already deep enough in IDB → nothing to do (a short-history name never
+    // reaches `target`, but the 5-min _deepSeen window keeps it from re-fetching).
+    if (have?.bars?.length >= target * 0.9) return
+    const json = await preload(_deepUrl(sym, tf), fetcher) // dedupes + warms SWR + server
+    if (json?.bars?.length && !json.delta) {
+      await idbPut(sym, tf, json.bars)   // durable: the click paints deep from IDB
+      memPut(sym, tf, json.bars)
+    }
+  } catch { /* best-effort; the chart's own dwell-warm remains the fallback */ }
+}
+function _deepPump() {
+  while (_deepActive < _DEEP_MAX && _deepQueue.length) {
+    const { sym, tf } = _deepQueue.shift()
+    _deepActive++
+    _deepWarmOne(sym, tf).finally(() => { _deepActive--; _deepPump() })
+  }
+}
+function _deepKickSoon() {
+  if (_deepKick) return
+  const go = () => { _deepKick = null; _deepPump() }
+  if (typeof requestIdleCallback === 'function') _deepKick = requestIdleCallback(go, { timeout: 2500 })
+  else _deepKick = setTimeout(go, 1200)
+}
+
+// DAILY FIRST — it's the timeframe the chart is actually showing, so warming it before
+// the zoomed-out W/M is what makes the NEXT ticker's history instant. (Warming W/M first
+// left daily — what's on screen — as the LAST ~240 jobs in the queue, which is why a few
+// stragglers were still cold. W/M follow daily now.)
+const DEEP_WARM_TFS = ['D', 'W', 'M']
+const DEEP_WARM_CAP = 120
+export function prefetchListDeep(tickers, { tfs = DEEP_WARM_TFS, cap = DEEP_WARM_CAP, priority = false } = {}) {
+  if (!tickers?.length) return
+  const list = [...new Set(tickers.filter(Boolean))].slice(0, cap)
+  if (!list.length) return
+  // Build the batch in TF-outer order (Daily first). `priority` (on-screen rows) pulls
+  // it — and any of these already queued behind the background trickle — to the FRONT,
+  // preserving order, so what the user is about to click warms before the top-N tail.
+  const batch = []
+  for (const tf of tfs) {
+    for (const sym of list) {
+      const key = `${sym}_${tf}`
+      const at = _deepQueue.findIndex((j) => j.key === key)
+      if (at >= 0) {
+        if (priority) batch.push(_deepQueue.splice(at, 1)[0])   // re-front an already-queued job
+        continue
+      }
+      if (_deepSeen.has(key) && !priority) continue
+      if (!_deepSeen.has(key)) { _deepSeen.add(key); setTimeout(() => _deepSeen.delete(key), 300000) }
+      batch.push({ sym, tf, key })
+    }
+  }
+  if (batch.length) (priority ? _deepQueue.unshift(...batch) : _deepQueue.push(...batch))
+  for (const sym of list) prefetchTickerMeta(sym)
+  _deepKickSoon()
 }
 
 // ── Intent prefetch (hover / keyboard focus) ─────────────────────────────────

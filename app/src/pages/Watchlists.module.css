@@ -388,6 +388,24 @@
   letter-spacing: 0.5px;
   flex-shrink: 0;
 }
+/* Custom-Period Sort group rows (theme/sector/industry): expand caret + ellipsized name. */
+.grpCaret {
+  flex-shrink: 0;
+  width: 12px;
+  margin-right: 4px;
+  font-size: 9px;
+  color: var(--wl-text-strong, var(--text-muted));
+}
+.grpName {
+  font-family: var(--font-sans);
+  font-size: calc(11px * var(--wl-font-scale, 1));
+  font-weight: 600;
+  color: var(--wl-sym, var(--text-bright));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
 
 .listRowSelected .rowSym {
   color: var(--ut-gold);

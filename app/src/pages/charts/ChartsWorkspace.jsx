@@ -181,7 +181,7 @@ const WIDGET_DEFAULTS = {
   alerts:    { w: 6,  h: 10, minW: 2, minH: 4 },
   calendar:  { w: 6,  h: 10, minW: 2, minH: 4 },
   optionsflow: { w: 8, h: 12, minW: 4, minH: 5 },
-  periodsort: { w: 7,  h: 12, minW: 3, minH: 5 },
+  periodsort: { w: 6,  h: 12, minW: 3, minH: 5 },   // ~fits Flag·Symbol·%·Industry with no blank filler
 }
 
 // A blocked window.open returns null with no error, so this is the only way the
@@ -201,6 +201,22 @@ function splitToFit(widgets, defaults, candidate) {
   return {
     widgets: widgets.map(x => (x.id === candidate.id ? { ...x, h: shrunkH } : x)),
     place: { x: candidate.x, y: candidate.y + shrunkH, w, h: newH },
+  }
+}
+
+// Horizontal split: place the new widget to the LEFT of `candidate`, at its FULL height,
+// shrinking the candidate to the right. Docking the Custom-Period Sort beside a full-screen
+// chart should sit it on the LEFT with the chart on the right (owner preference), not stack
+// it below. Returns null if the candidate can't spare the width.
+function splitToSide(widgets, defaults, candidate) {
+  if (!candidate) return null
+  const candMinW = (WIDGET_DEFAULTS[candidate.type]?.minW) || 2
+  const newW = Math.max(defaults.minW, Math.min(defaults.w, Math.floor(candidate.w / 2)))
+  const shrunkW = candidate.w - newW
+  if (shrunkW < candMinW) return null
+  return {
+    widgets: widgets.map(x => (x.id === candidate.id ? { ...x, x: candidate.x + newW, w: shrunkW } : x)),
+    place: { x: candidate.x, y: candidate.y, w: newW, h: candidate.h },
   }
 }
 
@@ -553,16 +569,23 @@ export default function ChartsWorkspace() {
   // panel (periodSortPanel) ranking every US common stock over that span.
   const [periodSortMode, setPeriodSortMode] = useState(false)
   const [periodSortSel, setPeriodSortSel] = useState(null)     // { sym, start, end, pct } | null
-  const [periodSortPanel, setPeriodSortPanel] = useState(null) // { start, end, popout } | null
+  const [periodSortPanel, setPeriodSortPanel] = useState(null) // { start, end, group } | null
+  // Replay mode: an ISO 'YYYY-MM-DD' cutoff — linked charts hide every bar after it.
+  const [replayCutoff, setReplayCutoff] = useState(null)
+  // "Mark start date": an ISO 'YYYY-MM-DD' + style ('line' gold vertical line | 'candle'
+  // gold start-date candle) — linked charts mark the sort's start date.
+  const [startMarker, setStartMarker] = useState(null)
+  const [startMarkerStyle, setStartMarkerStyle] = useState('line')
   const handlePeriodSelected = useCallback((sym, start, end, pct) => {
     setPeriodSortMode(false)
     setPeriodSortSel({ sym, start, end, pct })
   }, [])
   const handlePeriodCancel = useCallback(() => setPeriodSortMode(false), [])
+  const exitReplay = useCallback(() => { setReplayCutoff(null); setStartMarker(null) }, [])
 
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel }),
-    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel],
+    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle }),
+    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle],
   )
 
   // Debounced layout persist (500ms).
@@ -643,6 +666,31 @@ export default function ChartsWorkspace() {
     })
   }, [scheduleSave])
 
+  // Custom-Period Sort → Timeframe selector: force EVERY chart (base widget + any
+  // chart wtab) to the chosen TF (D/W/M). ChartWidget derives its tf from opts.tf,
+  // so writing opts.tf re-renders the chart at that timeframe; the user can still
+  // switch it manually afterward. Composes with replay (cutoff is by date, TF-agnostic).
+  const applyTfToCharts = useCallback((tf) => {
+    if (!tf) return
+    setLayout(prev => {
+      let changed = false
+      const withTf = (o) => ({ ...(o || {}), tf })
+      const widgets = prev.widgets.map(w => {
+        let nw = w
+        if (w.type === 'chart') { nw = { ...nw, opts: withTf(nw.opts) }; changed = true }
+        if (Array.isArray(w.wtabs) && w.wtabs.some(t => t?.type === 'chart')) {
+          nw = { ...nw, wtabs: nw.wtabs.map(t => (t?.type === 'chart' ? { ...t, opts: withTf(t.opts) } : t)) }
+          changed = true
+        }
+        return nw
+      })
+      if (!changed) return prev
+      const next = { ...prev, widgets }
+      scheduleSave(next)
+      return next
+    })
+  }, [scheduleSave])
+
   // Replace a whole widget object in place — used by the widget-level tab system,
   // which routes every tab add/close/select and per-active-tab color/opts edit
   // through one atomic swap (the reducer already computed the next widget). Keeps
@@ -686,7 +734,7 @@ export default function ChartsWorkspace() {
 
   // Custom-Period Sort → dock the floating results as a real grid widget (carrying the
   // highlighted range), or fold it into an existing widget as a Period-Sort tab.
-  const handleDockPeriodSort = useCallback((start, end) => {
+  const handleDockPeriodSort = useCallback((start, end, group = null) => {
     setPeriodSortPanel(null)
     setLayout(prev => {
       const defaults = WIDGET_DEFAULTS.periodsort
@@ -694,12 +742,15 @@ export default function ChartsWorkspace() {
       let widgets = prev.widgets
       let place = fit
       // If the normal placement would land off-screen (grid full), open room by splitting
-      // an existing widget — prefer a non-chart side widget (like the watchlist) so the
-      // main chart isn't shrunk; fall back to the tallest widget overall.
+      // an existing widget. Prefer putting the sort to the LEFT of the WIDEST widget (a
+      // full-screen chart) so it sits beside the chart at full height; then fall back to a
+      // below-split of a non-chart widget, then any widget.
       if (fit.y + fit.h > FIXED_ROWS) {
         const tallestOf = (arr) => arr.reduce((a, b) => (!a || b.h > a.h ? b : a), null)
+        const widestOf = (arr) => arr.reduce((a, b) => (!a || b.w > a.w ? b : a), null)
         const nonChart = prev.widgets.filter(w => w.type !== 'chart')
-        const split = splitToFit(prev.widgets, defaults, tallestOf(nonChart))
+        const split = splitToSide(prev.widgets, defaults, widestOf(prev.widgets))
+          || splitToFit(prev.widgets, defaults, tallestOf(nonChart))
           || splitToFit(prev.widgets, defaults, tallestOf(prev.widgets))
         if (split) { widgets = split.widgets; place = split.place }
       }
@@ -708,19 +759,19 @@ export default function ChartsWorkspace() {
         id: `w-periodsort-${Date.now()}`,
         type: 'periodsort', color,
         x: place.x, y: place.y, w: place.w, h: place.h,
-        opts: { start, end },
+        opts: { start, end, group: group || null },
       }
       const next = { ...prev, widgets: clampWidgetsToRows([...widgets, newWidget]) }
       scheduleSave(next)
       return next
     })
   }, [scheduleSave, groupSyms])
-  const handlePeriodSortToTab = useCallback((widgetId, start, end) => {
+  const handlePeriodSortToTab = useCallback((widgetId, start, end, group = null) => {
     setPeriodSortPanel(null)
     setLayout(prev => {
       const target = prev.widgets.find(w => w.id === widgetId)
       if (!target) return prev
-      const nextWidget = addWidgetTab(target, { type: 'periodsort', color: 'N', opts: { start, end } })
+      const nextWidget = addWidgetTab(target, { type: 'periodsort', color: 'N', opts: { start, end, group: group || null } })
       const next = { ...prev, widgets: prev.widgets.map(w => w.id === widgetId ? { ...nextWidget, x: w.x, y: w.y, w: w.w, h: w.h } : w) }
       scheduleSave(next)
       return next
@@ -1409,18 +1460,31 @@ export default function ChartsWorkspace() {
           <PeriodSortConfig
             sel={periodSortSel}
             onCancel={() => setPeriodSortSel(null)}
-            onSort={(start, end) => { setPeriodSortSel(null); setPeriodSortPanel({ start, end }) }}
+            onSort={(start, end, replay, group, tf, markStart) => {
+              setPeriodSortSel(null)
+              setPeriodSortPanel({ start, end, group: group || null })
+              // Replay: cut every linked chart off at the End date (ISO). Off = clear it.
+              const s = String(end)
+              setReplayCutoff(replay ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` : null)
+              // Mark start date on every chart: gold vertical line ('line') or gold start
+              // candle ('candle'). 'off' → no marker.
+              const st = String(start)
+              setStartMarker(markStart && markStart !== 'off' ? `${st.slice(0, 4)}-${st.slice(4, 6)}-${st.slice(6, 8)}` : null)
+              if (markStart === 'line' || markStart === 'candle') setStartMarkerStyle(markStart)
+              // Timeframe: switch every chart to the chosen D/W/M (composes with replay).
+              applyTfToCharts(tf)
+            }}
           />
         )}
         {periodSortPanel && (
           <PeriodSortPanel
             start={periodSortPanel.start}
             end={periodSortPanel.end}
+            group={periodSortPanel.group}
             onClose={() => setPeriodSortPanel(null)}
-            onPickSym={(s) => setGroupSym('A', s)}
-            onDock={() => handleDockPeriodSort(periodSortPanel.start, periodSortPanel.end)}
+            onDock={() => handleDockPeriodSort(periodSortPanel.start, periodSortPanel.end, periodSortPanel.group)}
             tabTargets={visibleWidgets.map(w => ({ id: w.id, label: WIDGET_LABELS[w.type] || w.type }))}
-            onAddAsTab={(widgetId) => handlePeriodSortToTab(widgetId, periodSortPanel.start, periodSortPanel.end)}
+            onAddAsTab={(widgetId) => handlePeriodSortToTab(widgetId, periodSortPanel.start, periodSortPanel.end, periodSortPanel.group)}
           />
         )}
       </div>

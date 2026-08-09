@@ -1750,6 +1750,23 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] SQLite bar store init error (non-fatal): {e}")
 
+    # Pre-build the by-date daily index (once per volume) off the boot path so the
+    # pre-~2004 Custom-Period Sort is instant on first use instead of triggering a
+    # ~1-2 min build under the user. Delayed so it doesn't fight the startup warms.
+    def _build_bydate_index_bg():
+        try:
+            import time as _t
+            _t.sleep(90)
+            from api.services import bars_sqlite as _bs
+            _bs.ensure_daily_bydate_index()
+            # Then pre-warm the shared ticker-reuse map (its whole-universe scan was the
+            # 3-5-min-per-range cost for pre-2004 sorts) so it's ready before anyone sorts.
+            from api.services import scan_period as _sp
+            _sp.warm_reuse_map()
+        except Exception as e:
+            print(f"[startup] by-date daily index / reuse-map pre-build error (non-fatal): {e}")
+    threading.Thread(target=_build_bydate_index_bg, daemon=True, name="sqlite-bydate-index").start()
+
     try:
         for _flag_name in (".tf60_purged_2f42e55", ".tf60_purged_3cbe1cf_src_cap"):
             _flag_path = os.path.join(os.environ.get("DATA_DIR", "/data"), _flag_name)

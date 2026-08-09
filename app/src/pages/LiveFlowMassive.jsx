@@ -3101,6 +3101,34 @@ export default function LiveFlowMassive() {
     setSearchParams(next, { replace: true });
   };
 
+  // ── Market-closed fallback (2026-08-08) ──────────────────────────────────
+  // On a weekend / holiday / pre-open, LIVE has no session so the tape is blank.
+  // Pull the trading-day list; if today isn't a data day we auto-open the LAST
+  // session ONCE (a clear banner marks it), so the page shows real flow instead
+  // of an empty page. "Once per load" so clicking LIVE to sit on the empty live
+  // view is respected — we never bounce them back.
+  const [latestDataDay, setLatestDataDay] = useState(null);
+  const _marketClosed = !!latestDataDay && latestDataDay !== _etTodayMDY();
+  const [showClosedBanner, setShowClosedBanner] = useState(false);
+  const _autoFellBackRef = useRef(false);
+  useEffect(() => {
+    let dead = false;
+    fetch("/api/flow/dates?source=stocks")
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (!dead && d && Array.isArray(d.dates) && d.dates.length) setLatestDataDay(d.dates[d.dates.length - 1]); })
+      .catch(() => {});
+    return () => { dead = true; };
+  }, []);
+  useEffect(() => {
+    if (_autoFellBackRef.current) return;
+    if (!targetDate && _marketClosed) {
+      _autoFellBackRef.current = true;
+      setShowClosedBanner(true);
+      setLookback(1);
+      setTargetDate(latestDataDay);
+    }
+  }, [targetDate, _marketClosed, latestDataDay]);   // eslint-disable-line react-hooks/exhaustive-deps
+
   const [alerts, setAlerts] = useState([]);
   const [status, setStatus] = useState(null);
   const [error, setError] = useState(null);
@@ -3170,6 +3198,13 @@ export default function LiveFlowMassive() {
     setLookback(Math.max(1, Math.min(31, days || 1)));
     setTargetDate(endMdy || null);
   };
+  // Selecting a SINGLE day (calendar day-cell or the LIVE button) must CLEAR any
+  // active multi-day range — otherwise lookbackDays stayed at e.g. 5 and the pick
+  // only moved the END of a 5-day window instead of showing that one day. 2026-08-08.
+  const onSelectDate = (dateStr) => {
+    setLookback(1);
+    setTargetDate(dateStr || null);
+  };
   // Historical ticker-scoped By-Print feed (search-a-ticker-in-historical). When
   // a historical date is active AND the user has typed a ticker, the poll below
   // fetches ALL of that underlying's notable prints across the lookback window
@@ -3181,6 +3216,11 @@ export default function LiveFlowMassive() {
   const scopeKey = symbolScoped
     ? `${debouncedSearch.trim().toUpperCase()}|${lookbackDays}`
     : "";
+  // General multi-day By-Print (no search): By Print spans the whole historical
+  // range. Keyed so the poll re-fetches when the range or the print/contract view
+  // changes; "" otherwise (single-day / contract / live) so nothing extra fires.
+  const printRangeKey = (!symbolScoped && viewMode === "print" && targetDate && lookbackDays > 1)
+    ? `p${lookbackDays}` : "";
   // Auto-switch to By-Print when scope begins; restore the prior view when it ends.
   const _prevScopedRef = useRef(false);
   const _preSearchViewRef = useRef(null);
@@ -3237,6 +3277,28 @@ export default function LiveFlowMassive() {
   const [stockEtfFilter, setStockEtfFilter] = useState(() =>
     localStorage.getItem(LS_KEY_STOCK_ETF) || "all"
   );
+  // A ticker SEARCH forces the Stocks/ETFs partition to "all" so the searched
+  // name shows whether it's classified as a stock (e.g. SPCX) or an ETF — the
+  // partition tab must never hide the exact ticker you asked for. The prior tab
+  // is restored when the search is cleared (mirrors the By-Print view-switch).
+  const _prevSearchOnRef = useRef(false);
+  const _prePartitionRef = useRef(null);
+  const _stockEtfRef = useRef(stockEtfFilter);
+  useEffect(() => { _stockEtfRef.current = stockEtfFilter; }, [stockEtfFilter]);
+  useEffect(() => {
+    const on = search.trim().length > 0;
+    const was = _prevSearchOnRef.current;
+    _prevSearchOnRef.current = on;
+    if (on && !was) {
+      if (_stockEtfRef.current !== "all") {
+        _prePartitionRef.current = _stockEtfRef.current;
+        setStockEtfFilter("all");
+      }
+    } else if (!on && was && _prePartitionRef.current) {
+      setStockEtfFilter(_prePartitionRef.current);
+      _prePartitionRef.current = null;
+    }
+  }, [search]);
   // Curated mode — show only alerts that meet stacked criteria (best-of-best).
   // Default ON for product mode; admin can flip to "All Flow" for the firehose.
   // Cards stay day-scoped to FULL classifiable flow regardless — only the
@@ -3557,6 +3619,11 @@ export default function LiveFlowMassive() {
         // Historical ticker-scoped feed: pull the ONE ticker's full flow across
         // the lookback window, uncapped (ALL), so the tier chips narrow client-side.
         const scoped = !!(targetDate && debouncedSearch.trim());
+        // General multi-day By-Print: when By Print is showing a historical range
+        // (no ticker search), span the whole window so a tier isolation (Alpha
+        // Gold) shows every one across the range and switching from By-Contract
+        // keeps the range instead of collapsing to the last day.
+        const printMultiDay = !scoped && viewMode === "print" && !!targetDate && lookbackDays > 1;
         const params = new URLSearchParams({
           limit: String(scoped ? ROW_LIMIT_ALL_VALUE : numericLimit),
           sort_by: sortBy,
@@ -3565,6 +3632,8 @@ export default function LiveFlowMassive() {
         if (targetDate) params.set("target_date", targetDate);
         if (scoped) {
           params.set("symbol", debouncedSearch.trim().toUpperCase());
+          params.set("lookback_days", String(lookbackDays));
+        } else if (printMultiDay) {
           params.set("lookback_days", String(lookbackDays));
         }
         // When user has isolated a single tier (e.g. Alpha Gold only),
@@ -3635,7 +3704,7 @@ export default function LiveFlowMassive() {
     // scopeKey: the historical ticker-scoped feed (symbol|lookbackDays) — re-fetch
     // when the searched ticker or window changes; "" in live mode so live search
     // (client-side substring) never triggers a refetch.
-  }, [sortBy, minGrade, targetDate, rowLimit, filters, curated, reconcileNonce, scopeKey]);
+  }, [sortBy, minGrade, targetDate, rowLimit, filters, curated, reconcileNonce, scopeKey, printRangeKey]);
 
   // ── Live SSE stream (dark, VITE_MASSIVE_STREAM=1) ──────────────────────────
   // Prepends new prints the instant the server tailer sees them — NO /recent
@@ -4079,6 +4148,8 @@ export default function LiveFlowMassive() {
       // 7/7 + 7/9: Stocks / ETFs partition filter. PREFER the authoritative
       // backend source (Massive ticker_types); fall back to KNOWN_ETFS_INDEXES
       // only when source is absent. (Was set-only, which mis-partitioned SPCX etc.)
+      // A ticker SEARCH forces the partition to "all" (below), so a searched name
+      // shows whether it's a stock or an ETF — this block is a no-op while searching.
       if (stockEtfFilter !== "all") {
         const isEtf = a.source ? a.source === "indexes" : KNOWN_ETFS_INDEXES.has(a.ticker);
         if (stockEtfFilter === "stocks" && isEtf) return false;
@@ -4381,25 +4452,47 @@ export default function LiveFlowMassive() {
         contractFilter={contractFilter}
         onClearFilters={handleClearFilters}
         targetDate={targetDate}
-        onDateChange={setTargetDate}
+        onDateChange={onSelectDate}
         onRange={applyRange}
-        rangeDays={(viewMode === "contract" || symbolScoped) ? lookbackDays : 1}
+        rangeDays={(viewMode === "contract" || symbolScoped || printRangeKey) ? lookbackDays : 1}
         onOiFetch={handleOiFetch}
         oiFetchState={oiFetchState}
         nullOICount={alerts.filter(a => a.priorOI == null).length}
       />
 
       {targetDate && (
-        <div style={{
-          padding: 10, background: P.cd, color: P.ac, marginBottom: 12,
-          border: `1px solid ${P.ac}`, borderRadius: 4, fontSize: 12,
-        }}>
-          📅 {symbolScoped
-            ? `${debouncedSearch.trim().toUpperCase()} — all notable flow, last ${lookbackDays} trading day${lookbackDays > 1 ? "s" : ""} ending ${targetDate}`
-            : viewMode === "contract" && lookbackDays > 1
-              ? `Historical range: last ${lookbackDays} trading days ending ${targetDate}`
-              : `Historical view: ${targetDate}`} (remove ?date param to return to live)
-        </div>
+        (showClosedBanner && targetDate === latestDataDay) ? (
+          <div style={{
+            padding: 10, background: P.cd, color: P.ac, marginBottom: 12,
+            border: `1px solid ${P.ac}`, borderRadius: 4, fontSize: 12,
+            display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap",
+          }}>
+            <span>🌙 Markets are closed — showing the last session ({(() => {
+              const d = _mdyToDate(latestDataDay);
+              return d ? `${DOW_SHORT[d.getDay()]}, ${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}` : latestDataDay;
+            })()}).</span>
+            <button
+              onClick={() => { setShowClosedBanner(false); onSelectDate(null); }}
+              style={{
+                background: "transparent", color: P.ac, border: `1px solid ${P.ac}`,
+                borderRadius: 3, padding: "2px 10px", cursor: "pointer", fontSize: 11,
+                fontFamily: "inherit", fontWeight: 700,
+              }}
+              title="Return to the live tape (empty until the market opens)"
+            >● Back to live</button>
+          </div>
+        ) : (
+          <div style={{
+            padding: 10, background: P.cd, color: P.ac, marginBottom: 12,
+            border: `1px solid ${P.ac}`, borderRadius: 4, fontSize: 12,
+          }}>
+            📅 {symbolScoped
+              ? `${debouncedSearch.trim().toUpperCase()} — all notable flow, last ${lookbackDays} trading day${lookbackDays > 1 ? "s" : ""} ending ${targetDate}`
+              : (viewMode === "contract" && lookbackDays > 1) || printRangeKey
+                ? `Historical range: last ${lookbackDays} trading days ending ${targetDate}`
+                : `Historical view: ${targetDate}`} (remove ?date param to return to live)
+          </div>
+        )
       )}
 
       {error && (
@@ -4580,7 +4673,7 @@ export default function LiveFlowMassive() {
             isAdmin={isTuneMode}
             onPush={handlePush}
             pushState={pushStates[a.id]}
-            showDate={symbolScoped && lookbackDays > 1}
+            showDate={(symbolScoped && lookbackDays > 1) || !!printRangeKey}
           />
         );
       })}
@@ -4595,9 +4688,24 @@ export default function LiveFlowMassive() {
                 ? "Still loading — the tape is taking unusually long. Try refreshing (Ctrl+Shift+R)."
                 : "Loading today's flow…")
             : (alerts.length === 0
-                ? (workerLive
-                    ? "Waiting for live flow… (markets may be closed, or no conviction prints yet today)"
-                    : "No flow for today yet — markets may be closed, or nothing has cleared the conviction filter. Use History or ?date=M/D/YYYY to view a past session.")
+                ? (!targetDate && _marketClosed && latestDataDay
+                    ? (<>
+                        <div style={{ marginBottom: 12, color: P.wh, fontSize: 14 }}>🌙 Markets are closed — no live flow right now.</div>
+                        <button
+                          onClick={() => { setShowClosedBanner(true); setLookback(1); setTargetDate(latestDataDay); }}
+                          style={{
+                            background: P.ac, color: P.bg, border: "none", borderRadius: 4,
+                            padding: "7px 16px", cursor: "pointer", fontSize: 12, fontWeight: 700,
+                            fontFamily: "inherit",
+                          }}
+                        >View last session ({(() => {
+                          const d = _mdyToDate(latestDataDay);
+                          return d ? `${DOW_SHORT[d.getDay()]} ${d.getMonth() + 1}/${d.getDate()}` : latestDataDay;
+                        })()}) →</button>
+                      </>)
+                    : workerLive
+                        ? "Waiting for live flow… (markets may be closed, or no conviction prints yet today)"
+                        : "No flow for today yet — markets may be closed, or nothing has cleared the conviction filter. Use History or ?date=M/D/YYYY to view a past session.")
                 : `No alerts match your filters. (${alerts.length} total alerts hidden)`)}
         </div>
       )}

@@ -27,6 +27,7 @@ import { toHeikinAshi } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartCalloutOverlay from './chart/ChartCalloutOverlay'
+import ChartVLineOverlay from './chart/ChartVLineOverlay'
 import SetupMoveOverlay from './chart/SetupMoveOverlay'
 import { classifyLiveBar } from './chart/liveBarClassify'
 import { applySessionCandle, computeSessionTagLines, etMinutes } from './chart/sessionPreview'
@@ -1143,6 +1144,9 @@ export default function StockChart({
   periodSelect = false,       // Custom-Period Sort: plain left-drag highlights a time period (translucent band) instead of panning; fires onPeriodSelected(startYmd, endYmd) on release.
   onPeriodSelected = null,    // (startYmd:int, endYmd:int, pct:number) => void — the highlighted [start, end] as YYYYMMDD ints + the symbol's close-to-close % move.
   onPeriodCancel = null,      // () => void — the ✕ on the "Highlight time period" banner cancels the mode.
+  replayCutoff = null,        // Replay mode: 'YYYY-MM-DD' — hide every bar after this calendar day + re-frame to default zoom + freeze live. null = normal chart.
+  onExitReplay = null,        // () => void — when set + replayCutoff/startMarker active, shows an "Exit Replay Mode" pill centered in the chart's clear top area.
+  startMarker = null,         // 'YYYY-MM-DD' — Custom-Period Sort: draw a thin gold vertical line at this date on the chart. null = none.
   verticalLegend = false,     // Charts workspace: stack the crosshair OHLCV legend single-file down the left instead of a horizontal row near the toolbar.
   lockWatermark = false,      // Charts workspace: disable the watermark hover-arm + drag so hovering it never moves it.
   alwaysShowLegend = false,   // Charts workspace: keep the legend visible with the latest bar's values when the cursor is off the chart (instead of hiding).
@@ -1197,6 +1201,7 @@ export default function StockChart({
   onAnnotationsMigrate = null,  // (drawings[]) => void — called once when a legacy volume-pane annotation is re-anchored to the pane (so it can be persisted)
   highlightBarTime = null,      // ISO/time (or array of them) of bar(s) to paint (Model Book: focused setup's day, or all setup/catalyst days)
   highlightColor = '#e6b800',   // color for highlighted bars (gold for setups; Model Book passes white for catalysts)
+  highlightBodyOnly = false,    // true = recolor only the BODY, leave border/wick to the chart's own settings (Custom-Period Sort start-candle marker); false = recolor body+border+wick (Model Book)
   onHighlightClick = null,      // Model Book: ({ date, clientX, clientY }) => void — clicking a highlighted setup/catalyst candle (opens the intraday 5-min popup)
   vwapOverride = null,          // force the session-VWAP indicator on regardless of user settings: { color } (Model Book intraday popup uses white)
   onFocusEscape = null,         // called when the user manually zooms/pans while a setup focus is active → parent should clear focus
@@ -2061,6 +2066,16 @@ export default function StockChart({
   // undo a deliberate pan (that was the "drag left and it snaps straight back"
   // bug — the net re-fired on the next live data commit).
   const userViewMovedRef = useRef(false)
+  // REPLAY view lock: once the user pans/zooms while in replay, every subsequent ticker
+  // in the sort keeps that exact view (right-relative) instead of snapping back to the
+  // default replay frame. Persists across ticker switches; cleared by "Reset view" or on
+  // exit replay. (userViewMovedRef is re-armed each sym switch, so it can't hold this.)
+  const replayViewLockedRef = useRef(false)
+  // The locked view's RIGHT-RELATIVE params {barsFromRight, width}, captured on the
+  // CURRENT ticker at pan/zoom time — NOT derived from oldRange after a sym switch (that
+  // range is clamped to the new ticker's extent, so a short-history name like ROOT loses
+  // the deep scroll-back a long-history name like QQQ had). Applied to every new ticker.
+  const replayLockedViewRef = useRef(null)
   const viewPointerRef = useRef(null)       // {x, y} of the in-flight press, else null
   const lastPointerDownAtRef = useRef(0)    // ms of the last press anywhere on the chart
   // Is the user's pointer physically over THIS chart? The ONLY trustworthy
@@ -2625,8 +2640,10 @@ export default function StockChart({
         }
         // Explicit reset — the view is back at the canonical window, so the
         // "user moved the view" latch is cleared and the pinned-right safety
-        // net is live again (see userViewMovedRef).
+        // net is live again (see userViewMovedRef). Also release the replay view
+        // lock so the next replay ticker returns to the default replay frame.
         userViewMovedRef.current = false
+        replayViewLockedRef.current = false; replayLockedViewRef.current = null
       } catch {}
     }
     const autoScale = () => {
@@ -3277,7 +3294,13 @@ export default function StockChart({
   // year that the shallow first-paint window can miss entirely (a 2020 example
   // would silently frame "now"), and they skip the pan-to-backfill path — so
   // they must fetch the full depth up front.
-  const _pinnedFull = !!(entryDate || exactDateRange)
+  //
+  // Replay mode (replayCutoff) is the same situation: the shallow window is the ~600
+  // bars ending TODAY, but replay hides everything after the cutoff, so most of that
+  // window is thrown away and almost NO pre-cutoff history is loaded (the "nothing
+  // before ~March 2024" bug). Depending on the dwell-warm/prefetch race to backfill it
+  // is unreliable — pin full depth so the whole history up to the cutoff loads at once.
+  const _pinnedFull = !!(entryDate || exactDateRange || replayCutoff)
   const barCount = (_overlayActive || _pinnedFull) ? _fullTarget : fetchDepth
 
   // Intraday refetches more often to keep candles current during market hours
@@ -3302,6 +3325,13 @@ export default function StockChart({
   const [idbLoaded, setIdbLoaded] = useState(false)
   const idbSinceRef     = useRef(null)
   const idbReadyForRef  = useRef(null)  // string `${sym}_${tf}` once IDB load completes
+  // Always-current mirror of idbBars. The SWR-merge effect keys on [data] and would
+  // otherwise read a STALE closured idbBars: when the shallow full set resolves right
+  // after a deep IDB paint, the closure can still be pre-deep → the deep-preserve check
+  // misfires and truncates (the "deep flashes then reloads" bug). Declared BEFORE the
+  // merge effect so within any single commit this sync runs first.
+  const idbBarsRef = useRef(null)
+  useEffect(() => { idbBarsRef.current = idbBars }, [idbBars])
   // TEMP DIAGNOSTIC (window.__uctBarsDebug) — the sym this chart last PAINTED, so
   // updateChart can log ticker transitions. Captures the "random chart appears for
   // a blip then goes away when switching to BLZE with a 2nd widget" report: a blip
@@ -3394,10 +3424,17 @@ export default function StockChart({
   // barsOverride (Model Book uploaded data) short-circuits all fetching.
   const _overrideArr = Array.isArray(barsOverride) && barsOverride.length > 0
   const _hasOverride = _overrideArr || barsOverridePending
+  // Replay mode: fetch the bars ENDING AT the cutoff (server serves this pre-cutoff
+  // window fast from SQLite) instead of the full 'ending today' set — which for an old
+  // cutoff is a big, slow fetch that paints nothing until it lands (the "chart stuck on
+  // the previous ticker" bug). `to` implies a full window (no `since`).
+  const _toParam = replayCutoff && !_isCustomTf ? replayCutoff : null
   const swrUrl = (_hasOverride || _isCustomTf)
     ? null
     : ((sym && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`)
-        ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}${_sinceParam != null ? `&since=${encodeURIComponent(String(_sinceParam))}` : ''}`
+        ? (_toParam != null
+            ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}&to=${encodeURIComponent(_toParam)}`
+            : `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}${_sinceParam != null ? `&since=${encodeURIComponent(String(_sinceParam))}` : ''}`)
         : null)
 
   // Self-healing poll cadence: with no refreshInterval, the chart was frozen
@@ -3504,11 +3541,26 @@ export default function StockChart({
       idbPut(sym, resolvedTf, merged)
       memPut(sym, resolvedTf, merged)
     } else if (!data.delta && data.bars.length) {
-      if (_dbg) console.log('[bars-delta]', sym, resolvedTf, `=> REPLACED (full) with ${data.bars.length}`)
-      setIdbBars(data.bars)
-      idbSinceRef.current = data.bars[data.bars.length - 1]?.t ?? null
-      idbPut(sym, resolvedTf, data.bars)
-      memPut(sym, resolvedTf, data.bars)
+      // If IDB already holds a DEEPER history than this (shallow, recent) full set —
+      // e.g. the Custom-Period-Sort deep prefetch pre-warmed the full pre-2024 tail —
+      // don't truncate it back to the first-paint window. mergeDelta keeps the deep
+      // bars and lets the fresh server bars WIN on the overlapping recent tail (same
+      // healing as a replace, minus the truncation), so scrolling into deep history
+      // is instant instead of paying a cold deep fetch. Only when the fresh set is a
+      // recent SUFFIX of the deeper one (same sym/tf, starts at/after the deep start).
+      // Read the authoritative CURRENT idb bars from the ref, not the [data]-closured
+      // state (which can lag a just-committed deep IDB paint and cause the truncation).
+      const curIdb = idbBarsRef.current
+      const deeperInIdb = sameSymTf && curIdb?.length > data.bars.length
+        && data.bars[0] && curIdb[0] && data.bars[0].t >= curIdb[0].t
+      const next = deeperInIdb ? mergeDelta(curIdb, data.bars) : data.bars
+      if (_dbg) console.log('[bars-delta]', sym, resolvedTf,
+        deeperInIdb ? `=> KEPT DEEP (${curIdb.length}) + healed tail (${data.bars.length})` : `=> REPLACED (full) with ${data.bars.length}`)
+      idbBarsRef.current = next        // keep the mirror current for any same-tick re-run
+      setIdbBars(next)
+      idbSinceRef.current = next[next.length - 1]?.t ?? null
+      idbPut(sym, resolvedTf, next)
+      memPut(sym, resolvedTf, next)
     }
   }, [data])  // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -3630,7 +3682,14 @@ export default function StockChart({
     : (barsOverridePending
         ? null  // override expected but not here yet → render nothing (spinner), don't fall back to provider data
         : ((_netMatches && !data.delta)
-            ? data.bars
+            // Server returned a full (non-delta) set. Normally render it — it's the
+            // authoritative heal. BUT if fresh IDB holds a strictly DEEPER history than
+            // this (shallow first-paint) fetch, render THAT: otherwise a deep-warmed
+            // chart flashes its full history from IDB, then this shallow fetch truncates
+            // it back to ~600 bars until the dwell-warm re-fetches deep (the "cuts off
+            // pre-2024 then reloads" flicker). The merge effect still heals idbBars's
+            // recent tail from data.bars (server wins on overlap), so this stays correct.
+            ? ((_idbFresh && idbBars.length > data.bars.length) ? idbBars : data.bars)
             : (_idbFresh
                 ? idbBars
                 : (_netMatches
@@ -3884,6 +3943,10 @@ export default function StockChart({
 
   // ── Replay / Time Machine state ──
   const [replayMode, setReplayMode] = useState(false)
+  // Replay-cutoff (Custom-Period Sort replay): a live ref so the developing-bar writers
+  // freeze the moment a cutoff is set, without re-subscribing on every cutoff change.
+  const replayCutoffRef = useRef(null)
+  replayCutoffRef.current = replayCutoff
   const [replayIndex, setReplayIndex] = useState(null)
   const [replayPlaying, setReplayPlaying] = useState(false)
   const [replaySpeed, setReplaySpeed] = useState(1)
@@ -3907,19 +3970,23 @@ export default function StockChart({
     && Number.isFinite(_sessionLive.ext_price) && _sessionLive.ext_price > 0)
     ? _sessionLive.ext_price : null
   // Include-mode: synthesize/extend the D/W/M candle from extended-hours data.
-  const sessionCandleActive = _sessionActive && sessionView === 'extended' && _inExtWindow && !replayMode
+  // replayCutoff (Custom-Period Sort replay) suppresses ALL live extended-hours session
+  // preview — the candle, the freeze, and the Pre/Post right-axis tags — just like the
+  // internal replayMode does: a live "Post" price tag is meaningless on a replayed
+  // historical period (owner request). Restored the moment replay is exited.
+  const sessionCandleActive = _sessionActive && sessionView === 'extended' && _inExtWindow && !replayMode && !replayCutoff
   // Regular-mode post-market: freeze today's candle at the 4pm close (don't let
   // the live writers fold post-market prints into it). Pre-market regular mode
   // already leaves yesterday's bar untouched (day_open==0 → classifyLiveBar skip).
-  const sessionFreezeActive = _sessionActive && sessionView === 'regular' && marketSession === 'post' && !replayMode
+  const sessionFreezeActive = _sessionActive && sessionView === 'regular' && marketSession === 'post' && !replayMode && !replayCutoff
   // Show the locked-close + Pre/Post tags whenever it's pre/post market on the
   // workspace, regardless of the toggle (matches TradingView).
-  const sessionTagsActive = _sessionActive && _inExtWindow && !replayMode
+  const sessionTagsActive = _sessionActive && _inExtWindow && !replayMode && !replayCutoff
   // Same two right-axis tags on INTRADAY charts (1m..1h) on the workspace — the
   // prev-day close + live Pre/Post price — regardless of the Regular/Extended
   // toggle. Intraday has no synthetic session candle (that's D/W/M only); it just
   // gets the price-scale references, sourced straight from the live feed.
-  const sessionTagsIntraday = sessionView != null && !_isDWM && _inExtWindow && !replayMode
+  const sessionTagsIntraday = sessionView != null && !_isDWM && _inExtWindow && !replayMode && !replayCutoff
   // (sessionPreviewLastBar — the muted-white preview paint — is derived below, once
   // we know whether the session candle actually got applied to the bars.)
   // Writers A + D yield the D/W/M last bar to the memo-driven setData while owned.
@@ -4002,10 +4069,22 @@ export default function StockChart({
           }
         }
       }
-      return (replayMode && replayIndex != null) ? src?.slice(0, replayIndex + 1) : src
+      let out = (replayMode && replayIndex != null) ? src?.slice(0, replayIndex + 1) : src
+      // Replay-cutoff (Custom-Period Sort replay mode): drop every bar AFTER the cutoff
+      // calendar day, so the chart ends exactly on the selected end date. Compared by
+      // calendar day — daily/weekly/monthly `t` is already 'YYYY-MM-DD'; intraday `t` is
+      // unix seconds, converted to its ET day (so all of the cutoff day's bars are kept).
+      if (replayCutoff && out?.length) {
+        out = out.filter(b => (
+          typeof b.t === 'number'
+            ? new Date(b.t * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) <= replayCutoff
+            : String(b.t).slice(0, 10) <= replayCutoff
+        ))
+      }
+      return out
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- _sliceHold/_exKey/exitDate are render-derived (mutated in the block above); exactSliceEnd already tracks the hold
-    [sessionBars, replayMode, replayIndex, exactDateRange, exactSliceEnd, keepBarsAfterExit, entryDate, frameRightPadFrac]
+    [sessionBars, replayMode, replayIndex, replayCutoff, exactDateRange, exactSliceEnd, keepBarsAfterExit, entryDate, frameRightPadFrac]
   )
 
   // Curated book charts (exactDateRange) frame a specific historical window.
@@ -4633,7 +4712,6 @@ export default function StockChart({
     const arr = Array.isArray(highlightBarTime) ? highlightBarTime : [highlightBarTime]
     const times = ohlcData.map(d => d.time)
     const exact = new Set(times)
-    const fuzzy = resolvedTf === 'W' || resolvedTf === 'M'
     const cmp = (a, b) => (typeof a === 'number' && typeof b === 'number')
       ? a - b
       : (String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0)
@@ -4642,7 +4720,9 @@ export default function StockChart({
       if (raw == null) continue
       const target = adjustTime(raw)
       if (exact.has(target)) { out.push({ time: target, orig: raw }); continue }
-      if (!fuzzy) continue
+      // No exact bar: resolve to the ENCLOSING bar (largest bar time <= the date). Covers
+      // W/M period-interior days AND a daily start-marker date that lands on a weekend/holiday
+      // (exact still wins for real trading days, so Model Book setups are unaffected).
       let best = null
       for (const t of times) if (cmp(t, target) <= 0 && (best == null || cmp(t, best) > 0)) best = t
       if (best != null) out.push({ time: best, orig: raw })
@@ -4665,9 +4745,14 @@ export default function StockChart({
   const goldOhlc = useMemo(() => {
     if (!highlightTimeSet) return ohlcData
     return ohlcData.map(d => (highlightTimeSet.has(d.time)
-      ? { ...d, color: highlightColor, borderColor: highlightColor, wickColor: highlightColor }
+      // Body-only leaves borderColor/wickColor unset so the highlighted candle keeps the
+      // chart's own border + wick colors (owner wants the gold START candle to have the
+      // same black border/wick as every other candle); Model Book paints all three.
+      ? (highlightBodyOnly
+          ? { ...d, color: highlightColor }
+          : { ...d, color: highlightColor, borderColor: highlightColor, wickColor: highlightColor })
       : d))
-  }, [ohlcData, highlightTimeSet, highlightColor])
+  }, [ohlcData, highlightTimeSet, highlightColor, highlightBodyOnly])
 
   // Setup⇄Result candle crossfade. The bars PAST the highlighted setup day fade
   // in (Setup→Result) / out (Result→Setup) instead of popping. Cutoff = the
@@ -5102,7 +5187,7 @@ export default function StockChart({
     const liveData = livePrices[sym]
     if (!liveData?.price) return
     // Skip live updates when replay mode is active — don't corrupt historical view.
-    if (replayMode) return
+    if (replayMode || replayCutoffRef.current) return   // replay/cutoff freezes the developing bar
     // HA bars depend on the full series history — skip tick-by-tick updates.
     // The chart still refreshes every 15s via SWR, which re-runs toHeikinAshi on
     // the full filteredBars array and calls setData() — accurate enough for HA.
@@ -5319,7 +5404,7 @@ export default function StockChart({
     // Never paint a live bar onto a historical replay (mirror of writers A + C). When
     // push is authoritative B is THE writer, so without this it would append a live
     // candle onto the replayed slice (review #4).
-    if (replayMode) return
+    if (replayMode || replayCutoffRef.current) return   // replay/cutoff freezes the developing bar
     // Defensive: a POOLED bars connection carries many (sym,tf) pairs. The pool
     // dispatches by key, but never apply a bar that isn't ours — cross-symbol
     // application (MSFT's OHLC on the AAPL series) is a data-doubt bug, so guard
@@ -7691,7 +7776,10 @@ export default function StockChart({
     //     PROPORTIONAL position — scaled to its own price range, never showing the old
     //     stock's absolute prices. Double-click the axis won't clear it; use the
     //     "Auto-scale" context-menu item to reset to default headroom.
-    const zoomKey = `${sym}_${resolvedTf}`
+    // Fold the replay cutoff in so entering/leaving replay (or changing the cutoff) counts
+    // as a "fresh load" → routes through the default-zoom path so the chart re-frames to the
+    // default window with the cutoff bar as the newest visible candle.
+    const zoomKey = `${sym}_${resolvedTf}_${replayCutoff ?? ''}`
     // Capture the outgoing view BEFORE deciding. setData() preserves the logical
     // range NUMERICALLY, so this reflects where the user was — on the previous
     // ticker (sym switch) or right now (same-ticker data-phase swap / backfill).
@@ -7704,9 +7792,15 @@ export default function StockChart({
 
       zoomKeyRef.current = zoomKey
       lastTfRef.current = resolvedTf
-      // New symbol/timeframe = a fresh view, so re-arm the pinned-right safety
-      // net that a user pan on the PREVIOUS symbol had latched off.
-      userViewMovedRef.current = false
+      // Exiting replay (or a TF change) clears the replay view lock so the next frame
+      // uses the normal default; a plain ticker switch WITHIN replay keeps it locked.
+      if (!replayCutoff || tfChanged) { replayViewLockedRef.current = false; replayLockedViewRef.current = null }
+      const _replayLocked = replayCutoff && replayViewLockedRef.current
+      // New symbol/timeframe = a fresh view, so re-arm the pinned-right safety net that a
+      // user pan on the PREVIOUS symbol had latched off — EXCEPT under the replay lock,
+      // where keeping it latched is exactly what stops the settling/pinned-right guards
+      // from snapping the locked view back to present on the next data commit.
+      if (!_replayLocked) userViewMovedRef.current = false
       // A timeframe switch must PRESERVE the viewport: keep the last candle at the
       // exact same screen position AND the same zoom width, then just swap in the new
       // tf's bars — no reset to the tf default, no leftward snap ("just flip the
@@ -7721,7 +7815,7 @@ export default function StockChart({
         // to the middle (SMH 1H bug).
         const _w = oldRange ? (oldRange.to - oldRange.from) : null
         pendingTfReframeRef.current = { tf: resolvedTf, width: (_w > 0 ? _w : null) }
-      } else if (keepPresentOnSymbolChange && !isFirstLoad && !entryDate && !exactDateRange) {
+      } else if (keepPresentOnSymbolChange && !isFirstLoad && !entryDate && !exactDateRange && !_replayLocked) {
         // SYMBOL switch on a "newest always at right" surface (Charts workspace). The
         // new ticker's bars arrive in PHASES (IDB cache → network → older-history
         // backfill), each a separate updateChart commit with a DIFFERENT bar count.
@@ -7750,7 +7844,15 @@ export default function StockChart({
         // scrolled-back (past) position from the prior symbol. Otherwise preserve the
         // prior bars-from-right (flip tickers at the exact same historical view).
         let to, from
-        if (keepPresentOnSymbolChange) {
+        // REPLAY view lock: once the user has moved the view in replay, keep the EXACT
+        // right-relative view (same distance from the cutoff + same zoom) on every ticker,
+        // overriding keepPresent's snap-to-present — until "Reset view" / exit replay. Use
+        // the params CAPTURED at pan/zoom time (replayLockedViewRef) — oldRange here is
+        // already clamped to the new ticker's extent, which loses the deep scroll-back.
+        if (_replayLocked && replayLockedViewRef.current) {
+          to = newBarCount - replayLockedViewRef.current.barsFromRight
+          from = to - replayLockedViewRef.current.width
+        } else if (keepPresentOnSymbolChange) {
           to = (newBarCount - 1) + width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
           from = to - width
         } else if (rangeDescribesOldExtent(oldRange, oldBarCount, newBarCount)) {
@@ -7939,6 +8041,20 @@ export default function StockChart({
             }
           }
         }
+      }
+    }
+
+    // Replay view lock — re-assert the captured right-relative view on EVERY commit so a
+    // load PHASE that changes the bar count (IDB → network → backfill) can't shift it, and
+    // no other guard can snap it to present. Skipped while the user is actively dragging
+    // (pointer down), which would fight a live pan; the drag's own onUp re-captures.
+    if (replayCutoff && replayViewLockedRef.current && replayLockedViewRef.current
+        && !viewPointerRef.current && !entryDate && !exactDateRange && filteredBars.length > 1) {
+      const _lw = replayLockedViewRef.current.width
+      const _to = filteredBars.length - replayLockedViewRef.current.barsFromRight
+      const _from = _to - _lw
+      if (_lw > 0 && Number.isFinite(_from) && Number.isFinite(_to) && _to > 1 && _from < filteredBars.length) {
+        try { chart.timeScale().setVisibleLogicalRange({ from: _from, to: _to }) } catch { /* mid-load */ }
       }
     }
 
@@ -9316,7 +9432,7 @@ export default function StockChart({
   useEffect(() => {
     if (!chartReady || !liveUpdates) return undefined
     const id = setInterval(() => {
-      if (replayMode || resolvedTfRef.current !== 'D') return
+      if (replayMode || replayCutoffRef.current || resolvedTfRef.current !== 'D') return
       const r = computeLatestCrosshair()
       if (!r || !Number.isFinite(r.close)) return
       // ONLY publish today's live developing bar. A regular-hours daily chart (or
@@ -10023,13 +10139,37 @@ export default function StockChart({
       lastPointerDownAtRef.current = Date.now()
       viewPointerRef.current = { x: e.clientX, y: e.clientY }
     }
+    // Capture the CURRENT (settled) view as right-relative params for the replay lock.
+    // rAF so we read AFTER lightweight-charts applies the pan/zoom, on THIS ticker's bars.
+    const _captureReplayLock = () => {
+      if (!replayCutoffRef.current) return
+      replayViewLockedRef.current = true
+      requestAnimationFrame(() => {
+        try {
+          const r = chartRef.current?.timeScale().getVisibleLogicalRange()
+          const n = lastBarCountRef.current || 0
+          if (r && n > 0 && (r.to - r.from) > 0) {
+            replayLockedViewRef.current = { barsFromRight: n - r.to, width: r.to - r.from }
+          }
+        } catch { /* mid-load */ }
+      })
+    }
     const onMove = (e) => {
       const p = viewPointerRef.current
       if (!p) return
-      if (Math.abs(e.clientX - p.x) > 4 || Math.abs(e.clientY - p.y) > 4) userViewMovedRef.current = true
+      if (Math.abs(e.clientX - p.x) > 4 || Math.abs(e.clientY - p.y) > 4) {
+        userViewMovedRef.current = true
+        if (replayCutoffRef.current) replayViewLockedRef.current = true   // lock this view for the whole sort
+      }
     }
-    const onUp = () => { viewPointerRef.current = null }
-    const onWheel = () => { userViewMovedRef.current = true }
+    const onUp = () => {
+      if (viewPointerRef.current && replayCutoffRef.current && replayViewLockedRef.current) _captureReplayLock()
+      viewPointerRef.current = null
+    }
+    const onWheel = () => {
+      userViewMovedRef.current = true
+      _captureReplayLock()
+    }
     // Real pointer presence — see pointerOverRef. mouseenter/leave don't bubble,
     // so they fire exactly for THIS container.
     const onEnter = () => {
@@ -10317,6 +10457,7 @@ export default function StockChart({
                 ts.resetTimeScale()
               }
               userViewMovedRef.current = false   // explicit reset re-arms the pinned-right net
+              replayViewLockedRef.current = false; replayLockedViewRef.current = null // and releases the replay view lock
             } catch { /* noop */ }
           },
           openSettings: () => { try { toolbarRef.current?.openSettings() } catch { /* noop */ } },
@@ -10526,7 +10667,7 @@ export default function StockChart({
   // modes (they already fetch full) and pinned charts (entryDate / exactDateRange
   // / barsOverride). Mirrors the existing visible-range subscription pattern.
   useEffect(() => {
-    if (_overlayActive || entryDate || exactDateRange || _hasOverride) return undefined
+    if (_overlayActive || entryDate || exactDateRange || _hasOverride || replayCutoff) return undefined
     if (fetchDepth >= _fullTarget) return undefined
     const chart = chartRef.current
     if (!chart) return undefined
@@ -10576,12 +10717,12 @@ export default function StockChart({
   // keep the short dwell delay to skip warming on quick ticker-flips, and multi-
   // chart grid cells still pass backgroundWarm=false to avoid a cold-open herd.
   useEffect(() => {
-    if (_overlayActive || entryDate || exactDateRange || _hasOverride) return undefined
+    if (_overlayActive || entryDate || exactDateRange || _hasOverride || replayCutoff) return undefined
     if (!backgroundWarm && !deepWarm) return undefined
     if (fetchDepth >= _fullTarget) return undefined
     const id = setTimeout(() => setFetchDepth(_fullTarget), 900)
     return () => clearTimeout(id)
-  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, backgroundWarm, deepWarm])
+  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, backgroundWarm, deepWarm, replayCutoff])
 
   // Cleanup: destroy chart only on unmount
   useEffect(() => {
@@ -10668,7 +10809,7 @@ export default function StockChart({
   useEffect(() => {
     if (!sym) return
     if (!candleSeriesRef.current) return
-    if (replayMode) return
+    if (replayMode || replayCutoffRef.current) return   // replay/cutoff freezes the developing bar
     if (cs.heikinAshi) return
     const isIntradayTf = ['1', '5', '15', '30', '60'].includes(resolvedTf)
     if (!isIntradayTf) return
@@ -11514,6 +11655,22 @@ export default function StockChart({
           <span style={{ fontSize: 11, color: '#c2c2c2', letterSpacing: '0.01em' }}>Click, hold, and drag across the chart</span>
         </div>
       </>)}
+      {/* Replay mode: an "Exit Replay Mode" pill centered in THIS chart's TOOLBAR row
+          (the ~30px drawing-toolbar band, between the drawing tools and Indicators) so it
+          auto-positions per chart and never sits over the candles. */}
+      {(replayCutoff || startMarker) && onExitReplay && (
+        <button
+          type="button"
+          onClick={() => onExitReplay()}
+          title="Exit replay mode — restore all bars + clear the start-date line"
+          style={{ position: 'absolute', top: 3, left: '50%', transform: 'translateX(-50%)', zIndex: 30,
+            display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+            background: '#c9a84c', color: '#ffffff', border: 'none', borderRadius: 999, padding: '4px 15px',
+            font: "700 12px 'Instrument Sans', system-ui, sans-serif", letterSpacing: '0.02em',
+            textShadow: '0 1px 3px rgba(0,0,0,0.55)', boxShadow: '0 8px 24px -8px rgba(201,168,76,0.6)',
+            whiteSpace: 'nowrap' }}
+        >⟲ Exit Replay Mode</button>
+      )}
       {/* Go to date (Alt+G): pick a date, the chart scrolls to that session. */}
       {dateJumpOpen && (
         <div style={{ position: 'absolute', top: 8, left: 8, zIndex: 30, display: 'flex', gap: 6, alignItems: 'center',
@@ -11961,6 +12118,13 @@ export default function StockChart({
               hideCountdown
             />
           )}
+        </div>
+      )}
+      {/* Custom-Period Sort: thin gold vertical line marking the sort's START date,
+          full chart height. Spans price + volume panes; rides the time axis on pan/zoom. */}
+      {startMarker && bars?.length > 0 && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
+          <ChartVLineOverlay chartRef={chartRef} seriesRef={candleSeriesRef} bars={bars} date={startMarker} color="#c9a84c" />
         </div>
       )}
       {/* Catalyst callouts (Model Book): labels in blank space + leader lines. */}

@@ -1,54 +1,42 @@
-// Period-Sort widget — the docked/tabbed form of Custom-Period Sort. Renders the shared
-// PeriodSortTable (identical to the floating panel) inside a workspace widget, with its own
-// ⚙ settings popover to edit the [start, end] range. The range lives in opts.{start,end}.
+// Period-Sort widget — the docked/tabbed form of Custom-Period Sort. Renders the real
+// scanner/watchlist table (PeriodSortResults) for the [start, end] range stored in
+// opts.{start,end}, so it has every watchlist feature. Standard widget chrome (header,
+// drag, color, pop-out, close) comes from WidgetHost/WidgetHeader.
 import { useState } from 'react'
-import PeriodSortTable from '../PeriodSortTable'
-import { useWorkspace } from '../WorkspaceContext'
-import styles from '../PeriodSortPanel.module.css'
+import PeriodSortResults from './PeriodSortResults'
+import usePreferences, { parsePref } from '../../../hooks/usePreferences'
+import { WATCHLIST_SETTINGS_KEY } from '../../watchlist/watchlistSettings'
 
 const ymdOf = (d) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate()
-const ymdToInput = (ymd) => { const s = String(ymd); return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` }
-const inputToYmd = (v) => parseInt(String(v).replace(/-/g, ''), 10)
-const fmtYmd = (ymd) => { const s = String(ymd); return `${+s.slice(4, 6)}/${+s.slice(6, 8)}/${s.slice(0, 4)}` }
 
 export default function PeriodSortWidget({ color, opts = {}, onOptsChange }) {
-  const { setGroupSym } = useWorkspace()
-  // Default range (last ~30 days) computed once when a widget is added without a selection.
+  // Default range (last ~30 days) if the widget was added without a selection.
   const [seed] = useState(() => {
     const end = new Date(); const start = new Date(); start.setDate(start.getDate() - 30)
     return { start: ymdOf(start), end: ymdOf(end) }
   })
   const start = opts.start || seed.start
   const end = opts.end || seed.end
-  const [gearOpen, setGearOpen] = useState(false)
 
-  const setRange = (s, e) => onOptsChange?.({ ...opts, start: s, end: e })
+  // Appearance: the widget's OWN saved settings if it has them, otherwise fall back to the
+  // user's global watchlist template (up/down colors, canvas, fonts) so a freshly-docked
+  // widget looks like the floating panel. Passing this as settingsOverride (NOT opts.settings)
+  // leaves opts.settings empty, so WidgetHost keeps themeFollow ON — the header/border still
+  // auto-adjusts to the light/dark theme. Once the user edits THIS widget, it persists to
+  // opts.settings and diverges.
+  const { prefs } = usePreferences()
+  const globalTemplate = parsePref(prefs?.[WATCHLIST_SETTINGS_KEY], null)
+  const settingsOverride = opts?.settings || globalTemplate || null
+  const persistSettings = (next) => onOptsChange?.({ ...opts, settings: next })
 
   return (
-    <div className={styles.widgetRoot}>
-      <div className={styles.widgetBar}>
-        <span className={styles.widgetRange}>{fmtYmd(start)} – {fmtYmd(end)}</span>
-        <button
-          type="button"
-          className={styles.iconBtn}
-          onClick={() => setGearOpen((o) => !o)}
-          title="Set period"
-          aria-label="Set period"
-        >⚙</button>
-        {gearOpen && (
-          <div className={styles.gearPop}>
-            <div className={styles.cfgRow}>
-              <span className={styles.cfgLabel}>Start</span>
-              <input type="date" className={styles.cfgDate} value={ymdToInput(start)} onChange={(e) => setRange(inputToYmd(e.target.value), end)} />
-            </div>
-            <div className={styles.cfgRow}>
-              <span className={styles.cfgLabel}>End</span>
-              <input type="date" className={styles.cfgDate} value={ymdToInput(end)} onChange={(e) => setRange(start, inputToYmd(e.target.value))} />
-            </div>
-          </div>
-        )}
-      </div>
-      <PeriodSortTable start={start} end={end} onPickSym={(s) => setGroupSym?.(color, s)} />
-    </div>
+    <PeriodSortResults
+      start={start}
+      end={end}
+      color={color}
+      group={opts.group || null}
+      settingsOverride={settingsOverride}
+      onSettingsPersist={persistSettings}
+    />
   )
 }

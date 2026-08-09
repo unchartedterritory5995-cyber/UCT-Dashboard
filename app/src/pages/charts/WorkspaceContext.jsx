@@ -20,6 +20,13 @@ const FALLBACK = {
   periodSortMode: false,
   onPeriodSelected: () => {},
   onPeriodCancel: () => {},
+  // Replay mode: an ISO 'YYYY-MM-DD' cutoff; linked charts hide every bar after it.
+  replayCutoff: null,
+  exitReplay: () => {},
+  // Custom-Period Sort "Mark start date": an ISO 'YYYY-MM-DD' + style ('line' gold
+  // vertical line | 'candle' gold start-date candle). Cleared by exitReplay.
+  startMarker: null,
+  startMarkerStyle: 'line',
 }
 
 export function useWorkspace() {

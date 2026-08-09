@@ -190,6 +190,103 @@ def init_db() -> None:
     c.commit()
 
 
+_DAILY_BYDATE_INDEX = "idx_ohlcv_daily_bydate"
+
+
+def daily_bydate_index_ready() -> bool:
+    """True if the by-date daily index exists — a cheap catalog check (no build)."""
+    try:
+        return _conn().execute(
+            "SELECT 1 FROM sqlite_master WHERE type='index' AND name=?",
+            (_DAILY_BYDATE_INDEX,),
+        ).fetchone() is not None
+    except Exception:
+        return False
+
+
+def ensure_daily_bydate_index() -> bool:
+    """Build (once) a PARTIAL, COVERING index over daily rows keyed BY DATE, so a
+    whole-market "every ticker's close on date X" read is one contiguous index range-
+    scan instead of a scan of the multi-GB daily partition.
+
+    The base index (ticker, tf, ts DESC) leads with `ticker`, so `WHERE tf='D' AND
+    ts BETWEEN…` can't use it — that read (the pre-~2004 Custom-Period Sort fallback)
+    took MINUTES on cold, network-backed storage. `(ts, ticker, c) WHERE tf='D'` is
+    daily-ONLY (the `WHERE` keeps the huge intraday partitions out, so it's small) and
+    COVERING (ticker + c live in the index → no table lookups), so the windowed read is
+    index-only and fast even cold. Idempotent + guarded by the catalog check → the
+    ~1-2 min build runs at most once per pod volume, then persists. Returns True when
+    the index exists."""
+    if daily_bydate_index_ready():
+        return True
+    import time as _t
+    t0 = _t.time()
+    # Build on a DEDICATED connection with a LONG lock-wait. CRITICAL: do NOT hold
+    # _WRITE_LOCK here. CREATE INDEX holds a SQLite write transaction for its ENTIRE
+    # (multi-minute) build, and every put_bars acquires _WRITE_LOCK — so holding it
+    # across the build BLOCKS EVERY bar write site-wide for minutes, which stalls any
+    # chart that needs to persist a freshly-fetched deep bar (the "MSFT won't load for
+    # a minute" outage). Without the lock, put_bars still serializes among ITSELF and
+    # merely contends with this build at the SQLite level (fail-fast 2s + retry) — a
+    # brief transient during a one-time build instead of a hard site-wide stall. The
+    # build's own 10-min busy_timeout lets it wait out those quick writes.
+    try:
+        bc = sqlite3.connect(_DB_PATH, check_same_thread=False)
+        try:
+            bc.execute("PRAGMA journal_mode=WAL")
+            bc.execute("PRAGMA busy_timeout=600000")   # wait up to 10 min for the lock
+            bc.execute("PRAGMA temp_store=MEMORY")
+            bc.execute(
+                f"CREATE INDEX IF NOT EXISTS {_DAILY_BYDATE_INDEX} "
+                "ON ohlcv(ts, ticker, c) WHERE tf='D'"
+            )
+            bc.commit()
+        finally:
+            bc.close()
+        print(f"[sqlite-index] built {_DAILY_BYDATE_INDEX} in {_t.time() - t0:.1f}s")
+        return True
+    except Exception as e:
+        print(f"[sqlite-index] {_DAILY_BYDATE_INDEX} build failed after {_t.time() - t0:.1f}s: {e}")
+        return False
+
+
+def daily_coverage_probe(start_ymd: int, end_ymd: int) -> dict:
+    """Fast diagnostic: does bars.db actually HOLD daily data near these dates?
+    Uses the by-date index when present (else best-effort). Answers the real question
+    behind a stuck pre-2004 sort — is it slow, or is the deep history simply absent on
+    this pod?"""
+    import time as _t
+    out = {"index_ready": daily_bydate_index_ready(), "path": _DB_PATH}
+    c = _conn()
+
+    def _window(to_ymd):
+        frm = int(to_ymd) - 30
+        t0 = _t.time()
+        try:
+            n = c.execute(
+                "SELECT COUNT(*) FROM ohlcv WHERE tf='D' AND ts<=? AND ts>=? AND c>0",
+                (int(to_ymd), frm),
+            ).fetchone()[0]
+            samp = [r[0] for r in c.execute(
+                "SELECT DISTINCT ticker FROM ohlcv WHERE tf='D' AND ts<=? AND ts>=? AND c>0 LIMIT 8",
+                (int(to_ymd), frm),
+            ).fetchall()]
+        except Exception as e:
+            return {"error": str(e), "ms": round((_t.time() - t0) * 1000)}
+        return {"count": n, "sample": samp, "ms": round((_t.time() - t0) * 1000)}
+
+    try:
+        t0 = _t.time()
+        row = c.execute("SELECT MIN(ts), MAX(ts) FROM ohlcv WHERE tf='D'").fetchone()
+        out["daily_min_ts"], out["daily_max_ts"] = (row or (None, None))
+        out["minmax_ms"] = round((_t.time() - t0) * 1000)
+    except Exception as e:
+        out["minmax_error"] = str(e)
+    out["start_window"] = _window(start_ymd)
+    out["end_window"] = _window(end_ymd)
+    return out
+
+
 def delete_bars(ticker: str | None = None, tf: str | None = None) -> int:
     """Delete rows by (ticker, tf). Either may be None to wildcard.
     Returns rows deleted."""
@@ -334,6 +431,20 @@ def get_bars(ticker: str, tf: str, max_bars: int) -> list[tuple]:
     ).fetchall()
 
 
+def get_bars_before(ticker: str, tf: str, max_bars: int, to_key: int) -> list[tuple]:
+    """Up to max_bars rows with ts <= to_key, oldest-first — the pre-cutoff window used
+    by replay mode. Uses the (ticker, tf, ts DESC) index, so it's a fast index seek even
+    for a deep window. (ts is YYYYMMDD for D/W/M, unix seconds for intraday.)"""
+    return _conn().execute(
+        """SELECT ts,o,h,l,c,v FROM (
+               SELECT ts,o,h,l,c,v FROM ohlcv
+               WHERE ticker=? AND tf=? AND ts<=?
+               ORDER BY ts DESC LIMIT ?
+           ) ORDER BY ts ASC""",
+        (ticker.upper(), tf, int(to_key), max_bars),
+    ).fetchall()
+
+
 def get_bars_since(ticker: str, tf: str, since_ts: int) -> list[tuple]:
     """Return bars with ts > since_ts, oldest-first (for browser delta sync)."""
     return _conn().execute(
@@ -356,6 +467,52 @@ def max_daily_volume_in_range(from_ymd: int, to_ymd: int, min_sessions: int = 2)
         (int(from_ymd), int(to_ymd), int(min_sessions)),
     ).fetchall()
     return {str(r[0]).upper(): int(r[1]) for r in rows}
+
+
+def closes_near_date(to_ymd: int, from_ymd: int) -> dict:
+    """{TICKER: most-recent daily close with from_ymd <= ts <= to_ymd} — each ticker's close
+    on the nearest trading day on/before `to_ymd` within the window (one scan handles
+    holidays). This is bars.db's deep (yfinance-sourced) fallback for whole-market grouped
+    closes on PRE-~2004 dates, which the provider's grouped-daily endpoint doesn't cover.
+    Tickers are app/hyphen form (BRK-B), matching storage. With idx_ohlcv_daily_bydate
+    (see ensure_daily_bydate_index) this is an index-only range scan of the ~9-day window
+    (fast even cold); WITHOUT it, a full scan of the daily partition — so the caller must
+    ensure the index first. ⚠️ SURVIVORSHIP-BIASED: only names still in the warmed universe
+    are present; companies delisted before now are absent."""
+    rows = _conn().execute(
+        "SELECT ticker, ts, c FROM ohlcv WHERE tf='D' AND ts<=? AND ts>=? AND c>0",
+        (int(to_ymd), int(from_ymd)),
+    ).fetchall()
+    out: dict[str, float] = {}
+    best: dict[str, int] = {}
+    for t, ts, c in rows:
+        u = str(t).upper()
+        if ts > best.get(u, 0):
+            best[u] = ts
+            out[u] = float(c)
+    return out
+
+
+def closes_asof(symbols, to_ymd: int, from_ymd: int) -> dict:
+    """{TICKER: close on the nearest daily trading day in [from_ymd, to_ymd]} via ONE
+    INDEXED point-lookup per ticker — the fast pre-~2004 whole-market fallback.
+
+    closes_near_date() does a single `WHERE tf='D' AND ts BETWEEN…` which the only index
+    (ticker, tf, ts DESC) can't serve → a full scan of the multi-GB daily partition (minutes).
+    Here each `WHERE ticker=? AND tf='D' AND ts<=? AND ts>=? ORDER BY ts DESC LIMIT 1` IS a
+    pure index seek, so looping the ~CS universe (a few thousand seeks) resolves in seconds.
+    Pass app/hyphen-form tickers (BRK-B), matching storage. SURVIVORSHIP-BIASED like
+    closes_near_date (only names still warmed are present)."""
+    conn = _conn()
+    q = ("SELECT c FROM ohlcv WHERE ticker=? AND tf='D' AND ts<=? AND ts>=? AND c>0 "
+         "ORDER BY ts DESC LIMIT 1")
+    to_i, from_i = int(to_ymd), int(from_ymd)
+    out: dict[str, float] = {}
+    for s in symbols:
+        row = conn.execute(q, (s, to_i, from_i)).fetchone()
+        if row and row[0] and row[0] > 0:
+            out[str(s).upper()] = float(row[0])
+    return out
 
 
 def recent_first_trade(since_ymd: int) -> dict:

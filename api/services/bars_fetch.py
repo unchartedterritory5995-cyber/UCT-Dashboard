@@ -1564,6 +1564,81 @@ def _normalize_since_param(since_str: str, date_tf: bool):
         return "" if date_tf else 0
 
 
+def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str) -> JSONResponse:
+    """Serve up to `bars` bars ENDING AT `to_str` (YYYY-MM-DD) from SQLite — the
+    replay-mode PRE-CUTOFF window. This history is static, so there's NO freshness check
+    and NO provider call: a fast index-seek read (the fix for replay charts on old tickers
+    doing a slow full 'ending today' fetch and painting nothing). Falls through to the
+    normal path only when SQLite has nothing for this ticker (cold) so that path can
+    populate it — the client filters post-cutoff bars either way."""
+    ticker_up = ticker.upper()
+    if _is_yf_only_symbol(ticker_up):
+        return _get_bars_inner(ticker, tf, bars)
+    date_tf = tf in ("D", "W", "M")
+    try:
+        if date_tf:
+            to_key = int(str(to_str).replace("-", ""))
+        else:
+            _d = datetime.strptime(str(to_str), "%Y-%m-%d")
+            to_key = int(datetime(_d.year, _d.month, _d.day, 23, 59, 59,
+                                  tzinfo=_ZI("America/New_York")).timestamp())
+    except Exception:
+        return _get_bars_inner(ticker, tf, bars)
+    try:
+        rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
+    except Exception:
+        rows = []
+    if not rows and date_tf:
+        # SQLite has nothing at/before the cutoff (e.g. a 2008 replay on a name whose deep
+        # history never reached this pod — the sort read it from grouped-daily, not bars.db).
+        # Falling to _get_bars_inner here would delta-fetch nothing and return recent-only
+        # bars → EMPTY after the client's cutoff filter → "Failed to load chart". Instead do
+        # the FULL daily history fetch ONCE (deep: Massive + yfinance), persist it, then serve
+        # ≤ cutoff from SQLite. Slow the first time, then permanently cached + fast.
+        try:
+            deep = (_fetch_daily(ticker_up, max(bars, 12500), deep=True) if tf == "D"
+                    else _fetch_weekly(ticker_up, bars, deep=True) if tf == "W"
+                    else _fetch_monthly(ticker_up, bars, deep=True))
+            if deep:
+                try:
+                    _sqlite.put_bars(ticker_up, tf, deep, date_tf=True)
+                except Exception:
+                    pass
+                rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
+        except Exception:
+            rows = rows or []
+    if not rows:
+        return _get_bars_inner(ticker, tf, bars)   # last resort — client filters
+    _mark_serve("sqlite")
+    payload = {"ticker": ticker_up, "tf": tf, "bars": _fmt_sqlite_bars(rows, tf, ticker_up)}
+    return JSONResponse(content=payload, headers={"Cache-Control": "public, max-age=3600"})
+
+
+def warm_ticker_daily_deep(ticker: str, need_before_ymd: int | None = None) -> bool:
+    """Fetch + persist a ticker's FULL daily history (deep: Massive + yfinance) into SQLite so
+    replay / old-cutoff charts serve it INSTANTLY. Skips when SQLite already holds a bar at or
+    before `need_before_ymd` (the sort's start — already deep enough for that window). Used by
+    the Custom-Period Sort server warm; best-effort, returns True on success/skip."""
+    tu = ticker.upper()
+    if need_before_ymd:
+        try:
+            if _sqlite.get_bars_before(tu, "D", 1, int(need_before_ymd)):
+                return True   # already has pre-window history — nothing to warm
+        except Exception:
+            pass
+    try:
+        data = _fetch_daily(tu, 12500, deep=True)
+        if not data:
+            return False
+        try:
+            _sqlite.put_bars(tu, "D", data, date_tf=True)
+        except Exception:
+            pass
+        return True
+    except Exception:
+        return False
+
+
 def _get_bars_since_response(ticker: str, tf: str, bars: int, since_str: str) -> JSONResponse:
     """Return only bars newer than `since_str` for the browser's delta sync.
 
