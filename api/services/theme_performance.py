@@ -389,12 +389,16 @@ _ALL_PERIODS = ("1d", "1w", "1m", "3m", "1y", "ytd")
 
 
 def _owner_only_mean(per_sym_returns: dict, owner_syms: set):
-    """Mean of the OWNER members' returns only — engine-overlay members keep
-    their individual rows but never move the theme number (spec §4b).
-    per_sym_returns and owner_syms must use the same sym form (hyphen upper).
-    None when no owner member has a value."""
+    """OUTLIER-RESISTANT aggregate of the OWNER members' returns only — engine-overlay members
+    keep their individual rows but never move the theme number (spec §4b). Uses the SAME
+    upside-winsorized mean as the Custom-Period sector/industry sort
+    (scan_period._robust_group_pct): the top ~10% of gainers are capped down to the next-highest
+    member before averaging, so one moonshot (e.g. +2641% CVNA) can't float a mostly-red theme
+    to the top of the tracker. The downside is untouched. per_sym_returns and owner_syms must use
+    the same sym form (hyphen upper). None when no owner member has a value."""
+    from api.services.scan_period import _robust_group_pct
     vals = [v for s, v in per_sym_returns.items() if s in owner_syms and v is not None]
-    return round(sum(vals) / len(vals), 2) if vals else None
+    return round(_robust_group_pct(vals), 2) if vals else None
 
 
 def _owner_group_return(union_syms, returns_map: dict, members: dict, periods) -> dict:
