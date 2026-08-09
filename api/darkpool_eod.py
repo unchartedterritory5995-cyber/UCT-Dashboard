@@ -83,6 +83,25 @@ _BAND_ORDER = [
     ("ETF/Index", "ETFs & INDEX"),
 ]
 
+# The aggregator's own categories for fund products. An ETF's reported "market
+# cap" is really its AUM, so it would mis-bucket into a stock band (SPY→Mega,
+# TLT→Large) — instead route anything the aggregator tagged as a fund straight to
+# the ETFs & Index section, and reserve market-cap bucketing for actual stocks.
+_ETF_CATS = {"Indexes", "Sector ETFs", "Bond ETFs", "Intl/EM ETFs", "Commodity ETFs"}
+
+
+def _band_for(cat: str, mktcap) -> str:
+    """Route ETFs (by the aggregator's category) to the ETF/Index bucket; bucket
+    real stocks by true market cap. Stocks with no cap fall back to the
+    aggregator's coarse size class rather than being mistaken for a fund."""
+    cat = (cat or "").strip()
+    if cat in _ETF_CATS:
+        return "ETF/Index"
+    mc = float(mktcap or 0)
+    if mc > 0:
+        return _cap_band(mc)
+    return "Large" if cat == "Large Cap" else "Mid-Small"
+
 
 # ── formatting helpers ─────────────────────────────────────────────────────
 def _fmt_n(v) -> str:
@@ -271,15 +290,37 @@ def render_card(sections: list[tuple], date_text: str, summary: dict,
 
 
 # ── data helpers ───────────────────────────────────────────────────────────
+_avg50_cache: dict = {}   # sym -> (iso_day, avg_volume) — one Massive pull/name/day
+
+
 def _avg50_volume(ticker: str) -> float:
-    """50-day average daily SHARE volume from the local daily bars store."""
-    try:
-        from api.services import bars_sqlite
-        rows = bars_sqlite.get_bars(ticker, "D", 50) or []
-        vols = [r[5] for r in rows if len(r) > 5 and r[5]]
-        return (sum(vols) / len(vols)) if vols else 0.0
-    except Exception:
+    """50-day average daily SHARE volume via the Massive daily aggs (the local
+    bars store isn't populated web-side when USE_REMOTE_BARS is on). Cached per
+    name per day so a preview / the EOD job pulls each name at most once."""
+    from datetime import date, timedelta
+    sym = (ticker or "").upper()
+    if not sym:
         return 0.0
+    try:
+        today = date.today().isoformat()
+    except Exception:
+        today = ""
+    hit = _avg50_cache.get(sym)
+    if hit and hit[0] == today:
+        return hit[1]
+    avg = 0.0
+    try:
+        from api.services.massive import get_daily_agg
+        to_d = date.today()
+        from_d = to_d - timedelta(days=80)       # ~55 trading days of headroom
+        bars = get_daily_agg(sym, from_d.isoformat(), to_d.isoformat()) or []
+        vols = [b.get("v") for b in bars[-50:] if b.get("v")]
+        if vols:
+            avg = sum(vols) / len(vols)
+    except Exception:
+        avg = 0.0
+    _avg50_cache[sym] = (today, avg)
+    return avg
 
 
 def _concentration_band(ticker: str, days: int) -> tuple:
@@ -344,8 +385,7 @@ def build_sections(days: int = 1, top_n: int = 12, min_notional: float = 5e6):
     by_band: dict = {b: [] for b, _ in _BAND_ORDER}
     for it in items:
         sym = (it.get("t") or "").upper()
-        mc = caps.get(sym) or it.get("mktcap") or 0
-        band = _cap_band(mc)
+        band = _band_for(it.get("cat"), caps.get(sym) or it.get("mktcap") or 0)
         band_totals[band] += (it.get("n") or 0)
         by_band[band].append(it)
 
