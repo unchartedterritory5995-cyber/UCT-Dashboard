@@ -747,7 +747,7 @@
           }
         ]
       },
-      "sentence": "1 when where the close sits inside the bar's range is greater than or equal to 0.66 and 0 otherwise",
+      "sentence": "1 when the close's position inside the bar's range is greater than or equal to 0.66 and 0 otherwise",
       "grounding": [
         {
           "kind": "filter_preset",
