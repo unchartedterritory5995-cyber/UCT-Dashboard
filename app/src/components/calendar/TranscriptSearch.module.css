@@ -1,0 +1,79 @@
+/* Search chrome for TranscriptPanel.
+   The transcript's own segment/speaker styling still comes from
+   CallRecapSection.module.css — only the search affordances live here. */
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 6px 0 10px;
+}
+
+.input {
+  flex: 1 1 180px;
+  min-width: 0;
+  min-height: var(--tap-min, 44px);
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--text, #e8e6df);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--ut-gold, #c9a84c);
+}
+
+.input::placeholder { color: var(--text-muted, #8b8678); }
+
+.count {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted, #8b8678);
+  white-space: nowrap;
+}
+
+.navBtn {
+  min-width: var(--tap-min, 44px);
+  min-height: var(--tap-min, 44px);
+  padding: 0 8px;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--text, #e8e6df);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.navBtn:hover:not(:disabled) { border-color: var(--ut-gold, #c9a84c); }
+.navBtn:disabled { opacity: 0.35; cursor: default; }
+
+.filterToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap-min, 44px);
+  font-size: 11px;
+  color: var(--text-muted, #8b8678);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* The stepped-to hit. Every match is marked; exactly one is the cursor, so it
+   must be separable at a glance from the others. */
+.kwActive {
+  background: var(--ut-gold, #c9a84c) !important;
+  color: #14120c !important;
+  box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.35);
+  border-radius: 2px;
+}
+
+@media (max-width: 640px) {
+  .bar { gap: 6px; }
+  .count { order: 3; }
+  .filterToggle { order: 4; flex-basis: 100%; }
+}

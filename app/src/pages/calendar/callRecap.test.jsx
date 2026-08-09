@@ -250,3 +250,59 @@ describe('SentimentGaugeDisplay', () => {
     expect(container.firstChild).toBeTruthy()
   })
 })
+
+// ── The producer/consumer shape defects, at the surface ───────────────────────
+
+describe('CallRecapSection — the shape the service actually sends', () => {
+  // call_recap.py asks the model for {topic, quote}; this component read
+  // {speaker, text}. Rendering gave empty quotation marks, and the search
+  // filter did `(q.text || q).toLowerCase()` — on an object that throws
+  // "q.toLowerCase is not a function", taking the section down mid-keystroke.
+  const SERVICE_SHAPE = {
+    headline: 'Beat on adjusted EPS',
+    sentiment: 'positive',            // NOT 'bullish' — the service's vocabulary
+    bullets: ['Record Experiences revenue'],
+    quotes: [
+      { topic: 'Margins', quote: 'We expect continued margin expansion.' },
+      { topic: 'Buyback', quote: 'We raised the repurchase programme.' },
+    ],
+    guidance: 'raised',
+    qa_highlights: [],
+  }
+
+  it('renders quote text rather than empty quotation marks', () => {
+    render(<CallRecapSection recap={SERVICE_SHAPE} audio={null} />)
+    expect(screen.getByText(/We expect continued margin expansion\./)).toBeTruthy()
+  })
+
+  it('does not crash when searching a recap that has quotes', () => {
+    render(<CallRecapSection recap={SERVICE_SHAPE} audio={null} />)
+    const input = screen.getByPlaceholderText('Search in recap…')
+    expect(() => fireEvent.change(input, { target: { value: 'margin' } })).not.toThrow()
+    // The surviving quote's text is split across <mark> nodes by the highlight.
+    expect(document.body.textContent).toContain('We expect continued margin expansion.')
+    // …and it really filters: the non-matching quote is gone.
+    expect(screen.queryByText(/raised the repurchase programme/)).toBeNull()
+  })
+
+  it('styles a positive call as positive — the badge tested a dead vocabulary', () => {
+    const { container } = render(<CallRecapSection recap={SERVICE_SHAPE} audio={null} />)
+    const badge = screen.getByText('POSITIVE')
+    expect(badge.className).toBe(container.querySelector('[class*="sentBull"]')?.className)
+  })
+
+  it('renders the guidance enum ONCE, as the chip', () => {
+    render(<CallRecapSection recap={SERVICE_SHAPE} audio={null} />)
+    expect(screen.getByText(/GUIDANCE RAISED/)).toBeTruthy()
+    // The old code also emitted a "GUIDANCE" heading over a one-word paragraph.
+    expect(screen.queryByText('GUIDANCE')).toBeNull()
+  })
+
+  it('still renders real guidance PROSE when the field carries a sentence', () => {
+    render(<CallRecapSection
+      recap={{ ...SERVICE_SHAPE, guidance: 'Full-year EPS guidance raised to $5.20–$5.30.' }}
+      audio={null} />)
+    expect(screen.getByText(/Full-year EPS guidance raised/)).toBeTruthy()
+    expect(screen.queryByText(/GUIDANCE RAISED/)).toBeNull()
+  })
+})

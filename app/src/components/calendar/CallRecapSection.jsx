@@ -14,6 +14,7 @@
 // and passed as props so the component is purely presentational + testable.
 import { useState, useRef, useEffect, useCallback } from 'react'
 import UIcon from '../ui/UIcon'
+import { normalizeCallRecap, guidanceKind } from '../research/callRecap'
 import styles from './CallRecapSection.module.css'
 
 // ── TTS helper ────────────────────────────────────────────────────────────────
@@ -87,7 +88,11 @@ function RatingChanges({ changes }) {
  * @param {object} recap   — from useCallRecap().data
  * @param {object|null} audio — from useEarningsAudio().data ({ stream_url, kind, transcript_url })
  */
-export default function CallRecapSection({ recap, audio }) {
+export default function CallRecapSection({ recap: rawRecap, audio }) {
+  // Every surface routes through the one normalizer, so a payload handed in
+  // raw (MyStocksHub, CallsTab, EarningsModal) reconciles here rather than
+  // rendering a different shape on each screen.
+  const recap = normalizeCallRecap(rawRecap) || rawRecap
   const [searchQuery, setSearchQuery] = useState('')
   const [ttsActive, setTtsActive] = useState(false)
   const utteranceRef = useRef(null)
@@ -127,7 +132,8 @@ export default function CallRecapSection({ recap, audio }) {
     : (recap.bullets || [])
 
   const filteredQuotes = kw
-    ? (recap.quotes || []).filter(q => (q.text || q).toLowerCase().includes(kw.toLowerCase()))
+    ? (recap.quotes || []).filter(q =>
+        `${q.text} ${q.speaker} ${q.topic}`.toLowerCase().includes(kw.toLowerCase()))
     : (recap.quotes || [])
 
   const filteredQA = kw
@@ -182,8 +188,8 @@ export default function CallRecapSection({ recap, audio }) {
       {/* Sentiment badge */}
       {recap.sentiment && (
         <span className={
-          recap.sentiment === 'bullish' ? styles.sentBull :
-          recap.sentiment === 'bearish' ? styles.sentBear :
+          recap.sentiment === 'positive' ? styles.sentBull :
+          recap.sentiment === 'negative' ? styles.sentBear :
           styles.sentNeutral
         }>
           {recap.sentiment.toUpperCase()}
@@ -193,7 +199,7 @@ export default function CallRecapSection({ recap, audio }) {
       {/* Guidance chip — the field already rides the recap payload (zero new
           spend). Guidance moves stocks as much as the print and appears in no
           retail calendar. */}
-      {recap.guidance && recap.guidance !== 'none' && (
+      {guidanceKind(recap.guidance) === 'enum' && (
         <span
           className={
             recap.guidance === 'raised' ? styles.guideUp :
@@ -216,8 +222,11 @@ export default function CallRecapSection({ recap, audio }) {
         </>
       )}
 
-      {/* Guidance */}
-      {recap.guidance && (!kw || recap.guidance.toLowerCase().includes(kw.toLowerCase())) && (
+      {/* Guidance PROSE only — the enum form is the chip above, and rendering
+          both printed the same word twice, the second time as a one-word
+          paragraph under a "GUIDANCE" heading. */}
+      {guidanceKind(recap.guidance) === 'prose' &&
+       (!kw || recap.guidance.toLowerCase().includes(kw.toLowerCase())) && (
         <div className={styles.guidanceBlock}>
           <div className={styles.sectionLabel}>GUIDANCE</div>
           <p className={styles.guidanceText}>{highlight(recap.guidance, kw)}</p>
@@ -229,12 +238,14 @@ export default function CallRecapSection({ recap, audio }) {
         <div className={styles.quotesBlock}>
           <div className={styles.sectionLabel}>MANAGEMENT QUOTES</div>
           {filteredQuotes.map((q, i) => {
-            const text = typeof q === 'string' ? q : q.text
-            const speaker = typeof q === 'object' ? q.speaker : null
+            const attribution = [q.speaker, q.role].filter(Boolean).join(', ')
             return (
               <div key={i} className={styles.quoteItem}>
-                {speaker && <span className={styles.speaker}>{speaker}: </span>}
-                <span className={styles.quoteText}>"{highlight(text, kw)}"</span>
+                {attribution && <span className={styles.speaker}>{attribution}: </span>}
+                {!attribution && q.topic && (
+                  <span className={styles.speaker}>{q.topic}: </span>
+                )}
+                <span className={styles.quoteText}>"{highlight(q.text, kw)}"</span>
               </div>
             )
           })}

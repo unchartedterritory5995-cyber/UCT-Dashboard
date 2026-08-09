@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeCallRecap } from './callRecap'
+import { normalizeCallRecap, guidanceKind } from './callRecap'
 
 const payload = {
   ticker: 'NVDA',
@@ -47,5 +47,96 @@ describe('normalizeCallRecap', () => {
       recap: { headline: 'h' }, rating_changes: [], webcast_url: null,
     })
     expect(out.rating_changes).toEqual([])
+  })
+})
+
+// ── Shape reconciliation ──────────────────────────────────────────────────────
+//
+// Three producer/consumer disagreements, each of which was live in production.
+
+describe('normalizeCallRecap — quote shapes', () => {
+  it('accepts the {topic, quote} shape the service actually emits', () => {
+    // call_recap.py's prompt asks for {topic, quote}; the renderer read
+    // {speaker, text}. Result: empty quotation marks on every recap.
+    const out = normalizeCallRecap({
+      recap: { headline: 'h', quotes: [{ topic: 'Margins', quote: 'We see leverage.' }] },
+    })
+    expect(out.quotes).toEqual([
+      { speaker: '', role: '', topic: 'Margins', text: 'We see leverage.' },
+    ])
+  })
+
+  it('still accepts the {speaker, text} shape', () => {
+    const out = normalizeCallRecap({
+      recap: { headline: 'h', quotes: [{ speaker: 'CEO', text: 'Firing on all cylinders.' }] },
+    })
+    expect(out.quotes[0]).toMatchObject({ speaker: 'CEO', text: 'Firing on all cylinders.' })
+  })
+
+  it('accepts a bare string', () => {
+    const out = normalizeCallRecap({ recap: { headline: 'h', quotes: ['Plain quote.'] } })
+    expect(out.quotes[0].text).toBe('Plain quote.')
+  })
+
+  it('drops quotes with no text rather than rendering empty quotation marks', () => {
+    const out = normalizeCallRecap({
+      recap: { headline: 'h', quotes: [{ topic: 'Margins' }, null, 42, { quote: '   ' }] },
+    })
+    expect(out.quotes).toEqual([])
+  })
+
+  it('every quote exposes a string `text` — the crash was an object reaching .toLowerCase()', () => {
+    const out = normalizeCallRecap({
+      recap: { headline: 'h', quotes: [{ topic: 'a', quote: 'x' }, 'y', { speaker: 'CFO', text: 'z' }] },
+    })
+    for (const q of out.quotes) expect(typeof q.text).toBe('string')
+    expect(() => out.quotes.filter(q => q.text.toLowerCase().includes('x'))).not.toThrow()
+  })
+})
+
+describe('normalizeCallRecap — sentiment vocabulary', () => {
+  it('passes the service vocabulary through', () => {
+    expect(normalizeCallRecap({ recap: { headline: 'h', sentiment: 'positive' } }).sentiment)
+      .toBe('positive')
+  })
+
+  it('maps the legacy bullish/bearish labels onto it', () => {
+    expect(normalizeCallRecap({ recap: { headline: 'h', sentiment: 'bullish' } }).sentiment)
+      .toBe('positive')
+    expect(normalizeCallRecap({ recap: { headline: 'h', sentiment: 'bearish' } }).sentiment)
+      .toBe('negative')
+  })
+
+  it('absent stays absent — it must not become a neutral CLAIM', () => {
+    expect(normalizeCallRecap({ recap: { headline: 'h' } }).sentiment).toBeNull()
+  })
+})
+
+describe('normalizeCallRecap — bullets and Q&A are always strings', () => {
+  it('flattens object-shaped items and drops empties', () => {
+    const out = normalizeCallRecap({
+      recap: {
+        headline: 'h',
+        bullets: ['plain', { text: 'wrapped' }, '', null],
+        qa_highlights: [{ takeaway: 'a takeaway' }, 'a string'],
+      },
+    })
+    expect(out.bullets).toEqual(['plain', 'wrapped'])
+    expect(out.qa_highlights).toEqual(['a takeaway', 'a string'])
+    for (const b of [...out.bullets, ...out.qa_highlights]) expect(typeof b).toBe('string')
+  })
+})
+
+describe('guidanceKind', () => {
+  it('separates the enum from real prose so it is not rendered twice', () => {
+    expect(guidanceKind('raised')).toBe('enum')
+    expect(guidanceKind('MAINTAINED')).toBe('enum')
+    expect(guidanceKind('Full-year EPS guidance raised to $5.20–$5.30.')).toBe('prose')
+  })
+
+  it('treats none/blank as nothing to show', () => {
+    expect(guidanceKind('none')).toBeNull()
+    expect(guidanceKind('')).toBeNull()
+    expect(guidanceKind(null)).toBeNull()
   })
 })
