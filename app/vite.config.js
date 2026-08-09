@@ -102,17 +102,47 @@ export default defineConfig({
         // and silently dumps React-dependent libs into vendor-misc, which
         // crashes at runtime with "Cannot read properties of undefined
         // (reading 'PureComponent' / 'Activity' / ...)".
+        // ⭐ EVERY React entry point must be listed, not just 'react'.
+        //
+        // Listing bare 'react' matches ONE module id. React's other entry
+        // points (`react/jsx-runtime`, `react-dom/client`) are separate ids,
+        // so Rollup assigned them by its own shared-module algorithm — and
+        // measured on 2026-08-09 it put `react/jsx-runtime` in vendor-TIPTAP
+        // and React's CJS body in vendor-SWR. Every component uses the JSX
+        // runtime, so the entry chunk statically imported vendor-tiptap to
+        // get it, which in turn pulled vendor-recharts. That cascade — not
+        // any source-level dependency — is why 231 KB gz of a rich-text
+        // editor and a second chart library loaded on the LOGIN screen.
+        //
+        // Verify with app/vite.config.chunkmap.mjs-style module→chunk dump,
+        // never by reading this list: the failure is silent and the entry
+        // still works, it is just 231 KB heavier.
         manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-react': [
+            'react', 'react/jsx-runtime', 'react/jsx-dev-runtime',
+            'react-dom', 'react-dom/client', 'scheduler', 'react-router-dom',
+          ],
           'vendor-swr': ['swr'],
           'vendor-charts': ['lightweight-charts'],
           'vendor-echarts': ['echarts', 'echarts-for-react'],
-          'vendor-recharts': ['recharts'],
-          'vendor-tiptap': [
-            '@tiptap/react', '@tiptap/starter-kit', '@tiptap/core',
-            '@tiptap/extension-image', '@tiptap/extension-link',
-            '@tiptap/extension-placeholder', '@tiptap/suggestion',
-          ],
+          // ⛔ recharts and tiptap are deliberately NOT listed.
+          //
+          // Naming a package here FORCES a chunk into existence, and Rollup
+          // then hosts unassigned shared modules (React's CJS body, the JSX
+          // runtime) inside it. Both libraries are reached from source ONLY
+          // through lazy `import()` route edges — OptionsFlow / UCT20Backtest
+          // for recharts, the Journal Notebook / Community Composer /
+          // ModelBook builder for tiptap — so a forced chunk gave the shared
+          // runtime a home inside a route-only library and made the LOGIN
+          // screen download both.
+          //
+          // Unlisted, they get Rollup's default treatment: a module reached
+          // from two or more dynamic entries still lands in ONE auto-created
+          // shared chunk (no duplication), but that chunk hangs off the lazy
+          // routes where it belongs instead of off the entry.
+          //
+          // This is NOT the banned function form — the object form is intact.
+          // See feedback_vite_manualchunks_object_form.
         },
       },
     },
