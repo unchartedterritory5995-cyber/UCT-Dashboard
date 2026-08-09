@@ -2927,7 +2927,7 @@ export default function StockChart({
     let _changePct = lastChangePctRef.current
     if (Number.isFinite(rthCloseRef.current)) {
       _price = rthCloseRef.current
-      if (DWM.includes(resolvedTf) && Number.isFinite(rthPrevCloseRef.current) && rthPrevCloseRef.current) {
+      if (['D', 'W', 'M'].includes(resolvedTf) && Number.isFinite(rthPrevCloseRef.current) && rthPrevCloseRef.current) {
         _changePct = ((rthCloseRef.current - rthPrevCloseRef.current) / rthPrevCloseRef.current) * 100
       }
     }
