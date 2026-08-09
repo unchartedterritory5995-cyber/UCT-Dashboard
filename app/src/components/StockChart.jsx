@@ -1201,6 +1201,7 @@ export default function StockChart({
   onAnnotationsMigrate = null,  // (drawings[]) => void — called once when a legacy volume-pane annotation is re-anchored to the pane (so it can be persisted)
   highlightBarTime = null,      // ISO/time (or array of them) of bar(s) to paint (Model Book: focused setup's day, or all setup/catalyst days)
   highlightColor = '#e6b800',   // color for highlighted bars (gold for setups; Model Book passes white for catalysts)
+  highlightBodyOnly = false,    // true = recolor only the BODY, leave border/wick to the chart's own settings (Custom-Period Sort start-candle marker); false = recolor body+border+wick (Model Book)
   onHighlightClick = null,      // Model Book: ({ date, clientX, clientY }) => void — clicking a highlighted setup/catalyst candle (opens the intraday 5-min popup)
   vwapOverride = null,          // force the session-VWAP indicator on regardless of user settings: { color } (Model Book intraday popup uses white)
   onFocusEscape = null,         // called when the user manually zooms/pans while a setup focus is active → parent should clear focus
@@ -4732,9 +4733,14 @@ export default function StockChart({
   const goldOhlc = useMemo(() => {
     if (!highlightTimeSet) return ohlcData
     return ohlcData.map(d => (highlightTimeSet.has(d.time)
-      ? { ...d, color: highlightColor, borderColor: highlightColor, wickColor: highlightColor }
+      // Body-only leaves borderColor/wickColor unset so the highlighted candle keeps the
+      // chart's own border + wick colors (owner wants the gold START candle to have the
+      // same black border/wick as every other candle); Model Book paints all three.
+      ? (highlightBodyOnly
+          ? { ...d, color: highlightColor }
+          : { ...d, color: highlightColor, borderColor: highlightColor, wickColor: highlightColor })
       : d))
-  }, [ohlcData, highlightTimeSet, highlightColor])
+  }, [ohlcData, highlightTimeSet, highlightColor, highlightBodyOnly])
 
   // Setup⇄Result candle crossfade. The bars PAST the highlighted setup day fade
   // in (Setup→Result) / out (Result→Setup) instead of popping. Cutoff = the

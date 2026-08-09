@@ -293,6 +293,8 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           startMarker: startMarker && startMarkerStyle === 'line' ? startMarker : null,
           highlightBarTime: startMarker && startMarkerStyle === 'candle' ? startMarker : undefined,
           highlightColor: startMarker && startMarkerStyle === 'candle' ? '#c9a84c' : undefined,
+          // Gold BODY only — keep the chart's own border + wick colors on the marker candle.
+          highlightBodyOnly: startMarker && startMarkerStyle === 'candle' ? true : undefined,
         }}
         slots={{
           /* Chart tab strip — renders only once ≥1 extra tab exists, so a
