@@ -3151,6 +3151,12 @@ async def lifespan(app: FastAPI):
             _t.sleep(25)
             from api.services.watchlist_prebuilt import seed_prebuilt_watchlists
             seed_prebuilt_watchlists()
+            # Auto-management catch-up: liquidity re-rank + delisted prune if the durable
+            # overlay is missing or stale (monthly cron keeps it fresh thereafter).
+            import os as _os_pb
+            if _os_pb.environ.get("PREBUILT_REFRESH_ENABLED", "1") != "0":
+                from api.services import watchlist_prebuilt_refresh as _pbr
+                _pbr.maybe_startup_catchup()
         except Exception:
             pass
     threading.Thread(target=_seed_prebuilt_bg, daemon=True, name="prebuilt-watchlists-seed").start()
@@ -3311,6 +3317,23 @@ async def lifespan(app: FastAPI):
                 id="floor_premarket_brief", replace_existing=True, max_instances=1)
         except Exception as _e_sig:
             print(f"[startup] floor signal job skip: {_e_sig}")
+
+        # -- Prebuilt ETF watchlists: monthly liquidity re-rank + delisted prune ----
+        # 'Liquid Major ETFs' is re-ranked from live Massive dollar volume and any ticker
+        # that stopped trading is pruned from every list — while the curated theme lists
+        # (Sector SPDRs, Commodities, Bonds…) stay hand-authored. Writes a durable /data
+        # overlay. Disable with PREBUILT_REFRESH_ENABLED=0. Startup catch-up lives in the
+        # _seed_prebuilt_bg thread so it goes live soon after a deploy, not a month later.
+        import os as _os_pbr
+        if _os_pbr.environ.get("PREBUILT_REFRESH_ENABLED", "1") != "0":
+            try:
+                from api.services import watchlist_prebuilt_refresh as _pbr_sched
+                _scheduler.add_job(
+                    _pbr_sched.run_scheduled_refresh,
+                    CronTrigger(day=1, hour=6, minute=0, timezone=_ET),
+                    id="prebuilt_watchlists_refresh", replace_existing=True, max_instances=1)
+            except Exception as _e_pbr:
+                print(f"[startup] prebuilt refresh job skip: {_e_pbr}")
 
         # -- Indicator alerts: the CLOSED-BAR SHADOW LANE (Phase C Task 6) ------
         # ⭐ BOTH LANES RUN, ONE LANE DELIVERS. The live evaluator

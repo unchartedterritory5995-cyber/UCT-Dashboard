@@ -20,6 +20,11 @@ from api.services import watchlist_service as wl
 _log = logging.getLogger(__name__)
 
 _LISTS_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "prebuilt_lists.json")
+# Durable overlay written by the monthly auto-refresh (watchlist_prebuilt_refresh):
+# a fresh liquidity ranking for 'Liquid Major ETFs' + a delisted-ticker set pruned from
+# EVERY list. Survives deploys. Absent = pure committed config (first boot before a refresh).
+_OVERLAY_PATH = os.path.join(os.environ.get("DATA_DIR", "/data"), "prebuilt_lists_overlay.json")
+_LIQUID_NAME = "liquid major etfs"
 
 
 def _admin_user_id():
@@ -36,8 +41,8 @@ def _admin_user_id():
     return None
 
 
-def _load_lists():
-    """[{name, desc, tickers[]}] — the authoritative prebuilt set."""
+def _load_committed():
+    """[{name, desc, tickers[]}] straight from the committed config — the curated baseline."""
     try:
         with open(_LISTS_PATH, encoding="utf-8") as fh:
             out = []
@@ -49,6 +54,37 @@ def _load_lists():
             return out
     except Exception:
         return []
+
+
+def _read_overlay():
+    try:
+        with open(_OVERLAY_PATH, encoding="utf-8") as fh:
+            d = json.load(fh)
+            return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def _apply_overlay(lists):
+    """Overlay the durable auto-refresh onto the committed baseline:
+      - replace 'Liquid Major ETFs' tickers with the fresh liquidity ranking (if present)
+      - subtract the known-delisted set from EVERY list (curated names, minus the dead ones).
+    Name/desc always stay from the committed config, so a curated edit is never lost — the
+    overlay only re-ranks the liquid list and removes tickers that stopped trading."""
+    ov = _read_overlay()
+    liquid = [str(t).upper() for t in (ov.get("liquid_ranking") or []) if t]
+    delisted = {str(t).upper() for t in (ov.get("delisted") or []) if t}
+    for l in lists:
+        if l["name"].strip().lower() == _LIQUID_NAME and liquid:
+            l["tickers"] = liquid
+        if delisted:
+            l["tickers"] = [t for t in l["tickers"] if t not in delisted]
+    return [l for l in lists if l["tickers"]]
+
+
+def _load_lists():
+    """The authoritative prebuilt set = committed config with the durable overlay applied."""
+    return _apply_overlay(_load_committed())
 
 
 def _create_list(admin, name, desc, tickers):
