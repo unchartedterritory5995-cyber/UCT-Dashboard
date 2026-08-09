@@ -3,8 +3,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import {
-  sentenceFor, explainSentence, compileRules, coverageGaps,
-  OPERATOR_SENTENCE, SENTENCE_RULES, SentenceRefusal, REFUSALS as SENTENCE_REFUSALS,
+  sentenceFor, explainSentence, compileRules, coverageGaps, yieldsOf,
+  OPERATOR_SENTENCE, OPERATOR_SENTENCE_CONDITIONS, CONDITIONS_FORM_DECLINED,
+  SENTENCE_RULES, SentenceRefusal, REFUSALS as SENTENCE_REFUSALS,
 } from './sentence.js'
 import { parseFormula, astHash, TABLE, REFUSALS as PARSE_REFUSALS } from './parse.js'
 import { REFUSALS as INTERPRET_REFUSALS } from './interpret.js'
@@ -140,6 +141,17 @@ const FORMS = [
     parts: [1, ' when ', 0, ' is not zero, ', 2,
       ' when it is zero, and nothing while it is unknown'],
   },
+
+  // ⭐ THE CONDITIONS FORMS, HAND-TYPED LIKE EVERY OTHER PHRASE HERE. A logical
+  // operator every one of whose operands already yields `bool` drops the `!= 0`
+  // scaffolding, so the grammar has a second reading for `&&` and `||` — and the
+  // reader must be able to invert BOTH or the round-trip silently stops covering
+  // the smoothed half. ⚠️ They are NOT ambiguous with the unsmoothed forms above:
+  // those open with the literal `1 when `, and a smoothed operand is either a
+  // LEAF or is bracketed, so `readOperand` refuses the `1 when …` prefix a
+  // mis-parse would have to swallow. `the grammar is UNAMBIGUOUS` measures it.
+  { kind: 'op', name: '&&', via: 'op:&&:conditions', parts: [0, ' and ', 1] },
+  { kind: 'op', name: '||', via: 'op:||:conditions', parts: [0, ' or ', 1] },
 ]
 
 function indexAtDepthZero(s, needle, from) {
@@ -223,7 +235,10 @@ function readSentenceCandidates(s) {
         if (!own(slots, i)) throw new Error(`form ${form.name} never captured argument ${i}`)
         args.push(readOperand(slots[i]))
       }
-      found.push({ via: `${form.kind}:${form.name}`, ast: { type: form.kind, name: form.name, args } })
+      found.push({
+        via: form.via || `${form.kind}:${form.name}`,
+        ast: { type: form.kind, name: form.name, args },
+      })
     } catch { /* the chrome matched but the operands did not read */ }
   }
   return found
@@ -277,6 +292,42 @@ function treesForTheWholeTable(table) {
   return out
 }
 
+/** What the MANIFEST says a tree's values can be — a hand-written second reader.
+ *
+ *  ⭐⭐ AN ORACLE, NOT A CALL. `sentence.js::yieldsOf` is the module's answer and
+ *  the chrome's choice depends on it, so a `predictTrace` that asked `yieldsOf`
+ *  would agree with the walker no matter what either said. This reads the same
+ *  three rules straight off `closedTable`'s `_yields` note instead:
+ *
+ *    • a `num` literal is a condition iff it is one of the two values a 0/1
+ *      column holds;
+ *    • a bar series declares no `yields` and is a price, so it is a number; a
+ *      scalar's declaration decides;
+ *    • `passthrough` — the ternary's, and only the ternary's — is a condition iff
+ *      EVERY ARM is, and the arms are the arguments AFTER the selector.
+ *
+ *  The mutations that prove it is independent are in the harness: resolving the
+ *  ternary from ALL of its arguments, or from EITHER arm, both survive a reader
+ *  derived from the module and die against this one. */
+function oracleYields(node) {
+  if (!node || typeof node !== 'object') return 'num'
+  if (node.type === 'num') return node.value === 0 || node.value === 1 ? 'bool' : 'num'
+  if (node.type === 'series') {
+    const spec = own(TABLE.scalars, node.name) ? TABLE.scalars[node.name] : null
+    return spec && spec.yields === 'bool' ? 'bool' : 'num'
+  }
+  const section = node.type === 'op' ? TABLE.operators : TABLE.functions
+  const declared = own(section, node.name) ? section[node.name].yields : 'num'
+  if (declared !== 'passthrough') return declared === 'bool' ? 'bool' : 'num'
+  const arms = (node.args || []).slice(1)
+  return arms.length > 0 && arms.every((a) => oracleYields(a) === 'bool') ? 'bool' : 'num'
+}
+
+/** Which operators drop the `!= 0` scaffolding, off the module's own second
+ *  phrase table — the SET is the module's (it is a vocabulary, like
+ *  `OPERATOR_SENTENCE`), the CHOICE is what `oracleYields` re-derives above. */
+const hasConditionsForm = (name) => own(OPERATOR_SENTENCE_CONDITIONS, name)
+
 /** The rule sequence a correct walker MUST emit for a tree — re-derived here from
  *  the tree and the manifest, never read back out of `explainSentence`. */
 function predictTrace(node, at = '$') {
@@ -285,7 +336,10 @@ function predictTrace(node, at = '$') {
     return [{ path: at, rule: own(TABLE.series, node.name) ? 'series:table' : 'series:input' }]
   }
   if (node.type === 'op') {
-    const out = [{ path: at, rule: `op:${node.name}` }]
+    const smoothed = hasConditionsForm(node.name)
+      && node.args.length > 0
+      && node.args.every((a) => oracleYields(a) === 'bool')
+    const out = [{ path: at, rule: smoothed ? `op:${node.name}:conditions` : `op:${node.name}` }]
     node.args.forEach((a, i) => out.push(...predictTrace(a, `${at}.args[${i}]`)))
     return out
   }
@@ -374,6 +428,20 @@ describe('the read-back is generated from the tree, and never written by a model
       'high when (1 when close is greater than open and 0 otherwise) is not zero,'
       + ' low when it is zero, and nothing while it is unknown')
     expect(sentenceFor(ast('sma(close, 20)'), {})).toBe('the 20-bar average of close')
+    // 🔴 …AND THEY STAY PINNED NOW THAT THE LOGICAL CHROME CONSULTS `yields`.
+    // `close`, `volume` and `open` are bar fields: the manifest declares no
+    // `yields` for a series because a price is a NUMBER, so every reading above
+    // is the coercion actually happening and every byte of it must survive.
+    // `!` and `?:` are DECLINED (see `CONDITIONS_FORM_DECLINED`), so their
+    // readings do not move even when every operand IS a condition:
+    expect(sentenceFor(ast('!(close > open)'), {})).toBe(
+      '1 when (1 when close is greater than open and 0 otherwise) is zero,'
+      + ' 0 when it is not zero, and nothing while it is unknown')
+    expect(sentenceFor(ast('(close > open) ? (high > low) : (low > high)'), {})).toBe(
+      '(1 when high is greater than low and 0 otherwise) when'
+      + ' (1 when close is greater than open and 0 otherwise) is not zero,'
+      + ' (1 when low is greater than high and 0 otherwise) when it is zero,'
+      + ' and nothing while it is unknown')
     expect(sentenceFor(ast('crossOver(ema(close, 9), ema(close, 21))'), {})).toBe(
       '(the 9-bar exponential average of close) crossing above'
       + ' (the 21-bar exponential average of close)')
@@ -1008,6 +1076,400 @@ describe('the coverage rail is the WALKER\'s answer in ALL FOUR sections', () =>
   })
 })
 
+// =========================================================================== //
+// THE LOGICAL CHROME CONSULTS `yields` — the 0/1 REPRESENTATION STOPS LEAKING
+// =========================================================================== //
+//
+// ⭐⭐ THE DEFECT, STATED ONCE. `closedTable._booleans` says a condition is a 0/1
+// column because the table's only literal is a number — an implementation detail
+// of the REPRESENTATION — and `&&` therefore coerces both operands with `!= 0`.
+// The read-back said so out loud: *"…and whether the recent bars are tightly
+// consolidated are both not zero"*. Every one of the six `bool` phrases is
+// CORRECT and reads perfectly alone; what was wrong was the chrome, which
+// explained the representation to somebody who asked about the maths.
+//
+// ⛔ AND THE FIX IS NOT A LIST. Which combinations drop the scaffolding is
+// derived from the manifest's `yields` key at every operand, so a fifty-fifth
+// scalar is covered the day it declares one and no concept and no scalar is
+// named anywhere in the mechanism. The cases below are therefore SWEEPS over
+// `Object.keys` of each section, with the offenders built into the message.
+
+/** The scalars declaring one `yields`, sorted — derived, never a name list. */
+const scalarsYielding = (kind) => Object.keys(TABLE.scalars)
+  .filter((n) => TABLE.scalars[n].yields === kind).sort()
+
+/** A declared `bool` scalar to conjoin things with. Picked BY DECLARATION so
+ *  this file names no scalar, and so a manifest that retires this one keeps
+ *  working while a manifest with no `bool` scalar at all goes red on the floor
+ *  asserted in the first case. */
+const BOOL_PARTNER = scalarsYielding('bool')[0]
+
+/** Fill a declared phrase's slots. ⚠️ THE EXPECTATION IS DERIVED FROM THE PHRASE
+ *  TABLES, NOT RETYPED. Restating chrome the source owns is this repo's most
+ *  repeated defect; the BYTES of these phrases are pinned once, in the Phase D
+ *  case above and in the oracle's hand-typed `FORMS`. What these cases measure is
+ *  WHICH of the two declared phrases the chrome chose. */
+const say = (phrase, parts) => phrase.replace(/\{(\d+)\}/g, (_m, d) => parts[Number(d)])
+
+describe('the logical chrome drops `!= 0` when every operand already yields bool', () => {
+  it('🔴 THE WORKED EXAMPLE, BYTE FOR BYTE — the sentence the brief handed over', () => {
+    // The `bool` scalar inside the logical chrome, before and after, spelled out
+    // once. The CLAIM is the derived sweep below; this is the reported defect.
+    expect(sentenceFor(ast('rs_rank >= 80 && tight_consolidation'), {})).toBe(
+      '(1 when the relative-strength rank is greater than or equal to 80 and 0 otherwise)'
+      + ' and whether the recent bars are tightly consolidated')
+    expect(sentenceFor(ast('above_50sma && tight_consolidation'), {})).toBe(
+      'whether the price is above its 50-day average'
+      + ' and whether the recent bars are tightly consolidated')
+  })
+
+  it('🔴 THE CONTROL: a `num` operand STILL reads `!= 0` — byte for byte', () => {
+    // ⛔ THIS IS THE CASE THAT PROVES THE CHROME WAS NARROWED RATHER THAN
+    // DELETED. A number standing in for a condition really is coerced, and a
+    // member reading "close and volume" would be reading a semantics this engine
+    // does not have (`1 && 2` is 1, not 2). One `num` operand anywhere — even
+    // beside a `bool` one — and every byte of the scaffolding stays.
+    expect(sentenceFor(ast('close && volume'), {})).toBe(
+      '1 when close and volume are both not zero, 0 when either is zero,'
+      + ' and nothing while either is unknown')
+    expect(sentenceFor(ast('above_50sma && close'), {})).toBe(
+      '1 when whether the price is above its 50-day average and close are both not zero,'
+      + ' 0 when either is zero, and nothing while either is unknown')
+    expect(sentenceFor(ast('close && above_50sma'), {})).toBe(
+      '1 when close and whether the price is above its 50-day average are both not zero,'
+      + ' 0 when either is zero, and nothing while either is unknown')
+    expect(sentenceFor(ast('market_cap && above_50sma'), {})).toBe(
+      '1 when the market capitalisation and whether the price is above its 50-day average'
+      + ' are both not zero, 0 when either is zero, and nothing while either is unknown')
+  })
+
+  it('⭐ ALL 54 SCALARS, DERIVED — the bool ones smooth, the num ones do not', () => {
+    // ⭐ THE GENERALISATION. Every declared scalar is conjoined with a declared
+    // `bool` scalar and the reading is decided by ITS OWN `yields`. A
+    // fifty-fifth scalar is covered the day it is declared, with no edit here.
+    const partnerSaid = TABLE.scalars[BOOL_PARTNER].sentence
+    const leaked = []
+    const stripped = []
+    for (const name of Object.keys(TABLE.scalars).sort()) {
+      const said = sentenceFor(ast(`${name} && ${BOOL_PARTNER}`), {})
+      const parts = [TABLE.scalars[name].sentence, partnerSaid]
+      const bool = TABLE.scalars[name].yields === 'bool'
+      const want = say(bool ? OPERATOR_SENTENCE_CONDITIONS['&&'] : OPERATOR_SENTENCE['&&'], parts)
+      if (said === want) continue
+      ;(bool ? leaked : stripped).push(`${name}: ${said}`)
+    }
+    expect(leaked,
+      named('these `bool` scalars still explain the 0/1 representation', leaked)).toEqual([])
+    expect(stripped,
+      named('these `num` scalars lost the coercion that really happens', stripped)).toEqual([])
+
+    // ⚠️ NON-VACUITY, BOTH HALVES — neither branch may be empty, and the two
+    // must be the WHOLE section, so a third `yields` cannot slip past unjudged.
+    expect(scalarsYielding('bool').length, 'no bool scalar: the fix half is vacuous')
+      .toBeGreaterThanOrEqual(6)
+    expect(scalarsYielding('num').length, 'no num scalar: the control half is vacuous')
+      .toBeGreaterThanOrEqual(48)
+    expect(scalarsYielding('bool').length + scalarsYielding('num').length)
+      .toBe(Object.keys(TABLE.scalars).length)
+  })
+
+  it('…and every OPERATOR and FUNCTION too, through every declared conditions form', () => {
+    // ⭐ THE OTHER THREE SECTIONS, the same way: a comparison declares
+    // `yields: "bool"` and smooths; `+` declares `num` and does not; `crossOver`
+    // smooths and `sma` does not — none of which is written down here.
+    const partnerSaid = TABLE.scalars[BOOL_PARTNER].sentence
+    const wrong = []
+    let smoothed = 0
+    let kept = 0
+    for (const op of Object.keys(OPERATOR_SENTENCE_CONDITIONS).sort()) {
+      expect(TABLE.operators[op].arity, `${op} is not binary`).toBe(2)
+      for (const { entry, ast: tree } of treesForTheWholeTable(TABLE)) {
+        if (entry.startsWith('series:')) continue
+        const outer = { type: 'op', name: op, args: [tree, { type: 'series', name: BOOL_PARTNER }] }
+        const bool = oracleYields(tree) === 'bool'
+        const parts = [`(${sentenceFor(tree, {})})`, partnerSaid]
+        const want = say(bool ? OPERATOR_SENTENCE_CONDITIONS[op] : OPERATOR_SENTENCE[op], parts)
+        const said = sentenceFor(outer, {})
+        if (said !== want) wrong.push(`${op} over ${entry} (${bool ? 'bool' : 'num'}): ${said}`)
+        else if (bool) smoothed += 1
+        else kept += 1
+      }
+    }
+    expect(wrong, named('these entries were read with the wrong form', wrong)).toEqual([])
+    // ⚠️ AND BOTH ANSWERS HAPPENED. A sweep where every subject took one branch
+    // proves nothing about the other.
+    expect(smoothed, 'nothing smoothed — the sweep only exercised the control').toBeGreaterThan(0)
+    expect(kept, 'nothing kept the scaffolding — the sweep only exercised the fix')
+      .toBeGreaterThan(0)
+  })
+
+  it('⭐ the two phrase tables PARTITION the chrome that talks about zero', () => {
+    // ⛔ THE `_scalars_excluded` IDIOM, APPLIED TO THE CHROME. A declared list on
+    // its own is a list of what somebody remembered; with the identity, a
+    // SIXTEENTH operator that reads its operands as conditions lands RED until
+    // somebody DECIDES about it. The evidence side is the BASE phrases — the only
+    // phrases in this module that mention zero are the four logical ones — and
+    // the subject side is the two tables, so nothing here is circular.
+    const undecided = (phrases, forms, declined) => Object.keys(phrases)
+      .filter((n) => /\bzero\b/.test(phrases[n]) && !own(forms, n) && !own(declined, n)).sort()
+
+    const saysZero = Object.keys(OPERATOR_SENTENCE)
+      .filter((n) => /\bzero\b/.test(OPERATOR_SENTENCE[n])).sort()
+    expect(saysZero, 'the chrome that reads an operand as a condition has moved')
+      .toEqual(['!', '&&', '?:', '||'])
+
+    expect(undecided(OPERATOR_SENTENCE, OPERATOR_SENTENCE_CONDITIONS,
+      CONDITIONS_FORM_DECLINED)).toEqual([])
+    expect([...Object.keys(OPERATOR_SENTENCE_CONDITIONS),
+      ...Object.keys(CONDITIONS_FORM_DECLINED)].sort()).toEqual(saysZero)
+    expect(Object.keys(OPERATOR_SENTENCE_CONDITIONS)
+      .filter((n) => own(CONDITIONS_FORM_DECLINED, n)),
+    'an operator is in BOTH halves of the partition').toEqual([])
+    for (const n of [...Object.keys(OPERATOR_SENTENCE_CONDITIONS),
+      ...Object.keys(CONDITIONS_FORM_DECLINED)]) {
+      expect(Object.keys(TABLE.operators), `${n} is not a declared operator`).toContain(n)
+    }
+    // …and a DECLINED entry states WHY, in prose long enough to be a reason.
+    for (const [n, why] of Object.entries(CONDITIONS_FORM_DECLINED)) {
+      expect(typeof why, n).toBe('string')
+      expect(why.length, `${n} declines without stating a reason`).toBeGreaterThan(60)
+    }
+  })
+
+  it('…and the partition rail can FAIL — a sixteenth logical operator is NAMED', () => {
+    // ⛔ WITHOUT THIS, "the partition holds" is satisfied by a predicate that
+    // finds nothing. The plant's phrase reads its operands against zero and it is
+    // in neither half, which is exactly the decision nobody made.
+    const undecided = (phrases, forms, declined) => Object.keys(phrases)
+      .filter((n) => /\bzero\b/.test(phrases[n]) && !own(forms, n) && !own(declined, n)).sort()
+    const planted = { ...OPERATOR_SENTENCE, xor: '1 when exactly one of {0} and {1} is not zero' }
+    expect(undecided(planted, OPERATOR_SENTENCE_CONDITIONS, CONDITIONS_FORM_DECLINED))
+      .toEqual(['xor'])
+    // …and the same plant DECIDED, either way, is clean.
+    expect(undecided(planted, { ...OPERATOR_SENTENCE_CONDITIONS, xor: '{0} or {1} but not both' },
+      CONDITIONS_FORM_DECLINED)).toEqual([])
+    expect(undecided(planted, OPERATOR_SENTENCE_CONDITIONS,
+      { ...CONDITIONS_FORM_DECLINED, xor: 'because' })).toEqual([])
+  })
+
+  it('🔴 the conditions form is READ OFF THE TABLE — a planted one for `!` is used', () => {
+    // ⭐⭐ THE ANTI-HARD-WIRING PROOF. `&&` and `||` are the two the module ships
+    // a join for; if the mechanism were wired to those two names, planting a
+    // phrase for a DECLINED operator would change nothing. It changes the
+    // sentence, and only for the trees whose operands are all conditions.
+    const phrases = { ...OPERATOR_SENTENCE_CONDITIONS, '!': 'not {0}' }
+    const rules = compileRules(TABLE, OPERATOR_SENTENCE, phrases)
+    expect(coverageGaps(TABLE, OPERATOR_SENTENCE, phrases).operators).toEqual([])
+    expect(explainSentence(ast('!(close > open)'), {}, rules).text)
+      .toBe('not (1 when close is greater than open and 0 otherwise)')
+    expect(explainSentence(ast('!(close > open)'), {}, rules).trace[0])
+      .toEqual({ path: '$', rule: 'op:!:conditions' })
+    // …and the CONTROL: a `num` operand still takes the base phrase, so the
+    // plant bought a second reading rather than replacing the first.
+    expect(explainSentence(ast('!close'), {}, rules).text).toBe(
+      '1 when close is zero, 0 when it is not zero, and nothing while it is unknown')
+    // …and the shipped table really does NOT carry it, so the case is about the
+    // plant and not about `!` having smoothed all along.
+    expect(own(OPERATOR_SENTENCE_CONDITIONS, '!')).toBe(false)
+  })
+
+  it('🔴 a BROKEN conditions phrase is a NAMED gap — found by the PROBE, not the declaration', () => {
+    // ⭐⭐ THE PROBE-vs-DECLARATION PROOF FOR THE SECOND PHRASE. The base phrase
+    // is untouched and perfect, so the operator's `gap` is null and every
+    // declaration-derived rail calls it COVERED. The walker refuses the tree
+    // whose operands are all conditions, so the probe — which renders BOTH of an
+    // operator's phrases — names it.
+    const broken = { ...OPERATOR_SENTENCE_CONDITIONS, '&&': '{0} and {1} over {9}' }
+    const gaps = coverageGaps(TABLE, OPERATOR_SENTENCE, broken)
+    expect(gaps.operators, named('the operators row', gaps.operators)).toEqual(['&&'])
+    expect(gaps.placeholders).toEqual(['&&: says nothing for argument(s) [] and invents [9]'])
+
+    const rules = compileRules(TABLE, OPERATOR_SENTENCE, broken)
+    // ⛔ AND NO QUIET FALLBACK: the tree that would have used the broken phrase
+    // REFUSES rather than degrading to the phrase nobody asked for…
+    let caught = null
+    try { explainSentence(ast('close > open && high > low'), {}, rules) } catch (e) { caught = e }
+    expect(caught).toBeInstanceOf(SentenceRefusal)
+    expect(caught.guard).toBe('sentence:placeholder')
+    // …while the tree that never needed it is untouched.
+    expect(explainSentence(ast('close && volume'), {}, rules).text).toBe(
+      '1 when close and volume are both not zero, 0 when either is zero,'
+      + ' and nothing while either is unknown')
+  })
+
+  it('…and a BLANK conditions phrase is a gap too, not an absent one', () => {
+    const blank = { ...OPERATOR_SENTENCE_CONDITIONS, '||': '' }
+    expect(coverageGaps(TABLE, OPERATOR_SENTENCE, blank).operators).toEqual(['||'])
+    expect(coverageGaps(TABLE, OPERATOR_SENTENCE, blank).placeholders)
+      .toEqual(['||: says nothing for argument(s) [0, 1] and invents []'])
+  })
+
+  it('the TRACE says which form spoke, and a `num` operand moves it back', () => {
+    // ⭐ ATTRIBUTION, NOT ONLY OUTPUT. "The sentence is correct" is satisfiable
+    // by the wrong branch agreeing today.
+    expect(explainSentence(ast('above_50sma && nr7'), {}).trace[0])
+      .toEqual({ path: '$', rule: 'op:&&:conditions' })
+    expect(explainSentence(ast('above_50sma && close'), {}).trace[0])
+      .toEqual({ path: '$', rule: 'op:&&' })
+    expect(explainSentence(ast('above_50sma || nr7'), {}).trace[0])
+      .toEqual({ path: '$', rule: 'op:||:conditions' })
+  })
+
+  it('a fifty-fifth scalar is covered BY ITS DECLARATION — planted, both ways', () => {
+    // ⛔ THE ANTI-HAND-LIST PROOF. The plant did not exist when this file was
+    // written; its `yields` alone decides how the chrome joins it.
+    const base = {
+      source: { store: 'screener_rows', column: 'zzz_planted_scalar' },
+      as_of: { column: 'bars_asof', grain: 'date' },
+      cadence: 'nightly',
+      sentence: 'whether the planted probe is wide',
+    }
+    const partnerSaid = TABLE.scalars[BOOL_PARTNER].sentence
+    const tree = {
+      type: 'op',
+      name: '&&',
+      args: [{ type: 'series', name: 'zzz_planted_scalar' },
+        { type: 'series', name: BOOL_PARTNER }],
+    }
+
+    const asBool = clone(TABLE)
+    asBool.scalars.zzz_planted_scalar = { ...base, yields: 'bool' }
+    expect(explainSentence(tree, {}, compileRules(asBool, OPERATOR_SENTENCE)).text)
+      .toBe(`whether the planted probe is wide and ${partnerSaid}`)
+
+    const asNum = clone(TABLE)
+    asNum.scalars.zzz_planted_scalar = { ...base, yields: 'num' }
+    expect(explainSentence(tree, {}, compileRules(asNum, OPERATOR_SENTENCE)).text)
+      .toBe(say(OPERATOR_SENTENCE['&&'], ['whether the planted probe is wide', partnerSaid]))
+
+    // …and a scalar declaring NO `yields` fails closed to the coercion.
+    const undeclared = clone(TABLE)
+    undeclared.scalars.zzz_planted_scalar = { ...base }
+    expect(explainSentence(tree, {}, compileRules(undeclared, OPERATOR_SENTENCE)).text)
+      .toBe(say(OPERATOR_SENTENCE['&&'], ['whether the planted probe is wide', partnerSaid]))
+  })
+
+  it('the joined words are still the MANIFEST\'S — reword a scalar and the join follows', () => {
+    // ⛔ THE ANTI-SECOND-VOCABULARY PROOF FOR THE SMOOTHED FORM. This module
+    // contributes ONE word to the sentence; everything either side of it is the
+    // manifest's own phrase, so rewording the manifest must move the join.
+    const NONSENSE = 'the wibbly frobnication of a planted gribble'
+    const table = clone(TABLE)
+    table.scalars[BOOL_PARTNER].sentence = NONSENSE
+    const rules = compileRules(table, OPERATOR_SENTENCE)
+    const tree = {
+      type: 'op',
+      name: '&&',
+      args: [{ type: 'series', name: BOOL_PARTNER }, { type: 'series', name: BOOL_PARTNER }],
+    }
+    expect(explainSentence(tree, {}, rules).text).toBe(`${NONSENSE} and ${NONSENSE}`)
+  })
+
+  it('`yieldsOf` answers off the manifest — including the ternary\'s ARMS', () => {
+    // ⚠️ THE HAND-WRITTEN EXPECTATIONS ARE THE POINT. Every answer below is
+    // typed, so a `yieldsOf` rewritten to agree with itself cannot satisfy them.
+    const cases = [
+      [{ type: 'num', value: 0 }, 'bool'],
+      [{ type: 'num', value: 1 }, 'bool'],
+      [{ type: 'num', value: 2 }, 'num'],
+      [{ type: 'num', value: 0.5 }, 'num'],
+      [{ type: 'series', name: 'close' }, 'num'],           // a bar field is a price
+      [{ type: 'series', name: 'threshold' }, 'num'],       // an input declares nothing
+      [{ type: 'series', name: 'above_50sma' }, 'bool'],
+      [{ type: 'series', name: 'market_cap' }, 'num'],
+      [ast('close > open'), 'bool'],
+      [ast('close + open'), 'num'],
+      [ast('crossOver(close, open)'), 'bool'],
+      [ast('sma(close, 20)'), 'num'],
+      // ⭐ THE ARMS, AND ONLY THE ARMS. The selector's kind is not the answer…
+      [ast('close ? 1 : 0'), 'bool'],
+      // …and it is EVERY arm, not either: a branch that hands back a price is a
+      // number even when the other branch is a flag.
+      [ast('close > open ? 1 : close'), 'num'],
+      [ast('close > open ? high : low'), 'num'],
+      [{ type: 'lambda', name: 'x' }, 'num'],               // outside the four: fail closed
+      [null, 'num'],
+    ]
+    const wrong = []
+    for (const [node, want] of cases) {
+      const got = yieldsOf(node, SENTENCE_RULES)
+      if (got !== want) wrong.push(`${JSON.stringify(node)} → ${got}, wanted ${want}`)
+    }
+    expect(wrong, named('these trees were classified wrongly', wrong)).toEqual([])
+  })
+
+  it('…and every declared entry\'s `yields` reaches the compiled row, derived', () => {
+    // ⛔ A ROW THAT LOST ITS `yields` FAILS CLOSED TO `num`, which reads as "the
+    // chrome quietly stopped smoothing". Derived over all four sections so a new
+    // entry is covered.
+    const missing = []
+    for (const section of ['scalars', 'operators', 'functions']) {
+      for (const name of Object.keys(TABLE[section])) {
+        const declared = TABLE[section][name].yields
+        const compiled = SENTENCE_RULES[section][name].yields
+        if (declared !== compiled) missing.push(`${section}.${name}: ${compiled} != ${declared}`)
+      }
+    }
+    expect(missing, named('these rows lost their declared `yields`', missing)).toEqual([])
+    expect(SENTENCE_RULES.operators['?:'].yields).toBe('passthrough')
+  })
+
+  it('🔴 the probe\'s TWO arguments are classified differently — by AST, off the source', () => {
+    // ⛔ OTHERWISE THE SECOND PROBE IS THE SAME TREE TWICE. `probeTrees` renders
+    // an operator's base phrase with `PROBE_ARG` and its conditions phrase with
+    // `PROBE_CONDITION_ARG`; if both literals were conditions — which `1` is —
+    // the base phrase would never be rendered by the rail at all, silently. The
+    // two values are READ OFF `sentence.js`'s own AST rather than typed here, and
+    // the judge is `yieldsOf` itself, so the claim is exactly the one that
+    // matters: the probe covers both branches of the chrome.
+    return import('acorn').then((acorn) => {
+      const src = readSource('sentence.js')
+      const tree = acorn.parse(src, { ecmaVersion: 2023, sourceType: 'module' })
+      const found = {}
+      const walk = (n) => {
+        if (!n || typeof n !== 'object') return
+        if (Array.isArray(n)) { n.forEach(walk); return }
+        if (n.type === 'VariableDeclarator' && n.id
+          && (n.id.name === 'PROBE_ARG' || n.id.name === 'PROBE_CONDITION_ARG')) {
+          // Object.freeze({ type: 'num', value: <literal> })
+          const obj = n.init && n.init.arguments && n.init.arguments[0]
+          const prop = obj && obj.properties
+            && obj.properties.find((p) => p.key && p.key.name === 'value')
+          found[n.id.name] = prop && prop.value && prop.value.value
+        }
+        for (const k of Object.keys(n)) {
+          if (k === 'type' || k === 'start' || k === 'end' || k === 'loc') continue
+          walk(n[k])
+        }
+      }
+      walk(tree)
+      expect(Object.keys(found).sort(), 'the probe no longer declares two arguments')
+        .toEqual(['PROBE_ARG', 'PROBE_CONDITION_ARG'])
+      expect(typeof found.PROBE_ARG).toBe('number')
+      expect(typeof found.PROBE_CONDITION_ARG).toBe('number')
+      expect(yieldsOf({ type: 'num', value: found.PROBE_ARG }, SENTENCE_RULES),
+        `PROBE_ARG is ${found.PROBE_ARG}, which the chrome reads as a CONDITION — `
+        + 'the base phrase is never rendered by the coverage probe').toBe('num')
+      expect(yieldsOf({ type: 'num', value: found.PROBE_CONDITION_ARG }, SENTENCE_RULES),
+        `PROBE_CONDITION_ARG is ${found.PROBE_CONDITION_ARG}, which is not a condition — `
+        + 'the conditions phrase is never rendered by the coverage probe').toBe('bool')
+      // …and `PROBE_ARG` must still be a legal `int` window, or every windowed
+      // function's probe would refuse for the wrong reason.
+      expect(Number.isInteger(found.PROBE_ARG) && found.PROBE_ARG >= 1).toBe(true)
+    })
+  })
+
+  it('the manifest\'s KEY ORDER cannot reach the CHOICE either', () => {
+    const scrambled = compileRules(reverseKeys(clone(TABLE)),
+      reverseKeys(clone(OPERATOR_SENTENCE)), reverseKeys(clone(OPERATOR_SENTENCE_CONDITIONS)))
+    for (const c of CORPUS.cases) {
+      expect(explainSentence(c.ast, {}, scrambled).text, c.id).toBe(sentenceFor(c.ast, {}))
+    }
+    expect(explainSentence(ast('above_50sma && nr7'), {}, scrambled).text)
+      .toBe(sentenceFor(ast('above_50sma && nr7'), {}))
+  })
+})
+
 describe('🔴 the deliverable: `market_cap > 1e9` parses, lints, READS BACK — and is saveable', () => {
   const SOURCE = 'market_cap > 1e9'
   const SAID = '1 when the market capitalisation is greater than 1000000000 and 0 otherwise'
@@ -1047,13 +1509,16 @@ describe('🔴 the deliverable: `market_cap > 1e9` parses, lints, READS BACK —
   })
 
   it('…and a scalar COMPOSES with a bar series in one sentence, and that saves too', () => {
+    // ⚠️ THIS READING MOVED, DELIBERATELY, and it is the defect rather than a
+    // casualty of it: BOTH operands are comparisons, which the manifest declares
+    // `yields: "bool"`, so the outer `&& … are both not zero` was explaining the
+    // 0/1 representation to a member who asked about the maths.
     const source = 'market_cap > 1e9 && close > sma(close, 50)'
     const parsed = parseFormula(source)
     expect(parsed.ok, String(parsed.error)).toBe(true)
     expect(sentenceFor(parsed.ast, {})).toBe(
-      '1 when (1 when the market capitalisation is greater than 1000000000 and 0 otherwise)'
-      + ' and (1 when close is greater than (the 50-bar average of close) and 0 otherwise)'
-      + ' are both not zero, 0 when either is zero, and nothing while either is unknown')
+      '(1 when the market capitalisation is greater than 1000000000 and 0 otherwise)'
+      + ' and (1 when close is greater than (the 50-bar average of close) and 0 otherwise)')
     expect(canSaveFormula(evaluateFormula(source, BUILDER_INPUT_SCOPE))).toBe(true)
   })
 
@@ -1071,11 +1536,9 @@ describe('🔴 the deliverable: `market_cap > 1e9` parses, lints, READS BACK —
     expect(said).toContain(TABLE.scalars.rs_rank.sentence)
     expect(said).toContain(TABLE.scalars.adr_pct.sentence)
     expect(said).toBe(
-      '1 when (1 when (1 when the relative-strength rank is greater than 80 and 0 otherwise)'
-      + ' and (1 when the average daily range percentage is greater than 4 and 0 otherwise)'
-      + ' are both not zero, 0 when either is zero, and nothing while either is unknown)'
-      + ' and (1 when close is greater than (the 50-bar average of close) and 0 otherwise)'
-      + ' are both not zero, 0 when either is zero, and nothing while either is unknown')
+      '((1 when the relative-strength rank is greater than 80 and 0 otherwise)'
+      + ' and (1 when the average daily range percentage is greater than 4 and 0 otherwise))'
+      + ' and (1 when close is greater than (the 50-bar average of close) and 0 otherwise)')
 
     const result = evaluateFormula(source, BUILDER_INPUT_SCOPE)
     expect(result.guard, String(result.error)).toBe(null)

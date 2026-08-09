@@ -58,6 +58,27 @@
 // what the binder actually draws (whitespace). A construct that cannot be said
 // honestly in one clause is said in three rather than smoothed into one.
 //
+// ⭐⭐ …EXCEPT THAT `!= 0` ON AN OPERAND THAT IS ALREADY A CONDITION SAYS
+// NOTHING, AND THAT IS WHY THE CHROME CONSULTS `yields`. The paragraph above is
+// about a NUMBER standing in for a condition: `close && volume` really does mean
+// "1 when close and volume are BOTH NOT ZERO", the coercion is real, and a member
+// reading "close and volume" would be reading a semantics the engine does not
+// have. But `_booleans` says a condition is a 0/1 column because the table has no
+// boolean type — an implementation detail of the REPRESENTATION — and when every
+// operand already declares `yields: "bool"` the coercion is vacuous. The read-back
+// then said *"…and whether the recent bars are tightly consolidated are both not
+// zero"*, which explains the representation to somebody who asked about the maths.
+//
+// So a logical form may declare a SECOND phrase in `OPERATOR_SENTENCE_CONDITIONS`,
+// used only when EVERY operand of the node yields `bool` — which is derived from
+// the manifest's own `yields` key by `yieldsOf`, never from a list of names. A
+// `num` operand, or a MIXED pair, keeps the scaffolding, because there the
+// coercion is the thing that happens. ⛔ THE SECOND PHRASE IS A JOIN AND NOTHING
+// MORE: it re-uses the operand phrases the manifest declared and adds one word.
+// The two forms are a PARTITION over the operators whose base phrase talks about
+// zero (see `CONDITIONS_FORM_DECLINED`), so a sixteenth operator that reads its
+// operands as conditions cannot arrive without somebody deciding about it.
+//
 // ⚠️ NO CLOCK, NO LOCALE, NO `Intl`, NO RANDOMNESS, NO NETWORK, NO REGISTRY.
 // The sentence is compared against a committed string in a test and rendered
 // into a stored definition, so a locale-sensitive number format would make it
@@ -178,6 +199,118 @@ export const OPERATOR_SENTENCE = Object.freeze({
   '?:': '{1} when {0} is not zero, {2} when it is zero, and nothing while it is unknown',
 })
 
+/** operator name → its English WHEN EVERY OPERAND IS ALREADY A CONDITION.
+ *
+ *  ⭐ A JOIN, NOT A SECOND VOCABULARY. Every word an operand contributes is still
+ *  the manifest's own `sentence`; this table adds the one word that joins them
+ *  and drops the `!= 0` the 0/1 representation needed. `sentence.test.js` proves
+ *  that by REWORDING a scalar in a cloned manifest and watching the joined
+ *  sentence follow.
+ *
+ *  ⛔ AND IT IS HALF OF A PARTITION, WHICH IS WHAT KEEPS IT HONEST. The other
+ *  half is `CONDITIONS_FORM_DECLINED`, and together they cover exactly the
+ *  operators whose BASE phrase talks about zero. An operator that reads its
+ *  operands as conditions and appears in neither is a DECISION nobody made, and
+ *  the rail says so by name. */
+export const OPERATOR_SENTENCE_CONDITIONS = Object.freeze({
+  '&&': '{0} and {1}',
+  '||': '{0} or {1}',
+})
+
+/** The operators that read their operands as conditions and STILL say `zero`,
+ *  each with the reason nobody wrote them a join.
+ *
+ *  ⚠️ THIS IS DATA SO THAT THE PARTITION CAN BE ASSERTED, exactly as
+ *  `closedTable._scalars_excluded` is. A reason typed here is a decision on the
+ *  record; a name simply missing from the table above is an omission nothing can
+ *  tell apart from a choice. */
+export const CONDITIONS_FORM_DECLINED = Object.freeze({
+  '!': 'a bool operand reads as a "whether …" clause, and "not whether the '
+    + 'recent bars are tightly consolidated" is not English. The negation of a '
+    + 'clause needs the CLAUSE reworded, which is the manifest owner\'s call and '
+    + 'not a join this module may make.',
+  '?:': 'its two branches are not conditions — `yields` calls it `passthrough` '
+    + 'precisely because they decide the answer — so there is no scaffolding to '
+    + 'drop on the side that carries the value. Smoothing only the selector would '
+    + 'read "high when whether the price is above its 50-day average", which is '
+    + 'worse than the scaffolding it replaced.',
+})
+
+// --------------------------------------------------------------------------- //
+// what a subtree's values CAN BE — the manifest's `yields`, resolved
+// --------------------------------------------------------------------------- //
+
+/** The three answers `yields` gives, and the direction it fails in.
+ *
+ *  ⛔ FAIL CLOSED TO `num`. `closedTable._yields` states the asymmetry and this
+ *  module obeys it for a second reason of its own: reading a NUMBER as a
+ *  condition would DELETE the `!= 0` from a sentence where the coercion really
+ *  happens, which is the defect this file is fixing, mirrored. */
+const NUM = 'num'
+const BOOL = 'bool'
+const PASSTHROUGH = 'passthrough'
+
+/** Collapse a declared kind onto the two a NODE can actually have. */
+const settle = (kind) => (kind === BOOL ? BOOL : NUM)
+
+/** What a tree's values can be, from the manifest's `yields` and nothing else.
+ *
+ *  ⚠️ THE PYTHON LANE ASKS THE SAME QUESTION IN
+ *  `api/services/scan_definition.py::is_boolean_tree`, off the same `yields`
+ *  key, and the two resolutions are written to agree:
+ *
+ *    num       `bool` iff the literal is 0 or 1 — the two values a 0/1 column
+ *              holds. That is what makes `(a > b) ? 1 : 0` a condition, the case
+ *              `_yields` names when it explains why `passthrough` exists.
+ *    series    the declared SCALAR's `yields`; a bar field declares none and is
+ *              a price, so it is a number, and so is a definition input.
+ *    op/call   the declared `yields`; `passthrough` is `bool` iff every ARM is.
+ *
+ *  ⭐ THE ARMS OF A `passthrough` ARE EVERY ARGUMENT AFTER THE FIRST, read off
+ *  the interpreter's `?:` shape (selector first, the two results after it) and
+ *  NOT "either arm" — which would call `(a > b) ? 1 : close` a condition, a tree
+ *  that hands back a price on one branch.
+ *
+ *  ⚠️ THE LOOKUP IS BY NODE TYPE, not a flat scan of three sections, because
+ *  this module already dispatches that way and a section list here would be a
+ *  list. The two lanes can only differ for a name declared in two sections at
+ *  once, and every such tree is REFUSED by the walker before its kind is used. */
+export function yieldsOf(node, rules) {
+  const r = rules || SENTENCE_RULES
+  if (!node || typeof node !== 'object' || Array.isArray(node)) return NUM
+  switch (node.type) {
+    case 'num':
+      return node.value === 0 || node.value === 1 ? BOOL : NUM
+    case 'series': {
+      const scalars = (r && r.scalars) || EMPTY
+      return own(scalars, node.name) ? settle(scalars[node.name].yields) : NUM
+    }
+    case 'op': {
+      const operators = (r && r.operators) || EMPTY
+      const declared = own(operators, node.name) ? operators[node.name].yields : NUM
+      if (declared !== PASSTHROUGH) return settle(declared)
+      const arms = Array.isArray(node.args) ? node.args.slice(1) : []
+      return arms.length > 0 && arms.every((a) => yieldsOf(a, r) === BOOL) ? BOOL : NUM
+    }
+    case 'call': {
+      const functions = (r && r.functions) || EMPTY
+      return own(functions, node.name) ? settle(functions[node.name].yields) : NUM
+    }
+    default:
+      // ⛔ A NODE TYPE OUTSIDE THE FOUR HAS NO DECLARED KIND, and the numeric
+      // answer is the fail-closed one. The walker refuses such a node by name a
+      // moment later, so this is a floor rather than a branch anything reaches.
+      return NUM
+  }
+}
+
+/** The `yields` a manifest entry declares, normalised. An entry that declares
+ *  nothing — or something outside the three — reads as `num`. */
+const declaredYields = (spec) => {
+  const value = spec && spec.yields
+  return value === BOOL || value === PASSTHROUGH ? value : NUM
+}
+
 // --------------------------------------------------------------------------- //
 // compiling the rules FROM the manifest
 // --------------------------------------------------------------------------- //
@@ -212,18 +345,27 @@ function placeholderGap(phrase, arity) {
  *  `close`, deleting `renderName`'s series branch would light up the FUNCTIONS
  *  row too, and each section's rail has to answer about its OWN section — a rail
  *  that names four sections when one broke is as useless as one that names none.
- *  `1` is also a legal `int` window (a whole number >= 1), so one constant serves
- *  every argument position the manifest is able to declare. */
-const PROBE_ARG = Object.freeze({ type: 'num', value: 1 })
+ *  `2` is also a legal `int` window (a whole number >= 1), so one constant serves
+ *  every argument position the manifest is able to declare.
+ *
+ *  ⚠️ AND IT IS `2` RATHER THAN `1` FOR A REASON THE CHROME GAVE IT: `yieldsOf`
+ *  calls the literals 0 and 1 CONDITIONS, so a probe built out of `1` would ask
+ *  every logical operator for its conditions form and never render the base
+ *  phrase at all. `2` is a number, so the base phrase is what this argument
+ *  probes — and the conditions form gets a probe of its own, below. */
+const PROBE_ARG = Object.freeze({ type: 'num', value: 2 })
+
+/** …and the argument that IS a condition: the literal a 0/1 column holds. */
+const PROBE_CONDITION_ARG = Object.freeze({ type: 'num', value: 1 })
 
 /** ⚠️ BOUNDED, BECAUSE `compileRules` NEVER THROWS. An arity a manifest declares
  *  as `Infinity`, a fraction or a negative would otherwise allocate forever.
  *  Anything outside the bound builds an EMPTY argument list, the walker refuses
  *  on the arity mismatch, and the entry is NAMED — a reported gap, never a hang. */
-function probeArgs(count) {
+function probeArgs(count, arg) {
   const n = Number.isInteger(count) && count >= 0 && count <= 16 ? count : 0
   const out = []
-  for (let i = 0; i < n; i++) out.push(PROBE_ARG)
+  for (let i = 0; i < n; i++) out.push(arg)
   return out
 }
 
@@ -235,7 +377,7 @@ function probeArgs(count) {
  *  the probe. Returning something plausible instead would make the new section's
  *  rail green on the day it lands — which is the exact defect this loop exists to
  *  end, reintroduced one level up. */
-function probeTree(section, name, rule) {
+function probeTree(section, name, rule, arg) {
   switch (section) {
     case 'series':
     case 'scalars':
@@ -244,12 +386,28 @@ function probeTree(section, name, rule) {
       // sections share a probe and still report separately.
       return { type: 'series', name }
     case 'operators':
-      return { type: 'op', name, args: probeArgs(rule.arity) }
+      return { type: 'op', name, args: probeArgs(rule.arity, arg) }
     case 'functions':
-      return { type: 'call', name, args: probeArgs(rule.args.length) }
+      return { type: 'call', name, args: probeArgs(rule.args.length, arg) }
     default:
       return null
   }
+}
+
+/** EVERY tree one declared entry has to be able to render.
+ *
+ *  ⭐ AN ENTRY WITH TWO PHRASES NEEDS TWO PROBES, or the rail covers whichever
+ *  one the probe's arguments happened to select. A logical operator that declares
+ *  a conditions form is rendered BOTH ways — once with numeric operands, once
+ *  with operands that are conditions — and either refusal names it. The second
+ *  probe is keyed off the ROW carrying a conditions phrase rather than off a
+ *  section name, so nothing here is a list. */
+function probeTrees(section, name, rule) {
+  const trees = [probeTree(section, name, rule, PROBE_ARG)]
+  if (rule && rule.conditionsPhrase !== undefined) {
+    trees.push(probeTree(section, name, rule, PROBE_CONDITION_ARG))
+  }
+  return trees
 }
 
 /** The manifest, compiled into the four lookup tables the walker uses.
@@ -270,7 +428,8 @@ function probeTree(section, name, rule) {
  *  ⭐ AND EVERY SECTION'S GAPS ARE PROBED, NOT DECLARED. See the comment at the
  *  probe — a rail that reads the same declaration the walker reads can only
  *  report the gaps the walker already knows how to have. */
-export function compileRules(table = TABLE, operatorPhrases = OPERATOR_SENTENCE) {
+export function compileRules(table = TABLE, operatorPhrases = OPERATOR_SENTENCE,
+  conditionPhrases = OPERATOR_SENTENCE_CONDITIONS) {
   const series = Object.create(null)
   const scalars = Object.create(null)
   const operators = Object.create(null)
@@ -304,7 +463,7 @@ export function compileRules(table = TABLE, operatorPhrases = OPERATOR_SENTENCE)
       const bad = placeholderGap(phrase, 0)
       if (bad) { gap = bad; gaps.placeholders.push(`${name}: ${bad}`) }
     }
-    scalars[name] = Object.freeze({ phrase, gap })
+    scalars[name] = Object.freeze({ phrase, gap, yields: declaredYields(spec) })
   }
 
   for (const name of sortedKeys(table.operators)) {
@@ -318,7 +477,28 @@ export function compileRules(table = TABLE, operatorPhrases = OPERATOR_SENTENCE)
       const bad = placeholderGap(phrase, arity)
       if (bad) { gap = bad; gaps.placeholders.push(`${name}: ${bad}`) }
     }
-    operators[name] = Object.freeze({ phrase, arity, gap })
+    // ⭐⭐ THE SECOND PHRASE IS CARRIED EVEN WHEN IT IS BROKEN, AND IT DOES NOT
+    // SET `gap`. Two reasons, and both are this file's own lessons:
+    //
+    //   * ⛔ NO QUIET FALLBACK. A malformed conditions phrase must not degrade to
+    //     the base form — that is a read-back silently answering a question it was
+    //     asked differently. It is carried, so `fill` REFUSES it by name the
+    //     moment the chrome selects it.
+    //   * ⛔ AND THE SECTION ROW IS THE PROBE'S ANSWER, NOT A SECOND READING.
+    //     Setting `gap` here would make the base tree refuse too, for a defect in
+    //     a phrase it never uses, AND it would make the conditions probe below
+    //     dead weight — a gate nothing can fail. Left alone, the operators row
+    //     names this operator ONLY because the walker refused its second tree.
+    let conditionsPhrase
+    if (own(conditionPhrases, name)) {
+      const declared = conditionPhrases[name]
+      conditionsPhrase = typeof declared === 'string' ? declared : ''
+      const bad = placeholderGap(conditionsPhrase, arity)
+      if (bad) gaps.placeholders.push(`${name}: ${bad}`)
+    }
+    operators[name] = Object.freeze({
+      phrase, arity, gap, conditionsPhrase, yields: declaredYields(spec),
+    })
   }
 
   for (const name of sortedKeys(table.functions)) {
@@ -332,7 +512,9 @@ export function compileRules(table = TABLE, operatorPhrases = OPERATOR_SENTENCE)
       const bad = placeholderGap(phrase, args.length)
       if (bad) { gap = bad; gaps.placeholders.push(`${name}: ${bad}`) }
     }
-    functions[name] = Object.freeze({ phrase, args: Object.freeze(args), gap })
+    functions[name] = Object.freeze({
+      phrase, args: Object.freeze(args), gap, yields: declaredYields(spec),
+    })
   }
 
   const compiled = {
@@ -374,12 +556,11 @@ export function compileRules(table = TABLE, operatorPhrases = OPERATOR_SENTENCE)
   for (const section of PROBED_SECTIONS) {
     if (!Array.isArray(gaps[section])) gaps[section] = []
     for (const name of sortedKeys(compiled[section])) {
-      try {
-        renderNode(probeTree(section, name, compiled[section][name]),
-          compiled, EMPTY, 0, '$', [])
-      } catch {
-        gaps[section].push(name)
+      let refused = false
+      for (const tree of probeTrees(section, name, compiled[section][name])) {
+        try { renderNode(tree, compiled, EMPTY, 0, '$', []) } catch { refused = true }
       }
+      if (refused) gaps[section].push(name)
     }
   }
 
@@ -410,8 +591,9 @@ export function compileRules(table = TABLE, operatorPhrases = OPERATOR_SENTENCE)
  *  argument, keyed `name: reason`, and it is consumed elsewhere. The four
  *  section rows report the same entries by name whenever the walker refuses
  *  them, so the probe covers that class too — `placeholders` adds the reason. */
-export function coverageGaps(table = TABLE, operatorPhrases = OPERATOR_SENTENCE) {
-  return compileRules(table, operatorPhrases).gaps
+export function coverageGaps(table = TABLE, operatorPhrases = OPERATOR_SENTENCE,
+  conditionPhrases = OPERATOR_SENTENCE_CONDITIONS) {
+  return compileRules(table, operatorPhrases, conditionPhrases).gaps
 }
 
 // --------------------------------------------------------------------------- //
@@ -548,10 +730,24 @@ function renderOp(node, rules, inputs, depth, path, trace) {
   if (node.args.length !== rule.arity) {
     refuse('sentence:arity', `at ${path}: ${name} takes ${rule.arity}, got ${node.args.length}`)
   }
-  trace.push({ path, rule: `op:${name}` })
+  // ⭐ THE ONE PLACE THE CHROME CONSULTS `yields`. Every operand already being a
+  // condition is what makes the `!= 0` scaffolding vacuous; one `num` operand
+  // anywhere and the coercion is real, so the base phrase stands. The question is
+  // asked of the OPERAND TREES, so it is the manifest's declaration answering and
+  // never a list of names — and a fifty-fifth scalar is covered the day it
+  // declares its `yields`.
+  //
+  // ⚠️ THE TRACE SAYS WHICH FORM SPOKE. "The sentence is correct" is satisfiable
+  // by the wrong branch agreeing today; "it was produced by `op:&&:conditions`,
+  // and a `num` operand moves it back to `op:&&`" is not.
+  const asConditions = rule.conditionsPhrase !== undefined
+    && node.args.length > 0
+    && node.args.every((arg) => yieldsOf(arg, rules) === BOOL)
+  trace.push({ path, rule: asConditions ? `op:${name}:conditions` : `op:${name}` })
   const parts = node.args.map((arg, i) =>
     renderArg(arg, rules, inputs, depth, `${path}.args[${i}]`, trace))
-  return fill(rule.phrase, parts, `operator ${name}`, path)
+  return fill(asConditions ? rule.conditionsPhrase : rule.phrase, parts,
+    `operator ${name}`, path)
 }
 
 function renderCall(node, rules, inputs, depth, path, trace) {
