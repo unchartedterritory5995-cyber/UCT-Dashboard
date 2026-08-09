@@ -13,6 +13,17 @@
 // never a hand-list, because a rail built on a list is a list, and DPC's four
 // constants rode outside one for a rule's entire life.
 //
+// ⭐ AND THE FOURTH SECTION IS READ THE SAME WAY. A table-declared SCALAR
+// (`market_cap`) rides the `series` node — there is no fifth node type — and is
+// said with the manifest's OWN `sentence`. This module authors not one word of
+// it: it does not prettify the phrase, and it does NOT fall back to the column
+// name when the declaration carries none, because `market_cap` is not English
+// and a read-back nobody can confirm is worse than a refusal. An entry with no
+// phrase is a NAMED gap (`sentence:no-template`), exactly like a function's.
+// The consult order is TABLE SERIES → TABLE SCALARS → DEFINITION INPUTS,
+// verbatim `lint.js::astReach`'s and `interpret`'s, so all three doors answer
+// the same name the same way.
+//
 // ⚠️ THE OPERATOR PHRASES LIVE HERE AND THAT IS NOT A SECOND VOCABULARY.
 // The manifest declares operators by NAME and ARITY only — it has no `sentence`
 // field for them — so the English has to live somewhere, and this file owns two
@@ -112,6 +123,10 @@ function refuse(guard, detail) {
  *  is how `toString` becomes a series in a text box. */
 const own = (obj, name) => Object.prototype.hasOwnProperty.call(obj, name)
 
+/** A prototype-less nothing, for a lookup table a caller did not supply. Frozen
+ *  so a probe can never write into the scope it was handed. */
+const EMPTY = Object.freeze(Object.create(null))
+
 /** ⚠️ SORTED, ALWAYS. See the header: this is one of the two set-valued outputs
  *  and the only reason the sentence surface is manifest-order independent. */
 const sortedKeys = (obj) => Object.keys(obj).sort()
@@ -188,17 +203,45 @@ function placeholderGap(phrase, arity) {
  *
  *  ⚠️ NEVER THROWS. The module has to load for the coverage rail to be able to
  *  report a gap; a `compileRules` that threw on a bad manifest would make the
- *  gap unmeasurable, which is the failure mode a coverage rail exists to end. */
+ *  gap unmeasurable, which is the failure mode a coverage rail exists to end.
+ *  The scalar PROBE at the end obeys the same rule: it catches, it never rises.
+ *
+ *  ⭐ AND THE SCALAR GAPS ARE PROBED, NOT DECLARED. See the comment at the
+ *  probe — a rail that reads the same declaration the walker reads can only
+ *  report the gaps the walker already knows how to have. */
 export function compileRules(table = TABLE, operatorPhrases = OPERATOR_SENTENCE) {
   const series = Object.create(null)
+  const scalars = Object.create(null)
   const operators = Object.create(null)
   const functions = Object.create(null)
-  const gaps = { series: [], operators: [], functions: [], placeholders: [] }
+  const gaps = { series: [], scalars: [], operators: [], functions: [], placeholders: [] }
 
   for (const name of sortedKeys(table.series)) {
     const gap = SAYABLE.test(name) ? null : 'unsayable'
     if (gap) gaps.series.push(name)
     series[name] = Object.freeze({ gap })
+  }
+
+  // ⭐ THE FOURTH SECTION, AND THE PHRASE IS THE MANIFEST'S. Unlike a series —
+  // which is SAID AS ITS OWN NAME, so an unsayable name is what breaks it — a
+  // scalar is said as its declared `sentence`, so the NAME never reaches the
+  // text and only the phrase can be missing.
+  //
+  // ⚠️ AND ITS ARITY IS ZERO, so `placeholderGap(phrase, 0)` is the same derived
+  // check the functions get: a `{0}` copied into a scalar's declaration
+  // references an argument that does not exist and is a gap, not a sentence.
+  const scalarTable = (table && table.scalars) || {}
+  for (const name of sortedKeys(scalarTable)) {
+    const spec = scalarTable[name]
+    const phrase = spec && spec.sentence
+    let gap = null
+    if (typeof phrase !== 'string' || phrase === '') {
+      gap = 'no-template'
+    } else {
+      const bad = placeholderGap(phrase, 0)
+      if (bad) { gap = bad; gaps.placeholders.push(`${name}: ${bad}`) }
+    }
+    scalars[name] = Object.freeze({ phrase, gap })
   }
 
   for (const name of sortedKeys(table.operators)) {
@@ -231,17 +274,41 @@ export function compileRules(table = TABLE, operatorPhrases = OPERATOR_SENTENCE)
     functions[name] = Object.freeze({ phrase, args: Object.freeze(args), gap })
   }
 
-  return Object.freeze({
+  const compiled = {
     series: Object.freeze(series),
+    scalars: Object.freeze(scalars),
     operators: Object.freeze(operators),
     functions: Object.freeze(functions),
-    gaps: Object.freeze({
-      series: Object.freeze(gaps.series),
-      operators: Object.freeze(gaps.operators),
-      functions: Object.freeze(gaps.functions),
-      placeholders: Object.freeze(gaps.placeholders),
-    }),
+  }
+
+  // ⭐⭐ THE SCALAR ROW OF THE COVERAGE RAIL IS MEASURED BY RENDERING, AND THAT
+  // IS THIS TASK'S WHOLE LESSON. The declaration-derived rail was PERMANENTLY
+  // GREEN for all fifty-four scalars: it iterated the three sections the walker
+  // already knew about, so the one class of unsayable name it could never report
+  // was "a whole section the walker has no branch for" — which is precisely what
+  // shipped, and a person found it instead of the gate. A rail that asks the
+  // WALKER cannot be blind that way: an entry is a gap when rendering its
+  // minimal tree REFUSES, whatever the reason, so deleting the consult below
+  // turns this list red with fifty-four names in it.
+  //
+  // ⚠️ ONE DERIVATION, NOT TWO. The gap is the runtime refusal itself rather
+  // than a second piece of bookkeeping that agrees with it today.
+  for (const name of sortedKeys(scalars)) {
+    try {
+      renderNode({ type: 'series', name }, compiled, EMPTY, 0, '$', [])
+    } catch {
+      gaps.scalars.push(name)
+    }
+  }
+
+  compiled.gaps = Object.freeze({
+    series: Object.freeze(gaps.series),
+    scalars: Object.freeze(gaps.scalars),
+    operators: Object.freeze(gaps.operators),
+    functions: Object.freeze(gaps.functions),
+    placeholders: Object.freeze(gaps.placeholders),
   })
+  return Object.freeze(compiled)
 }
 
 /** Every manifest entry this module has no English for, BY NAME.
@@ -249,7 +316,12 @@ export function compileRules(table = TABLE, operatorPhrases = OPERATOR_SENTENCE)
  *  ⚠️ A LIST, NEVER A COUNT. A count survives a rename — `(d.plots || [])`
  *  answered `[]` for a renamed field on this branch and silently voided an entire
  *  clause — and the whole point of this rail is that a NEW table entry is named
- *  in the failure message of the test that goes red. */
+ *  in the failure message of the test that goes red.
+ *
+ *  🔴 AND A LIST THAT CANNOT GO RED IS NOT A RAIL. `gaps.scalars` reported
+ *  nothing for all fifty-four scalars for as long as the section existed, not
+ *  because they were sayable but because nothing asked. It is now the walker's
+ *  own answer (see `compileRules`), so the section it covers cannot outrun it. */
 export function coverageGaps(table = TABLE, operatorPhrases = OPERATOR_SENTENCE) {
   return compileRules(table, operatorPhrases).gaps
 }
@@ -347,6 +419,19 @@ function renderName(node, rules, inputs, path, trace) {
     trace.push({ path, rule: 'series:table' })
     return name
   }
+  // ⭐ THE TABLE'S PER-SYMBOL SCALARS, CONSULTED SECOND AND BEFORE THE INPUTS —
+  // the same order, for the same reason, as the two lines above and as
+  // `lint.js::astReach`. The words are the manifest's: read, never written.
+  const scalarRules = (rules && rules.scalars) || EMPTY
+  if (own(scalarRules, name)) {
+    const rule = scalarRules[name]
+    // ⛔ NOT A FALLBACK TO THE COLUMN NAME. A scalar the table declares and
+    // nobody wrote English for is refused BY NAME, because `market_cap` in a
+    // sentence is a read-back the member cannot check the maths against.
+    if (rule.gap) refuseGap(rule.gap, 'scalar', name, path)
+    trace.push({ path, rule: 'series:scalar' })
+    return rule.phrase
+  }
   if (own(inputs, name)) {
     if (!SAYABLE.test(name)) {
       refuse('sentence:unsayable-name', `at ${path}: the input ${JSON.stringify(name)}`)
@@ -356,7 +441,8 @@ function renderName(node, rules, inputs, path, trace) {
   }
   refuse('sentence:name',
     `at ${path}: ${JSON.stringify(name)} — this table declares ${sortedKeys(rules.series).join(', ')}`
-    + ` and this definition declares ${sortedKeys(inputs).join(', ') || 'no inputs'}`)
+    + `, its scalars are ${sortedKeys(scalarRules).join(', ') || 'none'}`
+    + `, and this definition declares ${sortedKeys(inputs).join(', ') || 'no inputs'}`)
 }
 
 function renderOp(node, rules, inputs, depth, path, trace) {
