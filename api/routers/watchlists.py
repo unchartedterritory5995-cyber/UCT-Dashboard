@@ -166,10 +166,13 @@ def list_prebuilt(user: dict = Depends(get_current_user)):
     resolved from the committed prebuilt config."""
     rows = watchlist_service.list_prebuilt_watchlists()
     try:
-        from api.services.watchlist_prebuilt import category_map, _DEFAULT_CATEGORY
+        from api.services.watchlist_prebuilt import category_map, sample_map, _DEFAULT_CATEGORY
         cats = category_map()
+        samples = sample_map()
         for r in rows:
-            r["category"] = cats.get((r.get("name") or "").strip().lower(), _DEFAULT_CATEGORY)
+            key = (r.get("name") or "").strip().lower()
+            r["category"] = cats.get(key, _DEFAULT_CATEGORY)
+            r["sample"] = samples.get(key, [])
     except Exception:
         pass
     return rows

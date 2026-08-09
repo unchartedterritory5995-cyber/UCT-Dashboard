@@ -27,6 +27,21 @@ const TABS = [
   { key: 'mine', label: 'My Lists', icon: 'library' },
 ]
 
+// A distinctive UIcon glyph per prebuilt list (keyed by lowercased name) — the left anchor on
+// each row. Falls back to 'chart' for any unmapped list.
+const PREBUILT_ICONS = {
+  'bull & bear etfs': 'bolt',
+  'sector spdrs': 'dashboard',
+  'broad market & index': 'markets',
+  'industry & thematic etfs': 'factory',
+  'country & region etfs': 'globe',
+  'commodities': 'flame',
+  'bonds & rates': 'scale',
+  'crypto etfs': 'link',
+  'factor & smart-beta etfs': 'sliders',
+}
+const prebuiltIcon = name => PREBUILT_ICONS[(name || '').trim().toLowerCase()] || 'chart'
+
 export default function WatchlistPicker({ onPick, settingsOverride = null, onSettingsPersist = null, initialTab = null }) {
   const { flagged, flaggedName } = useFlagged()
 
@@ -154,6 +169,21 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
     </button>
   )
 
+  // Richer prebuilt row: gold glyph tile + name over a dim sample-ticker preview + count badge.
+  const PrebuiltRow = ({ wl, onClick }) => {
+    const sample = Array.isArray(wl.sample) ? wl.sample : []
+    return (
+      <button type="button" className={styles.pRow} onClick={onClick}>
+        <span className={styles.pIcon}><UIcon name={prebuiltIcon(wl.name)} size={15} /></span>
+        <span className={styles.pMain}>
+          <span className={styles.pName}>{wl.name}</span>
+          {sample.length > 0 && <span className={styles.pSample}>{sample.join(' · ')}</span>}
+        </span>
+        {countOf(wl) != null && <span className={styles.rowCount}>{countOf(wl)}</span>}
+      </button>
+    )
+  }
+
   return (
     <div className={styles.picker} ref={rootRef} style={wlStyle}>
       {settingsOpen && onSettingsPersist && (
@@ -224,9 +254,13 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
             </div>
           ) : prebuiltGroups.map(g => (
             <div key={g.category} className={styles.catGroup}>
-              <div className={styles.catHeader}>{g.category}</div>
+              <div className={styles.catHeader}>
+                <UIcon name="library" size={13} />
+                <span>{g.category}</span>
+                <span className={styles.catCount}>{g.lists.length} lists</span>
+              </div>
               {g.lists.map(wl => (
-                <Row key={`p${wl.id}`} wl={wl} hideOwner
+                <PrebuiltRow key={`p${wl.id}`} wl={wl}
                   onClick={() => handlePick({ key: `community:${wl.id}`, name: wl.name })} />
               ))}
             </div>

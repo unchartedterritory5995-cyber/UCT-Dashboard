@@ -70,6 +70,12 @@ def category_map():
     return {l["name"].strip().lower(): l["category"] for l in _load_committed()}
 
 
+def sample_map(n=5):
+    """{lowercased list name: first n tickers} — a preview shown under each list name in the
+    picker. Uses the overlay-applied set so the sample reflects the live (pruned) list."""
+    return {l["name"].strip().lower(): l["tickers"][:n] for l in _load_lists()}
+
+
 def _read_overlay():
     try:
         with open(_OVERLAY_PATH, encoding="utf-8") as fh:
