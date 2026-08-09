@@ -24,6 +24,7 @@ import UIcon from '../ui/UIcon'
 import { escapeLiteral, findMatches, segmentsWithMatches, stepIndex } from './transcriptSearch'
 import styles from './CallRecapSection.module.css'
 import PlayableTranscript from './PlayableTranscript'
+import TranscriptSearchAll from './TranscriptSearchAll'
 import search from './TranscriptSearch.module.css'
 
 const hasSpeechSynthesis = () =>
@@ -238,6 +239,11 @@ export default function TranscriptPanel({ sym = null, query = '', quarter = null
               words follow it. Renders nothing for the many symbols with no
               coverage, so the plain transcript below is unaffected. */}
           <PlayableTranscript sym={sym} />
+
+          {/* Cross-company search sits WITH the transcript because that is
+              where a reader is already thinking in transcript terms — the box
+              above searches this call, this one searches every indexed call. */}
+          <TranscriptSearchAll />
 
           {isLoading && !transcript && (
             <p className={styles.transcriptLoading}>Loading transcript…</p>
