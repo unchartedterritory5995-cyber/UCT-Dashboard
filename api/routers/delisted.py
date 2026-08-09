@@ -19,7 +19,10 @@ def delisted_one(sym: str):
     """Metadata for one delisted ticker, or {delisted: false} if it isn't one. The
     frontend calls this to decide whether to FREEZE the live paths (no streaming, no live
     price, 'Delisted YYYY' badge, curated watermark)."""
-    rec = delisted_registry.get(sym)
+    # resolve() matches an exact key OR a dead bare provider symbol (bare "BSC" → the
+    # "BSC-OLD" Bear Stearns entity), so the badge/watermark are correct even when a user
+    # charts the bare reused symbol. A live ticker resolves to None (never mislabeled).
+    rec = delisted_registry.resolve(sym)
     if not rec:
         return {"ticker": (sym or "").upper(), "delisted": False}
     return {**rec, "delisted": True}

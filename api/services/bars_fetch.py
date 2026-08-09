@@ -1564,7 +1564,7 @@ def _normalize_since_param(since_str: str, date_tf: bool):
         return "" if date_tf else 0
 
 
-def _get_delisted_bars_response(record: dict, tf: str, bars: int) -> JSONResponse:
+def _get_delisted_bars_response(record: dict, tf: str, bars: int, serve_as: str | None = None) -> JSONResponse:
     """Serve a DELISTED entity's FROZEN historical bars.
 
     A dead company's data never changes, so this is a deliberately simple fetch-once /
@@ -1581,10 +1581,14 @@ def _get_delisted_bars_response(record: dict, tf: str, bars: int) -> JSONRespons
     the provider physically can't return the other era's bars."""
     key = str(record.get("ticker") or "").upper()
     provider = str(record.get("provider_symbol") or key)
+    # `serve_as` = the symbol the CLIENT requested (e.g. bare "BSC" aliased to this entity).
+    # We fetch the provider clamped + cache/respond under serve_as so the frontend's cache
+    # key stays consistent with what it asked for, while still getting the clean clamped data.
+    serve_key = str(serve_as or key).upper()
     last_date = record.get("last_date") or record.get("delisted_date") or datetime.utcnow().strftime("%Y-%m-%d")
     first_date = record.get("first_date") or "1990-01-01"
     date_tf = tf in ("D", "W", "M")
-    cache_key = f"delisted_bars_{key}_{tf}_{bars}"
+    cache_key = f"delisted_bars_{serve_key}_{tf}_{bars}"
 
     hit = cache.get(cache_key)
     if hit is not None:
@@ -1593,17 +1597,17 @@ def _get_delisted_bars_response(record: dict, tf: str, bars: int) -> JSONRespons
     # A dead company has no intraday feed worth serving from decades-old daily aggs —
     # only D/W/M are meaningful. Intraday TFs return empty (the chart defaults to D).
     if not date_tf:
-        return JSONResponse(content={"ticker": key, "tf": tf, "bars": []},
+        return JSONResponse(content={"ticker": serve_key, "tf": tf, "bars": []},
                             headers={"Cache-Control": "no-store"})
 
-    # Frozen store: once SQLite holds this entity's bars (under the KEY), serve them — the
+    # Frozen store: once SQLite holds this entity's bars (under serve_key), serve them — the
     # data is immutable, so a stored series is authoritative and never re-fetched.
     try:
-        stored = _sqlite.get_bars(key, tf, bars)
+        stored = _sqlite.get_bars(serve_key, tf, bars)
     except Exception:
         stored = []
     if stored:
-        payload = {"ticker": key, "tf": tf, "bars": _fmt_sqlite_bars(stored, tf, key)}
+        payload = {"ticker": serve_key, "tf": tf, "bars": _fmt_sqlite_bars(stored, tf, serve_key)}
         cache.set(cache_key, payload, ttl=604800)
         return JSONResponse(content=payload, headers={"Cache-Control": "no-store"})
 
@@ -1623,10 +1627,10 @@ def _get_delisted_bars_response(record: dict, tf: str, bars: int) -> JSONRespons
     series = series[-bars:] if (bars and series) else series
     if series:
         try:
-            _sqlite.put_bars(key, tf, series, date_tf=True)   # store under the KEY, frozen
+            _sqlite.put_bars(serve_key, tf, series, date_tf=True)   # store under serve_key, frozen
         except Exception:
             pass
-    payload = {"ticker": key, "tf": tf, "bars": series}
+    payload = {"ticker": serve_key, "tf": tf, "bars": series}
     # Cache a real series long (immutable); cache an empty result briefly (transient miss).
     cache.set(cache_key, payload, ttl=(604800 if series else 300))
     return JSONResponse(content=payload, headers={"Cache-Control": "no-store"})

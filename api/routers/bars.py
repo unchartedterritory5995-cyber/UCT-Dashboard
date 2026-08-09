@@ -164,10 +164,12 @@ def get_bars(
             # touches the live fetch path. A bare reused symbol (live 'BSC') is NOT in the
             # registry (Bear Stearns is 'BSC-OLD'), so the live ETN falls through unaffected.
             from api.services import delisted_registry as _delisted
-            _drec = _delisted.get(ticker)
+            _drec = _delisted.resolve(ticker)
             if _drec:
                 from api.services.bars_fetch import _get_delisted_bars_response
-                response = _get_delisted_bars_response(_drec, tf, bars)
+                # serve_as=ticker keeps a bare aliased symbol (e.g. "BSC") consistent with
+                # what the client requested, while the record's provider+clamp isolate the era.
+                response = _get_delisted_bars_response(_drec, tf, bars, serve_as=ticker)
             elif is_index(ticker):
                 since_int = None
                 if since:
