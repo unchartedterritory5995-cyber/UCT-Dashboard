@@ -1322,3 +1322,33 @@
   overflow: hidden;
   display: flex; flex-direction: column;
 }
+
+/* ── Phone: the identity row's right cluster must not fall off the screen ────
+   `.chartHeaderTop` is a fixed-height (34px) `overflow: hidden` flex row, and
+   `.headerTopRight` is `margin-left:auto; flex-shrink:0`. On a 390px viewport
+   that pushes the session toggle AND the market clock clean past the right
+   edge, where `overflow:hidden` silently swallows them — so the page reports
+   ZERO horizontal overflow while the controls are simply gone. Measured in
+   the phone audit (2026-08-09): `.headerTopRight` right=451 against a 390px
+   viewport; the clock read right=451, the time span right=430.
+
+   Wrapping to a second line is the fix rather than hiding them: a user on a
+   phone still needs the session toggle, and a clock they cannot see is the
+   same as no clock. The fixed height only exists so divider lines align
+   ACROSS widgets in the desktop grid; at phone width the workspace renders a
+   single full-screen chart, so there is no neighbour to align with. */
+@media (max-width: 640px) {
+  .chartHeaderTop {
+    flex-wrap: wrap;
+    height: auto;
+    row-gap: 4px;
+    padding-bottom: 4px;
+    overflow: visible;   /* nothing to clip once the row can grow */
+  }
+
+  .headerTopRight {
+    margin-left: 0;      /* stop shoving it to a right edge that isn't there */
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
