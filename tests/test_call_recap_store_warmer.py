@@ -520,3 +520,25 @@ class TestSweepSingleFlight:
         out = warmer.run_sweep(["BBB"], warm=lambda s: "warmed",
                                sleep=lambda _: None, store=store)
         assert out.get("queued") == 1
+
+
+def test_the_recap_is_STORED_before_it_is_BILLED(store, warmer, monkeypatch):
+    """Ordering, because a restart can land between the two calls.
+
+    Billed-then-stored loses the artifact and keeps the charge: one afternoon
+    of deploys produced 12 generations against 8 stored recaps — four paid for
+    and gone. Stored-then-billed can only under-count the day's spend by one,
+    which the cap absorbs.
+    """
+    order = []
+    monkeypatch.setattr(store, "put",
+                        lambda *a, **k: order.append("put"))
+    monkeypatch.setattr(store, "record_spend",
+                        lambda *a, **k: order.append("record_spend"))
+
+    transcript = {"quarter": "2026Q3",
+                  "segments": [{"speaker": "CEO", "content": "hi"}]}
+    warmer.warm_symbol("DIS", fetch_transcript=lambda s: transcript,
+                       synthesize=lambda s, t: RECAP, store=store)
+
+    assert order == ["put", "record_spend"]

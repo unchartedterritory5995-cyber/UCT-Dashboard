@@ -256,8 +256,13 @@ def warm_symbol(symbol: str, *, fetch_transcript: Callable = None,
             _log.debug("[recap_warm] %s failed for %s: %s", key, sym, exc)
             recap.setdefault(key, None)
 
-    store.record_spend(sym, recap.get("_usage") or {})
+    # STORE FIRST, bill second. A restart landing between these two calls used
+    # to bill for a recap that was never written — 12 generated against 8
+    # stored across one afternoon's deploys, four calls paid for and lost. The
+    # reverse failure (stored but not billed) merely under-counts the day's
+    # spend by one, which the cap absorbs; paying for nothing does not.
     store.put(sym, quarter, recap)
+    store.record_spend(sym, recap.get("_usage") or {})
     return "warmed"
 
 
