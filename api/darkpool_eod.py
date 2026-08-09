@@ -315,25 +315,27 @@ def render_card(sections: list[tuple], date_text: str, summary: dict,
 
 
 # ── data helpers ───────────────────────────────────────────────────────────
-_avg50_cache: dict = {}   # sym -> (iso_day, avg_volume) — one Massive pull/name/day
+_daily_cache: dict = {}   # sym -> (iso_day, {"avg50", "close"}) — one Massive pull/name/day
 
 
-def _avg50_volume(ticker: str) -> float:
-    """50-day average daily SHARE volume via the Massive daily aggs (the local
-    bars store isn't populated web-side when USE_REMOTE_BARS is on). Cached per
-    name per day so a preview / the EOD job pulls each name at most once."""
+def _daily_stats(ticker: str) -> dict:
+    """From the Massive daily aggs (one pull, cached per name per day): the
+    50-day avg daily SHARE volume (for % ADV) AND the latest daily CLOSE (the real
+    current-price reference for PERF — the item's own `last` collapses to the
+    dark-pool VWAP on a single day, which would make perf a flat 0%). The local
+    bars_sqlite store is empty web-side under remote-bars, hence Massive REST."""
     from datetime import date, timedelta
     sym = (ticker or "").upper()
     if not sym:
-        return 0.0
+        return {"avg50": 0.0, "close": 0.0}
     try:
         today = date.today().isoformat()
     except Exception:
         today = ""
-    hit = _avg50_cache.get(sym)
+    hit = _daily_cache.get(sym)
     if hit and hit[0] == today:
         return hit[1]
-    avg = 0.0
+    out = {"avg50": 0.0, "close": 0.0}
     try:
         from api.services.massive import get_daily_agg
         to_d = date.today()
@@ -341,11 +343,13 @@ def _avg50_volume(ticker: str) -> float:
         bars = get_daily_agg(sym, from_d.isoformat(), to_d.isoformat()) or []
         vols = [b.get("v") for b in bars[-50:] if b.get("v")]
         if vols:
-            avg = sum(vols) / len(vols)
+            out["avg50"] = sum(vols) / len(vols)
+        if bars and bars[-1].get("c"):
+            out["close"] = float(bars[-1]["c"])
     except Exception:
-        avg = 0.0
-    _avg50_cache[sym] = (today, avg)
-    return avg
+        pass
+    _daily_cache[sym] = (today, out)
+    return out
 
 
 _meta_cache: dict = {}   # sym -> (iso_day, {"sector", "isEtf"})
@@ -502,7 +506,8 @@ def build_sections(days: int = 1, top_n: int = 10, min_notional: float = 5e6,
             s = sym_of(it)
             n = it.get("n") or 0
             vwap = it.get("vwap") or 0
-            avg50 = _avg50_volume(s)
+            _ds = _daily_stats(s)
+            avg50, close = _ds["avg50"], _ds["close"]
             # Weekly: compare the week's DP to a normal WEEK (avg daily × 5 =
             # 10-week avg weekly). Daily: compare to a normal day (avg daily).
             _denom = (avg50 * 5.0) if weekly else avg50
@@ -515,10 +520,10 @@ def build_sections(days: int = 1, top_n: int = 10, min_notional: float = 5e6,
                 sector = _etf_type(it.get("cat"))
             else:
                 sector = (metas.get(s) or {}).get("sector") or it.get("sector")
-            # Performance since the dark pool traded: price move vs the window's
-            # dark-pool VWAP (weekly card only surfaces it).
-            last = it.get("last") or 0
-            perf = ((float(last) - vwap) / vwap * 100.0) if (vwap > 0 and float(last or 0) > 0) else None
+            # Performance since the dark pool traded: the latest daily CLOSE vs the
+            # window's dark-pool VWAP (using close, NOT the item's `last`, which
+            # equals the VWAP on a single day → a flat 0%).
+            perf = ((close - vwap) / vwap * 100.0) if (vwap > 0 and close > 0) else None
             rows.append({
                 "t": s, "n": n, "c": it.get("c") or 0, "last": last,
                 "zoneLo": zlo, "zoneHi": zhi, "pctADV": pct_adv, "perf": perf,
