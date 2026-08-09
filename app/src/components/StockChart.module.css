@@ -557,3 +557,15 @@
     max-height: 50vh;
   }
 }
+
+/* Range buttons (3M / 6M / YTD / 1Y / 5Y) on touch: measured 27-39px wide by
+   18px TALL on a 390px phone. They sit in a horizontal row, so vertical growth
+   to `--tap-min` is free — widening each to 44px would collide with its
+   neighbours and make mis-taps WORSE than the small target it fixed. */
+@media (max-width: 1024px) {
+  .rangeBtn {
+    min-height: var(--tap-min, 44px);
+    display: inline-flex;
+    align-items: center;
+  }
+}

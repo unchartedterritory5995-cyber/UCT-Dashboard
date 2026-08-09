@@ -226,6 +226,10 @@ def _write_md(report):
             lines.append(f"- **{e['viewport']}** {tag} (overflowX={ov}px, small-targets={e.get('smallCount', 0)}) — `{e.get('screenshot','')}`")
             for o in e.get("offenders", [])[:6]:
                 lines.append(f"    - overflow: `<{o['tag']} class=\"{o['cls']}\">` right={o['right']} w={o['width']}")
+            # The sub-44px list was COLLECTED and then thrown away — the report
+            # showed only a count, which names nothing and so fixes nothing.
+            for t in e.get("smallTargets", [])[:10]:
+                lines.append(f"    - small-target: `{t['label']}` {t['w']}x{t['h']}px")
         lines.append("")
     (OUT_DIR / "report.md").write_text("\n".join(lines), encoding="utf-8")
 

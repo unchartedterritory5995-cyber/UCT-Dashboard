@@ -105,3 +105,25 @@
     max-width: min(280px, calc(100vw - 32px));
   }
 }
+
+/* The ⓘ trigger renders as a 16x16 glyph — flagged in the 2026-08-09 phone
+   audit, and it is one I introduced with CoverageNote. Enlarging the glyph
+   would shout on a line of quiet muted text, so the GLYPH stays 16px and only
+   the HIT AREA grows, via a centred pseudo-element. Safe here specifically
+   because this trigger sits next to TEXT, never beside another control, so a
+   44px invisible box cannot swallow a neighbour's tap. */
+@media (max-width: 1024px) {
+  .trigger {
+    position: relative;
+  }
+
+  .trigger::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: var(--tap-min, 44px);
+    height: var(--tap-min, 44px);
+  }
+}
