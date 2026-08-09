@@ -15,6 +15,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import UIcon from '../ui/UIcon'
 import { normalizeCallRecap, guidanceKind } from '../research/callRecap'
+import grounded from './GroundedBlocks.module.css'
 import styles from './CallRecapSection.module.css'
 
 // ── TTS helper ────────────────────────────────────────────────────────────────
@@ -42,6 +43,29 @@ function highlight(text, kw) {
   const parts = text.split(re)
   return parts.map((p, i) =>
     re.test(p) ? <mark key={i} className={styles.kw}>{p}</mark> : p,
+  )
+}
+
+const HORIZON_LABEL = {
+  next_quarter: 'NEXT QUARTER',
+  full_year: 'FULL YEAR',
+  multi_year: 'MULTI-YEAR',
+}
+
+// The Quartr move: every claim links back to the passage it came from. It is
+// also the trust mechanism — a reader can check the words in one click, and a
+// claim with no locatable source never renders a link because it never renders.
+function SourceLink({ segment, onJump }) {
+  if (segment == null || !onJump) return null
+  return (
+    <button
+      type="button"
+      className={grounded.sourceLink}
+      onClick={() => onJump(segment)}
+      title="Show this passage in the full transcript"
+    >
+      ↳ in transcript
+    </button>
   )
 }
 
@@ -88,7 +112,7 @@ function RatingChanges({ changes }) {
  * @param {object} recap   — from useCallRecap().data
  * @param {object|null} audio — from useEarningsAudio().data ({ stream_url, kind, transcript_url })
  */
-export default function CallRecapSection({ recap: rawRecap, audio }) {
+export default function CallRecapSection({ recap: rawRecap, audio, onJumpToSegment = null }) {
   // Every surface routes through the one normalizer, so a payload handed in
   // raw (MyStocksHub, CallsTab, EarningsModal) reconciles here rather than
   // rendering a different shape on each screen.
@@ -136,9 +160,23 @@ export default function CallRecapSection({ recap: rawRecap, audio }) {
         `${q.text} ${q.speaker} ${q.topic}`.toLowerCase().includes(kw.toLowerCase()))
     : (recap.quotes || [])
 
+  const matches = (...parts) =>
+    parts.filter(Boolean).join(' ').toLowerCase().includes(kw.toLowerCase())
+
   const filteredQA = kw
-    ? (recap.qa_highlights || []).filter(q => q.toLowerCase().includes(kw.toLowerCase()))
+    ? (recap.qa_highlights || []).filter(q =>
+        matches(q.takeaway, q.question, q.quote, q.analyst, q.firm))
     : (recap.qa_highlights || [])
+
+  const filteredForward = kw
+    ? (recap.forward_looking || []).filter(f =>
+        matches(f.topic, f.detail, f.quote, f.speaker))
+    : (recap.forward_looking || [])
+
+  // The server returns a {name: role} map read off the transcript itself, which
+  // is what finally fills the speaker-title slot — FMP's segmenter hardcodes
+  // `title: ""`, so that chip had never rendered on the primary path.
+  const roleOf = q => q.role || (recap.speakers || {})[q.speaker] || ''
 
   const showAudioPlayer = audio?.stream_url
   const showWebcastLink = !showAudioPlayer && recap.webcast_url
@@ -225,6 +263,10 @@ export default function CallRecapSection({ recap: rawRecap, audio }) {
       {/* Guidance PROSE only — the enum form is the chip above, and rendering
           both printed the same word twice, the second time as a one-word
           paragraph under a "GUIDANCE" heading. */}
+      {recap.guidance_detail && (!kw || recap.guidance_detail.toLowerCase().includes(kw.toLowerCase())) && (
+        <p className={grounded.guidanceDetail}>{highlight(recap.guidance_detail, kw)}</p>
+      )}
+
       {guidanceKind(recap.guidance) === 'prose' &&
        (!kw || recap.guidance.toLowerCase().includes(kw.toLowerCase())) && (
         <div className={styles.guidanceBlock}>
@@ -233,19 +275,48 @@ export default function CallRecapSection({ recap: rawRecap, audio }) {
         </div>
       )}
 
+      {/* Forward-looking commentary — the section a trader reads first.
+          Every item rests on a verbatim quote the SERVER located in the
+          transcript; anything it could not locate was dropped before this
+          component ever saw it, so each `↳` below is a real turn. */}
+      {filteredForward.length > 0 && (
+        <div className={grounded.block}>
+          <div className={styles.sectionLabel}>FORWARD-LOOKING COMMENTARY</div>
+          {filteredForward.map((f, i) => (
+            <div key={i} className={grounded.item}>
+              <div className={grounded.itemHead}>
+                {f.topic && <span className={grounded.topic}>{highlight(f.topic, kw)}</span>}
+                {f.horizon && f.horizon !== 'unspecified' && (
+                  <span className={grounded.horizon}>{HORIZON_LABEL[f.horizon] || f.horizon}</span>
+                )}
+              </div>
+              {f.detail && <p className={grounded.detail}>{highlight(f.detail, kw)}</p>}
+              <blockquote className={grounded.quote}>
+                “{highlight(f.quote, kw)}”
+                <cite className={grounded.cite}>
+                  {f.speaker}
+                  <SourceLink segment={f.segment} onJump={onJumpToSegment} />
+                </cite>
+              </blockquote>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Quotes */}
       {filteredQuotes.length > 0 && (
         <div className={styles.quotesBlock}>
           <div className={styles.sectionLabel}>MANAGEMENT QUOTES</div>
           {filteredQuotes.map((q, i) => {
-            const attribution = [q.speaker, q.role].filter(Boolean).join(', ')
+            const attribution = [q.speaker, roleOf(q)].filter(Boolean).join(', ')
             return (
               <div key={i} className={styles.quoteItem}>
-                {attribution && <span className={styles.speaker}>{attribution}: </span>}
-                {!attribution && q.topic && (
-                  <span className={styles.speaker}>{q.topic}: </span>
-                )}
-                <span className={styles.quoteText}>"{highlight(q.text, kw)}"</span>
+                {q.topic && <span className={grounded.topic}>{highlight(q.topic, kw)}</span>}
+                <span className={styles.quoteText}>“{highlight(q.text, kw)}”</span>
+                <cite className={grounded.cite}>
+                  {attribution}
+                  <SourceLink segment={q.segment} onJump={onJumpToSegment} />
+                </cite>
               </div>
             )
           })}
@@ -256,9 +327,28 @@ export default function CallRecapSection({ recap: rawRecap, audio }) {
       {filteredQA.length > 0 && (
         <div className={styles.qaBlock}>
           <div className={styles.sectionLabel}>Q&amp;A HIGHLIGHTS</div>
-          <ul className={styles.bullets}>
-            {filteredQA.map((q, i) => <li key={i}>{highlight(q, kw)}</li>)}
-          </ul>
+          {filteredQA.map((q, i) => (
+            <div key={i} className={grounded.item}>
+              {(q.analyst || q.firm) && (
+                <div className={grounded.itemHead}>
+                  <span className={grounded.topic}>
+                    {highlight([q.analyst, q.firm].filter(Boolean).join(' · '), kw)}
+                  </span>
+                </div>
+              )}
+              {q.question && <p className={grounded.question}>{highlight(q.question, kw)}</p>}
+              {q.takeaway && <p className={grounded.detail}>{highlight(q.takeaway, kw)}</p>}
+              {q.quote && (
+                <blockquote className={grounded.quote}>
+                  “{highlight(q.quote, kw)}”
+                  <cite className={grounded.cite}>
+                    {q.speaker}
+                    <SourceLink segment={q.segment} onJump={onJumpToSegment} />
+                  </cite>
+                </blockquote>
+              )}
+            </div>
+          ))}
         </div>
       )}
 

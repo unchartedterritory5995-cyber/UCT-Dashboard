@@ -9,6 +9,7 @@
 // self-fetching AI read (a distinct /api/earnings/sentiment/{ticker} score +
 // rationale + drivers) rendered above the recap, which already carries its
 // own simple bullish/bearish/neutral badge from the recap payload itself.
+import { useState, useCallback } from 'react'
 import CallRecapSection from '../../calendar/CallRecapSection'
 import TranscriptPanel from '../../calendar/TranscriptPanel'
 import SentimentGauge from '../../calendar/SentimentGauge'
@@ -31,6 +32,13 @@ import styles from './CallSection.module.css'
 const PROVENANCE = 'AI · sentiment score & call recap'
 
 export default function CallSection({ sym, lifecycle }) {
+  // The recap and the transcript are separate components by design (the whole
+  // point of Phase 0), so the jump target lives in their common parent. The
+  // nonce makes a repeat click on the same link re-scroll instead of no-op.
+  const [focus, setFocus] = useState(null)
+  const jumpToSegment = useCallback(
+    segment => setFocus(f => ({ segment, nonce: (f?.nonce || 0) + 1 })), [])
+
   const { data: payload } = useCallRecap(sym)
   const { data: audio } = useEarningsAudio(sym)
   const recap = normalizeCallRecap(payload)
@@ -54,7 +62,7 @@ export default function CallSection({ sym, lifecycle }) {
         {/* Independent of the recap above: FMP publishes the verbatim
             transcript with no LLM in the path, so it must stay reachable
             when synthesis has not run, has failed, or is capped. */}
-        <TranscriptPanel sym={sym} />
+        <TranscriptPanel sym={sym} focus={focus} />
       </div>
     )
   }
@@ -63,8 +71,8 @@ export default function CallSection({ sym, lifecycle }) {
     <div className={styles.wrap}>
       <p className={styles.provenance} data-testid="call-provenance">{PROVENANCE}</p>
       <SentimentGauge ticker={sym} />
-      <CallRecapSection recap={recap} audio={audio ?? null} />
-      <TranscriptPanel sym={sym} />
+      <CallRecapSection recap={recap} audio={audio ?? null} onJumpToSegment={jumpToSegment} />
+      <TranscriptPanel sym={sym} focus={focus} />
     </div>
   )
 }

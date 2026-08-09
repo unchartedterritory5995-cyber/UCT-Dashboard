@@ -92,3 +92,69 @@ describe('CallSection — the transcript is not gated on the recap', () => {
     expect(screen.queryByText(/no transcript yet/i)).toBeNull()
   })
 })
+
+describe('CallSection — a recap claim links back to the passage it came from', () => {
+  // The Quartr idea, and the trust mechanism: a reader can check the words in
+  // one click. It only works because the recap and the transcript are separate
+  // components sharing a parent — which is what Phase 0 made true.
+  const GROUNDED = {
+    ticker: 'DIS',
+    recap: {
+      headline: 'Record quarter',
+      sentiment: 'positive',
+      bullets: [],
+      quotes: [],
+      guidance: 'raised',
+      qa_highlights: [],
+      forward_looking: [{
+        topic: 'Margins',
+        horizon: 'full_year',
+        detail: 'Management expects margin expansion.',
+        // Verbatim from segment 0 of the mocked transcript above.
+        quote: 'We now expect double-digit earnings growth for the full year.',
+        speaker: 'Hugh Johnston',
+        segment: 0,
+      }],
+    },
+    webcast_url: null,
+    rating_changes: [],
+  }
+
+  it('clicking the source link opens the transcript at that turn', async () => {
+    recapData = GROUNDED
+    const user = userEvent.setup()
+    renderCall()
+
+    // The transcript is collapsed and the passage is not on screen yet.
+    expect(screen.queryByText(/When will ESPN/)).toBeNull()
+
+    await user.click(screen.getByRole('button', { name: /in transcript/i }))
+
+    // The panel opened itself and the cited turn is rendered.
+    expect(
+      screen.getAllByText(/double-digit earnings growth for the full year/i).length,
+    ).toBeGreaterThan(1)   // once in the recap, once in the transcript
+    expect(screen.getByText(/When will ESPN/)).toBeTruthy()
+  })
+
+  it('renders the forward-looking commentary the recap carries', () => {
+    recapData = GROUNDED
+    renderCall()
+    expect(screen.getByText(/FORWARD-LOOKING COMMENTARY/i)).toBeTruthy()
+    expect(screen.getByText(/Management expects margin expansion/)).toBeTruthy()
+    expect(screen.getByText(/FULL YEAR/)).toBeTruthy()
+  })
+
+  it('shows no source link for a claim with no located passage', () => {
+    // An ungrounded item should never have reached the client, but if `segment`
+    // is absent the UI must not offer a link that goes nowhere.
+    recapData = {
+      ...GROUNDED,
+      recap: { ...GROUNDED.recap,
+        forward_looking: [{ ...GROUNDED.recap.forward_looking[0], segment: null }] },
+    }
+    renderCall()
+    expect(screen.getByText(/Management expects margin expansion/)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /in transcript/i })).toBeNull()
+  })
+})

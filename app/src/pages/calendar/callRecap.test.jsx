@@ -65,7 +65,9 @@ describe('CallRecapSection', () => {
 
   it('renders management quote', () => {
     render(<CallRecapSection recap={FULL_RECAP} audio={null} />)
-    expect(screen.getByText(/"We are firing on all cylinders\."/)).toBeTruthy()
+    // Quotes render with typographic quotation marks now; assert the words,
+    // not the punctuation around them.
+    expect(document.body.textContent).toContain('We are firing on all cylinders.')
   })
 
   it('renders rating change', () => {

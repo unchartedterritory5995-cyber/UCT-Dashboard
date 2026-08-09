@@ -61,6 +61,28 @@ def _cost_guard():
     return cost_guard
 
 
+def _grounded():
+    from api.services import call_recap_grounded
+    return call_recap_grounded
+
+
+def _transcript_for(sym: str):
+    """The verbatim transcript, or None. FMP first (uncapped), AV as fallback."""
+    try:
+        from api.services.fmp_transcripts import get_transcript as _fmp
+        res = _fmp(sym)
+        if res and res.get("segments"):
+            return res
+    except Exception as exc:
+        _log.debug("[call_recap] fmp transcript unavailable for %s: %s", sym, exc)
+    try:
+        from api.services.av_transcripts import get_transcript as _av
+        return _av(sym)
+    except Exception as exc:
+        _log.debug("[call_recap] av transcript unavailable for %s: %s", sym, exc)
+        return None
+
+
 def _anthropic_client():
     """Lazy Anthropic client — same init as engine._get_anthropic_client()."""
     import anthropic
@@ -122,7 +144,19 @@ def get_call_recap(ticker: str) -> Optional[dict[str, Any]]:
         _log.info("[call_recap] cost cap reached, skipping %s", sym)
         return None
 
-    # --- Gather context from Perplexity ---
+    # --- Preferred path: the verbatim transcript ---------------------------
+    # FMP publishes it uncapped and cached 30d, so grounding costs one provider
+    # read that has usually already happened. Quotes synthesized from it are
+    # verified against it server-side; anything unlocatable is dropped.
+    transcript = _transcript_for(sym)
+    if transcript and transcript.get("segments"):
+        grounded = _grounded().synthesize(sym, transcript)
+        if grounded:
+            _cache().set(ck, grounded, _RECAP_TTL)
+            return grounded
+        _log.info("[call_recap] grounded synthesis empty for %s; falling back", sym)
+
+    # --- Fallback: web context, for names with no published transcript ------
     try:
         web_context = _pplx_earnings_highlights(sym)
     except Exception as e:

@@ -62,7 +62,9 @@ describe('normalizeCallRecap — quote shapes', () => {
       recap: { headline: 'h', quotes: [{ topic: 'Margins', quote: 'We see leverage.' }] },
     })
     expect(out.quotes).toEqual([
-      { speaker: '', role: '', topic: 'Margins', text: 'We see leverage.' },
+      // `segment` is null here because this payload predates grounding; when the
+      // server locates the quote it fills in the verified transcript index.
+      { speaker: '', role: '', topic: 'Margins', text: 'We see leverage.', segment: null },
     ])
   })
 
@@ -112,18 +114,67 @@ describe('normalizeCallRecap — sentiment vocabulary', () => {
   })
 })
 
-describe('normalizeCallRecap — bullets and Q&A are always strings', () => {
-  it('flattens object-shaped items and drops empties', () => {
+describe('normalizeCallRecap — bullets are strings, Q&A is structured', () => {
+  it('flattens bullets and drops empties', () => {
+    const out = normalizeCallRecap({
+      recap: { headline: 'h', bullets: ['plain', { text: 'wrapped' }, '', null] },
+    })
+    expect(out.bullets).toEqual(['plain', 'wrapped'])
+    for (const b of out.bullets) expect(typeof b).toBe('string')
+  })
+
+  // Q&A deliberately stopped being a flat string list: an exchange carries an
+  // analyst, a firm, the model's takeaway, and a SEPARATE verbatim excerpt that
+  // the server could actually verify. Collapsing those to one string would lose
+  // the distinction between what was said and what the model concluded.
+  it('keeps Q&A structured and tolerates the legacy string form', () => {
     const out = normalizeCallRecap({
       recap: {
         headline: 'h',
-        bullets: ['plain', { text: 'wrapped' }, '', null],
-        qa_highlights: [{ takeaway: 'a takeaway' }, 'a string'],
+        qa_highlights: [
+          { analyst: 'Ben Reitzes', firm: 'Melius', question: 'On margins?',
+            takeaway: 'Guided higher', quote: 'we expect margins to expand', segment: 4 },
+          'a legacy string',
+          { takeaway: '' },
+        ],
       },
     })
-    expect(out.bullets).toEqual(['plain', 'wrapped'])
-    expect(out.qa_highlights).toEqual(['a takeaway', 'a string'])
-    for (const b of [...out.bullets, ...out.qa_highlights]) expect(typeof b).toBe('string')
+    expect(out.qa_highlights).toHaveLength(2)
+    expect(out.qa_highlights[0]).toMatchObject({
+      analyst: 'Ben Reitzes', firm: 'Melius', segment: 4,
+      quote: 'we expect margins to expand',
+    })
+    expect(out.qa_highlights[1]).toMatchObject({ takeaway: 'a legacy string', quote: '' })
+  })
+})
+
+describe('normalizeCallRecap — forward-looking commentary', () => {
+  it('keeps only items resting on a verbatim quote', () => {
+    const out = normalizeCallRecap({
+      recap: {
+        headline: 'h',
+        forward_looking: [
+          { topic: 'Margins', horizon: 'full_year', detail: 'Expanding',
+            quote: 'we remain on track for double-digit margins', speaker: 'CFO', segment: 2 },
+          { topic: 'No quote', horizon: 'full_year', detail: 'floating claim' },
+        ],
+      },
+    })
+    expect(out.forward_looking).toHaveLength(1)
+    expect(out.forward_looking[0]).toMatchObject({
+      topic: 'Margins', horizon: 'full_year', speaker: 'CFO', segment: 2,
+    })
+  })
+
+  it('defaults an absent horizon rather than inventing one', () => {
+    const out = normalizeCallRecap({
+      recap: { headline: 'h', forward_looking: [{ quote: 'we expect growth' }] },
+    })
+    expect(out.forward_looking[0].horizon).toBe('unspecified')
+  })
+
+  it('is an empty array when the payload has none', () => {
+    expect(normalizeCallRecap({ recap: { headline: 'h' } }).forward_looking).toEqual([])
   })
 })
 

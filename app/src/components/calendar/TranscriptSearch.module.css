@@ -77,3 +77,19 @@
   .count { order: 3; }
   .filterToggle { order: 4; flex-basis: 100%; }
 }
+
+/* A turn arrived at from a recap source link. Brief, so it says "here" without
+   becoming permanent decoration. */
+:global([data-flash="true"]) {
+  animation: sourceFlash 1.6s ease-out;
+  border-radius: 4px;
+}
+
+@keyframes sourceFlash {
+  0%, 25% { background: rgba(201, 168, 76, 0.22); }
+  100%    { background: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :global([data-flash="true"]) { animation: none; outline: 2px solid var(--ut-gold, #c9a84c); }
+}

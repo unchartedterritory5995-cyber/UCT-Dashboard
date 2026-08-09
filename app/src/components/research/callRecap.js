@@ -70,6 +70,41 @@ export function normalizeQuote(q) {
     role: clean(q.role) || clean(q.title),
     topic: clean(q.topic),
     text,
+    // Server-computed from where the text actually sits in the transcript —
+    // never taken from the model, so it can be trusted as a jump target.
+    segment: Number.isInteger(q.segment) ? q.segment : null,
+  }
+}
+
+/** A Q&A exchange. `quote` is the only field the server could verify against
+ *  the transcript; `question`/`takeaway` are the model's own prose and are
+ *  labelled as such in the UI. Legacy string items become a bare takeaway. */
+export function normalizeQA(item) {
+  if (typeof item === 'string') {
+    return item.trim() ? { analyst: '', firm: '', question: '', takeaway: item.trim(), quote: '' } : null
+  }
+  if (!item || typeof item !== 'object') return null
+  const takeaway = clean(item.takeaway) || clean(item.answer)
+  const quote = clean(item.quote)
+  if (!takeaway && !quote) return null
+  return {
+    analyst: clean(item.analyst), firm: clean(item.firm),
+    question: clean(item.question), takeaway, quote,
+    speaker: clean(item.speaker),
+    segment: Number.isInteger(item.segment) ? item.segment : null,
+  }
+}
+
+/** A forward-looking statement: the model's reading plus the verbatim words it
+ *  rests on. `segment` is server-computed, so it is trustworthy or absent. */
+export function normalizeForward(item) {
+  if (!item || typeof item !== 'object') return null
+  const quote = clean(item.quote)
+  if (!quote) return null
+  return {
+    topic: clean(item.topic), horizon: clean(item.horizon) || 'unspecified',
+    detail: clean(item.detail), quote, speaker: clean(item.speaker),
+    segment: Number.isInteger(item.segment) ? item.segment : null,
   }
 }
 
@@ -97,9 +132,13 @@ export function normalizeCallRecap(payload) {
   out.sentiment = normalizeSentiment(out.sentiment)
   out.bullets = (Array.isArray(out.bullets) ? out.bullets : []).map(normalizeLine).filter(Boolean)
   out.qa_highlights = (Array.isArray(out.qa_highlights) ? out.qa_highlights : [])
-    .map(normalizeLine).filter(Boolean)
+    .map(normalizeQA).filter(Boolean)
   out.quotes = (Array.isArray(out.quotes) ? out.quotes : [])
     .map(normalizeQuote).filter(Boolean)
+  out.forward_looking = (Array.isArray(out.forward_looking) ? out.forward_looking : [])
+    .map(normalizeForward).filter(Boolean)
+  out.guidance_detail = clean(out.guidance_detail)
+  out.speakers = (out.speakers && typeof out.speakers === 'object') ? out.speakers : {}
 
   return out
 }

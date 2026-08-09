@@ -66,7 +66,7 @@ function highlight(text, kw, activeOrdinal = -1) {
  * @param {string} [query]     — keyword to highlight within segment text
  * @param {string} [quarter]   — e.g. "2026Q3"; omit to auto-resolve the newest
  */
-export default function TranscriptPanel({ sym = null, query = '', quarter = null }) {
+export default function TranscriptPanel({ sym = null, query = '', quarter = null, focus = null }) {
   const [open, setOpen] = useState(false)
   const [ttsActive, setTtsActive] = useState(false)
   const [typed, setTyped] = useState('')
@@ -114,6 +114,27 @@ export default function TranscriptPanel({ sym = null, query = '', quarter = null
     const el = segmentsRef.current.querySelector('[data-active-match="true"]')
     if (el?.scrollIntoView) el.scrollIntoView({ block: 'center', behavior: 'smooth' })
   }, [active])
+
+  // A source link from the recap: open the panel, scroll to that turn, flash it.
+  // `focus` is a {segment, nonce} object rather than a bare index so clicking the
+  // SAME link twice still re-scrolls — a plain index would compare equal and the
+  // second click would look broken.
+  const focusSeg = focus?.segment
+  useEffect(() => {
+    if (focusSeg == null) return
+    setOpen(true)
+    setOnlyMatching(false)     // a filter would hide the very turn being opened
+  }, [focusSeg, focus?.nonce])
+
+  useEffect(() => {
+    if (focusSeg == null || !open || !segmentsRef.current) return
+    const el = segmentsRef.current.querySelector(`[data-segment="${focusSeg}"]`)
+    if (!el) return
+    if (el.scrollIntoView) el.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    el.setAttribute('data-flash', 'true')
+    const t = setTimeout(() => el.removeAttribute('data-flash'), 1600)
+    return () => clearTimeout(t)
+  }, [focusSeg, focus?.nonce, open, transcript])
 
   const onSearchKeyDown = useCallback(e => {
     if (e.key === 'Enter') { e.preventDefault(); go(e.shiftKey ? -1 : 1) }
@@ -251,7 +272,7 @@ export default function TranscriptPanel({ sym = null, query = '', quarter = null
               <div className={styles.transcriptSegments} ref={segmentsRef}>
                 {transcript.segments.map((seg, i) => (
                   (kw && onlyMatching && !matchingSegs.has(i)) ? null : (
-                  <div key={i} className={styles.transcriptSegment}>
+                  <div key={i} className={styles.transcriptSegment} data-segment={i}>
                     {(seg.speaker || seg.title) && (
                       <div className={styles.transcriptSpeaker}>
                         {seg.speaker && (
