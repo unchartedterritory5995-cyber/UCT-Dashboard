@@ -4627,6 +4627,8 @@ app.include_router(stream_router.router)
 app.include_router(live_prices_router.router)
 app.include_router(ticker_meta_router.router)
 app.include_router(ticker_search_router.router)
+from api.routers import delisted as delisted_router
+app.include_router(delisted_router.router)
 app.include_router(single_stock_etfs_router.router)
 app.include_router(rs_ranking_router.router)
 app.include_router(intelligence_router.router)

@@ -1,0 +1,56 @@
+[
+  {
+    "ticker": "YHOO",
+    "name": "Yahoo! Inc.",
+    "sector": "Technology",
+    "industry": "Internet Content & Information",
+    "delisted_date": "2017-06-19",
+    "reason": "Acquired by Verizon; renamed Altaba",
+    "source": "massive"
+  },
+  {
+    "ticker": "TWTR",
+    "name": "Twitter, Inc.",
+    "sector": "Technology",
+    "industry": "Internet Content & Information",
+    "delisted_date": "2022-10-31",
+    "reason": "Taken private by Elon Musk",
+    "source": "massive"
+  },
+  {
+    "ticker": "CELG",
+    "name": "Celgene Corporation",
+    "sector": "Healthcare",
+    "industry": "Biotechnology",
+    "delisted_date": "2019-11-20",
+    "reason": "Acquired by Bristol-Myers Squibb",
+    "source": "massive"
+  },
+  {
+    "ticker": "ATVI",
+    "name": "Activision Blizzard, Inc.",
+    "sector": "Technology",
+    "industry": "Electronic Gaming & Multimedia",
+    "delisted_date": "2023-10-13",
+    "reason": "Acquired by Microsoft",
+    "source": "massive"
+  },
+  {
+    "ticker": "LEH",
+    "name": "Lehman Brothers Holdings Inc.",
+    "sector": "Financials",
+    "industry": "Investment Banking & Brokerage",
+    "delisted_date": "2008-09-17",
+    "reason": "Bankruptcy",
+    "source": "massive"
+  },
+  {
+    "ticker": "BSC",
+    "name": "The Bear Stearns Companies Inc.",
+    "sector": "Financials",
+    "industry": "Investment Banking & Brokerage",
+    "delisted_date": "2008-05-30",
+    "reason": "Acquired by JPMorgan Chase after near-collapse",
+    "source": "massive"
+  }
+]

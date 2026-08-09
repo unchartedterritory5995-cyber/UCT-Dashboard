@@ -135,9 +135,29 @@ def ticker_search(
     merged = merged[:limit]
 
     results = []
+    live_syms = set()
     for t in merged:
         name = _name_from_cache(t)
         if name is None:
             _enqueue_name_backfill(t)
         results.append({"ticker": t, "name": name})
-    return {"results": results}
+        live_syms.add(t)
+
+    # Merge in DELISTED tickers (Yahoo, Twitter, Lehman…) so dead names are discoverable
+    # too — labeled `delisted` + delisting date so the dropdown can badge them. They live in
+    # a separate registry (kept out of cap_universe / the live warmers), so a live ticker
+    # that shares a symbol always wins: skip any delisted match already present as a live row.
+    try:
+        from api.services import delisted_registry
+        for rec in delisted_registry.search(qq, limit):
+            if rec["ticker"] in live_syms:
+                continue
+            results.append({
+                "ticker": rec["ticker"],
+                "name": rec.get("name"),
+                "delisted": True,
+                "delisted_date": rec.get("delisted_date"),
+            })
+    except Exception:
+        pass
+    return {"results": results[:limit]}
