@@ -26,7 +26,7 @@ Both sibling repos are available as submodules under `external/` for Claude Code
 
 **Path gotcha:** `api/services/engine.py` resolves morning-wire as `../../../morning-wire` (three levels up = outside the repo, finds the local `C:\Users\Patrick\morning-wire\`). On Railway, data flows via `/api/push` — the direct import is a local-dev fallback only. The submodule path (`external/morning-wire`) is NOT used by the backend at runtime.
 
-**Hardcoded local paths in engine.py:** Lines 1508 and 1540 reference `C:\Users\Patrick\uct-intelligence` — local fallbacks that fail silently on Railway (primary path is wire_data from push).
+**The uct-intelligence path in engine.py is CONFIGURABLE, not hardcoded.** There is exactly ONE reference — `UCT_INTEL_PATH = pathlib.Path(os.environ.get("UCT_INTEL_PATH", r"C:\Users\Patrick\uct-intelligence"))`, near the top of `api/services/engine.py` — so the Windows path is a local-dev DEFAULT that fails silently on Railway (primary path is wire_data from push), and the env var overrides it. ⚰️ This said *"Hardcoded local paths … Lines 1508 and 1540"*: two locations, neither of which contained a path reference, and "hardcoded" contradicted the Compass Brain Bridge section of this same file, which relies on `UCT_INTEL_PATH=/data/brain` pointing the brain facade at the installed pack "with zero engine changes". Grep the constant, not a line number.
 
 ## Nav Tabs (left sidebar)
 
@@ -800,10 +800,21 @@ bug classes that survived the May-16/17 freshness overhaul. **Locked invariants:
   + weekend keep the conservative 30h gate. Eliminates the "chart opened
   at 17:00 ET stuck at noon" trap.
 
-- **Browser IDB `CACHE_LOGIC_VERSION = 4`.** Bump to 5 (or higher) on any
-  future bar-fetch/merge logic change that invalidates cached shapes. The
+- **Browser IDB `CACHE_LOGIC_VERSION` — read it from `app/src/utils/barsIDB.js`,
+  do NOT trust a number written here.** Bump it PAST whatever it currently reads
+  on any future bar-fetch/merge logic change that invalidates cached shapes. The
   jump from 3 to 4 cleared FMP-poisoned shifted-ts rows that `mergeDelta`
-  could never heal (delta only ADDS — can't remove rows at wrong ts).
+  could never heal (delta only ADDS — can't remove rows at wrong ts); it went to
+  5 on 2026-07-14 for the intraday gap-fill fixes.
+  🔴 **THIS SAID `= 4` AND "BUMP TO 5" WHILE THE CONSTANT HAD READ 5 FOR THREE
+  WEEKS** — so an agent following the instruction set it to the value already
+  live, invalidated NOTHING, and the exact symptom class the invariant exists to
+  kill (browsers serving interior-hole / shifted-ts bars the server already
+  fixed) survived silently. The startup fingerprint published below "for grep
+  verification" carried the same stale `4`, so the designated check read green.
+  It now INTERPOLATES the real value (`api/main.py::idb_cache_logic_version()`,
+  which parses the declaration in `barsIDB.js` and prints `unreadable` rather
+  than guess); `tests/test_startup_fingerprint.py` is the rail on that.
 
 - **SWR `refreshInterval: 30000` intraday / 300000 D/W/M** on every
   `StockChart` instance, plus a no-op repaint guard in the delta-merge
@@ -828,7 +839,9 @@ bug classes that survived the May-16/17 freshness overhaul. **Locked invariants:
   by the reconciliation worker — no more mass-wipes needed.
 
 - **Startup fingerprint line** for grep verification:
-  `[startup] chart-realtime-mode: fmp_tz_fix=on yfinance_tz_fix=on heal_v1=ran-once heal_v2=ran-once heal_v3_60day=ran-once needs_fresh_post_market=on swr_refresh_interval=30s_intraday tf60_ws_streaming=on bucket_canonical=bars_fetch.bucket_60_et_unix_seconds delta_intraday_filter=>= idb_cache_logic_version=4 reconciliation_worker=on|off`
+  `[startup] chart-realtime-mode: fmp_tz_fix=on yfinance_tz_fix=on heal_v1=ran-once heal_v2=ran-once heal_v3_60day=ran-once needs_fresh_post_market=on swr_refresh_interval=30s_intraday tf60_ws_streaming=on bucket_canonical=bars_fetch.bucket_60_et_unix_seconds delta_intraday_filter=>= idb_cache_logic_version=<read from barsIDB.js, or `unreadable`> weekly_dating=friday-close heal_weekly_close=ran-once reconciliation_worker=on|off`
+  ⚠️ `idb_cache_logic_version` is INTERPOLATED at boot, so this template shows a
+  placeholder on purpose — a literal here is how the last one went stale.
 
 ### Bars Push Feed — Phase C streaming (LIVE 100%, 2026-07-06 — CRITICAL, do not regress)
 
@@ -846,11 +859,23 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
 - **🔒 LOCKED single-writer invariant** (`StockChart.jsx`): exactly ONE developing-bar writer per
   (sym,tf). `barsPushActive = _barsPushEnabled() && eligible && liveUpdates && !heikinAshi &&
   delivering`. When true, push writer B owns the bar + `liveBarRef`/`lastBarRef`; the Finnhub
-  writers early-return. **FOUR writer sites, indexed at the `barsPushActiveRef` declaration** —
-  A (livePrices tick), B (onRealtimeBar), C (registry), D (post-setData re-top). **Any new
-  developing-bar writer MUST consult barsPushActiveRef** (a missing guard = the Heikin-Ashi
-  raw-candle bug that shipped 2026-07-06). HA is EXCLUDED from push (needs the full-series
-  `toHeikinAshi()` recompute — falls back to the SWR path).
+  writers early-return. **SIX writer sites** — A (livePrices tick), B (onRealtimeBar),
+  C (registry), D (post-setData re-top), E (fast D/W/M candle on the bars-WS 1-min tick),
+  F (custom-TF live bar). **Any new developing-bar writer MUST consult barsPushActiveRef**
+  (a missing guard = the Heikin-Ashi raw-candle bug that shipped 2026-07-06) — or be
+  disjoint from push by construction AND declare it, which is F's case (`_pushOptIn`
+  requires `realtimeTfEligible`, a membership test over the five NATIVE intraday codes, so
+  the flag is structurally false on a custom TF; a guard there would be dead code that
+  reads as protection). HA is EXCLUDED from push (needs the full-series `toHeikinAshi()`
+  recompute — falls back to the SWR path).
+  ⛔ **THE INDEX IS DERIVED, NOT COUNTED.** This line said **FOUR**, and the in-file comment
+  it pointed at listed A–D with line numbers that had drifted 2,300–4,700 lines in an
+  11,700-line file. E and F were both correct code; what was wrong was the artifact an
+  engineer audits against — the same bug class the invariant exists to prevent.
+  `app/src/components/chart/engine/__tests__/singleWriterIndex.test.js` now derives the
+  writer set from `StockChart.jsx`'s AST (every `.update()` on `candleSeriesRef.current`,
+  alias-resolved with shadowing respected) and fails BY NAME on a seventh writer or a
+  deleted guard. **Do not re-type a count here — read that test.**
 - **`delivering` is recency-gated with hysteresis** (`barsStreamManager.js`): engage when a bar
   arrived <120s ago (`BARS_LIVE_STALE_MS`), disengage only after 300s (`BARS_LIVE_DISENGAGE_MS`)
   so a thin ticker doesn't thrash push↔Finnhub. A silent-but-heartbeating feed hands the bar back
@@ -1146,6 +1171,45 @@ ECharts treemap rendering curated breadth metrics as color-coded tiles. Clicking
 - `POST /api/breadth-monitor/push` — store snapshot (auth required)
 - `PATCH /api/breadth-monitor/{date}/field` — surgical single-field update
 - `DELETE /api/breadth-monitor/{date}` — remove a snapshot row (auth required)
+- `GET  /api/breadth-monitor/live/drill/{metric_key}` — the names behind one cell
+  of the INTRADAY row (shipped 2026-08-07 `5bf07061`)
+
+### Live-row drill-down (2026-08-07) — LOCKED invariants
+
+The intraday row's cells drill like a recorded day. `compute_metrics` already
+built every count as a boolean mask over the aligned ticker array, so the list
+is emitted **from that same mask** via an optional `members` out-dict.
+
+- ⛔ **A drill list MUST come from the mask that produced the count** — never a
+  second pass. Two passes drift the moment a definition moves and the failure is
+  SILENT: the cell says 47, the modal lists 45, nothing reports it.
+  `test_every_drillable_metric_reports_members_matching_its_count` is the gate.
+- ⛔ **Lists are cached BESIDE the payload, never IN it** (`_live_cache["members"]`).
+  `/api/breadth-monitor/live` is polled every 60s by every Dashboard user on a
+  single-process pod. `test_the_live_payload_never_carries_drill_lists` asserts
+  the key set so nobody can quietly inline them and re-bloat the poll.
+- ⛔ **`drillKey` is NOT the metric key.** The monitor's columns send
+  `col.drillKey` — usually metric+`_list`, but `universe_list` / `stage2_list` /
+  `stage4_list` map to `universe_count` / `stage2_count` / `stage4_count`.
+  `_metric_key_of` + `_DRILL_KEY_ALIASES` resolve both forms; naive suffix
+  stripping opens an EMPTY modal beside a cell showing a number. The coverage
+  test READS every drillKey off `Breadth.jsx` rather than listing them.
+- ⛔ **Route order:** `/live/drill/{metric_key}` must be declared BEFORE
+  `/{date_str}/drill/{metric_key}` — that route matches `"live"` as a date, and
+  registered the other way round every live click 404s.
+- **TWO surfaces share one decision:** the monitor table (`Breadth.jsx`) and the
+  eight `BreadthViews` tiles both route through
+  `app/src/pages/breadth/liveDrill.js::drillTarget`. Don't reimplement it in one.
+- **A CARRIED metric drills the session it came FROM.** `atr_ext_7` needs
+  intraday high/low, so the live row shows the prior day's number; opening
+  today's list would caption a past session's names as today's. No
+  `carried_from` → the cell stays inert.
+- `atr`/`a50` are **absent by construction** on live items (need intraday
+  high/low the snapshot doesn't carry). The modal already renders a missing one
+  as an em dash — do NOT fabricate them.
+- The live row is **hidden whenever `superseded`** — once the 4:15 collector
+  writes the day, `useLiveBreadth` returns nothing by design. "No live row after
+  4:15" is not a regression.
 
 ---
 
@@ -1387,7 +1451,7 @@ COT Data lives as the second tab on the Breadth page (`/breadth`). There is NO s
 
 ### Key Files
 - `api/services/cot_service.py` — CFTC pipeline, SQLite schema, SYMBOL_MAP, seed/refresh
-- `api/routers/cot.py` — 4 routes: GET /symbols, GET /status, POST /refresh, POST /reseed, GET /{symbol}
+- `api/routers/cot.py` — 5 routes: GET /symbols, GET /status, POST /refresh, POST /reseed, GET /{symbol} (said "4 routes" beside a list of five until 2026-08-07 — the list was right, the count was not; same shape as the writer-index and taxonomy drifts above)
 - `app/src/pages/CotData.jsx` — Chart.js mixed bar+line chart, symbol dropdown, lookback buttons (rendered inside Breadth.jsx)
 - `app/src/pages/CotData.module.css` — page styles
 
@@ -1436,15 +1500,15 @@ CURRENCIES: DX, B6, D6, J6, S6, E6, A6, M6, N6, L6, BTC, ETH
 - `api/services/theme_db.py` — SQLite schema + seed from JSON
 - `api/services/realtime_stream.py` — Massive/Polygon WebSocket tick-by-tick streaming
 - `api/routers/stream.py` — SSE endpoint for real-time price push to browser
-- `themes_taxonomy.json` — source of truth: 111 themes, 2049 holdings, 12 sectors (v4.16.0; curated + 12 new narrow themes)
+- `themes_taxonomy.json` — source of truth. **Measure it, don't quote it** (`json.load(...)` → `version`, `len(themes)`, `len(sectors)`, `sum(len(t["holdings"]))`). At 2026-08-07 it reads **v4.22.0, 112 themes, 2029 holdings, 12 sectors**. ⚰️ This line said *111 themes, 2049 holdings, v4.16.0* — three of the four numbers had moved across six minor versions while calling itself "source of truth", which is precisely what discourages re-measuring. It matters for anyone reasoning about coverage before a version-gated reseed, or sizing what the Theme Membership Engine's orphan absorption works against.
 - `morning-wire/morning_wire_engine.py` — reads taxonomy, fetches holdings, pushes to Railway
 
 ### Architecture
 - **Hybrid taxonomy**: JSON seed file → SQLite DB on startup → API enrichment with sector/tier/sub_themes
-- **111 themes across 12 sectors**: Technology, Innovation, Clean Energy, Traditional Energy, Materials, Defense & Industrials, Financials, Healthcare, Consumer, Real Estate & Utilities, Crypto, Global
+- **12 sectors**: Technology, Innovation, Clean Energy, Traditional Energy, Materials, Defense & Industrials, Financials, Healthcare, Consumer, Real Estate & Utilities, Crypto, Global. (Theme count deliberately not restated — see the taxonomy line above; it was `111` here too and drifted in lockstep.)
 - **Holdings cap**: 50 per theme (was 15), filtered by $300M market cap
 - **Non-blocking compute**: memory cache → disk → `{status: "computing"}`
-- **Workers**: `_MAX_WORKERS = 2` (reduced for Railway 512MB scalability)
+- **Workers**: `_MAX_WORKERS = 6` in `api/services/theme_performance.py` (its own comment calls 6 "conservative — keeps Railway memory safe"), consumed by one `ThreadPoolExecutor`. ⚰️ Documented as `2` here until 2026-08-07 — a 3× under-count of theme-compute threads, in the same file whose launch-hardening section budgets the single web pod's ONE shared anyio threadpool. Anyone sizing headroom was four threads short.
 
 ### Theme Membership Engine (self-improving overlay · flag-gated `THEME_ENGINE_ENABLED=1` · LIVE 2026-07-20)
 Autonomous AI overlay that absorbs orphan stocks (in no theme) and refines memberships as stories/RS develop. **`themes_taxonomy.json` is the inviolable owner baseline — the engine NEVER edits it.** Files: `api/services/theme_engine/` (store/orphans/improve/comovement/invalidate), `api/routers/theme_engine.py`, crons in `main.py`.

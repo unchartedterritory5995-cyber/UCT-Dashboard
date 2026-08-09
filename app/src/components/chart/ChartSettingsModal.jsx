@@ -2,13 +2,17 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
 import { CHART_DEFAULTS } from './chartDefaults'
-import { listAllIndicators, readEnabled, applyRowPatch } from './indicatorRegistry'
+import {
+  listAllIndicators, readEnabled, applyRowPatch, indTarget, splitIndTarget, isIndTarget,
+} from './indicatorRegistry'
 // The engine's definitions, so the Indicators tab can GENERATE the rows for the
 // indicators the engine owns instead of carrying a second hand-written copy of
 // their fields. See `indicatorRegistry.js`'s header — this import is what
 // "superseded, not absorbed" looks like at the consumer.
 import * as engineRegistry from './engine/nativeRegistry'
 import usePreferences, { parsePref } from '../../hooks/usePreferences'
+import UIcon from '../ui/UIcon'
+import { HEADER_FIELDS, HEADER_FIELD_BY_KEY, headerFieldKeys, SIGN_POS, SIGN_NEG } from './headerFields'
 import styles from './ChartSettingsModal.module.css'
 
 // A user's saved chart-settings templates live in ONE global pref so they're
@@ -129,16 +133,6 @@ const TITLE_MODES = [
   { val: 'company', label: 'Company' },
   { val: 'both', label: 'Both' },
 ]
-// Header "Show" rows: a visibility toggle + one or more color swatches. Day change
-// carries TWO swatches (up-day / down-day colors); the rest carry one. Each swatch
-// is [color target, picker label].
-const HEADER_ROWS = [
-  { key: 'showChange', label: 'Day change ($ / %)', swatches: [['hdrDayUp', 'Up-day color'], ['hdrDayDown', 'Down-day color']] },
-  { key: 'showMarketCap', label: 'Market cap', swatches: [['hdrMarketCap', 'Market cap color']] },
-  { key: 'showNextEarnings', label: 'Next earnings', swatches: [['hdrNextEarnings', 'Next earnings color']] },
-  { key: 'showUctRating', label: 'UCT rating', swatches: [['hdrUctRating', 'UCT rating color']] },
-  { key: 'showLegend', label: 'Chart legend', swatches: [['hdrLegend', 'Chart legend color']] },
-]
 // Shape of the on-chart OHLCV legend. Horizontal is the flat, box-less strip.
 const LEGEND_LAYOUTS = [
   { val: 'vertical', label: 'Vertical' },
@@ -172,6 +166,36 @@ export default function ChartSettingsModal({
   const [tplName, setTplName] = useState('')
   const tplInputRef = useRef(null)
   useEffect(() => { if (savingTpl && tplInputRef.current) { tplInputRef.current.focus(); tplInputRef.current.select() } }, [savingTpl])
+  // Info Row field-picker menu (Header tab) — pops out to the RIGHT of the modal (like the
+  // color panel) so it never gets clipped by the modal's bottom.
+  const [fieldMenuOpen, setFieldMenuOpen] = useState(false)
+  const [fieldQuery, setFieldQuery] = useState('')
+  const [fieldMenuPos, setFieldMenuPos] = useState(null)
+  const fieldWrapRef = useRef(null)
+  const fieldMenuRef = useRef(null)
+  useEffect(() => {
+    if (!fieldMenuOpen) return
+    const onDown = (e) => {
+      const inWrap = fieldWrapRef.current && fieldWrapRef.current.contains(e.target)
+      const inMenu = fieldMenuRef.current && fieldMenuRef.current.contains(e.target)
+      if (!inWrap && !inMenu) setFieldMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDown, true)   // capture: beats the panel's stopPropagation
+    return () => document.removeEventListener('mousedown', onDown, true)
+  }, [fieldMenuOpen])
+  useLayoutEffect(() => {
+    if (!fieldMenuOpen || !panelRef.current) { setFieldMenuPos(null); return }
+    const r = panelRef.current.getBoundingClientRect()
+    // Top-align the field menu to the settings modal's top edge, and give it enough
+    // height that every field shows without scrolling (H tracks the full list); if it
+    // would spill past the viewport bottom, nudge it up.
+    const W = 240, gap = 12, H = Math.min(760, window.innerHeight - 24)
+    let left = r.right + gap
+    if (left + W > window.innerWidth - 8) left = Math.max(8, r.left - W - gap)  // flip left if tight
+    let top = r.top
+    if (top + H > window.innerHeight - 8) top = Math.max(8, window.innerHeight - 8 - H)
+    setFieldMenuPos({ left, top })
+  }, [fieldMenuOpen, pos])
 
   const persistTemplates = (arr) => setPref(CHART_TEMPLATES_KEY, JSON.stringify(arr.slice(0, MAX_TEMPLATES)))
   const commitSaveTemplate = () => {
@@ -316,8 +340,8 @@ export default function ChartSettingsModal({
     pdlCloseColor: ['prevDayLevels', 'close', 'color'],
   }
   const setColorTarget = (target, hex) => {
-    if (typeof target === 'string' && target.startsWith('ind:')) {
-      const [, rowId, field] = target.split(':')
+    if (isIndTarget(target)) {
+      const { rowId, field } = splitIndTarget(target)
       const row = indRowById(rowId)
       if (row) setRow(row, { [field]: hex })
       return
@@ -327,6 +351,13 @@ export default function ChartSettingsModal({
     if (target === 'watermark') {
       const { rgb, a } = splitHexA(hex)
       onChange?.({ ...settings, watermark: { ...watermark, color: rgb, opacity: a }, preset: 'custom' })
+      return
+    }
+    // Per-field Info Row colors: `hdrf:<colorKey>` → header.colors[colorKey].
+    if (target.startsWith('hdrf:')) {
+      const key = target.slice(5)
+      const h = settings?.header || {}
+      onChange?.({ ...settings, header: { ...h, colors: { ...(h.colors || {}), [key]: hex } }, preset: 'custom' })
       return
     }
     const path = COLOR_PATHS[target]; if (!path) return
@@ -359,9 +390,19 @@ export default function ChartSettingsModal({
   const targetValue = (t) => {
     // Registry-driven indicator fields carry their path in the target string, so the
     // switch below never needs a case per indicator.
-    if (typeof t === 'string' && t.startsWith('ind:')) {
-      const [, rowId, field] = t.split(':')
+    if (isIndTarget(t)) {
+      const { rowId, field } = splitIndTarget(t)
       return indRowById(rowId)?.values?.[field] || '#c9a84c'
+    }
+    if (t.startsWith('hdrf:')) {
+      const key = t.slice(5)
+      const ov = settings?.header?.colors?.[key]
+      if (ov) return ov
+      // Signed field halves (`<colorKey>:pos` / `:neg`) default to green / red.
+      if (key.endsWith(':pos')) return SIGN_POS
+      if (key.endsWith(':neg')) return SIGN_NEG
+      const hf = HEADER_FIELDS.find((x) => x.colorKey === key)
+      return (hf && hf.dflt) || '#9b9684'   // neutral placeholder for auto/sign-tinted fields
     }
     switch (t) {
       case 'bodyUp': return candles.upColor || '#1ae51a'
@@ -413,6 +454,12 @@ export default function ChartSettingsModal({
   // Header tab.
   const header = settings?.header || {}
   const setHeader = (patch) => setSetting({ header: { ...header, ...patch } })
+  // Info Row — the picked fields (migrates a legacy show* blob); the picker menu state
+  // lives up top with the other hooks (this code runs after the `!open` early return).
+  const infoFields = headerFieldKeys(header)
+  const toggleInfoField = (key) => setHeader({
+    fields: infoFields.includes(key) ? infoFields.filter((k) => k !== key) : [...infoFields, key],
+  })
   const hdrColors = header.colors || {}
   // Markers tab.
   const swing = settings?.swingLabels || {}
@@ -439,6 +486,27 @@ export default function ChartSettingsModal({
       onClick={() => setActiveTarget({ target, label })}
     />
   )
+
+  // A "Show X" row: color swatch(es) (only while on) + an on/off switch. Shared by the
+  // Title's Day-change row and the Chart-legend row.
+  const renderShowRow = (key, label, swatches = []) => {
+    const on = header[key] !== false
+    return (
+      <div className={styles.field} key={key}>
+        <span className={styles.fieldLabel}>{label}</span>
+        <div className={styles.hdrRowCtl}>
+          {on && swatches.map(([target, pickerLabel]) => (
+            <span key={target}>{colorSwatch(target, pickerLabel)}</span>
+          ))}
+          <button
+            type="button" role="switch" aria-checked={on}
+            className={`${styles.toggle} ${on ? styles.toggleOn : ''}`}
+            onClick={() => setHeader({ [key]: header[key] === false })}
+          ><span className={styles.toggleKnob} /></button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <>
@@ -707,7 +775,7 @@ export default function ChartSettingsModal({
                         return (
                           <div key={f.key} className={styles.indRow} title={f.disabled || undefined}>
                             <span className={`${styles.indLabel} ${dis ? styles.indLabelOff : ''}`}>{f.label}</span>
-                            {f.type === 'color' && colorSwatch(`ind:${row.id}:${f.key}`, f.label, val)}
+                            {f.type === 'color' && colorSwatch(indTarget(row.id, f.key), f.label, val)}
                             {f.type === 'toggle' && (
                               /* `disabled` is load-bearing, not decoration: a disabled
                                  <button> fires no click, so an inert field can't write
@@ -753,6 +821,8 @@ export default function ChartSettingsModal({
           </>)}
 
           {activeTab === 'header' && (<>
+          {/* TITLE — the ticker/company label + its color + the day-change readout that
+              sits right beside it (all "the title line", so they're grouped together). */}
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Title</div>
             <div className={styles.modeRow}>
@@ -774,35 +844,18 @@ export default function ChartSettingsModal({
               <span className={styles.fieldLabel}>Title color</span>
               <div className={styles.hdrRowCtl}>{colorSwatch('hdrTitle', 'Title color')}</div>
             </div>
+            {/* Day change ($ / %) — reads beside the title, so it lives in this section. */}
+            {renderShowRow('showChange', 'Day change ($ / %)',
+              [['hdrDayUp', 'Up-day color'], ['hdrDayDown', 'Down-day color']])}
           </section>
 
+          {/* CHART LEGEND — its own section (the on-chart OHLCV readout + its shape). */}
           <section className={styles.section}>
-            <div className={styles.sectionLabel}>Show</div>
+            <div className={styles.sectionLabel}>Chart Legend</div>
             <div className={styles.card}>
-              {HEADER_ROWS.map(({ key, label, swatches }) => {
-                const on = header[key] !== false
-                return (
-                  <div className={styles.field} key={key}>
-                    <span className={styles.fieldLabel}>{label}</span>
-                    <div className={styles.hdrRowCtl}>
-                      {/* Color swatch(es) — only meaningful when the item is shown. */}
-                      {on && swatches.map(([target, pickerLabel]) => (
-                        <span key={target}>{colorSwatch(target, pickerLabel)}</span>
-                      ))}
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={on}
-                        className={`${styles.toggle} ${on ? styles.toggleOn : ''}`}
-                        onClick={() => setHeader({ [key]: header[key] === false })}
-                      ><span className={styles.toggleKnob} /></button>
-                    </div>
-                  </div>
-                )
-              })}
-              {/* Legend shape. Only meaningful while the legend is shown, and only
-                  the Charts workspace honors it (other surfaces keep their own
-                  inline row) — so it lives with the legend toggle, not on its own. */}
+              {renderShowRow('showLegend', 'Chart legend', [['hdrLegend', 'Chart legend color']])}
+              {/* Legend shape. Only meaningful while the legend is shown, and only the
+                  Charts workspace honors it (other surfaces keep their own inline row). */}
               {header.showLegend !== false && (
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Legend layout</span>
@@ -819,6 +872,43 @@ export default function ChartSettingsModal({
                 </div>
               )}
             </div>
+          </section>
+
+          {/* INFO ROW — an "Add Field" button (beside the label) opens the searchable field
+              menu (pops out to the RIGHT of the modal). Every selected field then lists here
+              with a color swatch. */}
+          <section className={styles.section}>
+            <div className={styles.infoRowHead}>
+              <span className={styles.sectionLabel} style={{ padding: 0 }}>Info Row</span>
+              <button
+                type="button"
+                ref={fieldWrapRef}
+                className={styles.addFieldBtn}
+                onClick={() => setFieldMenuOpen((o) => !o)}
+                aria-expanded={fieldMenuOpen}
+              >＋ Add Field</button>
+            </div>
+            {infoFields.length > 0 && (
+              <div className={styles.card}>
+                {infoFields.map((k) => {
+                  const f = HEADER_FIELD_BY_KEY[k]
+                  if (!f) return null
+                  // Signed fields (% change, $ change, N-day…) get TWO swatches: the left
+                  // colors positive values, the right colors negative values.
+                  return (
+                    <div className={styles.field} key={k}>
+                      <span className={styles.fieldLabel}>{f.label} color</span>
+                      <div className={styles.hdrRowCtl}>
+                        {f.signed ? (<>
+                          {colorSwatch(`hdrf:${f.colorKey}:pos`, `${f.label} — positive`)}
+                          {colorSwatch(`hdrf:${f.colorKey}:neg`, `${f.label} — negative`)}
+                        </>) : colorSwatch(`hdrf:${f.colorKey}`, `${f.label} color`)}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </section>
           {/* Timeframes/Favorites are managed on the chart's own timeframe menu (the
               ⌄ button) — star to favorite there; no separate settings section. */}
@@ -1079,6 +1169,38 @@ export default function ChartSettingsModal({
               onStyle: (s) => setSetting({ crosshair: { ...crosshair, style: s } }),
             } : null}
           />
+        </div>,
+        document.body,
+      )}
+      {/* Field picker — portaled to the RIGHT of the modal (like the color panel) so it
+          never gets clipped by the modal's bottom. */}
+      {fieldMenuOpen && fieldMenuPos && createPortal(
+        <div
+          ref={fieldMenuRef}
+          className={styles.fieldMenu}
+          style={{ position: 'fixed', left: fieldMenuPos.left, top: fieldMenuPos.top, right: 'auto', zIndex: 9200 }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <input
+            className={styles.fieldSearch}
+            placeholder="Search fields…"
+            value={fieldQuery}
+            onChange={(e) => setFieldQuery(e.target.value)}
+            autoFocus
+          />
+          <div className={styles.fieldList}>
+            {HEADER_FIELDS
+              .filter((f) => !fieldQuery || f.label.toLowerCase().includes(fieldQuery.toLowerCase()))
+              .map((f) => {
+                const on = infoFields.includes(f.key)
+                return (
+                  <button key={f.key} type="button" className={styles.fieldItem} onClick={() => toggleInfoField(f.key)}>
+                    <span className={styles.fieldCheck}>{on ? <UIcon name="check" size={11} /> : null}</span>
+                    {f.label}
+                  </button>
+                )
+              })}
+          </div>
         </div>,
         document.body,
       )}

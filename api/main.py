@@ -94,6 +94,7 @@ from api.routers import modelbook as modelbook_router
 from api.routers import news_catalysts as news_catalysts_router
 from api.routers import stock_brief as stock_brief_router
 from api.routers import charts_layouts as charts_layouts_router
+from api.routers import user_definitions as user_definitions_router
 from api.routers import theme_index as theme_index_router
 from api.routers import theme_engine as theme_engine_router
 from api.routers import ai_search as ai_search_router
@@ -1163,6 +1164,54 @@ def register_pattern_vision_jobs(scheduler):
     return True
 
 
+def idb_cache_logic_version(src_path: str | None = None) -> int | None:
+    """`CACHE_LOGIC_VERSION` as it is DECLARED in `app/src/utils/barsIDB.js`.
+
+    ⛔ THE FINGERPRINT USED TO CARRY A HARDCODED `idb_cache_logic_version=4` AND
+    THE CONSTANT HAD BEEN 5 SINCE 2026-07-14. That line exists, in CLAUDE.md's
+    own words, "for grep verification" — so the designated verification artifact
+    confirmed a stale number, and an agent told to "bump to 5 or higher" to
+    invalidate poisoned browser caches would bump it TO THE VALUE ALREADY LIVE,
+    invalidate nothing, and then grep this line and read green. A fingerprint
+    that can disagree with the thing it fingerprints is worse than no
+    fingerprint.
+
+    Returns `None` when the source file is not on disk (a runtime image that
+    ships only `app/dist`), and also when the declaration is absent or
+    AMBIGUOUS, so the fingerprint can say `unreadable` — which is a true
+    statement — rather than a number nobody checked.
+
+    ⚠️ IT READS THE DECLARATION, NOT A MENTION. The first cut of this function
+    was `re.search(r"CACHE_LOGIC_VERSION\\s*=\\s*(\\d+)")` over the whole file
+    and its own control caught it: `barsIDB.js` explains the constant in the
+    COMMENT BLOCK ABOVE IT, so a prose sentence naming an old value would be
+    read as the value. Same defect as the `(\\d+) passed` regexes in
+    `tools/*_mutations.py` — a scan that reads prose answers a different
+    question than the one it was asked.
+    """
+    import re as _re
+    from pathlib import Path as _Path
+    path = _Path(src_path) if src_path else (
+        _Path(__file__).resolve().parents[1] / "app" / "src" / "utils" / "barsIDB.js")
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    found = []
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith(("//", "*", "/*")):
+            continue
+        m = _re.match(r"(?:export\s+)?const\s+CACHE_LOGIC_VERSION\s*=\s*(\d+)\b",
+                      stripped)
+        if m:
+            found.append(int(m.group(1)))
+    # Exactly one declaration, or we do not know. Two declarations means the
+    # answer depends on which one the bundler picks, and guessing there is how a
+    # fingerprint starts lying again.
+    return found[0] if len(found) == 1 else None
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Bump the anyio/starlette thread pool so sync endpoints don't queue
@@ -1360,6 +1409,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[startup] charts_layouts init failed (non-fatal): {e}")
 
+    # Initialize user_definitions.db schema unconditionally (same pattern). It is
+    # its OWN file rather than a `chart_settings` key because `mergeChartSettings`
+    # is a hard allow-list that DESTROYS an unknown top-level key on every read.
+    try:
+        from api.services import user_definitions
+        user_definitions._init_db()
+        print("[startup] user_definitions.db initialized")
+    except Exception as e:
+        print(f"[startup] user_definitions init failed (non-fatal): {e}")
+
     # Initialize education.db schema unconditionally (same pattern as above).
     # The Educational Videos page fires /api/education/videos on load; without a
     # schema the read endpoint would 500 on "no such table".
@@ -1463,7 +1522,15 @@ async def lifespan(app: FastAPI):
     # through the existing watchlist-alert delivery pipeline.
     try:
         from api.services import indicator_alert_service, indicator_alert_evaluator
+        from api.services import alert_rev_migration as _alert_rev
         indicator_alert_service.init_schema()
+        # ⭐ AT BOOT, NOT ON THE FIRST ALERT. `alert_rev_migration.init_schema()`
+        # ALTERs `indicator_alert_rev` to add `def_hash`, and it had no startup
+        # caller — so the column would have appeared on whichever request first
+        # touched the alert lane, i.e. inside a member's call rather than during
+        # a deploy. Idempotent and additive (the ALTER is skipped once present),
+        # so running it here costs a no-op on every boot after the first.
+        _alert_rev.init_schema()
         indicator_alert_evaluator.start_evaluator(interval_sec=60)
         logging.getLogger(__name__).info("[startup] indicator alert evaluator started")
     except Exception:
@@ -1682,6 +1749,23 @@ async def lifespan(app: FastAPI):
         print("[startup] SQLite bar store ready")
     except Exception as e:
         print(f"[startup] SQLite bar store init error (non-fatal): {e}")
+
+    # Pre-build the by-date daily index (once per volume) off the boot path so the
+    # pre-~2004 Custom-Period Sort is instant on first use instead of triggering a
+    # ~1-2 min build under the user. Delayed so it doesn't fight the startup warms.
+    def _build_bydate_index_bg():
+        try:
+            import time as _t
+            _t.sleep(90)
+            from api.services import bars_sqlite as _bs
+            _bs.ensure_daily_bydate_index()
+            # Then pre-warm the shared ticker-reuse map (its whole-universe scan was the
+            # 3-5-min-per-range cost for pre-2004 sorts) so it's ready before anyone sorts.
+            from api.services import scan_period as _sp
+            _sp.warm_reuse_map()
+        except Exception as e:
+            print(f"[startup] by-date daily index / reuse-map pre-build error (non-fatal): {e}")
+    threading.Thread(target=_build_bydate_index_bg, daemon=True, name="sqlite-bydate-index").start()
 
     try:
         for _flag_name in (".tf60_purged_2f42e55", ".tf60_purged_3cbe1cf_src_cap"):
@@ -2005,13 +2089,16 @@ async def lifespan(app: FastAPI):
 
     # Chart pipeline mode fingerprint -- one line so a grep on Tuesday morning
     # tells the operator EXACTLY which fixes are active in this deploy.
+    # `idb_cache_logic_version` is READ from barsIDB.js, never typed -- see
+    # `idb_cache_logic_version()` for the stale-4-vs-live-5 defect that caused it.
+    _idb_ver = idb_cache_logic_version()
     print(
         "[startup] chart-realtime-mode: "
         "fmp_tz_fix=on yfinance_tz_fix=on heal_v1=ran-once heal_v2=ran-once heal_v3_60day=ran-once "
         "needs_fresh_post_market=on "
         "swr_refresh_interval=30s_intraday "
         "tf60_ws_streaming=on bucket_canonical=bars_fetch.bucket_60_et_unix_seconds "
-        "delta_intraday_filter=>= idb_cache_logic_version=4 "
+        f"delta_intraday_filter=>= idb_cache_logic_version={_idb_ver if _idb_ver is not None else 'unreadable'} "
         "weekly_dating=friday-close heal_weekly_close=ran-once "
         f"reconciliation_worker={'on' if os.environ.get('RECONCILE_ENABLED', '1') != '0' else 'off'}"
     )
@@ -2765,6 +2852,65 @@ async def lifespan(app: FastAPI):
                 coalesce=True, replace_existing=True, misfire_grace_time=60)
         except Exception as _e_sweep:
             print(f"[startup] indicator alert silence sweep skip: {_e_sweep}")
+
+        # -- Indicator alerts: THE ARMED SET PULLS ITS OWN BARS ---------------
+        # ⭐ MEASURED ON THIS POD, 2026-08-07 09:56 ET, 26 MINUTES AFTER THE OPEN,
+        # WITH 31 ALERTS ARMED:
+        #
+        #     GROUP SPY/5  alerts=31  newest_bar_ET=2026-08-07 09:15  stale=41.1 min
+        #
+        # Thirty-one live alerts deciding against a PRE-MARKET bar.
+        # `_fetch_bars_for_alert` reads `bars_sqlite` directly and therefore
+        # inherits NONE of `/api/bars`' freshness logic (`_needs_fresh`,
+        # `_is_cold_stale_intraday`, the synchronous first-paint delta). The
+        # store is freshened by an on-demand chart view or the worker's R2
+        # merge -- and in COMING SOON mode nobody opens a chart. So the alert
+        # lane depended on somebody else's chart traffic to have data from this
+        # hour, which for an alerts product is the wrong dependency direction.
+        #
+        # This job turns it around: the ARMED groups pull their own bars,
+        # through `bars_fetch`'s own delta functions and `bars_sqlite.put_bars`.
+        # No second fetcher, no new SQL, no new staleness rule.
+        #
+        # ⛔ ON THE BACKGROUNDSCHEDULER, NOT THE EVENT LOOP. This pod is ONE
+        # uvicorn process; the 2026-07-01 outage was anyio-threadpool
+        # exhaustion. A BackgroundScheduler job costs one of APScheduler's OWN
+        # ten worker slots and ZERO anyio slots, and `max_instances=1` means a
+        # slow sweep queues behind itself instead of fanning out. The module
+        # additionally REFUSES to run if it ever finds a running event loop in
+        # the calling thread, so a future wrong call site costs a log line.
+        #
+        # Bounded by construction: only `list_active()` groups (ONE today),
+        # capped at MAX_GROUPS per sweep stalest-first, <=MAX_WORKERS in flight,
+        # fetch starts paced >=MIN_GAP apart, whole sweep under DEADLINE_SECONDS.
+        # An unpaced sweep once 429'd on its FIRST call, engaged a 20s shared
+        # cooldown and then raced through everything empty reporting success --
+        # so an empty read here is never written, never counted as a refresh and
+        # never stamps the success clock, which is what makes the next sweep
+        # retry THROUGH a cooldown instead of past it.
+        #
+        # 60s to match the evaluator's own interval, so the bars are never more
+        # than one cycle behind what the alert lane is about to read.
+        # NOT market-hours-gated here on purpose: `_needs_fresh` is already
+        # session- and holiday-aware and returns False overnight and at weekends
+        # once the last session is covered, so this job self-gates to zero
+        # upstream calls off-market. A second calendar would be a second thing
+        # to keep in sync with NYSE.
+        #
+        # Kill switch: ALERT_BARS_REFRESH_ENABLED=0 (default ON -- a flag that
+        # defaulted off would not have fixed anything, and setting a Railway
+        # variable auto-redeploys).
+        try:
+            from api.services import alert_bars_freshness as _alert_bars
+            _scheduler.add_job(
+                _alert_bars.run_scheduled_sweep,
+                trigger=IntervalTrigger(seconds=60),
+                id="alert_bars_freshness", max_instances=1,
+                coalesce=True, replace_existing=True, misfire_grace_time=30)
+            print("[startup] alert bars freshness scheduled (every 60s, armed "
+                  "groups only)")
+        except Exception as _e_abf:
+            print(f"[startup] alert bars freshness job skip: {_e_abf}")
 
         # -- Dark pool: nightly Massive ingest (2026-07-24) --------------------
         # Replaces the manual BBS CSV loop (download -> app/public -> redeploy).
@@ -4420,6 +4566,8 @@ app.include_router(engine_data.router)
 app.include_router(earnings.router)
 app.include_router(news.router)
 app.include_router(screener.router)
+from api.routers import scans as scans_router
+app.include_router(scans_router.router)
 # DEPRECATED 2026-06-02 -- Model Book is no longer a trade log (rebuilt as a
 # curated library of top stocks; see api/routers/modelbook.py). The /api/trades
 # endpoints + data/trades.json are kept as a rollback backup; schedule a manual
@@ -4532,6 +4680,7 @@ app.include_router(modelbook_router.router)
 app.include_router(news_catalysts_router.router)
 app.include_router(stock_brief_router.router)
 app.include_router(charts_layouts_router.router)
+app.include_router(user_definitions_router.router)  # /api/user-definitions/* — Phase D
 app.include_router(theme_index_router.router)
 app.include_router(theme_engine_router.router)  # Theme Membership Engine admin ops
 app.include_router(ai_search_router.router)
@@ -4826,7 +4975,7 @@ async def _massive_backfill_ticktest(target_date: str = None):
     target_date: 'M/D/YYYY' format (e.g. '6/26/2026'). Defaults to today.
     """
     try:
-        from api.backfill_tick_test import run_backfill
+        from api.backfill_ticktest import run_backfill
         stats = run_backfill(target_date)
         return {"ok": True, "stats": stats}
     except Exception as e:

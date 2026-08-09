@@ -1,3 +1,49 @@
+"""Screener + scanner surfaces — the full-market screen, the UCT scanner
+candidates, and the pooled scanner universe.
+
+⛔ EVERYTHING HERE IS PAID EXCEPT ONE DELIBERATE, TOKEN-AUTHENTICATED DOOR.
+Owner ruling 2026-08-06, reaffirmed 08-07: *"everything is paid, almost nothing
+is accessible for free"* — with a free trial granting paid access for a period,
+which `is_paid_user` already honours (admin OR paid plan OR in-trial).
+
+Measured 2026-08-08, before this file was gated:
+  * `GET /api/candidates` answered an ANONYMOUS caller 200 with 32,610 bytes —
+    the UCT scanner's candidate list, the firm's proprietary morning output.
+  * `/api/screener` and `/api/scanner/universe` had no dependency at all.
+  * `/api/screener/{meta,scan,snapshot-status,saved-screens}` were gated with
+    `get_current_user` ONLY — "logged in" is not "paid", and a free member could
+    run the whole 4,000-ticker precomputed screen.
+
+⛔ `require_paid` IS DECLARED PER HANDLER, NOT ON THE ROUTER. `main.py` calls
+`include_router(screener.router)` with no router-level dependency, so a route
+that omits its own gate is reachable by anybody. The shape is copied from
+`api/routers/signature.py:174`, which defines its OWN `require_paid` with its own
+402 sentence and repeats it on every route — a shared dependency would change
+four other routers' behaviour as a side effect of gating this one, and the
+distinct sentence is what makes "which surface refused me" answerable.
+
+⛔ AND THE COVERAGE TEST IS DERIVED FROM `router.routes` WITH THE COUNT ASSERTED —
+`tests/test_scan_screener_auth.py`. Phase C Task 13 MEASURED the alternative: it
+dropped `Depends(require_paid)` from `/confluence` and the shipped test stayed
+GREEN because it hand-listed THREE paths while the router had FIVE.
+
+✋ THE ONE ROUTE THAT STAYS OPEN, AND WHY.
+`GET /api/screener/shared/{share_token}` is token-authenticated public sharing,
+by design, not by omission:
+  * `saved_screens.update` mints `share_token = secrets.token_urlsafe(8)` ONLY
+    when the screen's owner sets `is_public`, and `get_public` re-checks
+    `is_public=1` in the WHERE clause — so an un-shared screen is unreachable
+    even with a guessed id;
+  * the design doc lists it as such —
+    `docs/superpowers/plans/2026-06-19-full-market-screener.md:1413`,
+    "`GET /api/screener/shared/{share_token}` (public read)";
+  * and it serves a saved FILTER SPEC, never scan output: no ticker rows, no
+    prices, nothing the paid screen computes. A recipient still needs a paid
+    plan to RUN it, because `/api/screener/scan` is gated below.
+Gating it would break every share link already in the wild. It is named in
+`tests/test_scan_screener_auth.py::PUBLIC_BY_DESIGN`, whose size is asserted, so
+a SECOND open route cannot join it quietly.
+"""
 from fastapi import APIRouter, HTTPException, Body, Depends
 from pydantic import BaseModel
 from api.services.engine import get_screener, get_candidates
@@ -8,13 +54,23 @@ from api.services.screener import (
     snapshot_db as scr_db,
     saved_screens as scr_saved,
 )
-from api.middleware.auth_middleware import get_current_user, require_admin
+from api.middleware.auth_middleware import (
+    get_current_user_with_plan,
+    is_paid_user,
+    require_admin,
+)
 
 router = APIRouter()
 
 
+def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402, detail="The screener requires a paid plan")
+    return user
+
+
 @router.get("/api/screener")
-def screener():
+def screener(_user: dict = Depends(require_paid)):
     try:
         return get_screener()
     except Exception as e:
@@ -22,7 +78,7 @@ def screener():
 
 
 @router.get("/api/candidates")
-def candidates():
+def candidates(_user: dict = Depends(require_paid)):
     try:
         result = get_candidates()
         try:
@@ -45,7 +101,7 @@ def candidates():
 
 
 @router.get("/api/scanner/universe")
-def scanner_universe():
+def scanner_universe(_user: dict = Depends(require_paid)):
     """Pool all breadth list fields (52W highs, Stage 2, HVC, etc.) into a unified scanner universe."""
     try:
         return bm_svc.get_universe_stocks()
@@ -64,13 +120,13 @@ class ScanSpec(BaseModel):
 
 
 @router.get("/api/screener/meta")
-def screener_meta(user=Depends(get_current_user)):
+def screener_meta(user=Depends(require_paid)):
     """Filter registry + result views + filter categories (frontend-ready)."""
     return scr_filters.meta()
 
 
 @router.post("/api/screener/scan")
-def screener_scan(spec: ScanSpec, user=Depends(get_current_user)):
+def screener_scan(spec: ScanSpec, user=Depends(require_paid)):
     try:
         return scr_query.run_scan(spec.model_dump())
     except ValueError as e:
@@ -78,14 +134,18 @@ def screener_scan(spec: ScanSpec, user=Depends(get_current_user)):
 
 
 @router.get("/api/screener/snapshot-status")
-def screener_snapshot_status(user=Depends(get_current_user)):
+def screener_snapshot_status(user=Depends(require_paid)):
     return scr_db.status()
 
 
 @router.post("/api/screener/refresh")
 def screener_refresh(max_tickers: int = 800, user=Depends(require_admin)):
     """Admin: warm the snapshot now (background, capped) instead of waiting for
-    the 03:00 ET nightly. Returns immediately."""
+    the 03:00 ET nightly. Returns immediately.
+
+    Stays `require_admin` — STRICTER than paid, not an exception to it. A paid
+    member gets 403 here, and that is the point: this is the only route in the
+    router that spends provider budget."""
     import threading
     from api.services.screener import snapshot_builder
     threading.Thread(
@@ -95,13 +155,13 @@ def screener_refresh(max_tickers: int = 800, user=Depends(require_admin)):
 
 
 @router.get("/api/screener/saved-screens")
-def screener_saved_list(user=Depends(get_current_user)):
+def screener_saved_list(user=Depends(require_paid)):
     scr_saved.init()
     return {"saved": scr_saved.list_for(user["id"]), "starters": scr_saved.starters()}
 
 
 @router.post("/api/screener/saved-screens")
-def screener_saved_create(payload: dict = Body(...), user=Depends(get_current_user)):
+def screener_saved_create(payload: dict = Body(...), user=Depends(require_paid)):
     scr_saved.init()
     if not payload.get("name") or payload.get("spec") is None:
         raise HTTPException(status_code=400, detail="name and spec required")
@@ -110,7 +170,7 @@ def screener_saved_create(payload: dict = Body(...), user=Depends(get_current_us
 
 
 @router.put("/api/screener/saved-screens/{sid}")
-def screener_saved_update(sid: int, payload: dict = Body(...), user=Depends(get_current_user)):
+def screener_saved_update(sid: int, payload: dict = Body(...), user=Depends(require_paid)):
     rec = scr_saved.update(sid, user["id"], **payload)
     if not rec:
         raise HTTPException(status_code=404, detail="not found")
@@ -118,12 +178,17 @@ def screener_saved_update(sid: int, payload: dict = Body(...), user=Depends(get_
 
 
 @router.delete("/api/screener/saved-screens/{sid}")
-def screener_saved_delete(sid: int, user=Depends(get_current_user)):
+def screener_saved_delete(sid: int, user=Depends(require_paid)):
     return {"deleted": scr_saved.delete(sid, user["id"])}
 
 
 @router.get("/api/screener/shared/{share_token}")
 def screener_shared(share_token: str):
+    """✋ PUBLIC BY DESIGN — the token IS the credential. See the module docstring:
+    the token only exists for a screen its owner marked public, `get_public`
+    re-checks `is_public=1`, and the payload is a filter SPEC, not scan output.
+    Do NOT add `Depends(require_paid)` here — it would break every share link
+    already in the wild."""
     rec = scr_saved.get_public(share_token)
     if not rec:
         raise HTTPException(status_code=404, detail="not found")

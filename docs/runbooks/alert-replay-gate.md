@@ -92,6 +92,50 @@ delivery-side defect and orthogonal to repainting.
 | `nvda_5m_extended` | 800 | real extended-hours 5-minute tape, 04:00–19:55 ET, real overnight gaps, real zero-volume pre-market prints. |
 | `wick_that_unwinds` | 66 | hand-built. RSI(14) parks at 67.0, one bar's HIGH takes it to 77.4 intra-bar, its CLOSE leaves it at 68.84, then flat. |
 
+### …and the seven added for the cutover — `tools/alert_corpus_extend.py`
+
+🔴 **WHY.** Production's shadow lane held 8,130 rows and **every one was recorded
+between 16:52 and 21:30 ET**. The closed-bar lane exists to judge the last
+*confirmed* bar instead of the forming one, and after hours nothing is forming —
+so that data says almost nothing about the behaviour the cutover changes. Four
+fixtures were the whole offline corpus. These seven are **real bars out of the
+local store**, each carrying a condition a regular session can actually present,
+and each carrying an executable `checks` function (re-run against the frozen bars
+by `test_every_extended_fixture_still_supports_its_own_claim`) so the claim can go
+red instead of rotting.
+
+| fixture | tf | bars | the condition it covers |
+|---|---|---|---|
+| `gap_open_5m` | 5 | 230 | **a gap open.** SNOW 2026-05-27→28: the regular session closes 175.26 and reopens at **237.00, +35.2%**, with 160 bars of warmup before it. Where a level alert most plausibly fires differently between the lanes. |
+| `high_vol_5m` | 5 | 200 | **a high-volatility session with many threshold crossings.** ZS 2026-06-25→26: 6.85% range, close crosses its own median **47 times**, no bar spanning >1.23% of its close (so it is tape, not a print artifact). |
+| `thin_illiquid_5m` | 5 | 220 | **a thin ticker with missing and repeated bars.** ADXN over SEVEN WEEKS: 171 of 219 steps are off the 5-minute grid (up to 12 h), **108 zero-volume bars**, 34 byte-identical consecutive OHLC pairs, 85 distinct closes in 220 bars. |
+| `warmup_first_bars_5m` | 5 | 84 | **a series that starts mid-fixture.** The FIRST 84 bars UBER has in the store. 27 of 31 addresses produce their first value after index 0 (latest at 51 of 84); `ichimoku.chikou` is None for the last 51. |
+| `halfday_30m` | 30 | 213 | **a real half day, a holiday hole, EST, and tf=30.** SPY 2025-11-21→12-02: Thanksgiving 11-27 is a whole-session hole; 11-28 closes 13:00 ET so its last regular bucket is the **closing auction alone** (2,357,259 shares in eight cents) followed by a 3-hour hole. |
+| `hourly_open_60m` | 60 | 208 | **session boundaries on tf=60.** SPY, 17 sessions. Carries the irregular open grid (below), the last bar before 16:00, the first after 04:00, and 16 overnight gaps. |
+| `gap_daily` | D | 210 | **daily bars whose boundary is ET midnight.** SMCI 2025-10-03→2026-08-05: **−26.9%** (2026-03-20) and **+13.3%** (2026-07-22) overnight gaps, `t` a YYYYMMDD calendar key. |
+
+Before the extension **every** fixture was tf `5` or `D`; `bar_close_epoch`'s
+30- and 60-minute branches had no real tape behind them at all.
+
+⛔ **THE FIRE LOG GROWS BY `--record --append --only <name>`, NEVER BY `--force`.**
+That mode replays only what it is named, refuses a fixture it has already
+recorded, and compares every pre-existing fixture object before and after —
+refusing to write if one moved. **A new fixture may ADD entries; it may not move
+one existing digest.** If an existing digest moves, that is a finding about the
+closed lane, not a number to regenerate.
+
+⛔ **AND `--check` NOW REFUSES A CORPUS AND A FIRE LOG THAT DISAGREE**, in both
+directions, before replaying anything. A series frozen into `replay_bars.json` and
+never recorded used to be not checked, not missed and not reported — it sat in the
+tree looking like coverage. `--only` cannot suppress it: the rail is a property of
+the two artifacts, not of the subset a run selected.
+
+⛔ **`--diff` IS SCOPED TO `fire_diff_declared.json`'s OWN `measured.fixtures`, AND
+IT NAMES THE REST EVERY RUN.** Each declared `count` is a bound observed over the
+four series the declaration names; driving eleven through the same bounds
+over-budgets rows for a reason that has nothing to do with the lane. Measure a new
+fixture with `--diff --only <name>` and read the result as a **census**.
+
 ⚠️ **`nvda_5m_extended` does NOT carry spec §9.1's two session traps, and the fixture
 says so.** The bars store retains NVDA 5m only from **2026-04-16** (entirely EDT) and its
 last print of the day is **19:55 ET**, five minutes short of the 20:00 ET == 00:00 UTC
@@ -258,9 +302,9 @@ already shipping. That is worth having. It is not a gate on anything below.
 | T5 closed-bar evaluator (dark) | `_evaluate_one_closed`, `closed_bar_index` | `tests/test_alert_closed_bar.py` + `--repaint --mode closed`, which refuses a lane that never fires | **no** |
 | T6 shadow lane · declared diff | `alert_shadow_log.py`, `fire_diff_declared.json` | `--diff` **exit code**: undeclared in EITHER direction fails | **no** |
 | T7 `compute.rev` force-migration | the `_run_one_cycle` guard, `ADDRESS_REVS` | `tests/test_alert_rev_migration.py`, driven through the REAL cycle | **no** |
-| T9 the ledger door | `admit_alert_fire` | `tests/test_alert_ledger_admission.py` + the **AST** zero-call-site rail | **no** |
+| T9 the ledger door | `admit_alert_fire` + its one caller `_accrue_ledger_receipt` | `tests/test_alert_ledger_admission.py`, including the **AST** call-site census — which says **ONE** since the door was wired 2026-08-08, not zero. ⚠️ Until then this cell named a "zero-call-site rail" that existed only as per-task scratch probes; the committed equality is `test_the_door_has_EXACTLY_ONE_production_call_site` | **no** |
 | T10 alerts name the instance · `INDICATOR_FUNCS` retires | derived value table, `PRICE_FUNCS`, `instance_id` | `tests/test_indicator_alert_evaluator.py` · `IndicatorAlertPopover.test.jsx` | **no** — the popover is not mounted by `/r/chart` |
-| T11 fire-once · re-arm · fired log · soak matrix | `alert_fired_log.py`, `tools/alert_soak_matrix.py` | `tests/test_alert_fired_log.py` + `--verify` (exits 1 on deliverable / invisible / unarmed) | **no** |
+| T11 fire-once · re-arm · fired log · soak matrix | `alert_fired_log.py`, `tools/alert_soak_matrix.py` | `tests/test_alert_fired_log.py` + `--verify` (exits 1 on deliverable / invisible / unarmed / **ZERO armed** / expiring-within-7-days; `--arm` exits 1 when its own verify refuses) | **no** |
 | T12 per-chart alert sets · templates | `engine/alertSets.js` | `alertSets.test.js` + the `mergeChartSettings` corpus digest | **partly** — a merge change WOULD move pixels, so the 0 covers that half and only that half |
 | T13 Signature on a generic server lane | `engine/serverCompute.js`, `/api/signature/columns` | `tests/test_signature_router.py`, whose route list is DERIVED from `sig.router.routes` | **no** — and see §6.3 |
 | T14 AVWAP · ATR bands | `computeAVWAP`, `computeATRBands`, both lanes | `tests/test_indicator_golden.py` (1e-9, both lanes) **and** the two parity cases below | **yes**, and they are now measured |
@@ -322,6 +366,35 @@ a PAID session, because a 402 and a quiet answer are indistinguishable at the pi
 
 ⭐ The pane-alert gate refusing to report is the outcome to want here. It is the difference
 between a harness that says *"I cannot measure this"* and one that says *"0"*.
+
+---
+
+## 🔴 The 60-minute grid is not uniform, and the replay cannot see it
+
+`bars_fetch.bucket_60_et_unix_seconds` gives the regular-session open its **own**
+bucket, so a 60-minute session runs `04:00…09:00`, **`09:30`**, `10:00…19:00` —
+and **both the 09:00 and the 09:30 bar span THIRTY minutes, not sixty**. Verified
+against the 5-minute tape on 2026-07-15: the 09:30 hourly bar reproduces the
+09:30–10:00 five-minute aggregate exactly (`o 754.24 h 755.58 l 753.18 c 754.45
+v 4,886,107`).
+
+`indicator_alert_evaluator.bar_close_epoch` answers `t + 3600` for every intraday
+60-minute bar, so it declares each of those two closed **half an hour after the
+store stopped writing to them**. The consequence is a closed-lane **latency**, not
+a wrong number: an alert on the 09:00 or 09:30 hourly bar cannot fire until 30
+minutes after that bar became final — in the busiest half hour of the day, on top
+of the 60-second poll.
+
+⚠️ **AND `--repaint` / `--diff` STRUCTURALLY CANNOT SEE IT.**
+`make_closed_evaluate` derives `now_epoch` from `bar_close_epoch` itself
+(`close_at - 1`), so an error in that function **cancels out of every replay
+number**. It is pinned instead as a direct equality against the NEXT bar's start
+on real tape:
+`tests/test_alert_replay.py::test_bar_close_epoch_overstates_the_two_60m_open_buckets`,
+with `test_the_other_intraday_grids_are_uniform` as the control that localises it
+to the hourly bucketer rather than to the store. That test goes **red, with the
+paragraph in hand**, the day somebody teaches `bar_close_epoch` about the open
+bucket. That is the intended outcome.
 
 ---
 

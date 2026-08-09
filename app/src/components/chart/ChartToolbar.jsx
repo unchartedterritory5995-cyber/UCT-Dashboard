@@ -6,6 +6,7 @@ import ComparisonPicker from './ComparisonPicker'
 import UIcon from '../ui/UIcon'
 import IndicatorAlertPopover from './IndicatorAlertPopover'
 import IndicatorLibraryDialog from './IndicatorLibraryDialog'
+import BuilderSheet from './builder/BuilderSheet'
 import PatternToolbarButton from './PatternToolbarButton'
 import { SIGNATURE_ROWS, SIGNATURE_LOCKED_TITLE } from './signatureToggles'
 import { ENGINE_OWNED } from './engine/flipState'
@@ -118,7 +119,10 @@ const CROSSHAIR_STYLES = [
 // which win over the saved prefs). StockChart derives it from those very props, so
 // the two can't drift. Non-null ⇒ the two volume-pane controls render inert with the
 // reason instead of writing a pref this chart will ignore.
-function ChartSettingsPanel({ chartSettings, onUpdateSettings, onOpenIndicatorLibrary, volumePaneFixed = null }) {
+function ChartSettingsPanel({
+  chartSettings, onUpdateSettings, onOpenIndicatorLibrary,
+  onOpenFormulaBuilder, volumePaneFixed = null,
+}) {
   const cs = chartSettings
   const isPaid = useIsPaid()
 
@@ -455,6 +459,22 @@ function ChartSettingsPanel({ chartSettings, onUpdateSettings, onOpenIndicatorLi
           <span className={styles.sLauncherCount}>{activeCount}</span>
           <span aria-hidden="true">→</span>
         </button>
+        {/* ⭐ PHASE D TASK 11 — THE BUILDER'S **ONE** ENTRY POINT.
+            It sits beside "Manage indicators" because it is the same act one
+            step further out: that launcher browses definitions somebody else
+            authored, this one authors a definition. Both live on the settings
+            panel, which renders only behind `chartSettings && onUpdateSettings`
+            — spec §5's mount-site scoping, and the reason a read-only chart
+            cannot sprout an author surface without a second prop that could
+            disagree with the first. */}
+        <button
+          type="button"
+          className={styles.sLauncher}
+          onClick={() => onOpenFormulaBuilder?.()}
+        >
+          <span>New formula</span>
+          <span aria-hidden="true">→</span>
+        </button>
       </div>
 
       {/* Display Options */}
@@ -696,6 +716,17 @@ function ChartToolbar({
   // no instance is offered and the alert carries no `instance_id`, which is
   // what every row created before this producer existed carries.
   chartInstances = [],
+  // ⭐ PHASE C TASK 12 — the surface's own stable chart id, forwarded to the
+  // alert popover so its listing request carries `?scope=` and a "this chart
+  // only" alert has something to be scoped TO. Default `null`, so every mount
+  // site that passes none keeps the unscoped listing it has always had.
+  chartId = null,
+  // ⭐ PHASE D TASK 13 — the bars this chart is holding, forwarded to the
+  // builder's concierge box, whose compute stage runs on the window the user is
+  // looking at (`definition_concierge._validate`). Default `null`: the server
+  // skips the compute check on an empty list rather than refusing, so a mount
+  // site with no bars still gets a parseable proposal.
+  bars = null,
 }, ref) {
   const [showColors, setShowColors] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
@@ -710,8 +741,20 @@ function ChartToolbar({
   // read-only chart cannot sprout an add-dialog, without a second prop that
   // could disagree with the first (spec §5 "mount-site scoping").
   const [libraryOpen, setLibraryOpen] = useState(false)
+  // ⭐ PHASE D TASK 11 — the formula builder, held here for the SAME reason the
+  // library is: it is opened from the settings panel, `Sheet` portals to
+  // `document.body`, and the panel closes on outside mousedown — so a dialog
+  // rendered as the panel's child would be unmounted by the very click that
+  // opened it.
+  const [builderOpen, setBuilderOpen] = useState(false)
   const [comparePopoverOpen, setComparePopoverOpen] = useState(false)
   const [alertPopoverOpen, setAlertPopoverOpen] = useState(false)
+  // ⭐ chart-UX-walls TASK 4 — WHICH CHIP OPENED IT. `{instanceId, plotKey}` when
+  // the legend chip's "Add alert…" row opened this popover, else null (the 🔔
+  // button, which names no indicator). The popover resolves it to a served
+  // ADDRESS itself; this is the only state that had to exist here, and it lives
+  // beside `alertPopoverOpen` because the popover is mounted here.
+  const [alertInitial, setAlertInitial] = useState(null)
   const colorRef = useRef(null)
   const widthRef = useRef(null)
   const fontRef = useRef(null)
@@ -736,7 +779,19 @@ function ChartToolbar({
       setLibraryOpen(true)
       return true
     },
-  }), [canManageIndicators])
+    // ⭐ chart-UX-walls TASK 4 — the legend chip's "Add alert…" row, and the
+    // right-click **Add alert on <label>…** row, reach THIS popover rather than
+    // mounting a second one. ⚠️ IT RETURNS `false` WHEN THERE IS NO SYMBOL, for
+    // the same reason `openIndicatorLibrary` returns false on a read-only mount:
+    // the 🔔 button is `disabled` without one and the popover renders nothing, so
+    // a row that reported success would be a row that opened nothing.
+    openAlerts: (initialFor = null) => {
+      if (!currentSym) return false
+      setAlertInitial(initialFor)
+      setAlertPopoverOpen(true)
+      return true
+    },
+  }), [canManageIndicators, currentSym])
 
   // Comparison symbols update handler: merge into chartSettings via onUpdateSettings
   const cs = chartSettings
@@ -985,7 +1040,7 @@ function ChartToolbar({
         <div ref={alertRef} className={styles.compareContainer}>
           <button
             className={`${styles.btn} ${alertPopoverOpen ? styles.active : ''}`}
-            onClick={() => setAlertPopoverOpen(o => !o)}
+            onClick={() => { setAlertInitial(null); setAlertPopoverOpen(o => !o) }}
             title={currentSym ? 'Indicator alerts' : 'Select a symbol to set alerts'}
             aria-label="Indicator alerts"
             disabled={!currentSym}
@@ -997,6 +1052,8 @@ function ChartToolbar({
               sym={currentSym}
               onClose={() => setAlertPopoverOpen(false)}
               chartInstances={chartInstances}
+              initial={alertInitial}
+              chartId={chartId}
             />
           )}
         </div>
@@ -1038,6 +1095,7 @@ function ChartToolbar({
                 chartSettings={chartSettings}
                 onUpdateSettings={onUpdateSettings}
                 onOpenIndicatorLibrary={() => setLibraryOpen(true)}
+                onOpenFormulaBuilder={() => setBuilderOpen(true)}
                 volumePaneFixed={volumePaneFixed}
               />
 
@@ -1057,6 +1115,26 @@ function ChartToolbar({
             settings={cs}
             onChange={onUpdateSettings}
             registry={engineRegistry}
+          />
+        )}
+
+        {/* Mounted at toolbar level for the same reason the library is — see the
+            comment above it and `builderOpen`'s declaration. */}
+        {canManageIndicators && (
+          <BuilderSheet
+            open={builderOpen}
+            onClose={() => setBuilderOpen(false)}
+            /* ⭐ PHASE D TASK 16 — the same pair `IndicatorLibraryDialog` takes,
+               and for the same reason: adding a formula to the chart is the same
+               act as ticking one in the library, so it goes through the same
+               `settings`/`onChange` contract and the same `addInstance` door.
+               Both are inside `canManageIndicators`, so a read-only chart still
+               cannot write an instance. */
+            settings={cs}
+            onChange={onUpdateSettings}
+            /* ⭐ PHASE D TASK 13 — the concierge's compute stage runs on the
+               window the user sees. See the `bars` prop's declaration. */
+            bars={bars}
           />
         )}
 

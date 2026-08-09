@@ -98,6 +98,25 @@ def env(tmp_path, monkeypatch):
         sent.append(kwargs)
 
     monkeypatch.setattr(wls, "deliver_alert_payload", _deliver)
+
+    # ⛔ THE LANE IS PINNED TO `"forming"` FOR THIS WHOLE FILE, AND THAT IS THE
+    # FINDING RATHER THAN A CONVENIENCE.
+    #
+    # The defect this file exists to prove — a rev-1 `last_value` becoming a
+    # rev-2 `prev`, so the migration itself fabricates a crossing — is a property
+    # of the FORMING lane and ONLY of it. The closed lane takes `prev` from
+    # `series[i-1]`, i.e. from the same revision's own column, so a cross-revision
+    # comparison is not a state it can reach. Measured at Task 8's cutover: with
+    # the shipped constant now `"closed"`, the crossing binding fires on the
+    # second post-migration cycle and it is NOT a lie — both sides of the
+    # comparison are rev 2.
+    #
+    # So `suppress_first_cycle` is now belt-and-braces on the shipped lane and
+    # load-bearing on the ROLLBACK lane. It stays, it is still tested, and the
+    # test says which lane it is testing instead of silently becoming a test of
+    # the other one. `test_the_CLOSED_lane_cannot_fabricate_a_cross_revision_
+    # crossing_at_all` below is the other half.
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "forming")
     return {"db": db, "bars": bars, "sent": sent, "state": state}
 
 
@@ -213,6 +232,57 @@ def test_the_first_cycle_after_a_rev_bump_CANNOT_fire(env):
         "the CROSSING binding fired on the second cycle. The reset exists so a "
         "rev-1 number can never be a rev-2 `prev`; a late crossing is the same "
         "lie, one cycle later")
+
+
+def test_the_CLOSED_lane_cannot_fabricate_a_cross_revision_crossing_at_all(
+        env, monkeypatch):
+    """⭐ WHAT THE CUTOVER DID TO THIS DEFECT: it removed the mechanism.
+
+    The test above is the forming lane's failure mode — `prev` is whatever the
+    previous 60-second POLL stored, so a rev-1 number can meet a rev-2 number and
+    invent a crossing out of the migration itself. The closed lane takes `prev`
+    from `series[i - 1]`: both sides of every comparison come from ONE call to
+    ONE revision's column, so the cross-revision comparison is not a reachable
+    state rather than a suppressed one.
+
+    ⚠️ MEASURED, NOT ARGUED, AND THE CROSSING THAT FIRES HERE IS REAL. On the
+    shipped lane the crossing binding DOES deliver on the second post-migration
+    cycle — and that is correct: it is a rev-2 crossing judged against a rev-2
+    `prev`, on a bar where rev 2's own column crosses. The forming lane's second
+    cycle would be a lie; this one is an answer.
+
+    ⛔ AND `suppress_first_cycle` IS NOT DELETED. It is what the ROLLBACK lane
+    needs, and the rollback is one Railway variable away with no deploy. This
+    test states which lane owes it and which does not.
+    """
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "closed")
+    now = int(time.time())
+    cross, level = _armed_vwap_pair(armed_at=now - 7200)
+    assert rev.migrate_bindings_to_rev(
+        "vwap", 2, notify=lambda p: None, now=now - 3600)["migrated"] == 2
+    env["sent"].clear()
+
+    # The suppression still eats the first cycle — it is lane-independent.
+    ev._run_one_cycle()
+    assert _fires(env["sent"]) == []
+
+    env["sent"].clear()
+    ev._run_one_cycle()
+    fired = sorted(s["extra_data"]["alert_id"] for s in _fires(env["sent"]))
+    assert fired == sorted([cross, level]), (
+        "the closed lane did not deliver the crossing — then this test says "
+        "nothing about `prev`'s source and the forming-lane rail above is "
+        "measuring both lanes by accident")
+
+    # …and the reason it is not a fabricated crossing: the lane never read the
+    # row's `last_value` at all. Both sides came out of one column.
+    row = _row(cross)
+    assert ev._evaluate_one(dict(row), bars=env["state"]["bars"],
+                            mode="closed")[1] is True
+    assert ev._evaluate_one(dict(row, last_value=1e9), bars=env["state"]["bars"],
+                            mode="closed")[1] is True, (
+        "a wildly different `last_value` changed the closed lane's answer — it "
+        "IS reading the row, and the claim above is false")
 
 
 def test_last_value_is_NULL_BETWEEN_the_migration_and_the_first_cycle(env):
@@ -630,3 +700,215 @@ def test_a_nonsense_revision_is_refused(env):
     for bad in (0, -1, "2", 1.5, True, None):
         with pytest.raises((ValueError, TypeError)):
             rev.migrate_bindings_to_rev("vwap", bad, notify=lambda p: None)
+
+
+# --- the tree, not the number: what makes the idempotency SAFE ---------------
+#
+# THE SKIP USED TO BE KEYED ON `def_rev` ALONE, AND A REVISION NUMBER DOES NOT
+# IDENTIFY A TREE. `user_definitions.save()` derives `new_rev` from the STORED
+# predecessor, so a migration that lands while its append fails leaves the
+# predecessor untouched and the user's NEXT edit -- different maths -- computes
+# the SAME number. `stored_rev == new_rev` then read as "already migrated". The
+# interleaving is constructed end-to-end in `tests/test_user_definitions.py`;
+# these are the unit-level halves.
+
+
+def test_the_def_hash_column_reaches_a_DATABASE_THAT_ALREADY_EXISTS(env):
+    """CREATE TABLE IF NOT EXISTS IS A NO-OP ON EVERY BOX THAT MATTERS.
+
+    Every database that has ever run the alert lane -- including the soak store
+    -- already holds `indicator_alert_rev`, so a column added to `_SCHEMA` alone
+    would reach fresh databases only and the fix would be silently absent exactly
+    where the bindings live. The control below runs `_SCHEMA` against an
+    old-shaped table FIRST and asserts the column does NOT appear, so "the ALTER
+    did it" is a measurement rather than an assumption.
+    """
+    def _cols():
+        con = sqlite3.connect(str(env["db"]))
+        try:
+            return {r[1] for r in con.execute("PRAGMA table_info(indicator_alert_rev)")}
+        finally:
+            con.close()
+
+    con = sqlite3.connect(str(env["db"]))
+    try:
+        con.execute("DROP TABLE indicator_alert_rev")
+        con.execute(
+            "CREATE TABLE indicator_alert_rev ("
+            "  alert_id INTEGER PRIMARY KEY, address TEXT NOT NULL,"
+            "  def_rev INTEGER NOT NULL, from_rev INTEGER,"
+            "  rev_migrated_at INTEGER NOT NULL)")
+        con.commit()
+    finally:
+        con.close()
+    assert "def_hash" not in _cols()
+
+    # THE CONTROL: the declarative schema on its own cannot add it.
+    con = sqlite3.connect(str(env["db"]))
+    try:
+        con.executescript(rev._SCHEMA)
+        con.commit()
+    finally:
+        con.close()
+    assert "def_hash" not in _cols(), (
+        "`CREATE TABLE IF NOT EXISTS` added the column to an EXISTING table - "
+        "then this test measures nothing and `_MIGRATIONS` is unnecessary")
+
+    rev.init_schema()
+    assert "def_hash" in _cols(), (
+        "the ALTER did not reach an existing database - every box already has "
+        "this table, so the tree-keyed skip would apply to none of them")
+
+    # ...and it is usable, not merely present.
+    now = int(time.time())
+    cross, level = _armed_vwap_pair(armed_at=now - 7200)
+    rev.migrate_bindings_to_rev("vwap", 2, notify=lambda p: None, now=now,
+                                def_hash="sha256:" + "a" * 64)
+    for aid in (cross, level):
+        assert rev.rev_row(aid)["def_hash"] == "sha256:" + "a" * 64
+
+
+def test_a_DIFFERENT_TREE_at_the_SAME_REV_is_migrated_NOT_skipped(env):
+    """THE UNIT-LEVEL HALF OF THE TRANSITION-VS-RECONCILIATION GAP.
+
+    Same address, same revision NUMBER, different `ast_hash`. Keyed on the number
+    the second call reports `skipped`; keyed on the tree it migrates - which is
+    the difference between an edit that reaches its bindings and one that does
+    not.
+    """
+    now = int(time.time())
+    cross, level = _armed_vwap_pair(armed_at=now - 7200)
+    tree_a, tree_b = "sha256:" + "a" * 64, "sha256:" + "b" * 64
+
+    first = rev.migrate_bindings_to_rev("vwap", 2, notify=lambda p: None,
+                                        now=now - 3600, def_hash=tree_a)
+    assert first["migrated"] == 2 and first["skipped"] == 0
+    assert first["def_hash"] == tree_a
+
+    # ...the SAME tree at the same rev is still a no-op. Idempotency is not
+    # weakened by the hash; it is made specific.
+    again = rev.migrate_bindings_to_rev("vwap", 2, notify=lambda p: None,
+                                        now=now, def_hash=tree_a)
+    assert again["migrated"] == 0 and again["skipped"] == 2
+    for aid in (cross, level):
+        assert rev.rev_row(aid)["rev_migrated_at"] == now - 3600
+
+    # ...a DIFFERENT tree at the same rev is NOT.
+    other = rev.migrate_bindings_to_rev("vwap", 2, notify=lambda p: None,
+                                        now=now, def_hash=tree_b)
+    assert other["migrated"] == 2 and other["skipped"] == 0, (
+        "a different tree at the same revision number was skipped as "
+        "already-migrated - the edit reaches the bindings unmigrated, and an "
+        "`above` binding then fires on maths nobody reset it for")
+    for aid in (cross, level):
+        row = rev.rev_row(aid)
+        assert row["def_hash"] == tree_b
+        assert row["def_rev"] == 2
+        assert row["from_rev"] == 2, (
+            "the re-migration invented a from_rev - the binding really was on "
+            "revision 2, just on a different tree of it")
+        assert row["rev_migrated_at"] == now
+        assert _row(aid)["last_value"] is None, (
+            f"alert {aid} kept a value computed by the tree it was migrated OFF")
+
+
+def test_a_migration_WITHOUT_a_hash_keeps_the_NUMBER_ONLY_idempotency(env):
+    """A DEPLOY NAMES AN ADDRESS, NOT AN `ast_hash`.
+
+    `ADDRESS_REVS` bumps and operator re-runs pass no `def_hash`, and demanding
+    one would make every such re-run re-suppress a lane that already migrated --
+    the exact regression `test_re_running_the_same_migration_is_a_NO_OP` exists
+    to forbid. `None` therefore means "I am not identifying a tree", and the skip
+    falls back to the number, which is what those callers were written against.
+    """
+    now = int(time.time())
+    cross, level = _armed_vwap_pair(armed_at=now - 7200)
+    first = rev.migrate_bindings_to_rev("vwap", 2, notify=lambda p: None, now=now - 3600)
+    assert first["migrated"] == 2 and first["def_hash"] is None
+    for aid in (cross, level):
+        assert rev.rev_row(aid)["def_hash"] is None
+
+    again = rev.migrate_bindings_to_rev("vwap", 2, notify=lambda p: None, now=now)
+    assert again["migrated"] == 0 and again["skipped"] == 2
+    assert _notices(env["sent"]) == []
+
+
+def test_bindings_on_REPORTS_THE_UNMIGRATED_ONES_TOO(env):
+    """THE READ-BACK MUST NOT BE SATISFIABLE BY AN EMPTY SIDE TABLE.
+
+    A reader that returned only rows of `indicator_alert_rev` would let a caller
+    conclude "every binding is on the stored tree" from a table containing
+    nothing. Bindings with no migration record come back with `def_rev=None` and
+    `migrated=False`, so the caller counts against the ALERTS, not against the
+    bookkeeping.
+    """
+    now = int(time.time())
+    cross, level = _armed_vwap_pair(armed_at=now - 7200)
+    unrelated = ias.create(user_id="u2", sym="PARITY", indicator="rsi",
+                           condition="above", threshold=1e9, tf="5")
+
+    before = rev.bindings_on("vwap")
+    assert {b["alert_id"] for b in before} == {cross, level}, (
+        "the read-back did not see un-migrated bindings, or it leaked an "
+        "unrelated address")
+    assert all(b["def_rev"] is None and b["migrated"] is False for b in before)
+
+    tree = "sha256:" + "c" * 64
+    rev.migrate_bindings_to_rev("vwap", 2, notify=lambda p: None, now=now, def_hash=tree)
+    after = {b["alert_id"]: b for b in rev.bindings_on("vwap")}
+    assert set(after) == {cross, level}
+    for b in after.values():
+        assert b["migrated"] is True and b["def_rev"] == 2 and b["def_hash"] == tree
+    assert [b["alert_id"] for b in rev.bindings_on("rsi")] == [unrelated]
+
+
+def test_an_UNRECORDED_binding_takes_prior_rev_not_DEFAULT_REV(env):
+    """THE OTHER SIDE OF THE GAP: a binding created AFTER a migration.
+
+    It has no row, so `from_rev` fell back to `DEFAULT_REV` and its owner was
+    told "revision 1 -> 3" about an alert armed at revision 2. `prior_rev` is
+    the definition's own revision immediately before this migration, which IS the
+    arm-time revision of any binding that has no record -- every bump migrates,
+    and a migration records every binding that existed.
+    """
+    now = int(time.time())
+    cross, level = _armed_vwap_pair(armed_at=now - 7200)
+    payloads: list[dict] = []
+    rev.migrate_bindings_to_rev("vwap", 3, notify=payloads.append, now=now,
+                                prior_rev=2)
+    for aid in (cross, level):
+        assert rev.rev_row(aid)["from_rev"] == 2, (
+            "a binding with no record was stamped DEFAULT_REV - the notice then "
+            "states a revision the alert was never on")
+    assert {p["from_rev"] for p in payloads} == {2}
+
+    # ...and a binding that DOES have a record keeps its own number: `prior_rev`
+    # is a fallback, never an override.
+    rev.migrate_bindings_to_rev("vwap", 4, notify=lambda p: None, now=now + 1,
+                                prior_rev=1)
+    for aid in (cross, level):
+        assert rev.rev_row(aid)["from_rev"] == 3
+
+    # ...and with no `prior_rev` at all the old behaviour stands, so a deploy
+    # that cannot know the number is not forced to invent one.
+    fresh = ias.create(user_id="u1", sym="PARITY", indicator="ichimoku.tenkan",
+                       condition="above", threshold=1.0, tf="5")
+    rev.migrate_bindings_to_rev("ichimoku", 2, notify=lambda p: None, now=now)
+    assert rev.rev_row(fresh)["from_rev"] == rev.DEFAULT_REV
+
+
+def test_a_nonsense_def_hash_or_prior_rev_is_refused(env):
+    now = int(time.time())
+    cross, level = _armed_vwap_pair(armed_at=now - 7200)
+    for bad in (1, 1.5, True, b"x", []):
+        with pytest.raises(ValueError):
+            rev.migrate_bindings_to_rev("vwap", 2, notify=lambda p: None,
+                                        def_hash=bad)
+    for bad in (0, -1, "2", 1.5, True):
+        with pytest.raises(ValueError):
+            rev.migrate_bindings_to_rev("vwap", 2, notify=lambda p: None,
+                                        prior_rev=bad)
+    # The refusal is TOTAL: nothing was migrated on the way to raising.
+    for aid in (cross, level):
+        assert _row(aid)["last_value"] == REV1_VWAP
+        assert rev.rev_row(aid) is None

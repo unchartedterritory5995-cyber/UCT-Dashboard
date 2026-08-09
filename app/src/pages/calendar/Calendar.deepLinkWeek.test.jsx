@@ -27,7 +27,40 @@
 // Calendar.realModal.test.jsx — mocking the modal cannot see a defect in
 // Calendar.jsx's OWN resolution effect, and can't prove the row ends up
 // genuinely enriched rather than just symbol-matched.
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+//
+// ── 🕐 WHY THIS FILE PINS THE CLOCK (added 2026-08-08) ──────────────────────
+// These two tests went red at midnight because it became SATURDAY, and stayed
+// red all weekend. Nothing in the product changed; the fixture did not survive
+// the calendar.
+//
+// The fixture used to anchor itself to the ambient `todayIso()` and put its one
+// reporting day on THAT date. On a weekday that is exactly right. On a weekend
+// it is incoherent: `useCalendarData.buildWeekDates(week_start)` emits FIVE
+// dates — Monday through Friday — and Calendar.jsx's `days` memo iterates that
+// array, so a payload day dated Saturday or Sunday is never visited. `days`
+// came out `{}`, `resolveFeedEntry` missed, and the deep-link ladder did the
+// correct thing with the incorrect input: it fell through to `/next-report`.
+// Measured, pre-fix, with the clock pinned (see the report for the harness):
+//
+//     Sat 2026-08-08 -> 2 failed     Wed 2026-08-05 -> 0 failed
+//     Sun 2026-08-09 -> 2 failed     Thu 2026-08-06 -> 0 failed
+//
+// An earnings week IS Monday–Friday, so "a symbol reporting today" has no
+// meaning on a Saturday. The defect was the test asserting on a day the
+// product is right to refuse to render.
+//
+// So the instant is now STATED rather than inherited. Pinning does not freeze
+// the RELATIONSHIP the original comment (rightly) wanted to keep exercising —
+// "reports THIS week / TODAY" — because every fixture date is still DERIVED
+// from `todayIso()` exactly as the app derives it. It freezes only the ambient
+// INPUT, so the relationship holds by construction instead of by coincidence
+// with the wall clock. `the fixture's day is a weekday inside its own week` is
+// asserted below as a first-class rail, because that is the invariant that was
+// silently false all weekend.
+//
+// ⚠️ `vi.setSystemTime` must run at MODULE SCOPE, not in `beforeEach`: `TODAY`
+// is derived at import time, which is strictly before any hook runs.
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
 import { useState, useEffect } from 'react'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import {
@@ -38,11 +71,22 @@ import {
 import { SWRConfig } from 'swr'
 import { AuthProvider } from '../../context/AuthContext'
 import { todayIso } from './earningsModalRow'
+import { buildWeekDates } from './useCalendarData'
 
-// ── Dates anchored to the REAL "today" (ET), not a hardcoded literal — the
-// bug is inherently about "reports THIS week / TODAY", so pinning the fixture
-// to a fixed past/future date would eventually stop exercising the current-
-// week branch entirely. Mirrors how the app itself computes `todayIso()`. ──
+// The instant this file reasons about: **Tuesday 2026-08-04, 16:30 ET** — the
+// day the bug was found live on AMD/CAT (see Calendar.jsx's Task 14 comment),
+// half an hour past the close, which is when an AMC reporter's actual EPS
+// lands and the `/next-report` provider starts excluding it. That exclusion is
+// the whole mechanism under test, so this is the hour it is most true at, not
+// an arbitrary weekday.
+const _NOW_ET = new Date('2026-08-04T20:30:00Z')
+vi.setSystemTime(_NOW_ET)
+afterAll(() => { vi.useRealTimers() })
+
+// ── Dates DERIVED from the (now stated) "today", not hardcoded literals — the
+// bug is inherently about "reports THIS week / TODAY", so the fixture computes
+// its week the same way the app does rather than restating it. Mirrors
+// Calendar.jsx's own `mondayOf`. ──
 function addDays(iso, n) {
   const d = new Date(iso + 'T12:00:00')
   d.setDate(d.getDate() + n)
@@ -54,8 +98,8 @@ function mondayOfLocal(iso) {
   d.setDate(d.getDate() - shift)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
-const TODAY = todayIso()
-const MONDAY = mondayOfLocal(TODAY)
+const TODAY = todayIso()                 // '2026-08-04' (Tue)
+const MONDAY = mondayOfLocal(TODAY)      // '2026-08-03'
 // ~13 weeks out — the exact magnitude from the live repro (2026-08-04 -> 2026-11-02).
 const FAR_FUTURE_DATE = addDays(TODAY, 91)
 
@@ -66,6 +110,19 @@ const WEEK_CURRENT = {
     [TODAY]: {
       label: 'Today', bmo: [],
       amc: [{ sym: 'AMD', eps_est: 0.71, eps_act: 0.75 }],
+      tbd: [],
+    },
+  },
+}
+
+// Same week, same shape, AMD absent — the payload a DIFFERENT week key serves.
+// Used only by the week-boundary flip test below.
+const WEEK_WITHOUT_AMD = {
+  ...WEEK_CURRENT,
+  days: {
+    [TODAY]: {
+      label: 'Today', bmo: [],
+      amc: [{ sym: 'NVDA', eps_est: 1.01, eps_act: 1.05 }],
       tbd: [],
     },
   },
@@ -91,6 +148,7 @@ const ENRICHMENT = {
 // the bug, so this one is keyed exactly like the real hook.
 let _calendarStore = {}
 let _calendarListeners = []
+let _requestedWeekKeys = []
 function keyFor(week) { return week || 'current' }
 function setCalendarData(week, data) {
   _calendarStore[keyFor(week)] = data
@@ -98,6 +156,11 @@ function setCalendarData(week, data) {
 }
 function useCalendarMock(week) {
   const [, bump] = useState(0)
+  // Which week key the page ASKS for is the one genuinely clock-dependent
+  // decision on this path (Calendar.jsx's `weekParam` normalizes an explicit
+  // `?week=` against `mondayOf(todayIso())`). Recorded so the flip test can
+  // assert on the decision itself, not only on its downstream effect.
+  _requestedWeekKeys.push(keyFor(week))
   useEffect(() => {
     const listener = () => bump((n) => n + 1)
     _calendarListeners.push(listener)
@@ -128,8 +191,12 @@ let resolveNextReport
 let nextReportPromise
 
 beforeEach(() => {
+  // Re-assert the pin: a neighbouring test that calls `vi.useRealTimers()`
+  // must not silently hand this file the ambient clock back.
+  vi.setSystemTime(_NOW_ET)
   _calendarStore = {}
   _calendarListeners = []
+  _requestedWeekKeys = []
   nextReportPromise = new Promise((resolve) => { resolveNextReport = resolve })
   global.fetch = vi.fn((url) => {
     if (String(url).includes('next-report')) return nextReportPromise
@@ -154,6 +221,22 @@ const renderAt = (url) => {
 }
 
 describe('deep link lands on the week the symbol actually reports in (Task 14)', () => {
+  // The rail on the pin. Both tests below are meaningless if the fixture's
+  // reporting day is not a day the product renders, and that is precisely how
+  // they failed silently for a whole weekend: green Mon–Fri, red Sat–Sun, with
+  // no assertion anywhere that said so.
+  it('the stated instant is a WEEKDAY and the fixture day falls inside its own rendered week', () => {
+    expect(Date.now()).toBe(_NOW_ET.getTime())          // the pin applied at all
+    expect(TODAY).toBe('2026-08-04')                     // ...and is the stated instant
+    const week = buildWeekDates(MONDAY)                  // the REAL Mon–Fri builder
+    expect(week).toHaveLength(5)
+    expect(week).toContain(TODAY)
+    // The weekend shape that broke this file, spelled out so it cannot come
+    // back unnoticed: Sat/Sun are never in a rendered week.
+    expect(week).not.toContain(addDays(MONDAY, 5))       // Saturday
+    expect(week).not.toContain(addDays(MONDAY, 6))       // Sunday
+  })
+
   it('a symbol reporting in the CURRENT week opens on the current week with a fully enriched row', async () => {
     // Bare deep link, no `?week=` — exactly the reported repro
     // (`/calendar?earnings=AMD`). AMD's own (current) week payload has NOT
@@ -204,5 +287,80 @@ describe('deep link lands on the week the symbol actually reports in (Task 14)',
     await screen.findByRole('dialog')
     expect(new URLSearchParams(window.location.search).get('week')).toBeNull()
     expect(global.fetch.mock.calls.some((c) => String(c[0]).includes('next-report'))).toBe(false)
+  })
+
+  // ── Non-vacuity: the pin must not have deleted the behaviour ───────────────
+  //
+  // A frozen clock that collapsed the week logic into a constant would answer
+  // the same thing at every instant, and both tests above would still pass —
+  // vacuously. So: hold the URL, the symbol, the store and the fixture dates
+  // COMPLETELY FIXED, move ONLY the clock, across ONE MINUTE spanning the
+  // week rollover, and require the verdict to INVERT.
+  //
+  // The decision under the microscope is Calendar.jsx's `weekParam`:
+  //     monday === currentWeekMonday(todayIso()) ? null : monday
+  //
+  // ⚠️ THE BOUNDARY MOVED, ON PURPOSE — it used to be Sun 23:59 -> Mon 00:00.
+  // That was the rollover of the OLD frontend rule (`mondayOf(todayIso())`,
+  // which snapped a weekend BACK to the Monday just past, so its anchor changed
+  // at Sunday midnight). That rule was the weekend bug: the backend's
+  // `_current_week_monday` rolls FORWARD, so its anchor changes at FRIDAY
+  // midnight, and for two days out of every seven the two sides named weeks 7
+  // days apart. Now that the frontend derives the backend's rule, Sun->Mon no
+  // longer moves anything (Sun and Mon both anchor on 2026-08-10) and asserting
+  // on it would be a gate that cannot fail. Fri->Sat is where the one rule
+  // actually turns over, so that is where the verdict must invert.
+  //
+  // This makes the test a REGRESSION RAIL on the fix, not just on the pin:
+  // restore the old snap-back rule and BOTH instants answer 2026-08-03, the
+  // verdict stops inverting, and this test goes red (verified — see the report's
+  // control section).
+  //
+  // At 23:59 ET Friday, `currentWeekMonday(today)` is 2026-08-03, so
+  // `?week=2026-08-03` reads as "the current week" -> the bare ('current') key,
+  // which holds AMD -> resolved, no fallback. Sixty seconds later it is
+  // Saturday and the anchor is 2026-08-10, so the same param is now an EXPLICIT
+  // past week -> the '2026-08-03' key, which does NOT hold AMD -> a real miss
+  // against real data -> the ladder legitimately asks /next-report.
+  //
+  // Sixty seconds apart, identical inputs, opposite outcomes.
+  const FRI_2359_ET = new Date('2026-08-08T03:59:00Z')  // Fri 2026-08-07 23:59 ET
+  const SAT_0000_ET = new Date('2026-08-08T04:00:00Z')  // Sat 2026-08-08 00:00 ET
+
+  async function askedNextReportAt(instant) {
+    vi.setSystemTime(instant)
+    _calendarStore = {}
+    _requestedWeekKeys = []
+    // BOTH week keys are populated, so neither side can win merely by being
+    // the only bucket with data — the clock alone decides which one is read.
+    setCalendarData(null, WEEK_CURRENT)        // the 'current' bucket HAS AMD
+    setCalendarData(MONDAY, WEEK_WITHOUT_AMD)  // the explicit-week bucket does NOT
+    const { unmount } = renderAt(`/calendar?week=${MONDAY}&earnings=AMD`)
+    const asked = () => global.fetch.mock.calls.some((c) => String(c[0]).includes('next-report'))
+    // Settle: either the modal resolves, or the fallback fires.
+    await waitFor(() => {
+      expect(asked() || screen.queryByRole('dialog') !== null).toBe(true)
+    })
+    const out = { asked: asked(), keys: [...new Set(_requestedWeekKeys)] }
+    unmount()
+    return out
+  }
+
+  it('the week verdict flips with the MINUTE, not with the day the suite runs', async () => {
+    const fri = await askedNextReportAt(FRI_2359_ET)
+    const sat = await askedNextReportAt(SAT_0000_ET)
+
+    // The mechanism: which week key the page asked for.
+    expect(fri.keys).toContain('current')
+    expect(fri.keys).not.toContain(MONDAY)
+    expect(sat.keys).toContain(MONDAY)
+
+    // The user-visible consequence, inverted across sixty seconds.
+    expect(fri.asked).toBe(false)
+    expect(sat.asked).toBe(true)
+
+    // Belt and braces: a collapsed/constant clock returns ONE answer twice,
+    // and this is what catches that.
+    expect([fri.asked, sat.asked].sort()).toEqual([false, true])
   })
 })

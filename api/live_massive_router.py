@@ -127,6 +127,7 @@ DEFAULT_THRESHOLDS = {
     # by default; flip live in the ?tune=1 panel. See _incr_classify.
     "incremental_scan": False,
     "autopush_incremental": False,
+    "scan_offload": False,
     # Clean-directional gate (DARK). When on, a bid-side SELL on a MIXED contract
     # — total session ASK-buying >= this print's size * close_min_long_frac — is
     # two-way flow, not clean bearish conviction → dropped from directional
@@ -2232,6 +2233,8 @@ def recent_massive_alerts(
     sort_by: str = Query(default="recent", description="recent|conviction|premium"),
     tier: str = Query(default=None, description="Filter to one tier (alpha|size|bullish|bearish|leaps|unusual|algo). When set, common-tier alerts can't crowd out rare-tier ones — useful for 'show me all the day's Alpha Golds' even hours after they fired."),
     curated: bool = Query(default=False, description="Apply Curated-mode stacking filter: tiers like Size/Alpha need ≥N stacked signals (premium/V-OI/hits/grade), Unusual needs its own dedicated criteria, Algo always excluded. Thresholds are tunable via /thresholds endpoint."),
+    symbol: str = Query(default=None, description="Ticker scope: return ALL notable prints for this one underlying across the last `lookback_days` trading days ending at target_date (search-a-ticker-in-historical By-Print feed). Uncapped by tier — the client's tier chips narrow it. Cheap (one symbol → a handful of rows/day)."),
+    lookback_days: int = Query(default=1, ge=1, le=31, description="With `symbol`: aggregate the print feed across the last N trading days ending at target_date (multi-day historical window). 1 = that day only. Ignored without `symbol`."),
 ):
     """
     Return recent MAGENTA + YELLOW rows from FlowDB as alert objects shaped
@@ -2254,6 +2257,23 @@ def recent_massive_alerts(
     # single INSERT + cache-update when a restart is detected. See
     # /restart-log endpoint below for the read side.
     _log_startup_if_new()
+
+    # Ticker-scoped multi-day print feed (search-a-ticker-in-historical): show
+    # ALL notable prints for one underlying across the window, so the By-Print
+    # tape + tier chips can drill a single name over the whole historical range
+    # instead of being forced into the By-Contract rollup. Own cache +
+    # single-flight; never the live-tape warming path.
+    if symbol:
+        return _cached_symbol_recent(
+            today, lookback_days, limit, min_grade, sort_by, curated, symbol)
+
+    # General multi-day By-Print feed: span the whole historical range (all
+    # tickers), so a tier isolation (Alpha Gold) shows every one across the window
+    # and switching By-Contract → By-Print keeps the range. Historical only (a
+    # live multi-day print tape isn't a thing); own cache + single-flight.
+    if lookback_days and int(lookback_days) > 1:
+        return _cached_multiday_recent(
+            today, lookback_days, limit, min_grade, sort_by, tier, curated)
 
     # Snapshot cache (single-flight + serve-stale) — see _recent_cache above.
     # NEVER block a user request on the heavy scan:
@@ -2367,9 +2387,13 @@ def _incr_classify(r):
     return dict(fresh) if fresh is not None else None
 
 
-def _compute_recent(today, limit, min_grade, sort_by, tier, curated, only_symbols=None):
-    """Heavy scan + classify for /recent, split out so the endpoint can cache
-    the result. All params already resolved (today = concrete M/D/YYYY).
+def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_symbols=None):
+    """PURE heavy scan + classify + curate for /recent — the offloadable core.
+    Returns (all_alerts, meta) where meta carries the scan counters. Does NO
+    side-effects (no Discord, no pushed.db, no _apply_auto_push, no worker-status
+    read) so it can run byte-identically in a subprocess (Phase 2b). The wrapper
+    `_compute_recent` (MAIN process) runs _apply_auto_push + packaging on the result.
+    All params already resolved (today = concrete M/D/YYYY).
 
     only_symbols (2026-08-06): restrict the ENTIRE pipeline to these underlyings by
     adding `AND Symbol IN (...)` to the flow.db scan. The incremental auto-push
@@ -2650,31 +2674,223 @@ def _compute_recent(today, limit, min_grade, sort_by, tier, curated, only_symbol
     _demote_multileg_structures(all_alerts)
     _demote_two_way_flow(all_alerts)
 
+    # PURE core ends here: return the fully classified/curated/demoted set + scan
+    # meta. Side-effects (auto-push mark+fire) and payload packaging happen in the
+    # _compute_recent wrapper (MAIN process) so this stays offloadable to a subprocess.
+    return all_alerts, {
+        "rows_scanned": len(rows),
+        "skipped_unclassified_side": skipped_unclassified,
+        "skipped_below_min_grade": skipped_low_grade,
+        "skipped_off_tier": skipped_off_tier,
+        "skipped_curated": skipped_curated,
+    }
+
+
+# ─── Scan offload (Phase 2b, 2026-08-07) ─────────────────────────────────────
+# _compute_recent_core (the ~80K-row classify) is a multi-second GIL pin on the
+# flow-worker. Run it in a SEPARATE process so the main proc (Massive WS keepalive
+# + the 60s auto-push scan) never competes for the GIL — kills both the dashboard
+# wedge AND the auto-push coalesce-lag. The core is PURE (flow.db read + classify,
+# no Discord/dedup/worker-status), so the child has no side effects; the push +
+# packaging stay in _compute_recent below (MAIN proc). Dark by default; flip live
+# via the `scan_offload` threshold. Any pool failure falls back in-process, so a
+# broken pool degrades to today's behavior and can never break /recent.
+# SAFE with spawn: flow_worker_main starts the WS only under `if __name__ ==
+# "__main__"`, so a spawned child re-importing it never opens a 2nd WS connection.
+_SCAN_OFFLOAD_HARD = os.environ.get("MASSIVE_SCAN_OFFLOAD_HARD", "1") == "1"
+_SCAN_OFFLOAD_TIMEOUT = float(os.environ.get("MASSIVE_SCAN_OFFLOAD_TIMEOUT", "180"))
+_scan_pool = None
+_scan_pool_lock = threading.Lock()
+_scan_pool_broken = False
+
+
+def _core_worker(args):
+    """Top-level (picklable) subprocess entry. Runs in the SPAWNED child, which
+    re-imports live_massive_router (side-effect-free — startup is guarded in
+    flow_worker_main). The child is persistent, so its _alert_cache persists across
+    calls. Its _thresholds_cache is separate from the main process, so force a
+    fresh read each call (a ?tune save in main doesn't reach the child) and bust the
+    row-classify cache when thresholds changed — mirroring _save_thresholds."""
+    import json as _json, hashlib as _hl
+    from api import live_massive_router as lmr
+    lmr._thresholds_cache = None                     # force fresh read of the shared file
+    thr = lmr._load_thresholds()
+    try:
+        h = _hl.md5(_json.dumps(thr, sort_keys=True, default=str).encode()).hexdigest()
+    except Exception:
+        h = None
+    if getattr(lmr, "_child_last_thr_hash", None) != h:
+        lmr._incr_alert_cache_clear()                # thresholds changed -> re-classify
+        lmr._child_last_thr_hash = h
+    return lmr._compute_recent_core(*args)
+
+
+def _get_scan_pool():
+    """Lazy 1-worker spawn pool. Returns None (→ in-process) when disabled or broken."""
+    global _scan_pool, _scan_pool_broken
+    if not _SCAN_OFFLOAD_HARD or _scan_pool_broken:
+        return None
+    if _scan_pool is not None:
+        return _scan_pool
+    with _scan_pool_lock:
+        if _scan_pool is None and not _scan_pool_broken:
+            try:
+                import concurrent.futures as _cf
+                import multiprocessing as _mp
+                _scan_pool = _cf.ProcessPoolExecutor(
+                    max_workers=1, mp_context=_mp.get_context("spawn"))
+            except Exception:
+                logging.getLogger(__name__).exception(
+                    "[massive] scan pool init failed — staying in-process")
+                _scan_pool_broken = True
+                _scan_pool = None
+        return _scan_pool
+
+
+def _offload_enabled_for(curated, only_symbols) -> bool:
+    """Offload ONLY the heavy dashboard scans (curated, full-symbol). The scoped
+    auto-push scan (only_symbols) stays in-process — small, and now unblocked."""
+    if only_symbols or not curated:
+        return False
+    try:
+        return bool(_load_thresholds().get("scan_offload", False))
+    except Exception:
+        return False
+
+
+def _run_core(today, limit, min_grade, sort_by, tier, curated, only_symbols):
+    """Run _compute_recent_core in the subprocess when offload is on + the pool is
+    healthy; otherwise (or on ANY failure) in-process. Never raises past fallback."""
+    if _offload_enabled_for(curated, only_symbols):
+        pool = _get_scan_pool()
+        if pool is not None:
+            try:
+                fut = pool.submit(
+                    _core_worker,
+                    (today, limit, min_grade, sort_by, tier, curated, only_symbols))
+                return fut.result(timeout=_SCAN_OFFLOAD_TIMEOUT)
+            except Exception as e:
+                logging.getLogger(__name__).warning(
+                    "[massive] scan offload failed (%s) — in-process fallback", e)
+                global _scan_pool
+                with _scan_pool_lock:                # drop a dead/hung pool; rebuild next call
+                    try:
+                        if _scan_pool is not None:
+                            _scan_pool.shutdown(wait=False, cancel_futures=True)
+                    except Exception:
+                        pass
+                    _scan_pool = None
+    return _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_symbols)
+
+
+def _compute_recent(today, limit, min_grade, sort_by, tier, curated, only_symbols=None):
+    """/recent fill: run the (offloadable) core scan, then the MAIN-process
+    side-effects — auto-push mark+fire + payload packaging. Byte-identical to the
+    pre-2b single-function behavior when scan_offload is off."""
+    all_alerts, meta = _run_core(today, limit, min_grade, sort_by, tier, curated, only_symbols)
+
     # Auto-push scan: mark already-pushed alerts (POSTED persists) and, when the
-    # master switch is on, claim + fire newly-qualifying ones. On the FULL set so
-    # no client's tier/limit filter hides a qualifier; dedup via the log.
-    # live=... so browsing a historical date MARKS ONLY and never fires (see
-    # _apply_auto_push docstring).
+    # master switch is on, claim + fire newly-qualifying ones. On the FULL set so no
+    # client's tier/limit filter hides a qualifier; dedup via the log. live=... so a
+    # historical date MARKS ONLY and never fires. ALWAYS in the MAIN process (Discord
+    # + pushed.db dedup) regardless of where the scan ran.
     _apply_auto_push(all_alerts, live=(today == _today_mdyyyy()))
 
     alerts = all_alerts[:limit]
-
     status = _get_worker_status()
     status["query_date"] = today
     status["sort_by"] = sort_by
     status["tier_filter"] = tier
     status["curated"] = curated
-    status["rows_scanned"] = len(rows)
-    status["skipped_unclassified_side"] = skipped_unclassified
-    status["skipped_below_min_grade"] = skipped_low_grade
-    status["skipped_off_tier"] = skipped_off_tier
-    status["skipped_curated"] = skipped_curated
+    status["rows_scanned"] = meta.get("rows_scanned", 0)
+    status["skipped_unclassified_side"] = meta.get("skipped_unclassified_side", 0)
+    status["skipped_below_min_grade"] = meta.get("skipped_below_min_grade", 0)
+    status["skipped_off_tier"] = meta.get("skipped_off_tier", 0)
+    status["skipped_curated"] = meta.get("skipped_curated", 0)
     status["returned"] = len(alerts)
+    return {"status": status, "alerts": alerts}
 
-    return {
-        "status": status,
-        "alerts": alerts,
-    }
+
+# ── Multi-day By-Print feed ──────────────────────────────────────────────────
+# By Print is otherwise single-day (the /recent top-N tape). When the user views a
+# multi-day historical range, By Print should span the WHOLE window — so a tier
+# isolation (Alpha Gold) shows every alpha across the range, and switching from
+# By-Contract to By-Print keeps the range instead of collapsing to the last day.
+# We loop the pure per-day core across each trading day and concatenate, newest-
+# first. `tier` filters per day (Alpha Gold across the range); `only_symbols`
+# scopes to one underlying (the search-a-ticker case — cheap, a handful of rows/
+# day, and per-contract aggregates stay EXACT). NO auto-push (historical, read-only).
+_symbol_recent_cache: dict = {}
+_symbol_recent_lock = threading.Lock()
+_multiday_recent_cache: dict = {}
+_multiday_recent_lock = threading.Lock()
+
+
+def _compute_recent_multiday(today, lookback_days, limit, min_grade, sort_by, tier, curated, only_symbols=None):
+    """Notable prints across the last `lookback_days` trading days ending at
+    `today`, newest-first. Optional per-day `tier` filter and `only_symbols` scope.
+    Loops the pure per-day core; NO auto-push (historical, read-only)."""
+    lookback_days = max(1, min(int(lookback_days or 1), 31))
+    # Resolve the actual trading days present in the data (mirrors the By-Contract
+    # rollup's date-building so the two windows agree).
+    if lookback_days <= 1:
+        target_dates = [today]
+    else:
+        _c = sqlite3.connect(DB_PATH, timeout=10)
+        try:
+            all_dates = [r[0] for r in _c.execute(
+                "SELECT DISTINCT CreatedDate FROM flow").fetchall() if r[0]]
+        finally:
+            _c.close()
+        today_key = _parse_mdy(today)
+        dated = sorted([d for d in all_dates if _parse_mdy(d) <= today_key],
+                       key=_parse_mdy, reverse=True)
+        target_dates = dated[:lookback_days] or [today]
+
+    all_alerts, total_scanned = [], 0
+    for dt in target_dates:
+        day_alerts, meta = _compute_recent_core(
+            dt, limit, min_grade, sort_by, tier, curated, only_symbols=only_symbols)
+        all_alerts.extend(day_alerts)
+        total_scanned += meta.get("rows_scanned", 0)
+    # Newest-first across the whole window; the client's column-sort re-orders.
+    all_alerts.sort(key=lambda a: (a.get("timestamp") or 0, a.get("id") or 0),
+                    reverse=True)
+    all_alerts = all_alerts[:limit]
+    status = _get_worker_status()
+    status["query_date"] = today
+    status["lookback_days"] = lookback_days
+    status["tier_filter"] = tier
+    status["curated"] = curated
+    status["rows_scanned"] = total_scanned
+    status["returned"] = len(all_alerts)
+    if only_symbols:
+        status["symbol_scope"] = ",".join(str(s).upper() for s in only_symbols)
+    return {"status": status, "alerts": all_alerts}
+
+
+def _cached_symbol_recent(today, lookback_days, limit, min_grade, sort_by, curated, symbol):
+    """Ticker-scoped multi-day feed: serve-fresh/serve-stale/single-flight around
+    the multi-day core scoped to ONE underlying (no tier — the client's chips
+    narrow it). Today gets the short live TTL; historical the long bounded TTL."""
+    sym = str(symbol or "").strip().upper()
+    is_today = (today == _today_mdyyyy())
+    ttl = _RECENT_CACHE_TTL if is_today else _HISTORICAL_TTL
+    key = (today, int(lookback_days or 1), int(limit), min_grade, sort_by, bool(curated), sym)
+    return _cached_single_flight(
+        _symbol_recent_cache, key, _symbol_recent_lock, ttl,
+        lambda: _compute_recent_multiday(today, lookback_days, limit, min_grade, sort_by, None, curated, only_symbols=[sym]))
+
+
+def _cached_multiday_recent(today, lookback_days, limit, min_grade, sort_by, tier, curated):
+    """General (all-ticker) multi-day By-Print feed: serve-fresh/serve-stale/
+    single-flight around the multi-day core with an optional tier filter."""
+    is_today = (today == _today_mdyyyy())
+    ttl = _RECENT_CACHE_TTL if is_today else _HISTORICAL_TTL
+    key = (today, int(lookback_days or 1), int(limit), min_grade, sort_by, tier or "", bool(curated))
+    return _cached_single_flight(
+        _multiday_recent_cache, key, _multiday_recent_lock, ttl,
+        lambda: _compute_recent_multiday(today, lookback_days, limit, min_grade, sort_by, tier, curated))
 
 
 _diagnostic_cache: dict = {}          # date -> (ts, payload)
@@ -4903,6 +5119,7 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "multileg_dominant_premium_frac",  # exempt a dominant sweep from the spread-null
         "incremental_scan",          # perf: reuse settled rows' classification (dark by default)
         "autopush_incremental",      # perf: 60s auto-push scans only new-activity symbols (dark)
+        "scan_offload",              # perf: run the heavy dashboard scan in a subprocess (dark)
         "close_detector_enabled",    # clean-directional gate: drop contaminated bid-sells (dark)
         "close_min_long_frac",       # ask-vol multiple of print size that flags a mixed sell
         "close_net_frac",            # DEPRECATED (renamed -> close_min_long_frac). Kept in the

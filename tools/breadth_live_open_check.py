@@ -147,6 +147,70 @@ def check(phase: str) -> tuple[list[str], list[str]]:
     except Exception as e:
         notes.append(f"dividend status unavailable: {e}")
 
+    # ── the 2026-08-08 data-integrity work (first live run: Mon 2026-08-10) ──
+    # Each of these guards a fix that would fail SILENTLY. None of them raise on
+    # their own; the whole point is that the numbers just quietly go wrong again.
+    try:
+        hist = _get("/api/breadth-monitor?days=200").get("rows") or []
+        by_date = {(r.get("snapshot_date") or r.get("date")): r for r in hist}
+        newest = max(by_date) if by_date else None
+        row = by_date.get(newest, {})
+
+        # 1. Universe population. The cap-cache fallback measured ~3,700 names
+        #    instead of the filtered ~2,700 and every count metric tracked it.
+        big = [d for d, r in by_date.items() if (r.get("universe_count") or 0) >= 3300]
+        notes.append(f"universe {newest}={row.get('universe_count')} "
+                     f"oversized_sessions={len(big)}")
+        if big:
+            problems.append(f"{len(big)} session(s) back on the WRONG population "
+                            f"(>=3300 names): {sorted(big)[-3:]} — the last-good "
+                            f"universe fallback is not holding")
+
+        # 2. A date's derived value must not depend on how much history was
+        #    asked for. Rolling metrics get a warm-up prefix; the cumulative A/D
+        #    line seeds from an absolute origin.
+        short = {(r.get("snapshot_date") or r.get("date")): r
+                 for r in (_get("/api/breadth-monitor?days=30").get("rows") or [])}
+        drift = [f for f in ("ratio_5day", "ratio_10day", "avg_10d_cpc",
+                             "adv_decline_cum", "breadth_score")
+                 if any(short[d].get(f) != by_date[d].get(f)
+                        for d in set(short) & set(by_date))]
+        notes.append(f"window-consistent={not drift}")
+        if drift:
+            problems.append(f"a date's value depends on the REQUEST again: {drift} "
+                            f"differ between days=30 and days=200 — the warm-up "
+                            f"prefix or the A/D seed has regressed")
+
+        # 3. The 6-month VIX moved to CBOE's CDN after yfinance dropped the whole
+        #    ^VIX* index family on 2026-07-17. A stale value here reads as a calm
+        #    market that is not there.
+        vx = [(d, r.get("vxmt")) for d, r in sorted(by_date.items())[-10:]]
+        vals = [v for _, v in vx if v is not None]
+        notes.append(f"vxmt last10={vals[-3:] if vals else 'none'}")
+        if not vals:
+            problems.append("vxmt is absent for the last 10 sessions — the CBOE "
+                            "VIX6M feed is down and yfinance did not cover it")
+        elif len(set(vals)) == 1 and len(vals) >= 5:
+            problems.append(f"vxmt frozen at {vals[0]} across {len(vals)} sessions "
+                            f"— a source went quiet and is being carried forward")
+
+        # 4. NAAIM: a reading must carry the survey it came from, and that survey
+        #    must not be older than roughly two publication cycles.
+        nd, nv = row.get("naaim_date"), row.get("naaim")
+        notes.append(f"naaim={nv}@{nd}")
+        if nv is not None and not nd:
+            problems.append(f"naaim={nv} carries NO survey date — an undated "
+                            f"reading is how it froze at 75.00 for 93 sessions")
+        elif nd:
+            age = (datetime.now(ET).date() - datetime.strptime(nd[:10], "%Y-%m-%d").date()).days
+            notes.append(f"naaim survey age={age}d")
+            if age > 21:
+                problems.append(f"naaim survey {nd} is {age}d old — every source "
+                                f"is behind; chatter is the accepted primary and "
+                                f"should land ~47h after the Wednesday survey")
+    except Exception as e:
+        notes.append(f"post-ship checks unavailable: {e}")
+
     if phase == "preopen":
         if not live.get("superseded"):
             notes.append("already un-superseded before the bell — early session start?")

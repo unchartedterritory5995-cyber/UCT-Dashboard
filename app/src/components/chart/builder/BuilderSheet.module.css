@@ -1,0 +1,276 @@
+/* The formula builder (spec §6). Tokens only — no colour literals — and at most
+   one gold element, the Save button.
+
+   ⛔ NO `pointer-events` DECLARATION APPEARS IN THIS FILE, AND THAT IS A RULE
+   RATHER THAN AN ACCIDENT. `.legend` is `pointer-events: none` one directory
+   over and the property INHERITS, so a button once shipped literally
+   un-clickable in a browser while twenty-three jsdom click tests stayed green —
+   jsdom does not implement hit-testing, so `fireEvent.click` reaches an element
+   no real pointer could. `BuilderSheet.test.jsx` asserts the absence over this
+   file AND over `mobile/Sheet.module.css` (the only ancestor chain this sheet
+   has, because `Sheet` portals to `document.body`), in both directions: the same
+   scan run over a planted rule must FIND it.
+
+   ⛔ LAYOUT IS `@media`, NEVER `useMediaQuery`. `hooks/useMediaQuery.js` seeds
+   from `matchMedia(q).matches` at MOUNT and only updates on a `change` event, so
+   in a fixed mobile context it can render the desktop variant on a phone. Only
+   640 and 1024 appear below — the canonical boundaries from
+   `styles/breakpoints.css`. */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ── the field ────────────────────────────────────────────────────────────── */
+
+.fieldWrap { display: flex; flex-direction: column; gap: 6px; }
+
+.label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.field {
+  width: 100%;
+  box-sizing: border-box;
+  /* Touch target (tokens.css `--tap-min: 44px`). A two-row textarea clears it
+     already; the declaration is what survives a future one-row variant. */
+  min-height: var(--tap-min);
+  padding: 10px 12px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  resize: vertical;
+}
+.field:focus { outline: none; border-color: var(--border-accent); }
+.field::placeholder { color: var(--text-muted); }
+.field[aria-invalid='true'] { border-color: var(--color-danger); }
+
+.nameField {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: var(--tap-min);
+  padding: 0 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.nameField:focus { outline: none; border-color: var(--border-accent); }
+.nameField::placeholder { color: var(--text-muted); }
+
+/* ── spec §6 state 4: a red dot on the chip, the message beside it ────────── */
+
+.errorChip {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--color-danger);
+  border-radius: 6px;
+}
+
+.errorDot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--color-danger);
+}
+
+/* ⛔ `word-break` RATHER THAN AN ELLIPSIS. The refusal sentence carries the
+   character offset ("Expected ) at character 10") and the number that was
+   exceeded ("measures 600 and the cap is 500"); truncating it removes exactly
+   the part a user can act on. */
+.errorText { min-width: 0; overflow-wrap: anywhere; }
+
+/* ── the read-back ────────────────────────────────────────────────────────── */
+
+.sectionHead {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.readbackWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* ⛔ NO `text-overflow: ellipsis`, NO `-webkit-line-clamp`, NO `max-height`.
+   A deep logical read-back runs ~250 characters and states all three cases of
+   `&&` / `||` / `?:` including the NaN one; clipping it is the "omits a term"
+   defect in a UI hat, and the omitted term is the one the reader would not have
+   guessed. It wraps. */
+.readback {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text-bright);
+  overflow-wrap: anywhere;
+}
+
+.measured {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* ── the badge (spec §1.3 — machine-assigned, and a gate) ─────────────────── */
+
+.badge {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+}
+/* Informational, never error-coloured: a factual property is not a warning. */
+.badgeClean { color: var(--text-muted); }
+.badgeWarn { color: var(--color-warning); }
+.badgeWhy { color: var(--text-muted); }
+
+.ack {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-height: var(--tap-min);
+  font-size: 13px;
+  color: var(--text-bright);
+  cursor: pointer;
+}
+.ack input { min-width: 18px; min-height: 18px; margin-top: 3px; }
+
+/* ── actions ──────────────────────────────────────────────────────────────── */
+
+.diagRow { display: flex; }
+
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.ghostBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap-min);
+  padding: 0 14px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-bright);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.ghostBtn:hover { border-color: var(--border-accent); }
+
+.saveBtn {
+  min-height: var(--tap-min);
+  padding: 0 18px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--bg-base);
+  background: var(--gold);
+  border: 1px solid var(--gold);
+  border-radius: 6px;
+  cursor: pointer;
+}
+/* ⛔ `opacity` + `cursor`, NEVER `pointer-events: none`. The disabled ATTRIBUTE
+   is what refuses the click; a `pointer-events` rule here would inherit into the
+   label and be the exact un-clickable-button defect this file's header names. */
+.saveBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.storeError {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--color-danger);
+  border-radius: 6px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.saved {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-success);
+}
+
+.crash {
+  padding: 12px;
+  font-size: 13px;
+  color: var(--text-bright);
+  border: 1px solid var(--color-danger);
+  border-radius: 6px;
+}
+
+/* ── saved formulas ───────────────────────────────────────────────────────── */
+
+.listWrap { display: flex; flex-direction: column; gap: 6px; }
+
+.list { list-style: none; margin: 0; padding: 0; }
+
+.listRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--tap-min);
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.listName { flex: 0 0 auto; font-size: 13px; color: var(--text-bright); }
+
+.listSource {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* ── phone ────────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  /* The actions stack and go full width — a 44px pill floated right is a target
+     a thumb reaches by accident on one side and not at all on the other. */
+  .actions { flex-direction: column-reverse; }
+  .actions .ghostBtn, .actions .saveBtn { width: 100%; justify-content: center; }
+  .listRow { flex-wrap: wrap; }
+}

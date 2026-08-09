@@ -1157,6 +1157,14 @@ export default function OptionsFlowDashboard() {
     // page the user is reading doesn't blank out or lose their selection.
     const sameRange = _lastCsvFile.current === csvFile;
     const silent = sameRange && _hasRows.current;
+    // A range-only change (SAME dataset base — e.g. /api/flow/data — only days=
+    // differs) must PRESERVE the Search selection. The Search tab holds its own
+    // all-dates data (searchFull, keyed by ticker not range) and re-scopes it via
+    // _scopeAllDirectional, so a timeframe switch should just update the flow.
+    // Clearing the ticker instead nulled searchFull and blanked the page. A MODE
+    // change (stocks↔index → different base) still resets. 2026-08-08.
+    const _prevBase = (_lastCsvFile.current || "").split("?")[0];
+    const _rangeOnlyChange = _prevBase !== "" && _prevBase === csvFile.split("?")[0];
     _lastCsvFile.current = csvFile;
 
     // Instant re-entry. parsedRows lives in component state, so leaving the page
@@ -1191,11 +1199,15 @@ export default function OptionsFlowDashboard() {
       setCsvLoading(true);
       setCsvError(null);
       setSelectedConv(null);
-      setSelectedItem(null);
-      setSelectedTicker(null);
-      setSearch("");
       setOiSearch("");
       setCapFilter("All");
+      // Keep the Search ticker + its drilled contract across a range-only change
+      // (the view re-scopes in place); a mode change clears them.
+      if (!_rangeOnlyChange) {
+        setSelectedItem(null);
+        setSelectedTicker(null);
+        setSearch("");
+      }
     }
     // 7/9: Preserve current tab across data refetches. This effect fires
     // whenever csvFile changes, which includes background dataVersion bumps
@@ -7662,7 +7674,64 @@ export default function OptionsFlowDashboard() {
               // mode: shows positions regardless of when they opened, so an older
               // still-open build (e.g. a Jan-2028 put opened months ago) still
               // appears; the Status column marks which are open. 2026-07-21.
-              const _tkTradesFull = (tk && tk.t ? tk.t.slice() : []).sort((_a, _b) => (_b.P||0) - (_a.P||0));
+              //
+              // 2026-08-08: was `tk.t` (the capped, biggest-single-print rep cache),
+              // which SILENTLY DROPPED accumulation contracts — e.g. an OKLO Oct $50C
+              // that builds $2.3M across many small prints has no single top-10 print,
+              // so it never entered tk.t and vanished the instant you switched to
+              // Still-open, even while BUILDING. Fix: aggregate the SAME all-time
+              // directional prints per contract, exactly mirroring the window-scoped
+              // rollup above — every contract with all-time flow now appears, with
+              // tk.t metadata (grade/entry/status/OI) merged where present. This is
+              // the all-dates twin of the 2026-07-25 scoped fix.
+              const _tkAllPrints = (_uncapped ? (_uncapped.all_directional || []) : (D.all_directional || []))
+                .filter(t => t.S === tk.s && !t._rescueDerived);
+              const _fullByContract = {};
+              for (const _t of _tkAllPrints) {
+                const _ck = _t.CP + "|" + _t.K + "|" + _t.E;
+                const _e = _fullByContract[_ck] || (_fullByContract[_ck] = { P:0, V:0, bull:0, bear:0, OI:0, DTE:_t.DTE, Dt:_t.Dt, pxSum:0, pxN:0 });
+                _e.P += _t.P; _e.V += _t.V;
+                if (_t.D === "BULL") _e.bull += _t.P; else if (_t.D === "BEAR") _e.bear += _t.P;
+                if ((_t.OI||0) > _e.OI) _e.OI = _t.OI||0;
+                if (_t.price > 0) { _e.pxSum += _t.price; _e.pxN++; }
+                if (_t.Dt) { _e.Dt = _t.Dt; _e.DTE = _t.DTE; }
+              }
+              const _tkTradesFull = Object.entries(_fullByContract)
+                .map(([_ck, _w]) => {
+                  const _netD = _w.bull > _w.bear ? "BULL" : _w.bear > _w.bull ? "BEAR" : null;
+                  const _dirPrem = _netD === "BULL" ? _w.bull : _netD === "BEAR" ? _w.bear : _w.P;
+                  const _meta = _tkByContract[_ck];
+                  if (_meta) return { ..._meta, P: _w.P, V: _w.V, dirPrem: _dirPrem, dispD: _netD };
+                  const _p = _ck.split("|");
+                  return { S: tk.s, CP: _p[0], K: parseFloat(_p[1]), E: _p[2], P: _w.P, V: _w.V,
+                           dirPrem: _dirPrem, dispD: _netD, OI: _w.OI, maxOI: _w.OI, DTE: _w.DTE, Dt: _w.Dt,
+                           price: _w.pxN ? _w.pxSum / _w.pxN : 0 };
+                })
+                .filter(_r => {
+                  // "Still open (all)" should list only positions still on the book:
+                  // drop EXPIRED and FULLY-CLOSED contracts. Expired = past expiry as
+                  // of today (mirrors computeStillOpen's guard). Fully-closed = live OI
+                  // down to <15% of peak — the exact CLOSED band the Status column uses.
+                  // When live OI is UNKNOWN (no quote yet — the "164 missing OI" tail)
+                  // we KEEP the row: "can't tell yet" must never hide a possibly-open
+                  // position, the same principle as the still-open premium math. 2026-08-08.
+                  if (_r.E) {
+                    const _exp = mdyToDate(_r.E);
+                    if (_exp && !isNaN(_exp)) {
+                      const _t0 = new Date(); _t0.setHours(0, 0, 0, 0);
+                      if (_exp < _t0) return false;                 // expired
+                    }
+                  }
+                  const _px = getPrice(_r.S || tk.s, _r.CP, _r.K, _r.E);
+                  const _curOI = _px ? _px.oi : 0;
+                  const _baseOI = Math.max(_r.OI || 0, _r.maxOI || 0);
+                  if (_curOI > 0 && _baseOI > 0) {
+                    if (_curOI / Math.max(_baseOI, _curOI) < 0.15) return false;  // CLOSED band
+                  }
+                  return true;
+                })
+                .sort((_a, _b) => (_b.dirPrem != null ? _b.dirPrem : _b.P) - (_a.dirPrem != null ? _a.dirPrem : _a.P))
+                .slice(0, 40);
               const _rangeLabel = (dateFrom && dateTo) ? (dateFrom + "\u2013" + dateTo)
                 : dateFilter === "All" ? "all dates"
                 : (typeof dateFilter === "string" && dateFilter.startsWith("Last")) ? ("last " + dateFilter.slice(4) + " days")
@@ -7701,8 +7770,7 @@ export default function OptionsFlowDashboard() {
               // (e.g. the Jan-2028 put) — matches the table's Still-open mode, which
               // uses all-time tk.t. The window-scoped ccTrades still drives the
               // "In window" raw totals below. 2026-07-21.
-              const _tkAllPrintsDte = (_uncapped ? (_uncapped.all_directional||[]) : (D.all_directional||[]))
-                .filter(t => t.S===tk.s && !t._rescueDerived).filter(dteF);
+              const _tkAllPrintsDte = _tkAllPrints.filter(dteF);
               // Raw totals — clean-classified directional flow only.
               let ccB=0, ccR=0;
               ccTrades.forEach(t => { if(t.D==="BULL") ccB+=t.P; else if(t.D==="BEAR") ccR+=t.P; });
@@ -7810,6 +7878,24 @@ export default function OptionsFlowDashboard() {
               const stN = ccAll.filter(t=>t.DTE>=0&&t.DTE<60).length;
               const ltN = ccAll.filter(t=>t.DTE>=60&&t.DTE<180).length;
               const leN = ccAll.filter(t=>t.DTE>=180).length;
+              // Fetch live OI/prices for EVERY unique contract on this ticker
+              // (directional + top-trades + consolidated). Shared by the explicit
+              // "Fetch Live OI & Prices" button and the auto-fetch fired when the
+              // Still-open tab is opened, so there's one code path. 2026-08-08.
+              const _fetchAllSearchOI = () => {
+                const seen = new Set();
+                const contracts = [];
+                const pushUnique = (S, CP, K, E) => {
+                  const key = S+"|"+CP+"|"+K+"|"+E;
+                  if (seen.has(key)) return;
+                  seen.add(key);
+                  contracts.push({ sym:S, cp:CP, strike:K, exp:E });
+                };
+                ccAll.forEach(r => pushUnique(r.S, r.CP, r.K, r.E));
+                (tk.t||[]).forEach(r => pushUnique(r.S, r.CP, r.K, r.E));
+                (tk.c||[]).forEach(r => pushUnique(r.S, r.CP, r.K, r.E));
+                if (contracts.length) fetchPrices(contracts);
+              };
               return (
                 <>
                   <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
@@ -7850,17 +7936,23 @@ export default function OptionsFlowDashboard() {
                         {_windowBtnLabel}
                       </button>
                       <button
-                        onClick={()=> { if (stillOpenComputable) setOiConfirmedOnly(true); }}
-                        disabled={!stillOpenComputable}
+                        onClick={()=> {
+                          // One click: switch to still-open AND auto-fetch live OI if
+                          // it isn't loaded yet \u2014 no separate "Fetch Live OI" click.
+                          // _useOpen stays false until the fetch lands (stillOpenComputable),
+                          // so the view flips to still-open automatically when OI arrives.
+                          setOiConfirmedOnly(true);
+                          if (!stillOpenComputable && !fetchLoading) _fetchAllSearchOI();
+                        }}
                         style={{
                           padding:"4px 12px", borderRadius:"0 16px 16px 0", border:"1.5px solid "+(oiConfirmedOnly?P.bu:P.bd),
-                          cursor:!stillOpenComputable?"not-allowed":"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
+                          cursor:fetchLoading?"wait":"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
                           background:oiConfirmedOnly?P.bu+"22":"transparent",
-                          color:oiConfirmedOnly?P.bu:(stillOpenComputable?P.mt:"#555"), opacity:stillOpenComputable?1:0.6,
+                          color:oiConfirmedOnly?P.bu:P.mt,
                         }}
-                        title={stillOpenComputable ? "Positions still open by Live OI, regardless of when they opened (range-independent). Older builds still on the book appear here." : "Fetch Live OI & Prices first (blue button), then switch to still-open."}
+                        title={stillOpenComputable ? "Positions still open by Live OI, regardless of when they opened (range-independent). Older builds still on the book appear here." : "Positions still open by Live OI. Clicking auto-fetches live OI, then shows what's still on the book."}
                       >
-                        {stillOpenComputable ? "Still open (all)" : "Still open \u00b7 fetch OI"}
+                        {(fetchLoading && oiConfirmedOnly && !stillOpenComputable) ? "Still open \u00b7 fetching\u2026" : "Still open (all)"}
                       </button>
                       {oiConfirmError && (
                         <span style={{ fontSize:9, color:P.be }} title={oiConfirmError}>err</span>
@@ -7981,36 +8073,7 @@ export default function OptionsFlowDashboard() {
                     </div>
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                    <button onClick={()=>{
-                      // Send ALL unique directional contracts for the ticker to
-                      // Schwab, not just the top-10 visible + consolidated.
-                      // Without this, "Still open" % was capped by tiny coverage
-                      // (e.g., 14/106 contracts). Schwab batches dynamically so
-                      // 100+ contracts still completes in a few seconds.
-                      const seen = new Set();
-                      const contracts = [];
-                      const pushUnique = (S, CP, K, E) => {
-                        const key = S+"|"+CP+"|"+K+"|"+E;
-                        if (seen.has(key)) return;
-                        seen.add(key);
-                        contracts.push({sym:S, cp:CP, strike:K, exp:E});
-                      };
-                      // ccAll = all directional trades for this ticker
-                      // (unfiltered by DTE; user might switch DTE later and
-                      // we want priced data ready regardless)
-                      ccAll.forEach(r => pushUnique(r.S, r.CP, r.K, r.E));
-                      // Also price the trades actually SHOWN in the Top-Trades
-                      // table (tk.t). It's ranked by premium across ALL trades,
-                      // so it includes non-directional / rescue-derived prints
-                      // that ccAll (directional-only) excludes. Without this they
-                      // render Now / Live OI / ΔOI as "—" even though the status
-                      // reads "N priced of N" (N = the directional contract count).
-                      (tk.t||[]).forEach(r => pushUnique(r.S, r.CP, r.K, r.E));
-                      // Also include consolidated rows in case any aren't
-                      // covered by trade-level data
-                      (tk.c||[]).forEach(r => pushUnique(r.S, r.CP, r.K, r.E));
-                      fetchPrices(contracts);
-                    }} disabled={fetchLoading}
+                    <button onClick={_fetchAllSearchOI} disabled={fetchLoading}
                       style={{ padding:"6px 16px", borderRadius:6, border:"none", cursor:fetchLoading?"not-allowed":"pointer",
                         fontSize:10, fontWeight:700, fontFamily:"inherit", background:fetchLoading?P.bd:P.sw, color:fetchLoading?P.dm:P.bg }}>
                       {fetchLoading?"Fetching…":"⚡ Fetch Live OI & Prices"}

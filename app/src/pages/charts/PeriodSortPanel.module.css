@@ -1,0 +1,310 @@
+/* Custom-Period Sort — the draggable results panel + the config popover. Uses the app
+   theme tokens so it follows the active theme automatically: white canvas / dark text in
+   the light theme, dark canvas / light text in the dark & OLED themes. */
+
+.panel {
+  position: fixed;
+  max-width: 96vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--widget-canvas, var(--bg-elevated, #22251e));
+  /* Same flat near-black outline the workspace widgets render (they re-assert
+     `--border: #1e1e1e` even on a white canvas) — a thin dark line, NOT the ambient
+     light-grey border. 1px / 4px radius, no drop shadow. */
+  border: 1px solid #1e1e1e;
+  border-radius: 4px;
+  z-index: 4000;
+  overflow: hidden;
+  color: var(--text, #b6b09d);
+  font: 12px 'Instrument Sans', system-ui, sans-serif;
+}
+
+/* Compact header that mirrors a workspace widget's header (grab dots + colour dot on the
+   left, thin buttons on the right, no title — the title lives on the list's own header). */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  min-height: 30px;
+  box-sizing: border-box;
+  cursor: grab;
+  user-select: none;
+  border-bottom: 1px solid var(--widget-divider, var(--border, #2e3127));
+  background: var(--widget-canvas, var(--bg-elevated, #22251e));
+}
+.header:active { cursor: grabbing; }
+/* Clickable colour-code dot — cycles the group (A/B/C/D/N) like the standard widget. */
+.colorDot { width: 11px; height: 11px; border-radius: 50%; background: #c9a84c; flex-shrink: 0; border: none; padding: 0; cursor: pointer; }
+.colorDot:hover { box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.25); }
+/* Six-dot drag grip (pure CSS, no icon dependency). */
+.grip {
+  width: 8px;
+  height: 12px;
+  flex-shrink: 0;
+  background-image: radial-gradient(currentColor 1px, transparent 1.2px);
+  background-size: 4px 4px;
+  color: var(--text-muted, #8c8674);
+  opacity: 0.7;
+}
+.title {
+  font-weight: 600;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  color: var(--text-heading, #f0ead8);
+}
+.range {
+  margin-left: 2px;
+  font-size: 11px;
+  color: var(--text-muted, #8c8674);
+}
+.headBtns { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.iconBtn, .close {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #8c8674);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 0;
+}
+.iconBtn:hover { color: var(--ut-gold, #c9a84c); }
+.close { color: var(--text-muted, #8c8674); }
+.close:hover { color: var(--text-bright, #e0dac8); }
+
+/* Gold resize corners — IDENTICAL to the workspace widgets' RGL handles: a 16px grab box
+   with an inset L-mark (6px, 2px gold border on right+bottom) rotated so it hugs each
+   corner from INSIDE the panel (react-grid-layout .react-resizable-handle::after spec). */
+.corner {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  z-index: 20;
+}
+.corner::after {
+  content: "";
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid rgba(201, 168, 76, 0.55);
+  border-bottom: 2px solid rgba(201, 168, 76, 0.55);
+}
+.corner:hover::after { border-right-color: rgba(201, 168, 76, 0.95); border-bottom-color: rgba(201, 168, 76, 0.95); }
+.cornerSE { right: 0; bottom: 0; cursor: se-resize; }
+.cornerSW { left: 0; bottom: 0; cursor: sw-resize; transform: rotate(90deg); }
+.cornerNW { left: 0; top: 0; cursor: nw-resize; transform: rotate(180deg); }
+.cornerNE { right: 0; top: 0; cursor: ne-resize; transform: rotate(270deg); }
+
+/* Add-as-tab dropdown (floating panel header). */
+.tabMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 60;
+  min-width: 160px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--bg-elevated, #22251e);
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 8px;
+  box-shadow: 0 16px 40px -18px rgba(0, 0, 0, 0.6);
+}
+.tabMenuHead { padding: 6px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted, #8c8674); }
+.tabMenuItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-bright, #e0dac8);
+  font: inherit;
+  font-size: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.tabMenuItem:hover { background: var(--bg-hover, #2a2d24); }
+
+/* Table wrapper — flex-fills the panel/widget body below the header. */
+.tableWrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.footRange { margin-left: auto; }
+
+/* ── Docked widget form (fills the workspace slot) ───────────────────────────── */
+.widgetRoot { width: 100%; height: 100%; display: flex; flex-direction: column; min-height: 0; background: var(--bg-elevated, #22251e); }
+.widgetBar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--border, #2e3127);
+  background: var(--bg-surface, #1a1c17);
+}
+.widgetRange { font-size: 11px; color: var(--text-muted, #8c8674); font-variant-numeric: tabular-nums; }
+.gearPop {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 8px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--bg-elevated, #22251e);
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 10px;
+  box-shadow: 0 16px 40px -18px rgba(0, 0, 0, 0.6);
+}
+
+/* Column layout — one grid template shared by the header + every row. */
+.colHead, .row {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 1.1fr 1fr;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+}
+.colHead {
+  height: 30px;
+  border-bottom: 1px solid var(--border, #2e3127);
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #8c8674);
+  background: var(--bg-surface, #1a1c17);
+}
+.cSym { text-align: left; }
+.cNum { text-align: right; font-variant-numeric: tabular-nums; }
+.sortBtn {
+  border: none;
+  background: transparent;
+  color: var(--accent, #c9a84c);
+  font: inherit;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  padding: 0;
+  display: inline-flex;
+  gap: 3px;
+  justify-content: flex-end;
+  align-items: center;
+}
+.caret { font-size: 8px; }
+
+/* Body wrapper for the embedded scanner/watchlist table (floating panel). */
+.panelBody { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.body { flex: 1; overflow-y: auto; overflow-x: hidden; }
+.row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border, #2e3127);
+}
+.row:hover { background: var(--bg-hover, #2a2d24); }
+.cSym { font-weight: 600; color: var(--text-bright, #e0dac8); }
+.up { color: var(--gain, #3cb868); }
+.down { color: var(--loss, #e74c3c); }
+
+.msg { padding: 24px; text-align: center; color: var(--text-muted, #8c8674); }
+.footer {
+  height: 26px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border-top: 1px solid var(--border, #2e3127);
+  font-size: 11px;
+  color: var(--text-muted, #8c8674);
+  background: var(--bg-surface, #1a1c17);
+}
+
+/* ── Config popover (shown right after the drag) ─────────────────────────────── */
+.cfgBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 4100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+}
+.cfg {
+  width: 340px;
+  max-width: 92vw;
+  background: var(--bg-elevated, #22251e);
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 12px;
+  box-shadow: 0 24px 64px -24px rgba(0, 0, 0, 0.6);
+  color: var(--text, #b6b09d);
+  font: 12px 'Instrument Sans', system-ui, sans-serif;
+  overflow: hidden;
+}
+.cfgHead {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border, #2e3127);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--text-heading, #f0ead8);
+  letter-spacing: 0.01em;
+}
+.cfgBody { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+.cfgRow { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.cfgLabel { color: var(--text-bright, #e0dac8); font-weight: 500; }
+.cfgReplay { display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--text-bright, #e0dac8); font-weight: 500; }
+.cfgReplay input { accent-color: var(--accent, #c9a84c); width: 15px; height: 15px; cursor: pointer; }
+.cfgReplayHint { color: var(--text-muted, #8c8674); font-weight: 400; font-size: 11px; }
+.cfgDate {
+  background: var(--bg-surface, #1a1c17);
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 6px;
+  color: var(--text-bright, #e0dac8);
+  font: inherit;
+  padding: 5px 8px;
+  /* Native picker follows the theme + uses the brand gold for the selected day. */
+  color-scheme: dark;
+  accent-color: var(--accent, #c9a84c);
+}
+:global([data-theme='light']) .cfgDate { color-scheme: light; }
+.cfgSelect {
+  background: var(--bg-surface, #1a1c17);
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 6px;
+  color: var(--text-bright, #e0dac8);
+  font: inherit;
+  padding: 5px 8px;
+  cursor: pointer;
+  color-scheme: dark;
+}
+:global([data-theme='light']) .cfgSelect { color-scheme: light; }
+.cfgActions {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border, #2e3127);
+  justify-content: flex-end;
+}
+.cfgBtn {
+  border: 1px solid var(--border, #2e3127);
+  background: var(--bg-surface, #1a1c17);
+  color: var(--text-bright, #e0dac8);
+  font: inherit;
+  padding: 7px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+.cfgBtn:hover { border-color: var(--border-accent, #3a3d32); background: var(--bg-hover, #2a2d24); }
+.cfgBtn:disabled { opacity: 0.45; cursor: default; }
+.cfgBtnGhost { margin-right: auto; }

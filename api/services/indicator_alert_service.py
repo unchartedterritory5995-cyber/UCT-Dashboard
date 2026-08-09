@@ -157,7 +157,36 @@ _MIGRATIONS: tuple[tuple[str, str], ...] = (
     # cutover gate would then pass on an empty set: a gate that cannot fail. The
     # rail is `test_a_scoped_alert_is_still_visible_to_list_active`.
     ("scope", "ALTER TABLE indicator_alerts ADD COLUMN scope TEXT"),
+    # ⭐ PHASE D TASK 12 (spec §12): WHO AUTHORED THE ARITHMETIC.
+    #
+    # NULL = BUILTIN, and that is the whole migration. Every row that exists —
+    # including the 31 production soak rows — is NULL, so a nullable column with
+    # no backfill leaves every alert meaning exactly what it already meant. A
+    # NOT NULL column with a `'builtin'` default would have written a sentinel
+    # into 31 live rows to say what they already say, on a table the cutover gate
+    # is watching.
+    #
+    # ⛔ IT IS A PROVENANCE DIMENSION AND `list_active()` MUST NEVER READ IT —
+    # the identical rule `scope` above carries, for the identical reason. The
+    # evaluator, the Task 6 SHADOW lane and the Task 11 soak matrix all read
+    # `list_active()`; a filter here would shrink what the shadow lane observes
+    # and Task 8's cutover gate would pass on a smaller set. `test_the_soak_rows_
+    # stay_visible_to_list_active_after_the_def_source_column` is the rail, and
+    # it drives the REAL `alert_soak_matrix.verify()`.
+    #
+    # ⛔ AND IT DOES NOT DECIDE WHETHER A FIRE IS DELIVERED. What quiets an alert
+    # is Task 11's fired log and the snooze; what refuses a RECEIPT is
+    # `indicator_alert_evaluator.admit_alert_fire`, which reads this column as
+    # one of its TWO signals (see `_is_user_authored` — the other is structural,
+    # so a row that lost this column still cannot accrue one).
+    ("def_source", "ALTER TABLE indicator_alerts ADD COLUMN def_source TEXT"),
 )
+
+#: The two provenances. `NULL` in the column reads as `DEF_SOURCE_BUILTIN`
+#: everywhere above the store, so no consumer has to know that absence means
+#: "UCT wrote this arithmetic".
+DEF_SOURCE_BUILTIN = "builtin"
+DEF_SOURCE_USER = "user"
 
 
 def db_path() -> str:
@@ -224,6 +253,12 @@ def _row_to_dict(row: tuple) -> dict:
         # frontend's `alertSetFor` reads as "on every chart" for exactly the
         # reason the column is nullable.
         "scope": row[22],
+        # ⭐ WHO AUTHORED THE ARITHMETIC. `None` in the column is BUILTIN —
+        # resolved here so no surface, and no gate, has to know that absence
+        # means "UCT wrote it". Every existing row (all 31 soak rows included) is
+        # NULL and therefore reads `"builtin"`, which is what they have always
+        # been.
+        "def_source": row[23] or DEF_SOURCE_BUILTIN,
     }
 
 
@@ -231,7 +266,7 @@ _COLS = (
     "id, user_id, sym, indicator, condition, threshold, tf, params_json, "
     "active, last_value, last_evaluated_at, triggered_at, trigger_count, created_at, "
     "state, state_detail, state_at, arm_epoch, snooze_until, last_fire_key, "
-    "instance_id, instance_missing_at, scope"
+    "instance_id, instance_missing_at, scope, def_source"
 )
 
 
@@ -289,14 +324,33 @@ def create(
     """
     if params_json is not None and not isinstance(params_json, str):
         params_json = json.dumps(params_json)
+
+    # ⭐⭐ PHASE D TASK 12 — ARM TIME IS HERE, AND THE EQUALITY RUNS BEFORE THE
+    # INSERT. `arm_for_alert` returns `None` for every builtin address, so this
+    # line is a no-op for every alert that has ever been created and the path
+    # above is byte-identical for them (`test_the_builtin_create_path_does_not_
+    # change` drives it). For a user address it runs the three measured gates —
+    # the stored repaint verdict, the budget AT THE VERSION BEING ARMED, and the
+    # cross-lane 1e-9 equality on THIS symbol's real bars — and RAISES
+    # `alert_user_series.AdmissionRefused` naming the gate.
+    #
+    # ⛔ IT RAISES RATHER THAN RETURNING FALSE, AND IT RAISES *BEFORE* THE INSERT.
+    # A refusal after the row landed would leave an alert the user believes is
+    # watching and which is refused every cycle — the silence this lane's create
+    # path validation exists to end, reached one step later. A refusal before it
+    # means there is nothing to go quiet.
+    from api.services import alert_user_series
+    admitted = alert_user_series.arm_for_alert(user_id, indicator, sym.upper(), tf)
+    source = None if admitted is None else DEF_SOURCE_USER
+
     now = int(time.time())
     with _conn() as db:
         cur = db.execute(
             "INSERT INTO indicator_alerts "
             "(user_id, sym, indicator, condition, threshold, tf, params_json, "
             "active, trigger_count, created_at, state, state_at, arm_epoch, "
-            "instance_id, scope) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, 0, ?, ?)",
+            "instance_id, scope, def_source) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, ?, ?, ?, 0, ?, ?, ?)",
             (
                 str(user_id),
                 sym.upper(),
@@ -313,6 +367,9 @@ def create(
                 # nothing to send. Stored as NULL so there is exactly ONE
                 # representation of "global" in the column.
                 _clean_scope(scope),
+                # NULL for a builtin — the same "absence means what it always
+                # meant" rule the `scope` column above is built on.
+                source,
             ),
         )
         return int(cur.lastrowid)
@@ -569,14 +626,38 @@ def record_evaluation(alert_id: int, last_value: float, *,
 def record_trigger(alert_id: int, last_value: float, *,
                    bar_time: Any = None,
                    now: Optional[float] = None) -> bool:
-    """The condition is TRUE. **Returns True to DELIVER, False to STAY QUIET.**
+    """The condition is TRUE. **Returns True when a NEW fire row landed.**
 
-    ⭐ THE RETURN VALUE IS THE FIRE-ONCE GUARD. `_run_one_cycle` calls
-    `_dispatch_delivery` only when this returns True. The decision is not made
-    here by an `if` anybody can drift — it is made by
-    `alert_fired_log.record_fire`, whose `UNIQUE(alert_id, fire_key)` either
-    lands a new row or does not. History and fire-once are the same object, so
-    "the log says one fire and the member got five" is not a reachable state.
+    ⭐ THE RETURN VALUE IS THE FIRE-ONCE GUARD. The decision is not made here by
+    an `if` anybody can drift — it is made by `alert_fired_log.record_fire`,
+    whose `UNIQUE(alert_id, fire_key)` either lands a new row or does not.
+    History and fire-once are the same object, so "the log says one fire and the
+    member got five" is not a reachable state.
+
+    🔴 THIS DOCSTRING USED TO SAY `_run_one_cycle` CALLS `_dispatch_delivery`
+    ONLY WHEN THIS RETURNS TRUE. IT DOES NOT, IT NEVER DID, AND AFTER TASK 8 IT
+    STILL DOES NOT — DELIBERATELY. Measured on the shipped tree: `invoked 4x
+    while record_trigger returned [True, False, False, False]`. The design record
+    and the code disagreed, which is the one thing this branch treats as a defect
+    in its own right, so the record is corrected to the code rather than the code
+    quietly bent to the record:
+
+      * **the guard is at the delivery boundary** — `claim_delivery`, an atomic
+        compare-and-set on `delivered_at` inside SQLite. Every channel is
+        downstream of it and a second caller of this lane inherits it, which a
+        caller-side `if` cannot offer.
+      * **and gating the call site would DELETE THE RETRY.** `_dispatch_delivery`
+        hands a failed lease back (`alert_fired_log.release_delivery`, bounded by
+        `MAX_DELIVERY_ATTEMPTS`) precisely so a 429 is re-attempted on a later
+        cycle. On a level condition the episode key does not move, so this
+        function returns False on every one of those later cycles — an `if` here
+        would mean the released lease is never picked up again and the member is
+        never told, which is the silent-drop direction the lease exists to close.
+
+    So: `record_trigger` decides whether there is anything NEW to deliver;
+    `claim_delivery` decides whether it is deliverable NOW. Two questions, two
+    places, and `test_a_released_delivery_lease_is_RETRIED_on_a_later_cycle`
+    fails the moment somebody merges them.
 
     The key is the ARMED EPISODE for a level condition and the BAR for a cross
     condition — `alert_fired_log.fire_key`, and its module docstring says why
@@ -696,19 +777,123 @@ def mark_needs_attention(alert_id: int, detail: Any, *,
             "[alert-state] failed to mark alert %s", alert_id)
 
 
+#: The refusal/diagnosis anchor for a column that resolves but never AT the bar
+#: the closed lane judges. Disjoint from the three create-path anchors below for
+#: the Task 9 reason: a shared phrase makes `match=` satisfied by a different
+#: gate, and this one has to be distinguishable from "not enough history".
+CLOSED_LANE_TRAILING_PAD = "is displaced forward and has no value on a CLOSED bar"
+
+
+def closed_lane_pad(address: str, bars: Optional[list], params: dict) -> int:
+    """How many bars of TRAILING `None` this address's column ends with here.
+
+    ⛔ MEASURED ON THE BARS IN HAND, NEVER READ OFF A CONSTANT. `ichimoku.chikou`
+    writes bar `i`'s close to index `i - 26`, so its column ends in 26 `None`s —
+    but the number is a property of the definition's own displacement, and the
+    one thing this programme has learned twenty times is that a literal somebody
+    has to remember to edit is a literal that rots. `tests/test_indicator_
+    golden.py` already declares `TRAILING_PAD = {("ichimoku_9_26_52","chikou"):
+    26}`; this derives the same number from the column and never has to agree
+    with it by hand.
+
+    ``0`` for an address with no column, an empty window, or a raising compute —
+    a pad is a positive claim and "could not tell" must not read as one.
+    """
+    from api.services import alert_series
+    from api.services import indicator_alert_evaluator as ev
+    fn = alert_series.SERIES_FUNCS.get(ev.resolve_address(address))
+    if fn is None or not bars:
+        return 0
+    try:
+        column = fn(list(bars), dict(params or {}))
+    except Exception:  # noqa: BLE001 - a raising compute is diagnosed elsewhere
+        return 0
+    if not any(v is not None for v in column):
+        return 0                       # an EMPTY column is not a displaced one
+    pad = 0
+    for value in reversed(column):
+        if value is not None:
+            break
+        pad += 1
+    return pad
+
+
+def closed_lane_alternatives(address: str, bars: Optional[list],
+                             params: dict) -> list:
+    """Sibling plots of the SAME indicator that DO resolve at the closed bar.
+
+    ⛔ DERIVED, NOT LISTED. The obvious implementation is
+    `{"ichimoku.chikou": "ichimoku.kijun"}` — a hand-written suggestion table,
+    i.e. the enumeration site this programme has spent two phases retiring. This
+    asks every address sharing the prefix whether ITS column has a value at the
+    end of the same window, so the suggestion is true about the bars the member
+    actually has rather than true about the day somebody typed it.
+    """
+    from api.services import indicator_alert_evaluator as ev
+    canonical = ev.resolve_address(address)
+    group = canonical.split(".")[0]
+    if not bars:
+        return []
+    out = []
+    for other in sorted(ev.all_addresses()):
+        if other == canonical or other.split(".")[0] != group:
+            continue
+        if closed_lane_pad(other, bars, params) == 0:
+            try:
+                if ev._closed_address_value(other, bars, dict(params or {})) is not None:
+                    out.append(other)
+            except Exception:  # noqa: BLE001 - a sibling that raises is not an offer
+                continue
+    return out
+
+
+def _closed_lane_offer_text(address: str, bars: Optional[list],
+                            params: dict) -> str:
+    """The "arm this instead" sentence, or "" when nothing resolves.
+
+    Shared by the diagnosis and the create-path refusal so the member reads the
+    same offer whichever door they arrive at — two spellings of one suggestion
+    is the defect this module retired for `instance_label`.
+    """
+    offers = closed_lane_alternatives(address, bars, params)
+    if not offers:
+        return ""
+    return (" Plots of the same indicator that DO resolve on a closed bar: "
+            + ", ".join(offers) + ".")
+
+
 def diagnose(alert: dict, bars: Optional[list]) -> tuple[bool, Optional[str]]:
     """WHY does this alert produce no value? ``(is_fault, detail)``.
 
-    ⛔ IT CALLS THE EVALUATOR'S OWN `address_value`, NOT A COPY OF IT. A helper
-    that re-implements the dispatch would diagnose a function nobody runs — the
-    mutation-harness lesson, reached from the diagnostic side. `address_value`
-    does not swallow, which is exactly why it is the one worth calling: the
-    raising compute's own message comes back intact, verbatim.
+    ⛔ IT CALLS THE EVALUATOR'S OWN RESOLVER, NOT A COPY OF IT. A helper that
+    re-implements the dispatch would diagnose a function nobody runs — the
+    mutation-harness lesson, reached from the diagnostic side. Neither resolver
+    swallows, which is exactly why they are the ones worth calling: the raising
+    compute's own message comes back intact, verbatim.
+
+    🔴 AND IT ASKS `eval_mode()` WHICH RESOLVER THAT IS. This read
+    `address_value` — the FORMING resolver — unconditionally, in every mode. On
+    a tree where the constant says `"closed"` that made it answer a question
+    nobody asked: `ichimoku.chikou` resolves to `771.56` on the forming lane and
+    to `None` on the closed one, so the instrument built to surface a silent
+    alert reported the ONE permanently-silent address in the catalog as HEALTHY
+    (measured: `forming 219.0 / closed None / diagnose (False, None)`). It then
+    never reached `needs_attention`, so it never hit `sweep_silent_alerts`'
+    `_DIAGNOSE_EVERY_SEC` short-circuit either, and paid a 200-bar fetch plus a
+    full Ichimoku compute every five minutes, forever, for no output.
+    `lesson_health_check_reads_a_proxy_not_the_artifact`, on the artifact this
+    phase exists to make trustworthy.
 
     ⚠️ "NOT ENOUGH BARS YET" IS NOT A FAULT and is returned as `(False, text)`.
     It computes without raising and simply has no answer for this window; an
     alert that has not warmed up must not be reported to a user as broken. The
     distinction is the whole reason this returns a pair instead of a string.
+
+    ⛔ A TRAILING PAD IS THE OTHER SIDE OF THAT DISTINCTION AND IT **IS** A
+    FAULT. A warming column is all-`None` up to the judged bar and fills in on
+    its own; a displaced column has values BEFORE the judged bar and never one
+    AT it, however long you wait. Same symptom, opposite prognosis — so they are
+    separated by the measurement (`closed_lane_pad`) and not by a name.
     """
     from api.services import indicator_alert_evaluator as ev
 
@@ -720,14 +905,168 @@ def diagnose(alert: dict, bars: Optional[list]) -> tuple[bool, Optional[str]]:
     if not bars:
         return True, ("no bars are stored for this symbol and timeframe yet, "
                       "so nothing can be computed")
+
+    params = ev._parse_params(alert)
+    mode = ev.eval_mode()
+    judged = bars
+    if mode == "closed":
+        index = ev.closed_bar_index(bars, str(alert.get("tf") or ""),
+                                    time.time())
+        if index < 1:
+            return False, (f"no bar of this timeframe has closed yet in the "
+                           f"{len(bars)} stored — the closed-bar lane has "
+                           f"nothing to judge")
+        judged = bars[:index + 1]
+
     try:
-        value = ev.address_value(address, bars, ev._parse_params(alert))
+        if mode == "closed":
+            value = ev._closed_address_value(address, judged, params)
+        else:
+            value = ev.address_value(address, judged, params)
     except Exception as exc:  # noqa: BLE001 - the message IS the diagnosis
         return True, f"{type(exc).__name__}: {exc}"
+
     if value is None:
+        pad = closed_lane_pad(address, judged, params)
+        if mode == "closed" and pad > 0:
+            label = ev.ALERT_LABELS.get(address, address)
+            instead = _closed_lane_offer_text(address, judged, params)
+            return True, (
+                f"{label} {CLOSED_LANE_TRAILING_PAD}. Its column is written "
+                f"{pad} bars behind the bar that produced it, so the newest "
+                f"CLOSED bar — the only one this evaluator judges — never has a "
+                f"number on it and this alert can never fire again. It fired "
+                f"before the closed-bar cutover and the rows are deliberately "
+                f"left active rather than deleted.{instead}")
         return False, (f"{address} has no value on the bars stored for this "
                        "timeframe yet — not enough history")
     return False, None
+
+
+# ─── WHY A SAVED FORMULA IS NOT IN THE PICKER — THE OTHER SILENCE ────────────
+#
+# 🔴 THE DEFECT, IN ONE SENTENCE. `alert_user_series.user_catalog` runs the
+# admission gates over every stored formula and `continue`s past the ones a gate
+# refuses. That is CORRECT per `alert_catalog`'s own contract — *"the dropdown
+# cannot offer an alert that cannot fire"* — and it is completely SILENT. A
+# member typed a formula, the STORE accepted it, `GET /api/user-definitions`
+# lists it, the library dialog shows it, and the alert picker simply does not
+# have it, with nothing anywhere saying why. The reason existed the whole time,
+# in `AdmissionRefused`, and had no consumer on this path at all.
+#
+# ⭐ THIS IS THE ALERT HALF OF `918e3c8a`, DELIBERATELY BUILT THE SAME WAY. That
+# commit closed the identical silence on the LIBRARY half
+# (`indicatorCatalog.userRefusalRows` → `IndicatorLibraryDialog`); the alert half
+# was named as still-open in its own report and is this. Same rule, same shape,
+# so a member reads one sentence about their formula rather than two.
+#
+# ⛔ THE MESSAGE IS THE DOOR'S, VERBATIM AND WHOLE. `AdmissionRefused` already
+# writes a precise sentence per gate and appends its own `[gate:<name>]`
+# attribution; `TableRefusal` writes one of six pairwise-disjoint sentences and
+# carries `.guard`. Neither is re-worded here, neither is truncated, and NO
+# SECOND VOCABULARY IS INVENTED. This repo has measured what two vocabularies
+# cost (`williams_r` vs `williamsR`), and `REFUSAL_FRAGMENTS`' disjointness is a
+# SAFETY property — `test_every_admission_refusal_fragment_names_exactly_one_gate`
+# exists because two gates once shared a phrase and a `raises(match=…)` passed
+# with the safety deleted. A paraphrase here would put a second, unasserted
+# spelling of every refusal on the wire.
+#
+# ⛔⛔ AND THE SET IS THE CATALOG'S OWN COMPLEMENT, NOT A SECOND RUN OF THE GATES.
+# If this decided independently which formulas are refused, the two answers could
+# drift and a formula could end up absent from BOTH lists — the original bug,
+# rebuilt one remove out, and silent in exactly the same way. So the offered ids
+# come from `user_catalog(user_id)` ITSELF and everything the store holds that is
+# not in that list is reported. The GATES are asked only for the SENTENCE.
+# `test_every_stored_formula_is_either_OFFERED_or_REFUSED` is the biconditional.
+#
+# ⚠️ IT LIVES HERE, BESIDE `diagnose`, ON PURPOSE. `diagnose` answers *"why is
+# this alert silent"* about a row that already exists; this answers the same
+# question one step earlier, for a formula that never got to be a row. Both are
+# read-outs about silence and neither is a gate — the gates stay in
+# `alert_user_series`, which is the only module allowed to refuse.
+
+#: The ONE sentence this module writes for itself, for the one omission NO DOOR
+#: refuses: `user_catalog` also skips a definition with no keyed plot, and a
+#: definition with no plot has no `<def>.<plot>` ADDRESS for a picker to offer.
+#: There is no gate to quote because nothing gated it, so this says WHAT happened
+#: and does not dress itself up as a door's sentence — the same split
+#: `IndicatorLibraryDialog`'s lede draws one surface over. It exists so the
+#: complement above is TOTAL: a formula nobody can find must never fall through
+#: this function into the same silence it was written to end.
+NO_PLOT_TO_OFFER = (
+    "declares no plot, so it has no series address an alert could name")
+
+
+def _refusal_of(row: dict, def_id: str) -> tuple[Optional[str], str]:
+    """`(door, sentence)` for a stored formula the picker does not offer.
+
+    ⛔ IT DRIVES THE REAL GATES, IN `user_catalog`'s ORDER, AND CATCHES WHAT IT
+    CATCHES. The two `except` arms below are the two `user_catalog` itself has:
+    `AdmissionRefused` (this module's own doors) and everything else, which is
+    the closed TABLE refusing a tree — `_gate_budget`'s docstring is explicit
+    that `interpret:node` / `resolve:function` / `resolve:arity` /
+    `resolve:window` propagate as THEMSELVES rather than being relabelled as
+    budget refusals, and relabelling them here would be the same wrong-door
+    defect one layer up.
+
+    Both exception types name their own door (`.gate` / `.guard`), so the
+    attribution is the door's too. `None` for a door means "this function could
+    not attribute it", which is a different sentence from naming the wrong one.
+    """
+    from api.services import alert_user_series as aus
+    try:
+        definition = aus._gate_lane(row)
+        aus._gate_repaint(row, definition)
+        aus._gate_budget(definition, def_id)
+    except aus.AdmissionRefused as exc:
+        return exc.gate, str(exc)
+    except Exception as exc:  # noqa: BLE001 - a TableRefusal out of `check_budget`
+        return getattr(exc, "guard", None), str(exc)
+    return None, f"{def_id} {NO_PLOT_TO_OFFER}"
+
+
+def user_definition_refusals(user_id: Optional[Any] = None) -> list[dict]:
+    """Every stored formula the alert catalog does NOT offer, with the reason.
+
+    Served beside `catalog` by `GET /api/indicator-alerts/catalog`, so the
+    surface that offers a member their own formulas is also the one that says why
+    it cannot — which is the rule `918e3c8a` set on the library half.
+
+    ``[]`` for an account with nothing refused, and ``[]`` for no account at all
+    — the second is what keeps the endpoint's answer for a caller with no id
+    exactly what it always was, and it reaches no store.
+
+    :returns: ``[{id, label, gate, messages}]`` in the store's own order.
+      ``messages`` is a LIST because the shape has to survive a formula failing
+      more than one door; today the gates short-circuit on the first, and
+      reporting only a first reason out of a scalar field would be a shape that
+      hides the second the day they stop.
+    """
+    if not user_id:
+        return []
+    from api.services import alert_user_series as aus
+    from api.services import user_definitions
+
+    offered = {str(entry.get("indicator"))
+               for entry in aus.user_catalog(user_id)}
+
+    out: list[dict] = []
+    for row in user_definitions.list_for_user(user_id):
+        def_id = str(row.get("def_id"))
+        if def_id in offered:
+            continue
+        gate, message = _refusal_of(row, def_id)
+        out.append({
+            "id": def_id,
+            # ⛔ THE DOOR'S OWN LABELLER, NOT A SECOND READ OF `meta.name`.
+            # `alert_user_series._definition_label` is what names this formula
+            # everywhere else in the picker; a private copy here would let the
+            # refused row and the offered row call one formula two things.
+            "label": aus._definition_label(row.get("definition") or {}, def_id),
+            "gate": gate,
+            "messages": [message],
+        })
+    return out
 
 
 # ─── WHAT THE CREATE PATH REFUSES, AND WHY EACH REFUSAL IS MODE-HONEST ───────
@@ -744,24 +1083,35 @@ def diagnose(alert: dict, bars: Optional[list]) -> tuple[bool, Optional[str]]:
 # structurally mute forever, with nothing anywhere saying so.
 #
 # ⛔⛔ THE RULE, AND IT IS THE HARD PART: A COMBINATION IS REFUSED ONLY IF IT IS
-# DEAD IN **BOTH** EVALUATION MODES. `ALERT_EVAL_MODE` is `"forming"` today and
-# Task 8 alone flips it, so a validator that quietly judged the post-cutover
-# world would delete working features from a live surface under the cover of a
-# "fix".
+# DEAD IN THE LANE THAT IS ACTUALLY RUNNING. Two gates below are true in both
+# modes and never ask; the third is true only under `"closed"` and asks
+# `eval_mode()` every call.
+#
+#   ⚠️ IT ASKS AT CALL TIME, NOT AT COMMIT TIME, AND THAT IS THE WHOLE POINT.
+#   `ALERT_EVAL_MODE` is the committed DEFAULT; the Railway variable overrides it
+#   with no deploy at all (that is the rollback lever, and it exists because the
+#   pre-push hook blocks 09:15-16:20 ET). A gate wired to a lane by commit
+#   ordering would therefore be WRONG the moment an operator rolls back
+#   mid-incident — refusing, at creation, an address that had just started
+#   working again. Reading `eval_mode()` makes the disagreement impossible
+#   rather than merely unlikely.
 #
 #   ⚠️ THE NAMED CASE THAT PROVES THE RULE IS NOT THEORETICAL: `ichimoku.chikou`
-#   fires TODAY and stops firing at the cutover. Its 26-bar trailing pad means
-#   the CLOSED bar's `series[i]` is always `None`, so under `"closed"` it can
-#   never fire — but under `"forming"` the value lane takes the last non-None
+#   fired before the cutover and cannot fire after it. Its 26-bar trailing pad
+#   means the CLOSED bar's `series[i]` is always `None`, so under `"closed"` it
+#   can never fire — but under `"forming"` the value lane takes the last non-None
 #   element and it fires normally. It is live in the production catalog with
-#   armed rows behind it, and Task 6's declared diff prices it at 19,574 fires
-#   lost / 0 gained. **It is deliberately NOT refused here.** What happens to it
-#   at the flip is Task 8's decision, not a side effect of input validation.
+#   armed rows behind it, and Task 6's declared diff priced it at 19,574 fires
+#   lost / 0 gained, confirmed five more times since (the live shadow lane
+#   observed 30 of 31 addresses all session; the absentee was exactly this one).
+#   **Existing rows are NOT deleted and NOT deactivated** — they are surfaced as
+#   `needs_attention` by `diagnose` above, with the displacement named. What is
+#   refused here is arming a NEW one into a lane that can never answer it.
 #
 # The distinction each gate below rests on is therefore mechanical rather than
-# editorial: an ALL-None column is dead in both lanes; a TRAILING-None column is
-# alive in one of them. `instant_only_addresses()` measures exactly that
-# difference and `chikou` falls on the living side of it.
+# editorial: an ALL-None column is dead in both lanes (`instant_only_addresses`);
+# a TRAILING-None column is dead in exactly one (`closed_lane_dead_addresses`),
+# and which one is running is a question with a runtime answer.
 
 #: The three refusals, as data, because the tests quote them rather than retype
 #: them and because disjointness has to be assertable.
@@ -866,6 +1216,38 @@ def instant_only_addresses() -> frozenset:
     return _INSTANT_ONLY_CACHE
 
 
+_CLOSED_LANE_DEAD_CACHE: Optional[frozenset] = None
+
+
+def closed_lane_dead_addresses() -> frozenset:
+    """Addresses whose column is DISPLACED and so never has a closed-bar value.
+
+    ⛔ MEASURED, NEVER LISTED — the same rule `instant_only_addresses()` follows
+    and for the same reason. It runs every address's column over the two probe
+    series and flags the ones that end in a trailing pad on either encoding.
+    Today the answer is exactly `{"ichimoku.chikou"}`, pad 26, and
+    `test_the_measured_closed_lane_dead_set_is_exactly_chikou_today` says so.
+
+    ⚠️ IT IS NOT ITSELF A REFUSAL — `refusal_for` consults `eval_mode()` before
+    using it. That separation is deliberate and it is what makes the gate
+    survive the ROLLBACK LEVER: `ALERT_EVAL_MODE` can be overridden by a Railway
+    variable with no deploy, so a gate that baked the lane in at commit time
+    would start refusing a working address the moment an operator rolled back to
+    `"forming"` mid-session — the create path deleting a live feature during an
+    incident.
+    """
+    global _CLOSED_LANE_DEAD_CACHE
+    if _CLOSED_LANE_DEAD_CACHE is not None:
+        return _CLOSED_LANE_DEAD_CACHE
+    from api.services import indicator_alert_evaluator as ev
+    instant, calendar = _probe_series()
+    flagged = {address for address in ev.all_addresses()
+               if closed_lane_pad(address, instant, {}) > 0
+               or closed_lane_pad(address, calendar, {}) > 0}
+    _CLOSED_LANE_DEAD_CACHE = frozenset(flagged)
+    return _CLOSED_LANE_DEAD_CACHE
+
+
 def evaluable_conditions() -> frozenset:
     """Every trigger rule the catalog offers, anywhere, for any address.
 
@@ -953,6 +1335,22 @@ def refusal_for(indicator: Optional[str], condition: Optional[str],
                 f"whole column is withheld and no number is ever produced — on "
                 f"the live lane and on the closed one. Arm it on one of "
                 f"{intraday}.")
+
+    # ⛔ GATE A's SECOND HALF, AND THE ONLY ONE THAT ASKS WHICH LANE IS RUNNING.
+    # A displaced column (`ichimoku.chikou`, pad 26) has a value on the newest
+    # bar and never on the newest CLOSED one, so it is alive under `"forming"`
+    # and structurally mute under `"closed"`. Both facts are true at once; which
+    # of them is the user's problem is decided by `eval_mode()`, at call time,
+    # because the rollback lever can move that answer with no deploy.
+    if ev.eval_mode() == "closed" and address in closed_lane_dead_addresses():
+        probe = _probe_series()[0]
+        pad = closed_lane_pad(address, probe, {})
+        instead = _closed_lane_offer_text(address, probe, {})
+        return (f"{label} {CLOSED_LANE_TRAILING_PAD}. Its column is written "
+                f"{pad} bars behind the bar that produced it, and this evaluator "
+                f"judges the newest bar that has CLOSED, so nothing would ever "
+                f"be compared and the alert would sit armed and silent "
+                f"forever.{instead}")
 
     if (threshold is None and rule in conditions_needing_a_level()
             and (address, rule) not in ev.THRESHOLD_OPERAND):
@@ -1176,11 +1574,15 @@ def claim_delivery(alert_id: Optional[Any]) -> bool:
     forever rather than being delivered late" — it does not, it is claimed by the
     next cycle that produces one.
 
-    ⛔ THE CALL SITE IS STILL WRONG AND IS NOT FIXED HERE. `indicator_alert_
-    evaluator.py` is Task 8's file; the one-line fix there is
-    `if ias.record_trigger(...): _dispatch_delivery(alert, value)`. This gate
-    closes the CONSEQUENCE at the boundary every channel is downstream of, so
-    the hole is shut either way and shutting it twice is harmless.
+    ⛔ AND TASK 8 RULED THAT THE CALL SITE STAYS UNCONDITIONAL. The one-line
+    `if ias.record_trigger(...): _dispatch_delivery(...)` was written down as the
+    fix here and is NOT the fix: on a level condition the episode key does not
+    move, so `record_trigger` returns False on every cycle after the first, and
+    an `if` would mean a delivery lease released after a 429 is never picked up
+    again — trading a snooze leak (which this gate already closes, at the
+    boundary every channel is downstream of) for a permanent silent drop. The
+    two questions stay in two places: `record_trigger` answers "is there
+    anything NEW", this answers "is it deliverable NOW".
 
     ⚠️ FAILS **OPEN**, DELIBERATELY, IN BOTH DIRECTIONS — EXCEPT FOR A SNOOZE,
     WHICH IS NOT A FAILURE. An unidentifiable payload (no `alert_id`) or an

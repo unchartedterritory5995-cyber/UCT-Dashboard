@@ -26,9 +26,25 @@
 // flags any shipped module naming four or more; this file must never reach that
 // threshold, because the moment it does it has become a sixteenth hand-written
 // list wearing the name of the thing that was meant to end them.
+//
+// ⛔⛔ AND `catalogRows()` IS STILL THE SHIPPED CATALOGUE — `userCatalogRows()`
+// IS A SECOND FUNCTION ON PURPOSE. A user's formula is addressable, drawable and
+// (as of this change) BROWSABLE, and it is still not something this build ships.
+// Three rails read `listDefinitions()` to prove what ships — `idsByLane(...)`
+// equals `SHIPPED_DEF_IDS`, `.length` equals `REGISTRY_SIZES.total`, and
+// `REGISTRY_SIZES.ast` is 0 — and `indicatorCatalog.test.js` compares
+// `catalogRows()` against `listDefinitions()` id-for-id. Folding session state
+// into that function would turn every one of those into a statement about WHO IS
+// SIGNED IN, and they would all still read green in a suite that installs
+// nothing: the vacuous-gate shape `registrySizes.js` imports nothing to avoid.
+// So the union is made at the ONE surface that means to offer a member their own
+// formulas (`IndicatorLibraryDialog`), and the share link, the voice bus, the
+// right-click submenu and the on-count keep reading the shipped list they have
+// always read — none of them can resolve another member's `u_…` id anyway.
 
 import * as defaultRegistry from './engine/nativeRegistry'
 import { CHART_DEFAULTS } from './chartDefaults'
+import { definitionRollUp, repaintNotices } from './engine/repaintVerdict'
 
 /** A settings section with no engine definition. Hand-written BY NAME, so a
  *  sixteenth one has to be argued for here rather than joining a silent
@@ -54,15 +70,26 @@ export const CARVED_OUT_ROWS = Object.freeze([
     target: 'canvas',
     carvedOut: true,
     engineOwned: false,
+    // Shipped chrome, not a member's formula. Declared rather than left absent
+    // so `userDefined` is a field every row answers, on both branches.
+    userDefined: false,
     description: 'Traded volume binned by price over the visible range, with the point of control marked.',
     tags: Object.freeze(['volume', 'profile']),
-    // ⛔ DECLARED, NOT INVENTED. The library dialog renders a repaint badge from
-    // this field and NOTHING else — a badge is a factual claim about the
-    // indicator, and self-disclosed prose is how a product ends up telling users
-    // a repainting indicator does not repaint. This section has no definition to
-    // declare it, so it declares `null` and the row shows no badge, which is the
-    // honest answer for a canvas overlay that rebins on every range change.
+    // ⛔ DECLARED, NOT INVENTED — the definition's own CLAIM, which is what this
+    // field has always been. ⚰️ It also used to be what the library dialog
+    // badged, and that clause is retired rather than deleted: the row now
+    // renders `measuredRepaint` (see `rowFor`), because a badge is a factual
+    // claim about the indicator and self-disclosed prose is how a product ends
+    // up telling users a repainting indicator does not repaint. This section has
+    // no definition at all, so it declares `null` and measures `null`, which is
+    // the honest answer for a canvas overlay that rebins on every range change.
     repaint: null,
+    // ⛔ THE MEASUREMENT, AND IT IS `null` BY CONSTRUCTION HERE. There is no
+    // definition for the linter to read, and `null` means NO OPINION — never
+    // "clean". Declared rather than left absent so every row answers the field
+    // on both branches, the way `userDefined` above does.
+    measuredRepaint: null,
+    repaintingPlots: Object.freeze([]),
     tier: 'free',
     sessionOnly: false,
     fields: Object.freeze([
@@ -78,24 +105,76 @@ function defs(registry) {
   return typeof r.listDefinitions === 'function' ? r.listDefinitions() : []
 }
 
-function rowFor(def) {
+/** The heading a member's own formulas are grouped under in the library.
+ *
+ *  ⚠️ It is a CATEGORY, so it rides the dialog's existing derived-groups
+ *  machinery (`[...new Set(rows.map(r => r.category))]`) and needs no second
+ *  grouping path — but it is assigned by `rowFor` rather than read from the
+ *  stored document, for the reason stated there. */
+export const USER_CATEGORY = 'My formulas'
+
+function rowFor(def, userDefined = false) {
   const meta = def.meta || {}
   return {
     id: def.id,
     name: meta.name || def.id,
     shortName: meta.shortName || def.id,
-    category: meta.category || 'Other',
+    // ⛔ A MEMBER'S FORMULA IS FILED BY PROVENANCE, NOT BY ITS OWN `meta.category`.
+    // `BuilderSheet.buildDefinition` writes `'Custom'` today, but the category
+    // comes off a STORED document, so a row installed from an older or
+    // hand-edited one could land in `Volume` or `Momentum` and sit unmarked
+    // between two shipped indicators. The section heading IS the distinction
+    // this surface owes the user, so it is not left to a field the author's
+    // document controls.
+    category: userDefined ? USER_CATEGORY : (meta.category || 'Other'),
     target: (def.placement && def.placement.target) || 'pane',
     carvedOut: false,
     engineOwned: true,
+    userDefined,
     description: meta.description || '',
     tags: Array.isArray(meta.tags) ? meta.tags : [],
-    // ── the three facts the library dialog badges, all DECLARED ──────────────
+    // ── what the library dialog badges ───────────────────────────────────────
     // `repaint` and `tier` come straight off the definition; a definition that
     // declares neither gets no badge rather than a default one, because "free"
     // and "non-repainting" are claims and a missing declaration is not a claim.
+    //
+    // ⚰️ `repaint` IS STILL SERVED AND IS NO LONGER THE ROW'S BADGE. It is the
+    // definition's CLAIM, and on every lane but `ast` it is an unauditable one:
+    // `nativeRegistry.nativeDef` writes `non-repainting` in ONE shared helper
+    // before the `...meta` spread, so all seventeen inherit it and nothing
+    // audited anything (decision record §1). On `ichimoku` the machine linter
+    // CONTRADICTS it — `compute_ichimoku_raw` writes bar `i`'s close to index
+    // `i - kijunPeriod`, so a plotted point at a historical index moves while
+    // the newest bar forms — and the library was printing the claim to a member
+    // as a fact, on the axis this brand is sold on. The field keeps its other
+    // consumers and its meaning; the BADGE moved to the measurement below.
     repaint: meta.repaint || null,
     tier: meta.tier || null,
+    // ── …and what the LINTER measured, which is what the row badges ──────────
+    //
+    // ⭐⭐ DERIVED, EVERY TIME, BY `engine/repaintVerdict`. There is deliberately
+    // no second derivation here and no stored field to read: `defSchema` refuses
+    // a `plots[].repaint` by name, `nativeRegistry.validateAstLane` refuses a
+    // `meta.repaint` that disagrees with the tree in BOTH directions (under-
+    // claiming is exactly as false as over-claiming), and this reads
+    // `definitionRollUp`, which reads `ast/lint.lintDefinition`. A badge an
+    // author can type is the audited-metadata defect one level down.
+    //
+    // ⛔ `null` IS NOT `non-repainting`. Sixteen definitions are hand-written
+    // computes spec §11 forbids analysing, so the linter has NO OPINION on them
+    // and the row shows nothing — which is also what a definition the linter
+    // measured and found CLEAN shows, because *"a badge that every indicator
+    // wears carries no information"* is the owner's own reason for the per-plot
+    // ruling. Silence here is "no opinion or clean", and no surface may render
+    // it as a green tick.
+    measuredRepaint: definitionRollUp(def),
+    // ⛔ AND THE SEPARATION IS THE POINT, SO THE PLOTS ARE NAMED. `ichimoku`
+    // draws five columns and exactly ONE of them — `chikou` — is the subject of
+    // the ruling; the cloud and the conversion/base lines genuinely do not
+    // repaint. A row badge that said only "this indicator repaints" would trade
+    // a false "safe" for a false "unsafe", which is the second move record §4.1
+    // refused. Empty for every clean and every undecidable definition.
+    repaintingPlots: repaintNotices(def),
     // …and "intraday only" is DERIVED from the timeframe list the definition
     // publishes, the same derivation the generated settings row's label uses. A
     // definition with no timeframe list runs on every timeframe.
@@ -104,9 +183,155 @@ function rowFor(def) {
 }
 
 /** Every indicator the settings blob has a section for, in registry order, with
- *  the carved-out ones appended. */
+ *  the carved-out ones appended.
+ *
+ *  ⛔ SHIPPED ONLY. See the header — this is the function three registry rails
+ *  and fifteen call sites read, and a member's formula must never be able to
+ *  make the shipped manifest true by joining it. `userCatalogRows` is the other
+ *  half. */
 export function catalogRows(registry) {
-  return [...defs(registry).map(rowFor), ...CARVED_OUT_ROWS]
+  return [...defs(registry).map(d => rowFor(d, false)), ...CARVED_OUT_ROWS]
+}
+
+/**
+ * 🔴 THE MEMBER'S OWN FORMULAS, AS LIBRARY ROWS — the read that did not exist.
+ *
+ * Phase D shipped every part of this but the last one: a member could author a
+ * formula (Task 11), it saved (Task 10), it INSTALLED into the registry and
+ * DREW (Task 16), and `getDefinition` resolved it everywhere — and the indicator
+ * library read `listDefinitions()`, which is deliberately shipped-only, so the
+ * formula appeared on no screen a member would look at. They had to already know
+ * it existed.
+ *
+ * ⛔ IT READS `listUserDefinitions()`, NOT `listAllDefinitions()`. The union is
+ * made by the caller, because the caller is what decides ORDER and what needs
+ * the two halves separable; taking the pre-unioned list would leave this function
+ * re-deriving which rows are the member's by set difference, which is a second
+ * way to answer a question the registry already answers by index.
+ *
+ * ⚠️ SESSION STATE. `_userById` is populated by `installUserDefinitions`, which
+ * `useInstalledUserDefinitions` calls during `StockChart`'s render once SWR
+ * answers — i.e. AFTER first paint. Any memo over this must therefore depend on
+ * `catalogGeneration()`; a memo keyed on the registry module alone never
+ * recomputes, because the module namespace is the same object forever. That is
+ * the exact shape of the bug this whole task is about, one memo over.
+ *
+ * @param {object} [registry]
+ * @returns {object[]} `[]` when nothing is installed — so the section simply
+ *   does not exist for a member who has authored nothing.
+ */
+export function userCatalogRows(registry) {
+  const r = registry || defaultRegistry
+  const list = typeof r.listUserDefinitions === 'function' ? r.listUserDefinitions() : []
+  return list.map(d => rowFor(d, true))
+}
+
+/** The heading a member's REFUSED formulas are grouped under.
+ *
+ *  ⛔ A SEPARATE HEADING FROM `USER_CATEGORY`, NOT A BADGE INSIDE IT. A refused
+ *  formula is not a row that can be ticked — there is no installed definition to
+ *  instantiate, so `setIndicatorEnabled` would return the settings BY IDENTITY
+ *  and the control would be a live-looking toggle that writes nowhere: the exact
+ *  defect `volumeProfile`'s "+ Add another" exemption exists to avoid, one
+ *  surface over. Its own section keeps it out of `role="option"` entirely. */
+export const REFUSED_CATEGORY = 'My formulas — not available'
+
+/** The id `nativeRegistry.registerDefinitions` writes when a document carries
+ *  none of its own (`raw && raw.id ? raw.id : '<unknown>'`). Named here so the
+ *  unattributable bucket below is the door's own literal rather than a second
+ *  one that happens to look like it. */
+export const UNATTRIBUTED_DEF_ID = '<unknown>'
+
+/**
+ * 🔴 THE FORMULAS THE GATES REFUSED, PAIRED WITH THE DOOR'S OWN SENTENCE.
+ *
+ * `userCatalogRows` above answers "what can this member draw"; a definition the
+ * gates refuse is absent from `listUserDefinitions()` and therefore absent from
+ * that list — CORRECT, and completely silent. The author saved a formula, the
+ * store ACCEPTED it, and it then appeared on no screen with nothing anywhere
+ * saying why. `installUserDefinitions` has returned the reason in `errors` since
+ * Phase D Task 16 and had **zero production consumers**: `StockChart` declines
+ * to render it (a toast on a render path would fire on every chart) and nothing
+ * else read it. This function is what makes that array reach a person.
+ *
+ * ⛔ THE MESSAGE IS THE DOOR'S, VERBATIM, WHOLE. Every gate on this path already
+ * writes a precise, disjoint sentence — the repaint gate names the mode it
+ * MEASURED, the budget gate names the guard that fired and the caps it measured
+ * against, the closed-table resolver names the symbol, the shipped-id clash
+ * names what would have been shadowed. Not one of them is re-worded here and no
+ * second vocabulary is invented: this repo has already measured what two
+ * vocabularies cost (`williams_r` vs `williamsR`), and `afbf0470` established
+ * the pattern of rendering a gate's own sentence verbatim, gated on the right
+ * states. The strings pass through untouched.
+ *
+ * ⚠️ THE `<id>: ` PREFIX IS PARSED FOR ATTRIBUTION ONLY, NEVER FOR DISPLAY. Both
+ * doors write it — `registerDefinitions` maps `e => \`${id}: ${e}\`` and
+ * `validateUserDefinitions` maps `e => \`${def.id}: ${e}\`` — so grouping on the
+ * FIRST `': '` is reading the format they publish, not paraphrasing it. A
+ * message that carries no prefix is NOT dropped: it lands under
+ * `UNATTRIBUTED_DEF_ID` and still renders, because a refusal nobody could
+ * attribute is still a refusal the member has to be told about. Silently
+ * discarding it would rebuild the bug at one remove.
+ *
+ * @param {object[]} docs   the STORED documents (`rows.map(r => r.definition)`)
+ *   — used ONLY to put the name the member typed on the row. A refusal whose
+ *   document is missing is still reported, under its id.
+ * @param {string[]} errors verbatim from `installUserDefinitions`.
+ * @returns {object[]} `[{id, name, shortName, category, tags, userDefined,
+ *   refused, messages}]` — in first-appearance order, `[]` when nothing was
+ *   refused, so a member whose formulas all install sees no new section at all.
+ *   The shape carries `matches()`'s five fields so the search box filters these
+ *   rows through the SAME predicate as every other row rather than a second one.
+ */
+export function userRefusalRows(docs, errors) {
+  const list = (Array.isArray(errors) ? errors : []).filter(
+    (e) => typeof e === 'string' && e.trim() !== '',
+  )
+  if (!list.length) return []
+
+  const labelById = new Map()
+  for (const doc of (Array.isArray(docs) ? docs : [])) {
+    if (!doc || typeof doc !== 'object' || typeof doc.id !== 'string' || !doc.id) continue
+    const meta = doc.meta || {}
+    labelById.set(doc.id, {
+      name: meta.name || doc.id,
+      shortName: meta.shortName || doc.id,
+    })
+  }
+
+  const order = []
+  const byId = new Map()
+  for (const message of list) {
+    const at = message.indexOf(': ')
+    const id = at > 0 ? message.slice(0, at) : UNATTRIBUTED_DEF_ID
+    if (!byId.has(id)) { byId.set(id, []); order.push(id) }
+    byId.get(id).push(message)
+  }
+
+  return order.map((id) => {
+    const label = labelById.get(id) || {}
+    return {
+      id,
+      name: label.name || id,
+      shortName: label.shortName || id,
+      category: REFUSED_CATEGORY,
+      tags: [],
+      userDefined: true,
+      refused: true,
+      messages: byId.get(id),
+    }
+  })
+}
+
+/** The registry's install generation — the ONE value a memo over
+ *  `userCatalogRows` has to depend on. Exported from here rather than imported
+ *  from `nativeRegistry` by each surface so a caller that was handed a custom
+ *  `registry` asks THAT registry, the same way every other function in this
+ *  file does. `0` for a registry that does not publish one: a stable number is
+ *  the correct answer for a registry whose contents cannot change. */
+export function catalogGeneration(registry) {
+  const r = registry || defaultRegistry
+  return typeof r.registryGeneration === 'function' ? r.registryGeneration() : 0
 }
 
 function find(id, registry) {

@@ -93,54 +93,99 @@ def _lerp(val, lo, hi, max_pts):
     return round((val - lo) / (hi - lo) * max_pts, 1)
 
 
+# A component only counts toward the score if its input is actually present.
+# See `_compute_breadth_score`.
+_SCORE_WEIGHTS = {
+    "pct_above_50sma": 20, "ratio_5day": 15, "magna": 10, "hi_ratio": 10,
+    "cboe_putcall": 10, "aaii_spread": 10, "vix": 10, "stage2": 10, "adv_decline": 5,
+}
+
+# Below this much available weight the remainder is not a market read, it is a
+# handful of inputs extrapolated to a 0-100 headline. Say nothing instead.
+_SCORE_MIN_WEIGHT = 60
+
+
 def _compute_breadth_score(row: dict) -> Optional[float]:
-    """Composite market breadth health score 0-100."""
-    score = 0.0
+    """Composite market breadth health score 0-100.
 
-    # 1. % above 50 SMA (20pts)
-    score += _lerp(row.get("pct_above_50sma"), 30, 65, 20)
+    ⚠️ RENORMALIZED over the inputs that are actually present. `_lerp(None)`
+    returns 0, so before 2026-08-07 a MISSING component scored the same as a
+    maximally bearish one: absence was indistinguishable from the worst possible
+    reading. Measured on real rows, one absent input cost 10-15 points of a
+    0-100 headline — 2026-08-07 reads 95.3, or 85.3 with only `cboe_putcall`
+    missing. That mattered immediately, because cboe_putcall legitimately
+    returns None whenever CBOE has not published by the 4:15 PM collector run.
 
-    # 2. 5-day up/down ratio (15pts)
-    score += _lerp(row.get("ratio_5day"), 0.7, 1.5, 15)
+    Same family as the NAAIM freeze: a gap rendered as a number nobody can
+    tell apart from data. Now a component that cannot be measured is dropped
+    from BOTH sides of the ratio, and the score reports what the available
+    inputs actually say.
+    """
+    earned = 0.0
+    have = 0
 
-    # 3. MAGNA ratio — up / (up + down) (10pts)
-    mu = row.get("magna_up")
-    md = row.get("magna_down")
-    if mu is not None and md is not None and (mu + md) > 0:
-        score += _lerp(mu / (mu + md) * 100, 40, 70, 10)
+    def take(key, val, lo, hi):
+        nonlocal earned, have
+        if val is None:
+            return
+        have += _SCORE_WEIGHTS[key]
+        earned += _lerp(val, lo, hi, _SCORE_WEIGHTS[key])
 
-    # 4. 52W Hi ratio % (10pts)
-    score += _lerp(row.get("hi_ratio"), 0.5, 5.0, 10)
+    take("pct_above_50sma", row.get("pct_above_50sma"), 30, 65)
+    take("ratio_5day", row.get("ratio_5day"), 0.7, 1.5)
 
-    # 5. CBOE P/C contrarian (10pts) — higher P/C = more fearful = bullish setup
-    score += _lerp(row.get("cboe_putcall"), 0.65, 0.85, 10)
+    mu, md = row.get("magna_up"), row.get("magna_down")
+    take("magna", (mu / (mu + md) * 100) if (mu is not None and md is not None
+                                             and (mu + md) > 0) else None, 40, 70)
 
-    # 6. AAII Spread contrarian (10pts) — more bearish spread = more bullish setup
+    take("hi_ratio", row.get("hi_ratio"), 0.5, 5.0)
+    # Contrarian: a higher put/call is more fearful, which is a better setup.
+    take("cboe_putcall", row.get("cboe_putcall"), 0.65, 0.85)
+    # Contrarian: invert, so a -30 spread (very bearish) earns full points.
     spread = row.get("aaii_spread")
-    if spread is not None:
-        score += _lerp(-spread, -30, 20, 10)  # invert: -30 spread (very bearish) maps to 10pts
-
-    # 7. VIX (10pts) — lower VIX = calmer market = higher score
+    take("aaii_spread", (-spread) if spread is not None else None, -30, 20)
     vix = row.get("vix")
-    if vix is not None:
-        score += _lerp(30 - vix, 0, 12, 10)  # 30-VIX: VIX=18 -> 12pts input -> 10pts out
+    take("vix", (30 - vix) if vix is not None else None, 0, 12)
 
-    # 8. Stage 2 % of universe (10pts)
-    s2 = row.get("stage2_count")
-    uni = row.get("universe_count")
-    if s2 is not None and uni and uni > 0:
-        score += _lerp(s2 / uni * 100, 5, 25, 10)
+    s2, uni = row.get("stage2_count"), row.get("universe_count")
+    take("stage2", (s2 / uni * 100) if (s2 is not None and uni and uni > 0) else None, 5, 25)
 
-    # 9. Daily A/D direction (5pts)
     ad = row.get("adv_decline")
-    if ad is not None and ad > 0:
-        score += 5
+    if ad is not None:
+        have += _SCORE_WEIGHTS["adv_decline"]
+        if ad > 0:
+            earned += _SCORE_WEIGHTS["adv_decline"]
 
-    return round(min(100, max(0, score)), 1)
+    if have < _SCORE_MIN_WEIGHT:
+        return None
+    return round(min(100, max(0, earned / have * 100)), 1)
+
+
+# The derivation loop below reaches BACKWARD past the row it is computing:
+# `w10` needs 9 prior rows, `qqq_day_pct` needs 1, and the `is_ftd` drawdown
+# window reaches 15. Fetching exactly `days` rows meant the oldest rows of every
+# fetch were computed against a truncated window, so the SAME DATE returned
+# different numbers depending on how many days the caller asked for. Measured
+# 2026-08-08, days=30 vs days=200 over their 30-day overlap:
+#
+#     ratio_5day       4/30 disagreed   (2026-06-26: 3.77 vs 1.16)
+#     ratio_10day      9/30
+#     avg_10d_cpc      8/30             (None vs 0.92 — a manufactured absence)
+#     breadth_score    2/30             (89.9 vs 83.5; it consumes the above)
+#
+# Worst case was `get_latest()`, which calls get_history(1): every rolling
+# metric on the newest row came from a single row, `qqq_day_pct` was forced to
+# None by the i==0 branch, and `is_ftd` could never fire because of `i >= 3`.
+_ROLLING_WARMUP = 15
 
 
 def get_history(days: int = 90) -> list:
     """Return last N trading days, newest first. Ratios computed from stored data.
+
+    Fetches `days + _ROLLING_WARMUP` rows, derives over all of them, and returns
+    only the newest `days`. The warm-up rows exist to be looked back AT, never
+    to be returned — that is what makes a derived value a property of its date
+    rather than of the request.
 
     Cached (5 min) keyed by `days`: breadth data updates once daily (afternoon
     push), so this recomputed the full rolling-metric pass on EVERY request for
@@ -156,8 +201,19 @@ def get_history(days: int = 90) -> list:
         with _conn() as c:
             rows = c.execute(
                 "SELECT date, metrics, created_at FROM breadth_snapshots ORDER BY date DESC LIMIT ?",
-                (days,),
+                (days + _ROLLING_WARMUP,),
             ).fetchall()
+            # The cumulative A/D line has no window — it is a running total from
+            # the first snapshot ever stored. Seeding it at 0 at whatever row the
+            # fetch happened to start on made it disagree with itself on all 30
+            # overlapping dates (1538 vs 11640). Sum the rows we did not fetch.
+            adv_decline_seed = 0
+            if rows:
+                adv_decline_seed = c.execute(
+                    "SELECT COALESCE(SUM(json_extract(metrics, '$.adv_decline')), 0) "
+                    "FROM breadth_snapshots WHERE date < ?",
+                    (rows[-1]["date"],),
+                ).fetchone()[0] or 0
     except Exception as e:
         print(f"[breadth_monitor] get_history error: {e}")
         return []
@@ -175,7 +231,7 @@ def get_history(days: int = 90) -> list:
     # Need oldest-first to compute rolling windows, then reverse back
     result_asc = list(reversed(result))
 
-    adv_decline_cum = 0  # running total for cumulative A/D line
+    adv_decline_cum = adv_decline_seed  # running total from the FIRST snapshot
 
     for i, row in enumerate(result_asc):
         w5  = result_asc[max(0, i - 4):  i + 1]
@@ -251,8 +307,9 @@ def get_history(days: int = 90) -> list:
 
         row["breadth_score"] = _compute_breadth_score(row)
 
-    # Return newest-first
-    out = list(reversed(result_asc))
+    # Return newest-first, dropping the warm-up rows off the OLD end. They were
+    # fetched to be looked back at, not to be served.
+    out = list(reversed(result_asc))[:days]
     cache.set(ck, out, ttl=300)
     return out
 

@@ -1,0 +1,145 @@
+/* Scanner results — a read-only watchlist-style table. Colors/canvas/text all come
+   from the shared watchlist settings vars (--wl-*), so it matches the watchlist
+   surface + follows the app theme (white-on-light / black-on-OLED). */
+.root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--wl-bg, var(--bg));
+  color: var(--wl-sym, var(--text-bright));
+  font-family: var(--font-sans);
+  position: relative;
+  overflow: hidden;
+}
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--widget-divider-strong, var(--wl-divider-strong, rgba(255, 255, 255, 0.11)));
+}
+.back {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--wl-text, var(--text-muted));
+  font: inherit;
+  font-size: calc(11px * var(--wl-font-scale, 1));
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+.back:hover { color: var(--wl-accent, var(--ut-gold)); background: var(--wl-row-hover, rgba(255, 255, 255, 0.06)); }
+.title {
+  font-size: calc(12px * var(--wl-font-scale, 1));
+  font-weight: 700;
+  color: var(--wl-text-strong, var(--text-bright));
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.count {
+  font-size: calc(10px * var(--wl-font-scale, 1));
+  font-weight: 700;
+  color: var(--wl-accent, var(--ut-gold));
+  background: var(--wl-accent-bg, rgba(201, 168, 76, 0.14));
+  border-radius: 10px;
+  padding: 1px 7px;
+  min-width: 16px;
+  text-align: center;
+}
+.gearBtn {
+  margin-left: auto;
+  background: transparent; border: none; cursor: pointer;
+  color: var(--wl-text, var(--text-muted));
+  padding: 2px; display: flex; align-items: center;
+}
+.gearBtn:hover { color: var(--wl-accent, var(--ut-gold)); }
+
+.colHead, .row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 60px 66px 68px 50px;
+  align-items: center;
+}
+.colHead {
+  padding: 4px 8px;
+  flex: 0 0 auto;
+  font-size: calc(10px * var(--wl-font-scale, 1));
+  font-weight: 600;
+  color: var(--wl-text, var(--text-muted));
+  border-bottom: 1px solid var(--widget-divider, var(--wl-divider, rgba(255, 255, 255, 0.06)));
+}
+.body { flex: 1 1 auto; overflow-y: auto; }
+.row {
+  width: 100%;
+  padding: 0 8px;
+  height: calc(27px * var(--wl-font-scale, 1));
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--widget-divider, var(--wl-divider, rgba(255, 255, 255, 0.05)));
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+.row:hover { background: var(--wl-row-hover, rgba(255, 255, 255, 0.05)); }
+.cSym { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.logo { flex: 0 0 auto; display: flex; }
+.sym {
+  font-weight: 600;
+  font-size: calc(11px * var(--wl-font-scale, 1));
+  color: var(--wl-sym, var(--text-bright));
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cNum {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: calc(11px * var(--wl-font-scale, 1));
+  font-weight: 600;
+  color: var(--wl-price, var(--text-bright));
+  padding-left: 6px;
+}
+.up { color: var(--wl-up, #1ae51a); }
+.down { color: var(--wl-down, #ff3b47); }
+.ratio { color: var(--wl-accent, var(--ut-gold)); }
+.msg {
+  padding: 26px 14px;
+  text-align: center;
+  color: var(--wl-text, var(--text-muted));
+  font-size: calc(11px * var(--wl-font-scale, 1));
+  line-height: 1.5;
+}
+
+/* Footer: "N stocks · Updated 1:26 PM ET · ⟳" — pinned below the scrolling list. The count
+   and the refresh button sit evenly inset from each corner (symmetric side padding; the
+   button's own 2px inset is offset with a matching negative margin so the icon lines up). */
+.scanFooter {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 16px;
+  font-family: var(--font-sans);
+  font-size: calc(10px * var(--wl-font-scale, 1));
+  color: var(--wl-text, var(--text-muted));
+  border-top: 1px solid var(--widget-divider-strong, var(--wl-divider-strong, rgba(255, 255, 255, 0.11)));
+  background: var(--wl-bg-solid, var(--wl-bg, var(--bg)));
+  white-space: nowrap;
+  overflow: hidden;
+}
+/* Count uses the widget's Text Color (same var + font as the row data). */
+.scanCount { font-weight: 600; color: var(--wl-sym, var(--text-bright)); flex: 0 0 auto; }
+.scanUpdated { overflow: hidden; text-overflow: ellipsis; }
+.scanRefresh {
+  margin-left: auto;
+  margin-right: -2px;   /* cancel the button's own padding so the icon aligns with the count inset */
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--wl-text, var(--text-muted));
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+}
+.scanRefresh:hover { color: var(--wl-accent, var(--ut-gold)); background: var(--wl-row-hover, rgba(255, 255, 255, 0.06)); }
+.scanRefreshSpin { animation: scanSpin 0.7s linear infinite; }
+@keyframes scanSpin { to { transform: rotate(360deg); } }

@@ -2,7 +2,11 @@ import { describe, it, expect } from 'vitest'
 import {
   validateDefinition, validateSourceReferents, SCHEMA_VERSION, TIERS,
   SUBSTITUTABLE_PLOT_FIELDS, EVENT_COLUMN_DOMAIN, isEventColumnValue,
+  SUPPORTED_KINDS, COMPUTE_KINDS,
 } from './defSchema'
+// ⭐ THE ONE PARSER, IMPORTED BY THE TEST FOR THE SAME REASON THE SCHEMA IMPORTS
+// IT: an `ast` fixture built any other way is a second grammar (D-A1).
+import { parseFormula, astHash } from './ast/parse'
 
 const rsiDef = () => ({
   schemaVersion: 1, id: 'rsi', version: 1,
@@ -773,5 +777,155 @@ describe('SUBSTITUTABLE_PLOT_FIELDS is what actually substitutes', () => {
     const r = validateDefinition(d)
     expect(r.ok, 'a $ref in an unsubstitutable field was accepted as a number').toBe(false)
     expect(r.def === undefined || r.def.plots[0].precision, 'precision silently substituted').not.toBe(4)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE D TASK 8 — the third lane, and the filter that stopped being a comment
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** A valid `ast` definition for `source`, built THROUGH the one parser.
+ *
+ *  ⛔ THE TREE AND THE HANDLE ARE BOTH DERIVED, never typed. A fixture holding a
+ *  hand-written tree would be a second grammar (D-A1's whole subject), and a
+ *  fixture holding a hand-typed `compute.fn` would rot the day `stableStringify`
+ *  changes — while still passing, because the test would be comparing its own
+ *  copy to itself. */
+const astDef = (source) => {
+  const parsed = parseFormula(source)
+  if (!parsed.ok) throw new Error(`astDef fixture does not parse: ${source} — ${parsed.error}`)
+  return {
+    schemaVersion: SCHEMA_VERSION, id: 'myFormula', version: 1,
+    compute: { kind: 'ast', fn: astHash(parsed.ast), rev: 1, ast: parsed.ast, source },
+    meta: { name: 'My formula', shortName: 'F', category: 'Custom', tier: 'free', repaint: 'non-repainting' },
+    placement: { target: 'pane', pane: { height: 0.15 } },
+    inputs: [{ key: 'color', type: 'color', label: 'Colour', default: 'token:info' }],
+    plots: [{ key: 'out', label: 'F', style: 'line', color: '$color', width: 1, role: 'primary' }],
+  }
+}
+
+describe('`supportedKinds` EXISTS (Phase D Task 8)', () => {
+  it('is a real, frozen, STRICT SUBSET of the declared kinds — and `script` is not in it', () => {
+    // ⛔ `defSchema.js`'s COMPUTE_KINDS comment HAS CLAIMED SINCE B1 that "the
+    // registry's `supportedKinds` filter decides what a given client will
+    // actually run." MEASURED 2026-08-06: that filter had NO identifier anywhere
+    // in `app/src` or `api/` — the string appeared twice in the whole repo, in
+    // that comment and in spec §3.1, and zero times as code. A comment
+    // describing a mechanism nobody wrote, sitting in the file whose job is to
+    // fail closed.
+    //
+    // `script` stays a DECLARED kind (it parses, per spec §3) and an UNSUPPORTED
+    // one (nothing runs it). Those are different statements and the schema has
+    // to be able to make both.
+    expect(SUPPORTED_KINDS).toEqual(['native', 'server', 'ast'])
+    expect(COMPUTE_KINDS).toContain('script')
+    expect(SUPPORTED_KINDS).not.toContain('script')
+    expect(Object.isFrozen(SUPPORTED_KINDS)).toBe(true)
+    // …and it is a SUBSET, not a second vocabulary that could drift into naming
+    // a lane `COMPUTE_KINDS` has never heard of.
+    expect(SUPPORTED_KINDS.filter(k => !COMPUTE_KINDS.includes(k))).toEqual([])
+    expect(SUPPORTED_KINDS.length).toBeLessThan(COMPUTE_KINDS.length)
+  })
+
+  it('a definition of an UNSUPPORTED kind is still WELL-FORMED — unsupported is not invalid', () => {
+    // Spec §3.1: the catalog fetch filters by client `supportedKinds`; §5: premium
+    // entries stay LISTED for merchandising even when locked. So "cannot run" and
+    // "must not appear" are different claims, and conflating them would hide the
+    // whole server lane from a client that simply has an older bundle. The
+    // REFUSAL TO RENDER lives at the registry door (`nativeRegistry.test.js`);
+    // the schema's job is to keep saying yes here.
+    const d = rsiDef()
+    d.compute = { kind: 'script', fn: 'x', rev: 1 }
+    const r = validateDefinition(d)
+    expect(r.ok, JSON.stringify(r.errors)).toBe(true)
+  })
+})
+
+describe('the `ast` lane — the AST is what runs, the source is what the user edits', () => {
+  it('accepts a well-formed ast definition', () => {
+    const r = validateDefinition(astDef('sma(close, 20)'))
+    expect(r.ok, JSON.stringify(r.errors)).toBe(true)
+  })
+
+  it('an `ast` definition MUST carry both `compute.ast` and `compute.source`', () => {
+    for (const field of ['ast', 'source']) {
+      const d = astDef('sma(close, 20)')
+      delete d.compute[field]
+      const r = validateDefinition(d)
+      expect(r.ok, `a definition with no compute.${field} registered`).toBe(false)
+      expect(r.errors.join('\n')).toMatch(new RegExp(`compute\\.${field}`))
+    }
+  })
+
+  it('…and they must AGREE', () => {
+    // ⭐ D-A1's RAIL. The AST is what runs; the source is what the user edits. A
+    // stored pair that disagree is a definition whose read-back describes maths
+    // nobody is computing — the exact failure the concierge is designed against,
+    // arriving from the other direction.
+    const def = astDef('sma(close, 20)')
+    def.compute.source = 'sma(close, 200)'          // edited, AST not re-parsed
+    const res = validateDefinition(def)
+    expect(res.ok).toBe(false)
+    expect(res.errors.join('\n')).toMatch(/compute\.source does not parse to compute\.ast/)
+  })
+
+  it('…and a source that does not parse AT ALL is the same refusal, not a crash', () => {
+    const def = astDef('sma(close, 20)')
+    def.compute.source = 'close = 1'                 // jsep core has no assignment
+    const res = validateDefinition(def)
+    expect(res.ok).toBe(false)
+    expect(res.errors.join('\n')).toMatch(/compute\.source does not parse to compute\.ast/)
+  })
+
+  it('WHITESPACE AND SPACING ARE NOT A DISAGREEMENT — the comparison is by hash', () => {
+    // The rail above must fail on different MATHS and only on different maths.
+    // Compared by `astHash` — the same identity that decides a `compute.rev`
+    // bump — so a reformat cannot make an identical formula read as an edit.
+    const def = astDef('sma(close, 20)')
+    def.compute.source = '  sma( close ,   20 )  '
+    const res = validateDefinition(def)
+    expect(res.ok, JSON.stringify(res.errors)).toBe(true)
+  })
+
+  it("an `ast` definition's `compute.fn` IS its astHash", () => {
+    // `compute.fn` is required for EVERY kind (a non-empty-string check with no
+    // kind branch), so the alternative was never "no handle" — it was "a handle
+    // that means nothing". `fn` names a function in `NATIVE_COMPUTE` for a
+    // native and an endpoint's definition id for a server def; for an AST there
+    // is no third thing to name, because the tree IS the implementation.
+    const good = astDef('ema(close, 9)')
+    expect(good.compute.fn).toMatch(/^sha256:[0-9a-f]{64}$/)
+    expect(validateDefinition(good).ok).toBe(true)
+
+    const d = astDef('ema(close, 9)')
+    d.compute.fn = 'myEma'
+    const r = validateDefinition(d)
+    expect(r.ok, 'a hand-named ast handle registered').toBe(false)
+    expect(r.errors.join('\n')).toMatch(/compute handle IS its astHash/)
+
+    // …and the handle tracks the MATHS: two formulas, two handles.
+    expect(astDef('ema(close, 9)').compute.fn).not.toBe(astDef('ema(close, 21)').compute.fn)
+  })
+
+  it('a non-canonical stored tree is refused by name, not by exception', () => {
+    const d = astDef('sma(close, 20)')
+    d.compute.ast = { type: 'MemberExpression', object: 'close', property: 0 }
+    d.compute.fn = `sha256:${'0'.repeat(64)}`
+    const r = validateDefinition(d)
+    expect(r.ok).toBe(false)
+    expect(r.errors.join('\n')).toMatch(/not a canonical tree/)
+    // ⛔ AND THE VALIDATOR STILL DID NOT THROW — the contract that keeps one bad
+    // catalog entry off the chart instead of taking the chart with it.
+    expect(Array.isArray(r.errors)).toBe(true)
+  })
+
+  it('⛔ the OTHER lanes gained no ast requirement — a native needs neither field', () => {
+    // The positive control for every case above: if `validateAstCompute` were
+    // called unconditionally, all seventeen shipped definitions would stop
+    // registering. This is what says the branch is a branch.
+    const r = validateDefinition(rsiDef())
+    expect(r.ok, JSON.stringify(r.errors)).toBe(true)
+    expect(r.def.compute.ast).toBeUndefined()
+    expect(r.def.compute.source).toBeUndefined()
   })
 })

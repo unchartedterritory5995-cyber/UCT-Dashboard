@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import IndicatorLibraryDialog from './IndicatorLibraryDialog'
 import { mergeChartSettings } from './chartDefaults'
 import { catalogRows } from './indicatorCatalog'
@@ -114,13 +117,28 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     expect(screen.getByRole('option', { name: /Volume Profile/ }).getAttribute('aria-selected')).toBe('false')
   })
 
-  it('shows the repaint and tier badges the definition declares — never self-disclosed prose', () => {
+  // ⚰️ THE REPAINT HALF OF THIS CASE IS RETIRED, NOT DELETED, AND THE REASON IS
+  // THE DEFECT IT WAS PART OF. It asserted `within(row).getByText('Non-repainting')`
+  // on the VWAP row — i.e. it REQUIRED this surface to print the definition's
+  // DECLARED badge. That badge is written once, by `nativeRegistry.nativeDef`,
+  // before the `...meta` spread, so all seventeen definitions inherit it and
+  // nothing audited anything (decision record §1); on `ichimoku` the machine
+  // linter contradicts it outright. So this case did not merely fail to catch
+  // the lie — it PINNED it, the same shape as the retired
+  // `d.meta.repaint === 'non-repainting'` assertion in `indicatorCatalog.test.js`
+  // (an honest badge was blocked BY A TEST). The badge is now the LINTER'S
+  // measurement, and its gate — both directions, plus the per-plot separation —
+  // is `IndicatorLibraryDialog.repaintBadge.test.jsx`.
+  //
+  // What survives here is the TIER half, which is unrelated and still true, plus
+  // the "no badge on the carved-out row" clause, which is now true for a better
+  // reason: `volumeProfile` has no definition, so there is nothing to measure.
+  it('shows the tier badge the definition declares — and no repaint badge nobody measured', () => {
     open()
     const row = screen.getByRole('option', { name: /Session VWAP/ })
-    expect(within(row).getByText('Non-repainting')).toBeTruthy()
     expect(within(row).queryByText(/premium/i)).toBeNull()   // every native is tier: free
-    // …and the badge is DECLARED, not defaulted: a definition with no `repaint`
-    // shows none rather than claiming the safe answer.
+    expect(row.querySelector('[data-repaint]'),
+      'a hand-written compute the linter may not read wears a repaint badge').toBeNull()
     const carved = screen.getByRole('option', { name: /Volume Profile/ })
     expect(within(carved).queryByText(/repaint/i)).toBeNull()
   })
@@ -158,6 +176,109 @@ describe('the indicator library — search-first, add-and-stay-open, checkmarks'
     // this is a refusal and not a dialog that never calls onChange.
     fireEvent.click(screen.getByRole('option', { name: /Volume Profile/ }))
     expect(onChange).toHaveBeenCalledTimes(1)
+  })
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ⭐ chart-UX-walls TASK 6 — "+ Add another"
+  //
+  // The checkmark toggles; this ADDS. They cannot be the same control:
+  // `setIndicatorEnabled` REVIVES `legacy:<id>` when it is already there, so
+  // clicking a ticked row twice can never produce two lines — it turns the
+  // indicator off and back on. `addInstance` is the door that means "another".
+  // ═══════════════════════════════════════════════════════════════════════════
+  const rsiOn = () => setIndicatorEnabled(base(), 'rsi', true, engineRegistry)
+  /** The row's Add-another button, addressed by `data-def-id` — the attribute the
+   *  dialog already stamps. ⚠️ NOT by accessible NAME: a definition's `meta.name`
+   *  is a moving subject (`/Relative Strength/` matches `rsi` AND `rsLine`), and a
+   *  name lookup that misses THROWS, which reads as a broken control rather than
+   *  as a mis-aimed test. */
+  const rowFor = (defId) => screen.getAllByRole('option').find((o) => o.dataset.defId === defId)
+  const addAnotherIn = (defId) => {
+    const row = rowFor(defId)
+    expect(row, `no ${defId} row in the dialog — this case is asserting on nothing`).toBeTruthy()
+    return within(row).queryByRole('button', { name: /Add another/i })
+  }
+
+  it('⭐ shows "+ Add another" ONLY on a row that is already on', () => {
+    open(rsiOn())
+    expect(addAnotherIn('rsi'),
+      'a row that IS on offers no way to add a second copy').toBeTruthy()
+    // …and the control: an OFF row does not, because "another" of nothing is the
+    // checkmark's job and two controls doing one thing is how a user learns to
+    // trust neither. Asserted over EVERY off row, so the claim is a totality
+    // rather than one hand-picked witness.
+    const off = catalogRows().map((r) => r.id).filter((id) => id !== 'rsi')
+    expect(off.length, 'nothing is off — the control half is vacuous').toBeGreaterThan(5)
+    for (const id of off) {
+      expect(addAnotherIn(id), `${id} is OFF and offers "Add another" — there is nothing to `
+        + 'add another OF').toBeNull()
+    }
+  })
+
+  it('⛔ …and NEVER on the carved-out row, whose write `addInstance` refuses by identity', () => {
+    const vpOn = {
+      ...base(),
+      indicators: { ...(base().indicators || {}), volumeProfile: { enabled: true } },
+    }
+    open(vpOn)
+    expect(within(rowFor('volumeProfile')).getByText('✓'),
+      'the fixture did not turn the carved-out row on').toBeTruthy()
+    expect(addAnotherIn('volumeProfile'),
+      '`volumeProfile` has no definition, so `addInstance` returns the settings BY IDENTITY '
+      + 'for it — a live button that writes nowhere').toBeNull()
+  })
+
+  it('⭐ clicking it adds a SECOND instance and does NOT toggle the row off', () => {
+    // ⛔ THE SECOND HALF IS THE ONE THAT BREAKS SILENTLY. The whole `<li>` is the
+    // toggle, so without `stopPropagation` this click would ALSO fire `toggle(row)`
+    // — adding an instance and tombstoning every instance of the definition in one
+    // gesture, i.e. a button that does the exact opposite of its label.
+    const { onChange } = open(rsiOn())
+    fireEvent.click(addAnotherIn('rsi'))
+    expect(onChange, 'the button wrote nothing').toHaveBeenCalledTimes(1)
+    const next = onChange.mock.calls[0][0]
+    const live = (next.indicatorInstances || []).filter((i) => i && i.defId === 'rsi' && !i.deleted)
+    expect(live.map((i) => i.instanceId), 'the row did not gain a SECOND rsi instance')
+      .toEqual(['legacy:rsi', 'inst:rsi:1'])
+    expect(next.indicators.rsi.enabled, 'Add another turned the indicator OFF').toBe(true)
+    // …and the new one carries the DECLARED defaults, not a copy of its sibling —
+    // an identical second RSI draws a line exactly on top of the first.
+    const declared = engineRegistry.getDefinition('rsi').inputs.filter((i) => i.default !== undefined)
+    expect(declared.length, 'rsi declares no defaults — the check below is vacuous').toBeGreaterThan(0)
+    for (const d of declared) expect(live[1].inputs[d.key], d.key).toEqual(d.default)
+  })
+
+  it('⛔ the ARTIFACT: "+ Add another" is a 44px target, and NOTHING above it kills the pointer', () => {
+    // ⚠️ TASK 3 SHIPPED A BUTTON NOBODY COULD CLICK AND 23 GREEN CLICK CASES SAID
+    // OTHERWISE: `.legend` is `pointer-events: none` and it INHERITS, and jsdom
+    // implements no hit-testing. Task 4's rule is that a new control's
+    // reachability is asserted on the ARTIFACT, never on a `fireEvent.click`.
+    //
+    // ⭐ MEASURED, AND THE TRAP DOES NOT APPLY HERE — which is a claim, so it is
+    // asserted: neither this dialog's own stylesheet nor the two shipped
+    // primitives it renders inside (`Sheet`, and `ContextPopover` beside it)
+    // declares `pointer-events` at all, so nothing above the button disables it.
+    // The 44px target is a spec §7 requirement that CAN regress silently, so it
+    // is read off the file rather than trusted.
+    const here = path.dirname(fileURLToPath(import.meta.url))
+    const css = fs.readFileSync(path.join(here, 'IndicatorLibraryDialog.module.css'), 'utf8')
+    const block = css.slice(css.indexOf('.addAnother {'), css.indexOf('.addAnother:hover'))
+    expect(block.length, 'the `.addAnother` rule is gone from the stylesheet — the slice below '
+      + 'would satisfy every `toContain` by reading nothing').toBeGreaterThan(60)
+    expect(block, 'the Add-another button is no longer a 44px touch target; this dialog is a '
+      + 'BOTTOM SHEET on a phone and the button sits in a row a thumb has to hit')
+      .toMatch(/min-height:\s*var\(--tap-min\)/)
+    expect(block, 'control: the slice really is the .addAnother rule').toContain('margin-left: auto')
+
+    for (const rel of ['IndicatorLibraryDialog.module.css',
+      '../mobile/Sheet.module.css', '../mobile/ContextPopover.module.css']) {
+      const src = fs.readFileSync(path.join(here, rel), 'utf8')
+      expect(src.length, `${rel} read as empty — the absence below is vacuous`).toBeGreaterThan(200)
+      expect(src, `${rel} now declares pointer-events. If it DISABLES them anywhere above this `
+        + 'button, the button is unreachable in a browser and every click case in this file '
+        + 'still passes — re-derive this claim, do not delete the assertion.')
+        .not.toMatch(/pointer-events/)
+    }
   })
 
   it('closed renders nothing at all', () => {

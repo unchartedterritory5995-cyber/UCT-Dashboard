@@ -33,6 +33,7 @@ import {
   fetchCurrentValue,
 } from '../../hooks/useIndicatorAlerts'
 import { formatET } from '../../utils/timeAgo'
+import AlertStateLine from './alertState'
 import { instancesForAddress } from './engine/alertSets'
 import { NATIVE_TFS, tfLabel } from './timeframes'
 import UIcon from '../ui/UIcon'
@@ -87,10 +88,55 @@ function fmtTriggeredAt(epochSec) {
   return formatET(epochSec * 1000)
 }
 
-export default function IndicatorAlertPopover({ sym, onClose, chartInstances = [] }) {
+// ─── THE LIFECYCLE STATES A USER HAS TO BE TOLD ABOUT ───────────────────────
+//
+// ⭐ `sweep_silent_alerts` DIAGNOSES an alert that has gone quiet and writes
+// `state='needs_attention'` with a `state_detail` sentence naming the cause.
+// This surface was the first reader of that pair (`afbf0470`).
+//
+// 🔴 THE READING NOW LIVES IN `./alertState`, BECAUSE THERE IS A SECOND
+// SURFACE. The alert manager on `/settings` shows every symbol's alerts, and it
+// is where a member actually DISCOVERS that one of theirs can never fire — a
+// second component deciding for itself what counts as a fault, and writing its
+// own fallback sentence, is a twin whose drift would be SILENCE. One module
+// owns `ATTENTION_STATES` and the line; both surfaces mount it. See that file
+// for why only the two fault states qualify (`rearm` and `snooze` both write a
+// `state_detail` under a HEALTHY state).
+
+/**
+ * @param {object} [initial] `{instanceId, plotKey}` — the legend chip this
+ *   popover was opened from (chart-UX-walls Task 4). ONE prop, and it is the
+ *   whole difference between "Add alert on MACD" opening a MACD form and opening
+ *   whatever the catalog happens to list first. Absent ⇒ byte-identical
+ *   behaviour to before it existed.
+ * @param {string|null} [chartId] ⭐ PHASE C TASK 12 — the surface's own stable
+ *   chart id (a `/charts` widget slot, a Multi-Chart grid cell). It is what
+ *   makes the listing request carry `?scope=`, and what a "this chart only"
+ *   alert is scoped TO. Absent ⇒ the unscoped listing and no scope control,
+ *   which is exactly what every mount site had before a producer existed.
+ */
+export default function IndicatorAlertPopover({
+  sym, onClose, chartInstances = [], initial = null, chartId = null,
+}) {
   const ownSym = sym ? String(sym).toUpperCase() : ''
-  const { alerts } = useIndicatorAlerts()
-  const { catalog, isLoading: catalogLoading, error: catalogError } = useIndicatorAlertCatalog()
+  // ⭐ THE CHART ID REACHES THE REQUEST. `useIndicatorAlerts` turns it into
+  // `GET /api/indicator-alerts?scope=<chartId>` — the parameter the backend has
+  // implemented since Task 12 and that no client had ever sent.
+  const { alerts } = useIndicatorAlerts(chartId)
+  const {
+    catalog,
+    // 🔴 WHY A SAVED FORMULA IS NOT IN THE DROPDOWN ABOVE. See the section at
+    // the bottom of this component for what is and is not done with it.
+    refusals: servedRefusals,
+    isLoading: catalogLoading,
+    error: catalogError,
+  } = useIndicatorAlertCatalog()
+  // ⚠️ NORMALISED ONCE, HERE. The hook contracts to answer an array on every
+  // branch; a surface that read `refusals.length` off whatever it was handed
+  // would crash the whole popover on a hook (or a test double) that predates the
+  // key, and losing the alert form is a far worse failure than losing an
+  // explanation.
+  const refusals = Array.isArray(servedRefusals) ? servedRefusals : []
 
   const [indicator, setIndicator] = useState('')
   const [plot, setPlot] = useState('')
@@ -108,6 +154,13 @@ export default function IndicatorAlertPopover({ sym, onClose, chartInstances = [
   // (`instancesForAddress`), and an address that names no definition yields
   // NOTHING rather than a plausible wrong id.
   const [instanceId, setInstanceId] = useState('')
+  // ⭐ PHASE C TASK 12 — WHICH CHART. Unchecked is GLOBAL, and that default is
+  // the migration: every alert that exists carries `scope = NULL`, which the
+  // server reads as "on every chart", so an unchecked box creates exactly the
+  // row this popover has always created. Only offered when the mount site
+  // actually supplies a chart id — a "this chart only" box on a surface with no
+  // chart identity would scope an alert to nothing.
+  const [chartOnly, setChartOnly] = useState(false)
   const [tf, setTf] = useState('D')
   const [submitting, setSubmitting] = useState(false)
   // ⭐ WHY THE LAST ATTEMPT WAS REFUSED — the server's own sentence, held so it
@@ -189,14 +242,54 @@ export default function IndicatorAlertPopover({ sym, onClose, chartInstances = [
     selectPlot(plotsOf(e)[0])
   }, [selectPlot])
 
+  /** The served ADDRESS this popover was opened ON, when it was opened from a
+   *  legend chip (`initial = {instanceId, plotKey}`), else ''.
+   *
+   *  ⛔ DERIVED THROUGH `instancesForAddress`, NOT THROUGH A SECOND BRIDGE. The
+   *  caller knows a definition (`williamsR`) and this file knows an address
+   *  (`williams_r`); `alertSets` measured the naive `address === defId` map as a
+   *  LIE for exactly that pair and solved it in ONE direction only. So the search
+   *  runs that shipped, tested bridge FORWARDS over every served address and asks
+   *  which one owns the instance the chip named — no new mapping, and an address
+   *  that names no definition (`close`, `price_vs_ma`) simply never matches.
+   *
+   *  The chip's PLOT breaks the tie: a MACD signal chip opens on `macd.signal`
+   *  rather than on `macd`, because `ichimoku` alone names five different series
+   *  and picking the first would be a guess with a tick beside it. */
+  const initialAddress = useMemo(() => {
+    const wantInstance = initial && initial.instanceId
+    if (!wantInstance || !catalog.length) return ''
+    const owning = [...byAddress.keys()].filter((addr) =>
+      instancesForAddress(chartInstances, addr).some((i) => i.instanceId === wantInstance))
+    if (!owning.length) return ''
+    const suffix = initial.plotKey ? `.${initial.plotKey}` : null
+    return (suffix && owning.find((a) => a.endsWith(suffix))) || owning[0]
+  }, [initial, catalog, byAddress, chartInstances])
+
   // Seed (and re-seed) from whatever the server actually offers. While the
   // catalog is empty — loading, or failed — `indicator` stays '' and the form
   // has nothing to submit, which is the intended state, not a bug to paper over.
+  //
+  // ⭐ …AND FROM THE CHIP THAT OPENED IT, WHEN THERE WAS ONE (chart-UX-walls
+  // Task 4). "Add alert…" on the MACD chip opening an RSI form is the row that
+  // looks live and is not; `initialAddress` is resolved through the catalog, so a
+  // chip whose definition the evaluator cannot evaluate falls back to
+  // `catalog[0]` exactly as before rather than seeding something unsubmittable.
   useEffect(() => {
     if (!catalog.length) return
     if (byIndicator.has(indicator)) return
+    if (initialAddress) {
+      const entry = catalog.find((e) => plotsOf(e).some((p) => p.value === initialAddress))
+      const plot = entry && plotsOf(entry).find((p) => p.value === initialAddress)
+      if (entry && plot) {
+        setIndicator(entry.indicator)
+        selectPlot(plot)
+        if (initial && initial.instanceId) setInstanceId(initial.instanceId)
+        return
+      }
+    }
     selectEntry(catalog[0])
-  }, [catalog, byIndicator, indicator, selectEntry])
+  }, [catalog, byIndicator, indicator, selectEntry, selectPlot, initialAddress, initial])
 
   const conditionEntry = conditionOptions.find((c) => c.value === condition) || null
   const needsThreshold = !!conditionEntry?.needs_threshold
@@ -277,6 +370,10 @@ export default function IndicatorAlertPopover({ sym, onClose, chartInstances = [
     // still the truth the evaluator reads — the id says which instance it was
     // armed FROM, so that deleting that instance can be reported.
     if (instanceId) payload.instance_id = instanceId
+    // ⚠️ ONLY WHEN THE USER ASKED FOR IT. An omitted `scope` is GLOBAL on the
+    // server (`_clean_scope` stores NULL), so the unchecked path is the shape
+    // every existing row has and the shape every previous client sent.
+    if (chartOnly && chartId) payload.scope = chartId
     if (needsThreshold) {
       const num = parseFloat(threshold)
       if (!Number.isFinite(num)) return
@@ -456,6 +553,22 @@ export default function IndicatorAlertPopover({ sym, onClose, chartInstances = [
           </select>
         </div>
 
+        {/* ⭐ WHICH CHART THIS ALERT BELONGS TO (spec §5 / Task 12). Rendered
+            only where a chart id exists, unchecked by default, so a surface
+            that supplies none — and a user who leaves it alone — creates the
+            GLOBAL alert this popover has always created. */}
+        {chartId && (
+          <label className={styles.scopeRow}>
+            <input
+              type="checkbox"
+              checked={chartOnly}
+              aria-label="Only on this chart"
+              onChange={(e) => setChartOnly(e.target.checked)}
+            />
+            <span>Only on this chart</span>
+          </label>
+        )}
+
         {/* ⭐ WHY THE LAST ATTEMPT WAS REFUSED, immediately above the button
             that was pressed. Rendered verbatim — the create path's 400s explain
             themselves ("a live price alert belongs to the watchlist alert
@@ -476,6 +589,82 @@ export default function IndicatorAlertPopover({ sym, onClose, chartInstances = [
           {submitting ? 'Adding…' : 'Add Alert'}
         </button>
       </form>
+
+      {/* ═══ SAVED, AND NOT OFFERED — WITH THE REASON ═══════════════════════
+          🔴 `user_catalog` runs the admission gates over every stored formula
+          and `continue`s past what a gate refuses. Correct per its own contract
+          — *"the dropdown cannot offer an alert that cannot fire"* — and
+          completely silent: a member typed a formula, the STORE accepted it,
+          `GET /api/user-definitions` lists it, the indicator library shows it,
+          and the Indicator dropdown directly above simply did not have it.
+
+          This is the same section `IndicatorLibraryDialog` renders one surface
+          over (`918e3c8a`), on the alert half, and it sits immediately under the
+          dropdown it explains.
+
+          ⛔ NOT AN OPTION, AND NOT A ROW IN THE LISTBOX. There is no installed
+          definition behind these, so there is no address to submit: an entry
+          among the offerings would be a control that arms nothing. Not
+          `role="alert"` either — nothing just happened; this is standing state
+          about the member's own saved work. */}
+      {refusals.length > 0 && (
+        <div className={styles.refused} data-testid="alert-catalog-refusals">
+          <div className={styles.listHeader}>
+            Saved formulas not offered ({refusals.length})
+          </div>
+          {/* The one sentence this surface writes for itself, and it says WHAT
+              happened, never WHY — the why is the gate's, printed untouched
+              below it. Same split the library dialog draws. */}
+          <p className={styles.refusedLede}>
+            These saved formulas cannot be alerted on. The reason below comes
+            from the check that refused each one.
+          </p>
+          <ul className={styles.refusedList}>
+            {refusals.map((row) => (
+              <li
+                key={row.id}
+                className={styles.refusedRow}
+                data-testid="alert-catalog-refusal"
+                data-def-id={row.id}
+                // ⚠️ THE DOOR'S NAME AS DATA, NOT AS A SECOND PRINTED
+                // ATTRIBUTION. `gate` is already inside the sentence below
+                // (`[gate:<name>]`); rendering it again as a chip would print
+                // the same fact twice in two spellings, which is how a second
+                // vocabulary starts. `null` when the service could not attribute
+                // the refusal, and an absent attribute is the honest shape for
+                // that — never a guessed door.
+                data-gate={row.gate || undefined}
+              >
+                <span className={styles.refusedName}>{row.label || row.id}</span>
+                {/* ⛔⛔ THE GATE'S OWN SENTENCE, WHOLE AND UNEDITED — INCLUDING
+                    ITS `[gate:<name>]` SUFFIX, WHICH IS SIGNAL AND NOT NOISE.
+                    A member reads this to learn why their formula is not offered,
+                    and the suffix is the only thing that names WHICH check
+                    refused it: `REFUSAL_FRAGMENTS`' pairwise disjointness is a
+                    SAFETY property asserted server-side (two gates once shared a
+                    phrase and a `raises(match=…)` still passed with the safety
+                    DELETED), and the attribution is what makes a support report
+                    actionable rather than a paraphrase of a paraphrase. The
+                    backend's own mutation B6 killed "the `[gate:]` attribution is
+                    stripped"; stripping it HERE would rebuild exactly that defect
+                    one layer up, where no backend test can see it.
+
+                    ⛔ AND EVERY MESSAGE, NOT THE FIRST. `messages` is a LIST
+                    because a formula can fail more than one door; the gates
+                    short-circuit today, and a surface that renders `[0]` would
+                    hide the second reason silently the day they stop. */}
+                {(row.messages || []).map((message, i) => (
+                  <span
+                    key={i}
+                    className={styles.refusedWhy}
+                    data-testid="alert-catalog-refusal-reason"
+                  >{message}</span>
+                ))}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className={styles.listHeader}>
         Active alerts {ownSym ? `for ${ownSym}` : ''} ({symAlerts.length})
@@ -532,6 +721,12 @@ export default function IndicatorAlertPopover({ sym, onClose, chartInstances = [
                         — still watching {indLbl}
                       </span>
                     )}
+                    {/* ⭐ THE SERVER'S OWN DIAGNOSIS, VERBATIM — through the ONE
+                        module that decides what a fault state is. Rendering
+                        `null` for a healthy row is the component's own contract,
+                        so it is mounted unconditionally and the state test lives
+                        in exactly one place for both surfaces. */}
+                    <AlertStateLine alert={a} className={styles.needsAttention} />
                     {trigAt && (
                       <>
                         <span className={styles.trigCheck}><UIcon name="check" size={13} /></span>

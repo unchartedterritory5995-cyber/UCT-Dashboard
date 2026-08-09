@@ -427,7 +427,9 @@ describe('the control-door census — how many doors, and whether an eighth exis
 
   // ─── DOOR EIGHT ────────────────────────────────────────────────────────
   //
-  // ⭐ THE PER-INSTANCE DOOR IS SHIPPED, AND IT HAS NO CALLER.
+  // ⭐ THE PER-INSTANCE DOOR IS SHIPPED, AND AS OF TASK 4 IT HAS EXACTLY TWO
+  //    CALLERS — `IndicatorSettingsDialog` (spec §6's per-instance settings form,
+  //    Task 5) and `StockChart` (the LEGEND CHIP's own controls, Task 4).
   //
   // `setInstanceHidden` / `setInstanceInput` / `removeInstance` / `addInstance`
   // live in the SAME module as the seven above, but they are a DOOR and not a use
@@ -436,19 +438,97 @@ describe('the control-door census — how many doors, and whether an eighth exis
   // instance the v1→v2 fold seeded". These address ONE `instanceId` — which is
   // what the stored list, the binder and the readout have always been keyed by.
   //
-  // ⛔ ZERO CALL SITES IS THE ASSERTION, NOT AN ASSUMPTION. It is what makes the
-  // model change a provable no-op while at most one instance per definition
-  // exists, and it is precisely the state the duplicate-indicator surface will
-  // change — at which point this list gains a name and a reason rather than
-  // losing the case.
-  it('⭐ door EIGHT — the per-INSTANCE door exists and has NO caller yet', () => {
+  // ⛔ THE ZERO WAS AN ASSERTION, NOT AN ASSUMPTION — and this is the update it
+  // asked for, not its deletion. Its own failure message said: "UPDATE this
+  // census with the surface and its reason, do not delete the case." The list is
+  // now a DECLARED TABLE compared by equality, so the next surface to address an
+  // instance reddens here and has to say why, exactly as this one did. What the
+  // zero bought is spent: while it held, the model change was a provable no-op;
+  // the dialog is the surface that makes "RSI(7) settings" mean something
+  // different from "RSI(14) settings", which is what the door was built for.
+  //
+  // 🔴 `StockChart.jsx` USED TO BE DELIBERATELY ABSENT FROM THIS LEDGER, AND THE
+  // PARAGRAPH SAYING SO IS INVERTED RATHER THAN DELETED. It read: *"It mounts the
+  // dialog and resolves a `defId` to an instance id through `findInstance` — a
+  // READER — and writes nothing per instance itself. A door name appearing there
+  // would mean a second writer had grown beside the one the dialog routes at."*
+  //
+  // ⭐ A DOOR NAME DOES APPEAR THERE NOW, AND IT IS NOT A SECOND WRITER — IT IS A
+  // SECOND SURFACE ON THE SAME ONE. chart-UX-walls Task 4 gives every legend chip
+  // its own eye / gear / × and a right-click menu, and those are the FIRST
+  // controls in the product that address a chip: a chip is per INSTANCE (the
+  // readout has been keyed by `instanceId` since before this phase), so hiding
+  // "the RSI you right-clicked" is only expressible through this door. Every one
+  // of them calls `instanceControls` — `setInstanceHidden`, `removeInstance`,
+  // `withInstances` — through ONE local `writeInstance` guard, and none of them
+  // touches `cs.indicatorInstances` by hand; the raw-write scan above is what
+  // would catch it if one did.
+  //
+  // ⚠️ THE `settingsInstanceId` MOUNT IS STILL NOT A DOOR. The chip's gear sets
+  // that state and the DIALOG does the writing, exactly as the right-click
+  // `<label> settings…` row already did — which is why this file's ledger names
+  // the two files that CALL the door and not the three surfaces that open them.
+  it('⭐ door EIGHT — the per-INSTANCE door has exactly the callers this census names', () => {
     // ⚠️ CHECKED AGAINST THE MODULE, not merely typed here. A renamed door would
-    // otherwise narrow the scan to a name nothing has, and its empty result would
-    // mean nothing at all.
+    // otherwise narrow the scan to a name nothing has, and its result would mean
+    // nothing at all.
     const DOORS = ['setInstanceHidden', 'setInstanceInput', 'removeInstance', 'addInstance']
     expect(DOORS.filter(n => typeof theWriter[n] !== 'function'),
       'a per-instance door was renamed or removed — the caller scan below would then be ' +
-      'looking for a name nothing has, and its empty result would prove nothing').toEqual([])
+      'looking for a name nothing has, and its result would prove nothing').toEqual([])
+
+    // The ledger: file → why it addresses ONE instance.
+    const LEDGER = [
+      ['app/src/components/chart/IndicatorSettingsDialog.jsx',
+       'spec §6 settings form, per instance (Task 5): setInstanceInput on the generated ' +
+       'input rows, setInstanceHidden on the Visibility tab eye'],
+      ['app/src/components/StockChart.jsx',
+       'spec §6 legend chip controls (chart-UX-walls Task 4): the chip\'s eye is ' +
+       'setInstanceHidden, its × is removeInstance, and its ContextPopover "Move to" is ' +
+       'withInstances. A chip IS an instance — the readout has been keyed by instanceId ' +
+       'since before this phase — so "hide the RSI you right-clicked" cannot be said ' +
+       'through any of doors 1-7, every one of which takes legacyInstanceId(defId) and ' +
+       'therefore always means the first copy. ⭐ TASK 6 ADDS addInstance, for the chip ' +
+       'menu\'s Duplicate row: it resolves the clicked instanceId to its defId through ' +
+       'findInstance FIRST, so a chip whose instance has already gone is refused rather ' +
+       'than minting a sibling for something no longer on the chart'],
+      ['app/src/components/chart/IndicatorLibraryDialog.jsx',
+       '⭐ NEW AT chart-UX-walls TASK 6 — "+ Add another" on a row that is already on. ' +
+       'It is a SECOND USE of door eight and not a second writer, but it is a genuinely ' +
+       'new surface and it belongs here because the checkmark beside it CANNOT do this ' +
+       'job: setIndicatorEnabled REVIVES legacy:<id> when it is already there, so ' +
+       'clicking a ticked row twice turns the indicator off and back on and can never ' +
+       'produce two lines. addInstance is the only door that means "another". This file ' +
+       'therefore calls BOTH doors — setIndicatorEnabled for the toggle (the call-site ' +
+       'census above) and addInstance for the add — and it excludes volumeProfile from ' +
+       'the second, because a carved-out row has no definition and addInstance returns ' +
+       'the settings BY IDENTITY for it'],
+      ['app/src/components/chart/builder/BuilderSheet.jsx',
+       '⭐ NEW AT PHASE D TASK 16 — the builder adds an instance ON SAVE, and until Task 16 ' +
+       'it deliberately did NOT. Task 11 measured why and wrote the refusal into the file: ' +
+       'nothing installed a USER definition into the registry the binder resolves through, ' +
+       'so an instance written here named a definition getDefinition answered null for and ' +
+       'normalizeInstances dropped it on the next paint — a live control that writes ' +
+       'nowhere. installUserDefinitions closes that, so the write is now honest and it ' +
+       'goes through door eight for the reason IndicatorLibraryDialog does: addInstance is ' +
+       'the only door that means "put THIS definition on the chart, as its own copy", and ' +
+       'a freshly authored formula has no legacy:<id> to revive. ⛔ IT ADDRESSES THE ' +
+       'STORE\'S id, never draftDefId()\'s — the server mints the real one, and an ' +
+       'instance naming the draft would be dropped exactly as before'],
+      ['app/src/components/chart/indicatorRegistry.js',
+       '⭐ NEW AT chart-UX-walls TASK 6 — applyRowPatch routes a settings row that names ' +
+       'a USER-ADDED instance at setInstanceInput. Before Task 6 a generated row was per ' +
+       'DEFINITION and liveInstanceFor took the FIRST match, so the second of two RSIs ' +
+       'had no reachable form at all; the rows are one-per-live-instance now and the ' +
+       'write has to address the one the user is looking at. ⛔ TWO HALVES OF THE SAME ' +
+       'PATCH DELIBERATELY DO NOT GO THROUGH DOOR EIGHT. (1) `enabled` stays at ' +
+       'setIndicatorEnabled: a switch labelled with the definition\'s name means the ' +
+       'definition, and removeInstance is the per-instance verb that belongs to the ' +
+       'chip\'s ×. (2) The FOLD\'s instance — legacyInstanceId(defId) — keeps ' +
+       'setIndicatorInput, because cs.indicators.<defId> is the mirror the migrator ' +
+       'projects into exactly that id, so routing it away would leave the mirror stale ' +
+       'beside a live instance that moved, for every user who has only one copy'],
+    ]
 
     const perInstance = new RegExp('\\b(' + DOORS.join('|') + ')\\s*\\(')
     const callers = SHIPPED
@@ -456,22 +536,31 @@ describe('the control-door census — how many doors, and whether an eighth exis
       .map(f => f.file)
       .sort()
     expect(callers,
-      'a per-instance door gained a caller — UPDATE this census with the surface and its ' +
-      'reason, do not delete the case. A caller is the moment the write door starts ' +
-      'addressing ONE instance from a real surface, which is when "two RSIs" stops being ' +
-      'unreachable and this task stops being a no-op.',
-    ).toEqual([])
+      'the per-instance door\'s caller set moved — UPDATE this census with the surface and ' +
+      'its reason, do not delete the case. A caller is a surface that addresses ONE ' +
+      'instanceId, which is what makes "two RSIs" reachable; an unledgered one is a second ' +
+      'answer to "which copy did the user mean".',
+    ).toEqual(LEDGER.map(([f]) => f).sort())
 
-    // ⛔ THE POSITIVE CONTROL FOR AN EXPECTED ZERO. `toEqual([])` is satisfied just
-    // as well by a pattern that matches nothing anywhere, so it is run against the
-    // one module it EXCLUDES — the same shape the call-site census above uses.
+    // ⛔ THE POSITIVE CONTROL. A pattern that matches nothing anywhere satisfies an
+    // empty expectation just as well, so it is run against the one module it
+    // EXCLUDES — the same shape the call-site census above uses. It stays even now
+    // that the expectation is non-empty: it is what proves the equality above is a
+    // census and not a coincidence.
     const writerSrc = SHIPPED.find(f => f.file === THE_WRITER)
     expect(writerSrc, 'the writer module is not in the walk — the scan cannot see its own subject')
       .toBeTruthy()
     expect(perInstance.test(writerSrc.src),
       'the per-instance pattern matches nothing even in the module that DEFINES the doors — ' +
-      'it rotted, and the empty caller list above is a broken regex rather than a census')
+      'it rotted, and the caller list above is a broken regex rather than a census')
       .toBe(true)
+
+    // ⛔ AND EVERY LEDGERED FILE IS IN THE WALK. A ledger naming a path the scan
+    // never visits would be satisfied by a file that does not exist — the equality
+    // above would then be comparing two lists neither of which came from source.
+    expect(LEDGER.filter(([f]) => !SHIPPED.some(s => s.file === f)).map(([f]) => f),
+      'a ledgered caller is not in the walked file set — the equality above is comparing ' +
+      'a typed name against a scan that cannot see it').toEqual([])
   })
 })
 

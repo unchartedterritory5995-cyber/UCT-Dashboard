@@ -190,6 +190,21 @@ def breadth_live_store(request: Request, selftest: bool = False):
     return out
 
 
+@router.get("/api/breadth-monitor/live/drill/{metric_key}")
+def get_live_drill(metric_key: str):
+    """The names behind one cell of the intraday row.
+
+    Declared BEFORE `/{date_str}/drill/{metric_key}` — that route matches "live"
+    as a date perfectly well, so registered the other way round this one is
+    unreachable and every live click 404s.
+
+    Unavailable is `{ok: false, items: []}` with a reason rather than an error
+    status: a click on a cold cache must not surface an error page.
+    """
+    from api.services import breadth_live as bl
+    return bl.live_drill(metric_key)
+
+
 @router.get("/api/breadth-monitor/latest")
 def get_breadth_latest():
     row = svc.get_latest()

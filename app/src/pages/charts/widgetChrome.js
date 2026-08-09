@@ -104,7 +104,9 @@ export function widgetOwnChrome(widget, chartsTheme) {
     if (own.canvasBottom && own.canvasBottom !== own.canvas) entry.bottom = canvasEntry(own.canvasBottom)
     return entry
   }
-  if (surrogate.type === 'watchlist') {
+  if (surrogate.type === 'watchlist' || surrogate.type === 'scanner') {
+    // Scanner reuses the watchlist settings blob (opts.settings), so its frame /
+    // header / dividers follow ITS canvas the same way a watchlist widget's do.
     const own = watchlistOwnCanvas(surrogate)
     if (!own) return null
     const entry = canvasEntry(own.canvas)

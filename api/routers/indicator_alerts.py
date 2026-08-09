@@ -14,11 +14,40 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from api.middleware.auth_middleware import get_current_user
+from api.services import alert_user_series
 from api.services import indicator_alert_service as ias
 from api.services import indicator_alert_evaluator
 
 
 router = APIRouter(prefix="/api/indicator-alerts", tags=["indicator-alerts"])
+
+
+# ─── THE USER LANE'S DOOR, AND WHY IT NEEDED ONE ─────────────────────────────
+#
+# ⛔ EVERY ROUTE HERE THAT NAMES AN INDICATOR USED TO REFUSE ANY ADDRESS
+# `indicator_alert_evaluator.value_function()` MISSES — and that function walks
+# the three GLOBAL partitions, from which `alert_user_series.USER_FUNCS` is
+# deliberately, permanently absent (it is keyed `<user_id>\x1f<address>`, because
+# `u_….value` means something to exactly one account). So Phase D Task 12's whole
+# admission chain — the repaint gate, the budget-at-armed-version gate, the
+# arm-time cross-lane 1e-9 proof — sat BELOW a refusal nothing could get past, and
+# `POST {"indicator": "u_a1b2c3d4e5f6.value"}` answered 400 *"not an indicator
+# this chart can evaluate"*. Both sides were correct; the seam was dead.
+#
+# ⭐ THE FIX IS A SCOPED RESOLUTION, NOT A FOURTH GLOBAL ENTRY. This layer is the
+# one that holds a signed-in account, so it is the only layer that CAN resolve a
+# per-user address without making one member's formula answer for another. The
+# global tables are untouched: `all_addresses()` is still 31, `--diff` is still
+# 31/31, and `build_alert_grid` still iterates exactly what it iterated.
+#
+# ⚠️ A REFUSAL FROM THE ADMISSION CHAIN IS A 400 THAT CARRIES THE GATE'S OWN
+# SENTENCE. `AdmissionRefused` is a RuntimeError; letting it escape would be a 500
+# on a request the user got wrong, and rewriting its message here would give one
+# refusal two spellings (`_save_or_400` in `api/routers/user_definitions.py`
+# states the same rule). `.gate` rides along in the text, so a support question
+# has an answer.
+def _refusal_to_400(exc: alert_user_series.AdmissionRefused) -> HTTPException:
+    return HTTPException(status_code=400, detail=str(exc))
 
 
 class AlertCreate(BaseModel):
@@ -106,8 +135,32 @@ def get_alert_catalog(user: dict = Depends(get_current_user)):
     ⚠️ DECLARED BEFORE `/{alert_id}` would matter if a GET on that path existed.
     It does not today (only DELETE and POST /{id}/toggle) — but keep this route
     above any future `GET /{alert_id}` or `catalog` will be parsed as an id.
+
+    ⭐ IT IS SERVED SCOPED, AND THAT IS THE UI PRODUCER FOR A USER FORMULA. The
+    popover has no list of its own (`IndicatorAlertPopover.jsx` retired all five
+    literals and refuses to carry a fallback), so it offers exactly what this
+    returns — which means a user definition that never appeared here had no UI
+    producer at all, not merely a missing one. `alert_catalog(user_id)` APPENDS
+    this account's own formulas after the global groups; called without an id it
+    is byte-for-byte the enumeration every rail in this phase measures.
+
+    🔴 …AND `refusals` IS WHY A FORMULA IS **NOT** IN THAT LIST. `user_catalog`
+    omits what the gates refuse — correct, and silent: a member saved a formula,
+    the store accepted it, and the picker did not have it with nothing anywhere
+    saying why. This is the alert half of `918e3c8a`, which closed the identical
+    silence in the indicator library, and it carries the GATE'S OWN SENTENCE
+    verbatim (see `indicator_alert_service.user_definition_refusals`).
+
+    ⛔ IT IS A SECOND KEY, NEVER A ROW IN `catalog`. A refused formula has no
+    address to submit, so an entry among the offerings would be an option that
+    arms nothing — the same reason the library dialog puts its refusals in their
+    own section outside `role="listbox"`. It also keeps `catalog` byte-unmoved,
+    which `test_the_GLOBAL_catalog_is_BYTE_UNMOVED_by_the_scoped_one` reads.
     """
-    return {"catalog": indicator_alert_evaluator.alert_catalog()}
+    return {
+        "catalog": indicator_alert_evaluator.alert_catalog(user["id"]),
+        "refusals": ias.user_definition_refusals(user["id"]),
+    }
 
 
 @router.get("/fired")
@@ -129,11 +182,26 @@ def get_alert_latency(user: dict = Depends(get_current_user)):
     own alerts. It is the evaluator's cycle interval plus, on the closed lane,
     the time a bar takes to finish — the second term is the honest price of not
     repainting, and it is zero on the lane that does.
+
+    ⭐ IT IS ALSO THE ROLLBACK READBACK. `ALERT_EVAL_MODE` can be overridden from
+    the Railway dashboard without a deploy, and an operator who has just pulled
+    that lever needs to confirm on the POD which lane is actually running —
+    without `railway ssh` (which mangles `/opt/venv/bin/python` under Git Bash)
+    and without waiting for an alert to fire or not fire. `eval_mode` here is the
+    whole provenance: the effective lane, the variable, its raw value, and
+    whether the override was applied or REFUSED.
+
+    ⚠️ ONE RESOLUTION FEEDS BOTH FIELDS. `mode` is read out of the report rather
+    than by a second `eval_mode()` call, so this body cannot report one lane in
+    `mode` and another in `eval_mode.effective` — the disagreement Task 8's
+    tombstone mutation is built out of.
     """
-    mode = indicator_alert_evaluator.eval_mode()
+    report = indicator_alert_evaluator.eval_mode_report()
+    mode = report["effective"]
     closed = mode == "closed"
     return {
         "mode": mode,
+        "eval_mode": report,
         "cycle_seconds": _CYCLE_SECONDS,
         "worst_case_seconds": {
             tf: _CYCLE_SECONDS + (secs if closed else 0)
@@ -158,14 +226,22 @@ def create_alert(body: AlertCreate, user: dict = Depends(get_current_user)):
                     "chart's timeframe — ask for the indicator 'close' if that "
                     "is the question you mean."),
         )
-    address = indicator_alert_evaluator.resolve_address(raw)
-    if indicator_alert_evaluator.value_function(address) is None:
-        raise HTTPException(
-            status_code=400,
-            detail=(f"{body.indicator!r} is not an indicator this chart can "
-                    "evaluate, so an alert on it could never fire. See "
-                    "GET /api/indicator-alerts/catalog for what is offered."),
-        )
+    # ⭐ A USER ADDRESS SKIPS THE GLOBAL LOOKUP AND IS RESOLVED IN THIS ACCOUNT'S
+    # SCOPE INSTEAD — see the block at the top of this module. It is NOT passed
+    # through `resolve_address`, which case-folds: a user plot key may be
+    # camelCase (`u_abc.fastLine`) and folding it would ask the definition for a
+    # plot it does not declare. `ias.create` below runs the admission chain and
+    # raises `AdmissionRefused` naming the gate; the refusal a user gets is
+    # therefore the gate that means it rather than "unknown indicator".
+    if not alert_user_series.is_user_address(raw):
+        address = indicator_alert_evaluator.resolve_address(raw)
+        if indicator_alert_evaluator.value_function(address) is None:
+            raise HTTPException(
+                status_code=400,
+                detail=(f"{body.indicator!r} is not an indicator this chart can "
+                        "evaluate, so an alert on it could never fire. See "
+                        "GET /api/indicator-alerts/catalog for what is offered."),
+            )
     # ⭐ AND THE THREE THAT ARE ABOUT THE ALERT'S SHAPE, NOT ITS NAME. The two
     # refusals above catch an indicator that does not exist; a `vwap` alert on
     # `tf="D"` names one that does, is accepted by both of them, and is still
@@ -177,17 +253,23 @@ def create_alert(body: AlertCreate, user: dict = Depends(get_current_user)):
                               body.threshold)
     if refusal:
         raise HTTPException(status_code=400, detail=refusal)
-    alert_id = ias.create(
-        user_id=user["id"],
-        sym=body.sym.upper(),
-        indicator=body.indicator,
-        condition=body.condition,
-        threshold=body.threshold,
-        tf=body.tf,
-        params_json=body.params,
-        instance_id=body.instance_id,
-        scope=body.scope,
-    )
+    try:
+        alert_id = ias.create(
+            user_id=user["id"],
+            sym=body.sym.upper(),
+            indicator=body.indicator,
+            condition=body.condition,
+            threshold=body.threshold,
+            tf=body.tf,
+            params_json=body.params,
+            instance_id=body.instance_id,
+            scope=body.scope,
+        )
+    except alert_user_series.AdmissionRefused as exc:
+        # ⛔ THE ADMISSION CHAIN, REACHED — and its refusal is the USER'S answer,
+        # not a 500. `ias.create` raises BEFORE the INSERT, so a refusal here
+        # means nothing was armed and there is nothing to go quiet.
+        raise _refusal_to_400(exc) from exc
     return {"id": alert_id}
 
 
@@ -215,11 +297,24 @@ def get_current_value(sym: str, tf: str, indicator: str,
 
     ⚠️ DECLARED ABOVE `/{alert_id}`, like `/catalog` and `/fired`.
     """
-    address = indicator_alert_evaluator.resolve_address((indicator or "").strip())
-    if indicator_alert_evaluator.value_function(address) is None:
-        raise HTTPException(
-            status_code=400,
-            detail=f"{indicator!r} is not an indicator this chart can evaluate.")
+    raw = (indicator or "").strip()
+    # ⭐ THE SAME SCOPED RESOLUTION THE CREATE PATH MAKES, FOR THE SAME REASON.
+    # This gate carried the identical `value_function(...) is None` refusal, so
+    # the threshold box on a user formula opened on a 400 rather than on a number
+    # — the prefill half of the same dead seam.
+    user_fn = None
+    if alert_user_series.is_user_address(raw):
+        try:
+            user_fn = alert_user_series.user_value_function(user["id"], raw)
+        except alert_user_series.AdmissionRefused as exc:
+            raise _refusal_to_400(exc) from exc
+        address = raw
+    else:
+        address = indicator_alert_evaluator.resolve_address(raw)
+        if indicator_alert_evaluator.value_function(address) is None:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{indicator!r} is not an indicator this chart can evaluate.")
     parsed: dict[str, Any] = {}
     if params:
         try:
@@ -232,12 +327,16 @@ def get_current_value(sym: str, tf: str, indicator: str,
     try:
         bars = indicator_alert_evaluator._fetch_bars_for_alert(
             sym.upper(), tf, 200)
-        value = indicator_alert_evaluator.address_value(address, bars, parsed)
+        value = (user_fn(bars, parsed) if user_fn is not None
+                 else indicator_alert_evaluator.address_value(address, bars, parsed))
     except Exception as exc:  # noqa: BLE001 - a prefill is never worth a 500
         return {"value": None, "detail": f"{type(exc).__name__}: {exc}"}
+    label = (alert_user_series.instance_label_for(user["id"], address, parsed)
+             if user_fn is not None
+             else indicator_alert_evaluator.instance_label(address, parsed))
     return {
         "value": None if value is None else float(value),
-        "instance_label": indicator_alert_evaluator.instance_label(address, parsed),
+        "instance_label": label,
     }
 
 

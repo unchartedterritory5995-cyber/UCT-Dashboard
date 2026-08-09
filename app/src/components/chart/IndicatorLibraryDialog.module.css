@@ -64,6 +64,55 @@
 }
 .rowOn { background: var(--bg-elevated); border-color: var(--border-accent); }
 
+/* A member's OWN formula. ⛔ A LEADING RULE, NOT A BACKGROUND WASH: `.rowOn`
+   already owns this row's background and border-colour, and a second background
+   here would either fight it or silently win, so the provenance mark is a channel
+   `.rowOn` does not use. Colour is never the only signal — the row also carries
+   `data-user-defined` and the "Your formula" pill. */
+.rowMine { border-left: 2px solid var(--ut-gold-glow); border-radius: 6px; }
+
+/* A member's formula the gates REFUSED. ⛔ NOT A CONTROL: it reuses `.row`'s
+   geometry so it reads as the same kind of thing in the same list, and overrides
+   the two properties that would make it look clickable. `default` rather than
+   `not-allowed` — nothing here is disabled-pending-permission; there is simply
+   nothing to click. */
+.refusedRow { cursor: default; }
+.refusedRow:hover {
+  background: none;
+  border-color: transparent;
+  /* `.row:hover` sets `border-color` wholesale, which would take out the gold
+     leading rule `.rowMine` puts on this row. Restored explicitly. */
+  border-left-color: var(--ut-gold-glow);
+}
+
+/* The surface's own one-line framing. Muted, because the sentence that matters
+   is the gate's underneath it. */
+.refusedLede {
+  margin: 0 0 2px;
+  padding: 0 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+/* The gate's own sentence. ⚠️ WARNING-COLOURED, and that is the one place this
+   surface departs from `.badge`'s "a fact is not a warning" rule — because this
+   is not a property of an indicator, it is a REFUSAL of the member's own work
+   and something they may be able to fix.
+   ⛔ `--ind-warn`, NEVER `--warn`: tokens.css states outright that `--warn` IS
+   the premium gold and that using it for a warning conflates "warning" with
+   "premium brand" (there is a designTokens test on exactly that). This surface's
+   header also allows itself at most ONE gold element and that is `.tier`.
+   `overflow-wrap` because these sentences are long by design — they name the
+   guard, the measurement and the caps — and a sentence clipped at the sheet's
+   edge is the silence this whole block exists to remove. */
+.refusedWhy {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ind-warn);
+  overflow-wrap: anywhere;
+}
+
 .check {
   flex: 0 0 16px;
   padding-top: 2px;
@@ -105,13 +154,48 @@
 
 /* The repaint badge. ⛔ INFORMATIONAL, NEVER ERROR-COLOURED (spec §6 state 9):
    "non-repainting" is a factual property of the indicator, and painting a fact
-   red teaches users to read a correct indicator as a broken one. */
+   red teaches users to read a correct indicator as a broken one.
+   ⚰️ NO ROW RENDERS THIS TODAY — `.badgeRepaint` below replaced it when the badge
+   became the LINTER'S measurement instead of the definition's declared claim. It
+   is kept because the geometry is shared and because a class deleted with its
+   reasoning is a reasoning nobody can find. */
 .badge {
   padding: 1px 6px;
   font-size: 10px;
   color: var(--text-muted);
   background: var(--bg-surface);
   border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+/* The MEASURED repaint badge — `.badge`'s geometry, warning-coloured.
+   ⚠️ THIS IS THE SECOND PLACE THIS SURFACE DEPARTS FROM "a fact is not a
+   warning", and for `.refusedWhy`'s reason one step over: the neutral treatment
+   is right for a property a member cannot act on, and wrong for one that says a
+   line they are about to trade off can still move under them. It renders on
+   exactly the definitions the linter MEASURED and found not clean — one of
+   seventeen today — so it is never the uniform column the neutral badge was.
+   ⛔ `--ind-warn`, NEVER `--warn`: tokens.css states outright that `--warn` IS
+   the premium gold, and this header allows itself at most ONE gold element
+   (`.tier`). */
+.badgeRepaint {
+  padding: 1px 6px;
+  font-size: 10px;
+  color: var(--ind-warn);
+  background: var(--ind-warn-bg);
+  border: 1px solid var(--ind-warn-border);
+  border-radius: 4px;
+}
+
+/* "Your formula" — provenance, stated in words. Reuses the informational
+   treatment `.pill` already carries rather than minting a third badge colour:
+   this is a fact about who authored the row, not a warning and not a tier. */
+.mine {
+  padding: 1px 6px;
+  font-size: 10px;
+  color: var(--info);
+  background: var(--info-bg);
+  border: 1px solid var(--info-border);
   border-radius: 4px;
 }
 
@@ -131,4 +215,32 @@
   font-size: 12px;
   line-height: 1.45;
   color: var(--text-muted);
+}
+
+/* "+ Add another" — chart-UX-walls Task 6. Sits at the END of a row that is
+   already on, so the checkmark and the name keep their positions and nothing
+   moves when a row is toggled. `margin-left: auto` pushes it to the trailing
+   edge; the row itself is the toggle, so this button stops propagation in JS.
+   `min-height: var(--tap-min)` because every control on a touch surface is a
+   44px target (spec §7 / tokens.css) and this one sits inside a `Sheet` that is
+   a bottom sheet on a phone. */
+.addAnother {
+  flex: 0 0 auto;
+  margin-left: auto;
+  align-self: center;
+  min-height: var(--tap-min);
+  padding: 0 10px;
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.addAnother:hover, .addAnother:focus-visible {
+  color: var(--text-bright);
+  border-color: var(--border-accent);
+  outline: none;
 }

@@ -6,6 +6,8 @@ import { FiltersSheet } from '../../components/mobile'
 import CompanyLogo from '../../components/CompanyLogo'
 import UIcon from '../../components/ui/UIcon'
 import useSectorRead from '../../hooks/useSectorRead'
+import { currentWeekMonday, localIso } from './weekAnchor'
+import { todayIsoEt } from './calendarTime'
 import styles from './Calendar.module.css'
 
 const AUDIENCE = [
@@ -194,21 +196,17 @@ function CalendarSearch({ onJump, onDidJump, quickQ, setQuickQ }) {
 
 // ── Week picker popover (± 8 weeks) ──────────────────────────────────────────
 
-// Local-parts ISO formatter — toISOString() converts to UTC and shifts the
-// date for UTC+13/+14 browsers (NZDT, Samoa), turning every Monday into a
-// Sunday and breaking the arrows/picker for those users.
-function localIso(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
 // The picker anchors on the TRUE current week's Monday (ET), regardless of
 // which week is being viewed — offset 0 is always "this week".
+//
+// This was a FOURTH private copy of the week anchor (a local `localIso` + a
+// local `mondayOfTodayEt` that snapped BACK on weekends). It now calls the one
+// in ./weekAnchor.js, so the "this week" row of the picker and the ‹ › arrows
+// and the backend all mean the same week — on a Saturday the old copy labelled
+// the week just PAST as "this week", and picking it wrote a `?week=` the
+// backend resolved to the week already on screen.
 function mondayOfTodayEt() {
-  const iso = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' })
-    .format(new Date())
-  const d = new Date(iso + 'T12:00:00')
-  d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
-  return localIso(d)
+  return currentWeekMonday(todayIsoEt())
 }
 
 function fmtPickerWeek(mondayIso) {

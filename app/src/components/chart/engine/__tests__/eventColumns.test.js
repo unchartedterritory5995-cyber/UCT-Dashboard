@@ -40,6 +40,7 @@ import {
   hasAnyFinite,
 } from '../nativeRegistry'
 import { EVENT_COLUMN_DOMAIN, isEventColumnValue } from '../defSchema'
+import { REGISTRY_SIZES } from '../registrySizes'
 import { computeParabolicSAR, computeParabolicSAREvents } from '../../indicators'
 import { stripComments } from './sourceScan'
 
@@ -206,7 +207,7 @@ const SHIPPED_COLUMNS = Object.freeze({
 describe('columnKeys — plots ∪ events', () => {
   it('every shipped definition returns exactly the columns written down above', () => {
     const defs = listDefinitions()
-    expect(defs.length, 'the registry changed size — re-read SHIPPED_COLUMNS').toBe(17)
+    expect(defs.length, 'the registry changed size — re-read SHIPPED_COLUMNS').toBe(REGISTRY_SIZES.total)
     expect(Object.keys(SHIPPED_COLUMNS).sort()).toEqual(defs.map(d => d.id).sort())
     for (const def of defs) {
       expect(columnKeys(def), def.id).toEqual(SHIPPED_COLUMNS[def.id])

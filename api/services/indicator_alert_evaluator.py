@@ -40,6 +40,15 @@ constant in its own commit, after the shadow-mode soak — spec §8. Until then 
 closed lane is reachable only by asking for it explicitly (``mode="closed"``),
 which is what the tests do.
 
+⭐ AND THE LANE NOW HAS A ROLLBACK LEVER: the ``ALERT_EVAL_MODE`` **environment
+variable** overrides the constant, so the mode can be reverted from the Railway
+dashboard without a git push — the only mitigation that exists inside the
+09:15-16:20 ET push freeze. It ships INERT (no such variable is set on the web
+service) and it is read in exactly one place, inside ``eval_mode()``. The full
+argument, including why an unrecognised value is REFUSED rather than guessed at,
+is at the constant itself; the operator procedure is
+``docs/runbooks/cutover-watch.md`` §6.
+
 ⭐ AND THERE IS NOW A DOOR TO THE SIGNATURE RECEIPTS LEDGER, WITH A LOCK ON IT.
 ``admit_alert_fire`` is the only way a fire from this module reaches
 ``signature.ledger``, and it REFUSES — by raising, never by returning False —
@@ -52,6 +61,7 @@ control the moment it stops being true, so it names the gate instead, and
 from __future__ import annotations
 
 import logging
+import os
 import threading
 import time
 from collections import defaultdict
@@ -107,14 +117,128 @@ _thread: Optional[threading.Thread] = None
 # asserted by IMPORTING this module and CALLING the closed lane directly
 # (`tests/test_alert_closed_bar.py`), which is the evidence the JS side could not
 # produce.
-ALERT_EVAL_MODE = "forming"        # "forming" | "closed"
+ALERT_EVAL_MODE = "closed"         # "forming" | "closed"
 
 EVAL_MODES: tuple[str, ...] = ("forming", "closed")
 
+# ─── THE ROLLBACK LEVER: ONE ENVIRONMENT VARIABLE, NO DEPLOY ─────────────────
+#
+# ⭐ THE CONSTANT ABOVE IS THE COMMITTED DEFAULT; THIS VARIABLE OVERRIDES IT.
+# Until this existed, changing the lane was a code edit + a push + a Railway
+# build — ~10 minutes — and the pre-push hook BLOCKS pushes 09:15-16:20 ET,
+# which is precisely the window a rollback would be wanted in. The owner flips
+# the constant after Friday's close; a closed-lane defect surfaces Monday DURING
+# the session; without a lever that is a full trading session of wrong alert
+# behaviour with no mitigation. `railway variables --set ALERT_EVAL_MODE=forming`
+# is now the whole rollback, and Railway redeploys on the variable change by
+# itself.
+#
+# ⛔ THIS IS THE ROLLBACK LEVER, NOT THE CUTOVER. Task 8 flips the CONSTANT, in
+# its own commit, after the soak — setting this variable to "closed" ahead of it
+# would move production from a dashboard with no commit, no review and no test
+# run. `tools/cutover_watch.py` refuses GO while ANY override is in play, which
+# is the rail against exactly that.
+#
+# ⚠️ AN UNRECOGNISED VALUE IS REFUSED, LOUDLY, AND THE COMMITTED DEFAULT STANDS.
+# `ALERT_EVAL_MODE=closd` names no lane. The three candidate behaviours:
+#   * silently pick a lane  — how a rollback becomes a NO-OP at the worst
+#     possible moment. Rejected outright; it is one of the mutations this seam
+#     is tested against.
+#   * fail startup          — Railway then keeps serving the LAST SUCCESSFUL
+#     deploy, which still carries the OLD environment, so the mode does not
+#     change either AND the deploy is broken. Loud but doubly ineffective.
+#   * REFUSE the override, keep the committed default, and make the refusal
+#     READABLE — chosen. The operator's very next step (the readback in
+#     `docs/runbooks/cutover-watch.md` §6) says in one line that the override was
+#     refused and which lane is actually running.
+#
+# ⚠️ AND IT MUST NOT BECOME A SECOND WAY FOR THE REPORTED MODE AND THE EFFECTIVE
+# MODE TO DISAGREE. Task 8's mandated mutation is a tombstone — `eval_mode()`
+# hardcoded "closed" while the constant still reads "forming" — so this lever,
+# which legitimately makes the constant differ from the running lane, has to be
+# EXPLAINABLE rather than merely different. `eval_mode_report()` answers that in
+# one object, and its `effective` field IS `eval_mode()` itself, not a
+# re-derivation that could drift from the lane that runs.
+ALERT_EVAL_MODE_ENV = "ALERT_EVAL_MODE"
+
+#: Refusals keyed by the RAW value, so the ERROR line is logged ONCE per distinct
+#: typo while the count keeps growing. `eval_mode()` is called once per armed
+#: alert per 60 s cycle; a lever that floods 31 identical lines a minute is a
+#: lever whose one important line cannot be found. The count is exposed by
+#: `eval_mode_report()`, so the evidence survives the log window.
+_EVAL_MODE_REFUSALS: dict[str, int] = {}
+
+
+def _override_raw() -> Optional[str]:
+    """THE ONE `os.environ` READ FOR THE LANE — read at CALL time, never cached.
+
+    Cached at import, `railway variables --set` would need a process restart to
+    take effect, and a rollback that needs a second deploy is not a rollback.
+    `alert_shadow_log.enabled()` reads its flag the same way and says so for the
+    same reason. Kept as its own function so the env lookup has ONE site, the way
+    the constant has one reader — a scattered `os.environ.get` is a branch no
+    test can drive, which is the defect the one-reader rule exists against.
+    """
+    return os.environ.get(ALERT_EVAL_MODE_ENV)
+
 
 def eval_mode() -> str:
-    """Which lane an unqualified `_evaluate_one` runs. THE ONLY READER."""
+    """Which lane an unqualified `_evaluate_one` runs. THE ONLY READER.
+
+    The environment wins when it names a lane; the committed constant stands in
+    every other case — unset, blank, or unrecognised. Blank is NOT a typo: a
+    Railway variable emptied rather than deleted is how an operator un-does the
+    override, and treating "" as a refusal would log an ERROR and report a
+    refusal at exactly the moment the lever was correctly stood down.
+    """
+    raw = _override_raw()
+    candidate = (raw or "").strip().lower()
+    if not candidate:
+        return ALERT_EVAL_MODE
+    if candidate in EVAL_MODES:
+        return candidate
+    _EVAL_MODE_REFUSALS[raw] = _EVAL_MODE_REFUSALS.get(raw, 0) + 1
+    if _EVAL_MODE_REFUSALS[raw] == 1:
+        # ⚠️ ASCII ONLY IN THE MESSAGE ITSELF. cp1252 has killed a process's own
+        # stdout on this box twice; a refusal that raises while being logged is a
+        # refusal nobody reads.
+        _logger.error(
+            "[alert-eval] REFUSED %s=%r -- it names no lane (%s). The evaluation "
+            "lane is UNCHANGED and is running %r. IF THIS WAS A ROLLBACK, IT HAS "
+            "NOT TAKEN: fix the value and let Railway redeploy.",
+            ALERT_EVAL_MODE_ENV, raw, "|".join(EVAL_MODES), ALERT_EVAL_MODE)
     return ALERT_EVAL_MODE
+
+
+def eval_mode_report() -> dict:
+    """The EFFECTIVE lane and everything that decided it — the operator readback.
+
+    ⭐ `effective` IS `eval_mode()`, THE SAME CALL PRODUCTION MAKES. A report that
+    re-derived the answer from the environment could say one thing while the
+    evaluator ran another, which is the tombstone class this phase mutates for.
+    Whatever mutates the lane mutates this report with it, by construction.
+
+    Deliberately does NOT carry the committed constant: naming it here would be a
+    second reader of `ALERT_EVAL_MODE` and `test_eval_mode_is_the_ONLY_reader_of_
+    the_constant` would (correctly) go red. `tools/cutover_watch.py` prints the
+    constant beside this — through a dynamic `getattr`, for display, never as a
+    branch — so an operator sees BOTH numbers and, when they differ, the reason.
+    """
+    effective = eval_mode()
+    raw = _override_raw()
+    candidate = (raw or "").strip().lower()
+    present = bool(candidate)
+    recognised = candidate in EVAL_MODES
+    return {
+        "effective": effective,
+        "env_var": ALERT_EVAL_MODE_ENV,
+        "env_value": raw,
+        "override_present": present,
+        "override_applied": present and recognised,
+        "override_refused": present and not recognised,
+        "refusals": sum(_EVAL_MODE_REFUSALS.values()),
+        "modes": list(EVAL_MODES),
+    }
 
 
 # ─── indicator dispatch ──────────────────────────────────────────────────────
@@ -291,6 +415,29 @@ THRESHOLD_ADDRESSES: tuple[str, ...] = tuple(INDICATOR_FUNCS)
 ADDRESS_PARTITIONS: tuple[AddressFuncs, ...] = (
     INDICATOR_FUNCS, EVENT_FUNCS, PRICE_FUNCS,
 )
+
+# ─── PHASE D TASK 12: THE FOURTH PARTITION, AND WHY IT IS NOT ABOVE ──────────
+#
+# ⭐ `alert_user_series.USER_FUNCS` IS THE FOURTH ADDRESS PARTITION AND IT IS
+# DELIBERATELY ABSENT FROM `ADDRESS_PARTITIONS`. Everything above is GLOBAL:
+# `rsi` means the same thing for every account. A user address (`u_<12 hex>
+# .<plotKey>`) means something to exactly one account, so it cannot live in a
+# table keyed by the bare address without one person's formula being able to
+# answer for another — `USER_FUNCS` is keyed `<user_id>\x1f<address>` instead and
+# is reachable ONLY through `alert_user_series.user_value_function(user_id, …)`.
+#
+# ⛔ AND THE ABSENCE IS THE HEADLINE GATE OF THAT TASK, NOT A DETAIL.
+# `tools/alert_replay.py::build_alert_grid` generates the frozen replay grid by
+# iterating `INDICATOR_FUNCS`, in order; 685,193 recorded fires hang off that
+# iteration and `--diff` covers 31 addresses because `all_addresses()` walks
+# exactly the three tuples above. Phase C Task 3 split `EVENT_FUNCS` off rather
+# than growing `INDICATOR_FUNCS` for that reason, Task 10 split `PRICE_FUNCS` off
+# on the same argument, and this is the third time the same argument is made.
+# Adding the user table to either place changes the shape of the instrument every
+# other gate in Phases B, C and D is measured with.
+#
+# The two rails that hold it: `all_addresses()` is asserted to hold no user
+# address, and `value_function()` is asserted to answer `None` for one.
 
 
 def all_addresses() -> list[str]:
@@ -739,13 +886,27 @@ def instance_label(address: str, params: Optional[dict] = None) -> str:
     return f"{base}({', '.join(parts)})"
 
 
-def alert_catalog() -> list[dict]:
+def alert_catalog(user_id: Optional[Any] = None) -> list[dict]:
     """What the alert dropdown may offer, grouped by indicator.
 
     Keyed off the three address partitions, so an entry cannot exist for
     something that cannot be evaluated. Raises ``KeyError`` on a value function
     with no condition list — a new address has to fail HERE rather than render
     an empty condition dropdown and an un-submittable form.
+
+    ⭐ `user_id` APPENDS THAT ACCOUNT'S OWN FORMULAS, AND IT APPENDS THEM — the
+    global groups above are computed first and are not touched. Omitting it is
+    the enumeration every rail in this phase measures (`all_addresses()` 31,
+    `--diff` 31/31, 16 groups) and it reaches no store at all, so a caller that
+    does not have an account in hand gets byte-for-byte what this always
+    returned.
+
+    ⛔ AND THE USER ENTRIES DO NOT COME FROM A FOURTH PARTITION. `USER_FUNCS` is
+    keyed `<user_id>\\x1f<address>` and is absent from `ADDRESS_PARTITIONS` on
+    purpose (see the block above it); they are assembled by
+    `alert_user_series.user_catalog`, which is handed the id. That is what makes
+    "a user formula is offerable" and "the global address space is frozen" both
+    true at once, instead of trading one for the other.
 
     ⭐ EACH PLOT CARRIES ITS `inputs` (PHASE C TASK 10). That is the INSTANCE's
     shape — the knobs whose values make `RSI(7)` a different alert from
@@ -805,6 +966,9 @@ def alert_catalog() -> list[dict]:
             "default_threshold": plots[0]["default_threshold"],
             "plots": plots,
         })
+    if user_id:
+        from api.services import alert_user_series
+        entries.extend(alert_user_series.user_catalog(user_id))
     return entries
 
 
@@ -878,6 +1042,33 @@ def _parse_params(alert: dict) -> dict:
         return {}
 
 
+def _user_value_function(alert: dict, bars: Optional[list[dict]] = None):
+    """The alert row's USER formula, or ``None`` if it names a builtin address.
+
+    ⚠️ IT READS THE RAW `indicator`, NOT `resolve_address`'s answer.
+    `resolve_address` case-folds and falls back to the LOWERCASED input for an
+    unknown address, and a user plot key may be camelCase (`u_abc.fastLine`) —
+    folding it would look up a key the definition does not declare and answer
+    "no such plot" for a plot that exists. The builtin tables need folding
+    because eight legacy keys are stored lowercase; the user namespace has no
+    legacy and keeps the spelling the definition uses.
+
+    ⛔ RAISES `alert_user_series.AdmissionRefused` for a user address whose
+    definition no longer passes admission. `None` means only "not a user
+    address".
+
+    ⭐ `bars` IS FORWARDED, AND THAT IS NOT AN OPTIMISATION. On a registry miss
+    the user lane RE-ENTERS the arm-time 1e-9 cross-lane proof (an edit moved the
+    tree, or this process is fresh), and that proof has to be taken on the SAME
+    series the value is then computed from — this cycle's fetch for this (sym,
+    tf) group. Left to fetch its own it would prove the equality on a second read
+    of the tape and compute the number from the first. `None` falls back to
+    `_fetch_bars_for_alert`, which is what a genuine arm does.
+    """
+    from api.services import alert_user_series
+    return alert_user_series.value_function_for_alert(alert, bars)
+
+
 def _evaluate_one(alert: dict, bars: Optional[list[dict]] = None, *,
                   mode: Optional[str] = None,
                   now_epoch: Optional[float] = None) -> tuple[Optional[float], bool]:
@@ -910,6 +1101,17 @@ def _evaluate_one(alert: dict, bars: Optional[list[dict]] = None, *,
     # `_CANONICAL_ADDRESS`.
     indicator = resolve_address(alert.get("indicator"))
     fn = value_function(indicator)
+    if fn is None:
+        # ⭐ PHASE D TASK 12 — THE USER LANE, AND IT IS RESOLVED OUTSIDE THE
+        # try/except BELOW ON PURPOSE. `alert_user_series` RAISES
+        # `AdmissionRefused` naming the gate that refused (repaint / budget /
+        # definition / lane); swallowing that into `(None, False)` would make a
+        # refused user alert byte-identical to an admitted one on a quiet market,
+        # which is the *"refused by a different door"* defect this branch has
+        # measured five times. It propagates to `_run_one_cycle`'s per-alert
+        # handler, which logs it and counts an error — visible, attributable, and
+        # never silent.
+        fn = _user_value_function(alert, bars)
     if fn is None:
         return None, False
 
@@ -966,8 +1168,9 @@ def _evaluate_one(alert: dict, bars: Optional[list[dict]] = None, *,
 
 # ─── THE CLOSED-BAR LANE (spec §8) ───────────────────────────────────────────
 #
-# Everything below is reachable today only by asking for it (`mode="closed"`).
-# `ALERT_EVAL_MODE` is `"forming"`, so no armed alert reaches any of it.
+# Everything below IS the shipped lane as of the cutover: `ALERT_EVAL_MODE` is
+# `"closed"`, so every armed alert reaches it. The forming lane above is now the
+# one reachable only by asking (`mode="forming"`, or the rollback variable).
 
 # Minutes per intraday timeframe code. `D`/`W`/`M` are NOT here: their bars are
 # stored as YYYYMMDD calendar keys and a month is not a fixed number of seconds,
@@ -975,6 +1178,110 @@ def _evaluate_one(alert: dict, bars: Optional[list[dict]] = None, *,
 _TF_MINUTES: dict[str, int] = {"1": 1, "5": 5, "15": 15, "30": 30, "60": 60}
 
 _CALENDAR_TFS: tuple[str, ...] = ("D", "W", "M")
+
+# ⛔ AND `_TF_MINUTES["60"]` IS A LENGTH THE HOURLY GRID DOES NOT ACTUALLY HAVE.
+# `bars_fetch.bucket_60_et_unix_seconds` gives the regular-session open its OWN
+# bucket, so an hourly session runs 04:00…09:00, **09:30**, 10:00…19:00 and BOTH
+# the 09:00 and the 09:30 bar span THIRTY minutes. Answering `t + 3600` for those
+# two declared them open for half an hour after the store had stopped writing to
+# them, which under `ALERT_EVAL_MODE = "closed"` is a member waiting thirty extra
+# minutes for an alert on the busiest half hour of the day (measured at exactly
+# 1800 s on 20 real bars, `tests/test_alert_bar_close_60m_grid.py`). 1/5/15/30 are
+# a plain UTC-second floor in `bar_rollup.bucket_start`, so `t + minutes*60` is
+# right for them and only the hourly branch is resolved through the grid.
+_HOURLY_TF = "60"
+
+# The longest a 60-minute bucket can be. Normally 3600; on the DST fall-back day
+# 01:00 ET happens twice and the 01:00 bucket really is 7,200 s long. A bucket
+# longer than this is not resolved at all rather than guessed at.
+_HOURLY_MAX_BUCKET_SECONDS = 2 * 3600
+
+# Bounded memo for the boundary search below (~13 zone conversions per miss, and
+# a 60-second cycle asks about the same handful of bucket starts over and over).
+# Bounded because this module lives in a process that runs for weeks.
+_HOURLY_CLOSE_MEMO: dict[int, float] = {}
+_HOURLY_CLOSE_MEMO_MAX = 4096
+
+
+def _hourly_bucket_close_epoch(t) -> Optional[float]:
+    """When the 60-minute bucket starting at ``t`` stops being able to change.
+
+    ⭐ DERIVED FROM `bars_fetch.bucket_60_et_unix_seconds`, NEVER RE-ENCODED, and
+    that is the whole design. That function is the ONE bucketer: the REST
+    resample path (`bars_fetch._session_resample_hourly`) and the WebSocket
+    rollup path (`bar_rollup.bucket_start`) already share it precisely so a
+    second copy of the rule cannot drift and plant two candles at neighbouring
+    `ts` (the FMP-timezone failure shape). This lane is the THIRD consumer and it
+    joins by asking the same function, not by writing `if hour == 9 and minute >=
+    30` a third time. A `{"09:00": 1800}` table here would be exactly the second
+    vocabulary this module warns about everywhere else.
+
+    ⛔ SO THE ANSWER IS A SEARCH, NOT ARITHMETIC: the smallest instant strictly
+    after ``t`` that the bucketer puts in a DIFFERENT bucket. That instant is, by
+    construction, the first moment at which no further print can be routed into
+    this row — which is what "closed" means here. It cannot be EARLY unless the
+    bucketer itself is wrong, and if the bucketer is wrong the STORE is wrong in
+    the same direction at the same moment, because it is the same function.
+    `bucket_60_et_unix_seconds` is monotone non-decreasing in `t`, so the
+    boundary is unique in the window and a bisection finds it exactly.
+
+    ``None`` — meaning "fall back to the nominal length" — for three cases, all
+    of which are LATE-not-early and therefore safe:
+      * ``t`` is not a bucket start the bucketer recognises (an off-grid row; the
+        corpus found real ones, e.g. MSTR 5m at ``12:33:48``). "When does a row
+        that is not a bucket stop changing" has no answer, and the containing
+        bucket's close is at most an hour past its own start, hence at most an
+        hour past ``t``.
+      * the bucket is longer than `_HOURLY_MAX_BUCKET_SECONDS`.
+      * the boundary found is not itself a bucket start, or the import/zone
+        lookup fails. A failure here must not become `None` all the way out of
+        `bar_close_epoch`: `closed_bar_index` reads that as "cannot claim this
+        bar has closed", so an unavailable IANA database would turn into hourly
+        alerts that never fire at all. The nominal fallback is exactly the
+        behaviour shipping today.
+    """
+    if isinstance(t, bool) or not isinstance(t, (int, float)):
+        return None
+    try:
+        key = int(t)
+    except (OverflowError, ValueError):
+        return None
+    if key != t:                      # a fractional start is not a bucket start
+        return None
+    hit = _HOURLY_CLOSE_MEMO.get(key)
+    if hit is not None:
+        return hit
+    try:
+        from api.services.bars_fetch import bucket_60_et_unix_seconds as _bucket
+        bucket = _bucket(key)
+        # ⛔ THE ONE GUARD THAT REFUSES AN OFF-GRID `t`, AND IT IS THE ONLY
+        # MECHANISM DOING IT. An earlier draft compared the search against `key`
+        # instead of `bucket`, which made this line unkillable dead code: an
+        # off-grid `t` fell out as `None` anyway, so a mutation deleting the
+        # guard SURVIVED as a semantic no-op. Comparing against `bucket` states
+        # the intent ("the bucket CONTAINING t") and leaves exactly one thing to
+        # break — and breaking it now returns the containing bucket's close for a
+        # row that is not a bucket, which is EARLY.
+        if bucket != key:
+            return None
+        lo, hi = key, key + _HOURLY_MAX_BUCKET_SECONDS
+        if _bucket(hi) == bucket:
+            return None
+        while hi - lo > 1:
+            mid = (lo + hi) // 2
+            if _bucket(mid) == bucket:
+                lo = mid
+            else:
+                hi = mid
+        if hi <= key or _bucket(hi) != hi:
+            return None
+    except Exception:
+        return None
+    close_at = float(hi)
+    if len(_HOURLY_CLOSE_MEMO) >= _HOURLY_CLOSE_MEMO_MAX:
+        _HOURLY_CLOSE_MEMO.clear()
+    _HOURLY_CLOSE_MEMO[key] = close_at
+    return close_at
 
 
 def _bar_calendar_date(t) -> Optional["object"]:
@@ -1040,7 +1347,15 @@ def bar_close_epoch(t, tf: str) -> Optional[float]:
     remove it. So the daily boundary is the next ET midnight, the same boundary
     `compute_vwap` anchors its session on.
 
-    Intraday bars carry a unix-second START and close a timeframe later.
+    Intraday bars carry a unix-second START. 1/5/15/30 are a plain UTC-second
+    floor, so they close a timeframe later. ⛔ 60 DOES NOT: the hourly grid gives
+    the regular-session open its own bucket, so the 09:00 and the 09:30 bars span
+    THIRTY minutes and `t + 3600` left both of them looking open for half an hour
+    after the store had stopped writing to them — measured at exactly 1800 s on
+    20 real bars. The hourly boundary is therefore DERIVED from the one canonical
+    bucketer (`_hourly_bucket_close_epoch`), with the nominal length kept only as
+    the fallback for a `t` that grid cannot resolve.
+
     Weekly closes seven ET days on. Monthly closes at the next month's ET
     midnight — deliberately a CALENDAR step and not `+30 days`, which is wrong
     for eleven months of twelve.
@@ -1055,6 +1370,10 @@ def bar_close_epoch(t, tf: str) -> Optional[float]:
     if minutes is not None:
         if isinstance(t, bool) or not isinstance(t, (int, float)):
             return None
+        if code == _HOURLY_TF:
+            grid = _hourly_bucket_close_epoch(t)
+            if grid is not None:
+                return grid
         return float(t) + minutes * 60
     if code not in _CALENDAR_TFS:
         return None
@@ -1165,7 +1484,16 @@ def _evaluate_one_closed(alert: dict, bars: Optional[list[dict]] = None, *,
     from api.services import alert_series
 
     address = resolve_address(alert.get("indicator"))
-    if alert_series.series_function(address) is None:
+    series_fn = alert_series.series_function(address)
+    if series_fn is None:
+        # PHASE D TASK 12 — the user lane's COLUMN. Same seam, same reason it sits
+        # outside the try/except below: an `AdmissionRefused` here is attributable
+        # and must not be flattened into a quiet no-fire. `fn.column` is the value
+        # function's OWN column, so the two lanes cannot resolve a user definition
+        # twice and disagree about which tree was admitted.
+        user_fn = _user_value_function(alert, bars)
+        series_fn = getattr(user_fn, "column", None) if user_fn is not None else None
+    if series_fn is None:
         return None, False, None
 
     if bars is None:
@@ -1182,7 +1510,15 @@ def _evaluate_one_closed(alert: dict, bars: Optional[list[dict]] = None, *,
 
     params = _parse_params(alert)
     try:
-        series = alert_series.series_for(address, bars, params)
+        series = series_fn(bars, params)
+        if len(series) != len(bars):
+            # The identical assertion `alert_series.series_for` makes, kept HERE
+            # because resolving the function up front is what lets one call site
+            # serve both the builtin table and the user partition. A column one
+            # element short shifts every bar index silently and this lane would
+            # read the wrong bar forever.
+            raise AssertionError(
+                f"{address}: series is {len(series)} long for {len(bars)} bars")
     except AssertionError:
         # A misaligned column is a BUG in a series function, not a quiet bar.
         raise
@@ -1225,10 +1561,23 @@ def _evaluate_one_closed(alert: dict, bars: Optional[list[dict]] = None, *,
 # fire-once cannot survive"*. A refusal that returned False would be that lie,
 # and it would be indistinguishable from the steady state.
 #
-# ⛔ NOTHING CALLS THIS YET, AND THAT IS DELIBERATE. `_run_one_cycle` is the live
-# lane; while `ALERT_EVAL_MODE` is `"forming"` a call from there would raise on
-# every fire. Wiring belongs AFTER the cutover, never as part of it — spec §8 and
-# the phase plan both say the door opens after the flip, not with it.
+# ⭐ THE DOOR IS OPEN, AND `_accrue_ledger_receipt` IS ITS ONE CALLER.
+# Spec §8 and the phase plan both say the ledger door opens AFTER the flip and
+# never as part of it: the cutover is one revertible line, and a commit that also
+# started writing append-only rows into the Signature ledger would not be. The
+# flip shipped, `ALERT_EVAL_MODE` reads `"closed"`, the mode gate below is
+# satisfied — and this is that separate decision, taken with its own evidence.
+# It had to be taken: spec §12's Phase E row needs the ledger to hold
+# public-worthy HISTORY, and a door with no caller writes no receipts, so that
+# history could never begin.
+#
+# ⛔ ONE CALL SITE, AND THE COUNT IS STILL A GATE — IT MOVED, IT WAS NOT DELETED.
+# The zero was asserted for eight tasks precisely so an accidental second writer
+# would be caught; the ONE is asserted the same way and for the same reason, by
+# `tests/test_alert_ledger_admission.py::test_the_door_has_EXACTLY_ONE_production
+# _call_site`, which resolves every call in `api/` + `tools/` through each file's
+# own imports. A grep cannot do this job and has lied about it three times on
+# this branch — it counts the prose in this very comment.
 
 # The ledger's `version` column exists so a rule whose ARITHMETIC changed
 # produces a distinguishable row rather than silently reusing a key
@@ -1251,6 +1600,67 @@ _LEDGER_TIMEFRAME: dict[str, str] = {
 
 _NOT_LEDGER_GRADE = "forming-bar fires are not ledger-grade"
 
+# ⭐⭐ PHASE D TASK 12 — SPEC §12: THE DOOR STAYS SHUT FOR USER-AUTHORED FORMULAS.
+#
+# Phase D lets a user's own formula reach a path that can send a notification.
+# It does NOT let one accrue a RECEIPT. The Signature ledger is append-only, has
+# no rewrite path, and is the store the brand's positioning rests on (§10:
+# receipts aimed at burned-vendor customers). A row in it says *UCT's rule fired
+# here*; a user-authored signal in the same table says the same sentence about
+# arithmetic UCT never saw. Spec §12 puts user publishing out of scope **until
+# the ledger can hold publishers accountable**, and until it can, a receipt that
+# cannot be un-published must not be issuable by an account.
+#
+# ⛔ THE MESSAGE IS DISJOINT FROM EVERY OTHER REFUSAL IN THIS FILE, BY
+# MEASUREMENT AND NOT BY CARE. Phase C Task 9's M1 found two gates sharing the
+# phrase "forming-bar fires are not ledger-grade", so `pytest.raises(match=…)`
+# STILL MATCHED WITH THE MODE LOCK DELETED — the test would have passed on a tree
+# with the safety removed. `test_every_ledger_refusal_fragment_names_exactly_one_
+# gate` drives every gate in this door for real and requires each fragment to
+# appear in exactly one of the messages produced.
+_NOT_LEDGER_ELIGIBLE = "user-authored definitions do not accrue receipts"
+
+
+class LedgerAdmissionRefused(RuntimeError):
+    """The ledger door saying no — a NAMED type, still a `RuntimeError`.
+
+    ⛔ SUBCLASSING `RuntimeError` IS DELIBERATE AND IS NOT A COMPROMISE. Every
+    refusal this door has raised since Phase C Task 9 was a bare `RuntimeError`,
+    and its callers and tests catch that. Narrowing the type without widening
+    what the existing rails catch would have quietly stopped them catching
+    anything — the class of change that reads as "tightened" and measures as
+    "removed". `except RuntimeError` still catches every one; `except
+    LedgerAdmissionRefused` now says which door.
+    """
+
+
+def _is_user_authored(alert: dict) -> bool:
+    """Was this fire produced by arithmetic an ACCOUNT wrote?
+
+    ⛔ TWO SIGNALS, DELIBERATELY, AND EACH IS SEPARATELY MEASURED. This is not
+    the accidental redundancy the `AlertBell` fix removed (where a second guard
+    made the first one unkillable); it is Task 9's deliberate kind, where each
+    half answers a question the other cannot:
+
+      * ``def_source == "user"`` is the DURABLE statement, written on the row at
+        arm time. It survives a definition being deleted afterwards, which is
+        exactly when the address no longer resolves to anything.
+      * the ADDRESS being in the user namespace is the STRUCTURAL statement, and
+        it holds for a dict assembled by a caller that never went through
+        `indicator_alert_service.create` — this door takes a mapping, not a row,
+        and a future writer that builds one by hand would carry no column.
+
+    Both spellings of the address are tried because `resolve_address` case-folds
+    and a user plot key may be camelCase; a fire must not become ledger-eligible
+    by being spelled the way the resolver leaves it.
+    """
+    from api.services import alert_user_series
+    if str(alert.get("def_source") or "").strip().lower() == "user":
+        return True
+    raw = alert.get("indicator")
+    return (alert_user_series.is_user_address(raw)
+            or alert_user_series.is_user_address(resolve_address(raw)))
+
 
 def ledger_timeframe(tf: str) -> str:
     """A bars-store timeframe code → the product label the ledger keys on.
@@ -1262,7 +1672,7 @@ def ledger_timeframe(tf: str) -> str:
     """
     label = _LEDGER_TIMEFRAME.get(str(tf or "").strip().upper())
     if label is None:
-        raise RuntimeError(
+        raise LedgerAdmissionRefused(
             f"no product timeframe label for {tf!r} — the ledger keys on the "
             f"label the surface shows ({sorted(set(_LEDGER_TIMEFRAME.values()))}), "
             f"and this lane will not invent one"
@@ -1319,9 +1729,27 @@ def admit_alert_fire(alert: dict, value: Optional[float],
     """
     from api.services.signature import ledger
 
+    # ⭐ THE USER GATE RUNS FIRST, AND THE ORDER IS LOAD-BEARING. Every gate below
+    # is a fact about the LANE or about ONE BAR AND ONE CLOCK — all of them
+    # conditional, all of them things Task 8's cutover and a later wiring change
+    # will move. Whether a formula was authored by an account is none of those:
+    # it is true in every mode, on every bar, at every clock, so a fire from one
+    # must be refused before anything that could report a different reason. Put
+    # last, a user fire in `"forming"` mode would be refused for the MODE — which
+    # is a true sentence about the wrong thing, and the exact "refused by a
+    # different door" reading this branch has now measured five times.
+    if _is_user_authored(alert):
+        raise LedgerAdmissionRefused(
+            f"{_NOT_LEDGER_ELIGIBLE}: alert {alert.get('id')!r} names "
+            f"{alert.get('indicator')!r} (def_source={alert.get('def_source')!r}). "
+            f"The Signature ledger is append-only and its rows are UCT's own "
+            f"published signals; spec §12 keeps user publishing out of scope "
+            f"until the ledger can hold publishers accountable."
+        )
+
     mode = eval_mode()
     if mode != "closed":
-        raise RuntimeError(
+        raise LedgerAdmissionRefused(
             f"{_NOT_LEDGER_GRADE}: ALERT_EVAL_MODE is {mode!r}. The lane that "
             f"produced this fire judges the bar that is still forming, so the "
             f"fire may exist only because of when the loop looked."
@@ -1329,7 +1757,7 @@ def admit_alert_fire(alert: dict, value: Optional[float],
 
     if (not isinstance(bar_index, int) or isinstance(bar_index, bool)
             or not bars or not 0 <= bar_index < len(bars)):
-        raise RuntimeError(
+        raise LedgerAdmissionRefused(
             f"bar_index {bar_index!r} is not a position in the {len(bars or [])}-bar "
             f"window handed in — a receipt must name a bar that exists"
         )
@@ -1345,20 +1773,20 @@ def admit_alert_fire(alert: dict, value: Optional[float],
     # would make the mode test above pass on a tree with the mode gate deleted —
     # the refusal would still match the string while checking something else.
     if close_at is None or now < close_at:
-        raise RuntimeError(
+        raise LedgerAdmissionRefused(
             f"bar {bar_index} (t={bar.get('t')!r}, tf={tf_key!r}) has not closed "
             f"as of {now!r} (closes at {close_at!r}) — a row the store can still "
             f"move is not a receipt"
         )
 
     if not (bar_index < len(bars) - 1 or now >= close_at):   # (3), see docstring
-        raise RuntimeError(
+        raise LedgerAdmissionRefused(
             f"bar {bar_index} is the newest bar in the window and the clock does "
             f"not say it closed"
         )
 
     if value is None:
-        raise RuntimeError(
+        raise LedgerAdmissionRefused(
             "a fire with no value is not a receipt — refusing rather than "
             "recording a signal whose number nobody can read back"
         )
@@ -1383,6 +1811,63 @@ def admit_alert_fire(alert: dict, value: Optional[float],
             "barIndex": bar_index,
         },
     )
+
+
+def _accrue_ledger_receipt(alert: dict, value: Optional[float],
+                           bar_index: Optional[int], bars: list[dict]) -> None:
+    """The door's ONE production call site. Bookkeeping, and it is never in the
+    way of a member's alert.
+
+    ⭐ EVERY REFUSAL THIS SWALLOWS IS SWALLOWED ON PURPOSE, AND THE ALTERNATIVE
+    IS MEASURED. `admit_alert_fire` RAISES rather than returning False (False is
+    spoken for: `ledger.record_signal` uses it for "already recorded" and
+    nothing else). A caller that let one propagate would hand it to
+    `_run_one_cycle`'s per-alert `except`, which logs, counts an error and moves
+    to the next alert — so a member would lose their notification because a
+    RECEIPT was refused. That is the ledger deciding whether an alert fires,
+    which is precisely backwards: the ledger is a record OF the alert lane, not
+    a gate ON it. Refusing a receipt must never silence an alert.
+
+    ⛔ AND THAT IS ALSO WHY THIS RUNS *AFTER* `_dispatch_delivery`, NOT BEFORE.
+    A `try/except` makes a refusal harmless; the ORDER makes the whole store
+    harmless. `ledger.record_signal` takes a process-wide `threading.Lock` and
+    opens SQLite on `/data/signal_ledger.db` with `timeout=10.0` — and the
+    nightly Signature sweep (`signature_sweep`, registered in `api/main.py`)
+    writes that same file from this same process, so the lock is genuinely
+    contended. Placed in front of the notification, a slow or locked ledger
+    would sit between a member and their alert for up to ten seconds per fire.
+    Nothing this store can do — refuse, block, or fail to open its file — may
+    reach a member.
+
+    ⭐ THE CALLER GATES ON `record_trigger`, WHICH IS WHY THERE IS EXACTLY ONE
+    RECEIPT PER FIRE and why this function does not need a dedup of its own. See
+    `_run_one_cycle`; the reasoning is written there, beside the call.
+
+    ⚠️ TWO DIFFERENT LOG LEVELS, BECAUSE THEY ARE TWO DIFFERENT EVENTS. A
+    `LedgerAdmissionRefused` is the door working — a user-authored formula, or
+    the forming lane after a rollback — and it happens on every such fire, so it
+    is INFO and it names the reason. Anything else (a `ValueError` from the
+    store's own data rails, an unopenable database) is a defect nobody would
+    otherwise hear about, so it is logged with a traceback.
+    """
+    try:
+        admitted = admit_alert_fire(alert, value, bar_index, bars)
+    except LedgerAdmissionRefused as refused:
+        _logger.info("[alert-eval] no ledger receipt for alert %s: %s",
+                     alert.get("id"), refused)
+        return
+    except Exception:
+        _logger.exception(
+            "[alert-eval] the ledger REFUSED TO RECORD the fire for alert %s "
+            "for a reason the door does not name — the alert was delivered, the "
+            "receipt was not written", alert.get("id"))
+        return
+    if not admitted:
+        # `record_trigger` said this fire is new and the ledger says the row
+        # already exists: two alerts on the same address/sym/tf/bar, which is
+        # the store keying one SIGNAL once across many members. Not a fault.
+        _logger.debug("[alert-eval] ledger already held the signal for alert %s",
+                      alert.get("id"))
 
 
 # ─── cycle + delivery ────────────────────────────────────────────────────────
@@ -1707,6 +2192,46 @@ def _release_failed_delivery(alert: dict, fire_id: Optional[int],
             "was not held by this dispatch: %s", alert.get("id"), fire_id, error)
 
 
+def _evaluate_for_cycle(alert: dict, bars: list[dict], *,
+                        mode: Optional[str] = None,
+                        now_epoch: Optional[float] = None,
+                        ) -> tuple[Optional[float], bool, Optional[int]]:
+    """``(value, triggered, judged_index)`` — the cycle's ONE evaluation call.
+
+    ⭐ THE INDEX IS AN OUTPUT OF THE EVALUATION, WHICH IS THE WHOLE POINT.
+    `_run_one_cycle` needs two things from a fire: the number, and the bar the
+    number is about. Before this existed it took the first from `_evaluate_one`
+    and computed the second itself as `len(bars) - 1` — correct on the forming
+    lane and WRONG on the closed one, where the judged bar is
+    `closed_bar_index(...)` and `bars[-1]` is the bar still being built. The
+    receipt would have named a bar the value did not come from, in the lane
+    whose entire purpose is receipts that can be trusted.
+
+    ⛔ AND IT IS NOT "ASK `closed_bar_index` AGAIN". That is two functions
+    agreeing rather than one answer: `_evaluate_one_closed` resolves the index
+    against ITS `now_epoch`, and a second call a few microseconds later can land
+    on the next bar — one fire in a hundred thousand naming the wrong bar is
+    exactly the class of defect this branch keeps finding by measurement. The
+    closed lane already returns the index it used; this reads it.
+
+    ⚠️ MODE-DERIVED, NOT COMMIT-DERIVED. `eval_mode()` is a RUNTIME value —
+    `ALERT_EVAL_MODE` is the committed default and the Railway variable can
+    override it without a deploy — so a cycle wired for one lane by commit
+    ordering would name the wrong bar the moment the rollback lever is pulled.
+    Left `None`, `mode` asks `eval_mode()`, the module's only reader.
+    """
+    resolved = mode if mode is not None else eval_mode()
+    if resolved == "closed":
+        return _evaluate_one_closed(alert, bars, now_epoch=now_epoch)
+    value, triggered = _evaluate_one(alert, bars=bars, mode="forming",
+                                     now_epoch=now_epoch)
+    # ⛔ THE FORMING LANE JUDGES THE NEWEST BAR, SO THAT IS THE BAR IT NAMES.
+    # `_evaluate_one` computes the whole column and reads its last computable
+    # value, and `prev` is the previous POLL's number — so the bar under
+    # judgement is `bars[-1]`, whatever the clock says about whether it closed.
+    return value, triggered, (len(bars) - 1 if bars else None)
+
+
 def _run_one_cycle() -> dict[str, Any]:
     """One pass: evaluate every active alert, record + dispatch as needed.
 
@@ -1757,7 +2282,8 @@ def _run_one_cycle() -> dict[str, Any]:
                 if _rev.consume_if_suppressed(alert, bars=bars):
                     summary["suppressed"] += 1
                     continue
-                value, triggered = _evaluate_one(alert, bars=bars)
+                value, triggered, judged_index = _evaluate_for_cycle(
+                    alert, bars)
                 if value is None:
                     continue
                 summary["evaluated"] += 1
@@ -1765,29 +2291,38 @@ def _run_one_cycle() -> dict[str, Any]:
                     summary["triggered"] += 1
                     # ⭐ THE BAR THE DECISION WAS MADE ON — the receipt's own
                     # `bar_time`, NULL on every row of `indicator_alert_fires`
-                    # until this line existed.
+                    # until `dd2da6f7` stamped it.
                     #
-                    # ⛔ THE FORMING LANE JUDGES THE NEWEST BAR, SO THAT IS THE
-                    # BAR IT NAMES. `_evaluate_one` computes the whole column and
-                    # reads its last computable value, and `prev` is the previous
-                    # POLL's number — so the bar under judgement is `bars[-1]`,
-                    # whatever the clock says about whether it has closed.
-                    #
-                    # ⚠️ TASK 8 (THE CLOSED-BAR CUTOVER) CHANGES EXACTLY ONE
-                    # THING HERE: `_evaluate_one_closed` already RETURNS the
-                    # index it judged, so the flip is
-                    # `value, triggered, judged_index = _evaluate_one_closed(...)`
-                    # and this assignment goes away. It is written as a named
-                    # index rather than inlined as `bars[-1]["t"]` so that the
-                    # swap is one line and cannot be overlooked — a receipt that
-                    # named the FORMING bar while the value came from the CLOSED
-                    # one would be a wrong receipt in the lane built to make
-                    # receipts trustworthy.
-                    judged_index = len(bars) - 1
+                    # ⛔ AND THE INDEX COMES OUT OF THE EVALUATION, NOT OUT OF A
+                    # SECOND CALCULATION. `_evaluate_for_cycle` returns the bar
+                    # its own answer is about — `bars[-1]` on the forming lane,
+                    # `closed_bar_index` on the closed one — so the receipt
+                    # cannot name a bar the value did not come from. Recomputing
+                    # `closed_bar_index` here would be two functions agreeing,
+                    # and they would stop agreeing the first time the wall clock
+                    # ticked between them.
                     bar_time = _fire_bar_time(bars, judged_index)
-                    ias.record_trigger(alert["id"], last_value=value,
-                                       bar_time=bar_time)
+                    recorded = ias.record_trigger(alert["id"], last_value=value,
+                                                  bar_time=bar_time)
                     _dispatch_delivery(alert, value, bar_time=bar_time)
+                    # ⭐ THE LEDGER DOOR, OPENED — GATED ON THE FIRE-ONCE
+                    # GUARANTEE ITSELF RATHER THAN ON A SECOND RULE BESIDE IT.
+                    # `record_trigger` returns True exactly when a new row landed
+                    # under `UNIQUE(alert_id, fire_key)`, so "one receipt per
+                    # fire" is the SAME decision the fire log already made, not a
+                    # copy of it that can drift. Two consequences, both wanted:
+                    # a level condition keys on its ARMED EPISODE, so "RSI is
+                    # still above 70" accrues ONE receipt for the episode instead
+                    # of one per bar it stays true; and the retry above (a
+                    # released lease re-delivering on a later cycle) returns
+                    # False here, so a second DELIVERY of one fire cannot become
+                    # a second receipt.
+                    #
+                    # ⛔ THIS IS NOT `if record_trigger(...): _dispatch_delivery`
+                    # — the ruling Task 8 measured and refused. The dispatch
+                    # above stays UNCONDITIONAL; only the receipt is gated.
+                    if recorded:
+                        _accrue_ledger_receipt(alert, value, judged_index, bars)
                 else:
                     ias.record_evaluation(alert["id"], last_value=value)
             except Exception:

@@ -10,6 +10,7 @@ import ProfileWidget from './widgets/ProfileWidget'
 import AlertsWidget from './widgets/AlertsWidget'
 import CalendarWidget from './widgets/CalendarWidget'
 import OptionsFlowWidget from './widgets/OptionsFlowWidget'
+import PeriodSortWidget from './widgets/PeriodSortWidget'
 import WidgetHeader from './WidgetHeader'
 import { useWorkspace } from './WorkspaceContext'
 import {
@@ -32,6 +33,7 @@ const TYPE_LABEL = {
   alerts: 'Alerts',
   calendar: 'Calendar',
   optionsflow: 'Options Flow',
+  periodsort: 'Period Sort',
 }
 
 function WidgetBody({ groupId, type, color, opts, onOptsChange }) {
@@ -41,10 +43,13 @@ function WidgetBody({ groupId, type, color, opts, onOptsChange }) {
   // so two "not linked" tabs in the same slot stay independent.
   const key = color === 'N' ? `N:${groupId}` : color
   switch (type) {
-    case 'chart':     return <ChartWidget     color={key} opts={opts} onOptsChange={onOptsChange} />
+    // ⭐ `chartId` (Phase C Task 12): the slot's own PERSISTED id, which is what
+    // makes a chart's alerts scopable to it. `groupId` is already per-tab and
+    // already stable across reloads — see its declaration in `WidgetHost`.
+    case 'chart':     return <ChartWidget     color={key} opts={opts} onOptsChange={onOptsChange} chartId={groupId} />
     case 'watchlist': return <WatchlistWidget color={key} opts={opts} onOptsChange={onOptsChange} />
     case 'themes':    return <ThemesWidget    color={key} opts={opts} />
-    case 'scanner':   return <ScannerWidget   color={key} opts={opts} />
+    case 'scanner':   return <ScannerWidget   color={key} opts={opts} onOptsChange={onOptsChange} />
     case 'fundamentals': return <FundamentalsWidget color={key} opts={opts} onOptsChange={onOptsChange} />
     case 'breadth':   return <BreadthWidget opts={opts} onOptsChange={onOptsChange} />
     case 'aisearch':  return <AiSearchWidget color={key} />
@@ -53,6 +58,7 @@ function WidgetBody({ groupId, type, color, opts, onOptsChange }) {
     case 'alerts':    return <AlertsWidget color={key} opts={opts} onOptsChange={onOptsChange} />
     case 'calendar':  return <CalendarWidget color={key} opts={opts} onOptsChange={onOptsChange} />
     case 'optionsflow': return <OptionsFlowWidget color={key} opts={opts} onOptsChange={onOptsChange} />
+    case 'periodsort': return <PeriodSortWidget color={key} opts={opts} onOptsChange={onOptsChange} />
     default:          return <div className={styles.unknownWidget}>Unknown widget type: {type}</div>
   }
 }
@@ -75,7 +81,7 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // News/Profile follow the app theme when uncustomized: on the light theme the
   // workspace otherwise keeps this .widget dark (border + chrome). This flag lets the
   // CSS re-flip the light tokens (incl. the border) for the whole widget.
-  const themeFollow = ['news', 'profile', 'alerts', 'calendar', 'optionsflow', 'watchlist', 'fundamentals', 'themes', 'breadth', 'scanner', 'aisearch'].includes(active.type) && !active.opts?.settings
+  const themeFollow = ['news', 'profile', 'alerts', 'calendar', 'optionsflow', 'watchlist', 'fundamentals', 'themes', 'breadth', 'scanner', 'aisearch', 'periodsort'].includes(active.type) && !active.opts?.settings
   const handleSelectTab = onReplaceWidget ? (i) => replace(setActiveWidgetTab(widget, i)) : undefined
   const handleCloseTab = onReplaceWidget ? (tabId) => replace(closeWidgetTab(widget, tabId)) : undefined
   const handleRenameTab = onReplaceWidget ? (tabId, name) => replace(renameWidgetTab(widget, tabId, name)) : undefined

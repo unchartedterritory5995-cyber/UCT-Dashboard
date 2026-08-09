@@ -93,6 +93,9 @@
 }
 .popoutNotice button:hover { color: var(--text, #e5e7eb); }
 
+/* (The "Exit Replay Mode" pill now renders INSIDE each chart via StockChart's onExitReplay,
+   so it auto-centers in the chart's clear top area — no workspace-level button needed.) */
+
 .widget {
   background: var(--widget-canvas, var(--bg-elevated, #0f141b));
   border: 1px solid var(--border, #1f2937);

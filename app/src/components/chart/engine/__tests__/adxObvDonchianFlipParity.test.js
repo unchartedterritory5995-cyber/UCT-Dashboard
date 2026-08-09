@@ -4,6 +4,7 @@ import { resolvePlacement, MAIN_PRICE_SCALE_ID } from '../placement'
 import { AUTOSCALE_DEFAULT, AUTOSCALE_EXCLUDE, poolKey, seriesOptionsForPlot } from '../pool'
 import * as engineRegistry from '../nativeRegistry'
 import { ENGINE_OWNED } from '../flipState'
+import { REGISTRY_SIZES } from '../registrySizes'
 import { computeADX, computeOBV, computeDonchian } from '../../indicators'
 import { computePaneLayout, __setPaneModeForTest } from '../paneLayout'
 import { createFakeChart, makeBars } from './fakeChart'
@@ -858,7 +859,7 @@ describe('the last three together', () => {
     // `compute.kind: 'server'` definition, so the set grew again with no flip and
     // no legacy block; `engineOwnsDefId` is a registry lookup and the registry is
     // now the union of two lanes.
-    expect(ENGINE_OWNED.size, 'the engine-owned set is empty or shrank').toBe(17)
+    expect(ENGINE_OWNED.size, 'the engine-owned set is empty or shrank').toBe(REGISTRY_SIZES.total)
     // ⭐⭐ B5 TASK 13 — "MIGRATED equals FLIPPED" IS NOT ASSERTABLE ANY MORE, AND
     // THAT IS THE RETIREMENT RATHER THAN A GAP. A line stood here comparing
     // `ENGINE_MIGRATED_DEF_IDS` with `ENGINE_FLIPPED_DEF_IDS`; both literals are

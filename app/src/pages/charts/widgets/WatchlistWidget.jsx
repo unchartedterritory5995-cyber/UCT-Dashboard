@@ -1,15 +1,13 @@
-import { useMemo, useCallback, useRef } from 'react'
+import { useMemo, useCallback, useId } from 'react'
 import Watchlists from '../../Watchlists'
 import WatchlistPicker from './WatchlistPicker'
 import { ChartsSymContext } from '../ChartsSymContext'
 import { useWorkspace } from '../WorkspaceContext'
-import { applyTemplateColumns } from '../../watchlist/watchlistTemplates'
 
 export default function WatchlistWidget({ color, opts, onOptsChange }) {
   const { groupSyms, setGroupSym, activeWatchlistRef } = useWorkspace()
   // Stable id so this widget can claim "active" (owns arrow keys + its own scroll).
-  const widgetIdRef = useRef(null)
-  if (!widgetIdRef.current) widgetIdRef.current = `wl${Math.random().toString(36).slice(2, 9)}`
+  const widgetId = useId()
   // Scoped context: routes the wrapped Watchlists' useChartsSym calls
   // into THIS widget's color group, not Group A. setSym is a STABLE callback (not
   // re-created when groupSyms changes) so the memoized watchlist rows' select handler
@@ -23,8 +21,7 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
   const watchKey = opts?.watchKey || null
   const pick = useCallback((sel) => {
     // Creating a list from a saved look Template seeds the widget's appearance
-    // (opts.settings) and applies its column layout (shared localStorage config).
-    if (sel?.cols) applyTemplateColumns(sel.cols)
+    // (opts.settings) only — a template never controls the column layout.
     const next = { ...(opts || {}), watchKey: sel?.key || null, watchName: sel?.name || null }
     if (sel?.settings) next.settings = sel.settings
     onOptsChange?.(next)
@@ -61,7 +58,7 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
         pickName={opts?.watchName || null}
         onExitPick={exitPick}
         activeRef={activeWatchlistRef}
-        widgetKey={widgetIdRef.current}
+        widgetKey={widgetId}
         settingsOverride={wlSettingsOverride}
         onSettingsPersist={persistWlSettings}
       />

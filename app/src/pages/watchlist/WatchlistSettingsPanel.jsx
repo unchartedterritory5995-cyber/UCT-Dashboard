@@ -263,11 +263,10 @@ export default function WatchlistSettingsPanel({
             </select>
           </Row>
 
-          {/* Text colors */}
-          <div className={styles.sectionLabel}>Text colors</div>
-          <Row label="Symbol">{swatch('symColor', 'Symbol')}</Row>
-          <Row label="Price">{swatch('priceColor', 'Price')}</Row>
-          <Row label="Volume">{swatch('volColor', 'Volume')}</Row>
+          {/* Text color — one color for all row text (symbol, price, volume + any
+              other columns) EXCEPT the up/down % change, which has its own colors below. */}
+          <div className={styles.sectionLabel}>Text color</div>
+          <Row label="Text" hint="all columns except % change">{swatch('textColor', 'Text color')}</Row>
 
           {/* % change */}
           <div className={styles.sectionLabel}>% Change</div>

@@ -19,6 +19,7 @@ from __future__ import annotations
 import ast
 import inspect
 import os
+import re
 from pathlib import Path
 
 import numpy as np
@@ -120,6 +121,14 @@ def count_52w_vol_highs(volumes, closes):
     return int((vol_hi & above_sma).sum())
 
 
+def _stage_mask(c, sma50, sma150, sma200, sma200_prev, stage):
+    if stage == 2:
+        return ((c > sma50) & (sma50 > sma150) & (sma150 > sma200)
+                & (sma200 > sma200_prev))
+    return ((c < sma50) & (sma50 < sma150) & (sma150 < sma200)
+            & (sma200 < sma200_prev))
+
+
 def count_stage(closes, stage):
     if len(closes) < 220:
         return None
@@ -130,12 +139,7 @@ def count_stage(closes, stage):
     sma200_prev = closes.rolling(200).mean().iloc[-22]
     valid = (c.notna() & sma50.notna() & sma150.notna()
              & sma200.notna() & sma200_prev.notna())
-    if stage == 2:
-        mask = ((c > sma50) & (sma50 > sma150) & (sma150 > sma200)
-                & (sma200 >= sma200_prev))
-    else:
-        mask = ((c < sma50) & (sma50 < sma150) & (sma150 < sma200)
-                & (sma200 <= sma200_prev))
+    mask = _stage_mask(c, sma50, sma150, sma200, sma200_prev, stage)
     return int(mask[valid].sum())
 
 
@@ -375,12 +379,21 @@ def test_todays_volume_equal_to_the_prior_52w_max_is_a_volume_high():
     assert live["hvc_52w"] == count_52w_vol_highs(vdf, cdf) == 5
 
 
-def test_a_flat_200ma_still_qualifies_as_stage_2():
-    """`sma200 >= sma200_prev` — flat counts as trending, and the tie is exact.
+def test_a_flat_200ma_qualifies_as_neither_stage():
+    """`sma200 > sma200_prev` — flat is not trending, and the tie is exact.
 
     Built so the 200-bar window today and the one 21 sessions back hold the
     same total: the newest 21 bars (2730) are mirrored by the 21 bars that drop
     out of the window. Every value is an integer, so the sums are exact.
+
+    The slope test was `>=` / `<=` until 2026-08-08, which let a perfectly flat
+    SMA200 satisfy stage 2 and stage 4 at once. Nothing was ever double-counted
+    — the price/MA ordering clauses are mutually exclusive — but "trending up"
+    is the claim the classification makes, and `>=` does not say it.
+
+    What this test is really for is the LAST line: whatever the definition is,
+    the live path and the collector must agree on it. That is the assertion to
+    preserve if the definition ever moves again.
     """
     cdf, vdf = _flat(n_tickers=2, n_dates=300)
     ramp = list(range(120, 140)) + [140]                 # prior[-20:] + today
@@ -395,7 +408,8 @@ def test_a_flat_200ma_still_qualifies_as_stage_2():
     assert sma200 == levels["sma200_back21"][0]          # the tie is genuinely exact
 
     live = bl.compute_metrics(levels, prices, vols)
-    assert live["stage2_count"] == count_stage(cdf, 2) == 1
+    assert live["stage2_count"] == count_stage(cdf, 2) == 0
+    assert live["stage4_count"] == count_stage(cdf, 4) == 0
 
 
 def test_an_index_sitting_on_its_moving_average_is_not_above_it():
@@ -796,3 +810,206 @@ def test_the_session_is_sampled_on_a_clock_not_on_traffic():
     # rather than firing a burst of identical computations.
     assert "coalesce=True" in block
     assert "misfire_grace_time" in block
+
+
+# ── drill membership ────────────────────────────────────────────────────────
+#
+# ⛔ THE INVARIANT. A list that disagrees with its own cell is the failure this
+# guards: the cell says 47, the modal lists 45, and nothing reports a problem.
+# The only way that cannot happen is for both to come off the SAME boolean
+# mask, so these assert the identity rather than re-deriving membership a
+# second way — a second derivation is exactly what drifts.
+
+def test_every_drillable_metric_reports_members_matching_its_count():
+    cdf, vdf = _frame(seed=5, n_tickers=80, n_dates=300, short_names=6, zero_names=3)
+    levels, prices, vols = _split(cdf, vdf)
+    members = {}
+    m = bl.compute_metrics(levels, prices, vols, members=members)
+
+    assert bl.DRILLABLE, "no metric is declared drillable"
+    checked = 0
+    for key in bl.DRILLABLE:
+        if m.get(key) is None:
+            continue
+        assert key in members, f"{key} is drillable but reported no members"
+        assert len(members[key]) == m[key], (
+            f"{key}: cell says {m[key]}, list has {len(members[key])}"
+        )
+        checked += 1
+    assert checked >= 15, f"only {checked} drillable metrics exercised"
+
+
+def test_members_are_real_universe_tickers_with_no_duplicates():
+    cdf, vdf = _frame(seed=6, n_tickers=60, n_dates=300)
+    levels, prices, vols = _split(cdf, vdf)
+    members = {}
+    bl.compute_metrics(levels, prices, vols, members=members)
+    universe = set(levels["tickers"])
+    for key, names in members.items():
+        assert len(set(names)) == len(names), f"{key} lists a ticker twice"
+        assert set(names) <= universe, f"{key} lists a ticker outside the universe"
+
+
+# atr_ext_7 needs intraday high/low, so it is in NOT_LIVE and the payload
+# carries the PRIOR day's value. Emitting members for it would caption
+# yesterday's names as today's.
+def test_carried_metrics_never_report_members():
+    cdf, vdf = _frame(seed=7)
+    levels, prices, vols = _split(cdf, vdf)
+    members = {}
+    bl.compute_metrics(levels, prices, vols, members=members)
+    for key in bl.NOT_LIVE:
+        assert key not in members, f"{key} is NOT_LIVE but reported members"
+    assert "atr_ext_7" not in bl.DRILLABLE
+
+
+def test_members_is_optional_and_changes_nothing_when_omitted():
+    cdf, vdf = _frame(seed=8)
+    levels, prices, vols = _split(cdf, vdf)
+    a = bl.compute_metrics(levels, prices, vols)
+    b = bl.compute_metrics(levels, prices, vols, members={})
+    assert a == b, "passing members changed the metrics"
+
+
+# The drill modal's volume column is today's volume over the prior 20 sessions'
+# average — the collector's `volumes.iloc[-21:-1].mean()`. Levels are built from
+# COMPLETED sessions only, so its last 20 columns ARE that window; getting the
+# slice wrong by one shifts every ratio on screen.
+def test_vol_avg20_is_the_prior_twenty_completed_sessions():
+    cdf, vdf = _frame(seed=11, n_tickers=12, n_dates=120)
+    levels, _, _ = _split(cdf, vdf)
+    prior_v = vdf.iloc[:-1]                      # what _split fed build_levels
+    expected = prior_v.iloc[-20:].mean().to_numpy(dtype=float)
+    got = levels["vol_avg20"]
+    assert got.shape == (len(levels["tickers"]),)
+    np.testing.assert_allclose(got, expected, rtol=1e-9)
+
+
+def test_vol_avg20_is_nan_when_there_is_not_a_full_window():
+    cdf, vdf = _frame(seed=12, n_tickers=5, n_dates=8)
+    levels, _, _ = _split(cdf, vdf)
+    assert np.isnan(levels["vol_avg20"]).all()
+
+
+# ── live_drill: the names behind one live cell ────────────────────────────────
+
+def test_live_drill_enriches_from_the_cached_read(monkeypatch):
+    cdf, vdf = _frame(seed=21, n_tickers=40, n_dates=300)
+    levels, prices, vols = _split(cdf, vdf)
+    members = {}
+    m = bl.compute_metrics(levels, prices, vols, members=members)
+
+    bl._live_cache.clear()
+    bl._live_cache.update({
+        "payload": {"ok": True, "as_of": "2026-08-07T11:00:00-04:00"},
+        "at": 1e12, "members": members, "prices": prices, "vols": vols,
+        "levels": levels,
+    })
+    monkeypatch.setattr(bl, "_name_of", lambda t: None)
+
+    # universe_count, NOT a threshold metric: a 4%-mover count on a synthetic
+    # frame is often zero, and every assertion below would then pass against an
+    # empty list while testing nothing.
+    out = bl.live_drill("universe_count")
+    assert out["ok"] is True
+    assert len(out["items"]) == m["universe_count"] > 0
+    for it in out["items"]:
+        assert set(it) <= {"t", "pct", "c", "vr", "n"}
+        assert "atr" not in it and "a50" not in it   # cannot be computed intraday
+        assert it["c"] == pytest.approx(prices[it["t"]], abs=0.005)
+        assert it["pct"] == pytest.approx(
+            (prices[it["t"]] / float(levels["prev_close"][levels["tickers"].index(it["t"])]) - 1) * 100,
+            abs=0.05,
+        )
+
+
+def test_live_drill_sorts_by_day_change_like_the_collector():
+    cdf, vdf = _frame(seed=22, n_tickers=40, n_dates=300)
+    levels, prices, vols = _split(cdf, vdf)
+    members = {}
+    bl.compute_metrics(levels, prices, vols, members=members)
+    bl._live_cache.clear()
+    bl._live_cache.update({"payload": {"ok": True, "as_of": "x"}, "at": 1e12,
+                           "members": members, "prices": prices, "vols": vols,
+                           "levels": levels})
+    pcts = [i["pct"] for i in bl.live_drill("universe_count")["items"]]
+    assert len(pcts) > 5 and len(set(pcts)) > 1   # an empty or flat list sorts vacuously
+    assert pcts == sorted(pcts, reverse=True)
+
+
+# A dead click must not surface an error page.
+def test_live_drill_on_a_cold_cache_returns_empty_with_a_reason():
+    bl._live_cache.clear()
+    out = bl.live_drill("up_4pct_today")
+    assert out["ok"] is False and out["items"] == [] and out["reason"]
+
+
+def test_live_drill_refuses_a_metric_that_is_not_live_measured():
+    bl._live_cache.clear()
+    bl._live_cache.update({"payload": {"ok": True, "as_of": "x"}, "at": 1e12,
+                           "members": {}, "prices": {}, "vols": {}, "levels": {}})
+    out = bl.live_drill("atr_ext_7")
+    assert out["ok"] is False and out["items"] == []
+    assert "carried" in (out["reason"] or "").lower()
+
+
+def test_a_zero_average_volume_yields_no_ratio_rather_than_infinity():
+    cdf, vdf = _frame(seed=23, n_tickers=10, n_dates=300)
+    levels, prices, vols = _split(cdf, vdf)
+    levels["vol_avg20"] = np.zeros(len(levels["tickers"]))
+    members = {"universe_count": list(levels["tickers"])}
+    bl._live_cache.clear()
+    bl._live_cache.update({"payload": {"ok": True, "as_of": "x"}, "at": 1e12,
+                           "members": members, "prices": prices, "vols": vols,
+                           "levels": levels})
+    for it in bl.live_drill("universe_count")["items"]:
+        assert it.get("vr") is None
+
+
+# The monitor's columns pass a `drillKey`, not a metric key — usually the metric
+# plus "_list", but `universe_list`/`stage2_list`/`stage4_list` predate that
+# convention. Stripping the suffix naively resolves those three to names no
+# metric has, and the endpoint would answer "not measured live" with an empty
+# modal while the cell beside it shows a number.
+def test_the_endpoint_accepts_the_drill_key_the_monitor_actually_sends():
+    cdf, vdf = _frame(seed=24, n_tickers=40, n_dates=300)
+    levels, prices, vols = _split(cdf, vdf)
+    members = {}
+    m = bl.compute_metrics(levels, prices, vols, members=members)
+    bl._live_cache.clear()
+    bl._live_cache.update({"payload": {"ok": True, "as_of": "x"}, "at": 1e12,
+                           "members": members, "prices": prices, "vols": vols,
+                           "levels": levels})
+    for drill_key, metric_key in (("universe_list", "universe_count"),
+                                  ("stage2_list", "stage2_count"),
+                                  ("stage4_list", "stage4_count"),
+                                  ("new_52w_highs_list", "new_52w_highs"),
+                                  ("new_52w_highs", "new_52w_highs")):
+        out = bl.live_drill(drill_key)
+        assert out["ok"] is True, f"{drill_key} did not resolve"
+        assert len(out["items"]) == m[metric_key], f"{drill_key} listed the wrong metric"
+
+
+# Hand-listing the columns is how a route gets missed. Read them off the source
+# the browser actually ships, so a new drillable column cannot be added without
+# this noticing.
+def test_every_drillkey_the_monitor_declares_resolves_to_a_live_metric():
+    src = Path(__file__).resolve().parents[1] / "app" / "src" / "pages" / "Breadth.jsx"
+    keys = re.findall(r"drillKey:\s*'([^']+)'", src.read_text(encoding="utf-8"))
+    assert len(keys) >= 20, f"parsed only {len(keys)} drillKeys — the pattern has drifted"
+    for dk in keys:
+        mk = bl._metric_key_of(dk)
+        if mk in bl.NOT_LIVE:      # carried; the frontend routes it to its own date
+            continue
+        assert mk in bl.DRILLABLE, f"{dk} resolves to {mk!r}, which is not live-measured"
+
+
+# np.nanmean warns once per all-NaN row, and the levels build runs over the
+# whole market. A warning storm in the log is how a real one gets missed.
+def test_vol_avg20_is_silent_for_a_name_that_never_printed(recwarn):
+    cdf, vdf = _frame(seed=13, n_tickers=6, n_dates=60)
+    vdf.iloc[:, 0] = np.nan                     # a name with no volume at all
+    levels, _, _ = _split(cdf, vdf)
+    assert np.isnan(levels["vol_avg20"][0])     # still NaN, as before
+    assert not np.isnan(levels["vol_avg20"][1:]).any()
+    assert [w for w in recwarn if issubclass(w.category, RuntimeWarning)] == []

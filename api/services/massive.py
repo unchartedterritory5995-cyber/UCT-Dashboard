@@ -489,6 +489,10 @@ def _detect_session() -> str:
     if now.weekday() >= 5:
         return "post_market"
     hour_min = now.hour * 100 + now.minute
+    # The overnight window (midnight–4:00am) is still the JUST-CLOSED post-market,
+    # not the next day's pre-market — pre-market doesn't begin until 4:00am ET.
+    if hour_min < 400:
+        return "post_market"
     if hour_min < 930:
         return "pre_market"
     if hour_min >= 1600:
@@ -637,6 +641,106 @@ def get_daily_agg(symbol: str, from_date: str, to_date: str, *,
         return client._get(url).get("results") or []
     except Exception:
         return []
+
+
+_GROUPED_DIR = os.path.join(os.environ.get("DATA_DIR", "/data"), "grouped_closes")
+
+
+def _grouped_settled_cutoff() -> str:
+    """ISO date for 'strictly before yesterday (UTC)'. A day older than this is settled —
+    its whole-market closes never change again, so it's safe to cache DURABLY (on disk)."""
+    import datetime as _dt
+    return (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(days=1)).date().isoformat()
+
+
+def get_grouped_daily_closes(day_iso: str, adjusted: bool = True) -> dict:
+    """{TICKER: close} for ONE date — the whole US equities market in a single call.
+
+    Provider-form tickers (BRK.B). adjusted=True → split-adjusted to the current basis
+    (so a return measured against an old close is correct across any split). Returns {}
+    for a non-trading day (the endpoint answers with zero results) or on error. Powers the
+    Top-Gainers scans' whole-market N-day reference AND the Custom-Period Sort.
+
+    CACHED per (date, adjusted) at TWO tiers: an in-memory tier, and — for a SETTLED past
+    date whose ~8,000 closes are IMMUTABLE — a DURABLE /data file so the fetch runs at most
+    once EVER, not once per Railway redeploy (the in-memory cache is wiped on every deploy;
+    a re-warmed pod would otherwise re-pay this ~8k-ticker fetch on the next Custom-Period
+    Sort). Mirrors the durable pattern used by scan_period._reuse_map. A recent date (could
+    still be forming) uses the short in-memory tier only."""
+    import json as _json
+    ck = f"grouped_close_{day_iso}_{1 if adjusted else 0}"
+    cached = cache.get(ck)
+    if cached is not None:
+        return cached
+    _settled = day_iso < _grouped_settled_cutoff()
+    _fpath = os.path.join(_GROUPED_DIR, f"{day_iso}_{1 if adjusted else 0}.json")
+    if _settled:  # durable tier: a settled date's file never goes stale (immutable data)
+        try:
+            with open(_fpath) as fh:
+                m = _json.load(fh)
+            if m:
+                cache.set(ck, m, ttl=604800)
+                return m
+        except Exception:
+            pass
+    try:
+        client = _get_client()
+        adj = "true" if adjusted else "false"
+        url = (
+            f"{_REST_BASE}/v2/aggs/grouped/locale/us/market/stocks/"
+            f"{day_iso}?adjusted={adj}&apiKey={client._api_key}"
+        )
+        data = client._get(url) or {}
+    except Exception:
+        return {}
+    out: dict[str, float] = {}
+    for r in (data.get("results") or []):
+        tk, c = r.get("T"), r.get("c")
+        if tk and isinstance(c, (int, float)) and c > 0:
+            out[str(tk).upper()] = float(c)
+    if out:  # never cache an empty/error (would pin a non-trading-day miss)
+        cache.set(ck, out, ttl=(604800 if _settled else 900))
+        if _settled:  # persist immutable settled days so a redeploy doesn't re-fetch them
+            try:
+                os.makedirs(_GROUPED_DIR, exist_ok=True)
+                tmp = _fpath + ".tmp"
+                with open(tmp, "w") as fh:
+                    _json.dump(out, fh)
+                os.replace(tmp, _fpath)
+            except Exception:
+                pass
+    return out
+
+
+def get_split_tickers(from_iso: str, to_iso: str) -> set:
+    """Set of tickers (provider-form) with a stock split whose execution_date falls in
+    [from_iso, to_iso]. Paginated /v3/reference/splits — a handful of calls covers the
+    whole market for a 30–90 day window.
+
+    Lets a return computation tell a REAL split (trust the split-adjusted close) from the
+    provider's PHANTOM adjustment (a name with no real split whose adjusted feed is still
+    divided by a bogus factor → trust the raw close). set() on error."""
+    out: set = set()
+    try:
+        client = _get_client()
+        url = (
+            f"{_REST_BASE}/v3/reference/splits"
+            f"?execution_date.gte={from_iso}&execution_date.lte={to_iso}"
+            f"&limit=1000&apiKey={client._api_key}"
+        )
+        for _ in range(20):  # safety cap on pagination
+            data = client._get(url) or {}
+            for r in (data.get("results") or []):
+                t = r.get("ticker")
+                if t:
+                    out.add(str(t).upper())
+            nxt = data.get("next_url")
+            if not nxt:
+                break
+            url = f"{nxt}&apiKey={client._api_key}"
+    except Exception:
+        return set()
+    return out
 
 
 def get_agg_bars_minute(ticker: str, multiplier: int, from_date: str, to_date: str) -> list[dict]:

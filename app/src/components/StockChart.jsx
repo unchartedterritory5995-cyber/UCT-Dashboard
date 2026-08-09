@@ -27,6 +27,7 @@ import { toHeikinAshi } from './chart/indicators'
 import useChartDrawings from './chart/useChartDrawings'
 import ChartDrawingOverlay from './chart/ChartDrawingOverlay'
 import ChartCalloutOverlay from './chart/ChartCalloutOverlay'
+import ChartVLineOverlay from './chart/ChartVLineOverlay'
 import SetupMoveOverlay from './chart/SetupMoveOverlay'
 import { classifyLiveBar } from './chart/liveBarClassify'
 import { applySessionCandle, computeSessionTagLines, etMinutes } from './chart/sessionPreview'
@@ -68,11 +69,37 @@ import { ENGINE_OWNED, engineDrawsAnything, engineDrawnDefIds } from './chart/en
 import {
   paneMode, computePaneLayout, paneStackHeightPx, SEPARATOR_PX, NO_STACK_MAIN_MARGINS,
 } from './chart/engine/paneLayout'
-import { setIndicatorEnabled, isIndicatorEnabled } from './chart/engine/instanceControls'
-import { engineChips } from './chart/engine/readout'
+// ⭐ chart-UX-walls TASK 4 — `setInstanceHidden` / `removeInstance` join the two
+// readers already here. They are DOOR EIGHT (the per-INSTANCE door), and the chip
+// strip is its second caller after `IndicatorSettingsDialog`;
+// `engine/__tests__/controlDoorCensus.test.js` ledgers this file BY NAME with the
+// reason, and went red the moment the names appeared.
+// ⭐ chart-UX-walls TASK 6 — `addInstance` joins them, for the chip menu's
+// Duplicate row. It shipped at Task 1 with ZERO call sites and the census
+// asserted that zero rather than assuming it; this is the caller it was built for.
+import {
+  setIndicatorEnabled, isIndicatorEnabled, findInstance,
+  setInstanceHidden, removeInstance, withInstances, addInstance,
+} from './chart/engine/instanceControls'
+// ⭐ `legendChips`, NOT `engineChips` (chart-UX-walls Task 3). `engineChips`
+// walks BINDINGS and `planBindings` drops a hidden instance, so a hidden
+// indicator had no chip — and a chip you cannot see is one you cannot un-hide
+// from. `legendChips` walks the INSTANCE list and calls `engineChips` for the
+// valued half, so there is still exactly one formatting pipeline.
+import { legendChips } from './chart/engine/readout'
 import * as engineRegistry from './chart/engine/nativeRegistry'
+import IndicatorChip from './chart/legend/IndicatorChip'
+import chipStyles from './chart/legend/IndicatorChip.module.css'
+import { chipMenuItems } from './chart/legend/chipMenu'
+// ⭐ THE PER-PLOT REPAINT VERDICT — DERIVED BY THE LINTER, NEVER READ OFF A
+// BADGE. See `engine/repaintVerdict.js`'s header for why it is computed rather
+// than stored and how it relates to the definition's own `meta.repaint`.
+import { plotRepaintNotice, repaintNotices } from './chart/engine/repaintVerdict'
+import ContextPopover from './mobile/ContextPopover'
+import IndicatorSettingsDialog from './chart/IndicatorSettingsDialog'
 import { usePatternDetections } from '../hooks/usePatternDetections'
 import { useSignatureIndicators } from '../hooks/useSignatureIndicators'
+import { useInstalledUserDefinitions } from '../hooks/useUserDefinitions'
 import { useIsPaid } from '../context/AuthContext'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import { getSnapshot as getLivePriceStoreSnapshot } from '../hooks/livePriceStore'
@@ -92,6 +119,50 @@ const EMPTY_INSTANCES = Object.freeze([])
 // the same reason as the one above: the hover path runs once per animation frame
 // and must allocate nothing when there are no indicators on the chart.
 const EMPTY_CHIPS = Object.freeze([])
+
+/** Spec §7: ">4 chips collapses to +N". Four is the shipped number and it is a
+ *  DESIGN constant, not a tuning knob — a fifth chip is where a 200px-wide strip
+ *  starts middle-truncating labels.
+ *
+ *  ⚠️ THE SPEC'S FOUR IS PER PANE AND THE SHIPPED LEGEND IS ONE BOX FOR THE
+ *  WHOLE CHART (controller ruling: per-pane placement is out of scope). So the
+ *  tail is FOLDED, not dropped — `chipStyles.chipFolded` takes it out of the
+ *  layout and out of the accessibility tree, the `+N` button brings it back, and
+ *  the chips stay mounted. See that class's comment for the two reasons. */
+const CHIP_COLLAPSE_AT = 4
+
+/**
+ * One `chipMenu` row → one `ContextPopover` row.
+ *
+ * ⛔ THE ICON IS A `UIcon` NAME IN `chipMenu.js` AND A `UIcon` ELEMENT HERE, and
+ * that split is deliberate: `chipMenu.js` is pure (no React, so it can be driven
+ * against the real placement resolver in a plain unit test), while
+ * `ContextPopover` renders `it.icon` VERBATIM — its own doc example passes an
+ * emoji, which this codebase does not do (`UIcon` is the single source of
+ * iconography). The name crosses the boundary; the element is built here.
+ *
+ * ⛔ AND A REFUSED ROW SHOWS ITS REASON. `chipMenu`'s `disabled` is a SENTENCE,
+ * not a boolean, precisely so the user is told why "Move to → Volume pane" is
+ * dead instead of clicking a grey line repeatedly. `ContextPopover` renders the
+ * label node as-is, so the reason rides along beside it.
+ */
+function chipMenuRowToPopoverRow(it) {
+  if (it.separator) return it
+  const icon = it.icon ? <UIcon name={it.icon} size={13} gold={false} /> : undefined
+  if (!it.disabled) return { ...it, icon }
+  return {
+    ...it,
+    icon,
+    label: (
+      <>
+        <span>{it.label}</span>
+        <span style={{ display: 'block', fontSize: 10.5, opacity: 0.62, lineHeight: 1.35, marginTop: 1 }}>
+          {it.disabled}
+        </span>
+      </>
+    ),
+  }
+}
 
 // ⛔ `LEGACY_CHIP_ORDER` STOOD HERE AND IS DELETED (B5 Task 6). It was the order
 // the LEGACY lane's chips appeared in, derived from the registry so that a chart
@@ -982,6 +1053,30 @@ function _animateFocusZoom(chart, series, rafRef, priceRangeRef, bars, target, d
   rafRef.current = requestAnimationFrame(step)
 }
 
+/**
+ * The FIRST LIVE instance of a definition, or null.
+ *
+ * The right-click region menu is keyed by `defId` — a pane belongs to a
+ * definition, `orderedPaneKeys` dedupes by `def.id` — but the settings dialog is
+ * per INSTANCE, so the menu row has to resolve one. First-live matches what
+ * `indicatorRegistry.liveInstanceFor` already does for the generated settings
+ * rows, so the two surfaces open on the same copy.
+ *
+ * ⛔ LIVENESS IS ASKED OF `findInstance`, NEVER RE-DERIVED. A tombstone is an
+ * element of `indicatorInstances` with a matching `defId`; taking it would open
+ * the dialog on an indicator that is not on the chart. `isLiveInstance` is
+ * module-private to `instanceControls`, and `findInstance` returning null for a
+ * tombstone is exactly the same question asked through the exported door.
+ */
+function firstLiveInstanceId(cs, defId) {
+  const list = Array.isArray(cs && cs.indicatorInstances) ? cs.indicatorInstances : []
+  for (const i of list) {
+    if (!i || typeof i !== 'object' || i.defId !== defId) continue
+    if (findInstance(cs, i.instanceId)) return i.instanceId
+  }
+  return null
+}
+
 export default function StockChart({
   sym,
   tf,
@@ -1046,6 +1141,12 @@ export default function StockChart({
   onDeleteColor = null,       //   (hex) => void
   hideCrosshair = false,      // suppress the hover crosshair lines + axis labels entirely (Setup Library examples)
   dragMeasure = false,        // Charts workspace: plain left-drag draws a transient measure line + % / bars / time readout (TC2000-style) instead of panning. Cursor mode only; mouse only.
+  periodSelect = false,       // Custom-Period Sort: plain left-drag highlights a time period (translucent band) instead of panning; fires onPeriodSelected(startYmd, endYmd) on release.
+  onPeriodSelected = null,    // (startYmd:int, endYmd:int, pct:number) => void — the highlighted [start, end] as YYYYMMDD ints + the symbol's close-to-close % move.
+  onPeriodCancel = null,      // () => void — the ✕ on the "Highlight time period" banner cancels the mode.
+  replayCutoff = null,        // Replay mode: 'YYYY-MM-DD' — hide every bar after this calendar day + re-frame to default zoom + freeze live. null = normal chart.
+  onExitReplay = null,        // () => void — when set + replayCutoff/startMarker active, shows an "Exit Replay Mode" pill centered in the chart's clear top area.
+  startMarker = null,         // 'YYYY-MM-DD' — Custom-Period Sort: draw a thin gold vertical line at this date on the chart. null = none.
   verticalLegend = false,     // Charts workspace: stack the crosshair OHLCV legend single-file down the left instead of a horizontal row near the toolbar.
   lockWatermark = false,      // Charts workspace: disable the watermark hover-arm + drag so hovering it never moves it.
   alwaysShowLegend = false,   // Charts workspace: keep the legend visible with the latest bar's values when the cursor is off the chart (instead of hiding).
@@ -1100,6 +1201,7 @@ export default function StockChart({
   onAnnotationsMigrate = null,  // (drawings[]) => void — called once when a legacy volume-pane annotation is re-anchored to the pane (so it can be persisted)
   highlightBarTime = null,      // ISO/time (or array of them) of bar(s) to paint (Model Book: focused setup's day, or all setup/catalyst days)
   highlightColor = '#e6b800',   // color for highlighted bars (gold for setups; Model Book passes white for catalysts)
+  highlightBodyOnly = false,    // true = recolor only the BODY, leave border/wick to the chart's own settings (Custom-Period Sort start-candle marker); false = recolor body+border+wick (Model Book)
   onHighlightClick = null,      // Model Book: ({ date, clientX, clientY }) => void — clicking a highlighted setup/catalyst candle (opens the intraday 5-min popup)
   vwapOverride = null,          // force the session-VWAP indicator on regardless of user settings: { color } (Model Book intraday popup uses white)
   onFocusEscape = null,         // called when the user manually zooms/pans while a setup focus is active → parent should clear focus
@@ -1145,6 +1247,19 @@ export default function StockChart({
   // meaningful on D/W/M — inert on intraday.
   sessionView = null,
   hideExtHoursToolbarToggle = false,  // charts workspace moves the intraday EXT/RTH toggle into the widget header, so hide the toolbar one
+  // ⭐ PHASE C TASK 12 — WHICH CHART THIS IS. A stable per-surface id: the
+  // `/charts` widget slot (`WidgetHost`'s `groupId`) or a Multi-Chart grid
+  // cell's persisted `cell.id`. Forwarded to `ChartToolbar` → the alert
+  // popover, which is what makes the alert listing request carry `?scope=` —
+  // the parameter `indicator_alert_service.list_for_user` has implemented since
+  // Task 12 and that no client had ever sent.
+  //
+  // ⚠️ IT MUST BE STABLE ACROSS RELOADS, not per-mount. A random id would scope
+  // an alert to a chart that ceases to exist the moment the tab is refreshed —
+  // which is worse than no scoping at all. Both producers persist theirs
+  // (`charts_workspace_layout`, `multichart_state`); a surface without one
+  // passes nothing and stays global.
+  chartId = null,
 }) {
   const { prefs, setPref } = usePreferences()
   const resolvedTf = tf || prefs.default_chart_tf || 'D'
@@ -1545,6 +1660,30 @@ export default function StockChart({
   // (earningsEvents itself is derived AFTER filteredBars is declared — see below.)
   const [earningsPopup, setEarningsPopup] = useState(null)
 
+  // The INSTANCE whose settings dialog is open (null = closed). One instance id,
+  // never a defId: "RSI(7) settings" and "RSI(14) settings" are two different
+  // forms over one definition, and the write door has addressed instances since
+  // Task 1. Task 4's chip gear sets this too.
+  const [settingsInstanceId, setSettingsInstanceId] = useState(null)
+
+  // ── chart-UX-walls TASK 4 — THE CHIP MENU ────────────────────────────────
+  //
+  // `{instanceId, anchor:{x,y}}` while a chip's ContextPopover is open, else null.
+  // Anchored per chip because the popover is per INSTANCE: with two RSIs on the
+  // chart, "which one did you right-click" is the only thing that distinguishes
+  // Hide from Hide.
+  const [chipMenu, setChipMenu] = useState(null)
+  // Which PAGE of that one popover is showing: null = the six rows, 'move' = the
+  // three placement targets. ⛔ A PAGE, NOT A NESTED MENU — `ContextPopover`
+  // renders a flat list and IGNORES an `it.submenu`, so a "Move to ▸" row handed
+  // to it verbatim would render as a live button that does nothing at all. That
+  // is the exact defect this task exists to remove, one layer up.
+  const [chipPage, setChipPage] = useState(null)
+  // The instance whose ABOUT page the same popover is showing (spec §6's About
+  // row). A second PAGE of one popover rather than a second popover: the text is
+  // `def.meta.description`, which every definition already declares.
+  const [chipAbout, setChipAbout] = useState(null)
+
   // ── Journal 2.0 markers + entry/stop price lines for this symbol ──
   // Returns empty arrays for unauth'd users. Merged with prop-supplied
   // markers/priceLines below so consumers (e.g. TradeDrawer) keep working.
@@ -1570,6 +1709,41 @@ export default function StockChart({
   const isPaidUser = useIsPaid()
   const { dpLines, dpZones, gexLines, flowMarkers } =
     useSignatureIndicators(sym, exactDateRange ? undefined : cs.signature, isPaidUser, resolvedTf)
+
+  // ── 🔴 PHASE D TASK 16 — USER DEFINITIONS, INSTALLED BEFORE THE BINDER READS ──
+  //
+  // The hook fetches this user's saved formulas and installs the ones that still
+  // VALIDATE into `engineRegistry`, DURING RENDER. Until Task 16 nothing did:
+  // `registerUserDefinitions` (now `validateUserDefinitions`) returned a checked
+  // definition and installed it nowhere, so `getDefinition('u_…')` answered null,
+  // `normalizeInstances(…, engineRegistry).kept` DROPPED the instance below, and
+  // a saved formula drew nothing on any surface. Measured by the parity case
+  // `ast_user_formula_sma20`, which read 0 changed pixels with AND without its
+  // own perturbation.
+  //
+  // ⚠️ `userDefsGeneration` IS IN `updateChart`'s DEPENDENCY LIST, AND IT IS
+  // REDUNDANT TODAY — MEASURED, NOT ASSUMED. The rows arrive from SWR after the
+  // first paint, so the repaint that already dropped the instance has to run
+  // again; the number changes iff the installed set changed, which is the
+  // React-idiomatic way to depend on module state a hook mutates. Task 16's
+  // gauntlet then REMOVED it (mutation M3) and every test stayed green: some
+  // other entry in that 38-item list is already unstable across renders, so
+  // `updateChart` is recreated on every render of this component anyway and the
+  // repaint happens without this dep. It is reported as **SURVIVED**, not
+  // dressed up as a kill.
+  //
+  // ⛔ IT STAYS ANYWAY, and the reason is the direction of the risk. It is the
+  // ONLY entry in that list that names this dependency, and the redundancy is an
+  // accident of a perf property nobody declared — the day somebody stabilises
+  // whatever is unstable there (this repo runs perf passes), a chart that reads
+  // module state with no dependency on its version stops drawing user formulas
+  // with nothing to say so. What actually PROTECTS the feature is
+  // `userDefinitionDraws.test.jsx`'s ordering case, which fails on the composite;
+  // this is the declaration beside it. `errors` is not surfaced here: an invalid
+  // stored definition is the BUILDER's sentence to say (this chart's honest
+  // behaviour is to draw nothing for it), and a toast on a render path would fire
+  // on every chart.
+  const { generation: userDefsGeneration } = useInstalledUserDefinitions()
 
   const mergedMarkers = useMemo(
     () => {
@@ -1892,6 +2066,16 @@ export default function StockChart({
   // undo a deliberate pan (that was the "drag left and it snaps straight back"
   // bug — the net re-fired on the next live data commit).
   const userViewMovedRef = useRef(false)
+  // REPLAY view lock: once the user pans/zooms while in replay, every subsequent ticker
+  // in the sort keeps that exact view (right-relative) instead of snapping back to the
+  // default replay frame. Persists across ticker switches; cleared by "Reset view" or on
+  // exit replay. (userViewMovedRef is re-armed each sym switch, so it can't hold this.)
+  const replayViewLockedRef = useRef(false)
+  // The locked view's RIGHT-RELATIVE params {barsFromRight, width}, captured on the
+  // CURRENT ticker at pan/zoom time — NOT derived from oldRange after a sym switch (that
+  // range is clamped to the new ticker's extent, so a short-history name like ROOT loses
+  // the deep scroll-back a long-history name like QQQ had). Applied to every new ticker.
+  const replayLockedViewRef = useRef(null)
   const viewPointerRef = useRef(null)       // {x, y} of the in-flight press, else null
   const lastPointerDownAtRef = useRef(0)    // ms of the last press anywhere on the chart
   // Is the user's pointer physically over THIS chart? The ONLY trustworthy
@@ -1939,20 +2123,48 @@ export default function StockChart({
   // developing-bar writer; the Finnhub-fed writers early-return. A ref so writers read the
   // latest without re-subscribing.
   //
-  // ⚠️ EVERY developing-bar writer MUST consult this flag — the FOUR that exist today, and
-  // any FIFTH one added later. A writer that forgets the guard dual-writes or paints the
+  // ⚠️ EVERY developing-bar writer MUST consult this flag, or be DISJOINT from push by
+  // construction and say so. A writer that forgets the guard dual-writes or paints the
   // wrong candle — exactly how the Heikin-Ashi raw-candle bug shipped (retro audit 2026-07-06).
-  // The four writer sites (grep `barsPushActiveRef` to find them; keep these refs ~in sync):
-  //   • Writer A — livePrices tick effect      (~L2748):  if (barsPushActiveRef.current) return
-  //   • Writer B — onRealtimeBar, Massive push (~L2890):  if (!barsPushActiveRef.current) return  ← B IS the writer
-  //   • Writer C — realtimeCandle registry     (~L5785):  if (barsPushActiveRef.current) return
-  //   • Writer D — post-setData re-top         (~L3336):  branch — push-owned re-top vs Finnhub re-top
+  //
+  // ⛔ THIS INDEX IS NO LONGER MAINTAINED BY HAND, AND THE REASON IS THAT IT ROTTED.
+  // It said "the FOUR that exist today, and any FIFTH one added later" and listed A-D with
+  // line numbers (~L2748 / ~L2890 / ~L5785 / ~L3336). Measured 2026-08-07: there are SIX
+  // writers, and all four cited line numbers were off by 2,300-4,700 lines in an
+  // 11,700-line file. Both E and F were CORRECT when found — the defect was the artifact
+  // the next engineer audits against, which is the very bug class the paragraph above
+  // cites. The set is now DERIVED from this file's AST by
+  // `engine/__tests__/singleWriterIndex.test.js` (every `.update()` on
+  // `candleSeriesRef.current`, alias-resolved), which pins the count and each writer's
+  // guard. Adding a seventh writer fails that test by name. This list is the reader's
+  // map; that test is the authority.
+  //   • Writer A — livePrices tick effect (Finnhub)  : if (barsPushActiveRef.current) return
+  //   • Writer B — onRealtimeBar, Massive push       : if (!barsPushActiveRef.current) return  ← B IS the writer
+  //   • Writer C — realtimeCandle registry (Finnhub) : if (barsPushActiveRef.current) return
+  //   • Writer D — updateChart post-setData re-top   : branch — push-owned re-top vs Finnhub re-top
+  //   • Writer E — fast D/W/M candle on the bars-WS 1-min tick : folded into the daily-plus guard
+  //   • Writer F — custom-TF live developing bar     : NO GUARD, and must not have one.
+  //       `_pushOptIn` requires `realtimeTfEligible`, a membership test against the five
+  //       NATIVE intraday codes, so barsPushActiveRef is structurally false on a custom TF.
+  //       A guard there would be dead code, which is worse than none: it reads as protection.
   const barsPushActiveRef = useRef(false)
   // When true, the on-screen bars are a PROVISIONAL stale-intraday cache paint
-  // (instant sym-switch, forced full refetch in flight). All four live-bar writers
-  // FREEZE while this is set so a live tick can't grow a phantom candle on the stale
-  // tail before authoritative bars swap in. Set in the `bars` selector each render.
+  // (instant sym-switch, forced full refetch in flight). Writers A/B/C/D FREEZE while this
+  // is set so a live tick can't grow a phantom candle on the stale tail before
+  // authoritative bars swap in. Set in the `bars` selector each render.
+  // ⚠️ It said "all FOUR live-bar writers" when four was also the writer count; those are
+  // two different numbers now. E and F do NOT consult this ref and do not need to:
+  // `provisionalStaleRef` is `isIntraday &&`-gated on the same five native intraday codes,
+  // E is daily-plus only and F is custom-TF only, so it is structurally false in both.
+  // That disjointness is asserted in `singleWriterIndex.test.js`, not assumed here.
   const provisionalStaleRef = useRef(false)
+  // Self-heal throttle: when a live push bar arrives >1 interval ahead of the frozen
+  // series tail (the steady-state SWR delta poll stalled — e.g. a deploy dropped the
+  // SSE + the visibility-gated refresh paused), the contiguity guard forces an SWR
+  // revalidation to pull the missing bars. Throttled so it fires at most once per
+  // window instead of on every push tick while the chart is catching up.
+  const gapHealAtRef = useRef(0)
+  const barsMutateRef = useRef(null)  // latest SWR mutate() for the bars key (stale-closure-safe)
   const barStartVolRef = useRef(0)    // Cumulative volume at start of current bar (for per-bar delta)
   // Session preview owns the D/W/M developing bar during pre/post market on the
   // workspace (synthetic pre-market candle / frozen-at-4pm regular candle) — a
@@ -1987,6 +2199,9 @@ export default function StockChart({
   // ── Drawing tools state ──
   // ── Crosshair legend state ──
   const [crosshairData, setCrosshairData] = useState(null)
+  // The `+N` fold, expanded in place. False on every mount on purpose: a strip
+  // that reopens itself is a strip the user closed for nothing.
+  const [chipsExpanded, setChipsExpanded] = useState(false)
   const legendHoveringRef = useRef(false)
   // True while a SYNCED (external) crosshair is applied to this chart. The
   // always-show-legend refreshers below must stand down for it exactly as they
@@ -2002,6 +2217,22 @@ export default function StockChart({
   // gain use. computeLatestCrosshair prefers this so the legend's price / change
   // match the theme tracker instead of the laggy Finnhub feed.
   const liveTickRef = useRef(null)
+  /**
+   * The chips for the LAST bar — no crosshair, so no `seriesData`.
+   *
+   * ⚠️ `engineInstancesRef` is declared BELOW this function, and that is safe:
+   * `latestChips` is only ever CALLED from effects and handlers, long after
+   * every `useRef` in the component body has run. Do not "fix" it by moving the
+   * ref — the declaration order below it is what the rest of the file depends on.
+   */
+  const latestChips = () => {
+    try {
+      const engine = engineRef.current
+      if (!engine) return EMPTY_CHIPS
+      const chips = legendChips(engine.binder.bindings(), null, engineRegistry, engineInstancesRef.current)
+      return chips.length ? chips : EMPTY_CHIPS
+    } catch { return EMPTY_CHIPS }
+  }
   // Build the legend payload for the LATEST bar (used when the cursor is off the
   // chart and alwaysShowLegend is on). Reads live refs; safe to call from effects.
   const computeLatestCrosshair = () => {
@@ -2104,12 +2335,21 @@ export default function StockChart({
       dollarVol: (Number.isFinite(vol) && Number.isFinite(c)) ? vol * c : null,
       volAvg: (vma && vma.length) ? vma[vma.length - 1].value : null,
       volMaPeriod: volMaPeriodEff || null,
-      // ⚠️ NO INDICATOR CHIPS, WHICH IS WHAT THE SHIPPED LEGEND DID TOO. This is
-      // the OFF-CHART legend (`alwaysShowLegend` with the cursor away), and the
-      // nine `crosshairData.<indicator>` fields it replaced were all hard `null`
-      // here — so the always-on legend has never printed an indicator value.
-      // Frozen + shared so the 500 ms refresher allocates nothing per tick.
-      overlays, chips: EMPTY_CHIPS, compare: null,
+      // ⭐ THE CHIPS THE OFF-CURSOR LEGEND NOW PRINTS. This line read
+      // `chips: EMPTY_CHIPS` with a comment saying "the always-on legend has
+      // never printed an indicator value" — which was true, and was Wall 1's
+      // display half in one field: `alwaysShowLegend` ships on 12 ChartPane
+      // mount modules and on `/r/chart`, and the OHLCV half of this same box
+      // already prints the last bar off-cursor, so a blank indicator row
+      // disagreed with the row directly above it.
+      //
+      // `legendChips` walks the INSTANCE list (not the bindings) so a hidden
+      // instance still gets a chip to un-hide from, and takes its value from
+      // `binding.lastValue`, the binder's own record of the final point it set.
+      // Wrapped inside `latestChips` because a disposed binder throwing here
+      // would take the legend down; EMPTY_CHIPS is the honest fallback, and it
+      // is still the frozen shared one when there is nothing to print.
+      overlays, chips: latestChips(), compare: null,
     }
   }
   const crosshairSubRef = useRef(null)
@@ -2228,6 +2468,75 @@ export default function StockChart({
     setPref('chart_settings', JSON.stringify(persisted))
   }, [setPref, settingsOverride, csBase, cs, onSettingsPersist])
 
+  // ═══ chart-UX-walls TASK 4 — EVERY CHIP ACTION, THROUGH ONE WRITER ════════
+  //
+  // ⭐ ONE WRITER. Every chip action routes at `instanceControls` — the same
+  // module the right-click doors, the four keyboard chords, the generated
+  // settings rows, the library dialog and the voice bus already share. A REFUSED
+  // write returns the settings object BY IDENTITY (a dead instance id, an illegal
+  // value), so the guard below is `!==` and nothing persists.
+  //
+  // ⛔ THE IDENTITY GUARD IS NOT AN OPTIMISATION. `handleUpdateChartSettings`
+  // WRITES THE GLOBAL PREF. Persisting `cs` back over itself on a refused write
+  // would stamp `preset: 'custom'` on a user who never successfully changed
+  // anything — and on a grid cell it would flush the whole blob through
+  // `onSettingsPersist` for a no-op.
+  const writeInstance = useCallback((next) => {
+    if (next !== cs) handleUpdateChartSettings({ ...next, preset: 'custom' })
+  }, [cs, handleUpdateChartSettings])
+
+  const handleChipHidden = useCallback((instanceId) => {
+    const inst = findInstance(cs, instanceId)
+    if (!inst) return
+    writeInstance(setInstanceHidden(cs, instanceId, !inst.hidden, engineRegistry))
+  }, [cs, writeInstance])
+
+  // ⛔ `removeInstance`, NOT `setIndicatorEnabled(defId, false)`. The second one
+  // TOMBSTONES EVERY LIVE INSTANCE OF THE DEFINITION (`instanceControls:225`), so
+  // × on one of two RSIs would delete both — silently, and identically to the
+  // correct behaviour while only one exists. See the report: that substitution
+  // SURVIVES today's tests and its kill belongs to the task that ships a second
+  // instance.
+  const handleChipRemove = useCallback((instanceId) => {
+    writeInstance(removeInstance(cs, instanceId, engineRegistry))
+  }, [cs, writeInstance])
+
+  // ⭐ chart-UX-walls TASK 6 — DUPLICATE. The first caller `addInstance` has ever
+  // had, and the reason `handleChipRemove` above can finally be told apart from
+  // `setIndicatorEnabled(defId, false)`: until a user could produce two instances
+  // of one definition, the two were byte-identical.
+  //
+  // ⛔ THE DEF ID IS RESOLVED FROM THE INSTANCE, NOT TAKEN FROM THE CHIP. The chip
+  // carries a `defId` and it would work today, but the instance is what has to
+  // still EXIST for a duplicate to mean anything: `findInstance` refuses a dead or
+  // tombstoned id, and without it a stale menu (a chip whose × another surface
+  // already fired) would silently mint a fresh RSI the user never asked for.
+  const handleChipDuplicate = useCallback((instanceId) => {
+    const inst = findInstance(cs, instanceId)
+    if (!inst) return
+    writeInstance(addInstance(cs, inst.defId, engineRegistry))
+  }, [cs, writeInstance])
+
+  // ⛔ NO RAW `{...cs, indicatorInstances}` HERE. `withInstances` is the writer's
+  // own list-setter: it re-sorts by definition stack order and stamps
+  // `preset: 'custom'`, and a hand-spread list would silently drop the sort — the
+  // panes and the legend read that ONE list and would stop agreeing.
+  //
+  // ⛔ AND IT REFUSES BY IDENTITY, exactly like every other door: a dead instance
+  // id, or a target this instance cannot resolve, returns `cs` and persists
+  // nothing. `chipMenu.moveTargetRefusal` is what stops such a row being offered
+  // at all; this is the belt behind it.
+  const handleChipMove = useCallback((instanceId, target) => {
+    const inst = findInstance(cs, instanceId)
+    if (!inst) return
+    if ((inst.placement && inst.placement.target) === target) return
+    const list = (cs.indicatorInstances || []).map(i => (
+      i && i.instanceId === instanceId
+        ? { ...i, placement: { ...(i.placement || {}), target } }
+        : i))
+    writeInstance(withInstances(cs, list, engineRegistry))
+  }, [cs, writeInstance])
+
   // Toolbar EXT/RTH button — flips the same "Extended hours" setting the settings
   // panel toggles, so both stay in lockstep (one logical state, two entry points).
   const handleToggleExtended = useCallback((val) => {
@@ -2241,6 +2550,45 @@ export default function StockChart({
   // addDrawing is created later (useChartDrawings, below); bridge via ref so a
   // menu item can draw a horizontal line at the clicked price.
   const addDrawingRef = useRef(null)
+
+  // ⭐ chart-UX-walls TASK 4 — "Add alert on <label>…", from the chip AND from the
+  // right-click region menu, through the SAME popover the 🔔 button opens.
+  //
+  // ⛔ ONE POPOVER, NOT A SECOND MOUNT. `ChartToolbar` owns `IndicatorAlertPopover`
+  // (it is the surface that knows the symbol and the read-only gate), so this is
+  // an imperative call onto the existing one, exactly like `openIndicatorLibrary`
+  // and `openSettings` above. A second mount would be a second alert form that
+  // could disagree with the first about which chart's instances it is offering.
+  //
+  // It returns FALSE when there is no toolbar or no symbol, and the caller turns
+  // that into a DISABLED row rather than a live one that opens nothing.
+  const chipAlertsRefusal = showDrawingTools && sym
+    ? undefined
+    : 'this chart has no alert form (read-only mount)'
+  const handleChipAlerts = useCallback((instanceId, plotKey) => {
+    try { toolbarRef.current?.openAlerts({ instanceId, plotKey }) } catch { /* noop */ }
+  }, [])
+
+  const handleChipMenu = useCallback((chip, anchor) => {
+    setChipPage(null)
+    setChipAbout(null)
+    setChipMenu({ chip, anchor })
+  }, [])
+
+  /** The chip's four handlers, or NULL on a read-only mount.
+   *
+   * ⛔ THE SAME GATE THE REGION MENU'S `<label> settings…` ROW USES, and for the
+   * same reason it gives: a mount with no drawing tools (Model Book, a grid cell,
+   * the `/r/chart` export route) renders no toolbar and is not the surface a user
+   * edits their chart on. `IndicatorChip` renders NO control at all when it gets
+   * no handlers, so those surfaces keep exactly the inert chip Task 3 shipped —
+   * and the export route keeps a legend with no buttons in it. */
+  const chipHandlers = useMemo(() => (showDrawingTools ? {
+    onToggleHidden: handleChipHidden,
+    onOpenSettings: setSettingsInstanceId,
+    onRemove: handleChipRemove,
+    onMenu: handleChipMenu,
+  } : null), [showDrawingTools, handleChipHidden, handleChipRemove, handleChipMenu])
   const buildRegionSections = useCallback((region, clickPrice) => {
     const setCs = (path, value) => {
       const next = { ...cs }
@@ -2292,8 +2640,10 @@ export default function StockChart({
         }
         // Explicit reset — the view is back at the canonical window, so the
         // "user moved the view" latch is cleared and the pinned-right safety
-        // net is live again (see userViewMovedRef).
+        // net is live again (see userViewMovedRef). Also release the replay view
+        // lock so the next replay ticker returns to the default replay frame.
         userViewMovedRef.current = false
+        replayViewLockedRef.current = false; replayLockedViewRef.current = null
       } catch {}
     }
     const autoScale = () => {
@@ -2429,9 +2779,41 @@ export default function StockChart({
       // Indicators submenu, the toolbar strip and the legend take. One label,
       // four surfaces, one source.
       const label = labelFor(key)
+      // ⭐ "<label> settings…" NOW OPENS THE PER-INSTANCE DIALOG, not the global
+      // five-tab modal. A menu row that named ONE indicator and opened a
+      // chart-wide surface (Price Style / Canvas / Indicators / Header / Markers)
+      // was the third of spec §6's missing containers.
+      //
+      // ⛔ THE READ-ONLY GATE IS UNCHANGED — it is `settingsLink`'s, reused: a
+      // mount with no drawing tools (Model Book, a grid cell) renders no toolbar
+      // and persists nothing, so it gets no settings row at all rather than one
+      // that writes nowhere. And with no LIVE instance to scope to (a definition
+      // drawing only through the legacy projection) the row falls back to the
+      // global surface rather than opening a dialog on nothing.
+      const instId = firstLiveInstanceId(cs, key)
+      const settingsRow = (showDrawingTools && instId)
+        ? [{ id: 'i-set', label: `${label} settings…`, onSelect: () => setSettingsInstanceId(instId) }]
+        : settingsLink('i-set', `${label} settings…`)
+      // ⭐ chart-UX-walls TASK 4 — the region menu's own alert door, beside
+      // `Hide <label>` and `<label> settings…`. It opens the SAME popover the 🔔
+      // button and the chip's Alerts row open (`toolbarRef.openAlerts`), scoped to
+      // the same live instance the settings row resolved — so right-clicking the
+      // RSI pane offers an RSI alert rather than whatever the catalog lists first.
+      //
+      // ⛔ SAME READ-ONLY GATE AS THE ROW ABOVE IT, and for the same reason: with
+      // no toolbar there is no popover, and a row that opens nothing is the defect
+      // class this phase retires rather than a smaller version of it.
+      const alertRow = (showDrawingTools && instId)
+        ? [{
+            id: 'i-alert',
+            label: `Add alert on ${label}…`,
+            onSelect: () => { try { toolbarRef.current?.openAlerts({ instanceId: instId }) } catch { /* noop */ } },
+          }]
+        : []
       secs.push({ id: 'region', title: label, items: [
         { id: 'i-hide', label: `Hide ${label}`, kind: 'toggle', checked: true, onSelect: () => setIndEnabled(key, false) },
-        ...settingsLink('i-set', `${label} settings…`),
+        ...settingsRow,
+        ...alertRow,
       ] })
     } else if (region.type === 'overlay') {
       const ov = resolvedOverlays?.[region.index]
@@ -2912,7 +3294,13 @@ export default function StockChart({
   // year that the shallow first-paint window can miss entirely (a 2020 example
   // would silently frame "now"), and they skip the pan-to-backfill path — so
   // they must fetch the full depth up front.
-  const _pinnedFull = !!(entryDate || exactDateRange)
+  //
+  // Replay mode (replayCutoff) is the same situation: the shallow window is the ~600
+  // bars ending TODAY, but replay hides everything after the cutoff, so most of that
+  // window is thrown away and almost NO pre-cutoff history is loaded (the "nothing
+  // before ~March 2024" bug). Depending on the dwell-warm/prefetch race to backfill it
+  // is unreliable — pin full depth so the whole history up to the cutoff loads at once.
+  const _pinnedFull = !!(entryDate || exactDateRange || replayCutoff)
   const barCount = (_overlayActive || _pinnedFull) ? _fullTarget : fetchDepth
 
   // Intraday refetches more often to keep candles current during market hours
@@ -2937,6 +3325,13 @@ export default function StockChart({
   const [idbLoaded, setIdbLoaded] = useState(false)
   const idbSinceRef     = useRef(null)
   const idbReadyForRef  = useRef(null)  // string `${sym}_${tf}` once IDB load completes
+  // Always-current mirror of idbBars. The SWR-merge effect keys on [data] and would
+  // otherwise read a STALE closured idbBars: when the shallow full set resolves right
+  // after a deep IDB paint, the closure can still be pre-deep → the deep-preserve check
+  // misfires and truncates (the "deep flashes then reloads" bug). Declared BEFORE the
+  // merge effect so within any single commit this sync runs first.
+  const idbBarsRef = useRef(null)
+  useEffect(() => { idbBarsRef.current = idbBars }, [idbBars])
   // TEMP DIAGNOSTIC (window.__uctBarsDebug) — the sym this chart last PAINTED, so
   // updateChart can log ticker transitions. Captures the "random chart appears for
   // a blip then goes away when switching to BLZE with a 2nd widget" report: a blip
@@ -3029,10 +3424,17 @@ export default function StockChart({
   // barsOverride (Model Book uploaded data) short-circuits all fetching.
   const _overrideArr = Array.isArray(barsOverride) && barsOverride.length > 0
   const _hasOverride = _overrideArr || barsOverridePending
+  // Replay mode: fetch the bars ENDING AT the cutoff (server serves this pre-cutoff
+  // window fast from SQLite) instead of the full 'ending today' set — which for an old
+  // cutoff is a big, slow fetch that paints nothing until it lands (the "chart stuck on
+  // the previous ticker" bug). `to` implies a full window (no `since`).
+  const _toParam = replayCutoff && !_isCustomTf ? replayCutoff : null
   const swrUrl = (_hasOverride || _isCustomTf)
     ? null
     : ((sym && idbLoaded && idbReadyForRef.current === `${sym}_${resolvedTf}`)
-        ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}${_sinceParam != null ? `&since=${encodeURIComponent(String(_sinceParam))}` : ''}`
+        ? (_toParam != null
+            ? `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}&to=${encodeURIComponent(_toParam)}`
+            : `/api/bars/${encodeURIComponent(sym)}?tf=${resolvedTf}&bars=${barCount}${_sinceParam != null ? `&since=${encodeURIComponent(String(_sinceParam))}` : ''}`)
         : null)
 
   // Self-healing poll cadence: with no refreshInterval, the chart was frozen
@@ -3054,6 +3456,11 @@ export default function StockChart({
       onErrorRetry: barsSwrOnErrorRetry,
     }
   )
+  // Expose the latest mutate() to the live-bar writers (stale-closure-safe) so the
+  // contiguity-guard self-heal can force an immediate revalidation. mutate() fires
+  // even when refreshInterval polling is paused (hidden/popped-out window), which is
+  // exactly the stall it recovers from.
+  barsMutateRef.current = mutate
 
   // ── Custom timeframe: fetch the NATIVE base, resample client-side ──
   // (_isCustomTf / _customBaseTf / _customSpec are declared ABOVE the native SWR so
@@ -3134,11 +3541,26 @@ export default function StockChart({
       idbPut(sym, resolvedTf, merged)
       memPut(sym, resolvedTf, merged)
     } else if (!data.delta && data.bars.length) {
-      if (_dbg) console.log('[bars-delta]', sym, resolvedTf, `=> REPLACED (full) with ${data.bars.length}`)
-      setIdbBars(data.bars)
-      idbSinceRef.current = data.bars[data.bars.length - 1]?.t ?? null
-      idbPut(sym, resolvedTf, data.bars)
-      memPut(sym, resolvedTf, data.bars)
+      // If IDB already holds a DEEPER history than this (shallow, recent) full set —
+      // e.g. the Custom-Period-Sort deep prefetch pre-warmed the full pre-2024 tail —
+      // don't truncate it back to the first-paint window. mergeDelta keeps the deep
+      // bars and lets the fresh server bars WIN on the overlapping recent tail (same
+      // healing as a replace, minus the truncation), so scrolling into deep history
+      // is instant instead of paying a cold deep fetch. Only when the fresh set is a
+      // recent SUFFIX of the deeper one (same sym/tf, starts at/after the deep start).
+      // Read the authoritative CURRENT idb bars from the ref, not the [data]-closured
+      // state (which can lag a just-committed deep IDB paint and cause the truncation).
+      const curIdb = idbBarsRef.current
+      const deeperInIdb = sameSymTf && curIdb?.length > data.bars.length
+        && data.bars[0] && curIdb[0] && data.bars[0].t >= curIdb[0].t
+      const next = deeperInIdb ? mergeDelta(curIdb, data.bars) : data.bars
+      if (_dbg) console.log('[bars-delta]', sym, resolvedTf,
+        deeperInIdb ? `=> KEPT DEEP (${curIdb.length}) + healed tail (${data.bars.length})` : `=> REPLACED (full) with ${data.bars.length}`)
+      idbBarsRef.current = next        // keep the mirror current for any same-tick re-run
+      setIdbBars(next)
+      idbSinceRef.current = next[next.length - 1]?.t ?? null
+      idbPut(sym, resolvedTf, next)
+      memPut(sym, resolvedTf, next)
     }
   }, [data])  // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -3260,7 +3682,14 @@ export default function StockChart({
     : (barsOverridePending
         ? null  // override expected but not here yet → render nothing (spinner), don't fall back to provider data
         : ((_netMatches && !data.delta)
-            ? data.bars
+            // Server returned a full (non-delta) set. Normally render it — it's the
+            // authoritative heal. BUT if fresh IDB holds a strictly DEEPER history than
+            // this (shallow first-paint) fetch, render THAT: otherwise a deep-warmed
+            // chart flashes its full history from IDB, then this shallow fetch truncates
+            // it back to ~600 bars until the dwell-warm re-fetches deep (the "cuts off
+            // pre-2024 then reloads" flicker). The merge effect still heals idbBars's
+            // recent tail from data.bars (server wins on overlap), so this stays correct.
+            ? ((_idbFresh && idbBars.length > data.bars.length) ? idbBars : data.bars)
             : (_idbFresh
                 ? idbBars
                 : (_netMatches
@@ -3268,18 +3697,32 @@ export default function StockChart({
                     : (_memBars?.length
                         ? _memBars
                         : (_aggBars?.length ? _aggBars : (_idbProvisional || null)))))))
-  // True only while the on-screen bars ARE the provisional stale-intraday layer
-  // (no net/mem/agg data resolved yet for this key). The live-bar writers consult
-  // this to freeze until the forced full refetch replaces the data — BUT only when
-  // the stale tail is from a PRIOR session (>8h old: overnight / weekend / multi-day),
-  // which is the "fuse a live spike onto old history" danger this gate exists for.
-  // A SAME-SESSION tail that's merely >15min stale is safely EXTENDED by a live tick
-  // (isSaneLivePrice already rejects a wrong price), so freezing there just left the
-  // price permanently stuck with the feed connected until a timeframe flip (owner
-  // report: 5m loads only to 3:15pm, LIVE badge green but price frozen). Same-session
-  // → paint provisionally AND keep ticking so the developing candle advances.
-  const _provStaleSecs = (typeof idbSinceRef.current === 'number') ? (Date.now() / 1000 - idbSinceRef.current) : 0
-  provisionalStaleRef.current = !!_idbProvisional && bars === _idbProvisional && !_netMatches && _provStaleSecs > 8 * 3600
+  // The live-bar writers consult this to freeze until a CURRENT-session payload
+  // replaces the data — BUT only when the stale tail is from a PRIOR session
+  // (>8h old: overnight / weekend / multi-day), which is the "fuse a live spike
+  // onto old history" danger this gate exists for. A SAME-SESSION tail that's
+  // merely >15min stale is safely EXTENDED by a live tick (isSaneLivePrice already
+  // rejects a wrong price), so freezing there just left the price permanently stuck
+  // with the feed connected until a timeframe flip (owner report: 5m loads only to
+  // 3:15pm, LIVE badge green but price frozen). Same-session → keep ticking so the
+  // developing candle advances.
+  // Freeze the live-bar writers whenever the intraday series ON SCREEN ends on a
+  // PRIOR-SESSION tail (>8h old) — regardless of whether that tail came from the
+  // IDB provisional layer OR a stale NETWORK response the backend served before
+  // today's bars landed. The old form keyed off `!_netMatches`, so the freeze
+  // dropped the instant ANY network payload matched — even a stale one whose
+  // newest bar is yesterday's close — and a live tick then fused a giant
+  // developing candle onto that stale tail (the QQQ "yesterday's full session +
+  // one huge candle up to now" / SPCX "only yesterday" reports). Keying purely on
+  // the chosen `bars` tail age keeps the freeze on until a CURRENT-session payload
+  // replaces it (the forced full refetch), then writers resume. 8h is well above
+  // same-session staleness (a normal developing tail is ≤ a couple intervals old),
+  // so an active RTH chart is never falsely frozen; only a missing-session tail is.
+  const _barsTailT = (Array.isArray(bars) && bars.length)
+    ? (typeof bars[bars.length - 1]?.t === 'number' ? bars[bars.length - 1].t : null)
+    : null
+  const _barsTailSecs = (typeof _barsTailT === 'number') ? (Date.now() / 1000 - _barsTailT) : 0
+  provisionalStaleRef.current = isIntraday && _barsTailT != null && _barsTailSecs > 8 * 3600
   // Mirror the exact array the drawing overlay indexes (its `bars` prop) so the
   // Ctrl+drag trendline below maps x → bar time the SAME way toChart does — its
   // point.time is then guaranteed to resolve in the overlay's timeToIndex.
@@ -3311,6 +3754,58 @@ export default function StockChart({
   const { prices: livePrices, staleSymbols, isStreaming } = useRealtimePrices(liveUpdates && sym ? [sym] : [])
   const isStale = !!(sym && staleSymbols && staleSymbols.has(String(sym).toUpperCase()))
   const feed = streamStatus({ isStreaming, isStale })
+
+  // ── Frozen-chart watchdog (independent of the live-bar writers) ──
+  // Uses the existing livePricesRef (assigned each render below) — stale-closure-safe.
+  // The live-bar writers only self-heal a stalled chart when they actually FIRE
+  // (a push/Finnhub tick arrives AND isn't suppressed). But the exact reported bug
+  // — "price keeps updating in the header + watchlist, yet the chart is frozen and
+  // the tick isn't moving" — is a state where the developing-bar writer isn't
+  // advancing the series while the live-price feed clearly IS live. The header/
+  // watchlist price rides the /api/live-prices path (livePrices here), so when that
+  // price is running MORE than ~2 intervals ahead of the chart's rendered tail, the
+  // bars SWR poll has stalled (post-deploy SSE drop + visibility-gated refresh not
+  // resuming). Force a throttled revalidation — mutate() fires even while interval
+  // polling is paused, and the backend is authoritative + proven fresh, so the tail
+  // catches up. Runs only for intraday; a same-session live price naturally sits
+  // within a bar or two of the tail, so this never fires on a healthy chart.
+  useEffect(() => {
+    if (!sym || !isIntraday) return
+    const id = setInterval(() => {
+      try {
+        const lp = livePricesRef.current?.[sym]
+        const tail = lastBarRef.current
+        if (!lp || !Number.isFinite(lp.updated_at) || !tail || !Number.isFinite(tail.time)) return
+        const period = PERIOD_SECONDS[resolvedTf] || 300
+        // tail.time is (server unix seconds + _ET_OFFSET); lp.updated_at is raw unix
+        // seconds — undo the offset to compare like-for-like.
+        const tailServerSec = tail.time - _ET_OFFSET
+        if (lp.updated_at - tailServerSec <= 2.5 * period) return
+        const nowMs = Date.now()
+        if (nowMs - gapHealAtRef.current <= 6000) return
+        gapHealAtRef.current = nowMs
+        // Fetch the fresh FULL series directly (no `since`) and INJECT it into SWR's
+        // cache via mutate(payload, {revalidate:false}). This deterministically drives
+        // the `[data]` effect's non-delta REPLACE branch → setData → the tail advances,
+        // instead of relying on mutate()'s revalidation actually re-firing the paused
+        // poll. Bounded: throttled 6s, only while the chart is demonstrably behind the
+        // live feed, and a no-op REPLACE once caught up (the price sits within 2.5
+        // intervals of the tail again → this branch stops firing).
+        const _sym = sym, _tf = resolvedTf
+        fetch(`/api/bars/${encodeURIComponent(_sym)}?tf=${_tf}&bars=${barCount}`)
+          .then(r => (r.ok ? r.json() : null))
+          .then(payload => {
+            // Guard against a ticker/tf switch mid-fetch, and against a stale payload.
+            if (!payload?.bars?.length) return
+            if (sym !== _sym || resolvedTf !== _tf) return
+            if (payload.ticker && payload.ticker !== String(_sym).toUpperCase()) return
+            barsMutateRef.current?.(payload, { revalidate: false })
+          })
+          .catch(() => { /* transient — next tick retries */ })
+      } catch { /* watchdog must never throw */ }
+    }, 8000)
+    return () => clearInterval(id)
+  }, [sym, resolvedTf, isIntraday, barCount])
 
   // Keep lastPriceRef / lastChangePctRef in sync for screenshot composition.
   // Prefers live stream values; falls back to last bar close / intra-bar change.
@@ -3448,6 +3943,10 @@ export default function StockChart({
 
   // ── Replay / Time Machine state ──
   const [replayMode, setReplayMode] = useState(false)
+  // Replay-cutoff (Custom-Period Sort replay): a live ref so the developing-bar writers
+  // freeze the moment a cutoff is set, without re-subscribing on every cutoff change.
+  const replayCutoffRef = useRef(null)
+  replayCutoffRef.current = replayCutoff
   const [replayIndex, setReplayIndex] = useState(null)
   const [replayPlaying, setReplayPlaying] = useState(false)
   const [replaySpeed, setReplaySpeed] = useState(1)
@@ -3471,19 +3970,23 @@ export default function StockChart({
     && Number.isFinite(_sessionLive.ext_price) && _sessionLive.ext_price > 0)
     ? _sessionLive.ext_price : null
   // Include-mode: synthesize/extend the D/W/M candle from extended-hours data.
-  const sessionCandleActive = _sessionActive && sessionView === 'extended' && _inExtWindow && !replayMode
+  // replayCutoff (Custom-Period Sort replay) suppresses ALL live extended-hours session
+  // preview — the candle, the freeze, and the Pre/Post right-axis tags — just like the
+  // internal replayMode does: a live "Post" price tag is meaningless on a replayed
+  // historical period (owner request). Restored the moment replay is exited.
+  const sessionCandleActive = _sessionActive && sessionView === 'extended' && _inExtWindow && !replayMode && !replayCutoff
   // Regular-mode post-market: freeze today's candle at the 4pm close (don't let
   // the live writers fold post-market prints into it). Pre-market regular mode
   // already leaves yesterday's bar untouched (day_open==0 → classifyLiveBar skip).
-  const sessionFreezeActive = _sessionActive && sessionView === 'regular' && marketSession === 'post' && !replayMode
+  const sessionFreezeActive = _sessionActive && sessionView === 'regular' && marketSession === 'post' && !replayMode && !replayCutoff
   // Show the locked-close + Pre/Post tags whenever it's pre/post market on the
   // workspace, regardless of the toggle (matches TradingView).
-  const sessionTagsActive = _sessionActive && _inExtWindow && !replayMode
+  const sessionTagsActive = _sessionActive && _inExtWindow && !replayMode && !replayCutoff
   // Same two right-axis tags on INTRADAY charts (1m..1h) on the workspace — the
   // prev-day close + live Pre/Post price — regardless of the Regular/Extended
   // toggle. Intraday has no synthetic session candle (that's D/W/M only); it just
   // gets the price-scale references, sourced straight from the live feed.
-  const sessionTagsIntraday = sessionView != null && !_isDWM && _inExtWindow && !replayMode
+  const sessionTagsIntraday = sessionView != null && !_isDWM && _inExtWindow && !replayMode && !replayCutoff
   // (sessionPreviewLastBar — the muted-white preview paint — is derived below, once
   // we know whether the session candle actually got applied to the bars.)
   // Writers A + D yield the D/W/M last bar to the memo-driven setData while owned.
@@ -3566,10 +4069,22 @@ export default function StockChart({
           }
         }
       }
-      return (replayMode && replayIndex != null) ? src?.slice(0, replayIndex + 1) : src
+      let out = (replayMode && replayIndex != null) ? src?.slice(0, replayIndex + 1) : src
+      // Replay-cutoff (Custom-Period Sort replay mode): drop every bar AFTER the cutoff
+      // calendar day, so the chart ends exactly on the selected end date. Compared by
+      // calendar day — daily/weekly/monthly `t` is already 'YYYY-MM-DD'; intraday `t` is
+      // unix seconds, converted to its ET day (so all of the cutoff day's bars are kept).
+      if (replayCutoff && out?.length) {
+        out = out.filter(b => (
+          typeof b.t === 'number'
+            ? new Date(b.t * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' }) <= replayCutoff
+            : String(b.t).slice(0, 10) <= replayCutoff
+        ))
+      }
+      return out
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps -- _sliceHold/_exKey/exitDate are render-derived (mutated in the block above); exactSliceEnd already tracks the hold
-    [sessionBars, replayMode, replayIndex, exactDateRange, exactSliceEnd, keepBarsAfterExit, entryDate, frameRightPadFrac]
+    [sessionBars, replayMode, replayIndex, replayCutoff, exactDateRange, exactSliceEnd, keepBarsAfterExit, entryDate, frameRightPadFrac]
   )
 
   // Curated book charts (exactDateRange) frame a specific historical window.
@@ -4197,7 +4712,6 @@ export default function StockChart({
     const arr = Array.isArray(highlightBarTime) ? highlightBarTime : [highlightBarTime]
     const times = ohlcData.map(d => d.time)
     const exact = new Set(times)
-    const fuzzy = resolvedTf === 'W' || resolvedTf === 'M'
     const cmp = (a, b) => (typeof a === 'number' && typeof b === 'number')
       ? a - b
       : (String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0)
@@ -4206,7 +4720,9 @@ export default function StockChart({
       if (raw == null) continue
       const target = adjustTime(raw)
       if (exact.has(target)) { out.push({ time: target, orig: raw }); continue }
-      if (!fuzzy) continue
+      // No exact bar: resolve to the ENCLOSING bar (largest bar time <= the date). Covers
+      // W/M period-interior days AND a daily start-marker date that lands on a weekend/holiday
+      // (exact still wins for real trading days, so Model Book setups are unaffected).
       let best = null
       for (const t of times) if (cmp(t, target) <= 0 && (best == null || cmp(t, best) > 0)) best = t
       if (best != null) out.push({ time: best, orig: raw })
@@ -4229,9 +4745,14 @@ export default function StockChart({
   const goldOhlc = useMemo(() => {
     if (!highlightTimeSet) return ohlcData
     return ohlcData.map(d => (highlightTimeSet.has(d.time)
-      ? { ...d, color: highlightColor, borderColor: highlightColor, wickColor: highlightColor }
+      // Body-only leaves borderColor/wickColor unset so the highlighted candle keeps the
+      // chart's own border + wick colors (owner wants the gold START candle to have the
+      // same black border/wick as every other candle); Model Book paints all three.
+      ? (highlightBodyOnly
+          ? { ...d, color: highlightColor }
+          : { ...d, color: highlightColor, borderColor: highlightColor, wickColor: highlightColor })
       : d))
-  }, [ohlcData, highlightTimeSet, highlightColor])
+  }, [ohlcData, highlightTimeSet, highlightColor, highlightBodyOnly])
 
   // Setup⇄Result candle crossfade. The bars PAST the highlighted setup day fade
   // in (Setup→Result) / out (Result→Setup) instead of popping. Cutoff = the
@@ -4666,7 +5187,7 @@ export default function StockChart({
     const liveData = livePrices[sym]
     if (!liveData?.price) return
     // Skip live updates when replay mode is active — don't corrupt historical view.
-    if (replayMode) return
+    if (replayMode || replayCutoffRef.current) return   // replay/cutoff freezes the developing bar
     // HA bars depend on the full series history — skip tick-by-tick updates.
     // The chart still refreshes every 15s via SWR, which re-runs toHeikinAshi on
     // the full filteredBars array and calls setData() — accurate enough for HA.
@@ -4786,7 +5307,21 @@ export default function StockChart({
     const barTime = decision.time != null ? decision.time : last.time
 
     try {
-      if (decision.kind === 'skip') return
+      if (decision.kind === 'skip') {
+        // Intraday 'skip' from classifyLiveBar means the tick's bucket is PAST the
+        // tail (its contiguity / REST-floor behind-guard fired) → the series has
+        // stalled behind live (the stalled-SWR-poll freeze; same class Writer B
+        // self-heals). Force a throttled SWR revalidation to pull the missing bars.
+        // D/W/M 'skip' is an unconfirmed-session case (not a gap) — don't heal there.
+        if (isIntradayTf) {
+          const _nowMs = Date.now()
+          if (_nowMs - gapHealAtRef.current > 4000) {
+            gapHealAtRef.current = _nowMs
+            try { barsMutateRef.current?.() } catch { /* mutate unbound mid-mount */ }
+          }
+        }
+        return
+      }
       if (decision.kind === 'new') {
         // ── NEW CANDLE ──
         const isDailyWeekly = !isIntradayTf
@@ -4869,7 +5404,7 @@ export default function StockChart({
     // Never paint a live bar onto a historical replay (mirror of writers A + C). When
     // push is authoritative B is THE writer, so without this it would append a live
     // candle onto the replayed slice (review #4).
-    if (replayMode) return
+    if (replayMode || replayCutoffRef.current) return   // replay/cutoff freezes the developing bar
     // Defensive: a POOLED bars connection carries many (sym,tf) pairs. The pool
     // dispatches by key, but never apply a bar that isn't ours — cross-symbol
     // application (MSFT's OHLC on the AAPL series) is a data-doubt bug, so guard
@@ -4918,6 +5453,43 @@ export default function StockChart({
     // guards are exactly how the 100x phantom slipped through).
     if (!isSaneLivePrice(c, lastBarRef.current?.close, lastServerCloseRef.current)) {
       return
+    }
+
+    // ── Contiguity guard (mirror of classifyLiveBar's intraday guard) ──
+    // Writer B plants push bars by their OWN bucket time via series.update(). If the
+    // on-screen tail (lastBarRef, seeded from the fetched series on every setData) is
+    // MORE than one interval behind this push bar, the buckets in between are missing
+    // — the REST/SWR series is stale or still loading (post-deploy cold start, a slow
+    // ticker-switch, an in-flight full refetch). Planting here drops a LONE developing
+    // candle detached from the stale tail: the reported "yesterday's full session +
+    // one giant candle up to now" and "4-5 candles missing before the live one"
+    // artifacts. classifyLiveBar already guards the Finnhub writers against exactly
+    // this, but Writer B bypasses it — so replicate the guard here. SKIP; the
+    // stale-tail full refetch (idbStaleIntraday, keyed off the same tail) fills the
+    // gap, then push bars land contiguously. Intraday only — D/W/M new-session
+    // handling differs (see classifyLiveBar). Also skips the legit overnight/weekend
+    // session jump until the refetch lands the new session's earlier bars.
+    if (!['D', 'W', 'M'].includes(resolvedTf)) {
+      const _pbTail = lastBarRef.current
+      const _periodB = PERIOD_SECONDS[resolvedTf] || 300
+      if (_pbTail && Number.isFinite(_pbTail.time) && tSec - _pbTail.time > _periodB) {
+        // Behind: the series tail lags this live push bar by >1 interval, so the
+        // steady-state advance (the 30s SWR delta poll) has STALLED — e.g. a deploy
+        // dropped every SSE and the visibility-gated refreshInterval never resumed,
+        // freezing the chart at its load point (reported: half a watchlist stuck at
+        // the same minute, tick not moving, across TSLA/NVDA/MU). Skipping alone
+        // would keep it frozen forever (every push bar stays ahead of the stale
+        // tail). Self-heal: force an immediate SWR revalidation (throttled) — mutate()
+        // fires even while interval polling is paused, and the backend is
+        // authoritative + proven fresh, so the refetch replaces/merges the missing
+        // closed bars; once the tail catches up, push bars plant contiguously again.
+        const _nowMs = Date.now()
+        if (_nowMs - gapHealAtRef.current > 4000) {
+          gapHealAtRef.current = _nowMs
+          try { barsMutateRef.current?.() } catch { /* mutate unbound mid-mount */ }
+        }
+        return
+      }
     }
 
     // Merge, don't overwrite: a Massive WS rollup for the CURRENT bucket may have only
@@ -4973,6 +5545,16 @@ export default function StockChart({
   }, [cs.chartType, sym, resolvedTf, replayMode, _extendOverlaysLive])
 
   const onRealtimeReconnect = useCallback((lastBarT) => {
+    // On ANY (re)connect of the bars stream, ALSO revalidate the closed-bar SWR poll.
+    // The `since` backfill below only patches the DEVELOPING candle (via onRealtimeBar);
+    // the CLOSED bars come from the /api/bars SWR poll, which uses refreshWhenHidden:false
+    // and does NOT auto-revalidate on an SSE reconnect (SWR's revalidateOnReconnect fires
+    // only on navigator.onLine). So a backend restart — every deploy drops all SSE at once
+    // — leaves the closed-bar series frozen at its load point until something kicks it (the
+    // "frozen after deploy" class). mutate() fires even while interval polling is paused.
+    // This is what makes a reconnect invisible for the chart, the way the price feed's 2s
+    // poll already makes reconnects invisible for the header/watchlist price.
+    try { barsMutateRef.current?.() } catch { /* mutate unbound mid-mount */ }
     // Gap-backfill on reconnect — uses the existing `since` param of /api/bars.
     // `since` filters with strict > (see _get_bars_since_response). Subtract 1ms
     // so the bar at lastBarT is INCLUDED — covers the case where a bar updated
@@ -4993,6 +5575,27 @@ export default function StockChart({
         if (e?.message) console.warn('[StockChart] gap-backfill failed:', e.message)
       })
   }, [sym, resolvedTf, onRealtimeBar])
+
+  // Revalidate the closed-bar poll when the tab/window becomes visible or refocuses.
+  // The bars SWR uses refreshWhenHidden:false + revalidateOnFocus:false, so a backgrounded
+  // tab silently pauses the 30s poll and never resumes on refocus — freezing the closed
+  // bars while the live-price feed keeps updating (price moves in the header, chart stuck).
+  // Force a revalidation on visibility/focus so the chart catches up the instant the user
+  // looks at it (pro-tool behavior), independent of the 8s watchdog. Intraday only — D/W/M
+  // evolve slowly and their 5-min poll is fine.
+  useEffect(() => {
+    if (typeof document === 'undefined' || !isIntraday) return
+    const revalidate = () => {
+      if (document.hidden) return
+      try { barsMutateRef.current?.() } catch { /* mutate unbound mid-mount */ }
+    }
+    document.addEventListener('visibilitychange', revalidate)
+    window.addEventListener('focus', revalidate)
+    return () => {
+      document.removeEventListener('visibilitychange', revalidate)
+      window.removeEventListener('focus', revalidate)
+    }
+  }, [isIntraday])
 
   // Reactivity for the canary flag: setting/clearing localStorage 'uct.barsPush.enabled'
   // takes effect on the next render with NO page reload (the plan's instant runtime
@@ -7173,7 +7776,10 @@ export default function StockChart({
     //     PROPORTIONAL position — scaled to its own price range, never showing the old
     //     stock's absolute prices. Double-click the axis won't clear it; use the
     //     "Auto-scale" context-menu item to reset to default headroom.
-    const zoomKey = `${sym}_${resolvedTf}`
+    // Fold the replay cutoff in so entering/leaving replay (or changing the cutoff) counts
+    // as a "fresh load" → routes through the default-zoom path so the chart re-frames to the
+    // default window with the cutoff bar as the newest visible candle.
+    const zoomKey = `${sym}_${resolvedTf}_${replayCutoff ?? ''}`
     // Capture the outgoing view BEFORE deciding. setData() preserves the logical
     // range NUMERICALLY, so this reflects where the user was — on the previous
     // ticker (sym switch) or right now (same-ticker data-phase swap / backfill).
@@ -7186,9 +7792,15 @@ export default function StockChart({
 
       zoomKeyRef.current = zoomKey
       lastTfRef.current = resolvedTf
-      // New symbol/timeframe = a fresh view, so re-arm the pinned-right safety
-      // net that a user pan on the PREVIOUS symbol had latched off.
-      userViewMovedRef.current = false
+      // Exiting replay (or a TF change) clears the replay view lock so the next frame
+      // uses the normal default; a plain ticker switch WITHIN replay keeps it locked.
+      if (!replayCutoff || tfChanged) { replayViewLockedRef.current = false; replayLockedViewRef.current = null }
+      const _replayLocked = replayCutoff && replayViewLockedRef.current
+      // New symbol/timeframe = a fresh view, so re-arm the pinned-right safety net that a
+      // user pan on the PREVIOUS symbol had latched off — EXCEPT under the replay lock,
+      // where keeping it latched is exactly what stops the settling/pinned-right guards
+      // from snapping the locked view back to present on the next data commit.
+      if (!_replayLocked) userViewMovedRef.current = false
       // A timeframe switch must PRESERVE the viewport: keep the last candle at the
       // exact same screen position AND the same zoom width, then just swap in the new
       // tf's bars — no reset to the tf default, no leftward snap ("just flip the
@@ -7203,7 +7815,7 @@ export default function StockChart({
         // to the middle (SMH 1H bug).
         const _w = oldRange ? (oldRange.to - oldRange.from) : null
         pendingTfReframeRef.current = { tf: resolvedTf, width: (_w > 0 ? _w : null) }
-      } else if (keepPresentOnSymbolChange && !isFirstLoad && !entryDate && !exactDateRange) {
+      } else if (keepPresentOnSymbolChange && !isFirstLoad && !entryDate && !exactDateRange && !_replayLocked) {
         // SYMBOL switch on a "newest always at right" surface (Charts workspace). The
         // new ticker's bars arrive in PHASES (IDB cache → network → older-history
         // backfill), each a separate updateChart commit with a DIFFERENT bar count.
@@ -7232,7 +7844,15 @@ export default function StockChart({
         // scrolled-back (past) position from the prior symbol. Otherwise preserve the
         // prior bars-from-right (flip tickers at the exact same historical view).
         let to, from
-        if (keepPresentOnSymbolChange) {
+        // REPLAY view lock: once the user has moved the view in replay, keep the EXACT
+        // right-relative view (same distance from the cutoff + same zoom) on every ticker,
+        // overriding keepPresent's snap-to-present — until "Reset view" / exit replay. Use
+        // the params CAPTURED at pan/zoom time (replayLockedViewRef) — oldRange here is
+        // already clamped to the new ticker's extent, which loses the deep scroll-back.
+        if (_replayLocked && replayLockedViewRef.current) {
+          to = newBarCount - replayLockedViewRef.current.barsFromRight
+          from = to - replayLockedViewRef.current.width
+        } else if (keepPresentOnSymbolChange) {
           to = (newBarCount - 1) + width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
           from = to - width
         } else if (rangeDescribesOldExtent(oldRange, oldBarCount, newBarCount)) {
@@ -7424,6 +8044,20 @@ export default function StockChart({
       }
     }
 
+    // Replay view lock — re-assert the captured right-relative view on EVERY commit so a
+    // load PHASE that changes the bar count (IDB → network → backfill) can't shift it, and
+    // no other guard can snap it to present. Skipped while the user is actively dragging
+    // (pointer down), which would fight a live pan; the drag's own onUp re-captures.
+    if (replayCutoff && replayViewLockedRef.current && replayLockedViewRef.current
+        && !viewPointerRef.current && !entryDate && !exactDateRange && filteredBars.length > 1) {
+      const _lw = replayLockedViewRef.current.width
+      const _to = filteredBars.length - replayLockedViewRef.current.barsFromRight
+      const _from = _to - _lw
+      if (_lw > 0 && Number.isFinite(_from) && Number.isFinite(_to) && _to > 1 && _from < filteredBars.length) {
+        try { chart.timeScale().setVisibleLogicalRange({ from: _from, to: _to }) } catch { /* mid-load */ }
+      }
+    }
+
     // ── NEVER-BLANK backstop (mechanism-agnostic) ──
     // A blank chart — the visible logical range landing so far off the data that NO
     // real candle is on screen (just the price axis) — is never intended, whatever
@@ -7502,7 +8136,15 @@ export default function StockChart({
     prevBarsRef.current = filteredBars
     // Baseline for the next render plan — the bars this paint actually put on screen.
     prevPaintBarsRef.current = displayBars
-  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady])
+    // ⚠️ `userDefsGeneration` IS A DEPENDENCY ON MODULE STATE, AND IT IS
+    // REDUNDANT TODAY. This body resolves every instance through
+    // `engineRegistry.getDefinition`, and a user's saved definition is installed
+    // asynchronously (SWR) after the first paint — so the version of that state
+    // belongs here. Task 16's gauntlet measured that removing it changes nothing
+    // (mutation M3 SURVIVED): something else in this list is already unstable per
+    // render. Kept as the one declaration that names this dependency; the full
+    // reasoning is at the `useInstalledUserDefinitions` call site above.
+  }, [filteredBars, displayBars, ohlcData, closeData, volData, overlayData, comparisonData, sym, showVolume, mergedMarkers, mergedPriceLines, allPriceLines, dpZones, sessionShadeBands, _shadeOn, watermark, watermarkOpacity, cs, adjustTime, resolvedTf, tickerMeta, watermarkMeta, vwapOverride, hideWatermark, hidePriceLine, leftBarPad, modelBookLook, frozen, candleFrameFade, fadeCutoff, fitPriceToCandles, dailyDefaultBars, visibleBarsOverride, canvasTheme, sessionPreviewLastBar, sessionCandleActive, sessionExtReady, userDefsGeneration])
 
   // Effect: update chart when data or settings change (NO cleanup — chart persists)
   useEffect(() => {
@@ -7578,11 +8220,17 @@ export default function StockChart({
     return () => { if (raf) cancelAnimationFrame(raf) }
   }, [sessionTagsIntraday])
 
-  // ── Custom-TF live developing bar ──
+  // ── Writer F of the single-writer invariant (index @ barsPushActiveRef decl):
+  // custom-TF live developing bar ──
   // Custom intraday TFs skip the native single-writer machinery (that's keyed on the
   // 8 native codes), so their candle+quote would freeze. Give them a lightweight live
   // writer: fold the live price into the last visible candle every tick. Runs AFTER
   // updateChart so it wins over the 30s setData; native TFs untouched (_isCustomTf).
+  // ⚠️ IT CONSULTS NEITHER barsPushActiveRef NOR provisionalStaleRef, AND THAT IS
+  // CORRECT — both are gated on the five NATIVE intraday codes (`realtimeTfEligible`
+  // inside `_pushOptIn`; `isIntraday &&` on provisionalStaleRef), so both are
+  // structurally false whenever this effect runs. It went unindexed until 2026-08-07;
+  // `engine/__tests__/singleWriterIndex.test.js` now derives it and pins that premise.
   useEffect(() => {
     if (!_isCustomTf || !_customBaseIntraday || cs.heikinAshi) return   // HA shows transformed bars, not raw
     const series = candleSeriesRef.current
@@ -8583,10 +9231,16 @@ export default function StockChart({
       //
       // Wrapped, because this runs on the rAF flush: a disposed binder throwing
       // here would take the whole legend down mid-hover.
+      //
+      // ⭐ AND IT IS `legendChips`, NOT `engineChips` (chart-UX-walls Task 3), so
+      // the hovering legend and the OFF-CURSOR legend produce the same rows. The
+      // difference is the hidden instance: `planBindings` drops it, so walking
+      // the bindings printed nothing for it and the only way back from "Hide"
+      // was the settings modal.
       let chips = EMPTY_CHIPS
       try {
         const engine = engineRef.current
-          ? engineChips(engineRef.current.binder.bindings(), param.seriesData,
+          ? legendChips(engineRef.current.binder.bindings(), param.seriesData,
               engineRegistry, engineInstancesRef.current)
           : EMPTY_CHIPS
         if (engine.length) chips = engine
@@ -8699,7 +9353,8 @@ export default function StockChart({
         const c = data?.bar?.c ?? data?.trade?.p
         if (!Number.isFinite(c)) return
         liveTickRef.current = { price: c, ts: Date.now() }
-        // ── Writer E: fast developing candle for D/W/M ──
+        // ── Writer E of the single-writer invariant (index @ barsPushActiveRef decl):
+        // fast developing candle for D/W/M ──
         // The Massive PUSH feed (writer B) streams intraday rollups only, so on
         // D/W/M the developing candle otherwise crawls on the slow Finnhub feed.
         // Paint it imperatively here from the fast 1-min tick so the candle + the
@@ -8777,7 +9432,7 @@ export default function StockChart({
   useEffect(() => {
     if (!chartReady || !liveUpdates) return undefined
     const id = setInterval(() => {
-      if (replayMode || resolvedTfRef.current !== 'D') return
+      if (replayMode || replayCutoffRef.current || resolvedTfRef.current !== 'D') return
       const r = computeLatestCrosshair()
       if (!r || !Number.isFinite(r.close)) return
       // ONLY publish today's live developing bar. A regular-hours daily chart (or
@@ -8999,6 +9654,10 @@ export default function StockChart({
   // ── Ctrl+drag to draw a trendline (press A → drag → release B) ────────────
   const trendDragCanvasRef = useRef(null)
   const trendDragStateRef = useRef(null)   // { startX, startY, a: { time, price } } while dragging
+
+  const periodSelectCanvasRef = useRef(null)
+  const periodSelectStateRef = useRef(null)   // { startX, startLogical } while dragging a Custom-Period highlight
+  const [periodDragging, setPeriodDragging] = useState(false)   // hide the hint banner once the drag starts
 
   // ── Go to date (Alt+G): a tiny date box that scrolls the chart to a session ──
   const [dateJumpOpen, setDateJumpOpen] = useState(false)
@@ -9227,6 +9886,126 @@ export default function StockChart({
     return () => { el.removeEventListener('pointerdown', onDown); end() }
   }, [dragMeasure, chartReady, activeTool, frozen, canvasTheme, themeColors.crosshairColor])
 
+  // ── Custom-Period Sort: drag to highlight a time period ───────────────────────
+  // Plain left-drag while `periodSelect` is on paints a translucent gold band between
+  // two vertical edges (TC2000-style) and, on release, reports the [start, end] calendar
+  // dates (YYYYMMDD ints) so the workspace can rank the whole market over that span.
+  // Locks pan/zoom for the drag; maps pixels→dates via the same coordinateToLogical →
+  // drawBarsRef lookup the trendline/measure handlers use.
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || !chartReady || !periodSelect) return undefined
+
+    const getPos = (e) => { const r = el.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, w: r.width, h: r.height } }
+    const ymdOf = (t) => {
+      if (t == null) return null
+      if (typeof t === 'number') {   // intraday: unix seconds → ET calendar day
+        const s = new Date(t * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+        return parseInt(s.replace(/-/g, ''), 10)
+      }
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(t))   // D/W/M: 'YYYY-MM-DD'
+      return m ? parseInt(m[1] + m[2] + m[3], 10) : null
+    }
+    const barAtX = (x) => {
+      const chart = chartRef.current; if (!chart) return null
+      let logical = null; try { logical = chart.timeScale().coordinateToLogical(x) } catch { return null }
+      if (logical == null) return null
+      const arr = drawBarsRef.current || []
+      if (!arr.length) return null
+      const idx = Math.max(0, Math.min(arr.length - 1, Math.round(logical)))
+      return arr[idx] || null
+    }
+    const clearBand = () => {
+      const c = periodSelectCanvasRef.current; if (!c) return
+      const ctx = c.getContext('2d'); if (ctx) ctx.clearRect(0, 0, c.width, c.height)
+    }
+    const drawBand = (x1, y1, x2, y2, w, h) => {
+      const c = periodSelectCanvasRef.current; if (!c) return
+      const dpr = window.devicePixelRatio || 1
+      const W = Math.round(w * dpr), H = Math.round(h * dpr)
+      if (c.width !== W || c.height !== H) { c.width = W; c.height = H; c.style.width = w + 'px'; c.style.height = h + 'px' }
+      const ctx = c.getContext('2d'); if (!ctx) return
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      ctx.clearRect(0, 0, w, h)
+      const lo = Math.min(x1, x2), hi = Math.max(x1, x2)
+      ctx.fillStyle = 'rgba(201,168,76,0.14)'
+      ctx.fillRect(lo, 0, hi - lo, h)
+      ctx.strokeStyle = 'rgba(201,168,76,0.9)'; ctx.lineWidth = 1; ctx.setLineDash([4, 3])
+      ctx.beginPath(); ctx.moveTo(lo + 0.5, 0); ctx.lineTo(lo + 0.5, h); ctx.moveTo(hi - 0.5, 0); ctx.lineTo(hi - 0.5, h); ctx.stroke()
+      // Diagonal measure line from the press point to the cursor (same dashed look as the
+      // Shift+drag measure tool) so you see the exact move you're highlighting.
+      if (y1 != null && y2 != null) {
+        const _measC = themeColors.crosshairColor || (canvasTheme === 'sunrise' ? 'rgba(45,58,72,0.9)' : 'rgba(224,218,200,0.85)')
+        ctx.strokeStyle = _measC; ctx.setLineDash([5, 4])
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
+      }
+      ctx.setLineDash([])
+    }
+    const onMove = (e) => {
+      const st = periodSelectStateRef.current; if (!st) return
+      const { x, y, w, h } = getPos(e)
+      drawBand(st.startX, st.startY, Math.max(0, Math.min(w, x)), y, w, h)
+      // Reuse the measure readout: show % move + bars/days as you highlight.
+      const series = candleSeriesRef.current, chart = chartRef.current
+      if (series && chart && st.startPrice != null) {
+        const curPrice = series.coordinateToPrice(y)
+        const curLogical = chart.timeScale().coordinateToLogical(x)
+        if (curPrice != null && curLogical != null) {
+          const dollar = curPrice - st.startPrice
+          const pct = st.startPrice ? (dollar / st.startPrice) * 100 : 0
+          const barsN = Math.abs(Math.round(curLogical - st.startLogical))
+          const arr = prevBarsRef.current || []
+          const clamp = (i) => Math.max(0, Math.min(arr.length - 1, Math.round(i)))
+          const b1 = arr[clamp(st.startLogical)], b2 = arr[clamp(curLogical)]
+          const span = (b1 && b2) ? _formatMeasureSpan(b1.t, b2.t) : ''
+          setMeasureReadout({ x, y, dollar, pct, bars: barsN, span, flip: x > w - 200 })
+        }
+      }
+    }
+    const end = (e) => {
+      const st = periodSelectStateRef.current
+      periodSelectStateRef.current = null
+      try { chartRef.current?.applyOptions({ handleScroll: frozen ? false : true, handleScale: !frozen }) } catch { /* noop */ }
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', end)
+      window.removeEventListener('pointercancel', end)
+      clearBand(); setMeasureReadout(null); setPeriodDragging(false)
+      if (!st) return
+      const { x: ex } = getPos(e)
+      if (Math.abs(ex - st.startX) < 4) return   // a click, not a drag
+      const bA = barAtX(st.startX), bB = barAtX(ex)
+      const a = ymdOf(bA?.t), b = ymdOf(bB?.t)
+      if (a == null || b == null || a === b) return
+      // earlier date first; % change is this chart symbol's own close-to-close move.
+      const [lo, hi, cLo, cHi] = a <= b ? [a, b, bA?.c, bB?.c] : [b, a, bB?.c, bA?.c]
+      const pct = (cLo > 0 && cHi > 0) ? ((cHi - cLo) / cLo) * 100 : null
+      onPeriodSelected?.(lo, hi, pct)
+    }
+    const onDown = (e) => {
+      if (e.button !== 0 || (e.pointerType && e.pointerType !== 'mouse')) return
+      const chart = chartRef.current; if (!chart) return
+      const { x, y } = getPos(e)
+      let startLogical = null; try { startLogical = chart.timeScale().coordinateToLogical(x) } catch { return }
+      if (startLogical == null) return
+      let startPrice = null; try { startPrice = candleSeriesRef.current?.coordinateToPrice(y) } catch { /* noop */ }
+      e.preventDefault()
+      try { chart.applyOptions({ handleScroll: false, handleScale: false }) } catch { /* noop */ }
+      periodSelectStateRef.current = { startX: x, startY: y, startLogical, startPrice }
+      setPeriodDragging(true)
+      window.addEventListener('pointermove', onMove)
+      window.addEventListener('pointerup', end)
+      window.addEventListener('pointercancel', end)
+    }
+    el.addEventListener('pointerdown', onDown)
+    return () => {
+      el.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', end)
+      window.removeEventListener('pointercancel', end)
+      clearBand(); setPeriodDragging(false)
+    }
+  }, [periodSelect, chartReady, frozen, onPeriodSelected, canvasTheme, themeColors.crosshairColor])
+
   // ── Ctrl+drag to draw a trendline ─────────────────────────────────────────
   // Mirrors the Shift+drag measure: listens on the chart container so it works
   // over empty chart space (the drawing overlay is pointer-events:none there),
@@ -9360,13 +10139,37 @@ export default function StockChart({
       lastPointerDownAtRef.current = Date.now()
       viewPointerRef.current = { x: e.clientX, y: e.clientY }
     }
+    // Capture the CURRENT (settled) view as right-relative params for the replay lock.
+    // rAF so we read AFTER lightweight-charts applies the pan/zoom, on THIS ticker's bars.
+    const _captureReplayLock = () => {
+      if (!replayCutoffRef.current) return
+      replayViewLockedRef.current = true
+      requestAnimationFrame(() => {
+        try {
+          const r = chartRef.current?.timeScale().getVisibleLogicalRange()
+          const n = lastBarCountRef.current || 0
+          if (r && n > 0 && (r.to - r.from) > 0) {
+            replayLockedViewRef.current = { barsFromRight: n - r.to, width: r.to - r.from }
+          }
+        } catch { /* mid-load */ }
+      })
+    }
     const onMove = (e) => {
       const p = viewPointerRef.current
       if (!p) return
-      if (Math.abs(e.clientX - p.x) > 4 || Math.abs(e.clientY - p.y) > 4) userViewMovedRef.current = true
+      if (Math.abs(e.clientX - p.x) > 4 || Math.abs(e.clientY - p.y) > 4) {
+        userViewMovedRef.current = true
+        if (replayCutoffRef.current) replayViewLockedRef.current = true   // lock this view for the whole sort
+      }
     }
-    const onUp = () => { viewPointerRef.current = null }
-    const onWheel = () => { userViewMovedRef.current = true }
+    const onUp = () => {
+      if (viewPointerRef.current && replayCutoffRef.current && replayViewLockedRef.current) _captureReplayLock()
+      viewPointerRef.current = null
+    }
+    const onWheel = () => {
+      userViewMovedRef.current = true
+      _captureReplayLock()
+    }
     // Real pointer presence — see pointerOverRef. mouseenter/leave don't bubble,
     // so they fire exactly for THIS container.
     const onEnter = () => {
@@ -9654,6 +10457,7 @@ export default function StockChart({
                 ts.resetTimeScale()
               }
               userViewMovedRef.current = false   // explicit reset re-arms the pinned-right net
+              replayViewLockedRef.current = false; replayLockedViewRef.current = null // and releases the replay view lock
             } catch { /* noop */ }
           },
           openSettings: () => { try { toolbarRef.current?.openSettings() } catch { /* noop */ } },
@@ -9863,7 +10667,7 @@ export default function StockChart({
   // modes (they already fetch full) and pinned charts (entryDate / exactDateRange
   // / barsOverride). Mirrors the existing visible-range subscription pattern.
   useEffect(() => {
-    if (_overlayActive || entryDate || exactDateRange || _hasOverride) return undefined
+    if (_overlayActive || entryDate || exactDateRange || _hasOverride || replayCutoff) return undefined
     if (fetchDepth >= _fullTarget) return undefined
     const chart = chartRef.current
     if (!chart) return undefined
@@ -9913,12 +10717,12 @@ export default function StockChart({
   // keep the short dwell delay to skip warming on quick ticker-flips, and multi-
   // chart grid cells still pass backgroundWarm=false to avoid a cold-open herd.
   useEffect(() => {
-    if (_overlayActive || entryDate || exactDateRange || _hasOverride) return undefined
+    if (_overlayActive || entryDate || exactDateRange || _hasOverride || replayCutoff) return undefined
     if (!backgroundWarm && !deepWarm) return undefined
     if (fetchDepth >= _fullTarget) return undefined
     const id = setTimeout(() => setFetchDepth(_fullTarget), 900)
     return () => clearTimeout(id)
-  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, backgroundWarm, deepWarm])
+  }, [sym, resolvedTf, fetchDepth, _overlayActive, entryDate, exactDateRange, _hasOverride, _fullTarget, backgroundWarm, deepWarm, replayCutoff])
 
   // Cleanup: destroy chart only on unmount
   useEffect(() => {
@@ -10005,7 +10809,7 @@ export default function StockChart({
   useEffect(() => {
     if (!sym) return
     if (!candleSeriesRef.current) return
-    if (replayMode) return
+    if (replayMode || replayCutoffRef.current) return   // replay/cutoff freezes the developing bar
     if (cs.heikinAshi) return
     const isIntradayTf = ['1', '5', '15', '30', '60'].includes(resolvedTf)
     if (!isIntradayTf) return
@@ -10047,6 +10851,11 @@ export default function StockChart({
           // appends a legit new bar. (The deeper single-writer fix is Phase C.)
           const _lastT = lastBarRef.current?.time
           if (typeof _lastT === 'number' && tSec < _lastT) return
+          // Forward-contiguity guard (mirror of classifyLiveBar / Writer B): don't
+          // plant a 1m bar MORE than one interval past the tail — the minutes in
+          // between are missing (stale/loading series), and a detached bar is the
+          // "gap before the live candle" artifact. Skip; the refetch fills the gap.
+          if (typeof _lastT === 'number' && tSec - _lastT > 60) return
           if (useOhlc) {
             candleSeriesRef.current.update({
               time: tSec,
@@ -10210,6 +11019,148 @@ export default function StockChart({
           onClose={() => setEarningsPopup(null)}
         />
       )}
+      {/* Spec §6's settings form, scoped to ONE instance. `Sheet` portals it to
+          <body>, so its position in this tree is irrelevant to layout.
+
+          ⚠️ NO `preset: 'custom'` STAMP HERE, and that is deliberate rather than
+          an omission. Every door the dialog writes through — `setInstanceInput`,
+          `setInstanceHidden`, `withInstances` — already marks the blob custom
+          (`instanceControls.withInstances`). Re-stamping it in the mount would
+          make Cancel restore a blob that differs from the one the dialog opened
+          with by exactly that key, which is the byte-equality this task's whole
+          gate rests on. Identity, not deep equality: a REFUSED write comes back
+          as `cs` itself and must not persist. */}
+      {settingsInstanceId && (
+        <IndicatorSettingsDialog
+          open
+          instanceId={settingsInstanceId}
+          settings={cs}
+          registry={engineRegistry}
+          onChange={(next) => { if (next !== cs) handleUpdateChartSettings(next) }}
+          onClose={() => setSettingsInstanceId(null)}
+        />
+      )}
+      {/* ─── chart-UX-walls TASK 4 — THE CHIP MENU (spec §6) ──────────────────
+          Tap / right-click / long-press a chip → Settings · Hide · Move · Alerts
+          · About · Remove. ONE shipped primitive, unmodified: `ContextPopover` is
+          already a bottom sheet on touch and an anchored menu on desktop, with
+          44px rows, outside-click and Escape (`mobile/ContextPopover`).
+
+          ⛔ MOUNTED OUTSIDE THE LEGEND, AND THAT IS NOT THE CONTRADICTION IT
+          LOOKS LIKE. Task 3's invariant is that a CHIP stays inside the legend
+          container, because the export route hides `[class*="legend" i]` and a
+          chip outside it would appear in every branded newsletter screenshot. A
+          MENU is not part of the export frame at all — it only exists while a
+          user is pointing at something — and `ContextPopover` portals to
+          `<body>` regardless, so its position in this tree is inert.
+
+          ⛔ AND IT IS RESOLVED FROM `cs` AT RENDER, not from the snapshot: the
+          Move submenu's tick has to follow the placement the user just chose. */}
+      {chipMenu && (() => {
+        const c = chipMenu.chip
+        const def = engineRegistry.getDefinition(c.defId)
+        const inst = findInstance(cs, c.instanceId)
+        const close = () => { setChipMenu(null); setChipPage(null) }
+        const items = chipMenuItems(
+          { ...c, placementTarget: inst && inst.placement && inst.placement.target },
+          def,
+          {
+            onSettings: (id) => { close(); setSettingsInstanceId(id) },
+            onToggleHidden: (id) => { close(); handleChipHidden(id) },
+            onMove: (id, t) => { close(); handleChipMove(id, t) },
+            onDuplicate: (id) => { close(); handleChipDuplicate(id) },
+            onAlerts: (id) => { close(); handleChipAlerts(id, c.plotKey) },
+            onAbout: () => { close(); setChipAbout({ chip: c, anchor: chipMenu.anchor }) },
+            onRemove: (id) => { close(); handleChipRemove(id) },
+          },
+          { alertsRefusal: chipAlertsRefusal },
+        )
+        const move = items.find((i) => i.key === 'move')
+        const page = (chipPage === 'move' && move && !move.disabled)
+          ? [
+              { key: '_back', label: c.label, icon: 'collapse', keepOpen: true,
+                onClick: () => setChipPage(null) },
+              { separator: true },
+              ...move.submenu.map((s) => ({ ...s, icon: s.checked ? 'check' : 'expand' })),
+            ]
+          : items.map((it) => (it.key === 'move' && !it.disabled
+              ? { ...it, keepOpen: true, onClick: () => setChipPage('move') }
+              : it))
+        return (
+          <ContextPopover
+            open
+            onClose={close}
+            anchor={chipMenu.anchor}
+            title={c.label}
+            width={260}
+            items={page.map(chipMenuRowToPopoverRow)}
+          />
+        )
+      })()}
+      {/* ⭐ ABOUT — a second PAGE of the same popover, spec §6's sixth row. The
+          text is `def.meta.description`, which every definition already declares,
+          so this needs no new data and no new fetch.
+
+          ⭐⭐ AND IT IS THE ONLY SURFACE ON THIS CHART THAT CAN REACH A PLOT WITH
+          NO CHIP, WHICH IS WHY THE PER-PLOT REPAINT NOTICES LIVE HERE. Measured:
+          `ichimoku`'s `chikou` declares no `plots[].legend` block, so `legendChips`
+          emits nothing for it and it has no chip to mark — and `chikou` is the
+          ONE column the owner's ruling is about. A chip-only surface would have
+          shipped a per-plot badge that is invisible for the exact plot it exists
+          for. This page is per DEFINITION, so it lists every column the linter
+          measured, chip or no chip.
+
+          ⛔ AND `meta.repaint` IS DELIBERATELY NO LONGER PRINTED HERE. It used to
+          render as bare prose — "non repainting · Momentum" — on all seventeen
+          definitions, and record §1 measured what that sentence actually is: a
+          shared default from ONE helper that every native inherits and none
+          overrides, i.e. an unset column wearing the costume of an audit.
+          Printing an unaudited default as a fact to a trader is the defect the
+          decision record is about, and on `ichimoku` it was printing a claim the
+          machine linter contradicts. What renders now is the MEASUREMENT, and
+          only when there is one: sixteen definitions show nothing at all, which
+          is the owner's own reasoning — *"a badge that every indicator wears
+          carries no information"* (record §4). `meta.repaint` keeps its meaning
+          and its consumers (the library dialog's row badge; `validateAstLane`'s
+          both-directions refusal on the one lane where it is checkable) — it is
+          the definition's CLAIM, and this is the maths. */}
+      {chipAbout && (() => {
+        const def = engineRegistry.getDefinition(chipAbout.chip.defId)
+        const meta = (def && def.meta) || {}
+        const notices = repaintNotices(def)
+        return (
+          <ContextPopover
+            open
+            onClose={() => setChipAbout(null)}
+            anchor={chipAbout.anchor}
+            title={meta.name || chipAbout.chip.defId}
+            width={280}
+          >
+            <div style={{ padding: '4px 10px 10px', fontSize: 12, lineHeight: 1.55, color: 'var(--text-secondary, #b8b3a5)' }}>
+              {meta.description || 'This indicator declares no description.'}
+              {meta.category && (
+                <div style={{ marginTop: 8, fontSize: 11, opacity: 0.75 }}>{meta.category}</div>
+              )}
+              {notices.map((n) => (
+                <div
+                  key={n.plotKey}
+                  data-repaint-plot={`${chipAbout.chip.defId}.${n.plotKey}`}
+                  data-repaint={n.mode}
+                  style={{
+                    marginTop: 8, padding: '6px 8px', borderRadius: 4, fontSize: 11, lineHeight: 1.5,
+                    background: 'rgba(240, 180, 41, 0.12)',
+                    borderLeft: '2px solid var(--color-warning, #f0b429)',
+                    color: 'var(--chart-panel-text-strong-low, #e2dfd6)',
+                  }}
+                >
+                  <strong>{n.label} — {String(n.mode).replace(/-/g, ' ')}</strong>
+                  <div style={{ opacity: 0.85 }}>{n.sentence}</div>
+                </div>
+              ))}
+            </div>
+          </ContextPopover>
+        )
+      })()}
       {enabledComparisons.length > 0 && (
         <div className={styles.comparisonLegend}>
           <span className={styles.legendLabel}>vs {sym}:</span>
@@ -10477,12 +11428,33 @@ export default function StockChart({
         // and a signed-percentage format (`AAPL +1.23%`) that no `legend` block
         // can express. It is appended AFTER the indicator chips, which is where
         // it shipped.
-        const legChips = [
-          ...(crosshairData.chips || EMPTY_CHIPS).map(c => [`${c.defId}::${c.plotKey}`, c.color, c.text]),
-          ...((crosshairData.compare != null && compareSymbol)
-            ? [['cmp', '#fb923c', `${compareSymbol.toUpperCase()} ${crosshairData.compare > 0 ? '+' : ''}${crosshairData.compare.toFixed(2)}%`]]
-            : []),
-        ]
+        //
+        // ⭐ ONE ROW PER CHIP, AND THE ROW IS A COMPONENT NOW rather than a bare
+        // `<span>`: it carries its own hidden state today and Task 4's hover
+        // controls tomorrow. It renders INSIDE this container and that is an
+        // invariant, not a preference — `ChartRender.jsx` hides
+        // `[class*="legend" i]` from the export, so a chip rendered as a SIBLING
+        // would appear in every branded newsletter screenshot and move all 46
+        // pixel-parity baselines at once.
+        //
+        // `+N` COLLAPSE (spec §7): past `CHIP_COLLAPSE_AT` the tail is FOLDED —
+        // it keeps its DOM node and loses its box — and one `+N` button expands
+        // it in place. The spec's four is per PANE; the shipped legend is one box
+        // for the whole chart, so the threshold is over the strip and the tail is
+        // folded rather than dropped. See `CHIP_COLLAPSE_AT`.
+        // ⛔ THE THREE BRANCHES INLINE THE STRIP, AND THE DUPLICATION IS THE
+        // POINT. The first draft hoisted it into `renderChips()` / `moreButton`
+        // consts — and `parityGateBlindness.test.js` immediately refused, because
+        // the JSX then sits LEXICALLY OUTSIDE the legend element and no static
+        // proof of containment is possible any more. A helper const is exactly
+        // where a chip could later drift out of the legend without any gate
+        // seeing it, and the export CSS is the only thing keeping the strip out
+        // of every branded newsletter screenshot. Only these three values are
+        // shared; the elements themselves stay inside the box that hides them.
+        const indChips = crosshairData.chips || EMPTY_CHIPS
+        const overflow = !chipsExpanded && indChips.length > CHIP_COLLAPSE_AT
+        const foldedFrom = overflow ? CHIP_COLLAPSE_AT : indChips.length
+        const moreCount = indChips.length - CHIP_COLLAPSE_AT
         return (
         <div
           ref={legendRef}
@@ -10515,9 +11487,33 @@ export default function StockChart({
                 {crosshairData.volume != null && (
                   <span className={styles.legendLabel} style={legBase}>Vol <span className={styles.legendVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></span>
                 )}
-                {legChips.map(([key, color, text]) => (
-                  <span key={key} style={{ color }}>{text}</span>
+                {indChips.map((c, i) => (
+                  <IndicatorChip
+                    key={`${c.instanceId}::${c.plotKey}`}
+                    chip={c}
+                    className={i >= foldedFrom ? chipStyles.chipFolded : undefined}
+                    /* ⛔ RESOLVED PER CHIP, AND PER CHIP MEANS PER (INSTANCE, PLOT).
+                       `plotRepaintNotice` answers null unless the LINTER decided
+                       this exact column is not clean — so a definition with one
+                       repainting column marks that column and leaves its siblings
+                       alone, which is the owner's per-plot ruling in the DOM. It is
+                       memoised on the definition object, so this is a Map lookup
+                       per chip per crosshair move and not a tree walk. */
+                    repaint={plotRepaintNotice(engineRegistry.getDefinition(c.defId), c.plotKey)}
+                    {...chipHandlers}
+                  />
                 ))}
+                {overflow && (
+                  <button type="button" className={chipStyles.chipMore}
+                    onClick={() => setChipsExpanded(true)}
+                    aria-label={`Show ${moreCount} more indicators`}
+                  >+{moreCount}</button>
+                )}
+                {crosshairData.compare != null && compareSymbol && (
+                  <span style={{ color: '#fb923c' }}>
+                    {compareSymbol.toUpperCase()} {crosshairData.compare > 0 ? '+' : ''}{crosshairData.compare.toFixed(2)}%
+                  </span>
+                )}
                 {crosshairData.overlays.map((ov, i) => (
                   <span key={'ov' + i} style={{ color: ov.color }}>{ov.label} <strong>{ov.value?.toFixed(2)}</strong></span>
                 ))}
@@ -10543,9 +11539,25 @@ export default function StockChart({
                 <span key={'l' + i} className={styles.vlLabel} style={{ color: ov.color }}>{ov.label}</span>,
                 <span key={'v' + i} className={styles.vlVal} style={{ color: ov.color }}>{ov.value?.toFixed(2)}</span>,
               ])}
-              {legChips.map(([key, color, text]) => (
-                <span key={key} className={styles.vlFull} style={{ color }}>{text}</span>
+              {indChips.map((c, i) => (
+                <IndicatorChip
+                  key={`${c.instanceId}::${c.plotKey}`}
+                  chip={c}
+                  className={`${styles.vlFull}${i >= foldedFrom ? ' ' + chipStyles.chipFolded : ''}`}
+                  {...chipHandlers}
+                />
               ))}
+              {overflow && (
+                <button type="button" className={chipStyles.chipMore}
+                  onClick={() => setChipsExpanded(true)}
+                  aria-label={`Show ${moreCount} more indicators`}
+                >+{moreCount}</button>
+              )}
+              {crosshairData.compare != null && compareSymbol && (
+                <span style={{ color: '#fb923c' }}>
+                  {compareSymbol.toUpperCase()} {crosshairData.compare > 0 ? '+' : ''}{crosshairData.compare.toFixed(2)}%
+                </span>
+              )}
             </>
           ) : (
           <>
@@ -10573,9 +11585,25 @@ export default function StockChart({
           {crosshairData.overlays.map((ov, i) => (
             <span key={i} style={{ color: ov.color }}>{ov.label} <strong>{ov.value?.toFixed(2)}</strong></span>
           ))}
-          {legChips.map(([key, color, text]) => (
-            <span key={key} style={{ color }}>{text}</span>
+          {indChips.map((c, i) => (
+            <IndicatorChip
+              key={`${c.instanceId}::${c.plotKey}`}
+              chip={c}
+              className={i >= foldedFrom ? chipStyles.chipFolded : undefined}
+              {...chipHandlers}
+            />
           ))}
+          {overflow && (
+            <button type="button" className={chipStyles.chipMore}
+              onClick={() => setChipsExpanded(true)}
+              aria-label={`Show ${moreCount} more indicators`}
+            >+{moreCount}</button>
+          )}
+          {crosshairData.compare != null && compareSymbol && (
+            <span style={{ color: '#fb923c' }}>
+              {compareSymbol.toUpperCase()} {crosshairData.compare > 0 ? '+' : ''}{crosshairData.compare.toFixed(2)}%
+            </span>
+          )}
           </>
           )}
         </div>
@@ -10598,6 +11626,50 @@ export default function StockChart({
           ref={trendDragCanvasRef}
           style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 5 }}
         />
+      )}
+      {/* Custom-Period Sort: translucent highlight band while dragging + a hint banner
+          (black canvas / white text to match the Chart Settings menu). */}
+      {periodSelect && (<>
+        <canvas
+          ref={periodSelectCanvasRef}
+          style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 6 }}
+        />
+        <div style={{ position: 'absolute', top: 58, left: '50%', transform: 'translateX(-50%)', zIndex: 30,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3,
+          background: '#0e0f0d', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '9px 14px',
+          boxShadow: '0 12px 32px -14px rgba(0,0,0,0.8)', pointerEvents: 'none', whiteSpace: 'nowrap',
+          fontFamily: "'Instrument Sans', system-ui, sans-serif",
+          /* Fade out the moment the drag starts so it never blocks the chart. */
+          opacity: periodDragging ? 0 : 1, transition: 'opacity 140ms ease' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: '#ededed', letterSpacing: '0.01em' }}>Highlight time period</span>
+            <button
+              type="button"
+              onClick={() => onPeriodCancel?.()}
+              title="Cancel"
+              aria-label="Cancel"
+              style={{ pointerEvents: 'auto', border: 'none', background: 'transparent', color: '#c9c9c9',
+                fontSize: 13, lineHeight: 1, cursor: 'pointer', padding: 0 }}
+            >✕</button>
+          </div>
+          <span style={{ fontSize: 11, color: '#c2c2c2', letterSpacing: '0.01em' }}>Click, hold, and drag across the chart</span>
+        </div>
+      </>)}
+      {/* Replay mode: an "Exit Replay Mode" pill centered in THIS chart's TOOLBAR row
+          (the ~30px drawing-toolbar band, between the drawing tools and Indicators) so it
+          auto-positions per chart and never sits over the candles. */}
+      {(replayCutoff || startMarker) && onExitReplay && (
+        <button
+          type="button"
+          onClick={() => onExitReplay()}
+          title="Exit replay mode — restore all bars + clear the start-date line"
+          style={{ position: 'absolute', top: 3, left: '50%', transform: 'translateX(-50%)', zIndex: 30,
+            display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+            background: '#c9a84c', color: '#ffffff', border: 'none', borderRadius: 999, padding: '4px 15px',
+            font: "700 12px 'Instrument Sans', system-ui, sans-serif", letterSpacing: '0.02em',
+            textShadow: '0 1px 3px rgba(0,0,0,0.55)', boxShadow: '0 8px 24px -8px rgba(201,168,76,0.6)',
+            whiteSpace: 'nowrap' }}
+        >⟲ Exit Replay Mode</button>
       )}
       {/* Go to date (Alt+G): pick a date, the chart scrolls to that session. */}
       {dateJumpOpen && (
@@ -10644,7 +11716,7 @@ export default function StockChart({
           {chartToast}
         </div>
       )}
-      {dragMeasure && measureReadout && (
+      {(dragMeasure || periodSelect) && measureReadout && (
         <div style={{
           position: 'absolute',
           left: measureReadout.x, top: measureReadout.y,
@@ -10778,6 +11850,11 @@ export default function StockChart({
                `updateChart`), so the popover can never offer an instance this
                chart is not drawing. */
             chartInstances={engineInstancesRef.current}
+            /* ⭐ WHICH CHART (Phase C Task 12) — see the `chartId` prop. */
+            chartId={chartId}
+            /* ⭐ THE WINDOW THE USER SEES (Phase D Task 13) — the concierge's
+               compute stage runs on these. Same array the chart is drawing. */
+            bars={bars}
             activeTool={activeTool}
             setActiveTool={setActiveTool}
             color={drawColor}
@@ -10920,6 +11997,8 @@ export default function StockChart({
           {annotationsEditable && (
             <ChartToolbar
               chartInstances={engineInstancesRef.current}
+              chartId={chartId}
+              bars={bars}
               activeTool={activeTool}
               setActiveTool={setActiveTool}
               color={drawColor}
@@ -11011,6 +12090,8 @@ export default function StockChart({
           {indexAnnotationsEditable && (
             <ChartToolbar
               chartInstances={engineInstancesRef.current}
+              chartId={chartId}
+              bars={bars}
               activeTool={indexActiveTool}
               setActiveTool={setIndexActiveTool}
               color={drawColor}
@@ -11037,6 +12118,13 @@ export default function StockChart({
               hideCountdown
             />
           )}
+        </div>
+      )}
+      {/* Custom-Period Sort: thin gold vertical line marking the sort's START date,
+          full chart height. Spans price + volume panes; rides the time axis on pan/zoom. */}
+      {startMarker && bars?.length > 0 && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
+          <ChartVLineOverlay chartRef={chartRef} seriesRef={candleSeriesRef} bars={bars} date={startMarker} color="#c9a84c" />
         </div>
       )}
       {/* Catalyst callouts (Model Book): labels in blank space + leader lines. */}

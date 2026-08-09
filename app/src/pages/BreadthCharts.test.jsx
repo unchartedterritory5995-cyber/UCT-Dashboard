@@ -157,8 +157,8 @@ describe('preset plotting', () => {
     clickPreset('New Highs vs Lows')
 
     await waitFor(() => expect(realSeries(captured)).toHaveLength(2))
-    expect(seriesNamed(captured, '52W Highs').yAxisIndex).toBe(0)
-    expect(seriesNamed(captured, '52W Lows').yAxisIndex).toBe(0)
+    expect(seriesNamed(captured, '52W Highs (Close)').yAxisIndex).toBe(0)
+    expect(seriesNamed(captured, '52W Lows (Close)').yAxisIndex).toBe(0)
     expect(captured.yAxis[1].show).toBe(false)
   })
 
@@ -170,8 +170,8 @@ describe('preset plotting', () => {
     clickPreset('New Highs vs Lows')
 
     await waitFor(() => expect(realSeries(captured)).toHaveLength(2))
-    expect(seriesNamed(captured, '52W Highs').itemStyle.color).toBe('#34d399')
-    expect(seriesNamed(captured, '52W Lows').itemStyle.color).toBe('#f87171')
+    expect(seriesNamed(captured, '52W Highs (Close)').itemStyle.color).toBe('#34d399')
+    expect(seriesNamed(captured, '52W Lows (Close)').itemStyle.color).toBe('#f87171')
   })
 
   it('puts index price opposite participation for Breadth vs Price', async () => {
@@ -360,10 +360,10 @@ describe('metric readout', () => {
     clickPreset('New Highs vs Lows')
     await waitFor(() => expect(realSeries(captured)).toHaveLength(2))
     // Fixture 52W highs run 100..129, so the last point is the highest.
-    expect(screen.getByRole('button', { name: '52W Highs, 129, 100th percentile' }))
+    expect(screen.getByRole('button', { name: '52W Highs (Close), 129, 100th percentile' }))
       .toBeInTheDocument()
     // 52W lows cycle 10..16, so the last value sits mid-range, not at an extreme.
-    expect(screen.getByRole('button', { name: /^52W Lows, 11, \d+\w\w percentile$/ }))
+    expect(screen.getByRole('button', { name: /^52W Lows \(Close\), 11, \d+\w\w percentile$/ }))
       .toBeInTheDocument()
   })
 

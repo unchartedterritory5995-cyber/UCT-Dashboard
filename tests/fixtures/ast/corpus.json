@@ -1,0 +1,253 @@
+{
+  "_": "THE COMMITTED AST CORPUS. Hand-written, one case per row, each with the reason it exists. A corpus generated from the thing it measures is not an oracle, so nothing here was produced by a parser or an interpreter.",
+  "_shape": "`ast` is the CANONICAL PERSISTED tree (Task 3's `canonicalise` output), not jsep's: four node types `num` / `series` / `op` / `call`, and the union of keys over any tree is exactly ['args','name','type','value']. `source` rides alongside for editing and read-back and is NEVER the input to anything that computes; Task 3 owes the rail asserting canonicalise(parse(source)) deep-equals `ast` for every row here.",
+  "_coverage": "Every entry of `app/src/components/chart/engine/ast/closedTable.json` must appear in at least one case. That floor is DERIVED FROM THE MANIFEST by `tools/ast_conformance.py::assert_corpus_covers_the_table`, never hand-listed here -- DPC's four constants rode outside their rail for the rule's entire life because that rail was a LIST of what somebody remembered. The manifest does not exist until Task 3, so the rail is ARMED AND SKIPPED and Task 3 owes its first pass.",
+  "_operators": "The canonical tree names unary minus `u-` and the ternary `?:`, matching the manifest's operator keys. The SOURCE spells them `-` and `? :`; that difference is the canonicaliser's job and is exactly what Task 3's round-trip rail pins.",
+  "bars": "tests/fixtures/alerts/replay_bars.json#intraday5m",
+  "cases": [
+    {
+      "id": "sma_of_close",
+      "source": "sma(close, 20)",
+      "why": "the simplest reduction; covers `sma` and the `close` series identifier",
+      "ast": {
+        "type": "call",
+        "name": "sma",
+        "args": [
+          { "type": "series", "name": "close" },
+          { "type": "num", "value": 20 }
+        ]
+      }
+    },
+    {
+      "id": "nan_propagates",
+      "source": "sma(close, 20) - sma(close, 200)",
+      "why": "the 200-warmup half is NaN for 199 bars and the SUBTRACTION must stay NaN, never 0",
+      "ast": {
+        "type": "op",
+        "name": "-",
+        "args": [
+          { "type": "call", "name": "sma", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 20 } ] },
+          { "type": "call", "name": "sma", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 200 } ] }
+        ]
+      }
+    },
+    {
+      "id": "float_division",
+      "source": "highest(high, 5) / 2",
+      "why": "JS `/` and Python `/` are both float. `//` is in NEITHER table and this pins that it cannot arrive by accident",
+      "ast": {
+        "type": "op",
+        "name": "/",
+        "args": [
+          { "type": "call", "name": "highest", "args": [ { "type": "series", "name": "high" }, { "type": "num", "value": 5 } ] },
+          { "type": "num", "value": 2 }
+        ]
+      }
+    },
+    {
+      "id": "compare_with_nan",
+      "source": "close > sma(close, 200)",
+      "why": "a comparison against NaN is false in both languages -- the one place they agree by luck, so it is pinned rather than assumed",
+      "ast": {
+        "type": "op",
+        "name": ">",
+        "args": [
+          { "type": "series", "name": "close" },
+          { "type": "call", "name": "sma", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 200 } ] }
+        ]
+      }
+    },
+    {
+      "id": "ternary",
+      "source": "close > open ? high : low",
+      "why": "the only branching form in the table",
+      "ast": {
+        "type": "op",
+        "name": "?:",
+        "args": [
+          { "type": "op", "name": ">", "args": [ { "type": "series", "name": "close" }, { "type": "series", "name": "open" } ] },
+          { "type": "series", "name": "high" },
+          { "type": "series", "name": "low" }
+        ]
+      }
+    },
+    {
+      "id": "deep_nest",
+      "source": "sma(ema(close, 9) - ema(close, 21), 5)",
+      "why": "composition depth: the lanes must agree on evaluation ORDER, not only on each node",
+      "ast": {
+        "type": "call",
+        "name": "sma",
+        "args": [
+          {
+            "type": "op",
+            "name": "-",
+            "args": [
+              { "type": "call", "name": "ema", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 9 } ] },
+              { "type": "call", "name": "ema", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 21 } ] }
+            ]
+          },
+          { "type": "num", "value": 5 }
+        ]
+      }
+    },
+    {
+      "id": "cross",
+      "source": "crossOver(ema(close, 9), ema(close, 21))",
+      "why": "the {0,1,NaN} event shape spec 3.1 requires, produced by a formula rather than a native",
+      "ast": {
+        "type": "call",
+        "name": "crossOver",
+        "args": [
+          { "type": "call", "name": "ema", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 9 } ] },
+          { "type": "call", "name": "ema", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 21 } ] }
+        ]
+      }
+    },
+    {
+      "id": "cross_under",
+      "source": "crossUnder(ema(close, 9), ema(close, 21))",
+      "why": "`crossUnder` is a SEPARATE table entry, not `!crossOver` -- both are {0,1,NaN} and both are false on the bar a series merely stays below, so a lane that derived one from the other would disagree on the very first bar",
+      "ast": {
+        "type": "call",
+        "name": "crossUnder",
+        "args": [
+          { "type": "call", "name": "ema", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 9 } ] },
+          { "type": "call", "name": "ema", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 21 } ] }
+        ]
+      }
+    },
+    {
+      "id": "volume_relative",
+      "source": "volume / sma(volume, 20)",
+      "why": "`volume` is the one series whose magnitude is six orders off the price series, so a relative-tolerance comparison that silently used an ABSOLUTE epsilon would pass on price and fail here -- and it is the only case that reads the `v` field",
+      "ast": {
+        "type": "op",
+        "name": "/",
+        "args": [
+          { "type": "series", "name": "volume" },
+          { "type": "call", "name": "sma", "args": [ { "type": "series", "name": "volume" }, { "type": "num", "value": 20 } ] }
+        ]
+      }
+    },
+    {
+      "id": "lowest_of_low",
+      "source": "lowest(low, 10)",
+      "why": "`lowest` is not `-highest(-x)`; it is its own table entry with its own warmup, and this is the only case that reads the `l` field as a whole-window reduction",
+      "ast": {
+        "type": "call",
+        "name": "lowest",
+        "args": [
+          { "type": "series", "name": "low" },
+          { "type": "num", "value": 10 }
+        ]
+      }
+    },
+    {
+      "id": "stdev_band",
+      "source": "sma(close, 20) + 2 * stdev(close, 20)",
+      "why": "covers `+`, `*` and `stdev` in one expression whose PRECEDENCE is the point: a canonical tree that bound `+` tighter than `*` would still evaluate, still be finite, and be wrong by a band width. `stdev` is also the one entry where a population/sample divisor disagreement between the lanes is invisible in the shape and visible only in the number",
+      "ast": {
+        "type": "op",
+        "name": "+",
+        "args": [
+          { "type": "call", "name": "sma", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 20 } ] },
+          {
+            "type": "op",
+            "name": "*",
+            "args": [
+              { "type": "num", "value": 2 },
+              { "type": "call", "name": "stdev", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 20 } ] }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "abs_change",
+      "source": "abs(change(close))",
+      "why": "`change` is the only lookback-1 entry, so it is the only place a lane can disagree about what bar 0 is (NaN, or 0 because there is no previous bar). `abs` composed on top proves the disagreement is not laundered into a magnitude",
+      "ast": {
+        "type": "call",
+        "name": "abs",
+        "args": [
+          { "type": "call", "name": "change", "args": [ { "type": "series", "name": "close" } ] }
+        ]
+      }
+    },
+    {
+      "id": "min_max_envelope",
+      "source": "max(min(close, open), low)",
+      "why": "`min`/`max` are ELEMENTWISE over two series, not reductions over one, and their NaN rule is the opposite of a comparison's: JS `Math.max(NaN, x)` is NaN while Python's `max` returns whichever it meets first. That is a real divergence and it can only be caught by pinning it",
+      "ast": {
+        "type": "call",
+        "name": "max",
+        "args": [
+          {
+            "type": "call",
+            "name": "min",
+            "args": [ { "type": "series", "name": "close" }, { "type": "series", "name": "open" } ]
+          },
+          { "type": "series", "name": "low" }
+        ]
+      }
+    },
+    {
+      "id": "strict_less",
+      "source": "close < lowest(low, 20)",
+      "why": "the strict `<` against a running minimum is FALSE on every bar of a correct implementation and TRUE on any bar of an off-by-one one, so it is the cheapest possible detector of a window boundary that shifted by a bar",
+      "ast": {
+        "type": "op",
+        "name": "<",
+        "args": [
+          { "type": "series", "name": "close" },
+          { "type": "call", "name": "lowest", "args": [ { "type": "series", "name": "low" }, { "type": "num", "value": 20 } ] }
+        ]
+      }
+    },
+    {
+      "id": "bounds_inclusive",
+      "source": "close >= open && close <= high",
+      "why": "covers `>=`, `<=` and `&&`. The INCLUSIVE comparisons are the ones a `>`/`>=` slip hides in: C Task 3's M5 survived both committed oracles because an indicator landing exactly on a threshold is measure-zero on real tape -- here `close <= high` is true AT EQUALITY on every bar whose close IS the high, which this series contains",
+      "ast": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          { "type": "op", "name": ">=", "args": [ { "type": "series", "name": "close" }, { "type": "series", "name": "open" } ] },
+          { "type": "op", "name": "<=", "args": [ { "type": "series", "name": "close" }, { "type": "series", "name": "high" } ] }
+        ]
+      }
+    },
+    {
+      "id": "equality_and_negation",
+      "source": "!(close == open) || close != low",
+      "why": "covers `==`, `!=`, `!` and `||`. Float equality on real tape is the one operator whose result is decided by the LAST BIT, so the two lanes either read the same double or they do not; and `!`/`||` pin that a boolean column is {0,1,NaN} in both lanes rather than JS's `false`/Python's `False`",
+      "ast": {
+        "type": "op",
+        "name": "||",
+        "args": [
+          {
+            "type": "op",
+            "name": "!",
+            "args": [
+              { "type": "op", "name": "==", "args": [ { "type": "series", "name": "close" }, { "type": "series", "name": "open" } ] }
+            ]
+          },
+          { "type": "op", "name": "!=", "args": [ { "type": "series", "name": "close" }, { "type": "series", "name": "low" } ] }
+        ]
+      }
+    },
+    {
+      "id": "unary_minus",
+      "source": "-change(close)",
+      "why": "the canonical tree names unary minus `u-` while the source spells it `-`, so this is the one case whose AST cannot be read off its source by eye. It is deliberately the shape Task 3's round-trip rail is most likely to catch a canonicaliser getting wrong",
+      "ast": {
+        "type": "op",
+        "name": "u-",
+        "args": [
+          { "type": "call", "name": "change", "args": [ { "type": "series", "name": "close" } ] }
+        ]
+      }
+    }
+  ]
+}

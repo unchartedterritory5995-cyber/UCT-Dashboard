@@ -1,0 +1,266 @@
+{
+  "_": "THE MUST-REFUSE CORPUS. Every case here MUST be refused by the closed table. The census over it (`tools/ast_conformance.py --escapes`) is the D-phase analogue of C's repaint oracle, pointing the other way: C's oracle had to read NON-ZERO on the unmodified tree; this one has to read ZERO on the GUARDED interpreter, so a zero here proves nothing on its own and the run aborts unless the SAME corpus through the UNGUARDED interpreter reads non-zero.",
+  "_shape": "`ast` is the JSEP tree -- the parser's output, NOT the canonical persisted tree. That is deliberate: the table closes at the parse->canonical boundary, so a corpus written in canonical shape could not express the escapes at all (a MemberExpression has no canonical form). `source` is what a user would type.",
+  "_parses": "Each case must PARSE before it proves anything about the interpreter. A case the parser rejects says nothing about what the tree walker would have done, and `member_access` is exactly where that bites -- jsep parses `a.b` happily. Every case here is declared `parses: true`, which is the CONSERVATIVE direction: if Task 3's configured jsep refuses one of them outright it moves to PARSER_REFUSED and the escape total goes DOWN, never up. Task 3 owes the first real measurement of this field.",
+  "_disjointness": "The brief asked for a disjoint fragment PER CASE; that is measurably wrong for this corpus and the deviation is deliberate. C Task 9's defect was two DIFFERENT GATES sharing a phrase, so `raises(match=...)` still matched with one gate deleted. Two cases refused by the SAME gate for the SAME reason legitimately share a message. So each case names its `guard`, and the rail is stricter than per-case disjointness: two cases share a fragment IFF they share a guard, and no fragment from one guard may be a substring of a fragment from another.",
+  "_fragment_matching": "The per-case `refuse` fragment is ARMED, not yet enforced: nothing refuses anything today because no guarded pipeline exists. It is enforced the first time `tools/ast_conformance.py --escapes` finds a guard (Task 6). Until then the census asserts only PARSED-then-NOT-REFUSED, which is what makes today's number honest.",
+  "cases": [
+    {
+      "id": "member_access",
+      "source": "close.constructor",
+      "guard": "canonicalise:member",
+      "refuse": "property access is not in the table",
+      "why": "the canonical reason MemberExpression is refused OUTRIGHT rather than blocklisted: `constructor` is the first rung of the ladder to `Function`, and a blocklist is a list of what somebody remembered",
+      "parses": true,
+      "jsepRoot": "MemberExpression",
+      "ast": {
+        "type": "MemberExpression",
+        "computed": false,
+        "object": { "type": "Identifier", "name": "close" },
+        "property": { "type": "Identifier", "name": "constructor" }
+      }
+    },
+    {
+      "id": "proto_walk",
+      "source": "close.__proto__",
+      "guard": "canonicalise:member",
+      "refuse": "property access is not in the table",
+      "why": "prototype traversal. Shares `member_access`'s guard BY DESIGN -- one mechanism refuses both, and a rail demanding two different messages here would be demanding two gates where one is correct",
+      "parses": true,
+      "jsepRoot": "MemberExpression",
+      "ast": {
+        "type": "MemberExpression",
+        "computed": false,
+        "object": { "type": "Identifier", "name": "close" },
+        "property": { "type": "Identifier", "name": "__proto__" }
+      }
+    },
+    {
+      "id": "computed_member",
+      "source": "close[\"constructor\"]",
+      "guard": "canonicalise:member",
+      "refuse": "property access is not in the table",
+      "why": "THE CASE A DOT-BLOCKING GUARD MISSES. `close.constructor` and `close[\"constructor\"]` are the same reach and jsep produces the same node type with `computed: true`. A guard written against the source text rather than the node type passes this and fails nothing else",
+      "parses": true,
+      "jsepRoot": "MemberExpression",
+      "ast": {
+        "type": "MemberExpression",
+        "computed": true,
+        "object": { "type": "Identifier", "name": "close" },
+        "property": { "type": "Literal", "value": "constructor", "raw": "\"constructor\"" }
+      }
+    },
+    {
+      "id": "function_constructor",
+      "source": "close.constructor.constructor",
+      "guard": "canonicalise:member",
+      "refuse": "property access is not in the table",
+      "why": "the whole reason this census exists. `[].constructor.constructor` IS `Function` in a browser, and `Function('return this')()` is arbitrary code from a text box on a live trading surface. It is here so the corpus names the worst outcome explicitly rather than implying it",
+      "parses": true,
+      "jsepRoot": "MemberExpression",
+      "ast": {
+        "type": "MemberExpression",
+        "computed": false,
+        "object": {
+          "type": "MemberExpression",
+          "computed": false,
+          "object": { "type": "Identifier", "name": "close" },
+          "property": { "type": "Identifier", "name": "constructor" }
+        },
+        "property": { "type": "Identifier", "name": "constructor" }
+      }
+    },
+    {
+      "id": "this_expr",
+      "source": "this",
+      "guard": "canonicalise:this",
+      "refuse": "`this` names nothing this table can resolve",
+      "why": "`this` is a binding the interpreter supplies, not a name the user declared, so it is the one identifier whose value depends on HOW the walker was called rather than on the table",
+      "parses": true,
+      "jsepRoot": "ThisExpression",
+      "ast": { "type": "ThisExpression" }
+    },
+    {
+      "id": "call_of_a_call",
+      "source": "sma(close, 20)(1)",
+      "guard": "canonicalise:call-target",
+      "refuse": "only a bare table name may be called",
+      "why": "a callee that is an EXPRESSION rather than a name. Every table entry is reached by name; the moment a computed value can occupy the callee slot, the set of callable things stops being the table",
+      "parses": true,
+      "jsepRoot": "CallExpression",
+      "ast": {
+        "type": "CallExpression",
+        "callee": {
+          "type": "CallExpression",
+          "callee": { "type": "Identifier", "name": "sma" },
+          "arguments": [
+            { "type": "Identifier", "name": "close" },
+            { "type": "Literal", "value": 20, "raw": "20" }
+          ]
+        },
+        "arguments": [ { "type": "Literal", "value": 1, "raw": "1" } ]
+      }
+    },
+    {
+      "id": "array_literal",
+      "source": "[1, 2][0]",
+      "guard": "canonicalise:array",
+      "refuse": "array literals have no meaning in a column formula",
+      "why": "a column formula produces one value per bar; an array literal produces a container, which is a second kind of value the table has no rule for",
+      "note": "this tree contains BOTH an ArrayExpression and a MemberExpression, so whichever guard the canonicaliser reaches first decides the MESSAGE. The case declares the array guard because a canonicaliser that recurses into `object` before deciding meets the array first. If Task 3's canonicaliser refuses the member first, that is a finding for Task 3 to reconcile in this file -- the case is REFUSED either way, so the census number does not move.",
+      "parses": true,
+      "jsepRoot": "MemberExpression",
+      "ast": {
+        "type": "MemberExpression",
+        "computed": true,
+        "object": {
+          "type": "ArrayExpression",
+          "elements": [
+            { "type": "Literal", "value": 1, "raw": "1" },
+            { "type": "Literal", "value": 2, "raw": "2" }
+          ]
+        },
+        "property": { "type": "Literal", "value": 0, "raw": "0" }
+      }
+    },
+    {
+      "id": "assignment",
+      "source": "x = 1",
+      "guard": "canonicalise:assignment",
+      "refuse": "a formula produces a column; it does not bind a name",
+      "why": "assignment introduces STATE, and a stateful formula's value at bar i can depend on the order the walker visited bars -- which is the property the repaint linter's whole analysis assumes away",
+      "note": "MEASURED BY TASK 3, 2026-08-07, AND THE DECLARATION MOVED: jsep 1.4.0's core grammar has no assignment operator (it ships as a plugin), and `jsep('x = 1')` throws `Unexpected \"=\" at character 2`. So this case is PARSER_REFUSED and `parses` is now `false`. The escape census therefore reads 15 of 16, not 16 of 16 -- Task 2 declared `parses: true` as the conservative direction (over-counting an escape is the safe way to be wrong) and wrote that a case moving to PARSER_REFUSED makes the total go DOWN. It went down. That is a CORRECTION, not a regression, and Task 6 still owes the first zero. The `guard` and `ast` below are kept: the day an assignment plugin is loaded the case must be a canonicalise refusal, and `parse.js` implements that guard and exercises it directly.",
+      "parses": false,
+      "jsepRoot": "AssignmentExpression",
+      "ast": {
+        "type": "AssignmentExpression",
+        "operator": "=",
+        "left": { "type": "Identifier", "name": "x" },
+        "right": { "type": "Literal", "value": 1, "raw": "1" }
+      }
+    },
+    {
+      "id": "prototype_name",
+      "source": "toString",
+      "guard": "resolve:name",
+      "refuse": "unknown name",
+      "why": "THE REASON IDENTIFIER LOOKUP MUST GO THROUGH `Object.prototype.hasOwnProperty.call(scope, name)` ON AN `Object.create(null)` SCOPE. `scope['toString']` on a plain object returns a FUNCTION and never touches the table",
+      "parses": true,
+      "jsepRoot": "Identifier",
+      "ast": { "type": "Identifier", "name": "toString" }
+    },
+    {
+      "id": "own_property_name",
+      "source": "hasOwnProperty",
+      "guard": "resolve:name",
+      "refuse": "unknown name",
+      "why": "the same prototype reach through a different member, so a guard that special-cased `toString` by name is caught here. Shares `prototype_name`'s guard by design -- one lookup rule refuses every Object.prototype member at once",
+      "parses": true,
+      "jsepRoot": "Identifier",
+      "ast": { "type": "Identifier", "name": "hasOwnProperty" }
+    },
+    {
+      "id": "global_lookup",
+      "source": "globalThis",
+      "guard": "resolve:name",
+      "refuse": "unknown name",
+      "why": "a name that is not on the scope object at all and resolves through the SCOPE CHAIN in a naive walker. `globalThis` is one identifier away from every API the browser has",
+      "parses": true,
+      "jsepRoot": "Identifier",
+      "ast": { "type": "Identifier", "name": "globalThis" }
+    },
+    {
+      "id": "unknown_function",
+      "source": "rugpull(close, 3)",
+      "guard": "resolve:function",
+      "refuse": "unknown function",
+      "why": "the ordinary case: a well-formed call to a name that is not in the table. Distinct from `resolve:name` because the callee slot is resolved against `functions`, not against `series` -- two dictionaries, and a walker that consulted one union would accept `close(3)`",
+      "parses": true,
+      "jsepRoot": "CallExpression",
+      "ast": {
+        "type": "CallExpression",
+        "callee": { "type": "Identifier", "name": "rugpull" },
+        "arguments": [
+          { "type": "Identifier", "name": "close" },
+          { "type": "Literal", "value": 3, "raw": "3" }
+        ]
+      }
+    },
+    {
+      "id": "arity_wrong",
+      "source": "sma(close)",
+      "guard": "resolve:arity",
+      "refuse": "expects 2 arguments",
+      "why": "a KNOWN name called wrongly. In JS a missing argument is `undefined` and `sma(close)` would return a column of NaN; in Python it is a TypeError. That is a cross-lane divergence produced by the ABSENCE of a check, which is the shape no golden fixture can carry",
+      "parses": true,
+      "jsepRoot": "CallExpression",
+      "ast": {
+        "type": "CallExpression",
+        "callee": { "type": "Identifier", "name": "sma" },
+        "arguments": [ { "type": "Identifier", "name": "close" } ]
+      }
+    },
+    {
+      "id": "too_many_nodes",
+      "source": "1 + (1 + (1 + ... ))",
+      "astFrom": "gen:nest(4000)",
+      "guard": "budget:nodes",
+      "refuse": "exceeds the node budget",
+      "why": "the tree is generated rather than typed because 4,000 nodes cannot be hand-written and a generated SHAPE is not a generated ORACLE -- the assertion is still hand-declared. An unbudgeted walker either blows the stack or takes the request thread with it, and both are denial of service from a text box",
+      "parses": true,
+      "jsepRoot": "BinaryExpression"
+    },
+    {
+      "id": "lookback_too_deep",
+      "source": "sma(close, 100000)",
+      "guard": "budget:lookback",
+      "refuse": "exceeds the lookback budget",
+      "why": "a single argument asking for more history than exists. Cheap to write, unbounded to compute, and it passes every node-count budget",
+      "parses": true,
+      "jsepRoot": "CallExpression",
+      "ast": {
+        "type": "CallExpression",
+        "callee": { "type": "Identifier", "name": "sma" },
+        "arguments": [
+          { "type": "Identifier", "name": "close" },
+          { "type": "Literal", "value": 100000, "raw": "100000" }
+        ]
+      }
+    },
+    {
+      "id": "too_many_series",
+      "source": "close + high + low + open + volume + close + high + low + open",
+      "astFrom": "gen:seriesChain(9)",
+      "guard": "budget:series",
+      "refuse": "exceeds the series-reference budget",
+      "why": "ADDED 2026-08-08 BY THE BUDGET TASK, BECAUSE A THIRD CAP WITH NO CASE IS A CAP THE CENSUS CANNOT SEE. `maxSeriesRefs` bounds base-series READS inside one definition (spec section 5 budgets a whole CHART at 8 panes), and this tree passes both other caps -- 17 nodes against 128, zero lookback against 500 -- so it is refused by that cap or by nothing. Its names are GENERATED FROM THE MANIFEST rather than typed, so a series rename cannot quietly turn this into a `resolve:name` case at a different door.",
+      "note": "The cap counts OCCURRENCES, not distinct names, and that is forced rather than stylistic: the table declares FIVE series, so a distinct-name count could never exceed 8 and `budget:series` would be a latch nothing can trip. This case therefore repeats four of the five.",
+      "parses": true,
+      "jsepRoot": "BinaryExpression"
+    },
+    {
+      "id": "nested_lookback",
+      "source": "sma(sma(close, 5000), 5000)",
+      "guard": "budget:lookback",
+      "refuse": "exceeds the lookback budget",
+      "why": "THE CASE A PER-ARGUMENT LOOKBACK CHECK MISSES. Neither 5000 alone need exceed a budget; the tree's lookback is the SUM along the path, which is the same arithmetic Task 7's repaint linter depends on. A guard that checked each call in isolation passes this and nothing else in the corpus catches it",
+      "parses": true,
+      "jsepRoot": "CallExpression",
+      "ast": {
+        "type": "CallExpression",
+        "callee": { "type": "Identifier", "name": "sma" },
+        "arguments": [
+          {
+            "type": "CallExpression",
+            "callee": { "type": "Identifier", "name": "sma" },
+            "arguments": [
+              { "type": "Identifier", "name": "close" },
+              { "type": "Literal", "value": 5000, "raw": "5000" }
+            ]
+          },
+          { "type": "Literal", "value": 5000, "raw": "5000" }
+        ]
+      }
+    }
+  ]
+}

@@ -9,6 +9,11 @@ import { CHART_DEFAULTS, mergeChartSettings } from './chartDefaults'
 import { ENGINE_OWNED } from './engine/flipState'
 import { setIndicatorEnabled, setIndicatorInput } from './engine/instanceControls'
 import * as engineRegistry from './engine/nativeRegistry'
+import { REGISTRY_SIZES } from './engine/registrySizes'
+// ⛔ THE BADGE VOCABULARY IS IMPORTED, NOT RETYPED. Three strings written down
+// twice is the `williams_r`/`williamsR` shape that `_CASE_COLUMNS` exists to
+// survive, and a badge vocabulary is a worse place for it than a column name.
+import { REPAINT_MODES } from './engine/ast/lint'
 
 // ─── WHY THIS FILE EXISTS ───────────────────────────────────────────────────
 //
@@ -539,7 +544,9 @@ describe('unwiredKeys — a control the legacy settings section cannot carry is 
       engineRegistry.listDefinitions().map(d => [d.id, d.inputs.map(i => i.key)])))
     // …and that map is not empty, so `greyed` being `{}` above is the
     // short-circuit doing its job rather than the predicate having stopped.
-    expect(Object.keys(greyedIfNothingFlipped)).toHaveLength(17)   // 14 + avwap/atrBands + rsLine
+    // ⭐ THE INTEGER USED TO BE TYPED HERE. `registrySizes.js` is the one place
+    // a registry count lives now — see its header for the §A5 measurement.
+    expect(Object.keys(greyedIfNothingFlipped)).toHaveLength(REGISTRY_SIZES.total)
   })
 })
 
@@ -561,8 +568,9 @@ describe('the library needs a sentence per indicator, and the schema already all
   })
 
   it('and adding them did not break registration — every definition still validates', () => {
-    // 14 + Task 14's avwap/atrBands + Task 13's server-lane rsLine
-    expect(engineRegistry.listDefinitions().length).toBe(17)
+    // ⭐ THE INTEGER USED TO BE TYPED HERE. `registrySizes.js` is the one place
+    // a registry count lives now — see its header for the §A5 measurement.
+    expect(engineRegistry.listDefinitions().length).toBe(REGISTRY_SIZES.total)
     for (const d of engineRegistry.listDefinitions()) {
       // ⛔ `premium` FOR THE SERVER LANE, AND IT IS NOT A LOOSENING. `rsLine`
       // is served by `/api/signature/columns`, which declares
@@ -570,7 +578,119 @@ describe('the library needs a sentence per indicator, and the schema already all
       // definition promising data its lane refuses to hand over. The tier is
       // asserted PER LANE so neither answer can drift into the other.
       expect(d.meta.tier, d.id).toBe(d.compute.kind === 'server' ? 'premium' : 'free')
-      expect(d.meta.repaint).toBe('non-repainting')
+      // ⛔ THE REPAINT BADGE USED TO BE ASSERTED HERE, AS A UNIFORM LITERAL, AND
+      // THAT LINE IS RETIRED RATHER THAN DELETED — the case below replaces it.
+      // What it did was convert a MEASUREMENT ("they all happen to agree") into a
+      // REQUIREMENT ("they must all agree"), and the two are indistinguishable in
+      // a green suite. Under it, a genuinely repainting indicator badged
+      // `non-repainting` passed every test in the suite AND an honest `repaints`
+      // declaration was BLOCKED BY A TEST. See
+      // `docs/decisions/2026-08-06-machine-repaint-linter.md` §7.
     }
+  })
+
+  // ⭐⭐ THE SUCCESSOR TO THE UNIFORMITY ASSERTION — A PER-ID TABLE, SO A NEW
+  // DEFINITION LANDS RED UNTIL SOMEBODY JUDGES IT.
+  //
+  // The retired line demanded `d.meta.repaint === 'non-repainting'` for every
+  // definition. It was not wrong about the tree; it was wrong about what kind of
+  // claim it was making. A uniform column is indistinguishable from an UNSET
+  // column, and record §1 measures that today it IS an unset column: the value
+  // comes from one shared helper (`nativeDef`) that every native passes through
+  // and no native overrides.
+  //
+  // ⛔ DELETING IT OUTRIGHT WOULD RETIRE A CONTROL AND PUT NOTHING IN ITS PLACE,
+  // which is the retirement shape B5 Task 13 spent a whole task avoiding. So it
+  // is replaced by three clauses that can each go red in BOTH directions:
+  //
+  //   1. a PER-ID table. A new definition is missing from it and fails BY NAME;
+  //      an honest `repaints` declaration is now a one-line, deliberate,
+  //      reviewable edit instead of something a test forbids.
+  //   2. the badge vocabulary is a CLOSED SET, imported from the linter rather
+  //      than retyped — `non-repainting | preview-repaints | repaints` and
+  //      nothing else, so a typo cannot ship as a badge.
+  //   3. ⭐ THE CLAUSE THAT MAKES THE FINDING UNSILENCEABLE FROM THIS FILE: for
+  //      every disagreement the decision record records, the badge it says is
+  //      shipped must really BE the shipped badge. Editing `meta.repaint` to make
+  //      the linter's finding go away fails HERE, in a third file, on top of
+  //      `lint.test.js`'s block comparison and the enumeration ledger's
+  //      biconditional against the same record's header. The failure direction is
+  //      "the finding is loud", never "the badge was quietly corrected to match".
+  //
+  // ⛔ AND THIS TASK MOVED NO BADGE. The table below is a MEASUREMENT of today,
+  // written down so that the next change to it is a decision somebody made.
+  it('every definition\'s badge is one of the three declared tokens, and the per-id table is the judgement', () => {
+    const defs = engineRegistry.listDefinitions()
+
+    /** ⚠️ EVERY VALUE HERE IS `non-repainting` TODAY, AND THAT IS THE FINDING,
+     *  NOT THE REASSURANCE. Record §1: the badge is a shared default that no
+     *  definition overrides, so this column is unset rather than agreed. The
+     *  machine linter's measurement (record §3.1) says `ichimoku.chikou` does
+     *  not qualify for the clean badge — the row below still reads
+     *  `non-repainting` because Task 7 MEASURES and the owner decides. */
+    const BADGES = {
+      rsi: 'non-repainting',
+      macd: 'non-repainting',
+      bb: 'non-repainting',
+      vwap: 'non-repainting',
+      stoch: 'non-repainting',
+      atr: 'non-repainting',
+      sar: 'non-repainting',
+      ichimoku: 'non-repainting',
+      mfi: 'non-repainting',
+      cci: 'non-repainting',
+      williamsR: 'non-repainting',
+      adx: 'non-repainting',
+      obv: 'non-repainting',
+      donchian: 'non-repainting',
+      avwap: 'non-repainting',
+      atrBands: 'non-repainting',
+      rsLine: 'non-repainting',
+    }
+
+    // ⛔ THE RECORD'S OWN MEASUREMENT BLOCK, READ OUT OF THE REPO. `.superpowers/`
+    // is gitignored, so a finding that lives only there does not exist. CRLF is
+    // normalised at the door — `core.autocrlf` is on in this checkout.
+    const md = read('docs/decisions/2026-08-06-machine-repaint-linter.md').replace(/\r\n/g, '\n')
+    const block = md.split('```').filter(b => b.trimStart().startsWith('LINTER-MEASUREMENT-V1'))
+    expect(block.length, 'the decision record must carry exactly ONE measurement block').toBe(1)
+    const recordedDisagreements = block[0].trim().split('\n')
+      .map(l => l.trim()).filter(l => l.startsWith('disagreement '))
+      .map((l) => {
+        const [, address, ...rest] = l.split(/\s+/)
+        const kv = Object.fromEntries(rest.map(p => p.split('=')))
+        return { defId: address.split('.')[0], plotKey: address.split('.')[1], ...kv }
+      })
+
+    expect({
+      badges: Object.fromEntries(defs.map(d => [d.id, d.meta.repaint])),
+      offVocabulary: defs.filter(d => !REPAINT_MODES.includes(d.meta.repaint)).map(d => d.id),
+      // …and the record's findings are about badges that are really shipped.
+      recordedDisagreementsThatMisquoteTheBadge: recordedDisagreements
+        .filter(x => (defs.find(d => d.id === x.defId) || {}).meta?.repaint !== x.shipped)
+        .map(x => `${x.defId}.${x.plotKey}`),
+      // …and there IS a finding, so the clause above is not comparing two empty
+      // lists. The linter disagreeing with a shipped badge is the whole reason
+      // the record exists; a run in which it disagrees with nothing has either
+      // been resolved (in which case the record says so and this number changes
+      // deliberately) or silenced.
+      recordedDisagreementCount: recordedDisagreements.length > 0,
+    },
+    'the per-id badge table and the shipped catalogue disagree. A definition missing from the table ' +
+    'is a definition NOBODY HAS JUDGED — add it deliberately, with a reason, rather than making this ' +
+    'green. ⛔ AND IF YOU ARRIVED HERE BY EDITING `meta.repaint` TO SILENCE THE LINTER: that is the ' +
+    'one response the decision record forbids. A disagreement between the linter and a shipped badge ' +
+    'is a FINDING FOR THE OWNER (record §2, §5.7), and it also fails `lint.test.js` and the ' +
+    'enumeration ledger\'s biconditional.',
+    ).toEqual({
+      badges: BADGES,
+      offVocabulary: [],
+      recordedDisagreementsThatMisquoteTheBadge: [],
+      recordedDisagreementCount: true,
+    })
+
+    // …and the table is a table of the whole catalogue, not of a convenient
+    // subset: a definition that vanished would otherwise pass by absence.
+    expect(Object.keys(BADGES).sort()).toEqual(defs.map(d => d.id).sort())
   })
 })

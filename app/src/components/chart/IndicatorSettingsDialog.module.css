@@ -1,0 +1,255 @@
+/* The per-INSTANCE settings dialog (spec §6's settings form).
+ *
+ * ⛔ LAYOUT IS CSS, NEVER A JS BREAKPOINT HOOK. `useMediaQuery` / `useIsPhone` /
+ *    `useIsTouch` seed from `matchMedia` at MOUNT and only update on a `change`
+ *    event, so on a fixed phone viewport they are stale at first paint and a JS
+ *    read renders the desktop variant on a phone. The `@media` strings below are
+ *    copied from `styles/breakpoints.css`; no new literal is invented.
+ *
+ * ⭐ FIXED CONTROL WIDTHS PER TYPE, not per field (§6): one width for numbers,
+ *    one for selects, declared once as custom properties so a row of three
+ *    packed `inline` controls lines up with the row above it.
+ */
+
+.root {
+  --fld-num-w: 84px;
+  --fld-sel-w: 132px;
+  --fld-label-w: 44%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ── tabs ─────────────────────────────────────────────────────────────────── */
+
+.tabs {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.tab {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+  padding: 0 12px;
+  min-height: var(--tap-min);
+  cursor: pointer;
+}
+.tab:hover { color: var(--text-bright); }
+.tab:focus-visible { outline: 1px solid var(--border-accent); outline-offset: -2px; }
+
+.tabActive {
+  color: var(--text-bright);
+  border-bottom-color: var(--border-accent);
+}
+
+/* ── the scrolling body ───────────────────────────────────────────────────── */
+
+/* §6: the dialog body is capped and SCROLLS; the groups inside collapse. A form
+   that grows past the viewport puts its own Cancel button off-screen, which is
+   how a rollback becomes unreachable. */
+.body {
+  max-height: 70vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 2px;
+}
+
+/* Phone: the Sheet is already fullscreen there, so the 70vh cap would fight the
+   sheet's own height rather than help. Copied from `styles/breakpoints.css`. */
+@media (max-width: 640px) {
+  .body { max-height: none; }
+  .root { --fld-label-w: 40%; }
+}
+
+/* ── groups ───────────────────────────────────────────────────────────────── */
+
+.group { border-top: 1px solid var(--border); }
+.group:first-child { border-top: none; }
+
+.groupHead {
+  appearance: none;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: var(--tap-min);
+  padding: 0 2px;
+  cursor: pointer;
+  text-align: left;
+}
+.groupHead:focus-visible { outline: 1px solid var(--border-accent); outline-offset: -2px; }
+/* The disclosure caret is a PSEUDO-ELEMENT, so the button's accessible name and
+   its text content are the group's name and nothing else — a `<span>▾</span>`
+   inside it would put a glyph into every screen-reader announcement of it. */
+.groupHead::before { content: '\25BE'; font-size: 9px; opacity: 0.7; }
+.groupHead[aria-expanded='false']::before { content: '\25B8'; }
+
+/* ── one input per row: label left, control right ─────────────────────────── */
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--tap-min);
+  padding: 0 2px;
+}
+
+.label {
+  flex: 0 0 var(--fld-label-w);
+  color: var(--text);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.labelOff { opacity: 0.45; }
+
+.control {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* `inline`: up to THREE same-type controls share one row (§6). The pack lays its
+   children out horizontally and lets each keep its type's fixed width. */
+.inlinePack {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  padding: 0 2px;
+  min-height: var(--tap-min);
+}
+.inlinePack .row { flex: 1 1 0; min-width: 0; padding: 0; }
+.inlinePack .label { flex: 0 0 auto; }
+
+.num {
+  width: var(--fld-num-w);
+  box-sizing: border-box;
+  min-height: 30px;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 13px;
+  text-align: right;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.sel {
+  width: var(--fld-sel-w);
+  box-sizing: border-box;
+  min-height: 30px;
+  padding: 0 6px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.num:disabled, .sel:disabled { opacity: 0.4; cursor: not-allowed; }
+.num:focus-visible, .sel:focus-visible { outline: none; border-color: var(--border-accent); }
+
+.toggle {
+  appearance: none;
+  width: 36px;
+  height: 20px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  position: relative;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.toggleOn { background: var(--border-accent); }
+.toggle:disabled { opacity: 0.4; cursor: not-allowed; }
+.toggleKnob {
+  position: absolute;
+  top: 2px; left: 2px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--text-bright);
+  transition: transform 120ms ease;
+}
+.toggleOn .toggleKnob { transform: translateX(16px); }
+
+/* The clamp announcement. It is a `role="status"` line, not a colour change: a
+   control that silently changed the number the user typed is the defect. */
+.note {
+  flex: 1 1 100%;
+  font-size: 11px;
+  color: var(--color-warning, #f0b429);
+  text-align: right;
+  padding-right: 2px;
+}
+
+.tip {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 400;
+  white-space: normal;
+}
+
+/* ── the read-only chip facts on the Style tab ────────────────────────────── */
+
+.chipBox {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.chipRow { display: flex; align-items: baseline; gap: 10px; }
+.chipKey { flex: 0 0 var(--fld-label-w); color: var(--text-muted); font-size: 12px; }
+.chipVal { color: var(--text-bright); font-size: 13px; }
+.why { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+
+/* ── footer ───────────────────────────────────────────────────────────────── */
+
+.foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  flex: 0 0 auto;
+}
+
+.btn {
+  appearance: none;
+  font: inherit;
+  font-size: 13px;
+  min-height: var(--tap-min);
+  padding: 0 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-bright);
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--border-accent); }
+.btnPrimary { border-color: var(--border-accent); }
+.empty { padding: 14px 2px; color: var(--text-muted); font-size: 13px; }

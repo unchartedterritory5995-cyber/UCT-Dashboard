@@ -718,7 +718,148 @@ def _run_all(ks: Iterable[int], only: Optional[list[str]] = None,
     return out
 
 
+def _fire_blocks(fx: dict, name: str) -> tuple[dict, int, int, dict]:
+    """One fixture's per-k fire-log blocks, plus the totals they contribute.
+
+    Extracted verbatim out of `cmd_record` so `--record --append` cannot record a
+    new fixture in a SHAPE the frozen ones were not recorded in. A second
+    implementation of this would be a second definition of what a digest is, and
+    the whole gate is that there is exactly one.
+    """
+    blocks: dict[str, Any] = {}
+    fires_total = 0
+    slots_total = 0
+    per_address: dict[str, int] = {}
+    for k, fires in fx["fires"].items():
+        grouped: dict[str, list] = {}
+        for f in fires:
+            grouped.setdefault(f["alert_key"], []).append(
+                [f["bar_index"], f["sample"], repr(f["value"])])
+            addr = _address_of(f["alert_key"])
+            per_address[addr] = per_address.get(addr, 0) + 1
+        block = {
+            "count": len(fires),
+            "digest": _digest("\n".join(repr(fire_key(f)) for f in fires)),
+            "per_alert": {key: [len(rows), _digest(_rows_text(rows))]
+                          for key, rows in grouped.items()},
+            "head": _fire_rows(fires[:15]),
+        }
+        if name == VERBATIM_FIXTURE:
+            block["rows"] = grouped
+        blocks[str(k)] = block
+        fires_total += len(fires)
+        slots_total += len(fx["alerts"]) * len(fx["bars"])
+    return blocks, fires_total, slots_total, per_address
+
+
+def cmd_record_append(args) -> int:
+    """Record fire-log blocks for NAMED NEW fixtures. It may not touch the others.
+
+    ⭐ WHY THIS IS A SEPARATE MODE AND NOT `--record --force`. `--force` re-records
+    the WHOLE log from whatever the code now does, which is precisely the trap the
+    module docstring opens with: a real regression becomes a green build and
+    nobody can tell, because the artifact and the expectation moved together. The
+    frozen digests are a CONTRACT — a corpus may grow, and an existing digest may
+    not move. So this mode replays only the fixtures it is given, refuses one it
+    has already seen, and then PROVES the untouched half is untouched by comparing
+    every pre-existing fixture object before and after. If an existing digest
+    moves, that is a finding about the closed lane, not a number to regenerate.
+    """
+    names = list(args.only or [])
+    if not names:
+        raise SystemExit("--record --append needs --only <fixture> [...] — appending "
+                         "'everything' is --record, and --record is one-shot.")
+    with open(FIRE_LOG_PATH, encoding="utf-8") as fh:
+        log = json.load(fh)
+    corpus = list(fixture_names())
+    for name in names:
+        if name in log["fixtures"]:
+            raise SystemExit(
+                f"{name!r} already has a fire-log block. This mode is ADDITIVE: "
+                "re-recording an existing fixture re-records whatever the code now "
+                "does and converts a real regression into a green build.")
+        if name not in corpus:
+            raise SystemExit(f"{name!r} is not in the frozen corpus "
+                             f"({os.path.basename(BARS_PATH)}); freeze its bars first.")
+
+    ks = log["ks"]
+    print(f"=== RECORD --append (ks={ks}, window={PROD_BAR_WINDOW}) ===")
+    print(f"  appending: {names}")
+    run = _run_all(ks, only=names)
+
+    before = {k: json.dumps(v, sort_keys=True) for k, v in log["fixtures"].items()}
+    before_summary = dict(log["summary"])
+
+    added_fires = 0
+    added_slots = 0
+    per_address: dict[str, int] = dict(log["summary"]["per_address_fires"])
+    for name in names:
+        fx = run["fixtures"][name]
+        blocks, fires_n, slots_n, addrs = _fire_blocks(fx, name)
+        # ⭐ EACH APPENDED FIXTURE ASSERTS ITS OWN NON-VACUITY SEPARATELY. A merged
+        # total hides a fixture that fired nothing behind ten that did, and a
+        # fixture that fires nothing pins nothing about the lane it was added to
+        # measure.
+        if not fires_n:
+            raise SystemExit(f"{name}: NOTHING FIRED across {ks}. A fixture that "
+                             "cannot fire cannot detect a change in firing.")
+        if fires_n >= slots_n:
+            raise SystemExit(f"{name}: every combination fired — the grid is saturated.")
+        for addr, n in addrs.items():
+            per_address[addr] = per_address.get(addr, 0) + n
+        log["fixtures"][name] = {
+            "bar_count": len(fx["bars"]),
+            "alert_count": len(fx["alerts"]),
+            "ladders": fx["ladders"],
+            "alert_keys": [a["alert_key"] for a in fx["alerts"]],
+            "fires": blocks,
+        }
+        added_fires += fires_n
+        added_slots += slots_n
+        run["fixtures"][name]["_appended"] = fires_n
+        print(f"  + {name:22} {fires_n} fires over {ks}")
+
+    log["summary"] = {
+        "fires": before_summary["fires"] + added_fires,
+        "slots": before_summary["slots"] + added_slots,
+        "grid_alerts": before_summary["grid_alerts"] + run["grid_alerts"],
+        "per_address_fires": dict(sorted(per_address.items())),
+    }
+    log.setdefault("appended", []).append({
+        "at_head": _git_head(),
+        "fixtures": names,
+        "added_fires": added_fires,
+        "note": (
+            "APPENDED, NOT RE-RECORDED. The blocks above this entry are the ones "
+            "frozen before any Phase C behaviour change and every one of their "
+            "digests is byte-identical across this append — `--record --append` "
+            "compares every pre-existing fixture object before and after and "
+            "refuses to write if one moved. These fixtures were replayed through "
+            "the SAME forming lane, on a tree where `ALERT_EVAL_MODE` is still "
+            "'forming' and `--check` reproduced all eight original (fixture, k) "
+            "pairs digest for digest immediately beforehand."),
+    })
+
+    moved = [k for k, b in before.items()
+             if json.dumps(log["fixtures"][k], sort_keys=True) != b]
+    if moved:
+        raise SystemExit(
+            f"the append CHANGED pre-existing fixture block(s): {moved}. Refusing to "
+            "write. If an existing digest moves that is a finding about the closed "
+            "lane, not a number to regenerate.")
+
+    with open(FIRE_LOG_PATH, "w", encoding="utf-8") as fh:
+        json.dump(log, fh, indent=1, allow_nan=False, sort_keys=False)
+        fh.write("\n")
+    print(f"\nappended {len(names)} fixture(s) to {FIRE_LOG_PATH}")
+    print(f"  fires {before_summary['fires']} -> {log['summary']['fires']} "
+          f"(+{added_fires})")
+    return 0
+
+
 def cmd_record(args) -> int:
+    if args.append:
+        return cmd_record_append(args)
     if os.path.exists(FIRE_LOG_PATH) and not args.force:
         raise SystemExit(
             f"{FIRE_LOG_PATH} already exists. --record is ONE-SHOT: re-recording "
@@ -738,27 +879,15 @@ def cmd_record(args) -> int:
     total_slots = 0
     per_address: dict[str, int] = {}
     for name, fx in run["fixtures"].items():
-        blocks: dict[str, Any] = {}
-        for k, fires in fx["fires"].items():
-            grouped: dict[str, list] = {}
-            for f in fires:
-                grouped.setdefault(f["alert_key"], []).append(
-                    [f["bar_index"], f["sample"], repr(f["value"])])
-                addr = _address_of(f["alert_key"])
-                per_address[addr] = per_address.get(addr, 0) + 1
-            block = {
-                "count": len(fires),
-                # the WHOLE ordered sequence, as fire_key() renders it
-                "digest": _digest("\n".join(repr(fire_key(f)) for f in fires)),
-                "per_alert": {key: [len(rows), _digest(_rows_text(rows))]
-                              for key, rows in grouped.items()},
-                "head": _fire_rows(fires[:15]),
-            }
-            if name == VERBATIM_FIXTURE:
-                block["rows"] = grouped
-            blocks[str(k)] = block
-            total_fires += len(fires)
-            total_slots += len(fx["alerts"]) * len(fx["bars"])
+        # ⭐ THE SAME `_fire_blocks` `--record --append` USES. One definition of
+        # what a block IS, so an appended fixture cannot be recorded in a shape the
+        # frozen ones were not, and `test_fire_blocks_reproduces_a_committed_block`
+        # drives it against the committed wick block to prove it.
+        blocks, fires_n, slots_n, addrs = _fire_blocks(fx, name)
+        for addr, n in addrs.items():
+            per_address[addr] = per_address.get(addr, 0) + n
+        total_fires += fires_n
+        total_slots += slots_n
         payload_fixtures[name] = {
             "bar_count": len(fx["bars"]),
             "alert_count": len(fx["alerts"]),
@@ -851,20 +980,76 @@ def expected_fires(log: dict, name: str, k: int) -> list[tuple]:
             for bar_index, _s, _ord, alert_key, value_repr in flat]
 
 
+def corpus_coverage(log: dict) -> tuple[list[str], list[str]]:
+    """`(in the corpus but NOT in the fire log, in the fire log but NOT the corpus)`.
+
+    🔴 A CORPUS THAT CAN QUIETLY NOT RUN IS WORSE THAN NO CORPUS. `--check` walks
+    the FIRE LOG's fixture list, so a series added to `replay_bars.json` and never
+    recorded is not checked, is not missed, and is not reported — the file sits in
+    the tree looking like coverage while the gate never touches it. That is
+    [[lesson_gate_that_cannot_fail]] with the evidence present rather than absent,
+    and it is the failure mode a growing corpus invites.
+
+    So the two sets are compared BOTH WAYS and the answer is a property of the two
+    ARTIFACTS, not of whichever subset a particular run selected — which is why it
+    is computed here rather than inside the `--only` branch, and why `--only`
+    cannot suppress it.
+    """
+    corpus = list(fixture_names())
+    logged = list(log["fixtures"])
+    return ([n for n in corpus if n not in logged],
+            [n for n in logged if n not in corpus])
+
+
 def cmd_check(args) -> int:
     with open(FIRE_LOG_PATH, encoding="utf-8") as fh:
         log = json.load(fh)
+    unrecorded, orphaned = corpus_coverage(log)
+    if unrecorded or orphaned:
+        print("=== THE CORPUS AND THE FIRE LOG DISAGREE ABOUT WHAT EXISTS ===")
+        for name in unrecorded:
+            print(f"  RED  {name!r} is a frozen fixture in {os.path.basename(BARS_PATH)} "
+                  "with NO block in the fire log — it would be SILENTLY SKIPPED by "
+                  "every --check. Record it with "
+                  f"`--record --append --only {name}`.")
+        for name in orphaned:
+            print(f"  RED  {name!r} has a fire-log block but is not in the frozen "
+                  "corpus — its digests are measured against bars that are no "
+                  "longer there.")
+        print(f"\n{len(unrecorded) + len(orphaned)} FIXTURE(S) OUT OF SYNC")
+        return 1
     ks = log["ks"]
     names = args.only or list(log["fixtures"])
     print(f"=== CHECK (ks={ks}, window={log['prod_bar_window']}) ===")
     if log["prod_bar_window"] != PROD_BAR_WINDOW:
         raise SystemExit("the recorded bar window is not the harness's — the two "
                          "measure different evaluators")
-    if log["address_count"] != len(__import__(
-            "api.services.indicator_alert_evaluator",
-            fromlist=["x"]).INDICATOR_FUNCS):
-        print("  !! the catalog grew or shrank since the log was recorded — the "
-              "grid below is NOT the grid that was frozen")
+    # ⛔ THE CATALOG SIZE IS A REFUSAL, NOT A PRINTED `!!`. It used to print that
+    # line and leave `bad` untouched, so the tool ended by printing the literal
+    # `FIRE LOG MATCHES` and returning 0 — satisfying
+    # `docs/runbooks/ast-conformance-gate.md` §4.1's gate sentence word for word
+    # while having just noticed the one thing that invalidates every digest below
+    # it. It is not a theoretical hole: a NEW address that fires nothing (the
+    # un-fireable-offer class this whole programme closes — `vwap`, then `sar`)
+    # leaves every `(fixture, k)` digest byte-identical, so the printed warning
+    # was the ONLY signal and nothing read it. The grid is generated by iterating
+    # `INDICATOR_FUNCS` in order, so a catalog of a different size is a different
+    # instrument and the comparison below is meaningless, not merely suspect.
+    #
+    # ⭐ THE EXPECTED SIZE IS DERIVED FROM THE SAME EXPRESSION THAT RECORDED IT
+    # (`cmd_record` writes `len(ev.INDICATOR_FUNCS)`), never typed here. Three
+    # test files carry a literal `== 28` beside it; a fourth copy in the tool
+    # would be the one that rots.
+    from api.services import indicator_alert_evaluator as _ev
+    _live_addresses = len(_ev.INDICATOR_FUNCS)
+    if log["address_count"] != _live_addresses:
+        print(f"  RED  the catalog moved since the log was recorded: "
+              f"{log['address_count']} addresses frozen, {_live_addresses} live. "
+              "The grid this evaluator builds is NOT the grid that was frozen, so "
+              "no digest below would compare the same instrument — NOTHING IS "
+              "REPLAYED. Re-record the log (`--record`) if the change was intended.")
+        print("\nCATALOG SIZE MOVED — NOT COMPARABLE")
+        return 1
     run = _run_all(ks, only=names)
     bad = 0
     for name in names:
@@ -1275,6 +1460,27 @@ def lane_diff(names: Optional[list[str]] = None, k: int = DIFF_K,
     }
 
 
+def diff_scope(declared: Optional[dict], only: Optional[list[str]],
+               corpus: Optional[list[str]] = None) -> tuple[list[str], list[str]]:
+    """`(fixtures to drive, corpus fixtures the declaration does not bound)`.
+
+    Split out of `cmd_diff` so the decision can be tested without a fifteen-minute
+    replay behind it — a scoping rule only exercised by the slow path is a scoping
+    rule nobody re-checks.
+
+    `--only` wins. Otherwise the scope is the declaration's OWN
+    `measured.fixtures`, because every row's `count` is a bound observed over
+    exactly those series and driving more tape through the same bounds
+    over-budgets rows for a reason that has nothing to do with the lane. With no
+    declaration at all the scope is the whole corpus, which is the state the
+    "everything is undeclared" branch already reports.
+    """
+    corpus = list(corpus if corpus is not None else fixture_names())
+    scope = list((declared or {}).get("measured", {}).get("fixtures") or [])
+    driven = list(only) if only else (scope or corpus)
+    return driven, [n for n in corpus if n not in driven]
+
+
 def cmd_diff(args) -> int:
     mode_a = args.mode_a or "forming"
     mode_b = args.mode_b or "closed"
@@ -1286,8 +1492,37 @@ def cmd_diff(args) -> int:
             "that orientation; swapping it would silently invert every reason."
         )
     k = args.k[0] if args.k else DIFF_K
-    names = args.only or None
+
+    # ⛔ THE DECLARATION IS A BUDGET MEASURED ON A NAMED SET OF FIXTURES, SO THE
+    # GATE HAS TO BE RUN ON THAT SET. `fire_diff_declared.json` records
+    # `measured.fixtures`, and every row's `count` is a bound observed over
+    # exactly those series. Driving a LARGER corpus through the same bounds
+    # over-budgets every row — not because the lane changed, but because there is
+    # more tape — and a gate that goes red for a reason that has nothing to do
+    # with the behaviour it guards is a gate people learn to ignore.
+    #
+    # ⛔ AND THE FIXTURES OUTSIDE THAT SET ARE NAMED, LOUDLY, EVERY RUN. Scoping
+    # silently would be the same defect one layer down: the declaration would look
+    # like it covered the corpus. So the tool says which series it drove, which it
+    # did not, and how to measure them.
+    from api.services import alert_shadow_log as shadow
+    declared: Optional[dict] = None
+    try:
+        declared = shadow.declared_diff()
+    except FileNotFoundError:
+        declared = None
+    names, outside = diff_scope(declared, args.only)
+
     print(f"=== LANE DIFF ({mode_a} → {mode_b}, k={k}, window={PROD_BAR_WINDOW}) ===")
+    print(f"  fixtures driven        : {names}")
+    if outside:
+        print(f"  NOT BOUNDED BY THE DECLARATION : {outside}")
+        print("    ^ these are frozen fixtures the declaration's counts were NOT "
+              "measured over, so its per-address budgets say nothing about them. "
+              "Measure one with `--diff --only <name>` and read the result as a "
+              "CENSUS: an (address, direction) group it produces that the "
+              "declaration has never heard of is a FINDING about the closed lane "
+              "on new tape, and belongs in a report before it belongs in a row.")
     res = lane_diff(names, k=k)
 
     t = res["totals"]
@@ -1326,10 +1561,7 @@ def cmd_diff(args) -> int:
         )
 
     # …and then the declaration, which is the gate.
-    from api.services import alert_shadow_log as shadow
-    try:
-        declared = shadow.declared_diff()
-    except FileNotFoundError:
+    if declared is None:
         print(f"\n  !! no declaration at {shadow.DECLARED_DIFF_PATH} — every one of "
               f"the {len(res['rows'])} (address, direction) groups above is "
               f"UNDECLARED.")
@@ -1502,6 +1734,13 @@ def main(argv: Optional[list[str]] = None) -> int:
     ap.add_argument("--only", nargs="*")
     ap.add_argument("--out")
     ap.add_argument("--force", action="store_true")
+    # ⭐ `--record --append --only <new fixture>` IS THE ONLY WAY THE LOG GROWS.
+    # `--force` re-records everything and is the trap this file opens with;
+    # `--append` replays ONLY what it is named, refuses a fixture it has already
+    # seen, and proves every pre-existing block is byte-identical before it writes.
+    ap.add_argument("--append", action="store_true",
+                    help="with --record: ADD blocks for --only fixtures, "
+                         "leaving every existing digest byte-identical")
     args = ap.parse_args(argv)
 
     if args.freeze_bars:

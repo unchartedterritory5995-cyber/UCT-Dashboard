@@ -235,6 +235,15 @@ def test_the_harness_agrees_with_the_evaluators_own_evaluate_one(wick, forming):
     which consults both — so `sar.priceCrossedSar` evaluated to `(None, False)` in
     the harness and fired 39 times in the shipped lane. A rail that iterates the
     same list the code under test does can only ever see what that list contains.
+
+    ⛔ `mode="forming"` IS PASSED EXPLICITLY SINCE THE CUTOVER, AND IT IS NOT A
+    WEAKENING. `make_forming_evaluate` is the FORMING adapter; comparing it
+    against an unqualified `_evaluate_one` after `ALERT_EVAL_MODE` became
+    `"closed"` would compare two different lanes and report the cutover as a
+    harness fork. The closed adapter has its own equality rail
+    (`test_alert_closed_bar.py::test_the_closed_adapter_agrees_with_the_
+    evaluators_own_evaluate_one_closed`, 1,000+ combinations), so both adapters
+    are still pinned to the function they re-express.
     """
     window = wick[-ar.PROD_BAR_WINDOW:]
     prevs = [None, -50.0, 0.0, 1.0, 50.0, 69.0, 70.0, 101.0]
@@ -248,7 +257,8 @@ def test_the_harness_agrees_with_the_evaluators_own_evaluate_one(wick, forming):
                              "indicator": address, "condition": cond["value"],
                              "threshold": thr, "params_json": None,
                              "last_value": prev, "alert_key": "k"}
-                    want = ev._evaluate_one(dict(alert), bars=window)
+                    want = ev._evaluate_one(dict(alert), bars=window,
+                                            mode="forming")
                     got = forming(dict(alert), window)
                     assert got == want, (address, cond["value"], thr, prev, got, want)
                     compared += 1
@@ -376,8 +386,14 @@ def test_the_path_model_states_its_limits():
 
 def test_every_frozen_fixture_digests_to_its_recorded_sha256():
     names = ar.fixture_names()
-    assert names == ["intraday5m", "spy_daily", "nvda_5m_extended",
-                     "wick_that_unwinds"]
+    # ⛔ THE FOUR ORIGINALS ARE ASSERTED AS A PREFIX, NOT AS THE WHOLE LIST. The
+    # corpus is allowed to GROW — that is what `tools/alert_corpus_extend.py` is
+    # for — and it is not allowed to be reordered or rewritten, because every
+    # digest in `fire_log_forming.json` is measured against these exact bars in
+    # this exact order.
+    assert names[:4] == ["intraday5m", "spy_daily", "nvda_5m_extended",
+                         "wick_that_unwinds"]
+    assert len(names) == len(set(names))
     for name in names:
         fx = ar.load_fixture(name)          # raises on a digest mismatch
         assert len(fx["bars"]) == fx["bar_count"]
@@ -486,6 +502,42 @@ def test_the_fire_log_is_recorded_against_the_live_address_count(fire_log):
     assert fire_log["address_count"] == len(ev.INDICATOR_FUNCS) == 28
     assert fire_log["prod_bar_window"] == ar.PROD_BAR_WINDOW == 200
     assert fire_log["ks"] == list(ar.RECORD_KS)
+
+
+def test_a_MOVED_CATALOG_FAILS_the_check_instead_of_printing_a_warning(
+        fire_log, monkeypatch, capsys):
+    """⛔ THE TOOL'S VERDICT COULD NOT SAY THE ONE THING IT HAD NOTICED.
+
+    `cmd_check` compared `log["address_count"]` to the live catalog and, on a
+    mismatch, printed `!! the catalog grew or shrank` — and left `bad`
+    untouched. So it went on to print the literal **`FIRE LOG MATCHES`** and
+    return 0, satisfying `docs/runbooks/ast-conformance-gate.md` §4.1's gate
+    sentence word for word. It is not theoretical: a NEW address that fires
+    nothing — the un-fireable-offer class this programme exists to close
+    (`vwap`, then `sar`) — leaves every `(fixture, k)` digest byte-identical, so
+    the printed line was the entire signal and nothing consumed it. The tree was
+    covered only by a literal `== 28` typed into three test files; the gate an
+    operator runs BY HAND was not.
+
+    ⭐ CONTROL FIRST: the guard is quiet on today's catalog, so the exit-1 below
+    is attributable to the mutation and to nothing else. (Measured on the real
+    tool the same day: unmutated `--check` = `FIRE LOG MATCHES`, exit 0.)
+    """
+    import argparse
+
+    assert fire_log["address_count"] == len(ev.INDICATOR_FUNCS), (
+        "control: the size guard must be SILENT before it is provoked")
+
+    grown = dict(ev.INDICATOR_FUNCS)
+    grown["__probe_address_that_fires_nothing__"] = lambda *a, **k: []
+    monkeypatch.setattr(ev, "INDICATOR_FUNCS", grown)
+
+    rc = ar.cmd_check(argparse.Namespace(only=None))
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "NOT COMPARABLE" in out
+    # …and it refuses BEFORE replaying, so it cannot end on the runbook's word.
+    assert "FIRE LOG MATCHES" not in out
 
 
 def test_the_fire_log_is_not_vacuous(fire_log):
@@ -613,3 +665,564 @@ def test_the_ladder_straddles_a_constant_series():
     assert ar._ladder([5.0] * 40) == [4.95, 5.0, 5.05]
     assert ar._ladder([0.0] * 40) == [-0.01, 0.0, 0.01]
     assert ar._ladder([]) == []
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# THE EXTENDED CORPUS — real tape for the conditions a live session presents
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# 🔴 WHY THE CORPUS HAD TO GROW, AS A MEASUREMENT. Production's shadow lane held
+# 8,130 rows and EVERY ONE of them was recorded between 16:52 and 21:30 ET. The
+# closed-bar lane's whole purpose is to judge the last CONFIRMED bar instead of
+# the forming one, and after hours nothing is forming — so that data says almost
+# nothing about the behaviour the cutover changes. The offline corpus was four
+# fixtures. `tools/alert_corpus_extend.py` adds seven, each built from REAL bars
+# out of the local store and each carrying a condition a regular session can
+# actually present.
+#
+# ⛔ AND EVERY ONE OF THEM IS RE-CHECKED HERE FROM THE FROZEN BARS, NOT FROM THE
+# STORE. The builder's checks run once, against a database this repo does not
+# carry; these run on every suite, against the committed fixture. A fixture whose
+# reason for existing lives only in its `why` string is a fixture nobody can tell
+# has stopped covering its case.
+
+_ORIGINAL_FIXTURES = ("intraday5m", "spy_daily", "nvda_5m_extended",
+                      "wick_that_unwinds")
+
+# 🔴 THE FROZEN FIRE LOG IS A CONTRACT. These are the eight (fixture, k) pairs as
+# they stood BEFORE the corpus grew — measured on the committed log, then written
+# here as LITERALS so they predate the append. A new fixture may ADD entries; it
+# may not move one of these. If one moves, that is a finding about the closed
+# lane, not a number to regenerate.
+_FROZEN_EIGHT = {
+    ("intraday5m", "1"):
+        (44543, "e9f13e4e05db5ac06f2b97ce243eca7f78604c4bc97791b245a4ee50bc0fa5ac"),
+    ("intraday5m", "4"):
+        (176275, "fbd4d3e8527f741706f6f287772305ae2557b110fa13cfc070b0da174927bc15"),
+    ("spy_daily", "1"):
+        (29377, "09e57a15c01a11c93168c5899410729b1226e3dd2827d68602d741d10340f5db"),
+    ("spy_daily", "4"):
+        (114845, "1a750d0af9290f42353079b212ba7cf6a4dc1f4c409dcdac11f370b71404c20d"),
+    ("nvda_5m_extended", "1"):
+        (61963, "f5c805a1f511db34eee66c67b536760ec1f10307ac1be19fea7537752994f2f7"),
+    ("nvda_5m_extended", "4"):
+        (244269, "99279ef8dc51a85a008b61ec06a503a9b7bbb6a106cadc1aec8c7c463d7c3a2c"),
+    ("wick_that_unwinds", "1"):
+        (2786, "44ace2555b8ff1c9c23107db6c1db3759d6a0079e7ba614f3bbb22ee5c0f6178"),
+    ("wick_that_unwinds", "4"):
+        (11135, "e364f1a9cf3f95d27593ef0655916ad71fa18a3de6bdc39848971569acb187f7"),
+}
+
+_EXTENDED_FIXTURES = ("gap_open_5m", "high_vol_5m", "thin_illiquid_5m",
+                      "warmup_first_bars_5m", "halfday_30m", "hourly_open_60m",
+                      "gap_daily")
+
+
+@pytest.fixture(scope="module")
+def closed():
+    return ar.make_closed_evaluate()
+
+
+def test_the_original_eight_pairs_are_byte_identical_after_the_corpus_grew(fire_log):
+    """⭐ THE CONTRACT, AS AN EQUALITY AGAINST LITERALS WRITTEN BEFORE THE APPEND.
+
+    `--record --append` compares every pre-existing fixture object before and
+    after and refuses to write if one moved, but that guard lives inside the tool
+    that does the writing. This one lives outside it: the numbers are here, in the
+    test file, not read back out of the artifact they are supposed to check.
+    """
+    for (name, k), (count, digest) in _FROZEN_EIGHT.items():
+        block = fire_log["fixtures"][name]["fires"][k]
+        assert block["count"] == count, (name, k, block["count"], count)
+        assert block["digest"] == digest, (
+            f"{name} k={k}: the frozen digest MOVED. That is a finding about the "
+            "closed lane, not a number to regenerate.")
+    assert fire_log["summary"]["fires"] > sum(c for c, _d in _FROZEN_EIGHT.values())
+
+
+def test_the_corpus_grew_and_says_where(fire_log):
+    names = ar.fixture_names()
+    assert names[:4] == list(_ORIGINAL_FIXTURES)
+    assert set(names[4:]) == set(_EXTENDED_FIXTURES)
+    assert set(fire_log["fixtures"]) == set(names)
+    # the append is recorded IN the artifact, so a reader can see which blocks
+    # predate the Phase C work and which were added afterwards
+    appended = fire_log["appended"]
+    assert appended and set(appended[-1]["fixtures"]) == set(_EXTENDED_FIXTURES)
+    assert appended[-1]["added_fires"] > 0
+
+
+@pytest.mark.parametrize("name", _EXTENDED_FIXTURES)
+def test_every_extended_fixture_still_supports_its_own_claim(name):
+    """⭐ THE `why` STRING IS NOT THE COVERAGE — THE `checks` FUNCTION IS.
+
+    Each spec in `tools/alert_corpus_extend.py` carries an executable claim. Run
+    it here against the FROZEN bars, so "this fixture covers a half day" is a
+    thing that can go red rather than a sentence that can rot.
+    """
+    import alert_corpus_extend as ace
+
+    spec = next(s for s in ace.SPECS if s["name"] == name)
+    bars = ar.load_fixture(name)["bars"]
+    assert len(bars) == spec["bars"]
+    problems = spec["checks"](bars)
+    assert not problems, f"{name} no longer supports its claim: {problems}"
+
+
+@pytest.mark.parametrize("name", _EXTENDED_FIXTURES)
+def test_every_extended_fixture_names_the_condition_it_covers(name):
+    with open(ar.BARS_PATH, encoding="utf-8") as fh:
+        entry = json.load(fh)["fixtures"][name]
+    assert entry["covers"] and len(entry["covers"]) > 20
+    assert entry["why"] and len(entry["why"]) > 200
+    # `source` is the query that reproduces it — a fixture whose provenance is
+    # "somebody had it locally" cannot be re-derived when its claim is disputed.
+    assert "ticker=" in entry["source"] and "ts in [" in entry["source"]
+    assert entry["bar_count"] == len(ar.load_fixture(name)["bars"])
+
+
+def test_the_corpus_now_covers_four_timeframes():
+    """Before the extension every fixture was tf 5 or D.
+
+    `bar_close_epoch` has a distinct branch per timeframe code and
+    `closed_bar_index` resolves each of them differently; 30 and 60 had NO real
+    tape behind them at all, and 60's grid turns out not to be uniform (below).
+    """
+    with open(ar.BARS_PATH, encoding="utf-8") as fh:
+        doc = json.load(fh)
+    tfs = {doc["fixtures"][n]["tf"] for n in doc["order"]}
+    assert tfs == {"5", "D", "30", "60"}
+    before = {doc["fixtures"][n]["tf"] for n in _ORIGINAL_FIXTURES}
+    assert before == {"5", "D"}
+
+
+# ─── the anti-silent-skip rail ───────────────────────────────────────────────
+
+class _Args:
+    """The two attributes `cmd_check` / `cmd_record_append` read, and no more."""
+
+    def __init__(self, only=None, append=False):
+        self.only = only
+        self.append = append
+
+
+def test_check_refuses_a_corpus_fixture_absent_from_the_fire_log(monkeypatch, capsys):
+    """🔴 A CORPUS THAT CAN QUIETLY NOT RUN IS WORSE THAN NO CORPUS.
+
+    `--check` walks the FIRE LOG's fixture list. A series frozen into
+    `replay_bars.json` and never recorded is therefore not checked, not missed and
+    not reported — it sits in the tree looking like coverage. This drives the real
+    `cmd_check` with a corpus that names one more fixture than the log does and
+    demands a non-zero exit BEFORE any replay happens.
+    """
+    monkeypatch.setattr(
+        ar, "fixture_names",
+        lambda: [*_ORIGINAL_FIXTURES, *_EXTENDED_FIXTURES, "a_fixture_nobody_recorded"])
+    rc = ar.cmd_check(_Args())
+    out = capsys.readouterr().out
+    assert rc == 1, "a corpus fixture with no fire-log block was accepted"
+    assert "a_fixture_nobody_recorded" in out and "SILENTLY SKIPPED" in out
+    assert "=== CHECK (" not in out, (
+        "the rail must refuse BEFORE the replay — otherwise it costs ten minutes "
+        "to learn the corpus is out of sync")
+
+
+def test_check_refuses_a_fire_log_block_whose_bars_are_gone(monkeypatch, capsys):
+    """The other direction: a digest measured against bars that no longer exist."""
+    monkeypatch.setattr(ar, "fixture_names", lambda: list(_ORIGINAL_FIXTURES))
+    rc = ar.cmd_check(_Args())
+    out = capsys.readouterr().out
+    assert rc == 1
+    assert "not in the frozen corpus" in out
+    for name in _EXTENDED_FIXTURES:
+        assert name in out
+
+
+def test_the_coverage_rail_is_not_vacuous_on_the_real_artifacts(fire_log):
+    """…and it says nothing when the two artifacts agree, which they must today."""
+    unrecorded, orphaned = ar.corpus_coverage(fire_log)
+    assert unrecorded == [] and orphaned == []
+
+
+def test_check_cannot_be_dodged_with_only(monkeypatch, capsys):
+    """`--only` selects what is REPLAYED; it may not select what is CHECKED FOR.
+
+    The rail is a property of the two artifacts, so narrowing the run must not
+    narrow it — otherwise the way to silence it is to ask for less.
+    """
+    monkeypatch.setattr(
+        ar, "fixture_names",
+        lambda: [*_ORIGINAL_FIXTURES, *_EXTENDED_FIXTURES, "phantom"])
+    assert ar.cmd_check(_Args(only=["wick_that_unwinds"])) == 1
+    assert "phantom" in capsys.readouterr().out
+
+
+# ─── the append records in the SHAPE the frozen blocks were recorded in ──────
+
+def test_fire_blocks_reproduces_a_committed_block(fire_log, wick, forming):
+    """One definition of what a fire-log block IS, demonstrated on a frozen one.
+
+    `--record --append` and `--record` share `_fire_blocks`. If they did not, an
+    appended fixture could be recorded in a shape the gate reads differently and
+    the equality would quietly become a shape check.
+    """
+    alerts, _ladders = ar.build_alert_grid("wick_that_unwinds", wick, "5", forming)
+    fires = {k: ar.replay(wick, alerts, k=k, evaluate=forming) for k in ar.RECORD_KS}
+    blocks, fires_n, slots_n, addrs = ar._fire_blocks(
+        {"fires": fires, "alerts": alerts, "bars": wick}, "wick_that_unwinds")
+    committed = fire_log["fixtures"]["wick_that_unwinds"]["fires"]
+    assert json.dumps(blocks, sort_keys=True) == json.dumps(committed, sort_keys=True)
+    assert fires_n == sum(committed[str(k)]["count"] for k in ar.RECORD_KS)
+    assert 0 < fires_n < slots_n
+    assert set(addrs) <= set(ev.INDICATOR_FUNCS)
+
+
+def test_record_append_refuses_a_fixture_it_has_already_recorded():
+    with pytest.raises(SystemExit, match="already has a fire-log block"):
+        ar.cmd_record_append(_Args(only=["wick_that_unwinds"], append=True))
+
+
+def test_record_append_refuses_to_append_nothing():
+    with pytest.raises(SystemExit, match="needs --only"):
+        ar.cmd_record_append(_Args(only=[], append=True))
+
+
+def test_record_append_refuses_a_fixture_that_was_never_frozen():
+    with pytest.raises(SystemExit, match="not in the frozen corpus"):
+        ar.cmd_record_append(_Args(only=["not_a_frozen_fixture"], append=True))
+
+
+# ─── the declared diff is scoped to what the declaration measured ────────────
+
+def test_diff_scope_is_the_declarations_own_fixture_list_and_names_the_rest():
+    """⛔ THE DECLARATION IS A BUDGET MEASURED ON A NAMED SET.
+
+    `fire_diff_declared.json` records `measured.fixtures`, and each row's `count`
+    is a bound observed over exactly those series. Driving MORE tape through the
+    same bounds over-budgets rows for a reason that has nothing to do with the
+    lane. So the gate runs on the declaration's own set — and the fixtures it does
+    NOT bound are returned by name, every run, because scoping silently would make
+    the declaration look like it covered the corpus.
+    """
+    from api.services import alert_shadow_log as shadow
+
+    declared = shadow.declared_diff()
+    driven, outside = ar.diff_scope(declared, None)
+    assert driven == list(_ORIGINAL_FIXTURES) == declared["measured"]["fixtures"]
+    assert set(outside) == set(_EXTENDED_FIXTURES), (
+        "the fixtures outside the declaration's scope must be NAMED — a silently "
+        "narrowed gate is the same defect one layer down")
+    driven, outside = ar.diff_scope(declared, ["high_vol_5m"])
+    assert driven == ["high_vol_5m"]
+    assert "intraday5m" in outside
+    # with no declaration at all the scope is the whole corpus, which is the
+    # state cmd_diff already reports as "everything is undeclared"
+    driven, outside = ar.diff_scope(None, None)
+    assert driven == list(ar.fixture_names()) and outside == []
+
+
+# ─── THE FINDING: the 60-minute grid is not uniform ──────────────────────────
+
+def test_bar_close_epoch_lands_on_the_next_bar_start_in_the_60m_open_buckets():
+    """🔴 THE FINDING, AND ITS FIX, IN ONE TEST. RE-DERIVED — READ THE HISTORY.
+
+    `bars_fetch.bucket_60_et_unix_seconds` gives the regular-session open its own
+    bucket, so a 60-minute session runs 04:00…09:00, **09:30**, 10:00…19:00 and
+    BOTH the 09:00 and the 09:30 bar span THIRTY minutes, not sixty.
+    `indicator_alert_evaluator.bar_close_epoch` used to answer `t + 3600` for
+    every intraday 60-minute bar, so it declared each of those two closed half an
+    hour after the store had already stopped writing to it — a closed-lane
+    LATENCY, not a wrong number: an alert on the 09:00 or the 09:30 hourly bar
+    could not fire until 30 minutes after that bar became final, in the busiest
+    half hour of the day.
+
+    ⚠️ AND THE REPLAY HARNESS STRUCTURALLY CANNOT SEE IT, which is why this is
+    asserted directly instead of being read off `--repaint` or `--diff`.
+    `make_closed_evaluate` derives `now_epoch` from `bar_close_epoch` itself
+    (`close_at - 1`), so an error in that function cancels out of every replay
+    number. Only a wall clock — or this, an equality against the NEXT BAR'S START
+    on real tape — can catch it.
+
+    ⭐ THE ORACLE IS UNCHANGED AND IT IS STILL AN ORACLE. The left-hand side is a
+    calendar computation; the right-hand side is a frozen store artifact this
+    function never reads. What flipped is the EXPECTATION: the two open buckets
+    now close where the tape says they closed, and the assertion that used to
+    record the 1,800-second overstatement now records that the overstatement is
+    gone — stated as the delta against the nominal answer, so the number the
+    finding was written about is still in the file. It goes red again from either
+    direction: a revert to `t + 3600` breaks the equality on 20 bars, and a store
+    that stopped anchoring the open bucket breaks the shape assertion.
+
+    The full behavioural measurement — the poll sweep, the end-to-end fire, and
+    the earliness rail read off `bar_rollup.bucket_start` — lives in
+    `tests/test_alert_bar_close_60m_grid.py`.
+    """
+    import datetime
+    import zoneinfo
+
+    et = zoneinfo.ZoneInfo("America/New_York")
+    bars = ar.load_fixture("hourly_open_60m")["bars"]
+    shortened: dict = {}
+    adjacent = gaps = 0
+    for i in range(len(bars) - 1):
+        close_at = ev.bar_close_epoch(bars[i]["t"], "60")
+        assert close_at is not None
+        assert close_at <= bars[i + 1]["t"], (
+            f"the bar at {bars[i]['t']} is superseded at {bars[i + 1]['t']} "
+            f"before bar_close_epoch says it closes at {close_at}")
+        if close_at == bars[i + 1]["t"]:
+            adjacent += 1
+        else:
+            gaps += 1
+        if close_at != bars[i]["t"] + 3600:
+            start = datetime.datetime.fromtimestamp(bars[i]["t"], et).strftime("%H:%M")
+            # what the nominal answer WOULD have overstated this bar by
+            shortened.setdefault(start, []).append(bars[i]["t"] + 3600 - close_at)
+    assert set(shortened) == {"09:00", "09:30"}, (
+        f"the 60-minute grid changed shape: {sorted(shortened)}")
+    for start, deltas in shortened.items():
+        assert set(deltas) == {1800}, (start, sorted(set(deltas)))
+        assert len(deltas) >= 8, (start, len(deltas))
+    assert adjacent >= 180 and gaps >= 10, (adjacent, gaps)
+
+
+@pytest.mark.parametrize("name,tf,step", [("thin_illiquid_5m", "5", 300),
+                                          ("halfday_30m", "30", 1800),
+                                          ("gap_open_5m", "5", 300),
+                                          ("high_vol_5m", "5", 300)])
+def test_the_other_intraday_grids_are_uniform(name, tf, step):
+    """The control for the finding above: 5 and 30 do NOT have the open bucket.
+
+    Without this, "the 60-minute grid is irregular" could be a statement about the
+    store rather than about the hourly bucketer, and the finding would not
+    localise to one function.
+    """
+    bars = ar.load_fixture(name)["bars"]
+    for i in range(len(bars) - 1):
+        close_at = ev.bar_close_epoch(bars[i]["t"], tf)
+        assert close_at == bars[i]["t"] + step
+        assert bars[i + 1]["t"] >= close_at, (
+            f"{name}: the bar at {bars[i]['t']} is superseded before "
+            f"bar_close_epoch says it closes")
+
+
+# ─── THE DIRECT INVARIANCE CHECK (the repaint oracle is NOT sufficient) ──────
+#
+# 🔴 TASK 5 MEASURED THAT "0 REPAINTS" DOES NOT MEAN "CORRECT": restoring the
+# original defect (`prev = last_value`) scores ZERO on the oracle, because
+# `replay` writes `last_value` back after every sample and the closed value is
+# identical at every sample of a bar. So the closed lane's real property is stated
+# here DIRECTLY, on the new tape, with no set arithmetic in the way:
+#
+#     the closed lane's answer is a function of (address, params, window,
+#     condition, threshold) and NOTHING ELSE — in particular it does not depend on
+#     `last_value`, which is the poll-granularity number the forming lane measures
+#     its crossings against.
+#
+# A lane that read `last_value` fails this on its first differing input, whatever
+# the repaint number said.
+
+def _probe_windows(bars, n=5):
+    """`n` evenly spaced 200-bar production windows, warm end included."""
+    lo = min(len(bars) - 1, 60)
+    if len(bars) - 1 <= lo:
+        lo = len(bars) // 2
+    idx = sorted({int(lo + (len(bars) - 1 - lo) * j / max(1, n - 1)) for j in range(n)})
+    return [bars[max(0, i + 1 - ar.PROD_BAR_WINDOW):i + 1] for i in idx]
+
+
+_LAST_VALUES = (None, 0.0, -1e9, 1e9, 42.5)
+
+
+def _thresholds_around(value, cond):
+    """A ladder STRADDLING the observed value, not sitting on it.
+
+    ⚠️ THIS IS WHERE THE FIRST VERSION OF THIS PROBE WAS VACUOUS, AND ITS OWN
+    CONTROL CAUGHT IT. Setting `threshold == value` makes `current > threshold`
+    and `current < threshold` both False, so EVERY condition answers False for
+    every `prev` and the invariance below holds trivially — on any evaluator
+    whatsoever. `test_the_forming_lane_answer_DOES_depend_on_last_value` failed on
+    exactly that (0 answers moved), which is what the control is for.
+    """
+    if not cond.get("needs_threshold"):
+        return [None]
+    d = max(abs(value) * 1e-3, 1e-6)
+    return [value - d, value + d]
+
+
+def _lane_probe(lane, name, tf, bars, addresses):
+    """`(comparisons, answers-that-moved-with-last_value, triggered-count)`.
+
+    One walk, used by BOTH the invariance assertion and its control, so the two
+    cannot drift into probing different things.
+    """
+    compared = moved = triggered = 0
+    for window in _probe_windows(bars):
+        for address in addresses:
+            base = {"id": 1, "user_id": "t", "sym": name, "tf": tf,
+                    "indicator": address, "condition": "above", "threshold": None,
+                    "params_json": None, "last_value": None, "alert_key": "probe"}
+            value, _t = lane(dict(base), window)
+            if value is None:
+                continue
+            for cond in ev.ALERT_CONDITIONS[address]:
+                for thr in _thresholds_around(value, cond):
+                    answers = {lane(dict(base, condition=cond["value"],
+                                         threshold=thr, last_value=lv), window)
+                               for lv in _LAST_VALUES}
+                    compared += 1
+                    if len(answers) > 1:
+                        moved += 1
+                    triggered += sum(1 for _v, t in answers if t)
+    return compared, moved, triggered
+
+
+@pytest.mark.parametrize("name", _EXTENDED_FIXTURES)
+def test_the_closed_lane_answer_does_not_depend_on_last_value(name, closed):
+    """The property, asserted directly on every new fixture."""
+    fx = ar.load_fixture(name)
+    compared, moved, triggered = _lane_probe(closed, name, fx["tf"], fx["bars"],
+                                             list(ev.INDICATOR_FUNCS))
+    assert moved == 0, (
+        f"{name}: {moved} of {compared} CLOSED-lane answers changed when only "
+        "`last_value` changed — the lane is reading the poll-granularity prev, "
+        "which is the defect this phase removes. The repaint oracle cannot see "
+        "this (Task 5's M1 repaints ZERO and is still wrong); this can.")
+    assert compared > 150, f"{name}: only {compared} comparisons — thin"
+    # ⛔ AND THE PROBE HAS TO BE ABLE TO SEE A FIRE. An all-False walk satisfies
+    # the invariance on any evaluator at all, which is how the first version of
+    # this test was vacuous.
+    assert triggered > 0, f"{name}: no probe answer was ever True — vacuous"
+
+
+@pytest.mark.parametrize("name", ["gap_open_5m", "high_vol_5m", "halfday_30m"])
+def test_the_forming_lane_answer_DOES_depend_on_last_value(name, forming):
+    """The non-vacuity control for the test above.
+
+    If `last_value` could not change ANY answer on this tape, the invariance the
+    closed lane satisfies would be a property of the PROBE rather than of the
+    lane, and the test above would pass against an evaluator that ignored its
+    inputs entirely. Same walk, same thresholds, same `last_value` ladder — only
+    the lane changes.
+    """
+    fx = ar.load_fixture(name)
+    compared, moved, triggered = _lane_probe(forming, name, fx["tf"], fx["bars"],
+                                             list(ev.INDICATOR_FUNCS))
+    assert moved > 0, (
+        f"{name}: NO forming-lane answer moved with last_value over {compared} "
+        "comparisons — the probe cannot see the dependency it is the control for")
+    assert triggered > 0
+
+
+# ─── what each new fixture actually presents, measured ──────────────────────
+
+def test_the_gap_open_fixture_opens_far_from_the_prior_close():
+    import datetime
+    import zoneinfo
+
+    et = zoneinfo.ZoneInfo("America/New_York")
+
+    def _at(b):
+        return datetime.datetime.fromtimestamp(b["t"], et)
+
+    bars = ar.load_fixture("gap_open_5m")["bars"]
+    days = sorted({_at(b).date() for b in bars})
+    assert len(days) == 2
+    prev = [b for b in bars if _at(b).date() == days[0]
+            and 9 * 60 + 30 <= _at(b).hour * 60 + _at(b).minute < 16 * 60]
+    cur = [b for b in bars if _at(b).date() == days[1]
+           and _at(b).strftime("%H:%M") == "09:30"]
+    gap = (cur[0]["o"] - prev[-1]["c"]) / prev[-1]["c"] * 100
+    assert gap > 30, f"the gap is only {gap:+.2f}%"
+    assert max(bars[i]["t"] - bars[i - 1]["t"] for i in range(1, len(bars))) >= 8 * 3600
+
+
+def test_the_thin_fixture_makes_the_closed_bar_half_a_day_old():
+    """⛔ `closed_bar_index` IS NOT `len(bars) - 2` — reason 3, on real tape.
+
+    A thin ticker's newest bar can be hours old and unambiguously closed. This
+    asserts the fixture reaches that state rather than merely claiming to, and
+    that the lane RESOLVES it instead of returning -1.
+    """
+    fx = ar.load_fixture("thin_illiquid_5m")
+    bars = fx["bars"]
+    worst = 0
+    resolved = 0
+    for i in range(2, len(bars)):
+        window = bars[max(0, i + 1 - ar.PROD_BAR_WINDOW):i + 1]
+        now = ev.bar_close_epoch(window[-1]["t"], fx["tf"]) - 1
+        j = ev.closed_bar_index(window, fx["tf"], now)
+        assert j >= 0, "a thin window resolved NO closed bar"
+        resolved += 1
+        worst = max(worst, window[-1]["t"] - window[j]["t"])
+    assert worst >= 12 * 3600, f"the widest hole is only {worst}s"
+    assert resolved > 200
+
+
+def test_the_halfday_fixture_carries_a_13_00_close_and_a_holiday_hole():
+    import datetime
+    import zoneinfo
+
+    et = zoneinfo.ZoneInfo("America/New_York")
+
+    def _at(b):
+        return datetime.datetime.fromtimestamp(b["t"], et)
+
+    bars = ar.load_fixture("halfday_30m")["bars"]
+    days = {_at(b).date() for b in bars}
+    assert datetime.date(2025, 11, 27) not in days, "Thanksgiving has bars"
+    assert datetime.date(2025, 11, 28) in days
+    half = [b for b in bars if _at(b).date() == datetime.date(2025, 11, 28)]
+    last_rth = [b for b in half if _at(b).hour < 16][-1]
+    assert _at(last_rth).strftime("%H:%M") == "13:00"
+    after = [b for b in half if b["t"] > last_rth["t"]]
+    assert after and after[0]["t"] - last_rth["t"] >= 2 * 3600
+    assert all(_at(b).utcoffset() == datetime.timedelta(hours=-5) for b in bars), "not EST"
+
+
+def test_the_warmup_fixture_hands_both_lanes_a_series_that_is_not_warm():
+    """Leading warmup AND the trailing pad, on the fixture built for them."""
+    from api.services import alert_series
+
+    bars = ar.load_fixture("warmup_first_bars_5m")["bars"]
+    late: dict = {}
+    trailing: dict = {}
+    for address in alert_series.SERIES_FUNCS:
+        col = alert_series.series_for(address, bars, {})
+        if col is None:
+            continue
+        first = next((i for i, v in enumerate(col) if v is not None), None)
+        if first is None or first > 0:
+            late[address] = len(col) if first is None else first
+        if col[-1] is None:
+            trailing[address] = sum(1 for v in reversed(col) if v is None)
+    assert len(late) >= 20, sorted(late)
+    assert max(late.values()) * 2 >= len(bars)
+    assert "ichimoku.chikou" in trailing, (
+        "the trailing-pad shape — the closed lane's one accepted casualty — is "
+        "not present in the fixture built to carry it")
+
+
+def test_the_daily_fixture_is_a_calendar_key_not_an_instant():
+    """20260805 read as unix seconds is 1970-08-23 — the live VWAP defect.
+
+    `gap_daily`'s `t` is a YYYYMMDD calendar key, which is what the daily lane is
+    handed, and its close resolves through the ET calendar to the NEXT MIDNIGHT —
+    not 16:00, because extended-hours prints still update the stored daily row.
+    """
+    import datetime
+
+    fx = ar.load_fixture("gap_daily")
+    bars = fx["bars"]
+    assert fx["tf"] == "D"
+    assert all(isinstance(b["t"], int) and 20250000 < b["t"] < 20270000 for b in bars)
+    for b in bars[:20]:
+        close_at = ev.bar_close_epoch(b["t"], "D")
+        day = datetime.date(b["t"] // 10000, b["t"] // 100 % 100, b["t"] % 100)
+        assert close_at == ev._et_midnight_epoch(day + datetime.timedelta(days=1))
+        # …and NOT 16:00 ET, the boundary that would call a bar closed that then
+        # changed on an after-hours print
+        assert close_at > ev._et_midnight_epoch(day) + 16 * 3600
+    gaps = [(bars[i]["o"] - bars[i - 1]["c"]) / bars[i - 1]["c"] * 100
+            for i in range(1, len(bars))]
+    assert min(gaps) < -20 and max(gaps) > 12

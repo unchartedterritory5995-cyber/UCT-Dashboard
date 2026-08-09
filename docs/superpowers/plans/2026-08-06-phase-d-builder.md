@@ -17,7 +17,7 @@ cd app && npx vitest run                                       # measured 5,645 
 cd .. && PYTHONDONTWRITEBYTECODE=1 python -m pytest \
     tests/test_indicator_compute.py tests/test_indicator_golden.py -q
 PYTHONDONTWRITEBYTECODE=1 python -m pytest -k signature -q
-python tools/alert_replay.py --check                           # FIRE LOG MATCHES, 685,193
+python tools/alert_replay.py --check                           # the literal FIRE LOG MATCHES, exit 0
 python tools/alert_replay.py --diff --mode-a forming --mode-b closed   # EVERY DIFFERENCE IS DECLARED, 31/31
 ```
 
@@ -28,9 +28,9 @@ python tools/alert_replay.py --diff --mode-a forming --mode-b closed   # EVERY D
 | `listDefinitions()` | **17** — 16 `NATIVE_DEFS` + 1 `SERVER_DEFS` (`rsLine`) |
 | definition ids | `rsi macd bb vwap stoch atr sar ichimoku mfi cci williamsR adx obv donchian avwap atrBands rsLine` |
 | `compute.kind` in the shipped registry | `{native: 16, server: 1}` — **zero `ast`, zero `script`** |
-| enumeration ledger | `SITE_COUNT = 8`, `expect(counts).toEqual({ keep: 8 })`, **`C` bucket empty** |
+| enumeration ledger | **de-literalled 2026-08-06 by Task 1** — the count and the partition are asserted in `enumerationSites.test.js` (*"holds N live sites…"* + *"every B4 region is retired…"*) and were **not** restated here, because Task 1 moved both and this row went stale the same day it was written. `C` bucket empty. |
 | alert addresses | **31**, across **16** catalog groups (28 `INDICATOR_FUNCS` in 14 groups + 2 `EVENT_FUNCS` in `sar` + 1 `PRICE_FUNCS` in `close`) |
-| frozen fire log | **685,193** (re-frozen after the daily-VWAP unit fix; was 691,195) |
+| frozen fire log | **per-block digests against a stored frozen artifact** — the gate is `--check` printing the literal `FIRE LOG MATCHES` at **exit 0**, and it has never been a total. ⛔ The `685,193` this row used to carry was a sum over an **8-block / 4-fixture** corpus (chart-ux-walls Task 7); the corpus grew across C and D and the figure was stale from the day it was written here. Measured 2026-08-07: **22 blocks over 11 fixtures (ks=[1,4])**, and `685,193` appears nowhere in the output |
 | golden fixtures | **22** files in `tests/fixtures/indicators/`, read by **both** lanes at `relTol` 1e-9 |
 | parity cases | **50** total — **46 live**, 4 `placeholder` (`volume_profile_only`, `avwap_session_only`, `atr_bands_only`, `rs_line_spy_only`) |
 | definition id grammar | `ID_RE = /^[A-Za-z0-9][A-Za-z0-9_-]*$/` — **no dots**, because plots are addressed `defId.plotKey` |
@@ -51,7 +51,7 @@ Copied verbatim. Every task's requirements implicitly include this section.
 **Inherited from Phase C and NOT D's to touch**
 
 - `ALERT_EVAL_MODE` stays `"forming"` until Phase C Task 8 flips it — **that is not D's to touch.** D reads the mode through `eval_mode()`; D never writes the constant, and a task that does is a failure of this plan, not a decision.
-- The frozen fire log is **685,193** (re-frozen after the daily-VWAP unit fix; it was 691,195). `python tools/alert_replay.py --check` must stay **exit 0** at every commit of this phase.
+- The frozen fire log is **a set of per-block digests**, not a number. `python tools/alert_replay.py --check` must stay **exit 0**, printing the literal `FIRE LOG MATCHES`, at every commit of this phase. ⛔ **Do not carry a total.** Every restatement of one in this plan was stale on arrival — see the `frozen fire log` row in the table above.
 - `python tools/alert_replay.py --diff` must report **EVERY DIFFERENCE IS DECLARED** across **31/31** addresses.
 - The Signature ledger door (`admit_alert_fire`) has **1 definition, 0 call sites**. **Task 8 of Phase C wires it, not D.** A user-authored signal does not enter `signature_signals` in this phase under any circumstance (spec §12: marketplace/user publishing is out of scope until the ledger can hold publishers accountable).
 - lightweight-charts pinned **exact at 5.2.0**; `merge()` skips `undefined`, so **a complete key set is the only reset mechanism**; only series TYPE is immutable — `priceScaleId` and pane are mutable.
@@ -281,7 +281,7 @@ So:
 So:
 
 - **Alertable in D.** Deferring it fails spec §1 — a definition that draws but cannot alert is exactly the asymmetric capability the principle forbids, and it is TrendSpider's named failure.
-- **Through a fourth partition, `USER_FUNCS`, which `build_alert_grid` does NOT read.** The frozen fire log at **685,193**, the 31/31 `--diff`, and the 28/14 assertions therefore stay **byte-identical**, and that invariance is itself Task 12's gate.
+- **Through a fourth partition, `USER_FUNCS`, which `build_alert_grid` does NOT read.** The frozen fire log's **per-block digests**, the 31/31 `--diff`, and the 28/14 assertions therefore stay **byte-identical**, and that invariance is itself Task 12's gate.
 - **Behind an admission gate with three conditions, all measured, none assumed:** (i) the repaint linter assigned `non-repainting`, or assigned `preview-repaints` **and** the user explicitly acknowledged; (ii) the arm-time cross-lane 1e-9 check passed **on the actual bars**; (iii) the budget caps hold at the version being armed.
 - 🔴 **`admit_alert_fire` refuses an `ast`-lane fire, and the refusal RAISES.** Spec §12 puts user publishing out of scope *"until the ledger can hold publishers accountable"*, and the receipts brand is UCT's own signals. User alerts **deliver**; they do not accrue receipts. One refusal, one positive control, one mutation.
 
@@ -681,7 +681,7 @@ git diff --name-only HEAD | grep -E '^(api|app)/' && echo "SHIPPED SOURCE CHANGE
 ```
 
 **The measurement:** the escape count guarded vs unguarded (a zero and a non-zero, in that dependency), the corpus size, and the number of manifest entries the coverage rail is **armed but not yet checking**.
-**The non-measurement assertion:** the name-only diff touches **no `api/` and no `app/` file** — this task builds an instrument and changes nothing it measures — and `--check` still reads **685,193**.
+**The non-measurement assertion:** the name-only diff touches **no `api/` and no `app/` file** — this task builds an instrument and changes nothing it measures — and `--check` still prints **`FIRE LOG MATCHES`, exit 0**.
 
 | id | mutation | must go red because |
 |---|---|---|
@@ -1285,7 +1285,7 @@ python tools/alert_replay.py --check
 ```
 
 **The measurement:** per-case cross-lane digests **identical**, the 1e-6 perturbation reddening both lanes (three times, one per fixture), the escape census zero on both halves with its unguarded control non-zero, and the corpus-coverage rail passing for the first time.
-**The non-measurement assertion:** `git diff --stat origin/master -- tests/fixtures/indicators/` shows **only ADDED files** — **no fixture reseeded**. And `--check` on the alert replay is still **685,193, digest for digest**.
+**The non-measurement assertion:** `git diff --stat origin/master -- tests/fixtures/indicators/` shows **only ADDED files** — **no fixture reseeded**. And `--check` on the alert replay is still **`FIRE LOG MATCHES`, exit 0, digest for digest**.
 
 | id | mutation | must go red because |
 |---|---|---|
@@ -1429,7 +1429,7 @@ python tools/ast_conformance.py --escapes                # 🎯 ZERO — the pha
 - [ ] **Step 4: Gate**
 
 **The measurement:** the escape census at **0 / 0** with the unguarded control non-zero; the reachability census's dispatch set equal to `NODE_TYPES` exactly; the three budget caps each refusing at the boundary and admitting one below it.
-**The non-measurement assertion:** `listDefinitions()` unchanged by name; `--check` **685,193**; `defSchema.js` **not yet modified** (Task 8 owns it) — assert by sha256 against HEAD.
+**The non-measurement assertion:** `listDefinitions()` unchanged by name; `--check` **`FIRE LOG MATCHES`, exit 0**; `defSchema.js` **not yet modified** (Task 8 owns it) — assert by sha256 against HEAD.
 
 | id | mutation | must go red because |
 |---|---|---|
@@ -2045,7 +2045,7 @@ python tools/alert_replay.py --diff --mode-a forming --mode-b closed
 ```
 
 **The measurement:** the append-only invariant (N saves → N rows, zero UPDATEs, proven by a trigger-free read of `sqlite_master` and a row count), the rev-bump biconditional in **both** directions, and the route count.
-**The non-measurement assertion:** `--check` **685,193** and `--diff` **EVERY DIFFERENCE IS DECLARED, 31/31** — this task adds a store and **no address**. And `ALERT_EVAL_MODE` is still `"forming"`, verified **by AST**, not by grep (a grep said the ledger door was wired and it was three comments).
+**The non-measurement assertion:** `--check` **`FIRE LOG MATCHES`, exit 0** and `--diff` **EVERY DIFFERENCE IS DECLARED, 31/31** — this task adds a store and **no address**. And `ALERT_EVAL_MODE` is still `"forming"`, verified **by AST**, not by grep (a grep said the ledger door was wired and it was three comments).
 
 | id | mutation | must go red because |
 |---|---|---|
@@ -2164,7 +2164,7 @@ python tools/ast_conformance.py --check
 ```
 
 **The measurement:** 46 live cases at `--expect 0` over 5 runs with **the distinct set of all 230 values equal to `{0}`**; the new case's own number **and** its perturbation number; both build identities.
-**The non-measurement assertion:** `--check` **685,193**, `--diff` **31/31** — a user can now DRAW their own indicator and **cannot alert on it**. That gap is Task 12's and it is deliberate.
+**The non-measurement assertion:** `--check` **`FIRE LOG MATCHES`, exit 0**, `--diff` **31/31** — a user can now DRAW their own indicator and **cannot alert on it**. That gap is Task 12's and it is deliberate.
 
 | id | mutation | must go red because |
 |---|---|---|
@@ -2225,7 +2225,7 @@ def test_the_frozen_INSTRUMENTS_are_byte_identical_after_the_fourth_partition():
     the proof is that all three frozen numbers do not move.
     """
     assert len(ev.INDICATOR_FUNCS) == BASELINE_INDICATOR_FUNCS      # from Task 1's baseline
-    assert replay_check() == "FIRE LOG MATCHES"                     # 685,193, digest for digest
+    assert replay_check() == "FIRE LOG MATCHES"                     # digest for digest; never a total
     assert replay_diff() == "EVERY DIFFERENCE IS DECLARED"          # 31/31
 
 
@@ -2289,7 +2289,7 @@ PYTHONDONTWRITEBYTECODE=1 python -m pytest tests/test_alert_user_admission.py -q
 ⭐ FOURTH, NOT WIDER. `INDICATOR_FUNCS` (28) is the frozen grid's generator;
 `EVENT_FUNCS` (2) and `PRICE_FUNCS` (1) were each split off rather than folded in,
 each time for the same measured reason. A user address is `u_<hex>.<plotKey>` and
-`build_alert_grid` never sees it — which is why the 685,193 and the 31/31 hold
+`build_alert_grid` never sees it — which is why the frozen digests and the 31/31 hold
 through this task, and why that invariance is this task's headline gate.
 
 ⛔ AND AN ADDRESS HERE IS PER-USER. Every other partition is global: `rsi` means the
@@ -2344,7 +2344,7 @@ python tools/alert_replay.py --diff --mode-a forming --mode-b closed
 python tools/ast_conformance.py --check
 ```
 
-**The measurement:** `len(INDICATOR_FUNCS)` **unchanged**; `--check` **685,193 digest for digest**; `--diff` **EVERY DIFFERENCE IS DECLARED, 31/31**; the delivered-once count through the real cycle; the ledger row count at **0** with the refused fire proven to **exist** first.
+**The measurement:** `len(INDICATOR_FUNCS)` **unchanged**; `--check` **`FIRE LOG MATCHES`, exit 0, digest for digest**; `--diff` **EVERY DIFFERENCE IS DECLARED, 31/31**; the delivered-once count through the real cycle; the ledger row count at **0** with the refused fire proven to **exist** first.
 **The non-measurement assertion:** `ALERT_EVAL_MODE` unchanged, **read by AST** — one top-level assignment, and this task did not write it. `admit_alert_fire`'s call-site count unchanged, **read by AST** — a grep says 3 and all three are prose.
 
 | id | mutation | must go red because |
@@ -2517,7 +2517,7 @@ cd .. && python tools/alert_replay.py --check
 ```
 
 **The measurement:** the tool schema derived from the manifest in both directions; the repair loop bounded at exactly **one** retry, measured by call count; the refusal shape; the cost path consulted before and recorded after, with a per-user cap.
-**The non-measurement assertion:** the concierge reaches the interpreter, the linter and the budget through **the same functions a typed formula does** — asserted by an import/AST scan showing no second validation path. And `--check` is still **685,193**.
+**The non-measurement assertion:** the concierge reaches the interpreter, the linter and the budget through **the same functions a typed formula does** — asserted by an import/AST scan showing no second validation path. And `--check` is still **`FIRE LOG MATCHES`, exit 0**.
 
 | id | mutation | must go red because |
 |---|---|---|
@@ -2644,7 +2644,7 @@ Write a throwaway suite, run it green, record the numbers, then delete it — ev
 - **the escape census is 0 / 0, and its unguarded control is non-zero** — the phase's headline pair
 - the cross-lane conformance log reproduces per-case, digest for digest
 - the must-repaint corpus is 4/4 with a non-degenerate clean/dirty ratio
-- **`--check` FIRE LOG MATCHES at 685,193** and `--diff` **EVERY DIFFERENCE IS DECLARED, 31/31**
+- **`--check` printing the literal `FIRE LOG MATCHES` at exit 0** — ⛔ **not a total; there has never been one to assert** — and `--diff` **EVERY DIFFERENCE IS DECLARED, 31/31**
 - **`ALERT_EVAL_MODE` — read by AST, one top-level assignment.** ⚠️ **Whatever it says, D did not write it.** If Phase C Task 8 has flipped it to `"closed"` by now, that is C's, and this gate reports the value rather than expecting one
 - **`admit_alert_fire` — read by AST.** A grep says 3 and all three are prose
 - `len(INDICATOR_FUNCS)` unchanged from Task 1's baseline; `USER_FUNCS` is a separate table `build_alert_grid` does not read
@@ -2678,7 +2678,7 @@ C Task 15 wrote one and it is the model. **The parity route mounts no builder, o
 | the read-back | the sentence round-trip **and its argument-swap control** | nothing |
 | persistence + rev migration | `test_user_definitions.py` + `test_alert_rev_migration.py` | nothing |
 | the builder UI | `BuilderSheet.test.jsx` + `ast_sma_only` `--same-build` **with its fail-proof** | 46 live cases must not move — the only thing it does say |
-| alert admission | `--check` 685,193 + `--diff` 31/31 + `len(INDICATOR_FUNCS)` unchanged | nothing |
+| alert admission | `--check` `FIRE LOG MATCHES` at exit 0 + `--diff` 31/31 + `len(INDICATOR_FUNCS)` unchanged | nothing |
 | the concierge | `test_definition_concierge.py`, the structural `sentence` assertion | nothing |
 | tiering | the derived per-route 402 sweep with the count asserted | nothing |
 
@@ -2686,7 +2686,7 @@ C Task 15 wrote one and it is the model. **The parity route mounts no builder, o
 
 Update **§2's D row** to what shipped. Give `compute.budget` its real meaning in **§3**. Strike **§3.1**'s `supportedKinds` sentence's implication that the filter exists (it did not until Task 8) and say what it filters now. Record in **§11** the five adjudications above (D-A1 one parser, D-A2 the table as the 1e-9 unit, D-A3 the store, D-A4 the fourth partition, D-A5 the concierge's limits) with the measurement each rests on.
 
-⚠️ **Do not restate any count the ledger test asserts.** A copy of a test's expectation in a doc is a control that rots green, and this spec has been the site of that exact rot **twice** — and it happened again in real time during Phase C, when four doc sites still cited 691,195 after the fire log was re-frozen at 685,193 while every gate stayed green.
+⚠️ **Do not restate any count the ledger test asserts.** A copy of a test's expectation in a doc is a control that rots green, and this spec has been the site of that exact rot **twice** — and it happened again in real time during Phase C, when four doc sites still cited 691,195 after the fire log was re-frozen at 685,193 while every gate stayed green. 🔴 **AND THEN THIS PLAN COMMITTED THE SIN IT NAMES, SEVENTEEN LINES BELOW ITS OWN WARNING.** It carried `685,193` in **17 places**; Task 14 measured `--check` printing **22 blocks summing to 1,153,245** and the controller confirmed the shape live. The figure was a sum over an **8-block / 4-fixture** corpus that had already grown — stale on the day it was typed here, and green in every gate throughout, because **the gate was never the total**. Task 15 struck all 17 and replaced them with the exit-code form. ⛔ Nobody may "fix" code to make a total match.
 
 ⚠️ **Two questions leave this phase OPEN, deliberately, and §11 must say so** rather than resolve them: the `ichimoku` badge (Task 7's measurement) and whether the §7 visual-budget linter is in D's scope at all. Both are owner calls and neither is a task's to take.
 
@@ -2739,7 +2739,7 @@ Each with the call taken and the measurement it rests on.
 
 4. **§3's `"budget": null // reserved` is no longer reserved and `defSchema` only checks its shape.** Measured: `validateCompute` accepts null-or-plain-object and the comment says *"the caps themselves have no meaning yet."* **Call:** Task 6 gives it meaning with caps derived from numbers already in the system (§5's ≤8 panes, the 5,000-bar cap), and Task 8 rewrites the comment in the commit that gives it a consumer.
 
-5. **§2's D row does not say what C changed for D.** C's own row had to be rewritten at the end of that phase for exactly this reason. D inherits five things the row is silent about: the fourth-partition precedent and *why* it exists, the `compute.rev` force-migration machinery, a 31-address catalog across 16 groups, the frozen fire log at 685,193, and the rule that `build_alert_grid` reads `INDICATOR_FUNCS` and must not be grown. **Call:** Task 15 rewrites the row.
+5. **§2's D row does not say what C changed for D.** C's own row had to be rewritten at the end of that phase for exactly this reason. D inherits five things the row is silent about: the fourth-partition precedent and *why* it exists, the `compute.rev` force-migration machinery, a 31-address catalog across 16 groups, the frozen fire log's per-block digests, and the rule that `build_alert_grid` reads `INDICATOR_FUNCS` and must not be grown. **Call:** Task 15 rewrites the row.
 
 6. 🔴 **§2 and §7 disagree about D's scope.** §2's D row lists four deliverables. §7's "Institutional rules" paragraph says they are *"machine-checkable, become the visual linter in D"* — a **second linter** (≤2 hues + 1 neutral per indicator, ≤4 per chart, OKLCH L 0.55–0.70, steady fills ≤16%, glow decays) that the roadmap row does not mention and no task here implements. **Call: NOT in this plan, and flagged as an owner call.** It is a genuinely separable deliverable with its own corpus and its own gate, it shares no mechanism with the AST work, and folding an unscoped second linter into the phase that first admits user input would put two unrelated risks inside one frame. **This is the one scope question I could not resolve without the owner.**
 

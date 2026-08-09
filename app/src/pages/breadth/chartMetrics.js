@@ -69,17 +69,23 @@ export const CHART_GROUPS = [
     ],
   },
   {
+    // ⚠️ Every high/low here is CLOSING basis — `count_nd_highs` takes the
+    // rolling max of CLOSES and counts `close >= max * 0.999`. NYSE, WSJ and
+    // Barchart publish INTRADAY-basis NH/NL, which is systematically higher, so
+    // an unqualified "52W Highs" invites a comparison that will never tie out.
+    // The convention is deliberate (it is Stockbee's) — the labels just have to
+    // say so.
     group: 'Highs / Lows',
     metrics: [
-      { key: 'new_52w_highs', label: '52W Highs' },
-      { key: 'new_52w_lows',  label: '52W Lows' },
-      { key: 'new_20d_highs', label: '20D Highs' },
-      { key: 'new_20d_lows',  label: '20D Lows' },
-      { key: 'new_ath',       label: 'ATH Count' },
+      { key: 'new_52w_highs', label: '52W Highs (Close)' },
+      { key: 'new_52w_lows',  label: '52W Lows (Close)' },
+      { key: 'new_20d_highs', label: '20D Highs (Close)' },
+      { key: 'new_20d_lows',  label: '20D Lows (Close)' },
+      { key: 'new_ath',       label: 'ATH Count (Close)' },
       { key: 'hvc_52w',       label: 'HVC (52W Vol Hi)' },
       { key: 'atr_ext_7',     label: '>7× ATR Ext (50SMA)' },
-      { key: 'hi_ratio',      label: '% at 52W Highs' },
-      { key: 'lo_ratio',      label: '% at 52W Lows' },
+      { key: 'hi_ratio',      label: '% at 52W Highs (Close)' },
+      { key: 'lo_ratio',      label: '% at 52W Lows (Close)' },
       { key: 'near_52w_high', label: 'Within 5% of High' },
     ],
   },
@@ -248,7 +254,10 @@ export const METRIC_TONE = {
   hi_ratio:           TONE.BULL,  lo_ratio:           TONE.BEAR,
   stage2_count:       TONE.BULL,  stage4_count:       TONE.BEAR,
   aaii_bulls:         TONE.BULL,  aaii_bears:         TONE.BEAR,
-  new_ath:            TONE.BULL,
+  // new_ath is deliberately NOT toned: there is no "new all-time lows" to
+  // oppose it, and the rule above is pairs-only. Toning it would put two
+  // greens beside new_52w_highs in setup-supply, which is the readability
+  // cost this rule exists to avoid.
 }
 
 export function toneOf(key) {
@@ -296,8 +305,12 @@ export function resolveColors(selected) {
 // missing and backfill later. Fine to select deliberately; a poor default.
 
 // Popover section order. A preset without `group` is a core one-click pill.
+// Three sections added 2026-08-07 with the 20 new presets. Four sections would
+// have had to hold 29 entries; these split the biggest families out so a
+// section stays scannable. Order runs broad -> narrow.
 export const PRESET_GROUP_ORDER = [
-  'Structure', 'Leadership', 'Momentum', 'Volatility & Sentiment',
+  'Structure', 'MA Breadth', 'Primary Breadth', 'Momentum',
+  'Leadership', 'Highs / Lows', 'Volatility & Sentiment',
 ]
 
 export const CHART_PRESETS = [
@@ -437,8 +450,177 @@ export const CHART_PRESETS = [
     id: 'setup-supply',
     label: 'Setup Supply',
     group: 'Structure',
-    hint: 'Stocks coiled within 5% of a 52-week high against those actually breaking out.',
-    metrics: ['near_52w_high', 'new_52w_highs'],
+    hint: 'The breakout funnel: coiled within 5% of a high, making a 52-week high, making an all-time high.',
+    // new_ath only became usable here on 2026-08-06. It used to be
+    // count_nd_highs(closes, min(252, len-1)) over a one-year frame — a
+    // 251-bar window, i.e. new_52w_highs off by one, so this preset would have
+    // drawn the same line twice. The collector now sources a real all-time
+    // high-water mark from full history.
+    metrics: ['near_52w_high', 'new_52w_highs', 'new_ath'],
+  },
+
+  // ── Added 2026-08-07 ────────────────────────────────────────────────────────
+  // 21 of the 44 pickable metrics appeared in no preset at all, so the ones a
+  // user never thought to check were effectively invisible. Every combination
+  // below was scale-checked against a YEAR of stored rows before being added,
+  // not just against its unit family — the family rule alone is what let QQQ
+  // render as a dead line, and a count that spans 5x its partner does the same
+  // thing quietly. Rejected on that evidence: an atr_ext_7 + hvc_52w pairing
+  // (4.8x, and already covered by `froth`).
+
+  {
+    id: 'washout',
+    group: 'MA Breadth',
+    label: 'Short-Term Washout',
+    hint: 'The three fastest MAs together — how oversold the market is right now, with the 5/10/15/20 washout lines.',
+    // `participation` starts at the 10SMA, so nothing surfaced the fast washout
+    // that marks a tradeable bounce. All three run 16-84 on one axis.
+    metrics: ['pct_above_5sma', 'pct_above_10sma', 'pct_above_20ema'],
+    extremes: ['MA Breadth'],
+  },
+  {
+    id: 'ma-term-structure',
+    group: 'MA Breadth',
+    label: 'Full MA Term Structure',
+    hint: 'The moving-average bands together — fast on top in a rally, inverted in a decline.',
+    // SIX bands, not all seven. Every pct_above_* is toned NEUTRAL and that
+    // ramp holds exactly six colours, so a seventh wraps and draws two bands in
+    // the SAME colour — indistinguishable on the chart. The 40SMA is dropped as
+    // the least conventional of the set; it stays one checkbox away.
+    metrics: ['pct_above_5sma', 'pct_above_10sma', 'pct_above_20ema',
+              'pct_above_50sma', 'pct_above_100sma', 'pct_above_200sma'],
+    extremes: ['MA Breadth'],
+  },
+  {
+    id: 'long-trend',
+    group: 'MA Breadth',
+    label: 'Long-Term Trend',
+    hint: 'The 100- and 200-day bands — the slow read that ignores day-to-day noise.',
+    metrics: ['pct_above_100sma', 'pct_above_200sma'],
+    extremes: ['MA Breadth'],
+  },
+  {
+    id: 'highs-quality',
+    group: 'Highs / Lows',
+    label: '52-Week vs All-Time Highs',
+    hint: 'How many 52-week highs are ALSO all-time highs — a widening gap means the highs are recoveries, not leadership.',
+    metrics: ['new_52w_highs', 'new_ath'],
+  },
+  {
+    id: 'highs-lows-20d',
+    group: 'Highs / Lows',
+    label: '20-Day Highs vs Lows',
+    hint: 'The one-month crossover — the fast counterpart to the 52-week version, and it turns first.',
+    metrics: ['new_20d_highs', 'new_20d_lows'],
+  },
+  {
+    id: 'leadership',
+    group: 'Leadership',
+    label: 'Leadership Quality',
+    hint: 'All-time highs against quarterly 25% movers — whether the leaders are breaking out or just bouncing.',
+    metrics: ['new_ath', 'up_25pct_quarter'],
+  },
+  {
+    id: 'stage-vs-highs',
+    group: 'Leadership',
+    label: 'Uptrends vs New Highs',
+    hint: 'Stage 2 names against 52-week highs — a large Stage 2 base with few highs is a market going sideways in an uptrend.',
+    metrics: ['stage2_count', 'new_52w_highs'],
+  },
+  {
+    id: 'mcclellan',
+    group: 'Primary Breadth',
+    label: 'McClellan Oscillator',
+    hint: 'The classic advance/decline oscillator against the composite score — zero is the dividing line.',
+    metrics: ['mcclellan_osc', 'breadth_score'],
+  },
+  {
+    id: 'ratios',
+    group: 'Primary Breadth',
+    label: 'Advance/Decline Ratios',
+    hint: 'The 5- and 10-day up/down ratios on their own scale — thrust readings without the counts drowning them.',
+    metrics: ['ratio_5day', 'ratio_10day'],
+  },
+  {
+    id: 'weekly-thrust',
+    group: 'Momentum',
+    label: '5-Day Thrust',
+    hint: 'Names up or down 20% in a week — the fastest genuine momentum signal in the set.',
+    metrics: ['up_20pct_5d', 'down_20pct_5d'],
+  },
+  {
+    id: 'monthly-movers',
+    group: 'Momentum',
+    label: 'Monthly Movers',
+    hint: 'Names up or down 25% in a month — the swing-timeframe momentum balance.',
+    metrics: ['up_25pct_month', 'down_25pct_month'],
+  },
+  {
+    id: 'quarterly-movers',
+    group: 'Momentum',
+    label: 'Quarterly Movers',
+    hint: 'Names up or down 25% over a quarter — who is actually leading and lagging over a real holding period.',
+    metrics: ['up_25pct_quarter', 'down_25pct_quarter'],
+  },
+  {
+    id: 'magna',
+    group: 'Momentum',
+    label: 'Momentum Breadth (13% / 34d)',
+    hint: 'The Stockbee-style 13%-in-34-days pair — a sustained-momentum read rather than a single-day pop.',
+    metrics: ['magna_up', 'magna_down'],
+  },
+  {
+    id: 'capitulation',
+    group: 'Primary Breadth',
+    label: 'Capitulation',
+    hint: 'Single-day 4% decliners against fresh 20-day lows — the two together mark washout days.',
+    metrics: ['down_4pct_today', 'new_20d_lows'],
+  },
+  {
+    id: 'aaii-composition',
+    group: 'Volatility & Sentiment',
+    label: 'AAII Composition',
+    hint: 'Bulls, bears and neutral separately — the spread alone hides whether bulls left or bears arrived.',
+    // The three sum to 100, so they share one axis by construction.
+    metrics: ['aaii_bulls', 'aaii_neutral', 'aaii_bears'],
+  },
+  {
+    id: 'fear',
+    group: 'Volatility & Sentiment',
+    label: 'Fear Gauges',
+    hint: 'CNN Fear/Greed against VIX — sentiment and priced volatility, which do not always agree.',
+    metrics: ['cnn_fear_greed', 'vix'],
+  },
+  {
+    id: 'score-vs-vix',
+    group: 'Volatility & Sentiment',
+    label: 'Score vs Volatility',
+    hint: 'The composite score against VIX — breadth holding up through a volatility spike is the divergence worth seeing.',
+    metrics: ['breadth_score', 'vix'],
+  },
+  {
+    id: 'exposure-vs-score',
+    group: 'Structure',
+    label: 'Exposure vs Score',
+    hint: 'UCT exposure against the composite score — how the recommendation tracks the underlying breadth.',
+    metrics: ['breadth_score', 'uct_exposure'],
+  },
+  {
+    id: 'breadth-vs-nasdaq',
+    group: 'Structure',
+    label: 'Breadth vs Nasdaq',
+    hint: 'Participation against QQQ on the right axis — the Nasdaq counterpart to Breadth vs Price.',
+    // ONE index series, for the reason documented on `breadth-vs-price`.
+    metrics: ['pct_above_50sma', 'pct_above_200sma', 'qqq_close'],
+  },
+  {
+    id: 'coverage',
+    group: 'Structure',
+    label: 'Universe Coverage',
+    hint: 'How many names the collector measured each day — a step here explains a step in every count above.',
+    // Not an analytical view: it is the denominator behind every COUNT metric,
+    // and a coverage change reads as a breadth change if you cannot see it.
+    metrics: ['universe_count'],
   },
 ]
 

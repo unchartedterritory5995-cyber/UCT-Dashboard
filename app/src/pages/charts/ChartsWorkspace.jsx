@@ -24,6 +24,9 @@ import useMultiChartState from './grid/useMultiChartState'
 import PopoutWindow from './popout/PopoutWindow'
 import PopoutShell from './popout/PopoutShell'
 import PoppedLayout from './popout/PoppedLayout'
+import PeriodSortPanel from './PeriodSortPanel'
+import PeriodSortConfig from './PeriodSortConfig'
+import { addWidgetTab } from './widgetTabs'
 import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y as _MARGIN_Y, BODY_PAD as _BODY_PAD } from './rowHeight'
 import styles from './ChartsWorkspace.module.css'
 
@@ -178,12 +181,48 @@ const WIDGET_DEFAULTS = {
   alerts:    { w: 6,  h: 10, minW: 2, minH: 4 },
   calendar:  { w: 6,  h: 10, minW: 2, minH: 4 },
   optionsflow: { w: 8, h: 12, minW: 4, minH: 5 },
+  periodsort: { w: 6,  h: 12, minW: 3, minH: 5 },   // ~fits Flag·Symbol·%·Industry with no blank filler
 }
 
 // A blocked window.open returns null with no error, so this is the only way the
 // user learns why their board didn't appear on the other monitor.
 const POPUP_BLOCKED_MSG = 'Your browser blocked the pop-out window. Allow pop-ups for this site, then try again.'
 
+// Docking makes room by SPLITTING an existing widget in two: `candidate` keeps the top
+// half, the docked widget takes the bottom half (same column). Returns the adjusted
+// widget list + the placement, or null if the candidate can't shrink below its min.
+function splitToFit(widgets, defaults, candidate) {
+  if (!candidate) return null
+  const candMin = (WIDGET_DEFAULTS[candidate.type]?.minH) || 2
+  const newH = Math.max(defaults.minH, Math.min(defaults.h, Math.floor(candidate.h / 2)))
+  const shrunkH = candidate.h - newH
+  if (shrunkH < candMin) return null
+  const w = Math.max(defaults.minW, Math.min(defaults.w, candidate.w))
+  return {
+    widgets: widgets.map(x => (x.id === candidate.id ? { ...x, h: shrunkH } : x)),
+    place: { x: candidate.x, y: candidate.y + shrunkH, w, h: newH },
+  }
+}
+
+// Horizontal split: place the new widget to the LEFT of `candidate`, at its FULL height,
+// shrinking the candidate to the right. Docking the Custom-Period Sort beside a full-screen
+// chart should sit it on the LEFT with the chart on the right (owner preference), not stack
+// it below. Returns null if the candidate can't spare the width.
+function splitToSide(widgets, defaults, candidate) {
+  if (!candidate) return null
+  const candMinW = (WIDGET_DEFAULTS[candidate.type]?.minW) || 2
+  const newW = Math.max(defaults.minW, Math.min(defaults.w, Math.floor(candidate.w / 2)))
+  const shrunkW = candidate.w - newW
+  if (shrunkW < candMinW) return null
+  return {
+    widgets: widgets.map(x => (x.id === candidate.id ? { ...x, x: candidate.x + newW, w: shrunkW } : x)),
+    place: { x: candidate.x, y: candidate.y, w: newW, h: candidate.h },
+  }
+}
+
+// NOTE: 'periodsort' is intentionally NOT here — it's reachable only from Tools →
+// Custom-Period Sort (dock / add-as-tab), not the Add Widget menu. It stays registered
+// in WIDGET_DEFAULTS / WIDGET_LABELS / WidgetHost dispatch so docked instances render.
 const WIDGET_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth', 'aisearch', 'news', 'profile', 'alerts', 'calendar', 'optionsflow']
 const WIDGET_LABELS = {
   chart: 'Chart',
@@ -198,6 +237,7 @@ const WIDGET_LABELS = {
   alerts: 'Alerts',
   calendar: 'Calendar',
   optionsflow: 'Options Flow',
+  periodsort: 'Period Sort',
 }
 
 function parseLayout(raw) {
@@ -523,9 +563,29 @@ export default function ChartsWorkspace() {
     return out
   }, [layout.widgets, poppedLayouts, chartsTheme])
 
+  // ── Custom-Period Sort ────────────────────────────────────────────────────
+  // Tools → Custom-Period Sort arms drag-to-highlight on every chart (periodSortMode).
+  // A completed drag opens the config popover (periodSortSel); "Sort" opens the results
+  // panel (periodSortPanel) ranking every US common stock over that span.
+  const [periodSortMode, setPeriodSortMode] = useState(false)
+  const [periodSortSel, setPeriodSortSel] = useState(null)     // { sym, start, end, pct } | null
+  const [periodSortPanel, setPeriodSortPanel] = useState(null) // { start, end, group } | null
+  // Replay mode: an ISO 'YYYY-MM-DD' cutoff — linked charts hide every bar after it.
+  const [replayCutoff, setReplayCutoff] = useState(null)
+  // "Mark start date": an ISO 'YYYY-MM-DD' + style ('line' gold vertical line | 'candle'
+  // gold start-date candle) — linked charts mark the sort's start date.
+  const [startMarker, setStartMarker] = useState(null)
+  const [startMarkerStyle, setStartMarkerStyle] = useState('line')
+  const handlePeriodSelected = useCallback((sym, start, end, pct) => {
+    setPeriodSortMode(false)
+    setPeriodSortSel({ sym, start, end, pct })
+  }, [])
+  const handlePeriodCancel = useCallback(() => setPeriodSortMode(false), [])
+  const exitReplay = useCallback(() => { setReplayCutoff(null); setStartMarker(null) }, [])
+
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef }),
-    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById],
+    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle }),
+    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle],
   )
 
   // Debounced layout persist (500ms).
@@ -606,6 +666,31 @@ export default function ChartsWorkspace() {
     })
   }, [scheduleSave])
 
+  // Custom-Period Sort → Timeframe selector: force EVERY chart (base widget + any
+  // chart wtab) to the chosen TF (D/W/M). ChartWidget derives its tf from opts.tf,
+  // so writing opts.tf re-renders the chart at that timeframe; the user can still
+  // switch it manually afterward. Composes with replay (cutoff is by date, TF-agnostic).
+  const applyTfToCharts = useCallback((tf) => {
+    if (!tf) return
+    setLayout(prev => {
+      let changed = false
+      const withTf = (o) => ({ ...(o || {}), tf })
+      const widgets = prev.widgets.map(w => {
+        let nw = w
+        if (w.type === 'chart') { nw = { ...nw, opts: withTf(nw.opts) }; changed = true }
+        if (Array.isArray(w.wtabs) && w.wtabs.some(t => t?.type === 'chart')) {
+          nw = { ...nw, wtabs: nw.wtabs.map(t => (t?.type === 'chart' ? { ...t, opts: withTf(t.opts) } : t)) }
+          changed = true
+        }
+        return nw
+      })
+      if (!changed) return prev
+      const next = { ...prev, widgets }
+      scheduleSave(next)
+      return next
+    })
+  }, [scheduleSave])
+
   // Replace a whole widget object in place — used by the widget-level tab system,
   // which routes every tab add/close/select and per-active-tab color/opts edit
   // through one atomic swap (the reducer already computed the next widget). Keeps
@@ -625,7 +710,7 @@ export default function ChartsWorkspace() {
     })
   }, [scheduleSave])
 
-  const handleAddWidget = useCallback((type) => {
+  const handleAddWidget = useCallback((type, seedOpts) => {
     setLayout(prev => {
       const color = pickWidgetColor(prev.widgets, groupSyms)
       const defaults = WIDGET_DEFAULTS[type]
@@ -639,13 +724,59 @@ export default function ChartsWorkspace() {
         id: `w-${type}-${Date.now()}`,
         type, color,
         x, y, w, h,
-        opts: {},
+        opts: seedOpts && typeof seedOpts === 'object' ? { ...seedOpts } : {},
       }
       const next = { ...prev, widgets: clampWidgetsToRows([...prev.widgets, newWidget]) }
       scheduleSave(next)
       return next
     })
   }, [scheduleSave, groupSyms])
+
+  // Custom-Period Sort → dock the floating results as a real grid widget (carrying the
+  // highlighted range), or fold it into an existing widget as a Period-Sort tab.
+  const handleDockPeriodSort = useCallback((start, end, group = null) => {
+    setPeriodSortPanel(null)
+    setLayout(prev => {
+      const defaults = WIDGET_DEFAULTS.periodsort
+      const fit = findPlacement(prev.widgets, defaults, COLS.lg, FIXED_ROWS)
+      let widgets = prev.widgets
+      let place = fit
+      // If the normal placement would land off-screen (grid full), open room by splitting
+      // an existing widget. Prefer putting the sort to the LEFT of the WIDEST widget (a
+      // full-screen chart) so it sits beside the chart at full height; then fall back to a
+      // below-split of a non-chart widget, then any widget.
+      if (fit.y + fit.h > FIXED_ROWS) {
+        const tallestOf = (arr) => arr.reduce((a, b) => (!a || b.h > a.h ? b : a), null)
+        const widestOf = (arr) => arr.reduce((a, b) => (!a || b.w > a.w ? b : a), null)
+        const nonChart = prev.widgets.filter(w => w.type !== 'chart')
+        const split = splitToSide(prev.widgets, defaults, widestOf(prev.widgets))
+          || splitToFit(prev.widgets, defaults, tallestOf(nonChart))
+          || splitToFit(prev.widgets, defaults, tallestOf(prev.widgets))
+        if (split) { widgets = split.widgets; place = split.place }
+      }
+      const color = pickWidgetColor(widgets, groupSyms)
+      const newWidget = {
+        id: `w-periodsort-${Date.now()}`,
+        type: 'periodsort', color,
+        x: place.x, y: place.y, w: place.w, h: place.h,
+        opts: { start, end, group: group || null },
+      }
+      const next = { ...prev, widgets: clampWidgetsToRows([...widgets, newWidget]) }
+      scheduleSave(next)
+      return next
+    })
+  }, [scheduleSave, groupSyms])
+  const handlePeriodSortToTab = useCallback((widgetId, start, end, group = null) => {
+    setPeriodSortPanel(null)
+    setLayout(prev => {
+      const target = prev.widgets.find(w => w.id === widgetId)
+      if (!target) return prev
+      const nextWidget = addWidgetTab(target, { type: 'periodsort', color: 'N', opts: { start, end, group: group || null } })
+      const next = { ...prev, widgets: prev.widgets.map(w => w.id === widgetId ? { ...nextWidget, x: w.x, y: w.y, w: w.w, h: w.h } : w) }
+      scheduleSave(next)
+      return next
+    })
+  }, [scheduleSave])
 
   const [savedFlash, setSavedFlash] = useState(false)
   const savedFlashTimerRef = useRef(null)
@@ -659,8 +790,8 @@ export default function ChartsWorkspace() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   const { global: globalLayouts, mine: myLayouts, saveLayout, deleteLayout, isLoading: templatesLoading } = useChartLayouts()
-  const [openMenuOpen, setOpenMenuOpen] = useState(false)
-  const [saveMenuOpen, setSaveMenuOpen] = useState(false)
+  const [, setOpenMenuOpen] = useState(false)  // menu now nested under Layouts ▾
+  const [, setSaveMenuOpen] = useState(false)  // nested under Layouts ▾
   // Which template's ✕ is awaiting delete confirmation (id), or null.
   const [confirmDeleteId, setConfirmDeleteId] = useState(null)
   const [saveAsName, setSaveAsName] = useState('')
@@ -884,7 +1015,7 @@ export default function ChartsWorkspace() {
     if (active?.id === id) applyUctDefault()
   }, [deleteLayout, prefs?.charts_active_template, applyUctDefault])
 
-  const [addMenuOpen, setAddMenuOpen] = useState(false)
+  const [, setAddMenuOpen] = useState(false)  // nested under Widgets ▾
 
   const [popoutNotice, setPopoutNotice] = useState(null)
 
@@ -942,7 +1073,19 @@ export default function ChartsWorkspace() {
 
   // ── Multi-Chart grid mode (fixed N×M grid of independent chart cells) ──
   const mc = useMultiChartState()
-  const [mcMenuOpen, setMcMenuOpen] = useState(false)
+  const [, setMcMenuOpen] = useState(false)  // nested under Layouts ▾
+  // Consolidated top-level toolbar dropdowns: "Widgets" and "Layouts". Each shows a small
+  // action list; `*Sub` picks a nested panel (e.g. the widget-type list or the save form).
+  const [widgetsMenuOpen, setWidgetsMenuOpen] = useState(false)
+  const [widgetsSub, setWidgetsSub] = useState(null)   // null | 'add'
+  const [layoutsMenuOpen, setLayoutsMenuOpen] = useState(false)
+  const [layoutsSub, setLayoutsSub] = useState(null)   // null | 'open' | 'save' | 'mc'
+  const [toolsMenuOpen, setToolsMenuOpen] = useState(false)
+  const closeToolbarMenus = useCallback(() => {
+    setWidgetsMenuOpen(false); setWidgetsSub(null)
+    setLayoutsMenuOpen(false); setLayoutsSub(null); setToolsMenuOpen(false)
+    setAddMenuOpen(false); setOpenMenuOpen(false); setSaveMenuOpen(false); setMcMenuOpen(false)
+  }, [])
   // (Flyout grace-timer machinery removed: Multi Chart is now its own header
   // button with a plain click-toggled dropdown — the hover flyout it guarded
   // no longer exists, which structurally fixes mega-review #10/#16.)
@@ -1084,194 +1227,156 @@ export default function ChartsWorkspace() {
       <div className={styles.workspace} data-charts-theme={chartsTheme}>
         <header className={styles.workspaceHeader}>
           <span className={styles.workspaceTitle}><UIcon name="equity" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />Charts</span>
-          {!gridMode && (<>
-          <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
-            <button
-              type="button"
-              className={styles.toolbarBtn}
-              onClick={() => { setAddMenuOpen(o => !o); setOpenMenuOpen(false); setSaveMenuOpen(false); setMcMenuOpen(false) }}
-            >+ Add Widget</button>
-            {addMenuOpen && (
-              <div className={styles.addMenu} onMouseLeave={() => setAddMenuOpen(false)}>
-                {WIDGET_TYPES.map(t => (
-                  <button
-                    key={t}
-                    type="button"
-                    className={styles.addMenuItem}
-                    onClick={() => { handleAddWidget(t); setAddMenuOpen(false) }}
-                  >{WIDGET_LABELS[t]}</button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* New layout — wipe to a blank board to build from scratch. */}
-          <button type="button" className={styles.toolbarBtn} onClick={handleNewLayout}>
-            New Layout
-          </button>
-          </>)}
-
-          {/* Open a saved / prebuilt layout — visible in BOTH modes (it hosts
-              the Multi Chart flyout, the grid mode's only entry point). */}
-          <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
-            <button
-              type="button"
-              className={styles.toolbarBtn}
-              onClick={() => { setOpenMenuOpen(o => !o); setAddMenuOpen(false); setSaveMenuOpen(false); setMcMenuOpen(false) }}
-            >Open layout ▾</button>
-            {openMenuOpen && (
-              <div className={styles.addMenu} style={{ minWidth: 210 }} onMouseLeave={() => { setOpenMenuOpen(false); setConfirmDeleteId(null) }}>
-                <div className={styles.menuSection}>Prebuilt</div>
-                {/* UCT Default — the LOCKED canonical layout (frozen shell +
-                    chart settings, UCT_DEFAULT_LAYOUT / _CHART_SETTINGS_JSON).
-                    Applying loads the frozen state into the working board and
-                    never writes back, so no in-app edit can mutate the default. */}
-                <div className={styles.menuRow}>
-                  <button
-                    type="button"
-                    className={styles.addMenuItem}
-                    style={{ flex: 1 }}
-                    onClick={applyUctDefault}
-                  >UCT Default</button>
-                </div>
-                {/* TSDR — Sunset (formerly "Sunrise"): the light sky-gradient theme.
-                    Re-added as a THEME toggle for now (internal chartsTheme key is
-                    still 'sunrise' — the CSS/StockChart look; only the label changed).
-                    ✓ shows when active. Pending: an owner "manual override" to
-                    capture a tweaked version into a LOCKED prebuilt template like
-                    UCT Default. See charts-layout-presets-snapshot. */}
-                <div className={styles.menuRow}>
-                  <button
-                    type="button"
-                    className={styles.addMenuItem}
-                    style={{ flex: 1, ...(chartsTheme === 'sunrise' ? { color: 'var(--ut-green-bright, #1ae51a)' } : {}) }}
-                    onClick={() => { setChartsTheme('sunrise'); setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS)); setOpenMenuOpen(false) }}
-                  >{chartsTheme === 'sunrise' ? '✓ ' : ''}TSDR — Sunset</button>
-                </div>
-                {wsGlobalLayouts.map(t => (
-                  <div key={`g${t.id}`} className={styles.menuRow}>
-                    <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { applyTemplate(t); if (gridMode) mc.exitGrid() }}>{t.name}</button>
-                    {isAdmin && (
-                      confirmDeleteId === t.id ? (
-                        <DeleteConfirm
-                          onYes={() => { handleDeleteTemplate(t.id); setConfirmDeleteId(null) }}
-                          onCancel={() => setConfirmDeleteId(null)}
-                        />
-                      ) : (
-                        <button type="button" className={styles.menuDel} title="Delete prebuilt template" onClick={() => setConfirmDeleteId(t.id)}>✕</button>
-                      )
-                    )}
-                  </div>
-                ))}
-                {wsMyLayouts.length > 0 && <div className={styles.menuSection}>My layouts</div>}
-                {wsMyLayouts.map(t => (
-                  <div key={`m${t.id}`} className={styles.menuRow}>
-                    <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { applyTemplate(t); if (gridMode) mc.exitGrid() }}>{t.name}</button>
-                    {confirmDeleteId === t.id ? (
-                      <DeleteConfirm
-                        onYes={() => { handleDeleteTemplate(t.id); setConfirmDeleteId(null) }}
-                        onCancel={() => setConfirmDeleteId(null)}
-                      />
-                    ) : (
-                      <button type="button" className={styles.menuDel} title="Delete" onClick={() => setConfirmDeleteId(t.id)}>✕</button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Save current arrangement / save as a named template */}
+          {/* WIDGETS — add a widget (opens the widget-type menu) or merge the board. */}
           {!gridMode && (
           <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
             <button
               type="button"
               className={styles.toolbarBtn}
-              onClick={() => { setSaveMenuOpen(o => !o); setAddMenuOpen(false); setOpenMenuOpen(false); setMcMenuOpen(false) }}
-            >{savedFlash ? 'Saved ✓' : 'Save layout ▾'}</button>
-            {saveMenuOpen && (
-              <div className={styles.addMenu} style={{ minWidth: 230 }}>
-                <button type="button" className={styles.addMenuItem} onClick={() => { handleSaveLayout(); setSaveMenuOpen(false) }}>
-                  Save current arrangement
-                </button>
-                <div className={styles.menuDivider} />
-                <div className={styles.menuForm}>
-                  <div className={styles.menuSection} style={{ padding: 0 }}>Save as template</div>
-                  <input
-                    className={styles.menuInput}
-                    placeholder="Template name"
-                    value={saveAsName}
-                    maxLength={60}
-                    onChange={e => { setSaveAsName(e.target.value); setSaveErr('') }}
-                    onKeyDown={e => { if (e.key === 'Enter') handleSaveAsTemplate() }}
-                  />
-                  {isAdmin && (
-                    <label className={styles.menuCheck}>
-                      <input
-                        type="checkbox"
-                        checked={saveAsScope === 'global'}
-                        onChange={e => setSaveAsScope(e.target.checked ? 'global' : 'user')}
-                      />
-                      Prebuilt (available to all users)
-                    </label>
-                  )}
-                  <button type="button" className={styles.toolbarBtn} style={{ alignSelf: 'flex-start' }} onClick={handleSaveAsTemplate}>
-                    Save template
-                  </button>
-                  {saveErr && <div className={styles.menuErr}>{saveErr}</div>}
-                </div>
+              onClick={() => { const n = !widgetsMenuOpen; closeToolbarMenus(); setWidgetsMenuOpen(n) }}
+            >Widgets ▾</button>
+            {widgetsMenuOpen && (
+              <div className={styles.addMenu} onMouseLeave={() => { setWidgetsMenuOpen(false); setWidgetsSub(null) }}>
+                {widgetsSub === 'add' ? (<>
+                  <button type="button" className={styles.addMenuItem} onClick={() => setWidgetsSub(null)}>‹ Back</button>
+                  <div className={styles.menuDivider} />
+                  {WIDGET_TYPES.map(t => (
+                    <button
+                      key={t}
+                      type="button"
+                      className={styles.addMenuItem}
+                      onClick={() => { handleAddWidget(t); setWidgetsMenuOpen(false); setWidgetsSub(null) }}
+                    >{WIDGET_LABELS[t]}</button>
+                  ))}
+                </>) : (<>
+                  <button type="button" className={styles.addMenuItem} onClick={() => setWidgetsSub('add')}>＋ Add Widget ▸</button>
+                  <button
+                    type="button"
+                    className={styles.addMenuItem}
+                    style={merged ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                    onClick={() => { toggleMerged(); setWidgetsMenuOpen(false) }}
+                    title={merged
+                      ? 'Unlock the board and restore widget borders'
+                      : 'Lock the board in place, remove all borders, and blend every widget together'}
+                  >{merged ? '⧉ Unmerge Widgets' : '⧉ Merge Widgets'}</button>
+                </>)}
               </div>
             )}
           </div>
           )}
 
-          {/* Multi Chart — its own top-level dropdown (moved out of Open layout).
-              Visible in BOTH modes: it's the grid-mode entry point AND hosts the
-              layout presets / N×M / sync toggles / saved grids / "Back to
-              workspace" once in grid mode. Same MultiChartMenu, now anchored
-              below this button instead of flying out beside the Open menu. */}
+          {/* LAYOUTS — new / open / save / multi-chart / pop-out. Shown in BOTH modes;
+              grid mode surfaces only the layout-relevant actions (Open + Multi Chart). */}
           <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
             <button
               type="button"
               className={styles.toolbarBtn}
               style={gridMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
-              onClick={() => { setMcMenuOpen(o => !o); setOpenMenuOpen(false); setAddMenuOpen(false); setSaveMenuOpen(false) }}
-            >{gridMode ? '✓ ' : ''}▦ Multi Chart ▾</button>
-            {mcMenuOpen && (
-              <MultiChartMenu
-                mc={mc}
-                onClose={() => setMcMenuOpen(false)}
-              />
+              onClick={() => { const n = !layoutsMenuOpen; closeToolbarMenus(); setLayoutsMenuOpen(n) }}
+            >Layouts ▾</button>
+            {layoutsMenuOpen && (
+              <div className={styles.addMenu} style={{ minWidth: 230 }} onMouseLeave={() => { setLayoutsMenuOpen(false); setLayoutsSub(null); setConfirmDeleteId(null) }}>
+                {layoutsSub === 'open' ? (<>
+                  <button type="button" className={styles.addMenuItem} onClick={() => setLayoutsSub(null)}>‹ Back</button>
+                  <div className={styles.menuDivider} />
+                  <div className={styles.menuSection}>Prebuilt</div>
+                  <div className={styles.menuRow}>
+                    <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { applyUctDefault(); closeToolbarMenus() }}>UCT Default</button>
+                  </div>
+                  <div className={styles.menuRow}>
+                    <button
+                      type="button"
+                      className={styles.addMenuItem}
+                      style={{ flex: 1, ...(chartsTheme === 'sunrise' ? { color: 'var(--ut-green-bright, #1ae51a)' } : {}) }}
+                      onClick={() => { setChartsTheme('sunrise'); setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS)); closeToolbarMenus() }}
+                    >{chartsTheme === 'sunrise' ? '✓ ' : ''}TSDR — Sunset</button>
+                  </div>
+                  {wsGlobalLayouts.map(t => (
+                    <div key={`g${t.id}`} className={styles.menuRow}>
+                      <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { applyTemplate(t); if (gridMode) mc.exitGrid(); closeToolbarMenus() }}>{t.name}</button>
+                      {isAdmin && (confirmDeleteId === t.id ? (
+                        <DeleteConfirm onYes={() => { handleDeleteTemplate(t.id); setConfirmDeleteId(null) }} onCancel={() => setConfirmDeleteId(null)} />
+                      ) : (
+                        <button type="button" className={styles.menuDel} title="Delete prebuilt template" onClick={() => setConfirmDeleteId(t.id)}>✕</button>
+                      ))}
+                    </div>
+                  ))}
+                  {wsMyLayouts.length > 0 && <div className={styles.menuSection}>My layouts</div>}
+                  {wsMyLayouts.map(t => (
+                    <div key={`m${t.id}`} className={styles.menuRow}>
+                      <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { applyTemplate(t); if (gridMode) mc.exitGrid(); closeToolbarMenus() }}>{t.name}</button>
+                      {confirmDeleteId === t.id ? (
+                        <DeleteConfirm onYes={() => { handleDeleteTemplate(t.id); setConfirmDeleteId(null) }} onCancel={() => setConfirmDeleteId(null)} />
+                      ) : (
+                        <button type="button" className={styles.menuDel} title="Delete" onClick={() => setConfirmDeleteId(t.id)}>✕</button>
+                      )}
+                    </div>
+                  ))}
+                </>) : layoutsSub === 'save' ? (<>
+                  <button type="button" className={styles.addMenuItem} onClick={() => setLayoutsSub(null)}>‹ Back</button>
+                  <div className={styles.menuDivider} />
+                  <button type="button" className={styles.addMenuItem} onClick={() => { handleSaveLayout(); closeToolbarMenus() }}>Save current arrangement</button>
+                  <div className={styles.menuDivider} />
+                  <div className={styles.menuForm}>
+                    <div className={styles.menuSection} style={{ padding: 0 }}>Save as template</div>
+                    <input
+                      className={styles.menuInput}
+                      placeholder="Template name"
+                      value={saveAsName}
+                      maxLength={60}
+                      onChange={e => { setSaveAsName(e.target.value); setSaveErr('') }}
+                      onKeyDown={e => { if (e.key === 'Enter') handleSaveAsTemplate() }}
+                    />
+                    {isAdmin && (
+                      <label className={styles.menuCheck}>
+                        <input type="checkbox" checked={saveAsScope === 'global'} onChange={e => setSaveAsScope(e.target.checked ? 'global' : 'user')} />
+                        Prebuilt (available to all users)
+                      </label>
+                    )}
+                    <button type="button" className={styles.toolbarBtn} style={{ alignSelf: 'flex-start' }} onClick={handleSaveAsTemplate}>Save template</button>
+                    {saveErr && <div className={styles.menuErr}>{saveErr}</div>}
+                  </div>
+                </>) : layoutsSub === 'mc' ? (
+                  <MultiChartMenu mc={mc} onClose={() => { setLayoutsMenuOpen(false); setLayoutsSub(null) }} />
+                ) : (<>
+                  {!gridMode && <button type="button" className={styles.addMenuItem} onClick={() => { handleNewLayout(); closeToolbarMenus() }}>New Layout</button>}
+                  <button type="button" className={styles.addMenuItem} onClick={() => setLayoutsSub('open')}>Open Layout ▸</button>
+                  {!gridMode && <button type="button" className={styles.addMenuItem} onClick={() => setLayoutsSub('save')}>{savedFlash ? 'Saved ✓' : 'Save Layout ▸'}</button>}
+                  <button
+                    type="button"
+                    className={styles.addMenuItem}
+                    style={gridMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                    onClick={() => setLayoutsSub('mc')}
+                  >{gridMode ? '✓ ' : ''}▦ Multi Chart ▸</button>
+                  {!gridMode && (
+                    <button type="button" className={styles.addMenuItem} disabled={!visibleWidgets.length} onClick={() => { handlePopOutLayout(); closeToolbarMenus() }}>⧉ Pop Out Layout</button>
+                  )}
+                </>)}
+              </div>
             )}
           </div>
 
-          {/* Merge widgets — locks the board, removes borders/headers, blends all
-              widgets seamlessly with a thin seam. Workspace mode only. */}
+          {/* TOOLS — chart-analysis utilities. Custom-Period Sort ranks the whole US
+              market by % change over a time period you highlight on the chart. */}
           {!gridMode && (
+          <div className={styles.toolbarBtnGroup} style={{ position: 'relative' }}>
             <button
               type="button"
               className={styles.toolbarBtn}
-              style={merged ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
-              onClick={toggleMerged}
-              title={merged
-                ? 'Unlock the board and restore widget borders'
-                : 'Lock the board in place, remove all borders, and blend every widget together'}
-            >{merged ? '⧉ Unmerge widgets' : '⧉ Merge widgets'}</button>
-          )}
-
-          {/* Pop the whole board into its own window to drag onto another
-              monitor. Main returns to a blank board so the next layout can be
-              built and popped onto the monitor after that. */}
-          {!gridMode && (
-            <button
-              type="button"
-              className={styles.toolbarBtn}
-              onClick={handlePopOutLayout}
-              disabled={!visibleWidgets.length}
-              title={visibleWidgets.length
-                ? 'Open this whole layout in its own window you can drag to another monitor'
-                : 'Add a widget first — there is no layout to pop out'}
-            >⧉ Pop out layout</button>
+              style={periodSortMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+              onClick={() => { const n = !toolsMenuOpen; closeToolbarMenus(); setToolsMenuOpen(n) }}
+            >Tools ▾</button>
+            {toolsMenuOpen && (
+              <div className={styles.addMenu} style={{ minWidth: 200 }} onMouseLeave={() => setToolsMenuOpen(false)}>
+                <button
+                  type="button"
+                  className={styles.addMenuItem}
+                  style={periodSortMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                  onClick={() => { setPeriodSortSel(null); setPeriodSortMode(true); closeToolbarMenus() }}
+                >{periodSortMode ? '✓ ' : ''}Custom-Period Sort</button>
+              </div>
+            )}
+          </div>
           )}
 
           {gridMode && (
@@ -1348,6 +1453,39 @@ export default function ChartsWorkspace() {
             {popoutNotice}
             <button type="button" onClick={() => setPopoutNotice(null)} aria-label="Dismiss">✕</button>
           </div>
+        )}
+
+        {/* Custom-Period Sort: config popover (after a drag) → results panel. */}
+        {periodSortSel && (
+          <PeriodSortConfig
+            sel={periodSortSel}
+            onCancel={() => setPeriodSortSel(null)}
+            onSort={(start, end, replay, group, tf, markStart) => {
+              setPeriodSortSel(null)
+              setPeriodSortPanel({ start, end, group: group || null })
+              // Replay: cut every linked chart off at the End date (ISO). Off = clear it.
+              const s = String(end)
+              setReplayCutoff(replay ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` : null)
+              // Mark start date on every chart: gold vertical line ('line') or gold start
+              // candle ('candle'). 'off' → no marker.
+              const st = String(start)
+              setStartMarker(markStart && markStart !== 'off' ? `${st.slice(0, 4)}-${st.slice(4, 6)}-${st.slice(6, 8)}` : null)
+              if (markStart === 'line' || markStart === 'candle') setStartMarkerStyle(markStart)
+              // Timeframe: switch every chart to the chosen D/W/M (composes with replay).
+              applyTfToCharts(tf)
+            }}
+          />
+        )}
+        {periodSortPanel && (
+          <PeriodSortPanel
+            start={periodSortPanel.start}
+            end={periodSortPanel.end}
+            group={periodSortPanel.group}
+            onClose={() => setPeriodSortPanel(null)}
+            onDock={() => handleDockPeriodSort(periodSortPanel.start, periodSortPanel.end, periodSortPanel.group)}
+            tabTargets={visibleWidgets.map(w => ({ id: w.id, label: WIDGET_LABELS[w.type] || w.type }))}
+            onAddAsTab={(widgetId) => handlePeriodSortToTab(widgetId, periodSortPanel.start, periodSortPanel.end, periodSortPanel.group)}
+          />
         )}
       </div>
     </WorkspaceContext.Provider>

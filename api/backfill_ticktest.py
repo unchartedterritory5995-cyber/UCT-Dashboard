@@ -10,6 +10,11 @@ cumulative Volume vs OI.
 Idempotent: safe to run multiple times. Only updates rows with Side=''.
 
 USAGE: POST /api/admin/massive/backfill-ticktest (or trigger via worker)
+
+NOT A TEST. It was named `backfill_tick_test.py` — a production one-shot
+script whose name matched pytest's `*_test.py` pattern, so every collection
+imported it (and it was the one file of 766 under a testpaths root with no
+test callable in it). Renamed to match the route it serves.
 Deploy this file alongside the worker fix.
 """
 import sqlite3

@@ -7,6 +7,7 @@ import { listIndicators, listEngineIndicators } from '../../indicatorRegistry'
 import { CHART_DEFAULTS, mergeChartSettings } from '../../chartDefaults'
 import { uctDefaultChartSettings } from '../../../../pages/charts/ChartsWorkspace'
 import * as engineRegistry from '../nativeRegistry'
+import { REGISTRY_SIZES } from '../registrySizes'
 import { stripComments, stripPyComments } from './sourceScan'
 
 // ─── THE ENUMERATION LEDGER ─────────────────────────────────────────────────
@@ -438,8 +439,73 @@ const LEDGER = [
     anchor: '_CASE_COLUMNS: Dict[str, Tuple[str, ...]] = {', fate: 'keep' },
 
   // ── the engine ───────────────────────────────────────────────────────────
+  // ⭐⭐⭐ PHASE D TASK 1 — THE CLOSED TABLE. Fate `keep`, and the reason is the
+  // same one `_CASE_COLUMNS` carries: a (name, arity, semantics) triple is
+  // irreducible. No definition can declare the vocabulary that definitions are
+  // WRITTEN IN, so this list is not a catalogue a new indicator gets edited into
+  // — it is the grammar, and it grows only when the language does.
+  //
+  // ⛔ AND IT IS THE ONE FILE IN THIS PHASE THAT MUST HAVE EXACTLY ONE WRITER.
+  // Two lanes READ it (`interpret.js` and `ast_interpret.py`); a hand-copy in
+  // either is a second grammar, and a second grammar drifts silently — which is
+  // this ledger's entire subject matter, arriving in a new vocabulary.
+  //
+  // ⛔⭐ `pending` — THE FILE DOES NOT EXIST YET, AND THAT IS DECLARED RATHER
+  // THAN TOLERATED. Task 3 creates it. Until then the anchor `"functions"`
+  // cannot match, and there are exactly three things this row could have been:
+  //
+  //   1. absent — and then Task 3 lands a manifest with nobody's count moving,
+  //      which is the *unledgered site* failure this file exists to produce;
+  //   2. present with no marker — and then the anchor case is RED for every
+  //      task between here and Task 3, which is worse than absent: a rail that
+  //      is always red is a rail everybody learns to scroll past, and a REAL
+  //      anchor break would arrive as one more line in a failure nobody reads;
+  //   3. present and DECLARED PENDING — green today, and it converts itself
+  //      into a hard red at the exact moment its subject appears.
+  //
+  // The third is what is here, and the conversion is not a promise: the anchor
+  // case below asserts that a `pending` row's file does **NOT** exist. The day
+  // Task 3 writes `closedTable.json`, that assertion fails BY NAME and the only
+  // way to green it is to drop `pending` — at which point `"functions"` must
+  // appear exactly once, in the shape a manifest actually has. **Task 3 owes
+  // the first match.** The anchor is armed; it has simply never fired.
+  //
+  // ⭐⭐⭐ 2026-08-07 — IT FIRED, AND IT FIRED BY NAME. Task 3 wrote the
+  // manifest and this case went red with the row's own sentence in the failure:
+  // *"the row is marked pending:'D3' but the FILE NOW EXISTS."* Not a stack
+  // trace, not a missing-module error somewhere downstream — the ledger row
+  // told the task what it owed. The marker is dropped here and `"functions"`
+  // now matches exactly once (measured: `series` 5, `operators` 15, and the
+  // functions section 11 = the 31 names the AST corpus already uses, which is
+  // why `tools/ast_conformance.py --coverage` went from exit 3 to exit 0 on its
+  // first run against a real manifest). **The first match is paid.**
+  { file: 'app/src/components/chart/engine/ast/closedTable.json',
+    region: 'the closed table — every name a user formula may call',
+    anchor: '"functions"', fate: 'keep' },
   { file: 'app/src/components/chart/engine/nativeRegistry.js', region: 'RAW_DEFS — THE ONE THAT SHOULD SURVIVE',
     anchor: 'const RAW_DEFS = [', fate: 'keep' },
+  // ⛔⭐⭐ ADDED BY PHASE D TASK 8, AND THE DISCOVERY SCAN FOUND IT BEFORE THE
+  // TASK DID. `registrySizes.js` is the one place a registry COUNT lives, and
+  // the reason it holds a hand-written list of every definition id — rather than
+  // deriving one from `listDefinitions()` — is that a derived manifest is true by
+  // construction and can never fail. That is the same argument
+  // `CARVED_OUT_INDICATOR_KEYS` already makes one file over, and it has the same
+  // consequence: a real, deliberate, sixteen-id enumeration in shipped source.
+  //
+  // ⚠️ SO THIS IS A GENUINE NEW SITE, NOT AN OVER-MATCH. The task's brief said
+  // *"adding a lane adds no enumeration by itself, but verify that by running the
+  // scans, not by assuming it"* — the scan was run, it flagged this file by name
+  // on the first attempt, and `SITE_COUNT` goes 9 → 10. A task that had reported
+  // "no ledger delta" here would have been asserting from memory.
+  //
+  // ⚠️ AND ITS FATE IS `keep`, WHICH IS A CLAIM ABOUT WHAT IT IS FOR. This list
+  // is not a catalogue anything reads to DO work — nothing in the product
+  // imports this module — it is the assertion target that the registry has to
+  // prove it matches. A future phase that "removes the duplication" by deriving
+  // it has removed the rail, not the duplication.
+  { file: 'app/src/components/chart/engine/registrySizes.js',
+    region: 'SHIPPED_DEF_IDS — the hand-written manifest the registry must equal',
+    anchor: 'export const SHIPPED_DEF_IDS', fate: 'keep' },
   // ⛔⭐⭐ ADDED BY B5 TASK 12, AND ADDING IT IS THE HONEST HALF OF A RETIREMENT.
   // Flip C deleted `paneMargins.PANES`, whose three facts went three ways — but
   // one of them, the STACK ORDER, is a list of ids and a list of ids has to be
@@ -908,13 +974,126 @@ const RETIRED_BY_B4_ALERTS = [
  *  RE-POINTED at the enumeration that survives rather than deleted — deleting it
  *  while the scan still names the file is the "unledgered site" failure this
  *  ledger exists to produce. The prediction was a hypothesis; the scan was the
- *  measurement. */
-const SITE_COUNT = 8
+ *  measurement.
+ *
+ *  ⭐⭐⭐ 8 → 9 AT PHASE D TASK 1, AND IT IS AN ADDITION FOR A SITE THAT DOES NOT
+ *  EXIST YET — the first row this ledger has ever carried ahead of its subject.
+ *  `{keep: 9}`. The new row is `engine/ast/closedTable.json`, the manifest that
+ *  declares every name a user-authored formula may call, and it is written down
+ *  NOW for one reason: Phase D's whole safety claim is *"the table is closed"*,
+ *  and a table that arrives unledgered is a table nobody's count noticed
+ *  arriving. Neither discovery scan can help here — the JS scan walks `.js`/
+ *  `.jsx` under `app/src` and the Python scan walks `.py` under `api`, so a
+ *  `.json` manifest is invisible to BOTH, exactly as `voice_client_action_tools.py`
+ *  was invisible to the JS scan for two phases.
+ *
+ *  ⚠️ AND THE ROW IS `pending`, WHICH IS A NEW COLUMN AND THEREFORE A DECISION.
+ *  See the comment on the row itself for the three options and why this is the
+ *  one. The short version: the anchor is ARMED AND UNMATCHED, the anchor case
+ *  asserts a pending row's file is ABSENT, and Task 3 creating it is what turns
+ *  this from green to red. A `pending` row that is never converted is a control
+ *  that rots green, so the pending SET is asserted by name and must hold exactly
+ *  one member.
+ *
+ *  ⭐⭐⭐ **THE COUNT DID NOT MOVE AT PHASE D TASK 3, AND THAT IS THE WHOLE POINT
+ *  OF HAVING WRITTEN THE ROW A DAY EARLY.** `closedTable.json` arrived, the fuse
+ *  fired by name, the marker came off, and `SITE_COUNT` stayed 9 — because the
+ *  site was counted when it was DECIDED rather than when it was typed. Had the
+ *  row not been here, the manifest would have landed with nobody's count moving,
+ *  which is the "unledgered site" failure this file exists to produce, and
+ *  neither discovery scan could have caught it (`.json` is invisible to both).
+ *  The `pending` COLUMN survives with zero users: it is a fuse anyone may arm
+ *  again, and the empty set below is what stops a second one being armed quietly.
+ *
+ *  ⛔ NEITHER DISCOVERY SCAN'S FOUND-SET MOVES ON THIS TASK, and both are
+ *  asserted as whole-set literals below rather than left to a subset check. This
+ *  task adds a ledger ROW; it changes nothing either scan can see. (Re-measured
+ *  at Task 3: `engine/ast/parse.js` names no indicator id, so the JS scan's
+ *  three-file set is unchanged by the new directory.)
+ *
+ *  ⭐⭐⭐ 9 → 10 AT PHASE D TASK 8, AND THE SCAN FOUND THE SITE BEFORE THE TASK
+ *  DID. `{keep: 10}`. The new row is `engine/registrySizes.js`, which holds the
+ *  hand-written manifest of every shipped definition id — the thing thirty-three
+ *  scattered count assertions collapsed INTO. Its brief predicted no ledger
+ *  delta ("adding a lane adds no enumeration by itself") and instructed the task
+ *  to run the scans rather than assume; the JS discovery scan flagged the file by
+ *  name on its first run, so the prediction was wrong and the instruction was
+ *  right. This is the FIRST time on this branch that the JS scan's found-set has
+ *  moved, and it moves for a file that genuinely hand-lists sixteen ids on
+ *  purpose — a derived manifest could never fail, which is exactly why this one
+ *  is typed out.
+ *
+ *  ⚠️ THE PYTHON SCAN'S FOUND-SET DID NOT MOVE. Task 8 touches one `api/` file
+ *  and only its `SCHEMA_VERSION` cross-assert; it names no indicator.
+ *
+ *  ⛔⭐⭐ PHASE D TASK 15 — THE CLOSING GATE — AND THE SENTENCE ABOVE THIS ONE
+ *  WAS FALSE WHEN IT SAID "BOTH WHOLE-SET LITERALS BELOW". There was only ONE.
+ *  Measured at the close: the JS scan pins its whole found set with `toEqual`
+ *  — *"a DECISION, not a DIFF"*, which is how the ledger's writer finds out a
+ *  module joined it — and the PYTHON scan pinned nothing of the kind. It
+ *  asserted only `found ⊆ ledger` and `keep ⊆ found`, and those two together
+ *  permit the set to GROW silently by any file that happens to be ledgered.
+ *  So the two halves of one control were not the same control, and the header
+ *  that described them as one had been true of neither for two phases. **The
+ *  claim is made TRUE rather than deleted** — the Python whole-set literal is
+ *  below, beside the JS one, measured on the merged tree at the close.
+ *
+ *  ⭐⭐⭐ AND THE COUNT DID NOT MOVE ACROSS THE REST OF PHASE D. `SITE_COUNT`
+ *  10, histogram `{keep: 10}`. Both scans were RE-RUN at the close on the
+ *  merged tree rather than inherited (849 JS files walked → 4 found; 805 Python
+ *  files walked → 4 found), because Tasks 9-16 added a builder sheet, a
+ *  concierge box, five `engine/ast/` modules, a user-definition store, a router
+ *  and a fourth address partition — and *"a task that reported no ledger delta
+ *  from memory would have been asserting from memory"* is this file's own
+ *  standard, set at Task 8 when the scan disagreed with a brief.
+ *
+ *  ⚠️ AND THE MARGIN WAS MEASURED, NOT ASSUMED, because a four-id threshold is
+ *  only as good as what sits just under it. **The Python tree has ZERO files
+ *  naming 2 or 3 ids** — nothing is one id short of being seen, including
+ *  `alert_user_series.py`, the fourth partition Task 12 added. The JS tree has
+ *  exactly two (`ChartDrawingOverlay.jsx`, `indicators.js`, 2 each). A blind
+ *  spot you have not measured is not the same as one you do not have.
+ *
+ *  ⛔ NO `D` FATE WAS EVER OPENED, AND THAT IS DELIBERATE. Phase C emptied its
+ *  `C` bucket at its own closing task; D never created a bucket it had nothing
+ *  to spend. **A phase that mints a fate letter it never retires leaves a
+ *  control to rot** — the `C` rows are the worked example, and B5 Task 13
+ *  deleted two `phase` rows for the same reason. Every row here is `keep`, so
+ *  a fate permutation is the IDENTITY and the sorted-pair literal below is
+ *  carrying the whole anti-permutation claim by itself.
+ *
+ *  ⭐ `_INDICATOR_ALIASES` WAS RE-DECIDED, NOT CITED. Phase C Task 15 fated it
+ *  `keep` on a measurement; D changes nothing about the resolver, so the fate
+ *  should stand — and *"should"* is not a measurement, so it was re-taken at
+ *  the close: **11 phrases, 2 redundant (`macd`, `rsi` — identity rows), 9
+ *  load-bearing**, seven targets, `ma50`/`ma200` still not registry ids at all
+ *  (the registry holds 17 definitions), and the resolver still literally
+ *  `_INDICATOR_ALIASES.get(raw, raw.replace(" ", ""))`. The fate stands. */
+const SITE_COUNT = 10
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
     const problems = []
     for (const site of LEDGER) {
+      // ⭐⭐⭐ PHASE D TASK 1 — A ROW MAY BE DECLARED `pending`, AND A PENDING ROW
+      // IS ASSERTED IN THE OPPOSITE DIRECTION. Its subject has not been built
+      // yet, so demanding the anchor match would make this case red for every
+      // task until it is — and a rail that is always red is a rail nobody
+      // reads. What is asserted instead is that the file is still ABSENT, which
+      // is a claim that goes FALSE, loudly, on the commit that creates it. That
+      // is the whole point: `pending` is a fuse, not an exemption.
+      if (site.pending) {
+        if (fs.existsSync(path.join(ROOT, site.file))) {
+          problems.push(
+            `${site.file} :: ${site.region} — the row is marked pending:'${site.pending}' but the ` +
+            'FILE NOW EXISTS. That is this fuse firing, and it is the good outcome: drop `pending` ' +
+            `from the row and make the anchor ${JSON.stringify(site.anchor)} appear exactly once. ` +
+            'Do NOT delete the row, and do NOT leave the marker on — a pending row whose subject ' +
+            'has arrived is a control that rots green.',
+          )
+        }
+        continue
+      }
       let src
       try { src = read(site.file) } catch { problems.push(`${site.file}: FILE IS GONE (${site.region})`); continue }
       const n = src.split(site.anchor).length - 1
@@ -930,6 +1109,35 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'the site count moved. That is allowed — it has moved five times — but it is a DECISION, ' +
       'not a diff: update SITE_COUNT, the header, and the spec §5 pointer together.',
     ).toBe(SITE_COUNT)
+  })
+
+  // ⛔⭐⭐ THE PENDING SET IS A LITERAL, BY NAME, NOT A COUNT AND NOT A TOLERANCE
+  // — AND IT IS ITS OWN CASE ON PURPOSE. `pending` is an exemption from the
+  // anchor check, and an exemption nobody enumerates is how a second one arrives
+  // quietly and a third one after that. Exactly one row may carry it; adding a
+  // second is a DECISION that fails here first.
+  //
+  // ⚠️ SEPARATE FROM THE COUNT CASE BECAUSE A SHARED CASE HIDES WHICH THING
+  // BROKE. Inside the count case this assertion sat AFTER the length check, so a
+  // wrong `SITE_COUNT` aborted the case before the exemption set was ever read —
+  // two different defects, one red line, and no way to tell them apart from the
+  // failure. Split, they are: deleting the row fails HERE and nowhere else that
+  // a re-fate or a miscount does.
+  // ⭐⭐⭐ THE SET IS NOW EMPTY, AND EMPTY IS STRICTLY STRONGER THAN ONE.
+  // Phase D Task 3 created `closedTable.json`, the fuse fired by name, and the
+  // marker came off — so the only row that ever carried an exemption no longer
+  // needs one and its anchor is checked like every other row's. The literal
+  // stays a NAMED SET rather than becoming a count, because `[]` is what makes
+  // a SECOND pending row fail here first: `.toHaveLength(0)` and
+  // `.toEqual([])` read the same today and diverge the moment somebody adds one
+  // with a plausible-looking justification.
+  it('exempts NO row from the anchor check — the one fuse has fired', () => {
+    expect(LEDGER.filter(s => s.pending).map(s => `${s.file}::${s.pending}`),
+      'a row is exempted from the anchor check. A `pending` row is a site whose subject does ' +
+      'not exist yet — it is the ONLY reason a ledger row may skip its anchor, it is a FUSE ' +
+      'rather than an exemption, and every one of them has to be named here. The last one ' +
+      '(closedTable.json::D3) fired on 2026-08-07 and was converted, not renewed.',
+    ).toEqual([])
   })
 
   // ⭐ WHO RETIRES WHAT, AS A NUMBER. The B3 plan said "~4 sites hand off to
@@ -1018,7 +1226,21 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // CHECK ON ANY EDIT THAT MOVES A ROW OUT OF `C`. That floor is derived from
     // `keep`; it had exactly ONE Python subject and now has THREE, so the scan
     // it protects is measured against more, not less.
-    expect(counts).toEqual({ keep: 8 })
+    // ⭐⭐⭐ `{keep: 8}` → `{keep: 9}` AT PHASE D TASK 1, AND THE HISTOGRAM'S
+    // BLIND SPOT IS NOW TOTAL — SAID OUT LOUD RATHER THAN LEFT TO BE DISCOVERED.
+    // B4's review measured that SWAPPING two sites' fates preserves every count
+    // and passes here, and B5 counted the ten permutations that hid in
+    // `{C: 2, keep: 3}`. Every row is `keep` now, so a fate SWAP is the IDENTITY
+    // — there is no permutation left for the sorted-pair mapping below to catch
+    // that this line does not already catch. That is not the mapping becoming
+    // redundant; it is the mapping's subject temporarily emptying, and the two
+    // assertions still fail on different things (a fate TYPO makes a sixth
+    // bucket, which only this whole-object `toEqual` refuses; a re-fate to a NEW
+    // letter fails both, and only the mapping names WHICH ROW moved).
+    // ⭐⭐⭐ `{keep: 9}` → `{keep: 10}` AT PHASE D TASK 8. `registrySizes.js`
+    // joins as a `keep`, and the blind spot above is unchanged: with every row
+    // `keep`, a fate swap is still the identity.
+    expect(counts).toEqual({ keep: 10 })
     // …and by NAME, because a histogram cannot tell an absent bucket from a
     // bucket somebody renamed.
     expect(LEDGER.filter(s2 => s2.fate === 'phase'),
@@ -1088,16 +1310,58 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'CANNOT make: swapping two sites\' fates leaves every count identical and passes there. ' +
       'If a fate really moved, regenerate this literal from LEDGER rather than editing a row by ' +
       'hand, and move the histogram in the same commit.',
+    // ⭐⭐⭐ REGENERATED AT PHASE D TASK 1, NOT EDITED. The rows below are the
+    // verbatim stdout of a throwaway case that ran `LEDGER.map(...).sort(...)`
+    // inside this module and printed it — the same two lines the assertion above
+    // computes, so the literal cannot disagree with the generator by a character
+    // it was typed with. Recorded in the task report; the printer was deleted in
+    // the same commit, because a case whose whole body is a `console.log` is a
+    // case that will one day be read as a gate.
+    //
+    // ⭐⭐⭐ REGENERATED AGAIN AT PHASE D TASK 8, BY THE SAME METHOD AND FOR THE
+    // SAME REASON — nine rows became ten (`registrySizes.js`), and the tenth was
+    // pasted from that printer's stdout rather than typed into sorted position by
+    // eye. The mechanical tell survives: every pair is `["…","keep"]` with NO
+    // space after the comma, which is `JSON.stringify`'s format and not the
+    // surrounding file's style.
     ).toEqual([
-      ["api/services/alert_series.py::SERIES_FUNCS — address → the full aligned column, and since Task 10 the ONE value table", "keep"],
-      ["api/services/indicator_alert_evaluator.py::ALERT_CONDITIONS — which conditions each address offers, a product decision nothing derives", "keep"],
-      ["api/services/indicator_compute.py::_CASE_COLUMNS — the golden-fixture kind→columns dispatch", "keep"],
-      ["api/services/voice_client_action_tools.py::_INDICATOR_ALIASES — the voice add_chart_indicator phrase map", "keep"],
-      ["app/src/components/chart/engine/instances.js::FROZEN_SHIPPED_STACK_ORDER — the retired PANES stacking order, 9 + 5 overlays", "keep"],
-      ["app/src/components/chart/engine/nativeRegistry.js::RAW_DEFS — THE ONE THAT SHOULD SURVIVE", "keep"],
-      ["app/src/components/chart/keyboardShortcuts.js::INDICATOR_CHORDS — the four chord bindings, declared once", "keep"],
-      ["tools/chart_parity_cases.json::the parity case list", "keep"],
+      ["api/services/alert_series.py::SERIES_FUNCS — address → the full aligned column, and since Task 10 the ONE value table","keep"],
+      ["api/services/indicator_alert_evaluator.py::ALERT_CONDITIONS — which conditions each address offers, a product decision nothing derives","keep"],
+      ["api/services/indicator_compute.py::_CASE_COLUMNS — the golden-fixture kind→columns dispatch","keep"],
+      ["api/services/voice_client_action_tools.py::_INDICATOR_ALIASES — the voice add_chart_indicator phrase map","keep"],
+      ["app/src/components/chart/engine/ast/closedTable.json::the closed table — every name a user formula may call","keep"],
+      ["app/src/components/chart/engine/instances.js::FROZEN_SHIPPED_STACK_ORDER — the retired PANES stacking order, 9 + 5 overlays","keep"],
+      ["app/src/components/chart/engine/nativeRegistry.js::RAW_DEFS — THE ONE THAT SHOULD SURVIVE","keep"],
+      ["app/src/components/chart/engine/registrySizes.js::SHIPPED_DEF_IDS — the hand-written manifest the registry must equal","keep"],
+      ["app/src/components/chart/keyboardShortcuts.js::INDICATOR_CHORDS — the four chord bindings, declared once","keep"],
+      ["tools/chart_parity_cases.json::the parity case list","keep"],
     ])
+  })
+
+  // ⭐⭐⭐ PHASE D TASK 1 — THE CLOSED TABLE, TWO RAILS, AND ONLY ONE OF THEM CAN
+  // BE VACUOUS.
+  //
+  // The manifest does not exist yet (Task 3 builds it), so the natural rail —
+  // *"the closed table is on the ledger"* — has to `return` when its subject is
+  // absent, and a rail that returns when its subject is absent asserts NOTHING
+  // until the day it does. That is not a reason to skip it: it is a reason to
+  // pair it. The first arms itself the moment the file appears; the second
+  // cannot be vacuous at any point, because its subject is `LEDGER` and `LEDGER`
+  // exists right now.
+  it('the closed-table manifest is on the ledger the moment it exists', () => {
+    const MANIFEST = 'app/src/components/chart/engine/ast/closedTable.json'
+    if (!fs.existsSync(path.join(ROOT, MANIFEST))) return   // Task 3 creates it; this rail arms itself then
+    const known = new Set(LEDGER.map(s => s.file))
+    expect(known.has(MANIFEST),
+      'the closed table is the single declaration of what a user formula may call. ' +
+      'It is an enumeration by definition and it must be on the ledger.',
+    ).toBe(true)
+  })
+
+  it('the ledger names the file that will hold the closed table, and says why', () => {
+    const row = LEDGER.find(s => /ast\/closedTable\.json$/.test(s.file))
+    expect(row, 'the closed-table row is missing from the ledger').toBeTruthy()
+    expect(row.fate).toBe('keep')
   })
 
   it('⭐⭐ the Python dispatch literal PHASE C TASK 10 retired is GONE, by identity', () => {
@@ -1216,8 +1480,15 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // …and the replacements are really there, on all three sides.
     const SC = read('app/src/components/StockChart.jsx')
     expect(SC).toContain('crosshairData.chips')
-    expect(SC).toContain('engineChips(engineRef.current.binder.bindings()')
+    // ⚠️ `legendChips`, NOT `engineChips` — chart-UX-walls Task 3 moved the call
+    // site one function out. `engineChips` walks BINDINGS and `planBindings`
+    // drops a hidden instance, so the chip a user has to click to UN-hide was
+    // never emitted; `legendChips` walks the INSTANCE list and calls
+    // `engineChips` for the valued half, so this is still ONE pipeline and the
+    // control below still names its bottom.
+    expect(SC).toContain('legendChips(engineRef.current.binder.bindings()')
     expect(read('app/src/components/chart/engine/readout.js')).toContain('export function chipsFrom(')
+    expect(read('app/src/components/chart/engine/readout.js')).toContain('export function legendChips(')
 
     // ⭐ AND B5 TASK 6 RETIRED THE SECOND LANE ITSELF. Four identifiers, read off
     // COMMENT-STRIPPED source: `StockChart.jsx` names every one of them in the
@@ -1383,7 +1654,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     const wide = mergeChartSettings(JSON.parse(JSON.stringify({ settingsVersion: 2, indicators: all })))
     expect(Object.keys(wide.indicators)).toEqual(['volumeProfile'])
     expect(Object.keys(all), 'the fixture named nothing — the destruction above is vacuous')
-      .toHaveLength(17)
+      .toHaveLength(REGISTRY_SIZES.total)
     // …and the frozen capture writes the same one key, through the wrapper.
     const frozen = JSON.parse(uctDefaultChartSettings())
     expect(Object.keys(frozen.indicators)).toEqual(['volumeProfile'])
@@ -1473,7 +1744,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
   // every chart while leaving this file's `[]` above perfectly green.
   it('⛔ …and every definition still resolves a compute — the exports are NOT dead', () => {
     const defs = engineRegistry.listDefinitions()
-    expect(defs.length, 'no definitions — this case proves nothing').toBe(17)
+    expect(defs.length, 'no definitions — this case proves nothing').toBe(REGISTRY_SIZES.total)
     // THE SERVER LANE IS SKIPPED HERE AND ONLY HERE. This case is about the
     // `compute*` EXPORTS not being dead; a `compute.kind: 'server'` definition has
     // no export to be dead, its columns are FETCHED, and `computeFor` correctly
@@ -1603,9 +1874,17 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'the JS discovery scan sees a different set of files than it saw at the start of ' +
       'Phase C. If a module was added to or removed from the four-id set deliberately, ' +
       'move this literal and say which; if not, the scan itself changed.',
+    // ⭐⭐⭐ AND IT MOVED, FOR THE FIRST TIME ON THIS BRANCH, AT PHASE D TASK 8.
+    // `engine/registrySizes.js` joins the set: it hand-lists all sixteen native
+    // ids on purpose, because a manifest derived from `listDefinitions()` would
+    // be true by construction and could never disagree with the registry. That
+    // is a real enumeration site, it is ledgered as one, and `SITE_COUNT` went
+    // 9 → 10 in the same commit. The task's brief predicted no delta here; the
+    // scan disagreed on its first run, which is what running it is for.
     ).toEqual([
       'app/src/components/chart/engine/instances.js',
       'app/src/components/chart/engine/nativeRegistry.js',
+      'app/src/components/chart/engine/registrySizes.js',
       'app/src/components/chart/keyboardShortcuts.js',
     ])
 
@@ -1675,11 +1954,19 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // rather than from the settings blob, because a blob-derived id list would
     // have collapsed to ONE id at this task and made the whole scan unable to
     // flag anything at all, silently.
+    // ⭐ AND IT MOVED 3 → 4 AT PHASE D TASK 8, WHICH IS THE FIRST TIME THIS FLOOR
+    // HAS GONE UP. `registrySizes.js` is a `keep` row under `app/src` with a
+    // `.js` extension, so it joins the set the discovery scan MUST be able to see
+    // forever — and that is the honest direction for it to move: the paragraph
+    // above worried that a one-element floor was weak, and this is a fourth
+    // independent file the scan has to keep finding.
+    //
     // BY NAME and NON-ZERO, both. A count alone would go green the day the last
     // `keep` row is renamed; the names are what make the collapse loud.
     expect(keepWalkable, 'no `keep` walkable file on the ledger — the check below is vacuous')
       .toEqual(['app/src/components/chart/engine/instances.js',
         'app/src/components/chart/engine/nativeRegistry.js',
+        'app/src/components/chart/engine/registrySizes.js',
         'app/src/components/chart/keyboardShortcuts.js'])
     expect(keepWalkable.length).toBeGreaterThan(0)
     expect(keepWalkable.filter(f => !found.includes(f)),
@@ -1748,6 +2035,38 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'Either it is a new enumeration site (add it, and raise SITE_COUNT), or it reads ' +
       'the registry and the scan is over-matching (say which, in the ledger).',
     ).toEqual([])
+
+    // ⛔⭐⭐ PHASE D TASK 15 — THE WHOLE-SET PIN, ADDED BECAUSE THE LEDGER'S OWN
+    // HEADER CLAIMED IT WAS ALREADY HERE AND IT WAS NOT.
+    //
+    // The JS half above pins its found set with a `toEqual` and says why: it is
+    // *"a DECISION, not a DIFF"*. A new module that hand-lists four ids fails
+    // BOTH that literal and the unledgered filter; ledgering it silences the
+    // filter and leaves the literal red, **which is how the ledger's one writer
+    // per phase finds out.**
+    //
+    // This half had only the two SUBSET checks — `found ⊆ ledger` (above) and
+    // `keep ⊆ found` (below). Neither can see the set GROW: a new Python module
+    // that hand-lists four ids AND is added to the ledger in the same commit
+    // satisfies both, silently. That is precisely the "a site arrived and
+    // nobody's count noticed" shape this file exists to produce, surviving in
+    // the half of the control that was written second.
+    //
+    // ⚠️ IT IS A DECISION, NOT A DIFF — same as the JS literal. If a module
+    // deliberately joins or leaves the four-id set, move this literal and say
+    // which, in the ledger. If it moved and nobody meant it to, the scan or the
+    // tree changed and that is the finding.
+    expect(found,
+      'the PYTHON discovery scan sees a different set of files than it saw at the close of ' +
+      'Phase D. This is the half of the control that used to be a subset check, so a set that ' +
+      'GREW by a ledgered file passed here silently until 2026-08-07. Move this literal ' +
+      'deliberately or find out what changed.',
+    ).toEqual([
+      'api/services/alert_series.py',
+      'api/services/indicator_alert_evaluator.py',
+      'api/services/indicator_compute.py',
+      'api/services/voice_client_action_tools.py',
+    ])
 
     // …and the scan must not go quietly empty. ⛔ THE FLOOR IS DERIVED FROM
     // `keep`, NEVER FROM THE `C` ROWS: BOTH Python `C` rows retire in this
@@ -2453,6 +2772,155 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     })
   })
 
+  // ⭐⭐⭐ PHASE D TASK 1 — THE REPAINT BADGE IS A SHARED DEFAULT, AND THE RECORD
+  // THAT SAYS SO IS HELD DOWN THE SAME WAY THE `engineEnabled` ONE IS.
+  //
+  // Spec §3 annotates `meta.repaint` as *"Phase A/B: audited metadata
+  // (UCT-authored only)"*. Measured, that is FALSE: `nativeRegistry.nativeDef`
+  // writes `repaint: 'non-repainting'` in ONE shared helper and every native
+  // inherits it, so nothing audited anything. And it is not merely un-audited,
+  // it is contradicted — `compute_ichimoku_raw` writes bar `i`'s close to index
+  // `i - kijun_period`, so a point at a HISTORICAL index moves while the newest
+  // bar forms, which is spec §4's own definition of `repaints`.
+  //
+  // ⛔ SO WHY IS THERE A TEST HERE AT ALL, WHEN NO BADGE IS CHANGING? Because a
+  // record whose only content is a sentence is a control that INVERTS SILENTLY,
+  // and this file already carries the proof: B4 shipped `stillOpen: true` for
+  // the `engineEnabled` record, and the day somebody was allowed to resolve it
+  // the one available response was to edit `true` to `false` — after which the
+  // clause asserted nothing at all, because "the record does not say OPEN"
+  // constrains no code. Task 7's rail will read this same header. If the header
+  // can be flipped to ACCEPTED with nothing else moving, then the artefact Task
+  // 7 reads is a sentence somebody typed, and the `engine-enabled` trap — which
+  // fired FOUR times on this branch — fires a fifth.
+  //
+  // The clause is therefore a BICONDITIONAL between the record and the code:
+  //
+  //     the record says OPEN  ⟺  the badge is still an unaudited shared default
+  //
+  //   * resolve the record while every definition still wears the helper's
+  //     answer → red (the decision claims to be answered while nothing it
+  //     decides has moved);
+  //   * re-badge a definition, or give a PLOT its own badge, while this header
+  //     still says OPEN → red (the code answered a question the written
+  //     decision still calls open — exactly how `engineEnabled` became something
+  //     six sites read and nobody had chosen).
+  //
+  // ⚠️ AND THE STATUS TOKEN COMES FROM A CLOSED SET — `OPEN` / `RESOLVED` and
+  // nothing else. `!/OPEN/` would quietly accept a typo, or the word ACCEPTED,
+  // as "resolved". Anything that is neither, or both, reads `UNREADABLE`.
+  //
+  // ⚠️ THE OWNER'S RULING IS PER-PLOT (record §4), so `plotsWithOwnBadge` is a
+  // clause and not decoration: the day a plot carries its own badge, the badge
+  // has stopped being a per-definition default and this record must resolve. A
+  // biconditional written only against `meta.repaint` would have missed the
+  // shape the ruling actually takes.
+  it('⭐ the repaint badge is a shared DEFAULT, and this record says so — the biconditional', () => {
+    const RECORD = 'docs/decisions/2026-08-06-machine-repaint-linter.md'
+    const md = read(RECORD)
+    // The HEADER occurrence, not "somewhere in the file": a second `**Status:**`
+    // line is how the first stops being the record's answer.
+    const statusLines = md.split('\n').filter(l => l.startsWith('**Status:**'))
+    const STATUS_TOKENS = ['OPEN', 'RESOLVED']
+    const status = statusLines.length !== 1 ? 'UNREADABLE'
+      : (STATUS_TOKENS.filter(t => new RegExp(`\\b${t}\\b`).test(statusLines[0])).join('+') || 'UNREADABLE')
+
+    /** The shared default, as a SHAPE rather than a literal. B4 measured a
+     *  demand-zero literal guard staying green against a reintroduction with
+     *  only the spaces around `=` removed, so every probe in this file tolerates
+     *  arbitrary whitespace. The `...meta` spread is part of the shape on
+     *  purpose: it is what makes this a DEFAULT (a per-definition `repaint` in
+     *  `meta` would override it) rather than a hardcoded answer. */
+    const SHARED_DEFAULT = /repaint\s*:\s*'non-repainting'\s*,\s*\.\.\.meta/
+
+    // ⛔ THE PROBE'S OWN CONTROLS RUN FIRST, BOTH DIRECTIONS — the idiom the
+    // `engineEnabled` rail above established. If the pattern rots,
+    // `sharedDefaultLives` reads false and the object below fails with a message
+    // pointing at the badge instead of at the regex.
+    expect(SHARED_DEFAULT.test("  meta: { tier: 'free', repaint: 'non-repainting', ...meta },"),
+      'control: the shared-default probe matches nothing at all — it rotted, and `sharedDefaultLives` ' +
+      'below is a broken regex rather than a deleted default').toBe(true)
+    expect(SHARED_DEFAULT.test(stripComments("// meta: { tier: 'free', repaint: 'non-repainting', ...meta },")),
+      'control: a COMMENTED-OUT default still counts as a live one. Every retirement on this branch ' +
+      'leaves a comment naming what it deleted, and a raw probe would read the tombstone as the thing.',
+    ).toBe(false)
+
+    const REG = stripComments(read('app/src/components/chart/engine/nativeRegistry.js'))
+
+    /** Every place the registry SOURCE declares the field. Two today — the
+     *  helper's, and `rsLine`'s, which does not pass through the helper at all
+     *  and therefore retypes the same sentence rather than judging independently.
+     *  Counted from source rather than from the shipped objects because after the
+     *  `...meta` spread EVERY definition carries the key, so the built catalogue
+     *  cannot tell a declaration from an inheritance. */
+    const declarationsInSource = [...REG.matchAll(/\brepaint\s*:/g)].length
+
+    const defs = engineRegistry.listDefinitions()
+
+    expect({
+      statusLines: statusLines.length,
+      status,
+      sharedDefaultLives: SHARED_DEFAULT.test(REG),
+      declarationsInSource,
+      // the distinct answers the whole catalogue gives — a UNIFORM column is
+      // indistinguishable from an unset one, and today it is an unset one.
+      badgeValues: [...new Set(defs.map(d => d.meta.repaint))].sort(),
+      definitionsBadgedRepaints: defs.filter(d => d.meta.repaint !== 'non-repainting').map(d => d.id),
+      // the owner's ruling is PER PLOT (record §4). No plot carries one yet.
+      plotsWithOwnBadge: defs.flatMap(d => (d.plots || [])
+        .filter(p => p && Object.prototype.hasOwnProperty.call(p, 'repaint'))
+        .map(p => `${d.id}.${p.key}`)),
+      // ⛔⭐⭐ THE FLOOR UNDER THE PER-PLOT CLAUSE, AND IT WAS ADDED ON A
+      // MEASUREMENT RATHER THAN A HUNCH. A default-to-empty read of the plots
+      // field answers empty for a definition shape that renamed it — so a RENAME
+      // makes `plotsWithOwnBadge` `[]` and the third clause of
+      // `recordAgreesWithTheCode` `true`, and the entire per-plot half of this
+      // biconditional passes while asserting NOTHING. Proven by mutation, not
+      // argued: renaming `plots` → `plotsRENAMED` in both reads left this case
+      // GREEN. Since the owner's ruling is per PLOT, that is the one clause
+      // guaranteed to matter at Task 7, and it was the one with no floor.
+      //
+      // ⚠️ A LIST, NOT A COUNT, ON PURPOSE. An exact plot total would go red
+      // every time anybody adds a plot to any definition — churn that teaches
+      // people to bump the number without reading it. This asks the structural
+      // question instead: *is there a definition the plot walk cannot see?* On a
+      // rename EVERY id lands in this list and the failure names them all.
+      defsWithNoPlots: defs.filter(d => !(d.plots || []).length).map(d => d.id),
+      // …and the catalogue is not empty, which is what stops the three `[]`s
+      // above being satisfied by a registry that lists nothing.
+      definitionCount: defs.length > 0,
+      recordAgreesWithTheCode:
+        (status === 'OPEN') === (SHARED_DEFAULT.test(REG)
+          && defs.every(d => d.meta.repaint === 'non-repainting')
+          && defs.every(d => (d.plots || []).every(p => !Object.prototype.hasOwnProperty.call(p, 'repaint')))),
+    },
+    'statusLines: the record must carry exactly ONE **Status:** line, or this rail is reading a ' +
+    'sentence instead of the decision. status: the token comes from a CLOSED set — a header that ' +
+    'says ACCEPTED, or says nothing, or says both, reads UNREADABLE and fails, because `!/OPEN/` ' +
+    'would have accepted a typo as "resolved". sharedDefaultLives/declarationsInSource/badgeValues/' +
+    'definitionsBadgedRepaints/plotsWithOwnBadge: this is the CODE half of the biconditional — ' +
+    'OPEN means the badge is still a shared default that no definition overrides and no plot ' +
+    'carries. recordAgreesWithTheCode: the record and the code must answer the SAME question the ' +
+    'same way, in BOTH directions. Resolving the record with no badge moved is red; moving a badge ' +
+    '(or adding a per-plot one) with the header still OPEN is red, and that second direction is ' +
+    'the one a bare `stillOpen: true` could not see at all. ⛔ AND THE BADGE VALUES ARE TASK 7\'s, ' +
+    'ON A MEASUREMENT — a disagreement between the linter and a shipped badge is a FINDING FOR THE ' +
+    'OWNER, never a badge edit, so a task arriving here to make this green by editing ' +
+    '`nativeRegistry.js` has misread the record it is guarding.',
+    ).toEqual({
+      statusLines: 1,
+      status: 'OPEN',
+      sharedDefaultLives: true,
+      declarationsInSource: 2,
+      badgeValues: ['non-repainting'],
+      definitionsBadgedRepaints: [],
+      plotsWithOwnBadge: [],
+      defsWithNoPlots: [],
+      definitionCount: true,
+      recordAgreesWithTheCode: true,
+    })
+  })
+
   // ⭐ AND THE RECORD MAY NOT QUOTE A TEST TITLE THAT DOES NOT EXIST.
   //
   // 🔴 THIS IS NOT HYPOTHETICAL — IT WAS ROTTEN AT HEAD, AND FIXING IT IS WHAT
@@ -2504,11 +2972,39 @@ describe('what B3 retired — a FLIPPED definition has no hand-written lane left
     // continuation marker into a WORD: the extracted title reads
     // `every test title the > decision record cites…` and a live citation is
     // reported missing. Strip `>` prefixes per line, then join.
-    const md = read('docs/decisions/2026-08-03-engine-enabled-settings-migration.md')
-      .split('\n').map(l => l.replace(/^(?:\s*>)+\s?/, '')).join('\n')
-      .replace(/\s+/g, ' ')
-    const cited = [...md.matchAll(/`([A-Za-z]+\.test\.jsx?)`\s*→\s*\*"([^"]+)"\*/g)]
-      .map(m => ({ file: m[1], title: m[2] }))
+    //
+    // ⭐⭐ PHASE D TASK 1 — THIS SCANS A LIST OF RECORDS NOW, NOT ONE FILE. The
+    // repaint record cites five titles in the same arrow-and-quote form, and a
+    // second record left unscanned is the same rot arriving in a second
+    // document. Adding a record to this list costs one line; leaving it off
+    // costs the guarantee, silently.
+    const RECORDS = [
+      'docs/decisions/2026-08-03-engine-enabled-settings-migration.md',
+      'docs/decisions/2026-08-06-machine-repaint-linter.md',
+    ]
+    const CITATION = /`([A-Za-z]+\.test\.jsx?)`\s*→\s*\*"([^"]+)"\*/g
+    const perRecord = RECORDS.map(r => ({
+      record: r,
+      cites: [...read(r)
+        .split('\n').map(l => l.replace(/^(?:\s*>)+\s?/, '')).join('\n')
+        .replace(/\s+/g, ' ')
+        .matchAll(CITATION)].map(m => ({ file: m[1], title: m[2] })),
+    }))
+    const cited = perRecord.flatMap(x => x.cites)
+
+    // ⛔⭐⭐ THE FLOOR IS PER RECORD, AND THAT WAS A DEFECT FOUND BY MUTATION.
+    // A single `cited.length >= 3` over the CONCATENATION of both records is
+    // satisfied by EITHER of them alone — measured: stripping all four
+    // citations out of the repaint record left this case GREEN, because the
+    // engine-enabled record still carried three. The moment a second record
+    // joined this list, the aggregate floor stopped being a floor for either
+    // one. Asked per record, and BY NAME, a record whose citations all vanish
+    // says which record it was.
+    expect(perRecord.filter(x => x.cites.length === 0).map(x => x.record),
+      'a decision record on this list cites no test title at all. Either its citations were ' +
+      'removed (and the record now points at nothing — worse than no pointer, because prose ' +
+      'still reads as evidence), or the citation form changed and this scan is stale.',
+    ).toEqual([])
 
     expect(cited.length,
       'the record cites no test title at all — either the citation form changed and this scan ' +
@@ -2639,7 +3135,7 @@ describe('the surviving enumeration is the registry, and it has to stay complete
   // real merge — for every definition there is.
   it('every definition is REACHABLE from a v1 blob that names it', () => {
     const defs = engineRegistry.listDefinitions()
-    expect(defs.length, 'no definitions — this case proves nothing').toBe(17)
+    expect(defs.length, 'no definitions — this case proves nothing').toBe(REGISTRY_SIZES.total)
     const unreachable = []
     for (const def of defs) {
       const blob = JSON.stringify({ indicators: { [def.id]: { enabled: true } } })

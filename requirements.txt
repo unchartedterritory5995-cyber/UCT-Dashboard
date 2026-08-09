@@ -4,6 +4,15 @@ httpx==0.28.1
 python-dotenv==1.2.1
 pytest==8.3.4
 pytest-asyncio==0.24.0
+# The ONLY thing that makes `@pytest.mark.timeout` and pytest.ini's `timeout`
+# real. Without it an unregistered mark is silently ignored and an unknown ini
+# option only warns -- which is how two decorated tests in
+# api/routers/stream_bars_test.py carried a bound that had never once been
+# enforced while that file hung the entire suite. Pinned exactly, like the two
+# lines above it. Cost to the deployed image: one 14 KB pure-python wheel, no
+# transitive dependency beyond pytest (already here), imported by nothing the
+# app runs. Guarded by tests/test_requirements_pins.py.
+pytest-timeout==2.4.0
 requests==2.32.5
 yfinance==1.2.0
 pandas==3.0.1

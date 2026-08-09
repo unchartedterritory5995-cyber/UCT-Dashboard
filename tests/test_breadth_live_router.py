@@ -40,9 +40,15 @@ def _payload(**over):
         "as_of": "2026-08-05T13:44:00-04:00",
         "session_date": "2026-08-05", "session_live": True,
         "anchored": True, "degraded": False,
+        # Carries enough scoring weight to produce a headline. Since 2026-08-07
+        # `breadth_score` renormalizes over PRESENT inputs and withholds below
+        # 60 of 100 points rather than extrapolating from a fraction of the
+        # evidence — and a real live row carries ~70 before any carried field.
         "metrics": {"pct_above_50sma": 65.3, "up_4pct_today": 163,
                     "down_4pct_today": 61, "adv_decline": -370,
-                    "universe_count": 2701, "new_52w_highs": 133},
+                    "universe_count": 2701, "new_52w_highs": 133,
+                    "magna_up": 880, "magna_down": 320, "stage2_count": 410,
+                    "vix": 15.4},
     }
     base.update(over)
     return base
@@ -105,3 +111,56 @@ def test_carried_fields_are_separated_from_the_live_ones(router, monkeypatch):
     assert out["carried"] == {"naaim": 79.7}
     assert out["carried_from"] == "2026-08-04"
     assert "naaim" not in out["metrics"]
+
+
+# ── the drill endpoint ────────────────────────────────────────────────────────
+
+def _drill(router, monkeypatch, out):
+    rt, _ = router
+    from api.services import breadth_live as live
+    monkeypatch.setattr(live, "live_drill", lambda k: out)
+    return rt.get_live_drill("up_4pct_today")
+
+
+def test_live_drill_endpoint_returns_the_recorded_item_envelope(router, monkeypatch):
+    body = _drill(router, monkeypatch, {
+        "ok": True, "items": [{"t": "AAA", "pct": 5.1, "c": 10.0}],
+        "reason": None, "as_of": "2026-08-07T11:00:00-04:00"})
+    assert body["items"][0]["t"] == "AAA"
+    assert body["as_of"]
+
+
+# A dead click must not surface an error page.
+def test_live_drill_endpoint_is_ok_with_an_empty_list_when_unavailable(router, monkeypatch):
+    body = _drill(router, monkeypatch, {
+        "ok": False, "items": [], "reason": "no live read cached", "as_of": None})
+    assert body["items"] == [] and body["reason"]
+
+
+# `/{date_str}/drill/{metric_key}` matches "live" as a date perfectly well, so
+# whichever is registered FIRST wins. Declared out of order this route is
+# unreachable and every live click 404s — assert by RESOLUTION, not by reading
+# the source order.
+def test_the_live_drill_route_is_not_shadowed_by_the_dated_one(router, monkeypatch):
+    rt, _ = router
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.services import breadth_live as live
+    monkeypatch.setattr(live, "live_drill", lambda k: {
+        "ok": True, "items": [{"t": "AAA"}], "reason": None, "as_of": "x"})
+    app = FastAPI()
+    app.include_router(rt.router)
+    r = TestClient(app).get("/api/breadth-monitor/live/drill/up_4pct_today")
+    assert r.status_code == 200, "the dated drill route swallowed 'live' as a date"
+    assert r.json()["items"][0]["t"] == "AAA"
+
+
+# ⛔ The 60s poll is the Dashboard's busiest request on a single-process pod.
+# Inlining the lists would multiply it by the universe. Assert on the KEY SET so
+# a future author cannot quietly re-bloat it.
+def test_the_live_payload_never_carries_drill_lists(router, monkeypatch):
+    out, _ = _call(router, monkeypatch)
+    row = out.get("row") or {}
+    assert not [k for k in row if k.endswith("_list")]
+    assert not [k for k in out if k.endswith("_list")]
+    assert "members" not in out

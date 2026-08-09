@@ -87,23 +87,26 @@
   align-items: center;
   gap: 6px;
   padding: 5px 8px;
-  background: var(--bg, #0b0f14);
-  border: 1px solid var(--border, #1f2937);
+  /* Match the widget's own canvas (theme-adaptive): a faint inset off the canvas
+     via --wl-row-hover, so it reads white-on-light / dark-on-OLED instead of the
+     fixed dark --bg (which stayed black on a white surface). */
+  background: var(--wl-row-hover, var(--bg, #0b0f14));
+  border: 1px solid var(--wl-divider-strong, var(--border, #1f2937));
   border-radius: 6px;
-  color: var(--text-muted, #8c8674);
+  color: var(--wl-text, var(--text-muted, #8c8674));
 }
-.searchWrap:focus-within { border-color: var(--ut-gold, #c9a84c); }
+.searchWrap:focus-within { border-color: var(--wl-accent, var(--ut-gold, #c9a84c)); }
 .search {
   flex: 1;
   min-width: 0;
   background: transparent;
   border: none;
   outline: none;
-  color: var(--text-bright, #e0dac8);
+  color: var(--wl-sym, var(--text-bright, #e0dac8));
   font-family: inherit;
   font-size: 12px;
 }
-.search::placeholder { color: var(--text-muted, #706b5e); }
+.search::placeholder { color: var(--wl-text, var(--text-muted, #706b5e)); }
 
 .body {
   flex: 1;

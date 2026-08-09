@@ -19,8 +19,8 @@ import {
 // WORKSPACE: color groups, chart tabs, the crosshair bus, hotkey arbitration,
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
-export default function ChartWidget({ color, opts, onOptsChange }) {
-  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef } = useWorkspace()
+export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
+  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle } = useWorkspace()
   const { createAlert } = useWatchlistAlerts()
   // Imperative handle on the pane: the right-click menu opens its settings
   // modal, and the leverage picker routes its symbol change through it so the
@@ -37,6 +37,24 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
   const isMainTab = activeTabIdx === 0
   const activeExtra = isMainTab ? null : (extraTabs[activeTabIdx - 1] || null)
   const activeColor = isMainTab ? color : (activeExtra?.color || color)
+
+  // ⭐ PHASE C TASK 12 — THE CHART ID THIS SURFACE PUBLISHES.
+  //
+  // `WidgetHost` supplies the slot's persisted id; a chart TAB is an
+  // independent chart profile with its own settings blob, so it gets its own
+  // identity rather than sharing the slot's — otherwise two tabs in one widget
+  // would share an alert set while showing different charts.
+  //
+  // ⛔ NOT `widgetIdRef` BELOW. That one is `w${Math.random()}`, minted per
+  // MOUNT: scoping an alert to it would bind the alert to a chart that ceases
+  // to exist on the next refresh. Both ids the producers hand down here are
+  // persisted (`charts_workspace_layout`, and the tab's own `id`).
+  //
+  // ⚠️ A HOST THAT PASSES NONE STAYS GLOBAL, which is what every alert created
+  // before this producer existed already is.
+  const paneChartId = !chartId
+    ? null
+    : (isMainTab || !activeExtra ? chartId : `${chartId}:${activeExtra.id}`)
 
   // Debounce the linked ticker (~90ms): during a fast arrow-scan through a watchlist,
   // the group sym changes many times/sec — without this every intermediate ticker
@@ -255,6 +273,28 @@ export default function ChartWidget({ color, opts, onOptsChange }) {
           subscribeCrosshair,
           hotkeysActive: hotkeysIsActive,
           onBarContextMenu: handleBarContextMenu,
+          // ⭐ WHICH CHART (Phase C Task 12). `ChartPane` spreads
+          // `stockChartProps` onto `StockChart`, which forwards it to
+          // `ChartToolbar` → `IndicatorAlertPopover` → the `?scope=` request.
+          chartId: paneChartId,
+          // Custom-Period Sort: drag-to-highlight mode + the completed selection,
+          // tagged with THIS chart's symbol for the config popover's % readout.
+          periodSelect: !!periodSortMode,
+          onPeriodSelected: periodSortMode
+            ? (start, end, pct) => wsOnPeriodSelected?.(sym, start, end, pct)
+            : undefined,
+          onPeriodCancel: periodSortMode ? wsOnPeriodCancel : undefined,
+          // Replay mode: hide every bar after this ISO date (null = normal chart) + show
+          // the "Exit Replay Mode" pill centered in this chart's clear top area.
+          replayCutoff: replayCutoff || null,
+          onExitReplay: (replayCutoff || startMarker) ? exitReplay : undefined,
+          // Custom-Period Sort "Mark start date": either a thin gold vertical LINE (overlay)
+          // or paint the start-date CANDLE gold (highlightBarTime). Only one is active.
+          startMarker: startMarker && startMarkerStyle === 'line' ? startMarker : null,
+          highlightBarTime: startMarker && startMarkerStyle === 'candle' ? startMarker : undefined,
+          highlightColor: startMarker && startMarkerStyle === 'candle' ? '#c9a84c' : undefined,
+          // Gold BODY only — keep the chart's own border + wick colors on the marker candle.
+          highlightBodyOnly: startMarker && startMarkerStyle === 'candle' ? true : undefined,
         }}
         slots={{
           /* Chart tab strip — renders only once ≥1 extra tab exists, so a

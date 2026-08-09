@@ -684,53 +684,70 @@ def test_the_refused_combination_IS_silently_inert_first_MEASURED_both_lanes():
     assert value is not None and triggered is True
 
 
-def test_ichimoku_chikou_FIRES_TODAY_and_is_therefore_NOT_refused(client):
-    """🔴 THE ONE THE VALIDATOR MUST NOT TOUCH, measured on both lanes.
+def test_ichimoku_chikou_is_refused_ONLY_by_the_lane_that_cannot_answer_it(
+        client, monkeypatch):
+    """🔴 THE ONE THE VALIDATOR MUST NOT TOUCH — measured on both lanes, and the
+    lane is DRIVEN rather than assumed.
 
     `ichimoku.chikou` has a 26-bar trailing pad, so the CLOSED bar's value is
     always `None` and it cannot fire after the cutover — Task 6 priced that at
     19,574 fires lost / 0 gained and the live production shadow lane confirmed
-    it independently. But it fires NORMALLY today, it is in the live catalog,
-    and there are armed rows behind it. Refusing it here would delete a working
-    feature from a live surface under cover of a bug fix, and would decide Task
-    8's question for it.
+    it independently (30 of 31 addresses observed; the absentee was this one).
+    But it fires NORMALLY on the forming lane. Both facts are true at once;
+    which of them is the user's problem is `eval_mode()`'s answer, at call time,
+    because the rollback lever moves that answer with no deploy.
 
     The mechanical difference from `vwap` is asserted, not asserted-about: an
-    ALL-None column is dead in both lanes, a TRAILING-None column is alive in
-    one. That is the only thing `instant_only_addresses()` looks at.
+    ALL-None column is dead in BOTH lanes (`instant_only_addresses`), a
+    TRAILING-None column is dead in exactly one (`closed_lane_dead_addresses`).
     """
     calendar, _ = _daily_bars()
     column = alert_series.SERIES_FUNCS["ichimoku.chikou"](calendar, {})
     assert any(v is not None for v in column)          # NOT an empty column …
     assert column[-1] is None                          # … but padded at the end
 
-    # alive on the lane that is live today
+    # alive on the forming lane
     assert ev._evaluate_one(
         _alert("ichimoku.chikou"), calendar, mode="forming")[1] is True
-    # dead on the lane Task 8 flips to — and that is EXACTLY what is not ours
+    # dead on the closed one — and THAT is the difference the gate reads
     assert ev._evaluate_one_closed(
         _alert("ichimoku.chikou"), calendar, now_epoch=_FUTURE)[:2] == (None, False)
 
     assert "ichimoku.chikou" not in ias.instant_only_addresses()
+    assert "ichimoku.chikou" in ias.closed_lane_dead_addresses()
+
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "forming")
     assert ias.refusal_for("ichimoku.chikou", "above", "D", 0.0) is None
     r = client.post("/api/indicator-alerts", json={
         "sym": "SPY", "indicator": "ichimoku.chikou", "condition": "above",
         "threshold": 0.0, "tf": "D"})
     assert r.status_code == 200, r.text
 
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "closed")
+    refusal = ias.refusal_for("ichimoku.chikou", "above", "D", 0.0)
+    assert refusal is not None and ias.CLOSED_LANE_TRAILING_PAD in refusal
+    r = client.post("/api/indicator-alerts", json={
+        "sym": "SPY", "indicator": "ichimoku.chikou", "condition": "above",
+        "threshold": 0.0, "tf": "D"})
+    assert r.status_code == 400, r.text
+    assert ias.CLOSED_LANE_TRAILING_PAD in r.text
 
-def test_the_validator_refuses_nothing_that_is_alive_on_the_forming_lane():
+
+def test_the_validator_refuses_nothing_that_is_alive_on_the_forming_lane(
+        monkeypatch):
     """⛔ THE OVER-REFUSAL RAIL, over every catalog address at once.
 
     Walks the whole catalog on daily bars with the soak matrix's own
     (condition, threshold) choices. Any address whose column carries a value is
-    ALIVE under `ALERT_EVAL_MODE = "forming"` and must be accepted, whatever
-    happens to it at the cutover — `ichimoku.chikou` is in this set.
+    ALIVE under `"forming"` and must be accepted there — `ichimoku.chikou` is in
+    this set, and the mode is pinned explicitly so this rail keeps measuring the
+    forming lane after the cutover rather than quietly changing subject.
 
     The last assertion is the non-vacuity floor: the loop has to have EXCLUDED
     something, or it is a rail over an empty exception set.
     """
     from tools import alert_soak_matrix as soak
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "forming")
     calendar, _ = _daily_bars()
 
     mute_on_forming = set()
@@ -748,6 +765,30 @@ def test_the_validator_refuses_nothing_that_is_alive_on_the_forming_lane():
 
     assert mute_on_forming == {"vwap"}, (
         "the rail must have excluded something or it proves nothing")
+
+
+def test_the_validator_refuses_EXACTLY_TWO_addresses_on_the_closed_lane(
+        monkeypatch):
+    """The same rail, run against the lane the cutover flipped to.
+
+    ⛔ THE SET IS DERIVED FROM THE TWO MEASUREMENTS, NOT TYPED HERE. `vwap` is
+    all-None on a calendar timeframe (dead in both lanes) and `ichimoku.chikou`
+    is trailing-None (dead in this one only); the assertion compares what the
+    gate actually refused against the union of the two measured sets, so a
+    future address joining either one is covered on the day it lands and this
+    number moves as a finding rather than as a literal somebody forgot.
+    """
+    from tools import alert_soak_matrix as soak
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "closed")
+
+    refused = {spec["address"] for spec in soak.catalog_addresses()
+               if ias.refusal_for(spec["address"], spec["condition"], "D",
+                                  spec["threshold"]) is not None}
+    assert refused == set(ias.instant_only_addresses()) | set(
+        ias.closed_lane_dead_addresses())
+    assert refused == {"vwap", "ichimoku.chikou"}, refused
+    # …and the rail is not a rail over everything: 29 of 31 stay armable.
+    assert len(soak.catalog_addresses()) - len(refused) == 29
 
 
 def test_the_probe_resolves_every_catalog_address():
@@ -918,23 +959,31 @@ def test_the_route_STILL_ACCEPTS_every_combination_that_works(client):
     assert len(client.get("/api/indicator-alerts").json()["alerts"]) == len(working)
 
 
-def test_the_three_refusals_are_DISJOINT():
+def test_the_three_refusals_are_DISJOINT(monkeypatch):
     """🔑 THE TASK 9 LESSON, made mechanical.
 
     Two gates shared a refusal phrase there, so `pytest.raises(match=…)` still
     matched with the second safety DELETED — the test would have passed on a
     tree with the guard gone. Each anchor must appear in ITS message and in no
     other, so a test that anchors on one cannot be satisfied by another gate.
+
+    ⚠️ FOUR ANCHORS SINCE THE CUTOVER. The displaced-column gate only speaks
+    under `"closed"`, so the lane is pinned here — and it has to be pinned to
+    the one lane in which ALL FOUR can produce a message at once, or one of them
+    would be `None` and its row would be vacuously disjoint from everything.
     """
+    monkeypatch.setenv(ev.ALERT_EVAL_MODE_ENV, "closed")
     messages = {
         "condition": ias.refusal_for("rsi", "nonsense", "5", 70.0),
         "timeframe": ias.refusal_for("vwap", "above", "D", 400.0),
         "level": ias.refusal_for("rsi", "above", "5", None),
+        "displaced": ias.refusal_for("ichimoku.chikou", "above", "5", 0.0),
     }
     anchors = {
         "condition": ias.REFUSAL_UNJUDGEABLE_CONDITION,
         "timeframe": ias.REFUSAL_INTRADAY_ONLY,
         "level": ias.REFUSAL_NO_LEVEL,
+        "displaced": ias.CLOSED_LANE_TRAILING_PAD,
     }
     assert all(messages.values()), "a gate produced no refusal at all"
     for gate, anchor in anchors.items():
@@ -982,26 +1031,58 @@ def test_the_soak_matrix_still_arms_31_and_stays_IDEMPOTENT(tmp_db):
     assert out["addresses_covered"] == out["addresses_expected"] == 31
 
 
-def test_the_validation_accepts_every_row_the_soak_matrix_arms(client):
+def test_the_validation_accepts_every_row_the_soak_matrix_arms(client,
+                                                                monkeypatch):
     """The same 31 specs, pushed through the REAL create path this time.
 
     `arm()` calls `ias.create` directly, so the test above proves the tool is
     unbroken but says nothing about the gate. This runs the matrix's own
     `catalog_addresses()` — its condition and threshold choices, at its own
-    `DEFAULT_TF` — through the HTTP route, which is where all five refusals
-    live. A 400 here would mean the gate had made the catalog unarmable.
+    `DEFAULT_TF` — through the HTTP route, which is where every refusal lives.
+
+    🔴 AND SINCE THE CLOSED-BAR CUTOVER THE HONEST ANSWER IS 30, NOT 31, WHICH IS
+    A REAL CONSEQUENCE AND NOT A TEST BEING RELAXED. `ichimoku.chikou` is
+    displaced 26 bars, so the lane that now ships can never produce a value for
+    it, and the create path refuses a NEW one. The soak matrix's `arm()` is
+    deliberately NOT gated (it writes through `create`), so the 31 armed rows on
+    production are untouched — the gate is the API surface, not the writer, and
+    this test now pins BOTH halves of that split.
+
+    ⛔ THE REFUSED SET IS DERIVED FROM THE MEASUREMENT, not listed here, so a
+    future address with the same shape is covered on the day it lands.
     """
     from tools import alert_soak_matrix as soak
+    from api.services import indicator_alert_evaluator as _ev
 
     specs = soak.catalog_addresses()
     assert len(specs) == 31
+
+    monkeypatch.setenv(_ev.ALERT_EVAL_MODE_ENV, "closed")
+    refused_addresses = set(ias.closed_lane_dead_addresses())
+    assert refused_addresses == {"ichimoku.chikou"}, refused_addresses
+
+    refused = []
     for spec in specs:
         r = client.post("/api/indicator-alerts", json={
             "sym": soak.DEFAULT_SYM, "indicator": spec["address"],
             "condition": spec["condition"], "threshold": spec["threshold"],
             "tf": soak.DEFAULT_TF})
-        assert r.status_code == 200, (spec, r.text)
-    assert len(client.get("/api/indicator-alerts").json()["alerts"]) == 31
+        if spec["address"] in refused_addresses:
+            assert r.status_code == 400, (spec, r.text)
+            assert ias.CLOSED_LANE_TRAILING_PAD in r.text
+            refused.append(spec["address"])
+        else:
+            assert r.status_code == 200, (spec, r.text)
+    assert sorted(refused) == sorted(refused_addresses)
+    assert len(client.get("/api/indicator-alerts").json()["alerts"]) == 30
+
+    # …and on the ROLLBACK lane the whole catalog is armable again, with no
+    # deploy and no code change. The gate reads `eval_mode()`, so this is one
+    # environment variable rather than a revert.
+    monkeypatch.setenv(_ev.ALERT_EVAL_MODE_ENV, "forming")
+    for spec in specs:
+        assert ias.refusal_for(spec["address"], spec["condition"],
+                               soak.DEFAULT_TF, spec["threshold"]) is None, spec
 
 
 # ─── THE SNOOZE IS A WINDOW, NOT A LABEL ─────────────────────────────────────
@@ -1167,3 +1248,77 @@ def test_the_soak_stays_VISIBLE_to_the_shadow_lane_through_all_of_it(tmp_db):
     assert all(ias.snooze_active(a) for a in soak.soak_rows())
     assert soak.verify()["deliverable_now"] == 0
     assert all(ias.record_trigger(aid, 99.0) is False for aid in ids)
+
+
+def test_verify_REFUSES_AN_EMPTY_ROOM_instead_of_reporting_success(tmp_db, capsys):
+    """🔴 THE GATE THAT COULD NOT FAIL WHERE IT MATTERED MOST.
+
+    Every refusal in `--verify` was written `if out["armed"] and …`, so
+    `armed == 0` short-circuited ALL FOUR and the CLI returned **0** with the
+    whole catalog sitting in `missing` — an empty room reported as a healthy
+    soak, which is the precise failure the module docstring says it exists to
+    prevent. Reachable without any bug: after `--disarm`, against a wrong
+    `AUTH_DB_PATH` (the service defaults it to `/data/auth.db`), against the
+    wrong service, or after a rebuilt volume.
+
+    ⛔ NON-VACUITY, AND IT IS THE SHAPE OF THE BUG. Three of the four numbers
+    are GENUINELY FINE on an empty room (nothing is deliverable, nothing is
+    invisible, nothing is expiring) — so three of the four refusals could never
+    have fired here whatever prefix they carried. The fourth, `missing`, was
+    screaming the whole catalog and was gagged by its own `armed and`. That is
+    why the floor is asserted BY ITS MESSAGE and not merely by the exit code:
+    an exit code alone cannot tell "the room is empty" from "one address is
+    unarmed", and those are different emergencies.
+
+    Measured against the real store this fix was written for: pre-fix
+    `--verify` on a schema-only auth.db exited **0**; post-fix it exits **1**.
+    """
+    from tools import alert_soak_matrix as soak
+
+    report = soak.verify()
+    assert report["armed"] == 0
+    # the one number that was already loud, and could not speak
+    assert report["missing"] == sorted(s["address"] for s in soak.catalog_addresses())
+    # the three that are honestly fine on an empty room
+    assert report["deliverable_now"] == 0
+    assert report["visible_to_shadow"] == report["armed"]
+    assert report["expiring_soon"] == 0
+
+    assert soak.main(["--verify"]) == 1
+    assert "ZERO soak rows are armed" in capsys.readouterr().err
+
+
+def test_arm_exits_NONZERO_WHEN_ITS_OWN_VERIFY_REFUSES(tmp_db, monkeypatch, capsys):
+    """⛔ `--arm` PRINTED `verify()` AND `return 0` — its verdict was rendered
+    and DISCARDED.
+
+    `docs/runbooks/cutover-watch.md` calls `--arm` "the fix, one command"; a fix
+    whose own check fails and still exits success is a fix nobody can trust. A
+    half-finished arm is the realistic shape: one `ias.snooze` that does not
+    take leaves a row ARMED AND DELIVERABLE on the owner's account.
+
+    CONTROL FIRST, so the exit-1 below is attributable to the flake and not to
+    the harness.
+    """
+    from tools import alert_soak_matrix as soak
+
+    assert soak.main(["--arm", "--user-id", "owner-1"]) == 0, "control: a clean arm is green"
+    assert soak.verify()["deliverable_now"] == 0
+    capsys.readouterr()
+
+    soak.disarm()
+    real_snooze = ias.snooze
+    missed: list[int] = []
+
+    def _flaky_snooze(alert_id, minutes):
+        if not missed:                      # the first muzzle does not take
+            missed.append(alert_id)
+            return None
+        return real_snooze(alert_id, minutes)
+
+    monkeypatch.setattr(soak.ias, "snooze", _flaky_snooze)
+    rc = soak.main(["--arm", "--user-id", "owner-1"])
+    assert missed, "the flake never applied — the run below proves nothing"
+    assert soak.verify()["deliverable_now"] == len(missed)
+    assert rc == 1
+    assert "DELIVERABLE" in capsys.readouterr().err

@@ -75,7 +75,7 @@
 // that restores per-band rounding is in this task's gauntlet for that reason.
 
 import { isInstanceTombstone } from '../chartDefaults'
-import { getDefinition, listDefinitions } from './nativeRegistry'
+import { getDefinition, listAllDefinitions, registryGeneration } from './nativeRegistry'
 
 /**
  * The height lightweight-charts gives a pane separator, in CSS pixels.
@@ -200,18 +200,32 @@ const MAIN_BAND_KEY = 'main'
 // ─── which definitions own a pane ────────────────────────────────────────────
 
 let _paneTargetIds = null
+let _paneTargetGeneration = -1
 
 /**
  * Definition ids whose `placement.target` is `'pane'` — the ones that stack.
  *
  * DERIVED, never transcribed: a price overlay shares the candles' pane and must
  * never reserve vertical space, and the registry already says which is which.
- * Computed once; `listDefinitions()` returns a frozen catalogue built at import.
+ *
+ * ⛔⛔ IT USED TO BE MEMOISED ON `null` — "computed once; `listDefinitions()`
+ * returns a frozen catalogue built at import" — AND PHASE D TASK 16 MADE THAT
+ * SENTENCE FALSE. The registry now has a second, RUNTIME index: a user's saved
+ * formula is installed after import, and `buildDefinition` gives every one of
+ * them `placement.target: 'pane'`. Under the old memo the first chart to ask
+ * froze the answer to the SHIPPED sixteen, so a user definition installed
+ * afterwards reserved no band — the series would be created into a pane the
+ * layout never asked for, which is the same "works on the second render only"
+ * ordering defect in its layout costume. Keyed on `registryGeneration()`, which
+ * changes iff the installed set changed, so the common path is still one Set
+ * built once and an SWR revalidation of the same rows costs nothing.
  */
 function paneTargetIds() {
-  if (_paneTargetIds === null) {
+  const generation = registryGeneration()
+  if (_paneTargetIds === null || _paneTargetGeneration !== generation) {
+    _paneTargetGeneration = generation
     _paneTargetIds = new Set(
-      listDefinitions()
+      listAllDefinitions()
         .filter((d) => d && d.placement && d.placement.target === 'pane')
         .map((d) => d.id),
     )

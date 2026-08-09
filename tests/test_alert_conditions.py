@@ -189,18 +189,50 @@ def test_the_bb_equivalence_grid_is_not_vacuous():
 def test_nothing_but_the_declared_pairs_gets_a_dynamic_threshold():
     """The table is consulted by (address, condition), and that is the whole
     difference from `if indicator == "bb"`. Every other address keeps the number
-    the user typed — which is what the 5,040-row baseline replays."""
+    the user typed — which is what the 5,040-row baseline replays.
+
+    🔴 THIS ASSERTED HALF OF ITSELF FOR TWO PHASES, AND THE HALF IT DROPPED IS
+    THE ONE THAT MATTERS MOST. It read
+
+        assert (got is not None) == declared or got is None
+
+    which Python groups as `((got is not None) == declared) or (got is None)` —
+    **true whenever `got is None`, whatever `declared` says**. So a DECLARED
+    operand that stopped resolving (returns `None`, the user's typed threshold
+    silently stands, `bb`'s band touch quietly becomes a fixed number) passed
+    this rail. What was left could only fail on `not declared and got is not
+    None`, which the `if not declared` branch below already asserted — so the
+    line contributed nothing and the declared⇒resolves direction was asserted
+    nowhere. It is now a real biconditional, one line, both directions.
+
+    ⛔ AND THE LOOP COULD NOT SEE HALF THE TABLE. It iterated
+    `ev.INDICATOR_FUNCS`, but two of `THRESHOLD_OPERAND`'s four rows are the
+    `sar` EVENTS, which live in `EVENT_FUNCS` — a test titled *"nothing but the
+    declared pairs"* never visited half the declared pairs, and `close`
+    (`PRICE_FUNCS`, a third partition) was invisible too. The iteration set is
+    now `ALERT_CONDITIONS` — the table that decides which (address, condition)
+    pairs a user can arm at all, whatever partition the function lives in — and
+    a FOURTH partition cannot hide from it because the coverage assertion below
+    is against `THRESHOLD_OPERAND` itself, not against a list of partitions.
+    """
     bars = _load_alert_baseline()["bars"]
-    for address in ev.INDICATOR_FUNCS:
-        for cond in ev.ALERT_CONDITIONS[address]:
+    visited: set[tuple[str, str]] = set()
+    for address, conditions in ev.ALERT_CONDITIONS.items():
+        for cond in conditions:
+            pair = (address, cond["value"])
+            visited.add(pair)
             got = ev.threshold_operand_value(address, cond["value"], bars, {})
-            declared = (address, cond["value"]) in ev.THRESHOLD_OPERAND
-            assert (got is not None) == declared or got is None, (
-                f"{address}/{cond['value']} resolved {got!r} with declared={declared}")
-            if not declared:
-                assert got is None, (
-                    f"{address}/{cond['value']} picked up a dynamic threshold it "
-                    "never declared")
+            declared = pair in ev.THRESHOLD_OPERAND
+            assert (got is not None) == declared, (
+                f"{address}/{cond['value']} resolved {got!r} with declared={declared}"
+                " — a declared pair must resolve and an undeclared one must not")
+    # ⭐ THE RAIL ON THE ITERATION SET, not on a number: every declared pair had
+    # to be REACHED above, or the loop was measuring a subset of the table and
+    # the assertion inside it was a statement about the wrong thing.
+    unreached = sorted(set(ev.THRESHOLD_OPERAND) - visited)
+    assert not unreached, (
+        f"{len(unreached)} declared operand pair(s) live in a partition this "
+        f"loop never visits: {unreached}")
 
 
 # ─── `check_condition` moved, and it is the SAME function ────────────────────

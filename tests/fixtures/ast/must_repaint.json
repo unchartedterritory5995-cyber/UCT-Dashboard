@@ -1,0 +1,250 @@
+{
+  "_": "THE MUST-REPAINT CORPUS -- the repaint linter's positive control, in BOTH directions. Read by app/src/components/chart/engine/ast/lint.test.js and by tests/test_ast_lint.py, which is what makes it a cross-lane agreement rather than one lane's opinion of itself.",
+  "_why_both_directions": "A corpus in which every case is clean measures nothing -- but a corpus in which every case is DIRTY measures nothing either, because a linter that returns `repaints` unconditionally passes every one of them. So this file carries both, and each lane asserts the ratio is non-degenerate rather than counting on a reader to notice. Record section 5, obligations 3 and 4.",
+  "_why_all_three_modes": "Spec section 3's vocabulary has THREE values and the decision record's section 3 warns that `a vocabulary value nothing can ever emit is a value that does not exist` -- it says that about `preview-repaints`, which today is emitted by nothing at all. Every one of the three is expected by at least one case below, and both lanes assert that, so no value in the badge vocabulary is decorative.",
+  "_v1Reachability": "Three values, and the distinction is load-bearing. `parser-refuses` -- the source does not parse at all, so no user can write it today. `not-in-table` -- the source PARSES (jsep does not know the table; parse.js deliberately does not validate identifiers, see the Identifier case in convert()) but names something the closed table does not declare, so the table refuses it one layer down. `reachable-today` -- a user can type this into the box right now and it reaches the linter. THE OBVIOUS CLAIM IS WRONG AND IT WAS MEASURED: `forwardRef(close, 1)` parses perfectly well, because identifiers are not checked against the table at the parse boundary. A test asserting `parseFormula(source).ok === false` for every dirty case would be red on the day it was written, and asserting it for the WRONG reason is worse than not asserting it.",
+  "_tableOverlay": "The v2 manifest entries the dirty cases need. THE SHIPPED TABLE IS NEVER COPIED HERE -- each lane merges these functions ON TOP of closedTable.json, so the shipped grammar has exactly one declaration and this file adds the entries a future `offset` form would add. That is what lets the linter be exercised on the REAL forward-reach derivation path instead of only on its fail-closed branch: without an overlay every dirty case would be `an unknown function`, and `it says repaints about names it has never heard of` is a much weaker claim than `it derives the reach from the number the manifest declares`.",
+  "_no_exemption": "There is no case here whose expectation depends on an indicator id, an author or a lane. The linter has no such input, and both lanes prove that structurally over the linter's own source rather than by grep.",
+  "tableOverlay": {
+    "functions": {
+      "at": {
+        "args": ["series", "int"],
+        "lookback": "arg1",
+        "sentence": "{0} at an offset of {1} bars",
+        "_": "A GENERAL INDEXED READ, which v1 deliberately does not have. Its window is the declared lookback, and a NEGATIVE lookback is a window that runs the other way -- `[i, i+|n|]`. The sign is the whole mechanism: the linter needs no second offset table to decide this, and the day this entry is real its forward reach is already decided."
+      },
+      "highestCentred": {
+        "args": ["series", "int"],
+        "lookback": "arg1",
+        "forward": "arg1",
+        "sentence": "the highest {0} of the {1} bars either side",
+        "_": "`highest(high, 5)` CENTRED. A centred window of n reaches floor(n/2) forward; the manifest declares the conservative bound `arg1` because a manifest that under-declares its own window is the one shape no static analysis of the TREE can catch."
+      },
+      "offset": {
+        "args": ["series", "int"],
+        "lookback": 0,
+        "forward": "arg1",
+        "sentence": "{0} taken {1} bars later",
+        "_": "ICHIMOKU'S CHIKOU, EXPRESSED AS A FORMULA. `chikou[j] === close[j+26]`: bar i's close is written to index i-26, so the point drawn at a HISTORICAL index moves while the newest bar forms. This is the exact construction the decision record names, and it is here so that the linter's answer about the shipped indicator is the same answer it gives to a formula anybody could write."
+      },
+      "finalClose": {
+        "args": ["series"],
+        "lookback": 0,
+        "forward": "unbounded",
+        "sentence": "{0} at the end of the series",
+        "_": "AN UNBOUNDED FORWARD REACH -- the value at every bar is the LAST bar's, so no bar ever makes it final. This is what separates `repaints` from `preview-repaints` as a DECIDED answer rather than as a fail-closed one: `preview-repaints` can name the bar after which the value settles, and this cannot."
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "future_index",
+      "source": "close[-1]",
+      "v1Reachability": "parser-refuses",
+      "expect": "preview-repaints",
+      "why": "Record section 5.3's first minimum shape. The output at bar i reads bar i+1, so it moves while bar i+1 is forming -- and is final the moment bar i+1 closes. Spec section 4: bar-close outputs must be reproducible from history alone, and this one is not until one more bar exists. `close[-1]` does not parse today (a MemberExpression is refused BY NAME at the canonical boundary), which is why the tree is written out here rather than parsed.",
+      "ast": {
+        "type": "call",
+        "name": "at",
+        "args": [
+          { "type": "series", "name": "close" },
+          { "type": "num", "value": -1 }
+        ]
+      }
+    },
+    {
+      "id": "centred_window",
+      "source": "highestCentred(high, 5)",
+      "v1Reachability": "not-in-table",
+      "expect": "preview-repaints",
+      "why": "Record section 5.3's second minimum shape -- `highest(high, 5)` CENTRED. Half the window is in the future, so the value printed at bar i keeps changing until the window has closed on the right. Bounded, and therefore nameable: final once bar i+5 closes.",
+      "ast": {
+        "type": "call",
+        "name": "highestCentred",
+        "args": [
+          { "type": "series", "name": "high" },
+          { "type": "num", "value": 5 }
+        ]
+      }
+    },
+    {
+      "id": "future_offset_series",
+      "source": "offset(close, 26)",
+      "v1Reachability": "not-in-table",
+      "expect": "preview-repaints",
+      "why": "Record section 5.3's third minimum shape, and THE ONE THAT SHIPS. This is ichimoku's chikou written as a formula: bar i's close lands at index i-26, so a point at a historical index moves on every tick until that bar closes. Twenty-six bars ahead, known exactly, final the moment bar i+26 closes -- which is the distinction between known-late and revised-after-final that the record's section 3 hands forward as question D-1.",
+      "ast": {
+        "type": "call",
+        "name": "offset",
+        "args": [
+          { "type": "series", "name": "close" },
+          { "type": "num", "value": 26 }
+        ]
+      }
+    },
+    {
+      "id": "unbounded_forward",
+      "source": "finalClose(close)",
+      "v1Reachability": "not-in-table",
+      "expect": "repaints",
+      "why": "THE POSITIVE CONTROL FOR `repaints` AS A DECIDED ANSWER, not as a fail-closed one. The manifest declares this window unbounded, so there is no bar after which the value at bar i is guaranteed final -- and that, precisely, is what the word accuses. Without this case `repaints` would only ever mean `the linter could not read it`, and a badge that only means that is not a measurement.",
+      "ast": {
+        "type": "call",
+        "name": "finalClose",
+        "args": [{ "type": "series", "name": "close" }]
+      }
+    },
+    {
+      "id": "unknown_function",
+      "source": "mysteryBand(close, 3)",
+      "v1Reachability": "not-in-table",
+      "expect": "repaints",
+      "why": "THE FAIL-CLOSED ASYMMETRY, AND IT IS THE DESIGN. A name no manifest declares has a window nobody has stated, so the linter cannot bound its forward reach and must not guess downward. A false `repaints` costs a user one confused moment; a false `non-repainting` costs the brand its central claim, and it costs it in a way a competitor can demonstrate.",
+      "ast": {
+        "type": "call",
+        "name": "mysteryBand",
+        "args": [
+          { "type": "series", "name": "close" },
+          { "type": "num", "value": 3 }
+        ]
+      }
+    },
+    {
+      "id": "computed_window",
+      "source": "sma(close, 5 + 5)",
+      "v1Reachability": "reachable-today",
+      "expect": "repaints",
+      "why": "A SHAPE A USER CAN TYPE INTO THE BOX RIGHT NOW. `sma` declares `lookback: arg1` and arg1 is an expression rather than a literal, so the window is a computed value and bounding it would need a constant folder -- the dataflow analysis the manifest's `_no_offset` note exists to avoid. Fail closed. This case matters because it proves the fail-closed branch is reachable from TODAY's grammar and is not a hypothetical about a v2 that may never ship.",
+      "ast": {
+        "type": "call",
+        "name": "sma",
+        "args": [
+          { "type": "series", "name": "close" },
+          { "type": "op", "name": "+", "args": [{ "type": "num", "value": 5 }, { "type": "num", "value": 5 }] }
+        ]
+      }
+    },
+    {
+      "id": "unknown_series",
+      "source": "globalThis",
+      "v1Reachability": "not-in-table",
+      "expect": "repaints",
+      "why": "`parse.js` deliberately does NOT validate an identifier against the table (see the Identifier case in convert(), and the three census cases it fates to `resolve:name`), so this reaches the linter as a `series` node naming something the table never declared. A name whose data the linter cannot identify has a window the linter cannot state. Fail closed, in the series direction as well as the function direction.",
+      "ast": { "type": "series", "name": "globalThis" }
+    },
+    {
+      "id": "plain_sma",
+      "source": "sma(close, 20)",
+      "v1Reachability": "reachable-today",
+      "expect": "non-repainting",
+      "why": "THE CLEAN CONTROL. Without it a linter that returns `repaints` unconditionally passes every dirty case above and is indistinguishable from one that works.",
+      "ast": {
+        "type": "call",
+        "name": "sma",
+        "args": [
+          { "type": "series", "name": "close" },
+          { "type": "num", "value": 20 }
+        ]
+      }
+    },
+    {
+      "id": "cross_of_emas",
+      "source": "crossOver(ema(close, 9), ema(close, 21))",
+      "v1Reachability": "reachable-today",
+      "expect": "non-repainting",
+      "why": "A crossing reads bar i and bar i-1 only. If this reads dirty, the linter is calling every EVENT repainting and the builder ships nothing -- so this case is the floor under the whole alert surface, not decoration.",
+      "ast": {
+        "type": "call",
+        "name": "crossOver",
+        "args": [
+          {
+            "type": "call",
+            "name": "ema",
+            "args": [
+              { "type": "series", "name": "close" },
+              { "type": "num", "value": 9 }
+            ]
+          },
+          {
+            "type": "call",
+            "name": "ema",
+            "args": [
+              { "type": "series", "name": "close" },
+              { "type": "num", "value": 21 }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "nested_arithmetic",
+      "source": "(high + low) / 2 - sma(close, 50)",
+      "v1Reachability": "reachable-today",
+      "expect": "non-repainting",
+      "why": "Operators are POINTWISE: they read their arguments at bar i and nowhere else. A linter that let arithmetic accumulate a forward reach would brand every composite formula, which is the same failure as branding everything, arriving one layer down.",
+      "ast": {
+        "type": "op",
+        "name": "-",
+        "args": [
+          {
+            "type": "op",
+            "name": "/",
+            "args": [
+              {
+                "type": "op",
+                "name": "+",
+                "args": [
+                  { "type": "series", "name": "high" },
+                  { "type": "series", "name": "low" }
+                ]
+              },
+              { "type": "num", "value": 2 }
+            ]
+          },
+          {
+            "type": "call",
+            "name": "sma",
+            "args": [
+              { "type": "series", "name": "close" },
+              { "type": "num", "value": 50 }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ternary_gate",
+      "source": "close > sma(close, 20) ? change(close) : 0",
+      "v1Reachability": "reachable-today",
+      "expect": "non-repainting",
+      "why": "The ternary is the shape a user reaches for when writing a signal, and it is where a naive walker most easily loses a branch. Both branches are clean here, so the whole is clean -- and the case exists so that a walker which silently skipped `args[2]` would still have to explain how the dirty ternary variants stay dirty.",
+      "ast": {
+        "type": "op",
+        "name": "?:",
+        "args": [
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              { "type": "series", "name": "close" },
+              {
+                "type": "call",
+                "name": "sma",
+                "args": [
+                  { "type": "series", "name": "close" },
+                  { "type": "num", "value": 20 }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "call",
+            "name": "change",
+            "args": [{ "type": "series", "name": "close" }]
+          },
+          { "type": "num", "value": 0 }
+        ]
+      }
+    }
+  ]
+}

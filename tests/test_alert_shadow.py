@@ -44,7 +44,17 @@ from api.services import indicator_alert_evaluator as ev  # noqa: E402
 from api.services import indicator_alert_service as ias  # noqa: E402
 
 _FULL = os.environ.get("ALERT_DIFF_FULL") == "1"
-_FIXTURES = None if _FULL else ["wick_that_unwinds"]
+# ⛔ "FULL" MEANS THE DECLARATION'S OWN SCOPE, NOT THE WHOLE CORPUS. The frozen
+# corpus grew from four fixtures to eleven (`tools/alert_corpus_extend.py`, real
+# tape for gap opens, high-volatility sessions, a thin ticker, a warmup window, a
+# half day, an hourly grid and a volatile daily series). Every `count` in
+# `fire_diff_declared.json` is a bound measured over the FOUR series it names, so
+# driving the other seven through the same bounds over-budgets rows for a reason
+# that has nothing to do with the lane — and a gate that goes red for a reason it
+# does not guard is a gate people learn to ignore. `ar.diff_scope` is the single
+# place that decision lives; this reads it rather than restating it.
+_FIXTURES = (ar.diff_scope(shadow.declared_diff(), None)[0] if _FULL
+             else ["wick_that_unwinds"])
 
 
 @pytest.fixture(scope="module")
@@ -308,7 +318,15 @@ def test_the_declaration_records_the_measurement_it_was_taken_from(declared):
     commit, the k, the fixtures and the two lane totals it was measured at."""
     m = declared["measured"]
     assert m["k"] == ar.DIFF_K
-    assert sorted(m["fixtures"]) == sorted(ar.fixture_names())
+    # ⛔ THE DECLARATION NAMES ITS SCOPE, AND THE CORPUS IS ALLOWED TO BE BIGGER.
+    # This used to demand `== ar.fixture_names()`, which was the same statement
+    # only while the corpus happened to be exactly the four series the
+    # declaration was measured over. Seven real-tape fixtures were added
+    # afterwards and their per-address behaviour is a CENSUS, not a budget — so
+    # what has to hold is that the declaration names exactly the fixtures the
+    # gate drives, and that all of them are real.
+    assert m["fixtures"] == ar.diff_scope(declared, None)[0]
+    assert set(m["fixtures"]) <= set(ar.fixture_names())
     assert m["addresses_covered"] == 31
     assert m["forming_fires"] > 0 and m["closed_fires"] > 0
     assert m["gained"] > 0 and m["lost"] > 0
@@ -558,17 +576,26 @@ def test_the_shadow_job_is_registered_as_its_OWN_scheduler_job():
     assert "indicator_alert_evaluator.start_evaluator" in src
 
 
-def test_ALERT_EVAL_MODE_is_still_forming():
+def test_ALERT_EVAL_MODE_is_the_CLOSED_lane_and_is_assigned_exactly_once():
     """⛔ TASK 8 IS THE ONLY COMMIT PERMITTED TO CHANGE WHEN A LIVE ALERT FIRES.
 
-    Shadow mode exists precisely so that day is a decision and not a side effect.
+    Shadow mode exists precisely so that day was a decision and not a side
+    effect. It has now happened, in one commit, and this pins the value it left
+    behind — a SECOND assignment would import with the second value and an
+    equality check against the module attribute would happily agree with it.
+
+    ⚠️ THE SHADOW LANE OUTLIVED ITS OWN PURPOSE HERE AND THAT IS A SEPARATE
+    DECISION. `ALERT_SHADOW_ENABLED` is still an environment flag on production
+    and `alert_shadow_fires` still grows at ~30 rows/minute, 24/7, with no
+    retention. Turning it off is an operational step, not a code one, so it is
+    named in the cutover record rather than silently assumed done.
     """
-    assert ev.ALERT_EVAL_MODE == "forming"
-    assert ev.eval_mode() == "forming"
+    assert ev.ALERT_EVAL_MODE == "closed"
+    assert ev.eval_mode() == "closed"
     src = (_ROOT / "api" / "services" / "indicator_alert_evaluator.py").read_text(
         encoding="utf-8")
     assigns = [n for n in ast.walk(ast.parse(src))
                if isinstance(n, ast.Assign)
                and any(isinstance(t, ast.Name) and t.id == "ALERT_EVAL_MODE"
                        for t in n.targets)]
-    assert len(assigns) == 1 and assigns[0].value.value == "forming"
+    assert len(assigns) == 1 and assigns[0].value.value == "closed"

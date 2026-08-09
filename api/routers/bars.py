@@ -20,6 +20,7 @@ from api.services.bars_fetch import (
     # Core fetch/cache functions (used by routes below)
     _get_bars_inner,
     _get_bars_since_response,
+    _get_bars_to_response,
     _fmt_sqlite_bars,
     _needs_fresh,
     _run_universe_warm,
@@ -132,6 +133,7 @@ def get_bars(
     tf: str = Query(default="D", description="Timeframe: 1, 5, 15, 30, 60, D, W, M"),
     bars: int = Query(default=200, ge=1, le=60000, description="Max bars to return"),
     since: str = Query(default="", description="Return only bars with t > since (browser delta sync)"),
+    to: str = Query(default="", description="Return bars ending at this date (YYYY-MM-DD) — replay pre-cutoff window"),
 ):
     """Return OHLCV bars for client-side charting (Lightweight Charts v5).
 
@@ -167,6 +169,9 @@ def get_bars(
                         since_int = None
                 data = fetch_index_bars(ticker, tf, bars, since_int)
                 response = JSONResponse(content=data)
+            elif to:
+                # Replay pre-cutoff window: bars ENDING AT `to`, served fast from SQLite.
+                response = _get_bars_to_response(ticker, tf, bars, to)
             elif since:
                 response = _get_bars_since_response(ticker, tf, bars, since)
             else:

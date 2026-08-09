@@ -1,0 +1,24 @@
+{
+  "bar_count": 579,
+  "bars": "tests/fixtures/alerts/replay_bars.json#intraday5m",
+  "digests": {
+    "abs_change": "bbd37db7c7cb3bdc83268ed81f1681c5046e034bdc02e1da86bacd332f1f56d6",
+    "bounds_inclusive": "a3320dbb6668317a3f8b83120bdf5349450ef54e9fb86388b7ec2e4ec4ffac81",
+    "compare_with_nan": "545c9512dc4c9f4d628c46d3e023067596f8eb50f174a72bac8e8951eaa7c8c4",
+    "cross": "5eb2c225179737b4c8b7e631d0c7eee4f3db7033a93af6dbf7190bdaf40da53e",
+    "cross_under": "74e2b6026341b3c188dd7cd3346d7b6c29072e1a984b576fda3cfa15f683e556",
+    "deep_nest": "d8205e3a9ca12da9532dbfcbc892192b26d9270dbec65b268aaad20a265e0883",
+    "equality_and_negation": "d8ed712f36a81e64005d64ab994f3d978f7b1b30a932e323098996be8b7d5525",
+    "float_division": "73cda8db44d16b45d6df5cb11e114bd483d3779a53b1f8184e8ca43b6b7a4c2b",
+    "lowest_of_low": "110769cabcfcffbaf3e281923f5fbb88eb494b843ca0a05738b1f87632e709e5",
+    "min_max_envelope": "803e0a7053dc62d4ce3ee84dff66f2b0ab95c57e089610d32f33d96dbcb56365",
+    "nan_propagates": "229b24e2449e6d8c14df63ecc1186cee4476d5c9abb3033fc2a2d1680aac337c",
+    "sma_of_close": "952cdab53fd159c37f50849414e89b20127a24fce5865b8d4164eac4ce3ce03c",
+    "stdev_band": "55a3fe883d8a0b11c563b490c55d5a132bf0122a60b4cced4c3fc1dd2e208be3",
+    "strict_less": "4830015bee38d7eac98ac203d7beebc2c5284d492eabe723ec3e4b33a7715d7c",
+    "ternary": "8e06c51905d69a6b63926217eaa2b2448fa2efb2984c6f6b7ac8724903042653",
+    "unary_minus": "734397d94f5a4336b25154f7d844309f1b663cb6e4436cdd43321158595e29da",
+    "volume_relative": "f2877b525d0e6a245133c9d2e36409745e989994d5dc50f4569ed62ab24a3022"
+  },
+  "rel_tol": 1e-09
+}

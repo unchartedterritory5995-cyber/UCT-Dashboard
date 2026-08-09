@@ -4083,6 +4083,250 @@
           }
         }
       }
+    },
+    {
+      "name": "engine_two_rsi_instances",
+      "why": "THE DUPLICATE, MEASURED. Side A draws ONE RSI(14) from the legacy mirror; side B draws RSI(14) AND RSI(7) from `instancesB`, one build apart, so the diff is the second line and nothing else. It is the ONLY case in the chart-UX-walls phase that moves a pixel -- the chip, its controls, the Duplicate row and the settings dialog are ALL invisible here, because ChartRender injects `#chart-export [class*=\"legend\" i]{display:none !important}` into the only route this harness photographs (see app/src/components/chart/engine/__tests__/parityGateBlindness.test.js, which derives that claim from THIS file and goes red if the export CSS ever moves). !! ONE PANE, NOT TWO: `orderedPaneKeys` dedupes by defId (paneLayout.js) and `resolvePlacement` resolves `const key = def.id` (placement.js), so both instances land on the pane keyed 'rsi' and share its 0..100 scale. MEASURED: the manifest reads THREE panes on BOTH sides (candles 352 px, volume 117 px, rsi 61 px) and every height is identical -- a pane-count or pane-height change here is a regression, not a feature, and `legendFromDefinitions.test.jsx` asserts the same premise from the renderer's side with the one-RSI chart as its control. !! THE FAIL-PROOF IS THE SECOND PERIOD, NOT A COLOUR: re-run with --perturb-b-instances '{\"period\": 14}' so both instances draw the SAME line. A colour probe would move pixels even if the second instance were never bound, and would therefore prove nothing about the duplicate. !!! MEASURED, AND THE BRIEF'S PREDICTION OF 0 IS WRONG -- IT FALLS TO 3,661 (3/3 runs, zero variance), AND THE RESIDUE IS ANTI-ALIASING, NOT A LINE. Classifying every changed pixel against the pane background settles it: on the MAIN run 43.2% is ink where side A had BACKGROUND (the RSI(7) line lands where nothing was) and 42.2% is ink that DISAPPEARED (RSI(7)'s wider excursions widen the pane's autoscale range, so the RSI(14) line itself moves) -- a genuinely different picture. On the FAIL-PROOF run 99.3% of the residue is pixels that were ALREADY ink on both sides and merely got more saturated, 0.7% (27 px) is outermost-fringe ink, and ZERO ink disappeared. Nothing moved: lightweight-charts strokes the identical path twice and the semi-transparent anti-aliased fringe composites toward the line's own colour. So the DISCRIMINATION is 11,169 -> 3,661, a 67.2% fall, with the manifest still showing `inst:rsi:1::rsi` bound on the perturbed run -- which is what proves the fall is 'two identical lines' and not 'the second instance vanished'. A future runner who gets 0 here should suspect the renderer stopped drawing the second instance, not that the fail-proof got better. !! THE MANIFEST SAYS THE SAME THING WITHOUT COSTING A PIXEL, and it is worth reading on every run: the geometry half of the diff is EXACTLY ONE line -- `panes[2].series[1]: None -> {type: Line, scaleId: right, key: 'inst:rsi:1::rsi'}`. A second SERIES in the pane the first instance already owns, on the same right scale, and nothing else. It is also what makes the fail-proof discriminating: with both instances at period 14 the pixel count collapses while THIS line is still present, so the fall is provably 'two identical lines' and not 'the second instance never bound'. !! IT IS DELIBERATELY *NOT* DECLARED AS `expectManifestChange`. Declaring it would make this case's OWN determinism controls (--instances-side none / both) exit 1 while measuring exactly the 0 they exist to measure, because neither mode can produce a second series -- a control nobody can read green is a control nobody re-runs. The failure mode it would have guarded (a build where the second instance stops binding) is already caught by the `expect` equality, which that build would miss with a 0. !! AND A 0 ON THE MAIN RUN IS A FAILURE, NOT A PASS: `expect` is an equality on EVERY run, so a build where the second instance never bound reports 0 and exits 1. That is the anti-vacuous-green rule -- `rs_line_spy_only` set the precedent by REFUSING to record an expect it could only have measured as 0. !! THE REGIONS WERE PRICED SEPARATELY, AND ALL 11,169 PIXELS ARE IN ONE BAND. Task 6 measured the case-level `expect` and left the per-region ones undeclared, which `test_EVERY_live_case_declares_an_exact_expect_after_Flip_C` reads as an unpriced case. Measured on build `29d3d39aa247` served to BOTH sides (the engine rehearsal is ONE build), `--repeat 5`, no `--tolerance`: the distinct set is a SINGLE value per region on all five runs -- export_header 0, price_plot 0, mid_panes 0, osc_strip 11169, time_axis 0, and the computed `rest` 0. The boxes themselves are NOT hand-drawn and not copied from `rsi_only`: they are `tools/gen_parity_regions.py`'s own output, derived from a bands/panes PAIR (`_regionsFrom` stamps both identities and both sides' pane heights), which is the only form `test_every_region_block_records_the_TWO_BUILDS_it_was_derived_from` accepts -- a one-build box is a box nobody can reproduce. Under `--instances-side none` this case IS `rsi_only`'s geometry by construction (same fixture, same preset, same period; only the line COLOUR differs, which cannot move a boundary), so the deriver returns the same five rectangles and that agreement is a check, not a coincidence. An independent bounding box over the raw A/B captures agrees -- the changed-pixel bbox is exactly (0, 511, 1164, 572) and NOT ONE changed pixel lies outside the RSI pane. That is the pixel-side confirmation of the manifest's 'three panes, every height identical': the RSI(7) line AND the RSI(14) line that the widened autoscale moves both live inside the pane the two instances share, so a pixel in `price_plot` or `mid_panes` would mean a pane height had moved. !! THE COST, STATED RATHER THAN DISCOVERED: the two determinism controls above now need `--expect 0` AND STILL EXIT 1, on the `osc_strip` row (0 vs 11,169), because a region `expect` is bound to the configuration it was measured in and neither control can draw a second line. Their MEASUREMENT is unchanged and still green -- `changed=0` on every run, zero variance, measured 3/3 each -- so for those two read the `changed` column, NOT the exit code. This is the same structural artifact as the 102-per-run region-expect failures the 46 pre-existing cases report whenever both sides are the same kind of build (x5 runs = the 510 Phase C Task 15 recorded), and none of them is a changed pixel.",
+      "_regionsFrom": "gen_parity_regions.py -- bands a05c314d8ca0 panes 29d3d39aa247: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61]",
+      "regions": [
+        {
+          "name": "export_header",
+          "box": [
+            0,
+            0,
+            1200,
+            40
+          ],
+          "expect": 0
+        },
+        {
+          "name": "price_plot",
+          "box": [
+            0,
+            40,
+            1200,
+            392
+          ],
+          "expect": 0
+        },
+        {
+          "name": "mid_panes",
+          "box": [
+            0,
+            392,
+            1200,
+            511
+          ],
+          "expect": 0
+        },
+        {
+          "name": "osc_strip",
+          "box": [
+            0,
+            511,
+            1200,
+            572
+          ],
+          "expect": 11169
+        },
+        {
+          "name": "time_axis",
+          "box": [
+            0,
+            572,
+            1200,
+            620
+          ],
+          "expect": 0
+        }
+      ],
+      "_fixedbarsReason": "NO `fixedbars` KEY ON PURPOSE. `load_cases` merges `defaults` under every case, so this inherits exactly what `rsi_only` inherits -- the same fixture, by construction rather than by a copied string that can drift when the default moves.",
+      "_priceLineReason": "Same class as every case that creates an oscillator pane: the candles' dashed last-price line lands on a different scanline when pane 0's height changes, and Chromium rasterises its dash boundaries two ways at some of those rows. Side A and side B here have the SAME pane geometry, but the flag is free and the class is measured (see engine_rsi_vs_legacy's `_priceLineReason`), so it stays off.",
+      "tf": "D",
+      "settings": {
+        "indicators": {
+          "rsi": {
+            "enabled": true,
+            "period": 14
+          }
+        }
+      },
+      "instancesB": [
+        {
+          "instanceId": "legacy:rsi",
+          "defId": "rsi",
+          "defVersion": 1,
+          "inputs": {
+            "period": 14
+          },
+          "placement": {
+            "target": "pane"
+          },
+          "hidden": false
+        },
+        {
+          "instanceId": "inst:rsi:1",
+          "defId": "rsi",
+          "defVersion": 1,
+          "inputs": {
+            "period": 7
+          },
+          "placement": {
+            "target": "pane"
+          },
+          "hidden": false
+        }
+      ],
+      "priceLine": false,
+      "expect": 11169
+    },
+    {
+      "name": "ast_user_formula_sma20",
+      "why": "PHASE D TASK 16 -- IT DRAWS, AND THE CASE IS NOW LIVE. This is the first case for a USER-AUTHORED indicator: `sma(close, 20)` typed into the builder, parsed by `engine/ast/parse.js`, stored as an `ast`-lane definition under a minted `u_<12 hex>` id, INSTALLED into the registry through `nativeRegistry.installUserDefinitions`, and instantiated here exactly as `engine_two_rsi_instances` instantiates a native. [!] TASK 11 MEASURED THIS CASE AT **0 CHANGED PIXELS ON 5 OF 5 RUNS -- AND SO DID ITS FAIL-PROOF**, and refused to call that a pass: `registerUserDefinitions` (now `validateUserDefinitions`) VALIDATED a user definition and installed it NOWHERE, so `getDefinition('u_5ea7c0de1234')` answered null, `validateInstance` failed with \"names no registered definition\", `normalizeInstances` dropped the instance before layout, and side A and side B were both `panes=[(0,414,[candles]),(1,117,[volume x2])]` -- two panes, no third, no series. Task 16 built the install door. [*] MEASURED NOW, build `9b7a6dfc8d8a` (a `vite` dev server on this branch, `engine source: present`), served to BOTH sides (--same-build), --repeat 5, no --tolerance: **140,925 changed pixels on 5 of 5 runs, zero variance**, region-split `export_header:0 price_plot:28719 mid_panes:61883 osc_strip:50323 time_axis:0 rest:0` (they sum to the headline exactly), with the manifest gaining `panes[2] = {height 61, series [{Line, right, 'inst:u_5ea7c0de1234:0::value'}]}` and `panes[0].height 414 -> 352`. [*] THE FAIL-PROOF MOVES, AND IT MOVES IN THE RIGHT RECTANGLE. `--perturb-b-instances '{\"color\": \"#ff00ff\", \"lineWidth\": 4}'` -> **141,551 on 5 of 5, zero variance**: +626 px, and every one of them in `osc_strip` (50,323 -> 50,949) with `price_plot`, `mid_panes`, `export_header` and `time_axis` BYTE-UNCHANGED. A perturbation of the user's own line inputs moves the user's own pane and nothing else, which is a stronger statement than a delta on the headline. [STOP] AND THE ZERO IS STILL REACHABLE ON DEMAND -- BOTH WAYS. (a) Delete `userDefs` from this case and re-run: **0 changed, 5 regions at 0, `manifest_diff` EMPTY, `window.__userDefinitions` = `{installed: [], errors: []}`** -- Task 11's exact picture, reproduced deliberately, which is what makes the 140,925 attributable to the DEFINITION and to nothing else. (b) Flip this document's `meta.repaint` from `non-repainting` to `repaints` -- a stored verdict gone stale, Task 10's named failure -- and re-run: **0 changed, `installed: []`, and `errors[0]` is the linter's own sentence** (\"declared \\\"repaints\\\" but the linter MEASURES \\\"non-repainting\\\"\"). An invalid definition installs nothing and draws nothing, so the install door is not a way around the gates. Both probes were applied and reverted byte-identically (sha256 of this file `7698653b50cb...` before and after each). [!] `?userdefs=` IS WHY THIS CASE CAN EXIST AT ALL. `?fixedbars=` makes ChartRender HERMETIC -- every `/api/` call answers 503 -- so the product path (`useInstalledUserDefinitions` -> `GET /api/user-definitions`) cannot fetch a definition on this route, which is exactly what Task 11 recorded as unreachable. `?userdefs=` carries the DOCUMENTS and installs them through `installUserDefinitions`, the same door and the same gates the product uses, so probe (b) above refuses here for the same reason it refuses for a user. It goes to BOTH sides because a definition is a CATALOGUE entry: what side B has and side A does not is the INSTANCE. [*] `priceLine: false` for the reason every case that creates an oscillator pane carries it -- pane 0 goes 414 -> 352, so the candles' dashed last-price line lands on a different scanline, and Chromium rasterises its dash boundaries two ways at some of those rows (see `engine_rsi_toggle_off`'s `_priceLineReason`). It is a determinism control, not a tolerance: this case is 0-variance on 5 runs WITH it off, and it must stay that way.",
+      "settings": {},
+      "instancesB": [
+        {
+          "instanceId": "inst:u_5ea7c0de1234:0",
+          "defId": "u_5ea7c0de1234",
+          "defVersion": 1,
+          "inputs": {
+            "color": "#c9a84c",
+            "lineWidth": 1
+          },
+          "placement": {
+            "target": "pane"
+          },
+          "hidden": false
+        }
+      ],
+      "userDefs": [
+        {
+          "schemaVersion": 1,
+          "id": "u_5ea7c0de1234",
+          "version": 1,
+          "compute": {
+            "kind": "ast",
+            "fn": "sha256:5e7eee0a190279bde33add36b4c61957919bd1f61b53de855f6bb9ba5c749186",
+            "rev": 1,
+            "ast": {
+              "type": "call",
+              "name": "sma",
+              "args": [
+                {
+                  "type": "series",
+                  "name": "close"
+                },
+                {
+                  "type": "num",
+                  "value": 20
+                }
+              ]
+            },
+            "source": "sma(close, 20)"
+          },
+          "meta": {
+            "name": "SMA 20",
+            "shortName": "SMA 20",
+            "category": "Custom",
+            "description": "the 20-bar average of close",
+            "tags": [
+              "custom"
+            ],
+            "tier": "premium",
+            "repaint": "non-repainting"
+          },
+          "placement": {
+            "target": "pane",
+            "pane": {
+              "height": 0.15
+            }
+          },
+          "inputs": [
+            {
+              "key": "color",
+              "type": "color",
+              "label": "Color",
+              "default": "#c9a84c"
+            },
+            {
+              "key": "lineWidth",
+              "type": "int",
+              "label": "Line width",
+              "default": 1,
+              "min": 1,
+              "max": 4,
+              "step": 1
+            }
+          ],
+          "plots": [
+            {
+              "key": "value",
+              "label": "SMA 20",
+              "style": "line",
+              "color": "$color",
+              "width": "$lineWidth",
+              "role": "primary"
+            }
+          ]
+        }
+      ],
+      "regions": [
+        {
+          "name": "export_header",
+          "box": [
+            0,
+            0,
+            1200,
+            40
+          ],
+          "expect": 0
+        },
+        {
+          "name": "price_plot",
+          "box": [
+            0,
+            40,
+            1200,
+            392
+          ],
+          "expect": 28719
+        },
+        {
+          "name": "mid_panes",
+          "box": [
+            0,
+            392,
+            1200,
+            511
+          ],
+          "expect": 61883
+        },
+        {
+          "name": "osc_strip",
+          "box": [
+            0,
+            511,
+            1200,
+            572
+          ],
+          "expect": 50323
+        },
+        {
+          "name": "time_axis",
+          "box": [
+            0,
+            572,
+            1200,
+            620
+          ],
+          "expect": 0
+        }
+      ],
+      "priceLine": false,
+      "expect": 140925,
+      "expectManifestChange": true,
+      "_expectFrom": "chart_parity.py --base-a http://localhost:5231 --same-build --repeat 5 --include-placeholders --cases ast_user_formula_sma20 on build 9b7a6dfc8d8a (dev, engine source: present) -- 140925 px, 5/5 runs, zero variance, exit 0. Fail-proof: --perturb-b-instances '{\"color\": \"#ff00ff\", \"lineWidth\": 4}' -> 141551, 5/5, zero variance (+626, all of it in osc_strip).",
+      "_regionsFrom": "gen_parity_regions.py -- bands a05c314d8ca0 panes 29d3d39aa247: stackTop=40 chartHeight=532 separatorPx=1 paneHeights bands=[414, 117] panes=[352, 117, 61] -- REUSED VERBATIM by `ast_user_formula_sma20` (Phase D Task 16), and the two build identities above are the ones the RECTANGLES were derived from, which is what this stamp is for. The reuse is legitimate and CHECKED, not assumed: this case produces exactly that geometry pair, verified against its own `window.__paneManifest` on build 9b7a6dfc8d8a -- `panes_a=[414, 117]`, `panes_b=[352, 117, 61]`, stackTop 40, separatorPx 1. `gen_parity_regions.py` is a TWO-BUILD tool (it takes a `bands` URL and a `panes` URL) and this is a same-build engine rehearsal, so there is no cutover to point it at; the alternative was hand-drawing boxes, which is the exact defect this rail exists to refuse. The five `expect` values were MEASURED on this case, not copied from the template: they are 0/28719/61883/50323/0 and they sum to 140925 exactly, where the template reads 0/0/0/11169/0."
     }
   ]
 }

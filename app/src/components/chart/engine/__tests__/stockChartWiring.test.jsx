@@ -5,6 +5,11 @@ import intraday5m from '../../../../pages/parityBars/intraday5m.json'
 // THE legend read, shared with `legendFromDefinitions.test.jsx` — see the note
 // where `settledLegend` is wrapped below.
 import { legendTextOf, settledLegend as settledLegendWith, LEGEND_RENDERED } from './legendProbe'
+// ⭐ PHASE D TASK 8 — the one place a registry count lives. See the loop-counter
+// note far below for why this is NOT the tautology the literal was guarding
+// against: `REGISTRY_SIZES` is a hand-written manifest's arithmetic, not the set
+// the loop iterated.
+import { REGISTRY_SIZES } from '../registrySizes'
 
 // ─── The wiring test (Task 7) ───────────────────────────────────────────────
 //
@@ -1330,21 +1335,34 @@ describe('an engine-drawn indicator still appears in the crosshair legend', () =
     expect(rsiChipColor(view)).toBe('rgb(255, 0, 0)')
   })
 
-  it('a HIDDEN instance binds nothing, and NEITHER side puts a chip in the legend', async () => {
+  it('a HIDDEN instance binds nothing, and its chip prints the LABEL with no value', async () => {
+    // 🔴 THE SECOND HALF WAS `not.toContain('RSI(')` AND IT IS INVERTED
+    // (chart-UX-walls Task 3). It was the twin of the assertion in
+    // `legendFromDefinitions.test.jsx`, and it said the same wrong thing: a
+    // hidden instance had no chip, so there was no surface an un-hide could be
+    // reached from and Hide was a one-way door out of the settings modal. Spec
+    // §6 state 7 calls Hidden a CHIP STATE. `readout.legendChips` walks the
+    // INSTANCE list now, so a hidden instance keeps a dimmed, value-less chip.
+    //
     // ⚠️ WHAT EACH HALF PROVES (review M-4 corrected a report claim here). The
-    // FIRST assertion is the gate on `legend.hide`-adjacent behaviour: a hidden
-    // instance binds nothing. The SECOND does NOT prove the chip logic dropped
-    // it — `hoverLatest` finds no `rsi`-scale series, so no value was offered in
-    // the first place. What it DOES prove, and the reason it stays, is that the
-    // legacy block did not step in with a chip of its own while the engine still
-    // owns the definition. `legend.hide` itself is gated in `readout.test.js`
+    // FIRST assertion is unchanged and is the gate on `legend.hide`-adjacent
+    // behaviour: a hidden instance binds NOTHING — the renderer's contract did
+    // not move, only the readout's. The SECOND now proves BOTH directions at
+    // once, which the old absence could not: the chip is there (the un-hide
+    // surface exists) AND it carries no number (nothing stepped in with a value
+    // for a line that is not drawn — a legacy block doing so would print
+    // `RSI(14) 54.3`). `legend.hide` itself is still gated in `readout.test.js`
     // (`emits NO chip for a price overlay`), on the pure function, where a
     // mutation actually reaches it.
     const view = draw({
       ...RSI_ON, indicatorInstances: [{ ...RSI_INSTANCE, hidden: true }],
     })
     expect(H.binderApis[0].bindings(), 'a hidden instance must bind nothing').toHaveLength(0)
-    expect(await hoverLatest(view)).not.toContain('RSI(')
+    const text = await hoverLatest(view)
+    expect(text, 'the hidden instance lost its chip — Hide is a one-way door again')
+      .toContain('RSI(14)')
+    expect(text, 'a hidden chip printed a value for a line that is not drawn')
+      .not.toMatch(/RSI\(14\)\s*-?\d/)
   })
 
   // ── THE DEVELOPING BAR — the live sequence, not a synthetic one ───────────
@@ -3961,9 +3979,20 @@ describe('the Flip-B machinery, live (Task 10)', () => {
     // `avwap` and `atrBands` are the first definitions that never had one.
     // ⭐ STILL 16 AT PHASE C TASK 13, AND THAT IS THE POINT: the registry grew to
     // seventeen and this number did NOT, because the seventeenth is on the server
-    // lane and has no legacy toggle to be reached from. Written as a literal so
-    // "the set went empty" and "a native slipped into the exclusion" both fail.
-    expect(seen, 'the flipped set is empty — this loop proves nothing').toBe(16)
+    // lane and has no legacy toggle to be reached from.
+    //
+    // ⭐ PHASE D TASK 8 — THE LITERAL BECOMES `REGISTRY_SIZES.native`, AND THE
+    // WARNING ABOVE STILL HOLDS. The objection was to `ENGINE_OWNED.size`: that
+    // IS the set the loop iterated, so comparing the counter to it is a tautology
+    // that survives the set being emptied. `REGISTRY_SIZES.native` is not that —
+    // it is the length of a HAND-WRITTEN manifest in `registrySizes.js` that the
+    // registry has to prove it matches, one file over. So "the set went empty"
+    // still fails, "a native slipped into the exclusion" still fails, and the
+    // number now also SAYS WHY it is sixteen: this loop draws from a legacy
+    // toggle, and the native lane is exactly the set of definitions that have
+    // one. A third-lane definition would break it, correctly — somebody has to
+    // decide what a legacy toggle means for a user's own formula.
+    expect(seen, 'the flipped set is empty — this loop proves nothing').toBe(REGISTRY_SIZES.native)
   })
 
   it('the binder is handed the LAYOUT\'S OWN band map, and the bands follow the INSTANCE LIST', () => {
