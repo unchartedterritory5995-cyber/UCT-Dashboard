@@ -87,7 +87,23 @@ _ENTRY_POINTS = ("evaluate_one", "run_sweep", "sweep_job", "definitions_to_sweep
 #:   expected_session — the bars store's OWN calendar function (weekend/pre-open/
 #:                      holiday walk-back over a `datetime`). No store read.
 #:   enabled          — `os.environ.get("SCAN_SWEEP_ENABLED")`.
-_OFF_SWEEP_READS = ("cadence_ceiling", "expected_session", "enabled")
+#:   market_open_et   — walks the minutes of ONE calendar day asking
+#:                      `bars_fetch.bucket_60_et_unix_seconds` which one is not a
+#:                      clock hour, so the session open is DERIVED rather than
+#:                      typed. Pure arithmetic over `datetime`; no store, no
+#:                      universe. MEASURED 1.75 ms/call on this box — the most
+#:                      expensive entry here by three orders of magnitude, and
+#:                      still O(1) in SYMBOLS, which is what this partition is
+#:                      about. ⚠️ It is also 1.75 ms a request has no reason to
+#:                      spend: nothing under `api/routers/` calls it today and the
+#:                      census above is what keeps that true.
+#:   sweep_deadline   — `market_open_et` minus `SWEEP_STOP_BEFORE_OPEN`.
+#:   previous_session — the bars store's OWN calendar again, probed at midnight of
+#:                      the session, which is its weekend/holiday walk-back
+#:                      answering "the last session strictly before this one".
+#:                      No store read.
+_OFF_SWEEP_READS = ("cadence_ceiling", "expected_session", "enabled",
+                    "market_open_et", "sweep_deadline", "previous_session")
 
 
 # ═══ the module index, DERIVED from the filesystem ══════════════════════════

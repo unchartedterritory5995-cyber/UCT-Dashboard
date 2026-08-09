@@ -55,13 +55,22 @@ attributable and fixed by upgrading. This is the same conclusion E-3 reached and
 the axis is KEPT rather than dropped: E-3 said a history axis *"has to produce a
 declared outcome … rather than a quietly different value"*, and that is what ships.
 
-⚠️ ITS PRODUCTION CALL SITE IS NOT WIRED YET AND THAT IS STATED, NOT HIDDEN. The
-refusal has to become a `withheld` count in the sweep's envelope, which needs
-`toolkit:history` added to `scan_evaluator.WITHHELD_REASONS` — a vocabulary E-3
-owns. Until the controller lands that one edit, the shipped toolkit's
-`max_history_bars` is `None`, this function is the identity, and the rails below
-make the WRONG implementation impossible to introduce quietly rather than merely
-discouraged.
+✅ ITS PRODUCTION CALL SITE IS WIRED (2026-08-09). `toolkit:history` is in
+`scan_evaluator.WITHHELD_REASONS` and `scan_evaluator._history_withheld` is the
+sweep's enforcement point; `test_the_WITHHELD_VOCABULARY_is_PINNED_to_the_SWEEPs_not_RESTATED`
+went RED by name on the commit that landed it and now pins the two sets EQUAL.
+
+⚠️ THE SWEEP ASKS THE QUESTION ONE GRAIN COARSER THAN THIS FUNCTION, DELIBERATELY.
+`apply_history_cap` refuses on `len(bars)` — a fact about ONE SYMBOL. The sweep
+refuses on `want`, the history the TREE declares it reads, so the whole definition
+is withheld under one attributable reason before a bar is touched. Asking
+per-symbol would answer YES for a liquid name and NO for a thin one, and a member
+on a small plan would get results only for the data-poorest tickers in the
+universe — a lottery wearing an entitlement's clothes. The two agree wherever a
+symbol carries the history the tree asked for, and
+`test_the_SWEEPs_history_gate_and_apply_history_cap_AGREE` drives both over a
+matrix. The shipped toolkit's `max_history_bars` is still `None`, so this function
+is still the identity for everybody today.
 
 ────────────────────────────────────────────────────────────────────────────────
 🔴 THE CADENCE AXIS — BOUNDED BY THE DATA FIRST, BY THE PLAN SECOND

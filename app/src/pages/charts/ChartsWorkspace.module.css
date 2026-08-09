@@ -1359,7 +1359,41 @@
     margin-left: 0;      /* stop shoving it to a right edge that isn't there */
     width: 100%;
     justify-content: flex-start;
+    /* ── SESSION-TOGGLE-TRUNCATED ────────────────────────────────────────
+       The cluster fitted on screen after the wrap above, and the segmented
+       control STILL lost its last two characters — a different bug on the
+       same control, and the reason the audit reported it twice.
+
+       Measured on a 375×812 phone (2026-08-09), before: the group's
+       `scrollWidth` is 257 against a `clientWidth` of 231 — exactly **26px
+       clipped**, so "INCLUDE POST-MARKET" renders as "INCLUDE POST-MARK".
+       `.sessionToggle` is `overflow: hidden` (it has to be, or the rounded
+       corners cut through the buttons), so the loss is SILENT: the document
+       reports zero horizontal overflow while a member reads a truncated
+       word. Arithmetic: the row has ~357px, the toggle wants 257 and the
+       market clock ~100 — one pixel over, and the default `flex-shrink: 1`
+       takes it out of the toggle.
+
+       ⛔ NOT a `min-width`, and not a smaller font. The row is already
+       allowed to wrap (`.chartHeaderTop` above); the toggle just was not
+       allowed to keep its own width while it did. Letting THIS row wrap too
+       and pinning the control's width sends the clock to a second line
+       instead of eating the label.
+
+       ⭐ AND IT IS THE OWNER'S `5f969b4e` FIX'S SIBLING, NOT A REVERT. That
+       one grew these buttons VERTICALLY to `--tap-min` (below, at ≤1024) and
+       deliberately did not widen them. This is the horizontal axis of the
+       same control and changes no height. */
+    flex-wrap: wrap;
+    row-gap: 6px;
   }
+
+  /* ⚠️ PHONE ONLY, DELIBERATELY. This class is shared with the multi-chart
+     grid cells (`GridChartCell` imports it), and a tablet grid can be four
+     cells across — narrower than the control's natural 257px, where refusing
+     to shrink would push it out of its cell. At ≤640px the workspace renders
+     ONE full-width chart, so there is nothing to push. */
+  .sessionToggle { flex-shrink: 0; }
 }
 
 /* Session toggle on touch: 109x19 and 148x19 measured on a 390px phone, well

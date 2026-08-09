@@ -148,6 +148,32 @@ def bars(monkeypatch):
     return table
 
 
+@pytest.fixture
+def clock(monkeypatch):
+    """⏰ THE SWEEP READS A WALL CLOCK NOW, SO EVERY SWEEP TEST MUST FREEZE IT.
+
+    Frozen at the sweep's OWN SCHEDULED HOUR on the session under test — derived
+    from `SWEEP_HOUR_ET`/`SWEEP_MINUTE_ET` rather than typed, so moving the
+    schedule moves the fixture and the budget tests keep describing production.
+
+    ⛔ THERE IS EXACTLY ONE CLOCK TO FREEZE (`scan_evaluator._now_et`) AND THAT IS
+    WHY THIS IS SAFE. `lesson_a_half_faked_clock_manufactures_false_positives`
+    measured 15 false time-bombs per real one, every one from a test that froze
+    one source and left a second running. `sweep_deadline` reads this same
+    function, so freezing it freezes the deadline too.
+
+    ⭐ WITHOUT THIS FIXTURE THESE TESTS PASS BEFORE 09:00 ET AND FAIL AFTER IT —
+    measured, not theorised: three pre-existing sweep tests went red the moment
+    the budget landed, at 11:07 ET, because the real deadline had already passed.
+    """
+    frozen = datetime.datetime(
+        SESSION_DATE.year, SESSION_DATE.month, SESSION_DATE.day,
+        scan_evaluator.SWEEP_HOUR_ET, scan_evaluator.SWEEP_MINUTE_ET,
+        tzinfo=scan_evaluator._ET)
+    monkeypatch.setattr(scan_evaluator, "_now_et", lambda: frozen)
+    return frozen
+
+
 def _snapshot(rows, snapshot_date=None):
     """Write `screener_rows` for this test. `rows` is `{ticker: {column: value}}`."""
     stamp = snapshot_date or SESSION_DATE.isoformat()
@@ -911,7 +937,8 @@ def test_the_batched_through_read_answers_what_latest_evaluation_answers(store, 
 # ═══ 8. the sweep over many definitions ═════════════════════════════════════
 
 def test_the_sweep_DEDUPES_by_MATHS_so_two_members_cost_ONE_evaluation(store, bars,
-                                                                       monkeypatch):
+                                                                       monkeypatch,
+                                                                       clock):
     """⭐ Two members who typed the same formula have the same maths, share one
     result set and cost the pod ONE sweep. That is the property that makes the
     store member-independent."""
@@ -931,7 +958,7 @@ def test_the_sweep_DEDUPES_by_MATHS_so_two_members_cost_ONE_evaluation(store, ba
     assert seen == ["u_00000000000a", other["id"]]
 
 
-def test_run_sweep_returns_NONE_rather_than_an_empty_day(store):
+def test_run_sweep_returns_NONE_rather_than_an_empty_day(store, clock):
     """⛔ `scan_gainers._build_reference` returns None on a provider miss *"so the
     job retries next request instead of caching an empty day"*. A `{}` here would
     be a run that happened and found nothing."""
@@ -940,7 +967,7 @@ def test_run_sweep_returns_NONE_rather_than_an_empty_day(store):
                                     as_of=SESSION) is None
 
 
-def test_a_REFUSED_definition_does_not_abort_the_rest_of_the_sweep(store, bars):
+def test_a_REFUSED_definition_does_not_abort_the_rest_of_the_sweep(store, bars, clock):
     """One member's malformed formula is not the other members' outage."""
     bars["A"] = _daily_bars()
     good = _definition(PRICE_TREE)
@@ -1127,7 +1154,7 @@ def test_the_scan_sweep_job_is_OFF_by_default(monkeypatch):
 
 
 def test_the_job_reads_the_ARTIFACT_back_rather_than_trusting_its_return_value(
-        store, bars, monkeypatch, caplog):
+        store, bars, monkeypatch, caplog, clock):
     """🔇⏰ `lesson_scheduler_job_return_value_goes_nowhere`: APScheduler discards
     what a job returns and silence reads as success. The success criterion is a
     `scan_coverage` row existing for today's `as_of`, READ BACK."""
@@ -1206,3 +1233,543 @@ def test_the_sweep_reads_the_scalars_ASSERT_SCANNABLE_handed_it(store, bars):
     fn = _function_node("evaluate_one")
     source = pyast.unparse(fn)
     assert "_scalar_columns(spec['scalars'])" in source
+
+
+# ═══ 12. the wall-clock budget ══════════════════════════════════════════════
+#
+# 🔴 `SWEEP-DURATION`, the performance audit's own words: *"`max_instances=1`
+# prevents OVERLAP but not OVERRUN."* Re-measured 2026-08-09, one definition is
+# 25-70 s and 500 of them run straight through the market open. What follows is
+# the pair the risk needs and neither half is optional: a budget that fires, and
+# a budget that does NOT fire on a normal night. A bound that always trips is a
+# broken sweep, not a bounded one.
+
+
+def _at(hour, minute=0, day=SESSION_DATE):
+    return datetime.datetime(day.year, day.month, day.day, hour, minute,
+                             tzinfo=scan_evaluator._ET)
+
+
+def _two_definitions():
+    return (_definition(PRICE_TREE, def_id="u_00000000000a"),
+            _definition(_op("<", _series("close"), _num(0)),
+                        def_id="u_00000000000b"))
+
+
+def test_the_BUDGET_FIRES_and_the_receipt_NAMES_what_went_UNSWEPT(
+        store, bars, clock, caplog):
+    """🔴 THE GATE. A deadline already in the past must stop the sweep — and
+    stopping must be REPORTED, never silent.
+
+    *"A sweep that quietly evaluated 40 of 500 definitions and wrote confident
+    receipts for the rest is the exact defect class this phase exists to
+    remove."* So three things are asserted together: nothing was swept, the
+    definitions are NAMED, and the shared store carries NO receipt for them —
+    `coverage(...) is None` is E-2's "nobody looked", which is the truth.
+    """
+    bars["A"] = _daily_bars()
+    first, second = _two_definitions()
+
+    with caplog.at_level("INFO"):
+        out = scan_evaluator.run_sweep([first, second], TF, universe=["A"],
+                                       as_of=SESSION,
+                                       deadline=_at(4))     # an hour ago
+
+    assert out["stopped_early"] is True
+    assert out["swept"] == 0
+    assert out["unswept"] == 2
+    assert out["unswept_reason"] == scan_evaluator.UNSWEPT_REASON
+    assert len(out["unswept_definitions"]) == 2, "the receipt named nobody"
+
+    # ⛔ NAMED BY THE SAME HANDLE THE STORE KEYS ON, so "which ones" is
+    # answerable against the artifact rather than by eye.
+    for handle in out["unswept_definitions"]:
+        assert scan_store.coverage(handle, TF, SESSION) is None, (
+            "a definition the sweep never reached carries a receipt — a "
+            "confident answer for work that never happened")
+        assert scan_store.hits(handle, TF, SESSION) == []
+
+    assert any("STOPPED EARLY" in r.message for r in caplog.records), (
+        "the sweep truncated in silence")
+
+
+def test_the_budget_does_NOT_fire_on_a_NORMAL_run__THE_CONTROL(
+        store, bars, clock, caplog):
+    """🔴 THE CONTROL, AND IT IS HALF THE GATE. A budget that always trips is a
+    broken sweep wearing a bound's clothes (`lesson_gate_that_cannot_fail`, the
+    other way round).
+
+    ⭐ NO `deadline=` IS PASSED — this runs the REAL derivation off the frozen
+    clock, so it proves the production default gives a 05:00 sweep room to work.
+    """
+    bars["A"] = _daily_bars()
+    first, second = _two_definitions()
+
+    with caplog.at_level("INFO"):
+        out = scan_evaluator.run_sweep([first, second], TF, universe=["A"],
+                                       as_of=SESSION)
+
+    assert out["stopped_early"] is False
+    assert out["swept"] == 2 and out["unswept"] == 0
+    assert out["unswept_definitions"] == [] and out["unswept_reason"] is None
+    assert not any("STOPPED EARLY" in r.message for r in caplog.records)
+    assert scan_evaluator.sweep_deadline(clock) > clock, (
+        "the sweep's own scheduled hour is already past its deadline")
+
+
+def test_the_budget_cuts_BETWEEN_definitions_and_NEVER_INSIDE_one(
+        store, bars, monkeypatch):
+    """🔴 THE SHARPEST CONSTRAINT. A mid-definition abort writes a
+    `scan_coverage` row describing a PARTIAL universe as though it were
+    complete — indistinguishable from a quiet market, which is the one reading
+    E-2's three-state design exists to keep impossible.
+
+    The clock advances past the deadline WHILE the first definition runs. The
+    first must still finish and its receipt must describe the WHOLE universe;
+    the second must not start at all.
+    """
+    universe = [f"SYM{i:02d}" for i in range(12)]
+    for s in universe:
+        bars[s] = _daily_bars()
+    first, second = _two_definitions()
+    deadline = _at(6)
+
+    # ⚠️ THE READS ARE COUNTED, NOT GUESSED. `run_sweep` reads the clock to stamp
+    # its start BEFORE the loop's first check, so a two-element script would have
+    # spent its "before" reading on the stamp and stopped at definition one —
+    # measured, and it is `lesson_a_half_faked_clock_manufactures_false_positives`
+    # in miniature.
+    readings = {"n": 0}
+
+    def _tick():
+        readings["n"] += 1
+        return _at(5) if readings["n"] <= 2 else _at(7)
+
+    monkeypatch.setattr(scan_evaluator, "_now_et", _tick)
+
+    out = scan_evaluator.run_sweep([first, second], TF, universe=universe,
+                                   as_of=SESSION, deadline=deadline)
+
+    assert out["swept"] == 1 and out["unswept"] == 1 and out["stopped_early"]
+    swept_handle = scan_definition.assert_scannable(first)["def_hash"]
+    receipt = scan_store.coverage(swept_handle, TF, SESSION)
+    assert receipt is not None
+    assert receipt["evaluated"] == len(universe), (
+        "the definition that was running when the clock ran out wrote a "
+        "PARTIAL universe into a complete-looking receipt")
+    assert receipt["evaluated"] == (receipt["answered"] + receipt["dropped"]
+                                    + receipt["not_computable"])
+
+
+def test_NOTHING_inside_evaluate_one_READS_THE_CLOCK__BY_AST():
+    """⛔ THE STRUCTURAL HALF OF THE RULE ABOVE. The behavioural test can only
+    catch the cut it was given; this catches a clock read appearing ANYWHERE
+    inside the per-definition work, which is how a mid-definition abort would
+    arrive later."""
+    inner = _function_node("evaluate_one")
+    names = {n.id for n in pyast.walk(inner) if isinstance(n, pyast.Name)}
+    for banned in ("_now_et", "sweep_deadline", "SWEEP_STOP_BEFORE_OPEN"):
+        assert banned not in names, (
+            f"`evaluate_one` reads {banned} — the budget belongs to `run_sweep`, "
+            "which is the only thing that knows how long the SWEEP has run")
+    outer = _function_node("run_sweep")
+    outer_names = {n.id for n in pyast.walk(outer) if isinstance(n, pyast.Name)}
+    assert "_now_et" in outer_names, (
+        "the control: `run_sweep` must read the clock, or the probe above is "
+        "asserting the absence of something nobody uses")
+
+
+def test_the_SWEEP_ARITHMETIC_CLOSES_and_the_assertion_can_actually_FAIL():
+    """🔴 THE GUARD ON THE BUDGET ITSELF. A `break` that forgot to record what it
+    broke out of leaves a receipt saying 200 swept of 500 handed with no fourth
+    number — which reads as 300 vanished, or as "there were only 200"."""
+    scan_evaluator._assert_sweep_closes(handed=5, swept=2, refused=1,
+                                        duplicate=1, unswept=1)
+    with pytest.raises(AssertionError) as exc:
+        scan_evaluator._assert_sweep_closes(handed=5, swept=2, refused=1,
+                                            duplicate=1, unswept=0)
+    for field in ("handed=5", "swept=2", "refused=1", "duplicate=1", "unswept=0"):
+        assert field in str(exc.value), f"the failure did not name {field}"
+
+
+def test_the_sweep_identity_IS_CALLED_FROM_INSIDE_run_sweep__BY_AST():
+    """⛔ AN IDENTITY ASSERTED ONLY IN A TEST IS A TEST, NOT A GUARD. The one
+    above proves the arithmetic; this proves the SWEEP performs it about itself,
+    on every run, including the ones no test drives. Same shape as
+    `test_the_closed_identity_IS_CALLED_FROM_INSIDE_evaluate_one__BY_AST`."""
+    fn = _function_node("run_sweep")
+    called = {n.func.id for n in pyast.walk(fn)
+              if isinstance(n, pyast.Call) and isinstance(n.func, pyast.Name)}
+    assert "_assert_sweep_closes" in called, (
+        "`run_sweep` no longer asserts its own arithmetic — a budget that "
+        "dropped definitions on the floor would look like a shorter list")
+
+
+def test_every_definition_HANDED_IN_is_accounted_for_by_the_RECEIPT(
+        store, bars, clock):
+    """⭐ THE IDENTITY, DRIVEN. One good, one duplicate of it, one malformed, and
+    a budget that stops before the rest — every bucket non-zero at once, which is
+    the only arrangement that can catch a fold between two of them."""
+    bars["A"] = _daily_bars()
+    good = _definition(PRICE_TREE, def_id="u_00000000000a")
+    same = _definition(PRICE_TREE, def_id="u_00000000000b")     # same maths
+    bad = {"schemaVersion": 1, "id": "u_00000000000c",
+           "compute": {"kind": "native", "fn": "rsi"}}
+    other = _definition(_op("<", _series("close"), _num(0)))
+
+    out = scan_evaluator.run_sweep([good, same, bad, other], TF, universe=["A"],
+                                   as_of=SESSION, deadline=_at(4))
+    assert out["definitions"] == 4
+    assert out["refused"] == 1 and out["duplicate"] == 1
+    assert out["swept"] == 0 and out["unswept"] == 2
+    assert (out["swept"] + out["refused"] + out["duplicate"] + out["unswept"]
+            == out["definitions"])
+
+
+# ─── the deadline is DERIVED from the open ───────────────────────────────────
+
+def test_the_MARKET_OPEN_is_read_off_the_BARS_STORES_OWN_ANCHOR():
+    """⭐ THE POSITIVE HALF. The repo's canonical session anchor says 9:30-9:59
+    ET buckets at 9:30 and everything else floors to the clock hour, so the open
+    is the one bucket in the day that is not a clock hour — and DST comes free."""
+    assert scan_evaluator.market_open_et(SESSION_DATE) == _at(9, 30)
+    winter = datetime.date(2026, 1, 15)
+    assert scan_evaluator.market_open_et(winter) == _at(9, 30, day=winter)
+    assert scan_evaluator.market_open_et(winter).utcoffset() != \
+        scan_evaluator.market_open_et(SESSION_DATE).utcoffset(), (
+        "both dates report the same UTC offset — the derivation is not going "
+        "through a real timezone and a DST change would move the deadline")
+
+
+def test_a_PLANTED_OPEN_moves_the_DEADLINE_with_NO_EDIT_in_the_evaluator(
+        monkeypatch):
+    """🔴 THE CONTROL THAT SEPARATES A DERIVATION FROM A LITERAL, and it is the
+    only test that can. A hand-typed `09:30` agrees with the anchor function in
+    every behavioural test ever written — E-2's M5/M5b asymmetry, and E-3 hit the
+    same wall with the cadence ceiling. So the ANCHOR is moved to 10:15 and the
+    deadline must follow it.
+    """
+    from api.services import bars_fetch
+
+    def _planted(t_utc):
+        dt = datetime.datetime.fromtimestamp(t_utc, tz=scan_evaluator._ET)
+        if dt.hour == 10 and dt.minute >= 15:
+            return int(dt.replace(minute=15, second=0, microsecond=0).timestamp())
+        return int(dt.replace(minute=0, second=0, microsecond=0).timestamp())
+
+    monkeypatch.setattr(bars_fetch, "bucket_60_et_unix_seconds", _planted)
+    assert scan_evaluator.market_open_et(SESSION_DATE) == _at(10, 15)
+    assert scan_evaluator.sweep_deadline(_at(5)) == (
+        _at(10, 15) - scan_evaluator.SWEEP_STOP_BEFORE_OPEN)
+
+
+def test_the_open_derivation_REFUSES_rather_than_guessing_when_it_vanishes(
+        monkeypatch):
+    """⛔ A BUDGET THAT FELL BACK TO A TYPED 09:30 WOULD BE THE SECOND AUTHORITY
+    the derivation exists to avoid — and it would fail SILENTLY, which is worse
+    than not being bounded at all."""
+    from api.services import bars_fetch
+    monkeypatch.setattr(
+        bars_fetch, "bucket_60_et_unix_seconds",
+        lambda t: int(datetime.datetime.fromtimestamp(t, tz=scan_evaluator._ET)
+                      .replace(minute=0, second=0, microsecond=0).timestamp()))
+    with pytest.raises(RuntimeError) as exc:
+        scan_evaluator.market_open_et(SESSION_DATE)
+    assert "session open" in str(exc.value)
+
+
+def test_the_DEADLINE_is_the_OPEN_minus_the_ONLY_number_the_budget_declares():
+    """⛔ ONE NUMBER, ONE PLACE. The margin is declared; the open is not."""
+    open_et = scan_evaluator.market_open_et(SESSION_DATE)
+    deadline = scan_evaluator.sweep_deadline(_at(5))
+    assert deadline == open_et - scan_evaluator.SWEEP_STOP_BEFORE_OPEN
+
+    # 🔴 AND THE MARGIN IS CHECKED AGAINST SOMETHING OTHER THAN ITSELF. The line
+    # above is a TAUTOLOGY under a mutation of the constant — both sides move
+    # together — and a margin of ZERO SURVIVED the gauntlet on it, measured. That
+    # is `lesson_test_that_passes_vacuously` in its quietest form: an assertion
+    # that reads the value it is supposed to be pinning.
+    #
+    # The requirement was never "the deadline is the open minus the margin". It is
+    # "the sweep STOPS BEFORE the open", and the margin must absorb the ONE
+    # definition the sweep may still be inside when the clock runs out.
+    assert deadline < open_et, (
+        "the sweep may still be STARTING definitions at the moment the market "
+        "opens — a zero margin is not a margin")
+    worst_case_definition_seconds = 70      # 42.4 s compute + 19-26 s of writes,
+    assert (scan_evaluator.SWEEP_STOP_BEFORE_OPEN.total_seconds()             # noqa
+            >= worst_case_definition_seconds), (
+        "the margin is smaller than the worst-case single definition measured on "
+        "this box, so the sweep can overrun the open by starting one definition "
+        "one second before the deadline")
+    tree = pyast.parse(MODULE_PATH.read_text(encoding="utf-8"))
+    assigns = [n for n in tree.body if isinstance(n, pyast.Assign)
+               and any(isinstance(t, pyast.Name) and t.id == "SWEEP_STOP_BEFORE_OPEN"
+                       for t in n.targets)]
+    assert len(assigns) == 1, "the margin acquired a second authority"
+
+    # ⛔ AND NO CLOCK-TIME LITERAL HIDES IN THE FUNCTIONS THAT DERIVE THE OPEN.
+    for name in ("market_open_et", "sweep_deadline"):
+        consts = {n.value for n in pyast.walk(_function_node(name))
+                  if isinstance(n, pyast.Constant) and isinstance(n.value, int)}
+        assert not ({9, 30, 930, 570} & consts), (
+            f"`{name}` carries a clock-time literal — the open was typed after "
+            "all, beside the function that derives it")
+
+
+def test_the_SCHEDULED_hour_falls_INSIDE_its_own_budget_window():
+    """⭐ THE FOOTGUN RAIL. The deadline is TODAY's open minus the margin, so a
+    schedule moved past it would produce a sweep that can never run — 0 swept,
+    everything unswept, every night, and the WARNING would be the only sign.
+    The two constants are checked against each other rather than assumed."""
+    scheduled = _at(scan_evaluator.SWEEP_HOUR_ET, scan_evaluator.SWEEP_MINUTE_ET)
+    assert scheduled < scan_evaluator.sweep_deadline(scheduled), (
+        f"the sweep is scheduled at {scheduled.isoformat()} and its budget "
+        f"expires at {scan_evaluator.sweep_deadline(scheduled).isoformat()} — "
+        "it could never sweep a single definition")
+
+
+def test_a_run_STARTED_AFTER_THE_OPEN_is_already_out_of_budget():
+    """⭐ THE DEADLINE IS TODAY'S OPEN, NOT THE NEXT ONE. Rolling it forward for
+    a run that began at 10:00 would hand a sweep already running through the
+    session another twenty-three hours — bounding the clock while losing the
+    thing the bound is FOR."""
+    assert scan_evaluator.sweep_deadline(_at(10)) < _at(10)
+    assert scan_evaluator.sweep_deadline(_at(5)) > _at(5)
+
+
+# ─── fairness: the tail of the last run leads the next one ───────────────────
+
+def test_the_TAIL_the_last_run_NEVER_REACHED_LEADS_the_next_one(store, bars,
+                                                                clock, monkeypatch):
+    """🔴 FAIRNESS. If the budget always cuts at the same point the same tail is
+    never swept — and every night's receipt still looks like a healthy partial,
+    so nothing would say so.
+
+    ⭐ THE RESUME POINT IS THE ARTIFACT, NOT A CURSOR: `first` carries a receipt
+    for the PREVIOUS session and `second` does not, so `second` leads. No stored
+    state, nothing to lose on a redeploy, and it cannot disagree with what
+    actually happened.
+    """
+    bars["A"] = _daily_bars()
+    first, second = _two_definitions()
+    handle = scan_definition.assert_scannable(first)["def_hash"]
+    prev = scan_evaluator.previous_session(SESSION)
+    assert prev is not None and prev < SESSION
+    scan_store.record_coverage(handle, TF, prev, evaluated=1, answered=1,
+                               dropped=0, not_computable=0, dropped_symbols=[],
+                               freshness="as-of-snapshot")
+
+    order = []
+    real = scan_evaluator.evaluate_one
+    monkeypatch.setattr(scan_evaluator, "evaluate_one",
+                        lambda d, *a, **k: (order.append(d["id"]), real(d, *a, **k))[1])
+    scan_evaluator.run_sweep([first, second], TF, universe=["A"], as_of=SESSION)
+
+    assert order == [second["id"], first["id"]], (
+        "the definition the last run already swept went first again — the tail "
+        "starves")
+
+
+def test_the_resume_order_is_the_IDENTITY_when_the_last_run_reached_NOBODY(
+        store, bars, clock, monkeypatch):
+    """⛔ THE CONTROL. It reorders on ONE bit and nothing else — no sort, no
+    sample, no shuffle. `apply_symbol_cap` refuses the same thing in E-7's words:
+    *'the order is the caller's'*."""
+    bars["A"] = _daily_bars()
+    first, second = _two_definitions()
+    order = []
+    real = scan_evaluator.evaluate_one
+    monkeypatch.setattr(scan_evaluator, "evaluate_one",
+                        lambda d, *a, **k: (order.append(d["id"]), real(d, *a, **k))[1])
+    scan_evaluator.run_sweep([first, second], TF, universe=["A"], as_of=SESSION)
+    assert order == [first["id"], second["id"]]
+
+
+def test_the_PREVIOUS_SESSION_is_the_bars_stores_walk_back_not_a_second_calendar():
+    """⛔ ONE CALENDAR. A Monday's previous session is the FRIDAY, and this must
+    come from the same function `expected_session` delegates to — a second
+    weekend/holiday walk-back here is `lesson_probe_names_must_be_derived_not_typed`
+    in calendar form."""
+    assert scan_evaluator.previous_session(20260807) == 20260806   # Fri <- Thu
+    assert scan_evaluator.previous_session(20260810) == 20260807   # Mon <- Fri
+    fn = _function_node("previous_session")
+    attrs = {n.attr for n in pyast.walk(fn) if isinstance(n, pyast.Attribute)}
+    assert "_expected_latest_session_yyyymmdd" in attrs
+
+
+def test_a_TRUNCATED_night_does_not_LOG_like_an_EMPTY_one(store, bars, clock,
+                                                          caplog):
+    """🔴 WITH ZERO LIVE DEFINITIONS TODAY, "we ran out of night" and "there was
+    nothing to scan" would otherwise be the same line in the log. The count of
+    definitions HANDED and the count SWEPT are both on it."""
+    bars["A"] = _daily_bars()
+    first, second = _two_definitions()
+    with caplog.at_level("INFO"):
+        scan_evaluator.run_sweep([first, second], TF, universe=["A"],
+                                 as_of=SESSION, deadline=_at(4))
+    done = [r.message for r in caplog.records if "sweep done" in r.message]
+    assert done, "the sweep logged no completion line at all"
+    assert "handed=2" in done[0] and "swept=0" in done[0] and "unswept=2" in done[0]
+
+
+def test_the_JOB_explains_the_receipt_shortfall_rather_than_leaving_a_MYSTERY(
+        store, bars, monkeypatch, caplog):
+    """⛔ "receipts read back: 0 of 2" beside nothing else reads as two silent
+    failures. `sweep_job` says which of the two it is."""
+    bars["A"] = _daily_bars()
+    first, second = _two_definitions()
+    monkeypatch.setattr(scan_evaluator, "definitions_to_sweep",
+                        lambda: [first, second])
+    monkeypatch.setattr(scan_evaluator.snapshot_builder, "_load_universe",
+                        lambda: ["A"])
+    monkeypatch.setattr(scan_evaluator, "expected_session", lambda: SESSION)
+    monkeypatch.setattr(scan_evaluator, "_now_et", lambda: _at(10))   # past it
+    with caplog.at_level("INFO"):
+        scan_evaluator.sweep_job()
+    assert any("receipts read back: 0 of 2" in r.message for r in caplog.records)
+
+    # ⛔ BOUND TO A SENTENCE ONLY `sweep_job` CAN HAVE SAID. The first spelling of
+    # this asked for "NOT" and "budget" in ANY record — and `run_sweep`'s own
+    # warning carries both ("this is NOT an empty night", "wall-clock budget"), so
+    # deleting the job's explanation entirely SURVIVED the gauntlet. The probe was
+    # reading a different artifact than the one under test, which is the same
+    # defect class as a census that fires on a namesake.
+    explained = [r for r in caplog.records if "have NO receipt because" in r.message]
+    assert len(explained) == 1, (
+        "`sweep_job` did not explain the shortfall in its OWN words — a bare "
+        "'receipts read back: 0 of 2' reads as two silent failures")
+    assert "budget" in explained[0].message
+
+
+# ═══ 13. the history axis — E-7's refusal, wired ════════════════════════════
+#
+# ⭐ E-7 shipped `entitlements.apply_history_cap` with NO production call site
+# and said so out loud, because closing the loop needed `toolkit:history` in this
+# module's closed vocabulary. This is that wire.
+
+
+def test_a_HISTORY_CAP_WITHHOLDS_the_whole_definition_and_it_is_NOT_a_DROP(
+        store, bars):
+    """🔴 FOUR OUTCOMES STAY FOUR. `withheld` means "your plan stops here";
+    `dropped` means "we tried and failed, re-run them"; `not_computable` means
+    "the maths had nothing to say". A history cap is the first."""
+    universe = [f"SYM{i:02d}" for i in range(10)]
+    for s in universe:
+        bars[s] = _daily_bars()
+
+    out = scan_evaluator.evaluate_one(
+        _definition(PRICE_TREE), TF, universe=universe, as_of=SESSION,
+        limits=_Limits("small", max_history_bars=10))
+
+    assert out["withheld_reason"] == "toolkit:history"
+    assert out["withheld"] == len(universe)
+    assert out["evaluated"] == 0
+    assert out["dropped"] == 0 and out["not_computable"] == 0
+    assert out["dropped_symbols"] == [] and out["hits"] == []
+    assert out["evaluated"] == (out["answered"] + out["dropped"]
+                                + out["not_computable"])
+
+
+def test_a_HISTORY_WITHHELD_run_writes_NOTHING_into_the_SHARED_store(store, bars):
+    """🔴 `scan_hits`/`scan_coverage` HAVE NO MEMBER COLUMN BY DESIGN — two
+    members who typed one formula share one result set. Writing a per-member
+    entitlement outcome there publishes one plan's boundary as a fact about the
+    market, for everybody. Silence is correct: `coverage(...) is None` reads as
+    "nobody looked", which is true."""
+    bars["A"] = _daily_bars()
+    d = _definition(PRICE_TREE)
+    handle = scan_definition.assert_scannable(d)["def_hash"]
+
+    scan_evaluator.evaluate_one(d, TF, universe=["A"], as_of=SESSION,
+                                limits=_Limits("small", max_history_bars=10))
+    assert scan_store.coverage(handle, TF, SESSION) is None
+    assert scan_store.hits(handle, TF, SESSION) == []
+
+    # the control: the SAME definition under a cap that admits it does write one
+    scan_evaluator.evaluate_one(d, TF, universe=["A"], as_of=SESSION,
+                                limits=_Limits("big", max_history_bars=10_000))
+    assert scan_store.coverage(handle, TF, SESSION) is not None
+
+
+def test_the_SAME_definition_answers_IDENTICALLY_under_a_cap_that_ADMITS_it(
+        store, bars):
+    """⛔ SPEC §1.4 AT THE SWEEP: gate BREADTH, never MECHANICS. A cap that
+    admits the history must not change one digit of the answer — E-7 measured
+    `ema(close,20)` at 15.269399733598789 over 400 bars and 15.269384587868412
+    over 120, and `pytest.approx(rel=1e-6)` calls those EQUAL, so the comparison
+    here is `repr()` for `repr()`."""
+    universe = [f"SYM{i:02d}" for i in range(8)]
+    for s in universe:
+        bars[s] = _daily_bars()
+    d = _definition(PRICE_TREE)
+
+    ungated = scan_evaluator.evaluate_one(d, TF, universe=universe, as_of=SESSION)
+    capped = scan_evaluator.evaluate_one(
+        d, TF, universe=universe, as_of=SESSION,
+        limits=_Limits("big", max_history_bars=10_000))
+    assert repr(capped["hits"]) == repr(ungated["hits"])
+    assert capped["evaluated"] == ungated["evaluated"]
+    assert capped["withheld"] == 0 and capped["withheld_reason"] is None
+
+
+def test_the_SWEEPs_history_gate_and_apply_history_cap_AGREE(store, bars):
+    """⛔ TWO IMPLEMENTATIONS OF "how much of the past does your plan let you ask
+    about" IS A SECOND AUTHORITY OVER A BILLING CONTRACT. E-7 pinned the symbol
+    slice the same way; this pins the history boundary.
+
+    ⚠️ THE SWEEP ASKS ABOUT `want` — WHAT THE TREE READS — AND `apply_history_cap`
+    ASKS ABOUT `len(bars)`. For any symbol carrying the history the tree asked
+    for, the two must answer identically. They deliberately DIVERGE only where
+    the symbol is short of it, and that divergence has its own assertion below:
+    a per-symbol test would answer YES for a liquid name and NO for a thin one,
+    so a member on a small plan would get results only for the data-poorest
+    tickers in the universe.
+    """
+    from api.services import entitlements as ent
+
+    want = 400
+    for cap in (None, 0, 1, 399, 400, 401, 5000):
+        limits = ent.Limits(toolkit="t", max_symbols=None, max_history_bars=cap,
+                            max_definitions=50, min_refresh_seconds=None)
+        sweep_refuses = scan_evaluator._history_withheld(want, limits)
+        try:
+            ent.apply_history_cap([{}] * want, limits)
+            store_refuses = False
+        except ent.ToolkitWithheld as exc:
+            store_refuses = True
+            assert exc.reason == scan_evaluator.HISTORY_WITHHELD
+        assert sweep_refuses is store_refuses, f"they disagree at cap={cap!r}"
+
+    # ⭐ THE STATED DIVERGENCE, ASSERTED SO IT IS A DECISION AND NOT A DRIFT.
+    thin = ent.Limits(toolkit="t", max_symbols=None, max_history_bars=100,
+                      max_definitions=50, min_refresh_seconds=None)
+    assert scan_evaluator._history_withheld(want, thin) is True
+    ent.apply_history_cap([{}] * 50, thin)          # a 50-bar symbol: admitted
+
+
+def test_the_WITHHELD_VOCABULARY_is_the_SAME_TWO_WORDS_on_BOTH_SIDES():
+    """⛔ E-3 OWNS THE WORDS, E-7 SPELLS THEM. Importing across would put the
+    sweep in a router's namespace, which `test_scan_evaluator_off_request_path`
+    forbids — so the two are pinned equal instead, in both directions now that
+    both reasons are producible here."""
+    from api.services import entitlements as ent
+    assert scan_evaluator.WITHHELD_REASONS[0] == ent.SYMBOLS_WITHHELD
+    assert set(scan_evaluator.WITHHELD_REASONS) == set(ent.WITHHELD_REASONS)
+    assert scan_evaluator.HISTORY_WITHHELD == ent.HISTORY_WITHHELD
+    assert scan_evaluator.UNSWEPT_REASON not in scan_evaluator.WITHHELD_REASONS, (
+        "'we ran out of night' was folded into 'your plan stops here' — they are "
+        "different facts and a member fixes them by doing different things")
+
+
+def test_a_BOOL_cap_is_REFUSED_on_EVERY_axis(store, bars):
+    """⚠️ `isinstance(True, int)` IS TRUE. `max_history_bars=True` would withhold
+    every definition reading more than one bar — i.e. all of them — while reading
+    as "enabled"."""
+    bars["A"] = _daily_bars()
+    for field in ("max_symbols", "max_history_bars"):
+        with pytest.raises(ValueError) as exc:
+            scan_evaluator.evaluate_one(_definition(PRICE_TREE), TF,
+                                        universe=["A"], as_of=SESSION,
+                                        limits=_Limits("t", **{field: True}))
+        assert field in str(exc.value)

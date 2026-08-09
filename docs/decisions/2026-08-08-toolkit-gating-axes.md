@@ -17,7 +17,7 @@ RED when the entitlement layer is made to perturb the compute.
 | axis | enforcement point | constant | wired today? | blocked by |
 |---|---|---|---|---|
 | symbols | the sweep's universe slice (`scan_evaluator._apply_limits`, pinned to `entitlements.apply_symbol_cap` by an agreement test) | `max_symbols` | ✅ live — `evaluate_one(..., limits=)` | §8.4 (the number) |
-| history depth | `entitlements.apply_history_cap` — **a refusal boundary, never a trim** (§4) | `max_history_bars` | ⛔ **not wired** — needs `toolkit:history` in `scan_evaluator.WITHHELD_REASONS`, a vocabulary E-3 owns | §8.4 + one controller-approved edit |
+| history depth | `entitlements.apply_history_cap` — **a refusal boundary, never a trim** (§4) — plus `scan_evaluator._history_withheld`, the sweep's door, pinned to it by an agreement test | `max_history_bars` | ✅ live (2026-08-09) — `evaluate_one(..., limits=)` withholds the whole definition | §8.4 (the number) |
 | definition count | `user_definitions.save` → `entitlements.check_definition_count`, reached from `POST`/`PUT /api/user-definitions` via `Depends(limits_dependency)` | `max_definitions` | ✅ live | §8.4 (the number) |
 | refresh cadence | `entitlements.refresh_floor_seconds(cadence, limits)` — the MAX of the data floor and the plan floor | `min_refresh_seconds` | ⛔ not wired — no per-toolkit scheduler surface exists | 🔴 **§8.5 — cadence is unanswered; nightly-vs-intraday drives this AND the freshness contract** |
 
@@ -78,13 +78,35 @@ So `apply_history_cap` has exactly two outcomes: the bars UNCHANGED, or
 attributable, and fixed by upgrading. This is E-3's own prescription
 (*"a declared outcome … rather than a quietly different value"*) with the axis kept.
 
-**What it still needs, and it is one edit:** the refusal must become a `withheld`
-count in the sweep's envelope, which means adding `toolkit:history` to
-`scan_evaluator.WITHHELD_REASONS` and catching `ToolkitWithheld` in the per-symbol
-loop. `WITHHELD_REASONS` is E-3's vocabulary and `scan_evaluator.py` was
-coordination-gated for E-7, so the edit is named here rather than made. Until it
-lands the shipped toolkit's `max_history_bars` is `None` and the function is the
-identity.
+### ✅ CLOSED 2026-08-09 — the refusal is wired
+
+`toolkit:history` is in `scan_evaluator.WITHHELD_REASONS` and
+`scan_evaluator._history_withheld` is the enforcement point. E-7's pin
+(`test_the_WITHHELD_VOCABULARY_is_PINNED_to_the_SWEEPs_not_RESTATED`) went RED by
+name on the commit that landed it, as designed, and now pins the two vocabularies
+EQUAL rather than as a subset.
+
+⚠️ **ONE DEPARTURE FROM THE INSTRUCTION ABOVE, AND IT IS DELIBERATE: the sweep does
+NOT catch `ToolkitWithheld` in the per-symbol loop.** `apply_history_cap` refuses
+on `len(bars)`, a fact about ONE SYMBOL; caught per symbol it would answer YES for
+a liquid name and NO for a thin one, so a member on a small plan would get results
+only for the data-poorest tickers in the universe — a lottery wearing an
+entitlement's clothes, and it would put a plan's boundary inside a loop whose
+counts are supposed to describe the market. The sweep instead asks once, about
+`want` — the history the TREE declares it reads — and withholds the WHOLE
+definition under one attributable reason before a bar is touched. That is strictly
+the stronger test; the two agree wherever a symbol carries the history the tree
+asked for, and `test_the_SWEEPs_history_gate_and_apply_history_cap_AGREE` drives
+both over a matrix and asserts the divergence rather than leaving it to drift.
+
+⛔ **A withheld run writes NOTHING into `scan_hits`/`scan_coverage`.** Those tables
+have no member column by design — two members who typed one formula share one
+result set — so a per-member entitlement outcome written there would publish one
+plan's boundary as a fact about the market, for everybody. Silence reads correctly
+as `coverage(...) is None`, "nobody looked".
+
+The shipped toolkit's `max_history_bars` is still `None`, so this changes nothing
+for anybody until §8.4 sets a number.
 
 ## 5. 🟡 The cadence axis — §8.5 is narrower than it looks
 
@@ -113,5 +135,5 @@ silently getting no floor.
    `min_refresh_seconds` AND the freshness contract E-1 hedged. Note that it can
    only be answered *per tree*: a scalar-bearing scan cannot be honestly intraday
    whatever the plan says.
-3. **The history refusal's wiring** (§4) — a controller decision, because it
-   touches E-3's closed `WITHHELD_REASONS`.
+3. ~~**The history refusal's wiring** (§4)~~ — ✅ **CLOSED 2026-08-09.** Wired at
+   the sweep's door rather than in its per-symbol loop; see §4.
