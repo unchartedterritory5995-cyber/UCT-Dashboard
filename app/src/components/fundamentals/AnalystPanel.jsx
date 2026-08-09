@@ -118,6 +118,12 @@ function Skeleton() {
 export default function AnalystPanel({ sym }) {
   const { data } = useAnalystIntel(sym)
   if (!sym) return <div className={styles.hint}>Pick a ticker.</div>
+  // A refusal is not a slow load. `/api/analyst/{sym}` is paid as of 2026-08-09
+  // and this panel is reachable from a ticker chip on the FREE Morning Wire, so
+  // without this branch a free member gets a skeleton that never resolves.
+  if (data?.locked) {
+    return <div className={styles.hint}>Analyst coverage is part of a paid plan.</div>
+  }
   if (!data) return <Skeleton />
   const has = data.consensus || data.price_target || (data.recent_actions || []).length
   if (!has) return <div className={styles.hint}>No analyst coverage for {sym}.</div>

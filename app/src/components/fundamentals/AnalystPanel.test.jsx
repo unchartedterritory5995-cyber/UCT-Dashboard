@@ -77,3 +77,23 @@ test('loading state renders a skeleton, not literal text', () => {
   expect(container.querySelector('[class*="skelRow"]')).toBeInTheDocument()
   expect(screen.queryByText(/loading/i)).not.toBeInTheDocument()
 })
+
+// 🔴 `/api/analyst/{sym}` became require_paid on 2026-08-09, and this panel is
+// reachable from a ticker chip on `/morning-wire` — the ONE free page. A refusal
+// must read as a refusal; the old code path turned it into a skeleton that never
+// resolves, i.e. a paywall that looks like a hang.
+test('a PAYWALL REFUSAL says so — it does not spin forever', () => {
+  mockData.mockReturnValue({ locked: true })
+  const { container } = render(<AnalystPanel sym="AAPL" />)
+  expect(screen.getByText(/paid plan/i)).toBeInTheDocument()
+  expect(container.querySelector('[class*="skelRow"]')).toBeNull()
+})
+
+test('…and a refusal is NOT confused with having no coverage', () => {
+  // Two different facts. "No analyst covers ZZ" is about the market; "you may
+  // not see this" is about the account. Rendering one as the other tells a
+  // prospective subscriber the product has nothing to sell them.
+  mockData.mockReturnValue({ locked: true })
+  render(<AnalystPanel sym="AAPL" />)
+  expect(screen.queryByText(/no analyst coverage/i)).not.toBeInTheDocument()
+})
