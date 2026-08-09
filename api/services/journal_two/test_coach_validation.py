@@ -238,3 +238,117 @@ def test_extract_this_weeks_focus_returns_none_when_missing():
     from api.services.journal_two import coach_validation as cv
     weekly_body = "# Week\n\nNo focus section here.\n"
     assert cv.extract_this_weeks_focus(weekly_body) is None
+
+
+# ── Matcher precision (D-1) ──────────────────────────────────────────────────
+#
+# The old matcher accepted anything within a FLAT +-0.0501 of any number
+# anywhere in the corpus, and seeded that corpus with every value AND its
+# abs(). Over a payload of a few dozen trades that set is dense enough that a
+# fabricated figure very likely lands inside the window. The tolerance is now
+# half a unit in the last place the CLAIM itself wrote, because rounding is the
+# only legitimate reason a stated number differs from ground truth.
+
+def _numbers(*vals) -> dict:
+    """A tool-results corpus holding exactly these numbers (plus the NVDA
+    symbol, so the ticker check doesn't confound the numeric assertions)."""
+    return {"tool_results": [{"symbol": "NVDA"}] + [{"v": v} for v in vals]}
+
+
+def test_a_two_decimal_claim_gets_a_two_decimal_window():
+    from api.services.journal_two import coach_validation as cv
+    # 187.42 vs a real 187.40: inside the old +-0.0501 window, outside the
+    # precision the claim asserts.
+    assert cv.validate_chat_output("NVDA is $187.42.", _numbers(187.40))["passed"] is False
+    assert cv.validate_chat_output("NVDA is $187.40.", _numbers(187.40))["passed"] is True
+
+
+def test_rounding_to_fewer_places_is_still_honest():
+    from api.services.journal_two import coach_validation as cv
+    for claim in ("$187.4", "$187"):
+        out = cv.validate_chat_output(f"NVDA is {claim}.", _numbers(187.40))
+        assert out["passed"] is True, (claim, out["flags"])
+
+
+def test_a_claim_that_writes_its_own_sign_must_match_that_sign():
+    from api.services.journal_two import coach_validation as cv
+    # "+1.4R" asserts a winner against a stored -1.4R loss.
+    assert cv.validate_chat_output("You banked +1.4R.", _numbers(-1.4))["passed"] is False
+    assert cv.validate_chat_output("You took -1.4R.", _numbers(-1.4))["passed"] is True
+
+
+def test_an_unsigned_claim_carries_its_sign_in_the_prose():
+    from api.services.journal_two import coach_validation as cv
+    out = cv.validate_chat_output("That FOMO entry cost you 1.4R.", _numbers(-1.4))
+    assert out["passed"] is True, out["flags"]
+
+
+def test_four_digit_dollar_amounts_parse_whole():
+    """The comma-grouped branch used `*`, so it matched the first 1-3 digits of
+    any ungrouped amount and stopped: '$1000.00' parsed as $100."""
+    from api.services.journal_two import coach_validation as cv
+    assert cv._to_float("$1000.00") == 1000.0
+    assert cv._to_float("$50000") == 50000.0
+    assert cv._to_float("$1,234.56") == 1234.56
+    assert cv.validate_chat_output("Net was $1000.00.", _numbers(1000.0))["passed"] is True
+
+
+def test_magnitude_suffixes_scale_value_and_window():
+    from api.services.journal_two import coach_validation as cv
+    assert cv._to_float("$1.2K") == 1200.0
+    assert cv._to_float("$100M") == 100_000_000.0
+    # "$1.2K" asserts one decimal at the thousands scale -> +-50.
+    assert cv.validate_chat_output("Risked $1.2K.", _numbers(1230.0))["passed"] is True
+    assert cv.validate_chat_output("Risked $1.2K.", _numbers(1400.0))["passed"] is False
+
+
+def test_numbers_written_as_strings_in_a_tool_payload_are_ground_truth():
+    from api.services.journal_two import coach_validation as cv
+    data = {"tool_results": [{"symbol": "NVDA", "price": "187.40",
+                              "note": "closed at $183.18"}]}
+    out = cv.validate_chat_output("NVDA is $187.40, up from $183.18.", data)
+    assert out["passed"] is True, out["flags"]
+
+
+def test_a_date_in_a_payload_does_not_seed_the_corpus_with_its_parts():
+    from api.services.journal_two import coach_validation as cv
+    data = {"tool_results": [{"as_of": "2026-05-11"}]}
+    # 11 would be "grounded" if the date were shredded into components.
+    assert cv.validate_chat_output("You're up 11%.", data)["passed"] is False
+
+
+def test_symbols_are_found_wherever_the_payload_puts_them():
+    from api.services.journal_two import coach_validation as cv
+    for data in (
+        {"tool_results": [{"symbol": "nvda"}]},
+        {"tool_results": [{"underlying": "NVDA"}]},
+        {"tool_results": [{"NVDA": {"price": 1.0}}]},
+        {"tool_results": [{"headline": "NVDA guides higher"}]},
+        {"tool_results": [{"rows": [{"ticker": "NVDA"}]}]},
+    ):
+        out = cv.validate_chat_output("NVDA looks constructive.", data)
+        assert out["passed"] is True, (data, out["flags"])
+
+
+def test_an_unmentioned_symbol_is_still_flagged():
+    from api.services.journal_two import coach_validation as cv
+    data = {"tool_results": [{"symbol": "NVDA", "price": 187.40}]}
+    out = cv.validate_chat_output("NVDA is $187.40; PLTR is the cleaner base.", data)
+    assert out["passed"] is False
+    assert any("PLTR" in f for f in out["flags"]), out["flags"]
+
+
+def test_both_validators_share_one_grounding_implementation():
+    """A rule implemented twice is a rule that drifts. EOD and chat carried
+    byte-identical copies of the numeric+symbol block; they must not again."""
+    import ast
+    import inspect
+    from api.services.journal_two import coach_validation as cv
+    tree = ast.parse(inspect.getsource(cv))
+    for fn in ("validate_eod_output", "validate_chat_output"):
+        node = next(n for n in tree.body
+                    if isinstance(n, ast.FunctionDef) and n.name == fn)
+        called = {c.func.id for c in ast.walk(node)
+                  if isinstance(c, ast.Call) and isinstance(c.func, ast.Name)}
+        assert "_grounding_flags" in called, f"{fn} does not use the shared core"
+        assert "_data_numbers" not in called, f"{fn} re-derives the corpus itself"

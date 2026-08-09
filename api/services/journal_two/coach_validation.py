@@ -23,8 +23,27 @@ from typing import Any
 # ── Numeric token extraction ─────────────────────────────────────────────────
 
 _R_MULTIPLE_RE = re.compile(r"(?<![A-Za-z0-9.])([+-]?\d+(?:\.\d+)?)R\b")
-_DOLLAR_RE = re.compile(r"(?<![A-Za-z0-9.])(-?\$\d{1,3}(?:,\d{3})*(?:\.\d+)?|-?\$\d+(?:\.\d+)?)")
+# The comma-grouped branch requires AT LEAST ONE comma group (`+`, not `*`).
+# With `*` it matched the first 1-3 digits of any ungrouped amount and stopped:
+# "$1000.00" parsed as $100, "$50000" as $500 — every four-digit dollar figure
+# was compared against ground truth as a different number, and flagged.
+# An optional K/M/B magnitude suffix is consumed so "$1.2K" is 1200, not 1.2.
+_DOLLAR_RE = re.compile(
+    r"(?<![A-Za-z0-9.])(-?\$\d{1,3}(?:,\d{3})+(?:\.\d+)?[KkMmBb]?"
+    r"|-?\$\d+(?:\.\d+)?[KkMmBb]?)"
+)
 _PERCENT_RE = re.compile(r"(?<![A-Za-z0-9.])([+-]?\d+(?:\.\d+)?)%")
+
+# Numbers embedded in STRING values of the injected data (tool payloads
+# routinely stringify a price, and prose fields quote real figures). The
+# lookarounds reject a token touching `-`, `/` or `:` so ISO dates and clock
+# times don't seed the corpus with their components.
+_STRING_NUMBER_RE = re.compile(r"(?<![\d\-/:.])\d[\d,]*(?:\.\d+)?(?![\d\-/:])")
+
+_MAGNITUDE = {"k": 1e3, "m": 1e6, "b": 1e9}
+# Floating-point slack only. Never widen this to buy tolerance — the tolerance
+# is derived from the claim's own precision (see _claim_matches).
+_FP_SLACK = 1e-9
 
 # Words that look like tickers but aren't — common uppercase abbreviations.
 _NON_TICKER_WORDS = frozenset({
@@ -42,80 +61,204 @@ _NON_TICKER_WORDS = frozenset({
 _TICKER_RE = re.compile(r"\b([A-Z]{2,5})\b")
 
 
-def _to_float(token: str) -> float | None:
-    """Parse a number string ('+1.4', '-$1,200', '2.4') to float."""
-    s = token.replace("$", "").replace(",", "").rstrip("R%").lstrip("+")
+class _Claim:
+    """A numeric token lifted out of the model's prose, with the two things
+    that decide how strictly it may be matched: the PRECISION it asserts and
+    whether it asserted a SIGN."""
+
+    __slots__ = ("value", "decimals", "signed", "token")
+
+    def __init__(self, value: float, decimals: int, signed: bool, token: str):
+        self.value = value
+        self.decimals = decimals
+        self.signed = signed
+        self.token = token
+
+    @property
+    def tolerance(self) -> float:
+        """Half a unit in the last place the claim actually wrote.
+
+        Why this and not a flat window: the only legitimate reason a stated
+        number differs from ground truth is ROUNDING, and a claim declares its
+        own rounding precision. "$187.4" may stand for anything in
+        [187.35, 187.45]; "$187.42" may only stand for [187.415, 187.425].
+        The old flat +-0.0501 gave a two-decimal price the same latitude as a
+        one-decimal one, which is how a fabricated cents figure landed inside
+        the window. Scales correctly in both directions: "$1.2K" asserts one
+        decimal at the thousands scale, so its window is +-50.
+        """
+        return 0.5 * (10.0 ** -self.decimals) + _FP_SLACK
+
+
+def _parse_claim(token: str) -> _Claim | None:
+    """Parse a matched token ('+1.4', '-$1,200', '$1.2K', '2.4') into a _Claim."""
+    s = token.strip()
+    if not s:
+        return None
+    negative = s.startswith("-")
+    signed = s[0] in "+-"
+    s = s.lstrip("+-").replace("$", "").replace(",", "")
+    if s[-1:] in ("R", "r", "%"):
+        s = s[:-1]
+    multiplier = 1.0
+    exponent = 0
+    if s[-1:].lower() in _MAGNITUDE:
+        multiplier = _MAGNITUDE[s[-1:].lower()]
+        exponent = len(str(int(multiplier))) - 1
+        s = s[:-1]
+    decimals = len(s.split(".", 1)[1]) if "." in s else 0
     try:
-        return float(s)
+        value = float(s)
     except ValueError:
         return None
+    value *= multiplier
+    if negative:
+        value = -value
+    # A magnitude suffix shifts the last significant place with it.
+    return _Claim(value, decimals - exponent, signed, token)
 
 
-def _data_numbers(data: dict) -> set[float]:
+def _to_float(token: str) -> float | None:
+    """Parse a number string ('+1.4', '-$1,200', '2.4') to float."""
+    claim = _parse_claim(token)
+    return None if claim is None else claim.value
+
+
+def _data_numbers(data: Any) -> set[float]:
     """Every numeric value present anywhere in the injected data, as floats.
-    Returns a set so we can do rounding-tolerant membership."""
+
+    Walks the WHOLE structure — the caller decides what ground truth is, this
+    function never second-guesses which keys count. Numbers written as strings
+    are picked up too (tool payloads stringify prices and quote figures in
+    prose), because a number the model read off a tool result is grounded
+    whatever its JSON type.
+
+    `abs()` is deliberately NOT mixed into the corpus here. It used to be,
+    which silently doubled the set and made a sign inversion ("you're up 1.4R"
+    on a -1.4R day) unflaggable. Sign leniency now lives in one place —
+    _claim_matches — and applies only when the prose didn't assert a sign.
+    """
     out: set[float] = set()
 
     def _add(v: Any) -> None:
-        if v is None:
-            return
-        if isinstance(v, bool):  # bool is int — skip
+        if v is None or isinstance(v, bool):  # bool is int — skip
             return
         if isinstance(v, (int, float)):
             try:
-                f = float(v)
-                out.add(f)
-                # Also add common derivations
-                out.add(abs(f))
+                out.add(float(v))
             except (TypeError, ValueError):
                 pass
-        elif isinstance(v, (list, tuple)):
+        elif isinstance(v, str):
+            for m in _STRING_NUMBER_RE.finditer(v):
+                try:
+                    out.add(float(m.group(0).replace(",", "")))
+                except ValueError:
+                    pass
+        elif isinstance(v, (list, tuple, set)):
             for x in v:
                 _add(x)
         elif isinstance(v, dict):
-            for x in v.values():
+            for k, x in v.items():
                 _add(x)
 
     _add(data)
     return out
 
 
-def _data_symbols(data: dict) -> set[str]:
-    """All trade/position symbols mentioned in data."""
+_SYMBOL_KEY_RE = re.compile(r"(?:^|_)(?:sym|symbol|ticker|underlying)s?$", re.IGNORECASE)
+_BARE_SYMBOL_RE = re.compile(r"^[A-Za-z]{1,5}(?:[.\-][A-Za-z]{1,2})?$")
+
+
+def _data_symbols(data: Any) -> set[str]:
+    """Every symbol the injected data could legitimately have put in front of
+    the model.
+
+    Derived from the payload's own shape — a bare uppercase ticker token, a
+    value under a `symbol`/`ticker`/`underlying` key, an uppercase dict KEY
+    (batch tools return `{"NVDA": {...}}`), or a ticker named inside prose
+    (arc strings, KB passages, headlines). No hand-list of source keys: the
+    hand-list is what made a correct answer read as unverified.
+    """
     out: set[str] = set()
-    today = data.get("today") or {}
-    for t in today.get("trades") or []:
-        s = t.get("symbol")
-        if isinstance(s, str):
-            out.add(s.upper())
-    for p in today.get("open_positions") or []:
-        s = p.get("symbol")
-        if isinstance(s, str):
-            out.add(s.upper())
-    # Symbols mentioned in arc descriptions (Task 3 produces strings like
-    # "3 consecutive losses on Bull Flag (TSLA, NVDA, CRWD)"). The arcs are
-    # legitimate references the validator must accept.
-    for arc in data.get("recent_arcs") or []:
-        if isinstance(arc, str):
-            for tok in _TICKER_RE.findall(arc):
-                if tok not in _NON_TICKER_WORDS:
-                    out.add(tok)
+
+    def _add_text(s: str) -> None:
+        if s.isupper() and _BARE_SYMBOL_RE.match(s):
+            out.add(s)
+        for tok in _TICKER_RE.findall(s):
+            if tok not in _NON_TICKER_WORDS:
+                out.add(tok)
+
+    def _walk(v: Any, symbol_key: bool = False) -> None:
+        if isinstance(v, str):
+            stripped = v.strip()
+            if symbol_key and _BARE_SYMBOL_RE.match(stripped):
+                out.add(stripped.upper())
+            _add_text(stripped)
+        elif isinstance(v, dict):
+            for k, val in v.items():
+                if isinstance(k, str) and k.isupper() and _BARE_SYMBOL_RE.match(k):
+                    out.add(k)
+                _walk(val, bool(isinstance(k, str) and _SYMBOL_KEY_RE.search(k)))
+        elif isinstance(v, (list, tuple, set)):
+            for x in v:
+                _walk(x, symbol_key)
+
+    _walk(data)
     return out
 
 
-def _matches_within_tolerance(claimed: float, data_set: set[float]) -> bool:
-    """Allow 1-decimal-place rounding tolerance. e.g. 0.4 matches 0.35; 1.4 matches 1.36-1.44.
+def _claim_matches(claim: _Claim, data_set: set[float]) -> bool:
+    """True when the claim is a correct rounding of some ground-truth number.
 
-    Uses a slightly-padded epsilon (0.0501) so that exact half-cases like
-    |0.4 - 0.35| = 0.05000000000000000044 (a floating-point artifact) still match.
+    A claim that wrote its own sign ("+2.1R", "-$140") must match that sign.
+    An unsigned claim carries its sign in the prose around it ("cost you 1.4R"
+    against a stored -1.4), so it matches on magnitude.
     """
+    tol = claim.tolerance
     for v in data_set:
-        if abs(claimed - v) <= 0.0501:  # half a tenth on each side, plus FP slack
+        if abs(claim.value - v) <= tol:
             return True
-        # Also try rounding both to 1 decimal
-        if round(claimed, 1) == round(v, 1):
+        if not claim.signed and abs(abs(claim.value) - abs(v)) <= tol:
             return True
     return False
+
+
+def _matches_within_tolerance(claimed: float, data_set: set[float],
+                              decimals: int = 1, signed: bool = False) -> bool:
+    """Back-compat shim over _claim_matches for float callers."""
+    return _claim_matches(_Claim(claimed, decimals, signed, str(claimed)), data_set)
+
+
+def _grounding_flags(body: str, data: Any) -> list[str]:
+    """Numeric + symbol grounding — the shared core of BOTH validators.
+
+    EOD and chat used to carry byte-identical copies of this block. Two
+    authorities over one rule is this repo's most-repeated defect; there is
+    now one.
+    """
+    flags: list[str] = []
+    data_numbers = _data_numbers(data)
+
+    for pattern, suffix, label in (
+        (_R_MULTIPLE_RE, "R", "R-multiple"),
+        (_DOLLAR_RE, "", "dollar amount"),
+        (_PERCENT_RE, "%", "percentage"),
+    ):
+        for tok in pattern.findall(body):
+            claim = _parse_claim(tok)
+            if claim is None:
+                continue
+            if not _claim_matches(claim, data_numbers):
+                flags.append(f"unverified {label}: {tok}{suffix}")
+
+    data_symbols = _data_symbols(data)
+    for tok in _TICKER_RE.findall(body):
+        if tok in _NON_TICKER_WORDS:
+            continue
+        if tok not in data_symbols:
+            flags.append(f"unverified symbol: {tok}")
+
+    return flags
 
 
 # ── Public validator ─────────────────────────────────────────────────────────
@@ -140,37 +283,8 @@ def validate_eod_output(body: str, data: dict) -> dict[str, Any]:
     if not isinstance(body, str) or not body.strip():
         return {"passed": False, "flags": ["empty body"]}
 
-    # ── A. Numeric grounding
-    data_numbers = _data_numbers(data)
-    # R-multiples
-    for tok in _R_MULTIPLE_RE.findall(body):
-        val = _to_float(tok + "R")
-        if val is None:
-            continue
-        if not _matches_within_tolerance(val, data_numbers):
-            flags.append(f"unverified R-multiple: {tok}R")
-    # Dollar amounts
-    for tok in _DOLLAR_RE.findall(body):
-        val = _to_float(tok)
-        if val is None:
-            continue
-        if not _matches_within_tolerance(val, data_numbers) and not _matches_within_tolerance(abs(val), data_numbers):
-            flags.append(f"unverified dollar amount: {tok}")
-    # Percentages
-    for tok in _PERCENT_RE.findall(body):
-        val = _to_float(tok + "%")
-        if val is None:
-            continue
-        if not _matches_within_tolerance(val, data_numbers):
-            flags.append(f"unverified percentage: {tok}%")
-
-    # ── B. Symbol grounding
-    data_symbols = _data_symbols(data)
-    for tok in _TICKER_RE.findall(body):
-        if tok in _NON_TICKER_WORDS:
-            continue
-        if tok not in data_symbols:
-            flags.append(f"unverified symbol: {tok}")
+    # ── A/B. Numeric + symbol grounding
+    flags.extend(_grounding_flags(body, data))
 
     # ── D. Format compliance
     # Headers (lines starting with #)
@@ -214,37 +328,10 @@ def validate_chat_output(body: str, data: dict) -> dict:
     """Lighter validator for chat outputs. Only checks numeric + symbol grounding.
     No format compliance (chat can use headers/bullets); no question-mark rules
     (chat is conversational, not reflective)."""
-    flags: list[str] = []
     if not isinstance(body, str) or not body.strip():
         return {"passed": True, "flags": []}  # empty chat turn = no flags
 
-    data_numbers = _data_numbers(data)
-    for tok in _R_MULTIPLE_RE.findall(body):
-        val = _to_float(tok + "R")
-        if val is None:
-            continue
-        if not _matches_within_tolerance(val, data_numbers):
-            flags.append(f"unverified R-multiple: {tok}R")
-    for tok in _DOLLAR_RE.findall(body):
-        val = _to_float(tok)
-        if val is None:
-            continue
-        if not _matches_within_tolerance(val, data_numbers) and not _matches_within_tolerance(abs(val), data_numbers):
-            flags.append(f"unverified dollar amount: {tok}")
-    for tok in _PERCENT_RE.findall(body):
-        val = _to_float(tok + "%")
-        if val is None:
-            continue
-        if not _matches_within_tolerance(val, data_numbers):
-            flags.append(f"unverified percentage: {tok}%")
-
-    data_symbols = _data_symbols(data)
-    for tok in _TICKER_RE.findall(body):
-        if tok in _NON_TICKER_WORDS:
-            continue
-        if tok not in data_symbols:
-            flags.append(f"unverified symbol: {tok}")
-
+    flags = _grounding_flags(body, data)
     return {"passed": len(flags) == 0, "flags": flags}
 
 

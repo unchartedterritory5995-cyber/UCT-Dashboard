@@ -807,6 +807,76 @@ class _DefaultSummaryClient:
         return msg.content[0].text if msg.content else ""
 
 
+def _audit_ground_truth(_conn, row) -> dict:
+    """Build the audit's ground-truth corpus for ONE assistant message.
+
+    ⛔ LOCKED: the corpus is DERIVED from what the tools actually returned in
+    this turn — every fired tool, whole payload. It was once assembled from
+    tool results carrying one of three hand-listed keys (`trades`,
+    `positions`, `arcs`), i.e. 3 of the 52 registered tools, so a correct
+    answer sourced from `get_quote` / `portfolio_heat` / `grade_ticker` /
+    `setup_winrate` / … had nothing to match against and was flagged — and
+    `ChatMessage.jsx` renders that flag to the MEMBER as "Some claims
+    unverified". A warning that fires on correct answers is worse than no
+    warning: it teaches members to ignore the one that matters.
+
+    A hand-list of fifty-two would be the same defect one size larger. Do not
+    reintroduce a key filter here; `coach_validation._data_numbers` /
+    `._data_symbols` walk whatever they are handed.
+
+    Scope is THIS TURN — every tool row from the turn's user message up to the
+    assistant row being audited. The old `LIMIT 5` window silently dropped the
+    earliest tools of a long agentic turn (`handle_user_turn` runs up to
+    MAX_LOOPS=8 iterations, one tool row apiece) and flagged their numbers.
+    """
+    data: dict = {"tool_results": [], "user_message": ""}
+
+    turn = _conn.execute(
+        """SELECT content, created_at FROM j2_chat_messages
+           WHERE user_id = ? AND account_id = ? AND role = 'user'
+             AND created_at <= ?
+           ORDER BY created_at DESC LIMIT 1""",
+        (row["user_id"], row["account_id"], row["created_at"]),
+    ).fetchone()
+    if turn is not None:
+        # Figures the trader stated are grounded — echoing back "on $50,000"
+        # is not a fabrication.
+        data["user_message"] = turn["content"] or ""
+        tool_rows = _conn.execute(
+            """SELECT tool_results FROM j2_chat_messages
+               WHERE user_id = ? AND account_id = ? AND role = 'tool'
+                 AND created_at >= ? AND created_at <= ?
+               ORDER BY created_at ASC""",
+            (row["user_id"], row["account_id"], turn["created_at"], row["created_at"]),
+        ).fetchall()
+    else:
+        # No user row (backfilled/legacy thread): fall back to a recent window
+        # rather than auditing against an empty corpus.
+        tool_rows = _conn.execute(
+            """SELECT tool_results FROM j2_chat_messages
+               WHERE user_id = ? AND account_id = ? AND role = 'tool'
+                 AND created_at <= ?
+               ORDER BY created_at DESC LIMIT 8""",
+            (row["user_id"], row["account_id"], row["created_at"]),
+        ).fetchall()
+
+    for tr in tool_rows:
+        try:
+            results = json.loads(tr["tool_results"] or "[]")
+        except (TypeError, json.JSONDecodeError):
+            continue
+        if not isinstance(results, list):
+            continue
+        for r in results:
+            if not isinstance(r, dict):
+                continue
+            result_obj = r.get("result")
+            if result_obj is None:
+                continue
+            data["tool_results"].append(result_obj)
+    return data
+
+
 def _audit_assistant_message(*, message_id: str, conn=None) -> dict:
     """Hallucination audit. Re-uses coach_validation's numeric/symbol grounding
     against the data Compass actually had access to in the surrounding turn.
@@ -821,27 +891,7 @@ def _audit_assistant_message(*, message_id: str, conn=None) -> dict:
         ).fetchone()
         if row is None or row["content"] is None:
             return {"passed": True, "flags": []}
-        data = {"today": {"trades": [], "open_positions": []}, "recent_arcs": []}
-        tool_rows = _conn.execute(
-            """SELECT tool_results FROM j2_chat_messages
-               WHERE user_id = ? AND account_id = ? AND role = 'tool'
-                 AND created_at <= ? AND forgotten = 0
-               ORDER BY created_at DESC LIMIT 5""",
-            (row["user_id"], row["account_id"], row["created_at"]),
-        ).fetchall()
-        for tr in tool_rows:
-            try:
-                results = json.loads(tr["tool_results"] or "[]")
-            except (TypeError, json.JSONDecodeError):
-                continue
-            for r in results:
-                result_obj = r.get("result") or {}
-                trades = (result_obj.get("trades") or [])
-                positions = (result_obj.get("positions") or [])
-                data["today"]["trades"].extend(trades)
-                data["today"]["open_positions"].extend(positions)
-                if "arcs" in result_obj:
-                    data["recent_arcs"].extend(result_obj["arcs"])
+        data = _audit_ground_truth(_conn, row)
         result = cv.validate_chat_output(row["content"], data)
         try:
             existing_meta = json.loads(_conn.execute(
