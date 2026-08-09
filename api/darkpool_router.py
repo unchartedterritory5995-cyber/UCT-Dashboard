@@ -278,6 +278,42 @@ async def darkpool_eod_summary(
     return JSONResponse(res)
 
 
+# ── Dark Pool records — per-ticker biggest-ever prints + new-record alerts ────
+@router.get("/records")
+async def darkpool_records_list(
+    limit: int = Query(default=300, ge=1, le=2000),
+    sort: str = Query(default="notional", description="notional | date | ticker"),
+    _auth: dict = Depends(require_flow_user),
+):
+    """Per-ticker biggest-ever dark-pool prints (for the Records panel)."""
+    from api import darkpool_records as dr
+    records = await run_in_threadpool(dr.get_records, limit, sort)
+    return JSONResponse({"records": records, "count": len(records)},
+                        headers=_DARKPOOL_NO_CACHE_HEADERS)
+
+
+@router.post("/records/seed")
+async def darkpool_records_seed(_auth: dict = Depends(require_flow_admin)):
+    """Populate the records table from the retained trades history (idempotent,
+    no alerts). Also runs automatically on the first enabled ingest."""
+    from api import darkpool_records as dr
+    n = await run_in_threadpool(dr.seed_from_trades)
+    return JSONResponse({"seeded_or_updated": n})
+
+
+@router.post("/records/refresh")
+async def darkpool_records_refresh(
+    source: str = Query(default="trades", description="trades | today"),
+    _auth: dict = Depends(require_flow_admin),
+):
+    """Manually run a record refresh (respects DARKPOOL_RECORDS_ENABLED) — for
+    ops/testing; normally the ingest paths drive this."""
+    from api import darkpool_records as dr
+    fn = dr.refresh_from_today if source == "today" else dr.refresh_from_trades
+    res = await run_in_threadpool(fn)
+    return JSONResponse(res)
+
+
 # ── Member: Get available trading dates ───────────────────────────────────────
 @router.get("/dates")
 async def get_dates(_auth: dict = Depends(require_flow_user)):

@@ -366,6 +366,17 @@ def run_ingest(date_mdyyyy: Optional[str] = None,
     except Exception as e:
         logger.warning("[darkpool_ingest] aggregate invalidate/prebuild skipped: %s", e)
 
+    # Update per-ticker biggest-ever records from the authoritative session +
+    # alert on new records (self-gated on DARKPOOL_RECORDS_ENABLED; fail-soft —
+    # a records error must never break the ingest).
+    try:
+        from api.darkpool_records import refresh_from_trades
+        _rec = refresh_from_trades(date_mdyyyy)
+        if _rec.get("ok") and (_rec.get("new_records") or _rec.get("seeded")):
+            logger.info("[darkpool_ingest] records: %s", _rec)
+    except Exception as e:
+        logger.warning("[darkpool_ingest] records refresh skipped: %s", e)
+
     logger.info("[darkpool_ingest] %s: +%d new / %d prints from %d tickers in %.0fs",
                 date_mdyyyy, result.get("inserted", 0), len(rows),
                 stats["tickers_done"], out["elapsed_sec"])
