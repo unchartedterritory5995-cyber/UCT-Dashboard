@@ -41,6 +41,54 @@ there by an UNMEASURED factor. The relative finding (compute is not the
 bottleneck; threads do not help) is a property of the code and does transfer.
 
 ───────────────────────────────────────────────────────────────────────────────
+🔴 THE SWEEP IS BOUNDED BY THE MARKET OPEN, AND STOPPING EARLY IS REPORTED.
+
+RE-MEASURED 2026-08-09 on this box rather than quoted: `close > sma(close,50)`
+over the real 3,742-symbol universe against the real 2.6 GB `bars.db` is
+**42.4 s of COMPUTE ALONE** (11.3 ms/symbol; 43% bars read, 57% interpret), with
+other agents resident. The performance audit measured **23.5 s** warm on the same
+box hours earlier and the COST paragraph above quotes **5.4 s** from an idle one.
+Add the audit's measured **19-26 s** of `definition_record` writes on a
+definition's FIRST sweep and one definition costs **~25-70 s**.
+
+⭐ THE SPREAD BETWEEN THOSE THREE NUMBERS IS THE WHOLE ARGUMENT FOR A CLOCK
+RATHER THAN A DEFINITION CAP. A count that is safe on an idle box is not safe on
+a contended one and neither number transfers to Railway's network-attached
+`/data`; a wall clock is right on every box because it measures the thing that
+actually matters.
+
+    10 definitions   ~4-12 min     done long before the open
+    100              ~42-117 min   into the pre-market
+    500              3.5-10 hours  🔴 STRAIGHT THROUGH THE OPEN
+
+⛔ `max_instances=1` PREVENTS OVERLAP AND DOES NOT PREVENT OVERRUN, and nothing
+else noticed the crossing. So `run_sweep` — the only thing that knows how long it
+has been running — stops STARTING definitions at `sweep_deadline()`, which is the
+market open MINUS `SWEEP_STOP_BEFORE_OPEN` and is DERIVED, never typed.
+
+⛔ THE CHECK IS BETWEEN DEFINITIONS, NEVER INSIDE THE PER-SYMBOL LOOP. A
+mid-definition abort would leave a `scan_coverage` row describing a partial
+universe as though it were complete — indistinguishable from a quiet market,
+which is the one reading E-2's three-state design exists to keep impossible. A
+definition is swept or it is not, so the worst-case overrun is exactly ONE
+definition and the margin is sized for it.
+
+⛔ AND `unswept` IS A FIFTH OUTCOME AT THE SWEEP'S OWN GRAIN, NOT A SIXTH SYMBOL
+OUTCOME. The four below describe one definition's universe; `unswept` describes
+DEFINITIONS. It is not `dropped` (we tried and failed — re-run them), not
+`not_computable` (it ran and the maths had nothing to say), and not `withheld`
+(your plan stops here). "We ran out of night" is its own fact, it is fixed by a
+different action — start earlier, or thin the list — and folding it into any of
+the other four would make a truncated sweep read as a broken one.
+
+⭐ AND THE TAIL IS NOT ABANDONED. A budget that always cuts at the same point
+starves the same definitions forever, so the order is DERIVED FROM THE ARTIFACT
+rather than remembered in a cursor: a definition carrying no `scan_coverage` row
+for the PREVIOUS session leads this run. No new state, nothing to lose on a
+redeploy, and it cannot go stale the way a stored cursor can — it reads the
+receipts the last run actually wrote.
+
+───────────────────────────────────────────────────────────────────────────────
 🔴 FOUR OUTCOMES, NOT TWO, AND THE RECEIPT CARRIES ALL FOUR.
 
     evaluated       we looked at it -- the closed identity's left-hand side
@@ -74,6 +122,7 @@ import logging
 import math
 import os
 from typing import Any, Mapping, Optional, Sequence
+from zoneinfo import ZoneInfo
 
 from api.services import ast_freshness
 from api.services import ast_interpret
@@ -107,11 +156,31 @@ NOT_COMPUTABLE_REASON = "not-computable"
 
 #: Why a symbol was never looked at. ⚠️ E-7 owns the entitlement axes and the
 #: numbers; E-3 owns the WORD, so the sweep and the coverage line cannot end up
-#: with two spellings of one fact. Today exactly one reason can be produced.
-WITHHELD_REASONS = ("toolkit:symbols",)
+#: with two spellings of one fact.
+#:
+#: ⛔ `toolkit:history` IS A REFUSAL, NEVER A TRIM, AND THAT IS WHY IT IS A
+#: WITHHOLDING. E-7 measured `ema(close,20)` at 15.269399733598789 over 400 bars
+#: and 15.269384587868412 over the last 120 — two different indicators under one
+#: name, and `pytest.approx`'s default `rel=1e-6` calls them EQUAL, so a trim
+#: fails the obvious test. Spec §1.4 gates BREADTH, never MECHANICS: a plan may
+#: say "you may not ask about that much of the past", it may not answer the same
+#: question with a worse number. See `entitlements.apply_history_cap`, whose two
+#: outcomes are the bars UNCHANGED or this reason.
+SYMBOLS_WITHHELD = "toolkit:symbols"
+HISTORY_WITHHELD = "toolkit:history"
+WITHHELD_REASONS = (SYMBOLS_WITHHELD, HISTORY_WITHHELD)
+
+#: Why a whole DEFINITION was never swept. ⛔ ITS OWN WORD AT ITS OWN GRAIN — see
+#: the module header. `dropped`/`not_computable`/`withheld` are facts about a
+#: SYMBOL inside one definition's run; this is a fact about the RUN, and the
+#: action that fixes it is different from all three.
+UNSWEPT_REASON = "budget:market-open"
 
 #: `_DPC_WARM_MAX_QUEUE`'s shape: a bounded list beside a true count. ⚠️ THE
 #: COUNTS ARE NEVER CAPPED; only the enumeration is, and `truncated` says so.
+#: ⛔ ONE BOUND FOR EVERY SUCH LIST IN THIS MODULE -- `dropped_symbols` and
+#: `unswept_definitions` share it rather than declaring a second number, because
+#: two names for one bound is two things to keep true.
 #: E-2 measured `scan_coverage` at 4,194 B/row with a 41-symbol `dropped_json`
 #: -- an unbounded list inside a stored row is how a receipt becomes the thing
 #: that fills the disk.
@@ -144,6 +213,25 @@ SWEEP_MINUTE_ET = 0
 #: DERIVED from `ledger._BARS_STORE_TF_KEYS`, never typed here, so a ninth
 #: timeframe is accepted the day the map declares it.
 DEFAULT_TF = "D"
+
+#: ⏰ THE ONLY NUMBER THE BUDGET DECLARES — how long before the regular session
+#: opens the sweep must have stopped starting definitions. ⛔ THE OPEN ITSELF IS
+#: NOT A NUMBER HERE: `market_open_et` derives it from the bars store's own
+#: canonical session anchor, so a schedule change on the exchange moves this
+#: deadline with no edit in this file. Spelling 09:30 beside that derivation
+#: would be a second authority over the one fact the deadline hangs on.
+#:
+#: ⭐ THE SIZE IS THE MEASURED WORST-CASE OVERRUN, NOT A ROUND NUMBER. The check
+#: is between definitions, so the sweep can overrun its deadline by at most ONE
+#: definition — re-measured on this box at 42.4 s of compute plus the audit's
+#: 19-26 s of first-sweep writes, call it ~70 s, and Railway's network-attached
+#: `/data` is worse by a factor nobody has measured. 30 minutes is ~25x that
+#: worst case, which is the right shape of margin for a bound whose whole job is
+#: to be wrong in the safe direction.
+SWEEP_STOP_BEFORE_OPEN = datetime.timedelta(minutes=30)
+
+#: The exchange's clock. Every ET instant in this module comes from here.
+_ET = ZoneInfo("America/New_York")
 
 
 class ScanRunRefused(Exception):
@@ -192,6 +280,106 @@ def expected_session() -> int:
     """
     from api.services.bars_fetch import _expected_latest_session_yyyymmdd
     return int(_expected_latest_session_yyyymmdd())
+
+
+def previous_session(as_of: int) -> Optional[int]:
+    """The trading session immediately BEFORE ``as_of``, or ``None``.
+
+    ⛔ THE SAME CALENDAR `expected_session` DELEGATES TO, ASKED A DIFFERENT
+    QUESTION — never a second weekend/holiday walk-back of this module's own.
+    The probe is MIDNIGHT of `as_of`: the store's pre-open roll makes that answer
+    "the last session strictly before today", which is exactly the previous
+    session, with the NYSE holiday walk already applied.
+
+    ⭐ IT EXISTS FOR FAIRNESS, NOT FOR CORRECTNESS. `_resume_order` uses it to put
+    the definitions the LAST run never reached at the FRONT of this one.
+    """
+    from api.services import bars_fetch
+    day = _as_of_date(as_of)
+    probe = datetime.datetime(day.year, day.month, day.day, tzinfo=_ET)
+    try:
+        prev = int(bars_fetch._expected_latest_session_yyyymmdd(probe))
+    except Exception:                                        # pragma: no cover
+        return None
+    return prev if prev < int(as_of) else None
+
+
+def _now_et() -> datetime.datetime:
+    """The ONE clock this module reads.
+
+    ⛔ ONE SOURCE, ON PURPOSE. `lesson_a_half_faked_clock_manufactures_false_positives`
+    measured 15 false time-bombs per real one, every one of them from a test that
+    froze one clock and left another running. There is exactly one here, so a test
+    that freezes it has frozen all of them — and `sweep_deadline` reads it too.
+    """
+    return datetime.datetime.now(_ET)
+
+
+def market_open_et(day: datetime.date) -> datetime.datetime:
+    """When the regular session opens on ``day``, in ET. ⛔ DERIVED, NEVER TYPED.
+
+    🔴 THE AUTHORITY IS `bars_fetch.bucket_60_et_unix_seconds`, which `CLAUDE.md`
+    names the single source of truth for session alignment and which BOTH the REST
+    resample path and the WebSocket rollup path already share. Its contract states
+    the open in the only way this module can honestly read it: *"9:30-9:59 ET:
+    anchor at 9:30 ET (the special 'clean open' 30-min bar); all other times: floor
+    to clock-hour ET"*. So the session open is **the one bucket in the day that is
+    not a clock hour**, and that is what this looks for.
+
+    ⛔ WHY NOT JUST WRITE 09:30. Because it is already written — in
+    `bucket_60_et_unix_seconds`, in `bars_liveness.is_market_open`, in
+    `live_massive_router._MARKET_OPEN_ET_MIN`, in `flow_gap_autofill`. A fifth copy
+    beside a budget nobody re-reads is `lesson_probe_names_must_be_derived_not_typed`
+    exactly, and it is the shape that has already cost this repo three outages: a
+    value re-typed next to the thing that owns it, agreeing on the day it is written
+    and silently disagreeing later. Reading it costs ~3 ms, once per sweep.
+
+    ⚠️ IT IS THE CLOCK-TIME OPEN, NOT A TRADING-DAY TEST. A Saturday still answers
+    09:30 — there is no session, so nothing asks. `sweep_deadline` wants "the hours
+    the market would be open", and a bound that is present on a closed day and
+    absent on an open one would be the wrong way round.
+
+    :raises RuntimeError: the anchor function stopped declaring a session open at
+        all, which would silently unbound this sweep.
+    """
+    from api.services import bars_fetch
+    for minute in range(24 * 60):
+        hour, minute_of_hour = divmod(minute, 60)
+        probe = datetime.datetime(day.year, day.month, day.day, hour,
+                                  minute_of_hour, tzinfo=_ET)
+        anchor = int(bars_fetch.bucket_60_et_unix_seconds(int(probe.timestamp())))
+        if anchor != int(probe.replace(minute=0).timestamp()):
+            return datetime.datetime.fromtimestamp(anchor, tz=_ET)
+    raise RuntimeError(
+        "no session-open anchor could be derived for "
+        f"{day.isoformat()}: every minute of the day buckets to its own clock "
+        "hour, so `bars_fetch.bucket_60_et_unix_seconds` no longer declares a "
+        "session open. REFUSING to guess — a budget that fell back to a typed "
+        "09:30 would be the second authority this function exists to avoid.")
+
+
+def sweep_deadline(now: Optional[datetime.datetime] = None) -> datetime.datetime:
+    """The instant after which `run_sweep` will not START another definition.
+
+    ``market_open_et(today) - SWEEP_STOP_BEFORE_OPEN``, in ET.
+
+    ⭐ TODAY'S OPEN, NOT "THE NEXT ONE". A sweep that began at 10:00 ET is already
+    running while members trade, and rolling the deadline forward to tomorrow's
+    open would hand it another twenty-three hours — bounding the clock while
+    losing the thing the bound is FOR. So the deadline for a run started after the
+    open is already past, the run stops immediately, and it says so.
+
+    ⚠️ THE COST OF THAT SIMPLICITY, STATED RATHER THAN HIDDEN: a manual re-run
+    after the close is also refused, because this asks "is the open behind us"
+    and not "is the market open right now" (which would need a second derived
+    number — the close — and a second thing to keep true). A caller who knows
+    better passes `run_sweep(deadline=...)` explicitly. The scheduled job runs at
+    `SWEEP_HOUR_ET`, hours before the deadline, and
+    `test_the_SCHEDULED_hour_falls_INSIDE_its_own_budget_window` is the rail that
+    keeps the two consistent if either moves.
+    """
+    now = now or _now_et()
+    return market_open_et(now.date()) - SWEEP_STOP_BEFORE_OPEN
 
 
 def _assert_snapshot_is_current(as_of: int) -> str:
@@ -435,24 +623,64 @@ def _apply_limits(universe: Sequence[str], limits: Any) -> tuple:
     UI that hides rows is not entitlement: the rows were computed, they held the
     GIL for those seconds, and a client can ask for them.
 
-    ⚠️ ONE AXIS IS APPLIED HERE AND IT IS `max_symbols` -- BREADTH. `max_history_bars`
-    is DELIBERATELY NOT applied: trimming the bars an EMA is seeded from changes
-    the number, and spec §1.4 says a toolkit gates BREADTH, NEVER MECHANICS --
-    nobody is sold a worse RSI. If the owner wants a history axis it has to be a
-    declared, reported outcome (a shorter window makes a long average
-    `not_computable`, which is honest) rather than a quietly different value, and
-    that is E-7's call to make out loud.
+    ⚠️ ONE AXIS IS APPLIED HERE AND IT IS `max_symbols` -- BREADTH. The history
+    axis is applied at the door instead (`_history_withheld`), because its answer
+    is a property of the DEFINITION rather than of any symbol.
     """
     syms = list(universe)
-    cap = getattr(limits, "max_symbols", None) if limits is not None else None
+    cap = _cap_of(limits, "max_symbols")
     if cap is None:
         return syms, 0, None
-    if isinstance(cap, bool) or not isinstance(cap, int) or cap < 0:
-        raise ValueError(
-            f"limits.max_symbols must be a non-negative int or None, got {cap!r}")
     if cap >= len(syms):
         return syms, 0, None
-    return syms[:cap], len(syms) - cap, WITHHELD_REASONS[0]
+    return syms[:cap], len(syms) - cap, SYMBOLS_WITHHELD
+
+
+def _cap_of(limits: Any, field: str) -> Optional[int]:
+    """One toolkit number, read by DUCK TYPE and type-checked once.
+
+    ⚠️ `isinstance(True, int)` IS TRUE and `max_symbols=True` would cap a universe
+    sweep at ONE symbol while reading as "enabled" -- E-7's `_check_count` opens
+    with the same branch for the same reason. Two spellings of the guard is one
+    more than the number of places a bool can sneak through.
+    """
+    if limits is None:
+        return None
+    cap = getattr(limits, field, None)
+    if cap is None:
+        return None
+    if isinstance(cap, bool) or not isinstance(cap, int) or cap < 0:
+        raise ValueError(
+            f"limits.{field} must be a non-negative int or None, got {cap!r}")
+    return cap
+
+
+def _history_withheld(want: int, limits: Any) -> bool:
+    """Does this plan stop the WHOLE definition short of the history it reads?
+
+    🔴 A REFUSAL, NEVER A TRIM, AND E-7 MEASURED WHY. `ema(close,20)` is
+    15.269399733598789 over 400 bars and 15.269384587868412 over the last 120 --
+    two different indicators under one name, and the relative difference
+    (9.919e-07) is INSIDE `pytest.approx`'s default `rel=1e-6`, so the obvious
+    test passes on the broken implementation. Spec §1.4: a toolkit gates BREADTH,
+    never MECHANICS. "You may not ask about that much of the past" is honest and
+    fixed by upgrading; the same question answered with a worse number is not.
+
+    ⛔ IT IS ASKED ONCE, ABOUT `want`, NOT PER SYMBOL. `want` is what the TREE
+    declares it reads (`max_lookback` + the store's floor), so this is a fact
+    about the definition and it is settled before a single bar is touched. Asking
+    per symbol -- `len(bars) > cap`, which is `entitlements.apply_history_cap`'s
+    own signature -- would answer YES for a liquid name and NO for a thin one, so
+    a member on a small plan would get results only for the data-poorest tickers
+    in the universe. That is a lottery wearing an entitlement's clothes.
+
+    ⚠️ SO THIS IS STRICTLY THE STRONGER TEST, AND THE TWO AGREE WHERE THEY MEET:
+    for any symbol carrying the history the tree asked for, this refuses exactly
+    when `apply_history_cap` refuses. `test_the_SWEEPs_history_gate_and_apply_history_cap_AGREE`
+    drives both over a matrix, the same way E-7 pinned the symbol slice.
+    """
+    cap = _cap_of(limits, "max_history_bars")
+    return cap is not None and int(want) > cap
 
 
 # --------------------------------------------------------------------------- #
@@ -602,6 +830,27 @@ def _assert_coverage_closes(*, evaluated: int, answered: int, dropped: int,
             f"withheld={withheld} universe={universe}")
 
 
+def _assert_sweep_closes(*, handed: int, swept: int, refused: int,
+                         duplicate: int, unswept: int) -> None:
+    """🔴 THE SAME ARITHMETIC ONE GRAIN UP: every definition handed in is exactly
+    one of swept, refused, duplicate, or unswept.
+
+    ⭐ IT IS THE GUARD ON THE BUDGET ITSELF. A `break` that forgot to record what
+    it broke out of would leave a receipt reporting 200 swept of 500 handed with
+    no fourth number — which reads as "300 vanished" or, worse, as "there were
+    only 200", and the whole point of bounding the sweep was that stopping early
+    must be VISIBLE. `escape_census` and `_assert_coverage_closes` are the same
+    idiom; every sweep in the ground-truth survey that lost work lost it through
+    a hole in exactly this shape of arithmetic.
+
+    ⛔ A `raise`, NOT A BARE `assert` -- `python -O` strips `assert`.
+    """
+    if handed != swept + refused + duplicate + unswept:
+        raise AssertionError(
+            f"sweep arithmetic broke: handed={handed} swept={swept} "
+            f"refused={refused} duplicate={duplicate} unswept={unswept}")
+
+
 def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
                  universe: Optional[Sequence[str]] = None,
                  as_of: Optional[Any] = None,
@@ -687,6 +936,16 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
         raise ScanRunRefused("not-scannable", str(exc)) from exc
     want = min(_MAX_BARS, max(_MIN_BARS, lookback + _MIN_BARS))
     pad = max(0, lookback - 1)
+
+    # 🔴 THE HISTORY AXIS, AND IT STOPS THE WHOLE DEFINITION RATHER THAN TRIMMING
+    # ANY SYMBOL'S BARS. See `_history_withheld`. Everything the member could have
+    # been shown is withheld under ONE attributable reason, the loop below runs
+    # zero times, and the closed identity still closes because a withheld symbol
+    # was never looked at.
+    history_withheld = _history_withheld(want, limits)
+    if history_withheld:
+        kept, withheld, withheld_reason = [], len(universe), HISTORY_WITHHELD
+
     rows_by_ticker = snapshot_db.get_rows(kept) if scalar_columns else {}
 
     record_rev = rev if (isinstance(rev, int) and not isinstance(rev, bool)
@@ -795,12 +1054,21 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
 
     truncated = len(unanswered) < (dropped + not_computable)
 
-    scan_store.record_hits(def_hash, tf_code, session, hits)
-    scan_store.record_coverage(
-        def_hash, tf_code, session,
-        evaluated=evaluated, answered=answered, dropped=dropped,
-        not_computable=not_computable, dropped_symbols=unanswered,
-        freshness=freshness)
+    # ⛔ A WITHHELD RUN WRITES NO RECEIPT, AND THE STORE IS WHY. `scan_hits` and
+    # `scan_coverage` are MEMBER-INDEPENDENT by design (E-2 gave them no member
+    # column; `run_sweep` dedupes by `def_hash` so two members who typed the same
+    # formula share one result set). A per-member entitlement outcome written
+    # there would tell EVERY member that this definition evaluated zero symbols
+    # today — a plan's boundary published as a fact about the market. The member
+    # gets the withholding in their own envelope; the shared store keeps silence,
+    # which reads correctly as `coverage(...) is None` — "nobody looked".
+    if not history_withheld:
+        scan_store.record_hits(def_hash, tf_code, session, hits)
+        scan_store.record_coverage(
+            def_hash, tf_code, session,
+            evaluated=evaluated, answered=answered, dropped=dropped,
+            not_computable=not_computable, dropped_symbols=unanswered,
+            freshness=freshness)
 
     recorded = record_refused = 0
     if record_rev is not None and tf_label and pending_record:
@@ -830,10 +1098,50 @@ def evaluate_one(definition: Any, tf: str = DEFAULT_TF, *,
     }
 
 
+def _resume_order(entries: Sequence[tuple], tf_code: str,
+                  as_of: int) -> list:
+    """The sweep's order, with the LAST run's tail at the FRONT.
+
+    🔴 A BUDGET THAT ALWAYS CUTS AT THE SAME POINT STARVES THE SAME DEFINITIONS
+    FOREVER. If the clock stops the sweep at 200 of 500 and tomorrow starts from
+    the same first definition, the last 300 are never swept again — and nothing
+    would ever say so, because each night's receipt looks like a healthy partial.
+
+    ⭐ THE RESUME POINT IS DERIVED FROM THE ARTIFACT, NOT REMEMBERED IN A CURSOR:
+    a definition carrying no `scan_coverage` row for the PREVIOUS session was not
+    reached last time, so it leads this time. No new table, no marker file,
+    nothing to lose on a redeploy — and unlike a stored cursor it cannot go stale
+    or disagree with what actually happened, because it reads the receipts the
+    last run wrote. `lesson_health_check_reads_a_proxy_not_the_artifact` is the
+    same lesson pointed the other way.
+
+    ⛔ `sorted` IS STABLE AND THAT IS LOAD-BEARING. Within each bucket the
+    caller's order survives untouched; on a first run, or one where every
+    definition was swept last time, this is the identity. It must never sort,
+    sample or shuffle beyond the one bit it is entitled to — `apply_symbol_cap`
+    refuses the same thing for the same reason ("the order is the caller's").
+    """
+    prev = previous_session(as_of)
+    if prev is None:
+        return list(entries)
+
+    def _swept_last_time(item) -> int:
+        try:
+            return 1 if scan_store.coverage(item[0], tf_code, prev) is not None else 0
+        except Exception:                                    # pragma: no cover
+            # ⛔ A FAIRNESS READ MAY NEVER TAKE THE SWEEP DOWN. Unknown sorts to
+            # the front: being swept twice is free, being starved is the bug.
+            return 0
+
+    return sorted(entries, key=_swept_last_time)
+
+
 def run_sweep(definitions: Sequence[Any], tf: str = DEFAULT_TF, *,
               universe: Optional[Sequence[str]] = None,
-              as_of: Optional[Any] = None) -> Optional[dict]:
-    """Sweep every definition once. ``None`` when the run could not proceed.
+              as_of: Optional[Any] = None,
+              deadline: Optional[datetime.datetime] = None) -> Optional[dict]:
+    """Sweep every definition once, WITHIN A WALL-CLOCK BUDGET. ``None`` when the
+    run could not proceed at all.
 
     ⛔ A TRANSIENT FAILURE OF THE WHOLE RUN RETURNS `None`, NOT AN EMPTY RESULT.
     `scan_gainers._build_reference` returns `None` on a provider miss *"so the job
@@ -846,6 +1154,24 @@ def run_sweep(definitions: Sequence[Any], tf: str = DEFAULT_TF, *,
     formula have the same maths, share one result set and cost the pod ONE sweep;
     that is the property that makes the store member-independent, and it is the
     only place in this file where the number of MEMBERS could ever have leaked in.
+
+    🔴 THE BUDGET LIVES HERE BECAUSE THIS IS THE ONLY THING THAT KNOWS HOW LONG
+    IT HAS BEEN RUNNING. The cron registration knows when to START; `max_instances=1`
+    prevents a second sweep OVERLAPPING the first and does nothing whatsoever about
+    the first one still running at 09:30. `deadline` defaults to `sweep_deadline()`
+    — the market open minus `SWEEP_STOP_BEFORE_OPEN`, derived.
+
+    ⛔ CHECKED BETWEEN DEFINITIONS, NEVER INSIDE `evaluate_one`. A definition is
+    swept or it is not: a mid-definition abort would write a receipt describing a
+    partial universe as a complete one, which is exactly the reading `scan_coverage`
+    exists to make impossible.
+
+    🔴 AND WHAT IT DID NOT REACH IS NAMED. `unswept` / `unswept_definitions` /
+    `stopped_early` sit BESIDE the other counts, never inside them, for the same
+    reason `withheld` does — and the receipt CLOSES:
+    ``definitions == swept + refused + duplicate + unswept``. Without that
+    identity a sweep that dropped definitions on the floor would look exactly like
+    a sweep that had fewer to do.
     """
     definitions = list(definitions or [])
     if not definitions:
@@ -861,9 +1187,20 @@ def run_sweep(definitions: Sequence[Any], tf: str = DEFAULT_TF, *,
 
     session = int(scan_store._normalise_as_of(
         as_of if as_of is not None else expected_session()))
+    tf_code = scan_store._normalise_tf(tf)
+    started = _now_et()
+    if deadline is None:
+        deadline = sweep_deadline(started)
 
+    # ⭐ PHASE 1 -- RESOLVE EVERY DEFINITION TO ITS MATHS, BEFORE SWEEPING ANY.
+    # It is validation only (microseconds), and it buys three things the old
+    # inline shape could not have: a malformed definition is refused before the
+    # pod spends a minute on someone else's, the duplicates become COUNTABLE
+    # instead of silently skipped, and the ones the clock never reaches can be
+    # NAMED without doing any work after the deadline.
     seen: set = set()
-    swept = refused = hit_rows = recorded = 0
+    entries: list = []
+    refused = duplicate = 0
     refusals: list = []
     for definition in definitions:
         try:
@@ -877,8 +1214,22 @@ def run_sweep(definitions: Sequence[Any], tf: str = DEFAULT_TF, *,
             refusals.append({"gate": "not-scannable", "detail": str(exc)[:200]})
             continue
         if handle in seen:
+            duplicate += 1
             continue
         seen.add(handle)
+        entries.append((handle, definition))
+
+    entries = _resume_order(entries, tf_code, session)
+
+    # ⭐ PHASE 2 -- SWEEP UNDER THE CLOCK.
+    swept = hit_rows = recorded = 0
+    unswept: list = []
+    stopped_early = False
+    for position, (handle, definition) in enumerate(entries):
+        if _now_et() >= deadline:
+            stopped_early = True
+            unswept = [h for h, _ in entries[position:]]
+            break
         try:
             out = evaluate_one(definition, tf, universe=universe, as_of=session)
         except ScanRunRefused as exc:
@@ -896,13 +1247,42 @@ def run_sweep(definitions: Sequence[Any], tf: str = DEFAULT_TF, *,
         hit_rows += len(out["hits"])
         recorded += out["recorded"]
 
-    log.info("[scan] sweep done as_of=%s definitions=%s swept=%s refused=%s "
-             "hits=%s recorded=%s", session, len(definitions), swept, refused,
-             hit_rows, recorded)
-    return {"as_of": session, "tf": scan_store._normalise_tf(tf),
+    _assert_sweep_closes(handed=len(definitions), swept=swept, refused=refused,
+                         duplicate=duplicate, unswept=len(unswept))
+    elapsed = (_now_et() - started).total_seconds()
+
+    # ⛔ "WE RAN OUT OF NIGHT" MUST NEVER READ AS "THERE WAS NOTHING TO SCAN", so
+    # the line names BOTH numbers and the truncation gets its own WARNING. With
+    # zero live definitions today a truncated sweep and an idle one would
+    # otherwise log identically.
+    log.info("[scan] sweep done as_of=%s handed=%s distinct=%s swept=%s "
+             "refused=%s duplicate=%s unswept=%s stopped_early=%s hits=%s "
+             "recorded=%s elapsed=%.1fs deadline=%s",
+             session, len(definitions), len(seen), swept, refused, duplicate,
+             len(unswept), stopped_early, hit_rows, recorded, elapsed,
+             deadline.isoformat())
+    if stopped_early:
+        log.warning(
+            "[scan] sweep STOPPED EARLY on its wall-clock budget (%s): %s of %s "
+            "distinct definitions swept in %.1fs, %s NEVER LOOKED AT and "
+            "carrying NO scan_coverage row for as_of=%s. The deadline was %s "
+            "(the market open minus %s). This is NOT an empty night -- the "
+            "unswept definitions lead the next run. First unswept: %s",
+            UNSWEPT_REASON, swept, len(seen), elapsed, len(unswept), session,
+            deadline.isoformat(), SWEEP_STOP_BEFORE_OPEN,
+            ", ".join(h[:15] for h in unswept[:5]))
+
+    return {"as_of": session, "tf": tf_code,
             "definitions": len(definitions), "distinct": len(seen),
-            "swept": swept, "refused": refused, "hits": hit_rows,
-            "recorded": recorded, "refusals": refusals}
+            "swept": swept, "refused": refused, "duplicate": duplicate,
+            "hits": hit_rows, "recorded": recorded, "refusals": refusals,
+            "unswept": len(unswept),
+            "unswept_definitions": unswept[:_DROPPED_LISTED_MAX],
+            "unswept_listed": len(unswept[:_DROPPED_LISTED_MAX]),
+            "unswept_reason": UNSWEPT_REASON if stopped_early else None,
+            "stopped_early": stopped_early,
+            "deadline": deadline.isoformat(),
+            "elapsed_seconds": elapsed}
 
 
 def definitions_to_sweep() -> list:
@@ -965,6 +1345,17 @@ def sweep_job() -> None:
     log.info("[scan] sweep receipts read back: %s of %s definitions carry a "
              "scan_coverage row for as_of=%s", proven, receipt["distinct"],
              receipt["as_of"])
+    # ⛔ THE SHORTFALL IS EXPLAINED IN THE SAME BREATH AS THE COUNT, OR THE COUNT
+    # IS A MYSTERY. "receipts read back: 200 of 500" beside nothing else reads as
+    # 300 silent failures; it is the budget, it is expected, and the reader has
+    # to be told which of the two it is looking at.
+    if receipt.get("stopped_early"):
+        log.warning(
+            "[scan] %s of those %s have NO receipt because the wall-clock budget "
+            "stopped the sweep before it reached them (%s, deadline %s) -- NOT "
+            "because they failed. They lead the next run.",
+            receipt.get("unswept"), receipt["distinct"],
+            receipt.get("unswept_reason"), receipt.get("deadline"))
 
 
 def enabled() -> bool:

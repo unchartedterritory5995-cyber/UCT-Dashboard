@@ -590,15 +590,24 @@ def test_the_WITHHELD_VOCABULARY_is_PINNED_to_the_SWEEPs_not_RESTATED():
     make a divergence invisible.
     """
     assert scan_evaluator.WITHHELD_REASONS[0] == ent.SYMBOLS_WITHHELD
-    assert set(scan_evaluator.WITHHELD_REASONS) <= set(ent.WITHHELD_REASONS)
 
-    # 🟡 THE ONE REASON THE SWEEP DOES NOT YET DECLARE, NAMED SO IT CANNOT BE
-    # FORGOTTEN. When the controller lands the history refusal in the sweep, this
-    # flips to a membership assertion and the decision record's §4 closes.
-    assert ent.HISTORY_WITHHELD not in scan_evaluator.WITHHELD_REASONS, (
-        "`toolkit:history` reached the sweep's vocabulary — the history axis is "
-        "now wired, so update this rail and close §4 of "
-        "docs/decisions/2026-08-08-toolkit-gating-axes.md")
+    # ✅ THE PIN CAME OFF, AND IT CAME OFF BY FAILING FIRST. This read
+    # `assert ent.HISTORY_WITHHELD not in scan_evaluator.WITHHELD_REASONS` with a
+    # message telling whoever tripped it to close §4 of the decision record. The
+    # history refusal is now wired in `scan_evaluator._history_withheld`, the rail
+    # went RED by name on the commit that landed it, and §4 is closed — so the
+    # `<=` becomes an `==`. ⛔ AN EQUALITY, NOT A SUBSET: the two sides now declare
+    # the same closed set, and a reason added on one side alone is the divergence
+    # this pin exists to catch. That is E-5's idiom with `9c4f1f74`'s scalars pin,
+    # and it is why the pin was written as a failing assertion rather than a TODO.
+    assert set(scan_evaluator.WITHHELD_REASONS) == set(ent.WITHHELD_REASONS)
+    assert ent.HISTORY_WITHHELD in scan_evaluator.WITHHELD_REASONS
+
+    # ⛔ AND THE SWEEP'S OWN TRUNCATION WORD IS NOT ONE OF THEM. "We ran out of
+    # night" is not "your plan stops here": one is fixed by starting earlier, the
+    # other by upgrading, and a member cannot act on the difference if they share
+    # a bucket.
+    assert scan_evaluator.UNSWEPT_REASON not in ent.WITHHELD_REASONS
 
 
 # ═══ 4. the DEFINITION-COUNT axis — a live downgrade, on a real write path ══
