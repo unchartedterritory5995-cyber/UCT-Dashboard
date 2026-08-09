@@ -8,9 +8,7 @@ import { useWorkspace } from '../WorkspaceContext'
 // their default columns and NEVER persist edits (ephemeralCols) — a curated list is a fixed
 // view, so any in-session column change is discarded when you leave and reopen it. Per-list
 // overrides here; everything else falls back to PREBUILT_COL_FALLBACK.
-const PREBUILT_COL_DEFAULTS = {
-  'Liquid Major ETFs': { order: ['flag', 'sym', 'chg', 'price', 'dolvol'] },
-}
+const PREBUILT_COL_DEFAULTS = {}
 const PREBUILT_COL_FALLBACK = { order: ['flag', 'sym', 'chg', 'price', 'dolvol'] }
 
 export default function WatchlistWidget({ color, opts, onOptsChange }) {

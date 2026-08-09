@@ -1,10 +1,10 @@
 """Build ALL prebuilt ETF watchlists → api/data/prebuilt_lists.json.
 
-One 'Liquid Major ETFs' list (top N liquid ETFs, leveraged/single-stock excluded) plus a set
-of curated theme lists (Sector SPDRs, Broad Market, Industry/Thematic, Country/Region,
-Commodities, Bonds/Rates, Crypto, Factor/Smart-Beta). Each curated list is filtered to
-tickers that actually traded (grouped-daily data present) and sorted by dollar volume so the
-most liquid appear first. Consumed by api/services/watchlist_prebuilt.
+A 'Bull & Bear ETFs' list (traditional leveraged/inverse index/sector/commodity ETFs above a
+liquidity floor) plus a set of curated theme lists (Sector SPDRs, Broad Market,
+Industry/Thematic, Country/Region, Commodities, Bonds/Rates, Crypto, Factor/Smart-Beta). Each
+list is filtered to tickers that actually traded (grouped-daily data present) and sorted by
+dollar volume so the most liquid appear first. Consumed by api/services/watchlist_prebuilt.
 
 Run: railway run --service web -- python tools/build_prebuilt_lists.py
 """
@@ -16,12 +16,45 @@ import urllib.request
 KEY = os.environ.get("MASSIVE_API_KEY", "")
 BASE = "https://api.massive.com"
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "api", "data", "prebuilt_lists.json")
-TOP_N = 100
 
-_LEV_EXCLUDE = [
-    "2X", "3X", "4X", "1.5X", "1.25X", "-1X", "-2X", "-3X",
-    "ULTRA", "LEVERAGED", "INVERSE", "GEARED", "BOOST", "BULL", "BEAR",
-    "YIELDMAX", "T-REX", "DAILY TARGET",
+# 'Bull & Bear ETFs' candidates — TRADITIONAL leveraged (bull) + inverse (bear) ETFs whose
+# underlying is an INDEX / SECTOR / COMMODITY / BOND / VOLATILITY basket, never a single stock
+# (no NVDL/TSLL/MSTU/…). Filtered to names trading >= MIN_LEV_DVOL dollar volume so the list
+# stays liquid and tradable, then sorted by dollar volume.
+MIN_LEV_DVOL = 5_000_000
+LEVERAGED = [
+    # S&P 500
+    "UPRO", "SPXL", "SSO", "SPUU", "SPXU", "SPXS", "SDS", "SH", "SPDN",
+    # Nasdaq 100
+    "TQQQ", "QLD", "SQQQ", "QID", "PSQ",
+    # Dow
+    "UDOW", "DDM", "SDOW", "DXD", "DOG",
+    # Russell 2000 / small cap
+    "TNA", "URTY", "UWM", "TZA", "SRTY", "TWM", "RWM",
+    # Semis / tech
+    "SOXL", "SOXS", "USD", "SSG", "TECL", "TECS", "ROM", "REW",
+    # Financials / banks
+    "FAS", "FAZ", "UYG", "SKF", "DPST",
+    # Energy
+    "ERX", "ERY", "GUSH", "DRIP", "DIG", "DUG",
+    # Biotech / healthcare
+    "LABU", "LABD", "BIB", "BIS", "CURE", "PILL",
+    # Gold & junior miners
+    "NUGT", "DUST", "JNUG", "JDST",
+    # Real estate
+    "DRN", "DRV", "URE", "SRS",
+    # Other sectors
+    "RETL", "DFEN", "UTSL", "WANT", "NAIL",
+    # China / EM / international
+    "YINN", "YANG", "CWEB", "CHAU", "EDC", "EDZ", "BRZU", "KORU", "INDL", "MEXX", "EURL", "JPNL",
+    # MicroSectors index baskets
+    "FNGU", "FNGD", "BULZ", "WEBL", "WEBS",
+    # Commodities — metals & energy
+    "UGL", "GLL", "AGQ", "ZSL", "UCO", "SCO", "BOIL", "KOLD",
+    # Treasuries / rates
+    "TMF", "TMV", "TBT", "TTT", "UBT", "TYD", "TYO", "UST", "PST", "TBF",
+    # Volatility
+    "UVXY", "SVXY", "UVIX", "SVIX",
 ]
 
 # Curated theme lists (candidate tickers; filtered to what actually trades, then $vol-sorted).
@@ -74,8 +107,6 @@ def paginate(u, cap=400):
 def main():
     if not KEY:
         raise SystemExit("MASSIVE_API_KEY not set")
-    etf_rows = paginate(f"{BASE}/v3/reference/tickers?type=ETF&active=true&market=stocks&limit=1000&apiKey={KEY}")
-    etf_names = {(r.get("ticker") or "").upper(): (r.get("name") or "") for r in etf_rows}
 
     d = datetime.date.today()
     grouped = None
@@ -94,20 +125,19 @@ def main():
 
     lists = []
 
-    # Liquid Major ETFs — top N ETFs by $vol, leveraged/single-stock excluded.
-    ranked = sorted(((t, dv) for t, dv in dvol.items() if t in etf_names), key=lambda x: x[1], reverse=True)
-    liquid = []
-    for t, _dv in ranked:
-        nm = etf_names.get(t, "").upper()
-        if not any(k in nm for k in _LEV_EXCLUDE):
-            liquid.append(t)
-        if len(liquid) >= TOP_N:
-            break
+    # Bull & Bear ETFs — traditional leveraged/inverse ETFs above the liquidity floor, $vol-sorted.
+    lev_kept = sorted([t for t in LEVERAGED if dvol.get(t.upper(), 0) >= MIN_LEV_DVOL],
+                      key=lambda t: dvol.get(t.upper(), 0), reverse=True)
+    lev_dropped = [t for t in LEVERAGED if dvol.get(t.upper(), 0) < MIN_LEV_DVOL]
+    if lev_dropped:
+        print(f"  Bull & Bear ETFs: dropped (< ${MIN_LEV_DVOL/1e6:.0f}M/day or no data): {lev_dropped}")
     lists.append({
-        "name": "Liquid Major ETFs",
-        "desc": "The most liquid US ETFs by dollar volume — broad market, sectors, factors, thematic, bonds and commodities.",
+        "name": "Bull & Bear ETFs",
+        "desc": "Traditional leveraged (bull) and inverse (bear) ETFs of major indices, sectors, "
+                "commodities, bonds and volatility — SOXL, TQQQ, SQQQ, SPXL, DUST, GLL and more. "
+                "No single-stock funds.",
         "category": "UCT ETF Lists",
-        "tickers": liquid,
+        "tickers": lev_kept,
     })
 
     # Curated theme lists — keep tickers that traded, sort by $vol desc.
