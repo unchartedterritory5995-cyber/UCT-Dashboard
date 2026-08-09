@@ -2071,6 +2071,11 @@ export default function StockChart({
   // default replay frame. Persists across ticker switches; cleared by "Reset view" or on
   // exit replay. (userViewMovedRef is re-armed each sym switch, so it can't hold this.)
   const replayViewLockedRef = useRef(false)
+  // The locked view's RIGHT-RELATIVE params {barsFromRight, width}, captured on the
+  // CURRENT ticker at pan/zoom time — NOT derived from oldRange after a sym switch (that
+  // range is clamped to the new ticker's extent, so a short-history name like ROOT loses
+  // the deep scroll-back a long-history name like QQQ had). Applied to every new ticker.
+  const replayLockedViewRef = useRef(null)
   const viewPointerRef = useRef(null)       // {x, y} of the in-flight press, else null
   const lastPointerDownAtRef = useRef(0)    // ms of the last press anywhere on the chart
   // Is the user's pointer physically over THIS chart? The ONLY trustworthy
@@ -2638,7 +2643,7 @@ export default function StockChart({
         // net is live again (see userViewMovedRef). Also release the replay view
         // lock so the next replay ticker returns to the default replay frame.
         userViewMovedRef.current = false
-        replayViewLockedRef.current = false
+        replayViewLockedRef.current = false; replayLockedViewRef.current = null
       } catch {}
     }
     const autoScale = () => {
@@ -7789,7 +7794,7 @@ export default function StockChart({
       lastTfRef.current = resolvedTf
       // Exiting replay (or a TF change) clears the replay view lock so the next frame
       // uses the normal default; a plain ticker switch WITHIN replay keeps it locked.
-      if (!replayCutoff || tfChanged) replayViewLockedRef.current = false
+      if (!replayCutoff || tfChanged) { replayViewLockedRef.current = false; replayLockedViewRef.current = null }
       const _replayLocked = replayCutoff && replayViewLockedRef.current
       // New symbol/timeframe = a fresh view, so re-arm the pinned-right safety net that a
       // user pan on the PREVIOUS symbol had latched off — EXCEPT under the replay lock,
@@ -7841,11 +7846,12 @@ export default function StockChart({
         let to, from
         // REPLAY view lock: once the user has moved the view in replay, keep the EXACT
         // right-relative view (same distance from the cutoff + same zoom) on every ticker,
-        // overriding keepPresent's snap-to-present — until "Reset view" / exit replay.
-        if (_replayLocked) {
-          const barsFromRight = oldBarCount - oldRange.to
-          to = newBarCount - barsFromRight
-          from = to - width
+        // overriding keepPresent's snap-to-present — until "Reset view" / exit replay. Use
+        // the params CAPTURED at pan/zoom time (replayLockedViewRef) — oldRange here is
+        // already clamped to the new ticker's extent, which loses the deep scroll-back.
+        if (_replayLocked && replayLockedViewRef.current) {
+          to = newBarCount - replayLockedViewRef.current.barsFromRight
+          from = to - replayLockedViewRef.current.width
         } else if (keepPresentOnSymbolChange) {
           to = (newBarCount - 1) + width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
           from = to - width
@@ -8035,6 +8041,20 @@ export default function StockChart({
             }
           }
         }
+      }
+    }
+
+    // Replay view lock — re-assert the captured right-relative view on EVERY commit so a
+    // load PHASE that changes the bar count (IDB → network → backfill) can't shift it, and
+    // no other guard can snap it to present. Skipped while the user is actively dragging
+    // (pointer down), which would fight a live pan; the drag's own onUp re-captures.
+    if (replayCutoff && replayViewLockedRef.current && replayLockedViewRef.current
+        && !viewPointerRef.current && !entryDate && !exactDateRange && filteredBars.length > 1) {
+      const _lw = replayLockedViewRef.current.width
+      const _to = filteredBars.length - replayLockedViewRef.current.barsFromRight
+      const _from = _to - _lw
+      if (_lw > 0 && Number.isFinite(_from) && Number.isFinite(_to) && _to > 1 && _from < filteredBars.length) {
+        try { chart.timeScale().setVisibleLogicalRange({ from: _from, to: _to }) } catch { /* mid-load */ }
       }
     }
 
@@ -10119,6 +10139,21 @@ export default function StockChart({
       lastPointerDownAtRef.current = Date.now()
       viewPointerRef.current = { x: e.clientX, y: e.clientY }
     }
+    // Capture the CURRENT (settled) view as right-relative params for the replay lock.
+    // rAF so we read AFTER lightweight-charts applies the pan/zoom, on THIS ticker's bars.
+    const _captureReplayLock = () => {
+      if (!replayCutoffRef.current) return
+      replayViewLockedRef.current = true
+      requestAnimationFrame(() => {
+        try {
+          const r = chartRef.current?.timeScale().getVisibleLogicalRange()
+          const n = lastBarCountRef.current || 0
+          if (r && n > 0 && (r.to - r.from) > 0) {
+            replayLockedViewRef.current = { barsFromRight: n - r.to, width: r.to - r.from }
+          }
+        } catch { /* mid-load */ }
+      })
+    }
     const onMove = (e) => {
       const p = viewPointerRef.current
       if (!p) return
@@ -10127,10 +10162,13 @@ export default function StockChart({
         if (replayCutoffRef.current) replayViewLockedRef.current = true   // lock this view for the whole sort
       }
     }
-    const onUp = () => { viewPointerRef.current = null }
+    const onUp = () => {
+      if (viewPointerRef.current && replayCutoffRef.current && replayViewLockedRef.current) _captureReplayLock()
+      viewPointerRef.current = null
+    }
     const onWheel = () => {
       userViewMovedRef.current = true
-      if (replayCutoffRef.current) replayViewLockedRef.current = true
+      _captureReplayLock()
     }
     // Real pointer presence — see pointerOverRef. mouseenter/leave don't bubble,
     // so they fire exactly for THIS container.
@@ -10419,7 +10457,7 @@ export default function StockChart({
                 ts.resetTimeScale()
               }
               userViewMovedRef.current = false   // explicit reset re-arms the pinned-right net
-              replayViewLockedRef.current = false // and releases the replay view lock
+              replayViewLockedRef.current = false; replayLockedViewRef.current = null // and releases the replay view lock
             } catch { /* noop */ }
           },
           openSettings: () => { try { toolbarRef.current?.openSettings() } catch { /* noop */ } },
