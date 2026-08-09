@@ -70,11 +70,29 @@ from api.services import earnings_estimates as _ee
 
 _log = logging.getLogger(__name__)
 
-# The filing and the announcement are the SAME event, so this is a tolerance
-# for provider clock/timezone skew, not a search window. Measured 0-1 days
-# across four fiscal shapes; 5 absorbs a weekend-boundary filing without ever
-# reaching a neighbouring quarter (~91 days away).
-_MAX_JOIN_DAYS = 5
+# How far the FILING may sit from the ANNOUNCEMENT and still be the same event.
+#
+# This was 5, chosen from a 4-ticker sample (JAZZ, AAPL, NVDA, MSFT) that
+# measured 0-1 days -- large caps that file fast. It generalized badly. A 10-Q
+# lands within days of the announcement, but a 10-K lands WEEKS after it, so
+# every Q4 fell outside the window and lost its fiscal identity. The tell was
+# an axis reading "Q2 25 ... Q2 25 ... Q1 26 ... Q1 26" with Q4 nowhere: the
+# unmatched rows fell back to deriving a label from the calendar month and
+# collided with real ones.
+#
+# Re-measured over 180 joins across 15 tickers (2026-08-08), gap in days:
+#
+#     Q1   n=45   median 0   max  9
+#     Q2   n=45   median 0   max  9
+#     Q3   n=45   median 0   max  9
+#     Q4   n=45   median 5   max 29     <- the 10-K lag
+#     overall p90 9, p99 28, max 29; 40 of 180 (22%) exceeded the old 5
+#
+# 45 covers the observed max with real headroom and is still only half a
+# quarter, so it cannot reach a neighbouring period (~91 days away) -- and the
+# join takes the NEAREST filing regardless, so this is purely a rejection
+# guard, not a search radius.
+_MAX_JOIN_DAYS = 45
 
 
 def _day(v) -> _dt.date | None:

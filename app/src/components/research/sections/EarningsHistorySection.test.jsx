@@ -1,6 +1,7 @@
 // app/src/components/research/sections/EarningsHistorySection.test.jsx
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 
 import EarningsHistorySection from './EarningsHistorySection'
 import { countGoldHighlights } from '../../research-kit/testing/restraint'
@@ -371,5 +372,48 @@ describe('EarningsHistorySection — an unanswered provider must not become a cl
     renderSection({ row: { ...row, history_unresolved: true }, enrichReady: true })
     expect(screen.queryByText(/history unavailable/i)).toBeNull()
     expect(screen.getByTestId('echart')).toBeTruthy()
+  })
+})
+
+describe('revenue view', () => {
+  const withRev = (over = {}) => ({
+    sym: 'TEST',
+    beat_history: [
+      { period: '2025-09-30', year: 2025, quarter: 3, actual: 0.5, estimate: 0.4,
+        revenue_actual: 820_000_000, revenue_estimate: 800_000_000, report_date: '2025-11-04' },
+      { period: '2025-12-31', year: 2025, quarter: 4, actual: 0.6, estimate: 0.7,
+        revenue_actual: 1_240_000_000, revenue_estimate: 1_300_000_000, report_date: '2026-02-17' },
+    ],
+    ...over,
+  })
+
+  it('offers a Revenue view when the company reports revenue', () => {
+    render(<EarningsHistorySection row={withRev()} reportDate="2026-05-05" />)
+    expect(screen.getByRole('button', { name: 'Revenue' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'EPS' })).toBeInTheDocument()
+  })
+
+  it('defaults to EPS so the existing view is unchanged', () => {
+    render(<EarningsHistorySection row={withRev()} reportDate="2026-05-05" />)
+    expect(screen.getByRole('button', { name: 'EPS' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Revenue' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('switches the chart to revenue on click', async () => {
+    const user = userEvent.setup()
+    render(<EarningsHistorySection row={withRev()} reportDate="2026-05-05" />)
+    await user.click(screen.getByRole('button', { name: 'Revenue' }))
+    expect(screen.getByRole('button', { name: 'Revenue' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('hides the toggle when the company reports NO revenue', () => {
+    // An empty toggle that yields a blank chart is worse than no toggle.
+    const noRev = withRev({
+      beat_history: withRev().beat_history.map((h) => ({
+        ...h, revenue_actual: null, revenue_estimate: null,
+      })),
+    })
+    render(<EarningsHistorySection row={noRev} reportDate="2026-05-05" />)
+    expect(screen.queryByRole('button', { name: 'Revenue' })).not.toBeInTheDocument()
   })
 })

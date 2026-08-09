@@ -149,3 +149,76 @@ class TestItCannotEscapeTheOwningModule:
             "earnings_history_fmp binds its own _fmp_get again — resolve it "
             "through the earnings_estimates module at call time instead"
         )
+
+
+class TestTheJoinWindowCoversA10K:
+    """Q4 filings land WEEKS after the announcement, not days.
+
+    `_MAX_JOIN_DAYS` was 5, picked from a 4-ticker sample (JAZZ, AAPL, NVDA,
+    MSFT) measuring 0-1 days -- large caps that file fast. It generalized
+    badly: a 10-Q lands within days of the announcement but a 10-K lands weeks
+    after it, so EVERY Q4 fell outside the window, lost its fiscal identity,
+    and fell back to deriving a label from the calendar month -- which then
+    COLLIDED with a real one. The visible symptom was an axis reading
+    "Q2 25 ... Q2 25 ... Q1 26 ... Q1 26" with Q4 nowhere.
+
+    Re-measured over 180 joins across 15 tickers (2026-08-08):
+        Q1/Q2/Q3  median 0 days, max 9
+        Q4        median 5 days, max 29   <- the 10-K lag
+        40 of 180 (22%) exceeded the old 5.
+    """
+
+    def test_a_q4_filing_weeks_later_still_joins(self):
+        earnings = [{"date": "2026-02-02", "epsActual": 0.5, "epsEstimated": 0.4}]
+        income = [{"date": "2025-12-31", "period": "Q4", "fiscalYear": "2025",
+                   "acceptedDate": "2026-02-17 16:30:00"}]      # 15 days later
+        rows = _run(earnings, income)
+        assert rows[0]["quarter"] == 4 and rows[0]["year"] == 2025
+
+    def test_the_observed_worst_case_still_joins(self):
+        """29 days was the widest real gap measured; the window must cover it
+        with headroom rather than sitting exactly on it."""
+        earnings = [{"date": "2026-02-02", "epsActual": 0.5, "epsEstimated": 0.4}]
+        income = [{"date": "2025-12-31", "period": "Q4", "fiscalYear": "2025",
+                   "acceptedDate": "2026-03-03 16:30:00"}]      # 29 days
+        rows = _run(earnings, income)
+        assert rows[0]["quarter"] == 4
+        assert fh._MAX_JOIN_DAYS > 29, "no headroom above the observed maximum"
+
+    def test_it_still_cannot_reach_a_NEIGHBOURING_quarter(self):
+        """The window must stay well under a quarter (~91 days) or it stops
+        being a tolerance and starts guessing -- the mislabelling this join
+        exists to prevent."""
+        assert fh._MAX_JOIN_DAYS < 91 / 2, "window could reach an adjacent period"
+
+    def test_a_filing_a_whole_quarter_away_is_still_refused(self):
+        earnings = [{"date": "2026-02-02", "epsActual": 0.5, "epsEstimated": 0.4}]
+        income = [{"date": "2026-03-31", "period": "Q1", "fiscalYear": "2026",
+                   "acceptedDate": "2026-05-05 16:30:00"}]      # ~92 days
+        rows = _run(earnings, income)
+        assert rows[0]["quarter"] is None
+
+    def test_every_quarter_of_a_year_gets_a_DISTINCT_label(self):
+        """The end-to-end property the axis actually needs: four announcements
+        with realistic filing lags produce Q1-Q4, no duplicates, none missing."""
+        earnings = [
+            {"date": "2026-02-02", "epsActual": 0.6, "epsEstimated": 0.5},   # Q4, 10-K
+            {"date": "2025-11-03", "epsActual": 0.5, "epsEstimated": 0.4},   # Q3
+            {"date": "2025-08-04", "epsActual": 0.4, "epsEstimated": 0.3},   # Q2
+            {"date": "2025-05-05", "epsActual": 0.3, "epsEstimated": 0.2},   # Q1
+        ]
+        income = [
+            {"date": "2025-12-31", "period": "Q4", "fiscalYear": "2025",
+             "acceptedDate": "2026-02-17 16:00:00"},                          # +15d
+            {"date": "2025-09-30", "period": "Q3", "fiscalYear": "2025",
+             "acceptedDate": "2025-11-03 16:00:00"},
+            {"date": "2025-06-30", "period": "Q2", "fiscalYear": "2025",
+             "acceptedDate": "2025-08-04 16:00:00"},
+            {"date": "2025-03-31", "period": "Q1", "fiscalYear": "2025",
+             "acceptedDate": "2025-05-05 16:00:00"},
+        ]
+        rows = _run(earnings, income)
+        labels = [(r["year"], r["quarter"]) for r in rows]
+        assert None not in [q for _, q in labels], f"a quarter lost its identity: {labels}"
+        assert len(set(labels)) == len(labels), f"duplicate quarter label: {labels}"
+        assert sorted(q for _, q in labels) == [1, 2, 3, 4]
