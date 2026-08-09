@@ -1919,6 +1919,12 @@ def curated_shim(
         sort_by=sort_by,
         tier=tier,
         curated=True,
+        # An internal caller gets NO FastAPI resolution, so every omitted
+        # parameter arrives as the raw `Query(...)` object — truthy, and not an
+        # int. Omitting these two made `/curated` a permanent 500 (`if symbol:`
+        # took the ticker-scoped branch, then `int(lookback_days or 1)` raised).
+        symbol=None,
+        lookback_days=1,
     )
 
 
@@ -3786,7 +3792,7 @@ def by_contract(
 # against the latest /recent payload, then POSTs the final values back.
 
 @router.get("/thresholds")
-def get_thresholds():
+def get_thresholds(_auth: dict = Depends(require_flow_user)):
     """Return the current Curated-mode thresholds. Defaults if file missing."""
     return {
         "thresholds": _load_thresholds(),

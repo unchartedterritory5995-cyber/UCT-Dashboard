@@ -3,11 +3,13 @@ FastAPI router for Schwab API integration.
 Add to main.py: from schwab_router import router as schwab_router
                  app.include_router(schwab_router)
 """
-from fastapi import APIRouter, Request, Query
+from fastapi import APIRouter, Request, Query, Depends
 from fastapi.responses import RedirectResponse, JSONResponse
 from urllib.parse import urlparse, parse_qs
 import logging
 import api.schwab_service as schwab
+# Session-or-service-token gates, shared with the rest of the flow surface.
+from api.flow_admin_auth import require_flow_admin, require_flow_user
 logger = logging.getLogger(__name__)
 # Yahoo Finance uses different symbols for indices
 YF_INDEX_MAP = {"SPX":"^GSPC", "NDX":"^NDX", "DJX":"^DJI", "RUT":"^RUT", "VIX":"^VIX", "XSP":"^GSPC"}
@@ -224,7 +226,7 @@ async def market_summary():
     results = await schwab.get_market_summary()
     return {"indices": results}
 @router.get("/market-narrative")
-async def market_narrative():
+def market_narrative(_auth: dict = Depends(require_flow_user)):
     """Generate AI narrative of today's market using Claude + web search.
     Cached 30 min keyed by date — cuts cost ~15x without losing freshness
     since the "how did markets close" framing is stable through the trading day
@@ -234,6 +236,7 @@ async def market_narrative():
     import anthropic
     from datetime import datetime
     from api.services.cache import cache
+    from api.services import llm_timeouts, narrative_cost_guard
     today = datetime.now()
     cache_key = f"market_narrative_{today.strftime('%Y%m%d')}"
     cached = cache.get(cache_key)
@@ -242,6 +245,8 @@ async def market_narrative():
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
         return JSONResponse(status_code=500, content={"error": "ANTHROPIC_API_KEY not set"})
+    if narrative_cost_guard.over_budget("schwab_market_narrative"):
+        return JSONResponse(status_code=429, content={"error": "Daily narrative budget reached."})
     try:
         today_str = today.strftime("%A, %B %d, %Y")
         weekday = today.weekday()
@@ -250,7 +255,7 @@ async def market_narrative():
             day_note = " (Saturday — markets closed, summarize Friday's action)"
         elif weekday == 6:
             day_note = " (Sunday — markets closed, summarize Friday's action)"
-        client = anthropic.Anthropic(api_key=api_key)
+        client = anthropic.Anthropic(api_key=api_key, timeout=llm_timeouts.seconds("SCHWAB_NARRATIVE_LLM_TIMEOUT_SECS", llm_timeouts.REQUEST_PATH))
         response = client.messages.create(
             # Was "claude-sonnet-4-20250514" — Anthropic deprecated that pinned
             # snapshot. Using the stable alias "claude-sonnet-4-6" so future
@@ -267,6 +272,7 @@ async def market_narrative():
                 "content": f"Today is {today_str}{day_note}. Write 2-3 sentences: How did US markets close on the most recent trading day? Include S&P 500, Nasdaq, Dow moves and the main catalyst."
             }],
         )
+        narrative_cost_guard.record_from_response("schwab_market_narrative", "claude-sonnet-4-6", response)
         text = " ".join(
             block.text for block in response.content
             if hasattr(block, "text")
@@ -292,7 +298,7 @@ async def track_contracts(contracts: list[dict]):
     count = register_contracts(contracts)
     return {"status": "ok", "registered": count}
 @router.get("/snapshot-now")
-async def snapshot_now():
+async def snapshot_now(_auth: dict = Depends(require_flow_admin)):
     """
     Manually trigger an OI/price snapshot for all registered contracts.
     Normally runs automatically at 4:30 PM ET on weekdays.
@@ -345,6 +351,7 @@ async def backfill_all_contracts(days_back: int = 60):
 async def chart_proxy(
     sym: str = Query(..., description="Ticker symbol, e.g. AAPL"),
     range: str = Query("3mo", description="Chart range: 5min, 10min, 15min, 30min, 65min, 1d, 5d, 1mo, 3mo, 6mo, 1y"),
+    _auth: dict = Depends(require_flow_user),
 ):
     """
     Proxy Finviz chart image using FINVIZ_API_KEY env var.
