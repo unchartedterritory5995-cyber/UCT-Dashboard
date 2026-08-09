@@ -79,6 +79,11 @@ import UIcon from '../../ui/UIcon'
 import { PORTAL_POPUP_ATTR } from '../ColorPicker'
 import { SCHEMA_VERSION } from '../engine/defSchema'
 import { astHash } from '../engine/ast/parse'
+// ⛔ THE SECOND MACHINE-ASSIGNED BADGE, AND IT IS MEASURED HERE FOR THE SAME
+// REASON `repaint` IS: `validateUserDefinitions` REQUIRES `meta.freshness` on
+// the `ast` lane and refuses a disagreement in both directions, so a document
+// this form built without it would be refused at its own save door.
+import { freshnessFor } from '../engine/ast/freshness'
 // ⛔ THE INPUTS THE SAVED DOCUMENT DECLARES AND THE SCOPE THE READ-BACK IS GIVEN
 // COME FROM ONE MODULE, so "the sentence may name it" and "the document declares
 // it" are the same fact rather than two lists somebody keeps in step.
@@ -152,6 +157,15 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
       tier: 'premium',
       // ⛔ MACHINE-ASSIGNED. See the header.
       repaint: mode,
+      // ⛔ MACHINE-ASSIGNED TOO, AND IT IS NOT THE SAME QUESTION. The repaint
+      // linter answers 0 for a table-declared scalar — correctly, because a
+      // per-symbol value reads no future bar — so `market_cap > 1e9` is branded
+      // `non-repainting` and its staleness goes unsaid. Derived from the SAME
+      // tree by the SAME kind of reader, never typed and never offered as a
+      // form field. `BUILDER_INPUTS` is the scope the read-back already uses.
+      freshness: freshnessFor(ast, {
+        inputs: Object.fromEntries(BUILDER_INPUTS.map((s) => [s.key, true])),
+      }).mode,
     },
     placement: { target: 'pane', pane: { height: 0.15 } },
     // ⛔ SPREAD FROM `BUILDER_INPUTS`, WHICH IS ALSO WHAT THE READ-BACK'S SCOPE IS
@@ -347,11 +361,13 @@ export default function BuilderSheet({
       readback: result.readback,
     })
     // ⭐ THE SHIPPED VALIDATION DOOR, NOT A SECOND ONE. `validateUserDefinitions`
-    // is `defSchema` + the `supportedKinds` filter + the ast lane's three gates
+    // is `defSchema` + the `supportedKinds` filter + the ast lane's own gates
     // (one formula is one series · the budget, naming the guard that fired · the
-    // repaint badge, refused in both directions). A form that validated its own
-    // document would be a second authority on what a definition is, and the two
-    // rot apart the first time a gate moves.
+    // repaint badge and the freshness badge, each refused in both directions ·
+    // the tier · a plot's own forward window). ⚠️ NAMED, NOT COUNTED — this said
+    // "three gates" while the function carried five. A form that validated its
+    // own document would be a second authority on what a definition is, and the
+    // two rot apart the first time a gate moves.
     //
     // ⚠️ VALIDATE FIRST, INSTALL LATER. Installing the DRAFT would put a
     // definition under `draftDefId()` into the registry — an id the store is

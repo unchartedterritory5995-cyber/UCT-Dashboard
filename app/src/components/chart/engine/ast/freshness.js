@@ -1,0 +1,189 @@
+// ─── THE SECOND VERDICT — how fresh a formula's inputs CAN be ────────────────
+//
+// ⭐⭐ WHY THERE IS A SECOND VERDICT AT ALL, AND IT IS THE WHOLE POINT OF THIS
+// MODULE. `lint.js::astReach` answers `{back: 0, forward: 0}` for a scalar leaf,
+// so `modeFromReach` brands `market_cap > 1e9` **non-repainting** — and that
+// answer is CORRECT. A scalar's value at bar `i` does not depend on any bar
+// `j > i`; it is the same number at every bar of the column. Which means the
+// repaint gate PASSES a formula whose value is up to a day old and **nothing
+// fires at all**. The zero is a true answer to a question nobody asked.
+//
+// That is exactly why freshness is a **GATE** and not a label:
+// `nativeRegistry.validateAstLane` requires `meta.freshness` on the `ast` lane
+// and refuses a disagreement in BOTH directions, the same way it already does
+// for the repaint badge one field over. Over-claiming `live` on a nightly market
+// cap tells a user a number is current when it is a day old; under-claiming
+// `as-of-snapshot` on a pure price formula tells them a live signal is stale,
+// and a user who discounts a true signal has been misled just as precisely.
+//
+// Three values and NO CADENCE STRING IN THE BADGE, on purpose. Whether the
+// snapshot's nightly cadence is the right one is an OPEN OWNER QUESTION, and a
+// badge spelling `snapshot:nightly` would bake an unresolved decision into a
+// persisted, user-visible field. The cadence lives per-scalar in the manifest.
+//
+// ⛔ IT IS A CADENCE CLAIM, NOT A STALENESS MEASUREMENT. `lint.js`'s rule is
+// *"NO EXECUTION, EVER"* for the same reason: the claim on a badge is universal,
+// so it may not depend on when it was rendered. How fresh a given symbol's row
+// IS is a per-row runtime fact read off the `as_of` column.
+//
+// ⛔ AND IT IS FAIL-CLOSED, IN THE STALEST DIRECTION. A shape this module cannot
+// read answers `unknown`, never `live` — mirroring the repaint linter's
+// `repaints`. A false `live` is the brand claim dying quietly.
+//
+// ⛔ THIS IS A MIRROR OF `api/services/ast_freshness.py`, NOT A SECOND DESIGN.
+// Both read the SAME `closedTable.json` and both are asserted against the SAME
+// fixture (`tests/fixtures/ast/scalars.json`), so a divergence is a failing test
+// rather than a discovery six months later.
+
+import { TABLE } from './parse.js'
+
+/** The three answers, and there is no fourth.
+ *
+ *  live           — every leaf reads the bar it draws on. No scalar in the tree.
+ *  as-of-snapshot — at least one leaf is a table-declared scalar. The value is
+ *                   fixed between builds and is IDENTICAL AT EVERY BAR of the
+ *                   column, including at bars that closed before the build ran.
+ *  unknown        — a leaf, or the tree's own shape, is something this reader
+ *                   cannot resolve. FAIL-CLOSED = the STALEST claim. */
+export const FRESHNESS_MODES = Object.freeze(['live', 'as-of-snapshot', 'unknown'])
+
+const [LIVE, AS_OF_SNAPSHOT, UNKNOWN] = FRESHNESS_MODES
+
+/** ⚠️ NOT A FIFTH ONE: a scalar rides the `series` node
+ *  (`closedTable.json::_scalars_node`), so this module adds no node vocabulary
+ *  and every persisted `astHash` is unmoved. */
+const CANONICAL_TYPES = Object.freeze(['num', 'series', 'op', 'call'])
+
+const own = (obj, name) => Object.prototype.hasOwnProperty.call(obj, name)
+
+/** Every node, ITERATIVELY — the escape corpus carries an 8,001-node tree and a
+ *  reader that dies inside itself has no verdict to give. */
+function walk(tree) {
+  const order = []
+  const stack = [tree]
+  while (stack.length) {
+    const node = stack.pop()
+    order.push(node)
+    if (node && typeof node === 'object' && Array.isArray(node.args)) {
+      for (const child of node.args) stack.push(child)
+    }
+  }
+  return order
+}
+
+function sections(opts) {
+  const table = (opts && opts.table) || TABLE
+  return {
+    seriesNames: (table && table.series) || {},
+    scalars: (table && table.scalars) || {},
+    inputs: (opts && opts.inputs) || {},
+  }
+}
+
+/** The TABLE-DECLARED SCALARS this tree names.
+ *
+ *  ⛔ DERIVED FROM THE MANIFEST, NEVER FROM A LIST OF WHICH NAMES LOOK
+ *  FUNDAMENTAL. A hand-list is the shape that rots the day the screener grows a
+ *  column, and the partition rail exists precisely so that day is loud. */
+export function scalarsIn(tree, opts) {
+  const { scalars } = sections(opts)
+  const found = new Set()
+  for (const node of walk(tree)) {
+    if (node && typeof node === 'object' && node.type === 'series'
+        && typeof node.name === 'string' && own(scalars, node.name)) {
+      found.add(node.name)
+    }
+  }
+  return found
+}
+
+/** ⛔ BOTH HALVES OR NEITHER. `as_of.column` is what dates the value PER SYMBOL
+ *  and `cadence` is what the badge is a claim about; a declaration missing
+ *  either is one this module cannot stand behind, and standing behind it anyway
+ *  is how `unknown` stops being reachable. */
+function declarationIsReadable(decl) {
+  if (!decl || typeof decl !== 'object') return false
+  const asOf = decl.as_of
+  return !!(asOf && typeof asOf === 'object'
+    && typeof asOf.column === 'string' && asOf.column
+    && typeof decl.cadence === 'string' && decl.cadence)
+}
+
+/** `{mode, scalars, cadences, reasons}` for a canonical tree.
+ *
+ *  `opts.table` is the manifest (defaults to the shipped one). `opts.inputs` is
+ *  the DEFINITION's declared inputs, by name — the same shape `lint.js` and
+ *  `interpret` take. A per-instance knob is dated by nothing and therefore
+ *  neither makes a formula stale nor unreadable.
+ *
+ *  ⛔ IT DOES NOT RE-CHECK OPERATOR OR FUNCTION NAMES. `interpret` refuses an
+ *  undeclared one at `resolve:function` and `checkBudget` resolves every call on
+ *  its way to a lookback, so a tree carrying one never reaches a badge.
+ *  Re-deciding it here would be a second declaration of one refusal, which is
+ *  the wrong-door defect this branch has found four separate times. */
+export function freshnessFor(tree, opts) {
+  const { seriesNames, scalars, inputs } = sections(opts)
+  let reasons = []
+  const found = new Set()
+  const cadences = new Set()
+  let unreadable = false
+
+  for (const node of walk(tree)) {
+    if (!node || typeof node !== 'object' || Array.isArray(node)) {
+      unreadable = true
+      reasons.push('unreadable: a node that is not an object')
+      continue
+    }
+    if (!CANONICAL_TYPES.includes(node.type)) {
+      unreadable = true
+      reasons.push(
+        `unreadable: node type ${JSON.stringify(node.type)} is not one of ${CANONICAL_TYPES.join(', ')}`)
+      continue
+    }
+    if ((node.type === 'op' || node.type === 'call') && !Array.isArray(node.args)) {
+      unreadable = true
+      reasons.push(`unreadable: a ${node.type} node carries an \`args\` array`)
+      continue
+    }
+    if (node.type !== 'series') continue
+    const name = node.name
+    if (typeof name === 'string' && own(seriesNames, name)) continue
+    if (typeof name === 'string' && own(scalars, name)) {
+      const decl = scalars[name]
+      if (!declarationIsReadable(decl)) {
+        unreadable = true
+        reasons.push(
+          `unreadable: the scalar \`${name}\` declares a cadence or an as-of column this reader cannot resolve`)
+        continue
+      }
+      found.add(name)
+      cadences.add(decl.cadence)
+      reasons.push(
+        `\`${name}\` is a per-symbol value dated by \`${decl.as_of.column}\`, rebuilt ${decl.cadence} `
+        + '-- it is the same number at every bar of the column')
+      continue
+    }
+    if (typeof name === 'string' && own(inputs, name)) continue
+    unreadable = true
+    reasons.push(
+      `unreadable: \`${name}\` is neither a series nor a scalar this table declares, and this `
+      + `definition declares ${Object.keys(inputs).sort().join(', ') || 'no inputs'}`)
+  }
+
+  let mode
+  if (unreadable) {
+    mode = UNKNOWN
+  } else if (found.size) {
+    mode = AS_OF_SNAPSHOT
+  } else {
+    mode = LIVE
+    reasons = ['every value this formula reads comes from the bar it draws on']
+  }
+
+  return {
+    mode,
+    scalars: [...found].sort(),
+    cadences: [...cadences].sort(),
+    reasons,
+  }
+}

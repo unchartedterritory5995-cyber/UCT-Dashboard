@@ -192,7 +192,9 @@ function userDoc({ id = DEF_ID, repaint = 'non-repainting', source = `sma(close,
     meta: {
       name: 'SMA 20', shortName: 'SMA 20', category: 'Custom',
       description: `the ${PERIOD}-bar average of close`,
-      tags: ['custom'], tier: 'premium', repaint,
+      // ⚠️ `freshness` IS REQUIRED ON THIS LANE (Phase E Task 1, GATE 6) and
+      // this fixture is pure OHLCV, so the MEASURED value is `live`.
+      tags: ['custom'], tier: 'premium', repaint, freshness: 'live',
     },
     placement: { target: 'pane', pane: { height: 0.15 } },
     inputs: [

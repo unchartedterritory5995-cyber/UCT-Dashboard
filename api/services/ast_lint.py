@@ -269,6 +269,11 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
     functions = table.get("functions") or {}
     series_names = table.get("series") or {}
     operators = table.get("operators") or {}
+    #: ⭐ THE TABLE'S OWN PER-SYMBOL SCALARS. Read from the SAME manifest as the
+    #: series, so a name the table grants is a name this linter can bound — and
+    #: the freshness question it does NOT answer is asked by ``ast_freshness``
+    #: over this same section.
+    scalar_names = table.get("scalars") or {}
     #: ⭐ ``opts["inputs"]`` -- the definition's declared inputs, BY NAME. The same
     #: shape ``sentence.js::explainSentence`` already takes and the same shape
     #: ``interpret`` takes; only the KEYS are read here (see ``declared_inputs``).
@@ -308,6 +313,19 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
             # defect ``interpret`` raises on outright; what this must never do is
             # let the ANSWER depend on which map was consulted second.
             if isinstance(name, str) and name in series_names:
+                reach_of[id(node)] = (0, 0)
+            elif isinstance(name, str) and name in scalar_names:
+                # ⭐ A TABLE-DECLARED SCALAR, AND IT IS THE SAME (0, 0) AS A
+                # DECLARED INPUT FOR THE SAME REASON: one number for the whole
+                # column depends on no bar at all, least of all a later one.
+                #
+                # ⛔ AND THAT ZERO IS CORRECT AND USELESS ON ITS OWN. It makes
+                # `mode_from_reach` answer `non-repainting` for a formula whose
+                # value is up to a day old, so this gate PASSES a nightly market
+                # cap and nothing fires. It is a true answer to a question nobody
+                # asked, which is why ``ast_freshness`` is a SECOND VERDICT and a
+                # gate rather than a label. This module does not bend to cover
+                # it: a scalar genuinely reads no future bar.
                 reach_of[id(node)] = (0, 0)
             elif isinstance(name, str) and name in inputs:
                 # A DECLARED SCALAR. One number for the whole column, so it

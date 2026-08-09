@@ -408,14 +408,28 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 15 operators and 11 functions — 31 names, and one grammar', () => {
+  it('declares 5 series, 15 operators, 11 functions and 54 scalars — 85 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     expect(Object.keys(TABLE.operators)).toHaveLength(15)
     expect(Object.keys(TABLE.functions)).toHaveLength(11)
-    const declared = new Set([
+    // ⭐ THE FOURTH SECTION (Phase E Task 1). Counted SEPARATELY from the three
+    // above, not folded into one total: 31 is the BAR vocabulary a corpus case
+    // can exercise against 579 bars, and 54 is the per-symbol vocabulary that
+    // has no bar behaviour at all and earns its own coverage floor. A single
+    // number here would have been "fixed" to 85 with nobody able to see which
+    // half moved.
+    expect(Object.keys(TABLE.scalars)).toHaveLength(54)
+    const bar = new Set([
       ...Object.keys(TABLE.series), ...Object.keys(TABLE.operators), ...Object.keys(TABLE.functions),
     ])
-    expect(declared.size).toBe(31)
+    expect(bar.size).toBe(31)
+    const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
+    expect(declared.size).toBe(85)
+    // ⚠️ `tableVersion` STAYS 1 AND THAT IS A DECISION. It versions the GRAMMAR
+    // — the four node types and the keys a persisted tree may carry — and Phase
+    // E widened the VOCABULARY without touching either: a scalar rides the
+    // existing `series` node, so every stored `astHash` is unmoved. Bumping it
+    // would say a stored tree needs re-reading, which is false.
     expect(TABLE.tableVersion).toBe(1)
   })
 

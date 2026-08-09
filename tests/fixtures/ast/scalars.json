@@ -1,0 +1,881 @@
+{
+  "_": "THE SCALAR FLOOR AND THE FRESHNESS CORPUS. `cases` carries ONE ENTRY PER DECLARED SCALAR and is the coverage floor `tools/ast_conformance.py --coverage` enforces; `trees` carries hand-derived formulas whose freshness verdict is asserted in BOTH LANES against the `freshness` field below.",
+  "_why_its_own_file": "\u26d4 A SCALAR HAS NO BAR BEHAVIOUR, SO IT DOES NOT BELONG IN THE BAR CORPUS. `assert_corpus_covers_the_table` demands a corpus case per declared name and ABORTS the recorder otherwise; folding 54 scalars into that floor would force 54 new bar-corpus cases, move every one of the 17 frozen per-ast digests, and re-freeze a cross-lane oracle for a reason that has nothing to do with bars. Two floors, two fixtures, two things measured.",
+  "_shape": "`cases[]` is `{id, scalar, ast, value, asOf, cadence, yields}` -- `ast` is the CANONICAL tree (a bare `series` node, because a scalar rides that node type and the canonical vocabulary stays four). `value` is a distinct sample so a mis-seeded name is visible rather than plausible. `trees[]` is `{id, ast, freshness, repaint, scalars, why}` and every entry states its own reason.",
+  "_both_verdicts": "\u2b50 EVERY `trees` ENTRY DECLARES BOTH `repaint` AND `freshness`, ON THE SAME TREE, ON PURPOSE. The repaint linter answers a true 0 for a scalar and brands it `non-repainting`; that is correct and it is why a second verdict exists. Asserting them together is what makes the pair impossible to obtain one at a time.",
+  "bars": 6,
+  "cases": [
+    {
+      "id": "market_cap",
+      "scalar": "market_cap",
+      "ast": {
+        "type": "series",
+        "name": "market_cap"
+      },
+      "value": 1.5,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "price",
+      "scalar": "price",
+      "ast": {
+        "type": "series",
+        "name": "price"
+      },
+      "value": 2.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "avg_volume_30d",
+      "scalar": "avg_volume_30d",
+      "ast": {
+        "type": "series",
+        "name": "avg_volume_30d"
+      },
+      "value": 3.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "dividend_yield",
+      "scalar": "dividend_yield",
+      "ast": {
+        "type": "series",
+        "name": "dividend_yield"
+      },
+      "value": 4.5,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "pe_ttm",
+      "scalar": "pe_ttm",
+      "ast": {
+        "type": "series",
+        "name": "pe_ttm"
+      },
+      "value": 5.5,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "pe_fwd",
+      "scalar": "pe_fwd",
+      "ast": {
+        "type": "series",
+        "name": "pe_fwd"
+      },
+      "value": 6.5,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "peg",
+      "scalar": "peg",
+      "ast": {
+        "type": "series",
+        "name": "peg"
+      },
+      "value": 7.5,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "ps",
+      "scalar": "ps",
+      "ast": {
+        "type": "series",
+        "name": "ps"
+      },
+      "value": 8.5,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "pb",
+      "scalar": "pb",
+      "ast": {
+        "type": "series",
+        "name": "pb"
+      },
+      "value": 9.5,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "eps_growth",
+      "scalar": "eps_growth",
+      "ast": {
+        "type": "series",
+        "name": "eps_growth"
+      },
+      "value": 10.5,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "rev_growth",
+      "scalar": "rev_growth",
+      "ast": {
+        "type": "series",
+        "name": "rev_growth"
+      },
+      "value": 11.5,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "op_margin",
+      "scalar": "op_margin",
+      "ast": {
+        "type": "series",
+        "name": "op_margin"
+      },
+      "value": 12.5,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "gross_margin",
+      "scalar": "gross_margin",
+      "ast": {
+        "type": "series",
+        "name": "gross_margin"
+      },
+      "value": 13.5,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "net_margin",
+      "scalar": "net_margin",
+      "ast": {
+        "type": "series",
+        "name": "net_margin"
+      },
+      "value": 14.5,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "roe",
+      "scalar": "roe",
+      "ast": {
+        "type": "series",
+        "name": "roe"
+      },
+      "value": 15.5,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "roa",
+      "scalar": "roa",
+      "ast": {
+        "type": "series",
+        "name": "roa"
+      },
+      "value": 16.5,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "debt_to_equity",
+      "scalar": "debt_to_equity",
+      "ast": {
+        "type": "series",
+        "name": "debt_to_equity"
+      },
+      "value": 17.5,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "current_ratio",
+      "scalar": "current_ratio",
+      "ast": {
+        "type": "series",
+        "name": "current_ratio"
+      },
+      "value": 18.5,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "beta",
+      "scalar": "beta",
+      "ast": {
+        "type": "series",
+        "name": "beta"
+      },
+      "value": 19.5,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "inst_pct",
+      "scalar": "inst_pct",
+      "ast": {
+        "type": "series",
+        "name": "inst_pct"
+      },
+      "value": 20.5,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "uct_composite",
+      "scalar": "uct_composite",
+      "ast": {
+        "type": "series",
+        "name": "uct_composite"
+      },
+      "value": 21.5,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "rs_rank",
+      "scalar": "rs_rank",
+      "ast": {
+        "type": "series",
+        "name": "rs_rank"
+      },
+      "value": 22.5,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "rs_return",
+      "scalar": "rs_return",
+      "ast": {
+        "type": "series",
+        "name": "rs_return"
+      },
+      "value": 23.5,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "accdis",
+      "scalar": "accdis",
+      "ast": {
+        "type": "series",
+        "name": "accdis"
+      },
+      "value": 24.5,
+      "asOf": "snapshot_date",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "chg_pct_1d",
+      "scalar": "chg_pct_1d",
+      "ast": {
+        "type": "series",
+        "name": "chg_pct_1d"
+      },
+      "value": 25.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "chg_pct_1w",
+      "scalar": "chg_pct_1w",
+      "ast": {
+        "type": "series",
+        "name": "chg_pct_1w"
+      },
+      "value": 26.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "chg_pct_1m",
+      "scalar": "chg_pct_1m",
+      "ast": {
+        "type": "series",
+        "name": "chg_pct_1m"
+      },
+      "value": 27.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "rsi14",
+      "scalar": "rsi14",
+      "ast": {
+        "type": "series",
+        "name": "rsi14"
+      },
+      "value": 28.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "pct_vs_sma20",
+      "scalar": "pct_vs_sma20",
+      "ast": {
+        "type": "series",
+        "name": "pct_vs_sma20"
+      },
+      "value": 29.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "pct_vs_sma50",
+      "scalar": "pct_vs_sma50",
+      "ast": {
+        "type": "series",
+        "name": "pct_vs_sma50"
+      },
+      "value": 30.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "pct_vs_sma200",
+      "scalar": "pct_vs_sma200",
+      "ast": {
+        "type": "series",
+        "name": "pct_vs_sma200"
+      },
+      "value": 31.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "pct_vs_ema20",
+      "scalar": "pct_vs_ema20",
+      "ast": {
+        "type": "series",
+        "name": "pct_vs_ema20"
+      },
+      "value": 32.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "adr_pct",
+      "scalar": "adr_pct",
+      "ast": {
+        "type": "series",
+        "name": "adr_pct"
+      },
+      "value": 33.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "atr_pct",
+      "scalar": "atr_pct",
+      "ast": {
+        "type": "series",
+        "name": "atr_pct"
+      },
+      "value": 34.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "vol_ratio",
+      "scalar": "vol_ratio",
+      "ast": {
+        "type": "series",
+        "name": "vol_ratio"
+      },
+      "value": 35.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "gap_pct",
+      "scalar": "gap_pct",
+      "ast": {
+        "type": "series",
+        "name": "gap_pct"
+      },
+      "value": 36.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "dist_52w_high_pct",
+      "scalar": "dist_52w_high_pct",
+      "ast": {
+        "type": "series",
+        "name": "dist_52w_high_pct"
+      },
+      "value": 37.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "dist_52w_low_pct",
+      "scalar": "dist_52w_low_pct",
+      "ast": {
+        "type": "series",
+        "name": "dist_52w_low_pct"
+      },
+      "value": 38.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "above_50sma",
+      "scalar": "above_50sma",
+      "ast": {
+        "type": "series",
+        "name": "above_50sma"
+      },
+      "value": 39.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "bool"
+    },
+    {
+      "id": "new_52w_high",
+      "scalar": "new_52w_high",
+      "ast": {
+        "type": "series",
+        "name": "new_52w_high"
+      },
+      "value": 40.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "bool"
+    },
+    {
+      "id": "body_pct",
+      "scalar": "body_pct",
+      "ast": {
+        "type": "series",
+        "name": "body_pct"
+      },
+      "value": 41.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "upper_wick_pct",
+      "scalar": "upper_wick_pct",
+      "ast": {
+        "type": "series",
+        "name": "upper_wick_pct"
+      },
+      "value": 42.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "lower_wick_pct",
+      "scalar": "lower_wick_pct",
+      "ast": {
+        "type": "series",
+        "name": "lower_wick_pct"
+      },
+      "value": 43.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "close_position",
+      "scalar": "close_position",
+      "ast": {
+        "type": "series",
+        "name": "close_position"
+      },
+      "value": 44.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "wide_bar",
+      "scalar": "wide_bar",
+      "ast": {
+        "type": "series",
+        "name": "wide_bar"
+      },
+      "value": 45.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "bool"
+    },
+    {
+      "id": "narrow_bar",
+      "scalar": "narrow_bar",
+      "ast": {
+        "type": "series",
+        "name": "narrow_bar"
+      },
+      "value": 46.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "bool"
+    },
+    {
+      "id": "inside_bar_run",
+      "scalar": "inside_bar_run",
+      "ast": {
+        "type": "series",
+        "name": "inside_bar_run"
+      },
+      "value": 47.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "tight_consolidation",
+      "scalar": "tight_consolidation",
+      "ast": {
+        "type": "series",
+        "name": "tight_consolidation"
+      },
+      "value": 48.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "bool"
+    },
+    {
+      "id": "pullback_depth_pct",
+      "scalar": "pullback_depth_pct",
+      "ast": {
+        "type": "series",
+        "name": "pullback_depth_pct"
+      },
+      "value": 49.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "higher_lows_run",
+      "scalar": "higher_lows_run",
+      "ast": {
+        "type": "series",
+        "name": "higher_lows_run"
+      },
+      "value": 50.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "nr7",
+      "scalar": "nr7",
+      "ast": {
+        "type": "series",
+        "name": "nr7"
+      },
+      "value": 51.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "bool"
+    },
+    {
+      "id": "consecutive_up",
+      "scalar": "consecutive_up",
+      "ast": {
+        "type": "series",
+        "name": "consecutive_up"
+      },
+      "value": 52.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "consecutive_down",
+      "scalar": "consecutive_down",
+      "ast": {
+        "type": "series",
+        "name": "consecutive_down"
+      },
+      "value": 53.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    },
+    {
+      "id": "pattern_conf_max",
+      "scalar": "pattern_conf_max",
+      "ast": {
+        "type": "series",
+        "name": "pattern_conf_max"
+      },
+      "value": 54.5,
+      "asOf": "bars_asof",
+      "cadence": "nightly",
+      "yields": "num"
+    }
+  ],
+  "trees": [
+    {
+      "id": "a_bare_price_formula_is_live",
+      "ast": {
+        "type": "op",
+        "name": ">",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "call",
+            "name": "sma",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 50
+              }
+            ]
+          }
+        ]
+      },
+      "freshness": "live",
+      "repaint": "non-repainting",
+      "scalars": [],
+      "why": "THE CONTROL. No leaf is a scalar, so the formula is as fresh as the bar it draws on. Without a case like this `live` would be a value nothing ever emits, and a reader that returned `as-of-snapshot` unconditionally would pass every other case in this file."
+    },
+    {
+      "id": "the_headline__a_scalar_is_non_repainting_AND_as_of_snapshot",
+      "ast": {
+        "type": "op",
+        "name": ">",
+        "args": [
+          {
+            "type": "series",
+            "name": "market_cap"
+          },
+          {
+            "type": "num",
+            "value": 1000000000.0
+          }
+        ]
+      },
+      "freshness": "as-of-snapshot",
+      "repaint": "non-repainting",
+      "scalars": [
+        "market_cap"
+      ],
+      "why": "\u2b50\u2b50 THE POINT OF THE WHOLE TASK, AND THE ZERO IS THE POINT. `astReach` answers (0, 0) for a scalar leaf, so the repaint gate brands this `non-repainting` -- CORRECTLY, because a per-symbol number depends on no later bar. Which means the repaint gate PASSES a value that is up to a day old and nothing else fires. Both verdicts are asserted on the same tree here so neither can be obtained without the other."
+    },
+    {
+      "id": "one_scalar_anywhere_in_the_tree_dates_the_whole_formula",
+      "ast": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "call",
+                "name": "sma",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "num",
+                    "value": 20
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "rs_rank"
+              },
+              {
+                "type": "num",
+                "value": 80
+              }
+            ]
+          }
+        ]
+      },
+      "freshness": "as-of-snapshot",
+      "repaint": "non-repainting",
+      "scalars": [
+        "rs_rank"
+      ],
+      "why": "A formula is only as fresh as its stalest leaf. A live price condition ANDed with a nightly rank is a nightly answer, and a reader that took the majority of its leaves would call this live."
+    },
+    {
+      "id": "two_scalars_from_the_two_as_of_families",
+      "ast": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "market_cap"
+              },
+              {
+                "type": "num",
+                "value": 1000000000.0
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "adr_pct"
+              },
+              {
+                "type": "num",
+                "value": 4.0
+              }
+            ]
+          }
+        ]
+      },
+      "freshness": "as-of-snapshot",
+      "repaint": "non-repainting",
+      "scalars": [
+        "adr_pct",
+        "market_cap"
+      ],
+      "why": "`market_cap` is dated `snapshot_date` and `adr_pct` is dated `bars_asof` -- two DIFFERENT dates in one formula, which is why the badge names a cadence class and never a date. A single as-of would over-claim one family or under-claim the other."
+    },
+    {
+      "id": "a_scalar_deep_inside_a_call_is_still_found",
+      "ast": {
+        "type": "op",
+        "name": ">",
+        "args": [
+          {
+            "type": "call",
+            "name": "abs",
+            "args": [
+              {
+                "type": "series",
+                "name": "chg_pct_1d"
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 3.0
+          }
+        ]
+      },
+      "freshness": "as-of-snapshot",
+      "repaint": "non-repainting",
+      "scalars": [
+        "chg_pct_1d"
+      ],
+      "why": "The walk is over the WHOLE tree, not over its root's direct arguments. A reader that only looked one level down reports `live` here and the badge is a lie in the direction that matters."
+    },
+    {
+      "id": "an_undeclared_name_is_unknown_and_never_live",
+      "ast": {
+        "type": "op",
+        "name": ">",
+        "args": [
+          {
+            "type": "series",
+            "name": "rugpull_score"
+          },
+          {
+            "type": "num",
+            "value": 0.0
+          }
+        ]
+      },
+      "freshness": "unknown",
+      "repaint": "repaints",
+      "scalars": [],
+      "why": "FAIL-CLOSED, AND THE THIRD VALUE HAS TO BE REACHABLE. A leaf this reader cannot resolve is `unknown` -- the STALEST claim -- never `live`. A vocabulary value nothing can ever emit is a value that does not exist, and a false `live` is the brand claim dying quietly."
+    },
+    {
+      "id": "an_EXCLUDED_column_is_not_a_scalar_and_reads_unknown",
+      "ast": {
+        "type": "op",
+        "name": ">",
+        "args": [
+          {
+            "type": "series",
+            "name": "snapshot_date"
+          },
+          {
+            "type": "num",
+            "value": 0.0
+          }
+        ]
+      },
+      "freshness": "unknown",
+      "repaint": "repaints",
+      "scalars": [],
+      "why": "`snapshot_date` is an as-of SOURCE and sits in `_scalars_excluded`. It is a screener COLUMN and still not a name: the partition is what makes that decision explicit rather than an oversight, and naming it must land in exactly the same place as `rugpull_score`."
+    }
+  ]
+}

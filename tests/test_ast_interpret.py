@@ -109,6 +109,14 @@ def test_load_manifest_really_READS_bytes_and_is_not_a_constant():
         "operators": {"@@": {"arity": 2}},
         "functions": {"zzz_probe_fn": {"args": ["series"], "lookback": 3,
                                        "sentence": "probe {0}"}},
+        # ⭐ THE FOURTH SECTION IS PART OF THE SHAPE, so the probe carries one:
+        # `load_manifest` refuses a manifest missing any of the four, and a probe
+        # that skipped this one would be proving the reader reads a document the
+        # product could never ship.
+        "scalars": {"zzz_probe_scalar": {
+            "source": {"store": "zzz_store", "column": "zzz_probe_scalar"},
+            "as_of": {"column": "zzz_dated_by", "grain": "date"},
+            "cadence": "hourly", "yields": "num", "sentence": "the probe"}},
     }
     tmp = ROOT / "tests" / "fixtures" / "ast" / "_probe_manifest.json"
     try:
@@ -117,8 +125,12 @@ def test_load_manifest_really_READS_bytes_and_is_not_a_constant():
         got = ast_table.load_manifest(tmp)
         assert set(got["functions"]) == {"zzz_probe_fn"}
         assert ast_table.declared_names(got) == {
+            "zzz_probe_series", "@@", "zzz_probe_fn", "zzz_probe_scalar"}
+        assert ast_table.bar_names(got) == {
             "zzz_probe_series", "@@", "zzz_probe_fn"}
         assert ast_table.series_field("zzz_probe_series", got) == "zzz"
+        assert ast_table.scalar_as_of("zzz_probe_scalar", got)["column"] == "zzz_dated_by"
+        assert ast_table.yields_of("zzz_probe_scalar", got) == "num"
     finally:
         if tmp.exists():
             tmp.unlink()
@@ -156,7 +168,14 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     source, made through `ast` so a mention in a comment cannot satisfy it.
     """
     declared = ast_table.declared_names()
-    assert len(declared) == 31, f"the table declares {len(declared)} names, not 31"
+    # ⚠️ TWO NUMBERS, NOT ONE, AND BOTH ARE MEASURED. This read `== 31` before
+    # the manifest grew a fourth section; a single total would have been "fixed"
+    # to 85 with nobody able to see WHICH half moved. 31 is the bar vocabulary
+    # (series + operators + functions) and 54 is the scalar vocabulary, which is
+    # the numeric-and-boolean subset of the screener's 65 columns.
+    assert len(ast_table.bar_names()) == 31, len(ast_table.bar_names())
+    assert len(ast_table.scalar_names()) == 54, len(ast_table.scalar_names())
+    assert len(declared) == 85, f"the table declares {len(declared)} names, not 85"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "

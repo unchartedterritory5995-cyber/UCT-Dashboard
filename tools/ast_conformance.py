@@ -119,6 +119,11 @@ if ROOT not in sys.path:
 FIXTURE_DIR = os.path.join(ROOT, "tests", "fixtures", "ast")
 CORPUS_PATH = os.path.join(FIXTURE_DIR, "corpus.json")
 ESCAPES_PATH = os.path.join(FIXTURE_DIR, "escapes.json")
+#: The SCALAR floor's own fixture. ⛔ A SECOND ARTIFACT ON PURPOSE -- a scalar has
+#: no bar behaviour and no value in the replay series, so it cannot be covered by
+#: a case in `corpus.json` without moving a frozen per-ast digest for a reason
+#: that has nothing to do with bars. See `assert_scalar_corpus_covers_the_table`.
+SCALARS_PATH = os.path.join(FIXTURE_DIR, "scalars.json")
 LOG_PATH = os.path.join(FIXTURE_DIR, "conformance_log.json")
 
 MANIFEST_PATH = os.path.join(
@@ -209,6 +214,11 @@ def load_escapes(path: str = ESCAPES_PATH) -> dict:
         if "ast" not in case and case.get("astFrom"):
             case["ast"] = generate_ast(case["astFrom"])
     return doc
+
+
+def load_scalars(path: str = SCALARS_PATH) -> dict:
+    """The scalar floor + freshness corpus, read from the file BOTH lanes read."""
+    return _read_json(path)
 
 
 def load_manifest(path: str = MANIFEST_PATH) -> Optional[dict]:
@@ -351,12 +361,29 @@ def assert_corpus_covers_the_table(manifest: dict, corpus: dict) -> set:
     remembered: `DPC_LOOKBACK 10 -> 999` left the file `5 passed rc=0`. A coverage
     claim derived from its own subject cannot rot that way.
 
+    ⛔ THE FLOOR IS THE BAR FLOOR AND IT IS `ast_table.bar_names`, NOT
+    `declared_names`. The manifest also declares SCALARS, and a scalar has no bar
+    behaviour and no value in `replay_bars.json` -- folding them in here would
+    force one new corpus case per scalar, move every frozen per-ast digest, and
+    re-freeze a cross-lane oracle for a reason that has nothing to do with bars.
+    The equality below is what makes that split load-bearing rather than a
+    comment: a `bar_names` that quietly widened aborts the recorder HERE instead
+    of silently regrowing the corpus obligation.
+
     Returns the covered set so a caller can print it; raises AssertionError
     naming every uncovered entry.
     """
-    declared = (set(manifest["functions"])
-                | set(manifest["operators"])
-                | set(manifest["series"]))
+    from api.services import ast_table
+
+    declared = ast_table.bar_names(manifest)
+    assert declared == (set(manifest["functions"])
+                        | set(manifest["operators"])
+                        | set(manifest["series"])), (
+        "the BAR floor is no longer the three bar sections of the manifest. "
+        f"`ast_table.bar_names` returned {sorted(declared)}. A floor that grew a "
+        "section grew every corpus case that has to cover it, and the 17 frozen "
+        "digests move with it."
+    )
     used: set = set()
     # ⭐ A CASE'S OWN DECLARED INPUTS ARE NAMES THE TABLE IS NOT SUPPOSED TO HOLD.
     # `parse.js` turns every identifier into a `series` node, so `names_in` sees
@@ -389,6 +416,66 @@ def assert_corpus_covers_the_table(manifest: dict, corpus: dict) -> set:
         "table."
     )
     return declared
+
+
+def assert_scalar_corpus_covers_the_table(manifest: dict, doc: dict) -> set:
+    """THE SECOND FLOOR, AND IT MEASURES A DIFFERENT THING AGAINST A DIFFERENT
+    FIXTURE.
+
+    A scalar is one number per SYMBOL, so it has nothing to say about a 579-bar
+    replay series and everything to say about resolution, freshness and the
+    partition. It therefore earns its own coverage obligation
+    (`tests/fixtures/ast/scalars.json`) rather than a seat in the bar corpus.
+
+    Runs BOTH WAYS, exactly like the bar floor: a declared scalar with no case is
+    a name the fixture pins nothing about, and a case naming something the
+    manifest does not declare is a fixture measuring a vocabulary nobody granted.
+
+    Returns the covered set; raises AssertionError naming every gap.
+    """
+    from api.services import ast_table
+
+    declared = ast_table.scalar_names(manifest)
+    covered = {c["scalar"] for c in doc["cases"]}
+    missing = sorted(declared - covered)
+    assert not missing, (
+        f"{len(missing)} declared scalars have NO fixture case: {missing}. The "
+        "fixture pins nothing about them -- not that they resolve, not what "
+        "dates them, not what they yield -- and every gate would stay green."
+    )
+    stray = sorted(covered - declared)
+    assert not stray, (
+        f"{len(stray)} fixture cases name a scalar the table does not declare: "
+        f"{stray}. A case for a name nobody granted is measuring a vocabulary "
+        "that does not exist, which is the opposite of a closed table."
+    )
+    return declared
+
+
+def assert_the_two_floors_partition_the_table(manifest: dict) -> dict:
+    """⭐ BAR NAMES AND SCALAR NAMES ARE A PARTITION OF `declared_names`.
+
+    This is the rail that makes the split real. Without it, "scalars have their
+    own floor" is a sentence in a docstring, and folding them into `bar_names`
+    would simply grow the bar corpus's obligation until somebody "fixed" it by
+    re-recording 17 digests -- which is the one outcome this whole arrangement
+    exists to prevent.
+    """
+    from api.services import ast_table
+
+    bar = ast_table.bar_names(manifest)
+    scalar = ast_table.scalar_names(manifest)
+    overlap = sorted(bar & scalar)
+    assert not overlap, (
+        f"{len(overlap)} names are in BOTH floors: {overlap}. One name measured "
+        "by two floors is one name whose obligation nobody owns."
+    )
+    total = ast_table.declared_names(manifest)
+    assert bar | scalar == total, (
+        f"the two floors do not cover the table: "
+        f"{sorted(total - bar - scalar)} is declared and floored by neither."
+    )
+    return {"bar": bar, "scalar": scalar}
 
 
 # --------------------------------------------------------------------------- #
@@ -1451,7 +1538,17 @@ def _cmd_coverage() -> int:
               "manifest and owes its first pass.")
         return EXIT_NO_GUARD
     declared = assert_corpus_covers_the_table(manifest, corpus)
-    print(f"manifest     : {len(declared)} declared entries, ALL COVERED")
+    print(f"bar floor    : {len(declared)} declared entries, ALL COVERED")
+    # ⛔ TWO FLOORS, TWO FIXTURES, AND A PARTITION BETWEEN THEM. A scalar has no
+    # bar behaviour, so its coverage is measured against its own file; the
+    # partition is what stops the two from silently becoming one.
+    scalar_doc = load_scalars()
+    scalars = assert_scalar_corpus_covers_the_table(manifest, scalar_doc)
+    print(f"scalar floor : {len(scalars)} declared scalars, ALL COVERED "
+          f"({len(scalar_doc['trees'])} freshness trees)")
+    parts = assert_the_two_floors_partition_the_table(manifest)
+    print(f"partition    : {len(parts['bar'])} bar + {len(parts['scalar'])} scalar "
+          f"= {len(parts['bar']) + len(parts['scalar'])} declared, DISJOINT")
     return 0
 
 
