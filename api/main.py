@@ -3490,6 +3490,32 @@ async def lifespan(app: FastAPI):
         except Exception as _e_dpint:
             print(f"[startup] darkpool intraday poller job skip: {_e_dpint}")
 
+        # -- Dark pool: EOD / EOW summary card to Discord (2026-08-09) ----------
+        # By-market-cap dark-pool summary, styled like the Top Flow options card.
+        # EOD weekdays 20:10 ET — a safe margin AFTER the 19:20 nightly ingest has
+        # folded the authoritative session into darkpool_trades (which the card
+        # reads via get_aggregated). EOW additionally on Friday (the week view).
+        # SELF-GATED: run_eod_summary is a no-op unless DARKPOOL_EOD_ENABLED=1, so
+        # registering these is dark — they build + post nothing until armed. Posts
+        # to the same Discord channel as the options EOD (see darkpool_eod._webhook).
+        try:
+            import functools as _functools
+            from api.darkpool_eod import run_eod_summary as _dp_eod
+            _scheduler.add_job(
+                _dp_eod,   # defaults: force=False, post=True, weekly=False
+                trigger=CronTrigger(day_of_week="mon-fri", hour=20, minute=10, timezone=_ET),
+                id="darkpool_eod", max_instances=1, replace_existing=True,
+                misfire_grace_time=3600)
+            _scheduler.add_job(
+                _functools.partial(_dp_eod, weekly=True),
+                trigger=CronTrigger(day_of_week="fri", hour=20, minute=15, timezone=_ET),
+                id="darkpool_eow", max_instances=1, replace_existing=True,
+                misfire_grace_time=3600)
+            print("[startup] darkpool EOD/EOW summary scheduled (EOD 20:10 ET weekdays, "
+                  "EOW 20:15 ET Fri) — dark until DARKPOOL_EOD_ENABLED=1")
+        except Exception as _e_dpeod:
+            print(f"[startup] darkpool EOD summary job skip: {_e_dpeod}")
+
         # -- Dark pool: nightly-ingest startup catch-up (2026-07-27) ------------
         # APScheduler here has no jobstore, so a 19:20 ET run missed because the
         # pod was mid-redeploy (or down) at fire time is LOST — misfire_grace only
