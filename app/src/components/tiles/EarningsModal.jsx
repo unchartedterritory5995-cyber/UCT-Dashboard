@@ -8,6 +8,7 @@ import useTickerTweets from '../../hooks/useTickerTweets'
 import { timeAgo } from '../../utils/timeAgo'
 import FundamentalsStrip from '../calendar/FundamentalsStrip'
 import CallRecapSection from '../calendar/CallRecapSection'
+import TranscriptPanel from '../calendar/TranscriptPanel'
 import AnalystPanel from '../fundamentals/AnalystPanel'
 import OwnershipPanel from '../fundamentals/OwnershipPanel'
 import SentimentGauge from '../calendar/SentimentGauge'
@@ -451,8 +452,9 @@ export default function EarningsModal({ row, label, reportDate = null, timing = 
 
         {/* ── C5: Call recap + audio (+ lazy full transcript) ─────────── */}
         {recapData && (
-          <CallRecapSection recap={recapData} audio={audioData ?? null} ticker={row.sym} />
+          <CallRecapSection recap={recapData} audio={audioData ?? null} />
         )}
+        <TranscriptPanel sym={row.sym} />
 
         {/* ── C2: SEC Filings section ──────────────────────────────────── */}
         {groupedFilings.length > 0 && (

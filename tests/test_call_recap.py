@@ -162,6 +162,67 @@ class TestGetCallRecap:
         result, _, _, _ = self._run("NOTHING", pplx_context="")
         assert result is None
 
+    # ── Failure caching ───────────────────────────────────────────────────────
+    #
+    # A recap that fails to synthesize used to be pinned as "__null__" for the
+    # full 24h SUCCESS ttl. One transient parse or transport blip therefore
+    # blanked the Call panel for a whole trading day, with nothing retrying --
+    # which is the state the reported DIS screenshot was in (the sibling
+    # sentiment gauge, cached separately, had resolved fine).
+    #
+    # Two tiers, because the two failures are not the same claim:
+    #   * an EXCEPTION is transient by nature -> retry within minutes
+    #   * an EMPTY provider answer is a real "nothing published yet" -> longer,
+    #     but never a full day, since a recap lands hours after the call
+
+    def test_a_transient_failure_is_not_pinned_for_the_success_ttl(self):
+        from api.services.call_recap import get_call_recap, _FAILURE_TTL
+
+        with patch("api.services.call_recap._cache") as mock_cache_fn, \
+             patch("api.services.call_recap._pplx_earnings_highlights",
+                   return_value=_PPLX_WEB_CONTEXT), \
+             patch("api.services.call_recap._cost_guard") as mock_guard_fn, \
+             patch("api.services.call_recap._anthropic_client") as mock_client_fn:
+
+            mock_cache = MagicMock()
+            mock_cache.get.return_value = None
+            mock_cache_fn.return_value = mock_cache
+
+            mock_guard = MagicMock()
+            mock_guard.may_synthesize.return_value = True
+            mock_guard_fn.return_value = mock_guard
+
+            mock_client = MagicMock()
+            mock_client.messages.create.side_effect = RuntimeError("LLM timeout")
+            mock_client_fn.return_value = mock_client
+
+            assert get_call_recap("NVDA") is None
+
+        ttl = mock_cache.set.call_args[0][2]
+        assert ttl == _FAILURE_TTL
+        assert ttl <= 900, "a transient failure must heal within minutes, not a session"
+
+    def test_an_empty_provider_answer_is_cached_shorter_than_a_success(self):
+        from api.services.call_recap import get_call_recap, _EMPTY_TTL, _RECAP_TTL
+
+        with patch("api.services.call_recap._cache") as mock_cache_fn, \
+             patch("api.services.call_recap._pplx_earnings_highlights", return_value=""), \
+             patch("api.services.call_recap._cost_guard") as mock_guard_fn:
+
+            mock_cache = MagicMock()
+            mock_cache.get.return_value = None
+            mock_cache_fn.return_value = mock_cache
+
+            mock_guard = MagicMock()
+            mock_guard.may_synthesize.return_value = True
+            mock_guard_fn.return_value = mock_guard
+
+            assert get_call_recap("NOTHING") is None
+
+        ttl = mock_cache.set.call_args[0][2]
+        assert ttl == _EMPTY_TTL
+        assert ttl < _RECAP_TTL, "an absent recap must not outlive a real one"
+
     def test_null_safe_on_llm_exception(self):
         from api.services.call_recap import get_call_recap
 

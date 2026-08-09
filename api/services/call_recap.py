@@ -25,7 +25,19 @@ from zoneinfo import ZoneInfo
 _log = logging.getLogger(__name__)
 _ET = ZoneInfo("America/New_York")
 
-_RECAP_TTL   = 24 * 3600   # 24 hours
+_RECAP_TTL   = 24 * 3600   # 24 hours — a SUCCESSFUL recap
+
+# Failure TTLs. A recap that could not be produced must never be pinned for the
+# success ttl: one transient blip then blanks the Call panel for a whole trading
+# day with nothing retrying. Two tiers, because the two failures assert
+# different things —
+#   _FAILURE_TTL: an exception (transport / LLM / JSON parse). Transient by
+#                 nature, so retry within minutes.
+#   _EMPTY_TTL:   the provider answered and had nothing. A real absence, but a
+#                 recap typically lands hours after the call, so a day is still
+#                 far too long to hold it.
+_FAILURE_TTL = 600         # 10 minutes
+_EMPTY_TTL   = 3600        # 1 hour
 _SENTIMENT_TTL = 12 * 3600  # 12 hours
 _WEBCAST_TTL  = 24 * 3600   # 24 hours
 _RATINGS_TTL  = 6 * 3600    # 6 hours
@@ -115,11 +127,11 @@ def get_call_recap(ticker: str) -> Optional[dict[str, Any]]:
         web_context = _pplx_earnings_highlights(sym)
     except Exception as e:
         _log.warning("[call_recap] perplexity fetch failed for %s: %s", sym, e)
-        _cache().set(ck, "__null__", _RECAP_TTL)
+        _cache().set(ck, "__null__", _FAILURE_TTL)
         return None
 
     if not web_context:
-        _cache().set(ck, "__null__", _RECAP_TTL)
+        _cache().set(ck, "__null__", _EMPTY_TTL)
         return None
 
     # --- LLM synthesis ---
@@ -174,7 +186,7 @@ def get_call_recap(ticker: str) -> Optional[dict[str, Any]]:
 
     except Exception as e:
         _log.warning("[call_recap] LLM synthesis failed for %s: %s", sym, e)
-        _cache().set(ck, "__null__", _RECAP_TTL)
+        _cache().set(ck, "__null__", _FAILURE_TTL)
         return None
 
 
@@ -205,11 +217,11 @@ def get_sentiment(ticker: str) -> Optional[dict[str, Any]]:
         web_context = _pplx_earnings_highlights(sym)
     except Exception as e:
         _log.warning("[call_sentiment] perplexity fetch failed for %s: %s", sym, e)
-        _cache().set(ck, "__null__", _SENTIMENT_TTL)
+        _cache().set(ck, "__null__", _FAILURE_TTL)
         return None
 
     if not web_context:
-        _cache().set(ck, "__null__", _SENTIMENT_TTL)
+        _cache().set(ck, "__null__", _EMPTY_TTL)
         return None
 
     prompt = (
@@ -262,7 +274,7 @@ def get_sentiment(ticker: str) -> Optional[dict[str, Any]]:
 
     except Exception as e:
         _log.warning("[call_sentiment] LLM synthesis failed for %s: %s", sym, e)
-        _cache().set(ck, "__null__", _SENTIMENT_TTL)
+        _cache().set(ck, "__null__", _FAILURE_TTL)
         return None
 
 

@@ -10,6 +10,7 @@
 // rationale + drivers) rendered above the recap, which already carries its
 // own simple bullish/bearish/neutral badge from the recap payload itself.
 import CallRecapSection from '../../calendar/CallRecapSection'
+import TranscriptPanel from '../../calendar/TranscriptPanel'
 import SentimentGauge from '../../calendar/SentimentGauge'
 import { EmptyState } from '../../research-kit'
 import useCallRecap from '../../../hooks/useCallRecap'
@@ -48,8 +49,12 @@ export default function CallSection({ sym, lifecycle }) {
         <EmptyState
           icon="chat"
           title="No call recap yet"
-          hint="No transcript yet — typically posts within 2h of the call."
+          hint="A recap is written once there is enough source material on this call."
         />
+        {/* Independent of the recap above: FMP publishes the verbatim
+            transcript with no LLM in the path, so it must stay reachable
+            when synthesis has not run, has failed, or is capped. */}
+        <TranscriptPanel sym={sym} />
       </div>
     )
   }
@@ -58,7 +63,8 @@ export default function CallSection({ sym, lifecycle }) {
     <div className={styles.wrap}>
       <p className={styles.provenance} data-testid="call-provenance">{PROVENANCE}</p>
       <SentimentGauge ticker={sym} />
-      <CallRecapSection recap={recap} audio={audio ?? null} ticker={sym} />
+      <CallRecapSection recap={recap} audio={audio ?? null} />
+      <TranscriptPanel sym={sym} />
     </div>
   )
 }
