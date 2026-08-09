@@ -1286,28 +1286,71 @@ def session_end_post(
 
 # ── P4-B helper: friendly page-hint descriptions ───────────────────────────
 
-_PAGE_DESCRIPTIONS: dict[str, str] = {
-    "/dashboard": "the main Dashboard (bento-box overview).",
-    "/morning-wire": "the Morning Wire — today's pre-market briefing.",
-    # 🔴 `/uct-20`, NOT `/uct20` — the route table has never carried `/uct20`.
-    # This lookup is keyed by the pathname the member is ON, so the wrong key
-    # failed SILENTLY: Compass simply got no "=== CURRENT PAGE ===" block for
-    # anyone sitting on UCT 20. Same typo as the voice navigator's, in a second
-    # copy of the same fact. Rail: `tests/test_navigation_targets_resolve.py`.
-    "/uct-20": "the UCT 20 leadership list.",
-    "/breadth": "the Breadth Monitor (market internals).",
-    "/theme-tracker": "the Theme Tracker (sector + theme performance).",
-    "/calendar": "the Calendar (earnings + macro events).",
-    "/traders": "the Traders feed.",
-    "/screener": "the Scanner Hub (pullback / remount / gappers).",
-    "/options-flow": "Options Flow.",
-    "/post-market": "the Post-Market movers page.",
-    "/model-book": "the Model Book (graded chart examples + setup taxonomy).",
-    "/journal": "the trader's Journal (Journal 2.0 / Compass coaching surface).",
-    "/watchlists": "the Watchlists page.",
-    "/settings": "the Settings page.",
-    "/support": "the Support page.",
+from api.services import voice_client_action_tools as _nav
+
+_PAGE_ALIASES = _nav.PAGE_ALIASES
+
+# 🔴 TWO REGISTRIES USED TO OWN ONE FACT, AND THEY AGREED ON THE WRONG VALUE.
+# This dict was hand-keyed by pathname, exactly like
+# `voice_client_action_tools.PAGE_ALIASES` is hand-VALUED by pathname, and both
+# copies said `/uct20` — a route `App.jsx` has never declared. Agreement between
+# two independent copies is what made the typo survive: each read as
+# corroboration of the other, and neither could be falsified by the other.
+#
+# ⭐ SO ONE OWNS IT AND THIS ONE DERIVES. `PAGE_ALIASES` is the registry that
+# already maps spoken names to paths and is already resolved against the real
+# route table by `tests/test_navigation_targets_resolve.py`. The blurbs below
+# are keyed on an ALIAS — the only thing this module genuinely owns is the
+# English — and the pathname comes from there. There is now exactly one place in
+# the backend where a UCT 20 route literal is written down.
+#
+# ⛔ AND A BAD KEY IS LOUD. `_by_path` raises at IMPORT rather than skipping,
+# because the original failure mode of this dict was SILENCE: it is keyed by the
+# pathname the member is *on*, so a wrong key does not 404 — Compass simply
+# receives no "=== CURRENT PAGE ===" block for anyone sitting on that page,
+# forever, with nothing anywhere reporting it.
+_PAGE_BLURBS: dict[str, str] = {
+    "dashboard": "the main Dashboard (bento-box overview).",
+    "morning wire": "the Morning Wire — today's pre-market briefing.",
+    "uct20": "the UCT 20 leadership list.",
+    "breadth": "the Breadth Monitor (market internals).",
+    "themes": "the Theme Tracker (sector + theme performance).",
+    "calendar": "the Calendar (earnings + macro events).",
+    "traders": "the Traders feed.",
+    "screener": "the Scanner Hub (pullback / remount / gappers).",
+    "options": "Options Flow.",
+    "post market": "the Post-Market movers page.",
+    "model book": "the Model Book (graded chart examples + setup taxonomy).",
+    "journal": "the trader's Journal (Journal 2.0 / Compass coaching surface).",
+    "watchlists": "the Watchlists page.",
+    "settings": "the Settings page.",
+    "support": "the Support page.",
 }
+
+
+def _by_path(blurbs: dict[str, str], aliases: dict[str, str]) -> dict[str, str]:
+    """``{alias: blurb}`` → ``{path: blurb}``, resolved through the path owner.
+
+    ⛔ RAISES on an alias the navigator does not know. Returning a partial map
+    would re-create the exact defect this indirection removes — a page whose
+    hint quietly never fires — and it would do it while looking like a
+    successful import.
+    """
+    out: dict[str, str] = {}
+    for alias, desc in blurbs.items():
+        path = aliases.get(alias)
+        if path is None:
+            raise KeyError(
+                f"_PAGE_BLURBS is keyed on {alias!r}, which is not a key in "
+                "voice_client_action_tools.PAGE_ALIASES — so no pathname can be "
+                "derived for it and Compass would silently lose that page's "
+                "context. Add the alias there (it owns paths) or fix the key."
+            )
+        out[path] = desc
+    return out
+
+
+_PAGE_DESCRIPTIONS: dict[str, str] = _by_path(_PAGE_BLURBS, _PAGE_ALIASES)
 
 
 def _describe_page_hint(raw: str) -> str:

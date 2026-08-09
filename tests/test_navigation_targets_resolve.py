@@ -151,6 +151,76 @@ def test_the_two_doors_this_rail_was_written_for(routes):
     )
 
 
+# ── ONE OWNS IT, THE OTHER DERIVES ──────────────────────────────────────────
+#
+# 🔴 The two registries above did not merely both carry `/uct20` — they AGREED
+# on it, and the agreement is why it survived. Two independent hand-typed copies
+# of one fact read as corroboration: each looked like a second source confirming
+# the first, and neither could ever falsify the other. Making them agree again
+# fixes today's typo and leaves tomorrow's free to happen exactly the same way.
+#
+# So `_PAGE_DESCRIPTIONS` is now BUILT from `PAGE_ALIASES` (`voice.py::_by_path`
+# over `_PAGE_BLURBS`, which is keyed on an alias and owns only the English).
+# These cases assert that the derivation is real rather than decorative.
+
+def test_the_page_hint_registry_owns_no_route_literal_of_its_own():
+    """The structural claim: every described page's PATH came from the navigator."""
+    from api.routers.voice import _PAGE_BLURBS
+
+    typed = sorted(k for k in _PAGE_BLURBS if k.startswith("/"))
+    assert typed == [], (
+        f"_PAGE_BLURBS is keyed on the pathname(s) {typed} — that is a second "
+        "hand-typed authority over a route, which is the defect this file "
+        "exists to catch. Key it on a PAGE_ALIASES alias instead."
+    )
+    stray = sorted(set(_PAGE_DESCRIPTIONS) - set(PAGE_ALIASES.values()))
+    assert stray == [], (
+        f"{stray} are page-hint paths the voice navigator has never heard of, "
+        "so they did not come from PAGE_ALIASES — something is typing paths again"
+    )
+
+
+def test_REPOINTING_THE_ALIAS_MOVES_THE_HINT():
+    """🔴 THE PROOF THAT THERE IS ONLY ONE AUTHORITY LEFT.
+
+    ⛔ This is the case that would have caught the original bug, and it is the
+    only one here that can: the sweeps at the top of this file check both
+    registries against the routes, so two copies that are wrong IN THE SAME WAY
+    fail them together — but two copies that are wrong together are also exactly
+    what a human reviewer reads as agreement. This asserts the copies cannot
+    disagree, because the second one is computed.
+    """
+    from api.routers.voice import _PAGE_BLURBS, _by_path
+
+    # ⛔ NEVER MUTATE WITHOUT PROVING THE ANCHOR IS THERE
+    # (`lesson_test_that_passes_vacuously`).
+    assert "uct20" in _PAGE_BLURBS, "the blurb this control repoints is gone"
+    assert PAGE_ALIASES["uct20"] == "/uct-20"
+
+    moved = dict(PAGE_ALIASES, uct20="/somewhere-else")
+    assert moved != PAGE_ALIASES
+    rebuilt = _by_path(_PAGE_BLURBS, moved)
+
+    assert "/somewhere-else" in rebuilt, (
+        "the page hint did NOT follow the alias — `_PAGE_DESCRIPTIONS` is still "
+        "keyed off its own copy of the path and the two-registry defect is back"
+    )
+    assert "/uct-20" not in rebuilt
+    # …and the English is untouched: only the key moved.
+    assert rebuilt["/somewhere-else"] == _PAGE_BLURBS["uct20"]
+
+
+def test_a_blurb_the_navigator_cannot_place_RAISES_AT_IMPORT():
+    """⛔ LOUD, NOT SKIPPED. The original failure mode of this dict was silence —
+    a wrong key 404s nothing, it just costs Compass the page context forever."""
+    import pytest as _pytest
+
+    from api.routers.voice import _by_path
+
+    with _pytest.raises(KeyError, match="PAGE_ALIASES"):
+        _by_path({"a page nobody routes": "…"}, PAGE_ALIASES)
+
+
 # ── The controls — a rail nobody has seen fail cannot be trusted ────────────
 
 def test_the_catch_all_is_not_treated_as_a_route():
