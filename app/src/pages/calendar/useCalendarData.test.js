@@ -23,3 +23,18 @@ describe('calendar helpers', () => {
     expect(isMine('NVDA', sets, ['watchlist','flagged'])).toBe(true)
   })
 })
+
+describe('a symbol the enrichment never covered', () => {
+  // The calendar feed carries symbols the overlay does not — every ticker in a
+  // far-future week. Left unmarked, the modal reads the empty row as the CLAIM
+  // "No reported quarters yet" (live 2026-08-08: DOCN).
+  it('is marked unresolved rather than left silently empty', () => {
+    const out = mergeEnrichment({ sym: 'DOCN' }, { OTHER: { beat_history: [] } })
+    expect(out.history_unresolved).toBe(true)
+  })
+
+  it('still reports an enriched row honestly as answered', () => {
+    const out = mergeEnrichment({ sym: 'JAZZ' }, { JAZZ: { beat_history: [] } })
+    expect(out.history_unresolved).toBe(false)
+  })
+})

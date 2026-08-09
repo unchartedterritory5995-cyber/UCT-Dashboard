@@ -19,11 +19,20 @@ export default function ChartIdentityRow({
   showChange = true,
   dayGain = null,
   dayGainColors = {},
+  delistedDate = null,
   session = null,
   showClock = true,
   rightSlot = null,
   styles,
 }) {
+  // "2017-06-19" → "Jun 2017" for the delisted badge (best-effort; falls back to raw).
+  const delistedLabel = (() => {
+    if (!delistedDate) return null
+    const m = /^(\d{4})-(\d{2})/.exec(String(delistedDate))
+    if (!m) return String(delistedDate)
+    const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+    return `${MON[Math.max(0, Math.min(11, parseInt(m[2], 10) - 1))]} ${m[1]}`
+  })()
   return (
     <div className={styles.chartHeaderTop}>
       <div className={styles.symbolSlot}>
@@ -53,7 +62,24 @@ export default function ChartIdentityRow({
           </span>
         )}
       </div>
-      {showChange && (dayGain ? (
+      {delistedLabel ? (
+        // Dead ticker: a static badge in place of the (nonexistent) live day-change.
+        <span
+          className={styles.chartDayGain}
+          style={{
+            color: '#c9a84c',
+            border: '1px solid rgba(201,168,76,0.45)',
+            background: 'rgba(201,168,76,0.12)',
+            borderRadius: 4,
+            padding: '1px 7px',
+            fontWeight: 600,
+            letterSpacing: '0.02em',
+          }}
+          title={`This company is no longer publicly traded (delisted ${delistedDate}).`}
+        >
+          Delisted {delistedLabel}
+        </span>
+      ) : showChange && (dayGain ? (
         <span className={styles.chartDayGain} style={{ color: dayGain.up ? dayGainColors.up : dayGainColors.down }}>
           {dayGain.up ? '+' : ''}{dayGain.abs.toFixed(2)} ({dayGain.up ? '+' : ''}{dayGain.pct.toFixed(2)}%)
         </span>

@@ -299,6 +299,17 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
                   <>
                     <span className={styles.itemSym}>{r.ticker}</span>
                     {r.name && <span className={styles.itemName}>{r.name}</span>}
+                    {r.delisted && (
+                      <span
+                        style={{
+                          marginLeft: 'auto', fontSize: 10, fontWeight: 600, color: '#c9a84c',
+                          border: '1px solid rgba(201,168,76,0.4)', borderRadius: 3,
+                          padding: '0 5px', whiteSpace: 'nowrap',
+                        }}
+                      >
+                        Delisted{r.delisted_date ? ` ${String(r.delisted_date).slice(0, 4)}` : ''}
+                      </span>
+                    )}
                   </>
                 )}
               </button>
