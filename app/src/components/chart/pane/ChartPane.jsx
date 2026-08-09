@@ -26,6 +26,7 @@ import {
 import usePreferences from '../../../hooks/usePreferences'
 import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
 import useTickerMeta from '../../../hooks/useTickerMeta'
+import useDelisted from '../../../hooks/useDelisted'
 // Phase-A carried debt (see the design doc): the pane still reads the charts
 // workspace's CSS module rather than owning its own. Moving the rules would
 // change every hashed class name in the same commit as the extraction and make
@@ -151,7 +152,14 @@ function ChartPane({
   // the theme name + the Uncharted Territory brand mark (it has no company ticker,
   // so no logo.dev logo). meta.name comes from the shared ticker-meta cache.
   const meta = useTickerMeta(themeIdx.isIndex ? null : sym)
-  const companyName = meta?.name || sym
+  // DELISTED (dead company — Yahoo, Twitter, Lehman): freeze every live path. Its bars
+  // still flow through /api/bars (Massive retains delisted history to ~2003), but there is
+  // no live quote/stream to chase — so liveUpdates goes false, the header quote/change is
+  // suppressed, the watermark uses the curated name/sector (a reused symbol's live meta is
+  // the WRONG company), and the identity row shows a "Delisted <date>" badge. null = live.
+  const delistedInfo = useDelisted(themeIdx.isIndex ? null : sym)
+  const isDelisted = !!delistedInfo
+  const companyName = (isDelisted && delistedInfo.name) || meta?.name || sym
   const indexLabel = themeIdx.isIndex
     ? (themeIdx.name || sym.replace(/^\$IDX:/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
     : null
@@ -257,7 +265,10 @@ function ChartPane({
   // when a field that needs it is actually shown.
   const infoFieldKeys = useMemo(() => headerFieldKeys(hdr), [hdr])
   const infoGate = !compact && !mini && showTfBar
-  const wantsQuote = infoGate && infoFieldKeys.some((k) => QUOTE_HEADER_KEYS.has(k))
+  // A delisted ticker has no live feed, so never open the live-quote poll for one
+  // (it would return nothing and render a broken 0.00%). Its Info-Row quote fields
+  // simply don't show — every other (static) field still resolves.
+  const wantsQuote = infoGate && !isDelisted && infoFieldKeys.some((k) => QUOTE_HEADER_KEYS.has(k))
   const wantsMeta = infoGate && infoFieldKeys.some((k) => META_HEADER_KEYS.has(k))
   const wantsTheme = infoGate && infoFieldKeys.some((k) => THEME_HEADER_KEYS.has(k))
   const wantsPerf = infoGate && infoFieldKeys.some((k) => PERF_HEADER_KEYS.has(k))
@@ -404,8 +415,9 @@ function ChartPane({
           boundsRef={focusableRef}
           themeVars={menuVars}
           onSymbolChange={onSymbolChange ? handleSymbolChange : null}
-          showChange={hdr.showChange && !(themeIdx.isIndex && !idxGain)}
+          showChange={hdr.showChange && !isDelisted && !(themeIdx.isIndex && !idxGain)}
           dayGain={themeIdx.isIndex ? idxGain : null}
+          delistedDate={isDelisted ? delistedInfo.delisted_date : null}
           dayGainColors={{
             up: hdrColors.dayChangeUp || (resolvedTheme === 'sunrise' ? '#0a5c22' : '#1ae51a'),
             down: hdrColors.dayChangeDown || (resolvedTheme === 'sunrise' ? '#7d1620' : '#ff3b47'),
@@ -481,6 +493,14 @@ function ChartPane({
             watermark: themeIdx.name || sym.replace(/^\$IDX:/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
             watermarkName: `${themeIdx.name || sym.replace(/^\$IDX:/, '').replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} Index`,
             liveUpdates: false,
+          } : {})}
+          {...(!themeIdx.isIndex && isDelisted ? {
+            // DELISTED (never a theme index): freeze live updates + curated watermark
+            // name/sector so a reused symbol's live meta can't mislabel the dead company.
+            liveUpdates: false,
+            watermarkName: delistedInfo.name || undefined,
+            watermarkSector: delistedInfo.sector || undefined,
+            watermarkIndustry: delistedInfo.industry || undefined,
           } : {})}
           /* Per-surface settings isolation: this surface's own full settings
              blob (null = inherit the global default). onSettingsPersist routes
