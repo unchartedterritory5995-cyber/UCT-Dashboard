@@ -4699,7 +4699,6 @@ export default function StockChart({
     const arr = Array.isArray(highlightBarTime) ? highlightBarTime : [highlightBarTime]
     const times = ohlcData.map(d => d.time)
     const exact = new Set(times)
-    const fuzzy = resolvedTf === 'W' || resolvedTf === 'M'
     const cmp = (a, b) => (typeof a === 'number' && typeof b === 'number')
       ? a - b
       : (String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0)
@@ -4708,7 +4707,9 @@ export default function StockChart({
       if (raw == null) continue
       const target = adjustTime(raw)
       if (exact.has(target)) { out.push({ time: target, orig: raw }); continue }
-      if (!fuzzy) continue
+      // No exact bar: resolve to the ENCLOSING bar (largest bar time <= the date). Covers
+      // W/M period-interior days AND a daily start-marker date that lands on a weekend/holiday
+      // (exact still wins for real trading days, so Model Book setups are unaffected).
       let best = null
       for (const t of times) if (cmp(t, target) <= 0 && (best == null || cmp(t, best) > 0)) best = t
       if (best != null) out.push({ time: best, orig: raw })

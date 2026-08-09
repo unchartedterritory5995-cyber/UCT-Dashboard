@@ -20,7 +20,7 @@ import {
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
-  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker } = useWorkspace()
+  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle } = useWorkspace()
   const { createAlert } = useWatchlistAlerts()
   // Imperative handle on the pane: the right-click menu opens its settings
   // modal, and the leverage picker routes its symbol change through it so the
@@ -288,8 +288,11 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           // the "Exit Replay Mode" pill centered in this chart's clear top area.
           replayCutoff: replayCutoff || null,
           onExitReplay: (replayCutoff || startMarker) ? exitReplay : undefined,
-          // Custom-Period Sort: thin gold vertical line marking the sort's start date.
-          startMarker: startMarker || null,
+          // Custom-Period Sort "Mark start date": either a thin gold vertical LINE (overlay)
+          // or paint the start-date CANDLE gold (highlightBarTime). Only one is active.
+          startMarker: startMarker && startMarkerStyle === 'line' ? startMarker : null,
+          highlightBarTime: startMarker && startMarkerStyle === 'candle' ? startMarker : undefined,
+          highlightColor: startMarker && startMarkerStyle === 'candle' ? '#c9a84c' : undefined,
         }}
         slots={{
           /* Chart tab strip — renders only once ≥1 extra tab exists, so a

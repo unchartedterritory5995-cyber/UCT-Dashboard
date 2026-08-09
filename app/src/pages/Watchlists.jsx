@@ -435,13 +435,20 @@ function ScanRows({ scrollRef, items, renderRow, emptyText, onVisibleChange, scr
     for (let i = first; i <= last && i < items.length; i++) { const it = items[i]; if (it?.sym && !it.isGroup) syms.push(it.sym) }
     onVisibleChange(syms)
   }, [first, last, items, onVisibleChange])
-  // Scroll a searched/selected symbol INTO VIEW — DOM querySelector can't find a
-  // virtualized row that isn't rendered yet, so drive the virtualizer by index. Re-runs
-  // on `items` too, so it scrolls once a just-expanded group's member row exists.
+  // Scroll a searched/selected symbol INTO VIEW — ONCE, on first search. DOM querySelector
+  // can't find a virtualized row that isn't rendered yet, so drive the virtualizer by index.
+  // Guarded by scrolledForRef: we snap only when the target sym CHANGES (a new search), then
+  // mark it done so live re-sorts / streaming `items` updates never yank the view back —
+  // the user can freely scroll away. If the row isn't present yet (its group hasn't expanded),
+  // we DON'T mark done, so a later `items` update (the expand) still lands the scroll once.
+  const scrolledForRef = useRef(null)
   useEffect(() => {
-    if (!scrollToSym) return
+    if (!scrollToSym) { scrolledForRef.current = null; return }
+    if (scrolledForRef.current === scrollToSym) return   // already snapped to it — allow free scroll
     const idx = items.findIndex((it) => it?.sym === scrollToSym && !it.isGroup)
-    if (idx >= 0) { try { virt.scrollToIndex(idx, { align: 'center' }) } catch { /* mid-mount */ } }
+    if (idx < 0) return                                  // row not rendered yet — retry on next items change
+    try { virt.scrollToIndex(idx, { align: 'center' }) } catch { /* mid-mount */ }
+    scrolledForRef.current = scrollToSym
   }, [scrollToSym, items]) // eslint-disable-line react-hooks/exhaustive-deps
   if (items.length === 0) return <div className={styles.wlEmpty}>{emptyText}</div>
   return (
