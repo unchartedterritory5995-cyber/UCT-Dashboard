@@ -106,6 +106,7 @@ def main():
     lists.append({
         "name": "Liquid Major ETFs",
         "desc": "The most liquid US ETFs by dollar volume — broad market, sectors, factors, thematic, bonds and commodities.",
+        "category": "UCT ETF Lists",
         "tickers": liquid,
     })
 
@@ -116,7 +117,7 @@ def main():
         missing = [t for t in cands if t.upper() not in dvol]
         if missing:
             print(f"  {name}: dropped (no data): {missing}")
-        lists.append({"name": name, "desc": desc, "tickers": kept})
+        lists.append({"name": name, "desc": desc, "category": "UCT ETF Lists", "tickers": kept})
 
     json.dump(lists, open(OUT, "w", encoding="utf-8"), separators=(",", ":"))
     print(f"\nwrote {len(lists)} lists -> {OUT}")

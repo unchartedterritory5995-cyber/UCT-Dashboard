@@ -188,6 +188,21 @@
   flex-shrink: 0;
 }
 
+/* Prebuilt section (category) header — "UCT ETF Lists" etc. Strong near-black text on the
+   light theme (theme-adaptive via --wl-text-strong so it stays legible on a dark canvas),
+   with a hairline divider under it. */
+.catGroup + .catGroup { margin-top: 4px; }
+.catHeader {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  color: var(--wl-text-strong, #0b0f14);
+  padding: 8px 6px 5px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--wl-divider-strong, var(--border, #1f2937));
+}
+.catGroup:first-child .catHeader { padding-top: 2px; }
+
 /* My-Lists row wrapper: pick button + hover-reveal delete */
 .mineRow {
   display: flex;

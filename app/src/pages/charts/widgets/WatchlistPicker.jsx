@@ -86,6 +86,19 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
   const mine = (Array.isArray(myLists) ? myLists : []).filter(wl => match(wl.name))
   const community = (Array.isArray(communityLists) ? communityLists : []).filter(wl => match(wl.name))
   const prebuilt = (Array.isArray(prebuiltLists) ? prebuiltLists : []).filter(wl => match(wl.name))
+  // Prebuilt lists render grouped under section headers (their `category` from the config —
+  // e.g. "UCT ETF Lists"). Category order is first-seen; lists sort A→Z within each section.
+  const prebuiltGroups = (() => {
+    const order = []
+    const byCat = new Map()
+    for (const wl of prebuilt) {
+      const cat = wl.category || 'UCT ETF Lists'
+      if (!byCat.has(cat)) { byCat.set(cat, []); order.push(cat) }
+      byCat.get(cat).push(wl)
+    }
+    order.forEach(c => byCat.get(c).sort((a, b) => (a.name || '').localeCompare(b.name || '')))
+    return order.map(c => ({ category: c, lists: byCat.get(c) }))
+  })()
 
   const closeCreate = useCallback(() => { setCreating(false); setNewName(''); setCreateErr('') }, [])
 
@@ -209,9 +222,14 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
                 {query ? 'No matches.' : 'Hand-picked watchlists from Uncharted Territory are coming soon.'}
               </div>
             </div>
-          ) : prebuilt.map(wl => (
-            <Row key={`p${wl.id}`} wl={wl} icon="star" hideOwner
-              onClick={() => handlePick({ key: `community:${wl.id}`, name: wl.name })} />
+          ) : prebuiltGroups.map(g => (
+            <div key={g.category} className={styles.catGroup}>
+              <div className={styles.catHeader}>{g.category}</div>
+              {g.lists.map(wl => (
+                <Row key={`p${wl.id}`} wl={wl} icon="star" hideOwner
+                  onClick={() => handlePick({ key: `community:${wl.id}`, name: wl.name })} />
+              ))}
+            </div>
           ))
         )}
 

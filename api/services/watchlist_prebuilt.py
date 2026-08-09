@@ -41,8 +41,11 @@ def _admin_user_id():
     return None
 
 
+_DEFAULT_CATEGORY = "UCT ETF Lists"
+
+
 def _load_committed():
-    """[{name, desc, tickers[]}] straight from the committed config — the curated baseline."""
+    """[{name, desc, category, tickers[]}] straight from the committed config — the baseline."""
     try:
         with open(_LISTS_PATH, encoding="utf-8") as fh:
             out = []
@@ -50,10 +53,21 @@ def _load_committed():
                 name = str(row.get("name") or "").strip()
                 tickers = [str(t).upper() for t in (row.get("tickers") or []) if t]
                 if name and tickers:
-                    out.append({"name": name, "desc": str(row.get("desc") or ""), "tickers": tickers})
+                    out.append({
+                        "name": name,
+                        "desc": str(row.get("desc") or ""),
+                        "category": str(row.get("category") or _DEFAULT_CATEGORY),
+                        "tickers": tickers,
+                    })
             return out
     except Exception:
         return []
+
+
+def category_map():
+    """{lowercased list name: category} — the section each prebuilt list belongs to in the
+    picker. Presentation-only (not stored in the DB); resolved from the committed config."""
+    return {l["name"].strip().lower(): l["category"] for l in _load_committed()}
 
 
 def _read_overlay():
