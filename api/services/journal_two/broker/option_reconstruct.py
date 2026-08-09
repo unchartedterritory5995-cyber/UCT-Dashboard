@@ -31,6 +31,11 @@ from typing import Any
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import options as opt
+# Imported as a MODULE, not `from … import _opt_contract_multiplier`: a
+# from-import binds the function object at import time and severs this module
+# from any patch/redefinition of the authority (lesson_from_import_severs_a_
+# module_from_its_guards). `balances` is the ONE authority on contract size.
+from api.services.journal_two.broker import balances as _balances
 
 
 def _now_iso() -> str:
@@ -248,13 +253,21 @@ def _persist(user_id, broker_account_id, j2_account_id, strategies, conn) -> dic
             "desiredExternalIds": desired}
 
 
-def _insert_strategy(conn, user_id, account_id, s, external_id) -> None:
+def _insert_strategy(conn, user_id, account_id, s, external_id, *,
+                     multiplier: float = opt.STANDARD_CONTRACT_MULTIPLIER) -> None:
+    """Persist one single-leg strategy + its leg.
+
+    `multiplier` is the contract size the BROKER reported for this contract
+    (10 for a mini option). The activity path leaves it at the standard 100 —
+    SnapTrade's activity events carry no mini flag — while the holdings path
+    threads through the value `_holding_contract` read from `balances`.
+    """
     leg = {
         "side": s["side"], "contract_type": s["contractType"], "strike": s["strike"],
         "expiration": s["expiration"], "qty": s["qty"], "entry_price": s["entry_price"],
         "exit_price": s["exit_price"],
     }
-    net_entry = opt.compute_net_entry([leg])
+    net_entry = opt.compute_net_entry([leg], multiplier=multiplier)
     entry_fee = round(s.get("entry_fee", 0.0), 2)
     now = _now_iso()
     sid = str(uuid.uuid4())
@@ -272,7 +285,7 @@ def _insert_strategy(conn, user_id, account_id, s, external_id) -> None:
              s["direction"], net_entry, entry_fee, s["entry_date"], now, now, external_id),
         )
     else:
-        net_exit = opt.compute_net_exit([leg])
+        net_exit = opt.compute_net_exit([leg], multiplier=multiplier)
         exit_fee = round(s.get("exit_fee", 0.0), 2)
         pnl = opt.compute_pnl(net_entry, net_exit or 0.0, entry_fee, exit_fee)
         pnl_pct = round(pnl / abs(net_entry), 4) if net_entry else None
@@ -346,13 +359,21 @@ def _holding_contract(h: dict) -> dict | None:
         except (TypeError, ValueError):
             return 0.0
     # SnapTrade option units quirk: `price` is PER-SHARE (e.g. 27.81) but
-    # `average_purchase_price` is PER-CONTRACT (premium x100, e.g. 1550). Our
-    # leg.entry_price + P&L math are per-share (× qty × 100), so normalize the
-    # cost basis to per-share to match the activity convention.
+    # `average_purchase_price` is PER-CONTRACT (premium × contract size, e.g.
+    # 1550). Our leg.entry_price + P&L math are per-share (× qty × multiplier),
+    # so normalize the cost basis to per-share to match the activity convention.
+    #
+    # Contract size is NOT 100 by assumption — a mini option is 10 shares. Ask
+    # the one authority (`balances`), which reads the broker's own
+    # `is_mini_option` flag; a second implementation here is what made a mini
+    # option's entry price read 10× low and its current value 10× high on the
+    # same screen where `balances.option_market_value` had it right.
+    multiplier = _balances._opt_contract_multiplier(h)
     return {
         "underlying": under, "strike": strike, "expiration": expiration,
         "contractType": contract_type, "units": units,
-        "entry_price": _f(h.get("average_purchase_price")) / 100.0,
+        "multiplier": multiplier,
+        "entry_price": _f(h.get("average_purchase_price")) / float(multiplier),
         "mark": _f(h.get("price")),
     }
 
@@ -360,7 +381,7 @@ def _holding_contract(h: dict) -> dict | None:
 _OPEN_BROKER_OPT_SQL = """
     SELECT s.id, s.external_id, s.underlying,
            l.id AS leg_id, l.strike, l.expiration, l.contract_type,
-           l.qty AS leg_qty, l.entry_price AS leg_entry
+           l.qty AS leg_qty, l.entry_price AS leg_entry, l.side AS leg_side
     FROM j2_option_strategies s
     JOIN j2_option_legs l ON l.strategy_id = s.id
     WHERE s.user_id = ? AND s.account_id = ? AND s.source = 'broker'
@@ -376,7 +397,8 @@ def reconcile_option_holdings(
     balances.reconcile_positions. Guarantees every option contract the broker
     currently holds has an OPEN strategy in J2 even when its opening activity
     isn't in the ledger (late/never backfilled), and refreshes each open
-    strategy's current market value (broker mark x qty x 100) so the UI can show
+    strategy's current market value (broker mark × qty × contract size — 100
+    for a standard contract, 10 for a mini, per `balances`) so the UI can show
     Current + P&L like equity positions.
 
     Activity-reconstructed strategies take precedence (they carry the real
@@ -397,7 +419,7 @@ def reconcile_option_holdings(
             c = _holding_contract(h)
             if c is None:
                 continue
-            c["current_value"] = round(c["units"] * c["mark"] * 100, 2)
+            c["current_value"] = round(c["units"] * c["mark"] * c["multiplier"], 2)
             held[(c["underlying"], c["strike"], c["expiration"], c["contractType"])] = c
 
         rows = conn.execute(_OPEN_BROKER_OPT_SQL, (user_id, j2_account_id)).fetchall()
@@ -427,7 +449,8 @@ def reconcile_option_holdings(
             }
             ext = (f"bkoptpos:{broker_account_id}:{c['underlying']}:{c['strike']}:"
                    f"{c['expiration']}:{c['contractType']}:{side}")
-            _insert_strategy(conn, user_id, j2_account_id, s, ext)
+            _insert_strategy(conn, user_id, j2_account_id, s, ext,
+                             multiplier=c["multiplier"])
             created += 1
 
         # REMOVE carried-in no longer held, or now covered by an activity strategy.
@@ -447,18 +470,31 @@ def reconcile_option_holdings(
                 continue
             held_qty = abs(c["units"])
             sign = 1 if c["units"] > 0 else -1
-            if abs((r["leg_qty"] or 0) - held_qty) > 1e-9:
-                # Quantity diverges → reseed from broker holding (qty + entry).
+            held_side = "buy" if sign > 0 else "sell"
+            # `held` is keyed WITHOUT side, so a contract whose sign flipped
+            # (long → short via assignment) matches this row rather than
+            # creating a new one. Holdings-as-truth therefore has to correct
+            # SIDE here exactly as it corrects quantity — otherwise net_entry
+            # keeps its old debit sign while broker_current_value goes
+            # negative, and the row disagrees with itself on the member's P&L.
+            qty_diverges = abs((r["leg_qty"] or 0) - held_qty) > 1e-9
+            side_diverges = r["leg_side"] != held_side
+            if qty_diverges or side_diverges:
+                # Reseed from the broker holding (side + qty + entry).
                 entry = c["entry_price"] or r["leg_entry"] or 0.0
-                net_entry = round(sign * held_qty * entry * 100, 2)
+                net_entry = round(sign * held_qty * entry * c["multiplier"], 2)
+                stype = _strategy_type(held_side, r["contract_type"])
                 conn.execute(
-                    "UPDATE j2_option_legs SET qty = ?, entry_price = ? WHERE id = ?",
-                    (held_qty, entry, r["leg_id"]),
+                    "UPDATE j2_option_legs SET side = ?, qty = ?, entry_price = ? "
+                    "WHERE id = ?",
+                    (held_side, held_qty, entry, r["leg_id"]),
                 )
                 conn.execute(
-                    "UPDATE j2_option_strategies SET net_entry = ?, broker_current_value = ?, "
+                    "UPDATE j2_option_strategies SET strategy_type = ?, direction = ?, "
+                    "net_entry = ?, broker_current_value = ?, "
                     "broker_mark_synced_at = ?, updated_at = ? WHERE id = ?",
-                    (net_entry, c["current_value"], now, now, r["id"]),
+                    (stype, _direction(stype), net_entry, c["current_value"],
+                     now, now, r["id"]),
                 )
             else:
                 conn.execute(

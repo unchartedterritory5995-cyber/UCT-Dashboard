@@ -64,21 +64,34 @@ def _side_sign(side: str) -> int:
     return 1 if side == "buy" else -1
 
 
-def compute_net_entry(legs: list[dict[str, Any]]) -> float:
-    """Σ (sideSign × qty × entry_price × 100)."""
+#: Shares per contract for a standard equity option. The manual options UI
+#: only ever creates standard contracts, so this stays the default. Broker
+#: imports pass the contract size the BROKER reported — a mini option is 10 —
+#: via the `multiplier` argument. This module owns the FORMULA; it never
+#: decides which multiplier a given contract has (that authority is
+#: `broker.balances._opt_contract_multiplier`, reading `is_mini_option`).
+STANDARD_CONTRACT_MULTIPLIER = 100.0
+
+
+def compute_net_entry(
+    legs: list[dict[str, Any]], *, multiplier: float = STANDARD_CONTRACT_MULTIPLIER,
+) -> float:
+    """Σ (sideSign × qty × entry_price × multiplier), multiplier default 100."""
     total = 0.0
     for leg in legs:
         total += (
             _side_sign(leg["side"])
             * float(leg["qty"])
             * float(leg["entry_price"])
-            * 100.0
+            * float(multiplier)
         )
     return round(total, 2)
 
 
-def compute_net_exit(legs: list[dict[str, Any]]) -> float | None:
-    """Σ (sideSign × qty × exit_price × 100). Returns None if any leg has null exit."""
+def compute_net_exit(
+    legs: list[dict[str, Any]], *, multiplier: float = STANDARD_CONTRACT_MULTIPLIER,
+) -> float | None:
+    """Σ (sideSign × qty × exit_price × multiplier). None if any leg has null exit."""
     total = 0.0
     for leg in legs:
         ep = leg.get("exit_price")
@@ -88,7 +101,7 @@ def compute_net_exit(legs: list[dict[str, Any]]) -> float | None:
             _side_sign(leg["side"])
             * float(leg["qty"])
             * float(ep)
-            * 100.0
+            * float(multiplier)
         )
     return round(total, 2)
 
