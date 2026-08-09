@@ -37,7 +37,9 @@ from zoneinfo import ZoneInfo
 
 import anyio
 
-from fastapi import APIRouter, Request
+from api.flow_admin_auth import require_flow_user
+
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
 ET = ZoneInfo("America/New_York")
@@ -471,7 +473,8 @@ def get_top_conviction(limit: int = 10) -> dict:
 
 
 @flow_summary_router.get("/top-conviction")
-async def top_conviction(request: Request):
+async def top_conviction(request: Request,
+                         _auth: dict = Depends(require_flow_user)):
     try:
         limit = int(request.query_params.get("limit", "10"))
     except (ValueError, TypeError):

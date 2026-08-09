@@ -1,11 +1,36 @@
-from fastapi import APIRouter, HTTPException
+"""The backtest engine.
+
+🔴 BOTH ROUTES WERE ANONYMOUS (auth/paywall sweep, 2026-08-09). `GET /strategies`
+publishes the firm's strategy template library — the rules themselves — and
+`POST ""` RUNS the engine over up to 5,000 bars on the single web pod, once per
+request, for a caller who supplied no credential. That is a compute surface with
+no owner, and the sharpest thing on this router.
+"""
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+
+from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import strategy_templates as st
 from api.services import bars_sqlite
 from api.services import backtest_engine, backtest_stats
 
 
 router = APIRouter(prefix="/api/backtest", tags=["backtest"])
+
+
+def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    """Paid gate for the backtest engine.
+
+    ⛔ Defined HERE, not imported from a sibling. Every router that gates on
+    `require_paid` defines its own with its OWN 402 sentence, so "which surface
+    locked me out" is answerable from the message alone. The rail is
+    `tests/test_user_definitions_auth.py::test_require_paid_is_defined_PER_ROUTER…`,
+    which walks `api/routers/` by AST and fails on a shared import.
+    """
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402, detail="Backtesting requires a paid plan")
+    return user
+
 
 
 class BacktestRequest(BaseModel):
@@ -20,12 +45,13 @@ class BacktestRequest(BaseModel):
 
 
 @router.get("/strategies")
-def list_strategies_endpoint():
+def list_strategies_endpoint(_user: dict = Depends(require_paid)):
     return {"strategies": st.list_strategies()}
 
 
 @router.post("")
-def run_backtest(body: BacktestRequest):
+def run_backtest(body: BacktestRequest,
+                 _user: dict = Depends(require_paid)):
     # Bound inputs
     if body.bars < 30 or body.bars > 5000:
         raise HTTPException(400, "bars must be between 30 and 5000")

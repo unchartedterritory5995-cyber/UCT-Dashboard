@@ -1,20 +1,56 @@
 """api/routers/breadth_monitor.py
 
-GET  /api/breadth-monitor         — history (last 90 rows)
-GET  /api/breadth-monitor/latest  — most recent row
-POST /api/breadth-monitor/push    — store new snapshot (auth required)
+GET  /api/breadth-monitor         — history (bounded; see `days` below) — PAID
+GET  /api/breadth-monitor/latest  — most recent row                    — PAID
+POST /api/breadth-monitor/push    — store new snapshot        — PUSH_SECRET
+
+🔴 EVERY READ WAS ANONYMOUS until 2026-08-09 — the 40+ metric breadth history,
+the intraday row, the historical analogues, and `…/drill/{metric_key}`, which
+names THE ACTUAL TICKERS behind a breadth cell. This is the firm's own daily
+measurement of the market, collected at 4:15 ET every session for years; it is
+the substance of the Breadth product, and its only consumers (`Breadth.jsx`,
+`useLiveBreadth`, `liveDrill.js`) sit on paid pages. Reads are PAID now.
+
+The MUTATIONS were already gated, by `_check_auth` (PUSH_SECRET bearer) rather
+than a `Depends`, which is why a dependency-tree sweep reported them as bare —
+worth knowing before "fixing" something that is not broken. Left as they are:
+the collector is a machine, not a session.
+
+⚠️ `days` IS NOW BOUNDED. It was `days: int = 90` with no ceiling, so
+`?days=100000` answered 200 — the whole table, and a query the caller sizes.
+`ge=1, le=3650` (ten years) is comfortably past the longest range any surface
+requests (`BreadthCharts.jsx` asks for 365) while making the cost of one request
+something the server decides. Out-of-range is a 422 from FastAPI rather than a
+silent clamp: a caller that asked for 100,000 sessions should be told the answer
+is not what it asked for, not handed 3,650 dressed as it.
 """
 
 import os
 import threading
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import breadth_monitor as svc
 from api.services.breadth_analogues import find_analogues, invalidate_cache as invalidate_analogues_cache
 
 router = APIRouter()
 
 _PUSH_SECRET = os.environ.get("PUSH_SECRET", "")
+
+
+def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    """Paid gate for the breadth surface.
+
+    ⛔ Defined HERE, not imported from a sibling. Every router that gates on
+    `require_paid` defines its own with its OWN 402 sentence, so "which surface
+    locked me out" is answerable from the message alone. The rail is
+    `tests/test_user_definitions_auth.py::test_require_paid_is_defined_PER_ROUTER…`,
+    which walks `api/routers/` by AST and fails on a shared import.
+    """
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402,
+                            detail="The breadth monitor requires a paid plan")
+    return user
 
 
 def _check_auth(request: Request) -> None:
@@ -35,7 +71,8 @@ except Exception as _e:
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @router.get("/api/breadth-monitor")
-def get_breadth_history(days: int = 90):
+def get_breadth_history(days: int = Query(default=90, ge=1, le=3650),
+                        _user: dict = Depends(require_paid)):
     try:
         return {"rows": svc.get_history(days), "days": days}
     except Exception as e:
@@ -43,7 +80,7 @@ def get_breadth_history(days: int = 90):
 
 
 @router.get("/api/breadth-monitor/analogues")
-def get_breadth_analogues():
+def get_breadth_analogues(_user: dict = Depends(require_paid)):
     """Return top 5 historical dates most similar to current breadth regime."""
     try:
         result = find_analogues()
@@ -53,7 +90,8 @@ def get_breadth_analogues():
 
 
 @router.get("/api/breadth-monitor/live")
-def get_breadth_live(force: bool = False):
+def get_breadth_live(force: bool = False,
+                     _user: dict = Depends(require_paid)):
     """Breadth as of right now — provisional, never stored.
 
     Returns the live-computable metrics plus `carried`: the fields the daily
@@ -143,7 +181,7 @@ def reconcile_breadth_live(date: str, request: Request,
 
 
 @router.get("/api/breadth-monitor/live/dividends")
-def breadth_dividends_status():
+def breadth_dividends_status(_user: dict = Depends(require_paid)):
     """What the dividend store holds, and whether the last sweep truncated.
 
     `truncated` is the field that matters: a sweep that ran out of PAGES rather
@@ -191,7 +229,8 @@ def breadth_live_store(request: Request, selftest: bool = False):
 
 
 @router.get("/api/breadth-monitor/live/drill/{metric_key}")
-def get_live_drill(metric_key: str):
+def get_live_drill(metric_key: str,
+                   _user: dict = Depends(require_paid)):
     """The names behind one cell of the intraday row.
 
     Declared BEFORE `/{date_str}/drill/{metric_key}` — that route matches "live"
@@ -206,7 +245,7 @@ def get_live_drill(metric_key: str):
 
 
 @router.get("/api/breadth-monitor/latest")
-def get_breadth_latest():
+def get_breadth_latest(_user: dict = Depends(require_paid)):
     row = svc.get_latest()
     if row is None:
         raise HTTPException(status_code=404, detail="No breadth data yet")
@@ -263,7 +302,8 @@ async def delete_breadth_snapshot(date_str: str, request: Request):
 
 
 @router.get("/api/breadth-monitor/{date_str}/drill/{metric_key}")
-def get_drill_list(date_str: str, metric_key: str):
+def get_drill_list(date_str: str, metric_key: str,
+                   _user: dict = Depends(require_paid)):
     items = svc.get_drill_list(date_str, metric_key)
     if items is None:
         raise HTTPException(status_code=404, detail=f"No data for {date_str}/{metric_key}")
@@ -281,7 +321,8 @@ def get_drill_list(date_str: str, metric_key: str):
 
 
 @router.post("/api/breadth/industries")
-async def breadth_industries(request: Request):
+async def breadth_industries(request: Request,
+                             _user: dict = Depends(require_paid)):
     """Map a list of tickers → industry for the drill-down "group by" view.
 
     Backed by the universe-wide industry_map (Finviz-seeded, persisted) so the
@@ -316,7 +357,7 @@ async def breadth_industries(request: Request):
 
 
 @router.get("/api/breadth/industries/status")
-def breadth_industries_status():
+def breadth_industries_status(_user: dict = Depends(require_paid)):
     """Coverage diagnostics for the universe industry map."""
     try:
         from api.services import industry_map

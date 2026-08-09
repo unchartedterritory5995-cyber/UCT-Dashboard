@@ -1,10 +1,54 @@
-from fastapi import APIRouter, HTTPException, Query
+"""The daily wire surface — breadth, themes, Leadership 20, the rundown, UCT20.
+
+🔴 EVERY ROUTE HERE WAS ANONYMOUS until 2026-08-09. Measured in the auth/paywall
+sweep: `/api/uct20/portfolio` **29,251 bytes** (NAV, open positions, entries,
+STOPS, full trade history), `/api/uct20/backtest` **31,464 bytes**,
+`/api/leadership` the Leadership 20 itself. This is the firm's product, not a
+market-data relay — it is what the morning wire run produces — so it is PAID.
+
+✋ TWO ROUTES ARE DELIBERATELY *NOT* PAID: `/api/rundown` and
+`/api/rundown/speech-text`.
+
+`FREE_PAGES = ['/morning-wire']` (AuthGuard.jsx / NavBar.jsx / MoreSheet.jsx, all
+three in sync) — the Morning Wire is the free tier, by owner decision, and it is
+the top of the funnel. These two routes ARE that page's content. Gating them on
+`require_paid` would refuse every free member the one thing they were invited in
+to read, so it would not be a paywall fix; it would be a funnel outage.
+
+They are gated on `get_current_user` instead — which is exactly the boundary the
+page already has, since `AuthGuard` renders nothing without a session, and it is
+what every OTHER route on that page already uses (`/api/tweets/feed`,
+`/api/catalysts/today`, `/api/wire-feedback/*` are all `get_current_user`). The
+rundown was the odd one out: the only anonymous route on a logged-in-only page.
+So this closes the crawler hole and changes nothing a member experiences.
+"""
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
 from datetime import datetime, timezone
+from api.middleware.auth_middleware import (
+    get_current_user,
+    get_current_user_with_plan,
+    is_paid_user,
+)
 from api.services.engine import get_breadth, get_themes, get_leadership, get_rundown, get_uct20_portfolio_data, get_uct20_backtest_data, get_analyst_actions, _load_wire_data
 from api.services.cache import cache as _cache
 
 router = APIRouter()
+
+
+def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    """Paid gate for the daily wire surface.
+
+    ⛔ Defined HERE, not imported from a sibling. Every router that gates on
+    `require_paid` defines its own with its OWN 402 sentence, so "which surface
+    locked me out" is answerable from the message alone. The rail is
+    `tests/test_user_definitions_auth.py::test_require_paid_is_defined_PER_ROUTER…`,
+    which walks `api/routers/` by AST and fails on a shared import.
+    """
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402,
+                            detail="The daily wire surface requires a paid plan")
+    return user
 
 
 def _expected_wire_date():
@@ -45,7 +89,7 @@ def _leadership_status(stocks, wire_date_str):
 
 
 @router.get("/api/breadth")
-def breadth():
+def breadth(_user: dict = Depends(require_paid)):
     try:
         return get_breadth()
     except Exception as e:
@@ -53,7 +97,8 @@ def breadth():
 
 
 @router.get("/api/themes")
-def themes(period: str = Query("1W")):
+def themes(period: str = Query("1W"),
+           _user: dict = Depends(require_paid)):
     try:
         result = get_themes(period)
         try:
@@ -79,7 +124,7 @@ def themes(period: str = Query("1W")):
 
 
 @router.get("/api/leadership")
-def leadership():
+def leadership(_user: dict = Depends(require_paid)):
     try:
         result = get_leadership()
         # Backwards-compatible normalization: get_leadership() returns a list,
@@ -127,7 +172,8 @@ def leadership():
 
 
 @router.get("/api/rundown")
-def rundown(type: Optional[str] = Query(None)):
+def rundown(type: Optional[str] = Query(None),
+            _user: dict = Depends(get_current_user)):
     try:
         if type == "post_market":
             return {"html": "", "date": ""}  # post-market not yet implemented
@@ -137,7 +183,7 @@ def rundown(type: Optional[str] = Query(None)):
 
 
 @router.get("/api/rundown/speech-text")
-def rundown_speech_text():
+def rundown_speech_text(_user: dict = Depends(get_current_user)):
     """Canonical Read-Aloud text for today's rundown: the briefing (Today's
     Focus + narrative), widgets stripped. The frontend speaks THIS so it matches
     the pre-warmed audio exactly; the `sentences` list drives follow-along
@@ -157,7 +203,7 @@ def rundown_speech_text():
 
 
 @router.get("/api/uct20/portfolio")
-def uct20_portfolio():
+def uct20_portfolio(_user: dict = Depends(require_paid)):
     try:
         return get_uct20_portfolio_data()
     except Exception as e:
@@ -165,7 +211,7 @@ def uct20_portfolio():
 
 
 @router.get("/api/uct20/backtest")
-def uct20_backtest():
+def uct20_backtest(_user: dict = Depends(require_paid)):
     try:
         return get_uct20_backtest_data()
     except Exception as e:
@@ -173,14 +219,14 @@ def uct20_backtest():
 
 
 @router.get("/api/intraday-update")
-def intraday_update():
+def intraday_update(_user: dict = Depends(require_paid)):
     """Return the latest intraday update from autonomous_brain, if any."""
     data = _cache.get("intraday_update")
     return data or {}
 
 
 @router.get("/api/analyst-actions")
-def analyst_actions():
+def analyst_actions(_user: dict = Depends(require_paid)):
     try:
         return get_analyst_actions()
     except Exception as e:

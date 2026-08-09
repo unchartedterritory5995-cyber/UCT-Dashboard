@@ -28,6 +28,9 @@ sixth route that rides in uncovered.
 
 from __future__ import annotations
 
+import os
+import threading
+import time
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -76,6 +79,67 @@ class ProposeIn(BaseModel):
 #: at 5,000 bars on every timeframe (`/api/bars` and `StockChart` both), so this
 #: is that number rather than a new one.
 MAX_PROPOSE_BARS = 5000
+
+# ── The AI door's INVOCATION bound ──────────────────────────────────────────
+#
+# 🔴 THE GAP THIS CLOSES. `MAX_PROPOSE_BARS` bounds how BIG one call is. Nothing
+# bounded HOW MANY. `/propose` is the only route on this router that spends model
+# tokens per request, `require_paid` is a one-time yes/no, and a paid session in a
+# `while true` loop was an unmetered bill on the firm's key. Same shape E-7's
+# census caught on `/api/scans/definition-results`: right auth class, missing
+# bound.
+#
+# ⛔ AND IT IS DELIBERATELY *NOT* A FIFTH `Limits` AXIS. `entitlements.Limits` is
+# a BREADTH model — its own docstring: *"Symbols, history depth, definition count,
+# refresh cadence"* — with four REQUIRED fields, one place the numbers live, and
+# rails asserting all of it. An invocation-rate cap is a COST axis, not a breadth
+# axis; bolting it onto `Limits` would change every toolkit and every entitlement
+# rail for a number that has nothing to do with how much market a plan may ask
+# about. Note too that `tests/test_entitlements.py` EXCLUDES `/propose` from the
+# toolkit-write census on purpose (`not k[1].endswith("/propose")`) — because
+# `limits_dependency` bounds `max_definitions`, and a route that stores nothing
+# cannot move a definition count. Adding `Depends(limits_dependency)` here would
+# have looked like the fix and bounded nothing: a gate that cannot fail.
+#
+# ⚠️ PER-PROCESS, AND THAT IS A REAL LIMIT. The web pod is one uvicorn process
+# (CLAUDE.md, "SINGLE-PROCESS assumptions"), so this counter is exact today and
+# would become per-instance the day web scales out — at which point the ceiling
+# multiplies by the instance count rather than failing open. Recorded here so the
+# scale-out change is a decision, not a surprise.
+PROPOSE_MAX_PER_HOUR = int(os.environ.get("PROPOSE_MAX_PER_HOUR", "40"))
+_PROPOSE_WINDOW_SECONDS = 3600
+_propose_calls: dict[str, list[float]] = {}
+_propose_lock = threading.Lock()
+
+
+def _charge_propose(user_id: str, *, now: float | None = None) -> None:
+    """Record one call for `user_id`, or raise 429 if the window is full.
+
+    ⛔ THE CHARGE HAPPENS BEFORE THE MODEL RUNS, not after. Billing on success
+    would let a caller loop refusals for free, and a refused proposal costs the
+    same tokens as an accepted one.
+    """
+    now = time.time() if now is None else now
+    cutoff = now - _PROPOSE_WINDOW_SECONDS
+    with _propose_lock:
+        recent = [t for t in _propose_calls.get(user_id, ()) if t > cutoff]
+        if len(recent) >= PROPOSE_MAX_PER_HOUR:
+            retry_after = max(1, int(recent[0] + _PROPOSE_WINDOW_SECONDS - now))
+            _propose_calls[user_id] = recent
+            raise HTTPException(
+                status_code=429,
+                detail=f"At most {PROPOSE_MAX_PER_HOUR} indicator proposals per "
+                       f"hour. Try again in {retry_after}s.",
+                headers={"Retry-After": str(retry_after)},
+            )
+        recent.append(now)
+        _propose_calls[user_id] = recent
+        # Bound the dict itself: a key per member is fine, a key per member
+        # FOREVER is a leak. Drop anyone whose window has fully aged out.
+        if len(_propose_calls) > 5000:
+            for uid in [u for u, ts in _propose_calls.items()
+                        if not ts or ts[-1] <= cutoff]:
+                _propose_calls.pop(uid, None)
 
 
 def _save_or_400(user_id, def_id: str, definition: dict,
@@ -142,7 +206,13 @@ def propose_definition(body: ProposeIn, user: dict = Depends(require_paid)):
     ⚠️ DECLARED PER HANDLER, like every other route on this router. See the module
     docstring: `main.py` mounts this router with no router-level dependency, so a
     route that omits its own is reachable by anybody.
+
+    ⭐ AND IT IS BOUNDED PER CALLER, NOT ONLY PER CALL. `MAX_PROPOSE_BARS` caps
+    how big one proposal is; `_charge_propose` caps how many a member may fire in
+    an hour. See the note above `PROPOSE_MAX_PER_HOUR` for why that bound is a
+    rate limit here and not a fifth `entitlements.Limits` axis.
     """
+    _charge_propose(str(user["id"]))
     bars = body.bars or []
     if not isinstance(bars, list) or len(bars) > MAX_PROPOSE_BARS:
         raise HTTPException(
