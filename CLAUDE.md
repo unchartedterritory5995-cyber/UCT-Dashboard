@@ -85,17 +85,17 @@ a door that does not exist is the most convincing wrong precedent in the repo.
 annotated with a pointer here — correct this table, not the pointer, or you create
 the second-authority-over-one-value defect that has caused three separate outages.
 
-| Documented as | Reality on 2026-08-09 |
+| Documented as | Reality on 2026-08-09, **after the deletion sweep** |
 |---|---|
-| `components/tiles/EarningsModal.jsx` — "opens on ticker click in CatalystFlow or Calendar" | **Zero importers.** Every occurrence of the name in `app/src` is a comment or a test's `it(...)` string. `components/research/EarningsResearchModal.jsx` says outright it *replaces* the old modal's idiom. The calendar's click-through is `EarningsResearchModal` + `pages/calendar/useEarningsModalRoute.js`. |
-| `components/calendar/FundamentalsStrip.jsx` — the fwd-PE strip | **Dead by inheritance** — its only importer is the orphaned `EarningsModal.jsx` above. |
-| `charts/widgets/MobileChartFallback.jsx` — "mobile <640px renders a full-screen StockChart via MobileChartFallback" | `ChartsWorkspace.jsx` imports and renders **`MobileWorkspace`**. `MobileChartFallback` is imported by nothing but `MobileChartFallback.test.jsx`. |
-| `journal-2-0/components/BrokerSyncStatus.jsx` | Not imported by `OpenPositionsTab.jsx` or anything else — the bar was absorbed into `components/trust/SyncTrustCenter.jsx`. Only importer is its own test. |
-| `journal-2-0/components/BrokerEquityCurve.jsx` + `hooks/useBrokerEquityCurve.js` — "Open Positions leads with a real equity curve" | **Zero importers.** The hook is reachable only from the orphaned component. The `j2_broker_equity_snapshots` table is still written; nothing renders it. |
-| "ON THE TAPE" section on `MoversSidebar.jsx` + `hooks/useTapeFeed.js` | `MoversSidebar.jsx` contains **no tape section at all** (only per-row 🐦 icons via `useTickerTweets`). `useTapeFeed.js` is orphaned — and it is the **sole caller of `GET /api/tweets/tape`**, so that mounted, live endpoint is dead too. |
-| `components/PositionCalc.jsx` — "TickerPopup … position calculator" | **Zero importers.** `TickerPopup.jsx` contains no calculator. |
-| `components/tiles/NHNLModal.jsx` — "opens on click of NH or NL in MarketBreadth" | **Zero importers.** `MarketBreadth.jsx` does not reference it. |
-| `api/earnings_router.py` — its own docstring says *"Mount in main.py: `app.include_router(earnings_router, prefix="/api/schwab")`"* | **It never was mounted** — `earnings_router` appears nowhere in `api/main.py`. It is also superseded: `api/schwab_router.py`'s Yahoo-backed `_fetch_earnings_yf` + `POST /api/schwab/earnings` is what actually serves. ⚠️ That instruction is in a file this doc's owner cannot edit; **do not follow it** — mounting the Finviz-scraping predecessor would put a second authority on earnings dates. |
+| `components/tiles/EarningsModal.jsx` — "opens on ticker click in CatalystFlow or Calendar" | 🗑️ **DELETED** (`d26cee0c`). It had zero importers; `components/research/EarningsResearchModal.jsx` says in-file that it *replaces* the old modal's idiom, and the calendar's click-through is `EarningsResearchModal` + `pages/calendar/useEarningsModalRoute.js`. **Read those.** |
+| `components/calendar/FundamentalsStrip.jsx` — the fwd-PE strip | 🗑️ **DELETED** (`d26cee0c`) — dead by inheritance; its only importer was `EarningsModal.jsx`. ⚠️ Its neighbour `calendar/SentimentGauge.jsx` was NOT dead by inheritance and stays: `components/research/sections/CallSection.jsx` reuses it. |
+| `charts/widgets/MobileChartFallback.jsx` — "mobile <640px renders a full-screen StockChart via MobileChartFallback" | 🗑️ **DELETED** with its test (`ed53f9b6`). `ChartsWorkspace.jsx` imports and renders **`MobileWorkspace`** — that is the phone branch. |
+| `journal-2-0/components/BrokerSyncStatus.jsx` | 🗑️ **DELETED** with its test (`ed53f9b6`). The bar was absorbed into `components/trust/SyncTrustCenter.jsx`, which is what renders sync freshness. |
+| `journal-2-0/components/BrokerEquityCurve.jsx` + `hooks/useBrokerEquityCurve.js` — "Open Positions leads with a real equity curve" | 🗑️ **DELETED** (`d26cee0c`). ⚠️ **The data outlived the renderer**: `j2_broker_equity_snapshots` is still written daily and nothing draws it. That is a product decision waiting to be made, not a leftover to clean up. |
+| "ON THE TAPE" section on `MoversSidebar.jsx` + `hooks/useTapeFeed.js` | 🗑️ **`useTapeFeed.js` DELETED** — superseded, not merely unmounted. `3dc5036a` moved the tape out of the sidebar; the successor is `components/tiles/TapeFeed.jsx`, mounted on `Dashboard.jsx` twice (desktop + mobile) and reading **`/api/tweets/feed`** via `hooks/useTweetFeed.js`. The *name* survived onto the new tile, which is why this read as live. ⚠️ **`GET /api/tweets/tape` is still mounted and now has zero callers** — deliberately: a browser holding the previous bundle still polls it. Retire the route a deploy cycle later, not in the same commit as its last caller. |
+| `components/PositionCalc.jsx` — "TickerPopup … position calculator" | 🗑️ **DELETED** (`d26cee0c`). `TickerPopup.jsx` contains no calculator. |
+| `components/tiles/NHNLModal.jsx` — "opens on click of NH or NL in MarketBreadth" | 🗑️ **DELETED** (`d26cee0c`). `MarketBreadth.jsx` never referenced it — and no longer renders NH/NL at all (see its own section below). |
+| `api/earnings_router.py` — its own docstring says *"Mount in main.py: `app.include_router(earnings_router, prefix="/api/schwab")`"* | 🔴 **STILL PRESENT, STILL UNMOUNTED — the only live row in this table.** `earnings_router` appears nowhere in `api/main.py`. It is also superseded: `api/schwab_router.py`'s Yahoo-backed `_fetch_earnings_yf` + `POST /api/schwab/earnings` is what actually serves, at the very prefix the docstring asks for. ⚠️ That instruction is in a file this doc's owner cannot edit; **do not follow it** — FastAPI answers on first match, so mounting the Finviz-scraping predecessor would put a second authority on earnings dates and silently shadow one of the two. |
 
 **Also mid-audit, unfixed, and NOT this doc's to fix** — recorded so nobody trusts
 them: `scan_evaluator.enabled()`'s docstring and the comment above the sweep's
@@ -106,8 +106,24 @@ results."* **It is wired** — `/screener` → `SavedScreensPanel` → `ScanResu
 standing rails. The same false sentence in two places is why it survived: each
 looked like corroboration of the other.
 
-⛔ **Do not delete the orphaned files on the strength of this table** — a separate
-pass owns that decision. This section makes the *doc* true; the files are still there.
+✅ **THE FILES ARE GONE NOW** — this said *"the files are still there"*, and a
+separate pass deleted them the same day (`d26cee0c` · `ed53f9b6` · `24ee463b`,
+each independently revertable; the kept-and-why ledger is
+`.superpowers/sdd/audit/fix-orphan-deletion-report.md`). Every row above except
+`api/earnings_router.py` now describes a path that does not exist, which is
+**still worth reading**: the sections further down still name these files, and
+the row tells you what replaced each one.
+
+⛔ **Do not re-derive this table from a stale audit.** The last census that
+reported *"48 modules unreachable"* named `components/ui/*` among files with zero
+importers — `UIcon` has **222 import statements**. Acting on it would have
+stripped the icon system off every screen. A fresh AST walk from `App.jsx`
+(2026-08-09, post-sweep, every form resolved incl. `new Worker(new URL(…))`)
+finds **12** unreachable modules under `app/src`, of which **eleven** are test
+infrastructure, declared vite entry points, or partner-owned files awaiting ack.
+The standing rail is `app/src/components/screener/reachable.test.js`, which now
+sweeps **all of `app/src`** and fails by name on the next one — so this table
+should never again be assembled by hand.
 
 ## UI Icons — `UIcon` (NO emoji)
 
@@ -2166,11 +2182,16 @@ HTML (NOT React components)** via a `useEffect` + one delegated click handler in
 
 Single-stock catalyst news from a curated set of TwitterAPI.io accounts, surfaced inline on MoversSidebar (🐦 icon per row, via `useTickerTweets`). Designed for morning watchlist building from overnight + pre-market catalysts.
 
-⚰️ **Two of the three surfaces this section claimed do not exist.** There is **no
-"ON THE TAPE" section** on `MoversSidebar.jsx` — the string appears nowhere in the
-file — and the "Recent tweets card" lived in the orphaned `EarningsModal.jsx`. The
-ingestion pipeline below (poller, store, cleanup, admin panel) is real and running;
-only the tape surface is fiction. See *⚰️ DOCUMENTED BUT UNREACHABLE* near the top.
+⚰️ **Two of the three surfaces this section claimed do not exist — and the third
+MOVED.** There is **no "ON THE TAPE" section** on `MoversSidebar.jsx` (`3dc5036a`
+removed it; the string appears nowhere in the file), and the "Recent tweets card"
+lived in the since-deleted `EarningsModal.jsx`. The tape itself is **live on the
+Dashboard** as `components/tiles/TapeFeed.jsx` — but off a **different endpoint**:
+`GET /api/tweets/feed` via `hooks/useTweetFeed.js`. ⭐ **The name survived the
+move and the wiring did not**, which is exactly why this section read as true:
+"ON THE TAPE" is on screen, so nobody checked which hook drew it. The ingestion
+pipeline below (poller, store, cleanup, admin panel) is real and running. See
+*⚰️ DOCUMENTED BUT UNREACHABLE* near the top for the retired `/tape` pair.
 
 ### Architecture
 - **Database:** SQLite at `/data/tweets.db` (web service Railway volume, WAL mode). 7-day rolling retention.
@@ -2190,7 +2211,7 @@ only the tape surface is fiction. See *⚰️ DOCUMENTED BUT UNREACHABLE* near t
 - ⚰️ `app/src/components/tiles/EarningsModal.jsx` — its "Recent tweets" section is unreachable; the modal is orphaned.
 - `app/src/components/admin/TwitterAccountsPanel.jsx` — admin-only panel on `/admin` page (slotted between Section 6b Admin Tools and Section 7 System Health).
 - `app/src/utils/timeAgo.js` — shared relative-time helper (extracted from `AlertBell.jsx`; AlertBell now imports `timeAgoShort` for backward-compatible "now/5m/2h" output).
-- `app/src/hooks/{useTickerTweets,useBatchTweetCounts}.js` — SWR fetchers. ⚰️ `useTapeFeed.js` was listed here: it has zero importers, and it is the **only caller of `GET /api/tweets/tape` in the whole codebase** — so that mounted, live, auth'd endpoint serves nobody. (The catalyst engine uses `tweet_store.tape()` in-process, not the HTTP route.)
+- `app/src/hooks/{useTickerTweets,useTweetFeed,useBatchTweetCounts}.js` — SWR fetchers. `useTweetFeed` (`/api/tweets/feed`) is what the Dashboard `TapeFeed` tile reads. ⚰️ `useTapeFeed.js` was listed here and is **deleted**: it had zero importers and was the only caller of `GET /api/tweets/tape` in the whole codebase. That route is still mounted and now serves nobody — the catalyst engine uses `tweet_store.tape()` **in-process**, not the HTTP route, so nothing server-side keeps it alive either. Retiring it is a follow-up, one deploy cycle behind this deletion so cached bundles do not 404.
 - `tools/twitterapi_io_smoke_test.py` — pre-flight key validation script (manual run).
 - `tools/seed_twitter_accounts.py` — one-shot to insert the initial curated list.
 
