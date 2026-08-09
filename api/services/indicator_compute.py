@@ -85,16 +85,54 @@ def _ema_core(values: List[Number], period: int) -> List[MaybeNum]:
 # aliases exist purely so a caller can spell every precise function the same way.
 
 def compute_sma(closes: List[Number], period: int) -> List[MaybeNum]:
-    """Simple moving average. Aligned to input length with None-prefix."""
+    """Simple moving average. Aligned to input length with None-prefix.
+
+    ⛔ THE MATHS IS NOT HERE, AND THAT IS THE FIX. This function used to carry a
+    ROLLING SUBTRACT-AND-ADD accumulator (``window_sum += closes[i] -
+    closes[i - period]``) while ``ast_interpret``'s ``sma``, ``interpret.js``'s
+    ``windowMean`` and ``StockChart.computeSMA`` all RE-SUM the full window. Two
+    Python implementations of one value — this repo's most repeated defect — and
+    they disagreed on **33,913 of 37,761 bars (89.8%)** measured over 25 symbols
+    × {20,50,200}. Float noise until a comparison sits on the value, and then it
+    is observable:
+
+      * **CAN 2025-12-09, close 0.96** — the rolling lane's MA20 came out
+        ``0.9599999999999987`` (price **above** the MA) where the re-sum lane
+        gives exactly ``0.96`` (**not** above). Same bars, opposite verdict.
+      * **GETY's 50/200 golden cross fired 2025-10-24 on the rolling lane and
+        2025-10-23 on the re-sum lane.**
+
+    The re-sum is the survivor because it is what the frozen conformance digests
+    pin (``tools/ast_conformance.py --check``) and because it is the more
+    accurate of the two against exact rational arithmetic (5.7e-16 vs 1.13e-14):
+    a rolling accumulator carries every earlier bar's rounding forward, so its
+    answer depends on how far back the caller happened to start.
+
+    So this is now an ADAPTER, not an implementation: it reads
+    ``ast_interpret.FN["sma"]`` — the registry the interpreter itself iterates —
+    and converts that lane's NaN pad to this module's ``None`` pad. There is
+    exactly ONE window mean in the Python backend, and
+    ``tests/test_single_authority_rails.py`` fails by name if a second one
+    appears.
+    """
+    # The MODULE, never `from … import _window_mean` — a from-import binds a
+    # snapshot and severs this lane from changes to the one it delegates to
+    # (`lesson_from_import_severs_a_module_from_its_guards`). Function-local so
+    # `indicator_compute` keeps its stdlib-only import graph at module load.
+    from api.services import ast_interpret
+
     n = len(closes)
     out: List[MaybeNum] = [None] * n
+    # The guards stay HERE: `_rolling` is written for the interpreter, where a
+    # degenerate period is refused upstream by `defSchema`. `params_json` on a
+    # stored alert row is user-supplied and unvalidated, so this lane keeps its
+    # own door (see the DEGENERATE PERIODS note further down this file).
     if period <= 0 or n < period:
         return out
-    window_sum = sum(closes[:period])
-    out[period - 1] = window_sum / period
-    for i in range(period, n):
-        window_sum += closes[i] - closes[i - period]
-        out[i] = window_sum / period
+    for i, v in enumerate(ast_interpret.FN["sma"](list(closes), period)):
+        # `v != v` is the NaN test — the interpreter's "not computable yet" pad,
+        # which is this module's `None` pad under another name.
+        out[i] = None if v != v else v
     return out
 
 
@@ -110,11 +148,58 @@ compute_ema_raw = compute_ema
 
 # ─── RSI ─────────────────────────────────────────────────────────────────────
 
+def rsi_from_wilder_averages(avg_gain: float, avg_loss: float) -> MaybeNum:
+    """The RSI value for one pair of Wilder averages — ``None`` when there is
+    nothing to measure.
+
+    ⭐ THE ZERO-MOVEMENT DECISION LIVES HERE AND NOWHERE ELSE. Every RSI in the
+    Python backend routes through this one function, and
+    ``tests/test_single_authority_rails.py`` reads the source with an AST and
+    fails BY NAME if a second site ever decides it again.
+
+    🔴 WHAT WAS WRONG. The rule used to be a bare ``if avg_loss == 0: return
+    100``, which fires when gains **and** losses are zero. A stock that has not
+    moved at all therefore read as MAXIMALLY OVERBOUGHT. Live in the artifact on
+    2026-08-09: **SIM, TMTS, CWEN-A, DRDB and OBA all carried ``rsi14 = 100.0``
+    with ``chg_pct_1d = 0.00``** and a near-zero ADR, so an "RSI > 70" screen
+    surfaced five frozen tickers as the most overbought names in the universe.
+
+    ⭐ THE TWO CASES ARE DIFFERENT FACTS AND ARE ANSWERED DIFFERENTLY:
+
+      * ``avg_loss == 0`` with ``avg_gain > 0`` — a genuine unbroken advance.
+        Every diff in the window is a gain; RS is unbounded and the textbook
+        answer is exactly **100.0**. That branch is pinned by
+        ``tests/fixtures/indicators/rsi_ramp_14.json`` in BOTH lanes and is
+        deliberately unchanged.
+      * ``avg_loss == 0`` AND ``avg_gain == 0`` — nothing moved. ``0/0`` is not
+        a number; the honest column entry is the same ``None`` the warm-up pad
+        uses, not the top of the scale. (Pine's ``ta.rsi`` yields NaN here, and
+        ``indicators.js`` leaves its ``NA`` for the same reason.)
+
+    ⛔ ``None`` IS NOT "NO SIGNAL", IT IS "NOT COMPUTABLE", and the difference is
+    what the whole phase turns on: ``_last_finite`` skips it, so an armed
+    ``rsi > 70`` alert on a frozen ticker now declines to answer instead of
+    answering "yes".
+    """
+    if avg_loss == 0:
+        # Both zero ⇒ 0/0. Not overbought, not oversold — not computable.
+        if avg_gain == 0:
+            return None
+        return 100.0
+    return 100.0 - 100.0 / (1 + avg_gain / avg_loss)
+
+
 def compute_rsi_raw(closes: List[Number], period: int = 14) -> List[MaybeNum]:
     """Wilder-smoothed RSI, unrounded. Mirrors ``computeRSI`` in indicators.js.
 
     First RSI value lands at index ``period`` (needs ``period`` price diffs
     starting at i=1). Output aligned to input length.
+
+    ⚠️ A ``None`` CAN NOW APPEAR PAST THE WARM-UP PAD. ``rsi_from_wilder_averages``
+    refuses the ``0/0`` bar (a window in which nothing moved at all), so this
+    column's ``None``s mean "not computable here", which is what they have always
+    meant — they are simply no longer confined to a prefix. Callers already index
+    by bar position and already skip ``None``.
     """
     n = len(closes)
     out: List[MaybeNum] = [None] * n
@@ -137,11 +222,7 @@ def compute_rsi_raw(closes: List[Number], period: int = 14) -> List[MaybeNum]:
             loss = -diff if diff < 0 else 0.0
             avg_gain = (avg_gain * (period - 1) + gain) / period
             avg_loss = (avg_loss * (period - 1) + loss) / period
-        if avg_loss == 0:
-            out[i] = 100.0
-        else:
-            rs = avg_gain / avg_loss
-            out[i] = 100.0 - 100.0 / (1 + rs)
+        out[i] = rsi_from_wilder_averages(avg_gain, avg_loss)
     return out
 
 

@@ -1160,6 +1160,120 @@ def _load_alert_baseline() -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+# ─── THE ONE ADDRESS WHOSE RECORDED VALUE MOVED, AND EXACTLY WHY ─────────────
+#
+# `price_vs_ma` is `close − MA(period)`. `indicator_compute.compute_sma` used to
+# compute that MA with a ROLLING SUBTRACT-AND-ADD accumulator while
+# `ast_interpret`'s `sma`, `interpret.js`'s `windowMean` and
+# `StockChart.computeSMA` all RE-SUM the full window — two Python implementations
+# of one value, disagreeing on 89.8% of bars, and the armed-alert lane was on the
+# minority one. So an armed `price > 50-day` alert was compared against a number
+# the chart never drew: on **CAN 2025-12-09, close 0.96**, the rolling lane's
+# MA20 came out `0.9599999999999987` ("above") where the re-sum lane gives exactly
+# `0.96` ("not above"), and **GETY's 50/200 golden cross moved a whole session**.
+# The re-sum survived — it is what the frozen conformance digests pin and it is
+# the more accurate of the two against exact rational arithmetic.
+#
+# Measured on THIS grid: 336 of the 504 `price_vs_ma` rows moved (the two
+# `type: sma` param sets; the `type: ema` set is untouched), by at most
+# **2.904e-13 relative**, and **zero of the 5,040 recorded `triggered` booleans
+# changed**.
+#
+# ⛔ THE BASELINE FILE IS NOT RE-RECORDED, NOT ONE BYTE. Re-recording replaces an
+# oracle with a photograph of whatever the code now does, and this file's own
+# loader says so.
+#
+# ⭐ SO THE ROW IS PINNED HARDER, NOT LOOSER. For `price_vs_ma` the assertion is
+# no longer "the number is unchanged" but "the number changed by EXACTLY the
+# retired accumulator's drift and by nothing else": the RECORDED value must
+# reproduce BIT FOR BIT under the retired algorithm, and the CURRENT value must
+# reproduce BIT FOR BIT under the surviving one. A tolerance would wave through
+# any small change; this admits exactly one, names its cause, and still fails on
+# a rounding change, a period change, a plumbing change — or on a silent revert
+# to the rolling lane, which would make the two halves swap and both fail.
+
+_DRIFTED_ADDRESS = "price_vs_ma"
+
+
+def _retired_rolling_sma(closes, period):
+    """The rolling subtract-and-add SMA `indicator_compute.compute_sma` carried
+    until the numeric-columns fix. It lives HERE, in the test that proves what it
+    did, and NOWHERE in `api/**` — `tests/test_single_authority_rails.py` reads
+    the product source with an AST and fails by name if it reappears there.
+    """
+    n = len(closes)
+    out = [None] * n
+    if period <= 0 or n < period:
+        return out
+    window_sum = sum(closes[:period])
+    out[period - 1] = window_sum / period
+    for i in range(period, n):
+        window_sum += closes[i] - closes[i - period]
+        out[i] = window_sum / period
+    return out
+
+
+def _surviving_resum_sma(closes, period):
+    """The full-window re-sum SMA that survived — written HERE, independently of
+    the product, so "the current value is the re-sum lane's" is a statement this
+    file can make on its own rather than one it borrows from the code under test.
+    """
+    n = len(closes)
+    out = [None] * n
+    if period <= 0 or n < period:
+        return out
+    for i in range(period - 1, n):
+        total = 0.0
+        for j in range(i - period + 1, i + 1):
+            total += closes[j]
+        out[i] = total / period
+    return out
+
+
+def _value_under_sma(impl, fn, bars, params):
+    """`fn(bars, params)` computed with `impl` swapped in as the SMA.
+
+    ⚠️ The attribute is rebound on the MODULE, and `alert_series` resolves
+    `indicator_compute.compute_sma` at call time, so the swap is genuinely seen
+    (`lesson_from_import_severs_a_module_from_its_guards`, read the other way
+    round: a `from … import` there would have made this control unable to fail).
+    """
+    from api.services import indicator_compute
+    live = indicator_compute.compute_sma
+    indicator_compute.compute_sma = impl
+    try:
+        return fn(bars, params)
+    finally:
+        indicator_compute.compute_sma = live
+
+
+def _value_mismatch(row, value, fn, bars, params):
+    """``None`` when this row's value is what it must be, else why it is not.
+
+    Every address but `price_vs_ma` is byte-identical to the recording. That one
+    is pinned to its CAUSE instead — see the block above. Both legs are exact:
+
+      * the RECORDING must reproduce under the retired rolling-subtract SMA, and
+      * the CURRENT value must reproduce under the surviving full-window re-sum.
+
+    The `type: ema` rows satisfy both trivially (neither SMA is consulted), which
+    is why they are not special-cased: they never moved and they still must not.
+    """
+    if row["indicator"] != _DRIFTED_ADDRESS:
+        return None if value == row["value"] else (
+            f"got {value!r} want {row['value']!r}")
+    was = _value_under_sma(_retired_rolling_sma, fn, bars, params)
+    now = _value_under_sma(_surviving_resum_sma, fn, bars, params)
+    if row["value"] != was:
+        return (f"the RECORDING no longer reproduces under the retired "
+                f"rolling-subtract SMA: recorded {row['value']!r}, that lane "
+                f"gives {was!r} — the delta is NOT the accumulator swap")
+    if value != now:
+        return (f"the current value {value!r} is not the full-window re-sum's "
+                f"{now!r} — compute_sma is neither lane this row knows about")
+    return None
+
+
 # ⭐ PHASE C TASK 5: THE BASELINE IS SPLIT — DOWN A LEVEL, NEVER WEAKENED.
 #
 # The recorded row is `(indicator, params, condition, threshold, prev) →
@@ -1226,11 +1340,19 @@ def test_the_eight_legacy_addresses_evaluate_identically():
             "last_value": row["prev"],
         }
         value, triggered = evaluator._evaluate_one(alert, bars=bars, mode="forming")
-        if value != row["value"] or triggered != row["triggered"]:
+        why = _value_mismatch(
+            row, value,
+            evaluator.value_function(evaluator.resolve_address(row["indicator"])),
+            bars, row["params"] or {})
+        # ⛔ `triggered` STAYS BYTE-EXACT FOR ALL 5,040 ROWS, `price_vs_ma`
+        # INCLUDED. The SMA correction moved 336 VALUES by at most 2.9e-13 and
+        # flipped NOT ONE of these booleans; the day one flips, that is a
+        # user-visible change in when an armed alert fires and this must say so.
+        if why is not None or triggered != row["triggered"]:
             mismatches.append(
                 f"row {i} {row['indicator']}/{row['condition']} thr={row['threshold']} "
                 f"prev={row['prev']} params={row['params']}: "
-                f"got ({value!r}, {triggered!r}) want ({row['value']!r}, {row['triggered']!r})"
+                f"{why or ''} got triggered={triggered!r} want {row['triggered']!r}"
             )
     assert not mismatches, (
         f"{len(mismatches)} of {len(doc['rows'])} recorded evaluations changed. An alert a "
@@ -1258,11 +1380,9 @@ def test_the_eight_legacy_addresses_still_compute_identical_VALUES():
         fn = evaluator.value_function(address)
         assert fn is not None, f"row {i}: address {address!r} no longer resolves"
         value = fn(bars, row["params"] or {})
-        if value != row["value"]:
-            mismatches.append(
-                f"row {i} {row['indicator']} params={row['params']}: "
-                f"got {value!r} want {row['value']!r}"
-            )
+        why = _value_mismatch(row, value, fn, bars, row["params"] or {})
+        if why is not None:
+            mismatches.append(f"row {i} {row['indicator']} params={row['params']}: {why}")
     assert not mismatches, (
         f"{len(mismatches)} of {len(doc['rows'])} recorded VALUES changed. Every "
         f"armed alert on these eight addresses is now compared against a "
