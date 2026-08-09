@@ -1361,3 +1361,15 @@
     justify-content: flex-start;
   }
 }
+
+/* Session toggle on touch: 109x19 and 148x19 measured on a 390px phone, well
+   under the 44px `--tap-min`. These two sit SIDE BY SIDE, so growing them
+   VERTICALLY costs nothing and cannot make neighbours overlap — widening
+   would. The label stays 10px; only the hit area grows. */
+@media (max-width: 1024px) {
+  .sessionBtn {
+    min-height: var(--tap-min, 44px);
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}
