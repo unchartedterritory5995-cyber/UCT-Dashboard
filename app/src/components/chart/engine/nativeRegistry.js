@@ -92,6 +92,7 @@ import {
 import { interpret } from './ast/interpret'
 import { checkBudget } from './ast/budget'
 import { lintRepaint, declaredInputs } from './ast/lint'
+import { freshnessFor } from './ast/freshness'
 import {
   computeRSI,
   computeMACD,
@@ -1449,8 +1450,13 @@ export function registerDefinitions(rawDefs) {
 export const AST_LANE_TIER = 'premium'
 
 /**
- * The `ast` lane's REGISTRATION-TIME gates — the four questions
- * `validateDefinition` cannot answer about a formula.
+ * The `ast` lane's REGISTRATION-TIME gates — the questions `validateDefinition`
+ * cannot answer about a formula. Four in the numbered list below, plus GATE 5
+ * (`plots[].forward`) and GATE 6 (`meta.freshness`), each written at the line it
+ * guards. ⚠️ THIS SENTENCE SAID "THE FOUR QUESTIONS" WHILE THE FUNCTION BELOW
+ * ALREADY CARRIED FIVE — the same prose-count-beside-a-real-list drift the
+ * single-writer index in `StockChart.jsx` was rebuilt to stop. Read the `GATE n`
+ * comments, never a number in a paragraph.
  *
  * `defSchema` already asked the three it CAN (the tree is canonical, the source
  * parses back to it, the handle is the hash). Those are pure facts about one
@@ -1591,6 +1597,48 @@ function validateAstLane(def) {
       `refuses to hand over — a definition a user can see, choose and never receive. This is ` +
       `\`rsLine\`'s correction (Phase C Task 13, confirmed by the owner rather than waived) ` +
       `applied to the lane that declares the same dependency.`,
+    )
+  }
+  // ⭐⭐ GATE 6 — FRESHNESS, AND IT IS REFUSED IN BOTH DIRECTIONS BECAUSE
+  // UNDER-CLAIMING IS AS FALSE AS OVER-CLAIMING. Gate 3 says the same about the
+  // repaint badge, one field over. Over-claiming `live` on a nightly market cap
+  // tells a user a number is current when it is up to a day old. Under-claiming
+  // `as-of-snapshot` on a pure price formula tells them a live signal is stale,
+  // and a user who discounts a true signal has been misled just as precisely.
+  //
+  // ⛔ AND IT IS REQUIRED, NOT OPTIONAL, ON THIS LANE — WHICH IS THE WHOLE
+  // REASON THIS GATE EXISTS. `astReach` returns 0 for a table-declared scalar,
+  // so GATE 3 passes `market_cap > 1e9` with `non-repainting` and NOTHING ELSE
+  // FIRES. The repaint linter is not wrong: a scalar reads no future bar. It is
+  // answering a question nobody asked. An omitted freshness badge then reads as
+  // `live` to the library dialog, which is the absent-claim-and-false-claim-
+  // land-in-the-same-place argument GATE 4 already makes about `meta.tier`.
+  //
+  // ⚠️ SAME EM-DASH REASON AS THE MESSAGES ABOVE. The ledger's biconditional
+  // counts field declarations in this module's COMMENT-STRIPPED source, and a
+  // string written in this file's usual `path: problem` house style is counted
+  // as a declaration of the field it names. An em dash says the same thing and
+  // is not one.
+  //
+  // ⚠️ IT RUNS AFTER THE BUDGET GATE, WHICH IS WHY IT DOES NOT RE-CHECK CALL
+  // NAMES. `checkBudget` resolves every function and arity on its way to a
+  // lookback and returns early above, so a tree naming something undeclared
+  // never reaches this line.
+  const freshness = freshnessFor(ast, { inputs: declaredInputs(def) })
+  if (def.meta.freshness === undefined) {
+    errors.push(
+      `meta.freshness — required on the "ast" lane. The repaint badge cannot cover this: ` +
+      `\`astReach\` answers 0 for a table-declared scalar, correctly, so a formula reading a ` +
+      `nightly per-symbol value passes GATE 3 as non-repainting and nothing else fires. The ` +
+      `linter measures ${JSON.stringify(freshness.mode)} for this formula; declare it.`,
+    )
+  } else if (def.meta.freshness !== freshness.mode) {
+    errors.push(
+      `meta.freshness — declared ${JSON.stringify(def.meta.freshness)} but the linter MEASURES ` +
+      `${JSON.stringify(freshness.mode)} (${freshness.reasons.join('; ')}). A badge is the ` +
+      `MEASUREMENT, and this one is refused in BOTH directions: over-claiming "live" on a value ` +
+      `that is a day old and under-claiming "as-of-snapshot" on a live one mislead a user just ` +
+      `as precisely as each other.`,
     )
   }
   // ⭐ GATE 5 — AN `ast` PLOT MAY NOT DECLARE ITS OWN FORWARD WINDOW, AND THIS IS

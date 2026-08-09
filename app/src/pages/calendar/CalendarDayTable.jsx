@@ -8,7 +8,7 @@
 import { useMemo, useState } from 'react'
 import CompanyLogo from '../../components/CompanyLogo'
 import UIcon from '../../components/ui/UIcon'
-import { BeatDots, DateMovedChip } from './cardBits'
+import { BeatDots, DateMovedChip, MoveUnavailableMark, moveIsUnavailable } from './cardBits'
 import styles from './Calendar.module.css'
 
 function fmtEps(v) { return v == null ? '' : `${v < 0 ? '-' : ''}$${Math.abs(v).toFixed(2)}` }
@@ -78,13 +78,22 @@ function Row({ e, gap, enrichReady, onSelect }) {
       {/* Pre-report: the options-implied move. Post-print: the REALIZED gap —
           the implied number is stale the moment actuals land. While the
           enrichment fetch is in flight the cell shows a loading mark; a blank
-          column reads as broken, not loading. */}
+          column reads as broken, not loading.
+
+          The unavailable branch sits BELOW the priced branch (a priced move
+          renders byte-identically to before) and is gated on `enrichReady`, so
+          a row whose enrichment is still in flight can never be labelled — it
+          keeps the '…'. The em dash survives for the one case with nothing to
+          explain: a past report, where the read was never attempted and the
+          server sends no outcome. */}
       <span className={`${styles.dtNum} ${styles.dtMoveCell} ${reported && gap != null ? '' : styles.dtMove}`}>
         {reported && gap != null
           ? <span className={gap >= 0 ? styles.pos : styles.neg}>
               {gap >= 0 ? '▲ +' : '▼ '}{gap.toFixed(1)}%
             </span>
           : e.expected_move?.pct != null ? `±${e.expected_move.pct}%`
+          : enrichReady && moveIsUnavailable(e.expected_move_outcome)
+            ? <MoveUnavailableMark outcome={e.expected_move_outcome} className={styles.dtNa} />
           : enrichReady ? <span className={styles.dtDash}>—</span>
           : <span className={styles.dtLoading}>…</span>}
       </span>

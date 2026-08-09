@@ -156,7 +156,21 @@ def get_bars(
             # these through yfinance instead (SPX → ^GSPC, etc.). Equity and ETF
             # tickers (SPY, TSLA, AAPL, ...) fall through to the existing Schwab
             # path unchanged.
-            if is_index(ticker):
+            # DELISTED entity (dead company — Yahoo, Enron, Bear Stearns): serve its
+            # FROZEN historical bars from an isolated path that fetches the provider symbol
+            # date-clamped to the entity's trading life and caches under its distinct key.
+            # This is what keeps a reused ticker (BSC = Bear Stearns 2003-08 AND a live ETN
+            # now) from combining into one chart. Checked FIRST so a delisted key never
+            # touches the live fetch path. A bare reused symbol (live 'BSC') is NOT in the
+            # registry (Bear Stearns is 'BSC-OLD'), so the live ETN falls through unaffected.
+            from api.services import delisted_registry as _delisted
+            _drec = _delisted.resolve(ticker)
+            if _drec:
+                from api.services.bars_fetch import _get_delisted_bars_response
+                # serve_as=ticker keeps a bare aliased symbol (e.g. "BSC") consistent with
+                # what the client requested, while the record's provider+clamp isolate the era.
+                response = _get_delisted_bars_response(_drec, tf, bars, serve_as=ticker)
+            elif is_index(ticker):
                 since_int = None
                 if since:
                     try:

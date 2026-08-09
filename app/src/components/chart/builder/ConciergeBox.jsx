@@ -82,16 +82,37 @@ const S = {
   },
 }
 
+// ⭐ WHAT IS BEING ASKED FOR, AND IT TRAVELS. A screen is `<tree> != 0`, so a
+// tree that produces a NUMBER is a perfectly good indicator and a wrong answer to
+// "find me stocks where…" — the server refuses that at `scan:not-a-condition`,
+// but ONLY if it was told which question it is answering. A box that always asked
+// for an indicator would be a box whose scan stage can never fire, which is the
+// built-tested-green-and-unreachable shape this phase keeps finding.
+const KIND_COPY = {
+  scan: {
+    label: 'Describe the screen in plain English',
+    placeholder: 'e.g. trending stocks pulling back to the 20 day average',
+  },
+  indicator: {
+    label: 'Describe the indicator in plain English',
+    placeholder: 'e.g. the twenty bar average of the close',
+  },
+}
+
 /**
  * @param {object}   props
  * @param {Array}    [props.bars]      the bars the chart is holding; the compute
  *                                     stage runs on the window the user sees
+ * @param {string}   [props.kind]      'indicator' (a column) or 'scan' (a
+ *                                     condition). Sent on the request; the server
+ *                                     owns what it means.
  * @param {Function} [props.onAccept]  called with `{ast, source, repaint, sentence}`
  *                                     — `sentence` is THIS box's, from the tree
  * @param {Function} [props.fetchImpl] injection point for tests ONLY; production
  *                                     uses the global `fetch`
  */
-export default function ConciergeBox({ bars, onAccept, fetchImpl, disabled = false }) {
+export default function ConciergeBox({ bars, kind = 'indicator', onAccept, fetchImpl,
+                                       disabled = false }) {
   const [prompt, setPrompt] = useState('')
   const [busy, setBusy] = useState(false)
   const [proposal, setProposal] = useState(null)
@@ -109,7 +130,7 @@ export default function ConciergeBox({ bars, onAccept, fetchImpl, disabled = fal
       const res = await doFetch(ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: text, bars: bars || [] }),
+        body: JSON.stringify({ prompt: text, kind, bars: bars || [] }),
       })
       // ⚠️ `res.ok` IS CHECKED BEFORE `res.json()`. A 402 on this paid route
       // answers JSON too, and treating every 2xx-or-not the same is how a
@@ -144,17 +165,19 @@ export default function ConciergeBox({ bars, onAccept, fetchImpl, disabled = fal
     } finally {
       setBusy(false)
     }
-  }, [prompt, busy, bars, fetchImpl])
+  }, [prompt, busy, bars, kind, fetchImpl])
+
+  const copy = KIND_COPY[kind] || KIND_COPY.indicator
 
   return (
-    <div style={S.box} data-testid="concierge-box">
-      <label style={S.label} htmlFor={fieldId}>Describe the indicator in plain English</label>
+    <div style={S.box} data-testid="concierge-box" data-kind={kind}>
+      <label style={S.label} htmlFor={fieldId}>{copy.label}</label>
       <textarea
         id={fieldId}
         style={S.input}
         value={prompt}
         disabled={disabled || busy}
-        placeholder="e.g. the twenty bar average of the close"
+        placeholder={copy.placeholder}
         onChange={(e) => setPrompt(e.target.value)}
       />
       <div style={S.row}>

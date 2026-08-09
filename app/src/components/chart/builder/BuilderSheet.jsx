@@ -79,6 +79,11 @@ import UIcon from '../../ui/UIcon'
 import { PORTAL_POPUP_ATTR } from '../ColorPicker'
 import { SCHEMA_VERSION } from '../engine/defSchema'
 import { astHash } from '../engine/ast/parse'
+// ⛔ THE SECOND MACHINE-ASSIGNED BADGE, AND IT IS MEASURED HERE FOR THE SAME
+// REASON `repaint` IS: `validateUserDefinitions` REQUIRES `meta.freshness` on
+// the `ast` lane and refuses a disagreement in both directions, so a document
+// this form built without it would be refused at its own save door.
+import { freshnessFor } from '../engine/ast/freshness'
 // ⛔ THE INPUTS THE SAVED DOCUMENT DECLARES AND THE SCOPE THE READ-BACK IS GIVEN
 // COME FROM ONE MODULE, so "the sentence may name it" and "the document declares
 // it" are the same fact rather than two lists somebody keeps in step.
@@ -91,6 +96,8 @@ import {
 } from '../../../hooks/useUserDefinitions'
 import FormulaField, { evaluateFormula, canSaveFormula } from './FormulaField'
 import ConciergeBox from './ConciergeBox'
+import CriteriaPicker from './CriteriaPicker'
+import StarterLibrary from './StarterLibrary'
 import styles from './BuilderSheet.module.css'
 
 const FOCUSABLE = 'button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),'
@@ -152,6 +159,15 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
       tier: 'premium',
       // ⛔ MACHINE-ASSIGNED. See the header.
       repaint: mode,
+      // ⛔ MACHINE-ASSIGNED TOO, AND IT IS NOT THE SAME QUESTION. The repaint
+      // linter answers 0 for a table-declared scalar — correctly, because a
+      // per-symbol value reads no future bar — so `market_cap > 1e9` is branded
+      // `non-repainting` and its staleness goes unsaid. Derived from the SAME
+      // tree by the SAME kind of reader, never typed and never offered as a
+      // form field. `BUILDER_INPUTS` is the scope the read-back already uses.
+      freshness: freshnessFor(ast, {
+        inputs: Object.fromEntries(BUILDER_INPUTS.map((s) => [s.key, true])),
+      }).mode,
     },
     placement: { target: 'pane', pane: { height: 0.15 } },
     // ⛔ SPREAD FROM `BUILDER_INPUTS`, WHICH IS ALSO WHAT THE READ-BACK'S SCOPE IS
@@ -211,6 +227,11 @@ export default function BuilderSheet({
   // instance already on the chart names that one and a PUT at any other id is a
   // second definition wearing an edit's clothes.
   const [editing, setEditing] = useState(null)
+  // ⭐ WHICH DOOR IS OPEN, AND NOTHING MORE. `buildMode` decides whether the
+  // picker is on screen; it is NOT persisted, NOT written into the document and
+  // NOT read back — the saved artifact is the same one either door produces.
+  const [buildMode, setBuildMode] = useState('formula')
+  const [pickerNote, setPickerNote] = useState(null)
   const rootRef = useRef(null)
 
   const { rows, error: listError } = useUserDefinitions()
@@ -221,7 +242,7 @@ export default function BuilderSheet({
     if (!open) return
     setSource(''); setName(''); setResult(evaluateFormula('', BUILDER_INPUT_SCOPE))
     setAcknowledged(false); setStoreError(null); setSavedRow(null); setCopied(false)
-    setEditing(null)
+    setEditing(null); setBuildMode('formula'); setPickerNote(null)
   }, [open])
 
   /** Open a stored formula for editing — its SOURCE, its name, and its id.
@@ -262,6 +283,10 @@ export default function BuilderSheet({
       setAcknowledged(false)
       setStoreError(null)
       setSavedRow(null)
+      // A note about a formula the picker could not show describes the OLD
+      // source; carrying it past an edit would leave a warning on screen about
+      // a formula that is no longer in the box.
+      setPickerNote(null)
       return next
     })
   }, [])
@@ -347,11 +372,13 @@ export default function BuilderSheet({
       readback: result.readback,
     })
     // ⭐ THE SHIPPED VALIDATION DOOR, NOT A SECOND ONE. `validateUserDefinitions`
-    // is `defSchema` + the `supportedKinds` filter + the ast lane's three gates
+    // is `defSchema` + the `supportedKinds` filter + the ast lane's own gates
     // (one formula is one series · the budget, naming the guard that fired · the
-    // repaint badge, refused in both directions). A form that validated its own
-    // document would be a second authority on what a definition is, and the two
-    // rot apart the first time a gate moves.
+    // repaint badge and the freshness badge, each refused in both directions ·
+    // the tier · a plot's own forward window). ⚠️ NAMED, NOT COUNTED — this said
+    // "three gates" while the function carried five. A form that validated its
+    // own document would be a second authority on what a definition is, and the
+    // two rot apart the first time a gate moves.
     //
     // ⚠️ VALIDATE FIRST, INSTALL LATER. Installing the DRAFT would put a
     // definition under `draftDefId()` into the registry — an id the store is
@@ -460,12 +487,93 @@ export default function BuilderSheet({
 
               ⚠️ NO `fetchImpl`. The box's injection point is for tests only;
               production uses the global `fetch`, so what this surface issues is
-              a real request (`lesson_injected_dependency_hides_the_fetch`). */}
+              a real request (`lesson_injected_dependency_hides_the_fetch`).
+
+              ⭐ AND THE KIND IS THE MODE THE MEMBER IS IN (Phase E, E-5). On the
+              Conditions tab they are building a SCREEN, so the request says so
+              and the server's condition stage can refuse a tree that produces a
+              number — `sma(close,20)` handed back as a screen would silently
+              match every symbol on the board. A box that always asked for an
+              indicator would be a box whose scan stage can never fire, and no
+              component test on either side could see it. */}
           <ConciergeBox
             bars={bars}
+            kind={buildMode === 'picker' ? 'scan' : 'indicator'}
             disabled={saving}
             onAccept={(proposal) => setSource(proposal?.source || '')}
           />
+
+          {/* ── THE SECOND DOOR ONTO ONE OBJECT (Phase E, E-4) ───────────────────
+              ⛔ A MODE, NOT A SECOND BUILDER. The picker's only output is the SAME
+              `source` string the text box holds, so a picked condition goes through
+              the same parse, the same budget walk, the same linter, the same
+              read-back and the same Save button as a typed one. A second builder
+              would be a second grammar — the seam this task exists to close.
+
+              ⛔ AND THE PICKER IS DERIVED FROM THE TREE, NOT STORED. Switching to it
+              reads `result.ast`; a formula it cannot show is REPORTED, and the
+              picker stays empty rather than half-right. */}
+          {/* ── THE THIRD DOOR ONTO THE SAME OBJECT (Phase E, E-8) ──────────────
+              ⭐ A BLANK FORMULA BOX LOSES THE WIDE AUDIENCE. The library is the
+              onboarding path: a member picks one of the FIRM'S OWN setups, gets
+              a working scan in the box below, and edits it — which is how people
+              learn a syntax.
+
+              ⛔ AND IT IS A MODE, NOT A THIRD BUILDER. Its only output is the
+              same `source` string the other two doors write, so a starter meets
+              the same parse, the same budget, the same linter, the same
+              read-back and the same Save button. There is no starter save path,
+              no starter flag on the document and no starter column on the store
+              — a starter that was special-cased would be a second class of
+              object, and `BuilderSheet.starters.test.jsx` asserts the saved
+              blob carries no trace of where it came from. */}
+          <div className={styles.modeRow} role="tablist" aria-label="How to build this">
+            <button
+              type="button" role="tab"
+              className={`${styles.modeTab} ${buildMode === 'library' ? styles.modeTabActive : ''}`}
+              aria-selected={buildMode === 'library'}
+              onClick={() => setBuildMode('library')}
+            >Library</button>
+            <button
+              type="button" role="tab"
+              className={`${styles.modeTab} ${buildMode === 'picker' ? styles.modeTabActive : ''}`}
+              aria-selected={buildMode === 'picker'}
+              onClick={() => setBuildMode('picker')}
+            >Conditions</button>
+            <button
+              type="button" role="tab"
+              className={`${styles.modeTab} ${buildMode === 'formula' ? styles.modeTabActive : ''}`}
+              aria-selected={buildMode === 'formula'}
+              onClick={() => setBuildMode('formula')}
+            >Formula</button>
+          </div>
+
+          {buildMode === 'library' && (
+            <StarterLibrary
+              activeSource={source}
+              onPick={(entry) => {
+                // ⛔ THE SOURCE AND NOTHING ELSE. Not the tree, not a prebuilt
+                // document, not a hash — the starter arrives at the typed box the
+                // way a member's own keystrokes do, so the ONE write path stays
+                // the one write path. Landing on the Formula tab is the point of
+                // the gesture: *"here is a working scan, now change it"*.
+                setSource(entry.source)
+                setBuildMode('formula')
+              }}
+            />
+          )}
+
+          {buildMode === 'picker' && (
+            <CriteriaPicker
+              ast={result?.ast || null}
+              onSourceChange={setSource}
+              onUnrepresentable={(refusal) => setPickerNote(refusal.reason)}
+            />
+          )}
+
+          {buildMode === 'picker' && pickerNote && (
+            <p className={styles.pickerNote} role="status" data-testid="picker-note">{pickerNote}</p>
+          )}
 
           <FormulaField
             value={source}

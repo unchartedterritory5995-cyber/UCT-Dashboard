@@ -266,6 +266,96 @@
   overflow-wrap: anywhere;
 }
 
+/* ── the criteria picker (Phase E, E-4) ───────────────────────────────────────
+   ⛔ NO SECOND STYLESHEET. The picker is a MODE of this sheet, not a component
+   with its own look; a second `.module.css` is how one surface ends up with two
+   button heights and two focus rings. Spec §1.5: ride the shipped primitives. */
+
+.modeRow { display: flex; gap: 8px; }
+
+.modeTab {
+  flex: 1 1 0;
+  min-height: var(--tap-min);
+  padding: 0 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.modeTab:hover { border-color: var(--border-accent); }
+.modeTabActive { color: var(--text-bright); border-color: var(--gold); }
+
+.pickerWrap { display: flex; flex-direction: column; gap: 8px; }
+
+.pickerGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+/* A nested group is the ONLY thing that carries the other join, so it is the
+   only thing that has to read as a unit. */
+.pickerGroupNested { border-style: dashed; }
+
+.pickerJoinRow { display: flex; align-items: center; gap: 8px; }
+
+.pickerJoinLabel { font-size: 12px; color: var(--text-muted); }
+
+.pickerRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pickerSelect,
+.pickerNum {
+  min-height: var(--tap-min);
+  min-width: 0;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.pickerSelect { flex: 1 1 0; }
+.pickerNum { flex: 0 1 96px; }
+.pickerCmp { flex: 0 0 auto; }
+
+.pickerArgs { display: flex; align-items: center; gap: 6px; flex: 1 1 0; min-width: 0; }
+
+.pickerIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.pickerIconBtn:hover { border-color: var(--border-accent); color: var(--text-bright); }
+
+.pickerNote {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px solid var(--color-warning);
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+
 /* ── phone ────────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
   /* The actions stack and go full width — a 44px pill floated right is a target
@@ -273,4 +363,9 @@
   .actions { flex-direction: column-reverse; }
   .actions .ghostBtn, .actions .saveBtn { width: 100%; justify-content: center; }
   .listRow { flex-wrap: wrap; }
+  /* ⛔ CSS, NOT `useIsPhone()`. `useMediaQuery` seeds at MOUNT and only updates
+     on a `change` event, so on a phone whose viewport never changes it renders
+     the desktop arrangement at first paint and never corrects it. */
+  .pickerRow { flex-wrap: wrap; }
+  .pickerSelect { flex: 1 1 100%; }
 }

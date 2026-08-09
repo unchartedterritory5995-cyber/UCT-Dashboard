@@ -1,0 +1,91 @@
+/* app/src/components/screener/ScanResults.module.css
+   The scan → chart loop: the receipt, the hits, and the chart one click away.
+
+   ⛔ NO NEW CHROME (spec §1.5). Every token here is one the app already
+   declares, every glyph in the JSX is a `UIcon`, the chart button clears
+   `--tap-min`, and the only breakpoint touched is 640. Layout responds in CSS
+   rather than through `useMediaQuery` — that hook seeds at MOUNT and only
+   updates on a `change` event, so on a phone whose viewport never changes it
+   renders the desktop arrangement at first paint and never corrects it. */
+
+.wrap { display: flex; flex-direction: column; gap: 10px; }
+
+.hits {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: var(--tap-min);
+  padding: 0 8px;
+  border-radius: 6px;
+}
+.row:hover { background: var(--bg-surface); }
+
+.ticker {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: var(--text-bright);
+}
+
+.chartBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap-min);
+  padding: 0 12px;
+  background: transparent;
+  border: 1px solid var(--border-accent);
+  border-radius: 6px;
+  color: var(--text-bright);
+  font-size: 12px;
+  cursor: pointer;
+}
+.chartBtn:hover { background: var(--bg-surface); }
+
+.chartBtnLabel { white-space: nowrap; }
+
+.error,
+.notRun {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border-radius: 6px;
+}
+.error { border: 1px solid var(--color-danger); }
+.notRun { border: 1px solid var(--border-accent); }
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-height: 0;
+}
+
+/* The condition, in the tree's own read-back words — never the typed source. */
+.condition {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+@media (max-width: 640px) {
+  .row { padding: 0 4px; }
+  .chartBtnLabel { display: none; }
+}

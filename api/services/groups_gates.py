@@ -4,9 +4,19 @@ Biases rank_holdings toward tradable names (liquid, high-RS, good range, real
 price) at query time, so the taxonomy map never needs pruning for strength.
 NEVER drops a name and NEVER raises — it only re-orders. Default OFF (dark).
 
-rs_rank comes ONLY from the rs_ranking cache (passed in as `rs`), NOT the
-screener's own rs_rank column (a different metric). price/$-vol are LIVE
-(derived from the intraday move); ADR is the screener's EOD figure.
+rs_rank comes ONLY from the rs_ranking cache (passed in as `rs`). price/$-vol
+are LIVE (derived from the intraday move); ADR is the screener's EOD figure.
+
+⚠️ THIS USED TO SAY the screener's own `rs_rank` column was "a different
+metric", and it was — the screener derived its own rank from
+`research_ratings.db` while this gate read `rs_ranking`. Two computations of one
+value, and only one of them ever ran (`research_ratings.db` was 0 bytes, so the
+column was NULL on every row). Since 2026-08-09 `snapshot_builder` writes that
+column FROM `rs_ranking`, so the two agree by construction rather than by luck.
+Reading it from `rs` here is still right — it is the live, warmed value, where
+the row's copy is as old as the last nightly build — but it is no longer a
+DIFFERENT NUMBER, and a future reader must not "fix" the divergence by
+reintroducing a second derivation.
 """
 import logging
 import os

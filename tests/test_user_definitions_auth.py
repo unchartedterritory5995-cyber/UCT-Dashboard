@@ -58,6 +58,7 @@ REGISTRY_JS = ENGINE / "nativeRegistry.js"
 DEFSCHEMA_JS = ENGINE / "defSchema.js"
 PARSE_JS = ENGINE / "ast" / "parse.js"
 LINT_JS = ENGINE / "ast" / "lint.js"
+FRESHNESS_JS = ENGINE / "ast" / "freshness.js"
 
 #: The 402 sentence THIS router speaks. It is asserted rather than imported so a
 #: quiet edit to the message is a failure here and not a silent change to what a
@@ -345,10 +346,17 @@ const schema = await import(pathToFileURL(payload.defSchema).href)
 const parse = await import(pathToFileURL(payload.parse).href)
 const lint = await import(pathToFileURL(payload.lint).href)
 
+const freshness = await import(pathToFileURL(payload.freshness).href)
+
 const parsed = parse.parseFormula(payload.source)
 if (!parsed.ok) throw new Error(`the fixture formula does not parse: ${parsed.error}`)
 const tree = parsed.ast
 const mode = lint.lintRepaint(tree).mode
+// ⭐ THE SECOND MACHINE-ASSIGNED BADGE, MEASURED RATHER THAN TYPED. Phase E
+// Task 1's GATE 6 requires `meta.freshness` on this lane and refuses a
+// disagreement in both directions, so a fixture that hard-coded it would be
+// asserting about a document the product would refuse.
+const freshMode = freshness.freshnessFor(tree).mode
 
 // The document shape `builder/BuilderSheet.jsx::buildDefinition` produces — the
 // ONE place the product decides what a user definition looks like. Rebuilt here
@@ -356,7 +364,7 @@ const mode = lint.lintRepaint(tree).mode
 function doc(tier) {
   const meta = {
     name: 'My formula', shortName: 'F', category: 'Custom',
-    tags: ['custom'], repaint: mode,
+    tags: ['custom'], repaint: mode, freshness: freshMode,
   }
   if (tier !== null) meta.tier = tier
   return {
@@ -438,6 +446,7 @@ def js():
         "defSchema": str(DEFSCHEMA_JS),
         "parse": str(PARSE_JS),
         "lint": str(LINT_JS),
+        "freshness": str(FRESHNESS_JS),
         "source": "sma(close, 20)",
     })
 

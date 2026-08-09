@@ -6,6 +6,8 @@ from fastapi import APIRouter, Query
 from fastapi.responses import StreamingResponse, Response
 from io import BytesIO
 
+from api.services import yf_util
+
 router = APIRouter()
 
 # Timeframe → yfinance period/interval
@@ -61,8 +63,14 @@ def chart_image(ticker: str, tf: str = Query(default='D')):
         yf_sym = YF_TICKERS.get(ticker.upper(), ticker.upper())
         config = TF_CONFIG.get(tf, TF_CONFIG['D'])
 
-        df = yf.Ticker(yf_sym).history(period=config['period'], interval=config['interval'])
-        if df.empty:
+        # Request path — MUST go through the shared guard, or a hung/throttled
+        # Yahoo holds an anyio worker for the length of the socket timeout.
+        df = yf_util.bounded_call(
+            lambda: yf.Ticker(yf_sym).history(
+                period=config['period'], interval=config['interval']),
+            None,
+        )
+        if df is None or df.empty:
             return Response(status_code=204)
 
         # Strip timezone for mplfinance compatibility

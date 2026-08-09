@@ -391,11 +391,26 @@ def _live_def_count(c: sqlite3.Connection, user_id: Any) -> int:
 
 # ─── the write path ──────────────────────────────────────────────────────────
 
-def save(user_id: Any, def_id: str, definition: dict) -> dict:
+def save(user_id: Any, def_id: str, definition: dict,
+         limits: Any = None) -> dict:
     """Append a version. Bump `rev` iff the maths moved, and MIGRATE if it did.
 
     Returns ``{def_id, version, rev, rev_bumped, migrated, notified, ast_hash,
     repaint, appended}``.
+
+    ⭐ `limits` IS THE CALLER'S TOOLKIT (`entitlements.Limits`), AND IT DECIDES THE
+    COUNT CAP. ``None`` means "the default toolkit", whose `max_definitions` IS
+    `MAX_DEFINITIONS_PER_USER` — so an un-wired caller behaves exactly as this
+    store always has, and the day the owner sets a real number the only thing that
+    changes is which `Limits` the route hands in.
+
+    ⛔ THE CAP IS AN ENTITLEMENT DECISION NOW, NOT A LOCAL CONSTANT COMPARISON, AND
+    THAT IS A CATEGORY CHANGE RATHER THAN A REFACTOR. `MAX_DEFINITIONS_PER_USER` is
+    a CAPACITY bound — ops may tune it. A toolkit's `max_definitions` is a BILLING
+    CONTRACT. They are the same number today on purpose (see
+    `entitlements.TOOLKITS`), and the test that a DOWNGRADE actually shrinks the
+    answer is what makes this an entitlement rather than a constant with a new
+    spelling.
 
     ⛔ THERE IS NO INJECTION POINT FOR THE MIGRATION OR THE NOTIFIER, ON PURPOSE.
     `lesson_injected_dependency_hides_the_fetch`: 996 green tests shipped a
@@ -406,6 +421,10 @@ def save(user_id: Any, def_id: str, definition: dict) -> dict:
     same thing a real delivery goes through.
     """
     from api.services import alert_rev_migration
+    # ⚠️ FUNCTION-LOCAL, AND IT IS THE CYCLE, NOT A STYLE. `entitlements.TOOLKITS`
+    # reads `MAX_DEFINITIONS_PER_USER` off THIS module at import, so a top-level
+    # import here would break whichever of the two is imported second.
+    from api.services import entitlements
 
     _check_def_id(def_id)
     if not isinstance(definition, dict):
@@ -450,10 +469,12 @@ def save(user_id: Any, def_id: str, definition: dict) -> dict:
         # leaves the cap trivially bypassable: delete fifty, create fifty, then
         # re-save the fifty tombstones and stand at a hundred.
         if prev is None or prev["deleted_at"] is not None:
-            if _live_def_count(c, user_id) >= MAX_DEFINITIONS_PER_USER:
-                raise ValueError(
-                    f"definition count exceeds {MAX_DEFINITIONS_PER_USER} per user "
-                    "— delete one before creating another")
+            # ⛔ THE COUNT IS READ INSIDE THE LOCK AND THE VERDICT IS THE
+            # TOOLKIT'S. `check_definition_count` RAISES a `ToolkitLimitExceeded`,
+            # which IS a `ValueError`, so the router's `_save_or_400` turns it into
+            # the same 400 carrying the store's own sentence.
+            entitlements.check_definition_count(
+                _live_def_count(c, user_id), limits)
 
         if prev is None:
             prev_version = prior_rev = None
@@ -671,6 +692,31 @@ def list_for_user(user_id: Any) -> list[dict]:
             "   WHERE v.user_id=u.user_id AND v.def_id=u.def_id)"
             " ORDER BY u.id",
             (str(user_id),),
+        ).fetchall()
+    return [_row_to_dict(r) for r in rows if r["deleted_at"] is None]
+
+
+def live_definitions() -> list[dict]:
+    """Every live definition's newest version, ACROSS EVERY MEMBER, oldest first.
+
+    ⭐ THE SWEEP'S DOOR, AND IT LIVES HERE FOR ONE REASON: *"whose newest version
+    is not a tombstone"* is a fact about THIS table's shape, and it is already
+    spelled twice in this file (`_live_def_count`, `list_for_user`). A background
+    job that wrote its own copy of that subquery would be a third authority over
+    which row is live, and the day a tombstone rule changed the job would go on
+    sweeping deleted formulas with every test green.
+
+    ⚠️ IT IS THE ONLY MEMBER-SHAPED READ THE SWEEP MAKES, and the sweep collapses
+    it immediately: results are keyed on the MATHS (`ast_hash`), never on the
+    member, so two people who typed the same formula cost the pod one evaluation.
+    """
+    with contextlib.closing(_connect()) as c:
+        _ensure(c)
+        rows = c.execute(
+            "SELECT * FROM user_definitions u WHERE version = ("
+            "  SELECT MAX(version) FROM user_definitions v"
+            "   WHERE v.user_id=u.user_id AND v.def_id=u.def_id)"
+            " ORDER BY u.id",
         ).fetchall()
     return [_row_to_dict(r) for r in rows if r["deleted_at"] is None]
 

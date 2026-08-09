@@ -51,6 +51,7 @@ STATE_FILE = os.path.join(MORNING_WIRE_PATH, "morning_wire_state.json")
 WIRE_DATA_FILE = os.path.join(MORNING_WIRE_PATH, "data", "wire_data.json")
 PERSISTENT_WIRE_DATA_FILE = "/data/wire_data.json"  # Railway volume mount
 
+from api.services import yf_util
 from api.services.cache import cache
 import logging as _logging
 _logger = _logging.getLogger(__name__)
@@ -1941,14 +1942,24 @@ def _check_sym_cap(sym: str) -> tuple[str, bool]:
     """
     try:
         import yfinance as yf
-        fi = yf.Ticker(sym).fast_info
-        qt = getattr(fi, "quote_type", "EQUITY") or "EQUITY"
-        if qt.upper() not in ("EQUITY", ""):
-            return sym, False
-        price      = getattr(fi, "last_price", 0) or 0
-        avg_vol    = getattr(fi, "three_month_average_volume", 0) or 0
-        market_cap = getattr(fi, "market_cap", 0) or 0
-        return sym, (price * avg_vol) >= 5_000_000 and market_cap >= 300_000_000
+
+        # `fast_info` is LAZY — the requests fire on each attribute read, not on
+        # the property access — so the whole read block goes through the shared
+        # guard. Bounding only `yf.Ticker(sym).fast_info` would guard the one
+        # step that never touches the network.
+        def _read():
+            fi = yf.Ticker(sym).fast_info
+            qt = getattr(fi, "quote_type", "EQUITY") or "EQUITY"
+            if qt.upper() not in ("EQUITY", ""):
+                return False
+            price      = getattr(fi, "last_price", 0) or 0
+            avg_vol    = getattr(fi, "three_month_average_volume", 0) or 0
+            market_cap = getattr(fi, "market_cap", 0) or 0
+            return (price * avg_vol) >= 5_000_000 and market_cap >= 300_000_000
+
+        # `True` is the fail-OPEN default the except below already used: a
+        # timeout or a 429 must not silently drop all news.
+        return sym, yf_util.bounded_call(_read, True)
     except Exception:
         return sym, True
 

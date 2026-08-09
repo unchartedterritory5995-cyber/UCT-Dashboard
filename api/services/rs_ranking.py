@@ -25,18 +25,62 @@ _CACHE_KEY = "rs_rankings"
 _CACHE_TTL = 3600  # 1 hour
 
 
+def _disk_universe() -> list[str]:
+    """The durable on-disk cap universe — `api/data/cap_universe.json`.
+
+    ⛔ IMPORTED, NEVER RE-RESOLVED. `screener/snapshot_builder._load_universe`
+    already owns "where cap_universe.json is on disk", and this repo has FOUR
+    other private copies of that resolution (`routers/ticker_search`,
+    `routers/admin_chart_health`, two in `main.py`). A fifth would be a fifth
+    authority over one path. The import is function-local on BOTH sides — the
+    builder imports this module inside `run_build` — so neither module imports
+    the other at load time and there is no cycle.
+
+    ⭐ AND IT IS DELIBERATELY THE SCREENER'S OWN LIST. The screener writes
+    `rs_rank` onto exactly the rows `run_build` covers, so ranking over the same
+    file makes "percentile within the universe this row belongs to" true by
+    construction rather than by coincidence.
+    """
+    try:
+        from api.services.screener.snapshot_builder import _load_universe
+        return [t for t in (_load_universe() or []) if isinstance(t, str)]
+    except Exception:
+        logger.warning("[rs_ranking] on-disk universe unavailable", exc_info=True)
+        return []
+
+
 def _get_universe() -> list[str]:
     """Return the stock universe for RS ranking.
 
-    Uses cap_universe from wire_data ($300M+ market cap stocks pushed by
-    the morning wire engine). Falls back to leadership list if unavailable.
-    """
-    wire = cache.get("wire_data")
-    if not wire:
-        return []
+    Prefers cap_universe from wire_data ($300M+ market cap stocks pushed by the
+    morning wire engine); falls back to the on-disk `cap_universe.json` when the
+    push has not landed.
 
-    # cap_universe is a sorted list of ~500+ tickers with $300M+ market cap
-    universe = list(wire.get("cap_universe", []))
+    🔴 THE FALLBACK EXISTS BECAUSE THE CACHE IS NOT A STORE. `wire_data` is a
+    23h TTLCache entry seeded from a volume file, and on 2026-08-09 that file on
+    this box was a 241-byte stub dated 2026-02-22 carrying `cap_universe: []`.
+    So `compute_rs_scores` logged "No universe available" and returned `[]` —
+    forever — and every consumer of RS (`groups_gates`, `/api/rs-rankings`, and
+    the screener's `rs_rank` column) read an empty answer that looked exactly
+    like "no strong names today". The disk list is the same population, versioned
+    in the repo, identical on every pod.
+
+    ⚠️ WHICH SOURCE ANSWERED IS LOGGED, not inferred. A percentile is only
+    meaningful against a stated population; a silent switch between two
+    populations is how a rank starts meaning two things.
+    """
+    wire = cache.get("wire_data") or {}
+
+    # cap_universe is a sorted list of tickers with $300M+ market cap
+    universe = [t for t in list(wire.get("cap_universe") or []) if isinstance(t, str)]
+    source = "wire_data"
+
+    if not universe:
+        universe = _disk_universe()
+        source = "cap_universe.json"
+
+    if not universe:
+        return []
 
     # Always include UCT20 leadership stocks even if cap_universe is missing
     leadership = wire.get("leadership", [])
@@ -52,6 +96,7 @@ def _get_universe() -> list[str]:
             if t not in uni_set:
                 universe.append(t)
 
+    logger.info("[rs_ranking] universe source=%s n=%d", source, len(universe))
     return universe
 
 
@@ -171,18 +216,40 @@ def compute_rs_scores(force: bool = False) -> list[dict]:
     return ranked
 
 
+def cached_rank_map() -> dict:
+    """``{TICKER: {ticker, rs_score, rs_rank, returns}}`` from the CACHE only.
+
+    ⭐ THIS IS THE ONE PLACE THE RANKINGS ARE SHAPED FOR A BY-SYMBOL READER, and
+    it exists so a caller with thousands of symbols (the nightly screener build)
+    does not walk the ~3,685-entry list once per ticker.
+
+    ⛔ IT NEVER COMPUTES. The ~17s full-universe rebuild belongs to the
+    background warmer (`main._start_rs_rankings_warm_background`, every 50 min
+    under the 1h TTL). A build that computed on a cold cache would be a
+    3,685-symbol fetch herd racing the boot warmers — the `bars_prewarm` failure
+    reverted in `68392f4`. Cold cache returns ``{}``, and the caller's job is to
+    COUNT that, not to hide it.
+    """
+    rankings = cache.get(_CACHE_KEY)
+    if not rankings:
+        return {}
+    out = {}
+    for item in rankings:
+        sym = (item.get("ticker") or "").upper()
+        if sym:
+            out[sym] = item
+    return out
+
+
 def get_rs_for_ticker(ticker: str) -> dict | None:
     """Return RS data for a single ticker from CACHED rankings only.
 
     Never triggers a full-universe recompute — that ~17s cost belongs to the
     background warmer, not a one-row lookup (previously a single-ticker request
     on a cold cache rebuilt all ~3,685 tickers). Returns None when cold.
+
+    ⛔ Delegates to `cached_rank_map` rather than re-walking the list: one reader
+    of the cache's shape, so a change to that shape cannot leave two lookups
+    disagreeing.
     """
-    rankings = cache.get(_CACHE_KEY)
-    if not rankings:
-        return None
-    ticker_up = ticker.upper()
-    for item in rankings:
-        if item["ticker"] == ticker_up:
-            return item
-    return None
+    return cached_rank_map().get((ticker or "").upper())

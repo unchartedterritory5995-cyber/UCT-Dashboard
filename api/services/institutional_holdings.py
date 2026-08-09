@@ -13,6 +13,7 @@ from typing import Any
 
 import yfinance as yf
 
+from api.services import yf_util
 from api.services.cache import TTLCache
 
 _log = logging.getLogger(__name__)
@@ -31,17 +32,26 @@ def get_institutional_holders(ticker: str, top_n: int = 10) -> dict[str, Any]:
     if cached is not None:
         return dict(cached)
 
-    try:
+    # Both reads (`.info` and `.institutional_holders`) are network calls, so
+    # the whole block goes through the shared guard as ONE bounded unit.
+    def _read():
         t = yf.Ticker(sym)
         info = t.info or {}
-        held_by_inst = info.get("heldPercentInstitutions")
-        held_by_insiders = info.get("heldPercentInsiders")
-        float_shares = info.get("floatShares")
         # institutional_holders is a DataFrame with cols: Holder, Shares, Date Reported, % Out, Value
         try:
             df = t.institutional_holders
         except Exception:
             df = None
+        return info, df
+
+    try:
+        got = yf_util.bounded_call(_read, None)
+        if got is None:
+            raise RuntimeError("bounded yfinance call returned no data")
+        info, df = got
+        held_by_inst = info.get("heldPercentInstitutions")
+        held_by_insiders = info.get("heldPercentInsiders")
+        float_shares = info.get("floatShares")
     except Exception as e:
         _log.warning("yfinance institutional holders failed for %s: %s", sym, e)
         return {"error": f"yfinance failed: {e}", "ticker": sym}

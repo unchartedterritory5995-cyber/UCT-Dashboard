@@ -261,6 +261,36 @@
           { "type": "Literal", "value": 5000, "raw": "5000" }
         ]
       }
+    },
+    {
+      "id": "excluded_column_as_of_source",
+      "source": "snapshot_date > 0",
+      "guard": "resolve:name",
+      "refuse": "unknown name",
+      "why": "THE OTHER HALF OF THE SCALAR PARTITION, MADE A REFUSAL. `snapshot_date` IS a real column of `screener_rows` and it is in `_scalars_excluded` -- it is an as-of SOURCE, so declaring it would let a formula compute on its own freshness stamp. Naming it must land in exactly the same place as a name nobody ever heard of. Shares `resolve:name` and its fragment with the three cases above BY DESIGN: one mechanism refuses all five, and demanding five different messages would be demanding five gates where one is correct",
+      "parses": true,
+      "jsepRoot": "BinaryExpression",
+      "ast": {
+        "type": "BinaryExpression",
+        "operator": ">",
+        "left": { "type": "Identifier", "name": "snapshot_date" },
+        "right": { "type": "Literal", "value": 0, "raw": "0" }
+      }
+    },
+    {
+      "id": "excluded_column_text_typed",
+      "source": "sector > 0",
+      "guard": "resolve:name",
+      "refuse": "unknown name",
+      "why": "THE EXCLUSION A USER WILL ACTUALLY REACH FOR. `sector` is a screener column and it is TEXT, and this table's only literal is a number (`_booleans`) -- so `sector == \"Technology\"` is not merely undeclared, it is INEXPRESSIBLE, and granting it means string literals in the parser, both interpreters, the linter and the read-back. Until that decision is taken the name must refuse, and this case is what goes red the day somebody adds a TEXT column to `scalars` to make a demo work",
+      "parses": true,
+      "jsepRoot": "BinaryExpression",
+      "ast": {
+        "type": "BinaryExpression",
+        "operator": ">",
+        "left": { "type": "Identifier", "name": "sector" },
+        "right": { "type": "Literal", "value": 0, "raw": "0" }
+      }
     }
   ]
 }

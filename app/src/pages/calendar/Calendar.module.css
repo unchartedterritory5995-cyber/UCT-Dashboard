@@ -172,6 +172,24 @@
   color: var(--cal-gold);
 }
 
+/* Expected move refused / unavailable — the EXPLICIT treatment. Never a bare
+   dash: absence with no explanation is exactly what this replaces. The dotted
+   underline + help cursor advertise that the cause is one hover away. */
+.emvNaRow {
+  display: flex;
+  align-items: baseline;
+  margin-top: 12px;
+}
+
+.emvNa {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--cal-muted);
+  border-bottom: 1px dotted var(--cal-line);
+  cursor: help;
+}
+
 .beatNote {
   font-size: 10px;
   color: var(--cal-green);
@@ -380,6 +398,10 @@
   white-space: nowrap;
 }
 .etileEm { font-size: 10px; font-weight: 700; color: var(--cal-gold); }
+.etileNa {
+  font-size: 10px; font-weight: 700; color: var(--cal-muted);
+  border-bottom: 1px dotted var(--cal-line); cursor: help;
+}
 .etileCap { font-size: 10px; color: var(--cal-muted); font-variant-numeric: tabular-nums; }
 .etileBeat, .etileMiss {
   font-size: 8.5px; font-weight: 800; letter-spacing: 0.4px;
@@ -2824,6 +2846,14 @@
 /* Enrichment lifecycle marks: '…' while the fetch is in flight (a blank
    column reads as broken), muted '—' once it resolves genuinely empty. */
 .dtDash { color: var(--cal-muted); opacity: 0.5; }
+/* Arrived, and the server said WHY there is no number. Distinct from .dtDash
+   (nothing to explain) and from .dtLoading (not arrived yet). */
+.dtNa {
+  color: var(--cal-muted);
+  font-weight: 600;
+  border-bottom: 1px dotted var(--cal-line);
+  cursor: help;
+}
 .dtLoading {
   color: var(--cal-muted);
   animation: dtPulse 1.2s ease-in-out infinite;

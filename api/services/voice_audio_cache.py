@@ -17,10 +17,18 @@ _log = logging.getLogger(__name__)
 CACHE_TTL_SECONDS = 7 * 24 * 3600  # 7 days
 
 _RAILWAY_CACHE = "/data/voice_audio_cache"
-if os.path.isdir("/data"):
-    _CACHE_DIR = _RAILWAY_CACHE
-else:
-    _CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "voice_audio_cache")
+# ⚠️ `os.makedirs` runs at MODULE IMPORT, so merely importing this module
+# created a directory. `/data` exists on the Windows dev box, so every pytest
+# process that reached here made `C:\data\voice_audio_cache` inside the owner's
+# live volume. `VOICE_AUDIO_CACHE_DIR` is the override that lets a test process
+# say where instead; the two-branch default below is unchanged, so Railway and
+# local dev resolve exactly as they always did.
+_CACHE_DIR = os.environ.get("VOICE_AUDIO_CACHE_DIR")
+if not _CACHE_DIR:
+    if os.path.isdir("/data"):
+        _CACHE_DIR = _RAILWAY_CACHE
+    else:
+        _CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "voice_audio_cache")
 
 os.makedirs(_CACHE_DIR, exist_ok=True)
 

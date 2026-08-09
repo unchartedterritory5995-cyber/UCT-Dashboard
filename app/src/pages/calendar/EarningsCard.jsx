@@ -147,8 +147,13 @@ export default function EarningsCard({ entry, timing, livePrice, liveSnap, react
             {/* A5: Countdown (timing now lives in the de-pilled top-right label) */}
             {countdown && <div className={styles.countdown}><UIcon name="clock" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />{countdown}</div>}
 
-            {/* Implied vs realized — the pair no competitor puts on entries */}
-            <ExpectedMovePair em={em} typical={entry.hist_stats?.avg_abs_move} />
+            {/* Implied vs realized — the pair no competitor puts on entries.
+                `outcome` is why there is no number when there is none; it only
+                EXISTS once the enrichment payload has landed, so its presence
+                is this card's arrival signal and a pending card still renders
+                nothing rather than a refusal. */}
+            <ExpectedMovePair em={em} typical={entry.hist_stats?.avg_abs_move}
+                              outcome={entry.expected_move_outcome} />
             {/* Dot strip + reaction sparkline replace the text lines: same
                 data at 10× scan speed (counts live in the tooltips/labels) */}
             {(entry.beat_history?.length > 0 || entry.hist_stats?.last_n?.length > 1) && (

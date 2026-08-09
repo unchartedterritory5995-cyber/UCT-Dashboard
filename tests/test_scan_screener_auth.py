@@ -68,9 +68,21 @@ from api.routers import screener as screener_mod
 
 ROOT = Path(__file__).resolve().parents[1]
 
-#: ⛔ ASSERTED, NOT INFORMATIONAL. A fourteenth scan or a thirteenth screener
+#: ⛔ ASSERTED, NOT INFORMATIONAL. A seventeenth scan or a thirteenth screener
 #: route must cost a DELIBERATE edit here, which is what makes it land covered.
-EXPECTED_SCANS_ROUTES = 15
+#:
+#: ⭐ 2026-08-09 — 15 → 16, AND THE RAIL WORKED EXACTLY AS DESIGNED. A master
+#: merge added `/api/scans/period-change-coverage` (`f03d80fd`, the bars.db
+#: coverage probe). The derived count went red, a human looked, and the answer
+#: was: all 16 are gated, UNGATED == 0. Notably the new route arrived ALREADY
+#: gated — once every route in the file carried `require_paid`, the next author
+#: followed the pattern without being told. That is the gate teaching the file.
+#:
+#: This edit is the deliberate one the message above demands. It is NOT a
+#: rubber stamp: the verification that preceded it was an AST walk over both
+#: routers printing every route with its gate status, and it is the only reason
+#: bumping this number is honest rather than a way to make a red test quiet.
+EXPECTED_SCANS_ROUTES = 16
 EXPECTED_SCREENER_ROUTES = 12
 
 #: The 402 sentence each router speaks. Asserted rather than imported so a quiet

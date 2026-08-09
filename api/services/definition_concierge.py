@@ -67,7 +67,8 @@ from datetime import datetime
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 from zoneinfo import ZoneInfo
 
-from api.services import ast_lint, ast_table, user_definitions
+from api.services import (ast_freshness, ast_lint, ast_table, concept_vocabulary,
+                          scan_definition, user_definitions)
 from api.services.ast_budget import BudgetExceeded, check_budget
 from api.services.ast_interpret import TableRefusal, interpret
 from api.services.catalyst import cost_guard
@@ -159,7 +160,21 @@ REFUSALS: Mapping[str, str] = {
         "the assistant's formula produces no value on the bars in view"),
     "compute:wiring": (
         "the assistant's formula collides with a name this chart already declares"),
+    "kind:unknown": (
+        "the assistant was asked for a kind of formula it does not draft"),
+    "scan:not-a-condition": (
+        "a screen needs a yes-or-no condition and this expression produces a number"),
 }
+
+#: ⭐ THE TWO THINGS ONE PIPELINE CAN DRAFT, DECLARED ONCE. An indicator is a
+#: column; a scan is ``<ast> != 0`` on the last confirmed bar (E-A1), so the only
+#: difference between them is ONE stage inside ``_validate``. The router reads
+#: this tuple rather than re-typing the two words, because a second list of kinds
+#: is a second thing to keep in step -- and an unrecognised kind REFUSES rather
+#: than defaulting, since a scan request quietly validated as an indicator is a
+#: scan whose condition check never ran.
+KINDS: Tuple[str, ...] = ("indicator", "scan")
+INDICATOR_KIND, SCAN_KIND = KINDS
 
 
 class _Refused(Exception):
@@ -171,10 +186,15 @@ class _Refused(Exception):
     """
 
     def __init__(self, gate: str, detail: str = "") -> None:
-        sentence = REFUSALS.get(gate)
-        message = sentence if sentence else detail
-        if sentence and detail:
-            message = f"{sentence} -- {detail}"
+        #: ⚠️ `phrase`, NEVER `sentence`. In this module the word `sentence`
+        #: means the READ-BACK and a rail asserts that every assignment to it is
+        #: `sentence_for(ast_obj)` — in every function, because the cheapest way
+        #: to add a second read-back is a second local that happens to share the
+        #: name. A refusal's English is a phrase, not a read-back.
+        phrase = REFUSALS.get(gate)
+        message = phrase if phrase else detail
+        if phrase and detail:
+            message = f"{phrase} -- {detail}"
         super().__init__(message)
         self.gate = gate
         self.reason = message
@@ -192,6 +212,57 @@ TOOL_NAME = "emit_formula"
 NODE_TYPES: Tuple[str, ...] = tuple(user_definitions.NODE_TYPES)
 
 
+#: ⭐ WHICH NODE TYPE A SECTION'S NAMES RIDE -- the ONLY thing this module has to
+#: know about a section, and the only reason two of them are named at all.
+#:
+#: Exactly two sections declare CALLABLE entries, and a callable node is the one
+#: shape that carries an ``args`` array; every other name-bearing section is a
+#: LEAF and is spelled with the ``series`` node. That is the MANIFEST'S OWN
+#: ruling rather than a convention invented here -- ``_scalars_node`` says *"A
+#: SCALAR RIDES THE `series` NODE TYPE AND THE CANONICAL VOCABULARY STAYS FOUR"*
+#: -- so a FIFTH section arrives as a leaf vocabulary with no edit in this file,
+#: and a name in it that the table cannot resolve is refused by ``resolve:*`` at
+#: the door that owns resolution.
+#:
+#: ⛔ THE KEYS ARE ``ast_table``'s STRUCTURE CONSTANTS, NOT TYPED WORDS. Section
+#: names are structure; the ENTRY names inside them are vocabulary, and this
+#: module never spells one (asserted by an AST scan over this file).
+_CALLABLE_SECTIONS: Mapping[str, str] = {
+    ast_table.OPERATORS_SECTION: "op",
+    ast_table.FUNCTIONS_SECTION: "call",
+}
+
+#: The node type every other declared name rides. See ``_CALLABLE_SECTIONS``.
+_LEAF_NODE = "series"
+
+
+def _name_sections(table: Mapping[str, Any]) -> Dict[str, Mapping[str, Any]]:
+    """Every section whose entries are NAMES a tree may reference, OFF THE
+    MANIFEST.
+
+    ⛔ THE UNDERSCORE PREFIX IS THE MANIFEST'S OWN CONVENTION for a note (``_``,
+    ``_shape``, ``_canonical``, ``_scalars_excluded``, ...) and ``tableVersion``
+    is a scalar value rather than a mapping. Everything else that maps names to
+    specs is a vocabulary section, and treating it as one is what makes a fourth
+    section -- and a fifth -- arrive as DATA.
+
+    ⚠️ ITERATING FOUR SECTIONS BY NAME WOULD PASS EVERY EXISTING RAIL. The
+    anti-copy scan forbids the NAMES; a hand-list of SECTIONS is the same defect
+    one level up, and the test plants a fifth section in a synthetic manifest and
+    requires its entries back.
+    """
+    return {k: v for k, v in table.items()
+            if not k.startswith("_") and isinstance(v, Mapping)}
+
+
+def _names_by_node_type(sections: Mapping[str, Mapping[str, Any]]) -> Dict[str, List[str]]:
+    """``{node type -> sorted names}``, derived from the sections above."""
+    out: Dict[str, set] = {t: set() for t in (_LEAF_NODE, *_CALLABLE_SECTIONS.values())}
+    for section, entries in sections.items():
+        out[_CALLABLE_SECTIONS.get(section, _LEAF_NODE)] |= set(entries)
+    return {node_type: sorted(names) for node_type, names in out.items()}
+
+
 def tool_schema(table: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
     """The callable vocabulary, DERIVED from the closed table.
 
@@ -202,6 +273,12 @@ def tool_schema(table: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
     edit to the rail, and an AST walk over this module's own source asserts that
     no declared function or series name appears here as a string constant.
 
+    ⭐ AND THE SECTION LIST IS READ OFF THE MANIFEST TOO (``_name_sections``), so
+    the fourth section -- the 54 per-symbol ``scalars`` -- reaches the model's
+    vocabulary AND the API boundary's enums with no line of this module moving.
+    Until that landed, ``propose`` refused every scalar-naming proposal at
+    ``schema:name`` a door before the read-back could even be asked.
+
     ``arity`` is carried per function so the model is told the shape, but this
     module does not ENFORCE arity at the boundary: a JSON Schema enum can express
     "which names exist" and cannot express "how many arguments each takes", so
@@ -210,36 +287,35 @@ def tool_schema(table: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
     is supposed to catch it -- this branch's most expensive defect.
     """
     t = table if table is not None else ast_table.TABLE
+    sections = _name_sections(t)
+    names = _names_by_node_type(sections)
     functions = {
         name: {
             "arity": len(spec.get("args") or ()),
             "args": list(spec.get("args") or ()),
             "sentence": spec.get("sentence"),
         }
-        for name, spec in t[ast_table.FUNCTIONS_SECTION].items()
+        for name, spec in (sections.get(ast_table.FUNCTIONS_SECTION) or {}).items()
     }
     operators = {
         name: {"arity": spec.get("arity")}
-        for name, spec in t[ast_table.OPERATORS_SECTION].items()
-    }
-    series = {
-        name: {"doc": spec.get("doc")}
-        for name, spec in t[ast_table.SERIES_SECTION].items()
+        for name, spec in (sections.get(ast_table.OPERATORS_SECTION) or {}).items()
     }
     return {
         "name": TOOL_NAME,
+        "sections": {k: dict(v) for k, v in sections.items()},
+        "names": names,
         "functions": functions,
         "operators": operators,
-        "series": series,
         "nodeTypes": list(NODE_TYPES),
-        "input_schema": _input_schema(functions, operators, series),
+        "input_schema": _input_schema(names, functions, operators),
     }
 
 
-def _input_schema(functions: Mapping[str, Any], operators: Mapping[str, Any],
-                  series: Mapping[str, Any]) -> Dict[str, Any]:
-    """The JSON Schema the API boundary enforces. Three enums, and they are the
-    table's own key sets.
+def _input_schema(names: Mapping[str, List[str]], functions: Mapping[str, Any],
+                  operators: Mapping[str, Any]) -> Dict[str, Any]:
+    """The JSON Schema the API boundary enforces. One enum per node type, and
+    each is the union of the manifest's own key sets for that shape.
 
     ⚠️ ``value`` IS NON-NEGATIVE, AND THAT IS NOT A TASTE. The ONE parser
     (``parse.js``) turns ``-5`` into ``op u- [num 5]``; a ``num`` node with a
@@ -272,7 +348,7 @@ def _input_schema(functions: Mapping[str, Any], operators: Mapping[str, Any],
                 "required": ["type", "name"],
                 "properties": {
                     "type": {"const": "series"},
-                    "name": {"enum": sorted(series)},
+                    "name": {"enum": list(names[_LEAF_NODE])},
                 },
             },
             "op": {
@@ -280,7 +356,7 @@ def _input_schema(functions: Mapping[str, Any], operators: Mapping[str, Any],
                 "required": ["type", "name", "args"],
                 "properties": {
                     "type": {"const": "op"},
-                    "name": {"enum": sorted(operators)},
+                    "name": {"enum": list(names["op"])},
                     "args": {"type": "array", "items": node,
                              "minItems": min(arities or [1]),
                              "maxItems": max(arities or [3])},
@@ -291,7 +367,7 @@ def _input_schema(functions: Mapping[str, Any], operators: Mapping[str, Any],
                 "required": ["type", "name", "args"],
                 "properties": {
                     "type": {"const": "call"},
-                    "name": {"enum": sorted(functions)},
+                    "name": {"enum": list(names["call"])},
                     "args": {"type": "array", "items": node,
                              "minItems": min(fn_arities or [1]),
                              "maxItems": max(fn_arities or [3])},
@@ -315,24 +391,57 @@ def anthropic_tool(table: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
     }
 
 
+#: A line of prose per section, so the English half reads like a vocabulary
+#: rather than a dump. ⚠️ THE BLURBS ARE PROSE AND THE NAMES ARE DATA: a section
+#: with no blurb still gets its header and every one of its entries, which is why
+#: a planted fifth section reaches the prompt as well as the schema.
+_SECTION_BLURB: Mapping[str, str] = {
+    ast_table.SERIES_SECTION: " (each reads one field of the bar)",
+    ast_table.SCALARS_SECTION: (" (ONE number per symbol, from the nightly "
+                                "screener snapshot -- the same value at every bar)"),
+    ast_table.OPERATORS_SECTION: " (by name and arity, spelled exactly as written here)",
+}
+
+
+def _entry_line(name: str, spec: Mapping[str, Any]) -> str:
+    """One vocabulary line, from whatever the manifest declares about the entry.
+
+    ⛔ SHAPE FIRST, THEN THE ENGLISH, AND BOTH ARE THE MANIFEST'S. A callable
+    entry declares ``args`` or an ``arity``; every entry may declare a
+    ``sentence`` or a ``doc``. Nothing here knows what a particular section
+    means, which is what lets a new one be described without an edit.
+    """
+    args = list(spec.get("args") or ())
+    arity = spec.get("arity")
+    if args:
+        head = f"{name}({', '.join(str(a) for a in args)})"
+    elif isinstance(arity, int) and not isinstance(arity, bool):
+        head = f"{name} takes {arity}"
+    else:
+        head = name
+    gloss = spec.get("sentence") or spec.get("doc")
+    return f"  {head} -- {gloss}" if isinstance(gloss, str) and gloss else f"  {head}"
+
+
 def vocabulary_text(table: Optional[Mapping[str, Any]] = None) -> str:
     """The vocabulary, spelled for the prompt, GENERATED from the same schema.
 
     The model is told the table twice -- once as a schema it cannot violate and
     once as English it can read -- and both readings come from one derivation, so
     a function added to the manifest reaches the prompt without this file moving.
+
+    ⛔ AND THE TWO HALVES WALK THE SAME SECTION LIST. A schema that enforced a
+    vocabulary the prompt never mentioned would produce a model that guesses and
+    a boundary that refuses -- technically correct, uselessly. The planted-scalar
+    rail asserts the plant reaches BOTH.
     """
     schema = tool_schema(table)
-    lines: List[str] = ["series (each reads one field of the bar):"]
-    for name in sorted(schema["series"]):
-        lines.append(f"  {name} -- {schema['series'][name]['doc']}")
-    lines.append("functions:")
-    for name in sorted(schema["functions"]):
-        spec = schema["functions"][name]
-        lines.append(f"  {name}({', '.join(spec['args'])}) -- {spec['sentence']}")
-    lines.append("operators (by name and arity, spelled exactly as written here):")
-    for name in sorted(schema["operators"]):
-        lines.append(f"  {name} takes {schema['operators'][name]['arity']}")
+    lines: List[str] = []
+    for section in sorted(schema["sections"]):
+        entries = schema["sections"][section]
+        lines.append(f"{section}{_SECTION_BLURB.get(section, '')}:")
+        for name in sorted(entries):
+            lines.append(_entry_line(name, entries[name]))
     return "\n".join(lines)
 
 
@@ -341,7 +450,7 @@ SYSTEM_PROMPT = (
     "tree, and you emit nothing else.\n\n"
     "A tree is built from four node shapes and no others:\n"
     '  {"type":"num","value":<non-negative number>}\n'
-    '  {"type":"series","name":<a series below>}\n'
+    '  {"type":"series","name":<a series or scalar below>}\n'
     '  {"type":"op","name":<an operator below>,"args":[...]}\n'
     '  {"type":"call","name":<a function below>,"args":[...]}\n\n'
     "Rules that are enforced, not requested:\n"
@@ -355,6 +464,30 @@ SYSTEM_PROMPT = (
     "about whether it repaints. Emit the tree.\n\n"
     "VOCABULARY\n"
 )
+
+#: What the tree has to BE, per kind. ⚠️ THIS IS A HINT AND NOT THE GATE. The
+#: gate is ``scan_definition.is_boolean_tree`` inside ``_validate``; telling the
+#: model up front only saves a repair round. A prompt that ASKS is a request; the
+#: stage that refuses is the constraint.
+_KIND_BRIEF: Mapping[str, str] = {
+    INDICATOR_KIND: (
+        "\nThis one is an INDICATOR: a column of numbers drawn on a chart.\n"),
+    SCAN_KIND: (
+        "\nThis one is a SCREEN: the tree must be a yes-or-no CONDITION, because "
+        "a screen keeps the symbols where it is not zero. An expression that "
+        "produces a price or an average is an indicator, not a screen -- compare "
+        "it to something.\n"),
+}
+
+#: The header above the words the FIRM has already defined. ⛔ THE MODEL NEVER
+#: SEES A CONCEPT IT MAY REINTERPRET: resolution happened against the vocabulary
+#: file before this text was built, so what arrives is the expansion, not the
+#: word to be guessed at.
+CONCEPT_HEADER = (
+    "\nTHE FIRM'S OWN WORDS, ALREADY RESOLVED. The member used the words below "
+    "and the system has expanded each one against the firm's reviewed "
+    "vocabulary. Use the formula given, exactly as given; do not reinterpret the "
+    "word and do not substitute your own thresholds.\n")
 
 
 # --------------------------------------------------------------------------- #
@@ -375,12 +508,8 @@ def _assert_within_schema(tree: Any, table: Optional[Mapping[str, Any]] = None) 
     resolution -- those belong to the table and are refused by ``resolve:arity``
     and ``resolve:window`` at the doors that own them.
     """
-    schema = tool_schema(table)
-    names = {
-        "series": set(schema["series"]),
-        "op": set(schema["operators"]),
-        "call": set(schema["functions"]),
-    }
+    names = {node_type: set(spelled)
+             for node_type, spelled in tool_schema(table)["names"].items()}
     stack: List[Any] = [tree]
     while stack:
         node = stack.pop()
@@ -504,6 +633,22 @@ def formula_for(ast_obj: Any, table: Optional[Mapping[str, Any]] = None) -> str:
 # cases with NaN said as "nothing", because the tempting `?:` reading
 # "{1} when {0}, otherwise {2}" IS A LIE FOR THE NaN CASE. The read-back describes
 # the engine that exists, not the one a reader expects.
+#
+# ⭐⭐ …EXCEPT WHERE THE `!= 0` SAYS NOTHING, WHICH IS `sentence.js`'s SECOND
+# PHRASE AND IS MIRRORED HERE FOR THE SAME REASON THE FIRST ONE IS. `close &&
+# volume` really does coerce two prices, and a member reading "close and volume"
+# would be reading a semantics this engine does not have. But a condition is a 0/1
+# column only because the table has no boolean type — an implementation detail of
+# the REPRESENTATION — so when EVERY operand already yields `bool` the coercion is
+# vacuous and the scaffolding explains the representation to somebody who asked
+# about the maths. `OPERATOR_SENTENCE_CONDITIONS` is that second phrase.
+#
+# ⛔ AND THE QUESTION "IS THIS OPERAND ALREADY A CONDITION" IS NOT ANSWERED HERE.
+# `scan_definition.is_boolean_tree` has resolved the manifest's `yields` over a
+# tree since E-2 and is the lane's ONE answer; a resolver written here would be a
+# THIRD implementation of one value — this repo's most repeated defect, and the
+# very thing `sentence.js::yieldsOf` already came close to being. The two that
+# remain are cross-checked case for case in `tests/test_definition_concierge.py`.
 
 SENTENCE_REFUSALS: Mapping[str, str] = {
     "sentence:node": "this read-back has no rule for that node shape",
@@ -539,6 +684,26 @@ OPERATOR_SENTENCE: Mapping[str, str] = {
            "and nothing while it is unknown"),
 }
 
+#: operator name -> its English WHEN EVERY OPERAND IS ALREADY A CONDITION.
+#:
+#: ⭐ A JOIN, NOT A SECOND VOCABULARY: every word an operand contributes is still
+#: the manifest's own phrasing and this table adds the one word that joins them.
+#:
+#: ⛔ AND IT IS PINNED TO `sentence.js::OPERATOR_SENTENCE_CONDITIONS` BY EQUALITY,
+#: exactly as `OPERATOR_SENTENCE` and `SENTENCE_REFUSALS` are — a lane that
+#: smoothed a form the other lane still scaffolds tells one member two stories.
+#:
+#: ⚠️ `sentence.js` ALSO CARRIES `CONDITIONS_FORM_DECLINED` — `!` and `?:` with
+#: the reason nobody wrote them a join — AND IT IS DELIBERATELY NOT MIRRORED. It
+#: changes no behaviour: it exists so `sentence.test.js` can assert the two tables
+#: PARTITION the operators whose base phrase talks about zero. Copying prose that
+#: nothing here reads would be a second copy to keep in step for no gain, and the
+#: table that DOES decide what this lane says is pinned across the two lanes.
+OPERATOR_SENTENCE_CONDITIONS: Mapping[str, str] = {
+    "&&": "{0} and {1}",
+    "||": "{0} or {1}",
+}
+
 _SAYABLE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _PLACEHOLDER = re.compile(r"\{(\d+)\}")
 
@@ -563,29 +728,92 @@ def _placeholder_gap(phrase: str, arity: int) -> Optional[str]:
             f"and invents [{', '.join(map(str, extra))}]")
 
 
+#: ⚠️ NOT A SECTION, AND MARKED AS ONE ISN'T. The compiled rules carry the
+#: manifest they were compiled from so `_render_op` can hand it to
+#: ``scan_definition.is_boolean_tree`` — a rule set built from a PLANTED table
+#: must be classified against that table, or a test's manifest would be read back
+#: with the shipped one's `yields`. The ``_`` prefix is the manifest's own
+#: annotation convention, and every consumer that walks sections already skips it.
+_TABLE_KEY = "_table"
+
+
 def compile_rules(table: Optional[Mapping[str, Any]] = None,
-                  operator_phrases: Optional[Mapping[str, str]] = None) -> Dict[str, Any]:
-    """The manifest, compiled into the three lookup tables the walker uses.
+                  operator_phrases: Optional[Mapping[str, str]] = None,
+                  condition_phrases: Optional[Mapping[str, str]] = None) -> Dict[str, Any]:
+    """The manifest, compiled into the FOUR lookup tables the walker uses.
 
     ⛔ EVERY DECLARED ENTRY GETS A ROW, INCLUDING THE BROKEN ONES, so a declared
-    entry with no read-back is refused BY NAME rather than falling through to
-    "unknown function" -- and the same rows are what ``coverage_gaps`` reports, so
-    the rail and the runtime refusal are ONE derivation. Never throws: the module
-    has to load for the gap to be reportable.
+    entry with no read-back is refused BY NAME (``sentence:no-template``) rather
+    than falling through to "unknown function", which would read like the table
+    never declared it. Never throws: the module has to load for a bad manifest to
+    be diagnosable at all.
+
+    ⛔⛔ AND IT REPORTS NO ``gaps`` LIST, DELIBERATELY -- THERE IS NO SECOND
+    COVERAGE AUTHORITY IN THIS LANE. There WAS one: a ``coverage_gaps`` here,
+    hand-maintained and fully DECLARATIVE, answering the same question
+    ``sentence.js::coverageGaps`` answers -- and with no scalars row at all, so
+    the two lanes answered one question differently in KIND as well as in
+    content, and nothing was red. Nothing server-side ever consumed it: an AST
+    walk over every ``.py`` in the repo (never a grep) found ONE definition and
+    THREE call sites, all three in its own test file. A second authority over one
+    value is this repo's most repeated defect, so the copy is DELETED rather than
+    reimplemented, and the two claims it used to make now live where they can
+    actually fail, in ``tests/test_definition_concierge.py``:
+
+      * *"this lane has English for every declared entry"* is measured by PROBING
+        THIS WALKER -- one minimal tree per declared entry, in every section the
+        MANIFEST declares, and the ones that REFUSE are named. The gap is the
+        runtime refusal itself, so it cannot be blind to a section the walker has
+        no branch for. That blindness is not hypothetical: the declarative rail
+        was permanently green over all fifty-four scalars, which were exactly the
+        names this lane could not say until the fourth section landed above.
+      * *"the two lanes agree about what is unsayable"* is a CROSS-LANE rail in
+        the same file -- ``coverageGaps()`` run under node, against that probe,
+        section for section and name for name, with the one known divergence
+        PINNED and derived so it goes red the day it closes.
+
+    ⛔ DO NOT ADD A ``coverage_gaps`` BACK HERE. A rail asserts its absence across
+    every module under ``api/``, and the name it looks for is read off
+    ``sentence.js``'s own export list rather than typed.
+
+    ⚠️ THE PER-ENTRY ``gap`` FIELD BELOW IS NOT BOOKKEEPING AND STAYS. It is what
+    makes ``_render_name``/``_render_op``/``_render_call`` REFUSE; only the list
+    that summarised those fields a second time is gone.
     """
     t = table if table is not None else ast_table.TABLE
     phrases = operator_phrases if operator_phrases is not None else OPERATOR_SENTENCE
+    conditions = (condition_phrases if condition_phrases is not None
+                  else OPERATOR_SENTENCE_CONDITIONS)
     series: Dict[str, Any] = {}
+    scalars: Dict[str, Any] = {}
     operators: Dict[str, Any] = {}
     functions: Dict[str, Any] = {}
-    gaps: Dict[str, List[str]] = {"series": [], "operators": [], "functions": [],
-                                  "placeholders": []}
 
     for name in sorted(t[ast_table.SERIES_SECTION]):
         gap = None if _SAYABLE.match(name) else "unsayable"
-        if gap:
-            gaps["series"].append(name)
         series[name] = {"gap": gap}
+
+    # ⭐ THE FOURTH SECTION, AND THE PHRASE IS THE MANIFEST'S. Unlike a series --
+    # which is SAID AS ITS OWN NAME, so an unsayable name is what breaks it -- a
+    # scalar is said as its declared `sentence`, so the NAME never reaches the
+    # text and only the phrase can be missing. `sentence.js::compileRules` makes
+    # exactly these two decisions and the two lanes are compared entry for entry.
+    #
+    # ⚠️ ITS ARITY IS ZERO, so `_placeholder_gap(phrase, 0)` is the same derived
+    # check the functions get: a `{0}` copied into a scalar's declaration
+    # references an argument that does not exist and is a gap, not a sentence.
+    #
+    # ⚠️ `.get(...) or {}` BECAUSE A SYNTHETIC MANIFEST MAY DECLARE THREE
+    # SECTIONS. Several rails hand this a hand-built probe table on purpose, and
+    # a `KeyError` there would make the probe impossible to write.
+    scalar_table = t.get(ast_table.SCALARS_SECTION) or {}
+    for name in sorted(scalar_table):
+        phrase = (scalar_table[name] or {}).get("sentence")
+        if not isinstance(phrase, str) or phrase == "":
+            gap = "no-template"
+        else:
+            gap = _placeholder_gap(phrase, 0)
+        scalars[name] = {"phrase": phrase, "gap": gap}
 
     for name in sorted(t[ast_table.OPERATORS_SECTION]):
         spec = t[ast_table.OPERATORS_SECTION][name]
@@ -594,13 +822,21 @@ def compile_rules(table: Optional[Mapping[str, Any]] = None,
         gap = None
         if not isinstance(phrase, str) or phrase == "":
             gap = "no-template"
-            gaps["operators"].append(name)
         else:
-            bad = _placeholder_gap(phrase, arity)
-            if bad:
-                gap = bad
-                gaps["placeholders"].append(f"{name}: {bad}")
-        operators[name] = {"phrase": phrase, "arity": arity, "gap": gap}
+            gap = _placeholder_gap(phrase, arity)
+        # ⭐⭐ THE SECOND PHRASE IS CARRIED EVEN WHEN IT IS BROKEN, AND IT DOES NOT
+        # SET `gap` — `sentence.js` makes the same two decisions for the same two
+        # reasons. ⛔ NO QUIET FALLBACK: a malformed conditions phrase must not
+        # degrade to the base form, which would be a read-back silently answering
+        # a different question, so it is carried and `_fill` refuses it BY NAME.
+        # And setting `gap` here would make the BASE tree refuse too, for a defect
+        # in a phrase it never uses.
+        conditions_phrase = None
+        if name in conditions:
+            declared = conditions[name]
+            conditions_phrase = declared if isinstance(declared, str) else ""
+        operators[name] = {"phrase": phrase, "arity": arity, "gap": gap,
+                           "conditions_phrase": conditions_phrase}
 
     for name in sorted(t[ast_table.FUNCTIONS_SECTION]):
         spec = t[ast_table.FUNCTIONS_SECTION][name]
@@ -609,22 +845,12 @@ def compile_rules(table: Optional[Mapping[str, Any]] = None,
         gap = None
         if not isinstance(phrase, str) or phrase == "":
             gap = "no-template"
-            gaps["functions"].append(name)
         else:
-            bad = _placeholder_gap(phrase, len(args))
-            if bad:
-                gap = bad
-                gaps["placeholders"].append(f"{name}: {bad}")
+            gap = _placeholder_gap(phrase, len(args))
         functions[name] = {"phrase": phrase, "args": args, "gap": gap}
 
-    return {"series": series, "operators": operators, "functions": functions,
-            "gaps": gaps}
-
-
-def coverage_gaps(table: Optional[Mapping[str, Any]] = None,
-                  operator_phrases: Optional[Mapping[str, str]] = None) -> Dict[str, List[str]]:
-    """Every manifest entry this lane has no English for, BY NAME -- never a count."""
-    return compile_rules(table, operator_phrases)["gaps"]
+    return {"series": series, "scalars": scalars, "operators": operators,
+            "functions": functions, _TABLE_KEY: t}
 
 
 SENTENCE_RULES = compile_rules()
@@ -632,6 +858,28 @@ SENTENCE_RULES = compile_rules()
 
 def _is_leaf(n: Any) -> bool:
     return isinstance(n, dict) and n.get("type") in ("num", "series")
+
+
+def _is_condition(node: Any, rules: Dict[str, Any]) -> bool:
+    """Does this operand ALREADY produce 0/1? The shipped classifier's answer.
+
+    ⛔ THE CALL IS THE POINT. ``scan_definition.is_boolean_tree`` resolves the
+    manifest's ``yields`` over a tree and has done since E-2; a resolution
+    written here would be a second one in this language and a third overall.
+    ``sentence.js::yieldsOf`` is the JS lane's, the two are compared case for
+    case by ``test_the_two_YIELDS_resolvers_agree_and_the_answer_is_ONE``, and
+    that comparison is only meaningful while there are exactly two.
+
+    ⛔ AND IT FAILS CLOSED TO "not a condition". ``is_boolean_tree`` raises on a
+    tree that is not made of canonical nodes; answering "condition" there would
+    DELETE the ``!= 0`` from a sentence where the coercion is real, which is the
+    defect this mirror is fixing, inverted. The walker refuses the malformed
+    operand by name a moment later, so this is a floor, not a swallow.
+    """
+    try:
+        return bool(scan_definition.is_boolean_tree(node, rules.get(_TABLE_KEY)))
+    except Exception:                              # noqa: BLE001 — see the docstring
+        return False
 
 
 def _spell_sentence_number(value: Any, path: str) -> str:
@@ -726,6 +974,20 @@ def _render_name(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
                                    f"at {path}: the series {json.dumps(name)}")
         trace.append({"path": path, "rule": "series:table"})
         return name
+    # ⭐ THE TABLE'S PER-SYMBOL SCALARS, CONSULTED SECOND AND BEFORE THE INPUTS --
+    # the same order, for the same reason, as the branch above and as
+    # `lint.js::astReach`. The words are the manifest's: read, never written.
+    #
+    # ⛔ NOT A FALLBACK TO THE COLUMN NAME. A scalar the table declares and
+    # nobody wrote English for is refused BY NAME, because `market_cap` in a
+    # sentence is a read-back the member cannot check the maths against.
+    scalar_rules = rules.get("scalars") or {}
+    if name in scalar_rules:
+        rule = scalar_rules[name]
+        if rule["gap"]:
+            _refuse_gap(rule["gap"], "scalar", name, path)
+        trace.append({"path": path, "rule": "series:scalar"})
+        return rule["phrase"]
     if name in inputs:
         if not _SAYABLE.match(name):
             raise _SentenceRefused("sentence:unsayable-name",
@@ -735,7 +997,8 @@ def _render_name(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
     raise _SentenceRefused(
         "sentence:name",
         f"at {path}: {json.dumps(name)} -- this table declares "
-        f"{', '.join(sorted(rules['series']))} and this definition declares "
+        f"{', '.join(sorted(rules['series']))}, its scalars are "
+        f"{', '.join(sorted(scalar_rules)) or 'none'}, and this definition declares "
         f"{', '.join(sorted(inputs)) or 'no inputs'}")
 
 
@@ -758,10 +1021,25 @@ def _render_op(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
         raise _SentenceRefused(
             "sentence:arity",
             f"at {path}: {name} takes {rule['arity']}, got {len(node['args'])}")
-    trace.append({"path": path, "rule": f"op:{name}"})
+    # ⭐ THE ONE PLACE THE CHROME CONSULTS `yields`, and it asks the OPERAND
+    # TREES rather than a list of names — so a fifty-fifth scalar is covered the
+    # day it declares one. Every operand already being a condition is what makes
+    # the `!= 0` vacuous; ONE `num` operand anywhere and the coercion is real, so
+    # the base phrase stands. `sentence.js::renderOp` makes the same call in the
+    # same place, and the two texts are pinned byte-for-byte.
+    #
+    # ⚠️ THE TRACE SAYS WHICH FORM SPOKE. "The sentence is correct" is satisfiable
+    # by the wrong branch agreeing today; "it came from `op:&&:conditions`, and a
+    # `num` operand moves it back to `op:&&`" is not.
+    as_conditions = (rule.get("conditions_phrase") is not None
+                     and len(node["args"]) > 0
+                     and all(_is_condition(a, rules) for a in node["args"]))
+    trace.append({"path": path,
+                  "rule": f"op:{name}:conditions" if as_conditions else f"op:{name}"})
     parts = [_render_arg(a, rules, inputs, f"{path}.args[{i}]", trace)
              for i, a in enumerate(node["args"])]
-    return _fill(rule["phrase"], parts, f"operator {name}", path)
+    return _fill(rule["conditions_phrase"] if as_conditions else rule["phrase"],
+                 parts, f"operator {name}", path)
 
 
 def _render_call(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
@@ -854,8 +1132,13 @@ def _tool_input(msg: Any) -> Optional[dict]:
     return parsed if isinstance(parsed, dict) else None
 
 
-def _call_model(messages: List[dict]) -> Tuple[Any, int, int]:
+def _call_model(messages: List[dict], briefing: str = "") -> Tuple[Any, int, int]:
     """ONE Anthropic call. Returns ``(message, input_tokens, output_tokens)``.
+
+    ``briefing`` is what this pipeline decided BEFORE the call -- which kind of
+    formula is being drafted, and what the firm's own words in the prompt mean.
+    Both are resolved here, against files, so the model is TOLD rather than
+    asked to guess.
 
     ⚠️ THE TEMPERATURE RETRY IS THE SHIPPED IDIOM: newer models reject
     ``temperature`` as deprecated, and on that specific error the parameter is
@@ -867,7 +1150,7 @@ def _call_model(messages: List[dict]) -> Tuple[Any, int, int]:
         model=MODEL,
         max_tokens=MAX_TOKENS,
         temperature=0,
-        system=SYSTEM_PROMPT + vocabulary_text(),
+        system=SYSTEM_PROMPT + vocabulary_text() + briefing,
         tools=[anthropic_tool()],
         tool_choice={"type": "tool", "name": TOOL_NAME},
         messages=messages,
@@ -886,11 +1169,94 @@ def _call_model(messages: List[dict]) -> Tuple[Any, int, int]:
 
 
 # --------------------------------------------------------------------------- #
+# the firm's words -- RESOLVED HERE, AGAINST THE FILE, BEFORE THE MODEL RUNS
+# --------------------------------------------------------------------------- #
+#
+# ⭐⭐ THIS IS THE KNOWLEDGE LAYER, AND IT IS THE WHOLE DIFFERENCE BETWEEN A
+# TRANSLATOR AND A PRODUCT. A generic model asked what "trending" means guesses,
+# and guesses differently next Tuesday. `conceptVocabulary.json` is the FIRM'S
+# answer -- 21 words, each citing an artifact the firm already ships, each
+# citation looked up rather than trusted -- and this is where a member's sentence
+# meets it.
+#
+# ⛔ THE MODEL NEVER SEES A WORD IT MAY REINTERPRET. Resolution happens below,
+# against the file; what reaches the model is the EXPANDED SOURCE. The
+# interpretation is then visible to the member too, because `sentence_for` reads
+# the resulting TREE back into English before anything is saved.
+#
+# ⛔ AND AN UNGROUNDABLE WORD IS REFUSED BY NAME, NEVER APPROXIMATED. There is no
+# nearest match and no partial expansion: "cheap" comes back saying "cheap",
+# because a wrong scan that looks right is worse than a refusal (spec §1.6) and a
+# member who is told which word failed can say what they meant.
+
+def _phrase_pattern(phrase: str) -> "re.Pattern":
+    """One vocabulary phrase, matched on WORD BOUNDARIES and nothing cleverer.
+
+    ⛔ NO STEMMING, NO FUZZY MATCH, NO NEAREST NEIGHBOUR -- the refusal rule
+    applied at the detection door as well as the resolution one. "leaders" does
+    not quietly become "leader": either the firm has defined the phrase the
+    member used, or it has not.
+    """
+    return re.compile(r"(?<![a-z0-9_])" + re.escape(phrase) + r"(?![a-z0-9_])")
+
+
+def _phrases_in(prompt: str, known: Any) -> List[str]:
+    """The known phrases the prompt spells, in the order the member wrote them.
+
+    LONGEST FIRST AND NON-OVERLAPPING, so a phrase the firm has defined wins over
+    a shorter one inside it -- "leaders pulling back" is one concept, not two
+    halves of somebody else's.
+    """
+    hay = concept_vocabulary.normalise(prompt)
+    taken: List[Tuple[int, int]] = []
+    found: List[Tuple[int, str]] = []
+    for phrase in sorted(known, key=lambda p: (-len(p), p)):
+        for match in _phrase_pattern(phrase).finditer(hay):
+            if any(match.start() < end and start < match.end() for start, end in taken):
+                continue
+            taken.append((match.start(), match.end()))
+            found.append((match.start(), phrase))
+            break
+    return [phrase for _, phrase in sorted(found)]
+
+
+def _concept_briefing(prompt: str, kind: str,
+                      vocab: Optional[Mapping[str, Any]] = None) -> Tuple[List[dict], str]:
+    """``(concepts used, the text appended to the system prompt)``.
+
+    :raises _Refused: the member used a word the firm has DECIDED not to ground,
+        or one whose citations no longer resolve. The gate and the sentence are
+        the vocabulary's own (``concept:ambiguous`` / ``concept:ungrounded``),
+        reported under their own names exactly as ``resolve:*`` and ``budget:*``
+        are -- a refusal re-wrapped under this module's vocabulary would be a
+        correct answer produced by the wrong door.
+
+    ⭐ EACH ENTRY IS ``{word, version}`` AND THE TREE IS NOT LATE-BOUND TO IT.
+    The word is PROVENANCE. The maths that gets saved is the tree the model
+    emitted from the expansion, so re-defining "trending" next quarter cannot
+    change what a scan saved today computes.
+    """
+    known = set(concept_vocabulary.concepts(vocab)) | set(concept_vocabulary.refused(vocab))
+    used: List[dict] = []
+    lines: List[str] = []
+    for phrase in _phrases_in(prompt, known):
+        answer = concept_vocabulary.resolve(phrase, vocab=vocab)
+        if not answer["ok"]:
+            raise _Refused(answer["gate"], answer["reason"])
+        used.append({"word": answer["word"], "version": answer["version"]})
+        lines.append(f'  "{answer["word"]}" means exactly: {answer["source"]}')
+    briefing = _KIND_BRIEF.get(kind, "")
+    if lines:
+        briefing += CONCEPT_HEADER + "\n".join(lines) + "\n"
+    return used, briefing
+
+
+# --------------------------------------------------------------------------- #
 # the pipeline
 # --------------------------------------------------------------------------- #
 
-def _validate(tree: Any, bars: List[dict]) -> Tuple[Any, str]:
-    """schema -> canonical shape -> budget -> lint -> compute.
+def _validate(tree: Any, bars: List[dict], kind: str) -> Tuple[Any, str]:
+    """schema -> canonical shape -> budget -> IS IT A CONDITION -> lint -> compute.
 
     ⛔ THE ORDER IS LOAD-BEARING AND IT IS THE ATTRIBUTION. A tree that offends
     two stages must report the EARLIER one on every run, or a refusal measures
@@ -898,6 +1264,12 @@ def _validate(tree: Any, bars: List[dict]) -> Tuple[Any, str]:
     is what makes deleting the budget call observable: without it, an over-budget
     tree with an unreadable window comes back as a REPAINT refusal, which is a
     correct answer produced by the wrong mechanism.
+
+    ⭐ THE SCAN STAGE LIVES INSIDE THIS FUNCTION, NOT BESIDE IT. ``_validate`` is
+    the ONE validator -- a rail walks this module and asserts no other function
+    reaches a guard -- so a scan check in ``propose`` would be a second
+    validation path with a second set of gates to keep in step, which is the
+    shape this whole module was written to retire.
 
     Every stage is the SAME function a typed formula reaches. There is no
     machine-written lane.
@@ -914,6 +1286,20 @@ def _validate(tree: Any, bars: List[dict]) -> Tuple[Any, str]:
         raise _Refused(exc.guard, str(exc)) from exc
     except TableRefusal as exc:
         raise _Refused(exc.guard, str(exc)) from exc
+
+    # ⭐ A SCAN IS `<ast> != 0` ON THE LAST CONFIRMED BAR (E-A1), so a tree that
+    # produces a NUMBER is a perfectly good indicator and a wrong answer to "find
+    # me stocks where...": handed back as a screen it would silently match every
+    # symbol whose average is not zero, which is all of them.
+    #
+    # ⛔ `scan_definition.is_boolean_tree` IS CALLED, NEVER RE-DERIVED. It
+    # resolves the manifest's own declaration over the tree and is E-2's single
+    # Python implementation; a walk written here would be the same hand-list
+    # arriving one function later, in the same language.
+    if kind == SCAN_KIND and not scan_definition.is_boolean_tree(tree):
+        raise _Refused(
+            "scan:not-a-condition",
+            "compare it to something, or save it as an indicator")
 
     verdict = ast_lint.lint_repaint(tree)
     if verdict["mode"] != "non-repainting":
@@ -937,6 +1323,19 @@ def _validate(tree: Any, bars: List[dict]) -> Tuple[Any, str]:
             f"nothing computable across {len(bars)} bars -- it may need more "
             "history than the chart is holding")
     return tree, verdict["mode"]
+
+
+def _cadence_ceiling(tree: Any) -> Optional[str]:
+    """How often re-running this tree can honestly say something new.
+
+    ⛔ E-3's FUNCTION, CALLED. ``scan_evaluator.cadence_ceiling`` reads it off the
+    manifest's own ``cadence`` declarations and is the ONE derivation; a
+    "nightly" typed here would be a second authority the day a scalar declared
+    something else. Imported inside the call because the screener package pulls
+    in stores this module has no other use for.
+    """
+    from api.services.screener.scan_evaluator import cadence_ceiling
+    return cadence_ceiling(tree)
 
 
 def _repair_turns(messages: List[dict], msg: Any, tool_input: Optional[dict],
@@ -969,16 +1368,33 @@ def _repair_turns(messages: List[dict], msg: Any, tool_input: Optional[dict],
     return out
 
 
-def propose(prompt: str, *, user_id: Any, bars: Optional[List[dict]] = None) -> Dict[str, Any]:
+def propose(prompt: str, *, user_id: Any, bars: Optional[List[dict]] = None,
+            kind: str = INDICATOR_KIND) -> Dict[str, Any]:
     """English in, a canonical tree out -- or a refusal that names its door.
 
-    ``{ok: True, ast, source, sentence, repaint, tokens, cost_usd, attempts, model}``
-    or ``{ok: False, reason, gate}``. NEVER raises, and a refusal carries NO
-    ``ast``: a formula beside a refusal is a formula somebody uses.
+    ``kind`` is ``"indicator"`` (a column) or ``"scan"`` (a condition), and it
+    changes exactly ONE stage inside ``_validate``. It is echoed back so the
+    caller can see which question was answered.
+
+    ``{ok: True, ast, source, sentence, repaint, freshness, cadence, kind,
+    concepts, tokens, cost_usd, attempts, model}`` or ``{ok: False, reason,
+    gate}``. NEVER raises, and a refusal carries NO ``ast``: a formula beside a
+    refusal is a formula somebody uses.
     """
     if not isinstance(prompt, str) or not prompt.strip():
         return {"ok": False, "gate": "prompt:empty",
                 "reason": REFUSALS["prompt:empty"]}
+    if kind not in KINDS:
+        return {"ok": False, "gate": "kind:unknown",
+                "reason": f"{REFUSALS['kind:unknown']} -- {', '.join(KINDS)}"}
+
+    # ⭐ THE FIRM'S WORDS ARE RESOLVED BEFORE A TOKEN IS SPENT, and a word it
+    # cannot ground refuses here -- cheaper than a model call, and the honest
+    # answer either way.
+    try:
+        concepts_used, briefing = _concept_briefing(prompt, kind)
+    except _Refused as refused:
+        return {"ok": False, "gate": refused.gate, "reason": refused.reason}
 
     market_date = _market_date()
     bars = list(bars or [])
@@ -1001,7 +1417,7 @@ def propose(prompt: str, *, user_id: Any, bars: Optional[List[dict]] = None) -> 
 
         attempts += 1
         try:
-            msg, in_tokens, out_tokens = _call_model(messages)
+            msg, in_tokens, out_tokens = _call_model(messages, briefing)
         except Exception as exc:                   # noqa: BLE001 -- never raises out
             logger.warning("[concierge] model call failed: %s", exc)
             return {"ok": False, "gate": "model:transport",
@@ -1019,7 +1435,7 @@ def propose(prompt: str, *, user_id: Any, bars: Optional[List[dict]] = None) -> 
         try:
             if tool_input is None or tree is None:
                 raise _Refused("model:no-tool", "no formula tree in the answer")
-            ast_obj, repaint = _validate(tree, bars)
+            ast_obj, repaint = _validate(tree, bars, kind)
         except _Refused as refused:
             last = refused
             if attempts < MAX_MODEL_CALLS:
@@ -1042,6 +1458,17 @@ def propose(prompt: str, *, user_id: Any, bars: Optional[List[dict]] = None) -> 
             "source": source,
             "sentence": sentence,
             "repaint": repaint,
+            # ⛔ THE SECOND VERDICT, AND IT IS THE READER'S NOT A CLAIM MADE HERE.
+            # The repaint linter answers a TRUE zero for a scalar leaf, so
+            # `rs_rank > 80` is honestly `non-repainting` and its staleness would
+            # go unsaid without this. Both are derived from the tree by the
+            # shipped modules.
+            "freshness": ast_freshness.freshness_for(ast_obj)["mode"],
+            "cadence": _cadence_ceiling(ast_obj),
+            "kind": kind,
+            # ⭐ PROVENANCE, NEVER A LATE BINDING. The word and the vocabulary
+            # version that expanded it; the maths is the TREE above.
+            "concepts": concepts_used,
             "tokens": tokens,
             "cost_usd": round(cost_usd, 6),
             "attempts": attempts,

@@ -35,6 +35,7 @@ from pydantic import BaseModel
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import user_definitions as svc
+from api.services.entitlements import Limits, limits_dependency
 
 router = APIRouter(prefix="/api/user-definitions", tags=["user-definitions"])
 
@@ -53,14 +54,21 @@ class DefinitionIn(BaseModel):
 
 
 class ProposeIn(BaseModel):
-    """The English, and the bars the chart is already holding.
+    """The English, the kind of formula wanted, and the bars the chart holds.
 
     The bars come from the CLIENT because the chart already has them and the
     concierge's compute stage has to run on the same window the user is looking
     at — a formula that computes nothing on the bars in view is refused there.
+
+    ⛔ `kind` IS PASSED THROUGH, NEVER VALIDATED HERE. The kinds live in
+    `definition_concierge.KINDS` and an unrecognised one is refused at
+    `kind:unknown` by the pipeline that owns the distinction — a `Literal` typed
+    here would be a second list of kinds to keep in step, and a 422 would report
+    the refusal under a door that decides nothing about formulas.
     """
 
     prompt: str
+    kind: Optional[str] = None
     bars: Optional[list] = None
 
 
@@ -70,15 +78,21 @@ class ProposeIn(BaseModel):
 MAX_PROPOSE_BARS = 5000
 
 
-def _save_or_400(user_id, def_id: str, definition: dict) -> dict:
+def _save_or_400(user_id, def_id: str, definition: dict,
+                 limits: Limits | None = None) -> dict:
     """Every store refusal is a 400 that carries the store's own sentence.
 
     ⛔ THE MESSAGE IS NOT REWRITTEN HERE. The caps live in one place and their
     wording names the number that was exceeded; a router-local paraphrase is a
-    second vocabulary for the same refusal.
+    second vocabulary for the same refusal. `entitlements.ToolkitLimitExceeded`
+    IS a `ValueError`, so a toolkit refusal comes out of the same door rather
+    than needing a second handler.
+
+    ⛔ `limits` IS PASSED THROUGH, NEVER RE-DERIVED HERE. Re-deriving it would be
+    a second authority over one member's plan, on the write path.
     """
     try:
-        return svc.save(user_id, def_id, definition)
+        return svc.save(user_id, def_id, definition, limits=limits)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -89,17 +103,24 @@ def list_definitions(user: dict = Depends(require_paid)):
 
 
 @router.post("")
-def create_definition(body: DefinitionIn, user: dict = Depends(require_paid)):
+def create_definition(body: DefinitionIn,
+                      user: dict = Depends(require_paid),
+                      limits: Limits = Depends(limits_dependency)):
     """Create. THE SERVER MINTS THE ID.
 
     A client-supplied id would let one member write into another's namespace by
     guessing, and it would let a definition claim a native id (`rsi`) whose
     bindings a rev bump would then force-migrate.
+
+    ⭐ AND IT CARRIES THE CALLER'S TOOLKIT BESIDE `require_paid`, NOT INSTEAD OF
+    IT. `require_paid` decides WHETHER (402); `limits_dependency` decides HOW MUCH
+    (the definition-count axis). Collapsing them would make one 402 mean two
+    things and lose "which surface refused me".
     """
     def_id = svc.new_def_id()
     definition = dict(body.definition or {})
     definition["id"] = def_id
-    return _save_or_400(user["id"], def_id, definition)
+    return _save_or_400(user["id"], def_id, definition, limits)
 
 
 @router.post("/propose")
@@ -129,7 +150,12 @@ def propose_definition(body: ProposeIn, user: dict = Depends(require_paid)):
             detail=f"bars: at most {MAX_PROPOSE_BARS} bars, got "
                    f"{len(bars) if isinstance(bars, list) else type(bars).__name__}")
     from api.services import definition_concierge
-    return definition_concierge.propose(body.prompt, user_id=user["id"], bars=bars)
+    #: ⭐ THE DEFAULT IS THE PIPELINE'S OWN, READ OFF IT. A body with no `kind`
+    #: is every caller that shipped before scans existed, and spelling
+    #: `"indicator"` here would be a second declaration of the default.
+    kind = body.kind if body.kind is not None else definition_concierge.INDICATOR_KIND
+    return definition_concierge.propose(body.prompt, user_id=user["id"], bars=bars,
+                                        kind=kind)
 
 
 @router.get("/{def_id}")
@@ -147,8 +173,15 @@ def get_definition(def_id: str,
 
 @router.put("/{def_id}")
 def save_definition(def_id: str, body: DefinitionIn,
-                    user: dict = Depends(require_paid)):
+                    user: dict = Depends(require_paid),
+                    limits: Limits = Depends(limits_dependency)):
     """An EDIT. A maths change bumps `rev` and force-migrates every binding.
+
+    ⚠️ IT CARRIES THE TOOLKIT TOO, AND THE REASON IS THE RESURRECT. An edit of a
+    live definition never touches the count cap; saving over a TOMBSTONE makes a
+    definition live that is not live now, which is exactly the case
+    `user_definitions.save` checks. A PUT without the toolkit would be the way to
+    stand at a hundred definitions on a plan that sells fifty.
 
     ⭐ AND AS OF THIS COMMIT IT HAS A PRODUCT CALLER. `BuilderSheet` opens a saved
     formula, and its Save button routes here through the SAME document builder,
@@ -174,7 +207,7 @@ def save_definition(def_id: str, body: DefinitionIn,
         raise HTTPException(status_code=404, detail="Not found")
     definition = dict(body.definition or {})
     definition["id"] = def_id
-    return _save_or_400(user["id"], def_id, definition)
+    return _save_or_400(user["id"], def_id, definition, limits)
 
 
 @router.delete("/{def_id}")

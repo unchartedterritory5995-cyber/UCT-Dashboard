@@ -996,8 +996,10 @@ def _build_chart_markers(ticker: str) -> dict:
     # full split-adjusted history and cost nothing — the same source
     # dividends_calendar.py uses. One bounded fetch feeds both.
     try:
-        from api.services.yf_util import bounded_call
-        yf_splits, yf_divs = bounded_call(lambda: _yf_corporate_actions(ticker), ([], []), timeout=12.0)
+        # `yf_util` is already imported at module scope — import the MODULE,
+        # never the function (lesson_from_import_severs_a_module_from_its_guards).
+        yf_splits, yf_divs = yf_util.bounded_call(
+            lambda: _yf_corporate_actions(ticker), ([], []), timeout=12.0)
 
         # Splits — deep lookback (rare + highly relevant on a since-inception chart).
         for date_str, ratio_val in yf_splits:

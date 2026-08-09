@@ -754,9 +754,15 @@ const astDef = (source, over = {}) => {
     // declares `Depends(require_paid)` on every one of its handlers, so a `free`
     // badge on this lane is refused at registration. It is read off the registry
     // rather than retyped so the fixture cannot drift from the gate it feeds.
+    // ⚠️ AND `freshness` IS THE SECOND MACHINE-ASSIGNED BADGE, REQUIRED HERE FOR
+    // THE SAME REASON `repaint` IS. GATE 6 (Phase E Task 1) refuses an `ast`
+    // definition that declares none: the repaint linter answers a true 0 for a
+    // table-declared scalar, so a formula reading a nightly per-symbol value
+    // would pass GATE 3 as `non-repainting` with its staleness unsaid. Every
+    // fixture in this file is pure OHLCV, so the MEASURED value is `live`.
     meta: {
       name: 'My formula', shortName: 'F', category: 'Custom', tier: AST_LANE_TIER,
-      repaint: 'non-repainting', ...(over.meta || {}),
+      repaint: 'non-repainting', freshness: 'live', ...(over.meta || {}),
     },
     placement: { target: 'pane', pane: { height: 0.15 } },
     inputs: [{ key: 'color', type: 'color', label: 'Colour', default: 'token:info' }],
@@ -919,7 +925,10 @@ describe('`supportedKinds` is a FILTER now, not a sentence (Phase D Task 8)', ()
   })
 })
 
-describe('the `ast` lane REGISTERS, and the three gates it registers through', () => {
+// ⚠️ THIS TITLE SAID "THE THREE GATES" WHILE `validateAstLane` CARRIED FIVE, and
+// Phase E Task 1 made it six. A count in a title is the same rot as a count in a
+// paragraph, so it names the gates by their subject instead.
+describe('the `ast` lane REGISTERS, and the gates it registers through', () => {
   it('an ast definition registers and COMPUTES a real column', () => {
     const res = validateUserDefinitions([astDef('sma(close, 20)')])
     expect(res.errors, JSON.stringify(res.errors)).toEqual([])

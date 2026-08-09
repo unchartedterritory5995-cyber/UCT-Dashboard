@@ -3,6 +3,10 @@
 .horizon { font-size: var(--text-xs); color: var(--text-muted); }
 .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--space-sm); }
 .drift { font-size: var(--text-sm); color: var(--text); }
+/* §3.1 gold budget: the hero's RICH/CHEAP chip is the one gold element on this
+   canvas, so the "no expected move, and here is why" line is deliberately
+   muted — it is a disclosure, not a highlight. */
+.moveNa { font-size: var(--text-xs); color: var(--text-muted); }
 
 @media (max-width: 640px) {
   .stats { grid-template-columns: repeat(2, 1fr); }

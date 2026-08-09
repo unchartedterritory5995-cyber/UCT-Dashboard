@@ -47,6 +47,11 @@ export function toModalRow(entry) {
     beat_history:     entry.beat_history ?? null,
     hist_stats:       entry.hist_stats ?? null,
     expected_move:    entry.expected_move ?? null,
+    // WHY there is no expected move. `expected_move == null` alone cannot tell
+    // "the chain refused" from "nothing has arrived yet", and Calendar.jsx's
+    // re-open guard has to make exactly that call — see its `moveAnswered`
+    // comment. Null here means unanswered; a `{kind, reason}` means answered.
+    expected_move_outcome: entry.expected_move_outcome ?? null,
     // This projection is an ALLOW-LIST, so a new enrichment field is invisible
     // to the modal until it is named here — the exact reason the note above
     // exists. `history_unresolved` says the provider never answered for this
@@ -59,6 +64,42 @@ export function toModalRow(entry) {
     // "unavailable" on every un-enriched row.
     history_unresolved: entry.history_unresolved ?? false,
   }
+}
+
+// ── Is this row's enrichment still in flight? ────────────────────────────────
+//
+// Calendar.jsx re-resolves an already-open modal's row while its three
+// INDEPENDENT enrichment providers (beat_history: Finnhub, hist_stats: FMP/AV,
+// expected_move: the options chain) keep arriving on their own schedules. The
+// predicates live here, beside the projection that feeds them, because the
+// decision is about the row's SHAPE — and because a pure function is testable
+// without reproducing the effect's mount/route/timing dance.
+//
+// ⛔ THE MOVE QUESTION IS ANSWERED BY A NUMBER **OR** BY A STATED REASON. A
+// refused chain and a past report both leave `expected_move` null forever, so
+// `expected_move == null` on its own read as "still loading" for the rest of
+// the modal's life and re-resolved the whole feed on every `days` change,
+// chasing a number the server had already explained does not exist. That is
+// also why `toModalRow` must carry `expected_move_outcome`: without it this
+// file cannot tell the two apart. (No reason TOKEN is named here — the
+// vocabulary lives in `api/services/implied_move.py` and a backend rail asserts
+// nothing under `app/src` keeps a copy of it.)
+export function moveAnswered(x) {
+  return x?.expected_move != null || x?.expected_move_outcome != null
+}
+
+export function enrichmentStillMissing(row) {
+  return row?.beat_history == null || row?.hist_stats == null || !moveAnswered(row)
+}
+
+/** Does `entry` carry something `row` is still missing? Only an actual GAIN
+ *  may re-commit the row — a correctly, permanently partial row (a past day's
+ *  expected move) must not be fought forever. */
+export function enrichmentGained(row, entry) {
+  if (!entry) return false
+  return (row?.beat_history == null && entry.beat_history != null)
+    || (row?.hist_stats == null && entry.hist_stats != null)
+    || (!moveAnswered(row) && moveAnswered(entry))
 }
 
 // Session timing ('bmo'/'amc' or already-normalized) → EarningsModal label.

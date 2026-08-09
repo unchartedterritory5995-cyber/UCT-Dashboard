@@ -22,7 +22,19 @@ INVALIDATE_KEYS = [
     "leadership", "rundown", "earnings", "screener", "movers", "uct20_portfolio", "analyst_actions",
 ]
 
-PERSISTENT_WIRE_DATA_FILE = "/data/wire_data.json"
+# ⚠️ THIS IS THE WRITER. `push_wire_data` `os.makedirs`es this file's directory
+# and json-dumps the whole payload into it, so on this Windows box (where `/data`
+# really exists) `tests/test_push.py` was overwriting the owner's live
+# `C:\data\wire_data.json` — the file `api/main.py`'s lifespan seeds the cache
+# from on every boot. `WIRE_DATA_FILE` is the override a test process sets; the
+# default is unchanged, so production resolves exactly as before.
+#
+# ⛔ `api/main.py:192` holds the SAME literal for the boot-time READ and does not
+# yet read this variable. That copy is read-only so it corrupts nothing, but the
+# two constants are one value with two authorities and should be joined when that
+# file is next free (it is being edited by another agent as this ships).
+PERSISTENT_WIRE_DATA_FILE = os.environ.get(
+    "WIRE_DATA_FILE", "/data/wire_data.json")
 
 
 def _taxonomy_version_stored():

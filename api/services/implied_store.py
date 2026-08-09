@@ -1059,7 +1059,7 @@ def run_nightly_capture(now: dt.datetime | None = None) -> dict:
         )
 
     summary = {"captured": 0, "skipped": 0, "failed": 0, "collisions": len(collisions),
-               "skipped_no_fiscal": 0}
+               "skipped_no_fiscal": 0, "refused": 0, "refused_by_reason": {}}
     captured_at = now.isoformat(timespec="seconds")
     for rep in in_window:
         sym = rep.get("sym")
@@ -1090,9 +1090,23 @@ def run_nightly_capture(now: dt.datetime | None = None) -> dict:
                     sym, report_date,
                 )
                 continue
-            payload = implied_move.get_expected_move(sym, report_date)
+            # `outcome` is filled from the SAME evaluation that produced (or
+            # withheld) the payload — see implied_move.get_expected_move. A
+            # REFUSAL ("there was no at-the-money strike" / "the quote implies
+            # an impossible move") is a different fact from a provider that
+            # never answered, and the run record has to be able to tell them
+            # apart: counting a refusal as `failed` makes a correctly-working
+            # bound look like an outage, and makes an outage look like a bound.
+            outcome: dict = {}
+            payload = implied_move.get_expected_move(sym, report_date, outcome=outcome)
             if payload is None:
-                summary["failed"] += 1
+                reason = outcome.get("reason")
+                if implied_move.outcome_kind(reason) == "refused":
+                    summary["refused"] += 1
+                    summary["refused_by_reason"][reason] = \
+                        summary["refused_by_reason"].get(reason, 0) + 1
+                else:
+                    summary["failed"] += 1
                 continue
             record_implied(sym, report_date, payload, captured_at,
                             fiscal_year=rep.get("fiscal_year"),
@@ -1103,6 +1117,89 @@ def run_nightly_capture(now: dt.datetime | None = None) -> dict:
             summary["failed"] += 1
     _log.info("[implied-store] nightly capture: %s", summary)
     return summary
+
+
+def unsupported_snapshots() -> list[dict]:
+    """Every stored row the CURRENT bound would refuse, with the reason.
+
+    Re-applies `implied_move.refusal_for` — the same function the live chain
+    path and the historical backfill go through — to each row's own stored
+    (pct, strike, spot). It is deliberately not a re-implementation of the
+    rule and not a SQL restatement of it: a purge that decided
+    "unsupported" by its own second copy of the arithmetic would drift the
+    first time either bound moved, and the drift would be invisible (the
+    store would quietly keep serving rows the live path had already stopped
+    producing).
+
+    A row with no usable strike/spot is included — `refusal_for` cannot place
+    it relative to the money, and a percentage we cannot defend is exactly
+    what this whole change exists to stop publishing. (Measured 2026-08-08:
+    production had none.)"""
+    _ensure_init()
+    with closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT sym, report_date, pct, strike, spot, source, captured_at "
+            "FROM implied_snapshots"
+        ).fetchall()
+    out = []
+    for r in rows:
+        reason = implied_move.refusal_for(r["pct"], r["strike"], r["spot"])
+        if reason is not None:
+            d = dict(r)
+            d["reason"] = reason
+            d["moneyness"] = implied_move.atm_moneyness(r["strike"], r["spot"])
+            out.append(d)
+    return out
+
+
+def purge_unsupported_snapshots(dry_run: bool = True) -> dict:
+    """Delete the stored rows the current bound refuses. IDEMPOTENT: a second
+    run finds nothing, because the live capture can no longer write one.
+
+    `dry_run=True` (the DEFAULT — this deletes member-visible history, so the
+    safe call is the one you get by accident) computes and reports everything
+    and writes nothing.
+
+    WHY DELETE RATHER THAN RE-MARK. This store is append-only and
+    first-write-wins, and every read path (`get_implied_for_date`,
+    `get_implied_history`, `all_symbols`, `get_earliest_report_date`) serves
+    whatever rows exist. Re-marking would mean a new column plus a new filter
+    on four readers, and any reader that forgot the filter would keep
+    publishing the fabricated number — a defect shaped exactly like the one
+    being fixed. Deleting makes the row's absence the fact, which every
+    reader already handles: the calendar renders a missing `expected_move` as
+    an em dash (`CalendarDayTable.jsx`: `expected_move?.pct != null ? ... :
+    enrichReady ? '—'`), never as 0. Re-capture is safe and self-consistent —
+    `_has_snapshot` goes False, tonight's job re-asks, and the same bound
+    refuses again and counts it under `summary["refused"]`.
+
+    Returns {"scanned", "unsupported", "deleted", "by_reason", "by_source",
+    "symbols"}; `deleted` is 0 on a dry run."""
+    _ensure_init()
+    with closing(_connect()) as c:
+        scanned = c.execute("SELECT COUNT(*) AS n FROM implied_snapshots").fetchone()["n"]
+    doomed = unsupported_snapshots()
+    by_reason: dict[str, int] = {}
+    by_source: dict[str, int] = {}
+    for r in doomed:
+        by_reason[r["reason"]] = by_reason.get(r["reason"], 0) + 1
+        src = r.get("source") or "?"
+        by_source[src] = by_source.get(src, 0) + 1
+    result = {"scanned": scanned, "unsupported": len(doomed), "deleted": 0,
+              "by_reason": by_reason, "by_source": by_source,
+              "symbols": sorted({r["sym"] for r in doomed})}
+    if dry_run or not doomed:
+        return result
+    with closing(_connect()) as c, c:
+        for r in doomed:
+            c.execute(
+                "DELETE FROM implied_snapshots WHERE sym = ? AND report_date = ?",
+                (r["sym"], r["report_date"]),
+            )
+            result["deleted"] += 1
+    _log.warning("[implied-store] purged %d unsupported snapshot(s): %s",
+                 result["deleted"], by_reason)
+    return result
 
 
 def repair_null_fiscal_keys(limit: int = 200, dry_run: bool = False) -> dict:

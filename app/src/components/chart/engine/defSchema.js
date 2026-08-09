@@ -162,6 +162,26 @@ export const PLACEMENT_TARGETS = Object.freeze(['price', 'pane', 'volume'])
 /** Repaint honesty label (spec §3). Phase A/B: audited metadata. */
 export const REPAINT_MODES = Object.freeze(['non-repainting', 'preview-repaints', 'repaints'])
 
+/**
+ * ⭐ THE SECOND HONESTY LABEL, AND IT EXISTS BECAUSE THE FIRST ONE RETURNS A
+ * TRUE ZERO. `ast/lint.js::astReach` answers `forward: 0` for a table-declared
+ * scalar — correctly: `market_cap` at bar `i` depends on no bar `j > i` — so the
+ * repaint badge brands a formula whose value is up to a day old
+ * `non-repainting` and no gate fires at all. The zero is a true answer to a
+ * question nobody asked, which is why there is a second vocabulary here rather
+ * than a fourth value in the one above: staleness and repainting are different
+ * facts and a single field could only express one of them.
+ *
+ *   live           — every value the formula reads comes from the bar it draws on
+ *   as-of-snapshot — at least one value is per-symbol and dated to a build
+ *   unknown        — the reader could not resolve a leaf. FAIL-CLOSED: the
+ *                    STALEST claim, mirroring `repaints`
+ *
+ * ⛔ NO CADENCE IN THE VALUE. `snapshot:nightly` would bake an open owner
+ * question (is nightly the right cadence?) into a persisted, user-visible field.
+ */
+export const FRESHNESS_MODES = Object.freeze(['live', 'as-of-snapshot', 'unknown'])
+
 /** Per-plot role — drives legend order, default widths, visual-budget linter. */
 export const PLOT_ROLES = Object.freeze(['primary', 'secondary', 'context', 'signal'])
 
@@ -690,6 +710,16 @@ function validateMeta(meta, def, errors) {
   if (meta.repaint !== undefined) {
     checkVocabulary(meta.repaint, REPAINT_MODES, [], 'meta.repaint', 'repaint mode', errors)
   }
+  // `freshness` is the same KIND of field as `repaint` and is guarded the same
+  // way, for the same stated reason: it is a truth claim about the maths that a
+  // user makes decisions on, and an unrecognised label rendered as "probably
+  // fine" is the coercion class. A future value arrives with a schema bump, not
+  // by luck. ⛔ AND IT IS NOT A FOURTH REPAINT VALUE — see FRESHNESS_MODES: the
+  // repaint linter answers 0 for a scalar and is RIGHT, so this is a second
+  // question rather than a wider answer to the first.
+  if (meta.freshness !== undefined) {
+    checkVocabulary(meta.freshness, FRESHNESS_MODES, [], 'meta.freshness', 'freshness mode', errors)
+  }
   // `legendParams` is the one meta field with a BEHAVIOURAL half: it names the
   // inputs the crosshair chip prints in parentheses (`RSI(14)`), so a key that
   // resolves to nothing renders the string "RSI(undefined)" in the readout.
@@ -1196,6 +1226,25 @@ function validatePlot(plot, index, seenKeys, inputsByKey, errors) {
       `fills in by hand is the audited metadata that record exists to replace. Declare ` +
       `${path}.forward — the number of bars ahead of its own index this column reads — and ` +
       `ast/lint.js derives the badge from it.`,
+    )
+  }
+  // ⛔ `plots[].freshness` — REFUSED, BY NAME, THE IDENTICAL CLAUSE ONE FIELD
+  // OVER AND FOR THE IDENTICAL REASON. A badge is the linter's MEASUREMENT, and
+  // a field an author fills in by hand is the audited metadata this apparatus
+  // exists to replace. Phase D Task 15 measured what happens otherwise: a
+  // `plots[].repaint` was **accepted and ignored** — preserved by the
+  // unknown-KEY policy, read by nothing — so an author could write a claim no
+  // user would see and no gate would check. There is no `plots[].forward`
+  // analogue here to point at either: `forward` exists because a HAND-WRITTEN
+  // compute can tell the linter the one fact it cannot derive, and freshness is
+  // derived from the TREE's leaves, which only an `ast` definition has.
+  if (Object.prototype.hasOwnProperty.call(plot, 'freshness')) {
+    errors.push(
+      `${path}.freshness — a plot may not declare a freshness badge. The badge is ` +
+      `ast/freshness.js's MEASUREMENT, read off the table-declared scalars the tree names, and a ` +
+      `field an author fills in by hand is exactly as false as a hand-set repaint badge. Declare ` +
+      `nothing here; \`nativeRegistry.validateAstLane\` requires \`meta.freshness\` on the "ast" ` +
+      `lane and refuses a disagreement in both directions.`,
     )
   }
   if (plot.role !== undefined) {

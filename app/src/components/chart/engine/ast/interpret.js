@@ -473,12 +473,15 @@ export function nodeCount(ast) {
  *  @param {object} [budget] the definition's stored `compute.budget`. Resolved
  *                  through `effectiveBudget`, so it can only ever TIGHTEN the
  *                  default and a stored blob cannot turn off its own limit.
+ *  @param {object} [scalars] this SYMBOL's values for the table's declared
+ *                  scalars. Every declared name is seeded whether or not it
+ *                  appears here; an absent or unusable value seeds NaN.
  *  @returns {Float64Array} exactly `bars.length` long, NaN-padded
  *
  *  Throws `TableRefusal` for anything the table refuses. Everything else — a
  *  `RangeError` from a tree deep enough to overflow the stack, say — is NOT a
  *  refusal and must never be caught and relabelled as one; see the header. */
-export function interpret(ast, bars, inputs, budget) {
+export function interpret(ast, bars, inputs, budget, scalars) {
   if (!Array.isArray(bars)) {
     // A PLAIN Error, NOT a TableRefusal: the table refuses what a USER wrote,
     // and the bars are the caller's. Conflating the two would let a wiring bug
@@ -516,6 +519,28 @@ export function interpret(ast, bars, inputs, budget) {
     scope[name] = col
   }
 
+  // ⭐ A DECLARED SCALAR IS ALWAYS IN SCOPE. Present or absent, the name
+  // RESOLVES — an absent value seeds NaN, exactly like a bar with a missing
+  // field. That is what separates "declared but not known for this symbol" (a
+  // HOLE a sweep counts and reports) from "a name this table never declared"
+  // (`resolve:name`, a formula defect). ⛔ AND NEVER 0: a missing market cap
+  // read as zero makes `market_cap > 1e9` a confident False, which is a broken
+  // symbol wearing a quiet one's answer.
+  //
+  // ⚠️ A BARE NUMBER, NOT A COLUMN. `lift1/2/3` already broadcast a scalar
+  // against a column and `toColumn` already fills `bars.length` from a bare
+  // number, so a scalar-only tree is a flat column — which is what makes it
+  // composable with a per-bar one.
+  //
+  // ⛔ AND `inputs` IS SEEDED AFTER, SO THE SHADOW CHECK BELOW SEES IT.
+  {
+    const provided = scalars || {}
+    for (const name of Object.keys(TABLE.scalars)) {
+      const v = own(provided, name) ? provided[name] : undefined
+      scope[name] = typeof v === 'number' && Number.isFinite(v) ? v : NaN
+    }
+  }
+
   for (const [name, value] of Object.entries(inputs || {})) {
     if (own(scope, name) || own(TABLE.functions, name)) {
       // A plain Error again: a definition whose input shadows `close` is a
@@ -523,7 +548,8 @@ export function interpret(ast, bars, inputs, budget) {
       // formula on that definition means.
       throw new Error(
         `interpret: the input ${JSON.stringify(name)} shadows a table name. `
-        + `The table declares ${declared(TABLE.series)} and ${declared(TABLE.functions)}.`)
+        + `The table declares ${declared(TABLE.series)}, ${declared(TABLE.functions)} `
+        + `and ${declared(TABLE.scalars)}.`)
     }
     // Only finite numbers are seeded. An input that is a function, an object or
     // a string is NOT a name this table can resolve, and leaving it out makes

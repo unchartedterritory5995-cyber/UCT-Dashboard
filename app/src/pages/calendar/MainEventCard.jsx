@@ -108,7 +108,8 @@ export default function MainEventCard({ entry, timing, livePrice, reaction, hasK
               {reaction >= 0 ? '▲ +' : '▼ '}{reaction.toFixed(1)}%</span></div>
         )}
 
-        {!reported && <ExpectedMovePair em={em} typical={typical} big />}
+        {!reported && <ExpectedMovePair em={em} typical={typical} big
+                                        outcome={entry.expected_move_outcome} />}
 
         {(entry.beat_history?.length > 0 || entry.hist_stats?.last_n?.length > 1) && (
           <div className={styles.mainMetaRow}>

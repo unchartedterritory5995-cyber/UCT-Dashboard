@@ -33,6 +33,8 @@ import time
 
 import requests
 
+from api.services import yf_util
+
 _logger = logging.getLogger(__name__)
 _CACHE_DIR = os.path.join(os.environ.get("DATA_DIR", "/data"), "logo_cache")
 _MISS_TTL = 7 * 86400            # a genuine "no logo anywhere" verdict — retry after 7 days
@@ -250,7 +252,7 @@ def _clearbit_logo_bytes(sym: str):
     """
     try:
         import yfinance as yf
-        info = yf.Ticker(sym).info or {}
+        info = yf_util.bounded_call(lambda: yf.Ticker(sym).info, None) or {}
         website = info.get("website") or ""
         if not website:
             return None

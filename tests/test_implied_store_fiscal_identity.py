@@ -252,7 +252,8 @@ def test_row_with_full_fiscal_key_captures_normally_positive_control(store):
     with patch.object(store, "upcoming_reporters", return_value=reporters), \
          patch.object(store.implied_move, "get_expected_move", return_value=_payload()):
         summary = store.run_nightly_capture(now=now)
-    assert summary == {"captured": 1, "skipped": 0, "failed": 0, "collisions": 0, "skipped_no_fiscal": 0}
+    assert summary == {"captured": 1, "skipped": 0, "failed": 0, "collisions": 0,
+                       "skipped_no_fiscal": 0, "refused": 0, "refused_by_reason": {}}
     rows = store.get_implied_history("GOODCO")
     assert rows[0]["fiscal_year"] == 2026 and rows[0]["fiscal_quarter"] == 2
 
