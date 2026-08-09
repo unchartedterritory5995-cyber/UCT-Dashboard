@@ -9,7 +9,8 @@ import threading as _threading
 import time as _time
 from datetime import datetime
 
-from fastapi import APIRouter, Body, HTTPException, Query, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
+from api.middleware.auth_middleware import require_admin
 # ORJSONResponse: ~7-8x faster serialize than stdlib on the shared event loop +
 # NaN/Inf -> null (stdlib emits invalid `NaN` tokens that crash client JSON.parse).
 # Aliased as JSONResponse so the index-bars response and the 503 error paths below
@@ -342,8 +343,21 @@ def reconciliation_status():
 
 
 @router.get("/api/admin/disk-status")
-def disk_status(live: bool = False):
-    """Volume usage + the largest consumers on this pod's /data (no auth — read-only).
+def disk_status(live: bool = False,
+                _admin: dict = Depends(require_admin)):
+    """Volume usage + the largest consumers on this pod's /data. ADMIN.
+
+    🔴 THIS SAID "(no auth - read-only)". Read-only is not the same as harmless:
+    the response NAMES every database on the volume by path and ranks them by
+    size, so an anonymous caller learned the product's storage layout - which
+    stores exist, and which are big enough to be worth attacking. `?live=1` also
+    re-walks the whole volume on demand, a caller-controlled cost on the single
+    web pod.
+
+    Its two documented-no-auth siblings, `/api/admin/bars-stream-status` and
+    `/api/admin/reconciliation-status`, are genuinely clean (counters only - no
+    paths, no symbols, no universe size) and are deliberately LEFT OPEN. This is
+    not a sweep of the family; it is the one member that leaks.
 
     Answers the question the 2026-07-23 incident could not: "what is actually
     eating the disk?" Per-feature guards only ever report on themselves, so the

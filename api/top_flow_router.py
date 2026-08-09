@@ -7,9 +7,32 @@ POST /api/top-flow/snapshot — WRITE-only: manual trigger to record a new price
                               Returns 202-style {"status": "started"} immediately and runs in a background task.
                               There is intentionally no GET handler — anonymous GETs fall through to the SPA
                               and return the index.html shell. To read the most recent snapshot, use /history.
+POST /api/top-flow/purge-old/{keep_days} — ARCHIVES active picks older than keep_days. ADMIN.
+
+🔴 `purge-old` WAS A GET, AND THAT IS THE WHOLE POINT OF THIS COMMENT.
+
+A GET is fetched by things that never decided to fetch it: search crawlers,
+Slack/Discord link-unfurl bots, browser prefetch, security scanners, a URL pasted
+into a chat window. `keep_days` is caller-supplied and taken straight from the
+path, so `GET /api/top-flow/purge-old/0` archived EVERY active pick — and it was
+reachable by anybody, with no credential of any kind (auth/paywall sweep,
+2026-08-09). One unfurl of that URL was a data-loss event nobody requested.
+
+Two things changed together, and BOTH are load-bearing:
+  * the VERB — a side-effecting operation must not answer a safe method, so no
+    prefetcher can fire it by looking at a link;
+  * the GATE — `require_flow_admin`, the same door `/wipe` and `/archive-now`
+    already use. The verb alone is not a gate (a form post, a CSRF-shaped
+    request and an ops curl are all POSTs); the gate alone would still leave a
+    destructive operation behind a method the whole web treats as safe.
+
+⚠️ It has no frontend caller — swept 2026-08-09 across `app/src` and both
+OptionsFlow copies; the only reference in the repo was the roadmap doc listing
+it. So this is not a breaking change for any member: it is closing a door that
+only crawlers were walking through.
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Path
 from api.flow_admin_auth import require_flow_admin, require_flow_user
 from pydantic import BaseModel
 
@@ -38,7 +61,16 @@ def save_picks(picks: list[Pick], _auth: dict = Depends(require_flow_user)):
 
 
 @router.get("/history")
-def get_history():
+def get_history(_auth: dict = Depends(require_flow_user)):
+    """Every active + archived Top Flow pick with its daily price history.
+
+    Gated 2026-08-09. This is the firm's own tracked-pick performance record —
+    which contracts were called, at what entry, and how they did — and its only
+    consumer is `OptionsFlow.jsx`, a page `AuthGuard` serves to paid/admin only
+    (`FREE_PAGES = ['/morning-wire']`). `require_flow_user` is the same door
+    `/save` and `/snapshot` already use, so a logged-in member's browser is
+    unaffected while an anonymous caller no longer gets the record for free.
+    """
     from api.top_flow_tracker import get_all
     return get_all()
 
@@ -135,9 +167,17 @@ def wipe_all(_auth: dict = Depends(require_flow_admin)):
     return {"wiped_active": n_active, "wiped_archived": n_archived}
 
 
-@router.get("/purge-old/{keep_days}")
-def purge_old(keep_days: int = 30):
-    """Remove active picks older than keep_days by dateSaved. Moves them to archived."""
+@router.post("/purge-old/{keep_days}")
+def purge_old(keep_days: int = Path(ge=0, le=3650),
+              _auth: dict = Depends(require_flow_admin)):
+    """Archive active picks older than keep_days by dateSaved.
+
+    ⛔ POST + admin, never GET — see the module docstring. `keep_days` is also
+    BOUNDED now (`ge=0, le=3650`): the handler builds a cutoff with
+    `date.today() - timedelta(days=keep_days)`, and an unbounded caller-supplied
+    value raised `OverflowError`/`OverflowError: date value out of range` off the
+    request path rather than answering honestly.
+    """
     from api.top_flow_tracker import _data, _save
     from datetime import date, timedelta
     cutoff = (date.today() - timedelta(days=keep_days)).isoformat()

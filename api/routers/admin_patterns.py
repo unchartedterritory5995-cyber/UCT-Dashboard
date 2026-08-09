@@ -2,6 +2,18 @@
 
 Phase 0.5 surfaces engine health as JSON.
 Phase 5 adds /recent + /{id}/review for Gate 5 shadow-mode operator review.
+
+🔴 EVERY ROUTE IN A ROUTER PREFIXED `/api/admin/` WAS OPEN TO THE INTERNET until
+2026-08-09. `GET /api/admin/patterns/recent` answered an anonymous caller with
+**3,908,605 bytes** — the largest single response in the whole auth/paywall
+sweep: every detection the engine made in the window, with geometry, levels,
+confidence components, narrative, AND the operator's accept/reject adjudication.
+`POST /{detection_id}/review` let anyone WRITE that adjudication, and the
+accept-rate it produces is the Gate-5 number that decides whether the engine
+ships to members. `/health` publishes per-detector health across the universe.
+
+`/api/admin` in the path was never a gate — it is a naming convention. All three
+now carry `Depends(require_admin)`, which is the real one.
 """
 from __future__ import annotations
 
@@ -9,8 +21,10 @@ import json
 import time
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+
+from api.middleware.auth_middleware import require_admin
 
 from api.services.pattern_engine.pattern_db import get_connection, init_db
 from api.services.pattern_engine import memory
@@ -21,7 +35,7 @@ router = APIRouter(prefix="/api/admin/patterns", tags=["admin-patterns"])
 
 
 @router.get("/health")
-def health():
+def health(_admin: dict = Depends(require_admin)):
     return collect_health()
 
 
@@ -101,7 +115,8 @@ def _row_to_detection_with_review(row) -> dict:
 
 
 @router.get("/recent")
-def recent_detections(hours: int = Query(default=24, ge=1, le=168)):
+def recent_detections(hours: int = Query(default=24, ge=1, le=168),
+                      _admin: dict = Depends(require_admin)):
     """Return detections from the last N hours (default 24, max 7 days)
     with operator review status joined in.
 
@@ -165,7 +180,8 @@ def recent_detections(hours: int = Query(default=24, ge=1, le=168)):
 
 
 @router.post("/{detection_id}/review")
-def review_detection(detection_id: str, body: ReviewBody):
+def review_detection(detection_id: str, body: ReviewBody,
+                     _admin: dict = Depends(require_admin)):
     """Operator records accept / reject / flag for a detection.
 
     Maps to the existing pattern_feedback table:

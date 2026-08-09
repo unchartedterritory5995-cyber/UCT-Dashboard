@@ -28,10 +28,27 @@ Cache invalidation: total_rows from the DB acts as the version key.
 Uploads/prunes change the count → /version endpoint reports the new
 number → clients append it as ?v=N → CF treats it as a fresh URL.
 Both client-side and server-side caches invalidate in sync.
+
+🔴 EVERY READ HERE IS GATED (`require_flow_user`, 2026-08-09). Before that,
+`GET /api/darkpool/aggregated` answered an anonymous caller with **710 KB of the
+firm's aggregated off-exchange print dataset**, and `/data` served the raw CSV.
+`/dates`, `/version`, `/stats` and the two `*-ingest/status` siblings went with
+the payload routes where they describe the dataset (row counts, coverage dates)
+rather than the pod.
+
+The comment banners below still read "Public:" in a few places — they described
+the ACCIDENT, not a ruling. They now say "Member:".
+
+⚠️ Same Cloudflare residual as `flow_router.py`: `/data` and `/aggregated` are
+`Cache-Control: public, max-age=300, stale-while-revalidate=86400`, and CF keys
+on the URL, not the cookie — so the ORIGIN is closed but a warmed edge body can
+still reach an anonymous caller inside that window. Closing it fully is a
+Cloudflare Cache Rule, not a code change. Written up as an owner action in
+`.superpowers/sdd/audit/fix-exposed-routes-report.md`.
 """
 
 from fastapi import APIRouter, UploadFile, File, Query, HTTPException, Request, Depends
-from api.flow_admin_auth import require_flow_admin
+from api.flow_admin_auth import require_flow_admin, require_flow_user
 from fastapi.responses import JSONResponse, Response
 from fastapi.concurrency import run_in_threadpool
 from collections import OrderedDict
@@ -159,10 +176,11 @@ def _serve_csv(days, request: Request):
     return Response(content=content, media_type="text/csv", headers=_DARKPOOL_CACHE_HEADERS)
 
 
-# ── Public: Retrieve dark pool data as CSV ────────────────────────────────────
+# ── Member: Retrieve dark pool data as CSV ────────────────────────────────────
 @router.get("/data")
 async def get_darkpool_data(
     request: Request,
+    _auth: dict = Depends(require_flow_user),
     days: int = Query(default=1, ge=0, description="Number of trading days (0 = all)"),
     all_data: bool = Query(default=False),
 ):
@@ -176,11 +194,12 @@ async def get_darkpool_data(
     return _serve_csv(days, request)
 
 
-# ── Public: Aggregated JSON (new primary endpoint) ────────────────────────────
+# ── Member: Aggregated JSON (new primary endpoint) ────────────────────────────
 @router.get("/aggregated")
 async def get_darkpool_aggregated(
     days: int = Query(default=1, ge=0, description="Trading days (0 = all)"),
     all_data: bool = Query(default=False),
+    _auth: dict = Depends(require_flow_user),
 ):
     """Return aggregated dark pool data as JSON.
 
@@ -218,9 +237,9 @@ async def prebuild_now(_auth: dict = Depends(require_flow_admin)):
     return JSONResponse({"status": "prebuild started"})
 
 
-# ── Public: Get available trading dates ───────────────────────────────────────
+# ── Member: Get available trading dates ───────────────────────────────────────
 @router.get("/dates")
-async def get_dates():
+async def get_dates(_auth: dict = Depends(require_flow_user)):
     """Return list of available trading dates for the date picker."""
     try:
         dates = get_available_dates()
@@ -229,9 +248,9 @@ async def get_dates():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── Public: Cache-busting version key ────────────────────────────────────────
+# ── Member: Cache-busting version key ────────────────────────────────────────
 @router.get("/version")
-async def get_version():
+async def get_version(_auth: dict = Depends(require_flow_user)):
     """Returns DB total_rows. Changes whenever rows are inserted (uploads) or
     removed (prune). Clients append this as &v=<version> to /data requests so
     CF treats each version as a separate cache entry — old cached responses
@@ -357,9 +376,9 @@ async def massive_ingest_status():
     return JSONResponse(get_run_state())
 
 
-# ── Public: Today's live intraday preview ─────────────────────────────────────
+# ── Member: Today's live intraday preview ─────────────────────────────────────
 @router.get("/today")
-async def get_darkpool_today():
+async def get_darkpool_today(_auth: dict = Depends(require_flow_user)):
     """Aggregated view of TODAY's live off-exchange prints (the darkpool_today
     preview table), refreshed by the intraday poller every few minutes.
 
@@ -400,7 +419,7 @@ async def intraday_ingest_status():
 
 
 @router.get("/stats")
-async def darkpool_stats():
+async def darkpool_stats(_auth: dict = Depends(require_flow_user)):
     """Return database statistics."""
     try:
         return JSONResponse(get_stats())
@@ -435,10 +454,11 @@ async def clear_data(_auth: dict = Depends(require_flow_admin)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── Public: Ticker drill-down (print history for one ticker) ─────────────────
+# ── Member: Ticker drill-down (print history for one ticker) ─────────────────
 @router.get("/ticker-detail")
 async def get_ticker_detail(
     sym: str = Query(..., description="Ticker symbol", min_length=1, max_length=10),
+    _auth: dict = Depends(require_flow_user),
     days: int = Query(default=30, ge=5, le=365, description="Trading-day window"),
     limit: int = Query(default=30, ge=5, le=100, description="Max prints to return"),
 ):

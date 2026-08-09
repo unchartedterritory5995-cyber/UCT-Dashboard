@@ -1,9 +1,26 @@
 """Pattern recognition REST endpoints.
 
-Phase 0 surfaces three endpoints:
-  - GET /api/patterns/types
-  - GET /api/patterns/{sym}?tf=&types=&min_conf=
-  - POST /api/patterns/{detection_id}/feedback
+Read the router for the route set — this file has grown well past the three
+endpoints the old header named, and a hand-typed list beside the source that
+owns it is this repo's most-repeated defect.
+
+🔴 FOUR ROUTES WERE ANONYMOUS until 2026-08-09 and they are the pattern engine's
+whole output: `/scan` (**58,856 bytes** — a universe-wide scan of the 50-detector
+engine), `/types` (**21,567 bytes** — the full detector registry with every
+detector's definition and metadata, i.e. the engine's design), `/{sym}`, and
+`POST /{detection_id}/feedback`, which WROTE rows into the training pool.
+
+Now:
+  * `/types`, `/scan`, `/{sym}` → `require_paid`. Their only consumers are
+    `pages/Patterns.jsx` and `pages/patterns/PatternFilter.jsx`, both inside a
+    page `AuthGuard` serves to paid/admin only.
+  * `POST /{detection_id}/feedback` → `get_current_user`, matching its already
+    correctly-gated sibling `POST /api/patterns/feedback`. It records a member's
+    rating of a detection; anonymous writes into a pool that trains the engine is
+    an integrity problem, not a paywall one, so the gate is "a real account" and
+    the `user_id` now comes from the SESSION rather than the request body — a
+    caller-supplied `user_id` on an anonymous route let anyone write feedback in
+    anyone's name.
 
 Note: detectors must be imported at module load so they register themselves.
 """
@@ -14,7 +31,12 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from api.middleware.auth_middleware import get_current_user, require_admin
+from api.middleware.auth_middleware import (
+    get_current_user,
+    get_current_user_with_plan,
+    is_paid_user,
+    require_admin,
+)
 
 # Importing the detector modules triggers self-registration with the registry.
 from api.services.pattern_engine.detectors.classical import golden_cross as _golden_cross  # noqa: F401
@@ -111,6 +133,22 @@ import time
 
 
 router = APIRouter(prefix="/api/patterns", tags=["patterns"])
+
+
+def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    """Paid gate for the pattern engine's output.
+
+    ⛔ Defined HERE, not imported from a sibling. Every router that gates on
+    `require_paid` defines its own with its OWN 402 sentence, so "which surface
+    locked me out" is answerable from the message alone. The rail is
+    `tests/test_user_definitions_auth.py::test_require_paid_is_defined_PER_ROUTER…`,
+    which walks `api/routers/` by AST and fails on a shared import.
+    """
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402,
+                            detail="The pattern engine requires a paid plan")
+    return user
+
 
 
 _PATTERN_METADATA = {
@@ -628,7 +666,7 @@ _PATTERN_METADATA = {
 
 
 @router.get("/types")
-def list_types():
+def list_types(_user: dict = Depends(require_paid)):
     """Return all registered pattern types with metadata."""
     ids = list_pattern_ids()
     out = []
@@ -725,6 +763,7 @@ def _load_leader_tickers() -> set[str]:
 @router.get("/scan")
 def scan_universe(
     types: Optional[str] = Query(default=None, description="comma-separated pattern_ids"),
+    _user: dict = Depends(require_paid),
     tf: str = Query(default="D"),
     min_conf: float = Query(default=70.0, ge=50.0, le=100.0),
     category: Optional[str] = Query(default=None, description="filter to classical/candlestick/uct/structure"),
@@ -827,6 +866,7 @@ def scan_universe(
 @router.get("/{sym}")
 def get_detections(
     sym: str,
+    _user: dict = Depends(require_paid),
     tf: str = Query(default="D"),
     types: Optional[str] = Query(default=None, description="comma-separated pattern_ids to filter"),
     min_conf: float = Query(default=50.0, ge=0.0, le=100.0),
@@ -849,15 +889,26 @@ def get_detections(
 
 class FeedbackBody(BaseModel):
     rating: str
-    user_id: str
+    #: ⚠️ ACCEPTED AND IGNORED. The author is taken from the session (see
+    #: `post_feedback`). Kept optional rather than removed so an older caller
+    #: still sending it gets its feedback recorded instead of a 422 — but it can
+    #: no longer decide WHOSE feedback this is.
+    user_id: Optional[str] = None
     note: Optional[str] = None
 
 
 @router.post("/{detection_id}/feedback")
-def post_feedback(detection_id: str, body: FeedbackBody):
-    """Record user feedback on a detection. Returns the new feedback row id."""
+def post_feedback(detection_id: str, body: FeedbackBody,
+                  user: dict = Depends(get_current_user)):
+    """Record user feedback on a detection. Returns the new feedback row id.
+
+    ⛔ The author is the SESSION, not `body.user_id`. While this route was
+    anonymous a caller could file feedback under any id they typed — including
+    `admin_operator`, the id `api/routers/admin_patterns.py` reserves for the
+    Gate-5 operator review whose accept-rate decides whether the engine ships.
+    """
     try:
-        fb_id = memory.record_feedback(detection_id, body.user_id, body.rating, body.note)
+        fb_id = memory.record_feedback(detection_id, str(user["id"]), body.rating, body.note)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"ok": True, "feedback_id": fb_id}
