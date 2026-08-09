@@ -919,16 +919,16 @@ def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None) -> int:
                 """
             )
             adopted = cur.rowcount if cur.rowcount is not None else 0
-            # Best-effort provenance merge — older snapshots may lack the
-            # table; same OR IGNORE no-regress semantics.
-            try:
-                conn.execute(
-                    "INSERT OR IGNORE INTO bars_provenance "
-                    "(ticker,tf,ts,source,fetched_at) "
-                    "SELECT ticker,tf,ts,source,fetched_at FROM snap.bars_provenance"
-                )
-            except sqlite3.Error:
-                pass
+            # ⚰️ A BEST-EFFORT `bars_provenance` MERGE SAT HERE UNTIL 2026-08-09.
+            # It copied rows from `snap.bars_provenance` into a local table that
+            # held 0 rows on both sides, because nothing in the product ever
+            # wrote one — the table and its three accessors were deleted from
+            # `bars_sqlite.py` in the same commit (the live provenance system is
+            # `bar_provenance.py`, singular). It was wrapped in
+            # `except sqlite3.Error: pass`, so removing it is safe in BOTH
+            # rolling-deploy directions: an old pod merging a new snapshot, or a
+            # new pod merging an old one, each swallow the missing table exactly
+            # as they always did.
             conn.commit()
             return adopted
         finally:
@@ -1009,8 +1009,8 @@ def sync_if_newer_merge() -> Optional[str]:
 # ── Delta export / upload (worker side) ─────────────────────────────────────
 
 def _export_delta_db(out_path: str, now: Optional[int] = None) -> int:
-    """Build a small SQLite at out_path holding only ohlcv + bars_provenance
-    rows newer than the per-tf cutoff. Returns ohlcv rows exported. Reads the
+    """Build a small SQLite at out_path holding only the ohlcv rows newer
+    than the per-tf cutoff. Returns ohlcv rows exported. Reads the
     live bars.db read-only (WAL allows concurrent reads while the prewarmer
     writes). Column lists match bars_sqlite.init_db exactly."""
     cutoffs = _delta_cutoffs(now)
@@ -1024,11 +1024,9 @@ def _export_delta_db(out_path: str, now: Optional[int] = None) -> int:
                 "ts INTEGER NOT NULL, o REAL, h REAL, l REAL, c REAL, v INTEGER, "
                 "PRIMARY KEY (ticker, tf, ts))"
             )
-            out.execute(
-                "CREATE TABLE IF NOT EXISTS bars_provenance (ticker TEXT NOT NULL, "
-                "tf TEXT NOT NULL, ts INTEGER NOT NULL, source TEXT NOT NULL, "
-                "fetched_at INTEGER NOT NULL, PRIMARY KEY (ticker, tf, ts))"
-            )
+            # ⚰️ A `bars_provenance` table was created in the delta here (and
+            # filled from a source table that was always empty) until
+            # 2026-08-09. See the note in `_merge_snapshot_db` above.
             total = 0
             for tf, cut in cutoffs.items():
                 rows = src.execute(
@@ -1040,19 +1038,6 @@ def _export_delta_db(out_path: str, now: Optional[int] = None) -> int:
                         "INSERT OR REPLACE INTO ohlcv VALUES (?,?,?,?,?,?,?,?)", rows
                     )
                     total += len(rows)
-                # Provenance is best-effort (table may be empty for legacy rows).
-                try:
-                    prov = src.execute(
-                        "SELECT ticker,tf,ts,source,fetched_at FROM bars_provenance "
-                        "WHERE tf=? AND ts>=?",
-                        (tf, cut),
-                    ).fetchall()
-                    if prov:
-                        out.executemany(
-                            "INSERT OR REPLACE INTO bars_provenance VALUES (?,?,?,?,?)", prov
-                        )
-                except sqlite3.Error:
-                    pass
             out.commit()
             return total
         finally:

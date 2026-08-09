@@ -1132,11 +1132,18 @@ function ChartToolbar({
                and reach the ONE builder sheet mounted below; nothing about the
                builder is duplicated, and a member who opens it from either door
                lands in the same draft.
-               ⚠️ AND THAT SENTENCE MAY NOT SPELL THE JSX TAG. `BuilderSheet.test.jsx`
-               counts mount sites by matching the opening tag against the RAW FILE,
-               so naming it in prose anywhere in this module reports a SECOND mount
-               and reds a rail that is otherwise correct — the grep-not-an-AST
-               lesson, live, in the file it guards.
+               ⚰️ THIS SAID *"AND THAT SENTENCE MAY NOT SPELL THE JSX TAG"* until
+               2026-08-09, because `BuilderSheet.test.jsx` counted mount sites by
+               matching the opening tag against the RAW FILE — so naming it in prose
+               anywhere in this module reported a SECOND mount and redded a rail that
+               was otherwise correct. It is fixed: that rail parses this file and
+               counts JSXElement nodes, and comments are not in an AST at all. The
+               paragraph is kept in the past tense rather than deleted because the
+               constraint shaped how this whole block is worded, and because it is
+               the cleanest live example in the repo of why a probe over source text
+               is not a probe over source (`lesson_probe_names_must_be_derived_not_
+               typed`): the SOURCE had been contorted to please a broken check, and
+               the failure read as *"you added a second mount"* to anyone who hit it.
                ⚠️ THE LIBRARY CLOSES FIRST, DELIBERATELY. Both are `Sheet`s, and
                `Sheet` installs a body-scroll lock and an Escape handler that calls
                `e.stopPropagation()` — two open at once means one Escape closes the

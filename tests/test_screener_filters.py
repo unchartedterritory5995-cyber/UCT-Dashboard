@@ -92,6 +92,14 @@ def test_a_preset_free_control_stays_preset_free():
     ⛔ THE SET IS DERIVED FROM THE CONSTRUCTOR (`presets_deferred`), never
     retyped: the marker rides on the filter, so a threshold quietly added to one
     of them later fails here without anyone remembering to update a list.
+
+    ⭐ A DEFINITION IS NOT AN OPINION, and the exemption is derived from the
+    filter (`factual_presets`), never from a list of labels retyped here.
+    `dividend_yield > 0` IS what "pays a dividend" means; there is no other
+    number to choose, so shipping it asserts nothing on the firm's behalf. The
+    line between the two is whether a reasonable trader could pick a different
+    boundary — for "cheap P/E" there are a hundred, which is why `pe_ttm` is
+    still bare below and this rail still fails if it stops being.
     """
     deferred = {k: f for k, f in filters.FILTERS.items()
                 if f.get("presets_deferred")}
@@ -99,13 +107,82 @@ def test_a_preset_free_control_stays_preset_free():
     assert len(deferred) >= 10, f"only {len(deferred)} preset-free controls found"
     for key, f in deferred.items():
         labels = [p["label"] for p in f["presets"]]
-        assert labels == ["Any"], (
-            f"{key} ships preset thresholds {labels} — those are the firm's "
-            f"opinion and the firm has not published them (E-8). Ship the "
-            f"control; leave the threshold to the owner.")
+        allowed = ["Any", *f.get("factual_presets", ())]
+        assert labels == allowed, (
+            f"{key} ships preset thresholds {labels} — anything beyond {allowed} "
+            f"is the firm's opinion and the firm has not published it (E-8). "
+            f"Ship the control; leave the threshold to the owner.")
         assert f["allow_custom"] is True, (
             f"{key} has no presets AND no custom range — that is not a "
             f"control, it is a label")
+
+
+#: ⭐ THE THREE FACTUAL PRESETS, AND WHY EACH ONE IS A DEFINITION RATHER THAN A
+#: VERDICT. Named here so the exemption is reviewable prose and not a silent
+#: `factual_presets` key that any future filter could quietly acquire.
+FACTUAL_PRESETS = {
+    "dividend_yield": ("Pays a dividend",
+                       "a yield above zero IS paying one; 205 corroborated zeros"),
+    "debt_to_equity": ("Debt-free", "zero debt IS debt-free; 238 corroborated"),
+    "beta":           ("Less volatile than the market",
+                       "the market is 1.0 by construction"),
+}
+
+
+def test_only_the_reviewed_definitions_are_exempt():
+    """⛔ THE GUARD ON THE EXEMPTION. `factual_presets` makes a preset invisible
+    to the rail above, so without this a fourth filter could be handed one and
+    ship `pe_ttm < 15` wearing a "definition" label.
+
+    ⭐ SELF-CLEANING IN BOTH DIRECTIONS: a new exemption fails until it is
+    reviewed and named here, and deleting a preset from the registry fails until
+    the entry is removed too.
+    """
+    exempt = {k: tuple(f["factual_presets"]) for k, f in filters.FILTERS.items()
+              if f.get("factual_presets")}
+    assert set(exempt) == set(FACTUAL_PRESETS), (
+        f"the exempt set is {sorted(exempt)}, reviewed is "
+        f"{sorted(FACTUAL_PRESETS)} — an unreviewed exemption is how an "
+        f"editorial threshold ships disguised as a definition")
+    for key, (label, _why) in FACTUAL_PRESETS.items():
+        assert exempt[key] == (label,), f"{key} exempts {exempt[key]}, not {label!r}"
+
+
+def test_a_factual_preset_uses_the_STRICT_operator_its_label_claims():
+    """🔴 THE HALF THAT MAKES THE LABEL TRUE, and each is a real defect avoided.
+
+    `dividend_yield >= 0` returns the 205 corroborated ZEROS under a control
+    that says "pays a dividend". `debt_to_equity <= 0` returns NEGATIVE-equity
+    companies — distressed names — under "debt-free". `beta <= 1` returns a beta
+    of exactly 1.00 under "less volatile than the market". An inclusive operator
+    here does not soften the claim; it makes it false.
+    """
+    want = {
+        "dividend_yield": ("gt", "min", 0),
+        "debt_to_equity": ("eq", "value", 0),
+        "beta":           ("lt", "max", 1),
+    }
+    for key, (op, field, value) in want.items():
+        f = filters.FILTERS[key]
+        preset = next(p for p in f["presets"] if p["label"] != "Any")
+        assert preset["op"] == op, (
+            f"{key}'s {preset['label']!r} uses {preset['op']!r}; the inclusive "
+            f"form makes the label state something untrue")
+        assert preset[field] == value
+        assert filters.is_valid_op(key, op), (
+            f"{key} ships a {op!r} preset the query builder would reject — the "
+            f"control renders and refuses to run")
+
+
+def test_the_editorial_thresholds_are_still_NOT_shipped():
+    """The other side of the line. This whole change is worthless if it becomes
+    the precedent for shipping `pe_ttm < 15`."""
+    for key in ("pe_ttm", "ps", "pb", "gross_margin", "net_margin", "roa",
+                "current_ratio"):
+        labels = [p["label"] for p in filters.FILTERS[key]["presets"]]
+        assert labels == ["Any"], (
+            f"{key} grew presets {labels}. A P/E, a margin or a current ratio "
+            f"has no definitional boundary — those are the owner's call (E-8)")
 
 
 def test_no_bulk_filled_column_gains_an_invented_threshold():
@@ -118,13 +195,22 @@ def test_no_bulk_filled_column_gains_an_invented_threshold():
     ⭐ SELF-CLEANING IN BOTH DIRECTIONS: the day the owner decides `roe`'s
     presets, striking them from the registry makes this fail until the
     allowance is deleted too.
+
+    ⚠️ A FACTUAL preset does not count as a threshold here — `dividend_yield >
+    0` is what "pays a dividend" MEANS, not a number this firm picked. The
+    exemption is DERIVED from the filter's own `factual_presets`, and
+    `test_only_the_reviewed_definitions_are_exempt` is the guard that stops a
+    genuine opinion putting on that label.
     """
     from api.services.screener import fundamentals_bulk as fb
     offenders, stale = [], []
     for key, f in filters.FILTERS.items():
         if f["column"] not in fb.COLUMNS_WRITTEN or f["type"] != "range":
             continue
-        has_presets = [p["label"] for p in f["presets"]] != ["Any"]
+        editorial = [p["label"] for p in f["presets"]
+                     if p["label"] != "Any"
+                     and p["label"] not in f.get("factual_presets", ())]
+        has_presets = bool(editorial)
         if has_presets and key not in PRESETS_PREDATE_THE_RULE:
             offenders.append(key)
         if not has_presets and key in PRESETS_PREDATE_THE_RULE:
@@ -272,3 +358,141 @@ def test_every_new_control_accepts_the_ops_the_panel_can_emit():
         ops = ("gte", "lte", "between") if f["type"] == "range" else ("eq",)
         for op in ops:
             assert filters.is_valid_op(key, op), f"{key} rejects {op}"
+
+
+# ───────── ONE COLUMN, TWO REGISTERS — and the rail that keeps them one ──────
+#
+# 🔴 THE DEFECT SHAPE. `close_position` is named, in words, in two member-facing
+# places, and on 2026-08-09 nothing connected them:
+#
+#   * `filters.py` — label **"Close Position in Range"**, a control label in the
+#     classic screener's Single Candle group.
+#   * `closedTable.json::scalars.close_position.sentence` — **"the close's
+#     position inside the bar's range"**, the read-back fragment that has to slot
+#     into `<phrase> is greater than or equal to 0.66` in the builder.
+#
+# ⭐ THERE IS NO THIRD. A census on 2026-08-09 looked for the screener column
+# header the audit suspected: `close_position` has no entry in
+# `app/src/pages/screener/columnDefs.js` and appears in no `filters.VIEWS`
+# column list, so `ResultsTable` never renders a header for it. The chips row
+# derives its text from `def.label` (`chipLabel.js`), and the concept
+# vocabulary's phrase is produced by calling `sentenceFor(...)` and is asserted
+# equal in `conceptVocabulary.test.js`. Two phrasings, not three.
+#
+# ⭐ AND THEY ARE NOT COLLAPSIBLE, WHICH IS WHY THIS IS A RAIL AND NOT A REFACTOR.
+# The two populations do different jobs and read differently on purpose: labels
+# abbreviate ("ROE", "PEG", "P/E (TTM)"), sentences spell out ("the return on
+# equity", "the trailing price/earnings ratio"). Deriving either from the other
+# would force one string into two slots and make one of the two surfaces read
+# badly — for 38 columns, not one. So the rail below checks the things that CAN
+# be crossed: that both lanes still name the column, that they agree on what it
+# yields, and that neither has been "de-duplicated" into the other's slot.
+#
+# ⛔ WHAT THIS CANNOT CHECK, STATED SO NOBODY MISTAKES IT FOR COVERAGE: it cannot
+# tell you the two phrasings still MEAN the same thing. No mechanical rule spans
+# "ROE" and "the return on equity" without a hand-written alias table, and a hand
+# table is the third authority this whole exercise exists to avoid.
+
+#: The one mapping between the two vocabularies, stated once. `enum` filters name
+#: text columns (`sector`, `patterns`, `candle_type`, …) that the closed table
+#: does not declare as scalars at all, so they pair with nothing and are excluded
+#: BY THE ABSENCE OF A SCALAR, never by a list of keys.
+_YIELDS_TO_CONTROL = {"num": "range", "bool": "bool"}
+
+
+def _paired_columns():
+    """`column -> (filter key, filter spec, scalar name, scalar spec)` for every
+    snapshot column BOTH member-facing lanes name.
+
+    ⛔ DERIVED FROM BOTH REGISTRIES, never listed. The day a scalar lands with a
+    control — or a control lands over a declared scalar — it is in here without
+    anybody remembering to add it, which is the only way this rail can catch the
+    next `close_position` instead of only the one it was written for.
+    """
+    from api.services import ast_table
+
+    scalars = {k: v for k, v in ast_table.TABLE["scalars"].items()
+               if not k.startswith("_")}
+    by_column = {}
+    for name, spec in scalars.items():
+        src = spec.get("source") or {}
+        if src.get("store") != "screener_rows":
+            continue
+        by_column.setdefault(src.get("column"), []).append((name, spec))
+
+    out = {}
+    for key, f in filters.FILTERS.items():
+        for name, spec in by_column.get(f["column"], ()):
+            out.setdefault(f["column"], []).append((key, f, name, spec))
+    return out
+
+
+def test_the_two_lane_pairing_is_not_vacuous():
+    """⛔ A rail that judges an empty set passes for the wrong reason forever."""
+    pairs = _paired_columns()
+    assert len(pairs) > 30, (
+        f"only {len(pairs)} columns are named by both the filter registry and the "
+        "closed table. Either a registry moved or the reader below is broken — "
+        "every assertion in this section would then be measuring nothing.")
+
+
+def test_a_column_named_by_both_lanes_is_named_ONCE_in_each():
+    """Two controls over one column, or two scalars over one column, is the
+    second-authority defect in its purest form: a member changes one and the
+    other keeps answering the old way."""
+    for column, entries in _paired_columns().items():
+        assert len(entries) == 1, (
+            f"{column} is named {len(entries)} times across the two lanes: "
+            f"{[(e[0], e[2]) for e in entries]}")
+
+
+def test_the_two_lanes_AGREE_ON_WHAT_A_COLUMN_YIELDS():
+    """🔴 The mutation this catches is real: the `close_position` fix harness
+    plants exactly it (`yields: num -> bool`). A column the builder reads as a
+    number and the screener offers as a checkbox is one column with two
+    contradictory contracts, and the member meets whichever surface they opened.
+    """
+    for column, ((fkey, f, sname, spec),) in _paired_columns().items():
+        expected = _YIELDS_TO_CONTROL.get(spec.get("yields"))
+        assert expected is not None, (
+            f"the closed table says {sname} yields {spec.get('yields')!r}, which "
+            "no control type corresponds to — add the correspondence deliberately "
+            "or fix the declaration")
+        assert f["type"] == expected, (
+            f"{column}: the closed table says it yields {spec['yields']!r} but "
+            f"filters.py ships a {f['type']!r} control ({fkey} / {sname})")
+
+
+def test_the_control_LABEL_and_the_read_back_SENTENCE_stay_TWO_STRINGS():
+    """⭐ THE WRONG FIX, ASSERTED AGAINST.
+
+    Faced with two phrasings of one column, the tempting move is to make one
+    string serve both jobs. It cannot: the label sits in a form control and the
+    sentence sits mid-clause after `1 when …` and before `is greater than or
+    equal to 0.66`. Copying either into the other's slot ships gibberish on one
+    of the two surfaces — the CLAUSE-shaped sentence this rail's subject already
+    shipped once (`closedTable.test.js` owns that half).
+
+    ⛔ BOTH REGISTER RULES ARE READ OFF THE POPULATIONS, not typed as taste:
+    every one of the filter registry's labels opens on a capital, and every one
+    of the closed table's sentences opens in lower case. The evidence counts are
+    asserted first so this cannot judge off a handful of entries.
+    """
+    from api.services import ast_table
+
+    labels = [f["label"] for f in filters.FILTERS.values()]
+    sentences = [s["sentence"] for k, s in ast_table.TABLE["scalars"].items()
+                 if not k.startswith("_") and s.get("sentence")]
+    assert len(labels) > 30 and len(sentences) > 30, (
+        f"{len(labels)} labels / {len(sentences)} sentences — too few to read a "
+        "register off, so the rules below would be one agent's taste")
+
+    assert [l for l in labels if l[:1].islower()] == [], (
+        "a filter label opens in lower case — that is the read-back register. A "
+        "sentence pasted into a control label reads as a broken caption.")
+    assert [s for s in sentences if s[:1].isupper()] == [], (
+        "a closed-table sentence opens on a capital — that is the control-label "
+        "register. It lands mid-clause in the builder's read-back.")
+    assert set(labels) & set(sentences) == set(), (
+        "a control label and a read-back sentence are now the same string. One "
+        "string cannot do both jobs; keep the two phrasings and keep this rail.")

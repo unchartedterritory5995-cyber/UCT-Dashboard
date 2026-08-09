@@ -1,19 +1,51 @@
-"""Tests for the admin chart-health router (audit + quarantine REST endpoints)."""
+"""Tests for the admin chart-health router (audit + quarantine REST endpoints).
+
+🔴 THESE TESTS USED TO OVERRIDE `require_admin` ITSELF, which made them
+structurally blind to the one failure that matters here: a handler losing its
+guard. Replacing the gate means the gate never runs, so a route declared
+``def quarantine_remove(...)`` with no ``Depends(require_admin)`` at all behaves
+identically to a guarded one under every case in this file — an admin dict was
+going to be returned either way.
+
+⭐ SO THE OVERRIDE MOVED TO THE GATE'S **INPUT**. `require_admin` depends on
+`get_current_user`; that is what is faked now, and the real `require_admin` runs
+on top of it. This is exactly what the paywall pass did across 13 files
+(`get_current_user_with_plan`, never `require_paid`), and it is why those tests
+can still fail when a gate disappears.
+
+⛔ AND THE POINT IS NOT TIDINESS — IT IS THAT A TEST BECOMES POSSIBLE.
+`test_a_NON_admin_is_refused_by_EVERY_route` can only be written this way: with
+`require_admin` replaced there is no way to present a non-admin at all. It
+enumerates the router's OWN route table rather than a typed list, so a new
+endpoint added without a guard is red on the day it is written.
+"""
 import pytest
 from fastapi.testclient import TestClient
 from unittest.mock import patch
 
 from api.main import app
+from api.middleware.auth_middleware import get_current_user
+
+
+def _as(user: dict):
+    """Present `user` to the REAL `require_admin`, by faking only its input."""
+    app.dependency_overrides[get_current_user] = lambda: user
+    return TestClient(app)
 
 
 @pytest.fixture
 def admin_client():
-    """Bypass auth for tests by overriding the admin dependency."""
-    from api.routers import admin_chart_health
-    app.dependency_overrides[admin_chart_health.require_admin] = (
-        lambda: {"id": 1, "role": "admin", "email": "admin@test"}
-    )
-    yield TestClient(app)
+    """An authenticated ADMIN. The admin CHECK still runs — only the session does not."""
+    client = _as({"id": 1, "role": "admin", "email": "admin@test"})
+    yield client
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def member_client():
+    """An authenticated NON-admin. `require_admin` must refuse them."""
+    client = _as({"id": 2, "role": "user", "email": "member@test"})
+    yield client
     app.dependency_overrides.clear()
 
 
@@ -83,6 +115,51 @@ def test_admin_endpoints_require_auth_when_override_cleared():
     client = TestClient(app)
     r = client.get("/api/admin/bars/quarantine/count")
     assert r.status_code in (401, 403)
+
+
+# ── the rail the old override made impossible ───────────────────────────────
+
+def _router_routes():
+    """⛔ DERIVED FROM THE ROUTER'S OWN TABLE, never a typed list
+    (`lesson_probe_names_must_be_derived_not_typed`). A hand-written list covers
+    the endpoints somebody remembered; this covers the ones they did not."""
+    from api.routers import admin_chart_health
+    out = []
+    for r in admin_chart_health.router.routes:
+        path, methods = getattr(r, "path", None), getattr(r, "methods", set())
+        if not path or "{" in path:
+            continue  # path params need real values; the guard runs before them anyway
+        for m in ("GET", "POST"):
+            if m in methods:
+                out.append((m, path))
+    return out
+
+
+def test_the_route_table_was_actually_read():
+    """Non-vacuity floor: an empty enumeration would make the sweep below pass
+    while measuring nothing at all."""
+    assert len(_router_routes()) >= 10, _router_routes()
+
+
+@pytest.mark.parametrize("method,path", _router_routes())
+def test_a_NON_admin_is_refused_by_EVERY_route(member_client, method, path):
+    """🔴 THE CASE THAT GOES RED WHEN A HANDLER LOSES ITS GUARD.
+
+    An authenticated member with `role != "admin"` reaches every one of these
+    endpoints. `require_admin` is the only thing standing between them and the
+    quarantine controls, and it is REAL here — so a route that drops
+    `Depends(require_admin)` answers 200 and this fails, by name, for that route.
+
+    ⚠️ A 405/404 is NOT accepted. Either would mean the sweep is knocking on a
+    door that is not there, and a rail that passes because it missed is the
+    `lesson_gate_that_cannot_fail` shape.
+    """
+    kw = {} if method == "GET" else {"json": {}}
+    r = getattr(member_client, method.lower())(path, **kw)
+    assert r.status_code == 403, (
+        f"{method} {path} answered {r.status_code} to a NON-admin. Either the "
+        "route lost its Depends(require_admin), or this sweep is not reaching it."
+    )
 
 
 def test_liveness_endpoint(admin_client):

@@ -20,9 +20,8 @@ from api.services import watchlist_service as wl
 _log = logging.getLogger(__name__)
 
 _LISTS_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "prebuilt_lists.json")
-_THEME_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "theme_lists.json")
-# Every committed prebuilt config file, in picker/display order (ETF lists then theme lists).
-_CONFIG_PATHS = [_LISTS_PATH, _THEME_PATH]
+# Every committed prebuilt config file (ETF lists only — the thematic lists were reverted).
+_CONFIG_PATHS = [_LISTS_PATH]
 # Durable overlay written by the monthly auto-refresh (watchlist_prebuilt_refresh):
 # a fresh liquidity ranking for 'Liquid Major ETFs' + a delisted-ticker set pruned from
 # EVERY list. Survives deploys. Absent = pure committed config (first boot before a refresh).

@@ -14,6 +14,13 @@ export function chipLabel(def, spec) {
     case 'between': return `${def.label}: ${n(spec.min)}–${n(spec.max)}`
     case 'gte': return `${def.label}: ≥ ${n(spec.min)}`
     case 'lte': return `${def.label}: ≤ ${n(spec.max)}`
+    // ⚠️ STRICT, and the chip must say so. `gt`/`lt` reach here only from the
+    // factual presets (`dividend_yield > 0`, `beta < 1`), which normally match
+    // the preset branch above and render their own label — this is the fallback
+    // for a spec restored from a saved screen whose preset was since reworded.
+    // Printing ≥/≤ for them would state a different filter than the one running.
+    case 'gt': return `${def.label}: > ${n(spec.min)}`
+    case 'lt': return `${def.label}: < ${n(spec.max)}`
     case 'eq': return `${def.label}: ${spec.value}`
     case 'contains': return `${def.label}: ${spec.value}`
     default: return def.label

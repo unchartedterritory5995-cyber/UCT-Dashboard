@@ -9,7 +9,10 @@ import useSWR from 'swr'
 import adminStyles from '../../pages/Admin.module.css'
 import UIcon from '../ui/UIcon'
 
-const fetcher = (url) => fetch(url).then((r) => r.json())
+// ⛔ NOT `fetch(url).then(r => r.json())` — a 402 answers JSON too, and
+// its `{detail}` body is truthy, so every `!data` loading guard below is
+// skipped and the consumer throws on an error object. See utils/jsonFetcher.js.
+import fetcher from '../../utils/jsonFetcher'
 
 function relativeMin(ts) {
   if (!ts) return '—'

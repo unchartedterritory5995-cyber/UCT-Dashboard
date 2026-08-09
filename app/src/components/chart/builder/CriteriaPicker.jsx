@@ -112,11 +112,31 @@ const termKey = (t) => {
   return t.name
 }
 
+/** ⭐ THE FOURTH SHAPE IS A WRAPPER, SO THE UI UNWRAPS IT AND PUTS IT BACK. A
+ *  negation is not a row sitting beside the others — it is the condition itself,
+ *  said the other way round — so it is rendered as a TOGGLE on whatever it wraps
+ *  rather than as a container around it. These three are the whole translation
+ *  between the model's wrapper and the control's checkbox.
+ *
+ *  ⛔ ONE LEVEL, BY CONSTRUCTION. `withNegated` replaces the wrapper rather than
+ *  adding one, so no sequence of clicks can build `!!x` — which `criteria.js`
+ *  refuses on both of its sides, because collapsing it would hand back a
+ *  different tree than the member typed. */
+const isNegated = (node) => node.kind === 'not'
+const bareOf = (node) => (node.kind === 'not' ? node.child : node)
+const withNegated = (node, on) => (on ? { kind: 'not', child: bareOf(node) } : bareOf(node))
+
 /** Replace child `i`, and PRUNE a group that just lost its last row. Without the
  *  prune an empty nested group reaches `canonicalPicker`, which refuses it — a
- *  shape the UI can reach and the model cannot spell. */
+ *  shape the UI can reach and the model cannot spell.
+ *
+ *  ⚠️ AND IT LOOKS THROUGH A NEGATION TO DECIDE. An emptied group that happens
+ *  to be negated is still an emptied group; a prune that only recognised the
+ *  bare shape would leave `!(<nothing>)` in the tree, and the refusal would
+ *  surface as a throw out of `emit` rather than as a row quietly disappearing. */
 function withChild(group, i, next) {
-  const gone = next && next.kind === 'group' && (next.children || []).length === 0
+  const bare = next ? bareOf(next) : next
+  const gone = bare && bare.kind === 'group' && (bare.children || []).length === 0
   return {
     ...group,
     children: gone
@@ -147,6 +167,29 @@ function NumberField({ value, label, onChange, allowNegative = false }) {
         onChange(allowNegative || n >= 0 ? n : 0)
       }}
     />
+  )
+}
+
+/** The negate control, and it is the SAME control on a row, on a flag and on a
+ *  group — because to the model they are one thing: a condition, wrapped.
+ *
+ *  ⚠️ THE WORD IS THIS COMPONENT'S, AND THAT IS THE SAME DECISION THE JOIN
+ *  LABELS ALREADY MADE. `closedTable.json` declares no `sentence` for any
+ *  operator, so there is no manifest string to read here — exactly as there is
+ *  none for "all of these" / "any of these" below. What is derived is the only
+ *  thing the manifest owns: WHICH operator this writes, which `criteria.js`
+ *  measures off the interpreter and this component never sees. */
+function NegateToggle({ on, label, onChange }) {
+  return (
+    <label className={styles.pickerNot}>
+      <input
+        type="checkbox"
+        aria-label={label}
+        checked={on}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      not
+    </label>
   )
 }
 
@@ -206,9 +249,15 @@ function TermEditor({ term, label, onChange }) {
  *  `data-testid`, the same aria labels and the same remove button. Rendering a
  *  separate "crossing row" would put a second layout on screen for a difference
  *  that is the grammar's, not the member's. */
-function RowEditor({ row, where, onChange, onRemove }) {
+function RowEditor({ row, where, negated, onNegate, onChange, onRemove }) {
   return (
-    <div className={styles.pickerRow} data-testid="picker-row" data-kind={row.kind}>
+    <div
+      className={styles.pickerRow}
+      data-testid="picker-row"
+      data-kind={row.kind}
+      data-negated={negated ? 'true' : 'false'}
+    >
+      <NegateToggle on={negated} label={`Negate condition ${where}`} onChange={onNegate} />
       <TermEditor
         term={row.left}
         label={`Condition ${where} left side`}
@@ -242,9 +291,15 @@ function RowEditor({ row, where, onChange, onRemove }) {
  *  the others, not a different kind of thing. What it is NOT is a comparison
  *  with an empty right-hand side: there is one control, and its options carry
  *  the manifest's own sentence, so the row reads as the sentence it will save. */
-function FlagEditor({ row, where, onChange, onRemove }) {
+function FlagEditor({ row, where, negated, onNegate, onChange, onRemove }) {
   return (
-    <div className={styles.pickerRow} data-testid="picker-row" data-kind={row.kind}>
+    <div
+      className={styles.pickerRow}
+      data-testid="picker-row"
+      data-kind={row.kind}
+      data-negated={negated ? 'true' : 'false'}
+    >
+      <NegateToggle on={negated} label={`Negate condition ${where}`} onChange={onNegate} />
       <select
         className={styles.pickerSelect}
         aria-label={`Condition ${where} fact`}
@@ -263,7 +318,7 @@ function FlagEditor({ row, where, onChange, onRemove }) {
   )
 }
 
-function GroupEditor({ group, path, onChange, onRemove }) {
+function GroupEditor({ group, path, negated = false, onNegate = null, onChange, onRemove }) {
   const where = path.length ? path.join('-') : 'top'
   const otherJoin = group.join === 'and' ? 'or' : 'and'
   return (
@@ -271,8 +326,18 @@ function GroupEditor({ group, path, onChange, onRemove }) {
       className={`${styles.pickerGroup} ${path.length ? styles.pickerGroupNested : ''}`}
       data-testid="picker-group"
       data-join={group.join}
+      data-negated={negated ? 'true' : 'false'}
     >
       <div className={styles.pickerJoinRow}>
+        {/* ⛔ NOT ON THE ROOT, for the same reason it has no remove button: the
+            root group is the WHOLE formula's frame, and `fromAst` hands a
+            top-level negation back as a one-child group wrapping it — so a
+            negated root is a shape the model has no spelling for. A member who
+            wants one adds a group and negates THAT, and a typed `!(a && b)`
+            still opens, as the nested case it already is. */}
+        {onNegate && (
+          <NegateToggle on={negated} label={`Negate group ${where}`} onChange={onNegate} />
+        )}
         <span className={styles.pickerJoinLabel}>Match</span>
         <select
           className={`${styles.pickerSelect} ${styles.pickerCmp}`}
@@ -294,14 +359,24 @@ function GroupEditor({ group, path, onChange, onRemove }) {
       </div>
 
       {group.children.map((child, i) => {
-        if (child.kind === 'group') {
+        // ⭐ THE WRAPPER IS UNWRAPPED HERE AND PUT BACK ON EVERY EDIT. What gets
+        // rendered is the condition; whether it is negated is a property OF that
+        // condition's own controls, so every editor below sees the shape it
+        // knows and none of them has a case for `not`.
+        const bare = bareOf(child)
+        const neg = isNegated(child)
+        const replace = (nextBare) => onChange(withChild(group, i, neg ? { kind: 'not', child: nextBare } : nextBare))
+        const negate = (on) => onChange(withChild(group, i, withNegated(child, on)))
+        if (bare.kind === 'group') {
           return (
             <GroupEditor
               key={`g${i}`}
-              group={child}
+              group={bare}
               path={[...path, i]}
-              onChange={(next) => onChange(withChild(group, i, next))}
-              onRemove={() => onChange(withChild(group, i, { kind: 'group', join: child.join, children: [] }))}
+              negated={neg}
+              onNegate={negate}
+              onChange={replace}
+              onRemove={() => onChange(withChild(group, i, { kind: 'group', join: bare.join, children: [] }))}
             />
           )
         }
@@ -309,13 +384,15 @@ function GroupEditor({ group, path, onChange, onRemove }) {
         // default that fell through to `RowEditor` would render a flag as a
         // comparison with no terms — the picker showing a member something
         // their formula does not say.
-        const Editor = child.kind === 'flag' ? FlagEditor : RowEditor
+        const Editor = bare.kind === 'flag' ? FlagEditor : RowEditor
         return (
           <Editor
             key={`r${i}`}
-            row={child}
+            row={bare}
             where={[...path, i].join('-')}
-            onChange={(next) => onChange(withChild(group, i, next))}
+            negated={neg}
+            onNegate={negate}
+            onChange={replace}
             onRemove={() => onChange({ ...group, children: group.children.filter((_, j) => j !== i) })}
           />
         )

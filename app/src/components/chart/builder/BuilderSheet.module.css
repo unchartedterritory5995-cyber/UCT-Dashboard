@@ -306,6 +306,23 @@
 
 .pickerJoinLabel { font-size: 12px; color: var(--text-muted); }
 
+/* The negate toggle. It sits on a ROW and on a nested GROUP — the same control
+   in both, because to the model they are one thing: a condition, said the other
+   way round. The 44px floor is the tap target; the checkbox itself is smaller
+   than that on every platform, so the label carries it. */
+.pickerNot {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  min-height: var(--tap-min);
+  padding: 0 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.pickerNot input { min-width: 16px; min-height: 16px; cursor: pointer; }
+
 .pickerRow {
   display: flex;
   align-items: center;

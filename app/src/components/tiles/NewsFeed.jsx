@@ -6,7 +6,10 @@ import ErrorState from '../ErrorState'
 import { SkeletonTileContent } from '../Skeleton'
 import styles from './NewsFeed.module.css'
 
-const fetcher = url => fetch(url).then(r => r.json())
+// ⛔ NOT `fetch(url).then(r => r.json())` — a 402 answers JSON too, and
+// its `{detail}` body is truthy, so every `!data` loading guard below is
+// skipped and the consumer throws on an error object. See utils/jsonFetcher.js.
+import fetcher from '../../utils/jsonFetcher'
 
 function getETOffset(date) {
   const y = date.getFullYear()

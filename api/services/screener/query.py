@@ -22,6 +22,10 @@ def build_where(filter_specs):
             clauses.append(f"{col} >= ?"); params.append(f["min"])
         elif op == "lte":
             clauses.append(f"{col} <= ?"); params.append(f["max"])
+        elif op == "gt":
+            clauses.append(f"{col} > ?"); params.append(f["min"])
+        elif op == "lt":
+            clauses.append(f"{col} < ?"); params.append(f["max"])
         elif op == "between":
             clauses.append(f"{col} >= ?"); params.append(f["min"])
             clauses.append(f"{col} <= ?"); params.append(f["max"])

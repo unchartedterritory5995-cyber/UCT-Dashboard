@@ -55,6 +55,11 @@ function rng(seed) {
  *     by definition, so it is not a canonical picker and the invariant below
  *     would be false for a shape no UI can reach. The required join is therefore
  *     threaded DOWN rather than patched on afterwards.
+ *   * a NEGATION OF A NEGATION. `!!x` and `x` are the same truth and different
+ *     trees, so `criteria.js` refuses it on all three of its sides rather than
+ *     collapsing it; generating one would make the identity property assert that
+ *     a refusal round-trips. The generator wraps AT MOST ONCE, by construction —
+ *     `negate` is applied to a freshly-built child and never to its own output.
  */
 function genCorpus(seed, n) {
   const r = rng(seed)
@@ -96,11 +101,18 @@ function genCorpus(seed, n) {
     if (crosses.length && roll < 0.40) return { kind: 'cross', left: term(), fn: pick(crosses), right: term() }
     return { kind: 'row', left: term(), cmp: pick(cmps), right: term() }
   }
+  // ⭐ THE FOURTH SHAPE, AND IT IS THE ONLY ONE THAT WRAPS. Applied to whatever
+  // the child turned out to be — a row of any of the three leaf shapes OR a
+  // nested group — because `!x` is defined over CONDITIONS and a corpus that
+  // only ever negated comparisons would leave `!(a || b)` and `!above_50sma`
+  // unmeasured while every property below stayed green.
+  const negate = (node) => ({ kind: 'not', child: node })
   const group = (depth, join) => {
     const k = 2 + Math.floor(r() * 3)
     const children = []
     for (let i = 0; i < k; i += 1) {
-      children.push(depth > 0 && r() < 0.3 ? group(depth - 1, other(join)) : row())
+      const child = depth > 0 && r() < 0.3 ? group(depth - 1, other(join)) : row()
+      children.push(r() < 0.25 ? negate(child) : child)
     }
     return { kind: 'group', join, children }
   }
@@ -124,6 +136,7 @@ describe('the corpus is not vacuous', () => {
     }
     const walk = (n) => {
       if (n.kind === 'group') return n.children.forEach(walk)
+      if (n.kind === 'not') return walk(n.child)
       if (n.kind === 'row') { seen.add(n.cmp); [n.left, n.right].forEach(walkTerm) }
       if (n.kind === 'cross') { seen.add(n.fn); [n.left, n.right].forEach(walkTerm) }
       if (n.kind === 'flag') seen.add(n.name)
@@ -145,13 +158,35 @@ describe('the corpus is not vacuous', () => {
     // exactly that state for crossings; the picker was in it for a bare boolean
     // name until this task.
     const kinds = new Set()
-    const walk = (n) => { kinds.add(n.kind); if (n.kind === 'group') n.children.forEach(walk) }
+    const walk = (n) => {
+      kinds.add(n.kind)
+      if (n.kind === 'group') n.children.forEach(walk)
+      if (n.kind === 'not') walk(n.child)
+    }
     CORPUS.forEach(walk)
     expect(VOCAB.crossings.size, 'the manifest declares no crossing — this census would pass on nothing')
       .toBeGreaterThan(0)
     expect(VOCAB.flags.size, 'the manifest declares no boolean name — this census would pass on nothing')
       .toBeGreaterThan(0)
-    expect([...kinds].sort()).toEqual(['cross', 'flag', 'group', 'row'])
+    expect(VOCAB.notOp, 'the manifest declares no negation — this census would pass on nothing')
+      .toBeTruthy()
+    expect([...kinds].sort()).toEqual(['cross', 'flag', 'group', 'not', 'row'])
+  })
+
+  it('and a NEGATION wraps EVERY shape it can, not just the easy one', () => {
+    // ⛔ THE CENSUS ONE LEVEL FINER, and it is the one that matters for this
+    // shape. `not` appearing in the census above is satisfied by 400 negated
+    // COMPARISONS — `!(a || b)` and `!above_50sma` would be unmeasured while
+    // every identity case stayed green, which is precisely the state the
+    // crossing row was in before it was generated.
+    const wrapped = new Set()
+    const walk = (n) => {
+      if (n.kind === 'not') wrapped.add(n.child.kind)
+      if (n.kind === 'group') n.children.forEach(walk)
+      if (n.kind === 'not') walk(n.child)
+    }
+    CORPUS.forEach(walk)
+    expect([...wrapped].sort()).toEqual(['cross', 'flag', 'group', 'row'])
   })
 
   it('and it contains a NEGATIVE literal — the other half of what the shipped starter needs', () => {
@@ -166,6 +201,7 @@ describe('the corpus is not vacuous', () => {
     }
     const walk = (n) => {
       if (n.kind === 'group') { n.children.forEach(walk); return }
+      if (n.kind === 'not') { walk(n.child); return }
       if (n.kind === 'flag') return
       ;[n.left, n.right].forEach(walkTerm)
     }
@@ -176,6 +212,7 @@ describe('the corpus is not vacuous', () => {
   it('and the corpus contains both joins and at least one nested group', () => {
     const joins = new Set(); let nested = 0
     const walk = (n, d) => {
+      if (n.kind === 'not') { walk(n.child, d); return }
       if (n.kind !== 'group') return
       joins.add(n.join); if (d > 0) nested += 1
       n.children.forEach((c) => walk(c, d + 1))
@@ -696,9 +733,14 @@ describe('⭐ A NEGATIVE LITERAL IS A NUMBER, not arithmetic', () => {
       expect(TABLE.operators[name].arity, name).toBe(1)
       expect(TABLE.operators[name].yields, name).toBe('num')
     }
-    // …and the LOGICAL not did not leak in: it is arity 1 too, and the picker
-    // must still refuse `!(close > open)` as a construction it has no row for.
-    expect(fromSource('!(close > open)').guard).toBe('picker:node')
+    // …and the LOGICAL not did not leak in. It is arity 1 too, and it is a
+    // DIFFERENT SHAPE — one wraps a CONDITION, the other makes a literal
+    // negative — so an operator that landed in both would let `!(close > open)`
+    // be read as a term. ⛔ NEITHER NAME IS TYPED: the two derivations are
+    // asserted to be disjoint, which is the identity a hand-list cannot satisfy
+    // by accident and which moves with the manifest.
+    expect(VOCAB.notOp, 'the manifest declares no negation — this half asserts nothing').toBeTruthy()
+    expect(VOCAB.negations.has(VOCAB.notOp)).toBe(false)
   })
 
   it('a negative literal reads back as a NUMBER and re-spells to the SAME TREE', () => {
@@ -753,6 +795,252 @@ describe('⭐ A NEGATIVE LITERAL IS A NUMBER, not arithmetic', () => {
         right: { t: 'num', value: 1 },
       }],
     }, VOCAB)).toThrow(/longer expression/i)
+  })
+})
+
+describe('⭐ THE NEGATION ROW — the shape that WRAPS a condition rather than being one', () => {
+  // 🔴 SPEC §1.1 AGAIN, AND THIS IS THE LAST OF IT AT THE CONDITION LAYER. A
+  // member could TYPE `!(close > open)`, save it, scan it, chart it and alert on
+  // it, and the picker refused to SHOW it. Every other shape the picker learned
+  // was a LEAF — `<term> <relation> <term>`, or a name standing alone. This one
+  // has a picker CHILD, which is why it did not fall out of the crossing row's
+  // generalisation and needed a shape of its own.
+
+  const notOf = (src) => `!${src}`
+
+  it('the negation operator is DERIVED by RUNNING the interpreter, and there is exactly one', () => {
+    // ⛔ NO NAME, AND NOT `yields` EITHER. The manifest declares `yields: "bool"`
+    // of every comparator and both joins, so it says *this answers yes-or-no*
+    // and never *this INVERTS one*. What is asserted here is read off the
+    // manifest; which operator it IS was measured.
+    expect(VOCAB.notOp).toBeTruthy()
+    expect(TABLE.operators[VOCAB.notOp].arity).toBe(1)
+    expect(TABLE.operators[VOCAB.notOp].yields).toBe('bool')
+    // …and no OTHER arity-1 operator was mistaken for it — the numeric negation
+    // is arity 1 as well, and the two sets must not overlap.
+    expect(VOCAB.negations.size).toBeGreaterThan(0)
+    expect([...VOCAB.negations].includes(VOCAB.notOp)).toBe(false)
+  })
+
+  it('a TYPED negation reads back as a NOT wrapping its row, and re-spells to the SAME TREE', () => {
+    const src = '!(close > open) && rs_rank > 80'
+    const parsed = parseFormula(src)
+    expect(parsed.ok, parsed.error).toBe(true)
+    const back = fromAst(parsed.ast, VOCAB)
+    expect(back.ok, back.reason).toBe(true)
+    expect(back.group.children.map((c) => c.kind)).toEqual(['not', 'row'])
+    expect(back.group.children[0]).toEqual({
+      kind: 'not',
+      child: { kind: 'row', left: { t: 'name', name: 'close' }, cmp: '>', right: { t: 'name', name: 'open' } },
+    })
+    expect(astHash(parseFormula(toSource(back.group)).ast)).toBe(astHash(parsed.ast))
+  })
+
+  it('a negation alone at the top is a ONE-ROW GROUP, like any other single condition', () => {
+    const back = fromSource('!(close > open)')
+    expect(back.ok, back.reason).toBe(true)
+    expect(back.group.kind).toBe('group')
+    expect(back.group.children).toHaveLength(1)
+    expect(back.group.children[0].kind).toBe('not')
+    expect(isCanonical(back.group)).toBe(true)
+  })
+
+  it('⭐ IT WRAPS EVERY SHAPE THE PICKER HAS — derived from the vocabulary, not listed', () => {
+    // ⛔ THE ASSERTION IS TOTAL OVER THE ROW SHAPES. A negation that only worked
+    // over comparisons would leave `!above_50sma` — a sentence a member would
+    // reach for immediately — refused, with every other case here green.
+    const cmp = [...VOCAB.comparators][0]
+    const cross = [...VOCAB.crossings.keys()][0]
+    const flag = [...VOCAB.flags.keys()][0]
+    const cases = [
+      `close ${cmp} open`,
+      `${cross}(close, open)`,
+      flag,
+      '((close > open) || (high > low))',
+    ]
+    for (const inner of cases) {
+      const src = notOf(`(${inner})`)
+      const parsed = parseFormula(src)
+      expect(parsed.ok, `${src}: ${parsed.error}`).toBe(true)
+      const back = fromAst(parsed.ast, VOCAB)
+      expect(back.ok, `${src}: ${back.reason}`).toBe(true)
+      expect(back.group.children[0].kind, src).toBe('not')
+      expect(isCanonical(back.group), src).toBe(true)
+      expect(astHash(parseFormula(toSource(back.group)).ast), src).toBe(astHash(parsed.ast))
+    }
+  })
+
+  it('⛔ AND IT IS DERIVED: a vocabulary with NO negation FAILS CLOSED, exactly as before', () => {
+    // The direction that matters, and the one the source rail cannot see. Take
+    // the operator away and the picker goes back to refusing a negation BY NAME
+    // rather than spelling a character it decided on for itself.
+    const narrowed = { ...VOCAB, notOp: null }
+    expect(fromAst(parseFormula('!(close > open)').ast, narrowed).guard).toBe('picker:node')
+    expect(fromAst(parseFormula('!(close > open)').ast, VOCAB).ok).toBe(true)
+    // …and it cannot be SPELLED either, so the two directions fail together.
+    const picker = { kind: 'group', join: 'and', children: [{ kind: 'not', child: ROW_A }] }
+    expect(() => toSource(picker, narrowed)).toThrow(/no row for/i)
+    expect(toSource(picker, VOCAB)).toContain(toSource(ROW_A, VOCAB))
+  })
+
+  it('⛔ A NEGATION IS A FLATTENING BARRIER — `!(a && b)` inside an all-of is NOT `a && b`', () => {
+    // ⭐ THE CASE THE GENERATOR DELIBERATELY DOES NOT REACH, because its nested
+    // groups always carry the OTHER join. Through a negation the SAME join is
+    // canonical — and a `canonicalPicker` that absorbed it would change the
+    // meaning of the formula while every identity case above stayed green.
+    const barrier = {
+      kind: 'group',
+      join: 'and',
+      children: [{ kind: 'not', child: { kind: 'group', join: 'and', children: [ROW_A, ROW_B] } }, ROW_C],
+    }
+    expect(isCanonical(barrier)).toBe(true)
+    expect(canonicalPicker(barrier)).toEqual(barrier)
+    // …and the tree says the same thing: absorbing it would be a DIFFERENT tree.
+    const absorbed = { kind: 'group', join: 'and', children: [ROW_A, ROW_B, ROW_C] }
+    const h = (p) => astHash(parseFormula(toSource(p)).ast)
+    expect(h(barrier)).not.toBe(h(absorbed))
+    // …and it round-trips, which is what says the barrier is real rather than
+    // merely unflattened.
+    const back = fromAst(parseFormula(toSource(barrier)).ast, VOCAB)
+    expect(back.ok, back.reason).toBe(true)
+    expect(back.group).toEqual(barrier)
+  })
+
+  it('⛔ `!!x` REFUSES IN ALL THREE PLACES, so the directions cannot disagree', () => {
+    // ⭐ THE DECISION, ON THE RECORD. `!!x` and `x` are the same truth and
+    // DIFFERENT TREES. Collapsing it would hand a member back a formula they did
+    // not write; rendering it would need a control the picker does not have.
+    // Refusing it in only one direction would let the picker spell something it
+    // cannot read back, which is the asymmetry the identity property exists to
+    // catch — so all three refuse, with ONE guard between them.
+    const chain = { kind: 'not', child: { kind: 'not', child: ROW_A } }
+    expect(fromSource('!!(close > open)').guard).toBe('picker:node')
+    expect(() => toSource({ kind: 'group', join: 'and', children: [chain] }, VOCAB))
+      .toThrow(/no row for/i)
+    expect(() => canonicalPicker(chain)).toThrow(/no row for/i)
+    expect(isCanonical(chain)).toBe(false)
+    // …and ONE level still works, so the refusal is about the chain and not
+    // about negation.
+    expect(fromSource('!(close > open)').ok).toBe(true)
+  })
+
+  it('the refusal inside a negation is the OPERAND\'S OWN, never a second sentence', () => {
+    // ⛔ `!close` is not "a construction the picker has no row for" — the picker
+    // has a row for a negation. What is wrong is INSIDE it, and saying so in the
+    // sentence that already says it is what keeps one fact from acquiring two
+    // descriptions. Every case here is also in `must_refuse.json`, from the
+    // other side.
+    expect(fromSource('!close').guard).toBe('picker:not-a-condition')
+    expect(fromSource('!(sma(sma(close, 5), 5) > 1)').guard).toBe('picker:term')
+    expect(fromSource('!((close > 1) ? 2 : 3)').guard).toBe('picker:node')
+  })
+
+  it('a negation nested inside a negated GROUP is fine — the bound is on the CHAIN', () => {
+    // The distinction the `!!` refusal must not overreach into: two negations at
+    // DIFFERENT levels are two conditions, each with one toggle, and the picker
+    // shows both.
+    const src = '!((!(close > open)) && (high > low))'
+    const back = fromSource(src)
+    expect(back.ok, back.reason).toBe(true)
+    const outer = back.group.children[0]
+    expect(outer.kind).toBe('not')
+    expect(outer.child.kind).toBe('group')
+    expect(outer.child.children[0].kind).toBe('not')
+    expect(astHash(parseFormula(toSource(back.group)).ast)).toBe(astHash(parseFormula(src).ast))
+  })
+})
+
+describe('⭐ EVERY DECLARED OPERATOR, DERIVED — and the shape NOT taken still REFUSES', () => {
+  // ⭐⭐ THE FLAG BLOCK'S TOTALITY CENSUS, ONE SECTION OVER, AND IT IS THE GUARD
+  // AGAINST THIS TASK TRADING A FALSE REFUSAL FOR A FALSE ACCEPTANCE. The
+  // assertion is not "negation opens and arithmetic refuses" — it is that the
+  // picker's verdict on EVERY operator `closedTable.json` declares is exactly
+  // what that operator's own `arity` and `yields` say, in the shape that fits
+  // it. An operator added tomorrow is already asserted here, and the day
+  // arithmetic is half-landed — read but not spelled, or spelled but not
+  // normalised — this is what goes red.
+  //
+  // ⛔ THE TREES ARE BUILT DIRECTLY, NOT SPELLED. `u-` is the CANONICAL name and
+  // `-` is the character the source uses; a census that spelled its operands
+  // would be asserting `parse.js`'s mapping, which is `parse.test.js`'s job, and
+  // it could not reach the unary entries at all.
+  const COND = parseFormula('close > open').ast
+  const TERM = { type: 'series', name: 'close' }
+  const NUM = { type: 'num', value: 1 }
+  const opNode = (name, args) => ({ type: 'op', name, args })
+  const SOME_CMP = [...VOCAB.comparators][0]
+
+  it('the manifest declares enough operators for this census to mean something', () => {
+    expect(Object.keys(TABLE.operators).length).toBeGreaterThan(10)
+    expect(VOCAB.joins.size).toBe(2)
+    expect(VOCAB.comparators.size).toBeGreaterThan(3)
+    expect(VOCAB.notOp).toBeTruthy()
+  })
+
+  it('the verdict on every operator is what its arity and yields say — and the tally is complete', () => {
+    const tally = { join: 0, comparator: 0, arithmetic: 0, negation: 0, shapeless: 0 }
+    for (const [name, spec] of Object.entries(TABLE.operators)) {
+      if (spec.arity === 2 && VOCAB.joinOf.has(name)) {
+        const res = fromAst(opNode(name, [COND, COND]), VOCAB)
+        expect(res.ok, `${name}: ${res.reason}`).toBe(true)
+        expect(res.group.kind, name).toBe('group')
+        expect(res.group.children, name).toHaveLength(2)
+        tally.join += 1
+      } else if (spec.arity === 2 && VOCAB.comparators.has(name)) {
+        const res = fromAst(opNode(name, [TERM, TERM]), VOCAB)
+        expect(res.ok, `${name}: ${res.reason}`).toBe(true)
+        expect(res.group.children[0].kind, name).toBe('row')
+        expect(res.group.children[0].cmp, name).toBe(name)
+        tally.comparator += 1
+      } else if (spec.arity === 2) {
+        // ⛔ THE SHAPE NOT TAKEN. An arity-2 operator that is neither a join nor
+        // a comparator yields a NUMBER, and it refuses in BOTH positions: as the
+        // whole formula it is not a yes-or-no answer, and inside a comparison it
+        // is a TERM the picker has no editor for. Both sentences are the ones
+        // the module already had — no refusal was added for arithmetic.
+        expect(spec.yields, name).not.toBe('bool')
+        expect(fromAst(opNode(name, [TERM, TERM]), VOCAB).guard, name).toBe('picker:not-a-condition')
+        expect(fromAst(opNode(SOME_CMP, [opNode(name, [TERM, TERM]), NUM]), VOCAB).guard, name)
+          .toBe('picker:term')
+        tally.arithmetic += 1
+      } else if (name === VOCAB.notOp) {
+        const res = fromAst(opNode(name, [COND]), VOCAB)
+        expect(res.ok, `${name}: ${res.reason}`).toBe(true)
+        expect(res.group.children[0].kind, name).toBe('not')
+        tally.negation += 1
+      } else {
+        // Every remaining arity — the numeric negation and the ternary today —
+        // has no row at all, and says THAT rather than "this produces a number".
+        const args = Array.from({ length: spec.arity }, (_, i) => (i === 0 ? COND : TERM))
+        expect(fromAst(opNode(name, args), VOCAB).guard, name).toBe('picker:node')
+        tally.shapeless += 1
+      }
+    }
+    // ⛔ AND NOT ONE BRANCH IS EMPTY. A census whose interesting arm never ran
+    // is a gate that cannot fail — the arithmetic arm especially, since it is
+    // the one this task deliberately did not close.
+    expect(tally.join).toBe(2)
+    expect(tally.negation).toBe(1)
+    expect(tally.comparator).toBeGreaterThan(3)
+    expect(tally.arithmetic, 'no numeric operator declared — the refusal arm proves nothing')
+      .toBeGreaterThan(0)
+    expect(tally.shapeless, 'no shapeless operator declared — the `picker:node` arm proves nothing')
+      .toBeGreaterThan(0)
+    expect(Object.values(tally).reduce((a, b) => a + b, 0)).toBe(Object.keys(TABLE.operators).length)
+  })
+
+  it('⛔ AND A NEGATION DOES NOT LAUNDER AN ARITHMETIC TERM INTO A CONDITION', () => {
+    // The one way the new shape could have widened what the picker accepts: a
+    // negation whose operand is arithmetic. It refuses with the OPERAND's guard,
+    // exactly as `!close` does, rather than being read as a condition because
+    // its wrapper is one.
+    for (const [name, spec] of Object.entries(TABLE.operators)) {
+      if (spec.arity !== 2 || spec.yields === 'bool') continue
+      const res = fromAst(opNode(VOCAB.notOp, [opNode(name, [TERM, TERM])]), VOCAB)
+      expect(res.ok, name).toBe(false)
+      expect(res.guard, name).toBe('picker:not-a-condition')
+      expect(res.group, name).toBeUndefined()
+    }
   })
 })
 
