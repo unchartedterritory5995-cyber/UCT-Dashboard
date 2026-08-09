@@ -825,6 +825,58 @@ def _start_dashboard_warm_background(delay_seconds: int = 20) -> None:
     threading.Thread(target=_delayed, daemon=True, name="dashboard-warmer").start()
 
 
+def _start_calendar_enrichment_warm_background(delay_seconds: int = 90) -> None:
+    """Keep the CURRENT WEEK's earnings enrichment permanently hot.
+
+    THE PROBLEM THIS SOLVES
+        `_ENRICH_TTL` is 300s on a hard clock over a provider fan-out measured
+        at 18-25s for ONE day and 60-100s for a cold week. The boot warm in
+        `_start_dashboard_warm_background` is ONE-SHOT, so it covers only the
+        first five minutes of a pod's life. After that, every single 5-minute
+        window hands the full cold recompute to whichever user opens the
+        calendar first -- and that user sits on a spinner in the earnings
+        modal's Setup / Earnings History / Brief sections while it runs.
+        Measured on prod 2026-08-08: enrichment cold 17.9s, warm 0.14s; the
+        whole-week batch cold 24.8s, warm 0.22s. A 130x cliff, re-armed every
+        five minutes, is why a dozen sampled tickers each took about a minute.
+
+    THE SHAPE IS THE RS WARMER'S, deliberately: re-warm on a loop just UNDER
+    the cache TTL so the recompute is always absorbed by this background thread
+    and never lands on a request. That pattern already removed the identical
+    hourly cliff from RS rankings.
+
+    This does NOT add provider load in the steady state. The same compute
+    already ran once per TTL expiry -- triggered by a user, on the request
+    path, inside the anyio threadpool. This moves it off that path and makes
+    it predictable; it does not make it more frequent.
+    """
+    import threading
+
+    def _delayed():
+        import time
+        time.sleep(delay_seconds)
+        while True:
+            try:
+                from api.routers.calendar import get_enrichment_batch, _week_dates
+                dates = ",".join(d.isoformat() for d in _week_dates())
+                out = get_enrichment_batch(dates=dates)
+                logging.getLogger(__name__).info(
+                    "[calendar-enrich-warm] warmed %d day(s), %d symbols",
+                    len(out or {}),
+                    sum(len(v or {}) for v in (out or {}).values()),
+                )
+            except Exception:
+                logging.getLogger(__name__).exception("[calendar-enrich-warm] failed")
+            # 240s, under the 300s _ENRICH_TTL. The margin has to exceed the
+            # compute itself (~25s) or the entry expires while the warm that
+            # would have refreshed it is still running, and a user walks into
+            # the gap -- which is the whole defect, reintroduced.
+            time.sleep(240)
+
+    threading.Thread(target=_delayed, daemon=True,
+                     name="calendar-enrichment-warmer").start()
+
+
 def _start_rs_rankings_warm_background(delay_seconds: int = 120) -> None:
     """Pre-compute RS rankings ~120s after startup so first user request is hot.
 
@@ -1571,7 +1623,10 @@ async def lifespan(app: FastAPI):
     try:
         readiness.register("dashboard")
         _start_dashboard_warm_background()
-        logging.getLogger(__name__).info("[startup] dashboard warm scheduled (~20s after boot)")
+        _start_calendar_enrichment_warm_background()
+        logging.getLogger(__name__).info(
+            "[startup] dashboard warm scheduled (~20s after boot); "
+            "calendar-enrichment re-warm every 240s (under the 300s TTL)")
     except Exception:
         readiness.mark_done("dashboard")
         logging.getLogger(__name__).exception("[startup] failed to schedule dashboard warm")
