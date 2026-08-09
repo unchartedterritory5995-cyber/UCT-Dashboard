@@ -88,6 +88,14 @@ _BAND_ORDER = [
 # TLT→Large) — instead route anything the aggregator tagged as a fund straight to
 # the ETFs & Index section, and reserve market-cap bucketing for actual stocks.
 _ETF_CATS = {"Indexes", "Sector ETFs", "Bond ETFs", "Intl/EM ETFs", "Commodity ETFs"}
+# Friendly ETF-type label for the SECTOR column (a fund has no GICS sector — FMP
+# returns a bogus "Financial Services", so show what KIND of fund it is instead).
+_ETF_TYPE = {"Indexes": "Index", "Sector ETFs": "Sector", "Bond ETFs": "Bond",
+             "Intl/EM ETFs": "Intl/EM", "Commodity ETFs": "Commodity"}
+
+
+def _etf_type(cat: str) -> str:
+    return _ETF_TYPE.get((cat or "").strip(), "ETF")
 
 
 # ── formatting helpers ─────────────────────────────────────────────────────
@@ -378,16 +386,18 @@ def _concentration_band(ticker: str, days: int) -> tuple:
     return (lo, hi)
 
 
-# Meta-enrich (sector + ETF flag) the top-N items by notional. Bounds the FMP
-# profile calls — well beyond the ~40 displayed rows so the bucketing is right.
-_ENRICH_MAX = 80
+# Buffer above top_n when picking which stock-band names to meta-enrich, so that
+# ETFs mis-sized into a stock band (small AUM → Mid-Small) get their isEtf checked
+# and moved out, leaving enough real stocks to still fill the displayed rows.
+_ENRICH_BUFFER = 18
 
 
 # ── data: build market-cap sections from the aggregator + Schwab mkt-caps ──
 def build_sections(days: int = 1, top_n: int = 10, min_notional: float = 5e6):
     """Pull aggregated dark-pool items, resolve sector + ETF flag + market cap for
-    the top names, bucket (ETFs → their own section; stocks by true market cap),
-    and enrich displayed rows with 50-day % ADV + a concentration price band."""
+    the display candidates, bucket (ETFs → their own section by isEtf; stocks by
+    true market cap), and enrich displayed rows with 50-day % ADV + a concentration
+    price band. ETF rows show their fund TYPE in the sector column."""
     from api.darkpool_aggregator import get_aggregated
     payload = get_aggregated(days=days)
     items = list((payload or {}).get("allItems") or [])
@@ -404,27 +414,47 @@ def build_sections(days: int = 1, top_n: int = 10, min_notional: float = 5e6):
     except Exception as e:
         log.warning("[darkpool-eod] mkt-cap fetch failed: %s", e)
 
-    # Sector + ETF flag for the top names (one FMP profile each, cached per day).
-    metas: dict = {}
-    for it in items[:_ENRICH_MAX]:
-        sym = (it.get("t") or "").upper()
-        if sym and sym not in metas:
-            metas[sym] = _ticker_meta(sym)
+    def sym_of(it):
+        return (it.get("t") or "").upper()
 
-    def _bucket(it) -> str:
-        sym = (it.get("t") or "").upper()
+    def _rough(it) -> str:
         cat = (it.get("cat") or "").strip()
-        # ETF via the aggregator's known lists OR the profile's isEtf flag.
-        if cat in _ETF_CATS or (metas.get(sym) or {}).get("isEtf"):
+        if cat in _ETF_CATS:
             return "ETF/Index"
-        mc = float(caps.get(sym) or it.get("mktcap") or 0)
+        mc = float(caps.get(sym_of(it)) or it.get("mktcap") or 0)
         if mc > 0:
             return _cap_band(mc)
         return "Large" if cat == "Large Cap" else "Mid-Small"
 
+    # Pass 1: rough bucket (no per-ticker calls). Unknown ETFs land in stock bands.
+    rough: dict = {b: [] for b, _ in _BAND_ORDER}
+    for it in items:                       # already notional-desc
+        rough[_rough(it)].append(it)
+
+    # Meta-enrich (sector + isEtf) the top (top_n + buffer) of each STOCK band —
+    # the display candidates, incl. the small Mid-Small names an overall top-N
+    # would miss. Cat-known ETFs need no profile (already ETF).
+    metas: dict = {}
+    for b in ("Mega", "Large", "Mid-Small"):
+        for it in rough[b][: top_n + _ENRICH_BUFFER]:
+            s = sym_of(it)
+            if s and s not in metas:
+                metas[s] = _ticker_meta(s)
+
+    def _bucket(it) -> str:
+        s = sym_of(it)
+        cat = (it.get("cat") or "").strip()
+        if cat in _ETF_CATS or (metas.get(s) or {}).get("isEtf"):
+            return "ETF/Index"
+        mc = float(caps.get(s) or it.get("mktcap") or 0)
+        if mc > 0:
+            return _cap_band(mc)
+        return "Large" if cat == "Large Cap" else "Mid-Small"
+
+    # Pass 2: final bucket using isEtf for the candidates.
     band_totals: dict = {b: 0.0 for b, _ in _BAND_ORDER}
     by_band: dict = {b: [] for b, _ in _BAND_ORDER}
-    for it in items:                       # items are already notional-desc
+    for it in items:
         band = _bucket(it)
         band_totals[band] += (it.get("n") or 0)
         by_band[band].append(it)
@@ -433,19 +463,24 @@ def build_sections(days: int = 1, top_n: int = 10, min_notional: float = 5e6):
     for band, label in _BAND_ORDER:
         rows = []
         for it in by_band[band][:top_n]:
-            sym = (it.get("t") or "").upper()
+            s = sym_of(it)
             n = it.get("n") or 0
             vwap = it.get("vwap") or 0
-            avg50 = _avg50_volume(sym)
+            avg50 = _avg50_volume(s)
             pct_adv = ((n / vwap) / avg50 * 100.0) if (vwap > 0 and avg50 > 0) else None
-            zlo, zhi = _concentration_band(sym, days)
+            zlo, zhi = _concentration_band(s, days)
             if zlo is None:
                 zlo, zhi = it.get("lo"), it.get("hi")
+            # ETF rows: show the fund TYPE (no GICS sector); stocks: GICS sector.
+            if band == "ETF/Index":
+                sector = _etf_type(it.get("cat"))
+            else:
+                sector = (metas.get(s) or {}).get("sector") or it.get("sector")
             rows.append({
-                "t": sym, "n": n, "c": it.get("c") or 0, "last": it.get("last"),
+                "t": s, "n": n, "c": it.get("c") or 0, "last": it.get("last"),
                 "zoneLo": zlo, "zoneHi": zhi, "pctADV": pct_adv,
                 "bigN": it.get("bigPrintN"), "bigPx": it.get("bigPrint"),
-                "sector": (metas.get(sym) or {}).get("sector") or it.get("sector"),
+                "sector": sector,
             })
         if rows:
             sections.append((label, rows))
