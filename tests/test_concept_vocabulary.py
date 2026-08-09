@@ -406,6 +406,38 @@ def test_the_EXPANSION_IS_THE_TREE_and_the_WORD_IS_ONLY_PROVENANCE():
         "what a versioned vocabulary exists to prevent")
 
 
+def test_the_SENTENCE_resolve_HANDS_BACK_IS_THE_FILES_OWN_BYTES():
+    """⛔ THIS LANE HAS NO READ-BACK AND MUST NEVER GROW ONE.
+
+    `sentence.js` is the ONE producer of the text a member confirms, and the JS
+    lane re-derives every frozen sentence from the shipped module on every run.
+    What Python can guarantee is the other half: that `resolve` is a
+    PASS-THROUGH — no prettifying, no title-casing, no fallback to the word, no
+    synthesised text for a concept that carries none. Any of those would be the
+    second vocabulary this whole design exists to prevent, arriving through the
+    lane that cannot check itself.
+
+    ⛔ AND IT SAYS NOTHING ABOUT WHICH CONCEPTS HAVE ONE. Whether a tree is
+    sayable is `sentence.js`'s answer; a rule here that "every concept carries a
+    sentence" would be a SECOND AUTHORITY over a value another module owns, and
+    would go red for the wrong reason the day the read-back legitimately refuses
+    something.
+    """
+    raw = _raw()["concepts"]
+    for word in cv.concepts():
+        got = cv.resolve(word)
+        assert got["ok"] is True, (word, got.get("reason"))
+        assert got["sentence"] == raw[word].get("sentence"), word
+
+    # ⚠️ THE CONTROL, because the loop above is satisfied by `None == None`.
+    # A planted sentence must come back verbatim — bytes the reader could only
+    # have got from the file it was handed.
+    planted = _raw()
+    marker = "ZZ 1 when the planted phrase is read verbatim and 0 otherwise"
+    planted["concepts"]["leader"]["sentence"] = marker
+    assert cv.resolve("leader", vocab=planted)["sentence"] == marker
+
+
 def test_the_RESOLUTION_carries_the_VERSION_so_the_word_can_be_recorded_as_provenance():
     got = cv.resolve("coiled")
     assert got["version"] == cv.version() == cv.load()[cv.VOCAB_VERSION_KEY]

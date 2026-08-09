@@ -8,7 +8,7 @@
   "_no_numbers": "GROUNDING IS PROVENANCE, NOT A NUMBER. `setup_winrate` is a CLAIM subject to §1.6 and to E-6's record, and design §8.3 -- what a published record may SAY -- is OPEN. So an entry may NAME the playbook setup it is attributed to and NEVER carries a percentage. No number reaches a surface from this file.",
   "_attribution": "`attribution.setup` is a SECOND attestation, never a grounding. A playbook is prose: it can say a setup is a pullback to a rising average, but it cannot mechanically produce a tree, so it can attribute a concept and not ground one. The setup name is checked against `app/src/constants/setupGroups.js::SETUPS` on every box, and against `brain_service.lookup_playbook` on a box where the Brain Pack is installed. An uninstalled pack makes the second half unverifiable, which is reported and never patched around.",
   "_sentence": "`sentence` is `sentence.js::sentenceFor(ast)` -- DERIVED FROM THE TREE, frozen here, and asserted equal in the test. It is what a member confirms before anything is saved, and it describes the TREE rather than echoing the WORD. That is D-A5 applied to a vocabulary: the file proposes, the tree is the truth, the sentence comes from the tree.",
-  "_sentence_gap": "MEASURED 2026-08-09, AND IT IS A GAP IN ANOTHER MODULE, NOT IN THIS ONE: `sentence.js::compileRules` builds name rows from `table.series` ONLY, so a tree naming any of the 54 declared SCALARS refuses with `sentence:name` -- `\"rs_rank\" ... this table declares close, high, low, open, volume`. Both lanes agree (the Python mirror in `definition_concierge.compile_rules` does the same), and `coverage_gaps()` reports NOTHING, because it also iterates three sections. So a concept here carries a frozen `sentence` only when the SHIPPED read-back can produce one; the rest carry none, and the test DERIVES which is which rather than trusting this file. ⛔ The fix belongs to the owner of `sentence.js` -- writing a read-back here would be the second vocabulary this whole design exists to prevent. When that module learns scalars, every concept becomes renderable and the test goes RED until the sentences are re-frozen, which is the correct alarm.",
+  "_sentence_gap": "CLOSED 2026-08-08 by `56a2bca6`, AND RECORDED BECAUSE THE HAND-OFF DEPENDED ON IT: `sentence.js::compileRules` used to build name rows from `table.series` ONLY, so a tree naming any of the table's declared SCALARS refused with `sentence:name` and 19 of the concepts below could carry no frozen sentence. `renderName` now consults the manifest's scalars section (series -> scalars -> definition inputs) and says each column in the manifest's OWN words, and `coverageGaps()` probes the walker instead of re-reading the same declaration. Every concept here is therefore renderable and every one carries a `sentence` -- each PRODUCED BY CALLING `sentenceFor(parseFormula(source).ast)`, never typed. ⛔ A hand-written sentence remains the second vocabulary this whole design exists to prevent: `conceptVocabulary.test.js` re-derives every sentence from the shipped module and refuses one the read-back would not produce, including one planted on a tree it still genuinely refuses.",
   "version": "2026-08-09.1",
   "concepts": {
     "trending": {
@@ -267,6 +267,7 @@
           }
         ]
       },
+      "sentence": "1 when the relative-strength rank is greater than or equal to 80 and 0 otherwise",
       "grounding": [
         {
           "kind": "filter_preset",
@@ -348,6 +349,7 @@
           }
         ]
       },
+      "sentence": "1 when (1 when (1 when (1 when the relative-strength rank is greater than or equal to 80 and 0 otherwise) and whether the price is above its 50-day average are both not zero, 0 when either is zero, and nothing while either is unknown) and (1 when the percentage distance from the 20-day exponential average is greater than or equal to (the negative of 2) and 0 otherwise) are both not zero, 0 when either is zero, and nothing while either is unknown) and (1 when the percentage distance from the 20-day exponential average is less than or equal to 2 and 0 otherwise) are both not zero, 0 when either is zero, and nothing while either is unknown",
       "grounding": [
         {
           "kind": "starter_screen",
@@ -365,6 +367,7 @@
         "type": "series",
         "name": "tight_consolidation"
       },
+      "sentence": "whether the recent bars are tightly consolidated",
       "grounding": [
         {
           "kind": "scalar",
@@ -402,6 +405,7 @@
           }
         ]
       },
+      "sentence": "1 when (1 when the relative-strength rank is greater than or equal to 80 and 0 otherwise) and whether the recent bars are tightly consolidated are both not zero, 0 when either is zero, and nothing while either is unknown",
       "grounding": [
         {
           "kind": "starter_screen",
@@ -426,6 +430,7 @@
           }
         ]
       },
+      "sentence": "1 when the nightly 14-period RSI is less than or equal to 30 and 0 otherwise",
       "grounding": [
         {
           "kind": "filter_preset",
@@ -451,6 +456,7 @@
           }
         ]
       },
+      "sentence": "1 when the nightly 14-period RSI is greater than or equal to 70 and 0 otherwise",
       "grounding": [
         {
           "kind": "filter_preset",
@@ -475,6 +481,7 @@
           }
         ]
       },
+      "sentence": "1 when the volume ratio against its own average is greater than or equal to 2 and 0 otherwise",
       "grounding": [
         {
           "kind": "filter_preset",
@@ -500,6 +507,7 @@
           }
         ]
       },
+      "sentence": "1 when the 30-day average volume is greater than or equal to 1000000 and 0 otherwise",
       "grounding": [
         {
           "kind": "filter_preset",
@@ -524,6 +532,7 @@
           }
         ]
       },
+      "sentence": "1 when the opening gap percentage is greater than or equal to 3 and 0 otherwise",
       "grounding": [
         {
           "kind": "filter_preset",
@@ -554,6 +563,7 @@
           }
         ]
       },
+      "sentence": "1 when the opening gap percentage is less than or equal to (the negative of 3) and 0 otherwise",
       "grounding": [
         {
           "kind": "filter_preset",
@@ -584,6 +594,7 @@
           }
         ]
       },
+      "sentence": "1 when the percentage distance from the 52-week high is greater than or equal to (the negative of 5) and 0 otherwise",
       "grounding": [
         {
           "kind": "filter_preset",
@@ -635,6 +646,7 @@
           }
         ]
       },
+      "sentence": "1 when (1 when the percentage distance from the 20-day exponential average is greater than or equal to (the negative of 2) and 0 otherwise) and (1 when the percentage distance from the 20-day exponential average is less than or equal to 2 and 0 otherwise) are both not zero, 0 when either is zero, and nothing while either is unknown",
       "grounding": [
         {
           "kind": "filter_preset",
@@ -660,6 +672,7 @@
           }
         ]
       },
+      "sentence": "1 when the depth of the current pullback is less than or equal to 10 and 0 otherwise",
       "grounding": [
         {
           "kind": "filter_preset",
@@ -684,6 +697,7 @@
           }
         ]
       },
+      "sentence": "1 when the depth of the current pullback is greater than or equal to 20 and 0 otherwise",
       "grounding": [
         {
           "kind": "filter_preset",
@@ -708,6 +722,7 @@
           }
         ]
       },
+      "sentence": "1 when the run of consecutive higher lows is greater than or equal to 3 and 0 otherwise",
       "grounding": [
         {
           "kind": "filter_preset",
@@ -732,6 +747,7 @@
           }
         ]
       },
+      "sentence": "1 when where the close sits inside the bar's range is greater than or equal to 0.66 and 0 otherwise",
       "grounding": [
         {
           "kind": "filter_preset",
@@ -746,6 +762,7 @@
         "type": "series",
         "name": "new_52w_high"
       },
+      "sentence": "whether the bar made a new 52-week high",
       "grounding": [
         {
           "kind": "scalar",
@@ -769,6 +786,7 @@
           }
         ]
       },
+      "sentence": "1 when the market capitalisation is greater than or equal to 10000000000 and 0 otherwise",
       "grounding": [
         {
           "kind": "filter_preset",
@@ -793,6 +811,7 @@
           }
         ]
       },
+      "sentence": "1 when the market capitalisation is greater than or equal to 200000000000 and 0 otherwise",
       "grounding": [
         {
           "kind": "filter_preset",

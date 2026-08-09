@@ -40,9 +40,14 @@ asserted byte-equal to a fresh parse in ``conceptVocabulary.test.js``. Python
 walks the tree it did not build. A Python parse here would be a second grammar.
 
 ⚠️ NO READ-BACK LIVES HERE EITHER. ``sentence.js`` is the ONE producer of the
-text a member confirms; a concept's frozen ``sentence`` is its output, and a
-concept the shipped read-back cannot yet say carries NO sentence rather than a
-hand-written one. See ``_sentence_gap`` in the manifest for the measured reason.
+text a member confirms; a concept's frozen ``sentence`` is its output and this
+module hands it back BYTE FOR BYTE — it does not prettify it, does not fall back
+to the word, and does not synthesise one for a concept that carries none. Until
+``56a2bca6`` the read-back could not say a table-declared SCALAR, so 19 of the
+concepts carried no sentence at all (see ``_sentence_gap`` in the manifest, which
+records that gap and its closing); the tri-state that made possible is kept
+rather than tightened, because "the shipped module cannot say this tree" is
+``sentence.js``'s answer to give and not this reader's to assume.
 
 ⚠️ NO CONDITION CHECK LIVES HERE. Whether a tree is a 0/1 condition is
 ``scan_definition.is_boolean_tree``'s question (E-2, CORRECTION 2's single
@@ -606,9 +611,11 @@ def resolve(word: Any, *, vocab: Optional[Mapping[str, Any]] = None,
         "source": spec.get("source"),
         #: BY VALUE, never the shared frozen node — see `_thaw`.
         "ast": _thaw(tree),
-        #: Present only where the SHIPPED read-back can produce one — see
-        #: `_sentence_gap` in the manifest. `None` means "sentence.js refuses
-        #: this tree today", never "this concept has no read-back by design".
+        #: ⛔ THE FILE'S BYTES, NEVER THIS LANE'S WORDS. `sentence.js` produced
+        #: this string and the JS test re-derives it from the shipped module on
+        #: every run; anything done to it here would be the second vocabulary in
+        #: miniature. `None` means "sentence.js refuses this tree", never "this
+        #: concept has no read-back by design" — see `_sentence_gap`.
         "sentence": spec.get("sentence"),
         "grounding": resolved,
         "attribution": resolved_attribution,

@@ -21,8 +21,18 @@
 
 import { describe, expect, it } from 'vitest'
 import { TABLE, parseFormula } from './parse.js'
-import { sentenceFor } from './sentence.js'
+import { SENTENCE_RULES, sentenceFor } from './sentence.js'
 import VOCAB from './conceptVocabulary.json'
+
+const hasOwn = (obj, name) => Object.prototype.hasOwnProperty.call(obj, name)
+
+/** The inputs a CONCEPT expansion is read back with — none, and that is
+ *  structural rather than incidental: a concept is an abbreviation for a tree
+ *  the closed table can already express, so it declares no definition and has no
+ *  inputs to declare. This is the very object handed to `sentenceFor`, so a test
+ *  that asserts a name is absent from it is asserting about the third vocabulary
+ *  the read-back actually consults rather than about a same-shaped stand-in. */
+const NO_INPUTS = Object.freeze({})
 
 /** Every name the manifest declares, DERIVED from its sections.
  *
@@ -55,24 +65,53 @@ function scalarsIn(node) {
   return [...namesIn(node)].filter((n) => Object.prototype.hasOwnProperty.call(TABLE.scalars, n))
 }
 
+/** Every name the SHIPPED read-back can say, asked in `renderName`'s own order:
+ *  the table's series, then the table's scalars, then the definition's inputs.
+ *
+ *  ⛔ THE THREE ARE ASKED SEPARATELY AND NONE IS RETYPED. `SENTENCE_RULES` is the
+ *  compiled object `sentenceFor` itself consults, so this is the module's answer
+ *  and not a copy of it. */
+function saysThisName(name, inputs = NO_INPUTS) {
+  return hasOwn(SENTENCE_RULES.series, name)
+    || hasOwn(SENTENCE_RULES.scalars, name)
+    || hasOwn(inputs, name)
+}
+
+/** A name NOTHING declares — SEARCHED FOR, never typed.
+ *
+ *  ⚠️ A REFUSAL CASE WHOSE SUBJECT QUIETLY BECOMES VALID IS A TEST THAT PASSES
+ *  FOR THE WRONG REASON, and this file has already lived that once: the
+ *  hand-written-sentence plant below rode on `rs_rank >= 80` until `56a2bca6`
+ *  taught the read-back to say a declared scalar, at which point its subject
+ *  stopped refusing. So the subject is derived against the three vocabularies at
+ *  run time and walks until it finds one none of them owns. */
+function aNameNothingDeclares(inputs = NO_INPUTS) {
+  let name = 'zz_no_such_column'
+  while (saysThisName(name, inputs) || declaredNames().has(name)) name = `${name}_x`
+  return name
+}
+
 /** Try the shipped read-back and report WHY it could not speak.
  *
- *  ⚠️ MEASURED 2026-08-09, AND IT IS A GAP IN `sentence.js`, NOT HERE:
- *  `compileRules` builds name rows from `table.series` ONLY, so a tree naming
- *  any declared SCALAR refuses with `sentence:name`. `coverageGaps()` reports
- *  nothing, because it iterates the same three sections. So the vocabulary
- *  freezes a `sentence` exactly where the shipped module can produce one, and
- *  this function is how the test DERIVES which concepts those are rather than
- *  trusting the file to say. */
-function readBack(ast) {
+ *  ⭐ `inputs` IS THREADED RATHER THAN DEFAULTED INSIDE `sentenceFor`, so the
+ *  object the third vocabulary is read from is one a caller can assert about. */
+function readBack(ast, inputs = NO_INPUTS) {
   try {
-    return { ok: true, text: sentenceFor(ast) }
+    return { ok: true, text: sentenceFor(ast, inputs) }
   } catch (err) {
     return { ok: false, guard: err.guard, message: String(err.message) }
   }
 }
 
-/** THE ONE CHECK. Returns a list of human-readable problems; empty is green. */
+/** THE ONE CHECK. Returns a list of human-readable problems; empty is green.
+ *
+ *  ⭐ A REFUSAL IS NOW ALWAYS A PROBLEM, and that is the whole shape of the
+ *  hand-off from `56a2bca6`. This used to EXCUSE a `sentence:name` refusal that
+ *  named one of the tree's own declared scalars, because the shipped read-back
+ *  genuinely could not say those and 19 of the 21 concepts below carried no
+ *  frozen sentence as a result. It can say all 54 now, so an excused refusal
+ *  would be a hole exactly where the file's guarantee lives: every concept is
+ *  sayable, and every sentence beside one is the read-back's own. */
 function problemsIn(vocab) {
   const problems = []
   const declared = declaredNames()
@@ -90,24 +129,20 @@ function problemsIn(vocab) {
       problems.push(`${word}: names ${undeclared.join(', ')}, which the closed table does not declare`)
     }
     const said = readBack(parsed.ast)
-    if (said.ok && spec.sentence !== said.text) {
-      problems.push(
-        `${word}: the shipped read-back CAN say this tree and the frozen sentence `
-        + `does not match it — re-freeze it (got: ${said.text})`)
-    }
-    if (!said.ok) {
-      if (spec.sentence !== undefined) {
-        problems.push(`${word}: carries a sentence the shipped read-back refuses (${said.guard})`)
-      }
-      const scalars = scalarsIn(parsed.ast)
-      const explained = said.guard === 'sentence:name'
-        && scalars.some((s) => said.message.includes(`"${s}"`))
-      if (!explained) {
+    if (said.ok) {
+      if (spec.sentence !== said.text) {
         problems.push(
-          `${word}: the read-back refused with ${said.guard} for a reason that is NOT `
-          + `the known declared-scalar gap — ${said.message}`)
+          `${word}: the shipped read-back CAN say this tree and the frozen sentence `
+          + `does not match it — re-freeze it (got: ${said.text})`)
       }
+      continue
     }
+    if (spec.sentence !== undefined) {
+      problems.push(`${word}: carries a sentence the shipped read-back refuses (${said.guard})`)
+    }
+    problems.push(
+      `${word}: the shipped read-back cannot say this tree, so no honest sentence `
+      + `can be frozen beside it — ${said.guard}: ${said.message}`)
   }
   return problems
 }
@@ -117,6 +152,13 @@ describe('the concept vocabulary', () => {
     expect(Object.keys(VOCAB.concepts).length).toBeGreaterThan(0)
     expect(Object.keys(VOCAB._refused).length).toBeGreaterThan(0)
     expect(declaredNames().size).toBeGreaterThan(0)
+    // ⭐ AND IT EXERCISES THE PATH `56a2bca6` REPAIRED. The re-freeze below is
+    // only meaningful if these trees actually reach the table's SCALARS — the
+    // section the read-back was blind to. Derived from the trees, so a
+    // vocabulary that drifted to series-only would say so here.
+    const scalarBearing = Object.values(VOCAB.concepts)
+      .filter((spec) => scalarsIn(spec.ast).length > 0)
+    expect(scalarBearing.length).toBeGreaterThan(0)
   })
 
   it('EVERY concept parses with the shipped parser, ships that parse result, and names only the table', () => {
@@ -192,16 +234,42 @@ describe('the concept vocabulary', () => {
 
   it('a PLANTED hand-written sentence on a tree the read-back refuses is caught', () => {
     // ⛔ THE SECOND-VOCABULARY MUTATION. Writing English here rather than taking
-    // `sentenceFor`'s is exactly the defect this whole design exists to prevent,
-    // and it is the tempting fix for the declared-scalar gap.
-    const source = 'rs_rank >= 80'
+    // `sentenceFor`'s is exactly the defect this whole design exists to prevent.
+    //
+    // ⚠️ THE SUBJECT IS DERIVED, AND IT HAD TO BE REPLACED. This plant rode on
+    // `rs_rank >= 80` — a tree the read-back refused only because it could not
+    // yet say a declared SCALAR. `56a2bca6` taught it to, so that subject stopped
+    // refusing and the case would otherwise have been quietly re-pointed at a
+    // tree that reads back fine. The honest subject is a name NONE of the three
+    // vocabularies owns, and it is searched for rather than typed.
+    const source = aNameNothingDeclares(NO_INPUTS)
+    expect(hasOwn(SENTENCE_RULES.series, source)).toBe(false)
+    expect(hasOwn(SENTENCE_RULES.scalars, source)).toBe(false)
+    expect(hasOwn(NO_INPUTS, source)).toBe(false)
+    expect(declaredNames().has(source)).toBe(false)
+
+    const parsed = parseFormula(source)
+    expect(parsed.ok).toBe(true)
+    expect(parsed.ast).toEqual({ type: 'series', name: source })
+
+    // ⭐ AND THE DOOR IT REFUSES AT IS PART OF THE CLAIM. `sentence:name` is the
+    // name lookup itself. If this ever becomes another guard, the refusal has
+    // moved to a different door and this rail is measuring something else — say
+    // so rather than relaxing the assertion.
+    const refusal = readBack(parsed.ast, NO_INPUTS)
+    expect(refusal.ok).toBe(false)
+    expect(refusal.guard).toBe('sentence:name')
+    expect(refusal.message).toContain(source)
+
     const planted = {
       concepts: {
-        zzplanted: { source, ast: parseFormula(source).ast, sentence: 'a market leader' },
+        zzplanted: { source, ast: parsed.ast, sentence: 'a market leader' },
       },
       _refused: {},
     }
-    expect(problemsIn(planted).some((p) => p.includes('refuses'))).toBe(true)
+    const problems = problemsIn(planted)
+    expect(problems.some((p) => p.includes('refuses'))).toBe(true)
+    expect(problems.some((p) => p.includes('sentence:name'))).toBe(true)
   })
 
   it('a PLANTED stale sentence on a tree the read-back CAN say is caught', () => {
@@ -213,5 +281,27 @@ describe('the concept vocabulary', () => {
       _refused: {},
     }
     expect(problemsIn(planted).some((p) => p.includes('re-freeze'))).toBe(true)
+  })
+
+  it('EVERY frozen sentence is the read-back`s OWN, re-derived here and not read', () => {
+    // ⭐ THE RE-FREEZE, PROVED RATHER THAN ASSERTED. `problemsIn` already refuses
+    // a sentence that does not match; this states the positive half over the
+    // whole file so a concept cannot be covered by being skipped, and it is
+    // TOTAL — every concept, or the count says so.
+    const rederived = Object.fromEntries(
+      Object.entries(VOCAB.concepts)
+        .map(([word, spec]) => [word, sentenceFor(parseFormula(spec.source).ast, NO_INPUTS)]))
+    const frozen = Object.fromEntries(
+      Object.entries(VOCAB.concepts).map(([word, spec]) => [word, spec.sentence]))
+    expect(frozen).toEqual(rederived)
+    expect(Object.keys(rederived)).toEqual(Object.keys(VOCAB.concepts))
+    // …and every concept CARRIES one. `problemsIn` reaches a missing sentence
+    // only through `undefined !== <text>`; this says the guarantee positively, so
+    // "the file declined to freeze this one" cannot read as a pass.
+    for (const [word, spec] of Object.entries(VOCAB.concepts)) {
+      expect(Object.prototype.hasOwnProperty.call(spec, 'sentence')).toBe(true)
+      expect(typeof spec.sentence).toBe('string')
+      expect(spec.sentence.length, word).toBeGreaterThan(0)
+    }
   })
 })
