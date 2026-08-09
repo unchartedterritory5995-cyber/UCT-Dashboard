@@ -204,6 +204,22 @@ function splitToFit(widgets, defaults, candidate) {
   }
 }
 
+// Horizontal split: place the new widget to the LEFT of `candidate`, at its FULL height,
+// shrinking the candidate to the right. Docking the Custom-Period Sort beside a full-screen
+// chart should sit it on the LEFT with the chart on the right (owner preference), not stack
+// it below. Returns null if the candidate can't spare the width.
+function splitToSide(widgets, defaults, candidate) {
+  if (!candidate) return null
+  const candMinW = (WIDGET_DEFAULTS[candidate.type]?.minW) || 2
+  const newW = Math.max(defaults.minW, Math.min(defaults.w, Math.floor(candidate.w / 2)))
+  const shrunkW = candidate.w - newW
+  if (shrunkW < candMinW) return null
+  return {
+    widgets: widgets.map(x => (x.id === candidate.id ? { ...x, x: candidate.x + newW, w: shrunkW } : x)),
+    place: { x: candidate.x, y: candidate.y, w: newW, h: candidate.h },
+  }
+}
+
 // NOTE: 'periodsort' is intentionally NOT here — it's reachable only from Tools →
 // Custom-Period Sort (dock / add-as-tab), not the Add Widget menu. It stays registered
 // in WIDGET_DEFAULTS / WIDGET_LABELS / WidgetHost dispatch so docked instances render.
@@ -726,12 +742,15 @@ export default function ChartsWorkspace() {
       let widgets = prev.widgets
       let place = fit
       // If the normal placement would land off-screen (grid full), open room by splitting
-      // an existing widget — prefer a non-chart side widget (like the watchlist) so the
-      // main chart isn't shrunk; fall back to the tallest widget overall.
+      // an existing widget. Prefer putting the sort to the LEFT of the WIDEST widget (a
+      // full-screen chart) so it sits beside the chart at full height; then fall back to a
+      // below-split of a non-chart widget, then any widget.
       if (fit.y + fit.h > FIXED_ROWS) {
         const tallestOf = (arr) => arr.reduce((a, b) => (!a || b.h > a.h ? b : a), null)
+        const widestOf = (arr) => arr.reduce((a, b) => (!a || b.w > a.w ? b : a), null)
         const nonChart = prev.widgets.filter(w => w.type !== 'chart')
-        const split = splitToFit(prev.widgets, defaults, tallestOf(nonChart))
+        const split = splitToSide(prev.widgets, defaults, widestOf(prev.widgets))
+          || splitToFit(prev.widgets, defaults, tallestOf(nonChart))
           || splitToFit(prev.widgets, defaults, tallestOf(prev.widgets))
         if (split) { widgets = split.widgets; place = split.place }
       }
