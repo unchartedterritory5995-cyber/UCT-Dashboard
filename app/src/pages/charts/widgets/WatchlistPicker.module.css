@@ -51,8 +51,11 @@
   gap: 3px;
   padding: 3px;
   margin-bottom: 8px;
-  background: var(--bg, #060809);
-  border: 1px solid var(--border, #1f2937);
+  /* Theme-adaptive (like .searchWrap): a faint inset off the picker canvas via the --wl-*
+     vars, so it reads light-on-light / dark-on-OLED instead of the fixed dark --bg that
+     stayed black on a white surface. */
+  background: var(--wl-row-hover, var(--bg, #060809));
+  border: 1px solid var(--wl-divider-strong, var(--border, #1f2937));
   border-radius: 8px;
 }
 .tab {
@@ -70,10 +73,10 @@
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.2px;
-  color: var(--text-muted, #706b5e);
+  color: var(--wl-text, var(--text-muted, #706b5e));
   transition: background 0.12s, color 0.12s;
 }
-.tab:hover { color: var(--text-bright, #e0dac8); }
+.tab:hover { color: var(--wl-text-strong, var(--text-bright, #e0dac8)); }
 .tab svg { opacity: 0.85; }
 .tabActive {
   background: linear-gradient(180deg, rgba(201, 168, 76, 0.16), rgba(201, 168, 76, 0.06));
@@ -171,14 +174,15 @@
 }
 .rowMeta {
   font-size: 10px;
-  color: var(--text-muted, #706b5e);
+  color: var(--wl-text, var(--text-muted, #706b5e));
+  opacity: 0.85;
   flex-shrink: 0;
 }
 .rowCount {
   font-size: 10px;
-  color: var(--text-muted, #8c8674);
-  background: var(--bg-hover, #1f2937);
-  border: 1px solid var(--border, #1f2937);
+  color: var(--wl-text, var(--text-muted, #8c8674));
+  background: var(--wl-row-hover, var(--bg-hover, #1f2937));
+  border: 1px solid var(--wl-divider-strong, var(--border, #1f2937));
   border-radius: 8px;
   padding: 1px 6px;
   flex-shrink: 0;
