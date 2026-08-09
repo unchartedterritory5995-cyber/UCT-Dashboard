@@ -116,6 +116,12 @@ def _fmt_px(v) -> str:
     return f"{v:,.2f}" if v < 1000 else f"{v:,.0f}"
 
 
+def _fmt_px_d(v) -> str:
+    """Price with a $ prefix (for the Last / Zone / biggest-print price cells)."""
+    v = float(v or 0)
+    return ("$" + _fmt_px(v)) if v > 0 else "—"
+
+
 def _fmt_adv(v) -> str:
     """Dark-pool activity as a % of the name's average daily volume."""
     v = float(v or 0)
@@ -133,8 +139,8 @@ def _fmt_zone(lo, hi) -> str:
     lo = lo or hi
     hi = hi or lo
     if abs(hi - lo) < 0.005 * max(hi, 1):
-        return _fmt_px(hi)                       # essentially one level
-    return f"{_fmt_px(lo)}–{_fmt_px(hi)}"
+        return _fmt_px_d(hi)                     # essentially one level
+    return f"{_fmt_px_d(lo)}–{_fmt_px_d(hi)}"
 
 
 def _date_text(day_mdyyyy: str) -> str:
@@ -258,11 +264,11 @@ def render_card(sections: list[tuple], date_text: str, summary: dict,
                 elif key == "zone":
                     txt(x, y, _fmt_zone(it.get("zoneLo"), it.get("zoneHi")), f_row, _TXT, "r")
                 elif key == "last":
-                    txt(x, y, _fmt_px(it.get("last")), f_row, _DIM, "r")
+                    txt(x, y, _fmt_px_d(it.get("last")), f_row, _DIM, "r")
                 elif key == "big":
                     _bn = _fmt_n(it.get("bigN"))
                     _bp = it.get("bigPx")
-                    txt(x, y, f"{_bn} @ {_fmt_px(_bp)}" if _bp else _bn, f_row, _DIM, "r")
+                    txt(x, y, f"{_bn} @ {_fmt_px_d(_bp)}" if _bp else _bn, f_row, _DIM, "r")
                 elif key == "sector":
                     sec = (it.get("sector") or "").strip()
                     if len(sec) > 18:
