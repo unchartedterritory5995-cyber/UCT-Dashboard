@@ -2,7 +2,11 @@
   position: fixed;
   right: 18px;
   bottom: 86px;
-  z-index: 8001;
+  /* One rung above the orb cluster it belongs to (see --z-fab in tokens.css),
+     and therefore still below every backdrop / drawer / menu / modal / toast.
+     It was 8001 — a satellite of the orb's old 8000, which is how a "just above
+     the orb" number ended up above every modal in the app. */
+  z-index: calc(var(--z-fab) + 1);
   max-width: min(380px, calc(100vw - 36px));
   max-height: 44vh;
   overflow-y: auto;

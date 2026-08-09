@@ -19,6 +19,11 @@
  *                       positioned calendar popover: keep it wrapping (never
  *                       overflow:auto, which would clip the popover) but give
  *                       its buttons finger-sized tap height.
+ *   .of-picks         — the TOP 10 FLOW PICKS list container becomes the
+ *                       horizontal scroller for its own rows.
+ *   .of-pickrow       — the column-header row and each pick row keep their
+ *                       natural (~950px) width inside that scroller, so they
+ *                       scroll in lockstep and the columns stay aligned.
  * All className additions sit on elements whose inline style={{}} is untouched.
  * Nothing else in the JSX changes.
  */
@@ -92,6 +97,33 @@
      on a phone we turn them into a single non-wrapping momentum-scroll strip so
      the dense option of squeezing 5-7 chips into 375px (or wrapping to 3 rows)
      is replaced by a swipeable strip with finger-sized targets. */
+  /* ── TOP 10 FLOW PICKS → a real horizontal scroller ─────────────────────
+     Each pick row is a fixed-width column grid (~950px: contract, strike/exp,
+     size, premium, OI, grade, notes). Inside a 321px phone box the whole
+     ancestor chain was `overflow-x: visible` up to `.of-mroot`'s `hidden`, so
+     629px of EVERY row was unreachable — and because the clip happened at the
+     root, the document-overflow probe read a clean 0 on the page that lost the
+     most data. Zero overflow was the symptom, not the health check.
+
+     The scroller goes on the LIST, not on each row: one scroll position for the
+     header and all ten rows keeps the columns in register. Per-row scrollers
+     would let them drift apart.
+
+     The scrollbar is deliberately NOT hidden here (unlike the chip strips
+     below): this is the payload, and a data grid that scrolls needs to say so.
+     On touch it is an overlay bar that appears while scrolling. */
+  .of-mroot .of-picks {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;   /* don't chain a swipe into page nav */
+  }
+  /* Natural width, never squeezed. Each row overflows its per-pick wrapper and
+     that overflow is what gives .of-picks its scrollWidth. `min-width` (not
+     `width`) so a narrower future row still fills the box. */
+  .of-mroot .of-pickrow {
+    min-width: max-content;
+  }
+
   .of-mroot .of-chiprow {
     flex-wrap: nowrap !important;
     width: 100% !important;

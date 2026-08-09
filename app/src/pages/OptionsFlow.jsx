@@ -5449,9 +5449,17 @@ export default function OptionsFlowDashboard() {
                       </button>
                     </div>
                   </div>
-                  <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                  {/* of-picks / of-pickrow: className-only hooks for the phone layer
+                      (OptionsFlow.mobile.css). The pick rows are a fixed-width grid
+                      ~950px wide; on a 321px phone box everything from the contract
+                      column rightwards was simply cut off with no scroller anywhere
+                      in the ancestor chain. The mobile layer turns THIS container
+                      into the horizontal scroller and lets the header + rows keep
+                      their natural width, so they scroll together in lockstep and
+                      the columns stay aligned. No inline style is touched. */}
+                  <div className="of-picks" style={{ display:"flex", flexDirection:"column", gap:6 }}>
                     {/* Column headers — shown once above the picks list */}
-                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 12px", fontSize:7, color:P.dm, letterSpacing:0.5, fontWeight:700 }}>
+                    <div className="of-pickrow" style={{ display:"flex", alignItems:"center", gap:8, padding:"4px 12px", fontSize:7, color:P.dm, letterSpacing:0.5, fontWeight:700 }}>
                       <span style={{ width:16, flexShrink:0 }} />
                       <span style={{ width:50, flexShrink:0 }} />
                       {/* Spacer matching dir Tag width so columns align */}
@@ -5561,7 +5569,7 @@ export default function OptionsFlowDashboard() {
                       const lastOI = tc?tc.lastOI:0;
                       return (
                         <div key={p.sym}>
-                        <div onClick={()=>setTop5Detail(top5Detail===p.sym?null:p.sym)} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", background:P.al, borderRadius:8, borderLeft:"3px solid "+dirC, cursor:"pointer" }}>
+                        <div className="of-pickrow" onClick={()=>setTop5Detail(top5Detail===p.sym?null:p.sym)} style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 12px", background:P.al, borderRadius:8, borderLeft:"3px solid "+dirC, cursor:"pointer" }}>
                           <span style={{ fontSize:16, fontWeight:900, color:P.dm+"88", width:16, textAlign:"center", flexShrink:0 }}>{i+1}</span>
                           <span style={{ fontSize:14, fontWeight:900, color:P.wh, width:50, flexShrink:0 }}>{p.sym}</span>
                           {(top5Filter==="Both" || top5Filter==="Unusual") && <Tag c={dirC}>{p.dir}</Tag>}

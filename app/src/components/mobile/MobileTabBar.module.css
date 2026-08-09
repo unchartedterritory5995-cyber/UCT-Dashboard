@@ -1,3 +1,7 @@
+/* min-height is the SAME token Layout.module.css reserves space with, so the
+   bar and the reservation cannot drift apart. Previously the bar measured 55px
+   intrinsically against a 58px reservation, and any route sizing itself off the
+   viewport had to guess which number to subtract. */
 .bar {
   position: fixed;
   left: 0;
@@ -5,6 +9,7 @@
   bottom: 0;
   z-index: var(--z-nav);
   display: flex;
+  min-height: calc(var(--mobile-tabbar-h) + env(safe-area-inset-bottom, 0px));
   background: var(--bg-surface);
   border-top: 1px solid var(--border);
   padding-bottom: env(safe-area-inset-bottom);

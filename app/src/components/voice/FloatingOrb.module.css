@@ -141,11 +141,19 @@
 }
 
 /* ── Batch 6b Train Me cluster ──────────────────────────────────────────── */
+/* z-index comes from the token scale (--z-fab), NOT a literal. The previous
+   hardcoded 8000 sat above --z-modal (1000) and above the chart's long-press
+   ChartContextMenu, so the orb rendered ON TOP of `Chart settings…` — the only
+   door to the criteria builder on a phone. --z-fab keeps the orb above ordinary
+   page content and chrome while putting every menu/modal/sheet back on top.
+   NOTE: position:fixed + z-index makes this a stacking context, so the
+   satellites inside it (AgentPicker / VisionAttachButton at 9000, the
+   coach-mark) are scoped to the cluster and travel with it. */
 .orbCluster {
   position: fixed;
   right: 18px;
   bottom: 18px;
-  z-index: 8000;
+  z-index: var(--z-fab);
   display: inline-flex;
   align-items: center;
   gap: 6px;

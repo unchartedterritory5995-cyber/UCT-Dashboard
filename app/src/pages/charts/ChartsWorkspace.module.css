@@ -1173,11 +1173,20 @@
 .mobileWorkspace {
   display: flex;
   flex-direction: column;
-  /* Size to the viewport minus the fixed 48px mobile header — the height:100%
+  /* Size to the viewport minus BOTH pieces of mobile chrome — the height:100%
      chain from Layout's <main> doesn't propagate reliably through the route
-     wrappers, so anchor to the viewport directly. */
-  height: calc(100vh - 48px - env(safe-area-inset-top, 0px));
-  height: calc(100dvh - 48px - env(safe-area-inset-top, 0px));
+     wrappers, so anchor to the viewport directly.
+     ⚠️ The bottom tab bar is `position: fixed` and therefore invisible to this
+     box: subtracting only the top bar left the last 54px of the chart (the
+     volume pane, the range bar, the A/L/% scale toggles) permanently under the
+     nav — the one route in the app where scrolling to the end did not free it.
+     Both heights are the tokens Layout.module.css reserves with; never retype
+     them here (a second authority over one value is exactly how the tab bar got
+     forgotten). */
+  height: calc(100vh - var(--mobile-topbar-h) - var(--mobile-tabbar-h)
+               - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  height: calc(100dvh - var(--mobile-topbar-h) - var(--mobile-tabbar-h)
+               - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   min-height: 0;
 }
 .mobileTabs {
