@@ -135,6 +135,16 @@ def screener_scan(spec: ScanSpec, user=Depends(require_paid)):
 
 @router.get("/api/screener/snapshot-status")
 def screener_snapshot_status(user=Depends(require_paid)):
+    """Coverage + freshness of the precomputed snapshot.
+
+    ⭐ READ `snapshot_date` — the MEDIAN row's date, i.e. how old this data
+    actually is — beside `rows_on_snapshot_date` / `rows` and the `mixed` flag.
+    ⛔ `latest_snapshot_date` is the MAX and answers only *"when was the newest
+    single row built?"*. It is kept because that question is real and its name
+    is honest, but it is NOT the snapshot's age: measured 2026-08-09, the MAX
+    was carried by ONE row out of 3,589 while 3,583 were 28 days stale, and a
+    gate reading it waved a month-old universe through (E-3 report §3).
+    """
     return scr_db.status()
 
 

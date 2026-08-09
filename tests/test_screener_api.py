@@ -118,6 +118,27 @@ def test_refresh_requires_admin(tmp_path, monkeypatch):
 
 
 def test_refresh_admin_starts(tmp_path, monkeypatch):
+    """🔴 THE REAL BUILDER IS STUBBED, AND THAT IS THE POINT OF THIS EDIT.
+
+    Until 2026-08-09 this test let the route's daemon thread run the REAL
+    `snapshot_builder.run_build(max_tickers=1)`. The thread outlived
+    `monkeypatch`'s teardown, so `init_db()` ran against the tmp db while the
+    final `upsert_rows` resolved `SCREENER_DB_PATH` AFTER it had been unset —
+    i.e. `/data/screener.db`, which on this box is the shared `C:\\data\\screener.db`.
+
+    That wrote exactly one row: ticker `A`, the first never-built entry of
+    `cap_universe.json`, stamped `snapshot_date = 2026-08-08` at 23:20 CT.
+    It is THE row that made `MAX(snapshot_date)` report "today" over 3,583 rows
+    built 2026-07-11 — the member-facing defect this branch fixes. Reproduced
+    2026-08-09 by exporting `SCREENER_DB_PATH` to a probe file: the thread's
+    `executemany` surfaced there, post-teardown, `no such table: screener_rows`.
+
+    ⛔ The row is NOT deleted — the data is what it is and the report is now
+    honest about it. What is fixed here is the writer.
+    """
+    import threading
+    from api.services.screener import snapshot_builder
+
     _seed_screener(tmp_path, monkeypatch)
     client = TestClient(app)
     init_db()
@@ -129,9 +150,28 @@ def test_refresh_admin_starts(tmp_path, monkeypatch):
         conn.commit()
     finally:
         conn.close()
+
+    called, ran = [], threading.Event()
+
+    def _fake_build(max_tickers=None):
+        called.append(max_tickers)
+        ran.set()
+        return {"built": 0, "skipped": 0, "errors": 0}
+
+    monkeypatch.setattr(snapshot_builder, "run_build", _fake_build)
+
     r = client.post("/api/screener/refresh?max_tickers=1")
     assert r.status_code == 200
     assert r.json()["started"] is True
+    # Wait INSIDE the monkeypatch window: the route hands the build to a daemon
+    # thread, and a test that returns before it lands leaves a writer racing
+    # teardown for the real DB path. Waiting proves the stub is what ran.
+    assert ran.wait(10), "the refresh route never called run_build"
+    assert called == [1], "the cap the caller asked for must reach the builder"
+    for t in threading.enumerate():
+        if t.name == "screener-refresh":
+            t.join(timeout=10)
+            assert not t.is_alive()
 
 
 def test_saved_screens_roundtrip(tmp_path, monkeypatch):
