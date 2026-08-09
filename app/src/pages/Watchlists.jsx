@@ -1800,7 +1800,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           const dragOk = isOwner && !sortBy
           return (
           <div className={styles.wlItems}>
-            {wl.description && <div className={styles.wlDesc}>{wl.description}</div>}
+            {/* Prebuilt (curated UCT) lists hide their description — the symbol list speaks
+                for itself. User/community lists still show theirs. */}
+            {wl.description && !wl.is_prebuilt && <div className={styles.wlDesc}>{wl.description}</div>}
             {/* Old per-list filter/sort header removed — the global column header now
                 drives columns + sorting so every watchlist uses the same format. */}
             {isOwner && addingToList === wl.id && (
