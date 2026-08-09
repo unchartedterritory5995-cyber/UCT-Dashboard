@@ -21,7 +21,10 @@ from __future__ import annotations
 
 import logging
 import os
+import re
+import threading
 import time
+from datetime import datetime
 from typing import Any, Callable, Optional
 
 _log = logging.getLogger(__name__)
@@ -32,6 +35,9 @@ LOOKBACK_DAYS = int(os.environ.get("CALL_RECAP_WARM_LOOKBACK_DAYS", "7"))
 MAX_SECONDS = int(os.environ.get("CALL_RECAP_WARM_MAX_SECONDS", "3600"))
 # Politeness between generations — this shares an Anthropic budget with Compass.
 PACE_SECONDS = float(os.environ.get("CALL_RECAP_WARM_PACE_SECONDS", "1.0"))
+
+
+_SWEEP_LOCK = threading.Lock()
 
 
 def enabled() -> bool:
@@ -74,6 +80,106 @@ def _leadership_symbols() -> set[str]:
                 for r in (get_leadership() or []) if isinstance(r, dict)} - {""}
     except Exception:
         return set()
+
+
+_US_TICKER_RE = re.compile(r"^[A-Z]{1,5}(?:-[A-Z])?$")
+_UNIVERSE: Optional[set] = None
+
+
+def _universe() -> set:
+    """The tickers this dashboard actually charts (cap_universe.json).
+
+    Load-bearing, not a nicety. Unfiltered, a week of the earnings calendar is
+    ~5,000 names and most are foreign listings (600641.SS, PNCINFRA.NS,
+    4324.SR) with no FMP transcript: the sweep would spend its whole clock on
+    lookups that cannot succeed, and DIS would sit at queue position ~3,250 —
+    never reached. Resolved from __file__, never the CWD, because this runs
+    from a worktree and from Railway.
+    """
+    global _UNIVERSE
+    if _UNIVERSE is None:
+        path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "data", "cap_universe.json")
+        try:
+            import json
+            with open(path, encoding="utf-8") as fh:
+                data = json.load(fh)
+            rows = data if isinstance(data, list) else (data or {}).get("tickers") or []
+            _UNIVERSE = {t.upper().strip() for t in rows if isinstance(t, str)}
+        except Exception as exc:
+            _log.warning("[recap_warm] cap_universe unavailable (%s); "
+                         "falling back to a US-ticker shape filter", exc)
+            _UNIVERSE = set()
+    return _UNIVERSE
+
+
+def _tradeable(sym: str) -> bool:
+    uni = _universe()
+    # An empty universe means the file failed to load. Fall back to the ticker
+    # SHAPE rather than to no filter at all — silently restoring the 5,000-name
+    # queue would look like it was working.
+    return sym in uni if uni else bool(_US_TICKER_RE.match(sym))
+
+
+def recent_reporters(days: Optional[int] = None, today=None,
+                     fmp_get: Callable = None) -> list[str]:
+    """Symbols whose results are ALREADY OUT, most recent day first.
+
+    Today's calendar is not a sufficient queue. A company that reported on
+    Wednesday is never swept again, so its recap stays cold until some reader
+    pays the ~39s for it — which is exactly the wait this whole design exists to
+    remove. This walks back LOOKBACK_DAYS so the recent tape is covered.
+
+    Queried ONE DAY AT A TIME deliberately: a from/to range response is capped at
+    4000 rows and drops issuers silently — DIS is absent from an 8-day range and
+    present in its own single day. A cap that truncates without erroring would
+    make this look like it worked.
+
+    `epsActual is not None` is the "has actually reported" test; names still
+    pending simply have no transcript yet and would burn a lookup each sweep.
+    """
+    from datetime import timedelta
+    from zoneinfo import ZoneInfo
+
+    if days is None:
+        days = LOOKBACK_DAYS
+    if fmp_get is None:
+        from api.services.earnings_estimates import _fmp_get as fmp_get
+    if today is None:
+        # ET, not the server's UTC date — a UTC "today" runs a day ahead all
+        # evening and would sweep a day that has not happened.
+        today = datetime.now(ZoneInfo("America/New_York")).date()
+
+    kept: list[tuple] = []
+    seen: set[str] = set()
+    for back in range(days + 1):
+        day = (today - timedelta(days=back)).isoformat()
+        try:
+            rows = fmp_get("/stable/earnings-calendar",
+                           {"from": day, "to": day}, timeout=20)
+        except Exception as exc:
+            _log.warning("[recap_warm] calendar fetch failed for %s: %s", day, exc)
+            continue
+        if not isinstance(rows, list):
+            continue
+        for r in rows:
+            if not isinstance(r, dict) or r.get("epsActual") is None:
+                continue
+            s = (r.get("symbol") or "").upper().strip()
+            if s and s not in seen and _tradeable(s):
+                seen.add(s)
+                rev = r.get("revenueActual")
+                kept.append((float(rev) if isinstance(rev, (int, float)) else None,
+                             back, s))
+
+    # Rank by SIZE, not recency. Across a 7-day window the budget covers well
+    # under half the names, and a mega-cap that reported four days ago is far
+    # likelier to be opened than a micro-cap that reported this morning. Ordered
+    # purely by day, DIS landed at queue position 743 — past the daily cap, so
+    # the one name most likely to be opened would never have been warmed.
+    # revenueActual rides along on the calendar row, so this costs no extra call.
+    kept.sort(key=lambda t: (t[0] is None, -(t[0] or 0.0), t[1]))
+    return [s for _, _, s in kept]
 
 
 def build_queue(reporters: list[str],
@@ -150,8 +256,13 @@ def warm_symbol(symbol: str, *, fetch_transcript: Callable = None,
             _log.debug("[recap_warm] %s failed for %s: %s", key, sym, exc)
             recap.setdefault(key, None)
 
-    store.record_spend(sym, recap.get("_usage") or {})
+    # STORE FIRST, bill second. A restart landing between these two calls used
+    # to bill for a recap that was never written — 12 generated against 8
+    # stored across one afternoon's deploys, four calls paid for and lost. The
+    # reverse failure (stored but not billed) merely under-counts the day's
+    # spend by one, which the cap absorbs; paying for nothing does not.
     store.put(sym, quarter, recap)
+    store.record_spend(sym, recap.get("_usage") or {})
     return "warmed"
 
 
@@ -160,6 +271,24 @@ def run_sweep(reporters: list[str], *, now=time.monotonic, sleep=time.sleep,
     """Warm the reporter set in priority order, within budget and clock."""
     if not enabled():
         return {"skipped": "disabled"}
+
+    # Single-flight. A sweep can run for up to MAX_SECONDS (an hour), and the
+    # boot sweep plus the next cron are separate APScheduler jobs, so they
+    # overlap rather than queue. Two sweeps walking the same queue both see
+    # store.has() == False for the same symbol and both pay to generate it.
+    # Not incorrect — last write wins — but it buys the same recap twice out of
+    # a capped daily budget.
+    if not _SWEEP_LOCK.acquire(blocking=False):
+        _log.info("[recap_warm] a sweep is already running; skipping this one")
+        return {"skipped": "already_running"}
+    try:
+        return _run_sweep_locked(reporters, now=now, sleep=sleep, warm=warm,
+                                 store=store)
+    finally:
+        _SWEEP_LOCK.release()
+
+
+def _run_sweep_locked(reporters: list[str], *, now, sleep, warm, store):
     if store is None:
         from api.services import call_recap_store as store
     store.init_db()

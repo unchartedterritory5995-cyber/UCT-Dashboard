@@ -87,3 +87,35 @@ def test_zero_count_consensus_is_dropped(monkeypatch):
     res = ag.get_analyst_grades("ZZ")
     assert res["consensus"] is None          # all-zero buckets → no consensus
     assert res["price_target"]["consensus"] == 100
+
+
+def test_the_four_legs_run_CONCURRENTLY_not_one_after_another(monkeypatch):
+    """Pinned with a barrier, not a stopwatch.
+
+    Sequentially the four provider legs cost ~3.25s end-to-end while each is
+    only ~0.8s — over the 2-3s budget this panel is held to. A timing assertion
+    would be flaky on a loaded box; a barrier is exact: all four legs must be in
+    flight AT THE SAME TIME for it to release. Run one after another, the first
+    leg waits for three that have not started, and this fails on timeout.
+    """
+    import threading
+
+    barrier = threading.Barrier(4, timeout=5)
+
+    def _leg(result):
+        def fn(_ticker):
+            barrier.wait()          # raises BrokenBarrierError if run serially
+            return result
+        return fn
+
+    monkeypatch.setattr(ag, "cache", _FakeCache())
+    monkeypatch.setattr(ag, "_consensus", _leg({"label": "Buy"}))
+    monkeypatch.setattr(ag, "_price_target", _leg({"median": 100.0}))
+    monkeypatch.setattr(ag, "_recent_actions", _leg([{"firm": "X"}]))
+    monkeypatch.setattr(ag, "_trend", _leg([{"month": "2026-08"}]))
+
+    out = ag.get_analyst_grades("DIS")
+
+    assert out is not None
+    assert out["consensus"] == {"label": "Buy"}
+    assert out["recent_actions"] == [{"firm": "X"}]
