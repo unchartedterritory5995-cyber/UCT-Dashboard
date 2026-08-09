@@ -1,0 +1,18 @@
+[
+  {"source": "sma(close, 20)",              "guard": "picker:not-a-condition",
+   "why": "a number, not a yes/no — the picker builds conditions"},
+  {"source": "close",                        "guard": "picker:not-a-condition",
+   "why": "a bare series"},
+  {"source": "(close > 1) ? 2 : 3",          "guard": "picker:node",
+   "why": "the ternary has no row-and-group shape"},
+  {"source": "!(close > open)",              "guard": "picker:node",
+   "why": "negation is not a row; v1 shows it as a formula"},
+  {"source": "(close > open) + 1",           "guard": "picker:not-a-condition",
+   "why": "arithmetic over a condition — the top node is not a comparator"},
+  {"source": "close + open > 1",             "guard": "picker:term",
+   "why": "an arithmetic TERM; the picker's left side is a name, a number or one call"},
+  {"source": "sma(sma(close, 5), 5) > 1",    "guard": "picker:term",
+   "why": "a nested call; v1 shows one level"},
+  {"source": "crossOver(close, open)",       "guard": "picker:not-a-condition",
+   "why": "yields 0/1 but is not a COMPARATOR row — v1 offers it as a formula. See the OWNER block in the brief."}
+]

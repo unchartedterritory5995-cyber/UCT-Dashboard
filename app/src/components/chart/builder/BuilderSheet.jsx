@@ -96,6 +96,7 @@ import {
 } from '../../../hooks/useUserDefinitions'
 import FormulaField, { evaluateFormula, canSaveFormula } from './FormulaField'
 import ConciergeBox from './ConciergeBox'
+import CriteriaPicker from './CriteriaPicker'
 import styles from './BuilderSheet.module.css'
 
 const FOCUSABLE = 'button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),'
@@ -225,6 +226,11 @@ export default function BuilderSheet({
   // instance already on the chart names that one and a PUT at any other id is a
   // second definition wearing an edit's clothes.
   const [editing, setEditing] = useState(null)
+  // ⭐ WHICH DOOR IS OPEN, AND NOTHING MORE. `buildMode` decides whether the
+  // picker is on screen; it is NOT persisted, NOT written into the document and
+  // NOT read back — the saved artifact is the same one either door produces.
+  const [buildMode, setBuildMode] = useState('formula')
+  const [pickerNote, setPickerNote] = useState(null)
   const rootRef = useRef(null)
 
   const { rows, error: listError } = useUserDefinitions()
@@ -235,7 +241,7 @@ export default function BuilderSheet({
     if (!open) return
     setSource(''); setName(''); setResult(evaluateFormula('', BUILDER_INPUT_SCOPE))
     setAcknowledged(false); setStoreError(null); setSavedRow(null); setCopied(false)
-    setEditing(null)
+    setEditing(null); setBuildMode('formula'); setPickerNote(null)
   }, [open])
 
   /** Open a stored formula for editing — its SOURCE, its name, and its id.
@@ -276,6 +282,10 @@ export default function BuilderSheet({
       setAcknowledged(false)
       setStoreError(null)
       setSavedRow(null)
+      // A note about a formula the picker could not show describes the OLD
+      // source; carrying it past an edit would leave a warning on screen about
+      // a formula that is no longer in the box.
+      setPickerNote(null)
       return next
     })
   }, [])
@@ -482,6 +492,43 @@ export default function BuilderSheet({
             disabled={saving}
             onAccept={(proposal) => setSource(proposal?.source || '')}
           />
+
+          {/* ── THE SECOND DOOR ONTO ONE OBJECT (Phase E, E-4) ───────────────────
+              ⛔ A MODE, NOT A SECOND BUILDER. The picker's only output is the SAME
+              `source` string the text box holds, so a picked condition goes through
+              the same parse, the same budget walk, the same linter, the same
+              read-back and the same Save button as a typed one. A second builder
+              would be a second grammar — the seam this task exists to close.
+
+              ⛔ AND THE PICKER IS DERIVED FROM THE TREE, NOT STORED. Switching to it
+              reads `result.ast`; a formula it cannot show is REPORTED, and the
+              picker stays empty rather than half-right. */}
+          <div className={styles.modeRow} role="tablist" aria-label="How to build this">
+            <button
+              type="button" role="tab"
+              className={`${styles.modeTab} ${buildMode === 'picker' ? styles.modeTabActive : ''}`}
+              aria-selected={buildMode === 'picker'}
+              onClick={() => setBuildMode('picker')}
+            >Conditions</button>
+            <button
+              type="button" role="tab"
+              className={`${styles.modeTab} ${buildMode === 'formula' ? styles.modeTabActive : ''}`}
+              aria-selected={buildMode === 'formula'}
+              onClick={() => setBuildMode('formula')}
+            >Formula</button>
+          </div>
+
+          {buildMode === 'picker' && (
+            <CriteriaPicker
+              ast={result?.ast || null}
+              onSourceChange={setSource}
+              onUnrepresentable={(refusal) => setPickerNote(refusal.reason)}
+            />
+          )}
+
+          {buildMode === 'picker' && pickerNote && (
+            <p className={styles.pickerNote} role="status" data-testid="picker-note">{pickerNote}</p>
+          )}
 
           <FormulaField
             value={source}
