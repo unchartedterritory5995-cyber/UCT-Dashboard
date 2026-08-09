@@ -170,15 +170,10 @@ def _date_text(day_mdyyyy: str) -> str:
 
 # ── render ─────────────────────────────────────────────────────────────────
 # Columns: TICKER · NOTIONAL · % ADV · PRICE ZONE · LAST · BIGGEST PRINT · SECTOR
+# PERF (price move vs the dark-pool VWAP — are those levels in profit) sits right
+# after BIGGEST PRINT. On both cards: EOD shows the intraday move off the day's DP
+# VWAP; weekly the move off the week's DP VWAP.
 _COLS = [
-    ("ticker", "TICKER", 36, "l"), ("notional", "NOTIONAL", 284, "r"),
-    ("pctadv", "% ADV", 384, "r"), ("zone", "PRICE ZONE", 566, "r"),
-    ("last", "LAST", 672, "r"), ("big", "BIGGEST PRINT", 904, "r"),
-    ("sector", "SECTOR", 946, "l"),
-]
-# Weekly card adds PERF (price move vs the week's dark-pool VWAP — are those
-# levels in profit) right after BIGGEST PRINT.
-_COLS_WEEKLY = [
     ("ticker", "TICKER", 36, "l"), ("notional", "NOTIONAL", 268, "r"),
     ("pctadv", "% ADV", 356, "r"), ("zone", "PRICE ZONE", 536, "r"),
     ("last", "LAST", 636, "r"), ("big", "BIGGEST PRINT", 852, "r"),
@@ -191,7 +186,7 @@ _SS = 2  # supersample then downscale for crisp text
 def render_card(sections: list[tuple], date_text: str, summary: dict,
                 subtitle: str = "Dark Pool", cols: list | None = None) -> bytes:
     """sections = [(band_label, [item, ...]), ...]. `cols` overrides the column
-    layout (the weekly card passes _COLS_WEEKLY to add PERF)."""
+    layout (defaults to _COLS)."""
     from PIL import Image, ImageDraw, ImageFont
     cols = cols or _COLS
 
@@ -610,8 +605,7 @@ def run_eod_summary(*, force: bool = False, post: bool = True,
         else:
             date_text = _date_text(_iso_to_mdyyyy(dates[-1])) if dates else (today or "")
 
-        png = render_card(sections, date_text, summary, subtitle=subtitle,
-                          cols=(_COLS_WEEKLY if weekly else None))
+        png = render_card(sections, date_text, summary, subtitle=subtitle)
         res: dict = {"ok": True, "weekly": weekly, "tickers": summary["n_tickers"]}
         if not post:
             res["png"] = png
