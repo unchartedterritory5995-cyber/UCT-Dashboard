@@ -22,3 +22,15 @@ test('empty state', () => {
   render(<OwnershipPanel sym="ZZ" />)
   expect(screen.getByText(/no ownership data/i)).toBeInTheDocument()
 })
+
+// 🔴 `/api/ownership/{sym}` became require_paid on 2026-08-09, and this panel is
+// two clicks from the FREE Morning Wire page. Before the fix, `null` from the
+// hook rendered "Loading NVDA…" — so a 402 was a spinner that never stopped.
+test('a PAYWALL REFUSAL says so — it does not sit on "Loading…" forever', () => {
+  mockData.mockReturnValue({ locked: true })
+  render(<OwnershipPanel sym="NVDA" />)
+  expect(screen.getByText(/paid plan/i)).toBeInTheDocument()
+  expect(screen.queryByText(/loading/i)).not.toBeInTheDocument()
+  // …and "we refused you" is not "the market has nothing here".
+  expect(screen.queryByText(/no ownership data/i)).not.toBeInTheDocument()
+})

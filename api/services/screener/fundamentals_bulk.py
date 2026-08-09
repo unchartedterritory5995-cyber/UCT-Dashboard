@@ -6,6 +6,11 @@ of any collector and were NULL on all 3,708 rows of the live snapshot:
     dividend_yield  pe_ttm  ps  pb  gross_margin  net_margin
     roa  debt_to_equity  current_ratio  beta          + exchange
 
+⭐ AND THREE MORE JOINED THEM ON 2026-08-09 — `op_margin`, `roe`, `peg` — not
+because they lacked a collector but because they had TWO. See "THREE COLUMNS
+CHANGED HANDS" below; that is an ownership decision, and it is the reason this
+module now writes FOURTEEN columns rather than eleven.
+
 The values exist in this repo — `research/financials.py` and
 `research/snapshot.py` build them for the research page — but ONE SYMBOL AT A
 TIME, on demand. Filling ~3,700 names that way is ~3,700 provider calls per
@@ -30,8 +35,8 @@ existing `api/services/fmp_bulk.py` calls them through `earnings_estimates
 but it is reported.) This module parses CSV, streamed.
 
     ENDPOINT                        BYTES   COVERS OF OUR 3,742-NAME UNIVERSE
-    /stable/ratios-ttm-bulk         69.7MB  3,679  8 of the ten
-    /stable/key-metrics-ttm-bulk    44.3MB  3,679  roa
+    /stable/ratios-ttm-bulk         69.7MB  3,679  10 of the thirteen
+    /stable/key-metrics-ttm-bulk    44.3MB  3,679  roa + roe
     /stable/profile-bulk?part=0..3 114.0MB  3,738  beta + exchange
 
 `/stable/company-screener` was the cheaper candidate for beta+exchange (JSON,
@@ -121,6 +126,41 @@ repo's most repeated defect. Nor does it write `company`/`sector`/`industry`
 _other_source` is the rail on that, derived from the source maps rather than
 from a list retyped in a test.
 
+🔴 THREE COLUMNS CHANGED HANDS ON 2026-08-09, AND THAT NEEDED A DECISION, NOT
+A COMMIT. `op_margin`, `roe` and `peg` were sitting in the files this pass
+already downloads (`operatingProfitMarginTTM`, `returnOnEquityTTM`,
+`priceToEarningsGrowthRatioTTM`) — zero extra requests. But
+`enrich.ratings_fields` ALREADY CLAIMED all three, and
+`RATINGS_PERCENTILE_ENABLED=1` on Railway, so that path RUNS IN PRODUCTION.
+Wiring them here without settling ownership would have created a live second
+authority resolved by nothing but the merge order in `build_row` — the defect
+`12071063` spent its whole effort removing from `rs_rank`/`rs_return`.
+
+⭐ THIS MODULE WON, ON FOUR MEASURED GROUNDS:
+
+  1. COVERAGE. This pass answers for 3,679 of 3,742 names EVERY night in six
+     requests. The ratings gather is per-symbol yfinance behind a
+     `RATINGS_PERCENTILE_MAX_PER_RUN` cap and a 6-day TTL, so its coverage is a
+     function of how many nights it has managed to run — and on this box its
+     store is 0 bytes.
+  2. ONE BASIS PER ROW. `gross_margin`, `net_margin` and `roa` already come from
+     here, on an FMP TTM basis. Leaving `op_margin` and `roe` on yfinance would
+     put two different accounting bases in ADJACENT COLUMNS of one row, where a
+     member comparing three margins is comparing two providers.
+  3. PROVIDER HEALTH. yfinance has silently dropped whole symbol families on
+     this box (`lesson_a_dead_symbol_may_be_a_dead_provider`). FMP Ultimate is
+     the paid plan the other ten already depend on.
+  4. NOTHING IS LOST. `enrich` needs `op_margin`/`roe`/`peg` as INPUTS to the
+     SMR and Value legs of `uct_composite`, and it still reads them — from
+     `metrics`, which is the ratings store, not from the snapshot row. It has
+     simply stopped ALSO emitting them as columns. That is exactly the shape
+     `enrich` already uses for `rs`: still computed, no longer an output.
+
+⛔ THE OTHER WRITER WAS REMOVED, NOT LEFT TO AGREE.
+`test_no_two_screener_sources_write_the_same_column` derives every source's key
+set BY RUNNING IT and fails on any pair that overlaps, so a second writer is a
+red test rather than a silent race decided by dict order.
+
 `exchange` DOES come from here, and that supersedes the plan to add a Massive
 accessor. The objection to the Massive route was sound — `get_ticker_details`
 is uncached and `get_market_cap` discards the payload, so a naive map is a
@@ -189,6 +229,17 @@ RATIO_SPECS = {
     "pb":             _Spec("priceToBookRatioTTM", 1.0, ()),
     "gross_margin":   _Spec("grossProfitMarginTTM", 100.0, ()),
     "net_margin":     _Spec("netProfitMarginTTM", 100.0, ()),
+    # ⭐ ONE OF THE THREE FREE SCALARS (see the ownership note above). 228 zeros
+    # measured, and ALL 228 read `revenuePerShareTTM == 0` — a dead REVENUE
+    # denominator, not a zero operating income. 225 of them carry a NON-ZERO
+    # `netIncomePerShareTTM` (SPACs on trust interest, pre-revenue biotech:
+    # ABVX, ALLO, AMLX, AURA). Identical population and identical shape to
+    # `net_margin`/`gross_margin`, which refuse for the same reason. REFUSED.
+    "op_margin":      _Spec("operatingProfitMarginTTM", 100.0, ()),
+    # 3 zeros (AGCC, MGRT, NPCT), each with `priceToEarningsRatioTTM == 0` and
+    # `netIncomePerShareTTM == 0`. PEG = P/E ÷ growth, so a PEG of exactly 0
+    # requires a P/E of exactly 0 — the same dead numerator `pe_ttm` refuses.
+    "peg":            _Spec("priceToEarningsGrowthRatioTTM", 1.0, ()),
     # 238 of 240 zeros are corroborated by two further debt quotients reading
     # zero — a genuinely debt-free balance sheet, not a missing denominator.
     "debt_to_equity": _Spec("debtToEquityRatioTTM", 1.0,
@@ -198,12 +249,31 @@ RATIO_SPECS = {
     "current_ratio":  _Spec("currentRatioTTM", 1.0, ()),
 }
 
-#: /stable/key-metrics-ttm-bulk -> roa. Its denominator (total assets) is not
-#: carried here, so a literal 0 has nothing to corroborate it and is refused.
+#: /stable/key-metrics-ttm-bulk -> roa and roe. Neither denominator (total
+#: assets, shareholders' equity) is carried here, so a literal 0 has nothing to
+#: corroborate it and is refused.
+#:
+#: 🔴 THE NEAR-MISS WORTH READING. `returnOnEquityTTM` is 0 on 6 of our names,
+#: and on every one of them `returnOnAssetsTTM`, `returnOnInvestedCapitalTTM`
+#: and `returnOnCapitalEmployedTTM` ALSO read 0. That looks exactly like the
+#: `debt_to_equity` corroboration — three quotients over three denominators
+#: agreeing — and it is NOT. The per-symbol endpoint says why: ARCI, HACQ and
+#: SAAQ carry a non-zero `netIncomePerShareTTM` (-0.0023, -0.0016, -0.0027)
+#: with `bookValuePerShareTTM == 0` and `shareholdersEquityPerShareTTM == 0`.
+#: The numerator is alive; the whole BALANCE SHEET is zero, so every ratio
+#: standing on it prints 0 together.
+#:
+#: ⭐ AGREEMENT AMONG QUOTIENTS IS ONLY CORROBORATION WHEN THE DENOMINATORS ARE
+#: GENUINELY INDEPENDENT. Assets, equity, invested capital and capital employed
+#: are four views of one balance sheet; debt-to-equity / debt-to-assets /
+#: debt-to-capital are three views of one DEBT figure, which is why they can
+#: witness a debt-free company and these four cannot witness a zero return.
+#:
 #: ⛔ `marketCap` is in this payload and is deliberately NOT read: Massive owns
 #: that column.
 KEY_METRIC_SPECS = {
     "roa": _Spec("returnOnAssetsTTM", 100.0, ()),
+    "roe": _Spec("returnOnEquityTTM", 100.0, ()),
 }
 
 #: /stable/profile-bulk -> beta. `exchange` is TEXT and handled beside these.
@@ -469,8 +539,14 @@ def fetch_bulk(wanted, failures: dict | None = None, force: bool = False) -> dic
         # `uct-dashboard/.env` — the same split that left MASSIVE_API_KEY
         # unresolved for the 03:05 build.
         _note(failures, "fmp_bulk", "no_api_key")
-        log.warning("[screener] FMP_API_KEY absent — the ten bulk fundamentals "
-                    "and exchange will be NULL for this build")
+        # ⛔ THE COLUMN LIST IS DERIVED, NEVER TYPED. This line read "the ten
+        # bulk fundamentals and exchange" and was wrong within a day of the
+        # module gaining `op_margin`/`roe`/`peg` — a hand-typed count beside the
+        # set that owns it is this repo's most re-committed defect, and an
+        # operator reading a diagnostic deserves the real names.
+        log.warning("[screener] FMP_API_KEY absent — these %s columns will be "
+                    "NULL for this build: %s",
+                    len(COLUMNS_WRITTEN), ", ".join(sorted(COLUMNS_WRITTEN)))
         return {}
 
     out: dict = {}

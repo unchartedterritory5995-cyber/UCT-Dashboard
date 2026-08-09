@@ -30,6 +30,11 @@ function fmtAsOf(s) {
 export default function OwnershipPanel({ sym }) {
   const { data } = useOwnership(sym)
   if (!sym) return <div className={styles.hint}>Pick a ticker.</div>
+  // A refusal is not a slow load — see the note in `hooks/useOwnership.js`.
+  // Without this branch a free member on Morning Wire sees "Loading NVDA…" forever.
+  if (data?.locked) {
+    return <div className={styles.hint}>Institutional ownership is part of a paid plan.</div>
+  }
   if (!data) return <div className={styles.hint}>Loading {sym}…</div>
   if (!data.top_holders?.length && data.inst_pct == null) return <div className={styles.hint}>No ownership data for {sym}.</div>
   const hasFlow = data.biggest_buyers?.length || data.biggest_sellers?.length

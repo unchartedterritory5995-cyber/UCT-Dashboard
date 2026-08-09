@@ -3,20 +3,33 @@
 A curated library of the best stocks in history, organized by year, with the
 firm's playbook setups labeled on each stock's chart.
 
-Reads are open to any logged-in user (Model Book is a FREE_PAGE). Writes
-(curating stocks + labeling setups) are admin-only — mirrors the auth pattern
-in api/routers/catalysts.py (get_current_user vs require_admin).
+🔴 READS ARE PAID as of 2026-08-09. All twelve were `get_current_user` only —
+a session, never a plan — and signup is open and free, so a free registration
+read the entire library with a `curl`.
 
-Routes:
-    GET    /api/modelbook/years                    → [2025, 2024, ...]
-    GET    /api/modelbook/stocks?year=2025          → curated stocks for a year
-    GET    /api/modelbook/stock/{stock_id}          → stock + its setups[]
-    POST   /api/modelbook/stocks                     → add stock          (admin)
-    PUT    /api/modelbook/stock/{stock_id}          → edit stock         (admin)
-    DELETE /api/modelbook/stock/{stock_id}          → remove stock       (admin)
-    POST   /api/modelbook/stock/{stock_id}/setups   → label a setup      (admin)
-    PUT    /api/modelbook/setup/{setup_id}          → edit a setup       (admin)
-    DELETE /api/modelbook/setup/{setup_id}          → remove a setup     (admin)
+⚰️ **THE JUSTIFICATION IN THIS HEADER WAS FALSE, AND THAT IS WHY IT SURVIVED.**
+It said *"Reads are open to any logged-in user (Model Book is a FREE_PAGE)"*.
+`FREE_PAGES` is `['/morning-wire']` and has been since the 2026-07-19 owner
+decision — all three frontend copies agree (`AuthGuard.jsx:88`, `NavBar.jsx:35`,
+`MoreSheet.jsx:60`), and `AuthGuard` bounces a non-paid member off `/model-book`.
+So the open gate was defended by a claim the code contradicted, and anyone
+auditing this file read the sentence instead of `FREE_PAGES`. **Never restate a
+gate's justification from a page's history — derive it from the list that owns
+it.** (`CLAUDE.md`'s own "Free tier" line carries the same stale six-page claim;
+it is not this file's to fix, but do not take it as corroboration.)
+
+What is behind the gate is the firm's curation: which stocks mattered in which
+year, the playbook setups labeled on their charts with entry/stop/target and a
+grade, the LLM-authored year recaps and catalysts, and the setup-example library.
+That is the research product, and it is one scrape away from being someone
+else's.
+
+Writes (curating stocks + labeling setups) remain admin-only.
+
+⛔ The route list this header used to carry is gone on purpose — read the
+decorators. A hand-typed route table beside the source that owns it is this
+repo's most-repeated defect, and the one above had drifted to nine of the
+thirty-odd routes actually mounted here.
 """
 from __future__ import annotations
 
@@ -26,11 +39,26 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
-from api.middleware.auth_middleware import get_current_user, require_admin
+from api.middleware.auth_middleware import (
+    get_current_user_with_plan, is_paid_user, require_admin,
+)
 from api.services import modelbook_service as svc
 from api.services import significant_catalysts
 
 router = APIRouter(prefix="/api/modelbook", tags=["modelbook"])
+
+
+def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    """Paid gate for Model Book reads.
+
+    ⛔ Defined HERE, never imported from a sibling — each router owns its own
+    402 sentence so "which surface refused me" is readable off the message.
+    Rail: `tests/test_user_definitions_auth.py::test_require_paid_is_defined_PER_ROUTER…`
+    """
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402,
+                            detail="The Model Book requires a paid plan")
+    return user
 
 _GRADES = {"A+", "A", "B", "C", "F"}
 _TIMEFRAMES = {"D", "W", "M"}
@@ -244,17 +272,17 @@ def _validate_setup(d: dict) -> None:
 # ── Reads (any logged-in user) ────────────────────────────────────────────────
 
 @router.get("/years")
-def get_years(_user: dict = Depends(get_current_user)):
+def get_years(_user: dict = Depends(require_paid)):
     return {"years": svc.list_years()}
 
 
 @router.get("/stocks")
-def get_stocks(year: int = Query(...), _user: dict = Depends(get_current_user)):
+def get_stocks(year: int = Query(...), _user: dict = Depends(require_paid)):
     return {"year": year, "stocks": svc.get_stocks_for_year(year)}
 
 
 @router.get("/all-stocks")
-def all_stocks(_user: dict = Depends(get_current_user)):
+def all_stocks(_user: dict = Depends(require_paid)):
     """Minimal {id, year, symbol} for EVERY curated stock across all years — one
     round-trip the frontend uses to prefetch every chart/detail/earnings on open
     so switching years + tickers is instant. Lightweight (no setups/catalysts)."""
@@ -263,7 +291,7 @@ def all_stocks(_user: dict = Depends(get_current_user)):
 
 
 @router.get("/stock/{stock_id}")
-def get_stock(stock_id: int, _user: dict = Depends(get_current_user)):
+def get_stock(stock_id: int, _user: dict = Depends(require_paid)):
     stock = svc.get_stock_detail(stock_id)
     if not stock:
         raise HTTPException(404, "Stock not found")
@@ -446,7 +474,7 @@ def _warm_year_async(year: int):
 
 
 @router.get("/year-stats")
-def year_stats(year: int = Query(...), _user: dict = Depends(get_current_user)):
+def year_stats(year: int = Query(...), _user: dict = Depends(require_paid)):
     """Per-stock year price stats (open→close %, low→high %), keyed by symbol.
 
     ALWAYS instant: returns whatever is persisted on the stock rows (a plain DB
@@ -473,7 +501,7 @@ def year_stats(year: int = Query(...), _user: dict = Depends(get_current_user)):
 @router.get("/year-earnings")
 def year_earnings(symbol: str = Query(...), year: int = Query(...),
                   data_symbol: str = Query(None),
-                  _user: dict = Depends(get_current_user)):
+                  _user: dict = Depends(require_paid)):
     """Quarterly EPS + revenue (actual vs estimate, with % surprise) for the
     reports that landed during `year`. Lazy — fetched only when the Earnings tab
     is opened. Finnhub-backed + cached (closed years are static). `data_symbol`
@@ -486,7 +514,7 @@ def year_earnings(symbol: str = Query(...), year: int = Query(...),
 @router.get("/intraday-day")
 def intraday_day(symbol: str = Query(...), date: str = Query(...),
                  stock_id: int = Query(None),
-                 _user: dict = Depends(get_current_user)):
+                 _user: dict = Depends(require_paid)):
     """5-minute intraday bars for a single REGULAR-HOURS session (09:30–16:00 ET)
     on `date` (YYYY-MM-DD). Powers the setup/catalyst-candle intraday popup.
 
@@ -562,14 +590,14 @@ def intraday_day(symbol: str = Query(...), date: str = Query(...),
 
 
 @router.get("/index-drawings")
-def get_index_drawings(symbol: str = Query("^IXIC"), _user: dict = Depends(get_current_user)):
+def get_index_drawings(symbol: str = Query("^IXIC"), _user: dict = Depends(require_paid)):
     """GLOBAL annotations for the index reference pane (^IXIC) — one shared set
     shown read-only on every stock's chart. Any logged-in user can read."""
     return {"symbol": symbol.upper(), "drawings_json": svc.get_index_drawings(symbol)}
 
 
 @router.get("/stock/{stock_id}/bars")
-def get_stock_bars(stock_id: int, _user: dict = Depends(get_current_user)):
+def get_stock_bars(stock_id: int, _user: dict = Depends(require_paid)):
     """Uploaded historical OHLCV for a delisted stock (served to the chart in
     place of the missing provider data). Any logged-in user can read."""
     import json
@@ -1259,7 +1287,7 @@ def _generate_recaps_for(years, max_workers=2):
 
 
 @router.get("/year-recap")
-def year_recap(year: int = Query(...), _user: dict = Depends(get_current_user)):
+def year_recap(year: int = Query(...), _user: dict = Depends(require_paid)):
     """An AI recap of `year` as a market year (broad market, leadership themes,
     momentum-trader climate), shown on year-tab hover. Generated once on first
     request, then kept permanently. Returns {status:'generating'} while the
@@ -1427,7 +1455,7 @@ def _gen_example_meta_async(ex):
 
 
 @router.get("/setup-examples")
-def get_setup_examples(setup: str = Query(...), _user: dict = Depends(get_current_user)):
+def get_setup_examples(setup: str = Query(...), _user: dict = Depends(require_paid)):
     examples = svc.list_setup_examples(setup)
     # Auto-fill each example's watermark company/sector/industry on view (once,
     # then kept permanently) so every chart shows TICKER · Company · Sector ·
@@ -1469,7 +1497,7 @@ def remove_setup_example(example_id: int, _admin: dict = Depends(require_admin))
 # longer carry still renders a chart.
 
 @router.get("/setup-example/{example_id}/bars")
-def get_setup_example_bars(example_id: int, _user: dict = Depends(get_current_user)):
+def get_setup_example_bars(example_id: int, _user: dict = Depends(require_paid)):
     import json
     raw = svc.get_setup_example_bars(example_id)
     bars = []

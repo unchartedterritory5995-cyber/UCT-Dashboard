@@ -160,8 +160,22 @@ def list_public(user: dict = Depends(get_current_user)):
 
 @router.get("/api/watchlists/prebuilt")
 def list_prebuilt(user: dict = Depends(get_current_user)):
-    """Admin-curated UCT watchlists (the picker's Prebuilt tab). Any logged-in user."""
-    return watchlist_service.list_prebuilt_watchlists()
+    """Admin-curated UCT watchlists (the picker's Prebuilt tab). Any logged-in user.
+
+    Each row is tagged with its `category` (the section it appears under in the picker),
+    resolved from the committed prebuilt config."""
+    rows = watchlist_service.list_prebuilt_watchlists(limit=1000)
+    try:
+        from api.services.watchlist_prebuilt import category_map, sample_map, _DEFAULT_CATEGORY
+        cats = category_map()
+        samples = sample_map()
+        for r in rows:
+            key = (r.get("name") or "").strip().lower()
+            r["category"] = cats.get(key, _DEFAULT_CATEGORY)
+            r["sample"] = samples.get(key, [])
+    except Exception:
+        pass
+    return rows
 
 
 @router.post("/api/watchlists")

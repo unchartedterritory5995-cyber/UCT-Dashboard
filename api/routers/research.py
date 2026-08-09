@@ -72,6 +72,7 @@ def research_snapshot_batch(tickers: list[str] = Body(..., embed=True)):
         try:
             s = get_snapshot(sym)
             return sym, {
+                "name": s.get("name"),
                 "market_cap": (s.get("metrics") or {}).get("market_cap"),
                 "next_earnings": s.get("next_earnings"),
                 "composite": s.get("composite"),
@@ -79,7 +80,7 @@ def research_snapshot_batch(tickers: list[str] = Body(..., embed=True)):
                 "industry": s.get("industry"),
             }
         except Exception:
-            return sym, {"market_cap": None, "next_earnings": None, "composite": None,
+            return sym, {"name": None, "market_cap": None, "next_earnings": None, "composite": None,
                          "sector": None, "industry": None}
 
     out: dict[str, dict] = {}

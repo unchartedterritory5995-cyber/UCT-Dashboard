@@ -3,15 +3,44 @@ historical analogs, risk dashboard, psychology events, coaching notes, and
 skill assessments.
 
 All data comes from the uct-intelligence engine (cross-repo import).
+
+🔴 ALL TWELVE ROUTES ARE PAID since 2026-08-09. Every one was `get_current_user`
+only — a session, never a plan — and signup is open and free, so a free
+registration read the whole surface with a `curl`.
+
+**This router IS the Compass brain.** What it serves is the uct-intelligence
+knowledge base: the 48 curated setup templates and their per-setup win rates, the
+confidence model, leader-persistence scoring, the historical-analog engine, the
+risk dashboard, the psychology-event ledger, the coaching notes and the skill
+assessments. That is the firm's accumulated research — not market data we relay,
+and not a per-user store gated by ownership. It is the single highest-value thing
+in the product to copy, and it answered anybody with an email address.
+
+The React router hid the page; `AuthGuard.jsx:139` renders `<Navigate>`, which
+redirects a browser and refuses no request. The gate has to be the handler, and
+now is.
 """
 
 import sys
 import os
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import Optional
-from api.middleware.auth_middleware import get_current_user
+from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 
 router = APIRouter()
+
+
+def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    """Paid gate for the Compass knowledge base.
+
+    ⛔ Defined HERE, never imported from a sibling — each router owns its own
+    402 sentence so "which surface refused me" is readable off the message.
+    Rail: `tests/test_user_definitions_auth.py::test_require_paid_is_defined_PER_ROUTER…`
+    """
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402,
+                            detail="The Compass knowledge base requires a paid plan")
+    return user
 
 # Cross-repo import for uct-intelligence
 _UCT_INTEL_PATH_DEFAULT = r"C:\Users\Patrick\uct-intelligence"
@@ -35,7 +64,7 @@ def _get_api():
 def list_setup_templates(
     family: Optional[str] = None,
     regime: Optional[str] = None,
-    _user: dict = Depends(get_current_user),
+    _user: dict = Depends(require_paid),
 ):
     """List all active setup templates with optional filtering."""
     uct = _get_api()
@@ -64,7 +93,7 @@ def list_setup_templates(
 @router.get("/api/setup-templates/{name}")
 def get_setup_template(
     name: str,
-    _user: dict = Depends(get_current_user),
+    _user: dict = Depends(require_paid),
 ):
     """Get a single setup template with full detail + performance by regime."""
     uct = _get_api()
@@ -98,7 +127,7 @@ def get_setup_template(
 def get_setup_performance(
     setup_type: str,
     regime: str = "ALL",
-    _user: dict = Depends(get_current_user),
+    _user: dict = Depends(require_paid),
 ):
     """Get setup performance stats for a specific type and regime."""
     uct = _get_api()
@@ -117,7 +146,7 @@ def get_setup_performance(
 @router.get("/api/confidence-scores/{symbol}")
 def get_confidence_score(
     symbol: str,
-    _user: dict = Depends(get_current_user),
+    _user: dict = Depends(require_paid),
 ):
     """Get the latest confidence score for a symbol."""
     uct = _get_api()
@@ -151,7 +180,7 @@ def get_confidence_score(
 @router.get("/api/leader-persistence/{symbol}")
 def get_leader_persistence(
     symbol: str,
-    _user: dict = Depends(get_current_user),
+    _user: dict = Depends(require_paid),
 ):
     """Get how many consecutive days a symbol has been on Leadership 20."""
     uct = _get_api()
@@ -203,7 +232,7 @@ def get_analogs(
     regime: str = "ALL",
     sector: str = "",
     limit: int = 5,
-    _user: dict = Depends(get_current_user),
+    _user: dict = Depends(require_paid),
 ):
     """Get historical analogs for a setup type in a regime."""
     uct = _get_api()
@@ -218,7 +247,7 @@ def get_analogs(
 
 @router.get("/api/risk-summary")
 def get_risk_summary(
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_paid),
 ):
     """Get portfolio risk summary from open journal positions."""
     from api.services.journal_two import positions as j2_positions
@@ -299,7 +328,7 @@ def get_risk_summary(
 @router.get("/api/psychology-events")
 def list_psychology_events(
     days: int = 30,
-    _user: dict = Depends(get_current_user),
+    _user: dict = Depends(require_paid),
 ):
     """List recent psychology events (overtrading, revenge, FOMO)."""
     uct = _get_api()
@@ -334,7 +363,7 @@ def list_psychology_events(
 def list_coaching_notes(
     limit: int = 10,
     note_type: Optional[str] = None,
-    _user: dict = Depends(get_current_user),
+    _user: dict = Depends(require_paid),
 ):
     """List recent AI-generated coaching notes."""
     uct = _get_api()
@@ -373,7 +402,7 @@ def list_coaching_notes(
 
 @router.get("/api/skill-assessments")
 def list_skill_assessments(
-    _user: dict = Depends(get_current_user),
+    _user: dict = Depends(require_paid),
 ):
     """List all skill domain assessments."""
     uct = _get_api()
@@ -397,7 +426,7 @@ def get_pre_trade_checklist(
     setup_type: str = Query(...),
     entry_price: float = Query(...),
     stop_price: float = Query(...),
-    _user: dict = Depends(get_current_user),
+    _user: dict = Depends(require_paid),
 ):
     """Generate a pre-trade checklist from setup template rules."""
     uct = _get_api()
@@ -415,7 +444,7 @@ def list_model_examples(
     grade: Optional[str] = None,
     example_type: Optional[str] = None,
     limit: int = 20,
-    _user: dict = Depends(get_current_user),
+    _user: dict = Depends(require_paid),
 ):
     """List model examples with optional filters."""
     uct = _get_api()

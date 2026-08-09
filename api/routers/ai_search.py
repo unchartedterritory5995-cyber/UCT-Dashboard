@@ -24,10 +24,42 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from api.middleware.auth_middleware import get_current_user, require_admin
+from api.middleware.auth_middleware import (
+    get_current_user_with_plan, is_paid_user, require_admin,
+)
 from api.services import ai_search_personal, perplexity_search
 
 router = APIRouter(prefix="/api/ai-search", tags=["ai-search"])
+
+
+def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    """Paid gate for AI Search.
+
+    🔴 THE MONEY ROUTE. `POST ""`, `POST /stream` and `POST /signal` were
+    `get_current_user` only — a session, never a plan — and signup is open and
+    free. Every accepted question runs a Perplexity web search and an LLM
+    synthesis **on the firm's key**, so a free registration in a loop was an
+    unbounded bill charged to us on somebody else's behalf. That is money leaving
+    the account, which the brief names as paid at minimum regardless of what the
+    answer is worth.
+
+    ⛔ The per-user daily cap (`_check_limits` / `_reserve`) is NOT this gate.
+    It bounds one account's spend; it never asked whether the account had paid
+    for any. A cap on free usage is a budget for giving the product away.
+
+    ⚠️ `_is_paid_server` elsewhere in this file is a DIFFERENT decision — it
+    chooses whether a question may read the member's own portfolio (the personal
+    branch). It has never gated access, and reusing it here would conflate
+    "may see their own book" with "may spend our tokens".
+
+    ⛔ Defined HERE, never imported from a sibling — each router owns its own
+    402 sentence so "which surface refused me" is readable off the message.
+    Rail: `tests/test_user_definitions_auth.py::test_require_paid_is_defined_PER_ROUTER…`
+    """
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402,
+                            detail="AI Search requires a paid plan")
+    return user
 
 
 def _is_paid_server(user):
@@ -1220,7 +1252,7 @@ def _log_answer(*, body: AiSearchIn, user_id, answer_id, endpoint, mode, result,
 
 
 @router.post("")
-def ai_search(body: AiSearchIn, user: dict = Depends(get_current_user)):
+def ai_search(body: AiSearchIn, user: dict = Depends(require_paid)):
     user_id = user.get("id")
     if not (body.query or "").strip():
         raise HTTPException(status_code=422, detail="Empty question.")
@@ -1280,7 +1312,7 @@ def ai_search(body: AiSearchIn, user: dict = Depends(get_current_user)):
 
 
 @router.post("/stream")
-async def ai_search_stream(body: AiSearchIn, user: dict = Depends(get_current_user)):
+async def ai_search_stream(body: AiSearchIn, user: dict = Depends(require_paid)):
     """SSE twin of the endpoint above: `data: {"type":"delta","text":...}` events
     as tokens arrive, then a final `data: {"type":"final",...}` shaped like the
     single-shot response. Same auth + daily caps (429 raised BEFORE the stream
@@ -1453,7 +1485,7 @@ class AiSignalIn(BaseModel):
 
 
 @router.post("/signal")
-def ai_search_signal(body: AiSignalIn, user: dict = Depends(get_current_user)):
+def ai_search_signal(body: AiSignalIn, user: dict = Depends(require_paid)):
     """Best-effort human quality signal on a prior answer (save/share/copy = member
     vouch; pin/exclude = admin curation). Joined by the stable answer_id, so it stays
     de-identified. Never fails the caller."""

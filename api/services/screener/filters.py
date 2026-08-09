@@ -22,13 +22,39 @@ free to be wrong, so it was; it is load-bearing the moment data arrives.
 def _range(key, label, category, column, presets, unit=None):
     return key, {"label": label, "category": category, "type": "range",
                  "column": column, "presets": presets, "allow_custom": True,
-                 "unit": unit}
+                 "unit": unit, "options_column": None}
 
 
-def _enum(key, label, category, column, presets):
+def _enum(key, label, category, column, presets, options_column=None):
+    """``options_column`` names the snapshot column whose DISTINCT values become
+    this filter's preset list at ``meta()`` time — see ``_distinct_options``."""
     return key, {"label": label, "category": category, "type": "enum",
                  "column": column, "presets": presets, "allow_custom": False,
-                 "unit": None}
+                 "unit": None, "options_column": options_column}
+
+
+def _open_range(key, label, category, column, unit=None):
+    """A range control with NO preset thresholds — only ``Any`` and the custom
+    min/max the member types.
+
+    🔴 WHY THESE SHIP BARE, when `pe_fwd` beside them offers "Under 20".
+    A preset is an EDITORIAL CLAIM: shipping *"P/E: Cheap (under 15)"* under
+    this masthead asserts that the firm considers 15 cheap. Nobody here has
+    published that number, and E-8's grounding rule is that a threshold nobody
+    at the firm publishes must not ship wearing the firm's name.
+
+    ⭐ SO THE CONTROL SHIPS AND THE OPINION DOES NOT. `allow_custom` is what
+    makes that a real control rather than a stub: `FilterPanel` renders
+    `["Any", "Custom…"]` and "Custom…" reveals the min/max inputs, so a member
+    can screen `current_ratio` between 1.5 and 3 on the day this lands. When
+    the owner decides what "low P/E" means at this firm, the presets drop into
+    the list beneath the same control and nothing else moves.
+    """
+    key, spec = _range(key, label, category, column, [{"label": "Any"}], unit)
+    # The marker a rail reads, so "this filter is deliberately preset-free" is a
+    # PROPERTY of the filter rather than a list of keys retyped in a test.
+    spec["presets_deferred"] = True
+    return key, spec
 
 
 def _bool(key, label, category, column):
@@ -43,7 +69,20 @@ def _bool(key, label, category, column):
 FILTERS = dict([
     # ── descriptive ──
     _enum("sector", "Sector", "descriptive", "sector",
-          [{"label": "Any"}]),  # options injected dynamically by meta()
+          [{"label": "Any"}], options_column="sector"),
+    # ⛔ THE OPTION LIST IS READ OFF THE ARTIFACT, never typed. Measured over the
+    # universe on 2026-08-09 it is NYSE 1,926 · NASDAQ 1,711 · AMEX 95 · CBOE 5
+    # · PNK 1 — and typing those five here would be a second authority over a
+    # set the data already owns, wrong the first time FMP renames one or a
+    # sixth venue appears. ⚠️ FMP labels NYSE **Arca** as `AMEX` (SPY), which is
+    # its canonical short name and consistently applied, but is theirs not ours.
+    _enum("exchange", "Exchange", "descriptive", "exchange",
+          [{"label": "Any"}], options_column="exchange"),
+    # Beta rides here rather than under "technical" because it arrives on FMP's
+    # company PROFILE beside sector and exchange, and it describes the
+    # instrument's character rather than today's setup. ⚠️ It genuinely ranges
+    # (-43.73, 10.00) over this universe — there is no clamp, by design.
+    _open_range("beta", "Beta", "descriptive", "beta"),
     _range("market_cap", "Market Cap", "descriptive", "market_cap",
            [{"label": "Any"},
             {"label": "Mega (>$200B)", "op": "gte", "min": 2e11},
@@ -59,7 +98,25 @@ FILTERS = dict([
            [{"label": "Any"},
             {"label": "Over 1M", "op": "gte", "min": 1e6},
             {"label": "Over 5M", "op": "gte", "min": 5e6}]),
-    # ── fundamental ── (sourced from the nightly research_ratings.db gather)
+    # ── fundamental ──
+    # 🔴 TEN CONTROLS LANDED HERE ON 2026-08-09 AND THEY ARE THE PRODUCT HALF OF
+    # A FILL. `53b88b1d` populated eleven columns that had been NULL on all
+    # 3,708 rows; every one of them was screenable by the AST/criterion door and
+    # by NONE of them through this registry, which is the door the classic
+    # screener UI is built out of. Data with no control is a column a member can
+    # sort by and never search on.
+    #
+    # ⭐ THE TEN NEW ONES CARRY NO PRESET THRESHOLDS — see `_open_range`. The
+    # ones ABOVE and BELOW them (`pe_fwd`, `peg`, `eps_growth`, `rev_growth`,
+    # `op_margin`, `roe`) predate that rule and still carry "Under 20" /
+    # "Over 25%"; those numbers have no published source at this firm either
+    # and are flagged for the owner rather than quietly deleted, because they
+    # are already shipping and removing them is itself a product change.
+    #
+    # ⚠️ `peg` / `op_margin` / `roe` changed PROVIDER in this same commit
+    # (`enrich.ratings_fields` -> `fundamentals_bulk`). The filter keys, columns
+    # and units are untouched: the member-facing contract is identical, only
+    # the writer behind the column changed.
     _range("pe_fwd", "Forward P/E", "fundamental", "pe_fwd",
            [{"label": "Any"}, {"label": "Under 20", "op": "lte", "max": 20},
             {"label": "Under 35", "op": "lte", "max": 35}]),
@@ -82,6 +139,28 @@ FILTERS = dict([
     _range("uct_composite", "UCT Composite", "fundamental", "uct_composite",
            [{"label": "Any"}, {"label": "Over 80", "op": "gte", "min": 80},
             {"label": "Over 90", "op": "gte", "min": 90}]),
+    # ── the ten filled by `fundamentals_bulk` on 2026-08-09, controls only ──
+    _open_range("pe_ttm", "P/E (TTM)", "fundamental", "pe_ttm"),
+    _open_range("ps", "P/S", "fundamental", "ps"),
+    _open_range("pb", "P/B", "fundamental", "pb"),
+    _open_range("dividend_yield", "Dividend Yield", "fundamental",
+                "dividend_yield", unit="%"),
+    _open_range("gross_margin", "Gross Margin", "fundamental", "gross_margin",
+                unit="%"),
+    _open_range("net_margin", "Net Margin", "fundamental", "net_margin",
+                unit="%"),
+    _open_range("roa", "ROA", "fundamental", "roa", unit="%"),
+    # ⚠️ RATIOS, NOT PERCENTS — AAPL's D/E is 0.78, not 78. The registry used to
+    # claim otherwise for a column that had never held a value; see the module
+    # docstring. A member typing `2` here means twice equity.
+    _open_range("debt_to_equity", "Debt / Equity", "fundamental",
+                "debt_to_equity"),
+    # ⚠️ ~163 banks, insurers and BDCs have NO current ratio and are NULL rather
+    # than 0 (FMP prints 0 for "undefined"; `fundamentals_bulk` refuses it). So
+    # `current_ratio < 1` correctly returns no financials — which is a true
+    # answer, and a better one than every financial in America.
+    _open_range("current_ratio", "Current Ratio", "fundamental",
+                "current_ratio"),
     # ── technical ──
     _range("rs_rank", "RS Rank", "technical", "rs_rank",
            [{"label": "Any"}, {"label": "Over 70", "op": "gte", "min": 70},
@@ -199,15 +278,32 @@ def is_valid_op(key, op):
     return op in _VALID_OPS.get(f["type"], set())
 
 
-def _sector_options():
+def _distinct_options(column):
+    """``[{Any}, {label/op/value} …]`` from the DISTINCT values a column holds.
+
+    ⛔ THE COLUMN NAME COMES FROM THE FILTER DEFINITION, and it is validated
+    against the schema before it reaches the SQL — the registry is the only
+    thing that may name a column, never the client.
+
+    ⚰️ THIS WAS `_sector_options()`, and `meta()` chose it with
+    `if key == "sector"`. That is a second authority over which filters have
+    dynamic options: the fact lived in `meta()`'s body rather than in the
+    filter, so `exchange` — an enum over an artifact column, needing exactly
+    the same treatment — would have silently rendered a bare "Any" and looked
+    like a shipped control that matches nothing. The marker now rides on the
+    filter, where the rest of that filter's truth already lives.
+    """
+    from api.services.screener import snapshot_db
+    if column not in snapshot_db.COLUMNS:
+        return [{"label": "Any"}]
     try:
-        from api.services.screener import snapshot_db
         with snapshot_db.connect() as conn:
             rows = conn.execute(
-                "SELECT DISTINCT sector FROM screener_rows "
-                "WHERE sector IS NOT NULL AND sector != '' ORDER BY sector").fetchall()
+                f'SELECT DISTINCT "{column}" AS v FROM screener_rows '
+                f'WHERE "{column}" IS NOT NULL AND "{column}" != \'\' '
+                f'ORDER BY "{column}"').fetchall()
         return [{"label": "Any"}] + \
-            [{"label": r["sector"], "op": "eq", "value": r["sector"]} for r in rows]
+            [{"label": r["v"], "op": "eq", "value": r["v"]} for r in rows]
     except Exception:
         return [{"label": "Any"}]
 
@@ -215,7 +311,8 @@ def _sector_options():
 def meta() -> dict:
     out_filters = []
     for key, f in FILTERS.items():
-        presets = _sector_options() if key == "sector" else f["presets"]
+        presets = (_distinct_options(f["options_column"])
+                   if f.get("options_column") else f["presets"])
         out_filters.append({"key": key, "label": f["label"],
                             "category": f["category"], "type": f["type"],
                             "presets": presets, "allow_custom": f["allow_custom"],

@@ -97,15 +97,40 @@ def test_seen_isolated_per_user(monkeypatch, tmp_path):
 # Endpoint tests (FastAPI TestClient, mock auth + mock service)
 # ─────────────────────────────────────────────────────────────────────────────
 
-_FAKE_USER = {"id": "user-abc", "email": "test@example.com", "role": "member"}
+# ⚠️ REPAIRED 2026-08-09 — the calendar's personalized routes became
+# `require_paid` (Calendar is a paid page; `AuthGuard` bounces a free member off
+# it). `_FAKE_USER` had no plan, so these tests asserted 200 for a caller who
+# merely had a SESSION — the hole itself, since signup is open and free.
+_FAKE_USER = {"id": "user-abc", "email": "test@example.com", "role": "member",
+              "plan": "pro"}
+_FREE_USER = {"id": "user-free", "email": "free@example.com", "role": "member",
+              "plan": "free"}
 
 
-def _make_client():
+def _make_client(user=None):
+    """⛔ The override is on `get_current_user_with_plan`, the gate's INPUT —
+    never on `require_paid`, which would mean never running the gate."""
     from api.main import app
-    from api.middleware.auth_middleware import get_current_user
-    app.dependency_overrides[get_current_user] = lambda: _FAKE_USER
+    from api.middleware.auth_middleware import (
+        get_current_user, get_current_user_with_plan,
+    )
+    who = dict(user or _FAKE_USER)
+    app.dependency_overrides[get_current_user] = lambda: dict(who)
+    app.dependency_overrides[get_current_user_with_plan] = lambda: dict(who)
     client = TestClient(app)
     return client, app
+
+
+def test_a_logged_in_FREE_member_is_refused_the_seen_routes():
+    """🔴 THE ASSERTION THAT WAS MISSING."""
+    client, app = _make_client(_FREE_USER)
+    try:
+        assert client.get("/api/calendar/seen?item_type=earnings").status_code == 402
+        assert client.post("/api/calendar/seen",
+                           json={"item_type": "earnings",
+                                 "item_key": "NVDA"}).status_code == 402
+    finally:
+        app.dependency_overrides.clear()
 
 
 def test_get_seen_endpoint_empty():

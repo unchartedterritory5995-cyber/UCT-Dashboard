@@ -55,8 +55,8 @@ BASE = cen.repo_root()
 # never punish whoever finally fixes it. Delete the entry once its module is
 # clean.
 #
-# Both remaining entries are OWNERSHIP quarantines, not technical ones. The fix
-# is one keyword argument in each; what is missing is permission, not a plan.
+# The remaining entry is an OWNERSHIP quarantine, not a technical one. The fix
+# is one keyword argument; what is missing is permission, not a plan.
 #
 #   api/services/call_recap_grounded.py — 🆕 landed in `c62cefeb`/`6ba0ba2c`
 #     WHILE this rail was being un-quarantined, from a parallel session that owns
@@ -73,13 +73,17 @@ BASE = cen.repo_root()
 #     (`call_recap.py:66` — the same feature's other client — already uses
 #     exactly this shape at REQUEST_PATH_LONG; copy it.)
 #
-#   api/schwab_router.py — partner-owned (`project_partner_collab_branch`: Ravi
-#     co-edits OptionsFlow.jsx, schwab_router.py, live_massive_router.py; do not
-#     touch without ack). ⚠️ THIS IS THE WORST SITE IN THE CENSUS: an `async def`
-#     handler making a BLOCKING `client.messages.create()`, so a hang pins the
-#     single shared EVENT LOOP, not merely one of 64 workers. `/market-narrative`
-#     is 30-min cached, which bounds the frequency but not the blast radius of
-#     one bad call. Needs an ack, then `timeout=llm_timeouts.REQUEST_PATH`.
+# ✅ RELEASED 2026-08-09: `api/schwab_router.py` — the ack came, and the site the
+#    census called its worst is closed. It was an `async def` handler making a
+#    BLOCKING `client.messages.create()`, so a hang pinned the single shared
+#    EVENT LOOP rather than one of 64 workers. Two changes, not one: the client
+#    now passes `timeout=llm_timeouts.seconds("SCHWAB_NARRATIVE_LLM_TIMEOUT_SECS",
+#    llm_timeouts.REQUEST_PATH)`, AND the handler was changed from `async def` to
+#    `def` so Starlette dispatches it to the threadpool. ⭐ The timeout alone would
+#    have shortened the outage from ten minutes to one; only the second change
+#    takes the blocking call off the loop. Rails:
+#    `tests/test_schwab_partner_fixes.py` (a hung SDK is cut at the stated bound,
+#    and a concurrent request still completes while the narrative is blocked).
 #
 # ✅ RELEASED 2026-08-09: `api/services/journal_two/coach_chat.py` (both sites).
 #    Its Compass fix landed, so the two clients now pass `timeout=` — and, because
@@ -92,7 +96,6 @@ BASE = cen.repo_root()
 #    `test_every_quarantined_path_still_has_something_to_quarantine` is what
 #    forces the deletion.
 QUARANTINE: dict[str, int] = {
-    "api/schwab_router.py": 1,
     "api/services/call_recap_grounded.py": 1,
 }
 

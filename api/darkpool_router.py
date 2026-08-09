@@ -257,6 +257,27 @@ async def prebuild_now(_auth: dict = Depends(require_flow_admin)):
     return JSONResponse({"status": "prebuild started"})
 
 
+# ── Admin: Dark Pool EOD / EOW summary card (preview + manual post) ───────────
+@router.get("/eod-summary")
+async def darkpool_eod_summary(
+    post: int = Query(default=0, description="0 = preview the PNG, 1 = post to Discord"),
+    weekly: int = Query(default=0, description="0 = EOD (last session), 1 = EOW (week)"),
+    _auth: dict = Depends(require_flow_admin),
+):
+    """Build the by-market-cap Dark Pool summary card. `post=0` returns the PNG
+    inline for preview (open in a browser while signed in); `post=1` posts it to
+    the options-EOD Discord channel. Runs the build off the event loop (it does
+    per-ticker bars/print reads + an async mkt-cap fetch)."""
+    from api import darkpool_eod
+    res = await run_in_threadpool(
+        darkpool_eod.run_eod_summary, force=True, post=bool(post), weekly=bool(weekly))
+    if not post and res.get("png"):
+        return Response(content=res["png"], media_type="image/png",
+                        headers=_DARKPOOL_NO_CACHE_HEADERS)
+    res.pop("png", None)
+    return JSONResponse(res)
+
+
 # ── Member: Get available trading dates ───────────────────────────────────────
 @router.get("/dates")
 async def get_dates(_auth: dict = Depends(require_flow_user)):

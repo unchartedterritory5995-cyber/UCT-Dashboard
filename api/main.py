@@ -3142,17 +3142,24 @@ async def lifespan(app: FastAPI):
             print(f"[startup] Darkpool DB auto-seed error (non-fatal): {e}")
     threading.Thread(target=_darkpool_db_seed_background, daemon=True, name="darkpool-db-seed").start()
 
-    # Seed the 'Delisted Legends' prebuilt watchlist (idempotent). Deferred a bit so the
-    # admin user + watchlists table are ready; background so it never blocks boot.
-    def _seed_delisted_legends_bg():
+    # Seed the prebuilt watchlists (Liquid Major ETFs; deletes retired lists like Delisted
+    # Legends). Idempotent + self-healing; deferred so the admin user + watchlists table are
+    # ready; background so it never blocks boot.
+    def _seed_prebuilt_bg():
         try:
             import time as _t
             _t.sleep(25)
-            from api.services.watchlist_prebuilt import seed_delisted_legends
-            seed_delisted_legends()
+            from api.services.watchlist_prebuilt import seed_prebuilt_watchlists
+            seed_prebuilt_watchlists()
+            # Auto-management catch-up: liquidity re-rank + delisted prune if the durable
+            # overlay is missing or stale (monthly cron keeps it fresh thereafter).
+            import os as _os_pb
+            if _os_pb.environ.get("PREBUILT_REFRESH_ENABLED", "1") != "0":
+                from api.services import watchlist_prebuilt_refresh as _pbr
+                _pbr.maybe_startup_catchup()
         except Exception:
             pass
-    threading.Thread(target=_seed_delisted_legends_bg, daemon=True, name="delisted-legends-seed").start()
+    threading.Thread(target=_seed_prebuilt_bg, daemon=True, name="prebuilt-watchlists-seed").start()
 
     try:
         _cot_service.init_db()
@@ -3310,6 +3317,23 @@ async def lifespan(app: FastAPI):
                 id="floor_premarket_brief", replace_existing=True, max_instances=1)
         except Exception as _e_sig:
             print(f"[startup] floor signal job skip: {_e_sig}")
+
+        # -- Prebuilt ETF watchlists: monthly liquidity re-rank + delisted prune ----
+        # 'Liquid Major ETFs' is re-ranked from live Massive dollar volume and any ticker
+        # that stopped trading is pruned from every list — while the curated theme lists
+        # (Sector SPDRs, Commodities, Bonds…) stay hand-authored. Writes a durable /data
+        # overlay. Disable with PREBUILT_REFRESH_ENABLED=0. Startup catch-up lives in the
+        # _seed_prebuilt_bg thread so it goes live soon after a deploy, not a month later.
+        import os as _os_pbr
+        if _os_pbr.environ.get("PREBUILT_REFRESH_ENABLED", "1") != "0":
+            try:
+                from api.services import watchlist_prebuilt_refresh as _pbr_sched
+                _scheduler.add_job(
+                    _pbr_sched.run_scheduled_refresh,
+                    CronTrigger(day=1, hour=6, minute=0, timezone=_ET),
+                    id="prebuilt_watchlists_refresh", replace_existing=True, max_instances=1)
+            except Exception as _e_pbr:
+                print(f"[startup] prebuilt refresh job skip: {_e_pbr}")
 
         # -- Indicator alerts: the CLOSED-BAR SHADOW LANE (Phase C Task 6) ------
         # ⭐ BOTH LANES RUN, ONE LANE DELIVERS. The live evaluator
@@ -3488,6 +3512,32 @@ async def lifespan(app: FastAPI):
             print("[startup] darkpool intraday poller scheduled (weekdays every 3m, 9-16 ET)")
         except Exception as _e_dpint:
             print(f"[startup] darkpool intraday poller job skip: {_e_dpint}")
+
+        # -- Dark pool: EOD / EOW summary card to Discord (2026-08-09) ----------
+        # By-market-cap dark-pool summary, styled like the Top Flow options card.
+        # EOD weekdays 20:10 ET — a safe margin AFTER the 19:20 nightly ingest has
+        # folded the authoritative session into darkpool_trades (which the card
+        # reads via get_aggregated). EOW additionally on Friday (the week view).
+        # SELF-GATED: run_eod_summary is a no-op unless DARKPOOL_EOD_ENABLED=1, so
+        # registering these is dark — they build + post nothing until armed. Posts
+        # to the same Discord channel as the options EOD (see darkpool_eod._webhook).
+        try:
+            import functools as _functools
+            from api.darkpool_eod import run_eod_summary as _dp_eod
+            _scheduler.add_job(
+                _dp_eod,   # defaults: force=False, post=True, weekly=False
+                trigger=CronTrigger(day_of_week="mon-fri", hour=20, minute=10, timezone=_ET),
+                id="darkpool_eod", max_instances=1, replace_existing=True,
+                misfire_grace_time=3600)
+            _scheduler.add_job(
+                _functools.partial(_dp_eod, weekly=True),
+                trigger=CronTrigger(day_of_week="fri", hour=20, minute=15, timezone=_ET),
+                id="darkpool_eow", max_instances=1, replace_existing=True,
+                misfire_grace_time=3600)
+            print("[startup] darkpool EOD/EOW summary scheduled (EOD 20:10 ET weekdays, "
+                  "EOW 20:15 ET Fri) — dark until DARKPOOL_EOD_ENABLED=1")
+        except Exception as _e_dpeod:
+            print(f"[startup] darkpool EOD summary job skip: {_e_dpeod}")
 
         # -- Dark pool: nightly-ingest startup catch-up (2026-07-27) ------------
         # APScheduler here has no jobstore, so a 19:20 ET run missed because the

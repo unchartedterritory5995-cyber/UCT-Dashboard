@@ -5,15 +5,39 @@ GET /api/earnings/call-recap/{ticker}   → call recap (24h cache, cost-guarded)
 GET /api/earnings/sentiment/{ticker}    → AI sentiment (12h cache, cost-guarded)
 GET /api/earnings/audio/{ticker}        → pluggable audio (env-gated)
 GET /api/earnings/transcript/{ticker}   → verbatim transcript via AlphaVantage (lazy, cached)
+
+🔴 PAID since 2026-08-09 (every route here that had a session dependency). All of
+them were `get_current_user` only — a session, never a plan — and signup is open
+and free.
+
+Two independent reasons, and either alone is sufficient:
+
+1. **It spends.** `call-recap` is an Opus + Perplexity call, `sentiment` is an
+   LLM read, and `transcript` runs off the **AlphaVantage 25-calls-a-day** free
+   budget the whole product shares. The caches are cost guards, not gates: they
+   bound the *repeat* price of a question, never who is allowed to ask a new one.
+2. **It is the firm's read**, not a relay — the recap's guidance extraction,
+   the sentiment score with its drivers, the rating-change roll-up.
+
+Every consumer is a paid surface: `components/calendar/*` and
+`pages/calendar/MyStocksHub.jsx` (Calendar is paid — `AuthGuard` bounces a free
+member off `/calendar`), `pages/research/tabs/CallsTab.jsx` (`/research/:sym`
+renders `PaywallTeaser` for a free member, which fetches nothing), and
+`pages/journal-2-0/**`. Nothing on `/morning-wire` touches this router.
+
+✋ `GET /api/earnings/audio/{ticker}` and `GET /api/admin/call-recap-status` are
+left as they are: both are *anonymous* (no session dependency at all), so they
+belong to the no-dependency bucket, not the `get_current_user` bucket this task
+was scoped to close. Reported rather than swept.
 """
 from __future__ import annotations
 
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, Query, Request, Response
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response
 
-from api.middleware.auth_middleware import get_current_user
+from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services.call_recap import (
     get_call_recap_with_status,
     get_sentiment,
@@ -32,11 +56,30 @@ _log = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    """Paid gate for earnings intelligence.
+
+    ⛔ Defined HERE, never imported from a sibling — each router owns its own
+    402 sentence so "which surface refused me" is readable off the message.
+    Rail: `tests/test_user_definitions_auth.py::test_require_paid_is_defined_PER_ROUTER…`
+
+    The three `keyword-alerts` routes are gated with the rest deliberately, even
+    though they are a per-user store. What they subscribe to is the transcript
+    feed above, which is now paid — leaving the subscription open would enroll
+    free accounts in a delivery pipeline whose content they cannot read, and the
+    scan that fires them reads the same AlphaVantage budget.
+    """
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402,
+                            detail="Earnings intelligence requires a paid plan")
+    return user
+
+
 @router.get("/api/earnings/call-recap/{ticker}")
 def call_recap_endpoint(
     ticker: str,
     quarter: Optional[str] = Query(default=None, description="e.g. 2026Q3; omit for latest"),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_paid),
 ):
     """AI-synthesized earnings call recap.
 
@@ -91,7 +134,7 @@ def audio_endpoint(ticker: str):
 
 
 @router.get("/api/earnings/sentiment/{ticker}")
-def sentiment_endpoint(ticker: str, user: dict = Depends(get_current_user)):
+def sentiment_endpoint(ticker: str, user: dict = Depends(require_paid)):
     """AI-derived earnings sentiment.
 
     Returns {score: int(-100..100), label, rationale, drivers[]}
@@ -129,7 +172,7 @@ def _with_qa_boundary(res):
 def transcript_endpoint(
     ticker: str,
     quarter: Optional[str] = Query(default=None, description="e.g. 2025Q1; omit to auto-resolve latest"),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_paid),
 ):
     """Verbatim earnings call transcript.
 
@@ -182,7 +225,7 @@ def call_recap_status():
 
 
 @router.get("/api/earnings/keyword-alerts")
-def list_keyword_alerts(user: dict = Depends(get_current_user)):
+def list_keyword_alerts(user: dict = Depends(require_paid)):
     try:
         from api.services import transcript_keyword_alerts as ka
         ka.init_db()
@@ -196,7 +239,7 @@ def list_keyword_alerts(user: dict = Depends(get_current_user)):
 
 
 @router.post("/api/earnings/keyword-alerts")
-def add_keyword_alert(body: dict = Body(...), user: dict = Depends(get_current_user)):
+def add_keyword_alert(body: dict = Body(...), user: dict = Depends(require_paid)):
     """Add a keyword. Returns the stored (normalised) form, or an explicit
     reason — a silent no-op would look like a saved subscription that never
     fires, which is the worst outcome for an alert feature."""
@@ -213,7 +256,7 @@ def add_keyword_alert(body: dict = Body(...), user: dict = Depends(get_current_u
 
 
 @router.delete("/api/earnings/keyword-alerts")
-def remove_keyword_alert(keyword: str = Query(...), user: dict = Depends(get_current_user)):
+def remove_keyword_alert(keyword: str = Query(...), user: dict = Depends(require_paid)):
     from api.services import transcript_keyword_alerts as ka
     ka.init_db()
     removed = ka.remove_keyword(user["id"], keyword)
@@ -221,7 +264,7 @@ def remove_keyword_alert(keyword: str = Query(...), user: dict = Depends(get_cur
 
 
 @router.get("/api/earnings/transcript-quarters/{ticker}")
-def transcript_quarters_endpoint(ticker: str, user: dict = Depends(get_current_user)):
+def transcript_quarters_endpoint(ticker: str, user: dict = Depends(require_paid)):
     """Quarters with a published transcript, newest first.
 
     Cheap (one cached FMP index call, no transcript bodies) and it is what lets
@@ -239,7 +282,7 @@ def transcript_quarters_endpoint(ticker: str, user: dict = Depends(get_current_u
 
 
 @router.get("/api/earnings/analyst-grades/{ticker}")
-def analyst_grades_endpoint(ticker: str, user: dict = Depends(get_current_user)):
+def analyst_grades_endpoint(ticker: str, user: dict = Depends(require_paid)):
     """Analyst ratings consensus + price targets + recent upgrade/downgrade
     actions + rating-bucket trend (FMP Ultimate). Returns null when unavailable.
     Never raises."""
@@ -265,7 +308,7 @@ def timed_transcript_endpoint(
     ticker: str,
     year: Optional[int] = Query(default=None),
     quarter: Optional[int] = Query(default=None),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_paid),
 ):
     """Speaker turns with per-word start times, or null when uncovered."""
     sym = (ticker or "").upper().strip()
@@ -291,7 +334,7 @@ def call_audio_endpoint(
     request: Request,
     year: Optional[int] = Query(default=None),
     quarter: Optional[int] = Query(default=None),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_paid),
 ):
     """Proxy the call recording so the provider key never reaches the browser.
 

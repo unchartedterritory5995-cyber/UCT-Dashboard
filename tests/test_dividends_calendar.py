@@ -337,11 +337,31 @@ class TestDividendsEndpoint:
     The endpoint requires auth; we mock the auth dependency + the service.
     """
 
-    def _authed_client(self):
-        """Return a TestClient that overrides get_current_user."""
-        from api.middleware.auth_middleware import get_current_user
-        app.dependency_overrides[get_current_user] = lambda: {"id": "test-user-123", "email": "t@example.com"}
+    def _authed_client(self, plan="pro"):
+        """Return a TestClient standing in for a PAID member.
+
+        ⚠️ REPAIRED 2026-08-09 — `/api/calendar/dividends` became `require_paid`
+        with the rest of the calendar's personalized routes. This helper supplied
+        a session with no plan and the tests asserted 200, which proved only that
+        a SESSION got the data — and signup is open and free, so that was the
+        hole, not the gate.
+
+        ⛔ The override is on `get_current_user_with_plan`, the gate's INPUT.
+        Overriding `require_paid` would mean the tests never run the gate
+        (`lesson_injected_dependency_hides_the_fetch`)."""
+        from api.middleware.auth_middleware import (
+            get_current_user, get_current_user_with_plan,
+        )
+        who = {"id": "test-user-123", "email": "t@example.com",
+               "role": "member", "plan": plan}
+        app.dependency_overrides[get_current_user] = lambda: dict(who)
+        app.dependency_overrides[get_current_user_with_plan] = lambda: dict(who)
         return client
+
+    def test_a_logged_in_FREE_member_is_refused(self):
+        """🔴 THE ASSERTION THAT WAS MISSING."""
+        c = self._authed_client(plan="free")
+        assert c.get("/api/calendar/dividends?syms=AAPL").status_code == 402
 
     def teardown_method(self):
         app.dependency_overrides.clear()
