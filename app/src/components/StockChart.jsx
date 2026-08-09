@@ -2066,6 +2066,11 @@ export default function StockChart({
   // undo a deliberate pan (that was the "drag left and it snaps straight back"
   // bug — the net re-fired on the next live data commit).
   const userViewMovedRef = useRef(false)
+  // REPLAY view lock: once the user pans/zooms while in replay, every subsequent ticker
+  // in the sort keeps that exact view (right-relative) instead of snapping back to the
+  // default replay frame. Persists across ticker switches; cleared by "Reset view" or on
+  // exit replay. (userViewMovedRef is re-armed each sym switch, so it can't hold this.)
+  const replayViewLockedRef = useRef(false)
   const viewPointerRef = useRef(null)       // {x, y} of the in-flight press, else null
   const lastPointerDownAtRef = useRef(0)    // ms of the last press anywhere on the chart
   // Is the user's pointer physically over THIS chart? The ONLY trustworthy
@@ -2630,8 +2635,10 @@ export default function StockChart({
         }
         // Explicit reset — the view is back at the canonical window, so the
         // "user moved the view" latch is cleared and the pinned-right safety
-        // net is live again (see userViewMovedRef).
+        // net is live again (see userViewMovedRef). Also release the replay view
+        // lock so the next replay ticker returns to the default replay frame.
         userViewMovedRef.current = false
+        replayViewLockedRef.current = false
       } catch {}
     }
     const autoScale = () => {
@@ -7783,6 +7790,9 @@ export default function StockChart({
       // New symbol/timeframe = a fresh view, so re-arm the pinned-right safety
       // net that a user pan on the PREVIOUS symbol had latched off.
       userViewMovedRef.current = false
+      // Exiting replay (or a TF change) clears the replay view lock so the next frame
+      // uses the normal default; a plain ticker switch WITHIN replay keeps it locked.
+      if (!replayCutoff || tfChanged) replayViewLockedRef.current = false
       // A timeframe switch must PRESERVE the viewport: keep the last candle at the
       // exact same screen position AND the same zoom width, then just swap in the new
       // tf's bars — no reset to the tf default, no leftward snap ("just flip the
@@ -7826,7 +7836,14 @@ export default function StockChart({
         // scrolled-back (past) position from the prior symbol. Otherwise preserve the
         // prior bars-from-right (flip tickers at the exact same historical view).
         let to, from
-        if (keepPresentOnSymbolChange) {
+        // REPLAY view lock: once the user has moved the view in replay, keep the EXACT
+        // right-relative view (same distance from the cutoff + same zoom) on every ticker,
+        // overriding keepPresent's snap-to-present — until "Reset view" / exit replay.
+        if (replayCutoff && replayViewLockedRef.current) {
+          const barsFromRight = oldBarCount - oldRange.to
+          to = newBarCount - barsFromRight
+          from = to - width
+        } else if (keepPresentOnSymbolChange) {
           to = (newBarCount - 1) + width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
           from = to - width
         } else if (rangeDescribesOldExtent(oldRange, oldBarCount, newBarCount)) {
@@ -10102,10 +10119,16 @@ export default function StockChart({
     const onMove = (e) => {
       const p = viewPointerRef.current
       if (!p) return
-      if (Math.abs(e.clientX - p.x) > 4 || Math.abs(e.clientY - p.y) > 4) userViewMovedRef.current = true
+      if (Math.abs(e.clientX - p.x) > 4 || Math.abs(e.clientY - p.y) > 4) {
+        userViewMovedRef.current = true
+        if (replayCutoffRef.current) replayViewLockedRef.current = true   // lock this view for the whole sort
+      }
     }
     const onUp = () => { viewPointerRef.current = null }
-    const onWheel = () => { userViewMovedRef.current = true }
+    const onWheel = () => {
+      userViewMovedRef.current = true
+      if (replayCutoffRef.current) replayViewLockedRef.current = true
+    }
     // Real pointer presence — see pointerOverRef. mouseenter/leave don't bubble,
     // so they fire exactly for THIS container.
     const onEnter = () => {
@@ -10393,6 +10416,7 @@ export default function StockChart({
                 ts.resetTimeScale()
               }
               userViewMovedRef.current = false   // explicit reset re-arms the pinned-right net
+              replayViewLockedRef.current = false // and releases the replay view lock
             } catch { /* noop */ }
           },
           openSettings: () => { try { toolbarRef.current?.openSettings() } catch { /* noop */ } },
