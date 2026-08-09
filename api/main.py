@@ -3142,6 +3142,19 @@ async def lifespan(app: FastAPI):
             print(f"[startup] Darkpool DB auto-seed error (non-fatal): {e}")
     threading.Thread(target=_darkpool_db_seed_background, daemon=True, name="darkpool-db-seed").start()
 
+    # Seed the prebuilt watchlists (Liquid Major ETFs; deletes retired lists like Delisted
+    # Legends). Idempotent + self-healing; deferred so the admin user + watchlists table are
+    # ready; background so it never blocks boot.
+    def _seed_prebuilt_bg():
+        try:
+            import time as _t
+            _t.sleep(25)
+            from api.services.watchlist_prebuilt import seed_prebuilt_watchlists
+            seed_prebuilt_watchlists()
+        except Exception:
+            pass
+    threading.Thread(target=_seed_prebuilt_bg, daemon=True, name="prebuilt-watchlists-seed").start()
+
     try:
         _cot_service.init_db()
         if _cot_service.is_empty():

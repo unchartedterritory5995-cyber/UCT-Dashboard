@@ -121,11 +121,11 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
     }
   }, [deletingId, mutateMine])
 
-  const Row = ({ wl, icon, onClick }) => (
+  const Row = ({ wl, icon, onClick, hideOwner = false }) => (
     <button type="button" className={styles.row} onClick={onClick}>
       <span className={styles.rowIcon}><UIcon name={icon} size={13} gold={false} /></span>
       <span className={styles.rowName}>{wl.name}</span>
-      {wl.owner_name && <span className={styles.rowMeta}>{wl.owner_name}</span>}
+      {!hideOwner && wl.owner_name && <span className={styles.rowMeta}>{wl.owner_name}</span>}
       {countOf(wl) != null && <span className={styles.rowCount}>{countOf(wl)}</span>}
     </button>
   )
@@ -199,7 +199,7 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
               </div>
             </div>
           ) : prebuilt.map(wl => (
-            <Row key={`p${wl.id}`} wl={wl} icon="star"
+            <Row key={`p${wl.id}`} wl={wl} icon="star" hideOwner
               onClick={() => onPick({ key: `community:${wl.id}`, name: wl.name })} />
           ))
         )}

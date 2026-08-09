@@ -4,6 +4,12 @@ import WatchlistPicker from './WatchlistPicker'
 import { ChartsSymContext } from '../ChartsSymContext'
 import { useWorkspace } from '../WorkspaceContext'
 
+// Per-prebuilt-list default column layout. A curated list can open with a specific column
+// order + its own storage key (so its layout persists separately from the global default).
+const PREBUILT_COL_DEFAULTS = {
+  'Liquid Major ETFs': { key: 'wl-cols-liquid-etfs', cfg: { order: ['flag', 'sym', 'chg', 'price', 'dolvol'] } },
+}
+
 export default function WatchlistWidget({ color, opts, onOptsChange }) {
   const { groupSyms, setGroupSym, activeWatchlistRef } = useWorkspace()
   // Stable id so this widget can claim "active" (owns arrow keys + its own scroll).
@@ -50,6 +56,7 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
     )
   }
 
+  const _prebuiltCols = PREBUILT_COL_DEFAULTS[opts?.watchName || '']
   return (
     <ChartsSymContext.Provider value={scopedSymContext}>
       <Watchlists
@@ -61,6 +68,8 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
         widgetKey={widgetId}
         settingsOverride={wlSettingsOverride}
         onSettingsPersist={persistWlSettings}
+        defaultColCfg={_prebuiltCols?.cfg || null}
+        colStorageKey={_prebuiltCols?.key || null}
       />
     </ChartsSymContext.Provider>
   )

@@ -74,6 +74,7 @@ const COL_META = {
   flag: { def: 30, min: 16 }, sym: { def: 96, min: 56 }, price: { def: 62, min: 44 },
   vol: { def: 56, min: 40 }, chg: { def: 68, min: 50 },
   // Optional data columns (added via the + button).
+  name: { def: 150, min: 90 },
   rvol: { def: 64, min: 46 }, ipoDate: { def: 84, min: 60 },
   mcap: { def: 82, min: 56 }, earn: { def: 92, min: 62 }, rating: { def: 78, min: 54 },
   // Intraday quote-derived columns (computed client-side from the live quote).
