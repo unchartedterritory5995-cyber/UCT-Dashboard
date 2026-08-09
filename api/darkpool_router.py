@@ -60,6 +60,8 @@ from api.darkpool_aggregator import (
     get_aggregated as get_aggregated_payload,
     prebuild_all_windows_background,
     invalidate_cache as invalidate_agg_cache,
+    is_window_warm,
+    build_window_background,
 )
 import gzip
 import io
@@ -72,6 +74,9 @@ _DARKPOOL_CACHE_HEADERS = {
     "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
     "Vary": "Accept-Encoding",
 }
+# The "computing" stub must NEVER be cached (by CF or the browser) — otherwise a
+# cold-cache poll response would be served in place of the real data once warm.
+_DARKPOOL_NO_CACHE_HEADERS = {"Cache-Control": "no-store, max-age=0"}
 
 # ── In-memory response cache ────────────────────────────────────────────────
 # Keyed by (days,)  where days=None means "all". Values: (version, gzipped_bytes).
@@ -208,21 +213,36 @@ async def get_darkpool_aggregated(
     further processing.
 
     File-cached on /data volume. Cache key includes a DB signature so any
-    upload (or prune) automatically invalidates. First request after a
-    cache miss takes 5-15s; subsequent identical requests are sub-second.
+    upload (or prune) automatically invalidates.
+
+    NON-BLOCKING (2026-08-09): a WARM window is served immediately (the cache
+    read runs off the event loop). A COLD window is NOT built inline — the 90d
+    build takes >100s, which Cloudflare kills with a 524 (the "stuck on Building
+    aggregation" bug) and, run inline in this async handler, would pin the single
+    event loop for the whole site. Instead we kick a background build and return a
+    small {"status":"computing"} stub; the client polls until the window is warm.
     """
     try:
-        if all_data or days == 0:
-            payload = get_aggregated_payload(all_data=True)
-        else:
-            if days > 365:
-                days = 365
-            payload = get_aggregated_payload(days=days)
-        body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
-        return Response(
-            content=body,
-            media_type="application/json",
-            headers=_DARKPOOL_CACHE_HEADERS,
+        _all = bool(all_data or days == 0)
+        _days = None if _all else min(days, 365)
+        if is_window_warm(days=_days, all_data=_all):
+            # Cache hit — read + serialize off the loop (belt-and-suspenders; the
+            # read is fast, but a rare race to cold must never block the loop).
+            payload = await run_in_threadpool(
+                get_aggregated_payload, **({"all_data": True} if _all else {"days": _days}))
+            body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+            return Response(
+                content=body,
+                media_type="application/json",
+                headers=_DARKPOOL_CACHE_HEADERS,
+            )
+        # Cold — build in the background (immune to the 100s request limit) and
+        # tell the client to poll. Idempotent: the per-window single-flight lock
+        # coalesces concurrent cold callers onto ONE build.
+        build_window_background(days=_days, all_data=_all)
+        return JSONResponse(
+            {"status": "computing", "days": (0 if _all else _days), "all_data": _all},
+            headers=_DARKPOOL_NO_CACHE_HEADERS,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
