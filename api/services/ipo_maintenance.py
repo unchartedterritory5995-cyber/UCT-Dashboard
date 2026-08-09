@@ -82,7 +82,13 @@ def check_ipo_expirations():
     taxonomy = None
     for p in paths:
         if os.path.exists(os.path.abspath(p)):
-            with open(os.path.abspath(p)) as f:
+            # ⛔ ENCODING IS EXPLICIT. Bare `open()` uses the LOCALE encoding, and
+            # `themes_taxonomy.json` carries non-ASCII company names — so this
+            # raised UnicodeDecodeError on cp1252 (every Windows box, including
+            # the one the operator runs the curation tools on) while working on
+            # Railway. A maintenance job that only ever ran on the machine where
+            # it crashes is a special kind of silent.
+            with open(os.path.abspath(p), encoding="utf-8") as f:
                 taxonomy = json.load(f)
             break
 
@@ -107,8 +113,45 @@ def check_ipo_expirations():
     return {"expired": expired, "expiring_soon": expiring_soon, "unknown": unknown}
 
 
+def digest_text(result) -> str:
+    """The operator-facing summary of one check, or "" when there is nothing to say.
+
+    ⛔ EMPTY IS A REAL ANSWER. A weekly ping that always fires is a weekly ping
+    nobody reads; this returns "" on a clean week so the notification only ever
+    means "there is something for you to do".
+    """
+    lines = []
+    if result.get("expired"):
+        lines.append("**Aged out (>12 months) — remove from `recent_ipos`:** "
+                     + ", ".join(f"{e['sym']} ({e['days_since']}d)"
+                                 for e in result["expired"]))
+    if result.get("expiring_soon"):
+        lines.append("**Expiring within 30 days:** "
+                     + ", ".join(f"{e['sym']} ({e['days_remaining']}d left)"
+                                 for e in result["expiring_soon"]))
+    if result.get("unknown"):
+        lines.append("**No IPO date tracked** (add to `IPO_DATES`): "
+                     + ", ".join(result["unknown"]))
+    return "\n".join(lines)
+
+
 def run_ipo_maintenance():
-    """Run the IPO theme maintenance check. Logs results."""
+    """Run the IPO theme maintenance check. Logs results + pings the operator.
+
+    ⛔ THE DELIVERY IS THE POINT, NOT DECORATION. This function's docstring said
+    *"Runs on a schedule (weekly)"* while it sat in NO scheduler with ZERO
+    callers — the reachability audit's §3e, and a verbatim repeat of the
+    session-insights precedent (defined, never wired, deferred work silently
+    uncollected for weeks). Wiring it to log alone would have been the other half
+    of the same lie: `lesson_scheduler_job_return_value_goes_nowhere` — a job's
+    return value goes nowhere and Railway keeps ~500 log lines, so a weekly
+    WARNING is indistinguishable from a job that never ran. The removal it asks
+    for is a MANUAL edit to `themes_taxonomy.json` (the owner's inviolable
+    baseline — see the Theme Membership Engine invariants), so the artifact has
+    to reach a human. Discord is where this repo already sends operator digests.
+
+    Inert without `DISCORD_WEBHOOK_URL`; never raises.
+    """
     result = check_ipo_expirations()
 
     if result["expired"]:
@@ -124,5 +167,19 @@ def run_ipo_maintenance():
     if result["unknown"]:
         _logger.warning("[IPO] %d IPOs with no tracked date: %s",
                        len(result["unknown"]), ", ".join(result["unknown"]))
+
+    body = digest_text(result)
+    if body:
+        try:
+            from api.services.discord_notify import _send_webhook
+            _send_webhook({
+                "title": "🗓️ Recent IPOs — theme maintenance",
+                "description": body[:3900],
+                "color": 0xC9A84C,  # UCT gold
+            })
+        except Exception as e:                 # pragma: no cover - never break the job
+            _logger.warning("[IPO] digest notification failed (non-fatal): %s", e)
+    else:
+        _logger.info("[IPO] nothing aged out or expiring — no digest sent")
 
     return result

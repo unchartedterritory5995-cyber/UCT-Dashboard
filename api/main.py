@@ -3185,6 +3185,29 @@ async def lifespan(app: FastAPI):
         except Exception as _e_nsh:
             print(f"[startup] nightly side-heal job skip: {_e_nsh}")
 
+        # 🔴 THE SCHEDULE ITS DOCSTRING ALREADY CLAIMED.
+        # `ipo_maintenance.run_ipo_maintenance` says *"Runs on a schedule
+        # (weekly)"* and was in NO scheduler with ZERO callers — reachability
+        # audit §3e, and a verbatim repeat of the session-insights precedent
+        # (defined, never wired, work silently uncollected for weeks). Only the
+        # module's `IPO_DATES` constant was ever consumed.
+        # ⛔ Sunday, deliberately clear of the 08:00 ET Compass weekly digest.
+        # The job is a taxonomy READ plus an operator ping; it mutates nothing
+        # (the removal it asks for is a manual edit to the owner's
+        # `themes_taxonomy.json` baseline) and it is inert without
+        # DISCORD_WEBHOOK_URL. Rail: tests/test_ipo_maintenance_scheduled.py.
+        def _ipo_maintenance_job():
+            try:
+                from api.services import ipo_maintenance as _ipo
+                _ipo.run_ipo_maintenance()
+            except Exception as _e_ipo:
+                print(f"[ipo] weekly maintenance failed (non-fatal): {_e_ipo}")
+
+        _scheduler.add_job(
+            _ipo_maintenance_job,
+            trigger=CronTrigger(day_of_week="sun", hour=8, minute=30, timezone=_ET),
+            id="ipo_maintenance_weekly", max_instances=1, replace_existing=True)
+
         _scheduler.add_job(_cot_service.refresh_from_current, trigger=CronTrigger(day_of_week="fri", hour=15, minute=50, timezone=_ET), id="cot_weekly_refresh", max_instances=1, replace_existing=True)
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=15, timezone=_ET), id="cot_weekly_retry_1", max_instances=1, replace_existing=True)
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=45, timezone=_ET), id="cot_weekly_retry_2", max_instances=1, replace_existing=True)
