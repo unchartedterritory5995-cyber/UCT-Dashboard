@@ -321,8 +321,16 @@ def get_period_change(start_ymd: int, end_ymd: int) -> dict:
             _kick_period_daily_warm(ck, cached.get("results"))
         return cached
 
-    start_closes, sd = _grouped_near(_to_date(start_ymd))   # fast (grouped-daily only)
-    end_closes, ed = _grouped_near(_to_date(end_ymd))
+    # Fetch BOTH whole-market dates AND prewarm the full-market snapshot CONCURRENTLY — these
+    # three ~8,000-ticker calls were sequential (the 30-40s wait). Snapshot lands in its own
+    # cache so _assemble reads it instantly; grouped-daily is now cached per date too.
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=3, thread_name_prefix="period-fetch") as _ex:
+        _fs = _ex.submit(_grouped_near, _to_date(start_ymd))
+        _fe = _ex.submit(_grouped_near, _to_date(end_ymd))
+        _ex.submit(lambda: massive._get_client().get_full_market_snapshot())  # prewarm cache
+        start_closes, sd = _fs.result()
+        end_closes, ed = _fe.result()
     if start_closes and end_closes:
         out = _assemble(start_closes, end_closes, sd, ed, False, start_ymd)
         cache.set(ck, out, ttl=_TTL if out.get("results") else 15)

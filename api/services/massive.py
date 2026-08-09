@@ -649,7 +649,16 @@ def get_grouped_daily_closes(day_iso: str, adjusted: bool = True) -> dict:
     Provider-form tickers (BRK.B). adjusted=True → split-adjusted to the current basis
     (so a return measured against an old close is correct across any split). Returns {}
     for a non-trading day (the endpoint answers with zero results) or on error. Powers the
-    Top-Gainers scans' whole-market N-day reference."""
+    Top-Gainers scans' whole-market N-day reference AND the Custom-Period Sort.
+
+    CACHED per (date, adjusted): a PAST date's whole-market closes are IMMUTABLE, so this
+    ~8,000-ticker fetch runs at most once per date (Custom-Period Sort was re-fetching two
+    of them on every range). A recent date (could still be forming) caches only briefly."""
+    import datetime as _dt
+    ck = f"grouped_close_{day_iso}_{1 if adjusted else 0}"
+    cached = cache.get(ck)
+    if cached is not None:
+        return cached
     try:
         client = _get_client()
         adj = "true" if adjusted else "false"
@@ -665,6 +674,11 @@ def get_grouped_daily_closes(day_iso: str, adjusted: bool = True) -> dict:
         tk, c = r.get("T"), r.get("c")
         if tk and isinstance(c, (int, float)) and c > 0:
             out[str(tk).upper()] = float(c)
+    if out:  # never cache an empty/error (would pin a non-trading-day miss)
+        # Strictly before yesterday (UTC) = a settled past day → cache long; today/yesterday
+        # may still be forming → short.
+        _cutoff = (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(days=1)).date().isoformat()
+        cache.set(ck, out, ttl=(604800 if day_iso < _cutoff else 900))
     return out
 
 
