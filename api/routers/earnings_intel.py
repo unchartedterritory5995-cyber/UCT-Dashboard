@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query, Request, Response
 
 from api.middleware.auth_middleware import get_current_user
 from api.services.call_recap import (
@@ -251,3 +251,84 @@ def analyst_grades_endpoint(ticker: str, user: dict = Depends(get_current_user))
     except Exception as e:
         _log.warning("[earnings_intel] analyst grades failed for %s: %s", sym, e)
         return None
+
+
+# ── Timed transcript + call audio (the Quartr behaviour) ─────────────────────
+#
+# A transcript with per-word start times is what lets the text follow the audio
+# and a click on a word seek to it. FMP carries no timing, so this is a second
+# source used ONLY for what FMP cannot do; it returns null for the many symbols
+# it does not cover, and the existing transcript panel is unaffected.
+
+@router.get("/api/earnings/timed-transcript/{ticker}")
+def timed_transcript_endpoint(
+    ticker: str,
+    year: Optional[int] = Query(default=None),
+    quarter: Optional[int] = Query(default=None),
+    user: dict = Depends(get_current_user),
+):
+    """Speaker turns with per-word start times, or null when uncovered."""
+    sym = (ticker or "").upper().strip()
+    if not sym:
+        return None
+    try:
+        from api.services import earningscall_timed as ec
+        data = ec.get_timed_transcript(sym, year=year, quarter=quarter)
+        if not data:
+            return {"symbol": sym, "available": False}
+        # `audio_url` points at OUR proxy, never upstream: the upstream URL
+        # carries the API key as a query parameter.
+        return {**data, "available": True,
+                "audio_url": f"/api/earnings/call-audio/{sym}"}
+    except Exception as e:
+        _log.warning("[earnings_intel] timed transcript failed for %s: %s", sym, e)
+        return {"symbol": sym, "available": False}
+
+
+@router.get("/api/earnings/call-audio/{ticker}")
+def call_audio_endpoint(
+    ticker: str,
+    request: Request,
+    year: Optional[int] = Query(default=None),
+    quarter: Optional[int] = Query(default=None),
+    user: dict = Depends(get_current_user),
+):
+    """Proxy the call recording so the provider key never reaches the browser.
+
+    Range is forwarded and the upstream status relayed verbatim (206 with
+    Content-Range when partial): an <audio> element cannot seek without it, and
+    seeking is the whole point of a timed transcript.
+    """
+    from fastapi.responses import StreamingResponse
+
+    sym = (ticker or "").upper().strip()
+    if not sym:
+        return Response(status_code=404)
+
+    from api.services import earningscall_timed as ec
+    upstream = ec.open_audio_stream(sym, year=year, quarter=quarter,
+                                    range_header=request.headers.get("range"))
+    if upstream is None:
+        return Response(status_code=404)
+
+    passthrough = {}
+    for h in ("content-type", "content-length", "content-range", "accept-ranges"):
+        v = upstream.headers.get(h)
+        if v:
+            passthrough[h] = v
+    passthrough.setdefault("accept-ranges", "bytes")
+    # A published call never changes, so let the browser keep it.
+    passthrough["cache-control"] = "private, max-age=86400"
+
+    def _iter():
+        try:
+            for chunk in upstream.iter_content(chunk_size=64 * 1024):
+                if chunk:
+                    yield chunk
+        finally:
+            upstream.close()
+
+    return StreamingResponse(
+        _iter(), status_code=upstream.status_code,
+        media_type=passthrough.get("content-type", "audio/mpeg"),
+        headers=passthrough)
