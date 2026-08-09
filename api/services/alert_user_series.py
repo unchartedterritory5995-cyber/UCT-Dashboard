@@ -339,6 +339,17 @@ def _make_value_fn(def_id: str, plot_key: str,
 
     def column(bars: list, params: dict) -> list:
         from api.services import ast_interpret
+        # 🔴 NOT COMPUTABLE IS NOT ZERO, AND THE COMPARISON IS WHERE IT STOPS
+        # BEING VISIBLE. `interpret` pads a warmup with NaN and `_cmp` answers 0
+        # against a NaN, so a tree the series cannot answer — `close >
+        # sma(close, 300)` on 200 bars — returns 200 finite `0.0`s and zero
+        # `None`s: a confident, permanent "no" to a question this lane cannot
+        # ask. The honest answer is that there is no number yet, and `None` is
+        # this lane's word for that (see `_last_finite`). Asked BEFORE evaluating,
+        # exactly as `unresolved_scalars` is asked before a scan evaluates.
+        short = ast_interpret.unresolved_lookback(tree, bars)
+        if short:
+            return [None] * len(bars)
         out = ast_interpret.interpret(tree, bars,
                                       inputs=_inputs_for(definition, params),
                                       budget=budget)
@@ -362,7 +373,59 @@ def _make_value_fn(def_id: str, plot_key: str,
     column.__name__ = f"_user_column_{def_id}_{plot_key}"
     fn.__name__ = f"_user_value_{def_id}_{plot_key}"
     fn.column = column                                  # type: ignore[attr-defined]
+    # ⭐ THE TREE'S OWN DECLARED HISTORY, CARRIED ON THE ADMITTED OBJECT. The
+    # evaluator sizes its bar fetch from this BEFORE it fetches, and a second
+    # resolution of the definition to answer "how much past does it need" would
+    # be a second reading of a stored blob that `forget` + re-admission exists to
+    # make singular. Computed once, at admission, off the SAME captured tree the
+    # column evaluates.
+    try:
+        from api.services import ast_interpret
+        fn.lookback = ast_interpret.max_lookback(tree)   # type: ignore[attr-defined]
+    except Exception:                                    # noqa: BLE001
+        fn.lookback = None                               # type: ignore[attr-defined]
     return fn
+
+
+def lookback_for_alert(alert: Mapping[str, Any]) -> Optional[int]:
+    """A USER alert's declared lookback, or ``None`` for a builtin address.
+
+    ⛔ NO ADMISSION, NO BARS, NO SUBPROCESS. This is asked BEFORE the cycle
+    fetches bars, so it must not be able to reach `value_function_for_alert` —
+    whose registry-miss branch calls `arm_for_alert`, which fetches bars. A
+    reader that could re-enter the fetch it is sizing is a cycle, not a helper.
+
+    Registered instance → the number `_make_value_fn` computed at admission.
+    Registry miss (a fresh process, or right after a save) → the STORED
+    definition, read plainly with no gate applied, because this answers "how much
+    past does the formula name" and not "may this alert run" — those are
+    different questions and only the second one is allowed to refuse.
+
+    ``None`` on anything unreadable: the caller falls back to the floor, which is
+    strictly more history than this lane used to read, and
+    `ast_interpret.unresolved_lookback` still refuses to invent a number if even
+    that is short.
+    """
+    address = str(alert.get("indicator") or "")
+    if not is_user_address(address):
+        return None
+    fn = USER_FUNCS.get(scoped_key(alert.get("user_id"), address))
+    known = getattr(fn, "lookback", None)
+    if isinstance(known, int) and not isinstance(known, bool):
+        return known
+    try:
+        from api.services import ast_interpret, user_definitions
+        def_id, _plot_key = split_user_address(address)
+        row = user_definitions.get(alert.get("user_id"), def_id,
+                                   alert.get("def_version"))
+        if not row:
+            return None
+        tree = ((row.get("definition") or {}).get("compute") or {}).get("ast")
+        if tree is None:
+            return None
+        return ast_interpret.max_lookback(tree)
+    except Exception:                                    # noqa: BLE001
+        return None
 
 
 # ─── THE THREE GATES ─────────────────────────────────────────────────────────
@@ -976,5 +1039,11 @@ def arm_for_alert(user_id: Any, indicator: str, sym: str, tf: str,
     def_id, _plot = split_user_address(indicator)
     if bars is None:
         from api.services import indicator_alert_evaluator as ev
-        bars = ev._fetch_bars_for_alert(sym, tf, 200)
+        # ⛔ THE ADMISSION MUST SEE THE WINDOW THE EVALUATION WILL SEE. The
+        # cross-lane 1e-9 proof is taken on these bars; proving equality over 200
+        # while the cycle then computes over 700 proves it for a series the alert
+        # never evaluates. The tree's own `max_lookback` sizes both.
+        bars = ev._fetch_bars_for_alert(
+            sym, tf, ev.bars_wanted(lookback_for_alert(
+                {"indicator": indicator, "user_id": user_id}) or 0))
     return admit_user_definition(user_id, def_id, None, bars=bars)

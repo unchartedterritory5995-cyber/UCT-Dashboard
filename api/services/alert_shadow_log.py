@@ -358,7 +358,11 @@ def run_shadow_cycle() -> dict[str, Any]:
     # it is not traded away for the write.
     for (sym, tf), alerts_in_group in groups.items():
         try:
-            bars = ev._fetch_bars_for_alert(sym, tf, 200)
+            # The live cycle's own sizing — a shadow run measured against a
+            # NARROWER window than production reads would be comparing two
+            # different evaluators and calling the difference a lane difference.
+            bars = ev._fetch_bars_for_alert(
+                sym, tf, max(ev.bars_needed_for_alert(a) for a in alerts_in_group))
         except Exception:
             _logger.exception("[alert-shadow] fetch failed for %s/%s", sym, tf)
             summary["errors"] += 1

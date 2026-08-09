@@ -325,8 +325,15 @@ def get_current_value(sym: str, tf: str, indicator: str,
             raise HTTPException(status_code=400,
                                 detail="params must be a JSON object")
     try:
+        # The prefill must show the number the ARMED alert will report. Sized off
+        # the same declaration the evaluator uses, or the value a member sees
+        # before arming is computed over a different window than the one that
+        # then fires — `ema(close,200)` differed by −4.80% between the two.
         bars = indicator_alert_evaluator._fetch_bars_for_alert(
-            sym.upper(), tf, 200)
+            sym.upper(), tf,
+            indicator_alert_evaluator.bars_needed_for_alert(
+                {"indicator": address, "params_json": parsed,
+                 "user_id": user["id"]}))
         value = (user_fn(bars, parsed) if user_fn is not None
                  else indicator_alert_evaluator.address_value(address, bars, parsed))
     except Exception as exc:  # noqa: BLE001 - a prefill is never worth a 500

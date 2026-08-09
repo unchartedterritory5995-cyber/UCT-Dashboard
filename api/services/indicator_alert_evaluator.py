@@ -974,7 +974,85 @@ def alert_catalog(user_id: Optional[Any] = None) -> list[dict]:
 
 # ─── bar fetch ───────────────────────────────────────────────────────────────
 
-def _fetch_bars_for_alert(sym: str, tf: str, count: int = 200) -> list[dict]:
+#: 🔴 THE ALERT LANE READ A FIXED 200 BARS WHILE ITS OWN BUDGET ADMITS
+#: `maxLookback: 500`, AND THE SCAN LANE ALREADY DID THIS CORRECTLY. Same tree,
+#: two windows; only one could be right. These are `scan_evaluator._MIN_BARS` /
+#: `_MAX_BARS` and the formula is its `want`, brought over verbatim —
+#: `test_the_two_lanes_size_the_same_window` READS the scan lane's own constants
+#: and fails if either side moves, so this is a copy that cannot drift rather
+#: than a second authority.
+#:
+#: Two measurements say why the floor is 400 and not 200:
+#:   * `STZ ema(close,200)` is **145.9311** over 200 bars and **153.2869**
+#:     converged — −$7.36, −4.80%. RSI14 and ATR14 converge by 200 (rel ≤ 1.2e-7);
+#:     the exposure is `ema` with period ≳ 100.
+#:   * a tree needing more than the window returned a CONFIDENT FALSE rather than
+#:     refusing — see `ast_interpret.unresolved_lookback`, which is the other half
+#:     of this fix and the half that matters when even 5,000 bars are not enough.
+BARS_MIN = 400
+BARS_MAX = 5000
+
+
+def bars_wanted(lookback: int = 0) -> int:
+    """How many bars a tree declaring `lookback` needs: its own history plus a
+    warm-up prefix, capped. `scan_evaluator`'s `want`, one function."""
+    try:
+        lookback = max(0, int(lookback))
+    except (TypeError, ValueError):
+        lookback = 0
+    return min(BARS_MAX, max(BARS_MIN, lookback + BARS_MIN))
+
+
+def bars_needed_for_alert(alert: dict) -> int:
+    """The window THIS alert's own formula declares it reads.
+
+    ⛔ DERIVED FROM THE THING THAT COMPUTES, NEVER FROM A TABLE OF "how much past
+    does rsi need". Two partitions, two derivations, no hand-list:
+
+      * a USER address resolves its captured tree and asks
+        `ast_interpret.max_lookback` — the same number the budget and the repaint
+        linter read.
+      * a BUILTIN address asks `alert_series.address_inputs`, which reads the
+        knobs off the column function itself, and sums the WHOLE-NUMBER ones.
+        A window is a whole number of bars; `bb`'s `stddev: 2.0` and `sar`'s
+        `step: 0.02` are not windows and are not summed. Summing rather than
+        maxing is the composition rule `max_lookback` itself uses along a path,
+        and it is the conservative direction: `macd(12,26,9)` needs 35 and is
+        given 47.
+
+    Never raises — an unknown address, an unparseable tree or a refused
+    definition all fall back to the floor, which is strictly more history than
+    the 200 this lane used to read.
+    """
+    try:
+        params = _parse_params(alert)
+    except Exception:  # noqa: BLE001  pragma: no cover
+        params = {}
+    lookback = 0
+    try:
+        from api.services import alert_user_series
+        declared_lookback = alert_user_series.lookback_for_alert(alert)
+        if declared_lookback is not None:
+            lookback = declared_lookback
+        else:
+            from api.services import alert_series
+            declared = alert_series.address_inputs(
+                resolve_address(alert.get("indicator")))
+            resolved = dict(declared)
+            for key in declared:
+                if params.get(key) is not None:
+                    resolved[key] = params[key]
+            for value in resolved.values():
+                if isinstance(value, bool) or not isinstance(value, (int, float)):
+                    continue
+                if float(value) == int(value):
+                    lookback += int(value)
+    except Exception:  # noqa: BLE001
+        lookback = 0
+    return bars_wanted(lookback)
+
+
+def _fetch_bars_for_alert(sym: str, tf: str, count: int = BARS_MIN) -> list[dict]:
     """Return the latest ``count`` bars for (sym, tf) from the SQLite store.
 
     Bars come as dicts with keys ``h``, ``l``, ``c``, ``v`` so they plug
@@ -1116,7 +1194,8 @@ def _evaluate_one(alert: dict, bars: Optional[list[dict]] = None, *,
         return None, False
 
     if bars is None:
-        bars = _fetch_bars_for_alert(alert["sym"], alert["tf"], 200)
+        bars = _fetch_bars_for_alert(alert["sym"], alert["tf"],
+                                     bars_needed_for_alert(alert))
     if not bars:
         return None, False
 
@@ -1497,7 +1576,8 @@ def _evaluate_one_closed(alert: dict, bars: Optional[list[dict]] = None, *,
         return None, False, None
 
     if bars is None:
-        bars = _fetch_bars_for_alert(alert["sym"], alert["tf"], 200)
+        bars = _fetch_bars_for_alert(alert["sym"], alert["tf"],
+                                     bars_needed_for_alert(alert))
     if not bars:
         return None, False, None
 
@@ -2271,7 +2351,14 @@ def _run_one_cycle() -> dict[str, Any]:
 
     for (sym, tf), alerts_in_group in groups.items():
         try:
-            bars = _fetch_bars_for_alert(sym, tf, 200)
+            # ⛔ THE GROUP'S WINDOW IS THE WIDEST ANY MEMBER DECLARES, NOT THE
+            # FIRST ONE'S. One fetch serves every alert on this (sym, tf), so a
+            # window sized off one member would hand a 500-bar formula the
+            # 400-bar series its neighbour asked for — and the shortfall would
+            # show up as `unresolved_lookback` refusing a tree that the store
+            # could actually have answered.
+            bars = _fetch_bars_for_alert(
+                sym, tf, max(bars_needed_for_alert(a) for a in alerts_in_group))
         except Exception:
             _logger.exception("[alert-eval] fetch failed for %s/%s", sym, tf)
             summary["errors"] += 1
