@@ -1115,6 +1115,34 @@ function ChartToolbar({
             settings={cs}
             onChange={onUpdateSettings}
             registry={engineRegistry}
+            /* 🔴 THE BUILDER'S DOOR ON `/charts` — its SECOND opener, and on the
+               charts workspace its ONLY one.
+               `ChartSettingsPanel` (below) has held the builder's single entry
+               point since Phase D Task 11, and that panel renders behind
+               `!hideSettingsButton` — which `/charts` sets, because the workspace
+               has `ChartSettingsModal` and two settings surfaces over one
+               `chart_settings` blob would be a second authority. That flag is
+               correct and stays; what was wrong is that the BUILDER hung off it.
+               The reasoning already written above the Indicators button — "hiding
+               it with the gear would leave the charts workspace with no way to add
+               one" — was never applied to the builder, so nine tasks of authoring
+               work were unreachable from the one surface a charting member lives
+               on, desktop and phone alike.
+               ⛔ ONE SHEET, TWO OPENERS. Both callers set the SAME `builderOpen`
+               and reach the ONE builder sheet mounted below; nothing about the
+               builder is duplicated, and a member who opens it from either door
+               lands in the same draft.
+               ⚠️ AND THAT SENTENCE MAY NOT SPELL THE JSX TAG. `BuilderSheet.test.jsx`
+               counts mount sites by matching the opening tag against the RAW FILE,
+               so naming it in prose anywhere in this module reports a SECOND mount
+               and reds a rail that is otherwise correct — the grep-not-an-AST
+               lesson, live, in the file it guards.
+               ⚠️ THE LIBRARY CLOSES FIRST, DELIBERATELY. Both are `Sheet`s, and
+               `Sheet` installs a body-scroll lock and an Escape handler that calls
+               `e.stopPropagation()` — two open at once means one Escape closes the
+               wrong one and the scroll lock is restored by whichever unmounts
+               last. */
+            onCreateFormula={() => { setLibraryOpen(false); setBuilderOpen(true) }}
           />
         )}
 

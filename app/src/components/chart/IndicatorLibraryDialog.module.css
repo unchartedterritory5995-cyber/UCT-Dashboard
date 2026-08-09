@@ -26,6 +26,61 @@
 }
 .search::placeholder { color: var(--text-muted); }
 
+/* ── "＋ New formula" — the criteria builder's door on `/charts` ─────────────
+   Gold-edged so it reads as the one AUTHORING affordance among a list of
+   things to switch on, and full-width so it survives a 375px phone sheet
+   (a search field and a labelled button sharing a row leaves neither usable).
+   `--tap-min` because on a phone this is the whole point of the screen. */
+.createRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: var(--tap-min);
+  padding: 10px 12px;
+  text-align: left;
+  font: inherit;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border: 1px dashed var(--ut-gold-glow, var(--border-accent));
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.createRow:hover, .createRow:focus-visible {
+  background: var(--bg-elevated);
+  border-color: var(--border-accent);
+  outline: none;
+}
+.createPlus {
+  flex-shrink: 0;
+  font-size: 15px;
+  line-height: 1.35;
+  color: var(--ut-gold-glow, var(--text-bright));
+}
+.createMain {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+.createName {
+  font-size: 14px;
+  color: var(--text-bright);
+}
+.createBlurb {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+.createArrow {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
 .empty {
   padding: 18px 4px;
   color: var(--text-muted);

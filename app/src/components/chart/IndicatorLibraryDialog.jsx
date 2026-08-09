@@ -96,7 +96,37 @@ export function isRowOn(row, settings) {
     : isIndicatorEnabled(settings, row.id, ENGINE_OWNED)
 }
 
-export default function IndicatorLibraryDialog({ open, onClose, settings, onChange, registry }) {
+// 🔴 …AND SINCE THIS FIX, THE MEMBER CAN AUTHOR ONE FROM HERE — `onCreateFormula`.
+// The criteria builder (Phase E, nine tasks: picker, plain-language door,
+// crossings, starter library) had EXACTLY ONE mount site, `ChartToolbar`'s
+// `<BuilderSheet>`, opened from EXACTLY ONE place: `ChartSettingsPanel`'s "New
+// formula" launcher. That panel renders behind `!hideSettingsButton`, and
+// `/charts` sets `hideSettingsButton` — deliberately, because the workspace has
+// `ChartSettingsModal` and two settings surfaces over one `chart_settings` blob
+// is a second authority. So on the ONE surface a charting member lives on, the
+// builder was unreachable on every viewport. Fourteenth measured instance of
+// built-tested-green-and-unreachable in this repo, and the largest.
+//
+// ⭐ THE DOOR BELONGS HERE AND NOT IN THE SETTINGS MODAL. This dialog is already
+// one click from the chart on `/charts` (the toolbar's labelled "Indicators"
+// button is deliberately NOT gated on `hideSettingsButton` — see its comment in
+// `ChartToolbar.jsx`), it is the surface whose stated job is to offer a member
+// their own formulas, and a member's formula LANDS here wearing a "Your formula"
+// pill. Browse-and-add and author-your-own are the same act one step further
+// out; `ChartSettingsPanel` already puts them side by side for exactly that
+// reason. Putting it in `ChartSettingsModal` instead would be three menus deep
+// and would put an AUTHORING surface inside a TUNING one.
+//
+// ⛔ IT IS A LAUNCHER, NOT A SECOND BUILDER. The prop's only job is to ask the
+// toolbar — which already owns `builderOpen` and already mounts the ONE
+// `<BuilderSheet>` — to open it. No second sheet is mounted, no second draft
+// state exists here, and this file imports nothing from `builder/`.
+//
+// ⚠️ ABSENT PROP ⇒ ABSENT DOOR. Every other mount site of this dialog still
+// reaches the builder through the settings panel, so the launcher renders only
+// where a host asks for it rather than appearing twice on the surfaces that
+// already have one.
+export default function IndicatorLibraryDialog({ open, onClose, settings, onChange, registry, onCreateFormula }) {
   const [query, setQuery] = useState('')
   const searchRef = useRef(null)
 
@@ -215,6 +245,31 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+        {/* ⭐ THE BUILDER'S DOOR ON `/charts`. Full width and directly under the
+            search rather than beside it: at 375px a search field and a labelled
+            button sharing one row leaves neither usable, and this reads as the
+            way OUT of the catalogue ("none of these — write one") which is what
+            it is. It is NOT filtered by `query`: a member who searched and found
+            nothing is exactly the member who needs it, so it must not vanish
+            with the rows. */}
+        {onCreateFormula && (
+          <button
+            type="button"
+            className={styles.createRow}
+            data-testid="library-new-formula"
+            onClick={() => onCreateFormula()}
+          >
+            <span className={styles.createPlus} aria-hidden="true">＋</span>
+            <span className={styles.createMain}>
+              <span className={styles.createName}>New formula</span>
+              <span className={styles.createBlurb}>
+                Build your own indicator or screen — pick conditions, describe it in
+                plain English, or start from one of the firm’s setups.
+              </span>
+            </span>
+            <span className={styles.createArrow} aria-hidden="true">→</span>
+          </button>
+        )}
         {rows.length === 0 && refusals.length === 0 && (
           <div className={styles.empty}>No indicator matches “{query}”.</div>
         )}
