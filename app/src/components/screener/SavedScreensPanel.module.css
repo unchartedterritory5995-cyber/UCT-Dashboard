@@ -1,0 +1,92 @@
+/* app/src/components/screener/SavedScreensPanel.module.css
+   The saved-formula screens tab on the Scanner Hub.
+
+   ⛔ NO NEW CHROME (spec §1.5). Every token here is one the app already
+   declares, every glyph in the JSX is a `UIcon`, and both interactive controls
+   clear `--tap-min`. Layout responds in CSS rather than through
+   `useMediaQuery` — that hook seeds at MOUNT and only updates on a `change`
+   event, so on a phone whose viewport never changes it renders the desktop
+   arrangement at first paint and never corrects it. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 0;
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.screen {
+  min-height: var(--tap-min);
+  padding: 0 12px;
+  background: transparent;
+  border: 1px solid var(--border-accent);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.screen:hover { background: var(--bg-surface); color: var(--text-bright); }
+
+.screenOn {
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border-color: var(--ut-gold);
+}
+
+.session {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sessionLabel {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.sessionInput {
+  min-height: var(--tap-min);
+  padding: 0 8px;
+  background: transparent;
+  border: 1px solid var(--border-accent);
+  border-radius: 6px;
+  color: var(--text-bright);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+}
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-accent);
+  border-radius: 6px;
+}
+
+@media (max-width: 640px) {
+  .bar { align-items: flex-start; flex-direction: column; }
+}

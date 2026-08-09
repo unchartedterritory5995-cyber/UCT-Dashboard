@@ -3,6 +3,7 @@ import useMobileSWR from '../hooks/useMobileSWR'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import TickerPopup from '../components/TickerPopup'
 import ScannerPro from './screener/ScannerPro'
+import SavedScreensPanel from '../components/screener/SavedScreensPanel'
 import { SkeletonTable } from '../components/Skeleton'
 import { prefetchBars, prefetchBarOnIntent } from '../utils/prefetchBars'
 import UIcon from '../components/ui/UIcon'
@@ -14,6 +15,14 @@ const PAGE_TABS = [
   { key: 'scanner', label: 'Scanner' },          // full-market ScannerPro (default)
   { key: 'board',   label: 'Candidate Board' },   // the 7 AM scanner candidate board
   { key: 'live',    label: 'Live Scan', icon: 'bolt' },
+  // 🔴 THE MOUNT. `ScanResults` (and through it the four-outcome coverage
+  // receipt `CoverageLine` renders) was imported by NOTHING until this tab
+  // existed — the twelfth measured instance of this repo's signature defect.
+  // The Scanner Hub is where a member goes to run a screen and a saved formula
+  // IS a screen, so it belongs beside the column screener rather than on a new
+  // URL nobody navigates to. `Screener.scanmount.test.jsx` is the rail that
+  // reds when this tab, its panel or the mount inside it goes away.
+  { key: 'formulas', label: 'My Formulas', icon: 'library' },
 ]
 
 // ── Trigger definitions (each returns an object or null) ─────────────────────
@@ -475,6 +484,14 @@ export default function Screener({ embedded = false }) {
 
       {pageTab === 'scanner' ? (
         <ScannerPro embedded={embedded} />
+      ) : pageTab === 'formulas' ? (
+        // ⛔ AHEAD OF THE `/api/candidates` BRANCHES, DELIBERATELY. Everything
+        // below this line is gated on the 7 AM candidate board's SWR
+        // (`error ? … : !data ? <SkeletonTable/> : …`); a saved-formula screen
+        // reads its own store and its own scan receipts and has nothing to do
+        // with that feed. Mounted below, this surface would go blank on every
+        // morning the pre-market scan failed upstream.
+        <SavedScreensPanel />
       ) : error ? (
         <div className={styles.emptyState}>Scanner data unavailable</div>
       ) : !data ? (
