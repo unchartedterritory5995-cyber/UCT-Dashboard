@@ -45,6 +45,65 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         "tight_consolidation", "nr7"}
 
 
+# ---------------------------------------------------------------------------
+# The scan results side table, and its receipt. Created in the SAME FILE as
+# `screener_rows` -- see `api/services/screener/scan_store.py`, which owns every
+# verb over these two tables and states the measurements this decision rests on.
+#
+# The short version, because a reader here needs it:
+#
+# * IN `screener.db` because E-A4 joins the results to `screener_rows`, and a
+#   cross-database join needs ATTACH -- which `connect()` does not do, and which
+#   `query.run_scan` (one SQL string, one connection) has nowhere to put. It is
+#   also `signature_coverage`'s precedent exactly: a receipt lives in the same
+#   file as the rows it certifies so it cannot outlive them.
+#
+# * `scan_hits` is HITS-ONLY. The 0 is recoverable -- a ticker inside a
+#   `scan_coverage` window and absent from `scan_hits` IS a computed 0 -- and a
+#   dense row-per-symbol table is the `alert_shadow_fires` shape, which measured
+#   53 B/row with no prune and 279 GB/yr at 10k. Measured here: 182 B per hit row
+#   with its index, so dense would be ~1,717 GB/yr at 10k definitions.
+#
+# * `not_computable` is its OWN column (controller resolution 5). "We could not
+#   compute it at the last confirmed bar" and "something broke" are different
+#   facts to a member, and folding them is what makes a coverage report
+#   untrustworthy. `dropped_json` is the ONE enumeration and carries both kinds,
+#   each with its reason; the two counts are what split them.
+#
+# * `tf` is the BARS-STORE CODE (`D`), never the product label (`1D`), and
+#   `as_of` is a normalised YYYYMMDD int. Both are collapsed at `scan_store`'s
+#   door: two spellings of one session is two rows and every count stays
+#   plausible.
+#
+# COLUMNS above is UNTOUCHED and so are its 8 indexes. This is a second
+# `executescript`, not a widening.
+_SCAN_SCHEMA = """
+CREATE TABLE IF NOT EXISTS scan_hits (
+  def_hash TEXT    NOT NULL,
+  tf       TEXT    NOT NULL,
+  as_of    INTEGER NOT NULL,
+  ticker   TEXT    NOT NULL,
+  PRIMARY KEY (def_hash, tf, as_of, ticker)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS idx_scan_hits_ticker ON scan_hits(ticker, as_of DESC);
+
+CREATE TABLE IF NOT EXISTS scan_coverage (
+  def_hash        TEXT    NOT NULL,
+  tf              TEXT    NOT NULL,
+  as_of           INTEGER NOT NULL,
+  evaluated       INTEGER NOT NULL,
+  answered        INTEGER NOT NULL,
+  dropped         INTEGER NOT NULL,
+  not_computable  INTEGER NOT NULL,
+  dropped_json    TEXT    NOT NULL,
+  dropped_listed  INTEGER NOT NULL,
+  freshness       TEXT    NOT NULL,
+  swept_at        REAL    NOT NULL,
+  PRIMARY KEY (def_hash, tf, as_of)
+);
+"""
+
+
 def get_db_path() -> str:
     p = os.environ.get("SCREENER_DB_PATH")
     if p:
@@ -81,6 +140,12 @@ def init_db() -> None:
                     "above_50sma", "chg_pct_1d", "candle_type", "built_at"):
             conn.execute(
                 f"CREATE INDEX IF NOT EXISTS idx_sr_{idx} ON screener_rows({idx})")
+        # A SECOND executescript, below screener_rows and touching none of it.
+        # `CREATE TABLE IF NOT EXISTS` is why a pod holding a nightly snapshot
+        # gains the two scan tables on its next init with no migration step and
+        # no separate flag -- the same reason `ledger._ensure_init` runs both of
+        # its scripts through one call.
+        conn.executescript(_SCAN_SCHEMA)
         conn.commit()
 
 
@@ -134,10 +199,105 @@ def count_rows() -> int:
         return conn.execute("SELECT COUNT(*) FROM screener_rows").fetchone()[0]
 
 
+# ---------------------------------------------------------------------------
+# 🔴 WHAT DATE IS THIS DATA? `MAX(snapshot_date)` IS A TRUE NUMBER WITH A FALSE
+# IMPLICATION, AND IT WAS BEING PRINTED OVER THE MEMBER'S RESULTS.
+#
+# Measured on the live `C:\data\screener.db` 2026-08-09 -- 3,589 rows:
+#
+#     2026-08-08      1 row     <- and the MAX is what the member was shown
+#     2026-07-11  3,583 rows    <- what the member was actually screening on
+#     2026-07-10      5 rows
+#
+# So the screen said *"snapshot 2026-08-08"* over fundamentals 28 days stale.
+# The MAX is not wrong -- it is genuinely the newest row -- which is exactly why
+# it is dangerous: it survives every internal consistency check.
+#
+# ⭐ THE REPRESENTATIVE DATE IS THE **MEDIAN** ROW'S, following E-3's gate
+# (`scan_evaluator._median_snapshot_date`, `.superpowers/sdd/phase-e/e3-report.md`
+# §3). A rank statistic has NO TUNABLE: there is no percentage-of-rows threshold
+# to pick wrong and no knob to drift. It says "most of these rows", and it moves
+# the moment half the set stops rebuilding.
+#
+# ⭐ AND IT IS NOT REPORTED ALONE. One date cannot honestly describe a table
+# holding three of them -- collapsing to a single number is how the MAX lied in
+# the first place. `describe_rows` returns the representative date TOGETHER WITH
+# how many rows actually carry it, the oldest and newest present, how many rows
+# carry no date at all, and an explicit `mixed` flag, so a genuinely mixed table
+# can SAY it is mixed instead of picking a date that is wrong for somebody.
+#
+# ⛔ AND IT NEVER FILTERS. `describe_rows` only ever reads the SAME row set the
+# caller is serving (`where`/`params` are the caller's own, already registry-
+# validated and parametrized). Dropping the off-median rows would turn a
+# labelling bug into a missing-data bug -- a screen that quietly returns fewer
+# symbols looks like a quiet market, which is strictly worse than a wrong label.
+#
+# ⚠️ WHY THE TABLE IS MIXED AT ALL, since a reader here will ask: `run_build` is
+# CAPPED (`SCREENER_SNAPSHOT_MAX_PER_RUN`, and the admin refresh route defaults
+# to 800) and stamps `snapshot_date = date.today()` on ONLY the tickers it
+# rebuilt, stalest-first. So every partial or interrupted build leaves a
+# permanently mixed table by construction, and `MAX` then reports the last
+# partial build as though it were the whole snapshot. That is a property of the
+# builder, not an accident of this box.
+def describe_rows(conn, where: str = "", params=()) -> dict:
+    """Describe the `snapshot_date` provenance of the rows `where` selects.
+
+    `conn` is the CALLER'S connection so the description and the result set are
+    read from one transaction and cannot disagree. `where`/`params` are the
+    caller's own clause -- pass them and the answer describes what is being
+    served; omit them and it describes the whole table.
+
+    ONE `GROUP BY` supplies every field, so `rows` here IS the caller's total by
+    construction rather than a second count of the same thing.
+    """
+    hist = conn.execute(
+        f"SELECT snapshot_date d, COUNT(*) n FROM screener_rows{where} "
+        f"GROUP BY snapshot_date", list(params)).fetchall()
+    dated = sorted(((r["d"], r["n"]) for r in hist if r["d"] is not None),
+                   key=lambda pair: str(pair[0]))
+    undated = sum(r["n"] for r in hist if r["d"] is None)
+    n_dated = sum(n for _, n in dated)
+
+    # The median row's date: walk the ascending dates until the running count
+    # passes index `n_dated // 2`. Deliberately the SAME convention as
+    # `scan_evaluator._median_snapshot_date`'s `ORDER BY snapshot_date LIMIT 1
+    # OFFSET n // 2` -- two spellings of one statistic must not disagree on
+    # parity, and `test_the_median_here_agrees_with_the_evaluators_own_gate`
+    # is the rail that says so.
+    representative = None
+    seen = 0
+    for date_str, n in dated:
+        seen += n
+        if seen > n_dated // 2:
+            representative = date_str
+            break
+
+    counts = dict(dated)
+    return {
+        "rows": n_dated + undated,
+        "snapshot_date": representative,
+        "rows_on_snapshot_date": counts.get(representative, 0),
+        "oldest_snapshot_date": dated[0][0] if dated else None,
+        "newest_snapshot_date": dated[-1][0] if dated else None,
+        "distinct_snapshot_dates": len(dated),
+        "rows_missing_snapshot_date": undated,
+        "mixed": len(dated) > 1 or (bool(dated) and undated > 0),
+    }
+
+
 def status() -> dict:
+    """Coverage + freshness of the whole snapshot.
+
+    ⭐ `snapshot_date` is the honest answer to *"how old is this data?"* -- the
+    median row's. `latest_snapshot_date` is kept, still the MAX, and its name is
+    the only thing it ever meant: the newest SINGLE row. ⛔ Do not answer "is the
+    snapshot fresh?" from it -- on 2026-08-09 that was one row out of 3,589.
+    """
     with connect() as conn:
-        row = conn.execute(
-            "SELECT COUNT(*) n, MAX(built_at) b, MAX(snapshot_date) d "
-            "FROM screener_rows").fetchone()
-    return {"rows": row["n"] or 0, "latest_built_at": row["b"],
-            "latest_snapshot_date": row["d"]}
+        prov = describe_rows(conn)
+        built = conn.execute(
+            "SELECT MAX(built_at) b FROM screener_rows").fetchone()["b"]
+    # `latest_snapshot_date` is DERIVED from the value already computed, never
+    # re-queried: a second authority over one number is how these two drift.
+    return {**prov, "latest_built_at": built,
+            "latest_snapshot_date": prov["newest_snapshot_date"]}

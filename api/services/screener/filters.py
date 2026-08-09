@@ -5,8 +5,17 @@ names); ``column_for``/``is_valid_op`` gate every query.
 Unit convention (matches the snapshot builder):
   - margins / growth / roe / roa / dividend_yield are stored as PERCENT numbers
     (e.g. 25.0 == 25%). Presets below are in percent.
-  - debt_to_equity is the yfinance value (percent-ish, e.g. 47.5).
-  - pe/peg/ps/pb/beta are plain ratios. uct_composite/rs_rank are 0-99.
+  - pe/peg/ps/pb/beta/debt_to_equity/current_ratio are plain ratios.
+    uct_composite/rs_rank are 0-99.
+
+⚰️ THIS SAID *"debt_to_equity is the yfinance value (percent-ish, e.g. 47.5)"*
+until 2026-08-09, describing a column that had never held a single value in
+3,708 rows, sourced from a provider that never wrote it. It is now filled by
+`fundamentals_bulk` from FMP's `debtToEquityRatioTTM`, whose native form is the
+RATIO (AAPL 0.78, not 78) — which is also what the manifest sentence ("the
+debt-to-equity ratio") says and what `columnDefs.js` renders it as, with
+`num(1)` rather than a percent formatter. A unit note for an empty column is
+free to be wrong, so it was; it is load-bearing the moment data arrives.
 """
 
 

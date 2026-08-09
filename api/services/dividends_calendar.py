@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 from datetime import date, timezone, datetime
 
+from api.services import yf_util
 from api.services.cache import cache
 from api.services.cache_policy import set_by_completeness
 
@@ -161,16 +162,24 @@ def get_events(syms: list[str]) -> list[dict]:
     import time as _time
 
     def _one(sym: str) -> list[dict]:
-        out: list[dict] = []
-        try:
-            ticker = yf.Ticker(sym)
-            div_event = _get_forward_dividend(ticker, sym, today)
-            if div_event:
-                out.append(div_event)
-            out.extend(_get_forward_splits(ticker, sym, today))
-        except Exception as exc:
-            _logger.debug("dividends_calendar: error processing %s: %s", sym, exc)
-        return out
+        # The whole per-symbol yfinance body goes through the shared guard, not
+        # just `yf.Ticker(sym)` — constructing a Ticker makes no request; the
+        # network happens when `_get_forward_dividend` / `_get_forward_splits`
+        # touch `.dividends` / `.splits` / `.calendar`. Guarding the constructor
+        # alone would be a gate that cannot fail.
+        def _work() -> list[dict]:
+            out: list[dict] = []
+            try:
+                ticker = yf.Ticker(sym)
+                div_event = _get_forward_dividend(ticker, sym, today)
+                if div_event:
+                    out.append(div_event)
+                out.extend(_get_forward_splits(ticker, sym, today))
+            except Exception as exc:
+                _logger.debug("dividends_calendar: error processing %s: %s", sym, exc)
+            return out
+
+        return yf_util.bounded_call(_work, []) or []
 
     ex = ThreadPoolExecutor(max_workers=8, thread_name_prefix="div-cal")
     futures = [ex.submit(_one, s) for s in clean_syms]

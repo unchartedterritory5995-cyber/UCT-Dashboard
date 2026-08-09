@@ -1,6 +1,27 @@
 """Map stored ratings metrics -> screener snapshot columns, and compute the
-UCT composite + RS rank the same way the research page does — but from the
-nightly-stored ``research_ratings.db`` values, so the screener needs NO yfinance.
+UCT composite the same way the research page does — but from the nightly-stored
+``research_ratings.db`` values, so the screener needs NO yfinance.
+
+🔴 THIS MODULE DOES NOT WRITE ``rs_rank`` OR ``rs_return``, AND THAT IS THE
+POINT. It used to. So did ``rs_ranking``, over the same cap universe, with the
+same 40/20/20/20 weighted-return formula (compare
+``research.ratings._weighted_rs_return`` with ``rs_ranking._compute_returns``) —
+two independent computations of ONE value, which is this repo's most repeated
+defect. They could not be checked against each other because only one of them
+ever ran: ``research_ratings.db`` on this box is **0 bytes** (its only writer,
+``ratings_universe.nightly_job``, is registered only under
+``RATINGS_PERCENTILE_ENABLED``, default ``0``), so ``rs_rank`` was NULL on
+3,708/3,708 rows while ``rs_ranking`` held a live rank for the same names.
+The day that flag is flipped, the two would have started disagreeing silently.
+
+⭐ ``rs_ranking`` IS THE AUTHORITY — it is already the ONLY authority for
+``groups_gates`` (see its module docstring), it is warmed every 50 min, and
+``snapshot_builder`` now reads it. ⛔ Do not reintroduce either key here; a rail
+in ``tests/test_scalar_population_rail.py`` asserts this function cannot emit
+them even when handed a fully-populated metrics dict.
+
+⚠️ ``rs`` IS STILL COMPUTED BELOW, and must be: it is an INPUT to
+``uct_composite``. What changed is that it is no longer also an OUTPUT.
 """
 from api.services.research import ratings_db
 from api.services.research.ratings import (
@@ -31,10 +52,13 @@ def ratings_fields(metrics: dict | None, dists: dict | None) -> dict:
 
     out = {}
     # passthrough raw metrics -> snapshot columns
+    # ⛔ `rs_return` is DELIBERATELY ABSENT from this map — see the module
+    # docstring. `rs_ranking.rs_score` is the same weighted return and is the
+    # single authority the builder reads.
     direct = {
         "eps_growth": "earnings_growth", "rev_growth": "rev_growth",
         "peg": "peg", "pe_fwd": "pe_fwd", "op_margin": "op_margin",
-        "roe": "roe", "inst_pct": "inst_pct", "rs_return": "rs_return",
+        "roe": "roe", "inst_pct": "inst_pct",
         "sector": "sector",
     }
     for col, src in direct.items():
@@ -70,8 +94,8 @@ def ratings_fields(metrics: dict | None, dists: dict | None) -> dict:
     if accdis is not None:
         out["accdis"] = accdis
 
-    if rs is not None:
-        out["rs_rank"] = int(rs)
+    # ⛔ NO `out["rs_rank"] = ...` HERE. `rs` feeds the composite and nothing
+    # else; the column belongs to `rs_ranking`. See the module docstring.
     composite = _composite(eps, rs, growth, value, smr_n, accdis)
     if composite is not None:
         out["uct_composite"] = composite

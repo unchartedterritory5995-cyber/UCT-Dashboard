@@ -14,6 +14,35 @@ Integration in main.py:
     from api.flow_router import flow_router
     app.include_router(flow_router)
 
+🔴 EVERY READ HERE IS GATED (`require_flow_user`, 2026-08-09). Before that,
+`GET /api/flow/data` answered an anonymous caller with **3.07 MB of the firm's
+options-flow tape** and `/ticker/{symbol}` served an UNCAPPED per-symbol dump —
+the single largest raw-data leak in the product. `/stats`, `/version` and
+`/dates` went with them: row counts and coverage dates are the dataset's size
+and shape, which is competitive information even when the rows are withheld.
+
+  * `require_flow_user` (not `require_paid`) is deliberate — it is the gate the
+    flow family already uses on `/upload`, `/prune`, `/bump-version`, and on the
+    normal-browsing `POST /api/live/massive/{current-quotes,enrich-oi}`. It is a
+    real gate (`Bearer PUSH_SECRET` OR a validated session), and it is the ONLY
+    one that survives the P5 proxy hop: post-cutover these handlers run on
+    FLOW-WORKER, which has no auth.db, so web validates the cookie in
+    `flow_proxy._inject_proxy_auth` and vouches by HMAC. A `require_paid` here
+    would consult `get_user_plan` on a pod that cannot reach the users table.
+  * The frontend is unaffected: same-origin `fetch` sends `uct_session`, and
+    `OptionsFlow.jsx` is served by `AuthGuard` to paid/admin only.
+
+⚠️ ONE RESIDUAL, AND IT IS INFRASTRUCTURE, NOT CODE. `/data` and `/indexes-data`
+are deliberately `Cache-Control: public, s-maxage=60, stale-while-revalidate=600`
+so Cloudflare absorbs the herd (see the freshness contract below — removing that
+re-opened a measured 25.5s TTFB / 502 class). Cloudflare keys on the URL, not the
+cookie, so a body warmed by a logged-in member can still be served from the EDGE
+to an anonymous caller for the length of that window. The origin is closed; the
+edge is not. Fully closing it is a Cloudflare Cache Rule ("bypass cache on
+cookie: uct_session", or serve these paths only to authenticated requests), which
+is dashboard configuration and cannot be committed from this repo. It is written
+up as an owner action in `.superpowers/sdd/audit/fix-exposed-routes-report.md`.
+
 Performance design:
   Three-layer caching pipeline tuned for large CSV responses (90d / All can
   hit 50-70MB raw) without exceeding Cloudflare's 100s origin timeout:
@@ -37,7 +66,7 @@ Performance design:
 """
 
 from fastapi import APIRouter, Request, Depends
-from api.flow_admin_auth import require_flow_admin
+from api.flow_admin_auth import require_flow_admin, require_flow_user
 from fastapi.responses import JSONResponse, Response
 from api.flow_db import FlowDB, parse_columns
 from collections import OrderedDict
@@ -529,7 +558,8 @@ def _build_gzipped_symbol_csv(symbol: str, source: str, columns=None) -> bytes:
 
 
 @flow_router.get("/ticker/{symbol}")
-def get_flow_ticker(symbol: str, source: str = "stocks", cols: str = ""):
+def get_flow_ticker(symbol: str, source: str = "stocks", cols: str = "",
+                    _auth: dict = Depends(require_flow_user)):
     """Uncapped flow for ONE ticker. The bulk /data endpoint keeps only the
     top-N rows by premium, which drops most of a small-cap's low-premium prints
     (ACI: 5 of 68 rows reached the browser, $1.5M of $3.84M). The Search tab
@@ -562,7 +592,7 @@ def get_flow_ticker(symbol: str, source: str = "stocks", cols: str = ""):
 @flow_router.get("/data")
 # sync def (not async): the gzip+stream build is CPU/sync work; a `def`
 # handler runs in the threadpool instead of blocking the single event loop.
-def get_flow_data(request: Request):
+def get_flow_data(request: Request, _auth: dict = Depends(require_flow_user)):
     """
     Serve stock flow data as gzipped CSV (cached at CF edge).
     ?days=N (default 1) — last N trading days.
@@ -577,7 +607,7 @@ def get_flow_data(request: Request):
 
 
 @flow_router.get("/indexes-data")
-def get_indexes_data(request: Request):
+def get_indexes_data(request: Request, _auth: dict = Depends(require_flow_user)):
     """Serve indexes/ETF flow data as gzipped CSV (cached at CF edge).
 
     Same ?date_from/?date_to support as /data — see get_flow_data."""
@@ -586,7 +616,7 @@ def get_indexes_data(request: Request):
 
 
 @flow_router.get("/stats")
-async def get_stats():
+async def get_stats(_auth: dict = Depends(require_flow_user)):
     """Database statistics for admin display."""
     try:
         return JSONResponse(db.stats())
@@ -595,7 +625,7 @@ async def get_stats():
 
 
 @flow_router.get("/version")
-def get_version():
+def get_version(_auth: dict = Depends(require_flow_user)):
     """Cache-busting version key. Returns DB row count, which changes whenever
     rows are inserted (uploads) or removed (prune). Clients append this as
     &v=<version> to /data and /indexes-data requests so CF treats each version
@@ -701,7 +731,7 @@ async def prune_expired(request: Request, _auth: dict = Depends(require_flow_adm
 
 
 @flow_router.get("/dates")
-async def get_dates(request: Request):
+async def get_dates(request: Request, _auth: dict = Depends(require_flow_user)):
     """Get available trading dates for a source."""
     source = request.query_params.get("source", "stocks")
     if source not in ("stocks", "indexes"):

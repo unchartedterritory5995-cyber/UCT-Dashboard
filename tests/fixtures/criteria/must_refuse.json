@@ -1,0 +1,20 @@
+[
+  {"source": "sma(close, 20)",              "guard": "picker:not-a-condition",
+   "why": "a number, not a yes/no — the picker builds conditions"},
+  {"source": "close",                        "guard": "picker:not-a-condition",
+   "why": "a bare series"},
+  {"source": "(close > 1) ? 2 : 3",          "guard": "picker:node",
+   "why": "the ternary has no row-and-group shape"},
+  {"source": "!(close > open)",              "guard": "picker:node",
+   "why": "negation is not a row; v1 shows it as a formula"},
+  {"source": "(close > open) + 1",           "guard": "picker:not-a-condition",
+   "why": "arithmetic over a condition — the top node is not a comparator"},
+  {"source": "close + open > 1",             "guard": "picker:term",
+   "why": "an arithmetic TERM; the picker's left side is a name, a number or one call"},
+  {"source": "sma(sma(close, 5), 5) > 1",    "guard": "picker:term",
+   "why": "a nested call; v1 shows one level"},
+  {"source": "crossOver(close, open) > 0",   "guard": "picker:term",
+   "why": "a crossing is a CONDITION with a row of its own, never a TERM inside a comparison — the term slots offer the table's term-valued functions and nothing else. (`crossOver(close, open)` itself is now a row: see the crossing block in criteria.test.js.)"},
+  {"source": "crossOver(sma(sma(close, 5), 5), open)", "guard": "picker:term",
+   "why": "a nested call inside a crossing operand — a crossing row's sides are picker TERMS and the picker shows one level, exactly as a comparison row does"}
+]

@@ -1,4 +1,16 @@
 // Loading state: the holdings skeleton (not text) shows while positions load.
+//
+// ⛔ MOCK ONLY WHAT THE TAB ACTUALLY IMPORTS. This file carried
+// `vi.mock('../components/BrokerSyncStatus', …)` long after `OpenPositionsTab`
+// stopped importing it — the sync bar was absorbed into
+// `components/trust/SyncTrustCenter`. A mock of a module nobody imports is
+// inert: it never intercepts anything, so it can never fail for the reason it
+// was written, and it reads to the next engineer as protection that is not
+// there. Removed 2026-08-09; the same dead mock was in
+// `OpenPositionsTab.view.test.jsx`. If you add a mock here, first confirm the
+// specifier appears in `OpenPositionsTab.jsx`'s import list.
+// ⚠️ `SyncTrustCenter` is deliberately NOT mocked — it renders for real (that
+// is where the act() warnings below come from).
 import { render, screen } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import OpenPositionsTab from './OpenPositionsTab'
@@ -18,7 +30,6 @@ vi.mock('../../../hooks/useRealtimePrices', () => ({
   default: () => ({ prices: {}, isStreaming: false }),
 }))
 vi.mock('../components/BrokerAccountHero', () => ({ default: () => null }))
-vi.mock('../components/BrokerSyncStatus', () => ({ default: () => null }))
 vi.mock('../components/BrokerReviewNudge', () => ({ default: () => null }))
 vi.mock('../components/NudgesBanner', () => ({ default: () => null }))
 

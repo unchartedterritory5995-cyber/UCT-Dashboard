@@ -28,6 +28,9 @@ sixth route that rides in uncovered.
 
 from __future__ import annotations
 
+import os
+import threading
+import time
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -35,6 +38,7 @@ from pydantic import BaseModel
 
 from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import user_definitions as svc
+from api.services.entitlements import Limits, limits_dependency
 
 router = APIRouter(prefix="/api/user-definitions", tags=["user-definitions"])
 
@@ -53,14 +57,21 @@ class DefinitionIn(BaseModel):
 
 
 class ProposeIn(BaseModel):
-    """The English, and the bars the chart is already holding.
+    """The English, the kind of formula wanted, and the bars the chart holds.
 
     The bars come from the CLIENT because the chart already has them and the
     concierge's compute stage has to run on the same window the user is looking
     at — a formula that computes nothing on the bars in view is refused there.
+
+    ⛔ `kind` IS PASSED THROUGH, NEVER VALIDATED HERE. The kinds live in
+    `definition_concierge.KINDS` and an unrecognised one is refused at
+    `kind:unknown` by the pipeline that owns the distinction — a `Literal` typed
+    here would be a second list of kinds to keep in step, and a 422 would report
+    the refusal under a door that decides nothing about formulas.
     """
 
     prompt: str
+    kind: Optional[str] = None
     bars: Optional[list] = None
 
 
@@ -69,16 +80,83 @@ class ProposeIn(BaseModel):
 #: is that number rather than a new one.
 MAX_PROPOSE_BARS = 5000
 
+# ── The AI door's INVOCATION bound ──────────────────────────────────────────
+#
+# 🔴 THE GAP THIS CLOSES. `MAX_PROPOSE_BARS` bounds how BIG one call is. Nothing
+# bounded HOW MANY. `/propose` is the only route on this router that spends model
+# tokens per request, `require_paid` is a one-time yes/no, and a paid session in a
+# `while true` loop was an unmetered bill on the firm's key. Same shape E-7's
+# census caught on `/api/scans/definition-results`: right auth class, missing
+# bound.
+#
+# ⛔ AND IT IS DELIBERATELY *NOT* A FIFTH `Limits` AXIS. `entitlements.Limits` is
+# a BREADTH model — its own docstring: *"Symbols, history depth, definition count,
+# refresh cadence"* — with four REQUIRED fields, one place the numbers live, and
+# rails asserting all of it. An invocation-rate cap is a COST axis, not a breadth
+# axis; bolting it onto `Limits` would change every toolkit and every entitlement
+# rail for a number that has nothing to do with how much market a plan may ask
+# about. Note too that `tests/test_entitlements.py` EXCLUDES `/propose` from the
+# toolkit-write census on purpose (`not k[1].endswith("/propose")`) — because
+# `limits_dependency` bounds `max_definitions`, and a route that stores nothing
+# cannot move a definition count. Adding `Depends(limits_dependency)` here would
+# have looked like the fix and bounded nothing: a gate that cannot fail.
+#
+# ⚠️ PER-PROCESS, AND THAT IS A REAL LIMIT. The web pod is one uvicorn process
+# (CLAUDE.md, "SINGLE-PROCESS assumptions"), so this counter is exact today and
+# would become per-instance the day web scales out — at which point the ceiling
+# multiplies by the instance count rather than failing open. Recorded here so the
+# scale-out change is a decision, not a surprise.
+PROPOSE_MAX_PER_HOUR = int(os.environ.get("PROPOSE_MAX_PER_HOUR", "40"))
+_PROPOSE_WINDOW_SECONDS = 3600
+_propose_calls: dict[str, list[float]] = {}
+_propose_lock = threading.Lock()
 
-def _save_or_400(user_id, def_id: str, definition: dict) -> dict:
+
+def _charge_propose(user_id: str, *, now: float | None = None) -> None:
+    """Record one call for `user_id`, or raise 429 if the window is full.
+
+    ⛔ THE CHARGE HAPPENS BEFORE THE MODEL RUNS, not after. Billing on success
+    would let a caller loop refusals for free, and a refused proposal costs the
+    same tokens as an accepted one.
+    """
+    now = time.time() if now is None else now
+    cutoff = now - _PROPOSE_WINDOW_SECONDS
+    with _propose_lock:
+        recent = [t for t in _propose_calls.get(user_id, ()) if t > cutoff]
+        if len(recent) >= PROPOSE_MAX_PER_HOUR:
+            retry_after = max(1, int(recent[0] + _PROPOSE_WINDOW_SECONDS - now))
+            _propose_calls[user_id] = recent
+            raise HTTPException(
+                status_code=429,
+                detail=f"At most {PROPOSE_MAX_PER_HOUR} indicator proposals per "
+                       f"hour. Try again in {retry_after}s.",
+                headers={"Retry-After": str(retry_after)},
+            )
+        recent.append(now)
+        _propose_calls[user_id] = recent
+        # Bound the dict itself: a key per member is fine, a key per member
+        # FOREVER is a leak. Drop anyone whose window has fully aged out.
+        if len(_propose_calls) > 5000:
+            for uid in [u for u, ts in _propose_calls.items()
+                        if not ts or ts[-1] <= cutoff]:
+                _propose_calls.pop(uid, None)
+
+
+def _save_or_400(user_id, def_id: str, definition: dict,
+                 limits: Limits | None = None) -> dict:
     """Every store refusal is a 400 that carries the store's own sentence.
 
     ⛔ THE MESSAGE IS NOT REWRITTEN HERE. The caps live in one place and their
     wording names the number that was exceeded; a router-local paraphrase is a
-    second vocabulary for the same refusal.
+    second vocabulary for the same refusal. `entitlements.ToolkitLimitExceeded`
+    IS a `ValueError`, so a toolkit refusal comes out of the same door rather
+    than needing a second handler.
+
+    ⛔ `limits` IS PASSED THROUGH, NEVER RE-DERIVED HERE. Re-deriving it would be
+    a second authority over one member's plan, on the write path.
     """
     try:
-        return svc.save(user_id, def_id, definition)
+        return svc.save(user_id, def_id, definition, limits=limits)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -89,17 +167,24 @@ def list_definitions(user: dict = Depends(require_paid)):
 
 
 @router.post("")
-def create_definition(body: DefinitionIn, user: dict = Depends(require_paid)):
+def create_definition(body: DefinitionIn,
+                      user: dict = Depends(require_paid),
+                      limits: Limits = Depends(limits_dependency)):
     """Create. THE SERVER MINTS THE ID.
 
     A client-supplied id would let one member write into another's namespace by
     guessing, and it would let a definition claim a native id (`rsi`) whose
     bindings a rev bump would then force-migrate.
+
+    ⭐ AND IT CARRIES THE CALLER'S TOOLKIT BESIDE `require_paid`, NOT INSTEAD OF
+    IT. `require_paid` decides WHETHER (402); `limits_dependency` decides HOW MUCH
+    (the definition-count axis). Collapsing them would make one 402 mean two
+    things and lose "which surface refused me".
     """
     def_id = svc.new_def_id()
     definition = dict(body.definition or {})
     definition["id"] = def_id
-    return _save_or_400(user["id"], def_id, definition)
+    return _save_or_400(user["id"], def_id, definition, limits)
 
 
 @router.post("/propose")
@@ -121,7 +206,13 @@ def propose_definition(body: ProposeIn, user: dict = Depends(require_paid)):
     ⚠️ DECLARED PER HANDLER, like every other route on this router. See the module
     docstring: `main.py` mounts this router with no router-level dependency, so a
     route that omits its own is reachable by anybody.
+
+    ⭐ AND IT IS BOUNDED PER CALLER, NOT ONLY PER CALL. `MAX_PROPOSE_BARS` caps
+    how big one proposal is; `_charge_propose` caps how many a member may fire in
+    an hour. See the note above `PROPOSE_MAX_PER_HOUR` for why that bound is a
+    rate limit here and not a fifth `entitlements.Limits` axis.
     """
+    _charge_propose(str(user["id"]))
     bars = body.bars or []
     if not isinstance(bars, list) or len(bars) > MAX_PROPOSE_BARS:
         raise HTTPException(
@@ -129,7 +220,12 @@ def propose_definition(body: ProposeIn, user: dict = Depends(require_paid)):
             detail=f"bars: at most {MAX_PROPOSE_BARS} bars, got "
                    f"{len(bars) if isinstance(bars, list) else type(bars).__name__}")
     from api.services import definition_concierge
-    return definition_concierge.propose(body.prompt, user_id=user["id"], bars=bars)
+    #: ⭐ THE DEFAULT IS THE PIPELINE'S OWN, READ OFF IT. A body with no `kind`
+    #: is every caller that shipped before scans existed, and spelling
+    #: `"indicator"` here would be a second declaration of the default.
+    kind = body.kind if body.kind is not None else definition_concierge.INDICATOR_KIND
+    return definition_concierge.propose(body.prompt, user_id=user["id"], bars=bars,
+                                        kind=kind)
 
 
 @router.get("/{def_id}")
@@ -147,8 +243,15 @@ def get_definition(def_id: str,
 
 @router.put("/{def_id}")
 def save_definition(def_id: str, body: DefinitionIn,
-                    user: dict = Depends(require_paid)):
+                    user: dict = Depends(require_paid),
+                    limits: Limits = Depends(limits_dependency)):
     """An EDIT. A maths change bumps `rev` and force-migrates every binding.
+
+    ⚠️ IT CARRIES THE TOOLKIT TOO, AND THE REASON IS THE RESURRECT. An edit of a
+    live definition never touches the count cap; saving over a TOMBSTONE makes a
+    definition live that is not live now, which is exactly the case
+    `user_definitions.save` checks. A PUT without the toolkit would be the way to
+    stand at a hundred definitions on a plan that sells fifty.
 
     ⭐ AND AS OF THIS COMMIT IT HAS A PRODUCT CALLER. `BuilderSheet` opens a saved
     formula, and its Save button routes here through the SAME document builder,
@@ -174,7 +277,7 @@ def save_definition(def_id: str, body: DefinitionIn,
         raise HTTPException(status_code=404, detail="Not found")
     definition = dict(body.definition or {})
     definition["id"] = def_id
-    return _save_or_400(user["id"], def_id, definition)
+    return _save_or_400(user["id"], def_id, definition, limits)
 
 
 @router.delete("/{def_id}")

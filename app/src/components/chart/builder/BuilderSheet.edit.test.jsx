@@ -229,6 +229,26 @@ describe('🔴 a saved formula can be OPENED', () => {
     expect(screen.getByTestId('readback').textContent).toBe('the 20-bar average of close')
   })
 
+  it('🔴 and it lands on the FORMULA tab, not on the starter gallery', async () => {
+    // ⭐ THE OTHER HALF OF THE DEFAULT-TAB CALL, AND THE RAIL THAT REDS WHEN THE
+    // WIRE IS CUT. A NEW sheet opens on the Library, because a member with an
+    // empty box is helped by the firm's worked scans. A member editing their OWN
+    // definition is not: the gallery would sit above their work, and one click
+    // on a card REPLACES the source they came here to change. So `openForEdit`
+    // moves the sheet, and this fails if that line is removed while the sheet,
+    // the library and the picker all stay perfectly correct.
+    H.rows = [storedRow()]
+    mount()
+    await flush()
+    expect(screen.getByRole('tab', { name: /library/i })).toHaveAttribute('aria-selected', 'true')
+
+    await clickEdit()
+    expect(screen.getByRole('tab', { name: /formula/i })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: /library/i })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.queryByTestId('starter-library')).toBeNull()
+    expect(field().value).toBe('sma(close, 20)')
+  })
+
   it('a row stored WITHOUT its source says so instead of opening an empty box', async () => {
     const row = storedRow()
     delete row.definition.compute.source

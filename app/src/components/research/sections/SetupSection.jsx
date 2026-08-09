@@ -19,6 +19,7 @@ import useFundamentals from '../../../hooks/useFundamentals'
 import { EyebrowLabel, ImpliedVsRealized, RangeSlider, StatTile } from '../../research-kit'
 import { SkeletonBlock } from '../../Skeleton'
 import { IMPLIED_MOVE_INFO } from '../../../constants/disclaimer'
+import { moveIsUnavailable, moveUnavailableTitle } from '../../../constants/expectedMoveOutcome'
 import { buildQuarters } from '../earningsHistoryModel'
 import styles from './SetupSection.module.css'
 
@@ -129,6 +130,21 @@ export default function SetupSection({ sym, row, reportDate, expectedMove }) {
 
   const live = expectedMove?.live || null
   const history = expectedMove?.history || []
+  // WHY there is no live implied move, as `{kind, reason}` from the SAME
+  // evaluation that withheld it (api/routers/expected_move.py `live_outcome`,
+  // serialized by implied_move.wire_outcome — the one serializer the calendar
+  // uses too, so the two surfaces cannot describe one absence two ways).
+  //
+  // This endpoint is where refusals actually reach members: the calendar skips
+  // the live chain read for a past report, but the research modal asks for
+  // every symbol it opens, so a refusal lands HERE first. Until this line
+  // existed the payload was correct, tested, and read by nothing — the canvas
+  // just quietly had no hero.
+  //
+  // ⛔ No reason token appears in this file, or anywhere under `app/src`. The
+  // vocabulary belongs to `api/services/implied_move.py`; naming one here would
+  // be a copy of a list that grows without us, and it is a backend test rail.
+  const liveOutcome = expectedMove?.live_outcome ?? null
   const spot = num(live?.spot)
   const dollar = num(live?.dollar)
   const drift = driftText(estimates?.revisions)
@@ -149,6 +165,20 @@ export default function SetupSection({ sym, row, reportDate, expectedMove }) {
         recordedCount={history.length}
         info={IMPLIED_MOVE_INFO}
       />
+
+      {/* PRICED WINS. This branch is reachable only when there is no live
+          percentage to show, so a priced canvas renders byte-identically to
+          before. And a canvas whose payload has not landed yet renders
+          nothing: `expectedMove` is null until SWR resolves, so `liveOutcome`
+          is null and `moveIsUnavailable` is false — the outcome's PRESENCE is
+          the arrival signal, which is why no `enrichReady` is threaded here.
+          The canvas has room for the plain words, so unlike the 112px calendar
+          cell it says them instead of hiding them in a tooltip. */}
+      {num(live?.pct) == null && moveIsUnavailable(liveOutcome) && (
+        <div className={styles.moveNa} data-testid="setup-move-unavailable">
+          {moveUnavailableTitle(liveOutcome)}
+        </div>
+      )}
 
       {/* `dollar != null` / `spot != null` — a genuine $0 move still draws a
           (degenerate) strip; only an actually-missing live payload omits it. */}

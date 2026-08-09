@@ -12,6 +12,7 @@ from typing import Any
 
 import yfinance as yf
 
+from api.services import yf_util
 from api.services.cache import TTLCache
 
 _log = logging.getLogger(__name__)
@@ -120,8 +121,10 @@ def get_fundamentals(ticker: str) -> dict[str, Any]:
     # yfinance `.info` is its slowest / most hang-prone call and has no timeout;
     # bound it so a stalled Yahoo response can't pin a worker thread forever.
     try:
-        from api.services.yf_util import bounded_call
-        info = bounded_call(lambda: yf.Ticker(sym).info, None) or {}
+        # Import the MODULE, never the function — a `from … import bounded_call`
+        # binds a private copy that no monkeypatch of `yf_util.bounded_call`
+        # can reach (lesson_from_import_severs_a_module_from_its_guards).
+        info = yf_util.bounded_call(lambda: yf.Ticker(sym).info, None) or {}
     except Exception as e:
         _log.warning("yfinance fundamentals failed for %s: %s", sym, e)
         err = {"error": f"yfinance failed: {e}", "ticker": sym}

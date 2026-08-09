@@ -100,10 +100,37 @@ async def test_trade_card_redacted_over_http(client_for, monkeypatch):
                           json={"body": "", "card": {"kind": "trade", "tradeId": "t1"},
                                 "client_msg_id": "c2"})
         assert r.status_code == 200
-        blob = json.dumps(r.json())
-        for leak in ("shares", "pnlDollar", "5800", "500"):
-            assert leak not in blob
-        assert r.json()["card"]["rMultiple"] == 2.3
+        payload = r.json()
+
+        # ⛔ A NUMERIC SUBSTRING SEARCHED OVER THE WHOLE ENVELOPE IS A CLOCK BOMB.
+        # The envelope carries `"created_at": <unix seconds>`, and the old
+        # assertion was `"500" not in json.dumps(r.json())`. A 3-digit needle in
+        # a 10-digit epoch hits constantly — this test failed on a real run with
+        #
+        #     '500' is contained here:
+        #       at": 1786250041, "author": …          # 1786-2500-41
+        #
+        # while the card itself was redacted perfectly. Measured over a year of
+        # epoch seconds: red for 0.54% of them, in stretches of up to 100
+        # CONSECUTIVE seconds, ~105 windows a day. That is exactly a test that
+        # "passes in isolation" and fails on some full runs and not others — it
+        # was never about ordering, only about what second the POST landed on.
+        #
+        # So: KEY names are still checked against the whole envelope (they are
+        # not digit strings and cannot collide with a timestamp), while the
+        # VALUES are checked against the CARD — which is the thing redaction is
+        # a contract about, and which carries no clock.
+        envelope = json.dumps(payload)
+        for leaked_key in ("shares", "pnlDollar", "pnlDollarNet"):
+            assert leaked_key not in envelope, f"{leaked_key} leaked in {envelope}"
+
+        card = payload["card"]
+        card_blob = json.dumps(card)
+        for leaked_value in ("5800", "5750", "500"):
+            assert leaked_value not in card_blob, (
+                f"{leaked_value} leaked into the card: {card_blob}")
+
+        assert card["rMultiple"] == 2.3
 
 
 @pytest.mark.asyncio

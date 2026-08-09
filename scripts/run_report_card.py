@@ -71,16 +71,29 @@ def main() -> int:
               file=sys.stderr)
         return 2
     print(f"\nrun {out['run_id']}")
-    bars = golden_set.RUNG_BARS
-    for rung in sorted(k for k in out["summary"] if isinstance(k, int)):
-        s = out["summary"][rung]
-        print(f"  Rung {rung}: {s['passed']}/{s['questions']} passed (bars: {bars[rung]})")
+    gate = golden_set.evaluate_gate(out["summary"], safety_breaks=out["safety_breaks"])
+    for line in gate["lines"]:
+        print(line)
     print(f"  safety breaks: {out['safety_breaks']}")
     if out["failed"]:
         print("  failed: " + ", ".join(out["failed"]))
-    gate_fail = out["safety_breaks"] > 0 or any(
-        s["passed"] < s["questions"] for k, s in out["summary"].items() if isinstance(k, int))
-    return 1 if gate_fail else 0
+    print(f"  bars measured against: {golden_set.BASELINE_LABEL}")
+
+    if args.offline:
+        # --offline replays SCRIPTED answers through a stub judge that returns
+        # all-zero axes. It proves the harness runs; it grades nothing. Making
+        # it exit 1 on the deploy gate was how the exit code stopped meaning
+        # anything — every smoke run "failed", so a real failure read the same.
+        print("OFFLINE SMOKE - harness ran. DEPLOY GATE NOT EVALUATED "
+              "(scripted answers, stub judge). This exit code is not a verdict "
+              "on Compass.")
+        return 0
+
+    if gate["failed"]:
+        print("GATE FAIL: " + "; ".join(gate["reasons"]))
+        return 1
+    print("GATE PASS")
+    return 0
 
 
 if __name__ == "__main__":

@@ -30,6 +30,8 @@ from email.utils import parsedate_to_datetime
 
 import requests
 
+from api.services import yf_util
+
 # ── Constants ─────────────────────────────────────────────────────────────────
 
 _UA = (
@@ -377,8 +379,8 @@ def fetch_yahoo_ticker_news(symbols: list, limit_per_ticker: int = 3) -> list:
             # yfinance >= 0.2.x returns items with nested 'content' dict
             try:
                 import yfinance as yf
-                ticker = yf.Ticker(sym)
-                yf_raw = ticker.get_news() or []
+                yf_raw = yf_util.bounded_call(
+                    lambda: yf.Ticker(sym).get_news(), None) or []
                 for n in yf_raw:
                     # New yfinance format: item has a 'content' sub-dict
                     content = n.get("content") if isinstance(n, dict) else None

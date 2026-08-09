@@ -50,7 +50,7 @@ def test_run_nightly_capture_stores_only_successes(store):
                   "fiscal_year": 2026, "fiscal_quarter": 3},
                  {"sym": "BAD", "report_date": "2026-08-04", "hour": "amc",
                   "fiscal_year": 2026, "fiscal_quarter": 3}]
-    def fake_move(sym, report_date=None):
+    def fake_move(sym, report_date=None, **_kw):
         return _payload() if sym == "GOOD" else None
     with patch.object(store, "upcoming_reporters", return_value=reporters), \
          patch.object(store.implied_move, "get_expected_move", side_effect=fake_move):
@@ -64,7 +64,7 @@ def test_run_nightly_capture_noop_when_no_reporters(store):
     with patch.object(store, "upcoming_reporters", return_value=[]):
         summary = store.run_nightly_capture(now=dt.datetime(2026, 8, 3, 16, 40))
     assert summary == {"captured": 0, "skipped": 0, "failed": 0, "collisions": 0,
-                        "skipped_no_fiscal": 0}
+                        "skipped_no_fiscal": 0, "refused": 0, "refused_by_reason": {}}
 
 
 def test_run_nightly_capture_isolates_a_raising_reporter(store):
@@ -74,7 +74,7 @@ def test_run_nightly_capture_isolates_a_raising_reporter(store):
                   "fiscal_year": 2026, "fiscal_quarter": 3},
                  {"sym": "OK2", "report_date": "2026-08-04", "hour": "amc",
                   "fiscal_year": 2026, "fiscal_quarter": 3}]
-    def fake_move(sym, report_date=None):
+    def fake_move(sym, report_date=None, **_kw):
         if sym == "BOOM":
             raise RuntimeError("chain exploded")
         return _payload()
@@ -82,7 +82,7 @@ def test_run_nightly_capture_isolates_a_raising_reporter(store):
          patch.object(store.implied_move, "get_expected_move", side_effect=fake_move):
         summary = store.run_nightly_capture(now=dt.datetime(2026, 8, 3, 16, 40))
     assert summary == {"captured": 2, "skipped": 0, "failed": 1, "collisions": 0,
-                        "skipped_no_fiscal": 0}
+                        "skipped_no_fiscal": 0, "refused": 0, "refused_by_reason": {}}
     assert store.get_implied_history("OK2"), "reporters after the raiser must still capture"
 
 
@@ -102,7 +102,7 @@ def test_run_nightly_capture_window_and_bmo_today_skip(store):
          "fiscal_year": 2026, "fiscal_quarter": 2},
     ]
     with patch.object(store, "upcoming_reporters", return_value=reporters), \
-         patch.object(store.implied_move, "get_expected_move", side_effect=lambda sym, report_date=None: _payload()):
+         patch.object(store.implied_move, "get_expected_move", side_effect=lambda sym, report_date=None, **_kw: _payload()):
         summary = store.run_nightly_capture(now=now)
     assert summary["captured"] == 2, "amc-today and tomorrow reporters must capture"
     assert summary["skipped"] == 1, "only the bmo-today reporter counts as skipped"
@@ -391,7 +391,8 @@ def test_run_nightly_capture_hour_collision_resolves_identically_both_orders(sto
              patch.object(store.implied_move, "get_expected_move", return_value=_payload()):
             summary = store.run_nightly_capture(now=now)
         assert summary == {"captured": 0, "skipped": 1, "failed": 0, "collisions": 1,
-                            "skipped_no_fiscal": 0}, order_name
+                            "skipped_no_fiscal": 0, "refused": 0,
+                            "refused_by_reason": {}}, order_name
         assert not store.get_implied_history("DUPH"), \
             f"{order_name}: bmo must win deterministically -> skipped, never stored"
 
@@ -455,7 +456,8 @@ def test_run_nightly_capture_hour_collision_case_insensitive_both_orders(store):
              patch.object(store.implied_move, "get_expected_move", return_value=_payload()):
             summary = store.run_nightly_capture(now=now)
         assert summary == {"captured": 0, "skipped": 1, "failed": 0, "collisions": 1,
-                            "skipped_no_fiscal": 0}, order_name
+                            "skipped_no_fiscal": 0, "refused": 0,
+                            "refused_by_reason": {}}, order_name
         assert not store.get_implied_history("DUPH"), order_name
 
 
@@ -693,7 +695,8 @@ def test_capture_due_by_true_on_a_holiday_is_a_harmless_noop_via_empty_reporters
     with patch.object(store, "upcoming_reporters", return_value=[]):
         summary = store.run_nightly_capture(now=now)
     assert summary == {"captured": 0, "skipped": 0, "failed": 0, "collisions": 0,
-                        "skipped_no_fiscal": 0}
+                        "skipped_no_fiscal": 0, "refused": 0,
+                        "refused_by_reason": {}}
 
 
 # ── Reporter-list resilience (2026-08-05 incident #2) ───────────────────────
@@ -1079,7 +1082,8 @@ def test_run_nightly_capture_skips_today_row_when_session_unknown_and_backfill_f
          patch.object(store.implied_move, "get_expected_move", return_value=_payload()):
         summary = store.run_nightly_capture(now=now)
     assert summary == {"captured": 0, "skipped": 1, "failed": 0, "collisions": 0,
-                        "skipped_no_fiscal": 0}
+                        "skipped_no_fiscal": 0, "refused": 0,
+                        "refused_by_reason": {}}
     assert not store.get_implied_history("TODAYX")
 
 
@@ -1108,7 +1112,8 @@ def test_run_nightly_capture_backfill_revealing_bmo_still_skips(store):
          patch.object(store.implied_move, "get_expected_move", return_value=_payload()):
         summary = store.run_nightly_capture(now=now)
     assert summary == {"captured": 0, "skipped": 1, "failed": 0, "collisions": 0,
-                        "skipped_no_fiscal": 0}
+                        "skipped_no_fiscal": 0, "refused": 0,
+                        "refused_by_reason": {}}
     assert not store.get_implied_history("TODAYX")
 
 

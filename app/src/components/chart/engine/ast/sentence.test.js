@@ -3,11 +3,21 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 import {
-  sentenceFor, explainSentence, compileRules, coverageGaps,
-  OPERATOR_SENTENCE, SENTENCE_RULES, SentenceRefusal, REFUSALS as SENTENCE_REFUSALS,
+  sentenceFor, explainSentence, compileRules, coverageGaps, yieldsOf,
+  OPERATOR_SENTENCE, OPERATOR_SENTENCE_CONDITIONS, CONDITIONS_FORM_DECLINED,
+  SENTENCE_RULES, SentenceRefusal, REFUSALS as SENTENCE_REFUSALS,
 } from './sentence.js'
 import { parseFormula, astHash, TABLE, REFUSALS as PARSE_REFUSALS } from './parse.js'
 import { REFUSALS as INTERPRET_REFUSALS } from './interpret.js'
+import { lintRepaint } from './lint.js'
+// ⭐ THE DELIVERABLE IS A CHAIN, SO THE CHAIN'S OWN DOORS ARE THE SUBJECT.
+// `evaluateFormula` runs parse → lint → budget → READ-BACK and reports
+// `ok:false` carrying the read-back's guard when the sentence throws;
+// `canSaveFormula` is the gate the Save button reads. Asserting `renderName`
+// alone would prove the sentence exists without proving the formula can be
+// SAVED, which is the thing that was actually broken.
+import { evaluateFormula, canSaveFormula } from '../../builder/FormulaField.jsx'
+import { BUILDER_INPUT_SCOPE } from '../../builder/builderInputs.js'
 
 /** The repo root, found by walking up — the same helper `budget.test.js`,
  *  `interpret.test.js` and `lint.test.js` use, and it THROWS BY NAME rather than
@@ -131,6 +141,17 @@ const FORMS = [
     parts: [1, ' when ', 0, ' is not zero, ', 2,
       ' when it is zero, and nothing while it is unknown'],
   },
+
+  // ⭐ THE CONDITIONS FORMS, HAND-TYPED LIKE EVERY OTHER PHRASE HERE. A logical
+  // operator every one of whose operands already yields `bool` drops the `!= 0`
+  // scaffolding, so the grammar has a second reading for `&&` and `||` — and the
+  // reader must be able to invert BOTH or the round-trip silently stops covering
+  // the smoothed half. ⚠️ They are NOT ambiguous with the unsmoothed forms above:
+  // those open with the literal `1 when `, and a smoothed operand is either a
+  // LEAF or is bracketed, so `readOperand` refuses the `1 when …` prefix a
+  // mis-parse would have to swallow. `the grammar is UNAMBIGUOUS` measures it.
+  { kind: 'op', name: '&&', via: 'op:&&:conditions', parts: [0, ' and ', 1] },
+  { kind: 'op', name: '||', via: 'op:||:conditions', parts: [0, ' or ', 1] },
 ]
 
 function indexAtDepthZero(s, needle, from) {
@@ -214,7 +235,10 @@ function readSentenceCandidates(s) {
         if (!own(slots, i)) throw new Error(`form ${form.name} never captured argument ${i}`)
         args.push(readOperand(slots[i]))
       }
-      found.push({ via: `${form.kind}:${form.name}`, ast: { type: form.kind, name: form.name, args } })
+      found.push({
+        via: form.via || `${form.kind}:${form.name}`,
+        ast: { type: form.kind, name: form.name, args },
+      })
     } catch { /* the chrome matched but the operands did not read */ }
   }
   return found
@@ -268,6 +292,42 @@ function treesForTheWholeTable(table) {
   return out
 }
 
+/** What the MANIFEST says a tree's values can be — a hand-written second reader.
+ *
+ *  ⭐⭐ AN ORACLE, NOT A CALL. `sentence.js::yieldsOf` is the module's answer and
+ *  the chrome's choice depends on it, so a `predictTrace` that asked `yieldsOf`
+ *  would agree with the walker no matter what either said. This reads the same
+ *  three rules straight off `closedTable`'s `_yields` note instead:
+ *
+ *    • a `num` literal is a condition iff it is one of the two values a 0/1
+ *      column holds;
+ *    • a bar series declares no `yields` and is a price, so it is a number; a
+ *      scalar's declaration decides;
+ *    • `passthrough` — the ternary's, and only the ternary's — is a condition iff
+ *      EVERY ARM is, and the arms are the arguments AFTER the selector.
+ *
+ *  The mutations that prove it is independent are in the harness: resolving the
+ *  ternary from ALL of its arguments, or from EITHER arm, both survive a reader
+ *  derived from the module and die against this one. */
+function oracleYields(node) {
+  if (!node || typeof node !== 'object') return 'num'
+  if (node.type === 'num') return node.value === 0 || node.value === 1 ? 'bool' : 'num'
+  if (node.type === 'series') {
+    const spec = own(TABLE.scalars, node.name) ? TABLE.scalars[node.name] : null
+    return spec && spec.yields === 'bool' ? 'bool' : 'num'
+  }
+  const section = node.type === 'op' ? TABLE.operators : TABLE.functions
+  const declared = own(section, node.name) ? section[node.name].yields : 'num'
+  if (declared !== 'passthrough') return declared === 'bool' ? 'bool' : 'num'
+  const arms = (node.args || []).slice(1)
+  return arms.length > 0 && arms.every((a) => oracleYields(a) === 'bool') ? 'bool' : 'num'
+}
+
+/** Which operators drop the `!= 0` scaffolding, off the module's own second
+ *  phrase table — the SET is the module's (it is a vocabulary, like
+ *  `OPERATOR_SENTENCE`), the CHOICE is what `oracleYields` re-derives above. */
+const hasConditionsForm = (name) => own(OPERATOR_SENTENCE_CONDITIONS, name)
+
 /** The rule sequence a correct walker MUST emit for a tree — re-derived here from
  *  the tree and the manifest, never read back out of `explainSentence`. */
 function predictTrace(node, at = '$') {
@@ -276,7 +336,10 @@ function predictTrace(node, at = '$') {
     return [{ path: at, rule: own(TABLE.series, node.name) ? 'series:table' : 'series:input' }]
   }
   if (node.type === 'op') {
-    const out = [{ path: at, rule: `op:${node.name}` }]
+    const smoothed = hasConditionsForm(node.name)
+      && node.args.length > 0
+      && node.args.every((a) => oracleYields(a) === 'bool')
+    const out = [{ path: at, rule: smoothed ? `op:${node.name}:conditions` : `op:${node.name}` }]
     node.args.forEach((a, i) => out.push(...predictTrace(a, `${at}.args[${i}]`)))
     return out
   }
@@ -345,18 +408,71 @@ describe('the read-back is generated from the tree, and never written by a model
       }
     }
   })
+
+  it('⭐ THE PHRASINGS PHASE D PINNED HAVE NOT MOVED — byte for byte', () => {
+    // ⛔ NOT AN IMPROVEMENT TARGET, AND THAT IS THE POINT OF PINNING THEM. The
+    // four logical forms are deliberately unsmoothed: `&&` is not "and", `?:` is
+    // not "if … then … else", each says ALL of its cases, and the NaN case is
+    // said as "nothing" because whitespace is what the binder draws. A later
+    // task widening the vocabulary must not "tidy" one of these on the way past,
+    // so they are bytes here rather than a shape.
+    expect(sentenceFor(ast('close && volume'), {})).toBe(
+      '1 when close and volume are both not zero, 0 when either is zero,'
+      + ' and nothing while either is unknown')
+    expect(sentenceFor(ast('close || volume'), {})).toBe(
+      '1 when close or volume is not zero, 0 when both are zero,'
+      + ' and nothing while either is unknown')
+    expect(sentenceFor(ast('!close'), {})).toBe(
+      '1 when close is zero, 0 when it is not zero, and nothing while it is unknown')
+    expect(sentenceFor(ast('close > open ? high : low'), {})).toBe(
+      'high when (1 when close is greater than open and 0 otherwise) is not zero,'
+      + ' low when it is zero, and nothing while it is unknown')
+    expect(sentenceFor(ast('sma(close, 20)'), {})).toBe('the 20-bar average of close')
+    // 🔴 …AND THEY STAY PINNED NOW THAT THE LOGICAL CHROME CONSULTS `yields`.
+    // `close`, `volume` and `open` are bar fields: the manifest declares no
+    // `yields` for a series because a price is a NUMBER, so every reading above
+    // is the coercion actually happening and every byte of it must survive.
+    // `!` and `?:` are DECLINED (see `CONDITIONS_FORM_DECLINED`), so their
+    // readings do not move even when every operand IS a condition:
+    expect(sentenceFor(ast('!(close > open)'), {})).toBe(
+      '1 when (1 when close is greater than open and 0 otherwise) is zero,'
+      + ' 0 when it is not zero, and nothing while it is unknown')
+    expect(sentenceFor(ast('(close > open) ? (high > low) : (low > high)'), {})).toBe(
+      '(1 when high is greater than low and 0 otherwise) when'
+      + ' (1 when close is greater than open and 0 otherwise) is not zero,'
+      + ' (1 when low is greater than high and 0 otherwise) when it is zero,'
+      + ' and nothing while it is unknown')
+    expect(sentenceFor(ast('crossOver(ema(close, 9), ema(close, 21))'), {})).toBe(
+      '(the 9-bar exponential average of close) crossing above'
+      + ' (the 21-bar exponential average of close)')
+    expect(sentenceFor(ast('-close'), {})).toBe('the negative of close')
+  })
 })
+
+/** A rail's failure message, WITH THE NAMES IN IT.
+ *
+ *  ⚠️ vitest TRUNCATES a long array in its diff — `[ 'abs', 'change', …(8) ]` —
+ *  and a rail whose entire purpose is to NAME the entry that broke must not
+ *  depend on a differ's display budget for the one thing it exists to say. This
+ *  was measured: the branch-deletion mutations print `[ Array(5) ]` without it. */
+const named = (what, list) => (list && list.length ? `${what}: ${list.join(', ')}` : what)
 
 describe('totality over the closed table — derived from the manifest, never hand-listed', () => {
   it('every entry of every section has a read-back, and the gaps are reported BY NAME', () => {
     // ⛔ A FUNCTION WITH NO TEMPLATE RENDERS AS ITS OWN SOURCE, which reads like
     // a sentence and is not one. Derived from the manifest so a new entry lands
     // RED here until somebody writes English for it.
+    //
+    // ⭐ AND EVERY ROW IS THE WALKER'S OWN ANSWER. `compileRules` renders one
+    // minimal tree per declared entry, in every section, and reports the ones
+    // that REFUSE — so deleting `renderName`'s series branch, or the `op` or
+    // `call` dispatch, turns the matching row red naming its own entries.
     const gaps = coverageGaps()
-    expect(gaps.functions, 'these functions have no read-back').toEqual([])
-    expect(gaps.operators, 'these operators have no read-back').toEqual([])
-    expect(gaps.series, 'these series cannot be spelled in a sentence').toEqual([])
-    expect(gaps.placeholders, 'these templates drop or invent an argument').toEqual([])
+    expect(gaps.functions, named('these functions have no read-back', gaps.functions)).toEqual([])
+    expect(gaps.operators, named('these operators have no read-back', gaps.operators)).toEqual([])
+    expect(gaps.series, named('these series cannot be spelled in a sentence', gaps.series)).toEqual([])
+    expect(gaps.placeholders,
+      named('these templates drop or invent an argument', gaps.placeholders)).toEqual([])
   })
 
   it('…and BOTH DIRECTIONS: no phrase exists for a name the table does not declare', () => {
@@ -461,6 +577,992 @@ describe('totality over the closed table — derived from the manifest, never ha
     expect(coverageGaps(table, OPERATOR_SENTENCE).placeholders).toEqual([
       'abs: says nothing for argument(s) [] and invents [1]',
     ])
+  })
+})
+
+// =========================================================================== //
+// THE FOURTH SECTION — the table's PER-SYMBOL SCALARS
+// =========================================================================== //
+//
+// ⭐ THE PHRASE IS THE MANIFEST'S AND THIS MODULE AUTHORS NONE OF IT. A scalar
+// declares its own `sentence`, so the chip's plain English, the interpreter's
+// column and the linter's reach all come from ONE declaration. Every case below
+// is derived from `Object.keys(table.scalars)` — a fifty-fifth scalar is covered
+// the day it is declared, with no edit to this file.
+
+/** ONE MINIMAL TREE PER DECLARED SCALAR, derived by walking the manifest.
+ *
+ *  A scalar rides the `series` node — the canonical node types are still four,
+ *  and `parse.js` grew no fifth one for this. */
+function scalarTrees(table) {
+  return Object.keys(table.scalars).sort().map((name) => ({
+    entry: `scalar:${name}`, name, ast: { type: 'series', name },
+  }))
+}
+
+describe('the scalars — the table says them, and this module says nothing of its own', () => {
+  it('EVERY declared scalar renders, in the MANIFEST\'S OWN WORDS — derived, never hand-listed', () => {
+    const subjects = scalarTrees(TABLE)
+    // ⚠️ A FLOOR, so an empty or renamed section could not make this vacuous.
+    expect(subjects.length).toBe(Object.keys(TABLE.scalars).length)
+    expect(subjects.length).toBeGreaterThanOrEqual(54)
+    for (const { entry, name, ast: tree } of subjects) {
+      const { text, trace } = explainSentence(tree, {})
+      expect(text, `${entry} did not say the manifest's own sentence`)
+        .toBe(TABLE.scalars[name].sentence)
+      expect(text, `${entry} rendered an empty sentence`).not.toBe('')
+      // ⚠️ ASCII ONLY — the sentence is stored and byte-compared, and this box
+      // has already produced one cp1252 failure of exactly that family.
+      expect(text, `${entry} put a non-ASCII character in a stored sentence`).toMatch(/^[ -~]+$/)
+      // ⭐ ATTRIBUTION, NOT ONLY OUTPUT. A scalar said by the INPUT branch would
+      // read identically today and diverge the moment inputs are seeded.
+      expect(trace, `${entry} was not attributed to the scalar branch`)
+        .toEqual([{ path: '$', rule: 'series:scalar' }])
+    }
+  })
+
+  it('…and `coverageGaps` reports the scalars section BY NAME, and it is empty', () => {
+    // The same rail the other three sections have: a scalar nobody wrote English
+    // for is NAMED here rather than discovered by a member typing it.
+    const gaps = coverageGaps()
+    expect(gaps.scalars, named('these scalars have no read-back', gaps.scalars)).toEqual([])
+    expect(gaps.placeholders,
+      named('these templates drop or invent an argument', gaps.placeholders)).toEqual([])
+  })
+
+  it('the sentence comes from the TABLE — proved with a PLANTED synthetic', () => {
+    // ⭐⭐ THE ANTI-SECOND-VOCABULARY PROOF. The planted phrase is nonsense that
+    // exists nowhere in this repo, so a module carrying its own phrase table
+    // would ignore the plant and a module that READS the table cannot.
+    const NONSENSE = 'the wibbly frobnication of a planted gribble'
+    const table = clone(TABLE)
+    table.scalars.zzz_planted_scalar = {
+      source: { store: 'screener_rows', column: 'zzz_planted_scalar' },
+      as_of: { column: 'snapshot_date', grain: 'date' },
+      cadence: 'nightly',
+      yields: 'num',
+      sentence: NONSENSE,
+    }
+    const rules = compileRules(table, OPERATOR_SENTENCE)
+    const tree = { type: 'series', name: 'zzz_planted_scalar' }
+    expect(explainSentence(tree, {}, rules).text).toBe(NONSENSE)
+    expect(explainSentence(tree, {}, rules).trace).toEqual([{ path: '$', rule: 'series:scalar' }])
+    // …verbatim INSIDE a composite too, not only alone.
+    expect(explainSentence(
+      { type: 'op', name: '>', args: [tree, { type: 'num', value: 1 }] }, {}, rules).text)
+      .toBe(`1 when ${NONSENSE} is greater than 1 and 0 otherwise`)
+    // THE CONTROL: against the REAL table that same name is unknown, so the
+    // case above is about the PLANT and not about the walker rendering anything.
+    expect(() => sentenceFor(tree, {}))
+      .toThrow(new RegExp(SENTENCE_REFUSALS['sentence:name']))
+  })
+
+  it('…and REWORDING a shipped scalar moves its sentence, and moves nothing else', () => {
+    const table = clone(TABLE)
+    table.scalars.market_cap.sentence = 'how big the company is'
+    const rules = compileRules(table, OPERATOR_SENTENCE)
+    expect(explainSentence({ type: 'series', name: 'market_cap' }, {}, rules).text)
+      .toBe('how big the company is')
+    expect(explainSentence({ type: 'series', name: 'rs_rank' }, {}, rules).text)
+      .toBe(TABLE.scalars.rs_rank.sentence)
+    expect(explainSentence(ast('sma(close, 20)'), {}, rules).text)
+      .toBe('the 20-bar average of close')
+  })
+
+  it('a scalar with NO declared sentence is a NAMED gap and REFUSES — every one of them', () => {
+    // ⛔ AND IT NEVER FALLS BACK TO THE COLUMN NAME. `market_cap` is not English
+    // and a member cannot confirm it, so an entry nobody wrote a read-back for
+    // is refused BY NAME — the same rule the functions live under. Derived over
+    // the whole section, so a new scalar is covered without an edit here.
+    for (const { entry, name, ast: tree } of scalarTrees(TABLE)) {
+      const table = clone(TABLE)
+      delete table.scalars[name].sentence
+      expect(coverageGaps(table, OPERATOR_SENTENCE).scalars, `${entry} was not reported as a gap`)
+        .toEqual([name])
+      const rules = compileRules(table, OPERATOR_SENTENCE)
+      let caught = null
+      try { explainSentence(tree, {}, rules) } catch (e) { caught = e }
+      expect(caught, `${entry} still rendered with its sentence deleted`)
+        .toBeInstanceOf(SentenceRefusal)
+      expect(caught.guard, entry).toBe('sentence:no-template')
+      expect(caught.message, entry).toContain(JSON.stringify(name))
+    }
+  })
+
+  it('…and a scalar phrase that INVENTS an argument is a gap too — a scalar takes none', () => {
+    const table = clone(TABLE)
+    table.scalars.market_cap.sentence = 'the market capitalisation of {0}'
+    const gaps = coverageGaps(table, OPERATOR_SENTENCE)
+    expect(gaps.placeholders).toEqual([
+      'market_cap: says nothing for argument(s) [] and invents [0]',
+    ])
+    // 🔴 AND THE PROOF THAT THE SCALAR RAIL IS THE WALKER'S ANSWER, NOT A
+    // SECOND READING OF THE DECLARATION. This scalar HAS a `sentence`, so a rail
+    // that only asked "is a phrase declared?" would call it covered. The walker
+    // refuses it, so the rail names it.
+    expect(gaps.scalars).toEqual(['market_cap'])
+    const rules = compileRules(table, OPERATOR_SENTENCE)
+    expect(() => explainSentence({ type: 'series', name: 'market_cap' }, {}, rules))
+      .toThrow(new RegExp(SENTENCE_REFUSALS['sentence:placeholder']))
+  })
+
+  it('🔴 THE POSITIVE CONTROL: a PLANTED scalar with no sentence is NAMED by the rail', () => {
+    // ⛔ WITHOUT THIS, "the rail is green" is indistinguishable from "the rail
+    // reports nothing", which is the state this whole task exists to end. The
+    // plant did not exist when the rail was written and the rail has to name it.
+    const table = clone(TABLE)
+    table.scalars.zzz_planted_unsayable = {
+      source: { store: 'screener_rows', column: 'zzz_planted_unsayable' },
+      as_of: { column: 'snapshot_date', grain: 'date' },
+      cadence: 'nightly',
+      yields: 'num',
+      // …and NO `sentence`. Nobody wrote English for it.
+    }
+    expect(coverageGaps(table, OPERATOR_SENTENCE).scalars).toEqual(['zzz_planted_unsayable'])
+    // …and the CONTROL for the control: the same plant WITH a sentence is clean,
+    // so the rail is answering about the gap and not about being planted.
+    table.scalars.zzz_planted_unsayable.sentence = 'the planted per-symbol value'
+    expect(coverageGaps(table, OPERATOR_SENTENCE).scalars).toEqual([])
+    expect(explainSentence({ type: 'series', name: 'zzz_planted_unsayable' }, {},
+      compileRules(table, OPERATOR_SENTENCE)).text).toBe('the planted per-symbol value')
+  })
+
+  it('…and the rail is ONE derivation — `compileRules().gaps` IS what `coverageGaps` returns', () => {
+    // ⛔ TWO LISTS THAT AGREE TODAY ARE TWO LISTS. The runtime refusal and the
+    // rail must be the same answer, or the day they disagree the rail is the one
+    // that stays green.
+    const table = clone(TABLE)
+    delete table.scalars.rs_rank.sentence
+    expect(compileRules(table, OPERATOR_SENTENCE).gaps.scalars)
+      .toEqual(coverageGaps(table, OPERATOR_SENTENCE).scalars)
+    expect(coverageGaps(table, OPERATOR_SENTENCE).scalars).toEqual(['rs_rank'])
+  })
+
+  it('🔴 a genuinely UNDECLARED name STILL refuses at `sentence:name`', () => {
+    // ⛔ THE OTHER DIRECTION, AND IT IS THE HALF A FIX LIKE THIS LOSES. Teaching
+    // the read-back a fourth section must not buy a false ACCEPTANCE: a typo, a
+    // retired column and a prototype property all have to stay refusals.
+    for (const name of ['market_cap_typo', 'zzz_not_declared', 'globalThis', 'toString', 'constructor']) {
+      let guard = null
+      try { sentenceFor({ type: 'series', name }, {}) } catch (e) { guard = e.guard }
+      expect(guard, `${name} was rendered instead of refused`).toBe('sentence:name')
+    }
+  })
+
+  it('…and the refusal NAMES BOTH VOCABULARIES, sorted — because it used to name a false one', () => {
+    // ⚠️ THE BUG'S SECOND HALF. The message said "this table declares close,
+    // high, low, open, volume" while the table declared fifty-four more names,
+    // so the refusal was telling the member something untrue about the table.
+    let message = null
+    try { sentenceFor({ type: 'series', name: 'nope' }, {}) } catch (e) { message = e.message }
+    expect(message).toContain('close, high, low, open, volume')
+    expect(message, 'the refusal does not name the scalars the table declares')
+      .toContain(Object.keys(TABLE.scalars).sort().join(', '))
+    expect(message).toContain('market_cap')
+    expect(message).toContain('no inputs')
+  })
+
+  it('a scalar and an input by the SAME name: the TABLE wins, by declaration', () => {
+    // `interpret` throws outright on a definition whose input shadows a table
+    // name, so this only decides what a wiring-defect definition reads back as.
+    // What it must NOT do is depend on which object a merge spread second.
+    expect(sentenceFor({ type: 'series', name: 'market_cap' }, { market_cap: 5 }))
+      .toBe(TABLE.scalars.market_cap.sentence)
+    // …and a name the table does NOT declare still reads as the input it is.
+    expect(sentenceFor({ type: 'series', name: 'threshold' }, { threshold: 5 }))
+      .toBe('the input threshold')
+  })
+
+  it('the scalars are INSERTED sorted, like every other set-valued output here', () => {
+    const scrambled = compileRules(reverseKeys(clone(TABLE)), OPERATOR_SENTENCE)
+    expect(Object.keys(scrambled.scalars), 'compileRules did not INSERT in sorted order')
+      .toEqual(Object.keys(TABLE.scalars).sort())
+    for (const { name, ast: tree } of scalarTrees(TABLE)) {
+      expect(explainSentence(tree, {}, scrambled).text).toBe(TABLE.scalars[name].sentence)
+    }
+  })
+
+  it('a rules object with NO scalars section does not crash — it refuses, as it always did', () => {
+    // ⚠️ `compileRules` NEVER THROWS, and neither does a walk handed a rules
+    // object a test built by hand. The failure direction is the old refusal.
+    const noScalars = { ...SENTENCE_RULES, scalars: undefined }
+    expect(() => explainSentence({ type: 'series', name: 'market_cap' }, {}, noScalars))
+      .toThrow(new RegExp(SENTENCE_REFUSALS['sentence:name']))
+    expect(() => compileRules({ series: {}, operators: {}, functions: {} }, OPERATOR_SENTENCE))
+      .not.toThrow()
+  })
+})
+
+// =========================================================================== //
+// THE COVERAGE RAIL, IN ALL FOUR SECTIONS — ONE PROBE, NOT FOUR BESPOKE ONES
+// =========================================================================== //
+//
+// ⭐⭐ THE SHAPE OF THE DEFECT, STATED ONCE. `coverageGaps` has four section
+// rows, and until `56a2bca6` every one of them asked the DECLARATION — "does
+// this entry carry a phrase", "is this name spellable" — which is a question the
+// WALKER never asks. So the one class of gap the rail structurally could not
+// report was the class that shipped: a whole section `renderName` has no branch
+// for. `56a2bca6` converted `scalars` to a probe and left the other three
+// deliberately, to keep `gaps.placeholders` byte-identical. This converts them,
+// with the SAME loop rather than three of their own.
+//
+// The proof that a row is a probe and not a re-reading is the same in every
+// section: AN ENTRY WHOSE DECLARATION IS COMPLETE, WHICH THE WALKER STILL
+// REFUSES, MUST BE NAMED. A "is a phrase declared?" rail calls that entry
+// covered.
+//
+// ⚠️ `series` IS THE ONE SECTION WITH NO SUCH CASE AVAILABLE IN-PROCESS, and
+// that is a property of the section rather than a hole in the rail: a series is
+// said as its own name, so `SAYABLE` and the walker cannot disagree today. Its
+// probe is proven the other way instead — by the branch-deletion mutation the
+// brief handed over verbatim (harness M1: delete `renderName`'s series branch
+// and this rail names close, high, low, open and volume, where the declarative
+// rail stayed `[]`).
+
+/** The probe's section list, READ OFF `sentence.js`'s OWN AST.
+ *
+ *  ⭐ AST, NEVER A GREP. A grep for `PROBED_SECTIONS` matches the paragraph of
+ *  comment above the declaration — this programme has already had a grep report
+ *  five call sites where all five were prose. */
+function probeSectionShape(tree) {
+  let declarators = 0
+  let init = 'none'
+  let forOfOverIt = 0
+  let literalLists = 0
+  const walk = (n) => {
+    if (!n || typeof n !== 'object') return
+    if (Array.isArray(n)) { n.forEach(walk); return }
+    if (n.type === 'VariableDeclarator' && n.id && n.id.name === 'PROBED_SECTIONS') {
+      declarators += 1
+      const v = n.init
+      if (!v) init = 'none'
+      else if (v.type === 'ArrayExpression') { init = 'ArrayExpression'; literalLists += 1 }
+      else if (v.type === 'CallExpression' && v.callee.type === 'MemberExpression'
+        && !v.callee.computed && v.callee.object.name === 'Object'
+        && v.callee.property.name === 'keys'
+        && v.arguments.length === 1 && v.arguments[0].type === 'Identifier') {
+        init = 'Object.keys(<identifier>)'
+      } else init = v.type
+    }
+    if (n.type === 'ForOfStatement' && n.right) {
+      if (n.right.type === 'Identifier' && n.right.name === 'PROBED_SECTIONS') forOfOverIt += 1
+      if (n.right.type === 'ArrayExpression') literalLists += 1
+    }
+    for (const k of Object.keys(n)) {
+      if (k === 'type' || k === 'start' || k === 'end' || k === 'loc') continue
+      walk(n[k])
+    }
+  }
+  walk(tree)
+  return { declarators, init, forOfOverIt, literalLists }
+}
+
+describe('the coverage rail is the WALKER\'s answer in ALL FOUR sections', () => {
+  it('every COMPILED section has a rail row, and a FIFTH section could not arrive silently', () => {
+    // ⛔ THE ROWS ARE DERIVED FROM THE COMPILED OBJECT, so a section the probe
+    // never walks has no row at all rather than an empty one. The four names
+    // below are a FLOOR and they are deliberately typed: the day a fifth section
+    // is compiled this case goes red and somebody has to look at the probe,
+    // which is the failure direction the whole task exists to buy.
+    const sections = Object.keys(SENTENCE_RULES).filter((k) => k !== 'gaps')
+    expect(sections.slice().sort()).toEqual(['functions', 'operators', 'scalars', 'series'])
+    const gaps = coverageGaps()
+    expect(Object.keys(gaps).slice().sort())
+      .toEqual([...sections, 'placeholders'].sort())
+    for (const s of sections) {
+      expect(gaps[s], `the ${s} rail reports a name the read-back cannot say`).toEqual([])
+    }
+  })
+
+  it('🔴 POSITIVE CONTROL — SERIES: a bar field the walker cannot say is NAMED, every one of them', () => {
+    // ⛔ WITHOUT THIS, "the series rail is green" is indistinguishable from "the
+    // series rail reports nothing". Derived over the declared section, so a
+    // sixth bar field is covered the day it lands.
+    const declared = Object.keys(TABLE.series)
+    expect(declared.length).toBeGreaterThanOrEqual(5)
+    for (const name of declared) {
+      const table = clone(TABLE)
+      // …a space gives the name two readings, which is the one thing a series
+      // may not have, and the manifest is otherwise untouched.
+      const unsayable = `${name} x`
+      table.series[unsayable] = clone(TABLE.series[name])
+      delete table.series[name]
+
+      expect(coverageGaps(table, OPERATOR_SENTENCE).series,
+        `${name} became unsayable and the rail said nothing`).toEqual([unsayable])
+      const rules = compileRules(table, OPERATOR_SENTENCE)
+      let caught = null
+      try { explainSentence({ type: 'series', name: unsayable }, {}, rules) } catch (e) { caught = e }
+      expect(caught, name).toBeInstanceOf(SentenceRefusal)
+      expect(caught.guard, name).toBe('sentence:unsayable-name')
+    }
+    // …AND THE CONTROL: a PLANTED field whose name is fine is clean, so the rail
+    // is answering about the gap and not about the table having been rebuilt.
+    const clean = clone(TABLE)
+    clean.series.zzz_planted_field = { field: 'c' }
+    expect(coverageGaps(clean, OPERATOR_SENTENCE).series).toEqual([])
+    expect(explainSentence({ type: 'series', name: 'zzz_planted_field' }, {},
+      compileRules(clean, OPERATOR_SENTENCE)).text).toBe('zzz_planted_field')
+  })
+
+  it('🔴 POSITIVE CONTROL — OPERATORS: a DECLARED phrase the walker refuses is NAMED, all fifteen', () => {
+    // ⭐⭐ THE PROBE-vs-DECLARATION PROOF FOR THIS SECTION. Every phrase here is
+    // present and non-empty, so a rail that asked "is a phrase declared?" calls
+    // the operator COVERED. The walker refuses it — the phrase references an
+    // argument the operator does not have — so the probe names it.
+    const declared = Object.keys(TABLE.operators)
+    expect(declared.length).toBeGreaterThanOrEqual(15)
+    for (const name of declared) {
+      const phrases = { ...OPERATOR_SENTENCE, [name]: `${OPERATOR_SENTENCE[name]} over {9}` }
+      expect(typeof phrases[name], `${name} has no declared phrase to break`).toBe('string')
+      const gaps = coverageGaps(TABLE, phrases)
+      expect(gaps.operators, `${name} invents an argument and the rail said nothing`)
+        .toEqual([name])
+      const rules = compileRules(TABLE, phrases)
+      const args = []
+      for (let i = 0; i < TABLE.operators[name].arity; i++) args.push({ type: 'num', value: 1 })
+      let caught = null
+      try { explainSentence({ type: 'op', name, args }, {}, rules) } catch (e) { caught = e }
+      expect(caught, name).toBeInstanceOf(SentenceRefusal)
+      expect(caught.guard, name).toBe('sentence:placeholder')
+    }
+  })
+
+  it('🔴 POSITIVE CONTROL — FUNCTIONS: a DECLARED phrase the walker refuses is NAMED, all eleven', () => {
+    const declared = Object.keys(TABLE.functions)
+    expect(declared.length).toBeGreaterThanOrEqual(11)
+    for (const name of declared) {
+      const table = clone(TABLE)
+      table.functions[name].sentence = `${TABLE.functions[name].sentence} over {9}`
+      const gaps = coverageGaps(table, OPERATOR_SENTENCE)
+      expect(gaps.functions, `${name} invents an argument and the rail said nothing`)
+        .toEqual([name])
+      const rules = compileRules(table, OPERATOR_SENTENCE)
+      const args = TABLE.functions[name].args.map((kind) => (kind === 'int'
+        ? { type: 'num', value: 3 }
+        : { type: 'series', name: 'close' }))
+      let caught = null
+      try { explainSentence({ type: 'call', name, args }, {}, rules) } catch (e) { caught = e }
+      expect(caught, name).toBeInstanceOf(SentenceRefusal)
+      expect(caught.guard, name).toBe('sentence:placeholder')
+    }
+  })
+
+  it('…and each section\'s rail answers about ITS OWN section, not the others', () => {
+    // ⛔ A RAIL THAT NAMES FOUR SECTIONS WHEN ONE BROKE IS AS USELESS AS ONE THAT
+    // NAMES NONE. This is why the probe passes NUMBER LITERALS as arguments
+    // rather than borrowing `close`: a function's probe must not depend on the
+    // series branch, or deleting that branch would light up every row.
+    const table = clone(TABLE)
+    table.functions.zzz_planted = { args: ['series'], lookback: 0 }
+    table.series['my close'] = { field: 'c' }
+    table.scalars.zzz_planted_scalar = { yields: 'num' }
+    const phrases = { ...OPERATOR_SENTENCE, '+': '' }
+    const gaps = coverageGaps(table, phrases)
+    expect(gaps.series).toEqual(['my close'])
+    expect(gaps.scalars).toEqual(['zzz_planted_scalar'])
+    expect(gaps.operators).toEqual(['+'])
+    expect(gaps.functions).toEqual(['zzz_planted'])
+  })
+
+  it('the probe sorts its own output, and that sort is load-bearing', () => {
+    // 🔬 THE "TWO SORTS" FINDING FROM THIS FILE'S OWN GAUNTLET, ANSWERED RATHER
+    // THAN REPEATED. Every row is INSERTED sorted, so re-sorting in the probe
+    // reads like a guard nothing can fail. It is not: an INTEGER-LIKE key is
+    // emitted by `Object.keys` in ascending NUMERIC order however it was
+    // inserted, so a manifest declaring `9` and `10` separates the two orders.
+    const table = clone(TABLE)
+    table.functions['10'] = { args: ['series'], lookback: 0 }   // no sentence: a gap
+    table.functions['9'] = { args: ['series'], lookback: 0 }
+    // …the compiled object really is NOT in sorted order for these two.
+    expect(Object.keys(compileRules(table, OPERATOR_SENTENCE).functions).slice(0, 2))
+      .toEqual(['9', '10'])
+    expect(coverageGaps(table, OPERATOR_SENTENCE).functions).toEqual(['10', '9'])
+  })
+
+  it('…and a REVERSE-KEYED manifest moves no byte of any rail row', () => {
+    const planted = reverseKeys(clone(TABLE))
+    planted.functions.zzz_planted = { args: ['series'], lookback: 0 }
+    planted.functions.aaa_planted = { args: ['series'], lookback: 0 }
+    planted.scalars.zzz_planted_scalar = { yields: 'num' }
+    planted.scalars.aaa_planted_scalar = { yields: 'num' }
+    planted.series['zzz planted'] = { field: 'c' }
+    planted.series['aaa planted'] = { field: 'c' }
+    const phrases = reverseKeys({ ...OPERATOR_SENTENCE, '+': '', '*': '' })
+    const gaps = coverageGaps(planted, phrases)
+    expect(gaps.series).toEqual(['aaa planted', 'zzz planted'])
+    expect(gaps.scalars).toEqual(['aaa_planted_scalar', 'zzz_planted_scalar'])
+    expect(gaps.operators).toEqual(['*', '+'])
+    expect(gaps.functions).toEqual(['aaa_planted', 'zzz_planted'])
+  })
+
+  it('⚠️ `gaps.placeholders` is UNMOVED — the one row this conversion had to leave alone', () => {
+    // ⛔ PINNED AGAINST A BATTERY, NOT AGAINST THE SHIPPED TABLE ALONE, because
+    // on the shipped table the row is `[]` and `[] === []` proves nothing. Every
+    // expectation below is the output of `56a2bca6`'s module — the harness
+    // re-runs THIS CASE against that `sentence.js` as its control — so this is a
+    // pin on the old behaviour and not the new module agreeing with itself.
+    //
+    // ⚠️ THE ORDER IS PART OF THE PIN: scalars, then operators, then functions,
+    // which is the order `compileRules` compiles them in.
+    const dropped = clone(TABLE)
+    dropped.functions.min.sentence = 'the smaller of {0}'
+    const invented = clone(TABLE)
+    invented.functions.abs.sentence = 'the absolute value of {0} over {1}'
+    const scalarInvented = clone(TABLE)
+    scalarInvented.scalars.market_cap.sentence = 'the market capitalisation of {0}'
+    const noTemplate = clone(TABLE)
+    noTemplate.functions.zzz_planted = { args: ['series'], lookback: 0 }
+    delete noTemplate.scalars.rs_rank.sentence
+    const everything = clone(TABLE)
+    everything.functions.min.sentence = 'the smaller of {0}'
+    everything.scalars.market_cap.sentence = 'the market capitalisation of {0}'
+
+    const battery = [
+      ['the shipped table', TABLE, OPERATOR_SENTENCE, []],
+      ['a function that DROPS an argument', dropped, OPERATOR_SENTENCE,
+        ['min: says nothing for argument(s) [1] and invents []']],
+      ['a function that INVENTS one', invented, OPERATOR_SENTENCE,
+        ['abs: says nothing for argument(s) [] and invents [1]']],
+      ['a scalar that INVENTS one', scalarInvented, OPERATOR_SENTENCE,
+        ['market_cap: says nothing for argument(s) [] and invents [0]']],
+      ['an operator that INVENTS one', TABLE,
+        { ...OPERATOR_SENTENCE, '+': '{0} plus {1} over {2}' },
+        ['+: says nothing for argument(s) [] and invents [2]']],
+      // ⚠️ A MISSING TEMPLATE IS NOT A PLACEHOLDER GAP. It is a section gap, and
+      // keeping the two apart is exactly what "byte-identical" means here.
+      ['entries with NO template at all', noTemplate, OPERATOR_SENTENCE, []],
+      ['a table with no scalars section', { series: {}, operators: {}, functions: {} },
+        OPERATOR_SENTENCE, []],
+      ['one broken entry in two sections at once', everything, OPERATOR_SENTENCE,
+        ['market_cap: says nothing for argument(s) [] and invents [0]',
+          'min: says nothing for argument(s) [1] and invents []']],
+    ]
+    for (const [what, table, phrases, expected] of battery) {
+      expect(coverageGaps(table, phrases).placeholders, what).toEqual(expected)
+    }
+  })
+
+  it('🔴 the probe walks the COMPILED SECTIONS, and that list is not typed here — by AST', async () => {
+    const acorn = await import('acorn').catch((e) => {
+      // ⛔ A LANE THAT CANNOT BE MEASURED REFUSES; IT NEVER REPORTS ZERO.
+      throw new Error(`the structural rail needs a JS parser and \`acorn\` did not import: ${e.message}`)
+    })
+    const src = readSource('sentence.js')
+    expect(src.length).toBeGreaterThan(2000)
+    const shape = probeSectionShape(acorn.parse(src, { ecmaVersion: 2023, sourceType: 'module' }))
+    expect(shape.declarators, 'PROBED_SECTIONS is not declared exactly once').toBe(1)
+    expect(shape.init, 'the probe\'s section list is typed here instead of derived')
+      .toBe('Object.keys(<identifier>)')
+    expect(shape.forOfOverIt, 'nothing iterates the derived section list').toBe(1)
+    expect(shape.literalLists, 'a hand-listed section list reached the probe').toBe(0)
+  })
+
+  it('…and the structural rail can FAIL — the positive control', async () => {
+    // ⛔ WITHOUT THIS, the case above is satisfied by a walk that finds nothing.
+    const acorn = await import('acorn')
+    const handListed = `
+      function compileRules() {
+        const PROBED_SECTIONS = ['series', 'operators', 'functions']
+        for (const section of PROBED_SECTIONS) { void section }
+        for (const other of ['a', 'b']) { void other }
+      }
+    `
+    const shape = probeSectionShape(acorn.parse(handListed, { ecmaVersion: 2023, sourceType: 'module' }))
+    expect(shape.declarators).toBe(1)
+    expect(shape.init).toBe('ArrayExpression')
+    expect(shape.forOfOverIt).toBe(1)
+    expect(shape.literalLists).toBe(2)
+  })
+})
+
+// =========================================================================== //
+// THE LOGICAL CHROME CONSULTS `yields` — the 0/1 REPRESENTATION STOPS LEAKING
+// =========================================================================== //
+//
+// ⭐⭐ THE DEFECT, STATED ONCE. `closedTable._booleans` says a condition is a 0/1
+// column because the table's only literal is a number — an implementation detail
+// of the REPRESENTATION — and `&&` therefore coerces both operands with `!= 0`.
+// The read-back said so out loud: *"…and whether the recent bars are tightly
+// consolidated are both not zero"*. Every one of the six `bool` phrases is
+// CORRECT and reads perfectly alone; what was wrong was the chrome, which
+// explained the representation to somebody who asked about the maths.
+//
+// ⛔ AND THE FIX IS NOT A LIST. Which combinations drop the scaffolding is
+// derived from the manifest's `yields` key at every operand, so a fifty-fifth
+// scalar is covered the day it declares one and no concept and no scalar is
+// named anywhere in the mechanism. The cases below are therefore SWEEPS over
+// `Object.keys` of each section, with the offenders built into the message.
+
+/** The scalars declaring one `yields`, sorted — derived, never a name list. */
+const scalarsYielding = (kind) => Object.keys(TABLE.scalars)
+  .filter((n) => TABLE.scalars[n].yields === kind).sort()
+
+/** A declared `bool` scalar to conjoin things with. Picked BY DECLARATION so
+ *  this file names no scalar, and so a manifest that retires this one keeps
+ *  working while a manifest with no `bool` scalar at all goes red on the floor
+ *  asserted in the first case. */
+const BOOL_PARTNER = scalarsYielding('bool')[0]
+
+/** Fill a declared phrase's slots. ⚠️ THE EXPECTATION IS DERIVED FROM THE PHRASE
+ *  TABLES, NOT RETYPED. Restating chrome the source owns is this repo's most
+ *  repeated defect; the BYTES of these phrases are pinned once, in the Phase D
+ *  case above and in the oracle's hand-typed `FORMS`. What these cases measure is
+ *  WHICH of the two declared phrases the chrome chose. */
+const say = (phrase, parts) => phrase.replace(/\{(\d+)\}/g, (_m, d) => parts[Number(d)])
+
+describe('the logical chrome drops `!= 0` when every operand already yields bool', () => {
+  it('🔴 THE WORKED EXAMPLE, BYTE FOR BYTE — the sentence the brief handed over', () => {
+    // The `bool` scalar inside the logical chrome, before and after, spelled out
+    // once. The CLAIM is the derived sweep below; this is the reported defect.
+    expect(sentenceFor(ast('rs_rank >= 80 && tight_consolidation'), {})).toBe(
+      '(1 when the relative-strength rank is greater than or equal to 80 and 0 otherwise)'
+      + ' and whether the recent bars are tightly consolidated')
+    expect(sentenceFor(ast('above_50sma && tight_consolidation'), {})).toBe(
+      'whether the price is above its 50-day average'
+      + ' and whether the recent bars are tightly consolidated')
+  })
+
+  it('🔴 THE CONTROL: a `num` operand STILL reads `!= 0` — byte for byte', () => {
+    // ⛔ THIS IS THE CASE THAT PROVES THE CHROME WAS NARROWED RATHER THAN
+    // DELETED. A number standing in for a condition really is coerced, and a
+    // member reading "close and volume" would be reading a semantics this engine
+    // does not have (`1 && 2` is 1, not 2). One `num` operand anywhere — even
+    // beside a `bool` one — and every byte of the scaffolding stays.
+    expect(sentenceFor(ast('close && volume'), {})).toBe(
+      '1 when close and volume are both not zero, 0 when either is zero,'
+      + ' and nothing while either is unknown')
+    expect(sentenceFor(ast('above_50sma && close'), {})).toBe(
+      '1 when whether the price is above its 50-day average and close are both not zero,'
+      + ' 0 when either is zero, and nothing while either is unknown')
+    expect(sentenceFor(ast('close && above_50sma'), {})).toBe(
+      '1 when close and whether the price is above its 50-day average are both not zero,'
+      + ' 0 when either is zero, and nothing while either is unknown')
+    expect(sentenceFor(ast('market_cap && above_50sma'), {})).toBe(
+      '1 when the market capitalisation and whether the price is above its 50-day average'
+      + ' are both not zero, 0 when either is zero, and nothing while either is unknown')
+  })
+
+  it('⭐ ALL 54 SCALARS, DERIVED — the bool ones smooth, the num ones do not', () => {
+    // ⭐ THE GENERALISATION. Every declared scalar is conjoined with a declared
+    // `bool` scalar and the reading is decided by ITS OWN `yields`. A
+    // fifty-fifth scalar is covered the day it is declared, with no edit here.
+    const partnerSaid = TABLE.scalars[BOOL_PARTNER].sentence
+    const leaked = []
+    const stripped = []
+    for (const name of Object.keys(TABLE.scalars).sort()) {
+      const said = sentenceFor(ast(`${name} && ${BOOL_PARTNER}`), {})
+      const parts = [TABLE.scalars[name].sentence, partnerSaid]
+      const bool = TABLE.scalars[name].yields === 'bool'
+      const want = say(bool ? OPERATOR_SENTENCE_CONDITIONS['&&'] : OPERATOR_SENTENCE['&&'], parts)
+      if (said === want) continue
+      ;(bool ? leaked : stripped).push(`${name}: ${said}`)
+    }
+    expect(leaked,
+      named('these `bool` scalars still explain the 0/1 representation', leaked)).toEqual([])
+    expect(stripped,
+      named('these `num` scalars lost the coercion that really happens', stripped)).toEqual([])
+
+    // ⚠️ NON-VACUITY, BOTH HALVES — neither branch may be empty, and the two
+    // must be the WHOLE section, so a third `yields` cannot slip past unjudged.
+    expect(scalarsYielding('bool').length, 'no bool scalar: the fix half is vacuous')
+      .toBeGreaterThanOrEqual(6)
+    expect(scalarsYielding('num').length, 'no num scalar: the control half is vacuous')
+      .toBeGreaterThanOrEqual(48)
+    expect(scalarsYielding('bool').length + scalarsYielding('num').length)
+      .toBe(Object.keys(TABLE.scalars).length)
+  })
+
+  it('…and every OPERATOR and FUNCTION too, through every declared conditions form', () => {
+    // ⭐ THE OTHER THREE SECTIONS, the same way: a comparison declares
+    // `yields: "bool"` and smooths; `+` declares `num` and does not; `crossOver`
+    // smooths and `sma` does not — none of which is written down here.
+    const partnerSaid = TABLE.scalars[BOOL_PARTNER].sentence
+    const wrong = []
+    let smoothed = 0
+    let kept = 0
+    for (const op of Object.keys(OPERATOR_SENTENCE_CONDITIONS).sort()) {
+      expect(TABLE.operators[op].arity, `${op} is not binary`).toBe(2)
+      for (const { entry, ast: tree } of treesForTheWholeTable(TABLE)) {
+        if (entry.startsWith('series:')) continue
+        const outer = { type: 'op', name: op, args: [tree, { type: 'series', name: BOOL_PARTNER }] }
+        const bool = oracleYields(tree) === 'bool'
+        const parts = [`(${sentenceFor(tree, {})})`, partnerSaid]
+        const want = say(bool ? OPERATOR_SENTENCE_CONDITIONS[op] : OPERATOR_SENTENCE[op], parts)
+        const said = sentenceFor(outer, {})
+        if (said !== want) wrong.push(`${op} over ${entry} (${bool ? 'bool' : 'num'}): ${said}`)
+        else if (bool) smoothed += 1
+        else kept += 1
+      }
+    }
+    expect(wrong, named('these entries were read with the wrong form', wrong)).toEqual([])
+    // ⚠️ AND BOTH ANSWERS HAPPENED. A sweep where every subject took one branch
+    // proves nothing about the other.
+    expect(smoothed, 'nothing smoothed — the sweep only exercised the control').toBeGreaterThan(0)
+    expect(kept, 'nothing kept the scaffolding — the sweep only exercised the fix')
+      .toBeGreaterThan(0)
+  })
+
+  it('⭐ the two phrase tables PARTITION the chrome that talks about zero', () => {
+    // ⛔ THE `_scalars_excluded` IDIOM, APPLIED TO THE CHROME. A declared list on
+    // its own is a list of what somebody remembered; with the identity, a
+    // SIXTEENTH operator that reads its operands as conditions lands RED until
+    // somebody DECIDES about it. The evidence side is the BASE phrases — the only
+    // phrases in this module that mention zero are the four logical ones — and
+    // the subject side is the two tables, so nothing here is circular.
+    const undecided = (phrases, forms, declined) => Object.keys(phrases)
+      .filter((n) => /\bzero\b/.test(phrases[n]) && !own(forms, n) && !own(declined, n)).sort()
+
+    const saysZero = Object.keys(OPERATOR_SENTENCE)
+      .filter((n) => /\bzero\b/.test(OPERATOR_SENTENCE[n])).sort()
+    expect(saysZero, 'the chrome that reads an operand as a condition has moved')
+      .toEqual(['!', '&&', '?:', '||'])
+
+    expect(undecided(OPERATOR_SENTENCE, OPERATOR_SENTENCE_CONDITIONS,
+      CONDITIONS_FORM_DECLINED)).toEqual([])
+    expect([...Object.keys(OPERATOR_SENTENCE_CONDITIONS),
+      ...Object.keys(CONDITIONS_FORM_DECLINED)].sort()).toEqual(saysZero)
+    expect(Object.keys(OPERATOR_SENTENCE_CONDITIONS)
+      .filter((n) => own(CONDITIONS_FORM_DECLINED, n)),
+    'an operator is in BOTH halves of the partition').toEqual([])
+    for (const n of [...Object.keys(OPERATOR_SENTENCE_CONDITIONS),
+      ...Object.keys(CONDITIONS_FORM_DECLINED)]) {
+      expect(Object.keys(TABLE.operators), `${n} is not a declared operator`).toContain(n)
+    }
+    // …and a DECLINED entry states WHY, in prose long enough to be a reason.
+    for (const [n, why] of Object.entries(CONDITIONS_FORM_DECLINED)) {
+      expect(typeof why, n).toBe('string')
+      expect(why.length, `${n} declines without stating a reason`).toBeGreaterThan(60)
+    }
+  })
+
+  it('…and the partition rail can FAIL — a sixteenth logical operator is NAMED', () => {
+    // ⛔ WITHOUT THIS, "the partition holds" is satisfied by a predicate that
+    // finds nothing. The plant's phrase reads its operands against zero and it is
+    // in neither half, which is exactly the decision nobody made.
+    const undecided = (phrases, forms, declined) => Object.keys(phrases)
+      .filter((n) => /\bzero\b/.test(phrases[n]) && !own(forms, n) && !own(declined, n)).sort()
+    const planted = { ...OPERATOR_SENTENCE, xor: '1 when exactly one of {0} and {1} is not zero' }
+    expect(undecided(planted, OPERATOR_SENTENCE_CONDITIONS, CONDITIONS_FORM_DECLINED))
+      .toEqual(['xor'])
+    // …and the same plant DECIDED, either way, is clean.
+    expect(undecided(planted, { ...OPERATOR_SENTENCE_CONDITIONS, xor: '{0} or {1} but not both' },
+      CONDITIONS_FORM_DECLINED)).toEqual([])
+    expect(undecided(planted, OPERATOR_SENTENCE_CONDITIONS,
+      { ...CONDITIONS_FORM_DECLINED, xor: 'because' })).toEqual([])
+  })
+
+  it('🔴 the conditions form is READ OFF THE TABLE — a planted one for `!` is used', () => {
+    // ⭐⭐ THE ANTI-HARD-WIRING PROOF. `&&` and `||` are the two the module ships
+    // a join for; if the mechanism were wired to those two names, planting a
+    // phrase for a DECLINED operator would change nothing. It changes the
+    // sentence, and only for the trees whose operands are all conditions.
+    const phrases = { ...OPERATOR_SENTENCE_CONDITIONS, '!': 'not {0}' }
+    const rules = compileRules(TABLE, OPERATOR_SENTENCE, phrases)
+    expect(coverageGaps(TABLE, OPERATOR_SENTENCE, phrases).operators).toEqual([])
+    expect(explainSentence(ast('!(close > open)'), {}, rules).text)
+      .toBe('not (1 when close is greater than open and 0 otherwise)')
+    expect(explainSentence(ast('!(close > open)'), {}, rules).trace[0])
+      .toEqual({ path: '$', rule: 'op:!:conditions' })
+    // …and the CONTROL: a `num` operand still takes the base phrase, so the
+    // plant bought a second reading rather than replacing the first.
+    expect(explainSentence(ast('!close'), {}, rules).text).toBe(
+      '1 when close is zero, 0 when it is not zero, and nothing while it is unknown')
+    // …and the shipped table really does NOT carry it, so the case is about the
+    // plant and not about `!` having smoothed all along.
+    expect(own(OPERATOR_SENTENCE_CONDITIONS, '!')).toBe(false)
+  })
+
+  it('🔴 a BROKEN conditions phrase is a NAMED gap — found by the PROBE, not the declaration', () => {
+    // ⭐⭐ THE PROBE-vs-DECLARATION PROOF FOR THE SECOND PHRASE. The base phrase
+    // is untouched and perfect, so the operator's `gap` is null and every
+    // declaration-derived rail calls it COVERED. The walker refuses the tree
+    // whose operands are all conditions, so the probe — which renders BOTH of an
+    // operator's phrases — names it.
+    const broken = { ...OPERATOR_SENTENCE_CONDITIONS, '&&': '{0} and {1} over {9}' }
+    const gaps = coverageGaps(TABLE, OPERATOR_SENTENCE, broken)
+    expect(gaps.operators, named('the operators row', gaps.operators)).toEqual(['&&'])
+    expect(gaps.placeholders).toEqual(['&&: says nothing for argument(s) [] and invents [9]'])
+
+    const rules = compileRules(TABLE, OPERATOR_SENTENCE, broken)
+    // ⛔ AND NO QUIET FALLBACK: the tree that would have used the broken phrase
+    // REFUSES rather than degrading to the phrase nobody asked for…
+    let caught = null
+    try { explainSentence(ast('close > open && high > low'), {}, rules) } catch (e) { caught = e }
+    expect(caught).toBeInstanceOf(SentenceRefusal)
+    expect(caught.guard).toBe('sentence:placeholder')
+    // …while the tree that never needed it is untouched.
+    expect(explainSentence(ast('close && volume'), {}, rules).text).toBe(
+      '1 when close and volume are both not zero, 0 when either is zero,'
+      + ' and nothing while either is unknown')
+  })
+
+  it('…and a BLANK conditions phrase is a gap too, not an absent one', () => {
+    const blank = { ...OPERATOR_SENTENCE_CONDITIONS, '||': '' }
+    expect(coverageGaps(TABLE, OPERATOR_SENTENCE, blank).operators).toEqual(['||'])
+    expect(coverageGaps(TABLE, OPERATOR_SENTENCE, blank).placeholders)
+      .toEqual(['||: says nothing for argument(s) [0, 1] and invents []'])
+  })
+
+  it('the TRACE says which form spoke, and a `num` operand moves it back', () => {
+    // ⭐ ATTRIBUTION, NOT ONLY OUTPUT. "The sentence is correct" is satisfiable
+    // by the wrong branch agreeing today.
+    expect(explainSentence(ast('above_50sma && nr7'), {}).trace[0])
+      .toEqual({ path: '$', rule: 'op:&&:conditions' })
+    expect(explainSentence(ast('above_50sma && close'), {}).trace[0])
+      .toEqual({ path: '$', rule: 'op:&&' })
+    expect(explainSentence(ast('above_50sma || nr7'), {}).trace[0])
+      .toEqual({ path: '$', rule: 'op:||:conditions' })
+  })
+
+  it('a fifty-fifth scalar is covered BY ITS DECLARATION — planted, both ways', () => {
+    // ⛔ THE ANTI-HAND-LIST PROOF. The plant did not exist when this file was
+    // written; its `yields` alone decides how the chrome joins it.
+    const base = {
+      source: { store: 'screener_rows', column: 'zzz_planted_scalar' },
+      as_of: { column: 'bars_asof', grain: 'date' },
+      cadence: 'nightly',
+      sentence: 'whether the planted probe is wide',
+    }
+    const partnerSaid = TABLE.scalars[BOOL_PARTNER].sentence
+    const tree = {
+      type: 'op',
+      name: '&&',
+      args: [{ type: 'series', name: 'zzz_planted_scalar' },
+        { type: 'series', name: BOOL_PARTNER }],
+    }
+
+    const asBool = clone(TABLE)
+    asBool.scalars.zzz_planted_scalar = { ...base, yields: 'bool' }
+    expect(explainSentence(tree, {}, compileRules(asBool, OPERATOR_SENTENCE)).text)
+      .toBe(`whether the planted probe is wide and ${partnerSaid}`)
+
+    const asNum = clone(TABLE)
+    asNum.scalars.zzz_planted_scalar = { ...base, yields: 'num' }
+    expect(explainSentence(tree, {}, compileRules(asNum, OPERATOR_SENTENCE)).text)
+      .toBe(say(OPERATOR_SENTENCE['&&'], ['whether the planted probe is wide', partnerSaid]))
+
+    // …and a scalar declaring NO `yields` fails closed to the coercion.
+    const undeclared = clone(TABLE)
+    undeclared.scalars.zzz_planted_scalar = { ...base }
+    expect(explainSentence(tree, {}, compileRules(undeclared, OPERATOR_SENTENCE)).text)
+      .toBe(say(OPERATOR_SENTENCE['&&'], ['whether the planted probe is wide', partnerSaid]))
+  })
+
+  it('the joined words are still the MANIFEST\'S — reword a scalar and the join follows', () => {
+    // ⛔ THE ANTI-SECOND-VOCABULARY PROOF FOR THE SMOOTHED FORM. This module
+    // contributes ONE word to the sentence; everything either side of it is the
+    // manifest's own phrase, so rewording the manifest must move the join.
+    const NONSENSE = 'the wibbly frobnication of a planted gribble'
+    const table = clone(TABLE)
+    table.scalars[BOOL_PARTNER].sentence = NONSENSE
+    const rules = compileRules(table, OPERATOR_SENTENCE)
+    const tree = {
+      type: 'op',
+      name: '&&',
+      args: [{ type: 'series', name: BOOL_PARTNER }, { type: 'series', name: BOOL_PARTNER }],
+    }
+    expect(explainSentence(tree, {}, rules).text).toBe(`${NONSENSE} and ${NONSENSE}`)
+  })
+
+  it('`yieldsOf` answers off the manifest — including the ternary\'s ARMS', () => {
+    // ⚠️ THE HAND-WRITTEN EXPECTATIONS ARE THE POINT. Every answer below is
+    // typed, so a `yieldsOf` rewritten to agree with itself cannot satisfy them.
+    const cases = [
+      [{ type: 'num', value: 0 }, 'bool'],
+      [{ type: 'num', value: 1 }, 'bool'],
+      [{ type: 'num', value: 2 }, 'num'],
+      [{ type: 'num', value: 0.5 }, 'num'],
+      [{ type: 'series', name: 'close' }, 'num'],           // a bar field is a price
+      [{ type: 'series', name: 'threshold' }, 'num'],       // an input declares nothing
+      [{ type: 'series', name: 'above_50sma' }, 'bool'],
+      [{ type: 'series', name: 'market_cap' }, 'num'],
+      [ast('close > open'), 'bool'],
+      [ast('close + open'), 'num'],
+      [ast('crossOver(close, open)'), 'bool'],
+      [ast('sma(close, 20)'), 'num'],
+      // ⭐ THE ARMS, AND ONLY THE ARMS. The selector's kind is not the answer…
+      [ast('close ? 1 : 0'), 'bool'],
+      // …and it is EVERY arm, not either: a branch that hands back a price is a
+      // number even when the other branch is a flag.
+      [ast('close > open ? 1 : close'), 'num'],
+      [ast('close > open ? high : low'), 'num'],
+      [{ type: 'lambda', name: 'x' }, 'num'],               // outside the four: fail closed
+      [null, 'num'],
+    ]
+    const wrong = []
+    for (const [node, want] of cases) {
+      const got = yieldsOf(node, SENTENCE_RULES)
+      if (got !== want) wrong.push(`${JSON.stringify(node)} → ${got}, wanted ${want}`)
+    }
+    expect(wrong, named('these trees were classified wrongly', wrong)).toEqual([])
+  })
+
+  it('…and every declared entry\'s `yields` reaches the compiled row, derived', () => {
+    // ⛔ A ROW THAT LOST ITS `yields` FAILS CLOSED TO `num`, which reads as "the
+    // chrome quietly stopped smoothing". Derived over all four sections so a new
+    // entry is covered.
+    const missing = []
+    for (const section of ['scalars', 'operators', 'functions']) {
+      for (const name of Object.keys(TABLE[section])) {
+        const declared = TABLE[section][name].yields
+        const compiled = SENTENCE_RULES[section][name].yields
+        if (declared !== compiled) missing.push(`${section}.${name}: ${compiled} != ${declared}`)
+      }
+    }
+    expect(missing, named('these rows lost their declared `yields`', missing)).toEqual([])
+    expect(SENTENCE_RULES.operators['?:'].yields).toBe('passthrough')
+  })
+
+  it('🔴 the probe\'s TWO arguments are classified differently — by AST, off the source', () => {
+    // ⛔ OTHERWISE THE SECOND PROBE IS THE SAME TREE TWICE. `probeTrees` renders
+    // an operator's base phrase with `PROBE_ARG` and its conditions phrase with
+    // `PROBE_CONDITION_ARG`; if both literals were conditions — which `1` is —
+    // the base phrase would never be rendered by the rail at all, silently. The
+    // two values are READ OFF `sentence.js`'s own AST rather than typed here, and
+    // the judge is `yieldsOf` itself, so the claim is exactly the one that
+    // matters: the probe covers both branches of the chrome.
+    return import('acorn').then((acorn) => {
+      const src = readSource('sentence.js')
+      const tree = acorn.parse(src, { ecmaVersion: 2023, sourceType: 'module' })
+      const found = {}
+      const walk = (n) => {
+        if (!n || typeof n !== 'object') return
+        if (Array.isArray(n)) { n.forEach(walk); return }
+        if (n.type === 'VariableDeclarator' && n.id
+          && (n.id.name === 'PROBE_ARG' || n.id.name === 'PROBE_CONDITION_ARG')) {
+          // Object.freeze({ type: 'num', value: <literal> })
+          const obj = n.init && n.init.arguments && n.init.arguments[0]
+          const prop = obj && obj.properties
+            && obj.properties.find((p) => p.key && p.key.name === 'value')
+          found[n.id.name] = prop && prop.value && prop.value.value
+        }
+        for (const k of Object.keys(n)) {
+          if (k === 'type' || k === 'start' || k === 'end' || k === 'loc') continue
+          walk(n[k])
+        }
+      }
+      walk(tree)
+      expect(Object.keys(found).sort(), 'the probe no longer declares two arguments')
+        .toEqual(['PROBE_ARG', 'PROBE_CONDITION_ARG'])
+      expect(typeof found.PROBE_ARG).toBe('number')
+      expect(typeof found.PROBE_CONDITION_ARG).toBe('number')
+      expect(yieldsOf({ type: 'num', value: found.PROBE_ARG }, SENTENCE_RULES),
+        `PROBE_ARG is ${found.PROBE_ARG}, which the chrome reads as a CONDITION — `
+        + 'the base phrase is never rendered by the coverage probe').toBe('num')
+      expect(yieldsOf({ type: 'num', value: found.PROBE_CONDITION_ARG }, SENTENCE_RULES),
+        `PROBE_CONDITION_ARG is ${found.PROBE_CONDITION_ARG}, which is not a condition — `
+        + 'the conditions phrase is never rendered by the coverage probe').toBe('bool')
+      // …and `PROBE_ARG` must still be a legal `int` window, or every windowed
+      // function's probe would refuse for the wrong reason.
+      expect(Number.isInteger(found.PROBE_ARG) && found.PROBE_ARG >= 1).toBe(true)
+    })
+  })
+
+  it('the manifest\'s KEY ORDER cannot reach the CHOICE either', () => {
+    const scrambled = compileRules(reverseKeys(clone(TABLE)),
+      reverseKeys(clone(OPERATOR_SENTENCE)), reverseKeys(clone(OPERATOR_SENTENCE_CONDITIONS)))
+    for (const c of CORPUS.cases) {
+      expect(explainSentence(c.ast, {}, scrambled).text, c.id).toBe(sentenceFor(c.ast, {}))
+    }
+    expect(explainSentence(ast('above_50sma && nr7'), {}, scrambled).text)
+      .toBe(sentenceFor(ast('above_50sma && nr7'), {}))
+  })
+})
+
+describe('🔴 the deliverable: `market_cap > 1e9` parses, lints, READS BACK — and is saveable', () => {
+  const SOURCE = 'market_cap > 1e9'
+  const SAID = '1 when the market capitalisation is greater than 1000000000 and 0 otherwise'
+
+  it('the whole chain, end to end, through the doors the builder actually calls', () => {
+    const parsed = parseFormula(SOURCE)
+    expect(parsed.ok, `the source did not parse: ${parsed.error}`).toBe(true)
+
+    const verdict = lintRepaint(parsed.ast, { inputs: BUILDER_INPUT_SCOPE })
+    expect(verdict.mode).toBe('non-repainting')
+    expect(verdict.reasons.join(' ')).not.toContain('unanalysable')
+
+    expect(sentenceFor(parsed.ast, BUILDER_INPUT_SCOPE)).toBe(SAID)
+
+    // ⭐ AND THE SAVE DOOR ITSELF, not a re-implementation of it. Before this
+    // fix the chain died right here at `sentence:name`, `ok` was false, and
+    // `canSaveFormula` answered false — the formula was unsayable and therefore
+    // UNSAVEABLE. That is the whole defect, asserted as the whole chain.
+    const result = evaluateFormula(SOURCE, BUILDER_INPUT_SCOPE)
+    expect(result.guard, String(result.error)).toBe(null)
+    expect(result.ok).toBe(true)
+    expect(result.readback).toBe(SAID)
+    expect(result.verdict.mode).toBe('non-repainting')
+    expect(canSaveFormula(result), 'the save gate still refuses a scalar formula').toBe(true)
+  })
+
+  it('…and the read-back is STRUCTURALLY one comparison whose left side is the MANIFEST\'s phrase', () => {
+    // The oracle's operator chrome is hand-typed up top; the leaf phrase is data
+    // over in the manifest. So this is not the module agreeing with itself — it
+    // is an independently-written reader finding the table's own words in the
+    // slot where the tree put the scalar.
+    const form = FORMS.find((f) => f.kind === 'op' && f.name === '>')
+    const slots = matchForm(form.parts, sentenceFor(parseFormula(SOURCE).ast, {}))
+    expect(slots, 'the read-back is not one comparison at bracket depth zero').not.toBe(null)
+    expect(slots[0]).toBe(TABLE.scalars.market_cap.sentence)
+    expect(slots[1]).toBe('1000000000')
+  })
+
+  it('…and a scalar COMPOSES with a bar series in one sentence, and that saves too', () => {
+    // ⚠️ THIS READING MOVED, DELIBERATELY, and it is the defect rather than a
+    // casualty of it: BOTH operands are comparisons, which the manifest declares
+    // `yields: "bool"`, so the outer `&& … are both not zero` was explaining the
+    // 0/1 representation to a member who asked about the maths.
+    const source = 'market_cap > 1e9 && close > sma(close, 50)'
+    const parsed = parseFormula(source)
+    expect(parsed.ok, String(parsed.error)).toBe(true)
+    expect(sentenceFor(parsed.ast, {})).toBe(
+      '(1 when the market capitalisation is greater than 1000000000 and 0 otherwise)'
+      + ' and (1 when close is greater than (the 50-bar average of close) and 0 otherwise)')
+    expect(canSaveFormula(evaluateFormula(source, BUILDER_INPUT_SCOPE))).toBe(true)
+  })
+
+  it('🔴 THE PHASE\'S OWN ACCEPTANCE TREE reads back — it could not be said at all', () => {
+    // ⭐ E-5a MEASURED THIS FROM THE OTHER SIDE: `definition_concierge.propose`
+    // returns the `sentence:name` refusal as its WHOLE answer, so this phase's
+    // acceptance criterion — the tree the concierge is supposed to propose and a
+    // member is supposed to confirm — was unsayable and therefore unproposable.
+    const source = 'rs_rank > 80 && adr_pct > 4 && close > sma(close, 50)'
+    const parsed = parseFormula(source)
+    expect(parsed.ok, String(parsed.error)).toBe(true)
+
+    const said = sentenceFor(parsed.ast, BUILDER_INPUT_SCOPE)
+    // Both scalar phrases are the MANIFEST'S, verbatim, inside one sentence.
+    expect(said).toContain(TABLE.scalars.rs_rank.sentence)
+    expect(said).toContain(TABLE.scalars.adr_pct.sentence)
+    expect(said).toBe(
+      '((1 when the relative-strength rank is greater than 80 and 0 otherwise)'
+      + ' and (1 when the average daily range percentage is greater than 4 and 0 otherwise))'
+      + ' and (1 when close is greater than (the 50-bar average of close) and 0 otherwise)')
+
+    const result = evaluateFormula(source, BUILDER_INPUT_SCOPE)
+    expect(result.guard, String(result.error)).toBe(null)
+    expect(result.readback).toBe(said)
+    expect(canSaveFormula(result), 'the acceptance tree is still unsaveable').toBe(true)
+    expect(lintRepaint(parsed.ast, { inputs: BUILDER_INPUT_SCOPE }).mode).toBe('non-repainting')
+  })
+
+  it('…and EVERY declared scalar is saveable the same way — derived over the section', () => {
+    // ⭐ THE DELIVERABLE IS NOT ONE FORMULA. `market_cap` is the worked example;
+    // the claim is about the section, so the section is the subject.
+    const failures = []
+    for (const { name } of scalarTrees(TABLE)) {
+      const source = `${name} > 0`
+      const result = evaluateFormula(source, BUILDER_INPUT_SCOPE)
+      if (!result.ok || !canSaveFormula(result)) {
+        failures.push(`${name}: ${result.guard || 'not saveable'} ${result.error || ''}`.trim())
+        continue
+      }
+      if (!result.readback.includes(TABLE.scalars[name].sentence)) {
+        failures.push(`${name}: the read-back does not carry the manifest's own phrase`)
+      }
+    }
+    expect(failures, 'these declared scalars cannot be said, so they cannot be saved').toEqual([])
   })
 })
 

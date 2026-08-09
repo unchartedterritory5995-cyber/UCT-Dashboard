@@ -33,7 +33,7 @@
   top: 0;
   left: 0;
   right: 0;
-  height: calc(48px + env(safe-area-inset-top, 0px));
+  height: calc(var(--mobile-topbar-h) + env(safe-area-inset-top, 0px));
   padding-top: env(safe-area-inset-top, 0px);
   background: var(--bg-surface);
   border-bottom: 1px solid var(--border);

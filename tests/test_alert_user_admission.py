@@ -769,13 +769,25 @@ def test_no_two_admission_refusals_SHARE_a_fragment(
             "safety deleted")
 
 
-def test_a_refused_user_alert_names_WHICH_gate_refused_it(defs_db, real_bars):
+def test_a_refused_user_alert_names_WHICH_gate_refused_it(
+        defs_db, real_bars, monkeypatch):
     """⭐ THE ATTRIBUTION READ-OUT, THROUGH AN ALERT ROW.
 
     A surface holding an alert that never fires must be able to say why. Each
     case below differs from an ADMITTING one in exactly one respect, so the gate
     it names is the gate that refused it and not one further up.
+
+    ⚠️ THE BARS ARE STUBBED, AND THAT IS A FIX, NOT SCAFFOLDING. `refusal_for_alert`
+    ends at `arm_for_alert`, which calls `ev._fetch_bars_for_alert("SPY", "5")` —
+    and with nothing stubbed that reads `bars_sqlite`'s default store, which on
+    this box is the owner's LIVE `C:\\data\\bars.db`. The final assertion below
+    ("the last save fixed every defect") was therefore passing because a
+    production database happened to hold SPY 5-minute tape: isolate that store
+    and the test goes red with `[gate:bars]`, on a tree where nothing about
+    admission changed. Same stub the other nine alert suites already use.
     """
+    monkeypatch.setattr(ev, "_fetch_bars_for_alert",
+                        lambda sym, tf, limit=200: list(real_bars))
     alert = {"id": 1, "user_id": USER_A, "sym": "SPY", "tf": "5",
              "indicator": ADDRESS, "condition": "above", "threshold": 1.0}
 

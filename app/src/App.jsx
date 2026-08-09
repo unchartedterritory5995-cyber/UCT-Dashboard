@@ -18,6 +18,10 @@ import GlobalVideoLayer from './components/video/GlobalVideoLayer'
 // react) so window.__uctJ2Shell is wired at app boot and the /journal selector
 // can read the flag without a reload. Mirrors StockChart's uct.barsPush gate.
 import { useJ2Shell } from './pages/journal-2-0/shellFlag'
+// The screener share link's route pattern. ⛔ DERIVED, never retyped: the copy-
+// link button in `SaveScreenBar` builds its URL from this same module, so the
+// link a member sends and the route that answers it cannot drift apart.
+import { SHARED_SCREEN_ROUTE } from './pages/screener/screenShareLink'
 
 const Landing = lazy(() => import('./pages/Landing'))
 const ComingSoon = lazy(() => import('./pages/ComingSoon'))
@@ -33,6 +37,7 @@ const ThemeTrackerPage = lazy(() => import('./pages/ThemeTrackerPage'))
 const Calendar = lazy(() => import('./pages/Calendar'))
 const MyStocksHub = lazy(() => import('./pages/calendar/MyStocksHub'))
 const Screener = lazy(() => import('./pages/Screener'))
+const SharedScreen = lazy(() => import('./pages/screener/SharedScreen'))
 const AiSearchPage = lazy(() => import('./pages/AiSearchPage'))
 const OptionsFlow = lazy(() => import('./pages/OptionsFlow'))
 const LiveFlow = lazy(() => import('./pages/LiveFlow'))
@@ -238,6 +243,24 @@ export default function App() {
             {/* Public pricing page — the ONE plan, 7-day
                 no-card trial, honest scope. Adapts CTA to auth state. */}
             <Route path="/pricing" element={<PreLaunchGate><Pricing /></PreLaunchGate>} />
+
+            {/* 🔴 THE FAR END OF A SCREENER SHARE LINK.
+                `GET /api/screener/shared/{share_token}` has been served all
+                along and takes NO auth — the token is the credential, and the
+                payload is a saved filter SPEC, never scan output. Until this
+                route existed there was nothing that rendered its answer and no
+                Share button to mint a token, so a complete public-sharing
+                backend was reachable from nothing (reachability audit §3a).
+                ⛔ OUTSIDE AuthGuard on purpose: a link that only opens for
+                people who already have an account is not sharing. ⛔ And NOT
+                behind PreLaunchGate — that gate exists to funnel marketing and
+                account-creation routes to COMING SOON, and it would silently
+                break every link a member sent.
+                ⛔ The path is DERIVED from `sharedScreen.js`, which the copy-
+                link button builds its URL from too — one authority over one
+                value, so the route and the link cannot drift apart.
+                Rail: `app/src/pages/screener/sharedScreen.route.test.jsx`. */}
+            <Route path={SHARED_SCREEN_ROUTE} element={<SharedScreen />} />
 
             {/* Headless, token-gated chart export for the Morning Wire → Substack
                 renderer (and future Discord charts). Renders the real StockChart

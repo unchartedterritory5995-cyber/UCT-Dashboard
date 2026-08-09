@@ -5,10 +5,13 @@ Provides high-value pre-earnings data members care about:
 - Historical earnings-day moves (avg ± move over last N reports)
 - Estimate / analyst revision trends (Finnhub recommendation-trends proxy)
 - Beat-magnitude history (surprise % per quarter for visualization)
-- Implied move from front-week ATM options straddle (yfinance)
+- Implied move from front-week ATM options straddle (yfinance; the SPOT comes
+  out of the chain response itself, not a second fetch — see section 5)
 - Key quotes extracted from the most recent earnings call transcript
 
 All helpers are best-effort — return None on any failure, never raise.
+Every yfinance call here goes through `yf_util.bounded_call` — see the guard
+note below; this module must never grow a pool or a deadline of its own.
 The earnings router fans these out in parallel via ThreadPoolExecutor and
 folds the results into the existing _generate_earnings_preview /
 _generate_earnings_analysis responses.
@@ -16,11 +19,69 @@ _generate_earnings_analysis responses.
 from __future__ import annotations
 
 import datetime as _dt
+import inspect as _inspect
 import logging
 import math
+import threading
 from typing import Optional
 
+from api.services import yf_util
+
 _logger = logging.getLogger(__name__)
+
+
+# ─── Every yfinance call in this file goes through THE shared guard ───────────
+#
+# Three helpers here did `import yfinance` inside the function and then called
+# it straight — no timeout, no concurrency cap, and invisible to the process's
+# rate-limit handling. Two distinct exposures, and they are NOT the same bug:
+#
+#   1. UNBOUNDED WALL CLOCK. `enrich_earnings_response` fans these out on its
+#      own `ThreadPoolExecutor`, and `as_completed(timeout=25)` does NOT cancel
+#      a running future — the `with` block's `shutdown(wait=True)` then blocks
+#      on it forever. `_compute_hist_stats` (calendar.py) calls
+#      `get_historical_earnings_moves` with no bound at all. One hung Yahoo
+#      socket pins an anyio worker indefinitely: the 2026-07-01 thread-
+#      exhaustion class, verbatim.
+#   2. NO SHARED VIEW OF A 429. This module is the burstiest yfinance caller in
+#      the repo (the enrichment sweep at 6 workers × 2 dates, plus a 7×/weekday
+#      preview warmer over ~80 symbols), so a rate limit is most likely to be
+#      SEEN here first — and, unguarded, least likely to pause anyone else.
+#
+# ⛔ THE OBVIOUS FIX IS THE WRONG ONE, AND I BUILT IT FIRST. A private
+# `ThreadPoolExecutor` here bounds (1) perfectly and does nothing for (2): it is
+# a fourth pool that neither trips the shared breaker nor is paused by it. The
+# reason a private pool is tempting — `calendar.py:2738-2742` records that these
+# bursts must not monopolize the shared pool and starve `fundamentals` /
+# `dividends_calendar` into their own timeouts — is real, but it argues for
+# separate SLOTS, not a separate GUARD. `yf_util.bounded_call(..., lane=
+# "earnings")` gives exactly those isolated slots under the one breaker.
+#
+# ⚠️ IMPORT THE MODULE, NEVER THE FUNCTION (`lesson_from_import_severs_a_module_
+# _from_its_guards`): `from api.services.yf_util import bounded_call` binds a
+# private copy that escapes every `monkeypatch.setattr(yf_util, ...)`, which is
+# how these three call sites came to bypass the guard in the first place.
+# `test_the_guard_is_reached_through_the_module_not_a_private_copy` is the rail.
+
+# The per-call deadline. 12 s is `bounded_call`'s own default and sits UNDER
+# calendar's outer `_bounded_em` 15 s budget, so the inner bound is the one that
+# fires and the caller's thread is freed first.
+_YF_TIMEOUT = 12.0
+
+# `lane=` arrives with the yf_util guard consolidation (in flight in a parallel
+# session, 2026-08-08; the "earnings" lane was declared there FOR this module).
+# Detected rather than assumed, so this file is correct against either revision
+# of the guard and starts using the isolated slots the moment they land — rather
+# than TypeError-ing every enrichment call during the window where the two
+# changes have not both merged.
+try:
+    _GUARD_KW = (
+        {"lane": "earnings"}
+        if "lane" in _inspect.signature(yf_util.bounded_call).parameters
+        else {}
+    )
+except (TypeError, ValueError):   # a C-implemented or wrapped guard
+    _GUARD_KW = {}
 
 
 def _finite_pct(v: float | None) -> float | None:
@@ -52,7 +113,11 @@ def get_pre_earnings_context(sym: str) -> Optional[dict]:
     """
     try:
         import yfinance as _yf
-        df = _yf.Ticker(sym.upper()).history(period="3mo", interval="1d", auto_adjust=False)
+        df = yf_util.bounded_call(
+            lambda: _yf.Ticker(sym.upper()).history(
+                period="3mo", interval="1d", auto_adjust=False),
+            None, timeout=_YF_TIMEOUT, **_GUARD_KW,
+        )
         if df is None or df.empty or len(df) < 6:
             return None
         closes = df["Close"]
@@ -133,7 +198,11 @@ def get_historical_earnings_moves(sym: str, av_quarters: list) -> Optional[dict]
         if not any(dates):
             return None
 
-        df = _yf.Ticker(sym.upper()).history(period="2y", interval="1d", auto_adjust=False)
+        df = yf_util.bounded_call(
+            lambda: _yf.Ticker(sym.upper()).history(
+                period="2y", interval="1d", auto_adjust=False),
+            None, timeout=_YF_TIMEOUT, **_GUARD_KW,
+        )
         if df is None or df.empty:
             return None
 
@@ -301,10 +370,166 @@ def extract_beat_surprises(av_quarters: list) -> Optional[list]:
         return None
 
 
-# ─── 5. Implied move from ATM options straddle ────────────────────────────────
+# ─── 5. Implied move from ATM options straddle ────────────────────────
+#
+# THE SPOT FETCH IS GONE FROM THE HAPPY PATH — the chain response already
+# carries it.
+#
+# `get_implied_move` used to OPEN with
+#
+#     t.history(period="5d", interval="1d", auto_adjust=False)
+#
+# purely to learn the underlying's price, before it had fetched anything else.
+# That is a whole extra Yahoo round-trip per symbol, and this function is fanned
+# out once per reporting symbol by BOTH the calendar enrichment sweep
+# (`calendar._compute_enrichment_for_date._one`, 5-minute TTL, ~40-150 reporters
+# a day) and `enrich_earnings_response` (the earnings-preview warmer, 7 runs a
+# weekday with `EARNINGS_WARM_ENABLED` defaulting ON). It was a measurable slice
+# of the sustained `Too Many Requests` storm.
+#
+# ── WHY THE CHAIN'S OWN SPOT, AND NOT A "BETTER" ONE ────────────────────────
+#
+# An implied move is a RATIO: `(call mark + put mark) / spot`. Numerator and
+# denominator have to come from the SAME INSTANT. The straddle was priced by the
+# market against the spot that existed AT QUOTE TIME; dividing it by a spot
+# sampled from some other rail 15 seconds later does not make the answer fresher,
+# it adds skew. Simultaneity dominates every other consideration here —
+# including session provenance, which simultaneity gets right for free.
+#
+# yfinance hands us exactly that and we were throwing it away: `_download_options`
+# (yfinance 1.2.0 `ticker.py:42-58`) reads `optionChain.result[0].quote` out of
+# the SAME HTTP response as the calls/puts and `option_chain()` returns it as
+# `.underlying`. So the marks and the spot are one payload, one instant, one
+# provider. `regularMarketPrice` is the field — Yahoo holds it at the regular
+# close outside RTH, which is also the session the option marks belong to, since
+# US equity options do not trade extended hours.
+#
+# Rail 2 is the ORIGINAL `t.history(...)` call, kept ONLY as a fallback for a
+# payload that arrives without a usable quote. It is not simultaneous and it does
+# cost the extra round-trip — but a slightly-skewed answer beats no answer, which
+# is the fail-soft direction this module already commits to. `_note_spot_source`
+# counts it and it is logged, so if that rate ever climbs it is visible rather
+# than silently reintroducing the per-symbol call this change removed.
+#
+# NOT DONE HERE, deliberately: `implied_move.py` / `polygon_options.py` compute
+# the same number from the Massive REST chain snapshot, whose
+# `underlying_asset.price` is simultaneous by construction. That cutover is
+# `IMPLIED_ENRICHMENT_CUTOVER` (`calendar.py:2745`) and is an owner decision, not
+# this change's.
+
+_SPOT_SOURCE_COUNTS: dict[str, int] = {}
+_SPOT_COUNTS_LOCK = threading.Lock()
+
+
+def spot_source_counts() -> dict:
+    """{source: n} — which rail answered for spot, process-lifetime.
+
+    `yfinance_history` IS the fallback rate: the number of times we still paid
+    the extra round-trip this change exists to remove. A climbing count means
+    the chain payload stopped carrying a usable quote.
+    """
+    with _SPOT_COUNTS_LOCK:
+        return dict(_SPOT_SOURCE_COUNTS)
+
+
+def _note_spot_source(name: str) -> None:
+    with _SPOT_COUNTS_LOCK:
+        _SPOT_SOURCE_COUNTS[name] = _SPOT_SOURCE_COUNTS.get(name, 0) + 1
+
+
+def _positive(v) -> Optional[float]:
+    """float(v) when it is a real, finite, strictly-positive price; else None.
+
+    `nan`/`inf` must not survive: `nan > 0` is already False, but `inf` would
+    pass a bare comparison and then poison `straddle / spot` — and a `nan` in
+    the returned dict is the documented `json.dumps` 500 this module carries
+    `_finite_pct` for.
+    """
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    if math.isnan(f) or math.isinf(f) or f <= 0:
+        return None
+    return f
+
+
+def _spot_from_chain(chain) -> Optional[float]:
+    """Rail 1 — the spot Yahoo returned IN THE SAME RESPONSE as the marks.
+
+    Zero extra requests, and simultaneous with the numerator by construction.
+    """
+    try:
+        underlying = getattr(chain, "underlying", None) or {}
+        return _positive(underlying.get("regularMarketPrice"))
+    except Exception as e:
+        _logger.debug("spot: chain underlying unreadable: %s", e)
+        return None
+
+
+def _ticker_and_expiries(symbol: str):
+    """Build the Ticker AND read its expiry list in ONE guarded call.
+
+    The constructor lives inside the guard, not outside it: the guard census
+    counts `yf.Ticker(...)` as a yfinance reach — rightly, since it is the
+    object every later network call hangs off — and folding it in with the
+    first real request costs one pool hop instead of two.
+
+    The SAME instance is then reused for the chain fetch, and that is
+    load-bearing: `option_chain(date)` resolves `date` against
+    `self._expirations`, which this `.options` read is what populates
+    (yfinance 1.2.0 `ticker.py:83-94`). A freshly-constructed Ticker would
+    re-download the option index — an EXTRA Yahoo request per symbol, i.e. it
+    would give back exactly what this change removed.
+    """
+    import yfinance as _yf
+    t = _yf.Ticker(symbol)
+    return t, list(t.options or [])
+
+
+def _spot_from_yfinance(yf_ticker) -> Optional[float]:
+    """Rail 2 — the ORIGINAL extra round-trip. Fallback only, never the happy path."""
+    hist = yf_util.bounded_call(
+        lambda: yf_ticker.history(period="5d", interval="1d", auto_adjust=False),
+        None, timeout=_YF_TIMEOUT, **_GUARD_KW,
+    )
+    if hist is None or hist.empty:
+        return None
+    return _positive(hist["Close"].iloc[-1])
+
+
+def _resolve_spot(sym: str, chain, yf_ticker) -> tuple[Optional[float], str]:
+    """(spot, rail) for the straddle denominator. Never raises.
+
+    ORDER IS THE WHOLE POINT: the simultaneous, already-paid-for spot first;
+    the extra round-trip only when that payload had none.
+    """
+    spot = _spot_from_chain(chain)
+    if spot is not None:
+        _note_spot_source("option_chain_underlying")
+        return spot, "option_chain_underlying"
+
+    spot = _spot_from_yfinance(yf_ticker)
+    rail = "yfinance_history" if spot is not None else "unresolved"
+    _note_spot_source(rail)
+    _logger.info(
+        "get_implied_move: %s chain carried no usable underlying quote — fell back "
+        "to the extra yfinance history call (resolved=%s); spot-source counts: %s",
+        sym, spot is not None, spot_source_counts(),
+    )
+    return spot, rail
+
 
 def get_implied_move(sym: str, earnings_date: Optional[str] = None) -> Optional[dict]:
-    """Implied move from front-week ATM call+put straddle via yfinance.
+    """Implied move from front-week ATM call+put straddle.
+
+    SPOT is read off the chain response itself (`_resolve_spot`), so it is
+    simultaneous with the marks and costs no extra request. The arithmetic is
+    UNCHANGED: same spot in, same dict out.
+
+    ORDER MATTERS: spot is resolved AFTER the chain, because the chain is what
+    carries it. Spot is not needed before that point anyway — its only two uses
+    are picking the ATM strike and dividing the straddle, both below.
 
     Args:
         sym: ticker
@@ -314,17 +539,12 @@ def get_implied_move(sym: str, earnings_date: Optional[str] = None) -> Optional[
     Returns: {pct, dollar, expiry, strike, spot, call_mark, put_mark} or None.
     """
     try:
-        import yfinance as _yf
-        t = _yf.Ticker(sym.upper())
-
-        spot_hist = t.history(period="5d", interval="1d", auto_adjust=False)
-        if spot_hist is None or spot_hist.empty:
+        built = yf_util.bounded_call(
+            lambda: _ticker_and_expiries(sym.upper()), None,
+            timeout=_YF_TIMEOUT, **_GUARD_KW)
+        if not built:
             return None
-        spot = float(spot_hist["Close"].iloc[-1])
-        if spot <= 0:
-            return None
-
-        expiries = list(t.options or [])
+        t, expiries = built
         if not expiries:
             return None
 
@@ -348,10 +568,18 @@ def get_implied_move(sym: str, earnings_date: Optional[str] = None) -> Optional[
         if chosen is None:
             chosen = expiries[0]
 
-        chain = t.option_chain(chosen)
+        chain = yf_util.bounded_call(
+            lambda: t.option_chain(chosen), None, timeout=_YF_TIMEOUT, **_GUARD_KW)
+        if chain is None:
+            return None
         calls = chain.calls
         puts  = chain.puts
         if calls is None or calls.empty or puts is None or puts.empty:
+            return None
+
+        # The spot that arrived WITH these marks (see the block comment above).
+        spot, _spot_rail = _resolve_spot(sym, chain, t)
+        if spot is None:
             return None
 
         # ATM strike = closest to spot

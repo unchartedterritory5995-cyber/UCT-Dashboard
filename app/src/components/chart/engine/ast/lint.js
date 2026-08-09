@@ -271,6 +271,10 @@ export function astReach(ast, opts = {}) {
   const table = opts.table || TABLE
   const functions = (table && table.functions) || {}
   const seriesNames = (table && table.series) || {}
+  /** ⭐ THE TABLE'S OWN PER-SYMBOL SCALARS, read from the SAME manifest as the
+   *  series. The freshness question this module does NOT answer is asked by
+   *  `freshness.js` over this same section. */
+  const scalarNames = (table && table.scalars) || {}
   /** `opts.inputs` — the definition's declared inputs, BY NAME. The same shape
    *  `sentence.js::explainSentence` already takes and the same shape `interpret`
    *  takes; only the KEYS are read here (see `declaredInputs`). `lintDefinition`
@@ -311,6 +315,19 @@ export function astReach(ast, opts = {}) {
         // throws on outright; what this must never do is let the ANSWER depend
         // on which map was consulted second.
         if (own(seriesNames, node.name)) {
+          reachOf.set(node, { back: 0, forward: 0 })
+          break
+        }
+        if (own(scalarNames, node.name)) {
+          // ⭐ A TABLE-DECLARED SCALAR, AND IT IS THE SAME (0, 0) AS A DECLARED
+          // INPUT FOR THE SAME REASON: one number for the whole column depends
+          // on no bar at all, least of all a later one.
+          //
+          // ⛔ AND THAT ZERO IS CORRECT AND USELESS ON ITS OWN. It makes
+          // `modeFromReach` answer `non-repainting` for a value that is up to a
+          // day old, so this gate PASSES a nightly market cap and nothing fires
+          // — a true answer to a question nobody asked. `freshness.js` asks the
+          // other one; this module does not bend to cover it.
           reachOf.set(node, { back: 0, forward: 0 })
           break
         }

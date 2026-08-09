@@ -1173,11 +1173,20 @@
 .mobileWorkspace {
   display: flex;
   flex-direction: column;
-  /* Size to the viewport minus the fixed 48px mobile header — the height:100%
+  /* Size to the viewport minus BOTH pieces of mobile chrome — the height:100%
      chain from Layout's <main> doesn't propagate reliably through the route
-     wrappers, so anchor to the viewport directly. */
-  height: calc(100vh - 48px - env(safe-area-inset-top, 0px));
-  height: calc(100dvh - 48px - env(safe-area-inset-top, 0px));
+     wrappers, so anchor to the viewport directly.
+     ⚠️ The bottom tab bar is `position: fixed` and therefore invisible to this
+     box: subtracting only the top bar left the last 54px of the chart (the
+     volume pane, the range bar, the A/L/% scale toggles) permanently under the
+     nav — the one route in the app where scrolling to the end did not free it.
+     Both heights are the tokens Layout.module.css reserves with; never retype
+     them here (a second authority over one value is exactly how the tab bar got
+     forgotten). */
+  height: calc(100vh - var(--mobile-topbar-h) - var(--mobile-tabbar-h)
+               - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  height: calc(100dvh - var(--mobile-topbar-h) - var(--mobile-tabbar-h)
+               - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   min-height: 0;
 }
 .mobileTabs {
@@ -1321,4 +1330,46 @@
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65);
   overflow: hidden;
   display: flex; flex-direction: column;
+}
+
+/* ── Phone: the identity row's right cluster must not fall off the screen ────
+   `.chartHeaderTop` is a fixed-height (34px) `overflow: hidden` flex row, and
+   `.headerTopRight` is `margin-left:auto; flex-shrink:0`. On a 390px viewport
+   that pushes the session toggle AND the market clock clean past the right
+   edge, where `overflow:hidden` silently swallows them — so the page reports
+   ZERO horizontal overflow while the controls are simply gone. Measured in
+   the phone audit (2026-08-09): `.headerTopRight` right=451 against a 390px
+   viewport; the clock read right=451, the time span right=430.
+
+   Wrapping to a second line is the fix rather than hiding them: a user on a
+   phone still needs the session toggle, and a clock they cannot see is the
+   same as no clock. The fixed height only exists so divider lines align
+   ACROSS widgets in the desktop grid; at phone width the workspace renders a
+   single full-screen chart, so there is no neighbour to align with. */
+@media (max-width: 640px) {
+  .chartHeaderTop {
+    flex-wrap: wrap;
+    height: auto;
+    row-gap: 4px;
+    padding-bottom: 4px;
+    overflow: visible;   /* nothing to clip once the row can grow */
+  }
+
+  .headerTopRight {
+    margin-left: 0;      /* stop shoving it to a right edge that isn't there */
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+/* Session toggle on touch: 109x19 and 148x19 measured on a 390px phone, well
+   under the 44px `--tap-min`. These two sit SIDE BY SIDE, so growing them
+   VERTICALLY costs nothing and cannot make neighbours overlap — widening
+   would. The label stays 10px; only the hit area grows. */
+@media (max-width: 1024px) {
+  .sessionBtn {
+    min-height: var(--tap-min, 44px);
+    padding-top: 0;
+    padding-bottom: 0;
+  }
 }

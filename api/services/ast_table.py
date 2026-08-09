@@ -47,11 +47,21 @@ MANIFEST_PATH: pathlib.Path = (
 )
 
 #: The section keys of the manifest. STRUCTURE, not vocabulary — these name the
-#: three dictionaries, never an entry inside one.
+#: four dictionaries, never an entry inside one.
 SERIES_SECTION = "series"
 OPERATORS_SECTION = "operators"
 FUNCTIONS_SECTION = "functions"
-SECTIONS = (SERIES_SECTION, OPERATORS_SECTION, FUNCTIONS_SECTION)
+SCALARS_SECTION = "scalars"
+
+#: The key holding the columns that were CONSIDERED and REFUSED. Half of the
+#: partition identity; see ``excluded_columns``.
+EXCLUDED_KEY = "_scalars_excluded"
+
+#: ⭐ THE THREE SECTIONS A BAR-CORPUS CASE CAN EXERCISE — see ``bar_names``.
+BAR_SECTIONS = (SERIES_SECTION, OPERATORS_SECTION, FUNCTIONS_SECTION)
+
+#: Every section that declares a NAME a formula may spell.
+SECTIONS = BAR_SECTIONS + (SCALARS_SECTION,)
 
 
 def _freeze(value: Any) -> Any:
@@ -85,7 +95,7 @@ def load_manifest(path: Optional[pathlib.Path] = None) -> Mapping[str, Any]:
     for section in SECTIONS:
         if section not in doc or not isinstance(doc[section], dict):
             raise ValueError(
-                f"{p} has no {section!r} object. The manifest's three sections are "
+                f"{p} has no {section!r} object. The manifest's four sections are "
                 f"{SECTIONS}; a lane that tolerated a missing one would resolve "
                 "names against an empty dictionary and refuse everything."
             )
@@ -98,20 +108,140 @@ TABLE: Mapping[str, Any] = load_manifest()
 
 
 def declared_names(manifest: Optional[Mapping[str, Any]] = None) -> set:
-    """Every name the table declares, across all three sections.
+    """Every name the table declares, across all FOUR sections.
 
     ⛔ DERIVED FROM THE MANIFEST, NEVER HAND-LISTED. DPC's four constants rode
     unpinned for the rule's entire life because their rail was a LIST of what
     somebody remembered; a floor read out of its own subject cannot rot that way.
+
+    ⚠️ A SECTION MISSING FROM A HAND-BUILT MANIFEST IS SKIPPED HERE AND REFUSED
+    AT ``load_manifest``. The two are different questions: the loader decides
+    whether the shipped file is well-formed; this answers "what does THIS mapping
+    declare", and several rails hand it a synthetic three-section probe on
+    purpose. Raising here would make the probe impossible to write.
     """
     m = manifest if manifest is not None else TABLE
     out: set = set()
     for section in SECTIONS:
-        out |= set(m[section])
+        out |= set(m.get(section) or {})
     return out
+
+
+def bar_names(manifest: Optional[Mapping[str, Any]] = None) -> set:
+    """The names a BAR-CORPUS case can exercise: series | operators | functions.
+
+    ⛔ SPLIT FROM ``declared_names`` DELIBERATELY, AND THE SPLIT IS THE WHOLE
+    REASON THE CONFORMANCE LOG STAYS BYTE-IDENTICAL.
+    ``tools/ast_conformance.assert_corpus_covers_the_table`` demands a corpus
+    case per declared name and ABORTS the recorder otherwise. A scalar has no bar
+    behaviour and no value in the replay series, so folding it into that floor
+    would force one new bar-corpus case per scalar, move every per-ast digest,
+    and re-freeze a cross-lane oracle for a reason that has nothing to do with
+    bars. Scalars get their OWN floor, against their OWN fixture, and the
+    committed digests do not move.
+
+    ⭐ AND THE TWO FLOORS ARE A PARTITION OF ``declared_names`` — asserted in the
+    conformance tool, so a ``bar_names`` that quietly widened to include scalars
+    is a red recorder rather than a silently regrown corpus obligation.
+    """
+    m = manifest if manifest is not None else TABLE
+    out: set = set()
+    for section in BAR_SECTIONS:
+        out |= set(m.get(section) or {})
+    return out
+
+
+def scalar_names(manifest: Optional[Mapping[str, Any]] = None) -> set:
+    """Every per-symbol name the table declares."""
+    m = manifest if manifest is not None else TABLE
+    return set(m.get(SCALARS_SECTION) or {})
 
 
 def series_field(name: str, manifest: Optional[Mapping[str, Any]] = None) -> str:
     """The bar key a declared series reads. Raises ``KeyError`` for anything else."""
     m = manifest if manifest is not None else TABLE
     return m[SERIES_SECTION][name]["field"]
+
+
+def scalar_source(name: str, manifest: Optional[Mapping[str, Any]] = None) -> Mapping[str, Any]:
+    """``{"store", "column"}`` for a declared scalar. ``KeyError`` otherwise.
+
+    ⭐ THE COLUMN IS DECLARED SEPARATELY FROM THE NAME even though the two are
+    equal today, because the partition rail compares the COLUMN half against
+    ``snapshot_db.COLUMNS`` — and a scalar the table chose to spell differently
+    from its column would silently drop out of that identity if the rail read the
+    key instead.
+    """
+    m = manifest if manifest is not None else TABLE
+    return m[SCALARS_SECTION][name]["source"]
+
+
+def scalar_as_of(name: str, manifest: Optional[Mapping[str, Any]] = None) -> Mapping[str, Any]:
+    """``{"column", "grain"}`` — the column that DATES a declared scalar.
+
+    ⛔ A COLUMN, NEVER A DATE. Freshness is per SYMBOL: one ticker's row can be a
+    month older than another's, so the declaration points at the row column
+    carrying the value's own date rather than at any date this process knows.
+    """
+    m = manifest if manifest is not None else TABLE
+    return m[SCALARS_SECTION][name]["as_of"]
+
+
+def scalar_cadence(name: str, manifest: Optional[Mapping[str, Any]] = None) -> str:
+    """How often the declared scalar's source is rebuilt."""
+    m = manifest if manifest is not None else TABLE
+    return m[SCALARS_SECTION][name]["cadence"]
+
+
+def excluded_columns(manifest: Optional[Mapping[str, Any]] = None) -> set:
+    """The screener columns CONSIDERED and refused, each with a stated reason.
+
+    ⭐ HALF OF A PARTITION IDENTITY, AND THE HALF THAT DOES THE WORK. A declared
+    list on its own is a list of what somebody remembered. With
+    ``declared | excluded == snapshot_db.COLUMNS`` and the two disjoint, a
+    sixty-sixth screener column lands RED until somebody DECIDES about it — which
+    is the only thing that keeps this vocabulary honest as the screener grows.
+    """
+    m = manifest if manifest is not None else TABLE
+    return set(m.get(EXCLUDED_KEY) or {})
+
+
+#: The three answers ``yields_of`` can give. ``passthrough`` is the ternary's,
+#: and only the ternary's: its result kind is the join of its branches.
+#:
+#: ⛔ THE FAIL-CLOSED DIRECTION IS THE NUMERIC ONE. Refusing to call a tree a
+#: condition costs a user an error message; admitting a real-valued tree as one
+#: makes ``<tree> != 0`` true for every non-zero price on the board.
+YIELDS = ("num", "bool", "passthrough")
+YIELDS_DEFAULT = "num"
+
+
+def yields_of(name: str, manifest: Optional[Mapping[str, Any]] = None) -> str:
+    """What an operator, function or scalar's values can be. ``KeyError`` if the
+    name is not declared in any of those three sections.
+
+    ⛔ ONE DECLARATION, EVERY CONSUMER DERIVES. Without it, a picker refusing a
+    row that is not a condition and a scan check refusing a tree that returns a
+    number would each hand-list the same nine comparison and logical operators,
+    in two languages — the two-vocabularies defect this repo has already paid for
+    twice. An entry with NO declaration reads as the numeric default rather than
+    raising, because a manifest that grew an entry is a vocabulary question and
+    fail-closed is the answer until somebody declares it.
+    """
+    m = manifest if manifest is not None else TABLE
+    for section in (OPERATORS_SECTION, FUNCTIONS_SECTION, SCALARS_SECTION):
+        entry = (m.get(section) or {}).get(name)
+        if entry is not None:
+            value = entry.get("yields")
+            return value if value in YIELDS else YIELDS_DEFAULT
+    raise KeyError(name)
+
+
+#: ⚠️ THE NAME E2's INTERFACE ASKED FOR, BOUND TO THE ONE DECLARATION ABOVE. The
+#: draft called this ``domain_of`` and gave it a third spelling of the same three
+#: answers (``01`` / ``real`` / ``passthrough``); the design's CORRECTION 2 named
+#: the manifest field ``yields`` with ``num`` / ``bool``. Two field names for one
+#: fact is the defect both were written to prevent, so the MANIFEST carries one
+#: field and this is an ALIAS — the same function object, so the two can never
+#: drift and no reader has to know which name its caller used.
+domain_of = yields_of

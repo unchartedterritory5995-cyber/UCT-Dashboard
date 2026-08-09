@@ -42,7 +42,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 import sentry_sdk
 from api.limiter import limiter
-from api.routers import snapshot, movers, engine_data, earnings, news, screener, trades, traders, push, charts, calendar as calendar_router, bars as bars_router
+from api.routers import snapshot, movers, engine_data, earnings, news, screener, traders, push, charts, calendar as calendar_router, bars as bars_router
 from api.routers import cot as cot_router
 from api.routers import render_panels as render_panels_router
 from api.routers import live_prices as live_prices_router
@@ -1032,9 +1032,86 @@ def _start_thread_burst_watch() -> None:
     threading.Thread(target=_loop, daemon=True, name="thread-burst-watch").start()
 
 
+def start_screener_snapshot_warm():
+    """Top up the stalest screener rows shortly after boot, OFF the critical path.
+
+    The snapshot is rebuilt nightly at 03:00 ET, so a pod that boots after that
+    build — a deploy, a Railway restart — serves whatever `screener.db` was last
+    written until the NEXT 03:00. Up to a full day of stale rows with no top-up.
+    `snapshot_builder._stalest` orders never-built/oldest tickers first, so even
+    a small run refreshes exactly the rows that are worst.
+
+    ⚠️ BOUNDED AND DELAYED ON PURPOSE — the naive version of this is a
+    cold-start herd. `run_build` is sequential over the universe and its
+    `_read_fundamentals` calls `massive.get_market_cap` -> `get_ticker_details`,
+    which is **UNCACHED**: one Massive REST round-trip per ticker, plus a
+    `ticker_meta` miss can reach yfinance/Finnhub. Uncapped that is ~4,000
+    outbound calls racing the boot warmers on a single-process web pod — the
+    `bars_prewarm` failure that saturated Massive, starved the web pod, and was
+    reverted in `68392f4`. So:
+
+      * **Nothing touches the boot path.** `.start()` returns immediately and
+        the thread sleeps first, so readiness and the healthcheck are never
+        behind this. Even the `count_rows` gate lives inside the thread — the
+        registration that owns the nightly job must not do I/O for a warm.
+      * **A plain daemon thread**, deliberately not the 64-slot anyio pool and
+        not an APScheduler executor slot — the warm can never take a worker the
+        request path or another job needs.
+      * **Capped** well under the nightly's 4,000, via
+        `SCREENER_SNAPSHOT_WARM_MAX_PER_RUN`.
+      * **Counted and logged** via `run_build`'s own `{built, skipped, errors}`.
+
+    Returns the started `threading.Thread`, or None when disabled. Never raises
+    — including on a malformed env value, which falls back to its default. The
+    caller registers the wire watchdog inside the SAME `try` as the screener
+    jobs, so an exception escaping here would silently unregister an unrelated
+    job.
+    """
+    if os.environ.get("SCREENER_SNAPSHOT_WARM_ENABLED", "1") != "1":
+        return None
+
+    def _num(name, default, cast):
+        try:
+            return cast(os.environ[name])
+        except (KeyError, TypeError, ValueError):
+            return default
+
+    delay = _num("SCREENER_SNAPSHOT_WARM_DELAY_SECS", 120.0, float)
+    warm_min = _num("SCREENER_SNAPSHOT_WARM_MIN", 3000, int)
+    cap = _num("SCREENER_SNAPSHOT_WARM_MAX_PER_RUN", 500, int)
+
+    def _warm():
+        try:
+            time.sleep(delay)
+            # Imported HERE, not closed over from the caller. The previous cut
+            # of this block referenced a `snapshot_builder` bound in another
+            # function; when it was orphaned it would have raised NameError
+            # straight into a bare `except` and printed "skipped" forever.
+            from api.services.screener import snapshot_db, snapshot_builder
+            snapshot_db.init_db()
+            rows = snapshot_db.count_rows()
+            if rows >= warm_min:
+                print(f"[startup] screener self-warm: not needed "
+                      f"(rows={rows} >= warm_min={warm_min})")
+                return
+            stats = snapshot_builder.run_build(max_tickers=cap)
+            print(f"[startup] screener self-warm: rows_before={rows} cap={cap} "
+                  f"built={stats.get('built')} skipped={stats.get('skipped')} "
+                  f"errors={stats.get('errors')}")
+        except Exception as e:
+            # Counted as a failure of the whole warm, and NAMED — never `pass`.
+            print(f"[startup] screener self-warm FAILED: {type(e).__name__}: {e}")
+
+    t = threading.Thread(target=_warm, daemon=True, name="screener-warm")
+    t.start()
+    return t
+
+
 def register_screener_jobs(scheduler):
     """Register the nightly full-market screener snapshot build (03:00 ET, after
     the ratings nightly at 02:30). Gated by SCREENER_SNAPSHOT_ENABLED (default on).
+    Also kicks the bounded boot self-warm (`start_screener_snapshot_warm`) so a
+    freshly-deployed pod does not serve a stale snapshot until the next 03:00.
     Returns True if the job was registered."""
     import os
     if os.environ.get("SCREENER_SNAPSHOT_ENABLED", "1") != "1":
@@ -1050,6 +1127,48 @@ def register_screener_jobs(scheduler):
     scheduler.add_job(_run, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
                       id="screener_snapshot_nightly", max_instances=1,
                       replace_existing=True)
+
+    # -- the scan sweep: a SEPARATE job at a LATER hour ------------------------
+    #
+    # ⛔ NOT A CALL APPENDED TO `run_build`, and both reasons are measured.
+    # `run_build` is capped at SCREENER_SNAPSHOT_MAX_PER_RUN = 4000 and its
+    # DURATION IS NOT MEASURED ANYWHERE (GT §6.4 names it the one number most
+    # worth having) — so chaining would put an unmeasured job behind an
+    # unmeasured job in one `max_instances=1` slot. And the sweep's own
+    # precondition is that the snapshot is CURRENT, which it cannot assert about
+    # a build it is running inside.
+    #
+    # ⏳ THE HOUR IS THE OWNER'S (design §8.5) and lives in exactly ONE place:
+    # `scan_evaluator.SWEEP_HOUR_ET`. Read, never retyped.
+    #
+    # ⭐ AND ONE HOUR IS ENOUGH TODAY BECAUSE THE CEILING IS A PROPERTY OF THE
+    # TREE, NOT OF THIS SCHEDULE. All 54 declared scalars are `cadence: nightly`
+    # out of `screener_rows` (measured over the manifest), so a scan naming any of
+    # them re-read at noon returns the same answer off the same 03:00 snapshot —
+    # a true number implying something false. `scan_evaluator.cadence_ceiling`
+    # derives that per definition from the manifest's own declarations; adding an
+    # intraday job would only ever be honest for bars-only trees.
+    #
+    # ⛔ AND IT IS OFF BY DEFAULT. E-4 has not wired a surface to these results,
+    # so a sweep that ran by default would spend the pod's night writing rows
+    # nothing can read.
+    from api.services.screener import scan_evaluator
+
+    def _run_scan_sweep():
+        try:
+            scan_evaluator.sweep_job()
+        except Exception as e:
+            print(f"[scheduler] screener scan sweep error: {e}")
+
+    if scan_evaluator.enabled():
+        scheduler.add_job(
+            _run_scan_sweep,
+            trigger=CronTrigger(hour=scan_evaluator.SWEEP_HOUR_ET,
+                                minute=scan_evaluator.SWEEP_MINUTE_ET,
+                                timezone=_ET),
+            id="screener_scan_sweep", max_instances=1, replace_existing=True)
+
+    start_screener_snapshot_warm()
     return True
 
 
@@ -1305,23 +1424,6 @@ def register_pattern_vision_jobs(scheduler):
                       trigger=CronTrigger(day_of_week="mon-fri", hour="9-16", minute=0, timezone=_ET),
                       id="pattern_vision_judge", max_instances=1,
                       replace_existing=True)
-    return True
-
-    # Self-warm on deploy: if the snapshot is under-filled, build (up to
-    # SCREENER_SNAPSHOT_MAX_PER_RUN, default 4000) in the background so the page
-    # has the full universe without waiting for 03:00 ET. run_build picks the
-    # stalest tickers first, so this tops up an incomplete snapshot each boot
-    # until the universe is covered.
-    try:
-        from api.services.screener import snapshot_db
-        snapshot_db.init_db()
-        warm_min = int(os.environ.get("SCREENER_SNAPSHOT_WARM_MIN", "3000"))
-        if snapshot_db.count_rows() < warm_min:
-            import threading
-            threading.Thread(target=snapshot_builder.run_build,
-                             daemon=True, name="screener-warm").start()
-    except Exception as e:
-        print(f"[scheduler] screener self-warm skipped: {e}")
     return True
 
 
@@ -2797,6 +2899,18 @@ async def lifespan(app: FastAPI):
             print(f"[startup] Darkpool DB auto-seed error (non-fatal): {e}")
     threading.Thread(target=_darkpool_db_seed_background, daemon=True, name="darkpool-db-seed").start()
 
+    # Seed the 'Delisted Legends' prebuilt watchlist (idempotent). Deferred a bit so the
+    # admin user + watchlists table are ready; background so it never blocks boot.
+    def _seed_delisted_legends_bg():
+        try:
+            import time as _t
+            _t.sleep(25)
+            from api.services.watchlist_prebuilt import seed_delisted_legends
+            seed_delisted_legends()
+        except Exception:
+            pass
+    threading.Thread(target=_seed_delisted_legends_bg, daemon=True, name="delisted-legends-seed").start()
+
     try:
         _cot_service.init_db()
         if _cot_service.is_empty():
@@ -2957,8 +3071,13 @@ async def lifespan(app: FastAPI):
         # -- Indicator alerts: the CLOSED-BAR SHADOW LANE (Phase C Task 6) ------
         # ⭐ BOTH LANES RUN, ONE LANE DELIVERS. The live evaluator
         # (`indicator_alert_evaluator.start_evaluator`, its own daemon thread,
-        # started far above) is untouched and keeps delivering on the FORMING
-        # lane. This job evaluates the SAME alerts on the SAME bars through the
+        # started far above) is untouched and delivers on whichever lane
+        # `eval_mode()` names AT CALL TIME — the CLOSED lane since the 2026-08-08
+        # cutover, and the forming lane only if `ALERT_EVAL_MODE` is rolled back.
+        # (This said "keeps delivering on the FORMING lane", which was true when
+        # it was written and became false at the cutover. Read the running answer
+        # from `GET /api/indicator-alerts/latency`, never from this comment.)
+        # This job evaluates the SAME alerts on the SAME bars through the
         # closed lane and writes what it WOULD have fired to its own database —
         # no delivery, no record_trigger, no record_evaluation, no ledger, no
         # email. Its worst failure mode is a wasted cycle.
@@ -3174,6 +3293,29 @@ async def lifespan(app: FastAPI):
             print("[startup] nightly side-heal scheduled (weekdays 19:30 ET)")
         except Exception as _e_nsh:
             print(f"[startup] nightly side-heal job skip: {_e_nsh}")
+
+        # 🔴 THE SCHEDULE ITS DOCSTRING ALREADY CLAIMED.
+        # `ipo_maintenance.run_ipo_maintenance` says *"Runs on a schedule
+        # (weekly)"* and was in NO scheduler with ZERO callers — reachability
+        # audit §3e, and a verbatim repeat of the session-insights precedent
+        # (defined, never wired, work silently uncollected for weeks). Only the
+        # module's `IPO_DATES` constant was ever consumed.
+        # ⛔ Sunday, deliberately clear of the 08:00 ET Compass weekly digest.
+        # The job is a taxonomy READ plus an operator ping; it mutates nothing
+        # (the removal it asks for is a manual edit to the owner's
+        # `themes_taxonomy.json` baseline) and it is inert without
+        # DISCORD_WEBHOOK_URL. Rail: tests/test_ipo_maintenance_scheduled.py.
+        def _ipo_maintenance_job():
+            try:
+                from api.services import ipo_maintenance as _ipo
+                _ipo.run_ipo_maintenance()
+            except Exception as _e_ipo:
+                print(f"[ipo] weekly maintenance failed (non-fatal): {_e_ipo}")
+
+        _scheduler.add_job(
+            _ipo_maintenance_job,
+            trigger=CronTrigger(day_of_week="sun", hour=8, minute=30, timezone=_ET),
+            id="ipo_maintenance_weekly", max_instances=1, replace_existing=True)
 
         _scheduler.add_job(_cot_service.refresh_from_current, trigger=CronTrigger(day_of_week="fri", hour=15, minute=50, timezone=_ET), id="cot_weekly_refresh", max_instances=1, replace_existing=True)
         _scheduler.add_job(_cot_service.refresh_if_stale, trigger=CronTrigger(day_of_week="fri", hour=16, minute=15, timezone=_ET), id="cot_weekly_retry_1", max_instances=1, replace_existing=True)
@@ -4578,6 +4720,27 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="UCT Dashboard", lifespan=lifespan)
 app.add_middleware(MaintenanceMiddleware)
 app.add_middleware(CompassPaywallMiddleware)
+# 🔴 THE FAIL-CLOSED ADMIN GATE. `api/middleware/admin_guard.py` shipped
+# complete, fails closed, and carried 8 passing tests — and this line did not
+# exist, on this branch or on origin/master, so the ~30 destructive ops under
+# `/api/admin/{massive,oi,ticker-types,flow}/*`, `/api/admin/alert-tester` and
+# `/api/live/admin/*` answered ANY caller. Built, tested, green and connected to
+# nothing, in its most expensive form: the unreachable thing was a security
+# guard. The 8 tests could not see it because `tests/test_launch_hardening.py`
+# builds its OWN FastAPI app and adds the middleware itself — both halves of a
+# severed wire stay individually correct.
+# ⛔ DO NOT DELETE WITHOUT DELETING THE MODULE. The rail is
+# `tests/test_admin_guard_registered.py`, which drives the REAL `api.main:app`,
+# and `auth_surface_check.audit_routes`, which reads `app.user_middleware` at
+# boot and reports every guarded admin route as UNGATED the moment this line
+# goes away.
+# ⭐ ORDER: added AFTER CompassPaywall and BEFORE CORS, so it runs INSIDE the
+# CORS layer (a browser still gets CORS headers on the 403) and OUTSIDE the
+# paywall/maintenance layers (an anonymous caller is refused before either does
+# any work). Starlette prepends, so the execution order is
+# GZip → CORS → AdminGuard → CompassPaywall → Maintenance → router.
+from api.middleware.admin_guard import AdminGuardMiddleware as _AdminGuard
+app.add_middleware(_AdminGuard)
 from starlette.middleware.cors import CORSMiddleware as _CORS
 app.add_middleware(_CORS, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 from starlette.middleware.gzip import GZipMiddleware as _GZipBase
@@ -4737,11 +4900,23 @@ app.include_router(news.router)
 app.include_router(screener.router)
 from api.routers import scans as scans_router
 app.include_router(scans_router.router)
-# DEPRECATED 2026-06-02 -- Model Book is no longer a trade log (rebuilt as a
-# curated library of top stocks; see api/routers/modelbook.py). The /api/trades
-# endpoints + data/trades.json are kept as a rollback backup; schedule a manual
-# removal after ~30d of green prod. No UI references /api/trades anymore.
-# app.include_router(trades.router)
+# ── THE SURFACE E-2's `join_clause` REACHES (Phase E, E4-A5) ─────────────────
+# Its OWN module and its own route rather than a `filters.FILTERS` entry or a
+# new filter type inside `query.run_scan` — a `def_hash` is not a column, and a
+# nightly scan receipt and a live screener query are different freshness stories
+# a member must be able to tell apart. Reasoning in the module docstring.
+# ⛔ REGISTERED, so E-7's derived census walks it off `router.routes` rather than
+# typing the path.
+from api.routers import scan_results as scan_results_router
+app.include_router(scan_results_router.router)
+# RETIRED 2026-08-09 -- the /api/trades personal trade log was deprecated
+# 2026-06-02 when Model Book was rebuilt as a curated library of top stocks
+# (api/routers/modelbook.py). It was kept unmounted as a rollback backup on a
+# documented "~30d then remove" plan; that window closed 68 days ago, so
+# api/routers/trades.py and tests/api/test_trades.py are now deleted. Its
+# `data/trades.json` was gitignored runtime data and never existed in the repo.
+# ⚠️ NOT the same thing as `traders` below (/api/traders, live) or
+# `api/services/journal_two/test_trades.py` (Journal 2.0, live).
 app.include_router(traders.router)
 app.include_router(push.router)
 app.include_router(charts.router)

@@ -44,6 +44,11 @@ export function mergeEnrichment(entry, enrichment) {
   return {
     ...entry,
     expected_move: e.expected_move,
+    // WHY there is no expected move, `{kind, reason}` from the server. Null
+    // means the read was never attempted (a past report), which is a different
+    // fact from "attempted and came back empty" — the surfaces render only the
+    // second one. It must be named here or it is silently dropped (see below).
+    expected_move_outcome: e.expected_move_outcome ?? null,
     beat_history:  e.beat_history,
     hist_stats:    e.hist_stats ?? null,
     // Second of TWO allow-lists between the API and the modal (the other is

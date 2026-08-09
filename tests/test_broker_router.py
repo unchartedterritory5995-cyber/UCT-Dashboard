@@ -211,3 +211,49 @@ def test_comped_plan_passes_paid_gate(client):
     client._app.dependency_overrides[authmw.get_current_user_with_plan] = \
         lambda: {"id": "u1", "plan": "comped", "role": "member"}
     assert client.post("/api/j2/broker/connect", json={"consent": True}).status_code == 200
+
+
+# ── the router has to be MOUNTED on the REAL app ───────────────────────────
+# Backfilled from tests/test_signature_router.py::
+# test_the_router_is_mounted_on_the_real_app, whose docstring names broker_sync
+# as the precedent. That guard was written BECAUSE of this outage and never
+# applied to the router it was written about.
+
+def test_the_broker_router_is_mounted_on_the_real_app():
+    """Every test above builds its OWN FastAPI app, so all ~20 of them stay
+    green through the exact outage they exist to prevent: a concurrent commit
+    dropped `app.include_router(broker_sync_router.router)` from api/main.py,
+    the SPA catch-all swallowed the path, and POST /connect returned 405 while
+    GET /connect returned 200 HTML.
+
+    The expected paths are DERIVED from the router itself, never retyped — a
+    test that restates a value its source owns is this repo's most-repeated
+    defect, and a hand-typed list would silently stop covering a new route.
+    """
+    from api.main import app
+    from api.routers import broker_sync as real_router
+
+    declared = {r.path for r in real_router.router.routes}
+    assert declared, "the broker router declares no routes — derivation is vacuous"
+
+    missing = declared - {r.path for r in app.routes}
+    assert not missing, (
+        "broker_sync routes are absent from api.main:app (the 405 outage): "
+        + ", ".join(sorted(missing))
+    )
+
+
+def test_connect_accepts_POST_on_the_real_app():
+    """The outage's tell was method-shaped, not path-shaped: the SPA catch-all
+    answers GET /connect with 200 HTML, so only the METHOD set distinguishes a
+    mounted router from a swallowed one."""
+    from api.main import app
+
+    methods = set()
+    for r in app.routes:
+        if getattr(r, "path", None) == "/api/j2/broker/connect":
+            methods |= set(getattr(r, "methods", None) or ())
+    assert "POST" in methods, (
+        "POST /api/j2/broker/connect is not served by api.main:app — this is the "
+        f"405 outage shape (methods found: {sorted(methods) or 'none'})"
+    )

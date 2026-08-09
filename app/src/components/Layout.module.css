@@ -17,9 +17,12 @@
     flex-direction: column;
   }
   .main {
-    /* Space for the fixed top header bar and the fixed bottom tab bar. */
-    padding-top: calc(48px + env(safe-area-inset-top, 0px));
-    padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px));
+    /* Space for the fixed top header bar and the fixed bottom tab bar.
+       Heights come from tokens.css (--mobile-topbar-h / --mobile-tabbar-h) so a
+       route that must size itself against this shell subtracts the SAME values
+       rather than retyping them. */
+    padding-top: calc(var(--mobile-topbar-h) + env(safe-area-inset-top, 0px));
+    padding-bottom: calc(var(--mobile-tabbar-h) + env(safe-area-inset-bottom, 0px));
   }
 }
 

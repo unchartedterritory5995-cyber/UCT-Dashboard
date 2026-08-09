@@ -9,7 +9,8 @@ import threading as _threading
 import time as _time
 from datetime import datetime
 
-from fastapi import APIRouter, Body, HTTPException, Query, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
+from api.middleware.auth_middleware import require_admin
 # ORJSONResponse: ~7-8x faster serialize than stdlib on the shared event loop +
 # NaN/Inf -> null (stdlib emits invalid `NaN` tokens that crash client JSON.parse).
 # Aliased as JSONResponse so the index-bars response and the 503 error paths below
@@ -156,7 +157,21 @@ def get_bars(
             # these through yfinance instead (SPX → ^GSPC, etc.). Equity and ETF
             # tickers (SPY, TSLA, AAPL, ...) fall through to the existing Schwab
             # path unchanged.
-            if is_index(ticker):
+            # DELISTED entity (dead company — Yahoo, Enron, Bear Stearns): serve its
+            # FROZEN historical bars from an isolated path that fetches the provider symbol
+            # date-clamped to the entity's trading life and caches under its distinct key.
+            # This is what keeps a reused ticker (BSC = Bear Stearns 2003-08 AND a live ETN
+            # now) from combining into one chart. Checked FIRST so a delisted key never
+            # touches the live fetch path. A bare reused symbol (live 'BSC') is NOT in the
+            # registry (Bear Stearns is 'BSC-OLD'), so the live ETN falls through unaffected.
+            from api.services import delisted_registry as _delisted
+            _drec = _delisted.resolve(ticker)
+            if _drec:
+                from api.services.bars_fetch import _get_delisted_bars_response
+                # serve_as=ticker keeps a bare aliased symbol (e.g. "BSC") consistent with
+                # what the client requested, while the record's provider+clamp isolate the era.
+                response = _get_delisted_bars_response(_drec, tf, bars, serve_as=ticker)
+            elif is_index(ticker):
                 since_int = None
                 if since:
                     try:
@@ -328,8 +343,21 @@ def reconciliation_status():
 
 
 @router.get("/api/admin/disk-status")
-def disk_status(live: bool = False):
-    """Volume usage + the largest consumers on this pod's /data (no auth — read-only).
+def disk_status(live: bool = False,
+                _admin: dict = Depends(require_admin)):
+    """Volume usage + the largest consumers on this pod's /data. ADMIN.
+
+    🔴 THIS SAID "(no auth - read-only)". Read-only is not the same as harmless:
+    the response NAMES every database on the volume by path and ranks them by
+    size, so an anonymous caller learned the product's storage layout - which
+    stores exist, and which are big enough to be worth attacking. `?live=1` also
+    re-walks the whole volume on demand, a caller-controlled cost on the single
+    web pod.
+
+    Its two documented-no-auth siblings, `/api/admin/bars-stream-status` and
+    `/api/admin/reconciliation-status`, are genuinely clean (counters only - no
+    paths, no symbols, no universe size) and are deliberately LEFT OPEN. This is
+    not a sweep of the family; it is the one member that leaks.
 
     Answers the question the 2026-07-23 incident could not: "what is actually
     eating the disk?" Per-feature guards only ever report on themselves, so the

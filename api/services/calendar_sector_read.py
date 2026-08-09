@@ -25,6 +25,8 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from zoneinfo import ZoneInfo
 
+from api.services import llm_timeouts
+
 _log = logging.getLogger(__name__)
 _ET = ZoneInfo("America/New_York")
 
@@ -55,11 +57,19 @@ def _cost_guard():
 
 
 def _anthropic_client():
+    """BOUNDED. Generation runs on this module's own ThreadPoolExecutor rather
+    than the request thread, but that pool lives in the web process, so an
+    unbounded client still parks a thread for the SDK's 600s default while the
+    calendar polls for the result that will never arrive."""
     import anthropic
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         raise RuntimeError("ANTHROPIC_API_KEY not set")
-    return anthropic.Anthropic(api_key=api_key)
+    return anthropic.Anthropic(
+        api_key=api_key,
+        timeout=llm_timeouts.seconds("SECTOR_READ_LLM_TIMEOUT_SECS",
+                                     llm_timeouts.REQUEST_PATH_LONG),
+    )
 
 
 def _today_date() -> str:

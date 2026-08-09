@@ -1,0 +1,834 @@
+{
+  "_": "THE CONCEPT VOCABULARY. Trader vernacular mapped onto canonical trees built from the closed table. DATA, not prompt text, and beside closedTable.json for the same reason: two vocabularies is the defect this repo has now paid for four times. A generic model guesses what `trending` means and guesses differently next Tuesday; this file is the FIRM'S answer, reviewable in a diff and refusable in a test.",
+  "_not_a_grammar": "A CONCEPT ADDS NO NODE TYPE, NO FUNCTION AND NO NAME. Every `source` here is ordinary formula text that the ONE parser parses, the ONE linter lints and the ONE sentence module reads back. A concept is an ABBREVIATION for a tree the closed table can already express, and `ast` below is the parse result that proves it -- produced by `parse.js::parseFormula`, asserted byte-equal in `conceptVocabulary.test.js`. An example formula is a CLAIM about the table and must be PARSED, not read; three spec examples in this phase did not parse.",
+  "_expansion": "A CONCEPT EXPANDS AT SAVE TIME AND THE SCAN STORES THE TREE. The word is PROVENANCE, carried beside the definition, never a late binding inside `compute.ast`. If `trending` is redefined next quarter every scan saved against today's definition keeps today's maths and today's `def_hash` -- the only reading under which a saved scan still means what its author confirmed. `version` below moves when any `source` moves, and that is an event, not a silent edit.",
+  "_grounding": "EVERY CONCEPT CITES A FIRM ARTIFACT THAT ALREADY EXISTS, AND THE CITATION IS RESOLVED RATHER THAN TRUSTED. Four kinds, each looked up at check time: `filter_preset` names a preset in `api/services/screener/filters.py::FILTERS` (the firm's own labelled threshold); `starter_screen` names a shipped screen in `screener/saved_screens.py::starters()`; `scalar` names a column the screener already computes nightly and the closed table declares; `classifier` names a labelled branch of firm code, located by AST. A citation that stops resolving goes RED here rather than shipping a concept that expands into nothing.",
+  "_no_invented_numbers": "⭐ THE RAIL THAT MAKES THIS A VOCABULARY RATHER THAN AN OPINION: every numeric literal in a concept's tree must be DERIVABLE FROM ITS CITATIONS, and every scalar the tree names must be one a citation names. `rs_rank >= 80` is here because `FILTERS['rs_rank']` ships a preset labelled `Over 80`; change it to 75 and the check goes red, because 75 is nobody's published threshold. The firm's numbers, never the author's.",
+  "_refusal": "AN UNGROUNDABLE WORD IS REFUSED BY NAME AND NEVER APPROXIMATED. `cheap` has no defensible definition and inventing a P/E threshold is `unmeasured accuracy claims` (spec §1.6) wearing a helpful face. The refusal says WHICH WORD it could not ground, in the concierge's existing gate-attribution style, so the member can say what they meant. A wrong scan that looks right is worse than a refusal.",
+  "_no_numbers": "GROUNDING IS PROVENANCE, NOT A NUMBER. `setup_winrate` is a CLAIM subject to §1.6 and to E-6's record, and design §8.3 -- what a published record may SAY -- is OPEN. So an entry may NAME the playbook setup it is attributed to and NEVER carries a percentage. No number reaches a surface from this file.",
+  "_attribution": "`attribution.setup` is a SECOND attestation, never a grounding. A playbook is prose: it can say a setup is a pullback to a rising average, but it cannot mechanically produce a tree, so it can attribute a concept and not ground one. The setup name is checked against `app/src/constants/setupGroups.js::SETUPS` on every box, and against `brain_service.lookup_playbook` on a box where the Brain Pack is installed. An uninstalled pack makes the second half unverifiable, which is reported and never patched around.",
+  "_sentence": "`sentence` is `sentence.js::sentenceFor(ast)` -- DERIVED FROM THE TREE, frozen here, and asserted equal in the test. It is what a member confirms before anything is saved, and it describes the TREE rather than echoing the WORD. That is D-A5 applied to a vocabulary: the file proposes, the tree is the truth, the sentence comes from the tree.",
+  "_sentence_gap": "CLOSED 2026-08-08 by `56a2bca6`, AND RECORDED BECAUSE THE HAND-OFF DEPENDED ON IT: `sentence.js::compileRules` used to build name rows from `table.series` ONLY, so a tree naming any of the table's declared SCALARS refused with `sentence:name` and 19 of the concepts below could carry no frozen sentence. `renderName` now consults the manifest's scalars section (series -> scalars -> definition inputs) and says each column in the manifest's OWN words, and `coverageGaps()` probes the walker instead of re-reading the same declaration. Every concept here is therefore renderable and every one carries a `sentence` -- each PRODUCED BY CALLING `sentenceFor(parseFormula(source).ast)`, never typed. ⛔ A hand-written sentence remains the second vocabulary this whole design exists to prevent: `conceptVocabulary.test.js` re-derives every sentence from the shipped module and refuses one the read-back would not produce, including one planted on a tree it still genuinely refuses.",
+  "version": "2026-08-09.1",
+  "concepts": {
+    "trending": {
+      "source": "close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(close, 50) > sma(close, 200)",
+      "ast": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "op",
+            "name": "&&",
+            "args": [
+              {
+                "type": "op",
+                "name": ">",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "call",
+                    "name": "sma",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "num",
+                        "value": 20
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": ">",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "sma",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "num",
+                        "value": 20
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "name": "sma",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "num",
+                        "value": 50
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "call",
+                "name": "sma",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "num",
+                    "value": 50
+                  }
+                ]
+              },
+              {
+                "type": "call",
+                "name": "sma",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "num",
+                    "value": 200
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "sentence": "((1 when close is greater than (the 20-bar average of close) and 0 otherwise) and (1 when (the 20-bar average of close) is greater than (the 50-bar average of close) and 0 otherwise)) and (1 when (the 50-bar average of close) is greater than (the 200-bar average of close) and 0 otherwise)",
+      "grounding": [
+        {
+          "kind": "classifier",
+          "module": "api.services.screener.technicals",
+          "function": "compute_technicals",
+          "label": "full-bull",
+          "windows_from": [
+            "_sma"
+          ]
+        }
+      ],
+      "note": "The firm already answers this question every night. `screener/technicals.py` labels a symbol `full-bull` when the price is above the 20-day, the 20-day above the 50-day and the 50-day above the 200-day; `ma_stack` is a TEXT column and therefore excluded from the closed table, so the scan lane says it as a tree instead of naming the column."
+    },
+    "in a downtrend": {
+      "source": "close < sma(close, 20) && sma(close, 20) < sma(close, 50) && sma(close, 50) < sma(close, 200)",
+      "ast": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "op",
+            "name": "&&",
+            "args": [
+              {
+                "type": "op",
+                "name": "<",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "call",
+                    "name": "sma",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "num",
+                        "value": 20
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": "<",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "sma",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "num",
+                        "value": 20
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "name": "sma",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "num",
+                        "value": 50
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "<",
+            "args": [
+              {
+                "type": "call",
+                "name": "sma",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "num",
+                    "value": 50
+                  }
+                ]
+              },
+              {
+                "type": "call",
+                "name": "sma",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "num",
+                    "value": 200
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "sentence": "((1 when close is less than (the 20-bar average of close) and 0 otherwise) and (1 when (the 20-bar average of close) is less than (the 50-bar average of close) and 0 otherwise)) and (1 when (the 50-bar average of close) is less than (the 200-bar average of close) and 0 otherwise)",
+      "grounding": [
+        {
+          "kind": "classifier",
+          "module": "api.services.screener.technicals",
+          "function": "compute_technicals",
+          "label": "bear",
+          "windows_from": [
+            "_sma"
+          ]
+        }
+      ],
+      "note": "The mirror branch of the same classifier, and it is here so the vocabulary cannot only say bullish things."
+    },
+    "leader": {
+      "source": "rs_rank >= 80",
+      "ast": {
+        "type": "op",
+        "name": ">=",
+        "args": [
+          {
+            "type": "series",
+            "name": "rs_rank"
+          },
+          {
+            "type": "num",
+            "value": 80
+          }
+        ]
+      },
+      "sentence": "1 when the relative-strength rank is greater than or equal to 80 and 0 otherwise",
+      "grounding": [
+        {
+          "kind": "filter_preset",
+          "key": "rs_rank",
+          "preset": "Over 80"
+        }
+      ],
+      "note": "80 is the firm's own RS-rank preset, not a round number chosen here."
+    },
+    "leaders pulling back": {
+      "source": "rs_rank >= 80 && above_50sma && pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2",
+      "ast": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "op",
+            "name": "&&",
+            "args": [
+              {
+                "type": "op",
+                "name": "&&",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": ">=",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "rs_rank"
+                      },
+                      {
+                        "type": "num",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  {
+                    "type": "series",
+                    "name": "above_50sma"
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": ">=",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "pct_vs_ema20"
+                  },
+                  {
+                    "type": "op",
+                    "name": "u-",
+                    "args": [
+                      {
+                        "type": "num",
+                        "value": 2
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "<=",
+            "args": [
+              {
+                "type": "series",
+                "name": "pct_vs_ema20"
+              },
+              {
+                "type": "num",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "sentence": "(((1 when the relative-strength rank is greater than or equal to 80 and 0 otherwise) and whether the price is above its 50-day average) and (1 when the percentage distance from the 20-day exponential average is greater than or equal to (the negative of 2) and 0 otherwise)) and (1 when the percentage distance from the 20-day exponential average is less than or equal to 2 and 0 otherwise)",
+      "grounding": [
+        {
+          "kind": "starter_screen",
+          "screen": "starter_leaders_pullback"
+        }
+      ],
+      "attribution": {
+        "setup": "Classic Flag/Pullback"
+      },
+      "note": "The firm ships this screen. Every term is one of its three filters, at its thresholds."
+    },
+    "coiled": {
+      "source": "tight_consolidation",
+      "ast": {
+        "type": "series",
+        "name": "tight_consolidation"
+      },
+      "sentence": "whether the recent bars are tightly consolidated",
+      "grounding": [
+        {
+          "kind": "scalar",
+          "column": "tight_consolidation"
+        }
+      ],
+      "attribution": {
+        "setup": "VCP"
+      },
+      "note": "The column IS the concept: `screener/candles.py` sets it when the ten-close coefficient of variation is under 2.5%. The word is the English name for a number the screener already computes."
+    },
+    "tight base": {
+      "source": "rs_rank >= 80 && tight_consolidation",
+      "ast": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "op",
+            "name": ">=",
+            "args": [
+              {
+                "type": "series",
+                "name": "rs_rank"
+              },
+              {
+                "type": "num",
+                "value": 80
+              }
+            ]
+          },
+          {
+            "type": "series",
+            "name": "tight_consolidation"
+          }
+        ]
+      },
+      "sentence": "(1 when the relative-strength rank is greater than or equal to 80 and 0 otherwise) and whether the recent bars are tightly consolidated",
+      "grounding": [
+        {
+          "kind": "starter_screen",
+          "screen": "starter_high_rs_bases"
+        }
+      ],
+      "note": "The firm's shipped `High-RS tight bases` screen, term for term."
+    },
+    "oversold": {
+      "source": "rsi14 <= 30",
+      "ast": {
+        "type": "op",
+        "name": "<=",
+        "args": [
+          {
+            "type": "series",
+            "name": "rsi14"
+          },
+          {
+            "type": "num",
+            "value": 30
+          }
+        ]
+      },
+      "sentence": "1 when the nightly 14-period RSI is less than or equal to 30 and 0 otherwise",
+      "grounding": [
+        {
+          "kind": "filter_preset",
+          "key": "rsi14",
+          "preset": "Oversold (<30)"
+        }
+      ],
+      "note": "The threshold and the word both come from the firm's own preset label."
+    },
+    "overbought": {
+      "source": "rsi14 >= 70",
+      "ast": {
+        "type": "op",
+        "name": ">=",
+        "args": [
+          {
+            "type": "series",
+            "name": "rsi14"
+          },
+          {
+            "type": "num",
+            "value": 70
+          }
+        ]
+      },
+      "sentence": "1 when the nightly 14-period RSI is greater than or equal to 70 and 0 otherwise",
+      "grounding": [
+        {
+          "kind": "filter_preset",
+          "key": "rsi14",
+          "preset": "Overbought (>70)"
+        }
+      ]
+    },
+    "heavy volume": {
+      "source": "vol_ratio >= 2",
+      "ast": {
+        "type": "op",
+        "name": ">=",
+        "args": [
+          {
+            "type": "series",
+            "name": "vol_ratio"
+          },
+          {
+            "type": "num",
+            "value": 2
+          }
+        ]
+      },
+      "sentence": "1 when the volume ratio against its own average is greater than or equal to 2 and 0 otherwise",
+      "grounding": [
+        {
+          "kind": "filter_preset",
+          "key": "vol_ratio",
+          "preset": "Over 2×"
+        }
+      ],
+      "note": "Two times the symbol's own average, which is the higher of the two volume presets the firm ships."
+    },
+    "liquid": {
+      "source": "avg_volume_30d >= 1000000",
+      "ast": {
+        "type": "op",
+        "name": ">=",
+        "args": [
+          {
+            "type": "series",
+            "name": "avg_volume_30d"
+          },
+          {
+            "type": "num",
+            "value": 1000000
+          }
+        ]
+      },
+      "sentence": "1 when the 30-day average volume is greater than or equal to 1000000 and 0 otherwise",
+      "grounding": [
+        {
+          "kind": "filter_preset",
+          "key": "avg_volume_30d",
+          "preset": "Over 1M"
+        }
+      ]
+    },
+    "gapping up": {
+      "source": "gap_pct >= 3",
+      "ast": {
+        "type": "op",
+        "name": ">=",
+        "args": [
+          {
+            "type": "series",
+            "name": "gap_pct"
+          },
+          {
+            "type": "num",
+            "value": 3
+          }
+        ]
+      },
+      "sentence": "1 when the opening gap percentage is greater than or equal to 3 and 0 otherwise",
+      "grounding": [
+        {
+          "kind": "filter_preset",
+          "key": "gap_pct",
+          "preset": "Up >3%"
+        }
+      ]
+    },
+    "gapping down": {
+      "source": "gap_pct <= -3",
+      "ast": {
+        "type": "op",
+        "name": "<=",
+        "args": [
+          {
+            "type": "series",
+            "name": "gap_pct"
+          },
+          {
+            "type": "op",
+            "name": "u-",
+            "args": [
+              {
+                "type": "num",
+                "value": 3
+              }
+            ]
+          }
+        ]
+      },
+      "sentence": "1 when the opening gap percentage is less than or equal to (the negative of 3) and 0 otherwise",
+      "grounding": [
+        {
+          "kind": "filter_preset",
+          "key": "gap_pct",
+          "preset": "Down >3%"
+        }
+      ]
+    },
+    "near its highs": {
+      "source": "dist_52w_high_pct >= -5",
+      "ast": {
+        "type": "op",
+        "name": ">=",
+        "args": [
+          {
+            "type": "series",
+            "name": "dist_52w_high_pct"
+          },
+          {
+            "type": "op",
+            "name": "u-",
+            "args": [
+              {
+                "type": "num",
+                "value": 5
+              }
+            ]
+          }
+        ]
+      },
+      "sentence": "1 when the percentage distance from the 52-week high is greater than or equal to (the negative of 5) and 0 otherwise",
+      "grounding": [
+        {
+          "kind": "filter_preset",
+          "key": "dist_52w_high_pct",
+          "preset": "Within 5%"
+        }
+      ],
+      "note": "`dist_52w_high_pct` is negative below the high, so `within 5%` is `>= -5` and not `<= 5`. Getting that backwards is the sign error a read-back exists to surface."
+    },
+    "at the 20 ema": {
+      "source": "pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2",
+      "ast": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "op",
+            "name": ">=",
+            "args": [
+              {
+                "type": "series",
+                "name": "pct_vs_ema20"
+              },
+              {
+                "type": "op",
+                "name": "u-",
+                "args": [
+                  {
+                    "type": "num",
+                    "value": 2
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "<=",
+            "args": [
+              {
+                "type": "series",
+                "name": "pct_vs_ema20"
+              },
+              {
+                "type": "num",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "sentence": "(1 when the percentage distance from the 20-day exponential average is greater than or equal to (the negative of 2) and 0 otherwise) and (1 when the percentage distance from the 20-day exponential average is less than or equal to 2 and 0 otherwise)",
+      "grounding": [
+        {
+          "kind": "filter_preset",
+          "key": "pct_vs_ema20",
+          "preset": "Within 2%"
+        }
+      ],
+      "note": "The firm's preset is a BAND (`between -2 and 2`), so the expansion is two comparisons rather than one."
+    },
+    "shallow pullback": {
+      "source": "pullback_depth_pct <= 10",
+      "ast": {
+        "type": "op",
+        "name": "<=",
+        "args": [
+          {
+            "type": "series",
+            "name": "pullback_depth_pct"
+          },
+          {
+            "type": "num",
+            "value": 10
+          }
+        ]
+      },
+      "sentence": "1 when the depth of the current pullback is less than or equal to 10 and 0 otherwise",
+      "grounding": [
+        {
+          "kind": "filter_preset",
+          "key": "pullback_depth_pct",
+          "preset": "Shallow (<10%)"
+        }
+      ]
+    },
+    "deep pullback": {
+      "source": "pullback_depth_pct >= 20",
+      "ast": {
+        "type": "op",
+        "name": ">=",
+        "args": [
+          {
+            "type": "series",
+            "name": "pullback_depth_pct"
+          },
+          {
+            "type": "num",
+            "value": 20
+          }
+        ]
+      },
+      "sentence": "1 when the depth of the current pullback is greater than or equal to 20 and 0 otherwise",
+      "grounding": [
+        {
+          "kind": "filter_preset",
+          "key": "pullback_depth_pct",
+          "preset": "Deep (>20%)"
+        }
+      ]
+    },
+    "higher lows": {
+      "source": "higher_lows_run >= 3",
+      "ast": {
+        "type": "op",
+        "name": ">=",
+        "args": [
+          {
+            "type": "series",
+            "name": "higher_lows_run"
+          },
+          {
+            "type": "num",
+            "value": 3
+          }
+        ]
+      },
+      "sentence": "1 when the run of consecutive higher lows is greater than or equal to 3 and 0 otherwise",
+      "grounding": [
+        {
+          "kind": "filter_preset",
+          "key": "higher_lows_run",
+          "preset": "3+"
+        }
+      ]
+    },
+    "closing strong": {
+      "source": "close_position >= 0.66",
+      "ast": {
+        "type": "op",
+        "name": ">=",
+        "args": [
+          {
+            "type": "series",
+            "name": "close_position"
+          },
+          {
+            "type": "num",
+            "value": 0.66
+          }
+        ]
+      },
+      "sentence": "1 when the close's position inside the bar's range is greater than or equal to 0.66 and 0 otherwise",
+      "grounding": [
+        {
+          "kind": "filter_preset",
+          "key": "close_position",
+          "preset": "Top third (>0.66)"
+        }
+      ]
+    },
+    "at new highs": {
+      "source": "new_52w_high",
+      "ast": {
+        "type": "series",
+        "name": "new_52w_high"
+      },
+      "sentence": "whether the bar made a new 52-week high",
+      "grounding": [
+        {
+          "kind": "scalar",
+          "column": "new_52w_high"
+        }
+      ]
+    },
+    "large cap": {
+      "source": "market_cap >= 10000000000",
+      "ast": {
+        "type": "op",
+        "name": ">=",
+        "args": [
+          {
+            "type": "series",
+            "name": "market_cap"
+          },
+          {
+            "type": "num",
+            "value": 10000000000
+          }
+        ]
+      },
+      "sentence": "1 when the market capitalisation is greater than or equal to 10000000000 and 0 otherwise",
+      "grounding": [
+        {
+          "kind": "filter_preset",
+          "key": "market_cap",
+          "preset": "Large (>$10B)"
+        }
+      ]
+    },
+    "mega cap": {
+      "source": "market_cap >= 200000000000",
+      "ast": {
+        "type": "op",
+        "name": ">=",
+        "args": [
+          {
+            "type": "series",
+            "name": "market_cap"
+          },
+          {
+            "type": "num",
+            "value": 200000000000
+          }
+        ]
+      },
+      "sentence": "1 when the market capitalisation is greater than or equal to 200000000000 and 0 otherwise",
+      "grounding": [
+        {
+          "kind": "filter_preset",
+          "key": "market_cap",
+          "preset": "Mega (>$200B)"
+        }
+      ]
+    }
+  },
+  "_refused_why": "EACH REASON NAMES THE WORD, because a member who is refused needs to know which of their words could not be ground -- not that `something` failed. These are words a member will plausibly say and this vocabulary deliberately declines to guess at.",
+  "_refused": {
+    "cheap": "\"cheap\" has no defensible definition here. The firm's own screen that uses the word -- `Cheap quality compounders` -- bundles a forward-P/E ceiling with an ROE floor and an EPS-growth floor, so the word alone does not say which multiple you mean, or whether quality is part of it. Say `forward P/E under 20`, or name the screen.",
+    "expensive": "\"expensive\" is the mirror of `cheap` and has the same problem: no single multiple is the firm's answer, and picking one would be somebody's opinion presented as the house view.",
+    "strong": "\"strong\" is ambiguous between three different scans -- relative strength (`rs_rank`), price momentum (`chg_pct_1w` / `chg_pct_1m`) and fundamental quality (`uct_composite`). Name which one and the vocabulary can ground it.",
+    "quality": "\"quality\" is not one measure. `roe`, `op_margin`, `net_margin` and `uct_composite` are four different screens and the firm has never declared one of them to be the definition.",
+    "momentum": "\"momentum\" has no published threshold in this codebase. There are one-day, one-week and one-month change columns and no preset on any of them, so any cut-off would be invented here rather than read from the firm's own screens.",
+    "small cap": "\"small cap\" cannot be ground: the only market-cap preset in that direction is a FLOOR (`Small+ (>$300M)`), and there is no upper bound anywhere in the repo to read. A band would be this file's opinion, not the firm's.",
+    "undervalued": "\"undervalued\" is a claim about fair value, and nothing in this codebase computes one. Refusing is the honest answer; a P/E rule dressed as a valuation verdict is not."
+  }
+}

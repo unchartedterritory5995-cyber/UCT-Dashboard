@@ -1133,6 +1133,10 @@ def _backfill_past_days(days: dict, week_dates: list[date], today: date,
 # This must NEVER block the calendar build on a provider call.
 
 from concurrent.futures import ThreadPoolExecutor as _TPE  # noqa: E402
+# `Future.result(timeout=)` raises this and ONLY this on a timeout. Catching it
+# separately from a generic Exception is what lets `_bounded_em` say "we never
+# got an answer in time" instead of guessing at a reason it does not have.
+from concurrent.futures import TimeoutError as _FutTimeout  # noqa: E402
 
 _NAME_POOL = _TPE(max_workers=2, thread_name_prefix="cal-names")
 _NAME_INFLIGHT: set[str] = set()
@@ -2749,7 +2753,7 @@ def _cutover_on() -> bool:
     return os.environ.get("IMPLIED_ENRICHMENT_CUTOVER") == "1"
 
 
-def _inhouse_move(sym: str, target: str) -> dict | None:
+def _inhouse_move(sym: str, target: str, *, into: dict | None = None) -> dict | None:
     """In-house straddle mapped into the calendar-enrichment shape.
 
     ROUNDING IS LOAD-BEARING: the outgoing yfinance builder rounded pct to 1dp
@@ -2757,20 +2761,54 @@ def _inhouse_move(sym: str, target: str) -> dict | None:
     formatter, so an unrounded float renders ±6.234567891%. FE readers of
     `expected_move` were swept — only `.pct` is consumed anywhere, so the
     call_mark→call_mid field rename rides along harmlessly.
+
+    `into` is an optional holder for the WHY. It is written by a SINGLE
+    assignment of an already-complete dict (`into["outcome"] = oc`), which is
+    one bytecode store under the GIL — so a reader on another thread sees
+    either nothing at all or the whole outcome, never a half-built one. That
+    matters because this runs on `_ENRICH_EM_POOL` behind `_bounded_em`'s
+    timeout: the caller reads the holder the instant the future resolves, and a
+    torn read would be indistinguishable from "the callable never finished".
     """
     from api.services import implied_move as _im
-    out = _im.get_expected_move(sym, target)
+    oc: dict = {}
+    out = _im.get_expected_move(sym, target, outcome=oc)
+    if into is not None:
+        into["outcome"] = oc
     if not out:
         return None
     return {**out, "pct": round(out["pct"], 1), "dollar": round(out["dollar"], 2)}
 
 
-def _bounded_em(fn, timeout: float = 15.0):
+def _bounded_em(fn, timeout: float = 15.0, *, outcome: dict | None = None):
     """Run an implied-move callable with a hard timeout on the dedicated pool.
-    Returns None on timeout or any exception (the calling thread is freed)."""
+    Returns None on timeout or any exception (the calling thread is freed).
+
+    `outcome` is an optional OUT-dict describing why THE BOUNDED CALL ITSELF
+    produced nothing — a timeout, or a raise inside the pool.
+
+    🔴 It is written ONLY on that failure, never on success. A callable that
+    actually ran fills its own outcome from the evaluation that withheld the
+    number; overwriting that with a guess from out here would be the defect
+    this whole change exists to prevent. And the converse: a 15s timeout gets
+    `chain_timeout`, an `unavailable` reason, so it can never masquerade as a
+    refusal. Telling a member "we could not price this" when the truth is "we
+    never asked in time" is a confident false statement.
+    """
+    from api.services import implied_move as _im
     try:
         return _ENRICH_EM_POOL.submit(fn).result(timeout=timeout)
+    except _FutTimeout:
+        if outcome is not None:
+            outcome.clear()
+            outcome.update({"ok": False, "kind": _im.KIND_UNAVAILABLE,
+                            "reason": _im.UNAVAILABLE_TIMEOUT})
+        return None
     except Exception:
+        if outcome is not None:
+            outcome.clear()
+            outcome.update({"ok": False, "kind": _im.KIND_UNAVAILABLE,
+                            "reason": _im.UNAVAILABLE_READ_ERROR})
         return None
 
 # Coverage telemetry: a silent universe-wide enrichment failure would silently
@@ -2861,6 +2899,7 @@ def _build_enrichment_for_date(target: str) -> dict:
 
     from api.services.earnings_enrichment import get_implied_move, get_historical_earnings_moves
     from api.services.earnings_estimates import get_earnings_intel, fh_budget_denied_total
+    from api.services import implied_move as _im
 
     def _compute_hist_stats(sym: str) -> dict | None:
         """Return compact hist_stats from get_historical_earnings_moves.
@@ -2904,16 +2943,37 @@ def _build_enrichment_for_date(target: str) -> dict:
 
     def _one(sym):
         move = None
+        # `None` = NOTHING WAS ATTEMPTED, which is a different fact from
+        # "attempted and came back empty" and must stay different on the wire.
+        # A past report is the only case: `is_past` skips the read entirely, so
+        # there is no absence to explain and the surfaces keep their existing
+        # em-dash. Every other null now arrives WITH its reason.
+        em_outcome = None
         hist = None
         hist_stats = None
         if not is_past:
             # _bounded_em: a hung chain call frees this worker after the timeout
             # instead of pinning it (524-outage class), on a pool ISOLATED from
             # yf_util's shared one. BOTH branches ride it.
+            #
+            # `holder` is filled INSIDE the callable, by the same evaluation
+            # that withheld the number; `bounded` is only written when the
+            # bounded call itself failed. The holder therefore WINS: a real
+            # refusal always beats the timeout/error fallback, and a timeout —
+            # where the callable never got to write anything — can never be
+            # reported as a refusal.
+            holder: dict = {}
+            bounded: dict = {}
             if _cutover_on():
-                move = _bounded_em(lambda s=sym: _inhouse_move(s, target))
+                move = _bounded_em(lambda s=sym: _inhouse_move(s, target, into=holder),
+                                   outcome=bounded)
             else:
-                move = _bounded_em(lambda s=sym: get_implied_move(s, earnings_date=target))
+                # The legacy yfinance builder reports no reason of its own, so
+                # a clean `None` from it stays a bare null (today's behaviour,
+                # today's em-dash). Only its timeouts/raises are explained.
+                move = _bounded_em(lambda s=sym: get_implied_move(s, earnings_date=target),
+                                   outcome=bounded)
+            em_outcome = _im.wire_outcome(holder.get("outcome") or bounded)
         # Carried per-symbol because the failure IS per-symbol: this fan-out
         # sheds individual Finnhub calls for budget, so one ticker's history
         # can be missing in a build where every other ticker's arrived. The
@@ -2938,7 +2998,9 @@ def _build_enrichment_for_date(target: str) -> dict:
             hist_stats = _compute_hist_stats(sym)
         except Exception:
             pass
-        return sym, {"expected_move": move, "beat_history": hist,
+        return sym, {"expected_move": move,
+                     "expected_move_outcome": em_outcome,
+                     "beat_history": hist,
                      "hist_stats": hist_stats,
                      "history_unresolved": history_unresolved}
 
@@ -2987,13 +3049,21 @@ def _build_enrichment_for_date(target: str) -> dict:
     # (the docstring above: implied move is deliberately skipped for past
     # dates) -- only flag the collapse for a day that should have moves.
     with_em = sum(1 for v in out.values() if v.get("expected_move"))
-    em_collapsed = (not is_past) and len(syms) > 0 and with_em == 0
+    # A REFUSAL is the bound working, not a provider outage (the ATM report's
+    # concern 3: "any monitor that alerts on fewer rows than reporters needs to
+    # read `refused` before it fires"). Kind is read off implied_move's own
+    # constant, never retyped here.
+    em_refused = sum(1 for v in out.values()
+                     if (v.get("expected_move_outcome") or {}).get("kind") == _im.KIND_REFUSED)
+    em_collapsed = ((not is_past) and len(syms) > 0
+                    and with_em == 0 and em_refused == 0)
     if throttled or em_collapsed:
         ttl = _ENRICH_TTL
 
     _ENRICH_STATS[target] = {
         "total":     len(syms),
         "with_em":   with_em,
+        "em_refused": em_refused,
         "with_hist": sum(1 for v in out.values() if v.get("hist_stats")),
         "with_beats": sum(1 for v in out.values() if v.get("beat_history")),
         "past":      is_past,

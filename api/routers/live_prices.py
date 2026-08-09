@@ -27,15 +27,68 @@ from api.services.massive import _get_client, _detect_session
 
 router = APIRouter()
 
-# DEDICATED cache instance (not the 500-entry app singleton). The per-ticker
-# refactor writes up to 250 `live_px1_*` keys + a whole-set key PER POLL; in
-# the shared singleton that churned LRU evictions against bars/news/snapshot
-# keys at launch scale, defeating the 15s TTL and re-creating the cold-herd
-# semaphore pileup this two-tier design exists to prevent.
-cache = TTLCache()
-
 _MAX_TICKERS = 250  # Watchlists page sends every visible ticker in one request.
 _CACHE_TTL = 15     # seconds — applies to both the whole-set and per-ticker caches
+
+
+# ── Cache capacity — derived from the real working set, not a shared default ──
+# This instance holds exactly three key families and nothing else:
+#
+#   live_px1_{TK}      one per ticker            (_px_key,    TTL 15s)
+#   live_exvol_{TK}    one per ticker, extended  (_exvol_key, TTL 45s)
+#   live_prices_{md5}  one per distinct SET      (whole_key,  TTL 15s)
+#
+# So the per-ticker half of the working set is bounded by the tradable universe
+# — 2 keys per symbol, because during extended hours (which `_detect_session()`
+# reports 04:00–20:00 ET on weekdays and all weekend) every active ticker also
+# writes an `live_exvol_` key into this same instance.
+#
+# ⚠️ WHY THIS EXISTS. The bound used to come from `cache._MAX_SIZE = 1000`, a
+# MODULE-level constant that applied to every instance including this one. The
+# two-tier design below is correct and the per-ticker keys are genuinely shared
+# across users (NOT fragmented per user) — but above ~970 distinct tickers the
+# ticker keys evicted EACH OTHER, permanently, in steady state: 31.7% per-ticker
+# miss and ~3.1k upstream fetches per 2s poll round at 200 users × 50 tickers,
+# 68.7% and ~34k at 200 × 250. Those funnel through `_MASSIVE_SEM` (6 slots, 8s
+# acquire) and end in the `if not result: 503` below — the launch-day 524 shape
+# reached from a different direction. The cap was the whole defect.
+#
+# Raising `cache._MAX_SIZE` globally was NOT the fix: it would have changed the
+# memory profile of the shared singleton, which caches MB-scale bars payloads.
+# The bound belongs to the instance whose working set is knowable.
+_UNIVERSE_FALLBACK = 4000     # if cap_universe.json can't be read; ≥ today's 3,742
+_KEYS_PER_TICKER = 2          # live_px1_ + live_exvol_ (extended hours)
+# One whole-set key per DISTINCT polled ticker set alive inside the 15s TTL.
+# A member polling their own watchlist contributes exactly one; 1,000 covers
+# every concurrent distinct set at several times launch scale, and these entries
+# hold REFERENCES to the same per-ticker row dicts (no payload duplication).
+_SET_KEY_HEADROOM = 1000
+
+
+def _universe_size() -> int:
+    """Number of symbols the frontend can ask for. Never raises."""
+    import json
+    import os
+    path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "cap_universe.json")
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            syms = json.load(fh)
+        n = len(syms)
+        # A truncated/rewritten file must not silently shrink the cache into the
+        # thrash regime the bound exists to escape.
+        return n if n >= _UNIVERSE_FALLBACK else _UNIVERSE_FALLBACK
+    except Exception:
+        return _UNIVERSE_FALLBACK
+
+
+CACHE_MAX_SIZE = _universe_size() * _KEYS_PER_TICKER + _SET_KEY_HEADROOM
+
+# DEDICATED cache instance (not the app singleton), with its OWN bound above.
+# The per-ticker refactor writes up to 250 `live_px1_*` keys + a whole-set key
+# PER POLL; in the shared singleton that churned LRU evictions against
+# bars/news/snapshot keys at launch scale, defeating the 15s TTL and re-creating
+# the cold-herd semaphore pileup this two-tier design exists to prevent.
+cache = TTLCache(max_size=CACHE_MAX_SIZE)
 
 # Cap concurrent upstream Massive batch calls (cold-herd backpressure valve).
 _MASSIVE_SEM = threading.Semaphore(6)
@@ -46,9 +99,12 @@ _SEM_WAIT_S = 8.0
 # once a session settles, so this caches hard; one build at a time.
 #
 # Deliberately module state and NOT the TTLCache above: these are two
-# whole-market maps (~12k entries each) and the shared per-ticker price keys can
-# push that cache to its 1000-entry LRU limit, which would evict them and make
-# every closed-market poll re-fetch multi-MB grouped responses.
+# whole-market maps (~12k entries each), i.e. two entries whose payload dwarfs
+# every other key in that cache put together. Two LRU slots holding ~24k rows
+# would be a size-blind bound pretending to be a memory bound — and an eviction
+# of either makes every closed-market poll re-fetch multi-MB grouped responses.
+# (This held under the old 1,000-entry cap and still holds under CACHE_MAX_SIZE:
+# the argument is about ENTRY SIZE, which no entry-count bound can see.)
 _SESSION_CLOSES_TTL = 3600
 _SESSION_CLOSES_LOCK = threading.Lock()
 _session_closes_at = 0.0

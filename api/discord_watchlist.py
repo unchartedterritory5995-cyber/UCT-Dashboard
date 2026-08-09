@@ -549,12 +549,30 @@ async def send_image_to_discord(
 # ── API route (attach to FastAPI) ──────────────────────────────────────────
 
 def register_discord_routes(app_or_router):
-    """Register the push endpoint."""
-    from fastapi import Body, UploadFile, File, Form
+    """Register the push endpoints.
+
+    🔴 ALL THREE WERE ANONYMOUS UNTIL 2026-08-09. `/push` and `/push-image` write
+    to the FIRM'S OWN Discord — the live-flow channel members read — so anybody
+    who could type the URL could publish arbitrary embeds, or an arbitrary PNG,
+    under the firm's name and in the firm's voice. That is not a data leak; it is
+    a WRITE to the most trusted surface the firm has, and it costs nothing to
+    attempt. `/watchlist-card` doesn't post, but it runs the Pillow renderer on
+    caller-supplied rows and is the preview step of the same flow, so it is
+    gated with its siblings rather than left as the one open door in a chain.
+
+    `require_flow_admin` (admin session cookie OR `Bearer PUSH_SECRET`) is the
+    door every other flow-family mutation already uses, and it keeps the ops-curl
+    path working. The only caller in `app/src` is the admin-facing "Push to
+    Discord" button on the Options Flow watchlist tab.
+    """
+    from fastapi import Body, Depends, UploadFile, File, Form
+
+    from api.flow_admin_auth import require_flow_admin
 
     @app_or_router.post("/api/discord/push")
     async def push_to_discord(
         payload: dict = Body(...),
+        _auth: dict = Depends(require_flow_admin),
     ):
         """
         Push curated watchlist to Discord.
@@ -594,6 +612,7 @@ def register_discord_routes(app_or_router):
         file: UploadFile = File(...),
         label: str = Form("WATCHLIST"),
         date_range: str = Form(""),
+        _auth: dict = Depends(require_flow_admin),
     ):
         """
         Push a screenshot image of the watchlist to Discord.
@@ -619,7 +638,8 @@ def register_discord_routes(app_or_router):
             return {"ok": False, "error": str(e)}
 
     @app_or_router.post("/api/discord/watchlist-card")
-    def render_watchlist_cards(payload: dict = Body(...)):
+    def render_watchlist_cards(payload: dict = Body(...),
+                               _auth: dict = Depends(require_flow_admin)):
         """Render the curated watchlist as a branded PNG in the Top Flow design
         system, base64-encoded for preview. The frontend posts the previewed image
         via /api/discord/push-image. The MOBILE (narrow, one-line-per-contract)

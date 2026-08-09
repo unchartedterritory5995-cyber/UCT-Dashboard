@@ -23,6 +23,8 @@ import threading
 from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
+from api.services import llm_timeouts
+
 _log = logging.getLogger(__name__)
 _ET = ZoneInfo("America/New_York")
 
@@ -137,12 +139,22 @@ def _transcript_for(sym: str):
 
 
 def _anthropic_client():
-    """Lazy Anthropic client — same init as engine._get_anthropic_client()."""
+    """Lazy Anthropic client — same init as engine._get_anthropic_client().
+
+    BOUNDED: reached from `/api/earnings-intel/*` on the request path. Opus
+    synthesis with a large output, so the LONG request-path budget rather than
+    the 60s one — but bounded, because the SDK's default is 600s and this runs
+    on one of the pod's 64 shared anyio workers.
+    """
     import anthropic
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         raise RuntimeError("ANTHROPIC_API_KEY not set")
-    return anthropic.Anthropic(api_key=api_key)
+    return anthropic.Anthropic(
+        api_key=api_key,
+        timeout=llm_timeouts.seconds("CALL_RECAP_LLM_TIMEOUT_SECS",
+                                     llm_timeouts.REQUEST_PATH_LONG),
+    )
 
 
 def _today_date() -> str:

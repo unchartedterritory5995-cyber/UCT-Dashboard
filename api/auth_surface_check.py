@@ -87,6 +87,12 @@ AUDITED_PREFIXES = (
     "/api/live/massive",
     "/api/live",
     "/api/oi",
+    # 🔴 ADDED 2026-08-09. `/api/admin` was NOT audited, which is the second
+    # reason `AdminGuardMiddleware` being unregistered was silent: the boot
+    # check that exists to say "this pod is serving ungated mutating routes"
+    # was not looking at the admin surface at all, so ~30 destructive ops sat
+    # open with a green fingerprint in the log every morning.
+    "/api/admin",
 )
 
 # Routes with no Depends() gate that are nonetheless protected, each with its
@@ -106,6 +112,27 @@ ALLOWED_OPEN: dict[tuple[str, str], str] = {
         "Gated INLINE, not by Depends(): trigger_run() calls "
         "_require_push_secret(authorization) before spawning the backup thread. "
         "Asserted by test_flow_backup_run_keeps_its_inline_push_secret_gate.",
+
+    # ── surfaced 2026-08-09 by adding /api/admin to AUDITED_PREFIXES ──────────
+    # All five are `api/routers/bars.py` handlers whose FIRST statement is
+    # `_check_admin_auth(request)` — `bars_fetch._check_admin_auth`, which 401s
+    # unless `Authorization: Bearer <PUSH_SECRET>` matches and 500s when
+    # PUSH_SECRET is unset (fail-closed both ways). They are curl-driven ops
+    # endpoints, which is why they take a bearer rather than a session.
+    # ⛔ THE PAIRED ASSERTION, per this dict's own contract, is
+    # `test_admin_guard_registered.py::test_every_allowed_open_admin_route_still
+    # _calls_its_inline_gate` — and it DERIVES the five from this dict rather
+    # than restating them, so an entry added here without a real gate goes red.
+    ("POST", "/api/admin/warm-universe"):
+        "Gated INLINE by _check_admin_auth(request) (Bearer PUSH_SECRET).",
+    ("POST", "/api/admin/warm-universe-stop"):
+        "Gated INLINE by _check_admin_auth(request) (Bearer PUSH_SECRET).",
+    ("POST", "/api/admin/ticker-liveness"):
+        "Gated INLINE by _check_admin_auth(request) (Bearer PUSH_SECRET).",
+    ("POST", "/api/admin/refresh-bars-all"):
+        "Gated INLINE by _check_admin_auth(request) (Bearer PUSH_SECRET).",
+    ("POST", "/api/admin/refresh-bars/{ticker}"):
+        "Gated INLINE by _check_admin_auth(request) (Bearer PUSH_SECRET).",
 }
 
 
@@ -156,16 +183,48 @@ def _is_proxy_forwarder(route) -> bool:
     return endpoint is _proxy
 
 
+def middleware_guarded_prefixes(app) -> tuple[str, ...]:
+    """Path prefixes gated by a middleware that is ACTUALLY INSTALLED on `app`.
+
+    ⛔ BOTH HALVES ARE DERIVED, NEITHER IS TYPED. The prefix list comes from
+    `admin_guard.GUARDED_PREFIXES` — the same tuple the middleware itself
+    matches on — and the installation is read from `app.user_middleware`, the
+    registry Starlette iterates when it builds the stack.
+
+    ⭐ THAT SECOND HALF IS THE ENTIRE POINT. `AdminGuardMiddleware` shipped
+    complete, fails closed, and had 8 green tests while `add_middleware` was
+    never called anywhere in `api/main.py` — so a `Depends`-shaped audit saw
+    nothing and a prefix-shaped audit would have declared those routes safe on
+    the strength of a module that was not running. This function returns `()`
+    the moment the registration goes away, which flips every route it covered
+    straight back into `ungated` and pages at the next boot. A gate this audit
+    cannot see disappear is a suppression, not a check.
+    """
+    try:
+        from api.middleware.admin_guard import AdminGuardMiddleware, GUARDED_PREFIXES
+    except Exception:                          # pragma: no cover - defensive
+        return ()
+    for mw in getattr(app, "user_middleware", []) or []:
+        if getattr(mw, "cls", None) is AdminGuardMiddleware:
+            return tuple(GUARDED_PREFIXES)
+    return ()
+
+
 def audit_routes(app) -> dict:
     """Inspect `app`'s mutating routes. Pure — returns findings, alerts nothing.
 
-    Three buckets, not two. `ungated` is a verdict: nothing gates this, page.
+    Four buckets, not two. `ungated` is a verdict: nothing gates this, page.
     `delegated` is an OBLIGATION: the gate is real but lives on flow-worker, so
-    this process cannot see it and must go ask (see verify_delegation). Anything
-    gated here appears in neither.
+    this process cannot see it and must go ask (see verify_delegation).
+    `middleware_gated` is a route whose gate is an installed ASGI middleware
+    rather than a `Depends()` — invisible to `route.dependant`, so it is
+    reported by name rather than silently counted as fine. Anything gated by a
+    dependency appears in none of them.
     """
     ungated: list[tuple[str, str]] = []
     delegated: list[tuple[str, str]] = []
+    middleware_gated: list[tuple[str, str]] = []
+    mw_prefixes = middleware_guarded_prefixes(app)
     checked = 0
     for route in getattr(app, "routes", []):
         path = getattr(route, "path", "") or ""
@@ -173,17 +232,22 @@ def audit_routes(app) -> dict:
         if not path.startswith(AUDITED_PREFIXES):
             continue
         proxied = _is_proxy_forwarder(route)
+        by_middleware = bool(mw_prefixes) and path.startswith(mw_prefixes)
         for method in sorted(m for m in methods if m in MUTATING):
             checked += 1
             if (method, path) in ALLOWED_OPEN:
                 continue
             if _guard_names_for(route) & GUARD_NAMES:
                 continue
+            if by_middleware:
+                middleware_gated.append((method, path))
+                continue
             (delegated if proxied else ungated).append((method, path))
     return {
         "checked": checked,
         "ungated": sorted(ungated),
         "delegated": sorted(delegated),
+        "middleware_gated": sorted(middleware_gated),
         "ok": not ungated,
     }
 
@@ -207,8 +271,9 @@ def run_startup_audit(app, service: str = "web") -> dict:
 
     if result["ok"]:
         logger.info("[startup] auth-surface: service=%s mutating_routes=%d ungated=0 "
-                    "delegated=%d OK",
-                    service, result["checked"], len(result["delegated"]))
+                    "delegated=%d middleware_gated=%d OK",
+                    service, result["checked"], len(result["delegated"]),
+                    len(result.get("middleware_gated") or ()))
     else:
         listing = ", ".join(f"{m} {p}" for m, p in result["ungated"])
         logger.error("[startup] auth-surface: service=%s mutating_routes=%d UNGATED=%d "

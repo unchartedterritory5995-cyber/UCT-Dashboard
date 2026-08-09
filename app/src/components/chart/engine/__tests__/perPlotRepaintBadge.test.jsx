@@ -316,7 +316,12 @@ describe('the ast lane\'s badge is still the tree\'s, and nothing may declare ar
       id: 'u_aabbccdd1122',
       version: 1,
       compute: { kind: 'ast', fn: astHash(parsed.ast), rev: 1, ast: parsed.ast, source },
-      meta: { name: 'SMA 20', shortName: 'SMA 20', category: 'Custom', tier: 'premium', repaint },
+      // ⚠️ `freshness` IS REQUIRED ON THIS LANE (Phase E Task 1, GATE 6). This
+      // fixture is `sma(close, 20)`, so the MEASURED value is `live`.
+      meta: {
+        name: 'SMA 20', shortName: 'SMA 20', category: 'Custom', tier: 'premium',
+        repaint, freshness: 'live',
+      },
       placement: { target: 'pane', pane: { height: 0.15 } },
       inputs: [{ key: 'color', type: 'color', label: 'Color', default: '#c9a84c' }],
       plots: [{ key: 'value', label: 'SMA 20', style: 'line', color: '$color', width: 1, role: 'primary', ...plotOver }],

@@ -128,8 +128,29 @@ DEDUP_COLS = [
 _STREAM_BATCH = 2000
 
 
+# 🔴 THIS DEFAULT USED TO BE THE BARE LITERAL, AND THE SUITE FOUND IT THE HARD WAY.
+# `massive_ws_worker`'s `q_pool_log_flusher` / `worker_metrics_flusher` construct
+# `FlowDB()` with no argument from a background thread (`massive-ws-consumer`),
+# so `tests/test_massive_ws_stop.py` `os.makedirs`'d and opened the REAL
+# `C:\data\flow.db` — 14-17 attempts a run, on a thread the test was no longer
+# watching, with every test in the chunk passing.
+#
+# ⚠️ `FLOW_DB_PATH` was already "pinned" by twenty other flow modules and it did
+# not help: a pin moves an ENV READ, and this site had none. That is the
+# distinction `tests/test_shared_data_root_guard.py::
+# test_no_shared_root_literal_sits_in_a_function_that_reads_no_env_var` now
+# holds — a literal being pinned SOMEWHERE is not the same as every SITE that
+# spells it being reachable.
+#
+# The default is unchanged with the variable unset, so production resolves
+# exactly as before, and set (as the flow-worker sets it) this now agrees with
+# `flow_router`, `flow_summary`, `oi_snapshots` and the rest instead of
+# hard-coding past them.
+_DEFAULT_DB_PATH = os.environ.get("FLOW_DB_PATH", "/data/flow.db")
+
+
 class FlowDB:
-    def __init__(self, db_path: str = "/data/flow.db"):
+    def __init__(self, db_path: str = _DEFAULT_DB_PATH):
         self.db_path = db_path
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self._init_db()

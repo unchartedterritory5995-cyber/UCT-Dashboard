@@ -46,7 +46,9 @@ from __future__ import annotations
 import math
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
 
-from api.services.ast_table import TABLE, FUNCTIONS_SECTION, OPERATORS_SECTION, SERIES_SECTION
+from api.services.ast_table import (
+    TABLE, FUNCTIONS_SECTION, OPERATORS_SECTION, SCALARS_SECTION, SERIES_SECTION,
+)
 
 MaybeNum = Optional[float]
 
@@ -570,6 +572,46 @@ def max_lookback(ast: Any) -> int:
     return seen[id(ast)]
 
 
+def unresolved_scalars(ast: Any,
+                       scalars: Optional[Mapping[str, Any]] = None) -> List[str]:
+    """The declared scalars this tree names that have NO usable value here.
+
+    🔴 THIS EXISTS BECAUSE A COMPARISON EATS THE HOLE, AND THAT IS MEASURED
+    RATHER THAN FEARED. ``_cmp`` answers **0** when either side is NaN --
+    *"A COMPARISON AGAINST NaN IS 0, NOT NaN ... the one place JS and Python
+    agree by luck"* -- and that rule is correct for a bar warmup (the crossing
+    did not happen) and PINNED by 17 frozen cross-lane digests. Applied to a
+    scalar it is the ``scan_volume._job`` bug at the leaf: with no market cap,
+
+        interpret(market_cap > 1e9)        -> [0.0, 0.0, ...]   a confident False
+        interpret(market_cap)              -> [None, None, ...] the honest hole
+
+    So the hole is visible at the LEAF and invisible one node up, and a sweep
+    that read the column would count a symbol it knows nothing about as a symbol
+    that did not match. ⛔ THE ANSWER IS NOT TO CHANGE `_cmp`: propagating NaN
+    through comparisons would move every digest in the conformance log and
+    change what a warmup means on the chart. The answer is to ask THIS question
+    before evaluating, which is why it is a function and not a comment.
+
+    ⚠️ PYTHON-ONLY, DECLARED RATHER THAN FORGOTTEN. Its consumer is the
+    server-side universe sweep; a browser evaluates one symbol whose row it does
+    not have, so a mirrored JS export would be a callable nothing calls -- the
+    silently-dead shape this phase exists to retire.
+
+    Returns the names in the manifest's own order, so the list is stable.
+    """
+    provided = scalars or {}
+    named = {n.get("name") for n in _flatten(ast) if n["type"] == "series"}
+    out: List[str] = []
+    for name in TABLE[SCALARS_SECTION]:
+        if name not in named:
+            continue
+        v = provided.get(name)
+        if not (_is_number(v) and math.isfinite(float(v))):
+            out.append(name)
+    return out
+
+
 def node_count(ast: Any) -> int:
     """How many nodes the tree has. The number ``budget:nodes`` will threshold.
 
@@ -586,7 +628,8 @@ def node_count(ast: Any) -> int:
 
 def interpret(ast: Any, bars: List[dict],
               inputs: Optional[Mapping[str, Any]] = None,
-              budget: Optional[Mapping[str, Any]] = None) -> List[MaybeNum]:
+              budget: Optional[Mapping[str, Any]] = None,
+              scalars: Optional[Mapping[str, Any]] = None) -> List[MaybeNum]:
     """Evaluate a canonical AST over bars → one aligned column of ``len(bars)``.
 
     :param ast:    a canonical tree (``parse.js::canonicalise``'s output)
@@ -595,6 +638,9 @@ def interpret(ast: Any, bars: List[dict],
     :param budget: the definition's stored ``compute.budget``. Resolved through
                    ``effective_budget``, so it can only ever TIGHTEN the default
                    and a stored blob cannot turn off its own limit.
+    :param scalars: this SYMBOL's values for the table's declared scalars. Every
+                   declared name is seeded whether or not it appears here; an
+                   absent or unusable value seeds a NaN column.
     :returns:      a list exactly ``len(bars)`` long, ``None`` where not computable
 
     Raises ``TableRefusal`` for anything the table refuses. Everything else — a
@@ -646,6 +692,30 @@ def interpret(ast: Any, bars: List[dict],
             col[i] = _number(v) if _is_number(v) else NAN
         scope[name] = col
 
+    # ⭐ A DECLARED SCALAR IS ALWAYS IN SCOPE. Present or absent, the name
+    # RESOLVES — an absent value seeds a NaN column, exactly like a bar with a
+    # missing field ("a missing field is NOT a price of zero; it is a bar we
+    # cannot compute on"). That is what separates "declared but not known for
+    # this symbol" — a HOLE, which a sweep counts and reports — from "a name this
+    # table never declared", which is `resolve:name` and a formula defect. A
+    # missing market cap read as 0 would make `market_cap > 1e9` a confident
+    # False, which is the shape of `scan_volume._job`'s `m = {}`: a failed
+    # reference indistinguishable from an empty market.
+    #
+    # ⚠️ A BARE FLOAT, NOT A COLUMN. `_lift1/2/3` already broadcast a scalar
+    # against a column and `_to_column` already fills a length-n column from a
+    # bare number, so a scalar-only tree is a flat column of `len(bars)` — which
+    # is what makes it composable with a per-bar one.
+    #
+    # ⛔ AND `inputs` IS SEEDED AFTER, SO THE SHADOW CHECK BELOW SEES IT. An
+    # input named after a declared scalar must RAISE, the same plain ValueError a
+    # `close`-shadowing input already raises: a definition whose knob silently
+    # outranks a table name changes what its formula means with nothing red.
+    provided = scalars or {}
+    for name in TABLE[SCALARS_SECTION]:
+        v = provided.get(name)
+        scope[name] = float(v) if (_is_number(v) and math.isfinite(float(v))) else NAN
+
     for name, value in (inputs or {}).items():
         if name in scope or name in TABLE[FUNCTIONS_SECTION]:
             # A plain ValueError again: a definition whose input shadows `close`
@@ -653,8 +723,9 @@ def interpret(ast: Any, bars: List[dict],
             # every formula on that definition means.
             raise ValueError(
                 f"interpret: the input {name!r} shadows a table name. The table "
-                f"declares {_declared(TABLE[SERIES_SECTION])} and "
-                f"{_declared(TABLE[FUNCTIONS_SECTION])}.")
+                f"declares {_declared(TABLE[SERIES_SECTION])}, "
+                f"{_declared(TABLE[FUNCTIONS_SECTION])} and "
+                f"{_declared(TABLE[SCALARS_SECTION])}.")
         # Only finite numbers are seeded. An input that is a callable, an object
         # or a string is NOT a name this table can resolve, and leaving it out
         # makes referencing it a loud `resolve:name` refusal rather than a column

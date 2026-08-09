@@ -132,12 +132,24 @@ def _most_recent_closed_monday() -> str:
     return monday.isoformat()
 
 
-# ── Compass health (no-auth read-only status, mirrors fundamentals-health) ───
+# ── Compass health (ADMIN — see the handler for why "no-auth" was wrong) ─────
 
 @router.get("/compass-health")
-def compass_health_status(days: int = 7) -> dict[str, Any]:
+def compass_health_status(days: int = 7,
+                          _admin: dict = Depends(require_admin)) -> dict[str, Any]:
     """Weekly Compass mentor health: chat volume, active users, tool-failure
-    rate, and the worst-offending tools. Read-only; feeds the weekly owner email."""
+    rate, and the worst-offending tools. Feeds the weekly owner email. ADMIN.
+
+    🔴 THIS WAS ANONYMOUS (auth/paywall sweep, 2026-08-09), and
+    `CompassPaywallMiddleware` does not reach it: that gate fires on
+    `/api/j2` paths containing `/coach`, and this path does not.
+
+    "Read-only" was doing the work in the old docstring, and it is the wrong
+    test. What it returns is BUSINESS METRICS - how many people use Compass, how
+    much they use it, and (via `cost_today`) what the firm is spending on models
+    today plus whether the circuit-breaker has tripped. That is a competitor's
+    view of our traction and our unit economics, published to anybody.
+    """
     from api.services import compass_health
     from api.services.journal_two import compass_cost_guard
     from api.services.auth_db import get_connection

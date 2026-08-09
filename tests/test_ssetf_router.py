@@ -1,4 +1,6 @@
 # tests/test_ssetf_router.py
+import threading
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -8,8 +10,32 @@ from api.services import single_stock_etfs as ss
 
 @pytest.fixture()
 def client(tmp_path, monkeypatch):
+    # ⛔ NO DETACHED REBUILD THREADS. `single_stock_etfs.py:235` calls
+    # `_maybe_self_heal()` on any stale read — and a freshly-created scratch DB is
+    # always stale — which spawns a daemon `ssetf-heal` thread (`:265`) running a
+    # REAL rebuild. Nothing joined it, so it outlived its test and crossed the
+    # NEXT test's `importlib.reload(ss)` below. Two things then break:
+    #
+    #   * the reload rebinds `_REBUILD_LOCK` to a NEW lock while the thread holds
+    #     the old one, so its `finally: _REBUILD_LOCK.release()` (`:316`) raises
+    #     `RuntimeError: release unlocked lock` — measured on 10 runs out of 10,
+    #     with this file running ALONE;
+    #   * worse, the thread `sqlite3.connect`s the next test's scratch path, which
+    #     CREATES the file. `_ensure_init` short-circuits on
+    #     `if _INIT_DONE and os.path.exists(_db_path())` (`:129`), so the schema is
+    #     never written and the next test dies on
+    #     `sqlite3.OperationalError: no such table: etfs`.
+    #
+    # That second outcome is timing-dependent, which is why it surfaced only in
+    # big chunks (run A chunk 10 and run B2 chunk 03) and never in this file alone.
+    # Stubbing the spawn keeps every assertion in this file intact — nothing here
+    # tests self-heal — and removes the only unjoined thread.
+    monkeypatch.setattr(ss, "_spawn_rebuild", lambda trigger: None)
     monkeypatch.setenv("SSETF_DB_PATH", str(tmp_path / "ssetf.db"))
     import importlib; importlib.reload(ss)
+    # The reload re-executes the module, so the stub above (installed on the
+    # pre-reload module dict) is gone. Reinstall it on the live module.
+    monkeypatch.setattr(ss, "_spawn_rebuild", lambda trigger: None)
     app = FastAPI()
     app.include_router(router_mod.router)
     app.dependency_overrides[get_current_user] = lambda: {"id": "u1", "role": "user"}
@@ -28,9 +54,28 @@ def test_symbol_lookup_empty_shape(client):
                         "best_long": None, "best_short": None}
 
 def test_rebuild_returns_started(client, monkeypatch):
+    """The OTHER unjoined thread: `POST /rebuild` answers immediately and does
+    the work on a detached thread (`api/routers/single_stock_etfs.py:28`). The
+    endpoint's contract is still "returns started" — we simply do not leave
+    until the rebuild it promised has actually finished."""
     monkeypatch.setattr(ss, "_fetch_finviz_market", lambda: [])
+
+    finished = threading.Event()
+    real_rebuild = ss.rebuild
+
+    def _tracked(*args, **kwargs):
+        try:
+            return real_rebuild(*args, **kwargs)
+        finally:
+            finished.set()
+
+    # The router resolves `ss.rebuild` inside the thread body, so patching the
+    # module attribute is what the spawned thread will actually call.
+    monkeypatch.setattr(ss, "rebuild", _tracked)
+
     r = client.post("/api/single-stock-etfs/rebuild")
     assert r.status_code == 200 and r.json()["status"] == "started"
+    assert finished.wait(30), "the background rebuild never finished"
 
 def _seed_nbis_family(monkeypatch):
     """Seed one NBIS family member so lookup('NBIS') returns a POPULATED family

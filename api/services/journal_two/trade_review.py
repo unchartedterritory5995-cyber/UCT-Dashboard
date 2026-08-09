@@ -22,10 +22,16 @@ class AnthropicReviewClient:
 
     def __init__(self, api_key: str | None = None):
         import anthropic
+        from api.services import llm_timeouts
         key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         if not key:
             raise RuntimeError("ANTHROPIC_API_KEY not set")
-        self._client = anthropic.Anthropic(api_key=key)
+        # BOUNDED — request path (the 🧭 button on TradeDrawer), 600 max_tokens.
+        self._client = anthropic.Anthropic(
+            api_key=key,
+            timeout=llm_timeouts.seconds("COMPASS_TRADE_REVIEW_LLM_TIMEOUT_SECS",
+                                         llm_timeouts.REQUEST_PATH),
+        )
 
     def write_review(self, *, system_prompt: str, user_message: str,
                      user_id: str = "unknown") -> dict:

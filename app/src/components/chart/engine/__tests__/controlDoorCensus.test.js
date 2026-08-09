@@ -515,6 +515,19 @@ describe('the control-door census — how many doors, and whether an eighth exis
        'a freshly authored formula has no legacy:<id> to revive. ⛔ IT ADDRESSES THE ' +
        'STORE\'S id, never draftDefId()\'s — the server mints the real one, and an ' +
        'instance naming the draft would be dropped exactly as before'],
+      ['app/src/components/screener/ScanResults.jsx',
+       '⭐ NEW AT PHASE E TASK 9 — scan → chart in one click (AMENDMENT 2 §A2.2). A scan ' +
+       'hit is charted WITH THE DEFINITION THAT FOUND IT, and addInstance is the only ' +
+       'door that means "put THIS definition on this chart, as its own copy": a hit has ' +
+       'no legacy:<id> to revive and setIndicatorEnabled would mean the definition ' +
+       'rather than this copy. ⛔ IT IS BuilderSheet\'s TASK-16 ORDER, NOT A SECOND ' +
+       'RECIPE — installUserDefinitions FIRST so the binder can resolve the id, then ' +
+       'addInstance on the id the registry actually installed; an instance written ' +
+       'before the install names a definition getDefinition answers null for and ' +
+       'normalizeInstances drops it on the next paint. ⛔ AND IT WRITES THE SURFACE\'S ' +
+       'OWN settings blob (ChartPane stored/onStore), never the member\'s /charts ' +
+       'widget: a panel opened to READ a hit list must not put an instance on the ' +
+       'chart they were already using'],
       ['app/src/components/chart/indicatorRegistry.js',
        '⭐ NEW AT chart-UX-walls TASK 6 — applyRowPatch routes a settings row that names ' +
        'a USER-ADDED instance at setInstanceInput. Before Task 6 a generated row was per ' +

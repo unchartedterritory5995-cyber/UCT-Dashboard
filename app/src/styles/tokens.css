@@ -183,10 +183,27 @@
   --z-dropdown: 100;
   --z-sticky: 200;
   --z-nav: 300;
+  /* Persistent floating affordances (voice orb, feedback FAB). ABOVE page
+     chrome so a sticky header can't scroll over them, BELOW every backdrop /
+     drawer / menu / modal / toast so they can never eat a menu the user opened.
+     A hardcoded `z-index: 8000` on the orb is what buried the chart's
+     long-press menu — including `Chart settings…`, the only phone route to the
+     criteria builder. Anything that floats permanently belongs on THIS rung. */
+  --z-fab: 350;
   --z-backdrop: 399;
   --z-drawer: 400;
   --z-modal: 1000;
   --z-toast: 1100;
+
+  /* ── Mobile shell chrome heights ──────────────────────────────────────────
+     ONE declaration each, consumed by Layout.module.css (the space `.main`
+     reserves), MobileNav.module.css (the top bar) and any full-height route
+     that has to size itself against the shell. A route that restates these as
+     literals is a second authority over one value — that is precisely how
+     `.mobileWorkspace` came to subtract the top bar and forget the tab bar,
+     burying 54px of the chart under the nav. */
+  --mobile-topbar-h: 48px;
+  --mobile-tabbar-h: 58px;
 
   /* Mobile tap target minimum */
   --tap-min: 44px;

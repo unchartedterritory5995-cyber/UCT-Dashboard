@@ -1,0 +1,53 @@
+/* app/src/components/screener/CoverageLine.module.css
+   The screen's own coverage receipt. Four counts on one line, and the two
+   states that must not read as a quiet market on their own lines above it. */
+
+.wrap { display: flex; flex-direction: column; gap: 6px; }
+
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.count { white-space: nowrap; }
+
+.dot { color: var(--border-accent); }
+
+.nodata,
+.broken {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text-bright);
+  background: var(--bg-surface);
+  border-radius: 6px;
+}
+.nodata { border: 1px solid var(--color-warning); }
+.broken { border: 1px solid var(--color-danger); }
+
+.withheld { margin: 0; font-size: 12px; color: var(--text-muted); }
+
+.details { font-size: 12px; color: var(--text-muted); }
+
+.summary { min-height: var(--tap-min); display: flex; align-items: center; cursor: pointer; }
+
+.symbols {
+  margin: 0;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .line { gap: 4px; }
+}
