@@ -1,0 +1,342 @@
+{
+  "_": "THE FIRM'S SETUPS AS ORDINARY DEFINITIONS. TC2000 and TradingView both ship dozens of built-in scans and it is the ONBOARDING PATH, not decoration: a member picks a named setup, gets a WORKING scan, and then EDITS it -- which is how people learn a syntax. A blank formula box loses the wide audience.",
+  "_ordinary": "EVERY ENTRY IS AN ORDINARY DEFINITION: same store, same `def_hash`, same read-back, editable on arrival. There is no starter flag, no `is_builtin` column and no branch in the save path -- a starter that is special-cased is a second class of object and re-creates the asymmetry spec section 1.1 forbids. This file holds a SOURCE and a frozen TREE; installing one is the member's action through the shipped save path, and the identity is `astHash`'s.",
+  "_taxonomy": "THE NAMES COME FROM `app/src/constants/setupGroups.js` AND ARE NOT COPIED HERE AS A LIST. This file holds a `source` per setup it can express; the SET of setups and the FAMILY each one belongs to are read from the taxonomy at run time, which is why no entry carries a `family`. A setup with no entry must appear in `_ungrounded` with a reason -- that identity is what makes a NEW setup land RED until somebody decides about it. Two files in this repo carry setup taxonomies and they do not agree: `setupGroups.js` (the labeling taxonomy the Model Book store, the concept vocabulary's attribution check and this file all read) and `app/src/pages/modelbook/setupCatalog.js` (the Setup Library's field-guide, with its own families and its own display names). `setupGroups.js` is authoritative here. Neither count is written down anywhere in this file.",
+  "_grounding": "GROUNDING IS A LIST OF CITATIONS THAT RESOLVE, AND IT IS RESOLVED RATHER THAN TRUSTED (controller adjudication A-1). Three kinds appear here: `starter_screen` (a screen `saved_screens.py::starters()` ships), `filter_preset` (a labelled threshold in `screener/filters.py::FILTERS`) and `classifier` (a labelled branch of firm code, located by AST). A PLAYBOOK IS NEVER A GROUNDING -- it is prose and cannot mechanically produce a tree -- so the setup name rides as an `attribution`, which this file does not spell either: it is the entry's own KEY.",
+  "_no_invented_numbers": "EVERY NUMERIC LITERAL IN A STARTER'S TREE MUST BE PUBLISHED BY ONE OF ITS OWN CITATIONS, and every scalar it screens on must be one a citation names. `rs_rank >= 80` is here because the firm ships a preset labelled `Over 80`; 75 would go red NAMING 75. This is the rail that stops a starter from looking like the firm's answer while carrying the catalogue author's opinion.",
+  "_no_sentence": "NO READ-BACK IS FROZEN HERE, and that is the one place this file deliberately differs from `conceptVocabulary.json`. The card's blurb is `sentenceFor(tree)` in the browser and `sentence_for(tree)` on the server -- derived on every render from the tree that IS the scan. A hand-written blurb would be a second description of one tree and the prose one is the one that drifts (D-A5).",
+  "_no_hash": "NO `def_hash` IS PRECOMPUTED HERE. The handle is `astHash` over the tree, minted by the shipped save path when a member installs one; a catalogue that carried its own copy would be a second registry and two authorities over one identity.",
+  "_ungrounded_rule": "A SETUP WITH NO EXPRESSIBLE CONDITION IS NAMED, NOT APPROXIMATED. The member trusts the firm's name on a starter, so a scan that half-means `High Tight Flag` is worse than no scan (AMENDMENT 1's refusal rule, applied to the library). Each reason names its setup and says what is missing -- a column, a published threshold, or the cadence -- because those are three different decisions for the owner. And `rsi(close,14)` is NOT available to close a gap here: E-A9 is open and out of scope, so a setup needing a function the table does not declare stays ungrounded until that phase happens.",
+  "version": "2026-08-09.1",
+  "starters": {
+    "Classic Flag/Pullback": {
+      "source": "rs_rank >= 80 && above_50sma && pct_vs_ema20 >= -2 && pct_vs_ema20 <= 2",
+      "ast": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "op",
+            "name": "&&",
+            "args": [
+              {
+                "type": "op",
+                "name": "&&",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": ">=",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "rs_rank"
+                      },
+                      {
+                        "type": "num",
+                        "value": 80
+                      }
+                    ]
+                  },
+                  {
+                    "type": "series",
+                    "name": "above_50sma"
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": ">=",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "pct_vs_ema20"
+                  },
+                  {
+                    "type": "op",
+                    "name": "u-",
+                    "args": [
+                      {
+                        "type": "num",
+                        "value": 2
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "<=",
+            "args": [
+              {
+                "type": "series",
+                "name": "pct_vs_ema20"
+              },
+              {
+                "type": "num",
+                "value": 2
+              }
+            ]
+          }
+        ]
+      },
+      "grounding": [
+        {
+          "kind": "starter_screen",
+          "screen": "starter_leaders_pullback"
+        }
+      ]
+    },
+    "VCP": {
+      "source": "rs_rank >= 80 && tight_consolidation",
+      "ast": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "op",
+            "name": ">=",
+            "args": [
+              {
+                "type": "series",
+                "name": "rs_rank"
+              },
+              {
+                "type": "num",
+                "value": 80
+              }
+            ]
+          },
+          {
+            "type": "series",
+            "name": "tight_consolidation"
+          }
+        ]
+      },
+      "grounding": [
+        {
+          "kind": "starter_screen",
+          "screen": "starter_high_rs_bases"
+        },
+        {
+          "kind": "filter_preset",
+          "key": "pattern",
+          "preset": "VCP"
+        }
+      ]
+    },
+    "HVC": {
+      "source": "vol_ratio >= 2 && close_position >= 0.66",
+      "ast": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "op",
+            "name": ">=",
+            "args": [
+              {
+                "type": "series",
+                "name": "vol_ratio"
+              },
+              {
+                "type": "num",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": ">=",
+            "args": [
+              {
+                "type": "series",
+                "name": "close_position"
+              },
+              {
+                "type": "num",
+                "value": 0.66
+              }
+            ]
+          }
+        ]
+      },
+      "grounding": [
+        {
+          "kind": "filter_preset",
+          "key": "vol_ratio",
+          "preset": "Over 2×"
+        },
+        {
+          "kind": "filter_preset",
+          "key": "close_position",
+          "preset": "Top third (>0.66)"
+        }
+      ]
+    },
+    "Launchpad": {
+      "source": "close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(close, 50) > sma(close, 200) && tight_consolidation",
+      "ast": {
+        "type": "op",
+        "name": "&&",
+        "args": [
+          {
+            "type": "op",
+            "name": "&&",
+            "args": [
+              {
+                "type": "op",
+                "name": "&&",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": ">",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "call",
+                        "name": "sma",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          },
+                          {
+                            "type": "num",
+                            "value": 20
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "op",
+                    "name": ">",
+                    "args": [
+                      {
+                        "type": "call",
+                        "name": "sma",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          },
+                          {
+                            "type": "num",
+                            "value": 20
+                          }
+                        ]
+                      },
+                      {
+                        "type": "call",
+                        "name": "sma",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          },
+                          {
+                            "type": "num",
+                            "value": 50
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "type": "op",
+                "name": ">",
+                "args": [
+                  {
+                    "type": "call",
+                    "name": "sma",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "num",
+                        "value": 50
+                      }
+                    ]
+                  },
+                  {
+                    "type": "call",
+                    "name": "sma",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "num",
+                        "value": 200
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "series",
+            "name": "tight_consolidation"
+          }
+        ]
+      },
+      "grounding": [
+        {
+          "kind": "classifier",
+          "module": "api.services.screener.technicals",
+          "function": "compute_technicals",
+          "label": "full-bull",
+          "windows_from": [
+            "_sma"
+          ]
+        },
+        {
+          "kind": "filter_preset",
+          "key": "tight_consolidation",
+          "preset": "Yes"
+        }
+      ]
+    }
+  },
+  "_ungrounded": {
+    "High Tight Flag (Powerplay)": "High Tight Flag (Powerplay) turns on a PRIOR RUN -- roughly a double in four to eight weeks -- and then a shallow, tight flag on top of it. The table declares `chg_pct_1m` and `pullback_depth_pct`, but the screener publishes no preset on `chg_pct_1m` at all, so the size of the run that makes a flag 'high and tight' is nobody's written-down number. Publish a `chg_pct_1m` preset and this becomes expressible.",
+    "Flat Base Breakout": "Flat Base Breakout is a pattern the firm ALREADY DETECTS -- `FILTERS['pattern']` ships a `Flat Base` preset -- but it detects it into `screener_rows.patterns`, a TEXT column, and `closedTable.json` excludes text columns by construction. There is no boolean `flat_base` scalar to screen on, and `pattern_conf_max` carries a confidence with no pattern name attached. The fix is a per-pattern 0/1 column, not a formula.",
+    "IPO Base": "IPO Base is defined by how long the symbol has been listed, and the table declares no listing-date or days-since-IPO column. Nothing here can tell a first base from a fourth one.",
+    "Parabolic Short": "Parabolic Short is a judgement about the ANGLE of a three-to-five day blow-off and how far it has stretched above its averages. `pct_vs_sma20` and `pct_vs_ema20` are declared, but the only `pct_vs_ema20` preset the firm publishes is `Within 2%` -- a proximity band, the opposite end of the same column -- so the extension that makes a move parabolic is unpublished.",
+    "Parabolic Long": "Parabolic Long is the same measurement as Parabolic Short taken from the other side, and it fails for the same reason: no published extension threshold on any `pct_vs_*` column, and no way to say 'the curve is steepening' from one row of a nightly snapshot.",
+    "Wedge Pop": "Wedge Pop is trendline GEOMETRY -- a converging upper and lower boundary, then a reclaim through the averages. The closed table declares no trendline, no slope and no wedge flag, and `FILTERS['pattern']` does not detect a wedge either, so there is nothing to cite.",
+    "Wedge Drop": "Wedge Drop is Wedge Pop inverted and is ungrounded for the same reason: the converging boundaries that define a wedge exist in no column the table declares and in no pattern the screener detects.",
+    "Episodic Pivot": "Episodic Pivot is a gap on a MAJOR CATALYST in a neglected name. The table declares `gap_pct` and `vol_ratio`, so the gap and the volume are expressible -- the catalyst is not. There is no news, filing or earnings-date column, and a scan called Episodic Pivot that returned every 3% gapper would be putting the firm's name on a guess.",
+    "2B Reversal": "2B Reversal turns on a PRIOR EXTREME being broken and not held. Naming that extreme needs a swing lookback -- `lowest(low, N)` or `highest(high, N)` -- and no artifact at the firm publishes an N. The functions exist; the number is nobody's.",
+    "Kicker Candle": "Kicker Candle is a TWO-BAR relationship: yesterday closes weak, today gaps up and closes above yesterday's high. `gap_pct` names the gap, but the closed table has no bar-offset node -- `_no_offset` -- so 'yesterday's high' cannot be named, and 'closes weak' has no published threshold.",
+    "Power Earnings Gap": "Power Earnings Gap needs to know the gap was an EARNINGS gap. The table declares no earnings date and no surprise column, so `gap_pct >= 3` is the most it could say -- which is the firm's `Gappers holding gains` starter screen wearing a different name, and half-meaning Power Earnings Gap is worse than not shipping it.",
+    "News Gappers": "News Gappers is the same gap as the firm's own `Gappers holding gains` starter screen (`gap_pct >= 3 && above_50sma`) with one extra claim the table cannot check: that the gap was news-driven. A member scanning News Gappers would get index rebalances and sympathy moves under a name that promised a catalyst. Ship the screen under its own name, or declare a news column.",
+    "4B Setup (Stan Weinstein)": "4B Setup (Stan Weinstein) is a STAGE call -- where the symbol sits in Weinstein's four-stage cycle, read off a 30-week line and its slope. The table declares `above_50sma` and `pct_vs_sma200` but no stage label and no moving-average SLOPE, and `screener/technicals.py` labels an MA STACK, not a stage.",
+    "Failed H&S/Rounded Top": "Failed H&S/Rounded Top is a pattern that is defined by NOT resolving: everyone sees the top, the breakdown does not come. Naming the neckline needs a swing lookback nobody publishes, and 'the breakdown did not come' needs a bar offset the closed table does not carry.",
+    "Classic U&R": "Classic U&R undercuts a PROMINENT PRIOR LOW and reclaims it. `lowest(low, N)` can name a prior low, but which N makes a low prominent is nobody's published number, and the reclaim is a two-bar relationship the table's offset-free grammar cannot state.",
+    "Go Signal": "Go Signal is a catalyst gap digesting into a short average and then one wide candle closing above the catalyst high. Both halves fail: there is no catalyst column, and the 9-period average the setup is defined against is not a window any firm artifact publishes.",
+    "Wick Play": "Wick Play is a single-bar discretionary read on where the wick sits relative to the range. `upper_wick_pct` and `lower_wick_pct` ARE declared scalars -- but the screener publishes no preset on either, so every threshold this scan could use would be the catalogue author's. Publish a wick preset and Wick Play becomes expressible in one line.",
+    "Slingshot": "Slingshot is defined against the 4-period exponential average OF THE HIGHS. `ema` takes a series, and the closed table declares `high` -- but 4 is not a window any firm artifact publishes, and a starter that picked one would be inventing the setup's own definition.",
+    "Oops Reversal": "Oops Reversal gaps BELOW the prior day's low and closes the gap. `gap_pct` publishes `Down >3%`, so the gap down is sayable; 'below the prior day's LOW' and 'closed the gap' both need the previous bar, which the closed table's offset-free grammar cannot name.",
+    "News Failure": "News Failure is a headline that does not hold. It needs the headline, and the table declares no news column -- the same gap that leaves News Gappers and Episodic Pivot ungrounded.",
+    "Remount": "Remount requires the symbol to have been BELOW its average and to be back above it. `above_50sma` says where it is today; saying where it was yesterday needs a bar offset the closed table does not carry.",
+    "Red to Green": "Red to Green turns on the zero line: open below the prior close, close above it. `gap_pct` names the open against the prior close, but the only thresholds the firm publishes on it are +3 and -3, not zero -- and the sweep evaluates the LAST CONFIRMED bar, by which time the intraday transition the setup is named for has already resolved.",
+    "Opening Range Breakout": "Opening Range Breakout is an INTRADAY setup and the sweep is a last-confirmed-DAILY-bar screen. Blocked on cadence (design section 8.5), not on vocabulary: the opening range is not a column the nightly snapshot holds.",
+    "Opening Range Breakdown": "Opening Range Breakdown is the short side of the same intraday range and is blocked on the same cadence: the sweep runs on the last confirmed daily bar and the snapshot carries no opening range.",
+    "Red to Green (Intraday)": "Red to Green (Intraday) is explicitly intraday and the sweep is a last-confirmed-DAILY-bar screen. Blocked on cadence (design section 8.5).",
+    "Green to Red": "Green to Red is the intraday mirror of Red to Green (Intraday) and is blocked on the same cadence: nothing in a daily snapshot can name a session crossing its own opening reference.",
+    "30min Pivot": "30min Pivot is defined against the first half-hour's high, which exists only on an intraday timeframe. Blocked on cadence (design section 8.5).",
+    "Mean Reversion L/S": "Mean Reversion L/S is an INTRADAY setup, and the sweep is a last-confirmed-DAILY-bar screen. Blocked on design section 8.5 (cadence), not on vocabulary."
+  }
+}

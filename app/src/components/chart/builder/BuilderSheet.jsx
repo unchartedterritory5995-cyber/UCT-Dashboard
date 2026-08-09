@@ -97,6 +97,7 @@ import {
 import FormulaField, { evaluateFormula, canSaveFormula } from './FormulaField'
 import ConciergeBox from './ConciergeBox'
 import CriteriaPicker from './CriteriaPicker'
+import StarterLibrary from './StarterLibrary'
 import styles from './BuilderSheet.module.css'
 
 const FOCUSABLE = 'button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),'
@@ -512,7 +513,27 @@ export default function BuilderSheet({
               ⛔ AND THE PICKER IS DERIVED FROM THE TREE, NOT STORED. Switching to it
               reads `result.ast`; a formula it cannot show is REPORTED, and the
               picker stays empty rather than half-right. */}
+          {/* ── THE THIRD DOOR ONTO THE SAME OBJECT (Phase E, E-8) ──────────────
+              ⭐ A BLANK FORMULA BOX LOSES THE WIDE AUDIENCE. The library is the
+              onboarding path: a member picks one of the FIRM'S OWN setups, gets
+              a working scan in the box below, and edits it — which is how people
+              learn a syntax.
+
+              ⛔ AND IT IS A MODE, NOT A THIRD BUILDER. Its only output is the
+              same `source` string the other two doors write, so a starter meets
+              the same parse, the same budget, the same linter, the same
+              read-back and the same Save button. There is no starter save path,
+              no starter flag on the document and no starter column on the store
+              — a starter that was special-cased would be a second class of
+              object, and `BuilderSheet.starters.test.jsx` asserts the saved
+              blob carries no trace of where it came from. */}
           <div className={styles.modeRow} role="tablist" aria-label="How to build this">
+            <button
+              type="button" role="tab"
+              className={`${styles.modeTab} ${buildMode === 'library' ? styles.modeTabActive : ''}`}
+              aria-selected={buildMode === 'library'}
+              onClick={() => setBuildMode('library')}
+            >Library</button>
             <button
               type="button" role="tab"
               className={`${styles.modeTab} ${buildMode === 'picker' ? styles.modeTabActive : ''}`}
@@ -526,6 +547,21 @@ export default function BuilderSheet({
               onClick={() => setBuildMode('formula')}
             >Formula</button>
           </div>
+
+          {buildMode === 'library' && (
+            <StarterLibrary
+              activeSource={source}
+              onPick={(entry) => {
+                // ⛔ THE SOURCE AND NOTHING ELSE. Not the tree, not a prebuilt
+                // document, not a hash — the starter arrives at the typed box the
+                // way a member's own keystrokes do, so the ONE write path stays
+                // the one write path. Landing on the Formula tab is the point of
+                // the gesture: *"here is a working scan, now change it"*.
+                setSource(entry.source)
+                setBuildMode('formula')
+              }}
+            />
+          )}
 
           {buildMode === 'picker' && (
             <CriteriaPicker

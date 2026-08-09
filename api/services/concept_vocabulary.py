@@ -516,6 +516,91 @@ def _refuse(gate: str, reason: str) -> dict:
     return {"ok": False, "gate": gate, "reason": reason}
 
 
+def resolve_grounding(tree: Any, citations: Any, *,
+                      attribution: Optional[Mapping[str, Any]] = None,
+                      table: Optional[Mapping[str, Any]] = None) -> dict:
+    """Is this TREE the firm's answer? Resolve its citations and prove its numbers.
+
+    ⭐ THE GROUNDING IDIOM, EXTRACTED SO THERE IS EXACTLY ONE OF IT. E-5a wrote
+    this discipline for a vernacular WORD; E-8's starter library needs the same
+    discipline for a named SETUP, and the phase's own sequencing note says why it
+    is one function rather than two: *"the same SETUP_GROUPS + lookup_playbook
+    grounding serves both and building it twice is the defect."* A second copy
+    would agree with this one on the day it was written and drift on the day a
+    citation kind, a sign-folding rule or a refusal sentence moved — and the two
+    callers would then disagree about what "grounded" means while both were
+    green.
+
+    Returns ``{"ok": True, "grounding": [...], "attribution": {...} | None}`` or
+    ``{"ok": False, "detail": "<the rest of the sentence>"}``.
+
+    ⛔ THE REFUSAL IS RETURNED AS A SENTENCE **TAIL**, and that is deliberate. The
+    caller owns the subject — a concept says ``"cheap" …``, a starter says
+    ``High Tight Flag (Powerplay) …`` — so the name a member reads is the name
+    the caller was asked about, never a word this function guessed. Every tail
+    reads as a predicate of that subject, which is what makes one composition
+    (``f'{subject} {detail}'``) correct for both callers.
+
+    The five checks, in the order a refusal should reach a member:
+
+    1. every name in the tree is one the CLOSED TABLE still declares;
+    2. there is at least one citation — an uncited tree is somebody's opinion;
+    3. every citation RESOLVES against the artifact it names;
+    4. every numeric literal in the tree is PUBLISHED by one of those citations;
+    5. every table-declared scalar the tree screens on is one they NAME.
+
+    …and then the optional sixth: an ``attribution`` names a setup the firm's own
+    taxonomy declares (and, where the Brain Pack is installed, one the KB still
+    resolves a playbook for). ⛔ Never a grounding — adjudication A-1.
+    """
+    undeclared = sorted(names_in(tree) - ast_table.declared_names(table))
+    if undeclared:
+        return {"ok": False,
+                "detail": f"expands into {undeclared}, which the closed table no "
+                          "longer declares."}
+
+    cites = tuple(citations or ())
+    if not cites:
+        return {"ok": False,
+                "detail": "cites no firm artifact, so its definition is somebody's "
+                          "opinion rather than the firm's answer."}
+
+    resolved = []
+    allowed_values: Set[float] = set()
+    allowed_keys: Set[str] = set()
+    for cite in cites:
+        try:
+            got = _resolve_citation(cite, table)
+        except _CitationFailed as exc:
+            return {"ok": False, "detail": f"is no longer grounded: {exc.detail}"}
+        resolved.append(got)
+        allowed_values |= got["values"]
+        allowed_keys |= got["keys"]
+
+    invented = sorted(literals_in(tree) - allowed_values)
+    if invented:
+        return {"ok": False,
+                "detail": f"uses the threshold(s) {invented}, which none of its "
+                          f"citations publishes (they publish {sorted(allowed_values)}). A "
+                          "number nobody at the firm wrote down is this file's opinion."}
+
+    uncited = sorted(scalars_in(tree, table) - allowed_keys)
+    if uncited:
+        return {"ok": False,
+                "detail": f"screens on {uncited}, which none of its citations names."}
+
+    resolved_attribution = None
+    if attribution:
+        try:
+            resolved_attribution = _resolve_attribution(attribution)
+        except _CitationFailed as exc:
+            return {"ok": False,
+                    "detail": "is attributed to a setup that no longer "
+                              f"resolves: {exc.detail}"}
+
+    return {"ok": True, "grounding": resolved, "attribution": resolved_attribution}
+
+
 def resolve(word: Any, *, vocab: Optional[Mapping[str, Any]] = None,
             table: Optional[Mapping[str, Any]] = None) -> dict:
     """Expand a vernacular word into formula SOURCE + TREE, or refuse BY NAME.
@@ -555,55 +640,17 @@ def resolve(word: Any, *, vocab: Optional[Mapping[str, Any]] = None,
             f'"{key}" carries no frozen tree, so nothing here proves its '
             "expansion parses.")
 
-    undeclared = sorted(names_in(tree) - ast_table.declared_names(table))
-    if undeclared:
-        return _refuse(
-            GATE_UNGROUNDED,
-            f'"{key}" expands into {undeclared}, which the closed table no '
-            "longer declares.")
-
-    citations = spec.get("grounding") or ()
-    if not citations:
-        return _refuse(
-            GATE_UNGROUNDED,
-            f'"{key}" cites no firm artifact, so its definition is somebody\'s '
-            "opinion rather than the firm's answer.")
-
-    resolved = []
-    allowed_values: Set[float] = set()
-    allowed_keys: Set[str] = set()
-    for cite in citations:
-        try:
-            got = _resolve_citation(cite, table)
-        except _CitationFailed as exc:
-            return _refuse(GATE_UNGROUNDED, f'"{key}" is no longer grounded: {exc.detail}')
-        resolved.append(got)
-        allowed_values |= got["values"]
-        allowed_keys |= got["keys"]
-
-    invented = sorted(literals_in(tree) - allowed_values)
-    if invented:
-        return _refuse(
-            GATE_UNGROUNDED,
-            f'"{key}" uses the threshold(s) {invented}, which none of its '
-            f"citations publishes (they publish {sorted(allowed_values)}). A "
-            "number nobody at the firm wrote down is this file's opinion.")
-
-    uncited = sorted(scalars_in(tree, table) - allowed_keys)
-    if uncited:
-        return _refuse(
-            GATE_UNGROUNDED,
-            f'"{key}" screens on {uncited}, which none of its citations names.')
-
-    attribution = spec.get("attribution")
-    resolved_attribution = None
-    if attribution:
-        try:
-            resolved_attribution = _resolve_attribution(attribution)
-        except _CitationFailed as exc:
-            return _refuse(GATE_UNGROUNDED,
-                           f'"{key}" is attributed to a setup that no longer '
-                           f"resolves: {exc.detail}")
+    # ⭐ ONE GROUNDING IMPLEMENTATION, CALLED. `resolve_grounding` returns the
+    # refusal as a sentence TAIL and this composes the subject onto it, so the
+    # five sentences a member can read are byte-identical to the ones this
+    # function used to build inline — and E-8's starter library composes the
+    # SETUP NAME onto exactly the same tails.
+    got = resolve_grounding(tree, spec.get("grounding"),
+                            attribution=spec.get("attribution"), table=table)
+    if not got["ok"]:
+        return _refuse(GATE_UNGROUNDED, f'"{key}" {got["detail"]}')
+    resolved = got["grounding"]
+    resolved_attribution = got["attribution"]
 
     return {
         "ok": True,

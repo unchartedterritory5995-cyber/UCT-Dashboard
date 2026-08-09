@@ -284,11 +284,17 @@ describe('🔴 the SAVED object is the same object either door produces', () => 
 })
 
 describe('the sheet still behaves as it did', () => {
-  it('the mode row is a TABLIST with exactly two tabs, and Formula is the default', async () => {
+  it('the mode row is a TABLIST carrying BOTH doors, and Formula is the default', async () => {
     mount()
     await settle()
-    const tabs = screen.getAllByRole('tab')
-    expect(tabs).toHaveLength(2)
+    // ⚠️ THIS COUNTED THE TABS AND E-8 ADDED A THIRD DOOR (the starter library),
+    // turning a green suite red on a change that broke nothing this file is
+    // about. A typed count is a second authority over how many doors the sheet
+    // has; the claim that belongs here is that BOTH of E-4's doors are present
+    // and that Formula is the one that is open. `BuilderSheet.starters.test.jsx`
+    // owns the third.
+    const tabs = screen.getAllByRole('tab').map((t) => t.textContent)
+    expect(tabs).toEqual(expect.arrayContaining(['Conditions', 'Formula']))
     expect(screen.getByRole('tab', { name: /formula/i })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('tab', { name: /conditions/i })).toHaveAttribute('aria-selected', 'false')
     // ⛔ THE PICKER IS NOT MOUNTED UNTIL IT IS ASKED FOR. A hidden picker still
