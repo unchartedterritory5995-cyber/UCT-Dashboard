@@ -1,6 +1,11 @@
 // app/src/components/tiles/FuturesStrip.jsx
 import { useMemo } from 'react'
-import useSWR from 'swr'
+// useMobileSWR, not bare useSWR: this tile polls every 10s and is mounted TWICE
+// (Dashboard renders the desktop and mobile layouts together and hides one with
+// CSS), so a backgrounded tab was costing 8,640 requests/day/user for a strip
+// nobody could see. useMobileSWR is the same hook every other Dashboard tile
+// already uses — it drops refreshInterval to 0 while the tab is hidden.
+import useMobileSWR from '../../hooks/useMobileSWR'
 import UIcon from '../ui/UIcon'
 import styles from './FuturesStrip.module.css'
 import TickerPopup from '../TickerPopup'
@@ -153,7 +158,7 @@ export function Cell({ sym, price, chg, css }) {
 }
 
 export default function FuturesStrip({ data: propData }) {
-  const { data: fetched } = useSWR(
+  const { data: fetched } = useMobileSWR(
     propData !== undefined ? null : '/api/snapshot',
     fetcher,
     { refreshInterval: 10000 }

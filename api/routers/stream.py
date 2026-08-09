@@ -23,6 +23,58 @@ router = APIRouter()
 
 MAX_SSE_TICKERS = 50  # Finnhub free tier cap; prevents unbounded subscription growth
 
+# ── admission control ────────────────────────────────────────────────────────
+# ⭐ COPIED, NOT INVENTED. Every other stream in this codebase already owns this
+# exact shape — `massive_stream.MAX_SUBSCRIBERS` (300),
+# `massive_curated_stream.MAX_SUBSCRIBERS` (300), `chat_stream.MAX_SUBSCRIBERS`
+# (400): an env-read module constant, a `subscribe()` that returns None once the
+# registry is at the cap, and a router that answers 503 `at_capacity` so the
+# client falls back to polling. These two sleep-polling loops were the only
+# streams without it, and they are the ones that hold a coroutine on the SINGLE
+# shared event loop for the life of the connection. Tickers were capped at 50 per
+# connection; connections themselves were capped at nothing.
+MAX_SUBSCRIBERS = int(os.environ.get("STREAM_MAX_SUBSCRIBERS", "300"))
+
+# Per-STREAM registries, like the two massive streams each holding their own —
+# so a wall of chart tabs on /api/stream/bars can never crowd out the price
+# quotes every page depends on. One counter issues tokens for both.
+_subscribers: dict = {"prices": set(), "bars": set()}
+_conn_seq = 0
+
+
+def subscribe(stream: str):
+    """Register one SSE connection. Returns its token, or None if the subscriber
+    cap is hit (the caller should refuse with 503 and let the client poll)."""
+    global _conn_seq
+    conns = _subscribers.setdefault(stream, set())
+    if len(conns) >= MAX_SUBSCRIBERS:
+        return None
+    _conn_seq += 1
+    conns.add(_conn_seq)
+    return _conn_seq
+
+
+def unsubscribe(stream: str, token) -> None:
+    if token is None:
+        return
+    _subscribers.get(stream, set()).discard(token)
+
+
+def subscriber_count(stream: str) -> int:
+    return len(_subscribers.get(stream, ()))
+
+
+def _at_capacity(stream: str):
+    """The refusal, worded once. 503 + `at_capacity` mirrors
+    `massive_stream_router`'s so a client already handles it."""
+    _logger.warning("[stream_%s] refused: at capacity (%d/%d)",
+                    stream, subscriber_count(stream), MAX_SUBSCRIBERS)
+    return JSONResponse(
+        {"error": "at capacity", "reason": "at_capacity",
+         "stream": stream, "max_subscribers": MAX_SUBSCRIBERS},
+        status_code=503,
+    )
+
 
 def _build_candle_events(tickers, last_state: dict) -> list[dict]:
     """Detect candle state changes and produce event dicts.
@@ -127,6 +179,12 @@ async def stream_prices(
 
     # Cap to MAX_SSE_TICKERS to prevent subscription bloat
     ticker_list = ticker_list[:MAX_SSE_TICKERS]
+
+    # Admission BEFORE any upstream subscription — a refused connection must not
+    # leave Finnhub/Massive interest registered for tickers nobody is watching.
+    _token = subscribe("prices")
+    if _token is None:
+        return _at_capacity("prices")
 
     # Subscribe these tickers to the Finnhub WebSocket stream (fallback source).
     subscribe_tickers(ticker_list)
@@ -249,6 +307,7 @@ async def stream_prices(
         finally:
             # Clean up subscriptions when client disconnects so _subscribed
             # doesn't grow unbounded as users navigate between pages.
+            unsubscribe("prices", _token)
             unsubscribe_tickers(ticker_list)
             if _bb is not None:
                 try:
@@ -299,6 +358,12 @@ async def stream_bars(
         return JSONResponse({"error": "No valid sym:tf pairs"}, status_code=400)
     pairs = pairs[:50]  # cap to prevent runaway subscriptions per connection
 
+    # Admission BEFORE the broadcaster subscribe, for the same reason as
+    # /api/stream/prices: a refused connection must leave no queues behind.
+    _token = subscribe("bars")
+    if _token is None:
+        return _at_capacity("bars")
+
     from api.services.bar_broadcaster import get_broadcaster
     bb = get_broadcaster()
     queues = [(sym, tf, bb.subscribe(sym, tf)) for (sym, tf) in pairs]
@@ -339,6 +404,7 @@ async def stream_bars(
                     yield "event: heartbeat\ndata: {}\n\n"
                     last_heartbeat = time.time()
         finally:
+            unsubscribe("bars", _token)
             for (sym, tf, q) in queues:
                 bb.unsubscribe(sym, tf, q)
             _logger.info("[stream_bars] disconnected, unsubscribed %d pairs", len(queues))
@@ -356,5 +422,13 @@ async def stream_bars(
 
 @router.get("/api/stream/status")
 def stream_status():
-    """Return WebSocket stream connection status."""
-    return get_stream_status()
+    """Return WebSocket stream connection status.
+
+    Carries the admission-control counters too — `chat_stream.stats()` and
+    `/curated-stream-status` already publish theirs, and a cap nobody can see
+    hit is a cap nobody knows they hit.
+    """
+    out = dict(get_stream_status() or {})
+    out["max_subscribers"] = MAX_SUBSCRIBERS
+    out["subscribers"] = {name: len(conns) for name, conns in _subscribers.items()}
+    return out

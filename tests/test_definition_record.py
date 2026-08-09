@@ -577,7 +577,11 @@ def _dotted(node) -> str | None:
 
 
 _RECORD_MODULE = "api.services.definition_record"
-_WRITE_DOORS = ("record_evaluation", "record_pass")
+#: ⛔ EVERY WRITE DOOR, INCLUDING THE BATCHING ONE. `record_evaluations` (plural)
+#: is a different string from `record_evaluation`, so a census that listed only
+#: the singular would be structurally blind to a caller of the batch door — a
+#: second writer arriving through the one door added to make writing cheaper.
+_WRITE_DOORS = ("record_evaluation", "record_evaluations", "record_pass")
 
 
 def _writer_sites(scan_roots, rel_to: pathlib.Path) -> set:
@@ -1265,8 +1269,12 @@ def test_the_module_has_NO_UPDATE_and_NO_DELETE_outside_the_prune():
             if verb in up:
                 mutations.setdefault(verb.strip(), []).append(fn_name)
                 break
+    # ⭐ ONE INSERT, IN ONE FUNCTION, AND `record_evaluation` DELEGATES TO IT.
+    # The batching door owns the only INSERT so the single-row and many-row
+    # spellings cannot drift: a second INSERT here would be a second copy of the
+    # origin rule waiting to disagree with the first.
     assert mutations == {"DELETE": ["prune"],
-                         "INSERT INTO": ["record_evaluation"]}, mutations
+                         "INSERT INTO": ["record_evaluations"]}, mutations
 
     # …and the module-level schema declares tables and indexes only. A TRIGGER
     # would be a rewrite path none of the SQL above can see.
@@ -1299,6 +1307,168 @@ def test_a_WARMUP_bar_is_in_NEITHER_the_numerator_nor_the_denominator(store):
     assert ast_interpret.max_lookback(flat) == 0
     assert dr.record_pass(_REV, _TF, "FLAT", ast=flat, bars=bars,
                           at=_AT)["evaluated"] == len(bars)
+
+
+# -- the batching write door -------------------------------------------------
+
+def _mixed_batch():
+    """A batch that exercises every row-level verdict the door can reach:
+    a write, a duplicate, and one row per shape refusal plus the origin one.
+
+    ⛔ The windows walk BACKWARDS on purpose — the first row sets the origin and
+    every later one reaches behind it, which is the only refusal that depends on
+    rows written earlier in the SAME batch and therefore the only one a batching
+    door could get wrong while every shape gate still passed.
+    """
+    rows = [{"sym": f"S{i:03d}", "first_bar_time": 20260110 - i,
+             "through_bar_time": 20260131, "bars_evaluated": 21, "bars_true": 9}
+            for i in range(6)]
+    rows += [
+        {"sym": "", "first_bar_time": 20260120, "through_bar_time": 20260131,
+         "bars_evaluated": 5, "bars_true": 1},                       # key_slot
+        {"sym": "EMPTY", "first_bar_time": 20260120, "through_bar_time": 20260131,
+         "bars_evaluated": 0, "bars_true": 0},                       # empty_window
+        {"sym": "BACK", "first_bar_time": 20260131, "through_bar_time": 20260101,
+         "bars_evaluated": 5, "bars_true": 1},                       # backwards
+        {"sym": "MORE", "first_bar_time": 20260120, "through_bar_time": 20260131,
+         "bars_evaluated": 5, "bars_true": 9},                       # more_true
+        {"sym": "NEG", "first_bar_time": 20260120, "through_bar_time": 20260131,
+         "bars_evaluated": 5, "bars_true": -1},                      # count_shape
+        dict(rows[0]),                                               # duplicate
+    ]
+    return rows
+
+
+def _drive_one_at_a_time(h, rows, at):
+    written = duplicate = 0
+    refusals: list[str] = []
+    for row in rows:
+        try:
+            landed = dr.record_evaluation(
+                h, _REV, _TF, row["sym"], row["first_bar_time"],
+                row["through_bar_time"], bars_evaluated=row["bars_evaluated"],
+                bars_true=row["bars_true"], at=at)
+        except ValueError as exc:
+            refusals.append(str(exc))
+            continue
+        written += 1 if landed else 0
+        duplicate += 0 if landed else 1
+    return written, duplicate, refusals
+
+
+def test_a_BATCH_persists_byte_identical_rows_to_the_same_rows_one_at_a_time(
+        tmp_path, monkeypatch):
+    """🔴 THE BATCHING DOOR IS THE SAME DOOR, AND THAT IS MEASURED, NOT PROMISED.
+
+    A door added for throughput is only safe if it cannot answer differently, so
+    both spellings are driven over the SAME mixed batch into two isolated stores
+    and the STO🔴 BYTES are diffed — plus the counts, plus every refusal
+    sentence IN ORDER. A digest comparison rather than a spot-check, because the
+    failure this guards is one column drifting, not a row going missing.
+    """
+    at = 1_723_000_000.0
+    h = _def_hash()
+    rows = _mixed_batch()
+
+    one = tmp_path / "one_at_a_time.db"
+    monkeypatch.setattr(ledger, "_DB_PATH", str(one))
+    monkeypatch.setattr(dr, "_INITED", set())
+    w1, d1, ref1 = _drive_one_at_a_time(h, rows, at)
+    digest_one = _record_digest(one)
+
+    many = tmp_path / "one_batch.db"
+    monkeypatch.setattr(ledger, "_DB_PATH", str(many))
+    monkeypatch.setattr(dr, "_INITED", set())
+    out = dr.record_evaluations(h, _REV, _TF, rows, at=at)
+    digest_many = _record_digest(many)
+
+    assert (w1, d1) == (out["written"], out["duplicate"]), (
+        f"one-at-a-time wrote {w1}/{d1}, the batch wrote "
+        f"{out['written']}/{out['duplicate']}")
+    assert ref1 == [str(exc) for _, exc in out["refused"]], (
+        "the two spellings refuse different rows, or in a different order")
+    assert digest_one == digest_many, (
+        "the batch stored different bytes than the same rows one at a time")
+
+    # …and the control: this fixture REACHES both a write and a refusal, so the
+    # equality above cannot be satisfied by two empty stores.
+    assert w1 >= 1 and d1 == 1 and len(ref1) >= 6, (w1, d1, ref1)
+    assert _record_rows(one), "nothing was written at all — the diff proves nothing"
+
+
+def test_the_batch_refuses_a_KEY_problem_ONCE_by_raising_not_N_times(store):
+    """A bad `def_hash`/`rev`/`tf` is wrong for every row in the batch. Returning
+    it once per row would report N problems where there is one, so it raises -
+    the same sentence `record_evaluation` raises."""
+    rows = _mixed_batch()
+    for bad, guard in ((("nope", _REV, _TF), "def_hash_shape"),
+                       ((_def_hash(), -1, _TF), "rev_shape"),
+                       ((_def_hash(), _REV, "D"), "timeframe")):
+        with pytest.raises(ValueError, match=dr.REFUSALS[guard]):
+            dr.record_evaluations(*bad, rows)
+    assert _record_rows(store) == [], "a refused key still wrote rows"
+
+
+def test_a_row_the_batch_REFUSES_does_not_stop_the_rows_after_it(store):
+    """⛔ The one production caller counts refusals BESIDE its writes rather than
+    letting one take a completed sweep down with it. A door that aborted on the
+    first bad row would force that caller back to the per-row loop this door
+    exists to replace."""
+    h = _def_hash()
+    out = dr.record_evaluations(h, _REV, _TF, [
+        {"sym": "", "first_bar_time": 20260101, "through_bar_time": 20260131,
+         "bars_evaluated": 5, "bars_true": 1},                       # refused
+        {"sym": "GOOD", "first_bar_time": 20260101, "through_bar_time": 20260131,
+         "bars_evaluated": 21, "bars_true": 9},                      # must still land
+    ])
+    assert out["written"] == 1 and len(out["refused"]) == 1
+    assert [r[4] for r in _record_rows(store)] == ["GOOD"]
+
+
+def test_a_NON_UNIQUE_integrity_error_is_RAISED_not_counted_as_a_duplicate(
+        store, monkeypatch):
+    """⛔ ONLY the dedup collision may become a `duplicate`.
+
+    The batching door carries the same `"UNIQUE constraint failed" not in
+    str(exc)` rule the per-row door did, and nothing was watching it — a rule
+    copied into a new function with no rail is a rule that survives exactly
+    until someone simplifies it. A dropped row reported as "already recorded" is
+    a claim of coverage that was never written, and it would be invisible: the
+    batch would return a bigger `duplicate` and no error at all.
+    """
+    real = dr._connect
+
+    class _Wrapped:
+        def __init__(self, c):
+            self._c = c
+
+        def execute(self, sql, *a):
+            if sql.lstrip().upper().startswith("INSERT"):
+                raise sqlite3.IntegrityError(
+                    "NOT NULL constraint failed: rule_record.sym")
+            return self._c.execute(sql, *a)
+
+        def __getattr__(self, name):
+            return getattr(self._c, name)
+
+    monkeypatch.setattr(dr, "_connect", lambda: _Wrapped(real()))
+    rows = [{"sym": "AAPL", "first_bar_time": 20260102,
+             "through_bar_time": 20260131, "bars_evaluated": 21, "bars_true": 9}]
+    with pytest.raises(sqlite3.IntegrityError, match="NOT NULL"):
+        dr.record_evaluations(_def_hash(), _REV, _TF, rows, at=_AT)
+
+    # …and the control: the SAME planted error, but a UNIQUE one, IS a duplicate.
+    # Without this the test above would pass on a door that raises indiscriminately.
+    class _Dup(_Wrapped):
+        def execute(self, sql, *a):
+            if sql.lstrip().upper().startswith("INSERT"):
+                raise sqlite3.IntegrityError(
+                    "UNIQUE constraint failed: rule_record.def_hash")
+            return self._c.execute(sql, *a)
+
+    monkeypatch.setattr(dr, "_connect", lambda: _Dup(real()))
+    out = dr.record_evaluations(_def_hash(), _REV, _TF, rows, at=_AT)
+    assert (out["written"], out["duplicate"], out["refused"]) == (0, 1, [])
 
 
 def test_a_pass_with_NOTHING_COMPUTABLE_writes_no_row_and_says_which(store):
