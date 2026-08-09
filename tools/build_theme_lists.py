@@ -63,6 +63,20 @@ ADDITIONS = {
     "Transport & Logistics": ("Freight, parcel, trucking, rail and logistics.",
                               ["UPS", "FDX", "ODFL", "XPO", "CHRW", "JBHT", "KNX", "SAIA", "LSTR",
                                "ARCB", "GXO", "RXO", "WERN", "HUBG", "CSX", "UNP", "NSC"]),
+    "Agriculture & Fertilizers": ("Crop inputs, fertilizers, ag equipment and food producers.",
+                                  ["CTVA", "NTR", "CF", "MOS", "ADM", "BG", "AGCO", "IPI", "DAR",
+                                   "SMG", "FMC", "UAN", "ANDE", "CALM", "LW"]),
+    "Utilities": ("Regulated electric and gas utilities.",
+                  ["NEE", "DUK", "SO", "D", "AEP", "EXC", "XEL", "ED", "WEC", "ES", "PEG", "SRE",
+                   "EIX", "PPL", "FE", "AEE", "CMS", "DTE", "ETR", "CNP", "NI", "LNT", "EVRG", "ATO"]),
+    "Regional Banks": ("US regional and mid-cap banks.",
+                       ["USB", "PNC", "TFC", "MTB", "FITB", "CFG", "KEY", "HBAN", "RF", "CMA",
+                        "ZION", "WAL", "EWBC", "SNV", "CFR", "PB", "WBS", "CADE", "ONB", "COLB",
+                        "BOKF", "WTFC", "PNFP", "FNB", "ASB", "CBSH", "FHN", "VLY"]),
+    "AI Agents & Automation": ("Agentic AI, automation and AI-native software plays.",
+                               ["PLTR", "PATH", "SOUN", "AI", "BBAI", "INOD", "RZLV", "TEM", "DUOL"]),
+    # Cannabis intentionally omitted: only TLRY/ACB/CRON clear the $3M/day bar — every US MSO
+    # (GTBIF/CURLF/TCNNF/VRNO) trades OTC and too thin, so the list would misrepresent the sector.
 }
 
 
