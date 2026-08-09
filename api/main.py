@@ -4737,6 +4737,15 @@ app.include_router(news.router)
 app.include_router(screener.router)
 from api.routers import scans as scans_router
 app.include_router(scans_router.router)
+# ── THE SURFACE E-2's `join_clause` REACHES (Phase E, E4-A5) ─────────────────
+# Its OWN module and its own route rather than a `filters.FILTERS` entry or a
+# new filter type inside `query.run_scan` — a `def_hash` is not a column, and a
+# nightly scan receipt and a live screener query are different freshness stories
+# a member must be able to tell apart. Reasoning in the module docstring.
+# ⛔ REGISTERED, so E-7's derived census walks it off `router.routes` rather than
+# typing the path.
+from api.routers import scan_results as scan_results_router
+app.include_router(scan_results_router.router)
 # DEPRECATED 2026-06-02 -- Model Book is no longer a trade log (rebuilt as a
 # curated library of top stocks; see api/routers/modelbook.py). The /api/trades
 # endpoints + data/trades.json are kept as a rollback backup; schedule a manual
