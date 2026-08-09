@@ -897,7 +897,25 @@ def _merge_ohlcv_from(src_db: str, local_db: Optional[str] = None) -> int:
                     SELECT ticker,tf,MAX(ts) AS mx
                     FROM ohlcv GROUP BY ticker,tf
                 ) l ON l.ticker=s.ticker AND l.tf=s.tf
-                WHERE l.mx IS NULL OR s.ts > l.mx
+                WHERE (l.mx IS NULL OR s.ts > l.mx)
+                  -- 🔴 THE SECOND WRITE DOOR INTO `ohlcv`, AND IT BYPASSES
+                  -- `put_bars` ENTIRELY. Gating only `put_bars` leaves this
+                  -- statement re-importing every impossible bar another pod
+                  -- already wrote — 3,533 of them on 2026-08-09 — into any pod
+                  -- that merges a pre-fix R2 snapshot, so the invariant would
+                  -- hold going forward and be undone on the next restore.
+                  -- ⛔ SAME PREDICATE, SPELLED IN SQL BECAUSE THIS IS A
+                  -- SET-AT-A-TIME COPY: finite (`s.x = s.x` is false for a NaN
+                  -- and NULL fails every comparison), positive, and
+                  -- `l <= min(o,c) <= max(o,c) <= h`. It is a rejection, never a
+                  -- repair: a row that cannot describe a session is not adopted.
+                  AND s.o IS NOT NULL AND s.h IS NOT NULL
+                  AND s.l IS NOT NULL AND s.c IS NOT NULL
+                  AND s.o = s.o AND s.h = s.h AND s.l = s.l AND s.c = s.c
+                  AND s.o > 0 AND s.h > 0 AND s.l > 0 AND s.c > 0
+                  AND s.h >= s.l AND s.h >= s.o AND s.h >= s.c
+                  AND s.l <= s.o AND s.l <= s.c
+                  AND (s.v IS NULL OR s.v >= 0)
                 """
             )
             adopted = cur.rowcount if cur.rowcount is not None else 0

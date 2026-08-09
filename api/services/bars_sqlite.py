@@ -402,6 +402,85 @@ def purge_mis_keyed_weekly_rows_async() -> None:
     threading.Thread(target=_run, daemon=True, name="weekly-key-purge").start()
 
 
+#: A SUPERSET of `bar_validation.possible_bar_reasons`, spelled in SQL so the
+#: scan is an index-free single pass rather than 17,144,361 Python calls.
+#: ⛔ IT IS A PRE-FILTER, NOT THE RULE. Every candidate it returns is re-judged in
+#: Python by `possible_bar_reasons`, which stays the single authority — a SQL
+#: predicate that had quietly drifted from the Python one would delete rows the
+#: write path considers fine. It only has to be a superset, and a superset that
+#: is too wide costs a Python call, never a wrong deletion.
+#: (SQLite stores a NaN REAL as NULL, so the NaN class is caught by `IS NULL`.)
+_IMPOSSIBLE_CANDIDATE_SQL = (
+    "o IS NULL OR h IS NULL OR l IS NULL OR c IS NULL OR v IS NULL "
+    "OR o <= 0 OR h <= 0 OR l <= 0 OR c <= 0 "
+    "OR h < l OR h < o OR h < c OR l > o OR l > c OR v < 0"
+)
+
+
+def impossible_bars(tf: str | None = None, limit: int | None = None) -> list[dict]:
+    """Every stored row that does not describe a bar that could have happened.
+
+    ⭐ THE SELECTOR IS THE RULE, NOT THE SYMPTOM. A repair keyed on "open above
+    high" cannot re-find its own failures once it has changed them, and this repo
+    has been bitten by exactly that. This asks the same question the write path
+    now asks, so a re-scan after a repair is a real measurement.
+    """
+    from api.services.bar_validation import possible_bar_reasons
+    sql = ("SELECT ticker, tf, ts, o, h, l, c, v FROM ohlcv WHERE ("
+           + _IMPOSSIBLE_CANDIDATE_SQL + ")")
+    params: list = []
+    if tf is not None:
+        sql += " AND tf=?"
+        params.append(tf)
+    sql += " ORDER BY ticker, tf, ts"
+    if limit:
+        sql += f" LIMIT {int(limit)}"
+    out: list[dict] = []
+    for r in _conn().execute(sql, params).fetchall():
+        bar = {"t": r[2], "o": r[3], "h": r[4], "l": r[5], "c": r[6], "v": r[7]}
+        reasons = possible_bar_reasons(bar)
+        if reasons:
+            out.append({"ticker": r[0], "tf": r[1], "ts": r[2],
+                        "bar": bar, "reasons": reasons})
+    return out
+
+
+def purge_impossible_bars(tf: str | None = None, *, apply: bool = False,
+                          limit: int | None = None) -> dict:
+    """Delete the rows `impossible_bars` names. ``apply=False`` is a real dry run.
+
+    ⛔ DELETION, NEVER COERCION, AND THAT IS THE WHOLE DESIGN. Clamping an open
+    into `[low, high]`, or widening the high to admit it, invents a print that did
+    not happen — which is the defect class the 2026-08-09 audit exists to remove,
+    not a repair of it. A row that cannot be recovered from a provider is ABSENT,
+    and `_fmt_sqlite_bars` already drops absent-shaped rows at serve time, so
+    nothing user-visible regresses.
+
+    ⚠️ RUN THE REFETCH PASS FIRST. `tools/bars_integrity_repair.py --refetch` asks
+    the provider for the affected sessions before this runs, so a settled session
+    the provider can still supply is REPLACED rather than lost. What survives to
+    here is what no source has — a vendor's `0.0` open sentinel, an all-NULL
+    placeholder — and those are honest absences.
+    """
+    found = impossible_bars(tf=tf, limit=limit)
+    summary = {"found": len(found), "deleted": 0, "applied": bool(apply),
+               "by_reason": {}}
+    for row in found:
+        key = row["reasons"][0]
+        summary["by_reason"][key] = summary["by_reason"].get(key, 0) + 1
+    if not found or not apply:
+        return summary
+    with _WRITE_LOCK:
+        c = _conn()
+        c.executemany("DELETE FROM ohlcv WHERE ticker=? AND tf=? AND ts=?",
+                      [(r["ticker"], r["tf"], r["ts"]) for r in found])
+        c.commit()
+    summary["deleted"] = len(found)
+    _logger.warning("[sqlite] purged %d impossible bars: %s",
+                    len(found), summary["by_reason"])
+    return summary
+
+
 def get_last_ts(ticker: str, tf: str) -> int | None:
     """Return the largest stored ts for (ticker, tf), or None if no rows."""
     row = _conn().execute(
@@ -913,9 +992,70 @@ def _trigger_corruption_recovery() -> None:
     ).start()
 
 
+#: 🔴 THE WRITE-PATH INVARIANT, AND IT LIVES HERE BECAUSE HERE IS THE ONLY PLACE
+#: EVERY APPLICATION WRITE PASSES. The 2026-08-09 audit found **3,533 daily bars
+#: whose open sits outside `[low, high]`** (`GME 2026-08-03 o=20.46 h=20.45`;
+#: `MSC 2026-07-10 o=1.89 h=1.76`), 32 with the close outside it, 119 with a NULL
+#: close beside 20 M shares of volume, and **ZERO intraday violations**. That
+#: asymmetry is the diagnosis: `bar_validation.validate_bar` already encoded
+#: every one of these rules, and its callers were the INTRADAY fetch chain, the
+#: disk serving cache and two read-only auditors. The daily chain — `_fetch_daily`,
+#: `_fetch_daily_yf`, `_delta_daily` — called none of them, and this function
+#: validated nothing. The deep-warm path demonstrates it in twelve lines: it
+#: writes a payload to SQLite unvalidated, then writes the SAME object through
+#: `bars_disk_cache.put`, which validates it and quarantines the bad bars. The
+#: chart cache came out clean; the store kept the impossible row.
+#:
+#: ⛔ IT IS THE GEOMETRY ONLY, NEVER THE PLAUSIBILITY. `possible_bar_reasons`
+#: asks whether the bar COULD have happened; `validate_bar`'s wide-bar and
+#: prior-close gates are thresholded heuristics, right for a cache boundary and
+#: wrong here — they would refuse to store a genuinely violent session.
+#:
+#: ⛔ AND A REJECTED BAR IS DROPPED, NEVER COERCED. Clamping `o` into `[l, h]`, or
+#: widening `h` to admit it, fabricates a print that did not happen — which is
+#: the defect class this audit exists to remove, not a repair of it. The
+#: `_delta_daily` path refetches the last ten sessions on every touch, so a
+#: rejected frontier bar is re-supplied from the provider once the session
+#: settles; that is what makes dropping the honest answer rather than the lossy
+#: one.
+#:
+#: ⚠️ THE RETURN VALUE IS NOW THE ACCEPTED COUNT. `alert_bars_freshness` reads it
+#: as `if not rows: status = "empty"`, so returning `len(bars)` after rejecting
+#: all of them would report success on a batch that stored nothing.
+#:
+#: Kill switch: `BARS_WRITE_VALIDATION=0` — an escape hatch, not a mode. With it
+#: off the store can accept an impossible bar again.
+def _writable_bars(ticker: str, tf: str, bars: list[dict]) -> tuple[list[dict], list[tuple]]:
+    """Split `bars` into (storable, [(bar, reasons)]). Never raises."""
+    if os.environ.get("BARS_WRITE_VALIDATION", "1") == "0":
+        return list(bars), []
+    try:
+        from api.services.bar_validation import possible_bar_reasons
+    except Exception:                                    # pragma: no cover
+        return list(bars), []
+    keep, rejected = [], []
+    for b in bars:
+        try:
+            reasons = possible_bar_reasons(b)
+        except Exception:                                # pragma: no cover
+            reasons = []
+        if reasons:
+            rejected.append((b, reasons))
+        else:
+            keep.append(b)
+    if rejected:
+        _logger.warning(
+            "[sqlite] put_bars refused %d/%d impossible bars for %s tf=%s; first: t=%r %s",
+            len(rejected), len(bars), ticker, tf,
+            rejected[0][0].get("t"), rejected[0][1])
+    return keep, rejected
+
+
 def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False) -> int:
     """Upsert bars.  date_tf=True means bar["t"] is 'YYYY-MM-DD' → YYYYMMDD int.
-    Returns number of rows inserted/replaced.
+    Returns the number of rows ACCEPTED and written — see ``_writable_bars``: a
+    bar that does not describe a possible session is dropped, counted and logged,
+    never stored and never coerced into shape.
 
     On ``OperationalError: database is locked`` retries up to 3 times with
     short backoff (busy_timeout already gives 10s of in-driver waiting; the
@@ -927,6 +1067,9 @@ def put_bars(ticker: str, tf: str, bars: list[dict], date_tf: bool = False) -> i
     if not bars:
         return 0
     ticker = ticker.upper()
+    bars, _rejected = _writable_bars(ticker, tf, bars)
+    if not bars:
+        return 0
     rows = []
     for b in bars:
         t = b.get("t", 0)
