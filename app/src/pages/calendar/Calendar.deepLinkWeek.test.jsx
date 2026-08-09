@@ -363,4 +363,31 @@ describe('deep link lands on the week the symbol actually reports in (Task 14)',
     // and this is what catches that.
     expect([fri.asked, sat.asked].sort()).toEqual([false, true])
   })
+
+
+  // ── The fallback row must ADMIT that it is a guess ────────────────────────
+  //
+  // The ladder above can legitimately end with no entry for the symbol: the
+  // clock is pinned to a SATURDAY, so a symbol that reported earlier in the
+  // week is no longer in the current week, `/next-report` answers with its
+  // NEXT quarter (months out), and the calendar feed does not carry a symbol
+  // that far ahead — so the resolved week has no row for it either.
+  //
+  // Calendar.jsx then commits a minimal `{ sym }` row. Left unmarked, the
+  // modal's Earnings History section reads that as the CLAIM "No reported
+  // quarters yet" — a $17B company with nine reported quarters told it had
+  // never reported one (live 2026-08-08). The section CANNOT infer this
+  // itself: a bare `{ sym }` is byte-identical to what MyStocksHub and the
+  // direct research routes pass for a company that genuinely has none. Only
+  // the resolver knows it never resolved anything, so it must say so.
+  it('an unresolvable symbol admits the history is unknown, never claims there is none', async () => {
+    setCalendarData(null, WEEK_CURRENT)
+    renderAt('/calendar?earnings=ZZZZ&esection=history')   // not in any fixture week
+
+    resolveNextReport({ ok: true, json: async () => ({}) })   // no date -> commit
+    await screen.findByRole('dialog')
+
+    expect(await screen.findByText(/Earnings history unavailable/i)).toBeTruthy()
+    expect(screen.queryByText(/No reported quarters yet/i)).toBeNull()
+  })
 })
