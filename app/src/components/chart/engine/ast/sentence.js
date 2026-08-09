@@ -13,6 +13,16 @@
 // never a hand-list, because a rail built on a list is a list, and DPC's four
 // constants rode outside one for a rule's entire life.
 //
+// ⭐⭐ AND EVERY ROW OF THAT RAIL IS A PROBE, NOT A SECOND READING OF THE
+// DECLARATION. This is the lesson the fourth section cost. A rail derived from
+// the same declaration the walker reads can only report the gaps the walker
+// already knows how to have, so the one class it can NEVER report is "a whole
+// section the walker has no branch for" — which is precisely what shipped, and
+// two agents working from opposite sides found it instead of the gate. So
+// `compileRules` RENDERS one minimal tree per declared entry, in every section,
+// and a gap is a tree that REFUSES. Delete any branch of the walker and the
+// section it served goes red NAMING ITS OWN ENTRIES.
+//
 // ⭐ AND THE FOURTH SECTION IS READ THE SAME WAY. A table-declared SCALAR
 // (`market_cap`) rides the `series` node — there is no fifth node type — and is
 // said with the manifest's OWN `sentence`. This module authors not one word of
@@ -192,7 +202,57 @@ function placeholderGap(phrase, arity) {
   return `says nothing for argument(s) [${missing.join(', ')}] and invents [${extra.join(', ')}]`
 }
 
-/** The manifest, compiled into the three lookup tables the walker uses.
+// --------------------------------------------------------------------------- //
+// the coverage PROBE — one minimal tree per declared entry
+// --------------------------------------------------------------------------- //
+
+/** The ONE argument the probe ever passes.
+ *
+ *  ⛔ A LITERAL, NEVER ANOTHER SECTION'S NAME. If a function's probe borrowed
+ *  `close`, deleting `renderName`'s series branch would light up the FUNCTIONS
+ *  row too, and each section's rail has to answer about its OWN section — a rail
+ *  that names four sections when one broke is as useless as one that names none.
+ *  `1` is also a legal `int` window (a whole number >= 1), so one constant serves
+ *  every argument position the manifest is able to declare. */
+const PROBE_ARG = Object.freeze({ type: 'num', value: 1 })
+
+/** ⚠️ BOUNDED, BECAUSE `compileRules` NEVER THROWS. An arity a manifest declares
+ *  as `Infinity`, a fraction or a negative would otherwise allocate forever.
+ *  Anything outside the bound builds an EMPTY argument list, the walker refuses
+ *  on the arity mismatch, and the entry is NAMED — a reported gap, never a hang. */
+function probeArgs(count) {
+  const n = Number.isInteger(count) && count >= 0 && count <= 16 ? count : 0
+  const out = []
+  for (let i = 0; i < n; i++) out.push(PROBE_ARG)
+  return out
+}
+
+/** The minimal tree for ONE declared entry, by section.
+ *
+ *  ⛔ AN UNKNOWN SECTION RETURNS `null`, AND THE WALKER REFUSES IT. A fifth
+ *  section added to the compiled object is probed with a shape this function
+ *  does not have, so every one of its entries is NAMED and somebody has to teach
+ *  the probe. Returning something plausible instead would make the new section's
+ *  rail green on the day it lands — which is the exact defect this loop exists to
+ *  end, reintroduced one level up. */
+function probeTree(section, name, rule) {
+  switch (section) {
+    case 'series':
+    case 'scalars':
+      // ⭐ BOTH RIDE THE `series` NODE. A scalar is not a fifth node type; it is
+      // a fourth VOCABULARY read by the same branch, which is why the two
+      // sections share a probe and still report separately.
+      return { type: 'series', name }
+    case 'operators':
+      return { type: 'op', name, args: probeArgs(rule.arity) }
+    case 'functions':
+      return { type: 'call', name, args: probeArgs(rule.args.length) }
+    default:
+      return null
+  }
+}
+
+/** The manifest, compiled into the four lookup tables the walker uses.
  *
  *  ⛔ EVERY DECLARED ENTRY GETS A ROW, INCLUDING THE BROKEN ONES. An entry with
  *  no phrase is NOT left out — it is carried with a `gap`, so a tree that uses it
@@ -204,9 +264,10 @@ function placeholderGap(phrase, arity) {
  *  ⚠️ NEVER THROWS. The module has to load for the coverage rail to be able to
  *  report a gap; a `compileRules` that threw on a bad manifest would make the
  *  gap unmeasurable, which is the failure mode a coverage rail exists to end.
- *  The scalar PROBE at the end obeys the same rule: it catches, it never rises.
+ *  The PROBE at the end obeys the same rule: it catches, it never rises — in
+ *  every section, for every entry.
  *
- *  ⭐ AND THE SCALAR GAPS ARE PROBED, NOT DECLARED. See the comment at the
+ *  ⭐ AND EVERY SECTION'S GAPS ARE PROBED, NOT DECLARED. See the comment at the
  *  probe — a rail that reads the same declaration the walker reads can only
  *  report the gaps the walker already knows how to have. */
 export function compileRules(table = TABLE, operatorPhrases = OPERATOR_SENTENCE) {
@@ -216,10 +277,12 @@ export function compileRules(table = TABLE, operatorPhrases = OPERATOR_SENTENCE)
   const functions = Object.create(null)
   const gaps = { series: [], scalars: [], operators: [], functions: [], placeholders: [] }
 
+  // ⚠️ THE ROW IS COMPILED HERE, THE GAP IS REPORTED BY THE PROBE. `gap` is what
+  // makes `renderName` refuse an unsayable bar field; whether that refusal
+  // belongs in `gaps.series` is the PROBE's answer, below, and not a second
+  // opinion recorded here.
   for (const name of sortedKeys(table.series)) {
-    const gap = SAYABLE.test(name) ? null : 'unsayable'
-    if (gap) gaps.series.push(name)
-    series[name] = Object.freeze({ gap })
+    series[name] = Object.freeze({ gap: SAYABLE.test(name) ? null : 'unsayable' })
   }
 
   // ⭐ THE FOURTH SECTION, AND THE PHRASE IS THE MANIFEST'S. Unlike a series —
@@ -251,7 +314,6 @@ export function compileRules(table = TABLE, operatorPhrases = OPERATOR_SENTENCE)
     let gap = null
     if (typeof phrase !== 'string' || phrase === '') {
       gap = 'no-template'
-      gaps.operators.push(name)
     } else {
       const bad = placeholderGap(phrase, arity)
       if (bad) { gap = bad; gaps.placeholders.push(`${name}: ${bad}`) }
@@ -266,7 +328,6 @@ export function compileRules(table = TABLE, operatorPhrases = OPERATOR_SENTENCE)
     let gap = null
     if (typeof phrase !== 'string' || phrase === '') {
       gap = 'no-template'
-      gaps.functions.push(name)
     } else {
       const bad = placeholderGap(phrase, args.length)
       if (bad) { gap = bad; gaps.placeholders.push(`${name}: ${bad}`) }
@@ -281,33 +342,53 @@ export function compileRules(table = TABLE, operatorPhrases = OPERATOR_SENTENCE)
     functions: Object.freeze(functions),
   }
 
-  // ⭐⭐ THE SCALAR ROW OF THE COVERAGE RAIL IS MEASURED BY RENDERING, AND THAT
-  // IS THIS TASK'S WHOLE LESSON. The declaration-derived rail was PERMANENTLY
-  // GREEN for all fifty-four scalars: it iterated the three sections the walker
-  // already knew about, so the one class of unsayable name it could never report
-  // was "a whole section the walker has no branch for" — which is precisely what
-  // shipped, and a person found it instead of the gate. A rail that asks the
-  // WALKER cannot be blind that way: an entry is a gap when rendering its
-  // minimal tree REFUSES, whatever the reason, so deleting the consult below
-  // turns this list red with fifty-four names in it.
+  // ⭐⭐ EVERY ROW OF THE COVERAGE RAIL IS MEASURED BY RENDERING, AND THAT IS
+  // THIS PROGRAMME'S MOST EXPENSIVE LESSON. The declaration-derived rail was
+  // PERMANENTLY GREEN for all fifty-four scalars: it iterated the sections the
+  // walker already knew about, so the one class of unsayable name it could never
+  // report was "a whole section the walker has no branch for" — which is
+  // precisely what shipped, and two agents working from opposite sides found it
+  // instead of the gate. A rail that asks the WALKER cannot be blind that way:
+  // an entry is a gap when rendering its minimal tree REFUSES, whatever the
+  // reason. Delete `renderName`'s series branch and this list names close, high,
+  // low, open and volume; delete the `op` or `call` dispatch and it names all
+  // fifteen operators or all eleven functions.
   //
   // ⚠️ ONE DERIVATION, NOT TWO. The gap is the runtime refusal itself rather
   // than a second piece of bookkeeping that agrees with it today.
-  for (const name of sortedKeys(scalars)) {
-    try {
-      renderNode({ type: 'series', name }, compiled, EMPTY, 0, '$', [])
-    } catch {
-      gaps.scalars.push(name)
+  //
+  // ⭐ AND THE SECTION LIST IS THE COMPILED OBJECT'S OWN KEYS, NOT A LIST TYPED
+  // HERE. Four sections is what this manifest has today; a FIFTH is probed on
+  // the day it is compiled, with no edit to this loop — and if `probeTree` has
+  // no shape for it, every entry lands in the report rather than the section
+  // arriving silently green. That is the whole point: the rail must not be able
+  // to outlive its own coverage.
+  //
+  // ⚠️ AND THE INNER SORT IS LOAD-BEARING, WHICH IS NOT OBVIOUS AND IS MEASURED.
+  // Every row above was INSERTED in sorted order, so re-sorting here reads like
+  // the redundant second guard this file has already written a finding about.
+  // It is not: an INTEGER-LIKE key is emitted by `Object.keys` in ascending
+  // numeric order however it was inserted, so a manifest declaring `9` and `10`
+  // separates the two orders. `sentence.test.js` measures exactly that case.
+  const PROBED_SECTIONS = Object.keys(compiled)
+  for (const section of PROBED_SECTIONS) {
+    if (!Array.isArray(gaps[section])) gaps[section] = []
+    for (const name of sortedKeys(compiled[section])) {
+      try {
+        renderNode(probeTree(section, name, compiled[section][name]),
+          compiled, EMPTY, 0, '$', [])
+      } catch {
+        gaps[section].push(name)
+      }
     }
   }
 
-  compiled.gaps = Object.freeze({
-    series: Object.freeze(gaps.series),
-    scalars: Object.freeze(gaps.scalars),
-    operators: Object.freeze(gaps.operators),
-    functions: Object.freeze(gaps.functions),
-    placeholders: Object.freeze(gaps.placeholders),
-  })
+  // ⚠️ FROZEN BY ITERATION, so a fifth section's row survives to the caller —
+  // a hand-listed freeze would silently drop exactly the row the loop above
+  // exists to produce.
+  const frozenGaps = {}
+  for (const key of Object.keys(gaps)) frozenGaps[key] = Object.freeze(gaps[key])
+  compiled.gaps = Object.freeze(frozenGaps)
   return Object.freeze(compiled)
 }
 
@@ -320,8 +401,15 @@ export function compileRules(table = TABLE, operatorPhrases = OPERATOR_SENTENCE)
  *
  *  🔴 AND A LIST THAT CANNOT GO RED IS NOT A RAIL. `gaps.scalars` reported
  *  nothing for all fifty-four scalars for as long as the section existed, not
- *  because they were sayable but because nothing asked. It is now the walker's
- *  own answer (see `compileRules`), so the section it covers cannot outrun it. */
+ *  because they were sayable but because nothing asked. All four rows are now
+ *  the walker's own answer (see `compileRules`), so no section can outrun the
+ *  rail that covers it.
+ *
+ *  ⚠️ `placeholders` IS THE ONE ROW THAT IS STILL DECLARATION-DERIVED, ON
+ *  PURPOSE. It is not a section: it reports a TEMPLATE that drops or invents an
+ *  argument, keyed `name: reason`, and it is consumed elsewhere. The four
+ *  section rows report the same entries by name whenever the walker refuses
+ *  them, so the probe covers that class too — `placeholders` adds the reason. */
 export function coverageGaps(table = TABLE, operatorPhrases = OPERATOR_SENTENCE) {
   return compileRules(table, operatorPhrases).gaps
 }
