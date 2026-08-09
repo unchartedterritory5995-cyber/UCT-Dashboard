@@ -13,6 +13,7 @@
 // under `<colorKey>:pos` / `<colorKey>:neg` in header.colors, defaulting to green / red.
 
 export const HEADER_FIELDS = [
+  { key: 'name', label: 'Company Name', colorKey: 'name', dflt: '#9b9684' },
   { key: 'price', label: 'Price', colorKey: 'price', dflt: null },
   { key: 'vol', label: 'Volume', colorKey: 'vol', dflt: null },
   { key: 'chg', label: '% Change', colorKey: 'chg', dflt: null, signed: true },
@@ -97,11 +98,12 @@ function fmtEarn(iso) {
 /** Resolve one field → { value, color }. `color` is set only for sign-tinted fields;
  *  ChartPane applies the per-field default/override otherwise. */
 export function resolveHeaderField(key, ctx) {
-  const { fund, quote, meta, perf, theme } = ctx || {}
+  const { fund, quote, meta, perf, theme, name } = ctx || {}
   const q = quote || {}
   const m = meta || {}
   const p = q.price
   switch (key) {
+    case 'name': return { value: name || m.name || fund?.name || null }
     case 'mcap': return { value: fund?.metrics?.market_cap || null }
     case 'earn': return { value: fmtEarn(fund?.next_earnings) }
     case 'rating': return { value: num(fund?.composite) ? String(fund.composite) : null }

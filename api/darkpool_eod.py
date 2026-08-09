@@ -51,6 +51,8 @@ _CAP_COLORS = {
     "ETF/Index": (86, 96, 108),
 }
 _HOT = (210, 150, 70)      # % ADV highlight when the day's DP dwarfs normal volume
+_PERF_UP = (74, 200, 120)  # price above the dark-pool level (green)
+_PERF_DN = (232, 96, 96)   # price below the dark-pool level (red)
 
 
 def _webhook() -> str:
@@ -89,18 +91,21 @@ _BAND_ORDER = [
 # the ETFs & Index section, and reserve market-cap bucketing for actual stocks.
 _ETF_CATS = {"Indexes", "Sector ETFs", "Bond ETFs", "Intl/EM ETFs", "Commodity ETFs"}
 
+# Funds the automated detection misses — chiefly single-stock leveraged ETFs
+# (e.g. GOOGN) that FMP doesn't flag as ETFs and that aren't in the aggregator's
+# lists. Seeded + env-extendable (DARKPOOL_EOD_ETF_EXTRA, comma-separated) so a
+# new straggler can be added without a code change.
+_ETF_OVERRIDE = {"GOOGN"} | {
+    s.strip().upper() for s in os.getenv("DARKPOOL_EOD_ETF_EXTRA", "").split(",") if s.strip()
+}
+# Friendly ETF-type label for the SECTOR column (a fund has no GICS sector — FMP
+# returns a bogus "Financial Services", so show what KIND of fund it is instead).
+_ETF_TYPE = {"Indexes": "Index", "Sector ETFs": "Sector", "Bond ETFs": "Bond",
+             "Intl/EM ETFs": "Intl/EM", "Commodity ETFs": "Commodity"}
 
-def _band_for(cat: str, mktcap) -> str:
-    """Route ETFs (by the aggregator's category) to the ETF/Index bucket; bucket
-    real stocks by true market cap. Stocks with no cap fall back to the
-    aggregator's coarse size class rather than being mistaken for a fund."""
-    cat = (cat or "").strip()
-    if cat in _ETF_CATS:
-        return "ETF/Index"
-    mc = float(mktcap or 0)
-    if mc > 0:
-        return _cap_band(mc)
-    return "Large" if cat == "Large Cap" else "Mid-Small"
+
+def _etf_type(cat: str) -> str:
+    return _ETF_TYPE.get((cat or "").strip(), "ETF")
 
 
 # ── formatting helpers ─────────────────────────────────────────────────────
@@ -121,12 +126,25 @@ def _fmt_px(v) -> str:
     return f"{v:,.2f}" if v < 1000 else f"{v:,.0f}"
 
 
+def _fmt_px_d(v) -> str:
+    """Price with a $ prefix (for the Last / Zone / biggest-print price cells)."""
+    v = float(v or 0)
+    return ("$" + _fmt_px(v)) if v > 0 else "—"
+
+
 def _fmt_adv(v) -> str:
     """Dark-pool activity as a % of the name's average daily volume."""
     v = float(v or 0)
     if v <= 0:
         return "—"
     return f"{v:.0f}%" if v >= 10 else f"{v:.1f}%"
+
+
+def _fmt_perf(v) -> str:
+    """Price move vs the dark-pool VWAP — 'are those levels in profit'."""
+    if v is None:
+        return "—"
+    return f"{'+' if v >= 0 else ''}{v:.1f}%"
 
 
 def _fmt_zone(lo, hi) -> str:
@@ -138,8 +156,8 @@ def _fmt_zone(lo, hi) -> str:
     lo = lo or hi
     hi = hi or lo
     if abs(hi - lo) < 0.005 * max(hi, 1):
-        return _fmt_px(hi)                       # essentially one level
-    return f"{_fmt_px(lo)}–{_fmt_px(hi)}"
+        return _fmt_px_d(hi)                     # essentially one level
+    return f"{_fmt_px_d(lo)}–{_fmt_px_d(hi)}"
 
 
 def _date_text(day_mdyyyy: str) -> str:
@@ -152,22 +170,25 @@ def _date_text(day_mdyyyy: str) -> str:
 
 # ── render ─────────────────────────────────────────────────────────────────
 # Columns: TICKER · NOTIONAL · % ADV · PRICE ZONE · LAST · BIGGEST PRINT · SECTOR
+# PERF (price move vs the dark-pool VWAP — are those levels in profit) sits right
+# after BIGGEST PRINT. On both cards: EOD shows the intraday move off the day's DP
+# VWAP; weekly the move off the week's DP VWAP.
 _COLS = [
-    ("ticker", "TICKER", 36, "l"), ("notional", "NOTIONAL", 284, "r"),
-    ("pctadv", "% ADV", 384, "r"), ("zone", "PRICE ZONE", 566, "r"),
-    ("last", "LAST", 672, "r"), ("big", "BIGGEST PRINT", 904, "r"),
-    ("sector", "SECTOR", 946, "l"),
+    ("ticker", "TICKER", 36, "l"), ("notional", "NOTIONAL", 268, "r"),
+    ("pctadv", "% ADV", 356, "r"), ("zone", "PRICE ZONE", 536, "r"),
+    ("last", "LAST", 636, "r"), ("big", "BIGGEST PRINT", 852, "r"),
+    ("perf", "PERF", 942, "r"), ("sector", "SECTOR", 982, "l"),
 ]
 _W, _ROWH, _TOP, _SECH = 1150, 34, 170, 32
 _SS = 2  # supersample then downscale for crisp text
 
 
 def render_card(sections: list[tuple], date_text: str, summary: dict,
-                subtitle: str = "Dark Pool") -> bytes:
-    """sections = [(band_label, [item, ...]), ...] where each item is
-    {t, n, c, last, vwap, bigN, bigPx, accDist, sector, pos}. summary carries
-    total_n / acc_n / dist_n / n_prints / n_tickers for the header bar."""
+                subtitle: str = "Dark Pool", cols: list | None = None) -> bytes:
+    """sections = [(band_label, [item, ...]), ...]. `cols` overrides the column
+    layout (defaults to _COLS)."""
     from PIL import Image, ImageDraw, ImageFont
+    cols = cols or _COLS
 
     def font(name, pt):
         return ImageFont.truetype(os.path.join(_ASSETS, name), int(pt * _SS))
@@ -240,7 +261,7 @@ def render_card(sections: list[tuple], date_text: str, summary: dict,
         x += w
 
     # column headers
-    for key, hdr, x, al in _COLS:
+    for key, hdr, x, al in cols:
         txt(x, _TOP - 30, hdr, f_hdr, _DIM, al)
     d.rectangle([s(36), s(_TOP - 10), s(_W - 36), s(_TOP - 10) + 1], fill=_DIV)
 
@@ -253,7 +274,7 @@ def render_card(sections: list[tuple], date_text: str, summary: dict,
             if i % 2 == 1:
                 d.rectangle([0, s(y - 6), s(_W), s(y - 6) + s(_ROWH)], fill=_ROWALT)
             _adv = it.get("pctADV") or 0
-            for key, hdr, x, al in _COLS:
+            for key, hdr, x, al in cols:
                 if key == "ticker":
                     txt(x, y, it.get("t") or "", f_rowb, _GOLD)
                 elif key == "notional":
@@ -263,11 +284,15 @@ def render_card(sections: list[tuple], date_text: str, summary: dict,
                 elif key == "zone":
                     txt(x, y, _fmt_zone(it.get("zoneLo"), it.get("zoneHi")), f_row, _TXT, "r")
                 elif key == "last":
-                    txt(x, y, _fmt_px(it.get("last")), f_row, _DIM, "r")
+                    txt(x, y, _fmt_px_d(it.get("last")), f_row, _DIM, "r")
+                elif key == "perf":
+                    _p = it.get("perf")
+                    _pc = _PERF_UP if (_p is not None and _p >= 0) else _PERF_DN if _p is not None else _DIM
+                    txt(x, y, _fmt_perf(_p), f_rowb, _pc, "r")
                 elif key == "big":
                     _bn = _fmt_n(it.get("bigN"))
                     _bp = it.get("bigPx")
-                    txt(x, y, f"{_bn} @ {_fmt_px(_bp)}" if _bp else _bn, f_row, _DIM, "r")
+                    txt(x, y, f"{_bn} @ {_fmt_px_d(_bp)}" if _bp else _bn, f_row, _DIM, "r")
                 elif key == "sector":
                     sec = (it.get("sector") or "").strip()
                     if len(sec) > 18:
@@ -290,25 +315,27 @@ def render_card(sections: list[tuple], date_text: str, summary: dict,
 
 
 # ── data helpers ───────────────────────────────────────────────────────────
-_avg50_cache: dict = {}   # sym -> (iso_day, avg_volume) — one Massive pull/name/day
+_daily_cache: dict = {}   # sym -> (iso_day, {"avg50", "close"}) — one Massive pull/name/day
 
 
-def _avg50_volume(ticker: str) -> float:
-    """50-day average daily SHARE volume via the Massive daily aggs (the local
-    bars store isn't populated web-side when USE_REMOTE_BARS is on). Cached per
-    name per day so a preview / the EOD job pulls each name at most once."""
+def _daily_stats(ticker: str) -> dict:
+    """From the Massive daily aggs (one pull, cached per name per day): the
+    50-day avg daily SHARE volume (for % ADV) AND the latest daily CLOSE (the real
+    current-price reference for PERF — the item's own `last` collapses to the
+    dark-pool VWAP on a single day, which would make perf a flat 0%). The local
+    bars_sqlite store is empty web-side under remote-bars, hence Massive REST."""
     from datetime import date, timedelta
     sym = (ticker or "").upper()
     if not sym:
-        return 0.0
+        return {"avg50": 0.0, "close": 0.0}
     try:
         today = date.today().isoformat()
     except Exception:
         today = ""
-    hit = _avg50_cache.get(sym)
+    hit = _daily_cache.get(sym)
     if hit and hit[0] == today:
         return hit[1]
-    avg = 0.0
+    out = {"avg50": 0.0, "close": 0.0}
     try:
         from api.services.massive import get_daily_agg
         to_d = date.today()
@@ -316,11 +343,46 @@ def _avg50_volume(ticker: str) -> float:
         bars = get_daily_agg(sym, from_d.isoformat(), to_d.isoformat()) or []
         vols = [b.get("v") for b in bars[-50:] if b.get("v")]
         if vols:
-            avg = sum(vols) / len(vols)
+            out["avg50"] = sum(vols) / len(vols)
+        if bars and bars[-1].get("c"):
+            out["close"] = float(bars[-1]["c"])
     except Exception:
-        avg = 0.0
-    _avg50_cache[sym] = (today, avg)
-    return avg
+        pass
+    _daily_cache[sym] = (today, out)
+    return out
+
+
+_meta_cache: dict = {}   # sym -> (iso_day, {"sector", "isEtf"})
+
+
+def _ticker_meta(ticker: str) -> dict:
+    """FMP company profile → {sector, isEtf}. One authoritative source for BOTH
+    the sector column AND ETF detection (an ETF's reported market cap is its AUM,
+    so the aggregator's hardcoded ETF lists miss names like VOO / IGV / IEFA —
+    the profile's isEtf flag catches them). Cached per name per day; fail-soft."""
+    from datetime import date
+    sym = (ticker or "").upper()
+    if not sym:
+        return {"sector": None, "isEtf": None}
+    try:
+        today = date.today().isoformat()
+    except Exception:
+        today = ""
+    hit = _meta_cache.get(sym)
+    if hit and hit[0] == today:
+        return hit[1]
+    meta = {"sector": None, "isEtf": None}
+    try:
+        from api.services import earnings_estimates as ee
+        data = ee._fmp_get("/stable/profile", {"symbol": sym}, timeout=8)
+        row = data[0] if isinstance(data, list) and data else (data if isinstance(data, dict) else None)
+        if row:
+            meta["sector"] = (row.get("sector") or None)
+            meta["isEtf"] = bool(row.get("isEtf") or row.get("isFund"))
+    except Exception:
+        pass
+    _meta_cache[sym] = (today, meta)
+    return meta
 
 
 def _concentration_band(ticker: str, days: int) -> tuple:
@@ -358,18 +420,30 @@ def _concentration_band(ticker: str, days: int) -> tuple:
     return (lo, hi)
 
 
+# Buffer above top_n when picking which stock-band names to meta-enrich, so that
+# ETFs mis-sized into a stock band (small AUM → Mid-Small) get their isEtf checked
+# and moved out, leaving enough real stocks to still fill the displayed rows.
+_ENRICH_BUFFER = 18
+
+
 # ── data: build market-cap sections from the aggregator + Schwab mkt-caps ──
-def build_sections(days: int = 1, top_n: int = 12, min_notional: float = 5e6):
-    """Pull aggregated dark-pool items, fetch market caps, bucket by cap band,
-    enrich the DISPLAYED rows (top-N per band) with 50-day % ADV + a concentration
-    price band, and compute the summary. Enrichment is scoped to displayed rows so
-    the per-ticker bars/print reads stay bounded (~top_n × 4 tickers)."""
+def build_sections(days: int = 1, top_n: int = 10, min_notional: float = 5e6,
+                   weekly: bool = False):
+    """Pull aggregated dark-pool items, resolve sector + ETF flag + market cap for
+    the display candidates, bucket (ETFs → their own section by isEtf; stocks by
+    true market cap), and enrich displayed rows with % ADV + a concentration price
+    band. ETF rows show their fund TYPE in the sector column.
+
+    % ADV basis matches the window: the EOD card compares the day's dark pool to
+    the 50-day avg DAILY volume; the weekly card compares the WEEK's dark pool to a
+    10-week (≈50 trading day) avg WEEKLY volume (avg daily × 5), so a week doesn't
+    read as ~5× a normal day."""
     from api.darkpool_aggregator import get_aggregated
     payload = get_aggregated(days=days)
     items = list((payload or {}).get("allItems") or [])
     items = [it for it in items if (it.get("n") or 0) >= min_notional]
+    items.sort(key=lambda it: (it.get("n") or 0), reverse=True)
 
-    # Server-side market caps (Schwab → Yahoo). Async fn → run it.
     caps: dict = {}
     try:
         import asyncio
@@ -378,39 +452,83 @@ def build_sections(days: int = 1, top_n: int = 12, min_notional: float = 5e6):
         if syms:
             caps = asyncio.run(get_mktcap_batch(syms)) or {}
     except Exception as e:
-        log.warning("[darkpool-eod] mkt-cap fetch failed (bucketing ETF/Index): %s", e)
+        log.warning("[darkpool-eod] mkt-cap fetch failed: %s", e)
 
-    # Band totals over ALL notable items; bucket for the top-N pick.
+    def sym_of(it):
+        return (it.get("t") or "").upper()
+
+    def _rough(it) -> str:
+        cat = (it.get("cat") or "").strip()
+        if cat in _ETF_CATS or sym_of(it) in _ETF_OVERRIDE:
+            return "ETF/Index"
+        mc = float(caps.get(sym_of(it)) or it.get("mktcap") or 0)
+        if mc > 0:
+            return _cap_band(mc)
+        return "Large" if cat == "Large Cap" else "Mid-Small"
+
+    # Pass 1: rough bucket (no per-ticker calls). Unknown ETFs land in stock bands.
+    rough: dict = {b: [] for b, _ in _BAND_ORDER}
+    for it in items:                       # already notional-desc
+        rough[_rough(it)].append(it)
+
+    # Meta-enrich (sector + isEtf) the top (top_n + buffer) of each STOCK band —
+    # the display candidates, incl. the small Mid-Small names an overall top-N
+    # would miss. Cat-known ETFs need no profile (already ETF).
+    metas: dict = {}
+    for b in ("Mega", "Large", "Mid-Small"):
+        for it in rough[b][: top_n + _ENRICH_BUFFER]:
+            s = sym_of(it)
+            if s and s not in metas:
+                metas[s] = _ticker_meta(s)
+
+    def _bucket(it) -> str:
+        s = sym_of(it)
+        cat = (it.get("cat") or "").strip()
+        if cat in _ETF_CATS or s in _ETF_OVERRIDE or (metas.get(s) or {}).get("isEtf"):
+            return "ETF/Index"
+        mc = float(caps.get(s) or it.get("mktcap") or 0)
+        if mc > 0:
+            return _cap_band(mc)
+        return "Large" if cat == "Large Cap" else "Mid-Small"
+
+    # Pass 2: final bucket using isEtf for the candidates.
     band_totals: dict = {b: 0.0 for b, _ in _BAND_ORDER}
     by_band: dict = {b: [] for b, _ in _BAND_ORDER}
     for it in items:
-        sym = (it.get("t") or "").upper()
-        band = _band_for(it.get("cat"), caps.get(sym) or it.get("mktcap") or 0)
+        band = _bucket(it)
         band_totals[band] += (it.get("n") or 0)
         by_band[band].append(it)
 
     sections = []
     for band, label in _BAND_ORDER:
-        top = sorted(by_band[band], key=lambda it: (it.get("n") or 0), reverse=True)[:top_n]
         rows = []
-        for it in top:
-            sym = (it.get("t") or "").upper()
+        for it in by_band[band][:top_n]:
+            s = sym_of(it)
             n = it.get("n") or 0
             vwap = it.get("vwap") or 0
-            # 50-day % ADV: DP shares (notional / vwap) over the 50-day avg daily
-            # volume from the bars store. "—" when avg volume is unavailable.
-            avg50 = _avg50_volume(sym)
-            pct_adv = ((n / vwap) / avg50 * 100.0) if (vwap > 0 and avg50 > 0) else None
-            # Concentration band (level of interest); fall back to the item's full
-            # low-high when the raw prints can't be read.
-            zlo, zhi = _concentration_band(sym, days)
+            _ds = _daily_stats(s)
+            avg50, close = _ds["avg50"], _ds["close"]
+            # Weekly: compare the week's DP to a normal WEEK (avg daily × 5 =
+            # 10-week avg weekly). Daily: compare to a normal day (avg daily).
+            _denom = (avg50 * 5.0) if weekly else avg50
+            pct_adv = ((n / vwap) / _denom * 100.0) if (vwap > 0 and avg50 > 0) else None
+            zlo, zhi = _concentration_band(s, days)
             if zlo is None:
                 zlo, zhi = it.get("lo"), it.get("hi")
+            # ETF rows: show the fund TYPE (no GICS sector); stocks: GICS sector.
+            if band == "ETF/Index":
+                sector = _etf_type(it.get("cat"))
+            else:
+                sector = (metas.get(s) or {}).get("sector") or it.get("sector")
+            # Performance since the dark pool traded: the latest daily CLOSE vs the
+            # window's dark-pool VWAP (using close, NOT the item's `last`, which
+            # equals the VWAP on a single day → a flat 0%).
+            perf = ((close - vwap) / vwap * 100.0) if (vwap > 0 and close > 0) else None
             rows.append({
-                "t": sym, "n": n, "c": it.get("c") or 0, "last": it.get("last"),
-                "zoneLo": zlo, "zoneHi": zhi, "pctADV": pct_adv,
+                "t": s, "n": n, "c": it.get("c") or 0, "last": it.get("last"),
+                "zoneLo": zlo, "zoneHi": zhi, "pctADV": pct_adv, "perf": perf,
                 "bigN": it.get("bigPrintN"), "bigPx": it.get("bigPrint"),
-                "sector": it.get("sector"),
+                "sector": sector,
             })
         if rows:
             sections.append((label, rows))
@@ -476,9 +594,10 @@ def run_eod_summary(*, force: bool = False, post: bool = True,
         if not enabled and not force:
             return {"ok": False, "reason": "disabled (DARKPOOL_EOD_ENABLED != 1)"}
         days = 5 if weekly else 1
-        top_n = int(os.getenv("DARKPOOL_EOD_TOP_N", "12"))
+        top_n = int(os.getenv("DARKPOOL_EOD_TOP_N", "10"))
         min_n = float(os.getenv("DARKPOOL_EOD_MIN_NOTIONAL", "5e6"))
-        sections, summary = build_sections(days=days, top_n=top_n, min_notional=min_n)
+        sections, summary = build_sections(days=days, top_n=top_n, min_notional=min_n,
+                                           weekly=weekly)
 
         try:
             from api.darkpool_db import get_available_dates

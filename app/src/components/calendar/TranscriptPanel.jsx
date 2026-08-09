@@ -23,6 +23,7 @@ import useTranscriptQuarters from '../../hooks/useTranscriptQuarters'
 import UIcon from '../ui/UIcon'
 import { escapeLiteral, findMatches, segmentsWithMatches, stepIndex } from './transcriptSearch'
 import styles from './CallRecapSection.module.css'
+import PlayableTranscript from './PlayableTranscript'
 import search from './TranscriptSearch.module.css'
 
 const hasSpeechSynthesis = () =>
@@ -233,6 +234,11 @@ export default function TranscriptPanel({ sym = null, query = '', quarter = null
 
       {open && (
         <div className={styles.transcriptPanel}>
+          {/* When the call has a timed transcript, the recording plays and the
+              words follow it. Renders nothing for the many symbols with no
+              coverage, so the plain transcript below is unaffected. */}
+          <PlayableTranscript sym={sym} />
+
           {isLoading && !transcript && (
             <p className={styles.transcriptLoading}>Loading transcript…</p>
           )}

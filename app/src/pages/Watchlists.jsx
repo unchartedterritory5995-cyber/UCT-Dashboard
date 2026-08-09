@@ -77,6 +77,7 @@ const COL_META = {
   flag: { def: 30, min: 16 }, sym: { def: 96, min: 56 }, price: { def: 62, min: 44 },
   vol: { def: 56, min: 40 }, chg: { def: 68, min: 50 },
   // Optional data columns (added via the + button).
+  name: { def: 150, min: 90 },
   rvol: { def: 64, min: 46 }, ipoDate: { def: 84, min: 60 },
   mcap: { def: 82, min: 56 }, earn: { def: 92, min: 62 }, rating: { def: 78, min: 54 },
   // Intraday quote-derived columns (computed client-side from the live quote).
@@ -93,7 +94,8 @@ const COL_META = {
 const DEFAULT_COL_ORDER = ['flag', 'sym', 'price', 'vol', 'chg']   // reorderable by dragging a header
 // [full label, abbreviation] + the min column width to still show the full word.
 const COL_LABELS = {
-  flag: ['', ''], sym: ['Symbol', 'Sym'], price: ['Price', 'Price'], vol: ['Volume', 'Vol'], chg: ['% Change', '% Chg'],
+  flag: ['', ''], sym: ['Symbol', 'Sym'], name: ['Company Name', 'Name'],
+  price: ['Price', 'Price'], vol: ['Volume', 'Vol'], chg: ['% Change', '% Chg'],
   rvol: ['RVOL', 'RVOL'], ipoDate: ['IPO Date', 'IPO'],
   mcap: ['Market Cap', 'Mkt Cap'], earn: ['Next Earnings', 'Earnings'], rating: ['UCT Rating', 'UCT'],
   dchg: ['$ Change', '$ Chg'], fromopen: ['% from Open', '% Open'], fromhigh: ['% from High', '% High'],
@@ -104,12 +106,13 @@ const COL_LABELS = {
   grpcount: ['Stocks', 'Stocks'],
 }
 const COL_FULL_MINW = {
-  sym: 62, price: 46, vol: 60, chg: 80, rvol: 52, ipoDate: 60, mcap: 78, earn: 108, rating: 82,
+  sym: 62, name: 140, price: 46, vol: 60, chg: 80, rvol: 52, ipoDate: 60, mcap: 78, earn: 108, rating: 82,
   dchg: 84, fromopen: 92, fromhigh: 92, fromlow: 88, dcr: 40, dolvol: 92,
   sector: 40, industry: 40, theme: 40, perf5d: 40, perf30d: 40, perf60d: 40, perf90d: 40, periodchg: 40, grpcount: 40,
 }
 // Extra data columns the user can ADD via the + button (not shown by default).
 const EXTRA_COLS = [
+  { key: 'name', label: 'Company Name' },
   { key: 'rvol', label: 'RVOL' },
   { key: 'ipoDate', label: 'IPO Date' },
   { key: 'mcap', label: 'Market Cap' },
@@ -133,9 +136,9 @@ const EXTRA_KEYS = new Set(EXTRA_COLS.map(c => c.key))
 // Subset of EXTRA columns whose data comes from the /api/research/snapshot-batch
 // meta fetch (vs the live quote feed). Only these trigger useWatchlistMeta; the
 // quote-derived ones (dchg/fromopen/…) read fields already on prices[sym].
-const META_KEYS = new Set(['rvol', 'ipoDate', 'mcap', 'earn', 'rating', 'sector', 'industry'])
+const META_KEYS = new Set(['name', 'rvol', 'ipoDate', 'mcap', 'earn', 'rating', 'sector', 'industry'])
 // Text columns — sorted alphabetically, not numerically.
-const TEXT_COLS = new Set(['sector', 'industry', 'theme'])
+const TEXT_COLS = new Set(['name', 'sector', 'industry', 'theme'])
 // N-day performance columns → their key in perfData (from /api/watchlist-performance).
 const PERF_KEY_MAP = { perf5d: '5d', perf30d: '30d', perf60d: '60d', perf90d: '90d', periodchg: 'period' }
 const PERF_COL_KEYS = new Set(Object.keys(PERF_KEY_MAP))
@@ -303,7 +306,7 @@ const WatchRow = React.memo(function WatchRow({
   showLogos = true, tintEnabled = true, logoSize = 16, mcap = null, earn = null, rating = null,
   ipoDate = null,
   dchg = null, fromOpen = null, fromHigh = null, fromLow = null, dcr = null, dolvol = null, rvol = null,
-  sector = null, industry = null, theme = null,
+  coName = null, sector = null, industry = null, theme = null,
   perf5d = null, perf30d = null, perf60d = null, perf90d = null, periodchg = null,
   isOwner, wlId,
   onSelect, onToggleFlag, onIntent, onCtx,
@@ -390,6 +393,7 @@ const WatchRow = React.memo(function WatchRow({
     // IPO / first-trade date (compact M/D/YY).
     if (key === 'ipoDate') return <span key="ipoDate" className={styles.metaCell}>{fmtIpo(ipoDate)}</span>
     // Fundamentals text columns (left-aligned, ellipsized, full value on hover).
+    if (key === 'name') return <span key="name" className={styles.textCell} title={coName || ''}>{coName || '—'}</span>
     if (key === 'sector') return <span key="sector" className={styles.textCell} title={sector || ''}>{sector || '—'}</span>
     if (key === 'industry') return <span key="industry" className={styles.textCell} title={industry || ''}>{industry || '—'}</span>
     if (key === 'theme') return <span key="theme" className={styles.textCell} title={theme || ''}>{theme || '—'}</span>
@@ -835,14 +839,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         }
       })
     }
-    const lists = activeTab === 'mine' ? myLists : communityLists
+    // communityResolvable (not communityLists) so a picked PREBUILT list's symbols are
+    // collected for the live-price/meta fetch — /api/watchlists/public excludes prebuilt,
+    // so without this the prebuilt list's rows show "—" for every data column.
+    const lists = activeTab === 'mine' ? myLists : communityResolvable
     if (lists) {
       lists
         .filter(wl => expandedLists.has(wl.id))
         .forEach(wl => (wl.items || []).forEach(i => { if (i.sym) tickers.push(i.sym) }))
     }
     return tickers
-  }, [activeTab, flagged, tags, myLists, communityLists, expandedLists, scanMode, scanWl, scanVisibleSyms])
+  }, [activeTab, flagged, tags, myLists, communityResolvable, expandedLists, scanMode, scanWl, scanVisibleSyms])
 
   const { prices: feedPrices } = useRealtimePrices(allTickers)
   // Mirror the chart: when a StockChart of the same ticker is open, its published
@@ -976,15 +983,16 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         }
       })
     }
-    // User / community watchlists (whichever tab is active)
-    const lists = activeTab === 'mine' ? myLists : communityLists
+    // User / community watchlists (whichever tab is active). communityResolvable includes
+    // prebuilt lists so arrow-key nav works on a picked prebuilt list too.
+    const lists = activeTab === 'mine' ? myLists : communityResolvable
     if (lists) {
       lists.filter(wl => expandedLists.has(wl.id)).forEach(wl => {
         (wl.items || []).forEach(i => push(i.sym))
       })
     }
     return out
-  }, [activeTab, expandedLists, flagged, tags, TAG_COLORS, myLists, communityLists])
+  }, [activeTab, expandedLists, flagged, tags, TAG_COLORS, myLists, communityResolvable])
 
   // Keyboard nav: arrow up/down moves through every expanded list.
   const handleKeyDown = useCallback((e) => {
@@ -1521,6 +1529,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     }
     // Text columns sort alphabetically off the meta / theme batch.
     const textVal = (s) => {
+      if (key === 'name') return metaData?.[s]?.name || ''
       if (key === 'sector') return metaData?.[s]?.sector || ''
       if (key === 'industry') return metaData?.[s]?.industry || ''
       if (key === 'theme') return themeData?.[s] || ''
@@ -1685,6 +1694,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         dcr={colDerived.dcr(q)}
         dolvol={colDerived.dolvol(q)}
         rvol={rvolVal}
+        coName={metaData[sym]?.name ?? null}
         sector={metaData[sym]?.sector ?? null}
         industry={metaData[sym]?.industry ?? null}
         theme={themeData[sym] ?? null}
@@ -1793,7 +1803,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           const dragOk = isOwner && !sortBy
           return (
           <div className={styles.wlItems}>
-            {wl.description && <div className={styles.wlDesc}>{wl.description}</div>}
+            {/* Prebuilt (curated UCT) lists hide their description — the symbol list speaks
+                for itself. User/community lists still show theirs. */}
+            {wl.description && !wl.is_prebuilt && <div className={styles.wlDesc}>{wl.description}</div>}
             {/* Old per-list filter/sort header removed — the global column header now
                 drives columns + sorting so every watchlist uses the same format. */}
             {isOwner && addingToList === wl.id && (

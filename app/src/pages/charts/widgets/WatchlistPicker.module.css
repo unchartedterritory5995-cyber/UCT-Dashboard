@@ -51,8 +51,11 @@
   gap: 3px;
   padding: 3px;
   margin-bottom: 8px;
-  background: var(--bg, #060809);
-  border: 1px solid var(--border, #1f2937);
+  /* Theme-adaptive (like .searchWrap): a faint inset off the picker canvas via the --wl-*
+     vars, so it reads light-on-light / dark-on-OLED instead of the fixed dark --bg that
+     stayed black on a white surface. */
+  background: var(--wl-row-hover, var(--bg, #060809));
+  border: 1px solid var(--wl-divider-strong, var(--border, #1f2937));
   border-radius: 8px;
 }
 .tab {
@@ -70,10 +73,10 @@
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.2px;
-  color: var(--text-muted, #706b5e);
+  color: var(--wl-text, var(--text-muted, #706b5e));
   transition: background 0.12s, color 0.12s;
 }
-.tab:hover { color: var(--text-bright, #e0dac8); }
+.tab:hover { color: var(--wl-text-strong, var(--text-bright, #e0dac8)); }
 .tab svg { opacity: 0.85; }
 .tabActive {
   background: linear-gradient(180deg, rgba(201, 168, 76, 0.16), rgba(201, 168, 76, 0.06));
@@ -114,6 +117,9 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding-bottom: 8px;
+  /* Query container so the prebuilt grid can collapse to one column when the picker is
+     narrow, independent of viewport width (widgets/pop-outs vary). */
+  container-type: inline-size;
 }
 
 .section {
@@ -171,17 +177,90 @@
 }
 .rowMeta {
   font-size: 10px;
-  color: var(--text-muted, #706b5e);
+  color: var(--wl-text, var(--text-muted, #706b5e));
+  opacity: 0.85;
   flex-shrink: 0;
 }
 .rowCount {
   font-size: 10px;
-  color: var(--text-muted, #8c8674);
-  background: var(--bg-hover, #1f2937);
-  border: 1px solid var(--border, #1f2937);
+  color: var(--wl-text, var(--text-muted, #8c8674));
+  background: var(--wl-row-hover, var(--bg-hover, #1f2937));
+  border: 1px solid var(--wl-divider-strong, var(--border, #1f2937));
   border-radius: 8px;
   padding: 1px 6px;
   flex-shrink: 0;
+}
+
+/* Prebuilt section (category) header — "UCT ETF Lists" etc. Strong near-black text on the
+   light theme (theme-adaptive via --wl-text-strong so it stays legible on a dark canvas),
+   a gold glyph, a right-aligned list count, and a hairline divider under it. */
+.catGroup + .catGroup { margin-top: 6px; }
+.catHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--wl-text-strong, #0b0f14);
+  padding: 8px 6px 6px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--wl-divider-strong, var(--border, #1f2937));
+}
+.catCount {
+  margin-left: auto;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  text-transform: none;
+  color: var(--wl-text, var(--text-muted, #8c8674));
+  opacity: 0.85;
+}
+.catGroup:first-child .catHeader { padding-top: 2px; }
+
+/* Compact two-column prebuilt grid — hairline cells, gold name + plain count, hover band.
+   Collapses to one column when the picker is narrow (container query on .body). */
+.pGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.pCell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 8px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--wl-divider, var(--border, #1f2937));
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  transition: background 0.12s;
+}
+.pCell:nth-child(odd) { border-right: 1px solid var(--wl-divider, var(--border, #1f2937)); }
+.pCell:hover { background: var(--wl-row-hover, rgba(201, 168, 76, 0.09)); }
+.pCellName {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--wl-accent, var(--ut-gold, #c9a84c));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pCellCount {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--wl-text, var(--text-muted, #8c8674));
+  opacity: 0.85;
+}
+@container (max-width: 300px) {
+  .pGrid { grid-template-columns: 1fr; }
+  .pCell:nth-child(odd) { border-right: none; }
 }
 
 /* My-Lists row wrapper: pick button + hover-reveal delete */

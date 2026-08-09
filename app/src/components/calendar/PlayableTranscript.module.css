@@ -1,0 +1,137 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.audio {
+  flex: 1 1 260px;
+  min-width: 0;
+  height: 34px;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
+.clock {
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--color-text-muted, #8a8f98);
+  min-width: 42px;
+}
+
+.speed {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--color-text-muted, #8a8f98);
+}
+.speed select {
+  background: transparent;
+  color: var(--color-text, #d8dade);
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 4px;
+  padding: 2px 4px;
+  font-size: 12px;
+}
+
+.followOn,
+.followOff {
+  min-height: 28px;
+  padding: 3px 9px;
+  border-radius: 4px;
+  font-size: 11px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, .14);
+  background: transparent;
+  color: var(--color-text-muted, #8a8f98);
+}
+.followOn {
+  border-color: var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #c9a84c);
+}
+
+.hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-text-muted, #8a8f98);
+}
+
+.body {
+  max-height: 460px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.turn { margin-bottom: 12px; }
+
+.speaker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--ut-gold, #c9a84c);
+}
+
+.title {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--color-text-muted, #8a8f98);
+}
+
+.turnJump {
+  background: none;
+  border: none;
+  padding: 0 2px;
+  cursor: pointer;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted, #8a8f98);
+}
+.turnJump:hover { color: var(--ut-gold, #c9a84c); }
+
+.text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--color-text, #d8dade);
+}
+
+.word { cursor: pointer; }
+.word:hover { background: rgba(201, 168, 76, .16); }
+
+/* The spoken word. Reads at a glance while scrolling past. */
+.wordActive {
+  cursor: pointer;
+  background: var(--ut-gold, #c9a84c);
+  color: #12131a;
+  border-radius: 2px;
+  box-shadow: 0 0 0 2px rgba(201, 168, 76, .35);
+}
+
+@media (max-width: 640px) {
+  .body { max-height: 340px; }
+  .controls { width: 100%; justify-content: space-between; }
+}

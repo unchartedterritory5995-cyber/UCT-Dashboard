@@ -292,13 +292,19 @@ function census() {
   return { found, wrappers, unparseable }
 }
 
+// Both census tests walk the entire source tree with an AST parse and land at
+// 4.5-5.2s — straddling vitest's 5000ms default, so they flip red at random
+// under a loaded pool. That is a SLOW test, not a starved one (maxWorkers is
+// already throttled in vite.config.js for the starved kind), so the timeout is
+// raised to match what the work actually costs rather than the rail being
+// weakened. A rail that fails at random is one you learn to ignore.
 describe('polling sites — the opt-in helper gets a rail', () => {
   it('the wrapper exempts itself by RESOLUTION, and there is exactly one of it', () => {
     const { wrappers } = census()
     expect(wrappers.size, 'no import of `useMobileSWR` resolved — the exemption '
       + 'below is inert and the wrapper would count as its own violation').toBe(1)
     expect(key([...wrappers][0])).toBe('app/src/hooks/useMobileSWR.js')
-  })
+  }, 30_000)
 
   it('no NEW bare polling site, and no allow-listed one that has since moved', () => {
     const { found, unparseable } = census()
@@ -325,7 +331,7 @@ describe('polling sites — the opt-in helper gets a rail', () => {
     expect(stale, 'An allow-listed bare polling site is gone or reduced — good, and '
       + 'the list must say so. An allow-list that only ever grows is a list nobody '
       + 'reads again. Lower the count or delete the row.').toEqual([])
-  })
+  }, 30_000)
 
   it('the ADOPTION TRADE is pinned, so nobody re-pitches migration as a pure win', () => {
     // ⚠️ THIS PINS A TRADE, IT DOES NOT ASSERT A WIN. Two files disagree about
