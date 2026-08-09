@@ -1170,6 +1170,49 @@ def _resolve_active_set_for_patterns() -> list[str]:
     return out
 
 
+def register_call_recap_warm_jobs(scheduler):
+    """Pre-generate call recaps so the modal is a point-read, not a ~39s wait.
+
+    Runs FOUR times on weekdays rather than once, because a reader opening a
+    name that reported this morning should not wait for tonight:
+      07:30 ET — before the open, covers last night's AMC calls
+      12:30 ET — midday, covers this morning's BMO calls
+      17:15 ET — after the close, ahead of the 18:30 keyword scan
+      21:30 ET — late sweep for anything that published slowly
+    Each sweep is incremental (`store.has` skips a stored call before spending),
+    so the extra runs cost time, not money.
+
+    Returns True if the jobs were registered.
+    """
+    import os
+    if os.environ.get("CALL_RECAP_WARM_ENABLED", "").strip() != "1":
+        return False
+    from apscheduler.triggers.cron import CronTrigger
+
+    _wlog = logging.getLogger(__name__)
+
+    def _run_warm_sweep():
+        try:
+            from api.services import call_recap_warmer as warmer
+            from api.services import transcript_keyword_alerts as ka
+            from api.services.engine import get_earnings
+            syms = ka.reporters_from_earnings(get_earnings() or {})
+            if not syms:
+                _wlog.info("[recap_warm] no reporters; nothing to warm")
+                return
+            _wlog.info("[recap_warm] %s", warmer.run_sweep(syms))
+        except Exception as exc:
+            _wlog.warning("[recap_warm] sweep failed: %s", exc)
+
+    for hour, minute in ((7, 30), (12, 30), (17, 15), (21, 30)):
+        scheduler.add_job(
+            _run_warm_sweep,
+            trigger=CronTrigger(day_of_week="mon-fri", hour=hour, minute=minute,
+                                timezone=_ET),
+            id=f"call_recap_warm_{hour:02d}{minute:02d}", replace_existing=True)
+    return True
+
+
 def register_transcript_keyword_jobs(scheduler):
     """Cross-company transcript keyword alerts — "tell anyone who follows the word
     'tariff' when any company says it on a call".
@@ -3429,6 +3472,9 @@ async def lifespan(app: FastAPI):
         # -- Full-market screener nightly snapshot build (spec 2026-06-19) --
         try:
             register_screener_jobs(_scheduler)
+            if register_call_recap_warm_jobs(_scheduler):
+                logging.getLogger(__name__).info(
+                    "[startup] call-recap warm sweeps: 07:30/12:30/17:15/21:30 ET")
             if register_transcript_keyword_jobs(_scheduler):
                 logging.getLogger(__name__).info("[startup] transcript keyword alerts: 18:30 ET weekdays")
             register_wire_watchdog_job(_scheduler)

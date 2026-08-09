@@ -81,7 +81,16 @@ class TestGetCallRecap:
         llm_json = llm_response or json.dumps(_SAMPLE_RECAP)
         mock_response = _make_anthropic_response(llm_json)
 
+        # The web-context fallback now runs ONLY for a ticker with no published
+        # transcript -- one that HAS a transcript is handed to the background
+        # warmer rather than generated on the request path. Both preconditions
+        # are pinned below: leaving them to ambient state is exactly how this
+        # broke, when another suite left av_transcripts patched and these
+        # silently exercised a different branch.
         with patch("api.services.call_recap._cache") as mock_cache_fn, \
+             patch("api.services.call_recap._store",
+                   return_value=MagicMock(get=MagicMock(return_value=None))), \
+             patch("api.services.call_recap._transcript_for", return_value=None), \
              patch("api.services.call_recap._pplx_earnings_highlights",
                    return_value=pplx_context), \
              patch("api.services.call_recap._cost_guard") as mock_guard_fn, \
@@ -124,7 +133,16 @@ class TestGetCallRecap:
     def test_cost_guard_respected(self):
         from api.services.call_recap import get_call_recap
 
+        # The web-context fallback now runs ONLY for a ticker with no published
+        # transcript -- one that HAS a transcript is handed to the background
+        # warmer rather than generated on the request path. Both preconditions
+        # are pinned below: leaving them to ambient state is exactly how this
+        # broke, when another suite left av_transcripts patched and these
+        # silently exercised a different branch.
         with patch("api.services.call_recap._cache") as mock_cache_fn, \
+             patch("api.services.call_recap._store",
+                   return_value=MagicMock(get=MagicMock(return_value=None))), \
+             patch("api.services.call_recap._transcript_for", return_value=None), \
              patch("api.services.call_recap._cost_guard") as mock_guard_fn, \
              patch("api.services.call_recap._anthropic_client") as mock_client_fn:
 
@@ -146,7 +164,16 @@ class TestGetCallRecap:
     def test_cache_hit_skips_llm(self):
         from api.services.call_recap import get_call_recap
 
+        # The web-context fallback now runs ONLY for a ticker with no published
+        # transcript -- one that HAS a transcript is handed to the background
+        # warmer rather than generated on the request path. Both preconditions
+        # are pinned below: leaving them to ambient state is exactly how this
+        # broke, when another suite left av_transcripts patched and these
+        # silently exercised a different branch.
         with patch("api.services.call_recap._cache") as mock_cache_fn, \
+             patch("api.services.call_recap._store",
+                   return_value=MagicMock(get=MagicMock(return_value=None))), \
+             patch("api.services.call_recap._transcript_for", return_value=None), \
              patch("api.services.call_recap._anthropic_client") as mock_client_fn:
 
             mock_cache = MagicMock()
@@ -178,7 +205,16 @@ class TestGetCallRecap:
     def test_a_transient_failure_is_not_pinned_for_the_success_ttl(self):
         from api.services.call_recap import get_call_recap, _FAILURE_TTL
 
+        # The web-context fallback now runs ONLY for a ticker with no published
+        # transcript -- one that HAS a transcript is handed to the background
+        # warmer rather than generated on the request path. Both preconditions
+        # are pinned below: leaving them to ambient state is exactly how this
+        # broke, when another suite left av_transcripts patched and these
+        # silently exercised a different branch.
         with patch("api.services.call_recap._cache") as mock_cache_fn, \
+             patch("api.services.call_recap._store",
+                   return_value=MagicMock(get=MagicMock(return_value=None))), \
+             patch("api.services.call_recap._transcript_for", return_value=None), \
              patch("api.services.call_recap._pplx_earnings_highlights",
                    return_value=_PPLX_WEB_CONTEXT), \
              patch("api.services.call_recap._cost_guard") as mock_guard_fn, \
@@ -205,7 +241,16 @@ class TestGetCallRecap:
     def test_an_empty_provider_answer_is_cached_shorter_than_a_success(self):
         from api.services.call_recap import get_call_recap, _EMPTY_TTL, _RECAP_TTL
 
+        # The web-context fallback now runs ONLY for a ticker with no published
+        # transcript -- one that HAS a transcript is handed to the background
+        # warmer rather than generated on the request path. Both preconditions
+        # are pinned below: leaving them to ambient state is exactly how this
+        # broke, when another suite left av_transcripts patched and these
+        # silently exercised a different branch.
         with patch("api.services.call_recap._cache") as mock_cache_fn, \
+             patch("api.services.call_recap._store",
+                   return_value=MagicMock(get=MagicMock(return_value=None))), \
+             patch("api.services.call_recap._transcript_for", return_value=None), \
              patch("api.services.call_recap._pplx_earnings_highlights", return_value=""), \
              patch("api.services.call_recap._cost_guard") as mock_guard_fn:
 
@@ -226,7 +271,16 @@ class TestGetCallRecap:
     def test_null_safe_on_llm_exception(self):
         from api.services.call_recap import get_call_recap
 
+        # The web-context fallback now runs ONLY for a ticker with no published
+        # transcript -- one that HAS a transcript is handed to the background
+        # warmer rather than generated on the request path. Both preconditions
+        # are pinned below: leaving them to ambient state is exactly how this
+        # broke, when another suite left av_transcripts patched and these
+        # silently exercised a different branch.
         with patch("api.services.call_recap._cache") as mock_cache_fn, \
+             patch("api.services.call_recap._store",
+                   return_value=MagicMock(get=MagicMock(return_value=None))), \
+             patch("api.services.call_recap._transcript_for", return_value=None), \
              patch("api.services.call_recap._pplx_earnings_highlights",
                    return_value=_PPLX_WEB_CONTEXT), \
              patch("api.services.call_recap._cost_guard") as mock_guard_fn, \
@@ -257,7 +311,16 @@ class TestGetSentiment:
         llm_json = llm_response or json.dumps(_SAMPLE_SENTIMENT)
         mock_response = _make_anthropic_response(llm_json)
 
+        # The web-context fallback now runs ONLY for a ticker with no published
+        # transcript -- one that HAS a transcript is handed to the background
+        # warmer rather than generated on the request path. Both preconditions
+        # are pinned below: leaving them to ambient state is exactly how this
+        # broke, when another suite left av_transcripts patched and these
+        # silently exercised a different branch.
         with patch("api.services.call_recap._cache") as mock_cache_fn, \
+             patch("api.services.call_recap._store",
+                   return_value=MagicMock(get=MagicMock(return_value=None))), \
+             patch("api.services.call_recap._transcript_for", return_value=None), \
              patch("api.services.call_recap._pplx_earnings_highlights",
                    return_value=pplx_context), \
              patch("api.services.call_recap._cost_guard") as mock_guard_fn, \
@@ -307,7 +370,16 @@ class TestGetSentiment:
     def test_cost_guard_respected(self):
         from api.services.call_recap import get_sentiment
 
+        # The web-context fallback now runs ONLY for a ticker with no published
+        # transcript -- one that HAS a transcript is handed to the background
+        # warmer rather than generated on the request path. Both preconditions
+        # are pinned below: leaving them to ambient state is exactly how this
+        # broke, when another suite left av_transcripts patched and these
+        # silently exercised a different branch.
         with patch("api.services.call_recap._cache") as mock_cache_fn, \
+             patch("api.services.call_recap._store",
+                   return_value=MagicMock(get=MagicMock(return_value=None))), \
+             patch("api.services.call_recap._transcript_for", return_value=None), \
              patch("api.services.call_recap._cost_guard") as mock_guard_fn:
 
             mock_cache = MagicMock()
@@ -325,7 +397,16 @@ class TestGetSentiment:
     def test_null_safe_on_error(self):
         from api.services.call_recap import get_sentiment
 
+        # The web-context fallback now runs ONLY for a ticker with no published
+        # transcript -- one that HAS a transcript is handed to the background
+        # warmer rather than generated on the request path. Both preconditions
+        # are pinned below: leaving them to ambient state is exactly how this
+        # broke, when another suite left av_transcripts patched and these
+        # silently exercised a different branch.
         with patch("api.services.call_recap._cache") as mock_cache_fn, \
+             patch("api.services.call_recap._store",
+                   return_value=MagicMock(get=MagicMock(return_value=None))), \
+             patch("api.services.call_recap._transcript_for", return_value=None), \
              patch("api.services.call_recap._perplexity") as mock_pplx_fn, \
              patch("api.services.call_recap._cost_guard") as mock_guard_fn:
 
@@ -355,7 +436,16 @@ class TestGetWebcastUrl:
             "answer": f"Visit {_SAMPLE_WEBCAST} for the earnings webcast.",
             "citations": [_SAMPLE_WEBCAST],
         }
+        # The web-context fallback now runs ONLY for a ticker with no published
+        # transcript -- one that HAS a transcript is handed to the background
+        # warmer rather than generated on the request path. Both preconditions
+        # are pinned below: leaving them to ambient state is exactly how this
+        # broke, when another suite left av_transcripts patched and these
+        # silently exercised a different branch.
         with patch("api.services.call_recap._cache") as mock_cache_fn, \
+             patch("api.services.call_recap._store",
+                   return_value=MagicMock(get=MagicMock(return_value=None))), \
+             patch("api.services.call_recap._transcript_for", return_value=None), \
              patch("api.services.call_recap._perplexity") as mock_pplx_fn:
 
             mock_cache = MagicMock()
@@ -374,7 +464,16 @@ class TestGetWebcastUrl:
     def test_cached_24h(self):
         from api.services.call_recap import get_webcast_url
 
+        # The web-context fallback now runs ONLY for a ticker with no published
+        # transcript -- one that HAS a transcript is handed to the background
+        # warmer rather than generated on the request path. Both preconditions
+        # are pinned below: leaving them to ambient state is exactly how this
+        # broke, when another suite left av_transcripts patched and these
+        # silently exercised a different branch.
         with patch("api.services.call_recap._cache") as mock_cache_fn, \
+             patch("api.services.call_recap._store",
+                   return_value=MagicMock(get=MagicMock(return_value=None))), \
+             patch("api.services.call_recap._transcript_for", return_value=None), \
              patch("api.services.call_recap._perplexity") as mock_pplx_fn:
 
             mock_cache = MagicMock()
@@ -397,7 +496,16 @@ class TestGetWebcastUrl:
     def test_null_safe_on_failure(self):
         from api.services.call_recap import get_webcast_url
 
+        # The web-context fallback now runs ONLY for a ticker with no published
+        # transcript -- one that HAS a transcript is handed to the background
+        # warmer rather than generated on the request path. Both preconditions
+        # are pinned below: leaving them to ambient state is exactly how this
+        # broke, when another suite left av_transcripts patched and these
+        # silently exercised a different branch.
         with patch("api.services.call_recap._cache") as mock_cache_fn, \
+             patch("api.services.call_recap._store",
+                   return_value=MagicMock(get=MagicMock(return_value=None))), \
+             patch("api.services.call_recap._transcript_for", return_value=None), \
              patch("api.services.call_recap._perplexity") as mock_pplx_fn:
 
             mock_cache = MagicMock()
@@ -447,7 +555,16 @@ class TestGetRatingChanges:
         """FMP is primary — Finnhub is never touched when FMP answers."""
         from api.services.call_recap import get_rating_changes
 
+        # The web-context fallback now runs ONLY for a ticker with no published
+        # transcript -- one that HAS a transcript is handed to the background
+        # warmer rather than generated on the request path. Both preconditions
+        # are pinned below: leaving them to ambient state is exactly how this
+        # broke, when another suite left av_transcripts patched and these
+        # silently exercised a different branch.
         with patch("api.services.call_recap._cache") as mock_cache_fn, \
+             patch("api.services.call_recap._store",
+                   return_value=MagicMock(get=MagicMock(return_value=None))), \
+             patch("api.services.call_recap._transcript_for", return_value=None), \
              patch("api.services.earnings_estimates._fmp_grades_historical",
                    return_value=self._fmp_response()) as fmp_spy, \
              patch("api.services.finnhub_client.fh_get") as fh_spy:
@@ -471,7 +588,16 @@ class TestGetRatingChanges:
     def test_falls_back_to_finnhub_when_fmp_yields_nothing(self):
         from api.services.call_recap import get_rating_changes
 
+        # The web-context fallback now runs ONLY for a ticker with no published
+        # transcript -- one that HAS a transcript is handed to the background
+        # warmer rather than generated on the request path. Both preconditions
+        # are pinned below: leaving them to ambient state is exactly how this
+        # broke, when another suite left av_transcripts patched and these
+        # silently exercised a different branch.
         with patch("api.services.call_recap._cache") as mock_cache_fn, \
+             patch("api.services.call_recap._store",
+                   return_value=MagicMock(get=MagicMock(return_value=None))), \
+             patch("api.services.call_recap._transcript_for", return_value=None), \
              patch("api.services.earnings_estimates._fmp_grades_historical",
                    return_value=[]), \
              patch("api.services.finnhub_client.fh_get",
@@ -492,7 +618,16 @@ class TestGetRatingChanges:
     def test_empty_when_both_providers_yield_nothing(self):
         from api.services.call_recap import get_rating_changes
 
+        # The web-context fallback now runs ONLY for a ticker with no published
+        # transcript -- one that HAS a transcript is handed to the background
+        # warmer rather than generated on the request path. Both preconditions
+        # are pinned below: leaving them to ambient state is exactly how this
+        # broke, when another suite left av_transcripts patched and these
+        # silently exercised a different branch.
         with patch("api.services.call_recap._cache") as mock_cache_fn, \
+             patch("api.services.call_recap._store",
+                   return_value=MagicMock(get=MagicMock(return_value=None))), \
+             patch("api.services.call_recap._transcript_for", return_value=None), \
              patch("api.services.earnings_estimates._fmp_grades_historical",
                    return_value=[]), \
              patch("api.services.finnhub_client.fh_get", return_value=None):
@@ -516,7 +651,16 @@ class TestGetRatingChanges:
         confirms the composition layer here adds no new failure mode."""
         from api.services.call_recap import get_rating_changes
 
+        # The web-context fallback now runs ONLY for a ticker with no published
+        # transcript -- one that HAS a transcript is handed to the background
+        # warmer rather than generated on the request path. Both preconditions
+        # are pinned below: leaving them to ambient state is exactly how this
+        # broke, when another suite left av_transcripts patched and these
+        # silently exercised a different branch.
         with patch("api.services.call_recap._cache") as mock_cache_fn, \
+             patch("api.services.call_recap._store",
+                   return_value=MagicMock(get=MagicMock(return_value=None))), \
+             patch("api.services.call_recap._transcript_for", return_value=None), \
              patch("api.services.earnings_estimates._fmp_grades_historical",
                    return_value=[]), \
              patch("api.services.finnhub_client.fh_get", return_value=None):

@@ -19,6 +19,7 @@ import datetime
 import json
 import logging
 import os
+import threading
 from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
@@ -61,9 +62,61 @@ def _cost_guard():
     return cost_guard
 
 
+def _store():
+    from api.services import call_recap_store
+    return call_recap_store
+
+
 def _grounded():
     from api.services import call_recap_grounded
     return call_recap_grounded
+
+
+# ── background warm-on-miss ──────────────────────────────────────────────────
+#
+# The scheduled sweep covers the reporters we can predict. This closes the gap
+# for anything it missed: the FIRST reader of a cold symbol triggers generation
+# off the request path and sees the recap appear shortly after (the frontend
+# polls while it is null); every reader after that gets a point-read.
+#
+# Bounded to 2 workers and deduped by symbol. The web pod is ONE uvicorn process
+# with ONE shared anyio threadpool — an unbounded pool here is the shape that
+# caused the 524 outage, so this is deliberately small and never awaited.
+_WARM_POOL = None
+_WARM_INFLIGHT: set[str] = set()
+_WARM_MU = threading.Lock()
+
+
+def _trigger_background_warm(sym: str) -> None:
+    global _WARM_POOL
+    if os.environ.get("CALL_RECAP_WARM_ON_MISS", "1").strip() != "1":
+        return
+    try:
+        from api.services import call_recap_store as store
+        if not store.may_spend():
+            return
+        with _WARM_MU:
+            if sym in _WARM_INFLIGHT:
+                return
+            if _WARM_POOL is None:
+                from concurrent.futures import ThreadPoolExecutor
+                _WARM_POOL = ThreadPoolExecutor(
+                    max_workers=2, thread_name_prefix="recap-warm")
+            _WARM_INFLIGHT.add(sym)
+
+        def _run():
+            try:
+                from api.services.call_recap_warmer import warm_symbol
+                _log.info("[call_recap] warm-on-miss %s -> %s", sym, warm_symbol(sym))
+            except Exception as exc:
+                _log.warning("[call_recap] warm-on-miss failed for %s: %s", sym, exc)
+            finally:
+                with _WARM_MU:
+                    _WARM_INFLIGHT.discard(sym)
+
+        _WARM_POOL.submit(_run)
+    except Exception as exc:
+        _log.debug("[call_recap] could not trigger warm for %s: %s", sym, exc)
 
 
 def _transcript_for(sym: str):
@@ -138,23 +191,34 @@ def get_call_recap(ticker: str) -> Optional[dict[str, Any]]:
     if hit is not None:
         return hit if hit != "__null__" else None
 
+    # --- The durable store: the ONLY path that can meet "under 2-3 seconds
+    # --- for the first user". A grounded synthesis takes ~39s, so the request
+    # --- path never generates one — `call_recap_warmer` does that on a
+    # --- schedule and this is a SQLite point-read of the result. It also
+    # --- survives redeploys, which the in-process cache did not.
+    try:
+        stored = _store().get(sym)
+    except Exception as exc:
+        _log.debug("[call_recap] store read failed for %s: %s", sym, exc)
+        stored = None
+    if stored:
+        _cache().set(ck, stored, _RECAP_TTL)
+        return stored
+
     market_date = _today_date()
     guard = _cost_guard()
     if not guard.may_synthesize(market_date):
         _log.info("[call_recap] cost cap reached, skipping %s", sym)
         return None
 
-    # --- Preferred path: the verbatim transcript ---------------------------
-    # FMP publishes it uncapped and cached 30d, so grounding costs one provider
-    # read that has usually already happened. Quotes synthesized from it are
-    # verified against it server-side; anything unlocatable is dropped.
+    # A ticker with a transcript but no stored recap is handed to the background
+    # warmer rather than generated inline: 39s on the request path is exactly
+    # the behaviour this design exists to remove. The transcript panel still
+    # opens immediately, so the reader is never blocked on the summary.
     transcript = _transcript_for(sym)
     if transcript and transcript.get("segments"):
-        grounded = _grounded().synthesize(sym, transcript)
-        if grounded:
-            _cache().set(ck, grounded, _RECAP_TTL)
-            return grounded
-        _log.info("[call_recap] grounded synthesis empty for %s; falling back", sym)
+        _trigger_background_warm(sym)
+        return None
 
     # --- Fallback: web context, for names with no published transcript ------
     try:

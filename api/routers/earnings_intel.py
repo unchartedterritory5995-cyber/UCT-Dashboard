@@ -151,6 +151,22 @@ def transcript_endpoint(
 # Reuses the existing multi-channel alert delivery; see
 # api/services/transcript_keyword_alerts.py.
 
+@router.get("/api/admin/call-recap-status")
+def call_recap_status():
+    """Store size, today's generations and spend against the cap.
+
+    Read this rather than the logs to answer "is warming keeping up?" — a
+    permanently-green heartbeat would not distinguish a healthy sweep from one
+    that has been capped since 08:00.
+    """
+    try:
+        from api.services import call_recap_store as store
+        store.init_db()
+        return store.stats()
+    except Exception as e:
+        return {"error": str(e)}
+
+
 @router.get("/api/earnings/keyword-alerts")
 def list_keyword_alerts(user: dict = Depends(get_current_user)):
     try:
