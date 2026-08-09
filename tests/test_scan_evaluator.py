@@ -912,6 +912,183 @@ def _record_rows(def_hash, rev, tf_label, sym):
             "rev=? AND tf=? AND sym=? ORDER BY id", (def_hash, rev, tf_label, sym))]
 
 
+def _record_row_count(def_hash, rev):
+    import contextlib
+    import sqlite3
+    with contextlib.closing(sqlite3.connect(definition_record.db_path())) as c:
+        return c.execute(
+            f"SELECT COUNT(*) FROM {definition_record.TABLE_NAME} "
+            "WHERE def_hash=? AND rev=?", (def_hash, rev)).fetchone()[0]
+
+
+def test_the_SWEEP_writes_the_rule_record_in_ONE_TRANSACTION_not_one_per_row(
+        store, bars, monkeypatch):
+    """🔴 THE WIRE, NOT THE DOOR — this is the test that goes RED when the sweep
+    stops using the batching door while that door stays perfectly correct.
+
+    E-6's concern 2 sanctioned a batching door on `definition_record` and it
+    landed measured at 156k rows/s -- but `_write_rule_record` went on looping
+    the per-row door, so production sweeps still wrote at ~288 rows/s. *Built,
+    tested, green, connected to nothing* (2026-08-08 audit). A unit test on
+    `record_evaluations` cannot see that: it is green in both worlds. **So this
+    counts CONNECTIONS opened during a real `evaluate_one`.** One batch is one
+    `_connect()`; the per-row loop is one per row, because `_connect` re-runs
+    `PRAGMA journal_mode=WAL` and the per-row door commits, per row.
+
+    ⭐ AND IT CARRIES ITS OWN CONTROL. The same counter is pointed at the per-row
+    spelling of the same writes and asserted to see N — so `== 1` is a
+    measurement of batching, not of a probe that stopped counting.
+    """
+    d = _definition(PRICE_TREE, rev=1)
+    handle = scan_definition.assert_scannable(d)["def_hash"]
+    universe = ["A", "B", "C", "D"]
+    for s in universe:
+        bars[s] = _daily_bars()
+
+    # the schema's own connection, taken OUT of the count rather than tolerated
+    definition_record._ensure_init()
+
+    connects: list = []
+    real_connect = definition_record._connect
+
+    def _counting_connect():
+        connects.append(1)
+        return real_connect()
+
+    monkeypatch.setattr(definition_record, "_connect", _counting_connect)
+
+    # ⛔ THE COUNT IS TAKEN AROUND THE WRITE SITE, NOT AROUND THE SWEEP. The
+    # sweep also opens ONE connection to READ `latest_through_by_symbol` before
+    # the loop; folding that into the number would make this assertion a
+    # statement about two unrelated things, and it would move the day a second
+    # read landed.
+    seen: dict = {}
+    real_write = scan_evaluator._write_rule_record
+
+    def _spy(def_hash, rev, tf_label, rows):
+        before = len(connects)
+        out = real_write(def_hash, rev, tf_label, rows)
+        seen["connects"] = len(connects) - before
+        seen["rows"] = len(rows)
+        return out
+
+    monkeypatch.setattr(scan_evaluator, "_write_rule_record", _spy)
+
+    out = scan_evaluator.evaluate_one(d, TF, universe=universe, as_of=SESSION)
+    assert out["recorded"] == len(universe), (
+        "the sweep did not write a row per symbol — `== 1` below would be a "
+        "measurement of nothing being written")
+    assert seen.get("rows") == len(universe), (
+        "the sweep handed the write site a different number of rows than it "
+        "recorded — this test is no longer measuring the sweep's own batch")
+    assert seen["connects"] == 1, (
+        f"the write site opened {seen['connects']} connections to write "
+        f"{seen['rows']} rows — `_write_rule_record` is looping the per-row "
+        f"door again and production sweeps are back at ~288 rows/s")
+
+    # ⭐ THE CONTROL: the per-row spelling IS visible to this counter.
+    connects.clear()
+    for s in universe:
+        definition_record.record_evaluation(handle, 2, TF_LABEL, s, SESSION,
+                                            SESSION, bars_evaluated=1, bars_true=0)
+    assert len(connects) == len(universe), (
+        "the connection counter cannot see a per-row loop, so the assertion "
+        "above proves nothing")
+
+
+def test_the_rule_record_batch_is_ONE_TRANSACTION_so_a_crash_leaves_NO_PREFIX(
+        store, bars, monkeypatch):
+    """⚠️ THE BEHAVIOUR CHANGE, ASSERTED DELIBERATELY RATHER THAN DISCOVERED.
+
+    The per-row door committed per row, so a process that died mid-sweep left a
+    PREFIX of the rows on file. One batch is one transaction, so the same death
+    leaves NOTHING. For an append-only receipt store that is the safer half of
+    the trade -- the next sweep re-derives the same windows and `UNIQUE` makes
+    the re-run free, whereas a half-written month sits there forever claiming a
+    tally nobody computed -- but it IS a change, and it is asserted here so a
+    future reader finds it stated rather than inferring it from a docstring.
+
+    ⛔ THE CONTROL IS THE SAME BATCH WITHOUT THE FAULT. Without it, "zero rows"
+    would also be satisfied by a batch that never ran.
+    """
+    import sqlite3
+
+    d = _definition(PRICE_TREE, rev=1)
+    handle = scan_definition.assert_scannable(d)["def_hash"]
+    rows = [{"sym": s, "first": SESSION, "through": SESSION,
+             "evaluated": 1, "true": 0} for s in ("A", "B", "C", "D", "E")]
+
+    class _DiesPartWay:
+        """A connection that fails on the 3rd INSERT — mid-batch, by construction."""
+
+        def __init__(self, inner):
+            self.inner = inner
+            self.inserts = 0
+
+        def execute(self, sql, *a):
+            if sql.lstrip().upper().startswith("INSERT"):
+                self.inserts += 1
+                if self.inserts == 3:
+                    raise sqlite3.OperationalError("disk I/O error")
+            return self.inner.execute(sql, *a)
+
+        def commit(self):
+            return self.inner.commit()
+
+        def close(self):
+            return self.inner.close()
+
+    definition_record._ensure_init()
+    real_connect = definition_record._connect
+    monkeypatch.setattr(definition_record, "_connect",
+                        lambda: _DiesPartWay(real_connect()))
+
+    with pytest.raises(sqlite3.OperationalError):
+        scan_evaluator._write_rule_record(handle, 1, TF_LABEL, rows)
+    assert _record_row_count(handle, 1) == 0, (
+        "a crash mid-batch left a PREFIX of the sweep's rows on file — the "
+        "transaction boundary this store depends on is gone")
+
+    # ⭐ THE CONTROL: the same rows, no fault, all land.
+    monkeypatch.setattr(definition_record, "_connect", real_connect)
+    written, refused = scan_evaluator._write_rule_record(handle, 1, TF_LABEL, rows)
+    assert (written, refused) == (len(rows), 0)
+    assert _record_row_count(handle, 1) == len(rows)
+
+
+def test_a_KEY_level_refusal_is_COUNTED_for_EVERY_row_and_is_NEVER_fatal(
+        store, bars, caplog):
+    """⛔ THE BATCHING DOOR RAISES ON A BAD KEY -- AND THE RECEIPT SURVIVES IT.
+
+    `record_evaluations` returns per-ROW refusals but RAISES on a bad
+    `def_hash`/`rev`/`tf`, deliberately: that is one problem, not N, and
+    returning it N times would say N. The per-row loop this replaced caught the
+    same `ValueError` once per row and reported `refused == len(rows)`, so this
+    site keeps that arithmetic while logging the sentence ONCE -- because
+    `_write_rule_record`'s contract to the sweep is that a refusal is *counted
+    and named, never swallowed and never fatal*.
+    """
+    d = _definition(PRICE_TREE, rev=1)
+    handle = scan_definition.assert_scannable(d)["def_hash"]
+    rows = [{"sym": s, "first": SESSION, "through": SESSION,
+             "evaluated": 1, "true": 0} for s in ("A", "B", "C")]
+
+    with caplog.at_level("WARNING"):
+        written, refused = scan_evaluator._write_rule_record(
+            handle, 1, "not-a-timeframe-any-claim-can-name", rows)
+    assert (written, refused) == (0, len(rows)), (
+        "a key-level refusal was not counted against every row it refused")
+    named = [r for r in caplog.records if "rule record refused" in r.getMessage()]
+    assert len(named) == 1, (
+        f"one problem was logged {len(named)} times — the per-row noise E-6's "
+        f"door exists to avoid")
+    assert definition_record.REFUSALS["timeframe"] in named[0].getMessage(), (
+        "the refusal was counted but not NAMED — a number nobody can act on")
+
+    # ⭐ THE CONTROL: the same rows under a timeframe a claim CAN name are written.
+    assert scan_evaluator._write_rule_record(handle, 1, TF_LABEL, rows) == (3, 0)
+
+
 def test_the_batched_through_read_answers_what_latest_evaluation_answers(store, bars):
     """⛔ ONE VALUE, ONE AUTHORITY. The batching door E-6's concern 2 sanctioned is
     a READ on that module, and it must agree with the per-symbol read it replaces
@@ -1193,7 +1370,12 @@ _CONTRACT = (
     (scan_store, "COVERAGE_KEYS"),
     (snapshot_db, "get_rows"),
     (snapshot_db, "status"),
-    (definition_record, "record_evaluation"),
+    # ⛔ THE **PLURAL** DOOR. `_write_rule_record` switched to the batching
+    # spelling on 2026-08-09; naming the singular here would leave this rail
+    # watching a symbol the sweep no longer takes — green while the one it
+    # actually depends on moved.
+    (definition_record, "record_evaluations"),
+    (definition_record, "REFUSALS"),
     (definition_record, "latest_through_by_symbol"),
     (ledger, "_BARS_STORE_TF_KEYS"),
     (ledger, "_normalize_bar_time"),

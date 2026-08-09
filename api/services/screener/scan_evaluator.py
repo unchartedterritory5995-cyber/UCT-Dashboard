@@ -754,7 +754,8 @@ def _rule_record_rows(sym: str, bars: Sequence[Mapping[str, Any]],
     return rows
 
 
-def _write_rule_record(def_hash: str, rev: int, tf_label: str, rows: Sequence[dict]) -> int:
+def _write_rule_record(def_hash: str, rev: int, tf_label: str,
+                       rows: Sequence[dict]) -> tuple[int, int]:
     """The ONE production call into `definition_record`'s write door.
 
     ⛔ ONE SITE, AND THE ZERO IT REPLACED WAS ASSERTED. E-6 shipped
@@ -764,10 +765,37 @@ def _write_rule_record(def_hash: str, rev: int, tf_label: str, rows: Sequence[di
     EDITED to say so. It has been. Deleting it instead is how a second writer
     arrives unnoticed.
 
+    ⭐ IT GOES THROUGH THE **BATCHING** DOOR, AND THE CENSUS STILL READS ONE.
+    `record_evaluations` (plural) is a different door on the SAME module, not a
+    second writer: the census is keyed on the call SITE (`…::_write_rule_record`)
+    and `_WRITE_DOORS` already lists both spellings, so switching which door this
+    site calls changes HOW it writes, never WHO writes.
+
     ⛔ AND IT GOES THROUGH THAT MODULE'S DOOR, never a connection of its own. A
     caller that opened `signal_ledger.db` itself would be a second authority over
     one value; E-6's concern 2 names the batching door on `definition_record` as
-    the only sanctioned answer if throughput ever needs beating.
+    the only sanctioned answer if throughput ever needs beating -- *"⛔ never a
+    caller opening its own connection to this table"*.
+
+    ⚠️ WHY, MEASURED ON THIS SITE RATHER THAN ON THE DOOR. The per-row loop this
+    replaced paid a fresh `sqlite3.connect()`, a `PRAGMA journal_mode=WAL` and a
+    `commit()` per row, and a first sweep of one definition is one row per
+    answered symbol -- 3,704 of them. Measured through THIS function, 3,704 rows,
+    both arms driving the real `definition_record`, three runs on a contended box:
+    **201-285 rows/s (13.0-18.4 s) before, 103,640-149,738 rows/s (0.025-0.036 s)
+    after -- 468x to 642x**, and the write half of a sweep stops being larger than
+    the compute half. A unit test on `record_evaluations` proves
+    none of that: the door was already measured at 156k rows/s while THIS site
+    still looped, which is the *built, tested, green, connected to nothing* shape
+    the 2026-08-08 audit named.
+
+    ⚠️ ONE BATCH IS ONE TRANSACTION, SO A CRASH MID-BATCH RECORDS NOTHING RATHER
+    THAN A PREFIX -- a real behaviour change from the per-row loop, and the safer
+    half of the trade for an append-only receipt store: the next sweep re-derives
+    the same windows and `UNIQUE` makes the re-run free, whereas a half-written
+    month would sit there forever claiming a tally nobody computed. Asserted, not
+    assumed, by `test_the_rule_record_batch_is_ONE_TRANSACTION_so_a_crash_leaves_
+    NO_PREFIX`.
 
     ⛔ A REFUSAL HERE IS COUNTED AND NAMED, NEVER SWALLOWED AND NEVER FATAL. The
     rule record is a SECOND store with its own rules -- forward-only from the
@@ -776,21 +804,32 @@ def _write_rule_record(def_hash: str, rev: int, tf_label: str, rows: Sequence[di
     escaping here would take the receipt down with it: a completed sweep would look
     like a sweep that never happened, which is the one reading E-2's three-state
     design exists to keep impossible. So the count comes back beside the writes.
+
+    ⛔ AND THAT INCLUDES A KEY-LEVEL REFUSAL. `record_evaluations` RAISES on a bad
+    `def_hash`/`rev`/`tf` rather than returning it per row, deliberately -- it is
+    one problem, not N. The per-row loop caught that same `ValueError` once per
+    row and reported `refused == len(rows)`, so this site keeps that arithmetic
+    (nothing was written, so every row is refused) while logging the one sentence
+    ONCE. ⛔ Only `ValueError` is caught: a non-`UNIQUE` `sqlite3.IntegrityError`
+    is a DROPPED row, the door re-raises it on purpose, and swallowing it here
+    would report a claim of coverage that was never written.
     """
-    written = refused = 0
-    for row in rows:
-        try:
-            if definition_record.record_evaluation(
-                    def_hash, rev, tf_label, row["sym"], row["first"],
-                    row["through"], bars_evaluated=row["evaluated"],
-                    bars_true=row["true"]):
-                written += 1
-        except ValueError as exc:
-            refused += 1
-            log.warning("[scan] rule record refused %s %s [%s..%s]: %s",
-                        def_hash[:15], row["sym"], row["first"], row["through"],
-                        exc)
-    return written, refused
+    payload = [{"sym": row["sym"], "first_bar_time": row["first"],
+                "through_bar_time": row["through"],
+                "bars_evaluated": row["evaluated"], "bars_true": row["true"]}
+               for row in rows]
+    try:
+        out = definition_record.record_evaluations(def_hash, rev, tf_label, payload)
+    except ValueError as exc:
+        log.warning("[scan] rule record refused the whole batch for %s "
+                    "(%d rows, rev=%r tf=%r): %s",
+                    def_hash[:15], len(rows), rev, tf_label, exc)
+        return 0, len(rows)
+    for row, exc in out["refused"]:
+        log.warning("[scan] rule record refused %s %s [%s..%s]: %s",
+                    def_hash[:15], row.get("sym"), row.get("first_bar_time"),
+                    row.get("through_bar_time"), exc)
+    return out["written"], len(out["refused"])
 
 
 # --------------------------------------------------------------------------- #
