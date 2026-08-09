@@ -71,7 +71,7 @@ def test_get_expected_move_caches_success(monkeypatch):
     im._MOVE_CACHE.clear()
     im._MOVE_STALE.forget(key)
     calls = {"n": 0}
-    def fake_compute(sym, rd):
+    def fake_compute(sym, rd, **_kw):
         calls["n"] += 1
         return {"pct": 5.0, "dollar": 9.2, "expiry": "2026-08-07", "strike": 185.0,
                 "spot": 184.0, "call_mid": 4.7, "put_mid": 4.5, "iv_atm": 0.6,
@@ -86,7 +86,7 @@ def test_get_expected_move_never_caches_failure(monkeypatch):
     im._MOVE_CACHE.clear()
     im._MOVE_STALE.forget(key)
     calls = {"n": 0}
-    def fake_compute(sym, rd):
+    def fake_compute(sym, rd, **_kw):
         calls["n"] += 1
         return None
     monkeypatch.setattr(im, "compute_expected_move", fake_compute)
@@ -103,7 +103,7 @@ def test_get_expected_move_single_flight_collapses_concurrent_cold_calls(monkeyp
     calls = {"n": 0}
     calls_lock = threading.Lock()
 
-    def fake_compute(sym, rd):
+    def fake_compute(sym, rd, **_kw):
         with calls_lock:
             calls["n"] += 1
         time.sleep(0.1)  # hold the build long enough for the others to queue on the lock
@@ -138,7 +138,7 @@ def test_get_expected_move_returns_independent_copies(monkeypatch):
     im._MOVE_CACHE.clear()
     im._MOVE_STALE.forget(key)
 
-    def fake_compute(sym, rd):
+    def fake_compute(sym, rd, **_kw):
         return {"pct": 5.0, "dollar": 9.2, "expiry": "2026-08-07", "strike": 185.0,
                 "spot": 184.0, "call_mid": 4.7, "put_mid": 4.5, "iv_atm": 0.6,
                 "horizon": "through 2026-08-07", "asof": "x", "source": "massive-chain"}
