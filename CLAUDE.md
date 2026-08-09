@@ -30,10 +30,75 @@ Both sibling repos are available as submodules under `external/` for Claude Code
 
 ## Nav Tabs (left sidebar)
 
-Dashboard · Morning Wire · UCT 20 · Breadth (tabs: Monitor | Heatmap | COT Data | Data Charts | Analogues) · Theme Tracker · Calendar · Traders · Screener · Options Flow · Post Market · Model Book · Journal · Support
+**Measure it, don't quote it** — the list is the `NAV` array at the top of
+`app/src/components/NavBar.jsx`; read it there rather than trusting the line below.
+At 2026-08-09 it reads:
+
+Dashboard · Morning Wire · UCT 20 · Breadth · **Charts** · Calendar · Screener ·
+**Patterns** · Options Flow · **Live Flow** (`/live-massive`) · Post Market ·
+Model Book · **The Desk** · Journal · **Community** · Support
+
+Breadth's own sub-tabs are `BREADTH_TAB_ITEMS` in `app/src/pages/Breadth.jsx`:
+Overview · Monitor · Views · COT Data · Data Charts, **+ Analogues appended for
+admins only** (`BreadthTabs({isAdmin})`).
+
+⚰️ This line listed **Theme Tracker** and **Traders** — neither is a nav entry.
+`/theme-tracker` is a `LegacyRedirect` (see below) and `app/src/pages/Traders.jsx`
+is reachable from nothing but `Traders.test.jsx`. It also **omitted** Charts, Patterns,
+Live Flow, The Desk and Community; called Breadth's "Views" tab "Heatmap"; dropped
+"Overview"; and did not say Analogues is admin-gated. Every one of those is wrong, in
+the first section a new engineer reads — and the two phantom entries are the worse
+half: **a nav entry documented for a page no route reaches teaches the next engineer
+that the orphan is the idiom.** *(Deliberately no count here: a typed count beside the
+list it describes is the defect this whole file keeps re-committing. Diff the two.)*
 
 **No "Watchlists" nav entry** — `/watchlists`, `/theme-tracker` and `/multi-chart` were retired into the `/charts` workspace as widgets (`7640ef01`) and now `LegacyRedirect`. Watchlists are reached by adding a Watchlist widget on Charts. See the header comment in `app/src/pages/Watchlists.jsx` before changing that file — half of it is unreachable.
 Settings + Admin (admin only) pinned to bottom of sidebar.
+
+## ⚰️ DOCUMENTED BUT UNREACHABLE — read this before copying any idiom from below
+
+**This file described these as live features. They are not.** Source: the
+2026-08-09 reachability audit (`.superpowers/sdd/audit/reachability-report.md`),
+which resolved every import form — static, `import type`, bare side-effect,
+`export * from`, `lazy(() => import())`, `await import()`, `require()`,
+`import.meta.glob`, `vi.mock`, `@/` and `/src/` aliases, `index.*` directory
+resolution — over 1,426 source files, and enumerated the backend by **importing
+`api.main:app` and walking its 986 routes** rather than grepping `include_router`.
+Every row below was re-verified by hand on 2026-08-09 before this table was written.
+
+**⛔ Why this section exists at the top instead of a footnote:** an agent this week
+read `CustomScan.chartmount.test.jsx` as *the precedent for its own task* before
+noticing the page it tests reaches no route. **Unreachable code documented as live
+teaches the next engineer the wrong idiom** — and a green test file standing in for
+a door that does not exist is the most convincing wrong precedent in the repo.
+
+**This table is the single owner of these claims.** The sections further down are
+annotated with a pointer here — correct this table, not the pointer, or you create
+the second-authority-over-one-value defect that has caused three separate outages.
+
+| Documented as | Reality on 2026-08-09 |
+|---|---|
+| `components/tiles/EarningsModal.jsx` — "opens on ticker click in CatalystFlow or Calendar" | **Zero importers.** Every occurrence of the name in `app/src` is a comment or a test's `it(...)` string. `components/research/EarningsResearchModal.jsx` says outright it *replaces* the old modal's idiom. The calendar's click-through is `EarningsResearchModal` + `pages/calendar/useEarningsModalRoute.js`. |
+| `components/calendar/FundamentalsStrip.jsx` — the fwd-PE strip | **Dead by inheritance** — its only importer is the orphaned `EarningsModal.jsx` above. |
+| `charts/widgets/MobileChartFallback.jsx` — "mobile <640px renders a full-screen StockChart via MobileChartFallback" | `ChartsWorkspace.jsx` imports and renders **`MobileWorkspace`**. `MobileChartFallback` is imported by nothing but `MobileChartFallback.test.jsx`. |
+| `journal-2-0/components/BrokerSyncStatus.jsx` | Not imported by `OpenPositionsTab.jsx` or anything else — the bar was absorbed into `components/trust/SyncTrustCenter.jsx`. Only importer is its own test. |
+| `journal-2-0/components/BrokerEquityCurve.jsx` + `hooks/useBrokerEquityCurve.js` — "Open Positions leads with a real equity curve" | **Zero importers.** The hook is reachable only from the orphaned component. The `j2_broker_equity_snapshots` table is still written; nothing renders it. |
+| "ON THE TAPE" section on `MoversSidebar.jsx` + `hooks/useTapeFeed.js` | `MoversSidebar.jsx` contains **no tape section at all** (only per-row 🐦 icons via `useTickerTweets`). `useTapeFeed.js` is orphaned — and it is the **sole caller of `GET /api/tweets/tape`**, so that mounted, live endpoint is dead too. |
+| `components/PositionCalc.jsx` — "TickerPopup … position calculator" | **Zero importers.** `TickerPopup.jsx` contains no calculator. |
+| `components/tiles/NHNLModal.jsx` — "opens on click of NH or NL in MarketBreadth" | **Zero importers.** `MarketBreadth.jsx` does not reference it. |
+| `api/earnings_router.py` — its own docstring says *"Mount in main.py: `app.include_router(earnings_router, prefix="/api/schwab")`"* | **It never was mounted** — `earnings_router` appears nowhere in `api/main.py`. It is also superseded: `api/schwab_router.py`'s Yahoo-backed `_fetch_earnings_yf` + `POST /api/schwab/earnings` is what actually serves. ⚠️ That instruction is in a file this doc's owner cannot edit; **do not follow it** — mounting the Finviz-scraping predecessor would put a second authority on earnings dates. |
+
+**Also mid-audit, unfixed, and NOT this doc's to fix** — recorded so nobody trusts
+them: `scan_evaluator.enabled()`'s docstring and the comment above the sweep's
+`add_job` in `api/main.py` **both** assert *"E-4 has not wired a surface to these
+results."* **It is wired** — `/screener` → `SavedScreensPanel` → `ScanResults` →
+`CoverageLine`, reading `GET /api/scans/definition-results`, with
+`components/screener/reachable.test.js` + `Screener.scanmount.test.jsx` as the
+standing rails. The same false sentence in two places is why it survived: each
+looked like corroboration of the other.
+
+⛔ **Do not delete the orphaned files on the strength of this table** — a separate
+pass owns that decision. This section makes the *doc* true; the files are still there.
 
 ## UI Icons — `UIcon` (NO emoji)
 
@@ -154,7 +219,8 @@ Full session detail: user memory `project_broker_sync_2026_06_15.md`.
 
 ### Key files
 - BE: `broker/{snaptrade_client,snaptrade_adapter,service,sync,reconstruct,option_reconstruct,balances,balance_resolver,connections,activities_store,dedup,rate_limit}.py`, `routers/broker_sync.py`, `services/crypto_box.py`
-- FE: `pages/journal-2-0/components/{BrokerConnectionsCard (Settings),PositionsTable,BrokerEquityCurve,BrokerReviewNudge,BrokerSyncStatus}.jsx` + `tabs/{OpenPositionsTab,TradeJournalTab}.jsx` (options merged into both tables)
+- FE: `pages/journal-2-0/components/{BrokerConnectionsCard (Settings),PositionsTable,BrokerReviewNudge}.jsx` + `components/trust/SyncTrustCenter.jsx` + `tabs/{OpenPositionsTab,TradeJournalTab}.jsx` (options merged into both tables)
+  - ⚰️ This list also named **`BrokerEquityCurve`** and **`BrokerSyncStatus`**. Both are orphaned — see *⚰️ DOCUMENTED BUT UNREACHABLE* near the top. `SyncTrustCenter` is what actually renders the sync bar.
 - Diagnostics (manual, gitignored state): `tools/snaptrade_{smoke_test,shape_audit,j2_e2e}.py`
 
 ### Env vars (Railway web pod; production)
@@ -167,7 +233,9 @@ Inert with these unset. `railway variables --set` STAGES → must `railway redep
 ### Schema (j2_broker_* tables in db.py)
 `j2_broker_users` (encrypted secret), `j2_broker_accounts` (1:1 → a `j2_accounts` row,
 `balance_source='broker'`), `j2_broker_activities` (raw ledger), `j2_broker_sync_log`,
-`j2_broker_dup_flags`, `j2_broker_equity_snapshots` (daily net-liq → equity curve).
+`j2_broker_dup_flags`, `j2_broker_equity_snapshots` (daily net-liq snapshots —
+⚠️ **written but never rendered**; the curve component that read them is orphaned,
+see *⚰️ DOCUMENTED BUT UNREACHABLE*).
 Plus alters: `source`/`external_id`/`entry_estimated` (+ `broker_price` = current
 per-share mark, refreshed each `reconcile_positions` so equity rows show a real
 price/P&L after hours when the live feed is empty) on positions; `source`/`external_id`
@@ -176,8 +244,10 @@ balance cols on accounts.
 
 ### UI surfaces (all in Open Positions / Trade Journal)
 Connect/disconnect in **Settings → Brokerage Connections** (`BrokerConnectionsCard`).
-Open Positions tab leads with: sync-freshness line, real **equity curve** (from net-liq
-snapshots), "needs a setup" nudge; **options render as rows in the same table as shares**
+Open Positions tab leads with: `BrokerAccountHero` + `SyncTrustCenter` (sync freshness
++ one-tap re-sync), "needs a setup" nudge; **options render as rows in the same table as shares**
+⚰️ *(this said "real **equity curve** (from net-liq snapshots)" — `BrokerEquityCurve`
+has zero importers and no equity curve renders on this tab; see the unreachable table.)*
 (`CRWV Oct 16 $110C` · `LONG CALL` · Current/P&L from broker mark). Trade Journal: closed
 options merged into the closed-trades table likewise. Compass already coaches imported
 trades (`imported:true` flag + `coach_prompts.py` rule).
@@ -473,9 +543,20 @@ Plan: `docs/superpowers/plans/2026-07-02-awareness-engine-m1.md`.
 > Both `COMPASS_AUTOMATION_ENABLED=1` AND `AWARENESS_ENGINE_ENABLED=1` must be set
 > in Railway for the scan to run at all (the job registers only under the first;
 > the job function checks the second). Rollback = unset either one — no code
-> change, no rebuild. **NOTE:** `COMPASS_AUTOMATION_ENABLED` has been OFF since
-> 2026-05-18 (token burn) — enabling it also re-enables the other paused Compass
-> jobs, so treat that flip as a deliberate un-pause decision.
+> change, no rebuild.
+>
+> 🟢 **BOTH ARE ON IN PRODUCTION.** Read live, `railway variables --service web --kv`,
+> 2026-08-09: `COMPASS_AUTOMATION_ENABLED=1` · `AWARENESS_ENGINE_ENABLED=1`. **The
+> awareness scan is running.** So is the rest of the Compass job family that
+> `_add_compass_job` gates.
+>
+> ⚰️ This said *"`COMPASS_AUTOMATION_ENABLED` has been OFF since 2026-05-18 (token
+> burn) — treat that flip as a deliberate un-pause decision."* The flip already
+> happened. Anyone reading this section was sizing token spend, insight-cap
+> contention (see the 8/day limitation below) and blast radius against a system they
+> believed was dark. **Never assert a flag state from a code default or a past
+> decision — `railway variables --service web --kv` is the only authority, and it is
+> one command.** (⚠️ `railway variables --set` AUTO-REDEPLOYS; the read form does not.)
 
 ### Known limitations / tuning backlog (surfaced by the final review, deferred to M2)
 - **Shared 8/day insight cap:** `add_insight`'s per-user daily cap is global across
@@ -602,9 +683,17 @@ The `/charts` tab is a TradingView-grade react-grid-layout workspace. Replaces V
 - **Top-level shell:** `app/src/pages/charts/ChartsWorkspace.jsx` — owns layout state + 4 color groups + viewport-lock sizing. Layout persists to `usePreferences('charts_workspace_layout')` (debounced 500ms). Color-group syms persist to `charts_workspace_groups`.
 - **Grid:** `react-grid-layout@^1.5.3` Responsive component. `cols={12}`, `FIXED_ROWS=20`, `rowHeight` computed dynamically via `ResizeObserver` on `.workspaceBody` so the grid always fills the visible viewport exactly. `maxRows={20}` + `overflow: hidden` on body = no outer scroll. `margin=[6,6]`, `compactType: 'vertical'`. `resizeHandles={['nw','ne','sw','se']}` enables resize from all 4 corners.
 - **Color groups (A/B/C/D)** are how widgets link tickers. A widget assigned color A reads/writes `groupSyms.A`; multiple widgets on the same color stay in lockstep. `WorkspaceContext` (`useWorkspace()`) exposes `{groupSyms, setGroupSym(color, sym)}`. `ChartsSymContext` (V1 API, `useChartsSym()`) is now a shim: explicit Provider → WorkspaceContext Group A → null fallback. Watchlists/ThemeTrackerPage/Screener (V1-era) still work without code change because they default to Group A.
-- **Widget types:** `chart` (StockChart), `watchlist` (Watchlists with `embedded` prop), `themes` (ThemeTrackerPage `embedded`), `scanner` (Screener `embedded`). Each widget wrapped in a scoped `ChartsSymContext.Provider` so the wrapped page publishes/reads tickers from THE WIDGET'S color group, not Group A.
+- **Widget types — ⭐ measure it, don't quote it:** the authoritative list is the
+  `switch` in `app/src/pages/charts/WidgetHost.jsx`; read the `case` labels there.
+  ⚰️ This line enumerated **four** (`chart` · `watchlist` · `themes` · `scanner`)
+  while `WidgetHost` dispatched **thirteen** — the four originals plus `fundamentals`,
+  `breadth`, `aisearch`, `news`, `profile`, `alerts`, `calendar`, `optionsflow`,
+  `periodsort`. Nine widgets shipped into a doc that said they did not exist. Same
+  defect shape as the writer-index `FOUR`, the COT router's "4 routes", and the setup
+  catalog's "24": **a hand-typed enumeration beside the source that owns it.**
+  Each widget is wrapped in a scoped `ChartsSymContext.Provider` so the wrapped page publishes/reads tickers from THE WIDGET'S color group, not Group A.
 - **WidgetHost** (`app/src/pages/charts/WidgetHost.jsx`): type dispatcher + `WidgetHeader`. **WidgetHeader** is the drag bar with drag grip (`.charts-widget-drag-handle` consumed by RGL `draggableHandle`), color-cycle dot, close button. **Label is visually hidden (sr-only)** — color dot + body content identify the widget.
-- **Mobile (`<640px`)** bypasses RGL entirely → renders a single full-screen `StockChart` via `MobileChartFallback` (ticker persists to `localStorage['charts_mobile_sym']`).
+- **Mobile (`<640px`)** bypasses RGL entirely → `ChartsWorkspace.jsx` renders **`MobileWorkspace`** (ticker persists to `localStorage['charts_mobile_sym']`). ⚰️ This said `MobileChartFallback`, which is orphaned — see *⚰️ DOCUMENTED BUT UNREACHABLE*.
 - **Legacy URLs** (`/theme-tracker`, `/watchlists`, `/multi-chart`) redirect to bare `/charts` via `LegacyRedirect` (strips `?tab=`, preserves other query params).
 
 ### ChartWidget specifics (`app/src/pages/charts/widgets/ChartWidget.jsx`)
@@ -642,7 +731,10 @@ The `/charts` tab is a TradingView-grade react-grid-layout workspace. Replaces V
 
 ### Files
 - Workspace: `app/src/pages/charts/{ChartsWorkspace,WidgetHost,WidgetHeader,WorkspaceContext,ChartsSymContext,LegacyRedirect}.jsx` + `ChartsWorkspace.module.css`
-- Widgets: `app/src/pages/charts/widgets/{ChartWidget,WatchlistWidget,ThemesWidget,ScannerWidget,MobileChartFallback}.jsx`
+- Widgets: `app/src/pages/charts/widgets/` — **list the directory, don't trust a
+  roster here** (43 `.jsx` files at 2026-08-09, tests included). Entry points are the
+  `case` labels in `WidgetHost.jsx` plus `MobileWorkspace.jsx` for the phone branch.
+  ⚰️ This named five files and included `MobileChartFallback`, which is orphaned.
 - Hooks: `app/src/hooks/useMediaQuery.js`
 - Embedded pages (existing): `app/src/pages/{Watchlists,ThemeTrackerPage,Screener}.jsx` with new `embedded` prop
 - Predictive search: `app/src/components/chart/SymbolSearch.jsx` + `.module.css`
@@ -916,7 +1008,7 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
 - Read-only on: Breadth DrillModal, Journal TradeDrawer (contextual, symbol locked)
 - **Flag button** (⚑ Flag/Flagged) on: ThemeTrackerPage, Watchlists, CustomScan, Breadth DrillModal, TickerPopup
 - **Period tabs**: 5min / 30min / 1hr / Daily / Weekly (Journal: Daily/Weekly only)
-- **TickerPopup**: click-to-open modal with StockChart, live price, flag, earnings intel, insider activity, position calculator. NO Finviz hover preview, NO external links
+- **TickerPopup**: click-to-open modal with StockChart, live price, flag, earnings intel, insider activity. NO Finviz hover preview, NO external links. ⚰️ This also claimed a **position calculator** — `components/PositionCalc.jsx` has zero importers and `TickerPopup.jsx` contains no calculator (see *⚰️ DOCUMENTED BUT UNREACHABLE*).
 
 ## Live Pricing
 
@@ -938,6 +1030,45 @@ event-loop monitoring, held flat. Session detail: memory `project_charts_dominan
 ## Worktree Directory
 
 Worktrees live in `.worktrees/` (project-local, gitignored).
+
+## ⛔ `C:\data` IS REAL ON THIS BOX — the test-suite tripwire (repo-root `conftest.py`)
+
+**`/data` exists as `C:\data` on the dev machine, so every product path that
+resolves to `/data/...` resolves to the owner's LIVE files.** A test that reaches
+one does not fail — it succeeds against production data. That is how
+`C:\data\auth.db` grew to ~1 GB / 20,640 users, and how one daemon thread wrote
+ticker `A` into `C:\data\screener.db` and made the member-facing screener label
+3,583 month-old rows "today" (`e86ad6d5`).
+
+**The repo-root `conftest.py` (not `tests/conftest.py`) now does two things at
+IMPORT — before any other conftest and before any test module, because the paths
+are captured at module import and a fixture's `monkeypatch.setenv` reaches none of
+them:**
+
+1. **REDIRECT** — env pins derived by **AST over `api/**`, `scripts/`, `tools/`**
+   (never grep), aimed at a per-session sandbox. `AUTH_DB_PATH` is pinned here too.
+2. **TRIPWIRE** — `sqlite3.connect` / `open` / `io.open` / `makedirs` / `mkdir` /
+   `remove` / `unlink` / `rename` / `replace` **raise `SharedDataRootWrite`** on a
+   path inside the shared root, **record** the attempt with the test id and thread
+   name, and **fail the whole run at `pytest_sessionfinish`**.
+   ⭐ **The record is the guard, not the raise** — a daemon thread's exception goes
+   to `threading.excepthook` and the test that spawned it passes green. Four of the
+   five leaks this found were on a background thread. Any future guard of this shape
+   must record, not merely raise.
+
+- **A redirect alone HIDES THE NEXT OFFENDER** — that is why the tripwire exists
+  beside it rather than instead of it.
+- Modes: `UCT_TEST_SHARED_ROOT_GUARD` = `enforce` (default: raise + record + fail
+  the run) · `report` (record only — the audit mode that makes "nothing reaches
+  `C:\data`" a MEASUREMENT rather than an assumption) · `off`.
+- Rails: `tests/test_shared_data_root_guard.py` — including probes that watch the
+  guard actually **fire**, against a throwaway directory, never `C:\data`. **A guard
+  nobody has seen fire is not a guard** (`lesson_gate_that_cannot_fail`).
+- Each leak it found is fixed by an env override whose default is the literal that
+  was already there, so **production resolves byte-identically with nothing set**.
+- ⚠️ Still true and NOT fixed by this: writes into `C:\data` from outside pytest
+  (a bare `python tools/...` run, a `railway ssh`-less local script) hit the live
+  files. The guard is a *test-suite* rail only.
 
 ## Design Documents
 
@@ -1213,6 +1344,86 @@ is emitted **from that same mask** via an optional `members` out-dict.
 
 ---
 
+## Phase E — the scan surfaces that now exist (branch `feat/phase-c-alerts`, 2026-08-09)
+
+⚠️ **IN FLIGHT.** Phase E is being built by multiple parallel agents on this branch
+right now, so this section names **doors that were verified reachable on 2026-08-09**
+and deliberately restates no counts. Re-derive anything you are about to depend on.
+
+### The nightly scan sweep — ON in production, OFF in code
+
+`scan_evaluator.sweep_job()` is registered in `api/main.py` under
+`CronTrigger(hour=scan_evaluator.SWEEP_HOUR_ET, minute=scan_evaluator.SWEEP_MINUTE_ET,
+timezone=_ET)` — **05:00 ET**, `max_instances=1`. Read the two constants from
+`api/services/screener/scan_evaluator.py`; don't retype the time.
+
+- 🔑 **`SCAN_SWEEP_ENABLED=1` on Railway `web`** (read live, 2026-08-09) while
+  `scan_evaluator.enabled()` **defaults to `"0"`**. Same divergence on
+  **`RATINGS_PERCENTILE_ENABLED=1`**. ⛔ **A local run therefore behaves differently
+  from production on both** — if you are reproducing a prod behaviour, set them.
+- **One hour is enough because the ceiling is a property of the tree, not the
+  schedule** — all declared scalars are `cadence: nightly` out of `screener_rows`, so
+  a scan re-read at noon returns the same answer off the same 03:00 snapshot.
+  `scan_evaluator.cadence_ceiling` derives that per definition from the manifest.
+- ⚰️ **The flag's own docstring and the comment above its `add_job` both still say
+  "E-4 has not wired a surface to these results."** That is false — the surface is
+  below. Those two comments are in `api/**`, which this doc's owner cannot edit; the
+  correction lives here. **Two copies of one false sentence read as corroboration** —
+  that is why it survived (`lesson_gate_that_cannot_fail`'s cousin: a claim nobody
+  can falsify because it is stated twice and checked nowhere).
+
+### The door a member actually walks through
+
+`/screener` → `pages/Screener.jsx` → `components/screener/SavedScreensPanel.jsx` →
+`ScanResults.jsx` → `CoverageLine.jsx`, reading **`GET /api/scans/definition-results`**
+(`api/routers/scan_results.py`, mounted in `main.py`).
+
+⭐ **`CoverageLine` is the idiom worth copying anywhere a result set can be short:**
+FOUR counts — *evaluated · answered · dropped · not computable* — because *"we could
+not compute it"* and *"something broke"* are different facts to a trader. ⛔ **Do not
+collapse them to make the line shorter**: a screen that silently loses symbols returns
+fewer hits and **looks like a quiet market**. And when `answered === 0` with anything
+not-computable, it says *"that is a gap in what we hold, not a quiet market"* **in
+those words, above the counts** — measured on the real universe, the naive formula
+returns `answered=0, not_computable=2615` because `rs_rank` is NULL in every screener
+row on this box, and rendering that as "0 matches" is a lie a member would act on.
+`withheld` sits BESIDE the four, never inside them. The component also **refuses to
+present a receipt whose arithmetic does not close**, mirroring
+`scan_evaluator._assert_coverage_closes`, which refuses to write one.
+
+**Two rails, and they fail for different reasons — keep both:**
+- `app/src/components/screener/reachable.test.js` — walks the **real import graph from
+  `App.jsx` with an AST**, following `lazy(() => import(…))` as well as static imports,
+  and asserts every component in `components/screener/**` is reachable. ⛔ **An AST,
+  never a grep** (`lesson_probe_names_must_be_derived_not_typed` — a grep here once
+  "found 5 call sites, all five of them prose"). It carries a **control** proving the
+  dynamic edge is load-bearing, so it cannot pass for the wrong reason. Its assertion
+  is scoped to that one directory on purpose while other agents add files elsewhere;
+  widening it is a one-line change.
+- `app/src/pages/Screener.scanmount.test.jsx` — mocks **nothing on the path under
+  test**, so it goes RED when the *wire* is cut while every component stays correct.
+  ⭐ **That is the shape the 2026-08-08 audit said was missing** (8 features built,
+  tested, green, and connected to nothing): component tests are structurally blind to
+  a severed wire.
+
+### Other Phase E surfaces on this branch
+
+- **Builder criteria picker** — `components/chart/builder/BuilderSheet.jsx`: a VIEW
+  over the definition tree, with the round trip as the gate.
+- **Concierge (English → a SCAN)** — `components/chart/builder/ConciergeBox.jsx`,
+  rendered from `BuilderSheet.jsx`. ⚠️ A prior audit listed it as unmounted; **that is
+  FIXED** — don't re-report it.
+- **Starter library** — `api/services/starter_library.py` +
+  `components/chart/builder/StarterLibrary.jsx` + `engine/ast/starterScans.json`: the
+  firm's setups ship as **ordinary definitions, editable on arrival** (not a special
+  read-only class).
+- **User definitions** — `api/routers/user_definitions.py` (`GET`/`POST`/`POST
+  /propose`/`GET|PUT|DELETE /{def_id}`).
+- **Entitlements / toolkits** — `api/services/entitlements.py`. ⛔ **One toolkit ships
+  today (`"all"`) and the lookup is still real**: returning the default unconditionally
+  would be indistinguishable from a lookup that had been deleted. Read `TOOLKITS`,
+  `toolkit_for`, `limits_for` — do not assume "there is only one, so it doesn't matter."
+
 ## Key Components Built (2026-03-07 — Scanner v2 "World-Class")
 
 ### Scanner Hub (`app/src/pages/Screener.jsx` + `Screener.module.css`)
@@ -1295,15 +1506,26 @@ is emitted **from that same mask** via an optional `members` out-dict.
 
 ## Key Components Built (2026-02-23 — session 2)
 
-### MarketBreadth (`app/src/components/tiles/MarketBreadth.jsx`)
-- Premium SVG gauge (R=72, gradient + glow), phase label with dot, 3 MA progress bars
-- **% Above 5MA** (amber) — computed from yfinance S&P 500 bulk download
-- **% Above 50MA** (green) + **% Above 200MA** (blue) — Finviz Elite screener
-- Stat row: Dist. Days · Adv · Dec · **NH** · **NL**
-- NH and NL are clickable buttons (dotted underline) → opens `NHNLModal`
+### MarketBreadth (`app/src/components/tiles/MarketBreadth.jsx`) — REWRITTEN; read the file
+Titled **"UCT Exposure Rating"**. At 2026-08-09 (117 lines) it renders: `ExposureBar`
+(0-150 score + delta + ★ on bonus/leveraged) · phase row · the exposure note ·
+`gate_reason` warning when gated · a **live "ABOVE 50-DAY NOW"** row from
+`useLiveBreadth` with a `DayPath` sparkline and an ET stamp · then `MARelationship`.
+- 🔑 **Why only `pct_above_50sma` goes live:** the exposure rating is pushed by the
+  morning wire and is **not derivable intraday**, so nothing above it can be live.
+  Participation is, and % above the 50-day reconciles to within a point — the
+  tightest grade the gate measures. Don't "make the rest live"; it has no intraday basis.
+- ⚰️ **Everything this section used to say is gone from the file:** no SVG gauge
+  (R=72), no 3 MA progress bars, no **% Above 5MA / 50MA / 200MA** trio, no stat row
+  (*Dist. Days · Adv · Dec · NH · NL*), and **no clickable NH/NL buttons** — which is
+  the origin of the `NHNLModal` claim below. The strings `highs`, `lows`, `Adv`,
+  `Dec` and `Dist` appear nowhere in the component.
 
-### NHNLModal (`app/src/components/tiles/NHNLModal.jsx`)
-- Opens on click of NH or NL count in MarketBreadth tile
+### NHNLModal (`app/src/components/tiles/NHNLModal.jsx`) — ⚰️ ORPHANED, opens from nothing
+⚠️ **Zero importers.** `MarketBreadth.jsx` does not reference it, so nothing below
+happens for a member. Kept as a record of what was built. See *⚰️ DOCUMENTED BUT
+UNREACHABLE* near the top.
+- ⚰️ Was documented as: opens on click of NH or NL count in MarketBreadth tile
 - Shows full list of S&P 500 stocks at 52W highs or lows as TickerPopup chips
 - Escape key closes; backdrop click closes
 - Data: `new_highs_list` / `new_lows_list` arrays from `/api/breadth`
@@ -1312,8 +1534,15 @@ is emitted **from that same mask** via an optional `members` out-dict.
 - Replaced EpisodicPivots on Dashboard
 - Fetches `/api/leadership`, scrollable compact list: rank · TickerPopup · cap badge · RS score · thesis
 
-### EarningsModal (`app/src/components/tiles/EarningsModal.jsx`)
-- Opens on ticker click in CatalystFlow or Calendar
+### EarningsModal (`app/src/components/tiles/EarningsModal.jsx`) — ⚰️ SUPERSEDED, opens from nothing
+⚠️ **Zero importers** (2026-08-09). The live per-ticker earnings detail is
+`components/research/EarningsResearchModal.jsx` (routed via
+`pages/calendar/useEarningsModalRoute.js`), which states in-file that it *replaces*
+this modal's idiom. **Read `EarningsResearchModal.jsx` for the current behaviour, not
+the list below** — this is retained as a record of what the old modal did, and it is
+the sole importer of the also-orphaned `calendar/FundamentalsStrip.jsx`. See
+*⚰️ DOCUMENTED BUT UNREACHABLE* near the top.
+- ⚰️ Was documented as: opens on ticker click in CatalystFlow or Calendar
 - Shows: sym header, BMO/AMC badge, METRIC/EXPECTED/REPORTED/SURPRISE table
 - Live gap % from `/api/snapshot/{sym}`, analyst consensus + price targets from `/api/earnings/intel/{sym}`
 - **Pending entries**: gold-accent preview box with `preview_text` + 3 "Things to Watch" bullets (Claude Haiku, 350 tokens)
@@ -1336,11 +1565,11 @@ earnings hub. Full detail: `docs/superpowers/specs/2026-06-01-calendar-dominant-
 - **Personalization:** "My Stocks" = customizable union of watchlists + flagged + J2 positions + UCT20 (`/api/calendar/my-sets`, `calendar_personalization.py`); ⚙ source picker; audience + vol/price/mcap filters + sort (`filterLogic.js`).
 - **Logos:** `CompanyLogo.jsx` → `/api/ticker-logo/{sym}` proxy-and-cache on /data volume; **logo.dev primary** source (publishable token in `ticker_logos.py`, env `LOGODEV_TOKEN`), then Parqet/FMP/Finnhub/Clearbit. ~99.5% coverage; monogram fallback (detected via `naturalWidth<=2`). Prewarmer + `POST /api/logos/prewarm[?misses=1]`, coverage in `/api/logos/status`.
 - **Enrichment overlay** (`/api/calendar/enrichment`): per-sym expected move (`get_implied_move`), 4Q beat history, `hist_stats` — fetched via single `useWeekEnrichment` hook (NEVER hooks-in-loop). Live reactions per DayGroup; extended-hours via Massive `lastTrade.p`.
-- **Per-ticker depth (EarningsModal):** fundamentals/fwd-PE (`/api/fundamentals`), SEC filings (`/api/filings`, free EDGAR), AI call recap + sentiment + guidance + rating changes (`call_recap.py`, Opus+Perplexity, cost-guarded), **free verbatim transcripts** (`av_transcripts.py` via AlphaVantage `EARNINGS_CALL_TRANSCRIPT`, lazy/25-day-budgeted) + keyword search + 🔊 TTS Listen.
+- **Per-ticker depth (`components/research/EarningsResearchModal.jsx` — ⚰️ this said "EarningsModal", which is orphaned, as is the `FundamentalsStrip` that rendered the fwd-PE):** fundamentals/fwd-PE (`/api/fundamentals`), SEC filings (`/api/filings`, free EDGAR), AI call recap + sentiment + guidance + rating changes (`call_recap.py`, Opus+Perplexity, cost-guarded), **free verbatim transcripts** (`av_transcripts.py` via AlphaVantage `EARNINGS_CALL_TRANSCRIPT`, lazy/25-day-budgeted) + keyword search + 🔊 TTS Listen.
 - **Pluggable live/recorded audio** (`earnings_audio.py`): env `EARNINGS_AUDIO_PROVIDER`(`none`|`earningsapi`|`earningscall`|`quartr`) + `EARNINGS_AUDIO_API_KEY`. EarningsAPI adapter concrete (URL assumed-verify); **Quartr/EarningsCall = stubs** (Quartr needs real wiring + hls.js when contracted).
 - **IPO + dividends/splits** event calendars (`ipo_calendar.py` Finnhub, `dividends_calendar.py` yfinance) as event-type chips/cards. **My Stocks hub** at `/calendar/mystocks` (Earnings/News/Calls/Filings/Insights + read-unseen via `calendar_seen.py`).
 - **Alerts:** pre-report (`calendar_alerts.py`, APScheduler 7am=today / 6pm=tomorrow ET, dedup table) — gated `CALENDAR_ALERTS_ENABLED=1`. **iCal/webcal export** `/api/calendar/export.ics` + `/export-token` (HMAC(PUSH_SECRET,user_id)).
-- Routers: `calendar.py` (refresh is admin-gated), `earnings_intel.py` (recap/sentiment/transcript/audio — auth-required), `fundamentals.py`, `filings.py`, `ticker_logos.py`. EarningsModal still the click-through detail.
+- Routers: `calendar.py` (refresh is admin-gated), `earnings_intel.py` (recap/sentiment/transcript/audio — auth-required), `fundamentals.py`, `filings.py`, `ticker_logos.py`. **`EarningsResearchModal` is the click-through detail** — ⚰️ this said "EarningsModal still the click-through detail"; that component has zero importers (see the unreachable table).
 - **Past days of the CURRENT week come from Finnhub, not EW/Finviz** (`_backfill_past_days`, 2026-07-30). EarningsWhispers + Finviz are forward-looking SCHEDULES: once a company reports, EW drops it from that date and Finviz's `Earnings` column rolls to next quarter, so `_build_live` progressively emptied Monday, then Tuesday, while the week was still open (EW served 2 names for Mon 7/27 vs Finnhub's 119). The `live_total == 0` wire fallback never caught it — today/tomorrow are always full. Runs AFTER that fallback decision so it can't mask an empty live build; today + future days stay EW/Finviz's. A symbol the schedule still carries keeps its entry (EW owns the BMO/AMC session + the `ew` rank that drives ordering) and only its blank actuals are filled.
 - **A FINISHED day is capped looser than a live one** — `_PAST_SESSION_CAP=150` vs `_build_live`'s 40. The 40 bounds a forward SCHEDULE where EW's anticipation rank decides who matters; truncating a day that already happened just hides reporters (a 40-cap showed 96 of Wed 7/29's 240). `_PAST_REACTIONS_MAX_SYMS=250` matches so the whole day gets a gap %. Finnhub carries `hour` for ~90% of past rows; the ~10% with an empty `hour` land in **Time TBD** — a genuine provider gap, not a bucketing bug.
 - **`_compute_enrichment_for_date`: `is_past` beats `in_current_week` for the TTL.** The 5-min TTL exists for the live expected-move (options) field, which `_one` skips for past dates. A past day in this week now holds ~100 symbols instead of ~1, so the live TTL would re-fire ~200 provider calls per past day per 5 min.
@@ -1670,16 +1899,29 @@ The hub's **Setups** card is live: a field-guide of the firm's curated setup lis
 (the "ultimate setup library"). Frontend-only so far — no backend/DB yet.
 - **Files:** `app/src/pages/modelbook/SetupsView.jsx` + `.module.css` (library grid +
   per-setup detail scaffold), `app/src/pages/modelbook/setupCatalog.js` (catalog data).
-- **Catalog (v1, user-provided 2026-06-10):** 24 swing setups grouped into 4 families
-  (Bases & Breakouts · Momentum & Trend · Gaps & Catalysts · Reversals & Reclaims).
-  Most names match `constants/setupGroups.js` (the Throughout-the-Years labeling
-  taxonomy); a few use fuller display names (e.g. 'U&R (Undercut & Rally)' vs
-  'Classic U&R') — normalize when wiring examples to the DB. New-to-taxonomy setups:
-  20 EMA Pullback, EMA Crossback, Delayed Episodic Pivot, Gap Support. Each entry:
+- **Catalog (user-provided 2026-06-10, extended since).** ⭐ **Measure it, don't quote
+  it** — there are TWO setup lists and they do not agree, so any number written here
+  goes stale in whichever one moves first. Count both and diff them:
+  `SETUP_FAMILIES` + the `name:` entries in `app/src/pages/modelbook/setupCatalog.js`,
+  vs `SETUP_GROUPS`/`SETUPS` in `app/src/constants/setupGroups.js`. Measured
+  2026-08-09: **`setupGroups.js` = 32** (26 Swing + 6 Intraday) · **`setupCatalog.js`
+  = 26 across 5 families** (Bases & Breakouts · Gaps & Catalysts · Momentum & Trend ·
+  Reversals & Reclaims · **Intraday**) · **only 15 names appear in both**, so 11
+  catalog entries and 17 taxonomy entries have no counterpart.
+  ⚰️ This said *"24 swing setups grouped into 4 families"*. **The same wrong count is
+  also in `setupCatalog.js`'s own file header** — it still reads "24 swing setups"
+  when the file holds 26 and one of its families is Intraday, so "swing" is wrong too.
+  A count that has drifted in the artifact AND in the file it describes is the
+  writer-index `FOUR`-beside-six and the COT router's "4 routes" above five all over
+  again: **a hand-typed count beside the list it claims to describe.** Treat the
+  15-name overlap as the load-bearing number — it is what "normalize when wiring
+  examples to the DB" actually costs.
+  A few catalog names use fuller display forms (e.g. 'U&R (Undercut & Rally)' vs the
+  taxonomy's 'Classic U&R') — normalize when wiring examples to the DB. Each entry:
   family, direction, one-line `essence`, hand-authored `candles` array rendered by
   `<SetupGlyph/>` as an idealized mini candlestick sketch (pure SVG; optional `pivot`
   dashed trigger line + optional `ema` period drawing a smoothed MA curve).
-- **Library screen:** hero + family pills (All + 4 families) + search + grouped
+- **Library screen:** hero + family pills (All + one per `SETUP_FAMILIES` entry — ⚰️ this said "4 families"; count the array) + search + grouped
   card grid (staggered cascade-in mirroring the hub cards).
 - **Detail page (split view, 2026-06-11):** LEFT half = glyph hero (intro = the
   playbook's full lede when authored, else the card essence) + "The Playbook"
@@ -1913,7 +2155,13 @@ HTML (NOT React components)** via a `useEffect` + one delegated click handler in
 
 ## Twitter News Ingestion (built 2026-05-25)
 
-Single-stock catalyst news from a curated set of TwitterAPI.io accounts, surfaced inline on MoversSidebar (🐦 icon + new "ON THE TAPE" section) and inside EarningsModal (Recent tweets card). Designed for morning watchlist building from overnight + pre-market catalysts.
+Single-stock catalyst news from a curated set of TwitterAPI.io accounts, surfaced inline on MoversSidebar (🐦 icon per row, via `useTickerTweets`). Designed for morning watchlist building from overnight + pre-market catalysts.
+
+⚰️ **Two of the three surfaces this section claimed do not exist.** There is **no
+"ON THE TAPE" section** on `MoversSidebar.jsx` — the string appears nowhere in the
+file — and the "Recent tweets card" lived in the orphaned `EarningsModal.jsx`. The
+ingestion pipeline below (poller, store, cleanup, admin panel) is real and running;
+only the tape surface is fiction. See *⚰️ DOCUMENTED BUT UNREACHABLE* near the top.
 
 ### Architecture
 - **Database:** SQLite at `/data/tweets.db` (web service Railway volume, WAL mode). 7-day rolling retention.
@@ -1929,18 +2177,18 @@ Single-stock catalyst news from a curated set of TwitterAPI.io accounts, surface
 - `api/services/tweet_cleanup.py` — retention sweep (TWEET_RETENTION_DAYS env, default 7).
 - `api/routers/tweets.py` — `GET /api/tweets/ticker/{sym}`, `GET /api/tweets/tape` (excludes current movers), `GET /api/tweets/has-tweets-batch`. All logged-in via `get_current_user`.
 - `api/routers/admin_twitter.py` — admin CRUD on accounts + `GET /api/admin/twitter-stats` with `_maybe_auto_refresh_if_stale` self-heal mirroring COT (30-min cooldown).
-- `app/src/components/MoversSidebar.jsx` — 2-col RIPPING/DRILLING grid + new full-width ON THE TAPE section + 🐦 icon on rows with tweets.
-- `app/src/components/tiles/EarningsModal.jsx` — Recent tweets section between AI analysis and transcript.
+- `app/src/components/MoversSidebar.jsx` — 2-col RIPPING/DRILLING grid + 🐦 icon on rows with tweets. ⚰️ *(no "ON THE TAPE" section exists here — see above)*
+- ⚰️ `app/src/components/tiles/EarningsModal.jsx` — its "Recent tweets" section is unreachable; the modal is orphaned.
 - `app/src/components/admin/TwitterAccountsPanel.jsx` — admin-only panel on `/admin` page (slotted between Section 6b Admin Tools and Section 7 System Health).
 - `app/src/utils/timeAgo.js` — shared relative-time helper (extracted from `AlertBell.jsx`; AlertBell now imports `timeAgoShort` for backward-compatible "now/5m/2h" output).
-- `app/src/hooks/{useTickerTweets,useTapeFeed,useBatchTweetCounts}.js` — SWR fetchers.
+- `app/src/hooks/{useTickerTweets,useBatchTweetCounts}.js` — SWR fetchers. ⚰️ `useTapeFeed.js` was listed here: it has zero importers, and it is the **only caller of `GET /api/tweets/tape` in the whole codebase** — so that mounted, live, auth'd endpoint serves nobody. (The catalyst engine uses `tweet_store.tape()` in-process, not the HTTP route.)
 - `tools/twitterapi_io_smoke_test.py` — pre-flight key validation script (manual run).
 - `tools/seed_twitter_accounts.py` — one-shot to insert the initial curated list.
 
 ### Env vars
 - `TWITTERAPI_IO_API_KEY` — required for polling.
 - `TWITTERAPI_IO_ENABLED=1` — master switch for the scheduler block AND the lifespan DB-init. Set to enable polling.
-- `VITE_TWITTER_UI_ENABLED=1` — frontend kill-switch (default ON; "0" hides 🐦 icons + ON THE TAPE + EarningsModal tweets section).
+- `VITE_TWITTER_UI_ENABLED=1` — frontend kill-switch (default ON; "0" hides the 🐦 icons. ⚰️ It was documented as also hiding "ON THE TAPE + EarningsModal tweets section" — neither surface is reachable, so today the flag gates the icons alone).
 - `TWEET_RETENTION_DAYS=7` (default 7).
 - `TWEET_POLL_TIMEOUT_SECONDS=10` (default 10).
 - `TWEET_DB_PATH=/data/tweets.db` (override for local testing).

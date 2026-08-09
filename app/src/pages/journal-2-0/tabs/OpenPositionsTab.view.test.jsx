@@ -1,5 +1,14 @@
 // Focused view-toggle tests. Mock the heavy children — this only asserts
 // which view renders and that the choice persists.
+//
+// ⛔ MOCK ONLY WHAT THE TAB ACTUALLY IMPORTS. This file carried
+// `vi.mock('../components/BrokerSyncStatus', …)` long after `OpenPositionsTab`
+// stopped importing it — the sync bar was absorbed into
+// `components/trust/SyncTrustCenter`. A mock of a module nobody imports is
+// inert: it intercepts nothing, so it can never fail for the reason it was
+// written. Removed 2026-08-09 (same dead mock was in
+// `OpenPositionsTab.loading.test.jsx`). Confirm a specifier appears in
+// `OpenPositionsTab.jsx`'s import list before mocking it.
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import OpenPositionsTab from './OpenPositionsTab'
@@ -22,7 +31,6 @@ vi.mock('../../../hooks/useRealtimePrices', () => ({
   default: () => ({ prices: { AAPL: { price: 110, change_pct: 2 } }, isStreaming: false }),
 }))
 vi.mock('../components/BrokerAccountHero', () => ({ default: () => null }))
-vi.mock('../components/BrokerSyncStatus', () => ({ default: () => null }))
 vi.mock('../components/BrokerReviewNudge', () => ({ default: () => null }))
 vi.mock('../components/NudgesBanner', () => ({ default: () => null }))
 vi.mock('../components/HoldingsList', () => ({
