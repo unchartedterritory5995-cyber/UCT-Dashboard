@@ -181,6 +181,9 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
   // rail that ALWAYS fails is as useless as one that CANNOT fail — nobody reads
   // either, and this one is the standing guard on screener reachability. The
   // assertions are untouched; only the budget is now stated out loud.
+  // ⚠️ 60s, not 30: measured at 30.6s for the file under a full parallel suite
+  // run on this box. The budget exists to absorb machine load, and the failure
+  // this rail is FOR is a severed import edge, which takes microseconds.
   it('PLANTED CUT: remove the mount\'s import and ScanResults goes unreachable', () => {
     const panel = path.join(SCREENER_DIR, 'SavedScreensPanel.jsx')
     const src = read(panel)
@@ -203,7 +206,7 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
     expect(after.has(path.join(SCREENER_DIR, 'CoverageLine.jsx')),
       'CoverageLine is reached only through ScanResults; cutting the mount must '
       + 'take it with it').toBe(false)
-  }, 30000)
+  }, 60000)
 
   it('THE DYNAMIC EDGE IS LOAD-BEARING: static-only imports never reach the page', () => {
     // `App.jsx` routes through `lazy(() => import('./pages/Screener'))`. A walker
@@ -233,7 +236,7 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
       'the real walk does NOT reach the Screener page — the dynamic-import edge is '
       + 'not being followed and every reachability claim in this file is false')
       .toBe(true)
-  }, 30000)
+  }, 60000)
 
   it('a specifier that is prose, not an import, is not an edge', () => {
     // The grep failure mode, asserted directly.
