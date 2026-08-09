@@ -29,6 +29,7 @@ import tempfile
 import pytest
 
 from api.flow_db import COLUMNS, FlowDB, parse_columns
+from tests.authclients import sign_in_flow_caller
 
 FCB_COLS = ["CreatedDate", "CallPut", "Premium"]
 
@@ -180,11 +181,20 @@ def test_the_projection_ACTUALLY_REMOVES_BYTES(db):
 
 # -- the endpoint ------------------------------------------------------------
 
-def _get(db, sym, **params):
+def _get(db, sym, monkeypatch, **params):
     from fastapi import FastAPI
     from fastapi.testclient import TestClient
 
     from api import flow_router as fr
+
+    # `/api/flow/ticker/{symbol}` carries `require_flow_user` since the
+    # 2026-08-09 auth sweep — it was serving 40 MB of the firm's options tape to
+    # anyone. These are BEHAVIOUR tests (projection width, refusal on an unknown
+    # column), so they get the caller they always implied. The flow family reads
+    # the cookie itself, so the identity is installed on `flow_admin_auth` — the
+    # gate is left running. Whether the route is gated at all is owned by
+    # tests/test_exposed_routes_gated.py and asserted exactly once, there.
+    sign_in_flow_caller(monkeypatch)
 
     app = FastAPI()
     app.include_router(fr.flow_router)
@@ -196,23 +206,23 @@ def _get(db, sym, **params):
         fr.db = saved
 
 
-def test_the_endpoint_defaults_to_every_column(db):
+def test_the_endpoint_defaults_to_every_column(db, monkeypatch):
     # `r.content` is already PLAIN here: the response declares
     # `Content-Encoding: gzip` and httpx (so TestClient) transparently decodes
     # it, exactly as `httpx.stream(...).iter_lines()` does for the real reader.
     # Decompressing again raises BadGzipFile.
     _seed(db, "NVDA", "stocks", 2)
 
-    r = _get(db, "NVDA", source="stocks")
+    r = _get(db, "NVDA", monkeypatch, source="stocks")
 
     assert r.status_code == 200
     assert r.text.splitlines()[0] == ",".join(COLUMNS)
 
 
-def test_the_endpoint_honours_a_projection(db):
+def test_the_endpoint_honours_a_projection(db, monkeypatch):
     _seed(db, "NVDA", "stocks", 2)
 
-    r = _get(db, "NVDA", source="stocks", cols=",".join(FCB_COLS))
+    r = _get(db, "NVDA", monkeypatch, source="stocks", cols=",".join(FCB_COLS))
 
     assert r.status_code == 200
     lines = r.text.splitlines()
@@ -220,13 +230,13 @@ def test_the_endpoint_honours_a_projection(db):
     assert lines[1:] == ["6/21/2026,C,1200000"] * 2
 
 
-def test_an_unknown_column_is_a_400_not_a_narrower_body(db):
+def test_an_unknown_column_is_a_400_not_a_narrower_body(db, monkeypatch):
     """400, because the caller scores a non-200 as a FAILED read and retries it.
     A 200 carrying a body built from a question we did not understand is the
     shape that gets remembered as "no signal" for the next thirty minutes."""
     _seed(db, "NVDA", "stocks", 2)
 
-    r = _get(db, "NVDA", source="stocks", cols="CreatedDate,Premmium")
+    r = _get(db, "NVDA", monkeypatch, source="stocks", cols="CreatedDate,Premmium")
 
     assert r.status_code == 400, r.text
     assert "unknown flow column" in r.text

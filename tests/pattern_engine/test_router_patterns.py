@@ -4,6 +4,13 @@ from api.main import app
 from api.services.auth_db import init_db
 from api.services.pattern_engine import memory
 
+# The pattern engine's output is `require_paid`, and `POST /{id}/feedback` is
+# `get_current_user`, since the 2026-08-09 auth sweep — all of it answered
+# anonymous callers before. These are BEHAVIOUR tests, so they get the caller
+# they always implied; the gate itself is owned by
+# tests/test_exposed_routes_gated.py and asserted exactly once, there.
+from tests.authclients import as_a_paid_member  # noqa: F401  (autouse fixture)
+
 
 client = TestClient(app)
 

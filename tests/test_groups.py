@@ -230,6 +230,13 @@ def test_ticker_meta_primary_theme_none_when_unresolved(monkeypatch):
 from fastapi.testclient import TestClient
 from api.main import app
 
+# `/api/groups`, `/api/groups/{id}/top` and `/api/groups/peers` carry
+# `require_paid` since the 2026-08-09 auth sweep — they were answering anonymous
+# callers. These are BEHAVIOUR tests, so they get the caller they always implied;
+# whether the gate is present, and that it is `paid` rather than `session`, is
+# owned by tests/test_exposed_routes_gated.py and asserted exactly once.
+from tests.authclients import as_a_paid_member  # noqa: F401  (autouse fixture)
+
 client = TestClient(app)
 
 

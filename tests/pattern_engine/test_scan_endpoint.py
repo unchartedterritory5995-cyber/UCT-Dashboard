@@ -6,6 +6,12 @@ from api.main import app
 from api.services.auth_db import init_db
 from api.services.pattern_engine import memory
 
+# `GET /api/patterns/scan` is `require_paid` since the 2026-08-09 auth sweep —
+# it was serving the whole live detection set to anyone. These are BEHAVIOUR
+# tests, so they get the caller they always implied; the gate is owned by
+# tests/test_exposed_routes_gated.py and asserted exactly once, there.
+from tests.authclients import as_a_paid_member  # noqa: F401  (autouse fixture)
+
 
 client = TestClient(app)
 

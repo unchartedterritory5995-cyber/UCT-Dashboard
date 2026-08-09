@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import pytest
 
+from tests.authclients import PAID_MEMBER, authorize
+
 
 @pytest.fixture
 def router(tmp_path, monkeypatch):
@@ -150,6 +152,12 @@ def test_the_live_drill_route_is_not_shadowed_by_the_dated_one(router, monkeypat
         "ok": True, "items": [{"t": "AAA"}], "reason": None, "as_of": "x"})
     app = FastAPI()
     app.include_router(rt.router)
+    # This measures ROUTE RESOLUTION, and since the 2026-08-09 auth sweep the
+    # drill routes are `require_paid` — an anonymous 401 arrives before the
+    # router ever decides which of the two paths matched, so the question this
+    # test asks would be unanswerable. The identity is installed, never the
+    # gate, so the real `require_paid` still runs on the resolved route.
+    authorize(app, PAID_MEMBER)
     r = TestClient(app).get("/api/breadth-monitor/live/drill/up_4pct_today")
     assert r.status_code == 200, "the dated drill route swallowed 'live' as a date"
     assert r.json()["items"][0]["t"] == "AAA"

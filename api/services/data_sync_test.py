@@ -610,14 +610,19 @@ class TestMergeOhlcv:
         local = tmp_path / "local.db"
         snap = tmp_path / "snap.db"
         # local: AAPL frozen at ts=100 (c=10). NVDA absent entirely.
-        self._mkdb(local, [("AAPL", "15", 100, 1, 1, 1, 10, 5)])
+        # ⚠️ h carries the close, not 1 — `_merge_ohlcv_from` is now gated by the
+        # possible-bar predicate (`0c2ecb38`), and the original fixtures wrote
+        # `o=h=l=1, c=10`: a close TEN TIMES the high. Those rows are refused at
+        # the door now, so the merge adopted 0 and the test read as a merge bug.
+        # The c values are what every assertion below reads; only h/l moved.
+        self._mkdb(local, [("AAPL", "15", 100, 1, 10, 1, 10, 5)])
         # snapshot: AAPL has the old 100 (different c — must NOT overwrite)
         # plus newer 200/300; NVDA fully present (cold-ticker pre-pop).
         self._mkdb(snap, [
-            ("AAPL", "15", 100, 9, 9, 9, 99, 9),   # collides — must be IGNORED
-            ("AAPL", "15", 200, 2, 2, 2, 20, 6),   # newer — adopt
-            ("AAPL", "15", 300, 3, 3, 3, 30, 7),   # newer — adopt
-            ("NVDA", "15", 50, 4, 4, 4, 40, 8),    # absent locally — adopt
+            ("AAPL", "15", 100, 9, 99, 9, 99, 9),  # collides — must be IGNORED
+            ("AAPL", "15", 200, 2, 20, 2, 20, 6),  # newer — adopt
+            ("AAPL", "15", 300, 3, 30, 3, 30, 7),  # newer — adopt
+            ("NVDA", "15", 50, 4, 40, 4, 40, 8),   # absent locally — adopt
         ])
         adopted = data_sync._merge_ohlcv_from(str(snap), local_db=str(local))
         assert adopted == 3
@@ -633,13 +638,13 @@ class TestMergeOhlcv:
         snap = tmp_path / "snap.db"
         # local fresher (up to 300); snapshot only has older 100/200.
         self._mkdb(local, [
-            ("AAPL", "15", 100, 1, 1, 1, 10, 5),
-            ("AAPL", "15", 200, 2, 2, 2, 20, 6),
-            ("AAPL", "15", 300, 3, 3, 3, 30, 7),
+            ("AAPL", "15", 100, 1, 10, 1, 10, 5),
+            ("AAPL", "15", 200, 2, 20, 2, 20, 6),
+            ("AAPL", "15", 300, 3, 30, 3, 30, 7),
         ])
         self._mkdb(snap, [
-            ("AAPL", "15", 100, 9, 9, 9, 99, 9),
-            ("AAPL", "15", 200, 9, 9, 9, 99, 9),
+            ("AAPL", "15", 100, 9, 99, 9, 99, 9),
+            ("AAPL", "15", 200, 9, 99, 9, 99, 9),
         ])
         adopted = data_sync._merge_ohlcv_from(str(snap), local_db=str(local))
         assert adopted == 0, "stale snapshot must adopt nothing"
