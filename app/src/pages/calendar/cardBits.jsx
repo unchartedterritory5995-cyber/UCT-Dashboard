@@ -82,11 +82,62 @@ export function ReactionSpark({ lastN, width = 44, height = 14 }) {
   )
 }
 
+// ── Expected move: saying WHY there is no number ──────────────────────────────
+// ONE phrasing, ONE place. The day table, the earnings cards and the week tiles
+// all import THESE. This repo already carries three disagreeing breadth label
+// registries; this must not become a fourth.
+//
+// The frontend owns NO copy of the backend's reason vocabulary.
+// `api/services/implied_move.py::outcome_kind` is the only authority on what a
+// reason MEANS, and the wire carries its verdict as `{kind, reason}`. Anything
+// that is not an explicit `ok` means "we have no number", so a SEVENTH reason
+// added on the server renders correctly here on day one and can never come out
+// blank. The specific cause reaches support through the title, humanised by a
+// PURE TRANSFORM of the token — never a lookup table, because a lookup table
+// would BE the copy of the list this must not own.
+//
+// ⛔ A MISSING outcome is NOT a refusal. It means either the read was never
+// attempted (a past report — there is no forward straddle to price) or the
+// enrichment payload has not landed yet. Both keep the surface's existing
+// treatment, which is what stops a still-loading row from being labelled. An
+// earlier guard that treated a bare null as "arrived and empty" froze rows
+// permanently; see Calendar.jsx's re-check comment.
+export const MOVE_UNAVAILABLE = 'Expected move unavailable'
+
+export function moveIsUnavailable(outcome) {
+  return !!outcome && outcome.kind !== 'ok'
+}
+
+export function moveUnavailableTitle(outcome) {
+  const cause = String(outcome?.reason ?? '').replace(/_/g, ' ').trim()
+  return cause ? `${MOVE_UNAVAILABLE} — ${cause}` : MOVE_UNAVAILABLE
+}
+
+// Card treatment: room for the plain words, so it says them.
+export function MoveUnavailableLine({ outcome }) {
+  if (!moveIsUnavailable(outcome)) return null
+  return (
+    <div className={styles.emvNaRow} title={moveUnavailableTitle(outcome)}>
+      <span className={styles.emvNa}>{MOVE_UNAVAILABLE}</span>
+    </div>
+  )
+}
+
+// Compact treatment for the numeric column and the week tiles: the phrase does
+// not fit a 112px tabular cell, so the glyph carries it in its accessible name
+// and its tooltip. Explicitly NOT a bare em dash — a dash with no explanation
+// is the thing this replaces.
+export function MoveUnavailableMark({ outcome, className }) {
+  if (!moveIsUnavailable(outcome)) return null
+  const title = moveUnavailableTitle(outcome)
+  return <span className={className} title={title} aria-label={title}>n/a</span>
+}
+
 // ── Implied vs realized expected-move pair ───────────────────────────────────
 // The flagship differentiator: both numbers already ride the enrichment
 // payload; no platform at any price puts the comparison on calendar entries.
-export function ExpectedMovePair({ em, typical, big = false }) {
-  if (em == null) return null
+export function ExpectedMovePair({ em, typical, big = false, outcome = null }) {
+  if (em == null) return <MoveUnavailableLine outcome={outcome} />
   const rich = typical != null && em > 1.3 * typical
   return (
     <div className={styles.emv}

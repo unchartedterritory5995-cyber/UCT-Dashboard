@@ -150,13 +150,28 @@ REFUSED_NO_QUOTED_STRADDLE = "no_quoted_straddle"
 UNAVAILABLE_NO_EXPIRY = "no_expiry"
 UNAVAILABLE_NO_CHAIN = "chain_unavailable"
 UNAVAILABLE_NO_SPOT = "spot_unavailable"
+# The read itself never came back. NOT a refusal: nothing was evaluated, so
+# nothing could have been refused. A caller that let a timeout render as
+# "we could not price this" would be stating a confident falsehood — the exact
+# class of defect the ATM/output bounds exist to remove.
+UNAVAILABLE_TIMEOUT = "chain_timeout"
+UNAVAILABLE_READ_ERROR = "read_error"
 
 REFUSAL_REASONS = frozenset({
     REFUSED_NO_ATM_STRIKE, REFUSED_IMPLAUSIBLE_MOVE, REFUSED_NO_QUOTED_STRADDLE,
 })
 UNAVAILABLE_REASONS = frozenset({
     UNAVAILABLE_NO_EXPIRY, UNAVAILABLE_NO_CHAIN, UNAVAILABLE_NO_SPOT,
+    UNAVAILABLE_TIMEOUT, UNAVAILABLE_READ_ERROR,
 })
+
+# The closed vocabulary a UI may switch on. `outcome_kind` below is the ONLY
+# function that produces one, so this frozenset is its range — never a second
+# list that could drift out of step with it.
+KIND_OK = "ok"
+KIND_REFUSED = "refused"
+KIND_UNAVAILABLE = "unavailable"
+KINDS = frozenset({KIND_OK, KIND_REFUSED, KIND_UNAVAILABLE})
 
 
 def outcome_kind(reason: str | None) -> str:
@@ -166,8 +181,39 @@ def outcome_kind(reason: str | None) -> str:
     An unknown reason reads as 'unavailable': a caller must never be able to
     claim a REFUSAL it cannot name."""
     if reason is None:
-        return "ok"
-    return "refused" if reason in REFUSAL_REASONS else "unavailable"
+        return KIND_OK
+    return KIND_REFUSED if reason in REFUSAL_REASONS else KIND_UNAVAILABLE
+
+
+def wire_outcome(outcome: dict | None) -> dict | None:
+    """`{kind, reason}` — the member-facing projection of an out-dict.
+
+    THE serializer both member-facing routers use, so the calendar and the
+    research endpoint can never describe the same absence two different ways.
+
+      • `kind` is the small closed vocabulary (`KINDS`) a UI switches on, and it
+        comes from `outcome_kind`, not from a second reading of the reason. A
+        SEVENTH reason added above therefore renders correctly on day one and,
+        because an unrecognised reason reads as `unavailable`, can never claim
+        to be a refusal it cannot name.
+      • `reason` is the specific cause, for support and logs. It is never blank
+        on a not-ok outcome: an out-dict that failed without naming a reason
+        degrades to `read_error` rather than serializing an empty string a
+        surface would have to render as nothing.
+      • `evidence` is deliberately NOT serialized — internal audit detail
+        (strike/spot/moneyness), not a member-facing fact.
+
+    Returns None for a missing or empty out-dict. "Nothing was attempted" (a
+    past report; the caller never asked) is a DIFFERENT fact from "attempted and
+    came back empty", and the two must stay different on the wire — collapsing
+    them is how one `null` came to mean six things in the first place.
+    """
+    if not outcome:
+        return None
+    if outcome.get("ok"):
+        return {"kind": KIND_OK, "reason": None}
+    reason = outcome.get("reason") or UNAVAILABLE_READ_ERROR
+    return {"kind": outcome_kind(reason), "reason": reason}
 
 
 def atm_moneyness(strike, spot) -> float | None:
@@ -218,7 +264,7 @@ def evaluate_straddle(calls: list[dict], puts: list[dict], spot: float) -> dict:
     moneyness, pct) so a refusal is auditable instead of merely silent.
     """
     if not (spot and spot > 0):
-        return {"ok": False, "kind": "unavailable", "reason": UNAVAILABLE_NO_SPOT,
+        return {"ok": False, "kind": KIND_UNAVAILABLE, "reason": UNAVAILABLE_NO_SPOT,
                 "evidence": {"spot": spot}}
 
     def _atm(rows: list[dict]) -> dict | None:
@@ -234,7 +280,7 @@ def evaluate_straddle(calls: list[dict], puts: list[dict], spot: float) -> dict:
         return min(valid, key=lambda t: t[0])[1]
 
     call, put = _atm(calls), _atm(puts)
-    no_pair = {"ok": False, "kind": "refused", "reason": REFUSED_NO_QUOTED_STRADDLE,
+    no_pair = {"ok": False, "kind": KIND_REFUSED, "reason": REFUSED_NO_QUOTED_STRADDLE,
                "evidence": {"spot": spot}}
     if not call or not put:
         return no_pair
@@ -296,23 +342,23 @@ def compute_expected_move_result(sym: str, report_date: str | None) -> dict:
     expiry = select_report_expiry(exps.get("expirations") or [], report_date)
     if not expiry:
         _log.debug("expected_move %s: no valid expiry", sym)
-        return {"ok": False, "kind": "unavailable", "reason": UNAVAILABLE_NO_EXPIRY,
+        return {"ok": False, "kind": KIND_UNAVAILABLE, "reason": UNAVAILABLE_NO_EXPIRY,
                 "evidence": {}}
     chain = polygon_options.get_chain(sym, expiration=expiry, strikes_around_spot=4)
     if "error" in chain:
         _log.debug("expected_move %s: chain error", sym)
-        return {"ok": False, "kind": "unavailable", "reason": UNAVAILABLE_NO_CHAIN,
+        return {"ok": False, "kind": KIND_UNAVAILABLE, "reason": UNAVAILABLE_NO_CHAIN,
                 "evidence": {"expiry": expiry}}
 
     try:
         spot = float(chain.get("spot") or 0)
     except (TypeError, ValueError):
         _log.debug("expected_move %s: non-numeric spot", sym)
-        return {"ok": False, "kind": "unavailable", "reason": UNAVAILABLE_NO_SPOT,
+        return {"ok": False, "kind": KIND_UNAVAILABLE, "reason": UNAVAILABLE_NO_SPOT,
                 "evidence": {"expiry": expiry}}
     if spot <= 0:
         _log.debug("expected_move %s: spot not positive", sym)
-        return {"ok": False, "kind": "unavailable", "reason": UNAVAILABLE_NO_SPOT,
+        return {"ok": False, "kind": KIND_UNAVAILABLE, "reason": UNAVAILABLE_NO_SPOT,
                 "evidence": {"expiry": expiry, "spot": spot}}
 
     result = evaluate_straddle(chain.get("calls") or [], chain.get("puts") or [], spot)
@@ -402,6 +448,6 @@ def get_expected_move(sym: str, report_date: str | None = None,
         # A served (fresh or stale) payload never re-ran `_build`, so `built`
         # is empty and the honest report is simply "ok".
         outcome.update({"ok": True} if result is not None
-                       else (dict(built) or {"ok": False, "kind": "unavailable",
+                       else (dict(built) or {"ok": False, "kind": KIND_UNAVAILABLE,
                                              "reason": UNAVAILABLE_NO_CHAIN}))
     return dict(result) if result is not None else None
