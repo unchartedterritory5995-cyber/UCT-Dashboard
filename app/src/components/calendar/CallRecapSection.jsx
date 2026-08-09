@@ -250,31 +250,6 @@ export default function CallRecapSection({ recap: rawRecap, audio, onJumpToSegme
         </span>
       )}
 
-      {/* Bullets */}
-      {filteredBullets.length > 0 && (
-        <>
-          <div className={styles.sectionLabel} style={{ marginTop: 8 }}>KEY POINTS</div>
-          <ul className={styles.bullets}>
-            {filteredBullets.map((b, i) => <li key={i}>{highlight(b, kw)}</li>)}
-          </ul>
-        </>
-      )}
-
-      {/* Guidance PROSE only — the enum form is the chip above, and rendering
-          both printed the same word twice, the second time as a one-word
-          paragraph under a "GUIDANCE" heading. */}
-      {recap.guidance_detail && (!kw || recap.guidance_detail.toLowerCase().includes(kw.toLowerCase())) && (
-        <p className={grounded.guidanceDetail}>{highlight(recap.guidance_detail, kw)}</p>
-      )}
-
-      {guidanceKind(recap.guidance) === 'prose' &&
-       (!kw || recap.guidance.toLowerCase().includes(kw.toLowerCase())) && (
-        <div className={styles.guidanceBlock}>
-          <div className={styles.sectionLabel}>GUIDANCE</div>
-          <p className={styles.guidanceText}>{highlight(recap.guidance, kw)}</p>
-        </div>
-      )}
-
       {/* Forward-looking commentary — the section a trader reads first.
           Every item rests on a verbatim quote the SERVER located in the
           transcript; anything it could not locate was dropped before this
@@ -300,6 +275,31 @@ export default function CallRecapSection({ recap: rawRecap, audio, onJumpToSegme
               </blockquote>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Bullets */}
+      {filteredBullets.length > 0 && (
+        <>
+          <div className={styles.sectionLabel} style={{ marginTop: 8 }}>KEY POINTS</div>
+          <ul className={styles.bullets}>
+            {filteredBullets.map((b, i) => <li key={i}>{highlight(b, kw)}</li>)}
+          </ul>
+        </>
+      )}
+
+      {/* Guidance PROSE only — the enum form is the chip above, and rendering
+          both printed the same word twice, the second time as a one-word
+          paragraph under a "GUIDANCE" heading. */}
+      {recap.guidance_detail && (!kw || recap.guidance_detail.toLowerCase().includes(kw.toLowerCase())) && (
+        <p className={grounded.guidanceDetail}>{highlight(recap.guidance_detail, kw)}</p>
+      )}
+
+      {guidanceKind(recap.guidance) === 'prose' &&
+       (!kw || recap.guidance.toLowerCase().includes(kw.toLowerCase())) && (
+        <div className={styles.guidanceBlock}>
+          <div className={styles.sectionLabel}>GUIDANCE</div>
+          <p className={styles.guidanceText}>{highlight(recap.guidance, kw)}</p>
         </div>
       )}
 
