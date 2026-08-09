@@ -58,6 +58,41 @@ def get_serve_layer() -> str:
     return getattr(_serve_diag, "layer", "unknown")
 
 
+# ── Stored price precision ────────────────────────────────────────────────────
+# 🔴 EVERY STORED PRICE WAS ROUNDED TO 2 DECIMALS, AT SEVEN PROVIDER BOUNDARIES,
+# AND ON A SUB-DOLLAR NAME THAT IS THE DOMINANT ERROR. Confirmed in the artifact
+# 2026-08-09: 0 of 17,144,361 daily bars carried more than 2 places. Against
+# Yahoo on the same sessions:
+#     CAN  2026-06-16   ours 0.34  vendor 0.345   1.449%
+#     DEFT 2026-06-26   ours 0.49  vendor 0.485   1.031%
+#     GETY 2026-06-18   ours 0.61  vendor 0.605   0.826%
+# A half-cent is ~1.7% of a $0.29 stock, and it propagates into `chg_pct_1d`,
+# `gap_pct`, `adr_pct` and every MA-distance column — including the screener's
+# `adr_pct < 4% ⇒ LOW_ADR` HARD GATE, which is applied to exactly these names. So
+# the rounding was not cosmetic: it changed which stocks a member is shown.
+#
+# ⭐ WHY 4 AND NOT "NONE", AND WHY IT IS A CONSTANT. Rounding at all exists so a
+# refetch of the same bar is byte-stable — providers round-trip through float32
+# (~4e-8 relative), and without a fixed precision every delta would rewrite rows
+# that did not change. 4 is not a new taste: `bars_sanitize.scale_bar` has always
+# written split-adjusted prices at 4 places, so a HEALED bar and a FETCHED bar now
+# land on the same digits instead of differing by a rounding step — which is the
+# same split-brain, one decimal down. US equities quote sub-dollar names in
+# $0.0001 increments, so 4 is the tape's own grain.
+#
+# ⛔ ONE NAME, SEVEN SITES, AND THE RAIL COUNTS THEM. A precision applied at six
+# of seven boundaries is worse than 2dp everywhere: it makes the store's grain
+# depend on WHICH provider answered. `tests/test_bar_price_precision.py` derives
+# the site list from this module's AST and fails on a literal `round(x, 2)`
+# reappearing anywhere in it.
+PRICE_DP = 4
+
+
+def _px(value) -> float:
+    """One price, at the store's declared precision."""
+    return round(float(value), PRICE_DP)
+
+
 # ── In-flight deduplication ───────────────────────────────────────────────────
 # Prevents N concurrent requests for the same key from each making a separate
 # Massive API call.  The first thread that arrives becomes the "fetcher" and
@@ -132,7 +167,31 @@ def _deepfill_once(ticker: str, tf: str, bars: int) -> int:
 def _maybe_kick_deepfill(ticker: str, tf: str, bars: int) -> None:
     """Kick a bounded, throttled, background deep gap-fill of the VIEWED range.
     See the _DEEPFILL_* block. No-op for non-intraday, when disabled, verified
-    recently (per depth-tier), or at the concurrency cap. Never blocks."""
+    recently (per depth-tier), or at the concurrency cap. Never blocks.
+
+    🔴 AND A NO-OP UNDER PYTEST, WHICH IS NOT TIDINESS — IT IS THE WRITER THAT
+    PUT 16,500 FIXTURE BARS INTO THE OWNER'S LIVE STORE. `C:\\data\\bars.db`
+    carries 16,500 MSTR tf=5 rows reading `o=10.00 h=10.50 l=9.50 c=10.20 v=100`
+    across weekends — 56.8% of MSTR's 5-minute bars, and the NEWEST rows
+    `get_bars` returns, against a real price near $97.80. The values come from
+    `tests/test_deep_backfill_sync.py`'s mocked `_fetch_intraday`; the WRITER is
+    this function's daemon thread, which OUTLIVES the test. `monkeypatch` then
+    restores `bars_sqlite._DB_PATH` to its import-time value and the fixture's
+    own `bump_db_epoch()` teardown forces the in-flight thread to RECONNECT —
+    against the restored path. Teardown actively redirected the write onto the
+    real store. The row counts prove the attribution: 4400 = 5000 fetched − 600
+    seeded and 700 = 1000 − 300, and `fetched − stored` is computed in exactly
+    one function, `_deepfill_once`.
+    ⛔ THE REPO-ROOT `conftest.py` REDIRECT IS THE RIGHT CONTROL AND IT IS NOT
+    ENOUGH: it is a FILE IN THE TREE, and 50 of 54 worktrees on this box do not
+    have it — 40 of them ship the test. A guard that travels with the tests
+    cannot protect a checkout that predates the guard; this one travels with the
+    CODE. Note also that the tripwire could not have reported it: `_run`'s own
+    `except Exception` swallows the `SharedDataRootWrite` as a routine deepfill
+    failure, so it never even reaches `threading.excepthook`.
+    """
+    if _os.environ.get("PYTEST_CURRENT_TEST"):
+        return
     if not _DEEPFILL_ENABLED or tf not in ("1", "5", "15", "30", "60"):
         return
     ticker_up = ticker.upper()
@@ -654,10 +713,10 @@ def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
         for bar in all_results:
             bars.append({
                 "t": int(bar["t"] / 1000),  # ms → unix seconds for LW Charts UTCTimestamp
-                "o": round(bar["o"], 2),
-                "h": round(bar["h"], 2),
-                "l": round(bar["l"], 2),
-                "c": round(bar["c"], 2),
+                "o": _px(bar["o"]),
+                "h": _px(bar["h"]),
+                "l": _px(bar["l"]),
+                "c": _px(bar["c"]),
                 "v": int(bar.get("v", 0)),
             })
         # Return ALL paginated bars (the entire lookback window), not just
@@ -729,10 +788,10 @@ def _fetch_intraday_fmp(ticker: str, tf: str, max_bars: int) -> list[dict]:
                 dt = datetime.strptime(bar["date"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=_ET_FMP)
                 bars.append({
                     "t": int(dt.timestamp()),
-                    "o": round(float(bar["open"]), 2),
-                    "h": round(float(bar["high"]), 2),
-                    "l": round(float(bar["low"]), 2),
-                    "c": round(float(bar["close"]), 2),
+                    "o": _px(bar["open"]),
+                    "h": _px(bar["high"]),
+                    "l": _px(bar["low"]),
+                    "c": _px(bar["close"]),
                     "v": int(bar.get("volume", 0)),
                 })
             except (KeyError, ValueError):
@@ -782,10 +841,10 @@ def _fetch_intraday_yfinance(ticker: str, tf: str, max_bars: int) -> list[dict]:
                 ts = ts.tz_localize(_ET_YF)
             bars.append({
                 "t": int(ts.timestamp()),  # unix seconds (UTC), tz-correct
-                "o": round(row["Open"], 2),
-                "h": round(row["High"], 2),
-                "l": round(row["Low"], 2),
-                "c": round(row["Close"], 2),
+                "o": _px(row["Open"]),
+                "h": _px(row["High"]),
+                "l": _px(row["Low"]),
+                "c": _px(row["Close"]),
                 "v": int(row.get("Volume", 0)),
             })
         return bars[-max_bars:]
@@ -921,8 +980,8 @@ def _massive_raw_to_iso(raw) -> list[dict]:
         dt = datetime.utcfromtimestamp(bar["t"] / 1000)
         out.append({
             "t": dt.strftime("%Y-%m-%d"),
-            "o": round(bar["o"], 2), "h": round(bar["h"], 2),
-            "l": round(bar["l"], 2), "c": round(bar["c"], 2),
+            "o": _px(bar["o"]), "h": _px(bar["h"]),
+            "l": _px(bar["l"]), "c": _px(bar["c"]),
             "v": int(bar.get("v", 0)),
         })
     return out
@@ -1168,8 +1227,8 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
                 f"?adjusted=true&sort=asc&limit=50000&apiKey={client._api_key}"
             )
             bars_src = [
-                {"t": int(b["t"] / 1000), "o": round(b["o"], 2), "h": round(b["h"], 2),
-                 "l": round(b["l"], 2), "c": round(b["c"], 2), "v": int(b.get("v", 0))}
+                {"t": int(b["t"] / 1000), "o": _px(b["o"]), "h": _px(b["h"]),
+                 "l": _px(b["l"]), "c": _px(b["c"]), "v": int(b.get("v", 0))}
                 for b in _paginate_massive_aggs(client, url)
             ]
             # Filter shifted from strict > to >= on 2026-05-23. Original concern
@@ -1215,8 +1274,8 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
             if _delta_keep_bar(ts, heal_floor, stored_ts):
                 new.append({
                     "t": ts,
-                    "o": round(bar["o"], 2), "h": round(bar["h"], 2),
-                    "l": round(bar["l"], 2), "c": round(bar["c"], 2),
+                    "o": _px(bar["o"]), "h": _px(bar["h"]),
+                    "l": _px(bar["l"]), "c": _px(bar["c"]),
                     "v": int(bar.get("v", 0)),
                 })
         return new
@@ -1297,10 +1356,10 @@ def _fetch_daily_yf(ticker: str, timeout: float = 20.0) -> list[dict]:
                 dt_str = ts.strftime("%Y-%m-%d") if hasattr(ts, 'strftime') else str(ts)[:10]
                 out.append({
                     "t": dt_str,
-                    "o": round(float(row["Open"]), 2),
-                    "h": round(float(row["High"]), 2),
-                    "l": round(float(row["Low"]), 2),
-                    "c": round(float(row["Close"]), 2),
+                    "o": _px(row["Open"]),
+                    "h": _px(row["High"]),
+                    "l": _px(row["Low"]),
+                    "c": _px(row["Close"]),
                     "v": int(row.get("Volume", 0) or 0),
                 })
             except Exception:

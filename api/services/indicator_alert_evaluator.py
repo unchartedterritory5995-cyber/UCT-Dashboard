@@ -974,7 +974,85 @@ def alert_catalog(user_id: Optional[Any] = None) -> list[dict]:
 
 # ─── bar fetch ───────────────────────────────────────────────────────────────
 
-def _fetch_bars_for_alert(sym: str, tf: str, count: int = 200) -> list[dict]:
+#: 🔴 THE ALERT LANE READ A FIXED 200 BARS WHILE ITS OWN BUDGET ADMITS
+#: `maxLookback: 500`, AND THE SCAN LANE ALREADY DID THIS CORRECTLY. Same tree,
+#: two windows; only one could be right. These are `scan_evaluator._MIN_BARS` /
+#: `_MAX_BARS` and the formula is its `want`, brought over verbatim —
+#: `test_the_two_lanes_size_the_same_window` READS the scan lane's own constants
+#: and fails if either side moves, so this is a copy that cannot drift rather
+#: than a second authority.
+#:
+#: Two measurements say why the floor is 400 and not 200:
+#:   * `STZ ema(close,200)` is **145.9311** over 200 bars and **153.2869**
+#:     converged — −$7.36, −4.80%. RSI14 and ATR14 converge by 200 (rel ≤ 1.2e-7);
+#:     the exposure is `ema` with period ≳ 100.
+#:   * a tree needing more than the window returned a CONFIDENT FALSE rather than
+#:     refusing — see `ast_interpret.unresolved_lookback`, which is the other half
+#:     of this fix and the half that matters when even 5,000 bars are not enough.
+BARS_MIN = 400
+BARS_MAX = 5000
+
+
+def bars_wanted(lookback: int = 0) -> int:
+    """How many bars a tree declaring `lookback` needs: its own history plus a
+    warm-up prefix, capped. `scan_evaluator`'s `want`, one function."""
+    try:
+        lookback = max(0, int(lookback))
+    except (TypeError, ValueError):
+        lookback = 0
+    return min(BARS_MAX, max(BARS_MIN, lookback + BARS_MIN))
+
+
+def bars_needed_for_alert(alert: dict) -> int:
+    """The window THIS alert's own formula declares it reads.
+
+    ⛔ DERIVED FROM THE THING THAT COMPUTES, NEVER FROM A TABLE OF "how much past
+    does rsi need". Two partitions, two derivations, no hand-list:
+
+      * a USER address resolves its captured tree and asks
+        `ast_interpret.max_lookback` — the same number the budget and the repaint
+        linter read.
+      * a BUILTIN address asks `alert_series.address_inputs`, which reads the
+        knobs off the column function itself, and sums the WHOLE-NUMBER ones.
+        A window is a whole number of bars; `bb`'s `stddev: 2.0` and `sar`'s
+        `step: 0.02` are not windows and are not summed. Summing rather than
+        maxing is the composition rule `max_lookback` itself uses along a path,
+        and it is the conservative direction: `macd(12,26,9)` needs 35 and is
+        given 47.
+
+    Never raises — an unknown address, an unparseable tree or a refused
+    definition all fall back to the floor, which is strictly more history than
+    the 200 this lane used to read.
+    """
+    try:
+        params = _parse_params(alert)
+    except Exception:  # noqa: BLE001  pragma: no cover
+        params = {}
+    lookback = 0
+    try:
+        from api.services import alert_user_series
+        declared_lookback = alert_user_series.lookback_for_alert(alert)
+        if declared_lookback is not None:
+            lookback = declared_lookback
+        else:
+            from api.services import alert_series
+            declared = alert_series.address_inputs(
+                resolve_address(alert.get("indicator")))
+            resolved = dict(declared)
+            for key in declared:
+                if params.get(key) is not None:
+                    resolved[key] = params[key]
+            for value in resolved.values():
+                if isinstance(value, bool) or not isinstance(value, (int, float)):
+                    continue
+                if float(value) == int(value):
+                    lookback += int(value)
+    except Exception:  # noqa: BLE001
+        lookback = 0
+    return bars_wanted(lookback)
+
+
+def _fetch_bars_for_alert(sym: str, tf: str, count: int = BARS_MIN) -> list[dict]:
     """Return the latest ``count`` bars for (sym, tf) from the SQLite store.
 
     Bars come as dicts with keys ``h``, ``l``, ``c``, ``v`` so they plug
@@ -1116,7 +1194,8 @@ def _evaluate_one(alert: dict, bars: Optional[list[dict]] = None, *,
         return None, False
 
     if bars is None:
-        bars = _fetch_bars_for_alert(alert["sym"], alert["tf"], 200)
+        bars = _fetch_bars_for_alert(alert["sym"], alert["tf"],
+                                     bars_needed_for_alert(alert))
     if not bars:
         return None, False
 
@@ -1497,7 +1576,8 @@ def _evaluate_one_closed(alert: dict, bars: Optional[list[dict]] = None, *,
         return None, False, None
 
     if bars is None:
-        bars = _fetch_bars_for_alert(alert["sym"], alert["tf"], 200)
+        bars = _fetch_bars_for_alert(alert["sym"], alert["tf"],
+                                     bars_needed_for_alert(alert))
     if not bars:
         return None, False, None
 
@@ -1875,22 +1955,34 @@ def _accrue_ledger_receipt(alert: dict, value: Optional[float],
 def _delivery_failed(outcome: Any) -> bool:
     """Did the delivery hook report that NOTHING reached the member?
 
-    ⚠️ TODAY THIS IS ALWAYS FALSE ON THE RETURN VALUE, AND THAT IS THE POINT OF
-    WRITING IT DOWN. `watchlist_alert_service.deliver_alert_payload` wraps each
-    channel in its own `try/except … _logger.warning` and returns ``None``
-    whether every channel succeeded or every channel raised — so from here a
-    Resend 429 and a clean send are byte-identical. That file belongs to another
-    agent this session, so the seam is built on THIS side and consumes a
-    structured outcome the moment one is returned: a mapping whose
-    ``delivered`` / ``channels_ok`` / ``ok`` says zero channels landed is a
-    failure, and the lease is handed back.
+    ⭐ THE SEAM IS LIVE. `watchlist_alert_service.deliver_alert_payload` used to
+    wrap each channel in its own `try/except … _logger.warning` and return
+    ``None`` whether every channel succeeded or every channel raised — so from
+    here a Resend 429 and a clean send were byte-identical, and the row said
+    `delivered` either way. It now returns a per-channel report, and this reads
+    it: a mapping whose ``channels_ok`` / ``delivered`` / ``ok`` says ZERO
+    channels landed is a failure, and the lease is handed back.
 
-    ⛔ AN UNRECOGNISED RETURN VALUE IS NOT A FAILURE. `None` today, and anything
-    this function does not understand, means *"no report"* — and a lane that
-    treated "no report" as failure would release and retry EVERY delivery,
-    which is the double-send this whole design exists to make impossible.
+    ⛔ A PARTIAL SUCCESS IS **NOT** A FAILURE HERE, and that is the whole reason
+    the report counts channels instead of carrying a bool. "in-app ok, email
+    failed" means the member WAS reached; releasing that lease would re-send the
+    in-app alert they already have. The failure is still recorded — on the row,
+    per channel, by `record_delivery_channels` — it just does not retry.
+
+    ⛔ AN UNRECOGNISED RETURN VALUE IS NOT A FAILURE EITHER. Anything this
+    function does not understand means *"no report"*, and a lane that treated
+    "no report" as failure would release and retry EVERY delivery, which is the
+    double-send this whole design exists to make impossible.
+
+    ⛔ AND A REFUSED CLAIM IS NOT A FAILURE — IT IS THE GATE WORKING. The
+    compare-and-set refuses a duplicate, a snoozed alert, and a fire another
+    frame already owns; in each case zero channels ran and zero were owed.
+    Checked FIRST, because such a report legitimately carries ``channels_ok: 0``
+    and every branch below would read that as "the member was not told".
     """
     if not isinstance(outcome, dict):
+        return False
+    if outcome.get("claimed") is False:
         return False
     for key in ("channels_ok", "delivered", "ok"):
         if key in outcome:
@@ -2145,12 +2237,73 @@ def _dispatch_delivery(alert: dict, value: float, *,
                 "alert_id": alert.get("id"),
             },
         )
+        _record_delivery_channels(alert, fire_id, outcome)
         if _delivery_failed(outcome):
             _release_failed_delivery(
-                alert, fire_id, "every channel refused the delivery")
+                alert, fire_id, _failure_reason(outcome))
     except Exception as exc:
         _logger.exception("[alert-eval] dispatch failed for alert %s", alert.get("id"))
         _release_failed_delivery(alert, fire_id, f"{type(exc).__name__}: {exc}")
+
+
+def _failure_reason(outcome: Any) -> str:
+    """The stored `delivery_error` — NAMING THE CHANNELS, not "it failed".
+
+    ⛔ DERIVED FROM THE REPORT, NEVER RESTATED. The old string was the constant
+    *"every channel refused the delivery"*, which is the same sentence whether
+    Resend 429'd or the webhook was rotated — a record that cannot distinguish
+    two causes cannot be used to fix either.
+    """
+    if not isinstance(outcome, dict):
+        return "the delivery hook made no report"
+    errors = outcome.get("errors")
+    if isinstance(errors, dict) and errors:
+        return "; ".join(f"{k}: {v}" for k, v in sorted(errors.items()))
+    channels = outcome.get("channels")
+    if isinstance(channels, dict) and channels:
+        return "no channel landed — " + ", ".join(
+            f"{k}={v}" for k, v in sorted(channels.items()))
+    return "the delivery hook reported no channel reached the member"
+
+
+def _record_delivery_channels(alert: dict, fire_id: Optional[int],
+                              outcome: Any) -> None:
+    """Stamp WHICH channels reached the member onto the fire row. Never raises.
+
+    ⛔ ONLY WHEN THIS FRAME OWNED THE CLAIM. `fire_id` was read BEFORE the
+    claim, so on a refused claim it names either nothing or an OLDER pending
+    fire this dispatch has no business writing to — stamping that row would
+    attribute one fire's channel outcome to another.
+
+    ⚠️ BOOKKEEPING, SO IT IS SWALLOWED — for the same reason the ledger receipt
+    is. A member's alert has already been sent by the time this runs; a locked
+    or unwritable history may not turn that into a logged error the cycle counts
+    against the alert.
+    """
+    if not isinstance(outcome, dict) or outcome.get("claimed") is not True:
+        return
+    channels = outcome.get("channels")
+    if not isinstance(channels, dict) or not channels:
+        return
+    try:
+        from api.services import alert_fired_log as _afl
+        _afl.record_delivery_channels(fire_id, channels)
+    except Exception:
+        _logger.exception(
+            "[alert-eval] could not record the per-channel delivery outcome for "
+            "alert %s (fire %s) — the row will not say which channels landed",
+            alert.get("id"), fire_id)
+        return
+    failed = sorted(k for k, v in channels.items() if v == "failed")
+    if failed:
+        # ⚠️ ERROR, not warning, and it names the member's alert: a channel that
+        # silently stopped working is exactly what this task exists to surface.
+        _logger.error(
+            "[alert-eval] alert %s (fire %s) was delivered on %d channel(s) and "
+            "FAILED on %s — the member did not get it there: %s",
+            alert.get("id"), fire_id,
+            sum(1 for v in channels.values() if v == "ok"),
+            ", ".join(failed), outcome.get("errors"))
 
 
 def _release_failed_delivery(alert: dict, fire_id: Optional[int],
@@ -2271,7 +2424,14 @@ def _run_one_cycle() -> dict[str, Any]:
 
     for (sym, tf), alerts_in_group in groups.items():
         try:
-            bars = _fetch_bars_for_alert(sym, tf, 200)
+            # ⛔ THE GROUP'S WINDOW IS THE WIDEST ANY MEMBER DECLARES, NOT THE
+            # FIRST ONE'S. One fetch serves every alert on this (sym, tf), so a
+            # window sized off one member would hand a 500-bar formula the
+            # 400-bar series its neighbour asked for — and the shortfall would
+            # show up as `unresolved_lookback` refusing a tree that the store
+            # could actually have answered.
+            bars = _fetch_bars_for_alert(
+                sym, tf, max(bars_needed_for_alert(a) for a in alerts_in_group))
         except Exception:
             _logger.exception("[alert-eval] fetch failed for %s/%s", sym, tf)
             summary["errors"] += 1
@@ -2331,6 +2491,87 @@ def _run_one_cycle() -> dict[str, Any]:
                 )
                 summary["errors"] += 1
     return summary
+
+
+# ─── OBSERVED LATENCY — A MEASUREMENT, NOT ARITHMETIC ────────────────────────
+
+def _percentile(ordered: list[float], q: float) -> float:
+    """Nearest-rank percentile of an already-sorted, non-empty list."""
+    k = max(0, min(len(ordered) - 1, int(round(q * (len(ordered) - 1)))))
+    return ordered[k]
+
+
+def observed_latency(limit: int = 500, user_id: Optional[str] = None) -> dict:
+    """`fired_at − bar_close` over the fires this platform ACTUALLY recorded.
+
+    🔴 THE DEFECT THIS CLOSES. `GET /api/indicator-alerts/latency` reported
+    *"0–60 s"* derived from two constants — the poll interval and a per-timeframe
+    bar length — and nothing anywhere subtracted the two columns that have been
+    stored on every fire row since `dd2da6f7`. A bound that is computed from
+    constants cannot be wrong, which means it cannot detect a regression either:
+    if the evaluator thread stalled for an hour the endpoint would still say 60.
+
+    ⛔ AN EMPTY SAMPLE REPORTS *NO OBSERVATIONS*, NEVER A ZERO. The production
+    fire log is empty today, and a `p50: 0` on zero rows is the exact defect
+    class this phase exists to remove: a confident number over an absent result.
+    Every quantile is ``None`` when nothing has been measured, and `observations`
+    is what a reader must check first — so a caller that renders the numbers
+    blindly shows blanks rather than a fabricated best-in-class latency.
+
+    ⚠️ A NEGATIVE SAMPLE IS REAL AND IS NOT CLAMPED. It means the fire was
+    recorded BEFORE its bar closed, which is precisely what the forming lane
+    does — so `before_close > 0` on the closed lane is a finding, and hiding it
+    behind a `max(0, …)` would delete the evidence.
+
+    ⚠️ `unresolved` COUNTS ROWS WHOSE BAR CLOSE CANNOT BE DERIVED (an encoding
+    this lane does not read, a timeframe with no calendar). They are excluded
+    from the distribution and REPORTED, because silently dropping samples is how
+    a distribution starts describing a subset nobody chose.
+    """
+    try:
+        from api.services import alert_fired_log as _afl
+        rows = _afl.latency_samples(limit, user_id=user_id)
+    except Exception:
+        _logger.exception("[alert-eval] could not read latency samples")
+        rows = []
+
+    seconds: list[float] = []
+    unresolved = 0
+    for r in rows:
+        close_at = bar_close_epoch(r.get("bar_time"), str(r.get("tf") or ""))
+        fired = r.get("fired_at")
+        if close_at is None or fired is None:
+            unresolved += 1
+            continue
+        try:
+            seconds.append(float(fired) - float(close_at))
+        except (TypeError, ValueError):
+            unresolved += 1
+
+    if not seconds:
+        return {
+            "observations": 0,
+            "unresolved": unresolved,
+            "before_close": 0,
+            "p50_seconds": None,
+            "p90_seconds": None,
+            "max_seconds": None,
+            "min_seconds": None,
+            "note": ("no observed fires — this is a measurement, and there is "
+                     "nothing to measure yet. It is NOT a latency of zero."),
+        }
+
+    ordered = sorted(seconds)
+    return {
+        "observations": len(ordered),
+        "unresolved": unresolved,
+        "before_close": sum(1 for s in ordered if s < 0),
+        "p50_seconds": round(_percentile(ordered, 0.50), 3),
+        "p90_seconds": round(_percentile(ordered, 0.90), 3),
+        "max_seconds": round(ordered[-1], 3),
+        "min_seconds": round(ordered[0], 3),
+        "note": "observed fired_at − bar close, from indicator_alert_fires",
+    }
 
 
 # ─── background thread ───────────────────────────────────────────────────────

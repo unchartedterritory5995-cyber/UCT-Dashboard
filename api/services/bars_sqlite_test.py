@@ -415,10 +415,15 @@ def test_volume_scan_helpers(tmp_path, monkeypatch):
     assert bs.recent_first_trade(20260701) == {}
 
     # close_n_sessions_back (Top-Gainers reference): distinct closes so rank order shows.
+    # ⚠️ o/h/l TRACK c HERE ON PURPOSE. These rows used to read `o=h=l=1, c=30`,
+    # which is a close ABOVE the high — not a bar that could have happened, and
+    # `put_bars` now refuses to store one (see `bar_validation.possible_bar_reasons`).
+    # Only the CLOSES are what these assertions read, so making the bar possible
+    # changes nothing they measure.
     bs.put_bars("BBB", "D", [
-        {"t": "2026-06-01", "o": 1, "h": 1, "l": 1, "c": 10, "v": 1},
-        {"t": "2026-06-02", "o": 1, "h": 1, "l": 1, "c": 20, "v": 1},
-        {"t": "2026-06-03", "o": 1, "h": 1, "l": 1, "c": 30, "v": 1},
+        {"t": "2026-06-01", "o": 10, "h": 10, "l": 10, "c": 10, "v": 1},
+        {"t": "2026-06-02", "o": 20, "h": 20, "l": 20, "c": 20, "v": 1},
+        {"t": "2026-06-03", "o": 30, "h": 30, "l": 30, "c": 30, "v": 1},
     ], date_tf=True)
     # Before 2026-07-01, DESC by ts: 06-03(30)=rn1, 06-02(20)=rn2, 06-01(10)=rn3.
     assert bs.close_n_sessions_back(1, 20260701)["BBB"] == 30.0
@@ -460,9 +465,9 @@ def test_current_listing_starts_detects_ticker_reuse(tmp_path, monkeypatch):
 
     # avg_dollar_volume_bulk: AVG(close*volume) over the last N sessions per ticker.
     bs.put_bars("DV", "D", [
-        {"t": "2026-06-01", "o": 1, "h": 1, "l": 1, "c": 10.0, "v": 100},   # $1,000
-        {"t": "2026-06-02", "o": 1, "h": 1, "l": 1, "c": 20.0, "v": 200},   # $4,000
-        {"t": "2026-06-03", "o": 1, "h": 1, "l": 1, "c": 30.0, "v": 300},   # $9,000
+        {"t": "2026-06-01", "o": 10.0, "h": 10.0, "l": 10.0, "c": 10.0, "v": 100},   # $1,000
+        {"t": "2026-06-02", "o": 20.0, "h": 20.0, "l": 20.0, "c": 20.0, "v": 200},   # $4,000
+        {"t": "2026-06-03", "o": 30.0, "h": 30.0, "l": 30.0, "c": 30.0, "v": 300},   # $9,000
     ], date_tf=True)
     dv = bs.avg_dollar_volume_bulk(20, 20260701, 20230101)   # all 3 sessions → avg of 1k/4k/9k
     assert round(dv["DV"], 2) == round((1000 + 4000 + 9000) / 3, 2)

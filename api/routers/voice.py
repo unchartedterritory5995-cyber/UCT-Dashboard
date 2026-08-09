@@ -1289,7 +1289,12 @@ def session_end_post(
 _PAGE_DESCRIPTIONS: dict[str, str] = {
     "/dashboard": "the main Dashboard (bento-box overview).",
     "/morning-wire": "the Morning Wire — today's pre-market briefing.",
-    "/uct20": "the UCT 20 leadership list.",
+    # 🔴 `/uct-20`, NOT `/uct20` — the route table has never carried `/uct20`.
+    # This lookup is keyed by the pathname the member is ON, so the wrong key
+    # failed SILENTLY: Compass simply got no "=== CURRENT PAGE ===" block for
+    # anyone sitting on UCT 20. Same typo as the voice navigator's, in a second
+    # copy of the same fact. Rail: `tests/test_navigation_targets_resolve.py`.
+    "/uct-20": "the UCT 20 leadership list.",
     "/breadth": "the Breadth Monitor (market internals).",
     "/theme-tracker": "the Theme Tracker (sector + theme performance).",
     "/calendar": "the Calendar (earnings + macro events).",

@@ -16,5 +16,11 @@
   {"source": "crossOver(close, open) > 0",   "guard": "picker:term",
    "why": "a crossing is a CONDITION with a row of its own, never a TERM inside a comparison — the term slots offer the table's term-valued functions and nothing else. (`crossOver(close, open)` itself is now a row: see the crossing block in criteria.test.js.)"},
   {"source": "crossOver(sma(sma(close, 5), 5), open)", "guard": "picker:term",
-   "why": "a nested call inside a crossing operand — a crossing row's sides are picker TERMS and the picker shows one level, exactly as a comparison row does"}
+   "why": "a nested call inside a crossing operand — a crossing row's sides are picker TERMS and the picker shows one level, exactly as a comparison row does"},
+  {"source": "-close > 1",                   "guard": "picker:term",
+   "why": "a negated EXPRESSION is arithmetic, and arithmetic terms are still refused. A negative LITERAL is now a number the picker shows (`pct_vs_ema20 >= -2`), and this is the line between the two: the operand must be a literal."},
+  {"source": "close > -0",                   "guard": "picker:term",
+   "why": "`-0` spells back as `0`, which is a DIFFERENT tree, so admitting it would make the AST identity property false for a shape no member can reach by any other route"},
+  {"source": "sma(close, -2) > 1",           "guard": "picker:term",
+   "why": "a negative literal inside a CALL puts an operator node in an argument slot, and a function's `int` argument is a LOOKBACK. Refused on BOTH sides — `readTerm` here, `leafSource` when spelling — so the two directions cannot disagree."}
 ]

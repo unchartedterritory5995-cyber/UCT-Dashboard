@@ -1,7 +1,15 @@
 /**
  * FlowScoreboardTile — compact Dashboard entry point to the
- * Flow Scoreboard section of Options Flow (/options-flow?view=scoreboard):
- * the verified Top Flow track record.
+ * Flow Scoreboard page (/flow-scoreboard): the verified Top Flow track record.
+ *
+ * 🔴 This tile pointed at `/options-flow?view=scoreboard` from 2026-07-10 to
+ * 2026-08-09 and opened on the default Stocks tab for that entire month:
+ * `93980419` wired the in-page view mode and `ed608046` — a bare "Update
+ * OptionsFlow.jsx" web-UI commit the SAME DAY — removed it. `/flow-scoreboard`
+ * is a real route again, so the tile links straight at the page rather than at
+ * a query param a partner-owned file has to keep honouring. The old deep link
+ * still forwards (see `OptionsFlowRoute` in App.jsx) for month-old bookmarks.
+ * Rail: `app/src/routes/lostDoors.route.test.jsx`.
  *
  * Headline = share of picks whose contract hit +25% at peak, plus the best
  * recent standout. Read-only, one cheap request (server caches 5 min).
@@ -34,7 +42,7 @@ export default function FlowScoreboardTile() {
 
   return (
     <TileCard title="Flow Scoreboard" icon="check" className={styles.tile}>
-      <Link to="/options-flow?view=scoreboard" className={styles.body} aria-label="Open the Flow Scoreboard">
+      <Link to="/flow-scoreboard" className={styles.body} aria-label="Open the Flow Scoreboard">
         {isLoading && !data ? (
           <div className={styles.muted}>Loading…</div>
         ) : !hasData ? (

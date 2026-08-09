@@ -612,6 +612,38 @@ def unresolved_scalars(ast: Any,
     return out
 
 
+def unresolved_lookback(ast: Any, bars: Optional[List[dict]]) -> int:
+    """How many bars SHORT this series is of what the tree declares it reads.
+    ``0`` means the history is sufficient.
+
+    🔴 THIS EXISTS FOR THE SAME REASON ``unresolved_scalars`` DOES, ONE AXIS
+    OVER — and it was measured, not feared. ``_cmp`` answers **0** when either
+    side is NaN, which is correct for a warmup on the chart (the crossing did not
+    happen) and is pinned by 17 frozen cross-lane digests. Applied to a tree the
+    series is too SHORT to answer, it is a confident False forever. Evaluated on
+    200 real AAPL bars:
+
+        interpret(sma(close, 300))          -> 200 x None      the honest hole
+        interpret(close > sma(close, 300))  -> 200 x 0.0       a confident "no"
+
+    and ``ema(close, 200)`` on exactly 200 bars produces ONE value at index 199,
+    which is the SMA200 SEED, not an EMA — so ``close > ema(close, 200)`` returned
+    ``1.0`` and an alert fired on a number that is not the indicator it names.
+
+    ⛔ THE ANSWER IS NOT TO CHANGE ``_cmp``. Propagating NaN through comparisons
+    would move every conformance digest and change what a warmup means on the
+    chart. The answer is to ask THIS question BEFORE evaluating — which is why it
+    is a function and not a comment, and why it is shaped exactly like
+    ``unresolved_scalars``.
+
+    ⚠️ ``max_lookback`` is the tree's OWN declaration — the same number the
+    budget and the repaint linter read — so this cannot disagree with them about
+    how much past a formula needs.
+    """
+    have = len(bars) if isinstance(bars, list) else 0
+    return max(0, max_lookback(ast) - have)
+
+
 def node_count(ast: Any) -> int:
     """How many nodes the tree has. The number ``budget:nodes`` will threshold.
 

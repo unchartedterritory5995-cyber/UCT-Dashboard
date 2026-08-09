@@ -174,6 +174,35 @@ def list_my_fires(limit: int = 50, user: dict = Depends(get_current_user)):
     return {"fires": ias.list_fires(user["id"], limit)}
 
 
+@router.get("/delivery-health")
+def get_my_delivery_health(limit: int = 20,
+                           user: dict = Depends(get_current_user)):
+    """🔴 THE ALERTS THAT DID NOT REACH YOU — the read that had no route.
+
+    `alert_fired_log.delivery_failures()` and `delivery_health()` existed, were
+    correct, and were exposed BY NOTHING: a member who missed an alert was
+    invisible to anyone without direct database access. This is the door, and it
+    is MEMBER-FACING rather than admin-only on purpose — the person who needs to
+    know they were not told is the person who was not told.
+
+    ⚠️ SCOPED TO THE CALLER IN THE QUERY, not filtered after the fact. Both reads
+    take `user_id` and push it into SQL, so there is no shape of this response
+    that can hold another member's fire.
+
+    ⭐ IT REPORTS PARTIAL FAILURES, WHICH IS THE COMMON CASE. `health.partial`
+    counts fires that reached the member on one channel and not another; those
+    rows keep `delivered_at` (something landed) and carry no `delivery_failed_at`
+    (the lease was never released), so before the per-channel record they were
+    counted — and rendered — as clean deliveries.
+    """
+    from api.services import alert_fired_log
+    return {
+        "health": alert_fired_log.delivery_health(user_id=user["id"]),
+        "failures": alert_fired_log.delivery_failures(
+            limit=limit, user_id=user["id"]),
+    }
+
+
 @router.get("/latency")
 def get_alert_latency(user: dict = Depends(get_current_user)):
     """Worst-case seconds from the event to the notification, per timeframe.
@@ -195,6 +224,20 @@ def get_alert_latency(user: dict = Depends(get_current_user)):
     than by a second `eval_mode()` call, so this body cannot report one lane in
     `mode` and another in `eval_mode.effective` — the disagreement Task 8's
     tombstone mutation is built out of.
+
+    🔴 …AND `worst_case_seconds` IS ARITHMETIC, WHICH IS WHY `observed` IS NOW
+    BESIDE IT. Everything above is derived from two constants, so it cannot be
+    wrong and therefore cannot detect a regression: a stalled evaluator thread
+    would leave this body byte-identical. `observed` is the MEASUREMENT —
+    `fired_at − bar_close` over the fires actually recorded — and it reports
+    `observations: 0` with null quantiles rather than a fabricated zero when
+    nothing has fired yet.
+
+    ⛔ THE STATED BOUND IS NOT DELETED IN FAVOUR OF THE MEASURED ONE. They answer
+    different questions: `worst_case_seconds` is what this lane PROMISES on a
+    timeframe nobody has armed yet, and it is also the second, independent
+    witness of the running lane (its `5 → 360` arithmetic is only producible by
+    the closed branch). A measurement over an empty sample cannot replace either.
     """
     report = indicator_alert_evaluator.eval_mode_report()
     mode = report["effective"]
@@ -207,6 +250,8 @@ def get_alert_latency(user: dict = Depends(get_current_user)):
             tf: _CYCLE_SECONDS + (secs if closed else 0)
             for tf, secs in _TF_SECONDS.items()
         },
+        "observed": indicator_alert_evaluator.observed_latency(
+            user_id=user["id"]),
     }
 
 
@@ -325,8 +370,15 @@ def get_current_value(sym: str, tf: str, indicator: str,
             raise HTTPException(status_code=400,
                                 detail="params must be a JSON object")
     try:
+        # The prefill must show the number the ARMED alert will report. Sized off
+        # the same declaration the evaluator uses, or the value a member sees
+        # before arming is computed over a different window than the one that
+        # then fires — `ema(close,200)` differed by −4.80% between the two.
         bars = indicator_alert_evaluator._fetch_bars_for_alert(
-            sym.upper(), tf, 200)
+            sym.upper(), tf,
+            indicator_alert_evaluator.bars_needed_for_alert(
+                {"indicator": address, "params_json": parsed,
+                 "user_id": user["id"]}))
         value = (user_fn(bars, parsed) if user_fn is not None
                  else indicator_alert_evaluator.address_value(address, bars, parsed))
     except Exception as exc:  # noqa: BLE001 - a prefill is never worth a 500

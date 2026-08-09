@@ -1529,7 +1529,8 @@ def sweep_silent_alerts(*, now: Optional[float] = None,
             continue
         try:
             from api.services import indicator_alert_evaluator as ev
-            bars = ev._fetch_bars_for_alert(alert["sym"], alert["tf"], 200)
+            bars = ev._fetch_bars_for_alert(alert["sym"], alert["tf"],
+                                            ev.bars_needed_for_alert(alert))
             is_fault, detail = diagnose(alert, bars)
         except Exception as exc:  # noqa: BLE001 - the sweep survives one bad row
             is_fault, detail = True, f"{type(exc).__name__}: {exc}"

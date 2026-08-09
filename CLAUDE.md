@@ -43,8 +43,17 @@ Overview · Monitor · Views · COT Data · Data Charts, **+ Analogues appended 
 admins only** (`BreadthTabs({isAdmin})`).
 
 ⚰️ This line listed **Theme Tracker** and **Traders** — neither is a nav entry.
-`/theme-tracker` is a `LegacyRedirect` (see below) and `app/src/pages/Traders.jsx`
-is reachable from nothing but `Traders.test.jsx`. It also **omitted** Charts, Patterns,
+`/theme-tracker` is a `LegacyRedirect` (see below). **Traders is still not a nav
+entry, but it is no longer unreachable** — this said *"reachable from nothing but
+`Traders.test.jsx`"*, which was true until 2026-08-09 and is the reason it got
+fixed: `GET /api/traders` was mounted and paid-gated the whole time, and
+`api/services/voice_client_action_tools.py` navigated members to `/traders`,
+which `App.jsx` did not route. **`/traders` is a real route now**; its door is the
+voice assistant, not the sidebar. Rail:
+`tests/test_navigation_targets_resolve.py`, which resolves every value in
+`PAGE_ALIASES` and every key in `voice.py::_PAGE_DESCRIPTIONS` against App.jsx's
+route table — it is what caught the second one, `"uct 20" → /uct20`, against a
+route that has always been `/uct-20`. It also **omitted** Charts, Patterns,
 Live Flow, The Desk and Community; called Breadth's "Views" tab "Heatmap"; dropped
 "Overview"; and did not say Analogues is admin-gated. Every one of those is wrong, in
 the first section a new engineer reads — and the two phantom entries are the worse

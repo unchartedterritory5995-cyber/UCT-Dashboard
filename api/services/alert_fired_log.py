@@ -77,6 +77,7 @@ and it is the only change that lane needs from this module.
 from __future__ import annotations
 
 import contextlib
+import json
 import math
 import os
 import sqlite3
@@ -151,6 +152,8 @@ CREATE TABLE IF NOT EXISTS indicator_alert_fires (
   delivery_attempts INTEGER NOT NULL DEFAULT 0,
   delivery_failed_at REAL,
   delivery_error TEXT,
+  delivery_channels TEXT,
+  channels_failed INTEGER NOT NULL DEFAULT 0,
   UNIQUE(alert_id, fire_key)
 );
 CREATE INDEX IF NOT EXISTS idx_alert_fires_user ON indicator_alert_fires(user_id, fired_at DESC);
@@ -170,11 +173,17 @@ _MIGRATIONS: tuple[tuple[str, str], ...] = (
      "ALTER TABLE indicator_alert_fires ADD COLUMN delivery_failed_at REAL"),
     ("delivery_error",
      "ALTER TABLE indicator_alert_fires ADD COLUMN delivery_error TEXT"),
+    ("delivery_channels",
+     "ALTER TABLE indicator_alert_fires ADD COLUMN delivery_channels TEXT"),
+    ("channels_failed",
+     "ALTER TABLE indicator_alert_fires ADD COLUMN channels_failed "
+     "INTEGER NOT NULL DEFAULT 0"),
 )
 
 _COLS = ("id, alert_id, user_id, sym, indicator, condition, tf, fire_key, "
          "bar_time, value, threshold, fired_at, delivered_at, "
-         "delivery_attempts, delivery_failed_at, delivery_error")
+         "delivery_attempts, delivery_failed_at, delivery_error, "
+         "delivery_channels, channels_failed")
 
 
 def db_path() -> str:
@@ -521,46 +530,125 @@ def release_delivery(fire_id: Optional[int], *, error: str = "",
             "attempts": attempts, "found": True}
 
 
-def delivery_failures(limit: int = 50, alert_id: Optional[int] = None) -> list[dict]:
-    """Every fire whose delivery is known to have failed, newest first.
+def record_delivery_channels(fire_id: Optional[int], channels: Any) -> bool:
+    """⭐ WHICH CHANNELS REACHED THE MEMBER, ON THE ROW THAT CLAIMS THEY DID.
+
+    `delivered_at` answers *"was this fire delivered"* with one bit, and one bit
+    cannot hold the common case: in-app landed, the email bounced. Recorded that
+    way, a partial failure is a delivery — which is the same lie as the total
+    failure this module already closed, one size smaller and far more frequent.
+
+    ⛔ ONE WRITER, TWO COLUMNS, AND THE INTEGER IS DERIVED FROM THE MAP HERE.
+    There is deliberately no way to set `channels_failed` independently: a count
+    a caller could pass would be a second authority over the same fact, and the
+    reader would have no way to know which of the two lied. The column exists
+    only so the failure READS (`delivery_failures`, `delivery_health`) can filter
+    in SQL without depending on a JSON extension being compiled in.
+
+    ⚠️ NOT PART OF THE FIRE-ONCE KEY, AND NOT A CORRECTION TO HISTORY. It is
+    delivery bookkeeping, exactly like `delivered_at`/`delivery_attempts`, and it
+    is written by the frame that owns the lease.
+
+    Returns True iff a row was updated. `None`/unusable input is a no-op — this
+    is bookkeeping and it may never be the thing that raises into a delivery.
+    """
+    if fire_id is None or not isinstance(channels, dict):
+        return False
+    failed = sum(1 for v in channels.values() if v == "failed")
+    try:
+        blob = json.dumps(channels, sort_keys=True)
+    except (TypeError, ValueError):
+        return False
+    _ensure_init()
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute(
+            "UPDATE indicator_alert_fires"
+            "   SET delivery_channels=?, channels_failed=? WHERE id=?",
+            (blob, int(failed), int(fire_id)))
+        c.commit()
+    return cur.rowcount == 1
+
+
+# ⭐ WHAT "A DELIVERY WENT WRONG" MEANS, AS ONE SQL PREDICATE, IN ONE PLACE.
+# Two different shapes of the same event: nothing landed at all
+# (`delivery_failed_at`, written by the release path), or something landed and
+# something did not (`channels_failed`, written by the channel record). A read
+# that filtered on only the first would show a clean board while members were
+# missing every email — which is the exact silence this task exists to end.
+_TROUBLE_SQL = "(delivery_failed_at IS NOT NULL OR channels_failed > 0)"
+
+
+def delivery_failures(limit: int = 50, alert_id: Optional[int] = None,
+                      user_id: Optional[str] = None) -> list[dict]:
+    """Every fire whose delivery is known to have gone wrong, newest first.
 
     ⭐ THE "VISIBLE" HALF. A releasable claim alone is not enough: a released row
     is indistinguishable from one that was never claimed, so the failure would be
     retried and — if it kept failing until the ceiling — end up latched shut with
     nothing anywhere saying a member missed an alert. This is the read that says
     so, and `delivery_health()` is its summary.
+
+    ⚠️ `user_id` IS THE SCOPE THE MEMBER-FACING ROUTE NEEDS. Without it the only
+    honest surface for this read would be an admin one, and the person who
+    actually missed the alert is the member.
+
+    ⚠️ ORDERED ON `id DESC` ALONE. It used to lead with `delivery_failed_at`,
+    which is NULL on every partial failure — those rows would all sort together
+    at one end regardless of when they happened.
     """
     _ensure_init()
     n = max(1, min(int(limit), 500))
-    sql = (f"SELECT {_COLS} FROM indicator_alert_fires "
-           "WHERE delivery_failed_at IS NOT NULL")
-    args: tuple = ()
+    sql = f"SELECT {_COLS} FROM indicator_alert_fires WHERE {_TROUBLE_SQL}"
+    args: list = []
     if alert_id is not None:
         sql += " AND alert_id=?"
-        args = (int(alert_id),)
-    sql += " ORDER BY delivery_failed_at DESC, id DESC LIMIT ?"
+        args.append(int(alert_id))
+    if user_id is not None:
+        sql += " AND user_id=?"
+        args.append(str(user_id))
+    sql += " ORDER BY id DESC LIMIT ?"
     with contextlib.closing(_connect()) as c:
-        rows = c.execute(sql, args + (n,)).fetchall()
+        rows = c.execute(sql, tuple(args) + (n,)).fetchall()
     return [_row(r) for r in rows]
 
 
-def delivery_health(alert_id: Optional[int] = None) -> dict:
-    """Counts for the three delivery states plus the terminal give-ups."""
+def delivery_health(alert_id: Optional[int] = None,
+                    user_id: Optional[str] = None) -> dict:
+    """Counts for the delivery states, including the PARTIAL one.
+
+    ⚠️ `delivered` AND `partial` ARE DISJOINT, and `partial` is not a subset of
+    `failed`. A partially-delivered fire keeps `delivered_at` (something DID
+    reach the member, so re-sending it would duplicate) and carries no
+    `delivery_failed_at` (the lease was never handed back) — so before this
+    column existed it was counted, correctly by the old vocabulary and falsely by
+    any human reading it, as a clean delivery.
+    """
     _ensure_init()
-    where = "" if alert_id is None else " WHERE alert_id=?"
-    args: tuple = () if alert_id is None else (int(alert_id),)
-    joiner = " WHERE " if alert_id is None else " AND "
+    clauses: list[str] = []
+    args: tuple = ()
+    if alert_id is not None:
+        clauses.append("alert_id=?")
+        args += (int(alert_id),)
+    if user_id is not None:
+        clauses.append("user_id=?")
+        args += (str(user_id),)
     with contextlib.closing(_connect()) as c:
         def one(extra: str) -> int:
-            return int(c.execute(
-                "SELECT COUNT(*) FROM indicator_alert_fires" + where
-                + (joiner + extra if extra else ""), args).fetchone()[0])
+            parts = clauses + ([extra] if extra else [])
+            sql = "SELECT COUNT(*) FROM indicator_alert_fires"
+            if parts:
+                sql += " WHERE " + " AND ".join(parts)
+            return int(c.execute(sql, args).fetchone()[0])
         return {
             "fires": one(""),
             "pending": one("delivered_at IS NULL"),
-            "delivered": one("delivered_at IS NOT NULL AND delivery_failed_at IS NULL"),
+            "delivered": one("delivered_at IS NOT NULL AND delivery_failed_at IS NULL"
+                             " AND channels_failed = 0"),
+            "partial": one("delivered_at IS NOT NULL AND delivery_failed_at IS NULL"
+                           " AND channels_failed > 0"),
             "failed": one("delivery_failed_at IS NOT NULL"),
             "gave_up": one("delivered_at IS NOT NULL AND delivery_failed_at IS NOT NULL"),
+            "trouble": one(_TROUBLE_SQL),
             "max_attempts": MAX_DELIVERY_ATTEMPTS,
         }
 
@@ -572,7 +660,23 @@ def _row(r: tuple) -> dict:
         "bar_time": r[8], "value": r[9], "threshold": r[10], "fired_at": r[11],
         "delivered_at": r[12], "delivery_attempts": r[13],
         "delivery_failed_at": r[14], "delivery_error": r[15],
+        # ⭐ DECODED HERE, ONCE. Every reader — the route, the bell, a runbook —
+        # gets the map; nobody re-parses the column and nobody has to know it is
+        # stored as JSON. An unreadable value reads as "no report", never as an
+        # empty (i.e. clean) delivery.
+        "delivery_channels": _decode_channels(r[16]),
+        "channels_failed": int(r[17] or 0),
     }
+
+
+def _decode_channels(raw: Any) -> Optional[dict]:
+    if not raw:
+        return None
+    try:
+        out = json.loads(raw)
+    except (TypeError, ValueError):
+        return None
+    return out if isinstance(out, dict) else None
 
 
 def list_fires(user_id: str, limit: int = 50) -> list[dict]:
@@ -604,6 +708,32 @@ def fires_for_alert(alert_id: int, limit: int = 50) -> list[dict]:
             (int(alert_id), n),
         ).fetchall()
     return [_row(r) for r in rows]
+
+
+def latency_samples(limit: int = 500,
+                    user_id: Optional[str] = None) -> list[dict]:
+    """The raw material for an OBSERVED latency: `(tf, bar_time, fired_at)`.
+
+    ⭐ BOTH HALVES HAVE BEEN STORED ON EVERY ROW SINCE `dd2da6f7` and nothing
+    ever subtracted them. `GET /api/indicator-alerts/latency` asserted a bound
+    derived from two constants, so the platform could not detect its own latency
+    regression — a stated number that cannot be wrong is not a measurement.
+
+    ⚠️ ROWS WITH NO `bar_time` ARE NOT RETURNED. There is nothing to measure
+    from and inventing a zero is exactly the fabrication this endpoint had.
+    """
+    _ensure_init()
+    n = max(1, min(int(limit), 5000))
+    sql = ("SELECT tf, bar_time, fired_at FROM indicator_alert_fires "
+           "WHERE bar_time IS NOT NULL")
+    args: tuple = ()
+    if user_id is not None:
+        sql += " AND user_id=?"
+        args = (str(user_id),)
+    sql += " ORDER BY id DESC LIMIT ?"
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(sql, args + (n,)).fetchall()
+    return [{"tf": r[0], "bar_time": r[1], "fired_at": r[2]} for r in rows]
 
 
 def count_fires(alert_id: Optional[int] = None) -> int:
@@ -646,9 +776,10 @@ def prune_fires(older_than_days: Optional[int] = None,
       * a fire NEWER than the window;
       * a fire that is **pending** (`delivered_at IS NULL`) — it is deliverable
         and deleting it would silence it;
-      * a fire that carries a `delivery_failed_at` — that row IS the record that
-        a member missed an alert, and a defect whose only evidence has been
-        swept is a defect nobody can report;
+      * a fire that carries a `delivery_failed_at` **or a failed channel** —
+        that row IS the record that a member missed an alert (all of it, or the
+        email half of it), and a defect whose only evidence has been swept is a
+        defect nobody can report;
       * the newest `keep_per_alert` fires of EVERY alert, however old. A rarely
         firing alert would otherwise lose its entire history to a date window,
         and "my alert has never fired" and "my alert's history was pruned" look
@@ -666,6 +797,7 @@ def prune_fires(older_than_days: Optional[int] = None,
             " WHERE fired_at < ?"
             "   AND delivered_at IS NOT NULL"
             "   AND delivery_failed_at IS NULL"
+            "   AND channels_failed = 0"
             "   AND id NOT IN ("
             "     SELECT id FROM (SELECT id, ROW_NUMBER() OVER ("
             "       PARTITION BY alert_id ORDER BY id DESC) AS rn"

@@ -47,11 +47,39 @@
 // every behavioural test there is (E-4's M10: 825 of 826 green) and only an AST
 // walk of this file sees it.
 //
-// ⏳ NOT TAKEN, AND SAID PLAINLY: negation (`!x`) and arithmetic terms
-// (`close + open > 1`) are also scannable-when-typed and still refuse here. They
-// do NOT fall out of this generalisation — a negation is a node that WRAPS a
-// condition and arithmetic makes a TERM a tree, so each needs a row shape of its
-// own rather than a second name in an existing one. They stay refused BY NAME.
+// ⭐⭐ AND A THIRD ROW SHAPE, WHICH IS THE SAME MISTAKE ONE NODE TYPE OVER. E-4
+// answered `picker:not-a-condition` for a BARE `series` node — and the manifest
+// declares `above_50sma` with `"yields": "bool"`. Telling a member that
+// `above_50sma` "produces a number" is FALSE, and it is what made the ONE
+// starter the library ships unopenable in the picker that exists to teach it.
+// The correction is the crossing row's, restated:
+//
+//   * a NAME the manifest declares `yields: "bool"` IS a condition, and its row
+//     is the whole condition — one control, no relation and no second side.
+//
+// ⛔ NEITHER SECTION NOR NAME IS LISTED. `flags` is read off `yields` across the
+// `series` AND `scalars` sections, so a 55th boolean scalar — or the first
+// boolean BAR FIELD, which today's manifest has none of — reaches the picker the
+// day it is declared, with no edit here. And it fails the SAFE way: an entry
+// with no `yields` reads as `num` (the manifest's own `_yields` rule), so a bare
+// `close` still refuses exactly as it did.
+//
+// ⭐ AND A NEGATIVE NUMBER IS A NUMBER. The same confusion of a node's TYPE with
+// what it DENOTES, a third time: this grammar has no negative literal —
+// `_canonical` says the canonical tree spells unary minus `u-` — so `-2` arrives
+// as an OPERATOR node, and a picker that asks *what node type is this* refused a
+// plain number as though it were arithmetic. That is the OTHER half of why the
+// shipped starter could not be opened (`pct_vs_ema20 >= -2`). ⛔ WHICH operator
+// negates is not spelled either: it is MEASURED by running the shipped
+// interpreter over literal operands, exactly as the join/comparator split below
+// is. The operand must be a LITERAL — `-close` is arithmetic and still refuses.
+//
+// ⏳ NOT TAKEN, AND SAID PLAINLY: negation of a CONDITION (`!x`) and arithmetic
+// terms (`close + open > 1`) are also scannable-when-typed and still refuse
+// here. They do NOT fall out of any of the generalisations above — a negation is
+// a node that WRAPS a condition and arithmetic makes a TERM a tree, so each
+// needs a row shape of its own rather than a second name in an existing one.
+// They stay refused BY NAME.
 //
 // ⭐⭐ AND NOT ONE NAME THE MANIFEST DECLARES IS SPELLED IN THIS FILE.
 //
@@ -129,6 +157,15 @@ const PROBE_PAIRS = Object.freeze([
   [5, 3], [3, 5], [5, 5], [3, 0], [0, 3], [0, 0], [2, 2], [7, 1],
 ])
 
+/** The operands the NEGATION probe uses.
+ *
+ *  ⚠️ STRICTLY POSITIVE, ON PURPOSE. `-0` and `0` are the same value to `===`
+ *  and different values to `Object.is`, so a zero in this list would make the
+ *  answer depend on which comparison the probe happened to use rather than on
+ *  what the interpreter does. Fractions and a large integer are here so an
+ *  operator that merely SUBTRACTS FROM SOMETHING, or that rounds, cannot pass. */
+const NEGATION_PROBES = Object.freeze([1, 2, 3, 5, 7, 0.5, 137])
+
 const truthy = (x) => (x !== 0 ? 1 : 0)
 
 function applyBinary(name, a, b) {
@@ -137,6 +174,32 @@ function applyBinary(name, a, b) {
     PROBE_BARS, undefined, undefined, undefined,
   )
   return out[0]
+}
+
+function applyUnary(name, a) {
+  const out = interpret(
+    { type: 'op', name, args: [{ type: 'num', value: a }] },
+    PROBE_BARS, undefined, undefined, undefined,
+  )
+  return out[0]
+}
+
+/** True when the operator turns a literal into its negative and does nothing
+ *  else — the property that makes `-2` a NUMBER the picker can show rather than
+ *  arithmetic it must refuse.
+ *
+ *  ⛔ MEASURED, NOT NAMED. `u-` is a name `closedTable.json` owns; spelling it
+ *  here is the hand-list the source rail exists to catch, and it would be
+ *  hand-listed twice — once per language. Rename it in the manifest and this
+ *  keeps working; delete it and negative literals fail CLOSED, refusing exactly
+ *  as they did before this shape existed. */
+function negatesNumbers(name) {
+  for (const a of NEGATION_PROBES) {
+    let got
+    try { got = applyUnary(name, a) } catch { return false }
+    if (got !== -a) return false
+  }
+  return true
 }
 
 /** True when the operator can only ever see zero-vs-non-zero — the property
@@ -160,20 +223,21 @@ function readsOnlyTruthiness(name) {
   return true
 }
 
-/** What the middle dropdown of a CROSSING row says, TAKEN FROM THE MANIFEST'S
- *  OWN SENTENCE with the operand holes removed.
+/** What a control OFFERING a manifest entry says, TAKEN FROM THE MANIFEST'S OWN
+ *  SENTENCE with the operand holes removed.
  *
- *  ⛔ NEVER TYPED. `"{0} crossing above {1}"` is already the firm's words for
- *  this relation — in `closedTable.json`, beside the function it describes — and
- *  a label written here would be a SECOND description of one relation, drifting
- *  from the read-back the member sees underneath the very row they built. The
- *  holes are what a row already renders as its two term editors, so removing
- *  them is the whole transformation.
+ *  ⛔ NEVER TYPED. `"{0} crossing above {1}"` and `"whether the price is above
+ *  its 50-day average"` are already the firm's words — in `closedTable.json`,
+ *  beside the entries they describe — and a label written here would be a SECOND
+ *  description of one thing, drifting from the read-back the member sees
+ *  underneath the very row they built. A crossing's holes are what its row
+ *  already renders as two term editors, so removing them is the whole
+ *  transformation; a FLAG has no holes and its sentence arrives whole.
  *
  *  ⚠️ Falls back to the NAME rather than to a blank control: a manifest that
- *  declares a function with no sentence still gets an offer a member can act on.
+ *  declares an entry with no sentence still gets an offer a member can act on.
  */
-function relationLabel(name, spec) {
+function manifestLabel(name, spec) {
   const words = String(spec && spec.sentence ? spec.sentence : '')
     .replace(/\{\d+\}/g, ' ')
     .replace(/\s+/g, ' ')
@@ -193,8 +257,8 @@ const VOCAB_CACHE = new WeakMap()
  *  is the second grammar the closed table exists to prevent.
  *
  *  @returns {{series: Set, scalars: Set, functions: Map, crossings: Map,
- *             boolFunctions: Set, comparators: Set, boolBinary: Set,
- *             arity: Map, joins: Map, joinOf: Map}}
+ *             flags: Map, boolFunctions: Set, comparators: Set, boolBinary: Set,
+ *             negations: Set, arity: Map, joins: Map, joinOf: Map}}
  */
 export function vocabulary(table = TABLE) {
   const cached = VOCAB_CACHE.get(table)
@@ -251,6 +315,21 @@ export function vocabulary(table = TABLE) {
   // than calling it a number.
   const fns = Object.entries(table.functions || {})
   const boolFunctions = new Set(fns.filter(([, s]) => s.yields === 'bool').map(([n]) => n))
+
+  // ── the THIRD row shape, read off `yields` and NOTHING ELSE ────────────────
+  //
+  // ⛔ NOT A SECTION AND NOT A NAME. A bar field and a table scalar are the same
+  // NODE (E-1), so which section an entry lives in cannot be what decides
+  // whether it is a condition — only `yields` can. Both sections are read, in
+  // the manifest's own order, so the first boolean BAR field is offered on the
+  // day it is declared without an edit here.
+  const boolNames = (section) => Object.entries(section || {})
+    .filter(([, spec]) => spec && spec.yields === 'bool')
+
+  // ── a NEGATIVE LITERAL is a number, and which operator says so is MEASURED ──
+  const negations = new Set(Object.keys(ops)
+    .filter((name) => ops[name].arity === 1 && negatesNumbers(name)))
+
   const value = Object.freeze({
     series: new Set(Object.keys(table.series || {})),
     scalars: new Set(Object.keys(table.scalars || {})),
@@ -261,11 +340,14 @@ export function vocabulary(table = TABLE) {
       .filter(([, spec]) => spec.yields === 'bool' && (spec.args || []).length === 2)
       .map(([name, spec]) => [name, {
         args: Object.freeze([...(spec.args || [])]),
-        label: relationLabel(name, spec),
+        label: manifestLabel(name, spec),
       }])),
+    flags: new Map([...boolNames(table.series), ...boolNames(table.scalars)]
+      .map(([name, spec]) => [name, { label: manifestLabel(name, spec) }])),
     boolFunctions,
     comparators,
     boolBinary,
+    negations,
     arity,
     joins,
     joinOf,
@@ -279,10 +361,13 @@ export function vocabulary(table = TABLE) {
 // --------------------------------------------------------------------------- //
 
 function spellNumber(v) {
-  // ⛔ NON-NEGATIVE ONLY, and the reason is the parser's: `-5` parses to
-  // `op u- [num 5]`, so a `num` node with a negative value is a tree the parser
-  // CANNOT produce and a source spelling of it would never round-trip.
-  if (typeof v !== 'number' || !Number.isFinite(v) || v < 0) throw new PickerRefusal('picker:term')
+  // ⭐ THE SIGN IS THE NUMBER'S, NOT AN OPERATOR THIS FILE SPELLS. `String(-5)`
+  // is `-5`, which the parser reads back as `op u- [num 5]` — the grammar's only
+  // spelling of a negative literal (`_canonical`) — and `readTerm` turns that
+  // node back into this same term, so the round trip closes. ⛔ A `'-'` written
+  // here would be a manifest name hand-listed in this file, which is precisely
+  // what the source rail in `criteria.test.js` exists to catch.
+  if (typeof v !== 'number' || !Number.isFinite(v)) throw new PickerRefusal('picker:term')
   return String(v)
 }
 
@@ -307,6 +392,13 @@ function termSource(t, vocab) {
  *  catch. */
 function leafSource(t, vocab) {
   if (t && t.t === 'call') throw new PickerRefusal('picker:term')
+  // ⛔ AND NO NEGATIVE LITERAL INSIDE A CALL, for the identical reason. A
+  // negative argument spells `sma(close, -2)`, whose canonical form puts an
+  // OPERATOR node in the argument slot — and `readTerm` refuses an operator
+  // there, so spelling one would produce source the picker could not read back.
+  // Refusing it HERE keeps the two directions symmetric by construction rather
+  // than by two lists that have to agree.
+  if (t && t.t === 'num' && !(t.value >= 0)) throw new PickerRefusal('picker:term')
   return termSource(t, vocab)
 }
 
@@ -326,6 +418,17 @@ export function toSource(node, vocab = vocabulary()) {
     if (!vocab.crossings.has(node.fn)) throw new PickerRefusal('picker:comparator')
     return `${node.fn}(${termSource(node.left, vocab)}, ${termSource(node.right, vocab)})`
   }
+  if (node.kind === 'flag') {
+    // ⛔ AND THE REFUSAL IS THE READ SIDE'S OWN, not a new sentence. A name this
+    // vocabulary does not carry as a flag is a name that yields a NUMBER, and
+    // `picker:not-a-condition` already says exactly that — the same guard
+    // `readCondition` answers for the same fact, so the two directions cannot
+    // drift into telling a member two different things about one name.
+    if (!vocab.flags.has(node.name)) throw new PickerRefusal('picker:not-a-condition')
+    // A bare name is already a primary expression: the group's `reduce` supplies
+    // every parenthesis the tree depends on, exactly as it does for a call.
+    return node.name
+  }
   if (node.kind === 'group') {
     const parts = (node.children || []).map((c) => toSource(c, vocab))
     if (!parts.length) throw new PickerRefusal('picker:shape')
@@ -342,6 +445,18 @@ export function toSource(node, vocab = vocabulary()) {
 
 function readTerm(n, vocab) {
   if (n.type === 'num') return { t: 'num', value: n.value }
+  // ⭐ A NEGATIVE LITERAL IS A NUMBER, NOT ARITHMETIC. The canonical tree has no
+  // negative `num`, so `-2` is an operator node over a positive one — and a
+  // picker that read the node's TYPE refused it as an expression. ⛔ THE OPERAND
+  // MUST BE A LITERAL: `-close` and `-(a + b)` really are arithmetic and still
+  // refuse, so this widens nothing but the one shape the grammar forces.
+  // ⚠️ AND STRICTLY POSITIVE INSIDE. `-0` would spell back as `0`, a DIFFERENT
+  // tree, so admitting it would make the identity property false for a shape no
+  // member can reach by any other route.
+  if (n.type === 'op' && vocab.negations.has(n.name)
+    && (n.args || []).length === 1 && n.args[0].type === 'num' && n.args[0].value > 0) {
+    return { t: 'num', value: -n.args[0].value }
+  }
   if (n.type === 'series') {
     // A table scalar and a bar series are the SAME node type (E-1). The
     // vocabulary is what tells them apart, and the picker offers both.
@@ -416,7 +531,18 @@ function readCondition(n, vocab) {
     if (vocab.boolFunctions.has(n.name)) throw new PickerRefusal('picker:node')
     throw new PickerRefusal('picker:not-a-condition')
   }
-  if (n && (n.type === 'series' || n.type === 'num')) {
+  if (n && n.type === 'series') {
+    // ⭐ THE THIRD ROW SHAPE, AND THE SPLIT IS `yields` — NEVER THE NODE TYPE.
+    // A scalar the manifest declares `yields: "bool"` answers a yes-or-no
+    // question about the symbol, so it IS a condition and it gets a row of its
+    // own: one control, because there is no relation and no second side to
+    // show. ⛔ Every OTHER name still refuses here, and refuses correctly — an
+    // entry with no `yields` reads as `num` by the manifest's own rule, which
+    // is why a bare `close` is still `picker:not-a-condition`.
+    if (vocab.flags.has(n.name)) return { kind: 'flag', name: n.name }
+    throw new PickerRefusal('picker:not-a-condition')
+  }
+  if (n && n.type === 'num') {
     throw new PickerRefusal('picker:not-a-condition')
   }
   throw new PickerRefusal('picker:node')
@@ -459,11 +585,10 @@ export function fromSource(source, vocab = vocabulary()) {
  *  direction that looks fine. `and[ and[a,b], c ]` spells `((a && b) && c)`,
  *  which reads back as `and[a,b,c]` — a picker the user did not have. The UI
  *  therefore only ever produces canonical shapes, and this is the assertion. */
-/** The picker's LEAF kinds — the two row shapes, both of which are a relation
- *  between two terms and neither of which has children to flatten. ⛔ A kind
- *  this does not name is a shape nothing in this module can spell, and
- *  `canonicalPicker` refuses it rather than passing it through. */
-const LEAF_KINDS = Object.freeze(['row', 'cross'])
+/** The picker's LEAF kinds — the row shapes, none of which has children to
+ *  flatten. ⛔ A kind this does not name is a shape nothing in this module can
+ *  spell, and `canonicalPicker` refuses it rather than passing it through. */
+const LEAF_KINDS = Object.freeze(['row', 'cross', 'flag'])
 
 export function canonicalPicker(node) {
   if (!node || typeof node !== 'object') throw new PickerRefusal('picker:shape')
