@@ -53,7 +53,10 @@ import TickerCombobox from '../components/watchlist/TickerCombobox'
 import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, WATCHLIST_BASE_FONT_PX, mergeWatchlistSettings, watchlistStyleVars, watchlistDefaultsForTheme } from './watchlist/watchlistSettings'
 import { useWatchlistTemplates, WL_COLS_LS } from './watchlist/watchlistTemplates'
 
-const fetcher = url => fetch(url).then(r => r.json())
+// ⛔ NOT `fetch(url).then(r => r.json())` — a 402 answers JSON too, and
+// its `{detail}` body is truthy, so every `!data` loading guard below is
+// skipped and the consumer throws on an error object. See utils/jsonFetcher.js.
+import fetcher from '../utils/jsonFetcher'
 const PERF_COLS = [['1d', '1D'], ['1w', '1W'], ['1m', '1M'], ['3m', '3M'], ['ytd', 'YTD']]
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
