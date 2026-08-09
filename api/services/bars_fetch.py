@@ -1564,6 +1564,74 @@ def _normalize_since_param(since_str: str, date_tf: bool):
         return "" if date_tf else 0
 
 
+def _get_delisted_bars_response(record: dict, tf: str, bars: int) -> JSONResponse:
+    """Serve a DELISTED entity's FROZEN historical bars.
+
+    A dead company's data never changes, so this is a deliberately simple fetch-once /
+    store-forever path — no live updates, no freshness, no deltas, no yfinance tail-fill.
+    It is fully ISOLATED from the live `_get_bars_inner` path (which assumes a tradeable
+    ticker), so it can't regress live charts.
+
+    ⭐ TICKER-REUSE SAFETY (the whole reason this exists): it fetches the PROVIDER symbol
+    (record['provider_symbol'], e.g. bare 'BSC') DATE-CLAMPED to [first_date, last_date]
+    (this entity's trading life), but caches / stores under the entity KEY
+    (record['ticker'], e.g. 'BSC-OLD'). So Bear Stearns is fetched as BSC[2003..2008] and
+    lives under 'BSC-OLD', while the live BSC ETN keeps its own separate cache — the two
+    eras of a reused symbol can NEVER combine into one chart, because the date clamp means
+    the provider physically can't return the other era's bars."""
+    key = str(record.get("ticker") or "").upper()
+    provider = str(record.get("provider_symbol") or key)
+    last_date = record.get("last_date") or record.get("delisted_date") or datetime.utcnow().strftime("%Y-%m-%d")
+    first_date = record.get("first_date") or "1990-01-01"
+    date_tf = tf in ("D", "W", "M")
+    cache_key = f"delisted_bars_{key}_{tf}_{bars}"
+
+    hit = cache.get(cache_key)
+    if hit is not None:
+        return JSONResponse(content=hit, headers={"Cache-Control": "no-store"})
+
+    # A dead company has no intraday feed worth serving from decades-old daily aggs —
+    # only D/W/M are meaningful. Intraday TFs return empty (the chart defaults to D).
+    if not date_tf:
+        return JSONResponse(content={"ticker": key, "tf": tf, "bars": []},
+                            headers={"Cache-Control": "no-store"})
+
+    # Frozen store: once SQLite holds this entity's bars (under the KEY), serve them — the
+    # data is immutable, so a stored series is authoritative and never re-fetched.
+    try:
+        stored = _sqlite.get_bars(key, tf, bars)
+    except Exception:
+        stored = []
+    if stored:
+        payload = {"ticker": key, "tf": tf, "bars": _fmt_sqlite_bars(stored, tf, key)}
+        cache.set(cache_key, payload, ttl=604800)
+        return JSONResponse(content=payload, headers={"Cache-Control": "no-store"})
+
+    # Cold: fetch the PROVIDER symbol, date-CLAMPED to this entity's life, then resample.
+    try:
+        from api.services.massive import get_agg_bars
+        raw = get_agg_bars(provider, first_date, last_date)
+    except Exception:
+        raw = []
+    daily = _massive_raw_to_iso(raw)
+    if tf == "W":
+        series = _resample_weekly_iso(daily)
+    elif tf == "M":
+        series = _resample_monthly_iso(daily)
+    else:
+        series = daily
+    series = series[-bars:] if (bars and series) else series
+    if series:
+        try:
+            _sqlite.put_bars(key, tf, series, date_tf=True)   # store under the KEY, frozen
+        except Exception:
+            pass
+    payload = {"ticker": key, "tf": tf, "bars": series}
+    # Cache a real series long (immutable); cache an empty result briefly (transient miss).
+    cache.set(cache_key, payload, ttl=(604800 if series else 300))
+    return JSONResponse(content=payload, headers={"Cache-Control": "no-store"})
+
+
 def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str) -> JSONResponse:
     """Serve up to `bars` bars ENDING AT `to_str` (YYYY-MM-DD) from SQLite — the
     replay-mode PRE-CUTOFF window. This history is static, so there's NO freshness check

@@ -28,6 +28,10 @@ _SEED_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "delisted_tic
 # Durable runtime overlay (CSV imports append here; survives redeploys). Merged over the seed.
 _OVERLAY_PATH = os.path.join(os.environ.get("DATA_DIR", "/data"), "delisted_tickers_overlay.json")
 
+# Lower clamp for the historical fetch when an entry doesn't specify first_date.
+# The provider floors ~2003 anyway, so a wide default just means "everything available".
+_DEFAULT_FIRST_DATE = "1990-01-01"
+
 _lock = threading.Lock()
 _by_ticker: dict = {}
 _loaded = False
@@ -38,16 +42,26 @@ def _norm(sym: str) -> str:
 
 
 def _coerce(entry: dict) -> Optional[dict]:
-    """Validate + normalize one raw record. Returns None if it has no ticker."""
+    """Validate + normalize one raw record. Returns None if it has no ticker.
+
+    `ticker` is the KEY / app symbol — DISTINCT for a reused ticker (e.g. Bear Stearns
+    is 'BSC-OLD' because 'BSC' is now a live ETN), so is_delisted('BSC') stays False and
+    the live ETN is never mislabeled. `provider_symbol` is what we actually fetch from the
+    provider (the bare 'BSC'), and [first_date, last_date] clamp the fetch to this entity's
+    trading life so a reused symbol's two eras can never combine into one chart."""
     t = _norm(entry.get("ticker"))
     if not t:
         return None
+    delisted_date = entry.get("delisted_date") or None
     return {
         "ticker": t,
+        "provider_symbol": _norm(entry.get("provider_symbol")) or t,
         "name": entry.get("name") or None,
         "sector": entry.get("sector") or None,
         "industry": entry.get("industry") or None,
-        "delisted_date": entry.get("delisted_date") or None,   # ISO YYYY-MM-DD
+        "delisted_date": delisted_date,                        # ISO YYYY-MM-DD
+        "first_date": entry.get("first_date") or _DEFAULT_FIRST_DATE,
+        "last_date": entry.get("last_date") or delisted_date,  # upper clamp = delisting date
         "reason": entry.get("reason") or None,
         "source": entry.get("source") or "massive",            # massive | csv | ...
     }
@@ -113,11 +127,14 @@ def search(q: str, limit: int = 20) -> list:
     exact, prefix, sub = [], [], []
     for t, rec in _by_ticker.items():
         name_up = (rec.get("name") or "").upper()
-        if t == qq:
+        prov = (rec.get("provider_symbol") or "").upper()
+        # Match the KEY, the PROVIDER symbol (so "BSC" finds the "BSC-OLD" Bear Stearns
+        # entry), or the company name.
+        if t == qq or prov == qq:
             exact.append(rec)
-        elif t.startswith(qq):
+        elif t.startswith(qq) or prov.startswith(qq):
             prefix.append(rec)
-        elif qq in t or qq in name_up:
+        elif qq in t or qq in prov or qq in name_up:
             sub.append(rec)
     merged = exact + prefix + sub
     return merged[:limit]
