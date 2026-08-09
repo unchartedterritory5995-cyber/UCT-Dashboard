@@ -239,6 +239,21 @@ describe('the four outcomes reach this surface intact', () => {
     expect(screen.queryByTestId('chart-pane')).not.toBeInTheDocument()
   })
 
+  it('a screen that ran and matched NOTHING says so — in words, beside its counts', async () => {
+    // ⛔ THE OTHER HALF OF `CoverageLine`'s PAIR. That component refuses to brand
+    // an empty screen at full coverage a data outage, which presumes something
+    // says "nothing matched". Counts with an empty space below them read as
+    // "still loading" — and a member who waits for rows that are never coming has
+    // been told nothing at all.
+    H.payload = evaluatedPayload({ tickers: [] })
+    renderSurface()
+    expect(await screen.findByTestId('scan-results-empty')).toBeInTheDocument()
+    expect(screen.getByTestId('coverage-line')).toBeInTheDocument()
+    // …and it is NOT the "nobody looked" sentence: the two are different facts.
+    expect(screen.queryByTestId('scan-results-not-run')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('chart-pane')).not.toBeInTheDocument()
+  })
+
   it('a refused read is reported, never rendered as an empty screen', async () => {
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: false, status: 402, json: () => Promise.resolve({}) })))
     renderSurface()

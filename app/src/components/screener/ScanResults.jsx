@@ -240,6 +240,18 @@ export default function ScanResults({ definition, asOf, tf = 'D' }) {
         </ul>
       )}
 
+      {status === 'evaluated' && tickers.length === 0 && (
+        // ⛔ "NO MATCHES" IS SAID IN WORDS, and it is the OTHER half of
+        // `CoverageLine`'s pair. That component deliberately refuses to brand an
+        // empty screen at full coverage a data outage — which presumes something
+        // else says "nothing matched". Without this line a member sees counts and
+        // an empty space, and an empty space reads as "still loading".
+        <p className={styles.notRun} role="status" data-testid="scan-results-empty">
+          <UIcon name="check" size={14} />
+          This screen ran and no symbol matched.
+        </p>
+      )}
+
       {refusal && (
         <p className={styles.error} role="alert" data-testid="scan-chart-refused">
           <UIcon name="warning" size={14} />
