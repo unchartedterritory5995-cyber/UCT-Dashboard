@@ -7,7 +7,7 @@ import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
 import UIcon from '../../components/ui/UIcon'
 import { WorkspaceContext } from './WorkspaceContext'
-import { WATCHLIST_DEFAULTS } from '../watchlist/watchlistSettings'
+import { WATCHLIST_DEFAULTS, WATCHLIST_SETTINGS_KEY } from '../watchlist/watchlistSettings'
 import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings, themeTrackerDefaultsForTheme } from '../theme-tracker/themeTrackerSettings'
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsForTheme } from './widgets/fundamentalsSettings'
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthDefaultsForTheme } from './widgets/breadthWidgetSettings'
@@ -181,7 +181,7 @@ const WIDGET_DEFAULTS = {
   alerts:    { w: 6,  h: 10, minW: 2, minH: 4 },
   calendar:  { w: 6,  h: 10, minW: 2, minH: 4 },
   optionsflow: { w: 8, h: 12, minW: 4, minH: 5 },
-  periodsort: { w: 7,  h: 12, minW: 3, minH: 5 },
+  periodsort: { w: 6,  h: 12, minW: 3, minH: 5 },   // ~fits Flag·Symbol·%·Industry with no blank filler
 }
 
 // A blocked window.open returns null with no error, so this is the only way the
@@ -734,6 +734,9 @@ export default function ChartsWorkspace() {
 
   // Custom-Period Sort → dock the floating results as a real grid widget (carrying the
   // highlighted range), or fold it into an existing widget as a Period-Sort tab.
+  // The user's current watchlist appearance template (up/down colors, canvas, fonts) —
+  // seeded onto a docked/tabbed Period-Sort widget so it matches the floating panel.
+  const _wlTemplate = useCallback(() => parsePref(prefs?.[WATCHLIST_SETTINGS_KEY], null), [prefs])
   const handleDockPeriodSort = useCallback((start, end, group = null) => {
     setPeriodSortPanel(null)
     setLayout(prev => {
@@ -759,24 +762,28 @@ export default function ChartsWorkspace() {
         id: `w-periodsort-${Date.now()}`,
         type: 'periodsort', color,
         x: place.x, y: place.y, w: place.w, h: place.h,
-        opts: { start, end, group: group || null },
+        // Carry the user's current watchlist appearance template (up/down colors, canvas,
+        // fonts) so the docked widget looks like the floating panel — without it, a widget
+        // with a persist fn starts from the theme default (green/red instead of blue/pink).
+        opts: { start, end, group: group || null, ...(_wlTemplate() ? { settings: _wlTemplate() } : {}) },
       }
       const next = { ...prev, widgets: clampWidgetsToRows([...widgets, newWidget]) }
       scheduleSave(next)
       return next
     })
-  }, [scheduleSave, groupSyms])
+  }, [scheduleSave, groupSyms, _wlTemplate])
   const handlePeriodSortToTab = useCallback((widgetId, start, end, group = null) => {
     setPeriodSortPanel(null)
     setLayout(prev => {
       const target = prev.widgets.find(w => w.id === widgetId)
       if (!target) return prev
-      const nextWidget = addWidgetTab(target, { type: 'periodsort', color: 'N', opts: { start, end, group: group || null } })
+      const tpl = _wlTemplate()
+      const nextWidget = addWidgetTab(target, { type: 'periodsort', color: 'N', opts: { start, end, group: group || null, ...(tpl ? { settings: tpl } : {}) } })
       const next = { ...prev, widgets: prev.widgets.map(w => w.id === widgetId ? { ...nextWidget, x: w.x, y: w.y, w: w.w, h: w.h } : w) }
       scheduleSave(next)
       return next
     })
-  }, [scheduleSave])
+  }, [scheduleSave, _wlTemplate])
 
   const [savedFlash, setSavedFlash] = useState(false)
   const savedFlashTimerRef = useRef(null)
