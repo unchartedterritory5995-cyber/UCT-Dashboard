@@ -307,7 +307,7 @@ def _run_computation() -> None:
                         "weight_pct": 0.0,
                         # Membership source: engine-overlay members keep their
                         # individual return rows but NEVER move the theme
-                        # aggregate (_owner_group_pct, spec §4b). Wire syms not
+                        # aggregate (_owner_only_mean, spec §4b). Wire syms not
                         # in the DB stay owner (counted).
                         "source": members.get(_to_hyphen(sym), "owner"),
                         "returns": returns_map.get(sym, null_returns.copy()),
@@ -388,16 +388,13 @@ def _fetch_live_1d_map(syms: list[str]) -> dict[str, float]:
 _ALL_PERIODS = ("1d", "1w", "1m", "3m", "1y", "ytd")
 
 
-def _owner_group_pct(per_sym_returns: dict, owner_syms: set):
-    """OUTLIER-RESISTANT group return over the OWNER members only — engine-overlay members keep
-    their individual rows but never move the theme number (spec §4b). Uses the upside-winsorized
-    mean (api/services/robust_agg) — the SAME method as the Custom-Period sector/industry sort —
-    so a single moonshot (one name +20% while the rest are red) can't float a theme to the top.
-    per_sym_returns and owner_syms must use the same sym form (hyphen upper). None when no owner
-    member has a value."""
-    from api.services.robust_agg import robust_group_pct
+def _owner_only_mean(per_sym_returns: dict, owner_syms: set):
+    """Mean of the OWNER members' returns only — engine-overlay members keep
+    their individual rows but never move the theme number (spec §4b).
+    per_sym_returns and owner_syms must use the same sym form (hyphen upper).
+    None when no owner member has a value."""
     vals = [v for s, v in per_sym_returns.items() if s in owner_syms and v is not None]
-    return round(robust_group_pct(vals), 2) if vals else None
+    return round(sum(vals) / len(vals), 2) if vals else None
 
 
 def _owner_group_return(union_syms, returns_map: dict, members: dict, periods) -> dict:
@@ -413,7 +410,7 @@ def _owner_group_return(union_syms, returns_map: dict, members: dict, periods) -
         per_sym = {_to_hyphen(s): returns_map.get(s, {}).get(period)
                    for s in union_syms
                    if returns_map.get(s, {}).get(period) is not None}
-        v = _owner_group_pct(per_sym, owner_syms_hy)
+        v = _owner_only_mean(per_sym, owner_syms_hy)
         if v is not None:
             gr[period] = v
     return gr
@@ -500,12 +497,12 @@ def _apply_live_returns(result: dict) -> dict:
             # 1d: live average of current holdings (best intraday approximation)
             # 1w/1m/3m/1y/ytd: keep NAV values — composition-aware, includes
             # stocks that have already rotated out of the list
-            v = _owner_group_pct(live_by_period["1d"], owner_syms)
+            v = _owner_only_mean(live_by_period["1d"], owner_syms)
             if v is not None:
                 gr["1d"] = v
         else:
             for period, per_sym in live_by_period.items():
-                v = _owner_group_pct(per_sym, owner_syms)
+                v = _owner_only_mean(per_sym, owner_syms)
                 if v is not None:
                     gr[period] = v
         if gr:
@@ -599,7 +596,7 @@ def _enrich_with_taxonomy(result: dict) -> dict:
                     "source": m.get("source", "owner"),
                 })
             # Owner basket for the group aggregates (JSON-safe list; consumed
-            # as a membership set by the _owner_group_pct call sites).
+            # as a membership set by the _owner_only_mean call sites).
             theme["_owner_syms"] = sorted(
                 hy for hy, m in members.items() if m.get("source", "owner") != "engine")
     except Exception as e:
@@ -681,7 +678,7 @@ def compute_rotation_signals() -> dict:
             else:
                 per_sym = {h["sym"]: h["returns"].get(p) for h in t.get("holdings", [])
                            if h.get("sym") and h.get("returns", {}).get(p) is not None}
-                avg_fallback[p] = _owner_group_pct(per_sym, owner_syms)
+                avg_fallback[p] = _owner_only_mean(per_sym, owner_syms)
         theme_returns[t["ticker"]] = avg_fallback
 
     # Percentile rank per period (0 = worst, 100 = best)
