@@ -13,6 +13,8 @@
    "why": "an arithmetic TERM; the picker's left side is a name, a number or one call"},
   {"source": "sma(sma(close, 5), 5) > 1",    "guard": "picker:term",
    "why": "a nested call; v1 shows one level"},
-  {"source": "crossOver(close, open)",       "guard": "picker:not-a-condition",
-   "why": "yields 0/1 but is not a COMPARATOR row — v1 offers it as a formula. See the OWNER block in the brief."}
+  {"source": "crossOver(close, open) > 0",   "guard": "picker:term",
+   "why": "a crossing is a CONDITION with a row of its own, never a TERM inside a comparison — the term slots offer the table's term-valued functions and nothing else. (`crossOver(close, open)` itself is now a row: see the crossing block in criteria.test.js.)"},
+  {"source": "crossOver(sma(sma(close, 5), 5), open)", "guard": "picker:term",
+   "why": "a nested call inside a crossing operand — a crossing row's sides are picker TERMS and the picker shows one level, exactly as a comparison row does"}
 ]

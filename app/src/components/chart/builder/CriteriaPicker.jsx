@@ -39,7 +39,34 @@ import styles from './BuilderSheet.module.css'
 const VOCAB = vocabulary(TABLE)
 const NAME_OPTIONS = Object.freeze([...VOCAB.series, ...VOCAB.scalars])
 const FN_OPTIONS = Object.freeze([...VOCAB.functions.keys()])
-const CMP_OPTIONS = Object.freeze([...VOCAB.comparators])
+
+/** ⭐ ONE DROPDOWN, TWO ROW SHAPES. A member does not care that `>` is an
+ *  operator and `crossOver` is a function — both are *the relation between the
+ *  two sides of this row*, so both live in the same control and picking one
+ *  switches the row's shape underneath. The list and every label are the
+ *  vocabulary's; nothing here is typed, so a bool function the manifest declares
+ *  tomorrow arrives in this dropdown with no edit. */
+const RELATION_OPTIONS = Object.freeze([
+  ...[...VOCAB.comparators].map((name) => ({ value: name, label: name, kind: 'row' })),
+  ...[...VOCAB.crossings].map(([name, spec]) => ({ value: name, label: spec.label, kind: 'cross' })),
+])
+const RELATION_BY_VALUE = new Map(RELATION_OPTIONS.map((o) => [o.value, o]))
+const CMP_OPTIONS = Object.freeze(RELATION_OPTIONS.filter((o) => o.kind === 'row').map((o) => o.value))
+
+/** The value the relation control shows for a row of either shape. */
+const relationOf = (row) => (row.kind === 'cross' ? row.fn : row.cmp)
+
+/** Re-shape a row around a newly-picked relation, KEEPING BOTH TERMS. The two
+ *  shapes have the same operands, so switching between them must not throw the
+ *  member's left and right sides away. */
+function withRelation(row, value) {
+  const rel = RELATION_BY_VALUE.get(value)
+  const kind = rel ? rel.kind : 'row'
+  const base = { left: row.left, right: row.right }
+  return kind === 'cross'
+    ? { kind: 'cross', ...base, fn: value }
+    : { kind: 'row', ...base, cmp: value }
+}
 
 /** The sentinel the term dropdown uses for "a plain number". It cannot collide
  *  with a manifest name — every declared name is an identifier and this is not
@@ -155,9 +182,14 @@ function TermEditor({ term, label, onChange }) {
   )
 }
 
+/** ONE EDITOR FOR BOTH ROW SHAPES. A comparison and a crossing are the same
+ *  sentence — two terms and a relation — so they are the same control, the same
+ *  `data-testid`, the same aria labels and the same remove button. Rendering a
+ *  separate "crossing row" would put a second layout on screen for a difference
+ *  that is the grammar's, not the member's. */
 function RowEditor({ row, where, onChange, onRemove }) {
   return (
-    <div className={styles.pickerRow} data-testid="picker-row">
+    <div className={styles.pickerRow} data-testid="picker-row" data-kind={row.kind}>
       <TermEditor
         term={row.left}
         label={`Condition ${where} left side`}
@@ -166,10 +198,10 @@ function RowEditor({ row, where, onChange, onRemove }) {
       <select
         className={`${styles.pickerSelect} ${styles.pickerCmp}`}
         aria-label={`Condition ${where} comparison`}
-        value={row.cmp}
-        onChange={(e) => onChange({ ...row, cmp: e.target.value })}
+        value={relationOf(row)}
+        onChange={(e) => onChange(withRelation(row, e.target.value))}
       >
-        {CMP_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+        {RELATION_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
       <TermEditor
         term={row.right}

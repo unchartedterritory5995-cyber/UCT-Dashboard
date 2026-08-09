@@ -230,7 +230,24 @@ export default function BuilderSheet({
   // ⭐ WHICH DOOR IS OPEN, AND NOTHING MORE. `buildMode` decides whether the
   // picker is on screen; it is NOT persisted, NOT written into the document and
   // NOT read back — the saved artifact is the same one either door produces.
-  const [buildMode, setBuildMode] = useState('formula')
+  //
+  // ⭐⭐ A NEW FORMULA OPENS ON THE LIBRARY, AND AN EDIT OPENS ON THE FORMULA.
+  // (E-8 raised this and left it as an owner call; the owner delegated it.)
+  //
+  // The argument that settles it is that `FormulaField` is rendered in EVERY
+  // mode and autofocused in every mode — the tab only decides what sits ABOVE
+  // the box. So "Formula" as the default renders nothing above a focused box,
+  // and "Library" renders the firm's own worked scans above the same focused
+  // box: their names, what each one computes in the tree's own words, and their
+  // source. Nobody loses the ability to type; a member who does not know the
+  // syntax gains three examples of it and a one-click way to put one in the box
+  // and change it, which is how TC2000 and TradingView onboard.
+  //
+  // ⛔ AN EDIT IS THE OTHER CASE AND IT IS NOT THE SAME ONE. A member editing a
+  // formula they already own has no use for starters above their own work, so
+  // `openForEdit` moves the sheet to Formula. `BuilderSheet.starters.test.jsx`
+  // holds both halves.
+  const [buildMode, setBuildMode] = useState('library')
   const [pickerNote, setPickerNote] = useState(null)
   const rootRef = useRef(null)
 
@@ -242,7 +259,7 @@ export default function BuilderSheet({
     if (!open) return
     setSource(''); setName(''); setResult(evaluateFormula('', BUILDER_INPUT_SCOPE))
     setAcknowledged(false); setStoreError(null); setSavedRow(null); setCopied(false)
-    setEditing(null); setBuildMode('formula'); setPickerNote(null)
+    setEditing(null); setBuildMode('library'); setPickerNote(null)
   }, [open])
 
   /** Open a stored formula for editing — its SOURCE, its name, and its id.
@@ -266,6 +283,12 @@ export default function BuilderSheet({
     setName(String(row?.definition?.meta?.name || ''))
     setSource(src)
     setResult(evaluateFormula(src, BUILDER_INPUT_SCOPE))
+    // ⛔ AND THE SHEET MOVES TO THE FORMULA. A new sheet opens on the Library
+    // because a member with nothing in the box is helped by worked examples; a
+    // member editing their OWN definition is not, and leaving a gallery of
+    // starters above their work invites a click that replaces it.
+    setBuildMode('formula')
+    setPickerNote(null)
   }, [])
 
   const cancelEdit = useCallback(() => {

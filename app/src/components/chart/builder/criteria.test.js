@@ -62,6 +62,10 @@ function genCorpus(seed, n) {
   const names = [...VOCAB.series, ...VOCAB.scalars]
   const fns = [...VOCAB.functions.keys()]
   const cmps = [...VOCAB.comparators]
+  // ⭐ THE SECOND ROW SHAPE IS IN THE CORPUS, DERIVED. A crossing row that the
+  // 400 cases never generated would leave every property below true of a picker
+  // that could not spell one, which is exactly the state E-4 shipped.
+  const crosses = [...VOCAB.crossings.keys()]
   const other = (join) => (join === 'and' ? 'or' : 'and')
 
   const term = () => {
@@ -78,7 +82,9 @@ function genCorpus(seed, n) {
         : { t: 'name', name: pick(names) })),
     }
   }
-  const row = () => ({ kind: 'row', left: term(), cmp: pick(cmps), right: term() })
+  const row = () => (crosses.length && r() < 0.25
+    ? { kind: 'cross', left: term(), fn: pick(crosses), right: term() }
+    : { kind: 'row', left: term(), cmp: pick(cmps), right: term() })
   const group = (depth, join) => {
     const k = 2 + Math.floor(r() * 3)
     const children = []
@@ -108,13 +114,28 @@ describe('the corpus is not vacuous', () => {
     const walk = (n) => {
       if (n.kind === 'group') return n.children.forEach(walk)
       if (n.kind === 'row') { seen.add(n.cmp); [n.left, n.right].forEach(walkTerm) }
+      if (n.kind === 'cross') { seen.add(n.fn); [n.left, n.right].forEach(walkTerm) }
       return undefined
     }
     CORPUS.forEach(walk)
-    const declared = [...VOCAB.series, ...VOCAB.scalars, ...VOCAB.functions.keys(), ...VOCAB.comparators]
+    const declared = [...VOCAB.series, ...VOCAB.scalars, ...VOCAB.functions.keys(),
+      ...VOCAB.comparators, ...VOCAB.crossings.keys()]
     expect(declared.length, 'the vocabulary itself is empty — this census would pass on nothing').toBeGreaterThan(50)
     const missing = declared.filter((n) => !seen.has(n))
     expect(missing, 'raise the corpus size or the generator is not reaching these').toEqual([])
+  })
+
+  it('and it contains BOTH ROW SHAPES — a corpus of comparisons proves nothing about crossings', () => {
+    // ⭐ THE CENSUS THAT SEES A GENERATOR THAT QUIETLY STOPPED EMITTING ONE.
+    // Every property below is `it.each` over CORPUS, so a corpus with no `cross`
+    // node leaves all 400 identity cases green while `toSource`/`fromAst` have
+    // no crossing support at all — E-4's M4 one shape later.
+    const kinds = new Set()
+    const walk = (n) => { kinds.add(n.kind); if (n.kind === 'group') n.children.forEach(walk) }
+    CORPUS.forEach(walk)
+    expect(VOCAB.crossings.size, 'the manifest declares no crossing — this census would pass on nothing')
+      .toBeGreaterThan(0)
+    expect([...kinds].sort()).toEqual(['cross', 'group', 'row'])
   })
 
   it('and the corpus contains both joins and at least one nested group', () => {
@@ -312,9 +333,157 @@ describe('the comparator set is DERIVED from `yields`, and its absence is a REFU
     expect([...VOCAB.comparators].every((n) => VOCAB.boolBinary.has(n))).toBe(true)
     expect([...VOCAB.comparators].some((n) => joins.has(n))).toBe(false)
     expect(VOCAB.comparators.size + joins.size).toBe(VOCAB.boolBinary.size)
-    // and every offered function is a TERM-valued one — a `bool` function is a
-    // condition wearing a term's clothes and `must_refuse.json` fates it.
+    // and every offered TERM function is a term-valued one — a `bool` function
+    // is a condition, and it has a ROW of its own rather than a term slot.
     expect([...VOCAB.functions.keys()].every((n) => TABLE.functions[n].yields !== 'bool')).toBe(true)
+  })
+})
+
+describe('⭐ THE CROSSING ROW — the second shape, and the asymmetry it closes', () => {
+  // 🔴 SPEC §1.1: the definition consumed by chart, alerts, screener and builder
+  // is the SAME OBJECT. A member could TYPE `crossOver(close, sma(close, 20))`,
+  // save it, scan it, chart it and alert on it, and the picker refused to SHOW
+  // it — two doors onto one object offering different sets, which is the exact
+  // failure the spec names by competitor. These are the cases that say it is
+  // closed, and the identity properties above already run over a corpus that
+  // contains crossings.
+
+  it('the crossing set is a PARTITION of the manifest against the term functions', () => {
+    // ⛔ NO NAME AND NO COUNT — the identity a hand-list cannot satisfy by
+    // accident, and it moves with the manifest.
+    expect(VOCAB.crossings.size).toBeGreaterThan(0)
+    const term = new Set(VOCAB.functions.keys())
+    const cross = new Set(VOCAB.crossings.keys())
+    expect([...cross].filter((n) => term.has(n)), 'a function is offered as BOTH').toEqual([])
+    for (const n of cross) {
+      expect(TABLE.functions[n].yields, n).toBe('bool')
+      expect(TABLE.functions[n].args, n).toHaveLength(2)
+    }
+    for (const n of term) expect(TABLE.functions[n].yields, n).not.toBe('bool')
+    // every declared function that answers yes-or-no about two things IS offered
+    const owed = Object.entries(TABLE.functions)
+      .filter(([, s]) => s.yields === 'bool' && (s.args || []).length === 2)
+      .map(([n]) => n)
+      .filter((n) => !cross.has(n))
+    expect(owed, 'a two-operand boolean function the picker does not offer').toEqual([])
+    // and `boolFunctions` is the wider set the refusal split reads
+    expect([...cross].every((n) => VOCAB.boolFunctions.has(n))).toBe(true)
+  })
+
+  it('a TYPED crossing reads back as a crossing row and re-spells to the SAME TREE', () => {
+    const fn = [...VOCAB.crossings.keys()][0]
+    const src = `${fn}(close, sma(close, 50)) && rs_rank > 80`
+    const parsed = parseFormula(src)
+    expect(parsed.ok, parsed.error).toBe(true)
+    const back = fromAst(parsed.ast, VOCAB)
+    expect(back.ok, back.reason).toBe(true)
+    expect(back.group.children.map((c) => c.kind)).toEqual(['cross', 'row'])
+    expect(back.group.children[0]).toEqual({
+      kind: 'cross',
+      left: { t: 'name', name: 'close' },
+      fn,
+      right: { t: 'call', name: 'sma', args: [{ t: 'name', name: 'close' }, { t: 'num', value: 50 }] },
+    })
+    expect(astHash(parseFormula(toSource(back.group)).ast)).toBe(astHash(parsed.ast))
+  })
+
+  it('a crossing alone at the top is a ONE-ROW GROUP, like any other single condition', () => {
+    const fn = [...VOCAB.crossings.keys()][0]
+    const back = fromSource(`${fn}(close, open)`)
+    expect(back.ok, back.reason).toBe(true)
+    expect(back.group.kind).toBe('group')
+    expect(back.group.children).toEqual([{
+      kind: 'cross', left: { t: 'name', name: 'close' }, fn, right: { t: 'name', name: 'open' },
+    }])
+    expect(isCanonical(back.group)).toBe(true)
+  })
+
+  it('⛔ AND IT IS DERIVED: a REMOVED `yields: bool` takes a crossing out of the picker', () => {
+    // ⭐ E-2's M5/M5b for the second shape. The name is not spelled in
+    // `criteria.js`; declaring it a number must move it out of the crossing set
+    // and INTO the term functions, with no edit there.
+    const fn = [...VOCAB.crossings.keys()][0]
+    const planted = JSON.parse(JSON.stringify(TABLE))
+    planted.functions[fn].yields = 'num'
+    const v = vocabulary(planted)
+    expect(v.crossings.has(fn)).toBe(false)
+    expect(v.functions.has(fn)).toBe(true)
+    expect(fromAst(parseFormula(`${fn}(close, open)`).ast, v).guard).toBe('picker:not-a-condition')
+  })
+
+  it('⛔ AND A PLANTED two-operand boolean function IS OFFERED, with no edit here', () => {
+    const planted = JSON.parse(JSON.stringify(TABLE))
+    planted.functions.uctPlantedTouch = {
+      args: ['series', 'series'], lookback: 1, yields: 'bool', sentence: '{0} touching {1}',
+    }
+    const v = vocabulary(planted)
+    expect(VOCAB.crossings.has('uctPlantedTouch')).toBe(false)
+    expect(v.crossings.has('uctPlantedTouch')).toBe(true)
+    const res = fromAst(parseFormula('uctPlantedTouch(close, open)').ast, v)
+    expect(res.ok, res.reason).toBe(true)
+    expect(res.group.children[0]).toEqual({
+      kind: 'cross', left: { t: 'name', name: 'close' }, fn: 'uctPlantedTouch', right: { t: 'name', name: 'open' },
+    })
+    // …and the SHIPPED vocabulary still refuses it, so the planted table is
+    // demonstrably what made the difference. ⚠️ It refuses as NOT-A-CONDITION
+    // rather than as a shapeless one, and that is right: a function the table
+    // does not declare at all has no `yields` to read, so the picker cannot
+    // know it answers yes-or-no. The linter names it first anyway
+    // (`resolve:function`), which is the message the member actually sees.
+    expect(fromAst(parseFormula('uctPlantedTouch(close, open)').ast, VOCAB).guard)
+      .toBe('picker:not-a-condition')
+  })
+
+  it('⛔ A BOOLEAN FUNCTION WITH ANY OTHER ARITY HAS NO ROW, and says THAT rather than "a number"', () => {
+    // ⭐ THE CASE TODAY'S MANIFEST CANNOT REACH, so it is planted. Collapsing
+    // this into `picker:not-a-condition` would tell a member their yes-or-no
+    // question "produces a number", which is both wrong and unactionable — the
+    // same distinction E-4 drew for `!x` and `a ? b : c`.
+    const planted = JSON.parse(JSON.stringify(TABLE))
+    planted.functions.uctPlantedRising = {
+      args: ['series'], lookback: 1, yields: 'bool', sentence: '{0} rising',
+    }
+    const v = vocabulary(planted)
+    expect(v.crossings.has('uctPlantedRising')).toBe(false)
+    expect(v.functions.has('uctPlantedRising')).toBe(false)
+    expect(v.boolFunctions.has('uctPlantedRising')).toBe(true)
+    const res = fromAst(parseFormula('uctPlantedRising(close)').ast, v)
+    expect(res.ok).toBe(false)
+    expect(res.guard).toBe('picker:node')
+    expect(res.group).toBeUndefined()
+  })
+
+  it('the middle label is the MANIFEST\'S OWN SENTENCE with the operand holes removed', () => {
+    // ⛔ THE ASSERTION IS A PROPERTY, NOT A RESTATEMENT. Retyping "crossing
+    // above" here would be a second authority over a string the manifest owns —
+    // this repo's most-repeated defect — so what is asserted is that the label
+    // carries no operand hole, is non-empty, and says nothing the sentence does
+    // not. The planted case below is what proves it is READ rather than written.
+    for (const [name, spec] of VOCAB.crossings) {
+      expect(spec.label, name).toBeTruthy()
+      expect(spec.label, name).not.toMatch(/[{}]/)
+      const sentence = TABLE.functions[name].sentence
+      const stray = spec.label.split(/\s+/).filter((w) => !sentence.includes(w))
+      expect(stray, `${name}'s label says something its sentence does not`).toEqual([])
+    }
+  })
+
+  it('and the label MOVES with the manifest — a planted sentence changes it', () => {
+    const fn = [...VOCAB.crossings.keys()][0]
+    const planted = JSON.parse(JSON.stringify(TABLE))
+    planted.functions[fn].sentence = '{0} uctplantedrelation {1}'
+    const v = vocabulary(planted)
+    expect(v.crossings.get(fn).label).toBe('uctplantedrelation')
+    expect(VOCAB.crossings.get(fn).label).not.toBe('uctplantedrelation')
+  })
+
+  it('a crossing whose function the vocabulary does not offer is REFUSED, never spelled', () => {
+    const fn = [...VOCAB.crossings.keys()][0]
+    const narrowed = { ...VOCAB, crossings: new Map() }
+    expect(() => toSource(
+      { kind: 'group', join: 'and', children: [{ kind: 'cross', left: { t: 'name', name: 'close' }, fn, right: { t: 'name', name: 'open' } }] },
+      narrowed,
+    )).toThrow(/comparison/i)
   })
 })
 

@@ -20,8 +20,11 @@ import BuilderSheet from './BuilderSheet'
 import { evaluateFormula, canSaveFormula, FORMULA_DEBOUNCE_MS } from './FormulaField'
 import { BUILDER_INPUT_SCOPE } from './builderInputs'
 import { NUMBER_OPTION } from './CriteriaPicker'
+import { vocabulary } from './criteria'
 import { AuthContext } from '../../../context/AuthContext'
-import { parseFormula, astHash } from '../engine/ast/parse'
+import { parseFormula, astHash, TABLE } from '../engine/ast/parse'
+
+const VOCAB = vocabulary(TABLE)
 
 const H = vi.hoisted(() => ({ requests: [] }))
 
@@ -209,6 +212,57 @@ describe('🔴 the picker is REACHABLE, and what it produces goes through the sh
     expect(screen.getByTestId('readback')).toHaveTextContent(expected.readback)
   })
 
+  it('🔴 A CROSSING IS BUILT WITH CLICKS, and it is the SAME TREE as the typed one', async () => {
+    // ⭐ THE ASYMMETRY, CLOSED, MEASURED THROUGH THE SHEET. E-4 shipped
+    // `crossOver(close, open)` as a REFUSAL: a member could TYPE a crossing,
+    // save it, scan it, chart it and alert on it, and the picker had no row for
+    // it — two doors onto one object offering different sets, which spec §1.1
+    // names as the competitor's failure. This is the case that fails if the
+    // crossing never reaches the sheet, while `criteria.test.js` and
+    // `CriteriaPicker.test.jsx` both stay green.
+    //
+    // ⛔ THE RELATION IS READ OFF THE VOCABULARY, NEVER TYPED. A test that
+    // spelled `crossOver` would keep passing against a manifest that renamed it.
+    const fn = [...VOCAB.crossings.keys()][0]
+    mount()
+    openPicker()
+    if (screen.queryAllByTestId('picker-row').length === 0) {
+      fireEvent.click(screen.getByRole('button', { name: /^add condition$/i }))
+    }
+    fireEvent.change(screen.getByLabelText('Condition 0 left side'), { target: { value: 'close' } })
+    fireEvent.change(screen.getByLabelText('Condition 0 comparison'), { target: { value: fn } })
+    fireEvent.change(screen.getByLabelText('Condition 0 right side'), { target: { value: 'sma' } })
+    fireEvent.change(screen.getByLabelText('Condition 0 right side sma argument 1'), { target: { value: 'close' } })
+    fireEvent.change(screen.getByLabelText('Condition 0 right side sma argument 2'), { target: { value: '20' } })
+    await settle()
+
+    const built = field().value
+    const typed = parseFormula(`${fn}(close, sma(close, 20))`)
+    expect(typed.ok, typed.error).toBe(true)
+    expect(parseFormula(built).ok, built).toBe(true)
+    expect(astHash(parseFormula(built).ast)).toBe(astHash(typed.ast))
+
+    // …and it goes through the SHIPPED gates, not a private copy of them.
+    const expected = evaluateFormula(built, BUILDER_INPUT_SCOPE)
+    expect(expected.ok, expected.error || '').toBe(true)
+    expect(canSaveFormula(expected, false)).toBe(true)
+    expect(screen.getByTestId('readback')).toHaveTextContent(expected.readback)
+    expect(screen.getByTestId('repaint-badge')).toHaveAttribute('data-mode', expected.verdict.mode)
+  })
+
+  it('and a TYPED crossing comes back as a row — the trip in the other direction', async () => {
+    const fn = [...VOCAB.crossings.keys()][0]
+    mount()
+    await typeFormula(`${fn}(close, open) && rs_rank > 80`)
+    openPicker()
+    expect(screen.queryByTestId('picker-note')).toBeNull()
+    const rows = screen.getAllByTestId('picker-row')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]).toHaveAttribute('data-kind', 'cross')
+    expect(rows[1]).toHaveAttribute('data-kind', 'row')
+    expect(field()).toHaveValue(`${fn}(close, open) && rs_rank > 80`)
+  })
+
   it('a formula the picker cannot show is REPORTED, and the picker stays empty', async () => {
     mount()
     await typeFormula('sma(close, 20)')
@@ -284,23 +338,26 @@ describe('🔴 the SAVED object is the same object either door produces', () => 
 })
 
 describe('the sheet still behaves as it did', () => {
-  it('the mode row is a TABLIST carrying BOTH doors, and Formula is the default', async () => {
+  it('the mode row is a TABLIST carrying BOTH doors, and the picker waits to be asked for', async () => {
     mount()
     await settle()
     // ⚠️ THIS COUNTED THE TABS AND E-8 ADDED A THIRD DOOR (the starter library),
     // turning a green suite red on a change that broke nothing this file is
     // about. A typed count is a second authority over how many doors the sheet
-    // has; the claim that belongs here is that BOTH of E-4's doors are present
-    // and that Formula is the one that is open. `BuilderSheet.starters.test.jsx`
-    // owns the third.
+    // has; the claim that belongs here is that BOTH of E-4's doors are present.
+    // ⚠️ AND IT ASSERTED WHICH ONE OPENS, which moved when the owner took the
+    // default-tab call — a second authority over a product decision this file
+    // does not own. `BuilderSheet.starters.test.jsx` owns which door opens; this
+    // file owns that Conditions is a door and that it is not mounted unasked.
     const tabs = screen.getAllByRole('tab').map((t) => t.textContent)
     expect(tabs).toEqual(expect.arrayContaining(['Conditions', 'Formula']))
-    expect(screen.getByRole('tab', { name: /formula/i })).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByRole('tab', { name: /conditions/i })).toHaveAttribute('aria-selected', 'false')
     // ⛔ THE PICKER IS NOT MOUNTED UNTIL IT IS ASKED FOR. A hidden picker still
     // deriving from every keystroke is work nobody asked for on a surface whose
     // 250 ms debounce exists because nobody had measured the frame budget.
     expect(screen.queryByTestId('criteria-picker')).toBeNull()
+    openPicker()
+    expect(screen.getByTestId('criteria-picker')).toBeTruthy()
   })
 
   it('the typed box is STILL the write path while the picker is open', async () => {

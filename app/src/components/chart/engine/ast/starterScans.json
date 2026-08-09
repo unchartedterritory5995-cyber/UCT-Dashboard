@@ -174,139 +174,6 @@
           "preset": "Top third (>0.66)"
         }
       ]
-    },
-    "Launchpad": {
-      "source": "close > sma(close, 20) && sma(close, 20) > sma(close, 50) && sma(close, 50) > sma(close, 200) && tight_consolidation",
-      "ast": {
-        "type": "op",
-        "name": "&&",
-        "args": [
-          {
-            "type": "op",
-            "name": "&&",
-            "args": [
-              {
-                "type": "op",
-                "name": "&&",
-                "args": [
-                  {
-                    "type": "op",
-                    "name": ">",
-                    "args": [
-                      {
-                        "type": "series",
-                        "name": "close"
-                      },
-                      {
-                        "type": "call",
-                        "name": "sma",
-                        "args": [
-                          {
-                            "type": "series",
-                            "name": "close"
-                          },
-                          {
-                            "type": "num",
-                            "value": 20
-                          }
-                        ]
-                      }
-                    ]
-                  },
-                  {
-                    "type": "op",
-                    "name": ">",
-                    "args": [
-                      {
-                        "type": "call",
-                        "name": "sma",
-                        "args": [
-                          {
-                            "type": "series",
-                            "name": "close"
-                          },
-                          {
-                            "type": "num",
-                            "value": 20
-                          }
-                        ]
-                      },
-                      {
-                        "type": "call",
-                        "name": "sma",
-                        "args": [
-                          {
-                            "type": "series",
-                            "name": "close"
-                          },
-                          {
-                            "type": "num",
-                            "value": 50
-                          }
-                        ]
-                      }
-                    ]
-                  }
-                ]
-              },
-              {
-                "type": "op",
-                "name": ">",
-                "args": [
-                  {
-                    "type": "call",
-                    "name": "sma",
-                    "args": [
-                      {
-                        "type": "series",
-                        "name": "close"
-                      },
-                      {
-                        "type": "num",
-                        "value": 50
-                      }
-                    ]
-                  },
-                  {
-                    "type": "call",
-                    "name": "sma",
-                    "args": [
-                      {
-                        "type": "series",
-                        "name": "close"
-                      },
-                      {
-                        "type": "num",
-                        "value": 200
-                      }
-                    ]
-                  }
-                ]
-              }
-            ]
-          },
-          {
-            "type": "series",
-            "name": "tight_consolidation"
-          }
-        ]
-      },
-      "grounding": [
-        {
-          "kind": "classifier",
-          "module": "api.services.screener.technicals",
-          "function": "compute_technicals",
-          "label": "full-bull",
-          "windows_from": [
-            "_sma"
-          ]
-        },
-        {
-          "kind": "filter_preset",
-          "key": "tight_consolidation",
-          "preset": "Yes"
-        }
-      ]
     }
   },
   "_ungrounded": {
@@ -325,6 +192,7 @@
     "4B Setup (Stan Weinstein)": "4B Setup (Stan Weinstein) is a STAGE call -- where the symbol sits in Weinstein's four-stage cycle, read off a 30-week line and its slope. The table declares `above_50sma` and `pct_vs_sma200` but no stage label and no moving-average SLOPE, and `screener/technicals.py` labels an MA STACK, not a stage.",
     "Failed H&S/Rounded Top": "Failed H&S/Rounded Top is a pattern that is defined by NOT resolving: everyone sees the top, the breakdown does not come. Naming the neckline needs a swing lookback nobody publishes, and 'the breakdown did not come' needs a bar offset the closed table does not carry.",
     "Classic U&R": "Classic U&R undercuts a PROMINENT PRIOR LOW and reclaims it. `lowest(low, N)` can name a prior low, but which N makes a low prominent is nobody's published number, and the reclaim is a two-bar relationship the table's offset-free grammar cannot state.",
+    "Launchpad": "Launchpad's tell is CONVERGENCE, and the closed table cannot say it. The firm's own playbook names the 8-EMA, 21-EMA, 30-SMA and 50-SMA bunched closely together with price consolidating across them, and calls the setup symmetrical: it breaks long or short, and the environment picks the side. The table can say that averages are STACKED, but a stacked and widely SEPARATED trend is the opposite of a coiled bundle, and no artifact at the firm publishes the band that makes a bundle tight. A long-only stack-and-tighten scan would put the firm's name on a different setup. Publish a convergence threshold -- how close the averages must sit to each other -- and this becomes expressible.",
     "Go Signal": "Go Signal is a catalyst gap digesting into a short average and then one wide candle closing above the catalyst high. Both halves fail: there is no catalyst column, and the 9-period average the setup is defined against is not a window any firm artifact publishes.",
     "Wick Play": "Wick Play is a single-bar discretionary read on where the wick sits relative to the range. `upper_wick_pct` and `lower_wick_pct` ARE declared scalars -- but the screener publishes no preset on either, so every threshold this scan could use would be the catalogue author's. Publish a wick preset and Wick Play becomes expressible in one line.",
     "Slingshot": "Slingshot is defined against the 4-period exponential average OF THE HIGHS. `ema` takes a series, and the closed table declares `high` -- but 4 is not a window any firm artifact publishes, and a starter that picked one would be inventing the setup's own definition.",

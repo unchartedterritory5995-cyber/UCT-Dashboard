@@ -22,6 +22,37 @@
 // there is no `'scalar'` node type to test for here. What distinguishes a scalar
 // from a bar series is the VOCABULARY LOOKUP below, not the node tag.
 //
+// ⭐⭐ TWO ROW SHAPES, AND THE SECOND ONE IS WHY THE TWO DOORS NOW OFFER THE SAME
+// SET. Spec §1.1 is that the definition consumed by chart, alerts, screener and
+// builder is the SAME OBJECT — so two doors onto it that do not offer the same
+// conditions is exactly the asymmetry the spec names by competitor. E-4 shipped
+// `crossOver(close, open)` as a REFUSAL because a `<term> cmp <term>` row cannot
+// spell a call; a member could TYPE a crossing, save it, scan it, chart it and
+// alert on it, and the picker would say it had no shape for it.
+//
+// The fix is not a special case for crossings — it is the observation that BOTH
+// shapes are the same sentence, `<term> <something that yields a yes/no> <term>`,
+// and that the manifest already says which names those are:
+//
+//   * an OPERATOR of arity 2 that yields `bool` and is not a join — spelled
+//     INFIX, `(left cmp right)`;
+//   * a FUNCTION of two arguments that yields `bool` — spelled as a CALL,
+//     `name(left, right)`.
+//
+// ⛔ NEITHER IS LISTED. `crossings` falls out of `yields` and the declared
+// argument count exactly as `comparators` falls out of `yields` and `arity`, so
+// a third bool function lands in the picker the day the manifest declares it and
+// a renamed one follows without an edit here. `criteria.test.js`'s source rail is
+// what keeps that true: a hand-list that AGREES with today's manifest passes
+// every behavioural test there is (E-4's M10: 825 of 826 green) and only an AST
+// walk of this file sees it.
+//
+// ⏳ NOT TAKEN, AND SAID PLAINLY: negation (`!x`) and arithmetic terms
+// (`close + open > 1`) are also scannable-when-typed and still refuse here. They
+// do NOT fall out of this generalisation — a negation is a node that WRAPS a
+// condition and arithmetic makes a TERM a tree, so each needs a row shape of its
+// own rather than a second name in an existing one. They stay refused BY NAME.
+//
 // ⭐⭐ AND NOT ONE NAME THE MANIFEST DECLARES IS SPELLED IN THIS FILE.
 //
 // Plan-review #13 found the shape this file was drafted with: `vocabulary()`
@@ -129,6 +160,27 @@ function readsOnlyTruthiness(name) {
   return true
 }
 
+/** What the middle dropdown of a CROSSING row says, TAKEN FROM THE MANIFEST'S
+ *  OWN SENTENCE with the operand holes removed.
+ *
+ *  ⛔ NEVER TYPED. `"{0} crossing above {1}"` is already the firm's words for
+ *  this relation — in `closedTable.json`, beside the function it describes — and
+ *  a label written here would be a SECOND description of one relation, drifting
+ *  from the read-back the member sees underneath the very row they built. The
+ *  holes are what a row already renders as its two term editors, so removing
+ *  them is the whole transformation.
+ *
+ *  ⚠️ Falls back to the NAME rather than to a blank control: a manifest that
+ *  declares a function with no sentence still gets an offer a member can act on.
+ */
+function relationLabel(name, spec) {
+  const words = String(spec && spec.sentence ? spec.sentence : '')
+    .replace(/\{\d+\}/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return words || name
+}
+
 /** WeakMap so a repeated `vocabulary()` — `fromAst`'s default argument calls it
  *  on every invocation — costs one probe per table object, not one per call. */
 const VOCAB_CACHE = new WeakMap()
@@ -140,8 +192,9 @@ const VOCAB_CACHE = new WeakMap()
  *  this THROWS rather than falling back to a hand-list, because a hand-list here
  *  is the second grammar the closed table exists to prevent.
  *
- *  @returns {{series: Set, scalars: Set, functions: Map, comparators: Set,
- *             boolBinary: Set, arity: Map, joins: Map, joinOf: Map}}
+ *  @returns {{series: Set, scalars: Set, functions: Map, crossings: Map,
+ *             boolFunctions: Set, comparators: Set, boolBinary: Set,
+ *             arity: Map, joins: Map, joinOf: Map}}
  */
 export function vocabulary(table = TABLE) {
   const cached = VOCAB_CACHE.get(table)
@@ -188,12 +241,29 @@ export function vocabulary(table = TABLE) {
       + 'A group of rows has no meaning without both.')
   }
 
+  // ── the SECOND row shape, derived the same way ─────────────────────────────
+  //
+  // A function is a picker ROW when it answers yes-or-no about exactly two
+  // things: `yields` says the first, the declared argument list says the second.
+  // ⛔ NO NAME AND NO COUNT. `crossOver` is not spelled here, and a bool function
+  // of any OTHER arity is deliberately in NEITHER map — it is a condition the
+  // picker has no shape for, and `readCondition` says so by its own name rather
+  // than calling it a number.
+  const fns = Object.entries(table.functions || {})
+  const boolFunctions = new Set(fns.filter(([, s]) => s.yields === 'bool').map(([n]) => n))
   const value = Object.freeze({
     series: new Set(Object.keys(table.series || {})),
     scalars: new Set(Object.keys(table.scalars || {})),
-    functions: new Map(Object.entries(table.functions || {})
+    functions: new Map(fns
       .filter(([, spec]) => spec.yields !== 'bool')
       .map(([name, spec]) => [name, { args: Object.freeze([...(spec.args || [])]) }])),
+    crossings: new Map(fns
+      .filter(([, spec]) => spec.yields === 'bool' && (spec.args || []).length === 2)
+      .map(([name, spec]) => [name, {
+        args: Object.freeze([...(spec.args || [])]),
+        label: relationLabel(name, spec),
+      }])),
+    boolFunctions,
     comparators,
     boolBinary,
     arity,
@@ -247,6 +317,14 @@ export function toSource(node, vocab = vocabulary()) {
   if (node.kind === 'row') {
     if (!vocab.comparators.has(node.cmp)) throw new PickerRefusal('picker:comparator')
     return `(${termSource(node.left, vocab)} ${node.cmp} ${termSource(node.right, vocab)})`
+  }
+  if (node.kind === 'cross') {
+    // ⛔ THE SAME SENTENCE, SPELLED AS A CALL. A call is already a primary
+    // expression, so it needs no parentheses of its own — the group's `reduce`
+    // supplies every one the tree depends on, and adding a second pair here
+    // would be spelling the parser cannot distinguish but a reader can.
+    if (!vocab.crossings.has(node.fn)) throw new PickerRefusal('picker:comparator')
+    return `${node.fn}(${termSource(node.left, vocab)}, ${termSource(node.right, vocab)})`
   }
   if (node.kind === 'group') {
     const parts = (node.children || []).map((c) => toSource(c, vocab))
@@ -318,7 +396,27 @@ function readCondition(n, vocab) {
     if (vocab.boolBinary.has(n.name)) throw new PickerRefusal('picker:comparator')
     throw new PickerRefusal('picker:not-a-condition')
   }
-  if (n && (n.type === 'call' || n.type === 'series' || n.type === 'num')) {
+  if (n && n.type === 'call') {
+    // ⭐ THE SECOND ROW SHAPE. Same sentence as a comparator row — two terms and
+    // a relation between them — spelled as a call because that is how the
+    // grammar spells a function.
+    if (vocab.crossings.has(n.name) && (n.args || []).length === 2) {
+      return {
+        kind: 'cross',
+        left: readTerm(n.args[0], vocab),
+        fn: n.name,
+        right: readTerm(n.args[1], vocab),
+      }
+    }
+    // ⛔ AND THE SPLIT IS THE MANIFEST'S AGAIN, NOT A LIST OF NAMES. A function
+    // that yields a yes-or-no IS a condition — telling a member that
+    // `somethingBool(close)` "produces a number" would be false and
+    // unactionable. What is true is that the picker has no ROW for it, which is
+    // the same fact `picker:node` states about `!x` and `a ? b : c`.
+    if (vocab.boolFunctions.has(n.name)) throw new PickerRefusal('picker:node')
+    throw new PickerRefusal('picker:not-a-condition')
+  }
+  if (n && (n.type === 'series' || n.type === 'num')) {
     throw new PickerRefusal('picker:not-a-condition')
   }
   throw new PickerRefusal('picker:node')
@@ -361,9 +459,15 @@ export function fromSource(source, vocab = vocabulary()) {
  *  direction that looks fine. `and[ and[a,b], c ]` spells `((a && b) && c)`,
  *  which reads back as `and[a,b,c]` — a picker the user did not have. The UI
  *  therefore only ever produces canonical shapes, and this is the assertion. */
+/** The picker's LEAF kinds — the two row shapes, both of which are a relation
+ *  between two terms and neither of which has children to flatten. ⛔ A kind
+ *  this does not name is a shape nothing in this module can spell, and
+ *  `canonicalPicker` refuses it rather than passing it through. */
+const LEAF_KINDS = Object.freeze(['row', 'cross'])
+
 export function canonicalPicker(node) {
   if (!node || typeof node !== 'object') throw new PickerRefusal('picker:shape')
-  if (node.kind === 'row') return node
+  if (LEAF_KINDS.includes(node.kind)) return node
   if (node.kind !== 'group') throw new PickerRefusal('picker:shape')
   const children = []
   for (const raw of node.children || []) {

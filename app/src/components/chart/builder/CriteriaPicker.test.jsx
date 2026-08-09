@@ -104,9 +104,12 @@ describe('the picker EDITS, and every edit emits a source the parser accepts', (
     expect(VOCAB.scalars.size).toBeGreaterThan(50)
     expect(missing).toEqual([])
     expect([...VOCAB.series].filter((s) => !offered.includes(s))).toEqual([])
-    // and every TERM-valued function, with no bool-yielding one among them.
+    // and every TERM-valued function, with no bool-yielding one among them —
+    // ⛔ DERIVED, not spelled: a crossing is a ROW, not a term, and offering one
+    // in a term slot would build a condition `fromAst` refuses at `picker:term`.
     expect([...VOCAB.functions.keys()].filter((f) => !offered.includes(f))).toEqual([])
-    expect(offered).not.toContain('crossOver')
+    expect(VOCAB.crossings.size).toBeGreaterThan(0)
+    expect([...VOCAB.crossings.keys()].filter((f) => offered.includes(f))).toEqual([])
   })
 
   it('and picking a scalar spells a scalar condition', () => {
@@ -164,6 +167,91 @@ describe('the picker EDITS, and every edit emits a source the parser accepts', (
     const emitted = onSourceChange.mock.calls.at(-1)[0]
     expect(emitted).toBe('(close > open)')
     expect(screen.getAllByTestId('picker-group')).toHaveLength(1)
+  })
+})
+
+describe('⭐ THE CROSSING ROW is offered in the SAME control as a comparison', () => {
+  // 🔴 THE WIRE FOR THE SECOND SHAPE. `criteria.js` can spell a crossing and
+  // read one back with this dropdown offering comparators only — every case in
+  // `criteria.test.js` stays green while a member can never reach one. This is
+  // the file that fails when the relation control is cut back.
+
+  const relationOptions = () => [...screen.getByLabelText('Condition 0 comparison').options]
+
+  it('the relation dropdown offers EXACTLY the comparators and the crossings', () => {
+    // ⛔ DERIVED FROM THE VOCABULARY, so a manifest that declares another
+    // two-operand boolean function must reach this control with no edit here —
+    // and a control cut back to comparators fails BY NAME.
+    mount({ ast: astOf('close > open') })
+    expect(VOCAB.crossings.size).toBeGreaterThan(0)
+    const offered = relationOptions().map((o) => o.value)
+    expect(offered.sort()).toEqual(
+      [...VOCAB.comparators, ...VOCAB.crossings.keys()].sort())
+  })
+
+  it('and each crossing is LABELLED with the manifest\'s own words, not its name', () => {
+    mount({ ast: astOf('close > open') })
+    const byValue = new Map(relationOptions().map((o) => [o.value, o.textContent]))
+    for (const [name, spec] of VOCAB.crossings) {
+      // ⛔ THE VALUE THE SOURCE OWNS, USED — never retyped here.
+      expect(byValue.get(name), name).toBe(spec.label)
+      expect(byValue.get(name), name).not.toBe(name)
+    }
+  })
+
+  it('picking a crossing re-shapes the row and emits a CALL, keeping both terms', () => {
+    const fn = [...VOCAB.crossings.keys()][0]
+    const { onSourceChange } = mount({ ast: astOf('close > open') })
+    fireEvent.change(screen.getByLabelText('Condition 0 comparison'), { target: { value: fn } })
+    const emitted = onSourceChange.mock.calls.at(-1)[0]
+    expect(parseFormula(emitted).ok, emitted).toBe(true)
+    // ⛔ THE STRING `toSource` WOULD SPELL, taken from the shipped function.
+    expect(emitted).toBe(toSource({
+      kind: 'group',
+      join: 'and',
+      children: [{
+        kind: 'cross',
+        left: { t: 'name', name: 'close' },
+        fn,
+        right: { t: 'name', name: 'open' },
+      }],
+    }, VOCAB))
+    expect(screen.getByTestId('picker-row')).toHaveAttribute('data-kind', 'cross')
+  })
+
+  it('a TYPED crossing renders as an ordinary row with its relation selected', () => {
+    const fn = [...VOCAB.crossings.keys()][0]
+    const { onSourceChange } = mount({ ast: astOf(`${fn}(close, sma(open, 50))`) })
+    expect(screen.getAllByTestId('picker-row')).toHaveLength(1)
+    expect(screen.getByLabelText('Condition 0 comparison')).toHaveValue(fn)
+    expect(screen.getByLabelText('Condition 0 right side')).toHaveValue('sma')
+    // …and merely SHOWING it wrote nothing back.
+    expect(onSourceChange).not.toHaveBeenCalled()
+  })
+
+  it('and switching a crossing BACK to a comparison keeps the terms too', () => {
+    const fn = [...VOCAB.crossings.keys()][0]
+    const cmp = [...VOCAB.comparators][0]
+    const { onSourceChange } = mount({ ast: astOf(`${fn}(close, open)`) })
+    fireEvent.change(screen.getByLabelText('Condition 0 comparison'), { target: { value: cmp } })
+    const emitted = onSourceChange.mock.calls.at(-1)[0]
+    expect(emitted).toBe(toSource({
+      kind: 'group',
+      join: 'and',
+      children: [{ kind: 'row', left: { t: 'name', name: 'close' }, cmp, right: { t: 'name', name: 'open' } }],
+    }, VOCAB))
+    expect(screen.getByTestId('picker-row')).toHaveAttribute('data-kind', 'row')
+  })
+
+  it('a crossing sits in a GROUP beside comparisons, and the whole group round-trips', () => {
+    const fn = [...VOCAB.crossings.keys()][0]
+    const src = `${fn}(close, open) && (high > low)`
+    const { onSourceChange } = mount({ ast: astOf(src) })
+    expect(screen.getAllByTestId('picker-row')).toHaveLength(2)
+    fireEvent.change(screen.getByLabelText('Condition 0 left side'), { target: { value: 'low' } })
+    const emitted = onSourceChange.mock.calls.at(-1)[0]
+    expect(astHash(parseFormula(emitted).ast))
+      .toBe(astHash(astOf(`${fn}(low, open) && (high > low)`)))
   })
 })
 

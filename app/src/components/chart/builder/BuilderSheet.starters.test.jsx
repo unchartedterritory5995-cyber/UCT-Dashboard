@@ -145,13 +145,44 @@ afterEach(() => {
 })
 
 describe('🔴 the starter library is REACHABLE from the sheet', () => {
-  it('the sheet offers a Library tab, and the library is not mounted until it is asked for', async () => {
+  it('🔴 A NEW FORMULA OPENS ON THE LIBRARY, with the firm\'s scans already on screen', async () => {
+    // ⭐ THE PRODUCT CALL, AND THE RAIL THAT REDS WHEN IT IS UNDONE. (E-8 left
+    // this as an owner call; the owner delegated it and the default moved.)
+    // The argument is that `FormulaField` is rendered and autofocused in EVERY
+    // mode — the tab only decides what sits ABOVE the box — so Formula as the
+    // default renders nothing above a focused box and Library renders the
+    // firm's own worked scans above the same focused box. Nobody loses the
+    // ability to type; a member who does not know the syntax gains examples of
+    // it and a one-click way to put one in the box and change it.
     mount()
     await settle()
-    expect(tab(/library/i)).toHaveAttribute('aria-selected', 'false')
-    expect(screen.queryByTestId('starter-library')).toBeNull()
-    openLibrary()
+    expect(tab(/library/i)).toHaveAttribute('aria-selected', 'true')
     expect(screen.getByTestId('starter-library')).toBeTruthy()
+    // ⛔ AND THE CARDS ARE REALLY THERE. A Library tab that opened onto an empty
+    // gallery would be a worse first screen than the box it replaced, so the
+    // count is taken from the SHIPPED catalogue rather than typed.
+    expect(Object.keys(STARTERS).length).toBeGreaterThan(0)
+    expect(screen.getAllByTestId('starter-card')).toHaveLength(Object.keys(STARTERS).length)
+    // ⛔ AND THE TYPED BOX IS STILL LIVE, which is what makes the default free:
+    // the member can ignore the gallery entirely and type. ⚠️ The assertion is
+    // that typing WORKS from this tab, not that the box holds focus — focus is
+    // `Sheet`'s rAF and jsdom's, and a test of it would measure the harness.
+    expect(field()).toHaveValue('')
+    await typeFormula('close > open')
+    expect(field()).toHaveValue('close > open')
+    expect(screen.getByTestId('readback')).toHaveTextContent(
+      evaluateFormula('close > open', BUILDER_INPUT_SCOPE).readback)
+    expect(tab(/library/i)).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('and the picker is still NOT mounted until it is asked for', async () => {
+    mount()
+    await settle()
+    expect(tab(/conditions/i)).toHaveAttribute('aria-selected', 'false')
+    expect(screen.queryByTestId('criteria-picker')).toBeNull()
+    fireEvent.click(tab(/conditions/i))
+    expect(screen.getByTestId('criteria-picker')).toBeTruthy()
+    expect(screen.queryByTestId('starter-library')).toBeNull()
   })
 
   it('picking a starter fills the SHARED source, and the picker can show it', async () => {
@@ -251,7 +282,7 @@ describe('🔴 a starter is an ORDINARY definition', () => {
 })
 
 describe('the sheet still behaves as it did', () => {
-  it('the three doors are TABS, Formula is still the default, and each names itself', async () => {
+  it('the three doors are TABS, exactly one is open, and each names itself', async () => {
     mount()
     await settle()
     const tabs = screen.getAllByRole('tab')
@@ -259,9 +290,11 @@ describe('the sheet still behaves as it did', () => {
     // many doors the sheet has, and it goes red on a change that broke nothing.
     expect(tabs.map((t) => t.textContent)).toEqual(
       expect.arrayContaining(['Library', 'Conditions', 'Formula']))
-    expect(tab(/formula/i)).toHaveAttribute('aria-selected', 'true')
-    expect(screen.queryByTestId('starter-library')).toBeNull()
-    expect(screen.queryByTestId('criteria-picker')).toBeNull()
+    // ⛔ AND EXACTLY ONE IS SELECTED, whichever one that is. WHICH door opens is
+    // a product decision with its own case above; that a tablist never shows two
+    // selected tabs (or none) is the invariant that belongs here and survives
+    // the decision moving.
+    expect(tabs.filter((t) => t.getAttribute('aria-selected') === 'true')).toHaveLength(1)
   })
 
   it('the focus ring still wraps with the library open', async () => {
