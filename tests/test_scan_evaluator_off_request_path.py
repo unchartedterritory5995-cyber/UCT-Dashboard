@@ -27,6 +27,40 @@ closure per handler re-parses the whole `api/` tree for every one of ~300
 endpoints. Instead the call graph is built once, the functions that TOUCH the
 subject are marked, and the mark is propagated along reversed edges to a fixpoint
 — so "can this handler reach it" is a set membership. Same answer, one pass.
+
+───────────────────────────────────────────────────────────────────────────────
+🔴 THE SUBJECT IS THE SWEEP, NOT THE FILE IT LIVES IN. (narrowed 2026-08-09)
+
+This rail first read "does the name `api.services.screener.scan_evaluator` appear
+anywhere in this handler's closure", and on that reading it went red on
+`/api/user-definitions/propose` → `definition_concierge._cadence_ceiling` →
+`scan_evaluator.cadence_ceiling`. **That was the rail over-matching, not the
+handler misbehaving.** `cadence_ceiling(tree)` is `ast_freshness.freshness_for`
+plus a `"/".join` — a walk of the caller's OWN tree against a module-level
+manifest dict. No DB, no bars, no universe, nothing that scales with symbol
+count: **1.9 µs/call, measured 2026-08-09 (1,000 calls in 1.89 ms)** against the
+sweep's 2-8 s. Guarding it guarded the module, not the behaviour, and this file
+already knew the difference — `test_the_ONLY_production_caller_of_the_sweep_is_
+the_SCHEDULER` has always defined "the sweep" as `_ENTRY_POINTS`, and it stayed
+green through the same call. Two definitions of one subject in one file is this
+repo's most repeated defect; there is now one.
+
+**The rule, and it is DEFAULT-DENY:**
+
+  1. Binding the MODULE OBJECT (`from ...screener import scan_evaluator`, or
+     `import ... as se`) trips — unconditionally, even unused. Once the module is
+     in the namespace the whole sweep is one attribute away and a `getattr` is
+     invisible to an AST census, so the census could not honestly say what was
+     reached.
+  2. A reference that NAMES one function trips unless that name is in
+     `_OFF_SWEEP_READS` — the subject's public functions that provably do no
+     universe-scale work. Everything else, including every private helper, trips.
+
+⛔ `_OFF_SWEEP_READS` IS NOT AN ALLOW-LIST YOU MAY GROW QUIETLY. It is one half of
+a partition, and `test_the_subject_has_no_UNCLASSIFIED_public_function` derives
+the other half from the subject's own AST: a new public function on
+`scan_evaluator` fails BY NAME until somebody rules on it. A list a guard reads
+must come from the artifact, never from a hand-kept copy of it.
 """
 from __future__ import annotations
 
@@ -42,6 +76,18 @@ _API = _ROOT / "api"
 #: The module whose entry points must be unreachable, and the entry points.
 _SUBJECT = "api.services.screener.scan_evaluator"
 _ENTRY_POINTS = ("evaluate_one", "run_sweep", "sweep_job", "definitions_to_sweep")
+
+#: The subject's OTHER public functions — the ones a request may name, because
+#: none of them touches the universe, the bars store or the screener snapshot.
+#: Each is O(1) or O(tree); none is O(symbols). ⛔ THE PARTITION IS RAILED: see
+#: `test_the_subject_has_no_UNCLASSIFIED_public_function`.
+#:
+#:   cadence_ceiling  — `ast_freshness.freshness_for` over the caller's own tree
+#:                      against the module-level manifest. 1.9 µs/call.
+#:   expected_session — the bars store's OWN calendar function (weekend/pre-open/
+#:                      holiday walk-back over a `datetime`). No store read.
+#:   enabled          — `os.environ.get("SCAN_SWEEP_ENABLED")`.
+_OFF_SWEEP_READS = ("cadence_ceiling", "expected_session", "enabled")
 
 
 # ═══ the module index, DERIVED from the filesystem ══════════════════════════
@@ -200,7 +246,23 @@ def _refs_and_callees(module: str, func: str, overlay: dict) -> tuple:
 
 
 def _touches_subject(refs) -> bool:
-    return any(r == _SUBJECT or r.startswith(_SUBJECT + ".") for r in refs)
+    """Does this reference set reach THE SWEEP? See the module docstring.
+
+    ⛔ DEFAULT-DENY ON THE ATTRIBUTE, UNCONDITIONAL ON THE MODULE. The module
+    clause is the blunt one on purpose: a bound module object puts the whole
+    sweep one `getattr` away, and a dynamic attribute is exactly what an AST
+    census cannot see. A NAMED function is a closed binding — you get that one
+    thing — so the census can honestly rule on it, and it denies everything the
+    subject has not proven free of universe-scale work.
+    """
+    for ref in refs:
+        if ref == _SUBJECT:
+            return True
+        if ref.startswith(_SUBJECT + "."):
+            attr = ref[len(_SUBJECT) + 1:].split(".")[0]
+            if attr not in _OFF_SWEEP_READS:
+                return True
+    return False
 
 
 _REACHERS: set = set()
@@ -314,6 +376,25 @@ def test_no_route_handler_can_reach_the_evaluator__DERIVED_FROM_router_routes():
      "    return scan_evaluator.run_sweep([])\n"
      "def handler():\n"
      "    return _helper()\n", True),
+    # ⛔ A MODULE BOUND UNDER AN ALIAS is still the whole sweep one getattr away
+    ("import api.services.screener.scan_evaluator as se\n"
+     "def handler():\n"
+     "    return se.run_sweep([])\n", True),
+    # ⛔ A PRIVATE HELPER IS NOT AN OFF-SWEEP READ — default-deny, by name
+    ("def handler():\n"
+     "    from api.services.screener.scan_evaluator import _read_bars\n"
+     "    return _read_bars('AAPL', 'D', 400)\n", True),
+    # ⭐ THE NARROWING, AND IT IS EXACT. A named pure manifest read is allowed BY
+    # THE RULE — this is `/api/user-definitions/propose`'s actual chain.
+    ("def handler():\n"
+     "    from api.services.screener.scan_evaluator import cadence_ceiling\n"
+     "    return cadence_ceiling({})\n", False),
+    # ⛔ BUT THE MODULE CLAUSE STILL BITES ON THE SAME PURE CALL. Reaching
+    # `cadence_ceiling` THROUGH the module object binds the module, so the
+    # narrowing cannot be used as a doorway.
+    ("from api.services.screener import scan_evaluator\n"
+     "def handler():\n"
+     "    return scan_evaluator.cadence_ceiling({})\n", True),
     # prose and a namesake must NOT trip it
     ("# scan_evaluator.evaluate_one is the door\n"
      "SCAN = 'scan_evaluator.evaluate_one'\n"
@@ -355,6 +436,40 @@ def test_the_census_walks_the_SAME_route_table_the_server_dispatches_on():
     assert not unreadable, (
         f"{len(unreadable)} handlers are absent from the AST graph, so the gate "
         f"says nothing about them, e.g. {unreadable[:5]}")
+
+
+def test_the_subject_has_no_UNCLASSIFIED_public_function():
+    """🔴 THE PARTITION IS DERIVED FROM THE SUBJECT, NOT HAND-KEPT BESIDE IT.
+
+    `_touches_subject` is default-deny on named attributes, so `_OFF_SWEEP_READS`
+    decides what a request may reach. A list like that rots in ONE direction that
+    matters: a new public function on `scan_evaluator` that nobody classifies
+    would be denied (safe), but a function MOVED out of `_ENTRY_POINTS` and never
+    re-ruled would go quiet. So both halves are checked against the module's own
+    AST — `lesson_probe_names_must_be_derived_not_typed`, and the same shape as
+    the writer-index rail: **fail BY NAME, never on a count.**
+    """
+    tree = _parse(_SUBJECT, {})
+    assert tree is not None, f"{_SUBJECT} did not parse — the rail is vacuous"
+    public = {n.name for n in tree.body
+              if isinstance(n, (pyast.FunctionDef, pyast.AsyncFunctionDef))
+              and not n.name.startswith("_")}
+    assert public, "the subject declares no public function — the rail is vacuous"
+
+    overlap = set(_ENTRY_POINTS) & set(_OFF_SWEEP_READS)
+    assert not overlap, (
+        f"{sorted(overlap)} is declared BOTH the sweep and an off-sweep read. "
+        "One name cannot be two rulings.")
+
+    classified = set(_ENTRY_POINTS) | set(_OFF_SWEEP_READS)
+    assert public == classified, (
+        "the subject's public surface and this rail's ruling on it disagree.\n"
+        f"  unclassified (a request's reach to these is UNRULED): "
+        f"{sorted(public - classified)}\n"
+        f"  ruled on but GONE from the module: {sorted(classified - public)}\n"
+        "Every public function of the sweep's module is either THE SWEEP "
+        "(`_ENTRY_POINTS`) or proven free of universe-scale work "
+        "(`_OFF_SWEEP_READS`). A new one is neither until someone says so.")
 
 
 def test_the_evaluator_module_is_not_imported_by_any_ROUTER_at_all():
