@@ -836,14 +836,17 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         }
       })
     }
-    const lists = activeTab === 'mine' ? myLists : communityLists
+    // communityResolvable (not communityLists) so a picked PREBUILT list's symbols are
+    // collected for the live-price/meta fetch — /api/watchlists/public excludes prebuilt,
+    // so without this the prebuilt list's rows show "—" for every data column.
+    const lists = activeTab === 'mine' ? myLists : communityResolvable
     if (lists) {
       lists
         .filter(wl => expandedLists.has(wl.id))
         .forEach(wl => (wl.items || []).forEach(i => { if (i.sym) tickers.push(i.sym) }))
     }
     return tickers
-  }, [activeTab, flagged, tags, myLists, communityLists, expandedLists, scanMode, scanWl, scanVisibleSyms])
+  }, [activeTab, flagged, tags, myLists, communityResolvable, expandedLists, scanMode, scanWl, scanVisibleSyms])
 
   const { prices: feedPrices } = useRealtimePrices(allTickers)
   // Mirror the chart: when a StockChart of the same ticker is open, its published
@@ -977,15 +980,16 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         }
       })
     }
-    // User / community watchlists (whichever tab is active)
-    const lists = activeTab === 'mine' ? myLists : communityLists
+    // User / community watchlists (whichever tab is active). communityResolvable includes
+    // prebuilt lists so arrow-key nav works on a picked prebuilt list too.
+    const lists = activeTab === 'mine' ? myLists : communityResolvable
     if (lists) {
       lists.filter(wl => expandedLists.has(wl.id)).forEach(wl => {
         (wl.items || []).forEach(i => push(i.sym))
       })
     }
     return out
-  }, [activeTab, expandedLists, flagged, tags, TAG_COLORS, myLists, communityLists])
+  }, [activeTab, expandedLists, flagged, tags, TAG_COLORS, myLists, communityResolvable])
 
   // Keyboard nav: arrow up/down moves through every expanded list.
   const handleKeyDown = useCallback((e) => {
