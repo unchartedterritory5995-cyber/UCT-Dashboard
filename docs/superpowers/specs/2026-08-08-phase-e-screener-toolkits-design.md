@@ -309,7 +309,7 @@ TradingView's Pine Screener lets an indicator you wrote be used as a screener fi
 | `rsi(close,14) < 30` | ❌ today, and **not granted by E-A7** | a **function** — per-bar, user-chosen period |
 | `sma(close,50) > sma(close,200)` | ✅ **today** | already legal; this is the correct headline example |
 
-**Corrected acceptance test:** `rs_rank > 80 and adr_pct > 4 and close > sma(close,50)` — every term legal after E1, no term requiring a new function.
+**Corrected acceptance test:** `rs_rank > 80 && adr_pct > 4 && close > sma(close, 50)` — every term legal after E1, no term requiring a new function.
 
 ## 🔴 E-A9 — OPEN, AND BIGGER THAN SCALARS: does the table also gain FUNCTIONS?
 A user **cannot compose an RSI** from the eleven primitives — Wilder smoothing is a recursion that `sma`/`ema`/`change` cannot express. So today a member can *use* the shipped `rsi` indicator but cannot *write* one, and cannot write one with their own period inside a scan.
@@ -330,3 +330,17 @@ For a product whose claim is *"build your own, better than theirs"*, that is a r
 But E4 must refuse a picker row that is not a condition, and E5 must refuse a scan that returns a number rather than 0/1. Without a manifest field, **both would hand-list the same nine comparison/logical operators, in two languages** — precisely the two-vocabularies defect this repo has already paid for (`williams_r` vs `williamsR`).
 
 ⇒ **E1 adds `yields` to the operators section**, single-writer, both lanes, derived by every consumer. The drafting agent **refused to hand-list and reported instead**, which is the correct call and is why this is being fixed in the right file.
+
+---
+
+# CORRECTION 5 — the acceptance test did not parse, and CORRECTION 1 repeated the very mistake it was fixing
+
+**Measured 2026-08-09:** `closedTable.operators` declares `+ - * / > < >= <= == != && || u- ! ?:`. **There is no `and` and no `or`.** So the "corrected" acceptance test — `rs_rank > 80 and adr_pct > 4 and close > sma(close,50)` — **refuses**: jsep reads it as several expressions, and the parser answers *"a formula is one expression, and this is several."*
+
+**Corrected, third time:** `rs_rank > 80 && adr_pct > 4 && close > sma(close, 50)`
+
+🔴 **This is worth recording as a pattern, not just a typo.** CORRECTION 1 existed *because* the headline example used a function the table does not declare. Its replacement then used an **operator** the table does not declare. The same class of error, inside the fix for that class of error, written by the same author (the controller) who had just measured the function list and did **not** re-measure the operator list.
+
+**The rule that would have caught it, and now applies to every example in these documents:** ⛔ **an example formula is a CLAIM about the table and must be PARSED, not read.** A worked example in a spec is the most-copied artifact in it; three separate agents were poised to build against this one. Any future example must ship with the parse result that proves it legal, or be marked as an illustration that is not expected to compile.
+
+⚠️ Related: the plain-English surface may well accept `and`/`or` as a **rendering** — that is E-4/E-5's read-back concern and is fine. But **the persisted tree and every spec example speak the table's operators**, and conflating the two spellings is the two-vocabularies defect this repo has now paid for four times.

@@ -13,7 +13,7 @@
 
 ## The acceptance test
 
-> A member opens a chart, enters `rs_rank > 80 and adr_pct > 4 and close > sma(close,50)` — by typing, by clicking, or in English — sees it read back in words, runs it across the universe, is told **41 symbols were dropped and which ones**, saves it, charts it, and arms an alert on it. Same definition object at every step. One `def_hash`.
+> A member opens a chart, enters `rs_rank > 80 && adr_pct > 4 && close > sma(close, 50)` — by typing, by clicking, or in English — sees it read back in words, runs it across the universe, is told **41 symbols were dropped and which ones**, saves it, charts it, and arms an alert on it. Same definition object at every step. One `def_hash`.
 
 ⚠️ **CORRECTED 2026-08-09.** This example previously read `rsi(close,14) < 40`. **That is not a legal tree** — the closed table's 11 functions are `abs, change, crossOver, crossUnder, ema, highest, lowest, max, min, sma, stdev`, and `rsi` is not among them, so it refuses at `resolve:function`. `rsi14` (the screener's nightly **scalar**) is legal after E1; `rsi(close,14)` (a per-bar **function** with a user-chosen period) is **not granted by E-A7**. See the spec's CORRECTION 1 and the open **E-A9**.
 
