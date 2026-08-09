@@ -28,7 +28,18 @@ export function buildWeekDates(weekStart) {
 
 export function mergeEnrichment(entry, enrichment) {
   const e = enrichment?.[entry.sym]
-  if (!e) return entry
+  // NO enrichment entry is NOT "this company has no history". The calendar
+  // feed routinely carries symbols the overlay never covered — every ticker in
+  // a far-future week — and returning the row UNMARKED leaves
+  // `history_unresolved` undefined, which the modal's Earnings History section
+  // reads as the CLAIM "No reported quarters yet". Live 2026-08-08: DOCN,
+  // scheduled in the Nov-2 week with a countdown and a setup grade, is absent
+  // from that week's enrichment payload and was told it had never reported.
+  //
+  // Safe against the loading race: Calendar.jsx passes
+  // `enrichReady={!!enrichmentByDate}`, so before the payload lands the
+  // section shows "Loading" and never reaches this flag.
+  if (!e) return { ...entry, history_unresolved: true }
   // C6: also carry hist_stats for post-earnings reaction display
   return {
     ...entry,
