@@ -643,6 +643,16 @@ def get_daily_agg(symbol: str, from_date: str, to_date: str, *,
         return []
 
 
+_GROUPED_DIR = os.path.join(os.environ.get("DATA_DIR", "/data"), "grouped_closes")
+
+
+def _grouped_settled_cutoff() -> str:
+    """ISO date for 'strictly before yesterday (UTC)'. A day older than this is settled —
+    its whole-market closes never change again, so it's safe to cache DURABLY (on disk)."""
+    import datetime as _dt
+    return (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(days=1)).date().isoformat()
+
+
 def get_grouped_daily_closes(day_iso: str, adjusted: bool = True) -> dict:
     """{TICKER: close} for ONE date — the whole US equities market in a single call.
 
@@ -651,14 +661,28 @@ def get_grouped_daily_closes(day_iso: str, adjusted: bool = True) -> dict:
     for a non-trading day (the endpoint answers with zero results) or on error. Powers the
     Top-Gainers scans' whole-market N-day reference AND the Custom-Period Sort.
 
-    CACHED per (date, adjusted): a PAST date's whole-market closes are IMMUTABLE, so this
-    ~8,000-ticker fetch runs at most once per date (Custom-Period Sort was re-fetching two
-    of them on every range). A recent date (could still be forming) caches only briefly."""
-    import datetime as _dt
+    CACHED per (date, adjusted) at TWO tiers: an in-memory tier, and — for a SETTLED past
+    date whose ~8,000 closes are IMMUTABLE — a DURABLE /data file so the fetch runs at most
+    once EVER, not once per Railway redeploy (the in-memory cache is wiped on every deploy;
+    a re-warmed pod would otherwise re-pay this ~8k-ticker fetch on the next Custom-Period
+    Sort). Mirrors the durable pattern used by scan_period._reuse_map. A recent date (could
+    still be forming) uses the short in-memory tier only."""
+    import json as _json
     ck = f"grouped_close_{day_iso}_{1 if adjusted else 0}"
     cached = cache.get(ck)
     if cached is not None:
         return cached
+    _settled = day_iso < _grouped_settled_cutoff()
+    _fpath = os.path.join(_GROUPED_DIR, f"{day_iso}_{1 if adjusted else 0}.json")
+    if _settled:  # durable tier: a settled date's file never goes stale (immutable data)
+        try:
+            with open(_fpath) as fh:
+                m = _json.load(fh)
+            if m:
+                cache.set(ck, m, ttl=604800)
+                return m
+        except Exception:
+            pass
     try:
         client = _get_client()
         adj = "true" if adjusted else "false"
@@ -675,10 +699,16 @@ def get_grouped_daily_closes(day_iso: str, adjusted: bool = True) -> dict:
         if tk and isinstance(c, (int, float)) and c > 0:
             out[str(tk).upper()] = float(c)
     if out:  # never cache an empty/error (would pin a non-trading-day miss)
-        # Strictly before yesterday (UTC) = a settled past day → cache long; today/yesterday
-        # may still be forming → short.
-        _cutoff = (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(days=1)).date().isoformat()
-        cache.set(ck, out, ttl=(604800 if day_iso < _cutoff else 900))
+        cache.set(ck, out, ttl=(604800 if _settled else 900))
+        if _settled:  # persist immutable settled days so a redeploy doesn't re-fetch them
+            try:
+                os.makedirs(_GROUPED_DIR, exist_ok=True)
+                tmp = _fpath + ".tmp"
+                with open(tmp, "w") as fh:
+                    _json.dump(out, fh)
+                os.replace(tmp, _fpath)
+            except Exception:
+                pass
     return out
 
 
