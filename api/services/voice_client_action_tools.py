@@ -18,8 +18,14 @@ PAGE_ALIASES: dict[str, str] = {
     "morning wire": "/morning-wire", "morning-wire": "/morning-wire",
     "morning": "/morning-wire", "wire": "/morning-wire", "rundown": "/morning-wire",
 
-    "uct20": "/uct20", "uct 20": "/uct20", "leadership": "/uct20",
-    "uct twenty": "/uct20", "top picks": "/uct20",
+    # 🔴 `/uct-20`, NOT `/uct20`. Every alias here pointed at `/uct20`, which
+    # `App.jsx` has never routed — so "open UCT 20" walked members into
+    # NotFound exactly like "traders" did, and for the same reason: a hand-typed
+    # path beside a route table that owns the value. Rail:
+    # `tests/test_navigation_targets_resolve.py` resolves every value in this
+    # dict against App.jsx's real route table.
+    "uct20": "/uct-20", "uct 20": "/uct-20", "leadership": "/uct-20",
+    "uct twenty": "/uct-20", "top picks": "/uct-20",
 
     "breadth": "/breadth", "market breadth": "/breadth",
     "breadth monitor": "/breadth",

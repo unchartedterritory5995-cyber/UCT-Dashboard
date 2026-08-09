@@ -6,7 +6,7 @@ import { SWRConfig } from 'swr'
 // retry that hard-reloads the page instead of hanging on a missing chunk.
 import lazy from './utils/lazyWithRetry'
 import { COMING_SOON } from './utils/comingSoon'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { VoiceProvider } from './context/VoiceContext'
 import AuthGuard from './components/AuthGuard'
@@ -40,8 +40,11 @@ const Screener = lazy(() => import('./pages/Screener'))
 const SharedScreen = lazy(() => import('./pages/screener/SharedScreen'))
 const AiSearchPage = lazy(() => import('./pages/AiSearchPage'))
 const OptionsFlow = lazy(() => import('./pages/OptionsFlow'))
+const FlowScoreboard = lazy(() => import('./pages/FlowScoreboard'))
 const LiveFlow = lazy(() => import('./pages/LiveFlow'))
 const LiveFlowMassive = lazy(() => import('./pages/LiveFlowMassive'))
+const Traders = lazy(() => import('./pages/Traders'))
+const AlertTester = lazy(() => import('./pages/AlertTester'))
 const DarkPool = lazy(() => import('./pages/DarkPool'))
 const PostMarket = lazy(() => import('./pages/PostMarket'))
 const ModelBook = lazy(() => import('./pages/ModelBook'))
@@ -178,6 +181,32 @@ function JournalShellSelector() {
   return <JournalLayout />                  // new nested-route shell (renders <Outlet/>)
 }
 
+/** 🔴 THE OLD FLOW-SCOREBOARD DEEP LINK, HONOURED FROM OUTSIDE THE PARTNER FILE.
+ *
+ *  `93980419` folded the Flow Scoreboard into `OptionsFlow.jsx` as a `dataMode`
+ *  view and pointed both shipped doors — the Dashboard `FlowScoreboardTile` and
+ *  the `/flow-scoreboard` route — at `?view=scoreboard`. `ed608046`, a bare
+ *  "Update OptionsFlow.jsx" web-UI commit the SAME DAY, removed every trace of
+ *  it: `OptionsFlow.jsx` contains the string "scoreboard" zero times today, so
+ *  both doors have been opening onto the default Stocks tab ever since.
+ *
+ *  ⛔ `OptionsFlow.jsx` is PARTNER-OWNED (~7k lines, all inline styles), and the
+ *  in-page view mode lives entirely inside it — the `dataMode` initialiser, two
+ *  mode-switcher arrays and four render guards. Re-adding it there is a partner
+ *  conflict, so reachability is restored HERE instead: `/flow-scoreboard` is a
+ *  real route again (its pre-`93980419` shape) and this wrapper forwards the
+ *  month of live `?view=scoreboard` links onto it. Zero partner edits; every
+ *  door that exists today opens on the page it names.
+ *  Rail: `app/src/routes/lostDoors.route.test.jsx`.
+ */
+function OptionsFlowRoute() {
+  const { search } = useLocation()
+  if (new URLSearchParams(search).get('view') === 'scoreboard') {
+    return <Navigate to="/flow-scoreboard" replace />
+  }
+  return <OptionsFlow />
+}
+
 export default function App() {
   return (
     <BrowserRouter>
@@ -282,6 +311,22 @@ export default function App() {
 
             {/* Protected routes — require authentication */}
             <Route element={<AuthGuard />}>
+              {/* 🔴 RESTORED 2026-08-09 at the URL the live pipeline documents.
+                  `27f6a4e0` added this route; `25a711b7` — an unexplained bare
+                  "Update App.jsx" web-UI commit — removed it, in the same diff
+                  that dropped `GlobalVideoLayer` (since restored). It was not a
+                  retirement: `api/liveflow_worker.py:576` still prints this exact
+                  URL as the tuning procedure for the live alert gates, and every
+                  endpoint the page calls is mounted and admin-guarded today —
+                  `/api/admin/alert-tester/{configs,simulate}` plus three
+                  `/api/admin/live/*` CSV routes. Restoring the door is what makes
+                  the procedure true; correcting the doc would instead leave a live
+                  5-endpoint admin backend with no operator surface.
+                  Full-page (outside <Layout/>) exactly as it shipped — this is a
+                  dense simulator, not a dashboard section. AuthGuard gates it to
+                  admins alongside /admin/*, so a paid non-admin can no longer load
+                  a console whose every request 403s. */}
+              <Route path="/alert-tester" element={<AlertTester />} />
               <Route element={<Layout />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/morning-wire" element={<MorningWire />} />
@@ -296,14 +341,26 @@ export default function App() {
                 <Route path="/calendar/mystocks" element={<MyStocksHub />} />
                 <Route path="/screener" element={<Screener />} />
                 <Route path="/ai-search" element={<AiSearchPage />} />
-                <Route path="/options-flow" element={<OptionsFlow />} />
+                {/* ?view=scoreboard forwards to /flow-scoreboard — see
+                    OptionsFlowRoute above for why it cannot live in the page. */}
+                <Route path="/options-flow" element={<OptionsFlowRoute />} />
                 {/* Live Flow pages render inside the app shell (left nav) so users
                     can navigate back out — same as every other section. */}
                 <Route path="/live-flow" element={<LiveFlow />} />
                 <Route path="/live-massive" element={<LiveFlowMassive />} />
-                {/* Flow Scoreboard is now a section INSIDE Options Flow (not its own
-                    nav section). Redirect old links/bookmarks to that section. */}
-                <Route path="/flow-scoreboard" element={<Navigate to="/options-flow?view=scoreboard" replace />} />
+                {/* 🔴 RESTORED 2026-08-09. This route redirected to
+                    /options-flow?view=scoreboard, which `ed608046` had already
+                    stopped answering — so the Dashboard tile AND this route both
+                    landed a member on the default Stocks tab. Rail:
+                    `app/src/routes/lostDoors.route.test.jsx`. */}
+                <Route path="/flow-scoreboard" element={<FlowScoreboard />} />
+                {/* 🔴 RESTORED 2026-08-09 — this page had NO route at all while
+                    `GET /api/traders` stayed mounted and live and the voice
+                    navigator's PAGE_ALIASES sent "traders" straight here, i.e.
+                    the assistant walked members into NotFound. The standing rail
+                    is `tests/test_navigation_targets_resolve.py`, which resolves
+                    every voice navigation target against this route table. */}
+                <Route path="/traders" element={<Traders />} />
                 <Route path="/dark-pool" element={<DarkPool />} />
                 <Route path="/post-market" element={<PostMarket />} />
                 <Route path="/model-book" element={<ModelBook />} />

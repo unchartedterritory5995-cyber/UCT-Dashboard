@@ -89,8 +89,13 @@ export default function AuthGuard() {
   // Where to bounce a non-paid user who hits a locked page. MUST be a free page.
   const FREE_HOME = '/morning-wire'
 
-  // Admin-only pages
-  if (location.pathname.startsWith('/admin') && user.role !== 'admin') {
+  // Admin-only pages. `/alert-tester` is admin tooling that does not live under
+  // the /admin prefix (it is a full-page simulator, outside <Layout/>) — every
+  // endpoint it calls is already fail-closed admin-guarded server-side, so
+  // without this a paid non-admin could load a console whose every request 403s.
+  const isAdminOnly = location.pathname.startsWith('/admin')
+    || location.pathname === '/alert-tester'
+  if (isAdminOnly && user.role !== 'admin') {
     return <Navigate to={FREE_HOME} replace />
   }
 
