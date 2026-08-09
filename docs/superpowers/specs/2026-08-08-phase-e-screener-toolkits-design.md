@@ -213,3 +213,120 @@ E1 scalars ──> E2 scan object ──> E3 evaluator ──> E4 criteria build
 **E1 is the gate on everything** — without `scalars` the builder is a toy against TC2000. **E6 gates every public claim and all sharing.** E7 needs §8.4 answered first.
 
 ⚠️ **A prerequisite that is not code:** §2's E-row gate reads *"ledger has public-worthy history"*. The door opened 2026-08-08 — but production's 31 soak rows are **armed-and-snoozed**, so they accrue nothing. **History begins when real members hold real alerts.** E1–E6 can be built meanwhile; a *published* record cannot precede the history it claims.
+
+---
+
+# AMENDMENT 1 — E5 is a knowledge layer, not a translator (owner, 2026-08-09)
+
+**Owner's requirement, verbatim in substance:** *"'trending stocks' language would imply above some MAs. ETC — just knowledge like that, to interpret plain language and curate that into a logical scan."* And, equally: *"the infrastructure I still want manual as well, with the formulas and Pine-screener abilities JUST LIKE TradingView and TC2000, so we can access and reach a wide audience."*
+
+## A1.1 Two doors, both first-class, neither a fallback
+- **Manual** — the formula field and the criteria picker (E4). This is the TradingView/TC2000 audience: people who already know what they want and want to type it.
+- **Natural language** (E5) — the audience those products lose, who know *what they are looking for* but not the syntax.
+
+⛔ **Neither is the "real" one.** A NL-only product cannot be trusted by an expert; a syntax-only product is the wall every competitor puts in front of a beginner. Both must produce **the same object**, and E4's picker ⇄ formula identity property extends to E5: **NL → AST → read-back → picker** must land the member somewhere they can edit by hand.
+
+## A1.2 The interpretation must be visible — D-A5 gets *more* load-bearing, not less
+"Trending" is a **concept**, not a formula. Interpreting it is the feature. But an interpretation the member cannot see is a scan for something they did not ask for.
+
+⭐ **D-A5 already forbids the failure mode:** the model emits a **TREE**, and `sentence_for` generates the read-back **from that tree**. So a member who says *"trending stocks"* is shown **"the close is above the 50-day average, and the 50-day average is above the 200-day"** and confirms or corrects it *before* anything is saved. **The AI proposes; the tree is the truth; the sentence is derived from the tree.** That property is re-asserted structurally in E5, with its control.
+
+## A1.3 🔴 The vocabulary is the FIRM'S, and that is the moat
+A generic LLM guesses what "trending" means and guesses differently next Tuesday. Two assets already in this codebase make a better answer possible:
+
+| asset | what it gives |
+|---|---|
+| **`brain_service.lookup_playbook(setup)` / `setup_winrate(setup, regime)`** — the firm's KB, **48 setup templates** | "trending" means what UCT's playbook says, and the phrase can carry a **measured win rate** |
+| **the screener's own concept columns** — `tight_consolidation`, `nr7`, `inside_bar_run`, `higher_lows_run`, `ma_stack`, `accdis`, `pullback_depth_pct`, `consecutive_up/down`, `dist_52w_high_pct`, `vol_ratio` | the concepts are **already computed nightly**; E1 makes them nameable |
+
+⇒ **E5 ships a curated concept vocabulary, versioned and reviewable, that maps trader vernacular onto canonical trees built from the closed table.** Not prompt text — **data**, like `closedTable.json`, for the same reason: two vocabularies is the defect this repo has measured twice.
+
+**Consequences that must be designed, not discovered:**
+1. **A concept is versioned.** If "trending" changes definition, saved scans built on it must not silently change meaning. A resolved concept **expands into its tree at save time** — the scan stores the tree, not the word. The word is provenance.
+2. **Ambiguity is surfaced, never guessed silently.** "Cheap" has no defensible definition; the honest answer is to ask, not to invent a P/E threshold. ⛔ §1.6's *"unmeasured accuracy claims"* applies to a vocabulary too.
+3. ⛔ **A concept the KB cannot ground is refused by name**, in the concierge's existing gate-attribution style — *not* approximated. A wrong scan that looks right is worse than a refusal.
+4. **`setup_winrate` is a claim.** If a concept is offered with a win rate attached, that number is subject to §1.6 and to E6's record — it is not decoration.
+
+## A1.4 What this changes in the plan
+- **E5 grows** from "extend the concierge" to "extend the concierge **+ a curated, versioned concept vocabulary grounded in the firm's KB and the screener's concept columns**".
+- **E1 gains urgency**: `tight_consolidation`, `nr7`, `ma_stack` et al. are exactly what the vocabulary expands *into*. Without scalars, "trending" can only reach OHLCV and the vocabulary is a third of what it should be.
+- **E4 is unchanged and stays first-class** — the Pine/TC2000-parity door.
+
+---
+
+# AMENDMENT 2 — reach, recognition, and the honest-performance claim (controller, 2026-08-09)
+
+Read out of the owner's stated goals — *"reach a wide audience"*, *"the ecosystem and recognition ability"*, *"just like TradingView and TC2000"* — these are consequences those goals carry that the design did not yet specify. Each is cheap because the asset already exists.
+
+## A2.1 🔴 A blank formula box loses the wide audience. The 48 setup templates ARE the starter library.
+
+TC2000 and TradingView both ship dozens of built-in scans, and it is not decoration — **it is the onboarding path.** A member who opens an empty text field and does not know the syntax leaves.
+
+Measured: `app/src/constants/setupGroups.js` declares **31 named setups** across 4 families, and `brain_service.lookup_playbook(setup)` resolves a canonical template out of the firm's KB with `setup_winrate(setup, regime)` beside it.
+
+⭐ **One asset, three uses, and this is the highest-leverage observation in the phase:**
+1. **the starter scan library** — a member picks "High Tight Flag" and gets a working scan they can then *edit*, which is how people learn a syntax
+2. **the NL concept vocabulary** (Amendment 1) — the same templates ground what "trending" or "coiled" means
+3. **the first toolkits** (E7) — a named, curated bundle is exactly what LuxAlgo sells, and UCT's are backed by a playbook
+
+⛔ **Every starter scan must be an ordinary definition** — same store, same `def_hash`, same read-back, editable on arrival. A starter that is special-cased is a second class of object and re-creates the asymmetry §1.1 forbids.
+
+## A2.2 A scan result must reach the chart in one click, with the condition visible
+TC2000's strongest habit-forming loop is scan → chart → back. The claim *"the formula you charted is the scan you ran"* is only **believable when a member sees it** — the same definition drawn on the chart of a symbol the scan returned. This is a small wiring task with a large trust payoff, and it is the natural home for the wire-cut test.
+
+## A2.3 🔴 The performance question will be asked, and the honest answer is a differentiator
+
+Members will ask *"how has this scan done?"* Every competitor answers with a **backtest**, and §1.6 lists **backtest inflation** as a trap never to step in.
+
+⭐ **The honest answer is better positioning than the inflated one:** E6 records forward performance **from the moment the scan was created**. Not a curve fitted to history — *what it actually did after you asked for it.*
+
+> **"Every number we show you accrued after you asked for it."**
+
+That is a claim no competitor can copy without rebuilding their ledger, and it is exactly what §1.3's *"receipts as brand"* means in the screener.
+
+**Consequences:** a scan's record starts at creation and is empty on day one — **say so plainly rather than hiding the panel**; an *edited* scan starts a new record, because `def_hash` changed and the old record belongs to different maths (D-A3's rev semantics already give this for free); ⛔ **no backfilled "what it would have done" number may ever share a surface with a forward one.** If a hypothetical is ever shown it is labelled, separated, and never summed with real receipts.
+
+## A2.4 "Recognition" is attribution, and attribution is publishing
+The owner's word is *recognition* — members getting credit for what they build. That is authorship metadata on a shared definition, and §12 gates publishing *"until the ledger can hold publishers accountable"*.
+⇒ **E6 → attribution → sharing, in that order.** A shared scan carries its author, its `def_hash`, its read-back sentence, and its forward record — **which is precisely what makes a marketplace accountable rather than a claims bazaar.** This is the honest route to §12 being amended rather than ignored.
+
+## A2.5 Pine-screener parity, stated as an acceptance criterion
+TradingView's Pine Screener lets an indicator you wrote be used as a screener filter. **E2 already delivers this by construction** — a definition whose tree yields 0/1 *is* a scan, and it is the same object as the chart indicator.
+⇒ **Acceptance:** take any shipped indicator definition, add a comparison, run it as a scan, chart a hit, and arm an alert on it — **without the definition being re-authored at any step.** If that path requires a second object anywhere, §1.1 has been violated.
+
+---
+
+# CORRECTION 1 — `rsi(close,14)` is NOT a legal tree, and §2's headline example was wrong
+
+**Measured 2026-08-09.** The closed table declares **11 functions**: `abs, change, crossOver, crossUnder, ema, highest, lowest, max, min, sma, stdev`. **`rsi` is not among them.**
+
+⇒ §2's example `rsi(close,14) < 30 && volume > sma(volume,20) * 2` **refuses at `resolve:function`**, and the acceptance test in the plan header inherited the same error. Corrected below. This is the controller's mistake, caught by an implementer verifying instead of trusting the brief — the fourth time that has happened this week.
+
+## What actually works, and the distinction that matters
+| expression | legal? | what it is |
+|---|---|---|
+| `rsi14 < 30` | ✅ **after E1** | the **scalar** — the screener's nightly precomputed column, dated `bars_asof` |
+| `rsi(close,14) < 30` | ❌ today, and **not granted by E-A7** | a **function** — per-bar, user-chosen period |
+| `sma(close,50) > sma(close,200)` | ✅ **today** | already legal; this is the correct headline example |
+
+**Corrected acceptance test:** `rs_rank > 80 and adr_pct > 4 and close > sma(close,50)` — every term legal after E1, no term requiring a new function.
+
+## 🔴 E-A9 — OPEN, AND BIGGER THAN SCALARS: does the table also gain FUNCTIONS?
+A user **cannot compose an RSI** from the eleven primitives — Wilder smoothing is a recursion that `sma`/`ema`/`change` cannot express. So today a member can *use* the shipped `rsi` indicator but cannot *write* one, and cannot write one with their own period inside a scan.
+
+For a product whose claim is *"build your own, better than theirs"*, that is a real ceiling — and it is **not** what E-A7 grants.
+
+**Three options, with their costs:**
+1. **Scalars only (E-A7 as approved).** `rsi14` works at the nightly period; no new period is expressible. Cheapest, ships soonest, and covers most screener use.
+2. **Scalars + a declared function set** (`rsi`, `atr`, `adx`, `macd`…) as table primitives. ⚠️ Each needs a lookback declaration so `maxLookback` stays a **tree sum** — that is the property keeping the repaint linter *"simple enough to be obviously right on the day it decides the brand's central claim."* Costly but bounded.
+3. **A user-defined-function mechanism.** ⛔ Not v1 — it reopens `_no_offset`'s dataflow-analysis problem, which the manifest reserves to the owner of the repaint claim.
+
+⭐ **Controller's recommendation: (1) for E1, with (2) scoped as its own follow-on phase.** Reason: scalars unblock the entire screener and the NL vocabulary immediately, whereas adding functions touches the linter's central guarantee and deserves its own gate rather than riding inside a vocabulary task. ⛔ **Do not bundle them** — the day the repaint linter is wrong is the day the brand claim is wrong.
+
+# CORRECTION 2 — the table declares no RESULT KIND, and two tasks would hand-list it
+
+**Measured:** `operators` entries declare **`{arity}` only**. There is no `yields: "num" | "bool"`.
+
+But E4 must refuse a picker row that is not a condition, and E5 must refuse a scan that returns a number rather than 0/1. Without a manifest field, **both would hand-list the same nine comparison/logical operators, in two languages** — precisely the two-vocabularies defect this repo has already paid for (`williams_r` vs `williamsR`).
+
+⇒ **E1 adds `yields` to the operators section**, single-writer, both lanes, derived by every consumer. The drafting agent **refused to hand-list and reported instead**, which is the correct call and is why this is being fixed in the right file.
