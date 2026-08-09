@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query
 
 from api.middleware.auth_middleware import get_current_user
 from api.services.call_recap import (
@@ -144,6 +144,50 @@ def transcript_endpoint(
     except Exception as e:
         _log.warning("[earnings_intel] av transcript failed for %s: %s", sym, e)
         return None
+
+
+# ── Cross-company transcript keyword alerts ──────────────────────────────────
+# Follow a THEME rather than a ticker: "tell me when anyone says 'tariff'".
+# Reuses the existing multi-channel alert delivery; see
+# api/services/transcript_keyword_alerts.py.
+
+@router.get("/api/earnings/keyword-alerts")
+def list_keyword_alerts(user: dict = Depends(get_current_user)):
+    try:
+        from api.services import transcript_keyword_alerts as ka
+        ka.init_db()
+        return {"keywords": ka.list_keywords(user["id"]),
+                "max": ka.MAX_KEYWORDS_PER_USER,
+                "min_length": ka.MIN_KEYWORD_LEN,
+                "enabled": ka.enabled()}
+    except Exception as e:
+        _log.warning("[earnings_intel] keyword list failed: %s", e)
+        return {"keywords": [], "max": 0, "min_length": 0, "enabled": False}
+
+
+@router.post("/api/earnings/keyword-alerts")
+def add_keyword_alert(body: dict = Body(...), user: dict = Depends(get_current_user)):
+    """Add a keyword. Returns the stored (normalised) form, or an explicit
+    reason — a silent no-op would look like a saved subscription that never
+    fires, which is the worst outcome for an alert feature."""
+    from api.services import transcript_keyword_alerts as ka
+    ka.init_db()
+    raw = (body or {}).get("keyword") or ""
+    if ka.normalize_keyword(raw) is None:
+        return {"ok": False, "reason": "too_short_or_too_long",
+                "min_length": ka.MIN_KEYWORD_LEN}
+    stored = ka.add_keyword(user["id"], raw)
+    if stored is None:
+        return {"ok": False, "reason": "limit_reached", "max": ka.MAX_KEYWORDS_PER_USER}
+    return {"ok": True, "keyword": stored, "keywords": ka.list_keywords(user["id"])}
+
+
+@router.delete("/api/earnings/keyword-alerts")
+def remove_keyword_alert(keyword: str = Query(...), user: dict = Depends(get_current_user)):
+    from api.services import transcript_keyword_alerts as ka
+    ka.init_db()
+    removed = ka.remove_keyword(user["id"], keyword)
+    return {"ok": removed, "keywords": ka.list_keywords(user["id"])}
 
 
 @router.get("/api/earnings/transcript-quarters/{ticker}")

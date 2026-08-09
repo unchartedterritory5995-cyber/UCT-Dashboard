@@ -1021,7 +1021,6 @@ def register_screener_jobs(scheduler):
             snapshot_builder.run_build()
         except Exception as e:
             print(f"[scheduler] screener snapshot build error: {e}")
-
     scheduler.add_job(_run, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
                       id="screener_snapshot_nightly", max_instances=1,
                       replace_existing=True)
@@ -1169,6 +1168,47 @@ def _resolve_active_set_for_patterns() -> list[str]:
             seen.add(u)
             out.append(u)
     return out
+
+
+def register_transcript_keyword_jobs(scheduler):
+    """Cross-company transcript keyword alerts — "tell anyone who follows the word
+    'tariff' when any company says it on a call".
+
+    18:30 ET weekdays: after AMC calls have published (FMP posts within ~2h) and
+    clear of the 16:35 capture / 16:40 grade / 21:00 backfill window those jobs
+    already contend for. Double-gated — the flag here AND `run_scan`'s own check
+    — so a half-configured deploy stays inert rather than half-firing.
+
+    Returns True if the job was registered.
+    """
+    import os
+    if os.environ.get("TRANSCRIPT_KEYWORD_ALERTS_ENABLED", "").strip() != "1":
+        return False
+    # Imported inside the function like every other registrar here — see the
+    # module-header note on the APScheduler tz trap.
+    from apscheduler.triggers.cron import CronTrigger
+
+    _kwlog = logging.getLogger(__name__)
+
+    def _run_keyword_alert_scan():
+        try:
+            from api.services import transcript_keyword_alerts as ka
+            from api.services.engine import get_earnings
+            syms = ka.reporters_from_earnings(get_earnings() or {})
+            if not syms:
+                _kwlog.info("[kw_alerts] no reporters today; nothing to scan")
+                return
+            # Log the WORK DONE (scanned / fired), not merely that we ran — a
+            # count-based monitor cannot tell a hang from a finish.
+            _kwlog.info("[kw_alerts] %s over %d reporters", ka.run_scan(syms), len(syms))
+        except Exception as exc:
+            _kwlog.warning("[kw_alerts] scan failed: %s", exc)
+
+    scheduler.add_job(
+        _run_keyword_alert_scan,
+        trigger=CronTrigger(day_of_week="mon-fri", hour=18, minute=30, timezone=_ET),
+        id="transcript_keyword_alerts", replace_existing=True)
+    return True
 
 
 def register_pattern_vision_jobs(scheduler):
@@ -3389,6 +3429,8 @@ async def lifespan(app: FastAPI):
         # -- Full-market screener nightly snapshot build (spec 2026-06-19) --
         try:
             register_screener_jobs(_scheduler)
+            if register_transcript_keyword_jobs(_scheduler):
+                logging.getLogger(__name__).info("[startup] transcript keyword alerts: 18:30 ET weekdays")
             register_wire_watchdog_job(_scheduler)
         except Exception as e:
             print(f"[scheduler] screener job registration error: {e}")
