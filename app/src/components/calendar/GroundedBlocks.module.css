@@ -1,0 +1,105 @@
+/* Blocks whose content is grounded in the verbatim transcript: forward-looking
+   commentary, management quotes, Q&A exchanges.
+
+   The visual grammar is deliberate — the model's reading (`detail`) is ordinary
+   body text, while the words management actually said (`quote`) sit behind a
+   gold rule with an attribution line. A reader should be able to tell at a
+   glance which is which, because only one of them was verified. */
+
+.block { margin-top: 14px; }
+
+.item {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.item:last-child { border-bottom: none; }
+
+.itemHead {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+
+.topic {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--ut-gold, #c9a84c);
+}
+
+.horizon {
+  font-size: 9.5px;
+  letter-spacing: 0.6px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  color: var(--text-muted, #8b8678);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  white-space: nowrap;
+}
+
+/* The model's own words. */
+.detail {
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text, #e8e6df);
+}
+
+.question {
+  margin: 0 0 4px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text-muted, #8b8678);
+  font-style: italic;
+}
+
+/* What was actually said. Verified against the transcript, so it earns the rule. */
+.quote {
+  margin: 0;
+  padding: 4px 0 4px 10px;
+  border-left: 2px solid var(--ut-gold, #c9a84c);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text, #e8e6df);
+}
+
+.cite {
+  display: block;
+  margin-top: 4px;
+  font-size: 10.5px;
+  font-style: normal;
+  color: var(--text-muted, #8b8678);
+}
+
+.sourceLink {
+  margin-left: 8px;
+  padding: 0;
+  font-size: 10.5px;
+  color: var(--ut-gold, #c9a84c);
+  background: none;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.sourceLink:hover { text-decoration: underline; }
+
+.guidanceDetail {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text, #e8e6df);
+}
+
+@media (max-width: 640px) {
+  /* The link is the one thing here a thumb has to hit. */
+  .sourceLink {
+    display: inline-block;
+    margin-left: 0;
+    margin-top: 6px;
+    min-height: var(--tap-min, 44px);
+    line-height: var(--tap-min, 44px);
+  }
+}

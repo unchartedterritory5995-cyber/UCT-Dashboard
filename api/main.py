@@ -855,15 +855,41 @@ def _start_calendar_enrichment_warm_background(delay_seconds: int = 90) -> None:
     def _delayed():
         import time
         time.sleep(delay_seconds)
+        # Rotates one NEIGHBOURING week per cycle. The current week has to be
+        # re-warmed every cycle (300s TTL), but the surrounding weeks hold 4h
+        # (future) / 12h (past) TTLs, so refreshing one per 240s cycle keeps all
+        # four hot at ~16-minute intervals without ever warming 25 days at once.
+        neighbour_offsets = [-2, -1, 1, 2]
+        turn = 0
         while True:
             try:
-                from api.routers.calendar import get_enrichment_batch, _week_dates
+                from api.routers.calendar import (
+                    get_enrichment_batch, _week_dates, _week_dates_for,
+                    _current_week_monday, _today_et,
+                )
+                from datetime import timedelta
+
                 dates = ",".join(d.isoformat() for d in _week_dates())
                 out = get_enrichment_batch(dates=dates)
+
+                # Browsing to the previous or next week used to fall straight
+                # through to a 33-57s cold build (measured: 120 reporters =
+                # 57.2s, 67 reporters = 33.3s) because this warmer only ever
+                # covered the CURRENT week. `_ENRICH_WINDOW_DAYS` is 14, so
+                # anything past +/-2 weeks returns {} instantly and needs no
+                # warm -- these four offsets are the entire remaining surface.
+                offset = neighbour_offsets[turn % len(neighbour_offsets)]
+                turn += 1
+                monday = _current_week_monday(_today_et()) + timedelta(weeks=offset)
+                nbr = ",".join(d.isoformat() for d in _week_dates_for(monday))
+                nbr_out = get_enrichment_batch(dates=nbr)
+
                 logging.getLogger(__name__).info(
-                    "[calendar-enrich-warm] warmed %d day(s), %d symbols",
-                    len(out or {}),
-                    sum(len(v or {}) for v in (out or {}).values()),
+                    "[calendar-enrich-warm] current week %d day(s)/%d syms; "
+                    "week%+d %d day(s)/%d syms",
+                    len(out or {}), sum(len(v or {}) for v in (out or {}).values()),
+                    offset,
+                    len(nbr_out or {}), sum(len(v or {}) for v in (nbr_out or {}).values()),
                 )
             except Exception:
                 logging.getLogger(__name__).exception("[calendar-enrich-warm] failed")
@@ -1098,7 +1124,6 @@ def register_screener_jobs(scheduler):
             snapshot_builder.run_build()
         except Exception as e:
             print(f"[scheduler] screener snapshot build error: {e}")
-
     scheduler.add_job(_run, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
                       id="screener_snapshot_nightly", max_instances=1,
                       replace_existing=True)
@@ -1288,6 +1313,90 @@ def _resolve_active_set_for_patterns() -> list[str]:
             seen.add(u)
             out.append(u)
     return out
+
+
+def register_call_recap_warm_jobs(scheduler):
+    """Pre-generate call recaps so the modal is a point-read, not a ~39s wait.
+
+    Runs FOUR times on weekdays rather than once, because a reader opening a
+    name that reported this morning should not wait for tonight:
+      07:30 ET — before the open, covers last night's AMC calls
+      12:30 ET — midday, covers this morning's BMO calls
+      17:15 ET — after the close, ahead of the 18:30 keyword scan
+      21:30 ET — late sweep for anything that published slowly
+    Each sweep is incremental (`store.has` skips a stored call before spending),
+    so the extra runs cost time, not money.
+
+    Returns True if the jobs were registered.
+    """
+    import os
+    if os.environ.get("CALL_RECAP_WARM_ENABLED", "").strip() != "1":
+        return False
+    from apscheduler.triggers.cron import CronTrigger
+
+    _wlog = logging.getLogger(__name__)
+
+    def _run_warm_sweep():
+        try:
+            from api.services import call_recap_warmer as warmer
+            from api.services import transcript_keyword_alerts as ka
+            from api.services.engine import get_earnings
+            syms = ka.reporters_from_earnings(get_earnings() or {})
+            if not syms:
+                _wlog.info("[recap_warm] no reporters; nothing to warm")
+                return
+            _wlog.info("[recap_warm] %s", warmer.run_sweep(syms))
+        except Exception as exc:
+            _wlog.warning("[recap_warm] sweep failed: %s", exc)
+
+    for hour, minute in ((7, 30), (12, 30), (17, 15), (21, 30)):
+        scheduler.add_job(
+            _run_warm_sweep,
+            trigger=CronTrigger(day_of_week="mon-fri", hour=hour, minute=minute,
+                                timezone=_ET),
+            id=f"call_recap_warm_{hour:02d}{minute:02d}", replace_existing=True)
+    return True
+
+
+def register_transcript_keyword_jobs(scheduler):
+    """Cross-company transcript keyword alerts — "tell anyone who follows the word
+    'tariff' when any company says it on a call".
+
+    18:30 ET weekdays: after AMC calls have published (FMP posts within ~2h) and
+    clear of the 16:35 capture / 16:40 grade / 21:00 backfill window those jobs
+    already contend for. Double-gated — the flag here AND `run_scan`'s own check
+    — so a half-configured deploy stays inert rather than half-firing.
+
+    Returns True if the job was registered.
+    """
+    import os
+    if os.environ.get("TRANSCRIPT_KEYWORD_ALERTS_ENABLED", "").strip() != "1":
+        return False
+    # Imported inside the function like every other registrar here — see the
+    # module-header note on the APScheduler tz trap.
+    from apscheduler.triggers.cron import CronTrigger
+
+    _kwlog = logging.getLogger(__name__)
+
+    def _run_keyword_alert_scan():
+        try:
+            from api.services import transcript_keyword_alerts as ka
+            from api.services.engine import get_earnings
+            syms = ka.reporters_from_earnings(get_earnings() or {})
+            if not syms:
+                _kwlog.info("[kw_alerts] no reporters today; nothing to scan")
+                return
+            # Log the WORK DONE (scanned / fired), not merely that we ran — a
+            # count-based monitor cannot tell a hang from a finish.
+            _kwlog.info("[kw_alerts] %s over %d reporters", ka.run_scan(syms), len(syms))
+        except Exception as exc:
+            _kwlog.warning("[kw_alerts] scan failed: %s", exc)
+
+    scheduler.add_job(
+        _run_keyword_alert_scan,
+        trigger=CronTrigger(day_of_week="mon-fri", hour=18, minute=30, timezone=_ET),
+        id="transcript_keyword_alerts", replace_existing=True)
+    return True
 
 
 def register_pattern_vision_jobs(scheduler):
@@ -3531,6 +3640,11 @@ async def lifespan(app: FastAPI):
         # -- Full-market screener nightly snapshot build (spec 2026-06-19) --
         try:
             register_screener_jobs(_scheduler)
+            if register_call_recap_warm_jobs(_scheduler):
+                logging.getLogger(__name__).info(
+                    "[startup] call-recap warm sweeps: 07:30/12:30/17:15/21:30 ET")
+            if register_transcript_keyword_jobs(_scheduler):
+                logging.getLogger(__name__).info("[startup] transcript keyword alerts: 18:30 ET weekdays")
             register_wire_watchdog_job(_scheduler)
         except Exception as e:
             print(f"[scheduler] screener job registration error: {e}")

@@ -19,6 +19,7 @@ import datetime
 import json
 import logging
 import os
+import threading
 from typing import Any, Optional
 from zoneinfo import ZoneInfo
 
@@ -27,7 +28,19 @@ from api.services import llm_timeouts
 _log = logging.getLogger(__name__)
 _ET = ZoneInfo("America/New_York")
 
-_RECAP_TTL   = 24 * 3600   # 24 hours
+_RECAP_TTL   = 24 * 3600   # 24 hours — a SUCCESSFUL recap
+
+# Failure TTLs. A recap that could not be produced must never be pinned for the
+# success ttl: one transient blip then blanks the Call panel for a whole trading
+# day with nothing retrying. Two tiers, because the two failures assert
+# different things —
+#   _FAILURE_TTL: an exception (transport / LLM / JSON parse). Transient by
+#                 nature, so retry within minutes.
+#   _EMPTY_TTL:   the provider answered and had nothing. A real absence, but a
+#                 recap typically lands hours after the call, so a day is still
+#                 far too long to hold it.
+_FAILURE_TTL = 600         # 10 minutes
+_EMPTY_TTL   = 3600        # 1 hour
 _SENTIMENT_TTL = 12 * 3600  # 12 hours
 _WEBCAST_TTL  = 24 * 3600   # 24 hours
 _RATINGS_TTL  = 6 * 3600    # 6 hours
@@ -49,6 +62,80 @@ def _perplexity():
 def _cost_guard():
     from api.services.catalyst import cost_guard
     return cost_guard
+
+
+def _store():
+    from api.services import call_recap_store
+    return call_recap_store
+
+
+def _grounded():
+    from api.services import call_recap_grounded
+    return call_recap_grounded
+
+
+# ── background warm-on-miss ──────────────────────────────────────────────────
+#
+# The scheduled sweep covers the reporters we can predict. This closes the gap
+# for anything it missed: the FIRST reader of a cold symbol triggers generation
+# off the request path and sees the recap appear shortly after (the frontend
+# polls while it is null); every reader after that gets a point-read.
+#
+# Bounded to 2 workers and deduped by symbol. The web pod is ONE uvicorn process
+# with ONE shared anyio threadpool — an unbounded pool here is the shape that
+# caused the 524 outage, so this is deliberately small and never awaited.
+_WARM_POOL = None
+_WARM_INFLIGHT: set[str] = set()
+_WARM_MU = threading.Lock()
+
+
+def _trigger_background_warm(sym: str) -> None:
+    global _WARM_POOL
+    if os.environ.get("CALL_RECAP_WARM_ON_MISS", "1").strip() != "1":
+        return
+    try:
+        from api.services import call_recap_store as store
+        if not store.may_spend():
+            return
+        with _WARM_MU:
+            if sym in _WARM_INFLIGHT:
+                return
+            if _WARM_POOL is None:
+                from concurrent.futures import ThreadPoolExecutor
+                _WARM_POOL = ThreadPoolExecutor(
+                    max_workers=2, thread_name_prefix="recap-warm")
+            _WARM_INFLIGHT.add(sym)
+
+        def _run():
+            try:
+                from api.services.call_recap_warmer import warm_symbol
+                _log.info("[call_recap] warm-on-miss %s -> %s", sym, warm_symbol(sym))
+            except Exception as exc:
+                _log.warning("[call_recap] warm-on-miss failed for %s: %s", sym, exc)
+            finally:
+                with _WARM_MU:
+                    _WARM_INFLIGHT.discard(sym)
+
+        _WARM_POOL.submit(_run)
+    except Exception as exc:
+        _log.debug("[call_recap] could not trigger warm for %s: %s", sym, exc)
+
+
+def _transcript_for(sym: str):
+    """The verbatim transcript, or None. FMP first (uncapped), AV as fallback."""
+    try:
+        from api.services.fmp_transcripts import get_transcript as _fmp
+        res = _fmp(sym)
+        if res and res.get("segments"):
+            return res
+    except Exception as exc:
+        _log.debug("[call_recap] fmp transcript unavailable for %s: %s", sym, exc)
+    try:
+        from api.services.av_transcripts import get_transcript as _av
+        return _av(sym)
+    except Exception as exc:
+        _log.debug("[call_recap] av transcript unavailable for %s: %s", sym, exc)
+        return None
 
 
 def _anthropic_client():
@@ -101,7 +188,7 @@ def _pplx_earnings_highlights(ticker: str) -> str:
 
 # ── get_call_recap ────────────────────────────────────────────────────────────
 
-def get_call_recap(ticker: str) -> Optional[dict[str, Any]]:
+def get_call_recap(ticker: str, quarter: Optional[str] = None) -> Optional[dict[str, Any]]:
     """Return AI-synthesized earnings call recap for the most recent quarter.
 
     Shape: {headline, sentiment, bullets[], quotes[], guidance, qa_highlights[]}
@@ -111,10 +198,32 @@ def get_call_recap(ticker: str) -> Optional[dict[str, Any]]:
     if not sym:
         return None
 
-    ck = f"call_recap::{sym}"
+    # Keyed by quarter: a reader stepping back to an older call must not be
+    # handed the newest quarter's recap under it.
+    ck = f"call_recap::{sym}::{quarter or 'latest'}"
     hit = _cache().get(ck)
     if hit is not None:
         return hit if hit != "__null__" else None
+
+    # --- The durable store: the ONLY path that can meet "under 2-3 seconds
+    # --- for the first user". A grounded synthesis takes ~39s, so the request
+    # --- path never generates one — `call_recap_warmer` does that on a
+    # --- schedule and this is a SQLite point-read of the result. It also
+    # --- survives redeploys, which the in-process cache did not.
+    try:
+        stored = _store().get(sym, quarter)
+    except Exception as exc:
+        _log.debug("[call_recap] store read failed for %s: %s", sym, exc)
+        stored = None
+    if stored:
+        _cache().set(ck, stored, _RECAP_TTL)
+        return stored
+
+    if quarter:
+        # An explicitly-requested past quarter has no web-context equivalent —
+        # the fallback below is about "what happened on the LATEST call". Return
+        # nothing so the UI can say which quarter it lacks a recap for.
+        return None
 
     market_date = _today_date()
     guard = _cost_guard()
@@ -122,16 +231,25 @@ def get_call_recap(ticker: str) -> Optional[dict[str, Any]]:
         _log.info("[call_recap] cost cap reached, skipping %s", sym)
         return None
 
-    # --- Gather context from Perplexity ---
+    # A ticker with a transcript but no stored recap is handed to the background
+    # warmer rather than generated inline: 39s on the request path is exactly
+    # the behaviour this design exists to remove. The transcript panel still
+    # opens immediately, so the reader is never blocked on the summary.
+    transcript = _transcript_for(sym)
+    if transcript and transcript.get("segments"):
+        _trigger_background_warm(sym)
+        return None
+
+    # --- Fallback: web context, for names with no published transcript ------
     try:
         web_context = _pplx_earnings_highlights(sym)
     except Exception as e:
         _log.warning("[call_recap] perplexity fetch failed for %s: %s", sym, e)
-        _cache().set(ck, "__null__", _RECAP_TTL)
+        _cache().set(ck, "__null__", _FAILURE_TTL)
         return None
 
     if not web_context:
-        _cache().set(ck, "__null__", _RECAP_TTL)
+        _cache().set(ck, "__null__", _EMPTY_TTL)
         return None
 
     # --- LLM synthesis ---
@@ -186,7 +304,7 @@ def get_call_recap(ticker: str) -> Optional[dict[str, Any]]:
 
     except Exception as e:
         _log.warning("[call_recap] LLM synthesis failed for %s: %s", sym, e)
-        _cache().set(ck, "__null__", _RECAP_TTL)
+        _cache().set(ck, "__null__", _FAILURE_TTL)
         return None
 
 
@@ -207,21 +325,40 @@ def get_sentiment(ticker: str) -> Optional[dict[str, Any]]:
     if hit is not None:
         return hit if hit != "__null__" else None
 
+    # The warmed recap already carries this judgement — it was generated from
+    # the same transcript, in the same call. Reading it here removes an entire
+    # Perplexity + LLM round-trip per ticker instead of caching one.
+    try:
+        stored = _store().get(sym)
+    except Exception:
+        stored = None
+    if stored and stored.get("sentiment_detail"):
+        detail = dict(stored["sentiment_detail"])
+        _cache().set(ck, detail, _SENTIMENT_TTL)
+        return detail
+
     market_date = _today_date()
     guard = _cost_guard()
     if not guard.may_synthesize(market_date):
         _log.info("[call_sentiment] cost cap reached, skipping %s", sym)
         return None
 
+    # No warmed recap: a transcript-bearing ticker is left to the warmer rather
+    # than paying for a separate web-grounded read on the request path.
+    transcript = _transcript_for(sym)
+    if transcript and transcript.get("segments"):
+        _trigger_background_warm(sym)
+        return None
+
     try:
         web_context = _pplx_earnings_highlights(sym)
     except Exception as e:
         _log.warning("[call_sentiment] perplexity fetch failed for %s: %s", sym, e)
-        _cache().set(ck, "__null__", _SENTIMENT_TTL)
+        _cache().set(ck, "__null__", _FAILURE_TTL)
         return None
 
     if not web_context:
-        _cache().set(ck, "__null__", _SENTIMENT_TTL)
+        _cache().set(ck, "__null__", _EMPTY_TTL)
         return None
 
     prompt = (
@@ -274,7 +411,7 @@ def get_sentiment(ticker: str) -> Optional[dict[str, Any]]:
 
     except Exception as e:
         _log.warning("[call_sentiment] LLM synthesis failed for %s: %s", sym, e)
-        _cache().set(ck, "__null__", _SENTIMENT_TTL)
+        _cache().set(ck, "__null__", _FAILURE_TTL)
         return None
 
 

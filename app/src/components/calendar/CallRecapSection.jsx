@@ -6,13 +6,16 @@
 //   - Audio player when audio.stream_url present (native <audio>)
 //   - "Listen live ↗" link to webcast_url as fallback
 //   - Recent rating changes from the call-recap payload
-//   - Full Transcript collapsible (lazy — fetches only when expanded)
+//
+// The verbatim transcript is NOT here: it is an independent source and must
+// stay reachable when this recap does not exist. See TranscriptPanel.jsx.
 //
 // All data fetched by the parent via useCallRecap / useEarningsAudio hooks
 // and passed as props so the component is purely presentational + testable.
 import { useState, useRef, useEffect, useCallback } from 'react'
-import useTranscript from '../../hooks/useTranscript'
 import UIcon from '../ui/UIcon'
+import { normalizeCallRecap, guidanceKind } from '../research/callRecap'
+import grounded from './GroundedBlocks.module.css'
 import styles from './CallRecapSection.module.css'
 
 // ── TTS helper ────────────────────────────────────────────────────────────────
@@ -40,6 +43,29 @@ function highlight(text, kw) {
   const parts = text.split(re)
   return parts.map((p, i) =>
     re.test(p) ? <mark key={i} className={styles.kw}>{p}</mark> : p,
+  )
+}
+
+const HORIZON_LABEL = {
+  next_quarter: 'NEXT QUARTER',
+  full_year: 'FULL YEAR',
+  multi_year: 'MULTI-YEAR',
+}
+
+// The Quartr move: every claim links back to the passage it came from. It is
+// also the trust mechanism — a reader can check the words in one click, and a
+// claim with no locatable source never renders a link because it never renders.
+function SourceLink({ segment, onJump }) {
+  if (segment == null || !onJump) return null
+  return (
+    <button
+      type="button"
+      className={grounded.sourceLink}
+      onClick={() => onJump(segment)}
+      title="Show this passage in the full transcript"
+    >
+      ↳ in transcript
+    </button>
   )
 }
 
@@ -85,21 +111,16 @@ function RatingChanges({ changes }) {
  *
  * @param {object} recap   — from useCallRecap().data
  * @param {object|null} audio — from useEarningsAudio().data ({ stream_url, kind, transcript_url })
- * @param {string|null} ticker — symbol, used for lazy full-transcript fetch
  */
-export default function CallRecapSection({ recap, audio, ticker = null }) {
+export default function CallRecapSection({ recap: rawRecap, audio, onJumpToSegment = null }) {
+  // Every surface routes through the one normalizer, so a payload handed in
+  // raw (MyStocksHub, CallsTab, EarningsModal) reconciles here rather than
+  // rendering a different shape on each screen.
+  const recap = normalizeCallRecap(rawRecap) || rawRecap
   const [searchQuery, setSearchQuery] = useState('')
   const [ttsActive, setTtsActive] = useState(false)
-  const [transcriptOpen, setTranscriptOpen] = useState(false)
-  const [transcriptTtsActive, setTranscriptTtsActive] = useState(false)
   const utteranceRef = useRef(null)
-  const transcriptUtteranceRef = useRef(null)
   const audioRef = useRef(null)
-
-  // Lazy transcript fetch — only fires when the panel is expanded
-  const { data: transcript, isLoading: transcriptLoading } = useTranscript(ticker, {
-    enabled: transcriptOpen,
-  })
 
   // Stop TTS on unmount
   useEffect(() => {
@@ -107,14 +128,6 @@ export default function CallRecapSection({ recap, audio, ticker = null }) {
       if (hasSpeechSynthesis()) window.speechSynthesis.cancel()
     }
   }, [])
-
-  // Stop transcript TTS when panel collapses
-  useEffect(() => {
-    if (!transcriptOpen && transcriptTtsActive) {
-      if (hasSpeechSynthesis()) window.speechSynthesis.cancel()
-      setTranscriptTtsActive(false)
-    }
-  }, [transcriptOpen, transcriptTtsActive])
 
   const handleTTSToggle = useCallback(() => {
     if (!hasSpeechSynthesis()) return
@@ -133,28 +146,6 @@ export default function CallRecapSection({ recap, audio, ticker = null }) {
     setTtsActive(true)
   }, [recap, ttsActive])
 
-  // Build TTS text from verbatim transcript segments
-  const handleTranscriptTTSToggle = useCallback(() => {
-    if (!hasSpeechSynthesis()) return
-    if (transcriptTtsActive) {
-      window.speechSynthesis.cancel()
-      setTranscriptTtsActive(false)
-      return
-    }
-    if (!transcript?.segments?.length) return
-    const text = transcript.segments.map(s => {
-      const who = s.speaker || s.title || ''
-      return who ? `${who}: ${s.content}` : s.content
-    }).join('. ')
-    if (!text.trim()) return
-    const utter = new window.SpeechSynthesisUtterance(text)
-    utter.onend  = () => setTranscriptTtsActive(false)
-    utter.onerror = () => setTranscriptTtsActive(false)
-    transcriptUtteranceRef.current = utter
-    window.speechSynthesis.speak(utter)
-    setTranscriptTtsActive(true)
-  }, [transcript, transcriptTtsActive])
-
   if (!recap) return null
 
   const kw = searchQuery.trim()
@@ -165,12 +156,27 @@ export default function CallRecapSection({ recap, audio, ticker = null }) {
     : (recap.bullets || [])
 
   const filteredQuotes = kw
-    ? (recap.quotes || []).filter(q => (q.text || q).toLowerCase().includes(kw.toLowerCase()))
+    ? (recap.quotes || []).filter(q =>
+        `${q.text} ${q.speaker} ${q.topic}`.toLowerCase().includes(kw.toLowerCase()))
     : (recap.quotes || [])
 
+  const matches = (...parts) =>
+    parts.filter(Boolean).join(' ').toLowerCase().includes(kw.toLowerCase())
+
   const filteredQA = kw
-    ? (recap.qa_highlights || []).filter(q => q.toLowerCase().includes(kw.toLowerCase()))
+    ? (recap.qa_highlights || []).filter(q =>
+        matches(q.takeaway, q.question, q.quote, q.analyst, q.firm))
     : (recap.qa_highlights || [])
+
+  const filteredForward = kw
+    ? (recap.forward_looking || []).filter(f =>
+        matches(f.topic, f.detail, f.quote, f.speaker))
+    : (recap.forward_looking || [])
+
+  // The server returns a {name: role} map read off the transcript itself, which
+  // is what finally fills the speaker-title slot — FMP's segmenter hardcodes
+  // `title: ""`, so that chip had never rendered on the primary path.
+  const roleOf = q => q.role || (recap.speakers || {})[q.speaker] || ''
 
   const showAudioPlayer = audio?.stream_url
   const showWebcastLink = !showAudioPlayer && recap.webcast_url
@@ -220,8 +226,8 @@ export default function CallRecapSection({ recap, audio, ticker = null }) {
       {/* Sentiment badge */}
       {recap.sentiment && (
         <span className={
-          recap.sentiment === 'bullish' ? styles.sentBull :
-          recap.sentiment === 'bearish' ? styles.sentBear :
+          recap.sentiment === 'positive' ? styles.sentBull :
+          recap.sentiment === 'negative' ? styles.sentBear :
           styles.sentNeutral
         }>
           {recap.sentiment.toUpperCase()}
@@ -231,7 +237,7 @@ export default function CallRecapSection({ recap, audio, ticker = null }) {
       {/* Guidance chip — the field already rides the recap payload (zero new
           spend). Guidance moves stocks as much as the print and appears in no
           retail calendar. */}
-      {recap.guidance && recap.guidance !== 'none' && (
+      {guidanceKind(recap.guidance) === 'enum' && (
         <span
           className={
             recap.guidance === 'raised' ? styles.guideUp :
@@ -244,6 +250,34 @@ export default function CallRecapSection({ recap, audio, ticker = null }) {
         </span>
       )}
 
+      {/* Forward-looking commentary — the section a trader reads first.
+          Every item rests on a verbatim quote the SERVER located in the
+          transcript; anything it could not locate was dropped before this
+          component ever saw it, so each `↳` below is a real turn. */}
+      {filteredForward.length > 0 && (
+        <div className={grounded.block}>
+          <div className={styles.sectionLabel}>FORWARD-LOOKING COMMENTARY</div>
+          {filteredForward.map((f, i) => (
+            <div key={i} className={grounded.item}>
+              <div className={grounded.itemHead}>
+                {f.topic && <span className={grounded.topic}>{highlight(f.topic, kw)}</span>}
+                {f.horizon && f.horizon !== 'unspecified' && (
+                  <span className={grounded.horizon}>{HORIZON_LABEL[f.horizon] || f.horizon}</span>
+                )}
+              </div>
+              {f.detail && <p className={grounded.detail}>{highlight(f.detail, kw)}</p>}
+              <blockquote className={grounded.quote}>
+                “{highlight(f.quote, kw)}”
+                <cite className={grounded.cite}>
+                  {f.speaker}
+                  <SourceLink segment={f.segment} onJump={onJumpToSegment} />
+                </cite>
+              </blockquote>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Bullets */}
       {filteredBullets.length > 0 && (
         <>
@@ -254,8 +288,15 @@ export default function CallRecapSection({ recap, audio, ticker = null }) {
         </>
       )}
 
-      {/* Guidance */}
-      {recap.guidance && (!kw || recap.guidance.toLowerCase().includes(kw.toLowerCase())) && (
+      {/* Guidance PROSE only — the enum form is the chip above, and rendering
+          both printed the same word twice, the second time as a one-word
+          paragraph under a "GUIDANCE" heading. */}
+      {recap.guidance_detail && (!kw || recap.guidance_detail.toLowerCase().includes(kw.toLowerCase())) && (
+        <p className={grounded.guidanceDetail}>{highlight(recap.guidance_detail, kw)}</p>
+      )}
+
+      {guidanceKind(recap.guidance) === 'prose' &&
+       (!kw || recap.guidance.toLowerCase().includes(kw.toLowerCase())) && (
         <div className={styles.guidanceBlock}>
           <div className={styles.sectionLabel}>GUIDANCE</div>
           <p className={styles.guidanceText}>{highlight(recap.guidance, kw)}</p>
@@ -267,12 +308,15 @@ export default function CallRecapSection({ recap, audio, ticker = null }) {
         <div className={styles.quotesBlock}>
           <div className={styles.sectionLabel}>MANAGEMENT QUOTES</div>
           {filteredQuotes.map((q, i) => {
-            const text = typeof q === 'string' ? q : q.text
-            const speaker = typeof q === 'object' ? q.speaker : null
+            const attribution = [q.speaker, roleOf(q)].filter(Boolean).join(', ')
             return (
               <div key={i} className={styles.quoteItem}>
-                {speaker && <span className={styles.speaker}>{speaker}: </span>}
-                <span className={styles.quoteText}>"{highlight(text, kw)}"</span>
+                {q.topic && <span className={grounded.topic}>{highlight(q.topic, kw)}</span>}
+                <span className={styles.quoteText}>“{highlight(q.text, kw)}”</span>
+                <cite className={grounded.cite}>
+                  {attribution}
+                  <SourceLink segment={q.segment} onJump={onJumpToSegment} />
+                </cite>
               </div>
             )
           })}
@@ -283,9 +327,28 @@ export default function CallRecapSection({ recap, audio, ticker = null }) {
       {filteredQA.length > 0 && (
         <div className={styles.qaBlock}>
           <div className={styles.sectionLabel}>Q&amp;A HIGHLIGHTS</div>
-          <ul className={styles.bullets}>
-            {filteredQA.map((q, i) => <li key={i}>{highlight(q, kw)}</li>)}
-          </ul>
+          {filteredQA.map((q, i) => (
+            <div key={i} className={grounded.item}>
+              {(q.analyst || q.firm) && (
+                <div className={grounded.itemHead}>
+                  <span className={grounded.topic}>
+                    {highlight([q.analyst, q.firm].filter(Boolean).join(' · '), kw)}
+                  </span>
+                </div>
+              )}
+              {q.question && <p className={grounded.question}>{highlight(q.question, kw)}</p>}
+              {q.takeaway && <p className={grounded.detail}>{highlight(q.takeaway, kw)}</p>}
+              {q.quote && (
+                <blockquote className={grounded.quote}>
+                  “{highlight(q.quote, kw)}”
+                  <cite className={grounded.cite}>
+                    {q.speaker}
+                    <SourceLink segment={q.segment} onJump={onJumpToSegment} />
+                  </cite>
+                </blockquote>
+              )}
+            </div>
+          ))}
         </div>
       )}
 
@@ -343,81 +406,6 @@ export default function CallRecapSection({ recap, audio, ticker = null }) {
         </a>
       )}
 
-      {/* Full Transcript (lazy — only fetches when expanded; preserves AV quota) */}
-      {ticker && (
-        <div className={styles.transcriptBlock}>
-          <button
-            type="button"
-            className={styles.transcriptToggleBtn}
-            onClick={() => setTranscriptOpen(o => !o)}
-            aria-expanded={transcriptOpen}
-          >
-            <span className={styles.transcriptChevron}>{transcriptOpen ? '▾' : '▸'}</span>
-            <span className={styles.sectionLabel}>FULL TRANSCRIPT</span>
-          </button>
-
-          {transcriptOpen && (
-            <div className={styles.transcriptPanel}>
-              {transcriptLoading && !transcript && (
-                <p className={styles.transcriptLoading}>Loading transcript…</p>
-              )}
-
-              {!transcriptLoading && transcript === null && (
-                <p className={styles.transcriptUnavailable}>Transcript not available.</p>
-              )}
-
-              {transcript?.segments?.length > 0 && (
-                <>
-                  {/* Header row: quarter label + Listen TTS */}
-                  <div className={styles.transcriptHeader}>
-                    {transcript.quarter && (
-                      <span className={styles.transcriptQuarter}>{transcript.quarter}</span>
-                    )}
-                    {hasSpeechSynthesis() && (
-                      <button
-                        type="button"
-                        className={`${styles.listenBtn} ${transcriptTtsActive ? styles.listenBtnActive : ''}`}
-                        onClick={handleTranscriptTTSToggle}
-                        title={transcriptTtsActive ? 'Stop reading' : 'Listen to call'}
-                      >
-                        {transcriptTtsActive ? <><UIcon name="pause" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Stop</> : <><UIcon name="volume" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />Listen to call</>}
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Transcript segments with keyword search highlight */}
-                  <div className={styles.transcriptSegments}>
-                    {transcript.segments.map((seg, i) => (
-                      <div key={i} className={styles.transcriptSegment}>
-                        {(seg.speaker || seg.title) && (
-                          <div className={styles.transcriptSpeaker}>
-                            {seg.speaker && <span className={styles.speakerName}>{seg.speaker}</span>}
-                            {seg.title && (
-                              <span className={styles.speakerTitle}>{seg.title}</span>
-                            )}
-                            {seg.sentiment && (
-                              <span className={
-                                seg.sentiment === 'positive' ? styles.sentBull :
-                                seg.sentiment === 'negative' ? styles.sentBear :
-                                styles.sentNeutral
-                              }>
-                                {seg.sentiment}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        <p className={styles.transcriptContent}>
-                          {highlight(seg.content, kw)}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      )}
     </div>
   )
 }

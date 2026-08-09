@@ -39,7 +39,10 @@ describe('CallSection', () => {
     renderCall()
     expect(handed.recap.headline).toBe('Data-centre beat')     // inner
     expect(handed.recap.webcast_url).toBe('https://ir.example/live')  // outer
-    expect(handed.ticker).toBe('NVDA')
+    // No `ticker`: the recap no longer owns the verbatim transcript, so it has
+    // no reason to know the symbol. TranscriptPanel is mounted as its own
+    // sibling and takes `sym` directly — see CallSection.transcriptWire.test.jsx.
+    expect(handed.ticker).toBeUndefined()
   })
 
   it('renders the restyled sentiment gauge above the recap', () => {
@@ -48,10 +51,17 @@ describe('CallSection', () => {
     expect(screen.getByTestId('sentiment-gauge')).toBeTruthy()
   })
 
-  it('EmptyState with useful copy when no recap has posted yet', () => {
+  // This used to assert the copy "No transcript yet — typically posts within 2h
+  // of the call." That sentence was a claim about a source this branch never
+  // queried: FMP publishes the verbatim transcript independently of any LLM, so
+  // the panel routinely said it while a transcript sat one cached call away
+  // (DIS on 2026-08-08: 81 quarters available, FY26Q3 published three days
+  // earlier). The empty state now speaks only for the artifact it knows about.
+  it('EmptyState speaks about the recap, and claims nothing about the transcript', () => {
     recapData = { ticker: 'NVDA', recap: null, webcast_url: null, rating_changes: [] }
     renderCall({ lifecycle: 'PRINTED' })
-    expect(screen.getByText(/typically posts within 2h of the call/i)).toBeTruthy()
+    expect(screen.getByText(/no call recap yet/i)).toBeTruthy()
+    expect(screen.queryByText(/no transcript yet/i)).toBeNull()
     expect(screen.queryByTestId('call-recap')).toBeNull()
   })
 

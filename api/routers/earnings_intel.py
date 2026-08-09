@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from typing import Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query
 
 from api.middleware.auth_middleware import get_current_user
 from api.services.call_recap import (
@@ -22,7 +22,10 @@ from api.services.call_recap import (
 )
 from api.services.earnings_audio import get_audio
 from api.services.av_transcripts import get_transcript
-from api.services.fmp_transcripts import get_transcript as get_fmp_transcript
+from api.services.fmp_transcripts import (
+    get_transcript as get_fmp_transcript,
+    list_quarters as list_fmp_quarters,
+)
 from api.services.analyst_grades import get_analyst_grades
 
 _log = logging.getLogger(__name__)
@@ -30,7 +33,11 @@ router = APIRouter()
 
 
 @router.get("/api/earnings/call-recap/{ticker}")
-def call_recap_endpoint(ticker: str, user: dict = Depends(get_current_user)):
+def call_recap_endpoint(
+    ticker: str,
+    quarter: Optional[str] = Query(default=None, description="e.g. 2026Q3; omit for latest"),
+    user: dict = Depends(get_current_user),
+):
     """AI-synthesized earnings call recap.
 
     Returns {headline, sentiment, bullets[], quotes[], guidance, qa_highlights[]}
@@ -41,9 +48,16 @@ def call_recap_endpoint(ticker: str, user: dict = Depends(get_current_user)):
     if not sym:
         return None
     try:
-        recap = get_call_recap(sym)
-        webcast = get_webcast_url(sym)
-        ratings = get_rating_changes(sym)
+        recap = get_call_recap(sym, quarter=quarter or None)
+        # A warmed recap carries these already. Calling the providers anyway is
+        # what kept the endpoint at ~4.5s despite the recap itself being a ~1ms
+        # point-read — the store read was instant, the RESPONSE was not.
+        if recap and "webcast_url" in recap:
+            webcast = recap.get("webcast_url")
+            ratings = recap.get("rating_changes") or []
+        else:
+            webcast = get_webcast_url(sym)
+            ratings = get_rating_changes(sym)
         return {
             "ticker": sym,
             "recap": recap,
@@ -91,6 +105,23 @@ def sentiment_endpoint(ticker: str, user: dict = Depends(get_current_user)):
         return None
 
 
+def _with_qa_boundary(res):
+    """Attach where prepared remarks end, when the transcript actually says.
+
+    Derived, not guessed: three of seven live transcripts (DIS, MSFT, JPM) carry
+    no question-and-answer phrasing at all, so this is None for them and the UI
+    simply omits the chip rather than pointing at an invented boundary.
+    """
+    if not res or not res.get("segments"):
+        return res
+    try:
+        from api.services.call_recap_grounded import prepared_remarks_end
+        res["prepared_remarks_end"] = prepared_remarks_end(res["segments"])
+    except Exception:
+        res["prepared_remarks_end"] = None
+    return res
+
+
 @router.get("/api/earnings/transcript/{ticker}")
 def transcript_endpoint(
     ticker: str,
@@ -115,15 +146,93 @@ def transcript_endpoint(
     try:
         res = get_fmp_transcript(sym, quarter=quarter or None)
         if res and res.get("segments"):
-            return res
+            return _with_qa_boundary(res)
     except Exception as e:
         _log.warning("[earnings_intel] fmp transcript failed for %s: %s", sym, e)
     # AlphaVantage fallback (rate-limited) only when FMP came up empty.
     try:
-        return get_transcript(sym, quarter=quarter or None)
+        return _with_qa_boundary(get_transcript(sym, quarter=quarter or None))
     except Exception as e:
         _log.warning("[earnings_intel] av transcript failed for %s: %s", sym, e)
         return None
+
+
+# ── Cross-company transcript keyword alerts ──────────────────────────────────
+# Follow a THEME rather than a ticker: "tell me when anyone says 'tariff'".
+# Reuses the existing multi-channel alert delivery; see
+# api/services/transcript_keyword_alerts.py.
+
+@router.get("/api/admin/call-recap-status")
+def call_recap_status():
+    """Store size, today's generations and spend against the cap.
+
+    Read this rather than the logs to answer "is warming keeping up?" — a
+    permanently-green heartbeat would not distinguish a healthy sweep from one
+    that has been capped since 08:00.
+    """
+    try:
+        from api.services import call_recap_store as store
+        store.init_db()
+        return store.stats()
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/api/earnings/keyword-alerts")
+def list_keyword_alerts(user: dict = Depends(get_current_user)):
+    try:
+        from api.services import transcript_keyword_alerts as ka
+        ka.init_db()
+        return {"keywords": ka.list_keywords(user["id"]),
+                "max": ka.MAX_KEYWORDS_PER_USER,
+                "min_length": ka.MIN_KEYWORD_LEN,
+                "enabled": ka.enabled()}
+    except Exception as e:
+        _log.warning("[earnings_intel] keyword list failed: %s", e)
+        return {"keywords": [], "max": 0, "min_length": 0, "enabled": False}
+
+
+@router.post("/api/earnings/keyword-alerts")
+def add_keyword_alert(body: dict = Body(...), user: dict = Depends(get_current_user)):
+    """Add a keyword. Returns the stored (normalised) form, or an explicit
+    reason — a silent no-op would look like a saved subscription that never
+    fires, which is the worst outcome for an alert feature."""
+    from api.services import transcript_keyword_alerts as ka
+    ka.init_db()
+    raw = (body or {}).get("keyword") or ""
+    if ka.normalize_keyword(raw) is None:
+        return {"ok": False, "reason": "too_short_or_too_long",
+                "min_length": ka.MIN_KEYWORD_LEN}
+    stored = ka.add_keyword(user["id"], raw)
+    if stored is None:
+        return {"ok": False, "reason": "limit_reached", "max": ka.MAX_KEYWORDS_PER_USER}
+    return {"ok": True, "keyword": stored, "keywords": ka.list_keywords(user["id"])}
+
+
+@router.delete("/api/earnings/keyword-alerts")
+def remove_keyword_alert(keyword: str = Query(...), user: dict = Depends(get_current_user)):
+    from api.services import transcript_keyword_alerts as ka
+    ka.init_db()
+    removed = ka.remove_keyword(user["id"], keyword)
+    return {"ok": removed, "keywords": ka.list_keywords(user["id"])}
+
+
+@router.get("/api/earnings/transcript-quarters/{ticker}")
+def transcript_quarters_endpoint(ticker: str, user: dict = Depends(get_current_user)):
+    """Quarters with a published transcript, newest first.
+
+    Cheap (one cached FMP index call, no transcript bodies) and it is what lets
+    the reader step back through prior calls instead of only seeing the latest.
+    Never raises; an empty list simply means no selector is offered.
+    """
+    sym = (ticker or "").upper().strip()
+    if not sym:
+        return {"symbol": "", "quarters": []}
+    try:
+        return {"symbol": sym, "quarters": list_fmp_quarters(sym)}
+    except Exception as e:
+        _log.warning("[earnings_intel] quarter list failed for %s: %s", sym, e)
+        return {"symbol": sym, "quarters": []}
 
 
 @router.get("/api/earnings/analyst-grades/{ticker}")

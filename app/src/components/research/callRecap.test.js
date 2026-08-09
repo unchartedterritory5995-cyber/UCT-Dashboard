@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeCallRecap } from './callRecap'
+import { normalizeCallRecap, guidanceKind } from './callRecap'
 
 const payload = {
   ticker: 'NVDA',
@@ -47,5 +47,147 @@ describe('normalizeCallRecap', () => {
       recap: { headline: 'h' }, rating_changes: [], webcast_url: null,
     })
     expect(out.rating_changes).toEqual([])
+  })
+})
+
+// ── Shape reconciliation ──────────────────────────────────────────────────────
+//
+// Three producer/consumer disagreements, each of which was live in production.
+
+describe('normalizeCallRecap — quote shapes', () => {
+  it('accepts the {topic, quote} shape the service actually emits', () => {
+    // call_recap.py's prompt asks for {topic, quote}; the renderer read
+    // {speaker, text}. Result: empty quotation marks on every recap.
+    const out = normalizeCallRecap({
+      recap: { headline: 'h', quotes: [{ topic: 'Margins', quote: 'We see leverage.' }] },
+    })
+    expect(out.quotes).toEqual([
+      // `segment` is null here because this payload predates grounding; when the
+      // server locates the quote it fills in the verified transcript index.
+      { speaker: '', role: '', topic: 'Margins', text: 'We see leverage.', segment: null },
+    ])
+  })
+
+  it('still accepts the {speaker, text} shape', () => {
+    const out = normalizeCallRecap({
+      recap: { headline: 'h', quotes: [{ speaker: 'CEO', text: 'Firing on all cylinders.' }] },
+    })
+    expect(out.quotes[0]).toMatchObject({ speaker: 'CEO', text: 'Firing on all cylinders.' })
+  })
+
+  it('accepts a bare string', () => {
+    const out = normalizeCallRecap({ recap: { headline: 'h', quotes: ['Plain quote.'] } })
+    expect(out.quotes[0].text).toBe('Plain quote.')
+  })
+
+  it('drops quotes with no text rather than rendering empty quotation marks', () => {
+    const out = normalizeCallRecap({
+      recap: { headline: 'h', quotes: [{ topic: 'Margins' }, null, 42, { quote: '   ' }] },
+    })
+    expect(out.quotes).toEqual([])
+  })
+
+  it('every quote exposes a string `text` — the crash was an object reaching .toLowerCase()', () => {
+    const out = normalizeCallRecap({
+      recap: { headline: 'h', quotes: [{ topic: 'a', quote: 'x' }, 'y', { speaker: 'CFO', text: 'z' }] },
+    })
+    for (const q of out.quotes) expect(typeof q.text).toBe('string')
+    expect(() => out.quotes.filter(q => q.text.toLowerCase().includes('x'))).not.toThrow()
+  })
+})
+
+describe('normalizeCallRecap — sentiment vocabulary', () => {
+  it('passes the service vocabulary through', () => {
+    expect(normalizeCallRecap({ recap: { headline: 'h', sentiment: 'positive' } }).sentiment)
+      .toBe('positive')
+  })
+
+  it('maps the legacy bullish/bearish labels onto it', () => {
+    expect(normalizeCallRecap({ recap: { headline: 'h', sentiment: 'bullish' } }).sentiment)
+      .toBe('positive')
+    expect(normalizeCallRecap({ recap: { headline: 'h', sentiment: 'bearish' } }).sentiment)
+      .toBe('negative')
+  })
+
+  it('absent stays absent — it must not become a neutral CLAIM', () => {
+    expect(normalizeCallRecap({ recap: { headline: 'h' } }).sentiment).toBeNull()
+  })
+})
+
+describe('normalizeCallRecap — bullets are strings, Q&A is structured', () => {
+  it('flattens bullets and drops empties', () => {
+    const out = normalizeCallRecap({
+      recap: { headline: 'h', bullets: ['plain', { text: 'wrapped' }, '', null] },
+    })
+    expect(out.bullets).toEqual(['plain', 'wrapped'])
+    for (const b of out.bullets) expect(typeof b).toBe('string')
+  })
+
+  // Q&A deliberately stopped being a flat string list: an exchange carries an
+  // analyst, a firm, the model's takeaway, and a SEPARATE verbatim excerpt that
+  // the server could actually verify. Collapsing those to one string would lose
+  // the distinction between what was said and what the model concluded.
+  it('keeps Q&A structured and tolerates the legacy string form', () => {
+    const out = normalizeCallRecap({
+      recap: {
+        headline: 'h',
+        qa_highlights: [
+          { analyst: 'Ben Reitzes', firm: 'Melius', question: 'On margins?',
+            takeaway: 'Guided higher', quote: 'we expect margins to expand', segment: 4 },
+          'a legacy string',
+          { takeaway: '' },
+        ],
+      },
+    })
+    expect(out.qa_highlights).toHaveLength(2)
+    expect(out.qa_highlights[0]).toMatchObject({
+      analyst: 'Ben Reitzes', firm: 'Melius', segment: 4,
+      quote: 'we expect margins to expand',
+    })
+    expect(out.qa_highlights[1]).toMatchObject({ takeaway: 'a legacy string', quote: '' })
+  })
+})
+
+describe('normalizeCallRecap — forward-looking commentary', () => {
+  it('keeps only items resting on a verbatim quote', () => {
+    const out = normalizeCallRecap({
+      recap: {
+        headline: 'h',
+        forward_looking: [
+          { topic: 'Margins', horizon: 'full_year', detail: 'Expanding',
+            quote: 'we remain on track for double-digit margins', speaker: 'CFO', segment: 2 },
+          { topic: 'No quote', horizon: 'full_year', detail: 'floating claim' },
+        ],
+      },
+    })
+    expect(out.forward_looking).toHaveLength(1)
+    expect(out.forward_looking[0]).toMatchObject({
+      topic: 'Margins', horizon: 'full_year', speaker: 'CFO', segment: 2,
+    })
+  })
+
+  it('defaults an absent horizon rather than inventing one', () => {
+    const out = normalizeCallRecap({
+      recap: { headline: 'h', forward_looking: [{ quote: 'we expect growth' }] },
+    })
+    expect(out.forward_looking[0].horizon).toBe('unspecified')
+  })
+
+  it('is an empty array when the payload has none', () => {
+    expect(normalizeCallRecap({ recap: { headline: 'h' } }).forward_looking).toEqual([])
+  })
+})
+
+describe('guidanceKind', () => {
+  it('separates the enum from real prose so it is not rendered twice', () => {
+    expect(guidanceKind('raised')).toBe('enum')
+    expect(guidanceKind('MAINTAINED')).toBe('enum')
+    expect(guidanceKind('Full-year EPS guidance raised to $5.20–$5.30.')).toBe('prose')
+  })
+
+  it('treats none/blank as nothing to show', () => {
+    expect(guidanceKind('none')).toBeNull()
+    expect(guidanceKind('')).toBeNull()
+    expect(guidanceKind(null)).toBeNull()
   })
 })

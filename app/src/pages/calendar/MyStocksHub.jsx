@@ -28,6 +28,7 @@ import useSeen from '../../hooks/useSeen'
 import { SentimentGaugeDisplay } from '../../components/calendar/SentimentGauge'
 import useSentiment from '../../hooks/useSentiment'
 import CallRecapSection from '../../components/calendar/CallRecapSection'
+import TranscriptPanel from '../../components/calendar/TranscriptPanel'
 import EarningsResearchModal from '../../components/research/EarningsResearchModal'
 import ErrorBoundary from '../../components/ErrorBoundary'
 import { toModalRow, timingLabel, todayIso, shouldUnwindHistory } from './earningsModalRow'
@@ -234,8 +235,15 @@ function CallsTab({ mineSyms, seen, markSeen }) {
 
 function CallRecapForSym({ sym }) {
   const { data: recap } = useCallRecap(sym)
-  if (!recap) return <div className={styles.hubCallLoading}>Loading recap…</div>
-  return <CallRecapSection recap={recap} audio={null} />
+  // The transcript renders either way — it is not downstream of the recap.
+  return (
+    <>
+      {recap
+        ? <CallRecapSection recap={recap} audio={null} />
+        : <div className={styles.hubCallLoading}>Loading recap…</div>}
+      <TranscriptPanel sym={sym} />
+    </>
+  )
 }
 
 // ── Sub-tab: Filings ──────────────────────────────────────────────────────────

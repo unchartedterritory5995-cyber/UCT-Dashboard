@@ -38,15 +38,45 @@ cache = _cache_singleton
 _TTL_HIT  = 30 * 86_400   # 30d — transcripts are immutable once published
 _TTL_MISS = 6 * 3_600     # 6h — short-cache genuine misses
 
-# A speaker-turn boundary: a capitalized 1–4 word name (allowing ., -, ', &)
-# immediately followed by a colon, at the very start, after newline(s), or after
-# sentence-ending punctuation. Mid-sentence ratios like "2:1" never match (no
-# capitalized-name prefix); "the Company: " style false hits are rare and benign.
+# Segmentation runs a LADDER of boundaries, most precise first, and takes the
+# first rung that finds a plausible number of turns. Nothing is ever discarded:
+# the last rung returns the whole blob as one segment.
+#
+# Rung 1 — LINE-ANCHORED. In an FMP transcript a speaker turn begins at the
+# start of a line ("Name: text…"). Two properties matter and both were defects
+# in the sentence-boundary boundary below (measured against live transcripts on
+# 2026-08-08, fixtures in tests/fixtures/fmp_transcript_excerpts.json):
+#
+#   * separators WITHIN a name are spaces/commas only — never `\s` — so a name
+#     cannot span a line break. The old `\s+` between name words, combined with
+#     `.` being legal inside a name word, produced speaker='Thanks.\n\nTim Cook'
+#     on AAPL: one human rendered as two identities, silently breaking any
+#     speaker filter or role map downstream.
+#   * `[ ,]+` admits the comma, so credentialed names parse. DIS Q&A is
+#     moderated by "Benjamin Daniel Swinburne, C.F.A."; the old space-only
+#     separator never matched him, so 22 of that call's 46 turns merged into
+#     the PRECEDING executive's segment and carried his name.
+#
+# The class is letters + . - ' ’ & with NO digits (deliberately not `\w`), so a
+# line like "Q3: revenue grew" can never be read as a speaker.
+_SPEAKER_LINE_RE = re.compile(
+    r"(?:\A|\n)[ \t]*"
+    r"([A-Z][A-Za-z.\-'’]*(?:[ ,]+[A-Z&][A-Za-z.\-'’&]*){0,5})"
+    r"[ \t]*:[ \t]+"
+)
+
+# Rung 2 — the original sentence-boundary form, kept verbatim for rows that
+# arrive as ONE line with no newlines at all (FMP is not consistent about this).
+# Line-anchoring alone would return a single unsplit segment for those.
 _SPEAKER_RE = re.compile(
     r"(?:\A|\n+|(?<=[.?!])\s+)"
     r"([A-Z][A-Za-z.\-'’]+(?:\s+[A-Z&][A-Za-z.\-'’&]*){0,3})"
     r"\s*:\s+"
 )
+
+# Below this many turns a boundary hasn't convincingly found speaker structure,
+# so we fall to the next rung rather than emit confident nonsense.
+_MIN_TURNS = 3
 
 
 def _parse_quarter(quarter: Optional[str]) -> tuple[Optional[int], Optional[int]]:
@@ -59,24 +89,48 @@ def _parse_quarter(quarter: Optional[str]) -> tuple[Optional[int], Optional[int]
     return (None, None)
 
 
+def _seg(speaker: str, text: str) -> dict:
+    return {"speaker": speaker, "title": "", "content": text, "sentiment": None}
+
+
+def _turns(content: str, matches: list) -> list[dict]:
+    """Slice `content` into turns at each boundary match.
+
+    Any text BEFORE the first boundary is kept as a leading unattributed
+    segment rather than dropped — an unlabelled preamble is still part of the
+    call, and silently losing it is indistinguishable from the provider not
+    having sent it.
+    """
+    segs: list[dict] = []
+    head = content[: matches[0].start()].strip()
+    if head:
+        segs.append(_seg("", head))
+    for i, m in enumerate(matches):
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(content)
+        text = content[m.end():end].strip()
+        if text:
+            segs.append(_seg(m.group(1).strip(), text))
+    return segs
+
+
 def _segment(content: str) -> list[dict]:
     """Split one transcript blob into [{speaker,title,content,sentiment}] turns.
-    Falls back to a single whole-transcript segment when speaker turns are scarce."""
+
+    Walks the boundary ladder (line-anchored → sentence-boundary) and takes the
+    first rung that finds >= _MIN_TURNS turns; falls back to a single
+    whole-transcript segment so no text is ever lost.
+    """
     content = (content or "").strip()
     if not content:
         return []
-    matches = list(_SPEAKER_RE.finditer(content))
-    if len(matches) < 3:
-        return [{"speaker": "", "title": "", "content": content, "sentiment": None}]
-    segs: list[dict] = []
-    for i, m in enumerate(matches):
-        speaker = m.group(1).strip()
-        start = m.end()
-        end = matches[i + 1].start() if i + 1 < len(matches) else len(content)
-        text = content[start:end].strip()
-        if text:
-            segs.append({"speaker": speaker, "title": "", "content": text, "sentiment": None})
-    return segs or [{"speaker": "", "title": "", "content": content, "sentiment": None}]
+    for rx in (_SPEAKER_LINE_RE, _SPEAKER_RE):
+        matches = list(rx.finditer(content))
+        if len(matches) < _MIN_TURNS:
+            continue
+        segs = _turns(content, matches)
+        if segs:
+            return segs
+    return [_seg("", content)]
 
 
 def _fetch(symbol: str, year: int, quarter: int) -> Optional[dict]:
@@ -105,6 +159,36 @@ def _available(symbol: str) -> list[tuple[int, int]]:
     return out
 
 
+# A hit is stable — a company gains a quarter roughly four times a year.
+# A MISS must expire fast: reusing the 6h transcript miss-TTL here would hide
+# a company's first-ever transcript for most of a day after it publishes.
+_TTL_QUARTERS      = 12 * 3_600   # 12h
+_TTL_QUARTERS_MISS = 900          # 15 min
+
+
+def list_quarters(ticker: str) -> list[dict]:
+    """Every quarter FMP has a transcript for, newest first.
+
+    DIS has 81. `useTranscript` has always accepted a `quarter` argument and
+    nothing ever passed one, so all of that history was unreachable from the UI.
+    """
+    ticker = (ticker or "").upper().strip()
+    if not ticker:
+        return []
+    ck = f"fmp_transcript_quarters_{ticker}"
+    hit = cache.get(ck)
+    if hit is not None:
+        return hit
+    try:
+        rows = _available(ticker)
+    except Exception as exc:
+        _log.warning("[fmp_transcripts] quarter list failed for %s: %s", ticker, exc)
+        return []
+    out = [{"quarter": f"{y}Q{q}", "year": y, "q": q} for y, q in rows]
+    cache.set(ck, out, ttl=_TTL_QUARTERS if out else _TTL_QUARTERS_MISS)
+    return out
+
+
 def get_transcript(ticker: str, quarter: Optional[str] = None) -> Optional[dict]:
     """Verbatim transcript from FMP. `quarter` like '2025Q1'; omit to auto-resolve
     the newest available. Returns the av_transcripts-compatible dict or None."""
@@ -116,7 +200,12 @@ def get_transcript(ticker: str, quarter: Optional[str] = None) -> Optional[dict]
     resolved = False
     try:
         if year is None or q is None:
-            avail = _available(ticker)
+            # Go through the CACHED quarter index, not `_available` directly.
+            # Every transcript request without an explicit quarter was making a
+            # live `earning-call-transcript-dates` call before touching the
+            # cached body, so a repeat open cost ~1.5s instead of ~10ms even
+            # though the transcript itself was cached for 30 days.
+            avail = [(row["year"], row["q"]) for row in list_quarters(ticker)]
             if not avail:
                 return None
             year, q = avail[0]

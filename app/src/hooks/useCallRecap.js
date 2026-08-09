@@ -6,10 +6,19 @@ import useSWR from 'swr'
 
 const fetcher = url => fetch(url).then(r => r.ok ? r.json() : null).catch(() => null)
 
-export default function useCallRecap(ticker) {
+export default function useCallRecap(ticker, quarter = null) {
+  const qs = quarter ? `?quarter=${encodeURIComponent(quarter)}` : ''
   return useSWR(
-    ticker ? `/api/earnings/call-recap/${ticker}` : null,
+    ticker ? `/api/earnings/call-recap/${ticker}${qs}` : null,
     fetcher,
-    { refreshInterval: 30 * 60 * 1000, revalidateOnFocus: false },
+    {
+      // A warmed recap is a SQLite point-read and arrives with the first
+      // response. A cold one returns null and triggers a background
+      // generation server-side, so poll every 5s until it lands (~40s) and
+      // then fall back to the slow cadence — a 30-minute interval would leave
+      // the first reader of a cold symbol staring at an empty panel.
+      refreshInterval: latest => (latest?.recap ? 30 * 60 * 1000 : 5000),
+      revalidateOnFocus: false,
+    },
   )
 }

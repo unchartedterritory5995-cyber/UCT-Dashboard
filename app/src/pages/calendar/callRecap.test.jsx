@@ -65,7 +65,9 @@ describe('CallRecapSection', () => {
 
   it('renders management quote', () => {
     render(<CallRecapSection recap={FULL_RECAP} audio={null} />)
-    expect(screen.getByText(/"We are firing on all cylinders\."/)).toBeTruthy()
+    // Quotes render with typographic quotation marks now; assert the words,
+    // not the punctuation around them.
+    expect(document.body.textContent).toContain('We are firing on all cylinders.')
   })
 
   it('renders rating change', () => {
@@ -251,129 +253,58 @@ describe('SentimentGaugeDisplay', () => {
   })
 })
 
-// ── CallRecapSection — Full Transcript block ──────────────────────────────────
+// ── The producer/consumer shape defects, at the surface ───────────────────────
 
-const SAMPLE_TRANSCRIPT = {
-  symbol:   'AAPL',
-  quarter:  '2025Q1',
-  segments: [
-    { speaker: 'Tim Cook',     title: 'CEO', content: 'Revenue grew strongly this quarter.', sentiment: null },
-    { speaker: 'Luca Maestri', title: 'CFO', content: 'Margins expanded across all categories.', sentiment: 'positive' },
-  ],
-  resolved: true,
-}
+describe('CallRecapSection — the shape the service actually sends', () => {
+  // call_recap.py asks the model for {topic, quote}; this component read
+  // {speaker, text}. Rendering gave empty quotation marks, and the search
+  // filter did `(q.text || q).toLowerCase()` — on an object that throws
+  // "q.toLowerCase is not a function", taking the section down mid-keystroke.
+  const SERVICE_SHAPE = {
+    headline: 'Beat on adjusted EPS',
+    sentiment: 'positive',            // NOT 'bullish' — the service's vocabulary
+    bullets: ['Record Experiences revenue'],
+    quotes: [
+      { topic: 'Margins', quote: 'We expect continued margin expansion.' },
+      { topic: 'Buyback', quote: 'We raised the repurchase programme.' },
+    ],
+    guidance: 'raised',
+    qa_highlights: [],
+  }
 
-describe('CallRecapSection — Full Transcript block', () => {
-  beforeEach(() => {
-    // Reset mock to default (no transcript, not loading)
-    mockUseTranscript.mockReturnValue({ data: undefined, isLoading: false })
+  it('renders quote text rather than empty quotation marks', () => {
+    render(<CallRecapSection recap={SERVICE_SHAPE} audio={null} />)
+    expect(screen.getByText(/We expect continued margin expansion\./)).toBeTruthy()
   })
 
-  it('shows the Full Transcript toggle button when ticker is provided', () => {
-    render(<CallRecapSection recap={FULL_RECAP} audio={null} ticker="AAPL" />)
-    expect(screen.getByText('FULL TRANSCRIPT')).toBeTruthy()
+  it('does not crash when searching a recap that has quotes', () => {
+    render(<CallRecapSection recap={SERVICE_SHAPE} audio={null} />)
+    const input = screen.getByPlaceholderText('Search in recap…')
+    expect(() => fireEvent.change(input, { target: { value: 'margin' } })).not.toThrow()
+    // The surviving quote's text is split across <mark> nodes by the highlight.
+    expect(document.body.textContent).toContain('We expect continued margin expansion.')
+    // …and it really filters: the non-matching quote is gone.
+    expect(screen.queryByText(/raised the repurchase programme/)).toBeNull()
   })
 
-  it('does NOT show the Full Transcript block when ticker is absent', () => {
-    render(<CallRecapSection recap={FULL_RECAP} audio={null} />)
-    expect(screen.queryByText('FULL TRANSCRIPT')).toBeNull()
+  it('styles a positive call as positive — the badge tested a dead vocabulary', () => {
+    const { container } = render(<CallRecapSection recap={SERVICE_SHAPE} audio={null} />)
+    const badge = screen.getByText('POSITIVE')
+    expect(badge.className).toBe(container.querySelector('[class*="sentBull"]')?.className)
   })
 
-  it('is collapsed by default — transcript segments not visible', () => {
-    mockUseTranscript.mockReturnValue({ data: SAMPLE_TRANSCRIPT, isLoading: false })
-    render(<CallRecapSection recap={FULL_RECAP} audio={null} ticker="AAPL" />)
-    // Segments not rendered until expanded
-    expect(screen.queryByText('Revenue grew strongly this quarter.')).toBeNull()
+  it('renders the guidance enum ONCE, as the chip', () => {
+    render(<CallRecapSection recap={SERVICE_SHAPE} audio={null} />)
+    expect(screen.getByText(/GUIDANCE RAISED/)).toBeTruthy()
+    // The old code also emitted a "GUIDANCE" heading over a one-word paragraph.
+    expect(screen.queryByText('GUIDANCE')).toBeNull()
   })
 
-  it('is LAZY — useTranscript not called with enabled=true until expanded', () => {
-    render(<CallRecapSection recap={FULL_RECAP} audio={null} ticker="AAPL" />)
-    // All calls to useTranscript should have enabled=false (or falsy) while collapsed
-    const calls = mockUseTranscript.mock.calls
-    expect(calls.length).toBeGreaterThan(0)
-    calls.forEach(([_ticker, opts]) => {
-      expect(opts?.enabled).toBeFalsy()
-    })
-  })
-
-  it('triggers fetch (enabled=true) after expand click', () => {
-    render(<CallRecapSection recap={FULL_RECAP} audio={null} ticker="AAPL" />)
-    mockUseTranscript.mockClear()
-    const btn = screen.getByRole('button', { name: /FULL TRANSCRIPT/i })
-    fireEvent.click(btn)
-    // After expansion, hook should be called with enabled=true
-    const callsAfter = mockUseTranscript.mock.calls
-    const wasEnabled = callsAfter.some(([_t, opts]) => opts?.enabled === true)
-    expect(wasEnabled).toBe(true)
-  })
-
-  it('renders transcript segments after expansion', () => {
-    mockUseTranscript.mockReturnValue({ data: SAMPLE_TRANSCRIPT, isLoading: false })
-    render(<CallRecapSection recap={FULL_RECAP} audio={null} ticker="AAPL" />)
-    // Expand the panel
-    fireEvent.click(screen.getByRole('button', { name: /FULL TRANSCRIPT/i }))
-    expect(screen.getByText('Revenue grew strongly this quarter.')).toBeTruthy()
-    expect(screen.getByText('Margins expanded across all categories.')).toBeTruthy()
-  })
-
-  it('shows speaker names in transcript', () => {
-    mockUseTranscript.mockReturnValue({ data: SAMPLE_TRANSCRIPT, isLoading: false })
-    render(<CallRecapSection recap={FULL_RECAP} audio={null} ticker="AAPL" />)
-    fireEvent.click(screen.getByRole('button', { name: /FULL TRANSCRIPT/i }))
-    // speakerName has CSS text-transform:uppercase — DOM text is unchanged; match case-insensitively
-    expect(screen.getByText('Tim Cook')).toBeTruthy()
-    expect(screen.getByText('Luca Maestri')).toBeTruthy()
-  })
-
-  it('shows loading message while transcript is fetching', () => {
-    mockUseTranscript.mockReturnValue({ data: undefined, isLoading: true })
-    render(<CallRecapSection recap={FULL_RECAP} audio={null} ticker="AAPL" />)
-    fireEvent.click(screen.getByRole('button', { name: /FULL TRANSCRIPT/i }))
-    expect(screen.getByText('Loading transcript…')).toBeTruthy()
-  })
-
-  it('shows unavailable message when transcript is null after load', () => {
-    mockUseTranscript.mockReturnValue({ data: null, isLoading: false })
-    render(<CallRecapSection recap={FULL_RECAP} audio={null} ticker="AAPL" />)
-    fireEvent.click(screen.getByRole('button', { name: /FULL TRANSCRIPT/i }))
-    expect(screen.getByText('Transcript not available.')).toBeTruthy()
-  })
-
-  describe('keyword search over transcript text', () => {
-    it('highlights keyword in transcript segment content', () => {
-      mockUseTranscript.mockReturnValue({ data: SAMPLE_TRANSCRIPT, isLoading: false })
-      render(<CallRecapSection recap={FULL_RECAP} audio={null} ticker="AAPL" />)
-      fireEvent.click(screen.getByRole('button', { name: /FULL TRANSCRIPT/i }))
-
-      // Type a keyword into the recap search input
-      const input = screen.getByPlaceholderText('Search in recap…')
-      fireEvent.change(input, { target: { value: 'Revenue' } })
-
-      // The keyword should be highlighted inside the transcript as well
-      // (highlight() wraps matching text in <mark>, so text appears split)
-      expect(screen.getByText(/grew strongly this quarter\./)).toBeTruthy()
-    })
-
-    it('transcript content visible even when keyword matches nothing in recap', () => {
-      mockUseTranscript.mockReturnValue({ data: SAMPLE_TRANSCRIPT, isLoading: false })
-      render(<CallRecapSection recap={FULL_RECAP} audio={null} ticker="AAPL" />)
-      fireEvent.click(screen.getByRole('button', { name: /FULL TRANSCRIPT/i }))
-
-      // Filter on a term that appears in transcript but not recap bullets
-      const input = screen.getByPlaceholderText('Search in recap…')
-      fireEvent.change(input, { target: { value: 'Margins' } })
-
-      // Transcript segment with "Margins" is still visible
-      expect(screen.getByText(/expanded across all categories\./)).toBeTruthy()
-    })
-  })
-
-  it('shows Listen to call button when speechSynthesis is available and transcript loaded', () => {
-    const mockSynth = { speak: vi.fn(), cancel: vi.fn() }
-    Object.defineProperty(window, 'speechSynthesis', { value: mockSynth, configurable: true })
-    mockUseTranscript.mockReturnValue({ data: SAMPLE_TRANSCRIPT, isLoading: false })
-    render(<CallRecapSection recap={FULL_RECAP} audio={null} ticker="AAPL" />)
-    fireEvent.click(screen.getByRole('button', { name: /FULL TRANSCRIPT/i }))
-    expect(screen.getByTitle('Listen to call')).toBeTruthy()
+  it('still renders real guidance PROSE when the field carries a sentence', () => {
+    render(<CallRecapSection
+      recap={{ ...SERVICE_SHAPE, guidance: 'Full-year EPS guidance raised to $5.20–$5.30.' }}
+      audio={null} />)
+    expect(screen.getByText(/Full-year EPS guidance raised/)).toBeTruthy()
+    expect(screen.queryByText(/GUIDANCE RAISED/)).toBeNull()
   })
 })
