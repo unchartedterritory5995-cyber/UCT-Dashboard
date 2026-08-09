@@ -44,10 +44,52 @@ const num = (v) => {
  * null means "no realized outcome to state" — an unreported quarter or a row
  * missing either side of the comparison. Never guess.
  */
-export function beatState(row) {
+/**
+ * WHICH numbers a lollipop draws. The chart shape — estimate dot, actual dot,
+ * the stem between them, beat/miss colouring — is identical for EPS and
+ * revenue; only the field names and the money formatting differ. Naming them
+ * here keeps ONE renderer rather than a near-copy that drifts.
+ *
+ * EPS and revenue must never share a y-axis: one is dollars-per-share and the
+ * other is billions, so a shared scale flattens EPS into the zero line. They
+ * are alternate VIEWS of the same quarters, which is why the section toggles
+ * between them instead of overlaying.
+ */
+export const LOLLI_METRICS = {
+  eps: {
+    key: 'eps',
+    label: 'EPS',
+    estimate: 'eps_estimate',
+    actual: 'eps_actual',
+    low: 'eps_estimate_low',
+    high: 'eps_estimate_high',
+    surprise: 'surprise_pct',
+  },
+  revenue: {
+    key: 'revenue',
+    label: 'Revenue',
+    estimate: 'revenue_estimate',
+    actual: 'revenue_actual',
+    // Revenue carries no consensus whisker in this payload; the renderer
+    // simply draws no whisker when these read null.
+    low: null,
+    high: null,
+    surprise: 'revenue_surprise_pct',
+  },
+}
+
+const DEFAULT_METRIC = LOLLI_METRICS.eps
+
+/** Read a metric field, tolerating a descriptor that declares it absent. */
+function mval(row, metric, slot) {
+  const k = (metric || DEFAULT_METRIC)[slot]
+  return k ? num(row?.[k]) : null
+}
+
+export function beatState(row, metric = DEFAULT_METRIC) {
   if (!row || !row.reported) return null
-  const est = num(row.eps_estimate)
-  const act = num(row.eps_actual)
+  const est = mval(row, metric, 'estimate')
+  const act = mval(row, metric, 'actual')
   if (est == null || act == null) return null
   if (act > est) return 'beat'
   if (act < est) return 'miss'
@@ -59,11 +101,11 @@ export function beatState(row) {
  * whisker end with 12% headroom. Returns null when nothing is plottable — the
  * caller then renders an EmptyState rather than an axis around nothing.
  */
-export function yDomain(rows) {
+export function yDomain(rows, metric = DEFAULT_METRIC) {
   const vals = []
   for (const r of rows || []) {
-    for (const k of ['eps_estimate', 'eps_actual', 'eps_estimate_low', 'eps_estimate_high']) {
-      const v = num(r?.[k])
+    for (const slot of ['estimate', 'actual', 'low', 'high']) {
+      const v = mval(r, metric, slot)
       if (v != null) vals.push(v)
     }
   }
@@ -148,9 +190,10 @@ export function renderLollipopItem(params, api) {
 }
 
 /** The ECharts option — pure, so the chart's contract is unit-testable. */
-export function buildLollipopOption(rows, { valueFormatter } = {}) {
+export function buildLollipopOption(rows, { valueFormatter, metric } = {}) {
   const list = rows || []
-  const domain = yDomain(list) || [0, 1]
+  const m = metric || DEFAULT_METRIC
+  const domain = yDomain(list, m) || [0, 1]
   const fmt = valueFormatter || ((v) => (v == null ? '—' : `$${Number(v).toFixed(2)}`))
 
   return {
@@ -175,27 +218,27 @@ export function buildLollipopOption(rows, { valueFormatter } = {}) {
       trigger: 'item',
       formatter: (p) => {
         const r = list[p.dataIndex] || {}
-        const state = beatState(r)
+        const state = beatState(r, m)
         const head = `${r.quarter ?? ''}${r.session ? ` · ${String(r.session).toUpperCase()}` : ''}`
-        const estLine = `Est ${fmt(num(r.eps_estimate))}`
+        const estLine = `Est ${fmt(mval(r, m, 'estimate'))}`
         if (!r.reported) return `${head}<br/>${estLine} · not reported yet`
-        const surprise = num(r.surprise_pct)
+        const surprise = m.surprise ? num(r[m.surprise]) : null
         const tail = surprise == null ? '' : ` (${surprise > 0 ? '+' : ''}${surprise.toFixed(1)}%)`
-        return `${head}<br/>${estLine}<br/>Act ${fmt(num(r.eps_actual))}${tail}${state ? ` · ${state}` : ''}`
+        return `${head}<br/>${estLine}<br/>Act ${fmt(mval(r, m, 'actual'))}${tail}${state ? ` · ${state}` : ''}`
       },
     },
     series: [{
       type: 'custom',
-      name: 'EPS',
+      name: m.label,
       renderItem: renderLollipopItem,
       encode: { x: 0, y: [1, 2, 3, 4] },
       clip: true,
       data: list.map((r, i) => [
         i,
-        num(r?.eps_estimate),
-        num(r?.eps_actual),
-        num(r?.eps_estimate_low),
-        num(r?.eps_estimate_high),
+        mval(r, m, 'estimate'),
+        mval(r, m, 'actual'),
+        mval(r, m, 'low'),
+        mval(r, m, 'high'),
         r?.reported ? 1 : 0,
       ]),
     }],
@@ -220,8 +263,10 @@ export default function LollipopChart({
   className = '',
   ariaLabel,
   valueFormatter,
+  metric = DEFAULT_METRIC,
 }) {
   const rows = Array.isArray(quarters) ? quarters : []
+  const m = metric || DEFAULT_METRIC
 
   if (rows.length < 2) {
     return (
@@ -234,12 +279,12 @@ export default function LollipopChart({
     )
   }
 
-  const option = buildLollipopOption(rows, { valueFormatter })
-  const states = rows.map(beatState).filter(Boolean)
+  const option = buildLollipopOption(rows, { valueFormatter, metric: m })
+  const states = rows.map((r) => beatState(r, m)).filter(Boolean)
   const beats = states.filter((s) => s === 'beat').length
   const horizon = horizonLabel(rows)
   const built = ariaLabel
-    || `Estimate versus reported EPS, ${horizon}. Beat ${beats} of ${states.length} reported quarters.`
+    || `Estimate versus reported ${m.label}, ${horizon}. Beat ${beats} of ${states.length} reported quarters.`
 
   return (
     <div className={`${styles.wrap} ${className}`}>

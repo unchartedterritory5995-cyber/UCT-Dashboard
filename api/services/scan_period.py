@@ -390,6 +390,107 @@ def debug_period(start_ymd: int, end_ymd: int) -> dict:
     return out
 
 
+def coverage_probe(start_ymd: int, end_ymd: int) -> dict:
+    """Would serving this range from bars.db (skipping the provider's grouped-daily call)
+    give the SAME ranked list? Instruments the risk of the 'bars.db-primary' speedup.
+
+    The provider's grouped-daily set is the authoritative, complete universe for a date.
+    bars.db is survivorship-biased (delisted names absent) and coverage-dependent. This
+    compares, at the RESULT level, the names each source would produce — a name only makes
+    the list if it has BOTH a start and end close, is common stock, and isn't an ETF — then
+    reports what bars.db would DROP versus the provider, with special attention to whether
+    any dropped name is a big mover (the visible failure). Read-only; no writes, no warm."""
+    from api.services import bars_sqlite
+    sd_t, ed_t = _to_date(start_ymd), _to_date(end_ymd)
+
+    # Authoritative provider closes (normalize BRK.B → BRK-B to match bars.db storage form).
+    prov_s, sd = _grouped_near(sd_t)
+    prov_e, ed = _grouped_near(ed_t)
+    prov_s = {k.replace(".", "-"): v for k, v in prov_s.items()}
+    prov_e = {k.replace(".", "-"): v for k, v in prov_e.items()}
+
+    idx_ready = bars_sqlite.daily_bydate_index_ready()
+    bdb_s = bdb_e = {}
+    if idx_ready:
+        # Same ±15-day windows _assemble uses for its cross-check.
+        s_hi = int(sd.strftime("%Y%m%d")); s_lo = int((sd - timedelta(days=15)).strftime("%Y%m%d"))
+        e_hi = int(ed.strftime("%Y%m%d")); e_lo = int((ed - timedelta(days=15)).strftime("%Y%m%d"))
+        bdb_s = bars_sqlite.closes_near_date(s_hi, s_lo)
+        bdb_e = bars_sqlite.closes_near_date(e_hi, e_lo)
+
+    cs = _common_stock_symbols() or set()
+    etfs = _etf_symbols() or set()
+
+    def _result_set(start_map, end_map):
+        """Names that would appear in the ranked list from this source, → their % change."""
+        out = {}
+        for app, sc in start_map.items():
+            if not sc or sc <= 0:
+                continue
+            ec = end_map.get(app)
+            if not ec or ec <= 0:
+                continue
+            if app not in cs or app in etfs or app.endswith("ZZT"):
+                continue
+            out[app] = (ec - sc) / sc * 100
+        return out
+
+    prov_res = _result_set(prov_s, prov_e)
+    bdb_res = _result_set(bdb_s, bdb_e) if (bdb_s and bdb_e) else {}
+
+    prov_names = set(prov_res)
+    bdb_names = set(bdb_res)
+    dropped = prov_names - bdb_names          # in the provider list, MISSING from bars.db → would vanish
+    extra = bdb_names - prov_names            # bars.db has, provider doesn't (rare; stale/survivorship)
+    overlap = prov_names & bdb_names
+
+    cov_pct = round(100 * len(overlap) / len(prov_names), 2) if prov_names else None
+
+    # The killer metric: are the dropped names BIG movers? A dropped +300% gainer is a
+    # visible, unacceptable list change; a dropped ±2% name nobody would notice. Rank the
+    # dropped names by |provider % change| and show the worst offenders.
+    dropped_ranked = sorted(
+        ({"sym": s, "pct": round(prov_res[s], 2)} for s in dropped),
+        key=lambda r: abs(r["pct"]), reverse=True,
+    )
+    big_dropped = [d for d in dropped_ranked if abs(d["pct"]) >= 25]
+
+    # Price agreement on the overlap: median |Δ| between the two sources' computed % change.
+    # A large divergence = split-adjustment / staleness mismatch (bars.db close on a wrong basis).
+    diffs = sorted(abs(prov_res[s] - bdb_res[s]) for s in overlap)
+    if diffs:
+        median_diff = round(diffs[len(diffs) // 2], 3)
+        p95_diff = round(diffs[int(len(diffs) * 0.95)], 3)
+        big_disagree = sum(1 for d in diffs if d > 5)  # >5 percentage-points apart
+    else:
+        median_diff = p95_diff = big_disagree = None
+
+    return {
+        "start": int(sd.strftime("%Y%m%d")), "end": int(ed.strftime("%Y%m%d")),
+        "index_ready": idx_ready,
+        "provider_result_count": len(prov_names),
+        "bars_db_result_count": len(bdb_names),
+        "overlap": len(overlap),
+        "coverage_pct": cov_pct,                       # % of provider names bars.db also has
+        "dropped_count": len(dropped),                 # names that would DISAPPEAR from the list
+        "dropped_big_movers_count": len(big_dropped),  # of those, how many moved ≥25% (the real risk)
+        "dropped_big_movers_sample": big_dropped[:25],
+        "dropped_worst_sample": dropped_ranked[:15],
+        "extra_in_bars_db_count": len(extra),
+        "price_agreement": {                           # on the overlapping names
+            "median_pct_diff": median_diff,
+            "p95_pct_diff": p95_diff,
+            "names_over_5pp_apart": big_disagree,
+        },
+        "verdict_hint": (
+            "bars.db not usable (index not built / no data near dates)" if not bdb_res else
+            "SAFE-looking: near-complete coverage + close price agreement"
+            if (cov_pct or 0) >= 99 and not big_dropped and (median_diff or 0) < 2 else
+            "RISKY: bars.db would drop names or diverge on price — keep provider-primary"
+        ),
+    }
+
+
 def _sector_industry_map():
     """{app_sym: {'sector', 'industry'}} read from the prewarmed ticker_meta disk cache
     (the only whole-universe sector/industry source — no bulk API exists). Globbing ~4k

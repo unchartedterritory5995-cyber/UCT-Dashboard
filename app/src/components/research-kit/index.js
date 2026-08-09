@@ -30,6 +30,7 @@ export { default as RatingChangeList, actionTone } from './RatingChangeList'
 export { default as EChart, CHART_INK, echarts } from './charts/echartsCore'
 export {
   default as LollipopChart,
+  LOLLI_METRICS,
   SIZE as LOLLIPOP_SIZE,
   beatState,
   buildLollipopOption,

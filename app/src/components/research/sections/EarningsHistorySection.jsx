@@ -9,10 +9,11 @@
 //
 // GOLD BUDGET: ReactionBars' implied ± bracket is this canvas's single gold
 // highlight (§3.1). Nothing else here may be gold.
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 
 import {
   EmptyState, EyebrowLabel, LollipopChart, ReactionBars, StatTile, reactionStats, formatSigned,
+  LOLLI_METRICS,
 } from '../../research-kit'
 import { IMPLIED_MOVE_INFO } from '../../../constants/disclaimer'
 import { buildQuarters, historyBasis } from '../earningsHistoryModel'
@@ -39,11 +40,9 @@ function eps(v) {
 }
 
 /** `$820M` / `$1.24B`, or an em dash — revenue actuals arrive in millions.
- *  NOTE: `beat_history` (Finnhub /stock/earnings) carries no revenue field —
- *  every REPORTED row's `revenue_actual` is null in the P2 client-side model
- *  (earningsHistoryModel.js `emptyRow`/`past` mapping never sets it), so this
- *  column reads em dash for history rows until P4's unified endpoint. Not a
- *  bug in this section: there is no revenue data upstream to show yet. */
+ *  (The old note here said no revenue existed upstream: true of Finnhub
+ *  `/stock/earnings`, which carries EPS only. The FMP history leg supplies
+ *  `revenueActual`/`revenueEstimated`, so these are real now.) */
 function rev(v) {
   const n = num(v)
   if (n == null) return '—'
@@ -56,6 +55,19 @@ export default function EarningsHistorySection({ row, reportDate, expectedMove, 
   }), [row, reportDate])
 
   const reported = quarters.filter((q) => q.reported)
+
+  // EPS and revenue are alternate VIEWS of the same quarters, never a shared
+  // axis: dollars-per-share against billions flattens EPS onto the zero line.
+  // Toggling also keeps ONE chart, which matters because `.reactionWrap`
+  // below pins ReactionBars to LollipopChart's exact grid insets — a second
+  // chart would need that alignment maintained twice.
+  const [metricKey, setMetricKey] = useState('eps')
+  const metric = LOLLI_METRICS[metricKey] || LOLLI_METRICS.eps
+  // Revenue is only offered when this company actually reports it — an empty
+  // toggle that yields a blank chart is worse than no toggle.
+  const hasRevenue = quarters.some(
+    (q) => num(q.revenue_actual) != null || num(q.revenue_estimate) != null,
+  )
 
   if (!reported.length) {
     // "Still fetching" and "genuinely never reported" looked IDENTICAL here:
@@ -120,7 +132,27 @@ export default function EarningsHistorySection({ row, reportDate, expectedMove, 
 
   return (
     <div className={styles.wrap}>
-      <LollipopChart quarters={quarters} valueFormatter={eps} />
+      {hasRevenue && (
+        <div className={styles.metricToggle} role="group" aria-label="Chart metric">
+          {[['eps', 'EPS'], ['revenue', 'Revenue']].map(([k, lbl]) => (
+            <button
+              key={k}
+              type="button"
+              className={k === metricKey ? styles.metricOn : styles.metricOff}
+              aria-pressed={k === metricKey}
+              onClick={() => setMetricKey(k)}
+            >
+              {lbl}
+            </button>
+          ))}
+        </div>
+      )}
+      <LollipopChart
+        quarters={quarters}
+        metric={metric}
+        valueFormatter={metricKey === 'revenue' ? rev : eps}
+        label={`Estimate vs reported${metricKey === 'revenue' ? ' revenue' : ''}`}
+      />
 
       {/* Same quarter axis, directly beneath — that adjacency IS the section.
           F-1: `.reactionWrap` scopes a CSS rule (see the module comment)
