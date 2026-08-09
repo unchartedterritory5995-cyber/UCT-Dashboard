@@ -4,11 +4,14 @@ import WatchlistPicker from './WatchlistPicker'
 import { ChartsSymContext } from '../ChartsSymContext'
 import { useWorkspace } from '../WorkspaceContext'
 
-// Per-prebuilt-list default column layout. A curated list can open with a specific column
-// order + its own storage key (so its layout persists separately from the global default).
+// Default column layout for a prebuilt (curated UCT) list. Prebuilt lists ALWAYS open in
+// their default columns and NEVER persist edits (ephemeralCols) — a curated list is a fixed
+// view, so any in-session column change is discarded when you leave and reopen it. Per-list
+// overrides here; everything else falls back to PREBUILT_COL_FALLBACK.
 const PREBUILT_COL_DEFAULTS = {
-  'Liquid Major ETFs': { key: 'wl-cols-liquid-etfs', cfg: { order: ['flag', 'sym', 'chg', 'price', 'dolvol'] } },
+  'Liquid Major ETFs': { order: ['flag', 'sym', 'chg', 'price', 'dolvol'] },
 }
+const PREBUILT_COL_FALLBACK = { order: ['flag', 'sym', 'chg', 'price', 'dolvol'] }
 
 export default function WatchlistWidget({ color, opts, onOptsChange }) {
   const { groupSyms, setGroupSym, activeWatchlistRef } = useWorkspace()
@@ -27,12 +30,14 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
   const watchKey = opts?.watchKey || null
   const pick = useCallback((sel) => {
     // Creating a list from a saved look Template seeds the widget's appearance
-    // (opts.settings) only — a template never controls the column layout.
-    const next = { ...(opts || {}), watchKey: sel?.key || null, watchName: sel?.name || null }
+    // (opts.settings) only — a template never controls the column layout. `watchTab` is
+    // the picker tab it came from, so leaving reopens on it + we know if it's prebuilt.
+    const next = { ...(opts || {}), watchKey: sel?.key || null, watchName: sel?.name || null, watchTab: sel?.tab || null }
     if (sel?.settings) next.settings = sel.settings
     onOptsChange?.(next)
   }, [opts, onOptsChange])
   const exitPick = useCallback(() => {
+    // Keep watchTab so the picker reopens on the section the user was in.
     onOptsChange?.({ ...(opts || {}), watchKey: null, watchName: null })
   }, [opts, onOptsChange])
 
@@ -52,11 +57,18 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
         onPick={pick}
         settingsOverride={wlSettingsOverride}
         onSettingsPersist={persistWlSettings}
+        initialTab={opts?.watchTab || null}
       />
     )
   }
 
-  const _prebuiltCols = PREBUILT_COL_DEFAULTS[opts?.watchName || '']
+  // A PREBUILT list (picked from the Prebuilt tab) always opens in its default columns and
+  // discards any in-session column edits (ephemeralCols). My Lists / community persist as
+  // normal (ephemeralCols=false, global column storage).
+  const _isPrebuilt = opts?.watchTab === 'prebuilt'
+  const _prebuiltCfg = _isPrebuilt
+    ? (PREBUILT_COL_DEFAULTS[opts?.watchName || ''] || PREBUILT_COL_FALLBACK)
+    : null
   return (
     <ChartsSymContext.Provider value={scopedSymContext}>
       <Watchlists
@@ -68,8 +80,8 @@ export default function WatchlistWidget({ color, opts, onOptsChange }) {
         widgetKey={widgetId}
         settingsOverride={wlSettingsOverride}
         onSettingsPersist={persistWlSettings}
-        defaultColCfg={_prebuiltCols?.cfg || null}
-        colStorageKey={_prebuiltCols?.key || null}
+        defaultColCfg={_prebuiltCfg}
+        ephemeralCols={_isPrebuilt}
       />
     </ChartsSymContext.Provider>
   )

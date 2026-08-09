@@ -27,7 +27,7 @@ const TABS = [
   { key: 'mine', label: 'My Lists', icon: 'library' },
 ]
 
-export default function WatchlistPicker({ onPick, settingsOverride = null, onSettingsPersist = null }) {
+export default function WatchlistPicker({ onPick, settingsOverride = null, onSettingsPersist = null, initialTab = null }) {
   const { flagged, flaggedName } = useFlagged()
 
   // Match the widget's own watchlist appearance (canvas / colors), and expose the
@@ -40,11 +40,19 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
     () => mergeWatchlistSettings(settingsOverride ?? watchlistDefaultsForTheme(prefs?.theme)),
     [settingsOverride, prefs],
   )
-  const wlStyle = useMemo(() => watchlistStyleVars(wlSettings), [wlSettings])
+  // The picker's OWN CHROME (tab bar, count badges, search) always follows the APP THEME,
+  // NOT the widget's saved list-appearance override — otherwise applying a dark list
+  // template turned the nav bar + count badges black. `wlSettings` above still drives the
+  // ⚙ panel (which edits the widget's real list settings).
+  const chromeSettings = useMemo(
+    () => mergeWatchlistSettings(watchlistDefaultsForTheme(prefs?.theme)),
+    [prefs],
+  )
+  const wlStyle = useMemo(() => watchlistStyleVars(chromeSettings), [chromeSettings])
   const menuVars = useMemo(() => {
-    const canvas = wlSettings.bgMode === 'gradient' ? (wlSettings.bgGradient?.top || wlSettings.bg) : wlSettings.bg
+    const canvas = chromeSettings.bgMode === 'gradient' ? (chromeSettings.bgGradient?.top || chromeSettings.bg) : chromeSettings.bg
     return menuThemeVars(canvas) || {}
-  }, [wlSettings])
+  }, [chromeSettings])
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsBtnRef = useRef(null)
   const rootRef = useRef(null)
@@ -56,7 +64,10 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
   const { data: prebuiltLists } = useSWR('/api/watchlists/prebuilt', fetcher)
   const { templates } = useWatchlistTemplates()
 
-  const [tab, setTab] = useState('mine')   // default to the actionable tab
+  const [tab, setTab] = useState(initialTab || 'mine')   // restore the tab the user left from
+  // Every pick carries its source tab so the widget can reopen the picker on it (and know
+  // whether the list is prebuilt, for the always-reset-columns behavior).
+  const handlePick = useCallback((sel) => onPick?.({ ...sel, tab }), [onPick, tab])
   const [q, setQ] = useState('')
 
   // Inline create state
@@ -99,7 +110,7 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
       mutateMine()
       const tpl = templates.find(t => t.id === tplId)
       // Seed the new list's look from the chosen template (appearance + columns).
-      onPick({ key: `user:${wl.id}`, name: wl.name, settings: tpl?.settings, cols: tpl?.cols })
+      handlePick({ key: `user:${wl.id}`, name: wl.name, settings: tpl?.settings, cols: tpl?.cols })
     } catch {
       // Never fail silently: the user typed a name and pressed Create, so a dead
       // button with no message reads as the app being broken.
@@ -200,7 +211,7 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
             </div>
           ) : prebuilt.map(wl => (
             <Row key={`p${wl.id}`} wl={wl} icon="star" hideOwner
-              onClick={() => onPick({ key: `community:${wl.id}`, name: wl.name })} />
+              onClick={() => handlePick({ key: `community:${wl.id}`, name: wl.name })} />
           ))
         )}
 
@@ -214,7 +225,7 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
             </div>
           ) : community.map(wl => (
             <Row key={`c${wl.id}`} wl={wl} icon="community"
-              onClick={() => onPick({ key: `community:${wl.id}`, name: wl.name })} />
+              onClick={() => handlePick({ key: `community:${wl.id}`, name: wl.name })} />
           ))
         )}
 
@@ -257,7 +268,7 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
             )}
 
             {showFlagged && (
-              <button type="button" className={styles.row} onClick={() => onPick({ key: 'flagged', name: flaggedLabel })}>
+              <button type="button" className={styles.row} onClick={() => handlePick({ key: 'flagged', name: flaggedLabel })}>
                 <span className={styles.rowIcon}><UIcon name="flag" size={13} gold={false} /></span>
                 <span className={styles.rowName}>{flaggedLabel}</span>
                 {flagged?.length != null && <span className={styles.rowCount}>{flagged.length}</span>}
@@ -265,7 +276,7 @@ export default function WatchlistPicker({ onPick, settingsOverride = null, onSet
             )}
             {mine.map(wl => (
               <div key={`m${wl.id}`} className={styles.mineRow}>
-                <button type="button" className={styles.row} onClick={() => onPick({ key: `user:${wl.id}`, name: wl.name })}>
+                <button type="button" className={styles.row} onClick={() => handlePick({ key: `user:${wl.id}`, name: wl.name })}>
                   <span className={styles.rowIcon}><UIcon name="library" size={13} gold={false} /></span>
                   <span className={styles.rowName}>{wl.name}</span>
                   {countOf(wl) != null && <span className={styles.rowCount}>{countOf(wl)}</span>}
