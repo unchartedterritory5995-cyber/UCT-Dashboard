@@ -48,10 +48,21 @@ class AnthropicClient:
     def __init__(self, api_key: str | None = None) -> None:
         import anthropic  # deferred so the module is importable without the package installed
 
+        from api.services import llm_timeouts
+
         key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         if not key:
             raise RuntimeError("ANTHROPIC_API_KEY not set")
-        self._client = anthropic.Anthropic(api_key=key)
+        # BOUNDED. Reached both from the request path (Compass tab) and from the
+        # weekly/EOD scheduler jobs; 2000 max_tokens. The LONG request-path
+        # budget serves both — a scheduler pass that ever needs more should
+        # override PER CALL with `client.with_options(timeout=...)`, the way the
+        # Desk chapters pass does, rather than unbounding this constructor.
+        self._client = anthropic.Anthropic(
+            api_key=key,
+            timeout=llm_timeouts.seconds("COMPASS_REVIEW_LLM_TIMEOUT_SECS",
+                                         llm_timeouts.REQUEST_PATH_LONG),
+        )
 
     # ------------------------------------------------------------------
     # Review generation

@@ -184,7 +184,17 @@ def run_exam(
 
         if judge_client is None:
             import anthropic
-            judge_client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+            from api.services import llm_timeouts
+            # BOUNDED, generously: the report card is an OPERATOR SCRIPT on its
+            # own thread, so nothing is starved by a long ceiling — but an
+            # unbounded judge would still hang a 50-question exam for 10 minutes
+            # on one stuck call. This is the scheduler/offline budget, not the
+            # request-path one; do not tighten it to match the handlers.
+            judge_client = anthropic.Anthropic(
+                api_key=os.environ["ANTHROPIC_API_KEY"],
+                timeout=llm_timeouts.seconds("REPORT_CARD_JUDGE_TIMEOUT_SECS",
+                                             llm_timeouts.OFFLINE_JOB),
+            )
         if chat_client_factory is None:
             real_client = coach_chat.AnthropicChatClient()
             chat_client_factory = lambda: real_client  # noqa: E731

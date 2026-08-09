@@ -3,12 +3,23 @@ import time
 from collections import OrderedDict
 from typing import Any
 
-# LRU cap. 500 → 1000 (2026-07-02 scale pass): the journal holdings list adds
-# ~60 small `bars_{T}_D_30` keys per user page-load, which at launch scale
-# churned evictions against the hot news/snapshot/analyst/movers keys long
-# before their TTLs (live-prices already moved to its own dedicated instance).
+# DEFAULT LRU cap for the shared app singleton. 500 → 1000 (2026-07-02 scale
+# pass): the journal holdings list adds ~60 small `bars_{T}_D_30` keys per user
+# page-load, which at launch scale churned evictions against the hot
+# news/snapshot/analyst/movers keys long before their TTLs (live-prices already
+# moved to its own dedicated instance).
 # Kept bounded because bars payloads can be MB-scale — raise further only with
 # a pod-memory check, or give bars its own size-aware cache.
+#
+# ⚠️ THIS IS A DEFAULT, NOT A CEILING ON EVERY INSTANCE. It used to be read
+# directly inside `set()`, which made it a module-wide constant that silently
+# capped the "DEDICATED" `live_prices.cache` too — the instance that exists
+# specifically to escape LRU pressure. Above ~970 distinct tickers that cache
+# thrashed permanently (31.7% miss / ~3.1k upstream fetches per 2s poll round at
+# 200 users × 50 tickers), which funnels into `live_prices._MASSIVE_SEM` and
+# reproduces the launch-day 524 from a different direction. An instance whose
+# working set is a known, derivable quantity now states its OWN bound; raising
+# this default would instead have changed every other cache's memory profile.
 _MAX_SIZE = 1000
 
 
@@ -31,9 +42,34 @@ class TTLCache:
     "Internal Server Error" text. An RLock here removes the entire
     failure mode."""
 
-    def __init__(self):
+    def __init__(self, max_size: int | None = None):
+        """`max_size` bounds THIS instance's LRU.
+
+        Defaults to the shared `_MAX_SIZE`. Pass an explicit bound when the
+        instance's working set is a known quantity that the app-wide default
+        does not describe — see `api/routers/live_prices.py`, whose per-ticker
+        key space is the tradable universe, not 1,000.
+        """
+        if max_size is not None and max_size < 1:
+            raise ValueError(f"max_size must be >= 1, got {max_size!r}")
+        self._max_size: int = _MAX_SIZE if max_size is None else int(max_size)
         self._store: OrderedDict[str, tuple[Any, float]] = OrderedDict()
         self._lock = threading.RLock()
+
+    @property
+    def max_size(self) -> int:
+        """This instance's LRU bound. Read it — never re-derive it."""
+        return self._max_size
+
+    def __len__(self) -> int:
+        """Live entry count, expired-but-not-yet-reaped included.
+
+        Exists so a capacity rail can READ occupancy off the cache instead of
+        re-deriving it from a private attribute (the repo's most repeated
+        defect: a second authority over one value).
+        """
+        with self._lock:
+            return len(self._store)
 
     def get(self, key: str) -> Any:
         with self._lock:
@@ -51,7 +87,7 @@ class TTLCache:
             if key in self._store:
                 self._store.move_to_end(key)
             self._store[key] = (value, time.time() + ttl)
-            while len(self._store) > _MAX_SIZE:
+            while len(self._store) > self._max_size:
                 self._store.popitem(last=False)
 
     def invalidate(self, key: str) -> None:

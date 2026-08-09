@@ -36,6 +36,8 @@ import json
 import logging
 import os
 
+from api.services import llm_timeouts
+
 _logger = logging.getLogger(__name__)
 
 _TRANSCRIPT_CACHE_TTL_HIT  = 86_400   # 24h — transcripts don't change
@@ -178,7 +180,15 @@ def _analyze_transcript(symbol: str, text: str, quarter: int | None, year: int |
         if not api_key:
             return None
 
-        client = anthropic.Anthropic(api_key=api_key)
+        # BOUNDED. `GET /api/transcripts/{symbol}` reaches here with NO auth
+        # dependency — only `@limiter.limit("10/minute")` — so an anonymous
+        # caller could otherwise open threads that each hold one of the pod's 64
+        # anyio workers for the SDK's 600 s default. See api/services/llm_timeouts.py.
+        client = anthropic.Anthropic(
+            api_key=api_key,
+            timeout=llm_timeouts.seconds("TRANSCRIPT_LLM_TIMEOUT_SECS",
+                                         llm_timeouts.REQUEST_PATH),
+        )
 
         quarter_label = f"Q{quarter} {year}" if quarter and year else "recent quarter"
 

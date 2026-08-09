@@ -13,7 +13,20 @@ import time
 from openai import OpenAI
 from openai import APIConnectionError, APIStatusError, RateLimitError
 
+from api.services import llm_timeouts
+
 _log = logging.getLogger(__name__)
+
+# BOUNDED. This singleton is the highest-fan-in LLM client in the app: it backs
+# /api/voice/transcribe, /api/voice/tts*, and dictation on every long-form
+# textarea in Journal 2.0. Unbounded it inherits the SDK's 600s read timeout, so
+# one stuck upload pins an anyio worker for ten minutes.
+#
+# 120s rather than 60s because a Whisper upload carries audio and a TTS call
+# STREAMS: the SDK applies this per socket read, not to the whole stream, so a
+# long narration is unaffected — but a dead connection still dies in two
+# minutes instead of ten.
+_CLIENT_TIMEOUT_ENV = "VOICE_OPENAI_TIMEOUT_SECS"
 
 # OpenAI TTS hard limit is ~4096 chars PER REQUEST. Stay safely under it.
 # Longer text (e.g. the ~11k-char Morning Wire rundown) is split into multiple
@@ -105,7 +118,11 @@ def _get_client() -> OpenAI:
         api_key = os.environ.get("OPENAI_API_KEY")
         if not api_key:
             raise RuntimeError("OPENAI_API_KEY is not set")
-        _client = OpenAI(api_key=api_key)
+        _client = OpenAI(
+            api_key=api_key,
+            timeout=llm_timeouts.seconds(_CLIENT_TIMEOUT_ENV,
+                                         llm_timeouts.REQUEST_PATH_LONG),
+        )
     return _client
 
 

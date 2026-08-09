@@ -250,8 +250,16 @@ def refund_synth(user_id):
 
 
 def _async_client():
+    """BOUNDED. Async, so a hang parks the coroutine rather than an anyio worker
+    — but it still holds an open upstream connection and a member's request for
+    the SDK's 600s default. Streaming synthesis, hence the LONG budget."""
     import anthropic
-    return anthropic.AsyncAnthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+    from api.services import llm_timeouts
+    return anthropic.AsyncAnthropic(
+        api_key=os.environ.get("ANTHROPIC_API_KEY", ""),
+        timeout=llm_timeouts.seconds("AI_SEARCH_LLM_TIMEOUT_SECS",
+                                     llm_timeouts.REQUEST_PATH_LONG),
+    )
 
 
 def SYNTH_SYSTEM(personal_block, live_desk):
