@@ -25,6 +25,36 @@ import styles from './AlertBell.module.css'
 const fetcher = url =>
   fetch(url, { credentials: 'same-origin' }).then(r => (r.ok ? r.json() : []))
 
+// 🔴 THE ALERT THAT REACHED NOBODY. `GET /api/indicator-alerts/delivery-health`
+// serves the fires whose delivery failed on at least one channel — the read that
+// existed in `alert_fired_log` for a whole phase with no route and then no
+// consumer. It is rendered HERE, in the bell, because the bell is where a member
+// looks for what they were told, and a missing alert is a fact about that list.
+//
+// ⚠️ A FAILED FETCH RESOLVES TO "NOTHING TO REPORT", NOT TO AN ERROR. The bell's
+// job is the feed; a 500 on this secondary read may not take the notification
+// list down with it. The cost of that choice is that "no failures" and "could not
+// ask" render identically — acceptable only because the SERVER-side record is
+// durable and the route can be read again.
+const deliveryFetcher = url =>
+  fetch(url, { credentials: 'same-origin' })
+    .then(r => (r.ok ? r.json() : null))
+    .then(b => (b && typeof b === 'object' ? b : null))
+    .catch(() => null)
+
+/** Which channels a fire FAILED on — from the server's own per-channel map.
+ *
+ *  ⛔ THE STATUS STRINGS ARE THE SERVER'S (`api/services/alerts.py`), and this
+ *  reads them rather than re-deriving a verdict. 'skipped' is NOT a failure:
+ *  an unset Discord webhook and a member with no address on file are both
+ *  skipped, and painting them red would send somebody hunting an outage that
+ *  does not exist. */
+export function failedChannelsOf(fire) {
+  const map = fire && fire.delivery_channels
+  if (!map || typeof map !== 'object') return []
+  return Object.keys(map).filter(k => map[k] === 'failed').sort()
+}
+
 const TYPE_ICONS = {
   regime_change: 'refresh',
   stop_hit: 'warning',
@@ -59,6 +89,14 @@ export default function AlertBell() {
     ([url]) => fetcher(url),
     { refreshInterval: 60000 },
   )
+  // Same identity key discipline as the feed above: no poll while signed out,
+  // and one member's delivery failures never sit in another's cache entry.
+  const { data: delivery } = useSWR(
+    userId ? ['/api/indicator-alerts/delivery-health?limit=10', userId] : null,
+    ([url]) => deliveryFetcher(url),
+    { refreshInterval: 120000 },
+  )
+
   const { prefs } = usePreferences()
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
@@ -70,6 +108,12 @@ export default function AlertBell() {
 
   const items = userId && Array.isArray(alerts) ? alerts : []
   const unreadCount = items.filter(a => !a.read).length
+
+  // ⛔ THE LIST IS THE AUTHORITY, NOT THE COUNT. The server serves both a
+  // `health.trouble` total and the failing rows; rendering the total beside a
+  // list built from the rows would be two answers to one question, and the
+  // header would say "2" over one row the first time the limit clipped it.
+  const failures = userId && Array.isArray(delivery?.failures) ? delivery.failures : []
 
   // A change of signed-in identity resets the "already seen" bookkeeping, so
   // the next member's first poll is treated as a first load (silent) instead of
@@ -149,9 +193,15 @@ export default function AlertBell() {
 
   return (
     <div className={styles.wrap} ref={ref}>
-      <button className={styles.bell} onClick={handleBellClick} title="Alerts" aria-label="Notifications">
+      <button
+        className={styles.bell}
+        onClick={handleBellClick}
+        title={failures.length > 0 ? 'Alerts — one or more could not be delivered' : 'Alerts'}
+        aria-label="Notifications"
+      >
         <span className={styles.bellIcon}><UIcon name="bell" size={18} /></span>
         {unreadCount > 0 && <span className={styles.badge} aria-live="polite">{unreadCount > 9 ? '9+' : unreadCount}</span>}
+        {failures.length > 0 && <span className={styles.troubleDot} aria-hidden="true" />}
       </button>
 
       {open && (
@@ -163,7 +213,33 @@ export default function AlertBell() {
             )}
           </div>
 
-          {items.length === 0 && (
+          {/* 🔴 THE ALERTS THAT DID NOT REACH YOU. Rendered ABOVE the feed on
+              purpose: it is a statement about what is MISSING from the list
+              below, and underneath it would be read as one more notification. */}
+          {failures.length > 0 && (
+            <div className={styles.trouble} role="status">
+              <div className={styles.troubleHead}>
+                <UIcon name="warning" size={13} gold={false} />
+                <span>Not delivered everywhere</span>
+              </div>
+              {failures.map(f => {
+                const bad = failedChannelsOf(f)
+                return (
+                  <div key={f.id} className={styles.troubleRow}>
+                    <span className={styles.troubleSym}>{f.sym}</span>
+                    <span className={styles.troubleWhat}>
+                      {bad.length > 0
+                        ? `failed on ${bad.join(', ')}`
+                        : 'was not delivered'}
+                    </span>
+                    <span className={styles.itemTime}>{timeAgo(f.fired_at)}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {items.length === 0 && failures.length === 0 && (
             <div className={styles.empty}>No alerts yet</div>
           )}
 

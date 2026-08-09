@@ -186,7 +186,14 @@ def test_a_hook_that_REPORTS_zero_channels_also_releases_the_lease(armed, hook):
 
     row = fl.fires_for_alert(armed)[0]
     assert row["delivered_at"] is None and row["delivery_failed_at"] is not None
-    assert "every channel refused" in (row["delivery_error"] or "")
+    # ⛔ DERIVED FROM THE FUNCTION THAT OWNS THE SENTENCE, NOT RETYPED. This
+    # asserted the literal `"every channel refused"`, which was the CONSTANT the
+    # frame stored for every failure; the reason is now built from the report
+    # (it names the channels and their errors), and a test that restates a
+    # string the source owns goes red for a wording change while a real
+    # regression — storing nothing at all — would still pass it.
+    assert row["delivery_error"] == ev._failure_reason({"channels_ok": 0})
+    assert row["delivery_error"], "the failure was recorded with no reason"
 
 
 @pytest.mark.parametrize("outcome,expected", [
@@ -309,22 +316,24 @@ def test_the_claim_is_still_won_EXACTLY_ONCE(tmp_db):
     assert fl.claim_delivery(aid) is False, "two callers both won one delivery"
 
 
-def test_THE_HALF_THAT_IS_BLOCKED_BEHIND_THE_HELD_FILE_is_measured_not_assumed(
+def test_THE_HALF_THAT_WAS_BLOCKED_BEHIND_THE_HELD_FILE_IS_CLOSED(
         armed, monkeypatch):
-    """⏳ NAMED, NOT FIXED — and it goes red WITH THE PARAGRAPH IN HAND.
+    """✅ WAS: *"⏳ NAMED, NOT FIXED"*. The inversion, kept rather than deleted.
 
-    `watchlist_alert_service.deliver_alert_payload` wraps each channel in its own
-    `try/except … _logger.warning` and returns `None`. So with EVERY channel
-    raising it returns exactly what it returns on a clean send, and this side
-    cannot tell them apart. That file belongs to another agent this session.
+    Until 2026-08-09 this asserted `result is None` and carried this paragraph:
 
-    THE ONE CHANGE IT NEEDS: count the channels that succeeded and either return
-    that count or raise when it is zero. `_delivery_failed` already consumes
-    `{"channels_ok": n}`, `{"delivered": bool}` and `{"ok": [...]}`, so nothing
-    on this side has to move.
+        `deliver_alert_payload` wraps each channel in its own `try/except …
+        _logger.warning` and returns `None`. So with EVERY channel raising it
+        returns exactly what it returns on a clean send, and this side cannot
+        tell them apart. That file belongs to another agent this session. THE
+        ONE CHANGE IT NEEDS: count the channels that succeeded and either
+        return that count or raise when it is zero.
 
-    When somebody makes that change this test goes red, and it should — with
-    this paragraph explaining why, and the deletion is the whole edit.
+    That change landed, so the assertion is INVERTED rather than removed — a
+    deleted test leaves no rail against the report being quietly dropped again,
+    and "it returns None" is exactly the regression that would restore the
+    defect. The detailed per-channel behaviour lives in
+    `tests/test_alert_delivery_channel_truth.py`; this is the boundary marker.
     """
     monkeypatch.setattr(wls, "add_alert", _raiser("bell down"))
     monkeypatch.setattr(wls, "send_email", _raiser("Resend 429 rate limited"))
@@ -335,14 +344,15 @@ def test_THE_HALF_THAT_IS_BLOCKED_BEHIND_THE_HELD_FILE_is_measured_not_assumed(
         user_id="u1", sym="AAPL", title="t", message="m",
         source="indicator_alert", extra_data={"alert_id": armed})
 
-    assert result is None, (
-        "deliver_alert_payload now REPORTS its channel outcome. Delete this "
-        "test — `_delivery_failed` already consumes the report and releases the "
-        "lease, so the remaining half of the failed-delivery defect is closed.")
-    assert ev._delivery_failed(result) is False
+    assert isinstance(result, dict), (
+        "deliver_alert_payload stopped reporting its channel outcome — a "
+        "failed delivery is once again byte-identical to a clean one")
+    assert result["channels_ok"] == 0, result
+    assert ev._delivery_failed(result) is True, (
+        "every channel raised and the frame does not read it as a failure — "
+        "the lease is never released and the member is never told")
     assert ev._delivery_failed({"channels_ok": 0}) is True, (
-        "the seam that will consume the fix does not work — then 'blocked "
-        "behind the held file' is an excuse rather than a measurement")
+        "the seam that consumes the report does not work")
 
 
 def _raiser(msg):

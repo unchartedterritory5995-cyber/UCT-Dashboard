@@ -68,6 +68,31 @@ SEVERITY_INFO = "info"
 SEVERITY_WARNING = "warning"
 SEVERITY_CRITICAL = "critical"
 
+
+# ── THE PER-CHANNEL DELIVERY VOCABULARY ─────────────────────────────────────
+#
+# ⭐ THREE STATES, AND THE THIRD IS NOT DECORATION. "we tried and it did not
+# land" and "we never tried" are different facts about a member's alert, and
+# collapsing them is the same lie one size up as collapsing success and failure:
+# an unset ``DISCORD_ALERT_WEBHOOK`` reported as ``failed`` would send somebody
+# hunting a provider outage that does not exist, and reported as ``ok`` would
+# claim a channel nobody is listening on.
+#
+#   ok      — the channel accepted it.
+#   failed  — we tried and it did not land. THE MEMBER MISSED THIS CHANNEL.
+#   skipped — we did not try: not configured, no address, or below the
+#             severity this channel fires on.
+CHANNEL_OK = "ok"
+CHANNEL_FAILED = "failed"
+CHANNEL_SKIPPED = "skipped"
+
+# The channel names, as constants, because they are written into a database
+# column (`indicator_alert_fires.delivery_channels`) and read back by a UI.
+# A retyped `"in-app"` on one side of that seam is a channel nobody can find.
+CHANNEL_IN_APP = "in_app"
+CHANNEL_DISCORD = "discord"
+CHANNEL_EMAIL = "email"
+
 # Type → default severity
 _TYPE_SEVERITY = {
     "regime_change": SEVERITY_CRITICAL,
@@ -131,6 +156,7 @@ def add_alert(
     severity: str | None = None,
     data: dict | None = None,
     user_id: str | None = None,
+    channels: dict | None = None,
 ) -> dict:
     """Add an alert and optionally fire the Discord webhook.
 
@@ -141,6 +167,25 @@ def add_alert(
     must NOT call ``_fire_discord`` themselves after calling this — that was
     the double-fire that put every delivered alert into the admin channel
     twice (`watchlist_alert_service`, fixed 2026-08-06).
+
+    ⭐ ``channels`` IS AN OUT-DICT, AND IT EXISTS *BECAUSE* OF THE LINE ABOVE.
+    This function owns TWO channels — the in-app feed and the Discord webhook —
+    and the caller owns neither, so the caller cannot observe either one. It used
+    to report both by returning normally, which is how a 403 from a rotated
+    webhook became byte-identical to a delivered alert. Handed a dict, this fills
+    in ``in_app`` and ``discord`` with the vocabulary above as it goes; handed
+    nothing (every system caller) it behaves exactly as before.
+
+    ⛔ AN OUT-DICT RATHER THAN A RICHER RETURN VALUE, deliberately. The returned
+    alert dict is the row that goes into the member's feed and out of
+    `GET /api/alerts`; a delivery-status key on it would be published to the
+    browser as part of the notification itself. This is the same shape as
+    `breadth_monitor.compute_metrics`' `members` out-dict, for the same reason:
+    the answer belongs to the caller, not to the artifact.
+
+    ⚠️ PARTIALLY FILLED IS MEANINGFUL. If this raises before writing a key, that
+    channel was NOT attempted — the caller reads an absent key as such, and must
+    not assume the whole call failed just because it did not finish.
     """
     alert = {
         "id": f"{alert_type}_{int(time.time() * 1000)}",
@@ -159,10 +204,19 @@ def add_alert(
     alerts = cache.get(key) or []
     alerts.insert(0, alert)
     cache.set(key, alerts[:_MAX_PER_LIST], ttl=_TTL)
+    if channels is not None:
+        channels[CHANNEL_IN_APP] = CHANNEL_OK
 
     # Fire Discord webhook for warning/critical
-    if _DISCORD_WEBHOOK and alert["severity"] in (SEVERITY_WARNING, SEVERITY_CRITICAL):
-        _fire_discord(alert)
+    fires_discord = alert["severity"] in (SEVERITY_WARNING, SEVERITY_CRITICAL)
+    if _DISCORD_WEBHOOK and fires_discord:
+        landed = _fire_discord(alert)
+        if channels is not None:
+            channels[CHANNEL_DISCORD] = CHANNEL_OK if landed else CHANNEL_FAILED
+    elif channels is not None:
+        # Not configured, or an INFO alert this webhook deliberately does not
+        # carry. Neither is a failure and neither reached anybody.
+        channels[CHANNEL_DISCORD] = CHANNEL_SKIPPED
 
     return alert
 
@@ -232,8 +286,25 @@ def clear_alerts(user_id: str | None = None) -> int:
     return count
 
 
-def _fire_discord(alert: dict) -> None:
-    """Send alert to Discord webhook. Non-fatal."""
+def _fire_discord(alert: dict) -> bool:
+    """Send alert to Discord webhook. Non-fatal. **True iff Discord took it.**
+
+    ⭐ THE RETURN VALUE IS THE FIX. This returned ``None`` and swallowed BOTH
+    halves of a failure: the exception, and — worse, because it is the common
+    one — the HTTP STATUS. A 403 from a rotated webhook and a 429 from a
+    rate-limited one both left through the success path, so "Discord delivered"
+    meant only "a POST was attempted".
+
+    ⛔ STILL NON-FATAL, AND THAT IS NOT IN TENSION WITH REPORTING. Raising here
+    would abort the caller's remaining channels, which is the one thing a
+    delivery path may never do — an email must not be lost because Discord is
+    down. It reports; the caller decides.
+
+    ⚠️ A TRANSPORT THAT REPORTS NO USABLE STATUS IS NOT A REFUSAL. `int(code)`
+    on a mock/stubbed response raises, and reading that as a failure would make
+    every test double a "Discord outage" — a guard that fires on the harness
+    instead of on the product.
+    """
     try:
         import requests
 
@@ -244,13 +315,23 @@ def _fire_discord(alert: dict) -> None:
             "color": color,
             "footer": {"text": f"UCT Alert · {alert['type']} · {alert['timestamp'][:16]}"},
         }
-        requests.post(
+        resp = requests.post(
             _DISCORD_WEBHOOK,
             json={"embeds": [embed]},
             timeout=5,
         )
     except Exception as e:
         _logger.warning("Discord alert webhook failed: %s", e)
+        return False
+    try:
+        refused = int(getattr(resp, "status_code", None)) >= 400
+    except (TypeError, ValueError):
+        return True
+    if refused:
+        _logger.warning("Discord alert webhook REFUSED the post: HTTP %s",
+                        getattr(resp, "status_code", None))
+        return False
+    return True
 
 
 # ── Convenience functions for common alert patterns ───────────────────────

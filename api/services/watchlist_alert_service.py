@@ -10,11 +10,44 @@ import threading
 from datetime import datetime, timezone
 
 from api.services.auth_db import get_connection
-from api.services.alerts import add_alert
+from api.services.alerts import (
+    add_alert,
+    CHANNEL_OK, CHANNEL_FAILED, CHANNEL_SKIPPED,
+    CHANNEL_IN_APP, CHANNEL_DISCORD, CHANNEL_EMAIL,
+)
 from api.services.email_service import send_email, _wrap_html
 
 _logger = logging.getLogger(__name__)
 _check_lock = threading.Lock()
+
+# Every channel this hook is responsible for, in delivery order. Named once so
+# the report and the code that fills it cannot disagree about what "every
+# channel" is — a channel missing from this tuple would simply never be reported
+# on, which is the silence this whole change exists to remove.
+DELIVERY_CHANNELS = (CHANNEL_IN_APP, CHANNEL_DISCORD, CHANNEL_EMAIL)
+
+
+def _delivery_report(claimed: bool, channels: dict, errors: dict) -> dict:
+    """One channel map → the outcome its caller reads. **The counts are DERIVED.**
+
+    ⛔ `channels_ok` IS NOT A SECOND AUTHORITY OVER `channels` — it is computed
+    from it, here, at the single place a report is built. A counter incremented
+    beside the map is this repo's most-repeated defect: the two drift, and the
+    one that lies is whichever the reader happened to trust.
+
+    `claimed` is NOT a channel. It says whether this call owned a delivery at
+    all: the compare-and-set on the fired log refuses a duplicate, a snoozed
+    alert and a fire another frame already took, and in every one of those cases
+    ZERO channels ran and zero SHOULD have. A caller that read that as "nothing
+    reached the member" would release a lease it never held and re-send.
+    """
+    return {
+        "claimed": bool(claimed),
+        "channels": dict(channels),
+        "channels_ok": sum(1 for v in channels.values() if v == CHANNEL_OK),
+        "channels_failed": sum(1 for v in channels.values() if v == CHANNEL_FAILED),
+        "errors": dict(errors),
+    }
 
 
 def create_alert(user_id: str, sym: str, target_price: float, direction: str,
@@ -206,7 +239,7 @@ def deliver_alert_payload(
     message: str,
     source: str = "indicator_alert",
     extra_data: dict | None = None,
-) -> None:
+) -> dict:
     """Public delivery hook reusable by other alert systems (e.g. indicator alerts).
 
     Mirrors the multi-channel delivery in ``_deliver_alert`` but accepts a
@@ -214,6 +247,33 @@ def deliver_alert_payload(
     isolated in its own try/except so a single failure does not block the
     others. Safe to call from a background thread (no Flask/FastAPI context
     is required).
+
+    🔴 **IT NOW REPORTS WHAT ACTUALLY HAPPENED, PER CHANNEL.** This returned
+    ``None`` whether every channel landed or every one raised, and the caller
+    stamped `delivered_at` either way — so an alert whose email bounced, whose
+    Discord webhook 403'd and whose in-app write failed was recorded, forever,
+    as delivered. Measured in-tree: **20 fires → 20/20 rows stamped delivered,
+    zero retry, one warning line.** A trader believed they had been told and
+    they had not.
+
+    ⭐ PARTIAL SUCCESS IS THE COMMON CASE AND IS REPRESENTABLE. "in-app ok,
+    email failed" is the truth most of the time — Resend is unset in dev, the
+    Discord webhook is one global admin hook, a member may have no address —
+    and collapsing it EITHER way is a lie. `channels` names each one; the
+    counts are derived from it.
+
+    ⛔ A FAILING CHANNEL STILL DOES NOT ABORT THE OTHERS. Each stays in its own
+    `try/except`, exactly as before. The change is that the exception is now
+    also RECORDED instead of only logged.
+
+    ⛔ AND THE FIRE-ONCE GATE IS UNTOUCHED. The `claim_delivery` compare-and-set
+    below still runs BEFORE any channel, still exactly once per recorded fire.
+    A refused claim returns ``claimed: False`` with an empty channel map — NOT a
+    failure, because nothing was owed. `_delivery_failed` reads that flag first
+    for precisely that reason.
+
+    :returns: ``{"claimed", "channels", "channels_ok", "channels_failed",
+        "errors"}`` — see `_delivery_report`.
     """
     # ⭐ FIRE-ONCE FOR THE CHART INDICATOR LANE (Phase C Task 11) — the ONE gate
     # every channel below is downstream of.
@@ -236,18 +296,26 @@ def deliver_alert_payload(
     if source == "indicator_alert":
         from api.services import indicator_alert_service as _ias
         if not _ias.claim_delivery((extra_data or {}).get("alert_id")):
-            return
+            return _delivery_report(False, {}, {})
 
     data = {"symbol": sym, "source": source}
     if extra_data:
         data.update(extra_data)
 
+    # The two maps the report is built from. `channels` is handed straight to
+    # `add_alert`, which owns two of the three channels and fills its own two
+    # entries; nothing here restates what that function reports about them.
+    channels: dict[str, str] = {}
+    errors: dict[str, str] = {}
+
     # 1. AlertBell (in-app) — PRIVATE to `user_id`.
+    #    …and 3. Discord, which `add_alert` fires itself (see the note below).
     #
     # ⭐ EVERY CALLER OF THIS FUNCTION ALREADY HAS A REAL MEMBER ID — it is the
     # first parameter, and the indicator evaluator, catalyst alerts + must-know,
     # calendar alerts and the awareness engine all pass one. Passing it through
     # is what makes this alert the member's instead of the whole membership's.
+    in_app_raised = False
     try:
         add_alert(
             source,
@@ -256,14 +324,36 @@ def deliver_alert_payload(
             severity="warning",
             data=data,
             user_id=user_id,
+            channels=channels,
         )
     except Exception as e:
+        in_app_raised = True
         _logger.warning("AlertBell delivery failed: %s", e)
+        errors[CHANNEL_IN_APP] = f"{type(e).__name__}: {e}"
+    # ⚠️ `setdefault`, NEVER AN ASSIGNMENT. `add_alert` is the authority on the
+    # two channels it owns; overwriting its answer here would be a second
+    # opinion about a send this layer cannot see. These fill in only what it did
+    # not get to.
+    #
+    # 🔴 AND THE IN-APP DEFAULT IS KEYED ON WHETHER IT **RAISED**, NOT ON
+    # WHETHER IT REPORTED. Defaulting a silent-but-successful call to `failed`
+    # is a false negative, and it is not a harmless one: with the other two
+    # channels skipped it makes `channels_ok` zero, which releases the lease and
+    # re-sends on the next cycle. Measured against the existing suites the
+    # moment it was written — `test_the_alert_stays_quiet_across_TWELVE_TRUE_
+    # cycles` went from one delivery to three. A call that returned normally
+    # did not fail; a call that raised did.
+    channels.setdefault(CHANNEL_IN_APP,
+                        CHANNEL_FAILED if in_app_raised else CHANNEL_OK)
+    channels.setdefault(CHANNEL_DISCORD, CHANNEL_SKIPPED)
 
     # 2. Email
     try:
         email = _get_user_email(user_id)
-        if email:
+        if not email:
+            # No address on file. Nothing was attempted and nothing failed.
+            channels[CHANNEL_EMAIL] = CHANNEL_SKIPPED
+        else:
             html = _wrap_html(f"""
                 <h2 style="color:#c9a84c;font-size:16px;margin:0 0 16px;">{title}</h2>
                 <p style="color:#e8e0d0;font-size:14px;margin:0 0 16px;">{message}</p>
@@ -271,11 +361,20 @@ def deliver_alert_payload(
                     Manage your alerts from the chart toolbar.
                 </p>
             """)
-            send_email(email, f"UCT Alert: {title}", html)
+            # ⭐ `send_email` HAS RETURNED A BOOL SINCE IT WAS WRITTEN, and this
+            # call site threw it away. Resend not configured, a 10s timeout and
+            # a 429 all return False there and all read as a sent email here.
+            ok = send_email(email, f"UCT Alert: {title}", html)
+            channels[CHANNEL_EMAIL] = CHANNEL_OK if ok else CHANNEL_FAILED
+            if not ok:
+                errors[CHANNEL_EMAIL] = "send_email reported failure (see email log)"
     except Exception as e:
         _logger.warning("Email delivery failed: %s", e)
+        channels[CHANNEL_EMAIL] = CHANNEL_FAILED
+        errors[CHANNEL_EMAIL] = f"{type(e).__name__}: {e}"
 
-    # 3. Discord — ALREADY FIRED, by `add_alert` in step 1.
+    # 3. Discord — ALREADY FIRED, by `add_alert` in step 1, WHICH IS ALSO WHERE
+    #    ITS OUTCOME COMES FROM (`channels["discord"]`, filled by that function).
     #
     # ⛔ DO NOT RE-ADD AN EXPLICIT `_fire_discord` HERE. Step 1 passes
     # severity="warning", which is exactly the severity `add_alert` fires the
@@ -283,6 +382,10 @@ def deliver_alert_payload(
     # near-identical embed for every delivered alert (same title, same message,
     # same footer — only the footer timestamp's timezone differed). Removing it
     # loses no information from the admin channel and halves its volume.
+    #
+    # ⛔ AND DO NOT "FIX" THE REPORTING BY POSTING ONE HERE TO SEE THE RESULT.
+    # That is the double-post again, wearing the words of this task.
+    return _delivery_report(True, channels, errors)
 
 
 def run_alert_check(price_data: dict):

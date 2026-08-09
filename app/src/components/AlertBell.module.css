@@ -91,6 +91,68 @@
   font-size: 12px;
 }
 
+/* ── "not delivered everywhere" ───────────────────────────────────────────
+   The member-facing face of api/services/alert_fired_log.delivery_failures().
+   Deliberately reads as a WARNING, not as another notification — it is a
+   statement about what is MISSING from the list below it. */
+.trouble {
+  border-bottom: 1px solid var(--border);
+  background: rgba(239, 68, 68, 0.06);
+  padding: 8px 14px 10px;
+}
+
+.troubleHead {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--loss);
+  margin-bottom: 6px;
+}
+
+.troubleRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.troubleSym {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--text-bright);
+  flex-shrink: 0;
+}
+
+.troubleWhat {
+  font-family: var(--font-sans);
+  color: var(--text-muted);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A second marker on the bell itself, offset from the unread badge so both can
+   show at once — an undelivered alert is exactly the thing an unread count
+   cannot tell you about. */
+.troubleDot {
+  position: absolute;
+  bottom: 3px;
+  right: 2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--loss);
+  box-shadow: 0 0 0 1.5px var(--bg-elevated);
+}
+
 .list {
   overflow-y: auto;
   flex: 1;
