@@ -67,7 +67,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Mapping, Optional, Tuple
 from zoneinfo import ZoneInfo
 
-from api.services import ast_lint, ast_table, user_definitions
+from api.services import ast_lint, ast_table, scan_definition, user_definitions
 from api.services.ast_budget import BudgetExceeded, check_budget
 from api.services.ast_interpret import TableRefusal, interpret
 from api.services.catalyst import cost_guard
@@ -504,6 +504,22 @@ def formula_for(ast_obj: Any, table: Optional[Mapping[str, Any]] = None) -> str:
 # cases with NaN said as "nothing", because the tempting `?:` reading
 # "{1} when {0}, otherwise {2}" IS A LIE FOR THE NaN CASE. The read-back describes
 # the engine that exists, not the one a reader expects.
+#
+# ⭐⭐ …EXCEPT WHERE THE `!= 0` SAYS NOTHING, WHICH IS `sentence.js`'s SECOND
+# PHRASE AND IS MIRRORED HERE FOR THE SAME REASON THE FIRST ONE IS. `close &&
+# volume` really does coerce two prices, and a member reading "close and volume"
+# would be reading a semantics this engine does not have. But a condition is a 0/1
+# column only because the table has no boolean type — an implementation detail of
+# the REPRESENTATION — so when EVERY operand already yields `bool` the coercion is
+# vacuous and the scaffolding explains the representation to somebody who asked
+# about the maths. `OPERATOR_SENTENCE_CONDITIONS` is that second phrase.
+#
+# ⛔ AND THE QUESTION "IS THIS OPERAND ALREADY A CONDITION" IS NOT ANSWERED HERE.
+# `scan_definition.is_boolean_tree` has resolved the manifest's `yields` over a
+# tree since E-2 and is the lane's ONE answer; a resolver written here would be a
+# THIRD implementation of one value — this repo's most repeated defect, and the
+# very thing `sentence.js::yieldsOf` already came close to being. The two that
+# remain are cross-checked case for case in `tests/test_definition_concierge.py`.
 
 SENTENCE_REFUSALS: Mapping[str, str] = {
     "sentence:node": "this read-back has no rule for that node shape",
@@ -539,6 +555,26 @@ OPERATOR_SENTENCE: Mapping[str, str] = {
            "and nothing while it is unknown"),
 }
 
+#: operator name -> its English WHEN EVERY OPERAND IS ALREADY A CONDITION.
+#:
+#: ⭐ A JOIN, NOT A SECOND VOCABULARY: every word an operand contributes is still
+#: the manifest's own phrasing and this table adds the one word that joins them.
+#:
+#: ⛔ AND IT IS PINNED TO `sentence.js::OPERATOR_SENTENCE_CONDITIONS` BY EQUALITY,
+#: exactly as `OPERATOR_SENTENCE` and `SENTENCE_REFUSALS` are — a lane that
+#: smoothed a form the other lane still scaffolds tells one member two stories.
+#:
+#: ⚠️ `sentence.js` ALSO CARRIES `CONDITIONS_FORM_DECLINED` — `!` and `?:` with
+#: the reason nobody wrote them a join — AND IT IS DELIBERATELY NOT MIRRORED. It
+#: changes no behaviour: it exists so `sentence.test.js` can assert the two tables
+#: PARTITION the operators whose base phrase talks about zero. Copying prose that
+#: nothing here reads would be a second copy to keep in step for no gain, and the
+#: table that DOES decide what this lane says is pinned across the two lanes.
+OPERATOR_SENTENCE_CONDITIONS: Mapping[str, str] = {
+    "&&": "{0} and {1}",
+    "||": "{0} or {1}",
+}
+
 _SAYABLE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _PLACEHOLDER = re.compile(r"\{(\d+)\}")
 
@@ -563,8 +599,18 @@ def _placeholder_gap(phrase: str, arity: int) -> Optional[str]:
             f"and invents [{', '.join(map(str, extra))}]")
 
 
+#: ⚠️ NOT A SECTION, AND MARKED AS ONE ISN'T. The compiled rules carry the
+#: manifest they were compiled from so `_render_op` can hand it to
+#: ``scan_definition.is_boolean_tree`` — a rule set built from a PLANTED table
+#: must be classified against that table, or a test's manifest would be read back
+#: with the shipped one's `yields`. The ``_`` prefix is the manifest's own
+#: annotation convention, and every consumer that walks sections already skips it.
+_TABLE_KEY = "_table"
+
+
 def compile_rules(table: Optional[Mapping[str, Any]] = None,
-                  operator_phrases: Optional[Mapping[str, str]] = None) -> Dict[str, Any]:
+                  operator_phrases: Optional[Mapping[str, str]] = None,
+                  condition_phrases: Optional[Mapping[str, str]] = None) -> Dict[str, Any]:
     """The manifest, compiled into the three lookup tables the walker uses.
 
     ⛔ EVERY DECLARED ENTRY GETS A ROW, INCLUDING THE BROKEN ONES, so a declared
@@ -607,6 +653,8 @@ def compile_rules(table: Optional[Mapping[str, Any]] = None,
     """
     t = table if table is not None else ast_table.TABLE
     phrases = operator_phrases if operator_phrases is not None else OPERATOR_SENTENCE
+    conditions = (condition_phrases if condition_phrases is not None
+                  else OPERATOR_SENTENCE_CONDITIONS)
     series: Dict[str, Any] = {}
     operators: Dict[str, Any] = {}
     functions: Dict[str, Any] = {}
@@ -624,7 +672,19 @@ def compile_rules(table: Optional[Mapping[str, Any]] = None,
             gap = "no-template"
         else:
             gap = _placeholder_gap(phrase, arity)
-        operators[name] = {"phrase": phrase, "arity": arity, "gap": gap}
+        # ⭐⭐ THE SECOND PHRASE IS CARRIED EVEN WHEN IT IS BROKEN, AND IT DOES NOT
+        # SET `gap` — `sentence.js` makes the same two decisions for the same two
+        # reasons. ⛔ NO QUIET FALLBACK: a malformed conditions phrase must not
+        # degrade to the base form, which would be a read-back silently answering
+        # a different question, so it is carried and `_fill` refuses it BY NAME.
+        # And setting `gap` here would make the BASE tree refuse too, for a defect
+        # in a phrase it never uses.
+        conditions_phrase = None
+        if name in conditions:
+            declared = conditions[name]
+            conditions_phrase = declared if isinstance(declared, str) else ""
+        operators[name] = {"phrase": phrase, "arity": arity, "gap": gap,
+                           "conditions_phrase": conditions_phrase}
 
     for name in sorted(t[ast_table.FUNCTIONS_SECTION]):
         spec = t[ast_table.FUNCTIONS_SECTION][name]
@@ -637,7 +697,8 @@ def compile_rules(table: Optional[Mapping[str, Any]] = None,
             gap = _placeholder_gap(phrase, len(args))
         functions[name] = {"phrase": phrase, "args": args, "gap": gap}
 
-    return {"series": series, "operators": operators, "functions": functions}
+    return {"series": series, "operators": operators, "functions": functions,
+            _TABLE_KEY: t}
 
 
 SENTENCE_RULES = compile_rules()
@@ -645,6 +706,28 @@ SENTENCE_RULES = compile_rules()
 
 def _is_leaf(n: Any) -> bool:
     return isinstance(n, dict) and n.get("type") in ("num", "series")
+
+
+def _is_condition(node: Any, rules: Dict[str, Any]) -> bool:
+    """Does this operand ALREADY produce 0/1? The shipped classifier's answer.
+
+    ⛔ THE CALL IS THE POINT. ``scan_definition.is_boolean_tree`` resolves the
+    manifest's ``yields`` over a tree and has done since E-2; a resolution
+    written here would be a second one in this language and a third overall.
+    ``sentence.js::yieldsOf`` is the JS lane's, the two are compared case for
+    case by ``test_the_two_YIELDS_resolvers_agree_and_the_answer_is_ONE``, and
+    that comparison is only meaningful while there are exactly two.
+
+    ⛔ AND IT FAILS CLOSED TO "not a condition". ``is_boolean_tree`` raises on a
+    tree that is not made of canonical nodes; answering "condition" there would
+    DELETE the ``!= 0`` from a sentence where the coercion is real, which is the
+    defect this mirror is fixing, inverted. The walker refuses the malformed
+    operand by name a moment later, so this is a floor, not a swallow.
+    """
+    try:
+        return bool(scan_definition.is_boolean_tree(node, rules.get(_TABLE_KEY)))
+    except Exception:                              # noqa: BLE001 — see the docstring
+        return False
 
 
 def _spell_sentence_number(value: Any, path: str) -> str:
@@ -771,10 +854,25 @@ def _render_op(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],
         raise _SentenceRefused(
             "sentence:arity",
             f"at {path}: {name} takes {rule['arity']}, got {len(node['args'])}")
-    trace.append({"path": path, "rule": f"op:{name}"})
+    # ⭐ THE ONE PLACE THE CHROME CONSULTS `yields`, and it asks the OPERAND
+    # TREES rather than a list of names — so a fifty-fifth scalar is covered the
+    # day it declares one. Every operand already being a condition is what makes
+    # the `!= 0` vacuous; ONE `num` operand anywhere and the coercion is real, so
+    # the base phrase stands. `sentence.js::renderOp` makes the same call in the
+    # same place, and the two texts are pinned byte-for-byte.
+    #
+    # ⚠️ THE TRACE SAYS WHICH FORM SPOKE. "The sentence is correct" is satisfiable
+    # by the wrong branch agreeing today; "it came from `op:&&:conditions`, and a
+    # `num` operand moves it back to `op:&&`" is not.
+    as_conditions = (rule.get("conditions_phrase") is not None
+                     and len(node["args"]) > 0
+                     and all(_is_condition(a, rules) for a in node["args"]))
+    trace.append({"path": path,
+                  "rule": f"op:{name}:conditions" if as_conditions else f"op:{name}"})
     parts = [_render_arg(a, rules, inputs, f"{path}.args[{i}]", trace)
              for i, a in enumerate(node["args"])]
-    return _fill(rule["phrase"], parts, f"operator {name}", path)
+    return _fill(rule["conditions_phrase"] if as_conditions else rule["phrase"],
+                 parts, f"operator {name}", path)
 
 
 def _render_call(node: Any, rules: Dict[str, Any], inputs: Mapping[str, Any],

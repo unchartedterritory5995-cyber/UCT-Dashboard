@@ -117,7 +117,7 @@
           }
         ]
       },
-      "sentence": "1 when (1 when (1 when close is greater than (the 20-bar average of close) and 0 otherwise) and (1 when (the 20-bar average of close) is greater than (the 50-bar average of close) and 0 otherwise) are both not zero, 0 when either is zero, and nothing while either is unknown) and (1 when (the 50-bar average of close) is greater than (the 200-bar average of close) and 0 otherwise) are both not zero, 0 when either is zero, and nothing while either is unknown",
+      "sentence": "((1 when close is greater than (the 20-bar average of close) and 0 otherwise) and (1 when (the 20-bar average of close) is greater than (the 50-bar average of close) and 0 otherwise)) and (1 when (the 50-bar average of close) is greater than (the 200-bar average of close) and 0 otherwise)",
       "grounding": [
         {
           "kind": "classifier",
@@ -237,7 +237,7 @@
           }
         ]
       },
-      "sentence": "1 when (1 when (1 when close is less than (the 20-bar average of close) and 0 otherwise) and (1 when (the 20-bar average of close) is less than (the 50-bar average of close) and 0 otherwise) are both not zero, 0 when either is zero, and nothing while either is unknown) and (1 when (the 50-bar average of close) is less than (the 200-bar average of close) and 0 otherwise) are both not zero, 0 when either is zero, and nothing while either is unknown",
+      "sentence": "((1 when close is less than (the 20-bar average of close) and 0 otherwise) and (1 when (the 20-bar average of close) is less than (the 50-bar average of close) and 0 otherwise)) and (1 when (the 50-bar average of close) is less than (the 200-bar average of close) and 0 otherwise)",
       "grounding": [
         {
           "kind": "classifier",
@@ -349,7 +349,7 @@
           }
         ]
       },
-      "sentence": "1 when (1 when (1 when (1 when the relative-strength rank is greater than or equal to 80 and 0 otherwise) and whether the price is above its 50-day average are both not zero, 0 when either is zero, and nothing while either is unknown) and (1 when the percentage distance from the 20-day exponential average is greater than or equal to (the negative of 2) and 0 otherwise) are both not zero, 0 when either is zero, and nothing while either is unknown) and (1 when the percentage distance from the 20-day exponential average is less than or equal to 2 and 0 otherwise) are both not zero, 0 when either is zero, and nothing while either is unknown",
+      "sentence": "(((1 when the relative-strength rank is greater than or equal to 80 and 0 otherwise) and whether the price is above its 50-day average) and (1 when the percentage distance from the 20-day exponential average is greater than or equal to (the negative of 2) and 0 otherwise)) and (1 when the percentage distance from the 20-day exponential average is less than or equal to 2 and 0 otherwise)",
       "grounding": [
         {
           "kind": "starter_screen",
@@ -405,7 +405,7 @@
           }
         ]
       },
-      "sentence": "1 when (1 when the relative-strength rank is greater than or equal to 80 and 0 otherwise) and whether the recent bars are tightly consolidated are both not zero, 0 when either is zero, and nothing while either is unknown",
+      "sentence": "(1 when the relative-strength rank is greater than or equal to 80 and 0 otherwise) and whether the recent bars are tightly consolidated",
       "grounding": [
         {
           "kind": "starter_screen",
@@ -646,7 +646,7 @@
           }
         ]
       },
-      "sentence": "1 when (1 when the percentage distance from the 20-day exponential average is greater than or equal to (the negative of 2) and 0 otherwise) and (1 when the percentage distance from the 20-day exponential average is less than or equal to 2 and 0 otherwise) are both not zero, 0 when either is zero, and nothing while either is unknown",
+      "sentence": "(1 when the percentage distance from the 20-day exponential average is greater than or equal to (the negative of 2) and 0 otherwise) and (1 when the percentage distance from the 20-day exponential average is less than or equal to 2 and 0 otherwise)",
       "grounding": [
         {
           "kind": "filter_preset",

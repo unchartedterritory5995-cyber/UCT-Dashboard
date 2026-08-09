@@ -182,9 +182,154 @@ def minimal_op(name: str) -> dict:
     return {"type": "op", "name": name, "args": [s() for _ in range(arity)]}
 
 
+# ═══ 2b. OPERANDS OF EVERY KIND THE MANIFEST CAN DECLARE ═══════════════════
+#
+# 🔴 A PARITY RAIL WHOSE CORPUS CANNOT REACH THE DIVERGENT CASE IS NOT A PARITY
+# RAIL. `minimal_op` builds every operand out of `s()` — a BAR FIELD, which
+# declares no `yields` and is therefore a NUMBER — so not one case in the corpus
+# was a logical node whose operands were all CONDITIONS. `e6f1de2f` taught
+# `sentence.js` a second phrase for exactly that shape; the two lanes began
+# telling a member different English for `(close > open) && (close < high)`; and
+# the cross-lane rail below stayed GREEN through all of it, because no case it
+# owned could reach the branch. Green was luck, not coverage.
+#
+# ⛔ SO THE OPERANDS ARE FOUND IN THE MANIFEST, NEVER A HAND-PICKED PAIR.
+# `_declared_yield_kinds` reads the `yields` values the manifest actually
+# declares and `_entry_yielding` finds the first entry declaring each. Every one
+# of those is then built over BOTH leaf kinds, so `passthrough` — whose kind is
+# the JOIN of its arms — appears settled to a number AND settled to a condition
+# without this file ever spelling the word. A fourth kind, or a renamed one,
+# lands in the corpus the day the manifest declares it.
+#
+# ⚠️ AND THE COVERAGE OF THE SET IS ASSERTED, NOT ASSUMED
+# (`test_the_cross_lane_corpus_REACHES_every_operand_kind`). A corpus that
+# quietly stopped reaching a kind would put this rail straight back where it
+# was: permanently green over the one case it cannot see.
+
+#: The distinct `yields` values THE MANIFEST DECLARES, read off it. Not
+#: `ast_table.YIELDS` — that is the set the resolver knows how to answer, and the
+#: question here is which of them any entry actually claims.
+def _declared_yield_kinds(table: Mapping[str, Any] = None) -> List[str]:
+    t = table if table is not None else TABLE
+    kinds = set()
+    for section in (ast_table.OPERATORS_SECTION, ast_table.FUNCTIONS_SECTION,
+                    ast_table.SCALARS_SECTION):
+        for spec in (t.get(section) or {}).values():
+            value = (spec or {}).get("yields")
+            if isinstance(value, str):
+                kinds.add(value)
+    return sorted(kinds)
+
+
+def _entry_yielding(kind: str, table: Mapping[str, Any] = None):
+    """The first declared OPERATOR, then FUNCTION, whose `yields` is `kind`.
+
+    ⛔ SCALARS ARE NOT SEARCHED, and that is not an oversight. This corpus feeds
+    the byte-identity rail, and the Python read-back cannot yet say a scalar —
+    that divergence is E-5's, pinned by name in section 5b. An operand drawn
+    from the scalars section would fold a second, already-known divergence into
+    every case here and make the new one unreadable.
+    """
+    t = table if table is not None else TABLE
+    for section in (ast_table.OPERATORS_SECTION, ast_table.FUNCTIONS_SECTION):
+        for name in sorted(t.get(section) or {}):
+            if ((t[section][name] or {}).get("yields")) == kind:
+                return section, name
+    return None, None
+
+
+def _entry_tree(section: str, name: str, operand: dict,
+                table: Mapping[str, Any] = None) -> dict:
+    """One declared entry, filled with a chosen operand at every value position."""
+    return _entry_tree_cycle(section, name, [operand], table)
+
+
+def _entry_tree_cycle(section: str, name: str, operands: List[dict],
+                      table: Mapping[str, Any] = None) -> dict:
+    """…and the same, with the operands CYCLED across the value positions.
+
+    ⭐ THIS IS HOW A MIXED SHAPE IS BUILT WITHOUT NAMING ONE. An entry with two or
+    more value positions gets a different operand in each, so `?:` — whose kind is
+    the JOIN of its arms — appears with arms that DISAGREE. `every` and `some`
+    give the same answer for uniform arms, so a corpus built only from uniform
+    ones cannot tell a join from a disjunction; measured, by a surviving mutation.
+
+    ⚠️ BOUNDED THE SAME WAY `_probe_args` IS: an arity a manifest declares as a
+    fraction or something enormous builds an EMPTY argument list rather than
+    allocating until the box dies.
+    """
+    t = table if table is not None else TABLE
+    spec = t[section][name] or {}
+    pick = lambda i: dict(operands[i % len(operands)])       # noqa: E731
+    if section == ast_table.OPERATORS_SECTION:
+        arity = spec.get("arity")
+        count = arity if isinstance(arity, int) and not isinstance(arity, bool) \
+            and 0 <= arity <= 16 else 0
+        return {"type": "op", "name": name, "args": [pick(i) for i in range(count)]}
+    args, slot = [], 0
+    for kind in list(spec.get("args") or ()):
+        if kind == "int":
+            args.append(n(5))
+            continue
+        args.append(pick(slot))
+        slot += 1
+    return {"type": "call", "name": name, "args": args}
+
+
+#: ⚠️ THE THREE LITERALS ARE STRUCTURE, NOT VOCABULARY — the same distinction
+#: `scan_definition` draws when it spells the four node types and no table name.
+#: Both lanes declare the same rule about a `num` leaf ("a condition iff it is 0
+#: or 1, the two values a 0/1 column holds"), so the corpus has to carry a leaf
+#: on each side of it and one clear of it. Which KIND each of them is, is never
+#: asserted here — it is measured, by the two lanes, in the cross-check.
+_LITERAL_OPERANDS = (0, 1, 2)
+
+
+def operand_exemplars(table: Mapping[str, Any] = None) -> Dict[str, dict]:
+    """One operand tree per kind an operand can be, DERIVED from the manifest."""
+    t = table if table is not None else TABLE
+    #: The two leaves a value position can hold: a bar field (declares no
+    #: `yields`, so it is a price) and the first entry the manifest declares as
+    #: a condition, over bar fields. Both FOUND, neither named.
+    leaves: Dict[str, dict] = {"field": s()}
+    for kind in _declared_yield_kinds(t):
+        section, name = _entry_yielding(kind, t)
+        if section is not None:
+            leaves.setdefault(f"yields-{kind}", _entry_tree(section, name, s(), t))
+
+    out: Dict[str, dict] = {f"literal-{v}": n(v) for v in _LITERAL_OPERANDS}
+    out["field"] = s()
+    ordered = [leaves[key] for key in sorted(leaves)]
+    for kind in _declared_yield_kinds(t):
+        section, name = _entry_yielding(kind, t)
+        if section is None:
+            continue
+        for leaf_id, leaf in sorted(leaves.items()):
+            out[f"{kind}-over-{leaf_id}"] = _entry_tree(section, name, leaf, t)
+        # ⭐ AND ONE WITH THE LEAVES DISAGREEING ACROSS THE POSITIONS. See
+        # `_entry_tree_cycle`: uniform arms cannot tell `every` from `some`.
+        if len(ordered) > 1:
+            out[f"{kind}-mixed"] = _entry_tree_cycle(section, name, ordered, t)
+            out[f"{kind}-mixed-reversed"] = _entry_tree_cycle(
+                section, name, list(reversed(ordered)), t)
+    return out
+
+
+def _binary_operators(table: Mapping[str, Any] = None) -> List[str]:
+    t = table if table is not None else TABLE
+    return [name for name in sorted(t[ast_table.OPERATORS_SECTION])
+            if (t[ast_table.OPERATORS_SECTION][name] or {}).get("arity") == 2]
+
+
 def corpus() -> Dict[str, dict]:
     """One minimal tree per DECLARED entry, plus composites. Derived, so a new
-    manifest entry lands here automatically."""
+    manifest entry lands here automatically.
+
+    ⭐ AND ONE TREE PER (DECLARED ENTRY × OPERAND KIND), which is the half that
+    was missing. See section 2b: the chrome of a logical operator now depends on
+    what its operands YIELD, so a corpus that only ever passes bar fields probes
+    one of two branches and reports parity about the other.
+    """
     out: Dict[str, dict] = {}
     for name in SERIES:
         out[f"series::{name}"] = s(name)
@@ -192,6 +337,31 @@ def corpus() -> Dict[str, dict]:
         out[f"op::{name}"] = minimal_op(name)
     for name in FUNCTIONS:
         out[f"fn::{name}"] = minimal_call(name)
+
+    exemplars = operand_exemplars()
+    for name in OPERATORS:
+        for operand_id, operand in exemplars.items():
+            out[f"op::{name}::{operand_id}"] = _entry_tree(
+                ast_table.OPERATORS_SECTION, name, operand)
+    for name in FUNCTIONS:
+        for operand_id, operand in exemplars.items():
+            out[f"fn::{name}::{operand_id}"] = _entry_tree(
+                ast_table.FUNCTIONS_SECTION, name, operand)
+
+    # ⭐ AND THE MIXED PAIR, WHICH IS ITS OWN BRANCH. `above_50sma && close` is
+    # the coercion actually happening, so the scaffolding must STAY — a lane that
+    # smoothed a mixed pair would be wrong in the opposite direction, and both
+    # orders are carried because "every operand" is not "some operand".
+    field = exemplars["field"]
+    conditions = [tree for key, tree in sorted(exemplars.items())
+                  if key.startswith("bool-over-")]
+    for name in _binary_operators():
+        for i, other in enumerate(conditions):
+            out[f"op::{name}::mixed-{i}-field-first"] = {
+                "type": "op", "name": name, "args": [dict(field), dict(other)]}
+            out[f"op::{name}::mixed-{i}-field-second"] = {
+                "type": "op", "name": name, "args": [dict(other), dict(field)]}
+
     out["composite::nested"] = {
         "type": "op", "name": BINARY_OP,
         "args": [windowed(20), minimal_call(FUNCTIONS[0])]}
@@ -411,6 +581,114 @@ def test_sentence_for_reads_only_the_tree_and_the_manifest(concierge):
         "must be a pure function of the tree")
     assert "_render_node" in reachable, (
         "the scan found no renderer at all, so it proves nothing")
+    # ⭐ AND THE `yields` QUESTION IS DELEGATED, NOT ANSWERED HERE. `_is_condition`
+    # has to be ON that call graph or the chrome is deciding by some other means;
+    # the WIRE itself is proved behaviourally in the next case.
+    assert "_is_condition" in reachable, (
+        "`sentence_for` never asks whether an operand is already a condition — "
+        "the logical chrome cannot be consulting `yields` at all")
+
+
+def test_the_chrome_DELEGATES_the_yields_question_and_the_wire_is_LIVE(concierge, monkeypatch):
+    """⛔ THE WIRE, CUT IN BOTH DIRECTIONS — because two components that are each
+    correct can be joined by nothing at all, and every component test stays green
+    while they are.
+
+    `scan_definition.is_boolean_tree` is the lane's ONE resolver of the manifest's
+    `yields` over a tree. The read-back CALLS it; it does not reimplement it. So
+    replacing that function must move the read-back's chrome — if it does not, the
+    concierge has grown a third resolver (or bound the name at import and severed
+    itself from the module, which is the same defect wearing a different hat).
+
+    ⚠️ THE STUB IS A CONSTANT, NOT A NEGATION. Answering "everything is a
+    condition" and "nothing is" are two different wires, and a chrome consulting a
+    private copy would follow neither.
+    """
+    from api.services import scan_definition
+
+    def sr(name):
+        return {"type": "series", "name": name}
+
+    conditions = {"type": "op", "name": "&&", "args": [
+        {"type": "op", "name": ">", "args": [sr("close"), sr("open")]},
+        {"type": "op", "name": "<", "args": [sr("close"), sr("high")]}]}
+    numbers = {"type": "op", "name": "&&", "args": [sr("close"), sr("volume")]}
+
+    smoothed = concierge.sentence_for(conditions)
+    scaffolded = concierge.sentence_for(numbers)
+    assert smoothed != scaffolded and "not zero" not in smoothed, (
+        "the shipped chrome is not distinguishing the two forms at all")
+    assert "not zero" in scaffolded, "the `num` control lost its coercion"
+
+    monkeypatch.setattr(scan_definition, "is_boolean_tree", lambda *a, **k: False)
+    assert "not zero" in concierge.sentence_for(conditions), (
+        "the resolver was replaced with `nothing is a condition` and the read-back "
+        "smoothed anyway — the chrome is not asking `scan_definition`")
+
+    monkeypatch.setattr(scan_definition, "is_boolean_tree", lambda *a, **k: True)
+    assert "not zero" not in concierge.sentence_for(numbers), (
+        "the resolver was replaced with `everything is a condition` and the "
+        "read-back scaffolded anyway — the chrome is not asking `scan_definition`")
+
+
+def test_the_chrome_reads_the_MANIFEST_the_RULES_were_compiled_from(concierge):
+    """⛔ A PLANTED `yields` MOVES THE SENTENCE, IN BOTH DIRECTIONS — which is
+    what makes the decision the MANIFEST's and not this module's.
+
+    ⚠️ AND IT IS THE MANIFEST THE RULES WERE COMPILED FROM, not the shipped one.
+    A chrome that always classified against `ast_table.TABLE` would answer a
+    planted table's tree with the shipped table's `yields`, silently, and every
+    case above would stay green because the shipped table is what they use.
+    `sentence.js` gets this right by carrying `yields` on the compiled rows; this
+    lane carries the manifest itself and hands it to the one resolver.
+
+    ⭐ THE OPERATORS ARE FOUND BY THEIR DECLARATION, never named: the subject is
+    the first binary operator the manifest calls a condition, and the control is
+    the first it calls a number.
+    """
+    from api.services import scan_definition
+
+    ops = ast_table.OPERATORS_SECTION
+
+    def first_binary(kind):
+        return next(name for name in sorted(TABLE[ops])
+                    if TABLE[ops][name].get("arity") == 2
+                    and TABLE[ops][name].get("yields") == kind)
+
+    joiner = next(name for name in sorted(concierge.OPERATOR_SENTENCE_CONDITIONS)
+                  if TABLE[ops][name].get("arity") == 2)
+    a_condition = first_binary(scan_definition._KIND_BOOL)
+    a_number = first_binary(scan_definition._KIND_NUM)
+
+    def joined(operand_op):
+        def leaf():
+            return {"type": "op", "name": operand_op, "args": [s("close"), s("open")]}
+        return {"type": "op", "name": joiner, "args": [leaf(), leaf()]}
+
+    shipped = concierge.compile_rules(TABLE)
+    assert "not zero" not in concierge.explain_sentence(
+        joined(a_condition), {}, shipped)["text"], "the shipped chrome does not smooth"
+    assert "not zero" in concierge.explain_sentence(
+        joined(a_number), {}, shipped)["text"], "the `num` control lost its coercion"
+
+    # ⭐ NOW MOVE THE DECLARATION AND NOTHING ELSE, and the sentences swap. Only
+    # the operators section is rebuilt; every other section is the shipped object.
+    flipped = dict(TABLE)
+    flipped[ops] = dict(TABLE[ops])
+    flipped[ops][a_condition] = dict(TABLE[ops][a_condition],
+                                     yields=scan_definition._KIND_NUM)
+    flipped[ops][a_number] = dict(TABLE[ops][a_number],
+                                  yields=scan_definition._KIND_BOOL)
+    planted = concierge.compile_rules(flipped)
+
+    assert "not zero" in concierge.explain_sentence(
+        joined(a_condition), {}, planted)["text"], (
+        f"`{a_condition}` was re-declared as a number and the read-back still "
+        "smoothed — the chrome is reading the shipped manifest, not this one")
+    assert "not zero" not in concierge.explain_sentence(
+        joined(a_number), {}, planted)["text"], (
+        f"`{a_number}` was re-declared as a condition and the read-back still "
+        "scaffolded — the chrome is reading the shipped manifest, not this one")
 
 
 # ═══ 5. THE CROSS-LANE RAIL: the Python read-back IS `sentence.js`'s ════════
@@ -475,10 +753,22 @@ for (const c of payload.cases) {
   rows[c.id] = row
 }
 
+// ⭐ THE OTHER CROSS-LANE QUESTION: what a tree's values CAN BE. `yieldsOf` is
+// the JS resolver the chrome consults; `scan_definition.is_boolean_tree` is the
+// Python one. Two implementations of one question, so the answers are carried
+// back here and compared rather than trusted to agree.
+const kinds = {}
+for (const c of (payload.kindCases || [])) {
+  try { kinds[c.id] = sentence.yieldsOf(c.ast) }
+  catch (err) { kinds[c.id] = `ERROR ${String(err && err.message || err)}` }
+}
+
 process.stdout.write(JSON.stringify({
   ok: true,
   rows,
+  kinds,
   operatorSentence: sentence.OPERATOR_SENTENCE,
+  operatorSentenceConditions: sentence.OPERATOR_SENTENCE_CONDITIONS,
   refusals: sentence.REFUSALS,
   coverageGaps: sentence.coverageGaps(),
 }))
@@ -518,6 +808,31 @@ def _js(payload: dict) -> dict:
             f"stdout was {proc.stdout[:400]!r}") from exc
 
 
+def kind_corpus() -> Dict[str, dict]:
+    """The trees the two `yields` RESOLVERS are compared over.
+
+    ⛔ WIDER THAN THE SENTENCE CORPUS, ON PURPOSE. Classifying a tree is not
+    saying it: both lanes can answer "what can this produce" for a tree naming a
+    declared SCALAR, and the scalars section is exactly where the two
+    resolutions are shaped differently — `yieldsOf` looks a name up BY NODE TYPE
+    (a `series` node consults the scalars table), while `ast_table.yields_of`
+    scans operators → functions → scalars flat. So the scalars are IN here even
+    though they are pinned out of the sentence corpus.
+    """
+    out: Dict[str, dict] = dict(corpus())
+    scalars = sorted(ast_table.scalar_names(TABLE))
+    for name in scalars:
+        out[f"scalar::{name}"] = s(name)
+    #: …and inside every declared entry, so a scalar's kind has to PROPAGATE and
+    #: not merely be reported at the root.
+    for name in scalars:
+        for section in (ast_table.OPERATORS_SECTION, ast_table.FUNCTIONS_SECTION):
+            for entry in sorted(TABLE[section]):
+                out[f"{section}::{entry}::scalar::{name}"] = _entry_tree(
+                    section, entry, s(name))
+    return out
+
+
 @pytest.fixture(scope="module")
 def js_lane():
     """ONE node process for every cross-lane claim in this file. Seven boots for
@@ -526,7 +841,9 @@ def js_lane():
     cases = []
     for case_id, tree in corpus().items():
         cases.append({"id": case_id, "ast": tree, "source": mod.formula_for(tree)})
-    result = _js({"sentence": str(SENTENCE_JS), "parse": str(PARSE_JS), "cases": cases})
+    kind_cases = [{"id": cid, "ast": tree} for cid, tree in kind_corpus().items()]
+    result = _js({"sentence": str(SENTENCE_JS), "parse": str(PARSE_JS),
+                  "cases": cases, "kindCases": kind_cases})
     return {"result": result, "cases": {c["id"]: c for c in cases}}
 
 
@@ -547,13 +864,21 @@ def test_the_python_read_back_is_BYTE_IDENTICAL_to_sentence_js(concierge, js_lan
 
     disagreements = []
     for case_id, tree in corpus().items():
-        js_text = rows[case_id].get("sentence")
-        py_text = concierge.sentence_for(tree)
+        js_text = rows[case_id].get("sentence") or rows[case_id].get("sentenceGuard")
+        # ⚠️ A REFUSAL IS AN ANSWER AND IS COMPARED AS ONE. Letting the exception
+        # rise would end the run at the first divergent case with a traceback
+        # instead of a NAMED list — and a lane that refuses what the other says is
+        # the loudest divergence there is, not an error in the harness.
+        try:
+            py_text = concierge.sentence_for(tree)
+        except Exception as exc:                  # noqa: BLE001 — reported, not raised
+            py_text = f"REFUSED {getattr(exc, 'gate', type(exc).__name__)}"
         if js_text != py_text:
             disagreements.append((case_id, js_text, py_text))
     assert disagreements == [], (
         "the two read-back lanes disagree — one of them is telling the user a "
-        f"different story about the same formula: {disagreements[:4]}")
+        f"different story about the same formula. {len(disagreements)} case(s), "
+        f"first four: {disagreements[:4]}")
 
     # Non-vacuity: every declared entry really was rendered, by name.
     for name in FUNCTIONS:
@@ -564,6 +889,116 @@ def test_the_python_read_back_is_BYTE_IDENTICAL_to_sentence_js(concierge, js_lan
         assert rows[f"series::{name}"]["sentence"]
 
 
+def test_the_cross_lane_corpus_REACHES_every_operand_kind(js_lane):
+    """🔴 THE RAIL ON THE RAIL. A parity corpus that cannot reach a branch reports
+    parity about the other one, and that is not a weaker guarantee — it is a
+    green light with nothing behind it. This one shipped: every operand in the
+    corpus was a bar field, so the `bool` branch of the logical chrome was
+    unreached and the lanes diverged under a passing test.
+
+    ⛔ THE KINDS ARE COUNTED FROM THE LANE'S OWN ANSWER, not from the names this
+    file used when it built them. `yieldsOf` is asked about every case, and the
+    settled kinds it reports must cover the whole set — so a corpus that quietly
+    stopped producing conditions says so here rather than three tests later.
+    """
+    kinds = js_lane["result"]["kinds"]
+    assert kinds, "the JS lane classified nothing — the kind corpus never ran"
+
+    reached = sorted({v for v in kinds.values() if not str(v).startswith("ERROR")})
+    #: The kinds a NODE can settle on: every declared kind that is not the
+    #: join-only one. Derived from the manifest and the shipped resolver's own
+    #: constant, never typed.
+    from api.services import scan_definition
+    settled = sorted(k for k in ast_table.YIELDS
+                     if k != scan_definition._KIND_PASSTHROUGH)
+    assert reached == settled, (
+        f"the corpus only ever reaches {reached}; a node can settle on {settled}. "
+        "A branch nothing reaches is a branch this rail cannot report on.")
+
+    # ⛔ AND EVERY OPERAND IS ROOTED IN A DECLARATION, WHICH IS THE HALF THE KIND
+    # COUNT ABOVE CANNOT SEE. Three literals and a bar field already span `num`
+    # and `bool`, so a builder that stopped consulting `yields` altogether would
+    # keep this test green while every derived operand collapsed onto one entry.
+    # Measured: that mutation SURVIVED until this block existed.
+    exemplars = operand_exemplars()
+    for kind in _declared_yield_kinds():
+        key = f"{kind}-over-field"
+        assert key in exemplars, (
+            f"no operand was built from an entry the manifest declares `{kind}` — "
+            "the exemplars are not being derived from `yields`")
+        root = exemplars[key]
+        section = (ast_table.OPERATORS_SECTION if root["type"] == "op"
+                   else ast_table.FUNCTIONS_SECTION)
+        assert TABLE[section][root["name"]].get("yields") == kind, (
+            f"the `{kind}` operand is rooted at `{root['name']}`, which the "
+            f"manifest declares `{TABLE[section][root['name']].get('yields')}`")
+
+    # …and it reaches them where it MATTERS: at the operands of a logical form,
+    # which is the only place the chrome's decision is made.
+    logical = [name for name in OPERATORS
+               if TABLE[ast_table.OPERATORS_SECTION][name].get("yields")
+               == scan_definition._KIND_BOOL
+               and TABLE[ast_table.OPERATORS_SECTION][name].get("arity") == 2]
+    assert logical, "the manifest declares no binary condition-valued operator"
+    for name in logical:
+        all_bool = [cid for cid, tree in corpus().items()
+                    if cid.startswith(f"op::{name}::")
+                    and tree.get("args")
+                    and all(scan_definition.is_boolean_tree(a) for a in tree["args"])]
+        mixed = [cid for cid, tree in corpus().items()
+                 if cid.startswith(f"op::{name}::")
+                 and tree.get("args")
+                 and len({scan_definition.is_boolean_tree(a) for a in tree["args"]}) > 1]
+        assert all_bool, f"no case gives `{name}` operands that are ALL conditions"
+        assert mixed, f"no case gives `{name}` a MIXED pair, so the control is missing"
+
+
+def test_the_two_YIELDS_resolvers_agree_and_the_answer_is_ONE(js_lane):
+    """⛔ TWO IMPLEMENTATIONS OF ONE QUESTION, CROSS-CHECKED RATHER THAN A THIRD.
+
+    `sentence.js::yieldsOf` and `api/services/scan_definition.py::is_boolean_tree`
+    both resolve the manifest's `yields` over a tree, they were written to agree,
+    and until now nothing compared them — a SECOND AUTHORITY OVER ONE VALUE, this
+    repo's most repeated defect. The honest repair is not a third resolver: the
+    Python read-back CALLS `is_boolean_tree` rather than growing its own, and this
+    rail is what keeps the remaining two in step.
+
+    ⚠️ THE SHAPES REALLY DO DIFFER, WHICH IS WHY THIS IS WORTH RUNNING. The JS
+    lookup is BY NODE TYPE (a `series` node consults the scalars table);
+    `ast_table.yields_of` scans operators → functions → scalars flat. They can
+    only disagree for a name declared in two sections at once — so the corpus
+    carries every scalar, at the root and inside every declared entry.
+    """
+    from api.services import scan_definition
+    kinds = js_lane["result"]["kinds"]
+    trees = kind_corpus()
+    assert sorted(kinds) == sorted(trees), (
+        "the JS lane did not classify the corpus this lane built")
+
+    disagreements = []
+    for case_id, tree in trees.items():
+        js_bool = kinds[case_id] == scan_definition._KIND_BOOL
+        try:
+            py_bool = scan_definition.is_boolean_tree(tree)
+        except Exception as exc:                  # noqa: BLE001 — reported, not raised
+            py_bool = f"REFUSED {type(exc).__name__}: {exc}"
+        if js_bool != py_bool:
+            disagreements.append((case_id, kinds[case_id], py_bool))
+    assert disagreements == [], (
+        "the two `yields` resolvers classify the same tree differently — one of "
+        "them decides whether a read-back drops its `!= 0` and the other decides "
+        f"whether a tree may run as a screen. {len(disagreements)} case(s), first "
+        f"four: {disagreements[:4]}")
+
+    # ⚠️ NON-VACUITY, BOTH WAYS. An agreement in which every answer is `num` is
+    # satisfied by two resolvers that both do nothing.
+    said_bool = [cid for cid in trees if kinds[cid] == scan_definition._KIND_BOOL]
+    said_num = [cid for cid in trees if kinds[cid] == scan_definition._KIND_NUM]
+    assert said_bool and said_num, (
+        f"the resolvers agreed on one answer for everything: "
+        f"{len(said_bool)} bool / {len(said_num)} num")
+
+
 def test_the_operator_phrases_and_the_read_back_refusals_are_ONE_VOCABULARY(js_lane, concierge):
     """⚠️ THE MIRROR IS PINNED, NOT PROMISED. `ast_interpret.REFUSALS` is pinned to
     `interpret.js`'s the same way and for the same reason: a lane that refuses for
@@ -572,6 +1007,18 @@ def test_the_operator_phrases_and_the_read_back_refusals_are_ONE_VOCABULARY(js_l
     """
     assert dict(concierge.OPERATOR_SENTENCE) == js_lane["result"]["operatorSentence"]
     assert dict(concierge.SENTENCE_REFUSALS) == js_lane["result"]["refusals"]
+    # ⭐ AND THE SECOND PHRASE TOO, FOR THE SAME REASON AND WITH TEETH: a form
+    # smoothed in one lane and scaffolded in the other is one member reading two
+    # stories about one formula, which is exactly what shipped and what the
+    # widened corpus above now catches at the TEXT. This catches it at the TABLE,
+    # one step earlier, and names the operator.
+    assert (dict(concierge.OPERATOR_SENTENCE_CONDITIONS)
+            == js_lane["result"]["operatorSentenceConditions"])
+    # ⚠️ NON-VACUITY: an empty table on both sides would satisfy the equality and
+    # mean no operator ever smooths.
+    assert concierge.OPERATOR_SENTENCE_CONDITIONS, "the conditions table is empty"
+    assert set(concierge.OPERATOR_SENTENCE_CONDITIONS) <= set(concierge.OPERATOR_SENTENCE), (
+        "a conditions phrase names an operator that has no base phrase")
 
 
 def test_the_SOURCE_the_concierge_derives_PARSES_BACK_to_the_tree(js_lane):
