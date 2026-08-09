@@ -351,6 +351,145 @@ describe('⭐ THE FLAG ROW — a yes-or-no name sits beside the comparisons', ()
   })
 })
 
+describe('⭐ THE NEGATION TOGGLE — the fourth shape, on the condition it wraps', () => {
+  // 🔴 THE WIRE FOR THE SHAPE THAT IS NOT A ROW. `criteria.js` can read `!x`
+  // back, spell it and normalise it with this component rendering no control for
+  // it at all — every case in `criteria.test.js` stays green while a member can
+  // neither see that their formula is negated nor negate one. This is the file
+  // that fails when the toggle is cut.
+
+  const negateRow = (where = '0') => screen.getByLabelText(`Negate condition ${where}`)
+
+  it('every row carries the toggle, and it is OFF for a plain condition', () => {
+    mount({ ast: astOf('(close > open) && above_50sma') })
+    const rows = screen.getAllByTestId('picker-row')
+    expect(rows.map((r) => r.getAttribute('data-kind'))).toEqual(['row', 'flag'])
+    // ⛔ EVERY row shape, not just the comparison — a flag is a condition too,
+    // and `!above_50sma` is the sentence a member reaches for first.
+    expect(rows.every((r) => r.getAttribute('data-negated') === 'false')).toBe(true)
+    expect(negateRow('0')).not.toBeChecked()
+    expect(negateRow('1')).not.toBeChecked()
+  })
+
+  it('turning it ON emits the string `toSource` would spell, and re-shapes nothing else', () => {
+    const { onSourceChange } = mount({ ast: astOf('close > open') })
+    fireEvent.click(negateRow())
+    const emitted = onSourceChange.mock.calls.at(-1)[0]
+    expect(parseFormula(emitted).ok, emitted).toBe(true)
+    // ⛔ THE STRING THE SHIPPED FUNCTION SPELLS, never a string retyped here.
+    expect(emitted).toBe(toSource({
+      kind: 'group',
+      join: 'and',
+      children: [{
+        kind: 'not',
+        child: { kind: 'row', left: { t: 'name', name: 'close' }, cmp: '>', right: { t: 'name', name: 'open' } },
+      }],
+    }, VOCAB))
+    expect(screen.getByTestId('picker-row')).toHaveAttribute('data-negated', 'true')
+  })
+
+  it('a TYPED negation renders the toggle CHECKED, on the row it wraps — and writes nothing back', () => {
+    const { onSourceChange } = mount({ ast: astOf('!(close > open)') })
+    // ⛔ ONE ROW, NOT A ROW INSIDE A BOX. A negation is the condition said the
+    // other way round, so it must not put a second container on screen for a
+    // difference that is the grammar's rather than the member's.
+    expect(screen.getAllByTestId('picker-row')).toHaveLength(1)
+    expect(screen.getByTestId('picker-row')).toHaveAttribute('data-negated', 'true')
+    expect(negateRow()).toBeChecked()
+    expect(screen.getByLabelText('Condition 0 left side')).toHaveValue('close')
+    expect(screen.getByLabelText('Condition 0 comparison')).toHaveValue('>')
+    expect(onSourceChange).not.toHaveBeenCalled()
+  })
+
+  it('and turning it OFF hands back the bare condition', () => {
+    const { onSourceChange } = mount({ ast: astOf('!(close > open)') })
+    fireEvent.click(negateRow())
+    expect(onSourceChange.mock.calls.at(-1)[0]).toBe('(close > open)')
+    expect(screen.getByTestId('picker-row')).toHaveAttribute('data-negated', 'false')
+  })
+
+  it('editing a term INSIDE a negated row keeps the negation', () => {
+    // ⭐ THE WRAPPER SURVIVES AN EDIT OF WHAT IT WRAPS. A component that
+    // unwrapped to render and forgot to put the wrapper back would silently drop
+    // the member's negation on their next keystroke — a lossy edit, and the one
+    // failure mode of rendering a wrapper as a property.
+    const { onSourceChange } = mount({ ast: astOf('!(close > open)') })
+    fireEvent.change(screen.getByLabelText('Condition 0 left side'), { target: { value: 'high' } })
+    const emitted = onSourceChange.mock.calls.at(-1)[0]
+    expect(astHash(parseFormula(emitted).ast)).toBe(astHash(astOf('!(high > open)')))
+  })
+
+  it('a NESTED GROUP has one too, and the ROOT does not', () => {
+    // ⛔ THE ROOT IS THE WHOLE FORMULA'S FRAME — `fromAst` hands a top-level
+    // negation back as a one-child group wrapping it, so a negated root is a
+    // shape the model has no spelling for. Same reason the root has no remove
+    // button, and it is asserted rather than left to be noticed.
+    const { onSourceChange } = mount({ ast: astOf('(close > open) && ((high > low) || (volume > 1))') })
+    expect(screen.queryByLabelText('Negate group top')).toBeNull()
+    const nested = screen.getByLabelText('Negate group 1')
+    expect(nested).not.toBeChecked()
+    fireEvent.click(nested)
+    const emitted = onSourceChange.mock.calls.at(-1)[0]
+    expect(astHash(parseFormula(emitted).ast))
+      .toBe(astHash(astOf('(close > open) && !((high > low) || (volume > 1))')))
+    expect(screen.getAllByTestId('picker-group')[1]).toHaveAttribute('data-negated', 'true')
+  })
+
+  it('a TYPED negated group renders nested, checked, with its rows editable', () => {
+    const src = '(close > open) && !((high > low) || (volume > 1))'
+    const { onSourceChange } = mount({ ast: astOf(src) })
+    expect(screen.getAllByTestId('picker-group')).toHaveLength(2)
+    expect(screen.getByLabelText('Negate group 1')).toBeChecked()
+    fireEvent.change(screen.getByLabelText('Condition 1-0 left side'), { target: { value: 'low' } })
+    expect(astHash(parseFormula(onSourceChange.mock.calls.at(-1)[0]).ast))
+      .toBe(astHash(astOf('(close > open) && !((low > low) || (volume > 1))')))
+  })
+
+  it('emptying a NEGATED group removes it, rather than leaving a negation of nothing', () => {
+    // ⛔ THE PRUNE LOOKS THROUGH THE WRAPPER. A prune that only recognised the
+    // bare shape would leave `!(<no rows>)` in the model, and `canonicalPicker`
+    // refuses that — so the failure would surface as a throw out of an edit
+    // rather than as a row disappearing.
+    const { onSourceChange } = mount({ ast: astOf('(close > open) && !((high > low) || (volume > 1))') })
+    fireEvent.click(screen.getByRole('button', { name: /remove condition 1-0/i }))
+    fireEvent.click(screen.getByRole('button', { name: /remove condition 1-0/i }))
+    expect(onSourceChange.mock.calls.at(-1)[0]).toBe('(close > open)')
+    expect(screen.getAllByTestId('picker-group')).toHaveLength(1)
+  })
+
+  it('a negated FLAG is one control and a toggle — not a comparison with an empty side', () => {
+    const name = [...VOCAB.flags.keys()][0]
+    const { onSourceChange } = mount({ ast: astOf(name) })
+    fireEvent.click(negateRow())
+    const emitted = onSourceChange.mock.calls.at(-1)[0]
+    expect(emitted).toBe(toSource({
+      kind: 'group', join: 'and', children: [{ kind: 'not', child: { kind: 'flag', name } }],
+    }, VOCAB))
+    expect(screen.getByTestId('picker-row')).toHaveAttribute('data-kind', 'flag')
+    expect(screen.queryByLabelText('Condition 0 comparison')).toBeNull()
+  })
+
+  it('⛔ AND NO SEQUENCE OF CLICKS BUILDS `!!x` — the toggle REPLACES the wrapper', () => {
+    // `criteria.js` refuses a chain on all three of its sides; this is the half
+    // that says the UI cannot ask it to. Toggling twice returns to the bare
+    // condition rather than stacking a second negation.
+    const { onSourceChange } = mount({ ast: astOf('close > open') })
+    fireEvent.click(negateRow())
+    fireEvent.click(negateRow())
+    fireEvent.click(negateRow())
+    const emitted = onSourceChange.mock.calls.at(-1)[0]
+    expect(emitted).toBe(toSource({
+      kind: 'group',
+      join: 'and',
+      children: [{
+        kind: 'not',
+        child: { kind: 'row', left: { t: 'name', name: 'close' }, cmp: '>', right: { t: 'name', name: 'open' } },
+      }],
+    }, VOCAB))
+    expect(parseFormula(emitted).ok).toBe(true)
+  })
+})
+
 describe('no new chrome', () => {
   it('every glyph is a UIcon and not one emoji reaches the DOM', () => {
     const { container } = mount({ ast: astOf('(close > open) && (high > low)') })

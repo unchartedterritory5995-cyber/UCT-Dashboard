@@ -74,12 +74,37 @@
 // interpreter over literal operands, exactly as the join/comparator split below
 // is. The operand must be a LITERAL — `-close` is arithmetic and still refuses.
 //
-// ⏳ NOT TAKEN, AND SAID PLAINLY: negation of a CONDITION (`!x`) and arithmetic
-// terms (`close + open > 1`) are also scannable-when-typed and still refuse
-// here. They do NOT fall out of any of the generalisations above — a negation is
-// a node that WRAPS a condition and arithmetic makes a TERM a tree, so each
-// needs a row shape of its own rather than a second name in an existing one.
-// They stay refused BY NAME.
+// ⭐⭐ AND A FOURTH ROW SHAPE, WHICH IS THE ONE THAT DOES NOT FALL OUT OF THE
+// OTHER THREE. Every shape above is `<something> <relation> <something>` or a
+// name standing alone — all of them LEAVES. `!x` is none of those: its operand
+// is a CONDITION, so it WRAPS a row rather than being one, and it is the first
+// node in this model with a picker child. That is why it needed a shape of its
+// own rather than a second name in an existing one:
+//
+//   * a NEGATION is a condition with exactly one condition inside it, and its
+//     control is a toggle ON that condition — not a row beside it.
+//
+// ⛔ AND THE NAME IS MEASURED, NOT SPELLED, exactly as the join/comparator split
+// and the numeric negation below are: a logical NOT is the arity-1 operator that
+// maps zero to one and every non-zero to zero, which is a fact about the SHIPPED
+// INTERPRETER and is read by running it. Rename `!` in `closedTable.json` and
+// this keeps working; delete it and negation fails CLOSED — `!x` cannot be typed
+// either, because the parser builds its unary set from the same table.
+//
+// ⛔ AND `!!x` IS REFUSED IN BOTH DIRECTIONS RATHER THAN APPROXIMATED IN ONE.
+// Collapsing it to `x` would make the AST identity property FALSE — `!!x` and
+// `x` are the same truth and DIFFERENT TREES, and this model's whole claim is
+// that it hands back the tree it was given. Rendering it would need a control
+// the picker does not have (one toggle per condition says "negated", not "how
+// many times"). So a negation of a negation refuses BY NAME, in `readCondition`,
+// in `toSource` and in `canonicalPicker`, and the picker cannot build one.
+//
+// ⏳ NOT TAKEN, AND SAID PLAINLY: arithmetic TERMS (`close + open > 1`) are
+// scannable-when-typed and still refuse here. They do not fall out of any of the
+// four shapes above, because they are not a shape at the CONDITION layer at all
+// — arithmetic makes a TERM a tree, one layer below the row, so every term slot
+// in every shape above becomes a recursive editor. That is a different grammar
+// for the operand and it is still refused BY NAME (`picker:term`).
 //
 // ⭐⭐ AND NOT ONE NAME THE MANIFEST DECLARES IS SPELLED IN THIS FILE.
 //
@@ -166,6 +191,16 @@ const PROBE_PAIRS = Object.freeze([
  *  operator that merely SUBTRACTS FROM SOMETHING, or that rounds, cannot pass. */
 const NEGATION_PROBES = Object.freeze([1, 2, 3, 5, 7, 0.5, 137])
 
+/** The operands the LOGICAL-NOT probe uses.
+ *
+ *  ⚠️ ZERO IS THE POINT OF THIS ONE, and it is the difference from the list
+ *  above: a truth-inverter is defined by what it does to zero, so a probe list
+ *  without it would be satisfied by any operator that maps every number to 0.
+ *  A NEGATIVE and a FRACTION are here because "non-zero" is not "positive" and
+ *  not "at least one" — an operator that rounded, clamped or compared against 1
+ *  would pass a list of large positive integers and is not a negation. */
+const TRUTH_PROBES = Object.freeze([0, 1, 2, 5, 137, 0.5, -3, -0.25])
+
 const truthy = (x) => (x !== 0 ? 1 : 0)
 
 function applyBinary(name, a, b) {
@@ -198,6 +233,25 @@ function negatesNumbers(name) {
     let got
     try { got = applyUnary(name, a) } catch { return false }
     if (got !== -a) return false
+  }
+  return true
+}
+
+/** True when the operator turns a yes into a no and a no into a yes — the
+ *  property that makes `!x` a CONDITION the picker can wrap rather than a
+ *  construction it must refuse.
+ *
+ *  ⛔ MEASURED, NOT NAMED, for the same reason `negatesNumbers` is: `!` is a
+ *  name `closedTable.json` owns, and spelling it here is the hand-list the
+ *  source rail exists to catch. ⚠️ AND IT IS NOT `yields: "bool"` EITHER — the
+ *  manifest declares that of every comparator and both joins, so it says *this
+ *  answers yes-or-no*, never *this INVERTS one*. Only running the interpreter
+ *  says that. */
+function invertsTruth(name) {
+  for (const a of TRUTH_PROBES) {
+    let got
+    try { got = applyUnary(name, a) } catch { return false }
+    if (got !== (a === 0 ? 1 : 0)) return false
   }
   return true
 }
@@ -258,7 +312,8 @@ const VOCAB_CACHE = new WeakMap()
  *
  *  @returns {{series: Set, scalars: Set, functions: Map, crossings: Map,
  *             flags: Map, boolFunctions: Set, comparators: Set, boolBinary: Set,
- *             negations: Set, arity: Map, joins: Map, joinOf: Map}}
+ *             negations: Set, notOp: (string|null), arity: Map, joins: Map,
+ *             joinOf: Map}}
  */
 export function vocabulary(table = TABLE) {
   const cached = VOCAB_CACHE.get(table)
@@ -330,6 +385,26 @@ export function vocabulary(table = TABLE) {
   const negations = new Set(Object.keys(ops)
     .filter((name) => ops[name].arity === 1 && negatesNumbers(name)))
 
+  // ── the FOURTH row shape: a condition WRAPPED, measured the same way ───────
+  //
+  // ⛔ NO NAME, AND NO `yields` READ EITHER. Every comparator and both joins are
+  // declared `yields: "bool"`, so the manifest cannot tell a NEGATION from any
+  // other boolean operator — only the interpreter can, and the arity narrows the
+  // probe to the operators a unary run is even defined for.
+  const inverters = Object.keys(ops)
+    .filter((name) => ops[name].arity === 1 && invertsTruth(name))
+  if (inverters.length > 1) {
+    throw new Error(
+      'closedTable.json declares more than one arity-1 operator the picker reads as a '
+      + `negation (${inverters.map((n) => JSON.stringify(n)).join(', ')}); a condition's `
+      + 'negate control has ONE meaning and cannot choose between them.')
+  }
+  // ⛔ AND ITS ABSENCE IS NOT AN ERROR. A manifest with no logical NOT is a
+  // grammar in which `!x` cannot be TYPED either — the parser builds its unary
+  // set from this same table — so the picker simply has no negation to offer and
+  // every negation refuses exactly as it did before this shape existed.
+  const notOp = inverters.length ? inverters[0] : null
+
   const value = Object.freeze({
     series: new Set(Object.keys(table.series || {})),
     scalars: new Set(Object.keys(table.scalars || {})),
@@ -348,6 +423,7 @@ export function vocabulary(table = TABLE) {
     comparators,
     boolBinary,
     negations,
+    notOp,
     arity,
     joins,
     joinOf,
@@ -429,6 +505,23 @@ export function toSource(node, vocab = vocabulary()) {
     // every parenthesis the tree depends on, exactly as it does for a call.
     return node.name
   }
+  if (node.kind === 'not') {
+    // ⛔ THE OPERATOR IS THE VOCABULARY'S, NEVER A CHARACTER TYPED HERE — and a
+    // vocabulary that carries none refuses rather than inventing one, which is
+    // the same way a crossing whose function is not offered refuses above.
+    if (!vocab.notOp) throw new PickerRefusal('picker:node')
+    // ⛔ AND A NEGATION OF A NEGATION IS REFUSED ON THIS SIDE TOO, with the SAME
+    // guard `readCondition` answers for it. Refusing in both directions is what
+    // stops them disagreeing: a shape only one of them admits is a picker that
+    // can spell something it cannot read back, which is the asymmetry the
+    // identity property exists to catch.
+    if (node.child && node.child.kind === 'not') throw new PickerRefusal('picker:node')
+    // The operand is parenthesised by whatever spells it — a row and a group
+    // both come back wrapped, a flag and a crossing are already primary
+    // expressions — and the outer pair is this shape's own, so a negation sits
+    // in a group's `reduce` exactly as any other child does.
+    return `(${vocab.notOp}${toSource(node.child, vocab)})`
+  }
   if (node.kind === 'group') {
     const parts = (node.children || []).map((c) => toSource(c, vocab))
     if (!parts.length) throw new PickerRefusal('picker:shape')
@@ -496,15 +589,31 @@ function readCondition(n, vocab) {
         right: readTerm(n.args[1], vocab),
       }
     }
+    // ⭐ THE FOURTH ROW SHAPE, AND IT IS THE FIRST ONE WITH A CHILD. Its operand
+    // is a CONDITION, so it is read by the same function that read the row it
+    // wraps — which is also what makes its refusals the operand's own: `!close`
+    // says a price is not a yes-or-no answer, in the sentence that already says
+    // exactly that, rather than inventing a second way to say it.
+    if (vocab.notOp && n.name === vocab.notOp && (n.args || []).length === 1) {
+      const child = readCondition(n.args[0], vocab)
+      // ⛔ `!!x` REFUSES rather than collapsing to `x`. They are the same truth
+      // and DIFFERENT TREES, and a model that quietly returned the second when
+      // handed the first would make the AST identity property false — a picker
+      // silently rewriting the member's formula, which is the whole defect this
+      // module exists to prevent.
+      if (child.kind === 'not') throw new PickerRefusal('picker:node')
+      return { kind: 'not', child }
+    }
     // ⭐ THE SPLIT IS THE MANIFEST'S ARITY, NOT A LIST OF SHAPES.
     //
     // A picker ROW is `<term> <comparison> <term>` — an arity-2 form by
-    // construction. An operator with any OTHER arity has no row for the picker
-    // to show at all (`!x`, `-x`, `a ? b : c`), and that is a different fact
-    // from "this produces a number": the first says *the picker has no shape for
-    // this*, the second says *this is not a yes-or-no answer*. Collapsing them
-    // would tell a user editing `!(close > open)` that their negation "produces
-    // a number", which is both wrong and unactionable.
+    // construction. An operator with any OTHER arity that is not the negation
+    // above has no row for the picker to show at all (`-x`, `a ? b : c`), and
+    // that is a different fact from "this produces a number": the first says
+    // *the picker has no shape for this*, the second says *this is not a
+    // yes-or-no answer*. Collapsing them would tell a user editing `a ? b : c`
+    // that their ternary "produces a number", which is both wrong and
+    // unactionable.
     if (vocab.arity.get(n.name) !== 2) throw new PickerRefusal('picker:node')
     // An arity-2 operator the TABLE calls a condition but this vocabulary does
     // not offer. Reachable when a caller narrows the offered set.
@@ -586,13 +695,29 @@ export function fromSource(source, vocab = vocabulary()) {
  *  which reads back as `and[a,b,c]` — a picker the user did not have. The UI
  *  therefore only ever produces canonical shapes, and this is the assertion. */
 /** The picker's LEAF kinds — the row shapes, none of which has children to
- *  flatten. ⛔ A kind this does not name is a shape nothing in this module can
- *  spell, and `canonicalPicker` refuses it rather than passing it through. */
+ *  flatten. ⛔ A kind this does not name is a shape `canonicalPicker` must
+ *  handle EXPLICITLY (`group` and `not` both do) or refuse; it never passes an
+ *  unknown kind through, because a shape it cannot normalise is a shape the
+ *  identity property cannot be true of. */
 const LEAF_KINDS = Object.freeze(['row', 'cross', 'flag'])
 
 export function canonicalPicker(node) {
   if (!node || typeof node !== 'object') throw new PickerRefusal('picker:shape')
   if (LEAF_KINDS.includes(node.kind)) return node
+  if (node.kind === 'not') {
+    // ⛔ A NEGATION IS A BARRIER, NOT A LEVEL TO FLATTEN THROUGH. `!(a && b)`
+    // inside an all-of group is NOT `a && b` inside it, so the child is
+    // canonicalised on its own and never absorbed by the parent — which the
+    // group branch below already does by construction, because a `not` is not a
+    // group and its `join` is nobody's.
+    const child = canonicalPicker(node.child)
+    // ⛔ AND `!!x` DOES NOT NORMALISE TO `x`, with the SAME guard the read side
+    // answers. A normal form that dropped a level would hand back a different
+    // tree than it was given, which is exactly what `isCanonical` is checked
+    // against in the identity property.
+    if (child.kind === 'not') throw new PickerRefusal('picker:node')
+    return { kind: 'not', child }
+  }
   if (node.kind !== 'group') throw new PickerRefusal('picker:shape')
   const children = []
   for (const raw of node.children || []) {

@@ -263,6 +263,49 @@ describe('🔴 the picker is REACHABLE, and what it produces goes through the sh
     expect(field()).toHaveValue(`${fn}(close, open) && rs_rank > 80`)
   })
 
+  it('🔴 A NEGATION IS BUILT WITH ONE CLICK, and it is the SAME TREE as the typed one', async () => {
+    // ⭐ THE LAST OF THE ASYMMETRY AT THE CONDITION LAYER, MEASURED THROUGH THE
+    // SHEET. `!(close > open)` was a REFUSAL: typeable, savable, scannable,
+    // chartable, alertable — and invisible in the door that exists to teach the
+    // syntax. This is the case that fails if the toggle never reaches the sheet,
+    // while `criteria.test.js` and `CriteriaPicker.test.jsx` both stay green.
+    mount()
+    openPicker()
+    await pickRow({ left: 'close', cmp: '>', right: 'open' })
+    fireEvent.click(screen.getByLabelText('Negate condition 0'))
+    await settle()
+
+    const built = field().value
+    const typed = parseFormula('!(close > open)')
+    expect(typed.ok, typed.error).toBe(true)
+    expect(parseFormula(built).ok, built).toBe(true)
+    expect(astHash(parseFormula(built).ast)).toBe(astHash(typed.ast))
+
+    // …and it goes through the SHIPPED gates, not a private copy of them. ⚠️ The
+    // read-back is whatever `sentenceFor` says about a negation — this asserts
+    // that the sheet SHOWS it, never what it words it as: the phrasing is
+    // `sentence.js`'s and pinned there.
+    const expected = evaluateFormula(built, BUILDER_INPUT_SCOPE)
+    expect(expected.ok, expected.error || '').toBe(true)
+    expect(canSaveFormula(expected, false)).toBe(true)
+    expect(screen.getByTestId('readback')).toHaveTextContent(expected.readback)
+    expect(screen.getByTestId('repaint-badge')).toHaveAttribute('data-mode', expected.verdict.mode)
+  })
+
+  it('and a TYPED negation comes back as a row with its toggle on — the other direction', async () => {
+    mount()
+    await typeFormula('!(close > open) && rs_rank > 80')
+    openPicker()
+    expect(screen.queryByTestId('picker-note')).toBeNull()
+    const rows = screen.getAllByTestId('picker-row')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]).toHaveAttribute('data-negated', 'true')
+    expect(rows[1]).toHaveAttribute('data-negated', 'false')
+    expect(screen.getByLabelText('Negate condition 0')).toBeChecked()
+    // and merely LOOKING at it did not rewrite the box.
+    expect(field()).toHaveValue('!(close > open) && rs_rank > 80')
+  })
+
   it('a formula the picker cannot show is REPORTED, and the picker stays empty', async () => {
     mount()
     await typeFormula('sma(close, 20)')
