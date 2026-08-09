@@ -177,12 +177,12 @@ _COLS = [
     ("sector", "SECTOR", 946, "l"),
 ]
 # Weekly card adds PERF (price move vs the week's dark-pool VWAP — are those
-# levels in profit) between LAST and BIGGEST PRINT.
+# levels in profit) right after BIGGEST PRINT.
 _COLS_WEEKLY = [
     ("ticker", "TICKER", 36, "l"), ("notional", "NOTIONAL", 268, "r"),
     ("pctadv", "% ADV", 356, "r"), ("zone", "PRICE ZONE", 536, "r"),
-    ("last", "LAST", 632, "r"), ("perf", "PERF", 712, "r"),
-    ("big", "BIGGEST PRINT", 938, "r"), ("sector", "SECTOR", 978, "l"),
+    ("last", "LAST", 636, "r"), ("big", "BIGGEST PRINT", 852, "r"),
+    ("perf", "PERF", 942, "r"), ("sector", "SECTOR", 982, "l"),
 ]
 _W, _ROWH, _TOP, _SECH = 1150, 34, 170, 32
 _SS = 2  # supersample then downscale for crisp text
@@ -428,11 +428,17 @@ _ENRICH_BUFFER = 18
 
 
 # ── data: build market-cap sections from the aggregator + Schwab mkt-caps ──
-def build_sections(days: int = 1, top_n: int = 10, min_notional: float = 5e6):
+def build_sections(days: int = 1, top_n: int = 10, min_notional: float = 5e6,
+                   weekly: bool = False):
     """Pull aggregated dark-pool items, resolve sector + ETF flag + market cap for
     the display candidates, bucket (ETFs → their own section by isEtf; stocks by
-    true market cap), and enrich displayed rows with 50-day % ADV + a concentration
-    price band. ETF rows show their fund TYPE in the sector column."""
+    true market cap), and enrich displayed rows with % ADV + a concentration price
+    band. ETF rows show their fund TYPE in the sector column.
+
+    % ADV basis matches the window: the EOD card compares the day's dark pool to
+    the 50-day avg DAILY volume; the weekly card compares the WEEK's dark pool to a
+    10-week (≈50 trading day) avg WEEKLY volume (avg daily × 5), so a week doesn't
+    read as ~5× a normal day."""
     from api.darkpool_aggregator import get_aggregated
     payload = get_aggregated(days=days)
     items = list((payload or {}).get("allItems") or [])
@@ -502,7 +508,10 @@ def build_sections(days: int = 1, top_n: int = 10, min_notional: float = 5e6):
             n = it.get("n") or 0
             vwap = it.get("vwap") or 0
             avg50 = _avg50_volume(s)
-            pct_adv = ((n / vwap) / avg50 * 100.0) if (vwap > 0 and avg50 > 0) else None
+            # Weekly: compare the week's DP to a normal WEEK (avg daily × 5 =
+            # 10-week avg weekly). Daily: compare to a normal day (avg daily).
+            _denom = (avg50 * 5.0) if weekly else avg50
+            pct_adv = ((n / vwap) / _denom * 100.0) if (vwap > 0 and avg50 > 0) else None
             zlo, zhi = _concentration_band(s, days)
             if zlo is None:
                 zlo, zhi = it.get("lo"), it.get("hi")
@@ -587,7 +596,8 @@ def run_eod_summary(*, force: bool = False, post: bool = True,
         days = 5 if weekly else 1
         top_n = int(os.getenv("DARKPOOL_EOD_TOP_N", "10"))
         min_n = float(os.getenv("DARKPOOL_EOD_MIN_NOTIONAL", "5e6"))
-        sections, summary = build_sections(days=days, top_n=top_n, min_notional=min_n)
+        sections, summary = build_sections(days=days, top_n=top_n, min_notional=min_n,
+                                           weekly=weekly)
 
         try:
             from api.darkpool_db import get_available_dates
