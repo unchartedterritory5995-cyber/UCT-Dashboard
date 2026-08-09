@@ -954,9 +954,86 @@ def _start_thread_burst_watch() -> None:
     threading.Thread(target=_loop, daemon=True, name="thread-burst-watch").start()
 
 
+def start_screener_snapshot_warm():
+    """Top up the stalest screener rows shortly after boot, OFF the critical path.
+
+    The snapshot is rebuilt nightly at 03:00 ET, so a pod that boots after that
+    build — a deploy, a Railway restart — serves whatever `screener.db` was last
+    written until the NEXT 03:00. Up to a full day of stale rows with no top-up.
+    `snapshot_builder._stalest` orders never-built/oldest tickers first, so even
+    a small run refreshes exactly the rows that are worst.
+
+    ⚠️ BOUNDED AND DELAYED ON PURPOSE — the naive version of this is a
+    cold-start herd. `run_build` is sequential over the universe and its
+    `_read_fundamentals` calls `massive.get_market_cap` -> `get_ticker_details`,
+    which is **UNCACHED**: one Massive REST round-trip per ticker, plus a
+    `ticker_meta` miss can reach yfinance/Finnhub. Uncapped that is ~4,000
+    outbound calls racing the boot warmers on a single-process web pod — the
+    `bars_prewarm` failure that saturated Massive, starved the web pod, and was
+    reverted in `68392f4`. So:
+
+      * **Nothing touches the boot path.** `.start()` returns immediately and
+        the thread sleeps first, so readiness and the healthcheck are never
+        behind this. Even the `count_rows` gate lives inside the thread — the
+        registration that owns the nightly job must not do I/O for a warm.
+      * **A plain daemon thread**, deliberately not the 64-slot anyio pool and
+        not an APScheduler executor slot — the warm can never take a worker the
+        request path or another job needs.
+      * **Capped** well under the nightly's 4,000, via
+        `SCREENER_SNAPSHOT_WARM_MAX_PER_RUN`.
+      * **Counted and logged** via `run_build`'s own `{built, skipped, errors}`.
+
+    Returns the started `threading.Thread`, or None when disabled. Never raises
+    — including on a malformed env value, which falls back to its default. The
+    caller registers the wire watchdog inside the SAME `try` as the screener
+    jobs, so an exception escaping here would silently unregister an unrelated
+    job.
+    """
+    if os.environ.get("SCREENER_SNAPSHOT_WARM_ENABLED", "1") != "1":
+        return None
+
+    def _num(name, default, cast):
+        try:
+            return cast(os.environ[name])
+        except (KeyError, TypeError, ValueError):
+            return default
+
+    delay = _num("SCREENER_SNAPSHOT_WARM_DELAY_SECS", 120.0, float)
+    warm_min = _num("SCREENER_SNAPSHOT_WARM_MIN", 3000, int)
+    cap = _num("SCREENER_SNAPSHOT_WARM_MAX_PER_RUN", 500, int)
+
+    def _warm():
+        try:
+            time.sleep(delay)
+            # Imported HERE, not closed over from the caller. The previous cut
+            # of this block referenced a `snapshot_builder` bound in another
+            # function; when it was orphaned it would have raised NameError
+            # straight into a bare `except` and printed "skipped" forever.
+            from api.services.screener import snapshot_db, snapshot_builder
+            snapshot_db.init_db()
+            rows = snapshot_db.count_rows()
+            if rows >= warm_min:
+                print(f"[startup] screener self-warm: not needed "
+                      f"(rows={rows} >= warm_min={warm_min})")
+                return
+            stats = snapshot_builder.run_build(max_tickers=cap)
+            print(f"[startup] screener self-warm: rows_before={rows} cap={cap} "
+                  f"built={stats.get('built')} skipped={stats.get('skipped')} "
+                  f"errors={stats.get('errors')}")
+        except Exception as e:
+            # Counted as a failure of the whole warm, and NAMED — never `pass`.
+            print(f"[startup] screener self-warm FAILED: {type(e).__name__}: {e}")
+
+    t = threading.Thread(target=_warm, daemon=True, name="screener-warm")
+    t.start()
+    return t
+
+
 def register_screener_jobs(scheduler):
     """Register the nightly full-market screener snapshot build (03:00 ET, after
     the ratings nightly at 02:30). Gated by SCREENER_SNAPSHOT_ENABLED (default on).
+    Also kicks the bounded boot self-warm (`start_screener_snapshot_warm`) so a
+    freshly-deployed pod does not serve a stale snapshot until the next 03:00.
     Returns True if the job was registered."""
     import os
     if os.environ.get("SCREENER_SNAPSHOT_ENABLED", "1") != "1":
@@ -973,6 +1050,7 @@ def register_screener_jobs(scheduler):
     scheduler.add_job(_run, trigger=CronTrigger(hour=3, minute=0, timezone=_ET),
                       id="screener_snapshot_nightly", max_instances=1,
                       replace_existing=True)
+    start_screener_snapshot_warm()
     return True
 
 
@@ -1144,23 +1222,6 @@ def register_pattern_vision_jobs(scheduler):
                       trigger=CronTrigger(day_of_week="mon-fri", hour="9-16", minute=0, timezone=_ET),
                       id="pattern_vision_judge", max_instances=1,
                       replace_existing=True)
-    return True
-
-    # Self-warm on deploy: if the snapshot is under-filled, build (up to
-    # SCREENER_SNAPSHOT_MAX_PER_RUN, default 4000) in the background so the page
-    # has the full universe without waiting for 03:00 ET. run_build picks the
-    # stalest tickers first, so this tops up an incomplete snapshot each boot
-    # until the universe is covered.
-    try:
-        from api.services.screener import snapshot_db
-        snapshot_db.init_db()
-        warm_min = int(os.environ.get("SCREENER_SNAPSHOT_WARM_MIN", "3000"))
-        if snapshot_db.count_rows() < warm_min:
-            import threading
-            threading.Thread(target=snapshot_builder.run_build,
-                             daemon=True, name="screener-warm").start()
-    except Exception as e:
-        print(f"[scheduler] screener self-warm skipped: {e}")
     return True
 
 

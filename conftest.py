@@ -27,3 +27,18 @@ ISOLATED_AUTH_DB = os.path.join(
     tempfile.mkdtemp(prefix="uct_tests_authdb_"), "auth.db"
 )
 os.environ["AUTH_DB_PATH"] = ISOLATED_AUTH_DB
+
+# ─── screener boot self-warm: OFF under pytest ─────────────────────────────
+#
+# `register_screener_jobs()` starts a `screener-warm` daemon thread that sleeps
+# ~120s and then runs `snapshot_builder.run_build()` — real SQLite writes to the
+# real `screener.db` and one UNCACHED Massive REST call per ticker, on whatever
+# API key the developer's environment happens to hold.
+#
+# `tests/test_screener_schedule.py` calls that registration directly, and a full
+# suite run lasts ~7 minutes — comfortably longer than the delay. So the thread
+# WOULD wake mid-run and start hammering a live provider from a test process,
+# with the writes landing outside any fixture's teardown. Setting the flag here
+# (at conftest import, before any test module) makes the warm opt-IN: the tests
+# that exercise it re-enable it explicitly with a stubbed builder and zero delay.
+os.environ.setdefault("SCREENER_SNAPSHOT_WARM_ENABLED", "0")
