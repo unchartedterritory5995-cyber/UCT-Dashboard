@@ -11,7 +11,7 @@ export default function PeriodSortConfig({ sel, onSort, onCancel }) {
   const [start, setStart] = useState(ymdToInput(sel.start))
   const [end, setEnd] = useState(ymdToInput(sel.end))
   const [replay, setReplay] = useState(false)
-  const [markStart, setMarkStart] = useState(false)  // gold vertical line at the start date
+  const [markStart, setMarkStart] = useState('off')  // off | line (gold vertical line) | candle (gold start-date candle)
   const [groupBy, setGroupBy] = useState('stocks')   // stocks | theme | sector | industry
   const [tf, setTf] = useState('D')                  // D | W | M — linked charts switch to this
   const valid = start && end && inputToYmd(start) < inputToYmd(end)
@@ -54,12 +54,16 @@ export default function PeriodSortConfig({ sel, onSort, onCancel }) {
             <input type="checkbox" checked={replay} onChange={(e) => setReplay(e.target.checked)} />
             <span>Replay mode <span className={styles.cfgReplayHint}>— hide bars past the end date on linked charts</span></span>
           </label>
-          {/* Mark start date: a thin gold vertical line at the start date on every linked
-              chart; cleared on exit replay. */}
-          <label className={styles.cfgReplay}>
-            <input type="checkbox" checked={markStart} onChange={(e) => setMarkStart(e.target.checked)} />
-            <span>Mark start date <span className={styles.cfgReplayHint}>— gold vertical line at the start date on linked charts</span></span>
-          </label>
+          {/* Mark start date on every linked chart (cleared on exit replay): a thin gold
+              vertical line, or paint the start-date candle gold. */}
+          <div className={styles.cfgRow}>
+            <span className={styles.cfgLabel}>Mark start</span>
+            <select className={styles.cfgSelect} value={markStart} onChange={(e) => setMarkStart(e.target.value)}>
+              <option value="off">Off</option>
+              <option value="line">Vertical gold line</option>
+              <option value="candle">Gold start candle</option>
+            </select>
+          </div>
         </div>
         <div className={styles.cfgActions}>
           <button type="button" className={`${styles.cfgBtn} ${styles.cfgBtnGhost}`} onClick={onCancel}>Cancel</button>

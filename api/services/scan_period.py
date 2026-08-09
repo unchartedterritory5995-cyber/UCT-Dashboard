@@ -284,13 +284,22 @@ def _kick_period_daily_warm(ck: str, results) -> None:
             _period_warm_seen.clear()
             _period_warm_seen.add(ck)
     syms = [r.get("sym") for r in results[:_PERIOD_WARM_CAP] if r.get("sym")]
+    # The sort's START — the deep warm need only cover history back to here (a name already
+    # holding a bar at/before it is skipped). Parsed from ck = "scan_period_{start}_{end}".
+    try:
+        start_ymd = int(ck.split("_")[2])
+    except Exception:
+        start_ymd = None
 
     def _run():
         try:
-            from api.services.bars_fetch import _get_bars_inner, _bars_warm_pool
+            from api.services.bars_fetch import warm_ticker_daily_deep, _bars_warm_pool
             for s in syms:
                 try:
-                    _bars_warm_pool.submit(_get_bars_inner, s, "D", _DEEP_DAILY_BARS)
+                    # Deep FETCH + persist the FULL daily history (not just _get_bars_inner,
+                    # which can return recent-only for an old-era name) so a 2008-replay chart
+                    # is already in SQLite ≤ cutoff. Skips tickers already deep enough.
+                    _bars_warm_pool.submit(warm_ticker_daily_deep, s, start_ymd)
                 except RuntimeError:          # pool shutting down
                     break
         except Exception:
@@ -312,8 +321,16 @@ def get_period_change(start_ymd: int, end_ymd: int) -> dict:
             _kick_period_daily_warm(ck, cached.get("results"))
         return cached
 
-    start_closes, sd = _grouped_near(_to_date(start_ymd))   # fast (grouped-daily only)
-    end_closes, ed = _grouped_near(_to_date(end_ymd))
+    # Fetch BOTH whole-market dates AND prewarm the full-market snapshot CONCURRENTLY — these
+    # three ~8,000-ticker calls were sequential (the 30-40s wait). Snapshot lands in its own
+    # cache so _assemble reads it instantly; grouped-daily is now cached per date too.
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=3, thread_name_prefix="period-fetch") as _ex:
+        _fs = _ex.submit(_grouped_near, _to_date(start_ymd))
+        _fe = _ex.submit(_grouped_near, _to_date(end_ymd))
+        _ex.submit(lambda: massive._get_client().get_full_market_snapshot())  # prewarm cache
+        start_closes, sd = _fs.result()
+        end_closes, ed = _fe.result()
     if start_closes and end_closes:
         out = _assemble(start_closes, end_closes, sd, ed, False, start_ymd)
         cache.set(ck, out, ttl=_TTL if out.get("results") else 15)

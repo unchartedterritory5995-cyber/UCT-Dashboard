@@ -181,7 +181,7 @@ const WIDGET_DEFAULTS = {
   alerts:    { w: 6,  h: 10, minW: 2, minH: 4 },
   calendar:  { w: 6,  h: 10, minW: 2, minH: 4 },
   optionsflow: { w: 8, h: 12, minW: 4, minH: 5 },
-  periodsort: { w: 7,  h: 12, minW: 3, minH: 5 },
+  periodsort: { w: 6,  h: 12, minW: 3, minH: 5 },   // ~fits Flag·Symbol·%·Industry with no blank filler
 }
 
 // A blocked window.open returns null with no error, so this is the only way the
@@ -201,6 +201,22 @@ function splitToFit(widgets, defaults, candidate) {
   return {
     widgets: widgets.map(x => (x.id === candidate.id ? { ...x, h: shrunkH } : x)),
     place: { x: candidate.x, y: candidate.y + shrunkH, w, h: newH },
+  }
+}
+
+// Horizontal split: place the new widget to the LEFT of `candidate`, at its FULL height,
+// shrinking the candidate to the right. Docking the Custom-Period Sort beside a full-screen
+// chart should sit it on the LEFT with the chart on the right (owner preference), not stack
+// it below. Returns null if the candidate can't spare the width.
+function splitToSide(widgets, defaults, candidate) {
+  if (!candidate) return null
+  const candMinW = (WIDGET_DEFAULTS[candidate.type]?.minW) || 2
+  const newW = Math.max(defaults.minW, Math.min(defaults.w, Math.floor(candidate.w / 2)))
+  const shrunkW = candidate.w - newW
+  if (shrunkW < candMinW) return null
+  return {
+    widgets: widgets.map(x => (x.id === candidate.id ? { ...x, x: candidate.x + newW, w: shrunkW } : x)),
+    place: { x: candidate.x, y: candidate.y, w: newW, h: candidate.h },
   }
 }
 
@@ -556,8 +572,10 @@ export default function ChartsWorkspace() {
   const [periodSortPanel, setPeriodSortPanel] = useState(null) // { start, end, group } | null
   // Replay mode: an ISO 'YYYY-MM-DD' cutoff — linked charts hide every bar after it.
   const [replayCutoff, setReplayCutoff] = useState(null)
-  // "Mark start date": an ISO 'YYYY-MM-DD' — linked charts draw a gold vertical line at it.
+  // "Mark start date": an ISO 'YYYY-MM-DD' + style ('line' gold vertical line | 'candle'
+  // gold start-date candle) — linked charts mark the sort's start date.
   const [startMarker, setStartMarker] = useState(null)
+  const [startMarkerStyle, setStartMarkerStyle] = useState('line')
   const handlePeriodSelected = useCallback((sym, start, end, pct) => {
     setPeriodSortMode(false)
     setPeriodSortSel({ sym, start, end, pct })
@@ -566,8 +584,8 @@ export default function ChartsWorkspace() {
   const exitReplay = useCallback(() => { setReplayCutoff(null); setStartMarker(null) }, [])
 
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker }),
-    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker],
+    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle }),
+    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle],
   )
 
   // Debounced layout persist (500ms).
@@ -724,12 +742,15 @@ export default function ChartsWorkspace() {
       let widgets = prev.widgets
       let place = fit
       // If the normal placement would land off-screen (grid full), open room by splitting
-      // an existing widget — prefer a non-chart side widget (like the watchlist) so the
-      // main chart isn't shrunk; fall back to the tallest widget overall.
+      // an existing widget. Prefer putting the sort to the LEFT of the WIDEST widget (a
+      // full-screen chart) so it sits beside the chart at full height; then fall back to a
+      // below-split of a non-chart widget, then any widget.
       if (fit.y + fit.h > FIXED_ROWS) {
         const tallestOf = (arr) => arr.reduce((a, b) => (!a || b.h > a.h ? b : a), null)
+        const widestOf = (arr) => arr.reduce((a, b) => (!a || b.w > a.w ? b : a), null)
         const nonChart = prev.widgets.filter(w => w.type !== 'chart')
-        const split = splitToFit(prev.widgets, defaults, tallestOf(nonChart))
+        const split = splitToSide(prev.widgets, defaults, widestOf(prev.widgets))
+          || splitToFit(prev.widgets, defaults, tallestOf(nonChart))
           || splitToFit(prev.widgets, defaults, tallestOf(prev.widgets))
         if (split) { widgets = split.widgets; place = split.place }
       }
@@ -1445,9 +1466,11 @@ export default function ChartsWorkspace() {
               // Replay: cut every linked chart off at the End date (ISO). Off = clear it.
               const s = String(end)
               setReplayCutoff(replay ? `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}` : null)
-              // Mark start date: gold vertical line at the Start date (ISO) on every chart.
+              // Mark start date on every chart: gold vertical line ('line') or gold start
+              // candle ('candle'). 'off' → no marker.
               const st = String(start)
-              setStartMarker(markStart ? `${st.slice(0, 4)}-${st.slice(4, 6)}-${st.slice(6, 8)}` : null)
+              setStartMarker(markStart && markStart !== 'off' ? `${st.slice(0, 4)}-${st.slice(4, 6)}-${st.slice(6, 8)}` : null)
+              if (markStart === 'line' || markStart === 'candle') setStartMarkerStyle(markStart)
               // Timeframe: switch every chart to the chosen D/W/M (composes with replay).
               applyTfToCharts(tf)
             }}

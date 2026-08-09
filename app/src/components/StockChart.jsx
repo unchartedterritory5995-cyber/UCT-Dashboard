@@ -1201,6 +1201,7 @@ export default function StockChart({
   onAnnotationsMigrate = null,  // (drawings[]) => void — called once when a legacy volume-pane annotation is re-anchored to the pane (so it can be persisted)
   highlightBarTime = null,      // ISO/time (or array of them) of bar(s) to paint (Model Book: focused setup's day, or all setup/catalyst days)
   highlightColor = '#e6b800',   // color for highlighted bars (gold for setups; Model Book passes white for catalysts)
+  highlightBodyOnly = false,    // true = recolor only the BODY, leave border/wick to the chart's own settings (Custom-Period Sort start-candle marker); false = recolor body+border+wick (Model Book)
   onHighlightClick = null,      // Model Book: ({ date, clientX, clientY }) => void — clicking a highlighted setup/catalyst candle (opens the intraday 5-min popup)
   vwapOverride = null,          // force the session-VWAP indicator on regardless of user settings: { color } (Model Book intraday popup uses white)
   onFocusEscape = null,         // called when the user manually zooms/pans while a setup focus is active → parent should clear focus
@@ -2065,6 +2066,16 @@ export default function StockChart({
   // undo a deliberate pan (that was the "drag left and it snaps straight back"
   // bug — the net re-fired on the next live data commit).
   const userViewMovedRef = useRef(false)
+  // REPLAY view lock: once the user pans/zooms while in replay, every subsequent ticker
+  // in the sort keeps that exact view (right-relative) instead of snapping back to the
+  // default replay frame. Persists across ticker switches; cleared by "Reset view" or on
+  // exit replay. (userViewMovedRef is re-armed each sym switch, so it can't hold this.)
+  const replayViewLockedRef = useRef(false)
+  // The locked view's RIGHT-RELATIVE params {barsFromRight, width}, captured on the
+  // CURRENT ticker at pan/zoom time — NOT derived from oldRange after a sym switch (that
+  // range is clamped to the new ticker's extent, so a short-history name like ROOT loses
+  // the deep scroll-back a long-history name like QQQ had). Applied to every new ticker.
+  const replayLockedViewRef = useRef(null)
   const viewPointerRef = useRef(null)       // {x, y} of the in-flight press, else null
   const lastPointerDownAtRef = useRef(0)    // ms of the last press anywhere on the chart
   // Is the user's pointer physically over THIS chart? The ONLY trustworthy
@@ -2629,8 +2640,10 @@ export default function StockChart({
         }
         // Explicit reset — the view is back at the canonical window, so the
         // "user moved the view" latch is cleared and the pinned-right safety
-        // net is live again (see userViewMovedRef).
+        // net is live again (see userViewMovedRef). Also release the replay view
+        // lock so the next replay ticker returns to the default replay frame.
         userViewMovedRef.current = false
+        replayViewLockedRef.current = false; replayLockedViewRef.current = null
       } catch {}
     }
     const autoScale = () => {
@@ -4699,7 +4712,6 @@ export default function StockChart({
     const arr = Array.isArray(highlightBarTime) ? highlightBarTime : [highlightBarTime]
     const times = ohlcData.map(d => d.time)
     const exact = new Set(times)
-    const fuzzy = resolvedTf === 'W' || resolvedTf === 'M'
     const cmp = (a, b) => (typeof a === 'number' && typeof b === 'number')
       ? a - b
       : (String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0)
@@ -4708,7 +4720,9 @@ export default function StockChart({
       if (raw == null) continue
       const target = adjustTime(raw)
       if (exact.has(target)) { out.push({ time: target, orig: raw }); continue }
-      if (!fuzzy) continue
+      // No exact bar: resolve to the ENCLOSING bar (largest bar time <= the date). Covers
+      // W/M period-interior days AND a daily start-marker date that lands on a weekend/holiday
+      // (exact still wins for real trading days, so Model Book setups are unaffected).
       let best = null
       for (const t of times) if (cmp(t, target) <= 0 && (best == null || cmp(t, best) > 0)) best = t
       if (best != null) out.push({ time: best, orig: raw })
@@ -4731,9 +4745,14 @@ export default function StockChart({
   const goldOhlc = useMemo(() => {
     if (!highlightTimeSet) return ohlcData
     return ohlcData.map(d => (highlightTimeSet.has(d.time)
-      ? { ...d, color: highlightColor, borderColor: highlightColor, wickColor: highlightColor }
+      // Body-only leaves borderColor/wickColor unset so the highlighted candle keeps the
+      // chart's own border + wick colors (owner wants the gold START candle to have the
+      // same black border/wick as every other candle); Model Book paints all three.
+      ? (highlightBodyOnly
+          ? { ...d, color: highlightColor }
+          : { ...d, color: highlightColor, borderColor: highlightColor, wickColor: highlightColor })
       : d))
-  }, [ohlcData, highlightTimeSet, highlightColor])
+  }, [ohlcData, highlightTimeSet, highlightColor, highlightBodyOnly])
 
   // Setup⇄Result candle crossfade. The bars PAST the highlighted setup day fade
   // in (Setup→Result) / out (Result→Setup) instead of popping. Cutoff = the
@@ -7773,9 +7792,15 @@ export default function StockChart({
 
       zoomKeyRef.current = zoomKey
       lastTfRef.current = resolvedTf
-      // New symbol/timeframe = a fresh view, so re-arm the pinned-right safety
-      // net that a user pan on the PREVIOUS symbol had latched off.
-      userViewMovedRef.current = false
+      // Exiting replay (or a TF change) clears the replay view lock so the next frame
+      // uses the normal default; a plain ticker switch WITHIN replay keeps it locked.
+      if (!replayCutoff || tfChanged) { replayViewLockedRef.current = false; replayLockedViewRef.current = null }
+      const _replayLocked = replayCutoff && replayViewLockedRef.current
+      // New symbol/timeframe = a fresh view, so re-arm the pinned-right safety net that a
+      // user pan on the PREVIOUS symbol had latched off — EXCEPT under the replay lock,
+      // where keeping it latched is exactly what stops the settling/pinned-right guards
+      // from snapping the locked view back to present on the next data commit.
+      if (!_replayLocked) userViewMovedRef.current = false
       // A timeframe switch must PRESERVE the viewport: keep the last candle at the
       // exact same screen position AND the same zoom width, then just swap in the new
       // tf's bars — no reset to the tf default, no leftward snap ("just flip the
@@ -7790,7 +7815,7 @@ export default function StockChart({
         // to the middle (SMH 1H bug).
         const _w = oldRange ? (oldRange.to - oldRange.from) : null
         pendingTfReframeRef.current = { tf: resolvedTf, width: (_w > 0 ? _w : null) }
-      } else if (keepPresentOnSymbolChange && !isFirstLoad && !entryDate && !exactDateRange) {
+      } else if (keepPresentOnSymbolChange && !isFirstLoad && !entryDate && !exactDateRange && !_replayLocked) {
         // SYMBOL switch on a "newest always at right" surface (Charts workspace). The
         // new ticker's bars arrive in PHASES (IDB cache → network → older-history
         // backfill), each a separate updateChart commit with a DIFFERENT bar count.
@@ -7819,7 +7844,15 @@ export default function StockChart({
         // scrolled-back (past) position from the prior symbol. Otherwise preserve the
         // prior bars-from-right (flip tickers at the exact same historical view).
         let to, from
-        if (keepPresentOnSymbolChange) {
+        // REPLAY view lock: once the user has moved the view in replay, keep the EXACT
+        // right-relative view (same distance from the cutoff + same zoom) on every ticker,
+        // overriding keepPresent's snap-to-present — until "Reset view" / exit replay. Use
+        // the params CAPTURED at pan/zoom time (replayLockedViewRef) — oldRange here is
+        // already clamped to the new ticker's extent, which loses the deep scroll-back.
+        if (_replayLocked && replayLockedViewRef.current) {
+          to = newBarCount - replayLockedViewRef.current.barsFromRight
+          from = to - replayLockedViewRef.current.width
+        } else if (keepPresentOnSymbolChange) {
           to = (newBarCount - 1) + width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
           from = to - width
         } else if (rangeDescribesOldExtent(oldRange, oldBarCount, newBarCount)) {
@@ -8008,6 +8041,20 @@ export default function StockChart({
             }
           }
         }
+      }
+    }
+
+    // Replay view lock — re-assert the captured right-relative view on EVERY commit so a
+    // load PHASE that changes the bar count (IDB → network → backfill) can't shift it, and
+    // no other guard can snap it to present. Skipped while the user is actively dragging
+    // (pointer down), which would fight a live pan; the drag's own onUp re-captures.
+    if (replayCutoff && replayViewLockedRef.current && replayLockedViewRef.current
+        && !viewPointerRef.current && !entryDate && !exactDateRange && filteredBars.length > 1) {
+      const _lw = replayLockedViewRef.current.width
+      const _to = filteredBars.length - replayLockedViewRef.current.barsFromRight
+      const _from = _to - _lw
+      if (_lw > 0 && Number.isFinite(_from) && Number.isFinite(_to) && _to > 1 && _from < filteredBars.length) {
+        try { chart.timeScale().setVisibleLogicalRange({ from: _from, to: _to }) } catch { /* mid-load */ }
       }
     }
 
@@ -10092,13 +10139,37 @@ export default function StockChart({
       lastPointerDownAtRef.current = Date.now()
       viewPointerRef.current = { x: e.clientX, y: e.clientY }
     }
+    // Capture the CURRENT (settled) view as right-relative params for the replay lock.
+    // rAF so we read AFTER lightweight-charts applies the pan/zoom, on THIS ticker's bars.
+    const _captureReplayLock = () => {
+      if (!replayCutoffRef.current) return
+      replayViewLockedRef.current = true
+      requestAnimationFrame(() => {
+        try {
+          const r = chartRef.current?.timeScale().getVisibleLogicalRange()
+          const n = lastBarCountRef.current || 0
+          if (r && n > 0 && (r.to - r.from) > 0) {
+            replayLockedViewRef.current = { barsFromRight: n - r.to, width: r.to - r.from }
+          }
+        } catch { /* mid-load */ }
+      })
+    }
     const onMove = (e) => {
       const p = viewPointerRef.current
       if (!p) return
-      if (Math.abs(e.clientX - p.x) > 4 || Math.abs(e.clientY - p.y) > 4) userViewMovedRef.current = true
+      if (Math.abs(e.clientX - p.x) > 4 || Math.abs(e.clientY - p.y) > 4) {
+        userViewMovedRef.current = true
+        if (replayCutoffRef.current) replayViewLockedRef.current = true   // lock this view for the whole sort
+      }
     }
-    const onUp = () => { viewPointerRef.current = null }
-    const onWheel = () => { userViewMovedRef.current = true }
+    const onUp = () => {
+      if (viewPointerRef.current && replayCutoffRef.current && replayViewLockedRef.current) _captureReplayLock()
+      viewPointerRef.current = null
+    }
+    const onWheel = () => {
+      userViewMovedRef.current = true
+      _captureReplayLock()
+    }
     // Real pointer presence — see pointerOverRef. mouseenter/leave don't bubble,
     // so they fire exactly for THIS container.
     const onEnter = () => {
@@ -10386,6 +10457,7 @@ export default function StockChart({
                 ts.resetTimeScale()
               }
               userViewMovedRef.current = false   // explicit reset re-arms the pinned-right net
+              replayViewLockedRef.current = false; replayLockedViewRef.current = null // and releases the replay view lock
             } catch { /* noop */ }
           },
           openSettings: () => { try { toolbarRef.current?.openSettings() } catch { /* noop */ } },
