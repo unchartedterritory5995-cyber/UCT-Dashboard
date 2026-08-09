@@ -784,6 +784,15 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   const { flagged, toggle: toggleFlag, remove: removeFlagged, isFlagged, isShared, toggleShare, flaggedName, renameFlagged } = useFlagged()
   const { data: myLists, mutate: mutateMine } = useSWR('/api/watchlists', fetcher, { refreshInterval: 60000 })
   const { data: communityLists, mutate: mutateCommunity } = useSWR('/api/watchlists/public', fetcher, { refreshInterval: 60000 })
+  // Prebuilt (curated UCT) lists are opened via a `community:<id>` key, but /api/watchlists/public
+  // EXCLUDES is_prebuilt lists (they live in their own tab). So a picked prebuilt list must be
+  // resolved against BOTH pools, or it opens with 0 items. `communityLists` still drives the
+  // Community-tab listing (prebuilt stays out of there).
+  const { data: prebuiltLists } = useSWR('/api/watchlists/prebuilt', fetcher, { refreshInterval: 60000 })
+  const communityResolvable = useMemo(
+    () => [...(communityLists || []), ...(prebuiltLists || [])],
+    [communityLists, prebuiltLists],
+  )
   const { tagColors: TAG_COLORS, tagByKey: TAG_BY_KEY } = useTagColors()
   const { tags, setTag, removeTag, getTag, isColorShared, toggleShareColor, communityTags } = useTickerTags()
   const { createAlert, deleteAlert, getAlertsForSym } = useWatchlistAlerts()
@@ -1298,11 +1307,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       return wl ? (wl.items || []).length : 0
     }
     if (pickList.startsWith('community:')) {
-      const wl = (communityLists || []).find(w => `community:${w.id}` === pickList)
+      const wl = communityResolvable.find(w => `community:${w.id}` === pickList)
       return wl ? (wl.items || []).length : 0
     }
     return 0
-  }, [pickList, scanMode, flagged, tags, myLists, communityLists])
+  }, [pickList, scanMode, flagged, tags, myLists, communityResolvable])
 
   // ── Sort-order freeze ──────────────────────────────────────────────────────
   // When sorting by a live column (% Chg / Price / Volume) the rows would jump
@@ -2182,12 +2191,12 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
               {/* Community watchlists */}
               {!communityLists ? (
                 <div className={styles.loading}>Loading…</div>
-              ) : communityLists.length === 0 && communityTags.length === 0 ? (
+              ) : communityLists.length === 0 && communityTags.length === 0 && !pickList ? (
                 <div className={styles.emptyList}>
                   <div className={styles.emptyText}>No community lists shared yet.</div>
                 </div>
               ) : (pickList
-                  ? communityLists.filter(wl => pickList === `community:${wl.id}`)
+                  ? communityResolvable.filter(wl => pickList === `community:${wl.id}`)
                   : communityLists
                 ).map(wl => renderWatchlistGroup(wl, false))}
             </>
