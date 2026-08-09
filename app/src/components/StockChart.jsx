@@ -7787,12 +7787,15 @@ export default function StockChart({
 
       zoomKeyRef.current = zoomKey
       lastTfRef.current = resolvedTf
-      // New symbol/timeframe = a fresh view, so re-arm the pinned-right safety
-      // net that a user pan on the PREVIOUS symbol had latched off.
-      userViewMovedRef.current = false
       // Exiting replay (or a TF change) clears the replay view lock so the next frame
       // uses the normal default; a plain ticker switch WITHIN replay keeps it locked.
       if (!replayCutoff || tfChanged) replayViewLockedRef.current = false
+      const _replayLocked = replayCutoff && replayViewLockedRef.current
+      // New symbol/timeframe = a fresh view, so re-arm the pinned-right safety net that a
+      // user pan on the PREVIOUS symbol had latched off — EXCEPT under the replay lock,
+      // where keeping it latched is exactly what stops the settling/pinned-right guards
+      // from snapping the locked view back to present on the next data commit.
+      if (!_replayLocked) userViewMovedRef.current = false
       // A timeframe switch must PRESERVE the viewport: keep the last candle at the
       // exact same screen position AND the same zoom width, then just swap in the new
       // tf's bars — no reset to the tf default, no leftward snap ("just flip the
@@ -7807,7 +7810,7 @@ export default function StockChart({
         // to the middle (SMH 1H bug).
         const _w = oldRange ? (oldRange.to - oldRange.from) : null
         pendingTfReframeRef.current = { tf: resolvedTf, width: (_w > 0 ? _w : null) }
-      } else if (keepPresentOnSymbolChange && !isFirstLoad && !entryDate && !exactDateRange) {
+      } else if (keepPresentOnSymbolChange && !isFirstLoad && !entryDate && !exactDateRange && !_replayLocked) {
         // SYMBOL switch on a "newest always at right" surface (Charts workspace). The
         // new ticker's bars arrive in PHASES (IDB cache → network → older-history
         // backfill), each a separate updateChart commit with a DIFFERENT bar count.
@@ -7839,7 +7842,7 @@ export default function StockChart({
         // REPLAY view lock: once the user has moved the view in replay, keep the EXACT
         // right-relative view (same distance from the cutoff + same zoom) on every ticker,
         // overriding keepPresent's snap-to-present — until "Reset view" / exit replay.
-        if (replayCutoff && replayViewLockedRef.current) {
+        if (_replayLocked) {
           const barsFromRight = oldBarCount - oldRange.to
           to = newBarCount - barsFromRight
           from = to - width
