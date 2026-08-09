@@ -135,7 +135,8 @@ function RatingChanges({ changes }) {
  * @param {object} recap   — from useCallRecap().data
  * @param {object|null} audio — from useEarningsAudio().data ({ stream_url, kind, transcript_url })
  */
-export default function CallRecapSection({ recap: rawRecap, audio, onJumpToSegment = null }) {
+export default function CallRecapSection({ recap: rawRecap, audio, onJumpToSegment = null,
+                                           hideSentimentBadge = false }) {
   // Every surface routes through the one normalizer, so a payload handed in
   // raw (MyStocksHub, CallsTab, EarningsModal) reconciles here rather than
   // rendering a different shape on each screen.
@@ -246,8 +247,13 @@ export default function CallRecapSection({ recap: rawRecap, audio, onJumpToSegme
         <p className={styles.headline}>{highlight(recap.headline, kw)}</p>
       )}
 
-      {/* Sentiment badge */}
-      {recap.sentiment && (
+      {/* Sentiment badge. Suppressed where a SentimentGauge already sits
+          directly above this block (the research page and its Calls tab): the
+          gauge renders the same word, with a score and a rationale, a few
+          pixels away, so the chip restated it and nothing more. Surfaces
+          WITHOUT a gauge — the calendar modal — are the reason this stays a
+          prop rather than a deletion. */}
+      {recap.sentiment && !hideSentimentBadge && (
         <span className={
           recap.sentiment === 'positive' ? styles.sentBull :
           recap.sentiment === 'negative' ? styles.sentBear :

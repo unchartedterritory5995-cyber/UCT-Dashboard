@@ -188,22 +188,37 @@ def _pplx_earnings_highlights(ticker: str) -> str:
 
 # ── get_call_recap ────────────────────────────────────────────────────────────
 
-def get_call_recap(ticker: str, quarter: Optional[str] = None) -> Optional[dict[str, Any]]:
-    """Return AI-synthesized earnings call recap for the most recent quarter.
+def get_call_recap_with_status(
+        ticker: str,
+        quarter: Optional[str] = None) -> tuple[Optional[dict[str, Any]], str]:
+    """The recap AND why it is missing when it is.
 
     Shape: {headline, sentiment, bullets[], quotes[], guidance, qa_highlights[]}
-    Cached 24h. Cost-guarded. Returns None on failure.
+
+    A bare None conflates outcomes a reader needs told apart. "We are writing
+    this right now, come back in a minute" and "this company published no
+    transcript" both rendered as *No call recap yet*, which reads as failure in
+    the first case. The status rides out of the SAME branches that decide the
+    recap, so the two can never disagree — the caller must not re-derive it:
+
+      ready               a recap is attached
+      generating          transcript exists, a background warm was triggered
+      capped              the daily spend cap is reached; retry tomorrow
+      no_recap_for_quarter  an explicitly-requested past quarter has none stored
+      unavailable         no transcript and no usable web fallback
+
+    Cached 24h. Cost-guarded. Never raises.
     """
     sym = (ticker or "").upper().strip()
     if not sym:
-        return None
+        return None, "unavailable"
 
     # Keyed by quarter: a reader stepping back to an older call must not be
     # handed the newest quarter's recap under it.
     ck = f"call_recap::{sym}::{quarter or 'latest'}"
     hit = _cache().get(ck)
     if hit is not None:
-        return hit if hit != "__null__" else None
+        return (hit, "ready") if hit != "__null__" else (None, "unavailable")
 
     # --- The durable store: the ONLY path that can meet "under 2-3 seconds
     # --- for the first user". A grounded synthesis takes ~39s, so the request
@@ -217,19 +232,19 @@ def get_call_recap(ticker: str, quarter: Optional[str] = None) -> Optional[dict[
         stored = None
     if stored:
         _cache().set(ck, stored, _RECAP_TTL)
-        return stored
+        return stored, "ready"
 
     if quarter:
         # An explicitly-requested past quarter has no web-context equivalent —
         # the fallback below is about "what happened on the LATEST call". Return
         # nothing so the UI can say which quarter it lacks a recap for.
-        return None
+        return None, "no_recap_for_quarter"
 
     market_date = _today_date()
     guard = _cost_guard()
     if not guard.may_synthesize(market_date):
         _log.info("[call_recap] cost cap reached, skipping %s", sym)
-        return None
+        return None, "capped"
 
     # A ticker with a transcript but no stored recap is handed to the background
     # warmer rather than generated inline: 39s on the request path is exactly
@@ -238,7 +253,7 @@ def get_call_recap(ticker: str, quarter: Optional[str] = None) -> Optional[dict[
     transcript = _transcript_for(sym)
     if transcript and transcript.get("segments"):
         _trigger_background_warm(sym)
-        return None
+        return None, "generating"
 
     # --- Fallback: web context, for names with no published transcript ------
     try:
@@ -246,11 +261,11 @@ def get_call_recap(ticker: str, quarter: Optional[str] = None) -> Optional[dict[
     except Exception as e:
         _log.warning("[call_recap] perplexity fetch failed for %s: %s", sym, e)
         _cache().set(ck, "__null__", _FAILURE_TTL)
-        return None
+        return None, "unavailable"
 
     if not web_context:
         _cache().set(ck, "__null__", _EMPTY_TTL)
-        return None
+        return None, "unavailable"
 
     # --- LLM synthesis ---
     prompt = (
@@ -300,12 +315,23 @@ def get_call_recap(ticker: str, quarter: Optional[str] = None) -> Optional[dict[
                 result[k] = None if k in ("headline", "sentiment", "guidance") else []
 
         _cache().set(ck, result, _RECAP_TTL)
-        return result
+        return result, "ready"
 
     except Exception as e:
         _log.warning("[call_recap] LLM synthesis failed for %s: %s", sym, e)
         _cache().set(ck, "__null__", _FAILURE_TTL)
-        return None
+        return None, "unavailable"
+
+
+def get_call_recap(ticker: str,
+                   quarter: Optional[str] = None) -> Optional[dict[str, Any]]:
+    """The recap alone, for the callers that do not care why it is missing.
+
+    A thin delegate on purpose: one implementation decides both the recap and
+    the reason, so there is no second place for the two to drift apart.
+    """
+    recap, _status = get_call_recap_with_status(ticker, quarter)
+    return recap
 
 
 # ── get_sentiment ─────────────────────────────────────────────────────────────

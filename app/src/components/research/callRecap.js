@@ -27,7 +27,11 @@
 // Normalising once, here, is what keeps the four surfaces that render a recap
 // from disagreeing about it.
 
-const OUTER = ['webcast_url', 'rating_changes', 'ticker']
+// `recap_status` is an OUTER field and is meaningful precisely when `recap` is
+// null — it is the difference between "we are writing this now" and "this
+// company published no transcript". Dropping it here would put the empty state
+// back to guessing.
+const OUTER = ['webcast_url', 'rating_changes', 'ticker', 'recap_status']
 
 const clean = v => (typeof v === 'string' ? v.trim() : '')
 
@@ -144,3 +148,47 @@ export function normalizeCallRecap(payload) {
 }
 
 export default normalizeCallRecap
+
+// ── Empty state ──────────────────────────────────────────────────────────────
+//
+// The server sends `recap_status` alongside a null recap because the reasons a
+// recap is missing are not interchangeable. "We are writing this right now"
+// and "this company published no transcript" both used to render as *No call
+// recap yet*, and the first is by far the common case: the request path never
+// generates inline, so the FIRST reader of any un-warmed ticker saw a message
+// that reads as failure while the thing was, in fact, being written.
+//
+// Two surfaces render this, so the copy lives here rather than in either of
+// them — a second authority over one value is exactly how they drift.
+const EMPTY_STATES = {
+  generating: {
+    title: 'Writing the recap now',
+    hint: 'The transcript is in and the summary lands in about a minute — '
+        + 'this panel updates on its own. The full transcript is below.',
+  },
+  capped: {
+    title: 'Recap paused until tomorrow',
+    hint: "Today's synthesis budget is spent. This call's recap is written "
+        + 'on the next run. The full transcript is below and is unaffected.',
+  },
+  unavailable: {
+    title: 'No call recap yet',
+    hint: 'A recap is written once there is enough source material on this call.',
+  },
+}
+
+export function recapEmptyState(status, quarter = null) {
+  // Naming the quarter matters: stepping back to an older call is a deliberate
+  // act, and a bare "No call recap yet" there reads as breakage rather than as
+  // "recaps are written for the latest call".
+  if (quarter) {
+    return {
+      title: `No recap for ${quarter}`,
+      hint: 'Recaps are written for the most recent call. '
+          + 'The full transcript for this quarter is below.',
+    }
+  }
+  // An older payload carries no status at all; fall back to the honest,
+  // least-specific message rather than claiming something is being generated.
+  return EMPTY_STATES[status] || EMPTY_STATES.unavailable
+}

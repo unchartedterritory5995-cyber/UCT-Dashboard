@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeCallRecap, guidanceKind } from './callRecap'
+import { normalizeCallRecap, guidanceKind, recapEmptyState } from './callRecap'
 
 const payload = {
   ticker: 'NVDA',
@@ -189,5 +189,42 @@ describe('guidanceKind', () => {
     expect(guidanceKind('none')).toBeNull()
     expect(guidanceKind('')).toBeNull()
     expect(guidanceKind(null)).toBeNull()
+  })
+})
+
+describe('recapEmptyState — the reason a recap is missing is not one reason', () => {
+  it('says work is IN PROGRESS while the server is generating', () => {
+    // The common case: the request path never synthesises inline, so the first
+    // reader of any un-warmed ticker hits this. Calling it "No call recap yet"
+    // reported a failure for work that was actively running.
+    const { title, hint } = recapEmptyState('generating')
+    expect(title).toBe('Writing the recap now')
+    expect(hint).toMatch(/updates on its own/i)
+    expect(title).not.toMatch(/^No /)
+  })
+
+  it('distinguishes a spent budget from an absent transcript', () => {
+    expect(recapEmptyState('capped').title).toBe('Recap paused until tomorrow')
+    expect(recapEmptyState('unavailable').title).toBe('No call recap yet')
+    expect(recapEmptyState('capped').title)
+      .not.toBe(recapEmptyState('unavailable').title)
+  })
+
+  it('names the quarter when one was explicitly chosen', () => {
+    // Stepping back to an older call is deliberate; a bare "No call recap yet"
+    // there reads as breakage rather than as "recaps cover the latest call".
+    expect(recapEmptyState('no_recap_for_quarter', '2019Q2').title)
+      .toBe('No recap for 2019Q2')
+  })
+
+  it('the quarter wins over the status, whatever the status says', () => {
+    expect(recapEmptyState('generating', '2019Q2').title).toBe('No recap for 2019Q2')
+  })
+
+  it('falls back to the honest message for a payload with no status', () => {
+    // An older cached payload carries no status. It must not claim something
+    // is being generated when nothing is.
+    expect(recapEmptyState(undefined).title).toBe('No call recap yet')
+    expect(recapEmptyState('something_new').title).toBe('No call recap yet')
   })
 })

@@ -678,8 +678,8 @@ class TestGetRatingChanges:
 
 class TestCallRecapEndpoint:
     def test_happy_path(self, client):
-        with patch("api.routers.earnings_intel.get_call_recap",
-                   return_value=_SAMPLE_RECAP), \
+        with patch("api.routers.earnings_intel.get_call_recap_with_status",
+                   return_value=(_SAMPLE_RECAP, "ready")), \
              patch("api.routers.earnings_intel.get_webcast_url",
                    return_value=_SAMPLE_WEBCAST), \
              patch("api.routers.earnings_intel.get_rating_changes",
@@ -693,16 +693,20 @@ class TestCallRecapEndpoint:
         assert isinstance(data["rating_changes"], list)
 
     def test_null_recap_still_returns_200(self, client):
-        with patch("api.routers.earnings_intel.get_call_recap", return_value=None), \
+        with patch("api.routers.earnings_intel.get_call_recap_with_status",
+                   return_value=(None, "generating")), \
              patch("api.routers.earnings_intel.get_webcast_url", return_value=None), \
              patch("api.routers.earnings_intel.get_rating_changes", return_value=[]):
             r = client.get("/api/earnings/call-recap/UNKNOWN")
         assert r.status_code == 200
         data = r.json()
         assert data["recap"] is None
+        # The REASON travels with the null, so the panel can say "writing this
+        # now" instead of "no recap", which reads as failure.
+        assert data["recap_status"] == "generating"
 
     def test_exception_returns_safe_shape(self, client):
-        with patch("api.routers.earnings_intel.get_call_recap",
+        with patch("api.routers.earnings_intel.get_call_recap_with_status",
                    side_effect=RuntimeError("db error")):
             r = client.get("/api/earnings/call-recap/ERR")
         assert r.status_code == 200
@@ -733,3 +737,102 @@ class TestSentimentEndpoint:
             r = client.get("/api/earnings/sentiment/ERR")
         assert r.status_code == 200
         assert r.json() is None
+
+
+class TestRecapStatusDistinguishesWhyItIsMissing:
+    """A bare None told the reader nothing.
+
+    "We are writing this right now" and "this company published no transcript"
+    both rendered as *No call recap yet*, which reads as failure in the first
+    case — and the first case is the common one, because the request path never
+    generates inline. The status must come out of the SAME branch that decides
+    the recap, so the two cannot drift.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _isolate_cache(self, monkeypatch):
+        """The cache must not answer before the branch under test runs.
+
+        These assert on WHICH BRANCH was taken. An earlier test in this file
+        leaves a real cache entry for the same symbol, which made the capped
+        and generating cases pass in isolation and fail in a full-file run —
+        the precise ambient-state trap this module's other tests call out.
+        """
+        import api.services.call_recap as cr
+        monkeypatch.setattr(cr, "_cache", lambda: _FakeCache())
+
+    def test_a_stored_recap_reads_ready(self, monkeypatch):
+        import api.services.call_recap as cr
+        monkeypatch.setattr(cr, "_store", lambda: _FakeStore({"headline": "hi"}))
+        recap, status = cr.get_call_recap_with_status("DIS")
+        assert status == "ready" and recap["headline"] == "hi"
+
+    def test_a_transcript_with_no_recap_reads_generating(self, monkeypatch):
+        # The exact case the empty state used to mislabel: the warmer has been
+        # handed this symbol and the recap lands in ~40s.
+        import api.services.call_recap as cr
+        triggered = []
+        monkeypatch.setattr(cr, "_store", lambda: _FakeStore(None))
+        monkeypatch.setattr(cr, "_cost_guard", lambda: _FakeGuard(True))
+        monkeypatch.setattr(cr, "_transcript_for",
+                            lambda s: {"segments": [{"speaker": "CEO", "content": "x"}]})
+        monkeypatch.setattr(cr, "_trigger_background_warm", triggered.append)
+
+        recap, status = cr.get_call_recap_with_status("DIS")
+
+        assert (recap, status) == (None, "generating")
+        assert triggered == ["DIS"], "the status must not claim a warm that never started"
+
+    def test_an_explicit_past_quarter_says_so(self, monkeypatch):
+        import api.services.call_recap as cr
+        monkeypatch.setattr(cr, "_store", lambda: _FakeStore(None))
+        assert cr.get_call_recap_with_status("DIS", "2019Q2") == (
+            None, "no_recap_for_quarter")
+
+    def test_the_plain_wrapper_still_returns_just_the_recap(self, monkeypatch):
+        # One implementation decides both, so the two can never disagree.
+        import api.services.call_recap as cr
+        monkeypatch.setattr(cr, "_store", lambda: _FakeStore({"headline": "hi"}))
+        assert cr.get_call_recap("DIS") == {"headline": "hi"}
+
+
+class _FakeStore:
+    def __init__(self, stored):
+        self._stored = stored
+
+    def get(self, sym, quarter=None):
+        return self._stored
+
+    def has(self, sym, quarter=None):
+        return self._stored is not None
+
+    def may_spend(self):
+        return True
+
+
+class _FakeGuard:
+    def __init__(self, allowed):
+        self._allowed = allowed
+
+    def may_synthesize(self, _date):
+        return self._allowed
+
+
+def test_the_daily_cap_reads_capped_not_unavailable(monkeypatch):
+    """"Try again tomorrow" is a different message from "there is nothing"."""
+    import api.services.call_recap as cr
+    monkeypatch.setattr(cr, "_cache", lambda: _FakeCache())
+    monkeypatch.setattr(cr, "_store", lambda: _FakeStore(None))
+    monkeypatch.setattr(cr, "_cost_guard", lambda: _FakeGuard(False))
+    assert cr.get_call_recap_with_status("DIS") == (None, "capped")
+
+
+class _FakeCache:
+    def __init__(self):
+        self._d = {}
+
+    def get(self, k):
+        return self._d.get(k)
+
+    def set(self, k, v, ttl=None):
+        self._d[k] = v

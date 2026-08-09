@@ -15,7 +15,7 @@ from fastapi import APIRouter, Body, Depends, Query
 
 from api.middleware.auth_middleware import get_current_user
 from api.services.call_recap import (
-    get_call_recap,
+    get_call_recap_with_status,
     get_sentiment,
     get_webcast_url,
     get_rating_changes,
@@ -48,7 +48,8 @@ def call_recap_endpoint(
     if not sym:
         return None
     try:
-        recap = get_call_recap(sym, quarter=quarter or None)
+        recap, recap_status = get_call_recap_with_status(
+            sym, quarter=quarter or None)
         # A warmed recap carries these already. Calling the providers anyway is
         # what kept the endpoint at ~4.5s despite the recap itself being a ~1ms
         # point-read — the store read was instant, the RESPONSE was not.
@@ -61,12 +62,14 @@ def call_recap_endpoint(
         return {
             "ticker": sym,
             "recap": recap,
+            "recap_status": recap_status,
             "webcast_url": webcast,
             "rating_changes": ratings,
         }
     except Exception as e:
         _log.warning("[earnings_intel] call-recap failed for %s: %s", sym, e)
-        return {"ticker": sym, "recap": None, "webcast_url": None, "rating_changes": []}
+        return {"ticker": sym, "recap": None, "recap_status": "unavailable",
+                "webcast_url": None, "rating_changes": []}
 
 
 @router.get("/api/earnings/audio/{ticker}")

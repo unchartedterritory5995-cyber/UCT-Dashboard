@@ -348,3 +348,24 @@ describe('rating trend — the shape the SERVER actually sends', () => {
     expect(screen.queryByText(/null/)).toBeNull()
   })
 })
+
+describe('sentiment badge is not shown twice', () => {
+  it('renders the badge by default — the calendar modal has no gauge', () => {
+    render(<CallRecapSection recap={{ ...FULL_RECAP, sentiment: 'positive' }} audio={null} />)
+    expect(screen.getByText('POSITIVE')).toBeTruthy()
+  })
+
+  it('suppresses it where a SentimentGauge already says the same word', () => {
+    // On the research page the gauge sits directly above with the same label,
+    // a score and a rationale; the chip restated it and nothing more.
+    render(<CallRecapSection recap={{ ...FULL_RECAP, sentiment: 'positive' }}
+                             audio={null} hideSentimentBadge />)
+    expect(screen.queryByText('POSITIVE')).toBeNull()
+  })
+
+  it('suppressing the chip does not suppress the guidance chip beside it', () => {
+    render(<CallRecapSection recap={{ ...FULL_RECAP, sentiment: 'positive', guidance: 'raised' }}
+                             audio={null} hideSentimentBadge />)
+    expect(document.body.textContent).toContain('GUIDANCE RAISED')
+  })
+})
