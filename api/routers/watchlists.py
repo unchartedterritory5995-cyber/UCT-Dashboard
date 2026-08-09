@@ -164,7 +164,7 @@ def list_prebuilt(user: dict = Depends(get_current_user)):
 
     Each row is tagged with its `category` (the section it appears under in the picker),
     resolved from the committed prebuilt config."""
-    rows = watchlist_service.list_prebuilt_watchlists()
+    rows = watchlist_service.list_prebuilt_watchlists(limit=1000)
     try:
         from api.services.watchlist_prebuilt import category_map, sample_map, _DEFAULT_CATEGORY
         cats = category_map()

@@ -39,17 +39,34 @@ ADR_MAP = {
     "NSE:INFY": "INFY",       # Infosys (also US-listed)
 }
 
+# Rename a source section on the way in (its members are unchanged).
+SOURCE_RENAME = {
+    # AI Agents ≈ AI Pure Plays (6 shared names); with global no-dup we keep ONE list and fold
+    # the agentic angle into its name instead of shipping two thin, overlapping lists.
+    "AI Pure Plays": "AI Pure Plays & Agents",
+}
+
 # Acronyms kept uppercase when title-casing theme names.
 _ACR = {"AI", "IP", "EDA", "OSAT", "EMS", "GPU", "SAAS", "EVTOL", "CRO", "US", "IT", "ADR", "ETF",
         "GLP", "REIT", "OS"}
 # Whole-name fixups applied after title-casing (mixed-case words the acronym pass can't produce).
 _FIXUPS = [("E&p", "E&P"), ("Devops", "DevOps"), ("E-commerce", "E-Commerce"), ("E-Commerce", "E-Commerce")]
 
+# Extra tickers appended to an EXISTING source theme (keyed by normalized theme name). Used to
+# place names that had no home in the raw list — e.g. the China-only ADRs, redistributed into
+# their sector themes now that there's no standalone China list.
+EXTRA = {
+    "Restaurants & Food Service": ["YUMC"],
+    "Hotels, Booking & Mobility": ["TCOM", "ATAT"],
+    "Real Estate & Housing": ["BEKE"],
+    "Retail": ["MNSO"],
+    "Internet, Media & Social": ["TME", "BILI"],
+    "E-Commerce & Marketplaces": ["VIPS"],
+    "Fintech Disruptors": ["QFIN"],
+}
+
 # Notable themes the source is missing (curated; still liquidity-verified like everything else).
 ADDITIONS = {
-    "China": ("Large, liquid US-listed Chinese ADRs.",
-              ["BABA", "PDD", "JD", "BIDU", "NTES", "TCOM", "LI", "XPEV", "NIO", "FUTU", "TIGR",
-               "BILI", "YUMC", "BEKE", "ZLAB", "MNSO", "TME", "VIPS", "QFIN", "GDS", "KC", "ATAT"]),
     "GLP-1 & Obesity": ("Obesity / GLP-1 drug developers and beneficiaries.",
                         ["LLY", "NVO", "VKTX", "AMGN", "HIMS", "TERN", "RYTM", "ALT"]),
     "Homebuilders": ("US homebuilders.",
@@ -73,8 +90,8 @@ ADDITIONS = {
                        ["USB", "PNC", "TFC", "MTB", "FITB", "CFG", "KEY", "HBAN", "RF", "CMA",
                         "ZION", "WAL", "EWBC", "SNV", "CFR", "PB", "WBS", "CADE", "ONB", "COLB",
                         "BOKF", "WTFC", "PNFP", "FNB", "ASB", "CBSH", "FHN", "VLY"]),
-    "AI Agents & Automation": ("Agentic AI, automation and AI-native software plays.",
-                               ["PLTR", "PATH", "SOUN", "AI", "BBAI", "INOD", "RZLV", "TEM", "DUOL"]),
+    # 'AI Agents' folded into the renamed 'AI Pure Plays & Agents' (see SOURCE_RENAME) — a
+    # standalone list overlapped it 6/9 and would gut both under the no-duplicate rule.
     # Cannabis intentionally omitted: only TLRY/ACB/CRON clear the $3M/day bar — every US MSO
     # (GTBIF/CURLF/TCNNF/VRNO) trades OTC and too thin, so the list would misrepresent the sector.
 }
@@ -179,44 +196,54 @@ def main():
         raise SystemExit("MASSIVE_API_KEY not set")
     sections = parse_monsterlist(SRC)
 
-    # theme name → set of candidate US symbols (source + additions)
-    themes = []
+    # Build themes: source sections first, then ADDITIONS. is_add marks the curated additions,
+    # which WIN any cross-theme overlap (they're the specific homes — China, Uranium, GLP-1…).
+    themes = []  # [name, desc, syms, is_add]
     for raw_name, toks in sections:
-        syms = []
-        for tk in toks:
-            s = resolve(tk)
-            if s:
-                syms.append(s.upper())
-        themes.append([norm_name(raw_name), None, syms])
+        nm = SOURCE_RENAME.get(norm_name(raw_name), norm_name(raw_name))
+        syms = [s.upper() for s in (resolve(tk) for tk in toks) if s]
+        syms += [s.upper() for s in EXTRA.get(nm, [])]
+        themes.append([nm, None, syms, False])
     for name, (desc, syms) in ADDITIONS.items():
-        themes.append([name, desc, [s.upper() for s in syms]])
+        themes.append([name, desc, [s.upper() for s in syms], True])
 
     dv, px = liquidity()
 
     def liquid(s):
         return dv.get(s, 0) >= MIN_DVOL and px.get(s, 0) >= MIN_PRICE
 
+    # 1) per-theme liquid set (dedup within a theme).
+    for th in themes:
+        seen, kept = set(), []
+        for s in th[2]:
+            if s not in seen:
+                seen.add(s)
+                if liquid(s):
+                    kept.append(s)
+        th[2] = kept
+
+    # 2) GLOBAL dedup — every ticker lands in exactly ONE theme. Claim order = additions first
+    #    (in their listed order), then source sections (in source order); first claim wins.
+    claim_order = sorted(range(len(themes)), key=lambda i: (0 if themes[i][3] else 1, i))
+    claimed = set()
+    for i in claim_order:
+        themes[i][2] = [s for s in themes[i][2] if s not in claimed]
+        claimed.update(themes[i][2])
+
+    # 3) sort each theme by $vol, drop any that fell below 3 names after dedup.
     out = []
-    print(f"\n{'THEME':40s} kept drop")
-    for name, desc, syms in themes:
-        seen = set()
-        kept = []
-        dropped = []
-        for s in syms:
-            if s in seen:
-                continue
-            seen.add(s)
-            (kept if liquid(s) else dropped).append(s)
+    print(f"\n{'THEME':40s} kept")
+    for name, desc, kept, _is_add in themes:
         kept.sort(key=lambda s: dv.get(s, 0), reverse=True)
         if len(kept) < 3:
-            print(f"  ! {name}: only {len(kept)} liquid names {kept} — SKIPPED")
+            print(f"  ! {name}: only {len(kept)} after dedup {kept} — SKIPPED")
             continue
         out.append({"name": name, "desc": desc or f"{name} theme.", "category": CATEGORY, "tickers": kept})
-        print(f"{name[:40]:40s} {len(kept):4d} {len(dropped):4d}   dropped: {dropped[:14]}")
+        print(f"{name[:40]:40s} {len(kept):4d}")
 
     json.dump(out, open(OUT, "w", encoding="utf-8"), separators=(",", ":"))
     tot = sum(len(t["tickers"]) for t in out)
-    print(f"\nwrote {len(out)} themes / {tot} tickers -> {OUT}")
+    print(f"\nwrote {len(out)} themes / {tot} tickers (all unique across themes) -> {OUT}")
 
 
 if __name__ == "__main__":
