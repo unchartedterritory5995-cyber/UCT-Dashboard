@@ -354,11 +354,19 @@ class TestTranscriptEndpoint:
     def client(self):
         from fastapi import FastAPI
         from api.routers.earnings_intel import router
-        from api.middleware.auth_middleware import get_current_user
+        from api.middleware.auth_middleware import (
+            get_current_user, get_current_user_with_plan,
+        )
         app = FastAPI()
         app.include_router(router)
-        # Bypass auth for these unit tests (they test the service logic, not auth)
-        app.dependency_overrides[get_current_user] = lambda: {"id": "test-user"}
+        # Bypass auth for these unit tests (they test the service logic, not
+        # auth). BOTH gates are overridden: these endpoints resolve their user
+        # through `require_paid` → get_current_user_with_plan, so overriding
+        # get_current_user alone leaves the real dependency in place and every
+        # request 402s.
+        paid = {"id": "test-user", "role": "admin", "plan": "pro"}
+        app.dependency_overrides[get_current_user] = lambda: paid
+        app.dependency_overrides[get_current_user_with_plan] = lambda: paid
         from fastapi.testclient import TestClient
         return TestClient(app)
 

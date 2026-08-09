@@ -52,7 +52,12 @@ test('creating a list posts it and immediately picks it, so the widget lands in 
   await user.type(screen.getByLabelText(/new watchlist name/i), 'Breakouts')
   await user.click(screen.getByRole('button', { name: /^create$/i }))
 
-  await waitFor(() => expect(onPick).toHaveBeenCalledWith({ key: 'user:new-1', name: 'Breakouts' }))
+  // objectContaining, not an exact match: handlePick also stamps which tab the
+  // pick came from, and a chosen template contributes settings/cols. What this
+  // test exists to prove is that the list just created is the one picked — so
+  // it pins key and name, and stays green when the payload gains a field.
+  await waitFor(() => expect(onPick).toHaveBeenCalledWith(
+    expect.objectContaining({ key: 'user:new-1', name: 'Breakouts' })))
   expect(created).toHaveLength(1)
 })
 
@@ -64,7 +69,8 @@ test('Enter submits the new-list name', async () => {
   await user.click(await screen.findByRole('button', { name: /new watchlist/i }))
   await user.type(screen.getByLabelText(/new watchlist name/i), 'Swings{Enter}')
 
-  await waitFor(() => expect(onPick).toHaveBeenCalledWith({ key: 'user:new-1', name: 'Swings' }))
+  await waitFor(() => expect(onPick).toHaveBeenCalledWith(
+    expect.objectContaining({ key: 'user:new-1', name: 'Swings' })))
 })
 
 test('a blank name cannot be submitted', async () => {
