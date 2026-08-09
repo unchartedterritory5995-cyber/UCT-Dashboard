@@ -67,12 +67,23 @@ def seed_prebuilt_watchlists() -> None:
                 nxt = _find_prebuilt(nm)
                 w = nxt if (nxt and nxt.get("id") != w.get("id")) else None
 
-        # 2. Ensure 'Liquid Major ETFs' exists + is topped up.
+        # 2. Ensure exactly ONE 'Liquid Major ETFs' matching the current set. If the set
+        #    changed (leveraged/single-stock filtered out, top-N resized) or a duplicate
+        #    exists, rebuild — bulk_add only ADDS, so removed tickers must leave via recreate.
         etfs = _load_etfs()
-        existing = _find_prebuilt(_ETF_LIST_NAME.lower())
-        if existing:
-            if etfs and existing.get("user_id"):
-                wl.bulk_add_items(existing["user_id"], existing["id"], etfs)
+        if not etfs:
+            return  # no data — never wipe the live list
+        desired = {t.upper() for t in etfs}
+        have_correct = False
+        for w in wl.list_prebuilt_watchlists(500):
+            if (w.get("name") or "").strip().lower() != _ETF_LIST_NAME.lower():
+                continue
+            cur = {(i.get("sym") or "").upper() for i in (w.get("items") or [])}
+            if cur == desired and not have_correct:
+                have_correct = True          # keep the first correct one
+            elif w.get("user_id"):
+                wl.delete_watchlist(w["user_id"], w["id"])   # stale set or duplicate → drop
+        if have_correct:
             return
         admin = _admin_user_id()
         if not admin or not etfs:
