@@ -90,19 +90,6 @@ _BAND_ORDER = [
 _ETF_CATS = {"Indexes", "Sector ETFs", "Bond ETFs", "Intl/EM ETFs", "Commodity ETFs"}
 
 
-def _band_for(cat: str, mktcap) -> str:
-    """Route ETFs (by the aggregator's category) to the ETF/Index bucket; bucket
-    real stocks by true market cap. Stocks with no cap fall back to the
-    aggregator's coarse size class rather than being mistaken for a fund."""
-    cat = (cat or "").strip()
-    if cat in _ETF_CATS:
-        return "ETF/Index"
-    mc = float(mktcap or 0)
-    if mc > 0:
-        return _cap_band(mc)
-    return "Large" if cat == "Large Cap" else "Mid-Small"
-
-
 # ── formatting helpers ─────────────────────────────────────────────────────
 def _fmt_n(v) -> str:
     v = float(v or 0)
@@ -323,6 +310,39 @@ def _avg50_volume(ticker: str) -> float:
     return avg
 
 
+_meta_cache: dict = {}   # sym -> (iso_day, {"sector", "isEtf"})
+
+
+def _ticker_meta(ticker: str) -> dict:
+    """FMP company profile → {sector, isEtf}. One authoritative source for BOTH
+    the sector column AND ETF detection (an ETF's reported market cap is its AUM,
+    so the aggregator's hardcoded ETF lists miss names like VOO / IGV / IEFA —
+    the profile's isEtf flag catches them). Cached per name per day; fail-soft."""
+    from datetime import date
+    sym = (ticker or "").upper()
+    if not sym:
+        return {"sector": None, "isEtf": None}
+    try:
+        today = date.today().isoformat()
+    except Exception:
+        today = ""
+    hit = _meta_cache.get(sym)
+    if hit and hit[0] == today:
+        return hit[1]
+    meta = {"sector": None, "isEtf": None}
+    try:
+        from api.services import earnings_estimates as ee
+        data = ee._fmp_get("/stable/profile", {"symbol": sym}, timeout=8)
+        row = data[0] if isinstance(data, list) and data else (data if isinstance(data, dict) else None)
+        if row:
+            meta["sector"] = (row.get("sector") or None)
+            meta["isEtf"] = bool(row.get("isEtf") or row.get("isFund"))
+    except Exception:
+        pass
+    _meta_cache[sym] = (today, meta)
+    return meta
+
+
 def _concentration_band(ticker: str, days: int) -> tuple:
     """The price band holding the central ~68% of the ticker's dark-pool notional
     over the window (notional-weighted 16th/84th percentiles by price) — a tighter
@@ -358,18 +378,22 @@ def _concentration_band(ticker: str, days: int) -> tuple:
     return (lo, hi)
 
 
+# Meta-enrich (sector + ETF flag) the top-N items by notional. Bounds the FMP
+# profile calls — well beyond the ~40 displayed rows so the bucketing is right.
+_ENRICH_MAX = 80
+
+
 # ── data: build market-cap sections from the aggregator + Schwab mkt-caps ──
-def build_sections(days: int = 1, top_n: int = 12, min_notional: float = 5e6):
-    """Pull aggregated dark-pool items, fetch market caps, bucket by cap band,
-    enrich the DISPLAYED rows (top-N per band) with 50-day % ADV + a concentration
-    price band, and compute the summary. Enrichment is scoped to displayed rows so
-    the per-ticker bars/print reads stay bounded (~top_n × 4 tickers)."""
+def build_sections(days: int = 1, top_n: int = 10, min_notional: float = 5e6):
+    """Pull aggregated dark-pool items, resolve sector + ETF flag + market cap for
+    the top names, bucket (ETFs → their own section; stocks by true market cap),
+    and enrich displayed rows with 50-day % ADV + a concentration price band."""
     from api.darkpool_aggregator import get_aggregated
     payload = get_aggregated(days=days)
     items = list((payload or {}).get("allItems") or [])
     items = [it for it in items if (it.get("n") or 0) >= min_notional]
+    items.sort(key=lambda it: (it.get("n") or 0), reverse=True)
 
-    # Server-side market caps (Schwab → Yahoo). Async fn → run it.
     caps: dict = {}
     try:
         import asyncio
@@ -378,31 +402,42 @@ def build_sections(days: int = 1, top_n: int = 12, min_notional: float = 5e6):
         if syms:
             caps = asyncio.run(get_mktcap_batch(syms)) or {}
     except Exception as e:
-        log.warning("[darkpool-eod] mkt-cap fetch failed (bucketing ETF/Index): %s", e)
+        log.warning("[darkpool-eod] mkt-cap fetch failed: %s", e)
 
-    # Band totals over ALL notable items; bucket for the top-N pick.
+    # Sector + ETF flag for the top names (one FMP profile each, cached per day).
+    metas: dict = {}
+    for it in items[:_ENRICH_MAX]:
+        sym = (it.get("t") or "").upper()
+        if sym and sym not in metas:
+            metas[sym] = _ticker_meta(sym)
+
+    def _bucket(it) -> str:
+        sym = (it.get("t") or "").upper()
+        cat = (it.get("cat") or "").strip()
+        # ETF via the aggregator's known lists OR the profile's isEtf flag.
+        if cat in _ETF_CATS or (metas.get(sym) or {}).get("isEtf"):
+            return "ETF/Index"
+        mc = float(caps.get(sym) or it.get("mktcap") or 0)
+        if mc > 0:
+            return _cap_band(mc)
+        return "Large" if cat == "Large Cap" else "Mid-Small"
+
     band_totals: dict = {b: 0.0 for b, _ in _BAND_ORDER}
     by_band: dict = {b: [] for b, _ in _BAND_ORDER}
-    for it in items:
-        sym = (it.get("t") or "").upper()
-        band = _band_for(it.get("cat"), caps.get(sym) or it.get("mktcap") or 0)
+    for it in items:                       # items are already notional-desc
+        band = _bucket(it)
         band_totals[band] += (it.get("n") or 0)
         by_band[band].append(it)
 
     sections = []
     for band, label in _BAND_ORDER:
-        top = sorted(by_band[band], key=lambda it: (it.get("n") or 0), reverse=True)[:top_n]
         rows = []
-        for it in top:
+        for it in by_band[band][:top_n]:
             sym = (it.get("t") or "").upper()
             n = it.get("n") or 0
             vwap = it.get("vwap") or 0
-            # 50-day % ADV: DP shares (notional / vwap) over the 50-day avg daily
-            # volume from the bars store. "—" when avg volume is unavailable.
             avg50 = _avg50_volume(sym)
             pct_adv = ((n / vwap) / avg50 * 100.0) if (vwap > 0 and avg50 > 0) else None
-            # Concentration band (level of interest); fall back to the item's full
-            # low-high when the raw prints can't be read.
             zlo, zhi = _concentration_band(sym, days)
             if zlo is None:
                 zlo, zhi = it.get("lo"), it.get("hi")
@@ -410,7 +445,7 @@ def build_sections(days: int = 1, top_n: int = 12, min_notional: float = 5e6):
                 "t": sym, "n": n, "c": it.get("c") or 0, "last": it.get("last"),
                 "zoneLo": zlo, "zoneHi": zhi, "pctADV": pct_adv,
                 "bigN": it.get("bigPrintN"), "bigPx": it.get("bigPrint"),
-                "sector": it.get("sector"),
+                "sector": (metas.get(sym) or {}).get("sector") or it.get("sector"),
             })
         if rows:
             sections.append((label, rows))
@@ -476,7 +511,7 @@ def run_eod_summary(*, force: bool = False, post: bool = True,
         if not enabled and not force:
             return {"ok": False, "reason": "disabled (DARKPOOL_EOD_ENABLED != 1)"}
         days = 5 if weekly else 1
-        top_n = int(os.getenv("DARKPOOL_EOD_TOP_N", "12"))
+        top_n = int(os.getenv("DARKPOOL_EOD_TOP_N", "10"))
         min_n = float(os.getenv("DARKPOOL_EOD_MIN_NOTIONAL", "5e6"))
         sections, summary = build_sections(days=days, top_n=top_n, min_notional=min_n)
 
