@@ -42,7 +42,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 import sentry_sdk
 from api.limiter import limiter
-from api.routers import snapshot, movers, engine_data, earnings, news, screener, trades, traders, push, charts, calendar as calendar_router, bars as bars_router
+from api.routers import snapshot, movers, engine_data, earnings, news, screener, traders, push, charts, calendar as calendar_router, bars as bars_router
 from api.routers import cot as cot_router
 from api.routers import render_panels as render_panels_router
 from api.routers import live_prices as live_prices_router
@@ -4746,11 +4746,14 @@ app.include_router(scans_router.router)
 # typing the path.
 from api.routers import scan_results as scan_results_router
 app.include_router(scan_results_router.router)
-# DEPRECATED 2026-06-02 -- Model Book is no longer a trade log (rebuilt as a
-# curated library of top stocks; see api/routers/modelbook.py). The /api/trades
-# endpoints + data/trades.json are kept as a rollback backup; schedule a manual
-# removal after ~30d of green prod. No UI references /api/trades anymore.
-# app.include_router(trades.router)
+# RETIRED 2026-08-09 -- the /api/trades personal trade log was deprecated
+# 2026-06-02 when Model Book was rebuilt as a curated library of top stocks
+# (api/routers/modelbook.py). It was kept unmounted as a rollback backup on a
+# documented "~30d then remove" plan; that window closed 68 days ago, so
+# api/routers/trades.py and tests/api/test_trades.py are now deleted. Its
+# `data/trades.json` was gitignored runtime data and never existed in the repo.
+# ⚠️ NOT the same thing as `traders` below (/api/traders, live) or
+# `api/services/journal_two/test_trades.py` (Journal 2.0, live).
 app.include_router(traders.router)
 app.include_router(push.router)
 app.include_router(charts.router)
