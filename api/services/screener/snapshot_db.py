@@ -45,6 +45,65 @@ _INT = {"uct_composite", "rs_rank", "inside_bar_run", "higher_lows_run",
         "tight_consolidation", "nr7"}
 
 
+# ---------------------------------------------------------------------------
+# The scan results side table, and its receipt. Created in the SAME FILE as
+# `screener_rows` -- see `api/services/screener/scan_store.py`, which owns every
+# verb over these two tables and states the measurements this decision rests on.
+#
+# The short version, because a reader here needs it:
+#
+# * IN `screener.db` because E-A4 joins the results to `screener_rows`, and a
+#   cross-database join needs ATTACH -- which `connect()` does not do, and which
+#   `query.run_scan` (one SQL string, one connection) has nowhere to put. It is
+#   also `signature_coverage`'s precedent exactly: a receipt lives in the same
+#   file as the rows it certifies so it cannot outlive them.
+#
+# * `scan_hits` is HITS-ONLY. The 0 is recoverable -- a ticker inside a
+#   `scan_coverage` window and absent from `scan_hits` IS a computed 0 -- and a
+#   dense row-per-symbol table is the `alert_shadow_fires` shape, which measured
+#   53 B/row with no prune and 279 GB/yr at 10k. Measured here: 182 B per hit row
+#   with its index, so dense would be ~1,717 GB/yr at 10k definitions.
+#
+# * `not_computable` is its OWN column (controller resolution 5). "We could not
+#   compute it at the last confirmed bar" and "something broke" are different
+#   facts to a member, and folding them is what makes a coverage report
+#   untrustworthy. `dropped_json` is the ONE enumeration and carries both kinds,
+#   each with its reason; the two counts are what split them.
+#
+# * `tf` is the BARS-STORE CODE (`D`), never the product label (`1D`), and
+#   `as_of` is a normalised YYYYMMDD int. Both are collapsed at `scan_store`'s
+#   door: two spellings of one session is two rows and every count stays
+#   plausible.
+#
+# COLUMNS above is UNTOUCHED and so are its 8 indexes. This is a second
+# `executescript`, not a widening.
+_SCAN_SCHEMA = """
+CREATE TABLE IF NOT EXISTS scan_hits (
+  def_hash TEXT    NOT NULL,
+  tf       TEXT    NOT NULL,
+  as_of    INTEGER NOT NULL,
+  ticker   TEXT    NOT NULL,
+  PRIMARY KEY (def_hash, tf, as_of, ticker)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS idx_scan_hits_ticker ON scan_hits(ticker, as_of DESC);
+
+CREATE TABLE IF NOT EXISTS scan_coverage (
+  def_hash        TEXT    NOT NULL,
+  tf              TEXT    NOT NULL,
+  as_of           INTEGER NOT NULL,
+  evaluated       INTEGER NOT NULL,
+  answered        INTEGER NOT NULL,
+  dropped         INTEGER NOT NULL,
+  not_computable  INTEGER NOT NULL,
+  dropped_json    TEXT    NOT NULL,
+  dropped_listed  INTEGER NOT NULL,
+  freshness       TEXT    NOT NULL,
+  swept_at        REAL    NOT NULL,
+  PRIMARY KEY (def_hash, tf, as_of)
+);
+"""
+
+
 def get_db_path() -> str:
     p = os.environ.get("SCREENER_DB_PATH")
     if p:
@@ -81,6 +140,12 @@ def init_db() -> None:
                     "above_50sma", "chg_pct_1d", "candle_type", "built_at"):
             conn.execute(
                 f"CREATE INDEX IF NOT EXISTS idx_sr_{idx} ON screener_rows({idx})")
+        # A SECOND executescript, below screener_rows and touching none of it.
+        # `CREATE TABLE IF NOT EXISTS` is why a pod holding a nightly snapshot
+        # gains the two scan tables on its next init with no migration step and
+        # no separate flag -- the same reason `ledger._ensure_init` runs both of
+        # its scripts through one call.
+        conn.executescript(_SCAN_SCHEMA)
         conn.commit()
 
 

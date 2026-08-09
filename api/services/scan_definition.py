@@ -1,0 +1,290 @@
+"""What makes an ordinary definition a SCAN, and what a scan is called.
+
+⭐ A SCAN IS NOT A NEW LANE AND NOT A NEW LANGUAGE (E-A1). ``closedTable.json``'s
+own ``_booleans`` note settles it: *"There is no boolean node type … a condition
+is therefore a 0/1 column"*. So a scan is ``WHERE <ast> != 0`` evaluated on the
+last confirmed bar, over a tree the SAME parser built, the SAME linter badged and
+the SAME store holds. This module adds no vocabulary, no node type and no second
+identity — it answers two questions about a definition that already exists:
+
+    1. does its tree produce 0/1?           ``is_boolean_tree``
+    2. what is it called?                   ``def_hash``
+
+⛔ AND THE ANSWER TO (1) IS DERIVED, NEVER HAND-LISTED. Without the manifest's
+``yields`` declaration this check and the picker's *"is this row a condition"*
+check would each hand-list the same nine comparison and logical operators, in two
+languages — the two-vocabularies defect this repo has already paid for twice
+(``williams_r`` here is ``williamsR`` in the chart registry, which is the only
+reason ``indicator_compute._CASE_COLUMNS`` exists at all). With ``yields``
+declared once, a twelfth function is classified the day it lands, and a RENAMED
+logical operator cannot silently drop out of the classification with every gate
+green — which is precisely what the Phase-E plan review caught ``vocabulary()``
+doing on the JavaScript side.
+
+⛔ THE FAIL-CLOSED DIRECTION IS THE NUMERIC ONE, and it is not symmetric.
+Refusing to call a tree a scan costs a user one error message. Admitting a
+real-valued tree as a scan makes ``<tree> != 0`` true for every non-zero price on
+the board — the screen returns the whole universe and looks like a very good day.
+
+⚠️ THIS MODULE SPELLS NO NAME THE TABLE DECLARES. Not an operator, not a
+function, not a scalar, not a bar series. ``test_scan_definition.py`` walks this
+file with ``ast`` and intersects its string constants with
+``ast_table.declared_names()``; a hand-list necessarily spells the names and a
+derivation necessarily does not. The node types and result kinds below ARE
+spelled, because they are STRUCTURE rather than vocabulary — and each one is
+pinned to its single declaration by a test in that file.
+"""
+from __future__ import annotations
+
+from typing import Any, Mapping, Optional
+
+from api.services import ast_freshness
+from api.services import ast_interpret
+from api.services import ast_table
+from api.services import user_definitions
+
+#: The canonical node types, spelled as STRUCTURE and pinned to
+#: ``ast_interpret.NODE_TYPES`` by ``test_the_node_types_this_module_branches_on
+#: _ARE_the_declared_four``. A tree carries four shapes and this module has four
+#: cases; that is a surface small enough to prove closed, which is the whole
+#: reason ``closedTable._canonical`` refuses a fifth.
+_NUM = "num"
+_SERIES = "series"
+_OP = "op"
+_CALL = "call"
+
+#: The three answers ``ast_table.yields_of`` can give, likewise pinned by a test
+#: rather than assumed. ``passthrough`` belongs to the ternary alone: its result
+#: kind is the join of its arms, so it has no static answer of its own.
+_KIND_NUM = "num"
+_KIND_BOOL = "bool"
+_KIND_PASSTHROUGH = "passthrough"
+
+#: ``compute.kind`` for the lane a scan lives in. Not a table name — a lane name.
+AST_KIND = "ast"
+
+#: ⭐ THE GATES ARE A CLOSED SET, and that is what makes a refusal actionable.
+#: A caller catching ``ScanRefused`` can branch on ``.gate`` and know the branch
+#: list is finite; an open-ended reason string would be prose a surface has to
+#: pattern-match, which is how a refusal becomes a 500.
+GATES = ("kind", "tree", "hash", "yields")
+
+
+class ScanRefused(Exception):
+    """A definition that cannot be run as a screen, and the gate that said so.
+
+    The message always leads with ``[gate:<name>]`` so a test can bind to the
+    GATE rather than to the prose — prose gets edited, a gate does not.
+    """
+
+    def __init__(self, gate: str, detail: str) -> None:
+        if gate not in GATES:
+            raise ValueError(
+                f"{gate!r} is not one of this module's gates {GATES}. The set is "
+                "closed on purpose: a caller branches on it."
+            )
+        self.gate = gate
+        self.detail = detail
+        super().__init__(f"[gate:{gate}] {detail}")
+
+
+def _declared_kind(name: Any, table: Optional[Mapping[str, Any]]) -> str:
+    """What the table says a name's values can be, or the numeric default.
+
+    ⛔ AN UNDECLARED NAME READS AS THE NUMERIC DEFAULT RATHER THAN RAISING, and
+    that covers two different cases with one honest answer: a BAR SERIES (the
+    ``series`` section declares no ``yields``, because a price is a number and
+    always was) and a name this table has never heard of (an instance input, or a
+    manifest that grew an entry nobody classified yet). Both are numbers until
+    somebody declares otherwise.
+    """
+    try:
+        return ast_table.yields_of(name, table)
+    except KeyError:
+        return ast_table.YIELDS_DEFAULT
+
+
+def _leaf_kind(value: Any) -> str:
+    """A ``num`` literal's kind: ``bool`` only for the two values a 0/1 column holds.
+
+    ⚠️ ``type(value) is bool`` IS CHECKED FIRST, AND THAT IS NOT PEDANTRY.
+    ``True == 1``, ``isinstance(True, int)`` is True, and ``True in (0, 1)`` is
+    True — a bool sails through every obvious numeric guard, which Phase D Task 5
+    measured the hard way. A canonical tree cannot carry one (``stable_stringify``
+    refuses it), so meeting one here means the tree is not the persisted artifact
+    and the fail-closed answer is the right one.
+    """
+    if type(value) is bool:
+        return _KIND_NUM
+    if isinstance(value, (int, float)):
+        try:
+            as_float = float(value)
+        except (TypeError, ValueError, OverflowError):
+            return _KIND_NUM
+        if as_float == 0.0 or as_float == 1.0:
+            return _KIND_BOOL
+    return _KIND_NUM
+
+
+def _settle(kind: str) -> str:
+    """Collapse a declared kind onto the two a NODE can actually have.
+
+    Anything that is not ``bool`` is a number here, including a ``passthrough``
+    that reached a node with no arms to join. Fail closed.
+    """
+    return _KIND_BOOL if kind == _KIND_BOOL else _KIND_NUM
+
+
+def is_boolean_tree(ast: Any, table: Optional[Mapping[str, Any]] = None) -> bool:
+    """Does this tree's ROOT produce values in ``{0, 1, NaN}``?
+
+    Derived from the manifest's ``yields`` declaration, iteratively:
+
+    ==============  ====================================================
+    ``num``         ``bool`` iff the literal is 0 or 1, else ``num``
+    ``series``      the declared scalar's ``yields``; a bar series is
+                    undeclared and reads as ``num``
+    ``op``/``call`` the declared ``yields``; ``passthrough`` resolves to
+                    ``bool`` iff every ARM is ``bool``
+    ==============  ====================================================
+
+    ⭐ THE ARMS OF A ``passthrough`` ARE EVERY ARGUMENT AFTER THE FIRST, and that
+    is read off the interpreter rather than guessed: ``ast_interpret._ternary``
+    takes ``(t, a, b)`` — the selector first, the two results after it. So the
+    kind of ``x ? a : b`` is the join of ``a`` and ``b``. ⛔ NOT "either arm",
+    which would admit ``(a > b) ? 1 : close`` — a tree that hands back a price on
+    one branch — as a screen.
+
+    ⛔ ITERATIVE, NEVER RECURSIVE, and it reuses ``ast_interpret._flatten`` rather
+    than walking the tree a second way. The escape corpus's ``too_many_nodes``
+    case is 8,001 nodes deep against a ~1,000 recursion limit, and a classifier
+    that crashed on a deep tree would be a refusal nobody could catch. Reusing the
+    shipped flattener also means this module and the interpreter can never
+    disagree about what the tree's nodes ARE.
+
+    :raises ast_interpret.TableRefusal: the tree is not made of canonical nodes.
+        Left to propagate on purpose — ``assert_scannable`` turns it into a
+        ``[gate:tree]`` refusal, and a caller asking this question directly about
+        a malformed tree has a bug worth seeing.
+    """
+    kinds: dict[int, str] = {}
+    for node in ast_interpret._flatten(ast):
+        node_type = node["type"]
+        if node_type == _NUM:
+            kinds[id(node)] = _leaf_kind(node.get("value"))
+            continue
+        if node_type == _SERIES:
+            kinds[id(node)] = _settle(_declared_kind(node.get("name"), table))
+            continue
+        declared = _declared_kind(node.get("name"), table)
+        if declared == _KIND_PASSTHROUGH:
+            arms = list(node.get("args") or [])[1:]
+            kinds[id(node)] = (
+                _KIND_BOOL
+                if arms and all(kinds[id(a)] == _KIND_BOOL for a in arms)
+                else _KIND_NUM
+            )
+            continue
+        kinds[id(node)] = _settle(declared)
+    return kinds[id(ast)] == _KIND_BOOL
+
+
+def def_hash(definition: Any) -> str:
+    """A scan's identity: ``compute.fn``, which IS ``astHash`` over its tree.
+
+    ⭐ ONE HASH, ONE HANDLE, ONE EVENT. ``defSchema.validateAstCompute`` requires
+    an ``ast`` definition's ``compute.fn`` to equal its own ``astHash`` — *"the
+    tree is the implementation, so there is no third thing for the handle to
+    name; naming it by its own hash makes 'the handle changed' and 'the maths
+    changed' one event rather than two that can disagree."* A results table keyed
+    on it therefore cannot serve one formula's answers under another's name.
+
+    ⛔ AND THE KEY IS NOT ``(user_id, def_id, version)``. Two members who type the
+    same formula have the same maths, share one result set, and cost the pod one
+    sweep — which is also the property that makes the store member-INDEPENDENT,
+    the thing E-6 exists to obtain.
+
+    The stored handle is CHECKED rather than trusted: a blob that arrived over a
+    wire carrying a stale ``fn`` would otherwise file its answers under the
+    previous formula's name, silently.
+    """
+    compute = _compute_of(definition)
+    tree = compute.get("ast")
+    try:
+        computed = user_definitions.ast_hash(tree)
+    except ValueError as exc:
+        raise ScanRefused("tree", str(exc)) from exc
+    stored = compute.get("fn")
+    if isinstance(stored, str) and stored and stored != computed:
+        raise ScanRefused(
+            "hash",
+            f"compute.fn is {stored!r} but the tree hashes to {computed!r}. An "
+            "'ast' definition's compute handle IS its astHash; a stored handle "
+            "that disagrees would file this formula's answers under another "
+            "formula's name.",
+        )
+    return computed
+
+
+def _compute_of(definition: Any) -> Mapping[str, Any]:
+    if not isinstance(definition, dict):
+        raise ScanRefused(
+            "kind", f"a definition is an object; got {type(definition).__name__}")
+    compute = definition.get("compute")
+    if not isinstance(compute, dict):
+        raise ScanRefused(
+            "kind", f"the definition carries no compute object; got {compute!r}")
+    return compute
+
+
+def assert_scannable(definition: Any) -> dict:
+    """Refuse a definition that cannot be run as a screen, or describe it.
+
+    Returns ``{"def_hash", "yields", "scalars"}`` — the handle the results are
+    filed under, the settled result kind, and the table-declared scalars the tree
+    reads (so the sweep knows which snapshot columns it must carry, without
+    deriving that a second way).
+
+    ⛔ EVERY REFUSAL NAMES ITS GATE and the gates are closed (``GATES``):
+
+    ``kind``    the definition is not on the ``ast`` lane. A native or server
+                definition names maths this lane cannot walk.
+    ``tree``    ``compute.ast`` is not a canonical tree — four node types with
+                exact key sets. The persisted shape is the contract between the
+                two lanes and is deliberately smaller than jsep's.
+    ``hash``    a stored ``compute.fn`` disagrees with the tree it sits beside.
+    ``yields``  the tree returns a NUMBER. ``<tree> != 0`` over a price column is
+                true for every symbol trading above zero, so this is the gate
+                that stops a screen from silently returning the universe.
+    """
+    compute = _compute_of(definition)
+    if compute.get("kind") != AST_KIND:
+        raise ScanRefused(
+            "kind",
+            f"compute.kind is {compute.get('kind')!r}; a scan is a tree this lane "
+            f"can walk, so only {AST_KIND!r} is scannable.",
+        )
+    tree = compute.get("ast")
+    try:
+        user_definitions.assert_canonical(tree)
+    except ValueError as exc:
+        raise ScanRefused("tree", str(exc)) from exc
+
+    handle = def_hash(definition)
+
+    try:
+        boolean = is_boolean_tree(tree)
+    except ast_interpret.TableRefusal as exc:
+        raise ScanRefused("tree", str(exc)) from exc
+    if not boolean:
+        raise ScanRefused(
+            "yields",
+            "this tree returns a number, not a 0/1 column. A scan is "
+            "`<tree> != 0` on the last confirmed bar, so a real-valued tree "
+            "matches every symbol whose value is not exactly zero.",
+        )
+    return {
+        "def_hash": handle,
+        "yields": _KIND_BOOL,
+        "scalars": sorted(ast_freshness.scalars_in(tree)),
+    }
