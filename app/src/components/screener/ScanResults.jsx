@@ -142,6 +142,15 @@ export default function ScanResults({ definition, asOf, tf = 'D' }) {
     let alive = true
     setPayload(null)
     setLoadError(null)
+    // 🔴 THE OPEN CHART BELONGS TO THE ANSWER SET THAT IS BEING REPLACED, so it
+    // goes with it. Without this, switching screens leaves the PREVIOUS
+    // definition drawn — and its read-back sentence — beside the NEW screen's
+    // hits: a chart claiming a formula that did not return the symbols on screen,
+    // which is the exact falsehood this surface exists to make impossible. The
+    // same argument covers a change of session: the charted symbol was a hit for
+    // the session that is no longer being asked about.
+    setCharted(null)
+    setRefusal(null)
     fetch(scanResultsUrl(defHash, tf, asOf), { credentials: 'include' })
       .then((r) => {
         // ⚠️ A NON-OK ANSWER IS REPORTED, NOT RENDERED AS EMPTY. A swallowed 402

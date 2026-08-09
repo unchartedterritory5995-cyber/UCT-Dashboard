@@ -211,6 +211,43 @@ describe('🔴 the wire — a scan hit charts the definition that found it', () 
   })
 })
 
+describe('the chart never outlives the answer set it came from', () => {
+  // 🔴 THE FAILURE THIS RULES OUT IS THE TASK'S OWN CLAIM, INVERTED. Chart a hit
+  // from screen A, switch to screen B, and a chart left open would be drawing A's
+  // formula — with A's read-back sentence — beside B's hits. Every assertion in
+  // the first describe would still pass; only this one can see it.
+  const OTHER_SOURCE = 'close > sma(close, 20)'
+  const OTHER_PARSED = parseFormula(OTHER_SOURCE)
+  if (!OTHER_PARSED.ok) throw new Error(`fixture does not parse: ${OTHER_PARSED.error}`)
+  const OTHER = {
+    ...DEFINITION,
+    id: 'u_ba9876543210',
+    compute: {
+      kind: 'ast', fn: astHash(OTHER_PARSED.ast), rev: 1,
+      ast: OTHER_PARSED.ast, source: OTHER_SOURCE,
+    },
+  }
+
+  it('switching to another screen closes the chart the first one opened', async () => {
+    const user = userEvent.setup()
+    const view = render(<ScanResults definition={DEFINITION} asOf={AS_OF} tf="D" />)
+    await user.click(await screen.findByRole('button', { name: /chart NVDA/i }))
+    expect(screen.getByTestId('chart-pane'))
+      .toHaveAttribute('data-definition', DEF_HASH)
+
+    // ⛔ THE TWO DEFINITIONS REALLY ARE DIFFERENT — otherwise this case asserts
+    // that nothing changed by changing nothing.
+    expect(OTHER.compute.fn).not.toBe(DEF_HASH)
+    H.payload = evaluatedPayload({ def_hash: OTHER.compute.fn, tickers: ['AMD'] })
+    view.rerender(<ScanResults definition={OTHER} asOf={AS_OF} tf="D" />)
+
+    expect(await screen.findByRole('button', { name: /chart AMD/i })).toBeInTheDocument()
+    expect(screen.queryByTestId('chart-pane'),
+      'the previous screen\'s chart survived the switch — it now claims a formula '
+      + 'that did not return the symbols on screen').not.toBeInTheDocument()
+  })
+})
+
 describe('the four outcomes reach this surface intact', () => {
   it('a NOT-COMPUTABLE symbol is named in the receipt and gets NO chart button', async () => {
     // ⛔ A chart opened from a `not_computable` hit must not imply we had data.
