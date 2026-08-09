@@ -29,7 +29,8 @@ const WRAPPER = {
   // OUTER fields — the whole point of the shape fix. `recapData?.recap` (the
   // historically-broken shape one other call site uses) would lose these.
   webcast_url: 'https://ir.example.com/replay',
-  rating_changes: [{ firm: 'Morgan Stanley', action: 'upgrade', to_rating: 'Overweight' }],
+  // The producer's real shape — monthly bucket snapshots, not a per-firm feed.
+  rating_changes: [{ period: '2026-08-01', strong_buy: 5, buy: 12, hold: 2, sell: 1, strong_sell: 0, net: 16, net_delta: 3 }],
 }
 
 beforeEach(() => {
@@ -61,6 +62,8 @@ describe('CallSection integration (real CallRecapSection, not mocked)', () => {
 
   it('rating_changes (also an OUTER field) renders via the real RatingChanges block', async () => {
     render(<CallSection sym="NVDA" row={{ sym: 'NVDA' }} lifecycle="POST" />)
-    expect(await screen.findByText('Morgan Stanley')).toBeTruthy()
+    expect(await screen.findByText('Aug 2026')).toBeTruthy()
+    expect(document.body.textContent).toContain('17 buy')   // strong_buy + buy
+    expect(document.body.textContent).toContain('+3 net')
   })
 })

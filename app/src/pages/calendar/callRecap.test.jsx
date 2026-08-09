@@ -34,7 +34,11 @@ const FULL_RECAP = {
   quotes:      [{ speaker: 'CEO', text: 'We are firing on all cylinders.' }],
   guidance:    'Full-year EPS guidance raised to $5.20–$5.30.',
   qa_highlights: ['Analyst asked about share buybacks', 'Management cited strong pipeline'],
-  rating_changes: [{ firm: 'Goldman', action: 'upgrade', from_rating: 'Neutral', to_rating: 'Buy', price_target: 200 }],
+  // The PRODUCER's shape (monthly bucket snapshots). The previous fixture here
+  // invented a per-firm {firm, action, from_rating, to_rating} feed that
+  // get_rating_changes has never emitted — which is exactly why the broken
+  // renderer stayed green.
+  rating_changes: [{ period: '2026-08-01', strong_buy: 6, buy: 18, hold: 3, sell: 0, strong_sell: 0, net: 24, net_delta: 2 }],
   webcast_url: 'https://example.com/webcast',
 }
 
@@ -70,10 +74,11 @@ describe('CallRecapSection', () => {
     expect(document.body.textContent).toContain('We are firing on all cylinders.')
   })
 
-  it('renders rating change', () => {
+  it('renders the rating trend row', () => {
     render(<CallRecapSection recap={FULL_RECAP} audio={null} />)
-    expect(screen.getByText('Goldman')).toBeTruthy()
-    expect(screen.getByText('Neutral → Buy')).toBeTruthy()
+    expect(screen.getByText('Aug 2026')).toBeTruthy()
+    expect(document.body.textContent).toContain('24 buy')
+    expect(document.body.textContent).toContain('+2 net')
   })
 
   describe('Listen button (TTS)', () => {
@@ -306,5 +311,40 @@ describe('CallRecapSection — the shape the service actually sends', () => {
       audio={null} />)
     expect(screen.getByText(/Full-year EPS guidance raised/)).toBeTruthy()
     expect(screen.queryByText(/GUIDANCE RAISED/)).toBeNull()
+  })
+})
+
+describe('rating trend — the shape the SERVER actually sends', () => {
+  // Captured verbatim from GET /api/earnings/call-recap/CVS in production.
+  // The renderer used to read rc.firm / rc.action / rc.to_rating — a per-firm
+  // upgrade-downgrade feed that get_rating_changes has never emitted — so
+  // every field was undefined and the panel drew bare "→" arrows against four
+  // rows of real data. A fixture in the PRODUCER's shape is the only kind that
+  // could have caught it.
+  const LIVE = [
+    { period: '2026-08-01', strong_buy: 6, buy: 18, hold: 3, sell: 0, strong_sell: 0, net: 24, net_delta: 0 },
+    { period: '2026-06-01', strong_buy: 6, buy: 18, hold: 4, sell: 0, strong_sell: 0, net: 24, net_delta: -1 },
+    { period: '2026-05-01', strong_buy: 7, buy: 18, hold: 4, sell: 0, strong_sell: 0, net: 25, net_delta: null },
+  ]
+
+  it('renders the bucket counts, not an empty row', () => {
+    render(<CallRecapSection recap={{ ...FULL_RECAP, rating_changes: LIVE }} audio={null} />)
+    expect(document.body.textContent).toContain('24 buy')
+    expect(document.body.textContent).toContain('25 buy')
+    expect(document.body.textContent).toContain('3 hold')
+  })
+
+  it('labels each period rather than leaving the row nameless', () => {
+    render(<CallRecapSection recap={{ ...FULL_RECAP, rating_changes: LIVE }} audio={null} />)
+    expect(screen.getByText('Aug 2026')).toBeTruthy()
+    expect(screen.getByText('May 2026')).toBeTruthy()
+  })
+
+  it('shows a net move only when there IS one, and never for a null delta', () => {
+    render(<CallRecapSection recap={{ ...FULL_RECAP, rating_changes: LIVE }} audio={null} />)
+    // -1 in June is a real move; 0 in August and null in May are not.
+    expect(screen.getByText('-1 net')).toBeTruthy()
+    expect(screen.queryByText('0 net')).toBeNull()
+    expect(screen.queryByText(/null/)).toBeNull()
   })
 })
