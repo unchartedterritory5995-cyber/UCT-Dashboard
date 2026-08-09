@@ -65,6 +65,29 @@ _REUSE_PRICE_FACTOR = 4.0    # a gap WITH a ≥4× (or ≤¼×) price jump ⇒ r
 _SPLIT_TOL = 0.15            # |observed/expected − 1| ≤ this ⇒ boundary is unadjusted
 _WICK = 1.40                 # a wick > body*this AND > neighbor*this is a lone spike
 
+#: 🔴 THE DECLARED SPLIT DATE IS NOT THE SESSION THE PRICE STEPPED ON, AND DD
+#: IS THE MEASUREMENT. FMP declares DuPont's 1-for-3 on **2026-06-24**; the step
+#: in our store is on **2026-06-18** (`47.95 → 143.13`), four sessions earlier —
+#: providers publish a record/payable date where the tape moved on the ex-date.
+#: A date-EXACT boundary lookup therefore compared `20260623 c=140.01` against
+#: `20260624 c=137.82`, read a ratio of 1.016 against an expected 0.3333, and
+#: declined — so DD's split was healed NOWHERE, chart included. Measured: 0 rows
+#: changed by this module for DD, `SMA200 = 50.19` against an independent
+#: 133.89.
+#:
+#: ⛔ THE WINDOW ONLY SAYS WHERE TO LOOK — THE RATIO TEST IS STILL WHAT
+#: AUTHORISES A CHANGE. Nothing is adjusted unless some boundary inside the
+#: window shows a close step matching the DECLARED factor to `_SPLIT_TOL`, so a
+#: ticker with no declared split is never scanned at all and a declared split
+#: whose factor nothing matches is still left alone.
+#:
+#: ⚠️ AND THE BOUNDARY IT FINDS IS THE ONE THAT GETS APPLIED, NOT THE DECLARED
+#: DATE. Applying DD's factor at 2026-06-24 would have multiplied the six
+#: sessions 06-18…06-23 — already at the post-split scale — by three, turning
+#: $143 into $429. Finding the true boundary is the correctness of the repair,
+#: not a nicety.
+_SPLIT_BOUNDARY_WINDOW = 7   # sessions either side of the DECLARED split date
+
 
 def _pd(s) -> date | None:
     try:
@@ -185,63 +208,110 @@ def _apply_listing_cutoff(bars: list[dict], meta: dict | None) -> list[dict]:
 
 
 # ── Step 2: split-adjustment self-heal ──────────────────────────────────────
-def _apply_split_adjust(bars: list[dict], splits: list[tuple[str, float]]) -> list[dict]:
-    """Make the series consistently split-adjusted to the most-recent basis.
+def unadjusted_splits(bars: list[dict],
+                      splits: list[tuple[str, float]],
+                      *, window: int = _SPLIT_BOUNDARY_WINDOW,
+                      ) -> list[tuple[date, float]]:
+    """`[(boundary_date, ratio)]` — the declared splits this SERIES has NOT had
+    applied, each paired with the date of the FIRST bar at the post-split scale.
 
-    For each known split we look at the close just before vs just after the split
-    date. If they're continuous (ratio ≈ 1) the provider already adjusted it. If
-    they jump by ≈ the split factor, the provider MISSED it → we apply the factor
-    to every earlier bar. Only real, quantified split-sized discontinuities are
-    touched, so genuine earnings/news gaps are left alone."""
+    ⭐ THIS IS THE ONE DETECTOR. `bars_sanitize` heals the SERVED copy and
+    `bars_split_repair` heals the STORE, and both ask this function — so the
+    chart and the alert/scan/screener lanes cannot come to different conclusions
+    about whether a split was applied. A second implementation of this judgement
+    is the *second authority over one value* defect that has cost this repo
+    three separate outages; there is deliberately only one.
+
+    For each declared split we look for a boundary in `± window` sessions of the
+    declared date where `close[i-1] / close[i]` matches the declared factor to
+    `_SPLIT_TOL`. A boundary that is continuous (ratio ≈ 1) means the provider
+    already adjusted it; anything that matches nothing is ambiguous and is left
+    alone. Only real, QUANTIFIED, split-sized discontinuities are reported, so
+    genuine earnings/news gaps never appear here.
+
+    ⛔ IDEMPOTENT BY CONSTRUCTION, WHICH IS WHY IT IS SAFE TO RUN OVER A LIVE
+    STORE. The evidence it fires on is the discontinuity itself; once a series is
+    adjusted the observed ratio at that boundary is ≈ 1 and no factor matches, so
+    a second pass reports nothing and rewrites nothing.
+    """
     if not splits or len(bars) < 2:
-        return bars
+        return []
     bar_dates = [_pd(b["t"]) for b in bars]
-
-    unadjusted: list[tuple[date, float]] = []
+    out: list[tuple[date, float]] = []
     for sd_str, ratio in splits:
         sd = _pd(sd_str)
-        if not sd:
+        try:
+            ratio = float(ratio)
+        except (TypeError, ValueError):
             continue
-        # last bar strictly before the split, first bar on/after it
-        prev_i = None
-        cur_i = None
+        if not sd or not (ratio > 0):
+            continue
+        # The declared date's own boundary: the first bar on/after it.
+        anchor = None
         for i, bd in enumerate(bar_dates):
-            if bd is None:
-                continue
-            if bd < sd:
-                prev_i = i
-            elif cur_i is None:
-                cur_i = i
+            if bd is not None and bd >= sd:
+                anchor = i
                 break
-        if prev_i is None or cur_i is None:
-            continue  # split outside the data range (before first / after last)
-        c_prev = bars[prev_i].get("c")
-        c_cur = bars[cur_i].get("c")
-        if not c_prev or not c_cur or c_cur <= 0:
-            continue
-        observed = c_prev / c_cur
-        if abs(observed / ratio - 1.0) <= _SPLIT_TOL:
-            unadjusted.append((sd, ratio))          # provider missed this split
-        # ratio ≈ 1 (already adjusted) or anything else (ambiguous) → leave it
+        if anchor is None or anchor < 1:
+            continue  # split outside the data range (after last / before first)
+        lo, hi = max(1, anchor - window), min(len(bars) - 1, anchor + window)
+        best: tuple[float, date, float] | None = None
+        for i in range(lo, hi + 1):
+            if bar_dates[i] is None or bar_dates[i - 1] is None:
+                continue
+            c_prev, c_cur = bars[i - 1].get("c"), bars[i].get("c")
+            if not c_prev or not c_cur or c_prev <= 0 or c_cur <= 0:
+                continue
+            err = abs((c_prev / c_cur) / ratio - 1.0)
+            if err <= _SPLIT_TOL and (best is None or err < best[0]):
+                best = (err, bar_dates[i], ratio)
+        if best is not None:
+            out.append((best[1], best[2]))
+    return out
 
+
+def split_factor(bar_date: date, unadjusted: list[tuple[date, float]]) -> float:
+    """The factor a bar dated `bar_date` must be divided by to reach the
+    post-split basis. `1.0` means the bar is already on it."""
+    f = 1.0
+    for boundary, ratio in unadjusted:
+        if bar_date < boundary:
+            f *= ratio
+    return f
+
+
+def scale_bar(bar: dict, f: float) -> dict:
+    """Rescale one bar IN PLACE by split factor `f` and return it.
+
+    ⛔ THE ROUNDING LIVES HERE, ONCE. The served copy and the stored rows must
+    land on the same digits or the chart and the screener disagree by a rounding
+    step — which is the very split-brain this module exists to close.
+    """
+    if f == 1.0:
+        return bar
+    for k in ("o", "h", "l", "c"):
+        v = bar.get(k)
+        if v is not None:
+            bar[k] = round(v / f, 4)
+    v = bar.get("v")
+    if v:
+        bar["v"] = round(v * f)
+    return bar
+
+
+def _apply_split_adjust(bars: list[dict], splits: list[tuple[str, float]],
+                        unadjusted: list[tuple[date, float]] | None = None,
+                        ) -> list[dict]:
+    """Make the series consistently split-adjusted to the most-recent basis."""
+    if unadjusted is None:
+        unadjusted = unadjusted_splits(bars, splits)
     if not unadjusted:
         return bars
-
-    for b, bd in zip(bars, bar_dates):
+    for b in bars:
+        bd = _pd(b["t"])
         if bd is None:
             continue
-        f = 1.0
-        for sd, ratio in unadjusted:
-            if bd < sd:
-                f *= ratio
-        if f != 1.0:
-            b["o"] = round(b["o"] / f, 4)
-            b["h"] = round(b["h"] / f, 4)
-            b["l"] = round(b["l"] / f, 4)
-            b["c"] = round(b["c"] / f, 4)
-            v = b.get("v")
-            if v:
-                b["v"] = round(v * f)
+        scale_bar(b, split_factor(bd, unadjusted))
     return bars
 
 
@@ -271,6 +341,41 @@ def _clamp_wicks(bars: list[dict]) -> list[dict]:
     return bars
 
 
+# ── Store repair hand-off ───────────────────────────────────────────────────
+_repair_inflight: set[tuple[str, str]] = set()
+
+
+def _schedule_store_repair(ticker: str, tf: str) -> None:
+    """Hand a detected un-back-adjusted split to the STORE repairer.
+
+    Best-effort, deduped, and OFF the request path — it rides the same bounded
+    2-worker pool the metadata warm already uses, so a chart serve never waits
+    on a SQLite write. Never raises: a repair that fails leaves the store exactly
+    as stale as it was, and the served copy is already correct.
+    """
+    key = (ticker.upper(), tf)
+    with _warm_lock:
+        if key in _repair_inflight:
+            return
+        _repair_inflight.add(key)
+
+    def _run():
+        try:
+            from api.services import bars_split_repair
+            bars_split_repair.repair_ticker(ticker, tf, apply=True)
+        except Exception as e:  # noqa: BLE001
+            _log.warning("split store repair failed for %s tf=%s: %s", ticker, tf, e)
+        finally:
+            with _warm_lock:
+                _repair_inflight.discard(key)
+
+    try:
+        _warm_pool.submit(_run)
+    except Exception:  # noqa: BLE001
+        with _warm_lock:
+            _repair_inflight.discard(key)
+
+
 # ── Public entry point ──────────────────────────────────────────────────────
 def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
     """Normalize a D/W/M bars list (list of {t,o,h,l,c,v}, ascending by t).
@@ -283,7 +388,17 @@ def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
         meta = _meta_cached(ticker)                      # None on cold miss (+warm)
         bars = _apply_listing_cutoff(bars, meta)
         if meta and meta.get("splits"):
-            bars = _apply_split_adjust(bars, meta["splits"])
+            unadjusted = unadjusted_splits(bars, meta["splits"])
+            if unadjusted:
+                bars = _apply_split_adjust(bars, meta["splits"], unadjusted)
+                # ⭐ THE SERVED COPY IS NOW RIGHT AND THE STORE IS STILL WRONG,
+                # AND THAT IS THE DEFECT THIS LINE CLOSES. Everything that does
+                # NOT come through here — the alert evaluator, the nightly
+                # screener build, the universe scan, and every SQL aggregate in
+                # `bars_sqlite` — reads the rows directly. Detecting the gap and
+                # healing only the response is what let DD's SMA200 read 50.19
+                # on the alert lane while the chart drew 133.89.
+                _schedule_store_repair(ticker, tf)
         if tf == "D":
             bars = _clamp_wicks(bars)
         return bars
