@@ -1,5 +1,8 @@
 // app/src/pages/calendar/cardBits.jsx
 // Small presentational pieces shared by cards + the day table.
+import {
+  MOVE_UNAVAILABLE, moveIsUnavailable, moveUnavailableTitle,
+} from '../../constants/expectedMoveOutcome'
 import styles from './Calendar.module.css'
 
 // ── Date-moved chip ──────────────────────────────────────────────────────────
@@ -83,35 +86,15 @@ export function ReactionSpark({ lastN, width = 44, height = 14 }) {
 }
 
 // ── Expected move: saying WHY there is no number ──────────────────────────────
-// ONE phrasing, ONE place. The day table, the earnings cards and the week tiles
-// all import THESE. This repo already carries three disagreeing breadth label
+// ONE phrasing, ONE place — and that place is now
+// `app/src/constants/expectedMoveOutcome.js`, because the earnings research
+// modal's Setup canvas renders the same fact off a DIFFERENT endpoint and a
+// research component borrowing a sentence from a calendar page module is how a
+// second copy of the sentence eventually gets written. Re-exported here so the
+// day table, the earnings cards and the week tiles keep importing from where
+// they always did. This repo already carries three disagreeing breadth label
 // registries; this must not become a fourth.
-//
-// The frontend owns NO copy of the backend's reason vocabulary.
-// `api/services/implied_move.py::outcome_kind` is the only authority on what a
-// reason MEANS, and the wire carries its verdict as `{kind, reason}`. Anything
-// that is not an explicit `ok` means "we have no number", so a SEVENTH reason
-// added on the server renders correctly here on day one and can never come out
-// blank. The specific cause reaches support through the title, humanised by a
-// PURE TRANSFORM of the token — never a lookup table, because a lookup table
-// would BE the copy of the list this must not own.
-//
-// ⛔ A MISSING outcome is NOT a refusal. It means either the read was never
-// attempted (a past report — there is no forward straddle to price) or the
-// enrichment payload has not landed yet. Both keep the surface's existing
-// treatment, which is what stops a still-loading row from being labelled. An
-// earlier guard that treated a bare null as "arrived and empty" froze rows
-// permanently; see Calendar.jsx's re-check comment.
-export const MOVE_UNAVAILABLE = 'Expected move unavailable'
-
-export function moveIsUnavailable(outcome) {
-  return !!outcome && outcome.kind !== 'ok'
-}
-
-export function moveUnavailableTitle(outcome) {
-  const cause = String(outcome?.reason ?? '').replace(/_/g, ' ').trim()
-  return cause ? `${MOVE_UNAVAILABLE} — ${cause}` : MOVE_UNAVAILABLE
-}
+export { MOVE_UNAVAILABLE, moveIsUnavailable, moveUnavailableTitle }
 
 // Card treatment: room for the plain words, so it says them.
 export function MoveUnavailableLine({ outcome }) {

@@ -9,7 +9,10 @@ import ErrorBoundary from '../components/ErrorBoundary'
 import EarningsResearchModal from '../components/research/EarningsResearchModal'
 import useEarningsModalRoute, { resolveFeedEntry, normalizeSym } from './calendar/useEarningsModalRoute'
 import useSettledSym from '../hooks/useSettledSym'
-import { toModalRow, timingLabel, todayIso, shouldUnwindHistory } from './calendar/earningsModalRow'
+import {
+  toModalRow, timingLabel, todayIso, shouldUnwindHistory,
+  enrichmentStillMissing, enrichmentGained,
+} from './calendar/earningsModalRow'
 import usePreferences, { parsePref } from '../hooks/usePreferences'
 import {
   useCalendar,
@@ -320,15 +323,12 @@ export default function Calendar() {
       // correctly, permanently partial row, e.g. `expected_move` on a past
       // day, and must not be fought forever).
       const row = selected.row
-      const stillMissing = row.beat_history == null
-        || row.hist_stats == null || row.expected_move == null
-      if (!stillMissing) return
+      // Both predicates live in earningsModalRow.js beside the projection that
+      // feeds them — see the "answered by a number OR by a stated reason" note
+      // there for why `expected_move == null` alone used to chase forever.
+      if (!enrichmentStillMissing(row)) return
       const hit = resolveFeedEntry(want, days)
-      const gained = hit && (
-        (row.beat_history == null && hit.entry.beat_history != null)
-        || (row.hist_stats == null && hit.entry.hist_stats != null)
-        || (row.expected_move == null && hit.entry.expected_move != null)
-      )
+      const gained = hit && enrichmentGained(row, hit.entry)
       // Not a fresh open — no openSeq bump (that would remount the
       // ErrorBoundary mid-view for no reason) and no resolveRef/ask-ladder
       // churn; this only ever upgrades an already-committed row in place.
