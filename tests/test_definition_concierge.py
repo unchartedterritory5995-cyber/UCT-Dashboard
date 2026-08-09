@@ -30,11 +30,12 @@ import importlib
 import io
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Mapping
 
 import pytest
 from fastapi import FastAPI
@@ -479,6 +480,7 @@ process.stdout.write(JSON.stringify({
   rows,
   operatorSentence: sentence.OPERATOR_SENTENCE,
   refusals: sentence.REFUSALS,
+  coverageGaps: sentence.coverageGaps(),
 }))
 """
 
@@ -589,31 +591,353 @@ def test_the_SOURCE_the_concierge_derives_PARSES_BACK_to_the_tree(js_lane):
     assert len(rows) == len(corpus()) >= 31
 
 
-def test_the_read_back_covers_every_DECLARED_entry_and_reports_a_gap_BY_NAME(concierge):
-    """⛔ TOTALITY, DERIVED, AND THE GAPS ARE A LIST. A planted manifest entry with
-    no read-back must be reported by NAME with no edit to this rail; the control
-    the other way (the same entry WITH a phrase) must report no gap.
+# ═══ 5b. COVERAGE: ONE AUTHORITY, PROBED — AND THE TWO LANES COMPARED ══════
+#
+# ⛔⛔ THERE IS NO `coverage_gaps` IN THE PYTHON LANE ANY MORE, AND THAT IS THE
+# POINT OF THIS SECTION. There was: a hand-maintained, fully DECLARATIVE mirror
+# of `sentence.js::coverageGaps` that reported `{series, operators, functions,
+# placeholders}` and had NO scalars row at all — so the two lanes answered one
+# question differently in KIND as well as in content, nothing cross-checked them,
+# and whichever one a future engineer consulted they would have believed it.
+#
+# 🔴 THE BLINDNESS IT CARRIED IS THE ONE THAT ALREADY COST THIS PROJECT. A rail
+# derived from the same DECLARATION the walker reads can only report the gaps the
+# walker already knows how to have. `coverageGaps()` therefore reported NOTHING
+# for all 54 scalars while `definition_concierge.propose` refused every proposal
+# naming one — and it took two agents hitting it from opposite sides to find,
+# because the component whose job was to report it structurally could not.
+# Measured again here before this section was written: with `_render_name`'s
+# series branch deleted the Python walker refuses `close`, and the old rail
+# still said `series: []`.
+#
+# So the second implementation is GONE, not converted — a second probe in a
+# second language for a question no runtime asks is a liability with no upside —
+# and the two claims it used to make are made below instead:
+#
+#   1. the walker is PROBED (`_python_gaps`): one minimal tree per declared
+#      entry, in every section THE MANIFEST declares, and the ones that REFUSE
+#      are reported BY NAME. The gap is the runtime refusal itself.
+#   2. the two lanes are COMPARED: `coverageGaps()` under node against that
+#      probe, section for section and name for name, with the one known
+#      divergence PINNED and DERIVED so it goes red the day it closes.
+#   3. the deletion is ASSERTED, over the filesystem and under the name read off
+#      `sentence.js`'s own export list.
+
+#: ⛔ THE ONE ARGUMENT THE PROBE EVER PASSES — A LITERAL, NEVER ANOTHER SECTION'S
+#: NAME. If the operators probe borrowed `close`, deleting `_render_name`'s
+#: series branch would light up the operators AND functions rows too, and a rail
+#: that names three sections when one broke is as useless as one that names none.
+#: (That isolation is asserted below, not assumed.) `1` is also a legal `int`
+#: window — a whole number ≥ 1 — so one constant serves every argument position
+#: the manifest is able to declare. It mirrors `sentence.js::PROBE_ARG`
+#: deliberately: the cross-lane rail compares the two answers, so a probe built
+#: differently would surface as a divergence rather than hide one.
+PROBE_ARG = {"type": "num", "value": 1}
+
+
+def _probe_args(count: Any) -> List[dict]:
+    """⚠️ BOUNDED, BECAUSE A MANIFEST IS DATA. An arity declared as a fraction, a
+    negative or something enormous would otherwise allocate until the box died.
+    Outside the bound the argument list is EMPTY, the walker refuses on the arity
+    mismatch, and the entry is NAMED — a reported gap, never a hang."""
+    ok = (isinstance(count, int) and not isinstance(count, bool) and 0 <= count <= 16)
+    return [dict(PROBE_ARG) for _ in range(count if ok else 0)]
+
+
+def _probe_tree(section: str, name: str, spec: Any) -> Any:
+    """The minimal tree for ONE declared entry, by section.
+
+    ⛔ AN UNKNOWN SECTION RETURNS `None`, AND THE WALKER REFUSES IT. A fifth
+    section reaching the manifest is probed with a shape this function does not
+    have, so every one of its entries lands in the report and somebody has to
+    teach the probe. Returning something plausible would make the new section
+    silently green on the day it arrives — the exact defect this rail exists to
+    end, reintroduced one level up.
     """
-    assert concierge.coverage_gaps() == {"series": [], "operators": [],
-                                         "functions": [], "placeholders": []}
+    if section in (ast_table.SERIES_SECTION, ast_table.SCALARS_SECTION):
+        # ⭐ BOTH RIDE THE `series` NODE — a scalar is a fourth VOCABULARY, not a
+        # fifth node type — and the two still report separately.
+        return {"type": "series", "name": name}
+    if section == ast_table.OPERATORS_SECTION:
+        return {"type": "op", "name": name, "args": _probe_args((spec or {}).get("arity"))}
+    if section == ast_table.FUNCTIONS_SECTION:
+        return {"type": "call", "name": name,
+                "args": _probe_args(len(list((spec or {}).get("args") or ())))}
+    return None
 
-    planted = {
-        ast_table.SERIES_SECTION: dict(TABLE[ast_table.SERIES_SECTION]),
-        ast_table.OPERATORS_SECTION: dict(TABLE[ast_table.OPERATORS_SECTION]),
-        ast_table.FUNCTIONS_SECTION: dict(TABLE[ast_table.FUNCTIONS_SECTION]),
+
+def _declared_sections(table: Mapping[str, Any]) -> List[str]:
+    """The manifest's own name-bearing sections, READ OFF THE MANIFEST.
+
+    ⛔ NOT A LIST TYPED HERE — and deliberately not `ast_table.SECTIONS` either.
+    The whole value of the fifth-section floor is that a section reaching the
+    manifest is probed without this file moving; reading a constant that also has
+    to be edited would make this rail exactly as blind as the one it replaced.
+    The two derivations are cross-checked below, which is the useful direction:
+    a section added to the file but not to `ast_table.SECTIONS` is a red test.
+
+    `_`-prefixed keys are the manifest's own annotations and `tableVersion` is a
+    string, so neither reaches this list.
+    """
+    return sorted(k for k, v in table.items()
+                  if isinstance(v, Mapping) and not k.startswith("_"))
+
+
+def _python_gaps(table: Any = None, phrases: Any = None) -> Dict[str, List[str]]:
+    """Every declared entry THIS WALKER refuses, by section, BY NAME.
+
+    ⭐⭐ THE WALKER'S OWN ANSWER, NOT A SECOND BOOKKEEPING PASS. `explain_sentence`
+    is the shipped renderer `propose` calls; an entry is a gap when rendering its
+    minimal tree REFUSES, whatever the reason. `Exception` is caught rather than
+    `_SentenceRefused` on purpose — a walker that dies on a declared entry has
+    failed to cover it just as surely as one that refuses politely, and narrowing
+    the catch would let a TypeError read as coverage.
+    """
+    from api.services import definition_concierge as mod
+    t = table if table is not None else TABLE
+    rules = mod.compile_rules(t, phrases)
+    out: Dict[str, List[str]] = {}
+    for section in _declared_sections(t):
+        refused = []
+        for name in sorted(t[section]):
+            try:
+                mod.explain_sentence(_probe_tree(section, name, t[section][name]), {}, rules)
+            except Exception:                     # noqa: BLE001 — ANY refusal is a gap
+                refused.append(name)
+        out[section] = refused
+    return out
+
+
+def _named(gaps: Mapping[str, List[str]]) -> str:
+    """⚠️ THE NAMES, BUILT INTO THE MESSAGE. pytest elides a long set with `...`,
+    and a rail whose entire job is to name the broken entry must not depend on the
+    differ's display budget. Measured this week: a real failure printed
+    `{'api/service..._rule_record'}` and was readable only because there happened
+    to be exactly one element."""
+    rows = [f"{section} ({len(names)}): {', '.join(names)}"
+            for section, names in sorted(gaps.items()) if names]
+    return " | ".join(rows) if rows else "(nothing)"
+
+
+#: 🔴 THE ONE KNOWN DIVERGENCE BETWEEN THE LANES, PINNED — AND IT IS E-5'S TO
+#: CLOSE, NOT AN ACCIDENT.
+#:
+#: `56a2bca6` taught `sentence.js` to say the manifest's fourth section, so the
+#: JS lane renders all 54 scalars. This lane has NOT been taught: `_render_name`
+#: consults the table's SERIES and then the definition's inputs, so every scalar
+#: refuses at `sentence:name` — and `tool_schema`'s enums are the same three
+#: sections, so `propose` refuses one at `schema:name` a door earlier. That work
+#: is planned and assigned: `.superpowers/sdd/phase-e/plan-draft-e4-e7.md` line
+#: 195 gives `definition_concierge.py` to E-5 with *"the scalars enum arrives by
+#: derivation"*, and `e5-brief.md` carries the planted-scalar and planted-fifth-
+#: section rails for it.
+#:
+#: ⛔ SO IT IS PINNED, NOT PAPERED OVER, AND THE PIN IS DERIVED FROM THE MANIFEST
+#: — a fifty-fifth scalar needs no edit here, and the day E-5 lands this goes RED
+#: saying so. DELETE the pin then; do not widen it. A pin that survives its own
+#: fix is how a stale expectation outlives the defect it described.
+def _pinned_python_only_gaps() -> Dict[str, List[str]]:
+    return {ast_table.SCALARS_SECTION: sorted(ast_table.scalar_names(TABLE))}
+
+
+def _diff(left: Mapping[str, List[str]], right: Mapping[str, List[str]]) -> Dict[str, List[str]]:
+    """Names in `left` that `right` does not carry, by section."""
+    out = {}
+    for section, names in left.items():
+        extra = [n for n in names if n not in set(right.get(section) or ())]
+        if extra:
+            out[section] = extra
+    return out
+
+
+def test_every_DECLARED_SECTION_is_PROBED_and_the_gaps_are_named(concierge):
+    """⛔ TOTALITY, MEASURED BY RENDERING, WITH THE SECTION LIST READ OFF THE
+    MANIFEST. Not "is a phrase declared?" — that question is what let a whole
+    section ride unreported. Every declared entry's minimal tree is walked, and a
+    refusal is a gap.
+
+    ⭐ THE FIFTH-SECTION FLOOR IS THE REASON THE LIST IS DERIVED. A section added
+    to `closedTable.json` gets a row here on the day it lands, and because
+    `_probe_tree` has no shape for it, every one of its entries arrives NAMED
+    rather than silently green.
+    """
+    gaps = _python_gaps()
+
+    assert sorted(gaps) == _declared_sections(TABLE), (
+        "the probe did not walk every section the manifest declares")
+    assert set(gaps) == set(ast_table.SECTIONS), (
+        "two derivations of 'which sections declare names' disagree — the "
+        f"manifest says {sorted(gaps)}, `ast_table.SECTIONS` says "
+        f"{sorted(ast_table.SECTIONS)}")
+
+    expected = {section: [] for section in gaps}
+    expected.update(_pinned_python_only_gaps())
+
+    surprises = _diff(gaps, expected)
+    assert surprises == {}, (
+        "the Python read-back REFUSES declared entries nothing expected it to "
+        f"— reported BY NAME: {_named(surprises)}")
+
+    closed = _diff(expected, gaps)
+    assert closed == {}, (
+        "these were pinned as unsayable in the Python lane and the walker can now "
+        f"say them — the divergence has CLOSED, so DELETE the pin: {_named(closed)}")
+
+    # ⚠️ NON-VACUITY. A probe that rendered nothing would satisfy every assertion
+    # above. The floor is the same 31 bar entries `ast_conformance --coverage`
+    # asserts, derived rather than typed.
+    rendered = sum(len(TABLE[s]) - len(gaps[s]) for s in gaps)
+    assert rendered == len(SERIES) + len(OPERATORS) + len(FUNCTIONS) >= 31, (
+        f"the probe only rendered {rendered} entries, so it proves nothing")
+
+
+def test_a_PLANTED_unsayable_entry_is_NAMED_and_the_sayable_twin_is_CLEAN(concierge):
+    """⚠️ THE POSITIVE CONTROL, AND THE ISOLATION CLAIM IN THE SAME BREATH. A rail
+    that reports nothing for a NEW reason is the same rail, so a planted entry
+    that did not exist when this was written must come back BY NAME with no edit
+    here — and the same plant made sayable must come back clean, or "a plant is
+    reported" would be satisfied by a walker that refuses everything unfamiliar.
+
+    ⛔ AND ONE PLANT PER SECTION AT ONCE, so each row must name ONLY ITS OWN. That
+    is what proves `PROBE_ARG` is a literal: a probe that borrowed `close` would
+    make the broken series light up the operators and functions rows too.
+    """
+    broken = {
+        ast_table.SERIES_SECTION: dict(TABLE[ast_table.SERIES_SECTION],
+                                       **{"zzz planted field": {"field": "c"}}),
+        ast_table.OPERATORS_SECTION: dict(TABLE[ast_table.OPERATORS_SECTION],
+                                          **{"zz~": {"arity": 2}}),
+        ast_table.FUNCTIONS_SECTION: dict(TABLE[ast_table.FUNCTIONS_SECTION],
+                                          **{"zzNoPhrase": {"args": ["series"], "lookback": 0}}),
     }
-    planted[ast_table.FUNCTIONS_SECTION]["zzNoPhrase"] = {"args": ["series"], "lookback": 0}
-    planted[ast_table.OPERATORS_SECTION]["zz&"] = {"arity": 2}
-    gaps = concierge.coverage_gaps(planted)
-    assert gaps["functions"] == ["zzNoPhrase"]
-    assert gaps["operators"] == ["zz&"]
+    gaps = _python_gaps(broken)
+    assert gaps == {ast_table.SERIES_SECTION: ["zzz planted field"],
+                    ast_table.OPERATORS_SECTION: ["zz~"],
+                    ast_table.FUNCTIONS_SECTION: ["zzNoPhrase"]}, (
+        "each section must name ONLY its own plant — reported: " + _named(gaps))
 
-    # The control the other way.
-    planted[ast_table.FUNCTIONS_SECTION]["zzNoPhrase"]["sentence"] = "the planted {0}"
-    planted[ast_table.OPERATORS_SECTION]["zz&"] = {"arity": 2}
-    ok = concierge.coverage_gaps(
-        planted, dict(concierge.OPERATOR_SENTENCE, **{"zz&": "{0} zz {1}"}))
-    assert ok["functions"] == [] and ok["operators"] == []
+    # And each really is a refusal of the walker's, named in the message.
+    rules = concierge.compile_rules(broken)
+    for section, name in ((ast_table.SERIES_SECTION, "zzz planted field"),
+                          (ast_table.OPERATORS_SECTION, "zz~"),
+                          (ast_table.FUNCTIONS_SECTION, "zzNoPhrase")):
+        with pytest.raises(Exception) as caught:
+            concierge.explain_sentence(
+                _probe_tree(section, name, broken[section][name]), {}, rules)
+        assert name in str(caught.value), (
+            f"the {section} refusal did not name {name!r}: {caught.value}")
+
+    # ⭐ THE CONTROL THE OTHER WAY, in the same test: the same three plants, made
+    # sayable, report NO gap. Without it the rail could be reporting everything.
+    clean = {
+        ast_table.SERIES_SECTION: dict(TABLE[ast_table.SERIES_SECTION],
+                                       **{"zzz_planted_field": {"field": "c"}}),
+        ast_table.OPERATORS_SECTION: dict(TABLE[ast_table.OPERATORS_SECTION],
+                                          **{"zz~": {"arity": 2}}),
+        ast_table.FUNCTIONS_SECTION: dict(
+            TABLE[ast_table.FUNCTIONS_SECTION],
+            **{"zzNoPhrase": {"args": ["series"], "lookback": 0,
+                              "sentence": "the planted read of {0}"}}),
+    }
+    clean_gaps = _python_gaps(
+        clean, dict(concierge.OPERATOR_SENTENCE, **{"zz~": "{0} zz {1}"}))
+    assert clean_gaps == {ast_table.SERIES_SECTION: [],
+                          ast_table.OPERATORS_SECTION: [],
+                          ast_table.FUNCTIONS_SECTION: []}, (
+        "a sayable plant was reported as a gap: " + _named(clean_gaps))
+
+
+def test_the_two_coverage_LANES_agree_and_the_ONE_divergence_is_PINNED(js_lane, concierge):
+    """⭐⭐ THE CROSS-LANE RAIL — THE THING THAT WAS MISSING. Two lanes answering
+    the same question with nothing comparing them is this repo's most expensive
+    defect shape, and it is worse than either being wrong alone: whichever one a
+    future engineer consults, they believe it.
+
+    `coverageGaps()` is run through the SHIPPED `sentence.js` under node — never
+    described, never regex'd — and compared against this lane's probe, section for
+    section and name for name.
+
+    ⛔ THE DISAGREEMENT MUST BE EXACTLY THE PINNED ONE. Not "small", not "known
+    to be scalars-ish": the pin is a derived NAME LIST, so a new divergence in
+    either direction is a red test that says which names moved.
+    """
+    js = js_lane["result"]["coverageGaps"]
+    assert isinstance(js, dict) and js, "the JS lane returned no coverage report at all"
+
+    # `placeholders` is not a section — it is a per-template reason keyed
+    # `name: why`, and this lane keeps no such list. The SECTIONS are compared.
+    js_sections = {k: list(v) for k, v in js.items() if k != "placeholders"}
+    py = _python_gaps()
+    assert sorted(js_sections) == sorted(py), (
+        "the two lanes do not even report the same SECTIONS — "
+        f"sentence.js says {sorted(js_sections)}, this lane probes {sorted(py)}")
+
+    only_js = _diff(js_sections, py)
+    assert only_js == {}, (
+        "`sentence.js` reports entries as unsayable that this lane renders "
+        f"happily — the JS walker refuses what the Python one says: {_named(only_js)}")
+
+    only_py = _diff(py, js_sections)
+    pinned = _pinned_python_only_gaps()
+    assert only_py == pinned, (
+        "the lanes' disagreement is not the one pinned. Python refuses, JS says "
+        f"— BY NAME: {_named(only_py)}. Pinned as E-5's: {_named(pinned)}. "
+        "If the pinned set is now empty the divergence has CLOSED: delete the pin.")
+
+    # ⚠️ NON-VACUITY: the pin must not be quietly empty, or the equality above is
+    # `{} == {}` and this whole rail passes against two lanes that never ran.
+    assert pinned[ast_table.SCALARS_SECTION], "the pin is empty — nothing was compared"
+    assert js_sections.get(ast_table.SCALARS_SECTION) == [], (
+        "the JS lane no longer says the scalars either — this rail assumed it did")
+
+
+def test_NO_python_module_declares_a_SECOND_coverage_gaps():
+    """⛔ THE DELETION, ASSERTED — BY AST, OVER THE FILESYSTEM, UNDER A DERIVED
+    NAME. A `coverage_gaps` growing back in any server-side module re-creates the
+    second authority this section exists to remove, and it would do it silently:
+    every test above would stay green.
+
+    ⭐ NEITHER HALF IS TYPED. The NAME is read off `sentence.js`'s own export list
+    and snake-cased, so a rename in the JS lane moves this rail with it; the
+    MODULE SET is every `.py` under `api/`, walked off disk, so a new file is
+    covered the day it is written. A grep would also have found the docstrings
+    that DISCUSS the deletion — this counts `FunctionDef`s.
+    """
+    exported = re.findall(r"export function ([A-Za-z_$][A-Za-z0-9_$]*)",
+                          SENTENCE_JS.read_text(encoding="utf-8"))
+    matches = [e for e in exported if e.lower() == "coveragegaps"]
+    assert matches == ["coverageGaps"], (
+        f"`sentence.js` no longer exports the coverage rail under a recognisable "
+        f"name — it exports {sorted(exported)}; this rail has lost its subject")
+    forbidden = re.sub(r"(?<!^)(?=[A-Z])", "_", matches[0]).lower()
+    assert forbidden == "coverage_gaps", forbidden
+
+    offenders, walked, anchors = [], 0, []
+    for path in sorted((ROOT / "api").rglob("*.py")):
+        try:
+            tree = pyast.parse(path.read_text(encoding="utf-8"))
+        except (SyntaxError, UnicodeDecodeError):        # not ours to police
+            continue
+        walked += 1
+        rel = path.relative_to(ROOT).as_posix()
+        for node in pyast.walk(tree):
+            if isinstance(node, (pyast.FunctionDef, pyast.AsyncFunctionDef)):
+                if node.name == forbidden:
+                    offenders.append(f"{rel}:{node.lineno}")
+                elif node.name == "compile_rules":
+                    anchors.append(rel)
+
+    assert offenders == [], (
+        f"a second `{forbidden}` has grown back server-side, BY FILE: "
+        f"{', '.join(offenders)}. `sentence.js::coverageGaps` is the ONE "
+        "authority; the Python claims are the probe and the cross-lane rail above")
+
+    # ⚠️ NON-VACUITY, BOTH WAYS: the walk must have visited real modules AND found
+    # the very file the deleted function lived in. A scan over nothing reports
+    # nothing, which is indistinguishable from a clean tree.
+    assert walked > 100, f"the walk only parsed {walked} modules under api/"
+    assert anchors == ["api/services/definition_concierge.py"], (
+        f"the walk did not reach the module the deletion happened in: {anchors}")
 
 
 # ═══ 6. THE PIPELINE, AND WHICH GATE REFUSED ═══════════════════════════════

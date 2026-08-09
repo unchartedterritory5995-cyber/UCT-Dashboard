@@ -568,23 +568,51 @@ def compile_rules(table: Optional[Mapping[str, Any]] = None,
     """The manifest, compiled into the three lookup tables the walker uses.
 
     ⛔ EVERY DECLARED ENTRY GETS A ROW, INCLUDING THE BROKEN ONES, so a declared
-    entry with no read-back is refused BY NAME rather than falling through to
-    "unknown function" -- and the same rows are what ``coverage_gaps`` reports, so
-    the rail and the runtime refusal are ONE derivation. Never throws: the module
-    has to load for the gap to be reportable.
+    entry with no read-back is refused BY NAME (``sentence:no-template``) rather
+    than falling through to "unknown function", which would read like the table
+    never declared it. Never throws: the module has to load for a bad manifest to
+    be diagnosable at all.
+
+    ⛔⛔ AND IT REPORTS NO ``gaps`` LIST, DELIBERATELY -- THERE IS NO SECOND
+    COVERAGE AUTHORITY IN THIS LANE. There WAS one: a ``coverage_gaps`` here,
+    hand-maintained and fully DECLARATIVE, answering the same question
+    ``sentence.js::coverageGaps`` answers -- and with no scalars row at all, so
+    the two lanes answered one question differently in KIND as well as in
+    content, and nothing was red. Nothing server-side ever consumed it: an AST
+    walk over every ``.py`` in the repo (never a grep) found ONE definition and
+    THREE call sites, all three in its own test file. A second authority over one
+    value is this repo's most repeated defect, so the copy is DELETED rather than
+    reimplemented, and the two claims it used to make now live where they can
+    actually fail, in ``tests/test_definition_concierge.py``:
+
+      * *"this lane has English for every declared entry"* is measured by PROBING
+        THIS WALKER -- one minimal tree per declared entry, in every section the
+        MANIFEST declares, and the ones that REFUSE are named. The gap is the
+        runtime refusal itself, so it cannot be blind to a section the walker has
+        no branch for. That blindness is not hypothetical: the declarative rail
+        was permanently green over all fifty-four scalars, which are exactly the
+        names this lane still cannot say.
+      * *"the two lanes agree about what is unsayable"* is a CROSS-LANE rail in
+        the same file -- ``coverageGaps()`` run under node, against that probe,
+        section for section and name for name, with the one known divergence
+        PINNED and derived so it goes red the day it closes.
+
+    ⛔ DO NOT ADD A ``coverage_gaps`` BACK HERE. A rail asserts its absence across
+    every module under ``api/``, and the name it looks for is read off
+    ``sentence.js``'s own export list rather than typed.
+
+    ⚠️ THE PER-ENTRY ``gap`` FIELD BELOW IS NOT BOOKKEEPING AND STAYS. It is what
+    makes ``_render_name``/``_render_op``/``_render_call`` REFUSE; only the list
+    that summarised those fields a second time is gone.
     """
     t = table if table is not None else ast_table.TABLE
     phrases = operator_phrases if operator_phrases is not None else OPERATOR_SENTENCE
     series: Dict[str, Any] = {}
     operators: Dict[str, Any] = {}
     functions: Dict[str, Any] = {}
-    gaps: Dict[str, List[str]] = {"series": [], "operators": [], "functions": [],
-                                  "placeholders": []}
 
     for name in sorted(t[ast_table.SERIES_SECTION]):
         gap = None if _SAYABLE.match(name) else "unsayable"
-        if gap:
-            gaps["series"].append(name)
         series[name] = {"gap": gap}
 
     for name in sorted(t[ast_table.OPERATORS_SECTION]):
@@ -594,12 +622,8 @@ def compile_rules(table: Optional[Mapping[str, Any]] = None,
         gap = None
         if not isinstance(phrase, str) or phrase == "":
             gap = "no-template"
-            gaps["operators"].append(name)
         else:
-            bad = _placeholder_gap(phrase, arity)
-            if bad:
-                gap = bad
-                gaps["placeholders"].append(f"{name}: {bad}")
+            gap = _placeholder_gap(phrase, arity)
         operators[name] = {"phrase": phrase, "arity": arity, "gap": gap}
 
     for name in sorted(t[ast_table.FUNCTIONS_SECTION]):
@@ -609,22 +633,11 @@ def compile_rules(table: Optional[Mapping[str, Any]] = None,
         gap = None
         if not isinstance(phrase, str) or phrase == "":
             gap = "no-template"
-            gaps["functions"].append(name)
         else:
-            bad = _placeholder_gap(phrase, len(args))
-            if bad:
-                gap = bad
-                gaps["placeholders"].append(f"{name}: {bad}")
+            gap = _placeholder_gap(phrase, len(args))
         functions[name] = {"phrase": phrase, "args": args, "gap": gap}
 
-    return {"series": series, "operators": operators, "functions": functions,
-            "gaps": gaps}
-
-
-def coverage_gaps(table: Optional[Mapping[str, Any]] = None,
-                  operator_phrases: Optional[Mapping[str, str]] = None) -> Dict[str, List[str]]:
-    """Every manifest entry this lane has no English for, BY NAME -- never a count."""
-    return compile_rules(table, operator_phrases)["gaps"]
+    return {"series": series, "operators": operators, "functions": functions}
 
 
 SENTENCE_RULES = compile_rules()
