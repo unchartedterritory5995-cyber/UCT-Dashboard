@@ -27,6 +27,8 @@ from typing import Optional
 
 import httpx
 
+from api.services import yf_util
+
 logger = logging.getLogger(__name__)
 
 
@@ -189,7 +191,7 @@ def _fetch_fallback(ticker: str) -> tuple[Optional[str], Optional[str], Optional
     # yfinance
     try:
         import yfinance as yf
-        info = yf.Ticker(ticker).info or {}
+        info = yf_util.bounded_call(lambda: yf.Ticker(ticker).info, None) or {}
         ind = (info.get("industry") or "").strip() or None
         sec = (info.get("sector") or "").strip() or None
         if ind:

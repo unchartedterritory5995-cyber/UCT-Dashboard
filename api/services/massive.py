@@ -12,6 +12,7 @@ from typing import Any
 
 import httpx
 
+from api.services import yf_util
 from api.services.cache import cache
 
 _REST_BASE = "https://api.massive.com"
@@ -19,21 +20,20 @@ _REST_BASE = "https://api.massive.com"
 # yfinance (used for VIX/BTC/futures snapshots + a liquidity filter) has NO
 # request timeout, so a hung Yahoo call pins the caller's worker thread forever —
 # enough of those exhaust the anyio pool and take the whole site down (the
-# 2026-07-01 incident). Run yfinance calls on a small dedicated pool and cap the
-# wait: a hung call returns the fallback in _YF_TIMEOUT_S instead of never. Any
-# still-running orphan is bounded to the pool's 4 workers. Treated as a black box
-# so we never touch yfinance internals (version-fragile).
+# 2026-07-01 incident).
+#
+# ⚠️ 2026-08-08 — this used to be its own 4-wide ThreadPoolExecutor. It is now a
+# NAME ONLY, delegating to `yf_util.bounded_call`. A private pool bounded THIS
+# module's hang exposure but knew nothing about a 429 seen by any other caller,
+# so the rate-limit breaker only ever saw a slice of the traffic. One pool, one
+# breaker. Kept as a name because it has call sites and tests that patch it.
 _YF_TIMEOUT_S = 12.0
-_YF_POOL = _cf.ThreadPoolExecutor(max_workers=4, thread_name_prefix="yf-bound")
 
 
 def _bounded_yf(fn, default, timeout: float = _YF_TIMEOUT_S):
     """Run a blocking yfinance callable with a hard wall-clock cap.
-    Returns `default` on timeout or any error."""
-    try:
-        return _YF_POOL.submit(fn).result(timeout=timeout)
-    except Exception:
-        return default
+    Returns `default` on timeout or any error. Delegates to the shared guard."""
+    return yf_util.bounded_call(fn, default, timeout=timeout)
 
 
 def to_polygon_symbol(ticker: str) -> str:
@@ -404,7 +404,17 @@ def _get_avg_dollar_vol(tickers: list) -> dict[str, float]:
 
         def _fetch_one(ticker: str) -> tuple[str, float]:
             try:
-                hist = yf.Ticker(ticker).history(period="10d")
+                # Through the shared guard: the local pool below bounds the
+                # BATCH, the guard bounds how many yfinance calls this whole
+                # process has in flight and stops them entirely on a 429.
+                # `None` is the guard's failure default (timeout, 429, error)
+                # and MUST map to inf — "couldn't fetch, don't filter it out" —
+                # not to 0.0, which means "fetched, no volume, filter it out".
+                hist = yf_util.bounded_call(
+                    lambda: yf.Ticker(ticker).history(period="10d"), None
+                )
+                if hist is None:
+                    return ticker, float("inf")
                 if hist.empty:
                     return ticker, 0.0
                 dvol = (hist["Close"] * hist["Volume"]).tail(5)

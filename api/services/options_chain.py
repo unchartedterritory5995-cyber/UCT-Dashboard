@@ -14,6 +14,7 @@ from typing import Any
 import yfinance as yf
 from scipy.stats import norm
 
+from api.services import yf_util
 from api.services.cache import TTLCache
 
 _log = logging.getLogger(__name__)
@@ -124,8 +125,9 @@ def list_expirations(ticker: str) -> dict[str, Any]:
     if cached is not None:
         return dict(cached)
     try:
-        t = yf.Ticker(sym)
-        exps = list(t.options or [])
+        exps = yf_util.bounded_call(lambda: list(yf.Ticker(sym).options or []), None)
+        if exps is None:
+            raise RuntimeError("bounded yfinance call returned no data")
     except Exception as e:
         _log.warning("yfinance options listing failed for %s: %s", sym, e)
         return {"error": f"yfinance options failed: {e}", "ticker": sym}
@@ -148,7 +150,10 @@ def get_chain(ticker: str, expiration: str = "",
     if cached is not None:
         return dict(cached)
 
-    try:
+    # `.info`, `.options` and `.option_chain()` are three separate network
+    # round-trips on the same Ticker — one guarded unit, one deadline. Splitting
+    # them into three guarded calls would triple the pool traffic for one chain.
+    def _read():
         t = yf.Ticker(sym)
         info = t.info or {}
         spot = _safe_float(info.get("regularMarketPrice") or info.get("currentPrice"))
@@ -157,8 +162,16 @@ def get_chain(ticker: str, expiration: str = "",
         exps = list(t.options or [])
         if not exps:
             return {"error": f"no options listed for {sym}"}
-        exp = expiration if expiration in exps else exps[0]
-        chain = t.option_chain(exp)
+        exp_pick = expiration if expiration in exps else exps[0]
+        return {"spot": spot, "exp": exp_pick, "chain": t.option_chain(exp_pick)}
+
+    try:
+        got = yf_util.bounded_call(_read, None)
+        if got is None:
+            raise RuntimeError("bounded yfinance call returned no data")
+        if "error" in got:
+            return got
+        spot, exp, chain = got["spot"], got["exp"], got["chain"]
     except Exception as e:
         _log.warning("yfinance option_chain failed for %s %s: %s", sym, expiration, e)
         return {"error": f"yfinance chain failed: {e}", "ticker": sym}

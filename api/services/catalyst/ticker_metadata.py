@@ -14,6 +14,8 @@ import threading
 import time
 from typing import Optional
 
+from api.services import yf_util
+
 logger = logging.getLogger(__name__)
 
 _DB_PATH = os.environ.get("CATALYST_METADATA_DB_PATH", "/data/catalyst_metadata.db")
@@ -127,7 +129,7 @@ def _fetch_via_yfinance(ticker: str) -> dict:
     """Hit yfinance Ticker(t).info. Returns the fields we want or empties on error."""
     try:
         import yfinance as yf
-        info = yf.Ticker(ticker).info or {}
+        info = yf_util.bounded_call(lambda: yf.Ticker(ticker).info, None) or {}
         return {
             "sector": info.get("sector"),
             "industry": info.get("industry"),

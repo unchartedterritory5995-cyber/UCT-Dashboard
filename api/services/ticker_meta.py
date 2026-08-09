@@ -11,6 +11,7 @@ import logging
 import os
 import time
 
+from api.services import yf_util
 from api.services.cache import TTLCache
 from api.services.finnhub_client import fh_get
 
@@ -48,7 +49,7 @@ def _disk_put(ticker: str, data: dict) -> None:
 
 def _from_yfinance(ticker: str):
     import yfinance as yf
-    info = yf.Ticker(ticker).info or {}
+    info = yf_util.bounded_call(lambda: yf.Ticker(ticker).info, None) or {}
     name = info.get("longName") or info.get("shortName")
     return {
         "name": name or None,

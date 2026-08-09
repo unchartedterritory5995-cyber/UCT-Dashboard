@@ -35,6 +35,8 @@ SPX is being charted.
 import logging
 from typing import Optional, List, Dict, Any
 
+from api.services import yf_util
+
 logger = logging.getLogger("index_bars")
 
 # (Yahoo symbol, divisor to convert index level → option-strike scale)
@@ -100,14 +102,19 @@ def _fetch_yf(yahoo_sym: str, interval: str, period: str,
         return []
 
     try:
-        df = yf.download(
-            yahoo_sym,
-            period=period,
-            interval=interval,
-            auto_adjust=False,
-            prepost=False,
-            progress=False,
-            threads=False,
+        # Through the shared guard (api/services/yf_util.py): one pool, one
+        # deadline, one rate-limit breaker. `None` is the failure default.
+        df = yf_util.bounded_call(
+            lambda: yf.download(
+                yahoo_sym,
+                period=period,
+                interval=interval,
+                auto_adjust=False,
+                prepost=False,
+                progress=False,
+                threads=False,
+            ),
+            None,
         )
     except Exception as e:
         logger.error(f"[index_bars] yfinance.download failed for "
@@ -149,10 +156,16 @@ def _proxy_ratio(target_yahoo: str, etf_sym: str) -> Optional[float]:
     """
     try:
         import yfinance as yf
-        idx_df = yf.download(target_yahoo, period="5d", interval="1d",
-                             auto_adjust=False, progress=False, threads=False)
-        etf_df = yf.download(etf_sym, period="5d", interval="1d",
-                             auto_adjust=False, progress=False, threads=False)
+
+        def _daily(sym):
+            return yf_util.bounded_call(
+                lambda: yf.download(sym, period="5d", interval="1d",
+                                    auto_adjust=False, progress=False, threads=False),
+                None,
+            )
+
+        idx_df = _daily(target_yahoo)
+        etf_df = _daily(etf_sym)
         if idx_df is None or idx_df.empty or etf_df is None or etf_df.empty:
             return None
         if hasattr(idx_df.columns, "nlevels") and idx_df.columns.nlevels > 1:

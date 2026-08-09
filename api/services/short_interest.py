@@ -12,6 +12,7 @@ from typing import Any
 
 import yfinance as yf
 
+from api.services import yf_util
 from api.services.cache import TTLCache
 
 _log = logging.getLogger(__name__)
@@ -53,8 +54,10 @@ def get_short_interest(ticker: str) -> dict[str, Any]:
         return dict(cached)
 
     try:
-        t = yf.Ticker(sym)
-        info = t.info or {}
+        info = yf_util.bounded_call(lambda: yf.Ticker(sym).info, None)
+        if info is None:
+            raise RuntimeError("bounded yfinance call returned no data")
+        info = info or {}
     except Exception as e:
         _log.warning("yfinance short interest failed for %s: %s", sym, e)
         return {"error": f"yfinance failed: {e}", "ticker": sym}

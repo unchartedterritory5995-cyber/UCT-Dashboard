@@ -19,20 +19,31 @@ This is Phase 2A — a defensive precursor to the full Phase 2 async refactor.
 The full Phase 2 wraps this module in ``asyncio.to_thread`` from the async
 handler layer; the bounded pool stays as the inner safety net.
 
+⚠️ 2026-08-08 — THIS MODULE NO LONGER OWNS A POOL. It is a thin, raise-semantics
+adapter over ``yf_util.bounded_call``, which owns the one pool, the one
+deadline, and the one rate-limit breaker for the whole process. It kept its own
+8-wide ``ThreadPoolExecutor`` until then, which meant a 429 seen here did not
+back off the calls going through ``yf_util`` (or ``massive._bounded_yf``, or
+the fully-unguarded function-local imports) and vice-versa — three pools, no
+shared knowledge of an upstream that had started refusing us. The public
+surface (``fetch_history`` / ``run_in_pool`` / ``pool_status``, all raising
+``concurrent.futures.TimeoutError`` on deadline) is unchanged, and every caller
+of the two raising functions catches broad ``Exception``.
+
 See: docs/superpowers/specs/2026-05-05-phase-2-async-bars-router-design.md §8
 """
 from __future__ import annotations
 
 import logging
 import os
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FutureTimeout
 from typing import Any
+
+from api.services import yf_util
 
 _logger = logging.getLogger(__name__)
 
-# Tunable via env so an operator can widen the pool without a redeploy.
-# Default 8 matches the strategic doc's recommendation; observed yfinance
-# burst concurrency in production is typically <5, so 8 leaves headroom.
+# Kept for back-compat: `yf_util` reads YFINANCE_POOL_WORKERS as a fallback for
+# YF_POOL_WORKERS, so an operator's existing env still sizes the pool.
 _MAX_WORKERS = int(os.environ.get("YFINANCE_POOL_WORKERS", "8"))
 
 # Default per-call deadline. 8s comfortably covers 95th-percentile yfinance
@@ -41,17 +52,6 @@ _MAX_WORKERS = int(os.environ.get("YFINANCE_POOL_WORKERS", "8"))
 # fetch path's own fallback chain (Massive → FMP → yfinance) try the next
 # source. Override per-call via the ``timeout`` kwarg.
 _DEFAULT_TIMEOUT_SECONDS = float(os.environ.get("YFINANCE_TIMEOUT_SECONDS", "8.0"))
-
-# Module-level pool: shared across all callers in this process. Threads
-# are reused across calls, so worst-case live threads = _MAX_WORKERS even
-# under sustained load. The "leaked-on-timeout" thread continues running
-# the underlying yfinance call until the OS-level socket timeout finishes
-# it; the pool just doesn't accept new work past _MAX_WORKERS until at
-# least one slot frees up.
-_pool = ThreadPoolExecutor(
-    max_workers=_MAX_WORKERS,
-    thread_name_prefix="yf-pool",
-)
 
 
 def fetch_history(ticker: str, *, timeout: float | None = None, **history_kwargs: Any):
@@ -78,17 +78,26 @@ def fetch_history(ticker: str, *, timeout: float | None = None, **history_kwargs
         import yfinance as yf
         return yf.Ticker(ticker).history(**history_kwargs)
 
-    fut = _pool.submit(_do_fetch)
     try:
-        return fut.result(timeout=deadline)
-    except _FutureTimeout:
-        # Don't cancel the future — yfinance's underlying socket call can't
-        # be interrupted from another thread, so cancel() returns False and
-        # the work continues until its own timeout fires. Letting it finish
-        # naturally (vs leaking) keeps the pool slot reusable.
-        _logger.warning(
-            f"[yfinance-pool] {ticker} {history_kwargs} exceeded {deadline}s — abandoning result"
-        )
+        # `_do_fetch` is handed to the guard, so the AST census sees this
+        # yfinance reach as guarded by construction — no alias needed.
+        return yf_util.bounded_call(_do_fetch, None, timeout=deadline, reraise=True)
+    except Exception as exc:
+        # A timed-out future is NOT cancelled — yfinance's underlying socket
+        # call can't be interrupted from another thread, so cancel() returns
+        # False and the work continues until its own timeout fires. Letting it
+        # finish naturally (vs leaking) keeps the pool slot reusable.
+        #
+        # A suppressed call (breaker open) raises YFRateLimitError and is
+        # logged here at debug, not warning: the whole point of the breaker is
+        # that a rate-limited provider stops flooding the log.
+        if yf_util.is_rate_limit_error(exc):
+            _logger.debug("[yfinance-pool] %s suppressed — yfinance rate-limited", ticker)
+        else:
+            _logger.warning(
+                "[yfinance-pool] %s %s failed within %ss (%s) — abandoning result",
+                ticker, history_kwargs, deadline, type(exc).__name__,
+            )
         raise
 
 
@@ -101,34 +110,25 @@ def run_in_pool(fn, *, timeout: float | None = None):
     treat that as "no data, fall through" exactly like an empty result.
     """
     deadline = timeout if timeout is not None else _DEFAULT_TIMEOUT_SECONDS
-    fut = _pool.submit(fn)
     try:
-        return fut.result(timeout=deadline)
-    except _FutureTimeout:
-        _logger.warning(f"[yfinance-pool] pooled call exceeded {deadline}s — abandoning result")
+        return yf_util.bounded_call(fn, None, timeout=deadline, reraise=True)
+    except Exception as exc:
+        if yf_util.is_rate_limit_error(exc):
+            _logger.debug("[yfinance-pool] pooled call suppressed — yfinance rate-limited")
+        else:
+            _logger.warning(
+                "[yfinance-pool] pooled call failed within %ss (%s) — abandoning result",
+                deadline, type(exc).__name__,
+            )
         raise
 
 
 def pool_status() -> dict:
-    """Return current pool state for diagnostic / health endpoint use."""
-    return {
-        "max_workers": _MAX_WORKERS,
-        "default_timeout_seconds": _DEFAULT_TIMEOUT_SECONDS,
-        # Internal attrs of ThreadPoolExecutor — best-effort, may break across
-        # Python versions. Wrapped in a try so a CPython internal change
-        # never crashes a health request.
-        "active_threads": _try_attr("_threads", 0),
-        "queued_work": _try_attr("_work_queue", None),
-    }
+    """Return current pool state for diagnostic / health endpoint use.
 
-
-def _try_attr(name: str, default):
-    try:
-        v = getattr(_pool, name)
-        if hasattr(v, "qsize"):
-            return v.qsize()
-        if hasattr(v, "__len__"):
-            return len(v)
-        return v
-    except Exception:
-        return default
+    Reads the SHARED guard (`yf_util`) — this module no longer owns a pool.
+    Carries the breaker fields too, so an operator looking at "the yfinance
+    pool" can see that calls are being suppressed rather than hanging."""
+    status = dict(yf_util.guard_status())
+    status["default_timeout_seconds"] = _DEFAULT_TIMEOUT_SECONDS
+    return status
