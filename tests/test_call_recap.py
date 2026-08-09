@@ -16,11 +16,18 @@ from fastapi.testclient import TestClient
 def client():
     from fastapi import FastAPI
     from api.routers.earnings_intel import router
-    from api.middleware.auth_middleware import get_current_user
+    from api.middleware.auth_middleware import (
+        get_current_user, get_current_user_with_plan,
+    )
     app = FastAPI()
     app.include_router(router)
-    # Endpoints now require auth — bypass with a fake user for these tests.
-    app.dependency_overrides[get_current_user] = lambda: {"id": "test-user"}
+    # These endpoints are behind `require_paid`, which resolves the user through
+    # get_current_user_with_plan — overriding get_current_user alone leaves the
+    # real dependency in place and every request 402s. Both are overridden so
+    # the fixture keeps working whichever gate an endpoint uses.
+    paid = {"id": "test-user", "role": "admin", "plan": "pro"}
+    app.dependency_overrides[get_current_user] = lambda: paid
+    app.dependency_overrides[get_current_user_with_plan] = lambda: paid
     return TestClient(app)
 
 
