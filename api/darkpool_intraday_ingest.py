@@ -240,6 +240,16 @@ def run_intraday(top_n: int = INTRADAY_TOP_N,
     logger.info("[darkpool_intraday] %s: +%d new / %d prints from %d tickers in %.0fs",
                 date_mdyyyy, result.get("inserted", 0), len(rows),
                 stats["tickers_done"], out["elapsed_sec"])
+
+    # Real-time record check against the live prints (self-gated on
+    # DARKPOOL_RECORDS_ENABLED; fail-soft — never break the poll).
+    try:
+        from api.darkpool_records import refresh_from_today
+        _rec = refresh_from_today()
+        if _rec.get("ok") and _rec.get("alerts_sent"):
+            logger.info("[darkpool_intraday] records: %s", _rec)
+    except Exception as e:
+        logger.warning("[darkpool_intraday] records refresh skipped: %s", e)
     return out
 
 
