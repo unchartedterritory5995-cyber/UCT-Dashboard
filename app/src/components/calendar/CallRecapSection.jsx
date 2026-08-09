@@ -71,34 +71,57 @@ function SourceLink({ segment, onJump }) {
 
 // ── RatingChanges sub-component ───────────────────────────────────────────────
 
+// `get_rating_changes` returns a MONTHLY BUCKET SNAPSHOT series —
+// {period, strong_buy, buy, hold, sell, strong_sell, net, net_delta} — and has
+// always said so. This rendered `rc.firm` / `rc.action` / `rc.to_rating`, a
+// per-firm upgrade-downgrade feed that producer never emits, so every field
+// came back undefined and the panel drew four bare "→" arrows against real
+// data. Read the shape that is actually sent.
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+function periodLabel(period) {
+  // "2026-08-01" / "2026-08" → "Aug 2026". Parsed by hand rather than via Date
+  // so a bare "YYYY-MM" cannot land in the previous month in a west-of-UTC
+  // timezone.
+  const m = /^(\d{4})-(\d{2})/.exec(String(period || ''))
+  if (!m) return period || ''
+  const month = MONTHS[Number(m[2]) - 1]
+  return month ? `${month} ${m[1]}` : m[1]
+}
+
 function RatingChanges({ changes }) {
   if (!changes?.length) return null
   return (
     <div className={styles.ratingsBlock}>
-      <div className={styles.sectionLabel}>RATING CHANGES</div>
+      <div className={styles.sectionLabel}>ANALYST RATING TREND</div>
       <div className={styles.ratingsList}>
-        {changes.map((rc, i) => (
-          <div key={i} className={styles.ratingRow}>
-            <span className={styles.ratingFirm}>{rc.firm}</span>
-            <span className={
-              rc.action === 'upgrade' ? styles.ratingUp :
-              rc.action === 'downgrade' ? styles.ratingDn :
-              styles.ratingNeutral
-            }>
-              {rc.action === 'upgrade' ? '▲' : rc.action === 'downgrade' ? '▼' : '→'}
-            </span>
-            {rc.from_rating && rc.to_rating ? (
-              <span className={styles.ratingDetail}>
-                {rc.from_rating} → {rc.to_rating}
+        {changes.map((rc, i) => {
+          // null delta = no prior month to compare, which is not "unchanged".
+          const delta = typeof rc.net_delta === 'number' ? rc.net_delta : null
+          const bullish = (rc.strong_buy || 0) + (rc.buy || 0)
+          const bearish = (rc.sell || 0) + (rc.strong_sell || 0)
+          return (
+            <div key={rc.period || i} className={styles.ratingRow}>
+              <span className={styles.ratingFirm}>{periodLabel(rc.period)}</span>
+              <span className={
+                delta > 0 ? styles.ratingUp :
+                delta < 0 ? styles.ratingDn :
+                styles.ratingNeutral
+              }>
+                {delta > 0 ? '▲' : delta < 0 ? '▼' : '→'}
               </span>
-            ) : rc.to_rating ? (
-              <span className={styles.ratingDetail}>{rc.to_rating}</span>
-            ) : null}
-            {rc.price_target && (
-              <span className={styles.ratingPt}>PT ${rc.price_target}</span>
-            )}
-          </div>
-        ))}
+              <span className={styles.ratingDetail}>
+                {bullish} buy · {rc.hold || 0} hold{bearish ? ` · ${bearish} sell` : ''}
+              </span>
+              {delta !== null && delta !== 0 && (
+                <span className={styles.ratingPt}>
+                  {delta > 0 ? `+${delta}` : delta} net
+                </span>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
