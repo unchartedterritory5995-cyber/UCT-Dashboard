@@ -51,6 +51,8 @@ _CAP_COLORS = {
     "ETF/Index": (86, 96, 108),
 }
 _HOT = (210, 150, 70)      # % ADV highlight when the day's DP dwarfs normal volume
+_PERF_UP = (74, 200, 120)  # price above the dark-pool level (green)
+_PERF_DN = (232, 96, 96)   # price below the dark-pool level (red)
 
 
 def _webhook() -> str:
@@ -138,6 +140,13 @@ def _fmt_adv(v) -> str:
     return f"{v:.0f}%" if v >= 10 else f"{v:.1f}%"
 
 
+def _fmt_perf(v) -> str:
+    """Price move vs the dark-pool VWAP — 'are those levels in profit'."""
+    if v is None:
+        return "—"
+    return f"{'+' if v >= 0 else ''}{v:.1f}%"
+
+
 def _fmt_zone(lo, hi) -> str:
     """The price band the dark-pool prints landed in — the level of interest."""
     lo = float(lo or 0)
@@ -167,16 +176,24 @@ _COLS = [
     ("last", "LAST", 672, "r"), ("big", "BIGGEST PRINT", 904, "r"),
     ("sector", "SECTOR", 946, "l"),
 ]
+# Weekly card adds PERF (price move vs the week's dark-pool VWAP — are those
+# levels in profit) between LAST and BIGGEST PRINT.
+_COLS_WEEKLY = [
+    ("ticker", "TICKER", 36, "l"), ("notional", "NOTIONAL", 268, "r"),
+    ("pctadv", "% ADV", 356, "r"), ("zone", "PRICE ZONE", 536, "r"),
+    ("last", "LAST", 632, "r"), ("perf", "PERF", 712, "r"),
+    ("big", "BIGGEST PRINT", 938, "r"), ("sector", "SECTOR", 978, "l"),
+]
 _W, _ROWH, _TOP, _SECH = 1150, 34, 170, 32
 _SS = 2  # supersample then downscale for crisp text
 
 
 def render_card(sections: list[tuple], date_text: str, summary: dict,
-                subtitle: str = "Dark Pool") -> bytes:
-    """sections = [(band_label, [item, ...]), ...] where each item is
-    {t, n, c, last, vwap, bigN, bigPx, accDist, sector, pos}. summary carries
-    total_n / acc_n / dist_n / n_prints / n_tickers for the header bar."""
+                subtitle: str = "Dark Pool", cols: list | None = None) -> bytes:
+    """sections = [(band_label, [item, ...]), ...]. `cols` overrides the column
+    layout (the weekly card passes _COLS_WEEKLY to add PERF)."""
     from PIL import Image, ImageDraw, ImageFont
+    cols = cols or _COLS
 
     def font(name, pt):
         return ImageFont.truetype(os.path.join(_ASSETS, name), int(pt * _SS))
@@ -249,7 +266,7 @@ def render_card(sections: list[tuple], date_text: str, summary: dict,
         x += w
 
     # column headers
-    for key, hdr, x, al in _COLS:
+    for key, hdr, x, al in cols:
         txt(x, _TOP - 30, hdr, f_hdr, _DIM, al)
     d.rectangle([s(36), s(_TOP - 10), s(_W - 36), s(_TOP - 10) + 1], fill=_DIV)
 
@@ -262,7 +279,7 @@ def render_card(sections: list[tuple], date_text: str, summary: dict,
             if i % 2 == 1:
                 d.rectangle([0, s(y - 6), s(_W), s(y - 6) + s(_ROWH)], fill=_ROWALT)
             _adv = it.get("pctADV") or 0
-            for key, hdr, x, al in _COLS:
+            for key, hdr, x, al in cols:
                 if key == "ticker":
                     txt(x, y, it.get("t") or "", f_rowb, _GOLD)
                 elif key == "notional":
@@ -273,6 +290,10 @@ def render_card(sections: list[tuple], date_text: str, summary: dict,
                     txt(x, y, _fmt_zone(it.get("zoneLo"), it.get("zoneHi")), f_row, _TXT, "r")
                 elif key == "last":
                     txt(x, y, _fmt_px_d(it.get("last")), f_row, _DIM, "r")
+                elif key == "perf":
+                    _p = it.get("perf")
+                    _pc = _PERF_UP if (_p is not None and _p >= 0) else _PERF_DN if _p is not None else _DIM
+                    txt(x, y, _fmt_perf(_p), f_rowb, _pc, "r")
                 elif key == "big":
                     _bn = _fmt_n(it.get("bigN"))
                     _bp = it.get("bigPx")
@@ -490,9 +511,13 @@ def build_sections(days: int = 1, top_n: int = 10, min_notional: float = 5e6):
                 sector = _etf_type(it.get("cat"))
             else:
                 sector = (metas.get(s) or {}).get("sector") or it.get("sector")
+            # Performance since the dark pool traded: price move vs the window's
+            # dark-pool VWAP (weekly card only surfaces it).
+            last = it.get("last") or 0
+            perf = ((float(last) - vwap) / vwap * 100.0) if (vwap > 0 and float(last or 0) > 0) else None
             rows.append({
-                "t": s, "n": n, "c": it.get("c") or 0, "last": it.get("last"),
-                "zoneLo": zlo, "zoneHi": zhi, "pctADV": pct_adv,
+                "t": s, "n": n, "c": it.get("c") or 0, "last": last,
+                "zoneLo": zlo, "zoneHi": zhi, "pctADV": pct_adv, "perf": perf,
                 "bigN": it.get("bigPrintN"), "bigPx": it.get("bigPrint"),
                 "sector": sector,
             })
@@ -575,7 +600,8 @@ def run_eod_summary(*, force: bool = False, post: bool = True,
         else:
             date_text = _date_text(_iso_to_mdyyyy(dates[-1])) if dates else (today or "")
 
-        png = render_card(sections, date_text, summary, subtitle=subtitle)
+        png = render_card(sections, date_text, summary, subtitle=subtitle,
+                          cols=(_COLS_WEEKLY if weekly else None))
         res: dict = {"ok": True, "weekly": weekly, "tickers": summary["n_tickers"]}
         if not post:
             res["png"] = png
