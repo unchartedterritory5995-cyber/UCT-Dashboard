@@ -121,6 +121,12 @@ def test_run_build_names_the_columns_that_came_out_empty(tmp_path, monkeypatch):
     monkeypatch.setattr(b, "_read_fundamentals",
                         lambda t, price=None, failures=None: {"company": "X"})
     monkeypatch.setattr(b, "_read_rs_map", lambda: {})
+    # ⛔ EXPLICIT, not left to a missing key. `fetch_bulk` no-ops without
+    # FMP_API_KEY, so this test would PASS on a dry box and quietly fire six
+    # bulk requests on a developer's — the order-dependent, environment-shaped
+    # green this repo has measured before.
+    monkeypatch.setattr(b, "_read_bulk_fundamentals",
+                        lambda targets, failures=None: {})
 
     stats = b.run_build()
     assert stats["built"] == 2
@@ -153,6 +159,8 @@ def test_run_build_stops_naming_a_column_once_it_is_filled(tmp_path, monkeypatch
     monkeypatch.setattr(b, "_read_rs_map",
                         lambda: {"AAA": {"rs_rank": 90, "rs_score": 12.5},
                                  "BBB": {"rs_rank": 10, "rs_score": -4.0}})
+    monkeypatch.setattr(b, "_read_bulk_fundamentals",
+                        lambda targets, failures=None: {})
     stats = b.run_build()
     assert "market_cap" not in stats["empty_columns"]
     assert "rs_rank" not in stats["empty_columns"]

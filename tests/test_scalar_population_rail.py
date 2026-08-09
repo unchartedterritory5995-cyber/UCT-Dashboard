@@ -183,22 +183,22 @@ def assess(counts: dict, allowed: dict) -> dict:
 
 #: §1 — DECLARED AHEAD OF ANY COLLECTOR. No line in the screener package
 #: assigns these columns; they exist in `snapshot_db.COLUMNS` and nowhere else
-#: in the write path. Filling them needs a per-ticker fundamentals fetch across
-#: ~3,700 names (the values ARE computed for the research page today — see
-#: `research/financials.py` and `research/snapshot.py` — but only one symbol at
-#: a time, on demand, from FMP).
-NO_COLLECTOR = {
-    "dividend_yield": "2026-08-09 no collector; research/snapshot.py has it per-symbol",
-    "pe_ttm":         "2026-08-09 no collector; research/financials.py has it per-symbol",
-    "ps":             "2026-08-09 no collector; research/snapshot.py has it per-symbol",
-    "pb":             "2026-08-09 no collector; research/snapshot.py has it per-symbol",
-    "gross_margin":   "2026-08-09 no collector; research/financials.py has it per-symbol",
-    "net_margin":     "2026-08-09 no collector; research/financials.py has it per-symbol",
-    "roa":            "2026-08-09 no collector; research/financials.py has it per-symbol",
-    "debt_to_equity": "2026-08-09 no collector; research/financials.py has it per-symbol",
-    "current_ratio":  "2026-08-09 no collector; research/financials.py has it per-symbol",
-    "beta":           "2026-08-09 no collector; research/snapshot.py has it per-symbol",
-}
+#: in the write path.
+#:
+#: ⭐ EMPTY AS OF 2026-08-09, and it emptied the way the rail was designed to
+#: make it empty. All ten members were the Group-A fundamentals
+#: (dividend_yield · pe_ttm · ps · pb · gross_margin · net_margin · roa ·
+#: debt_to_equity · current_ratio · beta); the moment
+#: `screener/fundamentals_bulk.py` landed with a dict literal keyed by those
+#: column names, `test_no_collector_allowance_shrinks_when_a_collector_lands`
+#: went red and demanded every one of them be struck from here. That is the
+#: shrink direction doing its job, not a list somebody tidied.
+#:
+#: ⛔ DO NOT re-add a name here to quiet a red §1. The allowance is for a gap
+#: with a named owner, and §1 going red means the manifest declared something
+#: the builder cannot write — which is a missing collector, not a missing
+#: exemption.
+NO_COLLECTOR: dict = {}
 
 #: §2 — EMPTY IN THE ARTIFACT AS IT STANDS. Everything in NO_COLLECTOR is
 #: necessarily here too (no writer => no data), plus the columns whose collector
@@ -223,6 +223,23 @@ ARTIFACT_EMPTY.update({
     "market_cap": "2026-08-09 FIXED (build ran with no MASSIVE_API_KEY); clears next build",
     "rs_rank":    "2026-08-09 FIXED (now wired to rs_ranking); clears next build",
     "rs_return":  "2026-08-09 FIXED (now wired to rs_ranking); clears next build",
+    # ⭐ THE GROUP-A TEN. A COLLECTOR NOW EXISTS — `screener/fundamentals_bulk.py`
+    # fills them from three FMP bulk endpoints in six requests, proven against a
+    # sandbox rebuild — so they are OFF `NO_COLLECTOR` above. They stay listed
+    # HERE, and only here, because the rows on `C:\data\screener.db` were
+    # written before the collector existed and §2 measures rows, not code.
+    # They clear on the next nightly build, at which point
+    # `test_no_allowance_outlives_its_gap` fails and strikes all ten.
+    "dividend_yield": "2026-08-09 collector landed (fundamentals_bulk); clears next build",
+    "pe_ttm":         "2026-08-09 collector landed (fundamentals_bulk); clears next build",
+    "ps":             "2026-08-09 collector landed (fundamentals_bulk); clears next build",
+    "pb":             "2026-08-09 collector landed (fundamentals_bulk); clears next build",
+    "gross_margin":   "2026-08-09 collector landed (fundamentals_bulk); clears next build",
+    "net_margin":     "2026-08-09 collector landed (fundamentals_bulk); clears next build",
+    "roa":            "2026-08-09 collector landed (fundamentals_bulk); clears next build",
+    "debt_to_equity": "2026-08-09 collector landed (fundamentals_bulk); clears next build",
+    "current_ratio":  "2026-08-09 collector landed (fundamentals_bulk); clears next build",
+    "beta":           "2026-08-09 collector landed (fundamentals_bulk); clears next build",
 })
 
 

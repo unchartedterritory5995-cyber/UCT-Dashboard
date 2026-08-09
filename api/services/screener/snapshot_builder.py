@@ -9,6 +9,13 @@ The ``_read_*`` wrappers reuse data we ALREADY store — NO yfinance:
   - RS       -> ``rs_ranking``'s warmed universe rankings (``rs_rank``/``rs_return``)
   - meta     -> ``ticker_meta`` cache (name/sector/industry)
   - mkt cap  -> ``massive.get_market_cap`` (Massive ticker details)
+  - bulk fun -> ``fundamentals_bulk.fetch_bulk`` — the ten Group-A columns
+                (dividend_yield/pe_ttm/ps/pb/gross_margin/net_margin/roa/
+                 debt_to_equity/current_ratio/beta) plus ``exchange``, from
+                THREE FMP bulk endpoints in SIX requests for the whole market.
+                ⭐ Not per-ticker: the research page computes the same figures
+                one symbol at a time, and doing that here would be ~3,700
+                provider calls a night.
 
 🔴 EVERY COLUMN THIS BUILDER CAN WRITE IS COUNTED, AND THE COUNTS ARE THE
 RETURN VALUE. On 2026-08-09 the 03:05 build wrote 3,708 rows in which
@@ -56,16 +63,27 @@ def rs_fields(rs_row) -> dict:
     return out
 
 
-def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None) -> dict:
+def build_row(ticker, bars, ratings_row, fundamentals, rs_row=None,
+              bulk_row=None) -> dict:
     """Merge all field groups into one snapshot row. Inputs are dicts whose
-    keys are already snapshot COLUMNS (the readers do source-name mapping)."""
+    keys are already snapshot COLUMNS (the readers do source-name mapping).
+
+    ``bulk_row`` is one ticker's slice of ``fundamentals_bulk.fetch_bulk`` — the
+    ten Group-A columns plus ``exchange``. It is merged as a PEER, not layered
+    over anything: its key set is disjoint from every other source's by
+    construction, and ``test_the_bulk_map_is_disjoint_from_every_other_source``
+    is the rail that keeps it that way. In particular it does not carry
+    ``market_cap`` (Massive owns that column) — so unlike the RS pair there is
+    no ordering question to get right here, and none is implied.
+    """
     row = {c: None for c in snapshot_db.COLUMNS}
     row["ticker"] = (ticker or "").upper()
     # ⚠️ ORDER IS AUTHORITY. Later sources win, so `rs_fields` is LAST and owns
     # `rs_rank`/`rs_return` outright. `enrich.ratings_fields` no longer emits
     # either (see its docstring) — this ordering is the belt to that braces, so
     # the day somebody re-adds them there the rank still comes from one place.
-    for src in (fundamentals or {}, ratings_row or {}, rs_fields(rs_row)):
+    for src in (fundamentals or {}, bulk_row or {}, ratings_row or {},
+                rs_fields(rs_row)):
         for k, v in src.items():
             if k in row and v is not None:
                 row[k] = v
@@ -207,6 +225,32 @@ def _read_rs_map():
         return {}
 
 
+def _read_bulk_fundamentals(targets, failures=None):
+    """``{TICKER: {column: value}}`` for the ten Group-A columns + ``exchange``.
+
+    ⭐ ONE PULL PER BUILD FOR THE WHOLE UNIVERSE — six HTTP requests, not one
+    per ticker. The research page computes these same figures a symbol at a
+    time; doing that here would be ~3,700 provider calls a night, and a bulk
+    job that starves a shared provider budget is a measured defect in this
+    repo. See `fundamentals_bulk` for which endpoints, why, and the rule that
+    keeps FMP's "undefined" zeros out of the table.
+
+    Never raises: a dead provider costs these eleven columns and nothing else,
+    and the reason is COUNTED into `failures` rather than swallowed.
+    """
+    try:
+        from . import fundamentals_bulk
+        return fundamentals_bulk.fetch_bulk(targets, failures=failures)
+    except Exception as e:                                     # noqa: BLE001
+        if failures is not None:
+            failures.setdefault("fmp_bulk", {})
+            key = type(e).__name__
+            failures["fmp_bulk"][key] = failures["fmp_bulk"].get(key, 0) + 1
+        log.warning("[screener] bulk fundamentals unavailable; the ten "
+                    "fundamentals and exchange will be NULL", exc_info=True)
+        return {}
+
+
 # ── orchestration ─────────────────────────────────────────────────────────────
 
 def _load_universe():
@@ -264,6 +308,9 @@ def run_build(max_tickers=None) -> dict:
     populated = {c: 0 for c in snapshot_db.COLUMNS}
     sources: dict = {}
     rs_map = _read_rs_map()
+    # ⭐ ONE bulk pull, scoped to the symbols this run will actually build, so
+    # the 71,370-row provider file is never materialised beyond our universe.
+    bulk_map = _read_bulk_fundamentals(targets, failures=sources)
     for t in targets:
         try:
             bars = _read_daily_bars(t)
@@ -279,10 +326,20 @@ def run_build(max_tickers=None) -> dict:
                 sources.setdefault("rs_ranking", {})
                 sources["rs_ranking"]["no_rank"] = \
                     sources["rs_ranking"].get("no_rank", 0) + 1
+            bulk_row = bulk_map.get(t.upper())
+            if not bulk_row:
+                # Counted for the same reason as `no_rank`: an empty bulk map
+                # (dead endpoint, absent key) and a symbol FMP genuinely has no
+                # statements for are both "no row", and only the RATIO tells
+                # them apart. 3,700/3,700 is a provider problem; 60/3,700 is
+                # sixty odd symbols.
+                sources.setdefault("fmp_bulk", {})
+                sources["fmp_bulk"]["no_row"] = \
+                    sources["fmp_bulk"].get("no_row", 0) + 1
             row = build_row(t, bars,
                             _read_ratings(t, failures=sources),
                             _read_fundamentals(t, price, failures=sources),
-                            rs_row)
+                            rs_row, bulk_row)
             for col, val in row.items():
                 if val is not None and col in populated:
                     populated[col] += 1
@@ -300,8 +357,8 @@ def run_build(max_tickers=None) -> dict:
     empty_columns = sorted(c for c in snapshot_db.COLUMNS
                            if built and populated[c] == 0)
     log.info("[screener] build done built=%s skipped=%s errors=%s "
-             "rs_map=%s empty_columns=%s",
-             built, skipped, errors, len(rs_map),
+             "rs_map=%s bulk_map=%s empty_columns=%s",
+             built, skipped, errors, len(rs_map), len(bulk_map),
              ",".join(empty_columns) or "none")
     if sources:
         # NAMED, never a count alone: "RuntimeError x3708 from massive_market_cap"
