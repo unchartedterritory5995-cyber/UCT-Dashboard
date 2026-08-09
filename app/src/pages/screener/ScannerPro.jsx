@@ -11,6 +11,7 @@ import FilterChips from './FilterChips'
 import ResultsTable from './ResultsTable'
 import ChartsGallery from './ChartsGallery'
 import SaveScreenBar from './SaveScreenBar'
+import { SHARED_SCREEN_PARAM, sharedScreenReadUrl } from './screenShareLink'
 import styles from './ScannerPro.module.css'
 
 const PAGE_SIZE = 100
@@ -71,6 +72,30 @@ export default function ScannerPro({ embedded = false }) {
     if (s?.view) setView(s.view)
     if (s?.sort) setSort(s.sort)
   }
+
+  // ── A share link, landed ────────────────────────────────────────────────
+  // `/screener?screen=<share_token>` is where `SharedScreen`'s "Open it in the
+  // Scanner" CTA sends a recipient. Without this the shared page would be a
+  // dead end: readable, and no way to actually run what you were sent.
+  //
+  // ⛔ IT READS THE PUBLIC ROUTE, NOT THE OWNER'S LIST. The token is the
+  // credential; `/api/screener/saved-screens` would answer about the READER's
+  // screens, which is a different question entirely.
+  // ⛔ AND IT NEVER SAVES ANYTHING. Applying a shared spec loads filters into
+  // this session; it does not add a row to the reader's saved screens and it
+  // cannot publish anything.
+  useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get(SHARED_SCREEN_PARAM)
+    if (!token) return undefined
+    let alive = true
+    fetch(sharedScreenReadUrl(token))
+      .then(r => (r.ok ? r.json() : null))
+      .then(rec => { if (alive && rec?.spec) applySpec(rec.spec) })
+      .catch(() => {})
+    return () => { alive = false }
+    // Once, on arrival: the token comes from the URL the browser opened with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const reset = () => setActiveFilters({})
   const views = meta?.views ?? []

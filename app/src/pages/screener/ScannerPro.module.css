@@ -109,3 +109,41 @@
   .filterGrid { grid-template-columns: 1fr 1fr; }
   .gallery { grid-template-columns: 1fr; }
 }
+
+/* ── Share panel (SaveScreenBar) ────────────────────────────────────────────
+   The publish/copy-link door for one saved screen. Lives INSIDE the saved-
+   screens popover, under the row it belongs to, so a member never has to
+   guess which screen they are about to make public. */
+.sharePanel {
+  margin: 2px 4px 8px;
+  padding: 8px 10px 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--ut-gold);
+  border-radius: 0 6px 6px 0;
+  max-width: 320px;
+}
+.shareState {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: var(--ls-label, .5px);
+  margin-bottom: 6px;
+}
+.shareLinkRow { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+.shareNote { margin: 0 0 8px; color: var(--text); font-size: 11px; line-height: 1.55; }
+.shareUnpublish {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.shareUnpublish:hover { color: var(--loss); }
