@@ -16,7 +16,10 @@ import json
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from api.middleware.auth_middleware import get_current_user
+from api.middleware.auth_middleware import (
+    get_current_user,
+    get_current_user_with_plan,
+)
 from api.routers import ai_search as r
 
 
@@ -332,8 +335,13 @@ def _real_id_client():
     app = FastAPI()
     app.include_router(r.router)
     # Realistic session dict — key is `id`, NEVER `user_id`.
-    app.dependency_overrides[get_current_user] = lambda: {
-        "id": "realid", "email": "x@y.z", "role": "member"}
+    # ⚠️ REPAIRED 2026-08-09: AI Search became `require_paid` (it spends on the
+    # firm's key), so the session needs a PLAN as well as an id. The override is
+    # on `get_current_user_with_plan`, the gate's input — never on `require_paid`
+    # itself, which would mean never running the gate.
+    who = {"id": "realid", "email": "x@y.z", "role": "member", "plan": "pro"}
+    app.dependency_overrides[get_current_user] = lambda: dict(who)
+    app.dependency_overrides[get_current_user_with_plan] = lambda: dict(who)
     return TestClient(app)
 
 

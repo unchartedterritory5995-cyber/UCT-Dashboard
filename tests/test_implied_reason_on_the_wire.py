@@ -303,8 +303,24 @@ def test_an_all_outage_day_still_counts_as_an_enrichment_collapse(monkeypatch):
 # ── The research endpoint ─────────────────────────────────────────────────────
 
 def _research_client():
+    """⚠️ REPAIRED 2026-08-09 — `/api/research/expected-move/{sym}` became
+    `require_paid` (its `history` and `grade` are the firm's, not the market's),
+    so `expected_move.get_current_user` no longer exists and this override
+    errored at setup. It also asserted 200 for a caller who merely had a
+    SESSION, which is the hole the auth sweep found — signup is open and free.
+
+    ⛔ The override is on `get_current_user_with_plan`, the gate's INPUT, never
+    on `require_paid` itself: overriding a gate means never running it
+    (`lesson_injected_dependency_hides_the_fetch`), and every assertion in this
+    file about the payload's shape would then be measured through a door that
+    was propped open for the test."""
     from api.routers import expected_move as em_router
-    app.dependency_overrides[em_router.get_current_user] = lambda: {"id": "u1", "email": "t@t"}
+    from api.middleware.auth_middleware import (
+        get_current_user, get_current_user_with_plan,
+    )
+    paid = {"id": "u1", "email": "t@t", "role": "member", "plan": "pro"}
+    app.dependency_overrides[get_current_user] = lambda: dict(paid)
+    app.dependency_overrides[get_current_user_with_plan] = lambda: dict(paid)
     return TestClient(app), em_router
 
 

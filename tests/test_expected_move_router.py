@@ -2,11 +2,36 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 
-def _client_with_auth():
+PAID = {"id": "u1", "email": "t@t", "role": "member", "plan": "pro"}
+FREE = {"id": "u2", "email": "f@t", "role": "member", "plan": "free"}
+
+
+def _client_with_auth(user=None):
+    """⚠️ REPAIRED 2026-08-09 — `/api/research/expected-move/{sym}` became
+    `require_paid` (its `history` and `grade` are the firm's, not the market's).
+    This overrode `get_current_user` and asserted 200, which proved only that a
+    SESSION got the data — and signup is open and free.
+
+    ⛔ The override is on `get_current_user_with_plan`, the gate's INPUT, never
+    on `require_paid` (`lesson_injected_dependency_hides_the_fetch`)."""
     from api.main import app
     from api.routers import expected_move as em_router
-    app.dependency_overrides[em_router.get_current_user] = lambda: {"id": "u1", "email": "t@t"}
+    from api.middleware.auth_middleware import (
+        get_current_user, get_current_user_with_plan,
+    )
+    who = dict(user or PAID)
+    app.dependency_overrides[get_current_user] = lambda: dict(who)
+    app.dependency_overrides[get_current_user_with_plan] = lambda: dict(who)
     return TestClient(app), app, em_router
+
+
+def test_a_logged_in_FREE_member_is_refused():
+    """🔴 THE ASSERTION THAT WAS MISSING."""
+    client, app, _ = _client_with_auth(FREE)
+    try:
+        assert client.get("/api/research/expected-move/NVDA").status_code == 402
+    finally:
+        app.dependency_overrides.clear()
 
 
 def test_expected_move_endpoint_shape():

@@ -42,11 +42,39 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 
-from api.middleware.auth_middleware import get_current_user
+from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 
 logger = logging.getLogger("flow_explain")
 
 router = APIRouter(prefix="/api/flow-explain", tags=["flow-explain"])
+
+
+def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    """Paid gate for flow explanations.
+
+    🔴 PAID since 2026-08-09. Both routes (`POST ""` and `POST "/"`) were
+    `get_current_user` only — a session, never a plan — and signup is open and
+    free. Each accepted print runs an **Anthropic** call on the firm's key, so a
+    free registration spent our tokens.
+
+    ⛔ The two caps already in the handler are NOT this gate and never were.
+    `_user_daily_cap()` bounds one account's request count and `_daily_cap_usd()`
+    bounds the firm's total day; neither ever asked whether the account had paid
+    for any of it. A per-user cap on a free account is a budget for giving the
+    product away — and the global USD cap makes it worse, because free traffic
+    exhausts the same dollar ceiling that then refuses PAYING members.
+
+    Its consumer is the Live Flow / Options Flow surface, which `AuthGuard`
+    already routes as paid (`/live-massive` and `/live-flow` bounce a non-paid
+    user to `/morning-wire`), so nothing on the free tier reaches this.
+
+    ⛔ Defined HERE, never imported from a sibling — each surface owns its own
+    402 sentence so "which surface refused me" is readable off the message.
+    """
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402,
+                            detail="Flow explanations require a paid plan")
+    return user
 
 # ── Config (read at call time so tests/env can override) ────────────────────
 
@@ -596,8 +624,8 @@ def _estimate_cost_usd(model: str, input_tokens: int, output_tokens: int) -> flo
 
 @router.post("", include_in_schema=False)
 @router.post("/", response_model=FlowExplainResponse)
-def explain_print(body: FlowPrint, user: dict = Depends(get_current_user)) -> FlowExplainResponse:
-    """Explain one options-flow print in plain English (any logged-in user).
+def explain_print(body: FlowPrint, user: dict = Depends(require_paid)) -> FlowExplainResponse:
+    """Explain one options-flow print in plain English (paid members).
 
     Sync def on purpose: SQLite + the Anthropic call run on the anyio
     threadpool, never on the shared event loop."""

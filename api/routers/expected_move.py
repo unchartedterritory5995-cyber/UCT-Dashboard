@@ -3,24 +3,43 @@
 GET /api/research/expected-move/{sym} → {live, history, history_since}
 Always mounted (safe read). The nightly capture job that populates history is
 separately flag-gated in main.py (IMPLIED_STORE_ENABLED=1).
+
+🔴 PAID since 2026-08-09. It was `get_current_user` only, and signup is open and
+free. Three of the four things it returns are ours, not the market's:
+`history` is a series only we hold — the nightly capture job's record of what
+the straddle implied BEFORE each past report, which no public source sells back
+to you after the fact; `history_since` is that archive's depth; and `grade` is
+the firm's Setup Grade, a scored verdict. Only `live` is a computable read of a
+public chain. Gating the payload on its scarcest member is the honest call.
 """
 from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
-from api.middleware.auth_middleware import get_current_user
+from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 from api.services import implied_move, implied_store, setup_grade
 
 _log = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/research", tags=["research"])
 
 
+def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    """Paid gate for expected-move research.
+
+    ⛔ Defined HERE, never imported from a sibling — one 402 sentence per surface.
+    """
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402,
+                            detail="Expected-move research requires a paid plan")
+    return user
+
+
 @router.get("/expected-move/{sym}")
 def expected_move(sym: str, report_date: str | None = Query(default=None),
                    grade: bool = Query(default=True),
-                   user=Depends(get_current_user)):
+                   user=Depends(require_paid)):
     # `live_oc` is the OUT-dict `get_expected_move` fills from the SAME
     # evaluation that withheld the payload — never a second pass, and never a
     # reason inferred out here from the shape of a `None`.

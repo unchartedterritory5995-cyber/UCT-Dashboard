@@ -14,13 +14,18 @@ Now:
   * `/types`, `/scan`, `/{sym}` → `require_paid`. Their only consumers are
     `pages/Patterns.jsx` and `pages/patterns/PatternFilter.jsx`, both inside a
     page `AuthGuard` serves to paid/admin only.
-  * `POST /{detection_id}/feedback` → `get_current_user`, matching its already
-    correctly-gated sibling `POST /api/patterns/feedback`. It records a member's
-    rating of a detection; anonymous writes into a pool that trains the engine is
-    an integrity problem, not a paywall one, so the gate is "a real account" and
-    the `user_id` now comes from the SESSION rather than the request body — a
-    caller-supplied `user_id` on an anonymous route let anyone write feedback in
-    anyone's name.
+  * `POST /{detection_id}/feedback` → `require_paid` **as of 2026-08-09**. The
+    first pass gave it `get_current_user` and moved the author to the SESSION,
+    which fixed *whose name* a row is filed under; it did not fix *who may
+    write one*. Signup is open and free, so a free account that cannot read a
+    single detection could still vote on the corpus that trains the engine. The
+    write follows the read.
+  * `POST /feedback` (the vision thumbs) and `GET /confirmed/{sym}` (the
+    Opus-vision judge's confirmed verdicts + rationale) → `require_paid` on the
+    same date and for the same reasons.
+
+⛔ Do not re-type the route set or its gates here — read the decorators. The
+list above is a record of one decision, not an index.
 
 Note: detectors must be imported at module load so they register themselves.
 """
@@ -32,7 +37,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from api.middleware.auth_middleware import (
-    get_current_user,
     get_current_user_with_plan,
     is_paid_user,
     require_admin,
@@ -899,13 +903,19 @@ class FeedbackBody(BaseModel):
 
 @router.post("/{detection_id}/feedback")
 def post_feedback(detection_id: str, body: FeedbackBody,
-                  user: dict = Depends(get_current_user)):
+                  user: dict = Depends(require_paid)):
     """Record user feedback on a detection. Returns the new feedback row id.
 
     ⛔ The author is the SESSION, not `body.user_id`. While this route was
     anonymous a caller could file feedback under any id they typed — including
     `admin_operator`, the id `api/routers/admin_patterns.py` reserves for the
     Gate-5 operator review whose accept-rate decides whether the engine ships.
+
+    🔴 PAID since 2026-08-09 (was `get_current_user`). Fixing the AUTHOR did not
+    fix WHO MAY WRITE: this row lands in the engine's training pool, and the
+    detections it grades are `require_paid` reads. A free account could not see a
+    detection but could still vote on one — an open write into the corpus that
+    decides which detectors ship. The write follows the read.
     """
     try:
         fb_id = memory.record_feedback(detection_id, str(user["id"]), body.rating, body.note)
@@ -917,8 +927,15 @@ def post_feedback(detection_id: str, body: FeedbackBody,
 # ---- Opus-vision pattern judge (confirmed-only surface) -------------------
 
 @router.get("/confirmed/{sym}")
-def patterns_confirmed(sym: str, tf: str = "D", user=Depends(get_current_user)):
-    """Confirmed vision verdicts for a symbol (with rationale)."""
+def patterns_confirmed(sym: str, tf: str = "D", user=Depends(require_paid)):
+    """Confirmed vision verdicts for a symbol (with rationale).
+
+    🔴 PAID since 2026-08-09 (was `get_current_user`). Its siblings `/scan`,
+    `/types` and `/{sym}` were paywalled on the same day; this one serves the
+    Opus-vision judge's CONFIRMED verdicts **with their rationale** — a
+    higher-conviction output than the raw detections, reached through a
+    different door. Leaving it open would have made the sibling gates decorative.
+    """
     from api.services.pattern_vision import store as pv_store
     pv_store.init_db()
     return {"sym": sym.upper(), "tf": tf, "verdicts": pv_store.get_confirmed(sym, tf)}
@@ -976,9 +993,15 @@ class ExemplarBody(BaseModel):
 
 
 @router.post("/feedback")
-def patterns_vision_feedback(body: VisionFeedbackBody, user=Depends(get_current_user)):
-    """Record a 👍/👎 + note on a pattern/scanner item (any logged-in user).
-    Inline thumbs from chart/scan/scanner pass a `source`; the review page omits it."""
+def patterns_vision_feedback(body: VisionFeedbackBody, user=Depends(require_paid)):
+    """Record a 👍/👎 + note on a pattern/scanner item (paid members).
+    Inline thumbs from chart/scan/scanner pass a `source`; the review page omits it.
+
+    🔴 PAID since 2026-08-09 (was `get_current_user`), for the same reason as
+    `/{detection_id}/feedback`: it writes into the corpus the vision judge is
+    tuned against, and every surface that shows a member the thing they are
+    voting on is already paid.
+    """
     import datetime
     from api.services.pattern_vision import store as pv_store
     pv_store.init_db()

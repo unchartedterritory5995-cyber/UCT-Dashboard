@@ -13,7 +13,10 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import api.flow_explain as fe
-from api.middleware.auth_middleware import get_current_user
+from api.middleware.auth_middleware import (
+    get_current_user,
+    get_current_user_with_plan,
+)
 
 
 # ── Fakes / fixtures ─────────────────────────────────────────────────────────
@@ -81,9 +84,15 @@ def fake_llm(monkeypatch):
 def client():
     app = FastAPI()
     app.include_router(fe.router)
-    app.dependency_overrides[get_current_user] = lambda: {
-        "id": "user-1", "email": "t@example.com", "role": "user",
-    }
+    paid = {"id": "user-1", "email": "t@example.com", "role": "user", "plan": "pro"}
+    # ⚠️ REPAIRED 2026-08-09 — this route became `require_paid`. The override
+    # below moved to `get_current_user_with_plan`, the gate's INPUT; the real
+    # `require_paid` still runs. Overriding the GATE would mean never running it
+    # (`lesson_injected_dependency_hides_the_fetch`), and asserting 200 for a
+    # caller who merely has a SESSION is exactly the hole the sweep found —
+    # signup is open and free.
+    app.dependency_overrides[get_current_user] = lambda: dict(paid)
+    app.dependency_overrides[get_current_user_with_plan] = lambda: dict(paid)
     return TestClient(app)
 
 

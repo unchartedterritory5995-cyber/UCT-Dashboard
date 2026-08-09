@@ -28,17 +28,41 @@ from concurrent.futures import ThreadPoolExecutor, wait as _futures_wait
 from typing import Any
 
 import requests
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from api.services.fundamentals import get_fundamentals, _fmt_billions
 from api.services.earnings_table import get_earnings_table
 from api.services import fundamentals_snapshot_store as snap_store
 from api.services.cache import cache
 from api.services.cache_policy import set_by_completeness
-from api.middleware.auth_middleware import get_current_user
+from api.middleware.auth_middleware import get_current_user_with_plan, is_paid_user
 
 _log = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    """Paid gate for the earnings table.
+
+    ⛔ Defined HERE, never imported from a sibling — each router owns its own
+    402 sentence so "which surface refused me" is readable off the message.
+    Rail: `tests/test_user_definitions_auth.py::test_require_paid_is_defined_PER_ROUTER…`
+
+    Why paid: `get_earnings_table` is the FMP-Ultimate-backed actual-vs-estimate
+    history whose lookback window scales with the requested year
+    (`_history_limit`), and it falls through to the **AlphaVantage 25-calls-a-day**
+    budget the Model Book's own earnings surface shares. A free account walking
+    tickers drained a quota the paying product depends on.
+
+    ⚠️ SCOPE: this gates `/api/fundamentals/earnings-table` ONLY.
+    `/api/fundamentals/{ticker}` carries no session dependency at all — it is in
+    the sweep's "no dependency" bucket, not the `get_current_user` bucket this
+    task was asked to close. It is reported in the report, not changed here.
+    """
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402,
+                            detail="The earnings table requires a paid plan")
+    return user
 
 _FH_METRIC_TTL = 3600  # 1 hour -- only for a build with at least one field resolved
 _FUND_FAIL_TTL = 300   # 5 min -- an all-null build self-heals fast instead of
@@ -176,7 +200,7 @@ def _fmp_metrics_get(ticker: str) -> dict[str, Any]:
 def get_earnings_table_endpoint(
     sym: str = Query(...),
     debug: int = Query(0),
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_paid),
 ):
     """Annual EPS/Sales table + quarterly actual-vs-estimate strip for `sym`.
     Null-safe: unknown ticker returns empty arrays, never 500."""

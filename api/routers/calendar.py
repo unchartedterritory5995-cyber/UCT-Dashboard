@@ -21,15 +21,53 @@ from datetime import date, timedelta, datetime
 from zoneinfo import ZoneInfo
 
 _ET = ZoneInfo("America/New_York")
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from api.services.cache import cache
 from api.services.cache_policy import set_by_completeness
 from api.services.serve_stale import ServeStale
-from api.middleware.auth_middleware import get_current_user, require_admin
+from api.middleware.auth_middleware import (
+    get_current_user_with_plan, is_paid_user, require_admin,
+)
 from api.services import calendar_personalization as _cp
 
 _logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    """Paid gate for the calendar's PERSONALIZED routes.
+
+    🔴 Seven routes here were `get_current_user` only — a session, never a plan —
+    and signup is open and free: `my-sets`, `next-report`, `sector-read`,
+    `dividends`, `seen` (GET + POST) and `export-token`. Calendar is a paid page
+    (`FREE_PAGES = ['/morning-wire']`; `AuthGuard` bounces a non-paid member off
+    `/calendar`, and a `?earnings=` deep link lands on `PaywallTeaser`, which
+    fetches nothing) — so the React router was the ONLY thing standing in front
+    of them, and it redirects a browser rather than refusing a request.
+
+    `export-token` is the sharpest of the seven: it MINTS an `hmac(PUSH_SECRET,
+    user_id)` token that makes the `.ics` feed readable **without a cookie,
+    indefinitely**. Handing that to a free account converts a session-scoped
+    paywall into a permanent bearer credential.
+
+    ✋ SCOPE — the anonymous calendar reads (`GET /api/calendar`,
+    `/calendar/month`, `/calendar/enrichment*`, `/calendar/report.ics`, the three
+    `*.png` renders) are NOT touched. They carry no session dependency, and
+    `App.jsx` mounts `/r/calendar` → `CalendarRender.jsx` OUTSIDE `AuthGuard` as
+    a deliberate public renderer that reads `/api/calendar` with no cookie. That
+    boundary needs a render token, not a session gate, and it is recorded in
+    `.superpowers/sdd/audit/fix-exposed-routes-report.md` as an owner call.
+    Gating the seven personalized routes cannot reach it: they already required
+    a session, so a cookieless renderer could never call them.
+
+    ⛔ Defined HERE, never imported from a sibling — each router owns its own
+    402 sentence so "which surface refused me" is readable off the message.
+    Rail: `tests/test_user_definitions_auth.py::test_require_paid_is_defined_PER_ROUTER…`
+    """
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402,
+                            detail="Calendar personalization requires a paid plan")
+    return user
 
 _CACHE_TTL = 600  # 10 min — shorter to pick up reported actuals faster
 _CACHE_FAIL_TTL = 60  # a week that fails `_weekly_payload_is_good` self-heals in 1 min, not 10
@@ -2286,7 +2324,7 @@ from api.services.dividends_calendar import get_events as _get_div_events  # noq
 @router.get("/api/calendar/dividends")
 def get_calendar_dividends(
     syms: str | None = None,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_paid),
 ):
     """Return forward dividends + splits for the requested symbols.
 
@@ -2717,7 +2755,7 @@ def calendar_date_integrity_status():
 
 
 @router.get("/api/calendar/my-sets")
-def calendar_my_sets(user: dict = Depends(get_current_user)):
+def calendar_my_sets(user: dict = Depends(require_paid)):
     """Return the logged-in user's personalization ticker sets for the calendar."""
     sets = _cp.get_user_ticker_sets(user["id"])
     return _cp.to_payload(sets)
@@ -3199,7 +3237,7 @@ class _SeenPayload(_BaseModel):
 @router.get("/api/calendar/seen")
 def get_calendar_seen(
     item_type: str | None = None,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_paid),
 ):
     """Return the set of item_keys seen by the authenticated user.
 
@@ -3217,7 +3255,7 @@ def get_calendar_seen(
 @router.post("/api/calendar/seen")
 def post_calendar_seen(
     payload: _SeenPayload,
-    user: dict = Depends(get_current_user),
+    user: dict = Depends(require_paid),
 ):
     """Mark a single calendar item as seen (idempotent).
 
@@ -3410,7 +3448,7 @@ _NEXT_REPORT_TTL = 6 * 3600
 
 
 @router.get("/api/calendar/next-report")
-def get_next_report(sym: str, user: dict = Depends(get_current_user)):
+def get_next_report(sym: str, user: dict = Depends(require_paid)):
     """Next scheduled report date for ONE symbol — powers the header search's
     "NVDA — Wed Aug 26 · Jump to week" answer for names outside the loaded
     window. FMP stable/earnings future row primary, Finnhub calendar fallback
@@ -3455,7 +3493,7 @@ def get_next_report(sym: str, user: dict = Depends(get_current_user)):
 
 
 @router.get("/api/calendar/export-token")
-def get_calendar_export_token(user: dict = Depends(get_current_user)):
+def get_calendar_export_token(user: dict = Depends(require_paid)):
     """Return the stable per-user iCal token for webcal subscribe URLs.
 
     The token is HMAC(PUSH_SECRET, user_id) — stable across restarts so a
@@ -3651,7 +3689,7 @@ def most_anticipated_png(week: str | None = None):
 
 
 @router.get("/api/calendar/sector-read")
-def sector_read(sector: str, week: str | None = None, user=Depends(get_current_user)):
+def sector_read(sector: str, week: str | None = None, user=Depends(require_paid)):
     """One AI sentence on a GICS sector's earnings setup this week, grounded on
     that sector's actual reporters. Auth-required (paid feature). Cost-guarded +
     cached per (sector, week); returns cached line, {status:'generating'} (fires
