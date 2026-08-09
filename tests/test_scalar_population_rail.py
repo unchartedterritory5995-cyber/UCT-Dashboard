@@ -208,15 +208,28 @@ ARTIFACT_EMPTY.update({
     # An empty store behind a job that is off by default: `research_ratings.db`
     # is 0 bytes, and its only writer (`ratings_universe.nightly_job`) is
     # registered only under RATINGS_PERCENTILE_ENABLED, default "0".
-    "eps_growth":    "2026-08-09 research_ratings.db empty (RATINGS_PERCENTILE_ENABLED=0)",
-    "rev_growth":    "2026-08-09 research_ratings.db empty (RATINGS_PERCENTILE_ENABLED=0)",
-    "peg":           "2026-08-09 research_ratings.db empty (RATINGS_PERCENTILE_ENABLED=0)",
-    "pe_fwd":        "2026-08-09 research_ratings.db empty (RATINGS_PERCENTILE_ENABLED=0)",
-    "op_margin":     "2026-08-09 research_ratings.db empty (RATINGS_PERCENTILE_ENABLED=0)",
-    "roe":           "2026-08-09 research_ratings.db empty (RATINGS_PERCENTILE_ENABLED=0)",
-    "inst_pct":      "2026-08-09 research_ratings.db empty (RATINGS_PERCENTILE_ENABLED=0)",
-    "accdis":        "2026-08-09 research_ratings.db empty (RATINGS_PERCENTILE_ENABLED=0)",
-    "uct_composite": "2026-08-09 research_ratings.db empty (RATINGS_PERCENTILE_ENABLED=0)",
+    #
+    # ⚠️ THE PARENTHESISED REASON IS ABOUT THIS BOX, NOT ABOUT PRODUCTION.
+    # `railway variables --service web` reads `RATINGS_PERCENTILE_ENABLED=1`,
+    # so the gather DOES run on Railway and these columns are not dormant there
+    # — they are empty HERE, where the store is 0 bytes. A local default is not
+    # a deployment's state.
+    "eps_growth":    "2026-08-09 research_ratings.db empty on this box (RATINGS_PERCENTILE_ENABLED=0 locally, =1 on Railway)",
+    "rev_growth":    "2026-08-09 research_ratings.db empty on this box (RATINGS_PERCENTILE_ENABLED=0 locally, =1 on Railway)",
+    "pe_fwd":        "2026-08-09 research_ratings.db empty on this box (RATINGS_PERCENTILE_ENABLED=0 locally, =1 on Railway)",
+    "inst_pct":      "2026-08-09 research_ratings.db empty on this box (RATINGS_PERCENTILE_ENABLED=0 locally, =1 on Railway)",
+    "accdis":        "2026-08-09 research_ratings.db empty on this box (RATINGS_PERCENTILE_ENABLED=0 locally, =1 on Railway)",
+    "uct_composite": "2026-08-09 research_ratings.db empty on this box (RATINGS_PERCENTILE_ENABLED=0 locally, =1 on Railway)",
+    # ⭐ THREE COLUMNS CHANGED HANDS, so their reason changed too. `op_margin`,
+    # `roe` and `peg` are no longer waiting on `research_ratings.db` — they are
+    # read from `ratios-ttm-bulk`/`key-metrics-ttm-bulk` by `fundamentals_bulk`,
+    # which is also why `enrich.ratings_fields` stopped emitting them (two
+    # writers over one column, and BOTH ran in production). They are still
+    # listed here for the same reason as the Group-A ten below: §2 measures the
+    # ROWS on disk, and those were written before the collector existed.
+    "op_margin":     "2026-08-09 collector changed hands (enrich -> fundamentals_bulk); clears next build",
+    "roe":           "2026-08-09 collector changed hands (enrich -> fundamentals_bulk); clears next build",
+    "peg":           "2026-08-09 collector changed hands (enrich -> fundamentals_bulk); clears next build",
     # FIXED IN CODE 2026-08-09, still empty in the rows on disk because those
     # rows predate the fix. These three clear on the next build, and this rail
     # will then FAIL demanding they be struck from the list.

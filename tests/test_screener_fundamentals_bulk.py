@@ -87,6 +87,73 @@ def test_a_zero_whose_corroborators_disagree_is_still_refused():
                         {"dividendYieldTTM": "0"}) is None
 
 
+def test_op_margins_zeros_are_refused_because_the_REVENUE_is_what_is_missing():
+    """🔴 THE SHAPE THAT LOOKS CORROBORATED AND IS NOT. Measured 2026-08-09:
+    `operatingProfitMarginTTM` reads 0 on 228 of our names, and every single one
+    of them ALSO reads 0 for gross, EBIT, pretax and net margin — which is not
+    four witnesses, it is one dead denominator seen four times. All 228 have
+    `revenuePerShareTTM == 0`, and 225 carry a NON-ZERO `netIncomePerShareTTM`
+    (SPACs on trust interest, pre-revenue biotech: ABVX, ALLO, AMLX, AURA).
+
+    ⭐ SO THE NUMERATOR IS ALIVE AND THE RATIO IS UNDEFINED — exactly the bank
+    `current_ratio` case, and `op_margin` refuses for the same reason its
+    siblings `gross_margin`/`net_margin` do.
+    """
+    prerevenue = {"symbol": "ABVX", "operatingProfitMarginTTM": "0",
+                  "grossProfitMarginTTM": "0", "netProfitMarginTTM": "0",
+                  "pretaxProfitMarginTTM": "0", "ebitMarginTTM": "0",
+                  "revenuePerShareTTM": "0",
+                  "netIncomePerShareTTM": "-1.83"}
+    assert fb.value_for(fb.RATIO_SPECS["op_margin"], prerevenue) is None
+    # ...and a real operating margin is untouched (JPM, measured).
+    assert fb.value_for(fb.RATIO_SPECS["op_margin"],
+                        {"operatingProfitMarginTTM": "0.2818840652750199"}
+                        ) == pytest.approx(28.19, abs=0.01)
+
+
+def test_roes_zeros_are_refused_because_four_ratios_share_one_balance_sheet():
+    """🔴 THE NEAR-MISS THIS PASS ALMOST SHIPPED. `returnOnEquityTTM` is 0 on 6
+    names, and `returnOnAssetsTTM`, `returnOnInvestedCapitalTTM` and
+    `returnOnCapitalEmployedTTM` are 0 on all 6 too. That is structurally
+    identical to `debt_to_equity`'s three-quotient corroboration — and it is
+    WRONG, because the per-symbol endpoint shows ARCI, HACQ and SAAQ with a
+    NON-ZERO `netIncomePerShareTTM` and `bookValuePerShareTTM == 0`.
+
+    ⭐ AGREEMENT AMONG QUOTIENTS IS ONLY CORROBORATION WHEN THE DENOMINATORS ARE
+    INDEPENDENT. Assets / equity / invested capital / capital employed are four
+    views of ONE balance sheet, so they collapse together; debt-to-equity,
+    debt-to-assets and debt-to-capital are three views of one DEBT figure, which
+    is why those three CAN witness a debt-free company and these four cannot
+    witness a zero return.
+    """
+    shell = {"symbol": "ARCI", "returnOnEquityTTM": "0",
+             "returnOnAssetsTTM": "0", "returnOnInvestedCapitalTTM": "0",
+             "returnOnCapitalEmployedTTM": "0"}
+    assert fb.value_for(fb.KEY_METRIC_SPECS["roe"], shell) is None
+    # AAPL's ROE really is 137% — the refusal must not reach a live number.
+    assert fb.value_for(fb.KEY_METRIC_SPECS["roe"],
+                        {"returnOnEquityTTM": "1.3718365457766524"}
+                        ) == pytest.approx(137.18, abs=0.01)
+
+
+def test_a_peg_of_zero_is_refused_because_it_needs_a_pe_of_zero():
+    """PEG = P/E ÷ growth, so a PEG of exactly 0 requires a P/E of exactly 0 —
+    the dead numerator `pe_ttm` already refuses. Measured: 3 zeros (AGCC, MGRT,
+    NPCT), each with `priceToEarningsRatioTTM == 0` AND
+    `netIncomePerShareTTM == 0`. ⛔ Corroborating with the P/E would only
+    launder one column's refusal into another."""
+    dead = {"symbol": "AGCC", "priceToEarningsGrowthRatioTTM": "0",
+            "priceToEarningsRatioTTM": "0", "netIncomePerShareTTM": "0",
+            "revenuePerShareTTM": "0"}
+    assert fb.value_for(fb.RATIO_SPECS["peg"], dead) is None
+    # ⭐ A NEGATIVE PEG IS A REAL ANSWER and must survive — shrinking earnings
+    # against a positive P/E. ABCB reads -6.01, RIVN -0.27. A blanket
+    # "refuse anything odd" rule would blank both.
+    assert fb.value_for(fb.RATIO_SPECS["peg"],
+                        {"priceToEarningsGrowthRatioTTM": "-6.007024067388682"}
+                        ) == pytest.approx(-6.007, abs=0.001)
+
+
 def test_a_nonzero_value_never_consults_the_corroborators():
     """The rule is about zeros only. A real ratio must not be second-guessed by
     a field that has nothing to do with it."""
@@ -294,47 +361,126 @@ def test_every_column_written_is_a_real_snapshot_column():
     assert not unknown, f"writes columns the schema does not have: {unknown}"
 
 
-def test_the_bulk_map_is_disjoint_from_every_other_source(monkeypatch):
-    """🔁 A SECOND AUTHORITY OVER ONE VALUE is this repo's most repeated defect.
+#: ⏳ THE ONE OVERLAP THAT EXISTS TODAY, named with the date it was accepted and
+#: WHOSE it is — exactly the shape `test_scalar_population_rail.py` uses for its
+#: allow-lists, and for the same reason: an exemption with no sentence attached
+#: is indistinguishable in six months from a design decision.
+#:
+#: ⛔ THIS IS NOT MINE AND IT IS NOT NEW. `enrich.ratings_fields` passes
+#: `metrics["sector"]` (yfinance/FMP, via the ratings gather) straight through,
+#: and `_read_fundamentals` writes `sector` from the `ticker_meta` cache. Both
+#: run; `build_row` merges ratings AFTER fundamentals, so the ratings copy wins
+#: wherever `research_ratings.db` has a row and the cache's copy wins elsewhere
+#: — one column, two taxonomies, decided row by row. It is reported rather than
+#: fixed here because `sector` is the `sector` FILTER's option list, so changing
+#: its owner is member-visible and belongs to whoever owns that taxonomy.
+SHARED_BY_DESIGN = {
+    ("enrich.ratings_fields", "_read_fundamentals"): {
+        "sector": "2026-08-09 PRE-EXISTING: ratings passthrough vs ticker_meta "
+                  "cache. Owner call — `sector` drives the filter's options.",
+    },
+}
 
-    ⛔ THE OTHER SOURCES' KEY SETS ARE OBTAINED BY RUNNING THEM, not retyped
-    here — a test that restates what a source emits is itself the second
-    authority. Each is exercised with a fully-populated input so it emits
+
+def _source_key_sets(monkeypatch) -> dict:
+    """``{label: {columns it can emit}}`` for every source `build_row` merges.
+
+    ⛔ EVERY SET IS OBTAINED BY RUNNING THE SOURCE, never retyped — a test that
+    restates what a source emits is itself the second authority this rail
+    exists to forbid. Each is handed a fully-populated input so it emits
     everything it possibly can.
 
-    In particular `market_cap` is carried by BOTH bulk payloads this module
-    reads (`key-metrics-ttm-bulk` and `profile-bulk`) and is deliberately not
-    taken from either: `massive.get_market_cap` owns that column.
+    ⛔ AND THE RATINGS INPUT IS DERIVED FROM `ratings_db.METRIC_COLUMNS`, the
+    list the store itself is keyed by. A hand-typed metrics dict would silently
+    stop covering a metric the day a new one is persisted, and the rail would
+    go quiet on precisely the new column most likely to collide.
     """
     import api.services.screener.snapshot_builder as b
     from api.services.screener import enrich
-
-    rs_keys = set(b.rs_fields({"rs_rank": 90, "rs_score": 12.5}))
-
-    ratings_keys = set(enrich.ratings_fields(
-        {"earnings_growth": 50.0, "rev_growth": 20.0, "peg": 1.2,
-         "pe_fwd": 30.0, "op_margin": 40.0, "roe": 30.0, "inst_pct": 60.0,
-         "sector": "Technology", "rs_return": 12.5, "blended_growth": 30.0,
-         "accdis_ratio": 1.4}, {}))
-
+    from api.services.research import ratings_db
     from api.services import massive, ticker_meta
+
+    metrics = {c: 1.2 for c in ratings_db.METRIC_COLUMNS}
+    metrics["sector"] = "Technology"
+
     monkeypatch.setattr(ticker_meta, "get_ticker_meta",
                         lambda t: {"name": "N", "sector": "S", "industry": "I"})
     monkeypatch.setattr(massive, "get_market_cap", lambda t, price=None: 1.0e9)
-    fundamentals_keys = set(b._read_fundamentals("AAA", price=10.0))
 
-    for label, keys in (("rs_fields", rs_keys),
-                        ("enrich.ratings_fields", ratings_keys),
-                        ("_read_fundamentals", fundamentals_keys)):
-        overlap = sorted(fb.COLUMNS_WRITTEN & keys)
-        assert not overlap, (
-            f"{label} and fundamentals_bulk both write {overlap} — two "
-            f"authorities over one column")
+    return {
+        "fundamentals_bulk": set(fb.COLUMNS_WRITTEN),
+        "rs_fields": set(b.rs_fields({"rs_rank": 90, "rs_score": 12.5})),
+        "enrich.ratings_fields": set(enrich.ratings_fields(metrics, {})),
+        "_read_fundamentals": set(b._read_fundamentals("AAA", price=10.0)),
+    }
 
-    # The derivation is only meaningful if those sources emitted anything.
-    assert rs_keys and ratings_keys and fundamentals_keys
-    assert "market_cap" in fundamentals_keys
-    assert "market_cap" not in fb.COLUMNS_WRITTEN
+
+def test_no_two_screener_sources_write_the_same_column(monkeypatch):
+    """🔁 A SECOND AUTHORITY OVER ONE VALUE is this repo's most repeated defect,
+    and in `build_row` it does not even announce itself: the four sources are
+    merged in order and the LAST one with a non-None value wins. A collision is
+    therefore not a crash, not a duplicate, not a log line — it is one column
+    quietly sourced from two providers, row by row, according to which of them
+    happened to have data.
+
+    🔴 THIS IS THE RAIL FOR THE 2026-08-09 HANDOVER. `op_margin`, `roe` and
+    `peg` were claimed by BOTH `enrich.ratings_fields` and (now)
+    `fundamentals_bulk`, and `RATINGS_PERCENTILE_ENABLED=1` on Railway means
+    both writers RUN. `enrich` gave the three up (see its docstring); if anyone
+    puts them back, this goes red by name.
+
+    ⭐ IT IS PAIRWISE OVER ALL FOUR SOURCES, not "bulk against the others" —
+    a collision between two sources that are not this module is the same defect
+    and used to be invisible. It found one on arrival: see `SHARED_BY_DESIGN`.
+    """
+    sets = _source_key_sets(monkeypatch)
+    # The derivation proves nothing if a source emitted nothing.
+    for label, keys in sets.items():
+        assert keys, f"{label} emitted no columns — the derivation is broken"
+
+    labels = sorted(sets)
+    for i, a in enumerate(labels):
+        for bb in labels[i + 1:]:
+            allowed = set(SHARED_BY_DESIGN.get((a, bb), {})) | \
+                      set(SHARED_BY_DESIGN.get((bb, a), {}))
+            overlap = sorted((sets[a] & sets[bb]) - allowed)
+            assert not overlap, (
+                f"{a} and {bb} both write {overlap} — two authorities over one "
+                f"column, resolved by nothing but build_row's merge order. "
+                f"Decide an owner and remove the other writer.")
+
+    # `market_cap` is carried by BOTH bulk payloads this module reads and is
+    # deliberately taken from neither: `massive.get_market_cap` owns it.
+    assert "market_cap" in sets["_read_fundamentals"]
+    assert "market_cap" not in sets["fundamentals_bulk"]
+
+
+def test_no_shared_column_allowance_outlives_its_overlap(monkeypatch):
+    """⭐ THE SHRINK DIRECTION. An exemption list that only ever grows is a list
+    nobody will look at again; the moment `sector` gets a single owner this
+    fails and demands the entry be struck."""
+    sets = _source_key_sets(monkeypatch)
+    for (a, bb), columns in SHARED_BY_DESIGN.items():
+        assert a in sets and bb in sets, f"unknown source in SHARED_BY_DESIGN: {(a, bb)}"
+        for column, reason in columns.items():
+            assert reason[:4].isdigit() and reason[4] == "-" and len(reason) > 20, \
+                f"SHARED_BY_DESIGN[{a},{bb}][{column}] needs a dated reason, got {reason!r}"
+            assert column in (sets[a] & sets[bb]), (
+                f"{a} and {bb} no longer both write {column} — delete its "
+                f"allowance rather than leaving a dead exemption behind")
+
+
+def test_the_three_handed_over_columns_are_written_here_and_nowhere_else(monkeypatch):
+    """🔴 THE DECISION, ASSERTED IN BOTH DIRECTIONS. Absence from `enrich` alone
+    would also be satisfied by nobody writing them at all — which is the state
+    the whole phase started from. Presence here alone would be satisfied by two
+    writers agreeing today and drifting tomorrow."""
+    sets = _source_key_sets(monkeypatch)
+    for column in ("op_margin", "roe", "peg"):
+        owners = sorted(label for label, keys in sets.items() if column in keys)
+        assert owners == ["fundamentals_bulk"], (
+            f"{column} should be written by fundamentals_bulk and nothing else; "
+            f"writers are {owners}")
 
 
 def test_the_bulk_map_covers_every_scalar_that_had_no_collector():

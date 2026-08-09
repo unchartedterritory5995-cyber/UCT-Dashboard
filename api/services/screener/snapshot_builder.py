@@ -246,8 +246,15 @@ def _read_bulk_fundamentals(targets, failures=None):
             failures.setdefault("fmp_bulk", {})
             key = type(e).__name__
             failures["fmp_bulk"][key] = failures["fmp_bulk"].get(key, 0) + 1
-        log.warning("[screener] bulk fundamentals unavailable; the ten "
-                    "fundamentals and exchange will be NULL", exc_info=True)
+        # ⛔ NAMED FROM THE MODULE'S OWN MAP, not from a count typed here — the
+        # sibling line in `fundamentals_bulk` went stale exactly this way.
+        try:
+            from . import fundamentals_bulk
+            names = ", ".join(sorted(fundamentals_bulk.COLUMNS_WRITTEN))
+        except Exception:                                      # noqa: BLE001
+            names = "the bulk fundamentals"
+        log.warning("[screener] bulk fundamentals unavailable; these will be "
+                    "NULL: %s", names, exc_info=True)
         return {}
 
 

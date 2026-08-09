@@ -22,6 +22,34 @@ them even when handed a fully-populated metrics dict.
 
 ⚠️ ``rs`` IS STILL COMPUTED BELOW, and must be: it is an INPUT to
 ``uct_composite``. What changed is that it is no longer also an OUTPUT.
+
+──────────────────────────────────────────────────────────────────────────────
+🔴 AND ON 2026-08-09, THREE MORE COLUMNS LEFT BY THE SAME DOOR: ``op_margin``,
+``roe``, ``peg``.
+──────────────────────────────────────────────────────────────────────────────
+This was a LIVE conflict, not the dormant one above. ``fundamentals_bulk`` gets
+all three off files it already downloads — ``operatingProfitMarginTTM``,
+``returnOnEquityTTM``, ``priceToEarningsGrowthRatioTTM`` — at zero extra
+provider cost and for 3,679 of 3,742 names a night. This function claimed the
+same three columns from ``research_ratings.db``, and
+``RATINGS_PERCENTILE_ENABLED=1`` **on Railway**, so both writers would have run
+in production with nothing but the merge order in ``build_row`` deciding which
+one a member reads (``ratings_row`` is merged after ``bulk_row``, so THIS path
+would have silently won wherever it had a value, and lost wherever it did not —
+a column sourced from two providers row by row).
+
+⭐ ``fundamentals_bulk`` IS THE AUTHORITY. Its reasoning is written out there;
+the short version is whole-universe nightly coverage, one accounting basis
+across ``gross_margin``/``net_margin``/``roa``/``op_margin``/``roe``, and a
+paid provider rather than yfinance.
+
+⚠️ ALL THREE ARE STILL READ BELOW, and must be: ``op_margin`` and ``roe`` are
+two of the three SMR legs and ``peg`` is the Value leg. ⛔ THEY ARE READ FROM
+``metrics`` — the ratings store — NOT from the snapshot row, so nothing about
+``uct_composite`` changes. Exactly as with ``rs``: still an input, no longer an
+output. ⛔ Do not re-add them to ``direct``;
+``test_no_two_screener_sources_write_the_same_column`` derives every source's
+key set by RUNNING it and goes red on the overlap.
 """
 from api.services.research import ratings_db
 from api.services.research.ratings import (
@@ -55,10 +83,13 @@ def ratings_fields(metrics: dict | None, dists: dict | None) -> dict:
     # ⛔ `rs_return` is DELIBERATELY ABSENT from this map — see the module
     # docstring. `rs_ranking.rs_score` is the same weighted return and is the
     # single authority the builder reads.
+    # ⛔ `op_margin`, `roe` and `peg` are DELIBERATELY ABSENT — see the module
+    # docstring. They are still READ below, because the SMR and Value legs of
+    # the composite are computed from them; they are simply no longer also
+    # written as columns. `fundamentals_bulk` is their authority.
     direct = {
         "eps_growth": "earnings_growth", "rev_growth": "rev_growth",
-        "peg": "peg", "pe_fwd": "pe_fwd", "op_margin": "op_margin",
-        "roe": "roe", "inst_pct": "inst_pct",
+        "pe_fwd": "pe_fwd", "inst_pct": "inst_pct",
         "sector": "sector",
     }
     for col, src in direct.items():
