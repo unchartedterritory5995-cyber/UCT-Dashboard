@@ -382,8 +382,18 @@ export default function Calendar() {
     // Ask ONCE per symbol; a failed lookup must never re-fire.
     if (resolveRef.current === want) {
       if (isFreshOpen) setOpenSeq((s) => s + 1)
+    // `history_unresolved` marks this as a GUESS, not an answer. The modal's
+    // Earnings History section otherwise reads an empty row as the CLAIM "no
+    // reported quarters yet" — and it cannot tell this row apart from a real
+    // one by shape, because a bare `{ sym }` is exactly what MyStocksHub and
+    // the direct research routes pass for a company that genuinely has none.
+    // Only here do we know we never resolved the symbol. Lived 2026-08-08:
+    // `?earnings=JAZZ` on a Saturday resolves to its November report, which
+    // the calendar feed does not carry yet, so JAZZ -- nine reported quarters
+    // -- was told it had never reported one.
       setSelected((prev) => (prev?.row?.sym === want ? prev
-        : { row: { sym: want }, label: timingLabel(null), reportDate: null, timing: null }))
+        : { row: { sym: want, history_unresolved: true },
+            label: timingLabel(null), reportDate: null, timing: null }))
       return
     }
     resolveRef.current = want
@@ -399,14 +409,15 @@ export default function Calendar() {
         const monday = d?.date ? mondayOf(d.date) : null
         if (monday) route.jumpToWeek(monday)
         else {
-          commit({ row: { sym: want }, label: timingLabel(null),
-                   reportDate: null, timing: null })
+          // Unresolved for the same reason as above — mark the guess.
+          commit({ row: { sym: want, history_unresolved: true },
+                   label: timingLabel(null), reportDate: null, timing: null })
         }
       })
       .catch(() => {
         if (resolveRef.current !== want) return
-        commit({ row: { sym: want }, label: timingLabel(null),
-                 reportDate: null, timing: null })
+        commit({ row: { sym: want, history_unresolved: true },
+                 label: timingLabel(null), reportDate: null, timing: null })
       })
   }, [route.sym, days, data])  // eslint-disable-line react-hooks/exhaustive-deps
 

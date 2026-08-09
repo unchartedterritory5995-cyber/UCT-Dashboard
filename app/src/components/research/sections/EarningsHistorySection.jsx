@@ -104,6 +104,13 @@ export default function EarningsHistorySection({ row, reportDate, expectedMove, 
     // $6.30 est" -- was told it had never reported a quarter (live 2026-08-06)
     // while Finnhub returned four real quarters on a direct call. Saying
     // nothing true is better than saying something false about a company.
+    //
+    // The deep-link resolver sets this flag on the minimal `{ sym }` row it
+    // commits when the week it lands on carries no entry for the symbol —
+    // see Calendar.jsx. It cannot be inferred HERE from the row's shape: a
+    // bare `{ sym }` is exactly what MyStocksHub and the direct research
+    // routes pass for a company that genuinely has no history, so the two are
+    // indistinguishable by content. Only the caller knows it is guessing.
     if (row?.history_unresolved) {
       return (
         <EmptyState

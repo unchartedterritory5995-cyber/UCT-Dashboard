@@ -417,3 +417,36 @@ describe('revenue view', () => {
     expect(screen.queryByRole('button', { name: 'Revenue' })).not.toBeInTheDocument()
   })
 })
+
+describe('the deep-link fallback row must not become a claim', () => {
+  // Calendar.jsx commits a minimal row when the week it resolves to carries no
+  // entry for the symbol — e.g. `?earnings=JAZZ` on a SATURDAY resolves to
+  // JAZZ's November report, which the calendar feed does not carry yet. The
+  // week loads, `enrichReady` goes TRUE, and every other signal reads
+  // "enrichment is done and this company has no history".
+  //
+  // The section cannot detect that itself: a bare `{ sym }` is byte-identical
+  // to what MyStocksHub and the direct research routes pass for a company that
+  // genuinely has none. So the RESOLVER marks its guess, and these two tests
+  // pin both halves of that contract.
+
+  it('says unavailable when the caller marked the row unresolved', () => {
+    render(
+      <EarningsHistorySection
+        row={{ sym: 'JAZZ', history_unresolved: true }}
+        reportDate="2026-11-05"
+        enrichReady
+      />,
+    )
+    expect(screen.getByText('Earnings history unavailable')).toBeInTheDocument()
+    expect(screen.queryByText('No reported quarters yet')).not.toBeInTheDocument()
+  })
+
+  it('keeps the definitive empty state for an UNMARKED bare row', () => {
+    // The load-bearing counter-case. Widening the section to treat any bare
+    // row as unresolved would make the honest answer unreachable for the
+    // mount sites that legitimately pass one.
+    render(<EarningsHistorySection row={{ sym: 'NEWCO' }} reportDate="2026-11-05" enrichReady />)
+    expect(screen.getByText('No reported quarters yet')).toBeInTheDocument()
+  })
+})
