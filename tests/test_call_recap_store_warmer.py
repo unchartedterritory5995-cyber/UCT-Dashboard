@@ -311,3 +311,158 @@ class TestSentimentFold:
         assert out == detail
         pplx.assert_not_called()      # the ~5s round-trip that used to run
         client.assert_not_called()    # and the LLM call after it
+
+
+class TestRecentReporters:
+    """The sweep queue must cover the recent tape, not just today.
+
+    Today's calendar alone leaves a Wednesday reporter cold for good: it is
+    swept on Wednesday and never again, so a reader opening it on Friday pays
+    the full ~39s. These tests pin the walk-back and the query SHAPE.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _uni(self, warmer, monkeypatch):
+        """Pin the universe so these tests assert ORDERING, not membership.
+
+        The real cap_universe.json is loaded otherwise and silently drops the
+        fixture tickers.
+        """
+        monkeypatch.setattr(warmer, "_UNIVERSE",
+                            {"AAA", "NEW", "OLD", "PEND", "DIS"})
+
+    @staticmethod
+    def _recorder(by_day):
+        calls = []
+
+        def fmp_get(path, params, timeout=None):
+            calls.append(dict(params))
+            return by_day.get(params["from"], [])
+
+        return fmp_get, calls
+
+    def test_foreign_listings_are_dropped(self, warmer, monkeypatch):
+        # A week of the raw calendar is ~5,000 names, mostly foreign listings
+        # with no FMP transcript. Unfiltered they push DIS to position ~3,250
+        # and the sweep's budget never reaches it.
+        from datetime import date
+        monkeypatch.setattr(warmer, "_UNIVERSE", set())   # force the shape filter
+        fmp_get, _ = self._recorder({"2026-08-09": [
+            {"symbol": "600641.SS", "epsActual": 1.0},
+            {"symbol": "PNCINFRA.NS", "epsActual": 1.0},
+            {"symbol": "4324.SR", "epsActual": 1.0},
+            {"symbol": "DIS", "epsActual": 1.0},
+        ]})
+
+        out = warmer.recent_reporters(days=0, today=date(2026, 8, 9),
+                                      fmp_get=fmp_get)
+
+        assert out == ["DIS"]
+
+    def test_universe_membership_filters_when_the_file_loaded(self, warmer,
+                                                              monkeypatch):
+        from datetime import date
+        monkeypatch.setattr(warmer, "_UNIVERSE", {"DIS"})
+        fmp_get, _ = self._recorder({"2026-08-09": [
+            {"symbol": "DIS", "epsActual": 1.0},
+            {"symbol": "ZZZZ", "epsActual": 1.0},   # US-shaped but not charted
+        ]})
+
+        out = warmer.recent_reporters(days=0, today=date(2026, 8, 9),
+                                      fmp_get=fmp_get)
+
+        assert out == ["DIS"]
+
+    def test_queries_one_day_at_a_time_not_a_range(self, warmer):
+        # A from/to RANGE response is capped at 4000 rows and drops issuers
+        # WITHOUT erroring — DIS is absent from an 8-day range and present in
+        # its own day. A range query would look like it worked, so the
+        # single-day shape is the thing worth pinning.
+        from datetime import date
+        fmp_get, calls = self._recorder({})
+
+        warmer.recent_reporters(days=3, today=date(2026, 8, 9), fmp_get=fmp_get)
+
+        assert [c["from"] for c in calls] == [
+            "2026-08-09", "2026-08-08", "2026-08-07", "2026-08-06"]
+        assert all(c["from"] == c["to"] for c in calls), \
+            "a range query silently truncates; every request must be ONE day"
+
+    def test_skips_names_that_have_not_reported_yet(self, warmer):
+        from datetime import date
+        fmp_get, _ = self._recorder({"2026-08-09": [
+            {"symbol": "AAA", "epsActual": 1.0},
+            {"symbol": "PEND", "epsActual": None},   # scheduled, not yet out
+        ]})
+
+        out = warmer.recent_reporters(days=0, today=date(2026, 8, 9),
+                                      fmp_get=fmp_get)
+
+        assert out == ["AAA"], "a name with no epsActual has no transcript yet"
+
+    def test_newest_day_first_and_deduped(self, warmer):
+        # Order IS the feature: the budget runs out partway down the queue, so
+        # the most recent call must be ahead of the older one.
+        from datetime import date
+        fmp_get, _ = self._recorder({
+            "2026-08-09": [{"symbol": "NEW", "epsActual": 1.0}],
+            "2026-08-08": [{"symbol": "OLD", "epsActual": 2.0},
+                           {"symbol": "NEW", "epsActual": 1.0}],
+        })
+
+        out = warmer.recent_reporters(days=1, today=date(2026, 8, 9),
+                                      fmp_get=fmp_get)
+
+        assert out == ["NEW", "OLD"]
+
+    def test_one_bad_day_does_not_lose_the_others(self, warmer):
+        from datetime import date
+
+        def fmp_get(path, params, timeout=None):
+            if params["from"] == "2026-08-08":
+                raise RuntimeError("provider blew up")
+            if params["from"] == "2026-08-07":
+                return None                      # provider returned nothing
+            return [{"symbol": "AAA", "epsActual": 1.0}]
+
+        out = warmer.recent_reporters(days=2, today=date(2026, 8, 9),
+                                      fmp_get=fmp_get)
+
+        assert out == ["AAA"]
+
+    def test_ranked_by_size_so_the_budget_reaches_the_big_names(self, warmer,
+                                                                monkeypatch):
+        # Ordered purely by day, DIS sat at queue position 743 of 1,241 —
+        # past the daily spend cap, so the single name most likely to be
+        # opened would never have been warmed.
+        from datetime import date
+        monkeypatch.setattr(warmer, "_UNIVERSE", {"DIS", "TINY", "MID"})
+        fmp_get, _ = self._recorder({
+            # TINY reported TODAY, DIS four days ago — size must still win.
+            "2026-08-09": [{"symbol": "TINY", "epsActual": 0.1,
+                            "revenueActual": 5_000_000}],
+            "2026-08-07": [{"symbol": "MID", "epsActual": 0.5,
+                            "revenueActual": 900_000_000}],
+            "2026-08-05": [{"symbol": "DIS", "epsActual": 2.06,
+                            "revenueActual": 25_248_000_000}],
+        })
+
+        out = warmer.recent_reporters(days=4, today=date(2026, 8, 9),
+                                      fmp_get=fmp_get)
+
+        assert out == ["DIS", "MID", "TINY"]
+
+    def test_unknown_revenue_sorts_last_not_first(self, warmer, monkeypatch):
+        # A missing revenue must not read as zero-and-therefore-huge, nor
+        # outrank a name whose size is known.
+        from datetime import date
+        monkeypatch.setattr(warmer, "_UNIVERSE", {"KNOWN", "UNK"})
+        fmp_get, _ = self._recorder({"2026-08-09": [
+            {"symbol": "UNK", "epsActual": 1.0},                       # no revenue
+            {"symbol": "KNOWN", "epsActual": 1.0, "revenueActual": 1_000},
+        ]})
+
+        out = warmer.recent_reporters(days=0, today=date(2026, 8, 9),
+                                      fmp_get=fmp_get)
+
+        assert out == ["KNOWN", "UNK"]

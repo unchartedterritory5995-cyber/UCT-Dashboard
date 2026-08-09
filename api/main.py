@@ -1341,7 +1341,16 @@ def register_call_recap_warm_jobs(scheduler):
             from api.services import call_recap_warmer as warmer
             from api.services import transcript_keyword_alerts as ka
             from api.services.engine import get_earnings
-            syms = ka.reporters_from_earnings(get_earnings() or {})
+            # Today's buckets lead — a name that reported this morning is the one
+            # most likely to be opened — then the recent tape behind it. Today's
+            # calendar ALONE is not a queue: a Wednesday reporter would never be
+            # swept again and its recap would stay cold for good.
+            syms = list(ka.reporters_from_earnings(get_earnings() or {}))
+            seen = set(syms)
+            for s in warmer.recent_reporters():
+                if s not in seen:
+                    seen.add(s)
+                    syms.append(s)
             if not syms:
                 _wlog.info("[recap_warm] no reporters; nothing to warm")
                 return
@@ -1349,12 +1358,22 @@ def register_call_recap_warm_jobs(scheduler):
         except Exception as exc:
             _wlog.warning("[recap_warm] sweep failed: %s", exc)
 
+    # Every day, not mon-fri: a Friday-evening call can publish on Saturday, and
+    # a weekend deploy must not leave every recap cold until Monday.
     for hour, minute in ((7, 30), (12, 30), (17, 15), (21, 30)):
         scheduler.add_job(
             _run_warm_sweep,
-            trigger=CronTrigger(day_of_week="mon-fri", hour=hour, minute=minute,
-                                timezone=_ET),
+            trigger=CronTrigger(hour=hour, minute=minute, timezone=_ET),
             id=f"call_recap_warm_{hour:02d}{minute:02d}", replace_existing=True)
+
+    # Prime shortly after boot instead of waiting for the next cron. Sweeps are
+    # incremental (`store.has` skips a stored call before spending), so a
+    # redeploy re-runs this for pennies rather than paying for the set again.
+    from datetime import datetime as _dt, timedelta as _td
+    scheduler.add_job(
+        _run_warm_sweep, trigger="date",
+        run_date=_dt.now(_ET) + _td(seconds=120),
+        id="call_recap_warm_boot", replace_existing=True)
     return True
 
 
