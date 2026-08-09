@@ -190,20 +190,38 @@ def get_status() -> dict:
 
 
 try:  # keep the core importable even where FastAPI is absent (pure-logic tests)
-    from fastapi import APIRouter
+    from fastapi import APIRouter, Depends
+
+    from api.middleware.auth_middleware import require_admin
 
     router = APIRouter(prefix="/api/watchdog", tags=["watchdog"])
 
     @router.get("/status")
-    def watchdog_status():  # no auth — read-only telemetry
+    def watchdog_status():  # no auth — counters only: no paths, no symbols
+        """Lag counters (`last_lag_ms`/`max_lag_ms`/`checks`/`missed_streak`).
+
+        DELIBERATELY LEFT ANONYMOUS while `/stacks` is gated: this returns
+        numbers ABOUT the loop and nothing about the code running on it, which
+        is the same class as `/api/admin/bars-stream-status`. The arming runbook
+        in this module's docstring tells the operator to watch it for days
+        before arming the killer, and that is a `curl` from wherever they are.
+        """
         return get_status()
 
     @router.get("/stacks")
-    def watchdog_stacks():  # no auth — read-only diagnostic
+    def watchdog_stacks(_admin: dict = Depends(require_admin)):
         """Thread stacks captured DURING recent event-loop stalls (observe mode).
 
         Each entry is a snapshot taken by the watchdog thread while the loop was
         mid-stall — so the blocking frame is live in the dump. Newest first.
+
+        🔴 ADMIN ONLY (2026-08-09). This said "no auth — read-only
+        diagnostic", and READ-ONLY IS NOT THE SAME PROPERTY AS HARMLESS: the
+        dump carries absolute module paths, function names and line numbers for
+        every thread in the process, which is an internal map of the application
+        handed to an anonymous caller. Sibling gate:
+        `/api/health/thread-stacks` in `api/main.py`. Rail:
+        `tests/test_health_routes_admin_gated.py`.
         """
         with _lock:
             return {"captures": list(_stall_stacks)}

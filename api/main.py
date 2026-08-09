@@ -35,7 +35,7 @@ for _noisy in ("httpx", "httpcore", "websockets.client", "websockets.server",
     logging.getLogger(_noisy).setLevel(logging.WARNING)
 
 from fastapi import FastAPI, Request, Depends
-from api.middleware.auth_middleware import get_current_user
+from api.middleware.auth_middleware import get_current_user, require_admin
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, Response
 from slowapi import _rate_limit_exceeded_handler
@@ -1149,9 +1149,29 @@ def register_screener_jobs(scheduler):
     # derives that per definition from the manifest's own declarations; adding an
     # intraday job would only ever be honest for bars-only trees.
     #
-    # ⛔ AND IT IS OFF BY DEFAULT. E-4 has not wired a surface to these results,
-    # so a sweep that ran by default would spend the pod's night writing rows
-    # nothing can read.
+    # ⛔ AND IT IS OFF BY DEFAULT IN CODE WHILE IT IS **ON IN PRODUCTION**.
+    # `scan_evaluator.enabled()` reads `SCAN_SWEEP_ENABLED`, default "0", and
+    # `railway variables --service web --kv` reports `SCAN_SWEEP_ENABLED=1`
+    # (read live 2026-08-09). A local run and production therefore DIVERGE on
+    # this switch: set it before reproducing a prod behaviour, and do not read
+    # the default as "the sweep is dark".
+    #
+    # ⚰️ THIS SAID "E-4 has not wired a surface to these results, so a sweep
+    # that ran by default would spend the pod's night writing rows nothing can
+    # read." **That is false, and it has already cost two agents an hour each
+    # this week** -- both stopped mid-task to work out whether the comment or
+    # the code was right. The surface shipped: `/screener` -> `pages/Screener.jsx`
+    # -> `components/screener/SavedScreensPanel.jsx` -> `ScanResults.jsx` ->
+    # `CoverageLine.jsx`, reading `GET /api/scans/definition-results`
+    # (`api/routers/scan_results.py`, mounted below), with
+    # `components/screener/reachable.test.js` and
+    # `app/src/pages/Screener.scanmount.test.jsx` as the standing rails.
+    #
+    # ⛔ THE SAME FALSE SENTENCE IS ALSO IN `scan_evaluator.enabled()`'s OWN
+    # DOCSTRING, and that is why it survived every reading: each copy looked
+    # like corroboration of the other. That file belongs to another lane right
+    # now, so this is the copy this file owns -- correct BOTH or neither, since
+    # one fixed copy beside one stale copy is the second-authority defect again.
     from api.services.screener import scan_evaluator
 
     def _run_scan_sweep():
@@ -1200,6 +1220,210 @@ def register_signature_sweep_job(scheduler):
         sweep_job,
         trigger=CronTrigger(day_of_week="mon-fri", hour=20, minute=5, timezone=_ET),
         id="signature_sweep", max_instances=1, replace_existing=True,
+    )
+    return True
+
+
+# ── the nightly split back-adjustment sweep ──────────────────────────
+from datetime import timedelta as _timedelta  # noqa: E402  (local to this block)
+
+#: ⏰ THE ONLY CLOCK NUMBER THIS SCHEDULE DECLARES: how long BEFORE the regular
+#: session opens the sweep STARTS. ⛔ THE OPEN ITSELF IS NOT WRITTEN HERE.
+#: `scan_evaluator.market_open_et` derives it from
+#: `bars_fetch.bucket_60_et_unix_seconds` -- the function CLAUDE.md names the
+#: single source of truth for session alignment, and the one 09:30 the REST
+#: resample path and the WebSocket rollup path already share. Spelling 09:30
+#: again here would be the FIFTH copy (`bars_liveness.is_market_open`,
+#: `live_massive_router._MARKET_OPEN_ET_MIN`, `flow_gap_autofill`, the anchor
+#: itself) -- `lesson_probe_names_must_be_derived_not_typed`, and the shape that
+#: has already cost this repo three outages.
+#:
+#: ⭐ WHY SEVEN HOURS (= 02:30 ET today). The sweep must land BEFORE the two
+#: nightly readers of the same store: `screener_snapshot_nightly` at 03:00 ET
+#: and `screener_scan_sweep` at `scan_evaluator.SWEEP_HOUR_ET` (05:00 ET). Both
+#: read `bars_sqlite` directly, so a split healed after them is a split their
+#: rows spend the whole day not having. Heal first, then let them read.
+_SPLIT_SWEEP_LEAD_BEFORE_OPEN = _timedelta(hours=7)
+
+#: How many tickers ONE run walks -- and therefore how many cold corporate-action
+#: fetches it makes, because it warms exactly what it walks. The cursor below
+#: advances by this much per night, so the whole store is covered in ~8 nights
+#: and then repeats. Anything a member actually charts is healed immediately by
+#: `bars_sanitize`'s serve-path hand-off, so this bounds the latency on the tail
+#: NOBODY looks at -- which is the only part that needed a schedule.
+_SPLIT_SWEEP_MAX_TICKERS = int(os.environ.get("BARS_SPLIT_SWEEP_MAX_TICKERS", "500"))
+
+#: Resume point, so consecutive nights walk DIFFERENT tickers instead of
+#: re-sweeping the head of the alphabet forever. Per-PROCESS state on a
+#: deliberately single-process web pod; losing it on a redeploy costs a repeated
+#: slice, never a wrong answer.
+_split_sweep_cursor = 0
+
+
+def _run_bars_split_repair_sweep() -> dict:
+    """One night's slice of the un-back-adjusted-split heal. Never raises.
+
+    🔴 WHY THIS EXISTS AT ALL. `bars_split_repair` shipped in `61f3b33b`
+    with a serve-path hand-off (a charted ticker heals itself) and a manual tool
+    -- and NO scheduler entry, because `api/main.py` was held by another lane.
+    Its own report says so: *"NOT wired: a scheduled sweep."* So the un-charted
+    tail of the universe healed nowhere, while `snapshot_builder`,
+    `scan_evaluator` and the alert lane all read those rows. This repo has
+    already paid for that exact gap once: the Desk session-insights pass was
+    written, documented as scheduled, wired into no scheduler, and its deferred
+    Zoom deletes had no collector for weeks.
+
+    ⛔ THE METADATA IS FETCHED HERE, NOT READ OUT OF A WARM CACHE AND HOPED
+    FOR. `bars_split_repair._splits_for` reads `bars_sanitize`'s CACHE ONLY -- a
+    deliberate serve-path invariant (no unbounded external call one thread from
+    a request). That cache is the shared 1,000-entry LRU, so a metadata key
+    written at 02:30 is long evicted by the next 02:30, and a sweep that only
+    READ it would report "no splits" for the entire universe forever while
+    logging a clean line. That is the sweep tool's own concern 7 ("not a failure
+    mode the tool can detect for you"), and it IS detectable here: this runs on
+    a BackgroundScheduler worker thread, off the event loop and off the request
+    path, which is the one context where the bounded FMP call is allowed. The
+    answer is still written back to the cache so the serve path benefits, but
+    this run does not DEPEND on it surviving.
+
+    ⭐ SEPARATE COUNTS, NOT ONE TOTAL -- the `CoverageLine` idiom. "no splits
+    declared", "could not ask the provider", "asked and the repair threw" and
+    "asked and healed" are different facts, and collapsing them is how a sweep
+    that reached nothing reads as a quiet night. (Deliberately no number here:
+    read the keys of the dict it returns.)
+
+    ⛔ AND IT DOES NOT RE-DERIVE THE SPLIT JUDGEMENT. Whether a boundary is
+    unadjusted is `bars_sanitize.unadjusted_splits`, reached through
+    `bars_split_repair.repair_all_tfs`. This function decides WHICH tickers to
+    ask about and WHEN to stop -- nothing else.
+    """
+    from api.services import bars_sanitize as _san
+    from api.services import bars_split_repair, bars_sqlite
+    from api.services.cache import cache
+    from api.services.screener import scan_evaluator
+
+    global _split_sweep_cursor
+    log = logging.getLogger(__name__)
+    summary = {"considered": 0, "no_splits": 0, "meta_failed": 0, "failed": 0,
+               "repaired": 0, "rows": 0, "boundaries": [], "stopped_early": False}
+
+    if not bars_split_repair.enabled():
+        log.info("[split-sweep] BARS_SPLIT_REPAIR_ENABLED=0 -- skipped")
+        return summary
+
+    # 🔴 THE VACUITY GUARD. Without a key `_fmp_get` returns None,
+    # `_fetch_meta` answers `{"splits": []}` WITHOUT raising, and every ticker in
+    # the universe reads as "nothing to adjust" -- a green log line over a sweep
+    # structurally incapable of finding anything
+    # (`lesson_health_check_reads_a_proxy_not_the_artifact`).
+    if not (os.environ.get("FMP_API_KEY") or "").strip():
+        log.error("[split-sweep] FMP_API_KEY is unset. Corporate-action metadata "
+                  "cannot be fetched, so every ticker would report 'no splits' and "
+                  "this sweep would heal nothing while looking healthy. REFUSING.")
+        summary["meta_failed"] = -1
+        return summary
+
+    try:
+        deadline = scan_evaluator.sweep_deadline()
+    except Exception as e:                                     # noqa: BLE001
+        log.warning("[split-sweep] no session-derived deadline (%s); unbounded", e)
+        deadline = None
+
+    try:
+        universe = sorted({t for t, _tf in (bars_sqlite.get_all_tickers() or [])})
+    except Exception as e:                                     # noqa: BLE001
+        log.warning("[split-sweep] could not read the store's ticker list: %s", e)
+        return summary
+    if not universe:
+        log.info("[split-sweep] the store holds no tickers -- nothing to sweep")
+        return summary
+
+    # ⚠️ `min(..., n)` IS LOAD-BEARING. A wrap-around slice that ran past the
+    # universe length would visit the same ticker twice in one night -- harmless
+    # for the repair (it is idempotent) and NOT harmless for the counts: the
+    # second visit reads the metadata this run just cached and reports it as a
+    # clean `no_splits`, so a provider outage would show up as "nothing to
+    # adjust" on the very run that failed to ask.
+    n = len(universe)
+    take = min(_SPLIT_SWEEP_MAX_TICKERS, n)
+    start = _split_sweep_cursor % n
+    slice_ = [universe[(start + i) % n] for i in range(take)]
+    _split_sweep_cursor = (start + take) % n
+
+    for ticker in slice_:
+        if deadline is not None and datetime.now(_ET) >= deadline:
+            summary["stopped_early"] = True
+            break
+        summary["considered"] += 1
+        key = _san._META_KEY.format(ticker)
+        meta = cache.get(key)
+        if meta is None:
+            try:
+                meta = _san._fetch_meta(ticker)
+                cache.set(key, meta, ttl=_san._META_TTL)
+            except Exception:                                  # noqa: BLE001
+                cache.set(key, {"ipo": None, "splits": []}, ttl=_san._META_FAIL_TTL)
+                summary["meta_failed"] += 1
+                continue
+            time.sleep(0.05)          # provider politeness, not a rate limit
+        splits = list((meta or {}).get("splits") or [])
+        if not splits:
+            summary["no_splits"] += 1
+            continue
+        # ⚠️ ONE TICKER'S EXCEPTION MUST NOT END THE NIGHT.
+        # `bars_split_repair.sweep()` isolates per ticker; `repair_all_tfs` --
+        # which is what this calls, because it already holds the splits and must
+        # not re-read the cache for them -- does NOT. A locked bars.db on ticker
+        # 40 of 500 would otherwise repair 39 and log a successful run.
+        try:
+            results = bars_split_repair.repair_all_tfs(ticker, apply=True,
+                                                       splits=splits)
+        except Exception as e:                                 # noqa: BLE001
+            log.warning("[split-sweep] %s failed: %s", ticker, e)
+            summary["failed"] += 1
+            continue
+        for res in results:
+            if res.get("boundaries"):
+                summary["boundaries"].append((res["ticker"], res["tf"], res["boundaries"]))
+            if res.get("written"):
+                summary["repaired"] += 1
+                summary["rows"] += int(res["written"])
+
+    log.info("[split-sweep] slice=%d/%d considered=%d no_splits=%d meta_failed=%d "
+             "failed=%d repaired=%d rows=%d stopped_early=%s boundaries=%s",
+             len(slice_), n, summary["considered"], summary["no_splits"],
+             summary["meta_failed"], summary["failed"], summary["repaired"],
+             summary["rows"], summary["stopped_early"], summary["boundaries"][:10])
+    return summary
+
+
+def register_bars_split_repair_sweep(scheduler):
+    """Register the nightly split back-adjustment sweep. True if registered.
+
+    ⭐ THE HOUR IS DERIVED, NOT TYPED -- see `_SPLIT_SWEEP_LEAD_BEFORE_OPEN`.
+    The cron fires DAILY (not `mon-fri`): a split's ex-date is a trading day, but
+    the heal is a repair of STORED ROWS, and a weekend run is what lets the
+    cursor keep covering the universe on the two days nothing else competes for
+    the pod.
+
+    ⛔ NO NEW FLAG. `bars_split_repair.enabled()` (`BARS_SPLIT_REPAIR_ENABLED`,
+    default ON) already gates the serve-path hand-off; a second switch over one
+    feature is the second-authority defect this repo keeps re-committing.
+    """
+    from apscheduler.triggers.cron import CronTrigger
+    from api.services import bars_split_repair
+    from api.services.screener import scan_evaluator
+
+    if not bars_split_repair.enabled():
+        return False
+
+    fire_at = (scan_evaluator.market_open_et(datetime.now(_ET).date())
+               - _SPLIT_SWEEP_LEAD_BEFORE_OPEN)
+    scheduler.add_job(
+        _run_bars_split_repair_sweep,
+        trigger=CronTrigger(hour=fire_at.hour, minute=fire_at.minute, timezone=_ET),
+        id="bars_split_repair_sweep", max_instances=1, coalesce=True,
+        replace_existing=True, misfire_grace_time=3600,
     )
     return True
 
@@ -3656,6 +3880,22 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             print(f"[scheduler] signature sweep registration error: {e}")
 
+        # -- Nightly split back-adjustment sweep (`61f3b33b`) ----------------
+        # ⛔ THE HALF THAT WAS MISSING. The repair shipped with a serve-path
+        # hand-off and a manual tool and NO schedule, so nothing healed the
+        # tickers nobody charts. The hour is derived from the session anchor,
+        # never typed -- see `_SPLIT_SWEEP_LEAD_BEFORE_OPEN`.
+        try:
+            if register_bars_split_repair_sweep(_scheduler):
+                _sj = _scheduler.get_job("bars_split_repair_sweep")
+                print(f"[startup] bars split-repair sweep scheduled ({_sj.trigger} ET, "
+                      f"{_SPLIT_SWEEP_MAX_TICKERS} tickers/run)")
+            else:
+                print("[startup] bars split-repair sweep OFF "
+                      "(BARS_SPLIT_REPAIR_ENABLED=0)")
+        except Exception as e:
+            print(f"[scheduler] bars split-repair sweep registration error: {e}")
+
         # -- Opus-vision pattern judge (spec 2026-06-19) -------------------
         try:
             if register_pattern_vision_jobs(_scheduler):
@@ -4831,8 +5071,30 @@ def ready():
     return JSONResponse(status_code=200 if snap["ready"] else 503, content=snap)
 
 
+# ── The diagnostic health family is ADMIN-ONLY (2026-08-09) ─────────────────
+# 🔴 THESE THREE ANSWERED ANONYMOUS CALLERS. `/api/health/thread-stacks`
+# returned 2,841 bytes of LIVE PYTHON STACK TRACES -- absolute module paths,
+# function names and line numbers for every running thread -- to anyone on the
+# internet; `/threads` names every background subsystem this pod runs; `/cache`
+# reports the R2 bars-snapshot sync state. They were out of scope for the
+# 2026-08-09 auth sweep only because they are declared here rather than in a
+# router, which is not a security property.
+#
+# ⛔ NOT `AdminGuardMiddleware`. That middleware matches on `/api/admin/*` and
+# `/api/live/admin/*` prefixes; widening its tuple to swallow `/api/health/*`
+# would put the LIVENESS probes (`/api/health`, `/api/ready`) one prefix-typo
+# away from a 403 -- and Railway's `healthcheckPath` is `/api/health` while
+# `worker_main`'s down-alert monitor polls the same route and posts a red "site
+# down" to Discord when it fails. A per-route `Depends` cannot reach them.
+#
+# ⭐ AND THE ONES THAT STAY OPEN STAY OPEN ON PURPOSE. `/api/health`,
+# `/api/ready`, `/api/watchdog/status`, `/api/admin/bars-stream-status` and
+# `/api/admin/reconciliation-status` are documented no-auth and were re-verified
+# clean (counters only -- no market data, no universe size, no symbol lists). A
+# gate that blocks everyone is not a fix;
+# `tests/test_health_routes_admin_gated.py` asserts both directions.
 @app.get("/api/health/threads")
-def health_threads():
+def health_threads(_admin: dict = Depends(require_admin)):
     """Live thread-name histogram -- names WHAT is spawning the periodic burst
     (2026-06-10: 58->931 threads in 6 min). Names are normalized by prefix
     (digits + ticker-ish tokens stripped) so e.g. 'bars-bg-NVDA-5-partial' and
@@ -4845,10 +5107,15 @@ def health_threads():
 
 
 @app.get("/api/health/thread-stacks")
-def health_thread_stacks():
+def health_thread_stacks(_admin: dict = Depends(require_admin)):
     """Companion to /threads: dump WHERE each thread is stuck (deepest app-level
     stack frame) so a thread / anyio-worker burst can be pinned to the exact
-    blocking call site. Hit this DURING a burst. Read-only, cheap."""
+    blocking call site. Hit this DURING a burst. Read-only, cheap.
+
+    ADMIN ONLY -- see the block comment above `/api/health/threads`. This is the
+    route that was handing out live stack traces with file paths and line
+    numbers to unauthenticated callers. Read-only is not the same property as
+    harmless."""
     import sys as _sys
     import traceback as _tb
     from collections import Counter as _Counter
@@ -4879,7 +5146,9 @@ def health_thread_stacks():
 
 
 @app.get("/api/health/cache")
-def health_cache():
+def health_cache(_admin: dict = Depends(require_admin)):
+    """Bars-snapshot sync freshness (the R2 rail). ADMIN ONLY -- see the block
+    comment above `/api/health/threads`."""
     from api.services.data_sync import get_local_sync_state
     state = get_local_sync_state()
     return {
