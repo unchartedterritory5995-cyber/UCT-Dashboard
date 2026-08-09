@@ -105,6 +105,9 @@ export async function composeScreenshot(chart, opts = {}) {
     sym, tf, price, changePct, companyName,
     container, crosshairData, volPos,
     bgColor = '#0e0f0d', textColor = '#a8a290', swingLabels, swingStyle,
+    // The change-% uses the user's own candle up/down colors (from chart settings), so the
+    // header % matches the candles instead of a hardcoded green/red.
+    upColor = '#1ae51a', downColor = '#c41f2d',
   } = opts;
 
   // LWC's takeScreenshot() = ONLY the chart canvases (candles, axes, MAs, volume
@@ -170,10 +173,14 @@ export async function composeScreenshot(chart, opts = {}) {
     const vy = px((volPos?.y ?? (contRect ? contRect.height * 0.78 : 500))) + HEADER_H + px(12);
     ctx.textAlign = 'left';
     ctx.font = `600 ${px(12)}px ${FONT}`;
+    // Theme-aware: derive from the chart's ink (textColor) so the volume legend is as dark
+    // and legible as the live chart — the hardcoded light-tan was only right on a dark canvas.
     const chip = (label, val) => {
-      ctx.fillStyle = '#8f897a'; ctx.fillText(label, vx, vy);
+      ctx.save();
+      ctx.globalAlpha = 0.62; ctx.fillStyle = textColor; ctx.fillText(label, vx, vy);
+      ctx.restore();
       vx += ctx.measureText(label).width + px(4);
-      ctx.fillStyle = '#c9c3b0'; ctx.fillText(val, vx, vy);
+      ctx.fillStyle = textColor; ctx.fillText(val, vx, vy);
       vx += ctx.measureText(val).width + px(14);
     };
     if (crosshairData.dollarVol != null) chip('$ Vol', _fmtNotional(crosshairData.dollarVol));
@@ -238,7 +245,7 @@ export async function composeScreenshot(chart, opts = {}) {
     ctx.fillText(p, hx, hy); hx += ctx.measureText(p).width + px(10);
   }
   if (Number.isFinite(changePct)) {
-    ctx.fillStyle = changePct >= 0 ? '#1ae51a' : '#c41f2d';
+    ctx.fillStyle = changePct >= 0 ? upColor : downColor;
     ctx.fillText(`${changePct >= 0 ? '+' : ''}${changePct.toFixed(2)}%`, hx, hy);
   }
 
@@ -259,9 +266,21 @@ export async function composeScreenshot(chart, opts = {}) {
   if (compass) ctx.drawImage(compass, textX - gap - logoW, hy - logoH / 2, logoW, logoH);
   ctx.fillStyle = '#c9a84c';
   ctx.fillText(brandText, textX, hy);
+  // A very thin, faint black outline so the gold wordmark reads cleanly on any canvas
+  // (esp. a light theme, where flat gold can wash out).
+  ctx.save();
+  ctx.lineWidth = Math.max(0.5, px(0.6));
+  ctx.strokeStyle = 'rgba(0,0,0,0.32)';
+  ctx.lineJoin = 'round';
+  ctx.strokeText(brandText, textX, hy);
+  ctx.restore();
 
   // ── Footer (bg already painted with bgColor) ──
-  ctx.fillStyle = '#8f897a';
+  // Theme-aware + a touch darker than before so the timestamp / URL stay legible on a
+  // light canvas (the old flat tan was too faint).
+  ctx.save();
+  ctx.globalAlpha = 0.82;
+  ctx.fillStyle = textColor;
   ctx.font = `${px(11)}px ${FONT}`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
@@ -277,6 +296,7 @@ export async function composeScreenshot(chart, opts = {}) {
   ctx.textAlign = 'right';
   ctx.fillText('uctintelligence.com', totalW - px(16), HEADER_H + ch + FOOTER_H / 2);
   ctx.textAlign = 'left';
+  ctx.restore();
 
   return new Promise((resolve, reject) => {
     out.toBlob(

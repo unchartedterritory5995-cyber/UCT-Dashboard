@@ -83,6 +83,13 @@
   .tabs,
   .links {
     flex-direction: row;
+    /* Do not let the groups shrink. `.rail` is a flex ROW here, so its children
+       default to flex-shrink:1 and compress to fit the viewport instead of
+       overflowing into the scroller `overflow-x:auto` exists to provide. That
+       compression is what fed `.itemLabel`'s ellipsis and produced the
+       run-together "AnalPsts& OwnCerShib" — the labels were not too long, they
+       were being squeezed. */
+    flex: 0 0 auto;
   }
   .links {
     padding-top: 0;
@@ -92,6 +99,9 @@
   }
   .item {
     white-space: nowrap;
+    /* Same reason, one level down: each chip sizes to its label (or the 44px
+       tap floor, whichever is larger) and the row scrolls. */
+    flex: 0 0 auto;
     /* The vertical rail sets `min-height: var(--tap-min)`, which is the whole
        target on desktop where the item spans the rail's width. Flipped to a
        horizontal chip row the item shrinks to its label, so the SHORT axis
@@ -101,6 +111,13 @@
        a thumb horizontally. Constrain the axis that actually got small. */
     min-width: var(--tap-min);
     justify-content: center;
+  }
+  .itemLabel {
+    /* The ellipsis belongs to the VERTICAL rail, where a long label has to fit
+       a fixed-width column. In the scrolling chip row there is no width to fit
+       into, so truncating here can only ever destroy a label that had room. */
+    overflow: visible;
+    text-overflow: clip;
   }
 }
 

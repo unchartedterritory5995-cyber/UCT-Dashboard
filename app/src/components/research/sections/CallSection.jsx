@@ -16,7 +16,7 @@ import SentimentGauge from '../../calendar/SentimentGauge'
 import { EmptyState } from '../../research-kit'
 import useCallRecap from '../../../hooks/useCallRecap'
 import useEarningsAudio from '../../../hooks/useEarningsAudio'
-import { normalizeCallRecap } from '../callRecap'
+import { normalizeCallRecap, recapEmptyState } from '../callRecap'
 import styles from './CallSection.module.css'
 
 // §12 / review r1 I3: `SentimentGauge` (an AI score + rationale + drivers,
@@ -45,6 +45,8 @@ export default function CallSection({ sym, lifecycle }) {
   const { data: payload } = useCallRecap(sym, quarter)
   const { data: audio } = useEarningsAudio(sym)
   const recap = normalizeCallRecap(payload)
+  // Read off the payload, not re-derived: the server owns this reason.
+  const recapStatus = payload?.recap_status
 
   if (!recap) {
     const webcast = payload?.webcast_url
@@ -59,16 +61,11 @@ export default function CallSection({ sym, lifecycle }) {
             Listen live →
           </a>
         )}
-        {/* Naming the quarter matters: stepping back to an older call is a
-            deliberate act, and "No call recap yet" there reads as a failure
-            rather than as "recaps are written for the latest call". */}
-        <EmptyState
-          icon="chat"
-          title={quarter ? `No recap for ${quarter}` : 'No call recap yet'}
-          hint={quarter
-            ? 'Recaps are written for the most recent call. The full transcript for this quarter is below.'
-            : 'A recap is written once there is enough source material on this call.'}
-        />
+        {/* Copy comes from the shared map, keyed on the server's reason. The
+            common case is `generating` — the request path never synthesises
+            inline — and calling that "No call recap yet" reported a failure
+            for work that was in progress. */}
+        <EmptyState icon="chat" {...recapEmptyState(recapStatus, quarter)} />
         {/* Independent of the recap above: FMP publishes the verbatim
             transcript with no LLM in the path, so it must stay reachable
             when synthesis has not run, has failed, or is capped. */}
@@ -82,7 +79,8 @@ export default function CallSection({ sym, lifecycle }) {
     <div className={styles.wrap}>
       <p className={styles.provenance} data-testid="call-provenance">{PROVENANCE}</p>
       <SentimentGauge ticker={sym} />
-      <CallRecapSection recap={recap} audio={audio ?? null} onJumpToSegment={jumpToSegment} />
+      <CallRecapSection recap={recap} audio={audio ?? null} onJumpToSegment={jumpToSegment}
+                        hideSentimentBadge />
       <TranscriptPanel sym={sym} focus={focus} quarter={quarter}
                        onQuarterChange={setQuarter} />
     </div>

@@ -2886,6 +2886,10 @@ export default function StockChart({
   const [screenshotPopoverOpen, setScreenshotPopoverOpen] = useState(false)
   const lastPriceRef = useRef(null)
   const lastChangePctRef = useRef(null)
+  // Last (and prior) REGULAR-session close, for the PNG export header — so a downloaded
+  // chart shows the RTH close (e.g. Friday's 226.73) rather than the live after-hours price.
+  const rthCloseRef = useRef(null)
+  const rthPrevCloseRef = useRef(null)
 
   // Assemble the branded-screenshot options: header data + the container (so the
   // compositor can grab the drawing/callout overlay canvases) + the live legend
@@ -2915,8 +2919,25 @@ export default function StockChart({
       : (userCanvas && cs.bgMode === 'gradient')
         ? (cs.bgGradient?.top || MB_BG)
         : ((userCanvas || !boldCandles) ? (cs.background || MB_BG) : MB_BG)
+    // Header price = the last REGULAR-session close (RTH), not the live/after-hours price —
+    // "current intraday price OR close of the last regular session". On D/W/M the change %
+    // is recomputed against the prior regular close so it stays consistent with that price;
+    // intraday keeps the existing daily change.
+    let _price = lastPriceRef.current
+    let _changePct = lastChangePctRef.current
+    if (Number.isFinite(rthCloseRef.current)) {
+      _price = rthCloseRef.current
+      if (['D', 'W', 'M'].includes(resolvedTf) && Number.isFinite(rthPrevCloseRef.current) && rthPrevCloseRef.current) {
+        _changePct = ((rthCloseRef.current - rthPrevCloseRef.current) / rthPrevCloseRef.current) * 100
+      }
+    }
+    // The change-% follows the user's candle up/down colors (Model Book / bold look use
+    // their fixed palette; otherwise the chosen candle colors).
+    const _upColor = boldCandles ? mbUp : modelBookLook ? BOLD_UP : cs.candles.upColor
+    const _downColor = boldCandles ? mbDown : modelBookLook ? BOLD_DOWN : cs.candles.downColor
     return {
-      sym, tf: resolvedTf, price: lastPriceRef.current, changePct: lastChangePctRef.current,
+      sym, tf: resolvedTf, price: _price, changePct: _changePct,
+      upColor: _upColor, downColor: _downColor,
       companyName: watermarkMeta?.name || tickerMeta?.name || null,
       container: cont,
       crosshairData,
@@ -2935,7 +2956,7 @@ export default function StockChart({
         fontPx: sl.fontPx,
       },
     }
-  }, [sym, resolvedTf, watermarkMeta, tickerMeta, crosshairData, cs, canvasTheme, userCanvas, boldCandles, axisAuto])
+  }, [sym, resolvedTf, watermarkMeta, tickerMeta, crosshairData, cs, canvasTheme, userCanvas, boldCandles, modelBookLook, axisAuto])
 
   const handleDownload = useCallback(async () => {
     if (!chartRef.current) return
@@ -4086,6 +4107,19 @@ export default function StockChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- _sliceHold/_exKey/exitDate are render-derived (mutated in the block above); exactSliceEnd already tracks the hold
     [sessionBars, replayMode, replayIndex, replayCutoff, exactDateRange, exactSliceEnd, keepBarsAfterExit, entryDate, frameRightPadFrac]
   )
+
+  // Capture the last + prior REGULAR-session close for the PNG export. filteredBars is
+  // RTH-only (pre/post excluded), so its last close is the current intraday print during
+  // RTH and the locked regular close after hours (e.g. Friday's 226.73, not the 228.38 post).
+  useEffect(() => {
+    const fb = filteredBars
+    if (Array.isArray(fb) && fb.length) {
+      const lastC = fb[fb.length - 1]?.close ?? fb[fb.length - 1]?.c
+      rthCloseRef.current = Number.isFinite(lastC) ? lastC : null
+      const prevC = fb.length > 1 ? (fb[fb.length - 2]?.close ?? fb[fb.length - 2]?.c) : null
+      rthPrevCloseRef.current = Number.isFinite(prevC) ? prevC : null
+    }
+  }, [filteredBars])
 
   // Curated book charts (exactDateRange) frame a specific historical window.
   // For a REUSED ticker with a data gap (e.g. CGC: a different company's data

@@ -43,7 +43,13 @@ const ROOT = (() => {
   throw new Error(`BuilderSheet probe: could not find the repo root from ${process.cwd()}`)
 })()
 
-const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8')
+// Normalise line endings. Git checks these files out with CRLF on Windows
+// (BuilderSheet.jsx is 753 CRLF / 0 bare LF), so any assertion below that spans
+// a line break — `toContain('UNTIL\n// TASK 16 …')` — fails on a Windows
+// working copy and passes on CI. That is a fact about the checkout, not about
+// the source, and a rail that reports it as a defect trains you to ignore it.
+const read = (rel) =>
+  fs.readFileSync(path.join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n')
 
 const H = vi.hoisted(() => ({ requests: [], writeResponse: null }))
 

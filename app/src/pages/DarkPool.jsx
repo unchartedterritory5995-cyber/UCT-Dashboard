@@ -2922,6 +2922,7 @@ export default function DarkPool({embedded}){
   const prewarmedRef = useRef(false);  // page-mount pre-warm only fires once
   useEffect(() => {
     let cancelled = false;
+    let retryTimer;
     setCsvLoading(true);
     setLoadErr(null);
     // More informative copy than "Fetching aggregated data…" — the first
@@ -2934,68 +2935,79 @@ export default function DarkPool({embedded}){
       if (!cancelled) setLoadStatus("Building aggregation… first load is slow, subsequent are instant");
     }, 4000);
 
-    const aggUrl = fetchDays === 0
+    const aggBase = fetchDays === 0
       ? "/api/darkpool/aggregated?all_data=true"
       : `/api/darkpool/aggregated?days=${fetchDays}`;
-    const url = aggUrl + (aggUrl.includes("?") ? "&" : "?") + "_t=" + Date.now();
 
-    fetch(url)
-      .then(r => {
-        if (!r.ok) throw new Error("HTTP " + r.status);
-        return r.json();
-      })
-      .then(data => {
-        if (cancelled) return;
-        clearTimeout(slowHintTimer);
-        // Validate shape — aggregated response must have allItems + categories.
-        // Backend returns an _empty_result() shell (all arrays empty) when the
-        // DB has no data; we treat that as "no data" and fall back if possible.
-        const hasData = data && Array.isArray(data.allItems) && data.allItems.length > 0;
-        if (!hasData) {
-          if (fetchDays > 1) {
-            // Auto-fallback to 1d so the page still renders something useful.
-            // The state change re-runs this effect with the new URL.
-            setLoadStatus("No data for this range — loading 1d…");
-            setDateFilter("Last1");
-            setFetchDays(1);
+    // The endpoint is NON-BLOCKING: a cold window returns {status:"computing"}
+    // immediately (the heavy build runs server-side in the background, so no more
+    // 100s/524 hang) — we poll until the real payload lands. A fresh _t per
+    // attempt busts the CF/browser cache so a stale "computing" is never reused.
+    const attempt = () => {
+      fetch(aggBase + "&_t=" + Date.now())
+        .then(r => {
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.json();
+        })
+        .then(data => {
+          if (cancelled) return;
+          if (data && data.status === "computing") {
+            setLoadStatus("Building aggregation… first load is slow, subsequent are instant");
+            retryTimer = setTimeout(attempt, 3000);
             return;
           }
-          throw new Error("No data returned");
-        }
-        // Aggregated response IS the dpData shape — use directly, skip
-        // parseCSVtoD entirely. Also keep parsedRows null so the in-memory
-        // date-filter effect below stays a no-op.
-        setDpData(data);
-        setParsedRows(null);
-        setCsvLoading(false);
-        const elapsed = Math.round(performance.now() - loadStart);
-        console.log(`[DarkPool] window=${fetchDays} loaded in ${elapsed}ms`);
+          clearTimeout(slowHintTimer);
+          // Validate shape — aggregated response must have allItems + categories.
+          // Backend returns an _empty_result() shell (all arrays empty) when the
+          // DB has no data; we treat that as "no data" and fall back if possible.
+          const hasData = data && Array.isArray(data.allItems) && data.allItems.length > 0;
+          if (!hasData) {
+            if (fetchDays > 1) {
+              // Auto-fallback to 1d so the page still renders something useful.
+              // The state change re-runs this effect with the new URL.
+              setLoadStatus("No data for this range — loading 1d…");
+              setDateFilter("Last1");
+              setFetchDays(1);
+              return;
+            }
+            throw new Error("No data returned");
+          }
+          // Aggregated response IS the dpData shape — use directly, skip
+          // parseCSVtoD entirely. Also keep parsedRows null so the in-memory
+          // date-filter effect below stays a no-op.
+          setDpData(data);
+          setParsedRows(null);
+          setCsvLoading(false);
+          const elapsed = Math.round(performance.now() - loadStart);
+          console.log(`[DarkPool] window=${fetchDays} loaded in ${elapsed}ms`);
 
-        // Background pre-warm: after the primary load succeeds, fire off a
-        // /prebuild on the backend so every other date window (1d / 5d /
-        // 20d / 60d / 90d / all) gets cached. The backend has a lock so
-        // concurrent requests are idempotent; this is harmless if it's
-        // already warm. Once per page session — toggling date ranges later
-        // shouldn't keep re-warming.
-        if (!prewarmedRef.current) {
-          prewarmedRef.current = true;
-          // Fire-and-forget. Tiny delay so it doesn't fight the mktcap
-          // batch requests for backend CPU.
-          setTimeout(() => {
-            fetch("/api/darkpool/prebuild", { method: "POST" })
-              .then(() => console.log("[DarkPool] background prewarm kicked off"))
-              .catch(() => { /* silent — best effort */ });
-          }, 500);
-        }
-      })
-      .catch(e => {
-        if (cancelled) return;
-        clearTimeout(slowHintTimer);
-        setLoadErr(e?.message || "Could not load aggregated data");
-        setCsvLoading(false);
-      });
+          // Background pre-warm: after the primary load succeeds, fire off a
+          // /prebuild on the backend so every other date window (1d / 5d /
+          // 20d / 60d / 90d / all) gets cached. The backend has a lock so
+          // concurrent requests are idempotent; this is harmless if it's
+          // already warm. Once per page session — toggling date ranges later
+          // shouldn't keep re-warming.
+          if (!prewarmedRef.current) {
+            prewarmedRef.current = true;
+            // Fire-and-forget. Tiny delay so it doesn't fight the mktcap
+            // batch requests for backend CPU.
+            setTimeout(() => {
+              fetch("/api/darkpool/prebuild", { method: "POST" })
+                .then(() => console.log("[DarkPool] background prewarm kicked off"))
+                .catch(() => { /* silent — best effort */ });
+            }, 500);
+          }
+        })
+        .catch(e => {
+          if (cancelled) return;
+          clearTimeout(slowHintTimer);
+          setLoadErr(e?.message || "Could not load aggregated data");
+          setCsvLoading(false);
+        });
+    };
+    attempt();
 
-    return () => { cancelled = true; clearTimeout(slowHintTimer); };
+    return () => { cancelled = true; clearTimeout(slowHintTimer); clearTimeout(retryTimer); };
   }, [fetchDays]);
 
 

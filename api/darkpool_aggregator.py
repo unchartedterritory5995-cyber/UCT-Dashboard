@@ -868,6 +868,30 @@ def prewarm_if_cold():
     threading.Thread(target=_run, daemon=True, name="darkpool-prewarm").start()
 
 
+def is_window_warm(days=None, all_data=False):
+    """Public: True if the on-disk cache for this window matches the current DB
+    signature (a fast file-read + sig check — no heavy build). Used by the
+    /aggregated endpoint to decide serve-now vs build-in-background."""
+    return _is_warm(None if all_data else days)
+
+
+def build_window_background(days=None, all_data=False):
+    """Kick a background build of ONE window and return immediately. Idempotent —
+    the per-window single-flight lock in get_aggregated() coalesces concurrent
+    callers onto one build. Lets the /aggregated endpoint answer a cold request
+    with a fast 'computing' stub instead of blocking past Cloudflare's 100s limit
+    (the 524 on the slow 90d build) or pinning the event loop."""
+    def _run():
+        try:
+            get_aggregated(all_data=True) if all_data else get_aggregated(days=days)
+        except Exception as e:
+            print(f"[darkpool_agg] bg build d{'all' if all_data else days} FAILED: {e}")
+    threading.Thread(
+        target=_run, daemon=True,
+        name=f"darkpool-build-{'all' if all_data else days}",
+    ).start()
+
+
 # ── Intraday "today" aggregate (isolated from the historical windows) ────
 # Reads the ephemeral darkpool_today table only. Kept COMPLETELY separate from
 # the historical window cache above: its own in-memory single slot, keyed by the
