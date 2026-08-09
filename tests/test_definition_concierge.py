@@ -145,6 +145,9 @@ TABLE = ast_table.TABLE
 SERIES = sorted(TABLE[ast_table.SERIES_SECTION])
 OPERATORS = sorted(TABLE[ast_table.OPERATORS_SECTION])
 FUNCTIONS = sorted(TABLE[ast_table.FUNCTIONS_SECTION])
+#: The fourth section. Read, never listed — `ast_table.scalar_names` is the one
+#: derivation and a fifty-fifth scalar joins these cases the day it is declared.
+SCALARS = sorted(ast_table.scalar_names(TABLE))
 
 FIRST_SERIES = SERIES[0]
 #: A function of (series, int) — used for the "ordinary answer" cases. Chosen by
@@ -224,11 +227,12 @@ def _declared_yield_kinds(table: Mapping[str, Any] = None) -> List[str]:
 def _entry_yielding(kind: str, table: Mapping[str, Any] = None):
     """The first declared OPERATOR, then FUNCTION, whose `yields` is `kind`.
 
-    ⛔ SCALARS ARE NOT SEARCHED, and that is not an oversight. This corpus feeds
-    the byte-identity rail, and the Python read-back cannot yet say a scalar —
-    that divergence is E-5's, pinned by name in section 5b. An operand drawn
-    from the scalars section would fold a second, already-known divergence into
-    every case here and make the new one unreadable.
+    ⚠️ SCALARS ARE NOT SEARCHED FOR AN *OPERAND*, and the reason has changed.
+    It used to be that this lane could not SAY one; that divergence is closed
+    (section 5b), and the 54 are now in `corpus()` as leaves in their own right.
+    What this function picks is the operand that fills EVERY value position of
+    every entry, and a scalar there would multiply the corpus by 54 to probe the
+    same two `yields` branches a declared operator already reaches.
     """
     t = table if table is not None else TABLE
     for section in (ast_table.OPERATORS_SECTION, ast_table.FUNCTIONS_SECTION):
@@ -333,6 +337,14 @@ def corpus() -> Dict[str, dict]:
     out: Dict[str, dict] = {}
     for name in SERIES:
         out[f"series::{name}"] = s(name)
+    # ⭐ AND THE FOURTH SECTION, WHICH USED TO BE PINNED OUT OF THIS CORPUS. The
+    # Python lane could not say a scalar until E-5 taught `compile_rules` and
+    # `_render_name` the section, so every one of these cases would have been a
+    # known divergence and the rail carried a name list instead. Now the 54 are
+    # rendered by BOTH lanes and compared byte for byte — which is the strongest
+    # available statement that the closure is real and not just green.
+    for name in SCALARS:
+        out[f"scalar::{name}"] = s(name)
     for name in OPERATORS:
         out[f"op::{name}"] = minimal_op(name)
     for name in FUNCTIONS:
@@ -423,22 +435,33 @@ def test_the_TOOL_SCHEMA_is_generated_from_the_manifest_and_lists_every_arity(co
     schema = concierge.tool_schema()
     assert set(schema["functions"]) == set(TABLE[ast_table.FUNCTIONS_SECTION])
     assert set(schema["operators"]) == set(TABLE[ast_table.OPERATORS_SECTION])
-    assert set(schema["series"]) == set(TABLE[ast_table.SERIES_SECTION])
+    # ⭐ EVERY SECTION THE MANIFEST DECLARES IS CARRIED, KEY FOR KEY — the schema
+    # reads the section LIST off the file, so this comparison is over whatever
+    # the manifest declares rather than over three names typed here.
+    assert {section: set(entries) for section, entries in schema["sections"].items()} \
+        == {section: set(TABLE[section]) for section in _declared_sections(TABLE)}
     for name, spec in TABLE[ast_table.FUNCTIONS_SECTION].items():
         assert schema["functions"][name]["arity"] == len(spec["args"])
     for name, spec in TABLE[ast_table.OPERATORS_SECTION].items():
         assert schema["operators"][name]["arity"] == spec["arity"]
 
-    # …and the JSON Schema the API enforces carries the same three key sets as
-    # ENUMS. A schema whose enums drifted from the table would be a constraint on
-    # a vocabulary nobody runs.
+    # …and the JSON Schema the API enforces carries the same key sets as ENUMS. A
+    # schema whose enums drifted from the table would be a constraint on a
+    # vocabulary nobody runs.
+    #
+    # ⭐ THE `series` ENUM IS SERIES **AND** SCALARS, because a scalar rides the
+    # `series` node type — the manifest's own `_scalars_node` ruling, and the
+    # reason `propose` can now be handed `rs_rank > 80` at all.
     defs = schema["input_schema"]["$defs"]
-    assert defs["series"]["properties"]["name"]["enum"] == SERIES
+    assert defs["series"]["properties"]["name"]["enum"] == sorted(set(SERIES) | set(SCALARS))
     assert defs["op"]["properties"]["name"]["enum"] == OPERATORS
     assert defs["call"]["properties"]["name"]["enum"] == FUNCTIONS
     assert len(SERIES) + len(OPERATORS) + len(FUNCTIONS) == 31, (
-        "the manifest declares 31 entries; if that moved, this file's totality "
-        "cases moved with it and the change should be deliberate")
+        "the manifest declares 31 bar entries; if that moved, this file's "
+        "totality cases moved with it and the change should be deliberate")
+    assert len(ast_table.declared_names(TABLE)) == 31 + len(SCALARS) == 85, (
+        "the closed table declares 85 names across four sections; the enums "
+        "above are that same set, partitioned by node type")
 
 
 def test_a_PLANTED_manifest_entry_reaches_the_schema_BY_NAME_with_no_edit_here(concierge):
@@ -466,6 +489,102 @@ def test_a_PLANTED_manifest_entry_reaches_the_schema_BY_NAME_with_no_edit_here(c
     # …and the prompt's English half comes from the SAME derivation, so the model
     # is never told a smaller vocabulary than the schema enforces.
     assert "zzPlantedFn" in concierge.vocabulary_text(planted)
+
+
+def _clone_table(table: Mapping[str, Any] = None) -> Dict[str, Any]:
+    """A MUTABLE copy of the manifest, one level deep. The shipped table is
+    frozen (`MappingProxyType`), so a plant needs its own dictionaries; the
+    entries themselves are never edited, so one level is enough."""
+    t = table if table is not None else TABLE
+    return {k: (dict(v) if isinstance(v, Mapping) else v) for k, v in t.items()}
+
+
+def _every_name_enum(schema: Any) -> List[List[str]]:
+    """Every `enum` list anywhere in a JSON Schema, found BY SHAPE.
+
+    ⛔ NOT `$defs['series']['properties']['name']['enum']`. A path typed here
+    would decide in advance WHICH enum a new section is allowed to reach, and the
+    whole claim is that this file does not know and does not need to: the schema
+    reads its section list off the manifest, so a section that arrives after this
+    test was written must still turn up somewhere in the vocabulary the boundary
+    enforces.
+    """
+    out: List[List[str]] = []
+    stack: List[Any] = [schema]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, Mapping):
+            values = node.get("enum")
+            if isinstance(values, list):
+                out.append([str(v) for v in values])
+            stack.extend(node.values())
+        elif isinstance(node, list):
+            stack.extend(node)
+    return out
+
+
+def test_a_PLANTED_SCALAR_reaches_the_tool_schema_BY_NAME_with_no_edit_here(concierge):
+    """⭐ THE FOURTH SECTION ARRIVES AS DATA. The schema's enums are the table's
+    own key sets, so the scalars section must reach the model's vocabulary
+    WITHOUT a line of that module changing — and the only way to prove that is a
+    SYNTHETIC manifest carrying a name no source file contains.
+
+    ⛔ AND THE PROMPT'S ENGLISH HALF COMES FROM THE SAME DERIVATION. A schema that
+    enforces a vocabulary the prompt never mentions produces a model that guesses
+    and a boundary that refuses — technically correct, uselessly.
+    """
+    planted = _clone_table()
+    planted[ast_table.SCALARS_SECTION] = dict(planted.get(ast_table.SCALARS_SECTION, {}))
+    planted[ast_table.SCALARS_SECTION]["zzPlantedScalar"] = {
+        "source": {"store": "screener_rows", "column": "zz"},
+        "as_of": {"column": "snapshot_date", "grain": "date"},
+        "cadence": "nightly", "yields": "num", "sentence": "the planted value"}
+
+    schema = concierge.tool_schema(planted)
+    enums = _every_name_enum(schema["input_schema"])
+    assert any("zzPlantedScalar" in e for e in enums), (
+        "the scalars section did not reach a single enum — the schema is not "
+        "reading the manifest's sections, it is reading three of them by name")
+    assert "zzPlantedScalar" in concierge.vocabulary_text(planted)
+    # …and the manifest's own English for it, not a name echoed back.
+    assert "the planted value" in concierge.vocabulary_text(planted)
+
+    # The control: the same walk over a manifest WITHOUT the plant must not find
+    # it, or the assertion above passes against any string at all.
+    assert not any("zzPlantedScalar" in e
+                   for e in _every_name_enum(concierge.tool_schema()["input_schema"]))
+    assert "zzPlantedScalar" not in concierge.vocabulary_text()
+
+
+def test_the_SECTION_LIST_is_read_from_the_manifest_not_typed_here(concierge):
+    """⛔ THE ANTI-COPY SCAN, EXTENDED TO SECTIONS.
+    `test_no_declared_FUNCTION_or_SERIES_name_is_a_string_constant_in_this_module`
+    already forbids the NAMES. A fourth hard-coded `for name, spec in
+    t["scalars"].items()` block would pass that rail and still be a hand-list —
+    of SECTIONS rather than of entries.
+
+    So: plant a FIFTH section in a synthetic manifest and require its entries
+    back. A module that enumerates four sections by name cannot answer.
+    """
+    planted = _clone_table()
+    planted["zzPlantedSection"] = {"zzFromFifth": {"doc": "planted"}}
+    enums = _every_name_enum(concierge.tool_schema(planted)["input_schema"])
+    assert any("zzFromFifth" in e for e in enums), (
+        "a fifth section's entries reached no enum — the section list is typed "
+        "in the module rather than read off the manifest")
+    assert "zzFromFifth" in concierge.vocabulary_text(planted)
+
+    # The control, both halves.
+    assert not any("zzFromFifth" in e
+                   for e in _every_name_enum(concierge.tool_schema()["input_schema"]))
+    # …and the manifest's own annotation convention is still respected: an
+    # underscore key is a NOTE, not a vocabulary, so it must NOT arrive as one.
+    noted = _clone_table()
+    noted["_zzPlantedNote"] = {"zzFromNote": {"doc": "a note, not a section"}}
+    assert not any("zzFromNote" in e
+                   for e in _every_name_enum(concierge.tool_schema(noted)["input_schema"])), (
+        "an `_`-prefixed note was read as a vocabulary section — the manifest is "
+        "full of them and every one would become a name the model may emit")
 
 
 def test_no_declared_FUNCTION_or_SERIES_name_is_a_string_constant_in_this_module(concierge):
@@ -515,7 +634,7 @@ def _function(module_src: str, name: str) -> pyast.FunctionDef:
                 if isinstance(node, pyast.FunctionDef) and node.name == name)
 
 
-def test_the_concierge_NEVER_produces_the_sentence(concierge):
+def test_the_concierge_NEVER_produces_the_sentence_ON_EITHER_KIND(concierge):
     """⛔ THE READ-BACK COMES FROM `sentenceFor(ast)` AND FROM NOWHERE ELSE.
 
     A model-written summary of a model-written formula is two guesses agreeing,
@@ -523,22 +642,41 @@ def test_the_concierge_NEVER_produces_the_sentence(concierge):
     ASSERTED STRUCTURALLY: `propose`'s own AST is walked and `sentence` must be
     assigned from EXACTLY `sentence_for(ast_obj)`. A behavioural test cannot see
     this — a model that happened to write the right sentence would satisfy it.
+
+    🔴 RE-ASSERTED STRUCTURALLY AFTER THE EXTENSION. `propose` now takes a `kind`,
+    and the cheapest way to add a scan path is a second return statement — with a
+    second `sentence`. So the rail is not "one assignment" but "EVERY assignment
+    to `sentence`, in every function of this module, is `sentence_for(ast_obj)`".
+
+    ⭐ AND THE VOCABULARY MAKES IT MORE LOAD-BEARING, NOT LESS. A member who says
+    "trending stocks" is shown the firm's expansion read back FROM THE TREE and
+    confirms or corrects it BEFORE anything is saved. The AI proposes; the tree is
+    the truth; the sentence is derived from the tree.
     """
     src = Path(concierge.__file__).read_text(encoding="utf-8")
     sources = _assigns_to(_function(src, "propose"), "sentence")
-    assert sources == ["sentence_for(ast_obj)"], (
-        f"`sentence` was assigned from {sources} — the read-back must be derived "
-        "from the tree, never from the model's prose")
+    assert sources and set(sources) == {"sentence_for(ast_obj)"}, (
+        f"`sentence` was assigned from {sources} — the read-back is derived from "
+        "the tree on every path, or it is derived on none of them")
+
+    tree = pyast.parse(src)
+    for fn in (node for node in pyast.walk(tree)
+               if isinstance(node, pyast.FunctionDef)):
+        for assigned in _assigns_to(fn, "sentence"):
+            assert assigned == "sentence_for(ast_obj)", (
+                f"{fn.name} assigns sentence from {assigned}")
 
 
-def test_the_structural_rail_can_FAIL_which_is_the_only_reason_it_means_anything():
-    """⚠️ THE CONTROL FOR THE RAIL ABOVE. A gate is real only if something fails
-    on it, and the rail above passes trivially against a module with no `propose`
-    at all. So the same walk runs over a synthetic module that DOES write its own
-    prose, and it must report the offending expression by name.
+def test_the_structural_rail_REPORTS_A_SYNTHETIC_OFFENDER_BY_NAME():
+    """⚠️ THE CONTROL, AND WITHOUT IT THE RAIL IS VACUOUS. A gate is real only if
+    something fails on it, and the rail above passes trivially against a module
+    with no `propose` at all. So a synthetic module that assigns `sentence` from
+    the MODEL RESPONSE must be reported by the offending EXPRESSION — not merely
+    "something is wrong" — and the clean twin must come back clean IN THE SAME
+    TEST, or the walk could be reporting everything.
     """
     poisoned = (
-        "def propose(prompt, *, user_id, bars=None):\n"
+        "def propose(prompt, *, user_id, bars=None, kind='scan'):\n"
         "    answer = call_model(prompt)\n"
         "    ast_obj = answer['ast']\n"
         "    sentence = answer['summary']\n"
@@ -546,7 +684,7 @@ def test_the_structural_rail_can_FAIL_which_is_the_only_reason_it_means_anything
     assert _assigns_to(_function(poisoned, "propose"), "sentence") == ["answer['summary']"]
 
     clean = (
-        "def propose(prompt, *, user_id, bars=None):\n"
+        "def propose(prompt, *, user_id, bars=None, kind='scan'):\n"
         "    ast_obj = 1\n"
         "    sentence = sentence_for(ast_obj)\n"
         "    return {'sentence': sentence}\n")
@@ -1166,27 +1304,22 @@ def _named(gaps: Mapping[str, List[str]]) -> str:
     return " | ".join(rows) if rows else "(nothing)"
 
 
-#: 🔴 THE ONE KNOWN DIVERGENCE BETWEEN THE LANES, PINNED — AND IT IS E-5'S TO
-#: CLOSE, NOT AN ACCIDENT.
+#: ✅ THE PIN IS GONE, AND IT WAS DELETED BY ITS OWN FAILURE MESSAGE.
 #:
-#: `56a2bca6` taught `sentence.js` to say the manifest's fourth section, so the
-#: JS lane renders all 54 scalars. This lane has NOT been taught: `_render_name`
-#: consults the table's SERIES and then the definition's inputs, so every scalar
-#: refuses at `sentence:name` — and `tool_schema`'s enums are the same three
-#: sections, so `propose` refuses one at `schema:name` a door earlier. That work
-#: is planned and assigned: `.superpowers/sdd/phase-e/plan-draft-e4-e7.md` line
-#: 195 gives `definition_concierge.py` to E-5 with *"the scalars enum arrives by
-#: derivation"*, and `e5-brief.md` carries the planted-scalar and planted-fifth-
-#: section rails for it.
+#: `9c4f1f74` pinned ONE divergence here: `sentence.js` could say the manifest's
+#: fourth section and this lane could not, so all 54 scalars refused at
+#: `sentence:name` — and `tool_schema`'s enums were the same three sections, so
+#: `propose` refused a scalar-naming proposal at `schema:name` a door earlier.
+#: The pin was derived rather than typed, and it was written to fail in BOTH
+#: directions: E-5 taught `compile_rules`/`_render_name` the scalars and taught
+#: `tool_schema` to read its section list off the manifest, and both rails below
+#: went RED naming all 54 and saying *"the divergence has CLOSED, so DELETE the
+#: pin"*. That is what a pin is for, and it is why the correct response was to
+#: remove it rather than widen it.
 #:
-#: ⛔ SO IT IS PINNED, NOT PAPERED OVER, AND THE PIN IS DERIVED FROM THE MANIFEST
-#: — a fifty-fifth scalar needs no edit here, and the day E-5 lands this goes RED
-#: saying so. DELETE the pin then; do not widen it. A pin that survives its own
-#: fix is how a stale expectation outlives the defect it described.
-def _pinned_python_only_gaps() -> Dict[str, List[str]]:
-    return {ast_table.SCALARS_SECTION: sorted(ast_table.scalar_names(TABLE))}
-
-
+#: ⛔ NOTHING REPLACES IT. The lanes now agree in both directions, and the
+#: assertions below say so with no exception list — so a NEW divergence, in
+#: either direction, is a red test that names it.
 def _diff(left: Mapping[str, List[str]], right: Mapping[str, List[str]]) -> Dict[str, List[str]]:
     """Names in `left` that `right` does not carry, by section."""
     out = {}
@@ -1217,25 +1350,24 @@ def test_every_DECLARED_SECTION_is_PROBED_and_the_gaps_are_named(concierge):
         f"manifest says {sorted(gaps)}, `ast_table.SECTIONS` says "
         f"{sorted(ast_table.SECTIONS)}")
 
-    expected = {section: [] for section in gaps}
-    expected.update(_pinned_python_only_gaps())
-
-    surprises = _diff(gaps, expected)
+    # ⛔ NO EXCEPTION LIST. Every declared entry in every declared section must
+    # render, and that includes the 54 scalars this lane could not say until E-5
+    # taught it the fourth section.
+    surprises = {section: names for section, names in gaps.items() if names}
     assert surprises == {}, (
         "the Python read-back REFUSES declared entries nothing expected it to "
         f"— reported BY NAME: {_named(surprises)}")
 
-    closed = _diff(expected, gaps)
-    assert closed == {}, (
-        "these were pinned as unsayable in the Python lane and the walker can now "
-        f"say them — the divergence has CLOSED, so DELETE the pin: {_named(closed)}")
-
     # ⚠️ NON-VACUITY. A probe that rendered nothing would satisfy every assertion
-    # above. The floor is the same 31 bar entries `ast_conformance --coverage`
-    # asserts, derived rather than typed.
+    # above. The floor is `declared_names` — every name in every section, derived
+    # rather than typed — and it is 85 today against the 31 bar entries
+    # `ast_conformance --coverage` asserts.
     rendered = sum(len(TABLE[s]) - len(gaps[s]) for s in gaps)
-    assert rendered == len(SERIES) + len(OPERATORS) + len(FUNCTIONS) >= 31, (
+    assert rendered == len(ast_table.declared_names(TABLE)) >= 31, (
         f"the probe only rendered {rendered} entries, so it proves nothing")
+    assert rendered > len(SERIES) + len(OPERATORS) + len(FUNCTIONS), (
+        "the probe rendered only the bar entries — the scalars section is not "
+        "being walked, which is the exact blindness this rail was rebuilt for")
 
 
 def test_a_PLANTED_unsayable_entry_is_NAMED_and_the_sayable_twin_is_CLEAN(concierge):
@@ -1304,9 +1436,10 @@ def test_the_two_coverage_LANES_agree_and_the_ONE_divergence_is_PINNED(js_lane, 
     described, never regex'd — and compared against this lane's probe, section for
     section and name for name.
 
-    ⛔ THE DISAGREEMENT MUST BE EXACTLY THE PINNED ONE. Not "small", not "known
-    to be scalars-ish": the pin is a derived NAME LIST, so a new divergence in
-    either direction is a red test that says which names moved.
+    ⛔ AND THERE IS NO LONGER ANY PERMITTED DISAGREEMENT. The one divergence this
+    rail used to pin — 54 scalars the JS lane could say and this one could not —
+    is closed, so both directions assert `{}` and a new divergence in either is a
+    red test that says which names moved.
     """
     js = js_lane["result"]["coverageGaps"]
     assert isinstance(js, dict) and js, "the JS lane returned no coverage report at all"
@@ -1325,17 +1458,21 @@ def test_the_two_coverage_LANES_agree_and_the_ONE_divergence_is_PINNED(js_lane, 
         f"happily — the JS walker refuses what the Python one says: {_named(only_js)}")
 
     only_py = _diff(py, js_sections)
-    pinned = _pinned_python_only_gaps()
-    assert only_py == pinned, (
-        "the lanes' disagreement is not the one pinned. Python refuses, JS says "
-        f"— BY NAME: {_named(only_py)}. Pinned as E-5's: {_named(pinned)}. "
-        "If the pinned set is now empty the divergence has CLOSED: delete the pin.")
+    assert only_py == {}, (
+        "this lane refuses entries `sentence.js` says happily — the Python "
+        f"walker refuses what the JS one renders, BY NAME: {_named(only_py)}")
 
-    # ⚠️ NON-VACUITY: the pin must not be quietly empty, or the equality above is
-    # `{} == {}` and this whole rail passes against two lanes that never ran.
-    assert pinned[ast_table.SCALARS_SECTION], "the pin is empty — nothing was compared"
-    assert js_sections.get(ast_table.SCALARS_SECTION) == [], (
-        "the JS lane no longer says the scalars either — this rail assumed it did")
+    # ⚠️ NON-VACUITY, AND IT IS WHAT THE DELETED PIN USED TO PROVIDE. Two lanes
+    # that both reported nothing at all would satisfy every equality above. So
+    # the section both lanes were blind to is named here — it must be present in
+    # both reports, empty in both, and non-empty in the manifest.
+    for lane, report in (("sentence.js", js_sections), ("this lane", py)):
+        assert report.get(ast_table.SCALARS_SECTION) == [], (
+            f"{lane} no longer says the manifest's scalars: "
+            f"{report.get(ast_table.SCALARS_SECTION)}")
+    assert len(ast_table.scalar_names(TABLE)) >= 54, (
+        "the manifest declares no scalars — the section both lanes were once "
+        "blind to is empty, so this comparison proves nothing")
 
 
 def test_NO_python_module_declares_a_SECOND_coverage_gaps():
@@ -1881,6 +2018,370 @@ def test_the_concierge_never_assigns_a_badge_an_id_or_a_budget(concierge, model)
         assert forbidden not in res
 
 
+# ═══ 8b. A SCAN IS A CONDITION — the ONE stage `kind` changes ══════════════
+#
+# ⭐ A SCAN IS `<ast> != 0` ON THE LAST CONFIRMED BAR (E-A1). A tree that yields a
+# NUMBER is a perfectly good indicator and a wrong answer to "find me stocks
+# where…": handed back as a screen it would match every symbol whose average is
+# not zero, which is all of them. So `kind="scan"` adds exactly one stage, INSIDE
+# `_validate`, and that stage CALLS E-2's classifier rather than re-deriving it.
+
+
+def a_condition() -> dict:
+    """A tree the MANIFEST declares as a condition, found rather than named."""
+    section, name = _entry_yielding("bool")
+    assert section is not None, "the manifest declares no condition-yielding entry"
+    return _entry_tree(section, name, s())
+
+
+def test_a_SCAN_proposal_that_yields_a_NUMBER_is_refused(concierge, model):
+    """⭐ THE STAGE, AND THE GATE IT REFUSES UNDER. `sma(close, 20)` is a fine
+    indicator; as a screen it is `sma(close,20) != 0`, true for every symbol in
+    the universe — a wrong answer that looks like a working feature.
+    """
+    number = windowed(20)
+    assert concierge.scan_definition.is_boolean_tree(number) is False, (
+        "the chosen tree is not a NUMBER — this case would prove nothing")
+    model([tool_use(number), tool_use(number)])
+    res = concierge.propose("find me stocks in an uptrend", user_id=USER,
+                            bars=bars()[:30], kind="scan")
+    assert res["ok"] is False
+    assert res["gate"] == "scan:not-a-condition"
+    assert "ast" not in res and "source" not in res
+
+
+def test_an_INDICATOR_proposal_is_UNAFFECTED_by_the_scan_stage(concierge, model):
+    """⚠️ THE CONTROL FOR THE STAGE ABOVE, AND IT IS THE WHOLE ATTRIBUTION. The
+    SAME tree, asked for as an indicator, is accepted. A stage that refused both
+    would be a regression wearing a gate's clothes; a stage that accepted both
+    would not be a stage.
+    """
+    model([tool_use(windowed(20))])
+    res = concierge.propose("a twenty bar average", user_id=USER, bars=bars()[:30])
+    assert res["ok"] is True, res
+    assert res["kind"] == "indicator"
+
+
+def test_a_SCAN_that_IS_a_condition_is_accepted_and_the_ENVELOPE_says_what_it_is(
+        concierge, model):
+    """⭐ THE POSITIVE HALF, AND THE HONEST ENVELOPE. The answer carries `kind`,
+    the repaint verdict AND the freshness verdict — both measured by the shipped
+    readers, because the repaint linter answers a TRUE zero for a scalar leaf and
+    a screen branded only `non-repainting` would say nothing about the nightly
+    snapshot underneath it.
+    """
+    from api.services import ast_freshness
+    tree = a_condition()
+    model([tool_use(tree)])
+    res = concierge.propose("stocks where that holds", user_id=USER,
+                            bars=bars()[:30], kind="scan")
+    assert res["ok"] is True, res
+    assert res["kind"] == "scan"
+    assert res["ast"] == tree
+    assert res["sentence"] == concierge.sentence_for(tree)
+    assert res["freshness"] == ast_freshness.freshness_for(tree)["mode"]
+
+    # …and a bars-only screen has NO cadence ceiling, because bars stream.
+    assert res["cadence"] is None, (
+        "a screen reading no scalar claimed a data cadence it does not have")
+
+    # …while a scalar-bearing screen says its ceiling, read off E-3's function
+    # rather than typed here.
+    from api.services.screener.scan_evaluator import cadence_ceiling
+    scalar_tree = {"type": "op", "name": _binary_operators()[0],
+                   "args": [s(SCALARS[0]), n(1)]}
+    model([tool_use(scalar_tree)])
+    scan = concierge.propose("a scalar screen", user_id=USER, bars=bars()[:30],
+                             kind="scan")
+    assert scan["ok"] is True, scan
+    assert scan["cadence"] == cadence_ceiling(scalar_tree)
+    assert scan["freshness"] == ast_freshness.freshness_for(scalar_tree)["mode"]
+    assert scan["cadence"], "the scalar screen reported no ceiling at all"
+
+
+def test_an_UNKNOWN_kind_is_REFUSED_rather_than_quietly_treated_as_an_indicator(
+        concierge, model):
+    """⛔ A SCAN REQUEST SPELLED WRONG MUST NOT BECOME AN INDICATOR. Defaulting
+    would mean the condition stage never ran and nothing said so — the model
+    answers, the tree validates, and a member screens on a price column. The
+    model is never called, which is asserted by call count.
+    """
+    client = model([tool_use(windowed(20))])
+    res = concierge.propose("anything", user_id=USER, bars=bars()[:30], kind="scanner")
+    assert res["ok"] is False and res["gate"] == "kind:unknown"
+    assert "ast" not in res
+    assert client.calls == [], "an unrecognised kind was paid for before it was refused"
+    for kind in concierge.KINDS:
+        assert kind in res["reason"], "the refusal does not say what the kinds are"
+
+
+def test_the_condition_check_is_E2s_FUNCTION_and_there_is_no_second_PYTHON_copy(concierge):
+    """⛔ ONE FACT, ONE IMPLEMENTATION PER LANE. The manifest declares what an
+    entry's values can be so that nobody hand-lists comparators; E-2 then wrote
+    the ONE Python derivation (`scan_definition.is_boolean_tree`). A second
+    Python walk here would satisfy that to the letter and re-create `williams_r`
+    vs `williamsR` inside one language.
+
+    AST, not grep: the concierge's scan stage must CALL it.
+
+    🔴 AND THE CALL IS LOCATED IN `_validate`, NOT ANYWHERE IN THE MODULE — which
+    is a correction this file's own mutation gauntlet forced. The first version
+    of this rail asked "does some call in this module end in `is_boolean_tree`",
+    and the answer was YES for a reason that has nothing to do with scans: the
+    read-back's logical chrome asks the same classifier which phrase to use. So a
+    mutation that replaced the SCAN STAGE with a hand-list of comparators
+    SURVIVED, with the rail meant to catch it green. A gate satisfied by an
+    unrelated call site is a gate that cannot fail.
+    """
+    src = Path(concierge.__file__).read_text(encoding="utf-8")
+    stage = {pyast.unparse(node.func)
+             for node in pyast.walk(_function(src, "_validate"))
+             if isinstance(node, pyast.Call)}
+    assert any(c.endswith("is_boolean_tree") for c in stage), (
+        "the scan stage inside `_validate` does not call E-2's classifier — a "
+        f"second derivation is hiding in {sorted(stage)}")
+
+    # …and the module reaches it through the MODULE, never a `from … import`. A
+    # `from api.services.scan_definition import is_boolean_tree` would sever the
+    # call from the module's own guards (`lesson_from_import_severs_a_module_
+    # from_its_guards`).
+    assert any(c.endswith(".is_boolean_tree") for c in stage), (
+        "the classifier was imported by name rather than reached through its "
+        f"module: {sorted(stage)}")
+
+    # …and no local re-derivation: no function in this module may read the
+    # manifest's own `yields` declaration directly.
+    constants = {node.value for node in pyast.walk(pyast.parse(src))
+                 if isinstance(node, pyast.Constant) and isinstance(node.value, str)}
+    field = "yields"
+    assert field not in constants, (
+        f"this module spells {field!r} — it is resolving the manifest's kind "
+        "declaration itself instead of asking the one function that owns it")
+    # The positive control for the scan above: the field really is what the
+    # manifest declares, so its absence here is a meaningful absence.
+    assert any(field in (spec or {}) for spec in TABLE[ast_table.OPERATORS_SECTION].values())
+
+
+def test_the_scan_path_takes_NO_SECOND_VALIDATION_ROUTE(concierge):
+    """⛔ ONE PIPELINE. `_validate` must remain the ONLY validator, with the scan
+    stage INSIDE it rather than beside it — a stage in `propose` would be a
+    second set of gates to keep in step, and the ORDER of the stages is the
+    attribution every refusal case in this file depends on.
+    """
+    src = Path(concierge.__file__).read_text(encoding="utf-8")
+    validators = [node.name for node in pyast.walk(pyast.parse(src))
+                  if isinstance(node, pyast.FunctionDef)
+                  and any(c in pyast.unparse(node)
+                          for c in ("check_budget", "lint_repaint"))]
+    assert validators == ["_validate"], (
+        f"{validators} all reach a guard — a second validation path is a second "
+        "set of gates to keep in step")
+
+    # …and the scan stage is in THAT function, after the budget and before the
+    # linter. The order is the attribution: a condition check that ran first
+    # would report `scan:not-a-condition` for an over-budget tree.
+    #
+    # ⛔ THE ORDER IS READ OFF THE CALLS, NOT OFF THE TEXT. `pyast.unparse`
+    # includes the docstring, which names all three stages in prose — a
+    # `str.index` comparison would have been measuring a comment.
+    where = {}
+    for node in pyast.walk(_function(src, "_validate")):
+        if isinstance(node, pyast.Call):
+            name = pyast.unparse(node.func).rsplit(".", 1)[-1]
+            if name in ("check_budget", "is_boolean_tree", "lint_repaint"):
+                where.setdefault(name, node.lineno)
+    assert sorted(where) == ["check_budget", "is_boolean_tree", "lint_repaint"], (
+        f"`_validate` does not call all three stages: found {sorted(where)}")
+    assert where["check_budget"] < where["is_boolean_tree"] < where["lint_repaint"], (
+        f"the stages run in the wrong order: {where}")
+
+
+# ═══ 8c. THE FIRM'S OWN WORDS — resolved HERE, never guessed by the model ═══
+#
+# ⭐⭐ AMENDMENT 1's KNOWLEDGE LAYER, SEEN FROM THE PIPELINE. A generic model asked
+# what "trending" means guesses, and guesses differently next Tuesday.
+# `conceptVocabulary.json` is the FIRM'S answer — every concept citing an artifact
+# the firm already ships, every citation looked up rather than trusted — and these
+# cases assert that a member's sentence meets it BEFORE the model sees anything.
+
+
+def _a_grounded_word() -> str:
+    """The first word the shipped vocabulary grounds. Read, never typed."""
+    from api.services import concept_vocabulary
+    words = sorted(concept_vocabulary.concepts())
+    assert words, "the vocabulary grounds no words at all"
+    return words[0]
+
+
+def _a_refused_word() -> str:
+    from api.services import concept_vocabulary
+    words = sorted(concept_vocabulary.refused())
+    assert words, "the vocabulary declares no refusals — the honest half is empty"
+    return words[0]
+
+
+def test_the_FIRMS_WORD_is_EXPANDED_HERE_and_the_model_is_TOLD_not_asked(
+        concierge, model):
+    """⭐ THE OWNER'S BAR, MEASURED. *"'trending stocks' language would imply above
+    some MAs… just knowledge like that to interpret the language."* The firm
+    already answers "trending", and the model must be TOLD that answer rather
+    than asked for one.
+
+    ⛔ SO THE EXPANSION IS IN THE SYSTEM PROMPT, AND IT IS THE VOCABULARY FILE'S
+    `source` BYTE FOR BYTE — never a paraphrase written here and never the bare
+    word left for the model to interpret.
+    """
+    from api.services import concept_vocabulary
+    word = _a_grounded_word()
+    expansion = concept_vocabulary.resolve(word)
+    assert expansion["ok"], expansion
+
+    client = model([tool_use(a_condition())])
+    res = concierge.propose(f"find me {word} stocks", user_id=USER,
+                            bars=bars()[:30], kind="scan")
+    assert res["ok"] is True, res
+
+    system = client.calls[0]["system"]
+    assert expansion["source"] in system, (
+        "the firm's expansion never reached the model — it was handed the word "
+        "and asked to guess")
+    assert word in system
+
+    # The control: a prompt with none of the firm's words carries no expansion,
+    # so "the source is in the prompt" is not satisfied by a constant block.
+    model([tool_use(windowed(20))])
+    plain = concierge.propose("a twenty bar average", user_id=USER, bars=bars()[:30])
+    assert plain["ok"] is True
+    assert plain["concepts"] == []
+
+
+def test_a_REFUSED_word_is_REFUSED_BY_NAME_and_NOTHING_IS_APPROXIMATED(
+        concierge, model):
+    """🔴 A WRONG SCAN THAT LOOKS RIGHT IS WORSE THAN A REFUSAL. "cheap" has no
+    defensible definition — the firm's own screen that uses the word bundles
+    three measures — so inventing a P/E threshold would be an unmeasured accuracy
+    claim wearing a helpful face (spec §1.6).
+
+    ⛔ AND THE REFUSAL NAMES THE WORD, so a member can say what they meant
+    instead of being handed somebody's guess. No nearest match, no partial
+    expansion, and NOT ONE TOKEN SPENT.
+    """
+    from api.services import concept_vocabulary
+    word = _a_refused_word()
+    client = model([tool_use(a_condition())])
+    res = concierge.propose(f"find me {word} stocks", user_id=USER,
+                            bars=bars()[:30], kind="scan")
+
+    assert res["ok"] is False
+    assert res["gate"] == concept_vocabulary.GATE_AMBIGUOUS
+    assert word in res["reason"], (
+        "the refusal does not name the word it could not ground")
+    for forbidden in ("ast", "source", "sentence", "concepts"):
+        assert forbidden not in res, f"a refusal handed back {forbidden}"
+    assert client.calls == [], "the model was paid for a word the firm refuses"
+
+    # ⛔ THE CONTROL FOR "NEVER APPROXIMATED": the refused word must not be a
+    # grounded one under another spelling, or the case above would be about a
+    # missing entry rather than a declared refusal.
+    assert concept_vocabulary.resolve(word)["ok"] is False
+    assert word not in concept_vocabulary.concepts()
+
+
+def test_a_concept_EXPANDS_and_the_TREE_is_stored_with_the_WORD_as_PROVENANCE(
+        concierge, model):
+    """🔴 VERSIONING, MADE STRUCTURAL. If "trending" changes definition, scans
+    already built on it MUST NOT silently change meaning. So the concept expands
+    into a TREE and the answer carries the tree; the WORD travels beside it as
+    provenance with the vocabulary version that expanded it. A stored
+    `{"concept": "trending"}` would make every saved scan a late binding to a
+    vocabulary that moves, and `compute.fn` would stop meaning the maths.
+    """
+    from api.services import concept_vocabulary
+    word = _a_grounded_word()
+    tree = a_condition()
+    model([tool_use(tree)])
+    res = concierge.propose(f"{word} stocks", user_id=USER, bars=bars()[:30],
+                            kind="scan")
+
+    assert res["ok"] is True, res
+    assert res["concepts"] == [{"word": word,
+                                "version": concept_vocabulary.version()}]
+    # ⛔ NO LATE BINDING ANYWHERE IN THE TREE — by SHAPE, over the whole document.
+    assert "concept" not in json.dumps(res["ast"])
+    assert res["ast"] == tree
+    # …and the read-back is the TREE's, so what the member confirms is the maths.
+    assert res["sentence"] == concierge.sentence_for(tree)
+
+
+def test_NO_WINRATE_NUMBER_REACHES_ANY_SURFACE_BEFORE_E6(concierge, model):
+    """⛔ `setup_winrate` IS A CLAIM. Until E-6 can back it and design §8.3 says
+    what a published record may SAY, the vocabulary carries PROVENANCE (which
+    playbook attributes a concept) and never a percentage. A number on a surface
+    gets screenshotted.
+    """
+    word = _a_grounded_word()
+    model([tool_use(a_condition())])
+    res = concierge.propose(f"{word} stocks", user_id=USER, bars=bars()[:30],
+                            kind="scan")
+    assert res["ok"] is True, res
+    payload = json.dumps(res)
+    assert not re.search(r"\d+(\.\d+)?\s*%", payload), (
+        f"a percentage reached the proposal payload: {payload[:400]}")
+    assert "win_rate" not in payload and "winrate" not in payload
+
+    # The positive control: the regex really does catch one, so its silence above
+    # is a measurement rather than a broken pattern.
+    assert re.search(r"\d+(\.\d+)?\s*%", json.dumps({"x": "62.5%"}))
+
+
+def test_the_PHASES_ACCEPTANCE_TREE_goes_through_propose_END_TO_END(concierge, model):
+    """⭐ `rs_rank > 80 && adr_pct > 4 && close > sma(close, 50)` — the phase's own
+    acceptance formula, TWO SCALARS and a function call, through the AI door.
+
+    🔴 THIS WAS REFUSED AT `schema:name` UNTIL THIS TASK: the tool schema's enums
+    were three sections, so the model could not legally name a scalar, and the
+    Python read-back could not have said one if it had. Every stage is asserted
+    here through the shipped functions — schema, condition, linter, read-back and
+    source round-trip — because "it returns ok" is satisfied by a pipeline that
+    skipped all of them.
+    """
+    from api.services import ast_lint
+    # ⚠️ THE ONE PLACE THIS FILE SPELLS TABLE NAMES, AND IT IS DELIBERATE: this
+    # tree IS the phase's stated acceptance criterion, quoted. Every name is
+    # asserted DECLARED first, so a rename lands here as a red test naming it
+    # rather than as a tree that silently stopped being the acceptance case.
+    gt, both, avg = ">", "&&", "sma"
+    named = {gt, both, avg, "close", "rs_rank", "adr_pct"}
+    assert named <= ast_table.declared_names(TABLE), (
+        f"the acceptance formula names {sorted(named - ast_table.declared_names(TABLE))}, "
+        "which the closed table no longer declares")
+    tree = {"type": "op", "name": both, "args": [
+        {"type": "op", "name": both, "args": [
+            {"type": "op", "name": gt, "args": [s("rs_rank"), n(80)]},
+            {"type": "op", "name": gt, "args": [s("adr_pct"), n(4)]}]},
+        {"type": "op", "name": gt, "args": [
+            s("close"), {"type": "call", "name": avg, "args": [s("close"), n(50)]}]}]}
+
+    model([tool_use(tree)])
+    res = concierge.propose("trending leaders with room, above the 50 day",
+                            user_id=USER, bars=bars()[:60], kind="scan")
+
+    assert res["ok"] is True, res
+    assert res["kind"] == "scan"
+    assert res["ast"] == tree
+    assert res["repaint"] == ast_lint.lint_repaint(tree)["mode"] == "non-repainting"
+    assert res["freshness"] == "as-of-snapshot", (
+        "a screen reading two nightly scalars claimed live data")
+    assert res["cadence"] == "nightly"
+    assert res["sentence"] == concierge.sentence_for(tree)
+    # …and the two scalar phrases are the MANIFEST'S, quoted from it rather than
+    # retyped here — the sentence is a join of declarations, not prose.
+    for name in ("rs_rank", "adr_pct"):
+        assert TABLE[ast_table.SCALARS_SECTION][name]["sentence"] in res["sentence"]
+    # …and the source the concierge derives parses back to the same tree.
+    assert res["source"] == concierge.formula_for(tree)
+
+
 # ═══ 9. THE ROUTE — paid, derived, and it stores nothing ═══════════════════
 
 @pytest.fixture
@@ -1938,3 +2439,48 @@ def test_a_PAID_user_gets_the_concierges_answer_and_a_refusal_is_a_200(app, conc
     over = c.post("/api/user-definitions/propose",
                   json={"prompt": "x", "bars": [{} for _ in range(6000)]})
     assert over.status_code == 400 and "at most" in over.json()["detail"]
+
+
+def test_the_ROUTE_carries_the_KIND_and_defaults_to_the_PIPELINES_own(
+        app, concierge, model):
+    """⛔ THE WIRE, NOT THE COMPONENT. `_validate`'s scan stage is unreachable
+    unless the request says which question it is answering, and a route that
+    dropped `kind` would leave every rail in section 8b green over a stage that
+    never fires — the built-tested-green-and-unreachable shape this phase keeps
+    measuring.
+
+    ⭐ AND THE DEFAULT IS READ OFF THE PIPELINE. A body with no `kind` is every
+    caller that shipped before scans existed; spelling the default in the router
+    would be a second declaration of it.
+    """
+    app.dependency_overrides[get_current_user_with_plan] = \
+        lambda: {"id": USER, "role": "user", "plan": "premium"}
+    c = TestClient(app)
+    number = windowed(20)
+
+    # The SAME tree, the SAME route, and only `kind` differs.
+    model([tool_use(number), tool_use(number)])
+    scan = c.post("/api/user-definitions/propose",
+                  json={"prompt": "find me stocks", "kind": "scan",
+                        "bars": bars()[:30]}).json()
+    assert scan["ok"] is False and scan["gate"] == "scan:not-a-condition"
+
+    model([tool_use(number)])
+    indicator = c.post("/api/user-definitions/propose",
+                       json={"prompt": "average it", "kind": "indicator",
+                             "bars": bars()[:30]}).json()
+    assert indicator["ok"] is True and indicator["kind"] == "indicator"
+
+    model([tool_use(number)])
+    omitted = c.post("/api/user-definitions/propose",
+                     json={"prompt": "average it", "bars": bars()[:30]}).json()
+    assert omitted["ok"] is True
+    assert omitted["kind"] == concierge.INDICATOR_KIND
+
+    # …and an unrecognised kind is the PIPELINE's refusal, not a 422 from a
+    # second list of kinds maintained at the edge.
+    model([tool_use(number)])
+    bogus = c.post("/api/user-definitions/propose",
+                   json={"prompt": "x", "kind": "screener", "bars": []})
+    assert bogus.status_code == 200
+    assert bogus.json()["gate"] == "kind:unknown"

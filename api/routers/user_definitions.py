@@ -54,14 +54,21 @@ class DefinitionIn(BaseModel):
 
 
 class ProposeIn(BaseModel):
-    """The English, and the bars the chart is already holding.
+    """The English, the kind of formula wanted, and the bars the chart holds.
 
     The bars come from the CLIENT because the chart already has them and the
     concierge's compute stage has to run on the same window the user is looking
     at — a formula that computes nothing on the bars in view is refused there.
+
+    ⛔ `kind` IS PASSED THROUGH, NEVER VALIDATED HERE. The kinds live in
+    `definition_concierge.KINDS` and an unrecognised one is refused at
+    `kind:unknown` by the pipeline that owns the distinction — a `Literal` typed
+    here would be a second list of kinds to keep in step, and a 422 would report
+    the refusal under a door that decides nothing about formulas.
     """
 
     prompt: str
+    kind: Optional[str] = None
     bars: Optional[list] = None
 
 
@@ -143,7 +150,12 @@ def propose_definition(body: ProposeIn, user: dict = Depends(require_paid)):
             detail=f"bars: at most {MAX_PROPOSE_BARS} bars, got "
                    f"{len(bars) if isinstance(bars, list) else type(bars).__name__}")
     from api.services import definition_concierge
-    return definition_concierge.propose(body.prompt, user_id=user["id"], bars=bars)
+    #: ⭐ THE DEFAULT IS THE PIPELINE'S OWN, READ OFF IT. A body with no `kind`
+    #: is every caller that shipped before scans existed, and spelling
+    #: `"indicator"` here would be a second declaration of the default.
+    kind = body.kind if body.kind is not None else definition_concierge.INDICATOR_KIND
+    return definition_concierge.propose(body.prompt, user_id=user["id"], bars=bars,
+                                        kind=kind)
 
 
 @router.get("/{def_id}")

@@ -486,9 +486,18 @@ export default function BuilderSheet({
 
               ⚠️ NO `fetchImpl`. The box's injection point is for tests only;
               production uses the global `fetch`, so what this surface issues is
-              a real request (`lesson_injected_dependency_hides_the_fetch`). */}
+              a real request (`lesson_injected_dependency_hides_the_fetch`).
+
+              ⭐ AND THE KIND IS THE MODE THE MEMBER IS IN (Phase E, E-5). On the
+              Conditions tab they are building a SCREEN, so the request says so
+              and the server's condition stage can refuse a tree that produces a
+              number — `sma(close,20)` handed back as a screen would silently
+              match every symbol on the board. A box that always asked for an
+              indicator would be a box whose scan stage can never fire, and no
+              component test on either side could see it. */}
           <ConciergeBox
             bars={bars}
+            kind={buildMode === 'picker' ? 'scan' : 'indicator'}
             disabled={saving}
             onAccept={(proposal) => setSource(proposal?.source || '')}
           />

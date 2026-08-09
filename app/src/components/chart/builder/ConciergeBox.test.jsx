@@ -118,6 +118,39 @@ describe('ConciergeBox', () => {
     expect(sent.bars).toEqual(bars)
   })
 
+  it('sends the KIND it was mounted for, and defaults to an indicator', async () => {
+    // ⭐ THE SERVER'S CONDITION STAGE IS UNREACHABLE UNLESS THE REQUEST SAYS WHAT
+    // IS BEING ASKED FOR. A screen is `<tree> != 0`, so a tree that produces a
+    // number is a fine indicator and a wrong answer to "find me stocks where…" —
+    // and a box that always asked for an indicator would be a box whose scan
+    // stage can never fire, with every test on both sides still green.
+    const asScan = vi.fn(async () => jsonResponse(proposal()))
+    await draft(asScan, { kind: 'scan' })
+    expect(JSON.parse(asScan.mock.calls[0][1].body).kind).toBe('scan')
+
+    cleanup()
+    const asDefault = vi.fn(async () => jsonResponse(proposal()))
+    await draft(asDefault)
+    expect(JSON.parse(asDefault.mock.calls[0][1].body).kind).toBe('indicator')
+  })
+
+  it('asks for the SCREEN in plain English, and still derives the read-back', async () => {
+    // The copy moves with the kind; the ONE rule does not. The planted server
+    // sentence is still ignored on the scan path — a second render path is the
+    // cheapest place for a second read-back to appear.
+    const fetchImpl = vi.fn(async () => jsonResponse(proposal()))
+    render(<ConciergeBox fetchImpl={fetchImpl} kind="scan" />)
+    expect(screen.getByLabelText(/plain English/i)).toBeTruthy()
+    expect(screen.getByTestId('concierge-box')).toHaveAttribute('data-kind', 'scan')
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'trending stocks' } })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /draft a formula/i }))
+    })
+    expect(await screen.findByTestId('concierge-sentence')).toHaveTextContent(sentenceFor(TREE))
+    expect(screen.queryByText(LIE)).toBeNull()
+  })
+
   it('shows a REFUSAL with its door and NO formula', async () => {
     // ⛔ A formula beside a refusal is a formula somebody uses. The tree is not in
     // the body at all (the server refuses to send one) and nothing formula-shaped
