@@ -2,9 +2,22 @@
 
 Mounts ONLY api.routers.theme_engine on a bare FastAPI app (api.main is far too
 heavy to import in tests) against the scratch-auth.db `store` fixture from
-conftest. Auth is mocked the house way: app.dependency_overrides on the
-router's require_admin (same approach as tests/test_admin_chart_health.py).
+conftest.
+
+🔴 AUTH IS FAKED AT THE GATE'S **INPUT**, NOT AT THE GATE. This file used to
+override `require_admin` itself — so the admin check never ran, and a handler
+that dropped `Depends(require_admin)` behaved identically under every case
+below. `require_admin` depends on `get_current_user`; that is what is
+overridden now, and the real gate runs on top of it. Same change made in
+`tests/test_admin_chart_health.py`, and the same shape the paywall pass used
+across 13 files (`get_current_user_with_plan`, never `require_paid`).
+
+⛔ THE POINT IS THAT A TEST BECOMES POSSIBLE. With `require_admin` replaced
+there is no way to present a NON-admin at all, so
+`test_a_NON_admin_is_refused_by_EVERY_route` — the one case that goes red when
+a handler loses its guard — simply could not be written.
 """
+import re
 import threading
 from types import SimpleNamespace
 
@@ -30,11 +43,69 @@ def client_noauth(ops):
     return TestClient(ops.app)
 
 
+def _as(ops, user: dict):
+    """Present `user` to the REAL `require_admin`, by faking only its input."""
+    from api.middleware.auth_middleware import get_current_user
+    ops.app.dependency_overrides[get_current_user] = lambda: user
+    return TestClient(ops.app)
+
+
 @pytest.fixture()
 def admin_client(ops):
-    ops.app.dependency_overrides[ops.te.require_admin] = (
-        lambda: {"id": "u-admin", "role": "admin", "email": "admin@test"})
-    return TestClient(ops.app)
+    """An authenticated ADMIN. The admin CHECK still runs — only the session does not."""
+    return _as(ops, {"id": "u-admin", "role": "admin", "email": "admin@test"})
+
+
+@pytest.fixture()
+def member_client(ops):
+    """An authenticated NON-admin. `require_admin` must refuse them."""
+    return _as(ops, {"id": "u-member", "role": "user", "email": "member@test"})
+
+
+def _router_routes():
+    """⛔ DERIVED FROM THE ROUTER'S OWN TABLE, never a typed list. The
+    `test_endpoints_require_admin` sweep above hand-lists six paths — that
+    covers the endpoints somebody remembered, and it tests the ANONYMOUS case;
+    this covers every route, for an authenticated member, which is the case
+    `require_admin` actually exists for."""
+    from api.routers import theme_engine as te
+    out = []
+    for r in te.router.routes:
+        path, methods = getattr(r, "path", None), getattr(r, "methods", set())
+        if not path:
+            continue
+        # Path params get a harmless literal — the guard runs before the handler.
+        concrete = re.sub(r"\{[^}]+\}", "probe", path)
+        for m in ("GET", "POST"):
+            if m in methods:
+                out.append((m, concrete))
+    return out
+
+
+def test_the_route_table_was_actually_read():
+    """Non-vacuity floor — an empty enumeration passes the sweep while
+    measuring nothing."""
+    assert len(_router_routes()) >= 6, _router_routes()
+
+
+@pytest.mark.parametrize("method,path", _router_routes())
+def test_a_NON_admin_is_refused_by_EVERY_route(member_client, method, path):
+    """🔴 THE CASE THAT GOES RED WHEN A HANDLER LOSES ITS GUARD.
+
+    These endpoints roll back engine runs and clear decision memory. An
+    authenticated member reaches every one of them and `require_admin` is the
+    only refusal — and it is REAL here, so a route that drops
+    `Depends(require_admin)` answers 200 and this fails by name for that route.
+
+    ⚠️ A 404/405 is NOT accepted: either would mean the sweep knocked on a door
+    that is not there, which is a rail that passes because it missed.
+    """
+    kw = {} if method == "GET" else {"json": {}}
+    r = getattr(member_client, method.lower())(path, **kw)
+    assert r.status_code == 403, (
+        f"{method} {path} answered {r.status_code} to a NON-admin. Either the "
+        "route lost its Depends(require_admin), or this sweep is not reaching it."
+    )
 
 
 # ---------------------------------------------------------------- auth gating
