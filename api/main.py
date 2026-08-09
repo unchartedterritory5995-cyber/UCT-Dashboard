@@ -855,15 +855,41 @@ def _start_calendar_enrichment_warm_background(delay_seconds: int = 90) -> None:
     def _delayed():
         import time
         time.sleep(delay_seconds)
+        # Rotates one NEIGHBOURING week per cycle. The current week has to be
+        # re-warmed every cycle (300s TTL), but the surrounding weeks hold 4h
+        # (future) / 12h (past) TTLs, so refreshing one per 240s cycle keeps all
+        # four hot at ~16-minute intervals without ever warming 25 days at once.
+        neighbour_offsets = [-2, -1, 1, 2]
+        turn = 0
         while True:
             try:
-                from api.routers.calendar import get_enrichment_batch, _week_dates
+                from api.routers.calendar import (
+                    get_enrichment_batch, _week_dates, _week_dates_for,
+                    _current_week_monday, _today_et,
+                )
+                from datetime import timedelta
+
                 dates = ",".join(d.isoformat() for d in _week_dates())
                 out = get_enrichment_batch(dates=dates)
+
+                # Browsing to the previous or next week used to fall straight
+                # through to a 33-57s cold build (measured: 120 reporters =
+                # 57.2s, 67 reporters = 33.3s) because this warmer only ever
+                # covered the CURRENT week. `_ENRICH_WINDOW_DAYS` is 14, so
+                # anything past +/-2 weeks returns {} instantly and needs no
+                # warm -- these four offsets are the entire remaining surface.
+                offset = neighbour_offsets[turn % len(neighbour_offsets)]
+                turn += 1
+                monday = _current_week_monday(_today_et()) + timedelta(weeks=offset)
+                nbr = ",".join(d.isoformat() for d in _week_dates_for(monday))
+                nbr_out = get_enrichment_batch(dates=nbr)
+
                 logging.getLogger(__name__).info(
-                    "[calendar-enrich-warm] warmed %d day(s), %d symbols",
-                    len(out or {}),
-                    sum(len(v or {}) for v in (out or {}).values()),
+                    "[calendar-enrich-warm] current week %d day(s)/%d syms; "
+                    "week%+d %d day(s)/%d syms",
+                    len(out or {}), sum(len(v or {}) for v in (out or {}).values()),
+                    offset,
+                    len(nbr_out or {}), sum(len(v or {}) for v in (nbr_out or {}).values()),
                 )
             except Exception:
                 logging.getLogger(__name__).exception("[calendar-enrich-warm] failed")

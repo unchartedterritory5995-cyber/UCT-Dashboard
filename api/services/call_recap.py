@@ -305,10 +305,29 @@ def get_sentiment(ticker: str) -> Optional[dict[str, Any]]:
     if hit is not None:
         return hit if hit != "__null__" else None
 
+    # The warmed recap already carries this judgement — it was generated from
+    # the same transcript, in the same call. Reading it here removes an entire
+    # Perplexity + LLM round-trip per ticker instead of caching one.
+    try:
+        stored = _store().get(sym)
+    except Exception:
+        stored = None
+    if stored and stored.get("sentiment_detail"):
+        detail = dict(stored["sentiment_detail"])
+        _cache().set(ck, detail, _SENTIMENT_TTL)
+        return detail
+
     market_date = _today_date()
     guard = _cost_guard()
     if not guard.may_synthesize(market_date):
         _log.info("[call_sentiment] cost cap reached, skipping %s", sym)
+        return None
+
+    # No warmed recap: a transcript-bearing ticker is left to the warmer rather
+    # than paying for a separate web-grounded read on the request path.
+    transcript = _transcript_for(sym)
+    if transcript and transcript.get("segments"):
+        _trigger_background_warm(sym)
         return None
 
     try:

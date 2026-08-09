@@ -147,13 +147,30 @@ def render_transcript(segments: list[dict]) -> str:
 RECAP_SCHEMA: dict[str, Any] = {
     "type": "object",
     "additionalProperties": False,
-    "required": ["headline", "sentiment", "bullets", "quotes",
+    "required": ["headline", "sentiment", "sentiment_detail", "bullets", "quotes",
                  "forward_looking", "guidance", "guidance_detail",
                  "qa_highlights", "speakers"],
     "properties": {
         "headline":  {"type": "string"},
         "sentiment": {"type": "string",
                       "enum": ["positive", "negative", "mixed", "neutral"]},
+        # SentimentGauge used to be a SECOND Perplexity + LLM round-trip per
+        # ticker, for a judgement about the same call this generation is already
+        # reading. Folding it in deletes that round-trip rather than caching it,
+        # and grounds the score in the transcript instead of a web summary.
+        "sentiment_detail": {
+            "type": "object",
+            "additionalProperties": False,
+            "required": ["score", "label", "rationale", "drivers"],
+            "properties": {
+                "score":     {"type": "integer"},
+                "label":     {"type": "string",
+                              "enum": ["Very Positive", "Positive", "Neutral",
+                                       "Negative", "Very Negative"]},
+                "rationale": {"type": "string"},
+                "drivers":   {"type": "array", "items": {"type": "string"}},
+            },
+        },
         "bullets":   {"type": "array", "items": {"type": "string"}},
         "guidance":  {"type": "string",
                       "enum": ["raised", "cut", "maintained", "none"]},
@@ -237,6 +254,11 @@ RULES FOR EVERY `quote` FIELD — these are strict:
 Return:
 - headline: one sentence on what the call actually established.
 - sentiment: the call's tone on its own terms, not the stock reaction.
+- sentiment_detail: the same read, quantified. `score` is -100 (extremely
+  negative) to 100 (extremely positive) and must agree in sign with
+  `sentiment`. `rationale` is 2-3 sentences on why. `drivers` is 3-5 short
+  phrases naming what actually moved the read — specific things said on this
+  call, not generic categories.
 - bullets: 5-8 concrete takeaways, each carrying a specific figure or fact.
 - quotes: 5-8 of the most consequential things management actually said.
 - forward_looking: every statement about FUTURE performance — guidance, targets,
@@ -312,6 +334,25 @@ def synthesize(sym: str, transcript: dict) -> Optional[dict[str, Any]]:
         if (f.get("speaker") or "").strip().lower() != "operator"
     ]
     data["qa_highlights"] = ground_items(data.get("qa_highlights"), segments)
+
+    # The model can return a score whose sign contradicts its own label. Clamp
+    # the range and drop the whole block on a contradiction rather than render a
+    # gauge pointing the opposite way to the words beside it.
+    detail = data.get("sentiment_detail")
+    if isinstance(detail, dict):
+        try:
+            detail["score"] = max(-100, min(100, int(detail.get("score", 0))))
+        except (TypeError, ValueError):
+            detail["score"] = 0
+        label = (detail.get("label") or "").lower()
+        contradicts = ((detail["score"] > 15 and "negative" in label) or
+                       (detail["score"] < -15 and "positive" in label))
+        if contradicts:
+            _log.warning("[call_recap] %s: score %s contradicts label %r; dropping",
+                         sym, detail["score"], detail.get("label"))
+            data["sentiment_detail"] = None
+    else:
+        data["sentiment_detail"] = None
 
     data["speakers"] = {
         s["name"]: s.get("role", "")

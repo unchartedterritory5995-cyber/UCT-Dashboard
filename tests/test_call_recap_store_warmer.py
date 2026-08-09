@@ -242,3 +242,72 @@ class TestRequestPathNeverGenerates:
         result, warm, grounded, client = self._call(stored=None, has_transcript=False)
         warm.assert_not_called()
         assert result is None                        # empty pplx context here
+
+
+class TestSentimentFold:
+    """SentimentGauge used to be a SECOND Perplexity + LLM round-trip per
+    ticker, for a judgement about the call the recap generation already reads.
+    Measured cost of that duplication: ~5s of Perplexity plus an LLM call, per
+    ticker, on the request path."""
+
+    def test_the_gauge_payload_rides_the_recap_schema(self):
+        import api.services.call_recap_grounded as g
+        props = g.RECAP_SCHEMA["properties"]["sentiment_detail"]["properties"]
+        assert set(props) == {"score", "label", "rationale", "drivers"}
+        assert "sentiment_detail" in g.RECAP_SCHEMA["required"]
+
+    def _synth(self, monkeypatch, detail):
+        import json
+        import api.services.call_recap_grounded as g
+        payload = {"headline": "h", "sentiment": "positive", "bullets": [],
+                   "guidance": "raised", "guidance_detail": "", "quotes": [],
+                   "forward_looking": [], "qa_highlights": [], "speakers": [],
+                   "sentiment_detail": detail}
+
+        class _Resp:
+            stop_reason = "end_turn"
+            content = [type("B", (), {"type": "text", "text": json.dumps(payload)})()]
+            usage = type("U", (), {"input_tokens": 1, "output_tokens": 1})()
+
+        monkeypatch.setattr(g, "_client", lambda: type("C", (), {
+            "messages": type("M", (), {"create": staticmethod(lambda **k: _Resp())})()
+        })())
+        segs = [{"speaker": "CEO", "content": "Revenue was a record."},
+                {"speaker": "CFO", "content": "Margins expanded."}]
+        return g.synthesize("DIS", {"segments": segs, "quarter": "2026Q3"})
+
+    def test_a_sane_score_survives(self, monkeypatch):
+        out = self._synth(monkeypatch, {"score": 72, "label": "Positive",
+                                        "rationale": "Beat and raise.", "drivers": ["EPS beat"]})
+        assert out["sentiment_detail"]["score"] == 72
+
+    def test_an_out_of_range_score_is_clamped_not_rendered_raw(self, monkeypatch):
+        out = self._synth(monkeypatch, {"score": 900, "label": "Very Positive",
+                                        "rationale": "r", "drivers": []})
+        assert out["sentiment_detail"]["score"] == 100
+
+    def test_a_score_CONTRADICTING_its_label_is_dropped_entirely(self, monkeypatch):
+        # A gauge pointing hard positive beside the words "Very Negative" is
+        # worse than no gauge — it makes the panel look broken and untrustworthy.
+        out = self._synth(monkeypatch, {"score": 80, "label": "Very Negative",
+                                        "rationale": "r", "drivers": []})
+        assert out["sentiment_detail"] is None
+
+    def test_a_missing_or_junk_block_becomes_None(self, monkeypatch):
+        assert self._synth(monkeypatch, None)["sentiment_detail"] is None
+        assert self._synth(monkeypatch, "not a dict")["sentiment_detail"] is None
+
+    def test_get_sentiment_reads_the_warmed_recap_without_any_provider_call(self):
+        from unittest.mock import MagicMock, patch
+        import api.services.call_recap as cr
+        detail = {"score": 72, "label": "Positive", "rationale": "r", "drivers": ["d"]}
+        with patch.object(cr, "_cache", return_value=MagicMock(get=MagicMock(return_value=None))), \
+             patch.object(cr, "_store",
+                          return_value=MagicMock(get=MagicMock(
+                              return_value={"sentiment_detail": detail}))), \
+             patch.object(cr, "_pplx_earnings_highlights") as pplx, \
+             patch.object(cr, "_anthropic_client") as client:
+            out = cr.get_sentiment("DIS")
+        assert out == detail
+        pplx.assert_not_called()      # the ~5s round-trip that used to run
+        client.assert_not_called()    # and the LLM call after it
