@@ -20,6 +20,14 @@ def _ema(vals, n):
 
 
 def _rsi(closes, n=14):
+    """The screener's 14-period RSI, or ``None`` when it is not computable.
+
+    ⛔ THE ZERO-MOVEMENT DECISION IS NOT MADE HERE. It is
+    ``indicator_compute.rsi_from_wilder_averages``'s, and it is the reason SIM,
+    TMTS, CWEN-A, DRDB and OBA no longer read ``rsi14 = 100.0`` beside
+    ``chg_pct_1d = 0.00``. Read that function before changing this one.
+    """
+    from api.services import indicator_compute
     if len(closes) < n + 1:
         return None
     gains = losses = 0.0
@@ -27,11 +35,46 @@ def _rsi(closes, n=14):
         d = closes[i] - closes[i - 1]
         gains += max(d, 0)
         losses += max(-d, 0)
-    avg_g, avg_l = gains / n, losses / n
-    if avg_l == 0:
-        return 100.0
-    rs = avg_g / avg_l
-    return 100 - (100 / (1 + rs))
+    return indicator_compute.rsi_from_wilder_averages(gains / n, losses / n)
+
+
+def _atr_pct(bars, n=14):
+    """Wilder's ATR(``n``) as a percentage of the latest close — or ``None``.
+
+    🔴 THIS COLUMN USED TO BE ``out["atr_pct"] = out["adr_pct"]``, on every row.
+    Measured 2026-08-09: ``atr_pct == adr_pct`` on **3,708 of 3,708 rows**. They
+    are two differently-defined, differently-named industry quantities: ADR is
+    the mean of ``(h − l) / c`` and ignores the gap; ATR is the Wilder-smoothed
+    **true** range, ``max(h − l, |h − c₋₁|, |l − c₋₁|)``, which includes it. So a
+    member filtering on ATR% was handed ADR wearing ATR's name — median **+5.3%**
+    understated, worst observed **TTE stored 1.64 vs a true 2.14 (+30%)**, on a
+    volatility column that feeds position sizing.
+
+    ⭐ COMPUTED, NOT RENAMED. Renaming was the other honest option, but
+    ``atr_pct`` is a DECLARED SCALAR in ``closedTable.json`` — sentenced to
+    members as *"the average true range percentage"* — so the name is already
+    published and the fix is to make it true.
+
+    ⛔ THE MATHS IS ``indicator_compute.compute_atr_raw``'S, not a second Wilder
+    ATR written here: that function is the one the golden fixture
+    ``tests/fixtures/indicators/atr_14.json`` pins in BOTH lanes at rel-tol 1e-9,
+    and a private copy in the screener is precisely the ``atr_pct``/``adr_pct``
+    defect in a new place.
+
+    ⚠️ IT IS SEEDED-AND-SMOOTHED OVER THE BARS IT IS GIVEN, which is Wilder's
+    definition and not a bug: the recursion means the value depends slightly on
+    where the series starts. ``snapshot_builder`` hands this the same 400 daily
+    bars for every ticker, so the column is comparable across the universe by
+    construction rather than by luck.
+    """
+    from api.services import indicator_compute
+    if len(bars) < n + 1:
+        return None
+    atr = indicator_compute.compute_atr_raw(bars, n)[-1]
+    last_close = bars[-1]["c"]
+    if atr is None or not last_close:
+        return None
+    return atr / last_close * 100
 
 
 def _pct(a, b):
@@ -128,12 +171,22 @@ def compute_technicals(bars: list[dict]) -> dict:
             out["ma_stack"] = "bear"
         else:
             out["ma_stack"] = "partial"
-    # ADR% / ATR% over last 21 sessions
-    window = bars[-21:] if len(bars) >= 21 else bars
+    # ADR% over the last 21 sessions.
+    #
+    # ⛔ THE NUMERATOR AND THE DENOMINATOR MUST COUNT THE SAME BARS. This used to
+    # skip bars with a falsy close in the SUM (`... for b in window if b["c"]`)
+    # while dividing by `len(window)`, so a single zero close in the 21-bar
+    # window understated ADR by ~4.8% with nothing reported — and `usable_bars`
+    # admits `c == 0` (it checks finiteness, not positivity), so the path is
+    # reachable and one such row exists in the daily store today. Filtering the
+    # window ONCE makes the two agree by construction.
+    window = [b for b in (bars[-21:] if len(bars) >= 21 else bars) if b["c"]]
     if window:
-        adr = sum((b["h"] - b["l"]) / b["c"] for b in window if b["c"]) / len(window)
+        adr = sum((b["h"] - b["l"]) / b["c"] for b in window) / len(window)
         out["adr_pct"] = round(adr * 100, 2)
-        out["atr_pct"] = out["adr_pct"]
+    # ATR% is Wilder's TRUE range — NOT a second name for ADR. See `_atr_pct`.
+    atr_pct = _atr_pct(bars)
+    out["atr_pct"] = round(atr_pct, 2) if atr_pct is not None else None
     # Volume ratio: today vs prior 30-day average
     vols = [b.get("v") or 0 for b in bars]
     if len(vols) >= 2:

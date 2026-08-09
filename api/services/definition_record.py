@@ -316,61 +316,166 @@ def record_evaluation(def_hash: str, rev: int, tf: str, sym: str,
     begun, nothing may extend it backwards. That is what makes *"every number we
     show you accrued after you asked for it"* a property of the schema rather
     than a promise in a docstring.
+
+    ⭐ ONE ROW IS A BATCH OF ONE. Every gate, every refusal and the INSERT itself
+    live in `record_evaluations` below, and this door is the single-row spelling
+    of it — for the reason `_bar_key` gives about `ledger._normalize_bar_time`:
+    a second copy of these gates beside the first is a second authority over one
+    value, and the first thing it would drift on is the origin.
+    """
+    out = record_evaluations(def_hash, rev, tf, [{
+        "sym": sym,
+        "first_bar_time": first_bar_time,
+        "through_bar_time": through_bar_time,
+        "bars_evaluated": bars_evaluated,
+        "bars_true": bars_true,
+    }], at=at)
+    if out["refused"]:
+        # The single row's refusal, re-raised UNCHANGED — same type, same
+        # sentence, so a `raises(match=…)` reads the phrase the gate wrote.
+        raise out["refused"][0][1]
+    return out["written"] == 1
+
+
+def record_evaluations(def_hash: str, rev: int, tf: str,
+                       rows: Sequence[dict], *,
+                       at: Optional[float] = None) -> dict:
+    """⭐ THE BATCHING WRITE DOOR — many rows for ONE `(def_hash, rev, tf)`, one
+    connection, one transaction, one commit.
+
+    ⛔ AND IT IS ON THIS MODULE BECAUSE IT HAS TO BE, exactly as
+    `latest_through_by_symbol` is. E6's concern 2 names it: *"the fix is a
+    batching door on this module, ⛔ never a caller opening its own connection to
+    this table"* — a caller with its own connection is a second authority over
+    one value, and the first thing it would duplicate is the definition key and
+    the origin rule that hangs off it. `_write_rule_record`'s own docstring
+    repeats the same sentence, so there is one sanctioned answer and this is it.
+
+    ⚠️ WHY IT IS WORTH HAVING AT ALL, MEASURED RATHER THAN ASSUMED. `_connect()`
+    opens a fresh `sqlite3.connect()` **and re-runs `PRAGMA journal_mode=WAL`**,
+    and the per-row door commits, once per row. On a first sweep every answered
+    symbol is a row — 3,704 of them for one definition — so the connect/PRAGMA/
+    commit tax is paid 3,704 times to write 3,704 small rows. Measured on this
+    box: **144 rows/s per-row.** The compute half of a sweep is ~6–23 s; the
+    write half was larger than it.
+
+    ⛔ IT IS NOT A NEW STORE, A NEW SHAPE, OR A LOOSER GATE. Every row goes
+    through the same `_symbol`/`_count`/`_bar_key` collapse and the same five
+    refusals as the single-row door, in the same order, and the origin rule is
+    applied per row against a running minimum — so a batch behaves EXACTLY like
+    the same rows handed to `record_evaluation` one at a time, including which
+    row a backwards-reaching window is refused on. Measured, not asserted:
+    `test_a_BATCH_persists_byte_identical_rows_to_the_same_rows_one_at_a_time`
+    drives both spellings over a mixed batch and diffs the stored rows, the
+    counts and the refusal sentences IN ORDER.
+
+    ⛔ A REFUSED ROW DOES NOT ABORT THE BATCH, IT IS RETURNED BY NAME. The one
+    production caller counts refusals beside its writes rather than letting one
+    take a completed sweep down with it, and a door that raised on the first bad
+    row would force that caller back to a per-row loop — i.e. back to the cost
+    this door exists to remove. Refusals that are properties of the KEY rather
+    than of a row (`def_hash`, `rev`, `tf`) still raise: they are wrong for every
+    row in the batch, and returning them N times would say N problems where
+    there is one.
+
+    ⚠️ ONE TRANSACTION MEANS ALL-OR-NOTHING ON A CRASH. A process that dies
+    mid-batch leaves the ledger untouched instead of holding a prefix. For an
+    append-only receipt store that is the safer half of the trade: a sweep that
+    did not finish records nothing, and the next sweep re-derives the same
+    windows for free (`UNIQUE` makes a re-run free).
+
+    Returns ``{"written": int, "duplicate": int, "refused": [(row, ValueError)]}``
+    — `written` is rows that landed, `duplicate` is windows already on file
+    (`record_evaluation`'s `False`), and `refused` pairs each rejected row with
+    the sentence its gate wrote.
     """
     def_hash, rev, tf = _definition_key(def_hash, rev, tf)
-    sym = _symbol(sym)
-    evaluated = _count("bars_evaluated", bars_evaluated)
-    true = _count("bars_true", bars_true)
-    if evaluated == 0:
-        raise ValueError(f"the rule record refuses this row: {REFUSALS['empty_window']}")
-    if true > evaluated:
-        raise ValueError(
-            f"the rule record {REFUSALS['more_true']} ({true} > {evaluated})")
-
-    first_key = _bar_key(first_bar_time)
-    through_key = _bar_key(through_bar_time)
-    if through_key < first_key:
-        raise ValueError(
-            f"the rule record refuses this row: {REFUSALS['backwards']} "
-            f"({first_bar_time!r} .. {through_bar_time!r})")
 
     stamped = time.time() if at is None else float(at)
     if not math.isfinite(stamped):
         raise ValueError(f"the rule record refuses this row: {REFUSALS['stamp']} {at!r}")
 
-    _ensure_init()
-    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
-        # ⭐ THE ORIGIN IS READ ON THE CONNECTION THAT WRITES, not through
-        # `origin()`. Two connections would be two transactions, and the gap
-        # between them is where a concurrent first row could set an origin this
-        # write never saw — plus it doubled the per-row cost of a universe sweep.
-        started = c.execute(
-            f"SELECT MIN(first_bar_time) FROM {TABLE_NAME}"
-            " WHERE def_hash=? AND rev=?", (def_hash, rev)).fetchone()[0]
-        if started is not None and first_key < int(started):
-            raise ValueError(
-                f"the rule record refuses this row: it {REFUSALS['before_origin']} "
-                f"({first_key} < {int(started)}). A record that can be extended "
-                f"backwards is a backtest wearing a receipt's clothes.")
+    # ── shape gates, per row, before any connection is opened ────────────────
+    # ⚠️ THE INPUT INDEX IS CARRIED so `refused` can be returned in INPUT ORDER.
+    # The shape gates run for every row before the origin gate runs for any, so
+    # without the index a caller's log would read the refusals in a different
+    # order than a per-row loop wrote them — a difference nobody would notice
+    # until they diffed two runs of the same sweep.
+    prepared: list = []     # (i, row, sym, first_key, through_key, evaluated, true)
+    refused: list = []      # (i, row, ValueError)
+    for i, row in enumerate(rows):
         try:
-            c.execute(
-                f"INSERT INTO {TABLE_NAME}"
-                " (def_hash, rev, tf, sym, first_bar_time, through_bar_time,"
-                "  bars_evaluated, bars_true, recorded_at)"
-                " VALUES (?,?,?,?,?,?,?,?,?)",
-                (def_hash, rev, tf, sym, first_key, through_key,
-                 evaluated, true, stamped),
-            )
+            sym = _symbol(row.get("sym"))
+            evaluated = _count("bars_evaluated", row.get("bars_evaluated"))
+            true = _count("bars_true", row.get("bars_true"))
+            if evaluated == 0:
+                raise ValueError(
+                    f"the rule record refuses this row: {REFUSALS['empty_window']}")
+            if true > evaluated:
+                raise ValueError(
+                    f"the rule record {REFUSALS['more_true']} ({true} > {evaluated})")
+            first_key = _bar_key(row.get("first_bar_time"))
+            through_key = _bar_key(row.get("through_bar_time"))
+            if through_key < first_key:
+                raise ValueError(
+                    f"the rule record refuses this row: {REFUSALS['backwards']} "
+                    f"({row.get('first_bar_time')!r} .. "
+                    f"{row.get('through_bar_time')!r})")
+        except ValueError as exc:
+            refused.append((i, row, exc))
+            continue
+        prepared.append((i, row, sym, first_key, through_key, evaluated, true))
+
+    written = duplicate = 0
+    if prepared:
+        _ensure_init()
+        with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+            # ⭐ THE ORIGIN IS READ ON THE CONNECTION THAT WRITES, not through
+            # `origin()`. Two connections would be two transactions, and the gap
+            # between them is where a concurrent first row could set an origin
+            # this write never saw. Read ONCE for the batch and then carried
+            # forward in `started` as rows land, because a row that lands is a
+            # row a later row in the same batch must not reach back past — which
+            # is precisely what the per-row door did by re-reading MIN() each
+            # time, at the cost this door exists to remove.
+            row0 = c.execute(
+                f"SELECT MIN(first_bar_time) FROM {TABLE_NAME}"
+                " WHERE def_hash=? AND rev=?", (def_hash, rev)).fetchone()[0]
+            started = None if row0 is None else int(row0)
+
+            for (i, row, sym, first_key, through_key, evaluated, true) in prepared:
+                if started is not None and first_key < started:
+                    refused.append((i, row, ValueError(
+                        f"the rule record refuses this row: it "
+                        f"{REFUSALS['before_origin']} ({first_key} < {started}). "
+                        f"A record that can be extended backwards is a backtest "
+                        f"wearing a receipt's clothes.")))
+                    continue
+                try:
+                    c.execute(
+                        f"INSERT INTO {TABLE_NAME}"
+                        " (def_hash, rev, tf, sym, first_bar_time, through_bar_time,"
+                        "  bars_evaluated, bars_true, recorded_at)"
+                        " VALUES (?,?,?,?,?,?,?,?,?)",
+                        (def_hash, rev, tf, sym, first_key, through_key,
+                         evaluated, true, stamped),
+                    )
+                except sqlite3.IntegrityError as exc:
+                    # Same rule as `record_signal` and `record_coverage`: ONLY the
+                    # dedup collision may become a duplicate. Anything else is a
+                    # DROPPED row, and a dropped row reported as "already
+                    # recorded" is a claim of coverage that was never written.
+                    if "UNIQUE constraint failed" not in str(exc):
+                        raise
+                    duplicate += 1
+                    continue
+                written += 1
+                started = first_key if started is None else min(started, first_key)
             c.commit()
-            return True
-        except sqlite3.IntegrityError as exc:
-            # Same rule as `record_signal` and `record_coverage`: ONLY the dedup
-            # collision may become False. Anything else is a DROPPED row, and a
-            # dropped row reported as "already recorded" is a claim of coverage
-            # that was never written.
-            if "UNIQUE constraint failed" not in str(exc):
-                raise
-            return False
+
+    refused.sort(key=lambda t: t[0])
+    return {"written": written, "duplicate": duplicate,
+            "refused": [(row, exc) for _, row, exc in refused]}
 
 
 def record_pass(rev: int, tf: str, sym: str, *, ast: Any, bars: Sequence[dict],

@@ -351,17 +351,18 @@ def _ema_series(bars: List[Bar], period: int) -> List[Optional[float]]:
 
 
 def _sma_series(bars: List[Bar], period: int) -> List[Optional[float]]:
-    """Compute SMA series matching bars length. None where insufficient data."""
-    n = len(bars)
-    out: List[Optional[float]] = [None] * n
-    if n < period:
-        return out
-    rolling = sum(bars[i]["c"] for i in range(period))
-    out[period - 1] = rolling / period
-    for i in range(period, n):
-        rolling += bars[i]["c"] - bars[i - period]["c"]
-        out[i] = rolling / period
-    return out
+    """SMA series aligned to ``bars``. ``None`` where there isn't enough history.
+
+    ⛔ THE MATHS IS NOT HERE. This was a THIRD Python SMA — a rolling
+    subtract-and-add accumulator, the same one `indicator_compute.compute_sma`
+    carried and the same one that disagreed with the re-summing lane the chart
+    draws on 89.8% of bars. A detector that decides whether price reclaimed a
+    moving average must decide it against the average the user is looking at.
+    One window mean in the backend; `tests/test_single_authority_rails.py` fails
+    by name if a fourth appears.
+    """
+    from api.services import indicator_compute
+    return indicator_compute.compute_sma([b["c"] for b in bars], period)
 
 
 def _atr(bars: List[Bar], period: int) -> Optional[float]:

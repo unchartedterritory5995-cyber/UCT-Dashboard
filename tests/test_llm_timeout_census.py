@@ -55,8 +55,23 @@ BASE = cen.repo_root()
 # never punish whoever finally fixes it. Delete the entry once its module is
 # clean.
 #
-# Both entries here are OWNERSHIP quarantines, not technical ones. The fix is one
-# keyword argument in each; what is missing is permission, not a plan.
+# Both remaining entries are OWNERSHIP quarantines, not technical ones. The fix
+# is one keyword argument in each; what is missing is permission, not a plan.
+#
+#   api/services/call_recap_grounded.py — 🆕 landed in `c62cefeb`/`6ba0ba2c`
+#     WHILE this rail was being un-quarantined, from a parallel session that owns
+#     that file. ⭐ The rail found it the way it is meant to: by name, on the
+#     first run after it appeared, with nobody looking for it. It is a REQUEST
+#     PATH client — `synthesize()` is reached from `call_recap.py` and
+#     `api/routers/earnings_intel.py` (auth-required, so narrower blast radius
+#     than transcripts.py, but the same ten-minute worker pin). `_client()` calls
+#     `anthropic.Anthropic()` with no arguments at all.
+#     THE FIX, for whoever owns it:
+#         from api.services import llm_timeouts
+#         return anthropic.Anthropic(timeout=llm_timeouts.seconds(
+#             "CALL_RECAP_GROUNDED_TIMEOUT_SECS", llm_timeouts.REQUEST_PATH_LONG))
+#     (`call_recap.py:66` — the same feature's other client — already uses
+#     exactly this shape at REQUEST_PATH_LONG; copy it.)
 #
 #   api/schwab_router.py — partner-owned (`project_partner_collab_branch`: Ravi
 #     co-edits OptionsFlow.jsx, schwab_router.py, live_massive_router.py; do not
@@ -66,12 +81,19 @@ BASE = cen.repo_root()
 #     is 30-min cached, which bounds the frequency but not the blast radius of
 #     one bad call. Needs an ack, then `timeout=llm_timeouts.REQUEST_PATH`.
 #
-#   api/services/journal_two/coach_chat.py — a Compass fix was in flight on this
-#     file on 2026-08-09 and it was explicitly off-limits. It is AGENTIC, so one
-#     member request can make several 600s-capable calls in sequence.
+# ✅ RELEASED 2026-08-09: `api/services/journal_two/coach_chat.py` (both sites).
+#    Its Compass fix landed, so the two clients now pass `timeout=` — and, because
+#    that surface is AGENTIC (MAX_LOOPS streaming calls plus an inline
+#    summarization pass in ONE member request), a per-call timeout there would
+#    have multiplied the exposure rather than bounded it. The turn-level budget
+#    that actually bounds it has its own rail:
+#    `api/services/journal_two/test_coach_chat_timeouts.py`. Leaving the entry
+#    behind would have been a hole nobody could see —
+#    `test_every_quarantined_path_still_has_something_to_quarantine` is what
+#    forces the deletion.
 QUARANTINE: dict[str, int] = {
     "api/schwab_router.py": 1,
-    "api/services/journal_two/coach_chat.py": 2,
+    "api/services/call_recap_grounded.py": 1,
 }
 
 

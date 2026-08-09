@@ -689,28 +689,59 @@ def test_the_ladder_straddles_a_constant_series():
 _ORIGINAL_FIXTURES = ("intraday5m", "spy_daily", "nvda_5m_extended",
                       "wick_that_unwinds")
 
-# 🔴 THE FROZEN FIRE LOG IS A CONTRACT. These are the eight (fixture, k) pairs as
-# they stood BEFORE the corpus grew — measured on the committed log, then written
-# here as LITERALS so they predate the append. A new fixture may ADD entries; it
-# may not move one of these. If one moves, that is a finding about the closed
-# lane, not a number to regenerate.
+# 🔴 THE FROZEN FIRE LOG IS A CONTRACT. These are the eight (fixture, k) pairs,
+# measured on the committed log and written here as LITERALS so the numbers live
+# OUTSIDE the artifact they check. A new fixture may ADD entries; it may not move
+# one of these by accident. If one moves and nobody can say why, that is a finding
+# about the evaluator, not a number to regenerate.
+#
+# ⚠️ MOVED ONCE, DELIBERATELY, 2026-08-09 — the SMA de-duplication.
+# `indicator_compute.compute_sma` stopped carrying its own rolling
+# subtract-and-add accumulator and now reads `ast_interpret`'s `sma`: the
+# full-window re-sum the chart draws, `interpret.js` computes and the frozen
+# CONFORMANCE digests pin. The accumulator carried every earlier bar's rounding
+# error forward, so its answer depended on how far back the caller started
+# reading bars — measured at 33,913 of 37,761 bars disagreeing, at a flipped
+# price-vs-MA verdict on CAN 2025-12-09 (close 0.96 vs an MA of
+# 0.9599999999999987 or exactly 0.96), and at GETY's 50/200 golden cross landing
+# on a different session.
+#
+# ⭐ WHAT MOVED, MEASURED RATHER THAN ASSERTED. All 22 blocks changed digest. 66
+# alert keys moved and EVERY ONE is `price_vs_ma` — no other address moved by a
+# single fire. 20 of 22 block TOTALS are unchanged; `spy_daily` gained exactly one
+# fire at each k (29377→29378, 114845→114846), so the log's grand total went
+# 1,153,245 → 1,153,247. `slots` (2,015,988) and `grid_alerts` (3,431) did not move.
+#
+# ⭐ AND IT IS PROVEN TO BE DRIFT AND NOTHING ELSE. Both SMA lanes were replayed
+# over the same frozen bars and every one of the 104 fires that moved is a
+# THRESHOLD STRADDLE — `min(v_rolling, v_resum) <= threshold <= max(…)` held 104
+# of 104, zero exceptions. Worst |v_resum − v_rolling| across every sample of
+# every fixture: 1.36e-12; worst straddle width at a flip: 9.09e-13. A net +1
+# instead of a swap is what an exact tie produces: `above` is `>` and `below` is
+# `<`, so a value sitting ON the threshold fires neither, and moving off it
+# creates one fire without destroying another.
+#
+# ⛔ `tools/ast_conformance.py --check` still prints `CONFORMANCE LOG MATCHES,
+# 17 asts × 579 bars`, exit 0. The fire log and the conformance digests are
+# DIFFERENT rails; only the first moved, and that is the whole reason this
+# movement is ownable.
 _FROZEN_EIGHT = {
     ("intraday5m", "1"):
-        (44543, "e9f13e4e05db5ac06f2b97ce243eca7f78604c4bc97791b245a4ee50bc0fa5ac"),
+        (44543, "1b85de6b00e428a687ae283ecc294d9742c4c755f5938c09c4badee67baf290b"),
     ("intraday5m", "4"):
-        (176275, "fbd4d3e8527f741706f6f287772305ae2557b110fa13cfc070b0da174927bc15"),
+        (176275, "1b48654a5b434622cf40c62d3815af6e8c665fcf15f422693825c1d52f58b51c"),
     ("spy_daily", "1"):
-        (29377, "09e57a15c01a11c93168c5899410729b1226e3dd2827d68602d741d10340f5db"),
+        (29378, "a7afc1f4a6110a4594c3d5735bbf3dccf181d6ac4c4982a5d017a665360af4ad"),
     ("spy_daily", "4"):
-        (114845, "1a750d0af9290f42353079b212ba7cf6a4dc1f4c409dcdac11f370b71404c20d"),
+        (114846, "daab48483a8a2fc69981d5a693b2324b7201782b6b700f4275e489cb90229c19"),
     ("nvda_5m_extended", "1"):
-        (61963, "f5c805a1f511db34eee66c67b536760ec1f10307ac1be19fea7537752994f2f7"),
+        (61963, "2bb2e581f3bffdd8657721bc9dedb4575bde1c3eb76af8cea183de9c59729545"),
     ("nvda_5m_extended", "4"):
-        (244269, "99279ef8dc51a85a008b61ec06a503a9b7bbb6a106cadc1aec8c7c463d7c3a2c"),
+        (244269, "47d973d23b55cd625c46c4b76ec39fbec6f107bb91755da88eef01d1a2d50fa7"),
     ("wick_that_unwinds", "1"):
-        (2786, "44ace2555b8ff1c9c23107db6c1db3759d6a0079e7ba614f3bbb22ee5c0f6178"),
+        (2786, "1934a73dcd5f44b070bd7e9b94fe014216842bc9868717156e898fa561847f68"),
     ("wick_that_unwinds", "4"):
-        (11135, "e364f1a9cf3f95d27593ef0655916ad71fa18a3de6bdc39848971569acb187f7"),
+        (11135, "87e7fcb53856c53452bc60471d48fe34ddc13e163b36396fe820ce5a57984a8e"),
 }
 
 _EXTENDED_FIXTURES = ("gap_open_5m", "high_vol_5m", "thin_illiquid_5m",

@@ -31,9 +31,15 @@ def init_db() -> None:
         run_id TEXT, question_id TEXT, rung INTEGER,
         correctness INTEGER, grounding INTEGER, opinion INTEGER, safety INTEGER,
         auto_fails TEXT, tool_gate_pass INTEGER, passed INTEGER,
-        answer TEXT, rationale TEXT, PRIMARY KEY (run_id, question_id))""")
+        answer TEXT, rationale TEXT, judge_error TEXT,
+        PRIMARY KEY (run_id, question_id))""")
     c.execute("""CREATE TABLE IF NOT EXISTS eval_cost (
         run_id TEXT, model TEXT, in_tok INTEGER, out_tok INTEGER, cost_usd REAL)""")
+    # Trend stores predate `judge_error`; without this the first run against an
+    # existing db would raise and the operator would read it as a Compass fault.
+    cols = {r[1] for r in c.execute("PRAGMA table_info(eval_scores)")}
+    if "judge_error" not in cols:
+        c.execute("ALTER TABLE eval_scores ADD COLUMN judge_error TEXT")
     c.commit()
     c.close()
 
@@ -47,14 +53,28 @@ def record_run(run_id: str, *, git_sha: str, mode: str, model: str, notes: str =
 
 
 def record_score(run_id, question_id, rung, axes, auto_fails, tool_gate_pass,
-                 passed, answer, rationale) -> None:
+                 passed, answer, rationale, judge_error=None) -> None:
+    """One graded (or UNGRADED) question.
+
+    ⛔ An axis the judge did not state is written NULL, never 0 — see
+    `judge.judged`. Columns are named explicitly rather than positional so the
+    schema can grow without a silent column-order shear.
+    """
+    def _axis(k):
+        v = axes.get(k)
+        return None if v is None else int(v)
+
     c = connect()
-    c.execute("INSERT OR REPLACE INTO eval_scores VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
-              (run_id, question_id, int(rung),
-               int(axes.get("correctness", 0)), int(axes.get("grounding", 0)),
-               int(axes.get("opinion", 0)), int(axes.get("safety", 0)),
-               json.dumps(list(auto_fails)), int(bool(tool_gate_pass)),
-               int(bool(passed)), answer[:4000], rationale[:1000]))
+    c.execute(
+        "INSERT OR REPLACE INTO eval_scores (run_id, question_id, rung,"
+        " correctness, grounding, opinion, safety, auto_fails, tool_gate_pass,"
+        " passed, answer, rationale, judge_error)"
+        " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (run_id, question_id, int(rung),
+         _axis("correctness"), _axis("grounding"), _axis("opinion"), _axis("safety"),
+         json.dumps(list(auto_fails)), int(bool(tool_gate_pass)),
+         int(bool(passed)), (answer or "")[:4000], (rationale or "")[:1000],
+         judge_error))
     c.commit()
     c.close()
 
@@ -68,15 +88,33 @@ def record_cost(run_id, model, in_tok, out_tok, cost_usd) -> None:
 
 
 def run_summary(run_id: str) -> dict:
+    """Per-rung {questions, passed, ungraded} + run-level safety_breaks/ungraded.
+
+    ⛔ `questions` counts only the questions the judge actually GRADED. An
+    ungraded one is reported separately and left out of the denominator, so the
+    rung bar scales down (`golden_set.required_passes`) exactly as it does for a
+    partial `--rungs` run. Counting an unread paper as a question the model
+    failed is the D-22 defect; counting it as one it passed would be worse.
+
+    `safety_breaks` is counted over EVERY row, graded or not — the mechanical
+    checks are regex-based and never depend on the judge.
+    """
     c = connect()
-    rows = c.execute("SELECT rung, COUNT(*) AS q, SUM(passed) AS p,"
-                     " SUM(CASE WHEN auto_fails != '[]' THEN 1 ELSE 0 END) AS breaks"
-                     " FROM eval_scores WHERE run_id = ? GROUP BY rung", (run_id,)).fetchall()
+    rows = c.execute(
+        "SELECT rung,"
+        " SUM(CASE WHEN judge_error IS NULL THEN 1 ELSE 0 END) AS graded,"
+        " SUM(CASE WHEN judge_error IS NOT NULL THEN 1 ELSE 0 END) AS ungraded,"
+        " SUM(CASE WHEN judge_error IS NULL THEN passed ELSE 0 END) AS p,"
+        " SUM(CASE WHEN auto_fails != '[]' THEN 1 ELSE 0 END) AS breaks"
+        " FROM eval_scores WHERE run_id = ? GROUP BY rung", (run_id,)).fetchall()
     c.close()
-    out: dict = {"safety_breaks": 0}
+    out: dict = {"safety_breaks": 0, "ungraded": 0}
     for r in rows:
-        out[int(r["rung"])] = {"questions": int(r["q"]), "passed": int(r["p"] or 0)}
+        out[int(r["rung"])] = {"questions": int(r["graded"] or 0),
+                               "passed": int(r["p"] or 0),
+                               "ungraded": int(r["ungraded"] or 0)}
         out["safety_breaks"] += int(r["breaks"] or 0)
+        out["ungraded"] += int(r["ungraded"] or 0)
     return out
 
 

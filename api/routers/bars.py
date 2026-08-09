@@ -51,6 +51,71 @@ from api.index_bars import is_index, fetch_index_bars
 router = APIRouter()
 
 
+# ── DEAD-TICKER-503 ──────────────────────────────────────────────────────────
+# A retired ticker (`SQ`, after Block renamed to `XYZ`) answered **503** on
+# `tf=5` and `tf=60`. Nothing was broken: the fetch found nothing anywhere and
+# `bars_fetch`'s no-blank guard classified "nothing anywhere" as *transient*
+# because the `massive` breaker happened to be open. To a member on a stale
+# watchlist that reads "the product is down"; to an error-rate monitor it reads
+# as an outage — and the frontend retries forever for a symbol that will never
+# answer.
+#
+# ⭐ THE HONEST SHAPE IS ALREADY IN THIS CODEBASE — it is not invented here.
+# `bars_fetch`'s own comment beside that guard says a genuinely empty ticker
+# "still returns 200+[] so the frontend can show 'no data' rather than retry
+# forever". That is the shape below. ⛔ No fabricated bars, ⛔ no zero-filled
+# series — an empty list plus the reason it is empty.
+#
+# The one fact the breaker cannot have, and the router can: **is this a symbol
+# we carry at all?** Membership is read from the loader that already owns that
+# list (`ticker_search._UNIVERSE`, the same set the autocomplete offers) plus the
+# delisted registry — ⛔ never a second read of `cap_universe.json` here, which
+# would be a second authority over one list. `SQ` is in neither; `XYZ` is in the
+# universe, so the live successor keeps its transient 503 during a real outage.
+_CARRIED: frozenset | None = None
+
+
+def _carried_symbols() -> frozenset:
+    """The symbols this product carries — derived, cached once, never restated."""
+    global _CARRIED
+    if _CARRIED is None:
+        try:
+            from api.routers.ticker_search import _UNIVERSE
+            _CARRIED = frozenset(_UNIVERSE)
+        except Exception:
+            _CARRIED = frozenset()
+    return _CARRIED
+
+
+def _is_carried(ticker: str) -> bool:
+    """⚠️ ABSTAINS RATHER THAN GUESSING. An empty universe (JSON missing, load
+    failed) would make *every* symbol look uncarried and silently turn every
+    transient 503 into "no data" — a derived reference with no sanity bound. So
+    an unreadable universe answers "carried" and the 503 stands."""
+    syms = _carried_symbols()
+    if not syms:
+        return True
+    if (ticker or "").strip().upper() in syms:
+        return True
+    try:
+        from api.services import delisted_registry as _dr
+        # A registered dead entity is deliberately kept OUT of cap_universe, but
+        # we DO hold its frozen bars — a 503 there is a real fetch failure.
+        return _dr.resolve(ticker) is not None
+    except Exception:
+        return False
+
+
+def _no_data_response(ticker: str, tf: str):
+    """200 + an empty series + why it is empty. `no_data` is what makes this
+    distinguishable from a quiet-but-live symbol without inventing a single bar."""
+    return JSONResponse(
+        status_code=200,
+        content={"ticker": (ticker or "").upper(), "tf": tf, "bars": [],
+                 "no_data": True, "reason": "symbol_not_carried"},
+    )
+
+
 @router.get("/api/bars/_debug_source/{ticker}")
 def debug_source(ticker: str, tf: str = Query(default="60"), src_override: int = Query(default=0), focus_date: str = Query(default="")):
     """Diagnostic — returns which source is providing intraday data + sample bars.
@@ -150,6 +215,7 @@ def get_bars(
     _log = logging.getLogger(__name__)
     _t0 = _time.perf_counter()
     response = None
+    crashed = False
     try:
         try:
             # Schwab /pricehistory doesn't serve cash-settled indexes — silently
@@ -192,6 +258,7 @@ def get_bars(
             else:
                 response = _get_bars_inner(ticker, tf, bars)
         except Exception as e:
+            crashed = True
             _log.error(f"[bars] CRASH {ticker} tf={tf}: {e}\n{traceback.format_exc()}")
             # Return 503 (not 200 + empty bars) so the frontend treats the failure
             # as transient and retries with backoff, keeping any last-known IDB
@@ -206,6 +273,16 @@ def get_bars(
                 content={"ticker": ticker.upper(), "tf": tf, "bars": [], "error": "transient"},
             )
             response.headers["Retry-After"] = "5"
+
+        # ── DEAD-TICKER-503 ─────────────────────────────────────────────────
+        # Only the "looked everywhere, found nothing" 503 is downgraded. A
+        # `crashed` 503 (the SQLite inode swap during force_resync) IS transient
+        # for any symbol, carried or not, and keeps its Retry-After.
+        if (not crashed and getattr(response, "status_code", 200) == 503
+                and not _is_carried(ticker)):
+            _log.info("[bars] %s tf=%s: no data and not a carried symbol — "
+                      "200 no_data instead of a transient 503", ticker, tf)
+            response = _no_data_response(ticker, tf)
 
         # Bars data must never be served from a stale browser/CDN cache. Server-side
         # caching (memory + SQLite + disk) handles correctness; HTTP-layer caching

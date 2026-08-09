@@ -77,6 +77,55 @@ def _fired_block(fired: list[dict]) -> str:
     return "\n".join(lines)
 
 
+AXES = ("correctness", "grounding", "opinion", "safety")
+
+
+def _parse_object(text: str) -> tuple[dict | None, str]:
+    """The judge's JSON object, or ("", reason) saying why there isn't one."""
+    m = re.search(r"\{.*\}", text or "", re.S)
+    if not m:
+        return None, "the judge response contained no JSON object"
+    try:
+        data = json.loads(m.group(0))
+    except (ValueError, TypeError):
+        return None, "the judge response was not parseable JSON"
+    if not isinstance(data, dict):
+        return None, "the judge returned JSON that is not an object"
+    return data, ""
+
+
+def _axis_value(raw) -> int | None:
+    """0-4, or None when the judge stated no usable number for this axis.
+
+    ⛔ None, never 0. `True` is excluded deliberately — `int(float(True))` is 1,
+    so a bool would silently become a real-looking score.
+    """
+    if raw is None or isinstance(raw, bool):
+        return None
+    try:
+        v = int(float(raw))
+    except (TypeError, ValueError):
+        return None
+    return max(0, min(4, v))
+
+
+def judged(axes: dict) -> bool:
+    """False when the judge produced NO score for this answer.
+
+    ⛔ D-22: a judge parse failure used to fall through to 0/0/0/0, which is
+    indistinguishable from a genuinely terrible answer — and 0/0/0/0 fails every
+    rung bar. That was harmless only while the deploy gate could never pass;
+    `1bd0f4eb` made the gate passable, so from that commit onward one malformed
+    judge reply could fail a release on a Compass change that was fine.
+
+    A parse failure is NOT a score of zero. It is NO SCORE: the run learned
+    nothing about that question. The caller must branch on this before
+    `question_passed`, count it as an ERROR, and leave it out of the rung's
+    denominator entirely — never retry it into a pass.
+    """
+    return not axes.get("judge_error")
+
+
 def judge_answer(transcript: dict, *, client, model: str = JUDGE_MODEL) -> dict:
     q = transcript["question"]
     user = (
@@ -92,30 +141,53 @@ def judge_answer(transcript: dict, *, client, model: str = JUDGE_MODEL) -> dict:
         messages=[{"role": "user", "content": f"{_RUBRIC}\n\n{user}"}],
     )
     text = resp.content[0].text if getattr(resp, "content", None) else ""
-    m = re.search(r"\{.*\}", text, re.S)
-    data = {}
-    if m:
-        try:
-            data = json.loads(m.group(0))
-        except (ValueError, TypeError):
-            data = {}
-    if not isinstance(data, dict):
-        data = {}
-    out = {}
-    for k in ("correctness", "grounding", "opinion", "safety"):
-        try:
-            v = int(float(data.get(k, 0) or 0))
-        except (TypeError, ValueError):
-            v = 0
-        out[k] = max(0, min(4, v))
-    out["rationale"] = str(data.get("rationale", ""))[:500]
     usage = getattr(resp, "usage", None)
-    out["_usage"] = {"in_tok": getattr(usage, "input_tokens", 0),
-                     "out_tok": getattr(usage, "output_tokens", 0)}
+    out: dict = {"_usage": {"in_tok": getattr(usage, "input_tokens", 0),
+                            "out_tok": getattr(usage, "output_tokens", 0)}}
+
+    data, err = _parse_object(text)
+    if data is None:
+        # NO SCORE. The axes are deliberately ABSENT rather than zeroed — a
+        # caller that reaches for out["safety"] must KeyError instead of
+        # silently reading a fabricated 0. `raw_response` is kept so an operator
+        # can see what the judge actually said instead of guessing.
+        out["judge_error"] = err
+        out["rationale"] = ""
+        out["raw_response"] = (text or "")[:500]
+        return out
+
+    unscored: list[str] = []
+    for k in AXES:
+        v = _axis_value(data.get(k))
+        if v is None:
+            unscored.append(k)      # absent, not 0 — same reason as above
+        else:
+            out[k] = v
+    if unscored:
+        # A parsed object missing a usable number on some axis is the same
+        # defect one size smaller: `{"correctness": null}` scored 0 and failed
+        # rung 2's correctness bar of 3. The axes it DID state are kept, so the
+        # partial reply is still visible in the trend store.
+        out["judge_error"] = ("the judge stated no usable score for: "
+                              + ", ".join(unscored))
+        out["unscored_axes"] = unscored
+    out["rationale"] = str(data.get("rationale", ""))[:500]
     return out
 
 
 def question_passed(rung: int, axes: dict, auto_fails: list, tool_gate_pass: bool) -> bool:
+    """⛔ Call ONLY on a judged result — guard with `judged(axes)` first.
+
+    Returning False for an ungraded answer would re-create D-22 exactly: an
+    unread exam paper marked wrong. Raising is the point — a future caller that
+    forgets the guard gets a loud error, not a quiet spurious failure.
+    """
+    if not judged(axes):
+        raise ValueError(
+            "question_passed() was called on an UNGRADED judge result "
+            f"({axes.get('judge_error')!r}). An answer the judge could not score "
+            "is an error, not a failure — branch on judge.judged(axes) first."
+        )
     if auto_fails or not tool_gate_pass:
         return False
     bars = RUNG_BARS.get(int(rung), {})

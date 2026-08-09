@@ -1,5 +1,16 @@
 #!/usr/bin/env python
-"""Run the Compass report card. Exit 1 on any safety break or rung below bar.
+"""Run the Compass report card.
+
+Exit codes — three different facts, three different numbers:
+  0  GATE PASS
+  1  GATE FAIL     — a safety break, or a rung below its bar. A real regression.
+  2  no questions matched --rungs/--questions.
+  3  GATE ERROR    — the exam did not complete: one or more questions came back
+                     UNGRADED (the judge returned no usable score). ⛔ Not a
+                     verdict on Compass, and deliberately NOT 1 — an unread exam
+                     paper is not a wrong answer. Re-run; do not "fix" it by
+                     retrying just the ungraded questions until they parse.
+  1 wins over 3 when both happen: an error must never mask a measured failure.
 
 Usage:
   set ANTHROPIC_API_KEY=...          (required unless --offline)
@@ -26,8 +37,24 @@ def main() -> int:
     os.environ["AUTH_DB_PATH"] = args.db
     os.environ.setdefault("BRAIN_TOOLS_ENABLED", "1")
     os.environ.setdefault("COMPASS_MENTOR_MODE", "1")
+
+    # ⏱️ Compass chat now bounds a whole member TURN, not just each call — a
+    # request-path budget, sized for someone staring at a spinner. The exam is an
+    # OPERATOR SCRIPT in its own process: nobody is waiting on a socket, a Rung
+    # 4/5 watchlist question legitimately chains several tool rounds, and cutting
+    # one short just burns the tokens it already spent. So this lane buys itself
+    # the OFFLINE_JOB budget — by env, per process, exactly the escape hatch
+    # DESK_CHAPTERS_LLM_TIMEOUT_SECS gives the scheduler lane. `setdefault`, so
+    # an operator can still pin it lower. ⛔ It is a longer bound, never an
+    # absent one: llm_timeouts.seconds() refuses 0/blank/negative.
+    from api.services import llm_timeouts
+    os.environ.setdefault("COMPASS_CHAT_TURN_BUDGET_SECS",
+                          str(int(llm_timeouts.OFFLINE_JOB)))
+    os.environ.setdefault("COMPASS_CHAT_LLM_TIMEOUT_SECS",
+                          str(int(llm_timeouts.REQUEST_PATH_LONG)))
     print(f"flags: BRAIN_TOOLS_ENABLED={os.environ['BRAIN_TOOLS_ENABLED']}"
-          f" COMPASS_MENTOR_MODE={os.environ['COMPASS_MENTOR_MODE']}")
+          f" COMPASS_MENTOR_MODE={os.environ['COMPASS_MENTOR_MODE']}"
+          f" COMPASS_CHAT_TURN_BUDGET_SECS={os.environ['COMPASS_CHAT_TURN_BUDGET_SECS']}")
 
     from api.services.compass_eval import runner, golden_set
 
@@ -71,12 +98,16 @@ def main() -> int:
               file=sys.stderr)
         return 2
     print(f"\nrun {out['run_id']}")
-    gate = golden_set.evaluate_gate(out["summary"], safety_breaks=out["safety_breaks"])
+    gate = golden_set.evaluate_gate(out["summary"],
+                                    safety_breaks=out["safety_breaks"],
+                                    ungraded=out["judge_errors"])
     for line in gate["lines"]:
         print(line)
     print(f"  safety breaks: {out['safety_breaks']}")
     if out["failed"]:
         print("  failed: " + ", ".join(out["failed"]))
+    for u in out["ungraded"]:
+        print(f"  UNGRADED {u['id']}: {u['reason']}")
     print(f"  bars measured against: {golden_set.BASELINE_LABEL}")
 
     if args.offline:
@@ -90,8 +121,13 @@ def main() -> int:
         return 0
 
     if gate["failed"]:
+        # Checked FIRST on purpose: an ungraded question must never mask a
+        # measured regression by downgrading the run to "error".
         print("GATE FAIL: " + "; ".join(gate["reasons"]))
         return 1
+    if gate["errored"]:
+        print("GATE ERROR: " + "; ".join(gate["errors"]))
+        return 3
     print("GATE PASS")
     return 0
 

@@ -92,6 +92,28 @@ describe('computeRSI', () => {
     values(rsi).forEach(v => expect(v).toBe(100))
   })
 
+  it('a series that has not moved at all is NOT computable, and is not 100', () => {
+    // ⛔ `avgLoss === 0` is TWO different facts. The test above is the real one —
+    // an unbroken advance, where 100 is the textbook answer. This is the other:
+    // gains AND losses are zero, 0/0 is not a number, and reading it as maximum
+    // overbought put five frozen tickers (SIM, TMTS, CWEN-A, DRDB, OBA) at the
+    // top of an "RSI > 70" screen with chg_pct_1d = 0.00 on 2026-08-09.
+    const bars = Array.from({ length: 30 }, (_, i) => ({ t: i, c: 10 }))
+    const rsi = computeRSI(bars, 14)
+    expect(rsi.length).toBe(30)
+    expect(values(rsi).length).toBe(0)          // every point is the NA pad
+    rsi.forEach(p => expect(Number.isNaN(p.value)).toBe(true))
+  })
+
+  it('one up-step in an otherwise flat window is still 100 — the lanes agree', () => {
+    // The distinction is not "did it move much", it is "were there any losses".
+    // A single cent higher, never given back, is an unbroken advance and reads
+    // 100. Python's indicator_compute.rsi_from_wilder_averages decides it the
+    // same way, which is why the two lanes can share one golden fixture.
+    const bars = Array.from({ length: 30 }, (_, i) => ({ t: i, c: i >= 20 ? 10.01 : 10 }))
+    expect(computeRSI(bars, 14)[29].value).toBe(100)
+  })
+
   it('does not round: values keep full double precision', () => {
     // 2dp rounding used to be baked in here, which made agreement with the
     // Python lane at 1e-9 arithmetically impossible.

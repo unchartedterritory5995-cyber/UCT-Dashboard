@@ -216,26 +216,18 @@ def _coverage(eps, rs, growth, value, smr_n, accdis_letter) -> dict:
 
 
 def _weighted_rs_return(closes):
-    if closes is None or len(closes) < 63:
-        return None
+    """The weighted RS return — ⛔ NOT COMPUTED HERE.
 
-    def ret(n):
-        if len(closes) <= n:
-            return None
-        a, b = closes[-1], closes[-1 - n]
-        if not b:
-            return None
-        return (a - b) / b * 100
-
-    r3m = ret(63)
-    if r3m is None:
-        return None
-    parts = [(r3m, 0.4)]
-    for v, w in [(ret(126), 0.2), (ret(21), 0.2), (ret(5), 0.2)]:
-        if v is not None:
-            parts.append((v, w))
-    tot = sum(w for _, w in parts)
-    return sum(v * w for v, w in parts) / tot
+    This lane and ``rs_ranking`` (which writes the screener's ``rs_return``
+    column and the ``rs_rank`` percentile OF it) each carried their own copy,
+    and they disagreed by **15.7%** whenever a period was missing: this one
+    dropped the term and renormalised, the other substituted the 3-month return
+    for a missing 6-month one and ``0`` for a missing 1-month/1-week one. The
+    renormalising rule survived, in ONE place, with the missing-period rule
+    written down — see ``api/services/rs_weighted_return.py``.
+    """
+    from api.services import rs_weighted_return
+    return rs_weighted_return.weighted_rs_return(closes)
 
 
 def _accdis_ratio(closes, vols, lookback=65):

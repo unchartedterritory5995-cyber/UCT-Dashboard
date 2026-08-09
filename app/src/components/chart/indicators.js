@@ -98,7 +98,17 @@ export function computeRSI(bars, period = 14) {
       avgGain = (avgGain * (period - 1) + gain) / period
       avgLoss = (avgLoss * (period - 1) + loss) / period
     }
-    result[i].value = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss)
+    // ⛔ `avgLoss === 0` IS TWO DIFFERENT FACTS AND ONLY ONE OF THEM IS 100.
+    // With `avgGain > 0` it is a genuine unbroken advance — RS is unbounded and
+    // 100 is the textbook answer (pinned by fixtures/indicators/rsi_ramp_14).
+    // With `avgGain === 0` NOTHING MOVED: 0/0 is not a number, so the point
+    // keeps the `NA` the warm-up pad uses. Reading a frozen ticker as maximally
+    // overbought put SIM/TMTS/CWEN-A/DRDB/OBA at the top of an "RSI > 70" screen
+    // on 2026-08-09. Python's `indicator_compute.rsi_from_wilder_averages` makes
+    // the identical distinction — these two lanes are compared bar-for-bar
+    // against one golden fixture, so they decide it the same way or not at all.
+    if (avgLoss !== 0) result[i].value = 100 - 100 / (1 + avgGain / avgLoss)
+    else if (avgGain !== 0) result[i].value = 100
   }
   return result
 }

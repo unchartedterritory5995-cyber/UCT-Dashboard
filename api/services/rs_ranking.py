@@ -3,11 +3,12 @@
 Computes weighted price performance for a universe of stocks and ranks them
 on a 1-99 percentile scale. Uses Massive API for 6-month daily bars.
 
-RS Score formula (IBD-inspired weighted returns):
-  40% × 3-month return
-  20% × 6-month return
-  20% × 1-month return
-  20% × 1-week return
+The RS score is the IBD-style weighted return. ⛔ THE WEIGHTS AND THE
+MISSING-PERIOD RULE ARE NOT RESTATED HERE — read ``RS_TERMS`` in
+``api/services/rs_weighted_return.py``, which is the one place either is
+written down and the one place both this lane and ``research.ratings`` read.
+A prose copy of a formula beside the code that owns it is how this repo grew
+two RS returns 15.7% apart in the first place.
 
 Cached for 1 hour (3600s). Universe: cap_universe from wire_data ($300M+).
 """
@@ -16,6 +17,7 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
 
+from api.services import rs_weighted_return
 from api.services.cache import cache
 from api.services.massive import get_agg_bars
 
@@ -104,6 +106,22 @@ def _compute_returns(ticker: str) -> dict | None:
     """Fetch 6 months of daily bars and compute weighted returns.
 
     Returns dict with ticker, rs_score, and period returns, or None on failure.
+
+    ⛔ THE WEIGHTING AND THE MISSING-PERIOD RULE ARE NOT DECIDED HERE — see
+    ``api/services/rs_weighted_return.py``. This function used to substitute the
+    3-month return for a missing 6-month one (handing 3m 60% of the weight) and
+    ``0`` for a missing 1-month or 1-week one (a fabricated flat return), while
+    ``research.ratings`` renormalised — **32.40 vs 28.00 on identical inputs**.
+    The score and the four returns beside it now come from ONE derivation, so
+    ``snapshot_builder.rs_fields``'s claim that ``rs_return`` is the same
+    quantity ``ratings`` computes is true rather than aspirational.
+
+    ⚠️ THE FETCH WINDOW IS THIN AND SAYS SO. ``timedelta(days=200)`` is ≈138
+    trading days against the 127 closes ``6m`` needs — about 11 sessions of
+    slack. Under the substituting rule a provider gap silently dropped the name
+    onto the 3m path with nothing logged; under renormalisation it now scores on
+    the terms that resolved, which is honest but still short. Widening the window
+    is a separate, measured change.
     """
     to_date = datetime.utcnow().strftime("%Y-%m-%d")
     from_date = (datetime.utcnow() - timedelta(days=200)).strftime("%Y-%m-%d")
@@ -117,40 +135,21 @@ def _compute_returns(ticker: str) -> dict | None:
     if current <= 0:
         return None
 
-    def _pct(n_bars: int) -> float | None:
-        """Return % return over last n trading bars."""
-        if len(closes) < n_bars + 1:
-            return None
-        ref = closes[-(n_bars + 1)]
-        if ref <= 0:
-            return None
-        return (current - ref) / ref * 100
-
-    ret_1w = _pct(5)      # ~1 week
-    ret_1m = _pct(21)     # ~1 month
-    ret_3m = _pct(63)     # ~3 months
-    ret_6m = _pct(126)    # ~6 months
-
-    # Need at least 3m return to compute a meaningful score
-    if ret_3m is None:
+    returns = rs_weighted_return.period_returns(closes)
+    raw_score = rs_weighted_return.weighted_from_returns(returns)
+    # No 3-month term ⇒ no RS return. Stated in one place; honoured here.
+    if raw_score is None:
         return None
-
-    # Weighted score: 40% 3M + 20% 6M + 20% 1M + 20% 1W
-    # Use 0 for any missing shorter periods
-    w_3m = ret_3m * 0.40
-    w_6m = (ret_6m if ret_6m is not None else ret_3m) * 0.20
-    w_1m = (ret_1m if ret_1m is not None else 0) * 0.20
-    w_1w = (ret_1w if ret_1w is not None else 0) * 0.20
-    raw_score = w_3m + w_6m + w_1m + w_1w
 
     return {
         "ticker": ticker,
         "raw_score": raw_score,
+        # ⛔ DERIVED FROM THE SAME DICT THE SCORE WAS BUILT FROM, never a second
+        # lookup: a payload that re-derives what it was handed is how a reported
+        # return starts disagreeing with the score beside it.
         "returns": {
-            "1w": round(ret_1w, 2) if ret_1w is not None else None,
-            "1m": round(ret_1m, 2) if ret_1m is not None else None,
-            "3m": round(ret_3m, 2) if ret_3m is not None else None,
-            "6m": round(ret_6m, 2) if ret_6m is not None else None,
+            label: (None if returns[label] is None else round(returns[label], 2))
+            for label in returns
         },
     }
 

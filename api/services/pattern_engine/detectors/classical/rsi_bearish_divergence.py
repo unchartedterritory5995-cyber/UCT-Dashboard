@@ -141,7 +141,14 @@ def detect_rsi_bearish_divergence(bars: List[Bar], context: dict) -> List[Detect
 
 
 def _compute_rsi(closes: List[float], period: int) -> List[Optional[float]]:
-    """Wilder-smoothed RSI — inline mirror of compute_rsi."""
+    """Wilder-smoothed RSI — inline mirror of compute_rsi.
+
+    ⛔ THE ``0/0`` DECISION IS NOT MIRRORED — it is
+    ``indicator_compute.rsi_from_wilder_averages``'s. A window in which nothing
+    moved at all is not maximally overbought; it yields ``None``, which the
+    callers above already treat as "no reading".
+    """
+    from api.services import indicator_compute
     n = len(closes)
     out: List[Optional[float]] = [None] * n
     if period <= 0 or n < period + 1:
@@ -163,12 +170,8 @@ def _compute_rsi(closes: List[float], period: int) -> List[Optional[float]]:
             loss = -diff if diff < 0 else 0.0
             avg_gain = (avg_gain * (period - 1) + gain) / period
             avg_loss = (avg_loss * (period - 1) + loss) / period
-        if avg_loss == 0:
-            rsi = 100.0
-        else:
-            rs = avg_gain / avg_loss
-            rsi = 100.0 - 100.0 / (1 + rs)
-        out[i] = round(rsi, 2)
+        rsi = indicator_compute.rsi_from_wilder_averages(avg_gain, avg_loss)
+        out[i] = None if rsi is None else round(rsi, 2)
     return out
 
 

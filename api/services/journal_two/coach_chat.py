@@ -7,10 +7,12 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Any
 
+from api.services import llm_timeouts
 from api.services.journal_two import db as j2_db
 
 def _int_env(name: str, default: int) -> int:
@@ -328,6 +330,105 @@ def get_chat_status(*, user_id: str, account_id: str, conn=None) -> dict:
             _conn.close()
 
 
+# ── Timeout policy: bound the CALL, then bound the TURN ────────────────────
+#
+# Compass chat is AGENTIC. ONE member message runs up to `MAX_LOOPS` streaming
+# Anthropic calls in sequence (model -> tools -> model -> ...), and
+# `_maybe_summarize` can add another before the loop even starts. So a per-call
+# timeout does NOT bound what a member can hold on one of the pod's 64 shared
+# anyio workers:
+#
+#     as shipped before this:  (MAX_LOOPS + 1) x 600 s SDK default  = 5,400 s
+#     per-call timeout only:   (MAX_LOOPS + 1) x 120 s              = 1,080 s
+#     what ships here:         TURN BUDGET + one final read         =   300 s
+#
+# The per-call value is the ceiling for ONE socket read. The TURN BUDGET is the
+# wall clock the whole exchange shares: every call is handed
+# `min(its own ceiling, what is left of the turn)`, and the event loop re-checks
+# the deadline on every streamed event, so a stream that dribbles one token
+# forever is cut as well as one that goes silent.
+#
+# ⭐ THE DEFENDED NUMBER IS THE TURN CEILING — `turn_hard_ceiling_secs()` — not
+# the per-call one. The `+ one final read` term is real and deliberate: the SDK
+# read timeout is fixed when a stream OPENS and cannot be shortened mid-flight,
+# so the last read of a turn can finish up to its own ceiling past the deadline.
+# Stating budget + one call is honest; stating just the budget would not be.
+#
+# ⚠️ Values are env-overridable through `llm_timeouts.seconds()` so an operator
+# can retune one surface from Railway without a deploy — the same escape hatch
+# `DESK_CHAPTERS_LLM_TIMEOUT_SECS` gives the scheduler lane, and the reason the
+# offline report-card lane can buy itself room without unbounding anything.
+# `seconds()` refuses blank/zero/negative, so the hatch cannot resolve to "no
+# timeout".
+
+# Agentic tool-use rounds per turn. Module-level so a rail can DERIVE the worst
+# case instead of retyping it.
+MAX_LOOPS = 8
+
+# Never hand the SDK a sub-second timeout just because the turn is nearly over —
+# that spends the remaining budget on a connect() that was always going to fail.
+_MIN_CALL_SECS = 1.0
+
+TURN_BUDGET_DEFAULT_SECS = 180.0
+
+_TURN_BUDGET_ERROR = (
+    "Compass ran out of time on this one. Nothing you wrote was lost — ask "
+    "again, or narrow the question so it needs fewer lookups."
+)
+
+
+def chat_call_timeout_secs() -> float:
+    """Per-call ceiling for one streaming turn-step. Streaming synthesis with
+    tools and a member watching the tokens land: REQUEST_PATH_LONG, not
+    REQUEST_PATH."""
+    return llm_timeouts.seconds("COMPASS_CHAT_LLM_TIMEOUT_SECS",
+                                llm_timeouts.REQUEST_PATH_LONG)
+
+
+def summary_call_timeout_secs() -> float:
+    """`_maybe_summarize` runs INLINE on the request path, before the member
+    sees a single token. 600 tokens of compression — REQUEST_PATH is plenty."""
+    return llm_timeouts.seconds("COMPASS_CHAT_SUMMARY_LLM_TIMEOUT_SECS",
+                                llm_timeouts.REQUEST_PATH)
+
+
+def turn_budget_secs() -> float:
+    """Wall clock for ONE member turn, shared by every LLM call inside it."""
+    return llm_timeouts.seconds("COMPASS_CHAT_TURN_BUDGET_SECS",
+                                TURN_BUDGET_DEFAULT_SECS)
+
+
+def turn_hard_ceiling_secs() -> float:
+    """⭐ THE NUMBER: the longest a single member turn can pin one worker."""
+    return turn_budget_secs() + max(chat_call_timeout_secs(),
+                                    summary_call_timeout_secs())
+
+
+class _TurnDeadline:
+    """The turn's shared wall clock.
+
+    Monotonic on purpose — an NTP step or a DST jump must not be able to extend
+    (or collapse) a budget that is already running.
+    """
+
+    __slots__ = ("budget", "_start")
+
+    def __init__(self, budget: float | None = None):
+        self.budget = float(budget) if budget is not None else turn_budget_secs()
+        self._start = time.monotonic()
+
+    def remaining(self) -> float:
+        return self.budget - (time.monotonic() - self._start)
+
+    def expired(self) -> bool:
+        return self.remaining() <= 0.0
+
+    def call_timeout(self, ceiling: float) -> float:
+        """What to hand ONE call: its own ceiling, clamped to what is left of
+        the turn. This clamp is the whole difference between 9 x 120 and 180."""
+        return max(_MIN_CALL_SECS, min(float(ceiling), self.remaining()))
+
+
 # ── Anthropic streaming + turn handler ─────────────────────────────────────
 
 
@@ -336,16 +437,26 @@ class AnthropicChatClient:
     orchestrator's expectations."""
     DEFAULT_MODEL = "claude-sonnet-4-6"
 
-    def __init__(self, api_key: str | None = None):
+    def __init__(self, api_key: str | None = None, timeout: float | None = None):
         import anthropic
         key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         if not key:
             raise RuntimeError("ANTHROPIC_API_KEY not set")
-        self._client = anthropic.Anthropic(api_key=key)
+        # ⛔ The `timeout=` here is load-bearing, and `tests/test_llm_timeout_
+        # census.py` fails by file:line if it is removed. Without it the SDK
+        # applies its 600 s default read timeout to a REQUEST-PATH client.
+        self.timeout = float(timeout) if timeout else chat_call_timeout_secs()
+        self._client = anthropic.Anthropic(api_key=key, timeout=self.timeout)
 
     def start_stream(self, *, system_prompt: str, messages: list, tools: list,
-                     user_id: str = "unknown"):
-        return self._client.messages.stream(
+                     user_id: str = "unknown", timeout: float | None = None):
+        # `with_options` narrows an ALREADY-bounded client for this one call —
+        # the idiom llm_timeouts prescribes, and the one the caller uses to hand
+        # each step whatever is left of the turn budget.
+        client = self._client
+        if timeout is not None:
+            client = client.with_options(timeout=float(timeout))
+        return client.messages.stream(
             model=self.DEFAULT_MODEL,
             max_tokens=2000,
             temperature=0.4,
@@ -463,6 +574,11 @@ def handle_user_turn(
     """Generator yielding event dicts.
 
     Events: 'token', 'tool_call', 'tool_call_pending', 'complete', 'error'.
+
+    ⏱️ The whole turn shares ONE budget (`turn_budget_secs()`), not one budget
+    per LLM call. See the timeout-policy block above: this loop can make
+    MAX_LOOPS streaming calls, so per-call bounding alone would multiply the
+    exposure by eight rather than bound it.
     """
     from api.services.journal_two import coach_chat_tools as cct
     from api.services.journal_two import coach_prompts
@@ -472,6 +588,7 @@ def handle_user_turn(
         yield {"type": "error", "code": "disabled", "message": "Compass chat is disabled."}
         return
 
+    deadline = _TurnDeadline()
     _conn, _close = _get_conn(conn)
     try:
         rl = get_rate_limit_info(user_id=user_id, account_id=account_id, conn=_conn)
@@ -488,7 +605,8 @@ def handle_user_turn(
             return
 
         try:
-            _maybe_summarize(user_id=user_id, account_id=account_id, conn=_conn)
+            _maybe_summarize(user_id=user_id, account_id=account_id,
+                             conn=_conn, deadline=deadline)
         except Exception:
             pass
 
@@ -497,9 +615,15 @@ def handle_user_turn(
 
         active_client = client or AnthropicChatClient()
         tools_param = _build_anthropic_tools_param()
-        MAX_LOOPS = 8
 
         for _iter in range(MAX_LOOPS):
+            # The budget is re-checked HERE as well as inside the stream: a slow
+            # tool executor between rounds burns wall clock too, and it is not an
+            # LLM call, so no per-call timeout can see it.
+            if deadline.expired():
+                yield {"type": "error", "code": "turn_budget_exceeded",
+                       "message": _TURN_BUDGET_ERROR}
+                return
             messages = _reconstruct_messages(user_id=user_id, account_id=account_id, conn=_conn)
             _ob = _read_onboarding_state(_conn, user_id, account_id)
             onboarding = bool(_ob and _ob["onboarding_mode"])
@@ -512,11 +636,19 @@ def handle_user_turn(
 
             assistant_text = ""
             tool_uses: list[dict] = []
+            out_of_time = False
             with active_client.start_stream(
                 system_prompt=system_prompt, messages=messages, tools=tools_param,
                 user_id=user_id,
+                timeout=deadline.call_timeout(chat_call_timeout_secs()),
             ) as stream:
                 for ev in stream:
+                    # A stream that dribbles one token every (timeout - ε) never
+                    # trips the SDK's per-READ ceiling. The turn deadline is what
+                    # actually cuts it.
+                    if deadline.expired():
+                        out_of_time = True
+                        break
                     if _ev_attr(ev, "type") == "text":
                         text = _ev_attr(ev, "text", "") or ""
                         assistant_text += text
@@ -525,13 +657,29 @@ def handle_user_turn(
                     tu = _extract_tool_use_from_event(ev)
                     if tu is not None:
                         tool_uses.append(tu)
-                # Accrue this call's token cost into the daily circuit-breaker
-                # (best-effort; a fake test client / missing usage is a no-op).
-                try:
-                    compass_cost_guard.record_from_usage(
-                        getattr(stream.get_final_message(), "usage", None))
-                except Exception:  # noqa: BLE001
-                    pass
+                if not out_of_time:
+                    # Accrue this call's token cost into the daily circuit-breaker
+                    # (best-effort; a fake test client / missing usage is a no-op).
+                    # Skipped when we bailed: get_final_message() would block on
+                    # the very stream we just gave up on.
+                    try:
+                        compass_cost_guard.record_from_usage(
+                            getattr(stream.get_final_message(), "usage", None))
+                    except Exception:  # noqa: BLE001
+                        pass
+
+            if out_of_time:
+                # Persist what the member already saw so the thread stays
+                # coherent, then stop. Half an answer plus an explicit error
+                # beats a worker held past the budget.
+                if assistant_text:
+                    append_message(
+                        user_id=user_id, account_id=account_id,
+                        role="assistant", content=assistant_text, conn=_conn,
+                    )
+                yield {"type": "error", "code": "turn_budget_exceeded",
+                       "message": _TURN_BUDGET_ERROR}
+                return
 
             tool_calls_json = [{"id": tu["id"], "name": tu["name"], "args": tu["args"],
                                 "status": "pending"} for tu in tool_uses]
@@ -676,6 +824,7 @@ def confirm_pending_action(
     from api.services.journal_two import coach_chat_tools as cct
     from api.services.journal_two import coach_prompts
 
+    deadline = _TurnDeadline()
     _conn, _close = _get_conn(conn)
     try:
         tc = _find_pending_tool_call(_conn, message_id=message_id, tool_call_id=tool_call_id)
@@ -718,12 +867,17 @@ def confirm_pending_action(
         tools_param = _build_anthropic_tools_param()
         messages = _reconstruct_messages(user_id=user_id, account_id=account_id, conn=_conn)
         ack_text = ""
+        # The confirmed tool already ran on this budget; the acknowledgement
+        # gets whatever is left of it.
         with active_client.start_stream(
             system_prompt=system_prompt,
             messages=messages, tools=tools_param,
             user_id=user_id,
+            timeout=deadline.call_timeout(chat_call_timeout_secs()),
         ) as stream:
             for ev in stream:
+                if deadline.expired():
+                    break
                 if _ev_attr(ev, "type") == "text":
                     text = _ev_attr(ev, "text", "") or ""
                     ack_text += text
@@ -754,12 +908,20 @@ def _estimate_tokens(messages: list[dict]) -> int:
     return max(1, int(len(payload) / 3.5))
 
 
-def _maybe_summarize(*, user_id: str, account_id: str, summary_client=None, conn=None) -> bool:
+def _maybe_summarize(*, user_id: str, account_id: str, summary_client=None,
+                     conn=None, deadline: "_TurnDeadline | None" = None) -> bool:
     """If history exceeds the threshold, summarize the oldest 30% of
     non-summary messages into a single 'summary' row and mark them
-    forgotten. Returns True if summarization happened."""
+    forgotten. Returns True if summarization happened.
+
+    ⏱️ This runs INLINE on the request path, ahead of the first token, so it
+    spends the SAME turn budget the streaming loop is about to spend. Passing
+    `deadline` is what stops it being a free extra 600 s in front of the turn.
+    """
     _conn, _close = _get_conn(conn)
     try:
+        if deadline is not None and deadline.expired():
+            return False
         messages = _reconstruct_messages(user_id=user_id, account_id=account_id, conn=_conn)
         if _estimate_tokens(messages) < SUMMARIZE_THRESHOLD_TOKENS:
             return False
@@ -773,7 +935,11 @@ def _maybe_summarize(*, user_id: str, account_id: str, summary_client=None, conn
             f"[{r['role']}] {r.get('content') or ''}"
             for r in to_summarize
         )
-        summary_text = (summary_client or _DefaultSummaryClient()).summarize(text=text_blob, user_id=user_id)
+        ceiling = summary_call_timeout_secs()
+        summary_text = (summary_client or _DefaultSummaryClient()).summarize(
+            text=text_blob, user_id=user_id,
+            timeout=(deadline.call_timeout(ceiling) if deadline is not None else ceiling),
+        )
         append_message(
             user_id=user_id, account_id=account_id,
             role="summary", content=summary_text, conn=_conn,
@@ -793,9 +959,18 @@ def _maybe_summarize(*, user_id: str, account_id: str, summary_client=None, conn
 
 
 class _DefaultSummaryClient:
-    def summarize(self, *, text: str, user_id: str = "unknown") -> str:
+    def summarize(self, *, text: str, user_id: str = "unknown",
+                  timeout: float | None = None) -> str:
         import anthropic
-        client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+        # ⛔ The `timeout=` is load-bearing and rail-enforced (see
+        # tests/test_llm_timeout_census.py). This client is built fresh per
+        # summarization ON THE REQUEST PATH; without it the SDK's 600 s default
+        # applies and one member's compression pass holds a worker for ten
+        # minutes before the turn has emitted a single token.
+        client = anthropic.Anthropic(
+            api_key=os.environ["ANTHROPIC_API_KEY"],
+            timeout=float(timeout) if timeout else summary_call_timeout_secs(),
+        )
         msg = client.messages.create(
             model="claude-sonnet-4-6",
             max_tokens=600,
@@ -924,6 +1099,7 @@ def cancel_pending_action(
     """User clicked Cancel. Mark cancelled; model acknowledges briefly."""
     from api.services.journal_two import coach_prompts
 
+    deadline = _TurnDeadline()
     _conn, _close = _get_conn(conn)
     try:
         tc = _find_pending_tool_call(_conn, message_id=message_id, tool_call_id=tool_call_id)
@@ -956,8 +1132,11 @@ def cancel_pending_action(
             system_prompt=system_prompt,
             messages=messages, tools=tools_param,
             user_id=user_id,
+            timeout=deadline.call_timeout(chat_call_timeout_secs()),
         ) as stream:
             for ev in stream:
+                if deadline.expired():
+                    break
                 if _ev_attr(ev, "type") == "text":
                     text = _ev_attr(ev, "text", "") or ""
                     ack_text += text
@@ -992,6 +1171,7 @@ def start_onboarding(
     """Begin (or resume) the onboarding interview. Generator yields chat events."""
     import uuid as _uuid
 
+    deadline = _TurnDeadline()
     _conn, _close = _get_conn(conn)
     try:
         row = _read_onboarding_state(_conn, user_id, account_id)
@@ -1037,8 +1217,11 @@ def start_onboarding(
         with active_client.start_stream(
             system_prompt=system_prompt, messages=messages, tools=tools_param,
             user_id=user_id,
+            timeout=deadline.call_timeout(chat_call_timeout_secs()),
         ) as stream:
             for ev in stream:
+                if deadline.expired():
+                    break
                 if _ev_attr(ev, "type") == "text":
                     text = _ev_attr(ev, "text", "") or ""
                     assistant_text += text
