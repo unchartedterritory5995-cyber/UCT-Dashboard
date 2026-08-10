@@ -53,7 +53,7 @@
 // universal, so the only admissible evidence is the persisted tree and the
 // manifest that describes it (obligation 1 of the record's §5).
 
-import { TABLE, NODE_TYPES } from './parse.js'
+import { TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS } from './parse.js'
 
 // --------------------------------------------------------------------------- //
 // the vocabulary
@@ -297,6 +297,32 @@ export function astReach(ast, opts = {}) {
   const reachOf = new Map()
   const noteUnknown = (why) => { reasons.push(`unanalysable: ${why}`); return { back: UNKNOWN, forward: UNKNOWN } }
 
+  /** Every node that sits inside some recurrence's BODY argument.
+   *
+   *  ⭐ THE RECURRENCE BINDING IS SCOPED, AND THIS IS THE ONLY PLACE THIS FILE
+   *  HAS TO KNOW IT. `self` resolves inside a body and nowhere else, so a walk
+   *  that judged it by NAME alone would either call every stray `self` legal or
+   *  every legitimate one unanalysable — and `unanalysable` outranks everything
+   *  in `maxReach`, so the second mistake would quietly downgrade every
+   *  accumulator on the platform to a `unknown` repaint verdict.
+   *
+   *  ⛔ DERIVED FROM THE MANIFEST'S `recurrence.body` INDEX, never from the
+   *  position 1: the walker asks the table which argument is the body. */
+  const inRecurrenceBody = new Set()
+  for (const node of order) {
+    if (!node || typeof node !== 'object' || node.type !== 'call') continue
+    const rec = own(RECURRENCES, node.name) ? RECURRENCES[node.name] : null
+    if (!rec) continue
+    const body = Array.isArray(node.args) ? node.args[rec.body] : undefined
+    const descend = [body]
+    while (descend.length) {
+      const x = descend.pop()
+      if (!x || typeof x !== 'object' || inRecurrenceBody.has(x)) continue
+      inRecurrenceBody.add(x)
+      if (Array.isArray(x.args)) for (const child of x.args) descend.push(child)
+    }
+  }
+
   for (let i = order.length - 1; i >= 0; i--) {
     const node = order[i]
     if (!node || typeof node !== 'object' || Array.isArray(node)) {
@@ -309,6 +335,16 @@ export function astReach(ast, opts = {}) {
         break
       }
       case 'series': {
+        // ⭐ A RECURRENCE BINDING FIRST, AND ONLY WHERE IT IS BOUND. `self` is
+        // the running value's OWN previous bar, so it reaches back nothing of
+        // its own — the `warmup` the `accum` call declares is the whole window,
+        // and adding a bar here would double-count it. Outside a body the name
+        // falls through to the refusal below, which is the honest answer: it
+        // resolves to nothing there, and `interpret` says so too.
+        if (RECURRENCE_BINDINGS.includes(node.name) && inRecurrenceBody.has(node)) {
+          reachOf.set(node, { back: 0, forward: 0 })
+          break
+        }
         // ⛔ THE TABLE IS CONSULTED FIRST AND THE ORDER IS LOAD-BEARING —
         // verbatim `sentence.js::renderName`'s reasoning, for the same reason. A
         // definition whose input shadows `close` is a wiring defect `interpret`

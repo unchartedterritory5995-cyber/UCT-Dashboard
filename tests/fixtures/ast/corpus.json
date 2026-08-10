@@ -637,7 +637,376 @@
           { "type": "offset", "value": 3, "args": [ { "type": "series", "name": "close" } ] }
         ]
       }
+    },
+    {
+      "id": "accum_bounded_counter",
+      "source": "accum(0, self + 1, 12)",
+      "why": "the simplest recurrence, and the one whose ANSWER proves the design: a counter re-seeded every 12 bars reads 12 on every bar it answers and nothing on the eleven before. A single forward pass from the first fetched bar would read 1, 2, 3 ... here instead, and that number changes the moment the chart is panned -- which is the whole reason the window re-seeds",
+      "ast": {
+        "type": "call",
+        "name": "accum",
+        "args": [
+          {
+            "type": "num",
+            "value": 0
+          },
+          {
+            "type": "op",
+            "name": "+",
+            "args": [
+              {
+                "type": "series",
+                "name": "self"
+              },
+              {
+                "type": "num",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 12
+          }
+        ]
+      }
+    },
+    {
+      "id": "accum_running_max_is_highest",
+      "source": "accum(close, max(self, close), 19)",
+      "why": "a pointwise call in the recurrence spine, and an INDEPENDENT check on the maths: this is `highest(close, 20)` written as a recurrence, so both lanes are pinned against a shipped function rather than against a number somebody typed. The scalar `max` the step loop applies is the same object `FN.max` lifts, which is why their NaN rule cannot drift apart",
+      "ast": {
+        "type": "call",
+        "name": "accum",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "call",
+            "name": "max",
+            "args": [
+              {
+                "type": "series",
+                "name": "self"
+              },
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 19
+          }
+        ]
+      }
+    },
+    {
+      "id": "accum_sticky_flag_ternary",
+      "source": "accum(0, close > open ? 1 : self, 10)",
+      "why": "the ternary in the spine, which is how a state machine is spelled: the flag latches on an up bar and CARRIES until the window re-seeds. It forgets its seed the first time the condition fires, so a naive one-pass implementation would agree with this on most bars and disagree on the rest -- the hardest kind of wrong to see",
+      "ast": {
+        "type": "call",
+        "name": "accum",
+        "args": [
+          {
+            "type": "num",
+            "value": 0
+          },
+          {
+            "type": "op",
+            "name": "?:",
+            "args": [
+              {
+                "type": "op",
+                "name": ">",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "series",
+                    "name": "open"
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 1
+              },
+              {
+                "type": "series",
+                "name": "self"
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 10
+          }
+        ]
+      }
+    },
+    {
+      "id": "accum_over_a_windowed_column",
+      "source": "accum(0, self + (close > sma(close, 10) ? 1 : 0), 20)",
+      "why": "the PARTITION, in one case. `sma(close, 10)` reads no running value, so it is evaluated ONCE as a column and indexed per step; both lanes must put it on the same side of that split. And the lookback composes rather than replacing: this tree reaches 30 bars back, not 20",
+      "ast": {
+        "type": "call",
+        "name": "accum",
+        "args": [
+          {
+            "type": "num",
+            "value": 0
+          },
+          {
+            "type": "op",
+            "name": "+",
+            "args": [
+              {
+                "type": "series",
+                "name": "self"
+              },
+              {
+                "type": "op",
+                "name": "?:",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": ">",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "call",
+                        "name": "sma",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          },
+                          {
+                            "type": "num",
+                            "value": 10
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 1
+                  },
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 20
+          }
+        ]
+      }
+    },
+    {
+      "id": "accum_offset_of_a_running_value",
+      "source": "accum(0, self + 1, 6)[3]",
+      "why": "an offset OF a recurrence, which is legal, as against the binding UNDER an offset, which is refused by `interpret:recurrence`. That distinction is the boundary itself: a finished column has a history and can be shifted, while the step loop holds one previous value and has none. The pad is 9 -- the offset plus the warm-up",
+      "ast": {
+        "type": "offset",
+        "value": 3,
+        "args": [
+          {
+            "type": "call",
+            "name": "accum",
+            "args": [
+              {
+                "type": "num",
+                "value": 0
+              },
+              {
+                "type": "op",
+                "name": "+",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "self"
+                  },
+                  {
+                    "type": "num",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 6
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "pine_rma_is_wilders_average",
+      "source": "rma(close, 14)",
+      "why": "Wilder's smoothing, which is `ta.rma` and the average inside every RSI and ATR ever written. It shares ONE implementation with `ema` and differs only in the alpha (1/n against 2/(n+1)), so this case pins that the SEED and the restart-on-a-hole did not fork when the second constant arrived -- the identity `rma(x, n) == ema(x, 2n-1)` holds for the recurrence and NOT for the seed, which is the trap",
+      "ast": {
+        "type": "call",
+        "name": "rma",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 14
+          }
+        ]
+      }
+    },
+    {
+      "id": "pine_wma_weights_the_recent_bar_most",
+      "source": "wma(close, 9)",
+      "why": "the linearly weighted average: the newest bar carries weight n and the oldest carries 1. Both lanes must divide by the same n(n+1)/2 and must let a NaN in the window POISON the result rather than quietly averaging the bars that happened to be there",
+      "ast": {
+        "type": "call",
+        "name": "wma",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 9
+          }
+        ]
+      }
+    },
+    {
+      "id": "pine_round_a_half_away_from_zero",
+      "source": "round((close - open) * 100)",
+      "why": "⛔ THE ONE CASE IN THIS CORPUS THAT EXISTS BECAUSE THE TWO LANGUAGES DISAGREE BY DEFAULT. JS rounds a half toward +inf, Python rounds it to even, Pine rounds it away from zero -- three answers for `-2.5`. Scaling a price difference by 100 is what puts real halves in the input, so this is not a synthetic probe",
+      "ast": {
+        "type": "call",
+        "name": "round",
+        "args": [
+          {
+            "type": "op",
+            "name": "*",
+            "args": [
+              {
+                "type": "op",
+                "name": "-",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "series",
+                    "name": "open"
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 100
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "pine_sign_of_a_change",
+      "source": "sign(change(close))",
+      "why": "-1, 0 or 1, and the zero is the point: `Math.sign(-0)` is -0 in JS and `copysign(1, -0.0)` is -1.0 in Python, so both lanes write the three answers out. Composed over `change` so the first bar is a genuine hole rather than a fabricated zero",
+      "ast": {
+        "type": "call",
+        "name": "sign",
+        "args": [
+          {
+            "type": "call",
+            "name": "change",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "pine_na_detects_a_warmup_hole",
+      "source": "na(sma(close, 20))",
+      "why": "⭐ ONE OF THE TWO ENTRIES THAT DO NOT PROPAGATE NaN -- it INSPECTS it. Over a 20-bar average the answer is 1 for the whole warm-up and 0 after, which makes this the only case in the corpus whose value is DEFINED on bars every other case reports as not computable",
+      "ast": {
+        "type": "call",
+        "name": "na",
+        "args": [
+          {
+            "type": "call",
+            "name": "sma",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 20
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "pine_nz_replaces_a_hole_with_a_stated_value",
+      "source": "nz(sma(close, 20), close)",
+      "why": "the other one, and the dangerous one: it turns not-computable into a value the user named. `_functions_na` argues for declaring it at length; this case pins that both lanes replace on exactly the same bars and neither invents a default. The replacement is `close` rather than 0 so that a lane silently substituting zero is visible in the numbers rather than only at the edges",
+      "ast": {
+        "type": "call",
+        "name": "nz",
+        "args": [
+          {
+            "type": "call",
+            "name": "sma",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 20
+              }
+            ]
+          },
+          {
+            "type": "series",
+            "name": "close"
+          }
+        ]
+      }
     }
   ],
+  "_pine_parity": "⭐ SIX CASES, ONE PER NAME, AND EVERY ONE OF THE SIX WAS MEASURED RATHER THAN WISHED FOR: a study of 21 real published Pine scripts found `rma`, `wma`, `round`, `sign`, `na` and `nz` to be the ENTIRE manifest half of what still refused. ⚠️ THREE OF THEM EXIST BECAUSE THE TWO LANGUAGES DISAGREE BY DEFAULT and one because they disagree about a signed zero -- `round`, `sign`, and the NaN behaviour of `na`/`nz` are each a place where inheriting the host language would have produced two engines that each looked internally consistent. ⛔ `na` AND `nz` ARE THE ONLY ENTRIES IN THIS TABLE THAT DO NOT PROPAGATE NaN, so their two cases are the only ones here whose values are defined on bars the rest of the corpus reports as not computable.",
+  "_recurrence": "⭐ FIVE CASES PIN THE RECURRENCE, AND EACH PINS A DIFFERENT HALF OF IT. The bounded counter pins that the window RE-SEEDS -- a single forward pass reads 1,2,3... where the shipped one reads 12 -- the running maximum pins the scalar/column equality by being `highest(close, 20)` under another name, the sticky flag pins the ternary spine, the windowed case pins the pure/impure PARTITION and the composed lookback, and the offset case pins the line between shifting a finished column (legal) and reading the binding through a bar offset (refused). ⛔ THE BINDING IS SPELLED `self` HERE BECAUSE A CORPUS CASE IS DATA A HUMAN READS; every WALKER reads that name from `functions.accum.recurrence.binds` instead, which is why renaming it would move these five digests and nothing else.",
   "_indicators": "⭐ THE INDICATOR ROWS (Phase F). One case per newly declared function, because `assert_corpus_covers_the_table` derives its floor FROM THE MANIFEST and a function with no case is a function whose two lanes may already disagree with every gate green. Two rows are not a function at all -- `macd_signal_by_composition` and `stoch_d_by_composition` are the COMPOSITIONS `_functions_excluded` offers in place of the two entries it refuses, so a refusal that quietly stopped being survivable moves a digest. ⛔ THE SEVENTEEN EXISTING DIGESTS DO NOT MOVE, and that is a measurement rather than a hope: not one row here edits an existing tree, and the re-record was diffed against the previous log key by key."
 }

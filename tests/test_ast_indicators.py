@@ -387,8 +387,28 @@ def test_every_function_PINS_ITS_ARGUMENT_ORDER_for_the_translators():
     # (`source` for a single input, `left`/`right` for a symmetric pair), so a
     # translator has a closed set to match against rather than a vocabulary that
     # grows one adjective at a time.
-    generic = {"source", "left", "right"}
+    generic = {"source", "left", "right", "seed", "update"}
     allowed = set(ast_table.TABLE["series"]) | generic
+
+    # ⭐ THE TWO RECURRENCE SHAPES ARE NOT FREE TEXT EITHER, AND THIS IS WHAT
+    # KEEPS THEM CLOSED. `seed` and `update` were added to the generic set above
+    # the day `accum` landed; on their own that would be exactly the "vocabulary
+    # that grows one adjective at a time" the note warns against. So the mapping
+    # is PINNED: the role at the slot the manifest calls the seed must be
+    # `seed`, and the role at the slot it calls the body must be `update`. A
+    # manifest that swapped the two indices would still satisfy the closed set
+    # and lands RED here instead — which matters, because swapping them makes
+    # the walker evaluate the seed as a per-bar body and produce numbers.
+    misplaced = []
+    for name, rec in ast_table.recurrences().items():
+        roles = list(ast_table.TABLE["functions"][name].get("argRoles") or ())
+        for index_key, expected in (("seed", "seed"), ("body", "update")):
+            got = roles[rec[index_key]] if rec[index_key] < len(roles) else None
+            if got != expected:
+                misplaced.append(
+                    f"{name}: recurrence.{index_key} points at slot {rec[index_key]}, "
+                    f"whose role is {got!r} and must be {expected!r}")
+    assert not misplaced, misplaced
     stray = sorted({
         role for spec in functions.values()
         for kind, role in zip(spec["args"], spec["argRoles"])

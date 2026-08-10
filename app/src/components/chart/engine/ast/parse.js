@@ -79,6 +79,58 @@ export const TABLE = deepFreeze(TABLE_JSON)
 export const NODE_TYPES = Object.freeze(['num', 'series', 'op', 'call', 'offset'])
 
 // --------------------------------------------------------------------------- //
+// the recurrence, READ from the manifest
+// --------------------------------------------------------------------------- //
+//
+// ⭐ BAR-TO-BAR STATE ADDED NO NODE TYPE, AND THAT WAS THE POINT. `accum` is a
+// `call` like any other, so the roster above is exactly the one it was and the
+// Python walker still has five cases. What makes it different is declared in
+// DATA — `closedTable.json::functions.accum.recurrence` — rather than in each
+// lane's source: which argument is the seed, which is the per-bar body, which
+// carries the warm-up, and what name the body reads its own past through.
+//
+// ⛔ SO NEITHER LANE TYPES THE STRING `self` OR THE INDEX `1`. Both read them
+// off the entry below. A hand-copy would be the second-authority defect this
+// repo has measured more times than any other, and it would be a silent one:
+// a lane that thought the body was argument 2 would evaluate the WARM-UP as an
+// expression and the body as a window, and produce numbers for both.
+
+/** Every function entry that declares a `recurrence`, by name. A map so that a
+ *  second recurrent entry needs no code change anywhere — the walkers ask
+ *  "does this call declare one", never "is this call `accum`". */
+export const RECURRENCES = Object.freeze(Object.fromEntries(
+  Object.entries(TABLE.functions)
+    .filter(([, spec]) => spec && typeof spec.recurrence === 'object' && spec.recurrence)
+    .map(([name, spec]) => [name, spec.recurrence]),
+))
+
+/** The reserved names the bodies bind — the set a scope must refuse to let an
+ *  input shadow. Derived from the entries above, never listed. */
+export const RECURRENCE_BINDINGS = Object.freeze(
+  [...new Set(Object.values(RECURRENCES).map((r) => r.binds))].sort())
+
+/** Does this function read each argument at the bar it writes, and nowhere else?
+ *
+ *  ⭐ DERIVED FROM THE WINDOW DECLARATION, NEVER FROM A LIST OF NAMES. A hand-list
+ *  of "the pointwise ones" would be a third authority over `lookback`, and it
+ *  would rot the day a pointwise entry landed — which is exactly how a running
+ *  value would come to read a NaN it was never told about. `lookback: 0`, no
+ *  `forward`, and no `int` slot IS the definition: an entry that reads only bar
+ *  `i` of each argument can be applied one bar at a time, which is the only
+ *  thing the recurrence step loop can do.
+ *
+ *  ⚠️ `interpret.test.js` asserts this set equals the scalar implementations the
+ *  step loop actually holds, BOTH DIRECTIONS — a declared-but-unimplemented
+ *  pointwise entry would refuse inside a body while looking legal in the table. */
+export function isPointwise(spec) {
+  return !!spec
+    && spec.lookback === 0
+    && !Object.prototype.hasOwnProperty.call(spec, 'forward')
+    && Array.isArray(spec.args)
+    && spec.args.every((kind) => kind === 'series')
+}
+
+// --------------------------------------------------------------------------- //
 // the refusals
 // --------------------------------------------------------------------------- //
 

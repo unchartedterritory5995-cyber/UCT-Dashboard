@@ -68,7 +68,9 @@ import { maxLookback, nodeCount, TableRefusal } from './interpret.js'
  *  maxSeriesRefs 8  — spec §5's perf budget is ≤60 series and ≤8 panes per
  *                     chart; eight base-series reads inside ONE definition is
  *                     already the whole pane budget's worth of data in a single
- *                     column. Measured: the corpus tops out at FOUR.
+ *                     column. Measured: the corpus tops out at FOUR. ⭐ IT COUNTS
+ *                     DISTINCT SERIES, not references — see `seriesRefs` for the
+ *                     false refusal that made the difference visible.
  *
  *  ⚠️ EACH IS DERIVED FROM A NUMBER THAT ALREADY EXISTS IN THIS SYSTEM, on
  *  purpose. A cap chosen by taste is a cap nobody can re-derive when it needs to
@@ -120,29 +122,51 @@ export const REFUSALS = Object.freeze({
 // the third measurement
 // --------------------------------------------------------------------------- //
 
-/** How many BASE-SERIES READS a canonical tree performs.
+/** How many DISTINCT BASE SERIES a canonical tree reads.
+ *
+ *  ⭐⭐ DISTINCT, NOT REFERENCES, AND THE CAP'S OWN RATIONALE IS WHY. The note
+ *  above says eight reads are "the whole pane budget's worth of DATA in a single
+ *  column" — and data is a function of how many columns must be fetched, held
+ *  and walked, not of how many times the tree mentions one of them. `high` read
+ *  four times is ONE column by every one of those measures.
+ *
+ *  ⚰️ IT COUNTED REFERENCES until 2026-08-09, and that was a false refusal with
+ *  no Pine anywhere near it: `(high + low + close) / 3 > sma((high + low +
+ *  close) / 3, 20)` is three distinct series and SIX references, and two of those
+ *  in one formula met the cap. What surfaced it was `tr` — the Pine built-in,
+ *  expanded to `max(high - low, max(abs(high - close[1]), abs(low - close[1])))`
+ *  — which made a real published ATR script translate and then refuse AT THE SAVE
+ *  DOOR, which is the worst outcome available: worse than refusing early, because
+ *  the member has already been told it worked.
+ *
+ *  ⚠️ THE CAP DID NOT MOVE. Only the measurement did, and distinct ≤ references
+ *  always, so nothing that passed before can fail now. Tree SIZE is still capped
+ *  — by `maxNodes`, which is the measurement that was always about size.
  *
  *  ⛔ ITERATIVE, like `nodeCount` and `maxLookback` and for the same reason: the
  *  escape corpus's `too_many_nodes` case is 8,001 nodes deep, and a measurement
  *  that dies inside the guard is not a refusal.
  *
- *  ⚠️ IT COUNTS EVERY `series` NODE, INCLUDING A NAME THE TABLE DOES NOT
- *  DECLARE. That is the conservative direction and it is deliberate: deciding
- *  whether a name resolves is `resolve:name`'s question, and answering it here
- *  would move `escapes.json`'s three `resolve:name` cases out from under the
- *  guard that is supposed to catch them — which is this file's whole subject.
- *  An over-count can only make the budget TIGHTER, never looser. */
+ *  ⚠️ IT STILL COUNTS A NAME THE TABLE DOES NOT DECLARE. That is the conservative
+ *  direction and it is deliberate: deciding whether a name resolves is
+ *  `resolve:name`'s question, and answering it here would move `escapes.json`'s
+ *  three `resolve:name` cases out from under the guard that is supposed to catch
+ *  them — which is this file's whole subject. */
 export function seriesRefs(ast) {
-  let found = 0
+  const found = new Set()
   const stack = [ast]
   while (stack.length) {
     const node = stack.pop()
     if (!node || typeof node !== 'object') continue
     if (Array.isArray(node)) { for (const child of node) stack.push(child); continue }
-    if (node.type === 'series') found += 1
+    // ⛔ KEYED BY NAME, AND A NON-STRING NAME IS ITS OWN KEY RATHER THAN SKIPPED.
+    // A malformed `{type:'series'}` with no name is still a read this measurement
+    // cannot account for, and dropping it would make a broken tree look CHEAPER
+    // than a working one.
+    if (node.type === 'series') found.add(typeof node.name === 'string' ? node.name : JSON.stringify(node.name))
     if (Array.isArray(node.args)) for (const arg of node.args) stack.push(arg)
   }
-  return found
+  return found.size
 }
 
 /** cap key → the measurement it thresholds. The key set IS `DEFAULT_BUDGET`'s,

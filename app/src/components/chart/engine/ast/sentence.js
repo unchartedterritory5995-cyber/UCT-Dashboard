@@ -94,7 +94,7 @@
 // this file has, it is the only one, and `sentence.test.js` measures it by
 // rendering through a manifest whose keys were rebuilt in reverse order.
 
-import { TABLE, NODE_TYPES } from './parse.js'
+import { TABLE, NODE_TYPES, RECURRENCE_BINDINGS } from './parse.js'
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -687,6 +687,24 @@ function renderName(node, rules, inputs, path, trace) {
   const name = node.name
   if (typeof name !== 'string') {
     refuse('sentence:node', `at ${path}: a series node carries a name; got ${JSON.stringify(name) ?? String(name)}`)
+  }
+  // ⭐ A RECURRENCE BINDING READS BACK AS ENGLISH, CONSULTED FIRST AND OUTSIDE
+  // EVERY VOCABULARY. `self` is not in `series`, not in `scalars` and not an
+  // input — it is bound by the `accum` call around it — so without this line the
+  // read-back of every accumulator on the platform would refuse `sentence:name`
+  // and a member would be shown a formula the builder could not describe.
+  //
+  // ⛔ AND IT IS PHRASED AS A NOUN, LIKE EVERY OTHER OPERAND. "the running value
+  // so far" fills the same slot `close` does, so `self > close` reads as a
+  // comparison rather than as a fragment; the manifest's own `accum` sentence is
+  // what surrounds it. ⚠️ NOT VALIDATED FOR POSITION HERE: whether the binding
+  // is legal where it appears is `interpret`'s and `lint`'s answer, and a
+  // read-back that tried to re-decide it would be a third authority over one
+  // rule — it would also have to refuse a sentence for a tree the linter had
+  // already refused, which helps nobody.
+  if (RECURRENCE_BINDINGS.includes(name)) {
+    trace.push({ path, rule: 'series:recurrence' })
+    return 'the running value so far'
   }
   // ⛔ THE TABLE IS CONSULTED FIRST AND THE ORDER IS LOAD-BEARING. A definition
   // whose input shadows `close` is a wiring defect `interpret` throws on

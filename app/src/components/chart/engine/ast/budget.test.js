@@ -76,10 +76,23 @@ const chainOfNodes = (n) => {
 }
 
 /** A canonical tree that performs EXACTLY `n` base-series reads. */
+/** A canonical tree reading EXACTLY `n` DISTINCT declared names.
+ *
+ *  ⭐ SERIES FIRST, THEN SCALARS, AND THE CONTINUATION IS NOT A CONVENIENCE. The
+ *  manifest declares five bar series, so a fixture that cycled them could never
+ *  reach a cap of eight once `seriesRefs` began counting DISTINCT reads — it
+ *  measured 5 and the boundary test failed with "the fixture is not AT the cap",
+ *  which is the fixture telling the truth. A scalar rides the SAME `series` node
+ *  and is a per-symbol column read, so it costs exactly the data this cap is
+ *  about; drawing from both is what makes `n` reachable and still honest.
+ *
+ *  ⛔ NAMES COME FROM THE MANIFEST, NEVER TYPED, so a rename cannot turn this
+ *  into a `resolve:name` case refused at a different door. */
 const chainOfSeries = (n) => {
-  const names = Object.keys(TABLE.series)
+  const names = [...Object.keys(TABLE.series), ...Object.keys(TABLE.scalars)]
+  if (n > names.length) throw new Error(`chainOfSeries(${n}): the manifest declares only ${names.length} names`)
   let node = series(names[0])
-  for (let i = 1; i < n; i++) node = op('+', node, series(names[i % names.length]))
+  for (let i = 1; i < n; i++) node = op('+', node, series(names[i]))
   return node
 }
 
@@ -517,9 +530,17 @@ function generated(spec) {
   if (m) {
     // ⭐ THE NAMES COME OUT OF THE MANIFEST, exactly as the Python generator's
     // do, and SORTED so both lanes build the same tree from the same spec.
-    const names = Object.keys(TABLE.series).sort()
+    //
+    // ⭐ SERIES *AND* SCALARS, AND DISTINCT — the same change `ast_conformance.py`
+    // made, for the same reason. `seriesRefs` counts DISTINCT reads, so a chain
+    // that cycled the five bar fields measured five however long it got, and this
+    // spec exists to EXCEED a cap of eight. A scalar rides the same `series` node
+    // and is a per-symbol column read, so it costs the data the cap is about.
+    const names = [...Object.keys(TABLE.series).sort(), ...Object.keys(TABLE.scalars).sort()]
+    const want = Number(m[1])
+    if (want > names.length) throw new Error(`gen:seriesChain(${want}): the manifest declares ${names.length}`)
     let node = series(names[0])
-    for (let i = 1; i < Number(m[1]); i++) node = op('+', node, series(names[i % names.length]))
+    for (let i = 1; i < want; i++) node = op('+', node, series(names[i]))
     return node
   }
   throw new Error(`unknown AST generator spec: ${spec}`)

@@ -1,4 +1,5 @@
 import useFinancials from '../hooks/useFinancials'
+import { MetricTrendChart } from '../../../components/research-kit'
 import styles from '../ResearchPage.module.css'
 
 function fmtBig(v) {
@@ -55,6 +56,43 @@ function GrowthGrid({ title, rows }) {
   )
 }
 
+
+const B = (v) => (v == null ? null : v / 1e9)
+
+/**
+ * Revenue and EPS as trends, above the grid that carries the exact figures.
+ *
+ * The rows arrive NEWEST FIRST, which is right for a table and wrong for a
+ * chart — plotted as given, time runs backwards and every trend reads inverted.
+ * Reversed once, here, rather than in each chart.
+ */
+function TrendPair({ rows, title }) {
+  const list = Array.isArray(rows) ? [...rows].reverse() : []
+  if (list.length < 2) return null          // one point is not a trend
+  const periods = list.map(r => r.period)
+  return (
+    <section className={styles.card}>
+      <div className={styles.ct}>{title}</div>
+      <div className={styles.grid}>
+        <MetricTrendChart
+          periods={periods}
+          values={list.map(r => B(r.revenue))}
+          label="Revenue ($B)"
+          valueFormatter={(v) => (v == null ? '—' : `$${v.toFixed(1)}B`)}
+          ariaLabel="Revenue by period"
+        />
+        <MetricTrendChart
+          periods={periods}
+          values={list.map(r => r.eps)}
+          label="EPS"
+          valueFormatter={(v) => (v == null ? '—' : `$${v.toFixed(2)}`)}
+          ariaLabel="Earnings per share by period"
+        />
+      </div>
+    </section>
+  )
+}
+
 export default function FinancialsTab({ sym }) {
   const { data, isLoading } = useFinancials(sym)
 
@@ -69,6 +107,7 @@ export default function FinancialsTab({ sym }) {
 
   return (
     <div className={styles.finWrap}>
+      <TrendPair rows={fin.quarterly} title="Quarterly trend" />
       <GrowthGrid title="Quarterly — revenue, EPS & margins (YoY)" rows={fin.quarterly} />
       <GrowthGrid title="Annual — revenue, EPS & margins (YoY)" rows={fin.annual} />
       <div className={styles.grid}>

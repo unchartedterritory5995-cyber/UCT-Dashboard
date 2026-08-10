@@ -47,7 +47,7 @@
 //     refusal. There is no `try` anywhere in this file, and `budget.test.js`
 //     asserts that structurally so the relabelling cannot be introduced quietly.
 
-import { TABLE, NODE_TYPES } from './parse.js'
+import { TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, isPointwise } from './parse.js'
 // ⚠️ A REAL ES MODULE CYCLE, DELIBERATELY — `budget.js` imports `maxLookback`,
 // `nodeCount` and `TableRefusal` back out of this file, because a second copy of
 // either measurement is a second grammar (there are already two `maxLookback`s
@@ -107,11 +107,35 @@ export const REFUSALS = Object.freeze({
   'interpret:node': 'not a canonical node',
   'interpret:operator': 'unknown operator',
   'interpret:offset': 'an offset node carries a whole-number count of bars',
+  'interpret:recurrence': 'a running value reads its own past only inside its own update, and only through operators and pointwise calls',
+  'interpret:steps': 'warming this running value up over these bars would take more steps than the engine will spend',
 })
 
 function refuse(guard, detail) {
   throw new TableRefusal(guard, `${REFUSALS[guard]} ${detail}`)
 }
+
+/** The ceiling on `bars × warmup` for one recurrence — the ONE cost in this
+ *  engine that `budget.js` cannot threshold.
+ *
+ *  ⭐ IT LIVES HERE RATHER THAN IN `budget.js` BECAUSE IT NEEDS THE BARS. Every
+ *  other cap is a property of the TREE and is decided before a single bar is
+ *  fetched; this one is a property of the tree AND the request, so putting it in
+ *  the static budget would mean thresholding a number that module cannot see.
+ *
+ *  ⚠️ ONE NUMBER FOR BOTH LANES, AND THAT IS WHY IT IS THIS LOW. The Python
+ *  walker is plain loops on purpose (numpy would change summation order and cost
+ *  the 1e-9 parity), so it is ~40× slower per step than the JS one and IT is
+ *  what this bounds. A per-lane ceiling would be two engines: the same formula
+ *  would draw on a chart and refuse in an alert, which is the one divergence a
+ *  cross-lane parity run is blind to because both lanes would be internally
+ *  consistent.
+ *
+ *  ⏳ WHAT WOULD RAISE IT: a scan needs only the LAST bar, so a last-bar-only
+ *  entry point costs `warmup` steps instead of `bars × warmup` and would let a
+ *  sweep carry a 500-bar warm-up over the whole universe. That is an API change
+ *  in both lanes, not a number change here. */
+export const MAX_RECURRENCE_STEPS = 1000000
 
 /** ⛔ THE ONLY WAY THIS MODULE ASKS WHETHER A NAME EXISTS. `name in obj` walks
  *  the prototype chain and `obj[name]` returns whatever it finds there. */
@@ -214,9 +238,13 @@ function windowStdev(series, lo, hi) {
  *  warmup of a composed series (`ema(sma(close,20), 9)`) is exactly that case,
  *  and an EMA that carried its state across a hole would be reporting an average
  *  of bars it never saw. */
-function emaCol(series, n) {
+/** ⭐ ONE SMOOTHER, TWO CONSTANTS. `ema` passes `2 / (n + 1)` and `rma` (Wilder's)
+ *  passes `1 / n`; the seed, the restart-on-a-hole and the NaN prefix are shared
+ *  BY CONSTRUCTION rather than by two loops that agree today. See
+ *  `closedTable.json::_functions_smoothing` for why the alpha is what is shared
+ *  and the PERIOD is not. */
+function smoothCol(series, n, k) {
   const out = nan(series.length)
-  const k = 2 / (n + 1)
   let prev = NaN
   let count = 0
   let sum = 0
@@ -233,6 +261,24 @@ function emaCol(series, n) {
     }
   }
   return out
+}
+
+const emaCol = (series, n) => smoothCol(series, n, 2 / (n + 1))
+const rmaCol = (series, n) => smoothCol(series, n, 1 / n)
+
+/** The linearly weighted mean of `[lo, hi]` — the most recent bar carries the
+ *  most weight. ⚠️ NaN PROPAGATES through the sum, which is what makes the
+ *  warm-up of a composed argument show as a hole rather than as a lighter
+ *  average of the bars that happened to be there. */
+function windowWeightedMean(series, lo, hi) {
+  let weighted = 0
+  let weights = 0
+  for (let i = lo; i <= hi; i++) {
+    const w = i - lo + 1
+    weighted += series[i] * w
+    weights += w
+  }
+  return weighted / weights
 }
 
 function elementwise2(a, b, f) {
@@ -360,6 +406,39 @@ const HL = Object.freeze(['h', 'l'])
 const HLC = Object.freeze(['h', 'l', 'c'])
 const HLCV = Object.freeze(['h', 'l', 'c', 'v'])
 
+/** The pointwise functions AS SCALARS — one bar in, one bar out.
+ *
+ *  ⭐ THE COLUMN FORMS BELOW ARE DEFINED IN TERMS OF THESE, NOT BESIDE THEM, AND
+ *  THAT IS THE WHOLE REASON THIS OBJECT EXISTS. A recurrence body is evaluated
+ *  one bar at a time (see `runRecurrence`), so `max(self, close)` needs a scalar
+ *  `max`; writing a second one there would be two implementations of one
+ *  function, and the first thing to diverge would be the NaN rule that the
+ *  comment below says was already a measured cross-lane bug.
+ *
+ *  ⚠️ THE KEY SET IS DERIVED AND ASSERTED, NOT CURATED. `parse.js::isPointwise`
+ *  decides which table entries a body may call; `interpret.test.js` asserts that
+ *  set equals these keys BOTH WAYS, so a pointwise entry that lands in the
+ *  manifest without a scalar form here fails by name rather than refusing inside
+ *  a body that looks legal. */
+const POINTWISE = Object.freeze({
+  abs: (x) => Math.abs(x),
+  min: (x, y) => (Number.isNaN(x) || Number.isNaN(y) ? NaN : Math.min(x, y)),
+  max: (x, y) => (Number.isNaN(x) || Number.isNaN(y) ? NaN : Math.max(x, y)),
+  // ⛔ NOT `Math.sign`, WHICH ANSWERS -0 FOR -0. A signed zero is invisible in
+  // every comparison and in the read-back, and it is NOT invisible to a parity
+  // run that divides by it — so the three answers are written out.
+  sign: (x) => (Number.isNaN(x) ? NaN : (x > 0 ? 1 : (x < 0 ? -1 : 0))),
+  // ⛔ NOT `Math.round`, WHICH ROUNDS A HALF TOWARD +∞ WHILE PYTHON'S `round`
+  // ROUNDS IT TO EVEN. Pine rounds a half AWAY FROM ZERO and so does this, in
+  // both lanes, spelled the same way. See `_functions_rounding`.
+  round: (x) => (Number.isNaN(x) ? NaN : POINTWISE.sign(x) * Math.floor(Math.abs(x) + 0.5)),
+  // ⭐⭐ THE TWO THAT DO NOT PROPAGATE, AND THEY ARE THE ONLY TWO. `na` INSPECTS
+  // not-computable and `nz` REPLACES it — see `_functions_na` for why a table
+  // built entirely around NaN meaning "we do not know" declares them anyway.
+  na: (x) => (Number.isNaN(x) ? 1 : 0),
+  nz: (x, y) => (Number.isNaN(x) ? y : x),
+})
+
 /** name → implementation. THE KEY SET IS `TABLE.functions`'s, both directions.
  *
  *  ⛔ AN IMPLEMENTED-BUT-UNDECLARED KEY HERE IS A CALLABLE OUTSIDE THE CLOSED
@@ -379,15 +458,33 @@ export const FN = Object.freeze({
   },
   abs: (series) => {
     const out = nan(series.length)
-    for (let i = 0; i < series.length; i++) out[i] = Math.abs(series[i])
+    for (let i = 0; i < series.length; i++) out[i] = POINTWISE.abs(series[i])
     return out
   },
   // ⚠️ NaN PROPAGATES, WRITTEN OUT RATHER THAN INHERITED FROM `Math.min`. JS's
   // `Math.min(NaN, x)` is NaN and Python's `min` returns whichever it meets
   // first — a real cross-lane divergence the corpus names explicitly. Spelling
   // the rule kills it in both lanes instead of relying on one language's luck.
-  min: (a, b) => elementwise2(a, b, (x, y) => (Number.isNaN(x) || Number.isNaN(y) ? NaN : Math.min(x, y))),
-  max: (a, b) => elementwise2(a, b, (x, y) => (Number.isNaN(x) || Number.isNaN(y) ? NaN : Math.max(x, y))),
+  min: (a, b) => elementwise2(a, b, POINTWISE.min),
+  max: (a, b) => elementwise2(a, b, POINTWISE.max),
+  rma: (series, n) => rmaCol(series, n),
+  wma: (series, n) => rolling(series, n, windowWeightedMean),
+  sign: (series) => {
+    const out = nan(series.length)
+    for (let i = 0; i < series.length; i++) out[i] = POINTWISE.sign(series[i])
+    return out
+  },
+  round: (series) => {
+    const out = nan(series.length)
+    for (let i = 0; i < series.length; i++) out[i] = POINTWISE.round(series[i])
+    return out
+  },
+  na: (series) => {
+    const out = nan(series.length)
+    for (let i = 0; i < series.length; i++) out[i] = POINTWISE.na(series[i])
+    return out
+  },
+  nz: (a, b) => elementwise2(a, b, POINTWISE.nz),
   crossOver: (a, b) => crossing(a, b, (an, bn, ap, bp) => an > bn && ap <= bp),
   crossUnder: (a, b) => crossing(a, b, (an, bn, ap, bp) => an < bn && ap >= bp),
 
@@ -757,7 +854,12 @@ export function interpret(ast, bars, inputs, budget, scalars) {
   }
 
   for (const [name, value] of Object.entries(inputs || {})) {
-    if (own(scope, name) || own(TABLE.functions, name)) {
+    // ⛔ AND A RECURRENCE BINDING IS RESERVED TOO. `self` is not in `scope` and
+    // not in `functions`, so without this line an input could take the name and
+    // every body in the definition would silently read the KNOB instead of the
+    // running value — a formula that still computes, and computes the wrong
+    // thing. The list is derived from the manifest, never typed.
+    if (own(scope, name) || own(TABLE.functions, name) || RECURRENCE_BINDINGS.includes(name)) {
       // A plain Error again: a definition whose input shadows `close` is a
       // WIRING defect, and silently letting it win would change what every
       // formula on that definition means.
@@ -776,6 +878,16 @@ export function interpret(ast, bars, inputs, budget, scalars) {
   const lookup = (name) => {
     // ⛔ `hasOwnProperty.call`, NEVER `scope[name]`. See the header.
     if (!own(scope, name)) {
+      // ⭐ A RECURRENCE BINDING IS NEVER IN SCOPE, EVEN INSIDE ITS OWN BODY —
+      // `runRecurrence`'s step loop intercepts it before the walker gets here.
+      // So reaching this line with one means it was written somewhere no running
+      // value is being computed, and saying THAT is worth a guard of its own:
+      // `unknown name "self"` beside a list of every price field would send the
+      // reader looking for a typo in a name that is spelled correctly.
+      if (RECURRENCE_BINDINGS.includes(name)) {
+        refuse('interpret:recurrence',
+          `— \`${name}\` was read outside the update of a ${declared(RECURRENCES)} call`)
+      }
       refuse('resolve:name',
         `${JSON.stringify(name)} — this table declares ${Object.keys(scope).join(', ')}`)
     }
@@ -826,6 +938,11 @@ export function interpret(ast, bars, inputs, budget, scalars) {
       case 'call': {
         const spec = fnSpec(n.name)
         assertArity(n, spec)
+        // ⭐ THE ONE ARM THAT DOES NOT EVALUATE ITS ARGUMENTS EAGERLY, and the
+        // manifest says so rather than this line asserting it: an entry that
+        // declares a `recurrence` carries a per-bar BODY, not a column. See
+        // `runRecurrence`.
+        if (own(RECURRENCES, n.name)) return runRecurrence(n, spec)
         const args = []
         for (let i = 0; i < n.args.length; i++) {
           args.push(spec.args[i] === 'int'
@@ -867,6 +984,150 @@ export function interpret(ast, bars, inputs, budget, scalars) {
     }
     return refuse('interpret:operator',
       `${JSON.stringify(name)} — this table declares ${declared(TABLE.operators)}`)
+  }
+
+  /** One operator, applied to BARE NUMBERS. The recurrence step loop's arm.
+   *
+   *  ⭐ THE SAME `UNARY`/`BINARY`/`TERNARY` ENTRIES `applyOp` USES, and that is
+   *  not a convenience — `lift1/2/3` are pure elementwise applications of these
+   *  very functions, so a body evaluated one bar at a time and a column
+   *  evaluated all at once are the SAME ARITHMETIC by construction. A second
+   *  scalar table here would be a second grammar, and the first thing to
+   *  diverge would be the NaN rule (`cmp` answers 0, `logical` answers NaN) —
+   *  a difference no cross-lane parity run would catch, because it would be
+   *  wrong identically in both lanes. */
+  const applyOpStep = (node, values) => {
+    const name = node.name
+    if (name === '?:') {
+      if (values.length !== 3) {
+        refuse('resolve:arity', `— the ternary ?: expects 3 arguments, got ${values.length}`)
+      }
+      return TERNARY(values[0], values[1], values[2])
+    }
+    if (own(UNARY, name)) {
+      if (values.length !== 1) {
+        refuse('resolve:arity', `— ${name} expects 1 arguments, got ${values.length}`)
+      }
+      return UNARY[name](values[0])
+    }
+    if (own(BINARY, name)) {
+      if (values.length !== 2) {
+        refuse('resolve:arity', `— ${name} expects 2 arguments, got ${values.length}`)
+      }
+      return BINARY[name](values[0], values[1])
+    }
+    return refuse('interpret:operator',
+      `${JSON.stringify(name)} — this table declares ${declared(TABLE.operators)}`)
+  }
+
+  /** A declared recurrence — bar-to-bar state, bounded so the answer cannot
+   *  depend on which bars the caller happened to fetch.
+   *
+   *  ⭐⭐ THE DEFINITION, AND EVERYTHING ELSE HERE FOLLOWS FROM IT. At bar `i`
+   *  the state is SEEDED FRESH at bar `i - warmup` and the body is applied once
+   *  per bar across `(i - warmup, i]`. So the value at bar `i` is a function of
+   *  exactly `warmup + 1` bars and nothing else — the same bargain
+   *  `sma(close, 20)` makes, and the reason panning a chart cannot change it.
+   *
+   *  ⛔ THE OBVIOUS IMPLEMENTATION IS THE WRONG ONE, AND IT IS WRONG QUIETLY. A
+   *  single forward pass from bar 0 is O(n) instead of O(n × warmup) and gives
+   *  a DIFFERENT number for the same bar the moment the window moves — which is
+   *  `lesson_a_derived_value_must_not_depend_on_the_request` exactly: a rolling
+   *  value needs a warm-up prefix, a cumulative one needs an absolute seed, and
+   *  "wherever this fetch started" is neither. Nothing about the output would
+   *  look wrong; it would simply disagree with itself between two requests.
+   *
+   *  ⛔ AND THE PREFIX IS NaN, NEVER A SHORT RUN. Bars before `warmup` have no
+   *  seed bar to start from, so they are not computable — a partial accumulation
+   *  there would be a confident wrong number wearing a warm-up's clothes, the
+   *  same shape as the clamped `src[0]` the offset arm refuses. */
+  const runRecurrence = (node, spec) => {
+    const rec = spec.recurrence
+    const bind = rec.binds
+    const warmup = windowLiteral(node, rec.warmup)
+    const body = node.args[rec.body]
+
+    // ⭐ THE ONE COST IN THIS ENGINE THE STATIC BUDGET CANNOT SEE. `budget.js`
+    // takes no bars, and `warmup` alone is already capped by `budget:lookback`
+    // like any other window — but the WORK is `bars × warmup`, and the bar count
+    // arrives with the caller. So it is measured here, where it is known, and
+    // refused BY NAME rather than turning a chart into a hang.
+    if (length * warmup > MAX_RECURRENCE_STEPS) {
+      refuse('interpret:steps',
+        `— ${node.name} over ${length} bars with a ${warmup}-bar warm-up is `
+        + `${length * warmup} steps and the ceiling is ${MAX_RECURRENCE_STEPS}`)
+    }
+
+    const isBind = (x) => !!x && typeof x === 'object' && x.type === 'series' && x.name === bind
+
+    // Which nodes of the body read the running value. Memoised over node
+    // IDENTITY, so a tree that shares a subtree object answers once.
+    const readsBind = new Map()
+    const reads = (x) => {
+      if (readsBind.has(x)) return readsBind.get(x)
+      let answer = isBind(x)
+      if (!answer && x && typeof x === 'object' && Array.isArray(x.args)) {
+        for (const child of x.args) if (reads(child)) { answer = true; break }
+      }
+      readsBind.set(x, answer)
+      return answer
+    }
+
+    // ⭐ THE PARTITION, AND IT IS WHAT KEEPS THIS AFFORDABLE. Every maximal
+    // subtree that does NOT read the running value is an ordinary column and is
+    // evaluated ONCE, by the ordinary walker. Only the spine that actually
+    // depends on the previous bar is re-evaluated per step — so `sma(volume,20)`
+    // inside a body costs one pass, not `bars × warmup` of them.
+    const columns = new Map()
+    const planned = new Set()
+    const plan = (x) => {
+      if (planned.has(x)) return
+      planned.add(x)
+      if (!reads(x)) { columns.set(x, evalNode(x)); return }
+      if (isBind(x)) return
+      if (x.type === 'offset') {
+        refuse('interpret:recurrence',
+          `— \`${bind}\` sits under a bar offset in ${node.name}(…). The step loop holds `
+          + `ONE previous value, not a history of them.`)
+      }
+      if (x.type === 'call') {
+        const inner = fnSpec(x.name)
+        if (own(RECURRENCES, x.name)) {
+          refuse('interpret:recurrence',
+            `— \`${bind}\` sits inside a nested ${x.name}(…), so which running value it names `
+            + `would depend on where a reader started counting.`)
+        }
+        if (!isPointwise(inner)) {
+          refuse('interpret:recurrence',
+            `— \`${bind}\` sits inside ${x.name}(…), which reads a window of bars rather than `
+            + `one. Write the windowed part outside the update, or spell it with `
+            + `${declared(TABLE.operators)}.`)
+        }
+        assertArity(x, inner)
+      }
+      for (const child of (Array.isArray(x.args) ? x.args : [])) plan(child)
+    }
+    plan(body)
+
+    const step = (x, j, carried) => {
+      if (columns.has(x)) {
+        const v = columns.get(x)
+        return isColumn(v) ? v[j] : v
+      }
+      if (isBind(x)) return carried
+      const values = x.args.map((child) => step(child, j, carried))
+      if (x.type === 'op') return applyOpStep(x, values)
+      return POINTWISE[x.name](...values)
+    }
+
+    const seed = toColumn(evalNode(node.args[rec.seed]), length)
+    const out = nan(length)
+    for (let i = warmup; i < length; i++) {
+      let carried = seed[i - warmup]
+      for (let j = i - warmup + 1; j <= i; j++) carried = step(body, j, carried)
+      out[i] = carried
+    }
+    return out
   }
 
   return toColumn(evalNode(ast), length)

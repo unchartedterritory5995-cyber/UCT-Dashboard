@@ -267,9 +267,17 @@ def generate_ast(spec: str) -> dict:
             raise ValueError(
                 "gen:seriesChain needs the manifest to name its series, and "
                 f"{os.path.relpath(MANIFEST_PATH, ROOT)} does not exist.")
-        names = sorted(manifest["series"])
+        # ⭐ SERIES *AND* SCALARS, AND DISTINCT. `series_refs` counts DISTINCT
+        # reads, so a chain that cycled the five bar fields was a chain of FIVE
+        # however long it got -- and this case exists to EXCEED a cap of eight.
+        # A scalar rides the same `series` node and is a per-symbol column read,
+        # so it costs exactly the data the cap is about.
+        names = sorted(manifest["series"]) + sorted(manifest["scalars"])
         assert names, "the manifest declares no series"
-        ident = lambda i: {"type": "Identifier", "name": names[i % len(names)]}  # noqa: E731
+        assert n <= len(names), (
+            f"gen:seriesChain({n}) needs {n} distinct declared names and the "
+            f"manifest has {len(names)}")
+        ident = lambda i: {"type": "Identifier", "name": names[i]}  # noqa: E731
         node = ident(0)
         for i in range(1, n):
             node = {"type": "BinaryExpression", "operator": "+",
@@ -413,7 +421,25 @@ def assert_corpus_covers_the_table(manifest: dict, corpus: dict) -> set:
         "conformance log pins nothing about them, so the two lanes may already "
         "disagree on them and every gate would stay green."
     )
-    stray = sorted(used - declared - case_input_names)
+    # ⭐ A RECURRENCE BINDING IS A NAME THE TABLE DELIBERATELY DOES NOT DECLARE.
+    # `self` is BOUND by the `accum` around it, exactly the way a case's own
+    # inputs are bound by the case — it has no `field`, it is not sayable in the
+    # vocabulary, and resolving it anywhere else is `interpret:recurrence` in
+    # both lanes. So it is subtracted from STRAY, never added to DECLARED: a
+    # binding can no more make a table entry count as covered than an input can.
+    #
+    # ⛔ AND THE SET IS READ OFF THE MANIFEST, NOT TYPED. A hard-coded `{"self"}`
+    # here would be a second authority over `functions.accum.recurrence.binds`,
+    # and the failure would be silent in the worst direction: rename the binding
+    # and this rail would go on excusing the OLD name while the new one read as
+    # an undeclared interpreter feature.
+    bound_names = {
+        rec["binds"]
+        for spec in (manifest.get("functions") or {}).values()
+        if isinstance(spec, dict) and isinstance(spec.get("recurrence"), dict)
+        for rec in (spec["recurrence"],)
+    }
+    stray = sorted(used - declared - case_input_names - bound_names)
     assert not stray, (
         f"{len(stray)} corpus names are NOT in the table: {stray}. A corpus case "
         "calling something the manifest does not declare is measuring an "
