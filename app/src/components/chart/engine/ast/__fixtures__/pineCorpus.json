@@ -309,13 +309,14 @@
     "selectedFormula": null,
     "downstream": null,
     "refusal": {
-      "guard": "pine:reassign",
-      "line": 217,
-      "column": 29,
-      "token": ":="
+      "guard": "pine:builtin",
+      "line": 201,
+      "column": 4,
+      "token": "barstate.isconfirmed"
     },
     "perOutputRefusals": {
-      "pine:reassign": 6
+      "pine:builtin": 4,
+      "pine:reassign": 2
     }
   },
   "21-volume-profile-plus.pine": {
@@ -326,13 +327,13 @@
     "selectedFormula": null,
     "downstream": null,
     "refusal": {
-      "guard": "pine:state",
-      "line": 90,
-      "column": 1,
-      "token": "var"
+      "guard": "pine:function",
+      "line": 94,
+      "column": 20,
+      "token": "time"
     },
     "perOutputRefusals": {
-      "pine:state": 1
+      "pine:function": 1
     }
   }
 }
