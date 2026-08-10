@@ -636,6 +636,13 @@ export default function OptionsFlowDashboard() {
   const [convictionPct, setConvictionPct] = useState("All"); // All, 90bull, 80bull, 90bear, 80bear
   const [convictionActivity, setConvictionActivity] = useState("All"); // All, new, uoa
   const [convictionExpanded, setConvictionExpanded] = useState(null); // expanded ticker // net, bull, bear, trades
+  // Cap/DTE/tab changes re-scope the leaderboard to contracts the earlier Live-OI
+  // fetch didn't cover, so a persisted Still-open overlay would BLANK the new board
+  // (applyStillOpenOverlay zeros + drops tickers without confirmed live OI — e.g.
+  // fetch OI on All, switch to Mid-Small → 0 tickers). Reset Still-open on any such
+  // change; one click re-enables it with a fresh auto-fetch for the now-visible
+  // contracts. (2026-08-10)
+  useEffect(() => { setLbStillOpenOnly(false); }, [capFilter, convictionDte, dataMode]);
   const [oiSearch, setOiSearch] = useState("");
   const [oiSort, setOiSort] = useState({col:"doi", dir:"desc", col2:"premium", dir2:"desc"});
   const [leaderDte, setLeaderDte] = useState("All");
