@@ -282,6 +282,76 @@ def test_every_refused_indicator_is_STILL_refused_and_says_why():
         assert name not in ast_interpret.FN
 
 
+def test_every_function_PINS_ITS_ARGUMENT_ORDER_for_the_translators():
+    """⭐ `args` SAYS A SLOT IS A SERIES; `argRoles` SAYS WHICH SERIES.
+
+    🔴 THE MEASURED REASON. The TC2000 translator refused four whole families —
+    `CCIx.z`, `DIPLUSd.z`, `DIMINUSd.z`, `WSTOCx.y.z` — because `cci`, `plusDI`,
+    `minusDI` and `williamsR` declared three `series` arguments and nothing said
+    which three or in what order. A translator that GUESSES `(close, high, low)`
+    where the maths wants `(high, low, close)` does not fail: it returns a
+    plausible number. That is the worst failure shape in this codebase, and a
+    sentence in a note cannot prevent it because a parser cannot read one.
+
+    ⛔ SO THE ROLES ARE ASSERTED AGAINST `args`, IN BOTH DIRECTIONS. A slot
+    renamed on one side and not the other lands RED here rather than leaving two
+    descriptions of one argument list quietly disagreeing — which is this repo's
+    most repeated defect, wearing yet another coat.
+    """
+    functions = ast_table.TABLE["functions"]
+    problems = []
+    for name, spec in functions.items():
+        args = list(spec.get("args") or ())
+        roles = list(spec.get("argRoles") or ())
+        if not roles:
+            problems.append(f"{name}: no argRoles — a translator cannot place its arguments")
+            continue
+        if len(roles) != len(args):
+            problems.append(f"{name}: {len(roles)} roles for {len(args)} args")
+            continue
+        if len(set(roles)) != len(roles):
+            problems.append(f"{name}: repeats a role name {roles} — two slots one name")
+        for i, (kind, role) in enumerate(zip(args, roles)):
+            if not isinstance(role, str) or not role:
+                problems.append(f"{name}: slot {i} has no role")
+                continue
+            # ⭐ THE TWO DESCRIPTIONS MUST AGREE ON WHICH SLOTS ARE WINDOWS. An
+            # `int` slot is a whole-number period and a `series` slot never is;
+            # a translator reads the roles to find the window, so the roles must
+            # not be able to point at the wrong one.
+            says_period = role.lower().endswith("period")
+            if (kind == "int") != says_period:
+                problems.append(
+                    f"{name}: slot {i} is declared {kind!r} but its role is {role!r}"
+                )
+    assert not problems, problems
+
+    # ⛔ AND THE ROLE NAMES ARE NOT FREE TEXT. Every `series` slot's role is
+    # either a bar field this table declares or one of the two generic shapes
+    # (`source` for a single input, `left`/`right` for a symmetric pair), so a
+    # translator has a closed set to match against rather than a vocabulary that
+    # grows one adjective at a time.
+    generic = {"source", "left", "right"}
+    allowed = set(ast_table.TABLE["series"]) | generic
+    stray = sorted({
+        role for spec in functions.values()
+        for kind, role in zip(spec["args"], spec["argRoles"])
+        if kind != "int" and role not in allowed
+    })
+    assert not stray, (
+        f"{stray} name a series slot with something outside "
+        f"{sorted(allowed)}. A translator matches on this set."
+    )
+
+    # …and the four families that were refused for want of an order are covered.
+    # ⛔ DERIVED: every declared function taking more than one `series` is named,
+    # so a twenty-ninth arrives covered rather than quietly unreachable.
+    multi = sorted(n for n, s in functions.items()
+                   if sum(1 for k in s["args"] if k != "int") > 1)
+    assert multi, "no multi-series function — this case has no subject"
+    assert all(functions[n].get("argRoles") for n in multi), multi
+
+
 def test_the_two_documented_compositions_are_the_columns_they_replace(bars):
     """⭐ THE REGISTER MAKES TWO CLAIMS THAT ARE NOT REFUSALS BUT PROMISES, and a
     promise nobody measures is the shape this repo keeps paying for.
