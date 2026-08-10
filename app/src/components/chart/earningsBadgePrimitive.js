@@ -86,9 +86,11 @@ export function createEarningsBadgePrimitive(initial) {
           for (const p of opts.points) {
             let x
             if (p.estimate) {
-              // Upcoming report: its date is in the FUTURE (no time coordinate), so pin the
-              // badge to the right edge of the plot — always visible, "next earnings" at right.
-              x = mediaSize.width - w / 2 - 4
+              // Upcoming report: DOCK to its actual date once the axis extends there and the day
+              // is in frame (daily whitespace); otherwise (off-screen right, or no extension) pin
+              // to the right edge of the plot so "next earnings" stays visible.
+              const cx = ts.timeToCoordinate(p.time)
+              x = (cx != null && cx >= 0 && cx <= mediaSize.width) ? cx : (mediaSize.width - w / 2 - 4)
             } else {
               x = ts.timeToCoordinate(p.time)
               if (x == null || x < 0 || x > mediaSize.width) continue

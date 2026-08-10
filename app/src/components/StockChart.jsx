@@ -1967,6 +1967,9 @@ export default function StockChart({
   // right to flag. Written in the render body, below the `useState` that owns it.
   const indicatorsHiddenRef = useRef(false)
   const overlaySeriesRefs = useRef([])
+  // Hidden line series carrying FUTURE whitespace (empty time slots past the last candle) so the
+  // time axis + the upcoming-earnings marker can extend to the next earnings date (daily only).
+  const futureWsSeriesRef = useRef(null)
   const overlayTailSeriesRefs = useRef([])   // candleFrameFade: post-setup MA tail segments whose opacity crossfades on Setup⇄Result
   const frameFadeAlphaRef = useRef(1)        // mirror of frameFadeAlpha for the (deps-light) updateChart overlay loop
   // ⛔ NO `bbUpperRef` / `bbMiddleRef` / `bbLowerRef` / `rsiSeriesRef` (Task 10),
@@ -4190,9 +4193,13 @@ export default function StockChart({
     for (const e of markersData.earnings) {
       if (!e.date) continue
       if (e.estimate) {
-        // Upcoming report — a FUTURE date with no bar yet. The badge primitive pins it to the
-        // right edge of the plot; keep the raw date so the click hit-test can match it.
-        out.push({ date: String(e.date).slice(0, 10), low: null, beat: null, estimate: true, data: e })
+        // Upcoming report — a FUTURE date. Position it at the earnings day on the bars' grid
+        // (adjustTime of that day's UTC midnight) so it DOCKS there once the axis extends to it
+        // (daily whitespace, below); off-screen / no extension → the badge pins it to the right
+        // edge. Same value as the event `date` so the click hit-test matches.
+        const [ey, em, ed] = String(e.date).slice(0, 10).split('-').map(Number)
+        const t = (ey && em && ed) ? adjustTime(Math.floor(Date.UTC(ey, em - 1, ed) / 1000)) : null
+        if (t != null) out.push({ date: t, low: null, beat: null, estimate: true, data: e })
         continue
       }
       const bar = barByBucket.get(bucket(e.date))
@@ -4205,7 +4212,43 @@ export default function StockChart({
       out.push({ date: bar.t, low, beat: e.beat, data: e })
     }
     return out
-  }, [markersData, cs.markers?.earnings, resolvedTf, filteredBars])
+  }, [markersData, cs.markers?.earnings, resolvedTf, filteredBars, adjustTime])
+
+  // Daily only: extend the time axis with hidden whitespace out to the upcoming-earnings date so
+  // the grey marker DOCKS onto that day once it scrolls into frame (and future dates label the
+  // axis). A dedicated hidden series — never touches the candle/volume/MA/live series. Off daily,
+  // or with no upcoming report, the series is cleared and the marker keeps its right-edge pin.
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart) return
+    const clear = () => { try { futureWsSeriesRef.current?.setData([]) } catch { /* series gone */ } }
+    const est = earningsEvents.find(e => e.estimate)
+    if (!est || resolvedTf !== 'D' || !filteredBars?.length) { clear(); return }
+    const [ey, em, ed] = String(est.data?.date || '').slice(0, 10).split('-').map(Number)
+    if (!ey || !em || !ed) { clear(); return }
+    const targetTs = Math.floor(Date.UTC(ey, em - 1, ed) / 1000)
+    const lastT = filteredBars[filteredBars.length - 1].t
+    if (!Number.isFinite(lastT) || targetTs <= lastT) { clear(); return }
+    const DAY = 86400
+    const pts = []
+    const cap = targetTs + 4 * DAY
+    let t = lastT + DAY, guard = 0
+    while (t <= cap && guard++ < 500) {
+      const dow = new Date(t * 1000).getUTCDay()
+      if (dow !== 0 && dow !== 6) pts.push({ time: adjustTime(t) })  // business days only, to match the bars
+      t += DAY
+    }
+    if (!futureWsSeriesRef.current) {
+      try {
+        futureWsSeriesRef.current = chart.addSeries(LineSeries, {
+          color: 'rgba(0,0,0,0)', lineWidth: 1, priceScaleId: '',
+          lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false,
+          pointMarkersVisible: false,
+        })
+      } catch { futureWsSeriesRef.current = null }
+    }
+    try { futureWsSeriesRef.current?.setData(pts) } catch { /* series removed (chart recreate) */ }
+  }, [earningsEvents, resolvedTf, filteredBars, adjustTime])
 
   // Splits + dividends: snap each event date to its containing bar (same bucketing
   // as earnings) so they render as bottom-row "S"/"D" badges, one per bar.
@@ -10783,6 +10826,7 @@ export default function StockChart({
         candleSeriesRef.current = null
         volumeSeriesRef.current = null
         overlaySeriesRefs.current = []
+        futureWsSeriesRef.current = null   // removed with the chart; effect re-adds on the new one
         priceLineRefs.current = []
         sessionTagRefs.current = []
         sessionTagSeriesRef.current = null
