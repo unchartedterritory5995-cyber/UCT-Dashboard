@@ -49,7 +49,11 @@ describe('TranscriptSearchAll', () => {
     fireEvent.change(input, { target: { value: 't' } })
     fireEvent.change(input, { target: { value: 'ta' } })
     fireEvent.change(input, { target: { value: 'tar' } })
-    expect(global.fetch).not.toHaveBeenCalled()
+    // KeywordAlerts mounts alongside and loads its own list immediately, so
+    // the claim is about SEARCH requests, not about fetch being untouched.
+    const searchesBefore = global.fetch.mock.calls
+      .filter(([u]) => String(u).includes('transcript-search'))
+    expect(searchesBefore).toHaveLength(0)
     await act(async () => { await vi.advanceTimersByTimeAsync(350) })
     // One debounce cycle now issues TWO requests — the search and its trend,
     // fired together on purpose. Count the cycles, not the calls: three

@@ -888,7 +888,8 @@ def _finviz_week_filter(monday: date, today: date) -> str | None:
 
 
 def _merge_finviz_sessions(days: dict, target_ds: set[str], filt: str,
-                           keep, sym_index: dict, rebucket: bool = True) -> tuple[int, int]:
+                           keep, sym_index: dict,
+                           rebucket_ds: set[str] | None = None) -> tuple[int, int]:
     """Apply the Finviz session leg to `days`. Returns (added, moved).
 
     ONE implementation for both the current-week backfill and the range-week
@@ -898,17 +899,27 @@ def _merge_finviz_sessions(days: dict, target_ds: set[str], filt: str,
     Only ever FILLS a missing session; a symbol Finnhub already placed keeps
     its bucket. Never raises.
 
-    `rebucket=False` disables moving a known entry out of `tbd`, because the
-    per-session cap is applied AFTER this runs: moving rows into `bmo`/`amc`
-    can push those buckets past their limit and the surplus is CUT. Measured on
-    the previous week, whose cap is a tight [:40]:
+    `rebucket_ds` is the subset of dates where a KNOWN entry may be moved out
+    of `tbd`; `None` means every date may. Re-bucketing is only lossy under a
+    tight cap, because the per-session cap is applied AFTER this runs: moving
+    rows into `bmo`/`amc` can push those buckets past their limit and the
+    surplus is CUT. Measured on the previous week under the old flat [:40]:
 
         re-bucket + add   430 reporters, 341 sessioned
         add-only          496 reporters, 333 sessioned
 
-    66 reporters recovered for 8 sessions — so the range path adds only. The
-    current-week path keeps re-bucketing: its cap is 150, loose enough that the
-    same measurement showed a clean +69 reporters with no loss.
+    66 reporters recovered for 8 sessions — which is why this used to be a
+    blanket `rebucket=False` on the range path. That trade only ever existed
+    because of the cap: the current-week path has always re-bucketed safely
+    "because its cap is 150", and the same measurement there showed a clean
+    +69 reporters with no loss.
+
+    A FINISHED day now takes `_PAST_SESSION_CAP` on both paths (see
+    `_build_range_week`), so the loss condition is gone for past dates and they
+    re-bucket. Future dates keep the tight schedule cap and stay add-only — the
+    trade above still holds for them. Pass the PAST dates, not a bool: on a
+    weekend the "current week" already points forward, so the week containing
+    today is itself paged and can hold both kinds of day.
     """
     added = moved = 0
     try:
@@ -936,7 +947,7 @@ def _merge_finviz_sessions(days: dict, target_ds: set[str], filt: str,
                 sym_index.setdefault(ds, {})[sym] = day[timing][-1]
                 added += 1
                 continue
-            if not rebucket:
+            if rebucket_ds is not None and ds not in rebucket_ds:
                 continue
             tbd = day.get("tbd") or []
             if existing in tbd and timing in ("bmo", "amc"):
@@ -1598,24 +1609,37 @@ def _build_range_week(monday: date) -> dict:
     # Finviz offers no arbitrary range: only last week is reachable, so weeks
     # older than that skip the leg entirely rather than fire a request that
     # cannot match. That is a real, stated limit — not silently papered over.
+    # Which days here are FINISHED. Decided per-DAY, never per-week: on a
+    # weekend the "current week" already points forward, so the week containing
+    # today arrives here as a range week and can hold both kinds of day.
+    past_ds = {d.strftime("%Y-%m-%d") for d in week_dates if d < today}
+
     fv_filt = _finviz_week_filter(monday, today)
     if fv_filt:
         fv_added, fv_moved = _merge_finviz_sessions(
-            days, set(days.keys()), fv_filt, _keep, sym_index, rebucket=False)
+            days, set(days.keys()), fv_filt, _keep, sym_index, rebucket_ds=past_ds)
         if fv_added or fv_moved:
             source = f"{source}+finviz"
             _logger.info("Calendar %s: Finviz added %d, re-bucketed %d",
                          week_start, fv_added, fv_moved)
 
-    # Same ordering rule every week: estimate-bearing names first, then alpha;
-    # same [:40] per-session cap as the current-week live path.
-    for day in days.values():
+    # Same ordering rule every week: estimate-bearing names first, then alpha.
+    # The CAP is not the same, and deliberately so — a finished day takes
+    # `_PAST_SESSION_CAP`, matching what `_backfill_past_days` already gives the
+    # current week's past days. The tight [:40] bounds a forward SCHEDULE, where
+    # anticipation rank decides who matters; a day that already happened has no
+    # anticipation left to rank, so cutting it just hides reporters. Serving the
+    # same date under two different caps depending on which week it currently
+    # belongs to is what made sessions DECAY once a week rolled over
+    # (`calendar_hour_resolved` 100% for the live week, 18% one week back).
+    for ds, day in days.items():
+        cap = _PAST_SESSION_CAP if ds in past_ds else 40
         for bucket in ("bmo", "amc", "tbd"):
             day[bucket].sort(key=lambda e: (
                 e.get("eps_est") is None and e.get("rev_est") is None,
                 e.get("sym") or "",
             ))
-            day[bucket] = day[bucket][:40]
+            day[bucket] = day[bucket][:cap]
 
     # Called for EVERY week now. `_curate_econ_events` owns the source decision:
     # it skips the (slow, this-week-only) ForexFactory fetches for far weeks and

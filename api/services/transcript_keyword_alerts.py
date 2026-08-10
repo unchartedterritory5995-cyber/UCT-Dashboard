@@ -226,6 +226,79 @@ def scan_transcript(symbol: str, transcript: dict, subs: dict[str, list[str]],
     return fired
 
 
+def run_scan_via_index(since: str = None, deliver=None, index=None,
+                       subs: dict = None) -> dict:
+    """Scan the WHOLE indexed corpus for every subscribed keyword.
+
+    The calendar-driven scan reaches at most 45 symbols a day — `engine.
+    _normalize_earnings` caps each reporter bucket at 15 — which on a heavy day
+    is a fraction of the tape, and the module comment below has said so since it
+    was written. The transcript index now holds ~1,500 calls with full-text
+    search, so the coverage problem is already solved; this just points the
+    alerts at it.
+
+    It also inverts the work. The old shape fetched N transcripts and matched
+    every keyword against each. This runs ONE indexed query per keyword — the
+    number of subscribed keywords, not the number of companies that reported —
+    so cost scales with what people actually asked for.
+
+    Dedup is unchanged: `try_record_fire` on (user, keyword, symbol, quarter)
+    is what stops a re-scan from re-alerting, so a wider net cannot mean
+    repeat notifications.
+    """
+    if not enabled():
+        return {"skipped": "disabled"}
+    if index is None:
+        from api.services import transcript_index as index
+    if subs is None:
+        subs = all_subscriptions()
+    if not subs:
+        return {"keywords": 0, "fired": 0, "note": "no subscriptions"}
+    if deliver is None:
+        from api.services.watchlist_alert_service import deliver_alert_payload as deliver
+
+    if since is None:
+        import datetime
+        # A day back, not "today": a call at 16:30 ET publishes its transcript
+        # ~2h later, and a same-day-only window would miss every one of them on
+        # the run that matters most.
+        since = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+
+    fired = 0
+    scanned = 0
+    for keyword, user_ids in subs.items():
+        try:
+            res = index.search(keyword, limit=200, since=since)
+        except Exception as exc:
+            _log.warning("[kw_alerts] index search failed for %r: %s", keyword, exc)
+            continue
+        hits = res.get("hits") or []
+        scanned += len(hits)
+        for hit in hits:
+            symbol = (hit.get("symbol") or "").upper()
+            quarter = f"{hit.get('year')}Q{hit.get('quarter')}"
+            # The snippet carries <mark> from FTS5; alerts are plain text.
+            excerpt = re.sub(r"</?mark>", "", hit.get("snippet") or "").strip()
+            for user_id in user_ids:
+                if not try_record_fire(user_id, keyword, symbol, quarter):
+                    continue
+                try:
+                    deliver(
+                        user_id=user_id,
+                        sym=symbol,
+                        title=f"{symbol} mentioned “{keyword}” on the {quarter} call",
+                        message=excerpt,
+                        source="transcript_keyword",
+                        extra_data={"keyword": keyword, "quarter": quarter,
+                                    "date": hit.get("date"), "via": "index"},
+                    )
+                    fired += 1
+                except Exception as exc:
+                    _log.warning("[kw_alerts] delivery failed %s/%s: %s",
+                                 user_id, symbol, exc)
+    return {"keywords": len(subs), "hits": scanned, "fired": fired, "since": since}
+
+
 # `engine.get_earnings()` returns THREE buckets, not two. At the 18:30 ET scan
 # the one that matters most is `amc_tonight` — companies that reported after
 # today's close, whose transcripts publish ~2h later. Reading only bmo+amc would

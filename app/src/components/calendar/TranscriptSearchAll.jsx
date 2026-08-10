@@ -10,6 +10,7 @@
 // transcript text contained some.
 import { useCallback, useEffect, useState } from 'react'
 import { SeriesChart } from '../research-kit'
+import KeywordAlerts from './KeywordAlerts'
 import styles from './TranscriptSearchAll.module.css'
 
 const MIN_LEN = 2
@@ -153,6 +154,11 @@ export default function TranscriptSearchAll({ onOpenSymbol = null }) {
           No call in the index mentions that. The index covers recent calls only.
         </p>
       )}
+
+      {/* Subscribe from where you searched: the term you just typed is the
+          one you want alerting on, so it is offered directly rather than
+          retyped in a settings screen. */}
+      <KeywordAlerts suggestion={res && !busy ? q.trim() : ''} />
 
       <ul className={styles.hits}>
         {(res?.hits || []).map(h => (

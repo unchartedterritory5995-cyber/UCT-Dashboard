@@ -168,8 +168,12 @@ class _MassiveRestClient:
     # own tickers, never the rest.
     _SNAPSHOT_BATCH = 200
 
-    def get_batch_snapshots(self, tickers: list[str]) -> dict[str, float]:
+    def get_batch_snapshots(self, tickers: list[str], stale_to_zero: bool = False) -> dict[str, float]:
         """Return regular-session % change for a batch of tickers.
+
+        stale_to_zero (Theme Tracker): during an ACTIVE session, force a name that hasn't traded
+        today to 0% instead of letting a stale prior-session move stand (see the guard below) —
+        so a pre-market theme reflects only names that actually moved pre-market.
 
         Chunked under the endpoint's ticker cap AND fetched in PARALLEL — the
         Theme Tracker sends ~2,050 holdings = ~11 chunks; sequential fetches were
@@ -208,7 +212,28 @@ class _MassiveRestClient:
                 for chunk_rows in ex.map(_fetch_chunk, chunks):
                     rows.extend(chunk_rows)
 
+        # Traded-today detection (only when stale_to_zero): ET date of the last trade / last
+        # minute bar. Missing BOTH ⇒ the name hasn't traded today (e.g. IPGP pre-market: no
+        # lastTrade, min.v == 0). Used by the session-aware guard after the loop.
+        _today_et = None
+        if stale_to_zero:
+            from datetime import datetime as _dt
+            from zoneinfo import ZoneInfo as _TZ
+            _et_tz = _TZ("America/New_York")
+            _today_et = _dt.now(_et_tz).date()
+
+            def _traded_today(row) -> bool:
+                for key, unit in (("lastTrade", 1e9), ("min", 1e3)):
+                    ts = (row.get(key) or {}).get("t")
+                    if ts:
+                        try:
+                            return _dt.fromtimestamp(ts / unit, _et_tz).date() == _today_et
+                        except Exception:
+                            pass
+                return False
+
         result: dict[str, float] = {}
+        traded: dict[str, bool] = {}
         for t in rows:
             ticker = t.get("ticker", "")
             if not ticker:
@@ -229,6 +254,19 @@ class _MassiveRestClient:
             # else: no day close to compute from AND change is 0/missing → no data
             # yet → OMIT the ticker so callers keep their last-known value instead
             # of overwriting it with a spurious 0.00%.
+            if stale_to_zero:
+                traded[ticker] = _traded_today(t)
+
+        # Session-aware staleness guard: if ANY name in the batch traded today we're in an active
+        # session, so a name that has NOT traded today reads 0 (it hasn't moved this session) —
+        # overriding both the OMIT above and any stale prior-session % (e.g. IPGP still carrying
+        # Friday's +4% during Monday pre-market). When NOTHING traded today (overnight / weekend /
+        # holiday) leave every value as the last completed session's move.
+        if stale_to_zero and any(traded.values()):
+            for ticker, tt in traded.items():
+                if not tt:
+                    result[ticker] = 0.0
+
         return result
 
     def get_batch_rich_snapshots(self, tickers: list[str]) -> dict[str, dict]:
@@ -597,14 +635,16 @@ def get_market_cap(ticker: str, price: float | None = None):
     return None
 
 
-def get_etf_snapshots(tickers: list[str]) -> dict[str, float]:
+def get_etf_snapshots(tickers: list[str], stale_to_zero: bool = False) -> dict[str, float]:
     """Return intraday % change for a list of ETF tickers via batch snapshot.
 
     Returns dict mapping ticker -> change_pct float.
     Returns empty dict on Massive client failure.
+    stale_to_zero: see get_batch_snapshots — used by the Theme Tracker's live 1D overlay so a
+    name that hasn't traded in the current session reads 0% (not a stale prior-session move).
     """
     try:
-        return _get_client().get_batch_snapshots(tickers)
+        return _get_client().get_batch_snapshots(tickers, stale_to_zero=stale_to_zero)
     except Exception:
         return {}
 

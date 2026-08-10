@@ -380,7 +380,9 @@ def _fetch_live_1d_map(syms: list[str]) -> dict[str, float]:
     if cached is not None:
         return cached
     from api.services.massive import get_etf_snapshots
-    live_map = get_etf_snapshots(syms)
+    # stale_to_zero: a holding that hasn't traded this session reads 0% instead of retaining its
+    # base (prior-session) 1D — so a pre-market theme reflects only names that actually moved.
+    live_map = get_etf_snapshots(syms, stale_to_zero=True)
     cache.set(_LIVE_1D_KEY, live_map, ttl=_LIVE_1D_TTL)
     return live_map
 
@@ -625,6 +627,7 @@ def get_theme_performance() -> dict:
     cached = cache.get(_CACHE_KEY)
     if cached is not None:
         out = _enrich_with_taxonomy(_apply_live_returns(cached))
+        out["live_as_of"] = datetime.now(timezone.utc).isoformat()  # when live prices were applied
         cache.set(_OVERLAID_KEY, out, ttl=_LIVE_1D_TTL)
         return out
 
@@ -633,6 +636,7 @@ def get_theme_performance() -> dict:
     if disk_data:
         cache.set(_CACHE_KEY, disk_data, ttl=_CACHE_TTL)
         out = _enrich_with_taxonomy(_apply_live_returns(disk_data))
+        out["live_as_of"] = datetime.now(timezone.utc).isoformat()  # when live prices were applied
         cache.set(_OVERLAID_KEY, out, ttl=_LIVE_1D_TTL)
         return out
 
