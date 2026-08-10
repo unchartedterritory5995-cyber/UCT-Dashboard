@@ -1191,7 +1191,21 @@ def _delta_intraday(ticker: str, tf: str, last_ts: int) -> list[dict]:
     interior partial bars get corrected (INSERT OR REPLACE), not just the newest
     one, AND restores holes anywhere in the (bounded) gap-fill window that were
     never stored. See _DELTA_HEAL_WINDOW_SECONDS / _DELTA_GAPFILL_DAYS."""
-    gap_days = max(2, int((_time.time() - last_ts) / 86400) + 2)
+    # 🔴 A COLD TICKER MUST NOT ASK FOR EVERYTHING SINCE 1969. `last_ts == 0`
+    # means "nothing stored for this (ticker, tf)", and feeding that straight into
+    # the subtraction below yields ~20,600 days — a `from_date` of 1969-12-30 that
+    # Massive rejects with a flat 400. The caller retries, so it becomes a HOT LOOP:
+    # measured 2026-08-10 at 139 rejected requests in a single log window across
+    # five semiconductor names a member had open, burning vendor quota and — worse —
+    # flooding the log that an operator reads during an incident. That flooding is
+    # not cosmetic: it is what made this morning's real outage hard to see.
+    # ⛔ The `last_ts` guard exists ONE LINE BELOW for `gapfill_on`, so the cold case
+    # was known — it just was not applied to the window that gets FETCHED.
+    _COLD_INTRADAY_DAYS = 5
+    if not last_ts:
+        gap_days = _COLD_INTRADAY_DAYS
+    else:
+        gap_days = max(2, int((_time.time() - last_ts) / 86400) + 2)
     gapfill_on = _DELTA_GAPFILL_DAYS > 0 and last_ts  # cold (last_ts==0) never gap-fills
     if gapfill_on:
         # Widen the fetched window to the gap-fill reach so interior holes older
