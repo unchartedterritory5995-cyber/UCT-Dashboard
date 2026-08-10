@@ -310,6 +310,18 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
                         Delisted{r.delisted_date ? ` ${String(r.delisted_date).slice(0, 4)}` : ''}
                       </span>
                     )}
+                    {r.breadth && (
+                      <span
+                        style={{
+                          marginLeft: 'auto', fontSize: 10, fontWeight: 600, color: '#8ab4f8',
+                          border: '1px solid rgba(138,180,248,0.4)', borderRadius: 3,
+                          padding: '0 5px', whiteSpace: 'nowrap',
+                        }}
+                        title={r.group_label ? `UCT Breadth · ${r.group_label}` : 'UCT Breadth indicator'}
+                      >
+                        BREADTH
+                      </span>
+                    )}
                   </>
                 )}
               </button>

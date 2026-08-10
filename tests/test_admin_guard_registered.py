@@ -29,10 +29,17 @@ This repo has already executed a real production job (8,108 contracts captured)
 that way. So the canary is `POST /api/admin/massive/<a path no route claims>`:
 
     guard installed      -> 403 from the middleware, before routing
-    guard NOT installed  -> 405 from the router, having executed nothing
+    guard NOT installed  -> 404/405 from the router, having executed nothing
 
-Both answers are side-effect-free by construction, and the 403→405 flip is
-exactly the registration going away.
+Both answers are side-effect-free by construction, and the 403→(404|405) flip
+is exactly the registration going away.
+
+⚠️ WHY BOTH CODES, not just 405: the SPA catch-all that produces the 405 is
+registered only `if os.path.exists(DIST)` in `api/main.py`, so a checkout with
+no built frontend has no catch-all and the same probe answers 404. Both are the
+router refusing without running anything, which is the property that matters —
+so the assertions accept either, and none of them depend on whether `npm run
+build` has been run.
 
 ⭐ WHY 405 AND NOT 404, MEASURED ON THIS APP: the only route that can match the
 probe path is the SPA catch-all `GET /{full_path:path}` (`spa_fallback`), which
@@ -152,35 +159,69 @@ def test_the_guard_does_not_blanket_block_the_rest_of_the_app(client):
 
 # ── the controls, without which none of the above means anything ────────────
 
-def test_only_the_static_spa_fallback_can_match_the_probe(real_app):
-    """⛔ THE SAFETY PROPERTY, ASSERTED RATHER THAN ASSUMED.
-
-    The anonymous probe above is harmless only while nothing with side effects
-    can be reached at that path. Asked of the router itself — `route.matches` on
-    a real POST scope — not inferred from the path string. If a handler ever
-    claims it, this goes red BEFORE the probe can execute anything.
-    """
+def _matches_for(app, path, method="POST"):
+    """Every route that would accept `method path`, asked of the ROUTER itself."""
     from starlette.routing import Match
 
-    scope = {"type": "http", "method": "POST", "path": PROBE_PATH,
+    scope = {"type": "http", "method": method, "path": path,
              "headers": [], "query_string": b"", "root_path": ""}
-    matched = []
-    for r in real_app.routes:
+    out = []
+    for r in app.routes:
         try:
             m, _ = r.matches(scope)
         except Exception:                      # pragma: no cover - defensive
             continue
         if m is not Match.NONE:
-            matched.append((getattr(r, "path", "?"),
-                            getattr(getattr(r, "endpoint", None), "__name__", "?"),
-                            m is Match.FULL))
+            out.append((getattr(r, "path", "?"),
+                        getattr(getattr(r, "endpoint", None), "__name__", "?"),
+                        m is Match.FULL))
+    return out
 
-    assert matched, "nothing at all matched the probe scope; this control is vacuous"
-    for path, endpoint, full in matched:
+
+def test_nothing_with_side_effects_can_match_the_probe(real_app):
+    """⛔ THE SAFETY PROPERTY, ASSERTED RATHER THAN ASSUMED.
+
+    The anonymous probe above is harmless only while nothing with side effects
+    can be reached at that path. Asked of the router itself — `route.matches`
+    on a real POST scope — not inferred from the path string. If a handler ever
+    claims it, this goes red BEFORE the probe can execute anything.
+
+    ⚠️ ZERO MATCHES IS THE SAFEST STATE, NOT A FAILURE. This assertion used to
+    open with `assert matched, "...this control is vacuous"`, which made the
+    control red exactly when the probe was at its MOST harmless. That is a
+    proxy standing in for the property: it tested "the SPA fallback is present
+    and claims this path" instead of "nothing dangerous claims this path".
+
+    Measured 2026-08-10: the SPA fallback is registered only `if
+    os.path.exists(DIST)` (`api/main.py` — the React build), so ANY checkout
+    without a built frontend has no catch-all, nothing matches the probe, and
+    this control failed on a completely healthy app. A security rail that cries
+    wolf in an ordinary dev state is one people learn to skip — and this rail
+    exists because ~30 destructive endpoints were once open to the internet.
+    The two probe tests above already accept 404 OR 405 for exactly this
+    reason; this one had not caught up.
+    """
+    for path, endpoint, full in _matches_for(real_app, PROBE_PATH):
         assert endpoint == "spa_fallback" and not full, (
             f"{endpoint} at {path} now claims {PROBE_PATH} "
             f"(full match: {full}). This file's probe is no longer harmless — "
             f"move the probe, do NOT delete this assertion.")
+
+
+def test_the_route_matcher_this_control_relies_on_actually_works(real_app):
+    """⛔ NON-VACUITY, moved off the app's build state and onto the machinery.
+
+    Dropping `assert matched` above removes a real protection: if the scope
+    dict were malformed, `matches()` would return NONE for everything, the loop
+    would never execute its assertion, and the safety check would pass by
+    doing nothing. So prove the matcher works against a route that is ALWAYS
+    mounted — independent of whether the frontend has been built.
+    """
+    hits = _matches_for(real_app, "/api/admin/provider-coverage", method="GET")
+    assert any(full for _p, _e, full in hits), (
+        "the route matcher found no FULL match for a route known to be mounted "
+        f"— the probe scope is malformed and the safety control above is "
+        f"passing vacuously. matches={hits}")
 
 
 def test_there_really_ARE_guarded_destructive_routes_to_protect(real_app):

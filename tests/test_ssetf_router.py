@@ -4,7 +4,9 @@ import threading
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from api.middleware.auth_middleware import get_current_user, require_admin
+from api.middleware.auth_middleware import (
+    get_current_user, get_current_user_with_plan, require_admin,
+)
 from api.routers import single_stock_etfs as router_mod
 from api.services import single_stock_etfs as ss
 
@@ -40,7 +42,45 @@ def client(tmp_path, monkeypatch):
     app.include_router(router_mod.router)
     app.dependency_overrides[get_current_user] = lambda: {"id": "u1", "role": "user"}
     app.dependency_overrides[require_admin] = lambda: {"id": "a1", "role": "admin"}
+    # 🔴 `/{symbol}` became PAID on 2026-08-09 (see the router docstring): its
+    # dependency moved from `get_current_user` to `require_paid` ->
+    # `get_current_user_with_plan`. This fixture kept overriding only the OLD
+    # one, so the real plan lookup ran and died on `no such table:
+    # subscriptions` in the sandbox auth DB. The two lookup tests have been red
+    # ever since — a product change quietly turning a rail red is exactly the
+    # noise that trains people to skip a red suite.
+    app.dependency_overrides[get_current_user_with_plan] = \
+        lambda: {"id": "u1", "role": "user", "plan": "pro", "subscription_status": "active"}
     return TestClient(app)
+
+def test_a_FREE_user_is_refused_the_family_map(tmp_path, monkeypatch):
+    """⛔ THE PAYWALL ITSELF, PROVEN RATHER THAN ASSUMED.
+
+    `/{symbol}` was moved behind `require_paid` on 2026-08-09 because signup is
+    open and free and this is curated reference data the firm BUILDS. Nothing
+    asserted the refusal — and the `client` fixture above now overrides the plan
+    dependency with a PAID user, so every other test in this file would stay
+    green if the gate were deleted tomorrow.
+
+    Overrides `get_current_user_with_plan` (the real dependency) rather than
+    `require_paid`, so the gate's own `is_paid_user` decision is what runs.
+    """
+    monkeypatch.setattr(ss, "_spawn_rebuild", lambda trigger: None)
+    monkeypatch.setenv("SSETF_DB_PATH", str(tmp_path / "ssetf_free.db"))
+    import importlib; importlib.reload(ss)
+    monkeypatch.setattr(ss, "_spawn_rebuild", lambda trigger: None)
+
+    app = FastAPI()
+    app.include_router(router_mod.router)
+    app.dependency_overrides[get_current_user_with_plan] = \
+        lambda: {"id": "free1", "role": "user", "plan": "free",
+                 "subscription_status": None}
+    r = TestClient(app).get("/api/single-stock-etfs/KO")
+
+    assert r.status_code == 402, (
+        f"a FREE user reached the single-stock ETF family map ({r.status_code}); "
+        f"the paid gate added 2026-08-09 is not holding")
+
 
 def test_status_not_shadowed_by_symbol_wildcard(client):
     r = client.get("/api/single-stock-etfs/status")
