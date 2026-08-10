@@ -209,13 +209,16 @@ def _et_today() -> Optional[str]:
 
 
 def _live_map() -> dict:
-    """The current LIVE breadth snapshot (metric_key -> value) computed against the
-    latest market prices, or {} when live breadth is disabled/unavailable. Cached by
-    breadth_live.compute_live itself, so calling it per request is cheap."""
+    """The current LIVE breadth snapshot as a FLAT {metric_key: value} dict, or {} when
+    live breadth is disabled/unavailable. `compute_live()` returns a WRAPPER — the flat
+    metric set lives under `payload["metrics"]` — so pull that out. Cached by compute_live
+    itself, so calling it per request is cheap."""
     try:
         from api.services import breadth_live
         if breadth_live.enabled():
-            return breadth_live.compute_live() or {}
+            payload = breadth_live.compute_live() or {}
+            m = payload.get("metrics")
+            return m if isinstance(m, dict) else {}
     except Exception:
         pass
     return {}

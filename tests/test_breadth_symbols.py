@@ -92,7 +92,7 @@ def test_developing_today_candle_appended_from_live():
     hist = _fake_history([("2020-03-09", 40), ("2020-03-10", 45)])  # last EOD in the past
     with patch.object(breadth_monitor, "get_history", return_value=hist), \
          patch.object(breadth_live, "enabled", return_value=True), \
-         patch.object(breadth_live, "compute_live", return_value={"pct_above_50sma": 48.0}):
+         patch.object(breadth_live, "compute_live", return_value={"metrics": {"pct_above_50sma": 48.0}}):
         out = bs.build_breadth_bars("UCTA50", "D", 400)["bars"]
     assert len(out) == 3                                  # 2 stored + today's developing candle
     last = out[-1]
@@ -123,7 +123,7 @@ def test_latest_quote_uses_live_value_when_tracked():
             {"date": "2020-03-09", "pct_above_50sma": 48}]
     with patch.object(breadth_monitor, "get_history", return_value=hist), \
          patch.object(breadth_live, "enabled", return_value=True), \
-         patch.object(breadth_live, "compute_live", return_value={"pct_above_50sma": 55.0}):
+         patch.object(breadth_live, "compute_live", return_value={"metrics": {"pct_above_50sma": 55.0}}):
         q = bs.latest_quotes(["UCTA50"])["UCTA50"]
     assert q["price"] == 55.0                      # today's live value
     # newest stored day (2020-03-10 = 50) isn't today, so it's the compare baseline
