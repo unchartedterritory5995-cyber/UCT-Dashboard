@@ -77,25 +77,15 @@ def get_breadth_ohlc_status():
     return breadth_daily_ohlc.stats()
 
 
-@router.post("/api/breadth-monitor/ohlc/reconstruct")
-def reconstruct_breadth_ohlc(request: Request, days: int = Query(default=60, ge=1, le=1500),
-                             overwrite_live: bool = Query(default=False)):
-    """Backfill historical breadth OHLC (candle wicks) from stored daily stock bars.
-    PUSH_SECRET-gated; runs in a BACKGROUND THREAD (the compute is heavy — never on the
-    request path, and never at web-pod startup, to avoid the pod-memory OOM class)."""
+@router.post("/api/breadth-monitor/ohlc/purge-reconstructed")
+def purge_breadth_ohlc_reconstructed(request: Request):
+    """Delete the inaccurate daily-bar 'reconstruct' rows. (A breadth metric's true
+    intraday high/low can't be derived from daily bars — those rows assumed every stock
+    hits its extreme simultaneously and produced absurdly wide wicks.) PUSH_SECRET-gated."""
     _check_auth(request)
-    import threading
-
-    def _run():
-        try:
-            from api.services import breadth_ohlc_reconstruct
-            res = breadth_ohlc_reconstruct.reconstruct_recent(days, overwrite_live=overwrite_live)
-            print(f"[breadth_ohlc] reconstruct done: {res}")
-        except Exception as e:
-            print(f"[breadth_ohlc] reconstruct failed: {e}")
-
-    threading.Thread(target=_run, name="breadth-ohlc-reconstruct", daemon=True).start()
-    return {"ok": True, "started": True, "days": days}
+    from api.services import breadth_daily_ohlc
+    n = breadth_daily_ohlc.purge_reconstructed()
+    return {"ok": True, "purged": n}
 
 
 @router.get("/api/breadth-symbols")

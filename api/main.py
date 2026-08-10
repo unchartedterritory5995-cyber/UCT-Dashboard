@@ -3866,29 +3866,6 @@ async def lifespan(app: FastAPI):
             logging.getLogger(__name__).exception(
                 "[startup] failed to schedule breadth-live intraday sampler")
 
-        # Breadth-chart candle WICKS: reconstruct the last few sessions' daily OHLC from
-        # stored stock bars each evening (after the 4:15 EOD collector), so every new
-        # day's wicks land regardless of the intraday accumulator. Light (few days),
-        # off-hours — never the heavy full backfill (that stays the manual endpoint).
-        try:
-            def _breadth_ohlc_daily_recon():
-                try:
-                    from api.services import breadth_ohlc_reconstruct
-                    res = breadth_ohlc_reconstruct.reconstruct_recent(4)
-                    logging.getLogger(__name__).info("[breadth-ohlc] daily reconstruct: %s", res)
-                except Exception as _e:
-                    logging.getLogger(__name__).warning("[breadth-ohlc] daily reconstruct failed: %s", _e)
-
-            _scheduler.add_job(
-                _breadth_ohlc_daily_recon,
-                trigger=CronTrigger(day_of_week="mon-fri", hour=17, minute=15, timezone=_ET),
-                id="breadth_ohlc_daily_reconstruct", max_instances=1,
-                coalesce=True, misfire_grace_time=3600, replace_existing=True)
-            logging.getLogger(__name__).info(
-                "[startup] breadth OHLC daily reconstruct scheduled (weekdays 17:15 ET)")
-        except Exception:
-            logging.getLogger(__name__).exception(
-                "[startup] failed to schedule breadth OHLC daily reconstruct")
 
         # Broker Sync -- background incremental sync across all connected users.
         # Gated by BROKER_SYNC_ENABLED (default OFF -> fully inert). Runs on the

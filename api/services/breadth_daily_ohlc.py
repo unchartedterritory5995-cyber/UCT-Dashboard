@@ -158,24 +158,43 @@ def set_ohlc(date: str, metric: str, o: float, h: float, l: float, c: float,
             return False
 
 
+_TRUSTED_SOURCES = ("live",)  # ONLY real intraday-sampled rows produce accurate wicks
+
+
 def history(metric: str, limit: int = 6000) -> dict:
-    """{ 'YYYY-MM-DD': {o,h,l,c} } for a metric, newest `limit` days. Empty on any error
-    (callers fall back to close-to-close)."""
+    """{ 'YYYY-MM-DD': {o,h,l,c} } for a metric, newest `limit` days — TRUSTED sources
+    only. A breadth metric's true intraday high/low can only come from sampling the actual
+    value through the day (the live accumulator); daily-bar 'reconstruct' rows assume every
+    stock hits its extreme at once and are wildly too wide, so they are NOT served. Empty on
+    any error (callers fall back to close-to-close bodies)."""
     if not metric:
         return {}
     _ensure_init()
     out: dict = {}
+    qmarks = ",".join("?" * len(_TRUSTED_SOURCES))
     try:
         with _conn() as c:
             for (d, o, h, l, cl) in c.execute(
-                "SELECT date, o, h, l, c FROM breadth_daily_ohlc WHERE metric=? "
-                "ORDER BY date DESC LIMIT ?",
-                (metric, int(limit)),
+                f"SELECT date, o, h, l, c FROM breadth_daily_ohlc "
+                f"WHERE metric=? AND source IN ({qmarks}) ORDER BY date DESC LIMIT ?",
+                (metric, *_TRUSTED_SOURCES, int(limit)),
             ).fetchall():
                 out[d] = {"o": o, "h": h, "l": l, "c": cl}
     except Exception:
         return {}
     return out
+
+
+def purge_reconstructed() -> int:
+    """Delete all daily-bar 'reconstruct' rows (they were inaccurate). Returns the count."""
+    _ensure_init()
+    with _WRITE_LOCK:
+        try:
+            with _conn() as c:
+                cur = c.execute("DELETE FROM breadth_daily_ohlc WHERE source='reconstruct'")
+                return cur.rowcount or 0
+        except Exception:
+            return 0
 
 
 def stats() -> dict:
