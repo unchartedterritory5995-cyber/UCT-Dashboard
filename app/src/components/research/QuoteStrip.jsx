@@ -6,7 +6,7 @@
 // The banner already carries a live price. This is the surrounding numbers —
 // a +2% that opened at the high and faded is a different day from a +2% that
 // closed on it, and the single number cannot tell you which.
-import useSWR from 'swr'
+import useMobileSWR from '../../hooks/useMobileSWR'
 import { toNum } from '../research-kit'
 import styles from './QuoteStrip.module.css'
 
@@ -38,8 +38,14 @@ export function rangePct(price, low, high) {
 }
 
 export default function QuoteStrip({ sym }) {
-  const { data } = useSWR(sym ? `/api/research/quote/${sym}` : null, fetcher, {
+  // useMobileSWR, not bare useSWR: this polls, and the opt-in wrapper is what
+  // backs off when the tab is hidden, stretches the interval 10x once the
+  // market is fully closed, and doubles it on mobile. A quote that re-fetches
+  // every 60s all weekend is pure battery and API spend for a number that
+  // cannot change.
+  const { data } = useMobileSWR(sym ? `/api/research/quote/${sym}` : null, fetcher, {
     refreshInterval: 60_000,
+    marketHoursOnly: true,
     revalidateOnFocus: false,
   })
   if (!sym || !data || data.price == null) return null

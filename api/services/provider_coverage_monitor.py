@@ -133,6 +133,14 @@ CREATE TABLE IF NOT EXISTS coverage_history (
   ts TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_coverage_history_field_ts ON coverage_history(field, ts);
+-- The alert-on-CHANGE baseline. Durable because `_state` is a module dict and
+-- this pod redeploys several times a day: an in-memory set makes every boot
+-- rediscover a standing defect as "newly breached" (2026-08-09 — one unchanged
+-- pair of defects announced three times in twenty minutes).
+CREATE TABLE IF NOT EXISTS defect_state (
+  field TEXT PRIMARY KEY,
+  since TEXT NOT NULL
+);
 """
 
 # ── State (for the status endpoint) ───────────────────────────────────────────
@@ -189,7 +197,12 @@ _FIELD_SPECS: dict[str, dict] = {
     "consensus":             {"floor": 0.80, "finnhub_touching": True,  "heal": _heal_intel},
     "beat_history":          {"floor": 0.85, "finnhub_touching": True,  "heal": _heal_intel},
     "transcript":            {"floor": 0.70, "finnhub_touching": False, "heal": _heal_transcript},
-    "analyst_actions":       {"floor": 0.50, "finnhub_touching": True,  "heal": None},
+    # 0.80, not the old 0.50: this now measures whether the grades PROVIDERS
+    # answer for a sample led by megacaps, which is a near-1.0 proposition when
+    # healthy. The 0.50 was tuned for a recency reading ("most tickers have no
+    # recent rating action") that this field no longer takes — see
+    # _analyst_actions_rate.
+    "analyst_actions":       {"floor": 0.80, "finnhub_touching": True,  "heal": None},
     "ticker_name":           {"floor": 0.95, "finnhub_touching": True,  "heal": _heal_meta},
     "ticker_industry":       {"floor": 0.90, "finnhub_touching": True,  "heal": _heal_meta},
     "calendar_hour_resolved": {"floor": 0.60, "finnhub_touching": True,  "heal": None},
@@ -241,6 +254,44 @@ def _recent_baseline(field: str, k: int | None = None) -> float | None:
     if len(vals) % 2:
         return vals[mid]
     return (vals[mid - 1] + vals[mid]) / 2.0
+
+
+def _load_prev_defect_fields() -> set[str]:
+    """The set of fields that were already in defect as of the last cycle —
+    from disk, so a redeploy doesn't turn a standing defect back into news."""
+    try:
+        with _connect_history() as conn:
+            rows = conn.execute("SELECT field FROM defect_state").fetchall()
+        return {r[0] for r in rows}
+    except Exception:  # pragma: no cover - fall back to the in-memory copy
+        _logger.warning("[coverage-monitor] defect_state read failed", exc_info=True)
+        return set(_state.get("_prev_defect_fields") or [])
+
+
+def _save_prev_defect_fields(fields: set[str], ts: str) -> None:
+    """Replace the persisted set. A field that recovered must LEAVE it, or its
+    next genuine breach is silent — the worse of the two failure directions."""
+    keep = sorted(fields)
+    try:
+        with _connect_history() as conn:
+            if keep:
+                placeholders = ",".join("?" * len(keep))
+                conn.execute(
+                    f"DELETE FROM defect_state WHERE field NOT IN ({placeholders})",
+                    tuple(keep),
+                )
+            else:
+                conn.execute("DELETE FROM defect_state")
+            for f in keep:
+                # DO NOTHING, not REPLACE: `since` should stay the moment the
+                # breach STARTED, so it can date a long-standing defect.
+                conn.execute(
+                    "INSERT INTO defect_state (field, since) VALUES (?, ?) "
+                    "ON CONFLICT(field) DO NOTHING",
+                    (f, ts),
+                )
+    except Exception:  # pragma: no cover
+        _logger.warning("[coverage-monitor] defect_state write failed", exc_info=True)
 
 
 def _prune_history() -> None:
@@ -432,8 +483,16 @@ def _transcript_rate(syms: list[str]) -> dict:
 
 
 def _analyst_actions_rate(syms: list[str]) -> dict:
-    """Bounded subsample — `finnhub_recent_action` has no cache of its own."""
-    from api.services.catalyst.analyst_actions import finnhub_recent_action
+    """Can the analyst-grades providers ANSWER? — bounded subsample (this path
+    has no cache of its own).
+
+    Measures reachability via `analyst_grades_available`, NOT recency via
+    `finnhub_recent_action`. "Was this megacap re-rated in the last ~2 calendar
+    days" is a fact about the tape, not about our data: it is legitimately 0/8
+    on a weekend, so a 50% floor over it could never report green and alerted
+    every Sunday night. See that function's docstring for the live evidence.
+    """
+    from api.services.catalyst.analyst_actions import analyst_grades_available
     sub = syms[:_ANALYST_ACTIONS_SUBSAMPLE]
     n = 0
     hits = 0
@@ -441,10 +500,10 @@ def _analyst_actions_rate(syms: list[str]) -> dict:
     for s in sub:
         n += 1
         try:
-            r = finnhub_recent_action(s)
+            ok = bool(analyst_grades_available(s))
         except Exception:
-            r = None
-        if r:
+            ok = False
+        if ok:
             hits += 1
         else:
             missing.append(s)
@@ -641,8 +700,9 @@ def run_cycle(now=None) -> dict:
                     _logger.warning("[coverage-monitor] heal failed for %s", field, exc_info=True)
 
     cur_fields = {d["field"] for d in defects}
-    prev_fields = set(_state.get("_prev_defect_fields") or [])
+    prev_fields = _load_prev_defect_fields()   # from DISK — survives a redeploy
     newly = [d for d in defects if d["field"] not in prev_fields]
+    _save_prev_defect_fields(cur_fields, ts)
 
     with _state_lock:
         _state["cycles_completed"] += 1

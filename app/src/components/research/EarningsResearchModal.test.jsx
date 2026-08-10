@@ -675,12 +675,14 @@ describe('the modal never hands the reader off', () => {
 })
 
 describe('the rail is curated, and old links still land', () => {
-  it('is SEVEN sections, not eleven', () => {
+  it('is EIGHT curated sections, not the eleven it sprawled to', () => {
     // Eleven shallow entries split one question across three clicks and made
-    // the rail scroll on phone. Fewer, deeper sections.
-    expect(SECTIONS).toHaveLength(7)
+    // the rail scroll on phone. Consolidated to six, then News earned its own
+    // place — it answers "what else happened", which nothing else covered.
+    expect(SECTIONS).toHaveLength(8)
     expect(SECTIONS.map(s => s.id)).toEqual(
-      ['setup', 'history', 'brief', 'call', 'financials', 'analysts', 'filings'])
+      ['setup', 'history', 'brief', 'call', 'financials', 'analysts',
+       'news', 'filings'])
   })
 
   it('every id still has a panel', () => {

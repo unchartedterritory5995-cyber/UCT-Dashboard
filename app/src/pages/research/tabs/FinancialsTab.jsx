@@ -144,7 +144,7 @@ function TrendPair({ quarterly, annual }) {
   )
 }
 
-export default function FinancialsTab({ sym }) {
+export default function FinancialsTab({ sym, showGrids = true }) {
   const { data, isLoading } = useFinancials(sym)
 
   if (isLoading) {
@@ -158,9 +158,17 @@ export default function FinancialsTab({ sym }) {
 
   return (
     <div className={styles.finWrap}>
-      <TrendPair quarterly={fin.quarterly} annual={fin.annual} />
-      <GrowthGrid title="Quarterly — revenue, EPS & margins (YoY)" rows={fin.quarterly} />
-      <GrowthGrid title="Annual — revenue, EPS & margins (YoY)" rows={fin.annual} />
+      {/* ⚠️ These grids are yfinance-derived and label CALENDAR quarters. FMP,
+          which feeds StatementPanels, returns the FISCAL period — so for a
+          September-fiscal-year company like AAPL the same quarter appears as
+          "Q3 2026" in the panels and "Q2 2026" here, with identical revenue.
+          Two names for one quarter on one screen is worse than one fewer
+          table, so the composite Financials section turns them off; the panels
+          supersede them with 24 quarters instead of 5. Standalone callers keep
+          them until the label source is fixed. */}
+      {showGrids && <TrendPair quarterly={fin.quarterly} annual={fin.annual} />}
+      {showGrids && <GrowthGrid title="Quarterly — revenue, EPS & margins (YoY)" rows={fin.quarterly} />}
+      {showGrids && <GrowthGrid title="Annual — revenue, EPS & margins (YoY)" rows={fin.annual} />}
       <div className={styles.grid}>
         <section className={styles.card}>
           <div className={styles.ct}>Balance sheet</div>
