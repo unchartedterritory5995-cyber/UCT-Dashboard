@@ -843,3 +843,34 @@ class _FakeCache:
 
     def set(self, k, v, ttl=None):
         self._d[k] = v
+
+
+def test_a_cold_recap_fetches_webcast_and_ratings_CONCURRENTLY(client):
+    """Pinned with a barrier, not a stopwatch.
+
+    When the recap is not warmed the handler must still fetch the webcast link
+    and the rating trend. Awaited in source order those two WERE the cost of a
+    cold open — 3.12s p95 under 20 concurrent readers against 0.05s once
+    cached. Both must be in flight at once, or the barrier never releases.
+    """
+    import threading
+    barrier = threading.Barrier(2, timeout=5)
+
+    def _leg(result):
+        def fn(_sym):
+            barrier.wait()          # BrokenBarrierError if run one after another
+            return result
+        return fn
+
+    with patch("api.routers.earnings_intel.get_call_recap_with_status",
+               return_value=(None, "generating")), \
+         patch("api.routers.earnings_intel.get_webcast_url",
+               side_effect=_leg("https://ir.example.com")), \
+         patch("api.routers.earnings_intel.get_rating_changes",
+               side_effect=_leg([{"period": "2026-08-01"}])):
+        r = client.get("/api/earnings/call-recap/NVDA")
+
+    assert r.status_code == 200
+    data = r.json()
+    assert data["webcast_url"] == "https://ir.example.com"
+    assert len(data["rating_changes"]) == 1
