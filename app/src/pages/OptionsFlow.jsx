@@ -636,6 +636,13 @@ export default function OptionsFlowDashboard() {
   const [convictionPct, setConvictionPct] = useState("All"); // All, 90bull, 80bull, 90bear, 80bear
   const [convictionActivity, setConvictionActivity] = useState("All"); // All, new, uoa
   const [convictionExpanded, setConvictionExpanded] = useState(null); // expanded ticker // net, bull, bear, trades
+  // Cap/DTE/tab changes re-scope the leaderboard to contracts the earlier Live-OI
+  // fetch didn't cover, so a persisted Still-open overlay would BLANK the new board
+  // (applyStillOpenOverlay zeros + drops tickers without confirmed live OI — e.g.
+  // fetch OI on All, switch to Mid-Small → 0 tickers). Reset Still-open on any such
+  // change; one click re-enables it with a fresh auto-fetch for the now-visible
+  // contracts. (2026-08-10)
+  useEffect(() => { setLbStillOpenOnly(false); }, [capFilter, convictionDte, dataMode]);
   const [oiSearch, setOiSearch] = useState("");
   const [oiSort, setOiSort] = useState({col:"doi", dir:"desc", col2:"premium", dir2:"desc"});
   const [leaderDte, setLeaderDte] = useState("All");
@@ -6287,6 +6294,19 @@ export default function OptionsFlowDashboard() {
                 };
                 const bullParts = buildParts(topBullC, bullStand, bullHeat, P.bu);
                 const bearParts = buildParts(topBearC, bearStand, bearHeat, P.be);
+                // Leaderboard contracts to price (top-3 of top-25 bull+bear, deduped)
+                // — shared by the Fetch button AND the Still-open toggle's auto-fetch.
+                const _lbContracts = (() => {
+                  const seen = new Set(), out = [];
+                  [...bulls.slice(0, 25), ...bears.slice(0, 25)].forEach(tk => {
+                    (tk.topContracts || []).slice(0, 3).forEach(c => {
+                      const k = tk.sym + "|" + c.cp + "|" + c.K + "|" + c.exp;
+                      if (!seen.has(k)) { seen.add(k); out.push({ sym: tk.sym, cp: c.cp, strike: c.K, exp: c.exp }); }
+                    });
+                  });
+                  return out;
+                })();
+                const _lbOiReady = Object.keys(priceCache).length > 0;
 
                 return (
                   <Card>
@@ -6299,69 +6319,46 @@ export default function OptionsFlowDashboard() {
                             row showing whether positions are still being built
                             or are fading. Without this, ΔOI only shows for
                             contracts the user already fetched on Search. */}
-                        {(() => {
-                          // Collect top-3 contracts from all visible rows so
-                          // expanded panels also benefit. Dedup by ticker+CP+
-                          // strike+exp since tickers may appear in both lists
-                          // (rare but possible with split direction). Top 3
-                          // gives ~150 contracts max which fits in ~8 batches.
-                          const seen = new Set();
-                          const contracts = [];
-                          [...bulls.slice(0, 25), ...bears.slice(0, 25)].forEach(tk => {
-                            (tk.topContracts || []).slice(0, 3).forEach(c => {
-                              const k = tk.sym + "|" + c.cp + "|" + c.K + "|" + c.exp;
-                              if (!seen.has(k)) {
-                                seen.add(k);
-                                contracts.push({ sym: tk.sym, cp: c.cp, strike: c.K, exp: c.exp });
-                              }
-                            });
-                          });
-                          // Disabled when zero contracts (no data loaded yet)
-                          // or already fetching. Label includes count so user
-                          // knows the scope before clicking — important since
-                          // a full fetch takes ~5-10 seconds.
-                          return (
-                            <button
-                              onClick={() => fetchPrices(contracts)}
-                              disabled={fetchLoading || contracts.length === 0}
-                              style={{
-                                padding:"4px 12px", borderRadius:6,
-                                border: "1px solid " + (fetchLoading ? P.bd : P.sw),
-                                cursor: fetchLoading || !contracts.length ? "not-allowed" : "pointer",
-                                fontSize:9, fontWeight:700, fontFamily:"inherit",
-                                background: fetchLoading ? P.bd : P.sw + "22",
-                                color: fetchLoading ? P.dm : P.sw,
-                                letterSpacing: 0.5,
-                              }}
-                              title="Fetch live OI + prices from Schwab for every Top Contract on this leaderboard. Once complete, ΔOI badges show whether each position is being built (green) or faded (red)."
-                            >
-                              {fetchLoading ? "Fetching…" : `⚡ Fetch Live OI (${contracts.length})`}
-                            </button>
-                          );
-                        })()}
-                        {/* Still-open flow toggle (2026-07-18): placed next to
-                            Fetch Live OI because it operates on the fetched OI —
-                            shows still-open premium (position not yet closed)
-                            instead of raw. Disabled until OI is fetched. */}
-                        {(() => {
-                          const oiReady = Object.keys(priceCache).length > 0;
-                          return (
-                            <button
-                              onClick={()=> oiReady && setLbStillOpenOnly(v=>!v)}
-                              disabled={!oiReady}
-                              title={oiReady
-                                ? "Show still-open flow only — filters each ticker's bull/bear premium to positions still open today (Live OI ≥ entry). Reveals whether the leading flow is still on or already closed out."
-                                : "Fetch Live OI first, then this filters the leaderboard to still-open flow."}
-                              style={{ padding:"4px 12px", borderRadius:6,
-                                border:"1px solid "+(lbStillOpenOnly?P.bu:P.bd),
-                                cursor:oiReady?"pointer":"not-allowed", fontSize:9, fontWeight:700, fontFamily:"inherit",
-                                background:lbStillOpenOnly?P.bu+"22":"transparent",
-                                color:lbStillOpenOnly?P.bu:(oiReady?P.mt:"#555"),
-                                letterSpacing:0.5, opacity:oiReady?1:0.6 }}>
-                              {lbStillOpenOnly ? "✓ Still-open" : "Still-open"}
-                            </button>
-                          );
-                        })()}
+                        <button
+                          onClick={() => fetchPrices(_lbContracts)}
+                          disabled={fetchLoading || _lbContracts.length === 0}
+                          style={{
+                            padding:"4px 12px", borderRadius:6,
+                            border: "1px solid " + (fetchLoading ? P.bd : P.sw),
+                            cursor: fetchLoading || !_lbContracts.length ? "not-allowed" : "pointer",
+                            fontSize:9, fontWeight:700, fontFamily:"inherit",
+                            background: fetchLoading ? P.bd : P.sw + "22",
+                            color: fetchLoading ? P.dm : P.sw,
+                            letterSpacing: 0.5,
+                          }}
+                          title="Fetch live OI + prices from Schwab for every Top Contract on this leaderboard. Once complete, ΔOI badges show whether each position is being built (green) or faded (red)."
+                        >
+                          {fetchLoading ? "Fetching…" : `⚡ Fetch Live OI (${_lbContracts.length})`}
+                        </button>
+                        {/* Still-open flow toggle (2026-07-18; auto-fetch 2026-08-10):
+                            turning it ON auto-fetches Live OI if not loaded yet (one
+                            click), matching the Search tab's "Still open (all)" — no
+                            separate Fetch-first step. Operates on the fetched OI. */}
+                        <button
+                          onClick={() => {
+                            if (!_lbOiReady) {
+                              if (!fetchLoading && _lbContracts.length) { setLbStillOpenOnly(true); fetchPrices(_lbContracts); }
+                            } else {
+                              setLbStillOpenOnly(v => !v);
+                            }
+                          }}
+                          disabled={fetchLoading || _lbContracts.length === 0}
+                          title={_lbOiReady
+                            ? "Show still-open flow only — filters each ticker's bull/bear premium to positions still open today (Live OI ≥ entry). Reveals whether the leading flow is still on or already closed out."
+                            : "Show still-open flow — auto-fetches Live OI, then filters the leaderboard to positions still open today."}
+                          style={{ padding:"4px 12px", borderRadius:6,
+                            border:"1px solid "+(lbStillOpenOnly?P.bu:P.bd),
+                            cursor:(fetchLoading || !_lbContracts.length)?"not-allowed":"pointer", fontSize:9, fontWeight:700, fontFamily:"inherit",
+                            background:lbStillOpenOnly?P.bu+"22":"transparent",
+                            color:lbStillOpenOnly?P.bu:P.mt,
+                            letterSpacing:0.5, opacity:(fetchLoading || !_lbContracts.length)?0.6:1 }}>
+                          {(fetchLoading && lbStillOpenOnly && !_lbOiReady) ? "Still-open · fetching…" : (lbStillOpenOnly ? "✓ Still-open" : "Still-open")}
+                        </button>
                         {/* Coverage. computeStillOpen can only confirm contracts with
                             a live quote, so without this the trader cannot tell
                             "this position closed out" from "we never priced it". */}
@@ -6371,6 +6368,8 @@ export default function OptionsFlowDashboard() {
                                  title="Still-open premium can only be confirmed for contracts with live OI. Tickers without it are excluded from this ranking rather than ranked on raw premium.">
                               {_lbOpenCoverage.priced}/{_lbOpenCoverage.total} tickers have live OI
                             </div>
+                          ) : fetchLoading ? (
+                            <div style={{ fontSize:9, color:P.dm }}>fetching live OI…</div>
                           ) : (
                             <div style={{ fontSize:9, color:P.ye, fontWeight:700 }}
                                  title="No contract on this board has live OI yet, so still-open premium cannot be computed. Showing raw premium instead of an empty board.">

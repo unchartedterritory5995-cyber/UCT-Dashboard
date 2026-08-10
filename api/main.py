@@ -3866,6 +3866,31 @@ async def lifespan(app: FastAPI):
             logging.getLogger(__name__).exception(
                 "[startup] failed to schedule breadth-live intraday sampler")
 
+        # Breadth-chart candle WICKS: each evening aggregate the day's REAL intraday breadth
+        # samples (breadth_intraday, full-universe) into permanent daily OHLC. Cheap (aggregates
+        # stored JSON — no recompute, no OOM class), accurate (real samples, not daily-bar
+        # extrapolation). Covers the last few days so a missed evening self-heals.
+        try:
+            def _breadth_ohlc_intraday_agg():
+                try:
+                    from api.services import breadth_daily_ohlc
+                    res = breadth_daily_ohlc.backfill_from_intraday(4)
+                    logging.getLogger(__name__).info("[breadth-ohlc] intraday agg: %s", res)
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[breadth-ohlc] intraday agg failed: %s", _e)
+
+            _scheduler.add_job(
+                _breadth_ohlc_intraday_agg,
+                trigger=CronTrigger(day_of_week="mon-fri", hour=17, minute=15, timezone=_ET),
+                id="breadth_ohlc_intraday_agg", max_instances=1,
+                coalesce=True, misfire_grace_time=3600, replace_existing=True)
+            logging.getLogger(__name__).info(
+                "[startup] breadth OHLC intraday aggregation scheduled (weekdays 17:15 ET)")
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "[startup] failed to schedule breadth OHLC intraday aggregation")
+
+
         # Broker Sync -- background incremental sync across all connected users.
         # Gated by BROKER_SYNC_ENABLED (default OFF -> fully inert). Runs on the
         # web pod (auth.db is web-local). Bounded async concurrency inside the

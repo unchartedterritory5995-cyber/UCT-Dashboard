@@ -209,13 +209,16 @@ def _et_today() -> Optional[str]:
 
 
 def _live_map() -> dict:
-    """The current LIVE breadth snapshot (metric_key -> value) computed against the
-    latest market prices, or {} when live breadth is disabled/unavailable. Cached by
-    breadth_live.compute_live itself, so calling it per request is cheap."""
+    """The current LIVE breadth snapshot as a FLAT {metric_key: value} dict, or {} when
+    live breadth is disabled/unavailable. `compute_live()` returns a WRAPPER — the flat
+    metric set lives under `payload["metrics"]` — so pull that out. Cached by compute_live
+    itself, so calling it per request is cheap."""
     try:
         from api.services import breadth_live
         if breadth_live.enabled():
-            return breadth_live.compute_live() or {}
+            payload = breadth_live.compute_live() or {}
+            m = payload.get("metrics")
+            return m if isinstance(m, dict) else {}
     except Exception:
         pass
     return {}
@@ -316,31 +319,53 @@ def build_breadth_bars(sym: str, tf: str = "D", bars: int = 400) -> dict:
             continue
         seq.append((d, fv))
 
-    # Close-to-close candles: body spans prior value → this value.
+    # Per-day OHLC from the wick store (live accumulator + historical reconstruction).
+    # A day with a stored row renders a real candle WITH WICKS; a day that predates the
+    # store falls back to a close-to-close body. `c` always comes from the authoritative
+    # EOD snapshot value; the stored h/l only widen the range.
+    ohlc_map = {}
+    try:
+        from api.services import breadth_daily_ohlc
+        ohlc_map = breadth_daily_ohlc.history(metric)
+    except Exception:
+        ohlc_map = {}
+
     daily: list[dict] = []
     prev: Optional[float] = None
     for (d, v) in seq:
-        o = prev if prev is not None else v
-        daily.append({"t": d, "o": round(o, 4), "h": round(max(o, v), 4),
-                      "l": round(min(o, v), 4), "c": round(v, 4), "v": 0})
+        row = ohlc_map.get(d)
+        ro = _finite((row or {}).get("o")) if row else None
+        rh = _finite((row or {}).get("h")) if row else None
+        rl = _finite((row or {}).get("l")) if row else None
+        if row and None not in (ro, rh, rl):
+            o, c = ro, v
+            h = max(rh, o, c)
+            l = min(rl, o, c)
+        else:
+            o, c = (prev if prev is not None else v), v   # close-to-close body
+            h, l = max(o, c), min(o, c)
+        daily.append({"t": d, "o": round(o, 4), "h": round(h, 4),
+                      "l": round(l, 4), "c": round(c, 4), "v": 0})
         prev = v
 
-    # DEVELOPING today candle from the LIVE breadth snapshot. The stored history is
-    # EOD-only, so without this the last candle is the prior session (the "chart is
-    # stuck on Friday" report). Append today's candle (body = prior close → live value)
-    # when today is a new session, or refresh today's stored candle's close to live.
+    # DEVELOPING today candle (today isn't a stored EOD row yet). Base the wick on the
+    # store's today row (real intraday high/low from the accumulator / a same-day
+    # reconstruction) when present; ALWAYS fold in the freshest LIVE value as the close so
+    # the candle keeps ticking instead of freezing at the last reconstruction. Open = the
+    # store's open, else the prior session's close.
     today = _et_today()
-    live_val = _finite(_live_map().get(metric))
-    if live_val is not None and today and daily:
-        last = daily[-1]
-        if last["t"] < today:
-            pc = last["c"]
-            daily.append({"t": today, "o": round(pc, 4), "h": round(max(pc, live_val), 4),
-                          "l": round(min(pc, live_val), 4), "c": round(live_val, 4), "v": 0})
-        elif last["t"] == today:
-            last["c"] = round(live_val, 4)
-            last["h"] = round(max(last["h"], live_val), 4)
-            last["l"] = round(min(last["l"], live_val), 4)
+    if today and daily and daily[-1]["t"] < today:
+        trow = ohlc_map.get(today) or {}
+        live_val = _finite(_live_map().get(metric))
+        so = _finite(trow.get("o")); sh = _finite(trow.get("h"))
+        sl = _finite(trow.get("l")); sc = _finite(trow.get("c"))
+        c = live_val if live_val is not None else sc
+        o = so if so is not None else daily[-1]["c"]
+        if c is not None:
+            h = max([x for x in (sh, o, c) if x is not None])
+            l = min([x for x in (sl, o, c) if x is not None])
+            daily.append({"t": today, "o": round(o, 4), "h": round(h, 4),
+                          "l": round(l, 4), "c": round(c, 4), "v": 0})
 
     out = _resample(daily, tf)
     if bars and len(out) > bars:
