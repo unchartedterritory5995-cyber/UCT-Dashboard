@@ -47,9 +47,9 @@ const VOCABULARY = {
  *  entire reason for existing is that a single reassuring number hid the truth
  *  once already. */
 const EXPECTED = {
-  'price letters': 6, 'math operators': 2, 'math functions': 3, relational: 4,
-  logical: 3, crossing: 2, 'moving averages': 5, aggregates: 6, oscillators: 5,
-  conditional: 1, stateful: 3, 'trig and hyperbolic': 0,
+  'price letters': 6, 'math operators': 5, 'math functions': 8, relational: 4,
+  logical: 7, crossing: 2, 'moving averages': 5, aggregates: 6, oscillators: 5,
+  conditional: 1, stateful: 3, 'trig and hyperbolic': 5,
 }
 
 const reads = (src) => {
@@ -88,10 +88,25 @@ describe('the TC2000 vocabulary, measured against Worden`s own syntax table', ()
     // The baseline this file was created at. ⚠️ Raising it is a deliberate edit,
     // never a side effect — see the header on why a high score is not the goal.
     // ⚰️ 35 at the first measurement, 37 with three oscillator spellings, 40 once
-    // `CountTrue`/`SinceTrue`/`TrueInRow` were built on the recurrence. ⚠️ Raising
-    // it is a deliberate edit, never a side effect — see the header on why a high
-    // score is not the goal.
-    expect(expected).toBe(40)
+    // `CountTrue`/`SinceTrue`/`TrueInRow` were built on the recurrence, 44 with the
+    // four derived logical operators, and 57 with the pure-math block.
+    //
+    // ⭐ 40 → 57 IS THIRTEEN SPELLINGS AND *NO* NEW JUDGEMENT. `^ MOD \`, the five
+    // math functions and the five trig functions are deterministic mathematics —
+    // there is no formula to get subtly wrong, which is exactly why they were the
+    // right block to take first. The four logical operators are DERIVED from `&&`
+    // `||` `!`, so they added no vocabulary either.
+    //
+    // ⛔ WHAT REMAINS IS NOT ALL "MISSING". Of the 14 short, SIX are principled
+    // refusals that must never close: `RSI`/`WSTOC` are different formulas wearing
+    // familiar names, and `MS`/`TSV` are Worden-proprietary and unpublished. A
+    // reading of 71 would mean this table had started answering those with
+    // something they are not — which is worse than refusing, and is the whole
+    // reason the total is pinned in both directions.
+    //
+    // ⚠️ Raising it is a deliberate edit, never a side effect — see the header on
+    // why a high score is not the goal.
+    expect(expected).toBe(57)
   })
 })
 

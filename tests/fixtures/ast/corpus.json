@@ -13,8 +13,14 @@
         "type": "call",
         "name": "sma",
         "args": [
-          { "type": "series", "name": "close" },
-          { "type": "num", "value": 20 }
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 20
+          }
         ]
       }
     },
@@ -26,8 +32,34 @@
         "type": "op",
         "name": "-",
         "args": [
-          { "type": "call", "name": "sma", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 20 } ] },
-          { "type": "call", "name": "sma", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 200 } ] }
+          {
+            "type": "call",
+            "name": "sma",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 20
+              }
+            ]
+          },
+          {
+            "type": "call",
+            "name": "sma",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 200
+              }
+            ]
+          }
         ]
       }
     },
@@ -39,8 +71,24 @@
         "type": "op",
         "name": "/",
         "args": [
-          { "type": "call", "name": "highest", "args": [ { "type": "series", "name": "high" }, { "type": "num", "value": 5 } ] },
-          { "type": "num", "value": 2 }
+          {
+            "type": "call",
+            "name": "highest",
+            "args": [
+              {
+                "type": "series",
+                "name": "high"
+              },
+              {
+                "type": "num",
+                "value": 5
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 2
+          }
         ]
       }
     },
@@ -52,8 +100,24 @@
         "type": "op",
         "name": ">",
         "args": [
-          { "type": "series", "name": "close" },
-          { "type": "call", "name": "sma", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 200 } ] }
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "call",
+            "name": "sma",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 200
+              }
+            ]
+          }
         ]
       }
     },
@@ -65,9 +129,28 @@
         "type": "op",
         "name": "?:",
         "args": [
-          { "type": "op", "name": ">", "args": [ { "type": "series", "name": "close" }, { "type": "series", "name": "open" } ] },
-          { "type": "series", "name": "high" },
-          { "type": "series", "name": "low" }
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "series",
+                "name": "open"
+              }
+            ]
+          },
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "series",
+            "name": "low"
+          }
         ]
       }
     },
@@ -83,11 +166,40 @@
             "type": "op",
             "name": "-",
             "args": [
-              { "type": "call", "name": "ema", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 9 } ] },
-              { "type": "call", "name": "ema", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 21 } ] }
+              {
+                "type": "call",
+                "name": "ema",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "num",
+                    "value": 9
+                  }
+                ]
+              },
+              {
+                "type": "call",
+                "name": "ema",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "num",
+                    "value": 21
+                  }
+                ]
+              }
             ]
           },
-          { "type": "num", "value": 5 }
+          {
+            "type": "num",
+            "value": 5
+          }
         ]
       }
     },
@@ -99,8 +211,34 @@
         "type": "call",
         "name": "crossOver",
         "args": [
-          { "type": "call", "name": "ema", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 9 } ] },
-          { "type": "call", "name": "ema", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 21 } ] }
+          {
+            "type": "call",
+            "name": "ema",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 9
+              }
+            ]
+          },
+          {
+            "type": "call",
+            "name": "ema",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 21
+              }
+            ]
+          }
         ]
       }
     },
@@ -112,8 +250,34 @@
         "type": "call",
         "name": "crossUnder",
         "args": [
-          { "type": "call", "name": "ema", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 9 } ] },
-          { "type": "call", "name": "ema", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 21 } ] }
+          {
+            "type": "call",
+            "name": "ema",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 9
+              }
+            ]
+          },
+          {
+            "type": "call",
+            "name": "ema",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 21
+              }
+            ]
+          }
         ]
       }
     },
@@ -125,8 +289,24 @@
         "type": "op",
         "name": "/",
         "args": [
-          { "type": "series", "name": "volume" },
-          { "type": "call", "name": "sma", "args": [ { "type": "series", "name": "volume" }, { "type": "num", "value": 20 } ] }
+          {
+            "type": "series",
+            "name": "volume"
+          },
+          {
+            "type": "call",
+            "name": "sma",
+            "args": [
+              {
+                "type": "series",
+                "name": "volume"
+              },
+              {
+                "type": "num",
+                "value": 20
+              }
+            ]
+          }
         ]
       }
     },
@@ -138,8 +318,14 @@
         "type": "call",
         "name": "lowest",
         "args": [
-          { "type": "series", "name": "low" },
-          { "type": "num", "value": 10 }
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "num",
+            "value": 10
+          }
         ]
       }
     },
@@ -151,13 +337,42 @@
         "type": "op",
         "name": "+",
         "args": [
-          { "type": "call", "name": "sma", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 20 } ] },
+          {
+            "type": "call",
+            "name": "sma",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 20
+              }
+            ]
+          },
           {
             "type": "op",
             "name": "*",
             "args": [
-              { "type": "num", "value": 2 },
-              { "type": "call", "name": "stdev", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 20 } ] }
+              {
+                "type": "num",
+                "value": 2
+              },
+              {
+                "type": "call",
+                "name": "stdev",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "num",
+                    "value": 20
+                  }
+                ]
+              }
             ]
           }
         ]
@@ -171,7 +386,16 @@
         "type": "call",
         "name": "abs",
         "args": [
-          { "type": "call", "name": "change", "args": [ { "type": "series", "name": "close" } ] }
+          {
+            "type": "call",
+            "name": "change",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          }
         ]
       }
     },
@@ -186,9 +410,21 @@
           {
             "type": "call",
             "name": "min",
-            "args": [ { "type": "series", "name": "close" }, { "type": "series", "name": "open" } ]
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "series",
+                "name": "open"
+              }
+            ]
           },
-          { "type": "series", "name": "low" }
+          {
+            "type": "series",
+            "name": "low"
+          }
         ]
       }
     },
@@ -200,8 +436,24 @@
         "type": "op",
         "name": "<",
         "args": [
-          { "type": "series", "name": "close" },
-          { "type": "call", "name": "lowest", "args": [ { "type": "series", "name": "low" }, { "type": "num", "value": 20 } ] }
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "call",
+            "name": "lowest",
+            "args": [
+              {
+                "type": "series",
+                "name": "low"
+              },
+              {
+                "type": "num",
+                "value": 20
+              }
+            ]
+          }
         ]
       }
     },
@@ -213,8 +465,34 @@
         "type": "op",
         "name": "&&",
         "args": [
-          { "type": "op", "name": ">=", "args": [ { "type": "series", "name": "close" }, { "type": "series", "name": "open" } ] },
-          { "type": "op", "name": "<=", "args": [ { "type": "series", "name": "close" }, { "type": "series", "name": "high" } ] }
+          {
+            "type": "op",
+            "name": ">=",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "series",
+                "name": "open"
+              }
+            ]
+          },
+          {
+            "type": "op",
+            "name": "<=",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "series",
+                "name": "high"
+              }
+            ]
+          }
         ]
       }
     },
@@ -230,10 +508,36 @@
             "type": "op",
             "name": "!",
             "args": [
-              { "type": "op", "name": "==", "args": [ { "type": "series", "name": "close" }, { "type": "series", "name": "open" } ] }
+              {
+                "type": "op",
+                "name": "==",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "series",
+                    "name": "open"
+                  }
+                ]
+              }
             ]
           },
-          { "type": "op", "name": "!=", "args": [ { "type": "series", "name": "close" }, { "type": "series", "name": "low" } ] }
+          {
+            "type": "op",
+            "name": "!=",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "series",
+                "name": "low"
+              }
+            ]
+          }
         ]
       }
     },
@@ -245,7 +549,16 @@
         "type": "op",
         "name": "u-",
         "args": [
-          { "type": "call", "name": "change", "args": [ { "type": "series", "name": "close" } ] }
+          {
+            "type": "call",
+            "name": "change",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          }
         ]
       }
     },
@@ -257,8 +570,24 @@
         "type": "op",
         "name": ">",
         "args": [
-          { "type": "call", "name": "rsi", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 14 } ] },
-          { "type": "num", "value": 70 }
+          {
+            "type": "call",
+            "name": "rsi",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 14
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 70
+          }
         ]
       }
     },
@@ -270,8 +599,24 @@
         "type": "call",
         "name": "rsi",
         "args": [
-          { "type": "call", "name": "sma", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 20 } ] },
-          { "type": "num", "value": 14 }
+          {
+            "type": "call",
+            "name": "sma",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 20
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 14
+          }
         ]
       }
     },
@@ -283,9 +628,18 @@
         "type": "call",
         "name": "macd",
         "args": [
-          { "type": "series", "name": "close" },
-          { "type": "num", "value": 12 },
-          { "type": "num", "value": 26 }
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 12
+          },
+          {
+            "type": "num",
+            "value": 26
+          }
         ]
       }
     },
@@ -300,9 +654,25 @@
           {
             "type": "call",
             "name": "macd",
-            "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 12 }, { "type": "num", "value": 26 } ]
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 12
+              },
+              {
+                "type": "num",
+                "value": 26
+              }
+            ]
           },
-          { "type": "num", "value": 9 }
+          {
+            "type": "num",
+            "value": 9
+          }
         ]
       }
     },
@@ -314,10 +684,22 @@
         "type": "call",
         "name": "atr",
         "args": [
-          { "type": "series", "name": "high" },
-          { "type": "series", "name": "low" },
-          { "type": "series", "name": "close" },
-          { "type": "num", "value": 14 }
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 14
+          }
         ]
       }
     },
@@ -329,10 +711,22 @@
         "type": "call",
         "name": "plusDI",
         "args": [
-          { "type": "series", "name": "high" },
-          { "type": "series", "name": "low" },
-          { "type": "series", "name": "close" },
-          { "type": "num", "value": 14 }
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 14
+          }
         ]
       }
     },
@@ -344,10 +738,22 @@
         "type": "call",
         "name": "minusDI",
         "args": [
-          { "type": "series", "name": "high" },
-          { "type": "series", "name": "low" },
-          { "type": "series", "name": "close" },
-          { "type": "num", "value": 14 }
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 14
+          }
         ]
       }
     },
@@ -359,10 +765,22 @@
         "type": "call",
         "name": "stoch",
         "args": [
-          { "type": "series", "name": "high" },
-          { "type": "series", "name": "low" },
-          { "type": "series", "name": "close" },
-          { "type": "num", "value": 14 }
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 14
+          }
         ]
       }
     },
@@ -378,13 +796,28 @@
             "type": "call",
             "name": "stoch",
             "args": [
-              { "type": "series", "name": "high" },
-              { "type": "series", "name": "low" },
-              { "type": "series", "name": "close" },
-              { "type": "num", "value": 14 }
+              {
+                "type": "series",
+                "name": "high"
+              },
+              {
+                "type": "series",
+                "name": "low"
+              },
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 14
+              }
             ]
           },
-          { "type": "num", "value": 3 }
+          {
+            "type": "num",
+            "value": 3
+          }
         ]
       }
     },
@@ -396,10 +829,22 @@
         "type": "call",
         "name": "cci",
         "args": [
-          { "type": "series", "name": "high" },
-          { "type": "series", "name": "low" },
-          { "type": "series", "name": "close" },
-          { "type": "num", "value": 20 }
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 20
+          }
         ]
       }
     },
@@ -411,10 +856,22 @@
         "type": "call",
         "name": "williamsR",
         "args": [
-          { "type": "series", "name": "high" },
-          { "type": "series", "name": "low" },
-          { "type": "series", "name": "close" },
-          { "type": "num", "value": 14 }
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 14
+          }
         ]
       }
     },
@@ -426,11 +883,26 @@
         "type": "call",
         "name": "mfi",
         "args": [
-          { "type": "series", "name": "high" },
-          { "type": "series", "name": "low" },
-          { "type": "series", "name": "close" },
-          { "type": "series", "name": "volume" },
-          { "type": "num", "value": 14 }
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "series",
+            "name": "volume"
+          },
+          {
+            "type": "num",
+            "value": 14
+          }
         ]
       }
     },
@@ -442,9 +914,18 @@
         "type": "call",
         "name": "donchianUpper",
         "args": [
-          { "type": "series", "name": "high" },
-          { "type": "series", "name": "low" },
-          { "type": "num", "value": 20 }
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "num",
+            "value": 20
+          }
         ]
       }
     },
@@ -456,9 +937,18 @@
         "type": "call",
         "name": "donchianMiddle",
         "args": [
-          { "type": "series", "name": "high" },
-          { "type": "series", "name": "low" },
-          { "type": "num", "value": 20 }
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "num",
+            "value": 20
+          }
         ]
       }
     },
@@ -470,9 +960,18 @@
         "type": "call",
         "name": "donchianLower",
         "args": [
-          { "type": "series", "name": "high" },
-          { "type": "series", "name": "low" },
-          { "type": "num", "value": 20 }
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "num",
+            "value": 20
+          }
         ]
       }
     },
@@ -484,11 +983,26 @@
         "type": "call",
         "name": "ichimokuTenkan",
         "args": [
-          { "type": "series", "name": "high" },
-          { "type": "series", "name": "low" },
-          { "type": "num", "value": 9 },
-          { "type": "num", "value": 26 },
-          { "type": "num", "value": 52 }
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "num",
+            "value": 9
+          },
+          {
+            "type": "num",
+            "value": 26
+          },
+          {
+            "type": "num",
+            "value": 52
+          }
         ]
       }
     },
@@ -500,11 +1014,26 @@
         "type": "call",
         "name": "ichimokuKijun",
         "args": [
-          { "type": "series", "name": "high" },
-          { "type": "series", "name": "low" },
-          { "type": "num", "value": 9 },
-          { "type": "num", "value": 26 },
-          { "type": "num", "value": 52 }
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "num",
+            "value": 9
+          },
+          {
+            "type": "num",
+            "value": 26
+          },
+          {
+            "type": "num",
+            "value": 52
+          }
         ]
       }
     },
@@ -516,11 +1045,26 @@
         "type": "call",
         "name": "ichimokuSpanA",
         "args": [
-          { "type": "series", "name": "high" },
-          { "type": "series", "name": "low" },
-          { "type": "num", "value": 9 },
-          { "type": "num", "value": 26 },
-          { "type": "num", "value": 52 }
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "num",
+            "value": 9
+          },
+          {
+            "type": "num",
+            "value": 26
+          },
+          {
+            "type": "num",
+            "value": 52
+          }
         ]
       }
     },
@@ -532,11 +1076,26 @@
         "type": "call",
         "name": "ichimokuSpanB",
         "args": [
-          { "type": "series", "name": "high" },
-          { "type": "series", "name": "low" },
-          { "type": "num", "value": 9 },
-          { "type": "num", "value": 26 },
-          { "type": "num", "value": 52 }
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "num",
+            "value": 9
+          },
+          {
+            "type": "num",
+            "value": 26
+          },
+          {
+            "type": "num",
+            "value": 52
+          }
         ]
       }
     },
@@ -548,12 +1107,30 @@
         "type": "call",
         "name": "ichimokuChikou",
         "args": [
-          { "type": "series", "name": "high" },
-          { "type": "series", "name": "low" },
-          { "type": "series", "name": "close" },
-          { "type": "num", "value": 9 },
-          { "type": "num", "value": 26 },
-          { "type": "num", "value": 52 }
+          {
+            "type": "series",
+            "name": "high"
+          },
+          {
+            "type": "series",
+            "name": "low"
+          },
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 9
+          },
+          {
+            "type": "num",
+            "value": 26
+          },
+          {
+            "type": "num",
+            "value": 52
+          }
         ]
       }
     },
@@ -565,7 +1142,10 @@
         "type": "offset",
         "value": 1,
         "args": [
-          { "type": "series", "name": "close" }
+          {
+            "type": "series",
+            "name": "close"
+          }
         ]
       }
     },
@@ -573,7 +1153,10 @@
       "id": "offset_zero_is_identity",
       "source": "close[0]",
       "why": "`x[0]` is `x`, and the parse door FOLDS it rather than emitting a zero-bar node -- one column must have ONE canonical tree, because `astHash` decides whether an edit bumps `compute.rev` and a rev bump force-migrates every binding. Here so the fold is pinned by the round-trip rail rather than left as a comment",
-      "ast": { "type": "series", "name": "close" }
+      "ast": {
+        "type": "series",
+        "name": "close"
+      }
     },
     {
       "id": "offset_change_idiom",
@@ -583,8 +1166,20 @@
         "type": "op",
         "name": "-",
         "args": [
-          { "type": "series", "name": "close" },
-          { "type": "offset", "value": 1, "args": [ { "type": "series", "name": "close" } ] }
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "offset",
+            "value": 1,
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          }
         ]
       }
     },
@@ -596,8 +1191,20 @@
         "type": "call",
         "name": "sma",
         "args": [
-          { "type": "offset", "value": 2, "args": [ { "type": "series", "name": "close" } ] },
-          { "type": "num", "value": 20 }
+          {
+            "type": "offset",
+            "value": 2,
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 20
+          }
         ]
       }
     },
@@ -609,7 +1216,20 @@
         "type": "offset",
         "value": 2,
         "args": [
-          { "type": "call", "name": "sma", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 20 } ] }
+          {
+            "type": "call",
+            "name": "sma",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 20
+              }
+            ]
+          }
         ]
       }
     },
@@ -621,7 +1241,20 @@
         "type": "offset",
         "value": 1,
         "args": [
-          { "type": "op", "name": ">", "args": [ { "type": "series", "name": "close" }, { "type": "series", "name": "open" } ] }
+          {
+            "type": "op",
+            "name": ">",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "series",
+                "name": "open"
+              }
+            ]
+          }
         ]
       }
     },
@@ -633,8 +1266,26 @@
         "type": "op",
         "name": ">",
         "args": [
-          { "type": "offset", "value": 1, "args": [ { "type": "series", "name": "close" } ] },
-          { "type": "offset", "value": 3, "args": [ { "type": "series", "name": "close" } ] }
+          {
+            "type": "offset",
+            "value": 1,
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          },
+          {
+            "type": "offset",
+            "value": 3,
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          }
         ]
       }
     },
@@ -1001,6 +1652,396 @@
           {
             "type": "series",
             "name": "close"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sqrt_of_close",
+      "source": "sqrt(close)",
+      "why": "the square root of a positive series -- the happy path beside the negative-root case",
+      "ast": {
+        "type": "call",
+        "name": "sqrt",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sqrt_of_a_negative",
+      "source": "sqrt(0 - close)",
+      "why": "a NEGATIVE root on every bar -- JS says NaN, Python raises; both must say NaN",
+      "ast": {
+        "type": "call",
+        "name": "sqrt",
+        "args": [
+          {
+            "type": "op",
+            "name": "-",
+            "args": [
+              {
+                "type": "num",
+                "value": 0
+              },
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "ln_of_close",
+      "source": "ln(close)",
+      "why": "the natural log of a positive series -- the happy path beside the ln(0) case",
+      "ast": {
+        "type": "call",
+        "name": "ln",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ln_of_zero",
+      "source": "ln(close - close)",
+      "why": "ln(0) on every bar -- JS says -Infinity, Python raises; both must say NaN",
+      "ast": {
+        "type": "call",
+        "name": "ln",
+        "args": [
+          {
+            "type": "op",
+            "name": "-",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "log10_of_close",
+      "source": "log10(close)",
+      "why": "the base-10 log, which TC2000 spells CLG while spelling the natural one LOG",
+      "ast": {
+        "type": "call",
+        "name": "log10",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          }
+        ]
+      }
+    },
+    {
+      "id": "exp_of_a_small_number",
+      "source": "exp(close - close)",
+      "why": "exp(0) is 1 on every bar -- the ordinary case beside the overflow one",
+      "ast": {
+        "type": "call",
+        "name": "exp",
+        "args": [
+          {
+            "type": "op",
+            "name": "-",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "exp_overflow",
+      "source": "exp(close * 100)",
+      "why": "drives exp past the largest representable exponent; both lanes must answer NaN, never Infinity",
+      "ast": {
+        "type": "call",
+        "name": "exp",
+        "args": [
+          {
+            "type": "op",
+            "name": "*",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 100
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "pow_square",
+      "source": "pow(close, 2)",
+      "why": "close squared -- the tree the `^` operator rewrites to, and the ordinary pow case",
+      "ast": {
+        "type": "call",
+        "name": "pow",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "num",
+            "value": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "pow_fractional_of_negative",
+      "source": "pow(0 - close, 0.5)",
+      "why": "a negative base with a fractional exponent: Python returns a COMPLEX number, JS returns NaN",
+      "ast": {
+        "type": "call",
+        "name": "pow",
+        "args": [
+          {
+            "type": "op",
+            "name": "-",
+            "args": [
+              {
+                "type": "num",
+                "value": 0
+              },
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 0.5
+          }
+        ]
+      }
+    },
+    {
+      "id": "mod_truncated",
+      "source": "mod(0 - close, 3)",
+      "why": "a NEGATIVE left operand -- Python's % is floored and TC2000 truncates, so the sign must follow the left",
+      "ast": {
+        "type": "call",
+        "name": "mod",
+        "args": [
+          {
+            "type": "op",
+            "name": "-",
+            "args": [
+              {
+                "type": "num",
+                "value": 0
+              },
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "mod_by_zero",
+      "source": "mod(close, close - close)",
+      "why": "a zero divisor on every bar -- neither lane may raise, and neither may answer an infinity",
+      "ast": {
+        "type": "call",
+        "name": "mod",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "op",
+            "name": "-",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "idiv_truncated",
+      "source": "idiv(0 - close, 3)",
+      "why": "integer division truncating toward zero on a negative",
+      "ast": {
+        "type": "call",
+        "name": "idiv",
+        "args": [
+          {
+            "type": "op",
+            "name": "-",
+            "args": [
+              {
+                "type": "num",
+                "value": 0
+              },
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "sin_of_close",
+      "source": "sin(close)",
+      "why": "the sine over an unbounded input; the ordinary trig case both lanes must agree on",
+      "ast": {
+        "type": "call",
+        "name": "sin",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          }
+        ]
+      }
+    },
+    {
+      "id": "cos_of_close",
+      "source": "cos(close)",
+      "why": "the cosine over an unbounded input; the ordinary trig case both lanes must agree on",
+      "ast": {
+        "type": "call",
+        "name": "cos",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          }
+        ]
+      }
+    },
+    {
+      "id": "tan_of_close",
+      "source": "tan(close)",
+      "why": "the tangent, which grows large near pi/2 but is never actually infinite in floating point",
+      "ast": {
+        "type": "call",
+        "name": "tan",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          }
+        ]
+      }
+    },
+    {
+      "id": "atan_of_close",
+      "source": "atan(close)",
+      "why": "the arctangent, which TC2000 spells ARCTAN; bounded output over an unbounded input",
+      "ast": {
+        "type": "call",
+        "name": "atan",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sinh_of_a_small_number",
+      "source": "sinh(close - close)",
+      "why": "sinh(0) is 0 -- the ordinary case",
+      "ast": {
+        "type": "call",
+        "name": "sinh",
+        "args": [
+          {
+            "type": "op",
+            "name": "-",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "sinh_overflow",
+      "source": "sinh(close * 100)",
+      "why": "drives sinh past the representable range; both lanes must answer NaN",
+      "ast": {
+        "type": "call",
+        "name": "sinh",
+        "args": [
+          {
+            "type": "op",
+            "name": "*",
+            "args": [
+              {
+                "type": "series",
+                "name": "close"
+              },
+              {
+                "type": "num",
+                "value": 100
+              }
+            ]
           }
         ]
       }

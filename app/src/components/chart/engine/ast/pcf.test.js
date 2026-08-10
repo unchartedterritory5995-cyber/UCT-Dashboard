@@ -188,7 +188,14 @@ describe('every unsupported construct refuses by name at its exact position', ()
     // reachable from a published TC2000 formula — they are reached below,
     // deliberately, and named here so the identity still closes.
     for (const c of CORPUS.offset_dependent) fired.add(c.guard)
-    for (const g of ['pcf:empty', 'pcf:depth', 'pcf:function', 'pcf:signature']) fired.add(g)
+    // ⚰️ `pcf:operator` JOINED THIS LIST WHEN `^`/`\\`/`MOD` BECAME SUPPORTED.
+    // Its old call site refused those three by name and is gone; the guard
+    // itself SURVIVES in `operator()`, where it fires if this reader ever emits
+    // an operator `closedTable` does not declare. That is an internal invariant,
+    // not something a member can type — so it is unreachable from the corpus in
+    // exactly the way the four below are, and is named here for the same reason.
+    for (const g of ['pcf:empty', 'pcf:depth', 'pcf:function', 'pcf:signature',
+                     'pcf:operator']) fired.add(g)
     expect([...fired].sort()).toEqual([...declared].sort())
   })
 

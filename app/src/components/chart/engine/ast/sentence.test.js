@@ -116,6 +116,26 @@ const FORMS = [
   { kind: 'call', name: 'highest', parts: ['the highest ', 0, ' of the last ', 1, ' bars'] },
   { kind: 'call', name: 'lowest', parts: ['the lowest ', 0, ' of the last ', 1, ' bars'] },
   { kind: 'call', name: 'change', parts: ['the bar-over-bar change in ', 0] },
+
+  // ── pure math ──────────────────────────────────────────────────────────────
+  // ⭐ THE INVERSE IS HAND-WRITTEN ON PURPOSE, like every form above it. Deriving
+  // these from `closedTable`'s `sentence` strings would make the oracle agree
+  // with the renderer by construction, and the round-trip would prove nothing.
+  // ⚠️ `the hyperbolic sine of` must not be read as `the sine of` with a stray
+  // prefix — it is not, because a form only counts when its OPERAND parses too,
+  // and `hyperbolic sine of close` is not a readable operand.
+  { kind: 'call', name: 'sqrt', parts: ['the square root of ', 0] },
+  { kind: 'call', name: 'ln', parts: ['the natural log of ', 0] },
+  { kind: 'call', name: 'log10', parts: ['the base-10 log of ', 0] },
+  { kind: 'call', name: 'exp', parts: ['e raised to ', 0] },
+  { kind: 'call', name: 'pow', parts: [0, ' raised to the power ', 1] },
+  { kind: 'call', name: 'mod', parts: ['the remainder of ', 0, ' divided by ', 1] },
+  { kind: 'call', name: 'idiv', parts: [0, ' divided by ', 1, ', rounded toward zero'] },
+  { kind: 'call', name: 'sin', parts: ['the sine of ', 0] },
+  { kind: 'call', name: 'cos', parts: ['the cosine of ', 0] },
+  { kind: 'call', name: 'tan', parts: ['the tangent of ', 0] },
+  { kind: 'call', name: 'atan', parts: ['the arctangent of ', 0] },
+  { kind: 'call', name: 'sinh', parts: ['the hyperbolic sine of ', 0] },
   { kind: 'call', name: 'abs', parts: ['the absolute value of ', 0] },
   { kind: 'call', name: 'min', parts: ['the smaller of ', 0, ' and ', 1] },
   { kind: 'call', name: 'max', parts: ['the larger of ', 0, ' and ', 1] },
@@ -620,9 +640,10 @@ describe('totality over the closed table — derived from the manifest, never ha
     // count that drifted.
     const entries = treesForTheWholeTable(TABLE).map((t) => t.entry)
     expect(entries).toEqual([
-      // REGENERATED WHOLE when the Pine parity six landed. Still a LIST: a
-      // rename lands as a named pair of changes here, never as a count nobody
-      // can attribute.
+      // REGENERATED WHOLE when the pure-math block landed (12 functions:
+      // sqrt ln log10 exp pow mod idiv sin cos tan atan sinh). Still a LIST:
+      // a rename lands as a named pair of changes here, never as a count
+      // nobody can attribute.
       'series:close',
       'series:high',
       'series:low',
@@ -645,41 +666,53 @@ describe('totality over the closed table — derived from the manifest, never ha
       'operator:||',
       'function:abs',
       'function:accum',
+      'function:atan',
       'function:atr',
       'function:cci',
       'function:change',
+      'function:cos',
       'function:crossOver',
       'function:crossUnder',
       'function:donchianLower',
       'function:donchianMiddle',
       'function:donchianUpper',
       'function:ema',
+      'function:exp',
       'function:highest',
       'function:ichimokuChikou',
       'function:ichimokuKijun',
       'function:ichimokuSpanA',
       'function:ichimokuSpanB',
       'function:ichimokuTenkan',
+      'function:idiv',
+      'function:ln',
+      'function:log10',
       'function:lowest',
       'function:macd',
       'function:max',
       'function:mfi',
       'function:min',
       'function:minusDI',
+      'function:mod',
       'function:na',
       'function:nz',
       'function:plusDI',
+      'function:pow',
       'function:rma',
       'function:round',
       'function:rsi',
       'function:sign',
+      'function:sin',
+      'function:sinh',
       'function:sma',
+      'function:sqrt',
       'function:stdev',
       'function:stoch',
+      'function:tan',
       'function:williamsR',
       'function:wma',
     ])
-    expect(entries.length).toBe(55)
+    expect(entries.length).toBe(67)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -689,7 +722,7 @@ describe('totality over the closed table — derived from the manifest, never ha
     // loop. ⛔ The count is asserted against the list above rather than retyped
     // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(55)
+    expect(subjects.length).toBe(67)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -1829,7 +1862,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       ...CORPUS.cases.map((c) => sentenceFor(c.ast, {})),
       ...treesForTheWholeTable(TABLE).map((t) => sentenceFor(t.ast, {})),
     ]
-    expect(sentences.length).toBe(CORPUS.cases.length + 55)
+    expect(sentences.length).toBe(CORPUS.cases.length + 67)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)

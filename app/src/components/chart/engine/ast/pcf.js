@@ -235,6 +235,24 @@ export const PCF_CALLS = Object.freeze({
   ABS:      { fn: 'abs',        shape: ['expr'] },
   XUP:      { fn: 'crossOver',  shape: ['expr', 'expr'], barsAgo: true },
   XDOWN:    { fn: 'crossUnder', shape: ['expr', 'expr'], barsAgo: true },
+
+  // ── pure math ──────────────────────────────────────────────────────────────
+  // ⭐ EACH OF THESE IS A SPELLING, NOT A FORMULA. `SQR` is a square root and not
+  // a square — Worden's own table says so, and reading it the other way is the
+  // single most likely mistranslation in this whole file, because the name says
+  // the opposite of what it does. `CLG` is the COMMON (base-10) log, `LOG` is the
+  // natural one — again Worden's convention, and again the reverse of what a
+  // reader coming from most languages would assume.
+  SQR:      { fn: 'sqrt',       shape: ['expr'] },
+  LOG:      { fn: 'ln',         shape: ['expr'] },
+  CLG:      { fn: 'log10',      shape: ['expr'] },
+  EXP:      { fn: 'exp',        shape: ['expr'] },
+  SGN:      { fn: 'sign',       shape: ['expr'] },
+  SIN:      { fn: 'sin',        shape: ['expr'] },
+  COS:      { fn: 'cos',        shape: ['expr'] },
+  TAN:      { fn: 'tan',        shape: ['expr'] },
+  ARCTAN:   { fn: 'atan',       shape: ['expr'] },
+  SINH:     { fn: 'sinh',       shape: ['expr'] },
 })
 
 /** ⭐⭐ TC2000's THREE STATEFUL FUNCTIONS, AND THEY ARE THE RECURRENCE.
@@ -319,15 +337,60 @@ const INFIX = Object.freeze({
  *  mean. ⛔ A LIST OF WHAT IS REFUSED IS NOT A BLOCKLIST HERE — these are
  *  spellings TC2000 genuinely has, and a member who types one gets told which
  *  one rather than a generic syntax error at the same character. */
-const UNSUPPORTED_OPERATORS = Object.freeze({
-  '^':    'raising to a power',
-  '\\':   'integer division',
-  MOD:    'the modulo remainder',
-  XOR:    'exclusive or',
-  NAND:   'the negated and',
-  NOR:    'the negated or',
-  XNOR:   'the negated exclusive or',
+// ⚰️ `UNSUPPORTED_OPERATORS` IS GONE, DELIBERATELY — BUT `pcf:operator` IS NOT.
+// The table existed for `^`, `\` and `MOD`, and all three read now, so it held
+// nothing and its call site could not fire for any input: `lesson_gate_that_cannot_
+// fail` in the plainest form. The GUARD survives and is still reachable, from
+// `operator()` below, which refuses an operator this reader emits that the closed
+// table does not declare — a different and still-real failure. Deleting the dead
+// table while keeping the live guard is the distinction worth being careful about.
+
+/** ⭐ THE THREE ARITHMETIC OPERATORS TC2000 HAS AS SYNTAX AND THIS TABLE HAS AS
+ *  FUNCTIONS. `^`, `MOD` and `\` are infix in Worden's grammar; here they are
+ *  ordinary calls, so the translator rewrites `C ^ 2` to `pow(close, 2)` rather
+ *  than adding three operators to a closed vocabulary that does not need them.
+ *
+ *  ⛔ THE BINDING POWERS ARE NOT INVENTED. `^` binds tighter than `*` and is
+ *  RIGHT-associative (`2^3^2` is 512, not 64); `MOD` and `\` sit with `*` and `/`
+ *  and associate left. Getting either wrong changes what a member's scan means
+ *  without changing whether it parses — the failure this file exists to prevent.
+ */
+const OPERATOR_CALLS = Object.freeze({
+  '^':  { fn: 'pow',  bp: 12, rightAssoc: true },
+  MOD:  { fn: 'mod',  bp: 10 },
+  '\\': { fn: 'idiv', bp: 10 },
 })
+
+/** ⭐ THE FOUR LOGICAL OPERATORS TC2000 HAS AND THIS TABLE DOES NOT — DERIVED, NOT
+ *  DECLARED. Each is written with the three the manifest already declares, so nothing
+ *  entered the closed vocabulary to support them: `XOR`, `NAND`, `NOR` and `XNOR` are
+ *  spellings, and a spelling belongs in a translator.
+ *
+ *  🔴 AND THE OBVIOUS FORM OF `XOR` IS WRONG IN THE ONE WAY THAT MATTERS. On 0/1
+ *  columns `a XOR b` looks like `a != b`, which is ONE operator instead of five — but
+ *  `!=` runs through `cmp`, which answers **0 when either side is NaN**, while `&&` and
+ *  `||` run through `logical`, which answers **NaN**. So `a != b` would quietly turn
+ *  *"we do not know"* into *"false"* on every bar where an operand is not computable —
+ *  a confident answer built out of a hole, which is the failure this whole engine is
+ *  arranged to prevent. The longer form propagates NaN correctly, and correctness buys
+ *  the extra nodes.
+ *
+ *  ⚠️ THE OPERANDS APPEAR TWICE IN THREE OF THE FOUR, and that is affordable only
+ *  because `seriesRefs` counts DISTINCT reads — mentioning `close` twice is still one
+ *  column. Under the old occurrence-counting budget these would have translated and
+ *  then been refused at the save door. */
+const DERIVED_LOGIC = Object.freeze({
+  // a AND NOT b, or b AND NOT a — written as "either, but not both"
+  XOR:  (l, r) => opNode('&&', [opNode('||', [l, r]),
+    opNode('!', [opNode('&&', [l, r])])]),
+  NAND: (l, r) => opNode('!', [opNode('&&', [l, r])]),
+  NOR:  (l, r) => opNode('!', [opNode('||', [l, r])]),
+  XNOR: (l, r) => opNode('!', [opNode('&&', [opNode('||', [l, r]),
+    opNode('!', [opNode('&&', [l, r])])])]),
+})
+
+/** Their binding power — the same as `AND`, because TC2000 groups them with it. */
+const DERIVED_LOGIC_BP = 2
 
 /** The one prefix operator PCF spells as a word. */
 const PREFIX_NOT = 'NOT'
@@ -719,17 +782,26 @@ class Reader {
 
   /** The word a `name` token spells as an operator, or null. */
   infixOf(token) {
-    if (token.kind === 'op') return INFIX[token.text] || null
+    // ⛔ THE SYMBOL OPERATORS CHECK `OPERATOR_CALLS` TOO. `MOD` arrives as a NAME
+    // token and fell through to the lookup below, so it worked immediately; `^`
+    // and `\` arrive as OP tokens and this branch used to return `INFIX` only,
+    // which meant the same table was consulted for one spelling and skipped for
+    // the other two. One table, both token kinds.
+    if (token.kind === 'op') {
+      if (own(OPERATOR_CALLS, token.text)) {
+        const o = OPERATOR_CALLS[token.text]
+        return { call: o.fn, bp: o.bp, rightAssoc: !!o.rightAssoc }
+      }
+      return INFIX[token.text] || null
+    }
     if (token.kind !== 'name') return null
     const upper = token.text.toUpperCase()
+    if (own(DERIVED_LOGIC, upper)) return { derived: upper, bp: DERIVED_LOGIC_BP }
+    if (own(OPERATOR_CALLS, upper)) {
+      const o = OPERATOR_CALLS[upper]
+      return { call: o.fn, bp: o.bp, rightAssoc: !!o.rightAssoc }
+    }
     return INFIX[upper] || null
-  }
-
-  unsupportedOf(token) {
-    if (token.kind === 'op') return UNSUPPORTED_OPERATORS[token.text] ? token.text : null
-    if (token.kind !== 'name') return null
-    const upper = token.text.toUpperCase()
-    return UNSUPPORTED_OPERATORS[upper] ? upper : null
   }
 
   expression(minBp = 0) {
@@ -741,16 +813,35 @@ class Reader {
     let left = this.unary()
     for (;;) {
       const t = this.peek()
-      const unsupported = this.unsupportedOf(t)
-      if (unsupported) {
-        refuse('pcf:operator',
-          `\`${unsupported}\` is ${UNSUPPORTED_OPERATORS[unsupported]}, at character ${t.index}`,
-          t.index, unsupported)
-      }
       const infix = this.infixOf(t)
       if (!infix || infix.bp < minBp) break
       this.next()
-      const right = this.expression(infix.bp + 1)
+      // ⛔ RIGHT-ASSOCIATIVE OPERATORS RECURSE AT THEIR OWN BINDING POWER, NOT
+      // ONE ABOVE IT. `bp + 1` is what makes an operator LEFT-associative; `^`
+      // must group `2^3^2` as `2^(3^2)` = 512, and `bp + 1` would give
+      // `(2^3)^2` = 64. Same parse either way — a different number.
+      const right = this.expression(infix.rightAssoc ? infix.bp : infix.bp + 1)
+      if (infix.call) {
+        // TC2000 spells these infix; this table has them as functions, so the
+        // rewrite happens here rather than widening the closed operator set.
+        // ⛔ THROUGH THE SAME MANIFEST GATE EVERY OTHER CALL USES. An operator
+        // that skipped `resolveFn`/`checkSignature` would be the one spelling in
+        // this file that could name a function the table does not declare.
+        const spec = resolveFn(this.table, infix.call, t.text, t.index, t.text)
+        checkSignature(spec, ['series', 'series'], infix.call, t.text, t.index, t.text)
+        left = callNode(infix.call, [left, right])
+        continue
+      }
+      if (infix.derived) {
+        // ⛔ EVERY OPERATOR THE EXPANSION USES IS CHECKED AGAINST THE MANIFEST, not
+        // assumed. This file declares only that TC2000 spells it `XOR`; the table is
+        // what declares `&&`, `||` and `!` exist at those arities.
+        operator(this.table, '&&', 2, t.index, t.text)
+        operator(this.table, '||', 2, t.index, t.text)
+        operator(this.table, '!', 1, t.index, t.text)
+        left = DERIVED_LOGIC[infix.derived](left, right)
+        continue
+      }
       operator(this.table, infix.op, 2, t.index, t.text)
       left = opNode(infix.op, [left, right])
     }
@@ -1056,7 +1147,13 @@ export function parsePcf(source, table = TABLE, nodeTypes = NODE_TYPES) {
  *  be. PCF itself is case-insensitive and a member who types `avgc50` still
  *  lands here through the multi-character markers. */
 const PCF_MARKERS = [
-  /\b(AND|OR|NOT|XOR|IIF|XUP|XDOWN|GREATEST|LEAST|MOD)\b/i,
+  /\b(AND|OR|NOT|XOR|IIF|XUP|XDOWN|GREATEST|LEAST)\b/i,
+  // ⛔ `MOD` IS THE ONE MARKER THAT IS ALSO A NATIVE NAME, so it must match only
+  // the INFIX spelling. TC2000 writes `V MOD 100`; this engine writes
+  // `mod(volume, 100)` — and once `mod` joined the closed table, a bare `\bMOD\b`
+  // read every native formula containing it as TC2000 and handed it to the wrong
+  // parser. The negative lookahead is what keeps the two dialects apart.
+  /\bMOD\b(?!\s*\()/i,
   /<>/,
   /\b(X?AVG|MAX|MIN)[COHLV]\d/i,
   /\b(STDDEV|WRSI|ATR|MACD|STOC)\d/i,
@@ -1196,16 +1293,6 @@ export function pcfCoverage(table = TABLE, nodeTypes = NODE_TYPES) {
         + 'the level — reachable on a round-number threshold. Exact parity needs either an '
         + 'inclusive-boundary crossing declared in closedTable.json, or this reader always spelling '
         + 'TC2000’s definition out, which it already does for a bars-ago other than 1.',
-    },
-    {
-      construct: Object.entries(UNSUPPORTED_OPERATORS)
-        .map(([sym, what]) => `\`${sym}\` (${what})`).join(', '),
-      guard: 'pcf:operator',
-      state: 'REFUSED',
-      toSupport: 'declare the operator in closedTable.json::operators with its arity, give it a '
-        + 'precedence in this reader’s INFIX table, and implement it in both walkers’ BINARY maps. '
-        + '`^` and `MOD` are the only two a published TC2000 template actually uses (Historical '
-        + 'Volatility raises a log ratio to a power).',
     },
     {
       construct: '`SUM(w, x)` — used by six published indicator templates',

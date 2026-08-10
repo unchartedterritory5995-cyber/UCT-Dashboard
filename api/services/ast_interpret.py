@@ -471,6 +471,105 @@ def _guarded_max(x: float, y: float) -> float:
 #: which would then meet a bare ``series`` node it had deliberately not planned.
 _MISSING = object()
 
+# ── pure math ─────────────────────────────────────────────────────────────── #
+#
+# ⭐⭐ EVERY DOMAIN REFUSAL ANSWERS nan, AND IT IS WRITTEN OUT IN BOTH LANES.
+# Python RAISES `ValueError` for `math.sqrt(-1)` and `math.log(0)`; JavaScript
+# hands back `NaN` for the first and `-Infinity` for the second. Left to their
+# defaults the two lanes would part company on the first zero close in the tape —
+# one lane blowing up the whole evaluation, the other serving `-Infinity`, which
+# COMPARES AS THE SMALLEST THING IN THE UNIVERSE and silently wins every `<` a
+# member could write. `nan` is what this engine already means by "not
+# computable", so both lanes say exactly that, in the same place.
+
+
+def _guarded_sqrt(x: float) -> float:
+    return NAN if _isnan(x) or x < 0 else math.sqrt(x)
+
+
+def _guarded_ln(x: float) -> float:
+    return NAN if _isnan(x) or x <= 0 else math.log(x)
+
+
+def _guarded_log10(x: float) -> float:
+    return NAN if _isnan(x) or x <= 0 else math.log10(x)
+
+
+def _finite_or_nan(v: float) -> float:
+    """⛔ An overflow is not an answer: `exp(1000)` is `inf`, which would compare
+    as larger than every threshold a member could write."""
+    return v if math.isfinite(v) else NAN
+
+
+#: ``math.log(sys.float_info.max)`` -- the exponent above which ``exp`` overflows.
+#: Written as the BOUNDARY rather than discovered by catching the throw, because
+#: this file contains no try/except by construction (see test_ast_budget).
+_LOG_MAX = 709.782712893384
+
+
+def _guarded_exp(x: float) -> float:
+    if _isnan(x) or x > _LOG_MAX:
+        return NAN
+    return _finite_or_nan(math.exp(x))
+
+
+def _guarded_pow(x: float, y: float) -> float:
+    if _isnan(x) or _isnan(y):
+        return NAN
+    # ⛔ A NEGATIVE BASE WITH A FRACTIONAL EXPONENT DOES NOT RAISE IN PYTHON --
+    # IT RETURNS A COMPLEX NUMBER. `(-8) ** (1/3)` is `1.0000000000000002+1.732j`,
+    # so a guard written around ValueError sails straight past it and the value
+    # then blows up somewhere far away. JS answers NaN. Refused here by DOMAIN.
+    if x < 0 and y != int(y):
+        return NAN
+    # 0 to a negative power is a division by zero.
+    if x == 0 and y < 0:
+        return NAN
+    # Overflow, decided BEFORE computing: |x|**y overflows when y*ln|x| passes the
+    # largest representable exponent.
+    if x != 0 and y * math.log(abs(x)) > _LOG_MAX:
+        return NAN
+    return _finite_or_nan(float(x) ** float(y))
+
+
+def _guarded_mod(x: float, y: float) -> float:
+    """⛔ TRUNCATED, NOT PYTHON'S FLOORED `%`. `-7 % 2` is `1` in Python and `-1`
+    in JS; TC2000 truncates toward zero, so the sign follows the LEFT operand and
+    the operator is spelled out rather than borrowed."""
+    if _isnan(x) or _isnan(y) or y == 0:
+        return NAN
+    return x - y * float(int(x / y))
+
+
+def _guarded_idiv(x: float, y: float) -> float:
+    if _isnan(x) or _isnan(y) or y == 0:
+        return NAN
+    return float(int(x / y))
+
+
+def _guarded_sin(x: float) -> float:
+    return NAN if _isnan(x) else math.sin(x)
+
+
+def _guarded_cos(x: float) -> float:
+    return NAN if _isnan(x) else math.cos(x)
+
+
+def _guarded_tan(x: float) -> float:
+    return NAN if _isnan(x) else math.tan(x)
+
+
+def _guarded_atan(x: float) -> float:
+    return NAN if _isnan(x) else math.atan(x)
+
+
+def _guarded_sinh(x: float) -> float:
+    # sinh overflows just past where exp does, symmetrically about zero.
+    if _isnan(x) or abs(x) > _LOG_MAX + 1.0:
+        return NAN
+    return _finite_or_nan(math.sinh(x))
+
+
 _POINTWISE: Mapping[str, Callable[..., float]] = {
     "abs": _guarded_abs,
     "min": _guarded_min,
@@ -479,6 +578,18 @@ _POINTWISE: Mapping[str, Callable[..., float]] = {
     "round": _guarded_round,
     "na": _guarded_na,
     "nz": _guarded_nz,
+    "sqrt": _guarded_sqrt,
+    "ln": _guarded_ln,
+    "log10": _guarded_log10,
+    "exp": _guarded_exp,
+    "pow": _guarded_pow,
+    "mod": _guarded_mod,
+    "idiv": _guarded_idiv,
+    "sin": _guarded_sin,
+    "cos": _guarded_cos,
+    "tan": _guarded_tan,
+    "atan": _guarded_atan,
+    "sinh": _guarded_sinh,
 }
 
 #: The manifest's recurrence declarations, read ONCE at import. ⛔ Not re-derived
@@ -689,6 +800,24 @@ FN: Dict[str, Callable[..., List[float]]] = {
     # cross-lane divergence the corpus names explicitly. Spelling the rule kills it
     # in both lanes instead of relying on one language's luck.
     "min": lambda a, b: _elementwise2(a, b, _guarded_min),
+
+    # ── pure math, lifted to columns ─────────────────────────────────────────
+    # ⭐ EACH IS THE POINTWISE SCALAR APPLIED PER BAR AND NOTHING ELSE, so the
+    # maths lives in exactly one place and `tests/test_ast_math_parity.py` drives
+    # that place against the JS lane. A second copy written out here is how the
+    # column lane and the scalar lane come to disagree about `log(0)` later.
+    "sqrt": lambda a: [_guarded_sqrt(v) for v in a],
+    "ln": lambda a: [_guarded_ln(v) for v in a],
+    "log10": lambda a: [_guarded_log10(v) for v in a],
+    "exp": lambda a: [_guarded_exp(v) for v in a],
+    "sin": lambda a: [_guarded_sin(v) for v in a],
+    "cos": lambda a: [_guarded_cos(v) for v in a],
+    "tan": lambda a: [_guarded_tan(v) for v in a],
+    "atan": lambda a: [_guarded_atan(v) for v in a],
+    "sinh": lambda a: [_guarded_sinh(v) for v in a],
+    "pow": lambda a, b: _elementwise2(a, b, _guarded_pow),
+    "mod": lambda a, b: _elementwise2(a, b, _guarded_mod),
+    "idiv": lambda a, b: _elementwise2(a, b, _guarded_idiv),
     "max": lambda a, b: _elementwise2(a, b, _guarded_max),
     "rma": lambda series, n: _rma_col(series, n),
     "wma": lambda series, n: _rolling(series, n, _window_weighted_mean),

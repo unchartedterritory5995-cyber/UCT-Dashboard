@@ -7,7 +7,8 @@
     "help-condition-templates": "https://help.tc2000.com/m/69445/l/756693-condition-formula-template-table",
     "traderisk-breakouts": "https://www.thetraderisk.com/scanning-for-breakout-setups-using-worden-tc2000-pcf/",
     "worden-webinar": "http://videos.worden.com/webinars/pcfs103012/writing personal criteria formulas - PCFs.pdf",
-    "gnerdalot": "https://github.com/gnerdalot/trading/blob/master/tc2000-formulae"
+    "gnerdalot": "https://github.com/gnerdalot/trading/blob/master/tc2000-formulae",
+    "worden-syntax-table": "Worden/TC2000 Personal Criteria Formula syntax reference — the vendor's own published function and operator table (help.tc2000.com). The authority for which spellings exist, and for which of them are DIFFERENT FORMULAS wearing familiar names (RSI vs WRSI, WSTOC, MS, TSV)."
   },
   "_accepted": "`native` is the SAME formula written in this product's own dialect. The rail is `astHash(pcf) === astHash(native)` — not that the PCF reader produces *a* tree, but that it produces the tree the engine already runs on both lanes at 1e-9. A PCF layer that produced its own trees would be a second numeric surface; this one produces none.",
   "_refused": "`guard` is the door that must fire and `at` is the source index the refusal must point at. ⛔ BOTH ARE ASSERTED. A refusal that arrives from the wrong door reads identically to the right one, and a refusal with no position is one a member cannot act on.",
@@ -256,54 +257,65 @@
       "what": "TrueInRow — a consecutive streak, which resets to 0 on a false bar. The window IS the documented 0..x bound, so there is no clamp to keep in step",
       "source": "TrueInRow(C > O, 3)",
       "native": "accum(0, close > open ? self + 1 : 0, 3)"
-    }
-  ],
-  "refused": [
+    },
     {
       "id": "power_operator",
       "cite": "help-indicator-templates",
-      "what": "Historical Volatility raises a log ratio to a power",
+      "what": "Close squared - the `^` operator, right-associative",
       "source": "C ^ 2",
-      "guard": "pcf:operator",
-      "at": 2,
-      "names": "^"
+      "note": "was a refusal fixture until the pure-math block; it reads now and this entry proves it still does",
+      "native": "pow(close, 2)"
     },
     {
       "id": "integer_divide",
       "cite": "help-syntax",
-      "what": "PCF's backslash operator",
+      "what": "Volume in whole hundreds - the `\\` operator truncates toward zero",
       "source": "V \\ 100",
-      "guard": "pcf:operator",
-      "at": 2,
-      "names": "\\"
+      "note": "was a refusal fixture until the pure-math block; it reads now and this entry proves it still does",
+      "native": "idiv(volume, 100)"
     },
     {
       "id": "modulo",
       "cite": "help-syntax",
-      "what": "PCF's MOD",
+      "what": "Volume remainder mod 100 - truncated, so the sign follows the left operand",
       "source": "V MOD 100",
-      "guard": "pcf:operator",
-      "at": 2,
-      "names": "MOD"
+      "note": "was a refusal fixture until the pure-math block; it reads now and this entry proves it still does",
+      "native": "mod(volume, 100)"
     },
     {
       "id": "exclusive_or",
       "cite": "help-syntax",
-      "what": "PCF has XOR, NAND, NOR and XNOR; this table has none of them",
+      "what": "One condition or the other but not both - derived from &&/||/!",
       "source": "(C > O) XOR (V > 100)",
-      "guard": "pcf:operator",
-      "at": 8,
-      "names": "XOR"
+      "note": "was a refusal fixture until the pure-math block; it reads now and this entry proves it still does",
+      "native": "((close > open) || (volume > 100)) && !((close > open) && (volume > 100))"
     },
     {
       "id": "negated_and",
       "cite": "help-syntax",
-      "what": "NAND",
+      "what": "Not both conditions - derived from && and !",
       "source": "(C > O) NAND (V > 100)",
-      "guard": "pcf:operator",
-      "at": 8,
-      "names": "NAND"
+      "note": "was a refusal fixture until the pure-math block; it reads now and this entry proves it still does",
+      "native": "!((close > open) && (volume > 100))"
     },
+    {
+      "id": "logarithm",
+      "cite": "help-indicator-templates",
+      "what": "Natural log of a tenth of the close - TC2000 spells ln as LOG",
+      "source": "LOG(C / 10)",
+      "note": "was a refusal fixture until the pure-math block; it reads now and this entry proves it still does",
+      "native": "ln(close / 10)"
+    },
+    {
+      "id": "square_root",
+      "cite": "help-indicator-templates",
+      "what": "Square root of the close - TC2000 spells it SQR, which is NOT a square",
+      "source": "SQR(C)",
+      "note": "was a refusal fixture until the pure-math block; it reads now and this entry proves it still does",
+      "native": "sqrt(close)"
+    }
+  ],
+  "refused": [
     {
       "id": "sum_function",
       "cite": "help-indicator-templates",
@@ -330,24 +342,6 @@
       "guard": "pcf:name",
       "at": 0,
       "names": "HAVG"
-    },
-    {
-      "id": "logarithm",
-      "cite": "help-indicator-templates",
-      "what": "LOG, from the Historical Volatility template",
-      "source": "LOG(C / 10)",
-      "guard": "pcf:name",
-      "at": 0,
-      "names": "LOG"
-    },
-    {
-      "id": "square_root",
-      "cite": "help-indicator-templates",
-      "what": "SQR, from the Standard Deviation template",
-      "source": "SQR(C)",
-      "guard": "pcf:name",
-      "at": 0,
-      "names": "SQR"
     },
     {
       "id": "aroon",
@@ -492,6 +486,60 @@
       "guard": "pcf:arity",
       "at": 9,
       "names": "AVGC50.1.2.3"
+    },
+    {
+      "id": "rsi_is_not_wilders",
+      "cite": "worden-syntax-table",
+      "what": "TC2000's RSI is Cutler's, not Wilder's; Wilder's is spelled WRSI",
+      "source": "RSI14 < 30",
+      "guard": "pcf:name",
+      "at": 0,
+      "names": "RSI14"
+    },
+    {
+      "id": "moneystream_proprietary",
+      "cite": "worden-syntax-table",
+      "what": "MoneyStream is Worden-proprietary and its formula is not published",
+      "source": "MS20 > 0",
+      "guard": "pcf:name",
+      "at": 0,
+      "names": "MS20"
+    },
+    {
+      "id": "tsv_proprietary",
+      "cite": "worden-syntax-table",
+      "what": "Time Segmented Volume is Worden-proprietary and unpublished",
+      "source": "TSV20 > 0",
+      "guard": "pcf:name",
+      "at": 0,
+      "names": "TSV20"
+    },
+    {
+      "id": "rsi_call_form",
+      "cite": "worden-syntax-table",
+      "what": "the call spelling of the same Cutler RSI, refused for the same reason",
+      "source": "RSI(14, 1, 0) < 30",
+      "guard": "pcf:name",
+      "at": 0,
+      "names": "RSI"
+    },
+    {
+      "id": "unknown_indicator",
+      "cite": "worden-syntax-table",
+      "what": "an ordinary unknown name refuses WITHOUT a look-alike sentence",
+      "source": "FOOBAR20 > 5",
+      "guard": "pcf:name",
+      "at": 0,
+      "names": "FOOBAR20"
+    },
+    {
+      "id": "money_flow_lookalike",
+      "cite": "worden-syntax-table",
+      "what": "an unknown Worden name refuses by name, with its character",
+      "source": "MFLOW20 > 0",
+      "guard": "pcf:name",
+      "at": 0,
+      "names": "MFLOW20"
     }
   ],
   "_offset": "⭐ THE BAR OFFSET IS ENGINE-DEPENDENT AND THIS SECTION FLIPS WITH IT. PCF's `.z` suffix is its most-used feature, so these are the cases that decide whether a member notices a discrepancy. The expectation is DERIVED, not written: while `closedTable.json` declares no offset form, each must refuse at `pcf:offset` at the declared character; the moment it declares one, each must PARSE, carry the declared offset node, and still lint to a forward reach of 0. ⛔ Neither half may be skipped — a suite that only checked the refusal would go silently green the day the engine grew the capability and this reader failed to use it.",

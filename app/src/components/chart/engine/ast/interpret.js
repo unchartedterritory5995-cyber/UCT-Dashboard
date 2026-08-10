@@ -281,6 +281,12 @@ function windowWeightedMean(series, lo, hi) {
   return weighted / weights
 }
 
+function elementwise1(a, f) {
+  const out = nan(a.length)
+  for (let i = 0; i < a.length; i++) out[i] = f(a[i])
+  return out
+}
+
 function elementwise2(a, b, f) {
   const out = nan(a.length)
   for (let i = 0; i < a.length; i++) out[i] = f(a[i], b[i])
@@ -437,7 +443,62 @@ const POINTWISE = Object.freeze({
   // built entirely around NaN meaning "we do not know" declares them anyway.
   na: (x) => (Number.isNaN(x) ? 1 : 0),
   nz: (x, y) => (Number.isNaN(x) ? y : x),
+
+  // ── pure math ────────────────────────────────────────────────────────────
+  // ⭐⭐ EVERY DOMAIN REFUSAL ANSWERS NaN, AND THAT IS THE WHOLE DESIGN. JS hands
+  // back `-Infinity` for `Math.log(0)` and `NaN` for `Math.sqrt(-1)`; Python
+  // RAISES `ValueError` for both. Left to their defaults the two lanes would
+  // disagree on the first zero close in the tape — one serving -Infinity, which
+  // then COMPARES AS THE SMALLEST THING IN THE UNIVERSE and silently wins every
+  // `<` test in a member's scan, and the other blowing up the whole evaluation.
+  // NaN is what this table already means by "we do not know", so both lanes say
+  // that, in the same place, for the same inputs.
+  sqrt: (x) => (Number.isNaN(x) || x < 0 ? NaN : Math.sqrt(x)),
+  ln: (x) => (Number.isNaN(x) || x <= 0 ? NaN : Math.log(x)),
+  log10: (x) => (Number.isNaN(x) || x <= 0 ? NaN : Math.log10(x)),
+  exp: (x) => {
+    if (Number.isNaN(x)) return NaN
+    const v = Math.exp(x)
+    // ⛔ AN OVERFLOW IS NOT AN ANSWER. `exp(1000)` is `Infinity`, which would
+    // compare as larger than every threshold a member could write.
+    return Number.isFinite(v) ? v : NaN
+  },
+  pow: (x, y) => {
+    if (Number.isNaN(x) || Number.isNaN(y)) return NaN
+    const v = Math.pow(x, y)
+    // A negative base with a fractional exponent is complex; JS says NaN and
+    // Python raises. Both end up here as NaN, and so does an overflow.
+    return Number.isFinite(v) ? v : NaN
+  },
+  // ⛔ MOD FOLLOWS THE SIGN OF THE LEFT OPERAND (C truncation), NOT PYTHON'S
+  // FLOORED `%`. `-7 % 2` is `1` in Python and `-1` in JS; TC2000 truncates, so
+  // the Python lane spells it out rather than using its own operator.
+  mod: (x, y) => (Number.isNaN(x) || Number.isNaN(y) || y === 0
+    ? NaN : x - y * Math.trunc(x / y)),
+  idiv: (x, y) => (Number.isNaN(x) || Number.isNaN(y) || y === 0
+    ? NaN : Math.trunc(x / y)),
+
+  sin: (x) => (Number.isNaN(x) ? NaN : Math.sin(x)),
+  cos: (x) => (Number.isNaN(x) ? NaN : Math.cos(x)),
+  // ⚠️ `tan` is unbounded near pi/2 but never actually infinite in floating
+  // point, so there is no domain refusal to make here — it is left alone.
+  tan: (x) => (Number.isNaN(x) ? NaN : Math.tan(x)),
+  atan: (x) => (Number.isNaN(x) ? NaN : Math.atan(x)),
+  sinh: (x) => {
+    if (Number.isNaN(x)) return NaN
+    const v = Math.sinh(x)
+    return Number.isFinite(v) ? v : NaN
+  },
 })
+
+/** ⭐ EXPORTED FOR THE CROSS-LANE PARITY RUN, AND FOR NOTHING ELSE.
+ *
+ *  `tests/test_ast_math_parity.py` drives THIS object and the Python
+ *  `_POINTWISE` with the same inputs and compares the answers. It has to be the
+ *  real one — a copy exported for testing would agree with itself forever while
+ *  the shipped map drifted, which is the second-authority defect this repo pays
+ *  for more than any other. Nothing in the app imports it. */
+export const POINTWISE_FOR_PARITY = POINTWISE
 
 /** name → implementation. THE KEY SET IS `TABLE.functions`'s, both directions.
  *
@@ -469,6 +530,24 @@ export const FN = Object.freeze({
   max: (a, b) => elementwise2(a, b, POINTWISE.max),
   rma: (series, n) => rmaCol(series, n),
   wma: (series, n) => rolling(series, n, windowWeightedMean),
+
+  // ── pure math, lifted to columns ─────────────────────────────────────────
+  // ⭐ EACH ONE IS THE POINTWISE SCALAR APPLIED PER BAR AND NOTHING ELSE, so the
+  // maths lives in exactly one place and the parity run drives that place. A
+  // second copy written out here is how the column lane and the scalar lane come
+  // to disagree about `log(0)` six months from now.
+  sqrt: (a) => elementwise1(a, POINTWISE.sqrt),
+  ln: (a) => elementwise1(a, POINTWISE.ln),
+  log10: (a) => elementwise1(a, POINTWISE.log10),
+  exp: (a) => elementwise1(a, POINTWISE.exp),
+  sin: (a) => elementwise1(a, POINTWISE.sin),
+  cos: (a) => elementwise1(a, POINTWISE.cos),
+  tan: (a) => elementwise1(a, POINTWISE.tan),
+  atan: (a) => elementwise1(a, POINTWISE.atan),
+  sinh: (a) => elementwise1(a, POINTWISE.sinh),
+  pow: (a, b) => elementwise2(a, b, POINTWISE.pow),
+  mod: (a, b) => elementwise2(a, b, POINTWISE.mod),
+  idiv: (a, b) => elementwise2(a, b, POINTWISE.idiv),
   sign: (series) => {
     const out = nan(series.length)
     for (let i = 0; i < series.length; i++) out[i] = POINTWISE.sign(series[i])

@@ -522,13 +522,15 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     that has nothing to do with bars. The equality inside the tool is what makes
     that abort loud instead of a silently regrown obligation.
 
-    ⭐ THE BAR FLOOR MOVED 31 -> 48 AT PHASE F and the scalar floor did not move
+    ⭐ THE BAR FLOOR MOVED 31 -> 48 AT PHASE F and 48 -> 67 with the pure-math
+    block (twelve pointwise functions: sqrt ln log10 exp pow mod idiv sin cos tan
+    atan sinh). The scalar floor did not move
     at all, which is the whole reason these are two numbers. Seventeen indicators
     became callable and each one owed a bar-corpus case; not one scalar did."""
     manifest = ac.load_manifest()
     corpus = ac.load_corpus()
     parts = ac.assert_the_two_floors_partition_the_table(manifest)
-    assert len(parts["bar"]) == 48 and len(parts["scalar"]) == 54
+    assert len(parts["bar"]) == 67 and len(parts["scalar"]) == 54
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…
