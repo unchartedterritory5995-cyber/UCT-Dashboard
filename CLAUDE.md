@@ -2538,6 +2538,46 @@ promises no recap it might not deliver).
   faint dashed price ladder. `_skyline` was replaced by `_candle_skyline`;
   still `_episode_seed`-deterministic (same inputs = byte-identical).
 
+### "Did everything land?" — session pipeline audit (2026-08-09)
+
+`api/services/desk_session_audit.py` + `GET /api/desk/session-audit` (PUSH_SECRET
+bearer) + a 09:00 ET scheduler job (`desk_session_audit`). A published session is
+supposed to end up with a YouTube video, a transcript, chapters, ticker moments
+and — for opted-in shows — a Discord announcement. **Five subsystems on three
+schedules, every one of them failing quietly by design** so a hiccup can never
+block publishing. This re-reads the ARTIFACTS (the `edu_videos` row + the announce
+ledger) and names whatever is missing.
+
+- **It reads the artifact, never a counter.** `desk_session_insights._FAIL_STREAKS`
+  is an in-memory dict alerting on the 4th CONSECUTIVE failure — that needs an
+  uninterrupted hour of 15-minute passes, and this pod redeploys several times a
+  day, so the streak resets before it can fire. A proxy that resets on redeploy
+  reports healthy straight through a total failure
+  (`lesson_health_check_reads_a_proxy_not_the_artifact`). **Do not "improve" this
+  by persisting the streak counter instead — that rebuilds the proxy.**
+- **Grace window is load-bearing** (`DESK_SESSION_AUDIT_GRACE_SECS`, default 3h).
+  Insights land 2 min–3 h after publish, so a session younger than the grace period
+  is not checked AT ALL. Without it this fires on every healthy session and gets
+  muted inside a week.
+- **The announce check reads the announcer's OWN allowlist** (`show_allowed` +
+  `is_enabled`), so the audit can never disagree with the thing it audits. A second
+  copy of that list would drift and start flagging paywalled shows for not leaking.
+- **Names, not counts** — the alert carries each session's id, title and the
+  specific artifacts missing (`lesson_a_differ_can_truncate_the_names_a_rail_exists_to_report`).
+- **Wiring is test-pinned two ways** (`tests/test_desk_session_audit.py`): an AST
+  over `api/main.py` proving the `add_job` id exists, and a route-presence check off
+  `router.routes` — each with a non-vacuity control asserting the probe can see a
+  sibling it isn't looking for. Mutation-checked: cut the scheduler wire, cut the
+  route, delete the grace window, or swap names for a count — each goes RED.
+  ⛔ **An audit nobody runs is worse than none: it reads as coverage.** That is
+  literally this pipeline's own history (the insights pass was "written, documented
+  as scheduled, wired into no scheduler" for weeks).
+- Env: `DESK_SESSION_AUDIT_ENABLED` (default ON) · `_GRACE_SECS` (10800) ·
+  `_WINDOW_DAYS` (3).
+- ⚠️ KNOWN, deliberate: a quiet run and a run with nothing to check look identical
+  in Discord. The endpoint always reports `checked`, and "no sessions published at
+  all" is already owned by `check_missing_session_alert`.
+
 ## Performance & Scale — 2026-07-01 launch-hardening (do NOT regress)
 
 Big perf/scale pass ahead of the ~200-user launch. Full detail + remaining backlog

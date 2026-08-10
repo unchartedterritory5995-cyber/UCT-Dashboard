@@ -79,6 +79,22 @@ async def sessions_status(request: Request):
     return {"jobs": desk_session_jobs.list_recent(20)}
 
 
+@router.get("/session-audit")
+def session_audit(request: Request):
+    """Did everything land? Re-reads the ARTIFACTS for every published session
+    past its grace window — YouTube id, transcript, chapters, ticker moments and
+    (for opted-in shows) the community announcement — and names whatever is
+    missing. This is the read path behind the daily alert; curl it any time to
+    answer "is the pipeline healthy" without checking five endpoints by hand.
+    PUSH_SECRET bearer, mirroring /sessions-status."""
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return Response(status_code=401)
+    from api.services import desk_session_audit
+    return desk_session_audit.audit_sessions()
+
+
 def _recent_session_video_summaries(limit: int = 8) -> list[dict]:
     """Last `limit` session videos (have a meeting_uuid), newest first, with
     just enough shape to eyeball insights health: id/title/insights_at/

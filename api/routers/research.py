@@ -19,6 +19,50 @@ _logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+@router.get("/api/research/quote/{sym}")
+def research_quote(sym: str):
+    """The session line — price, change, OHLC, volume, 52-week range.
+
+    Its own route rather than a widening of /api/fundamentals: that endpoint is
+    a shared trio (quote + key-metrics + ratios) consumed by several surfaces,
+    and this needs four fields it does not expose. One FMP call, cached briefly
+    because it IS the live number.
+    """
+    sym = (sym or "").upper().strip()
+    if not sym:
+        return None
+    try:
+        from api.services.cache import cache
+        from api.services.earnings_estimates import _fmp_get
+        ck = f"research_quote::{sym}"
+        hit = cache.get(ck)
+        if hit is not None:
+            return hit
+        rows = _fmp_get("/stable/quote", {"symbol": sym}, timeout=10)
+        if not isinstance(rows, list) or not rows:
+            return None
+        q = rows[0] or {}
+        out = {
+            "sym": sym,
+            "price": q.get("price"),
+            "change": q.get("change"),
+            "change_pct": q.get("changePercentage"),
+            "open": q.get("open"),
+            "high": q.get("dayHigh"),
+            "low": q.get("dayLow"),
+            "prev_close": q.get("previousClose"),
+            "volume": q.get("volume"),
+            "year_high": q.get("yearHigh"),
+            "year_low": q.get("yearLow"),
+            "market_cap": q.get("marketCap"),
+        }
+        cache.set(ck, out, 60)      # 60s: live enough, and it is one call
+        return out
+    except Exception as exc:
+        _logger.warning("research quote failed for %s: %s", sym, exc)
+        return None
+
+
 @router.get("/api/research/financial-history/{sym}")
 def research_financial_history(sym: str, period: str = "quarter"):
     """Deep statement series for the fundamentals panels (24q / 12y).

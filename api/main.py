@@ -4110,6 +4110,24 @@ async def lifespan(app: FastAPI):
             # publish gets its transcript pass a couple of minutes later.
             _scheduler.add_job(_dds_insights, trigger=CronTrigger(minute="7/15", timezone=_ET),
                 id="desk_session_insights", max_instances=1, replace_existing=True)
+
+            def _dds_audit():
+                try:
+                    from api.services import desk_session_audit as _dsa
+                    out = _dsa.run_audit_and_alert()
+                    n = len(out.get("incomplete") or [])
+                    if n:
+                        print(f"[desk-sessions] audit flagged {n} incomplete session(s)")
+                except Exception as e:
+                    print(f"[desk-sessions] audit error (non-fatal): {e}")
+
+            # "Did everything land?" — one daily artifact re-read at 09:00 ET,
+            # long past the ~3h insights tail of anything published yesterday.
+            # Silent unless something is genuinely missing; the always-on read
+            # path is GET /api/desk/session-audit.
+            _scheduler.add_job(_dds_audit,
+                trigger=CronTrigger(hour=9, minute=0, timezone=_ET),
+                id="desk_session_audit", max_instances=1, replace_existing=True)
             print("[startup] Desk Daily Sessions auto-publish ENABLED (v2 cloud-record)")
 
         # -- Morning Catalyst Engine (spec 2026-05-25) ---------------------

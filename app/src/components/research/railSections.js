@@ -19,12 +19,8 @@ export const SECTIONS = [
   { id: 'history', label: 'Earnings History', icon: 'clock' },
   { id: 'brief', label: 'Brief', icon: 'document' },
   { id: 'call', label: 'Call', icon: 'chat' },
-  { id: 'fundamentals', label: 'Fundamentals', icon: 'chart' },
-  { id: 'estimates', label: 'Estimates', icon: 'clock' },
-  { id: 'statements', label: 'Statements', icon: 'chart' },
-  { id: 'financials', label: 'Financials', icon: 'document' },
-  { id: 'ratings', label: 'Ratings', icon: 'star' },
-  { id: 'analyst', label: 'Analyst & Ownership', icon: 'user' },
+  { id: 'financials', label: 'Financials', icon: 'chart' },
+  { id: 'analysts', label: 'Analysts', icon: 'user' },
   { id: 'filings', label: 'Filings', icon: 'document' },
 ]
 
@@ -35,7 +31,8 @@ export const SECTIONS = [
 export const SECTION_IDS = SECTIONS.map((s) => s.id)
 
 export function normalizeSection(id) {
-  return SECTION_IDS.includes(id) ? id : DEFAULT_SECTION
+  const mapped = MERGED[id] || id
+  return SECTION_IDS.includes(mapped) ? mapped : DEFAULT_SECTION
 }
 
 // UIcon registry note: there is no `users` glyph — `user` is the correct name.
@@ -45,4 +42,21 @@ export function normalizeSection(id) {
 // later should not have to re-derive the shape. Nothing navigates away today.
 export function railLinks() {
   return []
+}
+
+
+// Old section ids, kept resolvable. Eleven sections collapsed into six, and a
+// bookmark or a shared `?section=statements` link should land where the reader
+// meant rather than silently falling back to Setup.
+const MERGED = {
+  fundamentals: 'financials',
+  statements: 'financials',
+  estimates: 'analysts',
+  ratings: 'analysts',
+  analyst: 'analysts',
+  ownership: 'analysts',
+}
+
+export function resolveSectionId(id) {
+  return MERGED[id] || id
 }

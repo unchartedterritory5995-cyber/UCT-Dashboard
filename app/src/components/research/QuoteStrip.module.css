@@ -1,0 +1,32 @@
+.strip {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 6px 0 2px;
+  font-variant-numeric: tabular-nums;
+}
+.price { font-size: 18px; font-weight: 700; color: var(--color-text, #d8dade); }
+.chg { font-size: 13px; font-weight: 600; }
+.up { color: var(--ut-green, #7ed957); }
+.down { color: var(--ut-red, #e57373); }
+.cells {
+  display: flex; gap: 10px; flex-wrap: wrap;
+  font-size: 11.5px; color: var(--color-text, #d8dade);
+}
+.cells b {
+  margin-right: 3px; font-weight: 700; font-size: 10px; letter-spacing: .06em;
+  color: var(--color-text-muted, #8a8f98);
+}
+.range { display: flex; align-items: center; gap: 6px; }
+.rangeTrack {
+  position: relative; display: inline-block; width: 86px; height: 3px;
+  border-radius: 2px; background: rgba(255,255,255,.14);
+}
+.rangeDot {
+  position: absolute; top: -2px; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--ut-gold, #c9a84c); transform: translateX(-50%);
+}
+.rangeCap { font-size: 10.5px; color: var(--color-text-muted, #8a8f98); }
+
+@media (max-width: 640px) {
+  .cells { gap: 8px; font-size: 11px; }
+  .range { display: none; }   /* the strip must not wrap to three rows on phone */
+}
