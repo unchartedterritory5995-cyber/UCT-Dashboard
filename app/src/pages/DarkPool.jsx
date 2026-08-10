@@ -2351,6 +2351,130 @@ function SearchModal({onClose, mktcapData = {}}){
   );
 }
 
+// ── Records pane (per-ticker biggest-ever dark-pool prints) ───────────────────
+// Reads /api/darkpool/records (all-time biggest print per ticker, tracked by the
+// records engine). Browse/sort/search the whole book of ~5k tickers.
+function RecordsPane(){
+  const [rows,setRows]=useState(null);
+  const [err,setErr]=useState(null);
+  const [q,setQ]=useState("");
+  const [sortKey,setSortKey]=useState("notional");
+  const [sortDir,setSortDir]=useState("desc");
+  const [limit,setLimit]=useState(100);
+
+  useEffect(()=>{
+    let alive=true;
+    fetch("/api/darkpool/records?limit=2000&sort=notional")
+      .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
+      .then(d=>{ if(alive) setRows(d.records||[]); })
+      .catch(e=>{ if(alive) setErr(e.message); });
+    return ()=>{ alive=false; };
+  },[]);
+
+  function toggleSort(key){
+    if(sortKey===key) setSortDir(d=>d==="desc"?"asc":"desc");
+    else { setSortKey(key); setSortDir(key==="ticker"?"asc":"desc"); }
+  }
+
+  const view=useMemo(()=>{
+    if(!rows) return [];
+    const needle=q.trim().toUpperCase();
+    let items=needle?rows.filter(r=>(r.ticker||"").includes(needle)):rows;
+    const acc={ notional:x=>x.notional||0, price:x=>x.price||0, ticker:x=>x.ticker||"",
+      date:x=>{ const p=(x.date||"").split("/"); return p.length===3?`${p[2]}${p[0]}${p[1]}`:""; } };
+    const fn=acc[sortKey]||(x=>x[sortKey]);
+    items=[...items].sort((a,b)=>{
+      const va=fn(a),vb=fn(b);
+      if(typeof va==="string") return sortDir==="asc"?va.localeCompare(vb):vb.localeCompare(va);
+      return sortDir==="asc"?va-vb:vb-va;
+    });
+    return items;
+  },[rows,q,sortKey,sortDir]);
+
+  const shown=view.slice(0,limit);
+  const maxN=Math.max(1,...shown.map(r=>r.notional||0));
+
+  const hdr=(key,label,minW)=>{
+    const active=sortKey===key;
+    const arrow=active?(sortDir==="asc"?" ▲":" ▼"):"";
+    return (
+      <span onClick={()=>toggleSort(key)}
+        style={{fontSize:9,color:active?C.blue:C.tx3,fontWeight:600,minWidth:minW,textAlign:"right",
+          cursor:"pointer",userSelect:"none",transition:"color 0.15s"}}>{label}{arrow}</span>
+    );
+  };
+
+  if(err) return <div style={{fontSize:13,color:C.red,padding:16}}>Failed to load records: {err}</div>;
+  if(!rows) return <div style={{fontSize:13,color:C.tx3,padding:16}}>Loading records…</div>;
+
+  return (
+    <div>
+      <div style={{marginBottom:12}}>
+        <div style={{fontSize:14,fontWeight:700,color:C.amber,marginBottom:2}}>All-Time Dark Pool Records</div>
+        <div style={{fontSize:12,color:C.tx2}}>
+          The single biggest dark-pool print on record for each ticker · <span style={{color:C.cyan,fontWeight:700}}>{rows.length.toLocaleString()}</span> tracked
+        </div>
+      </div>
+
+      <input value={q} onChange={e=>{setQ(e.target.value);setLimit(100);}}
+        placeholder="Search ticker…"
+        style={{width:"100%",maxWidth:260,padding:"7px 12px",marginBottom:12,
+          background:C.bg2,border:`1px solid ${C.bdr2}`,borderRadius:6,color:C.tx,
+          fontSize:12,fontFamily:"inherit",outline:"none"}}/>
+
+      <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"14px 18px"}}>
+        {/* Column headers */}
+        <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 5px 0",
+          borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
+          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+            <span style={{fontSize:9,color:C.tx3,fontWeight:600,width:26,textAlign:"center"}}>#</span>
+            {hdr("ticker","Ticker",50)}
+          </div>
+          <div style={{display:"flex",gap:14,alignItems:"center"}}>
+            {hdr("notional","Record",90)}
+            {hdr("price","Price",64)}
+            {hdr("date","Date",64)}
+          </div>
+        </div>
+
+        {/* Rows */}
+        {shown.map((r,i)=>(
+          <div key={r.ticker}
+            style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+              padding:"6px 0",borderBottom:`1px solid ${C.bdr}22`}}>
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <span style={{fontSize:10,color:C.tx3,width:26,textAlign:"center",fontWeight:600}}>{i+1}</span>
+              <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
+                fontWeight:700,fontSize:12,color:C.amber}}>{r.ticker}</span>
+            </div>
+            <div style={{display:"flex",gap:14,alignItems:"center"}}>
+              <span style={{display:"inline-flex",flexDirection:"column",alignItems:"flex-end",gap:2,minWidth:90}}>
+                <span style={{fontSize:12,color:C.cyan,fontWeight:700}}>{fmt(r.notional)}</span>
+                <span style={{width:"100%",height:3,background:C.bdr,borderRadius:2,overflow:"hidden"}}>
+                  <span style={{display:"block",height:"100%",borderRadius:2,background:C.cyan,
+                    width:`${Math.max(4,Math.round((r.notional||0)/maxN*100))}%`}}/>
+                </span>
+              </span>
+              <span style={{fontSize:11,color:C.tx,fontWeight:600,minWidth:64,textAlign:"right"}}>{fP(r.price)}</span>
+              <span style={{fontSize:10,color:C.tx3,minWidth:64,textAlign:"right"}}>{r.date||"—"}</span>
+            </div>
+          </div>
+        ))}
+        {shown.length===0 && <div style={{fontSize:12,color:C.tx3,padding:8}}>No records match “{q}”.</div>}
+        {view.length>shown.length && (
+          <div style={{textAlign:"center",paddingTop:10}}>
+            <button onClick={()=>setLimit(l=>l+100)}
+              style={{padding:"6px 16px",background:C.bg3,border:`1px solid ${C.bdr2}`,borderRadius:6,
+                color:C.tx2,fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>
+              Show more ({view.length-shown.length} more)
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Tab config ────────────────────────────────────────────────────────────────
 const TABS=[
   {id:"overview",label:"Overview"},
@@ -2360,6 +2484,7 @@ const TABS=[
   {id:"unusual",label:"Unusual Flow"},
   {id:"phantom",label:"Phantom Prints"},
   {id:"options",label:"Options Flow"},
+  {id:"records",label:"★ Records"},
 ];
 
 // ── CSV Processing Engine ─────────────────────────────────────────────────────
@@ -3428,6 +3553,7 @@ export default function DarkPool({embedded}){
         {tab==="unusual"  && <UnusualPane filterByCat={filterByCat} mktcapData={mktcapData}/>}
         {tab==="phantom"  && <PhantomPane mktcapData={mktcapData}/>}
         {tab==="options"  && <OptionsPane mktcapData={mktcapData}/>}
+        {tab==="records"  && <RecordsPane/>}
       </div>
 
       {showSearch && <SearchModal onClose={()=>setShowSearch(false)} mktcapData={mktcapData}/>}
