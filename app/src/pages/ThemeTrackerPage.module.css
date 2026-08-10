@@ -266,21 +266,6 @@
   border-bottom: 1px solid var(--tt-divider, var(--border));
   cursor: pointer;
   user-select: none;
-  position: relative;
-  overflow: hidden;
-}
-
-/* Subtle right-edge strength accent: a thin rail flush to the far right, direction-colored,
-   its opacity scaled by the move's magnitude (set inline per row) — a quiet strength gradient
-   you can scan down the list without anything cluttering the middle. */
-.groupAccent {
-  position: absolute;
-  right: 0;
-  top: 22%;
-  bottom: 22%;
-  width: 3px;
-  border-radius: 2px 0 0 2px;
-  pointer-events: none;
 }
 
 .groupRow:hover {

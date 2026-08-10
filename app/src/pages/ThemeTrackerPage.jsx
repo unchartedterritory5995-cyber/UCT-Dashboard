@@ -172,17 +172,6 @@ function ThemeGroup({ theme, selectedSym, selectedNavKey, onSelectSym, activeKey
     })
   }, [theme.holdings, activeKey, sortDir])
 
-  // Subtle right-edge strength accent: a thin rail at the far right, direction-colored, its
-  // opacity scaled by the move's magnitude — a quiet strength gradient down the list, leaving
-  // the middle as clean whitespace.
-  const accentStyle = useMemo(() => {
-    if (groupLive == null || !Number.isFinite(groupLive)) return null
-    const mag = Math.min(1, Math.abs(groupLive) / 6)   // ~6% ⇒ full strength
-    return {
-      background: groupLive >= 0 ? 'var(--tt-up, #16a34a)' : 'var(--tt-down, #dc2626)',
-      opacity: 0.16 + mag * 0.84,
-    }
-  }, [groupLive])
 
   return (
     <>
@@ -194,7 +183,6 @@ function ThemeGroup({ theme, selectedSym, selectedNavKey, onSelectSym, activeKey
           <span className={styles.groupCount}>{theme.holdings.length}</span>
         </span>
         <ReturnCell value={groupLive} baseClass={`${styles.ret} ${styles.retActive} ${retClass(groupLive, styles)}`} flashEnabled={tintEnabled} />
-        {accentStyle && <span className={styles.groupAccent} style={accentStyle} aria-hidden="true" />}
       </div>
 
       {open && (() => {

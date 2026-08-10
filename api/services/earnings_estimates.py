@@ -37,8 +37,9 @@ import json as _json
 _MARKERS_REFRESH_SECONDS = 24 * 3600
 # Bump when the marker BUILD logic changes so stale disk copies are rebuilt instead
 # of served forever. v2 = splits/dividends sourced from yfinance (were empty under
-# Finnhub's premium-gated endpoints).
-_MARKERS_DISK_VERSION = 2
+# Finnhub's premium-gated endpoints). v3 = adds the forward "estimate" row (the upcoming-
+# earnings grey marker), which pre-v3 blobs lack.
+_MARKERS_DISK_VERSION = 3
 _MARKERS_DISK_DIR = os.path.join(os.environ.get("DATA_DIR", "/data"), "chart_markers")
 _markers_refresh_inflight: set[str] = set()
 _markers_refresh_lock = threading.Lock()
