@@ -45,7 +45,9 @@ export default function CompanyLogo({ sym, size = 38, round = false, tile = fals
   if (brandMark) {
     return (
       <span className={`${styles.wrap}${rc}${tc}`} style={{ width: px, height: px, background: '#12141a' }} aria-label={`${s || 'UCT'} logo`}>
-        <img className={styles.imgFill} style={{ opacity: 1, objectFit: 'contain', padding: size * 0.14 }}
+        {/* scale(1.35) fills the circle: the compass PNG carries transparent margin, so
+            even at padding 0 it renders small — the transform enlarges the visible mark. */}
+        <img className={styles.imgFill} style={{ opacity: 1, objectFit: 'contain', transform: 'scale(1.35)' }}
              src={brandMarkAsset} alt="UCT" loading="lazy" />
       </span>
     )
