@@ -244,8 +244,9 @@ def render_records_card(records: list[dict], as_of_text: str, tracked: int = 0) 
     """All-time biggest-print leaderboard PNG, in the Dark Pool card's brand."""
     from PIL import Image, ImageDraw, ImageFont
     from api.darkpool_eod import (_BG, _BAND, _ROWALT, _GOLD, _GOLD_DIM, _TXT,
-                                  _DIM, _DIV, _ASSETS, _fmt_n)
-    W, ROWH, TOP, SS = 900, 34, 132, 2
+                                  _DIM, _DIV, _ASSETS, _fmt_n, _fmt_perf,
+                                  _PERF_UP, _PERF_DN)
+    W, ROWH, TOP, SS = 1000, 34, 132, 2
     n = max(1, len(records))
     H = TOP + n * ROWH + 54
 
@@ -282,12 +283,12 @@ def render_records_card(records: list[dict], as_of_text: str, tracked: int = 0) 
     tx += txt(tx, 22, "UCT Intelligence", f_title, _GOLD) + 10
     tx += txt(tx, 22, "· Dark Pool Records", f_title, _GOLD_DIM) + 10
     txt(tx, 29, "— " + as_of_text, f_date, _DIM)
-    txt(30, 66, f"All-time biggest dark-pool prints on record  ·  {tracked:,} tickers tracked",
-        f_sub, _DIM)
+    txt(30, 66, f"All-time biggest dark-pool prints on record  ·  {tracked:,} tickers tracked"
+        "  ·  PERF = move since the print", f_sub, _DIM)
 
     cols = [("rank", "#", 40, "l"), ("ticker", "TICKER", 92, "l"),
-            ("notional", "RECORD", 420, "r"), ("price", "PRICE", 560, "r"),
-            ("date", "DATE", 760, "r")]
+            ("notional", "RECORD", 430, "r"), ("price", "PRICE", 580, "r"),
+            ("perf", "PERF", 720, "r"), ("date", "DATE", 900, "r")]
     for _, hdr, x, al in cols:
         txt(x, TOP - 28, hdr, f_hdr, _DIM, al)
     d.rectangle([s(30), s(TOP - 8), s(W - 30), s(TOP - 8) + 1], fill=_DIV)
@@ -298,10 +299,13 @@ def render_records_card(records: list[dict], as_of_text: str, tracked: int = 0) 
             d.rectangle([0, s(y - 6), s(W), s(y - 6) + s(ROWH)], fill=_ROWALT)
         txt(40, y, str(i + 1), f_row, _DIM)
         txt(92, y, r.get("ticker") or "", f_rowb, _GOLD)
-        txt(420, y, _fmt_n(r.get("notional")), f_rowb, _GOLD, "r")
+        txt(430, y, _fmt_n(r.get("notional")), f_rowb, _GOLD, "r")
         _px = r.get("price")
-        txt(560, y, (f"${_px:,.2f}" if _px else "—"), f_row, _TXT, "r")
-        txt(760, y, r.get("date") or "—", f_row, _DIM, "r")
+        txt(580, y, (f"${_px:,.2f}" if _px else "—"), f_row, _TXT, "r")
+        _pf = r.get("perf")
+        _pf_col = _DIM if _pf is None else (_PERF_UP if _pf >= 0 else _PERF_DN)
+        txt(720, y, _fmt_perf(_pf), f_rowb, _pf_col, "r")
+        txt(900, y, r.get("date") or "—", f_row, _DIM, "r")
         y += ROWH
 
     d.rectangle([s(30), s(H - 40), s(W - 30), s(H - 40) + 1], fill=_DIV)
@@ -322,6 +326,19 @@ def run_records_card(*, post: bool = False, top_n: int = 25) -> dict:
         from datetime import datetime as _dt
         from zoneinfo import ZoneInfo
         recs = get_records(limit=max(1, top_n), sort="notional")
+        # PERF = how the stock has moved SINCE the record print (record price →
+        # latest daily close). Same close reference the EOD card's PERF uses.
+        try:
+            from api.darkpool_eod import _daily_stats
+            for r in recs:
+                px = r.get("price")
+                try:
+                    close = (_daily_stats(r.get("ticker") or "") or {}).get("close")
+                    r["perf"] = ((close - px) / px * 100.0) if (px and close) else None
+                except Exception:
+                    r["perf"] = None
+        except Exception:
+            pass
         try:
             _now = _dt.now(ZoneInfo("America/New_York"))
             as_of = f"{_now.strftime('%B')} {_now.day}, {_now.year}"
