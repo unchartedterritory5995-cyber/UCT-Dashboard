@@ -65,7 +65,41 @@ def _load_committed():
                         })
         except Exception:
             continue
+    out.extend(_breadth_lists())
     return out
+
+
+_BREADTH_CATEGORY = "UCT Breadth Indicators"
+_BREADTH_LIST_DESC = {
+    "ma": "Percent of the market above each moving average — 5, 10, 20, 40, 50, 100, 200-day. Type UCTA50 etc. to chart any one.",
+    "momentum": "Momentum breadth: 4% movers, weekly/monthly/quarterly gainers & losers, 13%/34d momentum, and up/down ratios.",
+    "highs_lows": "New highs vs new lows (52-week & 20-day), all-time highs, % at highs/lows, and volume/extension internals.",
+    "score_regime": "The composite Health Score, UCT Exposure, McClellan, A/D line, stage counts, and leadership/sentiment ratios.",
+}
+
+
+def _breadth_lists():
+    """The four UCT Breadth prebuilt lists, generated from the breadth-symbol
+    registry (the single source of truth) so they never drift from the chart
+    symbols. Appended AFTER the file lists so the section renders below UCT ETF
+    Lists (picker category order is first-seen)."""
+    try:
+        from api.services import breadth_symbols as bs
+        by_group = bs.symbols_by_group()
+        out = []
+        for gid in bs.GROUP_ORDER:
+            syms = by_group.get(gid) or []
+            if not syms:
+                continue
+            out.append({
+                "name": bs.LIST_META[gid]["list_name"],
+                "desc": _BREADTH_LIST_DESC.get(gid, ""),
+                "category": _BREADTH_CATEGORY,
+                "tickers": [s.upper() for s in syms],
+            })
+        return out
+    except Exception:
+        return []
 
 
 def category_map():

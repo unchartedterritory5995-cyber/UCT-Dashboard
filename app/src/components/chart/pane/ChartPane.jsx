@@ -25,6 +25,7 @@ import {
 } from '../headerFields'
 import usePreferences from '../../../hooks/usePreferences'
 import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
+import useBreadthSymbols from '../../../hooks/useBreadthSymbols'
 import useTickerMeta from '../../../hooks/useTickerMeta'
 import useDelisted from '../../../hooks/useDelisted'
 // Phase-A carried debt (see the design doc): the pane still reads the charts
@@ -137,6 +138,14 @@ function ChartPane({
   // index via barsOverride (D/W/M only). Normal tickers: themeIdx.isIndex=false.
   const themeIdx = useThemeIndexBars(sym, tf)
   const indexTf = DWM.includes(tf) ? tf : 'D'
+  // UCT BREADTH pseudo-ticker (UCTA50 = % above 50-day MA, etc.): daily-basis
+  // synthetic candles served by /api/bars — like a theme index it has no live quote
+  // and no intraday, uses a curated-name watermark, and locks the TF bar to D/W/M.
+  const breadth = useBreadthSymbols()
+  const breadthRec = breadth.get(sym)
+  const isBreadth = !!breadthRec
+  const breadthTf = DWM.includes(tf) ? tf : 'D'
+  const synthDailyOnly = themeIdx.isIndex || isBreadth   // no live feed, D/W/M only
   // A theme index has no live-price feed (it's a synthetic pseudo-ticker), so
   // its header $/% change is the last bar's close vs the prior bar's close.
   const idxGain = useMemo(() => {
@@ -151,13 +160,13 @@ function ChartPane({
   // Header shows the COMPANY NAME + logo (not the ticker). For a theme index it's
   // the theme name + the Uncharted Territory brand mark (it has no company ticker,
   // so no logo.dev logo). meta.name comes from the shared ticker-meta cache.
-  const meta = useTickerMeta(themeIdx.isIndex ? null : sym)
+  const meta = useTickerMeta(synthDailyOnly ? null : sym)
   // DELISTED (dead company — Yahoo, Twitter, Lehman): freeze every live path. Its bars
   // still flow through /api/bars (Massive retains delisted history to ~2003), but there is
   // no live quote/stream to chase — so liveUpdates goes false, the header quote/change is
   // suppressed, the watermark uses the curated name/sector (a reused symbol's live meta is
   // the WRONG company), and the identity row shows a "Delisted <date>" badge. null = live.
-  const delistedInfo = useDelisted(themeIdx.isIndex ? null : sym)
+  const delistedInfo = useDelisted(synthDailyOnly ? null : sym)
   const isDelisted = !!delistedInfo
   const companyName = (isDelisted && delistedInfo.name) || meta?.name || sym
   const indexLabel = themeIdx.isIndex
@@ -220,7 +229,9 @@ function ChartPane({
   // Header customization (Chart Settings → Header). Title mode, visible timeframe
   // buttons, day-change, info stats, and the on-chart legend are all user-toggled.
   const hdr = chartCs.header
-  const headerLabel = themeIdx.isIndex
+  const headerLabel = isBreadth
+    ? `${sym} · ${breadthRec.name}`
+    : themeIdx.isIndex
     ? indexLabel
     : hdr.titleMode === 'ticker'
       ? sym
@@ -233,8 +244,12 @@ function ChartPane({
   // A host that passes `tfCodes` (Journal locking Daily/Weekly, etc.) REPLACES the
   // user's favorites outright — exactly those codes, no auto-add of the active tf,
   // no fallback to TF_ORDER. The host is choosing the set, not the user.
+  // A breadth symbol has no intraday basis, so lock its TF bar to D/W/M (no overflow
+  // escape to intraday) exactly like a host-supplied tfCodes lock. An explicit host
+  // tfCodes still wins.
+  const effTfCodes = Array.isArray(tfCodes) ? tfCodes : (isBreadth ? DWM : null)
   const visibleTfs = (() => {
-    if (Array.isArray(tfCodes)) return tfCodes.map(c => [c, tfLabel(c)])
+    if (Array.isArray(effTfCodes)) return effTfCodes.map(c => [c, tfLabel(c)])
     const fav = Array.isArray(hdr.timeframes) ? hdr.timeframes : []
     const codes = fav.length ? [...fav] : [...TF_ORDER]
     if (tf && !codes.includes(tf)) codes.push(tf)
@@ -410,12 +425,12 @@ function ChartPane({
           sym={sym}
           displayLabel={headerLabel}
           labelColor={hdrColors.title || null}
-          logoSym={themeIdx.isIndex ? null : sym}
+          logoSym={synthDailyOnly ? null : sym}
           brandLogo={themeIdx.isIndex}
           boundsRef={focusableRef}
           themeVars={menuVars}
           onSymbolChange={onSymbolChange ? handleSymbolChange : null}
-          showChange={hdr.showChange && !isDelisted && !(themeIdx.isIndex && !idxGain)}
+          showChange={hdr.showChange && !isDelisted && !isBreadth && !(themeIdx.isIndex && !idxGain)}
           dayGain={themeIdx.isIndex ? idxGain : null}
           delistedDate={isDelisted ? delistedInfo.delisted_date : null}
           dayGainColors={{
@@ -432,13 +447,13 @@ function ChartPane({
       )}
       {showTfBar && (
         <ChartTfBar
-          tf={tf}
+          tf={isBreadth ? breadthTf : tf}
           visibleTfs={visibleTfs}
           onTf={handleTf}
           /* An explicit tfCodes set is a LOCK, so the overflow menu goes away
              with it — otherwise the host restricts the row and the user reaches
              right past it into the full TF_MENU. */
-          showMenu={!Array.isArray(tfCodes)}
+          showMenu={!Array.isArray(effTfCodes)}
           menu={{
             favorites: Array.isArray(hdr.timeframes) ? hdr.timeframes : [],
             customCodes: customTfs,
@@ -485,7 +500,14 @@ function ChartPane({
       >
         <StockChart
           sym={sym}
-          tf={themeIdx.isIndex ? indexTf : tf}
+          tf={isBreadth ? breadthTf : (themeIdx.isIndex ? indexTf : tf)}
+          {...(isBreadth ? {
+            // UCT BREADTH: /api/bars serves the synthetic candles, so NO barsOverride —
+            // just freeze the live paths and label with the indicator's full name.
+            liveUpdates: false,
+            watermark: breadthRec.name,
+            watermarkName: breadthRec.name,
+          } : {})}
           {...(themeIdx.isIndex ? {
             barsOverride: themeIdx.bars,
             barsOverridePending: themeIdx.loading,

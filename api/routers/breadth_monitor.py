@@ -70,6 +70,19 @@ except Exception as _e:
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
+@router.get("/api/breadth-symbols")
+def get_breadth_symbols():
+    """Public catalog of the UCT breadth pseudo-tickers (UCTA50 etc.) so the chart
+    UI can recognize them (daily-only, no live quote, breadth watermark) and group
+    them. No auth — the charts they power are free-tier, and this is only metadata."""
+    from api.services import breadth_symbols as bs
+    return {
+        "symbols": bs.list_breadth_symbols(),
+        "groups": [{"id": g, "label": bs.LIST_META[g]["label"],
+                    "list_name": bs.LIST_META[g]["list_name"]} for g in bs.GROUP_ORDER],
+    }
+
+
 @router.get("/api/breadth-monitor")
 def get_breadth_history(days: int = Query(default=90, ge=1, le=3650),
                         _user: dict = Depends(require_paid)):

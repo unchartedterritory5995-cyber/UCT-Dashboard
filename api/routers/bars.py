@@ -305,9 +305,18 @@ def get_bars(
             # now) from combining into one chart. Checked FIRST so a delisted key never
             # touches the live fetch path. A bare reused symbol (live 'BSC') is NOT in the
             # registry (Bear Stearns is 'BSC-OLD'), so the live ETN falls through unaffected.
+            # UCT BREADTH pseudo-ticker (UCTA50 = % above 50-day MA, etc.): serve
+            # close-to-close candles built from the daily breadth history instead of
+            # any market-data provider. Checked FIRST so it never touches the live
+            # fetch path (a UCT symbol has no provider and would 503). Membership
+            # test — not a bare 'UCT' prefix — so a real ticker like UCTT is untouched.
+            from api.services import breadth_symbols as _breadth_syms
             from api.services import delisted_registry as _delisted
-            _drec = _delisted.resolve(ticker)
-            if _drec:
+            _is_breadth = _breadth_syms.is_breadth_symbol(ticker)
+            _drec = None if _is_breadth else _delisted.resolve(ticker)
+            if _is_breadth:
+                response = JSONResponse(content=_breadth_syms.build_breadth_bars(ticker, tf, bars))
+            elif _drec:
                 from api.services.bars_fetch import _get_delisted_bars_response
                 # serve_as=ticker keeps a bare aliased symbol (e.g. "BSC") consistent with
                 # what the client requested, while the record's provider+clamp isolate the era.
