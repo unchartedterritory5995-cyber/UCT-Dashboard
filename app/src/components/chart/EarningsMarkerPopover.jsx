@@ -113,6 +113,8 @@ export default function EarningsMarkerPopover({ data, x, y, sym, beatColor = '#1
   // Absent for tickers/eras without that source → the label is simply omitted.
   const fq = data.fiscal_quarter, fy = data.fiscal_year
   const quarterLabel = (fq != null && fy != null) ? `(${fy} Q${fq})` : null
+  // Upcoming report — no results yet, so show ESTIMATES only (no Reported / Surprise rows).
+  const isEstimate = data.estimate === true
 
   // First paint renders off-screen (measure), then useLayoutEffect pins the real
   // position before the browser shows it — so there's no visible jump.
@@ -129,6 +131,7 @@ export default function EarningsMarkerPopover({ data, x, y, sym, beatColor = '#1
         <div className={styles.titleWrap}>
           <span className={styles.title}>{sym ? `${sym} · Earnings` : 'Earnings'}</span>
           {quarterLabel && <span className={styles.quarter}>{quarterLabel}</span>}
+          {isEstimate && <span className={styles.quarter} style={{ color: DIM }}>Upcoming</span>}
         </div>
         <button type="button" className={styles.close} onClick={onClose} aria-label="Close">✕</button>
       </div>
@@ -137,16 +140,26 @@ export default function EarningsMarkerPopover({ data, x, y, sym, beatColor = '#1
         <span className={styles.v}>{fmtDate(data.date)}</span>
       </div>
 
-      <div className={styles.sectionLabel}>EPS</div>
-      <div className={styles.row}><span className={styles.k}>Reported</span><span className={styles.v}>{fmtNum(epsA)}</span></div>
-      <div className={styles.row}><span className={styles.k}>Estimate</span><span className={styles.v}>{fmtNum(epsE, 3).replace(/0+$/, '').replace(/\.$/, '')}</span></div>
-      <SurpriseRow label="Surprise" absStr={epsSurpAbs} pctNum={epsPctNum} pctText={epsPctText} beatColor={beatColor} missColor={missColor} />
+      {isEstimate ? (<>
+        {/* No results yet — estimates only. */}
+        <div className={styles.sectionLabel}>EPS</div>
+        <div className={styles.row}><span className={styles.k}>Estimate</span><span className={styles.v}>{fmtNum(epsE, 3).replace(/0+$/, '').replace(/\.$/, '')}</span></div>
+        {isNum(revE) && (<>
+          <div className={styles.sectionLabel}>Revenue</div>
+          <div className={styles.row}><span className={styles.k}>Estimate</span><span className={styles.v}>{fmtBig(revE)}</span></div>
+        </>)}
+      </>) : (<>
+        <div className={styles.sectionLabel}>EPS</div>
+        <div className={styles.row}><span className={styles.k}>Reported</span><span className={styles.v}>{fmtNum(epsA)}</span></div>
+        <div className={styles.row}><span className={styles.k}>Estimate</span><span className={styles.v}>{fmtNum(epsE, 3).replace(/0+$/, '').replace(/\.$/, '')}</span></div>
+        <SurpriseRow label="Surprise" absStr={epsSurpAbs} pctNum={epsPctNum} pctText={epsPctText} beatColor={beatColor} missColor={missColor} />
 
-      {hasRev && (<>
-        <div className={styles.sectionLabel}>Revenue</div>
-        <div className={styles.row}><span className={styles.k}>Reported</span><span className={styles.v}>{fmtBig(revA)}</span></div>
-        <div className={styles.row}><span className={styles.k}>Estimate</span><span className={styles.v}>{fmtBig(revE)}</span></div>
-        <SurpriseRow label="Surprise" absStr={revSurpAbs} pctNum={revPctNum} pctText={revPctText} beatColor={beatColor} missColor={missColor} />
+        {hasRev && (<>
+          <div className={styles.sectionLabel}>Revenue</div>
+          <div className={styles.row}><span className={styles.k}>Reported</span><span className={styles.v}>{fmtBig(revA)}</span></div>
+          <div className={styles.row}><span className={styles.k}>Estimate</span><span className={styles.v}>{fmtBig(revE)}</span></div>
+          <SurpriseRow label="Surprise" absStr={revSurpAbs} pctNum={revPctNum} pctText={revPctText} beatColor={beatColor} missColor={missColor} />
+        </>)}
       </>)}
     </div>,
     document.body,
