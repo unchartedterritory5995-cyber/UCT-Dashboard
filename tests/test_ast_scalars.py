@@ -517,14 +517,18 @@ def test_freshness_definition_gives_the_SAME_PER_PLOT_SHAPE_as_the_repaint_rows(
 def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     """⛔ M9's SHAPE, MADE A TEST. ``assert_corpus_covers_the_table`` demands a
     corpus case per BAR name and aborts otherwise. A ``bar_names`` that widened
-    to include scalars would demand 54 new bar-corpus cases, move all 17 frozen
-    per-ast digests, and re-freeze a cross-lane oracle for a reason that has
-    nothing to do with bars. The equality inside the tool is what makes that
-    abort loud instead of a silently regrown obligation."""
+    to include scalars would demand one new bar-corpus case per scalar, move
+    every frozen per-ast digest, and re-freeze a cross-lane oracle for a reason
+    that has nothing to do with bars. The equality inside the tool is what makes
+    that abort loud instead of a silently regrown obligation.
+
+    ⭐ THE BAR FLOOR MOVED 31 -> 48 AT PHASE F and the scalar floor did not move
+    at all, which is the whole reason these are two numbers. Seventeen indicators
+    became callable and each one owed a bar-corpus case; not one scalar did."""
     manifest = ac.load_manifest()
     corpus = ac.load_corpus()
     parts = ac.assert_the_two_floors_partition_the_table(manifest)
-    assert len(parts["bar"]) == 31 and len(parts["scalar"]) == 54
+    assert len(parts["bar"]) == 48 and len(parts["scalar"]) == 54
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…

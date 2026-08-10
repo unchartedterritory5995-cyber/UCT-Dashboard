@@ -50,18 +50,53 @@ from api.services.ast_table import (
     TABLE, FUNCTIONS_SECTION, OPERATORS_SECTION, SCALARS_SECTION, SERIES_SECTION,
 )
 
+# ⭐⭐ NOT ONE LINE OF INDICATOR MATHS LIVES IN THIS FILE. ``indicator_compute``
+# is what ``indicator_alert_evaluator`` already fires on and what
+# ``tests/fixtures/indicators/`` already pins against
+# ``app/src/components/chart/indicators.js`` at rel-tol 1e-9, case by case. That
+# pre-existing equality is the ONLY reason a formula calling ``rsi`` can be
+# promised to agree across the two lanes; a private RSI here would be a third
+# implementation and a second authority over one value.
+# ``closedTable.json::_functions_indicators`` records the decision.
+#
+# ⚠️ THE `_raw` FORMS, ALWAYS. The delivery wrappers round (2dp for RSI, 4dp for
+# ATR ...) because two live consumers compare those numbers against user
+# thresholds; a formula composes values and then compares, so rounding here would
+# put a half-ulp step inside every expression -- and it would break the 1e-9
+# equality with the JS lane, which does not round at all.
+from api.services.indicator_compute import (
+    compute_adx_raw,
+    compute_atr_raw,
+    compute_cci_raw,
+    compute_donchian_raw,
+    compute_ichimoku_raw,
+    compute_macd_raw,
+    compute_mfi_raw,
+    compute_rsi_raw,
+    compute_stoch_raw,
+    compute_williams_r_raw,
+)
+
 MaybeNum = Optional[float]
 
 NAN = float("nan")
 INF = float("inf")
 
-#: The canonical persisted node vocabulary — the same four
+#: The canonical persisted node vocabulary — the same five
 #: ``app/src/components/chart/engine/ast/parse.js`` exports as ``NODE_TYPES``.
 #:
-#: ⚠️ NOT HAND-TRUSTED. ``test_ast_interpret.py`` derives the same four from the
+#: ⚠️ NOT HAND-TRUSTED. ``test_ast_interpret.py`` derives the same set from the
 #: union of every ``type`` in the committed corpus and asserts the equality, so a
-#: fifth type arriving on the wire cannot be absorbed here quietly.
-NODE_TYPES = ("num", "series", "op", "call")
+#: sixth type arriving on the wire cannot be absorbed here quietly.
+#:
+#: ⭐⭐ ``offset`` IS THE BOUNDED BACKWARD FORM — ``{type: "offset", value: <int
+#: ≥ 0>, args: [<one child>]}``, which the JS lane's ``parse.js`` produces for
+#: the source spelling ``EXPR[N]``. Python STILL NEVER PARSES; it walks the tree
+#: that door built. The bar count is a NUMBER ON THE NODE rather than a child
+#: expression, and that is the whole design: a shape with no slot for an
+#: expression cannot hold one, so ``max_lookback`` stays a TREE SUM and a
+#: FORWARD reference stays inexpressible in both lanes at once.
+NODE_TYPES = ("num", "series", "op", "call", "offset")
 
 
 # --------------------------------------------------------------------------- #
@@ -98,6 +133,7 @@ REFUSALS: Mapping[str, str] = {
     "resolve:window": "a window must be a whole-number literal",
     "interpret:node": "not a canonical node",
     "interpret:operator": "unknown operator",
+    "interpret:offset": "an offset node carries a whole-number count of bars",
 }
 
 
@@ -192,7 +228,11 @@ def _isnan(x: float) -> bool:
 # ⚠️ EVERY IMPLEMENTATION BELOW RECEIVES A LIST OF FLOATS FOR A `series` ARGUMENT
 # AND A PLAIN int FOR AN `int` ONE. The coercion happens once, in the walker,
 # driven by `TABLE['functions'][name]['args']` — so no implementation carries its
-# own idea of what its arguments are, and a table edit reaches all eleven at once.
+# own idea of what its arguments are, and a table edit reaches every one of them
+# at once. ⛔ NO COUNT HERE. This comment said "all eleven" while the table held
+# eleven, which is the hand-typed-count-beside-the-list defect the ledger is full
+# of; ``test_ast_interpret.py`` asserts the key sets are EQUAL, which is the claim
+# a number was only ever approximating.
 #
 # ⭐ NaN IS A WARMUP, NOT A ZERO, AND IT PROPAGATES. A fabricated 0 during a
 # 199-bar warmup is a number a user could arm an alert on.
@@ -322,6 +362,185 @@ def _guarded_max(x: float, y: float) -> float:
     return NAN if (math.isnan(x) or math.isnan(y)) else max(x, y)
 
 
+# --------------------------------------------------------------------------- #
+# the indicators -- a BINDING to the server's own maths, never a second copy
+# --------------------------------------------------------------------------- #
+#
+# ⭐ THREE HELPERS AND NOTHING ELSE. Everything below is (1) pack the declared
+# ``series`` columns into the ``{h,l,c,v}`` bar shape ``indicator_compute``
+# reads, (2) call the shipped function, (3) unpack its ``[float | None]`` back
+# into a NaN-padded column. ``interpret.js`` carries the SAME three, in the same
+# order, against the same shipped functions -- so the two lanes differ only where
+# ``indicators.js`` and ``indicator_compute.py`` already differ, which is the
+# thing the golden fixtures measure.
+
+
+#: The bar-field name lists the bindings below pack into. THE SHIPPED
+#: FUNCTIONS' parameter shape, never the table's vocabulary -- ``high`` is the
+#: table's name for the series and ``h`` is the key ``indicator_compute`` reads.
+_HL = ("h", "l")
+_HLC = ("h", "l", "c")
+_HLCV = ("h", "l", "c", "v")
+
+
+def _finite_tail_start(cols: Sequence[Sequence[float]], length: int) -> int:
+    """⭐⭐ THE FIRST BAR FROM WHICH EVERY INPUT COLUMN IS FINITE TO THE END --
+    and this is the load-bearing half of the whole binding.
+
+    🔴 THE MEASURED REASON, NOT A PRECAUTION. ``indicator_compute`` and
+    ``indicators.js`` are written for BARS, and a bar is finite. Hand either one
+    a NaN and the two languages stop agreeing: ``compute_atr_raw``'s
+    ``max(h - l, abs(h - prev_c), abs(l - prev_c))`` with a NaN ``prev_c``
+    returns Python's FIRST argument, because every NaN comparison is false and
+    ``max`` keeps the incumbent -- while ``Math.max`` returns NaN. Same
+    expression, same fixture, two answers, and no golden fixture can see it
+    because no fixture contains a NaN. A composed argument
+    (``atr(high, low, sma(close,3), 14)``) is how a user reaches it in one
+    keystroke.
+
+    ⭐ SO THE SHIPPED MATHS NEVER SEES ONE. The column starts after the LAST
+    non-finite value in ANY argument, which is ``_ema_col``'s already-declared
+    rule ("a NaN in the input RESTARTS the seed") applied to a whole bar.
+    ``rsi(sma(close, 20), 14)`` therefore produces its first value at bar 33 --
+    exactly the ``19 + 14`` the manifest's tree sum promises -- and an
+    uncomposed ``close`` argument starts at 0, so every column this binding
+    returns for an ordinary call is identical to calling the shipped function
+    directly.
+
+    ⛔ WRITTEN TWICE, HERE AND IN ``interpret.js``, deliberately. It is a
+    CONTRACT between the two lanes, not an optimisation, and the corpus pins it.
+    """
+    start = 0
+    for col in cols:
+        for i in range(length - 1, start - 1, -1):
+            if not math.isfinite(col[i]):
+                start = i + 1
+                break
+    return start
+
+
+def _bind_shipped(fields: Sequence[str], cols: Sequence[Sequence[float]],
+                  length: int, run: Callable[[List[dict]], Any]) -> List[float]:
+    """Pack the declared series columns into bars, run the server's own maths
+    over them, and unpack the result into a NaN-padded column of ``length``.
+
+    ⚠️ ``t`` IS SET AND NEVER READ BY ANY BOUND FUNCTION, exactly as in
+    ``interpret.js::bindShipped``. It is a bar index, NOT the real timestamp --
+    which is precisely why ``vwap`` is refused (``_functions_excluded``): a
+    session anchor cannot be reconstructed from a column of prices.
+
+    ⛔ A LENGTH MISMATCH IS ALL-NaN, NOT A PARTIAL FILL. Every bound function
+    returns either a bar-aligned list or an all-``None`` one; the JS lane's
+    equivalent refuses the same way against that lane's ``[]`` form of the same
+    "too short to compute anything" signal.
+    """
+    out = _nan_col(length)
+    start = _finite_tail_start(cols, length)
+    n = length - start
+    if n <= 0:
+        return out
+    bars: List[dict] = []
+    for i in range(n):
+        bar = {"t": i}
+        for k, field in enumerate(fields):
+            bar[field] = cols[k][start + i]
+        bars.append(bar)
+    values = run(bars)
+    if not isinstance(values, list) or len(values) != n:
+        return out
+    for i in range(n):
+        v = values[i]
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            continue
+        out[start + i] = NAN if math.isnan(float(v)) else float(v)
+    return out
+
+
+def _ichimoku_line(h: Sequence[float], l: Sequence[float], c: Sequence[float],  # noqa: E741
+                   tenkan: int, kijun: int, senkou_b: int, index: int) -> List[float]:
+    """One line of the Ichimoku family, with ``_functions_domain``'s guard first.
+
+    ⛔ THE GUARD IS WRITTEN IN BOTH LANES ON PURPOSE. ``compute_ichimoku_raw``
+    returns empty columns when ``max(tenkan, kijun) > senkou_b``;
+    ``indicators.js::computeIchimoku`` reads a NEGATIVE index and throws a
+    TypeError. Letting either lane's native answer through would be a cross-lane
+    divergence on an argument list the table admits.
+
+    ⚠️ THE FOUR MIDLINE ENTRIES PASS ``high`` AS THE CLOSE COLUMN AND THAT IS NOT
+    A SHORTCUT. ``compute_ichimoku_raw`` reads ``c`` for exactly one thing -- the
+    lagging span -- so a line that declares no close argument cannot be affected
+    by what sits there, and declaring a fifth series every one of them ignores
+    would put a term in the read-back that says nothing about the number.
+    """
+    if max(tenkan, kijun) > senkou_b:
+        return _nan_col(len(h))
+    return _bind_shipped(
+        _HLC, (h, l, c), len(h),
+        lambda bars: compute_ichimoku_raw(bars, tenkan, kijun, senkou_b)[index])
+
+
+def _fn_rsi(s: Sequence[float], n: int) -> List[float]:
+    return _bind_shipped(("c",), (s,), len(s),
+                         lambda bars: compute_rsi_raw([b["c"] for b in bars], n))
+
+
+def _fn_macd(s: Sequence[float], fast: int, slow: int) -> List[float]:
+    """The MACD LINE only.
+
+    ⛔ ``signal`` IS PINNED TO 1 AND IT IS NOT A HIDDEN DEFAULT. This entry
+    declares the line; the only thing ``signal`` still reaches is the guard
+    ``n < slow + signal``, and 1 is the smallest value that cannot make that
+    guard refuse a series the LINE could have been computed over. ``computeMACD``
+    is passed the same 1. The signal line is ``ema(macd(close,12,26), 9)`` --
+    see ``_functions_excluded.macdSignal``.
+    """
+    if fast > slow:
+        return _nan_col(len(s))
+    return _bind_shipped(
+        ("c",), (s,), len(s),
+        lambda bars: compute_macd_raw([b["c"] for b in bars], fast, slow, 1)[0])
+
+
+def _fn_atr(h, l, c, n):  # noqa: E741
+    return _bind_shipped(_HLC, (h, l, c), len(c), lambda bars: compute_atr_raw(bars, n))
+
+
+def _fn_plus_di(h, l, c, n):  # noqa: E741
+    return _bind_shipped(_HLC, (h, l, c), len(c), lambda bars: compute_adx_raw(bars, n)[1])
+
+
+def _fn_minus_di(h, l, c, n):  # noqa: E741
+    return _bind_shipped(_HLC, (h, l, c), len(c), lambda bars: compute_adx_raw(bars, n)[2])
+
+
+def _fn_stoch(h, l, c, n):  # noqa: E741
+    """%K only. %D is ``sma(stoch(...), d)`` -- ``_functions_excluded.stochD``.
+
+    ``d_period`` is pinned to 1 for the same reason ``macd``'s ``signal`` is: it
+    must not reach a guard this entry's declaration says nothing about.
+    """
+    return _bind_shipped(_HLC, (h, l, c), len(c),
+                         lambda bars: compute_stoch_raw(bars, n, 1)[0])
+
+
+def _fn_cci(h, l, c, n):  # noqa: E741
+    return _bind_shipped(_HLC, (h, l, c), len(c), lambda bars: compute_cci_raw(bars, n))
+
+
+def _fn_williams_r(h, l, c, n):  # noqa: E741
+    return _bind_shipped(_HLC, (h, l, c), len(c),
+                         lambda bars: compute_williams_r_raw(bars, n))
+
+
+def _fn_mfi(h, l, c, v, n):  # noqa: E741
+    return _bind_shipped(_HLCV, (h, l, c, v), len(c), lambda bars: compute_mfi_raw(bars, n))
+
+
+def _donchian(h, l, n, index):  # noqa: E741
+    return _bind_shipped(_HL, (h, l), len(h),
+                         lambda bars: compute_donchian_raw(bars, n)[index])
+
+
 #: name → implementation. THE KEY SET IS ``TABLE['functions']``'s, both directions.
 #:
 #: ⛔ AN IMPLEMENTED-BUT-UNDECLARED KEY HERE IS A CALLABLE OUTSIDE THE CLOSED
@@ -347,6 +566,30 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "max": lambda a, b: _elementwise2(a, b, _guarded_max),
     "crossOver": lambda a, b: _crossing(a, b, lambda an, bn, ap, bp: an > bn and ap <= bp),
     "crossUnder": lambda a, b: _crossing(a, b, lambda an, bn, ap, bp: an < bn and ap >= bp),
+    # ── the indicators, bound to the server's own maths ────────────────────
+    #
+    # ⚠️ ``compute_rsi_raw`` and ``compute_macd_raw`` ALREADY TAKE A SERIES, so
+    # those two need no bar packing at all -- which is what makes
+    # ``rsi(sma(close,20), 14)`` an RSI of a smoothed series rather than a
+    # different function. That composability is the reason the table declares a
+    # ``series`` argument instead of reading ``close`` itself.
+    "rsi": _fn_rsi,
+    "macd": _fn_macd,
+    "atr": _fn_atr,
+    "plusDI": _fn_plus_di,
+    "minusDI": _fn_minus_di,
+    "stoch": _fn_stoch,
+    "cci": _fn_cci,
+    "williamsR": _fn_williams_r,
+    "mfi": _fn_mfi,
+    "donchianUpper": lambda h, l, n: _donchian(h, l, n, 0),   # noqa: E741
+    "donchianMiddle": lambda h, l, n: _donchian(h, l, n, 1),  # noqa: E741
+    "donchianLower": lambda h, l, n: _donchian(h, l, n, 2),   # noqa: E741
+    "ichimokuTenkan": lambda h, l, t, k, s: _ichimoku_line(h, l, h, t, k, s, 0),  # noqa: E741
+    "ichimokuKijun": lambda h, l, t, k, s: _ichimoku_line(h, l, h, t, k, s, 1),   # noqa: E741
+    "ichimokuSpanA": lambda h, l, t, k, s: _ichimoku_line(h, l, h, t, k, s, 2),   # noqa: E741
+    "ichimokuSpanB": lambda h, l, t, k, s: _ichimoku_line(h, l, h, t, k, s, 3),   # noqa: E741
+    "ichimokuChikou": lambda h, l, c, t, k, s: _ichimoku_line(h, l, c, t, k, s, 4),  # noqa: E741
 }
 
 
@@ -472,7 +715,7 @@ def _flatten(root: Any) -> List[dict]:
         node = stack.pop()
         _assert_node(node)
         order.append(node)
-        if node["type"] in ("op", "call"):
+        if node["type"] in ("op", "call", "offset"):
             args = node.get("args")
             if not isinstance(args, list):
                 _refuse("interpret:node",
@@ -523,6 +766,36 @@ def _window_literal(node: dict, index: int) -> int:
     return int(arg["value"])
 
 
+def _offset_bars(node: dict) -> int:
+    """The bar count of ONE ``offset`` node, VALIDATED. Refuses ``interpret:offset``.
+
+    ⭐ THE SHAPE ALREADY MAKES A COMPUTED OFFSET INEXPRESSIBLE — ``value`` is a
+    number on the node and there is no slot for an expression. This is what
+    stands between that guarantee and a PERSISTED tree, which is user data that
+    never went through ``canonicalise``: a stored blob can spell
+    ``{"type": "offset", "value": -26}`` by hand, and the negative is the one
+    thing that must never reach the walker.
+
+    ⛔ A REFUSAL, NOT A CLAMP. Clamping ``-26`` to ``0`` would silently turn a
+    forward reference into ``close`` and draw a confident wrong column.
+
+    ⛔ ``type(v) is bool`` IS CHECKED, because ``isinstance(True, int)`` is True
+    and ``True`` would otherwise read as an offset of one bar. The same trap
+    ``stable_stringify`` documents, one door along.
+    """
+    args = node.get("args")
+    if not isinstance(args, list) or len(args) != 1:
+        _refuse("interpret:offset",
+                f"— an offset reads exactly one child column, got "
+                f"{len(args) if isinstance(args, list) else args!r}")
+    n = node.get("value")
+    if (isinstance(n, bool) or not _is_number(n)
+            or not float(n).is_integer() or n < 0):
+        _refuse("interpret:offset",
+                f"— got {n!r}; a bar offset counts backwards from the bar it writes")
+    return int(n)
+
+
 def _own_lookback(node: dict, spec: Mapping[str, Any]) -> int:
     """The declared lookback of ONE call node: a constant, or a named argument."""
     lb = spec.get("lookback")
@@ -559,6 +832,11 @@ def max_lookback(ast: Any) -> int:
             for arg in node["args"]:
                 best = max(best, seen[id(arg)])
             seen[id(node)] = best
+            continue
+        if kind == "offset":
+            # ⭐ THE TREE SUM, EXTENDED BY EXACTLY ONE TERM, and byte-for-byte
+            # the JS lane's arithmetic: ``sma(close[2], 20)`` needs 22 bars.
+            seen[id(node)] = _offset_bars(node) + seen[id(node["args"][0])]
             continue
         spec = _fn_spec(node.get("name"))
         _assert_arity(node, spec)
@@ -779,7 +1057,7 @@ def interpret(ast: Any, bars: List[dict],
         if not isinstance(n, dict):
             return _refuse("interpret:node", f"got {n!r}")
         kind = n.get("type")
-        if kind in ("op", "call") and not isinstance(n.get("args"), list):
+        if kind in ("op", "call", "offset") and not isinstance(n.get("args"), list):
             return _refuse("interpret:node",
                            f"a {kind} node carries an `args` array; got {n.get('args')!r}")
         if kind == "num":
@@ -790,6 +1068,23 @@ def interpret(ast: Any, bars: List[dict],
             return float(value)
         if kind == "series":
             return lookup(n.get("name"))
+        if kind == "offset":
+            back = _offset_bars(n)
+            # ⛔ MATERIALISED TO A COLUMN FIRST, ALWAYS — the JS lane does the
+            # same, and for the same reason: a scalar child has no history
+            # either, so broadcasting and THEN shifting is what makes "three bars
+            # ago" mean one thing in both lanes for every child kind.
+            src = _to_column(eval_node(n["args"][0]), length)
+            # ⭐⭐ THE LEFT EDGE, AND IT IS THE DEFINING RULE OF THIS ENGINE.
+            # Bars before index `back` have no bar to read, so the answer is NOT
+            # COMPUTABLE. ⛔ NEVER 0.0 and ⛔ NEVER ``src[0]``: a clamped first
+            # bar makes ``close > close[3]`` a confident answer on bar 1, which
+            # is the defect class ``unresolved_lookback`` above was written
+            # against. The prefix is NaN and the loop starts AT ``back``.
+            out = _nan_col(length)
+            for i in range(back, length):
+                out[i] = src[i - back]
+            return out
         if kind == "op":
             return apply_op(n, [eval_node(a) for a in n["args"]])
         if kind == "call":

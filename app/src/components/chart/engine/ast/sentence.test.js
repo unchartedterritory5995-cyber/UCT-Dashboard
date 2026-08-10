@@ -107,6 +107,31 @@ const FORMS = [
   { kind: 'call', name: 'crossOver', parts: [0, ' crossing above ', 1] },
   { kind: 'call', name: 'crossUnder', parts: [0, ' crossing below ', 1] },
 
+  // ⭐ THE INDICATOR FORMS (Phase F). Hand-typed like every other phrase in this
+  // table, and that is the whole design: this grammar is a DELIBERATE second
+  // authority, written from the manifest's words by a reader rather than derived
+  // from them, so `swapping a template BREAKS it` can be true. Seventeen new
+  // declarations therefore cost seventeen new forms here, and a phrase edited in
+  // the manifest without one lands as `0 parses` rather than as a green round
+  // trip against a reader that moved with it.
+  { kind: 'call', name: 'rsi', parts: ['the ', 1, '-bar RSI of ', 0] },
+  { kind: 'call', name: 'macd', parts: ['the ', 1, '/', 2, ' MACD line of ', 0] },
+  { kind: 'call', name: 'atr', parts: ['the ', 3, '-bar average true range of ', 0, ', ', 1, ' and ', 2] },
+  { kind: 'call', name: 'plusDI', parts: ['the ', 3, '-bar +DI of ', 0, ', ', 1, ' and ', 2] },
+  { kind: 'call', name: 'minusDI', parts: ['the ', 3, '-bar -DI of ', 0, ', ', 1, ' and ', 2] },
+  { kind: 'call', name: 'stoch', parts: ['the ', 3, '-bar stochastic %K of ', 0, ', ', 1, ' and ', 2] },
+  { kind: 'call', name: 'cci', parts: ['the ', 3, '-bar commodity channel index of ', 0, ', ', 1, ' and ', 2] },
+  { kind: 'call', name: 'williamsR', parts: ['the ', 3, '-bar Williams %R of ', 0, ', ', 1, ' and ', 2] },
+  { kind: 'call', name: 'mfi', parts: ['the ', 4, '-bar money flow index of ', 0, ', ', 1, ', ', 2, ' and ', 3] },
+  { kind: 'call', name: 'donchianUpper', parts: ['the top of the ', 2, '-bar Donchian channel over ', 0, ' and ', 1] },
+  { kind: 'call', name: 'donchianMiddle', parts: ['the midline of the ', 2, '-bar Donchian channel over ', 0, ' and ', 1] },
+  { kind: 'call', name: 'donchianLower', parts: ['the bottom of the ', 2, '-bar Donchian channel over ', 0, ' and ', 1] },
+  { kind: 'call', name: 'ichimokuTenkan', parts: ['the Ichimoku conversion line over ', 0, ' and ', 1, ' at ', 2, '/', 3, '/', 4] },
+  { kind: 'call', name: 'ichimokuKijun', parts: ['the Ichimoku base line over ', 0, ' and ', 1, ' at ', 2, '/', 3, '/', 4] },
+  { kind: 'call', name: 'ichimokuSpanA', parts: ['the Ichimoku leading span A over ', 0, ' and ', 1, ' at ', 2, '/', 3, '/', 4] },
+  { kind: 'call', name: 'ichimokuSpanB', parts: ['the Ichimoku leading span B over ', 0, ' and ', 1, ' at ', 2, '/', 3, '/', 4] },
+  { kind: 'call', name: 'ichimokuChikou', parts: ['the Ichimoku lagging span of ', 2, ' over ', 0, ' and ', 1, ' at ', 3, '/', 4, '/', 5] },
+
   { kind: 'op', name: '+', parts: [0, ' plus ', 1] },
   { kind: 'op', name: '-', parts: [0, ' minus ', 1] },
   { kind: 'op', name: '*', parts: [0, ' times ', 1] },
@@ -486,28 +511,36 @@ describe('totality over the closed table — derived from the manifest, never ha
 
   it('…and the floor is the ENTRY LIST, not a count — a rename is named', () => {
     // ⚠️ A LIST, NEVER A COUNT. `(d.plots || [])` answered `[]` for a renamed
-    // field on this branch and silently voided an entire clause. 31 is the
+    // field on this branch and silently voided an entire clause. 48 is the
     // number `ast_conformance --coverage` asserts; the names are what a rename
-    // has to fail against.
+    // has to fail against. ⭐ It went 31 -> 48 in Phase F, and the LIST is why
+    // that reads as seventeen indicators arriving rather than as a number
+    // somebody adjusted.
     const entries = treesForTheWholeTable(TABLE).map((t) => t.entry)
     expect(entries).toEqual([
       'series:close', 'series:high', 'series:low', 'series:open', 'series:volume',
-      'operator:!', 'operator:!=', 'operator:&&', 'operator:*', 'operator:+',
-      'operator:-', 'operator:/', 'operator:<', 'operator:<=', 'operator:==',
-      'operator:>', 'operator:>=', 'operator:?:', 'operator:u-', 'operator:||',
-      'function:abs', 'function:change', 'function:crossOver', 'function:crossUnder',
-      'function:ema', 'function:highest', 'function:lowest', 'function:max',
-      'function:min', 'function:sma', 'function:stdev',
+      'operator:!', 'operator:!=', 'operator:&&', 'operator:*', 'operator:+', 'operator:-',
+      'operator:/', 'operator:<', 'operator:<=', 'operator:==', 'operator:>', 'operator:>=',
+      'operator:?:', 'operator:u-', 'operator:||', 'function:abs', 'function:atr',
+      'function:cci', 'function:change', 'function:crossOver', 'function:crossUnder',
+      'function:donchianLower', 'function:donchianMiddle', 'function:donchianUpper',
+      'function:ema', 'function:highest', 'function:ichimokuChikou',
+      'function:ichimokuKijun', 'function:ichimokuSpanA', 'function:ichimokuSpanB',
+      'function:ichimokuTenkan', 'function:lowest', 'function:macd', 'function:max',
+      'function:mfi', 'function:min', 'function:minusDI', 'function:plusDI', 'function:rsi',
+      'function:sma', 'function:stdev', 'function:stoch', 'function:williamsR',
     ])
-    expect(entries.length).toBe(31)
+    expect(entries.length).toBe(48)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
     // ⭐ TOTALITY, PROVEN GENERATIVELY. "A tree the table can express must never
     // produce a sentence you cannot generate" is a claim about all 31 entries,
-    // so all 31 are built from the manifest and put through the full loop.
+    // so every one of them is built from the manifest and put through the full
+    // loop. ⛔ The count is asserted against the list above rather than retyped
+    // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(31)
+    expect(subjects.length).toBe(48)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -928,7 +961,10 @@ describe('the coverage rail is the WALKER\'s answer in ALL FOUR sections', () =>
     }
   })
 
-  it('🔴 POSITIVE CONTROL — FUNCTIONS: a DECLARED phrase the walker refuses is NAMED, all eleven', () => {
+  it('🔴 POSITIVE CONTROL — FUNCTIONS: a DECLARED phrase the walker refuses is NAMED, every one', () => {
+    // ⛔ NO COUNT IN THE TITLE. It said "all eleven" and Phase F declared
+    // seventeen more; the loop below was always derived, so the number was
+    // decoration that went stale while the assertion stayed correct.
     const declared = Object.keys(TABLE.functions)
     expect(declared.length).toBeGreaterThanOrEqual(11)
     for (const name of declared) {
@@ -1575,7 +1611,11 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'sma_of_close', 'nan_propagates', 'float_division', 'compare_with_nan', 'ternary',
       'deep_nest', 'cross', 'cross_under', 'volume_relative', 'lowest_of_low', 'stdev_band',
       'abs_change', 'min_max_envelope', 'strict_less', 'bounds_inclusive',
-      'equality_and_negation', 'unary_minus',
+      'equality_and_negation', 'unary_minus', 'rsi_overbought', 'rsi_of_a_smoothed_series',
+      'macd_line', 'macd_signal_by_composition', 'atr_of_hlc', 'plus_di', 'minus_di',
+      'stoch_k', 'stoch_d_by_composition', 'cci_20', 'williams_r', 'mfi_14',
+      'donchian_upper', 'donchian_middle', 'donchian_lower', 'ichimoku_tenkan',
+      'ichimoku_kijun', 'ichimoku_span_a', 'ichimoku_span_b', 'ichimoku_chikou',
     ])
   })
 
@@ -1618,7 +1658,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       ...CORPUS.cases.map((c) => sentenceFor(c.ast, {})),
       ...treesForTheWholeTable(TABLE).map((t) => sentenceFor(t.ast, {})),
     ]
-    expect(sentences.length).toBe(CORPUS.cases.length + 31)
+    expect(sentences.length).toBe(CORPUS.cases.length + 48)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)
@@ -1651,7 +1691,7 @@ describe('attribution — WHICH branch produced the sentence, not only what it s
     }
   })
 
-  it('DELETING the branch a sentence is attributed to changes that sentence — all 11 functions', () => {
+  it('DELETING the branch a sentence is attributed to changes that sentence — every function', () => {
     // ⭐ THE ANSWER TO "RIGHT FOR THE WRONG REASON". A sentence that is correct
     // proves nothing about which branch made it; a sentence that STOPS being
     // producible when its claimed branch is deleted does. Run over every

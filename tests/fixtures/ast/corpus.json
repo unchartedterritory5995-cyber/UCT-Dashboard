@@ -1,6 +1,6 @@
 {
   "_": "THE COMMITTED AST CORPUS. Hand-written, one case per row, each with the reason it exists. A corpus generated from the thing it measures is not an oracle, so nothing here was produced by a parser or an interpreter.",
-  "_shape": "`ast` is the CANONICAL PERSISTED tree (Task 3's `canonicalise` output), not jsep's: four node types `num` / `series` / `op` / `call`, and the union of keys over any tree is exactly ['args','name','type','value']. `source` rides alongside for editing and read-back and is NEVER the input to anything that computes; Task 3 owes the rail asserting canonicalise(parse(source)) deep-equals `ast` for every row here.",
+  "_shape": "`ast` is the CANONICAL PERSISTED tree (Task 3's `canonicalise` output), not jsep's: five node types `num` / `series` / `op` / `call` / `offset`, and the union of keys over any tree is exactly ['args','name','type','value'] -- `offset` carries {type,value,args} and deliberately NO `name`, so the key vocabulary is unmoved. `source` rides alongside for editing and read-back and is NEVER the input to anything that computes; Task 3 owes the rail asserting canonicalise(parse(source)) deep-equals `ast` for every row here.",
   "_coverage": "Every entry of `app/src/components/chart/engine/ast/closedTable.json` must appear in at least one case. That floor is DERIVED FROM THE MANIFEST by `tools/ast_conformance.py::assert_corpus_covers_the_table`, never hand-listed here -- DPC's four constants rode outside their rail for the rule's entire life because that rail was a LIST of what somebody remembered. The manifest does not exist until Task 3, so the rail is ARMED AND SKIPPED and Task 3 owes its first pass.",
   "_operators": "The canonical tree names unary minus `u-` and the ternary `?:`, matching the manifest's operator keys. The SOURCE spells them `-` and `? :`; that difference is the canonicaliser's job and is exactly what Task 3's round-trip rail pins.",
   "bars": "tests/fixtures/alerts/replay_bars.json#intraday5m",
@@ -248,6 +248,402 @@
           { "type": "call", "name": "change", "args": [ { "type": "series", "name": "close" } ] }
         ]
       }
+    },
+    {
+      "id": "rsi_overbought",
+      "source": "rsi(close, 14) > 70",
+      "why": "THE ACCEPTANCE EXPRESSION. Phase F exists because a member could not write it: eleven functions and not one of them an indicator. It covers `rsi`, and because it is a COMPARISON its column is 0/1 at every bar -- so the digest also pins that an indicator composes into a CONDITION rather than only into a line.",
+      "ast": {
+        "type": "op",
+        "name": ">",
+        "args": [
+          { "type": "call", "name": "rsi", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 14 } ] },
+          { "type": "num", "value": 70 }
+        ]
+      }
+    },
+    {
+      "id": "rsi_of_a_smoothed_series",
+      "source": "rsi(sma(close, 20), 14)",
+      "why": "⭐ THE FINITE-TAIL CONTRACT, AND IT IS THE ONE CASE NO GOLDEN INDICATOR FIXTURE CAN CARRY. `indicators.js` and `indicator_compute.py` are written for BARS and a bar is finite; hand `compute_atr_raw` a NaN and Python's `max` keeps the incumbent while `Math.max` returns NaN -- a real cross-lane divergence no fixture contains, because no fixture contains a NaN. Both walkers therefore start the shipped maths after the last non-finite input value. The first value here lands at bar 33, exactly the 19 + 14 the manifest's tree sum promises; a poisoned Wilder seed would make the whole column NaN, which this digest would show as every row null.",
+      "ast": {
+        "type": "call",
+        "name": "rsi",
+        "args": [
+          { "type": "call", "name": "sma", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 20 } ] },
+          { "type": "num", "value": 14 }
+        ]
+      }
+    },
+    {
+      "id": "macd_line",
+      "source": "macd(close, 12, 26)",
+      "why": "the MACD LINE, and the first three-argument call in the table. Its lookback is `arg2`, so this also pins that `maxLookback` reads the argument the declaration NAMES rather than the last one.",
+      "ast": {
+        "type": "call",
+        "name": "macd",
+        "args": [
+          { "type": "series", "name": "close" },
+          { "type": "num", "value": 12 },
+          { "type": "num", "value": 26 }
+        ]
+      }
+    },
+    {
+      "id": "macd_signal_by_composition",
+      "source": "ema(macd(close, 12, 26), 9)",
+      "why": "⭐ THE MANIFEST MAKES A CLAIM HERE AND THIS ROW PAYS FOR IT. `_functions_excluded.macdSignal` says the signal line is not declarable -- its window is `slow + signal`, a sum of two arguments -- but IS expressible as this composition. Measured against `compute_macd_raw(...)[1]` the two agree at 0.0 relative error, so the exclusion costs a member a longer spelling and nothing else. If `ema`'s NaN-restart or `macd`'s alignment ever moved, this digest moves and the claim stops being true LOUDLY.",
+      "ast": {
+        "type": "call",
+        "name": "ema",
+        "args": [
+          {
+            "type": "call",
+            "name": "macd",
+            "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 12 }, { "type": "num", "value": 26 } ]
+          },
+          { "type": "num", "value": 9 }
+        ]
+      }
+    },
+    {
+      "id": "atr_of_hlc",
+      "source": "atr(high, low, close, 14)",
+      "why": "Wilder's average true range over the three series it is defined on -- the first four-argument call, and the first case whose bars are packed from three separate declared columns rather than one.",
+      "ast": {
+        "type": "call",
+        "name": "atr",
+        "args": [
+          { "type": "series", "name": "high" },
+          { "type": "series", "name": "low" },
+          { "type": "series", "name": "close" },
+          { "type": "num", "value": 14 }
+        ]
+      }
+    },
+    {
+      "id": "plus_di",
+      "source": "plusDI(high, low, close, 14)",
+      "why": "the +DI leg of the directional movement index. `adx` itself is refused (`_functions_excluded.adx` -- its window is `2 * period`, which no single declaration can say), so this and `minus_di` are what keep the DI cross expressible and that refusal honest.",
+      "ast": {
+        "type": "call",
+        "name": "plusDI",
+        "args": [
+          { "type": "series", "name": "high" },
+          { "type": "series", "name": "low" },
+          { "type": "series", "name": "close" },
+          { "type": "num", "value": 14 }
+        ]
+      }
+    },
+    {
+      "id": "minus_di",
+      "source": "minusDI(high, low, close, 14)",
+      "why": "the -DI leg. Separate from `plus_di` on purpose: both come out of ONE call to the shipped `computeADX` / `compute_adx_raw`, so a binding that read the wrong tuple slot would agree with itself and only two digests can see it.",
+      "ast": {
+        "type": "call",
+        "name": "minusDI",
+        "args": [
+          { "type": "series", "name": "high" },
+          { "type": "series", "name": "low" },
+          { "type": "series", "name": "close" },
+          { "type": "num", "value": 14 }
+        ]
+      }
+    },
+    {
+      "id": "stoch_k",
+      "source": "stoch(high, low, close, 14)",
+      "why": "fast %K. The shipped implementation returns %K and %D from one call; this entry declares only %K, and `d_period` is pinned to 1 so it cannot reach a guard the declaration says nothing about.",
+      "ast": {
+        "type": "call",
+        "name": "stoch",
+        "args": [
+          { "type": "series", "name": "high" },
+          { "type": "series", "name": "low" },
+          { "type": "series", "name": "close" },
+          { "type": "num", "value": 14 }
+        ]
+      }
+    },
+    {
+      "id": "stoch_d_by_composition",
+      "source": "sma(stoch(high, low, close, 14), 3)",
+      "why": "⭐ THE SECOND CLAIM THE MANIFEST MAKES, AND THIS ROW PAYS FOR IT. `_functions_excluded.stochD` says %D is not declarable (window `kPeriod + dPeriod`) but IS the simple mean of %K -- which is literally how `compute_stoch_raw` computes it. Measured against that column the two agree at 3.2e-16 relative, inside 1e-9 with seven orders of margin, so the exclusion is a spelling cost and not a capability gap.",
+      "ast": {
+        "type": "call",
+        "name": "sma",
+        "args": [
+          {
+            "type": "call",
+            "name": "stoch",
+            "args": [
+              { "type": "series", "name": "high" },
+              { "type": "series", "name": "low" },
+              { "type": "series", "name": "close" },
+              { "type": "num", "value": 14 }
+            ]
+          },
+          { "type": "num", "value": 3 }
+        ]
+      }
+    },
+    {
+      "id": "cci_20",
+      "source": "cci(high, low, close, 20)",
+      "why": "the commodity channel index -- the one bound indicator whose maths runs on the TYPICAL price `(h + l + c) / 3` rather than on a single column, so it is the case that would notice a binding packing the three columns in the wrong order.",
+      "ast": {
+        "type": "call",
+        "name": "cci",
+        "args": [
+          { "type": "series", "name": "high" },
+          { "type": "series", "name": "low" },
+          { "type": "series", "name": "close" },
+          { "type": "num", "value": 20 }
+        ]
+      }
+    },
+    {
+      "id": "williams_r",
+      "source": "williamsR(high, low, close, 14)",
+      "why": "Williams %R. ⚠️ THE NAME IS `williamsR` HERE AND `williams_r` IN `indicator_compute._CASE_COLUMNS` -- the two-vocabularies split the closed table's own header opens with. This row is where the two are made to answer for one number.",
+      "ast": {
+        "type": "call",
+        "name": "williamsR",
+        "args": [
+          { "type": "series", "name": "high" },
+          { "type": "series", "name": "low" },
+          { "type": "series", "name": "close" },
+          { "type": "num", "value": 14 }
+        ]
+      }
+    },
+    {
+      "id": "mfi_14",
+      "source": "mfi(high, low, close, volume, 14)",
+      "why": "the money flow index, and the only bound indicator that reads VOLUME -- so it is the one case that would catch a binding whose bar packing dropped or misnamed the `v` field. Five arguments, the widest call the table declares apart from the Ichimoku lagging span.",
+      "ast": {
+        "type": "call",
+        "name": "mfi",
+        "args": [
+          { "type": "series", "name": "high" },
+          { "type": "series", "name": "low" },
+          { "type": "series", "name": "close" },
+          { "type": "series", "name": "volume" },
+          { "type": "num", "value": 14 }
+        ]
+      }
+    },
+    {
+      "id": "donchian_upper",
+      "source": "donchianUpper(high, low, 20)",
+      "why": "the top of the Donchian channel. All three Donchian lines come out of ONE shipped call, so each earns its own digest for the same reason the two DI legs do.",
+      "ast": {
+        "type": "call",
+        "name": "donchianUpper",
+        "args": [
+          { "type": "series", "name": "high" },
+          { "type": "series", "name": "low" },
+          { "type": "num", "value": 20 }
+        ]
+      }
+    },
+    {
+      "id": "donchian_middle",
+      "source": "donchianMiddle(high, low, 20)",
+      "why": "the Donchian midline -- `(highest high + lowest low) / 2`, which is also the formula every Ichimoku midline uses. Declared because a member reaching for a turtle breakout should not have to know it is the mean of two extremes.",
+      "ast": {
+        "type": "call",
+        "name": "donchianMiddle",
+        "args": [
+          { "type": "series", "name": "high" },
+          { "type": "series", "name": "low" },
+          { "type": "num", "value": 20 }
+        ]
+      }
+    },
+    {
+      "id": "donchian_lower",
+      "source": "donchianLower(high, low, 20)",
+      "why": "the bottom of the Donchian channel.",
+      "ast": {
+        "type": "call",
+        "name": "donchianLower",
+        "args": [
+          { "type": "series", "name": "high" },
+          { "type": "series", "name": "low" },
+          { "type": "num", "value": 20 }
+        ]
+      }
+    },
+    {
+      "id": "ichimoku_tenkan",
+      "source": "ichimokuTenkan(high, low, 9, 26, 52)",
+      "why": "the conversion line. ⚠️ ALL THREE PERIODS ARE ARGUMENTS EVEN THOUGH THIS LINE USES ONE, because the shipped implementation starts EVERY line at `senkouB - 1`. Declaring `lookback: arg4` is therefore the truth about this column's warm-up; a two-argument `tenkan(high, low, 9)` would have declared a 9-bar window over a column that is NaN for 51 bars.",
+      "ast": {
+        "type": "call",
+        "name": "ichimokuTenkan",
+        "args": [
+          { "type": "series", "name": "high" },
+          { "type": "series", "name": "low" },
+          { "type": "num", "value": 9 },
+          { "type": "num", "value": 26 },
+          { "type": "num", "value": 52 }
+        ]
+      }
+    },
+    {
+      "id": "ichimoku_kijun",
+      "source": "ichimokuKijun(high, low, 9, 26, 52)",
+      "why": "the base line. `close > ichimokuKijun(high, low, 9, 26, 52)` is the ordinary Ichimoku trend filter, and the tenkan/kijun cross is `crossOver` of this and the row above.",
+      "ast": {
+        "type": "call",
+        "name": "ichimokuKijun",
+        "args": [
+          { "type": "series", "name": "high" },
+          { "type": "series", "name": "low" },
+          { "type": "num", "value": 9 },
+          { "type": "num", "value": 26 },
+          { "type": "num", "value": 52 }
+        ]
+      }
+    },
+    {
+      "id": "ichimoku_span_a",
+      "source": "ichimokuSpanA(high, low, 9, 26, 52)",
+      "why": "leading span A. ⚠️ NOT FORWARD-DISPLACED, and that is inherited rather than chosen: `indicators.js` records the deviation deliberately (the cloud sits over the price that produced it) and `compute_ichimoku_raw` mirrors it. So this column's forward reach really is 0 and the badge says `non-repainting` truthfully.",
+      "ast": {
+        "type": "call",
+        "name": "ichimokuSpanA",
+        "args": [
+          { "type": "series", "name": "high" },
+          { "type": "series", "name": "low" },
+          { "type": "num", "value": 9 },
+          { "type": "num", "value": 26 },
+          { "type": "num", "value": 52 }
+        ]
+      }
+    },
+    {
+      "id": "ichimoku_span_b",
+      "source": "ichimokuSpanB(high, low, 9, 26, 52)",
+      "why": "leading span B -- the 52-bar midline, and the line whose own period IS the family's declared lookback.",
+      "ast": {
+        "type": "call",
+        "name": "ichimokuSpanB",
+        "args": [
+          { "type": "series", "name": "high" },
+          { "type": "series", "name": "low" },
+          { "type": "num", "value": 9 },
+          { "type": "num", "value": 26 },
+          { "type": "num", "value": 52 }
+        ]
+      }
+    },
+    {
+      "id": "ichimoku_chikou",
+      "source": "ichimokuChikou(high, low, close, 9, 26, 52)",
+      "why": "⭐⭐ THE FORWARD REFERENCE, AND THE ONLY ONE IN THE TABLE. `chikou[j]` IS `close[j + 26]` -- the exact construction `closedTable.json::_no_offset` names as the thing the repaint linter has to be able to decide. It is the first and only entry declaring a `forward`, so it is the first tree in the product that lints `preview-repaints` rather than `non-repainting`. ⚠️ ITS PAD IS AT THE END, not the start: the last 26 slots are NaN because those bars' lagging value has not happened yet, and this digest is what would notice a binding that quietly shifted the column the other way.",
+      "ast": {
+        "type": "call",
+        "name": "ichimokuChikou",
+        "args": [
+          { "type": "series", "name": "high" },
+          { "type": "series", "name": "low" },
+          { "type": "series", "name": "close" },
+          { "type": "num", "value": 9 },
+          { "type": "num", "value": 26 },
+          { "type": "num", "value": 52 }
+        ]
+      }
+    },
+    {
+      "id": "offset_one_bar",
+      "source": "close[1]",
+      "why": "the single most-used construct in Pine and TC2000 (`close[1]` / `C1`), and the smallest thing that can carry the LEFT-EDGE rule: bar 0 has no prior bar, so the answer is NOT COMPUTABLE -- never 0.0 and never the first bar's close",
+      "ast": {
+        "type": "offset",
+        "value": 1,
+        "args": [
+          { "type": "series", "name": "close" }
+        ]
+      }
+    },
+    {
+      "id": "offset_zero_is_identity",
+      "source": "close[0]",
+      "why": "`x[0]` is `x`. The node is still emitted, so both lanes must agree that a zero-bar offset shifts nothing AND pads nothing -- a lane that started its copy at index 1 would differ only on bar 0, which is exactly where nobody looks",
+      "ast": {
+        "type": "offset",
+        "value": 0,
+        "args": [
+          { "type": "series", "name": "close" }
+        ]
+      }
+    },
+    {
+      "id": "offset_change_idiom",
+      "source": "close - close[1]",
+      "why": "the idiom the whole Pine corpus is full of. The subtraction must stay NOT COMPUTABLE on bar 0 rather than collapsing to 0.0 -- a fabricated zero here is a bar-over-bar change a user can arm an alert on",
+      "ast": {
+        "type": "op",
+        "name": "-",
+        "args": [
+          { "type": "series", "name": "close" },
+          { "type": "offset", "value": 1, "args": [ { "type": "series", "name": "close" } ] }
+        ]
+      }
+    },
+    {
+      "id": "offset_inside_a_reduction",
+      "source": "sma(close[2], 20)",
+      "why": "⭐ THE NESTING CASE THE TREE SUM EXISTS FOR: maxLookback is 22, not 20 and not 2. The offset shifts the ARGUMENT, so the warmup prefix is the sum of both windows and the two lanes must pad the same 21 bars",
+      "ast": {
+        "type": "call",
+        "name": "sma",
+        "args": [
+          { "type": "offset", "value": 2, "args": [ { "type": "series", "name": "close" } ] },
+          { "type": "num", "value": 20 }
+        ]
+      }
+    },
+    {
+      "id": "offset_of_a_reduction",
+      "source": "sma(close, 20)[2]",
+      "why": "the other nesting order, and it is NOT the same column: shifting the RESULT of a 20-bar mean reads the mean of bars [i-21, i-2]. Same maxLookback of 22, different values -- so a lane that composed the two orders together would agree on the budget and disagree on the numbers",
+      "ast": {
+        "type": "offset",
+        "value": 2,
+        "args": [
+          { "type": "call", "name": "sma", "args": [ { "type": "series", "name": "close" }, { "type": "num", "value": 20 } ] }
+        ]
+      }
+    },
+    {
+      "id": "offset_of_a_condition",
+      "source": "(close > open)[1]",
+      "why": "an offset over a 0/1 column. NaN must PROPAGATE through the pad rather than the comparison's own `NaN -> 0` rule reaching it: the bar before bar 0 did not happen, which is not the same fact as `close was not above open`",
+      "ast": {
+        "type": "offset",
+        "value": 1,
+        "args": [
+          { "type": "op", "name": ">", "args": [ { "type": "series", "name": "close" }, { "type": "series", "name": "open" } ] }
+        ]
+      }
+    },
+    {
+      "id": "offset_two_bars_apart",
+      "source": "close[1] > close[3]",
+      "why": "two different offsets under one operator: the comparison is not computable until BOTH sides are, so the pad is the deeper of the two (3), not the shallower and not their sum",
+      "ast": {
+        "type": "op",
+        "name": ">",
+        "args": [
+          { "type": "offset", "value": 1, "args": [ { "type": "series", "name": "close" } ] },
+          { "type": "offset", "value": 3, "args": [ { "type": "series", "name": "close" } ] }
+        ]
+      }
     }
-  ]
+  ],
+  "_indicators": "⭐ THE INDICATOR ROWS (Phase F). One case per newly declared function, because `assert_corpus_covers_the_table` derives its floor FROM THE MANIFEST and a function with no case is a function whose two lanes may already disagree with every gate green. Two rows are not a function at all -- `macd_signal_by_composition` and `stoch_d_by_composition` are the COMPOSITIONS `_functions_excluded` offers in place of the two entries it refuses, so a refusal that quietly stopped being survivable moves a digest. ⛔ THE SEVENTEEN EXISTING DIGESTS DO NOT MOVE, and that is a measurement rather than a hope: not one row here edits an existing tree, and the re-record was diffed against the previous log key by key."
 }

@@ -57,6 +57,22 @@ import { TABLE, NODE_TYPES } from './parse.js'
 // contract and `budget.test.js` proves it from a graph whose ENTRY is that file.
 import { assertBudget } from './budget.js'
 
+// ⭐⭐ THE INDICATORS ARE NOT WRITTEN HERE. `indicators.js` is the maths the
+// CHART draws, and `api/services/indicator_compute.py` is the same maths on the
+// server; `tests/fixtures/indicators/` already pins those two against each other
+// at rel-tol 1e-9, case by case, which is the only reason a formula calling them
+// can be promised to agree across the lanes at all. A private RSI in this file
+// would be a THIRD implementation and a second authority over one value —
+// `closedTable.json::_functions_indicators` records the decision.
+//
+// ⚠️ THIS IMPORT IS WHY `tools/ast_conformance.py`'s node driver reaches
+// `indicators.js`. That module imports nothing and touches no DOM, so a bare
+// `node` resolves it exactly as vite does.
+import {
+  computeRSI, computeMACD, computeATR, computeADX, computeStochastic,
+  computeCCI, computeWilliamsR, computeMFI, computeDonchian, computeIchimoku,
+} from '../../indicators.js'
+
 // --------------------------------------------------------------------------- //
 // refusals
 // --------------------------------------------------------------------------- //
@@ -90,6 +106,7 @@ export const REFUSALS = Object.freeze({
   'resolve:window': 'a window must be a whole-number literal',
   'interpret:node': 'not a canonical node',
   'interpret:operator': 'unknown operator',
+  'interpret:offset': 'an offset node carries a whole-number count of bars',
 })
 
 function refuse(guard, detail) {
@@ -140,8 +157,11 @@ const nan = (n) => { const c = new Float64Array(n); c.fill(NaN); return c }
 // ⚠️ EVERY IMPLEMENTATION BELOW RECEIVES A `Float64Array` FOR A `series`
 // ARGUMENT AND A PLAIN NUMBER FOR AN `int` ONE. The coercion happens once, in
 // the walker, driven by `TABLE.functions[name].args` — so no implementation
-// carries its own idea of what its arguments are, and a table edit reaches all
-// eleven at once.
+// carries its own idea of what its arguments are, and a table edit reaches every
+// one of them at once. ⛔ NO COUNT HERE. This comment said "all eleven" while the
+// table held eleven, which is the hand-typed-count-beside-the-list defect the
+// ledger is full of; `interpret.test.js` asserts the key sets are EQUAL, which
+// is the claim a number was only ever approximating.
 //
 // ⭐ NaN IS A WARMUP, NOT A ZERO, AND IT PROPAGATES. A fabricated 0 during a
 // 199-bar warmup is a number a user could arm an alert on. Every reduction
@@ -237,6 +257,109 @@ function crossing(a, b, fired) {
   return out
 }
 
+// --------------------------------------------------------------------------- //
+// the indicators — a BINDING to the chart's own maths, never a second copy
+// --------------------------------------------------------------------------- //
+//
+// ⭐ THREE HELPERS AND NOTHING ELSE. Everything below is (1) pack the declared
+// `series` columns into the `{h,l,c,v}` bar shape `indicators.js` reads, (2) call
+// the shipped function, (3) unpack its `{time, value}` points back into a
+// NaN-padded column. `api/services/ast_interpret.py` carries the SAME three, in
+// the same order, against the same shipped functions — so the two lanes differ
+// only where `indicators.js` and `indicator_compute.py` already differ, which is
+// the thing the golden fixtures measure.
+
+/** ⭐⭐ THE FIRST BAR FROM WHICH EVERY INPUT COLUMN IS FINITE TO THE END — and
+ *  this is the load-bearing half of the whole binding.
+ *
+ *  🔴 THE MEASURED REASON, NOT A PRECAUTION. `indicators.js` and
+ *  `indicator_compute.py` are written for BARS, and a bar is finite. Hand either
+ *  one a NaN and the two languages stop agreeing: `compute_atr_raw`'s
+ *  `max(h - l, abs(h - prev_c), abs(l - prev_c))` with a NaN `prev_c` returns
+ *  Python's FIRST argument, because every NaN comparison is false and `max`
+ *  keeps the incumbent — while `Math.max` returns NaN. Same expression, same
+ *  fixture, two answers, and no golden fixture can see it because no fixture
+ *  contains a NaN. A composed argument (`atr(high, low, sma(close,3), 14)`) is
+ *  how a user reaches it in one keystroke.
+ *
+ *  ⭐ SO THE SHIPPED MATHS NEVER SEES ONE. The column starts after the LAST
+ *  non-finite value in ANY argument, which is `emaCol`'s already-declared rule
+ *  ("a NaN in the input RESTARTS the seed") applied to a whole bar. Two things
+ *  fall out of it, and both are why this is the right rule rather than a
+ *  convenient one:
+ *    * `rsi(sma(close, 20), 14)` produces its first value at bar 33 — exactly
+ *      the `19 + 14` the manifest's tree sum promises, rather than the all-NaN
+ *      column a poisoned Wilder seed produces;
+ *    * for an ordinary `close`/`high`/`low`/`volume` argument the start is 0, so
+ *      every column this binding returns for an uncomposed call is
+ *      byte-identical to calling the shipped function directly.
+ *
+ *  ⛔ WRITTEN TWICE, HERE AND IN `ast_interpret.py`, deliberately. It is a
+ *  CONTRACT between the two lanes, not an optimisation, and the corpus pins it. */
+function finiteTailStart(cols, length) {
+  let start = 0
+  for (const col of cols) {
+    for (let i = length - 1; i >= start; i--) {
+      if (!Number.isFinite(col[i])) { start = i + 1; break }
+    }
+  }
+  return start
+}
+
+/** Pack the declared series columns into bars, run the chart's own maths over
+ *  them, and unpack the result into a NaN-padded column of exactly `length`.
+ *
+ *  ⚠️ `t` IS SET AND NEVER READ BY ANY BOUND FUNCTION. It exists because
+ *  `blank(bars)` writes `{time: b.t}` into every output point, and an
+ *  `undefined` there is harmless only for as long as nobody looks — a bar index
+ *  keeps that honest and costs nothing. ⛔ It is NOT the real timestamp, which
+ *  is exactly why `vwap` is refused (`_functions_excluded`): a session anchor
+ *  cannot be reconstructed from a column of prices.
+ *
+ *  ⛔ A LENGTH MISMATCH IS ALL-NaN, NOT A PARTIAL FILL. Every bound function
+ *  returns either a bar-aligned array or `[]` (its "too short to compute
+ *  anything" signal), and `[]` padded from the left would put a real value at
+ *  the wrong bar. The Python lane's equivalent refuses the same way, against
+ *  that lane's all-`None` form of the same signal. */
+function bindShipped(fields, cols, length, run) {
+  const out = nan(length)
+  const start = finiteTailStart(cols, length)
+  const n = length - start
+  if (n <= 0) return out
+  const bars = new Array(n)
+  for (let i = 0; i < n; i++) {
+    const bar = { t: i }
+    for (let k = 0; k < fields.length; k++) bar[fields[k]] = cols[k][start + i]
+    bars[i] = bar
+  }
+  const points = run(bars)
+  if (!Array.isArray(points) || points.length !== n) return out
+  for (let i = 0; i < n; i++) {
+    const p = points[i]
+    const v = p ? p.value : undefined
+    out[start + i] = typeof v === 'number' && !Number.isNaN(v) ? v : NaN
+  }
+  return out
+}
+
+/** The domain guard `_functions_domain` declares, as a value rather than a
+ *  throw: a call whose periods are out of order computes nothing.
+ *
+ *  ⛔ WRITTEN TWICE ON PURPOSE — here and in `ast_interpret.py` — because the
+ *  two shipped implementations DISAGREE on it. `compute_ichimoku_raw` returns
+ *  empty columns when `max(tenkan, kijun) > senkouB`; `computeIchimoku` reads a
+ *  negative index and throws a TypeError. Letting either lane's native answer
+ *  through would be a cross-lane divergence on an argument list the table
+ *  admits, so both lanes answer NaN before the shipped function is reached. */
+const outOfOrder = (length) => nan(length)
+
+/** The bar-field name lists the bindings below pack into. THE SHIPPED
+ *  FUNCTIONS' parameter shape, never the table's vocabulary — `high` is the
+ *  table's name for the series and `h` is the key `indicators.js` reads. */
+const HL = Object.freeze(['h', 'l'])
+const HLC = Object.freeze(['h', 'l', 'c'])
+const HLCV = Object.freeze(['h', 'l', 'c', 'v'])
+
 /** name → implementation. THE KEY SET IS `TABLE.functions`'s, both directions.
  *
  *  ⛔ AN IMPLEMENTED-BUT-UNDECLARED KEY HERE IS A CALLABLE OUTSIDE THE CLOSED
@@ -267,7 +390,61 @@ export const FN = Object.freeze({
   max: (a, b) => elementwise2(a, b, (x, y) => (Number.isNaN(x) || Number.isNaN(y) ? NaN : Math.max(x, y))),
   crossOver: (a, b) => crossing(a, b, (an, bn, ap, bp) => an > bn && ap <= bp),
   crossUnder: (a, b) => crossing(a, b, (an, bn, ap, bp) => an < bn && ap >= bp),
+
+  // ── the indicators, bound to the chart's own maths ──────────────────────
+  //
+  // ⚠️ `computeRSI` and `computeMACD` read ONLY `.c`, so a one-field bar array
+  // is the whole adaptation and `rsi(sma(close,20), 14)` is an RSI of a smoothed
+  // series rather than a different function. That composability is the reason
+  // the table declares a `series` argument instead of reading `close` itself.
+  rsi: (s, n) => bindShipped(['c'], [s], s.length, (bars) => computeRSI(bars, n)),
+
+  // ⛔ `signal` IS PINNED TO 1 AND IT IS NOT A HIDDEN DEFAULT. `computeMACD`
+  // returns the LINE, the signal and the histogram; this entry declares only the
+  // line, and the only thing `signal` still reaches is the guard
+  // `bars.length < slow + signal`. 1 is the smallest value that cannot make that
+  // guard refuse a series the LINE could have been computed over — a larger one
+  // would blank the line on a short series for a reason the declaration does not
+  // mention. `compute_macd_raw` is passed the same 1.
+  macd: (s, fast, slow) => (fast > slow
+    ? outOfOrder(s.length)
+    : bindShipped(['c'], [s], s.length, (bars) => computeMACD(bars, fast, slow, 1).macd)),
+
+  atr: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeATR(bars, n)),
+  plusDI: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeADX(bars, n).plusDI),
+  minusDI: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeADX(bars, n).minusDI),
+  // %K only. %D is `sma(stoch(…), d)` — see `_functions_excluded.stochD`, and
+  // `dPeriod` is pinned to 1 for the same reason `macd`'s `signal` is: it must
+  // not reach a guard this entry's declaration says nothing about.
+  stoch: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeStochastic(bars, n, 1).k),
+  cci: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeCCI(bars, n)),
+  williamsR: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeWilliamsR(bars, n)),
+  mfi: (h, l, c, v, n) => bindShipped(HLCV, [h, l, c, v], c.length, (bars) => computeMFI(bars, n)),
+
+  donchianUpper: (h, l, n) => bindShipped(HL, [h, l], h.length, (bars) => computeDonchian(bars, n).upper),
+  donchianMiddle: (h, l, n) => bindShipped(HL, [h, l], h.length, (bars) => computeDonchian(bars, n).middle),
+  donchianLower: (h, l, n) => bindShipped(HL, [h, l], h.length, (bars) => computeDonchian(bars, n).lower),
+
+  ichimokuTenkan: (h, l, t, k, s) => ichimokuLine(h, l, h, t, k, s, 'tenkan'),
+  ichimokuKijun: (h, l, t, k, s) => ichimokuLine(h, l, h, t, k, s, 'kijun'),
+  ichimokuSpanA: (h, l, t, k, s) => ichimokuLine(h, l, h, t, k, s, 'spanA'),
+  ichimokuSpanB: (h, l, t, k, s) => ichimokuLine(h, l, h, t, k, s, 'spanB'),
+  ichimokuChikou: (h, l, c, t, k, s) => ichimokuLine(h, l, c, t, k, s, 'chikou'),
 })
+
+/** One line of the Ichimoku family, with `_functions_domain`'s guard in front.
+ *
+ *  ⚠️ THE FOUR MIDLINE ENTRIES PASS `high` AS THE CLOSE COLUMN AND THAT IS NOT A
+ *  SHORTCUT. `computeIchimoku` reads `.c` for exactly one thing — the lagging
+ *  span — so the four lines that do not declare a close argument cannot be
+ *  affected by what sits there, and the alternative (a fifth declared series
+ *  every one of them ignores) would put a term in the read-back that says
+ *  nothing about the number. `chikou` declares its close and passes it. */
+function ichimokuLine(h, l, c, tenkan, kijun, senkouB, key) {
+  if (Math.max(tenkan, kijun) > senkouB) return outOfOrder(h.length)
+  return bindShipped(HLC, [h, l, c], h.length,
+    (bars) => computeIchimoku(bars, tenkan, kijun, senkouB)[key])
+}
 
 // --------------------------------------------------------------------------- //
 // the operators
@@ -344,7 +521,7 @@ function flatten(root) {
     const node = stack.pop()
     assertNode(node)
     order.push(node)
-    if (node.type === 'op' || node.type === 'call') {
+    if (node.type === 'op' || node.type === 'call' || node.type === 'offset') {
       if (!Array.isArray(node.args)) {
         refuse('interpret:node', `a ${node.type} node carries an \`args\` array; got ${JSON.stringify(node.args)}`)
       }
@@ -405,6 +582,34 @@ function windowLiteral(node, index) {
   return arg.value
 }
 
+/** The bar count of ONE `offset` node, VALIDATED. Refuses `interpret:offset`.
+ *
+ *  ⭐ THE SHAPE ALREADY MAKES A COMPUTED OFFSET INEXPRESSIBLE — `value` is a
+ *  number on the node and there is no slot for an expression (see
+ *  `parse.js::NODE_TYPES`). This is what stands between that guarantee and a
+ *  PERSISTED tree, which is user data that did not necessarily come through
+ *  `canonicalise`: a stored blob can spell `{type:'offset', value:-26}` by hand,
+ *  and the negative is the one thing that must never reach the walker. Refusing
+ *  it here is the same arrangement as `resolve:function` for a stored call name
+ *  the manifest never declared.
+ *
+ *  ⛔ THE `< 0` LINE IS WHAT KEEPS A FORWARD REFERENCE INEXPRESSIBLE ON THE
+ *  STORED SIDE, and it is why this is a refusal and not a clamp. A clamp to 0
+ *  would silently turn `close[-26]` into `close` and draw a confident wrong
+ *  column — the shape this whole phase exists to remove. */
+function offsetBars(node) {
+  if (node.args.length !== 1) {
+    refuse('interpret:offset',
+      `— an offset reads exactly one child column, got ${node.args.length}`)
+  }
+  const n = node.value
+  if (typeof n !== 'number' || !Number.isInteger(n) || n < 0) {
+    refuse('interpret:offset',
+      `— got ${JSON.stringify(n)}; a bar offset counts backwards from the bar it writes`)
+  }
+  return n
+}
+
 /** The declared lookback of ONE call node: a constant, or a named argument. */
 function ownLookback(node, spec) {
   const lb = spec.lookback
@@ -438,6 +643,16 @@ export function maxLookback(ast) {
       let best = 0
       for (const arg of node.args) best = Math.max(best, seen.get(arg))
       seen.set(node, best)
+      continue
+    }
+    if (node.type === 'offset') {
+      // ⭐ THE TREE SUM, EXTENDED BY EXACTLY ONE TERM. `sma(close[2], 20)` needs
+      // 20 + 2 bars and `close[2]` alone needs 2; the offset ADDS to whatever
+      // its child already needs, the same way a call adds its own lookback to
+      // its arguments'. That composition is the entire reason the offset is
+      // bounded and backward-only — a signed one would make this a `max` over a
+      // lattice and the linter a dataflow pass.
+      seen.set(node, offsetBars(node) + seen.get(node.args[0]))
       continue
     }
     const spec = fnSpec(node.name)
@@ -587,6 +802,25 @@ export function interpret(ast, bars, inputs, budget, scalars) {
         return n.value
       case 'series':
         return lookup(n.name)
+      case 'offset': {
+        const back = offsetBars(n)
+        // ⛔ MATERIALISED TO A COLUMN FIRST, ALWAYS. A scalar child (`20[3]`, or
+        // a per-symbol scalar) has no history either, and broadcasting it and
+        // THEN shifting is what makes "three bars ago" mean the same thing for
+        // every child kind in both lanes. Special-casing the scalar to itself
+        // would answer a question about a bar that does not exist.
+        const src = toColumn(evalNode(n.args[0]), length)
+        const out = nan(length)
+        // ⭐⭐ THE LEFT EDGE, AND IT IS THE DEFINING RULE OF THIS ENGINE. `i <
+        // back` has no bar to read, so the answer is NOT COMPUTABLE — NaN. ⛔
+        // NEVER 0 and ⛔ NEVER `src[0]`: a clamped first bar makes `close >
+        // close[3]` a confident answer on bar 1, which is the exact defect class
+        // (`close > sma(close,300)` returning 200 confident zeroes) this codebase
+        // spent a week removing. `nan(length)` already fills the prefix; the loop
+        // deliberately starts AT `back` rather than clamping an index.
+        for (let i = back; i < length; i++) out[i] = src[i - back]
+        return out
+      }
       case 'op':
         return applyOp(n, n.args.map(evalNode))
       case 'call': {

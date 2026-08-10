@@ -296,6 +296,14 @@ export function yieldsOf(node, rules) {
       const functions = (r && r.functions) || EMPTY
       return own(functions, node.name) ? settle(functions[node.name].yields) : NUM
     }
+    case 'offset':
+      // ⭐ AN OFFSET CHANGES *WHEN*, NEVER *WHAT*. `(close > open)[1]` is still
+      // the yes/no it was a bar ago, so the kind passes straight through from
+      // the child. Falling to the `num` floor below would have quietly demoted
+      // every offset condition out of the boolean lane.
+      return Array.isArray(node.args) && node.args.length === 1
+        ? yieldsOf(node.args[0], r)
+        : NUM
     default:
       // ⛔ A NODE TYPE OUTSIDE THE FOUR HAS NO DECLARED KIND, and the numeric
       // answer is the fail-closed one. The walker refuses such a node by name a
@@ -533,8 +541,10 @@ export function compileRules(table = TABLE, operatorPhrases = OPERATOR_SENTENCE,
   // instead of the gate. A rail that asks the WALKER cannot be blind that way:
   // an entry is a gap when rendering its minimal tree REFUSES, whatever the
   // reason. Delete `renderName`'s series branch and this list names close, high,
-  // low, open and volume; delete the `op` or `call` dispatch and it names all
-  // fifteen operators or all eleven functions.
+  // low, open and volume; delete the `op` or `call` dispatch and it names every
+  // operator or every function. (⛔ The counts that used to sit here — "fifteen
+  // operators or all eleven functions" — went stale the day Phase F declared
+  // seventeen indicators, which is the whole reason the rail is a LIST.)
   //
   // ⚠️ ONE DERIVATION, NOT TWO. The gap is the runtime refusal itself rather
   // than a second piece of bookkeeping that agrees with it today.
@@ -776,6 +786,35 @@ function renderCall(node, rules, inputs, depth, path, trace) {
   return fill(rule.phrase, parts, `function ${name}`, path)
 }
 
+/** `close[1]` → `close 1 bar ago`. `sma(close, 20)[2]` → `(the 20-bar simple
+ *  moving average of close) 2 bars ago`.
+ *
+ *  ⭐ THE PHRASE IS WRITTEN HERE AND NOT IN THE MANIFEST, and that is not an
+ *  exception to `_sentence`'s rule — it is the rule applied. `closedTable.json`
+ *  declares a phrase per NAME (a series, an operator, a function), and an offset
+ *  names nothing: the bar count IS the node. There is no manifest entry for it
+ *  to be a second copy of.
+ *
+ *  ⛔ `0` READS AS THE BAR ITSELF, NOT "0 bars ago". `close[0]` is `close` — the
+ *  identity Pine spells the same way — and "close 0 bars ago" is English that
+ *  makes a reader stop and work out whether it means today or yesterday. */
+function renderOffset(node, rules, inputs, depth, path, trace) {
+  const n = node.value
+  if (!Array.isArray(node.args) || node.args.length !== 1) {
+    refuse('sentence:arity',
+      `at ${path}: an offset reads exactly one child column, got `
+      + `${Array.isArray(node.args) ? node.args.length : JSON.stringify(node.args)}`)
+  }
+  if (typeof n !== 'number' || !Number.isInteger(n) || n < 0) {
+    refuse('sentence:window',
+      `at ${path}: a bar offset counts whole bars backwards; got ${JSON.stringify(n)}`)
+  }
+  trace.push({ path, rule: 'offset' })
+  const inner = renderArg(node.args[0], rules, inputs, depth, `${path}.args[0]`, trace)
+  if (n === 0) return inner
+  return `${inner} ${n} bar${n === 1 ? '' : 's'} ago`
+}
+
 function renderNode(node, rules, inputs, depth, path, trace) {
   if (!node || typeof node !== 'object' || Array.isArray(node)) {
     refuse('sentence:node', `at ${path}: got ${JSON.stringify(node) ?? String(node)}`)
@@ -790,6 +829,8 @@ function renderNode(node, rules, inputs, depth, path, trace) {
       return renderOp(node, rules, inputs, depth, path, trace)
     case 'call':
       return renderCall(node, rules, inputs, depth, path, trace)
+    case 'offset':
+      return renderOffset(node, rules, inputs, depth, path, trace)
     default:
       // ⛔ NOT A FALLTHROUGH TO SOMETHING PLAUSIBLE. A catch-all that returned
       // "the value" would produce English for a node type nobody wrote a rule

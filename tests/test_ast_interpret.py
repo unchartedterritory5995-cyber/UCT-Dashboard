@@ -170,12 +170,18 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     declared = ast_table.declared_names()
     # ⚠️ TWO NUMBERS, NOT ONE, AND BOTH ARE MEASURED. This read `== 31` before
     # the manifest grew a fourth section; a single total would have been "fixed"
-    # to 85 with nobody able to see WHICH half moved. 31 is the bar vocabulary
+    # to 85 with nobody able to see WHICH half moved. 48 is the bar vocabulary
     # (series + operators + functions) and 54 is the scalar vocabulary, which is
     # the numeric-and-boolean subset of the screener's 65 columns.
-    assert len(ast_table.bar_names()) == 31, len(ast_table.bar_names())
+    #
+    # ⭐ 31 -> 48 IS PHASE F, AND THE BAR HALF IS THE ONLY HALF THAT MOVED.
+    # Seventeen indicators were declared as functions (11 -> 28), every one of
+    # them bound to maths `indicators.js` and `indicator_compute.py` already
+    # ship. The scalar half is untouched at 54, which is the whole reason these
+    # are two assertions and not one total.
+    assert len(ast_table.bar_names()) == 48, len(ast_table.bar_names())
     assert len(ast_table.scalar_names()) == 54, len(ast_table.scalar_names())
-    assert len(declared) == 85, f"the table declares {len(declared)} names, not 85"
+    assert len(declared) == 102, f"the table declares {len(declared)} names, not 102"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "

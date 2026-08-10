@@ -576,6 +576,10 @@ describe('the refusals', () => {
       'resolve:window': () => interpret(ast('sma(close, close)'), BARS, {}),
       'interpret:node': () => interpret({ type: 'member', name: 'x', args: [] }, BARS, {}),
       'interpret:operator': () => interpret({ type: 'op', name: '**', args: [{ type: 'num', value: 2 }, { type: 'num', value: 3 }] }, BARS, {}),
+      // ⭐ HAND-BUILT, BECAUSE `parseFormula` CANNOT PRODUCE IT. A negative
+      // offset is refused at the parse door, so the only way this guard is ever
+      // reached is a STORED tree — which is exactly the input it exists for.
+      'interpret:offset': () => interpret({ type: 'offset', value: -26, args: [{ type: 'series', name: 'close' }] }, BARS, {}),
     }
     expect(Object.keys(triggers).sort()).toEqual(Object.keys(REFUSALS).sort())
     for (const [guard, fire] of Object.entries(triggers)) {
@@ -731,7 +735,7 @@ describe('the interpreter is PURE', () => {
    *  Task 1 ran a plain substring grep for its own module and got ten matches,
    *  EVERY ONE of them prose in a comment. This file's header contains the words
    *  `Math.random`, `clock` and `network` — a grep would flag its own warning. */
-  const scan = (tree) => {
+  const scan = (tree, alsoAllowed = []) => {
     const bound = new Set()
     const free = []
     const members = []
@@ -809,6 +813,12 @@ describe('the interpreter is PURE', () => {
     const ALLOWED = new Set([
       'Object', 'Number', 'Math', 'JSON', 'Error', 'Array', 'String', 'Boolean',
       'Float64Array', 'Map', 'Set', 'NaN', 'Infinity', 'undefined', 'arguments',
+      // ⛔ `alsoAllowed` IS PER-CALL AND EVERY USE MUST MEASURE WHAT IT ADMITS.
+      // A widened allowlist is how a purity claim goes hollow, so the one
+      // caller that passes anything asserts BOTH directions: the file is clean
+      // WITH the extension, and without it the findings are EXACTLY the names
+      // the extension spells. Nothing may be admitted silently.
+      ...alsoAllowed,
     ])
     for (const name of new Set(free)) {
       if (!bound.has(name) && !ALLOWED.has(name)) findings.push(`free identifier: ${name}`)
@@ -840,12 +850,46 @@ describe('the interpreter is PURE', () => {
     // simply being admitted — the claim is about the closure of the import graph,
     // not about one file. `budget.js` imports only this module back (the declared
     // cycle), so scanning the two closes it.
-    expect(got.imports.sort()).toEqual(['./budget.js', './parse.js'])
+    expect(got.imports.sort()).toEqual(['../../indicators.js', './budget.js', './parse.js'])
     const budgetSrc = fs.readFileSync(path.join(path.dirname(SELF), 'budget.js'), 'utf8')
     expect(budgetSrc.length).toBeGreaterThan(2000)
     const budgetScan = scan(acorn.parse(budgetSrc, { ecmaVersion: 2023, sourceType: 'module' }))
     expect(budgetScan.findings, 'budget.js reached something outside pure arithmetic').toEqual([])
     expect(budgetScan.imports).toEqual(['./interpret.js'])
+
+    // ─── AND THE THIRD EDGE, ADDED BY PHASE F, MEASURED THE SAME WAY ────────
+    //
+    // ⭐ `indicators.js` IS THE CHART'S OWN MATHS AND THE INDICATOR FUNCTIONS
+    // BIND TO IT RATHER THAN RESTATING IT — so the closure this case is about
+    // now includes it, and admitting the edge without scanning it would be the
+    // hollow widening the note above warns against.
+    //
+    // ⚠️ IT NEEDS EXACTLY TWO NAMES THE BASE ALLOWLIST DOES NOT CARRY, AND
+    // BOTH ARE MEASURED RATHER THAN WAVED THROUGH. `Intl.DateTimeFormat` and
+    // `new Date(instant)` are how `etDayKey` resolves the ET calendar day per
+    // instant from the IANA database — deterministic in the argument, which is
+    // the whole property this case is about, and the reason that function reads
+    // the zone per instant instead of caching an offset. ⛔ `Date` is admitted
+    // as a CONSTRUCTOR ONLY: `Date.now` stays in the explicit member check
+    // above, so a real clock reaching this module is still a finding, and the
+    // positive control below still requires `free identifier: Date`.
+    const INDICATORS = path.join(path.dirname(SELF), '..', '..', 'indicators.js')
+    const indicatorsSrc = fs.readFileSync(INDICATORS, 'utf8')
+    expect(indicatorsSrc.length).toBeGreaterThan(2000)
+    const indicatorsTree = acorn.parse(indicatorsSrc, { ecmaVersion: 2023, sourceType: 'module' })
+    const WIDENED_BY = ['Date', 'Intl']
+    const indicatorsScan = scan(indicatorsTree, WIDENED_BY)
+    expect(indicatorsScan.findings,
+      'indicators.js reached something outside pure arithmetic').toEqual([])
+    // ⛔ IT IS A LEAF. If it ever imports anything, that import is inside this
+    // closure and unscanned, and this case would keep passing.
+    expect(indicatorsScan.imports).toEqual([])
+    // ⛔ AND THE WIDENING IS EXACTLY WHAT IT CLAIMS. Without the extension the
+    // findings must be precisely the two names it spells — no more (or the
+    // extension is hiding something) and no fewer (or it is admitting a name
+    // the file does not even use, which is a licence nobody measured).
+    expect(scan(indicatorsTree).findings)
+      .toEqual(WIDENED_BY.map((n) => `free identifier: ${n}`).sort())
   })
 
   it('…and the detector can FAIL — the positive control', async () => {

@@ -232,9 +232,13 @@ def test_a_scan_must_be_a_0_1_TREE_and_the_whole_parsed_corpus_agrees(parsed):
     like a very good day.
 
     ⚠️ `rsi14` IS legal here and `rsi(close, 14)` is NOT (design CORRECTION 1):
-    the first is a screener SCALAR, the second a per-bar FUNCTION with a
-    user-chosen period, and the table's eleven functions do not include it. The
-    parser fixture is what enforces that — an illegal name never reaches a case.
+    the first is a screener SCALAR read off a nightly snapshot and the second a
+    per-bar FUNCTION with a user-chosen period. ⭐ BOTH ARE LEGAL AS OF PHASE F
+    and they are still not the same thing: `rsi14` is one number for the whole
+    column, dated by `bars_asof`, and `rsi(close, 14)` is recomputed at every
+    bar off the bars in hand. This corpus stays on the scalar deliberately —
+    what it measures is the boolean-tree verdict, and swapping in the function
+    would change which SECTION the case exercises without changing the claim.
     """
     verdicts = {cid: scan_definition.is_boolean_tree(parsed[cid]["ast"])
                 for cid, _, _ in CORPUS}
@@ -361,9 +365,11 @@ def test_scan_definition_SPELLS_NO_NAME_THE_TABLE_DECLARES():
     """⛔ THE STRUCTURAL HALF OF "DERIVED, NEVER HAND-LISTED".
 
     A hand-list necessarily spells the names; a derivation necessarily does not.
-    All 85 declared names are in scope — five bar series, fifteen operators,
-    eleven functions, fifty-four scalars — and the count is read off the table
-    rather than restated.
+    Every declared name is in scope — the bar series, the operators, the
+    functions and the scalars — and the set is read off the table rather than
+    restated. ⛔ NO COUNT IN THIS DOCSTRING. It said "All 85 … eleven
+    functions" and Phase F moved both halves of that sentence while the
+    assertion below, which reads `declared_names()`, could not have noticed.
     """
     declared = ast_table.declared_names()
     assert declared, "the manifest declared nothing — the probe would be vacuous"
