@@ -149,3 +149,21 @@ describe('bars mode', () => {
     expect(o.series.map(s => s.itemStyle.color)).toEqual(['#5aa9e6', '#e57373'])
   })
 })
+
+describe('the value formatter reaches the AXIS, not just the tooltip', () => {
+  it('formats y-axis labels', () => {
+    // Observed live: the tooltip read "$150B" while the axis printed
+    // 150000000000 — eleven digits of noise, and it blew out the grid inset.
+    const o = buildSeriesOption(P, line, {
+      mode: 'bars', valueFormatter: (v) => `$${(v / 1e9).toFixed(0)}B`,
+    })
+    expect(o.yAxis.axisLabel.formatter(1.5e11)).toBe('$150B')
+  })
+
+  it('formats the value axis in rank mode too', () => {
+    const o = buildSeriesOption(['A', 'B'], [{ name: 'x', values: [1, 2] }], {
+      mode: 'rank', valueFormatter: (v) => `${v}%`,
+    })
+    expect(o.xAxis.axisLabel.formatter(8.5)).toBe('8.5%')
+  })
+})
