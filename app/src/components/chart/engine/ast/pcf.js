@@ -162,7 +162,58 @@ export const PCF_FUSED = Object.freeze({
   ATR:    { spelling: 'ATR<period>[.<offset>]',           fn: 'atr',     series: ['high', 'low', 'close'], params: ['period', 'offset'] },
   MACD:   { spelling: 'MACD<fast>.<slow>[.<offset>]',     fn: 'macd',    series: ['close'], params: ['fast', 'slow', 'offset'] },
   STOC:   { spelling: 'STOC<period>.<smoothing>[.<offset>]', fn: 'stoch', series: ['close', 'high', 'low'], params: ['period', 'smoothing', 'offset'], fixed: { smoothing: 1 } },
+
+  // Measured 2026-08-09 against Worden's own syntax table: these three were the
+  // ONLY oscillators in the whole PCF vocabulary that this engine already
+  // computes and this reader could not say. Same shape as `ATR` above -- the
+  // three price series are supplied because TC2000 leaves them implicit against
+  // the chart's symbol, which IS what the spelling means.
+  //
+  // ⛔ AND THE LIST IS THREE, NOT THIRTEEN. Of the sixteen oscillators PCF
+  // declares, thirteen refused; it is tempting to read that as thirteen missing
+  // rows. Twelve of them are NOT: `ADX`, `AROONUP`, `AROONDOWN`, `BOP`, `OBV`,
+  // `FAVG` and `HAVG` are formulas this table does not declare at all, and
+  // `RSI`, `WSTOC`, `MS` and `TSV` are DIFFERENT FORMULAS wearing familiar names
+  // -- see `PCF_DIFFERENT_FORMULA`. Adding a row for any of those would be the
+  // `MIN`/`lowest` trap this file's header exists to warn about.
+  CCI:     { spelling: 'CCI<period>[.<offset>]',     fn: 'cci',     series: ['high', 'low', 'close'], params: ['period', 'offset'] },
+  DIPLUS:  { spelling: 'DIPLUS<period>[.<offset>]',  fn: 'plusDI',  series: ['high', 'low', 'close'], params: ['period', 'offset'] },
+  DIMINUS: { spelling: 'DIMINUS<period>[.<offset>]', fn: 'minusDI', series: ['high', 'low', 'close'], params: ['period', 'offset'] },
 })
+
+/** 🔴 NAMES THIS TABLE HAS SOMETHING SIMILAR TO, AND MUST NOT MAP.
+ *
+ *  ⛔ EACH OF THESE WOULD PARSE, LINT, SAVE AND SCAN IF POINTED AT ITS
+ *  LOOK-ALIKE, AND WOULD BE WRONG — the exact failure the `MIN`/`lowest` note at
+ *  the top of `PCF_CALLS` describes, which the refusal surface cannot catch
+ *  because nothing refuses. So they refuse HERE, by name, with the reason.
+ *
+ *  ⚠️ `RSI` IS THE SHARPEST ONE. Worden's table says outright that its `RSI` is
+ *  **not Wilder's**, and that `WRSI` is — and `WRSI` is the one this reader
+ *  already maps to our `rsi`. So a member typing `RSI14` must be told they want
+ *  `WRSI14`, not silently handed Wilder's under Cutler's name.
+ *
+ *  ⚠️ `MS` AND `TSV` ARE PERMANENT. They are Worden-proprietary and their
+ *  formulas are not published anywhere; a best effort would put a number under a
+ *  name members trust. That is a refusal to keep, not a backlog item. */
+export const PCF_DIFFERENT_FORMULA = Object.freeze({
+  RSI:   "TC2000's RSI is not Wilder's. This table has Wilder's, which TC2000 spells WRSI",
+  WSTOC: 'the Worden stochastic is a different formula from the simple STOC this table has',
+  MS:    'MoneyStream is Worden-proprietary and its formula is not published',
+  TSV:   'Time Segmented Volume is Worden-proprietary and its formula is not published',
+})
+
+/** The leading alphabetic run of a fused token — `RSI14.2` → `RSI`, `MS20` → `MS`.
+ *
+ *  ⛔ THE MAP IS CONSULTED AT THE REFUSAL, NOT AT THE MATCH, so a name that later
+ *  becomes genuinely supported stops reaching this and the entry becomes dead
+ *  rather than wrong. A look-alike check placed BEFORE the lookup would shadow a
+ *  real mapping the day one was added. */
+function differentFormula(text) {
+  const m = /^([A-Za-z]+)/.exec(String(text || ''))
+  const head = m ? m[1].toUpperCase() : ''
+  return own(PCF_DIFFERENT_FORMULA, head) ? PCF_DIFFERENT_FORMULA[head] : null
+}
 
 /** The CALL forms. `AVG(w, x)` is TC2000's own alternative spelling of
  *  `AVGwx`, and `GREATEST`/`LEAST`/`ABS`/`XUP`/`XDOWN` have no fused form.
@@ -571,8 +622,15 @@ function readFused(table, token, letters, nodeTypes) {
     return off ? applyOffset(nodeTypes, call, off.value, off.index, token.text) : call
   }
 
+  // ⭐ A LOOK-ALIKE GETS ITS OWN SENTENCE. `RSI14` refusing with the same words as
+  // a typo sends a member hunting for a spelling that does not exist; telling
+  // them TC2000's RSI is not Wilder's — and that `WRSI` is the one they want —
+  // is the difference between a dead end and a working scan.
+  const lookalike = differentFormula(token.text)
   refuse('pcf:name',
-    `\`${token.text}\` at character ${token.index}`, token.index, token.text)
+    lookalike
+      ? `\`${token.text}\` at character ${token.index} — ${lookalike}`
+      : `\`${token.text}\` at character ${token.index}`, token.index, token.text)
   return null
 }
 
@@ -754,7 +812,11 @@ class Reader {
 
     const call = PCF_CALLS[upper]
     if (!call) {
-      refuse('pcf:name', `\`${token.text}(…)\` at character ${at}`, at, token.text)
+      const lookalike = differentFormula(token.text)
+      refuse('pcf:name',
+        lookalike
+          ? `\`${token.text}(…)\` at character ${at} — ${lookalike}`
+          : `\`${token.text}(…)\` at character ${at}`, at, token.text)
     }
 
     let used = nodes

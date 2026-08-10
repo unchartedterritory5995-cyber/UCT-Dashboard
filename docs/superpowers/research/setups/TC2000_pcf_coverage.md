@@ -4,7 +4,7 @@
 — Worden's own syntax table, fetched 2026-08-09. **Measured by running 71 real PCF
 expressions through the shipped `parsePcf`**, not by reading the translator.
 
-## 🔴 35 / 71
+## 🔴 35 / 71 → ⭐ 37 / 71 (same session)
 
 Before this, the claim on record was *"18 live spellings, 0 blocked"* against an
 8-case corpus. ⛔ **`0 blocked` out of 8 is not a coverage number, it is the absence
@@ -21,7 +21,7 @@ of one** — and the honest figure, once the vocabulary is the yardstick, is und
 | Math operators | 2/5 | `^`, `MOD`, `\` (integer divide) missing |
 | Logical | 3/7 | `XOR`, `NAND`, `NOR`, `XNOR` missing |
 | Math functions | 3/8 | `SQR`,`LOG`,`CLG`,`EXP`,`SGN` missing |
-| **Oscillators** | **3/16** | 🔴 see below |
+| **Oscillators** | 3/16 → **5/16** | 🔴 see below |
 | **Stateful** (`CountTrue`,`SinceTrue`,`TrueInRow`) | **0/3** | ⭐ see below |
 | Trig / hyperbolic | 0/5 | 23 functions; no trading use found |
 
@@ -71,10 +71,29 @@ that sentinel matters: `-1` is not "zero bars ago". Mapping it to a bare accumul
 without reproducing the sentinel would make "never happened" read as "happened just
 now" — inverted, and silent.
 
+## ⚰️ WHAT I GOT WRONG IN THE FIRST DRAFT OF THIS FILE
+
+It said *"13 of 16 fail — and the engine already computes most of them."* **Only
+three did.** Checked one by one against the manifest: `CCI`, `DIPLUS` and `DIMINUS`
+were genuinely missing spellings for maths this engine already had, and those three
+are now mapped. The other ten are not spelling gaps at all — seven are formulas this
+table does not declare (`ADX`, `AROONUP`, `AROONDOWN`, `BOP`, `OBV`, `FAVG`, `HAVG`)
+and four are **different formulas wearing familiar names**.
+
+⛔ THAT SECOND CATEGORY IS THE DANGEROUS ONE, and mapping it would have been the
+`MIN`/`lowest` trap the translator's own header warns about: Worden's table says
+plainly that its `RSI` is **not Wilder's**, and that `WRSI` is — and `WRSI` is
+already mapped to our `rsi`. Pointing `RSI` at the same function would have produced
+a formula that parses, lints, saves, scans, and is wrong.
+
+⭐ So they refuse BY NAME WITH THE REASON now: typing `RSI14` tells you to use
+`WRSI14`. `MS` and `TSV` say the formula is Worden-proprietary and unpublished. A
+control asserts an ordinary unknown name does NOT get one of these sentences, so the
+explanation cannot become boilerplate glued to every refusal.
+
 ## The work, in the order it pays
 
-1. **The oscillator spelling map** — ~8 rows for names the engine already computes.
-   Biggest coverage gain per line of code in the whole file.
+1. ~~The oscillator spelling map~~ — **DONE, and it was three rows, not eight.**
 2. **The three stateful functions** — now that `accum` exists, plus the `-1` sentinel
    for `SinceTrue`.
 3. **Four logical operators** — `XOR`/`NAND`/`NOR`/`XNOR` are all derivable from the
@@ -92,4 +111,4 @@ now" — inverted, and silent.
 real published scripts with a snapshot that goes red if any one regresses; TC2000 had
 8 hand-written cases and a claim. ⭐ **The fix was not more translator code — it was
 finding the yardstick.** With Worden's own table as the corpus, every future change to
-`pcf.js` has a number it must not lower, and this document is the baseline: **35/71**.
+`pcf.js` has a number it must not lower, and this document is the baseline: **37/71**, and it is now a RAIL rather than a document: `app/src/components/chart/engine/ast/pcf.vocabulary.test.js` pins the total AND each group, in BOTH directions, so a gain in one group cannot hide a loss in another — which is exactly how a single reassuring number hid the truth the first time.
