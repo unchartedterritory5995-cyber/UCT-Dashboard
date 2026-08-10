@@ -57,6 +57,11 @@ export {
   buildRevisionOption,
 } from './charts/RevisionColumns'
 export {
+  default as SeriesChart,
+  buildSeriesOption,
+  hasPlottableData,
+} from './charts/SeriesChart'
+export {
   default as Histogram,
   SIZE as HISTOGRAM_SIZE,
   binValues,

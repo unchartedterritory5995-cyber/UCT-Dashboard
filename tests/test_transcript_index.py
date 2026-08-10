@@ -112,3 +112,60 @@ class TestCorpusHousekeeping:
         s = ix.stats()
         assert s["transcripts"] == 3 and s["symbols"] == 3
         assert s["newest"] == "2026-08-02" and s["oldest"] == "2026-05-01"
+
+
+class TestThemeTrend:
+    """"Is this theme accelerating across the market?" — the cross-corpus view."""
+
+    def _seed(self, ix):
+        # Two months, DIFFERENT call counts — that asymmetry is the whole point.
+        ix.put("A", 2026, 1, "2026-06-10", "tariff pressure everywhere")
+        ix.put("B", 2026, 1, "2026-06-11", "no mention of the t-word here")
+        ix.put("C", 2026, 2, "2026-07-10", "tariff again")
+        ix.put("D", 2026, 2, "2026-07-11", "tariff and more tariff")
+        ix.put("E", 2026, 2, "2026-07-12", "unrelated content")
+        ix.put("F", 2026, 2, "2026-07-13", "also unrelated")
+
+    def test_reports_a_SHARE_not_a_raw_count(self, ix):
+        # Calls cluster hard in earnings season, so a raw count peaks every
+        # quarter no matter what the term does — the shape would describe the
+        # CALENDAR, not the theme. June: 1 of 2 = 50%. July: 2 of 4 = 50%.
+        # The raw counts (1 vs 2) suggest the theme doubled; it did not.
+        self._seed(ix)
+        out = ix.trend("tariff")
+        by = {m["month"]: m for m in out["months"]}
+        assert by["2026-06"]["mentions"] == 1 and by["2026-06"]["calls"] == 2
+        assert by["2026-07"]["mentions"] == 2 and by["2026-07"]["calls"] == 4
+        assert by["2026-06"]["pct"] == 50.0
+        assert by["2026-07"]["pct"] == 50.0
+
+    def test_months_come_back_in_chronological_order(self, ix):
+        self._seed(ix)
+        months = [m["month"] for m in ix.trend("tariff")["months"]]
+        assert months == sorted(months), "a trend plotted out of order runs backwards"
+
+    def test_a_month_with_no_mentions_is_ZERO_not_missing(self, ix):
+        # A gap would silently close up and make the theme look continuous.
+        self._seed(ix)
+        by = {m["month"]: m for m in ix.trend("unrelated")["months"]}
+        assert by["2026-06"]["mentions"] == 0
+        assert by["2026-06"]["pct"] == 0.0
+
+    def test_the_denominator_is_indexed_calls_not_matches(self, ix):
+        self._seed(ix)
+        out = ix.trend("tariff")
+        assert all(m["calls"] >= m["mentions"] for m in out["months"])
+
+    def test_honours_the_month_window(self, ix):
+        self._seed(ix)
+        assert len(ix.trend("tariff", months=1)["months"]) == 1
+
+    def test_can_be_scoped_to_one_symbol(self, ix):
+        self._seed(ix)
+        out = ix.trend("tariff", symbol="D")
+        assert out["total"] == 1
+
+    def test_a_hostile_query_returns_empty_rather_than_a_500(self, ix):
+        self._seed(ix)
+        for q in ('AT&T', 'unbalanced "quote', '-', '', '((('):
+            assert isinstance(ix.trend(q)["months"], list)

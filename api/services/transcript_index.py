@@ -197,6 +197,56 @@ def search(query: str, limit: int = 40, symbol: Optional[str] = None,
     }
 
 
+def trend(query: str, months: int = 12, symbol: Optional[str] = None) -> dict[str, Any]:
+    """How often a theme comes up, month by month, across the whole corpus.
+
+    "Who is talking about tariffs, and is it accelerating" — a question no
+    single-company view can answer, over a corpus that costs nothing because
+    FMP Ultimate is uncapped.
+
+    Reported as a SHARE, not a raw count. Calls cluster hard in earnings season,
+    so a raw count peaks every quarter no matter what the term is doing — the
+    shape would describe the calendar rather than the theme. `pct` is mentions
+    as a percentage of the calls indexed that month, which is the honest series.
+    """
+    init_db()
+    match = _to_match_query(query)
+    if not match:
+        return {"query": query, "months": [], "total": 0}
+
+    args: list[Any] = [match]
+    where = ["transcript_fts MATCH ?"]
+    if symbol:
+        where.append("symbol = ?")
+        args.append(symbol.upper().strip())
+
+    try:
+        with _conn() as c:
+            hits = c.execute(
+                f"SELECT substr(call_date, 1, 7) AS ym, COUNT(*) n "
+                f"  FROM transcript_fts WHERE {' AND '.join(where)} "
+                f"   AND call_date != '' GROUP BY ym", args).fetchall()
+            # The denominator comes from the SAME table, so a month with no
+            # indexed calls cannot report a share at all rather than 100%.
+            totals = c.execute(
+                "SELECT substr(call_date, 1, 7) AS ym, COUNT(*) n FROM transcripts "
+                " WHERE call_date != '' GROUP BY ym").fetchall()
+    except sqlite3.OperationalError as exc:
+        _log.warning("[tindex] trend failed for %r: %s", match, exc)
+        return {"query": query, "months": [], "total": 0,
+                "error": "unsupported search syntax"}
+
+    hit_by = {r["ym"]: r["n"] for r in hits}
+    rows = []
+    for r in sorted(totals, key=lambda x: x["ym"])[-max(1, int(months)):]:
+        ym, calls = r["ym"], r["n"]
+        n = hit_by.get(ym, 0)
+        rows.append({"month": ym, "calls": calls, "mentions": n,
+                     "pct": round(n * 100.0 / calls, 1) if calls else None})
+    return {"query": query, "match": match, "months": rows,
+            "total": sum(v for v in hit_by.values())}
+
+
 def stats() -> dict[str, Any]:
     init_db()
     with _conn() as c:

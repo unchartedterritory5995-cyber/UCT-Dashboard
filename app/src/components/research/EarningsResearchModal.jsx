@@ -33,6 +33,7 @@ import EstimatesTab from '../../pages/research/tabs/EstimatesTab'
 import FinancialsTab from '../../pages/research/tabs/FinancialsTab'
 import RatingsTab from '../../pages/research/tabs/RatingsTab'
 import FundamentalsSection from './sections/FundamentalsSection'
+import StatementPanels from './sections/StatementPanels'
 import styles from './EarningsResearchModal.module.css'
 
 // Exported so a rail can assert every SECTIONS id has a panel behind it. A tab
@@ -51,6 +52,7 @@ export const PANELS = {
   // All three tabs take only `sym` and self-fetch, so they mount unchanged.
   fundamentals: FundamentalsSection,
   estimates: EstimatesTab,
+  statements: StatementPanels,
   financials: FinancialsTab,
   ratings: RatingsTab,
 }

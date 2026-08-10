@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 
 // Newest-first, exactly as /api/research/financials returns it.
 const QUARTERLY = [
@@ -13,6 +13,12 @@ vi.mock('../../../components/research-kit', () => ({
   MetricTrendChart: (props) => {
     captured.push(props)
     return <div data-testid={`trend-${props.label}`} />
+  },
+  // The tab also draws margins through SeriesChart; the mock has to cover every
+  // export it imports or the module resolves to undefined and the tab throws.
+  SeriesChart: (props) => {
+    captured.push(props)
+    return <div data-testid={`series-${props.label}`} />
   },
 }))
 
@@ -65,5 +71,37 @@ describe('financial trends read forwards in time', () => {
     finData = { quarterly: null, annual: [], balance: {}, metrics: {} }
     expect(() => render(<FinancialsTab sym="AAPL" />)).not.toThrow()
     finData = { quarterly: QUARTERLY, annual: [], balance: {}, metrics: {} }
+  })
+})
+
+describe('quarterly / annual basis toggle', () => {
+  const ANNUAL = [
+    { period: '2025', revenue: 400e9, eps: 7.1 },
+    { period: '2024', revenue: 391e9, eps: 6.1 },
+    { period: '2023', revenue: 383e9, eps: 5.9 },
+  ]
+
+  it('defaults to quarterly', () => {
+    finData = { quarterly: QUARTERLY, annual: ANNUAL, balance: {}, metrics: {} }
+    render(<FinancialsTab sym="AAPL" />)
+    const rev = captured.find(p => p.label === 'Revenue ($B)')
+    expect(rev.periods).toEqual(['Q4 2025', 'Q1 2026', 'Q2 2026'])
+  })
+
+  it('switching to annual charts the ANNUAL series, still oldest-first', () => {
+    finData = { quarterly: QUARTERLY, annual: ANNUAL, balance: {}, metrics: {} }
+    render(<FinancialsTab sym="AAPL" />)
+    captured.length = 0
+    fireEvent.click(screen.getByRole('button', { name: /^Annual$/i }))
+    const rev = captured.find(p => p.label === 'Revenue ($B)')
+    expect(rev.periods).toEqual(['2023', '2024', '2025'])
+    expect(rev.values[0]).toBeCloseTo(383, 0)
+  })
+
+  it('hides the toggle when only ONE basis has data', () => {
+    // Offering a switch to an empty chart is worse than not offering it.
+    finData = { quarterly: QUARTERLY, annual: [], balance: {}, metrics: {} }
+    render(<FinancialsTab sym="AAPL" />)
+    expect(screen.queryByRole('button', { name: /^Annual$/i })).toBeNull()
   })
 })
