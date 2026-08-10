@@ -229,12 +229,12 @@
     },
     {
       "id": "too_many_series",
-      "source": "close + high + low + open + volume + close + high + low + open",
+      "source": "close + high + low + open + volume + above_50sma + accdis + adr_pct + atr_pct",
       "astFrom": "gen:seriesChain(9)",
       "guard": "budget:series",
       "refuse": "exceeds the series-reference budget",
       "why": "ADDED 2026-08-08 BY THE BUDGET TASK, BECAUSE A THIRD CAP WITH NO CASE IS A CAP THE CENSUS CANNOT SEE. `maxSeriesRefs` bounds base-series READS inside one definition (spec section 5 budgets a whole CHART at 8 panes), and this tree passes both other caps -- 17 nodes against 128, zero lookback against 500 -- so it is refused by that cap or by nothing. Its names are GENERATED FROM THE MANIFEST rather than typed, so a series rename cannot quietly turn this into a `resolve:name` case at a different door.",
-      "note": "The cap counts OCCURRENCES, not distinct names, and that is forced rather than stylistic: the table declares FIVE series, so a distinct-name count could never exceed 8 and `budget:series` would be a latch nothing can trip. This case therefore repeats four of the five.",
+      "note": "⭐ THE CAP COUNTS DISTINCT READS, and this case is what proves it is not a latch nothing can trip. ⚰️ THIS SAID *\"The cap counts OCCURRENCES, not distinct names, and that is forced rather than stylistic: the table declares FIVE series, so a distinct-name count could never exceed 8 and `budget:series` would be a latch nothing can trip. This case therefore repeats four of the five.\"* — and the ARGUMENT was sound on the day it was written. Its PREMISE expired: the scalars section landed afterwards, a scalar rides the same `series` node, and the manifest now declares 59 names a definition can read rather than five. So a distinct count has room to exceed eight, and this case does it with nine. ⛔ WHY IT HAD TO CHANGE: counting occurrences refused formulas that read three columns and mentioned them six times — `(high + low + close) / 3` compared against its own average is the whole example — and the cap’s own rationale is DATA VOLUME, which is a function of distinct columns. What surfaced it was the Pine built-in `tr` expanding to six references over three series, which made a real published ATR script translate and then refuse AT THE SAVE DOOR. The cap did not move; only what it measures did, and distinct <= occurrences always.",
       "parses": true,
       "jsepRoot": "BinaryExpression"
     },

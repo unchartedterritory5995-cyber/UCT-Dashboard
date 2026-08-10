@@ -114,10 +114,17 @@ const generatedCanonical = (astFrom) => {
   if (m) return nestedSum(Number(m[1]))
   m = /^gen:seriesChain\((\d+)\)$/.exec(String(astFrom))
   if (m) {
-    const names = Object.keys(TABLE.series).sort()
+    // ⭐ SERIES *AND* SCALARS, AND DISTINCT — the same change the Python
+    // generator and `budget.test.js` made, for the same reason. `seriesRefs`
+    // counts DISTINCT reads, so a chain cycling the five bar fields measured five
+    // however long it got, and this spec exists to EXCEED a cap of eight. A
+    // scalar rides the same `series` node and is a per-symbol column read.
+    const names = [...Object.keys(TABLE.series).sort(), ...Object.keys(TABLE.scalars).sort()]
+    const want = Number(m[1])
+    if (want > names.length) throw new Error(`gen:seriesChain(${want}): the manifest declares ${names.length}`)
     let node = { type: 'series', name: names[0] }
-    for (let i = 1; i < Number(m[1]); i++) {
-      node = { type: 'op', name: '+', args: [node, { type: 'series', name: names[i % names.length] }] }
+    for (let i = 1; i < want; i++) {
+      node = { type: 'op', name: '+', args: [node, { type: 'series', name: names[i] }] }
     }
     return node
   }

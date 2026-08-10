@@ -200,19 +200,18 @@
   },
   "13-average-true-range.pine": {
     "version": 3,
-    "translates": false,
+    "translates": true,
     "outputs": 8,
-    "usable": 0,
-    "selectedFormula": null,
-    "downstream": null,
-    "refusal": {
-      "guard": "pine:function",
-      "line": 29,
-      "column": 13,
-      "token": "rma"
+    "usable": 3,
+    "selectedFormula": "rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14) > highest(rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14), 20)[1]",
+    "downstream": {
+      "ok": true,
+      "guard": null,
+      "repaint": "non-repainting"
     },
+    "refusal": null,
     "perOutputRefusals": {
-      "pine:function": 8
+      "pine:na": 5
     }
   },
   "14-bollinger-bands-fixed-timeframe.pine": {
@@ -223,14 +222,14 @@
     "selectedFormula": null,
     "downstream": null,
     "refusal": {
-      "guard": "pine:function",
-      "line": 30,
-      "column": 11,
-      "token": "round"
+      "guard": "pine:undefined",
+      "line": 13,
+      "column": 15,
+      "token": "isintraday"
     },
     "perOutputRefusals": {
       "pine:plot-offset": 3,
-      "pine:function": 2
+      "pine:undefined": 2
     }
   },
   "15-anchored-vwap.pine": {
@@ -280,20 +279,17 @@
   },
   "18-normalized-average-true-range.pine": {
     "version": 3,
-    "translates": false,
+    "translates": true,
     "outputs": 1,
-    "usable": 0,
-    "selectedFormula": null,
-    "downstream": null,
-    "refusal": {
-      "guard": "pine:role-order",
-      "line": 8,
-      "column": 14,
-      "token": "atr"
+    "usable": 1,
+    "selectedFormula": "100 * atr(high, low, close, 14) / close",
+    "downstream": {
+      "ok": true,
+      "guard": null,
+      "repaint": "non-repainting"
     },
-    "perOutputRefusals": {
-      "pine:role-order": 1
-    }
+    "refusal": null,
+    "perOutputRefusals": {}
   },
   "19-strategy-supertrend-atr.pine": {
     "version": 3,
@@ -337,13 +333,13 @@
     "selectedFormula": null,
     "downstream": null,
     "refusal": {
-      "guard": "pine:na",
-      "line": 268,
-      "column": 24,
-      "token": "na"
+      "guard": "pine:state",
+      "line": 90,
+      "column": 1,
+      "token": "var"
     },
     "perOutputRefusals": {
-      "pine:na": 1
+      "pine:state": 1
     }
   }
 }

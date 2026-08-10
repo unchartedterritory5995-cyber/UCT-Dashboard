@@ -7,7 +7,7 @@ import {
   OPERATOR_SENTENCE, OPERATOR_SENTENCE_CONDITIONS, CONDITIONS_FORM_DECLINED,
   SENTENCE_RULES, SentenceRefusal, REFUSALS as SENTENCE_REFUSALS,
 } from './sentence.js'
-import { parseFormula, astHash, TABLE, REFUSALS as PARSE_REFUSALS, RECURRENCES } from './parse.js'
+import { parseFormula, astHash, TABLE, REFUSALS as PARSE_REFUSALS, RECURRENCES, RECURRENCE_BINDINGS } from './parse.js'
 import { REFUSALS as INTERPRET_REFUSALS } from './interpret.js'
 import { lintRepaint } from './lint.js'
 // ⭐ THE DELIVERABLE IS A CHAIN, SO THE CHAIN'S OWN DOORS ARE THE SUBJECT.
@@ -96,6 +96,13 @@ const RECURRENCE_PHRASE = Object.freeze({
   'the running value so far': RECURRENCES.accum.binds,
 })
 
+/** binding -> the phrase the walker says for it. The INVERSE of the map above,
+ *  DERIVED from it rather than typed a second time: two hand-written directions
+ *  of one mapping is the second-authority defect, and here it would let a reader
+ *  and a rail disagree about the same word. */
+const RECURRENCE_SAYS = Object.freeze(Object.fromEntries(
+  Object.entries(RECURRENCE_PHRASE).map(([phrase, bind]) => [bind, phrase])))
+
 /** Each form is a chunk list: strings are literal chrome, numbers are argument
  *  positions. The order below is DECLARED rather than incidental — a phrase that
  *  is a prefix of another (`is greater than` inside `is greater than or equal
@@ -153,6 +160,19 @@ const FORMS = [
   // The unambiguity rail below is what actually proves it, over every generated
   // sentence rather than over this argument.
   { kind: 'call', name: 'accum', parts: ['the running value that starts at ', 0, ' and becomes ', 1, ' on each of the last ', 2, ' bars'] },
+
+  // ⭐ THE PINE PARITY SIX. Hand-typed from the manifest, like every row above.
+  // ⚠️ `wma` AND `rma` ARE NOT AMBIGUOUS WITH `sma` even though all three open
+  // `the {1}-bar `: `matchForm` anchors on the literal that FOLLOWS the slot, and
+  // `-bar average of ` does not occur inside `-bar weighted average of `. The
+  // unambiguity rail below is what proves that over every generated sentence
+  // rather than over this argument.
+  { kind: 'call', name: 'rma', parts: ['the ', 1, '-bar Wilder average of ', 0] },
+  { kind: 'call', name: 'wma', parts: ['the ', 1, '-bar weighted average of ', 0] },
+  { kind: 'call', name: 'sign', parts: ['the sign of ', 0] },
+  { kind: 'call', name: 'round', parts: [0, ' rounded to a whole number'] },
+  { kind: 'call', name: 'na', parts: [0, ' being unknown'] },
+  { kind: 'call', name: 'nz', parts: [0, ' where it is known, and ', 1, ' where it is not'] },
 
   { kind: 'op', name: '+', parts: [0, ' plus ', 1] },
   { kind: 'op', name: '-', parts: [0, ' minus ', 1] },
@@ -413,6 +433,13 @@ const hasConditionsForm = (name) => own(OPERATOR_SENTENCE_CONDITIONS, name)
 function predictTrace(node, at = '$') {
   if (node.type === 'num') return [{ path: at, rule: 'num' }]
   if (node.type === 'series') {
+    // ⭐ THREE ORIGINS FOR ONE NODE TYPE, AND THE THIRD IS NOT IN ANY SECTION OF
+    // THE TABLE. A recurrence binding is BOUND by the `accum` around it, so it is
+    // neither a declared series nor one of the definition's inputs — predicting
+    // `series:input` for it would have made this rail agree with the walker for
+    // the wrong reason, which is the one outcome an attribution rail must not
+    // have. The name is read from the manifest, never typed.
+    if (RECURRENCE_BINDINGS.includes(node.name)) return [{ path: at, rule: 'series:recurrence' }]
     return [{ path: at, rule: own(TABLE.series, node.name) ? 'series:table' : 'series:input' }]
   }
   if (node.type === 'offset') {
@@ -492,7 +519,17 @@ describe('the read-back is generated from the tree, and never written by a model
       const leaves = leavesOf(c.ast)
       expect(leaves.length, `${c.id} has no leaves — the rail would be vacuous`).toBeGreaterThan(0)
       for (const leaf of leaves) {
-        expect(s, `${c.id}: the read-back never says ${leaf}`).toContain(leaf)
+        // ⭐ A RECURRENCE BINDING IS SAID, NOT NAMED, AND THE RAIL STAYS AS STRICT.
+        // `self` reads back as "the running value so far" — a noun phrase filling
+        // the same slot `close` does — so demanding the literal token would be
+        // demanding a worse read-back. What is demanded instead is the PHRASE,
+        // looked up in this file's own typed table.
+        //
+        // ⛔ AND IT IS NOT AN EXEMPTION. Dropping the leaf from this loop would
+        // let a walker that rendered `self` as NOTHING pass, which is exactly the
+        // clause-dropping defect the rail exists to catch.
+        const said = RECURRENCE_SAYS[leaf] || leaf
+        expect(s, `${c.id}: the read-back never says ${said}`).toContain(said)
       }
     }
   })
@@ -578,27 +615,71 @@ describe('totality over the closed table — derived from the manifest, never ha
     // number `ast_conformance --coverage` asserts; the names are what a rename
     // has to fail against. ⭐ It went 31 -> 48 in Phase F, and the LIST is why
     // that reads as seventeen indicators arriving rather than as a number
-    // somebody adjusted. ⭐ 48 -> 49 is `accum`, the recurrence: one entry, and
+    // somebody adjusted. ⭐ 48 -> 55 is `accum` plus the Pine parity six: seven entries, and
     // the list is why that reads as bar-to-bar state arriving rather than as a
     // count that drifted.
     const entries = treesForTheWholeTable(TABLE).map((t) => t.entry)
     expect(entries).toEqual([
-      'series:close', 'series:high', 'series:low', 'series:open', 'series:volume',
-      'operator:!', 'operator:!=', 'operator:&&', 'operator:*', 'operator:+', 'operator:-',
-      'operator:/', 'operator:<', 'operator:<=', 'operator:==', 'operator:>', 'operator:>=',
-      'operator:?:', 'operator:u-', 'operator:||', 'function:abs',
-      // ⭐ THE RECURRENCE. The list is SORTED, so `accum` lands between `abs`
-      // and `atr` — not where it was appended in the manifest.
-      'function:accum', 'function:atr',
-      'function:cci', 'function:change', 'function:crossOver', 'function:crossUnder',
-      'function:donchianLower', 'function:donchianMiddle', 'function:donchianUpper',
-      'function:ema', 'function:highest', 'function:ichimokuChikou',
-      'function:ichimokuKijun', 'function:ichimokuSpanA', 'function:ichimokuSpanB',
-      'function:ichimokuTenkan', 'function:lowest', 'function:macd', 'function:max',
-      'function:mfi', 'function:min', 'function:minusDI', 'function:plusDI', 'function:rsi',
-      'function:sma', 'function:stdev', 'function:stoch', 'function:williamsR',
+      // REGENERATED WHOLE when the Pine parity six landed. Still a LIST: a
+      // rename lands as a named pair of changes here, never as a count nobody
+      // can attribute.
+      'series:close',
+      'series:high',
+      'series:low',
+      'series:open',
+      'series:volume',
+      'operator:!',
+      'operator:!=',
+      'operator:&&',
+      'operator:*',
+      'operator:+',
+      'operator:-',
+      'operator:/',
+      'operator:<',
+      'operator:<=',
+      'operator:==',
+      'operator:>',
+      'operator:>=',
+      'operator:?:',
+      'operator:u-',
+      'operator:||',
+      'function:abs',
+      'function:accum',
+      'function:atr',
+      'function:cci',
+      'function:change',
+      'function:crossOver',
+      'function:crossUnder',
+      'function:donchianLower',
+      'function:donchianMiddle',
+      'function:donchianUpper',
+      'function:ema',
+      'function:highest',
+      'function:ichimokuChikou',
+      'function:ichimokuKijun',
+      'function:ichimokuSpanA',
+      'function:ichimokuSpanB',
+      'function:ichimokuTenkan',
+      'function:lowest',
+      'function:macd',
+      'function:max',
+      'function:mfi',
+      'function:min',
+      'function:minusDI',
+      'function:na',
+      'function:nz',
+      'function:plusDI',
+      'function:rma',
+      'function:round',
+      'function:rsi',
+      'function:sign',
+      'function:sma',
+      'function:stdev',
+      'function:stoch',
+      'function:williamsR',
+      'function:wma',
     ])
-    expect(entries.length).toBe(49)
+    expect(entries.length).toBe(55)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -608,7 +689,7 @@ describe('totality over the closed table — derived from the manifest, never ha
     // loop. ⛔ The count is asserted against the list above rather than retyped
     // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(49)
+    expect(subjects.length).toBe(55)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -1691,6 +1772,21 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'offset_one_bar', 'offset_zero_is_identity', 'offset_change_idiom',
       'offset_inside_a_reduction', 'offset_of_a_reduction', 'offset_of_a_condition',
       'offset_two_bars_apart',
+      // ⭐ THE RECURRENCE AND THE PINE PARITY SIX. Eleven rows, appended and
+      // separable BY NAME from the offset rows above them: five pin `accum`
+      // (see `corpus.json::_recurrence`) and six pin the manifest half of what
+      // 21 real published Pine scripts still refused for.
+      'accum_bounded_counter',
+      'accum_running_max_is_highest',
+      'accum_sticky_flag_ternary',
+      'accum_over_a_windowed_column',
+      'accum_offset_of_a_running_value',
+      'pine_rma_is_wilders_average',
+      'pine_wma_weights_the_recent_bar_most',
+      'pine_round_a_half_away_from_zero',
+      'pine_sign_of_a_change',
+      'pine_na_detects_a_warmup_hole',
+      'pine_nz_replaces_a_hole_with_a_stated_value',
     ])
   })
 
@@ -1733,7 +1829,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       ...CORPUS.cases.map((c) => sentenceFor(c.ast, {})),
       ...treesForTheWholeTable(TABLE).map((t) => sentenceFor(t.ast, {})),
     ]
-    expect(sentences.length).toBe(CORPUS.cases.length + 49)
+    expect(sentences.length).toBe(CORPUS.cases.length + 55)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)

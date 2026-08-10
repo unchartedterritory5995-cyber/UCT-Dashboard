@@ -116,7 +116,18 @@ class BudgetExceeded(TableRefusal):
 # --------------------------------------------------------------------------- #
 
 def series_refs(ast: Any) -> int:
-    """How many BASE-SERIES READS a canonical tree performs.
+    """How many DISTINCT BASE SERIES a canonical tree reads.
+
+    ⭐⭐ DISTINCT, NOT REFERENCES, AND THE CAP'S OWN RATIONALE IS WHY. Eight
+    reads are "the whole pane budget's worth of DATA in a single column", and
+    data is a function of how many columns must be fetched, held and walked --
+    not of how many times the tree mentions one. ``high`` read four times is ONE
+    column by every one of those measures.
+
+    ⚰️ IT COUNTED REFERENCES until 2026-08-09. See
+    ``budget.js::seriesRefs`` for the false refusal that surfaced it; the CAP did
+    not move, and distinct <= references always, so nothing that passed before
+    can fail now.
 
     ⛔ ITERATIVE, like ``node_count`` and ``max_lookback`` and for the same
     reason: the escape corpus's ``too_many_nodes`` case is 8,001 nodes deep and
@@ -129,7 +140,7 @@ def series_refs(ast: Any) -> int:
     out from under the guard that is supposed to catch them. An over-count can
     only make the budget TIGHTER, never looser.
     """
-    found = 0
+    found = set()
     stack = [ast]
     while stack:
         node = stack.pop()
@@ -139,11 +150,16 @@ def series_refs(ast: Any) -> int:
         if not isinstance(node, dict):
             continue
         if node.get("type") == "series":
-            found += 1
+            # ⛔ KEYED BY NAME, AND A NON-STRING NAME IS ITS OWN KEY RATHER THAN
+            # SKIPPED. A malformed ``{"type": "series"}`` with no name is still a
+            # read this measurement cannot account for, and dropping it would
+            # make a broken tree look CHEAPER than a working one.
+            name = node.get("name")
+            found.add(name if isinstance(name, str) else repr(name))
         args = node.get("args")
         if isinstance(args, list):
             stack.extend(args)
-    return found
+    return len(found)
 
 
 #: cap key → the measurement it thresholds. The key set IS ``DEFAULT_BUDGET``'s,

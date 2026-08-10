@@ -278,6 +278,15 @@ export const PINE_CALL_SHAPES = Object.freeze({
   // Pine's `ta.wpr(length)` leaves high/low/close implicit; supplying them is an
   // identity, and the rail measures it at max difference 0.
   wpr: { table: 'williams_r', pineArity: 1, build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 0 }] },
+  // ⭐ THE SAME SHAPE AS `wpr`, AND IT CLOSES `pine:role-order`. Pine's
+  // `ta.atr(length)` leaves high/low/close implicit against the chart's own
+  // symbol; this table takes them explicitly so `atr(high, low, sma(close,3), 14)`
+  // is sayable. Supplying the three declared series IS Pine's meaning, not a
+  // guess — and the read-back says them out loud, so a member sees what was
+  // understood. ⛔ Without this the translator could see that `atr` exists and
+  // that it takes four arguments, and had no way to know WHICH three to fill:
+  // refusing was right, and declaring the order is what makes it unnecessary.
+  atr: { table: 'atr', pineArity: 1, build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 0 }] },
 })
 
 /** Pine v1–v4 spelled several of these WITHOUT a namespace; v5 moved them into
@@ -310,6 +319,36 @@ const DERIVED_SERIES = Object.freeze({
   hlc3: ['high', 'low', 'close'],
   ohlc4: ['open', 'high', 'low', 'close'],
   hlcc4: ['high', 'low', 'close', 'close'],
+})
+
+/** Pine built-ins that are not a MEAN of price series but are still an exact
+ *  expansion in this table's own vocabulary.
+ *
+ *  ⭐ `tr` IS THE WHOLE REASON THIS MAP EXISTS, and it became expressible the day
+ *  the bounded backward offset landed: True Range is
+ *  `max(high - low, max(abs(high - close[1]), abs(low - close[1])))`, which is
+ *  the Pine reference manual's own definition rather than an approximation of
+ *  it. Before the offset it could not be said at all; `DERIVED_SERIES` could not
+ *  hold it either, because that map builds a mean and this is not one.
+ *
+ *  ⚠️ ONE BAR DIFFERS FROM PINE, AND IT DIFFERS IN THE SAFE DIRECTION. Pine's
+ *  bare `ta.tr` falls back to `high - low` on the first bar, where `close[1]`
+ *  does not exist; this expansion is NOT COMPUTABLE there, like every other
+ *  lookback in this engine. `ta.tr(true)` asks for Pine's fallback explicitly and
+ *  is refused rather than silently given this one — the extra NaN is a bar the
+ *  member can see, and a fabricated first bar is not.
+ *
+ *  ⛔ AN EXPANSION IS ONLY ADMISSIBLE WHEN IT IS AN IDENTITY. Anything that
+ *  needed a judgement about what the author meant belongs in a refusal. */
+const BUILTIN_SERIES_TREE = Object.freeze({
+  tr: () => {
+    const prevClose = { type: 'offset', value: 1, args: [cSeries('close')] };
+    const gap = (side) => cCall('abs', [cOp('-', [cSeries(side), prevClose])]);
+    return cCall('max', [
+      cOp('-', [cSeries('high'), cSeries('low')]),
+      cCall('max', [gap('high'), gap('low')]),
+    ]);
+  },
 })
 
 /** Pine keywords that begin a construct with no single-expression form. */
@@ -1277,6 +1316,11 @@ class Resolver {
 
     // Everything else: a Pine built-in with no home here, or a name the script
     // never bound. The two are different facts and get different guards.
+    // ⭐ AN EXACT EXPANSION BEATS A REFUSAL, AND IT IS CONSULTED LAST — after every
+    // binding the script itself wrote, so a member who defines their own `tr`
+    // gets THEIR `tr`, not ours. Shadowing a built-in is legal Pine and the
+    // script is the authority on its own names.
+    if (own(BUILTIN_SERIES_TREE, name)) return BUILTIN_SERIES_TREE[name]()
     if (PINE_KNOWN_BUILTINS.has(name)) {
       throw new PineRefusal('pine:builtin',
         `${REFUSALS['pine:builtin']} — \`${name}\``, locate(node.tok))
@@ -1291,7 +1335,42 @@ class Resolver {
     const ns = dot > 0 ? name.slice(0, dot) : null
     const base = dot > 0 ? name.slice(dot + 1) : name
 
-    if (name === 'nz' || name === 'na' || name === 'fixnan') {
+    // ⭐ `na` AND `nz` ARE DECLARED NOW, so what used to be one blanket refusal is
+    // two resolutions and one remaining refusal — and the remaining one is the
+    // honest half. See `closedTable.json::_functions_na` for why a table built
+    // entirely around "NaN means we do not know" declares the two that break it.
+    //
+    // ⛔ `nz(x)` IS FILLED WITH AN EXPLICIT ZERO RATHER THAN LEFT TO A DEFAULT.
+    // Pine's one-argument form means "or 0"; this table has no one-argument form,
+    // because an invisible default zero is precisely the half of the defect that
+    // makes `nz(market_cap, 0) > 1e9` a confident False on a broken symbol. The
+    // literal goes into the TREE, so the read-back says it and the member sees
+    // what their script asked for.
+    if (name === 'na' || name === 'nz') {
+      const arity = node.args.length
+      if (node.args.some((a) => a.name)) {
+        throw new PineRefusal('pine:named-argument',
+          `${REFUSALS['pine:named-argument']} — on \`${name}\``, locate(node.tok))
+      }
+      if (name === 'na' && arity === 1) {
+        return cCall('na', [this.resolve(node.args[0].value)])
+      }
+      if (name === 'nz' && (arity === 1 || arity === 2)) {
+        return cCall('nz', [
+          this.resolve(node.args[0].value),
+          arity === 2 ? this.resolve(node.args[1].value) : cNum(0),
+        ])
+      }
+      throw new PineRefusal('pine:arity',
+        `${REFUSALS['pine:arity']} — \`${name}\` was given ${arity} `
+        + `argument${arity === 1 ? '' : 's'}`, locate(node.tok))
+    }
+    // ⛔ `fixnan` STAYS REFUSED, AND NOT FOR WANT OF A TABLE ENTRY. It carries the
+    // last known value FORWARD ACROSS BARS for an unbounded distance, so it is
+    // state with no warm-up a member could state — `accum` bounds its window on
+    // purpose, and quietly picking a bound here would answer a different question
+    // from the one the script asks.
+    if (name === 'fixnan') {
       throw new PineRefusal('pine:na', `${REFUSALS['pine:na']} — \`${name}\``, locate(node.tok))
     }
     if (ns === 'input' || name === 'input') return this.resolveInput(node)

@@ -148,24 +148,36 @@ plot(x > x[1] ? 1 : 0)
     expect(maxLookback(parseFormula('sma(close, 50)[1]').ast)).toBe(51)
   })
 
-  it('...but it DOES double the node count and the series reads, which is the real cost', () => {
+  it('...it doubles the NODE COUNT, and that is the only budget substitution moves', () => {
     const ast = parseFormula(formulaOf(script)).ast
     const once = parseFormula('sma(close, 50)').ast
-    expect(seriesRefs(ast)).toBe(2 * seriesRefs(once))
     expect(nodeCount(ast)).toBeGreaterThan(2 * nodeCount(once))
-    // ⚠️ AND THAT IS A REAL CEILING, NOT A FOOTNOTE: `maxSeriesRefs` is 8, so a
-    // script that reads five aliases each mentioning two bar fields is refused by
-    // `budget:series` AFTER translating cleanly. The refusal is the budget's and
-    // it names itself, which is the arrangement this repo wants — but a coverage
-    // claim that counted translations would have missed it.
+
+    // ⚰️ THIS ALSO ASSERTED `seriesRefs(ast) === 2 * seriesRefs(once)` AND CALLED
+    // IT "the real cost", and it was true and it was a real, measured hazard: a
+    // script reading five aliases over two bar fields translated cleanly and was
+    // then refused by `budget:series` AT THE SAVE DOOR — the worst place to be
+    // refused, because the member has already been told it worked.
+    //
+    // ⭐ IT IS NO LONGER TRUE, AND THE FIX WAS NOT TO THIS FILE. `seriesRefs` now
+    // counts DISTINCT reads, which is what its own cap's rationale always meant —
+    // eight reads are "the whole pane budget's worth of DATA", and `close` read
+    // twice is one column fetched, held and walked. Substitution multiplies
+    // MENTIONS; it cannot invent a column. So the hazard this case was written to
+    // record is closed, and the case now records the closing.
+    expect(seriesRefs(ast)).toBe(seriesRefs(once))
     expect(DEFAULT_BUDGET.maxSeriesRefs).toBe(8)
+
+    // ⛔ AND THE WIDE ALIAS CHAIN THAT USED TO BE REFUSED NOW SAVES. This is the
+    // half that makes the paragraph above a measurement rather than a claim: same
+    // script, same budget, same cap, and the door says yes.
     const wide = `${HEAD}a = high - low
 b = close - open
 plot(a + b + a + b + a > 0 ? 1 : 0)
 `
     const down = evaluateFormula(formulaOf(wide), BUILDER_INPUT_SCOPE)
-    expect(down.ok).toBe(false)
-    expect(down.guard).toBe('budget:series')
+    expect(down.ok, `${down.guard}: ${down.error}`).toBe(true)
+    expect(seriesRefs(parseFormula(formulaOf(wide)).ast)).toBe(4)
   })
 })
 

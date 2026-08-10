@@ -238,9 +238,13 @@ function windowStdev(series, lo, hi) {
  *  warmup of a composed series (`ema(sma(close,20), 9)`) is exactly that case,
  *  and an EMA that carried its state across a hole would be reporting an average
  *  of bars it never saw. */
-function emaCol(series, n) {
+/** ⭐ ONE SMOOTHER, TWO CONSTANTS. `ema` passes `2 / (n + 1)` and `rma` (Wilder's)
+ *  passes `1 / n`; the seed, the restart-on-a-hole and the NaN prefix are shared
+ *  BY CONSTRUCTION rather than by two loops that agree today. See
+ *  `closedTable.json::_functions_smoothing` for why the alpha is what is shared
+ *  and the PERIOD is not. */
+function smoothCol(series, n, k) {
   const out = nan(series.length)
-  const k = 2 / (n + 1)
   let prev = NaN
   let count = 0
   let sum = 0
@@ -257,6 +261,24 @@ function emaCol(series, n) {
     }
   }
   return out
+}
+
+const emaCol = (series, n) => smoothCol(series, n, 2 / (n + 1))
+const rmaCol = (series, n) => smoothCol(series, n, 1 / n)
+
+/** The linearly weighted mean of `[lo, hi]` — the most recent bar carries the
+ *  most weight. ⚠️ NaN PROPAGATES through the sum, which is what makes the
+ *  warm-up of a composed argument show as a hole rather than as a lighter
+ *  average of the bars that happened to be there. */
+function windowWeightedMean(series, lo, hi) {
+  let weighted = 0
+  let weights = 0
+  for (let i = lo; i <= hi; i++) {
+    const w = i - lo + 1
+    weighted += series[i] * w
+    weights += w
+  }
+  return weighted / weights
 }
 
 function elementwise2(a, b, f) {
@@ -402,6 +424,19 @@ const POINTWISE = Object.freeze({
   abs: (x) => Math.abs(x),
   min: (x, y) => (Number.isNaN(x) || Number.isNaN(y) ? NaN : Math.min(x, y)),
   max: (x, y) => (Number.isNaN(x) || Number.isNaN(y) ? NaN : Math.max(x, y)),
+  // ⛔ NOT `Math.sign`, WHICH ANSWERS -0 FOR -0. A signed zero is invisible in
+  // every comparison and in the read-back, and it is NOT invisible to a parity
+  // run that divides by it — so the three answers are written out.
+  sign: (x) => (Number.isNaN(x) ? NaN : (x > 0 ? 1 : (x < 0 ? -1 : 0))),
+  // ⛔ NOT `Math.round`, WHICH ROUNDS A HALF TOWARD +∞ WHILE PYTHON'S `round`
+  // ROUNDS IT TO EVEN. Pine rounds a half AWAY FROM ZERO and so does this, in
+  // both lanes, spelled the same way. See `_functions_rounding`.
+  round: (x) => (Number.isNaN(x) ? NaN : POINTWISE.sign(x) * Math.floor(Math.abs(x) + 0.5)),
+  // ⭐⭐ THE TWO THAT DO NOT PROPAGATE, AND THEY ARE THE ONLY TWO. `na` INSPECTS
+  // not-computable and `nz` REPLACES it — see `_functions_na` for why a table
+  // built entirely around NaN meaning "we do not know" declares them anyway.
+  na: (x) => (Number.isNaN(x) ? 1 : 0),
+  nz: (x, y) => (Number.isNaN(x) ? y : x),
 })
 
 /** name → implementation. THE KEY SET IS `TABLE.functions`'s, both directions.
@@ -432,6 +467,24 @@ export const FN = Object.freeze({
   // the rule kills it in both lanes instead of relying on one language's luck.
   min: (a, b) => elementwise2(a, b, POINTWISE.min),
   max: (a, b) => elementwise2(a, b, POINTWISE.max),
+  rma: (series, n) => rmaCol(series, n),
+  wma: (series, n) => rolling(series, n, windowWeightedMean),
+  sign: (series) => {
+    const out = nan(series.length)
+    for (let i = 0; i < series.length; i++) out[i] = POINTWISE.sign(series[i])
+    return out
+  },
+  round: (series) => {
+    const out = nan(series.length)
+    for (let i = 0; i < series.length; i++) out[i] = POINTWISE.round(series[i])
+    return out
+  },
+  na: (series) => {
+    const out = nan(series.length)
+    for (let i = 0; i < series.length; i++) out[i] = POINTWISE.na(series[i])
+    return out
+  },
+  nz: (a, b) => elementwise2(a, b, POINTWISE.nz),
   crossOver: (a, b) => crossing(a, b, (an, bn, ap, bp) => an > bn && ap <= bp),
   crossUnder: (a, b) => crossing(a, b, (an, bn, ap, bp) => an < bn && ap >= bp),
 

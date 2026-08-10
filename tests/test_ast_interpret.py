@@ -182,12 +182,14 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # them bound to maths `indicators.js` and `indicator_compute.py` already
     # ship. The scalar half is untouched at 54, which is the whole reason these
     # are two assertions and not one total.
-    # ⭐ 48 -> 49 IS THE RECURRENCE. One function, `accum`, and again the bar
+    # ⭐ 48 -> 55 IS THE RECURRENCE PLUS THE PINE PARITY SIX (`rma`, `wma`,
+    # `round`, `sign`, `na`, `nz` — the entire manifest half of what 21 real
+    # published scripts still refused for). Again the bar
     # half is the only half that moved — it added no node type, no argument kind
     # and no lookback form, which is why `tableVersion` is still 1.
-    assert len(ast_table.bar_names()) == 49, len(ast_table.bar_names())
+    assert len(ast_table.bar_names()) == 55, len(ast_table.bar_names())
     assert len(ast_table.scalar_names()) == 54, len(ast_table.scalar_names())
-    assert len(declared) == 103, f"the table declares {len(declared)} names, not 103"
+    assert len(declared) == 109, f"the table declares {len(declared)} names, not 109"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "
@@ -1146,7 +1148,18 @@ def test_the_offset_counts_toward_node_count_and_series_refs():
     assert ast_interpret.node_count(OFF(1, SER("close"))) == 2
     # ⭐ THE BUDGET'S THIRD MEASUREMENT REACHES THROUGH THE OFFSET because the
     # child rides `args`, which every walker in this repo already descends.
-    assert ast_budget.series_refs(OP("-", SER("close"), OFF(1, SER("close")))) == 2
+    #
+    # ⛔ THE TWO NAMES MUST DIFFER, AND THAT IS NOT COSMETIC. This read
+    # `close - close[1]` and expected 2 while the measurement counted
+    # OCCURRENCES. It counts DISTINCT reads now, and `close - close[1]` is ONE
+    # distinct name — so the old tree would have passed at 1 for a walker that
+    # descended into the offset AND for one that ignored the subtree entirely.
+    # The claim is "it reaches through", so the child has to be a name that is
+    # only reachable THROUGH it.
+    assert ast_budget.series_refs(OP("-", SER("high"), OFF(1, SER("close")))) == 2
+    # …and the control: without reaching through, this is 1.
+    assert ast_budget.series_refs(OFF(1, SER("close"))) == 1
+    assert ast_budget.series_refs(OP("-", SER("close"), OFF(1, SER("close")))) == 1
 
 
 def test_unresolved_lookback_counts_the_offset_too():

@@ -133,7 +133,16 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
   const REFUSING = FILES.filter((f) => !SNAPSHOT[f].translates)
 
   it('there is more than one of them', () => {
-    expect(REFUSING.length).toBeGreaterThanOrEqual(10)
+    // ⚠️ A FLOOR ON *NON-VACUITY*, NOT A COVERAGE TARGET, AND THE DISTINCTION HAD
+    // TO BE MADE THE FIRST TIME THE PRODUCT IMPROVED. It read `>= 10` — the count
+    // that happened to be true when it was written — so translating two more real
+    // scripts turned it RED for the right thing happening. A count typed beside
+    // the thing it describes is this repo's most repeated defect, and it is worse
+    // here than usual: it makes progress look like a regression, which is exactly
+    // the pressure that gets a gate deleted rather than fixed. The COVERAGE number
+    // is pinned in both directions by `reports what fraction`, below, which is
+    // where a narrowing belongs.
+    expect(REFUSING.length).toBeGreaterThanOrEqual(2)
   })
 
   it('every guard fired is one this module declares, and the excerpt shows the line', () => {
@@ -179,9 +188,16 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
       'pine:block', // 06 — a `switch` inside a user function
       'pine:offset-literal', // 05 — `hh[len]`, a variable bar offset
       'pine:tuple', // 02, 06, 19
-      'pine:role-order', // 18
-      'pine:function', // 09 (`cum`), 13 (`rma`), 14 (`round`)
-      'pine:na', // 08, 11, 12, 21
+      // ⚰️ `pine:role-order` LEFT THIS LIST BECAUSE IT WAS CLOSED, not because it
+      // stopped mattering. It fired on `18-normalized-average-true-range` for
+      // `ta.atr(length)`, where the translator could see that `atr` exists and
+      // takes four arguments and had no way to know WHICH three series to fill.
+      // Declaring the permutation in `PINE_CALL_SHAPES` — the same shape `wpr`
+      // already had — made 18 translate. The GUARD is still live and still right
+      // for the next function whose order nobody has measured; it simply has no
+      // published script left in this corpus that trips it.
+      'pine:function', // 09 (`cum`)
+      'pine:na', // 08, 11, 12 — the bare `na` VALUE, not the call
       'pine:plot-offset', // 03, 12, 14
       'pine:strategy-call', // 19
       'pine:builtin', // 05, 06, 11, 15
@@ -191,7 +207,7 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
     }
     // ⛔ AND THE COUNT, so a guard that stops firing on the corpus is noticed
     // rather than quietly leaving the list above still true.
-    expect(fired.size).toBe(14)
+    expect(fired.size).toBe(13)
   })
 
   it('⛔ and NOTHING in the corpus is blocked on the bar offset any more', () => {
@@ -215,13 +231,14 @@ describe('the whole corpus, in one number', () => {
     // ⛔ NOT A THRESHOLD THAT ONLY GOES UP. It is pinned in BOTH directions, so a
     // change that quietly narrows coverage is as red as one that breaks a script.
     //
-    // ⚠️ 9/14 BEFORE THE VARIABLES FOLD, 10/16 AFTER — and the second number moved
-    // further than the first because the fold also unblocked columns inside
-    // scripts that were already translating. The one new script is `07-rsi.pine`,
-    // whose whole source selector is a twenty-arm `if … src := …` chain behind a
-    // user function.
-    expect(translating).toBe(10)
-    expect(columns).toBe(16)
+    // ⚠️ 9/14 BEFORE THE VARIABLES FOLD, 10/16 AFTER, 12/20 AFTER THE PINE
+    // PARITY SWEEP. The last step is the clearest of the three about WHAT bought
+    // it: six manifest entries (`rma`, `wma`, `round`, `sign`, `na`, `nz`), one
+    // declared argument order (`ta.atr`), and one built-in expanded to its own
+    // definition (`tr`). `13-average-true-range` needed the first and the last;
+    // `18-normalized-average-true-range` needed only the middle one.
+    expect(translating).toBe(12)
+    expect(columns).toBe(20)
   })
 
   it('⭐ every script that translates is one a member could actually SAVE', () => {
@@ -230,7 +247,7 @@ describe('the whole corpus, in one number', () => {
     // read-back — and a coverage number that counted translations would be
     // reporting the first of those as if it were the second.
     const saveable = FILES.filter((f) => SNAPSHOT[f].downstream && SNAPSHOT[f].downstream.ok)
-    expect(saveable.length).toBe(10)
+    expect(saveable.length).toBe(12)
     for (const f of saveable) {
       expect(SNAPSHOT[f].downstream.repaint, f).toBe('non-repainting')
     }

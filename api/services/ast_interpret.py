@@ -304,8 +304,14 @@ def _window_stdev(series: Sequence[float], lo: int, hi: int) -> float:
     return math.sqrt(sq / (hi - lo + 1))
 
 
-def _ema_col(series: Sequence[float], n: int) -> List[float]:
-    """EMA seeded with the SMA of the first full window, ``k = 2 / (n + 1)``.
+def _smooth_col(series: Sequence[float], n: int, k: float) -> List[float]:
+    """An exponential smoother seeded with the SMA of the first full window.
+
+    ⭐ ONE SMOOTHER, TWO CONSTANTS. ``ema`` passes ``2 / (n + 1)`` and ``rma``
+    (Wilder's) passes ``1 / n``; the seed, the restart-on-a-hole and the NaN
+    prefix are shared BY CONSTRUCTION rather than by two loops that agree today.
+    See ``closedTable.json::_functions_smoothing`` for why the ALPHA is what is
+    shared and the period is not.
 
     ⚠️ THE SEED IS A DECISION AND IT MATCHES BOTH THE NATIVE LANE AND
     ``interpret.js::emaCol``. A NaN in the input RESTARTS the seed — the warmup of
@@ -314,7 +320,6 @@ def _ema_col(series: Sequence[float], n: int) -> List[float]:
     never saw.
     """
     out = _nan_col(len(series))
-    k = 2 / (n + 1)
     prev = NAN
     count = 0
     total = 0.0
@@ -333,6 +338,31 @@ def _ema_col(series: Sequence[float], n: int) -> List[float]:
             prev = prev * (1 - k) + v * k
             out[i] = prev
     return out
+
+
+def _ema_col(series: Sequence[float], n: int) -> List[float]:
+    return _smooth_col(series, n, 2 / (n + 1))
+
+
+def _rma_col(series: Sequence[float], n: int) -> List[float]:
+    return _smooth_col(series, n, 1 / n)
+
+
+def _window_weighted_mean(series: Sequence[float], lo: int, hi: int) -> float:
+    """The linearly weighted mean of ``[lo, hi]`` -- the most recent bar carries
+    the most weight.
+
+    ⚠️ NaN PROPAGATES through the sum, which is what makes the warm-up of a
+    composed argument show as a hole rather than as a lighter average of the bars
+    that happened to be there.
+    """
+    weighted = 0.0
+    weights = 0.0
+    for i in range(lo, hi + 1):
+        w = float(i - lo + 1)
+        weighted += series[i] * w
+        weights += w
+    return weighted / weights
 
 
 def _elementwise2(a: Sequence[float], b: Sequence[float],
@@ -371,6 +401,39 @@ def _fn_change(series: Sequence[float]) -> List[float]:
 
 def _guarded_abs(x: float) -> float:
     return abs(x)
+
+
+def _guarded_sign(x: float) -> float:
+    """⛔ THREE ANSWERS, WRITTEN OUT. `math.copysign(1, -0.0)` is -1.0 and JS's
+    `Math.sign(-0)` is -0; a signed zero is invisible in every comparison and in
+    the read-back, and NOT invisible to a parity run that divides by it."""
+    if math.isnan(x):
+        return NAN
+    return 1.0 if x > 0 else (-1.0 if x < 0 else 0.0)
+
+
+def _guarded_round(x: float) -> float:
+    """⛔ NOT PYTHON'S `round`, WHICH ROUNDS A HALF TO EVEN, AND NOT JS's
+    `Math.round`, WHICH ROUNDS IT TOWARD +inf. Pine rounds a half AWAY FROM ZERO
+    and so does this, in both lanes, spelled the same way. `math.floor` also
+    RAISES on NaN, so the guard is load-bearing rather than tidy. See
+    `closedTable.json::_functions_rounding`."""
+    if math.isnan(x):
+        return NAN
+    return _guarded_sign(x) * math.floor(abs(x) + 0.5)
+
+
+def _guarded_na(x: float) -> float:
+    """⭐ ONE OF THE TWO ENTRIES THAT DO NOT PROPAGATE NaN. It INSPECTS
+    not-computable rather than carrying it -- see `_functions_na`."""
+    return 1.0 if math.isnan(x) else 0.0
+
+
+def _guarded_nz(x: float, y: float) -> float:
+    """⭐ THE OTHER ONE. It REPLACES not-computable with a value the user named
+    explicitly; there is no one-argument form, because a default zero is the
+    invisible half of the defect `_functions_na` describes."""
+    return y if math.isnan(x) else x
 
 
 def _fn_abs(series: Sequence[float]) -> List[float]:
@@ -412,6 +475,10 @@ _POINTWISE: Mapping[str, Callable[..., float]] = {
     "abs": _guarded_abs,
     "min": _guarded_min,
     "max": _guarded_max,
+    "sign": _guarded_sign,
+    "round": _guarded_round,
+    "na": _guarded_na,
+    "nz": _guarded_nz,
 }
 
 #: The manifest's recurrence declarations, read ONCE at import. ⛔ Not re-derived
@@ -623,6 +690,12 @@ FN: Dict[str, Callable[..., List[float]]] = {
     # in both lanes instead of relying on one language's luck.
     "min": lambda a, b: _elementwise2(a, b, _guarded_min),
     "max": lambda a, b: _elementwise2(a, b, _guarded_max),
+    "rma": lambda series, n: _rma_col(series, n),
+    "wma": lambda series, n: _rolling(series, n, _window_weighted_mean),
+    "sign": lambda series: [_guarded_sign(v) for v in series],
+    "round": lambda series: [_guarded_round(v) for v in series],
+    "na": lambda series: [_guarded_na(v) for v in series],
+    "nz": lambda a, b: _elementwise2(a, b, _guarded_nz),
     "crossOver": lambda a, b: _crossing(a, b, lambda an, bn, ap, bp: an > bn and ap <= bp),
     "crossUnder": lambda a, b: _crossing(a, b, lambda an, bn, ap, bp: an < bn and ap >= bp),
     # ── the indicators, bound to the server's own maths ────────────────────

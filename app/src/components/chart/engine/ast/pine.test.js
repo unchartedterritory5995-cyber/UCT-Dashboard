@@ -240,6 +240,70 @@ describe('what a member can express', () => {
 // the round trip
 // --------------------------------------------------------------------------- //
 
+describe('the Pine parity sweep — six functions, one order, one built-in', () => {
+  // ⭐ EVERY ONE OF THESE WAS MEASURED, NOT WISHED FOR. A study of 21 real
+  // published scripts found these to be the whole manifest half of what still
+  // refused; each `it` below is the construct that unblocked a named script or a
+  // named family of them.
+
+  it('ta.rma — Wilder`s average, the one inside every RSI and ATR', () => {
+    expect(formulaOf(wrap('ta.rma(close, 14)'))).toBe('rma(close, 14)')
+  })
+
+  it('ta.wma — the linearly weighted average', () => {
+    expect(formulaOf(wrap('ta.wma(close, 9)'))).toBe('wma(close, 9)')
+  })
+
+  it('math.round and math.sign, and their v3 bare spellings', () => {
+    expect(formulaOf(wrap('math.round(close)'))).toBe('round(close)')
+    expect(formulaOf(wrap('math.sign(close - open)'))).toBe('sign(close - open)')
+    expect(formulaOf(wrap('round(close)', '//@version=3\nstudy("t")\n'))).toBe('round(close)')
+  })
+
+  it('na(x) asks whether a value is unknown', () => {
+    expect(formulaOf(wrap('na(ta.sma(close, 20)) ? 1 : 0')))
+      .toBe('na(sma(close, 20)) ? 1 : 0')
+  })
+
+  it('nz(x, y) replaces it — and the replacement is IN THE TREE', () => {
+    expect(formulaOf(wrap('nz(ta.sma(close, 20), close)'))).toBe('nz(sma(close, 20), close)')
+  })
+
+  it('⭐ nz(x) fills its OWN zero rather than leaving a default invisible', () => {
+    // ⛔ THE LITERAL GOES INTO THE TREE. Pine's one-argument form means "or 0";
+    // this table has no one-argument form, because an unstated default zero is
+    // the invisible half of `nz(market_cap, 0) > 1e9` — a broken symbol wearing a
+    // quiet one's answer. Written out, the read-back says it and the member sees
+    // what their script asked for.
+    expect(formulaOf(wrap('nz(ta.sma(close, 20))'))).toBe('nz(sma(close, 20), 0)')
+  })
+
+  it('ta.atr(length) fills high, low and close in the order the table declares', () => {
+    // ⭐ `pine:role-order` USED TO FIRE HERE, and it was right to: the translator
+    // could see that `atr` exists and takes four arguments, and had no way to know
+    // WHICH three series to fill. The order is declared now, in the same
+    // `PINE_CALL_SHAPES` row shape `ta.wpr` already used.
+    expect(formulaOf(wrap('ta.atr(14)'))).toBe('atr(high, low, close, 14)')
+  })
+
+  it('⭐ tr expands to the Pine reference manual`s own definition of it', () => {
+    // ⛔ AN EXPANSION IS ONLY ADMISSIBLE WHEN IT IS AN IDENTITY. True Range IS
+    // `max(high - low, max(abs(high - close[1]), abs(low - close[1])))`, and it
+    // became sayable at all only when the bounded backward offset landed.
+    expect(formulaOf(wrap('tr')))
+      .toBe('max(high - low, max(abs(high - close[1]), abs(low - close[1])))')
+  })
+
+  it('…and a script that defines its OWN tr gets its own, not ours', () => {
+    // ⛔ SHADOWING A BUILT-IN IS LEGAL PINE, and the script is the authority on
+    // its own names. The expansion is consulted LAST, after every binding the
+    // script wrote — without that ordering this feature would silently replace a
+    // member's variable with different arithmetic.
+    expect(formulaOf(wrap('tr', '//@version=5\nindicator("t")\ntr = ta.sma(close, 3)\n')))
+      .toBe('sma(close, 3)')
+  })
+})
+
 describe('the round trip is the proof nothing half-translated', () => {
   const CASES = [
     'ta.sma(close, 20) > ta.ema(close, 50)',
@@ -370,9 +434,15 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     ['na',
       '//@version=5\nindicator("t")\nplot(close > open ? close : na)\n',
       'pine:na', 3, 29, 'na'],
-    ['nz, which is na wearing a hat',
-      '//@version=5\nindicator("t")\nplot(nz(ta.sma(close, 5), 0))\n',
-      'pine:na', 3, 6, 'nz'],
+    // ⚰️ `nz` WAS HERE, as "na wearing a hat", and it is now expressible — see
+    // "the Pine parity sweep" below. The BARE `na` VALUE above still refuses, and
+    // the two were never the same thing: `na(x)` and `nz(x, y)` ASK ABOUT and
+    // REPLACE not-computable, while a bare `na` is a literal this table has no
+    // spelling for. Collapsing all three into one refusal is what made the
+    // distinction invisible for as long as it was.
+    ['fixnan, which carries a value forward across bars with no stated bound',
+      '//@version=5\nindicator("t")\nplot(fixnan(ta.sma(close, 5)))\n',
+      'pine:na', 3, 6, 'fixnan'],
     ['a text value',
       '//@version=5\nindicator("t")\nplot(close > 0 ? "up" : "down")\n',
       'pine:text-value', 3, 18, 'up'],

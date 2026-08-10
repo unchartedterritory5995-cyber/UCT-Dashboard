@@ -39,6 +39,12 @@
   "offset_one_bar": "1d1694d1ba27bccaed571a4a24be8a98ca61b9779891564c85517ce071034ab2",
   "offset_two_bars_apart": "929bac796c94a924c5132cf6af407f21efef41a6d0a6b1a71cb79325473fc774",
   "offset_zero_is_identity": "ae370c97572d248618a8ca57ff57491f086544909e4f841f8d17696da6c99067",
+  "pine_na_detects_a_warmup_hole": "234dbc12f30871fcce498cd82366ac5541708ad450345a1a5dde078e98846532",
+  "pine_nz_replaces_a_hole_with_a_stated_value": "676939a8ac74c742af37499012ce27adbf147e9bf6e71d5a1bc219d2e5b9d4a5",
+  "pine_rma_is_wilders_average": "92cd00adff24f75d87e93999b2cb45c57d6d14821c859a8c56d6dd95ab996d52",
+  "pine_round_a_half_away_from_zero": "d9b88007d60643b24e6aa654de1499756b766c773b0b6398187e42a65fb7e1dd",
+  "pine_sign_of_a_change": "3845392a049bfa5219beee52a70fc033023772516c6f3c05d642bc9d84e08832",
+  "pine_wma_weights_the_recent_bar_most": "7f1074e9fa54fa7a8e938b5933af86e576bd5587725d31ce0b7461ee751fb85c",
   "plus_di": "fe3c0c8df8a7ebbf4074408b6c82e4d060a098f2c344bde49d48c2e306f21f5a",
   "rsi_of_a_smoothed_series": "fcc02495cadf58e2283f0f4fd5e77f1aabef17a1db8c82e8d7032ed909a268b7",
   "rsi_overbought": "e53b95a3d8a57401193e57a7a77295a3e34150448a1c87d01731016f400caef8",
@@ -80,6 +86,12 @@
    "proof": "The tool's own reconciliation printed `vs the previous log: 0 MOVED [], 5 added, 0 removed` -- read off the committed log rather than eyeballed as a diff. Before the record, the recurrence was run through BOTH lanes directly: 16 cases over 220 bars, 3,010 comparable (case, bar) pairs plus 259 bars where the two lanes AGREED the value was not computable, zero differences at rel-tol 1e-9. That harness was then mutation-tested 4/4 KILLED with both controls green -- and the fourth mutation is why the corpus has a holed bar set at all: a JS scalar `max` that answered `y` on NaN instead of NaN SURVIVED until a NaN could reach a pointwise call inside a recurrence spine. No golden fixture contains a NaN, so nothing else in this repo could have caught it.",
    "what_moved": "NOTHING MOVED. 0 of the 44 pre-existing digests changed, 0 were dropped, and 5 were added, so the log went 44 -> 49 per-ast digests over the same 579 bars at the same 1e-9. `bars`, `bar_count` and `rel_tol` are byte-identical. That is the load-bearing half of this entry: `accum` added a table entry and a walker arm and touched NO existing evaluation path -- it added no node type, so every stored `astHash` is unmoved and `tableVersion` is still 1. An unmoved digest set is the only evidence of that anybody can re-run.",
    "why": "Bar-to-bar state. `accum(seed, update, warmup)` is what `var x = 0` / `x := x + 1` needs, and the reason real Pine scripts refused at `pine:state`. The five cases pin the halves that can each break separately -- see `corpus.json::_recurrence`. The property that made it shippable is that the window RE-SEEDS at `i - warmup`: the value at a bar is a function of exactly `warmup + 1` bars, so it cannot change when a chart is panned. A single forward pass from the first fetched bar would have been cheaper, passed every other test in the suite, and disagreed with itself between two requests."
+  },
+  {
+   "at_head": "6c2df148fcdf4e93c58da353bcac1593d9085649",
+   "proof": "The tool's own reconciliation printed `vs the previous log: 0 MOVED [], 6 added, 0 removed`. Each of the six new cases runs through BOTH lanes over the same 579 bars at the same 1e-9 before it is digested, so the record IS the cross-lane check for them. Three of the six exist because the two host languages disagree BY DEFAULT and would each have looked internally consistent: JS rounds a half toward +inf, Python rounds it to even and Pine rounds it away from zero; `Math.sign(-0)` is -0 while `copysign(1, -0.0)` is -1.0; and `math.floor` RAISES on NaN where `Math.floor` returns it. All three are written out in both walkers rather than inherited.",
+   "what_moved": "NOTHING MOVED. 0 of the 49 pre-existing digests changed, 0 were dropped, and 6 were added, so the log went 49 -> 55 per-ast digests over the same 579 bars at the same 1e-9. `bars`, `bar_count` and `rel_tol` are byte-identical. `rma` shares ONE smoother with `ema` — the two differ only in the alpha — and the unmoved `ema` digests are the evidence that refactoring one implementation into two constants changed neither.",
+   "why": "The Pine parity sweep. A study of 21 real published scripts found `rma`, `wma`, `round`, `sign`, `na` and `nz` to be the ENTIRE manifest half of what still refused. With them, plus `ta.atr`'s declared argument order and `tr` expanded to the Pine reference manual's own definition, the corpus went 10 -> 12 scripts and 16 -> 20 columns. `na` and `nz` are the only entries in this table that do not propagate NaN, which is why `_functions_na` argues for them at length rather than just declaring them."
   }
  ]
 }
