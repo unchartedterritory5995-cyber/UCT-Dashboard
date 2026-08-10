@@ -4,6 +4,7 @@ All actual fetch/cache/dedup logic lives in bars_fetch so the worker
 service can import it without dragging in FastAPI router decorators.
 This file only owns route registration."""
 
+import logging
 import os
 import threading as _threading
 import time as _time
@@ -114,6 +115,79 @@ def _no_data_response(ticker: str, tf: str):
         content={"ticker": (ticker or "").upper(), "tf": tf, "bars": [],
                  "no_data": True, "reason": "symbol_not_carried"},
     )
+
+
+
+#: How long to wait between schema-repair attempts. ⛔ NOT per-request: an
+#: unauthenticated endpoint feeds this path, so an unthrottled repair would turn a
+#: broken store into a write storm driven by whoever is refreshing hardest.
+#: ⚠️ ITS OWN MODULE-LEVEL LOGGER. `_log` in this file is defined INSIDE a request
+#: handler, so it is a LOCAL and invisible to anything at module scope — the
+#: helpers below reached for it and died with a NameError inside an exception
+#: handler, which would have turned a classified 503 into a 500.
+_bars_log = logging.getLogger(__name__)
+
+_SCHEMA_REPAIR_COOLDOWN_S = 60.0
+_schema_repair_at = 0.0
+_schema_repair_lock = _threading.Lock()
+
+
+def _fault_kind(exc: Exception) -> str:
+    """Classify a bars failure into something an operator can act on.
+
+    ⭐ THREE ANSWERS, AND THEY IMPLY DIFFERENT ACTIONS. `schema-missing` is
+    self-repairable here and now. `malformed` needs a snapshot restore and a human
+    (`R2_RECOVERY_ENABLED=1`). `transient` is the inode swap this handler was
+    originally written for and needs nothing but a retry. ⛔ Collapsing all three
+    into "transient" is what sent an operator to look at rate limits while the
+    schema was gone.
+    """
+    text = str(exc).lower()
+    if "no such table" in text:
+        return "schema-missing"
+    if "malformed" in text or "not a database" in text or "corrupt" in text:
+        return "malformed"
+    return "transient"
+
+
+def _fault_response(ticker: str, tf: str, kind: str) -> JSONResponse:
+    """503 + Retry-After, carrying the CLASSIFIED reason.
+
+    ⚠️ STILL 503, AND STILL `bars: []`, for every kind. The frontend contract does
+    not change — it keeps the last-known IndexedDB bars on screen and retries with
+    backoff, which is the behaviour a blank chart would destroy. Only the `error`
+    string got more honest.
+    """
+    r = JSONResponse(
+        status_code=503,
+        content={"ticker": ticker.upper(), "tf": tf, "bars": [], "error": kind},
+    )
+    # A malformed store will not fix itself in five seconds; asking the browser to
+    # hammer it does not help anybody.
+    r.headers["Retry-After"] = "30" if kind == "malformed" else "5"
+    return r
+
+
+def _try_schema_repair() -> bool:
+    """Recreate the bars schema, at most once per cooldown. True if it ran.
+
+    ⛔ IT CALLS THE APP'S OWN `init_db()`, never hand-written DDL — a second copy of
+    the schema here would be a second authority over the table definition, and the
+    day they drifted the "repair" would install the wrong one.
+    """
+    global _schema_repair_at
+    now = _time.time()
+    with _schema_repair_lock:
+        if now - _schema_repair_at < _SCHEMA_REPAIR_COOLDOWN_S:
+            return False
+        _schema_repair_at = now
+    try:
+        from api.services import bars_sqlite
+        bars_sqlite.init_db()
+        return True
+    except Exception as e:      # noqa: BLE001
+        _bars_log.error("[bars] schema repair FAILED: %s", e)
+        return False
 
 
 @router.get("/api/bars/_debug_source/{ticker}")
@@ -260,19 +334,41 @@ def get_bars(
         except Exception as e:
             crashed = True
             _log.error(f"[bars] CRASH {ticker} tf={tf}: {e}\n{traceback.format_exc()}")
-            # Return 503 (not 200 + empty bars) so the frontend treats the failure
-            # as transient and retries with backoff, keeping any last-known IDB
-            # bars on screen instead of blanking the chart. The dominant cause is
-            # the SQLite inode swap during data_sync.force_resync (R2 snapshot
-            # pull at startup if PRAGMA integrity_check fails) — every read for
-            # 30s+ throws until the epoch bump lands. Empty payloads previously
-            # poisoned every chart with `bars=[]`, indistinguishable from "no
-            # data exists." 503 + Retry-After preserves the distinction.
-            response = JSONResponse(
-                status_code=503,
-                content={"ticker": ticker.upper(), "tf": tf, "bars": [], "error": "transient"},
-            )
-            response.headers["Retry-After"] = "5"
+
+            # ⭐⭐ A MISSING TABLE IS NOT TRANSIENT, AND ON 2026-08-10 THAT COST A
+            # WHOLE SESSION. `/data/bars.db` lost its `ohlcv` table mid-session;
+            # `init_db()` runs only at STARTUP, so nothing recreated it and every
+            # request 503'd with `error: "transient"` until a human restarted the
+            # pod. The label was honest about the DOMINANT cause (the ~30 s inode
+            # swap during `force_resync`) and wrong about this one: an operator
+            # reading "transient" goes looking at rate limits, which is exactly
+            # what happened, for twenty minutes, while charts were dead.
+            #
+            # ⭐ SO THE ONE CONDITION THAT CAN REPAIR ITSELF, DOES. `init_db()` is
+            # `CREATE TABLE IF NOT EXISTS`, so it is idempotent and cannot touch a
+            # healthy store; the retry then serves the request from the on-demand
+            # fetch path. A total outage becomes one slow request.
+            #
+            # ⛔ ONCE PER COOLDOWN, NEVER PER REQUEST. An unauthenticated endpoint
+            # feeds this, so without the throttle a broken store would turn every
+            # chart load into a schema write — a repair storm on top of an outage.
+            kind = _fault_kind(e)
+            if kind == "schema-missing" and _try_schema_repair():
+                try:
+                    response = _get_bars_inner(ticker, tf, bars)
+                    crashed = False
+                    _log.warning("[bars] %s tf=%s: ohlcv was MISSING, schema "
+                                 "recreated and the request was served", ticker, tf)
+                except Exception as retry_e:      # noqa: BLE001
+                    _log.error("[bars] %s tf=%s: schema repair did not help: %s",
+                               ticker, tf, retry_e)
+                    response = _fault_response(ticker, tf, kind)
+            else:
+                # ⚠️ THE LABEL NOW NAMES THE FAULT. `transient` still means what it
+                # always meant — retry and keep the last-known bars — but a
+                # malformed image says so, because that one needs a human and a
+                # snapshot restore, not patience.
+                response = _fault_response(ticker, tf, kind)
 
         # ── DEAD-TICKER-503 ─────────────────────────────────────────────────
         # Only the "looked everywhere, found nothing" 503 is downgraded. A
