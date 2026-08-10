@@ -539,6 +539,13 @@ def get_live_prices(
 
     unique = list(dict.fromkeys(raw_list))  # dedupe, preserve order
 
+    # UCT BREADTH pseudo-tickers (UCTA50 etc.) have no market-data provider — their
+    # "quote" is the latest breadth value + day change. Split them out so they skip the
+    # Massive path; their quotes are injected below (and ride the whole-request cache).
+    from api.services import breadth_symbols as _breadth_syms
+    _breadth_in = [t for t in unique if _breadth_syms.is_breadth_symbol(t)]
+    _breadth_set = set(_breadth_in)
+
     # Tier 1: whole-request fast path (one lookup for a repeated identical poll).
     sorted_key = ",".join(sorted(set(unique)))
     whole_key = f"live_prices_{hashlib.md5(sorted_key.encode()).hexdigest()}"
@@ -550,6 +557,8 @@ def get_live_prices(
     result: dict = {}
     missing: list[str] = []
     for tk in unique:
+        if tk in _breadth_set:
+            continue  # served from breadth history below, not the price cache
         hit = cache.get(_px_key(tk))
         if hit is not None:
             result[tk] = hit
@@ -588,6 +597,15 @@ def get_live_prices(
             finally:
                 if acquired:
                     _MASSIVE_SEM.release()
+
+    # Breadth quotes: latest value + day-over-day change (live where breadth_live
+    # tracks the metric, else the last EOD candle). Injected before the empty-check so
+    # a breadth-only request is never a 503.
+    if _breadth_in:
+        try:
+            result.update(_breadth_syms.latest_quotes(_breadth_in))
+        except Exception:
+            pass
 
     if not result:
         return JSONResponse(status_code=503, content={"error": "Pricing service unavailable"})

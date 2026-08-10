@@ -218,7 +218,7 @@ const LIVE_TICK_FRESH_MS = 6000
 // Default-zoom: place the LAST candle at this fraction of the plot width on EVERY
 // timeframe so flipping D/W/M/intraday never drifts it left/right. (A fixed
 // bars-of-right-pad drifts because bar spacing widens as fewer bars show.)
-const LAST_CANDLE_POS = 0.85
+const LAST_CANDLE_POS = 0.95
 // …but 4% of the plot is ~40px on a full-width chart and only ~12px inside a
 // narrow workspace widget, which parks the newest candle right on top of the
 // price-scale tags (most visibly the pre-market "Pre" label). So treat the gap

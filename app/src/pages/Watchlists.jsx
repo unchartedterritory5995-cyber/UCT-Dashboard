@@ -31,6 +31,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import useSWR from 'swr'
 import UIcon from '../components/ui/UIcon'
 import CompanyLogo from '../components/CompanyLogo'
+import useBreadthSymbols from '../hooks/useBreadthSymbols'
 import { useFlagged } from '../hooks/useFlagged'
 import { useAuth } from '../context/AuthContext'
 import useRealtimePrices from '../hooks/useRealtimePrices'
@@ -302,7 +303,7 @@ const FlashCell = React.memo(function FlashCell({ value, display, className, tin
 // selection change only re-renders the TWO rows whose `selected` flipped (see WatchlistWidget
 // setSym stability + the stable onRow* callbacks + memoized orderedKeys in the parent).
 const WatchRow = React.memo(function WatchRow({
-  sym, name, price, changePct, volume, flagged, selected, orderedKeys,
+  sym, name, price, changePct, volume, flagged, selected, orderedKeys, brandMark = false,
   showLogos = true, tintEnabled = true, logoSize = 16, mcap = null, earn = null, rating = null,
   ipoDate = null,
   dchg = null, fromOpen = null, fromHigh = null, fromLow = null, dcr = null, dolvol = null, rvol = null,
@@ -344,7 +345,7 @@ const WatchRow = React.memo(function WatchRow({
       )
       return (
         <span key="sym" className={styles.symCell} style={isMember ? { paddingLeft: 20 } : undefined} onContextMenu={wlId ? (e => onCtx(e, sym, wlId, isOwner)) : undefined}>
-          {showLogos && <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={logoSize} round /></span>}
+          {showLogos && <span className={styles.rowLogo}><CompanyLogo sym={sym} name={name} size={logoSize} round brandMark={brandMark} /></span>}
           <span className={styles.rowSym}>{sym}</span>
         </span>
       )
@@ -882,6 +883,9 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     }
     return merged
   }, [feedPrices, readoutTick])
+  // UCT breadth pseudo-tickers (UCTA50 etc.) render the compass brand mark instead of
+  // a company logo/monogram — they have no company logo.
+  const breadth = useBreadthSymbols()
   // Column config (persisted per-user in localStorage) — declared HERE, above the
   // perf/theme fetches, so those can gate on which columns are shown.
   const [colCfg, setColCfg] = useState(() => {
@@ -1684,6 +1688,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         key={sym}
         sym={sym}
         name={name}
+        brandMark={breadth.isBreadth(sym)}
         price={q?.price ?? null}
         changePct={q?.change_pct ?? null}
         volume={q?.volume ?? null}

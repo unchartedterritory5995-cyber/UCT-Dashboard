@@ -143,6 +143,20 @@ def ticker_search(
         results.append({"ticker": t, "name": name})
         live_syms.add(t)
 
+    # UCT BREADTH pseudo-tickers (UCTA50 = % above 50-day MA, UCTNH = new highs…):
+    # symbol-level matches ("UCT", "UCTA50") jump to the FRONT so they're found the
+    # moment they're typed; name matches ("breadth", "highs") sit after live tickers.
+    try:
+        from api.services import breadth_symbols as _breadth_syms
+        b_front, b_back = [], []
+        for rec in _breadth_syms.search(qq, limit):
+            row = {"ticker": rec["ticker"], "name": rec["name"],
+                   "breadth": True, "group_label": rec.get("group_label")}
+            (b_front if rec.get("symbol_hit") else b_back).append(row)
+        results = b_front + results + b_back
+    except Exception:
+        pass
+
     # Merge in DELISTED tickers (Yahoo, Twitter, Lehman…) so dead names are discoverable
     # too — labeled `delisted` + delisting date so the dropdown can badge them. They live in
     # a separate registry (kept out of cap_universe / the live warmers), so a live ticker
