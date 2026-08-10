@@ -663,3 +663,38 @@
   .chartPeriodTabs { position: static; transform: none; justify-content: center; margin-top: 4px; }
   .chartPeriodBtn { padding: 6px 8px; font-size: 10px; }
 }
+
+/* ── Embedded-widget footer: "N stocks · Updated H:MM ET · ⟳" — pinned below the theme list.
+   Mirrors the Scanner widget footer, themed with the Theme Tracker's own --tt-* vars. */
+.ttFooter {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 16px;
+  font-family: var(--font-sans);
+  font-size: calc(10px * var(--tt-font-scale, 1));
+  color: var(--tt-text, var(--text-muted));
+  border-top: 1px solid var(--widget-divider-strong, var(--tt-divider-strong, rgba(255, 255, 255, 0.11)));
+  background: var(--tt-bg, var(--bg));
+  white-space: nowrap;
+  overflow: hidden;
+}
+.ttFooterCount { font-weight: 600; color: var(--tt-sym, var(--text-bright)); flex: 0 0 auto; }
+.ttFooterUpdated { overflow: hidden; text-overflow: ellipsis; }
+.ttFooterRefresh {
+  margin-left: auto;
+  margin-right: -2px;   /* cancel the button's padding so the icon aligns with the count inset */
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--tt-text, var(--text-muted));
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+}
+.ttFooterRefresh:hover { color: var(--tt-accent, var(--ut-gold)); background: var(--tt-row-hover, rgba(255, 255, 255, 0.06)); }
+.ttFooterRefreshSpin { animation: ttFooterSpin 0.7s linear infinite; }
+@keyframes ttFooterSpin { to { transform: rotate(360deg); } }
