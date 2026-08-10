@@ -25,6 +25,7 @@ T_VOL = "tests/test_calendar_day_metrics_avg_vol.py"
 T_AN = "tests/test_provider_coverage_analyst_reachability.py"
 T_RS = "tests/test_provider_coverage_restart_dedup.py"
 T_MV = "tests/test_movers_finviz_columns.py"
+T_PW = "tests/test_calendar_past_week_sessions.py"
 
 MUTATIONS = [
     ("column list not requested (back to the account's saved view)", CAL,
@@ -63,6 +64,16 @@ MUTATIONS = [
 
     ("movers screener stops pinning its columns", MAS,
      "?v=152&f={_qf}&c={_qc}&o={order}", "?v=152&f={_qf}&o={order}", T_MV),
+
+    ("finished days truncated like a forward schedule again", CAL,
+     'cap = _PAST_SESSION_CAP if ds in past_ds else 40', "cap = 40", T_PW),
+
+    ("past days go back to add-only (sessions stay in Time TBD)", CAL,
+     "_keep, sym_index, rebucket_ds=past_ds)", "_keep, sym_index, rebucket_ds=set())", T_PW),
+
+    ("rebucket restriction becomes a global off-switch", CAL,
+     "if rebucket_ds is not None and ds not in rebucket_ds:",
+     "if rebucket_ds is not None:", T_PW),
 ]
 
 
@@ -81,7 +92,7 @@ def _run(tests):
 
 def main():
     print("=== CONTROL (no mutation): every target suite must PASS ===")
-    for t in (T_VOL, T_AN, T_RS, T_MV):
+    for t in (T_VOL, T_AN, T_RS, T_MV, T_PW):
         r = _run(t)
         print(f"  {t:62} exit={r.returncode}  {r.stdout.strip().splitlines()[-1] if r.stdout.strip() else ''}")
         if r.returncode != 0:

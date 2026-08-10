@@ -345,19 +345,35 @@ class TestPastWeekLeg:
         assert cal._merge_finviz_sessions(days, {"2026-08-05"},
                                           "earningsdate_thisweek", lambda s: True, {}) == (0, 0)
 
-    def test_rebucket_false_adds_without_moving(self, fv):
-        """The range week's cap is a tight [:40] applied AFTER this merge, so
-        moving rows into bmo/amc pushes them past it and the surplus is CUT —
-        measured, 66 reporters lost to gain 8 sessions."""
+    def test_a_date_outside_rebucket_ds_adds_without_moving(self, fv):
+        """A FUTURE day still takes the tight [:40] cap applied AFTER this
+        merge, so moving rows into bmo/amc pushes them past it and the surplus
+        is CUT — measured, 66 reporters lost to gain 8 sessions. It is the CAP
+        that makes re-bucketing lossy, so the restriction is now expressed as
+        "which dates may move" rather than a blanket off-switch: a finished day
+        takes _PAST_SESSION_CAP and does move (2026-08-09, sessions were
+        decaying to 18% one week back). See test_calendar_past_week_sessions.py.
+        """
         days = {"2026-08-05": {"bmo": [], "amc": [],
                                "tbd": [{"sym": "AAA", "eps_est": 2.0}]}}
         added, moved = cal._merge_finviz_sessions(
             days, {"2026-08-05"}, "earningsdate_thisweek", lambda s: True, {},
-            rebucket=False)
+            rebucket_ds=set())          # this date is not permitted to move
         assert moved == 0
         assert [e["sym"] for e in days["2026-08-05"]["tbd"]] == ["AAA"]
         assert added >= 1                      # BBB still gets added
         assert "BBB" in [e["sym"] for e in cal._day_entries(days["2026-08-05"])]
+
+    def test_a_date_inside_rebucket_ds_does_move(self, fv):
+        """Control for the above — the restriction must be per-DATE, not a
+        disguised global off-switch."""
+        days = {"2026-08-05": {"bmo": [], "amc": [],
+                               "tbd": [{"sym": "AAA", "eps_est": 2.0}]}}
+        _, moved = cal._merge_finviz_sessions(
+            days, {"2026-08-05"}, "earningsdate_thisweek", lambda s: True, {},
+            rebucket_ds={"2026-08-05"})
+        assert moved == 1
+        assert days["2026-08-05"]["tbd"] == []
 
     def test_rebucket_default_is_on(self, fv):
         days = {"2026-08-05": {"bmo": [], "amc": [], "tbd": [{"sym": "AAA"}]}}
