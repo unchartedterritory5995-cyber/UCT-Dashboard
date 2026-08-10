@@ -7,7 +7,9 @@ let quote = {
   open: 311.32, high: 314.81, low: 310.74, prev_close: 312.41,
   volume: 34437191, year_high: 344.57, year_low: 223.78,
 }
-vi.mock('swr', () => ({ default: (key) => ({ data: key ? quote : null }) }))
+vi.mock('../../hooks/useMobileSWR', () => ({
+  default: (key) => ({ data: key ? quote : null }),
+}))
 import QuoteStrip from './QuoteStrip'
 
 describe('formatters', () => {
