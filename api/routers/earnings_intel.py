@@ -35,6 +35,7 @@ from __future__ import annotations
 import logging
 import os
 import threading
+import time
 from typing import Optional
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request, Response
@@ -59,8 +60,7 @@ router = APIRouter()
 
 # Cold-path budget for a recap that is not warmed. Both are optional extras
 # around the recap itself, so neither may spend the whole request.
-_WEBCAST_TIMEOUT = float(os.environ.get("CALL_RECAP_WEBCAST_TIMEOUT", "1.2"))
-_RATINGS_TIMEOUT = float(os.environ.get("CALL_RECAP_RATINGS_TIMEOUT", "2.5"))
+_COLD_BUDGET = float(os.environ.get("CALL_RECAP_COLD_BUDGET", "2.0"))
 
 # ONE shared pool, created once. A per-request `with ThreadPoolExecutor(...)`
 # is wrong twice: it builds and tears down threads on every open, and its
@@ -77,7 +77,7 @@ def _cold_pool():
             if _COLD_POOL is None:
                 from concurrent.futures import ThreadPoolExecutor
                 _COLD_POOL = ThreadPoolExecutor(
-                    max_workers=8, thread_name_prefix="recap-cold")
+                    max_workers=24, thread_name_prefix="recap-cold")
     return _COLD_POOL
 
 
@@ -137,8 +137,16 @@ def call_recap_endpoint(
             ex = _cold_pool()
             f_web = ex.submit(get_webcast_url, sym)
             f_rat = ex.submit(get_rating_changes, sym)
+            # ONE deadline for the whole block, not a timeout each. Waiting on
+            # the futures in turn made the two budgets ADD: ratings could spend
+            # its full allowance and webcast then started a FRESH clock, so the
+            # worst case was their sum. Measured under 20 cold readers that was
+            # 4.00s p50 / 4.79s max against a 2-3s target — better than the
+            # 7.31s it replaced, and still over.
+            deadline = time.monotonic() + _COLD_BUDGET
             try:
-                ratings = f_rat.result(timeout=_RATINGS_TIMEOUT)
+                ratings = f_rat.result(
+                    timeout=max(0.0, deadline - time.monotonic()))
             except Exception:
                 ratings = []
             # The webcast link is a Perplexity lookup: ~2.4s alone and 7-10s
@@ -152,7 +160,8 @@ def call_recap_endpoint(
             # every un-warmed ticker for seven seconds — is much worse than a
             # link that appears a moment later.
             try:
-                webcast = f_web.result(timeout=_WEBCAST_TIMEOUT)
+                webcast = f_web.result(
+                    timeout=max(0.0, deadline - time.monotonic()))
             except Exception:
                 webcast = None
         return {
