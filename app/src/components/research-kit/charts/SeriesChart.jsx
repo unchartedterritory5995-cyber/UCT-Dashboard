@@ -56,14 +56,23 @@ export function buildSeriesOption(periods, series, { mode = 'line', valueFormatt
     },
   }
 
+  // The value formatter belongs on the AXIS as much as the tooltip. Without it
+  // a statement axis prints 150000000000 instead of $150B — eleven digits of
+  // noise that also blow out the grid's left inset. Observed live before it was
+  // wired: the tooltip read correctly while the axis was unreadable.
+  const axisFmt = { axisLabel: { formatter: (v) => fmt(v) } }
+
   const base = {
-    grid: { ...GRID_BASE, left: 38, top: 22, bottom: 22 },
+    grid: { ...GRID_BASE, left: 52, top: 22, bottom: 22 },
     xAxis: { type: 'category', boundaryGap: mode === 'stacked', data: p, ...axisBase() },
     yAxis: {
       type: 'value',
       splitNumber: 3,
       scale: mode !== 'stacked',
-      ...axisBase({ splitLine: { show: true, lineStyle: { color: CHART_INK.grid } } }),
+      ...axisBase({
+        splitLine: { show: true, lineStyle: { color: CHART_INK.grid } },
+        ...axisFmt,
+      }),
     },
     tooltip,
   }
@@ -100,7 +109,10 @@ export function buildSeriesOption(periods, series, { mode = 'line', valueFormatt
     const vals = [...(s0.values || [])].reverse().map(num)
     return {
       grid: { ...GRID_BASE, left: 4, right: 18, top: 10, bottom: 22, containLabel: true },
-      xAxis: { type: 'value', ...axisBase({ splitLine: { show: true, lineStyle: { color: CHART_INK.grid } } }) },
+      xAxis: { type: 'value', ...axisBase({
+        splitLine: { show: true, lineStyle: { color: CHART_INK.grid } },
+        axisLabel: { formatter: (v) => fmt(v) },
+      }) },
       yAxis: { type: 'category', data: cats, ...axisBase() },
       tooltip: {
         ...TOOLTIP_BASE, trigger: 'axis',
