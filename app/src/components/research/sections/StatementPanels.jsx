@@ -13,6 +13,7 @@
 import { useState } from 'react'
 import useSWR from 'swr'
 import { SeriesChart } from '../../research-kit'
+import { SkeletonBlock } from '../../Skeleton'
 import styles from './StatementPanels.module.css'
 
 const fetcher = (u) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null)
@@ -93,11 +94,26 @@ export default function StatementPanels({ sym }) {
   if (!sym) return null
 
   if (!periods.length) {
+    // `data === undefined` is still in flight; a resolved payload with no
+    // periods is a real absence. Only the first deserves a skeleton — showing
+    // one for the second would promise content that is never coming.
+    if (data === undefined) {
+      return (
+        <div className={styles.wrap}>
+          <div className={styles.grid} aria-hidden="true">
+            {PANEL_SPECS.map((spec) => (
+              <section key={spec.key} className={styles.panel}>
+                <div className={styles.title}>{spec.title}</div>
+                <SkeletonBlock height={168} />
+              </section>
+            ))}
+          </div>
+        </div>
+      )
+    }
     return (
       <div className={styles.wrap}>
-        <p className={styles.note}>
-          {data ? 'Statement history is unavailable for this ticker.' : 'Loading statements…'}
-        </p>
+        <p className={styles.note}>Statement history is unavailable for this ticker.</p>
       </div>
     )
   }

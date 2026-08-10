@@ -8,6 +8,7 @@
 // one feed to a reader — they keep a `kind` badge so a company statement is
 // never mistaken for independent reporting.
 import useSWR from 'swr'
+import { SkeletonBlock } from '../../Skeleton'
 import styles from './NewsSection.module.css'
 
 const fetcher = (u) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null)
@@ -37,11 +38,16 @@ export default function NewsSection({ sym }) {
 
   const items = data?.items || []
   if (!items.length) {
-    return (
-      <p className={styles.note}>
-        {data ? 'No recent news for this ticker.' : 'Loading news…'}
-      </p>
-    )
+    if (data === undefined) {
+      return (
+        <ul className={styles.list} aria-hidden="true">
+          {[0, 1, 2, 3, 4].map(i => (
+            <li key={i} className={styles.item}><SkeletonBlock height={46} /></li>
+          ))}
+        </ul>
+      )
+    }
+    return <p className={styles.note}>No recent news for this ticker.</p>
   }
 
   return (

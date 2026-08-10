@@ -67,3 +67,24 @@ describe('NewsSection', () => {
     payload = prev
   })
 })
+
+describe('loading is distinguished from empty', () => {
+  it('shows a skeleton while IN FLIGHT', () => {
+    const prev = payload
+    payload = undefined            // swr has not resolved
+    const { container } = render(<NewsSection sym="X" />)
+    expect(container.querySelector('ul')).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/No recent news/i)
+    payload = prev
+  })
+
+  it('shows the empty MESSAGE once a payload has actually arrived', () => {
+    // A skeleton for a resolved-but-empty response promises content that is
+    // never coming — it would spin forever on a ticker with no news.
+    const prev = payload
+    payload = { sym: 'X', items: [] }
+    render(<NewsSection sym="X" />)
+    expect(document.body.textContent).toMatch(/No recent news/i)
+    payload = prev
+  })
+})
