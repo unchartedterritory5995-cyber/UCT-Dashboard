@@ -2358,6 +2358,10 @@ function SearchModal({onClose, mktcapData = {}}){
 // the same source the other panels use); we fetch caps for the loaded records so
 // the cap bands classify end-to-end.
 const _RECORDS_LIMIT = 750;   // leaderboard depth we cap-classify + browse
+// Tight left-packed table (no edge-to-edge space-between gulf): rank · ticker ·
+// mkt cap · record(bar) · price · date.
+const _RECORDS_GRID = "30px 150px 92px 176px 92px 88px";
+const _RECORDS_GRID_W = 760;
 const _CAP_BANDS = [
   {id:"All",   label:"All",       color:C.amber},
   {id:"Mega",  label:"Mega ≥$200B",color:C.pink},
@@ -2440,12 +2444,12 @@ function RecordsPane({mktcapData={}, fetchMktCap}){
   const shown=view.slice(0,limit);
   const maxN=Math.max(1,...shown.map(r=>r.notional||0));
 
-  const hdr=(key,label,minW)=>{
+  const gh=(key,label,align="right")=>{
     const active=sortKey===key;
     const arrow=active?(sortDir==="asc"?" ▲":" ▼"):"";
     return (
       <span onClick={()=>toggleSort(key)}
-        style={{fontSize:9,color:active?C.blue:C.tx3,fontWeight:600,minWidth:minW,textAlign:"right",
+        style={{fontSize:9,color:active?C.blue:C.tx3,fontWeight:600,textAlign:align,
           cursor:"pointer",userSelect:"none",transition:"color 0.15s"}}>{label}{arrow}</span>
     );
   };
@@ -2487,20 +2491,16 @@ function RecordsPane({mktcapData={}, fetchMktCap}){
         </div>
       </div>
 
-      <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"14px 18px"}}>
+      <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"14px 18px",maxWidth:_RECORDS_GRID_W}}>
         {/* Column headers */}
-        <div style={{display:"flex",justifyContent:"space-between",padding:"0 0 5px 0",
-          borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
-          <div style={{display:"flex",gap:6,alignItems:"center"}}>
-            <span style={{fontSize:9,color:C.tx3,fontWeight:600,width:26,textAlign:"center"}}>#</span>
-            {hdr("ticker","Ticker",50)}
-          </div>
-          <div style={{display:"flex",gap:14,alignItems:"center"}}>
-            {hdr("mktcap","Mkt Cap",56)}
-            {hdr("notional","Record",90)}
-            {hdr("price","Price",64)}
-            {hdr("date","Date",64)}
-          </div>
+        <div style={{display:"grid",gridTemplateColumns:_RECORDS_GRID,columnGap:18,alignItems:"center",
+          padding:"0 0 5px 0",borderBottom:`1px solid ${C.bdr2}`,marginBottom:2}}>
+          <span style={{fontSize:9,color:C.tx3,fontWeight:600,textAlign:"center"}}>#</span>
+          {gh("ticker","Ticker","left")}
+          {gh("mktcap","Mkt Cap")}
+          {gh("notional","Record")}
+          {gh("price","Price")}
+          {gh("date","Date")}
         </div>
 
         {/* Rows */}
@@ -2510,27 +2510,25 @@ function RecordsPane({mktcapData={}, fetchMktCap}){
           const bandColor=(_CAP_BANDS.find(b=>b.id===band)||{}).color||C.tx3;
           return (
           <div key={r.ticker}
-            style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+            style={{display:"grid",gridTemplateColumns:_RECORDS_GRID,columnGap:18,alignItems:"center",
               padding:"6px 0",borderBottom:`1px solid ${C.bdr}22`}}>
-            <div style={{display:"flex",gap:6,alignItems:"center"}}>
-              <span style={{fontSize:10,color:C.tx3,width:26,textAlign:"center",fontWeight:600}}>{i+1}</span>
+            <span style={{fontSize:10,color:C.tx3,textAlign:"center",fontWeight:600}}>{i+1}</span>
+            <span style={{display:"flex",gap:6,alignItems:"center",minWidth:0}}>
               <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
                 fontWeight:700,fontSize:12,color:C.amber}}>{r.ticker}</span>
               {band && <span style={{fontSize:8,fontWeight:700,color:bandColor,opacity:0.85,
                 border:`1px solid ${bandColor}44`,borderRadius:3,padding:"0 4px"}}>{band}</span>}
-            </div>
-            <div style={{display:"flex",gap:14,alignItems:"center"}}>
-              <span style={{fontSize:10,color:C.tx3,minWidth:56,textAlign:"right"}}>{mc>0?fmt(mc).replace("$",""):"—"}</span>
-              <span style={{display:"inline-flex",flexDirection:"column",alignItems:"flex-end",gap:2,minWidth:90}}>
-                <span style={{fontSize:12,color:C.cyan,fontWeight:700}}>{fmt(r.notional)}</span>
-                <span style={{width:"100%",height:3,background:C.bdr,borderRadius:2,overflow:"hidden"}}>
-                  <span style={{display:"block",height:"100%",borderRadius:2,background:C.cyan,
-                    width:`${Math.max(4,Math.round((r.notional||0)/maxN*100))}%`}}/>
-                </span>
+            </span>
+            <span style={{fontSize:10,color:C.tx3,textAlign:"right"}}>{mc>0?fmt(mc).replace("$",""):"—"}</span>
+            <span style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
+              <span style={{fontSize:12,color:C.cyan,fontWeight:700}}>{fmt(r.notional)}</span>
+              <span style={{width:"100%",height:3,background:C.bdr,borderRadius:2,overflow:"hidden"}}>
+                <span style={{display:"block",height:"100%",borderRadius:2,background:C.cyan,
+                  width:`${Math.max(4,Math.round((r.notional||0)/maxN*100))}%`}}/>
               </span>
-              <span style={{fontSize:11,color:C.tx,fontWeight:600,minWidth:64,textAlign:"right"}}>{fP(r.price)}</span>
-              <span style={{fontSize:10,color:C.tx3,minWidth:64,textAlign:"right"}}>{r.date||"—"}</span>
-            </div>
+            </span>
+            <span style={{fontSize:11,color:C.tx,fontWeight:600,textAlign:"right"}}>{fP(r.price)}</span>
+            <span style={{fontSize:10,color:C.tx3,textAlign:"right"}}>{r.date||"—"}</span>
           </div>
           );
         })}
@@ -3567,7 +3565,9 @@ export default function DarkPool({embedded}){
         </div>
       )}
 
-      {/* Global Category Filter */}
+      {/* Global Category Filter — hidden on Records (it has its own cap-band
+          filter with real market caps, so two rows would double up). */}
+      {tab!=="records" && (
       <div style={{display:"flex",justifyContent:"center",padding:"8px 20px",background:C.bg2,borderBottom:`1px solid ${C.bdr}`}}>
         <div style={{display:"flex",gap:4,alignItems:"center",background:C.bg3,borderRadius:6,padding:3,border:`1px solid ${C.bdr}`}}>
           {[
@@ -3591,6 +3591,7 @@ export default function DarkPool({embedded}){
           })}
         </div>
       </div>
+      )}
 
       {/* Tab bar */}
       <div style={{background:C.bg3,borderBottom:`1px solid ${C.bdr}`,padding:"0 20px"}}>
