@@ -14,6 +14,12 @@ vi.mock('../../../components/research-kit', () => ({
     captured.push(props)
     return <div data-testid={`trend-${props.label}`} />
   },
+  // The tab also draws margins through SeriesChart; the mock has to cover every
+  // export it imports or the module resolves to undefined and the tab throws.
+  SeriesChart: (props) => {
+    captured.push(props)
+    return <div data-testid={`series-${props.label}`} />
+  },
 }))
 
 let finData = { quarterly: QUARTERLY, annual: [], balance: {}, metrics: {} }

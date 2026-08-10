@@ -1,5 +1,5 @@
 import useFinancials from '../hooks/useFinancials'
-import { MetricTrendChart } from '../../../components/research-kit'
+import { MetricTrendChart, SeriesChart } from '../../../components/research-kit'
 import styles from '../ResearchPage.module.css'
 
 function fmtBig(v) {
@@ -89,6 +89,21 @@ function TrendPair({ rows, title }) {
           ariaLabel="Earnings per share by period"
         />
       </div>
+      {/* Margins share one axis because the question is whether the SPREAD
+          between them is widening — three separate charts would hide exactly
+          that. Colours are explicit per series, never PALETTE[i]. */}
+      <SeriesChart
+        periods={periods}
+        mode="line"
+        label="Margins"
+        valueFormatter={(v) => (v == null ? '—' : `${v.toFixed(1)}%`)}
+        ariaLabel="Gross, operating and net margin by period"
+        series={[
+          { name: 'Gross', color: 'var(--ut-gold, #c9a84c)', values: list.map(r => r.gross_margin) },
+          { name: 'Operating', color: '#5aa9e6', values: list.map(r => r.operating_margin) },
+          { name: 'Net', color: '#7ed957', values: list.map(r => r.net_margin) },
+        ]}
+      />
     </section>
   )
 }

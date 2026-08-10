@@ -1,5 +1,5 @@
 import useEstimates from '../hooks/useEstimates'
-import { RevisionColumns } from '../../../components/research-kit'
+import { RevisionColumns, SeriesChart } from '../../../components/research-kit'
 import styles from '../ResearchPage.module.css'
 
 function fmtBig(v) {
@@ -134,6 +134,25 @@ export default function EstimatesTab({ sym }) {
               </tbody>
             </table>
           </div>
+        </section>
+      )}
+
+      {!!fwd.length && (
+        <section className={styles.card}>
+          <div className={styles.ct}>Forward EPS — consensus range</div>
+          {/* The SPREAD is the information: a wide low-to-high band means the
+              street disagrees, which a single average number hides entirely. */}
+          <SeriesChart
+            periods={fwd.map(f => f.period)}
+            mode="band"
+            valueFormatter={(v) => (v == null ? '—' : `$${v.toFixed(2)}`)}
+            ariaLabel="Forward EPS consensus low, average and high by period"
+            series={[
+              { name: 'Low', color: 'var(--text-muted)', values: fwd.map(f => f.eps_low) },
+              { name: 'Consensus', color: 'var(--ut-gold, #c9a84c)', values: fwd.map(f => f.eps_avg) },
+              { name: 'High', color: 'var(--text-muted)', values: fwd.map(f => f.eps_high) },
+            ]}
+          />
         </section>
       )}
 
