@@ -303,13 +303,97 @@ plot(v)
 // 4. ⛔⛔ STATE — refused BY NAME, and the refusal is the deliverable
 // --------------------------------------------------------------------------- //
 
-describe('a value that survives the bar refuses, and it refuses by name', () => {
+describe('a value that survives the bar is a RECURRENCE now, and it is emitted as one', () => {
+  // ⚰️ THIS BLOCK ASSERTED THAT ALL OF THIS REFUSED, and every word of that was
+  // true when written: the engine had no way to hold a value across a bar, so
+  // refusing was the only honest answer. The engine grew `accum` — a bounded
+  // recurrence whose window RE-SEEDS, so the number cannot change when a member
+  // pans a chart — and this translator now emits it.
+  //
+  // ⚠️ THE WARM-UP IS AN ASSUMPTION AND IT IS STATED, NOT HIDDEN. Pine
+  // accumulates from the first bar the chart ever loaded; `accum` reads a fixed
+  // 250 bars (one trading year). For what real scripts accumulate — a trailing
+  // stop, a streak, a high since a reset — the two agree exactly once the
+  // warm-up has passed, because those recurrences forget where they started. For
+  // a true bar counter they never agree, and no finite number would make them.
+
   it('var + := — the textbook accumulator', () => {
-    const r = refusalOf(`${HEAD}var count = 0
+    expect(formulaOf(`${HEAD}var count = 0
 count := count + 1
 plot(count)
-`)
-    expect(r.guard).toBe('pine:state')
+`)).toBe('accum(0, self + 1, 250)')
+  })
+
+  it('⭐ an `if` that reassigns folds INSIDE the update, not around the accumulator', () => {
+    // ⛔⛔ THE ONE PLACE THIS WIRE CAN BE WRONG WITHOUT REFUSING. Built the
+    // ordinary way — a ternary over the two BINDINGS — this becomes
+    // `close > open ? accum(0, self + 1, 250) : accum(0, self, 250)`: two
+    // different accumulators selected per bar, where the up-day arm counts as if
+    // EVERY bar had been an up day. It draws a line. It is not the script.
+    expect(formulaOf(`${HEAD}var c = 0
+if close > open
+    c := c + 1
+plot(c)
+`)).toBe('accum(0, close > open ? self + 1 : self, 250)')
+  })
+
+  it('…and an if/else that assigns constants needs no self at all', () => {
+    expect(formulaOf(`${HEAD}var d = 0
+if close > open
+    d := 1
+else
+    d := -1
+plot(d)
+`)).toBe('accum(0, close > open ? 1 : -1, 250)')
+  })
+
+  it('two reassignments COMPOSE, in the order the bar runs them', () => {
+    expect(formulaOf(`${HEAD}var x = 0
+x := x + 1
+x := x * 2
+plot(x)
+`)).toBe('accum(0, (self + 1) * 2, 250)')
+  })
+
+  it('`+=` desugars through the value so far, not through the accumulator', () => {
+    expect(formulaOf(`${HEAD}var t = 0
+t += volume
+plot(t)
+`)).toBe('accum(0, self + volume, 250)')
+  })
+
+  it('a running maximum, which is the shape a trailing stop is built from', () => {
+    expect(formulaOf(`${HEAD}var hi = close
+hi := math.max(hi, close)
+plot(hi)
+`)).toBe('accum(close, max(self, close), 250)')
+  })
+
+  it('⭐ a `var` NOBODY reassigns, with a constant seed, is the constant', () => {
+    // ⛔ A CORRECTNESS FIX, NOT TIDINESS. Wrapped in an accumulator, `k` would be
+    // NOT COMPUTABLE for a whole trading year — so `close > k` would go blank for
+    // 250 bars over a number that never changes. Unwrapping is an identity.
+    expect(formulaOf(`${HEAD}var k = 5
+plot(close > k ? 1 : 0)
+`)).toBe('close > 5 ? 1 : 0')
+  })
+
+  it('…but a `var` seeded from a SERIES keeps its accumulator and its warm-up', () => {
+    // ⛔ AND THAT IS THE HONEST HALF OF THE CASE ABOVE. `var a = close` really
+    // does name a bar in the past, so it cannot be unwrapped to `close`.
+    expect(formulaOf(`${HEAD}var a = close
+plot(close > a ? 1 : 0)
+`)).toBe('close > accum(close, self, 250) ? 1 : 0')
+  })
+
+  it('⛔ `varip` STILL refuses, and the reason has not moved', () => {
+    // It persists across INTRABAR TICKS, so its value depends on how many times a
+    // forming bar updated — the one thing a closed-bar engine cannot reproduce,
+    // and the exact shape `ALERT_EVAL_MODE="closed"` exists to remove.
+    expect(refusalOf(`${HEAD}varip v = 0
+v := v + 1
+plot(v)
+`).guard).toBe('pine:state')
   })
 
   it('⭐ the SAME accumulator with no `var` anywhere still refuses', () => {
@@ -351,9 +435,14 @@ plot(z)
   })
 
   it('a var that is never reassigned is still a bar-0 value, not an alias', () => {
-    expect(refusalOf(`${HEAD}var float anchor = close
+    // ⚰️ IT REFUSED, and the CLAIM in this title was always the right one — it
+    // is not an alias for `close`. It is SAID now rather than refused: an
+    // accumulator whose update is its own past carries the seed forward, so the
+    // value is the seed taken a warm-up ago. ⛔ Emitting bare `close` here would
+    // be exactly the alias this case was written to prevent.
+    expect(formulaOf(`${HEAD}var float anchor = close
 plot(anchor)
-`).guard).toBe('pine:state')
+`)).toBe('accum(close, self, 250)')
   })
 
   it('⭐ and it fires on a REAL published script, not only on written ones', () => {
@@ -479,8 +568,25 @@ plot(f(ta.rsi(close, 14)))
     expect(r.message).toContain('this script defines it with 2')
   })
 
-  it('⛔ a function body with a statement this walker cannot read refuses BY NAME', () => {
-    expect(refusalOf(`${HEAD}f(x) =>\n    var s = 0\n    s := s + x\n    s\nplot(f(close))\n`).guard)
+  it('⭐ a function body that ACCUMULATES inlines to a recurrence over its argument', () => {
+    // ⚰️ THIS EXPECTED `pine:state`, and it was the strongest case in the file
+    // for the limit: state inside a user function, reached through a call. Both
+    // halves work now and they COMPOSE — the parameter substitutes into the
+    // update, so `f(close)` is a running sum OF CLOSE rather than of whatever the
+    // body happened to name.
+    expect(formulaOf(`${HEAD}f(x) =>\n    var s = 0\n    s := s + x\n    s\nplot(f(close))\n`))
+      .toBe('accum(0, self + close, 250)')
+  })
+
+  it('...and the SAME function on a different argument accumulates THAT one', () => {
+    // ⛔ THE PROOF THE PARAMETER REALLY SUBSTITUTED. Without it the case above
+    // would pass for a walker that had hard-wired `close` into the body.
+    expect(formulaOf(`${HEAD}f(x) =>\n    var s = 0\n    s := s + x\n    s\nplot(f(volume))\n`))
+      .toBe('accum(0, self + volume, 250)')
+  })
+
+  it('⛔ a function body with a statement this walker STILL cannot read refuses BY NAME', () => {
+    expect(refusalOf(`${HEAD}f(x) =>\n    varip s = 0\n    s := s + x\n    s\nplot(f(close))\n`).guard)
       .toBe('pine:state')
   })
 

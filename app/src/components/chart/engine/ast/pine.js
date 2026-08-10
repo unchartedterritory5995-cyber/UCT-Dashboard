@@ -1075,6 +1075,39 @@ class Resolver {
         `${REFUSALS['pine:undefined']} — \`${name}\``, locate(tok))
     }
     if (bound.kind === 'opaque') throw new PineRefusal(bound.guard, bound.message, bound.at)
+    if (bound.kind === 'state') {
+      // ⭐ THE SEED AND THE UPDATE RESOLVE IN THEIR OWN ENVIRONMENTS, and they
+      // are different ones: the seed was written before the first `:=` and the
+      // update after it. Sharing one env is how `x := x + 1`'s right-hand `x`
+      // would come to mean the accumulator instead of its own past.
+      const prevEnv = this.env
+      const spec = this.table.functions.accum
+      if (!spec) {
+        throw new PineRefusal('pine:state',
+          `${REFUSALS['pine:state']} — \`${name}\``, bound.at || locate(tok))
+      }
+      try {
+        this.env = bound.seedEnv || prevEnv
+        const seed = this.resolve(bound.seed)
+        // ⭐ A `var` NOBODY REASSIGNS, WITH A CONSTANT SEED, IS THE CONSTANT — and
+        // this is a correctness fix, not a tidiness one. `var k = 5` wrapped in an
+        // accumulator is `5` from bar 250 onward and NOT COMPUTABLE before it, so
+        // `close > k` would go blank for a trading year over a number that never
+        // changes. Unwrapping is an identity: a constant 250 bars ago is the same
+        // constant. ⛔ ONLY for a `num` — `var anchor = close` really does mean a
+        // bar in the past, and that one keeps its accumulator and its warm-up.
+        if (bound.update && bound.update.type === 'selfref' && seed && seed.type === 'num') {
+          return seed
+        }
+        this.env = bound.updateEnv || prevEnv
+        const update = this.resolve(bound.update)
+        const args = []
+        args[spec.recurrence.seed] = seed
+        args[spec.recurrence.body] = update
+        args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
+        return cCall('accum', args)
+      } finally { this.env = prevEnv }
+    }
     if (bound.kind === 'fn') {
       throw new PineRefusal('pine:function-def',
         `${REFUSALS['pine:function-def']} — \`${name}\` is a function and this reads it as a value`,
@@ -1179,6 +1212,16 @@ class Resolver {
       case 'collection':
         throw new PineRefusal('pine:collection', REFUSALS['pine:collection'], locate(node.tok))
       case 'bound': return this.resolveBinding(node.binding, node.tok, node.name)
+      // ⛔ THE NAME COMES OFF THE MANIFEST, never typed. `recurrence.binds` is
+      // what both walkers read it from, and a translator that spelled `self`
+      // here would be the second authority over it.
+      case 'selfref': {
+        const spec = this.table.functions.accum
+        if (!spec) {
+          throw new PineRefusal('pine:state', REFUSALS['pine:state'], locate(node.tok))
+        }
+        return cSeries(spec.recurrence.binds)
+      }
       case 'unary': {
         const inner = this.resolve(node.arg)
         return cOp(node.op === 'not' ? '!' : 'u-', [inner])
@@ -1700,6 +1743,81 @@ function boundName(toks, eqIndex) {
  *  in. `{type:'bound'}` is the only Pine node this module manufactures. */
 const boundNode = (binding, name, tok) => ({ type: 'bound', binding, name, tok })
 
+/** ⭐⭐ PINE'S `var` IS THE ENGINE'S `accum`, AND THIS IS THE WHOLE WIRE.
+ *
+ *  `var x = 0` / `x := x + 1` is bar-to-bar state, and the engine grew a
+ *  bounded recurrence for exactly it. A `state` binding holds the SEED and the
+ *  UPDATE separately, and reads of the name resolve differently depending on
+ *  where they are:
+ *
+ *    - inside the update  → the running value's own past, `self`
+ *    - anywhere else      → `accum(seed, update, warmup)`, the whole column
+ *
+ *  ⭐ AND THE COMPOSITION IS THE ENVIRONMENT MACHINERY THAT WAS ALREADY THERE.
+ *  A second `x := g(x)` binds `x` inside its own right-hand side to the FIRST
+ *  update, exactly the way `exprBinding` already freezes the previous binding —
+ *  so `f` then `g` becomes `g(f(self))` with no new substitution pass. The base
+ *  of that chain is `selfNode()` rather than the seed, and that one substitution
+ *  is the entire difference between "a name that changes" and "a value that
+ *  crosses a bar". */
+const selfNode = (tok) => ({ type: 'selfref', tok })
+
+/** `x := rhs` (or `x += e`) where `x` is already a recurrence.
+ *
+ *  ⭐ THE INNER BINDING IS THE WHOLE TRICK. Inside its own right-hand side, `x`
+ *  means the value SO FAR THIS BAR — which is the previous update, whose own
+ *  base is `selfref`. Binding it to that and letting the ordinary resolver walk
+ *  the chain is what turns `x := f(x)` then `x := g(x)` into `g(f(self))`
+ *  without a substitution pass of its own.
+ *
+ *  ⛔ AND `+=` DESUGARS THROUGH THE INNER BINDING, NOT THE OUTER ONE. Pointing
+ *  its left operand at the state binding would make `x += 1` mean
+ *  `accum(...) + 1` — a whole column plus one, evaluated inside its own update.
+ *  That is a cycle, and the one it would produce reads plausibly. */
+const reassignState = (prior, env, toks, mut, nameTok) => {
+  const rhs = parseWholeExpression(toks.slice(mut + 1))
+  const op = toks[mut].value
+  const innerEnv = new Map(env)
+  const inner = { kind: 'expr', node: prior.update, env: prior.updateEnv, at: prior.at }
+  innerEnv.set(nameTok.value, inner)
+  const update = op === ':='
+    ? rhs
+    : {
+      type: 'binary',
+      op: op[0],
+      left: boundNode(inner, nameTok.value, nameTok),
+      right: rhs,
+      tok: toks[mut],
+    }
+  return stateBinding(prior.seed, prior.seedEnv, update, innerEnv, prior.at)
+}
+
+const stateBinding = (seed, seedEnv, update, updateEnv, at) => ({
+  kind: 'state', seed, seedEnv, update, updateEnv, at,
+})
+
+/** How many bars of history a translated `var` accumulates over.
+ *
+ *  ⚠️⚠️ THIS IS AN ASSUMPTION, AND IT IS STATED RATHER THAN HIDDEN BECAUSE IT
+ *  CANNOT BE ELIMINATED. Pine's `var` accumulates from the first bar the chart
+ *  ever loaded; `accum` is bounded ON PURPOSE, because a value that depends on
+ *  where a fetch happened to start is a value that changes when a member pans
+ *  (see `closedTable.json::_functions_recurrence`). One of the two has to give,
+ *  and it is not going to be the one that keeps the number honest.
+ *
+ *  ⭐ 250 IS ONE TRADING YEAR, and for what real scripts actually accumulate —
+ *  a trailing stop, a streak, a high since a reset, a state machine — the two
+ *  agree EXACTLY once the warm-up has passed, because those recurrences forget
+ *  where they started. ⛔ FOR A TRUE BAR COUNTER THEY NEVER AGREE, and no finite
+ *  number would make them: `var n = 0` / `n := n + 1` reads 250 here and reads
+ *  the bar index in Pine. That is a real difference, it is in the member-visible
+ *  note, and pretending otherwise would be the lie.
+ *
+ *  ⚠️ IT IS ALSO WHY A LONG SCRIPT CAN STILL MEET `budget:lookback`: 250 plus
+ *  whatever the update itself reaches. That refusal is accurate — the script
+ *  wants more history than this engine will hold — and it names itself. */
+const PINE_STATE_WARMUP = 250
+
 const exprBinding = (node, env, at) => ({ kind: 'expr', node, env, at })
 
 /** The `if` / `else if` / `else` statements at `i`, re-joined into one chain.
@@ -1756,6 +1874,44 @@ function foldIfChain(stmts, i, ctx, env) {
   }
 
   for (const name of touched) {
+    const wasState = before.get(name)
+    const armsAgree = wasState && wasState.kind === 'state' && arms.every((a) => {
+      const b = a.env.get(name)
+      return b && b.kind === 'state' && b.seed === wasState.seed
+    })
+
+    // ⭐⭐ A RECURRENCE FOLDS INSIDE ITS UPDATE, NOT AROUND ITS ACCUMULATOR, AND
+    // GETTING THIS BACKWARDS PRODUCES A PLAUSIBLE WRONG ANSWER RATHER THAN A
+    // REFUSAL. `var c = 0` / `if close > open` / `c := c + 1` must become
+    // `accum(0, close > open ? self + 1 : self, W)` — one running count. Built
+    // the ordinary way it becomes `close > open ? accum(0, self + 1, W) :
+    // accum(0, self, W)`, which is TWO different accumulators selected per bar:
+    // on a down day it shows the seed carried forward and on an up day a count
+    // that assumed EVERY bar was up. Both draw a line. Neither is the script.
+    //
+    // ⛔ THE GUARD IS THAT EVERY ARM IS THE SAME RECURRENCE — same binding kind,
+    // same seed OBJECT. A branch that rebound the name to something else is not
+    // a reassignment of this accumulator and must not be folded into its update.
+    if (armsAgree) {
+      const asUpdate = (b, tok) => boundNode(
+        { kind: 'expr', node: b.update, env: b.updateEnv, at: b.at }, name, tok)
+      let update = hasElse
+        ? asUpdate(arms[arms.length - 1].env.get(name), arms[arms.length - 1].tok)
+        : asUpdate(wasState, chain.branches[0].tok)
+      for (let k = arms.length - (hasElse ? 2 : 1); k >= 0; k -= 1) {
+        update = {
+          type: 'ternary',
+          test: arms[k].cond,
+          yes: asUpdate(arms[k].env.get(name), arms[k].tok),
+          no: update,
+          tok: arms[k].tok,
+        }
+      }
+      env.set(name, stateBinding(
+        wasState.seed, wasState.seedEnv, update, new Map(before), wasState.at))
+      continue
+    }
+
     const armBinding = (arm) => boundNode(arm.env.get(name), name, arm.tok)
     let node = hasElse
       ? armBinding(arms[arms.length - 1])
@@ -1837,8 +1993,26 @@ function foldStatements(stmts, ctx, env) {
     if (!first) { i += 1; continue }
 
     if (first.kind === 'ident' && STATE_KEYWORDS.has(first.value)) {
-      throw new PineRefusal('pine:state',
-        `${REFUSALS['pine:state']} — \`${first.value}\``, locate(first))
+      // ⭐ `var x = seed` BINDS A RECURRENCE, IT NO LONGER REFUSES. The seed is
+      // whatever follows the `=`; the update starts as the value's own past, so
+      // a `var` that is never reassigned reads back as a value that simply
+      // carries — which is what Pine means by it.
+      //
+      // ⛔ `varip` STILL REFUSES, AND THE DIFFERENCE IS NOT COSMETIC. It persists
+      // across INTRABAR TICKS, so its value depends on how many times a forming
+      // bar updated — the one thing a closed-bar engine can never reproduce and
+      // the exact shape `ALERT_EVAL_MODE="closed"` exists to remove.
+      const eqAt = findTop(toks, (t) => isPunct(t, '='))
+      const varName = eqAt > 0 ? boundName(toks, eqAt) : null
+      if (first.value !== 'var' || !varName || eqAt < 0) {
+        throw new PineRefusal('pine:state',
+          `${REFUSALS['pine:state']} — \`${first.value}\``, locate(first))
+      }
+      const seedNode = parseWholeExpression(toks.slice(eqAt + 1))
+      env.set(varName.value, stateBinding(
+        seedNode, new Map(env), selfNode(varName), new Map(env), locate(varName)))
+      i += 1
+      continue
     }
     if (first.kind === 'ident' && TYPE_KEYWORDS.has(first.value)) {
       throw new PineRefusal('pine:type', REFUSALS['pine:type'], locate(first))
@@ -1868,6 +2042,12 @@ function foldStatements(stmts, ctx, env) {
         throw new PineRefusal(prior ? prior.guard : 'pine:reassign',
           prior ? prior.message : `${REFUSALS['pine:reassign']} — \`${nameTok.value}\``,
           prior ? prior.at : locate(toks[mut]))
+      }
+      if (prior.kind === 'state') {
+        env.set(nameTok.value, reassignState(prior, env, toks, mut, nameTok))
+        ctx.consumed.add(toks[mut].index)
+        i += 1
+        continue
       }
       const rhs = parseWholeExpression(toks.slice(mut + 1))
       // `x += e` is `x := x + e`, and the `x` on the right is the binding that
@@ -2071,6 +2251,24 @@ export function translatePine(source, opts = {}) {
     if (STATE_KEYWORDS.has(word)) {
       const eq = findTop(toks, (t) => isPunct(t, '='))
       const nameTok = eq > 0 ? boundName(toks, eq) : null
+      // ⭐ THE SAME BINDING THE BODY WALKER MAKES — see `stateBinding`. ⛔ And the
+      // same `varip` exclusion, for the same reason: it persists across INTRABAR
+      // TICKS, which a closed-bar engine cannot reproduce at all.
+      if (word === 'var' && nameTok && eq > 0) {
+        try {
+          env.set(nameTok.value, stateBinding(
+            parseWholeExpression(toks.slice(eq + 1)),
+            new Map(env), selfNode(nameTok), new Map(env), locate(nameTok)))
+          continue
+        } catch (err) {
+          const r = fromError(err)
+          markOpaque(nameTok.value, r.guard,
+            { line: r.line, column: r.column, index: r.index, token: r.token },
+            `\`${nameTok.value}\``)
+          notes.push({ ...r, code: r.guard })
+          continue
+        }
+      }
       markOpaque(nameTok && nameTok.value, 'pine:state', locate(first),
         nameTok ? `\`${nameTok.value}\`` : null)
       notes.push(noteOf('pine:state', REFUSALS['pine:state'], first))
@@ -2184,6 +2382,11 @@ export function translatePine(source, opts = {}) {
       const nameTok = toks[mutAt - 1]
       const prior = env.get(nameTok.value)
       try {
+        if (prior && prior.kind === 'state') {
+          env.set(nameTok.value, reassignState(prior, env, toks, mutAt, nameTok))
+          ctx.consumed.add(toks[mutAt].index)
+          continue
+        }
         if (!prior || prior.kind !== 'expr') {
           throw new PineRefusal(prior && prior.guard ? prior.guard : 'pine:reassign',
             prior && prior.message ? prior.message

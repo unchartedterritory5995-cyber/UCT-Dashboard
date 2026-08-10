@@ -408,9 +408,6 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     ['a user-defined type',
       '//@version=5\nindicator("t")\ntype Point\n    float x\np = Point.new(1.0)\nplot(p.x)\n',
       'pine:type', 6, 6, 'p.x'],
-    ['var state',
-      '//@version=5\nindicator("t")\nvar float total = 0.0\nplot(total)\n',
-      'pine:state', 3, 1, 'var'],
     // ⚠️ FOUR CASES USED TO SIT HERE AND THEY MOVED TO `pine.variables.test.js`,
     // WHERE THEY ARE NOW ASSERTED TO TRANSLATE: a `:=` inside a block, a compound
     // assignment, `v = if …`, and `f(x) => x * 2`. What is refused about a
@@ -419,9 +416,13 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     ['a reassignment that reads the previous bar, which is state with no var in sight',
       '//@version=5\nindicator("t")\nx = 0.0\nx := x[1] + volume\nplot(x)\n',
       'pine:state', 4, 7, '['],
-    ['a var accumulator, which is the same thing spelled the usual way',
-      '//@version=5\nindicator("t")\nvar count = 0\ncount := count + 1\nplot(count)\n',
-      'pine:state', 3, 1, 'var'],
+    // ⚰️ `var state` AND `a var accumulator` SAT HERE AND NOW TRANSLATE. The
+    // engine grew a bounded recurrence (`accum`) and this translator emits it —
+    // see "Pine's `var` is the engine's `accum`" in `pine.variables.test.js`.
+    // ⛔ `varip` REMAINS in this table below, and the distinction is not
+    // cosmetic: it persists across INTRABAR TICKS, so its value depends on how
+    // many times a forming bar updated. That is the one thing a closed-bar
+    // engine can never reproduce.
     ['a := inside a `for`, which the fold never reads and the token scan always does',
       '//@version=5\nindicator("t")\nx = close\nfor i = 0 to 3\n    x := x + 1\nplot(x)\n',
       'pine:reassign', 5, 7, ':='],
