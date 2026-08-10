@@ -435,11 +435,14 @@ describe('resolveTrapTargets (pure)', () => {
 
 // ── footer + trust posture ───────────────────────────────────────────────────
 describe('footer + §12', () => {
-  it('pins View Chart and Open full report', () => {
+  it('pins View Chart, and no longer offers a way OUT of the modal', () => {
+    // "Open full report" closed the modal and pushed /research. Owner: that
+    // dropped the reader onto a new page mid-read. Every section it led to is
+    // in the rail now, so the control has nothing left to open.
     renderModal()
     const footer = screen.getByTestId('erm-footer')
     expect(within(footer).getByText(/View Chart/i)).toBeTruthy()
-    expect(within(footer).getByText(/full (report|research)/i)).toBeTruthy()
+    expect(within(footer).queryByText(/full (report|research)/i)).toBeNull()
   })
 
   it('carries the standing not-advice line', () => {
@@ -637,5 +640,37 @@ describe('the whole report is reachable without leaving the modal', () => {
     expect(screen.getByRole('tab', { name: /Analyst & Ownership/i })
       .getAttribute('aria-selected')).toBe('true')
     expect(screen.getByTestId('erm-canvas')).toBeTruthy()
+  })
+})
+
+describe('the modal never hands the reader off', () => {
+  it('has NO control anywhere that navigates to /research', () => {
+    // Owner: the divert dropped people onto a new page mid-read and lost them.
+    // Asserted across the WHOLE modal, not just the rail, because the escape
+    // that prompted this lived in the footer, not the navigator.
+    const { container } = renderModal()
+    const escapes = [...container.querySelectorAll('a[href]')]
+      .map(a => a.getAttribute('href'))
+      .filter(h => (h || '').includes('/research'))
+    expect(escapes, `still links out to: ${escapes.join(', ')}`).toEqual([])
+    expect(screen.queryByRole('button', { name: /open full report/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /unlock full research/i })).toBeNull()
+  })
+
+  it('every section /research offered is reachable IN the modal', () => {
+    // Derived from the panel map, so a section cannot be listed in the rail
+    // without a component behind it — the failure that ships a tab leading to
+    // an empty canvas.
+    for (const id of ['fundamentals', 'estimates', 'financials', 'ratings',
+                      'analyst', 'filings']) {
+      expect(PANELS[id], `no panel wired for "${id}"`).toBeTruthy()
+    }
+    const missing = SECTIONS.filter(s => !PANELS[s.id]).map(s => s.id)
+    expect(missing, `rail sections with no panel: ${missing.join(', ')}`).toEqual([])
+  })
+
+  it('still offers View Chart — removing the divert did not remove the chart', () => {
+    renderModal()
+    expect(screen.getByText(/view chart/i)).toBeTruthy()
   })
 })

@@ -19,9 +19,17 @@ export const SECTIONS = [
   { id: 'history', label: 'Earnings History', icon: 'clock' },
   { id: 'brief', label: 'Brief', icon: 'document' },
   { id: 'call', label: 'Call', icon: 'chat' },
+  { id: 'fundamentals', label: 'Fundamentals', icon: 'chart' },
+  { id: 'estimates', label: 'Estimates', icon: 'clock' },
+  { id: 'financials', label: 'Financials', icon: 'document' },
+  { id: 'ratings', label: 'Ratings', icon: 'star' },
   { id: 'analyst', label: 'Analyst & Ownership', icon: 'user' },
   { id: 'filings', label: 'Filings', icon: 'document' },
 ]
+
+// Order is the reading order for an earnings event: the four original sections
+// tell the story of THIS print, and the reference sections follow. Appending
+// rather than interleaving keeps existing muscle memory intact.
 
 export const SECTION_IDS = SECTIONS.map((s) => s.id)
 

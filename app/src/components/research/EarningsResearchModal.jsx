@@ -8,14 +8,12 @@
 // is the one deliberate exception (controller amendment, P2 T6): it follows
 // the RAW un-debounced symbol so the header number never lags the header name.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 
 import CompanyLogo from '../CompanyLogo'
 import TickerPopup from '../TickerPopup'
 import UIcon from '../ui/UIcon'
 import Sheet from '../mobile/Sheet'
 import { useIsPhone } from '../../hooks/useBreakpoint'
-import { useIsPaid } from '../../context/AuthContext'
 import { IdentityBanner, PinnedFooter, SectionRail, VerdictChip } from '../research-kit'
 import { NOT_ADVICE, SETUP_GRADE_INFO } from '../../constants/disclaimer'
 import useExpectedMove from '../../hooks/useExpectedMove'
@@ -31,6 +29,10 @@ import BriefSection from './sections/BriefSection'
 import CallSection from './sections/CallSection'
 import OwnershipTab from '../../pages/research/tabs/OwnershipTab'
 import FilingsTab from '../../pages/research/tabs/FilingsTab'
+import EstimatesTab from '../../pages/research/tabs/EstimatesTab'
+import FinancialsTab from '../../pages/research/tabs/FinancialsTab'
+import RatingsTab from '../../pages/research/tabs/RatingsTab'
+import FundamentalsSection from './sections/FundamentalsSection'
 import styles from './EarningsResearchModal.module.css'
 
 // Exported so a rail can assert every SECTIONS id has a panel behind it. A tab
@@ -45,6 +47,12 @@ export const PANELS = {
   // only `sym` and carry no router dependency, so they drop in unchanged.
   analyst: OwnershipTab,
   filings: FilingsTab,
+  // Everything /research had, so the modal never has to hand the reader off.
+  // All three tabs take only `sym` and self-fetch, so they mount unchanged.
+  fundamentals: FundamentalsSection,
+  estimates: EstimatesTab,
+  financials: FinancialsTab,
+  ratings: RatingsTab,
 }
 
 const fmtEps = (v) => (v == null ? null : `${v < 0 ? '-' : ''}$${Math.abs(v).toFixed(2)}`)
@@ -122,8 +130,6 @@ export default function EarningsResearchModal({
   onPollActuals = null, isTodayReporter = false, enrichReady = true,
   nowMs,
 }) {
-  const navigate = useNavigate()
-  const isPaid = useIsPaid()
   // Click-triggered conditional rendering — the sanctioned useIsPhone case: the
   // modal mounts as the direct result of a tap, so matchMedia is already
   // meaningful at that mount. Everything ELSE responsive here is CSS @media.
@@ -302,11 +308,11 @@ export default function EarningsResearchModal({
       <PinnedFooter as="div" ariaLabel="Actions" className={styles.footer}>
         <span data-testid="erm-footer" className={styles.footerInner}>
           <TickerPopup sym={sym} as="button" className={styles.btnChart}>View Chart</TickerPopup>
-          <button type="button" className={styles.btnReport}
-                  onClick={() => { onClose?.(); navigate(`/research/${sym}`) }}>
-            {isPaid ? 'Open full report →'
-                    : <><UIcon name="lock" size={13} gold={false} /> Unlock full research →</>}
-          </button>
+          {/* The "Open full report" button used to close the modal and push
+              /research. Owner: that dropped the reader onto a new page mid-read
+              and lost them. Every section it led to now lives in the rail, so
+              there is nothing left to open. `/research/:sym` still exists as a
+              route — it is simply no longer a place this modal sends anyone. */}
         </span>
       </PinnedFooter>
       {/* §12: the standing line lives BELOW the actions, as the modal's own
