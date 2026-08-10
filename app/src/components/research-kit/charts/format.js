@@ -17,3 +17,22 @@ export function formatSigned(value, { unit = '', decimals = 1 } = {}) {
   const rounded = Math.round(n * factor) / factor
   return `${sign}${rounded.toFixed(decimals)}${unit}`
 }
+
+/**
+ * Number, or null — the ONE coercion every chart and readout should use.
+ *
+ * ⛔ `Number(null)` is 0 and `Number.isFinite(0)` is true, so the obvious
+ * one-liner `Number.isFinite(Number(v)) ? Number(v) : null` turns every MISSING
+ * value into a real zero. A quarter with no margin draws as a crash to 0%; a
+ * price that failed to load renders as $0.00. Both look entirely plausible.
+ *
+ * This exists because that bug has now been written three times in this
+ * codebase by three different hands, twice in one evening. Empty string and
+ * whitespace coerce the same way and are excluded for the same reason.
+ */
+export function toNum(v) {
+  if (v == null) return null
+  if (typeof v === 'string' && v.trim() === '') return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
