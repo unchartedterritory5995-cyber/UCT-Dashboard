@@ -1,0 +1,32 @@
+.wrap {
+  display: flex; flex-direction: column; gap: 7px;
+  margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, .07);
+}
+.head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.label {
+  font-size: 10px; font-weight: 700; letter-spacing: .08em;
+  color: var(--ut-gold, #c9a84c);
+}
+.channel { font-size: 10.5px; color: var(--color-text-muted, #8a8f98); }
+.add {
+  align-self: flex-start; padding: 4px 10px; min-height: 28px;
+  border: 1px solid var(--ut-gold, #c9a84c); border-radius: 4px;
+  background: transparent; color: var(--ut-gold, #c9a84c);
+  font-size: 12px; cursor: pointer;
+}
+.add:disabled { opacity: .5; cursor: default; }
+.chips { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; }
+.chip {
+  display: flex; align-items: center; gap: 6px;
+  padding: 3px 6px 3px 9px; border-radius: 12px;
+  background: rgba(255, 255, 255, .06);
+  font-size: 12px; color: var(--color-text, #d8dade);
+}
+.chip button {
+  border: none; background: none; cursor: pointer; padding: 0 2px;
+  font-size: 14px; line-height: 1; color: var(--color-text-muted, #8a8f98);
+}
+.chip button:hover { color: var(--ut-red, #e57373); }
+.note { margin: 0; font-size: 11.5px; color: var(--color-text-muted, #8a8f98); }
+.err { margin: 0; font-size: 11.5px; color: var(--ut-red, #e57373); }
