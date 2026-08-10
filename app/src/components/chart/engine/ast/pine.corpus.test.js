@@ -162,20 +162,29 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
     }
     // Each of these is present because a published script does it — not because
     // somebody wrote a snippet that does it.
+    //
+    // ⚠️ FOUR ENTRIES MOVED WHEN THE VARIABLES FOLD LANDED, AND THE MOVEMENT IS
+    // THE POINT OF THIS LIST. `pine:collection` and `pine:function-def` left it:
+    // the only collection literals in this corpus are `input(…, options=[…])`,
+    // which no column reads, and every function definition it contains is now
+    // either inlined or refused for what is actually inside it. `pine:state` and
+    // `pine:offset-literal` joined it, and both are more precise than what they
+    // replaced — `10-supertrend.pine`'s five refusals used to say "reassigned"
+    // and now say "this value comes from the previous bar", which is the truth.
     for (const guard of [
       'pine:declaration-strategy', // 19-strategy-supertrend-atr
       'pine:request', // 04, 12
-      'pine:collection', // 09, 15
-      'pine:reassign', // 07, 20
-      'pine:block', // 13
-      'pine:function-def', // 05
-      'pine:tuple', // 06
+      'pine:state', // 10 — a trailing stop is a real accumulator
+      'pine:reassign', // 20 — a `:=` inside UDT/array code the fold cannot read
+      'pine:block', // 06 — a `switch` inside a user function
+      'pine:offset-literal', // 05 — `hh[len]`, a variable bar offset
+      'pine:tuple', // 02, 06, 19
       'pine:role-order', // 18
-      'pine:function', // 14
-      'pine:na', // 21
+      'pine:function', // 09 (`cum`), 13 (`rma`), 14 (`round`)
+      'pine:na', // 08, 11, 12, 21
       'pine:plot-offset', // 03, 12, 14
       'pine:strategy-call', // 19
-      'pine:builtin', // 05, 06, 11
+      'pine:builtin', // 05, 06, 11, 15
       'pine:undefined', // 12
     ]) {
       expect(fired, guard).toContain(guard)
@@ -205,8 +214,14 @@ describe('the whole corpus, in one number', () => {
     const columns = FILES.reduce((n, f) => n + SNAPSHOT[f].usable, 0)
     // ⛔ NOT A THRESHOLD THAT ONLY GOES UP. It is pinned in BOTH directions, so a
     // change that quietly narrows coverage is as red as one that breaks a script.
-    expect(translating).toBe(9)
-    expect(columns).toBe(14)
+    //
+    // ⚠️ 9/14 BEFORE THE VARIABLES FOLD, 10/16 AFTER — and the second number moved
+    // further than the first because the fold also unblocked columns inside
+    // scripts that were already translating. The one new script is `07-rsi.pine`,
+    // whose whole source selector is a twenty-arm `if … src := …` chain behind a
+    // user function.
+    expect(translating).toBe(10)
+    expect(columns).toBe(16)
   })
 
   it('⭐ every script that translates is one a member could actually SAVE', () => {
@@ -215,7 +230,7 @@ describe('the whole corpus, in one number', () => {
     // read-back — and a coverage number that counted translations would be
     // reporting the first of those as if it were the second.
     const saveable = FILES.filter((f) => SNAPSHOT[f].downstream && SNAPSHOT[f].downstream.ok)
-    expect(saveable.length).toBe(9)
+    expect(saveable.length).toBe(10)
     for (const f of saveable) {
       expect(SNAPSHOT[f].downstream.repaint, f).toBe('non-repainting')
     }

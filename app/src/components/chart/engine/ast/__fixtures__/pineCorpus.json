@@ -70,13 +70,13 @@
     "selectedFormula": null,
     "downstream": null,
     "refusal": {
-      "guard": "pine:function-def",
-      "line": 42,
-      "column": 15,
-      "token": "=>"
+      "guard": "pine:offset-literal",
+      "line": 45,
+      "column": 20,
+      "token": "len"
     },
     "perOutputRefusals": {
-      "pine:function-def": 1,
+      "pine:offset-literal": 1,
       "pine:builtin": 2
     }
   },
@@ -94,26 +94,23 @@
     "refusal": null,
     "perOutputRefusals": {
       "pine:tuple": 6,
-      "pine:function-def": 1,
+      "pine:block": 1,
       "pine:builtin": 4
     }
   },
   "07-rsi.pine": {
     "version": 3,
-    "translates": false,
+    "translates": true,
     "outputs": 1,
-    "usable": 0,
-    "selectedFormula": null,
-    "downstream": null,
-    "refusal": {
-      "guard": "pine:reassign",
-      "line": 35,
-      "column": 7,
-      "token": ":="
+    "usable": 1,
+    "selectedFormula": "rsi(close, 14)",
+    "downstream": {
+      "ok": true,
+      "guard": null,
+      "repaint": "non-repainting"
     },
-    "perOutputRefusals": {
-      "pine:reassign": 1
-    }
+    "refusal": null,
+    "perOutputRefusals": {}
   },
   "08-stochastic-v4.pine": {
     "version": 4,
@@ -139,14 +136,13 @@
     "selectedFormula": null,
     "downstream": null,
     "refusal": {
-      "guard": "pine:collection",
-      "line": 7,
-      "column": 73,
-      "token": "["
+      "guard": "pine:function",
+      "line": 13,
+      "column": 7,
+      "token": "cum"
     },
     "perOutputRefusals": {
-      "pine:function": 1,
-      "pine:collection": 1
+      "pine:function": 2
     }
   },
   "10-supertrend.pine": {
@@ -162,7 +158,7 @@
     },
     "refusal": null,
     "perOutputRefusals": {
-      "pine:reassign": 5
+      "pine:state": 5
     }
   },
   "11-donchian-channel.pine": {
@@ -196,10 +192,10 @@
       "token": "security"
     },
     "perOutputRefusals": {
-      "pine:function": 7,
+      "pine:na": 15,
       "pine:plot-offset": 3,
-      "pine:request": 10,
-      "pine:undefined": 1
+      "pine:undefined": 1,
+      "pine:request": 2
     }
   },
   "13-average-true-range.pine": {
@@ -210,13 +206,13 @@
     "selectedFormula": null,
     "downstream": null,
     "refusal": {
-      "guard": "pine:block",
-      "line": 38,
-      "column": 12,
-      "token": "if"
+      "guard": "pine:function",
+      "line": 29,
+      "column": 13,
+      "token": "rma"
     },
     "perOutputRefusals": {
-      "pine:block": 8
+      "pine:function": 8
     }
   },
   "14-bollinger-bands-fixed-timeframe.pine": {
@@ -245,14 +241,13 @@
     "selectedFormula": null,
     "downstream": null,
     "refusal": {
-      "guard": "pine:collection",
-      "line": 31,
-      "column": 14,
-      "token": "["
+      "guard": "pine:builtin",
+      "line": 92,
+      "column": 46,
+      "token": "time"
     },
     "perOutputRefusals": {
-      "pine:collection": 5,
-      "pine:builtin": 3
+      "pine:builtin": 8
     }
   },
   "16-smacd.pine": {
@@ -304,7 +299,7 @@
     "version": 3,
     "translates": false,
     "outputs": 3,
-    "usable": 0,
+    "usable": 1,
     "selectedFormula": null,
     "downstream": null,
     "refusal": {
@@ -314,8 +309,7 @@
       "token": "strategy"
     },
     "perOutputRefusals": {
-      "pine:function-def": 1,
-      "pine:reassign": 2
+      "pine:tuple": 2
     }
   },
   "20-smc-toolkit-udt.pine": {

@@ -336,18 +336,29 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     ['var state',
       '//@version=5\nindicator("t")\nvar float total = 0.0\nplot(total)\n',
       'pine:state', 3, 1, 'var'],
-    ['a := reassignment, even one buried inside a block',
-      '//@version=5\nindicator("t")\nx = close\nif close > open\n    x := open\nplot(x)\n',
+    // ⚠️ FOUR CASES USED TO SIT HERE AND THEY MOVED TO `pine.variables.test.js`,
+    // WHERE THEY ARE NOW ASSERTED TO TRANSLATE: a `:=` inside a block, a compound
+    // assignment, `v = if …`, and `f(x) => x * 2`. What is refused about a
+    // reassignment was never the token — it is whether the value crosses a bar —
+    // so the cases below are the ones that actually do.
+    ['a reassignment that reads the previous bar, which is state with no var in sight',
+      '//@version=5\nindicator("t")\nx = 0.0\nx := x[1] + volume\nplot(x)\n',
+      'pine:state', 4, 7, '['],
+    ['a var accumulator, which is the same thing spelled the usual way',
+      '//@version=5\nindicator("t")\nvar count = 0\ncount := count + 1\nplot(count)\n',
+      'pine:state', 3, 1, 'var'],
+    ['a := inside a `for`, which the fold never reads and the token scan always does',
+      '//@version=5\nindicator("t")\nx = close\nfor i = 0 to 3\n    x := x + 1\nplot(x)\n',
       'pine:reassign', 5, 7, ':='],
-    ['a compound assignment, which is a reassignment wearing a plus sign',
-      '//@version=5\nindicator("t")\nx = close\nx += 1\nplot(x)\n',
-      'pine:reassign', 4, 3, '+='],
-    ['a block-valued binding',
-      '//@version=5\nindicator("t")\nv = if close > open\n    1\nelse\n    0\nplot(v)\n',
+    ['a block-valued binding whose branches carry no value',
+      '//@version=5\nindicator("t")\nv = if close > open\n    y = 1\nelse\n    y = 0\nplot(v)\n',
       'pine:block', 3, 5, 'if'],
-    ['a user-defined function',
-      '//@version=5\nindicator("t")\nf(x) => x * 2\nplot(f(close))\n',
-      'pine:function-def', 3, 6, '=>'],
+    ['a user-defined function whose body is more than one expression',
+      '//@version=5\nindicator("t")\nf(x) =>\n    for i = 0 to 2\n        x\n    x * 2\nplot(f(close))\n',
+      'pine:block', 4, 5, 'for'],
+    ['a user-defined function that calls itself',
+      '//@version=5\nindicator("t")\nf(x) => f(x) + 1\nplot(f(close))\n',
+      'pine:cycle', 3, 9, 'f'],
     ['a tuple destructure',
       '//@version=5\nindicator("t")\n[a, b] = ta.macd(close, 12, 26, 9)\nplot(a)\n',
       'pine:tuple', 3, 1, '['],
@@ -389,9 +400,16 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     ['a named argument onto a table position',
       '//@version=5\nindicator("t")\nplot(ta.sma(source = close, length = 20))\n',
       'pine:named-argument', 3, 13, 'source'],
-    ['a self-referencing name',
+    // ⚠️ THIS EXPECTED `pine:cycle` AND IT IS NOW `pine:undefined`, BECAUSE THE
+    // MEANING OF THE SCRIPT CHANGED UNDER IT — not because a guard was weakened.
+    // Once a binding carries the environment it was written in, `x = x + 1` reads
+    // the `x` that existed BEFORE the line, and there is none: Pine itself
+    // rejects this with "Undeclared identifier 'x'". `pine:cycle` stays reachable
+    // through a self-calling function (the case above), which is the shape that
+    // really is circular.
+    ['a name defined in terms of itself before it exists',
       '//@version=5\nindicator("t")\nx = x + 1\nplot(x)\n',
-      'pine:cycle', 3, 5, 'x'],
+      'pine:undefined', 3, 5, 'x'],
     ['a script with nothing to filter on',
       '//@version=5\nindicator("t")\nx = ta.rsi(close, 14)\n',
       'pine:no-output', null, null, null],

@@ -513,31 +513,79 @@ export function lexPine(src) {
 // statements
 // --------------------------------------------------------------------------- //
 
-/** Tokens → statements. A statement starts on a line whose indent is 0 and which
- *  begins at bracket depth 0; every other line continues the one before it.
+/** ⭐ THE FIVE WORDS THAT OPEN AN INDENTED BLOCK, AND NOTHING ELSE DOES.
  *
- *  ⚠️ THAT RULE ALSO SWALLOWS A BLOCK BODY, ON PURPOSE. `if cond` / `    x := 1`
- *  becomes ONE statement, so the block refuses once, at its own keyword, rather
- *  than producing a second unreadable statement whose first token is `x`. */
-function statementsOf(tokens, indents) {
+ *  This set is what makes the splitter below deterministic instead of heuristic.
+ *  A deeper-indented line in Pine is EITHER the body of a block OR a
+ *  continuation of the expression above it, and the two are told apart by one
+ *  question: did the line above open a block? Pine's answer is a closed list —
+ *  these five words and the `=>` of a function definition. Guessing instead
+ *  ("does the previous line end in an operator?") is the shape that reads
+ *  `maColour = not colourMA ? teal :` / `     risingMA ? green :` as a block. */
+const BLOCK_OPENERS = Object.freeze(new Set(['if', 'else', 'for', 'while', 'switch']))
+
+/**
+ * Tokens → a TREE of statements: `{header, body, sub}` at every level.
+ *
+ * ⭐⭐ THIS REPLACED A FLATTENER, AND THAT IS THE WHOLE VARIABLES FEATURE'S
+ * FOUNDATION. The previous rule glued every indented line onto the statement
+ * above it, so `if cond` / `    x := 1` was ONE opaque statement and the only
+ * honest thing to do with it was refuse. Reading the body as its own statement
+ * list is what lets a conditional reassignment become a ternary.
+ *
+ * A statement at this level starts on a line whose indent is `indent`, at
+ * bracket depth 0. It continues onto a deeper-indented line while it is inside
+ * brackets, or while it has not yet opened a block. Once it HAS opened a block
+ * (a `BLOCK_OPENERS` word or a `=>` seen at depth 0), the next deeper line is
+ * the body, and the body runs until the indent comes back to `indent` or less.
+ *
+ * ⚠️ `else` IS A SEPARATE STATEMENT AT THE SAME INDENT, not part of the `if`.
+ * Pine writes it that way and so does this; `ifBranches` re-joins them.
+ */
+function blockStatements(toks, indents, indent) {
   const out = []
-  let current = null
-  let depth = 0
-  for (const tok of tokens) {
-    const indent = indents[tok.line - 1] || 0
-    const startsStatement = current === null
-      || (tok.line !== current.tokens[current.tokens.length - 1].line && depth === 0 && indent === 0)
-    if (startsStatement) {
-      current = { tokens: [] }
-      out.push(current)
+  let i = 0
+  while (i < toks.length) {
+    const header = []
+    let depth = 0
+    let opened = false
+    while (i < toks.length) {
+      const tok = toks[i]
+      const ln = indents[tok.line - 1] || 0
+      const firstOnLine = header.length > 0 && tok.line !== header[header.length - 1].line
+      if (firstOnLine && depth === 0 && (ln <= indent || opened)) break
+      header.push(tok)
+      if (tok.kind === 'punct') {
+        if (tok.value === '(' || tok.value === '[') depth += 1
+        else if (tok.value === ')' || tok.value === ']') depth = Math.max(0, depth - 1)
+      }
+      if (depth === 0
+        && ((tok.kind === 'ident' && BLOCK_OPENERS.has(tok.value)) || isPunct(tok, '=>'))) {
+        // ⚠️ THE FLAG TAKES EFFECT AT THE NEXT LINE BOUNDARY, which is exactly
+        // when an `if`'s condition has finished — a condition on the same line is
+        // already in the header, and one wrapped over lines is inside brackets.
+        opened = true
+      }
+      i += 1
     }
-    current.tokens.push(tok)
-    if (tok.kind === 'punct') {
-      if (tok.value === '(' || tok.value === '[') depth += 1
-      else if (tok.value === ')' || tok.value === ']') depth = Math.max(0, depth - 1)
+    const body = []
+    let bodyIndent = null
+    while (i < toks.length) {
+      const tok = toks[i]
+      const ln = indents[tok.line - 1] || 0
+      if (ln <= indent) break
+      if (bodyIndent === null) bodyIndent = ln
+      body.push(tok)
+      i += 1
     }
+    if (header.length === 0) break
+    out.push({
+      header,
+      body,
+      sub: body.length ? blockStatements(body, indents, bodyIndent) : [],
+    })
   }
-  return out.filter((s) => s.tokens.length > 0)
+  return out
 }
 
 const isPunct = (tok, value) => !!tok && tok.kind === 'punct' && tok.value === value
@@ -725,7 +773,22 @@ function parsePrimary(cur) {
     // A `[…]` where a VALUE was expected is a Pine tuple or an array/options
     // literal (`options = ['A', 'B']`). Naming it "a line this translator does
     // not read" would send a member looking for a typo.
-    throw new PineRefusal('pine:collection', REFUSALS['pine:collection'], locate(tok))
+    //
+    // ⭐⭐ IT IS A NODE, NOT A THROW, AND THAT IS THE MODULE'S OWN RULE APPLIED
+    // WHERE IT WAS NOT. Resolution runs backwards from the outputs precisely so
+    // that a construct nothing reads is a NOTE; throwing here made the one
+    // collection literal every published script carries — `input(…, options=["A",
+    // "B"])`, an argument this translator never even looks at — refuse the whole
+    // script from a line no column depends on. Now it refuses only if something
+    // actually reads it, at `resolve`, with the same guard and the same token.
+    let depth = 1
+    while (depth > 0) {
+      const t = cur.next()
+      if (!t) throw new PineRefusal('pine:collection', REFUSALS['pine:collection'], locate(tok))
+      if (isPunct(t, '[') || isPunct(t, '(')) depth += 1
+      else if (isPunct(t, ']') || isPunct(t, ')')) depth -= 1
+    }
+    return { type: 'collection', tok }
   }
 
   if (tok.kind === 'ident') {
@@ -929,14 +992,128 @@ const PINE_OP_TO_TABLE = Object.freeze({
   and: '&&', or: '||',
 })
 
+/** ⛔ THE RECURSION CEILING FOR USER FUNCTIONS. A Pine function that calls
+ *  itself is illegal Pine, but nothing here parses Pine's legality — so the
+ *  depth is what stops a self-call from being a stack overflow instead of a
+ *  refusal. It is deliberately far above anything a real script nests (the
+ *  corpus tops out at two). */
+const MAX_CALL_DEPTH = 24
+
 class Resolver {
-  constructor(env, table, types) {
+  constructor(env, table, types, opts = {}) {
     this.env = env
     this.table = table
     this.types = types || new Map()
     this.index = functionIndex(table)
+    // ⛔ KEYED ON THE BINDING OBJECT, NEVER ON THE NAME. Once `x := x + 1` is
+    // foldable, a name legitimately re-enters itself — under a DIFFERENT binding,
+    // the one it held before the reassignment. A name-keyed cycle guard would
+    // call every reassignment a cycle; an identity-keyed one still catches the
+    // real thing (`a = b` / `b = a` re-enters the same object).
     this.stack = new Set()
+    /** Argument bindings, one frame per user-function call in flight. */
+    this.frames = []
     this.usedInputs = new Map()
+    /** name → the binding it holds after the WHOLE program walk. Read only by
+     *  the `[n]` guard, which needs to know whether a read of a reassigned name
+     *  is the last word on it. */
+    this.finalBindings = opts.finalBindings || new Map()
+    /** name → the mutator tokens found by the raw-token scan. */
+    this.mutated = opts.mutated || new Map()
+  }
+
+  /** Resolve THROUGH a binding: swap to the environment the binding was written
+   *  in, guard the cycle, and put the environment back.
+   *
+   *  ⭐ THE ENVIRONMENT SNAPSHOT IS WHAT MAKES REASSIGNMENT SOUND. `x := x + 1`
+   *  stores a node whose `x` must mean the PREVIOUS binding, and it does, because
+   *  the new binding carries the env as it stood when the right-hand side was
+   *  written. That is single-assignment form, reached without renaming anything a
+   *  member would see. */
+  resolveBinding(bound, tok, name) {
+    if (!bound) {
+      throw new PineRefusal('pine:undefined',
+        `${REFUSALS['pine:undefined']} — \`${name}\``, locate(tok))
+    }
+    if (bound.kind === 'opaque') throw new PineRefusal(bound.guard, bound.message, bound.at)
+    if (bound.kind === 'fn') {
+      throw new PineRefusal('pine:function-def',
+        `${REFUSALS['pine:function-def']} — \`${name}\` is a function and this reads it as a value`,
+        locate(tok))
+    }
+    if (bound.kind === 'param') {
+      // ⛔ AN ARGUMENT IS EVALUATED IN THE CALLER'S SCOPE, so the frame comes OFF
+      // while it resolves. Leaving it on is how `f(f(x))` would read the inner
+      // call's arguments out of the outer call's frame.
+      const frame = this.frames.pop()
+      if (!frame) {
+        throw new PineRefusal('pine:undefined',
+          `${REFUSALS['pine:undefined']} — \`${name}\``, locate(tok))
+      }
+      try { return this.resolveBinding(frame[bound.index], tok, name) } finally { this.frames.push(frame) }
+    }
+    if (this.stack.has(bound)) {
+      throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — \`${name}\``, locate(tok))
+    }
+    this.stack.add(bound)
+    const prevEnv = this.env
+    if (bound.env) this.env = bound.env
+    try { return this.resolve(bound.node) } finally { this.stack.delete(bound); this.env = prevEnv }
+  }
+
+  /** Walk into a binding the way `resolveBinding` does, but for a QUESTION about
+   *  it rather than a translation of it — used by `stringValueOf`. Returns null
+   *  wherever `resolveBinding` would refuse, because a question has no caret. */
+  throughBinding(bound, fn) {
+    if (!bound || bound.kind === 'opaque' || bound.kind === 'fn') return null
+    if (bound.kind === 'param') {
+      const frame = this.frames.pop()
+      if (!frame) return null
+      try { return this.throughBinding(frame[bound.index], fn) } finally { this.frames.push(frame) }
+    }
+    if (this.stack.has(bound)) return null
+    this.stack.add(bound)
+    const prevEnv = this.env
+    if (bound.env) this.env = bound.env
+    try { return fn(bound) } finally { this.stack.delete(bound); this.env = prevEnv }
+  }
+
+  /**
+   * The STRING a node is, following bindings and `input(…)` defaults, or null.
+   *
+   * ⭐⭐ THIS IS NOT "STRINGS AS VALUES", AND THE DISTINCTION IS THE WHOLE POINT.
+   * A string never becomes a node, never reaches `parse.js`, never reaches the
+   * interpreter and never reaches a saved definition — `resolve` still refuses
+   * one at `pine:text-value`. This answers ONE question, asked in ONE place: are
+   * both sides of an `==` a string the translator can already see? Because when
+   * they are, the comparison is a CONSTANT, and the branch it does not take is
+   * code the pasted script never runs.
+   *
+   * ⛔ WITHOUT IT, THE `if`-FOLD IS WORSE THAN THE REFUSAL IT REPLACES. Half the
+   * everget corpus dispatches on a string input (`if src == "close"` … twenty
+   * arms deep), and folding twenty arms into twenty live ternaries would drag
+   * `cum`, `accdist` and `nz` — all in arms the default can never reach — onto the
+   * path and refuse the script for code it does not execute. TradingView's own
+   * screener folds inputs to their defaults for exactly this reason.
+   */
+  stringValueOf(node, depth = 0) {
+    if (!node || typeof node !== 'object' || depth > 64) return null
+    if (node.type === 'string') return node.value
+    if (node.type === 'bound') {
+      return this.throughBinding(node.binding, (b) => this.stringValueOf(b.node, depth + 1))
+    }
+    if (node.type === 'name') {
+      if (own(this.table.series, node.name)) return null
+      return this.throughBinding(this.env.get(node.name),
+        (b) => this.stringValueOf(b.node, depth + 1))
+    }
+    if (node.type === 'call' && (node.name === 'input' || node.name.startsWith('input.'))) {
+      const named = node.args.find((a) => a.name === 'defval')
+      const positional = node.args.find((a) => !a.name)
+      const defval = named ? named.value : (positional ? positional.value : null)
+      return defval ? this.stringValueOf(defval, depth + 1) : null
+    }
+    return null
   }
 
   /** `Point.new(…)` and `p.x` are both a user-defined type showing through, and
@@ -960,11 +1137,26 @@ class Resolver {
         throw new PineRefusal('pine:text-value', REFUSALS['pine:text-value'], locate(node.tok))
       case 'colour':
         throw new PineRefusal('pine:colour-value', REFUSALS['pine:colour-value'], locate(node.tok))
+      case 'collection':
+        throw new PineRefusal('pine:collection', REFUSALS['pine:collection'], locate(node.tok))
+      case 'bound': return this.resolveBinding(node.binding, node.tok, node.name)
       case 'unary': {
         const inner = this.resolve(node.arg)
         return cOp(node.op === 'not' ? '!' : 'u-', [inner])
       }
       case 'binary': {
+        // ⭐ TWO STRINGS COMPARED IS A CONSTANT — see `stringValueOf`. Asked
+        // BEFORE the operands are resolved, because resolving either of them is
+        // the `pine:text-value` refusal this is deciding not to need.
+        if (node.op === '==' || node.op === '!=') {
+          const left = this.stringValueOf(node.left)
+          if (left !== null) {
+            const right = this.stringValueOf(node.right)
+            if (right !== null) {
+              return cNum(((left === right) === (node.op === '==')) ? 1 : 0)
+            }
+          }
+        }
         const mapped = PINE_OP_TO_TABLE[node.op]
         if (!mapped || !own(this.table.operators, mapped)) {
           throw new PineRefusal('pine:operator',
@@ -972,9 +1164,17 @@ class Resolver {
         }
         return cOp(mapped, [this.resolve(node.left), this.resolve(node.right)])
       }
-      case 'ternary':
-        return cOp('?:', [this.resolve(node.test), this.resolve(node.yes), this.resolve(node.no)])
+      case 'ternary': {
+        const test = this.resolve(node.test)
+        // ⛔ A BRANCH A CONSTANT TEST NEVER TAKES IS NOT RESOLVED AT ALL. This is
+        // the same rule as "a statement no output reaches is a note": refusing a
+        // script over an arm its own folded input makes unreachable would be
+        // reading a different document than the one the member pasted.
+        if (test.type === 'num') return this.resolve(test.value !== 0 ? node.yes : node.no)
+        return cOp('?:', [test, this.resolve(node.yes), this.resolve(node.no)])
+      }
       case 'offset': {
+        this.guardOffsetOfMutable(node)
         // ⭐ THE CHILD RESOLVES FIRST, so `ta.sma(close, 20)[2]` and `close[2]`
         // reach the seam the same way and nesting needs no special case.
         const child = this.resolve(node.arg)
@@ -986,6 +1186,34 @@ class Resolver {
       default:
         throw new PineRefusal('pine:statement', REFUSALS['pine:statement'], locate(node.tok))
     }
+  }
+
+  /**
+   * ⛔⛔ `x[1]` ON A REASSIGNED NAME IS A PREVIOUS-BAR READ, AND THAT IS THE ONE
+   * PLACE THE FOLD CAN BE WRONG.
+   *
+   * Pine records one value per bar for every variable: the value it holds when
+   * the bar FINISHES. So `x[1]` is the previous bar's LAST assignment, not the
+   * previous bar's value of whichever assignment happens to be in scope here.
+   * Offsetting the binding in scope is exact only when that binding IS the last
+   * word on the name — which is what this compares. Everything else refuses at
+   * `pine:state`, naming the bar dependency rather than the token.
+   *
+   * ⭐ THIS IS THE TEST THE BRIEF ASKED FOR, AND IT IS DELIBERATELY NOT "WAS IT
+   * SPELLED `var`". `var count = 0` / `count := count + 1` refuses because the
+   * `var` handler marks it — but `x = 0.0` / `x := nz(x[1]) + volume` carries no
+   * `var` at all and is just as much an accumulator, and this is what catches it.
+   */
+  guardOffsetOfMutable(node) {
+    if (!(node.n >= 1) || node.arg.type !== 'name') return
+    const name = node.arg.name
+    if (!this.mutated.has(name)) return
+    const bound = this.env.get(name)
+    if (!bound) return
+    if (this.finalBindings.get(name) === bound) return
+    throw new PineRefusal('pine:state',
+      `${REFUSALS['pine:state']} — \`${name}[${node.n}]\` reads what \`${name}\` held on an `
+      + 'earlier bar, and this script reassigns it', locate(node.tok))
   }
 
   resolveName(node) {
@@ -1014,17 +1242,7 @@ class Resolver {
 
     // A binding from the pasted script.
     const bound = this.env.get(name)
-    if (bound) {
-      if (bound.kind === 'opaque') {
-        throw new PineRefusal(bound.guard, bound.message, bound.at)
-      }
-      if (this.stack.has(name)) {
-        throw new PineRefusal('pine:cycle',
-          `${REFUSALS['pine:cycle']} — \`${name}\``, locate(node.tok))
-      }
-      this.stack.add(name)
-      try { return this.resolve(bound.node) } finally { this.stack.delete(name) }
-    }
+    if (bound) return this.resolveBinding(bound, node.tok, name)
 
     // A dotted or namespaced built-in.
     const dot = name.indexOf('.')
@@ -1097,12 +1315,53 @@ class Resolver {
     if (bound && bound.kind === 'opaque' && bound.isFunction) {
       throw new PineRefusal(bound.guard, bound.message, bound.at)
     }
+    if (bound && bound.kind === 'fn') return this.inlineUserFunction(bound, node)
 
     if (own(LEGACY_BARE_NAMESPACE, name)) {
       const guard = NAMESPACE_GUARD[LEGACY_BARE_NAMESPACE[name]]
       throw new PineRefusal(guard, `${REFUSALS[guard]} — \`${name}\``, locate(node.tok))
     }
     return this.resolveTableCall(name, base, node.args, node.tok)
+  }
+
+  /**
+   * ⭐⭐ A USER FUNCTION IS INLINED AT ITS CALL SITE, AND IT IS THE SAME
+   * SUBSTITUTION A BINDING ALREADY GETS.
+   *
+   * `f(x) => expr` introduces no name this engine has to keep: the body was
+   * folded to ONE expression when the definition was read, its parameters are
+   * bindings like any other, and a call binds them to the argument nodes and
+   * resolves. Nothing about the stored artifact changes — the formula that comes
+   * out is the formula a member would have got by typing the body out by hand.
+   *
+   * ⛔ THE ARGUMENTS ARE BOUND, NOT RESOLVED. Binding them keeps the lazy rule
+   * that made real scripts translate at all: an argument the body's live branch
+   * never reads is never resolved, so `f_stateStr(s4)` cannot refuse a script
+   * over an `s4` that only the dashboard touches.
+   */
+  inlineUserFunction(bound, node) {
+    const name = node.name
+    for (const arg of node.args) {
+      if (arg.name) {
+        throw new PineRefusal('pine:named-argument',
+          `${REFUSALS['pine:named-argument']} — \`${arg.name}\` on \`${name}\`, which this `
+          + `script defines as ${name}(${bound.params.join(', ')})`, locate(arg.tok || node.tok))
+      }
+    }
+    if (node.args.length !== bound.params.length) {
+      throw new PineRefusal('pine:arity',
+        `${REFUSALS['pine:arity']} — \`${name}\` was given ${node.args.length} `
+        + `argument${node.args.length === 1 ? '' : 's'} and this script defines it with `
+        + `${bound.params.length}`, locate(node.tok))
+    }
+    if (this.frames.length >= MAX_CALL_DEPTH) {
+      throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — \`${name}\``, locate(node.tok))
+    }
+    const callerEnv = this.env
+    this.frames.push(node.args.map((a) => ({ kind: 'expr', node: a.value, env: callerEnv })))
+    const prevEnv = this.env
+    this.env = bound.value.env || prevEnv
+    try { return this.resolve(bound.value.node) } finally { this.frames.pop(); this.env = prevEnv }
   }
 
   /** ⭐ THE DERIVED MAP. `pineName` is what the member wrote; `base` is it with a
@@ -1269,21 +1528,30 @@ function noteOf(code, message, tok) {
   return { code, message, ...(locate(tok) || { line: null, column: null, index: null, token: null }) }
 }
 
-/** Every `IDENT :=` anywhere in the token stream, including inside a block this
- *  module never reads.
+/** Every `IDENT :=` (and `+=`, …) anywhere in the token stream, including inside
+ *  a block this module never reads. `name → every mutator token for it`.
  *
- *  ⭐⭐ THIS IS THE ONE THING THAT MAKES LAZY RESOLUTION SAFE. Inlining a name's
- *  first binding while a `:=` further down changes it is the silent misread this
- *  whole module exists to make impossible, and a `:=` inside `if`/`for` is exactly
- *  where it would hide. The scan is over TOKENS rather than over statements, so a
- *  construct the parser never understood cannot hide a reassignment from it. */
+ *  ⭐⭐ THIS IS THE ONE THING THAT MAKES LAZY RESOLUTION SAFE, AND IT SURVIVED
+ *  THE FOLD. Inlining a name's first binding while a `:=` further down changes it
+ *  is the silent misread this whole module exists to make impossible, and a `:=`
+ *  inside a `for` is exactly where it would hide. The scan is over TOKENS rather
+ *  than over statements, so a construct the parser never understood cannot hide a
+ *  reassignment from it.
+ *
+ *  ⛔ IT USED TO MARK EVERY MUTATED NAME OPAQUE AND STOP THERE. Now the walk
+ *  FOLDS the reassignments it can read and records which mutator tokens it
+ *  consumed — and `unconsumedMutations` puts the opacity back for every token it
+ *  did not. The net is therefore still derived from the raw token stream and
+ *  still fails closed; what changed is that a `:=` the walker genuinely
+ *  understood no longer costs the member their script. */
 function reassignedNames(tokens) {
   const out = new Map()
   for (let i = 1; i < tokens.length; i += 1) {
     const tok = tokens[i]
     if (tok.kind === 'punct' && MUTATORS.has(tok.value) && tokens[i - 1].kind === 'ident') {
       const name = tokens[i - 1].value
-      if (!out.has(name)) out.set(name, tok)
+      if (!out.has(name)) out.set(name, [])
+      out.get(name).push(tok)
     }
   }
   return out
@@ -1296,6 +1564,254 @@ function boundName(toks, eqIndex) {
   const tok = toks[eqIndex - 1]
   if (!tok || tok.kind !== 'ident' || TYPE_WORDS.has(tok.value)) return null
   return tok
+}
+
+// --------------------------------------------------------------------------- //
+// ⭐⭐ THE FOLD — one bar's worth of statements, collapsed to one expression
+// --------------------------------------------------------------------------- //
+//
+// ⭐ A SCREENER SCRIPT IS ONE EXPRESSION WITH NAMES ATTACHED, and the three
+// shapes below are how a real one spells it:
+//
+//   len   = input.int(14)          a pure alias        → substitute
+//   isHot = ta.rsi(close, len) > 70                    → substitute
+//   dir = 0 / if up / dir := 1 / else / dir := -1      → a ternary
+//   f(x) => ta.sma(x, 20)          a pure function     → substitute at the call
+//
+// None of those is STATE and none of them needs an engine change. What IS state
+// is a value that survives the bar: `var count = 0` … `count := count + 1`, or
+// any name whose new value reads `name[1]`. Those refuse at `pine:state`, by
+// name, and the coverage map says what supporting them would take.
+//
+// ⛔ THE DISTINCTION IS "DOES IT DEPEND ON A PREVIOUS BAR", NOT "WHICH TOKEN WAS
+// TYPED", and getting that backwards fails in both directions: judging by `:=`
+// refuses working scripts, and judging by `var` alone lets `x = 0.0` /
+// `x := nz(x[1]) + volume` through as if it were pure. Both tests are here —
+// `var` is marked at its declaration, and `Resolver.guardOffsetOfMutable` catches
+// the previous-bar read whether or not anybody wrote `var`.
+
+/** A binding wrapper so a Pine sub-tree can carry the environment it was written
+ *  in. `{type:'bound'}` is the only Pine node this module manufactures. */
+const boundNode = (binding, name, tok) => ({ type: 'bound', binding, name, tok })
+
+const exprBinding = (node, env, at) => ({ kind: 'expr', node, env, at })
+
+/** The `if` / `else if` / `else` statements at `i`, re-joined into one chain.
+ *  ⚠️ They arrive as SEPARATE statements at the same indent because that is how
+ *  Pine is written; joining them here keeps `blockStatements` free of any
+ *  knowledge of what the words mean. */
+function ifBranches(stmts, i) {
+  const branches = []
+  const head = stmts[i].header
+  const at = findTop(head, (t) => t.kind === 'ident' && t.value === 'if')
+  if (at < 0) return null
+  branches.push({ condToks: head.slice(at + 1), sub: stmts[i].sub, tok: head[at] })
+  let j = i + 1
+  while (j < stmts.length) {
+    const h = stmts[j].header
+    if (!h.length || h[0].kind !== 'ident' || h[0].value !== 'else') break
+    const inner = findTop(h, (t) => t.kind === 'ident' && t.value === 'if')
+    if (inner > 0) {
+      branches.push({ condToks: h.slice(inner + 1), sub: stmts[j].sub, tok: h[inner] })
+      j += 1
+    } else {
+      branches.push({ condToks: null, sub: stmts[j].sub, tok: h[0] })
+      j += 1
+      break
+    }
+  }
+  return { branches, next: j }
+}
+
+/** Fold one `if` chain into (a) a new binding for every OUTER name any branch
+ *  reassigns, and (b) the chain's own value, for `x = if …`.
+ *
+ *  ⛔ A NAME A BRANCH DECLARES FRESH DOES NOT ESCAPE IT. Only names that already
+ *  existed before the `if` are rebound — `float entry = close` inside a branch is
+ *  a local, and letting it leak would invent a binding Pine does not have. */
+function foldIfChain(stmts, i, ctx, env) {
+  const chain = ifBranches(stmts, i)
+  if (!chain) throw new PineRefusal('pine:block', REFUSALS['pine:block'], locate(stmts[i].header[0]))
+  const before = new Map(env)
+  const arms = []
+  for (const br of chain.branches) {
+    const cond = br.condToks ? parseWholeExpression(br.condToks) : null
+    const branchEnv = new Map(before)
+    const value = foldStatements(br.sub, ctx, branchEnv)
+    arms.push({ cond, env: branchEnv, value, tok: br.tok })
+  }
+  const hasElse = chain.branches[chain.branches.length - 1].condToks === null
+
+  const touched = new Set()
+  for (const arm of arms) {
+    for (const key of arm.env.keys()) {
+      if (before.has(key) && arm.env.get(key) !== before.get(key)) touched.add(key)
+    }
+  }
+
+  for (const name of touched) {
+    const armBinding = (arm) => boundNode(arm.env.get(name), name, arm.tok)
+    let node = hasElse
+      ? armBinding(arms[arms.length - 1])
+      : boundNode(before.get(name), name, chain.branches[0].tok)
+    for (let k = arms.length - (hasElse ? 2 : 1); k >= 0; k -= 1) {
+      node = { type: 'ternary', test: arms[k].cond, yes: armBinding(arms[k]), no: node, tok: arms[k].tok }
+    }
+    env.set(name, exprBinding(node, before, locate(chain.branches[0].tok)))
+  }
+
+  // The chain's own value — only ever read by `x = if …`.
+  let value = null
+  const arm0 = arms[0]
+  if (hasElse ? arms.every((a) => a.value) : false) {
+    value = boundNode(arms[arms.length - 1].value, null, arm0.tok)
+    for (let k = arms.length - 2; k >= 0; k -= 1) {
+      value = { type: 'ternary', test: arms[k].cond, yes: boundNode(arms[k].value, null, arms[k].tok), no: value, tok: arms[k].tok }
+    }
+    value = exprBinding(value, before, locate(arm0.tok))
+  }
+  return { value, next: chain.next }
+}
+
+/** Consume every mutator token in a token span, so the closing pass knows the
+ *  walk accounted for it. */
+function consumeMutators(ctx, toks) {
+  for (let i = 1; i < toks.length; i += 1) {
+    const tok = toks[i]
+    if (tok.kind === 'punct' && MUTATORS.has(tok.value) && toks[i - 1].kind === 'ident') {
+      ctx.consumed.add(tok.index)
+    }
+  }
+}
+
+/** Every name a token span reassigns. */
+function mutatorTargets(toks) {
+  const out = new Set()
+  for (let i = 1; i < toks.length; i += 1) {
+    const tok = toks[i]
+    if (tok.kind === 'punct' && MUTATORS.has(tok.value) && toks[i - 1].kind === 'ident') {
+      out.add(toks[i - 1].value)
+    }
+  }
+  return out
+}
+
+/** The parameter names of `f(a, b) =>`, or null if the header is not that shape. */
+function functionParams(toks, arrow) {
+  if (toks.length < 3 || toks[0].kind !== 'ident' || !isPunct(toks[1], '(')) return null
+  const close = toks.findIndex((t) => isPunct(t, ')'))
+  if (close < 0 || close > arrow) return null
+  const params = []
+  for (let i = 2; i < close; i += 1) {
+    const t = toks[i]
+    if (isPunct(t, ',')) continue
+    if (t.kind !== 'ident') return null
+    if (TYPE_WORDS.has(t.value) && toks[i + 1] && toks[i + 1].kind === 'ident') continue
+    params.push(t.value)
+  }
+  return params
+}
+
+/**
+ * A statement list (a function body, or a block body) → the binding its LAST
+ * bare expression evaluates to, threading `env` as it goes.
+ *
+ * ⛔ IT THROWS. Unlike the program walk it has no notion of "a statement nothing
+ * reaches" — every statement in a body the outputs reached is on the path by
+ * construction, so the first thing it cannot fold refuses the body, and the
+ * caller decides whether that refuses the script or only a name.
+ */
+function foldStatements(stmts, ctx, env) {
+  let value = null
+  let i = 0
+  while (i < stmts.length) {
+    const st = stmts[i]
+    const toks = st.header
+    const first = toks[0]
+    if (!first) { i += 1; continue }
+
+    if (first.kind === 'ident' && STATE_KEYWORDS.has(first.value)) {
+      throw new PineRefusal('pine:state',
+        `${REFUSALS['pine:state']} — \`${first.value}\``, locate(first))
+    }
+    if (first.kind === 'ident' && TYPE_KEYWORDS.has(first.value)) {
+      throw new PineRefusal('pine:type', REFUSALS['pine:type'], locate(first))
+    }
+    if (first.kind === 'ident' && (first.value === 'for' || first.value === 'while' || first.value === 'switch')) {
+      throw new PineRefusal('pine:block',
+        `${REFUSALS['pine:block']} — \`${first.value}\``, locate(first))
+    }
+    if (first.kind === 'ident' && first.value === 'if' && findTop(toks, (t) => isPunct(t, '=')) < 0) {
+      const folded = foldIfChain(stmts, i, ctx, env)
+      consumeMutators(ctx, st.body)
+      for (let k = i + 1; k < folded.next; k += 1) consumeMutators(ctx, stmts[k].body)
+      value = folded.value || value
+      i = folded.next
+      continue
+    }
+    if (findTop(toks, (t) => isPunct(t, '=>')) >= 0) {
+      throw new PineRefusal('pine:function-def', REFUSALS['pine:function-def'], locate(first))
+    }
+
+    const mut = findTop(toks, (t) => t.kind === 'punct' && MUTATORS.has(t.value))
+    if (mut > 0) {
+      const nameTok = toks[mut - 1]
+      const op = toks[mut].value
+      const prior = env.get(nameTok.value)
+      if (!prior || prior.kind === 'opaque') {
+        throw new PineRefusal(prior ? prior.guard : 'pine:reassign',
+          prior ? prior.message : `${REFUSALS['pine:reassign']} — \`${nameTok.value}\``,
+          prior ? prior.at : locate(toks[mut]))
+      }
+      const rhs = parseWholeExpression(toks.slice(mut + 1))
+      // `x += e` is `x := x + e`, and the `x` on the right is the binding that
+      // was in scope a moment ago — which `boundNode` freezes.
+      const node = op === ':='
+        ? rhs
+        : {
+          type: 'binary',
+          op: op[0],
+          left: boundNode(prior, nameTok.value, nameTok),
+          right: rhs,
+          tok: toks[mut],
+        }
+      env.set(nameTok.value, exprBinding(node, new Map(env), locate(nameTok)))
+      ctx.consumed.add(toks[mut].index)
+      i += 1
+      continue
+    }
+
+    const eq = findTop(toks, (t) => isPunct(t, '='))
+    if (eq > 0 && boundName(toks, eq)) {
+      const nameTok = boundName(toks, eq)
+      const rhs = toks.slice(eq + 1)
+      if (rhs.length === 0) {
+        throw new PineRefusal('pine:statement', REFUSALS['pine:statement'], locate(first))
+      }
+      if (rhs[0].kind === 'ident' && rhs[0].value === 'if') {
+        const folded = foldIfChain(stmts, i, ctx, env)
+        consumeMutators(ctx, st.body)
+        for (let k = i + 1; k < folded.next; k += 1) consumeMutators(ctx, stmts[k].body)
+        if (!folded.value) {
+          throw new PineRefusal('pine:block',
+            `${REFUSALS['pine:block']} — \`${nameTok.value} = if …\` has a branch with no value`,
+            locate(rhs[0]))
+        }
+        env.set(nameTok.value, folded.value)
+        i = folded.next
+        continue
+      }
+      env.set(nameTok.value, exprBinding(parseWholeExpression(rhs), new Map(env), locate(nameTok)))
+      i += 1
+      continue
+    }
+
+    // A bare expression. In a function body the LAST one is the value; anywhere
+    // else it is a side effect (`label.new(…)`) that nothing reads.
+    value = exprBinding(parseWholeExpression(toks), new Map(env), locate(first))
+    i += 1
+  }
+  return value
 }
 
 /**
@@ -1357,16 +1873,13 @@ export function translatePine(source, opts = {}) {
   const hardRefusals = []
 
   // ⭐ EVERY REASSIGNMENT FIRST, over raw tokens, before a single statement is
-  // read. See `reassignedNames`.
+  // read. See `reassignedNames` — the walk folds what it can and this map is what
+  // the closing pass measures it against.
   const reassigned = reassignedNames(tokens)
-  for (const [name, tok] of reassigned) {
-    env.set(name, {
-      kind: 'opaque',
-      guard: 'pine:reassign',
-      message: `${REFUSALS['pine:reassign']} — \`${name}\``,
-      at: locate(tok),
-    })
-  }
+  const ctx = { consumed: new Set() }
+  /** name → the refusal the fold hit, so the closing pass can report the REAL
+   *  reason instead of the generic one. */
+  const unfoldable = new Map()
 
   /** ⛔ `at` IS A LOCATOR, NEVER A TOKEN THIS FUNCTION PICKED. When a binding
    *  fails to parse, the refusal that comes back ALREADY points at the offending
@@ -1386,8 +1899,24 @@ export function translatePine(source, opts = {}) {
     })
   }
 
-  for (const stmt of statementsOf(tokens, indents)) {
-    const toks = stmt.tokens
+  /** Force opacity even over an existing opaque — used only by the closing pass,
+   *  which is allowed to overrule anything the walk decided. */
+  const forceOpaque = (name, guard, at, extra) => {
+    env.set(name, {
+      kind: 'opaque',
+      guard,
+      isFunction: false,
+      message: `${REFUSALS[guard]}${extra ? ` — ${extra}` : ''}`,
+      at: at || null,
+    })
+  }
+
+  const stmts = blockStatements(tokens, indents, 0)
+  let si = 0
+  while (si < stmts.length) {
+    const stmt = stmts[si]
+    si += 1
+    const toks = stmt.header
     const first = toks[0]
 
     // `[a, b] = f()` — a tuple destructure.
@@ -1450,6 +1979,34 @@ export function translatePine(source, opts = {}) {
       notes.push(noteOf('pine:type', REFUSALS['pine:type'], first))
       continue
     }
+    // ⭐⭐ A TOP-LEVEL `if` IS FOLDED, NOT SKIPPED. `dir = 0` / `if up` /
+    // `dir := 1` / `else` / `dir := -1` is a ternary written across five lines,
+    // and it is how most real scripts spell a conditional value. What comes out
+    // is one binding per name the chain touches; `foldIfChain` refuses anything
+    // it cannot read, and the names it was about to rebind stay opaque.
+    if (word === 'if') {
+      const chain = ifBranches(stmts, si - 1)
+      const last = chain ? chain.next : si
+      try {
+        const folded = foldIfChain(stmts, si - 1, ctx, env)
+        for (let k = si - 1; k < folded.next; k += 1) consumeMutators(ctx, stmts[k].body)
+        si = folded.next
+      } catch (err) {
+        const r = fromError(err)
+        notes.push({ ...r, code: r.guard })
+        // ⛔ THE REASON IS REMEMBERED PER NAME. Without this the closing pass
+        // would relabel a genuine `pine:state` accumulator as "reassigned later",
+        // which is true and tells a member nothing about the bar-to-bar value
+        // that is actually the problem.
+        for (let k = si - 1; k < last; k += 1) {
+          for (const name of mutatorTargets(stmts[k].body)) {
+            if (!unfoldable.has(name)) unfoldable.set(name, r)
+          }
+        }
+        si = last
+      }
+      continue
+    }
     if (BLOCK_KEYWORDS.has(word)) {
       notes.push(noteOf('pine:block', REFUSALS['pine:block'], first))
       continue
@@ -1465,10 +2022,83 @@ export function translatePine(source, opts = {}) {
     const arrow = findTop(toks, (t) => isPunct(t, '=>'))
     const eq = findTop(toks, (t) => isPunct(t, '='))
     if (arrow >= 0) {
+      // ⭐⭐ A PURE FUNCTION IS A BINDING WITH ARGUMENTS, AND IT IS FOLDED ONCE
+      // HERE RATHER THAN AT EVERY CALL. The body — a single expression, or a run
+      // of local bindings and folded `if`s ending in one — becomes ONE Pine node
+      // whose free names are the parameters. `Resolver.inlineUserFunction` then
+      // binds the arguments and resolves it, which is the same substitution an
+      // ordinary `x = …` already gets.
+      //
+      // ⛔ THE BODY'S MUTATORS ARE CONSUMED EITHER WAY. They belong to the
+      // function's locals — Pine cannot assign to a global from inside a function
+      // — so leaving them unconsumed would make the closing pass refuse a
+      // PROGRAM name that merely shares a spelling with one of them. That is
+      // exactly what `src` does in the everget family.
       const nameTok = toks[0].kind === 'ident' ? toks[0] : null
-      markOpaque(nameTok && nameTok.value, 'pine:function-def', locate(toks[arrow]),
-        nameTok ? `\`${nameTok.value}\`` : null, true)
-      notes.push(noteOf('pine:function-def', REFUSALS['pine:function-def'], toks[arrow]))
+      const params = functionParams(toks, arrow)
+      consumeMutators(ctx, stmt.body)
+      try {
+        if (!nameTok || !params) {
+          throw new PineRefusal('pine:function-def', REFUSALS['pine:function-def'], locate(toks[arrow]))
+        }
+        const fnEnv = new Map(env)
+        params.forEach((p, k) => fnEnv.set(p, { kind: 'param', index: k, name: p }))
+        // ⭐ THE FUNCTION IS IN ITS OWN SCOPE, AND THAT IS SO RECURSION SAYS SO.
+        // Pine forbids a function calling itself; without this the body's `f(…)`
+        // would look like a table function nobody declared and report
+        // `pine:function` — "there is no `f`" — about a name the member is
+        // looking straight at. Bound, it reaches `MAX_CALL_DEPTH` and refuses at
+        // `pine:cycle`, which is the true sentence. The object is filled in after
+        // the fold, and the `new Map` copies the REFERENCE, so the body sees it.
+        const self = { kind: 'fn', params, value: null, at: locate(toks[arrow]) }
+        fnEnv.set(nameTok.value, self)
+        const value = arrow === toks.length - 1
+          ? foldStatements(stmt.sub, ctx, fnEnv)
+          : exprBinding(parseWholeExpression(toks.slice(arrow + 1)), fnEnv, locate(toks[arrow]))
+        if (!value) {
+          throw new PineRefusal('pine:function-def',
+            `${REFUSALS['pine:function-def']} — \`${nameTok.value}\` ends in no value this `
+            + 'engine can read', locate(toks[arrow]))
+        }
+        self.value = value
+        env.set(nameTok.value, self)
+      } catch (err) {
+        const r = fromError(err)
+        markOpaque(nameTok && nameTok.value, r.guard,
+          { line: r.line, column: r.column, index: r.index, token: r.token },
+          `${r.message.replace(/^[^—]*—\s*/, '')}${nameTok ? ` (reached through \`${nameTok.value}\`)` : ''}`,
+          true)
+        notes.push({ ...r, code: r.guard })
+      }
+      continue
+    }
+    // ── a top-level reassignment ──────────────────────────────────────────
+    const mutAt = findTop(toks, (t) => t.kind === 'punct' && MUTATORS.has(t.value))
+    if (mutAt > 0 && toks[mutAt - 1].kind === 'ident') {
+      const nameTok = toks[mutAt - 1]
+      const prior = env.get(nameTok.value)
+      try {
+        if (!prior || prior.kind !== 'expr') {
+          throw new PineRefusal(prior && prior.guard ? prior.guard : 'pine:reassign',
+            prior && prior.message ? prior.message
+              : `${REFUSALS['pine:reassign']} — \`${nameTok.value}\``,
+            prior && prior.at ? prior.at : locate(toks[mutAt]))
+        }
+        const rhs = parseWholeExpression(toks.slice(mutAt + 1))
+        const op = toks[mutAt].value
+        env.set(nameTok.value, exprBinding(op === ':=' ? rhs : {
+          type: 'binary', op: op[0], left: boundNode(prior, nameTok.value, nameTok), right: rhs, tok: toks[mutAt],
+        }, new Map(env), locate(nameTok)))
+        ctx.consumed.add(toks[mutAt].index)
+      } catch (err) {
+        const r = fromError(err)
+        // ⛔ CONSUMED ON PURPOSE. The refusal is recorded against the name with
+        // ITS OWN reason; leaving the token for the closing pass would overwrite
+        // that reason with the generic one.
+        ctx.consumed.add(toks[mutAt].index)
+        if (!unfoldable.has(nameTok.value)) unfoldable.set(nameTok.value, r)
+        notes.push({ ...r, code: r.guard })
+      }
       continue
     }
     if (eq > 0) {
@@ -1502,13 +2132,39 @@ export function translatePine(source, opts = {}) {
         continue
       }
       if (env.has(nameTok.value) && env.get(nameTok.value).kind === 'opaque') continue
+      // ⭐ `x = if cond` / … / `else` — an if EXPRESSION. Pine's `if` yields the
+      // last value of the branch it takes, which is a ternary spelled across
+      // lines, and folding it needs the same machinery a reassignment does.
+      if (rhs[0].kind === 'ident' && rhs[0].value === 'if') {
+        const chain = ifBranches(stmts, si - 1)
+        const last = chain ? chain.next : si
+        try {
+          const folded = foldIfChain(stmts, si - 1, ctx, env)
+          for (let k = si - 1; k < folded.next; k += 1) consumeMutators(ctx, stmts[k].body)
+          if (!folded.value) {
+            throw new PineRefusal('pine:block',
+              `${REFUSALS['pine:block']} — \`${nameTok.value} = if …\` has a branch with no value`,
+              locate(rhs[0]))
+          }
+          env.set(nameTok.value, folded.value)
+          si = folded.next
+        } catch (err) {
+          const r = fromError(err)
+          markOpaque(nameTok.value, r.guard,
+            { line: r.line, column: r.column, index: r.index, token: r.token },
+            `\`${nameTok.value}\``)
+          notes.push({ ...r, code: r.guard })
+          si = last
+        }
+        continue
+      }
       if (rhs[0].kind === 'ident' && BLOCK_KEYWORDS.has(rhs[0].value)) {
         markOpaque(nameTok.value, 'pine:block', locate(rhs[0]), `\`${nameTok.value}\``)
         notes.push(noteOf('pine:block', REFUSALS['pine:block'], rhs[0]))
         continue
       }
       try {
-        env.set(nameTok.value, { kind: 'expr', node: parseWholeExpression(rhs), at: locate(nameTok) })
+        env.set(nameTok.value, exprBinding(parseWholeExpression(rhs), new Map(env), locate(nameTok)))
       } catch (err) {
         const r = fromError(err)
         // ⛔ THE REFUSAL IS STORED WHOLE — its guard, ITS OWN MESSAGE and ITS OWN
@@ -1551,10 +2207,46 @@ export function translatePine(source, opts = {}) {
     notes.push(noteOf('pine:statement', REFUSALS['pine:statement'], first))
   }
 
+  // ── ⭐⭐ THE CLOSING PASS: every mutation the walk did NOT account for ─────
+  //
+  // ⛔ THIS IS THE SAFETY NET AND IT IS DERIVED, NOT RETYPED. `reassigned` came
+  // from the RAW TOKEN STREAM before a single statement was parsed, so it sees a
+  // `:=` inside a `for`, a `switch`, a user-defined-type method, or any shape
+  // this walker never learned. If the walk folded a mutation it recorded the
+  // token; anything left over means the name changes somewhere the fold could not
+  // read, and the binding the walk DID produce would be a lie about that name.
+  // So it is overruled here, by force — after the walk, before any resolution.
+  //
+  // ⚠️ IT MUST OVERWRITE. Every other marker in this function refuses to clobber
+  // an existing binding, which is right for them and wrong for this: the whole
+  // job is to replace a binding the walk was too optimistic about.
+  for (const [name, toks] of reassigned) {
+    const missed = toks.find((t) => !ctx.consumed.has(t.index))
+    const why = unfoldable.get(name)
+    if (missed) {
+      forceOpaque(name, 'pine:reassign', locate(missed), `\`${name}\``)
+    } else if (why && env.get(name) && env.get(name).kind !== 'opaque') {
+      forceOpaque(name, why.guard,
+        { line: why.line, column: why.column, index: why.index, token: why.token }, `\`${name}\``)
+    }
+  }
+  for (const [name, why] of unfoldable) {
+    const bound = env.get(name)
+    if (!bound || bound.kind === 'opaque') continue
+    forceOpaque(name, why.guard,
+      { line: why.line, column: why.column, index: why.index, token: why.token }, `\`${name}\``)
+  }
+
+  /** ⭐ THE LAST WORD ON EVERY NAME, captured once the walk is over. It answers
+   *  exactly one question — `Resolver.guardOffsetOfMutable`'s — and it must be
+   *  taken here rather than derived during resolution, because "is this binding
+   *  the final one" is a fact about the PROGRAM and not about the read. */
+  const finalBindings = new Map(env)
+
   // ── resolve each output, independently ───────────────────────────────────
   const resolved = []
   for (const out of outputs) {
-    const resolver = new Resolver(env, table, declaredTypes)
+    const resolver = new Resolver(env, table, declaredTypes, { finalBindings, mutated: reassigned })
     let row
     try {
       const cur = new Cursor(out.toks.slice(2))
