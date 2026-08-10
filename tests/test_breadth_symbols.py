@@ -49,9 +49,10 @@ def _fake_history(pairs):
 
 
 def test_close_to_close_candles():
-    from api.services import breadth_monitor
+    from api.services import breadth_monitor, breadth_live
     pairs = [("2026-08-03", 40), ("2026-08-04", 45), ("2026-08-05", 42)]
-    with patch.object(breadth_monitor, "get_history", return_value=_fake_history(pairs)):
+    with patch.object(breadth_monitor, "get_history", return_value=_fake_history(pairs)), \
+         patch.object(breadth_live, "enabled", return_value=False):
         out = bs.build_breadth_bars("UCTA50", "D", 400)["bars"]
     assert len(out) == 3
     assert out[0] == {"t": "2026-08-03", "o": 40, "h": 40, "l": 40, "c": 40, "v": 0}  # first day flat
@@ -66,12 +67,28 @@ def test_weekly_resample_keys_to_friday_and_rolls_ohlc():
     # Mon 8/3 .. Fri 8/7 then Mon 8/10
     pairs = [("2026-08-03", 40), ("2026-08-04", 50), ("2026-08-05", 48),
              ("2026-08-06", 52), ("2026-08-07", 47), ("2026-08-10", 55)]
-    with patch.object(breadth_monitor, "get_history", return_value=_fake_history(pairs)):
+    from api.services import breadth_live
+    with patch.object(breadth_monitor, "get_history", return_value=_fake_history(pairs)), \
+         patch.object(breadth_live, "enabled", return_value=False):
         wk = bs.build_breadth_bars("UCTA50", "W", 20)["bars"]
     assert wk[0]["t"] == "2026-08-07"     # week 1 keyed to its Friday
     assert wk[0]["o"] == 40 and wk[0]["c"] == 47
     assert wk[0]["h"] == 52 and wk[0]["l"] == 40
     assert wk[1]["t"] == "2026-08-14"     # Mon 8/10's week -> Friday 8/14
+
+
+def test_developing_today_candle_appended_from_live():
+    from api.services import breadth_monitor, breadth_live
+    hist = _fake_history([("2020-03-09", 40), ("2020-03-10", 45)])  # last EOD in the past
+    with patch.object(breadth_monitor, "get_history", return_value=hist), \
+         patch.object(breadth_live, "enabled", return_value=True), \
+         patch.object(breadth_live, "compute_live", return_value={"pct_above_50sma": 48.0}):
+        out = bs.build_breadth_bars("UCTA50", "D", 400)["bars"]
+    assert len(out) == 3                                  # 2 stored + today's developing candle
+    last = out[-1]
+    assert last["t"] > "2020-03-10"                       # a NEW (today) session
+    assert last["o"] == 45 and last["c"] == 48            # body = last close -> live value
+    assert last["h"] == 48 and last["l"] == 45
 
 
 def test_unknown_symbol_returns_empty():

@@ -1,6 +1,7 @@
 // app/src/components/CompanyLogo.jsx
 import { useEffect, useRef, useState } from 'react'
 import styles from './CompanyLogo.module.css'
+import brandMarkAsset from './intro/assets/compass-mark.png'
 
 const LOGO_ASSET_VERSION = 2   // bump to force browsers past the 7-day immutable cache (e.g. after a resolution upgrade)
 // Retry backoff (ms). Fast first (a cold logo resolves server-side in ~1-2s), then
@@ -17,7 +18,7 @@ function bgFor(sym) {
   return `hsl(${h} 32% 26%)`
 }
 
-export default function CompanyLogo({ sym, size = 38, round = false, tile = false, name = null, alt = null }) {
+export default function CompanyLogo({ sym, size = 38, round = false, tile = false, name = null, alt = null, brandMark = false }) {
   const s = (sym || '').toUpperCase()
   const [retry, setRetry] = useState(0)
   const [loaded, setLoaded] = useState(false)   // a REAL logo (naturalWidth > 2) has loaded
@@ -37,6 +38,18 @@ export default function CompanyLogo({ sym, size = 38, round = false, tile = fals
   const px = `${size}px`
   const rc = round ? ` ${styles.round}` : ''
   const tc = tile ? ` ${styles.tile}` : ''   // uniform rounded-square tile (contain + hairline)
+
+  // UCT-branded pseudo-tickers (breadth symbols, theme indexes): render the compass
+  // brand mark instead of a company logo / monogram — they have no company logo. (After
+  // the hooks above so hook order is unconditional — rules-of-hooks.)
+  if (brandMark) {
+    return (
+      <span className={`${styles.wrap}${rc}${tc}`} style={{ width: px, height: px, background: '#12141a' }} aria-label={`${s || 'UCT'} logo`}>
+        <img className={styles.imgFill} style={{ opacity: 1, objectFit: 'contain', padding: size * 0.14 }}
+             src={brandMarkAsset} alt="UCT" loading="lazy" />
+      </span>
+    )
+  }
 
   const scheduleRetry = (curRetry) => {
     if (curRetry >= RETRY_BACKOFF.length) return   // give up retrying; the monogram (always shown) remains

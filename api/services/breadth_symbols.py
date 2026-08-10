@@ -208,6 +208,27 @@ def _et_today() -> Optional[str]:
         return None
 
 
+def _live_map() -> dict:
+    """The current LIVE breadth snapshot (metric_key -> value) computed against the
+    latest market prices, or {} when live breadth is disabled/unavailable. Cached by
+    breadth_live.compute_live itself, so calling it per request is cheap."""
+    try:
+        from api.services import breadth_live
+        if breadth_live.enabled():
+            return breadth_live.compute_live() or {}
+    except Exception:
+        pass
+    return {}
+
+
+def _finite(v) -> Optional[float]:
+    try:
+        f = float(v)
+        return f if math.isfinite(f) else None
+    except (TypeError, ValueError):
+        return None
+
+
 def latest_quotes(syms: list[str]) -> dict:
     """{symbol: {price, change, change_pct, volume, breadth}} for the breadth symbols
     in `syms` — the "quote" the watchlist columns show. Uses the LIVE intraday value
@@ -221,13 +242,7 @@ def latest_quotes(syms: list[str]) -> dict:
         hist = breadth_monitor.get_history(4)  # newest-first
     except Exception:
         hist = []
-    live_map = {}
-    try:
-        from api.services import breadth_live
-        if breadth_live.enabled():
-            live_map = breadth_live.compute_live() or {}
-    except Exception:
-        live_map = {}
+    live_map = _live_map()
     today = _et_today()
 
     out = {}
@@ -235,22 +250,12 @@ def latest_quotes(syms: list[str]) -> dict:
         metric = _METRIC_OF[s]
         dvals = []  # (date, value) newest-first, finite only
         for row in hist:
-            d, v = row.get("date"), row.get(metric)
-            try:
-                fv = float(v)
-            except (TypeError, ValueError):
-                continue
-            if math.isfinite(fv):
+            d, fv = row.get("date"), _finite(row.get(metric))
+            if fv is not None:
                 dvals.append((d, fv))
         if not dvals:
             continue
-        lv = live_map.get(metric)
-        try:
-            lv = float(lv)
-            if not math.isfinite(lv):
-                lv = None
-        except (TypeError, ValueError):
-            lv = None
+        lv = _finite(live_map.get(metric))
         if lv is not None:
             # live value = today; compare against the newest stored day that ISN'T today
             price = lv
@@ -319,6 +324,23 @@ def build_breadth_bars(sym: str, tf: str = "D", bars: int = 400) -> dict:
         daily.append({"t": d, "o": round(o, 4), "h": round(max(o, v), 4),
                       "l": round(min(o, v), 4), "c": round(v, 4), "v": 0})
         prev = v
+
+    # DEVELOPING today candle from the LIVE breadth snapshot. The stored history is
+    # EOD-only, so without this the last candle is the prior session (the "chart is
+    # stuck on Friday" report). Append today's candle (body = prior close → live value)
+    # when today is a new session, or refresh today's stored candle's close to live.
+    today = _et_today()
+    live_val = _finite(_live_map().get(metric))
+    if live_val is not None and today and daily:
+        last = daily[-1]
+        if last["t"] < today:
+            pc = last["c"]
+            daily.append({"t": today, "o": round(pc, 4), "h": round(max(pc, live_val), 4),
+                          "l": round(min(pc, live_val), 4), "c": round(live_val, 4), "v": 0})
+        elif last["t"] == today:
+            last["c"] = round(live_val, 4)
+            last["h"] = round(max(last["h"], live_val), 4)
+            last["l"] = round(min(last["l"], live_val), 4)
 
     out = _resample(daily, tf)
     if bars and len(out) > bars:
