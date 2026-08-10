@@ -3990,7 +3990,13 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
     exp = alert.get("exp")
     dte = alert.get("dte")
     direction = alert.get("_direction") or alert.get("direction")
-    color = 0x3CB868 if cp == "C" else (0xE74C3C if cp == "P" else 0xC9A84C)
+    # Color reflects DIRECTION, not the instrument: a bullish put is PUT WRITING
+    # (sold puts = bullish) and must read green, not red just because it's a put.
+    # Bull→green, Bear→red, unclear/neutral (Hedge Block / Not Clean)→gold.
+    _dir_norm = (direction or "").strip().lower()
+    _is_bull = _dir_norm.startswith("bull")
+    _is_bear = _dir_norm.startswith("bear")
+    color = 0x3CB868 if _is_bull else (0xE74C3C if _is_bear else 0xC9A84C)
     strike_str = f"${strike:g}" if isinstance(strike, (int, float)) else "?"
     cp_label = "CALL" if cp == "C" else ("PUT" if cp == "P" else cp)
     dte_str = f"{dte}d" if dte is not None else "?"
@@ -4088,6 +4094,14 @@ def _build_massive_embed(alert: dict, *, mode: str = "single") -> dict:
         if vol_group:
             lines.append("📊 " + "\n".join(vol_group))
         default_name = alert.get("alertName") or "UCT Massive"
+
+    # Premium-collecting side, surfaced explicitly so the card isn't confusing:
+    # a bullish PUT is put writing (sold puts); a bearish CALL is call writing
+    # (sold calls). Leads the badge line.
+    if cp == "P" and _is_bull:
+        badges.insert(0, "✍️ **PUT WRITING**")
+    elif cp == "C" and _is_bear:
+        badges.insert(0, "✍️ **CALL WRITING**")
 
     # Conviction grades the PATTERN for accumulation (accumulation_grade), the
     # single print otherwise — a sliced institutional build has moderate
