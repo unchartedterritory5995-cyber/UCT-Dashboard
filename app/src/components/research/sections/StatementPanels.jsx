@@ -60,8 +60,28 @@ export const PANEL_SPECS = [
     ['total_assets', 'Total assets', INK.assets], ['total_liabilities', 'Total liabilities', INK.liab]] },
 ]
 
+
+/**
+ * The same period one year earlier, aligned to each point.
+ *
+ * Quarterly statements are seasonal — a retailer's Q4 dwarfs its Q1 every year,
+ * so consecutive bars mostly measure the calendar. Against the year-ago bar the
+ * question becomes "is this quarter better than the comparable one", which is
+ * the one worth asking.
+ *
+ * Offset by FOUR for quarters and ONE for years. The first four quarters have
+ * no comparison and get null — a gap, never a zero, since a zero bar reads as
+ * a business that earned nothing.
+ */
+export function yoyShift(values, period) {
+  const back = period === 'annual' ? 1 : 4
+  const v = values || []
+  return v.map((_, i) => (i >= back ? v[i - back] : null))
+}
+
 export default function StatementPanels({ sym }) {
   const [period, setPeriod] = useState('quarter')
+  const [yoy, setYoy] = useState(true)
   const { data } = useSWR(
     sym ? `/api/research/financial-history/${sym}?period=${period}` : null,
     fetcher,
@@ -89,6 +109,10 @@ export default function StatementPanels({ sym }) {
           {periods.length} {period === 'annual' ? 'years' : 'quarters'} ·{' '}
           {periods[0]} – {periods[periods.length - 1]}
         </span>
+        <label className={styles.yoy}>
+          <input type="checkbox" checked={yoy} onChange={e => setYoy(e.target.checked)} />
+          Year-ago
+        </label>
         <div className={styles.toggle} role="group" aria-label="Reporting period">
           <button type="button" aria-pressed={period === 'quarter'}
                   className={period === 'quarter' ? styles.on : styles.off}
@@ -109,9 +133,18 @@ export default function StatementPanels({ sym }) {
               height={168}
               valueFormatter={spec.fmt}
               ariaLabel={`${spec.title} by period`}
-              series={spec.series.map(([field, name, color]) => ({
-                name, color, values: series[field] || [],
-              }))}
+              series={[
+                // Ghost first so the current bar draws IN FRONT of it — the
+                // comparison is context, not the subject.
+                ...(yoy ? spec.series.map(([field, name]) => ({
+                  name: `${name} (yr ago)`,
+                  color: 'rgba(255,255,255,.20)',
+                  values: yoyShift(series[field] || [], period),
+                })) : []),
+                ...spec.series.map(([field, name, color]) => ({
+                  name, color, values: series[field] || [],
+                })),
+              ]}
             />
           </section>
         ))}

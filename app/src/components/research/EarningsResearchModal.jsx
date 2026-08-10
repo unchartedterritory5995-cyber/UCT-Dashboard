@@ -31,6 +31,7 @@ import FilingsTab from '../../pages/research/tabs/FilingsTab'
 import QuoteStrip from './QuoteStrip'
 import FinancialsSection from './sections/FinancialsSection'
 import AnalystsSection from './sections/AnalystsSection'
+import NewsSection from './sections/NewsSection'
 import styles from './EarningsResearchModal.module.css'
 
 // Exported so a rail can assert every SECTIONS id has a panel behind it. A tab
@@ -45,6 +46,7 @@ export const PANELS = {
   // separate rail entries asking one question.
   financials: FinancialsSection,
   analysts: AnalystsSection,
+  news: NewsSection,
   filings: FilingsTab,
 }
 
