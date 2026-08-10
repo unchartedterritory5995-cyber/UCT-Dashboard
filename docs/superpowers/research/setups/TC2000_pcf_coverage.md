@@ -25,25 +25,26 @@ of one** — and the honest figure, once the vocabulary is the yardstick, is und
 | **Stateful** (`CountTrue`,`SinceTrue`,`TrueInRow`) | **0/3** | ⭐ see below |
 | Trig / hyperbolic | 0/5 | 23 functions; no trading use found |
 
-## 🔴 The oscillators are the scandal, and they are nearly free
+## The oscillators — 11 of 16 still refuse, and only three were ever cheap
 
-**13 of 16 fail — and the engine already computes most of them.** `RSI14 < 30` refuses
-`pcf:name` while the manifest has declared `rsi` all along. So does `cci`, `macd`,
-`stoch`, `plusDI`, `minusDI`, `atr`. ⛔ **This is not an engine gap, it is a missing
-row in a spelling map** — the same class as `ta.atr`'s argument order, which took one
-line and made a published Pine script translate.
+⚰️ **THIS SECTION FIRST SAID "13 of 16 fail and the engine already computes most of
+them", AND THAT WAS WRONG.** Only three were missing spellings for maths the engine
+had: `CCI`, `DIPLUS`, `DIMINUS` — all three mapped, which is the whole of the 35→37
+move. The full correction is below under ⚰️; the table that follows is the checked
+version, kept because the wrong claim is exactly the kind a reader would otherwise
+inherit from the heading.
 
 Refusing by name (`pcf:name`) means the door is honest; it just has fewer keys than
 the lock it was built for.
 
 | Refuses today | Engine has it? |
 |---|---|
-| `RSI14`, `RSI(14,1,0)` | ✅ `rsi` |
-| `CCI20` | ✅ `cci` |
+| `RSI14`, `RSI(14,1,0)` | ⛔ NO — Worden says its RSI is **not Wilder's**; ours is. `WRSI` is the match, and it already worked |
+| `CCI20` | ✅ `cci` — **mapped now** |
 | `ADX14.14` | ⚠️ `plusDI`/`minusDI` ship; ADX itself is not declared |
-| `DIPLUS14`, `DIMINUS14` | ✅ `plusDI`, `minusDI` |
+| `DIPLUS14`, `DIMINUS14` | ✅ `plusDI`, `minusDI` — **mapped now** |
 | `WSTOC14.3.0` | ⚠️ `stoch` ships; the Worden variant is a different formula |
-| `STOC14.3` | ✅ `stoch` — fails on `pcf:parameter`, a shape bug, not a name |
+| `STOC14.3` | ⚠️ `stoch` ships but takes NO smoothing argument, so a smoothing of 3 refuses `pcf:parameter`. ⛔ NOT a shape bug — an honest refusal, and I first filed it as a bug |
 | `AROONUP25`, `AROONDOWN25` | ❌ not declared |
 | `BOP20`, `MS20`, `OBV20`, `TSV20` | ❌ Worden-proprietary; MS and TSV have no public formula |
 
