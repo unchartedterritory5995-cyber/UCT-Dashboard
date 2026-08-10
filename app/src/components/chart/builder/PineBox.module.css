@@ -1,0 +1,191 @@
+/* PineBox — the paste-Pine door. Its own file rather than a block inside
+   BuilderSheet.module.css: that sheet is shared with the criteria picker, which
+   is under concurrent edit, and a CSS module is the cheapest thing in this repo
+   to keep disjoint. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: 8px;
+  background: var(--bg-raised, rgba(255, 255, 255, 0.02));
+}
+
+.head {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.hint { margin: 0; font-size: 12px; line-height: 1.5; color: var(--text-muted); }
+.hint code {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  color: var(--text-bright);
+}
+
+.area {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-bright);
+  background: var(--bg-sunken, rgba(0, 0, 0, 0.25));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.1));
+  border-radius: 6px;
+  resize: vertical;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+}
+.area:focus { outline: none; border-color: var(--border-accent); }
+.area::placeholder { color: var(--text-muted); opacity: 0.7; }
+
+.report { display: flex; flex-direction: column; gap: 8px; }
+
+.meta { margin: 0; font-size: 11px; color: var(--text-muted); }
+
+.outputs {
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.legend {
+  padding: 0 4px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.outputRow {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  align-items: baseline;
+  gap: 4px 8px;
+  padding: 6px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.outputRow:hover { background: rgba(255, 255, 255, 0.03); }
+.outputRow input { min-width: 16px; min-height: 16px; cursor: pointer; }
+
+.outKind {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.outTitle { font-size: 12px; color: var(--text-bright); }
+
+.outFormula {
+  grid-column: 1 / -1;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  color: var(--gold, #c9a84c);
+  overflow-wrap: anywhere;
+}
+
+.outReadback {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.outBlocked {
+  grid-column: 1 / -1;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-danger);
+  overflow-wrap: anywhere;
+}
+
+.refusal {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px;
+  border-left: 2px solid var(--color-danger);
+  background: rgba(220, 60, 60, 0.06);
+  border-radius: 0 5px 5px 0;
+}
+
+.refusalHead { display: flex; align-items: center; gap: 6px; }
+
+.refusalWhere {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-danger);
+}
+
+.refusalText { font-size: 12px; line-height: 1.5; color: var(--text-bright); overflow-wrap: anywhere; }
+
+.excerpt {
+  margin: 2px 0 0;
+  padding: 6px 8px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--text-muted);
+  background: var(--bg-sunken, rgba(0, 0, 0, 0.25));
+  border-radius: 4px;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.folded { margin: 0; font-size: 11px; line-height: 1.5; color: var(--text-muted); }
+
+.notesWrap { display: flex; flex-direction: column; gap: 6px; }
+
+.notesToggle {
+  align-self: flex-start;
+  padding: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-bottom: 1px dotted currentColor;
+  cursor: pointer;
+}
+.notesToggle:hover { color: var(--text-bright); }
+
+.notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+
+.note {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.noteWhere { flex: 0 0 56px; font-family: var(--font-mono, ui-monospace, monospace); }
+
+.useBtn {
+  align-self: flex-start;
+  min-height: var(--tap-min, 44px);
+  padding: 8px 16px;
+  font-size: 13px;
+  color: var(--text-bright);
+  background: transparent;
+  border: 1px solid var(--gold, #c9a84c);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.useBtn:hover:not(:disabled) { background: rgba(201, 168, 76, 0.12); }
+.useBtn:disabled { opacity: 0.45; cursor: not-allowed; }
