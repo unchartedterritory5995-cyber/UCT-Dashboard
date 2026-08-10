@@ -315,6 +315,7 @@ async def _run_websocket():
         _logger.warning("[stream] FINNHUB_API_KEY not set — WebSocket disabled")
         return
 
+
     # Force a reconnect if the socket goes totally silent this long while we have
     # active subscriptions (dead-but-open feed: TCP alive, not pushing). A healthy
     # Finnhub connection always emits trades or its own app-level pings well within it.
@@ -483,6 +484,22 @@ def _process_finnhub_trade(trade):
 def start_stream():
     """Start the WebSocket stream in a background thread."""
     global _ws_loop
+
+    # 🔴 A LOCAL RUN MUST NOT TAKE PRODUCTION'S ONE CONNECTION SLOT. On
+    # 2026-08-10 six forgotten dev servers on the owner's PC held this exact
+    # socket with the production key; prod connected, was kicked ~1 s later,
+    # and looped into a circuit breaker for hours while live charts sat dead.
+    # See api/services/vendor_socket_guard.py for why this is structural.
+    #
+    # ⚠️ THE GATE IS HERE, AT THE STARTUP ENTRY POINT, NOT INSIDE THE RECONNECT
+    # LOOP. Two reasons, one of which the test suite told me: the decision
+    # "should this PROCESS stream at all" is answered once at boot, not
+    # re-litigated on every reconnect — and putting it in `_run_websocket`
+    # short-circuits the connect/backoff/circuit-breaker tests that drive that
+    # coroutine directly, which is a real signal that it was the wrong layer.
+    from api.services import vendor_socket_guard
+    if vendor_socket_guard.refuse_if_local("finnhub"):
+        return
 
     def _thread_target():
         global _ws_loop
