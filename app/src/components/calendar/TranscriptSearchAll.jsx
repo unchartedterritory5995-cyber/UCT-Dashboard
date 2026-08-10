@@ -9,6 +9,7 @@
 // nothing else, so the server cannot inject markup into the page even if the
 // transcript text contained some.
 import { useCallback, useEffect, useState } from 'react'
+import { SeriesChart } from '../research-kit'
 import styles from './TranscriptSearchAll.module.css'
 
 const MIN_LEN = 2
@@ -33,17 +34,25 @@ export function parseSnippet(snippet) {
 export default function TranscriptSearchAll({ onOpenSymbol = null }) {
   const [q, setQ] = useState('')
   const [res, setRes] = useState(null)
+  const [trend, setTrend] = useState(null)
   const [busy, setBusy] = useState(false)
 
   const run = useCallback(async (term) => {
     if (!term || term.trim().length < MIN_LEN) { setRes(null); return }
     setBusy(true)
     try {
-      const r = await fetch(
-        `/api/earnings/transcript-search?q=${encodeURIComponent(term)}&limit=40`)
+      const enc = encodeURIComponent(term)
+      // Fired together: the trend is the same question over time, and running
+      // it after the search would make the panel arrive in two visible steps.
+      const [r, t] = await Promise.all([
+        fetch(`/api/earnings/transcript-search?q=${enc}&limit=40`),
+        fetch(`/api/earnings/transcript-trend?q=${enc}&months=12`),
+      ])
       setRes(r.ok ? await r.json() : { hits: [], total: 0, error: 'search failed' })
+      setTrend(t.ok ? await t.json() : null)
     } catch {
       setRes({ hits: [], total: 0, error: 'search failed' })
+      setTrend(null)
     } finally {
       setBusy(false)
     }
@@ -76,6 +85,20 @@ export default function TranscriptSearchAll({ onOpenSymbol = null }) {
       />
 
       {busy && <p className={styles.note}>Searching…</p>}
+
+      {/* Share of calls, not a raw count: calls cluster in earnings season, so
+          a count peaks every quarter whatever the theme is doing. */}
+      {!busy && (trend?.months || []).length > 1 && (
+        <SeriesChart
+          periods={trend.months.map(m => m.month)}
+          mode="line"
+          label={`Share of calls mentioning “${trend.query}”`}
+          valueFormatter={(v) => (v == null ? '—' : `${v}%`)}
+          ariaLabel="Percent of indexed earnings calls mentioning this term, by month"
+          series={[{ name: '% of calls', color: 'var(--ut-gold, #c9a84c)',
+                     values: trend.months.map(m => m.pct) }]}
+        />
+      )}
 
       {res?.error && <p className={styles.note}>{res.error}</p>}
 

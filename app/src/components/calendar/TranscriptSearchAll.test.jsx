@@ -36,6 +36,9 @@ describe('TranscriptSearchAll', () => {
   afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks() })
 
   const respond = (body) => {
+    // Both the search and the trend call resolve from this stub; the trend
+    // simply finds no `months` and renders nothing, which is the correct
+    // behaviour for a term with no history.
     global.fetch = vi.fn(() => Promise.resolve({ ok: true, json: async () => body }))
   }
 
@@ -48,7 +51,15 @@ describe('TranscriptSearchAll', () => {
     fireEvent.change(input, { target: { value: 'tar' } })
     expect(global.fetch).not.toHaveBeenCalled()
     await act(async () => { await vi.advanceTimersByTimeAsync(350) })
-    expect(global.fetch).toHaveBeenCalledTimes(1)
+    // One debounce cycle now issues TWO requests — the search and its trend,
+    // fired together on purpose. Count the cycles, not the calls: three
+    // keystrokes must still produce exactly one search.
+    const searches = global.fetch.mock.calls
+      .filter(([u]) => String(u).includes('transcript-search'))
+    const trends = global.fetch.mock.calls
+      .filter(([u]) => String(u).includes('transcript-trend'))
+    expect(searches).toHaveLength(1)
+    expect(trends).toHaveLength(1)
   })
 
   it('renders a hit with its company, quarter and highlighted snippet', async () => {
