@@ -2353,34 +2353,80 @@ function SearchModal({onClose, mktcapData = {}}){
 
 // ── Records pane (per-ticker biggest-ever dark-pool prints) ───────────────────
 // Reads /api/darkpool/records (all-time biggest print per ticker, tracked by the
-// records engine). Browse/sort/search the whole book of ~5k tickers.
-function RecordsPane(){
+// records engine). Browse/sort/search + filter by market-cap band. Market caps
+// come from the shared mktcapData store (flow-DB-backed /api/schwab/mktcap-batch,
+// the same source the other panels use); we fetch caps for the loaded records so
+// the cap bands classify end-to-end.
+const _RECORDS_LIMIT = 750;   // leaderboard depth we cap-classify + browse
+const _CAP_BANDS = [
+  {id:"All",   label:"All",       color:C.amber},
+  {id:"Mega",  label:"Mega ≥$200B",color:C.pink},
+  {id:"Large", label:"Large ≥$10B",color:C.purple},
+  {id:"Mid",   label:"Mid ≥$2B",   color:C.amber},
+  {id:"Small", label:"Small <$2B", color:C.red},
+  {id:"ETF",   label:"ETF / Index",color:C.blue},
+];
+function capBandOf(t, mc, etfSet){
+  if(etfSet.has(t)) return "ETF";
+  if(!mc || mc<=0) return null;          // cap unknown — only under "All"
+  if(mc>=200e9) return "Mega";
+  if(mc>=10e9)  return "Large";
+  if(mc>=2e9)   return "Mid";
+  return "Small";
+}
+function RecordsPane({mktcapData={}, fetchMktCap}){
   const [rows,setRows]=useState(null);
   const [err,setErr]=useState(null);
   const [q,setQ]=useState("");
   const [sortKey,setSortKey]=useState("notional");
   const [sortDir,setSortDir]=useState("desc");
   const [limit,setLimit]=useState(100);
+  const [cap,setCap]=useState("All");
 
   useEffect(()=>{
     let alive=true;
-    fetch("/api/darkpool/records?limit=2000&sort=notional")
+    fetch(`/api/darkpool/records?limit=${_RECORDS_LIMIT}&sort=notional`)
       .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
       .then(d=>{ if(alive) setRows(d.records||[]); })
       .catch(e=>{ if(alive) setErr(e.message); });
     return ()=>{ alive=false; };
   },[]);
 
+  // Pull market caps for the loaded record tickers into the shared store
+  // (fetchMktCap dedups against what the page already fetched for aggregated data).
+  useEffect(()=>{
+    if(!rows || !fetchMktCap) return;
+    const want=rows.map(r=>r.ticker).filter(Boolean);
+    if(want.length) fetchMktCap(want);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[rows]);
+
+  // Union of every hardcoded ETF/index list (+ broad-market/factor funds) — the
+  // authoritative-enough client-side "is this a fund" signal (an ETF's reported
+  // market cap is its AUM, so it would otherwise mis-band as Mega/Large).
+  const etfSet=useMemo(()=>new Set([
+    ...INDEXES,...SECTOR_ETFS,...BOND_ETFS,...INTL_EM_ETFS,...COMMODITY_ETFS,...BROAD_ETFS
+  ]),[]);
+
   function toggleSort(key){
     if(sortKey===key) setSortDir(d=>d==="desc"?"asc":"desc");
     else { setSortKey(key); setSortDir(key==="ticker"?"asc":"desc"); }
   }
 
+  // Band counts (over the whole loaded set, ignoring search) for the pill labels.
+  const bandCounts=useMemo(()=>{
+    const c={All:0,Mega:0,Large:0,Mid:0,Small:0,ETF:0};
+    if(rows) for(const r of rows){ c.All++; const b=capBandOf(r.ticker,mktcapData[r.ticker],etfSet); if(b) c[b]++; }
+    return c;
+  },[rows,mktcapData,etfSet]);
+
   const view=useMemo(()=>{
     if(!rows) return [];
     const needle=q.trim().toUpperCase();
     let items=needle?rows.filter(r=>(r.ticker||"").includes(needle)):rows;
+    if(cap!=="All") items=items.filter(r=>capBandOf(r.ticker,mktcapData[r.ticker],etfSet)===cap);
     const acc={ notional:x=>x.notional||0, price:x=>x.price||0, ticker:x=>x.ticker||"",
+      mktcap:x=>mktcapData[x.ticker]||0,
       date:x=>{ const p=(x.date||"").split("/"); return p.length===3?`${p[2]}${p[0]}${p[1]}`:""; } };
     const fn=acc[sortKey]||(x=>x[sortKey]);
     items=[...items].sort((a,b)=>{
@@ -2389,7 +2435,7 @@ function RecordsPane(){
       return sortDir==="asc"?va-vb:vb-va;
     });
     return items;
-  },[rows,q,sortKey,sortDir]);
+  },[rows,q,cap,sortKey,sortDir,mktcapData,etfSet]);
 
   const shown=view.slice(0,limit);
   const maxN=Math.max(1,...shown.map(r=>r.notional||0));
@@ -2412,15 +2458,34 @@ function RecordsPane(){
       <div style={{marginBottom:12}}>
         <div style={{fontSize:14,fontWeight:700,color:C.amber,marginBottom:2}}>All-Time Dark Pool Records</div>
         <div style={{fontSize:12,color:C.tx2}}>
-          The single biggest dark-pool print on record for each ticker · <span style={{color:C.cyan,fontWeight:700}}>{rows.length.toLocaleString()}</span> tracked
+          The single biggest dark-pool print on record for each ticker · top <span style={{color:C.cyan,fontWeight:700}}>{rows.length.toLocaleString()}</span> by size
         </div>
       </div>
 
-      <input value={q} onChange={e=>{setQ(e.target.value);setLimit(100);}}
-        placeholder="Search ticker…"
-        style={{width:"100%",maxWidth:260,padding:"7px 12px",marginBottom:12,
-          background:C.bg2,border:`1px solid ${C.bdr2}`,borderRadius:6,color:C.tx,
-          fontSize:12,fontFamily:"inherit",outline:"none"}}/>
+      {/* Controls: search + market-cap band filter */}
+      <div style={{display:"flex",flexWrap:"wrap",gap:10,alignItems:"center",marginBottom:12}}>
+        <input value={q} onChange={e=>{setQ(e.target.value);setLimit(100);}}
+          placeholder="Search ticker…"
+          style={{flex:"0 0 240px",padding:"7px 12px",
+            background:C.bg2,border:`1px solid ${C.bdr2}`,borderRadius:6,color:C.tx,
+            fontSize:12,fontFamily:"inherit",outline:"none"}}/>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6,alignItems:"center"}}>
+          {_CAP_BANDS.map(b=>{
+            const on=cap===b.id;
+            const n=bandCounts[b.id];
+            return (
+              <button key={b.id} onClick={()=>{setCap(b.id);setLimit(100);}}
+                title={`${b.label}${b.id!=="All"?` · ${n} names`:""}`}
+                style={{padding:"5px 12px",borderRadius:20,cursor:"pointer",fontFamily:"inherit",
+                  border:`1px solid ${b.color}${on?"":"33"}`,
+                  background:on?b.color+"22":"transparent",color:on?b.color:C.tx2,
+                  fontWeight:on?700:500,fontSize:11,transition:"all 0.15s"}}>
+                {b.label}{b.id!=="All" && <span style={{opacity:0.6,marginLeft:5}}>{n}</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       <div style={{background:C.bg2,border:`1px solid ${C.bdr}`,borderRadius:8,padding:"14px 18px"}}>
         {/* Column headers */}
@@ -2431,6 +2496,7 @@ function RecordsPane(){
             {hdr("ticker","Ticker",50)}
           </div>
           <div style={{display:"flex",gap:14,alignItems:"center"}}>
+            {hdr("mktcap","Mkt Cap",56)}
             {hdr("notional","Record",90)}
             {hdr("price","Price",64)}
             {hdr("date","Date",64)}
@@ -2438,7 +2504,11 @@ function RecordsPane(){
         </div>
 
         {/* Rows */}
-        {shown.map((r,i)=>(
+        {shown.map((r,i)=>{
+          const mc=mktcapData[r.ticker]||0;
+          const band=capBandOf(r.ticker,mc,etfSet);
+          const bandColor=(_CAP_BANDS.find(b=>b.id===band)||{}).color||C.tx3;
+          return (
           <div key={r.ticker}
             style={{display:"flex",alignItems:"center",justifyContent:"space-between",
               padding:"6px 0",borderBottom:`1px solid ${C.bdr}22`}}>
@@ -2446,8 +2516,11 @@ function RecordsPane(){
               <span style={{fontSize:10,color:C.tx3,width:26,textAlign:"center",fontWeight:600}}>{i+1}</span>
               <span style={{fontFamily:"'Instrument Sans','SF Pro Display',system-ui,sans-serif",
                 fontWeight:700,fontSize:12,color:C.amber}}>{r.ticker}</span>
+              {band && <span style={{fontSize:8,fontWeight:700,color:bandColor,opacity:0.85,
+                border:`1px solid ${bandColor}44`,borderRadius:3,padding:"0 4px"}}>{band}</span>}
             </div>
             <div style={{display:"flex",gap:14,alignItems:"center"}}>
+              <span style={{fontSize:10,color:C.tx3,minWidth:56,textAlign:"right"}}>{mc>0?fmt(mc).replace("$",""):"—"}</span>
               <span style={{display:"inline-flex",flexDirection:"column",alignItems:"flex-end",gap:2,minWidth:90}}>
                 <span style={{fontSize:12,color:C.cyan,fontWeight:700}}>{fmt(r.notional)}</span>
                 <span style={{width:"100%",height:3,background:C.bdr,borderRadius:2,overflow:"hidden"}}>
@@ -2459,8 +2532,9 @@ function RecordsPane(){
               <span style={{fontSize:10,color:C.tx3,minWidth:64,textAlign:"right"}}>{r.date||"—"}</span>
             </div>
           </div>
-        ))}
-        {shown.length===0 && <div style={{fontSize:12,color:C.tx3,padding:8}}>No records match “{q}”.</div>}
+          );
+        })}
+        {shown.length===0 && <div style={{fontSize:12,color:C.tx3,padding:8}}>No records match this filter.</div>}
         {view.length>shown.length && (
           <div style={{textAlign:"center",paddingTop:10}}>
             <button onClick={()=>setLimit(l=>l+100)}
@@ -2481,9 +2555,6 @@ const TABS=[
   {id:"category",label:"By Category"},
   {id:"above",label:"▲ Above Zone"},
   {id:"below",label:"▼ Below Zone"},
-  {id:"unusual",label:"Unusual Flow"},
-  {id:"phantom",label:"Phantom Prints"},
-  {id:"options",label:"Options Flow"},
   {id:"records",label:"★ Records"},
 ];
 
@@ -2498,6 +2569,11 @@ const BOND_ETFS = new Set(["TLT","IEF","SHY","IEI","SHV","GOVT","TBT","TMF","TBF
 const INTL_EM_ETFS = new Set(["EEM","EFA","VEA","VWO","IEMG","ACWI","ACWX","VXUS","VT","FXI","ASHR","MCHI","KWEB","CQQQ","CHIQ","HAO","GXC","KURE","PGJ","EWJ","DBJP","HEWJ","DXJ","EWZ","EWW","EWC","EWY","EWG","EWH","EWT","EWS","EWU","EWA","EWI","EWP","EWQ","EWD","EWN","EWK","EWL","EWO","EIS","INDA","INDY","PIN","EPI","SMIN","VGK","IEV","FEZ","HEDJ","EZU","EURL","RSX","ERUS","RUSL","RUSS","ENZL","EWM","ECH","EPHE","EIDO","TUR","EPOL","ARGT","EZA","AFK","FM","GAF","EMXC","XSOE","DFAE","DFEM","AVEM","GEM","GMF","SPEM","HEFA","DBEF","DEEF","HEEM"]);
 
 const COMMODITY_ETFS = new Set(["GLD","IAU","GLDM","BAR","SGOL","PHYS","AAAU","BGLD","SLV","SIVR","PSLV","DSLV","USLV","USO","UCO","SCO","DBO","OIL","OILU","OILD","UNG","BOIL","KOLD","GAZ","FCG","PDBC","DJP","USCI","COMB","COM","GSG","DBC","RJI","MLPA","DBA","WEAT","CORN","SOYB","CANE","NIB","JO","BAL","COW","TAGS","CPER","COPX","CULL","PALL","PPLT","GLTR","WOOD","NLR","URA","URNM","HURA","LNG","MLPX","AMLP","AMJ","AMJB","ENFR","TPVG","MLPQ"]);
+
+// Broad-market / factor / allocation funds NOT in the sets above — they carry
+// huge notional (their "market cap" is AUM) so without this they mis-band as
+// Mega/Large. Used only by the Records cap-band classifier.
+const BROAD_ETFS = new Set(["IVV","VOO","VTI","SPLG","SPTM","SPYM","ITOT","SCHB","SCHX","SCHG","SCHD","SCHV","SCHA","SCHM","VV","VUG","VTV","MGC","MGK","MGV","VONE","VONG","VONV","VTHR","IWB","IWF","IWD","IWR","IWS","IWP","IWN","IWO","IJH","IJR","IJK","IJJ","IJS","IJT","VO","VOE","VOT","VB","VBK","VBR","IUSB","IUSG","IUSV","IUSC","EFV","EFG","IEFA","IEMG","VEA","VWO","VXUS","VT","ACWI","BND","BNDX","VCIT","VCSH","VGSH","VGIT","VGLT","VTEB","MUB","QUAL","MTUM","USMV","VLUE","SIZE","VIG","VYM","DGRO","SDY","NOBL","DVY","HDV","SPHD","SPYG","SPYV","SPYD","VOOG","VOOV","IVW","IVE","OEF","RSP","QQQM","QQEW","NDX","DGRW","SCHH","VNQ","USRT","FNDX","FNDA","FNDF","DFAC","DFAU","DFAX","DFAI","DFAE","AVUV","AVUS","AVDE","AVEM","CALF","MOAT","COWZ","JEPI","JEPQ","DIVO","SCHF","SCHE","SCHC","GSLC","SUSA","ESGU","ESGV","VSGX"]);
 
 const LARGE_CAP_KNOWN = new Set(["AAPL","MSFT","NVDA","AMZN","GOOGL","GOOG","META","TSLA","AVGO","LLY","UNH","JPM","V","XOM","MA","PG","COST","HD","JNJ","MRK","CVX","ABBV","PEP","KO","BAC","WFC","NFLX","ORCL","CRM","AMD","INTC","MU","QCOM","NOW","ADBE","ACN","TXN","IBM","GS","MS","BLK","AMGN","GILD","REGN","VRTX","TMO","DHR","ABT","MDT","SYK","BMY","PFE","CI","ISRG","ELV","CVS","UNP","HON","RTX","LMT","NOC","BA","CAT","DE","GE","ETN","EMR","WM","RSG","ADP","PAYX","T","VZ","CMCSA","DIS","SBUX","MCD","BKNG","MAR","HLT","NKE","TGT","WMT","PYPL","UBER","ABNB","PLTR","DDOG","NET","CRWD","ZS","PANW","FTNT","SNOW","TEAM","WDAY","VEEV","TWLO","MDB","OKTA","DOCU","ZM","COIN","MSTR","HOOD","SOFI","NU","AFRM","SQ","SHOP","SPOT","PINS","SNAP","ROKU","TTD","RBLX","LYFT","DASH","RIVN","LCID","F","GM","STLA","NIO","LI","XPEV","ENPH","PLUG","NEE","FSLR","OXY","MPC","VLO","PSX","HES","DVN","COP","MRO","SLB","HAL","BKR","FCX","NEM","GOLD","WPM","UPS","FDX","DAL","UAL","AAL","LUV","CCL","NCLH","RCL","BX","KKR","APO","ARES","CME","ICE","CBOE","SPGI","MCO","USB","PNC","TFC","COF","DFS","SYF","AXP","SCHW","ALB","MP","TMUS","AMT","CCI","PSA","IRM","PLD","O","SPG","AWK","NEE","PCG","BRK.B","BRK.A","MKL","CAVA","CMG","TSCO","CHWY"]);
 
@@ -3550,10 +3626,7 @@ export default function DarkPool({embedded}){
         {tab==="category" && <CategoryPaneWrapper jump={catJump} onJumpDone={()=>setCatJump(null)} mktcapData={mktcapData}/>}
         {tab==="above"    && <AbovePane filterByCat={filterByCat} mktcapData={mktcapData}/>}
         {tab==="below"    && <BelowPane filterByCat={filterByCat} mktcapData={mktcapData}/>}
-        {tab==="unusual"  && <UnusualPane filterByCat={filterByCat} mktcapData={mktcapData}/>}
-        {tab==="phantom"  && <PhantomPane mktcapData={mktcapData}/>}
-        {tab==="options"  && <OptionsPane mktcapData={mktcapData}/>}
-        {tab==="records"  && <RecordsPane/>}
+        {tab==="records"  && <RecordsPane mktcapData={mktcapData} fetchMktCap={fetchMktCap}/>}
       </div>
 
       {showSearch && <SearchModal onClose={()=>setShowSearch(false)} mktcapData={mktcapData}/>}
