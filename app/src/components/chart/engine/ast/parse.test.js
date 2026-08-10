@@ -76,11 +76,17 @@ describe('the persisted tree is the contract, and it is jsep-independent', () =>
     expect([...keysIn(ast)].sort()).toEqual(['args', 'name', 'type', 'value'])
   })
 
-  it('the canonical node-type set is EXACTLY four, over every corpus case', () => {
+  it('the canonical node-type set is EXACTLY `NODE_TYPES`, over every corpus case', () => {
     // ⛔ ASSERTED BY WALKING PARSED TREES, NOT BY READING `NODE_TYPES` BACK. A
     // test that reads the constant it is checking measures a re-typed copy —
     // this branch has already shipped a control that compared a hand-copy to a
-    // hand-copy. Seventeen real sources are walked instead.
+    // hand-copy. Every real source in the corpus is walked instead.
+    //
+    // ⚠️ THE TITLE SAID "EXACTLY FOUR" WHILE THE BODY DERIVED THE SET. When the
+    // bounded backward offset landed as a fifth type the body stayed correct and
+    // the NAME became the lie — and a test name is what an engineer reads in a
+    // failure report. A count restated beside the list it describes is this
+    // repo's most-repeated defect; it does not stop being one in a test title.
     const seen = new Set()
     const keys = new Set()
     for (const c of CORPUS.cases) {
@@ -408,23 +414,30 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 15 operators, 11 functions and 54 scalars — 85 names, one grammar', () => {
+  it('declares 5 series, 15 operators, 28 functions and 54 scalars — 102 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     expect(Object.keys(TABLE.operators)).toHaveLength(15)
-    expect(Object.keys(TABLE.functions)).toHaveLength(11)
+    // ⭐ 11 -> 28 IS PHASE F. Seventeen indicators — rsi, macd, atr, the two DI
+    // legs, stoch, cci, williamsR, mfi, the three Donchian lines and the five
+    // Ichimoku lines — became callable, every one of them BOUND to maths
+    // `indicators.js` and `indicator_compute.py` already ship rather than
+    // rewritten here. What the table did NOT grow is a node type, an argument
+    // kind or a lookback form, which is why `tableVersion` below is still 1.
+    expect(Object.keys(TABLE.functions)).toHaveLength(28)
     // ⭐ THE FOURTH SECTION (Phase E Task 1). Counted SEPARATELY from the three
-    // above, not folded into one total: 31 is the BAR vocabulary a corpus case
+    // above, not folded into one total: 48 is the BAR vocabulary a corpus case
     // can exercise against 579 bars, and 54 is the per-symbol vocabulary that
     // has no bar behaviour at all and earns its own coverage floor. A single
-    // number here would have been "fixed" to 85 with nobody able to see which
-    // half moved.
+    // number here would have been "fixed" with nobody able to see which half
+    // moved — and Phase F is exactly that event: the bar half went 31 -> 48 and
+    // the scalar half did not move at all.
     expect(Object.keys(TABLE.scalars)).toHaveLength(54)
     const bar = new Set([
       ...Object.keys(TABLE.series), ...Object.keys(TABLE.operators), ...Object.keys(TABLE.functions),
     ])
-    expect(bar.size).toBe(31)
+    expect(bar.size).toBe(48)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(85)
+    expect(declared.size).toBe(102)
     // ⚠️ `tableVersion` STAYS 1 AND THAT IS A DECISION. It versions the GRAMMAR
     // — the four node types and the keys a persisted tree may carry — and Phase
     // E widened the VOCABULARY without touching either: a scalar rides the
@@ -493,5 +506,193 @@ describe('the dependency', () => {
     const lock = readJson('app/package-lock.json')
     expect(lock.packages['node_modules/jsep'].version).toBe('1.4.0')
     expect(lock.packages['node_modules/jsep'].dependencies).toBeUndefined()
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════
+// THE BOUNDED BACKWARD OFFSET — `EXPR[N]`
+// ═════════════════════════════════════════════════════════════════════════════
+//
+// ⭐⭐ THE WHOLE POINT OF THIS SUITE IS THE REFUSALS, NOT THE ACCEPTANCES.
+// `closedTable.json::_no_offset` argued that a general `close[n]` "makes a
+// FORWARD reference expressible in the first place — the exact construction
+// (`chikou[j] === close[j+26]`) that the repaint record already names as the
+// thing the linter has to be able to decide". That argument is CORRECT, and the
+// only reason this form is safe is that a forward reference is refused HERE, at
+// the parse door, by a shape that has nowhere to put one.
+
+describe('the bounded backward offset — what it may say', () => {
+  const treeOf = (src) => {
+    const r = parseFormula(src)
+    expect(r.ok, `${src}: ${r.error}`).toBe(true)
+    return r.ast
+  }
+  const guardOf = (src) => {
+    const r = parseFormula(src)
+    expect(r.ok, `${src} was ACCEPTED as ${JSON.stringify(r.ast)}`).toBe(false)
+    return r.guard
+  }
+
+  it('`close[1]` is one node with a literal count and one child', () => {
+    expect(treeOf('close[1]')).toEqual({
+      type: 'offset', value: 1, args: [{ type: 'series', name: 'close' }],
+    })
+  })
+
+  it('⭐ THE CHILD IS ANY EXPRESSION, NOT ONLY A SERIES', () => {
+    // 🔴 MEASURED, NOT ASSUMED. A study of 54 real Pine scripts found the
+    // offset thing is most often a CALL RESULT or a named intermediate
+    // (`ta.rsi(close,14)[1]`, `myEma[1]`) rather than a bar field — so a
+    // series-only offset would cover roughly half of real usage at exactly the
+    // same `maxLookback` cost. The child slot is a full node for that reason.
+    expect(treeOf('sma(close, 20)[2]')).toEqual({
+      type: 'offset',
+      value: 2,
+      args: [{
+        type: 'call',
+        name: 'sma',
+        args: [{ type: 'series', name: 'close' }, { type: 'num', value: 20 }],
+      }],
+    })
+    // a condition
+    expect(treeOf('(close > open)[1]').args[0].type).toBe('op')
+    // an arithmetic sub-expression
+    expect(treeOf('(high - low)[4]').args[0].type).toBe('op')
+    // a per-symbol scalar, which rides the `series` node
+    expect(treeOf('market_cap[1]').args[0]).toEqual({ type: 'series', name: 'market_cap' })
+  })
+
+  it('the two nesting orders are DIFFERENT COLUMNS and both are spellable', () => {
+    // `sma(close[2], 20)` averages a shifted series; `sma(close, 20)[2]` shifts
+    // an average. Same `maxLookback`, different values — the conformance corpus
+    // carries both for exactly that reason.
+    expect(treeOf('sma(close[2], 20)').type).toBe('call')
+    expect(treeOf('sma(close[2], 20)').args[0]).toEqual({
+      type: 'offset', value: 2, args: [{ type: 'series', name: 'close' }],
+    })
+    expect(treeOf('sma(close, 20)[2]').type).toBe('offset')
+    expect(astHash(treeOf('sma(close[2], 20)')))
+      .not.toBe(astHash(treeOf('sma(close, 20)[2]')))
+  })
+
+  it('the persisted key vocabulary does NOT grow — still {type,name,value,args}', () => {
+    // ⭐ `_canonical` declares the KEY set, and an offset stays inside it by
+    // reusing `args` for its single child. That is why every walker in both
+    // lanes reaches the child through machinery that already existed.
+    const keys = new Set()
+    const stack = [treeOf('sma(close[2], 20)[3] > open[1]')]
+    while (stack.length) {
+      const n = stack.pop()
+      if (!n || typeof n !== 'object') continue
+      if (Array.isArray(n)) { stack.push(...n); continue }
+      for (const k of Object.keys(n)) keys.add(k)
+      for (const v of Object.values(n)) if (v && typeof v === 'object') stack.push(v)
+    }
+    expect([...keys].sort()).toEqual(['args', 'name', 'type', 'value'])
+  })
+
+  it('an offset tree is CANONICAL and hashes stably', () => {
+    expect(() => assertCanonical(treeOf('close[3]'))).not.toThrow()
+    expect(astHash(treeOf('close[3]'))).toBe(astHash(parseFormula('close[3]').ast))
+    // ⛔ AND THE COUNT IS SEMANTICS: two offsets are not one tree.
+    expect(astHash(treeOf('close[3]'))).not.toBe(astHash(treeOf('close[4]')))
+  })
+
+  it('⛔ `x[0]` FOLDS to `x` — one column may have only ONE tree', () => {
+    // `close[0]` and `close` are the same column: same values, no NaN prefix,
+    // same `maxLookback`. Emitting a zero-bar node would give one column two
+    // canonical trees and two `astHash`es — and that hash decides whether an
+    // edit bumps `compute.rev`, which force-migrates every binding and resets
+    // `last_value`. A user could trigger a migration by typing `[0]`.
+    expect(treeOf('close[0]')).toEqual({ type: 'series', name: 'close' })
+    expect(astHash(treeOf('close[0]'))).toBe(astHash(treeOf('close')))
+    expect(treeOf('sma(close, 20)[0]')).toEqual(treeOf('sma(close, 20)'))
+    // ⭐ THE SAME RULE THE CHAINED REFUSAL ENFORCES, FROM THE OTHER SIDE:
+    // refuse a second spelling, or fold it — never keep both. ⚠️ AND THE CHAIN
+    // RULE IS SYNTACTIC, SO IT WINS: `close[0][0]` is two applications on one
+    // value and is refused BEFORE anything is folded. A fold-then-check order
+    // would make the refusal depend on the values, which is a rule nobody can
+    // predict from the source they typed.
+    expect(guardOf('close[0][0]')).toBe('canonicalise:offset-chained')
+  })
+
+  // ─── the refusals, which are the reason the form is allowed at all ─────────
+
+  it('⭐⭐ a NEGATIVE offset is refused AT PARSE, by its own name', () => {
+    // 🔴 THIS IS THE LOAD-BEARING TEST OF THE WHOLE FEATURE. A forward reference
+    // must be INEXPRESSIBLE, not merely discouraged — `ichimoku.chikou`'s
+    // decidability rests on the linter never meeting one it has to reason about.
+    expect(guardOf('close[-1]')).toBe('canonicalise:offset-forward')
+    expect(guardOf('close[-26]')).toBe('canonicalise:offset-forward')
+    expect(guardOf('sma(close, 20)[-1]')).toBe('canonicalise:offset-forward')
+    expect(parseFormula('close[-1]').error)
+      .toContain(REFUSALS['canonicalise:offset-forward'])
+  })
+
+  it('⚠️ and the refusal is NOT the one a `value < 0` check would give', () => {
+    // jsep does not fold a sign into a literal: `close[-1]`'s property is a
+    // UnaryExpression over `Literal(1)`. A guard written only as `value < 0`
+    // NEVER FIRES and the case falls through to the "not a literal" message —
+    // true, but named for the wrong thing, which is how the one refusal that
+    // matters gets credited to a guard that is not protecting anything.
+    expect(jsep('close[-1]').property.type).toBe('UnaryExpression')
+    expect(jsep('close[-1]').property.argument.value).toBe(1)
+  })
+
+  it('a NON-LITERAL offset is refused AT PARSE, by its own name', () => {
+    expect(guardOf('close[n]')).toBe('canonicalise:offset-literal')
+    expect(guardOf('close[1 + 1]')).toBe('canonicalise:offset-literal')
+    expect(guardOf('close[length]')).toBe('canonicalise:offset-literal')
+    expect(guardOf('close[sma(close, 2)]')).toBe('canonicalise:offset-literal')
+    expect(guardOf('close[1.5]')).toBe('canonicalise:offset-literal')
+  })
+
+  it('⛔ a CHAINED offset is refused — one column must have ONE tree', () => {
+    // `close[1][2]` and `close[3]` are the same column: same values, same NaN
+    // prefix, same `maxLookback`. Admitting both would give one column two
+    // canonical trees and therefore two `astHash`es — and that hash decides
+    // whether an edit bumps `compute.rev`, which force-migrates every binding
+    // and resets `last_value`. A second spelling of one tree is a second
+    // authority over one value.
+    expect(guardOf('close[1][2]')).toBe('canonicalise:offset-chained')
+    expect(guardOf('sma(close, 20)[1][1]')).toBe('canonicalise:offset-chained')
+    // ⭐ AND IT COSTS NOTHING: Pine forbids the chain in its own grammar, a
+    // corpus of 54 real scripts contains none, and `close[3]` says it already.
+    expect(parseFormula('close[3]').ok).toBe(true)
+  })
+
+  it('a FORWARD chain still reports the forward refusal — the priority is declared', () => {
+    // Two offences on one node. The one that must be reported is the one the
+    // whole restriction exists for.
+    expect(guardOf('close[-1][2]')).toBe('canonicalise:offset-forward')
+  })
+
+  it('⛔ `close["constructor"]` IS STILL A PROPERTY REACH, NOT AN OFFSET', () => {
+    // 🔴 THE SECURITY CASE. `escapes.json::computed_member` exists because
+    // `close.constructor` and `close["constructor"]` are the same reach, and
+    // `[].constructor.constructor` IS `Function`. Teaching the parser that
+    // `x[…]` can be an offset must not move that case out from under the guard
+    // the escape census credits with catching it. THE LITERAL KIND DECIDES: a
+    // string is a property NAME, a number is a bar INDEX.
+    expect(guardOf('close["constructor"]')).toBe('canonicalise:member')
+    expect(guardOf('close["__proto__"]')).toBe('canonicalise:member')
+    expect(guardOf('close.constructor')).toBe('canonicalise:member')
+    expect(guardOf('close.constructor.constructor')).toBe('canonicalise:member')
+  })
+
+  it('an array literal still beats an offset in the declared offence order', () => {
+    // `[1, 2][0]` is a legal-looking offset over an ILLEGAL object. The message
+    // must not depend on which the walker reached first.
+    expect(guardOf('[1, 2][0]')).toBe('canonicalise:array')
+  })
+
+  it('the two new sentences are DISJOINT from all the others', () => {
+    // Re-asserted here as well as in the table-wide check, because these two are
+    // the ones a `toThrow(/…/)` in this suite matches on.
+    const values = Object.values(REFUSALS)
+    for (const g of ['canonicalise:offset-forward', 'canonicalise:offset-literal']) {
+      const mine = REFUSALS[g]
+      expect(values.filter((v) => v.includes(mine))).toHaveLength(1)
+    }
   })
 })

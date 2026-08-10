@@ -140,8 +140,13 @@ PY_INTERPRET_MODULE = "api.services.ast_interpret"
 REL_TOL = 1e-9
 
 #: The canonical persisted node vocabulary. Task 3's `canonicalise` produces
-#: exactly these four and no others; the corpus is written in them.
-CANONICAL_NODE_TYPES = ("num", "series", "op", "call")
+#: exactly these and no others; the corpus is written in them.
+#:
+#: ⭐ `offset` is the bounded backward form, `{type, value, args:[child]}`, which
+#: `parse.js` produces for `EXPR[N]`. `test_ast_conformance.py` derives the same
+#: set from every `type` in the committed corpus, so a name added here without a
+#: corpus case lands RED rather than reading as coverage.
+CANONICAL_NODE_TYPES = ("num", "series", "op", "call", "offset")
 
 #: LANE-NATIVE ESCAPE PROBES -- the control that keeps "it errored" from reading
 #: as "it was safe". The must-refuse corpus names JS reaches (`toString`,
@@ -662,7 +667,13 @@ function flatten(root) {
       continue
     }
     index.set(n, nodes.length)
-    nodes.push({ t: n.type, n: n.name, a: (n.args || []).map((x) => index.get(x)) })
+    // ⛔ `v` IS CARRIED ON EVERY INNER NODE, NOT ONLY ON `num`, AND THAT IS THE
+    // OFFSET'S DOING. An `offset` node's bar count lives in `value` beside
+    // `args` — a wire that shipped `{t, n, a}` alone would deliver
+    // `{type:'offset', value:undefined}` to the Python lane, and the decoder's
+    // node-count cross-check would still PASS because no node was lost. Silent,
+    // and in the direction that reads as agreement.
+    nodes.push({ t: n.type, n: n.name, v: n.value, a: (n.args || []).map((x) => index.get(x)) })
   }
   return nodes
 }
@@ -709,6 +720,13 @@ def _rebuild_canonical(flat: list) -> Any:
             built.append({"type": "num", "value": row["v"]})
         elif kind == "series":
             built.append({"type": "series", "name": row["n"]})
+        elif kind == "offset":
+            # ⭐ REBUILT WITH ITS OWN KEY SET — `{type, value, args}` and NO
+            # `name`. `assert_canonical` checks key sets exactly, so a rebuilt
+            # offset carrying a stray `name: None` would be refused by the store
+            # for a reason the JS lane never produced.
+            built.append({"type": "offset", "value": row.get("v"),
+                          "args": [built[i] for i in row["a"]]})
         else:
             built.append({"type": kind, "name": row["n"],
                           "args": [built[i] for i in row["a"]]})
@@ -998,8 +1016,11 @@ def _naive_reduction(fn: Callable) -> Callable:
 
 
 #: Naive implementations, keyed by table name. Only the names the escape corpus
-#: actually CALLS are bound (derived by `_naive_table`, never typed) -- eleven
-#: implementations nobody exercises would be dead code inside the instrument.
+#: actually CALLS are bound (derived by `_naive_table`, never typed) -- a naive
+#: twin of every declared function, most of which nobody exercises, would be dead
+#: code inside the instrument. ⛔ NO COUNT HERE: this said "eleven" and the table
+#: has since grown, which is the hand-typed-count-beside-the-list defect the
+#: ledger is full of. `_naive_table` derives the bound set from the escape corpus.
 _NAIVE_IMPLS = {
     "sma": _naive_reduction(lambda w: sum(w) / len(w)),
     "ema": _naive_reduction(lambda w: sum(w) / len(w)),
@@ -1667,10 +1688,35 @@ def _cmd_record(force: bool) -> int:
     digests = {c["id"]: ast_digest(
         c["id"], [(i, repr(js[c["id"]][i]), repr(py[c["id"]][i]))
                   for i in range(len(bars))]) for c in corpus["cases"]}
+
+    # ─── THE PROVENANCE SURVIVES THE RE-RECORD, AND THAT IS THE WHOLE POINT ──
+    #
+    # `fire_log_forming.json` carries a `rerecorded` LIST -- one entry per
+    # re-freeze, each naming the head it happened at, why, what moved and the
+    # proof. This writer used to build the document from scratch, so a `--force`
+    # would have ERASED every earlier entry and left the artifact describing only
+    # its most recent change: exactly the "history a re-record deletes" shape the
+    # one-shot warning at the top of this file exists to prevent. It is carried
+    # forward verbatim; APPENDING to it is the human's job, because the reason a
+    # digest moved is not something this script can know.
+    previous = _read_json(LOG_PATH) if os.path.exists(LOG_PATH) else {}
+    doc = {"bars": corpus["bars"], "bar_count": len(bars),
+           "rel_tol": REL_TOL, "digests": digests}
+    carried = previous.get("rerecorded")
+    if carried:
+        doc["rerecorded"] = carried
+        print(f"carried forward {len(carried)} `rerecorded` provenance entry/entries "
+              "-- APPEND to it if this run moved or added a digest")
+    moved = sorted(k for k, v in (previous.get("digests") or {}).items()
+                   if digests.get(k) != v)
+    added = sorted(set(digests) - set(previous.get("digests") or {}))
+    gone = sorted(set(previous.get("digests") or {}) - set(digests))
+    if previous:
+        print(f"vs the previous log: {len(moved)} MOVED {moved}, "
+              f"{len(added)} added, {len(gone)} removed")
+
     with io.open(LOG_PATH, "w", encoding="utf-8", newline="\n") as fh:
-        json.dump({"bars": corpus["bars"], "bar_count": len(bars),
-                   "rel_tol": REL_TOL, "digests": digests}, fh,
-                  indent=2, sort_keys=True)
+        json.dump(doc, fh, indent=2, sort_keys=True, ensure_ascii=False)
         fh.write("\n")
     print(f"recorded {len(digests)} per-ast digests over {len(bars)} bars")
     return 0

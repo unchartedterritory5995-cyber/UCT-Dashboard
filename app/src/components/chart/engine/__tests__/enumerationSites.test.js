@@ -475,13 +475,38 @@ const LEDGER = [
   // *"the row is marked pending:'D3' but the FILE NOW EXISTS."* Not a stack
   // trace, not a missing-module error somewhere downstream — the ledger row
   // told the task what it owed. The marker is dropped here and `"functions"`
-  // now matches exactly once (measured: `series` 5, `operators` 15, and the
-  // functions section 11 = the 31 names the AST corpus already uses, which is
-  // why `tools/ast_conformance.py --coverage` went from exit 3 to exit 0 on its
-  // first run against a real manifest). **The first match is paid.**
+  // now matches exactly once. (Measured at the time: `series` 5, `operators` 15,
+  // `functions` 11 = the 31 names the AST corpus then used, which is why
+  // `tools/ast_conformance.py --coverage` went from exit 3 to exit 0 on its
+  // first run against a real manifest. Phase F moved the functions section to 28
+  // and the bar vocabulary to 48; the numbers above are left as the historical
+  // reading they were, because `--coverage` re-derives both on every run and a
+  // count maintained by hand beside it is the defect this file exists to find.)
+  // **The first match is paid.**
   { file: 'app/src/components/chart/engine/ast/closedTable.json',
     region: 'the closed table — every name a user formula may call',
     anchor: '"functions"', fate: 'keep' },
+  // ⭐⭐ PHASE F — TWO SITES ARRIVED TOGETHER, AND THEY ARE THE SAME SITE IN TWO
+  // LANGUAGES. Declaring the indicators as functions gave each walker a `FN`
+  // map that SPELLS `rsi`, `atr`, `mfi`, the DI legs, the Donchian trio and the
+  // Ichimoku five, so the discovery scan is right to find them — a hand-typed
+  // list of indicator names is exactly what it looks for.
+  //
+  // ⛔ THEY ARE LEDGERED RATHER THAN EXEMPTED, AND THEY ARE NOT A DEFECT. A
+  // walker must bind a NAME to an implementation somewhere; what makes this
+  // safe is that neither list is the AUTHORITY. `closedTable.json` is, and
+  // `interpret.test.js` / `tests/test_ast_interpret.py` assert each `FN`'s key
+  // set EQUALS the manifest's in BOTH directions — so an entry here that the
+  // table does not declare is a callable outside the closed table, and a
+  // declared name with no entry is a formula the builder offers and the chart
+  // cannot draw. Both are red on arrival. That two-way equality is the thing a
+  // ledger row exists to point at.
+  { file: 'app/src/components/chart/engine/ast/interpret.js',
+    region: 'FN — the manifest`s functions bound to the chart`s own maths',
+    anchor: 'export const FN = Object.freeze({', fate: 'keep' },
+  { file: 'api/services/ast_interpret.py',
+    region: 'FN — the manifest`s functions bound to indicator_compute`s own maths',
+    anchor: 'FN: Dict[str, Callable[..., List[float]]] = {', fate: 'keep' },
   { file: 'app/src/components/chart/engine/nativeRegistry.js', region: 'RAW_DEFS — THE ONE THAT SHOULD SURVIVE',
     anchor: 'const RAW_DEFS = [', fate: 'keep' },
   // ⛔⭐⭐ ADDED BY PHASE D TASK 8, AND THE DISCOVERY SCAN FOUND IT BEFORE THE
@@ -566,6 +591,19 @@ const LEDGER = [
   // which reads the shipped literal.
   { file: 'tools/chart_parity_cases.json', region: 'the parity case list',
     anchor: '"cases"', fate: 'keep' },
+  // ⭐ PHASE F — THE TC2000 READER. `pcf.js` names `sma`, `ema`, `rsi`, `atr`,
+  // `macd` and `stoch` in quoted form, so the discovery scan finds it and it is
+  // ledgered rather than exempted. `keep`, and the reason is that this is a
+  // TRANSLATION between two languages: "TC2000 spells the 50-bar average
+  // `AVGC50`" is a fact about Worden's syntax, and no amount of reading our own
+  // registry can produce it. What CAN be derived is derived — the price letters
+  // come off `TABLE.series`, every target is looked up in `TABLE.functions` at
+  // translation time, and the argument shape is checked against the manifest's
+  // own `args` — so a rename here does not rot into a wrong tree, it refuses by
+  // name (`pcf:function` / `pcf:signature`, both asserted in `pcf.test.js`).
+  { file: 'app/src/components/chart/engine/ast/pcf.js',
+    region: 'PCF_FUSED / PCF_CALLS — TC2000 spellings bound to table function NAMES, resolved at run time',
+    anchor: 'export const PCF_FUSED', fate: 'keep' },
 ]
 
 /** What Task 12 RETIRED OUTRIGHT — kept in the file because a retired site that
@@ -1069,7 +1107,14 @@ const RETIRED_BY_B4_ALERTS = [
  *  load-bearing**, seven targets, `ma50`/`ma200` still not registry ids at all
  *  (the registry holds 17 definitions), and the resolver still literally
  *  `_INDICATOR_ALIASES.get(raw, raw.replace(" ", ""))`. The fate stands. */
-const SITE_COUNT = 10
+// ⭐ 10 -> 12 AT PHASE F: `interpret.js::FN` and `ast_interpret.py::FN`, the two
+// halves of one binding. See their rows for why a `FN` map is a ledgered
+// enumeration rather than a defect.
+// ⭐ 12 -> 13 AT PHASE F, SEPARATELY AND BY A DIFFERENT HAND: `ast/pcf.js`, the
+// TC2000 reader. It is the first site that enumerates our indicator names in
+// order to translate ANOTHER vendor's language into them, which is why it is
+// `keep` and why the row says what cannot be derived and what is.
+const SITE_COUNT = 13
 
 describe('the enumeration ledger — the count is a test, not a comment', () => {
   it(`holds ${SITE_COUNT} live sites, and every one of them is still where it says it is`, () => {
@@ -1240,7 +1285,14 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // ⭐⭐⭐ `{keep: 9}` → `{keep: 10}` AT PHASE D TASK 8. `registrySizes.js`
     // joins as a `keep`, and the blind spot above is unchanged: with every row
     // `keep`, a fate swap is still the identity.
-    expect(counts).toEqual({ keep: 10 })
+    // ⭐ `{keep: 12}` -> `{keep: 13}` AT PHASE F, BY A SECOND HAND: `ast/pcf.js`,
+    // the TC2000 reader's spelling map. See its LEDGER row.
+    // ⭐ `{keep: 10}` -> `{keep: 12}` AT PHASE F. `interpret.js::FN` and
+    // `ast_interpret.py::FN` are the two halves of ONE binding — the manifest's
+    // functions bound to maths the chart already ships — and both are `keep`,
+    // because a walker has to spell a name somewhere. What makes them safe is a
+    // two-way key-set equality against the manifest, not a hope; see their rows.
+    expect(counts).toEqual({ keep: 13 })
     // …and by NAME, because a histogram cannot tell an absent bucket from a
     // bucket somebody renamed.
     expect(LEDGER.filter(s2 => s2.fate === 'phase'),
@@ -1326,10 +1378,13 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // surrounding file's style.
     ).toEqual([
       ["api/services/alert_series.py::SERIES_FUNCS — address → the full aligned column, and since Task 10 the ONE value table","keep"],
+      ["api/services/ast_interpret.py::FN — the manifest`s functions bound to indicator_compute`s own maths","keep"],
       ["api/services/indicator_alert_evaluator.py::ALERT_CONDITIONS — which conditions each address offers, a product decision nothing derives","keep"],
       ["api/services/indicator_compute.py::_CASE_COLUMNS — the golden-fixture kind→columns dispatch","keep"],
       ["api/services/voice_client_action_tools.py::_INDICATOR_ALIASES — the voice add_chart_indicator phrase map","keep"],
       ["app/src/components/chart/engine/ast/closedTable.json::the closed table — every name a user formula may call","keep"],
+      ["app/src/components/chart/engine/ast/interpret.js::FN — the manifest`s functions bound to the chart`s own maths","keep"],
+      ["app/src/components/chart/engine/ast/pcf.js::PCF_FUSED / PCF_CALLS — TC2000 spellings bound to table function NAMES, resolved at run time","keep"],
       ["app/src/components/chart/engine/instances.js::FROZEN_SHIPPED_STACK_ORDER — the retired PANES stacking order, 9 + 5 overlays","keep"],
       ["app/src/components/chart/engine/nativeRegistry.js::RAW_DEFS — THE ONE THAT SHOULD SURVIVE","keep"],
       ["app/src/components/chart/engine/registrySizes.js::SHIPPED_DEF_IDS — the hand-written manifest the registry must equal","keep"],
@@ -1881,7 +1936,18 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     // is a real enumeration site, it is ledgered as one, and `SITE_COUNT` went
     // 9 → 10 in the same commit. The task's brief predicted no delta here; the
     // scan disagreed on its first run, which is what running it is for.
+    // ⭐⭐⭐⭐ AND IT MOVED AGAIN AT PHASE F, FOR A NEW REASON: `ast/pcf.js` is
+    // the first module to name our indicator ids in order to translate a
+    // DIFFERENT vendor's syntax into them. "TC2000 spells the 50-bar average
+    // `AVGC50`" is a fact about Worden's language and nothing in this repo can
+    // derive it, so the spelling map is real and ledgered; everything about it
+    // that CAN be derived is (the price letters off `TABLE.series`, every target
+    // resolved in `TABLE.functions`, the argument shape checked against the
+    // manifest's own `args`), which is why a rename refuses by name instead of
+    // producing a wrong tree.
     ).toEqual([
+      'app/src/components/chart/engine/ast/interpret.js',
+      'app/src/components/chart/engine/ast/pcf.js',
       'app/src/components/chart/engine/instances.js',
       'app/src/components/chart/engine/nativeRegistry.js',
       'app/src/components/chart/engine/registrySizes.js',
@@ -1963,8 +2029,16 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
     //
     // BY NAME and NON-ZERO, both. A count alone would go green the day the last
     // `keep` row is renamed; the names are what make the collapse loud.
+    // ⭐ AND 4 → 6 AT PHASE F, THE SECOND TIME THIS FLOOR HAS GONE UP AND THE
+    // BIGGEST SINGLE RISE: `ast/interpret.js` (the manifest's functions bound to
+    // the chart's own maths) and `ast/pcf.js` (TC2000's spellings bound to those
+    // function NAMES). Both are `keep`, both live under `app/src` with a `.js`
+    // extension, and both are files the discovery scan must be able to keep
+    // finding forever — which is the honest direction for a vacuity floor to move.
     expect(keepWalkable, 'no `keep` walkable file on the ledger — the check below is vacuous')
-      .toEqual(['app/src/components/chart/engine/instances.js',
+      .toEqual(['app/src/components/chart/engine/ast/interpret.js',
+        'app/src/components/chart/engine/ast/pcf.js',
+        'app/src/components/chart/engine/instances.js',
         'app/src/components/chart/engine/nativeRegistry.js',
         'app/src/components/chart/engine/registrySizes.js',
         'app/src/components/chart/keyboardShortcuts.js'])
@@ -2063,6 +2137,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'deliberately or find out what changed.',
     ).toEqual([
       'api/services/alert_series.py',
+      'api/services/ast_interpret.py',
       'api/services/indicator_alert_evaluator.py',
       'api/services/indicator_compute.py',
       'api/services/voice_client_action_tools.py',
@@ -2101,6 +2176,7 @@ describe('the enumeration ledger — the count is a test, not a comment', () => 
       'the Python scan has no surviving subject to be measured against',
     ).toEqual([
       'api/services/alert_series.py',
+      'api/services/ast_interpret.py',
       'api/services/indicator_alert_evaluator.py',
       'api/services/indicator_compute.py',
       'api/services/voice_client_action_tools.py',

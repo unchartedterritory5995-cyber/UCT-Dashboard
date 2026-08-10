@@ -107,6 +107,31 @@ const FORMS = [
   { kind: 'call', name: 'crossOver', parts: [0, ' crossing above ', 1] },
   { kind: 'call', name: 'crossUnder', parts: [0, ' crossing below ', 1] },
 
+  // ⭐ THE INDICATOR FORMS (Phase F). Hand-typed like every other phrase in this
+  // table, and that is the whole design: this grammar is a DELIBERATE second
+  // authority, written from the manifest's words by a reader rather than derived
+  // from them, so `swapping a template BREAKS it` can be true. Seventeen new
+  // declarations therefore cost seventeen new forms here, and a phrase edited in
+  // the manifest without one lands as `0 parses` rather than as a green round
+  // trip against a reader that moved with it.
+  { kind: 'call', name: 'rsi', parts: ['the ', 1, '-bar RSI of ', 0] },
+  { kind: 'call', name: 'macd', parts: ['the ', 1, '/', 2, ' MACD line of ', 0] },
+  { kind: 'call', name: 'atr', parts: ['the ', 3, '-bar average true range of ', 0, ', ', 1, ' and ', 2] },
+  { kind: 'call', name: 'plusDI', parts: ['the ', 3, '-bar +DI of ', 0, ', ', 1, ' and ', 2] },
+  { kind: 'call', name: 'minusDI', parts: ['the ', 3, '-bar -DI of ', 0, ', ', 1, ' and ', 2] },
+  { kind: 'call', name: 'stoch', parts: ['the ', 3, '-bar stochastic %K of ', 0, ', ', 1, ' and ', 2] },
+  { kind: 'call', name: 'cci', parts: ['the ', 3, '-bar commodity channel index of ', 0, ', ', 1, ' and ', 2] },
+  { kind: 'call', name: 'williamsR', parts: ['the ', 3, '-bar Williams %R of ', 0, ', ', 1, ' and ', 2] },
+  { kind: 'call', name: 'mfi', parts: ['the ', 4, '-bar money flow index of ', 0, ', ', 1, ', ', 2, ' and ', 3] },
+  { kind: 'call', name: 'donchianUpper', parts: ['the top of the ', 2, '-bar Donchian channel over ', 0, ' and ', 1] },
+  { kind: 'call', name: 'donchianMiddle', parts: ['the midline of the ', 2, '-bar Donchian channel over ', 0, ' and ', 1] },
+  { kind: 'call', name: 'donchianLower', parts: ['the bottom of the ', 2, '-bar Donchian channel over ', 0, ' and ', 1] },
+  { kind: 'call', name: 'ichimokuTenkan', parts: ['the Ichimoku conversion line over ', 0, ' and ', 1, ' at ', 2, '/', 3, '/', 4] },
+  { kind: 'call', name: 'ichimokuKijun', parts: ['the Ichimoku base line over ', 0, ' and ', 1, ' at ', 2, '/', 3, '/', 4] },
+  { kind: 'call', name: 'ichimokuSpanA', parts: ['the Ichimoku leading span A over ', 0, ' and ', 1, ' at ', 2, '/', 3, '/', 4] },
+  { kind: 'call', name: 'ichimokuSpanB', parts: ['the Ichimoku leading span B over ', 0, ' and ', 1, ' at ', 2, '/', 3, '/', 4] },
+  { kind: 'call', name: 'ichimokuChikou', parts: ['the Ichimoku lagging span of ', 2, ' over ', 0, ' and ', 1, ' at ', 3, '/', 4, '/', 5] },
+
   { kind: 'op', name: '+', parts: [0, ' plus ', 1] },
   { kind: 'op', name: '-', parts: [0, ' minus ', 1] },
   { kind: 'op', name: '*', parts: [0, ' times ', 1] },
@@ -222,9 +247,36 @@ function readOperand(s) {
   return readLeaf(s)
 }
 
+/** ⭐ THE OFFSET FORM, AND IT IS NOT A `FORMS` ROW. Every row above builds
+ *  `{type, name, args}`; an offset builds `{type, value, args}` — the bar count
+ *  rides ON THE NODE rather than in an operand slot, which is exactly the
+ *  property that makes a computed offset inexpressible. So the reader needs its
+ *  own clause, hand-typed from `renderOffset`'s words like every other phrase
+ *  here, so a re-phrasing there lands as `0 parses` rather than as a reader that
+ *  quietly moved with it.
+ *
+ *  ⚠️ A SUFFIX MATCH, WHICH CANNOT BE AMBIGUOUS WITH THE FORMS ABOVE: a
+ *  composite child is bracketed, so anything ending in `) N bars ago` still ends
+ *  in the offset's own chrome and nothing else's. */
+const OFFSET_SUFFIX = /^(.+) (\d+) (bar|bars) ago$/
+
+function readOffsetSentence(s) {
+  const m = OFFSET_SUFFIX.exec(s)
+  if (!m) return null
+  const value = Number(m[2])
+  // The plural has to agree, or `close 1 bars ago` would read as a tree the
+  // writer can never produce.
+  if (m[3] !== (value === 1 ? 'bar' : 'bars')) return null
+  return { via: 'offset', ast: { type: 'offset', value, args: [readOperand(m[1])] } }
+}
+
 function readSentenceCandidates(s) {
   const found = []
   try { found.push({ via: 'leaf', ast: readLeaf(s) }) } catch { /* not a leaf */ }
+  try {
+    const off = readOffsetSentence(s)
+    if (off) found.push(off)
+  } catch { /* the chrome matched but the child did not read */ }
   for (const form of FORMS) {
     const slots = matchForm(form.parts, s)
     if (!slots) continue
@@ -334,6 +386,14 @@ function predictTrace(node, at = '$') {
   if (node.type === 'num') return [{ path: at, rule: 'num' }]
   if (node.type === 'series') {
     return [{ path: at, rule: own(TABLE.series, node.name) ? 'series:table' : 'series:input' }]
+  }
+  if (node.type === 'offset') {
+    // ⚠️ NO `value === 0` BRANCH, and the absence is the point: the parse door
+    // FOLDS `x[0]` to `x`, so a zero-bar offset never arrives from a formula. A
+    // STORED one still renders as the bare child (see `renderOffset`), and that
+    // asymmetry is covered by its own case rather than smuggled in here.
+    return [{ path: at, rule: 'offset' },
+      ...predictTrace(node.args[0], `${at}.args[0]`)]
   }
   if (node.type === 'op') {
     const smoothed = hasConditionsForm(node.name)
@@ -486,28 +546,36 @@ describe('totality over the closed table — derived from the manifest, never ha
 
   it('…and the floor is the ENTRY LIST, not a count — a rename is named', () => {
     // ⚠️ A LIST, NEVER A COUNT. `(d.plots || [])` answered `[]` for a renamed
-    // field on this branch and silently voided an entire clause. 31 is the
+    // field on this branch and silently voided an entire clause. 48 is the
     // number `ast_conformance --coverage` asserts; the names are what a rename
-    // has to fail against.
+    // has to fail against. ⭐ It went 31 -> 48 in Phase F, and the LIST is why
+    // that reads as seventeen indicators arriving rather than as a number
+    // somebody adjusted.
     const entries = treesForTheWholeTable(TABLE).map((t) => t.entry)
     expect(entries).toEqual([
       'series:close', 'series:high', 'series:low', 'series:open', 'series:volume',
-      'operator:!', 'operator:!=', 'operator:&&', 'operator:*', 'operator:+',
-      'operator:-', 'operator:/', 'operator:<', 'operator:<=', 'operator:==',
-      'operator:>', 'operator:>=', 'operator:?:', 'operator:u-', 'operator:||',
-      'function:abs', 'function:change', 'function:crossOver', 'function:crossUnder',
-      'function:ema', 'function:highest', 'function:lowest', 'function:max',
-      'function:min', 'function:sma', 'function:stdev',
+      'operator:!', 'operator:!=', 'operator:&&', 'operator:*', 'operator:+', 'operator:-',
+      'operator:/', 'operator:<', 'operator:<=', 'operator:==', 'operator:>', 'operator:>=',
+      'operator:?:', 'operator:u-', 'operator:||', 'function:abs', 'function:atr',
+      'function:cci', 'function:change', 'function:crossOver', 'function:crossUnder',
+      'function:donchianLower', 'function:donchianMiddle', 'function:donchianUpper',
+      'function:ema', 'function:highest', 'function:ichimokuChikou',
+      'function:ichimokuKijun', 'function:ichimokuSpanA', 'function:ichimokuSpanB',
+      'function:ichimokuTenkan', 'function:lowest', 'function:macd', 'function:max',
+      'function:mfi', 'function:min', 'function:minusDI', 'function:plusDI', 'function:rsi',
+      'function:sma', 'function:stdev', 'function:stoch', 'function:williamsR',
     ])
-    expect(entries.length).toBe(31)
+    expect(entries.length).toBe(48)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
     // ⭐ TOTALITY, PROVEN GENERATIVELY. "A tree the table can express must never
     // produce a sentence you cannot generate" is a claim about all 31 entries,
-    // so all 31 are built from the manifest and put through the full loop.
+    // so every one of them is built from the manifest and put through the full
+    // loop. ⛔ The count is asserted against the list above rather than retyped
+    // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(31)
+    expect(subjects.length).toBe(48)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -928,7 +996,10 @@ describe('the coverage rail is the WALKER\'s answer in ALL FOUR sections', () =>
     }
   })
 
-  it('🔴 POSITIVE CONTROL — FUNCTIONS: a DECLARED phrase the walker refuses is NAMED, all eleven', () => {
+  it('🔴 POSITIVE CONTROL — FUNCTIONS: a DECLARED phrase the walker refuses is NAMED, every one', () => {
+    // ⛔ NO COUNT IN THE TITLE. It said "all eleven" and Phase F declared
+    // seventeen more; the loop below was always derived, so the number was
+    // decoration that went stale while the assertion stayed correct.
     const declared = Object.keys(TABLE.functions)
     expect(declared.length).toBeGreaterThanOrEqual(11)
     for (const name of declared) {
@@ -1575,7 +1646,18 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'sma_of_close', 'nan_propagates', 'float_division', 'compare_with_nan', 'ternary',
       'deep_nest', 'cross', 'cross_under', 'volume_relative', 'lowest_of_low', 'stdev_band',
       'abs_change', 'min_max_envelope', 'strict_less', 'bounds_inclusive',
-      'equality_and_negation', 'unary_minus',
+      'equality_and_negation', 'unary_minus', 'rsi_overbought', 'rsi_of_a_smoothed_series',
+      'macd_line', 'macd_signal_by_composition', 'atr_of_hlc', 'plus_di', 'minus_di',
+      'stoch_k', 'stoch_d_by_composition', 'cci_20', 'williams_r', 'mfi_14',
+      'donchian_upper', 'donchian_middle', 'donchian_lower', 'ichimoku_tenkan',
+      'ichimoku_kijun', 'ichimoku_span_a', 'ichimoku_span_b', 'ichimoku_chikou',
+      // ⭐ THE BOUNDED BACKWARD OFFSET (Phase F6). Seven rows, and they are the
+      // reason this list moved — separable, by name, from the indicator rows
+      // above it, which moved it in the same working tree for a different
+      // reason.
+      'offset_one_bar', 'offset_zero_is_identity', 'offset_change_idiom',
+      'offset_inside_a_reduction', 'offset_of_a_reduction', 'offset_of_a_condition',
+      'offset_two_bars_apart',
     ])
   })
 
@@ -1618,7 +1700,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       ...CORPUS.cases.map((c) => sentenceFor(c.ast, {})),
       ...treesForTheWholeTable(TABLE).map((t) => sentenceFor(t.ast, {})),
     ]
-    expect(sentences.length).toBe(CORPUS.cases.length + 31)
+    expect(sentences.length).toBe(CORPUS.cases.length + 48)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)
@@ -1651,7 +1733,7 @@ describe('attribution — WHICH branch produced the sentence, not only what it s
     }
   })
 
-  it('DELETING the branch a sentence is attributed to changes that sentence — all 11 functions', () => {
+  it('DELETING the branch a sentence is attributed to changes that sentence — every function', () => {
     // ⭐ THE ANSWER TO "RIGHT FOR THE WRONG REASON". A sentence that is correct
     // proves nothing about which branch made it; a sentence that STOPS being
     // producible when its claimed branch is deleted does. Run over every
@@ -1814,10 +1896,15 @@ describe('the refusals', () => {
       ...Object.values(INTERPRET_REFUSALS),
       ...Object.values(SENTENCE_REFUSALS),
     ]
-    expect(Object.keys(PARSE_REFUSALS).length).toBe(9)
-    expect(Object.keys(INTERPRET_REFUSALS).length).toBe(6)
+    // ⚠️ 9 -> 12 and 6 -> 7 with the bounded backward offset: the parse door
+    // gained `offset-literal`, `offset-forward` and `offset-chained`, and the
+    // interpreter gained `interpret:offset` for a STORED tree that never met
+    // the parse door. The floor is a count on purpose — a door that stopped
+    // contributing messages is named rather than silently shrinking the set.
+    expect(Object.keys(PARSE_REFUSALS).length).toBe(12)
+    expect(Object.keys(INTERPRET_REFUSALS).length).toBe(7)
     expect(Object.keys(SENTENCE_REFUSALS).length).toBe(10)
-    expect(all.length).toBe(25)
+    expect(all.length).toBe(29)
     for (const a of all) {
       const containing = all.filter((b) => b.includes(a))
       expect(containing, `${JSON.stringify(a)} is a substring of another refusal`).toHaveLength(1)
@@ -1992,5 +2079,65 @@ describe('sentence.js is a pure function of (ast, inputs) — by AST over its ow
     const b = sentenceFor(tree, {})
     expect(b).toBe(a)
     expect(JSON.stringify(tree), 'the walker mutated the tree it was handed').toBe(before)
+  })
+})
+
+// ═════════════════════════════════════════════════════════════════════════════
+// THE BOUNDED BACKWARD OFFSET — read back in English
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('the bounded backward offset, read back', () => {
+  const tree = (source) => {
+    const r = parseFormula(source)
+    expect(r.ok, `${source}: ${r.error}`).toBe(true)
+    return r.ast
+  }
+  const say = (source) => sentenceFor(tree(source), {})
+
+  it('says it in plain English, and gets the plural right', () => {
+    expect(say('close[1]')).toBe('close 1 bar ago')
+    expect(say('close[3]')).toBe('close 3 bars ago')
+    expect(say('close - close[1]')).toBe('close minus (close 1 bar ago)')
+  })
+
+  it('a composite child is bracketed, so the sentence stays re-readable', () => {
+    // The one rule that makes a read-back parseable by eye: every composite
+    // argument is bracketed, so exactly one form appears at bracket depth zero.
+    expect(say('sma(close, 20)[2]'))
+      .toBe('(the 20-bar average of close) 2 bars ago')
+    expect(say('sma(close[2], 20)'))
+      .toBe('the 20-bar average of (close 2 bars ago)')
+  })
+
+  it('⛔ a STORED `[0]` reads as the bar itself, not "0 bars ago"', () => {
+    // The parse door FOLDS `x[0]` away, so this can only arrive as a stored
+    // tree — and "close 0 bars ago" would make a reader stop and work out
+    // whether it means today or yesterday.
+    expect(say('close[0]')).toBe('close')
+    expect(sentenceFor({ type: 'offset', value: 0, args: [{ type: 'series', name: 'close' }] }, {}))
+      .toBe('close')
+  })
+
+  it('an offset changes WHEN, never WHAT — the result kind passes through', () => {
+    // ⛔ Falling to the `num` floor would quietly demote every offset condition
+    // out of the boolean lane, and `scan_definition` would then refuse a screen
+    // whose formula is plainly a filter.
+    expect(yieldsOf(tree('(close > open)[1]'))).toBe(yieldsOf(tree('close > open')))
+    expect(yieldsOf(tree('(close > open)[1]'))).toBe('bool')
+    expect(yieldsOf(tree('close[1]'))).toBe('num')
+  })
+
+  it('a MALFORMED stored offset refuses rather than inventing a phrase', () => {
+    for (const bad of [
+      { type: 'offset', value: -26, args: [{ type: 'series', name: 'close' }] },
+      { type: 'offset', value: 1, args: [] },
+    ]) {
+      expect(() => explainSentence(bad, {}, SENTENCE_RULES)).toThrow(SentenceRefusal)
+    }
+  })
+
+  it('the offset rule is NAMED in the trace, so a test can ask which rule spoke', () => {
+    const { trace } = explainSentence(tree('close[1]'), {}, SENTENCE_RULES)
+    expect(trace.some((t) => t.rule === 'offset')).toBe(true)
   })
 })

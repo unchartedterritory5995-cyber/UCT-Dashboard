@@ -204,15 +204,28 @@ describe('the concept vocabulary', () => {
   })
 
   it('a PLANTED expansion naming something the table does not declare is caught BY NAME', () => {
-    // CORRECTION 1's exact mistake: `rsi` parses perfectly well as a call and is
-    // not one of the table's functions.
-    const source = 'rsi(close, 14) < 30'
+    // 🔴 THE PROBE IS DERIVED, AND THIS CASE IS WHY. It used to be the literal
+    // `rsi` — "parses perfectly well as a call and is not one of the table's
+    // functions" — and Phase F DECLARED `rsi`, so the probe stopped probing
+    // anything: a rail overtaken by the thing it watches, which reads exactly
+    // like a rail that still works. The subject is now the first entry of
+    // `_functions_excluded`, the manifest's own register of indicators the chart
+    // draws and a formula may not call, so declaring one MOVES this probe to the
+    // next refusal rather than quietly emptying it.
+    const REFUSED = Object.keys(TABLE._functions_excluded || {})
+      .filter((k) => !k.startsWith('_')).sort()
+    expect(REFUSED.length, 'the manifest refuses no indicator by name — this probe has no subject')
+      .toBeGreaterThan(0)
+    expect(REFUSED.filter((n) => Object.prototype.hasOwnProperty.call(TABLE.functions, n)),
+      'a name is BOTH declared and listed as refused — the register is lying').toEqual([])
+    const undeclared = REFUSED[0]
+    const source = `${undeclared}(close, 14) < 30`
     const planted = {
       concepts: { zzplanted: { source, ast: parseFormula(source).ast } },
       _refused: {},
     }
     const problems = problemsIn(planted)
-    expect(problems.some((p) => p.includes('does not declare') && p.includes('rsi'))).toBe(true)
+    expect(problems.some((p) => p.includes('does not declare') && p.includes(undeclared))).toBe(true)
     // …and the read-back independently refuses it as a function it has no rule
     // for, which is a DIFFERENT guard from the declared-scalar gap and must not
     // be swallowed as one.

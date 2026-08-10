@@ -1,0 +1,1112 @@
+// ─── THE TC2000 PCF READER — A SECOND SURFACE LANGUAGE, ONE CANONICAL TREE ──
+//
+// A member who has spent five years in TC2000 types `(C > AVGC50) AND (C1 <
+// AVGC50.1)`. This file is how that reaches the same engine `sma(close, 50)`
+// reaches: it produces the SAME canonical tree `parse.js` produces, so the
+// chart, the scan and the alert all get the object they already share, and the
+// budget, the repaint linter and the read-back all decide about it unchanged.
+//
+// ⭐ THIS IS A SECOND SURFACE SYNTAX, NOT A SECOND GRAMMAR. `closedTable.json`
+// stays the only list of what a formula may call — this module never adds a
+// name to it and never carries a copy of one. Every engine function it emits is
+// LOOKED UP in `TABLE.functions` at translation time, and a token whose engine
+// function the table does not declare refuses BY NAME rather than resolving to
+// something this file believes. That is the difference that matters: a
+// hand-list agreeing with today's manifest is invisible until the manifest
+// moves, and E-4 measured what that costs (825 of 826 tests green, one AST
+// source rail red). The rail here is `pcf.test.js`'s injected-table cases,
+// which move the answer by moving the TABLE and nothing else.
+//
+// ⭐⭐ THE BAR OFFSET IS SUPPORTED, THROUGH ONE SEAM, AND THE SEAM IS DISCOVERED
+// FROM THE ENGINE'S OWN CANONICAL VOCABULARY. PCF's `.z` suffix (`C1`, `C.1`,
+// `AVGC50.1`, `MAXC252.1`) is its single most-used feature — an offset-free PCF
+// is not PCF — so `offsetBinding()` asks `parse.js::NODE_TYPES` whether the
+// engine has a bounded backward offset, and `applyOffset()` is the ONLY place in
+// this file that knows how one is spelled in the canonical tree.
+//
+// ⛔ THERE IS NO SECOND OFFSET REPRESENTATION HERE AND THERE MUST NEVER BE ONE.
+// This reader does not desugar an offset into an arithmetic identity, does not
+// invent a node type and does not approximate. It emits exactly the node
+// `parse.js` defines — `{type:'offset', value:<int ≥ 0>, args:[child]}` — and
+// `assertCanonical` at the door is what proves it did not build a variant. If
+// the engine ever loses the node, every TC2000 offset refuses naming THE MISSING
+// ENGINE CAPABILITY rather than pretending TC2000's offset is unsupportable.
+//
+// ⚠️ A NEGATIVE OR NON-LITERAL OFFSET REFUSES AT PARSE, ALWAYS, BOUND OR NOT.
+// That is the property the entire repaint linter rests on: `maxLookback` stays a
+// tree sum and a FORWARD reference stays inexpressible. PCF has no syntax for a
+// negative offset, and `C(-1)` — the one spelling that could smuggle one in — is
+// refused here rather than left to the engine.
+//
+// ⚠️ PYTHON NEVER SEES PCF. Like jsep, this parses ONCE, in the browser, at
+// author time; what is persisted is the canonical tree. `api/services/
+// ast_interpret.py` walks that tree and has no idea which surface produced it,
+// which is exactly why this file adds no numeric surface and no cross-lane
+// parity obligation of its own. The proof is `pcf.test.js`'s astHash rail: a
+// PCF formula and its native spelling produce the SAME hash.
+//
+// SOURCES for the language itself (read 2026-08-09, help.tc2000.com):
+//   * Personal Criteria Formula Syntax Table — `/m/69445/l/745531`
+//   * Boolean Relational Operators and Functions — `/m/69445/l/755513`
+//   * Indicator Formula Template Table — `/m/69445/l/745033`
+//   * Condition Formula Template Table — `/m/69445/l/756693`
+
+import { TABLE, NODE_TYPES, assertCanonical, parseFormula } from './parse.js'
+
+// --------------------------------------------------------------------------- //
+// the refusals
+// --------------------------------------------------------------------------- //
+
+/** A refusal from THIS reader, carrying the guard, the source index and the
+ *  text that caused it.
+ *
+ *  ⛔ ITS OWN CLASS, like `parse.js`'s and `interpret.js`'s and for the same
+ *  reason: a single shared class lets one guard's deletion be covered by
+ *  another guard's test. */
+export class PcfRefusal extends Error {
+  constructor(guard, message, index, token) {
+    super(message)
+    this.name = 'PcfRefusal'
+    this.guard = guard
+    this.index = index
+    this.token = token
+  }
+}
+
+/** guard → the sentence it refuses with.
+ *
+ *  ⛔ PAIRWISE DISJOINT, AND DISJOINT FROM `parse.js`'s NINE, `interpret.js`'s
+ *  SIX, `budget.js`'s THREE AND `sentence.js`'s TEN — asserted in `pcf.test.js`
+ *  over the union of all five, in both directions. Two gates sharing a phrase
+ *  let a `toThrow(/…/)` pass with the safety deleted, and that has happened in
+ *  this repo more than once.
+ *
+ *  ⚠️ EVERY MESSAGE IS COMPLETED WITH A DETAIL THAT NAMES THE TOKEN. The
+ *  sentence below is the stem; `refuse()` appends the specific, because "this
+ *  is not a TC2000 name this reader knows" without the name is a refusal a
+ *  member cannot act on. */
+export const PCF_REFUSALS = Object.freeze({
+  'pcf:empty':
+    'a TC2000 formula needs an expression to read',
+  'pcf:character':
+    'this character has no meaning in TC2000 syntax',
+  'pcf:syntax':
+    'the TC2000 reader expected something else here',
+  'pcf:depth':
+    'this TC2000 formula nests deeper than the reader will follow',
+  'pcf:offset':
+    'a bar offset needs an offset form this table does not declare yet',
+  'pcf:operator':
+    'TC2000 declares this operator and this table does not',
+  'pcf:name':
+    'this is not a TC2000 name this reader knows',
+  'pcf:function':
+    'this TC2000 token needs an engine function the table does not declare',
+  'pcf:signature':
+    'this TC2000 token does not fit the signature the table declares',
+  'pcf:arity':
+    'this TC2000 function was handed a different count of arguments',
+  'pcf:window':
+    'a TC2000 period must be a whole number written into the formula',
+  'pcf:parameter':
+    'this TC2000 parameter value is one the table cannot express',
+})
+
+function refuse(guard, detail, index, token) {
+  throw new PcfRefusal(guard, `${PCF_REFUSALS[guard]} — ${detail}`, index, token)
+}
+
+// --------------------------------------------------------------------------- //
+// what PCF spells, and what it MEANS in engine terms
+// --------------------------------------------------------------------------- //
+//
+// ⭐ THESE TABLES DECLARE SURFACE SYNTAX ONLY. `fn` is a NAME, resolved in
+// `TABLE.functions` every time it is used; `series`/`params` say how PCF's
+// parameters map onto that function's arguments. Nothing here is believed:
+// `resolveFn` refuses when the name is absent and `checkSignature` refuses when
+// the shape the table declares is not the shape this mapping fills. So the day
+// the manifest declares a function, its PCF spelling starts working with no
+// edit here — and the day it renames one, the spelling refuses by name instead
+// of silently reading something else.
+
+/** The FUSED tokens: `AVGC50`, `XAVGC12`, `MAXH10`, `MINL10`, `STDDEV20`,
+ *  `WRSI14`, `ATR14`, `MACD12.26`, `STOC14.1`.
+ *
+ *  `field: true`  — a price letter follows the family name and supplies the
+ *                   series argument (`AVG` + `C` + `50`).
+ *  `series: [...]`— the series arguments are FIXED by what the indicator means.
+ *                   Only families whose argument ORDER the manifest states in
+ *                   its own words are declared here: `_functions_indicators`
+ *                   writes `atr(high, low, close, 14)` and `stoch(source, high,
+ *                   low, length)`, and `macd`'s read-back writes
+ *                   `the {1}/{2} MACD line of {0}`. ⛔ A family whose order is
+ *                   NOT pinned by the manifest is deliberately absent — an
+ *                   argument order guessed right today is a silent misread the
+ *                   day it is guessed wrong, and `pcf:name` is the honest answer
+ *                   until somebody pins it.
+ *  `params`       — PCF's numeric parameters IN FILL ORDER. The first comes from
+ *                   the digits fused into the base token and the rest from the
+ *                   dotted suffixes, left to right, defaulting when omitted.
+ *                   `offset` is always last and is always refused unless zero.
+ *  `fixed`        — a parameter this table cannot express, with the ONE value it
+ *                   can. `STOC14.3` is a %K smoothed over three bars and the
+ *                   table declares an unsmoothed `stoch`, so `3` refuses rather
+ *                   than being dropped. */
+export const PCF_FUSED = Object.freeze({
+  AVG:    { spelling: 'AVG<field><period>[.<offset>]',    fn: 'sma',     field: true, params: ['period', 'offset'] },
+  XAVG:   { spelling: 'XAVG<field><period>[.<offset>]',   fn: 'ema',     field: true, params: ['period', 'offset'] },
+  MAX:    { spelling: 'MAX<field><period>[.<offset>]',    fn: 'highest', field: true, params: ['period', 'offset'] },
+  MIN:    { spelling: 'MIN<field><period>[.<offset>]',    fn: 'lowest',  field: true, params: ['period', 'offset'] },
+  STDDEV: { spelling: 'STDDEV<period>[.<offset>]',        fn: 'stdev',   series: ['close'], params: ['period', 'offset'] },
+  WRSI:   { spelling: 'WRSI<period>[.<offset>]',          fn: 'rsi',     series: ['close'], params: ['period', 'offset'] },
+  ATR:    { spelling: 'ATR<period>[.<offset>]',           fn: 'atr',     series: ['high', 'low', 'close'], params: ['period', 'offset'] },
+  MACD:   { spelling: 'MACD<fast>.<slow>[.<offset>]',     fn: 'macd',    series: ['close'], params: ['fast', 'slow', 'offset'] },
+  STOC:   { spelling: 'STOC<period>.<smoothing>[.<offset>]', fn: 'stoch', series: ['close', 'high', 'low'], params: ['period', 'smoothing', 'offset'], fixed: { smoothing: 1 } },
+})
+
+/** The CALL forms. `AVG(w, x)` is TC2000's own alternative spelling of
+ *  `AVGwx`, and `GREATEST`/`LEAST`/`ABS`/`XUP`/`XDOWN` have no fused form.
+ *
+ *  ⚠️ `MIN`/`MAX` ARE THE TRAP THIS WHOLE FILE EXISTS TO GET RIGHT. In PCF,
+ *  `MIN(w, x)` is the LOWEST VALUE OVER x BARS — a rolling reduction — and
+ *  `LEAST(v, w)` is the smaller of two values. Our table spells those `lowest`
+ *  and `min`. Reading PCF's `MIN` as our `min` would produce a formula that
+ *  parses, lints, saves, scans and is WRONG, which is the failure mode the
+ *  refusal surface cannot catch. It is written out here because a comment is
+ *  what a reviewer reads before they "simplify" the mapping. */
+export const PCF_CALLS = Object.freeze({
+  AVG:      { fn: 'sma',        shape: ['expr', 'window'] },
+  XAVG:     { fn: 'ema',        shape: ['expr', 'window'] },
+  MAX:      { fn: 'highest',    shape: ['expr', 'window'] },
+  MIN:      { fn: 'lowest',     shape: ['expr', 'window'] },
+  GREATEST: { fn: 'max',        shape: ['expr', 'expr'] },
+  LEAST:    { fn: 'min',        shape: ['expr', 'expr'] },
+  ABS:      { fn: 'abs',        shape: ['expr'] },
+  XUP:      { fn: 'crossOver',  shape: ['expr', 'expr'], barsAgo: true },
+  XDOWN:    { fn: 'crossUnder', shape: ['expr', 'expr'], barsAgo: true },
+})
+
+/** PCF's infix operators → the canonical operator name, with PCF's binding
+ *  power. `=` is EQUALITY in PCF (there is no assignment) and `<>` is
+ *  inequality; both are spellings this table already has.
+ *
+ *  ⛔ EVERY `op` BELOW IS CHECKED AGAINST `TABLE.operators` BEFORE IT IS
+ *  EMITTED. The table is what declares `&&` exists with arity 2 — this file
+ *  declares only that TC2000 spells it `AND`. */
+const INFIX = Object.freeze({
+  OR:   { op: '||', bp: 1 },
+  AND:  { op: '&&', bp: 2 },
+  '=':  { op: '==', bp: 6 },
+  '<>': { op: '!=', bp: 6 },
+  '>':  { op: '>',  bp: 7 },
+  '<':  { op: '<',  bp: 7 },
+  '>=': { op: '>=', bp: 7 },
+  '<=': { op: '<=', bp: 7 },
+  '+':  { op: '+',  bp: 9 },
+  '-':  { op: '-',  bp: 9 },
+  '*':  { op: '*',  bp: 10 },
+  '/':  { op: '/',  bp: 10 },
+})
+
+/** PCF operators this table cannot express, refused BY NAME with what they
+ *  mean. ⛔ A LIST OF WHAT IS REFUSED IS NOT A BLOCKLIST HERE — these are
+ *  spellings TC2000 genuinely has, and a member who types one gets told which
+ *  one rather than a generic syntax error at the same character. */
+const UNSUPPORTED_OPERATORS = Object.freeze({
+  '^':    'raising to a power',
+  '\\':   'integer division',
+  MOD:    'the modulo remainder',
+  XOR:    'exclusive or',
+  NAND:   'the negated and',
+  NOR:    'the negated or',
+  XNOR:   'the negated exclusive or',
+})
+
+/** The one prefix operator PCF spells as a word. */
+const PREFIX_NOT = 'NOT'
+
+/** ⚠️ RECURSION IS BOUNDED, BECAUSE A GUARD THAT CRASHES IS NOT A REFUSAL.
+ *  `parse.js` made its forbidden-node scan iterative for exactly this reason;
+ *  a descent parser cannot be, so it counts instead. 64 is far past anything a
+ *  member parenthesises and far short of a stack this reader can overflow. */
+const MAX_DEPTH = 64
+
+// --------------------------------------------------------------------------- //
+// the price letters, DERIVED
+// --------------------------------------------------------------------------- //
+
+/** `C → close`, `O → open`, `H → high`, `L → low`, `V → volume` — READ OFF
+ *  `TABLE.series`, never typed.
+ *
+ *  ⭐ A LETTER RESOLVES ONLY IF EXACTLY ONE DECLARED SERIES BEGINS WITH IT. The
+ *  five PCF letters are the first letters of the five declared series and they
+ *  are unique, so today the map is total. If the table ever declares a sixth
+ *  series beginning with an already-taken letter, that letter stops resolving
+ *  and every token using it refuses by name — which is the fail-closed
+ *  direction. A hand-typed `{C: 'close', …}` would keep answering `close` for a
+ *  table that had renamed it. */
+export function priceLetters(table = TABLE) {
+  const byLetter = new Map()
+  const taken = new Set()
+  for (const name of Object.keys(table.series || {})) {
+    if (!name) continue
+    const letter = name[0].toUpperCase()
+    if (byLetter.has(letter)) { taken.add(letter); continue }
+    byLetter.set(letter, name)
+  }
+  for (const letter of taken) byLetter.delete(letter)
+  return byLetter
+}
+
+// --------------------------------------------------------------------------- //
+// the tokenizer
+// --------------------------------------------------------------------------- //
+
+const IDENT_START = /[A-Za-z_]/
+const IDENT_BODY = /[A-Za-z0-9_]/
+const DIGIT = /[0-9]/
+
+/** The two-character operators, longest-first so `>=` never lexes as `>`. */
+const TWO_CHAR = Object.freeze(['>=', '<=', '<>'])
+const ONE_CHAR = Object.freeze(['>', '<', '=', '+', '-', '*', '/', '^', '\\', '(', ')', ','])
+
+/** Source → tokens. Each token carries the index it starts at, because a
+ *  refusal that cannot say WHERE is a refusal a member cannot act on. */
+function tokenize(source) {
+  const out = []
+  let i = 0
+  while (i < source.length) {
+    const ch = source[i]
+    if (ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r') { i += 1; continue }
+
+    // A number. `.5` is a number; a `.` after an identifier is an offset
+    // separator and is consumed by the identifier below.
+    if (DIGIT.test(ch) || (ch === '.' && DIGIT.test(source[i + 1] || ''))) {
+      let j = i
+      while (j < source.length && DIGIT.test(source[j])) j += 1
+      if (source[j] === '.') {
+        j += 1
+        while (j < source.length && DIGIT.test(source[j])) j += 1
+      }
+      out.push({ kind: 'num', text: source.slice(i, j), index: i })
+      i = j
+      continue
+    }
+
+    // An identifier, INCLUDING its dotted numeric suffixes: `AVGC50.1` and
+    // `C.10` are ONE token each. ⚠️ That is the whole reason this reader has its
+    // own lexer — jsep would read `AVGC50.1` as a member access on a name.
+    if (IDENT_START.test(ch)) {
+      let j = i + 1
+      while (j < source.length && IDENT_BODY.test(source[j])) j += 1
+      while (source[j] === '.' && DIGIT.test(source[j + 1] || '')) {
+        j += 1
+        while (j < source.length && DIGIT.test(source[j])) j += 1
+      }
+      out.push({ kind: 'name', text: source.slice(i, j), index: i })
+      i = j
+      continue
+    }
+
+    const two = source.slice(i, i + 2)
+    if (TWO_CHAR.includes(two)) { out.push({ kind: 'op', text: two, index: i }); i += 2; continue }
+    if (ONE_CHAR.includes(ch)) { out.push({ kind: 'op', text: ch, index: i }); i += 1; continue }
+
+    refuse('pcf:character', `\`${ch}\` at character ${i}`, i, ch)
+  }
+  out.push({ kind: 'eof', text: '', index: source.length })
+  return out
+}
+
+// --------------------------------------------------------------------------- //
+// the table lookups — the rail
+// --------------------------------------------------------------------------- //
+
+const own = (o, k) => o != null && Object.prototype.hasOwnProperty.call(o, k)
+
+/** The declared spec for an engine function, or a refusal that names BOTH the
+ *  PCF token and the engine name the table is missing. */
+function resolveFn(table, fn, spelling, index, token) {
+  if (!own(table.functions, fn)) {
+    refuse('pcf:function',
+      `\`${token}\` reads as \`${fn}\`, which this table does not declare (it declares ${
+        Object.keys(table.functions).join(', ')})`,
+      index, token)
+  }
+  return table.functions[fn]
+}
+
+/** The shape this mapping is about to fill must be the shape the table
+ *  declares. ⭐ THIS IS WHAT MAKES THE MAPPING SURVIVE THE MANIFEST MOVING: a
+ *  signature change turns a would-be silent misread into a named refusal. */
+function checkSignature(spec, wanted, fn, spelling, index, token) {
+  const declared = spec.args || []
+  const same = declared.length === wanted.length && wanted.every((k, n) => k === declared[n])
+  if (!same) {
+    refuse('pcf:signature',
+      `\`${token}\` fills \`${fn}\`(${wanted.join(', ')}) and the table declares \`${fn}\`(${declared.join(', ')})`,
+      index, token)
+  }
+}
+
+/** Every operator this reader emits is checked against the table first. */
+function operator(table, name, arity, index, token) {
+  const spec = table.operators && table.operators[name]
+  if (!spec || spec.arity !== arity) {
+    refuse('pcf:operator',
+      `\`${token}\` reads as the ${arity === 1 ? 'unary' : arity === 3 ? 'ternary' : 'binary'} \`${name}\`, which this table does not declare`,
+      index, token)
+  }
+  return name
+}
+
+// --------------------------------------------------------------------------- //
+// node builders
+// --------------------------------------------------------------------------- //
+
+const num = (value) => ({ type: 'num', value })
+const seriesNode = (name) => ({ type: 'series', name })
+const opNode = (name, args) => ({ type: 'op', name, args })
+const callNode = (name, args) => ({ type: 'call', name, args })
+
+// --------------------------------------------------------------------------- //
+// the fused-token reader
+// --------------------------------------------------------------------------- //
+
+/** Split `AVGC50.1` into `{ base: 'AVGC50', dotted: [1], dotIndex: 6 }`.
+ *  `dotIndex` is the source offset of the FIRST dot, so an offset refusal
+ *  points at the offset rather than at the token. */
+function splitDotted(token) {
+  const parts = token.text.split('.')
+  const dotted = []
+  let at = token.index + parts[0].length
+  const firstDot = parts.length > 1 ? at : -1
+  for (let n = 1; n < parts.length; n++) {
+    dotted.push({ value: Number(parts[n]), index: at + 1 })
+    at += 1 + parts[n].length
+  }
+  return { base: parts[0], dotted, firstDot }
+}
+
+// --------------------------------------------------------------------------- //
+// ⭐⭐ THE OFFSET SEAM — the ONE place that knows how a bar offset is spelled
+// --------------------------------------------------------------------------- //
+
+/** ⭐⭐ THE OFFSET IS DISCOVERED FROM THE ENGINE'S OWN CANONICAL VOCABULARY, AND
+ *  THERE IS NO HAND-LIST ANYWHERE IN THIS SEAM.
+ *
+ *  `parse.js` EXPORTS `NODE_TYPES`, and the bounded backward offset is a member
+ *  of it. So "does this engine have a bar offset" is a question the engine
+ *  answers about itself — not a name this file guessed, not a marker key it
+ *  hoped for, and not a shape it inferred. That is the difference between a
+ *  seam and a bet.
+ *
+ *  ⚠️ PARAMETERISED SO BOTH BRANCHES STAY REACHABLE. A gate nobody has seen fire
+ *  is not a gate, and once the offset ships the "no offset" branch is
+ *  unreachable through the shipped constant — so `pcf.test.js` drives it with a
+ *  four-type vocabulary and the real one, and asserts both answers.
+ *
+ *  @returns `{kind: 'node'}` or `null` */
+export function offsetBinding(nodeTypes = NODE_TYPES) {
+  return nodeTypes.includes(OFFSET_NODE) ? { kind: 'node', type: OFFSET_NODE } : null
+}
+
+/** The canonical node type the engine spells a bar offset with. ⛔ ONE literal,
+ *  in one place, and it is compared against `NODE_TYPES` rather than trusted. */
+const OFFSET_NODE = 'offset'
+
+/** ⭐ THE OFFSET GATE, AND THE ONLY PLACE A TC2000 `.z` BECOMES A TREE.
+ *
+ *  Zero is the current bar and returns the node untouched. A negative or
+ *  non-whole offset REFUSES AT PARSE whether or not the engine has an offset
+ *  form — that is what keeps a forward reference inexpressible and `maxLookback`
+ *  a tree sum. A positive offset emits the engine's own node:
+ *
+ *      { type: 'offset', value: <integer ≥ 0>, args: [ <one child> ] }
+ *
+ *  ⛔ `value` IS A NUMBER ON THE NODE, NOT A `num` CHILD, AND THIS FILE MUST NOT
+ *  "improve" THAT. A node shape with no slot for an expression cannot hold one,
+ *  so "the offset is a constant" is true BY CONSTRUCTION rather than by a check
+ *  somebody can delete — and `maxLookback` stays `value + maxLookback(child)`.
+ *  The shape is `parse.js`'s to define and this reader's to emit; `assertCanonical`
+ *  at the door is what proves this file did not invent a variant of it. */
+function applyOffset(nodeTypes, node, value, index, token) {
+  if (value === 0) return node
+  if (!Number.isInteger(value) || value < 0) {
+    refuse('pcf:window',
+      `\`${token}\` offsets by ${JSON.stringify(value)}, and a bar offset is a whole number of bars back`,
+      index, token)
+  }
+  if (!offsetBinding(nodeTypes)) {
+    refuse('pcf:offset',
+      `\`${token}\` reads ${value} bar${value === 1 ? '' : 's'} back`,
+      index, token)
+  }
+  return { type: OFFSET_NODE, value, args: [node] }
+}
+
+/** A whole-number PCF parameter, or a refusal that names it. */
+function wholeNumber(value, what, index, token) {
+  if (!Number.isInteger(value) || value < 1) {
+    refuse('pcf:window',
+      `\`${token}\` gives ${JSON.stringify(value)} as its ${what}`, index, token)
+  }
+  return value
+}
+
+/** Fill a family's declared parameters from the base digits and the dotted
+ *  suffixes, left to right. */
+function fillParams(family, firstDigits, dotted, token) {
+  const values = {}
+  const supplied = [
+    { value: firstDigits === '' ? null : Number(firstDigits), index: token.index },
+    ...dotted,
+  ]
+  if (supplied.length > family.params.length) {
+    const extra = supplied[family.params.length]
+    refuse('pcf:arity',
+      `\`${token.text}\` gives ${supplied.length} parameters and ${family.spelling} takes ${family.params.length}`,
+      extra.index, token.text)
+  }
+  for (let n = 0; n < family.params.length; n++) {
+    const name = family.params[n]
+    const got = supplied[n]
+    values[name] = got === undefined || got.value === null
+      ? { value: name === 'offset' ? 0 : null, index: token.index }
+      : got
+  }
+  return values
+}
+
+/** One fused token → a canonical node. */
+function readFused(table, token, letters, nodeTypes) {
+  const { base, dotted } = splitDotted(token)
+  const upper = base.toUpperCase()
+
+  // A bare price letter, with or without an offset. TC2000 spells the offset
+  // TWO ways on a price token — `C1` and `C.1` — and they mean the same thing.
+  const bare = /^([A-Z])(\d*)$/.exec(upper)
+  if (bare && letters.has(bare[1])) {
+    const inline = bare[2]
+    if (dotted.length > 1) {
+      refuse('pcf:arity',
+        `\`${token.text}\` gives ${dotted.length} parameters and a price token takes one offset`,
+        dotted[1].index, token.text)
+    }
+    if (inline !== '' && dotted.length === 1) {
+      refuse('pcf:arity',
+        `\`${token.text}\` writes its offset twice — once fused and once dotted`,
+        dotted[0].index, token.text)
+    }
+    const node = seriesNode(letters.get(bare[1]))
+    if (inline !== '') return applyOffset(nodeTypes, node, Number(inline), token.index + 1, token.text)
+    if (dotted.length === 1) return applyOffset(nodeTypes, node, dotted[0].value, dotted[0].index, token.text)
+    return node
+  }
+
+  // A family, optionally followed by a price letter, then digits.
+  for (const [name, family] of Object.entries(PCF_FUSED)) {
+    const pattern = family.field
+      ? new RegExp(`^${name}([A-Z])(\\d*)$`)
+      : new RegExp(`^${name}(\\d*)$`)
+    const m = pattern.exec(upper)
+    if (!m) continue
+
+    let series
+    if (family.field) {
+      const letter = m[1]
+      if (!letters.has(letter)) {
+        refuse('pcf:name',
+          `\`${token.text}\` asks ${name} for the price letter \`${letter}\`, and this table declares ${
+            [...letters.keys()].join(', ')}`,
+          token.index + name.length, token.text)
+      }
+      series = [letters.get(letter)]
+    } else {
+      series = family.series
+    }
+    const digits = family.field ? m[2] : m[1]
+    const values = fillParams(family, digits, dotted, token)
+
+    const ints = []
+    for (const param of family.params) {
+      if (param === 'offset') continue
+      const got = values[param]
+      if (family.fixed && own(family.fixed, param)) {
+        const want = family.fixed[param]
+        const have = got.value === null ? want : got.value
+        if (have !== want) {
+          refuse('pcf:parameter',
+            `\`${token.text}\` sets ${param} to ${have}, and this table can only express ${want}`,
+            got.index, token.text)
+        }
+        continue
+      }
+      if (got.value === null) {
+        refuse('pcf:arity',
+          `\`${token.text}\` leaves ${param} unsaid and ${family.spelling} requires it`,
+          token.index, token.text)
+      }
+      ints.push(wholeNumber(got.value, param, got.index, token.text))
+    }
+
+    const spec = resolveFn(table, family.fn, family.spelling, token.index, token.text)
+    const wanted = [...series.map(() => 'series'), ...ints.map(() => 'int')]
+    checkSignature(spec, wanted, family.fn, family.spelling, token.index, token.text)
+    for (const s of series) {
+      if (!own(table.series, s)) {
+        refuse('pcf:name',
+          `\`${token.text}\` reads the series \`${s}\`, which this table does not declare`,
+          token.index, token.text)
+      }
+    }
+    // ⭐ THE OFFSET IS APPLIED TO THE WHOLE CALL, NOT TO ITS SOURCE SERIES.
+    // `AVGC50.1` is *the 50-bar average as it stood one bar ago* — not the
+    // average of a shifted close, which is the same number only by coincidence
+    // for an SMA and a DIFFERENT number for an EMA, an RSI or an ATR. Getting
+    // this the other way round is a silent misread on every recursive indicator
+    // the manifest declares.
+    const call = callNode(family.fn, [...series.map(seriesNode), ...ints.map(num)])
+    const off = values.offset
+    return off ? applyOffset(nodeTypes, call, off.value, off.index, token.text) : call
+  }
+
+  refuse('pcf:name',
+    `\`${token.text}\` at character ${token.index}`, token.index, token.text)
+  return null
+}
+
+// --------------------------------------------------------------------------- //
+// the parser
+// --------------------------------------------------------------------------- //
+
+class Reader {
+  constructor(tokens, table, nodeTypes) {
+    this.tokens = tokens
+    this.pos = 0
+    this.table = table
+    this.nodeTypes = nodeTypes
+    this.letters = priceLetters(table)
+    this.depth = 0
+  }
+
+  peek() { return this.tokens[this.pos] }
+
+  next() { return this.tokens[this.pos++] }
+
+  expect(text) {
+    const t = this.peek()
+    if (t.kind === 'op' && t.text === text) return this.next()
+    refuse('pcf:syntax',
+      `\`${text}\` was expected at character ${t.index}${t.kind === 'eof' ? ' (the formula ends here)' : `, and \`${t.text}\` is there`}`,
+      t.index, t.text)
+    return null
+  }
+
+  /** The word a `name` token spells as an operator, or null. */
+  infixOf(token) {
+    if (token.kind === 'op') return INFIX[token.text] || null
+    if (token.kind !== 'name') return null
+    const upper = token.text.toUpperCase()
+    return INFIX[upper] || null
+  }
+
+  unsupportedOf(token) {
+    if (token.kind === 'op') return UNSUPPORTED_OPERATORS[token.text] ? token.text : null
+    if (token.kind !== 'name') return null
+    const upper = token.text.toUpperCase()
+    return UNSUPPORTED_OPERATORS[upper] ? upper : null
+  }
+
+  expression(minBp = 0) {
+    this.depth += 1
+    if (this.depth > MAX_DEPTH) {
+      const t = this.peek()
+      refuse('pcf:depth', `character ${t.index} is ${MAX_DEPTH} levels in`, t.index, t.text)
+    }
+    let left = this.unary()
+    for (;;) {
+      const t = this.peek()
+      const unsupported = this.unsupportedOf(t)
+      if (unsupported) {
+        refuse('pcf:operator',
+          `\`${unsupported}\` is ${UNSUPPORTED_OPERATORS[unsupported]}, at character ${t.index}`,
+          t.index, unsupported)
+      }
+      const infix = this.infixOf(t)
+      if (!infix || infix.bp < minBp) break
+      this.next()
+      const right = this.expression(infix.bp + 1)
+      operator(this.table, infix.op, 2, t.index, t.text)
+      left = opNode(infix.op, [left, right])
+    }
+    this.depth -= 1
+    return left
+  }
+
+  unary() {
+    const t = this.peek()
+    if (t.kind === 'op' && t.text === '-') {
+      this.next()
+      operator(this.table, 'u-', 1, t.index, t.text)
+      return opNode('u-', [this.unary()])
+    }
+    if (t.kind === 'name' && t.text.toUpperCase() === PREFIX_NOT) {
+      this.next()
+      operator(this.table, '!', 1, t.index, t.text)
+      return opNode('!', [this.unary()])
+    }
+    return this.atom()
+  }
+
+  atom() {
+    const t = this.next()
+    if (t.kind === 'num') {
+      const value = Number(t.text)
+      if (!Number.isFinite(value)) {
+        refuse('pcf:syntax', `\`${t.text}\` at character ${t.index} is not a number`, t.index, t.text)
+      }
+      return num(value)
+    }
+    if (t.kind === 'op' && t.text === '(') {
+      this.depth += 1
+      if (this.depth > MAX_DEPTH) {
+        refuse('pcf:depth', `character ${t.index} is ${MAX_DEPTH} levels in`, t.index, t.text)
+      }
+      const inner = this.expression(0)
+      this.expect(')')
+      this.depth -= 1
+      return inner
+    }
+    if (t.kind === 'name') {
+      const after = this.peek()
+      if (after.kind === 'op' && after.text === '(') return this.call(t)
+      return readFused(this.table, t, this.letters, this.nodeTypes)
+    }
+    refuse('pcf:syntax',
+      `character ${t.index} carries ${t.kind === 'eof' ? 'the end of the formula' : `\`${t.text}\``} where a value was expected`,
+      t.index, t.text)
+    return null
+  }
+
+  /** `NAME(...)`. */
+  call(nameToken) {
+    const upper = nameToken.text.toUpperCase()
+    if (nameToken.text.includes('.')) {
+      refuse('pcf:syntax',
+        `\`${nameToken.text}\` at character ${nameToken.index} carries parameters and is being called`,
+        nameToken.index, nameToken.text)
+    }
+    this.expect('(')
+    const args = []
+    if (!(this.peek().kind === 'op' && this.peek().text === ')')) {
+      for (;;) {
+        const startsAt = this.peek().index
+        args.push({ node: this.expression(0), index: startsAt })
+        const t = this.peek()
+        if (t.kind === 'op' && t.text === ',') { this.next(); continue }
+        break
+      }
+    }
+    this.expect(')')
+    return this.buildCall(upper, nameToken, args)
+  }
+
+  buildCall(upper, token, args) {
+    const at = token.index
+    const nodes = args.map((a) => a.node)
+
+    // A price letter with an explicit offset: TC2000's `C(z)` form.
+    if (this.letters.has(upper)) {
+      if (nodes.length !== 1) {
+        refuse('pcf:arity',
+          `\`${token.text}\` takes one offset and was handed ${nodes.length}`, at, token.text)
+      }
+      const only = nodes[0]
+      // ⛔ AN OFFSET THAT IS NOT A LITERAL IS REFUSED HERE, NOT PASSED ON. A
+      // computed offset is not decidable statically, and the moment lookback
+      // stops being decidable statically the repaint linter stops being a tree
+      // sum. This is also the one PCF spelling through which a NEGATIVE index
+      // could arrive — `C(-1)` parses as unary minus — so it is where a forward
+      // reference is stopped.
+      if (only.type !== 'num') {
+        refuse('pcf:window',
+          `\`${token.text}(…)\` offsets by an expression rather than a written number`,
+          at, token.text)
+      }
+      return applyOffset(this.nodeTypes, seriesNode(this.letters.get(upper)), only.value, at, token.text)
+    }
+
+    // The ternary. TC2000 spells it `IIF(b, t, f)`.
+    if (upper === 'IIF') {
+      if (nodes.length !== 3) {
+        refuse('pcf:arity',
+          `\`IIF\` takes three arguments and was handed ${nodes.length}`, at, token.text)
+      }
+      operator(this.table, '?:', 3, at, token.text)
+      return opNode('?:', nodes)
+    }
+
+    // ⚠️ THERE IS DELIBERATELY NO `NOT` CASE HERE. `unary()` intercepts the word
+    // before `atom()` ever sees it, so `NOT(x)` is prefix-NOT applied to a
+    // parenthesised expression and a branch here would be dead code that reads
+    // as protection. `pcf.test.js` asserts the tree `NOT(x)` produces.
+
+    const call = PCF_CALLS[upper]
+    if (!call) {
+      refuse('pcf:name', `\`${token.text}(…)\` at character ${at}`, at, token.text)
+    }
+
+    let used = nodes
+    if (call.barsAgo && nodes.length === call.shape.length + 1) {
+      // ⭐ `XUP(v, w, x)` IS TC2000'S OWN DEFINITION AND IT IS SPELLED OUT HERE
+      // WHEN x ≠ 1: *"true when v is less than w at x bars ago and v is greater
+      // than or equal to w now"* (help.tc2000.com `/m/69445/l/755513`). There is
+      // no primitive for a crossing measured against an arbitrary bar, so this
+      // is the definition itself — through the SAME offset seam every `.z` goes
+      // through, never a second offset representation.
+      //
+      // ⚠️ AND THE x = 1 CASE MAPS TO `crossOver`/`crossUnder` INSTEAD, WHICH IS
+      // NOT BYTE-EXACT AND IS RECORDED RATHER THAN HIDDEN. TC2000's boundaries
+      // are `prior <` / `now >=`; this table's `crossOver` is `prior <=` /
+      // `now >`, so the two disagree when a value lands EXACTLY on the level —
+      // reachable on a round-number threshold. `pcfCoverage().live` names the
+      // difference and the report names the engine change that would close it.
+      // The primitive is used anyway because it is the crossing this product's
+      // own picker builds and the one its read-back can say in English.
+      const extra = nodes[call.shape.length]
+      if (extra.type !== 'num') {
+        refuse('pcf:window',
+          `\`${token.text}\` counts back by an expression rather than a written number`,
+          args[call.shape.length].index, token.text)
+      }
+      if (extra.value !== 1) {
+        const [left, right] = nodes
+        const back = args[call.shape.length].index
+        const now = call.fn === 'crossOver' ? '>=' : '<='
+        const then = call.fn === 'crossOver' ? '<' : '>'
+        operator(this.table, '&&', 2, at, token.text)
+        operator(this.table, now, 2, at, token.text)
+        operator(this.table, then, 2, at, token.text)
+        return opNode('&&', [
+          opNode(now, [left, right]),
+          opNode(then, [
+            applyOffset(this.nodeTypes, left, extra.value, back, token.text),
+            applyOffset(this.nodeTypes, right, extra.value, back, token.text),
+          ]),
+        ])
+      }
+      used = nodes.slice(0, call.shape.length)
+    }
+    if (used.length !== call.shape.length) {
+      refuse('pcf:arity',
+        `\`${token.text}\` takes ${call.shape.length}${call.barsAgo ? ' (or three)' : ''} arguments and was handed ${nodes.length}`,
+        at, token.text)
+    }
+
+    const wanted = []
+    const emitted = []
+    for (let n = 0; n < call.shape.length; n++) {
+      if (call.shape[n] === 'window') {
+        const node = used[n]
+        if (node.type !== 'num') {
+          refuse('pcf:window',
+            `\`${token.text}\` was handed an expression as its period`, args[n].index, token.text)
+        }
+        wholeNumber(node.value, 'period', args[n].index, token.text)
+        wanted.push('int')
+      } else {
+        wanted.push('series')
+      }
+      emitted.push(used[n])
+    }
+
+    const spec = resolveFn(this.table, call.fn, `${upper}(…)`, at, token.text)
+    checkSignature(spec, wanted, call.fn, `${upper}(…)`, at, token.text)
+    return callNode(call.fn, emitted)
+  }
+}
+
+// --------------------------------------------------------------------------- //
+// the door
+// --------------------------------------------------------------------------- //
+
+/** TC2000 PCF source → the canonical tree, or a tagged refusal. NEVER throws.
+ *
+ *  ⛔ A THROW FROM A READER REACHES THE BUILDER AS A BLANK SCREEN, and a parse
+ *  failure is the NORMAL case in a box somebody is halfway through typing into.
+ *  `parseFormula` is built on the same rule and this matches it exactly, so the
+ *  surface treats both dialects identically.
+ *
+ *  @returns {{ok: true, ast: object, dialect: 'pcf'}
+ *          | {ok: false, error: string, guard: string, index: number, token: string, dialect: 'pcf'}}
+ */
+export function parsePcf(source, table = TABLE, nodeTypes = NODE_TYPES) {
+  if (typeof source !== 'string' || source.trim() === '') {
+    return {
+      ok: false, dialect: 'pcf', guard: 'pcf:empty', index: 0, token: '',
+      error: `${PCF_REFUSALS['pcf:empty']} — the box is blank`,
+    }
+  }
+  try {
+    const reader = new Reader(tokenize(source), table, nodeTypes)
+    const ast = reader.expression(0)
+    const rest = reader.peek()
+    if (rest.kind !== 'eof') {
+      refuse('pcf:syntax',
+        `\`${rest.text}\` at character ${rest.index} is past the end of the formula`,
+        rest.index, rest.text)
+    }
+    // ⭐ THE OUTPUT IS PROVED CANONICAL BY THE ENGINE'S OWN CHECKER, not by this
+    // module's belief about what it built. `assertCanonical` is what every
+    // persisted tree passes through inside `astHash`; a fifth node type or a
+    // stray key invented here dies at this line rather than in a store.
+    assertCanonical(ast)
+    return { ok: true, ast, dialect: 'pcf' }
+  } catch (err) {
+    if (err instanceof PcfRefusal) {
+      return {
+        ok: false, dialect: 'pcf', guard: err.guard, index: err.index,
+        token: err.token, error: err.message,
+      }
+    }
+    return {
+      ok: false, dialect: 'pcf', guard: 'pcf:syntax', index: 0, token: '',
+      error: `${PCF_REFUSALS['pcf:syntax']} — ${String(err && err.message ? err.message : err)}`,
+    }
+  }
+}
+
+// --------------------------------------------------------------------------- //
+// which dialect is this?
+// --------------------------------------------------------------------------- //
+
+/** A marker only TC2000 produces. ⚠️ THE SINGLE-LETTER PRICE TOKENS ARE
+ *  UPPERCASE-ONLY ON PURPOSE: every name this table declares is lowercase, so an
+ *  uppercase `C` cannot be a native name, while a lowercase `c` might one day
+ *  be. PCF itself is case-insensitive and a member who types `avgc50` still
+ *  lands here through the multi-character markers. */
+const PCF_MARKERS = [
+  /\b(AND|OR|NOT|XOR|IIF|XUP|XDOWN|GREATEST|LEAST|MOD)\b/i,
+  /<>/,
+  /\b(X?AVG|MAX|MIN)[COHLV]\d/i,
+  /\b(STDDEV|WRSI|ATR|MACD|STOC)\d/i,
+  /(^|[^A-Za-z0-9_.])[COHLV]\d*(?![A-Za-z0-9_])/,
+  /(^|[^<>!=])=(?!=)/,
+]
+
+/** A marker only the native dialect produces. */
+const NATIVE_MARKERS = [/&&/, /\|\|/, /==/, /!=/, /\?/]
+
+/** Which reader should read this source.
+ *
+ *  ⭐ NATIVE UNLESS SOMETHING IS UNAMBIGUOUSLY TC2000, and never when something
+ *  is unambiguously native. That asymmetry is deliberate: every formula this
+ *  product has ever saved is native, so the detector must be incapable of
+ *  taking one away — the existing corpus contains no PCF marker, and
+ *  `pcf.test.js` asserts that over the committed corpus rather than assuming it.
+ *
+ *  ⛔ IT IS NOT A FALLBACK. A source is read by ONE reader and the refusal a
+ *  member sees is that reader's. Trying native, failing, then trying PCF would
+ *  report a PCF refusal for a native typo — the wrong-door defect this branch
+ *  has now found five times. */
+export function detectDialect(source) {
+  if (typeof source !== 'string' || source.trim() === '') return 'native'
+  if (NATIVE_MARKERS.some((re) => re.test(source))) return 'native'
+  return PCF_MARKERS.some((re) => re.test(source)) ? 'pcf' : 'native'
+}
+
+/** name → the reader. ⚠️ THE KEY SET IS THE DIALECT VOCABULARY, and an unknown
+ *  name resolves to `native` rather than throwing: a bad argument must not take
+ *  a text box or a schema validator down. */
+export const READERS = Object.freeze({
+  native: parseFormula,
+  pcf: (source) => parsePcf(source),
+})
+
+/** ⭐ THE ONE PLACE THAT DECIDES WHICH LANGUAGE A SOURCE STRING IS IN.
+ *
+ *  Three callers need this and they must never disagree: the text box (which
+ *  reads what a member is typing), `defSchema.validateAstCompute` (which
+ *  re-reads a STORED source and refuses a pair that disagrees with its tree),
+ *  and anything that later round-trips a saved definition back into an editor.
+ *  A second copy of the decision would let a formula save and then fail to
+ *  validate — a SECOND AUTHORITY OVER ONE VALUE, this repo's most repeated
+ *  defect.
+ *
+ *  @returns {{dialect: string, result: object}} `result` is the reader's own
+ *           tagged return, unedited, so the refusal a caller reports is the
+ *           refusing door's.
+ */
+export function readFormulaSource(source, dialect = 'auto') {
+  const named = dialect && dialect !== 'auto' && READERS[dialect] ? dialect : detectDialect(source)
+  const use = READERS[named] ? named : 'native'
+  return { dialect: use, result: READERS[use](source) }
+}
+
+// --------------------------------------------------------------------------- //
+// the coverage map, MEASURED
+// --------------------------------------------------------------------------- //
+
+/** What a member can and cannot express through this reader, computed against a
+ *  table rather than written down.
+ *
+ *  ⭐ THIS IS THE ARTIFACT THE REPORT QUOTES. A coverage map typed into a
+ *  document is a description of the day it was written; this one is a function
+ *  of the manifest, so the day the indicator agent lands a function the map
+ *  moves with it and the test that reads it moves too. */
+export function pcfCoverage(table = TABLE, nodeTypes = NODE_TYPES) {
+  const letters = priceLetters(table)
+  const binding = offsetBinding(nodeTypes)
+  const live = []
+  const blocked = []
+
+  const consider = (spelling, fn, wanted, note) => {
+    if (!own(table.functions, fn)) {
+      blocked.push({
+        spelling, fn, note,
+        reason: `the table does not declare \`${fn}\``,
+        toSupport: `declare \`${fn}\`(${wanted.join(', ')}) in closedTable.json and implement it in `
+          + 'interpret.js::FN and ast_interpret.py::FN. Nothing in this reader changes.',
+      })
+      return
+    }
+    const declared = table.functions[fn].args || []
+    const same = declared.length === wanted.length && wanted.every((k, n) => k === declared[n])
+    if (!same) {
+      blocked.push({
+        spelling, fn, note,
+        reason: `the table declares \`${fn}\`(${declared.join(', ')}) and this reader fills (${wanted.join(', ')})`,
+        toSupport: 'decide which signature is right: change this family’s `series`/`params` to fill '
+          + 'the declared one, or move the manifest.',
+      })
+      return
+    }
+    live.push({ spelling, fn, note })
+  }
+
+  for (const [name, family] of Object.entries(PCF_FUSED)) {
+    const series = family.field ? [...letters.values()].slice(0, 1) : family.series
+    const ints = family.params.filter((p) => p !== 'offset' && !(family.fixed && own(family.fixed, p)))
+    consider(family.spelling, family.fn,
+      [...series.map(() => 'series'), ...ints.map(() => 'int')],
+      family.field ? `over ${[...letters.keys()].join('/')}` : undefined)
+  }
+  for (const [name, call] of Object.entries(PCF_CALLS)) {
+    consider(`${name}(${call.shape.map((k) => (k === 'window' ? 'period' : 'value')).join(', ')})`,
+      call.fn, call.shape.map((k) => (k === 'window' ? 'int' : 'series')),
+      call.barsAgo
+        ? 'the third argument is bars-ago; 1 or absent maps to the crossing primitive'
+        : undefined)
+  }
+
+  // ⭐⭐ THE THIRD COLUMN, AND IT IS HALF THE DELIVERABLE. A coverage map that
+  // only says what is refused is a LIMITATION; one that says what would have to
+  // change is a PLAN. Every `toSupport` below names the artifact that moves —
+  // a manifest entry, a walker, a line in this file — never a wish.
+  const refused = [
+    {
+      construct: 'a bar offset — `C1`, `C.1`, `AVGC50.1`, `MAXC252.1`, `C(3)`, `XUP(v, w, 3)`',
+      guard: 'pcf:offset',
+      state: binding
+        ? `SUPPORTED — \`${OFFSET_NODE}\` is one of the engine's canonical node types`
+        : 'REFUSED — the engine declares no offset node',
+      toSupport: binding
+        ? 'nothing; this reader already emits `{type: "offset", value: n, args: [child]}`, which is '
+          + 'the shape parse.js defines and assertCanonical checks at the door'
+        : 'add the bounded, backward-only, literal-indexed offset to the engine’s canonical node '
+          + 'vocabulary (parse.js::NODE_TYPES) and to both walkers. This reader discovers it there '
+          + 'and emits it with no edit at all.',
+    },
+    {
+      construct: '`XUP` / `XDOWN` at the DEFAULT one-bar distance',
+      guard: null,
+      state: 'SUPPORTED, with a boundary difference',
+      toSupport: 'TC2000 defines XUP as `prior < level` AND `now >= level`; this table’s `crossOver` '
+        + 'is `prior <= level` AND `now > level`. They disagree only when a value lands EXACTLY on '
+        + 'the level — reachable on a round-number threshold. Exact parity needs either an '
+        + 'inclusive-boundary crossing declared in closedTable.json, or this reader always spelling '
+        + 'TC2000’s definition out, which it already does for a bars-ago other than 1.',
+    },
+    {
+      construct: Object.entries(UNSUPPORTED_OPERATORS)
+        .map(([sym, what]) => `\`${sym}\` (${what})`).join(', '),
+      guard: 'pcf:operator',
+      state: 'REFUSED',
+      toSupport: 'declare the operator in closedTable.json::operators with its arity, give it a '
+        + 'precedence in this reader’s INFIX table, and implement it in both walkers’ BINARY maps. '
+        + '`^` and `MOD` are the only two a published TC2000 template actually uses (Historical '
+        + 'Volatility raises a log ratio to a power).',
+    },
+    {
+      construct: '`SUM(w, x)` — used by six published indicator templates',
+      guard: 'pcf:name',
+      state: 'REFUSED',
+      toSupport: 'declare `sum(series, int)` with `lookback: "arg1"` in closedTable.json and '
+        + 'implement it in both walkers. Adding `SUM` to PCF_CALLS is then one line.',
+    },
+    {
+      construct: '`FAVG` (front-weighted average), `HAVG` (Hull), `LOG`, `SQR`, `ARCTANH`',
+      guard: 'pcf:name',
+      state: 'REFUSED',
+      toSupport: 'each needs a table function plus both walkers. `LOG`/`SQR`/`ARCTANH` are '
+        + 'element-wise maths and cheap; `FAVG`/`HAVG` are real indicators and belong with the '
+        + 'indicator family that just landed.',
+    },
+    {
+      construct: '`CountTrue(b, x)`, `SinceTrue(b, x)`, `TrueInRow(b, x)`',
+      guard: 'pcf:name',
+      state: 'REFUSED',
+      toSupport: 'these reduce a CONDITION over a window, and the table has no such shape. It is the '
+        + 'one addition here that is not a single function: `args: ["series", "int"]` per verb, plus '
+        + 'a decision about what a NaN inside the window means for a count.',
+    },
+    {
+      construct: 'indicator families whose argument ORDER the manifest does not state — `CCIx.z`, '
+        + '`DIPLUSd.z`, `DIMINUSd.z`, `AROONUPx.z`, `MSy.z`, `TSVx.z`, `BOPy.z`, `WSTOCx.y.z`',
+      guard: 'pcf:name',
+      state: 'REFUSED — deliberately, even where the table declares the function',
+      toSupport: 'the table declares `cci`, `plusDI`, `minusDI` and `williamsR` with three `series` '
+        + 'arguments and does not say WHICH three or in what order. Guessing right today is a silent '
+        + 'misread the day it is guessed wrong. Pin the order in `_functions_indicators` — it '
+        + 'already does exactly that for `atr` and `stoch`, which is why those two ARE supported — '
+        + 'and each family becomes one line here. `MS`/`TSV`/`WSTOC`/`AROON`/`BOP` are Worden’s own '
+        + 'indicators and need the maths in both walkers first.',
+    },
+    {
+      construct: '`RSIx.y.z` — TC2000’s "plain" RSI',
+      guard: 'pcf:name',
+      state: 'REFUSED deliberately; `WRSI<x>` (Wilder’s) IS supported',
+      toSupport: 'nothing should change until somebody pins what Worden’s plain RSI computes. Its own '
+        + 'template table derives the Kaufman Efficiency Ratio from it (`2 * RSIx.y.z - 100`) and '
+        + 'declares Wilder’s separately as `WRSIx.z`, so `RSI14` is NOT the 14-period RSI a scan '
+        + 'usually means. Mapping it to `rsi` would be a correct-looking number from the wrong '
+        + 'indicator — the exact failure a refusal surface cannot catch.',
+    },
+    {
+      construct: '`v ++ w`, `v +- w`, `v -+ w`, `v -- w` — TC2000’s typo-tolerant add/subtract',
+      guard: 'pcf:syntax',
+      state: 'REFUSED',
+      toSupport: 'four lines in this reader’s tokenizer and no engine change at all. Left out because '
+        + 'the doubled forms are indistinguishable from `a - -b` without a whitespace rule, and a '
+        + 'whitespace-sensitive operator is worse than a refusal at the character.',
+    },
+    {
+      construct: 'a string comparison — `sector = "Technology"`, `patterns` membership',
+      guard: 'pcf:character',
+      state: 'REFUSED',
+      toSupport: 'closedTable.json::_scalars_excluded already owns this decision and states the cost: '
+        + 'the table’s only literal is a number, so granting strings means a literal kind in the '
+        + 'parser, both walkers, the linter and the read-back. It is a phase, not a line.',
+    },
+  ]
+
+  return {
+    priceLetters: Object.fromEntries(letters),
+    operators: Object.fromEntries(Object.entries(INFIX).map(([k, v]) => [k, v.op])),
+    offset: { binding, node: OFFSET_NODE, nodeTypes: [...nodeTypes] },
+    live,
+    blocked,
+    refused,
+  }
+}

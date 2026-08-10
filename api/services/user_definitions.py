@@ -235,6 +235,13 @@ _CANONICAL_KEYS: dict[str, tuple[str, ...]] = {
     "series": ("type", "name"),
     "op": ("type", "name", "args"),
     "call": ("type", "name", "args"),
+    # ⭐ THE BOUNDED BACKWARD OFFSET — `EXPR[N]`. ⚠️ NO `name`: an offset is not
+    # a named thing, the bar count IS the node. Without this row the STORE is
+    # the door that refuses the feature: `assert_canonical` runs on every save,
+    # so a definition containing `close[1]` would parse, lint, evaluate and read
+    # back correctly in both lanes and then fail to persist — the "built, tested,
+    # green and connected to nothing" shape, one door further along than usual.
+    "offset": ("type", "value", "args"),
 }
 NODE_TYPES = tuple(_CANONICAL_KEYS)
 

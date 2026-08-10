@@ -1188,67 +1188,654 @@ def _call_model(messages: List[dict], briefing: str = "") -> Tuple[Any, int, int
 # nearest match and no partial expansion: "cheap" comes back saying "cheap",
 # because a wrong scan that looks right is worse than a refusal (spec §1.6) and a
 # member who is told which word failed can say what they meant.
+#
+# ⭐⭐ AND THE FIRM'S WORDS ARE NOT THE ONLY WORDS. Two different requests were
+# conflated until this task, and conflating them is what made the door narrow:
+#
+#   1. A FIRM CONCEPT -- "trending", "closing strong". These carry the firm's
+#      judgement and its thresholds, so they stay GROUNDED AND CITED, and a word
+#      the firm will not ground stays refused BY NAME. The model never invents one.
+#   2. A PLAIN COMPOSITION over the manifest -- "rsi14 above 70 and volume over
+#      two million". NO FIRM JUDGEMENT IS INVOLVED: the member named the table's
+#      own entries and supplied every number. That needs no grounding, and
+#      REFUSING IT WAS THE DEFECT.
+#
+# ⛔ SO THE SECOND PATH IS BUILT, AND THE SAFETY PROPERTY IS UNCHANGED: the model
+# still emits a TREE validated against the manifest and still cannot author the
+# read-back. What changed is only which ENGLISH reaches it.
+#
+# ⭐ AND EVERYTHING BELOW IS DERIVED AT RUN TIME FROM THE MANIFEST AND THE
+# VOCABULARY FILE -- never a hand-list. Measured twice this week: a hand-list that
+# agrees with today's manifest leaves 825 of 826 and 908 of 909 cases green with
+# only the AST source rail red. The rail is carried and widened (it now forbids
+# SCALAR names and VOCABULARY words as string constants too), and the reachability
+# rail below is behavioural: every declared name must be reachable BY ITS OWN NAME
+# and by the manifest's own phrase for it, so a fourteenth indicator function joins
+# the plain-language door the day it is declared, with no line of this file moving.
 
-def _phrase_pattern(phrase: str) -> "re.Pattern":
-    """One vocabulary phrase, matched on WORD BOUNDARIES and nothing cleverer.
+# --------------------------------------------------------------------------- #
+# morphology -- RULES OVER ENGLISH, NEVER A THESAURUS OF THE FIRM'S WORDS
+# --------------------------------------------------------------------------- #
+#
+# ⛔ THE DISTINCTION THAT MAKES THIS LEGITIMATE. A thesaurus would say "leaders
+# means leader" -- a second authority over what the firm's words mean, exactly the
+# defect the vocabulary file exists to prevent. What is written here is ENGLISH
+# INFLECTION: suffix rules that know nothing about trading, applied to BOTH sides,
+# so the terms being matched still come only from the manifest and the vocabulary.
+#
+# ⚠️ AND AMBIGUITY IS NEVER ARBITRATED BY TASTE. Two entries can stem to one key
+# (`highest` and `high` both reach "high"), so a run is resolved by MINIMUM TOTAL
+# MORPHOLOGICAL DISTANCE -- the steps the member's word took plus the steps the
+# declared form took. "highs" is one step from `high` and two from `highest`, so
+# the nearer one wins; a genuine TIE is reported as a collision and matches
+# NOTHING, because picking one of two equals would be this module inventing a
+# meaning.
 
-    ⛔ NO STEMMING, NO FUZZY MATCH, NO NEAREST NEIGHBOUR -- the refusal rule
-    applied at the detection door as well as the resolution one. "leaders" does
-    not quietly become "leader": either the firm has defined the phrase the
-    member used, or it has not.
+#: The shortest thing a suffix rule may leave behind. Below this, stripping is
+#: noise. It is 3 because the manifest declares three-letter bar fields, and a
+#: plural rule that could not turn "lows" into one of them would leave the most
+#: ordinary word a trader writes unmatched. The two-letter columns (`ps`, `pb`)
+#: are protected by the rules' own length floors, not by this.
+_MIN_STEM = 3
+
+#: (suffix, the shortest word it may fire on, its replacement, de-double after).
+#: Ordered longest-intent first; applied at most once per pass.
+_SUFFIX_RULES: Tuple[Tuple[str, int, str, bool], ...] = (
+    ("ies", 5, "y", False),
+    ("sses", 6, "ss", False),
+    ("shes", 6, "sh", False),
+    ("ches", 6, "ch", False),
+    ("xes", 5, "x", False),
+    ("ship", 7, "", False),
+    ("ness", 7, "", False),
+    #: ⚠️ `-er`/`-est` DE-DOUBLE LIKE `-ing`/`-ed`, because English doubles the
+    #: consonant before all four. Without it "gappers" stemmed to "gapp" and the
+    #: firm's own screen name `Gappers holding gains` reached nothing.
+    ("ing", 6, "", True),
+    ("est", 6, "", True),
+    ("ed", 5, "", True),
+    ("er", 5, "", True),
+    ("ly", 5, "", False),
+    ("s", 4, "", False),
+    ("e", 4, "", False),
+)
+
+#: A word never stems past this many passes. "leaderships" needs three
+#: (s -> ship -> er); the bound is what stops a pathological rule cycling.
+_STEM_PASSES = 4
+
+#: Endings the plural rule must not touch: they are not plurals.
+_NOT_PLURAL = ("ss", "us", "is")
+
+_DOUBLED = re.compile(r"([b-df-hj-np-tv-z])\1$")
+
+
+def _stem_once(word: str) -> str:
+    for suffix, floor, repl, dedouble in _SUFFIX_RULES:
+        if len(word) < floor or not word.endswith(suffix):
+            continue
+        if suffix == "s" and word.endswith(_NOT_PLURAL):
+            continue
+        stem = word[: len(word) - len(suffix)] + repl
+        if len(stem) < _MIN_STEM:
+            continue
+        return _DOUBLED.sub(r"\1", stem) if dedouble else stem
+    return word
+
+
+def stem(word: str) -> Tuple[str, int]:
+    """``(the stem, how many rules fired)``.
+
+    The step count is not bookkeeping: it is the DISTANCE that decides a
+    collision, and without it "highs" would be an unresolvable tie between the
+    bar field and the window function.
     """
-    return re.compile(r"(?<![a-z0-9_])" + re.escape(phrase) + r"(?![a-z0-9_])")
-
-
-def _phrases_in(prompt: str, known: Any) -> List[str]:
-    """The known phrases the prompt spells, in the order the member wrote them.
-
-    LONGEST FIRST AND NON-OVERLAPPING, so a phrase the firm has defined wins over
-    a shorter one inside it -- "leaders pulling back" is one concept, not two
-    halves of somebody else's.
-    """
-    hay = concept_vocabulary.normalise(prompt)
-    taken: List[Tuple[int, int]] = []
-    found: List[Tuple[int, str]] = []
-    for phrase in sorted(known, key=lambda p: (-len(p), p)):
-        for match in _phrase_pattern(phrase).finditer(hay):
-            if any(match.start() < end and start < match.end() for start, end in taken):
-                continue
-            taken.append((match.start(), match.end()))
-            found.append((match.start(), phrase))
+    current, steps = word, 0
+    for _ in range(_STEM_PASSES):
+        nxt = _stem_once(current)
+        if nxt == current:
             break
-    return [phrase for _, phrase in sorted(found)]
+        current, steps = nxt, steps + 1
+    return current, steps
 
 
-def _concept_briefing(prompt: str, kind: str,
-                      vocab: Optional[Mapping[str, Any]] = None) -> Tuple[List[dict], str]:
-    """``(concepts used, the text appended to the system prompt)``.
+# --------------------------------------------------------------------------- #
+# the text a member typed
+# --------------------------------------------------------------------------- #
 
-    :raises _Refused: the member used a word the firm has DECIDED not to ground,
-        or one whose citations no longer resolve. The gate and the sentence are
-        the vocabulary's own (``concept:ambiguous`` / ``concept:ungrounded``),
-        reported under their own names exactly as ``resolve:*`` and ``budget:*``
-        are -- a refusal re-wrapped under this module's vocabulary would be a
-        correct answer produced by the wrong door.
+_WORD = re.compile(r"[a-z0-9_]+")
+#: ⚠️ REPLACED BY TWO SPACES, NOT BY NOTHING, and that is load-bearing: every
+#: transform below is LENGTH-PRESERVING, so an offset into the normalised text is
+#: an offset into what the member actually typed and `matched_as` can be their own
+#: casing rather than a lower-cased approximation of it.
+_POSSESSIVE = re.compile(r"'s(?![a-z0-9])")
+_CAMEL = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
+_HAS_PLACEHOLDER = re.compile(r"\{\d+\}")
+#: Words a declared phrase may open with that carry no meaning to match on.
+#: Grammar, not vocabulary -- and stripped from the DECLARED form only, never
+#: from the member's text, which is matched as contiguous runs wherever they sit.
+_LEADING_GRAMMAR = ("the", "a", "an", "whether")
 
-    ⭐ EACH ENTRY IS ``{word, version}`` AND THE TREE IS NOT LATE-BOUND TO IT.
-    The word is PROVENANCE. The maths that gets saved is the tree the model
-    emitted from the expansion, so re-defining "trending" next quarter cannot
-    change what a scan saved today computes.
+
+def _hay(text: Any) -> str:
+    """The member's text, folded for matching WITHOUT changing its length.
+
+    ⚠️ THE HYPHEN IS LEFT ALONE, DELIBERATELY. It splits words anyway (``_WORD``
+    does not admit it), so folding it to a space bought nothing -- and it cost the
+    MINUS SIGN: two of the manifest's own columns are honestly negative
+    (`williamsR`, `pct_vs_ema20`), and a member writing "under -80" had the sign
+    silently deleted from their own threshold.
     """
-    known = set(concept_vocabulary.concepts(vocab)) | set(concept_vocabulary.refused(vocab))
-    used: List[dict] = []
-    lines: List[str] = []
-    for phrase in _phrases_in(prompt, known):
-        answer = concept_vocabulary.resolve(phrase, vocab=vocab)
-        if not answer["ok"]:
-            raise _Refused(answer["gate"], answer["reason"])
-        used.append({"word": answer["word"], "version": answer["version"]})
-        lines.append(f'  "{answer["word"]}" means exactly: {answer["source"]}')
+    return _POSSESSIVE.sub("  ", str(text or "").lower())
+
+
+def _token_spans(hay: str) -> List[Tuple[str, int, int]]:
+    return [(m.group(0), m.start(), m.end()) for m in _WORD.finditer(hay)]
+
+
+def _form_tokens(form: Any) -> Tuple[str, ...]:
+    """A DECLARED phrase, reduced to the words a member would have to write."""
+    words = [m.group(0) for m in _WORD.finditer(_hay(form))]
+    while words and words[0] in _LEADING_GRAMMAR:
+        words.pop(0)
+    return tuple(words)
+
+
+def _stem_key(words: Tuple[str, ...]) -> Tuple[Tuple[str, ...], int]:
+    stems, cost = [], 0
+    for word in words:
+        root, steps = stem(word)
+        stems.append(root)
+        cost += steps
+    return tuple(stems), cost
+
+
+# --------------------------------------------------------------------------- #
+# the lexicon -- DERIVED, BOTH HALVES, AT RUN TIME
+# --------------------------------------------------------------------------- #
+
+#: What a matched phrase turned out to be. ⛔ Structure, not vocabulary.
+#:
+#: ⭐ `EXCLUDED_ENTRY` IS "ABSENT MUST STAY ABSENT", APPLIED TO LANGUAGE. The
+#: manifest does not merely list what the table HAS: `_scalars_excluded` lists
+#: what it deliberately does NOT have, each with the reason, and the two are
+#: declared to be a PARTITION of the screener's columns. So a member who says
+#: "sector" has named something real that this grammar cannot express, and the
+#: honest answer is the manifest's own sentence about it — not silence.
+CONCEPT_ENTRY, REFUSED_ENTRY, TABLE_ENTRY, EXCLUDED_ENTRY = (
+    "concept", "refused", "table", "excluded")
+
+#: Which lane answered a proposal. ⚠️ NOT one of the manifest's names -- the
+#: fourth reads "unanchored" rather than the obvious word because that word is a
+#: declared bar field and the anti-copy rail would report it, correctly.
+PLAN_PATHS: Tuple[str, ...] = ("concept", "composition", "mixed", "unanchored")
+
+
+def _surface_forms(name: str, spec: Mapping[str, Any]) -> List[str]:
+    """Every way a member might write ONE declared entry, off its declaration.
+
+    ⛔ THREE DERIVATIONS AND NO INVENTED SYNONYM: the name itself, the name with
+    its structure spelled out (underscores and camel humps become spaces), and
+    the manifest's OWN English for it.
+
+    ⚠️ A PHRASE CARRYING AN ARGUMENT PLACEHOLDER IS SKIPPED. A function's
+    read-back is a template (``the {1}-bar average of {0}``); stripping the holes
+    out of it yields a phrase nobody would ever type and would index a fragment
+    against a real entry. Functions stay reachable by NAME, which is what a member
+    writes anyway, and the reachability rail asserts exactly that split rather
+    than assuming it.
+    """
+    forms = [name, name.replace("_", " "), _CAMEL.sub(" ", name)]
+    gloss = spec.get("sentence") if isinstance(spec, Mapping) else None
+    if not isinstance(gloss, str) or not gloss:
+        gloss = spec.get("doc") if isinstance(spec, Mapping) else None
+    if isinstance(gloss, str) and gloss and not _HAS_PLACEHOLDER.search(gloss):
+        forms.append(gloss)
+    return forms
+
+
+def _excluded(table: Mapping[str, Any]) -> Mapping[str, str]:
+    """``{column -> why the table does not carry it}``, the manifest's own words.
+
+    ⛔ READ THROUGH ``ast_table``'s STRUCTURE CONSTANT, never the literal key.
+    The section names are structure and this module owns none of them.
+    """
+    block = table.get(ast_table.EXCLUDED_KEY)
+    return block if isinstance(block, Mapping) else {}
+
+
+def _filter_labels() -> List[Tuple[str, str, str]]:
+    """``(key, label, column)`` for every filter the screener ships.
+
+    Imported lazily so this module stays cheap at import, and it RAISES rather
+    than returning nothing: a registry whose shape had moved would otherwise make
+    this door quietly narrower with every rail still green.
+    """
+    from api.services.screener import filters as screener_filters  # noqa: PLC0415
+    out = [(key, entry.get("label"), entry.get("column"))
+           for key, entry in screener_filters.FILTERS.items()
+           if isinstance(entry.get("label"), str) and entry.get("label")
+           and isinstance(entry.get("column"), str)]
+    if not out:
+        raise ValueError(
+            "the screener's filter registry yielded no labelled columns; its "
+            "shape changed and the firm's own wording for every column would "
+            "silently stop reaching the plain-language door")
+    return out
+
+
+def build_lexicon(table: Optional[Mapping[str, Any]] = None,
+                  vocab: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
+    """Every phrase this door understands, read off the manifest and the vocabulary.
+
+    ⛔ NOTHING IS TYPED HERE. The sections come from ``_name_sections`` (the same
+    derivation the tool schema uses, so a fifth section arrives as data), the
+    entries come from the manifest, and the words come from
+    ``conceptVocabulary.json``. ``closedTable.json`` is being extended with
+    indicator functions by another owner as this ships; every one of them joins
+    this lexicon on import with no edit here.
+
+    ⚠️ THE OPERATOR VOCABULARY IS SKIPPED, BY NODE TYPE AND NOT BY SECTION NAME.
+    An operator is GRAMMAR, not something a member names: its English lives in
+    ``OPERATOR_SENTENCE``, pinned across the two lanes, and the model is handed the
+    operator list in the schema. ⛔ AND THE TEST IS THE NODE TYPE RATHER THAN "does
+    it tokenise to a word", which was the first draft and was WRONG BY ONE:
+    ``u-`` — canonical unary minus — carries the word "u", so it indexed itself
+    and a member who typed a stray "u" was told they had named an operator.
+
+    Returns ``{"index": {stem tuple -> [entry]}, "max_words": n,
+    "collisions": {stem tuple -> [identity]}}``.
+    """
+    t = table if table is not None else ast_table.TABLE
+    v = vocab if vocab is not None else concept_vocabulary.VOCAB
+    index: Dict[Tuple[str, ...], List[dict]] = {}
+
+    def add(kind: str, key: str, section: Optional[str], form: Any) -> None:
+        words = _form_tokens(form)
+        if not words:
+            return
+        stems, cost = _stem_key(words)
+        row = {"kind": kind, "key": key, "section": section,
+               "words": words, "cost": cost}
+        bucket = index.setdefault(stems, [])
+        if not any(e["kind"] == kind and e["key"] == key and e["words"] == words
+                   for e in bucket):
+            bucket.append(row)
+
+    for section, entries in _name_sections(t).items():
+        if _CALLABLE_SECTIONS.get(section) == "op":
+            continue
+        for name, spec in entries.items():
+            for form in _surface_forms(name, spec if isinstance(spec, Mapping) else {}):
+                add(TABLE_ENTRY, name, section, form)
+
+    #: ⭐ THE HALF THE TABLE DECLARES IT DOES **NOT** CARRY, read off the same
+    #: manifest. `_scalars_totality` states that these and the scalars are a
+    #: PARTITION of the screener's own column list, so this is not a list of
+    #: things somebody thought of — a sixty-sixth column lands in one half or the
+    #: other or the manifest's own rail goes red.
+    for name in _excluded(t):
+        add(EXCLUDED_ENTRY, name, None, name)
+
+    #: ⭐ AND THE FIRM'S OWN UI WORDING FOR EACH COLUMN. `filters.py` is already an
+    #: authority in this subsystem — `filter_preset` is one of the vocabulary's
+    #: four citation kinds — and its labels are how the firm words a criterion in
+    #: front of a member. "P/E (TTM)" reduces to no word the column name contains,
+    #: so without this the most ordinary way to write `pe_ttm` reached nothing.
+    #:
+    #: ⛔ IT RAISES RATHER THAN NARROWING SILENTLY, the `firm_setups()` idiom: a
+    #: registry that had moved would otherwise make this door quietly smaller
+    #: while every rail stayed green.
+    for key, label, column in _filter_labels():
+        if column in _excluded(t):
+            add(EXCLUDED_ENTRY, column, None, label)
+        elif column in ast_table.declared_names(t):
+            add(TABLE_ENTRY, column, ast_table.SCALARS_SECTION, label)
+
+    for word in concept_vocabulary.concepts(v):
+        add(CONCEPT_ENTRY, word, None, word)
+    for word in concept_vocabulary.refused(v):
+        add(REFUSED_ENTRY, word, None, word)
+
+    #: ⛔ A TIE IS EXACTLY "TWO IDENTITIES AT THE SAME DISTANCE", AND IT IS
+    #: DERIVED FROM THE SCORING RULE RATHER THAN GUESSED AT. `_resolve_run` scores
+    #: a non-exact run as ``run + entry + 1``, so the run's own cost cancels and
+    #: two entries tie iff their costs are equal; an exact run scores 0, which two
+    #: entries can only share by declaring the SAME words. Both cases are "the
+    #: cheapest entry is not unique", so that is what is reported.
+    #:
+    #: ⚠️ NOT "any two identities under one stem". `highest` (cost 1) and `high`
+    #: (cost 0) share a stem and are NOT a tie — the distance rule separates them,
+    #: and calling that a collision would drop two perfectly readable words.
+    collisions = {}
+    for stems, rows in index.items():
+        cheapest = min(e["cost"] for e in rows)
+        identities = {(e["kind"], e["key"]) for e in rows if e["cost"] == cheapest}
+        if len(identities) > 1:
+            collisions[stems] = sorted(identities)
+    return {"index": index,
+            "max_words": max((len(k) for k in index), default=1),
+            "collisions": collisions}
+
+
+#: The shipped lexicon. Built once, at import, from the two files.
+LEXICON: Dict[str, Any] = build_lexicon()
+
+
+def _resolve_run(lexicon: Dict[str, Any], words: Tuple[str, ...]) -> Optional[dict]:
+    """One contiguous run of the member's words -> the ONE entry it names, or None.
+
+    ⛔ MINIMUM TOTAL DISTANCE, AND A TIE MATCHES NOTHING. See the morphology note:
+    arbitrating a tie would be this module deciding what a word means.
+    """
+    stems, run_cost = _stem_key(words)
+    rows = lexicon["index"].get(stems)
+    if not rows:
+        return None
+    #: ⭐ AN EXACT SPELLING IS DISTANCE ZERO, WHATEVER ITS STEM COST. Without
+    #: this, "highest" scored a tie between the window function it literally
+    #: spells and the bar field it merely stems to, and a tie matches nothing —
+    #: so the member's exact word would have been the one thing this door could
+    #: not read.
+    best: Dict[Tuple[str, str], dict] = {}
+    for row in rows:
+        ident = (row["kind"], row["key"])
+        score = 0 if row["words"] == words else run_cost + row["cost"] + 1
+        if ident not in best or score < best[ident]["score"]:
+            best[ident] = {"score": score, "row": row}
+    floor = min(entry["score"] for entry in best.values())
+    winners = [entry["row"] for entry in best.values() if entry["score"] == floor]
+    if len(winners) != 1:
+        return None
+    #: ⭐ MORPHOLOGY WIDENS WHAT YOU MAY SAY; IT DOES NOT WIDEN WHAT WE TELL YOU
+    #: WE CANNOT DO. An absent column is surfaced only on an EXACT spelling,
+    #: because "companies with rsi over 70" and "tickers over 50" are the most
+    #: ordinary filler in the box and stemming them onto the identity columns
+    #: would put a can't-do notice under half the requests in the product.
+    if winners[0]["kind"] == EXCLUDED_ENTRY and winners[0]["words"] != words:
+        return None
+    return winners[0]
+
+
+def _matches(prompt: str, lexicon: Dict[str, Any]) -> List[dict]:
+    """Every phrase the member wrote that this door understands.
+
+    LONGEST FIRST AND NON-OVERLAPPING, unchanged from E-5 and for its reason: a
+    phrase the firm has defined wins over a shorter one inside it, so "leaders
+    pulling back" is one concept rather than two halves of somebody else's, and
+    "closing strong" is a grounded concept rather than the refused word "strong".
+    """
+    hay = _hay(prompt)
+    spans = _token_spans(hay)
+    taken = [False] * len(spans)
+    found: List[dict] = []
+    for width in range(min(lexicon["max_words"], len(spans)), 0, -1):
+        for i in range(0, len(spans) - width + 1):
+            if any(taken[i:i + width]):
+                continue
+            words = tuple(spans[j][0] for j in range(i, i + width))
+            row = _resolve_run(lexicon, words)
+            if row is None:
+                continue
+            for j in range(i, i + width):
+                taken[j] = True
+            found.append({"kind": row["kind"], "key": row["key"],
+                          "section": row["section"],
+                          "start": spans[i][1], "end": spans[i + width - 1][2],
+                          "matched_as": str(prompt)[spans[i][1]:spans[i + width - 1][2]]})
+    return sorted(found, key=lambda m: m["start"])
+
+
+# --------------------------------------------------------------------------- #
+# clauses -- THE UNIT A MEMBER CAN FIX
+# --------------------------------------------------------------------------- #
+#
+# 🔴 A REFUSED WORD MUST NOT REFUSE THE WHOLE PROPOSAL. That was E-5's own
+# measured limit and it is the same "absent must stay absent" principle applied to
+# language: take what you understood, NAME the part you did not, and let the
+# member fix that clause. A blanket refusal of "cheap stocks with pe_ttm under 15"
+# throws away a request in which the member supplied every number themselves.
+#
+# ⛔ AND THE EXCLUSION IS THE SAFETY PROPERTY, NOT A COURTESY. The refused clause
+# is removed BEFORE the model is called, so the model never sees "cheap" and
+# cannot invent the firm's threshold for it. Telling the model "the member also
+# said cheap but we could not ground it" would be handing it the invitation.
+
+_CLAUSE_BREAK = re.compile(
+    r"[,;\n]|(?<![a-z0-9_])(?:and|with|but|while|plus)(?![a-z0-9_])")
+
+
+def _clauses(prompt: str, spans: List[dict]) -> List[Tuple[int, int]]:
+    """The member's text, cut at the joins -- but never inside something we read.
+
+    ⚠️ THE ORDER IS LOAD-BEARING: phrases and numbers are read over the WHOLE text
+    first, and a break that falls inside one is not a break. Otherwise a future
+    concept containing "and" would be cut in half by the splitter and then fail to
+    ground -- and the THOUSANDS COMMA in "1,500,000" would cut one threshold into
+    three clauses, which it did.
+    """
+    hay = _hay(prompt)
+    cuts: List[Tuple[int, int]] = []
+    for brk in _CLAUSE_BREAK.finditer(hay):
+        if any(brk.start() < s["end"] and s["start"] < brk.end() for s in spans):
+            continue
+        cuts.append((brk.start(), brk.end()))
+    out: List[Tuple[int, int]] = []
+    cursor = 0
+    for start, end in cuts + [(len(hay), len(hay))]:
+        if start > cursor:
+            out.append((cursor, start))
+        cursor = end
+    return [(a, b) for a, b in out if hay[a:b].strip()]
+
+
+# --------------------------------------------------------------------------- #
+# the member's own numbers
+# --------------------------------------------------------------------------- #
+
+#: Unit suffixes a trader writes. ⚠️ ENGLISH AND SI, NOT THE FIRM'S OPINION --
+#: expanding "two million" is arithmetic, and the VALUE is still the member's.
+_UNIT_SCALE: Mapping[str, float] = {
+    "k": 1e3, "thousand": 1e3,
+    "m": 1e6, "mm": 1e6, "mil": 1e6, "million": 1e6,
+    "b": 1e9, "bn": 1e9, "billion": 1e9,
+    "t": 1e12, "trillion": 1e12,
+}
+#: ⚠️ THE UNIT ALTERNATION IS BUILT FROM `_UNIT_SCALE`, NEVER `[a-z]+`. A greedy
+#: word class swallowed the next word -- "70 and volume" matched as the number 70
+#: with the unit "and", and the span then straddled a clause boundary and dropped
+#: the member's threshold on the floor. Longest first so "million" wins over "m".
+#: ⚠️ AND THE THOUSANDS COMMA MUST BE FOLLOWED BY THREE DIGITS. `[\d,]*` ate the
+#: comma in "under 15, roe over 20", stretching the span across a clause boundary
+#: so the member's own threshold fell outside every surviving clause and vanished.
+_NUMBER = re.compile(
+    r"(?<![a-z0-9_.])(-?\d+(?:,\d{3})*(?:\.\d+)?)\s*(%|"
+    + "|".join(sorted(_UNIT_SCALE, key=lambda u: (-len(u), u)))
+    + r")?(?![a-z0-9_])")
+
+
+def _numbers_in(prompt: str, skip: List[dict]) -> List[dict]:
+    """The numbers the MEMBER wrote, with their units expanded.
+
+    ⛔ A NUMBER INSIDE A PHRASE WE ALREADY MATCHED IS NOT THE MEMBER'S THRESHOLD.
+    "new 52w high" names a column; reporting 52 as a threshold the member chose
+    would put a number in front of the model that nobody asked for.
+    """
+    out: List[dict] = []
+    for hit in _NUMBER.finditer(_hay(prompt)):
+        if any(hit.start() < m["end"] and m["start"] < hit.end() for m in skip):
+            continue
+        try:
+            value = float(hit.group(1).replace(",", ""))
+        except ValueError:                          # pragma: no cover - regex bounds it
+            continue
+        unit = (hit.group(2) or "").strip()
+        if unit and unit != "%":
+            scale = _UNIT_SCALE.get(unit)
+            if scale is None:
+                unit = ""
+            else:
+                value *= scale
+        out.append({"wrote": str(prompt)[hit.start():hit.end()].strip(),
+                    "value": int(value) if float(value).is_integer() else value,
+                    "start": hit.start(), "end": hit.end()})
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# the plan -- ONE PURE FUNCTION, NO MODEL, NO CLOCK, NO NETWORK
+# --------------------------------------------------------------------------- #
+
+#: The header above the entries the MEMBER named. ⭐ ``CONCEPT_HEADER``'s
+#: counterpart, and the difference between them is the whole point of this task:
+#: that one carries the FIRM'S judgement and must be grounded and cited; this one
+#: carries no judgement at all, because the member said the column's own name.
+TERMS_HEADER = (
+    "\nTHE MEMBER'S OWN WORDS, MATCHED TO THIS TABLE. Each line is something the "
+    "member wrote and the entry of the vocabulary above that it names. Use those "
+    "entries.\n")
+
+NUMBERS_HEADER = (
+    "\nTHE MEMBER'S OWN NUMBERS. Every number below was written by the member. "
+    "Use each one exactly as given; do not round it, do not replace it with a "
+    "threshold of your own, and do not add a threshold the member did not write.\n")
+
+
+def plan(prompt: str, kind: str = INDICATOR_KIND, *,
+         vocab: Optional[Mapping[str, Any]] = None,
+         table: Optional[Mapping[str, Any]] = None,
+         lexicon: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """What this door understood, what it did not, and what the model will be told.
+
+    ⭐ PURE. No model call, no clock, no network -- which is why the corpus rail
+    can drive hundreds of real member phrasings through it for nothing, and why a
+    refused word costs zero tokens.
+
+    Returns::
+
+        {"understood":  the text the model will be given,
+         "concepts":    [{word, version}]        -- the firm's words, resolved
+         "terms":       [{name, section, matched_as}] -- the manifest's own entries
+         "numbers":     [{wrote, value}]         -- the member's thresholds
+         "not_understood": [{phrase, clause, gate, reason}]
+         "path":        one of PLAN_PATHS,
+         "briefing":    the text appended to the system prompt}
+
+    ⛔ ``not_understood`` IS NOT A WARNING, IT IS AN EXCISION. Every clause named
+    there has been REMOVED from ``understood``, so nothing in it reaches the
+    model. That is what keeps "the model cannot invent a firm threshold" true
+    while "the member's own number is the member's own" becomes true beside it.
+    """
+    lex = lexicon if lexicon is not None else (
+        LEXICON if (table is None and vocab is None) else build_lexicon(table, vocab))
+    text = str(prompt or "")
+    found = _matches(text, lex)
+    written = _numbers_in(text, found)
+    clauses = _clauses(text, found + written)
+
+    concepts_by_clause: Dict[int, List[dict]] = {}
+    terms_by_clause: Dict[int, List[dict]] = {}
+    refusals_by_clause: Dict[int, List[dict]] = {}
+    unavailable: List[dict] = []
+    excluded = _excluded(table if table is not None else ast_table.TABLE)
+
+    def clause_of(match: dict) -> int:
+        for i, (a, b) in enumerate(clauses):
+            if match["start"] >= a and match["end"] <= b:
+                return i
+        return -1
+
+    for match in found:
+        index = clause_of(match)
+        if match["kind"] == TABLE_ENTRY:
+            terms_by_clause.setdefault(index, []).append(
+                {"name": match["key"], "section": match["section"],
+                 "matched_as": match["matched_as"]})
+            continue
+        # ⛔ AN ABSENT COLUMN IS NAMED, NOT EXCISED, and that is the one place
+        # this differs from a refused word. A refused CONCEPT is an invitation:
+        # the model can emit a threshold for "cheap" and the read-back will
+        # describe it perfectly. An excluded column is not — it is TEXT, the
+        # schema's enums do not contain it and this grammar has no string
+        # literal, so there is no tree the model could emit that honours it.
+        # Cutting the clause would throw away the rest of a request to prevent
+        # something the boundary already prevents.
+        if match["kind"] == EXCLUDED_ENTRY:
+            unavailable.append(
+                {"phrase": match["matched_as"], "name": match["key"],
+                 "reason": excluded.get(match["key"], "")})
+            continue
+        answer = concept_vocabulary.resolve(match["key"], vocab=vocab, table=table)
+        if answer["ok"]:
+            concepts_by_clause.setdefault(index, []).append(
+                {"word": answer["word"], "version": answer["version"],
+                 "source": answer["source"]})
+        else:
+            refusals_by_clause.setdefault(index, []).append(
+                {"phrase": match["matched_as"], "gate": answer["gate"],
+                 "reason": answer["reason"]})
+
+    kept = [i for i in range(len(clauses)) if i not in refusals_by_clause]
+    not_understood: List[dict] = []
+    for i in sorted(refusals_by_clause):
+        clause_text = text[clauses[i][0]:clauses[i][1]].strip() if i >= 0 else text.strip()
+        for item in refusals_by_clause[i]:
+            not_understood.append({**item, "clause": clause_text})
+
+    concepts = [c for i in kept for c in concepts_by_clause.get(i, [])]
+    terms = [t for i in kept for t in terms_by_clause.get(i, [])]
+    if -1 in kept or not refusals_by_clause:
+        concepts += [c for c in concepts_by_clause.get(-1, []) if c not in concepts]
+        terms += [t for t in terms_by_clause.get(-1, []) if t not in terms]
+
+    #: ⛔ WHEN NOTHING WAS EXCISED THE MEMBER'S TEXT IS PASSED THROUGH VERBATIM.
+    #: Re-joining clauses we did not touch would rewrite a request nobody asked us
+    #: to rewrite, and the rewrite is invisible to the member.
+    if refusals_by_clause:
+        understood = ", ".join(
+            text[clauses[i][0]:clauses[i][1]].strip() for i in kept
+            if text[clauses[i][0]:clauses[i][1]].strip())
+    else:
+        understood = text.strip()
+
+    survivor_spans = [clauses[i] for i in kept]
+    numbers = [
+        {"wrote": num["wrote"], "value": num["value"]}
+        for num in written
+        if not survivor_spans or any(a <= num["start"] and num["end"] <= b
+                                     for a, b in survivor_spans)
+    ]
+
     briefing = _KIND_BRIEF.get(kind, "")
-    if lines:
-        briefing += CONCEPT_HEADER + "\n".join(lines) + "\n"
-    return used, briefing
+    if concepts:
+        briefing += CONCEPT_HEADER + "\n".join(
+            f'  "{c["word"]}" means exactly: {c["source"]}' for c in concepts) + "\n"
+    if terms:
+        briefing += TERMS_HEADER + "\n".join(
+            f'  "{t["matched_as"]}" -> {t["name"]}' for t in terms) + "\n"
+    if numbers:
+        briefing += NUMBERS_HEADER + "\n".join(
+            f'  "{num["wrote"]}" -> {num["value"]}' for num in numbers) + "\n"
+
+    if concepts and (terms or numbers):
+        path = PLAN_PATHS[2]
+    elif concepts:
+        path = PLAN_PATHS[0]
+    elif terms or numbers:
+        path = PLAN_PATHS[1]
+    else:
+        path = PLAN_PATHS[3]
+
+    return {
+        "understood": understood,
+        "concepts": [{"word": c["word"], "version": c["version"]} for c in concepts],
+        "terms": terms,
+        "numbers": numbers,
+        "not_understood": not_understood,
+        "unavailable": unavailable,
+        "path": path,
+        "briefing": briefing,
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -1388,17 +1975,32 @@ def propose(prompt: str, *, user_id: Any, bars: Optional[List[dict]] = None,
         return {"ok": False, "gate": "kind:unknown",
                 "reason": f"{REFUSALS['kind:unknown']} -- {', '.join(KINDS)}"}
 
-    # ⭐ THE FIRM'S WORDS ARE RESOLVED BEFORE A TOKEN IS SPENT, and a word it
-    # cannot ground refuses here -- cheaper than a model call, and the honest
-    # answer either way.
-    try:
-        concepts_used, briefing = _concept_briefing(prompt, kind)
-    except _Refused as refused:
-        return {"ok": False, "gate": refused.gate, "reason": refused.reason}
+    # ⭐ THE LANGUAGE STAGE RUNS BEFORE A TOKEN IS SPENT. The firm's words are
+    # resolved against the vocabulary file, the member's own words are matched
+    # against the manifest, and any clause this door cannot honestly read is
+    # EXCISED -- cheaper than a model call, and the honest answer either way.
+    understanding = plan(prompt, kind)
+    concepts_used = understanding["concepts"]
+    briefing = understanding["briefing"]
+    not_understood = understanding["not_understood"]
+    understood = understanding["understood"]
+
+    # ⛔ ONLY WHEN NOTHING SURVIVES IS THE WHOLE PROPOSAL REFUSED, and then it
+    # names EVERY part it could not read rather than the first one it met. A
+    # refused word used to refuse the request; now it refuses its own clause, and
+    # a request that is nothing BUT refused clauses is a request with nothing left
+    # to draft.
+    if not understood:
+        first = not_understood[0] if not_understood else None
+        return {"ok": False,
+                "gate": first["gate"] if first else "prompt:empty",
+                "reason": first["reason"] if first else REFUSALS["prompt:empty"],
+                "not_understood": not_understood,
+                "unavailable": understanding["unavailable"]}
 
     market_date = _market_date()
     bars = list(bars or [])
-    messages: List[dict] = [{"role": "user", "content": prompt.strip()}]
+    messages: List[dict] = [{"role": "user", "content": understood}]
     tokens = {"input": 0, "output": 0}
     cost_usd = 0.0
     attempts = 0
@@ -1469,6 +2071,17 @@ def propose(prompt: str, *, user_id: Any, bars: Optional[List[dict]] = None,
             # ⭐ PROVENANCE, NEVER A LATE BINDING. The word and the vocabulary
             # version that expanded it; the maths is the TREE above.
             "concepts": concepts_used,
+            # ⭐ AND THE OTHER HALF OF THE PROVENANCE: the manifest entries and
+            # the thresholds the MEMBER named, plus the clauses this door could
+            # not read and therefore never showed the model. A surface that
+            # renders `not_understood` beside the read-back is telling a member
+            # exactly which part of their sentence did not make it into the maths.
+            "terms": understanding["terms"],
+            "numbers": understanding["numbers"],
+            "not_understood": not_understood,
+            "unavailable": understanding["unavailable"],
+            "understood": understood,
+            "path": understanding["path"],
             "tokens": tokens,
             "cost_usd": round(cost_usd, 6),
             "attempts": attempts,
@@ -1477,4 +2090,9 @@ def propose(prompt: str, *, user_id: Any, bars: Optional[List[dict]] = None,
 
     reason = last.reason if last else REFUSALS["model:no-tool"]
     gate = last.gate if last else "model:no-tool"
-    return {"ok": False, "gate": gate, "reason": reason}
+    # ⚠️ A PIPELINE REFUSAL STILL REPORTS WHAT THE LANGUAGE STAGE COULD NOT READ.
+    # The two are different failures and a member needs both: "the assistant's
+    # formula would repaint" AND "I never understood the words «cheap stocks»".
+    return {"ok": False, "gate": gate, "reason": reason,
+            "not_understood": not_understood,
+            "unavailable": understanding["unavailable"]}

@@ -53,7 +53,7 @@
 // universal, so the only admissible evidence is the persisted tree and the
 // manifest that describes it (obligation 1 of the record's §5).
 
-import { TABLE } from './parse.js'
+import { TABLE, NODE_TYPES } from './parse.js'
 
 // --------------------------------------------------------------------------- //
 // the vocabulary
@@ -342,6 +342,31 @@ export function astReach(ast, opts = {}) {
           + `${sortedKeys(inputs).join(', ') || 'no inputs'}`))
         break
       }
+      case 'offset': {
+        // ⭐⭐ THE OFFSET IS THE ONE NODE THAT MOVES A WINDOW WITHOUT NAMING A
+        // FUNCTION, AND IT MOVES IT BACKWARDS ONLY. `close[3]` at bar `i` reads
+        // bar `i-3`: `back` grows by the offset, `forward` is untouched. That
+        // asymmetry is not a policy this file applies — it is a fact about the
+        // node, because `parse.js` refuses a negative literal at the door and
+        // the shape has no slot for an expression that could evaluate to one.
+        //
+        // ⛔ WHICH IS WHY THIS ARM CANNOT MAKE ANYTHING REPAINT, AND WHY
+        // `ichimoku.chikou` IS STILL DECIDABLE. A signed offset would put a
+        // second, tree-shaped source of forward reach beside the manifest's
+        // `forward` declaration, and `modeFromReach` would then be reading two
+        // authorities over one number. It reads one.
+        const args = Array.isArray(node.args) ? node.args : []
+        const n = node.value
+        if (args.length !== 1 || typeof n !== 'number' || !Number.isInteger(n) || n < 0) {
+          reachOf.set(node, noteUnknown(
+            `an offset node carries one child and a whole number of bars ≥ 0, got `
+            + `${JSON.stringify(n)} over ${args.length}`))
+          break
+        }
+        const child = reachOf.get(args[0]) || { back: UNKNOWN, forward: UNKNOWN }
+        reachOf.set(node, { back: addReach(n, child.back), forward: child.forward })
+        break
+      }
       case 'op': {
         const spec = (table.operators || {})[node.name]
         const args = Array.isArray(node.args) ? node.args : []
@@ -394,8 +419,12 @@ export function astReach(ast, opts = {}) {
         break
       }
       default: {
+        // ⛔ THE LIST IS DERIVED, NEVER RETYPED. It read `['num','series','op',
+        // 'call']` as a literal here, which made this message a SECOND AUTHORITY
+        // over `parse.js::NODE_TYPES` — and the day a fifth type landed, this
+        // arm would have gone on naming four while refusing the fifth.
         reachOf.set(node, noteUnknown(
-          `node type ${JSON.stringify(node && node.type)} is not one of ${['num', 'series', 'op', 'call'].join(', ')}`))
+          `node type ${JSON.stringify(node && node.type)} is not one of ${NODE_TYPES.join(', ')}`))
         break
       }
     }

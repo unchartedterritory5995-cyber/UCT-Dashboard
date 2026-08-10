@@ -226,4 +226,103 @@ describe('ConciergeBox', () => {
     expect(bad.text).toBeUndefined()
     expect(bad.error).toMatch(/read-back/)
   })
+
+  // ─── PARTIAL UNDERSTANDING, STATED PLAINLY ────────────────────────────────
+  //
+  // 🔴 THE HAZARD IS PRECISE, AND IT IS WHY THESE CASES EXIST. The server now
+  // answers a request it could only HALF read: "cheap stocks with pe_ttm under
+  // 15" comes back as a correct, honest P/E screen with `not_understood: [cheap]`
+  // beside it. The read-back describes the maths perfectly — and a member who
+  // sees only the read-back will take it for the whole of what they asked for.
+  // ⛔ SO THE MISSING HALF MUST BE ON THE SURFACE, and a box that dropped it
+  // would look completely correct in every other case in this file.
+
+  const DROPPED = {
+    phrase: 'cheap',
+    clause: 'cheap stocks',
+    gate: 'concept:ambiguous',
+    reason: '"cheap" has no defensible definition here.',
+  }
+  const ABSENT = {
+    phrase: 'sector',
+    name: 'sector',
+    reason: 'TEXT, and the one exclusion a user will feel.',
+  }
+
+  it('shows the clause the server DROPPED, beside a correct proposal', async () => {
+    await draft(vi.fn(async () => jsonResponse(proposal({ not_understood: [DROPPED] }))))
+
+    const panel = await screen.findByTestId('concierge-not-understood')
+    expect(panel).toHaveTextContent(DROPPED.clause)
+    expect(panel).toHaveTextContent(DROPPED.reason)
+    // …and the read-back is still the TREE'S, so the two facts sit side by side
+    // rather than one replacing the other.
+    expect(await screen.findByTestId('concierge-sentence'))
+      .toHaveTextContent(sentenceFor(TREE))
+    expect(screen.queryByText(LIE)).toBeNull()
+  })
+
+  it('says nothing at all when the server understood the whole request', async () => {
+    // ⛔ THE CONTROL. Without it the panel above could be permanent furniture,
+    // which is the same as no panel at all.
+    await draft(vi.fn(async () => jsonResponse(proposal())))
+    await screen.findByTestId('concierge-proposal')
+    expect(screen.queryByTestId('concierge-not-understood')).toBeNull()
+    expect(screen.queryByTestId('concierge-unavailable')).toBeNull()
+  })
+
+  it('names EVERY dropped clause, not just the first', async () => {
+    const second = { ...DROPPED, phrase: 'strong', clause: 'strong names',
+                     reason: '"strong" is ambiguous between three scans.' }
+    await draft(vi.fn(async () =>
+      jsonResponse(proposal({ not_understood: [DROPPED, second] }))))
+
+    const items = await screen.findAllByTestId('concierge-not-understood-item')
+    expect(items).toHaveLength(2)
+    expect(items[1]).toHaveTextContent(second.clause)
+  })
+
+  it('keeps "could not read that" and "cannot screen on that" APART', async () => {
+    // ⛔ TWO PANELS BECAUSE THERE ARE TWO REMEDIES: reword the sentence, versus
+    // use the classic screener because this grammar has no string literal.
+    // Collapsing them tells a member to keep rewording something that can never
+    // work.
+    await draft(vi.fn(async () => jsonResponse(
+      proposal({ not_understood: [DROPPED], unavailable: [ABSENT] }))))
+
+    const absent = await screen.findByTestId('concierge-unavailable')
+    expect(absent).toHaveTextContent(ABSENT.phrase)
+    expect(absent).toHaveTextContent(ABSENT.reason)
+    expect(screen.getByTestId('concierge-not-understood'))
+      .not.toHaveTextContent(ABSENT.reason)
+  })
+
+  it('carries the dropped clauses onto a REFUSAL too, and still shows no formula',
+    async () => {
+      // 🔴 "find me strong cheap stocks" is refused as a whole. Naming only the
+      // first word it choked on sends the member back for a second attempt to
+      // discover the second one.
+      const second = { ...DROPPED, phrase: 'strong', clause: 'strong stocks',
+                       reason: '"strong" is ambiguous.' }
+      await draft(vi.fn(async () => jsonResponse({
+        ok: false, gate: 'concept:ambiguous', reason: DROPPED.reason,
+        not_understood: [DROPPED, second],
+      })))
+
+      expect(await screen.findByTestId('concierge-refusal')).toBeTruthy()
+      expect(await screen.findAllByTestId('concierge-not-understood-item')).toHaveLength(2)
+      expect(screen.queryByTestId('concierge-proposal')).toBeNull()
+      expect(screen.queryByTestId('concierge-source')).toBeNull()
+    })
+
+  it('renders nothing extra when an older server answers without the fields',
+    async () => {
+      // ⚠️ THE ENVELOPE GREW. A response minted before F-5 carries neither key,
+      // and the box must not render an empty accusation over it.
+      const { not_understood, unavailable, ...older } = proposal()  // eslint-disable-line no-unused-vars
+      await draft(vi.fn(async () => jsonResponse(older)))
+      await screen.findByTestId('concierge-proposal')
+      expect(screen.queryByTestId('concierge-not-understood')).toBeNull()
+      expect(screen.queryByTestId('concierge-unavailable')).toBeNull()
+    })
 })

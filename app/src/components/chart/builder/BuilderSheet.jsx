@@ -98,6 +98,7 @@ import FormulaField, { evaluateFormula, canSaveFormula } from './FormulaField'
 import ConciergeBox from './ConciergeBox'
 import CriteriaPicker from './CriteriaPicker'
 import StarterLibrary from './StarterLibrary'
+import PineBox from './PineBox'
 import styles from './BuilderSheet.module.css'
 
 const FOCUSABLE = 'button:not([disabled]),[href],input:not([disabled]),select:not([disabled]),'
@@ -563,6 +564,25 @@ export default function BuilderSheet({
               aria-selected={buildMode === 'picker'}
               onClick={() => setBuildMode('picker')}
             >Conditions</button>
+            {/* ── THE FOURTH DOOR ONTO THE SAME OBJECT (Phase F, F-3) ──────────
+                ⭐ A MEMBER ARRIVES CARRYING A PINE SCRIPT, and until now the
+                answer was "retype it". `PineBox` translates one and hands back
+                the SAME `source` string every other door writes — so a pasted
+                script meets the same parse, the same budget walk, the same
+                repaint linter, the same read-back and the same Save button.
+
+                ⛔ NOTHING ABOUT THE SAVED DOCUMENT REMEMBERS IT WAS PINE. There
+                is no Pine flag, no Pine column and no Pine save path; a script
+                that translates becomes an ordinary definition whose `compute.fn`
+                is the same `astHash` a typed formula of the same shape produces,
+                which is what lets the chart, the alert and the scan keep sharing
+                one object. */}
+            <button
+              type="button" role="tab"
+              className={`${styles.modeTab} ${buildMode === 'pine' ? styles.modeTabActive : ''}`}
+              aria-selected={buildMode === 'pine'}
+              onClick={() => setBuildMode('pine')}
+            >Pine</button>
             <button
               type="button" role="tab"
               className={`${styles.modeTab} ${buildMode === 'formula' ? styles.modeTabActive : ''}`}
@@ -581,6 +601,20 @@ export default function BuilderSheet({
                 // the one write path. Landing on the Formula tab is the point of
                 // the gesture: *"here is a working scan, now change it"*.
                 setSource(entry.source)
+                setBuildMode('formula')
+              }}
+            />
+          )}
+
+          {buildMode === 'pine' && (
+            <PineBox
+              disabled={saving}
+              onPick={(formula) => {
+                // ⛔ THE SOURCE AND NOTHING ELSE — verbatim the StarterLibrary
+                // contract three lines down. Not the tree the translator built
+                // (that one exists only to prove the printed text reads back the
+                // same), not a prebuilt document, not a hash.
+                setSource(formula)
                 setBuildMode('formula')
               }}
             />

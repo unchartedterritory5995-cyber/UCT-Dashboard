@@ -28,6 +28,25 @@
 // task ships two files into `builder/`; the sheet that hosts this box is another
 // task's file and owns the surface's CSS. The tokens are read from `tokens.css`
 // through `var(--...)` so the box follows the theme it is dropped into.
+//
+// ⭐⭐ AND PARTIAL UNDERSTANDING IS SHOWN, NOT SWALLOWED. The server now answers a
+// request it could only half read: the clauses it dropped come back in
+// `not_understood`, and columns the table deliberately does not carry come back
+// in `unavailable`. ⛔ BOTH ARE RENDERED BESIDE THE PROPOSAL, ABOVE THE READ-BACK,
+// because the hazard is precise: a member who typed "cheap stocks with pe_ttm
+// under 15" and is shown a correct read-back of a P/E screen will read it as the
+// whole of what they asked for. The read-back describes the maths honestly; only
+// this panel can say what is MISSING from it.
+//
+// ⛔ AND THEY ARE TWO PANELS, NOT ONE. "I could not read these words" and "this
+// table cannot screen on that at all" have different remedies — reword, versus
+// use the classic screener — and collapsing them would tell a member to keep
+// rewording a sentence that can never work.
+//
+// ⚠️ THE TEXT IN BOTH IS DATA, NOT MODEL PROSE. A refusal reason is
+// `conceptVocabulary.json`'s reviewed sentence and an unavailable reason is
+// `closedTable.json`'s own note. Neither is the read-back and neither is written
+// by the model, so the rule at the top of this file is untouched.
 
 import { useCallback, useId, useState } from 'react'
 import { sentenceFor } from '../engine/ast/sentence.js'
@@ -80,6 +99,53 @@ const S = {
     border: '1px solid var(--loss-border)', background: 'var(--loss-bg)',
     color: 'var(--text-bright)', fontSize: 13, lineHeight: 1.5,
   },
+  gap: {
+    padding: 10, borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border-accent)', background: 'var(--bg-elevated)',
+    color: 'var(--text-bright)', fontSize: 13, lineHeight: 1.5,
+    display: 'flex', flexDirection: 'column', gap: 6,
+  },
+  gapHead: { fontSize: 12, color: 'var(--text-muted)', letterSpacing: 0.4 },
+  quote: { color: 'var(--text-heading)' },
+}
+
+/** The clauses the server dropped, and the columns it cannot screen on. Rendered
+ *  as its own block so it can sit above a proposal AND above a refusal — a member
+ *  needs it in both places, and it is the only thing on the surface that can say
+ *  what is MISSING from an otherwise correct read-back. */
+function Gaps({ notUnderstood, unavailable }) {
+  const dropped = notUnderstood || []
+  const absent = unavailable || []
+  if (!dropped.length && !absent.length) return null
+  return (
+    <>
+      {dropped.length ? (
+        <div style={S.gap} data-testid="concierge-not-understood">
+          <div style={S.gapHead}>
+            {dropped.length === 1 ? 'One part of that was left out'
+                                  : `${dropped.length} parts of that were left out`}
+          </div>
+          {dropped.map((item, i) => (
+            <div key={`nu-${i}`} data-testid="concierge-not-understood-item">
+              <span style={S.quote}>“{item.clause || item.phrase}”</span>
+              {' — '}{item.reason}
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {absent.length ? (
+        <div style={S.gap} data-testid="concierge-unavailable">
+          <div style={S.gapHead}>This screen cannot read that</div>
+          {absent.map((item, i) => (
+            <div key={`un-${i}`} data-testid="concierge-unavailable-item">
+              <span style={S.quote}>“{item.phrase}”</span>
+              {' — '}{item.reason}
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </>
+  )
 }
 
 // ⭐ WHAT IS BEING ASKED FOR, AND IT TRAVELS. A screen is `<tree> != 0`, so a
@@ -147,8 +213,13 @@ export default function ConciergeBox({ bars, kind = 'indicator', onAccept, fetch
       }
       const body = await res.json()
       if (!body || body.ok !== true) {
+        // ⭐ A REFUSAL CARRIES THE GAPS TOO. "find me strong cheap stocks" is
+        // refused as a whole, and naming only the first word it choked on sends
+        // the member back for a second attempt to discover the second one.
         setRefusal({ gate: (body && body.gate) || 'unknown',
-                     reason: (body && body.reason) || 'That could not be turned into a formula.' })
+                     reason: (body && body.reason) || 'That could not be turned into a formula.',
+                     notUnderstood: (body && body.not_understood) || [],
+                     unavailable: (body && body.unavailable) || [] })
         return
       }
       // ⛔ THE READ-BACK IS COMPUTED HERE, FROM `body.ast`. `body.sentence` is
@@ -159,7 +230,9 @@ export default function ConciergeBox({ bars, kind = 'indicator', onAccept, fetch
         return
       }
       setProposal({ ast: body.ast, source: body.source, repaint: body.repaint,
-                    sentence: read.text })
+                    sentence: read.text,
+                    notUnderstood: body.not_understood || [],
+                    unavailable: body.unavailable || [] })
     } catch (err) {
       setRefusal({ gate: 'network', reason: 'The assistant could not be reached just now.' })
     } finally {
@@ -193,14 +266,23 @@ export default function ConciergeBox({ bars, kind = 'indicator', onAccept, fetch
       </div>
 
       {refusal ? (
-        <div style={S.refusal} role="alert" data-testid="concierge-refusal">
-          <div>{refusal.reason}</div>
-          <div style={S.meta} data-testid="concierge-gate">{refusal.gate}</div>
-        </div>
+        <>
+          <div style={S.refusal} role="alert" data-testid="concierge-refusal">
+            <div>{refusal.reason}</div>
+            <div style={S.meta} data-testid="concierge-gate">{refusal.gate}</div>
+          </div>
+          <Gaps notUnderstood={refusal.notUnderstood}
+                unavailable={refusal.unavailable} />
+        </>
       ) : null}
 
       {proposal ? (
         <div style={S.panel} data-testid="concierge-proposal">
+          {/* ⛔ ABOVE THE READ-BACK, ON PURPOSE. A member reading a correct
+              sentence about a P/E screen will take it for the whole of what they
+              asked for unless the missing half is in front of them first. */}
+          <Gaps notUnderstood={proposal.notUnderstood}
+                unavailable={proposal.unavailable} />
           <div style={S.sentence} data-testid="concierge-sentence">{proposal.sentence}</div>
           <div style={S.source} data-testid="concierge-source">{proposal.source}</div>
           <div style={S.meta} data-testid="concierge-repaint">{proposal.repaint}</div>

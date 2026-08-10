@@ -74,6 +74,15 @@ import { maxLookback, nodeCount, TableRefusal } from './interpret.js'
  *  purpose. A cap chosen by taste is a cap nobody can re-derive when it needs to
  *  move.
  *
+ *  ⭐ `maxLookback` IS ALSO THE CEILING ON A BAR OFFSET, AND THERE IS NO SECOND
+ *  NUMBER. `close[100000]` is a well-formed backward offset — `parse.js` has no
+ *  ceiling of its own on purpose — and what refuses it is `budget:lookback`,
+ *  because `maxLookback` counts an offset node as `value + child`. `close[600]`
+ *  and `sma(close, 600)` are the same 600 bars of warmup and they meet the same
+ *  cap, which is the only arrangement in which the two cannot drift apart. And
+ *  because `effectiveBudget` clamps DOWNWARD ONLY, a stored blob cannot raise
+ *  it — the offset ceiling is unforgeable for the same reason the others are.
+ *
  *  ⛔ A CAP MUST BE REACHABLE OR IT IS NOT A GUARD. `maxSeriesRefs` counts
  *  OCCURRENCES, not distinct names, and that is forced rather than stylistic:
  *  the closed table declares FIVE series, so a distinct-name count could never

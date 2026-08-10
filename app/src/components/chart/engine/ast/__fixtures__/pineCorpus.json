@@ -1,0 +1,355 @@
+{
+  "01-stoch-rsi-screener.pine": {
+    "version": 5,
+    "translates": true,
+    "outputs": 2,
+    "usable": 2,
+    "selectedFormula": "sma(stoch(rsi(close, 14), rsi(close, 14), rsi(close, 14), 14), 3)",
+    "downstream": {
+      "ok": true,
+      "guard": null,
+      "repaint": "non-repainting"
+    },
+    "refusal": null,
+    "perOutputRefusals": {}
+  },
+  "02-ict-retracement-to-order-block-screener.pine": {
+    "version": 5,
+    "translates": true,
+    "outputs": 4,
+    "usable": 2,
+    "selectedFormula": "highest(high, 30)[1]",
+    "downstream": {
+      "ok": true,
+      "guard": null,
+      "repaint": "non-repainting"
+    },
+    "refusal": null,
+    "perOutputRefusals": {
+      "pine:tuple": 2
+    }
+  },
+  "03-rsi-directional-momentum-scanner.pine": {
+    "version": 6,
+    "translates": true,
+    "outputs": 10,
+    "usable": 2,
+    "selectedFormula": "rsi(close, 14)",
+    "downstream": {
+      "ok": true,
+      "guard": null,
+      "repaint": "non-repainting"
+    },
+    "refusal": null,
+    "perOutputRefusals": {
+      "pine:plot-offset": 8
+    }
+  },
+  "04-superguppy-supertrend-screener.pine": {
+    "version": 4,
+    "translates": false,
+    "outputs": 2,
+    "usable": 0,
+    "selectedFormula": null,
+    "downstream": null,
+    "refusal": {
+      "guard": "pine:request",
+      "line": 229,
+      "column": 7,
+      "token": "security"
+    },
+    "perOutputRefusals": {
+      "pine:request": 2
+    }
+  },
+  "05-mtf-structure-bias.pine": {
+    "version": 6,
+    "translates": false,
+    "outputs": 3,
+    "usable": 0,
+    "selectedFormula": null,
+    "downstream": null,
+    "refusal": {
+      "guard": "pine:function-def",
+      "line": 42,
+      "column": 15,
+      "token": "=>"
+    },
+    "perOutputRefusals": {
+      "pine:function-def": 1,
+      "pine:builtin": 2
+    }
+  },
+  "06-adx-advanced.pine": {
+    "version": 6,
+    "translates": true,
+    "outputs": 12,
+    "usable": 1,
+    "selectedFormula": "0",
+    "downstream": {
+      "ok": true,
+      "guard": null,
+      "repaint": "non-repainting"
+    },
+    "refusal": null,
+    "perOutputRefusals": {
+      "pine:tuple": 6,
+      "pine:function-def": 1,
+      "pine:builtin": 4
+    }
+  },
+  "07-rsi.pine": {
+    "version": 3,
+    "translates": false,
+    "outputs": 1,
+    "usable": 0,
+    "selectedFormula": null,
+    "downstream": null,
+    "refusal": {
+      "guard": "pine:reassign",
+      "line": 35,
+      "column": 7,
+      "token": ":="
+    },
+    "perOutputRefusals": {
+      "pine:reassign": 1
+    }
+  },
+  "08-stochastic-v4.pine": {
+    "version": 4,
+    "translates": true,
+    "outputs": 3,
+    "usable": 2,
+    "selectedFormula": "sma(stoch(high, low, close, 14), 3)",
+    "downstream": {
+      "ok": true,
+      "guard": null,
+      "repaint": "non-repainting"
+    },
+    "refusal": null,
+    "perOutputRefusals": {
+      "pine:na": 1
+    }
+  },
+  "09-on-balance-volume.pine": {
+    "version": 3,
+    "translates": false,
+    "outputs": 2,
+    "usable": 0,
+    "selectedFormula": null,
+    "downstream": null,
+    "refusal": {
+      "guard": "pine:collection",
+      "line": 7,
+      "column": 73,
+      "token": "["
+    },
+    "perOutputRefusals": {
+      "pine:function": 1,
+      "pine:collection": 1
+    }
+  },
+  "10-supertrend.pine": {
+    "version": 6,
+    "translates": true,
+    "outputs": 6,
+    "usable": 1,
+    "selectedFormula": "(open + high + low + close) / 4",
+    "downstream": {
+      "ok": true,
+      "guard": null,
+      "repaint": "non-repainting"
+    },
+    "refusal": null,
+    "perOutputRefusals": {
+      "pine:reassign": 5
+    }
+  },
+  "11-donchian-channel.pine": {
+    "version": 3,
+    "translates": true,
+    "outputs": 5,
+    "usable": 2,
+    "selectedFormula": "highest(high, 20)[1]",
+    "downstream": {
+      "ok": true,
+      "guard": null,
+      "repaint": "non-repainting"
+    },
+    "refusal": null,
+    "perOutputRefusals": {
+      "pine:na": 1,
+      "pine:builtin": 2
+    }
+  },
+  "12-ichimoku-clouds.pine": {
+    "version": 3,
+    "translates": false,
+    "outputs": 21,
+    "usable": 0,
+    "selectedFormula": null,
+    "downstream": null,
+    "refusal": {
+      "guard": "pine:request",
+      "line": 43,
+      "column": 9,
+      "token": "security"
+    },
+    "perOutputRefusals": {
+      "pine:function": 7,
+      "pine:plot-offset": 3,
+      "pine:request": 10,
+      "pine:undefined": 1
+    }
+  },
+  "13-average-true-range.pine": {
+    "version": 3,
+    "translates": false,
+    "outputs": 8,
+    "usable": 0,
+    "selectedFormula": null,
+    "downstream": null,
+    "refusal": {
+      "guard": "pine:block",
+      "line": 38,
+      "column": 12,
+      "token": "if"
+    },
+    "perOutputRefusals": {
+      "pine:block": 8
+    }
+  },
+  "14-bollinger-bands-fixed-timeframe.pine": {
+    "version": null,
+    "translates": false,
+    "outputs": 5,
+    "usable": 0,
+    "selectedFormula": null,
+    "downstream": null,
+    "refusal": {
+      "guard": "pine:function",
+      "line": 30,
+      "column": 11,
+      "token": "round"
+    },
+    "perOutputRefusals": {
+      "pine:plot-offset": 3,
+      "pine:function": 2
+    }
+  },
+  "15-anchored-vwap.pine": {
+    "version": 6,
+    "translates": false,
+    "outputs": 8,
+    "usable": 0,
+    "selectedFormula": null,
+    "downstream": null,
+    "refusal": {
+      "guard": "pine:collection",
+      "line": 31,
+      "column": 14,
+      "token": "["
+    },
+    "perOutputRefusals": {
+      "pine:collection": 5,
+      "pine:builtin": 3
+    }
+  },
+  "16-smacd.pine": {
+    "version": 3,
+    "translates": true,
+    "outputs": 1,
+    "usable": 1,
+    "selectedFormula": "-(ema(open, 8) - ema(open, 13)) + (ema(open, 13) - ema(open, 21)) + (ema(open, 21) - ema(open, 55)) + (ema(open, 55) - ema(open, 89))",
+    "downstream": {
+      "ok": true,
+      "guard": null,
+      "repaint": "non-repainting"
+    },
+    "refusal": null,
+    "perOutputRefusals": {}
+  },
+  "17-simple-moving-average.pine": {
+    "version": 3,
+    "translates": true,
+    "outputs": 1,
+    "usable": 1,
+    "selectedFormula": "sma(close, 14)",
+    "downstream": {
+      "ok": true,
+      "guard": null,
+      "repaint": "non-repainting"
+    },
+    "refusal": null,
+    "perOutputRefusals": {}
+  },
+  "18-normalized-average-true-range.pine": {
+    "version": 3,
+    "translates": false,
+    "outputs": 1,
+    "usable": 0,
+    "selectedFormula": null,
+    "downstream": null,
+    "refusal": {
+      "guard": "pine:role-order",
+      "line": 8,
+      "column": 14,
+      "token": "atr"
+    },
+    "perOutputRefusals": {
+      "pine:role-order": 1
+    }
+  },
+  "19-strategy-supertrend-atr.pine": {
+    "version": 3,
+    "translates": false,
+    "outputs": 3,
+    "usable": 0,
+    "selectedFormula": null,
+    "downstream": null,
+    "refusal": {
+      "guard": "pine:declaration-strategy",
+      "line": 2,
+      "column": 1,
+      "token": "strategy"
+    },
+    "perOutputRefusals": {
+      "pine:function-def": 1,
+      "pine:reassign": 2
+    }
+  },
+  "20-smc-toolkit-udt.pine": {
+    "version": 6,
+    "translates": false,
+    "outputs": 6,
+    "usable": 0,
+    "selectedFormula": null,
+    "downstream": null,
+    "refusal": {
+      "guard": "pine:reassign",
+      "line": 217,
+      "column": 29,
+      "token": ":="
+    },
+    "perOutputRefusals": {
+      "pine:reassign": 6
+    }
+  },
+  "21-volume-profile-plus.pine": {
+    "version": 6,
+    "translates": false,
+    "outputs": 1,
+    "usable": 0,
+    "selectedFormula": null,
+    "downstream": null,
+    "refusal": {
+      "guard": "pine:na",
+      "line": 268,
+      "column": 24,
+      "token": "na"
+    },
+    "perOutputRefusals": {
+      "pine:na": 1
+    }
+  }
+}

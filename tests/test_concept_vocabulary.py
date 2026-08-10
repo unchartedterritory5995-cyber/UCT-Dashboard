@@ -119,22 +119,38 @@ def test_a_PLANTED_concept_naming_a_name_THE_TABLE_LOST_goes_RED():
     """⚠️ THE CONTROL, and without it the rail above is a rail over nothing.
 
     Two plants, because the rail has two ways to be vacuous: a name the table
-    never declared (`rsi`, the function CORRECTION 1 was written about), and a
-    name the table USED to declare and dropped — which is the direction that
-    actually happens, and the one a hand-list can never see.
+    never declared, and a name the table USED to declare and dropped — which is
+    the direction that actually happens, and the one a hand-list can never see.
+
+    🔴 THE FIRST PLANT IS DERIVED, AND THIS CASE IS WHY. It used to be the
+    literal `rsi` — "the function CORRECTION 1 was written about" — and Phase F
+    DECLARED `rsi`, so the plant stopped being undeclared: `resolve` sailed past
+    the ungrounded gate and died at a later one, which is a rail overtaken by the
+    thing it watches. The subject is now the first entry of the manifest's own
+    `_functions_excluded`, the register of indicators the chart draws and a
+    formula may not call, so declaring one MOVES this plant to the next refusal
+    instead of quietly emptying it.
     """
+    refused = sorted(k for k in _raw_table().get("_functions_excluded", {})
+                     if not k.startswith("_"))
+    assert refused, "the manifest refuses no indicator by name — this plant has no subject"
+    assert not (set(refused) & set(_raw_table()["functions"])), (
+        "a name is BOTH declared and listed as refused; the register is lying"
+    )
+    undeclared = refused[0]
+
     planted = _raw()
     planted["concepts"]["zzplanted"] = {
-        "source": "rsi(close, 14) < 30",
+        "source": f"{undeclared}(close, 14) < 30",
         "ast": {"type": "op", "name": "<", "args": [
-            {"type": "call", "name": "rsi", "args": [
+            {"type": "call", "name": undeclared, "args": [
                 {"type": "series", "name": "close"}, {"type": "num", "value": 14}]},
             {"type": "num", "value": 30}]},
         "grounding": [{"kind": "scalar", "column": "rsi14"}],
     }
     out = cv.resolve("zzplanted", vocab=planted)
     assert out["ok"] is False and out["gate"] == cv.GATE_UNGROUNDED
-    assert "rsi" in out["reason"], out["reason"]
+    assert undeclared in out["reason"], out["reason"]
 
     # …and a name the table DROPS takes a shipped concept down with it.
     shrunk = _raw_table()

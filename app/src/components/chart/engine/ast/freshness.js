@@ -35,7 +35,7 @@
 // fixture (`tests/fixtures/ast/scalars.json`), so a divergence is a failing test
 // rather than a discovery six months later.
 
-import { TABLE } from './parse.js'
+import { TABLE, NODE_TYPES } from './parse.js'
 
 /** The three answers, and there is no fourth.
  *
@@ -49,10 +49,19 @@ export const FRESHNESS_MODES = Object.freeze(['live', 'as-of-snapshot', 'unknown
 
 const [LIVE, AS_OF_SNAPSHOT, UNKNOWN] = FRESHNESS_MODES
 
-/** ⚠️ NOT A FIFTH ONE: a scalar rides the `series` node
- *  (`closedTable.json::_scalars_node`), so this module adds no node vocabulary
- *  and every persisted `astHash` is unmoved. */
-const CANONICAL_TYPES = Object.freeze(['num', 'series', 'op', 'call'])
+/** ⛔ DERIVED FROM `parse.js`, NEVER RETYPED. This was a hand copy of the four,
+ *  and a hand copy of a vocabulary is the defect this repo has paid for most
+ *  often: when the bounded backward offset landed as a fifth node type, this
+ *  list would have branded every formula containing `close[1]` **unknown** —
+ *  fail-closed, so nothing would go red, and the badge would just quietly stop
+ *  telling the truth about the freshest formula a user can write.
+ *
+ *  ⚠️ THE OFFSET ADDS NO FRESHNESS VOCABULARY OF ITS OWN, and that is the whole
+ *  of what this module has to say about it. A scalar still rides the `series`
+ *  node (`closedTable.json::_scalars_node`) and `walk` already descends `args`,
+ *  so `market_cap[1]` reaches `scalarsIn` exactly as `market_cap` does — an
+ *  offset over a snapshot is still a snapshot. */
+const CANONICAL_TYPES = NODE_TYPES
 
 const own = (obj, name) => Object.prototype.hasOwnProperty.call(obj, name)
 

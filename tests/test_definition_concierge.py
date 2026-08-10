@@ -456,12 +456,24 @@ def test_the_TOOL_SCHEMA_is_generated_from_the_manifest_and_lists_every_arity(co
     assert defs["series"]["properties"]["name"]["enum"] == sorted(set(SERIES) | set(SCALARS))
     assert defs["op"]["properties"]["name"]["enum"] == OPERATORS
     assert defs["call"]["properties"]["name"]["enum"] == FUNCTIONS
-    assert len(SERIES) + len(OPERATORS) + len(FUNCTIONS) == 31, (
-        "the manifest declares 31 bar entries; if that moved, this file's "
-        "totality cases moved with it and the change should be deliberate")
-    assert len(ast_table.declared_names(TABLE)) == 31 + len(SCALARS) == 85, (
-        "the closed table declares 85 names across four sections; the enums "
-        "above are that same set, partitioned by node type")
+    # 🔴 A FLOOR, NOT AN EQUALITY, AND THE CHANGE IS DELIBERATE. These two lines
+    # read `== 31` and `== 85` — hand-typed counts beside the list they claim to
+    # describe, which is this repo's single most-repeated defect — and they went
+    # red the hour another owner declared the indicator functions. The count is
+    # the ARTIFACT'S to state; what this file needs is a RATCHET, because the
+    # hazard is the table SHRINKING under a totality corpus that then silently
+    # covers less. Growth is somebody else's deliberate change and lands here for
+    # free; a disappearance is still a red test naming the number.
+    bar_entries = len(SERIES) + len(OPERATORS) + len(FUNCTIONS)
+    assert bar_entries == sum(len(TABLE[s]) for s in ast_table.BAR_SECTIONS)
+    assert bar_entries >= 31, (
+        f"the closed table's bar sections have SHRUNK to {bar_entries}; they "
+        "declared 31 when this rail was written, and a totality corpus over a "
+        "table that lost entries covers less while staying green")
+    assert len(ast_table.declared_names(TABLE)) == bar_entries + len(SCALARS)
+    assert len(SCALARS) >= 54, (
+        f"the scalars section has SHRUNK to {len(SCALARS)}; it declared 54 when "
+        "this rail was written")
 
 
 def test_a_PLANTED_manifest_entry_reaches_the_schema_BY_NAME_with_no_edit_here(concierge):
@@ -2484,3 +2496,736 @@ def test_the_ROUTE_carries_the_KIND_and_defaults_to_the_PIPELINES_own(
                    json={"prompt": "x", "kind": "screener", "bars": []})
     assert bogus.status_code == 200
     assert bogus.json()["gate"] == "kind:unknown"
+
+
+# ═══ 10. PLAIN LANGUAGE OVER THE WHOLE VOCABULARY ══════════════════════════
+#
+# ⭐⭐ THE CLAIM THIS SECTION EXISTS TO PROVE: a member composes in their own
+# words over the WHOLE table — every declared series, scalar and function — not
+# over twenty-one pre-written concepts. Two different requests were conflated
+# until F-5, and conflating them is what made the door narrow:
+#
+#   * a FIRM CONCEPT carries the firm's judgement and its thresholds, so it stays
+#     grounded, cited, and refused BY NAME when the firm will not ground it;
+#   * a PLAIN COMPOSITION carries none — the member named the table's own column
+#     and wrote their own number — so "grounding" it is not a thing that means
+#     anything, and refusing it was the defect.
+#
+# ⛔ AND EVERY RAIL BELOW IS DERIVED FROM THE MANIFEST AND THE VOCABULARY AT RUN
+# TIME. A hand-list that agrees with today's manifest leaves ~825 of 826 cases
+# green with only an AST source rail red — measured twice on this branch — so the
+# behavioural rails here are TOTALITIES over whatever the two files declare, and
+# the source rail is carried and WIDENED (section 10e).
+
+
+def _named(concierge, text: str, lexicon=None):
+    """What the door reads out of one phrase: `(kind, key)` pairs, in order."""
+    lex = lexicon if lexicon is not None else concierge.LEXICON
+    return [(m["kind"], m["key"]) for m in concierge._matches(text, lex)]
+
+
+def _placeholder_free_phrases(table: Mapping[str, Any] = None) -> Dict[str, str]:
+    """Every declared entry whose manifest English a member could actually type.
+
+    ⛔ THE SPLIT IS READ, NEVER LISTED. A function's read-back is a TEMPLATE
+    (`the {1}-bar average of {0}`); stripping the holes out of it yields a phrase
+    nobody would write. So the corpus asks the declaration: do you carry English
+    with no argument holes in it? Functions answer no and stay reachable by name;
+    scalars answer yes. Neither answer is typed here.
+    """
+    from api.services import definition_concierge as mod
+    t = table if table is not None else TABLE
+    out: Dict[str, str] = {}
+    for section in mod._name_sections(t):
+        for name, spec in t[section].items():
+            if not isinstance(spec, Mapping):
+                continue
+            gloss = spec.get("sentence") or spec.get("doc")
+            if isinstance(gloss, str) and gloss and not mod._HAS_PLACEHOLDER.search(gloss):
+                out[name] = gloss
+    return out
+
+
+def _word_bearing_names(table: Mapping[str, Any] = None) -> List[str]:
+    """Every declared name a member could SPELL — every section except the
+    operators, and the exclusion is read off the NODE TYPE rather than typed.
+
+    ⚠️ AN OPERATOR IS GRAMMAR, not a thing a member names: its English lives in
+    `OPERATOR_SENTENCE`, pinned across the two lanes in section 4, and the model
+    is handed the operator list in the schema. ⛔ AND THE FILTER IS THE NODE TYPE
+    RATHER THAN "does the name contain a word", which is what this said first and
+    was WRONG BY ONE — `u-` carries the word "u".
+    """
+    from api.services import definition_concierge as mod
+    t = table if table is not None else TABLE
+    return sorted(name for section in mod._name_sections(t)
+                  if mod._CALLABLE_SECTIONS.get(section) != "op"
+                  for name in t[section])
+
+
+def test_EVERY_declared_name_is_REACHABLE_by_its_OWN_name_and_by_the_MANIFESTS_phrase(
+        concierge):
+    """⭐⭐ THE HEADLINE, AS A TOTALITY. *Plain language must compose over the WHOLE
+    vocabulary, not 21 pre-written concepts.* That is a slogan until it is
+    measured over every name the manifest declares — so it is, and the count is
+    never typed: `closedTable.json` grew from 11 functions to 28 WHILE this task
+    was being built, by another owner, and all seventeen landed in this rail for
+    free.
+
+    ⛔ AND THE SECOND HALF IS THE MANIFEST'S OWN ENGLISH. A member who writes "the
+    relative-strength rank" has written the phrase the file itself declares for
+    `rs_rank`, and a door that understood only the column NAME would be a door
+    only a developer can walk through.
+    """
+    names = _word_bearing_names()
+    assert len(names) >= 87, (
+        f"only {len(names)} declared names carry a word — the manifest shrank")
+
+    unreachable = [name for name in names
+                   if (concierge._matches(name, concierge.LEXICON) or [{}])[0]
+                   .get("key") != name]
+    assert not unreachable, (
+        f"{unreachable} cannot be reached by their own name — plain language "
+        "does NOT compose over the whole vocabulary")
+
+    phrases = _placeholder_free_phrases()
+    assert len(phrases) >= len(SCALARS), (
+        "fewer declarations carry typeable English than there are scalars; the "
+        "phrase half of this rail is measuring almost nothing")
+    missed = {name: gloss for name, gloss in phrases.items()
+              if (concierge.TABLE_ENTRY, name) not in _named(concierge, gloss)}
+    assert not missed, (
+        f"the manifest's own English does not reach {sorted(missed)}")
+
+    # ⛔ THE CONTROL, AND IT IS WHAT MAKES THIS A DERIVATION RATHER THAN A LUCKY
+    # HAND-LIST: a name the manifest has never heard of reaches nothing, and a
+    # PLANTED one reaches everything with no edit to the module or to this rail.
+    assert _named(concierge, "zzNotAColumnAnywhere") == []
+    planted = _clone_table()
+    planted[ast_table.SCALARS_SECTION]["zz_planted_column"] = {
+        "sentence": "the planted widget ratio", "cadence": "nightly"}
+    lex = concierge.build_lexicon(planted)
+    assert _named(concierge, "zz_planted_column", lex) == \
+        [(concierge.TABLE_ENTRY, "zz_planted_column")]
+    assert _named(concierge, "the planted widget ratio", lex) == \
+        [(concierge.TABLE_ENTRY, "zz_planted_column")]
+    assert _named(concierge, "zz planted columns", lex) == \
+        [(concierge.TABLE_ENTRY, "zz_planted_column")], (
+            "the planted column is reachable only in its exact spelling — the "
+            "morphology is not running over the manifest's own entries")
+    assert _named(concierge, "zz_planted_column") == [], (
+        "the plant reached the SHIPPED lexicon, so the control proves nothing")
+
+
+def _inflections(word: str) -> List[str]:
+    """Surface forms an English suffix rule could UNDO, built FROM THE RULES.
+
+    ⛔ NOT A THESAURUS AND NOT A LIST OF WORDS. Each candidate is the inverse of
+    one declared morphology rule, so what is probed is the rule set itself.
+    `leadership` is in here because a `ship` rule exists, not because somebody
+    thought of the word — delete the rule and its own probe disappears with it,
+    which the coverage count below is what guards.
+    """
+    from api.services import definition_concierge as mod
+    out = [word + suffix for suffix, _floor, repl, _dd in mod._SUFFIX_RULES
+           if not repl]
+    stripped = mod._stem_once(word)
+    if stripped != word:
+        out.append(stripped)
+    return sorted(set(out))
+
+
+def test_the_MORPHOLOGY_collapses_an_INFLECTED_form_onto_the_ONE_entry(concierge):
+    """🔴 E-5's SECOND MEASURED LIMIT: *"no stemming, so 'show me leaders' grounds
+    nothing."* The firm defines `leader`; a member writes `leaders`, `leading`,
+    `leadership` — three spellings of one idea, and a vocabulary that answers only
+    the first is narrower than its size suggests.
+
+    ⭐ THE FIX IS RULES OVER ENGLISH, NOT A THESAURUS OF THE FIRM'S WORDS. A
+    thesaurus saying "leaders means leader" would be a second authority over what
+    the firm's words mean — the exact defect `conceptVocabulary.json` exists to
+    prevent. Suffix rules know nothing about trading, they are applied to BOTH
+    sides, and the TERMS still come only from the manifest and the vocabulary.
+    """
+    from api.services import concept_vocabulary
+    grounded = sorted(concept_vocabulary.concepts())
+    assert grounded, "the vocabulary grounds no words at all"
+
+    checked = 0
+    for word in grounded:
+        assert _named(concierge, word) == [(concierge.CONCEPT_ENTRY, word)], (
+            f"the firm's own word {word!r} does not ground as itself")
+        last = word.split()[-1]
+        target = concierge.stem(last)[0]
+        for form in _inflections(last):
+            if concierge.stem(form)[0] != target:
+                continue                    # the rules genuinely cannot undo it
+            variant = " ".join(word.split()[:-1] + [form])
+            checked += 1
+            assert _named(concierge, variant) == [(concierge.CONCEPT_ENTRY, word)], (
+                f"{variant!r} is an inflection of the firm's word {word!r} and "
+                "this door cannot read it")
+    assert checked >= len(grounded), (
+        f"only {checked} inflected forms round-tripped across {len(grounded)} "
+        "concepts — the morphology is barely widening anything")
+
+    # ⭐ THE BRIEF'S OWN FAMILY, AND IT IS DERIVED RATHER THAN TYPED: whichever
+    # single-word concept the file spells with an `-er` ending must answer to the
+    # `-s`, `-ing` and `-ship` forms the rules generate for it.
+    inflecting = [w for w in grounded if " " not in w and concierge.stem(w)[1] > 0]
+    assert inflecting, "no single-word concept inflects at all"
+    for word in inflecting:
+        root = concierge.stem(word)[0]
+        for suffix in ("s", "ing", "ship"):
+            if concierge.stem(root + suffix)[0] != root:
+                continue
+            assert _named(concierge, root + suffix) == \
+                [(concierge.CONCEPT_ENTRY, word)], f"{root + suffix!r} -> nothing"
+
+    # ⛔ AND IT DOES NOT WIDEN INTO NONSENSE. A word that stems somewhere else is
+    # still nothing, which keeps "either the firm defined it or it did not" true
+    # one layer down.
+    assert _named(concierge, "zzleaderish") == []
+
+
+def test_the_stem_index_REFUSES_to_ARBITRATE_a_TIE_and_REPORTS_it(concierge):
+    """⛔ TWO ENTRIES CAN STEM TO ONE KEY, AND PICKING ONE WOULD BE THIS MODULE
+    DECIDING WHAT A WORD MEANS. `highest` and `high` both reach "high"; the
+    resolver answers by MINIMUM MORPHOLOGICAL DISTANCE — an exact spelling is
+    distance zero — and a genuine TIE matches NOTHING and is reported.
+
+    ⚠️ MEASURED, NOT ASSUMED: the shipped manifest and vocabulary produce no tie
+    at all today. That is a measurement of two files that move, so the rail plants
+    one and requires the silence.
+    """
+    assert concierge.LEXICON["collisions"] == {}, (
+        "two declared entries collapse onto one stem in the SHIPPED files; the "
+        "door would have to guess between them")
+
+    # …and the near-miss the distance rule exists for resolves each way.
+    assert _named(concierge, "highest") == [(concierge.TABLE_ENTRY, "highest")]
+    assert _named(concierge, "high") == [(concierge.TABLE_ENTRY, "high")]
+    assert _named(concierge, "highs") == [(concierge.TABLE_ENTRY, "high")]
+
+    # ⭐ AND AN INFLECTIONAL NEAR-MISS IS NOT A TIE — the distance rule separates
+    # it, and calling it one would drop two perfectly readable words. Planted, so
+    # the silence above is a measurement of the rule rather than of an empty file.
+    near = _clone_table()
+    for name in ("zzwidget", "zzwidgets"):
+        near[ast_table.SCALARS_SECTION][name] = {"cadence": "nightly"}
+    lex = concierge.build_lexicon(near)
+    assert lex["collisions"] == {}, lex["collisions"]
+    assert _named(concierge, "zzwidget", lex) == [(concierge.TABLE_ENTRY, "zzwidget")]
+    assert _named(concierge, "zzwidgets", lex) == [(concierge.TABLE_ENTRY, "zzwidgets")]
+
+    # ⛔ THE PLANT: two columns declaring the SAME English. Nothing separates
+    # them, so neither may win.
+    planted = _clone_table()
+    for name in ("zz_twin_a", "zz_twin_b"):
+        planted[ast_table.SCALARS_SECTION][name] = {
+            "sentence": "the zz twin phrase", "cadence": "nightly"}
+    tied = concierge.build_lexicon(planted)
+    assert [sorted(v) for v in tied["collisions"].values()] == \
+        [[(concierge.TABLE_ENTRY, "zz_twin_a"), (concierge.TABLE_ENTRY, "zz_twin_b")]], (
+            f"the reported ties are {tied['collisions']}, not the planted one")
+    assert _named(concierge, "zz twin phrase", tied) == [], (
+        "a phrase two columns both declare was arbitrated rather than refused")
+    # …and each column's own NAME still resolves, because that is not tied.
+    assert _named(concierge, "zz_twin_a", tied) == [(concierge.TABLE_ENTRY, "zz_twin_a")]
+
+
+# ── 10b. a refused word refuses its CLAUSE, and nothing more ────────────────
+
+def test_a_REFUSED_word_refuses_its_CLAUSE_and_NOT_the_whole_proposal(
+        concierge, model):
+    """🔴 E-5's FIRST MEASURED LIMIT, CLOSED. *"A refused word anywhere in the
+    prompt refuses the WHOLE proposal."* "cheap stocks with pe_ttm under 15" is
+    two requests: one the firm will not ground, and one in which the member named
+    a column of the table and wrote their own number. Throwing the second away
+    because of the first is the same defect as answering the first — the member
+    gets back something other than what they asked for.
+
+    ⭐ SO THE DOOR TAKES WHAT IT UNDERSTOOD AND NAMES WHAT IT DID NOT, and the
+    named part carries the CLAUSE so the member knows which words to fix.
+    """
+    from api.services import concept_vocabulary
+    word = _a_refused_word()
+    column = SCALARS[0]
+
+    client = model([tool_use(a_condition())])
+    res = concierge.propose(f"{word} stocks with {column} under 15",
+                            user_id=USER, bars=bars()[:30], kind="scan")
+
+    assert res["ok"] is True, res
+    assert [n["phrase"] for n in res["not_understood"]] == [word]
+    assert res["not_understood"][0]["gate"] == concept_vocabulary.GATE_AMBIGUOUS
+    assert word in res["not_understood"][0]["reason"]
+    assert res["not_understood"][0]["clause"] == f"{word} stocks", (
+        "the member is not told WHICH clause was dropped, so they cannot fix it")
+    # …and the half that WAS understood is in the envelope, by name and by number.
+    assert [t["name"] for t in res["terms"]] == [column]
+    assert res["numbers"] == [{"wrote": "15", "value": 15}]
+    assert res["understood"] == f"{column} under 15"
+    assert res["path"] == "composition"
+    assert client.calls, "nothing reached the model at all"
+
+    # ⛔ THE CONTROL, AND IT IS THE ONE THAT MATTERS. Before this task the SAME
+    # prompt came back refused with no formula, so the case above would also be
+    # satisfied by a pipeline that had simply stopped refusing anything. Take the
+    # composition half AWAY and the whole request is refused again, by name, for
+    # nothing.
+    only_refused = model([tool_use(a_condition())])
+    dead = concierge.propose(f"find me {word} stocks", user_id=USER,
+                             bars=bars()[:30], kind="scan")
+    assert dead["ok"] is False
+    assert dead["gate"] == concept_vocabulary.GATE_AMBIGUOUS
+    assert word in dead["reason"]
+    assert only_refused.calls == [], "the model was paid for a word the firm refuses"
+    for forbidden in ("ast", "source", "sentence", "concepts"):
+        assert forbidden not in dead
+
+
+def test_the_REFUSED_CLAUSE_NEVER_REACHES_THE_MODEL(concierge, model):
+    """🔴 THE SAFETY PROPERTY, AND IT IS WHY THE CLAUSE IS EXCISED RATHER THAN
+    ANNOTATED. Handing the model *"the member also said 'cheap' but we could not
+    ground it"* is handing it the invitation: a helpful model adds a P/E ceiling,
+    the read-back describes that ceiling perfectly accurately, and the member
+    confirms a firm threshold nobody at the firm ever wrote down.
+
+    ⛔ SO THE REFUSED CLAUSE IS REMOVED FROM THE REQUEST BEFORE THE CALL, and this
+    walks EVERYTHING that crossed the wire — the system prompt and every message.
+    """
+    word = _a_refused_word()
+    column = SCALARS[0]
+    client = model([tool_use(a_condition())])
+    res = concierge.propose(f"only the really {word} ones, {column} under 15",
+                            user_id=USER, bars=bars()[:30], kind="scan")
+    assert res["ok"] is True, res
+
+    sent = json.dumps([{"system": call["system"], "messages": call["messages"]}
+                       for call in client.calls])
+    assert word not in sent, (
+        f"the refused word {word!r} crossed the wire — the model can invent the "
+        "firm's threshold for it and the read-back will look correct")
+    assert "really" not in sent, "the refused CLAUSE crossed the wire"
+    assert column in sent, (
+        "the surviving clause never reached the model either, so the absence "
+        "above is the absence of everything")
+
+
+def test_an_UNGROUNDED_CONCEPT_still_refuses_while_the_MEMBERS_OWN_NUMBER_does_not(
+        concierge):
+    """⭐⭐ THE DISTINCTION, MEASURED IN ONE SENTENCE. A concept whose citations
+    have ROTTED is no longer the firm's answer, so it refuses exactly like a
+    declared ambiguity — the model must never be left to reconstruct a threshold
+    the firm used to publish. A NUMBER THE MEMBER TYPED is not a firm threshold at
+    all, and it goes through untouched, in the same request.
+
+    ⛔ AND THE ROT IS PLANTED, NOT SIMULATED: a real concept, with a real citation
+    shape, pointed at a column that does not exist. `concept_vocabulary` resolves
+    it and refuses under its OWN gate, reported here under that same name.
+    """
+    from api.services import concept_vocabulary
+    word = _a_grounded_word()
+    column = SCALARS[0]
+
+    vocab = {
+        concept_vocabulary.VOCAB_VERSION_KEY: concept_vocabulary.version(),
+        concept_vocabulary.CONCEPTS_KEY: {
+            word: {**dict(concept_vocabulary.concepts()[word]),
+                   "grounding": [{"kind": "scalar", "column": "zz_gone_column"}]}},
+        concept_vocabulary.REFUSED_KEY: {},
+    }
+    rotted = concept_vocabulary.resolve(word, vocab=vocab)
+    assert rotted["ok"] is False, "the plant did not rot the concept"
+    assert rotted["gate"] == concept_vocabulary.GATE_UNGROUNDED
+
+    plan = concierge.plan(f"{word} names, {column} under 15", "scan", vocab=vocab)
+    assert [n["gate"] for n in plan["not_understood"]] == \
+        [concept_vocabulary.GATE_UNGROUNDED]
+    assert word in plan["not_understood"][0]["reason"]
+    assert word not in plan["understood"], (
+        "a concept the firm can no longer ground was left in front of the model")
+    assert word not in plan["briefing"]
+    # …and the member's own number survived the very same sentence.
+    assert plan["numbers"] == [{"wrote": "15", "value": 15}]
+    assert [t["name"] for t in plan["terms"]] == [column]
+
+    # The control: with the SHIPPED vocabulary the same word grounds and nothing
+    # is refused, so the refusal above is the rot's and not the sentence's.
+    healthy = concierge.plan(f"{word} names, {column} under 15", "scan")
+    assert healthy["not_understood"] == []
+    assert [c["word"] for c in healthy["concepts"]] == [word]
+
+
+def test_when_EVERY_clause_is_refused_the_proposal_refuses_and_NAMES_THEM_ALL(
+        concierge, model):
+    """⛔ NOTHING LEFT TO DRAFT IS STILL A REFUSAL — and it names EVERY part it
+    could not read rather than the first one it met. E-5 refused on the first
+    refused word, so "find me strong cheap stocks" told a member about one of
+    their two problems and let them discover the second on the next attempt.
+    """
+    from api.services import concept_vocabulary
+    words = sorted(concept_vocabulary.refused())
+    assert len(words) >= 2, "the vocabulary declares fewer than two refusals"
+    first, second = words[0], words[1]
+
+    client = model([tool_use(a_condition())])
+    res = concierge.propose(f"find me {first} {second} stocks", user_id=USER,
+                            bars=bars()[:30], kind="scan")
+    assert res["ok"] is False
+    assert sorted(n["phrase"] for n in res["not_understood"]) == sorted([first, second]), (
+        "the refusal named some of the member's problems and not the others")
+    assert client.calls == [], "a request with nothing left in it was still paid for"
+
+
+def test_a_column_the_table_DELIBERATELY_LACKS_is_NAMED_and_the_rest_STILL_DRAFTS(
+        concierge, model):
+    """⭐⭐ "ABSENT MUST STAY ABSENT", APPLIED TO LANGUAGE. The manifest does not
+    only declare what the table HAS: `_scalars_excluded` declares what it
+    deliberately does NOT have, with the reason, and its own note calls the two a
+    PARTITION of the screener's columns. So a member who writes "sector" has named
+    something real that this grammar cannot express, and the honest answer is the
+    manifest's own sentence about it — not silence, and not a scan that quietly
+    ignores half of what they asked for.
+
+    ⛔ AND IT IS NAMED RATHER THAN EXCISED, which is the ONE place this differs
+    from a refused word. A refused CONCEPT is an invitation the model can accept:
+    it can emit a threshold for "cheap" and the read-back will describe it
+    perfectly. An excluded column is not — it is TEXT, the schema's enums do not
+    contain it, and this grammar declares no string literal, so there is no tree
+    the model could emit that honours it. Cutting the clause would throw away the
+    rest of a request to prevent something the boundary already prevents.
+    """
+    excluded = concierge._excluded(TABLE)
+    assert excluded, "the manifest declares nothing excluded; this rail is empty"
+
+    # ⭐ TOTALITY: every column the manifest says it lacks answers to its own name.
+    unreachable = [name for name in excluded
+                   if [(concierge.EXCLUDED_ENTRY, name)] != _named(concierge, name)]
+    assert not unreachable, (
+        f"the table declares it cannot carry {unreachable} and says so to nobody")
+
+    name = next(n for n in sorted(excluded) if excluded[n])
+    column = SCALARS[0]
+    client = model([tool_use(a_condition())])
+    res = concierge.propose(f"{name} names with {column} over 5", user_id=USER,
+                            bars=bars()[:30], kind="scan")
+
+    assert res["ok"] is True, res
+    assert [u["name"] for u in res["unavailable"]] == [name]
+    assert res["unavailable"][0]["reason"] == excluded[name], (
+        "the member is given a reason this module wrote instead of the "
+        "manifest's own")
+    assert res["not_understood"] == [], (
+        "an absent column was reported as language we could not read; those are "
+        "different facts with different remedies")
+    assert [t["name"] for t in res["terms"]] == [column], (
+        "the rest of the request was thrown away over a column the schema "
+        "already makes unemittable")
+
+    # ⛔ AND THE MORPHOLOGY DOES NOT WIDEN THE CAN'T-DO NOTICE. "companies" and
+    # "tickers" are the most ordinary filler in the box; stemming them onto the
+    # identity columns would put a warning under half the requests in the product.
+    inflected = [n + "s" for n in excluded if concierge.stem(n + "s")[0]
+                 == concierge.stem(n)[0] and (n + "s") not in excluded]
+    assert inflected, "no excluded column inflects, so this half proves nothing"
+    for word in inflected:
+        assert _named(concierge, word) == [], (
+            f"{word!r} raised a can't-do notice for a column the member did not "
+            "actually name")
+
+
+# ── 10c. the composition path ───────────────────────────────────────────────
+
+def test_a_plain_COMPOSITION_needs_NO_GROUNDING_and_the_MEMBERS_NUMBERS_travel(
+        concierge, model):
+    """⭐⭐ THE SECOND PATH. "rsi14 above 70 and volume over two million" involves NO
+    firm judgement: the member named two entries of the table and supplied both
+    numbers. There is nothing to ground, nothing to cite, and refusing it was the
+    defect.
+
+    ⛔ AND THE NUMBERS ARE HANDED OVER AS THE MEMBER'S OWN, expanded but never
+    replaced. A model told "2 million" writes 2000000 or 2e6 or two-and-a-bit
+    depending on the weather; a model told the member wrote `2 million` and that
+    it is `2000000` writes the member's number.
+    """
+    scalar = SCALARS[0]
+    field = SERIES[0]
+    client = model([tool_use(a_condition())])
+    res = concierge.propose(f"{scalar} above 70 and {field} over 2 million",
+                            user_id=USER, bars=bars()[:30], kind="scan")
+
+    assert res["ok"] is True, res
+    assert res["concepts"] == [], "a plain composition was credited to a firm concept"
+    assert res["not_understood"] == []
+    assert res["path"] == "composition"
+    assert {t["name"] for t in res["terms"]} == {scalar, field}
+    assert {num["value"] for num in res["numbers"]} == {70, 2000000}
+
+    system = client.calls[0]["system"]
+    assert concierge.TERMS_HEADER in system
+    assert concierge.NUMBERS_HEADER in system
+    assert '"2 million" -> 2000000' in system, (
+        "the member's own number reached the model unexpanded, so the model gets "
+        "to decide what two million is")
+    assert concierge.CONCEPT_HEADER not in system, (
+        "a composition was given the firm's-words header with nothing under it")
+
+    # ⚠️ AND A THOUSANDS COMMA IS A SEPARATOR, NOT A CLAUSE BREAK. "over
+    # 1,500,000" was cut into three clauses by the splitter and the member's own
+    # threshold then sat outside every surviving one and vanished — measured, and
+    # the reason phrases and numbers are read BEFORE the text is cut.
+    spelled = concierge.plan(f"{scalar} over 1,500,000", "scan")
+    assert spelled["numbers"] == [{"wrote": "1,500,000", "value": 1500000}]
+
+    # The control: a request with no table entry and no number in it gets
+    # NEITHER header, so their presence above is a measurement.
+    plain = model([tool_use(windowed(20))])
+    concierge.propose("a twenty bar average of it", user_id=USER, bars=bars()[:30])
+    bare = plain.calls[0]["system"]
+    assert concierge.TERMS_HEADER not in bare
+    assert concierge.NUMBERS_HEADER not in bare
+
+
+def test_the_ENVELOPE_SAYS_WHICH_LANE_ANSWERED(concierge):
+    """⭐ FOUR LANES, AND THE ANSWER SAYS WHICH ONE. "this used the firm's own
+    definition of that word" and "this is your own composition" are different
+    facts about the same tree, and a member deciding how far to trust a scan needs
+    to know which one they are looking at.
+
+    ⛔ THE FOUR ARE READ OFF THE MODULE, never retyped — a fifth lane lands here as
+    a red test rather than as an uncovered branch.
+    """
+    concept = _a_grounded_word()
+    scalar = SCALARS[0]
+    cases = {
+        concept: "concept",
+        f"{scalar} over 5": "composition",
+        f"{concept} names with {scalar} over 5": "mixed",
+        "a twenty bar average of it": "unanchored",
+    }
+    assert sorted(cases.values()) == sorted(concierge.PLAN_PATHS), (
+        "this case does not cover every declared lane")
+    for prompt, expected in cases.items():
+        assert concierge.plan(prompt, "scan")["path"] == expected, prompt
+
+
+def test_the_LANGUAGE_STAGE_is_PURE_no_model_no_clock_no_network(concierge):
+    """⛔ `plan` DECIDES WHAT THE MODEL IS TOLD, so it must not be able to ask the
+    model. Its call graph is walked the way `sentence_for`'s is: a language stage
+    that could call out would make "the refused clause never crossed the wire" a
+    claim about one code path rather than about the function.
+
+    ⭐ AND IT IS WHY A REFUSED WORD COSTS NOTHING, and why the corpus rail below
+    can drive hundreds of real member phrasings through it for free.
+    """
+    src = Path(concierge.__file__).read_text(encoding="utf-8")
+    by_name = {node.name: node for node in pyast.walk(pyast.parse(src))
+               if isinstance(node, pyast.FunctionDef)}
+    reachable, stack = set(), ["plan"]
+    while stack:
+        name = stack.pop()
+        if name in reachable or name not in by_name:
+            continue
+        reachable.add(name)
+        for node in pyast.walk(by_name[name]):
+            if isinstance(node, pyast.Call) and isinstance(node.func, pyast.Name):
+                stack.append(node.func.id)
+    banned = {"_call_model", "propose", "_tool_input", "_repair_turns",
+              "_get_anthropic_client", "_market_date", "_record_spend"}
+    assert not (reachable & banned), (
+        f"`plan` can reach {sorted(reachable & banned)}")
+    assert {"_matches", "_clauses", "_numbers_in"} <= reachable, (
+        "the scan found no language stage at all, so it proves nothing")
+
+
+# ── 10d. a corpus of real member phrasings, DERIVED from firm artifacts ─────
+#
+# 🔴 NOT A HANDFUL OF EXAMPLES WRITTEN TO PASS. Every row below is a phrasing the
+# FIRM ALREADY PUBLISHES — a screener filter's own label, a preset's own label, a
+# starter screen's name, a setup's name and its one-line essence, a concept, a
+# declared refusal, a column's own declared English. If the firm words a criterion
+# that way in its own product, a member will word it that way in the box.
+#
+# ⛔ AND THE ROW COUNT IS THE ARTIFACTS' TO STATE. Each source is asserted to
+# contribute exactly what it declares, so a hand-added row is a red test and an
+# artifact that grows joins the corpus by itself.
+
+_SETUP_ESSENCE = re.compile(r"essence:\s*'((?:[^'\\]|\\.)*)'")
+_SETUP_NAME = re.compile(r"\n    name:\s*'((?:[^'\\]|\\.)*)'")
+SETUP_CATALOG = ROOT / "app" / "src" / "pages" / "modelbook" / "setupCatalog.js"
+
+
+def _corpus() -> List[dict]:
+    """Member phrasings, READ from the artifacts the firm already ships."""
+    from api.services import concept_vocabulary
+    from api.services.screener import filters as screener_filters
+    from api.services.screener import saved_screens
+
+    rows: List[dict] = []
+    for key, entry in screener_filters.FILTERS.items():
+        label = entry.get("label")
+        if not (isinstance(label, str) and label):
+            continue
+        rows.append({"source": "filter_label", "key": key, "text": label})
+        for preset in entry.get("presets") or ():
+            plabel = preset.get("label")
+            if isinstance(plabel, str) and plabel:
+                rows.append({"source": "filter_preset", "key": f"{key}:{plabel}",
+                             "text": f"{label} {plabel}"})
+
+    for screen in saved_screens.starters():
+        rows.append({"source": "starter_screen", "key": screen.get("id"),
+                     "text": screen.get("name") or ""})
+
+    catalog = SETUP_CATALOG.read_text(encoding="utf-8")
+    for i, phrase in enumerate(_SETUP_ESSENCE.findall(catalog)):
+        rows.append({"source": "setup_essence", "key": f"essence:{i}",
+                     "text": phrase.replace("\\'", "'")})
+    for i, name in enumerate(_SETUP_NAME.findall(catalog)):
+        rows.append({"source": "setup_name", "key": f"setup:{i}",
+                     "text": name.replace("\\'", "'")})
+
+    for word in sorted(concept_vocabulary.concepts()):
+        rows.append({"source": "concept", "key": word,
+                     "text": f"find me {word} stocks"})
+    for word in sorted(concept_vocabulary.refused()):
+        rows.append({"source": "refusal", "key": word,
+                     "text": f"find me {word} stocks"})
+
+    for name, gloss in sorted(_placeholder_free_phrases().items()):
+        rows.append({"source": "declared_phrase", "key": name, "text": gloss})
+    for name in _word_bearing_names():
+        rows.append({"source": "declared_name", "key": name,
+                     "text": f"{name} over 20"})
+    return rows
+
+
+def test_the_CORPUS_of_FIRM_PHRASINGS_gets_a_NAMED_OUTCOME_for_EVERY_ROW(concierge):
+    """🔴 THE GATE. For every real member phrasing: what the door understood, or
+    the part it NAMES as not understood. ⛔ A ROW THAT PRODUCES NEITHER IS A
+    PHRASING THIS DOOR IS SILENTLY BLIND TO — it reaches the model as bare English
+    with nothing anchored, which is exactly the "21 pre-written concepts" ceiling
+    this task exists to lift.
+
+    ⚠️ `unanchored` IS NOT A FAILURE IN GENERAL — "a twenty bar average" is a
+    perfectly good request the model composes freely. What is asserted here is
+    narrower and harder: the phrasings the FIRM ITSELF publishes are anchored,
+    because those are the words a member has already been taught to use.
+    """
+    rows = _corpus()
+    assert len(rows) >= 200, f"{len(rows)} rows is not a corpus"
+
+    # ⭐ THE SETUP TAXONOMY IS THE ONE SOURCE THIS DOOR DOES NOT OWN. `setupGroups`
+    # / `setupCatalog` name the firm's SETUPS ("Bull Flag", "Cup & Handle"), and
+    # nothing in the manifest or the concept vocabulary grounds those words into a
+    # tree. ⛔ WRITING ONE HERE WOULD BE THE VERY DEFECT THIS TASK GUARDS: a
+    # definition of "Bull Flag" that nobody at the firm reviewed. So they are
+    # measured with a ratchet and NAMED, and the gap is stated rather than papered
+    # over — E-8's starter library is where a setup becomes sayable.
+    TAXONOMY = {"setup_name", "setup_essence"}
+
+    blind, outcomes = [], {}
+    for row in rows:
+        got = concierge.plan(row["text"], "scan")
+        outcomes[got["path"]] = outcomes.get(got["path"], 0) + 1
+        if not (got["concepts"] or got["terms"] or got["not_understood"]
+                or got["unavailable"]):
+            blind.append((row["source"], row["key"], row["text"]))
+
+    owned = [b for b in blind if b[0] not in TAXONOMY]
+    assert not owned, (
+        f"{len(owned)} of {len(rows)} firm phrasings anchored NOTHING, and every "
+        "one of them is worded by an artifact this door READS:\n"
+        + "\n".join(f"  [{s}] {k}: {t}" for s, k, t in owned[:25]))
+
+    # …and the taxonomy half is a RATCHET, not an exemption: it may not get worse.
+    for source in sorted(TAXONOMY):
+        total = sum(1 for r in rows if r["source"] == source)
+        missing = [b[2] for b in blind if b[0] == source]
+        assert total - len(missing) >= (6 if source == "setup_name" else 20), (
+            f"{source}: only {total - len(missing)} of {total} of the firm's own "
+            f"setup phrasings anchor anything. Unsayable today:\n  "
+            + "\n  ".join(missing))
+
+    # …and it is not passing because everything came back refused or empty.
+    understood = sum(outcomes.get(p, 0) for p in ("concept", "composition", "mixed"))
+    assert understood >= len(rows) // 2, outcomes
+
+    # ⛔ THE CONTROL: prose that names nothing the firm publishes IS blind, so the
+    # silence above is a measurement of the corpus rather than of the check.
+    assert concierge.plan("please make me some money", "scan")["path"] == "unanchored"
+
+
+def test_the_CORPUS_is_DERIVED_from_the_artifacts_and_NOT_TYPED_HERE(concierge):
+    """⛔ THE CORPUS'S OWN ANTI-COPY RAIL. A corpus somebody typed agrees with
+    today's artifacts and rots with them, so every source's row count is compared
+    against the artifact's OWN length. A hand-added row is red; a starter screen
+    the firm ships tomorrow is green with no edit.
+    """
+    from api.services import concept_vocabulary
+    from api.services.screener import filters as screener_filters
+    from api.services.screener import saved_screens
+
+    counted: Dict[str, int] = {}
+    for row in _corpus():
+        counted[row["source"]] = counted.get(row["source"], 0) + 1
+
+    labelled = [e for e in screener_filters.FILTERS.values()
+                if isinstance(e.get("label"), str) and e.get("label")]
+    assert counted["filter_label"] == len(labelled)
+    assert counted["filter_preset"] == sum(
+        1 for e in labelled for p in (e.get("presets") or ())
+        if isinstance(p.get("label"), str) and p.get("label"))
+    assert counted["starter_screen"] == len(saved_screens.starters())
+    assert counted["concept"] == len(concept_vocabulary.concepts())
+    assert counted["refusal"] == len(concept_vocabulary.refused())
+    assert counted["declared_name"] == len(_word_bearing_names())
+    assert counted["declared_phrase"] == len(_placeholder_free_phrases())
+    # ⚠️ THE SETUP CATALOG IS SCRAPED, so its reader must raise its own alarm
+    # rather than quietly yielding nothing when the file's shape moves.
+    assert counted["setup_essence"] >= 20 and counted["setup_name"] >= 20, (
+        f"the setup catalog yielded {counted.get('setup_essence')} essences and "
+        f"{counted.get('setup_name')} names — its shape changed and this reader "
+        "is scraping almost nothing, which would pass vacuously")
+    # ⛔ EVERY ROW BELONGS TO A DECLARED SOURCE: a row typed into the list would
+    # carry a source name nothing above counts.
+    assert set(counted) == {
+        "filter_label", "filter_preset", "starter_screen", "setup_essence",
+        "setup_name", "concept", "refusal", "declared_phrase", "declared_name"}
+
+
+# ── 10e. the source rail, WIDENED ───────────────────────────────────────────
+
+def test_no_SCALAR_name_and_no_VOCABULARY_word_is_a_string_constant_in_this_module(
+        concierge):
+    """⛔ THE ANTI-COPY SCAN, CARRIED AND WIDENED — and it is carried because it is
+    the ONLY rail that can see the defect. Measured twice this week: a hand-list
+    that agrees with today's manifest left 825 of 826 and 908 of 909 cases green,
+    with nothing but the AST source rail red.
+
+    The existing rail forbids FUNCTION and SERIES names. This task made the module
+    read two more vocabularies — the 54 SCALARS and the concept file's own WORDS —
+    so a hand-list of either would now be the cheapest way to fake plain language.
+    Full equality against string CONSTANTS, so prose cannot trip it.
+    """
+    from api.services import concept_vocabulary
+    src = Path(concierge.__file__).read_text(encoding="utf-8")
+    constants = {node.value for node in pyast.walk(pyast.parse(src))
+                 if isinstance(node, pyast.Constant) and isinstance(node.value, str)}
+    forbidden = (set(SCALARS)
+                 | set(concept_vocabulary.concepts())
+                 | set(concept_vocabulary.refused()))
+    assert len(forbidden) >= 80, "the forbidden set shrank; this rail measures less"
+    assert not (constants & forbidden), (
+        f"{sorted(constants & forbidden)} appear as string constants — the "
+        "lexicon must READ the manifest and the vocabulary, not copy them")
+
+    # The positive control, in the same test: the same walk over a synthetic
+    # hand-copy DOES report them, so a clean file is a measurement.
+    sample = sorted(forbidden)[:3]
+    hand = pyast.parse(f"WORDS = [{', '.join(repr(w) for w in sample)}]")
+    found = {node.value for node in pyast.walk(hand)
+             if isinstance(node, pyast.Constant) and isinstance(node.value, str)}
+    assert found & forbidden == set(sample)
