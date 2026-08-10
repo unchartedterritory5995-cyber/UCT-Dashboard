@@ -30,6 +30,15 @@ const ChartPane = lazy(() => import('../components/chart/pane/ChartPane'))
 
 const fetcher = (url) => fetch(url).then(r => r.json())
 
+// "8:25 AM" in ET — matches the Scanner widget footer's timestamp format.
+function fmtEtTime(iso) {
+  if (!iso) return ''
+  try {
+    return new Date(iso).toLocaleTimeString('en-US',
+      { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' })
+  } catch { return '' }
+}
+
 // localStorage key holding the last /api/theme-performance response, used to
 // paint the tab instantly on load before the fresh (632KB) fetch returns.
 const THEME_PERF_CACHE_KEY = 'uct.themePerf.v1'
@@ -288,7 +297,7 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
       return p?.themes?.length ? p : undefined
     } catch { return undefined }
   }, [])
-  const { data, isLoading } = useMobileSWR('/api/theme-performance', fetcher, {
+  const { data, isLoading, mutate } = useMobileSWR('/api/theme-performance', fetcher, {
     // 10s so the theme %s stay near-live and the leaderboard re-sorts in order.
     // (The server overlay is cached at the same 10s window — see _LIVE_1D_TTL —
     // so this polls no faster than the data actually refreshes.) Theme %s are
@@ -301,6 +310,32 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     revalidateOnFocus: false,
   })
   const isComputing = data?.status === 'computing'
+
+  // ── Footer (embedded widget): "N stocks · Updated H:MM ET · ⟳" ──
+  // Count = unique stocks tracked across every theme. Refresh re-pulls live-overlaid numbers
+  // (server busts its 10s live cache via ?refresh=1) so the leaderboard re-ranks on demand.
+  const stockCount = useMemo(() => {
+    const s = new Set()
+    for (const t of (data?.themes || [])) {
+      for (const h of (t.holdings || [])) {
+        const sym = typeof h === 'string' ? h : h?.sym
+        if (sym) s.add(String(sym).toUpperCase())
+      }
+    }
+    return s.size
+  }, [data])
+  const [refreshing, setRefreshing] = useState(false)
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      const fresh = await fetcher('/api/theme-performance?refresh=1')
+      if (fresh && !fresh.error) await mutate(fresh, { revalidate: false })
+    } catch {
+      try { await mutate() } catch { /* ignore */ }
+    } finally {
+      setRefreshing(false)
+    }
+  }, [mutate])
 
   // Persist the freshest full response for next load's instant paint. Throttled +
   // idle-deferred so the 632KB JSON.stringify never janks the main thread.
@@ -694,6 +729,26 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
           ))}
         </div>
       </div>
+
+      {/* ── Footer (embedded widget only): stock count · last-updated · manual refresh ── */}
+      {embedded && (
+        <div className={styles.ttFooter}>
+          <span className={styles.ttFooterCount}>{stockCount} {stockCount === 1 ? 'stock' : 'stocks'}</span>
+          {data?.generated_at && (
+            <span className={styles.ttFooterUpdated}>· Updated {fmtEtTime(data.generated_at)} ET</span>
+          )}
+          <button
+            type="button"
+            className={styles.ttFooterRefresh}
+            onClick={onRefresh}
+            title="Refresh themes"
+            aria-label="Refresh themes"
+          >
+            <UIcon name="refresh" size={12} gold={false}
+              className={refreshing ? styles.ttFooterRefreshSpin : undefined} />
+          </button>
+        </div>
+      )}
 
       {/* ── Right panel — hidden in embedded mode ── */}
       {!embedded && (
