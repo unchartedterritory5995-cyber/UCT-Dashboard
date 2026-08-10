@@ -52,6 +52,9 @@ NUM = lambda v: {"type": "num", "value": v}                    # noqa: E731
 SER = lambda n: {"type": "series", "name": n}                  # noqa: E731
 OP = lambda n, *a: {"type": "op", "name": n, "args": list(a)}  # noqa: E731
 CALL = lambda n, *a: {"type": "call", "name": n, "args": list(a)}  # noqa: E731
+#: ⭐ THE BOUNDED BACKWARD OFFSET. ⚠️ NO `name` — the bar count IS the node,
+#: which is the property that makes a computed offset inexpressible.
+OFF = lambda v, ch: {"type": "offset", "value": v, "args": [ch]}  # noqa: E731
 
 
 def run(ast, bars=None, inputs=None):
@@ -479,6 +482,10 @@ def test_every_declared_guard_is_REACHABLE_and_every_reachable_guard_is_DECLARED
         "resolve:window": lambda: run(CALL("sma", SER("close"), SER("close"))),
         "interpret:node": lambda: run({"type": "Identifier", "name": "close"}),
         "interpret:operator": lambda: run(OP("**", NUM(1), NUM(2))),
+        # ⭐ HAND-BUILT, BECAUSE NO PARSER CAN PRODUCE IT. A negative offset is
+        # refused at the JS parse door, so the only way this guard is ever
+        # reached is a STORED tree — which is exactly the input it exists for.
+        "interpret:offset": lambda: run(OFF(-26, SER("close"))),
     }
     assert sorted(triggers) == sorted(ast_interpret.REFUSALS)
     for guard, fire in triggers.items():
@@ -963,3 +970,141 @@ def test_the_shared_TABLE_cannot_be_edited_by_a_caller():
         ast_table.TABLE["functions"]["rugpull"] = {}
     with pytest.raises(TypeError):
         ast_table.TABLE["series"]["close"]["field"] = "v"
+
+
+# ═══════════════════════════════════════════════════════════════════════════ #
+# THE BOUNDED BACKWARD OFFSET — the Python lane
+# ═══════════════════════════════════════════════════════════════════════════ #
+
+def test_the_left_edge_of_an_offset_is_NOT_COMPUTABLE_never_zero():
+    """🔴 THE DEFINING RULE OF THIS ENGINE, IN THE LANE THAT MUST MATCH.
+
+    `close[3]` on bars 0, 1 and 2 has no bar to read. ⛔ NOT `0.0` and ⛔ NOT the
+    first bar's close — a clamped edge makes `close > close[3]` a confident
+    answer on bar 1, which is the exact defect class `unresolved_lookback` was
+    written against.
+    """
+    col = run(OFF(3, SER("close")))
+    assert len(col) == len(BARS)
+    for i in (0, 1, 2):
+        # ⚠️ `is None`, WHICH IS THIS LANE'S SPELLING OF NOT-COMPUTABLE — NaN
+        # inside the walker, `None` on the wire (see `interpret`'s last line).
+        assert col[i] is None, f"bar {i} must be not-computable, got {col[i]!r}"
+    assert col[3] == BARS[0]["c"]
+    assert col[7] == BARS[4]["c"]
+    # said as two assertions, because they are two different wrong answers
+    assert col[0] != 0.0
+    assert col[0] != BARS[0]["c"]
+
+
+def test_a_zero_offset_shifts_nothing_and_pads_nothing():
+    """The JS parse door FOLDS `x[0]` away, but a STORED zero-bar offset is a
+    legal tree and both lanes must agree it is the identity."""
+    assert run(OFF(0, SER("close"))) == run(SER("close"))
+
+
+def test_max_lookback_stays_a_TREE_SUM_through_an_offset():
+    """⭐ `value + max_lookback(child)`, composing under nesting.
+
+    ⚠️ THE NUMBERS ARE THE MANIFEST'S CONVENTION, NOT ARITHMETIC THIS TEST
+    CHOSE: `sma(x, 20)` declares `lookback: "arg1"`, so its own window is 20 and
+    the offset ADDS to it.
+    """
+    ml = ast_interpret.max_lookback
+    assert ml(OFF(3, SER("close"))) == 3
+    assert ml(OFF(0, SER("close"))) == 0
+    assert ml(CALL("sma", OFF(2, SER("close")), NUM(20))) == 22
+    assert ml(OFF(2, CALL("sma", SER("close"), NUM(20)))) == 22
+    # MAX along an operator, SUM along a path
+    assert ml(OP(">", OFF(1, SER("close")), OFF(3, SER("close")))) == 3
+    assert ml(CALL("sma", OFF(2, CALL("ema", OFF(1, SER("close")), NUM(5))), NUM(20))) == 28
+
+
+def test_the_offset_ceiling_IS_the_existing_lookback_budget():
+    """⛔ NO SECOND LIMIT.
+
+    `close[100000]` is a well-formed backward offset — the parse door has no
+    ceiling of its own on purpose — and what refuses it is `budget:lookback`,
+    because an offset is counted by the same tree sum `sma(close, 600)` is. Two
+    ways of asking for 600 bars of warm-up meet ONE cap, which is the only
+    arrangement in which they cannot drift apart. And `effective_budget` clamps
+    DOWNWARD ONLY, so a stored blob cannot raise it.
+    """
+    assert ast_interpret.max_lookback(OFF(100000, SER("close"))) == 100000
+    with pytest.raises(ast_interpret.TableRefusal) as exc:
+        run(OFF(100000, SER("close")))
+    assert exc.value.guard == "budget:lookback"
+    with pytest.raises(ast_interpret.TableRefusal) as deep:
+        run(CALL("sma", OFF(400, SER("close")), NUM(200)))
+    assert deep.value.guard == "budget:lookback"
+    run(OFF(499, SER("close")))                       # 500 is the cap: 499 draws
+    with pytest.raises(ast_interpret.TableRefusal) as over:
+        run(OFF(501, SER("close")))
+    assert over.value.guard == "budget:lookback"
+
+
+@pytest.mark.parametrize("bad", [-1, -26, 1.5, "3", None, True])
+def test_a_STORED_offset_that_is_not_a_backward_whole_number_REFUSES(bad):
+    """⛔ A REFUSAL, NOT A CLAMP.
+
+    A stored tree is user data that never met a parser. Clamping `-26` to `0`
+    would silently turn a FORWARD reference into `close` and draw a confident
+    wrong column — and `True` is here because `isinstance(True, int)` is True and
+    a bool would otherwise read as an offset of one bar.
+    """
+    with pytest.raises(ast_interpret.TableRefusal) as exc:
+        run(OFF(bad, SER("close")))
+    assert exc.value.guard == "interpret:offset"
+
+
+@pytest.mark.parametrize("args", [[], [SER("close"), NUM(1)]])
+def test_a_STORED_offset_with_the_wrong_child_count_REFUSES(args):
+    with pytest.raises(ast_interpret.TableRefusal) as exc:
+        run({"type": "offset", "value": 1, "args": args})
+    assert exc.value.guard == "interpret:offset"
+
+
+def test_the_child_of_an_offset_is_ANY_expression():
+    """🔴 MEASURED, NOT ASSUMED. A study of 54 real Pine scripts found the
+    offset thing is most often a CALL RESULT or a named intermediate
+    (`ta.rsi(close,14)[1]`), not a bar field — so a series-only offset would
+    cover roughly half of real usage at exactly the same `max_lookback` cost."""
+    shifted = run(OFF(2, CALL("sma", SER("close"), NUM(3))))
+    plain = run(CALL("sma", SER("close"), NUM(3)))
+    assert shifted[0] is None
+    assert shifted[6] == plain[4]
+
+    cond = run(OFF(1, OP(">", SER("close"), SER("open"))))
+    assert cond[0] is None
+    assert all(v in (0.0, 1.0) for v in cond[1:])
+
+    # a per-symbol SCALAR broadcasts and THEN shifts — ⛔ the pad is NOT the
+    # scalar, because "yesterday's market cap" is a value this table does not hold
+    scal = ast_interpret.interpret(OFF(1, SER("market_cap")), BARS, {}, None,
+                                   {"market_cap": 1e9})
+    assert scal[0] is None
+    assert scal[1] == 1e9
+
+
+def test_NaN_propagates_through_the_shift_rather_than_being_filled():
+    """A shift that dropped NaNs would make a 3-bar mean look available 3 bars
+    early, which is the same lie one door along."""
+    col = run(OFF(2, CALL("sma", SER("close"), NUM(3))))
+    for i in range(4):
+        assert col[i] is None, f"bar {i}"
+    assert col[4] is not None
+
+
+def test_the_offset_counts_toward_node_count_and_series_refs():
+    from api.services import ast_budget
+    assert ast_interpret.node_count(OFF(1, SER("close"))) == 2
+    # ⭐ THE BUDGET'S THIRD MEASUREMENT REACHES THROUGH THE OFFSET because the
+    # child rides `args`, which every walker in this repo already descends.
+    assert ast_budget.series_refs(OP("-", SER("close"), OFF(1, SER("close")))) == 2
+
+
+def test_unresolved_lookback_counts_the_offset_too():
+    """The guard that stops `close > close[3]` being answered on a 2-bar series
+    reads the SAME `max_lookback` the budget and the linter do."""
+    assert ast_interpret.unresolved_lookback(OFF(3, SER("close")), BARS[:2]) == 1
+    assert ast_interpret.unresolved_lookback(OFF(3, SER("close")), BARS) == 0

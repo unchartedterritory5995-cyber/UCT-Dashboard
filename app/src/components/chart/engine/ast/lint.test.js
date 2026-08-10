@@ -817,3 +817,99 @@ describe('the measurement over the shipped definitions — and it is allowed to 
     }).toEqual({ badgeValues: ['non-repainting'], plotsWithOwnBadge: [] })
   })
 })
+
+// ═════════════════════════════════════════════════════════════════════════════
+// THE BOUNDED BACKWARD OFFSET — the node that must not be able to repaint
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('the bounded backward offset, linted', () => {
+  const treeOf = (src) => {
+    const r = parseFormula(src)
+    expect(r.ok, `${src}: ${r.error}`).toBe(true)
+    return r.ast
+  }
+
+  it('🔴 AN OFFSET GROWS `back` AND LEAVES `forward` AT ZERO', () => {
+    // ⭐ THE PROPERTY `closedTable.json::_no_offset` EXISTED TO PROTECT. Its
+    // argument was that a general `close[n]` "makes a FORWARD reference
+    // expressible in the first place". A BOUNDED, BACKWARD-ONLY, LITERAL offset
+    // does not: the sign is refused at the parse door and the node shape has no
+    // slot for an expression that could evaluate to one, so this arm cannot
+    // produce a positive `forward` no matter what it is handed.
+    for (const [src, back] of [
+      ['close[1]', 1],
+      ['close[0]', 0],
+      ['close - close[1]', 1],
+      ['sma(close[2], 20)', 22],
+      ['sma(close, 20)[2]', 22],
+      ['close[1] > close[3]', 3],
+    ]) {
+      const r = lint.astReach(treeOf(src))
+      expect(r.forward, `${src} reached forward`).toBe(0)
+      expect(r.back, `${src} back`).toBe(back)
+      expect(lint.lintRepaint(treeOf(src)).mode, src).toBe('non-repainting')
+    }
+  })
+
+  it('the two lookback readings AGREE — the linter and the evaluator', () => {
+    // ⛔ TWO READINGS OF ONE DECLARATION. `lint.maxLookback` and
+    // `interpret.maxLookback` are separate functions on purpose and must not be
+    // allowed to disagree about a node type only one of them learned about.
+    for (const src of ['close[1]', 'sma(close[2], 20)', 'sma(close, 20)[2]',
+      'close[1] > close[3]', 'sma(ema(close[1], 5)[2], 20)']) {
+      expect(lint.maxLookback(treeOf(src)), src)
+        .toBe(interpretMaxLookback(treeOf(src)))
+    }
+  })
+
+  it('a MALFORMED stored offset is UNKNOWN, which is the fail-closed answer', () => {
+    // A stored tree never went through the parse door. `unknown` decides
+    // `repaints` — the stalest claim — rather than a confident zero.
+    for (const bad of [
+      { type: 'offset', value: -26, args: [{ type: 'series', name: 'close' }] },
+      { type: 'offset', value: 1.5, args: [{ type: 'series', name: 'close' }] },
+      { type: 'offset', value: 1, args: [] },
+    ]) {
+      const r = lint.astReach(bad)
+      expect(r.forward).toBe(lint.UNKNOWN)
+      expect(lint.lintRepaint(bad).mode).toBe('repaints')
+    }
+  })
+
+  it('⭐⭐ `ichimoku.chikou` IS STILL DECIDED — the reason the restriction existed', () => {
+    // 🔴 THE GATE. `_no_offset` named `chikou[j] === close[j+26]` as the exact
+    // construction the linter has to be able to decide. If adding a backward
+    // offset had cost that, the feature would be wrong at any price. The verdict
+    // still comes from ONE authority — the manifest's own `forward` declaration
+    // — because the offset arm above contributes to `back` alone.
+    const facts = { 'ichimoku.chikou': 26 }
+    const defs = engineRegistry.listDefinitions()
+    const rows = lint.lintCatalogue(defs, { declaredForwardFacts: facts })
+    const chikou = rows.find((r) => r.address === 'ichimoku.chikou')
+    expect(chikou, 'ichimoku.chikou is not in the catalogue').toBeTruthy()
+    expect(chikou.decidability).toBe('decided')
+    expect(chikou.mode).toBe('preview-repaints')
+    expect(chikou.forward).toBe(26)
+  })
+
+  it('...and a forward reach still reads as one when the MANIFEST declares it', () => {
+    // ⛔ THE CONTROL. Without it, "no offset tree repaints" could be true because
+    // this linter had stopped being able to see a forward reach at all.
+    const table = {
+      ...TABLE,
+      functions: {
+        ...TABLE.functions,
+        peek: { args: ['series'], lookback: -5, yields: 'num', sentence: 'peek {0}' },
+      },
+    }
+    const tree = {
+      type: 'offset',
+      value: 2,
+      args: [{ type: 'call', name: 'peek', args: [{ type: 'series', name: 'close' }] }],
+    }
+    const r = lint.astReach(tree, { table })
+    expect(r.forward).toBe(5)
+    expect(r.back).toBe(2)
+    expect(lint.lintRepaint(tree, { table }).mode).toBe('preview-repaints')
+  })
+})

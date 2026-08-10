@@ -45,13 +45,15 @@ from api.services import user_definitions
 
 #: The canonical node types, spelled as STRUCTURE and pinned to
 #: ``ast_interpret.NODE_TYPES`` by ``test_the_node_types_this_module_branches_on
-#: _ARE_the_declared_four``. A tree carries four shapes and this module has four
-#: cases; that is a surface small enough to prove closed, which is the whole
-#: reason ``closedTable._canonical`` refuses a fifth.
+#: _ARE_the_declared_ones``. A tree carries these shapes and this module has a
+#: case for each; that is a surface small enough to prove closed.
 _NUM = "num"
 _SERIES = "series"
 _OP = "op"
 _CALL = "call"
+#: ⭐ THE BOUNDED BACKWARD OFFSET. It changes *when* a value is read and never
+#: *what* it is, so its result kind is its child's — see ``yields_bool``.
+_OFFSET = "offset"
 
 #: The three answers ``ast_table.yields_of`` can give, likewise pinned by a test
 #: rather than assumed. ``passthrough`` belongs to the ternary alone: its result
@@ -175,6 +177,17 @@ def is_boolean_tree(ast: Any, table: Optional[Mapping[str, Any]] = None) -> bool
             continue
         if node_type == _SERIES:
             kinds[id(node)] = _settle(_declared_kind(node.get("name"), table))
+            continue
+        if node_type == _OFFSET:
+            # ⭐ AN OFFSET CHANGES *WHEN*, NEVER *WHAT*. `(close > open)[1]` is
+            # still the yes/no it was a bar ago, so the kind passes through from
+            # the child. Falling to the lookup below would ask the table for a
+            # declaration of the name `None`, settle to `num`, and quietly refuse
+            # every offset condition at the `yields` gate — a screen that says
+            # "this formula is not a filter" about a formula that plainly is.
+            children = list(node.get("args") or [])
+            kinds[id(node)] = (kinds[id(children[0])] if len(children) == 1
+                               else _KIND_NUM)
             continue
         declared = _declared_kind(node.get("name"), table)
         if declared == _KIND_PASSTHROUGH:

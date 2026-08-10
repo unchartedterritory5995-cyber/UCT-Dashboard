@@ -57,10 +57,23 @@ FRESHNESS_MODES = ("live", "as-of-snapshot", "unknown")
 
 LIVE, AS_OF_SNAPSHOT, UNKNOWN = FRESHNESS_MODES
 
-#: The four canonical node types. ⚠️ NOT A FIFTH ONE: a scalar rides the
-#: ``series`` node (``closedTable.json::_scalars_node``), so this module adds no
-#: node vocabulary and every persisted ``astHash`` is unmoved.
-_CANONICAL_TYPES = ("num", "series", "op", "call")
+#: The canonical node vocabulary. A hand copy of a vocabulary fails in the
+#: quietest possible direction HERE: when the bounded backward offset landed as a
+#: fifth node type, a stale list would have branded every tree containing
+#: ``close[1]`` **unknown** — fail-closed, so nothing goes red, and the badge
+#: simply stops telling the truth about the freshest formula a user can write.
+#:
+#: ⛔ SO IT IS PINNED BY A TEST RATHER THAN BY AN IMPORT, for the same reason
+#: ``ast_lint``'s copy is: this module reads the tree and never runs it, it sits
+#: downstream of that purity rail, and importing ``ast_interpret`` would drag
+#: ``indicator_compute`` in behind it.
+#: ⭐ ``test_the_node_vocabulary_here_IS_the_interpreter_s`` is the binding.
+#:
+#: ⚠️ THE OFFSET ADDS NO FRESHNESS VOCABULARY OF ITS OWN. A scalar still rides
+#: the ``series`` node (``closedTable.json::_scalars_node``) and ``_walk``
+#: already descends ``args``, so ``market_cap[1]`` reaches ``scalars_in``
+#: exactly as ``market_cap`` does: an offset over a snapshot is still a snapshot.
+_CANONICAL_TYPES = ("num", "series", "op", "call", "offset")
 
 
 def _walk(tree: Any) -> List[Any]:

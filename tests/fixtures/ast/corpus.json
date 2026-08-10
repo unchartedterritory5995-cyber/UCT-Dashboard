@@ -572,14 +572,8 @@
     {
       "id": "offset_zero_is_identity",
       "source": "close[0]",
-      "why": "`x[0]` is `x`. The node is still emitted, so both lanes must agree that a zero-bar offset shifts nothing AND pads nothing -- a lane that started its copy at index 1 would differ only on bar 0, which is exactly where nobody looks",
-      "ast": {
-        "type": "offset",
-        "value": 0,
-        "args": [
-          { "type": "series", "name": "close" }
-        ]
-      }
+      "why": "`x[0]` is `x`, and the parse door FOLDS it rather than emitting a zero-bar node -- one column must have ONE canonical tree, because `astHash` decides whether an edit bumps `compute.rev` and a rev bump force-migrates every binding. Here so the fold is pinned by the round-trip rail rather than left as a comment",
+      "ast": { "type": "series", "name": "close" }
     },
     {
       "id": "offset_change_idiom",

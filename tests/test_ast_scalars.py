@@ -654,8 +654,18 @@ def test_a_scalar_RIDES_the_series_node_and_there_is_no_FIFTH_node_type():
         types_in(case["ast"], found)
     for case in ac.load_corpus()["cases"]:
         types_in(case["ast"], found)
-    assert found == set(ast_interpret.NODE_TYPES) == {"num", "series", "op", "call"}, found
+    # ⭐ THE SET IS DERIVED FROM THE CORPORA AND PINNED TO THE ONE DECLARATION.
+    # ⚠️ IT WAS ALSO RE-TYPED AS `{"num","series","op","call"}` HERE, which is the
+    # restated-count defect wearing a set literal: the day the bounded backward
+    # offset landed as a deliberate FIFTH type, this line went red for a change
+    # that was correct, and the honest fix is to stop restating it. What this
+    # rail is actually about is unchanged and is the line below: a SCALAR still
+    # rides the `series` node and never became a node type of its own.
+    assert found == set(ast_interpret.NODE_TYPES), found
     assert "scalar" not in found
+    assert "offset" in found, (
+        "the corpora no longer exercise the offset node, so this rail has stopped "
+        "measuring the vocabulary it claims to")
 
     # …and the walker refuses one outright rather than absorbing it.
     with pytest.raises(ast_interpret.TableRefusal, match="not a canonical node"):

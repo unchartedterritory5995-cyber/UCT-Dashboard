@@ -76,11 +76,17 @@ describe('the persisted tree is the contract, and it is jsep-independent', () =>
     expect([...keysIn(ast)].sort()).toEqual(['args', 'name', 'type', 'value'])
   })
 
-  it('the canonical node-type set is EXACTLY four, over every corpus case', () => {
+  it('the canonical node-type set is EXACTLY `NODE_TYPES`, over every corpus case', () => {
     // ⛔ ASSERTED BY WALKING PARSED TREES, NOT BY READING `NODE_TYPES` BACK. A
     // test that reads the constant it is checking measures a re-typed copy —
     // this branch has already shipped a control that compared a hand-copy to a
-    // hand-copy. Seventeen real sources are walked instead.
+    // hand-copy. Every real source in the corpus is walked instead.
+    //
+    // ⚠️ THE TITLE SAID "EXACTLY FOUR" WHILE THE BODY DERIVED THE SET. When the
+    // bounded backward offset landed as a fifth type the body stayed correct and
+    // the NAME became the lie — and a test name is what an engineer reads in a
+    // failure report. A count restated beside the list it describes is this
+    // repo's most-repeated defect; it does not stop being one in a test title.
     const seen = new Set()
     const keys = new Set()
     for (const c of CORPUS.cases) {
@@ -533,18 +539,40 @@ describe('the bounded backward offset — what it may say', () => {
     })
   })
 
-  it('it composes onto a call, and a call composes onto it', () => {
-    // The two nesting orders are DIFFERENT COLUMNS, and both must be spellable —
-    // `sma(close[2], 20)` averages a shifted series, `sma(close, 20)[2]` shifts
-    // an average. The conformance corpus carries both for exactly that reason.
+  it('⭐ THE CHILD IS ANY EXPRESSION, NOT ONLY A SERIES', () => {
+    // 🔴 MEASURED, NOT ASSUMED. A study of 54 real Pine scripts found the
+    // offset thing is most often a CALL RESULT or a named intermediate
+    // (`ta.rsi(close,14)[1]`, `myEma[1]`) rather than a bar field — so a
+    // series-only offset would cover roughly half of real usage at exactly the
+    // same `maxLookback` cost. The child slot is a full node for that reason.
+    expect(treeOf('sma(close, 20)[2]')).toEqual({
+      type: 'offset',
+      value: 2,
+      args: [{
+        type: 'call',
+        name: 'sma',
+        args: [{ type: 'series', name: 'close' }, { type: 'num', value: 20 }],
+      }],
+    })
+    // a condition
+    expect(treeOf('(close > open)[1]').args[0].type).toBe('op')
+    // an arithmetic sub-expression
+    expect(treeOf('(high - low)[4]').args[0].type).toBe('op')
+    // a per-symbol scalar, which rides the `series` node
+    expect(treeOf('market_cap[1]').args[0]).toEqual({ type: 'series', name: 'market_cap' })
+  })
+
+  it('the two nesting orders are DIFFERENT COLUMNS and both are spellable', () => {
+    // `sma(close[2], 20)` averages a shifted series; `sma(close, 20)[2]` shifts
+    // an average. Same `maxLookback`, different values — the conformance corpus
+    // carries both for exactly that reason.
     expect(treeOf('sma(close[2], 20)').type).toBe('call')
     expect(treeOf('sma(close[2], 20)').args[0]).toEqual({
       type: 'offset', value: 2, args: [{ type: 'series', name: 'close' }],
     })
-    expect(treeOf('sma(close, 20)[2]')).toEqual({
-      type: 'offset', value: 2, args: treeOf('sma(close, 20)') && [treeOf('sma(close, 20)')][0]
-        ? [treeOf('sma(close, 20)')] : null,
-    })
+    expect(treeOf('sma(close, 20)[2]').type).toBe('offset')
+    expect(astHash(treeOf('sma(close[2], 20)')))
+      .not.toBe(astHash(treeOf('sma(close, 20)[2]')))
   })
 
   it('the persisted key vocabulary does NOT grow — still {type,name,value,args}', () => {
@@ -568,7 +596,24 @@ describe('the bounded backward offset — what it may say', () => {
     expect(astHash(treeOf('close[3]'))).toBe(astHash(parseFormula('close[3]').ast))
     // ⛔ AND THE COUNT IS SEMANTICS: two offsets are not one tree.
     expect(astHash(treeOf('close[3]'))).not.toBe(astHash(treeOf('close[4]')))
-    expect(astHash(treeOf('close[0]'))).not.toBe(astHash(treeOf('close')))
+  })
+
+  it('⛔ `x[0]` FOLDS to `x` — one column may have only ONE tree', () => {
+    // `close[0]` and `close` are the same column: same values, no NaN prefix,
+    // same `maxLookback`. Emitting a zero-bar node would give one column two
+    // canonical trees and two `astHash`es — and that hash decides whether an
+    // edit bumps `compute.rev`, which force-migrates every binding and resets
+    // `last_value`. A user could trigger a migration by typing `[0]`.
+    expect(treeOf('close[0]')).toEqual({ type: 'series', name: 'close' })
+    expect(astHash(treeOf('close[0]'))).toBe(astHash(treeOf('close')))
+    expect(treeOf('sma(close, 20)[0]')).toEqual(treeOf('sma(close, 20)'))
+    // ⭐ THE SAME RULE THE CHAINED REFUSAL ENFORCES, FROM THE OTHER SIDE:
+    // refuse a second spelling, or fold it — never keep both. ⚠️ AND THE CHAIN
+    // RULE IS SYNTACTIC, SO IT WINS: `close[0][0]` is two applications on one
+    // value and is refused BEFORE anything is folded. A fold-then-check order
+    // would make the refusal depend on the values, which is a rule nobody can
+    // predict from the source they typed.
+    expect(guardOf('close[0][0]')).toBe('canonicalise:offset-chained')
   })
 
   // ─── the refusals, which are the reason the form is allowed at all ─────────
@@ -600,9 +645,26 @@ describe('the bounded backward offset — what it may say', () => {
     expect(guardOf('close[length]')).toBe('canonicalise:offset-literal')
     expect(guardOf('close[sma(close, 2)]')).toBe('canonicalise:offset-literal')
     expect(guardOf('close[1.5]')).toBe('canonicalise:offset-literal')
-    // Two offsets applied to one value: the inner is not a literal index of the
-    // outer. Refused, exactly as Pine itself rules.
-    expect(parseFormula('close[1][2]').ok).toBe(false)
+  })
+
+  it('⛔ a CHAINED offset is refused — one column must have ONE tree', () => {
+    // `close[1][2]` and `close[3]` are the same column: same values, same NaN
+    // prefix, same `maxLookback`. Admitting both would give one column two
+    // canonical trees and therefore two `astHash`es — and that hash decides
+    // whether an edit bumps `compute.rev`, which force-migrates every binding
+    // and resets `last_value`. A second spelling of one tree is a second
+    // authority over one value.
+    expect(guardOf('close[1][2]')).toBe('canonicalise:offset-chained')
+    expect(guardOf('sma(close, 20)[1][1]')).toBe('canonicalise:offset-chained')
+    // ⭐ AND IT COSTS NOTHING: Pine forbids the chain in its own grammar, a
+    // corpus of 54 real scripts contains none, and `close[3]` says it already.
+    expect(parseFormula('close[3]').ok).toBe(true)
+  })
+
+  it('a FORWARD chain still reports the forward refusal — the priority is declared', () => {
+    // Two offences on one node. The one that must be reported is the one the
+    // whole restriction exists for.
+    expect(guardOf('close[-1][2]')).toBe('canonicalise:offset-forward')
   })
 
   it('⛔ `close["constructor"]` IS STILL A PROPERTY REACH, NOT AN OFFSET', () => {

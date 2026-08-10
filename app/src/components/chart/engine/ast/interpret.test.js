@@ -937,3 +937,134 @@ describe('the interpreter is PURE', () => {
     expect(col('close')[0]).toBe(BARS[0].c)
   })
 })
+
+// ═════════════════════════════════════════════════════════════════════════════
+// THE BOUNDED BACKWARD OFFSET — the left edge, and the tree sum
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('the bounded backward offset, evaluated', () => {
+  it('🔴 THE LEFT EDGE IS NOT COMPUTABLE — never 0, never the first bar', () => {
+    // ⭐⭐ THE DEFINING RULE OF THIS ENGINE, AND THE EXACT DEFECT CLASS IT SPENT
+    // A WEEK REMOVING: `close > sma(close, 300)` on 200 bars returning 200
+    // confident `0.0`s. `close[3]` on bars 0, 1 and 2 has no bar to read. A
+    // clamp to `src[0]` or a fill of `0` would both draw a confident answer to a
+    // question the data cannot answer — and a user can arm an alert on it.
+    const c = col('close[3]')
+    expect(c.length).toBe(BARS.length)
+    for (const i of [0, 1, 2]) {
+      expect(Number.isNaN(c[i]), `bar ${i} must be NOT COMPUTABLE, got ${c[i]}`).toBe(true)
+    }
+    expect(c[3]).toBe(BARS[0].c)
+    expect(c[10]).toBe(BARS[7].c)
+    // ⛔ AND THE PAD IS NOT ZERO AND NOT THE FIRST CLOSE, said as two separate
+    // assertions because those are two different wrong answers.
+    expect(c[0]).not.toBe(0)
+    expect(c[0]).not.toBe(BARS[0].c)
+  })
+
+  it('...and a comparison over the left edge does NOT become a confident answer', () => {
+    // The half that actually reaches a user: `_cmp` answers 0 when either side
+    // is NaN, which is right for a warmup and wrong for a bar that does not
+    // exist. The GUARD against that is `maxLookback`, so the number the caller
+    // needs is the one below — this pins that it is not zero.
+    expect(maxLookback(ast('close > close[3]'))).toBe(3)
+  })
+
+  it('`x[0]` shifts nothing and pads nothing', () => {
+    const zero = values(col('close[0]'))
+    expect(zero).toEqual(values(col('close')))
+  })
+
+  it('⭐ maxLookback IS STILL A TREE SUM, and it composes under nesting', () => {
+    // ⚠️ THE NUMBERS ARE THE MANIFEST'S CONVENTION, NOT ARITHMETIC THIS FILE
+    // CHOSE: `sma(x, 20)` declares `lookback: "arg1"`, so its own window is 20
+    // and the offset ADDS to it.
+    expect(maxLookback(ast('close[3]'))).toBe(3)
+    expect(maxLookback(ast('close[0]'))).toBe(0)
+    expect(maxLookback(ast('sma(close[2], 20)'))).toBe(22)
+    expect(maxLookback(ast('sma(close, 20)[2]'))).toBe(22)
+    expect(maxLookback(ast('sma(close[5], 20)'))).toBe(25)
+    // the MAX along an operator, the SUM along a path
+    expect(maxLookback(ast('close[1] > close[3]'))).toBe(3)
+    expect(maxLookback(ast('sma(close, 20)[2] - ema(close, 50)[1]'))).toBe(51)
+    // three levels
+    expect(maxLookback(ast('sma(ema(close[1], 5)[2], 20)'))).toBe(28)
+  })
+
+  it('⭐ THE BUDGET IS THE CEILING, AND IT IS THE ONE THAT ALREADY EXISTED', () => {
+    // ⛔ NO SECOND LIMIT. `close[100000]` is a well-formed backward offset — the
+    // parse door has no ceiling of its own on purpose — and what refuses it is
+    // `budget:lookback`, because the offset is counted by the same tree sum
+    // `sma(close, 600)` is. Two ways of asking for 600 bars of warmup meet one
+    // cap, which is the only arrangement in which they cannot drift apart.
+    expect(maxLookback(ast('close[100000]'))).toBe(100000)
+    let err = null
+    try { col('close[100000]') } catch (e) { err = e }
+    expect(err).toBeInstanceOf(TableRefusal)
+    expect(err.guard).toBe('budget:lookback')
+    // and a deep tree is still bounded through the offset
+    let deep = null
+    try { col('sma(close[400], 200)') } catch (e) { deep = e }
+    expect(deep?.guard).toBe('budget:lookback')
+    // 500 is the cap, so 499 draws and 501 does not
+    expect(() => col('close[499]')).not.toThrow()
+    let over = null
+    try { col('close[501]') } catch (e) { over = e }
+    expect(over?.guard).toBe('budget:lookback')
+  })
+
+  it('a STORED negative offset is refused by the interpreter, not clamped', () => {
+    // ⛔ THE PARSE DOOR CANNOT PRODUCE THIS. A stored tree is user data that
+    // never went through `canonicalise`, and clamping `-26` to `0` would draw a
+    // confident wrong column instead of refusing a forward reference.
+    for (const bad of [-1, -26, 1.5, '3', null, true]) {
+      let err = null
+      try {
+        interpret({ type: 'offset', value: bad, args: [{ type: 'series', name: 'close' }] }, BARS, {})
+      } catch (e) { err = e }
+      expect(err, `offset value ${JSON.stringify(bad)} was ACCEPTED`).toBeInstanceOf(TableRefusal)
+      expect(err.guard).toBe('interpret:offset')
+    }
+  })
+
+  it('a STORED offset with the wrong child count is refused too', () => {
+    for (const args of [[], [{ type: 'series', name: 'close' }, { type: 'num', value: 1 }]]) {
+      let err = null
+      try { interpret({ type: 'offset', value: 1, args }, BARS, {}) } catch (e) { err = e }
+      expect(err?.guard).toBe('interpret:offset')
+    }
+  })
+
+  it('the child is ANY expression — a call, a condition, a scalar', () => {
+    // A CALL RESULT: `sma(close,20)[2]` reads the mean of [i-21, i-2].
+    const shifted = col('sma(close, 20)[2]')
+    const plain = col('sma(close, 20)')
+    expect(Number.isNaN(shifted[0])).toBe(true)
+    expect(shifted[30]).toBe(plain[28])
+
+    // A CONDITION: still 0/1, and NOT COMPUTABLE before the bar exists.
+    const cond = col('(close > open)[1]')
+    expect(Number.isNaN(cond[0])).toBe(true)
+    expect(values(cond).slice(1).every((v) => v === 0 || v === 1)).toBe(true)
+
+    // A SCALAR broadcasts and THEN shifts — ⛔ the pad is NOT the scalar,
+    // because "yesterday's market cap" is a value this table does not hold.
+    const scal = interpret(ast('market_cap[1]'), BARS, {}, undefined, { market_cap: 1e9 })
+    expect(Number.isNaN(scal[0])).toBe(true)
+    expect(scal[1]).toBe(1e9)
+  })
+
+  it('NaN PROPAGATES through the shift rather than being filled', () => {
+    // The warmup of the child must still read as a hole after the shift — a
+    // shift that dropped NaNs would make a 20-bar mean look available 20 bars
+    // early, which is the same lie one door along.
+    const c = col('sma(close, 20)[2]')
+    for (let i = 0; i < 21; i++) expect(Number.isNaN(c[i]), `bar ${i}`).toBe(true)
+    expect(Number.isNaN(c[21])).toBe(false)
+  })
+
+  it('the offset counts toward the node budget like every other node', () => {
+    expect(nodeCount(ast('close[1]'))).toBe(2)
+    expect(nodeCount(ast('close - close[1]'))).toBe(4)
+  })
+})

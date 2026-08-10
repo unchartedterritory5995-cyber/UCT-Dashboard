@@ -741,3 +741,102 @@ def test_control_the_hand_copy_detector_finds_a_hand_copy():
     found = [n.value for n in pyast.walk(pyast.parse(source))
              if isinstance(n, pyast.Constant) and isinstance(n.value, int) and n.value == pad]
     assert found == [pad]
+
+
+# --------------------------------------------------------------------------- #
+# the bounded backward offset
+# --------------------------------------------------------------------------- #
+
+def test_the_node_vocabulary_here_IS_the_interpreter_s():
+    """⭐⭐ THE BINDING THAT PAYS FOR `_CANONICAL_TYPES` BEING A HAND COPY.
+
+    `test_no_evaluator_is_reachable_from_the_linter` forbids this module from
+    importing `ast_interpret` — a linter that could reach `indicator_compute`
+    could reach a verdict by RUNNING a formula. So the copy is FORCED, and the
+    place the two are bound is here, where a test may import both at once.
+
+    ⛔ A STALE COPY FAILS IN THE QUIETEST DIRECTION: the `else` arm would keep
+    NAMING four types while refusing the fifth, so every `close[1]` formula would
+    read `repaints` — fail-closed, nothing red, and the badge lying about the
+    most ordinary formula in either source language.
+    """
+    from api.services import ast_interpret, ast_freshness
+    assert al._CANONICAL_TYPES == ast_interpret.NODE_TYPES
+    assert ast_freshness._CANONICAL_TYPES == ast_interpret.NODE_TYPES
+    assert "offset" in ast_interpret.NODE_TYPES
+
+
+def test_an_offset_grows_BACK_and_leaves_FORWARD_at_zero():
+    """🔴 THE PROPERTY `closedTable.json::_no_offset` EXISTED TO PROTECT.
+
+    Its argument was that a general `close[n]` *"makes a FORWARD reference
+    expressible in the first place"*. A BOUNDED, BACKWARD-ONLY, LITERAL offset
+    does not: the sign is refused at the parse door and the node shape has no
+    slot for an expression that could evaluate to one, so this arm cannot produce
+    a positive `forward` no matter what it is handed.
+    """
+    off = lambda v, ch: {"type": "offset", "value": v, "args": [ch]}  # noqa: E731
+    ser = {"type": "series", "name": "close"}
+    cases = [
+        (off(1, ser), 1),
+        (off(0, ser), 0),
+        (off(2, {"type": "call", "name": "sma",
+                 "args": [ser, {"type": "num", "value": 20}]}), 22),
+        ({"type": "call", "name": "sma",
+          "args": [off(2, ser), {"type": "num", "value": 20}]}, 22),
+        ({"type": "op", "name": ">", "args": [off(1, ser), off(3, ser)]}, 3),
+    ]
+    for tree, back in cases:
+        reach = al.ast_reach(tree)
+        assert reach["forward"] == 0, tree
+        assert reach["back"] == back, tree
+        assert al.mode_from_reach(reach["forward"]) == "non-repainting"
+
+
+def test_the_two_lookback_readings_AGREE_through_an_offset():
+    """⛔ TWO READINGS OF ONE DECLARATION. `ast_lint.max_lookback` and
+    `ast_interpret.max_lookback` are separate functions on purpose and must not
+    be allowed to disagree about a node type only one of them learned about."""
+    from api.services import ast_interpret
+    off = lambda v, ch: {"type": "offset", "value": v, "args": [ch]}  # noqa: E731
+    ser = {"type": "series", "name": "close"}
+    for tree in [
+        off(1, ser),
+        off(2, {"type": "call", "name": "sma", "args": [ser, {"type": "num", "value": 20}]}),
+        {"type": "call", "name": "sma", "args": [off(2, ser), {"type": "num", "value": 20}]},
+        {"type": "op", "name": ">", "args": [off(1, ser), off(3, ser)]},
+    ]:
+        assert al.max_lookback(tree) == ast_interpret.max_lookback(tree), tree
+
+
+# ⚠️ NOT `-26`. `test_this_module_holds_no_second_copy_of_a_pinned_pad` forbids a
+# literal that equals one of the pinned trailing pads, and `ichimoku.chikou`'s IS
+# 26 — a hand-copy here would rot GREEN the day the back-shift moves. The number
+# is arbitrary; what matters is that it is negative.
+@pytest.mark.parametrize("bad", [
+    {"type": "offset", "value": -7, "args": [{"type": "series", "name": "close"}]},
+    {"type": "offset", "value": 1.5, "args": [{"type": "series", "name": "close"}]},
+    {"type": "offset", "value": True, "args": [{"type": "series", "name": "close"}]},
+    {"type": "offset", "value": 1, "args": []},
+])
+def test_a_MALFORMED_stored_offset_is_UNKNOWN_which_is_fail_closed(bad):
+    """A stored tree never met the parse door. `unknown` decides `repaints` — the
+    stalest claim — rather than a confident zero."""
+    assert al.ast_reach(bad)["forward"] == al.UNKNOWN
+    assert al.lint_repaint(bad)["mode"] == "repaints"
+
+
+def test_a_declared_FORWARD_reach_still_reads_as_one_through_an_offset():
+    """⛔ THE CONTROL. Without it, *"no offset tree repaints"* could be true
+    because this linter had stopped being able to see a forward reach at all."""
+    table = dict(al.TABLE)
+    table["functions"] = dict(al.TABLE["functions"],
+                              peek={"args": ["series"], "lookback": -5,
+                                    "yields": "num", "sentence": "peek {0}"})
+    tree = {"type": "offset", "value": 2,
+            "args": [{"type": "call", "name": "peek",
+                      "args": [{"type": "series", "name": "close"}]}]}
+    reach = al.ast_reach(tree, {"table": table})
+    assert reach["forward"] == 5
+    assert reach["back"] == 2
+    assert al.lint_repaint(tree, {"table": table})["mode"] == "preview-repaints"

@@ -251,7 +251,16 @@ def _add_reach(a: Reach, b: Reach) -> Reach:
     return a + b
 
 
-_CANONICAL_TYPES = ("num", "series", "op", "call")
+#: ⛔⛔ A LITERAL, AND THE DUPLICATION IS FORCED RATHER THAN LAZY.
+#: ``test_no_evaluator_is_reachable_from_the_linter`` asserts by AST that this
+#: module imports the STANDARD LIBRARY AND NOTHING ELSE — because a linter that
+#: could reach ``indicator_compute`` could reach a verdict by RUNNING a formula,
+#: and a claim measured on one bar window is not the universal claim the badge
+#: makes. Importing ``ast_interpret.NODE_TYPES`` here would buy one derivation
+#: and sell that proof, so the copy stays and
+#: ``test_the_node_vocabulary_here_IS_the_interpreter_s`` is what binds the two.
+#: ⭐ THE BINDING LIVES IN THE TEST, WHERE BOTH MODULES MAY BE IMPORTED AT ONCE.
+_CANONICAL_TYPES = ("num", "series", "op", "call", "offset")
 
 
 def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -336,6 +345,27 @@ def ast_reach(tree: Any, opts: Optional[Dict[str, Any]] = None) -> Dict[str, Any
                     "`%s` is not a series this table declares, and this "
                     "definition declares %s"
                     % (name, ", ".join(sorted(inputs)) or "no inputs"))
+        elif kind == "offset":
+            # ⭐⭐ THE OFFSET IS THE ONE NODE THAT MOVES A WINDOW WITHOUT NAMING
+            # A FUNCTION, AND IT MOVES IT BACKWARDS ONLY. `close[3]` at bar `i`
+            # reads bar `i-3`: `back` grows by the offset, `forward` is
+            # untouched. That asymmetry is not a policy this file applies -- it
+            # is a fact about the node, because `parse.js` refuses a negative
+            # literal at the door and the shape has no slot for an expression
+            # that could evaluate to one.
+            #
+            # ⛔ WHICH IS WHY THIS ARM CANNOT MAKE ANYTHING REPAINT, AND WHY
+            # `ichimoku.chikou` IS STILL DECIDABLE: `mode_from_reach` still reads
+            # ONE authority on forward reach, the manifest's own declaration.
+            n = node.get("value")
+            if (len(args) != 1 or isinstance(n, bool) or not isinstance(n, (int, float))
+                    or float(n) != int(n) or n < 0):
+                reach_of[id(node)] = unknown(
+                    "an offset node carries one child and a whole number of bars >= 0, "
+                    "got %r over %d" % (n, len(args)))
+            else:
+                cb, cf = reach_of.get(id(args[0]), (UNKNOWN, UNKNOWN))
+                reach_of[id(node)] = (_add_reach(int(n), cb), cf)
         elif kind == "op":
             spec = operators.get(node.get("name"))
             if not spec or spec.get("arity") != len(args):

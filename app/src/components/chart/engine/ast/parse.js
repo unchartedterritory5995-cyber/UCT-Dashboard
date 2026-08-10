@@ -45,8 +45,30 @@ export const TABLE = deepFreeze(TABLE_JSON)
 /** The canonical node types, and there are no others.
  *
  *  ⚠️ ASSERTED BY WALKING A PARSED TREE, never by reading this constant back —
- *  a test that reads the list it is checking measures a re-typed copy. */
-export const NODE_TYPES = Object.freeze(['num', 'series', 'op', 'call'])
+ *  a test that reads the list it is checking measures a re-typed copy.
+ *
+ *  ⭐⭐ `offset` IS THE FIFTH, AND IT IS THE BOUNDED BACKWARD FORM — see
+ *  `readOffset` below for the whole of what it may say. `closedTable.json`'s
+ *  `_canonical` and `_no_offset` notes still describe FOUR; that manifest is
+ *  owned elsewhere and this module cannot edit it. The note it needs is stated
+ *  once here rather than restated in nine walkers:
+ *
+ *      { type: 'offset', value: <integer ≥ 0>, args: [ <one child node> ] }
+ *
+ *  ⛔ `value` IS A NUMBER ON THE NODE, NOT A `num` CHILD, AND THAT IS THE WHOLE
+ *  DESIGN. A node shape with no slot for an expression cannot hold one, so
+ *  "the offset is a constant literal" is true BY CONSTRUCTION rather than by a
+ *  check somebody can delete. `maxLookback` therefore stays a TREE SUM
+ *  (`value + maxLookback(child)`), and a FORWARD reference stays INEXPRESSIBLE
+ *  — which is the property `_no_offset` existed to protect and the reason
+ *  `ichimoku.chikou` remains decidable.
+ *
+ *  ⭐ AND THE KEYS ARE STILL DRAWN FROM `{type, name, value, args}` — the
+ *  vocabulary `_canonical` declares. Reusing `args` is not tidiness: every
+ *  walker in both lanes already descends `node.args`, so the child is reached
+ *  by machinery that already exists and a walker that forgets `offset` gets the
+ *  child's contribution rather than silently dropping the subtree. */
+export const NODE_TYPES = Object.freeze(['num', 'series', 'op', 'call', 'offset'])
 
 // --------------------------------------------------------------------------- //
 // the refusals
@@ -77,6 +99,12 @@ export const REFUSALS = Object.freeze({
     '`this` names nothing this table can resolve',
   'canonicalise:member':
     'property access is not in the table',
+  'canonicalise:offset-literal':
+    'a bar offset must be spelled as a plain whole number in the formula',
+  'canonicalise:offset-forward':
+    'a bar offset reads backwards, and a negative one would name a future bar',
+  'canonicalise:offset-chained':
+    'a bar offset applies once to a value, and this one applies twice',
   'canonicalise:call-target':
     'only a bare table name may be called',
   'canonicalise:assignment':
@@ -185,6 +213,9 @@ const OFFENCE_PRIORITY = Object.freeze([
   'canonicalise:array',
   'canonicalise:this',
   'canonicalise:member',
+  'canonicalise:offset-forward',
+  'canonicalise:offset-literal',
+  'canonicalise:offset-chained',
   'canonicalise:assignment',
   'canonicalise:call-target',
   'canonicalise:compound',
@@ -193,10 +224,86 @@ const OFFENCE_PRIORITY = Object.freeze([
 const JSEP_TYPE_OFFENCE = Object.freeze({
   ArrayExpression: 'canonicalise:array',
   ThisExpression: 'canonicalise:this',
-  MemberExpression: 'canonicalise:member',
+  // ⚠️ MemberExpression is NOT listed here, because `x[3]` and `x.y` are the
+  // same jsep type and only one of them is an offence. `readOffset` decides,
+  // and `offencesIn` consults it — see the note on that function.
   AssignmentExpression: 'canonicalise:assignment',
   Compound: 'canonicalise:compound',
 })
+
+// --------------------------------------------------------------------------- //
+// the bounded backward offset
+// --------------------------------------------------------------------------- //
+
+/** ⭐⭐ THE ONE AUTHORITY ON WHAT `EXPR[N]` MAY SAY. `offencesIn` (the scan) and
+ *  `convert` (the walker) BOTH call this, so the door that decides a refusal and
+ *  the door that builds the node can never disagree about which offsets are
+ *  legal. A second copy of this predicate is the shape this repo has paid for
+ *  three separate times.
+ *
+ *  @returns `null`                     — not an offset form at all (`a.b`)
+ *           `{guard}`                  — an offset form this grammar refuses
+ *           `{guard: null, value: N}`  — a legal backward offset of N bars
+ *
+ *  ⛔ THE NEGATIVE BRANCH IS THE LOAD-BEARING ONE AND IT IS NOT WHERE A READER
+ *  EXPECTS IT. jsep does NOT fold a sign into a literal: `close[-1]` parses as a
+ *  `UnaryExpression('-')` wrapping `Literal(1)`, so a check that only asked
+ *  `value < 0` would never fire and `close[-1]` would fall through to the
+ *  "not a literal" refusal — true, but named for the wrong thing. THIS is the
+ *  refusal that keeps a forward reference inexpressible, so it must be the one
+ *  that fires, by name. The `value < 0` line below it is the belt for a parser
+ *  that ever does fold, and it is exercised directly rather than left theoretical.
+ *
+ *  ⛔ THERE IS NO CEILING HERE, AND THAT IS DELIBERATE. `close[100000]` is a
+ *  well-formed backward offset; what refuses it is `budget:lookback`, because
+ *  `maxLookback` counts the offset and `effectiveBudget` clamps DOWNWARD ONLY so
+ *  no stored blob can raise the 500-bar cap. Inventing a second number here
+ *  would be a second limit nobody could re-derive, and the two would drift. */
+function readOffset(node) {
+  if (node.type !== 'MemberExpression') return null
+  // `a.b` — a property read, and still `canonicalise:member`. Only the computed
+  // form `a[…]` is the offset spelling.
+  if (node.computed !== true) return { guard: 'canonicalise:member' }
+  const p = node.property
+  // ⛔⛔ `close["constructor"]` IS A PROPERTY REACH, NOT A MALFORMED OFFSET, AND
+  // THIS LINE IS THE ONE THE SECURITY CORPUS IS ABOUT. `escapes.json`'s
+  // `computed_member` case exists because `close.constructor` and
+  // `close["constructor"]` are the same reach spelled two ways, and it is
+  // fated to `canonicalise:member`. THE LITERAL KIND IS WHAT SAYS WHICH THING
+  // THE USER MEANT: a STRING is a property NAME, a NUMBER is a bar INDEX. Every
+  // non-numeric literal therefore stays with the member guard — a re-route to
+  // an offset message here would move the ladder-to-`Function` case out from
+  // under the guard the census credits with catching it.
+  if (p && p.type === 'Literal' && typeof p.value !== 'number') {
+    return { guard: 'canonicalise:member' }
+  }
+  if (p && p.type === 'UnaryExpression' && p.operator === '-'
+      && p.argument && p.argument.type === 'Literal'
+      && typeof p.argument.value === 'number') {
+    return { guard: 'canonicalise:offset-forward' }
+  }
+  if (!p || p.type !== 'Literal' || typeof p.value !== 'number'
+      || !Number.isInteger(p.value)) {
+    return { guard: 'canonicalise:offset-literal' }
+  }
+  if (p.value < 0) return { guard: 'canonicalise:offset-forward' }
+  // ⛔⛔ ONE APPLICATION PER VALUE. `close[1][2]` and `close[3]` are the SAME
+  // COLUMN — identical values, identical NaN prefix, identical `maxLookback` —
+  // and admitting both would give one column TWO canonical trees and therefore
+  // TWO `astHash`es. That hash decides whether an edit bumps `compute.rev`,
+  // which force-migrates every binding and resets `last_value`; a second
+  // spelling of one tree is a second authority over one value, which is this
+  // repo's most repeated defect. It costs nothing to refuse, because Pine
+  // forbids the chain in its own grammar and a real corpus of 54 scripts
+  // contains none — and `close[3]` says it already.
+  if (node.object && node.object.type === 'MemberExpression'
+      && node.object.computed === true) {
+    return { guard: 'canonicalise:offset-chained' }
+  }
+  // `-0` is an integer that is not `< 0`; normalise it so the persisted tree —
+  // and therefore `astHash` — can never carry two spellings of zero bars.
+  return { guard: null, value: p.value === 0 ? 0 : p.value }
+}
 
 /** Every offence present anywhere in a jsep tree.
  *
@@ -213,6 +320,11 @@ function offencesIn(root) {
 
     const byType = JSEP_TYPE_OFFENCE[node.type]
     if (byType) found.add(byType)
+
+    // `x[3]` and `x.y` are one jsep type and two different answers. ONE
+    // AUTHORITY decides which — see `readOffset`.
+    const offence = readOffset(node)
+    if (offence && offence.guard) found.add(offence.guard)
 
     // A SHAPE, not a type: `sma(close, 20)(1)` is a perfectly ordinary
     // CallExpression whose callee is another CallExpression. Only a bare name
@@ -237,6 +349,7 @@ const num = (value) => ({ type: 'num', value })
 const series = (name) => ({ type: 'series', name })
 const op = (name, args) => ({ type: 'op', name, args })
 const call = (name, args) => ({ type: 'call', name, args })
+const offset = (value, child) => ({ type: 'offset', value, args: [child] })
 
 function convert(node) {
   switch (node.type) {
@@ -273,6 +386,24 @@ function convert(node) {
       return op(TERNARY, [convert(node.test), convert(node.consequent), convert(node.alternate)])
     case 'CallExpression':
       return call(node.callee.name, (node.arguments || []).map(convert))
+    case 'MemberExpression': {
+      // The whole-tree scan already refused every illegal member and every
+      // illegal offset, so this arm only ever sees a legal one. It re-asks
+      // anyway, through the SAME predicate — the belt, exercised directly, in
+      // the idiom `BinaryExpression` above uses for the same reason.
+      const read = readOffset(node)
+      if (!read || read.guard) return refuse(read ? read.guard : 'canonicalise:member')
+      const child = convert(node.object)
+      // ⭐⭐ `x[0]` IS `x`, AND IT FOLDS TO IT RATHER THAN BECOMING A NODE.
+      // Same values, same (absent) NaN prefix, same `maxLookback` — so emitting
+      // a zero-bar offset would give ONE COLUMN TWO CANONICAL TREES and
+      // therefore two `astHash`es, which is the same defect the chained-offset
+      // refusal exists to stop. `astHash` decides whether an edit bumps
+      // `compute.rev`, and a rev bump force-migrates every binding: two
+      // spellings of one column is a migration a user can trigger by typing
+      // `[0]`. Pine spells the identity the same way and means the same thing.
+      return read.value === 0 ? child : offset(read.value, child)
+    }
     default:
       return refuse('canonicalise:node')
   }
@@ -371,6 +502,10 @@ const CANONICAL_KEYS = Object.freeze({
   series: ['type', 'name'],
   op: ['type', 'name', 'args'],
   call: ['type', 'name', 'args'],
+  // ⚠️ NO `name`. An offset is not a named thing — the bar count IS the node,
+  // and giving it a name would open a second spelling of the same tree and
+  // move every persisted `astHash` for nothing.
+  offset: ['type', 'value', 'args'],
 })
 
 /** The tree really is one of the four shapes, with exactly its own keys.

@@ -27,6 +27,13 @@
     "min_max_envelope": "803e0a7053dc62d4ce3ee84dff66f2b0ab95c57e089610d32f33d96dbcb56365",
     "minus_di": "62db546c43ecb947dd5ffd385ae2d731595800371a9dadf8e22ce378e762f326",
     "nan_propagates": "229b24e2449e6d8c14df63ecc1186cee4476d5c9abb3033fc2a2d1680aac337c",
+    "offset_change_idiom": "8acb6fbd806e3c3d96020c54b2273aaf1a38402a9179302ad081a114530a366e",
+    "offset_inside_a_reduction": "52f225951ee1a752eb37112a0210e4184297a00c881198110ff52cb024807a52",
+    "offset_of_a_condition": "19b751bfdc0ebf040806ad30c664478ffbcb9d5a53782ab6c5c0b58cb3c0a8c1",
+    "offset_of_a_reduction": "de827e65e6eb32dabeb845a64b6359f0962988eca31906eec98734f9eca868fc",
+    "offset_one_bar": "1d1694d1ba27bccaed571a4a24be8a98ca61b9779891564c85517ce071034ab2",
+    "offset_two_bars_apart": "929bac796c94a924c5132cf6af407f21efef41a6d0a6b1a71cb79325473fc774",
+    "offset_zero_is_identity": "ae370c97572d248618a8ca57ff57491f086544909e4f841f8d17696da6c99067",
     "plus_di": "fe3c0c8df8a7ebbf4074408b6c82e4d060a098f2c344bde49d48c2e306f21f5a",
     "rsi_of_a_smoothed_series": "fcc02495cadf58e2283f0f4fd5e77f1aabef17a1db8c82e8d7032ed909a268b7",
     "rsi_overbought": "e53b95a3d8a57401193e57a7a77295a3e34150448a1c87d01731016f400caef8",
@@ -47,6 +54,21 @@
       "proof": "The previous log was read back out of git at HEAD (`git show HEAD:tests/fixtures/ast/conformance_log.json`) and compared key by key against the re-recorded one, rather than eyeballed as a diff -- MOVED [] / DROPPED [] / ADDED 20. Separately, every one of the 17 bound-indicator shapes was run through BOTH lanes before this record, twice: once on the raw declared series (13,317 (case, bar) comparisons) and once with a NaN-carrying composed argument in each series slot (19,686 comparisons). Zero differences at rel-tol 1e-9 in both sweeps. The second sweep is the one that found something: without the finite-tail rule `compute_atr_raw`'s `max(h - l, abs(h - prev_c), abs(l - prev_c))` returns Python's first argument on a NaN `prev_c` while `Math.max` returns NaN -- a real divergence no golden indicator fixture can contain, because no fixture contains a NaN.",
       "what_moved": "NOTHING MOVED. 0 of the 17 pre-existing digests changed, 0 were dropped, and 20 were added, so the log went 17 -> 37 per-ast digests over the same 579 bars at the same 1e-9. `bars`, `bar_count` and `rel_tol` are byte-identical. That is the load-bearing half of this entry: the indicator work bound NEW names to already-shipped maths and touched no existing path, and an unmoved digest set is the only evidence of that anybody can re-run.",
       "why": "Phase F declared the indicators as functions. The closed table went from 11 functions to 28 -- rsi, macd, atr, plusDI, minusDI, stoch, cci, williamsR, mfi, the three Donchian lines and the five Ichimoku lines -- and `assert_corpus_covers_the_table` derives its floor FROM the manifest, so seventeen new names each owed a corpus case or `--record` aborts. Three more rows were added that are NOT new functions: `rsi_of_a_smoothed_series` pins the finite-tail contract both walkers now apply before handing a column to the shipped maths, and `macd_signal_by_composition` / `stoch_d_by_composition` pin the two compositions `closedTable.json::_functions_excluded` offers in place of the two entries it refuses."
+    },
+    {
+      "added": [
+        "offset_change_idiom",
+        "offset_inside_a_reduction",
+        "offset_of_a_condition",
+        "offset_of_a_reduction",
+        "offset_one_bar",
+        "offset_two_bars_apart",
+        "offset_zero_is_identity"
+      ],
+      "at_head": "e34d20fd25320d6fd93a9924816e240f9d2b4ae4",
+      "proof": "Both lanes were run over all 44 cases by `--record` itself (24,575 finite of 25,476 rows, every case non-empty, 48 table entries covered) and `--check` then re-verified every digest. The seven new rows were chosen to separate things that a single case would have conflated: `offset_inside_a_reduction` (`sma(close[2],20)`) and `offset_of_a_reduction` (`sma(close,20)[2]`) have the SAME maxLookback of 22 and DIFFERENT values, so a lane that composed the two orders together would agree on the budget and disagree on the numbers; `offset_change_idiom` pins that `close - close[1]` stays not-computable on bar 0 rather than collapsing to a fabricated 0.0 a user could arm an alert on; `offset_of_a_condition` pins that NaN propagates through the pad rather than the comparison's own `NaN -> 0` rule reaching it; `offset_two_bars_apart` pins that the pad under an operator is the DEEPER of two offsets and not their sum; `offset_zero_is_identity` pins that the parse door FOLDS `x[0]` to `x` rather than emitting a zero-bar node, because one column may have only one canonical tree and `astHash` decides whether an edit force-migrates every binding.",
+      "what_moved": "NOTHING MOVED. Measured against a snapshot of the previous `digests` map taken BEFORE `--record` ran and compared key by key rather than eyeballed as a diff -- MOVED [] / REMOVED [] / ADDED 7. The log went 37 -> 44 per-ast digests over the same 579 bars at the same 1e-9; `bars`, `bar_count` and `rel_tol` are byte-identical. That is the load-bearing half: the offset node is PURELY ADDITIVE to every tree that does not contain one, and an unmoved digest set is the only evidence of that anybody can re-run. SEPARABLE FROM THE OTHER TWO MOVEMENTS IN THIS WORKING TREE: the indicator agent's 17 -> 37 (the `rerecorded` entry above this one) and its manifest growth 85 -> 102 declared names touched no offset row, and these seven rows touch no function.",
+      "why": "Phase F6 added the BOUNDED BACKWARD OFFSET as a fifth canonical node type -- `{type:'offset', value:<int >= 1>, args:[<one child>]}`, which `parse.js` produces for the source spelling `EXPR[N]`. `closedTable.json::_no_offset` forbade a backward-index form because \"a general `close[n]` turns the repaint linter from a lookback SUM into a dataflow analysis, and it makes a FORWARD reference expressible in the first place\". Both halves of that are answered by the SHAPE rather than by a check: the bar count is a NUMBER ON THE NODE with no slot for an expression, and a negative literal is refused AT PARSE (`canonicalise:offset-forward`), so `maxLookback` stays a tree sum (`value + maxLookback(child)`) and a forward reference is inexpressible. Seven cases were owed because `assert_corpus_covers_the_table` and `test_ast_conformance`'s node-type rail both derive their floor from what the corpus exercises, so a fifth node type with no case would have read as coverage."
     }
   ]
 }

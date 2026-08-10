@@ -403,12 +403,23 @@ def test_the_hand_list_probe_can_actually_FIND_a_hand_list():
 
 # ═══ 4. the structure this module DOES spell is pinned to its declaration ═══
 
-def test_the_node_types_this_module_branches_on_ARE_the_declared_four():
-    """The module has four cases because a canonical tree has four shapes
-    (`closedTable._canonical`). Spelled here as STRUCTURE, pinned there as
-    vocabulary — and a fifth node type would land RED right here."""
+def test_the_node_types_this_module_branches_on_ARE_the_declared_ones():
+    """The module has one case per canonical shape. Spelled here as STRUCTURE,
+    pinned there as vocabulary — and a new node type lands RED right here.
+
+    ⭐ IT DID, AND THAT IS THE RECORD OF IT WORKING. Phase F6 added the bounded
+    backward offset as a fifth type and this case went red BY NAME, with the two
+    sets in hand, before anything shipped. Without it `_yields_bool` would have
+    asked the table for a declaration of the name `None`, settled to `num`, and
+    quietly refused every offset condition at the `yields` gate — a screen told
+    *"this formula is not a filter"* about a formula that plainly is.
+
+    ⚠️ THE TITLE NO LONGER SAYS "FOUR". A count restated beside the list it
+    describes is this repo's most-repeated defect, and a test name is what an
+    engineer reads in a failure report."""
     branched = (scan_definition._NUM, scan_definition._SERIES,
-                scan_definition._OP, scan_definition._CALL)
+                scan_definition._OP, scan_definition._CALL,
+                scan_definition._OFFSET)
     assert set(branched) == set(ast_interpret.NODE_TYPES)
     assert len(set(branched)) == len(ast_interpret.NODE_TYPES)
     assert set(branched) == set(user_definitions.NODE_TYPES)
