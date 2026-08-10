@@ -49,7 +49,7 @@ const VOCABULARY = {
 const EXPECTED = {
   'price letters': 6, 'math operators': 2, 'math functions': 3, relational: 4,
   logical: 3, crossing: 2, 'moving averages': 5, aggregates: 6, oscillators: 5,
-  conditional: 1, stateful: 0, 'trig and hyperbolic': 0,
+  conditional: 1, stateful: 3, 'trig and hyperbolic': 0,
 }
 
 const reads = (src) => {
@@ -87,7 +87,11 @@ describe('the TC2000 vocabulary, measured against Worden`s own syntax table', ()
     expect(reading).toBe(expected)
     // The baseline this file was created at. ⚠️ Raising it is a deliberate edit,
     // never a side effect — see the header on why a high score is not the goal.
-    expect(expected).toBe(37)
+    // ⚰️ 35 at the first measurement, 37 with three oscillator spellings, 40 once
+    // `CountTrue`/`SinceTrue`/`TrueInRow` were built on the recurrence. ⚠️ Raising
+    // it is a deliberate edit, never a side effect — see the header on why a high
+    // score is not the goal.
+    expect(expected).toBe(40)
   })
 })
 

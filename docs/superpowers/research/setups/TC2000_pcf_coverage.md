@@ -4,7 +4,7 @@
 — Worden's own syntax table, fetched 2026-08-09. **Measured by running 71 real PCF
 expressions through the shipped `parsePcf`**, not by reading the translator.
 
-## 🔴 35 / 71 → ⭐ 37 / 71 (same session)
+## 🔴 35 / 71 → ⭐ 40 / 71 (same session)
 
 Before this, the claim on record was *"18 live spellings, 0 blocked"* against an
 8-case corpus. ⛔ **`0 blocked` out of 8 is not a coverage number, it is the absence
@@ -22,7 +22,7 @@ of one** — and the honest figure, once the vocabulary is the yardstick, is und
 | Logical | 3/7 | `XOR`, `NAND`, `NOR`, `XNOR` missing |
 | Math functions | 3/8 | `SQR`,`LOG`,`CLG`,`EXP`,`SGN` missing |
 | **Oscillators** | 3/16 → **5/16** | 🔴 see below |
-| **Stateful** (`CountTrue`,`SinceTrue`,`TrueInRow`) | **0/3** | ⭐ see below |
+| **Stateful** (`CountTrue`,`SinceTrue`,`TrueInRow`) | 0/3 → **3/3** | ⭐ built on `accum` — see below |
 | Trig / hyperbolic | 0/5 | 23 functions; no trading use found |
 
 ## The oscillators — 11 of 16 still refuse, and only three were ever cheap
@@ -95,8 +95,13 @@ explanation cannot become boilerplate glued to every refusal.
 ## The work, in the order it pays
 
 1. ~~The oscillator spelling map~~ — **DONE, and it was three rows, not eight.**
-2. **The three stateful functions** — now that `accum` exists, plus the `-1` sentinel
-   for `SinceTrue`.
+2. ~~The three stateful functions~~ — **DONE.** Built on `accum`, with the `-1`
+   sentinel carried explicitly and evaluated over hand-counted bars rather than
+   only translated. ⚠️ The seed and the body BOTH had to emit `u-` over a positive
+   literal instead of a negative `num`, or `SinceTrue(...)` and its written-out
+   equivalent were two `astHash`es for one column — caught by the corpus's
+   tree-equality assertion, and missed on the first attempt because only the body
+   was fixed.
 3. **Four logical operators** — `XOR`/`NAND`/`NOR`/`XNOR` are all derivable from the
    declared `&&`/`||`/`!`, so this is desugaring, not new engine capability.
 4. **Five math functions** — `SQR`, `LOG`, `CLG`, `EXP`, `SGN`. `SGN` already exists
@@ -112,4 +117,4 @@ explanation cannot become boilerplate glued to every refusal.
 real published scripts with a snapshot that goes red if any one regresses; TC2000 had
 8 hand-written cases and a claim. ⭐ **The fix was not more translator code — it was
 finding the yardstick.** With Worden's own table as the corpus, every future change to
-`pcf.js` has a number it must not lower, and this document is the baseline: **37/71**, and it is now a RAIL rather than a document: `app/src/components/chart/engine/ast/pcf.vocabulary.test.js` pins the total AND each group, in BOTH directions, so a gain in one group cannot hide a loss in another — which is exactly how a single reassuring number hid the truth the first time.
+`pcf.js` has a number it must not lower, and this document is the baseline: **40/71**, and it is now a RAIL rather than a document: `app/src/components/chart/engine/ast/pcf.vocabulary.test.js` pins the total AND each group, in BOTH directions, so a gain in one group cannot hide a loss in another — which is exactly how a single reassuring number hid the truth the first time.
