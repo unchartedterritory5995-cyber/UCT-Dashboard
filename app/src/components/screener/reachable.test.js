@@ -282,6 +282,14 @@ const AWAITING_A_DECISION = {
   'app/src/useFlowWebSocket.js':
     'Reachable only from LiveFlow_integration_guide above — deleting the guide '
     + 'alone would orphan it, so the pair moves together or not at all.',
+  'app/src/hooks/useTapeFeed.js':
+    'In-flight, NOT mine. A 30s poll of /api/tweets/tape whose docstring names '
+    + 'its intended mount (MoversSidebar), so the wire is planned rather than '
+    + 'lost. Its most recent commit is literally "revert(web): restore '
+    + 'useTapeFeed.js — it was never mine to delete" — another session removed '
+    + 'it as an orphan and put it back. Recording it here rather than repeating '
+    + 'that: mounting it would be guessing at an owner\'s intent, and deleting '
+    + 'it is the move that has already been undone once.',
 }
 
 describe('🔴 every module under app/src is REACHABLE from an entry point', () => {
