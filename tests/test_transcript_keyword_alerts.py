@@ -217,3 +217,100 @@ class TestReporterSelection:
         assert ka.reporters_from_earnings(None) == []
         assert ka.reporters_from_earnings(
             {"bmo": [None, {}, {"sym": ""}, "junk", {"sym": "DIS"}]}) == ["DIS"]
+
+
+class TestIndexBackedScan:
+    """The calendar path reaches ≤45 symbols; the index holds ~1,500 calls.
+
+    `engine._normalize_earnings` caps each reporter bucket at 15, and the module
+    has documented that bound since it was written. These pin the wider net —
+    and, more importantly, that a wider net does not mean repeat alerts.
+    """
+
+    class _Index:
+        def __init__(self, hits): self._hits = hits
+        def search(self, kw, limit=200, since=None):
+            self.last = {"kw": kw, "since": since}
+            return {"hits": self._hits.get(kw, [])}
+
+    def _hit(self, sym, year=2026, q=3, snippet="on <mark>tariff</mark> costs"):
+        return {"symbol": sym, "year": year, "quarter": q,
+                "date": "2026-08-09", "snippet": snippet}
+
+    def test_one_query_per_KEYWORD_not_per_company(self, ka):
+        # The old shape fetched N transcripts and matched every keyword against
+        # each. Cost should track subscriptions, not how busy the tape was.
+        idx = self._Index({"tariff": [self._hit("AAPL"), self._hit("MSFT")]})
+        queries = []
+        orig = idx.search
+        def spy(kw, **kw2):
+            queries.append(kw); return orig(kw, **kw2)
+        idx.search = spy
+        out = ka.run_scan_via_index(index=idx, deliver=lambda **k: None,
+                                    subs={"tariff": ["u1"]})
+        assert queries == ["tariff"]
+        assert out["hits"] == 2 and out["fired"] == 2
+
+    def test_strips_the_FTS_highlight_markup_from_the_alert_body(self, ka):
+        # Snippets carry <mark> from FTS5; an email is plain text and would
+        # render the tags literally.
+        sent = []
+        idx = self._Index({"tariff": [self._hit("AAPL")]})
+        ka.run_scan_via_index(index=idx, subs={"tariff": ["u1"]},
+                              deliver=lambda **k: sent.append(k))
+        assert "<mark>" not in sent[0]["message"]
+        assert "tariff" in sent[0]["message"]
+
+    def test_a_RE_SCAN_does_not_realert(self, ka):
+        # The whole risk of a wider net: dedup on (user, keyword, symbol,
+        # quarter) is what stops the same call firing twice.
+        idx = self._Index({"tariff": [self._hit("AAPL")]})
+        first = ka.run_scan_via_index(index=idx, subs={"tariff": ["u1"]},
+                                      deliver=lambda **k: None)
+        second = ka.run_scan_via_index(index=idx, subs={"tariff": ["u1"]},
+                                       deliver=lambda **k: None)
+        assert first["fired"] == 1
+        assert second["fired"] == 0, "a re-scan re-alerted the same call"
+
+    def test_looks_back_a_DAY_not_only_today(self, ka):
+        # A 16:30 ET call publishes its transcript ~2h later; a same-day window
+        # would miss every one of them on the 18:30 run that matters most.
+        import datetime
+        idx = self._Index({"tariff": []})
+        ka.run_scan_via_index(index=idx, subs={"tariff": ["u1"]},
+                              deliver=lambda **k: None)
+        expected = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+        assert idx.last["since"] == expected
+
+    def test_no_subscriptions_is_a_no_op_not_a_sweep(self, ka):
+        out = ka.run_scan_via_index(index=self._Index({}), subs={},
+                                    deliver=lambda **k: None)
+        assert out["fired"] == 0
+
+    def test_a_failing_index_query_does_not_abort_the_other_keywords(
+            self, ka):
+
+        class _Flaky:
+            def search(self, kw, limit=200, since=None):
+                if kw == "boom":
+                    raise RuntimeError("fts exploded")
+                return {"hits": [{"symbol": "AAPL", "year": 2026, "quarter": 3,
+                                  "date": "2026-08-09", "snippet": "ok"}]}
+
+        out = ka.run_scan_via_index(index=_Flaky(),
+                                    subs={"boom": ["u1"], "fine": ["u1"]},
+                                    deliver=lambda **k: None)
+        assert out["fired"] == 1
+
+    def test_a_failing_DELIVERY_does_not_abort_the_rest(self, ka):
+        calls = []
+
+        def deliver(**k):
+            calls.append(k)
+            if k["sym"] == "AAPL":
+                raise RuntimeError("smtp down")
+
+        idx = self._Index({"tariff": [self._hit("AAPL"), self._hit("MSFT")]})
+        out = ka.run_scan_via_index(index=idx, subs={"tariff": ["u1"]},
+                                    deliver=deliver)
+        assert len(calls) == 2 and out["fired"] == 1

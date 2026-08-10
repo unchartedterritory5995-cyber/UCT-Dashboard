@@ -1678,14 +1678,17 @@ def register_transcript_keyword_jobs(scheduler):
     def _run_keyword_alert_scan():
         try:
             from api.services import transcript_keyword_alerts as ka
-            from api.services.engine import get_earnings
-            syms = ka.reporters_from_earnings(get_earnings() or {})
-            if not syms:
-                _kwlog.info("[kw_alerts] no reporters today; nothing to scan")
-                return
-            # Log the WORK DONE (scanned / fired), not merely that we ran — a
-            # count-based monitor cannot tell a hang from a finish.
-            _kwlog.info("[kw_alerts] %s over %d reporters", ka.run_scan(syms), len(syms))
+            # Scan the INDEX, not today's calendar. The calendar path reaches at
+            # most 45 symbols — each reporter bucket is capped at 15 — while the
+            # transcript index holds ~1,500 calls with full-text search. One
+            # query per subscribed keyword instead of N transcript fetches, so
+            # the cost tracks what people asked for rather than how busy the
+            # tape was.
+            out = ka.run_scan_via_index()
+            # Log the WORK DONE (hits / fired), not merely that we ran — a
+            # count-based monitor cannot otherwise tell a healthy scan from one
+            # that matched nothing.
+            _kwlog.info("[kw_alerts] %s", out)
         except Exception as exc:
             _kwlog.warning("[kw_alerts] scan failed: %s", exc)
 
