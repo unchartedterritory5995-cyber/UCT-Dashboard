@@ -281,13 +281,14 @@ async def darkpool_eod_summary(
 # ── Dark Pool records — per-ticker biggest-ever prints + new-record alerts ────
 @router.get("/records")
 async def darkpool_records_list(
-    limit: int = Query(default=300, ge=1, le=2000),
+    limit: int = Query(default=300, ge=1, le=6000),
     sort: str = Query(default="notional", description="notional | date | ticker"),
+    enrich: bool = Query(default=False, description="attach mktcap for cap banding"),
     _auth: dict = Depends(require_flow_user),
 ):
     """Per-ticker biggest-ever dark-pool prints (for the Records panel)."""
     from api import darkpool_records as dr
-    records = await run_in_threadpool(dr.get_records, limit, sort)
+    records = await run_in_threadpool(dr.get_records, limit, sort, enrich)
     return JSONResponse({"records": records, "count": len(records)},
                         headers=_DARKPOOL_NO_CACHE_HEADERS)
 

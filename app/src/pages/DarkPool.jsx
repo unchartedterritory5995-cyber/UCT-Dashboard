@@ -2357,7 +2357,8 @@ function SearchModal({onClose, mktcapData = {}}){
 // come from the shared mktcapData store (flow-DB-backed /api/schwab/mktcap-batch,
 // the same source the other panels use); we fetch caps for the loaded records so
 // the cap bands classify end-to-end.
-const _RECORDS_LIMIT = 750;   // leaderboard depth we cap-classify + browse
+const _RECORDS_LIMIT = 6000;  // pull the whole book (server enriches mktcap) so
+                              // small-caps are reachable, not just the top-by-size
 // Tight left-packed table (no edge-to-edge space-between gulf): rank · ticker ·
 // mkt cap · record(bar) · price · date.
 const _RECORDS_GRID = "30px 150px 92px 176px 92px 88px";
@@ -2389,21 +2390,18 @@ function RecordsPane({mktcapData={}, fetchMktCap}){
 
   useEffect(()=>{
     let alive=true;
-    fetch(`/api/darkpool/records?limit=${_RECORDS_LIMIT}&sort=notional`)
+    // enrich=1 → server attaches mktcap (flow.db) to every record in one shot,
+    // so the whole book bands client-side without a browser cap-fetch storm.
+    fetch(`/api/darkpool/records?limit=${_RECORDS_LIMIT}&sort=notional&enrich=1`)
       .then(r=>r.ok?r.json():Promise.reject(new Error("HTTP "+r.status)))
       .then(d=>{ if(alive) setRows(d.records||[]); })
       .catch(e=>{ if(alive) setErr(e.message); });
     return ()=>{ alive=false; };
   },[]);
 
-  // Pull market caps for the loaded record tickers into the shared store
-  // (fetchMktCap dedups against what the page already fetched for aggregated data).
-  useEffect(()=>{
-    if(!rows || !fetchMktCap) return;
-    const want=rows.map(r=>r.ticker).filter(Boolean);
-    if(want.length) fetchMktCap(want);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[rows]);
+  // Market cap for a record: server-enriched mktcap first, then the shared
+  // aggregated-tickers store as a fallback for anything flow.db didn't carry.
+  const mcOf=(r)=> (r && r.mktcap) || (r ? mktcapData[r.ticker] : 0) || 0;
 
   // Union of every hardcoded ETF/index list (+ broad-market/factor funds) — the
   // authoritative-enough client-side "is this a fund" signal (an ETF's reported
@@ -2420,7 +2418,7 @@ function RecordsPane({mktcapData={}, fetchMktCap}){
   // Band counts (over the whole loaded set, ignoring search) for the pill labels.
   const bandCounts=useMemo(()=>{
     const c={All:0,Mega:0,Large:0,Mid:0,Small:0,ETF:0};
-    if(rows) for(const r of rows){ c.All++; const b=capBandOf(r.ticker,mktcapData[r.ticker],etfSet); if(b) c[b]++; }
+    if(rows) for(const r of rows){ c.All++; const b=capBandOf(r.ticker,mcOf(r),etfSet); if(b) c[b]++; }
     return c;
   },[rows,mktcapData,etfSet]);
 
@@ -2428,9 +2426,9 @@ function RecordsPane({mktcapData={}, fetchMktCap}){
     if(!rows) return [];
     const needle=q.trim().toUpperCase();
     let items=needle?rows.filter(r=>(r.ticker||"").includes(needle)):rows;
-    if(cap!=="All") items=items.filter(r=>capBandOf(r.ticker,mktcapData[r.ticker],etfSet)===cap);
+    if(cap!=="All") items=items.filter(r=>capBandOf(r.ticker,mcOf(r),etfSet)===cap);
     const acc={ notional:x=>x.notional||0, price:x=>x.price||0, ticker:x=>x.ticker||"",
-      mktcap:x=>mktcapData[x.ticker]||0,
+      mktcap:x=>mcOf(x),
       date:x=>{ const p=(x.date||"").split("/"); return p.length===3?`${p[2]}${p[0]}${p[1]}`:""; } };
     const fn=acc[sortKey]||(x=>x[sortKey]);
     items=[...items].sort((a,b)=>{
@@ -2462,7 +2460,7 @@ function RecordsPane({mktcapData={}, fetchMktCap}){
       <div style={{marginBottom:12}}>
         <div style={{fontSize:14,fontWeight:700,color:C.amber,marginBottom:2}}>All-Time Dark Pool Records</div>
         <div style={{fontSize:12,color:C.tx2}}>
-          The single biggest dark-pool print on record for each ticker · top <span style={{color:C.cyan,fontWeight:700}}>{rows.length.toLocaleString()}</span> by size
+          The single biggest dark-pool print on record for each ticker · <span style={{color:C.cyan,fontWeight:700}}>{rows.length.toLocaleString()}</span> tracked
         </div>
       </div>
 
@@ -2505,7 +2503,7 @@ function RecordsPane({mktcapData={}, fetchMktCap}){
 
         {/* Rows */}
         {shown.map((r,i)=>{
-          const mc=mktcapData[r.ticker]||0;
+          const mc=mcOf(r);
           const band=capBandOf(r.ticker,mc,etfSet);
           const bandColor=(_CAP_BANDS.find(b=>b.id===band)||{}).color||C.tx3;
           return (
