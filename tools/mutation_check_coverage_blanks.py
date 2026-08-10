@@ -20,12 +20,14 @@ CAL = "api/routers/calendar.py"
 PCM = "api/services/provider_coverage_monitor.py"
 AA = "api/services/catalyst/analyst_actions.py"
 MAS = "api/services/massive.py"
+MAIN = "api/main.py"
 
 T_VOL = "tests/test_calendar_day_metrics_avg_vol.py"
 T_AN = "tests/test_provider_coverage_analyst_reachability.py"
 T_RS = "tests/test_provider_coverage_restart_dedup.py"
 T_MV = "tests/test_movers_finviz_columns.py"
 T_PW = "tests/test_calendar_past_week_sessions.py"
+T_YF = "tests/test_yf_guard_status.py"
 
 MUTATIONS = [
     ("column list not requested (back to the account's saved view)", CAL,
@@ -74,6 +76,9 @@ MUTATIONS = [
     ("rebucket restriction becomes a global off-switch", CAL,
      "if rebucket_ds is not None and ds not in rebucket_ds:",
      "if rebucket_ds is not None:", T_PW),
+
+    ("yfinance guard endpoint unmounted again", MAIN,
+     "app.include_router(yf_guard_router.router)", "pass  # unmounted", T_YF),
 ]
 
 
@@ -92,7 +97,7 @@ def _run(tests):
 
 def main():
     print("=== CONTROL (no mutation): every target suite must PASS ===")
-    for t in (T_VOL, T_AN, T_RS, T_MV, T_PW):
+    for t in (T_VOL, T_AN, T_RS, T_MV, T_PW, T_YF):
         r = _run(t)
         print(f"  {t:62} exit={r.returncode}  {r.stdout.strip().splitlines()[-1] if r.stdout.strip() else ''}")
         if r.returncode != 0:

@@ -314,3 +314,53 @@ class TestIndexBackedScan:
         out = ka.run_scan_via_index(index=idx, subs={"tariff": ["u1"]},
                                     deliver=deliver)
         assert len(calls) == 2 and out["fired"] == 1
+
+
+class TestTheSchedulerActuallyCallsIt:
+    """The wire, not the parts.
+
+    ⛔ Every test above hands `run_scan_via_index` its index, its subscribers
+    and its deliver function. All 36 stay green if `api/main.py` never calls it
+    — the widened net would be BUILT, TESTED and reaching nobody, which is this
+    repo's most expensive recurring defect (`lesson_built_tested_green_and_unreachable`:
+    6 of 9 HIGH findings in one audit were unreachability).
+
+    ⭐ Read with an AST, never a grep. A grep for the name matches the docstring
+    that explains the name, so the comment above the call would keep this green
+    after the call itself was deleted (`lesson_probe_names_must_be_derived_not_typed`
+    — a grep once reported five call sites and all five were prose).
+    """
+
+    def _calls_in(self, fn_name):
+        import ast
+        import pathlib
+        src = pathlib.Path(__file__).resolve().parents[1] / "api" / "main.py"
+        tree = ast.parse(src.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef) and node.name == fn_name:
+                return {
+                    c.func.attr for c in ast.walk(node)
+                    if isinstance(c, ast.Call) and isinstance(c.func, ast.Attribute)
+                }
+        return None
+
+    def test_the_scheduled_job_calls_the_INDEX_backed_scan(self):
+        called = self._calls_in("_run_keyword_alert_scan")
+        assert called is not None, (
+            "api/main.py has no _run_keyword_alert_scan — the job that fires this "
+            "feature was renamed or removed, so nothing runs at 18:30")
+        assert "run_scan_via_index" in called, (
+            "the nightly job does not call run_scan_via_index. Every unit test "
+            "above still passes because they call it directly. Whatever it calls "
+            f"instead reaches at most 45 symbols/day: {sorted(called)}")
+
+    def test_the_probe_can_see_a_call_it_is_not_looking_for(self):
+        # Non-vacuity: an AST walk that found nothing would pass the assertion
+        # above by returning an empty set, so prove it reads real calls.
+        called = self._calls_in("_run_keyword_alert_scan")
+        assert "info" in called, (
+            "the walk missed _kwlog.info, so it is not actually reading the "
+            "function body and 'run_scan_via_index in called' proves nothing")
+
+    def test_a_function_that_does_not_exist_reads_as_absent(self):
+        assert self._calls_in("_run_a_job_that_was_never_written") is None
