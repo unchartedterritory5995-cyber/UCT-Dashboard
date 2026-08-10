@@ -19,10 +19,12 @@ ROOT = Path(__file__).resolve().parents[1]
 CAL = "api/routers/calendar.py"
 PCM = "api/services/provider_coverage_monitor.py"
 AA = "api/services/catalyst/analyst_actions.py"
+MAS = "api/services/massive.py"
 
 T_VOL = "tests/test_calendar_day_metrics_avg_vol.py"
 T_AN = "tests/test_provider_coverage_analyst_reachability.py"
 T_RS = "tests/test_provider_coverage_restart_dedup.py"
+T_MV = "tests/test_movers_finviz_columns.py"
 
 MUTATIONS = [
     ("column list not requested (back to the account's saved view)", CAL,
@@ -58,6 +60,9 @@ MUTATIONS = [
     ("recovered fields never leave the persisted set", PCM,
      'conn.execute(\n                    f"DELETE FROM defect_state WHERE field NOT IN ({placeholders})",\n                    tuple(keep),\n                )',
      "pass", T_RS),
+
+    ("movers screener stops pinning its columns", MAS,
+     "?v=152&f={_qf}&c={_qc}&o={order}", "?v=152&f={_qf}&o={order}", T_MV),
 ]
 
 
@@ -76,7 +81,7 @@ def _run(tests):
 
 def main():
     print("=== CONTROL (no mutation): every target suite must PASS ===")
-    for t in (T_VOL, T_AN, T_RS):
+    for t in (T_VOL, T_AN, T_RS, T_MV):
         r = _run(t)
         print(f"  {t:62} exit={r.returncode}  {r.stdout.strip().splitlines()[-1] if r.stdout.strip() else ''}")
         if r.returncode != 0:
