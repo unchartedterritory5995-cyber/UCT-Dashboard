@@ -141,18 +141,35 @@ export default function EstimatesTab({ sym }) {
         <section className={styles.card}>
           <div className={styles.ct}>Forward EPS — consensus range</div>
           {/* The SPREAD is the information: a wide low-to-high band means the
-              street disagrees, which a single average number hides entirely. */}
-          <SeriesChart
-            periods={fwd.map(f => f.period)}
-            mode="band"
-            valueFormatter={(v) => (v == null ? '—' : `$${v.toFixed(2)}`)}
-            ariaLabel="Forward EPS consensus low, average and high by period"
-            series={[
-              { name: 'Low', color: 'var(--text-muted)', values: fwd.map(f => f.eps_low) },
-              { name: 'Consensus', color: 'var(--ut-gold, #c9a84c)', values: fwd.map(f => f.eps_avg) },
-              { name: 'High', color: 'var(--text-muted)', values: fwd.map(f => f.eps_high) },
-            ]}
-          />
+              street disagrees, which a single average number hides entirely.
+
+              ⛔ QUARTERS AND YEARS ARE PLOTTED SEPARATELY, ON PURPOSE. The
+              forward array is [Current Qtr, Next Qtr, Current Yr, Next Yr] and
+              a single axis put AAPL's 1.98 and 2.91 next to 8.80 and 9.55 — a
+              steeply rising line that reads as accelerating earnings when the
+              jump is only quarterly EPS becoming annual EPS. Two charts, each
+              internally comparable, is the honest shape. */}
+          <div className={styles.grid}>
+            {[['Quarters', /qtr/i], ['Years', /yr/i]].map(([label, re]) => {
+              const rows = fwd.filter(f => re.test(f.period || ''))
+              if (rows.length < 2) return null
+              return (
+                <SeriesChart
+                  key={label}
+                  periods={rows.map(f => f.period)}
+                  mode="band"
+                  label={label}
+                  valueFormatter={(v) => (v == null ? '—' : `$${v.toFixed(2)}`)}
+                  ariaLabel={`Forward EPS consensus low, average and high — ${label}`}
+                  series={[
+                    { name: 'Low', color: 'var(--text-muted)', values: rows.map(f => f.eps_low) },
+                    { name: 'Consensus', color: 'var(--ut-gold, #c9a84c)', values: rows.map(f => f.eps_avg) },
+                    { name: 'High', color: 'var(--text-muted)', values: rows.map(f => f.eps_high) },
+                  ]}
+                />
+              )
+            })}
+          </div>
         </section>
       )}
 

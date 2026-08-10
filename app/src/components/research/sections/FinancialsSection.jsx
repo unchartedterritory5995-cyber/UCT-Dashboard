@@ -21,7 +21,11 @@ export default function FinancialsSection({ sym }) {
           link, which would re-open the divert this modal exists to remove. */}
       <FundamentalSnapshot sym={sym} showResearchLink={false} />
       <StatementPanels sym={sym} />
-      <FinancialsTab sym={sym} />
+      {/* showGrids={false}: the grids label CALENDAR quarters while the
+          panels above label FISCAL ones, so the same quarter appeared twice
+          under two names. The balance-sheet and profitability cards below are
+          unique to this tab and are what it is here for. */}
+      <FinancialsTab sym={sym} showGrids={false} />
     </div>
   )
 }

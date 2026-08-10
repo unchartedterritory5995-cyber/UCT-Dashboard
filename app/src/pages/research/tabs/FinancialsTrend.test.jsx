@@ -105,3 +105,24 @@ describe('quarterly / annual basis toggle', () => {
     expect(screen.queryByRole('button', { name: /^Annual$/i })).toBeNull()
   })
 })
+
+describe('the calendar-vs-fiscal label clash', () => {
+  it('grids can be suppressed where FISCAL-labelled panels sit above them', () => {
+    // These grids are yfinance-derived and label CALENDAR quarters; the
+    // statement panels are FMP-derived and label FISCAL ones. For a
+    // September-fiscal company the SAME quarter — identical revenue — renders
+    // as "Q3 2026" above and "Q2 2026" below. Two names for one quarter is a
+    // correctness problem, not a layout one.
+    finData = { quarterly: QUARTERLY, annual: [], balance: {}, metrics: {} }
+    captured.length = 0
+    render(<FinancialsTab sym="AAPL" showGrids={false} />)
+    expect(captured).toEqual([])            // no trend charts from this tab
+    expect(document.body.textContent).not.toMatch(/revenue, EPS & margins/i)
+  })
+
+  it('still renders them by default for standalone callers', () => {
+    finData = { quarterly: QUARTERLY, annual: [], balance: {}, metrics: {} }
+    render(<FinancialsTab sym="AAPL" />)
+    expect(document.body.textContent).toMatch(/revenue, EPS & margins/i)
+  })
+})

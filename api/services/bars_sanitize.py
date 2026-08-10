@@ -89,6 +89,47 @@ _WICK = 1.40                 # a wick > body*this AND > neighbor*this is a lone 
 _SPLIT_BOUNDARY_WINDOW = 7   # sessions either side of the DECLARED split date
 
 
+def adjudicable(ratio: float, tol: float = _SPLIT_TOL) -> bool:
+    """Can the ratio test tell this corporate action apart from an ORDINARY DAY?
+
+    🔴 MEASURED, 2026-08-09, against the live store. The test is
+    ``|observed/ratio − 1| <= _SPLIT_TOL`` — a **relative** tolerance, so the band
+    it accepts is ``ratio × [1−tol, 1+tol]``. For DD's 3-for-1 (`ratio 0.3333`)
+    that is `[0.2833, 0.3833]`: tight, and the real step measured `0.33501`. For a
+    **1.03 stock dividend** it is `[0.8755, 1.1845]` — **a flat day (1.0) is inside
+    it**, and `_SPLIT_BOUNDARY_WINDOW` offers fifteen sessions to find one. A match
+    is therefore not likely but CERTAIN, for every small declared action, whether
+    or not the series was ever unadjusted.
+
+    What that cost, measured before this guard existed: a universe dry run
+    proposed **251,506 rows**; checked against an independent vendor, **72 of its
+    74 daily hits were already correct on both sides of the claimed boundary** —
+    **239,632 rows** that rescaling would have corrupted. `split_factor`
+    multiplies every matched boundary before a bar, so the error COMPOUNDS:
+    Tootsie Roll declares 32 annual 3% stock dividends and `1.03**32 = 2.575`.
+
+    ⭐ THE THRESHOLD IS DERIVED FROM `_SPLIT_TOL`, NOT TYPED BESIDE IT. A second
+    hand-tuned constant here would drift the first time somebody widened the
+    tolerance on one side — this repo's most-repeated defect. The rule is simply:
+    **1.0 must lie OUTSIDE the accept band**, i.e. "already adjusted" must be a
+    hypothesis this test is capable of rejecting. Move `_SPLIT_TOL` and this moves
+    with it, by construction.
+
+    ⚠️ WHAT THIS GIVES UP, STATED. A genuinely un-back-adjusted 3% stock dividend
+    is now left alone. That is the correct trade: the error it declines to fix is
+    3%, and the error it prevents is 258%. A small action needs a different
+    instrument (a vendor cross-check), not a looser tolerance.
+    """
+    try:
+        ratio = float(ratio)
+    except (TypeError, ValueError):
+        return False
+    if not (ratio > 0):
+        return False
+    lo, hi = ratio * (1.0 - tol), ratio * (1.0 + tol)
+    return not (lo <= 1.0 <= hi)
+
+
 def _pd(s) -> date | None:
     try:
         return date.fromisoformat(str(s)[:10])
@@ -97,8 +138,35 @@ def _pd(s) -> date | None:
 
 
 # ── Metadata fetch (background only) ────────────────────────────────────────
+class MetaUnavailable(RuntimeError):
+    """The provider did not ANSWER. Distinct from "it answered: no splits"."""
+
+
 def _fetch_meta(ticker: str) -> dict:
-    """Best-effort listing date + split list for `ticker`. Never raises."""
+    """Listing date + split list for `ticker`. RAISES when the provider refused.
+
+    🔴 "NO SPLITS DECLARED" AND "THE PROVIDER WOULD NOT SAY" ARE DIFFERENT FACTS,
+    AND `_fmp_get` COLLAPSES THEM. It catches every error and returns `None`, so a
+    **429 used to arrive here as `{"splits": []}`** — indistinguishable from a
+    ticker with no corporate actions. The caller then cached that as a SUCCESS
+    (`_META_TTL`, seven days) and every sweep for a week reported the ticker
+    clean without ever having asked.
+
+    Measured on 2026-08-09: during one universe sweep, **72 requests 429'd across
+    38 tickers**, each silently marked clean; and a targeted re-run on `DD`/`ABTC`
+    — two tickers PROVEN minutes earlier to carry an unadjusted split — printed
+    `0 (ticker, tf) carry an unadjusted split; 0 rows rewritten`. A green line
+    over a run that asked nothing.
+
+    ⭐ Only the SPLITS call is load-bearing. A failed `/stable/profile` degrades
+    `ipo` to `None`, which `_apply_listing_cutoff` already handles by falling back
+    to its standalone-gap rule — so that one stays best-effort rather than
+    failing the whole fetch.
+
+    Every caller already has an `except` that caches a short-lived empty sentinel
+    (`_META_FAIL_TTL`, 1h) or counts `meta_failed`, so raising here turns a silent
+    seven-day lie into a bounded retry.
+    """
     ipo = None
     splits: list[tuple[str, float]] = []
     try:
@@ -107,6 +175,12 @@ def _fetch_meta(ticker: str) -> dict:
         if isinstance(prof, list) and prof:
             ipo = (prof[0] or {}).get("ipoDate") or None
         raw = _fmp_get("/stable/splits", {"symbol": ticker, "limit": 40})
+        if raw is None:
+            raise MetaUnavailable(
+                f"corporate-action fetch for {ticker} returned no answer "
+                f"(rate limit, transport error, or missing FMP_API_KEY) — "
+                f"this is NOT 'no splits declared'"
+            )
         if isinstance(raw, list):
             for s in raw:
                 d = str(s.get("date") or "")[:10]
@@ -245,6 +319,11 @@ def unadjusted_splits(bars: list[dict],
         except (TypeError, ValueError):
             continue
         if not sd or not (ratio > 0):
+            continue
+        # ⛔ A declared action whose accept band contains 1.0 cannot be told from
+        # an ordinary session — see `adjudicable`. Skipping it is the difference
+        # between healing DD and multiplying Tootsie Roll's history by 2.575.
+        if not adjudicable(ratio):
             continue
         # The declared date's own boundary: the first bar on/after it.
         anchor = None

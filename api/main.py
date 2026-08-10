@@ -1311,11 +1311,22 @@ def _run_bars_split_repair_sweep() -> dict:
         log.info("[split-sweep] BARS_SPLIT_REPAIR_ENABLED=0 -- skipped")
         return summary
 
-    # 🔴 THE VACUITY GUARD. Without a key `_fmp_get` returns None,
-    # `_fetch_meta` answers `{"splits": []}` WITHOUT raising, and every ticker in
-    # the universe reads as "nothing to adjust" -- a green log line over a sweep
-    # structurally incapable of finding anything
+    # 🔴 THE VACUITY GUARD, AND IT IS STILL LOAD-BEARING. Without a key
+    # `_fmp_get` returns None for every ticker in the universe -- a sweep
+    # structurally incapable of finding anything, reporting a green log line
     # (`lesson_health_check_reads_a_proxy_not_the_artifact`).
+    #
+    # ⚠️ DO NOT DELETE THIS ON THE GROUNDS THAT `_fetch_meta` NOW RAISES. It does
+    # (`MetaUnavailable`, 2026-08-09) -- which is what stopped a rate-limited
+    # ticker being cached as "no splits" for seven days -- so the loop below
+    # would now COUNT every failure instead of silently mis-reporting it. That is
+    # a strictly better failure, and still the wrong one to accept here: this
+    # guard fails FAST, before 3,794 doomed provider calls, and says WHY in one
+    # line. Raising per ticker would spend the whole run to reach the same verdict.
+    #
+    # ⛔ The comment this replaces said `_fetch_meta` "answers `{"splits": []}`
+    # WITHOUT raising". True when written, false since -- and a stale rationale
+    # beside a guard is how the guard gets removed for a reason that no longer holds.
     if not (os.environ.get("FMP_API_KEY") or "").strip():
         log.error("[split-sweep] FMP_API_KEY is unset. Corporate-action metadata "
                   "cannot be fetched, so every ticker would report 'no splits' and "

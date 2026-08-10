@@ -162,7 +162,58 @@ export const PCF_FUSED = Object.freeze({
   ATR:    { spelling: 'ATR<period>[.<offset>]',           fn: 'atr',     series: ['high', 'low', 'close'], params: ['period', 'offset'] },
   MACD:   { spelling: 'MACD<fast>.<slow>[.<offset>]',     fn: 'macd',    series: ['close'], params: ['fast', 'slow', 'offset'] },
   STOC:   { spelling: 'STOC<period>.<smoothing>[.<offset>]', fn: 'stoch', series: ['close', 'high', 'low'], params: ['period', 'smoothing', 'offset'], fixed: { smoothing: 1 } },
+
+  // Measured 2026-08-09 against Worden's own syntax table: these three were the
+  // ONLY oscillators in the whole PCF vocabulary that this engine already
+  // computes and this reader could not say. Same shape as `ATR` above -- the
+  // three price series are supplied because TC2000 leaves them implicit against
+  // the chart's symbol, which IS what the spelling means.
+  //
+  // ⛔ AND THE LIST IS THREE, NOT THIRTEEN. Of the sixteen oscillators PCF
+  // declares, thirteen refused; it is tempting to read that as thirteen missing
+  // rows. Twelve of them are NOT: `ADX`, `AROONUP`, `AROONDOWN`, `BOP`, `OBV`,
+  // `FAVG` and `HAVG` are formulas this table does not declare at all, and
+  // `RSI`, `WSTOC`, `MS` and `TSV` are DIFFERENT FORMULAS wearing familiar names
+  // -- see `PCF_DIFFERENT_FORMULA`. Adding a row for any of those would be the
+  // `MIN`/`lowest` trap this file's header exists to warn about.
+  CCI:     { spelling: 'CCI<period>[.<offset>]',     fn: 'cci',     series: ['high', 'low', 'close'], params: ['period', 'offset'] },
+  DIPLUS:  { spelling: 'DIPLUS<period>[.<offset>]',  fn: 'plusDI',  series: ['high', 'low', 'close'], params: ['period', 'offset'] },
+  DIMINUS: { spelling: 'DIMINUS<period>[.<offset>]', fn: 'minusDI', series: ['high', 'low', 'close'], params: ['period', 'offset'] },
 })
+
+/** 🔴 NAMES THIS TABLE HAS SOMETHING SIMILAR TO, AND MUST NOT MAP.
+ *
+ *  ⛔ EACH OF THESE WOULD PARSE, LINT, SAVE AND SCAN IF POINTED AT ITS
+ *  LOOK-ALIKE, AND WOULD BE WRONG — the exact failure the `MIN`/`lowest` note at
+ *  the top of `PCF_CALLS` describes, which the refusal surface cannot catch
+ *  because nothing refuses. So they refuse HERE, by name, with the reason.
+ *
+ *  ⚠️ `RSI` IS THE SHARPEST ONE. Worden's table says outright that its `RSI` is
+ *  **not Wilder's**, and that `WRSI` is — and `WRSI` is the one this reader
+ *  already maps to our `rsi`. So a member typing `RSI14` must be told they want
+ *  `WRSI14`, not silently handed Wilder's under Cutler's name.
+ *
+ *  ⚠️ `MS` AND `TSV` ARE PERMANENT. They are Worden-proprietary and their
+ *  formulas are not published anywhere; a best effort would put a number under a
+ *  name members trust. That is a refusal to keep, not a backlog item. */
+export const PCF_DIFFERENT_FORMULA = Object.freeze({
+  RSI:   "TC2000's RSI is not Wilder's. This table has Wilder's, which TC2000 spells WRSI",
+  WSTOC: 'the Worden stochastic is a different formula from the simple STOC this table has',
+  MS:    'MoneyStream is Worden-proprietary and its formula is not published',
+  TSV:   'Time Segmented Volume is Worden-proprietary and its formula is not published',
+})
+
+/** The leading alphabetic run of a fused token — `RSI14.2` → `RSI`, `MS20` → `MS`.
+ *
+ *  ⛔ THE MAP IS CONSULTED AT THE REFUSAL, NOT AT THE MATCH, so a name that later
+ *  becomes genuinely supported stops reaching this and the entry becomes dead
+ *  rather than wrong. A look-alike check placed BEFORE the lookup would shadow a
+ *  real mapping the day one was added. */
+function differentFormula(text) {
+  const m = /^([A-Za-z]+)/.exec(String(text || ''))
+  const head = m ? m[1].toUpperCase() : ''
+  return own(PCF_DIFFERENT_FORMULA, head) ? PCF_DIFFERENT_FORMULA[head] : null
+}
 
 /** The CALL forms. `AVG(w, x)` is TC2000's own alternative spelling of
  *  `AVGwx`, and `GREATEST`/`LEAST`/`ABS`/`XUP`/`XDOWN` have no fused form.
@@ -184,6 +235,62 @@ export const PCF_CALLS = Object.freeze({
   ABS:      { fn: 'abs',        shape: ['expr'] },
   XUP:      { fn: 'crossOver',  shape: ['expr', 'expr'], barsAgo: true },
   XDOWN:    { fn: 'crossUnder', shape: ['expr', 'expr'], barsAgo: true },
+})
+
+/** ⭐⭐ TC2000's THREE STATEFUL FUNCTIONS, AND THEY ARE THE RECURRENCE.
+ *
+ *  `CountTrue`, `SinceTrue` and `TrueInRow` all read a boolean ACROSS BARS, which
+ *  this engine could not express at all until `accum` landed. Each builds
+ *  `accum(seed, update, x)` where `x` — TC2000's own bar count — becomes the
+ *  recurrence's warm-up, so the window the member wrote IS the window the engine
+ *  bounds. Nothing is chosen here.
+ *
+ *  ⭐ AND THE SEMANTICS FALL OUT OF THAT COINCIDENCE RATHER THAN BEING PATCHED IN.
+ *  Because the accumulator re-seeds exactly `x` bars back:
+ *
+ *    - `CountTrue(b, x)`  seeds 0 and adds 1 per true bar → occurrences in x bars.
+ *    - `TrueInRow(b, x)`  seeds 0 and RESETS to 0 on a false bar → a consecutive
+ *      streak, which TC2000 documents as ranging 0 to x. It cannot exceed x
+ *      because the window is x.
+ *    - `SinceTrue(b, x)`  seeds **-1** and holds -1 until the first true bar, then
+ *      counts up from 0.
+ *
+ *  🔴 THE `-1` IS THE WHOLE DIFFICULTY OF THE THIRD ONE. TC2000 returns -1 when the
+ *  condition NEVER occurred in the window, and -1 is not "zero bars ago" — it is
+ *  "never". A mapping that seeded 0 would make *never happened* read as *happened
+ *  just now*: inverted, and silent, on every symbol where the setup is absent —
+ *  which is most of them. The update carries the sentinel forward explicitly
+ *  (`self < 0 ? -1 : self + 1`) rather than letting arithmetic wash it away.
+ *
+ *  ⚠️ AND THE CAP IS THE WINDOW, NOT A CLAMP. TC2000 documents `SinceTrue`'s
+ *  maximum as `x - 1`; re-seeding at `i - x` and counting from the first true bar
+ *  cannot produce more than that, so there is no `min()` here and nothing to keep
+ *  in step with the declared bound.
+ *
+ *  ⛔ THE BOOLEAN ARGUMENT IS A PURE SUBTREE, WHICH IS WHY THIS WORKS AT ALL. The
+ *  recurrence step loop admits `self` only under operators and pointwise calls;
+ *  `b` reads no running value, so it is evaluated once as a column and indexed per
+ *  step. A `b` that itself contained an accumulator would refuse in the engine, by
+ *  name, rather than here. */
+const PCF_STATEFUL = Object.freeze({
+  COUNTTRUE: {
+    seed: 0,
+    // self + (b ? 1 : 0)
+    update: (b, self, one, zero) => ({ op: '+', left: self, right: { tern: [b, one, zero] } }),
+  },
+  TRUEINROW: {
+    seed: 0,
+    // b ? self + 1 : 0
+    update: (b, self, one, zero) => ({ tern: [b, { op: '+', left: self, right: one }, zero] }),
+  },
+  SINCETRUE: {
+    seed: -1,
+    // b ? 0 : (self < 0 ? -1 : self + 1)
+    update: (b, self, one, zero, negOne) => ({
+      tern: [b, zero, { tern: [{ op: '<', left: self, right: zero }, negOne,
+        { op: '+', left: self, right: one }] }],
+    }),
+  },
 })
 
 /** PCF's infix operators → the canonical operator name, with PCF's binding
@@ -571,8 +678,15 @@ function readFused(table, token, letters, nodeTypes) {
     return off ? applyOffset(nodeTypes, call, off.value, off.index, token.text) : call
   }
 
+  // ⭐ A LOOK-ALIKE GETS ITS OWN SENTENCE. `RSI14` refusing with the same words as
+  // a typo sends a member hunting for a spelling that does not exist; telling
+  // them TC2000's RSI is not Wilder's — and that `WRSI` is the one they want —
+  // is the difference between a dead end and a working scan.
+  const lookalike = differentFormula(token.text)
   refuse('pcf:name',
-    `\`${token.text}\` at character ${token.index}`, token.index, token.text)
+    lookalike
+      ? `\`${token.text}\` at character ${token.index} — ${lookalike}`
+      : `\`${token.text}\` at character ${token.index}`, token.index, token.text)
   return null
 }
 
@@ -752,9 +866,64 @@ class Reader {
     // parenthesised expression and a branch here would be dead code that reads
     // as protection. `pcf.test.js` asserts the tree `NOT(x)` produces.
 
+    const stateful = PCF_STATEFUL[upper]
+    if (stateful) {
+      // ⛔ TWO ARGUMENTS, AND THE SECOND IS A WRITTEN NUMBER. It becomes the
+      // recurrence's warm-up, and a warm-up that is not a literal is exactly what
+      // `windowLiteral` refuses in the engine — refusing it here names the token.
+      if (nodes.length !== 2) {
+        refuse('pcf:arity',
+          `\`${token.text}\` takes a condition and a bar count, got ${nodes.length}`,
+          at, token.text)
+      }
+      const bars = nodes[1]
+      if (bars.type !== 'num' || !Number.isInteger(bars.value) || bars.value < 1) {
+        refuse('pcf:window',
+          `\`${token.text}\` counts over a written whole number of bars`,
+          args[1].index, token.text)
+      }
+      const spec = this.table.functions.accum
+      if (!spec) {
+        refuse('pcf:name', `\`${token.text}(…)\` at character ${at}`, at, token.text)
+      }
+      const NUM = (v) => num(v)
+      const SELF = seriesNode(spec.recurrence.binds)
+      const build = (n) => {
+        if (n && n.op) return opNode(n.op, [build(n.left), build(n.right)])
+        if (n && n.tern) return opNode('?:', n.tern.map(build))
+        return n
+      }
+      operator(this.table, '?:', 3, at, token.text)
+      // ⛔ -1 IS `u-` OVER A POSITIVE LITERAL, NOT A NEGATIVE `num`, BECAUSE THAT
+      // IS WHAT THE PARSER BUILDS FOR `-1`. Emitting `{num:-1}` here would give
+      // `SinceTrue(...)` and its written-out equivalent TWO `astHash`es for ONE
+      // column — and that hash decides whether an edit force-migrates every
+      // binding and resets `last_value`. The corpus asserts the two trees are
+      // identical, which is how this was caught.
+      operator(this.table, 'u-', 1, at, token.text)
+      const negOne = opNode('u-', [NUM(1)])
+      const body = build(stateful.update(nodes[0], SELF, NUM(1), NUM(0), negOne))
+      const built = []
+      // ⛔ AND THE SEED TAKES THE SAME TREATMENT — this is where the first fix
+      // was incomplete. `SinceTrue`'s seed is -1, and a negative `num` there
+      // hashed differently from the parser's `u-` even after the body was
+      // corrected, so the two forms of ONE column still disagreed. Derived from
+      // the sign rather than special-cased per entry.
+      built[spec.recurrence.seed] = stateful.seed < 0
+        ? opNode('u-', [NUM(-stateful.seed)])
+        : NUM(stateful.seed)
+      built[spec.recurrence.body] = body
+      built[spec.recurrence.warmup] = NUM(bars.value)
+      return callNode('accum', built)
+    }
+
     const call = PCF_CALLS[upper]
     if (!call) {
-      refuse('pcf:name', `\`${token.text}(…)\` at character ${at}`, at, token.text)
+      const lookalike = differentFormula(token.text)
+      refuse('pcf:name',
+        lookalike
+          ? `\`${token.text}(…)\` at character ${at} — ${lookalike}`
+          : `\`${token.text}(…)\` at character ${at}`, at, token.text)
     }
 
     let used = nodes
