@@ -269,6 +269,17 @@ describe('the Pine parity sweep — six functions, one order, one built-in', () 
     expect(formulaOf(wrap('nz(ta.sma(close, 20), close)'))).toBe('nz(sma(close, 20), close)')
   })
 
+  it('⭐ the bare `na` VALUE is this engine`s not-computable, spelled 0 / 0', () => {
+    // ⛔ IT USED TO REFUSE, and refusing was the expensive option: `cond ? x : na`
+    // is a per-PLOT idiom, so one Ichimoku script lost FIFTEEN columns to it. The
+    // arithmetic already had the value — `0 / 0` is IEEE NaN in JS natively and
+    // `_binary_div` returns NaN for it explicitly in the Python lane — so only
+    // the spelling was missing, and no name had to enter the sayable vocabulary
+    // to supply it.
+    expect(formulaOf(wrap('close > open ? close : na')))
+      .toBe('close > open ? close : 0 / 0')
+  })
+
   it('⭐ nz(x) fills its OWN zero rather than leaving a default invisible', () => {
     // ⛔ THE LITERAL GOES INTO THE TREE. Pine's one-argument form means "or 0";
     // this table has no one-argument form, because an unstated default zero is
@@ -431,9 +442,6 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     // translator emits it. What is still refused about `[n]` is a variable index
     // and a negative one, and both live in `pine.offset.test.js` beside the cases
     // that prove the supported form works.
-    ['na',
-      '//@version=5\nindicator("t")\nplot(close > open ? close : na)\n',
-      'pine:na', 3, 29, 'na'],
     // ⚰️ `nz` WAS HERE, as "na wearing a hat", and it is now expressible — see
     // "the Pine parity sweep" below. The BARE `na` VALUE above still refuses, and
     // the two were never the same thing: `na(x)` and `nz(x, y)` ASK ABOUT and

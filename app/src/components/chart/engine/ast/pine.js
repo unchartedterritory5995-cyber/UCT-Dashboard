@@ -1258,8 +1258,35 @@ class Resolver {
   resolveName(node) {
     const name = node.name
 
+    // ⭐⭐ PINE'S `na` IS THIS ENGINE'S NOT-COMPUTABLE, AND IT IS EXPRESSIBLE
+    // WITHOUT WIDENING THE TABLE BY ONE NAME. `cond ? x : na` is the single most
+    // common shape in published Pine — 15 refused outputs in the Ichimoku script
+    // alone — and it means "x where the condition holds, a GAP otherwise", which
+    // is exactly what a NaN column already is here.
+    //
+    // ⛔ SO IT EXPANDS TO `0 / 0`, AND THAT IS A DELIBERATE CHOICE OVER THE TWO
+    // ALTERNATIVES. Refusing dropped whole columns and, worse, silently discarded
+    // a guard the script's author wrote on purpose. Declaring a `na`/`unknown`
+    // entry in the manifest would have put a value that is NEVER KNOWN into the
+    // sayable vocabulary — offered in the picker, offered by the plain-language
+    // door — to serve a translator. The arithmetic already has the value; only
+    // the SPELLING was missing.
+    //
+    // ⚠️ AND IT IS AN IDENTITY IN BOTH LANES, WHICH IS THE ONLY REASON IT IS
+    // ADMISSIBLE. `0 / 0` is IEEE NaN in JS natively, and `_binary_div` in the
+    // Python lane returns NaN for it explicitly — that function's own docstring
+    // calls this "the sharpest cross-lane divergence in the whole table" and
+    // closes it, so this expansion rides a seam that is already pinned rather
+    // than opening a new one. ⛔ No constant folding exists at the parse door
+    // (`windowLiteral` refuses a computed window for the same reason), so the
+    // node survives the round trip through `parseFormula` unchanged.
+    //
+    // ⚠️ THE COST IS THE READ-BACK, STATED RATHER THAN HIDDEN: this renders as
+    // "0 divided by 0", which is true and is not plain English. A member sees it,
+    // and the note below tells them what it came from. Making it read better
+    // means a manifest entry, and that trade belongs to the manifest's owner.
     if (name === 'na') {
-      throw new PineRefusal('pine:na', REFUSALS['pine:na'], locate(node.tok))
+      return cOp('/', [cNum(0), cNum(0)])
     }
 
     // A bar field the manifest declares. ⭐ READ OFF THE TABLE, not a list here.

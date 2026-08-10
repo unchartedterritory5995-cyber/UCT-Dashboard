@@ -196,8 +196,14 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
       // already had — made 18 translate. The GUARD is still live and still right
       // for the next function whose order nobody has measured; it simply has no
       // published script left in this corpus that trips it.
+      // ⚰️ `pine:na` LEFT THIS LIST TOO, and for the same kind of reason
+      // `pine:role-order` did — it was CLOSED, not abandoned. The bare `na` VALUE
+      // is Pine's "no value", which is this engine's not-computable, so it
+      // expands to `0 / 0` rather than being refused: an identity in both lanes,
+      // riding a seam `_binary_div` had already pinned. It took `12-ichimoku`
+      // from 0 usable columns to 15. The GUARD is still live and still fires for
+      // `fixnan`, which carries a value forward across bars with no stated bound.
       'pine:function', // 09 (`cum`)
-      'pine:na', // 08, 11, 12 — the bare `na` VALUE, not the call
       'pine:plot-offset', // 03, 12, 14
       'pine:strategy-call', // 19
       'pine:builtin', // 05, 06, 11, 15
@@ -207,7 +213,7 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
     }
     // ⛔ AND THE COUNT, so a guard that stops firing on the corpus is noticed
     // rather than quietly leaving the list above still true.
-    expect(fired.size).toBe(13)
+    expect(fired.size).toBe(12)
   })
 
   it('⛔ and NOTHING in the corpus is blocked on the bar offset any more', () => {
@@ -237,8 +243,13 @@ describe('the whole corpus, in one number', () => {
     // declared argument order (`ta.atr`), and one built-in expanded to its own
     // definition (`tr`). `13-average-true-range` needed the first and the last;
     // `18-normalized-average-true-range` needed only the middle one.
-    expect(translating).toBe(12)
-    expect(columns).toBe(20)
+    // ⭐ 13/42 ONCE THE BARE `na` VALUE EXPANDED. That step moved COLUMNS more
+    // than twice as far as it moved SCRIPTS, and the asymmetry is the whole point
+    // of counting both: `cond ? x : na` is a per-PLOT idiom, so it was refusing
+    // fifteen columns inside one Ichimoku script that the script-level number
+    // could never have shown.
+    expect(translating).toBe(13)
+    expect(columns).toBe(42)
   })
 
   it('⭐ every script that translates is one a member could actually SAVE', () => {
@@ -247,7 +258,7 @@ describe('the whole corpus, in one number', () => {
     // read-back — and a coverage number that counted translations would be
     // reporting the first of those as if it were the second.
     const saveable = FILES.filter((f) => SNAPSHOT[f].downstream && SNAPSHOT[f].downstream.ok)
-    expect(saveable.length).toBe(12)
+    expect(saveable.length).toBe(13)
     for (const f of saveable) {
       expect(SNAPSHOT[f].downstream.repaint, f).toBe('non-repainting')
     }

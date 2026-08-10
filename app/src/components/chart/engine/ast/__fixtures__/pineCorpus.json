@@ -116,7 +116,7 @@
     "version": 4,
     "translates": true,
     "outputs": 3,
-    "usable": 2,
+    "usable": 3,
     "selectedFormula": "sma(stoch(high, low, close, 14), 3)",
     "downstream": {
       "ok": true,
@@ -124,9 +124,7 @@
       "repaint": "non-repainting"
     },
     "refusal": null,
-    "perOutputRefusals": {
-      "pine:na": 1
-    }
+    "perOutputRefusals": {}
   },
   "09-on-balance-volume.pine": {
     "version": 3,
@@ -165,7 +163,7 @@
     "version": 3,
     "translates": true,
     "outputs": 5,
-    "usable": 2,
+    "usable": 3,
     "selectedFormula": "highest(high, 20)[1]",
     "downstream": {
       "ok": true,
@@ -174,25 +172,22 @@
     },
     "refusal": null,
     "perOutputRefusals": {
-      "pine:na": 1,
       "pine:builtin": 2
     }
   },
   "12-ichimoku-clouds.pine": {
     "version": 3,
-    "translates": false,
+    "translates": true,
     "outputs": 21,
-    "usable": 0,
-    "selectedFormula": null,
-    "downstream": null,
-    "refusal": {
-      "guard": "pine:request",
-      "line": 43,
-      "column": 9,
-      "token": "security"
+    "usable": 15,
+    "selectedFormula": "0 / 0",
+    "downstream": {
+      "ok": true,
+      "guard": null,
+      "repaint": "non-repainting"
     },
+    "refusal": null,
     "perOutputRefusals": {
-      "pine:na": 15,
       "pine:plot-offset": 3,
       "pine:undefined": 1,
       "pine:request": 2
@@ -202,17 +197,15 @@
     "version": 3,
     "translates": true,
     "outputs": 8,
-    "usable": 3,
-    "selectedFormula": "rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14) > highest(rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14), 20)[1]",
+    "usable": 8,
+    "selectedFormula": "(21 > 1 ? ema(rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14), 21) : 0 / 0) > (21 > 1 ? ema(rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14), 21) : 0 / 0)[1] && (21 > 1 ? ema(rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14), 21) : 0 / 0)[1] > (21 > 1 ? ema(rma(max(high - low, max(abs(high - close[1]), abs(low - close[1]))), 14), 21) : 0 / 0)[2]",
     "downstream": {
       "ok": true,
       "guard": null,
       "repaint": "non-repainting"
     },
     "refusal": null,
-    "perOutputRefusals": {
-      "pine:na": 5
-    }
+    "perOutputRefusals": {}
   },
   "14-bollinger-bands-fixed-timeframe.pine": {
     "version": null,

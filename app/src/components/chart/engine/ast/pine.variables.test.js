@@ -521,9 +521,13 @@ plot(show ? ta.sma(close, 5) : na)
   })
 
   it('⛔ CONTROL — a condition that is NOT constant resolves both arms and refuses', () => {
+    // ⚰️ THE UNTAKEN ARM WAS `na`, which is expressible now (`0 / 0`) and so no
+    // longer proves the arm was DROPPED rather than translated. `fixnan` replaces
+    // it: still refused, and for a reason that has not moved — it carries a value
+    // forward across bars with no bound a member could state.
     // Without this the case above would pass for a translator that simply never
     // looks at the `no` arm of a ternary.
-    expect(refusalOf(`${HEAD}plot(close > open ? ta.sma(close, 5) : na)\n`).guard).toBe('pine:na')
+    expect(refusalOf(`${HEAD}plot(close > open ? ta.sma(close, 5) : fixnan(close))\n`).guard).toBe('pine:na')
   })
 
   it('⛔ CONTROL — a string that is NOT part of a constant comparison still refuses', () => {
