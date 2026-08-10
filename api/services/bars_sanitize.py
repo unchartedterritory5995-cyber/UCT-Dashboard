@@ -466,7 +466,26 @@ def sanitize_daily_bars(ticker: str, bars: list[dict], tf: str) -> list[dict]:
     try:
         meta = _meta_cached(ticker)                      # None on cold miss (+warm)
         bars = _apply_listing_cutoff(bars, meta)
-        if meta and meta.get("splits"):
+        # 🔴 THE KILL SWITCH HAS TO REACH HERE, AND FOR WEEKS IT DID NOT.
+        # `BARS_SPLIT_REPAIR_ENABLED=0` was set after the split heuristic was found
+        # to fire on ordinary flat days, and the incident report recorded the damage
+        # as "frozen and bounded" on the strength of it. It was not. The flag is
+        # checked inside `bars_split_repair.repair_ticker`, so it stopped the STORE
+        # WRITES — while the identical false-positive detection kept running on this
+        # line and rescaling **every response**, for every member, on every request.
+        #
+        # ⭐ MEASURED 2026-08-10, and this is the proof the flag was not holding:
+        # EGBN and BF-A's production ROWS are byte-identical to the verified-clean
+        # local store, and production still SERVED them at 1.0993x and 3.3475x. A
+        # deep refetch could not fix them because nothing was wrong with the rows —
+        # the corruption was being manufactured on the way out.
+        #
+        # ⛔ So the switch now gates the ADJUSTMENT, not just the persistence. A kill
+        # switch that leaves the faulty computation running and only declines to save
+        # its output is not a kill switch; it is the `lesson_gate_that_cannot_fail`
+        # shape, and it cost a repair attempt that looked like a no-op.
+        from api.services import bars_split_repair as _bsr
+        if meta and meta.get("splits") and _bsr.enabled():
             unadjusted = unadjusted_splits(bars, meta["splits"])
             if unadjusted:
                 bars = _apply_split_adjust(bars, meta["splits"], unadjusted)
