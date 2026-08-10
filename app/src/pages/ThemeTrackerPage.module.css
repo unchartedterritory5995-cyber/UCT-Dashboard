@@ -260,8 +260,9 @@
   grid-template-columns: 1fr auto;
   column-gap: 10px;
   align-items: center;
-  /* Calmer, more spacious rows — the whitespace IS the design. */
-  padding: 10px 14px;
+  /* Same height as the stock rows within a theme (.stockRow = 5px 12px), so a theme header
+     doesn't tower over its holdings. */
+  padding: 5px 12px;
   background: var(--tt-elev, var(--bg-elevated));
   border-bottom: 1px solid var(--tt-divider, var(--border));
   cursor: pointer;
