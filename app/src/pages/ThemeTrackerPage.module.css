@@ -192,7 +192,7 @@
 
 .colLabel {
   font-family: var(--font-sans);
-  font-size: calc(10px * var(--tt-font-scale, 1));
+  font-size: calc(11px * var(--tt-font-scale, 1));
   font-weight: 600;
   letter-spacing: 0.8px;
   color: var(--tt-text, var(--text-muted));
@@ -215,8 +215,12 @@
   padding: 0;
   cursor: pointer;
   font: inherit;
-  letter-spacing: inherit;
-  text-transform: inherit;
+  /* Match the "THEME" label exactly (font: inherit above would otherwise pull the larger
+     parent size) so the period button and the column header meet at the same size. */
+  font-size: calc(11px * var(--tt-font-scale, 1));
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
 }
 
 .sortBtn:hover .sortCaret {
@@ -251,10 +255,9 @@
 /* ── Theme group row ────────────────────────────────────────────────────── */
 .groupRow {
   display: grid;
-  /* Name fills the left (wraps when narrow); % stays right-aligned in a shared
-     auto column so all %'s line up vertically on the right. Tighter than the old
-     fixed 80px column so the widget can be dragged narrower. */
-  grid-template-columns: 1fr auto;
+  /* Name fills the left (wraps when narrow); breadth bar sits in the middle; % stays
+     right-aligned in a shared auto column so all %'s line up vertically on the right. */
+  grid-template-columns: 1fr auto auto;
   column-gap: 10px;
   align-items: center;
   padding: 7px 12px;
@@ -263,6 +266,37 @@
   cursor: pointer;
   user-select: none;
 }
+
+/* Breadth = up/down participation across the theme's stocks. Split bar (green up / red down)
+   + counts, filling the middle space between the theme name and its %. */
+.breadth {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.breadthBar {
+  display: inline-flex;
+  width: 46px;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--tt-divider, rgba(255, 255, 255, 0.12));
+}
+.breadthUp { background: var(--tt-up, #16a34a); }
+.breadthDown { background: var(--tt-down, #dc2626); }
+.breadthCount {
+  display: inline-flex;
+  gap: 5px;
+  font-family: var(--font-sans);
+  font-size: calc(9.5px * var(--tt-font-scale, 1));
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.breadthUpTxt { color: var(--tt-up, #16a34a); }
+.breadthDownTxt { color: var(--tt-down, #dc2626); }
 
 .groupRow:hover {
   background: var(--tt-row-hover, var(--bg-hover));

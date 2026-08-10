@@ -172,6 +172,20 @@ function ThemeGroup({ theme, selectedSym, selectedNavKey, onSelectSym, activeKey
     })
   }, [theme.holdings, activeKey, sortDir])
 
+  // Breadth = how many of the theme's stocks are up vs down over the active period. The %
+  // (magnitude) can't say whether a move is BROAD or NARROW — this does. Holdings' returns
+  // already carry the live overlay, so it updates with the rest of the row.
+  const breadth = useMemo(() => {
+    let up = 0, down = 0
+    for (const h of theme.holdings) {
+      const v = h.returns?.[activeKey]
+      if (v == null) continue
+      if (v > 0) up++
+      else if (v < 0) down++
+    }
+    return { up, down, total: up + down }
+  }, [theme.holdings, activeKey])
+
   return (
     <>
       <div className={styles.groupRow} onClick={() => onToggle(theme.ticker)}>
@@ -181,6 +195,19 @@ function ThemeGroup({ theme, selectedSym, selectedNavKey, onSelectSym, activeKey
           {isPortfolio && <span className={styles.portfolioBadge}><UIcon name="star-fill" size={13} /></span>}
           <span className={styles.groupCount}>{theme.holdings.length}</span>
         </span>
+        {breadth.total > 0 && (
+          <span className={styles.breadth}
+            title={`${breadth.up} up · ${breadth.down} down (${PERIOD_LABELS[activeKey]})`}>
+            <span className={styles.breadthBar}>
+              <span className={styles.breadthUp} style={{ width: `${(breadth.up / breadth.total) * 100}%` }} />
+              <span className={styles.breadthDown} style={{ width: `${(breadth.down / breadth.total) * 100}%` }} />
+            </span>
+            <span className={styles.breadthCount}>
+              <span className={styles.breadthUpTxt}>{breadth.up}▲</span>
+              <span className={styles.breadthDownTxt}>{breadth.down}▼</span>
+            </span>
+          </span>
+        )}
         <ReturnCell value={groupLive} baseClass={`${styles.ret} ${styles.retActive} ${retClass(groupLive, styles)}`} flashEnabled={tintEnabled} />
       </div>
 
