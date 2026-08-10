@@ -2570,6 +2570,19 @@ def get_reactions(date_str: str | None = Query(None, alias="date")):
 _METRICS_TTL = 120  # 2 min — stable enough for filtering purposes
 _METRICS_FAIL_TTL = 300  # both Finviz + Massive came back empty-handed — retry in 5 min, not up to 24h
 
+# Finviz Elite export column ids, requested EXPLICITLY. `v=152` is the "custom"
+# view, whose column set is whatever the Finviz Elite ACCOUNT last saved — so
+# omitting `c=` puts a data contract in someone's browser settings. It shipped
+# without `c=` and the account's view carried no average-volume column, which is
+# how `avg_vol` read blank on every date until the provider-coverage monitor
+# named it (2026-08-09). 1=Ticker, 6=Market Cap, 63=Average Volume, 65=Price,
+# 67=Volume. Adding a field here means adding it to the parse below too.
+_FV_EXPORT_COLS = "1,6,63,65,67"
+
+# Finviz exports Average Volume in THOUSANDS (AAPL `56908.91` = ~56.9M shares)
+# while the raw `Volume` column is in shares. Verified against the live export.
+_FV_AVG_VOL_UNIT = 1000
+
 
 @router.get("/api/calendar/day-metrics")
 def get_day_metrics(date_str: str | None = Query(None, alias="date")):
@@ -2632,7 +2645,7 @@ def get_day_metrics(date_str: str | None = Query(None, alias="date")):
             tickers_param = ",".join(syms)
             url = (
                 f"https://elite.finviz.com/export.ashx"
-                f"?v=152&t={tickers_param}&auth={fv_token}"
+                f"?v=152&t={tickers_param}&auth={fv_token}&c={_FV_EXPORT_COLS}"
             )
             r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15, allow_redirects=True)
             if r.ok and r.text.strip():
@@ -2645,10 +2658,13 @@ def get_day_metrics(date_str: str | None = Query(None, alias="date")):
                                 return v.strip() if v else None
                     return None
 
-                def _parse_vol(s):
+                def _parse_avg_vol(s):
+                    # Thousands -> shares. See _FV_AVG_VOL_UNIT: reading this
+                    # column unscaled is a silent 1000x under-count, which the
+                    # volume filter would apply without ever looking wrong.
                     if not s or s == "-": return None
                     s = s.replace(",", "")
-                    try: return int(float(s))
+                    try: return int(float(s) * _FV_AVG_VOL_UNIT)
                     except ValueError: return None
 
                 def _parse_mc(s):
@@ -2669,14 +2685,17 @@ def get_day_metrics(date_str: str | None = Query(None, alias="date")):
                     if not sym or sym not in result:
                         continue
                     price_s = _gcol(row, "Price")
-                    avg_vol_s = _gcol(row, "Avg Volume")
+                    # Finviz emits "Average Volume"; "Avg Volume" is the name
+                    # this code asked for and never found. Both accepted so a
+                    # future view change on either side still resolves.
+                    avg_vol_s = _gcol(row, "Average Volume", "Avg Volume")
                     mc_s = _gcol(row, "Market Cap")
                     try:
                         price = float(price_s) if price_s and price_s != "-" else None
                     except ValueError:
                         price = None
                     result[sym]["price"]   = price
-                    result[sym]["avg_vol"] = _parse_vol(avg_vol_s)
+                    result[sym]["avg_vol"] = _parse_avg_vol(avg_vol_s)
                     if result[sym]["mc_b"] is None:
                         result[sym]["mc_b"] = _parse_mc(mc_s)
                 fv_ok = True
@@ -2684,9 +2703,18 @@ def get_day_metrics(date_str: str | None = Query(None, alias="date")):
         except Exception as exc:
             _logger.warning("Calendar metrics: Finviz fetch failed: %s", exc)
 
-    # ── 2. Massive fallback for price (if Finviz failed) ──────────────────────
+    # ── 2. Massive fallback — per FIELD, not per response ─────────────────────
+    # `fv_ok` only means "Finviz returned a body we could parse". It was ALSO
+    # the gate on this fallback, so a 200 carrying no average-volume column
+    # counted as success and skipped the one leg that could have filled
+    # avg_vol — the blank then cached at the full 24h past-date TTL. Gate on
+    # what actually came back per field instead, and FILL GAPS rather than
+    # overwrite: a real Finviz price must survive the fallback.
+    def _filled(field):
+        return sum(1 for v in result.values() if v.get(field) is not None)
+
     massive_ok = False
-    if not fv_ok:
+    if not fv_ok or _filled("price") == 0 or _filled("avg_vol") == 0:
         try:
             from api.services.massive import _get_client
             rich = _get_client().get_batch_rich_snapshots(syms)
@@ -2694,18 +2722,22 @@ def get_day_metrics(date_str: str | None = Query(None, alias="date")):
                 massive_ok = True
             for sym, snap in rich.items():
                 if sym in result:
-                    result[sym]["price"]   = snap.get("price")
-                    result[sym]["avg_vol"] = snap.get("vol")   # prev-day vol proxy
+                    if result[sym]["price"] is None:
+                        result[sym]["price"] = snap.get("price")
+                    if result[sym]["avg_vol"] is None:
+                        result[sym]["avg_vol"] = snap.get("vol")   # prev-day vol proxy
         except Exception as exc:
             _logger.warning("Calendar metrics: Massive fallback failed: %s", exc)
 
-    # Finviz (unset key or fetch failure) AND the Massive fallback both empty-
-    # handed is a total provider-side miss, not a legitimately blank day — a
-    # blank price/avg-vol/mcap silently zeroes the filter bar AND flattens the
-    # importance hierarchy. Distinguish it from a normal day where at least
-    # one leg produced real numbers (individual symbols can still be missing
-    # from either provider; that is not this failure).
-    have_data = fv_ok or massive_ok or any(v.get("price") is not None for v in result.values())
+    # Both legs empty-handed is a total provider-side miss, not a legitimately
+    # blank day — a blank price/avg-vol/mcap silently zeroes the filter bar AND
+    # flattens the importance hierarchy. Completeness is judged per FIELD for
+    # the same reason the fallback is: a day with prices but not one avg_vol is
+    # a hole the volume filter acts on, and pinning it for 24h means acting on
+    # it all day. `mc_b` is deliberately NOT part of this test — it is seeded
+    # from the wire's chip data before either provider runs, so it stays filled
+    # through a total miss and would mask exactly the failure being detected.
+    have_data = _filled("price") > 0 and _filled("avg_vol") > 0
     set_by_completeness(
         cache_key, result,
         complete=have_data,
