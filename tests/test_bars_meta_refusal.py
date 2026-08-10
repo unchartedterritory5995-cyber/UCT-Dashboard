@@ -102,6 +102,60 @@ def test_the_sweep_tool_counts_a_refusal_separately_and_exits_nonzero(
     assert "ZZGOOD" not in out.split("NOT SWEPT")[-1]
 
 
+def test_the_names_survive_a_cp1252_console(monkeypatch, tmp_path, capsys):
+    """🔴 THE LINE THAT NAMES THEM IS THE LINE THAT DIED.
+
+    First real run of the guarded sweep: the summary printed
+    `3778/3794 tickers were actually ASKED about; 16 could not be` and then the
+    very next statement raised `UnicodeEncodeError` — a "⚠️" in the string,
+    stdout redirected to a file, Windows cp1252. The run reported a coverage hole
+    and took the list of names to the grave, which is the one thing the operator
+    needed from it. Exit code went 2 -> 1, so even "incomplete" was mis-signalled.
+
+    ⭐ This asserts on a stream that ACTUALLY CANNOT encode non-ASCII, rather than
+    grepping the source for emoji — the encoder is the thing that failed, so the
+    encoder is the thing that must be in the test.
+    """
+    import io
+    sys.path.insert(0, os.path.join(_ROOT, "tools"))
+    import importlib
+    sweep_tool = importlib.import_module("bars_split_repair_sweep")
+
+    from api.services import bars_split_repair
+    from api.services.cache import cache
+
+    for t in ("ZZOK", "ZZREF1", "ZZREF2"):
+        cache.invalidate(san._META_KEY.format(t))
+
+    def _meta(ticker):
+        if ticker.startswith("ZZREF"):
+            raise san.MetaUnavailable("429")
+        return {"ipo": None, "splits": []}
+
+    monkeypatch.setattr(san, "_fetch_meta", _meta)
+    monkeypatch.setattr(bars_split_repair, "repair_ticker",
+                        lambda t, tf, **k: {"ticker": t, "tf": tf,
+                                            "boundaries": [], "changed": 0})
+    monkeypatch.setattr(sys, "argv",
+                        ["bars_split_repair_sweep.py", "--db", str(tmp_path),
+                         "--tickers", "ZZOK,ZZREF1,ZZREF2", "--warm", "--tfs", "D"])
+
+    # A stdout that behaves exactly like the redirected Windows console did.
+    buf = io.TextIOWrapper(io.BytesIO(), encoding="cp1252", errors="strict",
+                           newline="")
+    monkeypatch.setattr(sys, "stdout", buf)
+    try:
+        rc = sweep_tool.main()          # must not raise UnicodeEncodeError
+    finally:
+        buf.flush()
+        out = buf.buffer.getvalue().decode("cp1252")
+        monkeypatch.undo()
+
+    assert rc == 2, f"an incomplete sweep must exit 2, got {rc}"
+    assert "ZZREF1" in out and "ZZREF2" in out, (
+        "the sweep named a coverage hole but not the tickers in it:\n" + out)
+
+
 def test_the_sweep_tool_warms_and_detects_per_ticker_not_in_two_phases(
         monkeypatch, tmp_path):
     """🔴 THE LRU BUG. Warming every ticker FIRST and detecting afterwards loses

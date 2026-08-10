@@ -56,9 +56,16 @@ _COLD_TAIL_CAP = int(os.environ.get("THEME_WARM_CAP", "30"))
 
 
 @router.get("/api/theme-performance")
-def get_theme_performance(_user: dict = Depends(require_paid)):
+def get_theme_performance(refresh: bool = False, _user: dict = Depends(require_paid)):
     global _last_theme_warm
     try:
+        # Manual footer refresh: bust the 10s live-overlay caches so the response is re-overlaid
+        # with fresh live prices (re-ranks the themes NOW). Cheap in-memory work — deliberately
+        # does NOT trigger the admin-only full base recompute (the cost-bearing 6-worker pool).
+        if refresh:
+            from api.services.cache import cache
+            cache.invalidate(svc._OVERLAID_KEY)
+            cache.invalidate(svc._LIVE_1D_KEY)
         result = svc.get_theme_performance()
         try:
             now = time.monotonic()

@@ -130,7 +130,14 @@ def main() -> int:
     print(f"[sweep] {len(tickers) - len(meta_failed)}/{len(tickers)} tickers were "
           f"actually ASKED about; {len(meta_failed)} could not be")
     if meta_failed:
-        print("[sweep] ⚠️  NOT SWEPT (the provider would not answer): "
+        # 🔴 ASCII ONLY, AND THAT IS NOT A STYLE CHOICE. This line existed to NAME
+        # the tickers nobody asked about, and the first real run it did died in it:
+        # a "⚠️" in the string, stdout redirected to a file, Windows cp1252 ->
+        # UnicodeEncodeError. The summary above had already printed "16 could not
+        # be", so the run reported a coverage hole and then took the list of names
+        # to the grave -- the one output the operator needed. A rail that NAMES
+        # things must be able to emit the names on the console it actually runs on.
+        print("[sweep] NOT SWEPT (the provider would not answer): "
               + ",".join(meta_failed))
         return 2
     return 0

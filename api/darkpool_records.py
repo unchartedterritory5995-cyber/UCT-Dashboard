@@ -219,8 +219,37 @@ def refresh_from_today() -> dict:
     return _refresh("darkpool_today", None)
 
 
-def get_records(limit: int = 300, sort: str = "notional") -> list[dict]:
-    """The records table for the /api/darkpool/records endpoint + panel."""
+def _attach_mktcaps(records: list[dict]) -> list[dict]:
+    """Attach a `mktcap` to each record via the flow.db offline lookup (the same
+    first-layer source /api/schwab/mktcap-batch uses). One SQL query per 500 names
+    (SQLite's bound-variable ceiling); fail-soft to 0. Lets the panel classify the
+    WHOLE book by cap band — so small-caps (which rarely rank near the top by
+    notional) are reachable — without the browser batch-fetching thousands of caps."""
+    try:
+        try:
+            from api.flow_db import FlowDB
+        except ImportError:
+            from flow_db import FlowDB
+        db = FlowDB()
+        syms = [(r.get("ticker") or "").upper() for r in records if r.get("ticker")]
+        caps: dict = {}
+        for i in range(0, len(syms), 500):
+            try:
+                caps.update(db.get_mktcap_batch(syms[i:i + 500]) or {})
+            except Exception:
+                pass
+        for r in records:
+            r["mktcap"] = int(caps.get((r.get("ticker") or "").upper()) or 0)
+    except Exception:
+        for r in records:
+            r.setdefault("mktcap", 0)
+    return records
+
+
+def get_records(limit: int = 300, sort: str = "notional",
+                enrich_mktcap: bool = False) -> list[dict]:
+    """The records table for the /api/darkpool/records endpoint + panel. With
+    enrich_mktcap, each row also carries a `mktcap` (for client-side cap banding)."""
     _ensure_table()
     order = {"notional": "notional DESC", "date": "date DESC",
              "ticker": "ticker ASC"}.get(sort, "notional DESC")
@@ -231,8 +260,11 @@ def get_records(limit: int = 300, sort: str = "notional") -> list[dict]:
             f"FROM darkpool_records ORDER BY {order} LIMIT ?", (int(limit),)).fetchall()
     finally:
         c.close()
-    return [{"ticker": r[0], "notional": r[1], "price": r[2], "date": r[3],
-             "prevNotional": r[4], "prevDate": r[5], "updatedAt": r[6]} for r in rows]
+    out = [{"ticker": r[0], "notional": r[1], "price": r[2], "date": r[3],
+            "prevNotional": r[4], "prevDate": r[5], "updatedAt": r[6]} for r in rows]
+    if enrich_mktcap:
+        _attach_mktcaps(out)
+    return out
 
 
 def _tracked_count() -> int:

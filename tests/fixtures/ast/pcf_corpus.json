@@ -235,6 +235,27 @@
       "what": "`C - AVGCx.y` at y = 0",
       "source": "C - AVGC20",
       "native": "close - sma(close, 20)"
+    },
+    {
+      "id": "counttrue",
+      "cite": "help-syntax",
+      "what": "CountTrue counts occurrences over a window — a reduction over a boolean, which became sayable the day the bounded recurrence landed",
+      "source": "CountTrue(C > O, 10)",
+      "native": "accum(0, self + (close > open ? 1 : 0), 10)"
+    },
+    {
+      "id": "sincetrue",
+      "cite": "help-syntax",
+      "what": "SinceTrue — bars since a condition last held, and ⛔ -1 when it NEVER held in the window. The sentinel is carried explicitly: -1 is not 'zero bars ago', and seeding 0 would make 'never happened' read as 'happened just now'",
+      "source": "SinceTrue(C > O, 10)",
+      "native": "accum(-1, close > open ? 0 : (self < 0 ? -1 : self + 1), 10)"
+    },
+    {
+      "id": "trueinrow",
+      "cite": "help-syntax",
+      "what": "TrueInRow — a consecutive streak, which resets to 0 on a false bar. The window IS the documented 0..x bound, so there is no clamp to keep in step",
+      "source": "TrueInRow(C > O, 3)",
+      "native": "accum(0, close > open ? self + 1 : 0, 3)"
     }
   ],
   "refused": [
@@ -327,33 +348,6 @@
       "guard": "pcf:name",
       "at": 0,
       "names": "SQR"
-    },
-    {
-      "id": "counttrue",
-      "cite": "help-syntax",
-      "what": "CountTrue counts occurrences over a window — a reduction over a boolean the table has no form for",
-      "source": "CountTrue(C > O, 10)",
-      "guard": "pcf:name",
-      "at": 0,
-      "names": "CountTrue"
-    },
-    {
-      "id": "sincetrue",
-      "cite": "help-syntax",
-      "what": "SinceTrue",
-      "source": "SinceTrue(C > O, 10)",
-      "guard": "pcf:name",
-      "at": 0,
-      "names": "SinceTrue"
-    },
-    {
-      "id": "trueinrow",
-      "cite": "help-syntax",
-      "what": "TrueInRow",
-      "source": "TrueInRow(C > O, 3)",
-      "guard": "pcf:name",
-      "at": 0,
-      "names": "TrueInRow"
     },
     {
       "id": "aroon",

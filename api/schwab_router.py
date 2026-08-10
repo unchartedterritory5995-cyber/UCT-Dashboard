@@ -5,11 +5,15 @@ Add to main.py: from schwab_router import router as schwab_router
 """
 from fastapi import APIRouter, Request, Query, Depends
 from fastapi.responses import RedirectResponse, JSONResponse
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import urlparse, parse_qs, quote
 import logging
 import api.schwab_service as schwab
 # Session-or-service-token gates, shared with the rest of the flow surface.
 from api.flow_admin_auth import require_flow_admin, require_flow_user
+# The OAuth `state` lives in its own module: this file is co-owned, and a
+# security fix that rewrites forty lines of a partner's file is a merge conflict
+# waiting to undo itself.
+from api.services import schwab_oauth_state as oauth_state
 logger = logging.getLogger(__name__)
 # Yahoo Finance uses different symbols for indices
 YF_INDEX_MAP = {"SPX":"^GSPC", "NDX":"^NDX", "DJX":"^DJI", "RUT":"^RUT", "VIX":"^VIX", "XSP":"^GSPC"}
@@ -27,18 +31,41 @@ async def schwab_status():
         "message": "Connected to Schwab API" + (" (persistent)" if persistent else " (will reset on deploy)") if authenticated else "Not connected. Visit /api/schwab/login to authenticate.",
     }
 @router.get("/login")
-async def schwab_login():
-    """Redirect user to Schwab OAuth login page."""
+async def schwab_login(_admin: dict = Depends(require_flow_admin)):
+    """Redirect an ADMIN to the Schwab OAuth login page, carrying a signed state."""
     if not schwab.APP_KEY:
         return JSONResponse(
             status_code=500,
             content={"error": "SCHWAB_APP_KEY environment variable not set."},
         )
-    auth_url = schwab.get_auth_url()
+    # ⭐ THE STATE IS MINTED HERE AND CHECKED AT THE CALLBACK. See
+    # `api/services/schwab_oauth_state.py` for what it is defending: there is ONE
+    # token file for the whole firm, and the callback used to accept any `code`
+    # from anyone.
+    state = oauth_state.issue()
+    sep = "&" if "?" in schwab.get_auth_url() else "?"
+    auth_url = f"{schwab.get_auth_url()}{sep}state={quote(state, safe='')}"
     return RedirectResponse(url=auth_url)
 @router.get("/callback")
 async def schwab_callback(request: Request):
-    """Handle Schwab OAuth callback with authorization code."""
+    """Handle Schwab OAuth callback with authorization code.
+
+    ⛔ NOT SESSION-GATED, AND THAT IS DELIBERATE. This URL is reached by a
+    cross-site top-level redirect from Schwab, so depending on a cookie here would
+    make the flow hostage to `SameSite` and to whichever browser the admin used.
+    The `state` check is the correct gate for a callback: it proves this response
+    belongs to a login THIS SERVER started, which a session cookie does not.
+    """
+    ok, why = oauth_state.verify_and_burn(request.query_params.get("state"))
+    if not ok:
+        # ⛔ THE REASON GOES TO THE LOG, NOT TO THE CALLER. Telling a forger whether
+        # they failed on the signature or on the clock is an oracle for the next try.
+        logger.warning("[schwab] callback rejected: state %s", why)
+        return JSONResponse(
+            status_code=400,
+            content={"error": "This callback did not come from a login started here. "
+                              "Start again at /api/schwab/login."},
+        )
     code = request.query_params.get("code")
     if not code:
         return JSONResponse(
@@ -46,7 +73,6 @@ async def schwab_callback(request: Request):
             content={
                 "error": "No authorization code received.",
                 "hint": "Check the URL for a 'code' parameter.",
-                "url": str(request.url),
             },
         )
     try:
@@ -56,13 +82,17 @@ async def schwab_callback(request: Request):
             "message": "Schwab API connected! You can close this page.",
             "access_token_expires_in": tokens.get("expires_in", "unknown"),
         })
-    except Exception as e:
+    except Exception:
+        # ⛔ THE EXCEPTION IS LOGGED, NOT RETURNED. It came from an HTTP call
+        # carrying the app secret and the auth code; `str(e)` on an httpx error can
+        # carry the request URL straight back to whoever asked.
+        logger.exception("[schwab] token exchange failed")
         return JSONResponse(
             status_code=500,
-            content={"error": f"Token exchange failed: {str(e)}"},
+            content={"error": "Token exchange failed. See server logs."},
         )
 @router.post("/refresh")
-async def schwab_refresh():
+async def schwab_refresh(_admin: dict = Depends(require_flow_admin)):
     """Manually trigger token refresh."""
     tokens = await schwab.refresh_access_token()
     if tokens:
