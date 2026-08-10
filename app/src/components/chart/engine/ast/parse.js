@@ -14,9 +14,13 @@
 //     which is the entire reason `_CASE_COLUMNS` exists.
 //
 // ⭐ THE PERSISTED SHAPE IS THE CONTRACT WITH PYTHON, AND IT IS DELIBERATELY
-// SMALLER THAN jsep's: `num`, `series`, `op`, `call`, with keys drawn from
-// `{type, name, value, args}` and nothing else. Python's walker therefore has
-// four cases — a surface small enough to prove closed.
+// SMALLER THAN jsep's: `num`, `series`, `op`, `call`, `offset`, with keys drawn
+// from `{type, name, value, args}` and nothing else. Python's walker therefore
+// has five cases — a surface small enough to prove closed.
+// ⚰️ SAID "four cases" and omitted `offset` from `291c9d8a` until `b54d4843`
+// corrected the manifest. ⛔ Do not re-type the roster here: `NODE_TYPES` below
+// is the authority and `closedTable.test.js` composes the manifest's claim from
+// it, so a sixth type fails by name rather than drifting three comments apart.
 //
 // ⛔ A STORED TREE CARRYING jsep's OWN NODE SHAPES WOULD MAKE A jsep UPGRADE A
 // DATA MIGRATION. That is why `canonicalise` exists at all, and it is why the
@@ -48,10 +52,14 @@ export const TABLE = deepFreeze(TABLE_JSON)
  *  a test that reads the list it is checking measures a re-typed copy.
  *
  *  ⭐⭐ `offset` IS THE FIFTH, AND IT IS THE BOUNDED BACKWARD FORM — see
- *  `readOffset` below for the whole of what it may say. `closedTable.json`'s
- *  `_canonical` and `_no_offset` notes still describe FOUR; that manifest is
- *  owned elsewhere and this module cannot edit it. The note it needs is stated
- *  once here rather than restated in nine walkers:
+ *  `readOffset` below for the whole of what it may say.
+ *  ⚰️ SAID the manifest "still describe[s] FOUR" — true when written, corrected
+ *  in `b54d4843`: `_canonical`, `_no_offset` and `_scalars_node` now state the
+ *  fifth type, each keeping its withdrawn claim behind the ⚰️ idiom. ⛔ Do not
+ *  restate the roster in prose anywhere: `closedTable.test.js` COMPOSES the
+ *  manifest's claim from `NODE_TYPES` and from the union of the `REFUSALS`
+ *  rosters, so the two can no longer drift. The shape is stated once here
+ *  rather than restated in nine walkers:
  *
  *      { type: 'offset', value: <integer ≥ 0>, args: [ <one child node> ] }
  *
