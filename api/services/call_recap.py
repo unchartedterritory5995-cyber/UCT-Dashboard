@@ -255,17 +255,70 @@ def get_call_recap_with_status(
         _trigger_background_warm(sym)
         return None, "generating"
 
-    # --- Fallback: web context, for names with no published transcript ------
+    # --- No transcript: the web-context fallback, OFF the request path ------
+    #
+    # This used to run inline — a Perplexity lookup plus an LLM synthesis, on
+    # the request. Measured on production, a first open of a name with no
+    # transcript cost 5.29-8.13s while names WITH one returned in 1.68-2.21s.
+    # It was the last place the request path still generated, which is the one
+    # thing this whole design exists to prevent.
+    #
+    # It now runs in the background and the reader is told so, exactly like the
+    # transcript case: the recap appears on the next poll.
+    _trigger_web_fallback(sym, ck)
+    return None, "generating"
+
+
+def _trigger_web_fallback(sym: str, ck: str) -> None:
+    """Run the no-transcript fallback in the background, deduped by symbol."""
+    global _WARM_POOL
+    try:
+        with _WARM_MU:
+            key = f"web::{sym}"
+            if key in _WARM_INFLIGHT:
+                return
+            if _WARM_POOL is None:
+                from concurrent.futures import ThreadPoolExecutor
+                _WARM_POOL = ThreadPoolExecutor(
+                    max_workers=2, thread_name_prefix="recap-warm")
+            _WARM_INFLIGHT.add(key)
+
+        def _run():
+            try:
+                _web_fallback_synthesis(sym, ck)
+            except Exception as exc:
+                _log.warning("[call_recap] web fallback failed for %s: %s", sym, exc)
+            finally:
+                with _WARM_MU:
+                    _WARM_INFLIGHT.discard(f"web::{sym}")
+
+        _WARM_POOL.submit(_run)
+    except Exception as exc:
+        _log.debug("[call_recap] could not trigger web fallback for %s: %s", sym, exc)
+
+
+def _web_fallback_synthesis(sym: str, ck: str):
+    """The former inline tail of get_call_recap_with_status.
+
+    Unchanged in behaviour — it still writes the same cache key with the same
+    TTLs, so a reader polling the endpoint picks the result up. Only WHERE it
+    runs changed.
+    """
+    # `guard` and `market_date` were locals of the caller before this moved out.
+    # Re-established here rather than threaded in as arguments: this is the only
+    # place that spends, so it should be the place that records the spend.
+    guard = _cost_guard()
+    market_date = _today_date()
     try:
         web_context = _pplx_earnings_highlights(sym)
     except Exception as e:
         _log.warning("[call_recap] perplexity fetch failed for %s: %s", sym, e)
         _cache().set(ck, "__null__", _FAILURE_TTL)
-        return None, "unavailable"
+        return None
 
     if not web_context:
         _cache().set(ck, "__null__", _EMPTY_TTL)
-        return None, "unavailable"
+        return None
 
     # --- LLM synthesis ---
     prompt = (
@@ -315,12 +368,12 @@ def get_call_recap_with_status(
                 result[k] = None if k in ("headline", "sentiment", "guidance") else []
 
         _cache().set(ck, result, _RECAP_TTL)
-        return result, "ready"
+        return result
 
     except Exception as e:
         _log.warning("[call_recap] LLM synthesis failed for %s: %s", sym, e)
         _cache().set(ck, "__null__", _FAILURE_TTL)
-        return None, "unavailable"
+        return None
 
 
 def get_call_recap(ticker: str,
