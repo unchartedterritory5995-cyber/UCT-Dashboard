@@ -1,5 +1,31 @@
 # The Bulkowski index — 196 named chart patterns, with a re-fetchable address for each
 
+> ## ⚰️ CORRECTION 2026-08-10 — PIVOT DETECTION WAS NEVER MISSING
+>
+> This file (and two others, and four reports) called pivot detection **"the missing
+> primitive"** and **"the bottleneck"**. **It was wrong.** A pivot high with `L` bars
+> left and `R` right is already sayable:
+>
+> ```
+> high[R] == highest(high, L + R + 1)
+> ```
+>
+> The bounded backward offset supplies the candidate, `highest` supplies the window,
+> and `accum` supplies the memory for *last pivot value* and *bars since*. Three
+> features that landed for three unrelated reasons compose into it. ⭐ The `R`-bar
+> lag is not a compromise — a pivot is unknowable until `R` bars later, and confirming
+> it late is what keeps the value **non-repainting**, which `astReach` verifies.
+>
+> ⛔ **What this does NOT unlock:** cup-with-handle's *"U-shaped, not V-shaped"* and
+> *"rims near the same price level"* are still not expressible — those need shape
+> comparison between pivots, not pivot detection. The harmonic ratios need the same.
+> So the blocker was real; **I named the wrong thing as its cause.**
+>
+> Proven in `app/src/components/chart/engine/ast/pivots.test.js`, including the control
+> that shows the obvious seed (`high[R]`) inventing a pivot level that does not exist.
+
+
+
 **Source:** <https://www.thepatternsite.com/chartpatterns.html>, fetched 2026-08-09.
 **Every page below is `http://thepatternsite.com/<slug>.html`** — so this file is a
 work queue, not just a list: any row can be pulled for its identification rules and
