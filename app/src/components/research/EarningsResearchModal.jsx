@@ -29,13 +29,22 @@ import SetupSection from './sections/SetupSection'
 import EarningsHistorySection from './sections/EarningsHistorySection'
 import BriefSection from './sections/BriefSection'
 import CallSection from './sections/CallSection'
+import OwnershipTab from '../../pages/research/tabs/OwnershipTab'
+import FilingsTab from '../../pages/research/tabs/FilingsTab'
 import styles from './EarningsResearchModal.module.css'
 
-const PANELS = {
+// Exported so a rail can assert every SECTIONS id has a panel behind it. A tab
+// with no panel renders `<undefined/>`, and the modal's own tests cannot see it
+// because the canvas is empty for every section without data providers.
+export const PANELS = {
   setup: SetupSection,
   history: EarningsHistorySection,
   brief: BriefSection,
   call: CallSection,
+  // Rendered IN the modal rather than behind a link that closed it. Both take
+  // only `sym` and carry no router dependency, so they drop in unchanged.
+  analyst: OwnershipTab,
+  filings: FilingsTab,
 }
 
 const fmtEps = (v) => (v == null ? null : `${v < 0 ? '-' : ''}$${Math.abs(v).toFixed(2)}`)
