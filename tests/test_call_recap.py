@@ -82,8 +82,15 @@ def _make_anthropic_response(text: str):
 class TestGetCallRecap:
     def _run(self, sym, pplx_context=_PPLX_WEB_CONTEXT,
              llm_response=None, cache_hit=None):
-        """Run get_call_recap with full mocking."""
-        from api.services.call_recap import get_call_recap
+        """Run the no-transcript fallback synthesis with full mocking.
+
+        It used to be the tail of get_call_recap, and these assertions are about
+        THAT logic — the cache TTLs it writes and the LLM call it makes. It now
+        runs in the background (inline it cost 5.29-8.13s on the request path),
+        so the tests call it where it lives rather than through a request that
+        deliberately returns before it finishes.
+        """
+        from api.services.call_recap import _web_fallback_synthesis
 
         llm_json = llm_response or json.dumps(_SAMPLE_RECAP)
         mock_response = _make_anthropic_response(llm_json)
@@ -115,7 +122,7 @@ class TestGetCallRecap:
             mock_client.messages.create.return_value = mock_response
             mock_client_fn.return_value = mock_client
 
-            result = get_call_recap(sym)
+            result = _web_fallback_synthesis(sym, f"call_recap::{sym}::latest")
         return result, mock_cache, mock_guard, mock_client
 
     def test_returns_correct_shape(self):
@@ -138,7 +145,7 @@ class TestGetCallRecap:
         assert ttl == 24 * 3600
 
     def test_cost_guard_respected(self):
-        from api.services.call_recap import get_call_recap
+        from api.services.call_recap import get_call_recap, _web_fallback_synthesis
 
         # The web-context fallback now runs ONLY for a ticker with no published
         # transcript -- one that HAS a transcript is handed to the background
@@ -169,7 +176,7 @@ class TestGetCallRecap:
         mock_client_fn.return_value.messages.create.assert_not_called()
 
     def test_cache_hit_skips_llm(self):
-        from api.services.call_recap import get_call_recap
+        from api.services.call_recap import get_call_recap, _web_fallback_synthesis
 
         # The web-context fallback now runs ONLY for a ticker with no published
         # transcript -- one that HAS a transcript is handed to the background
@@ -210,7 +217,7 @@ class TestGetCallRecap:
     #     but never a full day, since a recap lands hours after the call
 
     def test_a_transient_failure_is_not_pinned_for_the_success_ttl(self):
-        from api.services.call_recap import get_call_recap, _FAILURE_TTL
+        from api.services.call_recap import _web_fallback_synthesis, _FAILURE_TTL
 
         # The web-context fallback now runs ONLY for a ticker with no published
         # transcript -- one that HAS a transcript is handed to the background
@@ -239,14 +246,17 @@ class TestGetCallRecap:
             mock_client.messages.create.side_effect = RuntimeError("LLM timeout")
             mock_client_fn.return_value = mock_client
 
-            assert get_call_recap("NVDA") is None
+            # The fallback runs in the BACKGROUND now, so its cache write
+            # cannot be observed through a request that returns before it.
+            assert _web_fallback_synthesis("NVDA", "ck") is None
 
         ttl = mock_cache.set.call_args[0][2]
         assert ttl == _FAILURE_TTL
         assert ttl <= 900, "a transient failure must heal within minutes, not a session"
 
     def test_an_empty_provider_answer_is_cached_shorter_than_a_success(self):
-        from api.services.call_recap import get_call_recap, _EMPTY_TTL, _RECAP_TTL
+        from api.services.call_recap import (
+            _web_fallback_synthesis, _EMPTY_TTL, _RECAP_TTL)
 
         # The web-context fallback now runs ONLY for a ticker with no published
         # transcript -- one that HAS a transcript is handed to the background
@@ -269,14 +279,14 @@ class TestGetCallRecap:
             mock_guard.may_synthesize.return_value = True
             mock_guard_fn.return_value = mock_guard
 
-            assert get_call_recap("NOTHING") is None
+            assert _web_fallback_synthesis("NOTHING", "ck") is None
 
         ttl = mock_cache.set.call_args[0][2]
         assert ttl == _EMPTY_TTL
         assert ttl < _RECAP_TTL, "an absent recap must not outlive a real one"
 
     def test_null_safe_on_llm_exception(self):
-        from api.services.call_recap import get_call_recap
+        from api.services.call_recap import get_call_recap, _web_fallback_synthesis
 
         # The web-context fallback now runs ONLY for a ticker with no published
         # transcript -- one that HAS a transcript is handed to the background
@@ -939,3 +949,36 @@ def test_the_two_cold_lookups_share_ONE_budget_rather_than_adding(client, monkey
     # twice it — the regression this pins is the two waits stacking.
     assert elapsed < 2.0, f"the two waits stacked: {elapsed:.2f}s for a 1.0s budget"
     assert r.json()["webcast_url"] is None
+
+
+def test_a_name_with_NO_transcript_does_not_synthesize_on_the_request(monkeypatch):
+    """The last place the request path still generated.
+
+    A ticker with no published transcript fell through to a Perplexity lookup
+    plus an LLM synthesis, inline. Measured on production: those opens cost
+    5.29-8.13s while names WITH a transcript returned in 1.68-2.21s. The whole
+    point of the store is that a request never generates.
+    """
+    import api.services.call_recap as cr
+
+    class _Cache:
+        def __init__(self): self.d = {}
+        def get(self, k): return self.d.get(k)
+        def set(self, k, v, ttl=None): self.d[k] = v
+
+    pplx, triggered = [], []
+    monkeypatch.setattr(cr, "_cache", lambda: _Cache())
+    monkeypatch.setattr(cr, "_store", lambda: MagicMock(get=MagicMock(return_value=None)))
+    monkeypatch.setattr(cr, "_cost_guard",
+                        lambda: MagicMock(may_synthesize=MagicMock(return_value=True)))
+    monkeypatch.setattr(cr, "_transcript_for", lambda s: None)   # no transcript
+    monkeypatch.setattr(cr, "_pplx_earnings_highlights",
+                        lambda s: pplx.append(s) or "some web context")
+    monkeypatch.setattr(cr, "_trigger_web_fallback",
+                        lambda s, ck: triggered.append(s))
+
+    recap, status = cr.get_call_recap_with_status("NOTRANS")
+
+    assert (recap, status) == (None, "generating")
+    assert pplx == [], "Perplexity was called ON THE REQUEST PATH"
+    assert triggered == ["NOTRANS"], "the work was not handed to the background"
