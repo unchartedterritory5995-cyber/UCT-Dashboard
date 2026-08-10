@@ -875,11 +875,21 @@ def _fetch_finviz_movers_live() -> tuple[list, list]:
 
     _qf = "sh_price_o5,sh_avgvol_o300,sh_mktcap_smallover"
     _headers = {"User-Agent": "Mozilla/5.0", "Accept": "text/csv"}
+    # 1=Ticker, 2=Company, 66=Change — the three columns parsed below, pinned
+    # so the payload never depends on the Finviz Elite ACCOUNT's saved custom
+    # view. `v=152` IS that view: whoever edits it in a browser decides what
+    # this function receives. That is not hypothetical — the same omission on
+    # the calendar's day-metrics call is why `avg_vol` read blank on every date
+    # until 2026-08-09. Here the failure would be worse than blank: a missing
+    # `Change` parses to 0.0, which trips the `pct < 3.0` break on the FIRST
+    # row, and the Movers sidebar empties with every request still returning
+    # 200.
+    _qc = "1,2,66"
 
     def _fetch_rows(order: str) -> list[dict]:
         url = (
             f"https://elite.finviz.com/export.ashx"
-            f"?v=152&f={_qf}&o={order}&auth={token}"
+            f"?v=152&f={_qf}&c={_qc}&o={order}&auth={token}"
         )
         try:
             r = httpx.get(url, headers=_headers, timeout=15.0)
