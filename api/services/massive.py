@@ -198,10 +198,17 @@ class _MassiveRestClient:
                 f"{_REST_BASE}/v2/snapshot/locale/us/markets/stocks/tickers"
                 f"?tickers={','.join(chunk)}&apiKey={self._api_key}"
             )
-            try:
-                return self._get(url).get("tickers", []) or []
-            except Exception:
-                return []  # one bad chunk must not wipe the others
+            # Retry once before giving up: a dropped chunk removes its tickers from the map, and
+            # for the Theme Tracker that silently reverts those rows to a stale base % (which can
+            # combine sessions, e.g. showing Friday+Monday). One bad chunk must still not wipe the
+            # others, so we only return [] after both attempts fail.
+            for attempt in range(2):
+                try:
+                    return self._get(url).get("tickers", []) or []
+                except Exception:
+                    if attempt == 0:
+                        continue
+                    return []
 
         rows: list = []
         if len(chunks) <= 1:

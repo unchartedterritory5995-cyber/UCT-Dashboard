@@ -172,6 +172,7 @@ function ThemeGroup({ theme, selectedSym, selectedNavKey, onSelectSym, activeKey
     })
   }, [theme.holdings, activeKey, sortDir])
 
+
   return (
     <>
       <div className={styles.groupRow} onClick={() => onToggle(theme.ticker)}>
