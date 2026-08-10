@@ -196,6 +196,7 @@ async def _run_websocket(on_bar: OnBarCallback) -> None:
         _logger.warning("[bar_stream] MASSIVE_API_KEY not set — bar stream disabled")
         return
 
+
     backoff = 1
     while True:
         try:
@@ -367,6 +368,16 @@ def start_stream(on_bar: OnBarCallback) -> None:
     global _ws_loop
     if _ws_loop is not None:
         _logger.warning("[bar_stream] start_stream called twice — ignoring duplicate call")
+        return
+
+    # 🔴 SAME SLOT-THEFT AS FINNHUB, AND ALREADY A DOCUMENTED TRAP: CLAUDE.md
+    # warns that `MASSIVE_WS_DRY_RUN=1` does NOT protect the connection slot
+    # because "any local run with the prod key kicks production off the feed
+    # (Massive allows ~1 conn/key)". That warning existed for weeks as a thing
+    # to remember; remembering is what failed on 2026-08-10. Gated at the entry
+    # point, not in the reconnect loop — see realtime_stream.start_stream.
+    from api.services import vendor_socket_guard
+    if vendor_socket_guard.refuse_if_local("massive-bars"):
         return
 
     def _thread_target():

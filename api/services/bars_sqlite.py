@@ -828,6 +828,70 @@ def _is_malformed_error(exc: BaseException) -> bool:
     return "malformed" in msg
 
 
+#: The distinct things that can be wrong with the bars store, named by what an
+#: operator must DO about each rather than by what SQLite happened to say.
+STORE_OK = "ok"
+STORE_EMPTY = "empty"                    # table is there, holds nothing
+STORE_SCHEMA_MISSING = "schema-missing"  # self-repairable: init_db() recreates it
+STORE_MALFORMED = "malformed"            # needs a snapshot restore and a human
+STORE_TRANSIENT = "transient"            # the ~30 s inode swap during force_resync
+
+
+def classify_fault(exc: BaseException) -> str:
+    """Classify a bars-store exception into something actionable.
+
+    ⭐ THIS LIVES HERE, BESIDE THE CONNECTION CODE, ON PURPOSE. It is the
+    store's own knowledge, and it now drives TWO callers — the request path's
+    self-repair (`api/routers/bars.py`) and the background monitor's alerting
+    (`bars_continuous_audit`). A second copy in either of them would be a
+    second authority over one value, which is the defect that has cost this
+    repo more outages than any other.
+
+    ⛔ `malformed` is checked BEFORE `no such table`: a corrupt image can
+    report a missing table as a *symptom*, and treating that as self-repairable
+    would run `CREATE TABLE` against damage.
+    """
+    if _is_malformed_error(exc):
+        return STORE_MALFORMED
+    text = str(exc).lower()
+    if "no such table" in text:
+        return STORE_SCHEMA_MISSING
+    if "not a database" in text or "corrupt" in text:
+        return STORE_MALFORMED
+    return STORE_TRANSIENT
+
+
+def store_health() -> dict:
+    """Ask the store, right now, whether it can answer for any bar at all.
+
+    🔴 WRITTEN AFTER 2026-08-10, WHERE NOTHING NOTICED THE STORE WAS GONE.
+    `/data/bars.db` lost its `ohlcv` table mid-session and charts were dead for
+    a session, and the only thing watching — `bars_continuous_audit` — went
+    SILENT rather than red, two different ways (see that module).
+
+    ⭐ IT READS THE ARTIFACT, NOT A PROXY. One `SELECT 1 ... LIMIT 1` against
+    the same thread-local handle a request would use, so the answer is what a
+    member's chart would get — not a counter, not a streak, not a sample.
+    ⛔ Deliberately NOT `COUNT(*)`: on 119M rows that is a table scan, and a
+    monitor that is expensive gets its interval raised until it is useless.
+
+    Returns ``{"ok": bool, "kind": <STORE_*>}``. Never raises — a health check
+    that can crash its own caller is how the last one stayed quiet.
+    """
+    try:
+        row = _conn().execute("SELECT 1 FROM ohlcv LIMIT 1").fetchone()
+    except Exception as e:      # noqa: BLE001
+        kind = classify_fault(e)
+        return {"ok": False, "kind": kind, "detail": str(e)[:200]}
+    if row is None:
+        # ⚠️ An intact, EMPTY table is its own fault kind. It cannot be reached
+        # by the request path's exception handler (nothing throws — every query
+        # just answers "no rows"), so if this function did not name it, it
+        # would stay invisible exactly as it did on 8/10.
+        return {"ok": False, "kind": STORE_EMPTY, "detail": "ohlcv holds 0 rows"}
+    return {"ok": True, "kind": STORE_OK, "detail": ""}
+
+
 def _drop_local_conn() -> None:
     """Close and forget this thread's cached SQLite connection.
 

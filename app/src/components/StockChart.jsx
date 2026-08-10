@@ -218,7 +218,7 @@ const LIVE_TICK_FRESH_MS = 6000
 // Default-zoom: place the LAST candle at this fraction of the plot width on EVERY
 // timeframe so flipping D/W/M/intraday never drifts it left/right. (A fixed
 // bars-of-right-pad drifts because bar spacing widens as fewer bars show.)
-const LAST_CANDLE_POS = 0.96
+const LAST_CANDLE_POS = 0.85
 // …but 4% of the plot is ~40px on a full-width chart and only ~12px inside a
 // narrow workspace widget, which parks the newest candle right on top of the
 // price-scale tags (most visibly the pre-market "Pre" label). So treat the gap
@@ -667,6 +667,75 @@ function computeBarTime(tf, tickTimeSec) {
   // Intraday: floor to period boundary in UTC, then offset to ET for display
   const period = PERIOD_SECONDS[tf] || 300
   return Math.floor(tickTimeSec / period) * period + _ET_OFFSET
+}
+
+// ─── Future-axis extension (TradingView / TC2000 style) ──────────────────────
+// Every chart reserves empty space to the RIGHT of the newest candle so upcoming
+// dates label the axis and the grey upcoming-earnings marker can dock onto its
+// real day. The space is DRAWN by a hidden whitespace series (buildFutureWhitespace)
+// and REVEALED by the default zoom (LAST_CANDLE_POS < 1, below). Works on every tf.
+
+// How many future slots each timeframe generates by default — generous enough to
+// cover the default right-gap plus scroll-right headroom (capped in the builder).
+const FUTURE_MIN = { '1': 90, '5': 30, '15': 30, '30': 24, '60': 24, 'D': 40, 'W': 20, 'M': 14 }
+
+// Canonical slot key for a calendar date on a timeframe, matching how the candle
+// series keys its bars: daily = the exact day, weekly = that ISO week's Friday,
+// monthly = the 1st. Lets an upcoming-earnings date line up with a whitespace slot
+// so the marker docks instead of pinning to the edge. (Mirrors computeBarTime.)
+function bucketSlot(tf, dateStr) {
+  const s = String(dateStr).slice(0, 10)
+  if (tf === 'W') {
+    const dt = new Date(`${s}T00:00:00Z`)
+    if (isNaN(dt.getTime())) return s
+    dt.setUTCDate(dt.getUTCDate() - ((dt.getUTCDay() + 6) % 7) + 4) // Monday of ISO week, then +4 = Friday
+    return dt.toISOString().slice(0, 10)
+  }
+  if (tf === 'M') return `${s.slice(0, 7)}-01`
+  return s
+}
+
+// Build empty whitespace points extending the time axis past the last candle.
+// `lastLwcTime` is the LWC time of the newest bar (a number for intraday, a
+// 'YYYY-MM-DD' string for D/W/M — the SAME format the candle series uses, so the
+// slots align exactly). Generates at least `minCount` future slots; when
+// `targetSlot` is given (the upcoming-earnings day, string tfs only) it keeps
+// going until that slot is included so the marker has a real coordinate. Capped
+// so a far-out estimate can never balloon the series.
+function buildFutureWhitespace(lastLwcTime, tf, minCount, targetSlot = null) {
+  const HARD_CAP = 260
+  const out = []
+  if (typeof lastLwcTime === 'number') {
+    const step = PERIOD_SECONDS[tf] || 300
+    const n = Math.min(HARD_CAP, Math.max(1, minCount))
+    for (let i = 1; i <= n; i++) out.push({ time: lastLwcTime + i * step })
+    return out
+  }
+  const base = String(lastLwcTime).slice(0, 10)
+  const [y, m, d] = base.split('-').map(Number)
+  if (!y || !m || !d) return out
+  let cur = Date.UTC(y, m - 1, d)                          // UTC midnight of the last bar's day
+  const fmt = (ms) => new Date(ms).toISOString().slice(0, 10)
+  let made = 0, guard = 0
+  while (guard++ < HARD_CAP * 8) {
+    if (tf === 'M') {
+      const dt = new Date(cur)
+      cur = Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth() + 1, 1)
+    } else if (tf === 'W') {
+      cur += 7 * 86400000                                  // +7 days from a Friday → next Friday (UTC, DST-proof)
+    } else {
+      cur += 86400000
+      const dow = new Date(cur).getUTCDay()
+      if (dow === 0 || dow === 6) continue                 // daily: business days only, to match the bars
+    }
+    const slot = fmt(cur)
+    if (slot <= base) continue
+    out.push({ time: slot })
+    made++
+    if (made >= minCount && (!targetSlot || slot >= targetSlot)) break
+    if (out.length >= HARD_CAP) break
+  }
+  return out
 }
 
 // ─── Series type helpers ─────────────────────────────────────────────────────
@@ -1967,6 +2036,10 @@ export default function StockChart({
   // right to flag. Written in the render body, below the `useState` that owns it.
   const indicatorsHiddenRef = useRef(false)
   const overlaySeriesRefs = useRef([])
+  // Hidden line series carrying FUTURE whitespace (empty time slots past the last
+  // candle) so the time axis extends past the newest bar on every timeframe and the
+  // upcoming-earnings marker can dock onto its real day. See buildFutureWhitespace.
+  const futureWsSeriesRef = useRef(null)
   const overlayTailSeriesRefs = useRef([])   // candleFrameFade: post-setup MA tail segments whose opacity crossfades on Setup⇄Result
   const frameFadeAlphaRef = useRef(1)        // mirror of frameFadeAlpha for the (deps-light) updateChart overlay loop
   // ⛔ NO `bbUpperRef` / `bbMiddleRef` / `bbLowerRef` / `rsiSeriesRef` (Task 10),
@@ -4190,9 +4263,11 @@ export default function StockChart({
     for (const e of markersData.earnings) {
       if (!e.date) continue
       if (e.estimate) {
-        // Upcoming report — a FUTURE date with no bar yet. The badge primitive pins it to the
-        // right edge of the plot; keep the raw date so the click hit-test can match it.
-        out.push({ date: String(e.date).slice(0, 10), low: null, beat: null, estimate: true, data: e })
+        // Upcoming report — a FUTURE date past the last candle. Key it to the timeframe's
+        // slot (bucketSlot) so it lines up with a future-whitespace point and the badge
+        // DOCKS onto that day once it scrolls into frame; off-screen right / no slot → the
+        // badge primitive pins it to the right edge. Raw date stays on `data` for the popup.
+        out.push({ date: bucketSlot(tf, e.date), low: null, beat: null, estimate: true, data: e })
         continue
       }
       const bar = barByBucket.get(bucket(e.date))
@@ -4206,6 +4281,36 @@ export default function StockChart({
     }
     return out
   }, [markersData, cs.markers?.earnings, resolvedTf, filteredBars])
+
+  // Future-axis extension: a hidden whitespace series pushes the time scale past the
+  // newest candle on EVERY timeframe, so upcoming dates label the axis (shown by
+  // default via LAST_CANDLE_POS) and the grey upcoming-earnings marker docks onto its
+  // real day once in frame. Dedicated hidden series — it never touches the
+  // candle / volume / MA / live series, and the default range still computes from the
+  // real bar count, so nothing that keys off barsLen is disturbed. All ops try/caught.
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart) return
+    const clear = () => { try { futureWsSeriesRef.current?.setData([]) } catch { /* series gone */ } }
+    if (!filteredBars?.length) { clear(); return }
+    const lastLwc = adjustTime(filteredBars[filteredBars.length - 1].t)
+    const est = earningsEvents.find(e => e.estimate)
+    // For string tfs (D/W/M) the estimate is already bucketed to a slot; extend the
+    // whitespace out to it so the badge has a coordinate to dock onto.
+    const targetSlot = (typeof lastLwc === 'string' && est) ? String(est.date).slice(0, 10) : null
+    const pts = buildFutureWhitespace(lastLwc, resolvedTf, FUTURE_MIN[resolvedTf] || 20, targetSlot)
+    if (!pts.length) { clear(); return }
+    if (!futureWsSeriesRef.current) {
+      try {
+        futureWsSeriesRef.current = chart.addSeries(LineSeries, {
+          color: 'rgba(0,0,0,0)', lineWidth: 1, priceScaleId: '',
+          lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false,
+          pointMarkersVisible: false,
+        })
+      } catch { futureWsSeriesRef.current = null }
+    }
+    try { futureWsSeriesRef.current?.setData(pts) } catch { /* series removed (chart recreate) */ }
+  }, [earningsEvents, resolvedTf, filteredBars, adjustTime])
 
   // Splits + dividends: snap each event date to its containing bar (same bucketing
   // as earnings) so they render as bottom-row "S"/"D" badges, one per bar.
@@ -10783,6 +10888,7 @@ export default function StockChart({
         candleSeriesRef.current = null
         volumeSeriesRef.current = null
         overlaySeriesRefs.current = []
+        futureWsSeriesRef.current = null   // removed with the chart; the effect re-adds it on the new one
         priceLineRefs.current = []
         sessionTagRefs.current = []
         sessionTagSeriesRef.current = null
