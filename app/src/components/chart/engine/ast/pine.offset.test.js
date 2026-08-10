@@ -14,10 +14,11 @@
 // not exist, and lit up the moment it did — with no version check, no flag and no
 // `try/catch`. The last case in this file asserts that seam is still a seam.
 //
-// ⛔ THE CONSTRAINTS ARE ASSERTED ON BOTH SIDES ON PURPOSE. Pine's own rules and
-// the engine's are not the same rules — Pine forbids `close[1][2]` and the engine
-// permits it — so a case that only checked one lane would let a divergence
-// through in whichever direction nobody looked.
+// ⛔ THE CONSTRAINTS ARE ASSERTED ON BOTH SIDES ON PURPOSE, because the two rule
+// sets are not the same rule set and they move independently. `close[1][2]` is a
+// Pine compile error; the engine represented it happily for the first hours of
+// this node's life and then refused it too. A case that checked only the
+// translator would still be claiming a divergence that has since closed.
 
 import { describe, it, expect } from 'vitest'
 import { translatePine, treeYieldsBool } from './pine.js'
@@ -81,11 +82,14 @@ describe('the offset a member may write', () => {
   })
 
   it('two applications on one value are refused, exactly as Pine itself rules', () => {
-    // ⚠️ A PINE RULE, NOT AN ENGINE RULE. `close[1][2]` is a compile error in Pine
-    // and the engine happily represents it, so this refusal exists to keep the
-    // translator honest about the language it claims to read.
+    // ⚠️ THIS STARTED AS A PINE-ONLY RULE AND THE ENGINE CAUGHT UP MID-TASK.
+    // `close[1][2]` is a compile error in Pine; the engine represented it happily
+    // for a few hours and then refused it too. Both directions are asserted so
+    // that a divergence in EITHER lane is visible — a test that only checked the
+    // translator would have gone on claiming a divergence that no longer exists,
+    // which is the stale-restatement defect this repo keeps paying for.
     expect(refusal('close[1][2]').guard).toBe('pine:offset-literal')
-    expect(parseFormula('close[1][2]').ok).toBe(true)
+    expect(parseFormula('close[1][2]').ok).toBe(false)
   })
 
   it('`x[0]` is `x`, and it emits no node at all', () => {
