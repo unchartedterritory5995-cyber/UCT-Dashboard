@@ -70,6 +70,34 @@ except Exception as _e:
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
+@router.get("/api/breadth-monitor/ohlc/status")
+def get_breadth_ohlc_status():
+    """Coverage of the breadth candle-wick store (no auth — read-only metadata)."""
+    from api.services import breadth_daily_ohlc
+    return breadth_daily_ohlc.stats()
+
+
+@router.post("/api/breadth-monitor/ohlc/reconstruct")
+def reconstruct_breadth_ohlc(request: Request, days: int = Query(default=60, ge=1, le=1500),
+                             overwrite_live: bool = Query(default=False)):
+    """Backfill historical breadth OHLC (candle wicks) from stored daily stock bars.
+    PUSH_SECRET-gated; runs in a BACKGROUND THREAD (the compute is heavy — never on the
+    request path, and never at web-pod startup, to avoid the pod-memory OOM class)."""
+    _check_auth(request)
+    import threading
+
+    def _run():
+        try:
+            from api.services import breadth_ohlc_reconstruct
+            res = breadth_ohlc_reconstruct.reconstruct_recent(days, overwrite_live=overwrite_live)
+            print(f"[breadth_ohlc] reconstruct done: {res}")
+        except Exception as e:
+            print(f"[breadth_ohlc] reconstruct failed: {e}")
+
+    threading.Thread(target=_run, name="breadth-ohlc-reconstruct", daemon=True).start()
+    return {"ok": True, "started": True, "days": days}
+
+
 @router.get("/api/breadth-symbols")
 def get_breadth_symbols():
     """Public catalog of the UCT breadth pseudo-tickers (UCTA50 etc.) so the chart
@@ -155,6 +183,14 @@ def get_breadth_live(force: bool = False,
         if (payload.get("session_live") and payload.get("anchored")
                 and not payload.get("degraded") and not payload["superseded"]):
             breadth_intraday.record(payload["session_date"], payload["row"])
+            # Roll today's permanent per-metric OHLC (open/high/low/close) from this
+            # sample — the data behind breadth-chart candle WICKS. Same gate as the
+            # intraday path; best-effort (never breaks the live payload).
+            try:
+                from api.services import breadth_daily_ohlc
+                breadth_daily_ohlc.update_intraday(payload["session_date"], payload["row"])
+            except Exception:
+                pass
         payload["path"] = breadth_intraday.session_path(payload["session_date"])
         payload["open"] = breadth_intraday.session_open(payload["session_date"])
         # A store that fails silently for a whole session is how you discover at

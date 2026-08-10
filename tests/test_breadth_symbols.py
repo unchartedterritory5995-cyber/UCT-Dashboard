@@ -3,7 +3,17 @@ import json
 import os
 from unittest.mock import patch
 
+import pytest
+
 from api.services import breadth_symbols as bs
+
+
+@pytest.fixture(autouse=True)
+def _isolate_ohlc_store(monkeypatch):
+    """These tests assert the close-to-close / live-candle behavior, so keep the shared
+    session OHLC (wick) store from bleeding real wick rows into their fixed-value asserts.
+    The store's own use is covered in test_breadth_daily_ohlc.py."""
+    monkeypatch.setattr("api.services.breadth_daily_ohlc.history", lambda *a, **k: {})
 
 
 def test_registry_symbols_unique_and_grouped():
