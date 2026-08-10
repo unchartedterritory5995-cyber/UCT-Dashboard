@@ -314,6 +314,23 @@ async def darkpool_records_refresh(
     return JSONResponse(res)
 
 
+@router.get("/records/card")
+async def darkpool_records_card(
+    post: int = Query(default=0, description="0 = preview the PNG, 1 = post to Discord"),
+    top_n: int = Query(default=25, ge=1, le=40),
+    _auth: dict = Depends(require_flow_admin),
+):
+    """Dark Pool Records leaderboard card (all-time biggest prints). Preview the
+    PNG (post=0) or post it to the Discord channel (post=1)."""
+    from api import darkpool_records as dr
+    res = await run_in_threadpool(dr.run_records_card, post=bool(post), top_n=top_n)
+    if not post and res.get("png"):
+        return Response(content=res["png"], media_type="image/png",
+                        headers=_DARKPOOL_NO_CACHE_HEADERS)
+    res.pop("png", None)
+    return JSONResponse(res)
+
+
 # ── Member: Get available trading dates ───────────────────────────────────────
 @router.get("/dates")
 async def get_dates(_auth: dict = Depends(require_flow_user)):

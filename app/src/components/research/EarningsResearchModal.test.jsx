@@ -3,7 +3,7 @@ import { render, screen, fireEvent, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider } from '../../context/AuthContext'
 
-import EarningsResearchModal, { resolveTrapTargets } from './EarningsResearchModal'
+import EarningsResearchModal, { resolveTrapTargets, PANELS } from './EarningsResearchModal'
 import { SECTIONS } from './railSections'
 import { NOT_ADVICE } from '../../constants/disclaimer'
 import { countGoldHighlights } from '../research-kit/testing/restraint'
@@ -86,21 +86,33 @@ describe('shell structure', () => {
     expect(dlg.getAttribute('aria-label')).toMatch(/NVDA/)
   })
 
-  it('renders the four launch sections as TABS', () => {
+  it('renders every section as a TAB, derived from SECTIONS', () => {
     renderModal()
     const tabs = screen.getAllByRole('tab').map(t => t.textContent.trim())
-    expect(tabs).toEqual(['Setup', 'Earnings History', 'Brief', 'Call'])
-    expect(SECTIONS.map(s => s.label)).toEqual(tabs)
+    // Derived, never retyped: a hardcoded list here would pass against a rail
+    // that had silently dropped or reordered a section.
+    expect(tabs).toEqual(SECTIONS.map(s => s.label))
+    expect(tabs).toContain('Setup')
+    expect(tabs).toContain('Call')
   })
 
-  it('renders Analyst & Ownership and Filings as LINKS, not tabs', () => {
+  it('Analyst & Ownership and Filings are TABS now, and nothing navigates away', () => {
+    // Owner preference: the modal is the surface, not a doorway to one. These
+    // two used to be links that CLOSED the modal and pushed /research — a
+    // context switch in the middle of reading one company.
     renderModal()
-    const ao = screen.getByRole('link', { name: /Analyst & Ownership/i })
-    const fl = screen.getByRole('link', { name: /Filings/i })
-    expect(ao.getAttribute('href')).toBe('/research/NVDA?section=ownership')
-    expect(fl.getAttribute('href')).toBe('/research/NVDA?section=filings')
-    expect(screen.queryByRole('tab', { name: /Analyst & Ownership/i })).toBeNull()
-    expect(screen.queryByRole('tab', { name: /Filings/i })).toBeNull()
+    expect(screen.getByRole('tab', { name: /Analyst & Ownership/i })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: /Filings/i })).toBeTruthy()
+    expect(screen.queryByRole('link', { name: /Analyst & Ownership/i })).toBeNull()
+    expect(screen.queryByRole('link', { name: /Filings/i })).toBeNull()
+
+    // The rail must contain NO link that leaves for /research. The explicit
+    // "Open full report" button in the footer is a separate, deliberate act
+    // and is not part of the rail.
+    const rail = screen.getByRole('tablist').closest('nav')
+    const escapes = [...rail.querySelectorAll('a[href]')]
+      .filter(a => (a.getAttribute('href') || '').includes('/research'))
+    expect(escapes.map(a => a.getAttribute('href'))).toEqual([])
   })
 })
 
@@ -423,11 +435,14 @@ describe('resolveTrapTargets (pure)', () => {
 
 // ── footer + trust posture ───────────────────────────────────────────────────
 describe('footer + §12', () => {
-  it('pins View Chart and Open full report', () => {
+  it('pins View Chart, and no longer offers a way OUT of the modal', () => {
+    // "Open full report" closed the modal and pushed /research. Owner: that
+    // dropped the reader onto a new page mid-read. Every section it led to is
+    // in the rail now, so the control has nothing left to open.
     renderModal()
     const footer = screen.getByTestId('erm-footer')
     expect(within(footer).getByText(/View Chart/i)).toBeTruthy()
-    expect(within(footer).getByText(/full (report|research)/i)).toBeTruthy()
+    expect(within(footer).queryByText(/full (report|research)/i)).toBeNull()
   })
 
   it('carries the standing not-advice line', () => {
@@ -587,5 +602,75 @@ describe('phone Sheet branch', () => {
     } finally {
       offsetParentSpy.mockRestore()
     }
+  })
+})
+
+describe('the whole report is reachable without leaving the modal', () => {
+  it('EVERY section in the rail has a panel behind it', () => {
+    // Structural, not visual: the canvas is empty for every section in this
+    // harness (no data providers), so asserting rendered text would fail for
+    // Setup too and prove nothing. What matters is that no section id can be
+    // added to the rail without wiring a panel — that is the "built, green,
+    // connected to nothing" failure this repo has shipped before.
+    const missing = SECTIONS.filter(s => !PANELS[s.id]).map(s => s.id)
+    expect(missing, `rail sections with no panel: ${missing.join(', ')}`).toEqual([])
+  })
+
+  it('Analyst & Ownership and Filings resolve to real components', () => {
+    expect(PANELS.analyst).toBeTruthy()
+    expect(PANELS.filings).toBeTruthy()
+    expect(typeof PANELS.analyst).toBe('function')
+    expect(typeof PANELS.filings).toBe('function')
+  })
+
+  it('clicking a former LINK section selects a SECTION, it does not navigate', () => {
+    // `section` is controlled by the parent, so the assertion is on what the
+    // modal REQUESTS, not on aria-selected flipping under a no-op handler.
+    const onSectionChange = vi.fn()
+    renderModal({ onSectionChange })
+    fireEvent.click(screen.getByRole('tab', { name: /Analyst & Ownership/i }))
+    expect(onSectionChange).toHaveBeenCalledWith('analyst')
+
+    fireEvent.click(screen.getByRole('tab', { name: /^Filings/i }))
+    expect(onSectionChange).toHaveBeenCalledWith('filings')
+  })
+
+  it('renders the panel when the parent HAS selected one of them', () => {
+    renderModal({ section: 'analyst' })
+    expect(screen.getByRole('tab', { name: /Analyst & Ownership/i })
+      .getAttribute('aria-selected')).toBe('true')
+    expect(screen.getByTestId('erm-canvas')).toBeTruthy()
+  })
+})
+
+describe('the modal never hands the reader off', () => {
+  it('has NO control anywhere that navigates to /research', () => {
+    // Owner: the divert dropped people onto a new page mid-read and lost them.
+    // Asserted across the WHOLE modal, not just the rail, because the escape
+    // that prompted this lived in the footer, not the navigator.
+    const { container } = renderModal()
+    const escapes = [...container.querySelectorAll('a[href]')]
+      .map(a => a.getAttribute('href'))
+      .filter(h => (h || '').includes('/research'))
+    expect(escapes, `still links out to: ${escapes.join(', ')}`).toEqual([])
+    expect(screen.queryByRole('button', { name: /open full report/i })).toBeNull()
+    expect(screen.queryByRole('button', { name: /unlock full research/i })).toBeNull()
+  })
+
+  it('every section /research offered is reachable IN the modal', () => {
+    // Derived from the panel map, so a section cannot be listed in the rail
+    // without a component behind it — the failure that ships a tab leading to
+    // an empty canvas.
+    for (const id of ['fundamentals', 'estimates', 'financials', 'ratings',
+                      'analyst', 'filings']) {
+      expect(PANELS[id], `no panel wired for "${id}"`).toBeTruthy()
+    }
+    const missing = SECTIONS.filter(s => !PANELS[s.id]).map(s => s.id)
+    expect(missing, `rail sections with no panel: ${missing.join(', ')}`).toEqual([])
+  })
+
+  it('still offers View Chart — removing the divert did not remove the chart', () => {
+    renderModal()
+    expect(screen.getByText(/view chart/i)).toBeTruthy()
   })
 })

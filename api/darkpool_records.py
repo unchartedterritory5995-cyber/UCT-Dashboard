@@ -233,3 +233,130 @@ def get_records(limit: int = 300, sort: str = "notional") -> list[dict]:
         c.close()
     return [{"ticker": r[0], "notional": r[1], "price": r[2], "date": r[3],
              "prevNotional": r[4], "prevDate": r[5], "updatedAt": r[6]} for r in rows]
+
+
+def _tracked_count() -> int:
+    return _records_count()
+
+
+# ── Records leaderboard card (Discord highlights) ────────────────────────────
+def render_records_card(records: list[dict], as_of_text: str, tracked: int = 0) -> bytes:
+    """All-time biggest-print leaderboard PNG, in the Dark Pool card's brand."""
+    from PIL import Image, ImageDraw, ImageFont
+    from api.darkpool_eod import (_BG, _BAND, _ROWALT, _GOLD, _GOLD_DIM, _TXT,
+                                  _DIM, _DIV, _ASSETS, _fmt_n, _fmt_perf,
+                                  _PERF_UP, _PERF_DN)
+    W, ROWH, TOP, SS = 1000, 34, 132, 2
+    n = max(1, len(records))
+    H = TOP + n * ROWH + 54
+
+    def font(name, pt):
+        return ImageFont.truetype(os.path.join(_ASSETS, name), int(pt * SS))
+
+    def s(v):
+        return int(v * SS)
+
+    img = Image.new("RGB", (s(W), s(H)), _BG)
+    d = ImageDraw.Draw(img)
+    f_title, f_date = font("DejaVuSans-Bold.ttf", 28), font("DejaVuSans.ttf", 17)
+    f_sub = font("DejaVuSans.ttf", 13)
+    f_hdr = font("DejaVuSans-Bold.ttf", 12)
+    f_row, f_rowb = font("DejaVuSans.ttf", 15), font("DejaVuSans-Bold.ttf", 15)
+    f_foot = font("DejaVuSans.ttf", 12)
+
+    def txt(x, y, t, fnt, fill, align="l"):
+        t = str(t)
+        w = d.textlength(t, font=fnt)
+        d.text(((x * SS - w) if align == "r" else s(x), s(y)), t, font=fnt, fill=fill)
+        return w / SS
+
+    d.rectangle([0, 0, s(W), s(TOP - 26)], fill=_BAND)
+    try:
+        _logo = Image.open(os.path.join(_ASSETS, "compass-mark.png")).convert("RGBA")
+        _logo.putdata([(r, g, b, 0 if (r > 242 and g > 242 and b > 242) else a)
+                       for (r, g, b, a) in _logo.getdata()])
+        _logo = _logo.resize((s(46), s(46)), Image.LANCZOS)
+        img.paste(_logo, (s(30), s(16)), _logo)
+    except Exception:
+        pass
+    tx = 90
+    tx += txt(tx, 22, "UCT Intelligence", f_title, _GOLD) + 10
+    tx += txt(tx, 22, "· Dark Pool Records", f_title, _GOLD_DIM) + 10
+    txt(tx, 29, "— " + as_of_text, f_date, _DIM)
+    txt(30, 66, f"All-time biggest dark-pool prints on record  ·  {tracked:,} tickers tracked"
+        "  ·  PERF = move since the print", f_sub, _DIM)
+
+    cols = [("rank", "#", 40, "l"), ("ticker", "TICKER", 92, "l"),
+            ("notional", "RECORD", 430, "r"), ("price", "PRICE", 580, "r"),
+            ("perf", "PERF", 720, "r"), ("date", "DATE", 900, "r")]
+    for _, hdr, x, al in cols:
+        txt(x, TOP - 28, hdr, f_hdr, _DIM, al)
+    d.rectangle([s(30), s(TOP - 8), s(W - 30), s(TOP - 8) + 1], fill=_DIV)
+
+    y = TOP + 4
+    for i, r in enumerate(records):
+        if i % 2 == 1:
+            d.rectangle([0, s(y - 6), s(W), s(y - 6) + s(ROWH)], fill=_ROWALT)
+        txt(40, y, str(i + 1), f_row, _DIM)
+        txt(92, y, r.get("ticker") or "", f_rowb, _GOLD)
+        txt(430, y, _fmt_n(r.get("notional")), f_rowb, _GOLD, "r")
+        _px = r.get("price")
+        txt(580, y, (f"${_px:,.2f}" if _px else "—"), f_row, _TXT, "r")
+        _pf = r.get("perf")
+        _pf_col = _DIM if _pf is None else (_PERF_UP if _pf >= 0 else _PERF_DN)
+        txt(720, y, _fmt_perf(_pf), f_rowb, _pf_col, "r")
+        txt(900, y, r.get("date") or "—", f_row, _DIM, "r")
+        y += ROWH
+
+    d.rectangle([s(30), s(H - 40), s(W - 30), s(H - 40) + 1], fill=_DIV)
+    txt(30, H - 32, "UCT Intelligence", f_foot, _DIM)
+    txt(W - 30, H - 32, "uctintelligence.com", f_foot, _GOLD_DIM, "r")
+
+    out = img.resize((W, H), Image.LANCZOS)
+    import io
+    buf = io.BytesIO()
+    out.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def run_records_card(*, post: bool = False, top_n: int = 25) -> dict:
+    """Build (+ optionally post) the all-time records leaderboard card. Never
+    raises; post=False returns the PNG under 'png' for preview."""
+    try:
+        from datetime import datetime as _dt
+        from zoneinfo import ZoneInfo
+        recs = get_records(limit=max(1, top_n), sort="notional")
+        # PERF = how the stock has moved SINCE the record print (record price →
+        # latest daily close). Same close reference the EOD card's PERF uses.
+        try:
+            from api.darkpool_eod import _daily_stats
+            for r in recs:
+                px = r.get("price")
+                try:
+                    close = (_daily_stats(r.get("ticker") or "") or {}).get("close")
+                    r["perf"] = ((close - px) / px * 100.0) if (px and close) else None
+                except Exception:
+                    r["perf"] = None
+        except Exception:
+            pass
+        try:
+            _now = _dt.now(ZoneInfo("America/New_York"))
+            as_of = f"{_now.strftime('%B')} {_now.day}, {_now.year}"
+        except Exception:
+            as_of = ""
+        png = render_records_card(recs, as_of, tracked=_tracked_count())
+        res: dict = {"ok": True, "rows": len(recs)}
+        if not post:
+            res["png"] = png
+            return res
+        from api.darkpool_eod import _post_discord_image, _webhook
+        wh = _webhook()
+        if not wh:
+            res.update(posted=False, reason="no webhook")
+            return res
+        ok, detail = _post_discord_image(wh, png, "", filename="dark_pool_records.png")
+        res.update(posted=ok, detail=detail)
+        return res
+    except Exception as e:  # noqa: BLE001
+        log.exception("[darkpool-records] card failed")
+        return {"ok": False, "reason": str(e)}
