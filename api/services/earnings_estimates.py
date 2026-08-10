@@ -888,6 +888,9 @@ def _build_chart_markers(ticker: str) -> dict:
         # chart history. Future estimate rows (epsActual=None) are skipped below.
         fmp_rows = _fmp_get("/stable/earnings", {"symbol": ticker, "limit": 400})
         best_by_date = {}
+        forward = []
+        from datetime import date as _date
+        _today = _date.today().isoformat()
         if isinstance(fmp_rows, list):
             for q in fmp_rows:
                 ds = str(q.get("date") or "")[:10]
@@ -896,7 +899,14 @@ def _build_chart_markers(ticker: str) -> dict:
                 eps_a, eps_e = q.get("epsActual"), q.get("epsEstimated")
                 rev_a, rev_e = q.get("revenueActual"), q.get("revenueEstimated")
                 if eps_a is None and rev_a is None:
-                    continue  # upcoming quarter — nothing reported yet
+                    # Upcoming quarter (no results yet): keep it as a grey estimate-only marker.
+                    if ds >= _today and (eps_e is not None or rev_e is not None):
+                        forward.append({
+                            "date": ds, "estimate": True, "beat": None, "surprise": None,
+                            "eps_actual": None, "eps_estimate": eps_e, "eps_surprise_pct": None,
+                            "revenue_actual": None, "revenue_estimate": rev_e, "revenue_surprise_pct": None,
+                        })
+                    continue
                 beat = bool(eps_a >= eps_e) if (eps_a is not None and eps_e is not None) else None
                 row = {
                     "date": ds,
@@ -936,6 +946,10 @@ def _build_chart_markers(ticker: str) -> dict:
                         "revenue_estimate": None,
                         "revenue_surprise_pct": None,
                     })
+        # Nearest upcoming quarter → ONE grey, estimate-only marker (no results yet).
+        if forward:
+            forward.sort(key=lambda r: r["date"])
+            result["earnings"].append(forward[0])
     except Exception as exc:
         _logger.warning("get_chart_markers earnings failed for %s: %s", ticker, exc)
 
