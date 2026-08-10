@@ -78,6 +78,35 @@ def test_unknown_symbol_returns_empty():
     assert bs.build_breadth_bars("NOPE", "D", 10) == {"ticker": "NOPE", "tf": "D", "bars": []}
 
 
+def test_latest_quote_non_live_mirrors_last_eod_candle():
+    from api.services import breadth_monitor, breadth_live
+    # dates safely in the past so ET-today never coincides
+    hist = [{"date": "2020-03-10", "pct_above_100sma": 60},
+            {"date": "2020-03-09", "pct_above_100sma": 58}]
+    with patch.object(breadth_monitor, "get_history", return_value=hist), \
+         patch.object(breadth_live, "enabled", return_value=False):
+        q = bs.latest_quotes(["UCTA100"])["UCTA100"]
+    assert q["price"] == 60.0 and q["change"] == 2.0 and q["breadth"] is True
+    assert q["change_pct"] == round(2 / 58 * 100, 2)
+
+
+def test_latest_quote_uses_live_value_when_tracked():
+    from api.services import breadth_monitor, breadth_live
+    hist = [{"date": "2020-03-10", "pct_above_50sma": 50},
+            {"date": "2020-03-09", "pct_above_50sma": 48}]
+    with patch.object(breadth_monitor, "get_history", return_value=hist), \
+         patch.object(breadth_live, "enabled", return_value=True), \
+         patch.object(breadth_live, "compute_live", return_value={"pct_above_50sma": 55.0}):
+        q = bs.latest_quotes(["UCTA50"])["UCTA50"]
+    assert q["price"] == 55.0                      # today's live value
+    # newest stored day (2020-03-10 = 50) isn't today, so it's the compare baseline
+    assert q["change"] == round(55.0 - 50.0, 2)     # 5.0
+
+
+def test_latest_quotes_ignores_non_breadth():
+    assert bs.latest_quotes(["AAPL", "UCTT"]) == {}
+
+
 def test_intraday_tf_collapses_to_daily():
     from api.services import breadth_monitor
     with patch.object(breadth_monitor, "get_history", return_value=_fake_history([("2026-08-03", 40)])):

@@ -200,6 +200,77 @@ def _resample(daily_candles: list[dict], tf: str) -> list[dict]:
     return [buckets[k] for k in order]
 
 
+def _et_today() -> Optional[str]:
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.now(ZoneInfo("America/New_York")).date().isoformat()
+    except Exception:
+        return None
+
+
+def latest_quotes(syms: list[str]) -> dict:
+    """{symbol: {price, change, change_pct, volume, breadth}} for the breadth symbols
+    in `syms` — the "quote" the watchlist columns show. Uses the LIVE intraday value
+    where breadth_live tracks that metric (today, vs yesterday's close); otherwise the
+    latest EOD value with its day-over-day change (mirrors the chart's last candle)."""
+    wanted = [s.strip().upper() for s in (syms or []) if is_breadth_symbol(s)]
+    if not wanted:
+        return {}
+    from api.services import breadth_monitor
+    try:
+        hist = breadth_monitor.get_history(4)  # newest-first
+    except Exception:
+        hist = []
+    live_map = {}
+    try:
+        from api.services import breadth_live
+        if breadth_live.enabled():
+            live_map = breadth_live.compute_live() or {}
+    except Exception:
+        live_map = {}
+    today = _et_today()
+
+    out = {}
+    for s in wanted:
+        metric = _METRIC_OF[s]
+        dvals = []  # (date, value) newest-first, finite only
+        for row in hist:
+            d, v = row.get("date"), row.get(metric)
+            try:
+                fv = float(v)
+            except (TypeError, ValueError):
+                continue
+            if math.isfinite(fv):
+                dvals.append((d, fv))
+        if not dvals:
+            continue
+        lv = live_map.get(metric)
+        try:
+            lv = float(lv)
+            if not math.isfinite(lv):
+                lv = None
+        except (TypeError, ValueError):
+            lv = None
+        if lv is not None:
+            # live value = today; compare against the newest stored day that ISN'T today
+            price = lv
+            prev = next((v for (d, v) in dvals if today is None or d != today), dvals[0][1])
+        else:
+            # no live value — mirror the last completed daily candle + its day change
+            price = dvals[0][1]
+            prev = dvals[1][1] if len(dvals) > 1 else dvals[0][1]
+        change = price - prev
+        change_pct = (change / prev * 100.0) if prev else 0.0
+        out[s] = {
+            "price": round(price, 2),
+            "change": round(change, 2),
+            "change_pct": round(change_pct, 2),
+            "volume": 0,
+            "breadth": True,
+        }
+    return out
+
+
 def build_breadth_bars(sym: str, tf: str = "D", bars: int = 400) -> dict:
     """Serve close-to-close OHLC candles for a breadth pseudo-ticker.
 

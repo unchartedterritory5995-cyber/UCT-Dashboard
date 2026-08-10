@@ -426,7 +426,7 @@ function ChartPane({
           displayLabel={headerLabel}
           labelColor={hdrColors.title || null}
           logoSym={synthDailyOnly ? null : sym}
-          brandLogo={themeIdx.isIndex}
+          brandLogo={themeIdx.isIndex || isBreadth}
           boundsRef={focusableRef}
           themeVars={menuVars}
           onSymbolChange={onSymbolChange ? handleSymbolChange : null}
@@ -503,9 +503,11 @@ function ChartPane({
           tf={isBreadth ? breadthTf : (themeIdx.isIndex ? indexTf : tf)}
           {...(isBreadth ? {
             // UCT BREADTH: /api/bars serves the synthetic candles, so NO barsOverride —
-            // just freeze the live paths and label with the indicator's full name.
+            // just freeze the live paths. Watermark = the SYMBOL on top (e.g. UCTA50)
+            // with the indicator's full name beneath it, mirroring a stock's ticker +
+            // company name.
             liveUpdates: false,
-            watermark: breadthRec.name,
+            watermark: sym,
             watermarkName: breadthRec.name,
           } : {})}
           {...(themeIdx.isIndex ? {
