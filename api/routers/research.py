@@ -19,6 +19,22 @@ _logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+@router.get("/api/research/financial-history/{sym}")
+def research_financial_history(sym: str, period: str = "quarter"):
+    """Deep statement series for the fundamentals panels (24q / 12y).
+
+    Separate from /financials, which returns a 5-row grid from yfinance — five
+    points cannot show a cycle.
+    """
+    try:
+        from api.services.research.financial_history import get_history
+        return get_history(sym, period=period)
+    except Exception as exc:
+        _logger.warning("financial history failed for %s: %s", sym, exc)
+        return {"sym": (sym or "").upper(), "period": period,
+                "periods": [], "series": {}}
+
+
 @router.get("/api/research/financials/{sym}")
 def research_financials(sym: str):
     try:

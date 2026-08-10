@@ -1,4 +1,5 @@
 import useOwnership from '../hooks/useOwnership'
+import { SeriesChart } from '../../../components/research-kit'
 import styles from '../ResearchPage.module.css'
 
 function fmtShares(v) {
@@ -50,6 +51,21 @@ export default function OwnershipTab({ sym }) {
         <section className={styles.card}>
           <div className={styles.ct}>Institutional ownership</div>
           <div className={styles.kv}><span>% of shares outstanding</span><b>{fmtPct(inst.pct_held)}</b></div>
+          {!!inst.holders?.length && (
+            <SeriesChart
+              periods={inst.holders.slice(0, 10).map(h => h.holder)}
+              mode="rank"
+              label="Largest institutional holders (% of shares out)"
+              valueFormatter={(v) => (v == null ? '—' : `${Number(v).toFixed(2)}%`)}
+              ariaLabel="Institutional holders ranked by percent of shares outstanding"
+              series={[{
+                name: '% out',
+                color: 'var(--ut-gold, #c9a84c)',
+                values: inst.holders.slice(0, 10).map(h => h.pct_out),
+              }]}
+            />
+          )}
+
           {!!inst.holders?.length && (
             <div className={`${styles.gridScroll} ${styles.ownHolders}`}>
               <table className={styles.fgrid}>

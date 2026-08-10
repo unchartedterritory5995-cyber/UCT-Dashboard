@@ -1,0 +1,50 @@
+.wrap { display: flex; flex-direction: column; gap: 10px; }
+
+.head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap;
+}
+
+.count {
+  font-size: 11px; font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted, #8a8f98);
+}
+
+.toggle { display: flex; gap: 4px; }
+.on, .off {
+  min-height: 26px; padding: 3px 10px; border-radius: 4px; cursor: pointer;
+  font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
+  border: 1px solid rgba(255, 255, 255, .14); background: transparent;
+  color: var(--color-text-muted, #8a8f98);
+}
+.on { border-color: var(--ut-gold, #c9a84c); color: var(--ut-gold, #c9a84c); }
+
+/* Small multiples: three across on desktop, one on phone. auto-fit rather than
+   a fixed count so the modal and the page both get a sensible layout without
+   either owning a breakpoint. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.panel {
+  padding: 10px 12px 6px;
+  border: 1px solid rgba(255, 255, 255, .07);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, .02);
+  min-width: 0;
+}
+
+.title {
+  margin-bottom: 2px;
+  font-size: 11px; font-weight: 700; letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--color-text, #d8dade);
+}
+
+.note { margin: 0; font-size: 12px; color: var(--color-text-muted, #8a8f98); }
+
+@media (max-width: 640px) {
+  .grid { grid-template-columns: 1fr; }
+}

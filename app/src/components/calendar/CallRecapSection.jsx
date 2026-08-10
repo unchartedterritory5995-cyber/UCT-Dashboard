@@ -15,6 +15,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import UIcon from '../ui/UIcon'
 import { normalizeCallRecap, guidanceKind } from '../research/callRecap'
+import { SeriesChart } from '../research-kit'
 import grounded from './GroundedBlocks.module.css'
 import styles from './CallRecapSection.module.css'
 
@@ -92,9 +93,29 @@ function periodLabel(period) {
 
 function RatingChanges({ changes }) {
   if (!changes?.length) return null
+  // Oldest first: the rows arrive newest-first, and a drift chart plotted in
+  // that order runs backwards through time while looking perfectly normal.
+  const asc = [...changes].reverse()
   return (
     <div className={styles.ratingsBlock}>
       <div className={styles.sectionLabel}>ANALYST RATING TREND</div>
+      {/* Stacked, because the question is whether the BALANCE is shifting —
+          buys converting to holds is the signal, and five separate lines make
+          that hard to see. Each bucket names its own colour; the sell buckets
+          must never inherit a green from their position in a palette. */}
+      <SeriesChart
+        periods={asc.map(r => periodLabel(r.period))}
+        mode="stacked"
+        valueFormatter={(v) => (v == null ? '—' : `${v} analysts`)}
+        ariaLabel="Analyst rating buckets over time"
+        series={[
+          { name: 'Strong buy', color: '#2e7d32', values: asc.map(r => r.strong_buy) },
+          { name: 'Buy', color: '#7ed957', values: asc.map(r => r.buy) },
+          { name: 'Hold', color: '#8a8f98', values: asc.map(r => r.hold) },
+          { name: 'Sell', color: '#e57373', values: asc.map(r => r.sell) },
+          { name: 'Strong sell', color: '#c62828', values: asc.map(r => r.strong_sell) },
+        ]}
+      />
       <div className={styles.ratingsList}>
         {changes.map((rc, i) => {
           // null delta = no prior month to compare, which is not "unchanged".

@@ -474,3 +474,24 @@ def transcript_index_status():
         return ix.stats()
     except Exception as e:
         return {"error": str(e)}
+
+
+@router.get("/api/earnings/transcript-trend")
+def transcript_trend_endpoint(
+    q: str = Query(..., min_length=2),
+    months: int = Query(default=12, ge=1, le=36),
+    symbol: Optional[str] = Query(default=None),
+    user: dict = Depends(require_paid),
+):
+    """Is a theme accelerating across the market? Monthly share of calls.
+
+    Reported as a share, not a raw count: calls cluster hard in earnings season,
+    so a raw count peaks every quarter regardless of the theme and the shape
+    would describe the calendar instead.
+    """
+    try:
+        from api.services import transcript_index as ix
+        return ix.trend(q, months=months, symbol=symbol)
+    except Exception as e:
+        _log.warning("[earnings_intel] transcript trend failed for %r: %s", q, e)
+        return {"query": q, "months": [], "total": 0, "error": "trend unavailable"}

@@ -3,3 +3,20 @@
   padding: var(--space-sm) 0;
   border-top: 1px solid var(--glass-border-neutral);
 }
+
+/* Legend for SeriesChart — it shares this stylesheet because it is the same
+   visual family as the single-measure trend it sits beside. */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  font-size: 11px;
+  color: var(--color-text-muted, #8a8f98);
+}
+.legend li { display: flex; align-items: center; gap: 5px; }
+.legend span {
+  width: 9px; height: 3px; border-radius: 2px; display: inline-block;
+}
