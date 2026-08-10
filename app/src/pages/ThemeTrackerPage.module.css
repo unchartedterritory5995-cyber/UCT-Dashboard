@@ -255,48 +255,33 @@
 /* ── Theme group row ────────────────────────────────────────────────────── */
 .groupRow {
   display: grid;
-  /* Name fills the left (wraps when narrow); breadth bar sits in the middle; % stays
-     right-aligned in a shared auto column so all %'s line up vertically on the right. */
-  grid-template-columns: 1fr auto auto;
+  /* Name fills the left (wraps when narrow); % stays right-aligned in a shared auto column so
+     all %'s line up vertically on the right. The middle is deliberately clean whitespace. */
+  grid-template-columns: 1fr auto;
   column-gap: 10px;
   align-items: center;
-  padding: 7px 12px;
+  /* Calmer, more spacious rows — the whitespace IS the design. */
+  padding: 10px 14px;
   background: var(--tt-elev, var(--bg-elevated));
   border-bottom: 1px solid var(--tt-divider, var(--border));
   cursor: pointer;
   user-select: none;
+  position: relative;
+  overflow: hidden;
 }
 
-/* Breadth = up/down participation across the theme's stocks. Split bar (green up / red down)
-   + counts, filling the middle space between the theme name and its %. */
-.breadth {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
+/* Subtle right-edge strength accent: a thin rail flush to the far right, direction-colored,
+   its opacity scaled by the move's magnitude (set inline per row) — a quiet strength gradient
+   you can scan down the list without anything cluttering the middle. */
+.groupAccent {
+  position: absolute;
+  right: 0;
+  top: 22%;
+  bottom: 22%;
+  width: 3px;
+  border-radius: 2px 0 0 2px;
+  pointer-events: none;
 }
-.breadthBar {
-  display: inline-flex;
-  width: 46px;
-  height: 6px;
-  border-radius: 3px;
-  overflow: hidden;
-  background: var(--tt-divider, rgba(255, 255, 255, 0.12));
-}
-.breadthUp { background: var(--tt-up, #16a34a); }
-.breadthDown { background: var(--tt-down, #dc2626); }
-.breadthCount {
-  display: inline-flex;
-  gap: 5px;
-  font-family: var(--font-sans);
-  font-size: calc(9.5px * var(--tt-font-scale, 1));
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-  white-space: nowrap;
-}
-.breadthUpTxt { color: var(--tt-up, #16a34a); }
-.breadthDownTxt { color: var(--tt-down, #dc2626); }
 
 .groupRow:hover {
   background: var(--tt-row-hover, var(--bg-hover));
