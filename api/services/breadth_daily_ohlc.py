@@ -185,6 +185,62 @@ def history(metric: str, limit: int = 6000) -> dict:
     return out
 
 
+def backfill_from_intraday(days: int = 8) -> dict:
+    """Aggregate REAL intraday breadth samples into daily OHLC — the ACCURATE historical
+    wick source. `breadth_intraday` stores the full-universe live snapshot (all metrics)
+    every ~55s with ~7-day retention; per session_date we take open=first sample, high=max,
+    low=min, close=last, over the actual sampled values. Written source='live' (real data).
+    Cheap: a few thousand JSON rows, no recompute. Returns a summary."""
+    import json as _json
+    from collections import defaultdict
+    _ensure_init()
+    try:
+        from api.services import breadth_intraday as bi
+        with bi._conn() as ic:
+            rows = ic.execute(
+                "SELECT session_date, as_of, metrics FROM breadth_intraday ORDER BY session_date, as_of"
+            ).fetchall()
+    except Exception as e:
+        return {"ok": False, "reason": f"intraday unreadable: {e}"}
+
+    per_day = defaultdict(list)   # date -> [(as_of, metrics_dict)]
+    for (d, as_of, mjson) in rows:
+        try:
+            per_day[d].append((int(as_of), _json.loads(mjson)))
+        except Exception:
+            continue
+    target = sorted(per_day.keys())
+    if days:
+        target = target[-days:]
+
+    written_days, written_rows, done = 0, 0, []
+    for d in target:
+        agg = {}   # metric -> [o, h, l, c]
+        for (_as_of, m) in sorted(per_day[d], key=lambda x: x[0]):
+            for k, v in m.items():
+                fv = _finite(v)
+                if fv is None:
+                    continue
+                a = agg.get(k)
+                if a is None:
+                    agg[k] = [fv, fv, fv, fv]
+                else:
+                    if fv > a[1]:
+                        a[1] = fv
+                    if fv < a[2]:
+                        a[2] = fv
+                    a[3] = fv
+        n = 0
+        for metric, (o, h, l, c) in agg.items():
+            if set_ohlc(d, metric, o, h, l, c, source="live", overwrite_live=True):
+                n += 1
+        if n:
+            written_days += 1
+            written_rows += n
+            done.append(d)
+    return {"ok": True, "days": written_days, "rows": written_rows, "dates": done[-10:]}
+
+
 def purge_reconstructed() -> int:
     """Delete all daily-bar 'reconstruct' rows (they were inaccurate). Returns the count."""
     _ensure_init()

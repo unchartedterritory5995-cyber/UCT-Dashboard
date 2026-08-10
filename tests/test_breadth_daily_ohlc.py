@@ -47,6 +47,23 @@ def test_set_ohlc_does_not_clobber_live_and_history_is_live_only(fresh_store):
     assert store.history("x")["2026-08-05"] == {"o": 22.0, "h": 47.0, "l": 20.0, "c": 41.0}
 
 
+def test_backfill_from_intraday_aggregates_real_samples(fresh_store, monkeypatch):
+    import sqlite3
+    import json as _json
+    from api.services import breadth_intraday as bi
+    conn = sqlite3.connect(":memory:")
+    conn.execute("CREATE TABLE breadth_intraday (session_date TEXT, as_of INTEGER, "
+                 "metrics TEXT, PRIMARY KEY(session_date, as_of))")
+    for as_of, v in [(1, 50.0), (2, 60.0), (3, 45.0), (4, 52.0)]:      # open 50, hi 60, lo 45, close 52
+        conn.execute("INSERT INTO breadth_intraday VALUES(?,?,?)",
+                     ("2026-08-10", as_of, _json.dumps({"pct_above_50sma": v})))
+    conn.commit()
+    monkeypatch.setattr(bi, "_conn", lambda: conn)
+    res = store.backfill_from_intraday(8)
+    assert res["ok"] and res["rows"] >= 1
+    assert store.history("pct_above_50sma")["2026-08-10"] == {"o": 50.0, "h": 60.0, "l": 45.0, "c": 52.0}
+
+
 def test_build_breadth_bars_uses_store_for_wicks(fresh_store):
     from api.services import breadth_symbols as bs
     from api.services import breadth_monitor, breadth_live

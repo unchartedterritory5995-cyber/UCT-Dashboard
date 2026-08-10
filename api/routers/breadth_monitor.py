@@ -77,6 +77,16 @@ def get_breadth_ohlc_status():
     return breadth_daily_ohlc.stats()
 
 
+@router.post("/api/breadth-monitor/ohlc/backfill-intraday")
+def backfill_breadth_ohlc_intraday(request: Request, days: int = Query(default=8, ge=1, le=60)):
+    """Aggregate the REAL intraday breadth samples (breadth_intraday, full-universe, ~7-day
+    retention) into accurate daily OHLC wicks. Cheap (aggregates stored JSON, no recompute),
+    so it runs inline. PUSH_SECRET-gated."""
+    _check_auth(request)
+    from api.services import breadth_daily_ohlc
+    return breadth_daily_ohlc.backfill_from_intraday(days)
+
+
 @router.post("/api/breadth-monitor/ohlc/purge-reconstructed")
 def purge_breadth_ohlc_reconstructed(request: Request):
     """Delete the inaccurate daily-bar 'reconstruct' rows. (A breadth metric's true
