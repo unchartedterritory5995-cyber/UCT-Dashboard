@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider } from '../../context/AuthContext'
 
 import EarningsResearchModal, { resolveTrapTargets, PANELS } from './EarningsResearchModal'
-import { SECTIONS } from './railSections'
+import { SECTIONS, normalizeSection } from './railSections'
 import { NOT_ADVICE } from '../../constants/disclaimer'
 import { countGoldHighlights } from '../research-kit/testing/restraint'
 
@@ -96,14 +96,14 @@ describe('shell structure', () => {
     expect(tabs).toContain('Call')
   })
 
-  it('Analyst & Ownership and Filings are TABS now, and nothing navigates away', () => {
-    // Owner preference: the modal is the surface, not a doorway to one. These
-    // two used to be links that CLOSED the modal and pushed /research — a
-    // context switch in the middle of reading one company.
+  it('Analysts and Filings are TABS, and nothing navigates away', () => {
+    // These used to be links that CLOSED the modal and pushed /research — a
+    // context switch in the middle of reading one company. Analyst & Ownership
+    // has since merged into the broader Analysts section.
     renderModal()
-    expect(screen.getByRole('tab', { name: /Analyst & Ownership/i })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: /^Analysts$/i })).toBeTruthy()
     expect(screen.getByRole('tab', { name: /Filings/i })).toBeTruthy()
-    expect(screen.queryByRole('link', { name: /Analyst & Ownership/i })).toBeNull()
+    expect(screen.queryByRole('link', { name: /Analysts/i })).toBeNull()
     expect(screen.queryByRole('link', { name: /Filings/i })).toBeNull()
 
     // The rail must contain NO link that leaves for /research. The explicit
@@ -616,10 +616,10 @@ describe('the whole report is reachable without leaving the modal', () => {
     expect(missing, `rail sections with no panel: ${missing.join(', ')}`).toEqual([])
   })
 
-  it('Analyst & Ownership and Filings resolve to real components', () => {
-    expect(PANELS.analyst).toBeTruthy()
+  it('Analysts and Filings resolve to real components', () => {
+    expect(PANELS.analysts).toBeTruthy()
     expect(PANELS.filings).toBeTruthy()
-    expect(typeof PANELS.analyst).toBe('function')
+    expect(typeof PANELS.analysts).toBe('function')
     expect(typeof PANELS.filings).toBe('function')
   })
 
@@ -628,16 +628,16 @@ describe('the whole report is reachable without leaving the modal', () => {
     // modal REQUESTS, not on aria-selected flipping under a no-op handler.
     const onSectionChange = vi.fn()
     renderModal({ onSectionChange })
-    fireEvent.click(screen.getByRole('tab', { name: /Analyst & Ownership/i }))
-    expect(onSectionChange).toHaveBeenCalledWith('analyst')
+    fireEvent.click(screen.getByRole('tab', { name: /^Analysts$/i }))
+    expect(onSectionChange).toHaveBeenCalledWith('analysts')
 
     fireEvent.click(screen.getByRole('tab', { name: /^Filings/i }))
     expect(onSectionChange).toHaveBeenCalledWith('filings')
   })
 
   it('renders the panel when the parent HAS selected one of them', () => {
-    renderModal({ section: 'analyst' })
-    expect(screen.getByRole('tab', { name: /Analyst & Ownership/i })
+    renderModal({ section: 'analysts' })
+    expect(screen.getByRole('tab', { name: /^Analysts$/i })
       .getAttribute('aria-selected')).toBe('true')
     expect(screen.getByTestId('erm-canvas')).toBeTruthy()
   })
@@ -661,8 +661,7 @@ describe('the modal never hands the reader off', () => {
     // Derived from the panel map, so a section cannot be listed in the rail
     // without a component behind it — the failure that ships a tab leading to
     // an empty canvas.
-    for (const id of ['fundamentals', 'estimates', 'financials', 'ratings',
-                      'analyst', 'filings']) {
+    for (const id of ['financials', 'analysts', 'filings']) {
       expect(PANELS[id], `no panel wired for "${id}"`).toBeTruthy()
     }
     const missing = SECTIONS.filter(s => !PANELS[s.id]).map(s => s.id)
@@ -672,5 +671,42 @@ describe('the modal never hands the reader off', () => {
   it('still offers View Chart — removing the divert did not remove the chart', () => {
     renderModal()
     expect(screen.getByText(/view chart/i)).toBeTruthy()
+  })
+})
+
+describe('the rail is curated, and old links still land', () => {
+  it('is EIGHT curated sections, not the eleven it sprawled to', () => {
+    // Eleven shallow entries split one question across three clicks and made
+    // the rail scroll on phone. Consolidated to six, then News earned its own
+    // place — it answers "what else happened", which nothing else covered.
+    expect(SECTIONS).toHaveLength(8)
+    expect(SECTIONS.map(s => s.id)).toEqual(
+      ['setup', 'history', 'brief', 'call', 'financials', 'analysts',
+       'news', 'filings'])
+  })
+
+  it('every id still has a panel', () => {
+    const missing = SECTIONS.filter(s => !PANELS[s.id]).map(s => s.id)
+    expect(missing, `sections with no panel: ${missing.join(', ')}`).toEqual([])
+  })
+
+  it('MERGED ids resolve to their new home rather than falling back to Setup', () => {
+    // A bookmark or a shared ?section=statements link must land where the
+    // reader meant. Silently defaulting to Setup is the failure here.
+    expect(normalizeSection('statements')).toBe('financials')
+    expect(normalizeSection('fundamentals')).toBe('financials')
+    expect(normalizeSection('estimates')).toBe('analysts')
+    expect(normalizeSection('ratings')).toBe('analysts')
+    expect(normalizeSection('analyst')).toBe('analysts')
+    expect(normalizeSection('ownership')).toBe('analysts')
+  })
+
+  it('a genuinely unknown id still falls back', () => {
+    expect(normalizeSection('nonsense')).toBe('setup')
+    expect(normalizeSection(null)).toBe('setup')
+  })
+
+  it('current ids are untouched by the merge map', () => {
+    for (const s of SECTIONS) expect(normalizeSection(s.id)).toBe(s.id)
   })
 })

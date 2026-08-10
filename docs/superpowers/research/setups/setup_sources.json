@@ -1,0 +1,557 @@
+{
+  "_": "THE SOURCE REGISTRY FOR THE SETUP CATALOG. Every number in setup_criteria.json cites one or more ids from here, and every id here points at something that RESOLVES: a URL, a book with a chapter, a firm store with a selector, or a firm code location. Research artifact only — nothing reads this file.",
+  "_grounding_rule": "The owner's decision EXTENDS THE SOURCES, NOT THE DISCIPLINE. An external citation is legitimate grounding IF IT RESOLVES. What stays forbidden is an invented number. So a source with `resolved: verified` was fetched and its quote read back in this pass; `resolved: reported` was read by a research agent but not re-fetched by the compiler; `resolved: blocked` could not be opened at all and anything citing it is LOW confidence by construction.",
+  "_no_average": "WHERE SOURCES DISAGREE, EVERY ONE OF THEM IS REGISTERED AND EVERY NUMBER IS KEPT. Nothing here is averaged. An average is a number nobody published, which is the exact defect the grounding rule exists to prevent. The disagreements are indexed in SETUP_NOTES.md section 6.",
+  "_kinds": {
+    "firm_store": "a row in a firm database, addressed by store + table + selector. Read-only this pass.",
+    "firm_code": "a firm code location that resolves by AST — module + symbol. The kind conceptVocabulary.json already calls `classifier`.",
+    "firm_preset": "a labelled threshold in api/services/screener/filters.py::FILTERS. The kind conceptVocabulary.json calls `filter_preset`.",
+    "firm_screen": "a shipped screen in api/services/screener/saved_screens.py::starters(). The kind conceptVocabulary.json calls `starter_screen`.",
+    "firm_playbook": "the firm's authored prose in app/src/pages/modelbook/setupPlaybooks.js. ⛔ A PLAYBOOK IS NEVER A GROUNDING — it is prose and cannot mechanically produce a tree. It rides as an ATTRIBUTION, per starterScans.json::_grounding.",
+    "web": "a public URL. `accessed` is when it was read in this pass.",
+    "book": "a book. Requires edition + chapter or page. Nothing here cites a book without one.",
+    "paper": "an academic paper with an id (SSRN/arXiv/DOI)."
+  },
+  "version": "2026-08-09.1",
+  "compiled_at": "2026-08-09",
+
+  "sources": {
+
+    "firm_modelbook_db": {
+      "kind": "firm_store", "resolved": "verified",
+      "store": "C:\\data\\modelbook.db",
+      "tables": ["modelbook_stocks", "modelbook_setups", "modelbook_setup_examples", "modelbook_catalysts", "modelbook_year_recaps"],
+      "title": "The dashboard-owned Model Book",
+      "note": "READ AND FOUND EMPTY OF SETUPS on 2026-08-09: modelbook_stocks=20, modelbook_setups=0, modelbook_setup_examples=0, modelbook_catalysts=0. Same in the worktree copy at data/modelbook.db. The production rows are behind auth (GET /api/modelbook/years -> 401) and signing in was out of bounds. This is the catalog's biggest open gap."
+    },
+
+    "firm_brain_setup_templates": {
+      "kind": "firm_store", "resolved": "verified",
+      "store": "C:\\Users\\Patrick\\uct-intelligence\\data\\uct_intelligence.db",
+      "table": "setup_templates", "rows": 48,
+      "title": "The firm's 48 setup templates",
+      "fields_cited": ["description", "trend_requirements", "ma_alignment", "rs_requirements", "liquidity_min", "entry_triggers", "stop_methods", "max_stop_pct", "profit_logic", "invalidation", "hold_time_range"],
+      "note": "Each row carries an `origin_trader`. Where a template restates an external author (Minervini, O'Neil, Qullamaggie, Kell, Weinstein, Morales), the catalog cites BOTH this row and the external source, and records them separately when the numbers differ."
+    },
+    "firm_brain_setup_triggers": {
+      "kind": "firm_store", "resolved": "verified",
+      "store": "C:\\Users\\Patrick\\uct-intelligence\\data\\uct_intelligence.db",
+      "table": "setup_triggers", "rows": 94,
+      "title": "Triggers the firm published on real symbols, with a real entry and stop",
+      "note": "entry_level + stop_level + entry_kind + stop_kind + outcome per row. ⛔ The observed risk percentages are an OUTCOME DISTRIBUTION of the level rule against the tape, not a threshold anybody published — recorded as `observed`, never as a criterion."
+    },
+    "firm_brain_model_examples": {
+      "kind": "firm_store", "resolved": "verified",
+      "store": "C:\\Users\\Patrick\\uct-intelligence\\data\\uct_intelligence.db",
+      "table": "model_examples", "rows": 18,
+      "title": "Charts the firm labelled with a setup type and a grade",
+      "note": "3 of 18 carry prices. CLAUDE.md calls this table 'unreachable on Railway' — the dashboard Model Book was built to replace it, and is the one that is empty. Two Model Books; the older one has the data."
+    },
+    "firm_brain_setup_performance": {
+      "kind": "firm_store", "resolved": "verified",
+      "store": "C:\\Users\\Patrick\\uct-intelligence\\data\\uct_intelligence.db",
+      "table": "setup_performance", "rows": 21,
+      "title": "Measured win rate / expectancy per setup per regime",
+      "note": "🔴 A CLAIM, NOT A CRITERION. Subject to spec §1.6 and conceptVocabulary.json::_no_numbers (design §8.3 is OPEN). Recorded with is_screening_criterion:false; no percentage from it may reach a surface."
+    },
+    "firm_brain_kb": {
+      "kind": "firm_store", "resolved": "verified",
+      "store": "C:\\Users\\Patrick\\uct-intelligence\\data\\uct_intelligence.db",
+      "table": "knowledge_base", "rows": 8835,
+      "title": "The firm's attributed rule base",
+      "note": "Every row carries `trader` and `source_ref`. 1,499 rows tagged SETUP, 2,302 RULE, 326 SCREENING. Rows whose source_ref is an external URL are cross-cited to that URL; rows whose source_ref is an internal file are firm-only."
+    },
+
+    "firm_code_filters": {
+      "kind": "firm_preset", "resolved": "verified",
+      "module": "api.services.screener.filters", "symbol": "FILTERS",
+      "title": "The firm's own labelled thresholds",
+      "presets_cited": {
+        "rs_rank": ["Over 70 (>=70)", "Over 80 (>=80)", "Over 90 (>=90)"],
+        "uct_composite": ["Over 80", "Over 90"],
+        "rsi14": ["Oversold (<30)", "40-60", "Overbought (>70)"],
+        "vol_ratio": ["Over 1.5x", "Over 2x"],
+        "adr_pct": ["Over 4%", "Over 8%"],
+        "gap_pct": ["Up >3%", "Down >3%"],
+        "dist_52w_high_pct": ["Within 5% (>=-5)"],
+        "pct_vs_ema20": ["Within 2% (between -2 and 2)"],
+        "close_position": ["Top third (>0.66)", "Bottom third (<0.33)"],
+        "inside_bar_run": ["2+"],
+        "higher_lows_run": ["3+"],
+        "pullback_depth_pct": ["Shallow (<10%)", "Deep (>20%)"],
+        "consecutive_up": ["3+"],
+        "market_cap": ["Mega >$200B", "Large >$10B", "Mid+ >$2B", "Small+ >$300M"],
+        "price": ["Over $10", "Over $50", "Under $20"],
+        "avg_volume_30d": ["Over 1M", "Over 5M"],
+        "beta": ["Less volatile than the market (<1)"]
+      }
+    },
+    "firm_code_starters": {
+      "kind": "firm_screen", "resolved": "verified",
+      "module": "api.services.screener.saved_screens", "symbol": "starters",
+      "title": "The four screens the firm ships",
+      "screens": {
+        "starter_leaders_pullback": "rs_rank >= 80 && above_50sma && -2 <= pct_vs_ema20 <= 2",
+        "starter_high_rs_bases": "rs_rank >= 80 && tight_consolidation",
+        "starter_gappers": "gap_pct >= 3 && above_50sma",
+        "starter_value_quality": "pe_fwd <= 20 && roe >= 15 && eps_growth >= 15"
+      }
+    },
+    "firm_code_candles": {
+      "kind": "firm_code", "resolved": "verified",
+      "module": "api.services.screener.candles", "symbols": ["single_candle", "multi_candle"],
+      "title": "The firm's candle and multi-bar classifiers",
+      "constants": {
+        "wide_bar": "range > 1.5 * ATR14",
+        "narrow_bar": "range < 0.5 * ATR14",
+        "tight_consolidation": "coefficient of variation of the last 10 closes < 2.5%",
+        "nr7": "narrowest range of the last 7 bars",
+        "pullback_depth_pct": "measured from the 20-bar high to the last close",
+        "hammer": "lower_wick_pct > 0.5 && body_pct < 0.35 && upper_wick_pct < 0.15",
+        "shooting_star": "upper_wick_pct > 0.5 && body_pct < 0.35 && lower_wick_pct < 0.15",
+        "doji": "body_pct < 0.1",
+        "marubozu": "body_pct > 0.85",
+        "spinning_top": "body_pct < 0.3",
+        "engulfing": "close > open && open <= prior body low && close >= prior body high"
+      }
+    },
+    "firm_code_patterns": {
+      "kind": "firm_code", "resolved": "verified",
+      "module": "api.services.screener.patterns", "symbol": "detect_patterns",
+      "title": "The firm's nightly pattern detectors",
+      "constants": {
+        "flat_base": "last 20 closes inside an 8% band AND price >= 0.95 * band high",
+        "vcp": "three consecutive ~10-bar swing ranges, each smaller than the last",
+        "bull_flag": "run > 20% over bars -25 to -10, then a pullback of 0 < x < 10%",
+        "breakout_52w": "today's high >= the 252-bar high",
+        "golden_cross": "SMA50 crosses above SMA200",
+        "death_cross": "SMA50 crosses below SMA200"
+      },
+      "note": "⛔ These land in screener_rows.patterns, a TEXT column closedTable.json excludes by construction. The detection exists; the column to screen on does not."
+    },
+    "firm_code_technicals": {
+      "kind": "firm_code", "resolved": "verified",
+      "module": "api.services.screener.technicals", "symbol": "compute_technicals",
+      "title": "The firm's nightly technical columns",
+      "constants": {
+        "ma_stack full-bull": "price > SMA20 > SMA50 > SMA200",
+        "ma_stack bear": "price < SMA20 < SMA50 < SMA200",
+        "adr_pct": "mean of (high-low)/close over the last 21 sessions, x100",
+        "vol_ratio": "today's volume / the mean of the prior 30 sessions",
+        "52w window": "252 bars",
+        "chg_pct_1m": "close vs close 22 bars ago"
+      }
+    },
+    "firm_code_scanner": {
+      "kind": "firm_code", "resolved": "verified",
+      "module": "scripts.scanner_candidates",
+      "repo": "C:\\Users\\Patrick\\uct-intelligence",
+      "title": "The firm's production pre-market scanner gates",
+      "constants": {
+        "LOW_ADR": "adr_pct < 4.0 -> filtered out entirely",
+        "EXTENDED": "ema_distance_pct > 8.0 -> not actionable yet",
+        "NO_MOMENTUM": "pole_pct < 20.0",
+        "WATCH tightness gate": "avg_body_pct <= 0.45 ('no wide swings')",
+        "WATCH momentum gate": "pole_pct >= 15.0",
+        "EMA proximity score bands": "<=0.5% (+25), <=2% (+18), <=4% (+10), <=6% (+5)",
+        "body tightness score bands": "avg body < 0.30 (+15), < 0.40 (+8)",
+        "close CV score bands": "< 2.5% (+10), < 4% (+5)",
+        "pole score bands": ">=40% (+15), >=20% (+10), >=10% (+5)",
+        "volume N-week-low bands": "4wk (+20), 3wk (+13), 2wk (+8)"
+      }
+    },
+    "firm_code_levels": {
+      "kind": "firm_code", "resolved": "verified",
+      "module": "uct_intelligence.levels",
+      "repo": "C:\\Users\\Patrick\\uct-intelligence",
+      "symbols": ["SETUP_LEVEL_RULES", "STOP_ATR_COEFF", "BASE_LOOKBACK"],
+      "title": "The firm's own definition of WHERE each setup is entered and stopped",
+      "constants": {
+        "STOP_ATR_COEFF": 0.25,
+        "BASE_LOOKBACK": 20,
+        "shelf_buffer": "entry - 0.25 * ATR14",
+        "ema_21_buffer": "EMA21 - 0.25 * ATR14",
+        "base_high / base_low": "the 20-session high / low"
+      },
+      "note": "⭐ The strongest firm artifact for entry/stop definition: it is code, it resolves by AST, and setup_triggers proves it has been run against the real tape 94 times."
+    },
+    "firm_code_trigger_quality": {
+      "kind": "firm_code", "resolved": "verified",
+      "module": "uct_intelligence.trigger_quality", "symbol": "THRESHOLDS",
+      "repo": "C:\\Users\\Patrick\\uct-intelligence",
+      "constants": {
+        "default_max_stop_pct": 8.0,
+        "proximity_atr_mult": 1.5,
+        "confluence_full_touches": 4,
+        "weights": {"proximity": 0.35, "risk": 0.30, "confluence": 0.25, "provenance": 0.10}
+      },
+      "note": "Its own docstring says 'THRESHOLDS are day-one estimates' — cite it as the firm's current answer, not as a measured one."
+    },
+    "firm_playbooks": {
+      "kind": "firm_playbook", "resolved": "verified",
+      "module": "app/src/pages/modelbook/setupPlaybooks.js", "symbol": "SETUP_PLAYBOOKS",
+      "entries": ["Bull Flag", "Flat Base Breakout", "IPO Base", "Launchpad", "20 EMA Pullback", "EMA Crossback", "Wedge Pop", "Wedge Drop", "Episodic Pivot"],
+      "title": "The firm's authored playbooks (9 of 26 catalog setups)",
+      "note": "⛔ ATTRIBUTION, NEVER GROUNDING. Prose cannot mechanically produce a tree. Where a playbook states a number ('one-third to one-half of the pole', '25-50% deep', '3-12 months', '8-EMA/21-EMA/30-SMA/50-SMA bunched'), the catalog records it as a firm-authored number and looks for an external source that publishes the same measurement."
+    },
+    "firm_closed_table": {
+      "kind": "firm_code", "resolved": "verified",
+      "module": "app/src/components/chart/engine/ast/closedTable.json",
+      "title": "The expressibility surface every criterion is tagged against",
+      "measured_at_compile": {"series": 5, "operators": 15, "functions": 29, "scalars": 54, "screener_columns": 65, "excluded_columns": 11, "node_types": 5},
+      "note": "The offset node `expr[n]` (n >= 1, literal, unchained, no forward form) landed 2026-08-09 in 291c9d8a. Several starterScans.json refusals predate it and are stale — see SETUP_NOTES.md section 4.1.",
+      "drift_during_this_pass": "⚠️ THE TABLE MOVED UNDER THIS CATALOG WHILE IT WAS BEING WRITTEN. A concurrent Phase-G agent edited closedTable.json mid-pass and the function count went from 28 to 29 (`accum` was declared). This entry is therefore NOT a frozen count — it is what the file read when the gate last ran, and the gate is what should be trusted. ⛔ Do not re-type these numbers anywhere: `_catalog_formulas.test.js` re-derives the declared names from the table on every run, which is why the drift cost nothing. A hand-typed roster here would already be wrong."
+    },
+
+    "qullamaggie_3_setups": {
+      "kind": "web", "resolved": "verified", "accessed": "2026-08-09",
+      "url": "https://qullamaggie.com/my-3-timeless-setups-that-have-made-me-tens-of-millions/",
+      "author": "Kristjan Kullamagi (Qullamaggie)",
+      "title": "My 3 Timeless Setups That Have Made Me Tens of Millions",
+      "note": "Author-owned. The single richest external source for Breakout/HTF, Episodic Pivot and Parabolic Short numbers. Fetched and read in this pass."
+    },
+    "qullamaggie_ep": {
+      "kind": "web", "resolved": "verified", "accessed": "2026-08-09",
+      "url": "https://qullamaggie.com/how-to-master-a-setup-episodic-pivots/",
+      "author": "Kristjan Kullamagi (Qullamaggie)",
+      "title": "How To Master A Setup - Episodic Pivots",
+      "note": "Author-owned. Fetched and read in this pass; every quote below was read back verbatim."
+    },
+    "qullamaggie_faq": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://qullamaggie.com/faq/",
+      "author": "Kristjan Kullamagi (Qullamaggie)",
+      "title": "FAQ",
+      "note": "ADR lookback = 20 sessions; risk 0.25-1%; position 5-25%; drawdown containment 15-20%. Reported by the sweep, not re-fetched here."
+    },
+    "stockbee_momentum_burst": {
+      "kind": "web", "resolved": "verified", "accessed": "2026-08-09",
+      "url": "https://stockbee.blogspot.com/2014/01/how-to-identify-good-momentum-burst-and.html",
+      "author": "Pradeep Bonde (Stockbee)",
+      "title": "How to identify good momentum burst",
+      "note": "Author-owned, carries LITERAL SCAN SYNTAX. Fetched and read back verbatim in this pass."
+    },
+    "stockbee_ep_2010": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://stockbee.blogspot.com/2010/02/what-are-episodic-pivots-and-how-to.html",
+      "author": "Pradeep Bonde (Stockbee)",
+      "title": "What are Episodic Pivots and how to trade them",
+      "note": "The originator of the EP. Literal scan syntax. Reported by the sweep."
+    },
+    "stockbee_ep_2007": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://stockbee.blogspot.com/2007/02/episodic-pivots-and-idea-pickle.html",
+      "author": "Pradeep Bonde (Stockbee)",
+      "title": "Episodic Pivots and 'Idea Pickle'",
+      "note": "Four parallel gap/volume/price scans. Reported by the sweep."
+    },
+    "stockbee_anticipation": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://stockbee.blogspot.com/2017/03/how-to-find-bullish-anticipation-setups.html",
+      "author": "Pradeep Bonde (Stockbee)",
+      "title": "How to find bullish Anticipation Setups daily",
+      "note": "Double Trouble / TI65 / MDT scans with literal syntax."
+    },
+    "stockbee_ipo": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://stockbee.blogspot.com/2010/08/how-to-find-profitable-ipo-trading.html",
+      "author": "Pradeep Bonde (Stockbee)",
+      "title": "How to find profitable IPO trading opportunities using Telechart",
+      "note": "🔴 The ONLY numeric IPO-base source found from an author-owned domain. starterScans.json refuses IPO Base for lack of a listing-date column; these numbers do not fix that, but they define the rest of the setup."
+    },
+    "stockbee_dollar_volume": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://stockbee.blogspot.com/2009/08/what-is-dollar-volume-and-why-it-is.html",
+      "author": "Pradeep Bonde (Stockbee)",
+      "title": "What is Dollar Volume and why it is important?",
+      "note": "Liquidity floors: $5M to build a position, $25M / $100M to short."
+    },
+    "stockbee_oneil_setups": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://stockbee.blogspot.com/2011/12/william-oneil-setups.html",
+      "author": "Pradeep Bonde (Stockbee), restating William O'Neil",
+      "title": "William O'Neil setups",
+      "note": "⚠️ A RESTATEMENT, not O'Neil's own text. Recorded as such; its HTF numbers differ from Bulkowski's and TraderLion's and all three are kept."
+    },
+    "bulkowski_htf": {
+      "kind": "web", "resolved": "verified", "accessed": "2026-08-09",
+      "url": "https://thepatternsite.com/htf.html",
+      "author": "Thomas Bulkowski",
+      "title": "High and Tight Flag",
+      "note": "The originator of the measured statistics. Fetched and read back verbatim."
+    },
+    "bulkowski_2b": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://thepatternsite.com/2B.html",
+      "author": "Thomas Bulkowski",
+      "title": "2B pattern",
+      "note": "Measured statistics for the 2B, including the 5% peak-proximity test window."
+    },
+    "traderlion_htf": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://traderlion.com/technical-analysis/high-tight-flag-pattern/",
+      "publisher": "TraderLion", "published": "2020-01-10",
+      "title": "High Tight Flag Pattern",
+      "note": "⚠️ 403s to a plain fetch; the sweep read it in a browser. Third-party but publisher-authored."
+    },
+    "traderlion_vcp": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://traderlion.com/technical-analysis/volatility-contraction-pattern/",
+      "publisher": "TraderLion", "published": "2024-10-25",
+      "title": "Volatility Contraction Pattern",
+      "note": "⚠️ A THIRD PARTY DESCRIBING MINERVINI, not Minervini. The sweep found NO free, resolvable Minervini-owned URL carrying the VCP contraction numbers (minervini.com/blog 404s) — they live in his paid books."
+    },
+    "traderlion_flat_base": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://traderlion.com/technical-analysis/the-flat-base-pattern/",
+      "publisher": "TraderLion", "published": "2023-03-12",
+      "title": "The Flat Base Pattern",
+      "note": "⚠️ INTERNALLY INCONSISTENT: states the prior uptrend as '>=30%' in one section and '20-30%' in another. Both recorded."
+    },
+    "traderlion_early_entry": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://traderlion.com/trading-strategies/3-early-entry-techniques-to-improve-win-rate/",
+      "publisher": "TraderLion", "published": "2024-07-14",
+      "title": "3 Early Entry Techniques To Improve Win Rate",
+      "note": "🔴 The HVC / Power Earnings Gap source: gap >10%, HV1/HVIPO/HVE volume RANK, closing range >75%. Directly addresses starterScans.json's HVC refusal."
+    },
+    "traderlion_stage_analysis": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://traderlion.com/trading-strategies/stage-analysis/",
+      "publisher": "TraderLion", "published": "2024-10-18",
+      "title": "Stage Analysis (Weinstein)",
+      "note": "⚠️ Gives Stage-2 breakout volume as '2-3x average' in one place and '>=2x the 30-day average' in another. Both recorded. Says the 4B setup itself is behind a paid masterclass."
+    },
+    "traderlion_kell_cycle": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://traderlion.com/technical-analysis/chart-patterns/cycle-of-price-action-by-oliver-kell/",
+      "author": "Oliver Kell", "publisher": "TraderLion", "published": "2024-09-10",
+      "title": "Cycle of Price Action",
+      "note": "🔴 DEFINITIVE NEGATIVE. Kell-bylined and read in full: it contains the MA periods (10/20 EMA, 50/200 SMA) and NOTHING ELSE numeric. No % extension, no volume multiple, no pivot offset for Wedge Pop, Wedge Drop, EMA Crossback, Base n' Break, Reversal Extension or Exhaustion Extension."
+    },
+    "traderlion_wedge_pop": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://traderlion.com/technical-analysis/chart-patterns/wedge-pop-the-money-pattern/",
+      "author": "Oliver Kell", "publisher": "TraderLion", "published": "2024-09-11",
+      "title": "Wedge Pop - The Money Pattern",
+      "note": "Read in full by the sweep: entirely qualitative. This is why Wedge Pop and Wedge Drop stay ungrounded."
+    },
+    "traderlion_glb": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://traderlion.com/technical-analysis/chart-patterns/green-line-breakout/",
+      "publisher": "TraderLion", "published": "2025-06-18",
+      "title": "Green Line Breakout (Dr. Eric Wish)",
+      "note": "Not one of the 32, but the firm's brain carries a `Green Line Breakout` template — registered so a later pass can decide about it."
+    },
+    "traderlion_8_week_hold": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://traderlion.com/trading-strategies/the-8-week-hold-rule/",
+      "publisher": "TraderLion",
+      "title": "The 8-Week Hold Rule",
+      "note": "External publication of the rule the firm's IPO Base playbook already invokes."
+    },
+    "deepvue_launch_pad": {
+      "kind": "web", "resolved": "verified", "accessed": "2026-08-09",
+      "url": "https://deepvue.com/indicators/launch-pad-the-early-entry-technique/",
+      "publisher": "Deepvue", "published": "2024-09-21",
+      "title": "Launch Pad - The Early Entry Technique",
+      "note": "⭐ THE HIGHEST-VALUE EXTERNAL FIND IN THE PASS. starterScans.json refuses Launchpad because 'no artifact at the firm publishes the band that makes a bundle tight'. This publishes one: within 1-3% of the 21 SMA, 50 SMA and 65 EMA on a closing basis. Fetched and read back verbatim. ⚠️ It uses DIFFERENT averages from the firm's own playbook (8 EMA / 21 EMA / 30 SMA / 50 SMA) — a real disagreement, kept, not reconciled."
+    },
+    "deepvue_htf": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://deepvue.com/screener/high-tight-flag/",
+      "publisher": "Deepvue",
+      "title": "High Tight Flag screener",
+      "note": "Flag duration 5 sessions to 3 weeks, pullback <=25%. Explicitly carries NO ADR/price/dollar-volume screening thresholds."
+    },
+    "deepvue_minervini_tt": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://deepvue.com/screener/minervini-trend-template/",
+      "publisher": "Deepvue",
+      "title": "Minervini Trend Template screener",
+      "note": "Second independent restatement of the template; agrees with ChartMill on 'within 25% of the 52-week high'."
+    },
+    "deepvue_kell_screens": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://deepvue.com/screener/oliver-kell-screens/",
+      "publisher": "Deepvue",
+      "title": "Oliver Kell screens",
+      "note": "⚠️ DEEPVUE'S SCREEN CONSTRUCTION, NOT KELL'S. price >= $20, volume > 500k, mkt cap $2B-$25B, quarterly earnings and sales >= 30%. Registered so the numbers are attributable to the right party."
+    },
+    "chartmill_minervini_tt": {
+      "kind": "web", "resolved": "blocked",
+      "url": "https://www.chartmill.com/documentation/stock-screener/trading-strategy-stock-screening/496-Mark-Minervini-Trend-Template",
+      "publisher": "ChartMill",
+      "title": "Mark Minervini Trend Template",
+      "note": "⚠️ 403 to a direct fetch in this pass; the sweep read it only through an indexed summary. Anything citing it alone is MEDIUM at best. It is the source of the 25% vs 30% two-book conflict."
+    },
+    "ripster_ema_clouds": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://ripstereducation.com/post/ema-clouds",
+      "author": "ripster47",
+      "title": "EMA Clouds",
+      "note": "Author-owned. 5/12 trendline cloud, 34/50 bias cloud, optional 8/9 and 20/21. ⚠️ The circulated indicator default (8/9, 5/12, 34/50, 72/89, 180/200) is NOT on his own site — three different published sets exist."
+    },
+    "minervini_books": {
+      "kind": "book", "resolved": "reported",
+      "author": "Mark Minervini",
+      "titles": ["Trade Like a Stock Market Wizard (2013)", "Think & Trade Like a Champion (2016)"],
+      "note": "🔴 THE TREND TEMPLATE'S OWN NUMBERS DIFFER BETWEEN HIS TWO BOOKS: 30% above the 52-week low in the 2013 book, 25% in the 2016 book. Both recorded. The catalog cites the books for the criterion and a restatement for the wording, because no free author-owned URL carries them."
+    },
+    "firm_kb_minervini_tt": {
+      "kind": "firm_store", "resolved": "verified",
+      "store": "C:\\Users\\Patrick\\uct-intelligence\\data\\uct_intelligence.db",
+      "table": "knowledge_base",
+      "selector": {"title": "Minervini 8-Point Trend Template - All 8 Required", "trader": "Mark Minervini", "source_ref": "UCT Intelligence Engine - Methodology Bible"},
+      "title": "The firm's own recorded copy of the 8-point trend template",
+      "note": "⭐ Uses 25% above the 52-week low and RS >= 70 — i.e. the firm has already CHOSEN between the two books' numbers. That choice is itself a firm artifact and the catalog records it as such."
+    },
+    "firm_kb_jeffsun_atr": {
+      "kind": "firm_store", "resolved": "verified",
+      "store": "C:\\Users\\Patrick\\uct-intelligence\\data\\uct_intelligence.db",
+      "table": "knowledge_base",
+      "selector": {"trader": "Jeff Sun", "source_ref": "jfsrev.substack.com"},
+      "title": "Jeff Sun's ATR% multiple from the 50-MA",
+      "note": "⭐ THE ONLY NUMERIC EXTENSION FRAMEWORK FOUND ANYWHERE, and starterScans.json refuses BOTH parabolic setups for want of exactly this. 6-7x for indexes; a 10x reading flagged as a short-term peak; 7x on the Nasdaq 'has historically preceded at least a 3-day pullback'. Underpinned by a 13-year / 5,506-stock study by Denis Hamel (2025-09-25). ⚠️ The external substack was NOT fetched in this pass."
+    },
+    "firm_kb_kell_extension": {
+      "kind": "firm_store", "resolved": "verified",
+      "store": "C:\\Users\\Patrick\\uct-intelligence\\data\\uct_intelligence.db",
+      "table": "knowledge_base",
+      "selector": {"trader": "Oliver Kell", "title": "Oliver Kell: 10 EMA Extension Rules - When Price is Too Extended to Buy"},
+      "title": "Kell's 10-EMA extension rules, as the firm recorded them",
+      "note": "⭐ '15%+ above 10 EMA on the daily: Be cautious' is a NUMBER, and it is the only one the Kell material carries. ⚠️ The two Kell-bylined TraderLion articles read in this pass do NOT contain it, so the firm's copy is currently the only citation — a real provenance gap to close before it grounds anything."
+    },
+    "firm_kb_oscr_ur": {
+      "kind": "firm_store", "resolved": "verified",
+      "store": "C:\\Users\\Patrick\\uct-intelligence\\data\\uct_intelligence.db",
+      "table": "model_examples",
+      "selector": {"setup_type": "U&R", "symbol": "OSCR", "chart_date": "2026-07-28"},
+      "title": "The firm's owner-flagged U&R teaching example",
+      "note": "⭐ 'The undercut cleared an 8-session 28.00 shelf, not just one day's low.' That sentence is the firm publishing WHICH prior low is prominent — the exact number starterScans.json says is nobody's."
+    },
+    "bulkowski_flat_base": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://thepatternsite.com/FlatBase.html",
+      "author": "Thomas Bulkowski", "title": "Flat base",
+      "note": "⚠️ Bulkowski's flat base is a MINIMUM OF 65 PRICE BARS — an order of magnitude longer than the O'Neil/IBD 5-week convention the firm uses. Two different patterns wearing one name. Both kept."
+    },
+    "bulkowski_htf_study": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://thepatternsite.com/HTFStudy.html",
+      "author": "Thomas Bulkowski", "title": "High and tight flag: a study (n=2,588)",
+      "note": "⭐ Carries the tightness definition the firm's HTF lacks: optimal flag retrace 10-34% of the breakout price, optimal flag duration 10-29 calendar days, median time to the 90% pole rise 36 calendar days. Also: a penny-below-the-flag-low stop costs 26% on average — the 'obvious' stop is very wide."
+    },
+    "bulkowski_flags": {"kind": "web", "resolved": "reported", "url": "https://thepatternsite.com/flags.html", "author": "Thomas Bulkowski", "title": "Flags", "note": "Flag duration < 3 weeks (longer = rectangle or channel). ⚠️ StockCharts says 1-12 weeks — a 4x disagreement on the most basic flag parameter."},
+    "bulkowski_cup": {"kind": "web", "resolved": "reported", "url": "https://thepatternsite.com/cup.html", "author": "Thomas Bulkowski", "title": "Cup with handle"},
+    "bulkowski_fallwedge": {"kind": "web", "resolved": "reported", "url": "https://thepatternsite.com/fallwedge.html", "author": "Thomas Bulkowski", "title": "Falling wedge", "note": "The nearest measurable analogue to Wedge Pop: 5 trendline touches (3+2), minimum 3 weeks, breakout 61-62% of the way to the apex."},
+    "bulkowski_risewedge": {"kind": "web", "resolved": "reported", "url": "https://thepatternsite.com/risewedge.html", "author": "Thomas Bulkowski", "title": "Rising wedge", "note": "🔴 Its DOWNWARD break is the worst-ranked outcome in the whole encyclopedia (36 of 36, 51% break-even failure) while its UPWARD break averages +38%. Classical texts call the rising wedge bearish. Measurement and convention conflict head-on — and Wedge Drop is built on the convention."},
+    "bulkowski_busted": {"kind": "web", "resolved": "reported", "url": "https://thepatternsite.com/bustedsetup.html", "author": "Thomas Bulkowski", "title": "Busted patterns", "note": "🔴 THE LOAD-BEARING NUMBER FOR 'Failed H&S/Rounded Top': a pattern is BUSTED when price breaks out, moves LESS THAN 10% past the breakout price, reverses, and breaks the other way."},
+    "bulkowski_hst": {"kind": "web", "resolved": "reported", "url": "https://thepatternsite.com/hst.html", "author": "Thomas Bulkowski", "title": "Head-and-shoulders top"},
+    "bulkowski_roundingtop": {"kind": "web", "resolved": "reported", "url": "https://thepatternsite.com/roundingtop.html", "author": "Thomas Bulkowski", "title": "Rounding top", "note": "Publishes an unusually specific entry: buy on a retrace of 32% of the pattern height."},
+    "bulkowski_gaps": {"kind": "web", "resolved": "reported", "url": "https://thepatternsite.com/gaps.html", "author": "Thomas Bulkowski", "title": "Gaps", "note": "🔴 PREMISE CONFLICT WITH OUR 'Gap Support' SETUP: Bulkowski rates gaps as WEAK support/resistance. Also: area gaps close within a week 85% of the time (up) / 90% (down); breakaway gaps 1%."},
+    "bulkowski_eedb": {"kind": "web", "resolved": "reported", "url": "https://thepatternsite.com/eedb.html", "author": "Thomas Bulkowski", "title": "Eve & Eve double bottom"},
+    "bulkowski_at": {"kind": "web", "resolved": "reported", "url": "https://thepatternsite.com/at.html", "author": "Thomas Bulkowski", "title": "Ascending triangle"},
+    "bulkowski_recttops": {"kind": "web", "resolved": "reported", "url": "https://thepatternsite.com/recttops.html", "author": "Thomas Bulkowski", "title": "Rectangle tops", "note": "A partial DECLINE inside the rectangle predicts an up-breakout 79% of the time — a directional edge almost nobody quotes."},
+    "stockcharts_cup": {"kind": "web", "resolved": "reported", "url": "https://chartschool.stockcharts.com/table-of-contents/chart-analysis/chart-patterns/cup-with-handle.md", "publisher": "StockCharts ChartSchool", "title": "Cup with Handle"},
+    "stockcharts_flag_pennant": {"kind": "web", "resolved": "reported", "url": "https://chartschool.stockcharts.com/table-of-contents/chart-analysis/chart-patterns/flag-pennant.md", "publisher": "StockCharts ChartSchool", "title": "Flag, Pennant"},
+    "stockcharts_rectangle": {"kind": "web", "resolved": "reported", "url": "https://chartschool.stockcharts.com/table-of-contents/chart-analysis/chart-patterns/rectangle.md", "publisher": "StockCharts ChartSchool", "title": "Rectangle"},
+    "stockcharts_double_bottom": {"kind": "web", "resolved": "reported", "url": "https://chartschool.stockcharts.com/table-of-contents/chart-analysis/chart-patterns/double-bottom-reversal.md", "publisher": "StockCharts ChartSchool", "title": "Double Bottom Reversal"},
+    "stockcharts_hst": {"kind": "web", "resolved": "reported", "url": "https://chartschool.stockcharts.com/table-of-contents/chart-analysis/chart-patterns/head-and-shoulders-top.md", "publisher": "StockCharts ChartSchool", "title": "Head and Shoulders Top", "note": "Read in full and confirmed to publish NO numeric shoulder-symmetry tolerance: 'While symmetry is preferred, sometimes the shoulders can be out of whack.'"},
+    "stockcharts_candlesticks": {"kind": "web", "resolved": "reported", "url": "https://chartschool.stockcharts.com/table-of-contents/chart-analysis/candlestick-charts/introduction-to-candlesticks.md", "publisher": "StockCharts ChartSchool", "title": "Introduction to Candlesticks", "note": "⭐ THE WICK PLAY NUMBER: 'the long shadow should be at least twice the length of the real body'. ⚠️ The firm's own candles.py uses a DIFFERENT construction — wick as a fraction of the RANGE (>0.5) with a body cap (<0.35) — not a wick-to-body multiple. Both kept."},
+    "stockcharts_envelopes": {"kind": "web", "resolved": "reported", "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/moving-average-envelopes.md", "publisher": "StockCharts ChartSchool", "title": "Moving Average Envelopes", "note": "The closest published thing to an MA-extension threshold: 2.5% / 5% / 10% around a 20 SMA, 10% around a 50 SMA — and the page says explicitly that the right value is instrument-dependent."},
+    "stockcharts_keltner": {"kind": "web", "resolved": "reported", "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/keltner-channels.md", "publisher": "StockCharts ChartSchool", "title": "Keltner Channels", "note": "20 EMA +/- 2.0 x ATR(10)."},
+    "stockcharts_sar": {"kind": "web", "resolved": "reported", "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-overlays/parabolic-sar.md", "publisher": "StockCharts ChartSchool", "title": "Parabolic SAR", "note": "AF start 0.02, step 0.02, max 0.20. The only published numeric standard that is actually NAMED 'parabolic' — but it measures acceleration, not distance from an average. ⛔ closedTable.json::_functions_excluded refuses `sar` anyway (stateful, path-dependent, float args)."},
+    "stockcharts_bandwidth": {"kind": "web", "resolved": "reported", "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/bollinger-bandwidth", "publisher": "StockCharts ChartSchool", "title": "Bollinger BandWidth", "note": "🔴 THE WIDELY-QUOTED 'LOWEST BANDWIDTH IN 6 MONTHS' SQUEEZE RULE IS NOT ON THIS PAGE. It says to judge highs and lows on an 8- to 12-month chart and is explicit that narrow BandWidth is RELATIVE, not absolute. Do not cite the 6-month rule to Bollinger."},
+    "stockcharts_adx": {"kind": "web", "resolved": "reported", "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/average-directional-index-adx", "publisher": "StockCharts ChartSchool", "title": "ADX", "note": "Wilder's original: trend above 25, no trend below 20. Modern adaptation lowers the key level to 20. Both published on one page; both kept. ⛔ closedTable.json refuses `adx` (its window is 2*period, which the table cannot declare)."},
+    "stockcharts_price_relative": {"kind": "web", "resolved": "reported", "url": "https://chartschool.stockcharts.com/table-of-contents/technical-indicators-and-overlays/technical-indicators/price-relative-relative-strength", "publisher": "StockCharts ChartSchool", "title": "Price Relative / Relative Strength", "note": "Ratio = base / comparative; long-term RS trend judged against its 150-day SMA. Does NOT mention Mansfield — the Mansfield RS formula was not found anywhere reachable."},
+    "traderisk_tc2000_scan": {
+      "kind": "web", "resolved": "reported",
+      "url": "https://www.thetraderisk.com/scanning-for-swing-trade-setups-in-tc2000/",
+      "publisher": "The Trade Risk",
+      "title": "Scanning for swing trade setups in TC2000",
+      "note": "⭐ THE ONLY EXPLICIT MA-CONVERGENCE FORMULA FOUND: `XAVGC8 >= XAVGC20*.99 AND XAVGC8 <= XAVGC20*1.01 AND XAVGC50 >= XAVGC20*.99 AND XAVGC50 <= XAVGC20*1.01`. ⚠️ INTERNALLY INCONSISTENT: the code is a +/-1% band, the prose beside it says 'within 2%'. Implement from the code, not the sentence. ⚠️ A practitioner blog, not a vendor spec."
+    },
+    "deepvue_breaking_out": {"kind": "web", "resolved": "reported", "url": "https://deepvue.com/screener/stocks-breaking-out/", "publisher": "Deepvue", "title": "Consolidation Pivot Breakouts screen", "note": "A tightness definition with no MA in it: 5-day ADR < 3%, today's range < 2%, 5-day average volume < 80% of the 50-day, RS Rating > 85."},
+    "lo_mamaysky_wang_2000": {
+      "kind": "paper", "resolved": "reported",
+      "authors": "Andrew W. Lo, Harry Mamaysky, Jiang Wang",
+      "title": "Foundations of Technical Analysis: Computational Algorithms, Statistical Inference, and Empirical Implementation",
+      "journal": "Journal of Finance 55(4), 2000", "working_paper": "NBER w7613",
+      "note": "⭐ THE HIGHEST-QUALITY MACHINE-IMPLEMENTABLE DEFINITIONS IN THE SWEEP, read from the PDF: H&S shoulders within 1.5% of their average (Def. 1, p.13); rectangle tops within 0.75% (Def. 4, p.14); double top/bottom within 1.5% and at least 22 trading days apart (Def. 5, p.14); kernel bandwidth 0.3 x h* (p.11); rolling window l=35 plus a MANDATORY detection lag d=3 (p.15). ⭐ Copy the d=3 lag if we ever backtest pattern detection — it is what makes the conditional returns out-of-sample."
+    },
+    "tradingsetupsreview_nr7": {"kind": "web", "resolved": "reported", "url": "https://www.tradingsetupsreview.com/nr7-trading-strategy/", "author": "Galen Woods", "title": "NR7 trading strategy", "note": "⚠️ A SECONDARY PARAPHRASE. Crabel's original text was not reached and the book year is unconfirmed. The firm's own candles.py already implements NR7 identically, so this is corroboration rather than grounding."},
+    "crabel_book": {"kind": "book", "resolved": "blocked", "author": "Toby Crabel", "title": "Day Trading with Short Term Price Patterns and Opening Range Breakout", "note": "⚠️ NOT REACHED. Year unconfirmed. Every NR7/ORB number attributed to Crabel in this catalog rides a secondary source and is marked as such."},
+    "ibd_investors_com": {"kind": "web", "resolved": "blocked", "url": "https://www.investors.com/", "publisher": "Investor's Business Daily", "note": "🔴 UNREACHABLE FROM THIS TOOLING (403/paywall), and investopedia.com likewise. This killed the entire IBD/O'Neil lane: cup depth 12-33%, flat base 5 weeks / max 15%, handle 8-12%, pivot = handle high + $0.10, breakout volume +40%, the 5% buy zone. Those numbers appear here only via restatements (TraderLion, Stockbee, Yahoo's syndicated IBD copies) and are MEDIUM at best. ⭐ THE SINGLE LARGEST REMAINING GAP — it covers four setups."},
+    "minervini_ttlac": {"kind": "book", "resolved": "reported", "author": "Mark Minervini", "titles": ["Trade Like a Stock Market Wizard (2013), ch. 'Trading With The Trend' and 'A Picture Is Worth A Million Dollars'", "Think & Trade Like a Champion (2017), ch. 'How and When to Buy Stocks - Part 2' and 'Position Sizing For Optimal Results'"], "note": "⭐ THE 8-POINT TREND TEMPLATE WAS RECOVERED VERBATIM and is the best-sourced item in the catalog. ⚠️ Chapter TITLES are confirmed; chapter NUMBERS are not — cite the title. ⛔ The only openly downloadable full texts were unauthorised uploads and were declined on copyright grounds, which is why no page numbers appear."},
+    "marketsmith_hk": {"kind": "web", "resolved": "reported", "url": "https://www.marketsmith.hk/", "publisher": "MarketSmith Hong Kong (an IBD-family product)", "title": "MarketSmith HK glossary — cup-with-handle, flat base, double bottom, ascending base, tight areas, breakout, buy zone, follow-through day, distribution day, CAN SLIM overview", "note": "⭐ THE SINGLE RICHEST OPEN IBD-FAMILY PRIMARY FOUND, and the workaround for investors.com being host-blocked. It produced the buy zone (0-5%), the profit zone (20-25%), the loss zone (5-8%), the 8-week hold rule, the follow-through day, distribution days, tight areas, and every CAN SLIM letter threshold. ⚠️ IT CONTRADICTS O'NEIL'S BOOK on cup length (6 vs 7 weeks) and cup depth (8-50% vs 12-33%), and its follow-through threshold (1.7%+) is the HANG SENG's, not the US one — which is where the widely circulated '1.7%' comes from."},
+    "ibd_shakeout3": {"kind": "web", "resolved": "reported", "url": "https://finance.yahoo.com/news/spot-early-buy-point-double-195200041.html", "publisher": "Investor's Business Daily, via Yahoo Finance syndication", "title": "IBD on the shakeout-plus-three early buy point", "note": "investors.com is host-blocked; Yahoo carries the full IBD article body with the IBD byline. ⚠️ IBD's high-priced adjustment contradicts itself across two columns: $80-$200 'add 6 to 10 points' vs $50-$60 '5-6 points'."},
+    "bulkowski_kicking": {"kind": "web", "resolved": "reported", "url": "https://thepatternsite.com/KickingBull.html", "author": "Thomas Bulkowski", "title": "Kicking (bullish and bearish)", "note": "🔴 Reversal rate 53% — a coin flip. Performance rank 96 of 103, frequency rank 100 of 103. The circulating '60-70% per Bulkowski' is a misattribution; the page quoting it prints 53% in its own key-facts box."},
+    "bulkowski_weinstein": {"kind": "web", "resolved": "reported", "url": "https://thepatternsite.com/TradingWeinstein.html", "author": "Thomas Bulkowski", "title": "Trading Weinstein's stage analysis", "note": "⭐ HIS RULES, NOT THE BOOK'S, and they are the most directly implementable Weinstein numbers found: close above the 30-week SMA AND the SMA higher than the prior week; a flat trendline touching >=3 peaks; buy stop 1 cent above; SKIP if the initial stop is more than 20% away."},
+    "weinstein_book": {"kind": "book", "resolved": "reported", "author": "Stan Weinstein", "title": "Secrets for Profiting in Bull and Bear Markets (1988)", "note": "⚠️ Read via a text mirror; page numbers unverified (archive.org copies are lending-restricted). 🔴 THE KEY NEGATIVE RESULT: a targeted search for 'twice / two times / double / average weekly volume' returned NO HITS. The book publishes NO breakout-volume multiple. The universally quoted '2x' is somebody else's."},
+    "stageanalysis_substages": {"kind": "web", "resolved": "reported", "url": "https://www.stageanalysis.net/blog/4222", "publisher": "stageanalysis.net, reproducing Weinstein's Global Trend Alert newsletter", "title": "Weinstein's stage and sub-stage nomenclature", "note": "🔴 THE SOURCE OF THE 4B CORRECTION: '4B — Late in downtrend. Much too soon to consider buying.' vs '4B- — stock has now seen its low for the cycle.' Word-identical at trade2win.com. ⚠️ NEITHER LABEL IS IN THE 1988 BOOK."},
+    "stageanalysis_checklist": {"kind": "web", "resolved": "reported", "url": "https://www.stageanalysis.net/", "publisher": "stageanalysis.net", "title": "Breakout Quality Checklist (2019-10-01)", "note": "The origin of the 'at least two times the four week average' rule everyone attributes to Weinstein. The site is explicit that it is not Weinstein-affiliated."},
+    "duncan_hvc": {"kind": "web", "resolved": "reported", "url": "https://upsideunlimitednewsletter.com/p/trading-the-high-volume-close-setup", "author": "Greg Duncan", "title": "Trading the High Volume Close setup", "note": "⭐ THE ORIGINATOR OF HVC, publishing a full numeric spec on his own site — and the setup the firm currently refuses turns out to be one of the best-sourced available. Companion: gregduncan.feather.blog/3-best-trading-setups. Not an O'Neil/Minervini/IBD construct; no such attribution exists."},
+    "zarattini_orb_stocks": {"kind": "paper", "resolved": "reported", "authors": "Carlo Zarattini, Andrea Barbon, Andrew Aziz", "title": "A Profitable Day Trading Strategy For The U.S. Equity Market", "id": "SSRN 4729284 / SFI 24-98, 16 Feb 2024", "note": "⭐ THE MOST USEFUL SINGLE CITATION IN THE INTRADAY FAMILY. >7,000 US stocks, 2016-2023, survivorship-bias free, read in full. Publishes the universe screen, the exact time-of-day-matched RelativeVolume formula, and the 5/15/30/60-minute comparison in which the 30-minute range is the WORST (Sharpe 0.21 vs 2.81)."},
+    "zarattini_orb_qqq": {"kind": "paper", "resolved": "reported", "authors": "Carlo Zarattini, Andrew Aziz", "title": "Can Day Trading Really Be Profitable?", "id": "SSRN 4416622, 2023", "note": "The original 5-minute ORB spec on QQQ/TQQQ: entry at the second candle's open, doji = no trade, stop at the first candle's low, target 10R, 1% risk, 4x leverage cap."},
+    "zarattini_vwap": {"kind": "paper", "resolved": "reported", "authors": "Carlo Zarattini, Andrew Aziz", "title": "VWAP: The Holy Grail for Day Trading Systems", "id": "SSRN 4631351", "note": "⭐ THE ONLY RIGOROUS NUMERIC VWAP RULES ANYWHERE. VWAP = sum(HLC x Vol)/sum(Vol), RTH only; entry at exactly 9:31:00 ET; and the operational definition of losing VWAP: exit ONLY on a 1-minute candle CLOSE through it."},
+    "zarattini_gap": {"kind": "paper", "resolved": "reported", "authors": "Carlo Zarattini, Nikolas Stamatoudis", "title": "The Power Of Price Action Reading", "id": "SSRN 4879527, 28 Jun 2024", "note": "🔴 THE FINDING THAT CONTRADICTS THE EDUCATOR CONSENSUS. Screen: open >= 6% above the prior close, price >= $2, >= 200,000 shares pre-market — 9,794 events, 2016-2023. Buying every one at 9:30 with no stop is -0.25R by day 8. The strategy only turns positive with selection + a 10-SMA trail + 25% partials at 2R/4R/8R/10R."},
+    "connors_stts": {"kind": "book", "resolved": "reported", "authors": "Larry Connors, Cesar Alvarez", "title": "Short Term Trading Strategies That Work (TradingMarkets, 2008), ch. 9, 11, 12 and 15", "note": "⭐ RSI(2) < 5 with a 200-day trend filter, exit above the 5-period MA — verified against the book text, and immediately expressible because `rsi` takes an explicit period. ⚠️ The SHORT-side thresholds (95/90) could NOT be corroborated in the book; attribute those to StockCharts."},
+    "crabel_tasc_1988": {"kind": "web", "resolved": "reported", "author": "Toby Crabel", "title": "Playing the Opening Range Breakout Part 1", "publication": "Technical Analysis of STOCKS & COMMODITIES V.6:9 (Sept 1988), pp. 337-339", "note": "⭐ THE ONE PRIMARY CRABEL SOURCE REACHED. The Stretch = the 10-day average of min(High-Open, Open-Low); orders at Open +/- Stretch. ⛔ HIS ORIGINAL USES NO INTRADAY RANGE AT ALL — Zarattini's own literature review confirms it. Every Crabel PERFORMANCE number in circulation is a third-party backtest."},
+    "oxfordstrat_oops": {"kind": "web", "resolved": "reported", "url": "https://oxfordstrat.com/trading-strategies/oops-pattern/", "publisher": "Oxford Capital Strategies", "title": "Oops pattern — parameterised backtest", "note": "Gives the entry unambiguously (buy stop AT yesterday's LOW, not the close) and records 'Filters: None specified' for gap size. Their own test grades it D."},
+    "chartist_oops": {"kind": "web", "resolved": "reported", "url": "https://www.thechartist.com.au/", "author": "Nick Radge", "title": "The Oops bailout decomposition", "note": "🔴 THE MOST IMPORTANT SINGLE DECOMPOSITION IN THE CATALOG: same entry, 98.6% win rate with the bailout exit (win/loss ratio 0.05, average loser held 59 days) vs 50.5% without it (ratio 1.36). Also: 88% in-sample 1987-1998 vs 58.9% out-of-sample 1998-2015."},
+    "owltrader_ur": {"kind": "web", "resolved": "reported", "url": "https://theowltrader.com/glossary-trading-methods/", "publisher": "The Owl Trader (Gil Morales / Dr. Chris Kacher lineage)", "title": "Undercut & Rally", "note": "⭐ Establishes the provenance (Morales/Kacher, NOT IBD) and states that a point-based undercut tolerance is deliberately withheld as 'arbitrary and imprecise'."},
+    "talib_source": {"kind": "web", "resolved": "reported", "url": "https://github.com/TA-Lib/ta-lib", "title": "TA-Lib C source — ta_CDLHAMMER.c, ta_CDLKICKING.c, ta_global.c, ta_utility.h", "note": "⭐ READ FROM SOURCE, so it is the one fully unambiguous candle specification available. Its candle-settings table (BodyLong RealBody/10/1.0, BodyDoji HighLow/10/0.1, ShadowVeryShort HighLow/10/0.1, Near HighLow/5/0.2 …) is the third measurement BASIS in the wick problem, and it is far stricter than every textbook rule."},
+    "taplot_wickplay": {"kind": "web", "resolved": "reported", "url": "https://www.tradingview.com/script/TGp7b78L/", "title": "TAPLOT Wick Play (attributed to Oliver Kell)", "note": "The only place the Wick Play's three-bar structure is written down. ⛔ NO numeric threshold anywhere in it — the settings are 'configurable' with no published defaults."},
+    "firm_kb_pattern_calibration": {
+      "kind": "firm_store", "resolved": "verified",
+      "store": "C:\\Users\\Patrick\\uct-intelligence\\data\\uct_intelligence.db",
+      "table": "knowledge_base",
+      "selector": {"source_ref": "pattern_calibration.md"},
+      "rows": 51,
+      "title": "The firm's 16-setup identification matrix",
+      "note": "Per-setup 'critical differentiator' with numbers, plus a 'most confused with' for each. The firm's own disambiguation layer."
+    }
+  },
+
+  "rejected": {
+    "_": "WHAT WAS EXAMINED AND NOT USED, AND WHY. Recorded because a catalog that only lists what it kept is a list of what somebody remembered — and because three of these are numbers in wide circulation with NO author behind them, which is precisely the failure the grounding rule exists to catch.",
+    "no_author_owned_source": [
+      {"claim": "ADR% > 5 (or 5-6%) as Qullamaggie's screening floor", "circulated_by": ["grokipedia", "breakoutshappen.com", "sharepredictions.com", "tikamalma.substack.com"], "why_rejected": "NO Qullamaggie-owned page states an ADR floor. His own pages use ADR only to CAP STOP WIDTH ('if the ADR of the stock is 5%, your stop shouldn't be wider than 5%') — which is a different claim entirely. Community folklore until an authored source appears. ⚠️ The firm's own brain templates repeat 'ADR% 4-5%+' as a requirement; that inherits the same problem."},
+      {"claim": "Dan Zanger's volume ratios (ZVR >= 1.5x / 1.65x / 2x), 'close in the upper 25% of the bar', 'don't chase >5% above the breakout'", "circulated_by": ["a third-party TradingView indicator's documentation"], "why_rejected": "chartpattern.com's own pages carry none of these numbers. Not treated as Zanger's published rules."},
+      {"claim": "r/RealDayTrading 'RVol > 1.5'", "circulated_by": ["Plus500", "TradingSim", "general RVOL articles"], "why_rejected": "The RDT wiki index was read in full and contains no numbers beyond a claimed win rate and a learning-time estimate. Do not attribute a generic RVOL threshold to them."}
+    ],
+    "gated_behind_payment": [
+      {"source": "Weinstein 4B setup", "note": "TraderLion states it is 'covered in our Stage Analysis Masterclass'. Nothing numeric is public."},
+      {"source": "Matthew Caruso's PEG numbers", "note": "carusoinsights.com is product pages; his substack About carries no criteria."},
+      {"source": "Minervini's own VCP contraction numbers", "note": "minervini.com/blog 404s; the numbers live in the paid books."},
+      {"source": "investors.com / IBD", "note": "Paywalled. Read only via Yahoo Finance's syndicated copies, which is why those rows are MEDIUM."}
+    ],
+    "login_or_bot_walled": {
+      "x.com / twitter.com": 9,
+      "scribd.com / coursehero.com": 5,
+      "cloudflare 403 to fetch": 7,
+      "captcha encountered and NOT solved": 2,
+      "investors.com paywall": 3,
+      "_note": "⛔ Nothing was signed into, no credentials were entered, and the two CAPTCHAs were abandoned rather than solved. The one X post used was read from a search index's reproduction of its text, never from X."
+    },
+    "bulk_rejections": {
+      "commentary_or_hype_no_rule": 55,
+      "unattributed_third_party_restatement": 40,
+      "product_or_course_page": 30,
+      "wrong_domain_or_404": 18,
+      "factually_wrong_and_discarded": 12,
+      "_worst_example": "A search summary asserted that Pradeep Bonde is 'known as @traderstewie'. That is false — @stockbee is Pradeep Bonde and @traderstewie is a different person. Everything downstream of that conflation was dropped."
+    }
+  },
+
+  "counts": {
+    "_": "Counted, not estimated. 'Examined' = a distinct URL either fetched or triaged on title + indexed snippet. Two sweeps are merged here; four more were dispatched and are recorded in SETUP_NOTES.md section 9.",
+    "firm_sources_registered": 18,
+    "external_sources_registered": 51,
+    "external_sources_verified_by_the_compiler": 6,
+    "sweep_1_community_and_practitioner": {"examined": 205, "read_in_full": 37, "yielded_a_number": 24, "rejected": 181},
+    "sweep_2_reference_and_academic": {"fetched": 69, "usable": 46, "failed_404_403_tls": 23, "pdfs_extracted": 1, "criteria_with_an_exact_number": 108, "no_number_found": 9, "secondhand_unverified": 6},
+    "_shortfall": "🔴 THE ~1,000-SOURCE TARGET WAS NOT MET AND THE REASON IS MECHANICAL, NOT EDITORIAL. The session's WebSearch budget (200/200) and subagent budget (200/200) were both exhausted mid-run. The second sweep planned a six-way domain partition and had to collapse it into one sequential thread; the first lost the ability to route around blocked hosts. Roughly 275 distinct sources were examined across the two merged sweeps. What is DEEP: Bulkowski, StockCharts ChartSchool, Qullamaggie, Stockbee, TraderLion, and the Lo-Mamaysky-Wang primary paper. What is THIN OR ABSENT: IBD/investors.com (host-blocked), Investopedia (host-blocked), the textbook layer (Edwards & Magee, Kirkpatrick & Dahlquist, the CMT curriculum), broker education (Fidelity/Recognia, Schwab, IBKR), and the screener vendors (official TC2000, Finviz, Trade Ideas, TrendSpider). ⭐ A fresh session with raised search/subagent caps would close those three lanes, and that is where the remaining value is."
+  }
+}

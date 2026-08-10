@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { money, PANEL_SPECS } from './StatementPanels'
+import { money, PANEL_SPECS, yoyShift } from './StatementPanels'
 
 const captured = []
 vi.mock('../../research-kit', () => ({
@@ -59,7 +59,10 @@ describe('StatementPanels', () => {
   it('pairs the series where the RELATIONSHIP is the point', () => {
     captured.length = 0
     render(<StatementPanels sym="AAPL" />)
-    const names = captured.map(c => c.series.map(s => s.name))
+    // Ghost (year-ago) series are context; the pairing claim is about the
+    // real ones.
+    const names = captured.map(c =>
+      c.series.filter(s => !/yr ago/.test(s.name)).map(s => s.name))
     expect(names).toContainEqual(['Revenue', 'Operating income'])
     expect(names).toContainEqual(['Gross profit', 'Operating expenses'])
     expect(names).toContainEqual(['Total assets', 'Total liabilities'])
@@ -89,5 +92,47 @@ describe('StatementPanels', () => {
   it('renders nothing without a symbol', () => {
     const { container } = render(<StatementPanels sym={null} />)
     expect(container.firstChild).toBeNull()
+  })
+})
+
+describe('yoyShift — the comparable period, not the previous one', () => {
+  it('shifts four back for quarters', () => {
+    const v = [10, 20, 30, 40, 50, 60]
+    expect(yoyShift(v, 'quarter')).toEqual([null, null, null, null, 10, 20])
+  })
+
+  it('shifts one back for years', () => {
+    expect(yoyShift([1, 2, 3], 'annual')).toEqual([null, 1, 2])
+  })
+
+  it('the un-comparable head is NULL, never zero', () => {
+    // A zero bar reads as a business that earned nothing that quarter.
+    const out = yoyShift([5, 6, 7, 8, 9], 'quarter')
+    expect(out.slice(0, 4)).toEqual([null, null, null, null])
+    expect(out.includes(0)).toBe(false)
+  })
+
+  it('survives empty input', () => {
+    expect(yoyShift(null, 'quarter')).toEqual([])
+    expect(yoyShift([], 'quarter')).toEqual([])
+  })
+})
+
+describe('the ghost bar is context, not the subject', () => {
+  it('draws the year-ago series BEHIND the current one', () => {
+    captured.length = 0
+    render(<StatementPanels sym="AAPL" />)
+    const income = captured.find(c => c.series.some(s => s.name === 'Revenue'))
+    // ECharts paints in series order, so the ghost must come first.
+    expect(income.series[0].name).toMatch(/yr ago/)
+    expect(income.series.at(-1).name).toBe('Operating income')
+  })
+
+  it('can be turned off, leaving only the current series', () => {
+    render(<StatementPanels sym="AAPL" />)
+    captured.length = 0
+    fireEvent.click(screen.getByRole('checkbox', { name: /year-ago/i }))
+    const income = captured.find(c => c.series.some(s => s.name === 'Revenue'))
+    expect(income.series.every(s => !/yr ago/.test(s.name))).toBe(true)
   })
 })

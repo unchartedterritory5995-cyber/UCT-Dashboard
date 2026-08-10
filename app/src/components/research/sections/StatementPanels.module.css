@@ -48,3 +48,10 @@
 @media (max-width: 640px) {
   .grid { grid-template-columns: 1fr; }
 }
+
+.yoy {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
+  color: var(--color-text-muted, #8a8f98); cursor: pointer;
+}
+.yoy input { accent-color: var(--ut-gold, #c9a84c); cursor: pointer; }

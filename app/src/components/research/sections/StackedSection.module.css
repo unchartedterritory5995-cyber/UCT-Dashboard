@@ -1,0 +1,8 @@
+/* Shared by the composite sections. A plain vertical stack: each child is
+   already a card-bearing tab, so this only supplies the rhythm between them. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}

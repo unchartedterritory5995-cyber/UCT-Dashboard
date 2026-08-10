@@ -19,6 +19,116 @@ _logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+@router.get("/api/research/news/{sym}")
+def research_news(sym: str, limit: int = 20):
+    """Company news + press releases, newest first, merged into one feed.
+
+    Two FMP endpoints because they carry different things — wire coverage and
+    the company's own announcements — and a reader wants them interleaved by
+    time, not separated by origin. Each item keeps its `kind` so the UI can
+    still tell them apart.
+
+    Fetched concurrently: they are independent, and in series a cold open costs
+    their sum.
+    """
+    sym = (sym or "").upper().strip()
+    if not sym:
+        return {"sym": "", "items": []}
+    try:
+        from concurrent.futures import ThreadPoolExecutor
+        from api.services.cache import cache
+        from api.services.earnings_estimates import _fmp_get
+
+        ck = f"research_news::{sym}::{limit}"
+        hit = cache.get(ck)
+        if hit is not None:
+            return hit
+
+        n = max(1, min(int(limit or 20), 50))
+        jobs = {"news": "/stable/news/stock",
+                "release": "/stable/news/press-releases"}
+        got = {}
+        with ThreadPoolExecutor(max_workers=2, thread_name_prefix="news") as ex:
+            futs = {kind: ex.submit(_fmp_get, path, {"symbols": sym, "limit": n},
+                                    timeout=12)
+                    for kind, path in jobs.items()}
+            for kind, f in futs.items():
+                try:
+                    got[kind] = f.result()
+                except Exception:
+                    got[kind] = None
+
+        items = []
+        for kind, rows in got.items():
+            for r in (rows or []):
+                if not isinstance(r, dict) or not r.get("title"):
+                    continue
+                items.append({
+                    "kind": kind,
+                    "title": r.get("title"),
+                    "publisher": r.get("publisher") or r.get("site"),
+                    "url": r.get("url"),
+                    "published": r.get("publishedDate"),
+                    "image": r.get("image"),
+                    # FMP truncates this to the lede; enough for a preview line
+                    # and explicitly NOT presented as the article.
+                    "summary": (r.get("text") or "")[:280],
+                })
+        # Sort DESC on the raw ISO string: these are same-format timestamps from
+        # one provider, so a string sort is the date sort and needs no parsing.
+        items.sort(key=lambda x: x.get("published") or "", reverse=True)
+        out = {"sym": sym, "items": items[:n]}
+        cache.set(ck, out, 900)      # 15 min — news moves, but not per-request
+        return out
+    except Exception as exc:
+        _logger.warning("research news failed for %s: %s", sym, exc)
+        return {"sym": sym, "items": []}
+
+
+@router.get("/api/research/quote/{sym}")
+def research_quote(sym: str):
+    """The session line — price, change, OHLC, volume, 52-week range.
+
+    Its own route rather than a widening of /api/fundamentals: that endpoint is
+    a shared trio (quote + key-metrics + ratios) consumed by several surfaces,
+    and this needs four fields it does not expose. One FMP call, cached briefly
+    because it IS the live number.
+    """
+    sym = (sym or "").upper().strip()
+    if not sym:
+        return None
+    try:
+        from api.services.cache import cache
+        from api.services.earnings_estimates import _fmp_get
+        ck = f"research_quote::{sym}"
+        hit = cache.get(ck)
+        if hit is not None:
+            return hit
+        rows = _fmp_get("/stable/quote", {"symbol": sym}, timeout=10)
+        if not isinstance(rows, list) or not rows:
+            return None
+        q = rows[0] or {}
+        out = {
+            "sym": sym,
+            "price": q.get("price"),
+            "change": q.get("change"),
+            "change_pct": q.get("changePercentage"),
+            "open": q.get("open"),
+            "high": q.get("dayHigh"),
+            "low": q.get("dayLow"),
+            "prev_close": q.get("previousClose"),
+            "volume": q.get("volume"),
+            "year_high": q.get("yearHigh"),
+            "year_low": q.get("yearLow"),
+            "market_cap": q.get("marketCap"),
+        }
+        cache.set(ck, out, 60)      # 60s: live enough, and it is one call
+        return out
+    except Exception as exc:
+        _logger.warning("research quote failed for %s: %s", sym, exc)
+        return None
+
+
 @router.get("/api/research/financial-history/{sym}")
 def research_financial_history(sym: str, period: str = "quarter"):
     """Deep statement series for the fundamentals panels (24q / 12y).

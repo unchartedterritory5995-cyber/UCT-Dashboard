@@ -114,3 +114,5 @@ export { TONE_CLASS as VERDICT_CHIP_TONE_CLASS } from './VerdictChip'
 export { TONE_CLASS as RANGE_SLIDER_TONE_CLASS } from './RangeSlider'
 // NOTE: components/research-kit/testing/restraint.js is deliberately NOT
 // exported here — it is a test helper and must never reach a runtime bundle.
+
+export { toNum } from './charts/format'

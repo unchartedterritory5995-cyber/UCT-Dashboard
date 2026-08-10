@@ -16,19 +16,13 @@
 import EmptyState from '../EmptyState'
 import EyebrowLabel from '../EyebrowLabel'
 import EChart, { CHART_INK, GRID_BASE, TOOLTIP_BASE, axisBase } from './echartsCore'
+import { toNum } from './format'
 import styles from './MetricTrendChart.module.css'
 
 export const SIZE = { width: '100%', height: 200 }
 
-// ⛔ `Number(null)` is 0 and `Number.isFinite(0)` is true, so the obvious
-// one-liner turns every MISSING point into a real zero. A quarter with no
-// margin would draw as a crash to 0% rather than a gap in the line, and the
-// chart would look fine. Empty string and undefined coerce the same way.
-const num = (v) => {
-  if (v == null || v === '') return null
-  const n = Number(v)
-  return Number.isFinite(n) ? n : null
-}
+// One shared coercion — see toNum for why the obvious one-liner is wrong.
+const num = toNum
 
 /** True when at least one series has two or more real points to connect. */
 export function hasPlottableData(series, mode = 'line') {

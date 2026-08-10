@@ -27,13 +27,11 @@ import SetupSection from './sections/SetupSection'
 import EarningsHistorySection from './sections/EarningsHistorySection'
 import BriefSection from './sections/BriefSection'
 import CallSection from './sections/CallSection'
-import OwnershipTab from '../../pages/research/tabs/OwnershipTab'
 import FilingsTab from '../../pages/research/tabs/FilingsTab'
-import EstimatesTab from '../../pages/research/tabs/EstimatesTab'
-import FinancialsTab from '../../pages/research/tabs/FinancialsTab'
-import RatingsTab from '../../pages/research/tabs/RatingsTab'
-import FundamentalsSection from './sections/FundamentalsSection'
-import StatementPanels from './sections/StatementPanels'
+import QuoteStrip from './QuoteStrip'
+import FinancialsSection from './sections/FinancialsSection'
+import AnalystsSection from './sections/AnalystsSection'
+import NewsSection from './sections/NewsSection'
 import styles from './EarningsResearchModal.module.css'
 
 // Exported so a rail can assert every SECTIONS id has a panel behind it. A tab
@@ -44,17 +42,12 @@ export const PANELS = {
   history: EarningsHistorySection,
   brief: BriefSection,
   call: CallSection,
-  // Rendered IN the modal rather than behind a link that closed it. Both take
-  // only `sym` and carry no router dependency, so they drop in unchanged.
-  analyst: OwnershipTab,
+  // Composite: the snapshot, the statement panels and the grids were three
+  // separate rail entries asking one question.
+  financials: FinancialsSection,
+  analysts: AnalystsSection,
+  news: NewsSection,
   filings: FilingsTab,
-  // Everything /research had, so the modal never has to hand the reader off.
-  // All three tabs take only `sym` and self-fetch, so they mount unchanged.
-  fundamentals: FundamentalsSection,
-  estimates: EstimatesTab,
-  statements: StatementPanels,
-  financials: FinancialsTab,
-  ratings: RatingsTab,
 }
 
 const fmtEps = (v) => (v == null ? null : `${v < 0 ? '-' : ''}$${Math.abs(v).toFixed(2)}`)
@@ -275,6 +268,10 @@ export default function EarningsResearchModal({
   const body = (
     <>
       {banner}
+      {/* The session line under the identity row: a +2% that opened at the
+          high and faded is a different day from one that closed on it, and the
+          banner's single price cannot tell you which. */}
+      <QuoteStrip sym={settledSym} />
       <div className={styles.panes}>
         <SectionRail
           sections={SECTIONS}
