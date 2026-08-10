@@ -80,7 +80,7 @@ def test_list_passes_mine_true(monkeypatch):
     assert captured["params"]["mine"] == "true"
 
 
-def test_upload_unlisted_returns_video_id(monkeypatch, tmp_path):
+def _capture_upload(monkeypatch, tmp_path):
     f = tmp_path / "v.mp4"
     f.write_bytes(b"x" * 10)
     captured = {}
@@ -95,19 +95,39 @@ def test_upload_unlisted_returns_video_id(monkeypatch, tmp_path):
     monkeypatch.setattr(yc.httpx, "put", fake_put)
     c = yc.YouTubeClient(client_id="i", client_secret="s", refresh_token="r")
     monkeypatch.setattr(c, "_ensure_token", lambda: "AT")
-    vid = c.upload_unlisted(str(f), "Live Trading Session — June 24, 2026")
+    return c, str(f), captured
+
+
+def test_upload_defaults_to_unlisted(monkeypatch, tmp_path):
+    c, path, captured = _capture_upload(monkeypatch, tmp_path)
+    vid = c.upload(path, "Live Trading Session — June 24, 2026")
     assert vid == "VIDUP"
     assert captured["put_url"] == "https://up.example/session"
     assert captured["meta"]["status"]["privacyStatus"] == "unlisted"
 
 
-def test_upload_unlisted_raises_on_init_failure(monkeypatch, tmp_path):
+def test_upload_sends_the_requested_privacy_to_youtube(monkeypatch, tmp_path):
+    # Without this the caller's routing is DECORATIVE — it could compute "public"
+    # and the client would still ship an unlisted video, reporting success either way.
+    c, path, captured = _capture_upload(monkeypatch, tmp_path)
+    c.upload(path, "Sunday Scans — August 9, 2026", privacy="public")
+    assert captured["meta"]["status"]["privacyStatus"] == "public"
+
+
+def test_upload_rejects_an_unknown_privacy_value(monkeypatch, tmp_path):
+    # A typo must fail loudly rather than reach YouTube and get coerced.
+    c, path, _ = _capture_upload(monkeypatch, tmp_path)
+    with pytest.raises(ValueError):
+        c.upload(path, "t", privacy="pubic")
+
+
+def test_upload_raises_on_init_failure(monkeypatch, tmp_path):
     f = tmp_path / "v.mp4"; f.write_bytes(b"x" * 10)
     monkeypatch.setattr(yc.httpx, "post", lambda *a, **k: _Resp(403, text="no"))
     c = yc.YouTubeClient(client_id="i", client_secret="s", refresh_token="r")
     monkeypatch.setattr(c, "_ensure_token", lambda: "AT")
     with pytest.raises(yc.YouTubeApiError):
-        c.upload_unlisted(str(f), "t")
+        c.upload(str(f), "t")
 
 
 def test_set_thumbnail_posts_image(monkeypatch):

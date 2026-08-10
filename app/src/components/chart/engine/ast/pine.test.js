@@ -240,6 +240,81 @@ describe('what a member can express', () => {
 // the round trip
 // --------------------------------------------------------------------------- //
 
+describe('the Pine parity sweep — six functions, one order, one built-in', () => {
+  // ⭐ EVERY ONE OF THESE WAS MEASURED, NOT WISHED FOR. A study of 21 real
+  // published scripts found these to be the whole manifest half of what still
+  // refused; each `it` below is the construct that unblocked a named script or a
+  // named family of them.
+
+  it('ta.rma — Wilder`s average, the one inside every RSI and ATR', () => {
+    expect(formulaOf(wrap('ta.rma(close, 14)'))).toBe('rma(close, 14)')
+  })
+
+  it('ta.wma — the linearly weighted average', () => {
+    expect(formulaOf(wrap('ta.wma(close, 9)'))).toBe('wma(close, 9)')
+  })
+
+  it('math.round and math.sign, and their v3 bare spellings', () => {
+    expect(formulaOf(wrap('math.round(close)'))).toBe('round(close)')
+    expect(formulaOf(wrap('math.sign(close - open)'))).toBe('sign(close - open)')
+    expect(formulaOf(wrap('round(close)', '//@version=3\nstudy("t")\n'))).toBe('round(close)')
+  })
+
+  it('na(x) asks whether a value is unknown', () => {
+    expect(formulaOf(wrap('na(ta.sma(close, 20)) ? 1 : 0')))
+      .toBe('na(sma(close, 20)) ? 1 : 0')
+  })
+
+  it('nz(x, y) replaces it — and the replacement is IN THE TREE', () => {
+    expect(formulaOf(wrap('nz(ta.sma(close, 20), close)'))).toBe('nz(sma(close, 20), close)')
+  })
+
+  it('⭐ the bare `na` VALUE is this engine`s not-computable, spelled 0 / 0', () => {
+    // ⛔ IT USED TO REFUSE, and refusing was the expensive option: `cond ? x : na`
+    // is a per-PLOT idiom, so one Ichimoku script lost FIFTEEN columns to it. The
+    // arithmetic already had the value — `0 / 0` is IEEE NaN in JS natively and
+    // `_binary_div` returns NaN for it explicitly in the Python lane — so only
+    // the spelling was missing, and no name had to enter the sayable vocabulary
+    // to supply it.
+    expect(formulaOf(wrap('close > open ? close : na')))
+      .toBe('close > open ? close : 0 / 0')
+  })
+
+  it('⭐ nz(x) fills its OWN zero rather than leaving a default invisible', () => {
+    // ⛔ THE LITERAL GOES INTO THE TREE. Pine's one-argument form means "or 0";
+    // this table has no one-argument form, because an unstated default zero is
+    // the invisible half of `nz(market_cap, 0) > 1e9` — a broken symbol wearing a
+    // quiet one's answer. Written out, the read-back says it and the member sees
+    // what their script asked for.
+    expect(formulaOf(wrap('nz(ta.sma(close, 20))'))).toBe('nz(sma(close, 20), 0)')
+  })
+
+  it('ta.atr(length) fills high, low and close in the order the table declares', () => {
+    // ⭐ `pine:role-order` USED TO FIRE HERE, and it was right to: the translator
+    // could see that `atr` exists and takes four arguments, and had no way to know
+    // WHICH three series to fill. The order is declared now, in the same
+    // `PINE_CALL_SHAPES` row shape `ta.wpr` already used.
+    expect(formulaOf(wrap('ta.atr(14)'))).toBe('atr(high, low, close, 14)')
+  })
+
+  it('⭐ tr expands to the Pine reference manual`s own definition of it', () => {
+    // ⛔ AN EXPANSION IS ONLY ADMISSIBLE WHEN IT IS AN IDENTITY. True Range IS
+    // `max(high - low, max(abs(high - close[1]), abs(low - close[1])))`, and it
+    // became sayable at all only when the bounded backward offset landed.
+    expect(formulaOf(wrap('tr')))
+      .toBe('max(high - low, max(abs(high - close[1]), abs(low - close[1])))')
+  })
+
+  it('…and a script that defines its OWN tr gets its own, not ours', () => {
+    // ⛔ SHADOWING A BUILT-IN IS LEGAL PINE, and the script is the authority on
+    // its own names. The expansion is consulted LAST, after every binding the
+    // script wrote — without that ordering this feature would silently replace a
+    // member's variable with different arithmetic.
+    expect(formulaOf(wrap('tr', '//@version=5\nindicator("t")\ntr = ta.sma(close, 3)\n')))
+      .toBe('sma(close, 3)')
+  })
+})
+
 describe('the round trip is the proof nothing half-translated', () => {
   const CASES = [
     'ta.sma(close, 20) > ta.ema(close, 50)',
@@ -336,18 +411,29 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     ['var state',
       '//@version=5\nindicator("t")\nvar float total = 0.0\nplot(total)\n',
       'pine:state', 3, 1, 'var'],
-    ['a := reassignment, even one buried inside a block',
-      '//@version=5\nindicator("t")\nx = close\nif close > open\n    x := open\nplot(x)\n',
+    // ⚠️ FOUR CASES USED TO SIT HERE AND THEY MOVED TO `pine.variables.test.js`,
+    // WHERE THEY ARE NOW ASSERTED TO TRANSLATE: a `:=` inside a block, a compound
+    // assignment, `v = if …`, and `f(x) => x * 2`. What is refused about a
+    // reassignment was never the token — it is whether the value crosses a bar —
+    // so the cases below are the ones that actually do.
+    ['a reassignment that reads the previous bar, which is state with no var in sight',
+      '//@version=5\nindicator("t")\nx = 0.0\nx := x[1] + volume\nplot(x)\n',
+      'pine:state', 4, 7, '['],
+    ['a var accumulator, which is the same thing spelled the usual way',
+      '//@version=5\nindicator("t")\nvar count = 0\ncount := count + 1\nplot(count)\n',
+      'pine:state', 3, 1, 'var'],
+    ['a := inside a `for`, which the fold never reads and the token scan always does',
+      '//@version=5\nindicator("t")\nx = close\nfor i = 0 to 3\n    x := x + 1\nplot(x)\n',
       'pine:reassign', 5, 7, ':='],
-    ['a compound assignment, which is a reassignment wearing a plus sign',
-      '//@version=5\nindicator("t")\nx = close\nx += 1\nplot(x)\n',
-      'pine:reassign', 4, 3, '+='],
-    ['a block-valued binding',
-      '//@version=5\nindicator("t")\nv = if close > open\n    1\nelse\n    0\nplot(v)\n',
+    ['a block-valued binding whose branches carry no value',
+      '//@version=5\nindicator("t")\nv = if close > open\n    y = 1\nelse\n    y = 0\nplot(v)\n',
       'pine:block', 3, 5, 'if'],
-    ['a user-defined function',
-      '//@version=5\nindicator("t")\nf(x) => x * 2\nplot(f(close))\n',
-      'pine:function-def', 3, 6, '=>'],
+    ['a user-defined function whose body is more than one expression',
+      '//@version=5\nindicator("t")\nf(x) =>\n    for i = 0 to 2\n        x\n    x * 2\nplot(f(close))\n',
+      'pine:block', 4, 5, 'for'],
+    ['a user-defined function that calls itself',
+      '//@version=5\nindicator("t")\nf(x) => f(x) + 1\nplot(f(close))\n',
+      'pine:cycle', 3, 9, 'f'],
     ['a tuple destructure',
       '//@version=5\nindicator("t")\n[a, b] = ta.macd(close, 12, 26, 9)\nplot(a)\n',
       'pine:tuple', 3, 1, '['],
@@ -356,12 +442,15 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     // translator emits it. What is still refused about `[n]` is a variable index
     // and a negative one, and both live in `pine.offset.test.js` beside the cases
     // that prove the supported form works.
-    ['na',
-      '//@version=5\nindicator("t")\nplot(close > open ? close : na)\n',
-      'pine:na', 3, 29, 'na'],
-    ['nz, which is na wearing a hat',
-      '//@version=5\nindicator("t")\nplot(nz(ta.sma(close, 5), 0))\n',
-      'pine:na', 3, 6, 'nz'],
+    // ⚰️ `nz` WAS HERE, as "na wearing a hat", and it is now expressible — see
+    // "the Pine parity sweep" below. The BARE `na` VALUE above still refuses, and
+    // the two were never the same thing: `na(x)` and `nz(x, y)` ASK ABOUT and
+    // REPLACE not-computable, while a bare `na` is a literal this table has no
+    // spelling for. Collapsing all three into one refusal is what made the
+    // distinction invisible for as long as it was.
+    ['fixnan, which carries a value forward across bars with no stated bound',
+      '//@version=5\nindicator("t")\nplot(fixnan(ta.sma(close, 5)))\n',
+      'pine:na', 3, 6, 'fixnan'],
     ['a text value',
       '//@version=5\nindicator("t")\nplot(close > 0 ? "up" : "down")\n',
       'pine:text-value', 3, 18, 'up'],
@@ -389,9 +478,16 @@ describe('every unsupported construct refuses BY NAME, AT ITS OWN TOKEN', () => 
     ['a named argument onto a table position',
       '//@version=5\nindicator("t")\nplot(ta.sma(source = close, length = 20))\n',
       'pine:named-argument', 3, 13, 'source'],
-    ['a self-referencing name',
+    // ⚠️ THIS EXPECTED `pine:cycle` AND IT IS NOW `pine:undefined`, BECAUSE THE
+    // MEANING OF THE SCRIPT CHANGED UNDER IT — not because a guard was weakened.
+    // Once a binding carries the environment it was written in, `x = x + 1` reads
+    // the `x` that existed BEFORE the line, and there is none: Pine itself
+    // rejects this with "Undeclared identifier 'x'". `pine:cycle` stays reachable
+    // through a self-calling function (the case above), which is the shape that
+    // really is circular.
+    ['a name defined in terms of itself before it exists',
       '//@version=5\nindicator("t")\nx = x + 1\nplot(x)\n',
-      'pine:cycle', 3, 5, 'x'],
+      'pine:undefined', 3, 5, 'x'],
     ['a script with nothing to filter on',
       '//@version=5\nindicator("t")\nx = ta.rsi(close, 14)\n',
       'pine:no-output', null, null, null],

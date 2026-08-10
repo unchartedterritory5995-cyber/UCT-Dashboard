@@ -48,6 +48,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
 
 from api.services.ast_table import (
     TABLE, FUNCTIONS_SECTION, OPERATORS_SECTION, SCALARS_SECTION, SERIES_SECTION,
+    recurrences, recurrence_bindings, is_pointwise,
 )
 
 # ⭐⭐ NOT ONE LINE OF INDICATOR MATHS LIVES IN THIS FILE. ``indicator_compute``
@@ -134,7 +135,28 @@ REFUSALS: Mapping[str, str] = {
     "interpret:node": "not a canonical node",
     "interpret:operator": "unknown operator",
     "interpret:offset": "an offset node carries a whole-number count of bars",
+    "interpret:recurrence": (
+        "a running value reads its own past only inside its own update, and only "
+        "through operators and pointwise calls"),
+    "interpret:steps": (
+        "warming this running value up over these bars would take more steps than "
+        "the engine will spend"),
 }
+
+#: The ceiling on ``bars x warmup`` for one recurrence -- the ONE cost in this
+#: engine a STATIC budget cannot threshold, because it depends on how many bars
+#: the caller brought rather than on the tree alone.
+#:
+#: ⚠️ ONE NUMBER FOR BOTH LANES, AND THIS LANE IS WHY IT IS THIS LOW. The walker
+#: here is plain loops on purpose (numpy would change summation order and cost
+#: the 1e-9 parity), so it is far slower per step than the JS one. A per-lane
+#: ceiling would be two engines: the same formula would draw on a chart and
+#: refuse in an alert, which is the one divergence a cross-lane parity run is
+#: blind to, because both lanes would be internally consistent.
+#:
+#: ⛔ THE VALUE IS ASSERTED EQUAL TO ``interpret.js::MAX_RECURRENCE_STEPS`` in
+#: ``test_ast_interpret.py``, read out of the JS source rather than retyped.
+MAX_RECURRENCE_STEPS = 1000000
 
 
 def _refuse(guard: str, detail: str) -> Any:
@@ -282,8 +304,14 @@ def _window_stdev(series: Sequence[float], lo: int, hi: int) -> float:
     return math.sqrt(sq / (hi - lo + 1))
 
 
-def _ema_col(series: Sequence[float], n: int) -> List[float]:
-    """EMA seeded with the SMA of the first full window, ``k = 2 / (n + 1)``.
+def _smooth_col(series: Sequence[float], n: int, k: float) -> List[float]:
+    """An exponential smoother seeded with the SMA of the first full window.
+
+    ⭐ ONE SMOOTHER, TWO CONSTANTS. ``ema`` passes ``2 / (n + 1)`` and ``rma``
+    (Wilder's) passes ``1 / n``; the seed, the restart-on-a-hole and the NaN
+    prefix are shared BY CONSTRUCTION rather than by two loops that agree today.
+    See ``closedTable.json::_functions_smoothing`` for why the ALPHA is what is
+    shared and the period is not.
 
     ⚠️ THE SEED IS A DECISION AND IT MATCHES BOTH THE NATIVE LANE AND
     ``interpret.js::emaCol``. A NaN in the input RESTARTS the seed — the warmup of
@@ -292,7 +320,6 @@ def _ema_col(series: Sequence[float], n: int) -> List[float]:
     never saw.
     """
     out = _nan_col(len(series))
-    k = 2 / (n + 1)
     prev = NAN
     count = 0
     total = 0.0
@@ -311,6 +338,31 @@ def _ema_col(series: Sequence[float], n: int) -> List[float]:
             prev = prev * (1 - k) + v * k
             out[i] = prev
     return out
+
+
+def _ema_col(series: Sequence[float], n: int) -> List[float]:
+    return _smooth_col(series, n, 2 / (n + 1))
+
+
+def _rma_col(series: Sequence[float], n: int) -> List[float]:
+    return _smooth_col(series, n, 1 / n)
+
+
+def _window_weighted_mean(series: Sequence[float], lo: int, hi: int) -> float:
+    """The linearly weighted mean of ``[lo, hi]`` -- the most recent bar carries
+    the most weight.
+
+    ⚠️ NaN PROPAGATES through the sum, which is what makes the warm-up of a
+    composed argument show as a hole rather than as a lighter average of the bars
+    that happened to be there.
+    """
+    weighted = 0.0
+    weights = 0.0
+    for i in range(lo, hi + 1):
+        w = float(i - lo + 1)
+        weighted += series[i] * w
+        weights += w
+    return weighted / weights
 
 
 def _elementwise2(a: Sequence[float], b: Sequence[float],
@@ -347,10 +399,47 @@ def _fn_change(series: Sequence[float]) -> List[float]:
     return out
 
 
+def _guarded_abs(x: float) -> float:
+    return abs(x)
+
+
+def _guarded_sign(x: float) -> float:
+    """⛔ THREE ANSWERS, WRITTEN OUT. `math.copysign(1, -0.0)` is -1.0 and JS's
+    `Math.sign(-0)` is -0; a signed zero is invisible in every comparison and in
+    the read-back, and NOT invisible to a parity run that divides by it."""
+    if math.isnan(x):
+        return NAN
+    return 1.0 if x > 0 else (-1.0 if x < 0 else 0.0)
+
+
+def _guarded_round(x: float) -> float:
+    """⛔ NOT PYTHON'S `round`, WHICH ROUNDS A HALF TO EVEN, AND NOT JS's
+    `Math.round`, WHICH ROUNDS IT TOWARD +inf. Pine rounds a half AWAY FROM ZERO
+    and so does this, in both lanes, spelled the same way. `math.floor` also
+    RAISES on NaN, so the guard is load-bearing rather than tidy. See
+    `closedTable.json::_functions_rounding`."""
+    if math.isnan(x):
+        return NAN
+    return _guarded_sign(x) * math.floor(abs(x) + 0.5)
+
+
+def _guarded_na(x: float) -> float:
+    """⭐ ONE OF THE TWO ENTRIES THAT DO NOT PROPAGATE NaN. It INSPECTS
+    not-computable rather than carrying it -- see `_functions_na`."""
+    return 1.0 if math.isnan(x) else 0.0
+
+
+def _guarded_nz(x: float, y: float) -> float:
+    """⭐ THE OTHER ONE. It REPLACES not-computable with a value the user named
+    explicitly; there is no one-argument form, because a default zero is the
+    invisible half of the defect `_functions_na` describes."""
+    return y if math.isnan(x) else x
+
+
 def _fn_abs(series: Sequence[float]) -> List[float]:
     out = _nan_col(len(series))
     for i in range(len(series)):
-        out[i] = abs(series[i])
+        out[i] = _guarded_abs(series[i])
     return out
 
 
@@ -360,6 +449,43 @@ def _guarded_min(x: float, y: float) -> float:
 
 def _guarded_max(x: float, y: float) -> float:
     return NAN if (math.isnan(x) or math.isnan(y)) else max(x, y)
+
+
+#: The pointwise functions AS SCALARS -- one bar in, one bar out.
+#:
+#: ⭐ THE COLUMN FORMS ARE DEFINED IN TERMS OF THESE, NOT BESIDE THEM, and that
+#: is the whole reason this map exists. A recurrence body is evaluated one bar at
+#: a time (see ``_run_recurrence``), so ``max(self, close)`` needs a scalar
+#: ``max``; writing a second one there would be two implementations of one
+#: function, and the first thing to diverge would be the NaN rule the comment on
+#: ``FN`` says was already a measured cross-lane bug.
+#:
+#: ⚠️ THE KEY SET IS DERIVED AND ASSERTED, NOT CURATED. ``is_pointwise`` decides
+#: which table entries a body may call; ``test_ast_interpret.py`` asserts that set
+#: equals these keys BOTH WAYS, so a pointwise entry that lands in the manifest
+#: without a scalar form here fails by name rather than refusing inside a body
+#: that looks legal.
+#: The "no precomputed column here" sentinel. ⛔ NOT ``None`` and not a falsy
+#: check: a precomputed subtree can legitimately evaluate to 0.0 or to NaN, and
+#: `if not columns.get(...)` would send both back through the step walker —
+#: which would then meet a bare ``series`` node it had deliberately not planned.
+_MISSING = object()
+
+_POINTWISE: Mapping[str, Callable[..., float]] = {
+    "abs": _guarded_abs,
+    "min": _guarded_min,
+    "max": _guarded_max,
+    "sign": _guarded_sign,
+    "round": _guarded_round,
+    "na": _guarded_na,
+    "nz": _guarded_nz,
+}
+
+#: The manifest's recurrence declarations, read ONCE at import. ⛔ Not re-derived
+#: per call: two readings of one manifest is how a lane comes to disagree with
+#: itself between a chart request and an alert evaluation.
+RECURRENCES: Mapping[str, Any] = recurrences()
+RECURRENCE_BINDINGS: tuple = recurrence_bindings()
 
 
 # --------------------------------------------------------------------------- #
@@ -564,6 +690,12 @@ FN: Dict[str, Callable[..., List[float]]] = {
     # in both lanes instead of relying on one language's luck.
     "min": lambda a, b: _elementwise2(a, b, _guarded_min),
     "max": lambda a, b: _elementwise2(a, b, _guarded_max),
+    "rma": lambda series, n: _rma_col(series, n),
+    "wma": lambda series, n: _rolling(series, n, _window_weighted_mean),
+    "sign": lambda series: [_guarded_sign(v) for v in series],
+    "round": lambda series: [_guarded_round(v) for v in series],
+    "na": lambda series: [_guarded_na(v) for v in series],
+    "nz": lambda a, b: _elementwise2(a, b, _guarded_nz),
     "crossOver": lambda a, b: _crossing(a, b, lambda an, bn, ap, bp: an > bn and ap <= bp),
     "crossUnder": lambda a, b: _crossing(a, b, lambda an, bn, ap, bp: an < bn and ap >= bp),
     # ── the indicators, bound to the server's own maths ────────────────────
@@ -1027,7 +1159,12 @@ def interpret(ast: Any, bars: List[dict],
         scope[name] = float(v) if (_is_number(v) and math.isfinite(float(v))) else NAN
 
     for name, value in (inputs or {}).items():
-        if name in scope or name in TABLE[FUNCTIONS_SECTION]:
+        # ⛔ AND A RECURRENCE BINDING IS RESERVED TOO. ``self`` is not in
+        # ``scope`` and not in ``functions``, so without this an input could take
+        # the name and every body in the definition would silently read the KNOB
+        # instead of the running value — a formula that still computes, and
+        # computes the wrong thing. The list is derived from the manifest.
+        if name in scope or name in TABLE[FUNCTIONS_SECTION] or name in RECURRENCE_BINDINGS:
             # A plain ValueError again: a definition whose input shadows `close`
             # is a WIRING defect, and silently letting it win would change what
             # every formula on that definition means.
@@ -1046,6 +1183,17 @@ def interpret(ast: Any, bars: List[dict],
     def lookup(name: Any) -> Any:
         # ⛔ `in`, NEVER `getattr`. See the module header.
         if not isinstance(name, str) or name not in scope:
+            # ⭐ A RECURRENCE BINDING IS NEVER IN SCOPE, EVEN INSIDE ITS OWN
+            # BODY — ``run_recurrence``'s step loop intercepts it before the
+            # walker gets here. So reaching this line with one means it was
+            # written where no running value is being computed, and saying THAT
+            # is worth its own guard: `unknown name 'self'` beside a list of
+            # price fields sends the reader hunting a typo in a name that is
+            # spelled correctly.
+            if isinstance(name, str) and name in RECURRENCE_BINDINGS:
+                _refuse("interpret:recurrence",
+                        f"— `{name}` was read outside the update of a "
+                        f"{_declared(RECURRENCES)} call")
             _refuse("resolve:name",
                     f"{name!r} — this table declares {', '.join(scope)}")
         return scope[name]
@@ -1090,6 +1238,11 @@ def interpret(ast: Any, bars: List[dict],
         if kind == "call":
             spec = _fn_spec(n.get("name"))
             _assert_arity(n, spec)
+            # ⭐ THE ONE ARM THAT DOES NOT EVALUATE ITS ARGUMENTS EAGERLY, and
+            # the MANIFEST says so rather than this line asserting it: an entry
+            # declaring a ``recurrence`` carries a per-bar BODY, not a column.
+            if n["name"] in RECURRENCES:
+                return run_recurrence(n, spec)
             args: List[Any] = []
             for i in range(len(n["args"])):
                 if spec["args"][i] == "int":
@@ -1121,6 +1274,155 @@ def interpret(ast: Any, bars: List[dict],
             return _lift2(values[0], values[1], _BINARY[name], length)
         return _refuse("interpret:operator",
                        f"{name!r} — this table declares {_declared(TABLE[OPERATORS_SECTION])}")
+
+    def apply_op_step(node: dict, values: List[Any]) -> Any:
+        """One operator, applied to BARE FLOATS. The recurrence step loop's arm.
+
+        ⭐ THE SAME ``_UNARY``/``_BINARY``/``_ternary`` ENTRIES ``apply_op`` USES,
+        and that is not a convenience: ``_lift1/2/3`` are pure elementwise
+        applications of these very functions, so a body evaluated one bar at a
+        time and a column evaluated all at once are the SAME ARITHMETIC by
+        construction. A second scalar table here would be a second grammar, and
+        the first thing to diverge would be the NaN rule (``_cmp`` answers 0.0,
+        ``_logical`` answers NaN) — a difference NO cross-lane parity run would
+        catch, because it would be wrong identically in both lanes.
+        """
+        name = node.get("name")
+        if name == _TERNARY_NAME:
+            if len(values) != 3:
+                _refuse("resolve:arity",
+                        f"— the ternary {_TERNARY_NAME} expects 3 arguments, got {len(values)}")
+            return _ternary(values[0], values[1], values[2])
+        if isinstance(name, str) and name in _UNARY:
+            if len(values) != 1:
+                _refuse("resolve:arity", f"— {name} expects 1 arguments, got {len(values)}")
+            return _UNARY[name](values[0])
+        if isinstance(name, str) and name in _BINARY:
+            if len(values) != 2:
+                _refuse("resolve:arity", f"— {name} expects 2 arguments, got {len(values)}")
+            return _BINARY[name](values[0], values[1])
+        return _refuse("interpret:operator",
+                       f"{name!r} — this table declares {_declared(TABLE[OPERATORS_SECTION])}")
+
+    def run_recurrence(node: dict, spec: Mapping[str, Any]) -> Any:
+        """A declared recurrence — bar-to-bar state, bounded so the answer cannot
+        depend on which bars the caller happened to fetch.
+
+        ⭐⭐ THE DEFINITION, AND EVERYTHING ELSE FOLLOWS FROM IT. At bar ``i`` the
+        state is SEEDED FRESH at bar ``i - warmup`` and the body is applied once
+        per bar across ``(i - warmup, i]``. So the value at bar ``i`` is a
+        function of exactly ``warmup + 1`` bars and nothing else — the same
+        bargain ``sma(close, 20)`` makes, and the reason panning a chart cannot
+        change it.
+
+        ⛔ THE OBVIOUS IMPLEMENTATION IS THE WRONG ONE, AND IT IS WRONG QUIETLY.
+        A single forward pass from bar 0 is O(n) instead of O(n x warmup) and
+        gives a DIFFERENT number for the same bar the moment the window moves —
+        a rolling value needs a warm-up prefix and a cumulative one needs an
+        ABSOLUTE seed; "wherever this fetch started" is neither.
+
+        ⛔ AND THE PREFIX IS NaN, NEVER A SHORT RUN. Bars before ``warmup`` have
+        no seed bar to start from, so they are not computable — a partial
+        accumulation there would be a confident wrong number wearing a warm-up's
+        clothes, the same shape as the clamped ``src[0]`` the offset arm refuses.
+
+        ⚠️ LINE FOR LINE THE SAME SHAPE AS ``interpret.js::runRecurrence``. The
+        two are held equal by the parity corpus at 1e-9, and a recurrence is
+        ORDER-SENSITIVE, so the loop bounds here are part of the contract rather
+        than an implementation detail.
+        """
+        rec = spec["recurrence"]
+        bind = rec["binds"]
+        warmup = _window_literal(node, rec["warmup"])
+        body = node["args"][rec["body"]]
+
+        # ⭐ THE ONE COST A STATIC BUDGET CANNOT SEE. ``warmup`` alone is already
+        # capped by ``budget:lookback`` like any other window; the WORK is
+        # ``bars x warmup``, and the bar count arrives with the caller.
+        if length * warmup > MAX_RECURRENCE_STEPS:
+            _refuse("interpret:steps",
+                    f"— {node['name']} over {length} bars with a {warmup}-bar warm-up "
+                    f"is {length * warmup} steps and the ceiling is {MAX_RECURRENCE_STEPS}")
+
+        def is_bind(x: Any) -> bool:
+            return isinstance(x, dict) and x.get("type") == "series" and x.get("name") == bind
+
+        # Which nodes of the body read the running value. Memoised over node
+        # IDENTITY, so a tree that shares a subtree object answers once.
+        reads_cache: Dict[int, bool] = {}
+
+        def reads(x: Any) -> bool:
+            key = id(x)
+            if key in reads_cache:
+                return reads_cache[key]
+            answer = is_bind(x)
+            if not answer and isinstance(x, dict) and isinstance(x.get("args"), list):
+                for child in x["args"]:
+                    if reads(child):
+                        answer = True
+                        break
+            reads_cache[key] = answer
+            return answer
+
+        # ⭐ THE PARTITION, AND IT IS WHAT KEEPS THIS AFFORDABLE. Every maximal
+        # subtree that does NOT read the running value is an ordinary column and
+        # is evaluated ONCE, by the ordinary walker. Only the spine that actually
+        # depends on the previous bar is re-evaluated per step — so ``sma`` inside
+        # a body costs one pass, not ``bars x warmup`` of them.
+        columns: Dict[int, Any] = {}
+        planned = set()
+
+        def plan(x: Any) -> None:
+            if id(x) in planned:
+                return
+            planned.add(id(x))
+            if not reads(x):
+                columns[id(x)] = eval_node(x)
+                return
+            if is_bind(x):
+                return
+            kind = x.get("type") if isinstance(x, dict) else None
+            if kind == "offset":
+                _refuse("interpret:recurrence",
+                        f"— `{bind}` sits under a bar offset in {node['name']}(…). The step "
+                        f"loop holds ONE previous value, not a history of them.")
+            if kind == "call":
+                inner = _fn_spec(x.get("name"))
+                if x["name"] in RECURRENCES:
+                    _refuse("interpret:recurrence",
+                            f"— `{bind}` sits inside a nested {x['name']}(…), so which "
+                            f"running value it names would depend on where a reader started "
+                            f"counting.")
+                if not is_pointwise(inner):
+                    _refuse("interpret:recurrence",
+                            f"— `{bind}` sits inside {x['name']}(…), which reads a window "
+                            f"of bars rather than one. Write the windowed part outside the "
+                            f"update, or spell it with {_declared(TABLE[OPERATORS_SECTION])}.")
+                _assert_arity(x, inner)
+            for child in ((x.get("args") or []) if isinstance(x, dict) else []):
+                plan(child)
+
+        plan(body)
+
+        def step(x: Any, j: int, carried: float) -> float:
+            got = columns.get(id(x), _MISSING)
+            if got is not _MISSING:
+                return got[j] if _is_column(got) else got
+            if is_bind(x):
+                return carried
+            values = [step(child, j, carried) for child in x["args"]]
+            if x["type"] == "op":
+                return apply_op_step(x, values)
+            return _POINTWISE[x["name"]](*values)
+
+        seed = _to_column(eval_node(node["args"][rec["seed"]]), length)
+        out = _nan_col(length)
+        for i in range(warmup, length):
+            carried = seed[i - warmup]
+            for j in range(i - warmup + 1, i + 1):
+                carried = step(body, j, carried)
+            out[i] = carried
+        return out
 
     column = _to_column(eval_node(ast), length)
     # ⚠️ THE ONE CONVERSION, AT THE ONE BOUNDARY. NaN inside, `None` on the wire —

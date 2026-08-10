@@ -144,7 +144,7 @@ describe('the builder refuses without dying', () => {
       { src: 'close.length', guard: 'canonicalise:member' },
       { src: 'sma(close, 600)', guard: 'budget:lookback' },
       { src: 'foo(close, 3)', guard: 'resolve:function' },
-      { src: 'close + open + high + low + volume + close + open + high + low', guard: 'budget:series' },
+      { src: 'close + high + low + open + volume + above_50sma + accdis + adr_pct + atr_pct', guard: 'budget:series' },
     ]
     for (const c of cases) {
       const expected = evaluateFormula(c.src)
@@ -164,7 +164,7 @@ describe('the builder refuses without dying', () => {
   it('the five doors say five DIFFERENT things — a shared phrase is a gate nothing can tell apart', () => {
     const msgs = [
       'sma(close,', 'close.length', 'sma(close, 600)', 'foo(close, 3)',
-      'close + open + high + low + volume + close + open + high + low',
+      'close + high + low + open + volume + above_50sma + accdis + adr_pct + atr_pct',
     ].map((s) => evaluateFormula(s).error)
     expect(msgs.every(Boolean)).toBe(true)
     expect(new Set(msgs).size).toBe(msgs.length)

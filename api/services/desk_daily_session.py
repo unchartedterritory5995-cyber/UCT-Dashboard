@@ -90,6 +90,34 @@ def _route(topic: str | None) -> tuple[str, str, str]:
     return t, t, t.upper()        # auto: the name IS the section + title + eyebrow
 
 
+# Shows whose recordings are uploaded PUBLIC on YouTube. Everything else is
+# UNLISTED, because most shows on this account are paywalled — Live Trading
+# Sessions above all — and this is the call that decides whether a paid session
+# becomes a searchable video on the channel.
+#
+# Matched against the ROUTED SECTION, not the raw webinar topic: the section is
+# the canonical shelf name `_RULES` already pins, so "SUNDAY SCANS", "Sunday
+# Scan" and a stray double space all collapse to one answer. Keying this off the
+# hand-typed name instead would put a second authority on "which show is this",
+# and the thumbnail bug of 2026-07-29 is what that costs.
+#
+# A blank DESK_PUBLIC_SHOWS makes NOTHING public — same contract as
+# DESK_TSDR_ANNOUNCE_SHOWS: the failure direction is private, never a leak. That
+# also makes rollback an env var rather than a deploy.
+_PUBLIC_SHOWS_DEFAULT = "sunday scans"
+
+
+def public_shows() -> list[str]:
+    raw = os.environ.get("DESK_PUBLIC_SHOWS", _PUBLIC_SHOWS_DEFAULT)
+    return [n for s in raw.split(",") if (n := _WS.sub(" ", s).strip().lower())]
+
+
+def privacy_for_section(section: str | None) -> str:
+    """The YouTube privacyStatus a routed section should be uploaded with."""
+    hay = _WS.sub(" ", (section or "")).strip().lower()
+    return "public" if any(s in hay for s in public_shows()) else "unlisted"
+
+
 def _to_et(started_at_iso: str | None, *, now: datetime | None = None) -> datetime:
     if not started_at_iso:
         return now or datetime.now(_ET)
@@ -288,7 +316,7 @@ def process_pending_jobs(*, zoom=None, youtube=None) -> list[dict]:
             if not vid:
                 fd, tmp = tempfile.mkstemp(suffix=".mp4"); os.close(fd)
                 zoom.stream_download(job["download_url"], job.get("download_token"), tmp)
-                vid = youtube.upload_unlisted(tmp, title)
+                vid = youtube.upload(tmp, title, privacy=privacy_for_section(section))
                 desk_session_jobs.mark_uploaded(uuid, vid)   # persist before publish/delete
                 audio_key = _maybe_extract_audio(tmp, vid)
                 try:  # branded thumbnail — cosmetic, NEVER fail publish over it

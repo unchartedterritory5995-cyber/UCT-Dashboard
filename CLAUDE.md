@@ -2380,6 +2380,24 @@ or `ADMIN_EMAILS`; best-effort (never breaks publish). **⚠️ NO allowlist —
 recording on the account auto-posts (titled by its webinar name); add a skip rule in
 `_route` if private/internal recordings ever need excluding.**
 
+**🔴 YouTube privacy is per-show and defaults to UNLISTED** (`privacy_for_section`,
+2026-08-09). Only a section matching `DESK_PUBLIC_SHOWS` (default `sunday scans`)
+uploads **public**; every other show — **Live Trading Sessions above all, which are
+paywalled** — stays unlisted. This is the one call that decides whether a paid session
+becomes a searchable video on the channel, so:
+- It keys off the **routed SECTION**, not the hand-typed Zoom topic — the section is
+  the canonical name `_RULES` already pins, so casing/pluralisation/double-space
+  variants collapse to one answer. Keying it off the raw name would put a second
+  authority on "which show is this" (the 2026-07-29 thumbnail bug).
+- **A blank `DESK_PUBLIC_SHOWS` makes NOTHING public** — same contract as
+  `DESK_TSDR_ANNOUNCE_SHOWS`: the failure direction is private, never a leak. Rollback
+  is therefore an env var, not a deploy.
+- Rails in `tests/test_desk_daily_session.py` **derive the show list from `_RULES` /
+  `_HOST_AWARE`** rather than retyping it, so a show added tomorrow is covered the day
+  it lands and defaults to unlisted. Mutation-checked three ways (guard deleted · call
+  site stops passing privacy · client ignores the value it was handed) — the middle one
+  is the "routing computed but never applied" failure this repo keeps rediscovering.
+
 ### Files
 - `api/routers/desk_zoom_webhook.py` — `POST /api/desk/zoom-webhook` (HMAC-validate +
   url_validation challenge + enqueue). `GET /api/desk/sessions-status` (PUSH_SECRET
@@ -2390,9 +2408,13 @@ recording on the account auto-posts (titled by its webinar name); add a skip rul
   rows past `_STALE_SECS` (crash recovery); `mark_uploaded`/`mark_done`/`mark_error`.
 - `api/services/zoom_client.py` — Zoom S2S OAuth + `stream_download` (Bearer header,
   content-type+min-size GUARD → rejects HTML/JSON error pages) + `delete_recording`.
-- `api/services/youtube_client.py` — OAuth refresh + `upload_unlisted` (resumable,
-  streamed from disk) + `set_thumbnail` (thumbnails.set) + `list_completed_broadcasts`
-  (v1 poll, retired).
+- `api/services/youtube_client.py` — OAuth refresh + `upload(path, title,
+  description="", privacy="unlisted")` (resumable, streamed from disk; rejects a
+  privacyStatus outside `_PRIVACY_STATUSES` rather than letting YouTube coerce a typo)
+  + `set_thumbnail` (thumbnails.set) + `list_completed_broadcasts` (v1 poll, retired).
+  ⚠️ Was `upload_unlisted` until 2026-08-09; the name was renamed rather than given a
+  `privacy` kwarg **because a method called `_unlisted` that can publish publicly is
+  exactly the stale-name defect this file keeps paying for** (cf. "ON THE TAPE").
 - `api/services/desk_daily_session.py` — `process_pending_jobs` (drain → download →
   upload → set_thumbnail [non-fatal] → publish → trash → done), `_session_title`,
   `_session_date_text`, `check_missing_session_alert` (weekday EOD safety net, Discord).
@@ -2406,7 +2428,9 @@ recording on the account auto-posts (titled by its webinar name); add a skip rul
 `ZOOM_WEBHOOK_SECRET_TOKEN` · `YT_OAUTH_CLIENT_ID/_CLIENT_SECRET/_REFRESH_TOKEN`
 (upload scope, OAuth app published→prod so the token doesn't expire) ·
 `DESK_DAILY_SESSION_CATEGORY="Live Trading Sessions"` · optional `_START_DATE`,
-`_STALE_SECS`, `_MAX_ATTEMPTS`. Webhook URL: `https://uctintelligence.com/api/desk/zoom-webhook`.
+`_STALE_SECS`, `_MAX_ATTEMPTS` · `DESK_PUBLIC_SHOWS` (default `sunday scans`; comma-
+separated, matched against the routed section — **blank makes nothing public**).
+Webhook URL: `https://uctintelligence.com/api/desk/zoom-webhook`.
 
 ### LOCKED invariants / gotchas (do NOT regress)
 - **Zoom `download_token` is at the TOP LEVEL of the `recording.completed` event body**

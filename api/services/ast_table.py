@@ -245,3 +245,67 @@ def yields_of(name: str, manifest: Optional[Mapping[str, Any]] = None) -> str:
 #: field and this is an ALIAS — the same function object, so the two can never
 #: drift and no reader has to know which name its caller used.
 domain_of = yields_of
+
+
+# --------------------------------------------------------------------------- #
+# the recurrence, READ from the manifest
+# --------------------------------------------------------------------------- #
+#
+# ⭐ BAR-TO-BAR STATE ADDED NO NODE TYPE. ``accum`` is a ``call`` like any other,
+# so ``NODE_TYPES`` is still five and this walker still has five cases. What
+# makes it different is DECLARED — ``functions.accum.recurrence`` — rather than
+# written into each lane: which argument is the seed, which is the per-bar body,
+# which carries the warm-up, and what name the body reads its own past through.
+#
+# ⛔ SO NEITHER LANE TYPES THE STRING ``self`` OR THE INDEX ``1``. Both read them
+# off the entry. A hand-copy would be the second-authority defect, and a silent
+# one: a lane that thought the body was argument 2 would evaluate the WARM-UP as
+# an expression and the body as a window, and produce a number for both.
+#
+# ⚠️ ``parse.js`` CARRIES THE SAME THREE, DERIVED THE SAME WAY. That is the point
+# — one manifest, two readings, no third list.
+
+
+def recurrences(manifest: Optional[Mapping[str, Any]] = None) -> Mapping[str, Any]:
+    """Every function entry that declares a ``recurrence``, by name.
+
+    A map rather than a name, so a SECOND recurrent entry needs no code change
+    anywhere: the walkers ask "does this call declare one", never "is this
+    call ``accum``".
+    """
+    m = manifest if manifest is not None else TABLE
+    out = {}
+    for name, spec in (m.get(FUNCTIONS_SECTION) or {}).items():
+        rec = spec.get("recurrence") if isinstance(spec, Mapping) else None
+        if isinstance(rec, Mapping):
+            out[name] = rec
+    return out
+
+
+def recurrence_bindings(manifest: Optional[Mapping[str, Any]] = None) -> tuple:
+    """The reserved names the bodies bind — the set a scope must refuse to let an
+    input shadow. Derived from the entries above, never listed."""
+    return tuple(sorted({r["binds"] for r in recurrences(manifest).values()}))
+
+
+def is_pointwise(spec: Any) -> bool:
+    """Does this function read each argument at the bar it writes, and nowhere
+    else?
+
+    ⭐ DERIVED FROM THE WINDOW DECLARATION, NEVER FROM A LIST OF NAMES. A
+    hand-list of "the pointwise ones" would be a third authority over
+    ``lookback`` and it would rot the day a pointwise entry landed — which is
+    exactly how a running value would come to read a NaN it was never told
+    about. ``lookback: 0``, no ``forward`` and no ``int`` slot IS the definition:
+    an entry that reads only bar ``i`` of each argument can be applied one bar at
+    a time, which is the only thing a recurrence step loop can do.
+    """
+    if not isinstance(spec, Mapping):
+        return False
+    args = spec.get("args")
+    return (
+        spec.get("lookback") == 0
+        and "forward" not in spec
+        and isinstance(args, (list, tuple))
+        and all(kind == "series" for kind in args)
+    )

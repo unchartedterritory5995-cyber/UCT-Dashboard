@@ -155,7 +155,7 @@ class _FakeZoom:
 
 class _FakeYT:
     def __init__(self): self.thumbs = []
-    def upload_unlisted(self, path, title, description=""):
+    def upload(self, path, title, description="", privacy="unlisted"):
         return "VIDX"
     def set_thumbnail(self, video_id, image_bytes):
         self.thumbs.append((video_id, len(image_bytes)))
@@ -167,6 +167,73 @@ def jobs_db(monkeypatch):
     with tempfile.TemporaryDirectory() as d:
         monkeypatch.setattr(q, "_DB_PATH", _os.path.join(d, "jobs.db")); q._init_db()
         yield q
+
+
+# ---------------------------------------------------------------------------
+# YouTube privacy routing — Sunday Scans is public, EVERY other show is unlisted.
+#
+# The paywalled shows (Live Trading Sessions above all) reach YouTube through this
+# exact call, so a routing bug here does not read as "wrong metadata" — it PUBLISHES
+# A PAID SESSION. These tests are the rail on that, and they are deliberately
+# derived from the routing registry rather than a typed list of show names: a show
+# added to _RULES/_HOST_AWARE tomorrow is covered the day it lands, and defaults to
+# unlisted without anyone remembering to come back here.
+# ---------------------------------------------------------------------------
+
+
+class _RecordingYT(_FakeYT):
+    """Records the privacy each upload was asked for."""
+    def __init__(self):
+        super().__init__()
+        self.uploads = []
+
+    def upload(self, path, title, description="", privacy="unlisted"):
+        self.uploads.append({"title": title, "privacy": privacy})
+        return "VIDX"
+
+
+def _privacy_after_publishing(topic, edu_db, jobs_db, uuid="UP1"):
+    """Run the real pipeline for a webinar name; return the privacy YouTube got."""
+    jobs_db.enqueue(uuid, topic, "2026-08-09T21:50:00Z", "http://dl", "tok")
+    yt = _RecordingYT()
+    dds.process_pending_jobs(zoom=_FakeZoom(), youtube=yt)
+    assert yt.uploads, f"nothing was uploaded for topic {topic!r}"
+    return yt.uploads[0]["privacy"]
+
+
+def test_sunday_scans_uploads_public(edu_db, jobs_db):
+    assert _privacy_after_publishing("SUNDAY SCANS", edu_db, jobs_db) == "public"
+
+
+def test_sunday_scans_name_variants_all_upload_public(edu_db, jobs_db):
+    # The name is hand-typed into Zoom every week; casing and pluralisation drift.
+    for i, topic in enumerate(["Sunday Scans", "sunday scan", "SUNDAY  SCANS"]):
+        assert _privacy_after_publishing(topic, edu_db, jobs_db, uuid=f"UV{i}") == "public", topic
+
+
+def test_live_trading_session_is_never_public(edu_db, jobs_db):
+    # THE safety rail: Live Trading Sessions are paywalled.
+    assert _privacy_after_publishing("LIVE TRADING TODAY", edu_db, jobs_db) == "unlisted"
+
+
+def test_every_routed_show_except_sunday_scans_stays_unlisted(edu_db, jobs_db):
+    # Derived from the registry the router actually iterates — never a typed list.
+    topics = [kw for kw, _section in dds._HOST_AWARE]
+    topics += [kw for kw, _s, _p, _e in dds._RULES]
+    topics += ["Some Brand New Show", ""]          # auto-derived + default routes
+    leaked = []
+    for i, topic in enumerate(topics):
+        section, _prefix, _eyebrow = dds._route(topic)
+        privacy = _privacy_after_publishing(topic, edu_db, jobs_db, uuid=f"UR{i}")
+        if privacy == "public" and section != "Sunday Scans":
+            leaked.append(f"{topic!r} -> section {section!r} -> {privacy}")
+    assert not leaked, "these shows would publish PUBLICLY on YouTube:\n  " + "\n  ".join(leaked)
+
+
+def test_blank_public_shows_env_makes_nothing_public(edu_db, jobs_db, monkeypatch):
+    # Failure direction is private, never a leak — mirrors DESK_TSDR_ANNOUNCE_SHOWS.
+    monkeypatch.setenv("DESK_PUBLIC_SHOWS", "")
+    assert _privacy_after_publishing("SUNDAY SCANS", edu_db, jobs_db) == "unlisted"
 
 
 def test_process_pending_publishes_and_cleans(edu_db, jobs_db):
@@ -204,7 +271,7 @@ def test_process_marks_error_on_upload_failure(edu_db, jobs_db, monkeypatch):
     monkeypatch.setattr(q, "_MAX_ATTEMPTS", 1)
     jobs_db.enqueue("U1", "Live Trading Session", "2026-06-24T13:30:00Z", "http://dl", "tok")
     class _BoomYT:
-        def upload_unlisted(self, *a, **k): raise RuntimeError("upload boom")
+        def upload(self, *a, **k): raise RuntimeError("upload boom")
     dds.process_pending_jobs(zoom=_FakeZoom(), youtube=_BoomYT())
     assert jobs_db.count_status("error") == 1
     assert edu.list_videos() == []
@@ -219,7 +286,7 @@ def test_process_skips_reupload_when_job_has_youtube_id(edu_db, jobs_db, monkeyp
         def stream_download(self, *a, **k): raise AssertionError("should not download")
         def delete_recording(self, uuid): pass
     class _BoomYT:
-        def upload_unlisted(self, *a, **k): raise AssertionError("should not upload")
+        def upload(self, *a, **k): raise AssertionError("should not upload")
     out = dds.process_pending_jobs(zoom=_BoomZoom(), youtube=_BoomYT())
     assert len(out) == 1
     vids = [v for v in edu.list_videos() if v["youtube_id"] == "VIDZ"]

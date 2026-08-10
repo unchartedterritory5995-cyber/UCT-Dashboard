@@ -15,6 +15,10 @@ _BROADCASTS_URL = "https://www.googleapis.com/youtube/v3/liveBroadcasts"
 _THUMBNAIL_URL = "https://www.googleapis.com/upload/youtube/v3/thumbnails/set"
 _UPLOAD_URL = "https://www.googleapis.com/upload/youtube/v3/videos"
 
+# The privacyStatus values the Data API accepts. Used to reject a typo at the
+# call site instead of letting YouTube silently apply its own default.
+_PRIVACY_STATUSES = frozenset({"private", "unlisted", "public"})
+
 
 class YouTubeAuthError(Exception):
     """OAuth not configured or token refresh failed."""
@@ -74,13 +78,24 @@ class YouTubeClient:
         self._token_exp = time.time() + int(data.get("expires_in", 3600))
         return self._access_token
 
-    def upload_unlisted(self, file_path: str, title: str, description: str = "") -> str:
-        """Resumable upload of a local file as an UNLISTED video. Streams the
-        bytes from disk (no full-file RAM load). Returns the new videoId."""
+    def upload(self, file_path: str, title: str, description: str = "",
+               privacy: str = "unlisted") -> str:
+        """Resumable upload of a local file. Streams the bytes from disk (no
+        full-file RAM load). Returns the new videoId.
+
+        `privacy` defaults to **unlisted** because most shows on this account are
+        paywalled — a caller that forgets to pass it can only ever under-share.
+        An unrecognised value raises rather than reaching YouTube, which would
+        otherwise coerce a typo like "pubic" to its own default and leave the
+        caller believing it had set something.
+        """
+        if privacy not in _PRIVACY_STATUSES:
+            raise ValueError(
+                f"privacy must be one of {sorted(_PRIVACY_STATUSES)}, got {privacy!r}")
         token = self._ensure_token()
         size = os.path.getsize(file_path)
         meta = {"snippet": {"title": title, "description": description},
-                "status": {"privacyStatus": "unlisted", "selfDeclaredMadeForKids": False}}
+                "status": {"privacyStatus": privacy, "selfDeclaredMadeForKids": False}}
         init = httpx.post(_UPLOAD_URL,
             params={"uploadType": "resumable", "part": "snippet,status"},
             headers={"Authorization": f"Bearer {token}",

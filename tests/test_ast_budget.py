@@ -79,11 +79,21 @@ def chain_of_nodes(n: int) -> dict:
 
 
 def chain_of_series(n: int) -> dict:
-    """A canonical tree performing EXACTLY ``n`` base-series reads."""
-    names = sorted(TABLE["series"])
+    """A canonical tree reading EXACTLY ``n`` DISTINCT declared names.
+
+    ⭐ SERIES FIRST, THEN SCALARS. The manifest declares five bar series, so a
+    fixture that cycled them could never reach a cap of eight once
+    ``series_refs`` began counting DISTINCT reads. A scalar rides the SAME
+    ``series`` node and is a per-symbol column read, so it costs exactly the data
+    this cap is about. ⛔ Names come from the manifest, never typed.
+    """
+    names = sorted(TABLE["series"]) + sorted(TABLE["scalars"])
+    if n > len(names):
+        raise AssertionError(
+            f"chain_of_series({n}): the manifest declares only {len(names)} names")
     node = SER(names[0])
     for i in range(1, n):
-        node = OP("+", node, SER(names[i % len(names)]))
+        node = OP("+", node, SER(names[i]))
     return node
 
 
