@@ -1,0 +1,576 @@
+{
+  "_": "GENUINE TC2000 PERSONAL CRITERIA FORMULAS, AND WHAT THIS PRODUCT DOES WITH EACH. Not one line of this file was invented as a test input: every `source` under `accepted` and `refused` is a formula published by Worden or by a TC2000 practitioner, cited per case. A toy corpus proves that a parser parses; this one measures whether a member who already writes PCF can walk in.",
+  "_sources": {
+    "help-syntax": "https://help.tc2000.com/m/69445/l/745531-personal-criteria-formula-syntax-table",
+    "help-boolean": "https://help.tc2000.com/m/69445/l/755513-boolean-relational-operators-and-functions-table",
+    "help-indicator-templates": "https://help.tc2000.com/m/69445/l/745033-indicator-formula-template-table",
+    "help-condition-templates": "https://help.tc2000.com/m/69445/l/756693-condition-formula-template-table",
+    "traderisk-breakouts": "https://www.thetraderisk.com/scanning-for-breakout-setups-using-worden-tc2000-pcf/",
+    "worden-webinar": "http://videos.worden.com/webinars/pcfs103012/writing personal criteria formulas - PCFs.pdf",
+    "gnerdalot": "https://github.com/gnerdalot/trading/blob/master/tc2000-formulae"
+  },
+  "_accepted": "`native` is the SAME formula written in this product's own dialect. The rail is `astHash(pcf) === astHash(native)` — not that the PCF reader produces *a* tree, but that it produces the tree the engine already runs on both lanes at 1e-9. A PCF layer that produced its own trees would be a second numeric surface; this one produces none.",
+  "_refused": "`guard` is the door that must fire and `at` is the source index the refusal must point at. ⛔ BOTH ARE ASSERTED. A refusal that arrives from the wrong door reads identically to the right one, and a refusal with no position is one a member cannot act on.",
+  "accepted": [
+    {
+      "id": "price_floor",
+      "cite": "traderisk-breakouts",
+      "what": "Minimum price filter — excludes stocks under $10",
+      "source": "(C > 10)",
+      "native": "(close > 10)"
+    },
+    {
+      "id": "long_term_uptrend",
+      "cite": "traderisk-breakouts",
+      "what": "Price above both the 50-day and 200-day averages, in alignment",
+      "source": "(C > AVGC50) AND (AVGC50 > AVGC200)",
+      "native": "(close > sma(close, 50)) && (sma(close, 50) > sma(close, 200))"
+    },
+    {
+      "id": "short_term_uptrend",
+      "cite": "traderisk-breakouts",
+      "what": "Price above the 10-day, which is above the 50-day",
+      "source": "(C > AVGC10) AND (AVGC10 > AVGC50)",
+      "native": "(close > sma(close, 10)) && (sma(close, 10) > sma(close, 50))"
+    },
+    {
+      "id": "reclaim_50dma_as_a_crossing",
+      "cite": "help-boolean",
+      "what": "TC2000's own definition of XUP is `C >= AVGC10 AND C1 <= AVGC10.1`, so the crossing idiom is expressible without an offset",
+      "source": "XUP(C, AVGC50)",
+      "native": "crossOver(close, sma(close, 50))"
+    },
+    {
+      "id": "cross_down_through_a_value",
+      "cite": "help-boolean",
+      "what": "XDOWN detects price dropping below a level",
+      "source": "XDOWN(C, 5)",
+      "native": "crossUnder(close, 5)"
+    },
+    {
+      "id": "crossing_with_explicit_default_bars",
+      "cite": "help-boolean",
+      "what": "XUP's third argument defaults to 1; written out, it is still the one-bar crossing",
+      "source": "XUP(C, AVGC20, 1)",
+      "native": "crossOver(close, sma(close, 20))"
+    },
+    {
+      "id": "indicator_changing_direction_up",
+      "cite": "help-condition-templates",
+      "what": "The published template for 'Indicator Changing Direction to Up'",
+      "source": "XUP(C, XAVG(C, 2))",
+      "native": "crossOver(close, ema(close, 2))"
+    },
+    {
+      "id": "donchian_top",
+      "cite": "help-indicator-templates",
+      "what": "Donchian channel top — the published template is MAXHx.z",
+      "source": "MAXH20",
+      "native": "highest(high, 20)"
+    },
+    {
+      "id": "donchian_bottom",
+      "cite": "help-indicator-templates",
+      "what": "Donchian channel bottom — MINLx.z",
+      "source": "MINL20",
+      "native": "lowest(low, 20)"
+    },
+    {
+      "id": "donchian_center",
+      "cite": "help-indicator-templates",
+      "what": "Donchian channel centre line",
+      "source": "(MAXH20 + MINL20) / 2",
+      "native": "(highest(high, 20) + lowest(low, 20)) / 2"
+    },
+    {
+      "id": "elliott_wave_oscillator",
+      "cite": "help-indicator-templates",
+      "what": "The published Elliott Wave Oscillator template, verbatim",
+      "source": "AVGC5 - AVGC35",
+      "native": "sma(close, 5) - sma(close, 35)"
+    },
+    {
+      "id": "dollar_volume",
+      "cite": "help-indicator-templates",
+      "what": "The published Dollar Volume template",
+      "source": "C * V",
+      "native": "close * volume"
+    },
+    {
+      "id": "bollinger_bandwidth",
+      "cite": "help-indicator-templates",
+      "what": "Bollinger Bandwidth — `2 * d * STDDEVx.z / tAVGCx.z` at d = 2, x = 20",
+      "source": "2 * 2 * STDDEV20 / AVGC20",
+      "native": "2 * 2 * stdev(close, 20) / sma(close, 20)"
+    },
+    {
+      "id": "envelope_top",
+      "cite": "help-indicator-templates",
+      "what": "Envelope channel top — `(1 + w / 100) * tAVGCx.z` at w = 3, x = 20",
+      "source": "(1 + 3 / 100) * AVGC20",
+      "native": "(1 + 3 / 100) * sma(close, 20)"
+    },
+    {
+      "id": "elder_ray_bull",
+      "cite": "help-indicator-templates",
+      "what": "Elder Ray Bull Power — `Hz - XAVGCx.z`",
+      "source": "H - XAVGC13",
+      "native": "high - ema(close, 13)"
+    },
+    {
+      "id": "heikin_ashi_close",
+      "cite": "help-indicator-templates",
+      "what": "The Heiken-Ashi close, which needs no offset",
+      "source": "(O + H + L + C) / 4",
+      "native": "(open + high + low + close) / 4"
+    },
+    {
+      "id": "williams_awesome_oscillator",
+      "cite": "help-indicator-templates",
+      "what": "The published Awesome Oscillator template, verbatim",
+      "source": "(AVG(H + L, 5) - AVG(H + L, 34)) / 2",
+      "native": "(sma(high + low, 5) - sma(high + low, 34)) / 2"
+    },
+    {
+      "id": "sandwich_tolerance",
+      "cite": "gnerdalot",
+      "what": "A practitioner's 'sandwich' — 10SMA and 20EMA within a tolerance of each other. The published form divides by an offset close; this is the offset-free half of it",
+      "source": "abs(AvgC10 - XAvgC20) / C < 0.02",
+      "native": "abs(sma(close, 10) - ema(close, 20)) / close < 0.02"
+    },
+    {
+      "id": "layered_moving_averages",
+      "cite": "gnerdalot",
+      "what": "A practitioner's 'layered' — 10SMA above 20EMA above 30EMA",
+      "source": "(AvgC10 > XAvgC20) AND (XAvgC20 > XAvgC30)",
+      "native": "(sma(close, 10) > ema(close, 20)) && (ema(close, 20) > ema(close, 30))"
+    },
+    {
+      "id": "case_insensitivity",
+      "cite": "gnerdalot",
+      "what": "PCF is case-insensitive and practitioners write mixed case",
+      "source": "c > avgc50 and v > avgv20",
+      "native": "close > sma(close, 50) && volume > sma(volume, 20)"
+    },
+    {
+      "id": "equality_is_a_single_equals",
+      "cite": "help-boolean",
+      "what": "PCF spells equality `=` and inequality `<>`; neither exists in the native dialect",
+      "source": "H = L",
+      "native": "high == low"
+    },
+    {
+      "id": "inequality",
+      "cite": "help-boolean",
+      "what": "The `<>` operator",
+      "source": "C <> O",
+      "native": "close != open"
+    },
+    {
+      "id": "chaikin_money_flow_divisor_guard",
+      "cite": "help-indicator-templates",
+      "what": "The published CMF divides by `(Hz - Lz - (Hz = Lz))` — a BOOLEAN used as a number, which is exactly this table's `_booleans` rule",
+      "source": "(2 * C - L - H) / (H - L - (H = L))",
+      "native": "(2 * close - low - high) / (high - low - (high == low))"
+    },
+    {
+      "id": "iif_is_the_ternary",
+      "cite": "help-indicator-templates",
+      "what": "The published Money Flow Index uses IIF; this is its conditional term",
+      "source": "IIF(H + L + C > 300, (H + L + C) * V, 0)",
+      "native": "(high + low + close > 300) ? ((high + low + close) * volume) : 0"
+    },
+    {
+      "id": "greatest_and_least",
+      "cite": "help-syntax",
+      "what": "GREATEST/LEAST are the elementwise pair — NOT MAX/MIN, which are rolling reductions",
+      "source": "GREATEST(C, O) - LEAST(C, O)",
+      "native": "max(close, open) - min(close, open)"
+    },
+    {
+      "id": "not_and_or",
+      "cite": "help-syntax",
+      "what": "The three boolean operators PCF spells as words",
+      "source": "NOT(C > O) OR (V > 1000000)",
+      "native": "!(close > open) || (volume > 1000000)"
+    },
+    {
+      "id": "negative_literal",
+      "cite": "help-indicator-templates",
+      "what": "Unary minus, from the Price Zone Oscillator's `-Cz` term",
+      "source": "-C + H",
+      "native": "-close + high"
+    },
+    {
+      "id": "explicit_zero_offset",
+      "cite": "help-syntax",
+      "what": "`z = 0` is the current bar, and the syntax table admits both `C0` and `C(0)`",
+      "source": "C0 > C(0) - 1",
+      "native": "close > close - 1"
+    },
+    {
+      "id": "min_is_a_rolling_reduction",
+      "cite": "help-syntax",
+      "what": "MIN(w, x) is the LOWEST VALUE OVER x BARS. Reading it as the elementwise minimum is the silent misread this corpus exists to pin",
+      "source": "MIN(C, 10)",
+      "native": "lowest(close, 10)"
+    },
+    {
+      "id": "max_is_a_rolling_reduction",
+      "cite": "help-syntax",
+      "what": "MAX(w, x) likewise",
+      "source": "MAX(C, 10)",
+      "native": "highest(close, 10)"
+    },
+    {
+      "id": "base_band_width",
+      "cite": "gnerdalot",
+      "what": "A practitioner's 'base' — the last 20 bars held inside a narrow band. The published form offsets each leg; this is the current-bar reading of it",
+      "source": "(MAXH20 - MINL20) <= (MINL20 * 0.08)",
+      "native": "(highest(high, 20) - lowest(low, 20)) <= (lowest(low, 20) * 0.08)"
+    },
+    {
+      "id": "detrended_price_oscillator_current_bar",
+      "cite": "help-indicator-templates",
+      "what": "`C - AVGCx.y` at y = 0",
+      "source": "C - AVGC20",
+      "native": "close - sma(close, 20)"
+    }
+  ],
+  "refused": [
+    {
+      "id": "power_operator",
+      "cite": "help-indicator-templates",
+      "what": "Historical Volatility raises a log ratio to a power",
+      "source": "C ^ 2",
+      "guard": "pcf:operator",
+      "at": 2,
+      "names": "^"
+    },
+    {
+      "id": "integer_divide",
+      "cite": "help-syntax",
+      "what": "PCF's backslash operator",
+      "source": "V \\ 100",
+      "guard": "pcf:operator",
+      "at": 2,
+      "names": "\\"
+    },
+    {
+      "id": "modulo",
+      "cite": "help-syntax",
+      "what": "PCF's MOD",
+      "source": "V MOD 100",
+      "guard": "pcf:operator",
+      "at": 2,
+      "names": "MOD"
+    },
+    {
+      "id": "exclusive_or",
+      "cite": "help-syntax",
+      "what": "PCF has XOR, NAND, NOR and XNOR; this table has none of them",
+      "source": "(C > O) XOR (V > 100)",
+      "guard": "pcf:operator",
+      "at": 8,
+      "names": "XOR"
+    },
+    {
+      "id": "negated_and",
+      "cite": "help-syntax",
+      "what": "NAND",
+      "source": "(C > O) NAND (V > 100)",
+      "guard": "pcf:operator",
+      "at": 8,
+      "names": "NAND"
+    },
+    {
+      "id": "sum_function",
+      "cite": "help-indicator-templates",
+      "what": "SUM(w, x) is used by six published templates and this table declares no sum",
+      "source": "SUM(C, 10)",
+      "guard": "pcf:name",
+      "at": 0,
+      "names": "SUM"
+    },
+    {
+      "id": "front_weighted_average",
+      "cite": "help-indicator-templates",
+      "what": "FAVG — the front-weighted average, used by Linear Regression and the Coppock Curve",
+      "source": "FAVG(C, 10)",
+      "guard": "pcf:name",
+      "at": 0,
+      "names": "FAVG"
+    },
+    {
+      "id": "hull_average",
+      "cite": "help-indicator-templates",
+      "what": "HAVG — the Hull moving average",
+      "source": "HAVG(C, 10)",
+      "guard": "pcf:name",
+      "at": 0,
+      "names": "HAVG"
+    },
+    {
+      "id": "logarithm",
+      "cite": "help-indicator-templates",
+      "what": "LOG, from the Historical Volatility template",
+      "source": "LOG(C / 10)",
+      "guard": "pcf:name",
+      "at": 0,
+      "names": "LOG"
+    },
+    {
+      "id": "square_root",
+      "cite": "help-indicator-templates",
+      "what": "SQR, from the Standard Deviation template",
+      "source": "SQR(C)",
+      "guard": "pcf:name",
+      "at": 0,
+      "names": "SQR"
+    },
+    {
+      "id": "counttrue",
+      "cite": "help-syntax",
+      "what": "CountTrue counts occurrences over a window — a reduction over a boolean the table has no form for",
+      "source": "CountTrue(C > O, 10)",
+      "guard": "pcf:name",
+      "at": 0,
+      "names": "CountTrue"
+    },
+    {
+      "id": "sincetrue",
+      "cite": "help-syntax",
+      "what": "SinceTrue",
+      "source": "SinceTrue(C > O, 10)",
+      "guard": "pcf:name",
+      "at": 0,
+      "names": "SinceTrue"
+    },
+    {
+      "id": "trueinrow",
+      "cite": "help-syntax",
+      "what": "TrueInRow",
+      "source": "TrueInRow(C > O, 3)",
+      "guard": "pcf:name",
+      "at": 0,
+      "names": "TrueInRow"
+    },
+    {
+      "id": "aroon",
+      "cite": "help-indicator-templates",
+      "what": "AROONUPx.z — an indicator family this table does not declare",
+      "source": "AROONUP25 > 70",
+      "guard": "pcf:name",
+      "at": 0,
+      "names": "AROONUP25"
+    },
+    {
+      "id": "moneystream",
+      "cite": "help-indicator-templates",
+      "what": "MSy.z — Worden's proprietary MoneyStream",
+      "source": "MS21 > 0",
+      "guard": "pcf:name",
+      "at": 0,
+      "names": "MS21"
+    },
+    {
+      "id": "time_segmented_volume",
+      "cite": "help-indicator-templates",
+      "what": "TSVx.z — Worden's proprietary TSV",
+      "source": "TSV18 > 0",
+      "guard": "pcf:name",
+      "at": 0,
+      "names": "TSV18"
+    },
+    {
+      "id": "balance_of_power",
+      "cite": "help-indicator-templates",
+      "what": "BOPy.z",
+      "source": "BOP20 > 0",
+      "guard": "pcf:name",
+      "at": 0,
+      "names": "BOP20"
+    },
+    {
+      "id": "worden_stochastic",
+      "cite": "help-indicator-templates",
+      "what": "WSTOCx.y.z",
+      "source": "WSTOC14 > 80",
+      "guard": "pcf:name",
+      "at": 0,
+      "names": "WSTOC14"
+    },
+    {
+      "id": "plain_rsi_is_not_wilders",
+      "cite": "help-indicator-templates",
+      "what": "⭐ TC2000's `RSIx.y.z` is NOT the 14-period Wilder RSI a scan usually means — the template table derives the Kaufman Efficiency Ratio from it and declares Wilder's separately as WRSIx.z. Mapping `RSI14` to our `rsi` would be a correct-looking number from the wrong indicator",
+      "source": "RSI14 > 50",
+      "guard": "pcf:name",
+      "at": 0,
+      "names": "RSI14"
+    },
+    {
+      "id": "smoothed_stochastic",
+      "cite": "help-indicator-templates",
+      "what": "`STOCk.3.z` is the SLOW stochastic — %K smoothed over three bars. This table declares an unsmoothed stoch, so the 3 refuses rather than being dropped",
+      "source": "STOC14.3 > 80",
+      "guard": "pcf:parameter",
+      "at": 7,
+      "names": "STOC14.3"
+    },
+    {
+      "id": "a_name_that_is_not_a_pcf_token",
+      "cite": "gnerdalot",
+      "what": "A practitioner's template variable, left unsubstituted",
+      "source": "AVGC10 < tolerance",
+      "guard": "pcf:name",
+      "at": 9,
+      "names": "tolerance"
+    },
+    {
+      "id": "period_from_an_expression",
+      "cite": "help-syntax",
+      "what": "A window that is not a literal is not decidable statically, which is what keeps maxLookback a tree sum",
+      "source": "AVG(C, V)",
+      "guard": "pcf:window",
+      "at": 7,
+      "names": "AVG"
+    },
+    {
+      "id": "unbalanced_parenthesis",
+      "cite": "help-syntax",
+      "what": "The normal case in a box somebody is halfway through typing into",
+      "source": "(C > AVGC50",
+      "guard": "pcf:syntax",
+      "at": 11,
+      "names": ""
+    },
+    {
+      "id": "a_character_with_no_meaning",
+      "cite": "help-syntax",
+      "what": "PCF has no string literals and no @",
+      "source": "C > @AAPL",
+      "guard": "pcf:character",
+      "at": 4,
+      "names": "@"
+    },
+    {
+      "id": "trailing_operator",
+      "cite": "help-syntax",
+      "what": "A formula that ends mid-comparison",
+      "source": "C >",
+      "guard": "pcf:syntax",
+      "at": 3,
+      "names": ""
+    },
+    {
+      "id": "double_plus_add",
+      "cite": "help-syntax",
+      "what": "TC2000 accepts `v ++ w`, `v +- w`, `v -+ w` and `v -- w` as add/subtract typo-tolerance. This reader does not, and says so at the character",
+      "source": "C ++ O",
+      "guard": "pcf:syntax",
+      "at": 3,
+      "names": "+"
+    },
+    {
+      "id": "field_letter_the_table_does_not_declare",
+      "cite": "help-syntax",
+      "what": "AVG takes O, H, L, C or V. A sixth letter is not a series this table declares",
+      "source": "AVGX50 > 1",
+      "guard": "pcf:name",
+      "at": 3,
+      "names": "AVGX50"
+    },
+    {
+      "id": "macd_missing_its_slow_period",
+      "cite": "help-indicator-templates",
+      "what": "MACDs.l.z needs both periods; TC2000 fills them left to right and this reader will not guess the second",
+      "source": "MACD12 > 0",
+      "guard": "pcf:arity",
+      "at": 0,
+      "names": "MACD12"
+    },
+    {
+      "id": "too_many_dotted_parameters",
+      "cite": "help-syntax",
+      "what": "A fused token given more parameters than its family declares",
+      "source": "AVGC50.1.2.3 > 1",
+      "guard": "pcf:arity",
+      "at": 9,
+      "names": "AVGC50.1.2.3"
+    }
+  ],
+  "_offset": "⭐ THE BAR OFFSET IS ENGINE-DEPENDENT AND THIS SECTION FLIPS WITH IT. PCF's `.z` suffix is its most-used feature, so these are the cases that decide whether a member notices a discrepancy. The expectation is DERIVED, not written: while `closedTable.json` declares no offset form, each must refuse at `pcf:offset` at the declared character; the moment it declares one, each must PARSE, carry the declared offset node, and still lint to a forward reach of 0. ⛔ Neither half may be skipped — a suite that only checked the refusal would go silently green the day the engine grew the capability and this reader failed to use it.",
+  "offset_dependent": [
+    {
+      "id": "close_one_bar_ago",
+      "cite": "worden-webinar",
+      "what": "'Up 5 days in a row' — the single most common PCF idiom there is",
+      "source": "C > C1 AND C1 > C2",
+      "guard": "pcf:offset",
+      "at": 5,
+      "names": "C1",
+      "kind": "value"
+    },
+    {
+      "id": "average_one_bar_ago",
+      "cite": "traderisk-breakouts",
+      "what": "'Reclaiming the 50-day' — the second half needs yesterday's average",
+      "source": "(C > AVGC50) AND (C1 < AVGC50.1)",
+      "guard": "pcf:offset",
+      "at": 19,
+      "names": "C1",
+      "kind": "value"
+    },
+    {
+      "id": "dotted_offset_on_an_average",
+      "cite": "traderisk-breakouts",
+      "what": "The `.z` suffix on a fused indicator token",
+      "source": "V > AVGV20.1",
+      "guard": "pcf:offset",
+      "at": 11,
+      "names": "AVGV20.1",
+      "kind": "value"
+    },
+    {
+      "id": "new_52_week_high",
+      "cite": "traderisk-breakouts",
+      "what": "'New 52-week highs' — the prior-bar high is what stops today's bar counting itself",
+      "source": "(C >= MAXC252.1)",
+      "guard": "pcf:offset",
+      "at": 14,
+      "names": "MAXC252.1",
+      "kind": "value"
+    },
+    {
+      "id": "dotted_price_offset",
+      "cite": "gnerdalot",
+      "what": "The `C.10` spelling of the same thing",
+      "source": "C.10 > 5",
+      "guard": "pcf:offset",
+      "at": 2,
+      "names": "C.10",
+      "kind": "value"
+    },
+    {
+      "id": "offset_on_a_call_form_price",
+      "cite": "help-syntax",
+      "what": "`C(z)` with a non-zero z",
+      "source": "C(1) > 5",
+      "guard": "pcf:offset",
+      "at": 0,
+      "names": "C",
+      "kind": "price-call"
+    },
+    {
+      "id": "crossing_n_bars_ago",
+      "cite": "help-boolean",
+      "what": "XUP's third argument is 'x bars ago' — a bar offset by another name",
+      "source": "XUP(C, AVGC50, 5)",
+      "guard": "pcf:offset",
+      "at": 15,
+      "names": "XUP",
+      "kind": "crossing"
+    }
+  ]
+}

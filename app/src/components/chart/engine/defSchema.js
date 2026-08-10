@@ -74,7 +74,28 @@
 // `compute.ast` is not expressible without a parser, and D-A1 rules that there is
 // exactly ONE. A second comparison written here by hand would be a second
 // grammar, which is the thing that ruling exists to prevent.
-import { parseFormula, astHash } from './ast/parse'
+import { astHash } from './ast/parse'
+// ⭐ THE THIRD IMPORT, ADDED WITH THE TC2000 READER, AND IT REPLACES A DIRECT
+// `parseFormula` CALL RATHER THAN ADDING A SECOND ONE.
+//
+// ⭐⭐ THE RAIL BELOW IS "THE SOURCE THE USER EDITS PRODUCES THE TREE THAT
+// RUNS", AND THAT SENTENCE DID NOT CHANGE WHEN A SECOND SURFACE DIALECT
+// LANDED — ONLY THE READER IT IS ASKED THROUGH DID. A member who types
+// `(C > AVGC50)` must get their OWN text back in the box; storing the native
+// spelling instead would satisfy `parseFormula` and violate the half of the
+// contract that matters ("the source is what the user edits"). So the check is
+// asked in the source's own language: `readFormulaSource` derives the dialect
+// from the source and hands back the reader's own tagged result.
+//
+// ⛔ IT IS THE SAME FUNCTION THE TEXT BOX USES, imported rather than repeated.
+// A private dialect decision here would let a formula save through one rule and
+// fail to validate under another — a second authority over one value, which is
+// this repo's most repeated defect.
+//
+// ⚠️ AND THE CONTRACT IS NOT WEAKENED: the comparison is still `astHash`
+// equality against the STORED tree, so a misread dialect fails loudly here
+// rather than storing a pair that disagree.
+import { readFormulaSource } from './ast/pcf'
 // ⭐ THE SECOND IMPORT, ADDED WITH `plots[].forward`, AND IT COSTS THE PURITY
 // CLAIM ABOVE NOTHING FOR THE SAME REASON THE FIRST ONE DOES NOT: `UNBOUNDED` is
 // a frozen string constant, and `./ast/parse` — which this module already pulls
@@ -655,7 +676,7 @@ function validateAstCompute(compute, errors) {
   }
 
   if (!isNonEmptyString(compute.source)) return   // already reported above
-  const parsed = parseFormula(compute.source)
+  const { result: parsed } = readFormulaSource(compute.source)
   if (!parsed.ok) {
     errors.push(
       `compute.source does not parse to compute.ast — it does not parse at all ` +

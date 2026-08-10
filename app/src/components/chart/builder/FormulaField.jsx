@@ -19,11 +19,34 @@
 
 import { useEffect, useRef, useCallback } from 'react'
 import UIcon from '../../ui/UIcon'
-import { parseFormula } from '../engine/ast/parse'
+import { readFormulaSource } from '../engine/ast/pcf'
 import { checkBudget } from '../engine/ast/budget'
 import { sentenceFor } from '../engine/ast/sentence'
 import { lintRepaint } from '../engine/ast/lint'
 import styles from './BuilderSheet.module.css'
+
+/**
+ * ⭐ TWO SURFACE DIALECTS, ONE TREE, AND THE CHOICE IS MADE BEFORE THE READ —
+ * NEVER AS A FALLBACK AFTER ONE FAILS.
+ *
+ * A member arriving from TC2000 types `(C > AVGC50) AND (C1 < AVGC50.1)`.
+ * `pcf.js` reads that into the SAME canonical tree `parse.js` produces, so
+ * everything past this line — the budget, the repaint linter, the read-back,
+ * the save path, `ast_interpret.py` — is unchanged and unaware.
+ *
+ * ⛔ TRYING NATIVE, FAILING, THEN TRYING TC2000 WOULD REPORT A TC2000 REFUSAL
+ * FOR A NATIVE TYPO. That is the wrong-door defect this branch has now found
+ * five times, every occurrence a correct-looking message produced by the wrong
+ * gate. `detectDialect` decides once, off markers only one language can
+ * produce, and it is biased so hard toward `native` that `pcf.test.js` proves
+ * it against the whole committed corpus: not one shipped formula moves.
+ *
+ * ⛔ AND THE DECISION IS NOT MADE HERE. `readFormulaSource` is the ONE place
+ * that maps a source string to a reader, because `defSchema.validateAstCompute`
+ * has to make the identical decision when it re-reads a STORED source against
+ * its stored tree. A private copy in this file would let a formula save and
+ * then fail to validate — a second authority over one value.
+ */
 
 /**
  * ⭐ SPEC §6's SETTINGS-FORM RULE, AS A NUMBER: 250 ms.
@@ -85,21 +108,24 @@ export const FORMULA_DEBOUNCE_MS = 250
  *
  * @param {string} source
  * @param {object} [inputs] the definition's declared inputs, BY NAME
+ * @param {string} [dialect] `'auto'` (the default), `'native'` or `'pcf'`
  * @returns {{source: string, ok: boolean, ast: object|null, guard: string|null,
  *            error: string|null, readback: string|null, verdict: object|null,
- *            measured: object|null}}
+ *            measured: object|null, dialect: string}}
  */
-export function evaluateFormula(source, inputs = undefined) {
+export function evaluateFormula(source, inputs = undefined, dialect = 'auto') {
+  const read = readFormulaSource(source, dialect)
   const blank = {
     source: typeof source === 'string' ? source : '',
     ok: false, ast: null, guard: null, error: null,
     readback: null, verdict: null, measured: null,
+    dialect: read.dialect,
   }
   if (typeof source !== 'string' || source.trim() === '') {
-    return { ...blank, empty: true }
+    return { ...blank, dialect: 'native', empty: true }
   }
 
-  const parsed = parseFormula(source)
+  const parsed = read.result
   if (!parsed.ok) {
     return { ...blank, guard: parsed.guard || 'parser', error: parsed.error }
   }
@@ -140,7 +166,7 @@ export function evaluateFormula(source, inputs = undefined) {
 
   return {
     source, ok: true, ast, guard: null, error: null,
-    readback, verdict, measured: budget.measured,
+    readback, verdict, measured: budget.measured, dialect: read.dialect,
   }
 }
 
@@ -195,6 +221,8 @@ function msg(err) {
  *                                writes into the document, so the names the
  *                                sentence may say are the names the saved
  *                                definition actually declares.
+ * @param {string}   [dialect]    `'auto'` (the default) lets the source decide;
+ *                                `'native'` or `'pcf'` forces one reader.
  */
 export default function FormulaField({
   value,
@@ -205,6 +233,7 @@ export default function FormulaField({
   inputId = 'uct-formula',
   autoFocus = false,
   inputs = undefined,
+  dialect = 'auto',
 }) {
   const onEvaluatedRef = useRef(onEvaluated)
   onEvaluatedRef.current = onEvaluated
@@ -224,14 +253,19 @@ export default function FormulaField({
   // render and the box would never settle.
   useEffect(() => {
     const id = setTimeout(() => {
-      onEvaluatedRef.current?.(evaluateFormula(value, inputs))
+      onEvaluatedRef.current?.(evaluateFormula(value, inputs, dialect))
     }, debounceMs)
     return () => clearTimeout(id)
-  }, [value, debounceMs, inputs])
+  }, [value, debounceMs, inputs, dialect])
 
   const handle = useCallback((e) => { onChange?.(e.target.value) }, [onChange])
 
   const refused = !!(result && result.error)
+  // ⭐ THE MEMBER IS TOLD WHICH LANGUAGE WE READ, AND IT IS READ OFF THE RESULT
+  // — never re-derived here. `evaluateFormula` already decided; a second
+  // `detectDialect(value)` in this component would be a SECOND AUTHORITY OVER
+  // ONE VALUE, and it would disagree with the first during the 250 ms settle.
+  const readAs = result && result.dialect === 'pcf' ? 'pcf' : null
 
   return (
     <div className={styles.fieldWrap}>
@@ -254,7 +288,17 @@ export default function FormulaField({
         aria-describedby={refused ? `${inputId}-error` : undefined}
         value={value}
         onChange={handle}
+        data-dialect={result?.dialect || 'native'}
       />
+      {readAs && (
+        <p
+          className={`${styles.badge} ${styles.badgeClean}`}
+          data-testid="formula-dialect"
+          data-dialect="pcf"
+        >
+          Read as TC2000 PCF
+        </p>
+      )}
       {refused && (
         <p
           id={`${inputId}-error`}
@@ -262,6 +306,7 @@ export default function FormulaField({
           role="alert"
           data-testid="formula-error"
           data-guard={result.guard || ''}
+          data-dialect={result.dialect || 'native'}
         >
           <span className={styles.errorDot} aria-hidden="true" />
           <UIcon name="warning" size={14} />
