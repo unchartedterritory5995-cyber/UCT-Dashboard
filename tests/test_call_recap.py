@@ -874,3 +874,38 @@ def test_a_cold_recap_fetches_webcast_and_ratings_CONCURRENTLY(client):
     data = r.json()
     assert data["webcast_url"] == "https://ir.example.com"
     assert len(data["rating_changes"]) == 1
+
+
+def test_a_SLOW_webcast_lookup_does_not_hold_the_panel(client, monkeypatch):
+    """The optional link may not spend the request.
+
+    get_webcast_url is a Perplexity call: ~2.4s alone, and 7-10s under twenty
+    concurrent readers — measured on production, and the entire reason a cold
+    open ran 7.31s p50 against a 2-3s budget. It is a "Listen live" link. The
+    recap must come back without it.
+    """
+    import time
+    import api.routers.earnings_intel as ei
+    monkeypatch.setattr(ei, "_WEBCAST_TIMEOUT", 0.2)
+
+    def _slow(_sym):
+        time.sleep(5)
+        return "https://ir.example.com/late"
+
+    started = time.time()
+    with patch("api.routers.earnings_intel.get_call_recap_with_status",
+               return_value=(None, "generating")), \
+         patch("api.routers.earnings_intel.get_webcast_url", side_effect=_slow), \
+         patch("api.routers.earnings_intel.get_rating_changes",
+               return_value=[{"period": "2026-08-01"}]):
+        r = client.get("/api/earnings/call-recap/SLOW")
+    elapsed = time.time() - started
+
+    assert r.status_code == 200
+    assert elapsed < 3, f"the slow webcast held the response for {elapsed:.1f}s"
+    body = r.json()
+    assert body["webcast_url"] is None, "returned a link it did not wait for"
+    # The rest of the payload is intact — degrading the optional field must not
+    # degrade the required ones.
+    assert body["recap_status"] == "generating"
+    assert len(body["rating_changes"]) == 1
