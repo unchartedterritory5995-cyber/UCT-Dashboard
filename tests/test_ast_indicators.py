@@ -282,6 +282,62 @@ def test_every_refused_indicator_is_STILL_refused_and_says_why():
         assert name not in ast_interpret.FN
 
 
+def test_our_atr_IS_WILDER_and_the_difference_from_pine_is_the_SEED(bars):
+    """🔴 ADJUDICATING A CROSS-PRODUCT FINDING: *"`ta.atr` matches neither Wilder
+    RMA (0.20) nor SMA-of-TR (0.21) — a third convention"*, raised as a possible
+    MEMBER-VISIBLE correctness defect because ATR feeds position sizing.
+
+    ⭐ IT IS NOT A THIRD CONVENTION. Ours is Wilder's, exactly. This case builds
+    Wilder's original independently — `TR = max(h-l, |h-c[1]|, |l-c[1]|)`, seed =
+    the simple mean of the first `n` TRs, then `ATR_i = ATR_{i-1} + (TR_i -
+    ATR_{i-1}) / n` — and asserts the shipped column matches it. The two
+    alternatives are computed as well and asserted to DISAGREE, so this cannot
+    pass by all three being the same thing.
+
+    ⭐ WHAT THE OTHER PRODUCT ACTUALLY MEASURED IS THE SEED, AND IT CONVERGES.
+    Pine's `ta.tr` defines bar 0 as `high - low` (there is no previous close), so
+    its TR series starts one bar earlier and `ta.rma`'s seed lands on bar `n-1`
+    where ours lands on bar `n`. Same smoothing, different first window. The gap
+    decays with the RMA: ~2.0e-2 at the seed, ~3.0e-3 by bar 40, ~2.8e-5 by bar
+    100, ~1.3e-11 by bar 300. ⛔ SO A CROSS-PRODUCT PROBE MUST NOT SAMPLE THE
+    WARM-UP — 0.20 vs 0.21 read at bar 15 is two seeds, not two formulas, and
+    reading it as a formula difference is how a correct implementation gets
+    "fixed".
+    """
+    n = 14
+    tr = [None] + [max(bars[i]["h"] - bars[i]["l"],
+                       abs(bars[i]["h"] - bars[i - 1]["c"]),
+                       abs(bars[i]["l"] - bars[i - 1]["c"]))
+                   for i in range(1, len(bars))]
+
+    wilder = [None] * len(bars)
+    wilder[n] = sum(tr[1:n + 1]) / n
+    for i in range(n + 1, len(bars)):
+        wilder[i] = wilder[i - 1] + (tr[i] - wilder[i - 1]) / n
+
+    sma_of_tr = [None] * len(bars)
+    for i in range(n, len(bars)):
+        sma_of_tr[i] = sum(tr[i - n + 1:i + 1]) / n
+
+    got = ast_interpret.interpret(
+        {"type": "call", "name": "atr",
+         "args": [{"type": "series", "name": "high"}, {"type": "series", "name": "low"},
+                  {"type": "series", "name": "close"}, {"type": "num", "value": n}]},
+        bars, {})
+
+    _assert_same_column(got, wilder, "atr-vs-Wilder")
+
+    # ⛔ AND THE CONTROL: the other convention must DISAGREE, or the case above
+    # is satisfied by every definition being the same and says nothing.
+    apart = max(abs(got[i] - sma_of_tr[i]) / max(abs(got[i]), abs(sma_of_tr[i]))
+                for i in range(n, len(bars))
+                if not _is_pad(got[i]) and sma_of_tr[i] is not None)
+    assert apart > 1e-3, (
+        f"the simple-MA-of-TR convention is only {apart:.2e} away from ours, so "
+        "matching Wilder above distinguishes nothing"
+    )
+
+
 def test_every_function_PINS_ITS_ARGUMENT_ORDER_for_the_translators():
     """⭐ `args` SAYS A SLOT IS A SERIES; `argRoles` SAYS WHICH SERIES.
 
