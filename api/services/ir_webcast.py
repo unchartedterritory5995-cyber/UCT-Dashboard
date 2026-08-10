@@ -29,7 +29,13 @@ _log = logging.getLogger(__name__)
 
 _TTL_HIT = 30 * 86_400      # IR URLs are stable for years
 _TTL_MISS = 12 * 3_600      # a miss is usually a redesign away from resolving
-_PROBE_TIMEOUT = 6
+# Generous ON PURPOSE, and it costs the reader nothing. The endpoint that calls
+# this already bounds the whole cold block at CALL_RECAP_COLD_BUDGET and does
+# NOT cancel the future, so a slow probe finishes in the background and lands in
+# the 30-day cache for the next open. NVDA resolved locally but timed out from
+# Railway at 6s, which is a network-distance fact, not a coverage one — the only
+# thing a short timeout buys here is a permanently missing link.
+_PROBE_TIMEOUT = 12
 _UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
 
 
