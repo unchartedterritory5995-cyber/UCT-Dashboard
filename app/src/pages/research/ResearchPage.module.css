@@ -135,3 +135,17 @@
   .paywall { padding: 20px 12px; }
   .paywallCta { min-height: var(--tap-min); width: 100%; }
 }
+
+/* Reporting-basis toggle on the financial trends (TradingView pattern). */
+.trendHead {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap;
+}
+.basisToggle { display: flex; gap: 4px; }
+.basisOn, .basisOff, .basisBtn {
+  min-height: 26px; padding: 3px 10px; border-radius: 4px; cursor: pointer;
+  font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
+  border: 1px solid rgba(255,255,255,.14); background: transparent;
+  color: var(--color-text-muted, #8a8f98);
+}
+.basisOn { border-color: var(--ut-gold, #c9a84c); color: var(--ut-gold, #c9a84c); }

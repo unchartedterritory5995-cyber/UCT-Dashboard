@@ -31,28 +31,73 @@ export function parseSnippet(snippet) {
   return out
 }
 
+
+/** "tariff, AI, buyback" → three terms. A quoted phrase keeps its commas. */
+export function splitTerms(q) {
+  const s = (q || '').trim()
+  if (!s) return []
+  if (s.startsWith('"')) return [s]          // a phrase is one term, commas and all
+  const parts = s.split(',').map(t => t.trim()).filter(t => t.length >= MIN_LEN)
+  // Cap the fan-out: each term is its own query, and six lines on one axis is
+  // past the point anyone can read them apart.
+  return (parts.length ? parts : [s]).slice(0, 4)
+}
+
+// Positional colour is legitimate HERE and nowhere else in this file: the
+// series are arbitrary user terms with no inherent direction, so no hue can be
+// semantically wrong. Anywhere the series mean up/down (ratings, breadth) the
+// caller must name its own colour.
+const TERM_COLORS = ['var(--ut-gold, #c9a84c)', '#5aa9e6', '#7ed957', '#e57373']
+
+/** Align several single-term trends onto one shared month axis. */
+export function alignTrends(trends) {
+  const list = (trends || []).filter(t => (t?.months || []).length)
+  if (!list.length) return { months: [], series: [] }
+  // Union of months, sorted: a term absent for a month must read as a gap on a
+  // shared axis, not shift every later point left.
+  const months = [...new Set(list.flatMap(t => t.months.map(m => m.month)))].sort()
+  return {
+    months,
+    series: list.map((t, i) => {
+      const by = new Map(t.months.map(m => [m.month, m.pct]))
+      return {
+        name: t.query,
+        color: TERM_COLORS[i % TERM_COLORS.length],
+        values: months.map(m => (by.has(m) ? by.get(m) : null)),
+      }
+    }),
+  }
+}
+
 export default function TranscriptSearchAll({ onOpenSymbol = null }) {
   const [q, setQ] = useState('')
   const [res, setRes] = useState(null)
-  const [trend, setTrend] = useState(null)
+  const [trend, setTrend] = useState([])
   const [busy, setBusy] = useState(false)
+  const trendSeries = alignTrends(trend)
 
   const run = useCallback(async (term) => {
     if (!term || term.trim().length < MIN_LEN) { setRes(null); return }
     setBusy(true)
     try {
+      // A comma means "compare these narratives", which is a different
+      // question from "find this phrase" — so the search still runs on the
+      // whole string and only the TREND fans out per term.
+      const terms = splitTerms(term)
       const enc = encodeURIComponent(term)
       // Fired together: the trend is the same question over time, and running
       // it after the search would make the panel arrive in two visible steps.
-      const [r, t] = await Promise.all([
+      const [r, ...ts] = await Promise.all([
         fetch(`/api/earnings/transcript-search?q=${enc}&limit=40`),
-        fetch(`/api/earnings/transcript-trend?q=${enc}&months=12`),
+        ...terms.map(t2 => fetch(
+          `/api/earnings/transcript-trend?q=${encodeURIComponent(t2)}&months=12`)),
       ])
       setRes(r.ok ? await r.json() : { hits: [], total: 0, error: 'search failed' })
-      setTrend(t.ok ? await t.json() : null)
+      const trends = await Promise.all(ts.map(x => (x.ok ? x.json() : null)))
+      setTrend(trends.filter(Boolean))
     } catch {
       setRes({ hits: [], total: 0, error: 'search failed' })
-      setTrend(null)
+      setTrend([])
     } finally {
       setBusy(false)
     }
@@ -88,15 +133,16 @@ export default function TranscriptSearchAll({ onOpenSymbol = null }) {
 
       {/* Share of calls, not a raw count: calls cluster in earnings season, so
           a count peaks every quarter whatever the theme is doing. */}
-      {!busy && (trend?.months || []).length > 1 && (
+      {!busy && trendSeries.months.length > 1 && (
         <SeriesChart
-          periods={trend.months.map(m => m.month)}
+          periods={trendSeries.months}
           mode="line"
-          label={`Share of calls mentioning “${trend.query}”`}
+          label={trendSeries.series.length > 1
+            ? 'Share of calls mentioning each term'
+            : `Share of calls mentioning “${trendSeries.series[0]?.name}”`}
           valueFormatter={(v) => (v == null ? '—' : `${v}%`)}
-          ariaLabel="Percent of indexed earnings calls mentioning this term, by month"
-          series={[{ name: '% of calls', color: 'var(--ut-gold, #c9a84c)',
-                     values: trend.months.map(m => m.pct) }]}
+          ariaLabel="Percent of indexed earnings calls mentioning each term, by month"
+          series={trendSeries.series}
         />
       )}
 

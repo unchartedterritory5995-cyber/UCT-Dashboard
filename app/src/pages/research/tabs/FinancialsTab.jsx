@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import useFinancials from '../hooks/useFinancials'
 import { MetricTrendChart, SeriesChart } from '../../../components/research-kit'
 import styles from '../ResearchPage.module.css'
@@ -66,13 +67,48 @@ const B = (v) => (v == null ? null : v / 1e9)
  * chart — plotted as given, time runs backwards and every trend reads inverted.
  * Reversed once, here, rather than in each chart.
  */
-function TrendPair({ rows, title }) {
+function TrendPair({ quarterly, annual }) {
+  // Both series are already fetched; only quarterly was ever charted. A
+  // quarterly/annual toggle is the TradingView pattern and costs no extra
+  // request — quarters show the near-term shape, years show whether the
+  // business is actually compounding.
+  const [basis, setBasis] = useState('quarterly')
+  const rows = basis === 'annual' ? annual : quarterly
+  const other = basis === 'annual' ? quarterly : annual
   const list = Array.isArray(rows) ? [...rows].reverse() : []
-  if (list.length < 2) return null          // one point is not a trend
+  // Offer the toggle only for a basis that HAS data, so it can never switch to
+  // an empty chart.
+  const canToggle = (other || []).length >= 2
+  if (list.length < 2) {
+    // The requested basis is empty but the other one is not — fall back rather
+    // than render nothing at all.
+    if (!canToggle) return null
+    return (
+      <section className={styles.card}>
+        <div className={styles.ct}>Trend</div>
+        <button type="button" className={styles.basisBtn}
+                onClick={() => setBasis(basis === 'annual' ? 'quarterly' : 'annual')}>
+          Show {basis === 'annual' ? 'quarterly' : 'annual'}
+        </button>
+      </section>
+    )
+  }
   const periods = list.map(r => r.period)
   return (
     <section className={styles.card}>
-      <div className={styles.ct}>{title}</div>
+      <div className={styles.trendHead}>
+        <div className={styles.ct}>{basis === 'annual' ? 'Annual trend' : 'Quarterly trend'}</div>
+        {canToggle && (
+          <div className={styles.basisToggle} role="group" aria-label="Reporting basis">
+            <button type="button" aria-pressed={basis === 'quarterly'}
+                    className={basis === 'quarterly' ? styles.basisOn : styles.basisOff}
+                    onClick={() => setBasis('quarterly')}>Quarterly</button>
+            <button type="button" aria-pressed={basis === 'annual'}
+                    className={basis === 'annual' ? styles.basisOn : styles.basisOff}
+                    onClick={() => setBasis('annual')}>Annual</button>
+          </div>
+        )}
+      </div>
       <div className={styles.grid}>
         <MetricTrendChart
           periods={periods}
@@ -122,7 +158,7 @@ export default function FinancialsTab({ sym }) {
 
   return (
     <div className={styles.finWrap}>
-      <TrendPair rows={fin.quarterly} title="Quarterly trend" />
+      <TrendPair quarterly={fin.quarterly} annual={fin.annual} />
       <GrowthGrid title="Quarterly — revenue, EPS & margins (YoY)" rows={fin.quarterly} />
       <GrowthGrid title="Annual — revenue, EPS & margins (YoY)" rows={fin.annual} />
       <div className={styles.grid}>

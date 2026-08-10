@@ -123,3 +123,29 @@ describe('hasPlottableData', () => {
     expect(hasPlottableData([])).toBe(false)
   })
 })
+
+describe('bars mode', () => {
+  const many = Array.from({ length: 24 }, (_, i) => `Q${(i % 4) + 1} 20${20 + ((i / 4) | 0)}`)
+  const two = [
+    { name: 'Revenue', color: '#5aa9e6', values: many.map((_, i) => i * 10) },
+    { name: 'Operating income', color: '#e57373', values: many.map((_, i) => i) },
+  ]
+
+  it('draws BARS, because a statement period is discrete', () => {
+    // A line between two quarters implies a value in between that never existed.
+    const o = buildSeriesOption(many, two, { mode: 'bars' })
+    expect(o.series.every(s => s.type === 'bar')).toBe(true)
+    expect(o.series).toHaveLength(2)
+  })
+
+  it('thins the axis labels instead of overprinting 24 of them', () => {
+    const o = buildSeriesOption(many, two, { mode: 'bars' })
+    expect(o.xAxis.axisLabel.interval).toBeGreaterThan(0)
+    expect(o.xAxis.axisLabel.hideOverlap).toBe(true)
+  })
+
+  it('keeps each series on the colour it was given', () => {
+    const o = buildSeriesOption(many, two, { mode: 'bars' })
+    expect(o.series.map(s => s.itemStyle.color)).toEqual(['#5aa9e6', '#e57373'])
+  })
+})

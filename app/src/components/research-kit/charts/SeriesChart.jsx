@@ -6,6 +6,8 @@
 //   line    — several measures on one axis (gross / operating / net margin)
 //   stacked — parts of a whole over time (analyst consensus buckets)
 //   band    — a range with a centre line (forward EPS low / avg / high)
+//   bars    — discrete periods (statement history), grouped
+//   rank    — categories, horizontal (largest holders)
 //
 // ⛔ EVERY SERIES CARRIES ITS OWN COLOUR. There is deliberately no internal
 // palette to index into: `PALETTE[i]` is exactly how this repo once drew every
@@ -70,6 +72,28 @@ export function buildSeriesOption(periods, series, { mode = 'line', valueFormatt
       ...axisBase({ splitLine: { show: true, lineStyle: { color: CHART_INK.grid } } }),
     },
     tooltip,
+  }
+
+  if (mode === 'bars') {
+    // Grouped bars, not lines: a statement is a set of DISCRETE periods, and a
+    // line implies a continuous quantity between two quarters that never
+    // existed. Over 24 quarters the labels are unreadable at every tick, so the
+    // axis thins them and the tooltip carries the exact period.
+    return {
+      ...base,
+      xAxis: { ...base.xAxis, boundaryGap: true,
+               axisLabel: { ...(base.xAxis.axisLabel || {}),
+                            interval: Math.max(0, Math.floor(p.length / 6) - 1),
+                            hideOverlap: true } },
+      series: list.map((s) => ({
+        type: 'bar',
+        name: s.name,
+        barMaxWidth: 14,
+        barGap: '10%',
+        itemStyle: { color: s.color },
+        data: (s.values || []).map(num),
+      })),
+    }
   }
 
   if (mode === 'rank') {

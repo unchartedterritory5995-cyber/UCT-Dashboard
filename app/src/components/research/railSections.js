@@ -21,6 +21,7 @@ export const SECTIONS = [
   { id: 'call', label: 'Call', icon: 'chat' },
   { id: 'fundamentals', label: 'Fundamentals', icon: 'chart' },
   { id: 'estimates', label: 'Estimates', icon: 'clock' },
+  { id: 'statements', label: 'Statements', icon: 'chart' },
   { id: 'financials', label: 'Financials', icon: 'document' },
   { id: 'ratings', label: 'Ratings', icon: 'star' },
   { id: 'analyst', label: 'Analyst & Ownership', icon: 'user' },
