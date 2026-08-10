@@ -1,4 +1,5 @@
 import useEstimates from '../hooks/useEstimates'
+import { RevisionColumns } from '../../../components/research-kit'
 import styles from '../ResearchPage.module.css'
 
 function fmtBig(v) {
@@ -139,6 +140,15 @@ export default function EstimatesTab({ sym }) {
       {!!rev.length && (
         <section className={styles.card}>
           <div className={styles.ct}>EPS estimate revisions</div>
+          {/* The direction is the story here — six numbers a row does not show
+              it. RevisionColumns draws ups and downs diverging from a shared
+              baseline, so which way the sell side is moving reads at a glance;
+              the table below keeps the exact figures. */}
+          <RevisionColumns
+            buckets={rev.map(r => ({ label: r.period, up: r.up30, down: r.down30 }))}
+            label=""
+            ariaLabel="EPS estimate revisions by period, upgrades versus downgrades"
+          />
           <div className={styles.gridScroll}>
             <table className={styles.fgrid}>
               <thead>
