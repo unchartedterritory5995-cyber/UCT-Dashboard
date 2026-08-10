@@ -364,3 +364,44 @@ class TestTheSchedulerActuallyCallsIt:
 
     def test_a_function_that_does_not_exist_reads_as_absent(self):
         assert self._calls_in("_run_a_job_that_was_never_written") is None
+
+
+class TestItStandsUpItsOwnSchema:
+    """A scan on a DB nobody has written yet.
+
+    ⛔ This is the shape of the bug it exists to catch: the job runs, throws
+    `no such table: keyword_fired`, the scheduler wrapper logs a warning and
+    returns — and that is byte-identical, from the outside, to "no subscribers
+    yet". It was the LIVE behaviour in production until 8/10; every unit test
+    passed because they all inject `subs` and never touch the store.
+    """
+
+    def test_a_scan_against_a_NEVER_INITIALISED_db_does_not_raise(self, ka, tmp_path):
+        fresh = tmp_path / "never_written.db"
+        assert not fresh.exists()
+        ka.DB_PATH = str(fresh)
+        # subs=None on purpose: this must go through the STORE, which is what
+        # explodes on a fresh DB. Passing subs would skip the read and the test
+        # would pass vacuously.
+        out = ka.run_scan_via_index(index=self._Index(), deliver=lambda **k: None)
+        assert out.get("keywords") == 0
+        assert fresh.exists(), "the scan did not create its own store"
+
+    def test_it_can_FIRE_on_a_db_it_just_created(self, ka, tmp_path):
+        # Creating the tables is not enough — the dedup INSERT must work too.
+        ka.DB_PATH = str(tmp_path / "fresh2.db")
+        ka.init_db()
+        assert ka.add_keyword("u1", "tariff") == "tariff"
+        sent = []
+        out = ka.run_scan_via_index(
+            index=self._Index({"tariff": [
+                {"symbol": "AAPL", "quarter": "Q3 2026", "snippet": "new <mark>tariff</mark> costs"}]}),
+            deliver=lambda **k: sent.append(k))
+        assert out["fired"] == 1 and len(sent) == 1
+
+    class _Index:
+        def __init__(self, by_kw=None):
+            self._by = by_kw or {}
+
+        def search(self, keyword, limit=200, since=None):
+            return {"hits": self._by.get(keyword, [])}

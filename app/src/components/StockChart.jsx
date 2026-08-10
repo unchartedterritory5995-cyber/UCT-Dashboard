@@ -4189,6 +4189,12 @@ export default function StockChart({
     const seen = new Set()
     for (const e of markersData.earnings) {
       if (!e.date) continue
+      if (e.estimate) {
+        // Upcoming report — a FUTURE date with no bar yet. The badge primitive pins it to the
+        // right edge of the plot; keep the raw date so the click hit-test can match it.
+        out.push({ date: String(e.date).slice(0, 10), low: null, beat: null, estimate: true, data: e })
+        continue
+      }
       const bar = barByBucket.get(bucket(e.date))
       if (!bar) continue                      // no bar in that period (outside loaded range)
       const low = +bar.l
@@ -7769,8 +7775,9 @@ export default function StockChart({
         glyphColor: canvasSample.top,
         beatColor: mk.earningsBeat || '#1ae51a',
         missColor: mk.earningsMiss || '#c41f2d',
+        estimateColor: mk.earningsUpcoming || '#94a3b8',   // upcoming report = medium grey
       })
-      earnBadgeRef.current.setPoints(earningsEvents.map(e => ({ time: e.date, price: e.low, beat: e.beat })))
+      earnBadgeRef.current.setPoints(earningsEvents.map(e => ({ time: e.date, price: e.low, beat: e.beat, estimate: e.estimate })))
     }
 
     // ── Splits "S" + Dividends "D" badges (same bottom-row primitive as earnings) ──

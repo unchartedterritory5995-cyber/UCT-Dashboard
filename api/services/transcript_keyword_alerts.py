@@ -248,6 +248,14 @@ def run_scan_via_index(since: str = None, deliver=None, index=None,
     """
     if not enabled():
         return {"skipped": "disabled"}
+    # ⛔ The scan must stand up its OWN schema, exactly as `run_scan` does.
+    # Until a user subscribes, nothing has ever written this DB, so both
+    # `all_subscriptions` and `try_record_fire` hit "no such table" — and the
+    # scheduler wrapper catches that, logs a warning and returns, which is
+    # INDISTINGUISHABLE from "nobody has subscribed yet". Found by dry-running
+    # the real function against production, where it is currently the live
+    # behaviour. Idempotent: every statement is CREATE TABLE IF NOT EXISTS.
+    init_db()
     if index is None:
         from api.services import transcript_index as index
     if subs is None:

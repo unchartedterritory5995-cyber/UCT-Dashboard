@@ -31,6 +31,7 @@ export function createEarningsBadgePrimitive(initial) {
     beatColor: '#1ae51a',
     missColor: '#c41f2d',
     unknownColor: '#94a3b8',
+    estimateColor: '#94a3b8',   // upcoming report — medium grey (no results yet)
     glyphColor: null,   // null = GLYPH fallback; StockChart passes the canvas color
     fontPx: 11,
     ...initial,
@@ -44,10 +45,11 @@ export function createEarningsBadgePrimitive(initial) {
   // sub-pixel target — the "must click dead-center of the E" complaint).
   let lastHitRects = []
 
-  function colorFor(beat) {
-    if (opts.color) return opts.color       // fixed color (splits / dividends)
-    if (beat === true) return opts.beatColor
-    if (beat === false) return opts.missColor
+  function colorFor(p) {
+    if (p && p.estimate) return opts.estimateColor  // upcoming report — grey, no result yet
+    if (opts.color) return opts.color               // fixed color (splits / dividends)
+    if (p && p.beat === true) return opts.beatColor
+    if (p && p.beat === false) return opts.missColor
     return opts.unknownColor
   }
 
@@ -82,15 +84,22 @@ export function createEarningsBadgePrimitive(initial) {
           const drawn = []
           const hits = []
           for (const p of opts.points) {
-            const x = ts.timeToCoordinate(p.time)
-            if (x == null || x < 0 || x > mediaSize.width) continue
+            let x
+            if (p.estimate) {
+              // Upcoming report: its date is in the FUTURE (no time coordinate), so pin the
+              // badge to the right edge of the plot — always visible, "next earnings" at right.
+              x = mediaSize.width - w / 2 - 4
+            } else {
+              x = ts.timeToCoordinate(p.time)
+              if (x == null || x < 0 || x > mediaSize.width) continue
+            }
             const rect = { x: x - w / 2, y: rowTop, w, h }
             if (rect.x < 0 || rect.x + rect.w > mediaSize.width) continue
-            if (intersects(rect, drawn)) continue
+            if (!p.estimate && intersects(rect, drawn)) continue
             drawn.push(rect)
             hits.push({ x: rect.x, y: rect.y, w: rect.w, h: rect.h, time: p.time })
             // Pill
-            ctx.fillStyle = colorFor(p.beat)
+            ctx.fillStyle = colorFor(p)
             ctx.beginPath()
             if (typeof ctx.roundRect === 'function') ctx.roundRect(rect.x, rect.y, rect.w, rect.h, r)
             else ctx.rect(rect.x, rect.y, rect.w, rect.h)
