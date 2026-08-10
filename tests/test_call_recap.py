@@ -886,7 +886,7 @@ def test_a_SLOW_webcast_lookup_does_not_hold_the_panel(client, monkeypatch):
     """
     import time
     import api.routers.earnings_intel as ei
-    monkeypatch.setattr(ei, "_WEBCAST_TIMEOUT", 0.2)
+    monkeypatch.setattr(ei, "_COLD_BUDGET", 0.2)
 
     def _slow(_sym):
         time.sleep(5)
@@ -909,3 +909,33 @@ def test_a_SLOW_webcast_lookup_does_not_hold_the_panel(client, monkeypatch):
     # degrade the required ones.
     assert body["recap_status"] == "generating"
     assert len(body["rating_changes"]) == 1
+
+
+def test_the_two_cold_lookups_share_ONE_budget_rather_than_adding(client, monkeypatch):
+    """Waiting on the futures in turn made their timeouts ADD.
+
+    Ratings could spend its whole allowance and the webcast wait then started a
+    FRESH clock, so the worst case was the SUM. Measured under 20 cold readers
+    that was 4.00s p50 against a 2-3s target. One deadline covers both.
+    """
+    import time
+    import api.routers.earnings_intel as ei
+    monkeypatch.setattr(ei, "_COLD_BUDGET", 1.0)
+
+    def _slow(_sym):
+        time.sleep(5)
+        return "late"
+
+    started = time.time()
+    with patch("api.routers.earnings_intel.get_call_recap_with_status",
+               return_value=(None, "generating")), \
+         patch("api.routers.earnings_intel.get_webcast_url", side_effect=_slow), \
+         patch("api.routers.earnings_intel.get_rating_changes", side_effect=_slow):
+        r = client.get("/api/earnings/call-recap/SLOW2")
+    elapsed = time.time() - started
+
+    assert r.status_code == 200
+    # Both legs are slow. With one shared deadline the cost is the BUDGET, not
+    # twice it — the regression this pins is the two waits stacking.
+    assert elapsed < 2.0, f"the two waits stacked: {elapsed:.2f}s for a 1.0s budget"
+    assert r.json()["webcast_url"] is None
