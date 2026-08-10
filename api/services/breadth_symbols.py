@@ -348,26 +348,24 @@ def build_breadth_bars(sym: str, tf: str = "D", bars: int = 400) -> dict:
                       "l": round(l, 4), "c": round(c, 4), "v": 0})
         prev = v
 
-    # DEVELOPING today candle. When today isn't a stored EOD row yet (intraday), use the
-    # accumulator's today row (real intraday high/low so far) if present, else a
-    # close-to-close body from the live snapshot value.
+    # DEVELOPING today candle (today isn't a stored EOD row yet). Base the wick on the
+    # store's today row (real intraday high/low from the accumulator / a same-day
+    # reconstruction) when present; ALWAYS fold in the freshest LIVE value as the close so
+    # the candle keeps ticking instead of freezing at the last reconstruction. Open = the
+    # store's open, else the prior session's close.
     today = _et_today()
     if today and daily and daily[-1]["t"] < today:
-        trow = ohlc_map.get(today)
-        tc = _finite((trow or {}).get("c")) if trow else None
-        if trow and tc is not None:
-            to = _finite(trow.get("o")); to = to if to is not None else tc
-            th = _finite(trow.get("h")); tl = _finite(trow.get("l"))
-            th = max([x for x in (th, to, tc) if x is not None])
-            tl = min([x for x in (tl, to, tc) if x is not None])
-            daily.append({"t": today, "o": round(to, 4), "h": round(th, 4),
-                          "l": round(tl, 4), "c": round(tc, 4), "v": 0})
-        else:
-            live_val = _finite(_live_map().get(metric))
-            if live_val is not None:
-                pc = daily[-1]["c"]
-                daily.append({"t": today, "o": round(pc, 4), "h": round(max(pc, live_val), 4),
-                              "l": round(min(pc, live_val), 4), "c": round(live_val, 4), "v": 0})
+        trow = ohlc_map.get(today) or {}
+        live_val = _finite(_live_map().get(metric))
+        so = _finite(trow.get("o")); sh = _finite(trow.get("h"))
+        sl = _finite(trow.get("l")); sc = _finite(trow.get("c"))
+        c = live_val if live_val is not None else sc
+        o = so if so is not None else daily[-1]["c"]
+        if c is not None:
+            h = max([x for x in (sh, o, c) if x is not None])
+            l = min([x for x in (sl, o, c) if x is not None])
+            daily.append({"t": today, "o": round(o, 4), "h": round(h, 4),
+                          "l": round(l, 4), "c": round(c, 4), "v": 0})
 
     out = _resample(daily, tf)
     if bars and len(out) > bars:
