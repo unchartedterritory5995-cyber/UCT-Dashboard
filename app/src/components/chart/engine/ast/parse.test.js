@@ -414,7 +414,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 15 operators, 28 functions and 54 scalars — 102 names, one grammar', () => {
+  it('declares 5 series, 15 operators, 29 functions and 54 scalars — 103 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     expect(Object.keys(TABLE.operators)).toHaveLength(15)
     // ⭐ 11 -> 28 IS PHASE F. Seventeen indicators — rsi, macd, atr, the two DI
@@ -423,21 +423,27 @@ describe('the manifest', () => {
     // `indicators.js` and `indicator_compute.py` already ship rather than
     // rewritten here. What the table did NOT grow is a node type, an argument
     // kind or a lookback form, which is why `tableVersion` below is still 1.
-    expect(Object.keys(TABLE.functions)).toHaveLength(28)
+    // ⭐ 28 -> 29 IS THE RECURRENCE. `accum` is bar-to-bar state, and it added
+    // NO node type and NO argument kind — it is a `call` whose manifest entry
+    // carries a `recurrence` block naming which slot is the seed, which is the
+    // per-bar body, which is the warm-up and what name the body reads its own
+    // past through. That is why `tableVersion` below is STILL 1: every stored
+    // `astHash` is unmoved, because the tree shape did not change.
+    expect(Object.keys(TABLE.functions)).toHaveLength(29)
     // ⭐ THE FOURTH SECTION (Phase E Task 1). Counted SEPARATELY from the three
     // above, not folded into one total: 48 is the BAR vocabulary a corpus case
     // can exercise against 579 bars, and 54 is the per-symbol vocabulary that
     // has no bar behaviour at all and earns its own coverage floor. A single
     // number here would have been "fixed" with nobody able to see which half
     // moved — and Phase F is exactly that event: the bar half went 31 -> 48 and
-    // the scalar half did not move at all.
+    // the scalar half did not move at all. `accum` took the bar half to 49.
     expect(Object.keys(TABLE.scalars)).toHaveLength(54)
     const bar = new Set([
       ...Object.keys(TABLE.series), ...Object.keys(TABLE.operators), ...Object.keys(TABLE.functions),
     ])
-    expect(bar.size).toBe(48)
+    expect(bar.size).toBe(49)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(102)
+    expect(declared.size).toBe(103)
     // ⚠️ `tableVersion` STAYS 1 AND THAT IS A DECISION. It versions the GRAMMAR
     // — the four node types and the keys a persisted tree may carry — and Phase
     // E widened the VOCABULARY without touching either: a scalar rides the

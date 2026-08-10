@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
-import { parseFormula, TABLE, NODE_TYPES, REFUSALS as PARSE_REFUSALS } from './parse.js'
+import { parseFormula, TABLE, NODE_TYPES, REFUSALS as PARSE_REFUSALS, RECURRENCES } from './parse.js'
 import {
-  interpret, maxLookback, nodeCount, FN, TableRefusal, REFUSALS,
+  interpret, maxLookback, nodeCount, FN, TableRefusal, REFUSALS, MAX_RECURRENCE_STEPS,
 } from './interpret.js'
 
 /** The repo root, found by walking up — same helper `parse.test.js` uses, and it
@@ -432,10 +432,35 @@ describe('the implementation and the manifest are the same list', () => {
     // offers and the chart cannot draw; an implemented-but-undeclared name is a
     // callable OUTSIDE the closed table, which is the one thing this phase exists
     // to make impossible.
-    expect(Object.keys(FN).sort()).toEqual(Object.keys(TABLE.functions).sort())
+    //
+    // ⭐ WITH EXACTLY ONE KIND OF EXCEPTION, AND IT IS DERIVED FROM THE MANIFEST
+    // RATHER THAN LISTED HERE. An entry that declares a `recurrence` is
+    // evaluated by the WALKER — its body is a per-bar expression, not a column,
+    // so there is nothing for `FN` to hold. Writing `accum` into an ignore-list
+    // here would be a second roster; asking the table which entries are
+    // recurrences means a second one needs no edit, and an entry that stopped
+    // declaring one would land RED with its own name in the message.
+    const byWalker = Object.keys(RECURRENCES).sort()
+    expect(byWalker.length, 'the exception must be non-empty or this rail widened for nothing')
+      .toBeGreaterThan(0)
+    const expected = Object.keys(TABLE.functions).filter((n) => !byWalker.includes(n)).sort()
+    expect(Object.keys(FN).sort()).toEqual(expected)
     expect(Object.keys(FN).length).toBeGreaterThanOrEqual(11)      // non-vacuity
-    for (const name of Object.keys(TABLE.functions)) {
+    for (const name of expected) {
       expect(typeof FN[name], `${name} is declared but not callable`).toBe('function')
+    }
+    // ⛔ AND THE EXCEPTION IS NOT A HOLE: every walker-evaluated entry must still
+    // EVALUATE, or "no implementation" would quietly mean "no behaviour".
+    for (const name of byWalker) {
+      const spec = TABLE.functions[name]
+      const rec = spec.recurrence
+      const args = spec.args.map((kind, i) => (i === rec.warmup
+        ? { type: 'num', value: 2 }
+        : (i === rec.body
+          ? { type: 'op', name: '+', args: [{ type: 'series', name: rec.binds }, { type: 'num', value: 1 }] }
+          : { type: 'num', value: 0 })))
+      const out = interpret({ type: 'call', name, args }, BARS, {})
+      expect(out.length, `${name} is declared, walker-evaluated, and produced nothing`).toBe(BARS.length)
     }
   })
 
@@ -580,6 +605,25 @@ describe('the refusals', () => {
       // offset is refused at the parse door, so the only way this guard is ever
       // reached is a STORED tree — which is exactly the input it exists for.
       'interpret:offset': () => interpret({ type: 'offset', value: -26, args: [{ type: 'series', name: 'close' }] }, BARS, {}),
+      // ⭐ THE RECURRENCE PAIR, AND BOTH ARE REACHED THROUGH A TREE A USER CAN
+      // ACTUALLY BUILD. The binding read where nothing binds it is the mistake a
+      // translator makes; the step ceiling is the one a member makes by asking
+      // for a long warm-up over a long chart.
+      'interpret:recurrence': () => interpret(
+        { type: 'op', name: '+', args: [{ type: 'series', name: RECURRENCES.accum.binds }, { type: 'num', value: 1 }] },
+        BARS, {}),
+      'interpret:steps': () => interpret(
+        { type: 'call', name: 'accum', args: [
+          { type: 'num', value: 0 },
+          { type: 'op', name: '+', args: [{ type: 'series', name: RECURRENCES.accum.binds }, { type: 'num', value: 1 }] },
+          { type: 'num', value: 500 }] },
+        // ⛔ THE BARS ARE MADE HERE RATHER THAN REUSING `BARS`, because this is
+        // the ONE guard in this table whose trigger depends on how many bars the
+        // caller brought — that is the whole reason it could not live in
+        // `budget.js` with the others.
+        Array.from({ length: Math.floor(MAX_RECURRENCE_STEPS / 500) + 10 },
+          (_, i) => ({ o: 1, h: 2, l: 0.5, c: 1 + (i % 7) * 0.1, v: 1000 })),
+        {}),
     }
     expect(Object.keys(triggers).sort()).toEqual(Object.keys(REFUSALS).sort())
     for (const [guard, fire] of Object.entries(triggers)) {

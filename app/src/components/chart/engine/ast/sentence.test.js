@@ -7,7 +7,7 @@ import {
   OPERATOR_SENTENCE, OPERATOR_SENTENCE_CONDITIONS, CONDITIONS_FORM_DECLINED,
   SENTENCE_RULES, SentenceRefusal, REFUSALS as SENTENCE_REFUSALS,
 } from './sentence.js'
-import { parseFormula, astHash, TABLE, REFUSALS as PARSE_REFUSALS } from './parse.js'
+import { parseFormula, astHash, TABLE, REFUSALS as PARSE_REFUSALS, RECURRENCES } from './parse.js'
 import { REFUSALS as INTERPRET_REFUSALS } from './interpret.js'
 import { lintRepaint } from './lint.js'
 // ⭐ THE DELIVERABLE IS A CHAIN, SO THE CHAIN'S OWN DOORS ARE THE SUBJECT.
@@ -88,6 +88,14 @@ function reverseKeys(v) {
 
 const SERIES_WORDS = new Set(Object.keys(TABLE.series))
 
+/** phrase → the binding it reads back to. ⛔ TYPED, like every other phrase in
+ *  this reader: deriving it from `sentence.js` would make the round trip a
+ *  tautology. The BINDING NAME is read from the manifest, because that is a
+ *  value this file was handed rather than a phrasing it is here to check. */
+const RECURRENCE_PHRASE = Object.freeze({
+  'the running value so far': RECURRENCES.accum.binds,
+})
+
 /** Each form is a chunk list: strings are literal chrome, numbers are argument
  *  positions. The order below is DECLARED rather than incidental — a phrase that
  *  is a prefix of another (`is greater than` inside `is greater than or equal
@@ -131,6 +139,20 @@ const FORMS = [
   { kind: 'call', name: 'ichimokuSpanA', parts: ['the Ichimoku leading span A over ', 0, ' and ', 1, ' at ', 2, '/', 3, '/', 4] },
   { kind: 'call', name: 'ichimokuSpanB', parts: ['the Ichimoku leading span B over ', 0, ' and ', 1, ' at ', 2, '/', 3, '/', 4] },
   { kind: 'call', name: 'ichimokuChikou', parts: ['the Ichimoku lagging span of ', 2, ' over ', 0, ' and ', 1, ' at ', 3, '/', 4, '/', 5] },
+
+  // ⭐ THE RECURRENCE FORM. Hand-typed from the manifest's words like every row
+  // above, for the same reason: this reader is a DELIBERATE second authority, so
+  // re-wording `accum`'s sentence without touching this line must land as `0
+  // parses` rather than as a round trip against a grammar that moved with it.
+  //
+  // ⚠️ IT CONTAINS A BARE ` and `, WHICH IS ALSO `&&`'s CHROME AND `min`/`max`'s.
+  // That is safe and it is worth saying why: `matchForm` anchors on the LEADING
+  // literal, so the `&&` row can only claim this sentence by reading everything
+  // before the ` and ` as an operand — and `the running value that starts at
+  // close` is not a leaf, so that candidate is discarded rather than counted.
+  // The unambiguity rail below is what actually proves it, over every generated
+  // sentence rather than over this argument.
+  { kind: 'call', name: 'accum', parts: ['the running value that starts at ', 0, ' and becomes ', 1, ' on each of the last ', 2, ' bars'] },
 
   { kind: 'op', name: '+', parts: [0, ' plus ', 1] },
   { kind: 'op', name: '-', parts: [0, ' minus ', 1] },
@@ -234,6 +256,12 @@ function readLeaf(s) {
     return { type: 'series', name }
   }
   if (SERIES_WORDS.has(s)) return { type: 'series', name: s }
+  // ⭐ THE RECURRENCE BINDING IS A LEAF, AND IT IS NOT IN `TABLE.series`. `self`
+  // is bound by the `accum` around it rather than declared, which is exactly why
+  // it cannot ride `SERIES_WORDS` — and why the phrase is matched WHOLE here: a
+  // prefix match would let "the running value so far plus 1" read as a leaf and
+  // swallow its own operator.
+  if (own(RECURRENCE_PHRASE, s)) return { type: 'series', name: RECURRENCE_PHRASE[s] }
   if (NUMBER_WORD.test(s)) {
     const value = Number(s)
     if (!Number.isFinite(value)) throw new Error(`not a finite number: ${s}`)
@@ -550,13 +578,18 @@ describe('totality over the closed table — derived from the manifest, never ha
     // number `ast_conformance --coverage` asserts; the names are what a rename
     // has to fail against. ⭐ It went 31 -> 48 in Phase F, and the LIST is why
     // that reads as seventeen indicators arriving rather than as a number
-    // somebody adjusted.
+    // somebody adjusted. ⭐ 48 -> 49 is `accum`, the recurrence: one entry, and
+    // the list is why that reads as bar-to-bar state arriving rather than as a
+    // count that drifted.
     const entries = treesForTheWholeTable(TABLE).map((t) => t.entry)
     expect(entries).toEqual([
       'series:close', 'series:high', 'series:low', 'series:open', 'series:volume',
       'operator:!', 'operator:!=', 'operator:&&', 'operator:*', 'operator:+', 'operator:-',
       'operator:/', 'operator:<', 'operator:<=', 'operator:==', 'operator:>', 'operator:>=',
-      'operator:?:', 'operator:u-', 'operator:||', 'function:abs', 'function:atr',
+      'operator:?:', 'operator:u-', 'operator:||', 'function:abs',
+      // ⭐ THE RECURRENCE. The list is SORTED, so `accum` lands between `abs`
+      // and `atr` — not where it was appended in the manifest.
+      'function:accum', 'function:atr',
       'function:cci', 'function:change', 'function:crossOver', 'function:crossUnder',
       'function:donchianLower', 'function:donchianMiddle', 'function:donchianUpper',
       'function:ema', 'function:highest', 'function:ichimokuChikou',
@@ -565,7 +598,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:mfi', 'function:min', 'function:minusDI', 'function:plusDI', 'function:rsi',
       'function:sma', 'function:stdev', 'function:stoch', 'function:williamsR',
     ])
-    expect(entries.length).toBe(48)
+    expect(entries.length).toBe(49)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -575,7 +608,7 @@ describe('totality over the closed table — derived from the manifest, never ha
     // loop. ⛔ The count is asserted against the list above rather than retyped
     // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(48)
+    expect(subjects.length).toBe(49)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -1700,7 +1733,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       ...CORPUS.cases.map((c) => sentenceFor(c.ast, {})),
       ...treesForTheWholeTable(TABLE).map((t) => sentenceFor(t.ast, {})),
     ]
-    expect(sentences.length).toBe(CORPUS.cases.length + 48)
+    expect(sentences.length).toBe(CORPUS.cases.length + 49)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)
@@ -1902,9 +1935,9 @@ describe('the refusals', () => {
     // the parse door. The floor is a count on purpose — a door that stopped
     // contributing messages is named rather than silently shrinking the set.
     expect(Object.keys(PARSE_REFUSALS).length).toBe(12)
-    expect(Object.keys(INTERPRET_REFUSALS).length).toBe(7)
+    expect(Object.keys(INTERPRET_REFUSALS).length).toBe(9)
     expect(Object.keys(SENTENCE_REFUSALS).length).toBe(10)
-    expect(all.length).toBe(29)
+    expect(all.length).toBe(31)
     for (const a of all) {
       const containing = all.filter((b) => b.includes(a))
       expect(containing, `${JSON.stringify(a)} is a substring of another refusal`).toHaveLength(1)

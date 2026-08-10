@@ -182,9 +182,12 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # them bound to maths `indicators.js` and `indicator_compute.py` already
     # ship. The scalar half is untouched at 54, which is the whole reason these
     # are two assertions and not one total.
-    assert len(ast_table.bar_names()) == 48, len(ast_table.bar_names())
+    # ⭐ 48 -> 49 IS THE RECURRENCE. One function, `accum`, and again the bar
+    # half is the only half that moved — it added no node type, no argument kind
+    # and no lookback form, which is why `tableVersion` is still 1.
+    assert len(ast_table.bar_names()) == 49, len(ast_table.bar_names())
     assert len(ast_table.scalar_names()) == 54, len(ast_table.scalar_names())
-    assert len(declared) == 102, f"the table declares {len(declared)} names, not 102"
+    assert len(declared) == 103, f"the table declares {len(declared)} names, not 103"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "
@@ -241,10 +244,32 @@ def test_every_declared_FUNCTION_has_an_implementation_and_vice_versa():
     implemented-but-undeclared one is a callable outside the closed table, which
     is the one thing this phase exists to make impossible.
     """
+    # ⭐ WITH EXACTLY ONE KIND OF EXCEPTION, DERIVED FROM THE MANIFEST RATHER
+    # THAN LISTED HERE. An entry declaring a `recurrence` is evaluated by the
+    # WALKER — its body is a per-bar expression, not a column, so there is
+    # nothing for `FN` to hold. An ignore-list here would be a second roster;
+    # asking the table means a SECOND recurrent entry needs no edit, and an entry
+    # that stopped declaring one lands red with its own name in the message.
+    by_walker = sorted(ast_table.recurrences())
+    assert by_walker, "the exception must be non-empty or this rail widened for nothing"
     missing, extra = totality(ast_table.TABLE, ast_interpret.FN, "functions")
-    assert not missing, f"declared but not implemented: {missing}"
+    assert missing == by_walker, f"declared but not implemented: {missing}"
     assert not extra, f"implemented but not declared: {extra}"
-    assert sorted(ast_interpret.FN) == sorted(ast_table.TABLE["functions"])
+    assert sorted(ast_interpret.FN) == sorted(
+        n for n in ast_table.TABLE["functions"] if n not in by_walker)
+    # ⛔ AND THE EXCEPTION IS NOT A HOLE: every walker-evaluated entry must still
+    # EVALUATE, or "no implementation" would quietly mean "no behaviour".
+    for name in by_walker:
+        spec = ast_table.TABLE["functions"][name]
+        rec = spec["recurrence"]
+        args = [
+            NUM(2) if i == rec["warmup"]
+            else (OP("+", SER(rec["binds"]), NUM(1)) if i == rec["body"] else NUM(0))
+            for i in range(len(spec["args"]))
+        ]
+        col = run(CALL(name, *args))
+        assert len(col) == len(BARS), (
+            f"{name} is declared, walker-evaluated, and produced nothing")
 
 
 def test_every_declared_OPERATOR_is_implemented_and_vice_versa():
@@ -292,6 +317,11 @@ def test_a_planted_manifest_entry_lands_RED():
                        else ast_interpret.operator_names() if section == "operators"
                        else ast_table.TABLE["series"])
         missing, extra = totality(fake, implemented, section)
+        # ⚠️ THE WALKER-EVALUATED ENTRIES ARE SUBTRACTED, NOT IGNORED. `accum` is
+        # legitimately "declared and not in FN", so leaving it in would make this
+        # rail assert a list with a permanent resident — and the next entry that
+        # went missing for a BAD reason would hide inside that expectation.
+        missing = [m for m in missing if m not in ast_table.recurrences()]
         assert missing == [planted], (
             f"a planted {section} entry {planted!r} did NOT land red — the "
             f"totality rail is a hand-list, not a derivation (got {missing!r})")
@@ -486,6 +516,22 @@ def test_every_declared_guard_is_REACHABLE_and_every_reachable_guard_is_DECLARED
         # refused at the JS parse door, so the only way this guard is ever
         # reached is a STORED tree — which is exactly the input it exists for.
         "interpret:offset": lambda: run(OFF(-26, SER("close"))),
+        # ⭐ THE RECURRENCE PAIR. The binding read where nothing binds it is the
+        # mistake a translator makes; the step ceiling is the one a member makes
+        # by asking for a long warm-up over a long chart. Both names are READ off
+        # the manifest, never typed.
+        "interpret:recurrence": lambda: run(
+            OP("+", SER(ast_table.recurrences()["accum"]["binds"]), NUM(1))),
+        "interpret:steps": lambda: ast_interpret.interpret(
+            CALL("accum", NUM(0),
+                 OP("+", SER(ast_table.recurrences()["accum"]["binds"]), NUM(1)),
+                 NUM(500)),
+            # ⛔ ITS OWN BARS, NOT `BARS`. This is the ONE guard in this table
+            # whose trigger depends on how many bars the caller brought — which
+            # is the whole reason it could not live with the static budgets.
+            [{"o": 1.0, "h": 2.0, "l": 0.5, "c": 1.0 + (i % 7) * 0.1, "v": 1000.0}
+             for i in range(ast_interpret.MAX_RECURRENCE_STEPS // 500 + 10)],
+            {}),
     }
     assert sorted(triggers) == sorted(ast_interpret.REFUSALS)
     for guard, fire in triggers.items():

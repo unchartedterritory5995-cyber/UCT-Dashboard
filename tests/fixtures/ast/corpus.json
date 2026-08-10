@@ -637,7 +637,227 @@
           { "type": "offset", "value": 3, "args": [ { "type": "series", "name": "close" } ] }
         ]
       }
+    },
+    {
+      "id": "accum_bounded_counter",
+      "source": "accum(0, self + 1, 12)",
+      "why": "the simplest recurrence, and the one whose ANSWER proves the design: a counter re-seeded every 12 bars reads 12 on every bar it answers and nothing on the eleven before. A single forward pass from the first fetched bar would read 1, 2, 3 ... here instead, and that number changes the moment the chart is panned -- which is the whole reason the window re-seeds",
+      "ast": {
+        "type": "call",
+        "name": "accum",
+        "args": [
+          {
+            "type": "num",
+            "value": 0
+          },
+          {
+            "type": "op",
+            "name": "+",
+            "args": [
+              {
+                "type": "series",
+                "name": "self"
+              },
+              {
+                "type": "num",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 12
+          }
+        ]
+      }
+    },
+    {
+      "id": "accum_running_max_is_highest",
+      "source": "accum(close, max(self, close), 19)",
+      "why": "a pointwise call in the recurrence spine, and an INDEPENDENT check on the maths: this is `highest(close, 20)` written as a recurrence, so both lanes are pinned against a shipped function rather than against a number somebody typed. The scalar `max` the step loop applies is the same object `FN.max` lifts, which is why their NaN rule cannot drift apart",
+      "ast": {
+        "type": "call",
+        "name": "accum",
+        "args": [
+          {
+            "type": "series",
+            "name": "close"
+          },
+          {
+            "type": "call",
+            "name": "max",
+            "args": [
+              {
+                "type": "series",
+                "name": "self"
+              },
+              {
+                "type": "series",
+                "name": "close"
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 19
+          }
+        ]
+      }
+    },
+    {
+      "id": "accum_sticky_flag_ternary",
+      "source": "accum(0, close > open ? 1 : self, 10)",
+      "why": "the ternary in the spine, which is how a state machine is spelled: the flag latches on an up bar and CARRIES until the window re-seeds. It forgets its seed the first time the condition fires, so a naive one-pass implementation would agree with this on most bars and disagree on the rest -- the hardest kind of wrong to see",
+      "ast": {
+        "type": "call",
+        "name": "accum",
+        "args": [
+          {
+            "type": "num",
+            "value": 0
+          },
+          {
+            "type": "op",
+            "name": "?:",
+            "args": [
+              {
+                "type": "op",
+                "name": ">",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "close"
+                  },
+                  {
+                    "type": "series",
+                    "name": "open"
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 1
+              },
+              {
+                "type": "series",
+                "name": "self"
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 10
+          }
+        ]
+      }
+    },
+    {
+      "id": "accum_over_a_windowed_column",
+      "source": "accum(0, self + (close > sma(close, 10) ? 1 : 0), 20)",
+      "why": "the PARTITION, in one case. `sma(close, 10)` reads no running value, so it is evaluated ONCE as a column and indexed per step; both lanes must put it on the same side of that split. And the lookback composes rather than replacing: this tree reaches 30 bars back, not 20",
+      "ast": {
+        "type": "call",
+        "name": "accum",
+        "args": [
+          {
+            "type": "num",
+            "value": 0
+          },
+          {
+            "type": "op",
+            "name": "+",
+            "args": [
+              {
+                "type": "series",
+                "name": "self"
+              },
+              {
+                "type": "op",
+                "name": "?:",
+                "args": [
+                  {
+                    "type": "op",
+                    "name": ">",
+                    "args": [
+                      {
+                        "type": "series",
+                        "name": "close"
+                      },
+                      {
+                        "type": "call",
+                        "name": "sma",
+                        "args": [
+                          {
+                            "type": "series",
+                            "name": "close"
+                          },
+                          {
+                            "type": "num",
+                            "value": 10
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "type": "num",
+                    "value": 1
+                  },
+                  {
+                    "type": "num",
+                    "value": 0
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "num",
+            "value": 20
+          }
+        ]
+      }
+    },
+    {
+      "id": "accum_offset_of_a_running_value",
+      "source": "accum(0, self + 1, 6)[3]",
+      "why": "an offset OF a recurrence, which is legal, as against the binding UNDER an offset, which is refused by `interpret:recurrence`. That distinction is the boundary itself: a finished column has a history and can be shifted, while the step loop holds one previous value and has none. The pad is 9 -- the offset plus the warm-up",
+      "ast": {
+        "type": "offset",
+        "value": 3,
+        "args": [
+          {
+            "type": "call",
+            "name": "accum",
+            "args": [
+              {
+                "type": "num",
+                "value": 0
+              },
+              {
+                "type": "op",
+                "name": "+",
+                "args": [
+                  {
+                    "type": "series",
+                    "name": "self"
+                  },
+                  {
+                    "type": "num",
+                    "value": 1
+                  }
+                ]
+              },
+              {
+                "type": "num",
+                "value": 6
+              }
+            ]
+          }
+        ]
+      }
     }
   ],
+  "_recurrence": "⭐ FIVE CASES PIN THE RECURRENCE, AND EACH PINS A DIFFERENT HALF OF IT. The bounded counter pins that the window RE-SEEDS -- a single forward pass reads 1,2,3... where the shipped one reads 12 -- the running maximum pins the scalar/column equality by being `highest(close, 20)` under another name, the sticky flag pins the ternary spine, the windowed case pins the pure/impure PARTITION and the composed lookback, and the offset case pins the line between shifting a finished column (legal) and reading the binding through a bar offset (refused). ⛔ THE BINDING IS SPELLED `self` HERE BECAUSE A CORPUS CASE IS DATA A HUMAN READS; every WALKER reads that name from `functions.accum.recurrence.binds` instead, which is why renaming it would move these five digests and nothing else.",
   "_indicators": "⭐ THE INDICATOR ROWS (Phase F). One case per newly declared function, because `assert_corpus_covers_the_table` derives its floor FROM THE MANIFEST and a function with no case is a function whose two lanes may already disagree with every gate green. Two rows are not a function at all -- `macd_signal_by_composition` and `stoch_d_by_composition` are the COMPOSITIONS `_functions_excluded` offers in place of the two entries it refuses, so a refusal that quietly stopped being survivable moves a digest. ⛔ THE SEVENTEEN EXISTING DIGESTS DO NOT MOVE, and that is a measurement rather than a hope: not one row here edits an existing tree, and the re-record was diffed against the previous log key by key."
 }
