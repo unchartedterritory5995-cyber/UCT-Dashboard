@@ -542,7 +542,30 @@ def _calendar_hour_rate(today: object = None, lookback_days: int = 5) -> dict:
 def _enrichment_with_em_rate() -> dict:
     """Reads the already-published `_ENRICH_STATS` telemetry (via the public
     `calendar_enrichment_status`) for the most recent date with `total > 0` —
-    never triggers a fresh enrichment build."""
+    never triggers a fresh enrichment build.
+
+    REFUSALS LEAVE THE DENOMINATOR. `implied_move`'s vocabulary separates
+    `refused` ("we could not price this" — no ATM strike, no quoted straddle,
+    an implausible move) from `unavailable` ("we did not get to try" — no
+    chain, no spot, a timeout), and its own docstring calls that "the same
+    distinction the coverage work draws between `dropped` and
+    `not_computable`". A refusal is the pricing bound working, so counting it
+    as missing coverage measures the market, not our fetch — the same mistake
+    `analyst_actions` was making next door.
+
+    The calendar already encodes this rule: its `em_collapsed` flag requires
+    `em_refused == 0`, and the comment beside it says outright that "any
+    monitor that alerts on fewer rows than reporters needs to read `refused`
+    before it fires". This is that monitor. Live on 2026-08-10 it did not:
+    58 reporters, 52 refused, 1 priced read as ~0% and tripped the blank
+    detector while `em_collapsed` correctly reported false.
+
+    A day refused end to end therefore reports sample=0 ("not measured"),
+    never a fabricated 0%. A genuine option-chain outage has NO refusals to
+    explain it and still reads 0% over the full population, so the field can
+    still fail — see the control in
+    tests/test_provider_coverage_em_refusals.py.
+    """
     from api.routers.calendar import calendar_enrichment_status
     try:
         status = calendar_enrichment_status() or {}
@@ -554,7 +577,14 @@ def _enrichment_with_em_rate() -> dict:
         total = int(d.get("total") or 0)
         if total > 0:
             with_em = int(d.get("with_em") or 0)
-            return {"observed": with_em / total, "sample": total}
+            # Absent on stats cached before this key existed — fall back to the
+            # old reading rather than treating "unknown" as "all refused",
+            # which would silently switch the field off.
+            refused = int(d.get("em_refused") or 0)
+            attempted = max(0, total - refused)
+            if attempted <= 0:
+                return {"observed": None, "sample": 0}
+            return {"observed": with_em / attempted, "sample": attempted}
     return {"observed": None, "sample": 0}
 
 

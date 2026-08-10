@@ -28,6 +28,7 @@ T_RS = "tests/test_provider_coverage_restart_dedup.py"
 T_MV = "tests/test_movers_finviz_columns.py"
 T_PW = "tests/test_calendar_past_week_sessions.py"
 T_YF = "tests/test_yf_guard_status.py"
+T_EM = "tests/test_provider_coverage_em_refusals.py"
 
 MUTATIONS = [
     ("column list not requested (back to the account's saved view)", CAL,
@@ -79,6 +80,12 @@ MUTATIONS = [
 
     ("yfinance guard endpoint unmounted again", MAIN,
      "app.include_router(yf_guard_router.router)", "pass  # unmounted", T_YF),
+
+    ("EM coverage stops reading the refusal count", PCM,
+     'refused = int(d.get("em_refused") or 0)', "refused = 0", T_EM),
+
+    ("an all-refused day fabricates a 0% instead of abstaining", PCM,
+     "            if attempted <= 0:", "            if False:", T_EM),
 ]
 
 
@@ -97,7 +104,7 @@ def _run(tests):
 
 def main():
     print("=== CONTROL (no mutation): every target suite must PASS ===")
-    for t in (T_VOL, T_AN, T_RS, T_MV, T_PW, T_YF):
+    for t in (T_VOL, T_AN, T_RS, T_MV, T_PW, T_YF, T_EM):
         r = _run(t)
         print(f"  {t:62} exit={r.returncode}  {r.stdout.strip().splitlines()[-1] if r.stdout.strip() else ''}")
         if r.returncode != 0:
