@@ -711,7 +711,9 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
         </div>
 
         <div className={styles.tableBody}>
-          {(isLoading || isComputing) && (
+          {/* Skeleton ONLY when there's genuinely nothing to show yet. With cached/fallback data
+              present the list renders instantly — never a skeleton stacked on top of real rows. */}
+          {(isLoading || isComputing) && filteredThemes.length === 0 && (
             isComputing
               ? <p className={styles.loading}>Computing returns… ready in ~30s</p>
               : <SkeletonTileContent lines={6} />
@@ -734,8 +736,8 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
       {embedded && (
         <div className={styles.ttFooter}>
           <span className={styles.ttFooterCount}>{stockCount} {stockCount === 1 ? 'stock' : 'stocks'}</span>
-          {data?.generated_at && (
-            <span className={styles.ttFooterUpdated}>· Updated {fmtEtTime(data.generated_at)} ET</span>
+          {(data?.live_as_of || data?.generated_at) && (
+            <span className={styles.ttFooterUpdated}>· Updated {fmtEtTime(data.live_as_of || data.generated_at)} ET</span>
           )}
           <button
             type="button"
