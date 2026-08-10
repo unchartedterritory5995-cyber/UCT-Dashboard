@@ -84,6 +84,39 @@ def _run_5min_check():
 
         TFS = ("60", "30", "15", "5", "1")
 
+        # ── FIRST: is the STORE THERE AT ALL? ────────────────────────────
+        # 🔴 2026-08-10: `/data/bars.db` lost its `ohlcv` table mid-session,
+        # charts were dead, and THIS CHECK SAID NOTHING — twice over.
+        #   1. A missing table makes `get_last_ts` RAISE, so the very first
+        #      ticker aborted the loop into the outer `except` below, which
+        #      only logs — into a stream already flooded by yfinance noise.
+        #   2. An intact-but-EMPTY table is worse: every `get_last_ts` answers
+        #      None, every tf hits `continue`, `hot_checked` lands on 0, and
+        #      `if hot_checked:` skips the whole block. Not one log line.
+        # ⭐ BOTH SHAPES ARE "THE DENOMINATOR WENT TO ZERO", and a ratio-based
+        # monitor reads that as NOTHING TO CHECK instead of EVERYTHING IS GONE.
+        # A freshness ratio can only speak about bars that exist; it is
+        # structurally incapable of reporting their absence. So ask the
+        # artifact directly, before sampling anything
+        # (`lesson_health_check_reads_a_proxy_not_the_artifact`).
+        health = _bs.store_health()
+        if not health["ok"]:
+            _alerts.emit(
+                "bars_store_unhealthy", "critical",
+                f"THE BARS STORE CANNOT SERVE: {health['kind']}. "
+                f"Charts are down or degraded for everyone. "
+                f"{health.get('detail', '')}",
+                {"kind": health["kind"], "detail": health.get("detail", "")},
+            )
+            _logger.error(
+                "[continuous_audit] bars store unhealthy: %s (%s)",
+                health["kind"], health.get("detail", ""),
+            )
+            # ⛔ RETURN. Every freshness number below is computed from rows
+            # this store cannot produce, so continuing would bury a total
+            # outage under a pile of "0/0 cold" noise.
+            return
+
         # ── Actionable signal: the HOT-SET (charts users actually open) ──
         # The untouched long tail of the ~3,685-ticker universe staying
         # frozen is the EXPECTED steady state — Part 1 heals it on access,

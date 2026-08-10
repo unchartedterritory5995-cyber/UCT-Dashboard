@@ -141,13 +141,14 @@ def _fault_kind(exc: Exception) -> str:
     originally written for and needs nothing but a retry. ⛔ Collapsing all three
     into "transient" is what sent an operator to look at rate limits while the
     schema was gone.
+
+    ⛔ THE RULES THEMSELVES LIVE IN `bars_sqlite.classify_fault`, NOT HERE. This
+    is a one-line delegation on purpose: the background monitor classifies the
+    same store, and the day these two copies disagreed, the request path and the
+    alert would tell an operator different stories about one database.
     """
-    text = str(exc).lower()
-    if "no such table" in text:
-        return "schema-missing"
-    if "malformed" in text or "not a database" in text or "corrupt" in text:
-        return "malformed"
-    return "transient"
+    from api.services import bars_sqlite
+    return bars_sqlite.classify_fault(exc)
 
 
 def _fault_response(ticker: str, tf: str, kind: str) -> JSONResponse:
