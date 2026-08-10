@@ -162,6 +162,42 @@ def _fmp_recent_action(ticker: str, within_hours: int, now: Optional[float] = No
     })
 
 
+def analyst_grades_available(ticker: str) -> bool:
+    """Did a provider return a usable analyst-grades payload for `ticker` at all?
+
+    This is the COVERAGE question, and it is deliberately NOT the question
+    `finnhub_recent_action` answers. That one asks "was this name re-rated
+    inside the window", which is a fact about the market: on a quiet tape — a
+    weekend above all — the honest answer is None for every ticker while every
+    provider is perfectly healthy. Grading a coverage floor against it made the
+    monitor red every weekend (2026-08-09: 8 megacaps, newest grades 6 to 68
+    days old, all providers answering with hundreds of rows).
+
+    What DID regress in the incident this monitor was built for is exactly what
+    this measures: Finnhub `/stock/upgrade-downgrade` 403'd on every call for
+    months, so the payload was empty 100% of the time. Same two legs in the
+    same order as `finnhub_recent_action` (FMP primary, Finnhub fallback) so a
+    True here means the path that function depends on can actually deliver.
+
+    Never raises.
+    """
+    if not ticker:
+        return False
+    sym = ticker.upper()
+    try:
+        rows = _fmp_get("/stable/grades", {"symbol": sym}, timeout=_FMP_TIMEOUT)
+        if isinstance(rows, list) and rows:
+            return True
+    except Exception:
+        logger.debug("[catalyst-analyst] FMP grades availability probe failed for %s", sym)
+    try:
+        rows = fh_get("/stock/upgrade-downgrade", {"symbol": sym}, timeout=_TIMEOUT)
+        return isinstance(rows, list) and bool(rows)
+    except Exception:
+        logger.debug("[catalyst-analyst] Finnhub grades availability probe failed for %s", sym)
+        return False
+
+
 def _finnhub_recent_action(ticker: str, within_hours: int, now: Optional[float] = None) -> Optional[dict]:
     """Fallback leg — Finnhub `/stock/upgrade-downgrade` (403s on this plan
     as of 2026-08-05; kept because `fh_get` short-circuits the cached 403 for

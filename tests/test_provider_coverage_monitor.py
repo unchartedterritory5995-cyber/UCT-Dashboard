@@ -51,11 +51,14 @@ def test_empty_sample_yields_none_not_a_defect():
 
 
 def test_legitimately_sparse_field_at_its_floor_is_not_a_defect():
-    # analyst_actions floors at 50% precisely because most tickers have no
-    # recent rating action -- a field that sits there FOREVER must never
-    # trip an alert on its own.
+    # calendar_hour_resolved floors at 60% because a real slice of past
+    # reporters carry no session from the provider at all -- a field that sits
+    # just above there FOREVER must never trip an alert on its own.
+    # (This used analyst_actions until 2026-08-09; that field no longer grades
+    # a sparse market fact -- see test_provider_coverage_analyst_reachability.)
     pcm = _mod()
-    assert pcm._evaluate_field("analyst_actions", 0.52, 8, baseline=0.50, provider_moved=False) is None
+    assert pcm._evaluate_field("calendar_hour_resolved", 0.62, 490, baseline=0.61,
+                               provider_moved=False) is None
 
 
 def test_sharp_drop_detected_even_with_no_absolute_floor():
@@ -173,7 +176,12 @@ def test_heal_meta_invalidates_exact_keys(monkeypatch):
 
 # ── run_cycle — end-to-end wiring with every measurer stubbed ──────────────────
 def _stub_measurers(monkeypatch, pcm, *, price_target_obs=0.9, price_target_n=20,
-                     analyst_obs=0.5, analyst_n=8, moved=None):
+                     analyst_obs=1.0, analyst_n=8, moved=None):
+    # analyst_obs default is 1.0, not the old 0.5: the field measures whether
+    # the grades PROVIDERS answer, so healthy is ~1.0. It used to measure how
+    # many megacaps were re-rated in ~2 days, where 0.5 was aspirational
+    # fiction (live: 0/8, all providers healthy) -- see
+    # tests/test_provider_coverage_analyst_reachability.py.
     monkeypatch.setattr(pcm, "_sample_tickers", lambda n: ["AAPL", "NVDA"])
     monkeypatch.setattr(
         pcm, "_intel_map",
@@ -214,7 +222,7 @@ def test_run_cycle_flags_a_field_that_goes_to_zero(tmp_path, monkeypatch):
     monkeypatch.setattr(pcm, "_meta_map", lambda syms: {s: {"name": "X", "industry": "Y"} for s in syms})
     monkeypatch.setattr(pcm, "_transcript_rate", lambda syms: {"observed": None, "sample": 0, "missing": []})
     monkeypatch.setattr(pcm, "_analyst_actions_rate",
-                        lambda syms: {"observed": 0.5, "sample": 8, "missing": []})
+                        lambda syms: {"observed": 1.0, "sample": 8, "missing": []})
     monkeypatch.setattr(pcm, "_calendar_hour_rate", lambda: {"observed": 0.7, "sample": 100})
     monkeypatch.setattr(pcm, "_enrichment_with_em_rate", lambda: {"observed": 0.6, "sample": 200})
     monkeypatch.setattr(pcm, "_implied_fiscal_rate", lambda: {"observed": None, "sample": 0})
@@ -229,13 +237,16 @@ def test_run_cycle_flags_a_field_that_goes_to_zero(tmp_path, monkeypatch):
 
 def test_legitimately_sparse_field_never_flags(tmp_path, monkeypatch):
     """The orchestrator's explicit demonstration ask: a legitimately-sparse
-    field (~50% is normal for analyst_actions) must NOT alert."""
+    field must NOT alert. calendar_hour_resolved sitting a little above its
+    60% floor is the standing example -- a genuine provider gap in how many
+    past reporters carry a BMO/AMC session, not a regression."""
     pcm = _mod()
     _isolate_db(monkeypatch, pcm, tmp_path)
-    _stub_measurers(monkeypatch, pcm, price_target_obs=1.0, analyst_obs=0.5, analyst_n=8)
+    _stub_measurers(monkeypatch, pcm, price_target_obs=1.0)
+    monkeypatch.setattr(pcm, "_calendar_hour_rate", lambda: {"observed": 0.62, "sample": 490})
     pcm.run_cycle()
     fields_flagged = {d["field"] for d in pcm.get_state()["defects_current"]}
-    assert "analyst_actions" not in fields_flagged
+    assert "calendar_hour_resolved" not in fields_flagged
 
 
 def test_run_cycle_tags_provider_throttled_when_denial_counter_moves(tmp_path, monkeypatch):

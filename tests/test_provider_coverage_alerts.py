@@ -20,7 +20,7 @@ def _stub_all_healthy(monkeypatch, pcm):
     monkeypatch.setattr(pcm, "_sample_tickers", lambda n: ["AAPL"])
     monkeypatch.setattr(pcm, "_meta_map", lambda syms: {s: {"name": "X", "industry": "Y"} for s in syms})
     monkeypatch.setattr(pcm, "_transcript_rate", lambda syms: {"observed": None, "sample": 0, "missing": []})
-    monkeypatch.setattr(pcm, "_analyst_actions_rate", lambda syms: {"observed": 0.5, "sample": 8, "missing": []})
+    monkeypatch.setattr(pcm, "_analyst_actions_rate", lambda syms: {"observed": 1.0, "sample": 8, "missing": []})
     monkeypatch.setattr(pcm, "_calendar_hour_rate", lambda: {"observed": 0.7, "sample": 100})
     monkeypatch.setattr(pcm, "_enrichment_with_em_rate", lambda: {"observed": 0.6, "sample": 200})
     monkeypatch.setattr(pcm, "_implied_fiscal_rate", lambda: {"observed": None, "sample": 0})
