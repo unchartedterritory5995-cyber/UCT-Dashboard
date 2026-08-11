@@ -21,7 +21,24 @@ export function sanitizeHtml(html) {
     }
   })
   mapCheckboxLists(doc)
+  rewriteImportLinks(doc)
   return doc.body.innerHTML
+}
+
+// The adapters (Notion/Obsidian) emit `<a data-import-link="<targetKey>">` for
+// a doc-to-doc link, deliberately WITHOUT an href (the raw export-relative
+// path has no meaning post-import). generateJSON only turns an <a> into a
+// Link mark when it has an href the Link extension accepts, so here we stamp
+// a temporary `href="import-link://<targetKey>"` placeholder — the Link
+// extension's isAllowedUri (tiptap.js) explicitly allows that scheme. Task
+// 13's rewriteBody resolves it to the real note URL (or drops the mark) once
+// the target's real note id is known post-confirm.
+export function rewriteImportLinks(doc) {
+  doc.querySelectorAll('a[data-import-link]').forEach((a) => {
+    const key = a.getAttribute('data-import-link')
+    if (key) a.setAttribute('href', `import-link://${key}`)
+    a.removeAttribute('data-import-link')
+  })
 }
 
 export function mapCheckboxLists(doc) {

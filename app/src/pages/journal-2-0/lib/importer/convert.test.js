@@ -15,6 +15,12 @@ describe('sanitizeHtml', () => {
     const out = sanitizeHtml('<svg><script>alert(2)</script></svg>')
     expect(out.toLowerCase()).not.toContain('script')
   })
+
+  it('rewrites a data-import-link anchor into an import-link:// href', () => {
+    const out = sanitizeHtml('<a data-import-link="obsidian:Vault/Foo.md">Foo</a>')
+    expect(out).toContain('href="import-link://obsidian:Vault/Foo.md"')
+    expect(out).not.toContain('data-import-link')
+  })
 })
 
 describe('htmlToNote', () => {
@@ -34,6 +40,16 @@ describe('htmlToNote', () => {
       '<h1>Title</h1><table><tr><td>alpha</td></tr></table>')
     expect(bodyJson.content.map((n) => n.type)).toEqual(['heading', 'table'])
     expect(bodyPlain).toContain('alpha')
+  })
+
+  it('turns a data-import-link anchor into a link mark carrying the import-link:// placeholder href', () => {
+    const { bodyJson } = htmlToNote('<p><a data-import-link="obsidian:Vault/Foo.md">Foo</a></p>')
+    const para = bodyJson.content[0]
+    const textNode = para.content[0]
+    expect(textNode.text).toBe('Foo')
+    const linkMark = textNode.marks.find((m) => m.type === 'link')
+    expect(linkMark).toBeTruthy()
+    expect(linkMark.attrs.href).toBe('import-link://obsidian:Vault/Foo.md')
   })
 
   it('converts label-wrapped checkboxes to taskItems with correct state', () => {
