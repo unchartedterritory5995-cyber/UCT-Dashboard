@@ -101,3 +101,66 @@ describe('obsidian adapter — detect() is async-tolerant and never rejects', ()
     await expect(obsidianAdapter.detect([onlyBad])).resolves.toBe(0)
   })
 })
+
+// ---------------------------------------------------------------------------
+// Fix-review coverage (coordinator review of the initial implementation) —
+// inline single-backtick code spans, the unresolved-embed fallback, and
+// `#Heading`/`#^block` link-anchor stripping.
+// ---------------------------------------------------------------------------
+
+describe('obsidian adapter — inline code spans protect wiki-syntax too', () => {
+  it('leaves a resolvable wiki-link untouched inside an inline code span', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('Vault/a.md', 'Use `[[Other Note]]` to link to it.'),
+      vf('Vault/Other Note.md', 'x'),
+    ])
+    const a = docs.find((d) => d.importKey === 'obsidian:Vault/a.md')
+    // The raw wiki-link text must survive byte-for-byte inside the code span
+    // — not be converted to a link, and not lose its brackets either.
+    expect(a.html).toContain('[[Other Note]]')
+    expect(a.html).not.toContain('data-import-link')
+  })
+
+  it('leaves ==highlight== untouched inside an inline code span', async () => {
+    const { docs } = await obsidianAdapter.parse([vf('n.md', 'Syntax: `==x==` stays literal.')])
+    expect(docs[0].html).toContain('==x==')
+    expect(docs[0].html).not.toContain('<mark>')
+  })
+
+  it('still converts wiki-syntax outside the inline span on the same line', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('n.md', '`[[Fake]]` and ==real==, both on one line'),
+    ])
+    const html = docs[0].html
+    expect(html).toContain('[[Fake]]')
+    expect(html).toContain('<mark>real</mark>')
+  })
+})
+
+describe('obsidian adapter — unresolvable embed fallback', () => {
+  it('renders an unresolvable embed target as plain text, not an <img> or media entry', async () => {
+    const { docs } = await obsidianAdapter.parse([vf('n.md', 'before ![[missing.png]] after')])
+    const d = docs[0]
+    expect(d.media).toHaveLength(0)
+    expect(d.html).not.toContain('<img')
+    expect(d.html).toContain('missing.png')
+  })
+})
+
+describe('obsidian adapter — link anchors (#Heading / #^block) resolve to the target note', () => {
+  it('strips a #Heading or #^block fragment before lookup and still resolves the note', async () => {
+    const { docs } = await obsidianAdapter.parse([
+      vf('Vault/a.md', 'see [[Note#Heading]] and [[Note#^abc123]]'),
+      vf('Vault/Note.md', 'x'),
+    ])
+    const a = docs.find((d) => d.importKey === 'obsidian:Vault/a.md')
+    // Both anchored links resolve to the same target note...
+    expect(a.links).toHaveLength(2)
+    expect(a.links.every((l) => l.targetKey === 'obsidian:Vault/Note.md')).toBe(true)
+    expect(a.html).toContain('data-import-link="obsidian:Vault/Note.md"')
+    // ...and the written display text (including the anchor) is preserved,
+    // not silently dropped, since only the RESOLUTION step ignores it.
+    expect(a.html).toContain('Note#Heading')
+    expect(a.html).toContain('Note#^abc123')
+  })
+})

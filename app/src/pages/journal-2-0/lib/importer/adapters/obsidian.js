@@ -22,9 +22,13 @@
  * the body before markdown conversion.
  *
  * Wiki-syntax is pre-processed with regex passes BEFORE `mdToHtml`, applied
- * only OUTSIDE fenced code blocks (the raw text is split on ``` fences
- * first; code segments pass through byte-for-byte untouched so wiki syntax
- * inside a code sample is never rewritten), in this fixed order:
+ * only OUTSIDE code — both fenced (```) blocks AND inline (`) spans (the raw
+ * text is split on a combined regex that tries the fence alternative FIRST,
+ * since fence content can itself contain single/double backticks — matching
+ * inline-span first would slice a fence into pieces at its first backtick
+ * run; code segments pass through byte-for-byte untouched so wiki syntax
+ * inside a code sample, fenced or inline, is never rewritten), in this
+ * fixed order:
  *   1. `![[target]]` embeds       -> `<img import-ref://...>` or an
  *                                     attachment chip (non-image target)
  *   2. `[[Target|alias]]`/`[[Target]]` links -> `<a data-import-link=...>`,
@@ -33,7 +37,8 @@
  *                                     blockquote with a bold first line)
  *   4. `==highlight==`             -> `<mark>highlight</mark>`
  * (Frontmatter extraction is pass 0, applied once to the raw file before
- * the code-fence split, since a frontmatter block is only ever at byte 0.)
+ * the fenced/inline code split, since a frontmatter block is only ever at
+ * byte 0.)
  *
  * Resolution (used by both embeds and links): a single basename map,
  * `Map<lowercased basename sans extension, full vault path>`, built ONCE
@@ -51,7 +56,10 @@ import { mdToHtml } from './generic'
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|heic)$/i
 const SKIP_DIR_RE = /(^|\/)\.(obsidian|trash)\//i
 const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/
-const CODE_FENCE_RE = /```[\s\S]*?```/g
+// Fence alternative MUST come first — at a run of 3+ backticks it has to win
+// over the inline-span alternative, or the inline pattern would consume just
+// the fence's opening backticks and mis-split its content.
+const CODE_RE = /```[\s\S]*?```|`[^`\n]*`/g
 const EMBED_RE = /!\[\[([^\]]+)\]\]/g
 const WIKILINK_RE = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g
 const CALLOUT_RE = /^(\s*>\s*)\[!([A-Za-z0-9_-]+)\]\s*(.*)$/gm
@@ -231,11 +239,11 @@ function computeDates(frontmatterCreatedAt, lastModified) {
 }
 
 // ---------------------------------------------------------------------------
-// wiki-syntax pre-processing (outside fenced code blocks, in fixed order)
+// wiki-syntax pre-processing (outside fenced AND inline code, in fixed order)
 // ---------------------------------------------------------------------------
 
 function preprocessWikiSyntax(text, ctx) {
-  return transformOutsideCodeFences(text, (segment) => {
+  return transformOutsideCode(text, (segment) => {
     let out = segment
     out = transformEmbeds(out, ctx)
     out = transformWikiLinks(out, ctx)
@@ -245,16 +253,16 @@ function preprocessWikiSyntax(text, ctx) {
   })
 }
 
-/** Splits on fenced code blocks and runs `fn` over each non-code segment only; code segments pass through untouched. */
-function transformOutsideCodeFences(text, fn) {
-  CODE_FENCE_RE.lastIndex = 0
+/** Splits on fenced (```) AND inline (`) code and runs `fn` over each non-code segment only; code segments pass through untouched, byte-for-byte. */
+function transformOutsideCode(text, fn) {
+  CODE_RE.lastIndex = 0
   let result = ''
   let lastIndex = 0
   let m
-  while ((m = CODE_FENCE_RE.exec(text))) {
+  while ((m = CODE_RE.exec(text))) {
     result += fn(text.slice(lastIndex, m.index))
     result += m[0]
-    lastIndex = CODE_FENCE_RE.lastIndex
+    lastIndex = CODE_RE.lastIndex
   }
   result += fn(text.slice(lastIndex))
   return result
@@ -296,7 +304,11 @@ function transformWikiLinks(text, ctx) {
 function transformCallouts(text) {
   return text.replace(CALLOUT_RE, (_, prefix, type, rest) => {
     const title = rest.trim() || capitalize(type)
-    return `${prefix}**${title}**`
+    // Every other pass escapes text it inserts into the markdown/HTML stream
+    // (a title containing a literal `<...>` would otherwise be interpreted
+    // as raw HTML passthrough by markdown-it's `html:true`, not shown as
+    // text) — normalize callouts to match.
+    return `${prefix}**${escapeHtml(title)}**`
   })
 }
 
@@ -319,18 +331,28 @@ function buildBasenameMap(vfiles) {
 
 /**
  * Resolves an embed/link target to a full vault path, or null.
- *  - No `/` in the target -> basename search (map lookup, first-wins).
+ *  - A trailing `#Heading` / `#^blockId` anchor (Obsidian's link-to-a-specific-
+ *    section syntax) is stripped before resolving — the target note is what
+ *    gets imported; the finer-grained anchor has no equivalent here and is
+ *    dropped rather than making the whole link fail to resolve.
+ *  - No `/` in the (anchor-stripped) target -> basename search (map lookup,
+ *    first-wins).
  *  - Contains `/` -> path-qualified: an exact match against a vfile's full
  *    path (with or without its extension) wins immediately; otherwise the
  *    first `/`-boundary suffix match is used (so `Setups/VCP` resolves
  *    against `Vault/Setups/VCP.md` even though `Vault/` isn't written).
  */
 function resolveTarget(rawTarget, vfiles, basenameMap) {
-  const target = (rawTarget || '').trim()
+  const target = stripFragment((rawTarget || '').trim())
   if (!target) return null
   if (target.includes('/')) return resolvePathQualified(target, vfiles)
   const key = stripExt(target).toLowerCase()
   return basenameMap.get(key) || null
+}
+
+function stripFragment(target) {
+  const idx = target.indexOf('#')
+  return idx === -1 ? target : target.slice(0, idx).trim()
 }
 
 function resolvePathQualified(target, vfiles) {
