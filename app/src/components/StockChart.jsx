@@ -5420,17 +5420,35 @@ export default function StockChart({
     const ts = chart.timeScale()
     let raf = 0
     const bump = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => setRangeTick(t => (t + 1) & 0xffff)) }
-    try { ts.subscribeVisibleTimeRangeChange(bump) } catch { /* older API */ }
+    // Drive the tick off the LOGICAL range: it fires on every pan/zoom even when an
+    // edge is in whitespace (this chart extends its axis into the future), whereas
+    // the TIME range change does not fire once an edge leaves the data.
+    try { ts.subscribeVisibleLogicalRangeChange(bump) } catch { /* older API */ }
     bump()
-    return () => { cancelAnimationFrame(raf); try { ts.unsubscribeVisibleTimeRangeChange(bump) } catch { /* */ } }
+    return () => { cancelAnimationFrame(raf); try { ts.unsubscribeVisibleLogicalRangeChange(bump) } catch { /* */ } }
   }, [chartReady, enabledComparisons.length])
 
   const framedLeftTime = useMemo(() => {
     const chart = chartRef.current
     if (!chart || !enabledComparisons.length) return null
     try {
-      const r = chart.timeScale().getVisibleRange()
-      if (r && r.from != null) { const n = Number(r.from); return Number.isFinite(n) ? n : null }
+      const ts = chart.timeScale()
+      // ⭐ Read the LEFT edge's time from its PIXEL coordinate, NOT getVisibleRange().
+      // The chart extends its date axis past the last candle (future whitespace), and
+      // getVisibleRange() returns null the moment a visible edge sits in whitespace
+      // ("cannot extrapolate time") — that null was the "% stuck at full history" bug.
+      // coordinateToTime(0) resolves the leftmost visible bar, which is always real data.
+      let t = ts.coordinateToTime(0)
+      if (t == null) {
+        const lr = ts.getVisibleLogicalRange()
+        if (lr && lr.from != null) {
+          const x = ts.logicalToCoordinate(Math.max(0, Math.ceil(lr.from)))
+          if (x != null) t = ts.coordinateToTime(x)
+        }
+      }
+      if (t == null) { const r = ts.getVisibleRange(); t = (r && r.from != null) ? r.from : null }
+      const n = Number(t)
+      return Number.isFinite(n) ? n : null
     } catch { /* mid-load */ }
     return null
     // eslint-disable-next-line react-hooks/exhaustive-deps

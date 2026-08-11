@@ -82,9 +82,12 @@
 }
 .segBtn + .segBtn { border-left: 1px solid var(--border, #2e3127); }
 .segBtn:hover { color: var(--text-bright, #e0dac8); }
+/* Selected = a thicker accent outline (inset box-shadow), not a gold fill. */
 .segOn {
-  color: #1a1408;
-  background: var(--accent, #c9a84c);
+  position: relative;
+  z-index: 1;
+  color: var(--text-heading, #f0ead8);
+  box-shadow: inset 0 0 0 2px var(--accent, #c9a84c);
 }
 
 .input {
@@ -164,7 +167,13 @@
 }
 .scaleBtn + .scaleBtn { border-left: 1px solid var(--border, #2e3127); }
 .scaleBtn:hover { color: var(--text-bright, #e0dac8); }
-.scaleOn { color: #1a1408; background: var(--accent, #c9a84c); }
+/* Selected = a thicker accent outline (inset box-shadow), not a gold fill. */
+.scaleOn {
+  position: relative;
+  z-index: 1;
+  color: var(--text-heading, #f0ead8);
+  box-shadow: inset 0 0 0 2px var(--accent, #c9a84c);
+}
 
 .hint {
   font-size: 11px;
