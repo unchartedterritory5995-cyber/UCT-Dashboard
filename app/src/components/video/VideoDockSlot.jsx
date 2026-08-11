@@ -9,7 +9,7 @@
 // When MINIMIZED (the user parked the player in the corner but is still on the
 // Desk), it shows a slim "restore to theater" strip instead of fighting the
 // user by yanking the video back into the theater.
-import { useEffect, useRef, useState, useMemo, useSyncExternalStore, useCallback } from 'react'
+import { useEffect, useRef, useState, useMemo, useSyncExternalStore, useCallback, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { subscribe, getSnapshot, registerDockSlot, clearDockSlot, play, playIndex, expand, seekTo, getCurrentTime } from './videoStore'
 import { useVideoInsights } from '../../hooks/useVideoInsights'
@@ -21,7 +21,11 @@ import TickerPopup from '../TickerPopup'
 import RsBadge from '../RsBadge'
 import TranscriptPanel from './TranscriptPanel'
 import CompassAssistButton from '../voice/CompassAssistButton'
+import UIcon from '../ui/UIcon'
 import styles from './VideoDockSlot.module.css'
+
+// Heavy lazy chunk — must not load for viewers who never open the follow pane.
+const ChartPane = lazy(() => import('../chart/pane/ChartPane'))
 
 const thumb = (id) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
 
@@ -103,6 +107,24 @@ export default function VideoDockSlot() {
       (returns[b.ticker]?.since_pct ?? -Infinity) - (returns[a.ticker]?.since_pct ?? -Infinity))
   }, [tickerMoments, sortByPerf, returns])
   const haveReturns = Object.keys(returns).length > 0
+
+  // Follow-along chart: auto-switches to the ticker under discussion. OFF by
+  // default — ChartPane is a heavy lazy chunk; it must not load for viewers who
+  // never opt in. followSym reuses the identity-safe activeMoment above (the
+  // moment whose timestamp the playhead is currently at/past), falling back to
+  // the first covered ticker before playback crosses any moment.
+  const [followOpen, setFollowOpen] = useState(() => {
+    try { return window.localStorage.getItem('uct.desk.followChart') === '1' } catch { return false }
+  })
+  const toggleFollow = useCallback(() => {
+    setFollowOpen((o) => {
+      const next = !o
+      try { window.localStorage.setItem('uct.desk.followChart', next ? '1' : '0') } catch { /* ignore */ }
+      return next
+    })
+  }, [])
+  const [followTf, setFollowTf] = useState('D')
+  const followSym = (activeMoment || tickerMoments[0])?.ticker || null
 
   const startNote = useCallback(() => setDraft({ t: getCurrentTime(), text: '' }), [])
   const saveDraft = useCallback(async () => {
@@ -503,6 +525,38 @@ export default function VideoDockSlot() {
               <ul className={styles.summaryList}>
                 {summary.map((s, i) => <li key={i}>{s}</li>)}
               </ul>
+            </div>
+          )}
+          {tickerMoments.length > 0 && (
+            <div className={styles.followWrap}>
+              <button
+                type="button"
+                className={styles.followToggle}
+                onClick={toggleFollow}
+                aria-expanded={followOpen}
+                title="A chart that automatically switches to the ticker being discussed"
+              >
+                <UIcon name="chart" size={13} />
+                <span className={styles.insHead}>Chart follows discussion</span>
+                <span className={styles.followState}>{followOpen ? 'On' : 'Off'}</span>
+              </button>
+              {followOpen && followSym && (
+                <div className={styles.followPane}>
+                  <Suspense fallback={<div className={styles.followLoading}>Loading chart…</div>}>
+                    <ChartPane
+                      sym={followSym}
+                      tf={followTf}
+                      onTfChange={setFollowTf}
+                      stored={null}
+                      density="compact"
+                      stockChartProps={{
+                        height: 260,
+                        ...(anchorDate ? { anchorDate } : {}),
+                      }}
+                    />
+                  </Suspense>
+                </div>
+              )}
             </div>
           )}
           {tickerMoments.length > 0 && (

@@ -260,6 +260,42 @@
 }
 .setupChip:hover { background: rgba(96, 178, 140, 0.24); }
 .setupChip:focus-visible { outline: 2px solid #60b28c; outline-offset: 2px; }
+/* Follow-along chart pane — collapsible, sits directly above the ticker
+   cloud. Same muted/gold idiom as .tickerSortBtn/.tickerTime, not a bespoke
+   token pair. */
+.followWrap {
+  margin-top: 14px;
+}
+.followToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 2px 0;
+  color: inherit;
+}
+.followToggle .insHead {
+  margin-bottom: 0;
+}
+.followToggle:hover .insHead {
+  color: #c9a84c;
+}
+.followState {
+  font-size: 10px;
+  color: var(--text-secondary, #a8a290);
+}
+/* Definite height — ChartPane requires one. */
+.followPane {
+  height: 280px;
+  margin-top: 8px;
+}
+.followLoading {
+  font-size: 12px;
+  color: var(--text-secondary, #a8a290);
+  padding: 12px 0;
+}
 .tickersWrap {
   margin-top: 14px;
 }
