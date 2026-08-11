@@ -43,7 +43,12 @@ def test_returns_math_basis_is_on_or_before_anchor(monkeypatch):
     assert out["as_of"]
 
 
-def test_short_history_nulls_d5_d21_and_since_zero_when_no_after(monkeypatch):
+def test_day0_session_omits_symbol_with_no_post_anchor_bar(monkeypatch):
+    # Publish-evening case: the session-day bar has ts == anchor, so it never
+    # lands in `after`. Omit the symbol entirely rather than fabricate a
+    # since_pct of 0.0 — a false "+0.0%" chip on every symbol is worse than no
+    # chip. anchor_date must still flow at the top level (anchoring is
+    # unaffected by this omission).
     ticker_returns._cache.clear()
     monkeypatch.setattr(ticker_returns.bars_sqlite, "get_bars_before",
                         lambda t, tf, n, k: _mk_bars([50.0]))
@@ -53,8 +58,9 @@ def test_short_history_nulls_d5_d21_and_since_zero_when_no_after(monkeypatch):
                         lambda vid: {"id": vid, "created_at": 1786327200})
     monkeypatch.setattr(ticker_returns.edu, "get_insights",
                         lambda vid: {"ticker_moments": [{"t": 1, "ticker": "AAPL"}]})
-    r = ticker_returns.returns_for_video(2)["returns"]["AAPL"]
-    assert r["since_pct"] == 0.0 and r["d5_pct"] is None and r["d21_pct"] is None
+    out = ticker_returns.returns_for_video(2)
+    assert "AAPL" not in out["returns"]
+    assert out["anchor_date"] == "2026-08-09"
 
 
 def test_symbol_without_basis_omitted_and_dedup(monkeypatch):
