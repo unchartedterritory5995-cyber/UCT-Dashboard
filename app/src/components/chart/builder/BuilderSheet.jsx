@@ -702,6 +702,17 @@ export default function BuilderSheet({
                 // the gesture: *"here is a working scan, now change it"*.
                 setSource(entry.source)
                 setBuildMode('formula')
+                // ⭐ …EXCEPT THE NAME, WHICH IS A FORM FIELD AND NOT PART OF THE
+                // WRITE PATH. ⚰️ Measured 2026-08-11: clicking "Open it and edit"
+                // on **Classic Flag/Pullback** loaded its formula and left Name
+                // empty, so the sheet answered a member who had just picked a
+                // named firm setup with "Give it a name to save." — asking them to
+                // retype a name the dialog was already showing them.
+                //
+                // ⛔ ONLY WHEN IT IS EMPTY. Overwriting a name the member typed
+                // would be the same class of loss as the Escape bug: browsing the
+                // library after naming your own work must not rename it.
+                setName((prev) => (prev.trim() ? prev : entry.setup))
               }}
             />
           )}

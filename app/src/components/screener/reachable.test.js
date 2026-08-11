@@ -483,7 +483,13 @@ describe('the controls — a rail nobody has seen fail cannot be trusted', () =>
     expect(classify(new Set()), 'an UNCOMMITTED module must be exempt — four agents '
       + 'share this worktree and a half-written file is not a shipped orphan')
       .toEqual([])
-  })
+    // ⚠️ 60s LIKE ITS SIBLING, AND FOR THE SAME REASON: line 473 runs the FULL
+    // `reachableFrom(ROOTS)` AST walk over the whole tree. On the default 5s
+    // budget this went red twice in a row on a loaded box (a full-suite run of
+    // 145s against a usual 91s) while passing 11/11 on its own.
+    // ⛔ A gate that fails at random gets ignored, which is worse than no gate —
+    // the flake is a defect in the RAIL, not a reason to distrust the sweep.
+  }, 60000)
 
   it('a specifier that is prose, not an import, is not an edge', () => {
     // The grep failure mode, asserted directly.

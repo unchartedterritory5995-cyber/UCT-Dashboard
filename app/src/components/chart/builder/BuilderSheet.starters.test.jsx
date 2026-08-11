@@ -342,3 +342,31 @@ describe('the sheet still behaves as it did', () => {
     expect(field()).toHaveValue('rs_rank > 80')
   })
 })
+
+// ─── A STARTER BRINGS ITS NAME ───────────────────────────────────────────────
+//
+// ⚰️ MEASURED IN PRODUCTION 2026-08-11. Clicking "Open it and edit" on **Classic
+// Flag/Pullback** loaded its formula and left Name EMPTY — so the sheet answered a
+// member who had just picked a named firm setup with "Give it a name to save.",
+// asking them to retype a name it was showing them on the same screen.
+describe('🔴 "Open it and edit" carries the setup`s name', () => {
+  it('prefills Name from the starter', async () => {
+    mount()
+    await flush()
+    fireEvent.click(screen.getAllByText(/open it and edit/i)[0])
+    await flush()
+    expect(screen.getByLabelText('Name').value).toBe('Classic Flag/Pullback')
+  })
+
+  it('⛔ …and NEVER overwrites a name the member already typed', async () => {
+    // Same class of loss as the Escape bug: browsing the library after naming
+    // your own work must not rename it.
+    mount()
+    await flush()
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'My own name' } })
+    await flush()
+    fireEvent.click(screen.getAllByText(/open it and edit/i)[0])
+    await flush()
+    expect(screen.getByLabelText('Name').value).toBe('My own name')
+  })
+})
