@@ -187,9 +187,9 @@ def test_ast_table_SPELLS_NO_TABLE_NAME_so_it_cannot_be_a_hand_copy():
     # published scripts still refused for). Again the bar
     # half is the only half that moved — it added no node type, no argument kind
     # and no lookback form, which is why `tableVersion` is still 1.
-    assert len(ast_table.bar_names()) == 67, len(ast_table.bar_names())
+    assert len(ast_table.bar_names()) == 69, len(ast_table.bar_names())
     assert len(ast_table.scalar_names()) == 54, len(ast_table.scalar_names())
-    assert len(declared) == 121, f"the table declares {len(declared)} names, not 121"
+    assert len(declared) == 123, f"the table declares {len(declared)} names, not 123"
     leaked = sorted(_string_constants(pathlib.Path(ast_table.__file__)) & declared)
     assert not leaked, (
         f"api/services/ast_table.py spells {leaked} as string literals. This "

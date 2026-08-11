@@ -287,6 +287,28 @@ def _window_extreme(series: Sequence[float], lo: int, hi: int,
     return best
 
 
+def _window_sum(series: Sequence[float], lo: int, hi: int) -> float:
+    total = 0.0
+    for i in range(lo, hi + 1):
+        total += series[i]
+    return total
+
+
+def _window_mean_abs_dev(series: Sequence[float], lo: int, hi: int) -> float:
+    """Pine's ``ta.dev``: the MEAN ABSOLUTE deviation about the window's average.
+
+    ⛔ NOT ``_window_stdev``, which is the root-mean-square one. They differ on
+    every real series, and CCI is defined on this one -- mapping ``dev`` to
+    ``stdev`` returns a plausible CCI that is wrong on every bar, the same
+    look-alike failure the PCF refusal table exists to prevent.
+    """
+    avg = _window_mean(series, lo, hi)
+    total = 0.0
+    for i in range(lo, hi + 1):
+        total += abs(series[i] - avg)
+    return total / (hi - lo + 1)
+
+
 def _window_stdev(series: Sequence[float], lo: int, hi: int) -> float:
     """POPULATION standard deviation — divisor ``n``, not ``n - 1``.
 
@@ -793,6 +815,8 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "lowest": lambda series, n: _rolling(
         series, n, lambda s, lo, hi: _window_extreme(s, lo, hi, lambda v, b: v < b)),
     "stdev": lambda series, n: _rolling(series, n, _window_stdev),
+    "sum": lambda series, n: _rolling(series, n, _window_sum),
+    "dev": lambda series, n: _rolling(series, n, _window_mean_abs_dev),
     "change": _fn_change,
     "abs": _fn_abs,
     # ⚠️ NaN PROPAGATES, WRITTEN OUT RATHER THAN INHERITED. JS's `Math.min(NaN, x)`

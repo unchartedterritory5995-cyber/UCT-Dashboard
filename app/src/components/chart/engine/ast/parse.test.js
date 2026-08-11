@@ -414,7 +414,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 15 operators, 47 functions and 54 scalars — 121 names, one grammar', () => {
+  it('declares 5 series, 15 operators, 49 functions and 54 scalars — 123 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     expect(Object.keys(TABLE.operators)).toHaveLength(15)
     // ⭐ 11 -> 28 IS PHASE F. Seventeen indicators — rsi, macd, atr, the two DI
@@ -436,7 +436,7 @@ describe('the manifest', () => {
     // per-bar body, which is the warm-up and what name the body reads its own
     // past through. That is why `tableVersion` below is STILL 1: every stored
     // `astHash` is unmoved, because the tree shape did not change.
-    expect(Object.keys(TABLE.functions)).toHaveLength(47)
+    expect(Object.keys(TABLE.functions)).toHaveLength(49)
     // ⭐ THE FOURTH SECTION (Phase E Task 1). Counted SEPARATELY from the three
     // above, not folded into one total: 48 is the BAR vocabulary a corpus case
     // can exercise against 579 bars, and 54 is the per-symbol vocabulary that
@@ -448,9 +448,9 @@ describe('the manifest', () => {
     const bar = new Set([
       ...Object.keys(TABLE.series), ...Object.keys(TABLE.operators), ...Object.keys(TABLE.functions),
     ])
-    expect(bar.size).toBe(67)
+    expect(bar.size).toBe(69)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(121)
+    expect(declared.size).toBe(123)
     // ⚠️ `tableVersion` STAYS 1 AND THAT IS A DECISION. It versions the GRAMMAR
     // — the four node types and the keys a persisted tree may carry — and Phase
     // E widened the VOCABULARY without touching either: a scalar rides the

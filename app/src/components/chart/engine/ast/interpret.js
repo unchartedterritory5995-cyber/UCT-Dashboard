@@ -223,6 +223,25 @@ function windowExtreme(series, lo, hi, better) {
  *  matches `indicators.js::computeBB` (`Math.sqrt(sqSum / period)`), so a
  *  user's `sma(close,20) + 2*stdev(close,20)` draws the same band the native
  *  Bollinger definition draws. The Python lane must use the same divisor. */
+function windowSum(series, lo, hi) {
+  let total = 0
+  for (let i = lo; i <= hi; i++) total += series[i]
+  return total
+}
+
+/** Pine's `ta.dev`: the MEAN ABSOLUTE deviation about the window's simple average.
+ *
+ *  ⛔ NOT `windowStdev`, WHICH IS THE ROOT-MEAN-SQUARE ONE. They differ on every
+ *  real series, and CCI is defined on this one — mapping `dev` to `stdev` returns a
+ *  plausible CCI that is wrong on every bar, which is precisely the look-alike
+ *  failure the PCF refusal table exists to prevent. */
+function windowMeanAbsDev(series, lo, hi) {
+  const avg = windowMean(series, lo, hi)
+  let total = 0
+  for (let i = lo; i <= hi; i++) total += Math.abs(series[i] - avg)
+  return total / (hi - lo + 1)
+}
+
 function windowStdev(series, lo, hi) {
   const avg = windowMean(series, lo, hi)
   let sq = 0
@@ -512,6 +531,8 @@ export const FN = Object.freeze({
   highest: (series, n) => rolling(series, n, (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v > b)),
   lowest: (series, n) => rolling(series, n, (s, lo, hi) => windowExtreme(s, lo, hi, (v, b) => v < b)),
   stdev: (series, n) => rolling(series, n, windowStdev),
+  sum: (series, n) => rolling(series, n, windowSum),
+  dev: (series, n) => rolling(series, n, windowMeanAbsDev),
   change: (series) => {
     const out = nan(series.length)
     for (let i = 1; i < series.length; i++) out[i] = series[i] - series[i - 1]

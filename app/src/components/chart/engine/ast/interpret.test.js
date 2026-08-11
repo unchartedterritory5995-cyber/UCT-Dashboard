@@ -756,7 +756,18 @@ describe('the arithmetic, against hand-computed values', () => {
       try {
         const out = interpret(c.ast, BARS, {})
         if (out.length !== BARS.length) broken.push(`${c.id}: length ${out.length}`)
-        if (!values(out).some((v) => !Number.isNaN(v))) broken.push(`${c.id}: entirely NaN`)
+        // ⛔ AN ALL-NaN COLUMN IS STILL A FAILURE *UNLESS THE CASE DECLARES IT*.
+        // The domain-refusal cases (sqrt of a negative, log of zero, an overflow,
+        // a zero divisor) are the cases where the two languages natively disagree,
+        // so they are the most valuable ones in the corpus — and their CORRECT
+        // column is all-NaN. The flag is per-case and opt-in precisely so this
+        // rail keeps its teeth for the unexpected ones it was written to catch.
+        if (!c.allNaN && !values(out).some((v) => !Number.isNaN(v))) {
+          broken.push(`${c.id}: entirely NaN`)
+        }
+        if (c.allNaN && values(out).some((v) => !Number.isNaN(v))) {
+          broken.push(`${c.id}: declares allNaN but produced a number`)
+        }
       } catch (e) { broken.push(`${c.id}: ${e.message}`) }
     }
     expect(broken).toEqual([])

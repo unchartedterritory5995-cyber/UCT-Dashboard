@@ -124,6 +124,11 @@ const FORMS = [
   // ⚠️ `the hyperbolic sine of` must not be read as `the sine of` with a stray
   // prefix — it is not, because a form only counts when its OPERAND parses too,
   // and `hyperbolic sine of close` is not a readable operand.
+  { kind: 'call', name: 'sum', parts: ['the sum of ', 0, ' over the last ', 1, ' bars'] },
+  // ⛔ `dev` READS BACK AS *mean absolute* DEVIATION, never plain 'deviation'.
+  // `stdev` is the other one, and a sentence a member cannot tell apart is how a
+  // wrong CCI gets approved in a read-back review.
+  { kind: 'call', name: 'dev', parts: ['the mean absolute deviation of ', 0, ' over the last ', 1, ' bars'] },
   { kind: 'call', name: 'sqrt', parts: ['the square root of ', 0] },
   { kind: 'call', name: 'ln', parts: ['the natural log of ', 0] },
   { kind: 'call', name: 'log10', parts: ['the base-10 log of ', 0] },
@@ -640,10 +645,9 @@ describe('totality over the closed table — derived from the manifest, never ha
     // count that drifted.
     const entries = treesForTheWholeTable(TABLE).map((t) => t.entry)
     expect(entries).toEqual([
-      // REGENERATED WHOLE when the pure-math block landed (12 functions:
-      // sqrt ln log10 exp pow mod idiv sin cos tan atan sinh). Still a LIST:
-      // a rename lands as a named pair of changes here, never as a count
-      // nobody can attribute.
+      // REGENERATED WHOLE with `sum` and `dev` (the two rolling reductions real
+      // TradingView scripts reach for most). Still a LIST: a rename lands as a
+      // named pair of changes, never as a count nobody can attribute.
       'series:close',
       'series:high',
       'series:low',
@@ -673,6 +677,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:cos',
       'function:crossOver',
       'function:crossUnder',
+      'function:dev',
       'function:donchianLower',
       'function:donchianMiddle',
       'function:donchianUpper',
@@ -708,11 +713,12 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:sqrt',
       'function:stdev',
       'function:stoch',
+      'function:sum',
       'function:tan',
       'function:williamsR',
       'function:wma',
     ])
-    expect(entries.length).toBe(67)
+    expect(entries.length).toBe(69)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -722,7 +728,7 @@ describe('totality over the closed table — derived from the manifest, never ha
     // loop. ⛔ The count is asserted against the list above rather than retyped
     // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(67)
+    expect(subjects.length).toBe(69)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -1791,35 +1797,21 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
     // explicit floor was added. This is that floor, by name.
     expect(CORPUS.cases.map((c) => c.id)).toEqual([
       'sma_of_close', 'nan_propagates', 'float_division', 'compare_with_nan', 'ternary',
-      'deep_nest', 'cross', 'cross_under', 'volume_relative', 'lowest_of_low', 'stdev_band',
-      'abs_change', 'min_max_envelope', 'strict_less', 'bounds_inclusive',
-      'equality_and_negation', 'unary_minus', 'rsi_overbought', 'rsi_of_a_smoothed_series',
-      'macd_line', 'macd_signal_by_composition', 'atr_of_hlc', 'plus_di', 'minus_di',
-      'stoch_k', 'stoch_d_by_composition', 'cci_20', 'williams_r', 'mfi_14',
-      'donchian_upper', 'donchian_middle', 'donchian_lower', 'ichimoku_tenkan',
-      'ichimoku_kijun', 'ichimoku_span_a', 'ichimoku_span_b', 'ichimoku_chikou',
-      // ⭐ THE BOUNDED BACKWARD OFFSET (Phase F6). Seven rows, and they are the
-      // reason this list moved — separable, by name, from the indicator rows
-      // above it, which moved it in the same working tree for a different
-      // reason.
-      'offset_one_bar', 'offset_zero_is_identity', 'offset_change_idiom',
-      'offset_inside_a_reduction', 'offset_of_a_reduction', 'offset_of_a_condition',
-      'offset_two_bars_apart',
-      // ⭐ THE RECURRENCE AND THE PINE PARITY SIX. Eleven rows, appended and
-      // separable BY NAME from the offset rows above them: five pin `accum`
-      // (see `corpus.json::_recurrence`) and six pin the manifest half of what
-      // 21 real published Pine scripts still refused for.
-      'accum_bounded_counter',
-      'accum_running_max_is_highest',
-      'accum_sticky_flag_ternary',
-      'accum_over_a_windowed_column',
-      'accum_offset_of_a_running_value',
-      'pine_rma_is_wilders_average',
-      'pine_wma_weights_the_recent_bar_most',
-      'pine_round_a_half_away_from_zero',
-      'pine_sign_of_a_change',
-      'pine_na_detects_a_warmup_hole',
-      'pine_nz_replaces_a_hole_with_a_stated_value',
+      'deep_nest', 'cross', 'cross_under', 'volume_relative', 'lowest_of_low',
+      'stdev_band', 'abs_change', 'min_max_envelope', 'strict_less', 'bounds_inclusive',
+      'equality_and_negation', 'unary_minus', 'rsi_overbought', 'rsi_of_a_smoothed_series', 'macd_line',
+      'macd_signal_by_composition', 'atr_of_hlc', 'plus_di', 'minus_di', 'stoch_k',
+      'stoch_d_by_composition', 'cci_20', 'williams_r', 'mfi_14', 'donchian_upper',
+      'donchian_middle', 'donchian_lower', 'ichimoku_tenkan', 'ichimoku_kijun', 'ichimoku_span_a',
+      'ichimoku_span_b', 'ichimoku_chikou', 'offset_one_bar', 'offset_zero_is_identity', 'offset_change_idiom',
+      'offset_inside_a_reduction', 'offset_of_a_reduction', 'offset_of_a_condition', 'offset_two_bars_apart', 'accum_bounded_counter',
+      'accum_running_max_is_highest', 'accum_sticky_flag_ternary', 'accum_over_a_windowed_column', 'accum_offset_of_a_running_value', 'pine_rma_is_wilders_average',
+      'pine_wma_weights_the_recent_bar_most', 'pine_round_a_half_away_from_zero', 'pine_sign_of_a_change', 'pine_na_detects_a_warmup_hole', 'pine_nz_replaces_a_hole_with_a_stated_value',
+      'sqrt_of_close', 'sqrt_of_a_negative', 'ln_of_close', 'ln_of_zero', 'log10_of_close',
+      'exp_of_a_small_number', 'exp_overflow', 'pow_square', 'pow_fractional_of_negative', 'mod_truncated',
+      'mod_by_zero', 'idiv_truncated', 'sin_of_close', 'cos_of_close', 'tan_of_close',
+      'atan_of_close', 'sinh_of_a_small_number', 'sinh_overflow', 'sum_of_volume', 'dev_of_close',
+      'dev_is_not_stdev',
     ])
   })
 
@@ -1862,7 +1854,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       ...CORPUS.cases.map((c) => sentenceFor(c.ast, {})),
       ...treesForTheWholeTable(TABLE).map((t) => sentenceFor(t.ast, {})),
     ]
-    expect(sentences.length).toBe(CORPUS.cases.length + 67)
+    expect(sentences.length).toBe(CORPUS.cases.length + 69)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)
