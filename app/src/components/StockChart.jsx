@@ -1832,7 +1832,11 @@ export default function StockChart({
   )
   const newsMarkers = useMemo(() => {
     if (!showNews || !newsData?.news) return []
-    const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
+    // parseTf, NOT the hand-written 5-native-code literal (see buildDeskMentionMarkers
+    // above): TF_MENU also offers '45'/'120'/'240', which the literal let through as
+    // daily-like, mixing a date-string marker time into this numeric-time mergedMarkers
+    // array on a custom intraday chart.
+    const isDailyWeekly = parseTf(resolvedTf).minutes == null
     // News timestamps are unix seconds; LW Charts expects ET-offset for intraday and date strings for daily/weekly.
     return newsData.news.map(n => {
       const tsRaw = typeof n.time_published === 'number' ? n.time_published : Number(n.time_published)
@@ -1883,7 +1887,11 @@ export default function StockChart({
 
   const chartEventMarkers = useMemo(() => {
     // Only show event markers on daily/weekly — intraday bars don't line up with quarter dates
-    const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
+    // parseTf, NOT the hand-written 5-native-code literal (see buildDeskMentionMarkers
+    // above): TF_MENU also offers '45'/'120'/'240', which the literal let through as
+    // daily-like, mixing a date-string marker time into this numeric-time mergedMarkers
+    // array on a custom intraday chart.
+    const isDailyWeekly = parseTf(resolvedTf).minutes == null
     if (!markersData || !isDailyWeekly) return []
     // Earnings, splits, and dividends are all drawn as bottom-row "E"/"S"/"D"
     // badges by the badge primitives (see earningsEvents/splitEvents/dividendEvents
@@ -4405,7 +4413,11 @@ export default function StockChart({
   // MUST live after filteredBars is declared (it reads it) — declaring it earlier
   // hit filteredBars' temporal dead zone and crashed the whole chart (ReferenceError).
   const earningsEvents = useMemo(() => {
-    const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
+    // parseTf, NOT the hand-written 5-native-code literal (see buildDeskMentionMarkers
+    // above): TF_MENU also offers '45'/'120'/'240', which the literal let through as
+    // daily-like, mixing a date-string marker time into this numeric-time mergedMarkers
+    // array on a custom intraday chart.
+    const isDailyWeekly = parseTf(resolvedTf).minutes == null
     if (!cs.markers?.earnings || !markersData?.earnings || !isDailyWeekly || !filteredBars?.length) return []
     // Snap each earnings DATE to the bar whose PERIOD contains it. Daily bars are
     // keyed by the exact day, but WEEKLY bars are keyed by the week's Friday and
@@ -4495,7 +4507,11 @@ export default function StockChart({
   }, [])
 
   const splitEvents = useMemo(() => {
-    const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
+    // parseTf, NOT the hand-written 5-native-code literal (see buildDeskMentionMarkers
+    // above): TF_MENU also offers '45'/'120'/'240', which the literal let through as
+    // daily-like, mixing a date-string marker time into this numeric-time mergedMarkers
+    // array on a custom intraday chart.
+    const isDailyWeekly = parseTf(resolvedTf).minutes == null
     if (!cs.markers?.splits || !Array.isArray(markersData?.splits) || !isDailyWeekly || !filteredBars?.length) return []
     const barByBucket = new Map()
     for (const b of filteredBars) barByBucket.set(_bucketEventDate(b.t, resolvedTf), b)
@@ -4512,7 +4528,11 @@ export default function StockChart({
   }, [markersData, cs.markers?.splits, resolvedTf, filteredBars, _bucketEventDate])
 
   const dividendEvents = useMemo(() => {
-    const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
+    // parseTf, NOT the hand-written 5-native-code literal (see buildDeskMentionMarkers
+    // above): TF_MENU also offers '45'/'120'/'240', which the literal let through as
+    // daily-like, mixing a date-string marker time into this numeric-time mergedMarkers
+    // array on a custom intraday chart.
+    const isDailyWeekly = parseTf(resolvedTf).minutes == null
     if (!cs.markers?.dividends || !Array.isArray(markersData?.dividends) || !isDailyWeekly || !filteredBars?.length) return []
     const barByBucket = new Map()
     for (const b of filteredBars) barByBucket.set(_bucketEventDate(b.t, resolvedTf), b)

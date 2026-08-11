@@ -4,9 +4,35 @@ import { useRef, useEffect, useCallback } from 'react'
 // chart height (price + volume panes). Used by Custom-Period Sort to mark the sort's
 // START date in gold on every linked chart. Read-only, pointer-transparent. Rides the
 // time axis so it stays glued to its date through pan/zoom (rAF loop, idle = no work).
-const toMs = (v) => {
+//
+// ⚠️ NUMBERS FIRST. `bars[i].t` is a unix-seconds NUMBER on every native intraday
+// series (daily/weekly/monthly and StockChart's own anchorMarker projection are the
+// ONLY callers that hand this a string). `String(1738800000)` is 10 characters, so
+// the old string-only version fed `Date.parse('1738800000T00:00:00Z')` — not a valid
+// ISO string — which is NaN. Every bar then compared NaN-diff against `target`, no
+// comparison ever won, and `barIndexForDate` returned -1 for EVERY bar: the line
+// silently never drew on any intraday series fed numeric `t`. Same seconds/ms
+// convention as `lastAnchorIdx` in StockChart.jsx (~line 320) — keep them in sync.
+// Exported for its unit tests.
+export const toMs = (v) => {
+  if (typeof v === 'number') return v < 1e12 ? v * 1000 : v
   const s = String(v)
   return Date.parse(s.length <= 10 ? `${s}T00:00:00Z` : s)
+}
+
+// Nearest bar index to the target date (the date may fall on a weekend/holiday, or
+// off the front/back of an intraday session). Pure — extracted from the component so
+// it's testable without a canvas/chart. Exported for its unit tests.
+export function nearestBarIndex(bars, dateStr) {
+  if (!bars || !bars.length || !dateStr) return -1
+  const target = toMs(dateStr)
+  if (Number.isNaN(target)) return -1
+  let best = -1, bestDiff = Infinity
+  for (let i = 0; i < bars.length; i++) {
+    const d = Math.abs(toMs(bars[i].t) - target)
+    if (d < bestDiff) { bestDiff = d; best = i }
+  }
+  return best
 }
 
 export default function ChartVLineOverlay({ chartRef, seriesRef, bars, date, color = '#c9a84c' }) {
@@ -15,18 +41,7 @@ export default function ChartVLineOverlay({ chartRef, seriesRef, bars, date, col
   const sizeRef = useRef({ w: 0, h: 0 })
   const drawRef = useRef(null)
 
-  // Nearest bar index to the target date (the date may fall on a weekend/holiday).
-  const barIndexForDate = useCallback((dateStr) => {
-    if (!bars || !bars.length || !dateStr) return -1
-    const target = toMs(dateStr)
-    if (Number.isNaN(target)) return -1
-    let best = -1, bestDiff = Infinity
-    for (let i = 0; i < bars.length; i++) {
-      const d = Math.abs(toMs(bars[i].t) - target)
-      if (d < bestDiff) { bestDiff = d; best = i }
-    }
-    return best
-  }, [bars])
+  const barIndexForDate = useCallback((dateStr) => nearestBarIndex(bars, dateStr), [bars])
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current
