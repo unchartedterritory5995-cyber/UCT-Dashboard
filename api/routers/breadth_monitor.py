@@ -77,6 +77,17 @@ def get_breadth_ohlc_status():
     return breadth_daily_ohlc.stats()
 
 
+@router.post("/api/breadth-monitor/history/pull-now")
+def pull_breadth_ohlc_now(request: Request):
+    """Force an immediate web-side pull + gap-fill merge of the latest breadth OHLC
+    snapshot the WORKER shipped to R2, instead of waiting for the 10-min puller
+    (BREADTH_OHLC_REMOTE). Returns the merged ts, or null if already current / R2
+    unconfigured. Safe to call repeatedly (gap-fill never clobbers). PUSH_SECRET-gated."""
+    _check_auth(request)
+    from api.services import breadth_ohlc_sync
+    return {"ok": True, "merged": breadth_ohlc_sync.sync_if_new()}
+
+
 @router.post("/api/breadth-monitor/history/backfill-schedule")
 def schedule_breadth_backfill(request: Request, floor: str = Query(default=""),
                               stop: bool = Query(default=False)):

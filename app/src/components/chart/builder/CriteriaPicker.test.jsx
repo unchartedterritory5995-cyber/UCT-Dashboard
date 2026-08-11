@@ -9,7 +9,7 @@
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
-import CriteriaPicker, { NUMBER_OPTION } from './CriteriaPicker'
+import CriteriaPicker, { NUMBER_OPTION, defaultConditionSource } from './CriteriaPicker'
 import { parseFormula, TABLE, astHash } from '../engine/ast/parse'
 import { vocabulary, toSource } from './criteria'
 
@@ -150,7 +150,12 @@ describe('the picker EDITS, and every edit emits a source the parser accepts', (
     // parent's join would flatten on read-back into a picker the user never
     // assembled, and only the hash sees that.
     const ast = parseFormula(emitted).ast
-    expect(astHash(ast)).toBe(astHash(astOf('(close > open) && (open > high)')))
+    // ⛔ THE SEED ROW IS DERIVED, NOT RETYPED. This expectation used to spell
+    // `(open > high)` — the default row — into a case whose actual claim is about
+    // the nested group's JOIN. Changing the seed then broke a test that was never
+    // about the seed, which is the second-authority defect in miniature.
+    expect(astHash(ast))
+      .toBe(astHash(astOf(`(close > open) && (${defaultConditionSource()})`)))
   })
 
   it('removing the last condition emits the EMPTY string rather than a broken shape', () => {

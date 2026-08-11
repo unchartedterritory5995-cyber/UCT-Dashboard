@@ -150,13 +150,25 @@ describe('🔴 the library lists the member\'s own formulas', () => {
 })
 
 describe('⭐ it is visually a DIFFERENT KIND OF THING, not a sixteenth indicator', () => {
-  it('sits under its own derived heading, LAST', () => {
+  it('sits under its own derived heading, FIRST', () => {
     install(memberFormula('20-bar average'))
     open()
     const hs = headings()
     expect(hs).toContain(USER_CATEGORY)
-    // Last, so the shipped rows a user is pre-trained on keep their positions.
-    expect(hs[hs.length - 1]).toBe(USER_CATEGORY)
+    // ⚰️ THIS ASSERTED **LAST**, AND THE REASON GIVEN WAS: "so the shipped rows a
+    // user is pre-trained on keep their positions." That reason was reversed
+    // 2026-08-11 after driving the real dialog: a member's own formulas sat below
+    // Momentum, Volatility, Volume AND Trend — a full dialog-height of scrolling —
+    // and I could not find a formula I had just saved without searching for it by
+    // name.
+    //
+    // ⭐ THE MUSCLE-MEMORY ARGUMENT ONLY BINDS ON A MEMBER WHO HAS AUTHORED
+    // SOMETHING, and for everyone else this section does not render at all — the
+    // CONTROL above proves that. So it protected the positions of users who were
+    // never affected, at the cost of hiding the work of the ones who were. The
+    // shipped rows keep their order relative to EACH OTHER; only the member's own
+    // section moves, and it moves to where their own work belongs.
+    expect(hs[0]).toBe(USER_CATEGORY)
     // ⛔ AND THE HEADING IS NOT THE DOCUMENT'S `meta.category`. `buildDefinition`
     // writes 'Custom'; a row installed from an older or hand-edited document
     // could name any shipped category and would sit unmarked between two shipped

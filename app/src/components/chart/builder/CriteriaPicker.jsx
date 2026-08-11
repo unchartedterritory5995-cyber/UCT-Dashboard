@@ -83,12 +83,35 @@ export const NUMBER_OPTION = '(number)'
 
 const firstName = () => NAME_OPTIONS[0]
 
+/** ⚰️ THE FIRST ROW USED TO READ `open > high`, WHICH CAN NEVER BE TRUE.
+ *
+ *  It was not a chosen default — it was `NAME_OPTIONS[0]` and `[1]`, and the
+ *  manifest happens to declare `open` then `high`. So the first thing a member saw
+ *  after clicking "Add condition" was a condition that matches nothing, on a
+ *  surface whose whole job is to teach them what a condition looks like.
+ *
+ *  ⛔ THE PAIR IS PREFERRED, NOT HARD-CODED. `NAME_OPTIONS` comes off the manifest;
+ *  if `close`/`open` ever stop being declared this falls back to the old
+ *  first-two behaviour rather than emitting a name the table cannot read. */
+const preferredName = (want, fallbackIndex) =>
+  (NAME_OPTIONS.includes(want) ? want : (NAME_OPTIONS[fallbackIndex] || NAME_OPTIONS[0]))
+
 const defaultRow = () => ({
   kind: 'row',
-  left: { t: 'name', name: NAME_OPTIONS[0] },
+  left: { t: 'name', name: preferredName('close', 0) },
   cmp: CMP_OPTIONS[0],
-  right: { t: 'name', name: NAME_OPTIONS[1] || NAME_OPTIONS[0] },
+  right: { t: 'name', name: preferredName('open', 1) },
 })
+
+/** The source text a freshly-added condition emits.
+ *
+ *  ⛔ EXPORTED SO TESTS COMPOSE WITH IT INSTEAD OF RESTATING IT. `CriteriaPicker
+ *  .test.jsx` used to spell `(open > high)` into an expectation whose real claim
+ *  was about a nested group's JOIN — so changing the seed row broke a test that
+ *  was not about the seed row at all. A test that retypes a value the source owns
+ *  is this repo's most repeated defect; it is the reason this export exists. */
+export const defaultConditionSource = () =>
+  `${preferredName('close', 0)} ${CMP_OPTIONS[0]} ${preferredName('open', 1)}`
 
 const defaultFlag = () => ({ kind: 'flag', name: FLAG_OPTIONS[0].value })
 

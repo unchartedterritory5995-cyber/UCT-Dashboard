@@ -2,6 +2,7 @@
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
+import isModalOpen from '../utils/modalOpen'
 import useSWR, { mutate as globalMutate } from 'swr'
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, ColorType, LineType, LineStyle } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
@@ -1197,6 +1198,8 @@ export default function StockChart({
   hideLastValue = false,    // hide the last-price axis tag on the price series
   volumeLastValue = false,  // show the current-volume axis tag on the volume pane's right scale (like the price tag on the main chart). Opt-in so Model Book (which deliberately hides it) is unaffected.
   volumeSeparatePane = false, // force volume into its own draggable bottom pane
+  blankVolume = false,        // reserve an EMPTY, labeled volume pane (TC2000-style). For symbols with no volume (UCT breadth indicators): the pane still occupies its space + shows a "Volume" label, but renders no bars/line and no axis values (the vol series is fed whitespace, so the price scale has nothing to label). Implies a separate volume pane.
+  breadthLine = false,        // UCT breadth line-chart mode: paint the price LINE a single canvas-contrasting ink (black on a light canvas, white on a dark one), ignoring the user's candle/net-change colors. The 'line' chart TYPE itself is forced by the surface via settingsOverride={{chartType:'line'}}; this flag only governs that one auto-color. No-op unless the chart type is already 'line'.
   priceScaleBottomMargin = null, // small gap below price (above a separate vol pane)
   markVolumeExtremes = false, // gold the highest-volume-ever bar (Model Book)
   disableHvc = false,         // force the 52W-volume-high gold bars OFF (intraday popup)
@@ -1469,6 +1472,19 @@ export default function StockChart({
       ? { color: 'rgba(0, 0, 0, 0.22)', hover: 'rgba(0, 0, 0, 0.38)' }
       : { color: 'rgba(255, 255, 255, 0.18)', hover: 'rgba(255, 255, 255, 0.32)' }
   }, [canvasSample])
+
+  // UCT breadth line-chart ink: black on a light canvas, white on a dark one, so
+  // the single-color line always contrasts the background (mirrors the axis/
+  // separator auto-ink logic above). null unless `breadthLine` is set — then it
+  // wins over every candle/net-change color for the price line. Keyed off the
+  // canvas's OWN luminance (not canvasTheme alone) so a custom light background is
+  // handled too.
+  const breadthLineColor = useMemo(() => {
+    if (!breadthLine) return null
+    const rgb = parseColor(canvasSample.top)
+    const light = rgb ? luminance(rgb) > 0.5 : false
+    return light ? '#000000' : '#ffffff'
+  }, [breadthLine, canvasSample])
 
   // ── Axis auto-ink + crosshair-label canvas blend ────────────────────────────
   // The date/time + price scale text and the crosshair's pop-up axis labels
@@ -1837,9 +1853,11 @@ export default function StockChart({
   )
 
   // Prop overrides — memoized to prevent unstable references
-  const showVolume = showVolumeProp !== undefined ? showVolumeProp : cs.volume.visible
+  // blankVolume reserves an empty, labeled volume pane (breadth symbols with no
+  // volume) — so the pane must be ON and in its own pane regardless of prefs.
+  const showVolume = blankVolume ? true : (showVolumeProp !== undefined ? showVolumeProp : cs.volume.visible)
   // Volume in its own pane (no bottom band reserved on the price scale).
-  const volInSeparatePane = volumeSeparatePane || !!cs.volume?.separatePane
+  const volInSeparatePane = blankVolume || volumeSeparatePane || !!cs.volume?.separatePane
   // When the SURFACE passes these props they WIN over the saved prefs — the OR
   // above ignores a saved `false`, and the height reads `volumePaneHeightPct ??
   // cs.volume.paneHeightPct`. That's deliberate (the charts-workspace recipe tunes
@@ -4409,6 +4427,19 @@ export default function StockChart({
       // so the callback form costs zero re-subscribes and zero re-renders.
       const ha = hotkeysActiveRef.current
       if (typeof ha === 'function' ? !ha() : ha === false) return
+      // ⛔⛔ A MODAL IS OPEN => THE CHART DOES NOT GET THE KEY.
+      //
+      // This listener is on `document`, so it fires wherever focus happens to be —
+      // including while the indicator builder is open ON TOP of the chart. The
+      // input-tag guard below is not enough: a dialog is full of buttons, labels
+      // and panels that are none of INPUT/TEXTAREA/SELECT, and `SymbolSearch`
+      // deliberately hands focus BACK to the chart when its dropdown closes.
+      //
+      // ⚰️ MEASURED IN PRODUCTION 2026-08-10: with the New-formula dialog open, a
+      // member's formula keystrokes drove chart shortcuts and opened the ticker
+      // search — a screenshot caught `SMA(CLOSE,` in the symbol box with the
+      // builder still rendered over it.
+      if (isModalOpen(e.target)) return
       // Ignore when typing in inputs/textareas/contentEditable
       const target = e.target
       if (target) {
@@ -4978,8 +5009,9 @@ export default function StockChart({
       const isLineArea = cs.chartType === 'line' || cs.chartType === 'area'
       const mode = cs.candleColorMode || 'netchange'
       // Per-segment green/red for line & area in net-change / open-close modes. One
-      // color (and every non-line/area type) stays a plain value series.
-      if (!isLineArea || mode === 'onecolor') {
+      // color (and every non-line/area type) stays a plain value series. A breadth
+      // line forces plain too — per-point colors would override its single ink.
+      if (!isLineArea || mode === 'onecolor' || breadthLineColor) {
         return displayBars.map(b => ({ time: adjustTime(b.t), value: b.c }))
       }
       let prevClose = null
@@ -4993,7 +5025,7 @@ export default function StockChart({
         return { time: adjustTime(b.t), value: b.c, color: col, lineColor: col }
       })
     },
-    [displayBars, adjustTime, cs.chartType, cs.candleColorMode, mbUp, mbDown],
+    [displayBars, adjustTime, cs.chartType, cs.candleColorMode, mbUp, mbDown, breadthLineColor],
   )
   const hvcSet = useMemo(
     () => cs.volume.hvcEnabled && !disableHvc && filteredBars?.length > 20 ? computeHVC(filteredBars) : new Set(),
@@ -5015,6 +5047,10 @@ export default function StockChart({
   const liveVolForSym = Number(livePrices?.[sym]?.volume)
   const volData = useMemo(() => {
     if (!sessionAppliedBars?.length) return []
+    // blankVolume (breadth): feed the series WHITESPACE (time-only points). Nothing
+    // draws, and a scale with no values renders no axis labels — so no flat 0-line and
+    // no "0" tag, while the pane itself is still reserved. See the blankVolume prop.
+    if (blankVolume) return sessionAppliedBars.map(b => ({ time: adjustTime(b.t) }))
     // Volume bars track the candle palette EXACTLY so the red/green of the
     // volume pane matches the red/green of the candles above it (a dimmed alpha
     // composites darker over the near-black canvas and reads as a mismatched hue).
@@ -5050,7 +5086,7 @@ export default function StockChart({
             : isUp ? upC : downC,
       }
     })
-  }, [sessionAppliedBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, modelBookLook, volExtremes, colorByNetChange, canvasTheme, liveVolForSym, resolvedTf])
+  }, [sessionAppliedBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, modelBookLook, volExtremes, colorByNetChange, canvasTheme, liveVolForSym, resolvedTf, blankVolume])
   // Volume bars past the setup day crossfade with the candles on Setup⇄Result
   // (each bar's existing alpha scaled by the fade). No-op at full opacity. The
   // re-tint effect lives AFTER updateChart (below) so its setData wins over
@@ -5062,6 +5098,7 @@ export default function StockChart({
   }, [volData, candleFrameFade, frameFadeAlpha, fadeCutoff])
   // Smooth N-SMA line for the volume pane (subtle, white).
   const volMaData = useMemo(() => {
+    if (blankVolume) return []  // no volume ⇒ no volume MA line in the empty pane
     if (!volMaPeriodEff || volMaPeriodEff < 2 || !sessionAppliedBars?.length) return []
     const out = []
     const q = []
@@ -5073,7 +5110,7 @@ export default function StockChart({
       if (q.length === volMaPeriodEff) out.push({ time: adjustTime(b.t), value: sum / volMaPeriodEff })
     }
     return out
-  }, [sessionAppliedBars, volMaPeriodEff, adjustTime])
+  }, [sessionAppliedBars, volMaPeriodEff, adjustTime, blankVolume])
   const overlayData = useMemo(() => {
     if (!sessionAppliedBars?.length || !resolvedOverlays?.length) return []
     return resolvedOverlays.map(ov => {
@@ -6298,10 +6335,11 @@ export default function StockChart({
           break
         case 'line': {
           // One-color = the single color; net/open-close = per-segment (from
-          // closeData's per-point `color`), with the up color as the base.
-          const _lineBase = (cs.candleColorMode === 'onecolor')
+          // closeData's per-point `color`), with the up color as the base. A breadth
+          // line overrides all of that with the canvas-contrasting ink.
+          const _lineBase = breadthLineColor || ((cs.candleColorMode === 'onecolor')
             ? ((userCandleColors && cs.candles.oneColor) ? cs.candles.oneColor : mbUp)
-            : mbUp
+            : mbUp)
           priceSeries = chart.addSeries(LineSeries, { color: _lineBase, lineWidth: 2 })
           break
         }
@@ -6517,7 +6555,7 @@ export default function StockChart({
           thinBars: cs.candles.thinBars !== false,
         })
       } else if (_ct === 'line') {
-        candleSeriesRef.current.applyOptions({ color: NC.mode === 'onecolor' ? NC.one : NC.up })
+        candleSeriesRef.current.applyOptions({ color: breadthLineColor || (NC.mode === 'onecolor' ? NC.one : NC.up) })
       } else if (_ct === 'area') {
         candleSeriesRef.current.applyOptions({ lineColor: NC.mode === 'onecolor' ? NC.one : NC.up })
       }
@@ -7141,7 +7179,9 @@ export default function StockChart({
       // Bar style: 'columns' = the built-in HistogramSeries (full-slot bars, the
       // long-standing look); 'histogram' = ThinVolumeSeries (custom series drawing
       // thin bars with a gap between each, TC2000-style).
-      const volBarStyle = cs.volume?.barStyle === 'histogram' ? 'histogram' : 'columns'
+      // blankVolume feeds whitespace — the built-in HistogramSeries handles that
+      // natively, so force 'columns' rather than risk the custom ThinVolumeSeries.
+      const volBarStyle = (!blankVolume && cs.volume?.barStyle === 'histogram') ? 'histogram' : 'columns'
       // priceScaleId / paneIndex / series TYPE are fixed at creation, so recreate
       // when the target scale OR the bar style changes. The ref stores a composite
       // key (was just the scale id) — only ever compared for equality.
@@ -11905,10 +11945,19 @@ export default function StockChart({
           ))}
         </div>
       )}
+      {/* blankVolume (breadth): a plain "Volume" label so the empty pane still reads
+          as the volume pane (TC2000-style), with no $ Vol / Avg values. */}
+      {blankVolume && showVolLegend && cs.volume?.labelVisible !== false && chartReady && (
+        <div ref={volLegendRef} className={styles.volLegend}>
+          <span className={styles.volLegItem}>
+            <span className={styles.volLegLabel}>Volume</span>
+          </span>
+        </div>
+      )}
       {/* Volume-pane legend (top-left): dollar volume + average volume over the MA
           period. Follows the crosshair (or the latest bar), pinned live to the top
           of the volume pane. */}
-      {showVolLegend && cs.volume?.labelVisible !== false && chartReady && crosshairData && (crosshairData.dollarVol != null || crosshairData.volAvg != null) && (
+      {!blankVolume && showVolLegend && cs.volume?.labelVisible !== false && chartReady && crosshairData && (crosshairData.dollarVol != null || crosshairData.volAvg != null) && (
         <div ref={volLegendRef} className={styles.volLegend}>
           {crosshairData.dollarVol != null && (
             <span className={styles.volLegItem}>
