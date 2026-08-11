@@ -387,6 +387,10 @@ CREATE TABLE IF NOT EXISTS j2_notes (
     hero_image_url  TEXT,
     ticker          TEXT,
     tags            TEXT NOT NULL DEFAULT '[]',
+    import_source   TEXT,
+    import_key      TEXT,
+    import_hash     TEXT,
+    imported_at     TEXT,
     created_at      TEXT NOT NULL,
     updated_at      TEXT NOT NULL
 );
@@ -396,14 +400,17 @@ CREATE INDEX IF NOT EXISTS idx_j2_notes_user_folder
     ON j2_notes(user_id, folder_id);
 CREATE INDEX IF NOT EXISTS idx_j2_notes_user_ticker
     ON j2_notes(user_id, ticker);
+CREATE INDEX IF NOT EXISTS idx_j2_notes_user_import
+    ON j2_notes(user_id, import_key);
 
 CREATE TABLE IF NOT EXISTS j2_note_folders (
     id          TEXT PRIMARY KEY,
     user_id     TEXT NOT NULL,
     name        TEXT NOT NULL,
+    parent_id   TEXT NOT NULL DEFAULT '',
     sort_order  INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL,
-    UNIQUE(user_id, name)
+    UNIQUE(user_id, parent_id, name)
 );
 CREATE INDEX IF NOT EXISTS idx_j2_note_folders_user
     ON j2_note_folders(user_id, sort_order);
@@ -775,6 +782,11 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     except Exception as e:  # noqa: BLE001 — never crash startup over this
         print(f"[notebook-migration] aborted: {e}")
 
+    try:
+        run_notebook_migration_v2(conn)
+    except Exception as e:  # noqa: BLE001 — never crash startup over this
+        print(f"[notebook-migration-v2] aborted: {e}")
+
 
 def _data_dir() -> Path:
     return Path(os.environ.get("DATA_DIR", "/data"))
@@ -923,3 +935,50 @@ def run_notebook_migration_v1(conn: sqlite3.Connection) -> None:
             flag.touch()
         except Exception:
             pass
+
+
+def run_notebook_migration_v2(conn: sqlite3.Connection) -> None:
+    """Folder tree (parent_id) + import provenance columns on j2_notes.
+    Idempotent via .notebook_migration_v2 flag file AND column probes, so a
+    fresh DB created after this ships is also handled. parent_id uses ''
+    as the root sentinel (NULLs are distinct in SQLite UNIQUE constraints,
+    which would allow duplicate root names)."""
+    flag = _data_dir() / ".notebook_migration_v2"
+    try:
+        if flag.exists():
+            return
+        fcols = {r[1] for r in conn.execute("PRAGMA table_info(j2_note_folders)")}
+        if fcols and "parent_id" not in fcols:
+            conn.execute("ALTER TABLE j2_note_folders RENAME TO j2_note_folders_v1")
+            conn.execute(
+                """CREATE TABLE j2_note_folders (
+                    id          TEXT PRIMARY KEY,
+                    user_id     TEXT NOT NULL,
+                    name        TEXT NOT NULL,
+                    parent_id   TEXT NOT NULL DEFAULT '',
+                    sort_order  INTEGER NOT NULL DEFAULT 0,
+                    created_at  TEXT NOT NULL,
+                    UNIQUE(user_id, parent_id, name))"""
+            )
+            conn.execute(
+                "INSERT INTO j2_note_folders (id, user_id, name, parent_id, sort_order, created_at) "
+                "SELECT id, user_id, name, '', sort_order, created_at FROM j2_note_folders_v1"
+            )
+            conn.execute("DROP TABLE j2_note_folders_v1")
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_j2_note_folders_user "
+                "ON j2_note_folders(user_id, sort_order)"
+            )
+        ncols = {r[1] for r in conn.execute("PRAGMA table_info(j2_notes)")}
+        for col in ("import_source", "import_key", "import_hash", "imported_at"):
+            if ncols and col not in ncols:
+                conn.execute(f"ALTER TABLE j2_notes ADD COLUMN {col} TEXT")
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_j2_notes_user_import "
+            "ON j2_notes(user_id, import_key)"
+        )
+        conn.commit()
+        flag.parent.mkdir(parents=True, exist_ok=True)
+        flag.touch()
+    except Exception as e:  # same failure posture as v1 — never block startup
+        print(f"[j2] notebook migration v2 failed: {e}")
