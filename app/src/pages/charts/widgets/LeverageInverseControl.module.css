@@ -6,7 +6,11 @@
    The panel mirrors the TimeframeMenu popover (OLED surface, 10px radius,
    fixed position, 9200 z) — chart popovers stay dark in every app theme. */
 
-.wrap { display: inline-flex; }
+/* margin-right nudges the pill LEFT within the right-aligned .tfBarRight cluster
+   (the trailing gear/share/add-tab stay pinned to the container's right edge),
+   so the pill's right edge lines up with the session toggle's (Regular Hours /
+   Include Pre-Market) right edge on the row above. Tuned by eye. */
+.wrap { display: inline-flex; margin-right: 22px; }
 
 .pill {
   display: inline-flex;
@@ -63,17 +67,18 @@
   text-align: center;
 }
 
-/* Active seat — STOCK / leveraged-long / leveraged-short all take the SAME gold
-   highlight + strong (near-black on a light canvas) text as the widget tab chips
-   and the session toggle, following the widget canvas. */
+/* Active seat — STOCK / leveraged-long / leveraged-short. Matches the TIMEFRAME
+   buttons' selected look exactly (.tfBtnActive in ChartsWorkspace.module.css):
+   gold --accent text on a faint gold wash, so the selected segment reads as gold
+   like the picked timeframe (was --widget-text-strong, which stayed dark). */
 .segStockActive,
 .segStockActive:hover:not(:disabled),
 .segLongActive,
 .segLongActive:hover:not(:disabled),
 .segShortActive,
 .segShortActive:hover:not(:disabled) {
-  color: var(--widget-text-strong, var(--text-bright, #e5e7eb));
-  background: var(--widget-accent-bg, rgba(201, 168, 76, 0.16));
+  color: var(--accent, #c9a84c);
+  background: rgba(201, 168, 76, 0.08);
 }
 
 .caretBtn {
