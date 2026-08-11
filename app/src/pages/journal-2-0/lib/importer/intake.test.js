@@ -27,6 +27,16 @@ describe('expandArchives', () => {
     await expect(expandArchives([vf('big.zip', zip)], { limits: { maxEntries: 10, maxTotalBytes: 1e9, maxArchiveBytes: 1e9 } }))
       .rejects.toBeInstanceOf(ImportLimitError)
   })
+
+  it('keeps a corrupt nested zip as a passthrough VFile and warns (same handling regardless of depth)', async () => {
+    const corrupt = new Uint8Array([0x50, 0x4b, 0x03, 0x04, 1, 2, 3, 4, 5, 6, 7, 8])
+    const outer = zipSync({ 'inner.zip': corrupt })
+    const { files, warnings } = await expandArchives([vf('export.zip', outer)])
+    expect(files).toHaveLength(1)
+    expect(files[0].path).toBe('inner.zip')
+    expect(await files[0].bytes()).toEqual(corrupt)
+    expect(warnings.some((w) => w.includes('inner.zip'))).toBe(true)
+  })
 })
 
 describe('fromFileList', () => {

@@ -47,7 +47,7 @@ export async function expandArchives(vfiles, opts = {}) {
   const limits = { ...DEFAULT_LIMITS, ...(opts.limits || {}) }
   const warnings = []
   const out = []
-  // counters shared across the whole expansion (including nested zips)
+  // counters shared across the whole expansion (including nested zips, at any depth)
   const counters = { entries: 0, totalBytes: 0 }
 
   function countEntry(size) {
@@ -65,7 +65,15 @@ export async function expandArchives(vfiles, opts = {}) {
     }
   }
 
-  async function expandOne(vfile) {
+  // Single recursive expander for both top-level VFiles AND zip members at any
+  // nesting depth — a top-level zip and a zip found inside another zip go
+  // through the exact same code, so corrupt-zip handling (and every other
+  // branch) can't drift by depth. `childPrefix` is the path prefix applied to
+  // THIS vfile's own members if it turns out to be a zip: '' at the top level
+  // (a top-level zip's filename is never prepended to its members), or this
+  // vfile's own already-computed path when it was produced as a zip member
+  // (so descendants of a nested zip get prefixed with `${thatZip'sPath}/`).
+  async function expand(vfile, childPrefix) {
     const bytes = await vfile.bytes()
     if (!looksLikeZip(vfile, bytes)) {
       countEntry(vfile.size)
@@ -83,6 +91,8 @@ export async function expandArchives(vfiles, opts = {}) {
     try {
       entries = unzipSync(bytes)
     } catch (err) {
+      // Corrupt/unopenable zip (top-level OR nested — same branch either way):
+      // demote to a passthrough VFile so the raw bytes aren't lost, and warn.
       warnings.push(`Could not open "${vfile.path}" as a zip: ${err?.message || err}`)
       countEntry(vfile.size)
       out.push(vfile)
@@ -91,60 +101,23 @@ export async function expandArchives(vfiles, opts = {}) {
 
     for (const [name, data] of Object.entries(entries)) {
       if (isJunkEntry(name)) continue
-      const memberPath = name
-      const memberVfile = {
-        path: memberPath,
+      const childPath = childPrefix ? `${childPrefix}/${name}` : name
+      const childVfile = {
+        path: childPath,
         size: data.length,
         lastModified: vfile.lastModified ?? null,
         bytes: async () => data,
       }
-      if (/\.zip$/i.test(memberPath)) {
-        // nested zip: recurse, prefixing member paths with this entry's name
-        await expandNested(memberVfile, memberPath)
-      } else {
-        countEntry(memberVfile.size)
-        out.push(memberVfile)
-      }
-    }
-  }
-
-  // Handles a nested zip found inside another zip. `prefix` is the path (within
-  // the parent) of this nested zip's own entry name — member paths get prefixed
-  // with `${prefix}/`.
-  async function expandNested(zipVfile, prefix) {
-    const bytes = await zipVfile.bytes()
-    if (bytes.length > limits.maxArchiveBytes) {
-      throw new ImportLimitError(
-        `"${zipVfile.path}" is larger than ${formatBytes(limits.maxArchiveBytes)} and can't be imported as a single zip.`
-      )
-    }
-    let entries
-    try {
-      entries = unzipSync(bytes)
-    } catch (err) {
-      warnings.push(`Could not open "${zipVfile.path}" as a zip: ${err?.message || err}`)
-      return
-    }
-    for (const [name, data] of Object.entries(entries)) {
-      if (isJunkEntry(name)) continue
-      const memberPath = `${prefix}/${name}`
-      const memberVfile = {
-        path: memberPath,
-        size: data.length,
-        lastModified: zipVfile.lastModified ?? null,
-        bytes: async () => data,
-      }
-      if (/\.zip$/i.test(memberPath)) {
-        await expandNested(memberVfile, memberPath)
-      } else {
-        countEntry(memberVfile.size)
-        out.push(memberVfile)
-      }
+      // Every child recurses through `expand` — it internally decides whether
+      // it's a zip (recurse further, prefixing with its own path) or a plain
+      // file (passthrough). This is what makes nested-zip handling identical
+      // to top-level handling: there is only one code path.
+      await expand(childVfile, childPath)
     }
   }
 
   for (const vfile of vfiles) {
-    await expandOne(vfile)
+    await expand(vfile, '')
   }
 
   return { files: out, warnings }
