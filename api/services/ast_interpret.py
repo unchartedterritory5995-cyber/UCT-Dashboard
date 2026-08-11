@@ -159,6 +159,16 @@ REFUSALS: Mapping[str, str] = {
 #: ``test_ast_interpret.py``, read out of the JS source rather than retyped.
 MAX_RECURRENCE_STEPS = 1000000
 
+#: How far back a running value may read its OWN past -- ``self[k]``.
+#:
+#: ⭐ FOUR IS DERIVED, NOT CHOSEN. The deepest classical recursive filter in
+#: common use is 2-pole (Butterworth / SuperSmoother / Ehlers), needing
+#: ``self[1]``; 4 leaves room for a 4-pole design without opening the door to a
+#: history nobody would author by hand. ⛔ IT MUST STAY SMALL AND EQUAL TO THE JS
+#: LANE'S: the history is carried per STEP, and the step loop already runs
+#: ``bars x warmup`` times, so a deep lag is paid on every bar of every symbol.
+MAX_SELF_LAG = 4
+
 
 def _refuse(guard: str, detail: str) -> Any:
     raise TableRefusal(guard, f"{REFUSALS[guard]} {detail}")
@@ -1527,6 +1537,10 @@ def interpret(ast: Any, bars: List[dict],
         def is_bind(x: Any) -> bool:
             return isinstance(x, dict) and x.get("type") == "series" and x.get("name") == bind
 
+        #: How many bars of its OWN past this body reads. 0 is the classic one-lag
+        #: form. A dict because ``plan`` writes it from an inner scope.
+        lag: Dict[str, int] = {"max": 0}
+
         # Which nodes of the body read the running value. Memoised over node
         # IDENTITY, so a tree that shares a subtree object answers once.
         reads_cache: Dict[int, bool] = {}
@@ -1563,9 +1577,27 @@ def interpret(ast: Any, bars: List[dict],
                 return
             kind = x.get("type") if isinstance(x, dict) else None
             if kind == "offset":
+                # ⭐⭐ ``self[k]`` IS THE SECOND-ORDER CASE — the keystone that makes a
+                # 2-pole filter (Butterworth / SuperSmoother / every Ehlers design)
+                # expressible at all. Mirrors the JS lane exactly; the parity corpus
+                # is what holds the two together.
+                #
+                # ⛔ ONLY WHEN THE OFFSET'S CHILD IS THE BIND ITSELF. ``(self + close)[1]``
+                # asks for a past value of an EXPRESSION the step loop never computed.
+                if is_bind((x.get("args") or [None])[0]):
+                    if x.get("value", 0) > MAX_SELF_LAG:
+                        _refuse("interpret:recurrence",
+                                f"— `{bind}[{x.get('value')}]` looks back {x.get('value')} "
+                                f"steps and the ceiling is {MAX_SELF_LAG}. The history is "
+                                f"carried per step, so a deep one is paid on every bar of "
+                                f"every symbol.")
+                    lag["max"] = max(lag["max"], int(x.get("value", 0)))
+                    return
                 _refuse("interpret:recurrence",
-                        f"— `{bind}` sits under a bar offset in {node['name']}(…). The step "
-                        f"loop holds ONE previous value, not a history of them.")
+                        f"— `{bind}` sits under a bar offset in {node['name']}(…) applied "
+                        f"to an expression rather than to `{bind}` itself. A past value of "
+                        f"the running value is held; a past value of a formula containing "
+                        f"it was never computed.")
             if kind == "call":
                 inner = _fn_spec(x.get("name"))
                 if x["name"] in RECURRENCES:
@@ -1584,13 +1616,17 @@ def interpret(ast: Any, bars: List[dict],
 
         plan(body)
 
-        def step(x: Any, j: int, carried: float) -> float:
+        def step(x: Any, j: int, history: list) -> float:
             got = columns.get(id(x), _MISSING)
             if got is not _MISSING:
                 return got[j] if _is_column(got) else got
             if is_bind(x):
-                return carried
-            values = [step(child, j, carried) for child in x["args"]]
+                return history[0]
+            # ``self[k]`` -- resolved HERE, not by the generic offset arm, which
+            # walks whole columns and cannot see a value that lives in this loop.
+            if x.get("type") == "offset" and is_bind((x.get("args") or [None])[0]):
+                return history[int(x.get("value", 0))]
+            values = [step(child, j, history) for child in x["args"]]
             if x["type"] == "op":
                 return apply_op_step(x, values)
             return _POINTWISE[x["name"]](*values)
@@ -1598,10 +1634,18 @@ def interpret(ast: Any, bars: List[dict],
         seed = _to_column(eval_node(node["args"][rec["seed"]]), length)
         out = _nan_col(length)
         for i in range(warmup, length):
-            carried = seed[i - warmup]
+            # ⭐ THE SEED FILLS EVERY LAG. Before a single step has run there is no
+            # "two bars ago", and the seed is the only defined value in scope -- the
+            # initial condition Pine spells by hand as ``nz(x[1], x)``. ⛔ NOT zero:
+            # a filter seeded at 0 spends its warm-up climbing back to price and
+            # reports that climb as signal.
+            history = [seed[i - warmup]] * (lag["max"] + 1)
             for j in range(i - warmup + 1, i + 1):
-                carried = step(body, j, carried)
-            out[i] = carried
+                nxt = step(body, j, history)
+                for k in range(lag["max"], 0, -1):
+                    history[k] = history[k - 1]
+                history[0] = nxt
+            out[i] = history[0]
         return out
 
     column = _to_column(eval_node(ast), length)
