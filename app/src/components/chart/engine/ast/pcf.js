@@ -179,6 +179,13 @@ export const PCF_FUSED = Object.freeze({
   CCI:     { spelling: 'CCI<period>[.<offset>]',     fn: 'cci',     series: ['high', 'low', 'close'], params: ['period', 'offset'] },
   DIPLUS:  { spelling: 'DIPLUS<period>[.<offset>]',  fn: 'plusDI',  series: ['high', 'low', 'close'], params: ['period', 'offset'] },
   DIMINUS: { spelling: 'DIMINUS<period>[.<offset>]', fn: 'minusDI', series: ['high', 'low', 'close'], params: ['period', 'offset'] },
+  // ⭐ AN EXPANSION, NOT A TABLE CALL. Balance of Power is
+  // `sma((close - open) / (high - low), n)` -- Worden's own definition, written in
+  // this table's existing vocabulary, so it costs the closed table no new name.
+  // ⛔ `expand` EXISTS SO THIS CANNOT BE FAKED AS A MAPPING: there is no `bop`
+  // function to point at, and inventing one to hold four lines of arithmetic
+  // would put a second authority on a formula the table can already say.
+  BOP:     { spelling: 'BOP<period>[.<offset>]', expand: true, series: [], params: ['period', 'offset'] },
 })
 
 /** 🔴 NAMES THIS TABLE HAS SOMETHING SIMILAR TO, AND MUST NOT MAP.
@@ -243,6 +250,10 @@ export const PCF_CALLS = Object.freeze({
   // the opposite of what it does. `CLG` is the COMMON (base-10) log, `LOG` is the
   // natural one — again Worden's convention, and again the reverse of what a
   // reader coming from most languages would assume.
+  // ⭐ `SUM(w, x)` — named by this file's own coverage report as blocking SIX
+  // published indicator templates, and blocked only because the table had no
+  // rolling sum. It has one now, so this is the mapping and nothing more.
+  SUM:      { fn: 'sum',        shape: ['expr', 'window'] },
   SQR:      { fn: 'sqrt',       shape: ['expr'] },
   LOG:      { fn: 'ln',         shape: ['expr'] },
   CLG:      { fn: 'log10',      shape: ['expr'] },
@@ -379,6 +390,23 @@ const OPERATOR_CALLS = Object.freeze({
  *  because `seriesRefs` counts DISTINCT reads — mentioning `close` twice is still one
  *  column. Under the old occurrence-counting budget these would have translated and
  *  then been refused at the save door. */
+/** Fused TC2000 tokens that are an EXACT expansion in this table's own
+ *  vocabulary. The sibling of `PCF_FUSED`'s mapped entries.
+ *
+ *  ⛔ ADMISSIBLE ONLY AS AN IDENTITY, the same rule the Pine reader's
+ *  `BUILTIN_CALL_TREE` follows. Anything needing a judgement about what Worden
+ *  meant belongs in `PCF_DIFFERENT_FORMULA`, refusing by name. */
+const PCF_EXPANSIONS = Object.freeze({
+  // BOP<n> = the n-bar average of (close - open) / (high - low).
+  BOP: (n) => callNode('sma', [
+    opNode('/', [
+      opNode('-', [seriesNode('close'), seriesNode('open')]),
+      opNode('-', [seriesNode('high'), seriesNode('low')]),
+    ]),
+    num(n),
+  ]),
+})
+
 const DERIVED_LOGIC = Object.freeze({
   // a AND NOT b, or b AND NOT a — written as "either, but not both"
   XOR:  (l, r) => opNode('&&', [opNode('||', [l, r]),
@@ -718,6 +746,17 @@ function readFused(table, token, letters, nodeTypes) {
           token.index, token.text)
       }
       ints.push(wholeNumber(got.value, param, got.index, token.text))
+    }
+
+    if (family.expand) {
+      // ⛔ EVERY NAME THE EXPANSION USES IS CHECKED AGAINST THE MANIFEST, never
+      // assumed -- this file declares only that TC2000 spells it `BOP`.
+      resolveFn(table, 'sma', family.spelling, token.index, token.text)
+      operator(table, '-', 2, token.index, token.text)
+      operator(table, '/', 2, token.index, token.text)
+      const built = PCF_EXPANSIONS[name](ints[0])
+      const offX = values.offset
+      return offX ? applyOffset(nodeTypes, built, offX.value, offX.index, token.text) : built
     }
 
     const spec = resolveFn(table, family.fn, family.spelling, token.index, token.text)
@@ -1156,7 +1195,12 @@ const PCF_MARKERS = [
   /\bMOD\b(?!\s*\()/i,
   /<>/,
   /\b(X?AVG|MAX|MIN)[COHLV]\d/i,
-  /\b(STDDEV|WRSI|ATR|MACD|STOC)\d/i,
+  // ⛔ EVERY FUSED FAMILY THIS READER ACCEPTS MUST APPEAR HERE, or the source
+  // parses as TC2000 and is DETECTED as native — handed to the wrong reader, then
+  // refused for a reason that has nothing to do with the script. `BOP` was added
+  // to `PCF_FUSED` and missed here; the corpus caught it because `detectDialect`
+  // is asserted over every accepted source, which is exactly why that rail exists.
+  /\b(STDDEV|WRSI|ATR|MACD|STOC|BOP|CCI|DIPLUS|DIMINUS)\d/i,
   /(^|[^A-Za-z0-9_.])[COHLV]\d*(?![A-Za-z0-9_])/,
   /(^|[^<>!=])=(?!=)/,
 ]

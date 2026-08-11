@@ -48,7 +48,7 @@ const VOCABULARY = {
  *  once already. */
 const EXPECTED = {
   'price letters': 6, 'math operators': 5, 'math functions': 8, relational: 4,
-  logical: 7, crossing: 2, 'moving averages': 5, aggregates: 6, oscillators: 5,
+  logical: 7, crossing: 2, 'moving averages': 5, aggregates: 7, oscillators: 6,
   conditional: 1, stateful: 3, 'trig and hyperbolic': 5,
 }
 
@@ -89,7 +89,10 @@ describe('the TC2000 vocabulary, measured against Worden`s own syntax table', ()
     // never a side effect — see the header on why a high score is not the goal.
     // ⚰️ 35 at the first measurement, 37 with three oscillator spellings, 40 once
     // `CountTrue`/`SinceTrue`/`TrueInRow` were built on the recurrence, 44 with the
-    // four derived logical operators, and 57 with the pure-math block.
+    // four derived logical operators, and 57 with the pure-math block, then 59: `SUM` wired to the rolling sum the
+    // table gained, and `BOP` EXPANDED rather than mapped -- there is no `bop`
+    // function to point at, and inventing one to hold four lines of arithmetic
+    // would put a second authority on a formula the table can already say.
     //
     // ⭐ 40 → 57 IS THIRTEEN SPELLINGS AND *NO* NEW JUDGEMENT. `^ MOD \`, the five
     // math functions and the five trig functions are deterministic mathematics —
@@ -106,7 +109,7 @@ describe('the TC2000 vocabulary, measured against Worden`s own syntax table', ()
     //
     // ⚠️ Raising it is a deliberate edit, never a side effect — see the header on
     // why a high score is not the goal.
-    expect(expected).toBe(57)
+    expect(expected).toBe(59)
   })
 })
 

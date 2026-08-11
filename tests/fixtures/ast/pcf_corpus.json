@@ -313,18 +313,25 @@
       "source": "SQR(C)",
       "note": "was a refusal fixture until the pure-math block; it reads now and this entry proves it still does",
       "native": "sqrt(close)"
-    }
-  ],
-  "refused": [
+    },
     {
       "id": "sum_function",
       "cite": "help-indicator-templates",
-      "what": "SUM(w, x) is used by six published templates and this table declares no sum",
+      "what": "a rolling sum - blocked until the table declared one",
       "source": "SUM(C, 10)",
-      "guard": "pcf:name",
-      "at": 0,
-      "names": "SUM"
+      "note": "was a refusal fixture until the rolling sum / BOP expansion landed",
+      "native": "sum(close, 10)"
     },
+    {
+      "id": "balance_of_power",
+      "cite": "help-indicator-templates",
+      "what": "Balance of Power: the n-bar average of (close-open)/(high-low), Worden's own definition",
+      "source": "BOP20 > 0",
+      "note": "was a refusal fixture until the rolling sum / BOP expansion landed",
+      "native": "sma((close - open) / (high - low), 20) > 0"
+    }
+  ],
+  "refused": [
     {
       "id": "front_weighted_average",
       "cite": "help-indicator-templates",
@@ -369,15 +376,6 @@
       "guard": "pcf:name",
       "at": 0,
       "names": "TSV18"
-    },
-    {
-      "id": "balance_of_power",
-      "cite": "help-indicator-templates",
-      "what": "BOPy.z",
-      "source": "BOP20 > 0",
-      "guard": "pcf:name",
-      "at": 0,
-      "names": "BOP20"
     },
     {
       "id": "worden_stochastic",
@@ -540,6 +538,24 @@
       "guard": "pcf:name",
       "at": 0,
       "names": "MFLOW20"
+    },
+    {
+      "id": "obv_is_cumulative",
+      "cite": "worden-syntax-table",
+      "what": "OBV is a running total from the first bar. This engine's accumulator re-seeds a fixed number of bars back, so it cannot express one -- the same reason Pine's ta.cum refuses.",
+      "source": "OBV20 > 0",
+      "guard": "pcf:name",
+      "at": 0,
+      "names": "OBV20"
+    },
+    {
+      "id": "stoc_smoothing_refused",
+      "cite": "worden-syntax-table",
+      "what": "this table's stochastic takes no smoothing parameter, so a smoothed STOC refuses rather than silently dropping the smoothing a member wrote",
+      "source": "STOC14.3 < 20",
+      "guard": "pcf:parameter",
+      "at": 7,
+      "names": "STOC14.3"
     }
   ],
   "_offset": "⭐ THE BAR OFFSET IS ENGINE-DEPENDENT AND THIS SECTION FLIPS WITH IT. PCF's `.z` suffix is its most-used feature, so these are the cases that decide whether a member notices a discrepancy. The expectation is DERIVED, not written: while `closedTable.json` declares no offset form, each must refuse at `pcf:offset` at the declared character; the moment it declares one, each must PARSE, carry the declared offset node, and still lint to a forward reach of 0. ⛔ Neither half may be skipped — a suite that only checked the refusal would go silently green the day the engine grew the capability and this reader failed to use it.",
