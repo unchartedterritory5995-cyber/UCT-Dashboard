@@ -1432,7 +1432,16 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     }
     if (!g) return
     lastAutoExpandRef.current = selectedSym
-    setExpandedGroups(prev => (prev.has(g) ? prev : new Set([g])))
+    setExpandedGroups(prev => {
+      // A ticker can belong to SEVERAL groups (memberToGroup keeps only the last).
+      // If it's already visible inside a currently-OPEN group, leave the expansion
+      // as-is — clicking a member must not jump to another group it also belongs to
+      // (the bug: opening MEMORY & HBM, clicking MU, and it hopping to SEMICONDUCTORS).
+      for (const openName of prev) {
+        if ((scanGroups?.[openName] || []).some(mem => String(mem).toUpperCase() === up)) return prev
+      }
+      return prev.has(g) ? prev : new Set([g])
+    })
   }, [groupMode, selectedSym, memberToGroup, scanGroups, metaData])
 
   // Extra data columns (Market Cap / Next Earnings / UCT Rating) toggle on/off from the

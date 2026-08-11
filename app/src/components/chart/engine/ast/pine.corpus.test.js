@@ -70,8 +70,17 @@ describe('every script lands exactly where the snapshot says', () => {
       expect(got.version, 'version').toBe(want.version)
       expect(got.ok, 'translates').toBe(want.translates)
       expect(got.outputs.length, 'outputs offered').toBe(want.outputs)
-      expect(got.outputs.filter((o) => o.formula).length, 'columns this engine computes')
-        .toBe(want.usable)
+      expect(got.outputs.filter((o) => o.formula && !o.hidden).length,
+        'columns this engine computes').toBe(want.usable)
+      // ⛔ "COLUMNS THIS ENGINE COMPUTES" MEANS COLUMNS A MEMBER CAN USE, so a
+      // `display = display.none` output does not count. Folding scaffolding in is
+      // how three scripts here were recorded as translating while every VISIBLE
+      // output refused: 02 offered a hidden `highest(high, 30)[1]`, 06 a hidden
+      // `0`, and 10 a hidden `ohlc4`. The count said 1-2; the member had nothing.
+      // …and the scaffolding is RECORDED rather than dropped, because a fact this
+      // file stops mentioning is one the next reader re-discovers the hard way.
+      expect(got.outputs.filter((o) => o.formula && o.hidden).length,
+        'hidden scaffolding outputs').toBe(want.hiddenScaffolding || 0)
 
       const perOutput = {}
       for (const o of got.outputs) {
@@ -262,8 +271,28 @@ describe('the whole corpus, in one number', () => {
     // see no new column anywhere. A column is usable only when EVERY wall in its
     // chain is down, so the thing to count is `usable` — which is why it is
     // pinned here and the guard histogram is not pinned anywhere.
-    expect(translating).toBe(13)
-    expect(columns).toBe(42)
+    //
+    // 🔴🔴 2026-08-11: 13/42 → 10/38, AND THE THREE THAT LEFT NEVER WORKED.
+    // A `display = display.none` output was counted as a column. Three scripts
+    // here had NO visible output that translated and were recorded as translating
+    // anyway, on scaffolding their own authors had marked as not-for-display:
+    // 02 offered a hidden `highest(high, 30)[1]`, 06 a hidden CONSTANT `0`, and
+    // 10 a hidden `ohlc4`. A member opening any of the three got a saveable
+    // column that was not the indicator named at the top of the file.
+    //
+    // ⛔ THE NEAR-MISS WAS ALREADY HALF-KNOWN, WHICH IS THE LESSON. `chooseOutput`
+    // has carried a comment since 06 landed saying a hidden zero baseline must
+    // never be OFFERED FIRST, "a screen that matches nothing, presented as the
+    // obvious choice". That guard fixed which column was shown and left the count
+    // alone — so the script still reported as translating and the headline number
+    // still counted it. Fixing where a value is DISPLAYED without fixing whether
+    // it COUNTS leaves the false claim standing in the number everyone reads.
+    //
+    // ⚠️ A number going DOWN here is why it is pinned in both directions. This is
+    // a correction, not a regression: nothing that worked yesterday stopped
+    // working, and 10/38 is the first honest reading this file has published.
+    expect(translating).toBe(10)
+    expect(columns).toBe(38)
   })
 
   it('⭐ every script that translates is one a member could actually SAVE', () => {
@@ -272,7 +301,7 @@ describe('the whole corpus, in one number', () => {
     // read-back — and a coverage number that counted translations would be
     // reporting the first of those as if it were the second.
     const saveable = FILES.filter((f) => SNAPSHOT[f].downstream && SNAPSHOT[f].downstream.ok)
-    expect(saveable.length).toBe(13)
+    expect(saveable.length).toBe(10)
     for (const f of saveable) {
       expect(SNAPSHOT[f].downstream.repaint, f).toBe('non-repainting')
     }

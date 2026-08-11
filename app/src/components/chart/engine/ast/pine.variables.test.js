@@ -454,9 +454,21 @@ plot(anchor)
     // stop is state by construction, and five of this script's plots say so.
     expect(guards.length).toBeGreaterThan(0)
     expect(new Set(guards)).toEqual(new Set(['pine:state']))
-    // ⚠️ AND THE SCRIPT STILL TRANSLATES. Refusing a stateful plot is not the same
-    // as refusing the script — the column that is pure is still offered.
-    expect(out.ok).toBe(true)
+    // 🔴 AND THE SCRIPT DOES NOT TRANSLATE — corrected 2026-08-11.
+    //
+    // This said "the script still translates … the column that is pure is still
+    // offered", and the pure column was `plot(ohlc4, display = display.none)`:
+    // scaffolding the author explicitly hid so `fill()` had a second edge. It was
+    // never offered to anyone. The sentence read as a reassuring nuance about
+    // per-plot refusal and was in fact the false premise holding up a coverage
+    // number — which is why the assertion below is the corrected one and this
+    // note stays, rather than the line being quietly deleted.
+    //
+    // ⛔ THE PART THAT WAS TRUE IS STILL TRUE, and it is the point of this test:
+    // state refuses PER PLOT, at `pine:state`, not as one script-wide verdict.
+    expect(out.ok).toBe(false)
+    expect(out.outputs.filter((o) => o.formula && !o.hidden)).toHaveLength(0)
+    expect(out.outputs.filter((o) => o.formula && o.hidden)).toHaveLength(1)
   })
 })
 
