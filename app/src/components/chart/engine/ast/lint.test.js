@@ -913,3 +913,54 @@ describe('the bounded backward offset, linted', () => {
     expect(lint.lintRepaint(tree, { table }).mode).toBe('preview-repaints')
   })
 })
+
+// ─── A MULTIPLIED WINDOW IS BOUNDABLE ───────────────────────────────────────
+//
+// ⚰️ MEASURED IN THE DEPLOYED BUILDER 2026-08-11, seconds after ADX shipped.
+// `ADX14.14 > 25` read correctly, computed correctly, reported its 28-bar
+// lookback correctly — and then wore "⚠️ Repaints — unanalysable: `adx` declares
+// a window this linter cannot bound". False, and not cosmetic: `canSaveFormula`
+// refuses `repaints` outright, so a correct indicator could not be saved.
+//
+// ⛔ THE LINTER HELD THE **FOURTH** HAND-WRITTEN COPY OF THE LOOKBACK GRAMMAR.
+// Three others were found when `2*argN` landed; this one survived because no test
+// had ever declared a function with a multiplied window AND asked the linter about
+// it. The unit suite could not see it. The browser could.
+describe('🔴 a `k*argN` window is bounded, not unanalysable', () => {
+  const adx = (n = 14) => ({
+    type: 'call',
+    name: 'adx',
+    args: [
+      { type: 'series', name: 'high' },
+      { type: 'series', name: 'low' },
+      { type: 'series', name: 'close' },
+      { type: 'num', value: n },
+    ],
+  })
+
+  it('adx is NON-REPAINTING, and reads no future bar', () => {
+    const v = lint.lintRepaint(adx())
+    expect(v.mode, `adx was branded ${v.mode}: ${(v.reasons || []).join(' / ')}`)
+      .toBe('non-repainting')
+    expect(v.forward).toBe(0)
+  })
+
+  it('and the window it reports is the MULTIPLIED one', () => {
+    // ⭐ 28, not 14 — the whole point. A linter that bounded it at `arg3` would
+    // call it analysable and still be wrong about how far back it reaches.
+    expect(lint.lintRepaint(adx(14)).back).toBe(28)
+    expect(lint.lintRepaint(adx(7)).back).toBe(14)
+  })
+
+  it('⛔ THE CONTROL — an undeclared window is STILL unanalysable', () => {
+    // Without this, a linter that returned 0 for everything it could not read
+    // would pass both cases above and silently stop refusing real hazards.
+    const bogus = { type: 'call', name: 'adx', args: [
+      { type: 'series', name: 'high' },
+      { type: 'series', name: 'low' },
+      { type: 'series', name: 'close' },
+      { type: 'series', name: 'close' },   // a SERIES where the period goes
+    ] }
+    expect(lint.lintRepaint(bogus).mode).not.toBe('non-repainting')
+  })
+})

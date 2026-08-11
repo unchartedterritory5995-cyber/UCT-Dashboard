@@ -393,11 +393,29 @@
   border: 1px solid var(--border);
   border-radius: 6px;
 }
-.pickerSelect { flex: 1 1 0; }
+/* ⚰️ `flex: 1 1 0` WITH `min-width: 0` LET THIS SELECT CLIP ITS OWN LABEL.
+   Measured in the live builder 2026-08-11: switching a condition's right side to
+   a number puts the 96px number input in the same row, the select shrank below
+   its content, and "a number" rendered as **"a nu"** — a control whose own label
+   is cut mid-word.
+
+   `min-width: 0` is the standard flex idiom for "may shrink rather than overflow
+   the parent", so it is not simply deleted. The row is allowed to WRAP instead:
+   at a width where everything cannot sit on one line the number input drops to
+   the next line, which is readable, where truncation is not. The floor keeps the
+   common case on one line. */
+.pickerSelect { flex: 1 1 auto; min-width: 8ch; }
 .pickerNum { flex: 0 1 96px; }
 .pickerCmp { flex: 0 0 auto; }
 
-.pickerArgs { display: flex; align-items: center; gap: 6px; flex: 1 1 0; min-width: 0; }
+.pickerArgs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 0;
+  min-width: 0;
+  flex-wrap: wrap;
+}
 
 .pickerIconBtn {
   display: inline-flex;

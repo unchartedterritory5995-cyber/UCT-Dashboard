@@ -44,6 +44,7 @@ one.
 from __future__ import annotations
 
 import math
+import re
 from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
 
 from api.services.ast_table import (
@@ -764,6 +765,14 @@ def _fn_atr(h, l, c, n):  # noqa: E741
     return _bind_shipped(_HLC, (h, l, c), len(c), lambda bars: compute_atr_raw(bars, n))
 
 
+def _fn_adx(h, l, c, n):  # noqa: E741
+    # Bound to the SHIPPED implementation, never composed — the same rule as
+    # its +DI/-DI siblings, and for a sharper reason: ADX smooths DX with
+    # Wilder's k = 1/n while this table's `ema` is k = 2/(n+1), so an
+    # expansion would have been a look-alike wearing the right name.
+    return _bind_shipped(_HLC, (h, l, c), len(c), lambda bars: compute_adx_raw(bars, n)[0])
+
+
 def _fn_plus_di(h, l, c, n):  # noqa: E741
     return _bind_shipped(_HLC, (h, l, c), len(c), lambda bars: compute_adx_raw(bars, n)[1])
 
@@ -861,6 +870,7 @@ FN: Dict[str, Callable[..., List[float]]] = {
     "rsi": _fn_rsi,
     "macd": _fn_macd,
     "atr": _fn_atr,
+    "adx": _fn_adx,
     "plusDI": _fn_plus_di,
     "minusDI": _fn_minus_di,
     "stoch": _fn_stoch,
@@ -1081,17 +1091,34 @@ def _offset_bars(node: dict) -> int:
     return int(n)
 
 
+#: A declared lookback: ``arg3`` or a whole multiple of one, ``2*arg3``.
+#: ⛔ MIRRORS `interpret.js::ownLookback` EXACTLY. Every form one lane accepts the
+#: other must accept identically — `tests/test_ast_lookback_parity.py` measures it
+#: on the shipped manifest, because a lane that reads `2*arg3` as `arg3` would
+#: fetch half the bars ADX needs and answer from data it never had.
+_LOOKBACK_RE = re.compile(r"(?:(\d+)\s*\*\s*)?arg(\d+)\Z")
+
+
 def _own_lookback(node: dict, spec: Mapping[str, Any]) -> int:
-    """The declared lookback of ONE call node: a constant, or a named argument."""
+    """The declared lookback of ONE call node: a constant, a named argument, or a
+    whole MULTIPLE of a named argument (``"2*arg3"``).
+
+    ⭐ The multiple exists because ``adx`` could not be declared without it: its
+    first value lands on bar ``2 * period - 1``, and the table could previously
+    only say "one of my arguments". Over-stating a window costs extra NaN at the
+    left edge; UNDER-stating hands back numbers computed from bars that were never
+    fetched, which is why the indicator was withheld rather than mis-declared.
+    """
     lb = spec.get("lookback")
     if _is_number(lb):
         return int(lb)
-    text = str(lb)
-    if not (text.startswith("arg") and text[3:].isdigit()):
+    m = _LOOKBACK_RE.fullmatch(str(lb))
+    if m is None:
         _refuse("interpret:node",
                 f"{node.get('name')!r} declares lookback {lb!r}, which is neither a "
                 "constant nor an argument")
-    return _window_literal(node, int(text[3:]))
+    times = int(m.group(1)) if m.group(1) else 1
+    return times * _window_literal(node, int(m.group(2)))
 
 
 def max_lookback(ast: Any) -> int:

@@ -139,6 +139,23 @@
       "yields": "num",
       "sentence": "the running value that starts at {0} and becomes {1} on each of the last {2} bars"
     },
+    "adx": {
+      "args": [
+        "series",
+        "series",
+        "series",
+        "int"
+      ],
+      "argRoles": [
+        "high",
+        "low",
+        "close",
+        "period"
+      ],
+      "lookback": "2*arg3",
+      "yields": "num",
+      "sentence": "the {3}-bar ADX of {0}, {1} and {2}"
+    },
     "atan": {
       "args": [
         "series"
@@ -1502,7 +1519,6 @@
   },
   "_functions_excluded": {
     "_": "⭐ THE INDICATORS THE CHART DRAWS THAT A FORMULA STILL CANNOT CALL, EACH WITH THE REASON. ⛔ EVERY KEY WITHOUT A LEADING UNDERSCORE IS A NAME A FORMULA MAY NOT SPELL, and a key WITH one is a note about the section; that split is load-bearing rather than cosmetic, because `conceptVocabulary.test.js` derives its undeclared-name probe from the non-underscore keys. Its probe used to be the literal `rsi`, which stopped being undeclared the day Phase F declared it -- a rail that went green by being overtaken. Declaring one of these means DELETING its key here, which moves the probe to the next refusal instead of silently leaving the rail pointing at a name that is now legal. Same identity `_scalars_excluded` carries and for the same reason: a declared list on its own is a list of what somebody remembered, and a member who cannot find `obv` deserves to know whether it was forgotten or refused. Every entry here was CONSIDERED against `_no_offset`'s rule — a lookback that is a constant or a named argument, so `maxLookback(ast)` stays a tree sum — and refused. ⛔ Adding one is not an implementation task: it either re-opens `_no_offset` (which `_no_offset_reopened_by` assigns to the owner of the repaint claim plus the owner of this manifest, together) or it needs a declaration form this table does not have.",
-    "adx": "ITS WINDOW IS `2 * period` AND THIS TABLE CANNOT SAY THAT. ADX is a second Wilder smoothing of DX, so `compute_adx_raw` lands its first value on bar `2 * period - 1`; `lookback` may be a constant or ONE named argument, and no constant bounds every period. Declaring `arg3` would UNDER-state the window, which `_functions_warmup` names as the one direction a budget cannot use. `plusDI` and `minusDI` ARE declared — they land on bar `period` — so the DI cross is expressible; the trend-strength line is not. ⛔ It is also not composable: ADX smooths DX with Wilder's `k = 1/n`, and this table's `ema` is `k = 2/(n+1)`.",
     "obv": "CUMULATIVE FROM THE FIRST BAR, WITH NO ABSOLUTE SEED. On-Balance Volume at bar i is the signed sum of every volume since the series began, so its LEVEL is a fact about where the fetch started rather than about the market — hand it 500 bars and 5,000 and the same date reads two different numbers. No finite lookback bounds it and none of this table's declarations can say `all of it`, which is exactly `lesson_a_derived_value_must_not_depend_on_the_request`: a rolling value gets a warm-up prefix, a cumulative one needs an ABSOLUTE seed, and OBV has none. The CHART may draw it because a chart owns its whole window; a formula evaluated over a lookback-sized slice may not.",
     "sar": "STATEFUL, PATH-DEPENDENT, AND WITH NO PERIOD ARGUMENT TO DECLARE A WINDOW FROM. Parabolic SAR carries a trend flag, an extreme point and an acceleration factor forward from the first bar, and a MISSED TREND FLIP never decays out of the state the way an EMA's seed error does. So the value depends on the whole series, `step`/`max_step` are floats this table's only literal cannot express as arguments anyway, and any finite lookback would brand a number computed from a different history than the chart's. ⚠️ `compute_sar_events` is the alert-side reader and stays where it is — an EVENT column the alert catalog owns, not a function a formula composes.",
     "vwap": "SESSION-ANCHORED, SO ITS WINDOW IS A PROPERTY OF THE CLOCK AND NOT OF THE TREE. `computeVWAP` restarts at every ET calendar-day boundary, which means the bars it reads at bar i are `back to this session's open` — neither a constant nor a named argument, and it changes with the timeframe. Worse for this table specifically: deciding it needs the bar's TIMESTAMP, and `series` declares five fields and `t` is not one of them. Making vwap callable means either declaring the anchor as an argument kind this table does not have, or admitting a window `maxLookback` cannot sum — which is the trade `_no_offset` refuses on the owner's behalf.",
@@ -1518,7 +1534,8 @@
     "variance": "ALREADY EXPRESSIBLE: `stdev(x, n) * stdev(x, n)`. ⚠️ AND THE DIVISOR IS THE POINT — this table's `stdev` is the POPULATION deviation (divisor `n`), stated where it is implemented and matched in both lanes, so the square of it is the POPULATION variance. A declared `variance` computed independently would be one refactor away from disagreeing with the `stdev` it is supposed to be the square of.",
     "cross": "ALREADY EXPRESSIBLE: `crossOver(a, b) || crossUnder(a, b)`. ⚠️ The `||` is the table's logical OR over a 0/1 column (`_booleans`), so the result is 0/1/NaN exactly as each half is — a declared `cross` would have to reproduce that domain and could get it wrong.",
     "_ichimokuSpanA_note": "NOT EXCLUDED — declared above. It is listed here only to record that its window is `max(tenkan, kijun)` in the textbook and `senkouB` in the shipped implementation, and the shipped one is what `arg4` declares.",
-    "_ichimoku_forward_cloud": "THE STANDARD 26-BAR FORWARD DISPLACEMENT OF THE CLOUD IS NOT DRAWN BY THIS PRODUCT AND IS THEREFORE NOT DECLARABLE. `indicators.js` records the deviation deliberately (`spanA`/`spanB` sit over the price that produced them, not 26 bars ahead) and `compute_ichimoku_raw` mirrors it. Declaring `forward: arg3` on the two spans would brand them `preview-repaints` for a displacement the compute does not perform — a badge describing maths that does not run. ⭐ `ichimokuChikou` IS declared with a `forward`, because that one really does read `close[j + kijun]`, and it is the table's first and only entry whose repaint verdict is `preview-repaints` rather than `non-repainting`."
+    "_ichimoku_forward_cloud": "THE STANDARD 26-BAR FORWARD DISPLACEMENT OF THE CLOUD IS NOT DRAWN BY THIS PRODUCT AND IS THEREFORE NOT DECLARABLE. `indicators.js` records the deviation deliberately (`spanA`/`spanB` sit over the price that produced them, not 26 bars ahead) and `compute_ichimoku_raw` mirrors it. Declaring `forward: arg3` on the two spans would brand them `preview-repaints` for a displacement the compute does not perform — a badge describing maths that does not run. ⭐ `ichimokuChikou` IS declared with a `forward`, because that one really does read `close[j + kijun]`, and it is the table's first and only entry whose repaint verdict is `preview-repaints` rather than `non-repainting`.",
+    "_adx_was_here": "ADX WAS EXCLUDED HERE UNTIL 2026-08-11, and the reason it gave was correct at the time: ITS WINDOW IS `2 * period` AND THIS TABLE CANNOT SAY THAT. The table can say it now — `lookback` accepts a whole multiple of an argument (`2*arg3`), mirrored in both lanes and measured by tests/test_ast_lookback_parity.py. The second half of the old note still stands and is why `adx` BINDS the shipped computeADX/compute_adx_raw rather than being composed: ADX smooths DX with Wilder's k = 1/n and this table's `ema` is k = 2/(n+1), so an expansion would have been a look-alike."
   },
   "_scalars_excluded": {
     "ticker": "the row's IDENTITY, not a value a formula reads. `ticker == \"AAPL\"` needs a string literal and this table's only literal is a number",

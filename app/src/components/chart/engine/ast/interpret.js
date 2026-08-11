@@ -47,7 +47,7 @@
 //     refusal. There is no `try` anywhere in this file, and `budget.test.js`
 //     asserts that structurally so the relabelling cannot be introduced quietly.
 
-import { TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, isPointwise } from './parse.js'
+import { TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, isPointwise, LOOKBACK_RE } from './parse.js'
 // ⚠️ A REAL ES MODULE CYCLE, DELIBERATELY — `budget.js` imports `maxLookback`,
 // `nodeCount` and `TableRefusal` back out of this file, because a second copy of
 // either measurement is a second grammar (there are already two `maxLookback`s
@@ -608,6 +608,12 @@ export const FN = Object.freeze({
     : bindShipped(['c'], [s], s.length, (bars) => computeMACD(bars, fast, slow, 1).macd)),
 
   atr: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeATR(bars, n)),
+  // ⭐ BOUND TO THE SHIPPED IMPLEMENTATION, NEVER COMPOSED. `computeADX`
+  // already returns all three lines and is what the chart draws, so `adx`
+  // cannot drift from the +DI/-DI a member sees beside it. Composing it from
+  // `ema` would have been a LOOK-ALIKE: ADX smooths DX with Wilder's k = 1/n
+  // and this table's `ema` is k = 2/(n+1).
+  adx: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeADX(bars, n).adx),
   plusDI: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeADX(bars, n).plusDI),
   minusDI: (h, l, c, n) => bindShipped(HLC, [h, l, c], c.length, (bars) => computeADX(bars, n).minusDI),
   // %K only. %D is `sma(stoch(…), d)` — see `_functions_excluded.stochD`, and
@@ -807,16 +813,40 @@ function offsetBars(node) {
   return n
 }
 
-/** The declared lookback of ONE call node: a constant, or a named argument. */
+/** The declared lookback of ONE call node: a constant, a named argument, or a
+ *  whole MULTIPLE of a named argument (`"2*arg3"`).
+ *
+ *  ⭐⭐ THE MULTIPLE EXISTS BECAUSE `adx` COULD NOT BE DECLARED WITHOUT IT.
+ *  `closedTable.json::_functions_excluded` carried this for months in its own
+ *  words: *"ITS WINDOW IS `2 * period` AND THIS TABLE CANNOT SAY THAT … Declaring
+ *  `arg3` would UNDER-state the window, which `_functions_warmup` names as the
+ *  one direction a budget cannot use."* So the indicator was withheld rather than
+ *  mis-declared, which was the right call and is now unnecessary.
+ *
+ *  ⛔ OVER-STATING IS SAFE AND UNDER-STATING IS NOT, and that asymmetry is the
+ *  whole reason this grammar is conservative. A window declared too LARGE costs
+ *  extra NaN at the left edge; one declared too SMALL hands back numbers computed
+ *  from bars that were never fetched. `2*arg3` is an upper bound on ADX's true
+ *  `2 * period - 1`, and it is exactly the minimum series length
+ *  `computeADX`/`compute_adx_raw` require before they return anything at all.
+ *
+ *  ⛔ WHOLE MULTIPLES ONLY. No `arg1+arg2`, no arithmetic — every form this
+ *  accepts has to be re-implemented identically in `ast_interpret.py`, and the
+ *  two lanes agreeing is what `test_ast_lookback_parity.py` measures. A grammar
+ *  that grows past what both sides can trivially mirror is how they drift.
+ */
+
+
 function ownLookback(node, spec) {
   const lb = spec.lookback
   if (typeof lb === 'number') return lb
-  const m = /^arg(\d+)$/.exec(String(lb))
+  const m = LOOKBACK_RE.exec(String(lb))
   if (!m) {
     refuse('interpret:node',
       `${JSON.stringify(node.name)} declares lookback ${JSON.stringify(lb)}, which is neither a constant nor an argument`)
   }
-  return windowLiteral(node, Number(m[1]))
+  const times = m[1] === undefined ? 1 : Number(m[1])
+  return times * windowLiteral(node, Number(m[2]))
 }
 
 /** How many bars of history the tree needs. A TREE SUM, never a dataflow pass.

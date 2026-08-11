@@ -5,8 +5,7 @@ import path from 'node:path'
 import {
   sentenceFor, explainSentence, compileRules, coverageGaps, yieldsOf,
   OPERATOR_SENTENCE, OPERATOR_SENTENCE_CONDITIONS, CONDITIONS_FORM_DECLINED,
-  SENTENCE_RULES, SentenceRefusal, REFUSALS as SENTENCE_REFUSALS,
-} from './sentence.js'
+  SENTENCE_RULES, SentenceRefusal, REFUSALS as SENTENCE_REFUSALS, didYouMean } from './sentence.js'
 import { parseFormula, astHash, TABLE, REFUSALS as PARSE_REFUSALS, RECURRENCES, RECURRENCE_BINDINGS } from './parse.js'
 import { REFUSALS as INTERPRET_REFUSALS } from './interpret.js'
 import { lintRepaint } from './lint.js'
@@ -157,6 +156,11 @@ const FORMS = [
   { kind: 'call', name: 'rsi', parts: ['the ', 1, '-bar RSI of ', 0] },
   { kind: 'call', name: 'macd', parts: ['the ', 1, '/', 2, ' MACD line of ', 0] },
   { kind: 'call', name: 'atr', parts: ['the ', 3, '-bar average true range of ', 0, ', ', 1, ' and ', 2] },
+  // ⛔ HAND-WRITTEN, like every form here. Deriving it from `closedTable`'s
+  // `sentence` would make the oracle agree with the renderer by construction and
+  // the round-trip would prove nothing — which is why declaring `adx` in the
+  // manifest correctly FAILED this rail until this line existed.
+  { kind: 'call', name: 'adx', parts: ['the ', 3, '-bar ADX of ', 0, ', ', 1, ' and ', 2] },
   { kind: 'call', name: 'plusDI', parts: ['the ', 3, '-bar +DI of ', 0, ', ', 1, ' and ', 2] },
   { kind: 'call', name: 'minusDI', parts: ['the ', 3, '-bar -DI of ', 0, ', ', 1, ' and ', 2] },
   { kind: 'call', name: 'stoch', parts: ['the ', 3, '-bar stochastic %K of ', 0, ', ', 1, ' and ', 2] },
@@ -670,6 +674,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'operator:||',
       'function:abs',
       'function:accum',
+      'function:adx',
       'function:atan',
       'function:atr',
       'function:cci',
@@ -718,7 +723,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:williamsR',
       'function:wma',
     ])
-    expect(entries.length).toBe(69)
+    expect(entries.length).toBe(70)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -728,7 +733,7 @@ describe('totality over the closed table — derived from the manifest, never ha
     // loop. ⛔ The count is asserted against the list above rather than retyped
     // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(69)
+    expect(subjects.length).toBe(70)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -1854,7 +1859,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       ...CORPUS.cases.map((c) => sentenceFor(c.ast, {})),
       ...treesForTheWholeTable(TABLE).map((t) => sentenceFor(t.ast, {})),
     ]
-    expect(sentences.length).toBe(CORPUS.cases.length + 69)
+    expect(sentences.length).toBe(CORPUS.cases.length + 70)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)
@@ -2293,5 +2298,56 @@ describe('the bounded backward offset, read back', () => {
   it('the offset rule is NAMED in the trace, so a test can ask which rule spoke', () => {
     const { trace } = explainSentence(tree('close[1]'), {}, SENTENCE_RULES)
     expect(trace.some((t) => t.rule === 'offset')).toBe(true)
+  })
+})
+
+// ─── "did you mean …?" — THE HALF A COMPLETE LIST CANNOT SUPPLY ─────────────
+//
+// ⚰️ MEASURED 2026-08-11. One wrong name answered with a JSON path
+// (`at $.args[0].args[0].args[0]…`) followed by EVERY declared name — five series,
+// fifty-four scalars and the definition's inputs, ~400 characters. For a member
+// who typed `clse`, the answer was buried in the middle of a wall of text.
+//
+// ⛔ THE LIST IS STILL COMPLETE. The case above this one pins it, because the
+// message once named a FALSE vocabulary and telling a member something untrue
+// about the table is the worse failure. The suggestion is ADDED, never instead.
+describe('a near-miss name is suggested, and the vocabulary is still named', () => {
+  const messageFor = (name) => {
+    try { sentenceFor({ type: 'series', name }, {}); return null } catch (e) { return e.message }
+  }
+
+  it('🔴 a one-letter typo on a series gets the answer up front', () => {
+    const m = messageFor('clse')
+    expect(m).toContain('did you mean `close`?')
+    // ⛔ …and the full list is STILL there.
+    expect(m).toContain('close, high, low, open, volume')
+  })
+
+  it('suggests a scalar too, not just the five series', () => {
+    expect(messageFor('market_cp')).toContain('market_cap')
+    expect(messageFor('rs_rnk')).toContain('did you mean `rs_rank`?')
+  })
+
+  it('⛔ SILENT WHEN NOTHING IS CLOSE — a wrong guess is worse than none', () => {
+    // "did you mean `volume`?" for `frobnicate` sends a member after a name that
+    // was never what they wanted.
+    const m = messageFor('frobnicate')
+    expect(m).not.toContain('did you mean')
+    expect(m, 'the vocabulary must still be named').toContain('close, high, low, open, volume')
+  })
+
+  it('⛔ a SHORT name gets a tighter threshold than a long one', () => {
+    // One edit in `pb` is not the same evidence as one edit in a long name;
+    // without the scaling, every two-letter typo would match half the table.
+    // ONE edit on a two-letter name is inside the threshold…
+    expect(didYouMean('pd', ['pb', 'roe'])).toContain('`pb`')
+    // …TWO is not. `xx` differs from `pb` in both characters, and at that
+    // distance a two-letter name matches half the table.
+    expect(didYouMean('xx', ['pb', 'ps', 'roe'])).toBe('')
+  })
+
+  it('offers at most two, so the hint stays a hint', () => {
+    const out = didYouMean('pe_tt', ['pe_ttm', 'pe_fwd', 'peg', 'ps', 'pb'])
+    expect((out.match(/`/g) || []).length / 2).toBeLessThanOrEqual(2)
   })
 })

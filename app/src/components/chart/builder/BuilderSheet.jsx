@@ -262,6 +262,10 @@ export default function BuilderSheet({
   const [savedRow, setSavedRow] = useState(null)
   /** Escape / Cancel asked to close while there was unsaved work. See `dirty`. */
   const [confirmDiscard, setConfirmDiscard] = useState(false)
+  /** Bumped whenever a lane OTHER than the concierge writes the formula box —
+   *  a starter, a Pine paste. `ConciergeBox` compares it against the value its
+   *  description was last typed against, and says so rather than deleting it. */
+  const [replacedAt, setReplacedAt] = useState(0)
   const [copied, setCopied] = useState(false)
   // ⭐ THE EDIT TARGET: `{defId, version}` off the STORE's row, or null for a
   // create. It is the id the store minted — never `draftDefId()`'s — because the
@@ -323,6 +327,18 @@ export default function BuilderSheet({
     setEditing({ defId: row.def_id, version: Number(row.version) || 1 })
     setName(String(row?.definition?.meta?.name || ''))
     setSource(src)
+    // ⭐ OPENING A SAVED FORMULA IS A LANE LIKE ANY OTHER. Found by enumerating
+    // every `setSource` site rather than patching the two I happened to have
+    // tested: a member with a description in the box who opens one of their own
+    // formulas to edit was left with a sentence describing something else, above
+    // a Draft button that would overwrite the formula they had just opened.
+    //
+    // ⛔ THE OTHER THREE WRITERS DELIBERATELY DO NOT BUMP, and that is the whole
+    // classification: the concierge's own `onAccept` matches its description BY
+    // DEFINITION; `cancelEdit` clears to a blank box, where the description is
+    // still the natural next thing to draft from; and the open-reset unmounts the
+    // box entirely (`if (!open) return null`), so its prompt is already gone.
+    setReplacedAt((n) => n + 1)
     setResult(evaluateFormula(src, BUILDER_INPUT_SCOPE))
     // ⛔ AND THE SHEET MOVES TO THE FORMULA. A new sheet opens on the Library
     // because a member with nothing in the box is helped by worked examples; a
@@ -624,6 +640,7 @@ export default function BuilderSheet({
             bars={bars}
             kind={buildMode === 'picker' ? 'scan' : 'indicator'}
             disabled={saving}
+            replacedAt={replacedAt}
             onAccept={(proposal) => setSource(proposal?.source || '')}
           />
 
@@ -702,6 +719,18 @@ export default function BuilderSheet({
                 // the gesture: *"here is a working scan, now change it"*.
                 setSource(entry.source)
                 setBuildMode('formula')
+                // ⭐ …EXCEPT THE NAME, WHICH IS A FORM FIELD AND NOT PART OF THE
+                // WRITE PATH. ⚰️ Measured 2026-08-11: clicking "Open it and edit"
+                // on **Classic Flag/Pullback** loaded its formula and left Name
+                // empty, so the sheet answered a member who had just picked a
+                // named firm setup with "Give it a name to save." — asking them to
+                // retype a name the dialog was already showing them.
+                //
+                // ⛔ ONLY WHEN IT IS EMPTY. Overwriting a name the member typed
+                // would be the same class of loss as the Escape bug: browsing the
+                // library after naming your own work must not rename it.
+                setName((prev) => (prev.trim() ? prev : entry.setup))
+                setReplacedAt((n) => n + 1)
               }}
             />
           )}
@@ -716,6 +745,7 @@ export default function BuilderSheet({
                 // same), not a prebuilt document, not a hash.
                 setSource(formula)
                 setBuildMode('formula')
+                setReplacedAt((n) => n + 1)
               }}
             />
           )}

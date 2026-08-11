@@ -342,3 +342,64 @@ describe('the sheet still behaves as it did', () => {
     expect(field()).toHaveValue('rs_rank > 80')
   })
 })
+
+// ─── A STARTER BRINGS ITS NAME ───────────────────────────────────────────────
+//
+// ⚰️ MEASURED IN PRODUCTION 2026-08-11. Clicking "Open it and edit" on **Classic
+// Flag/Pullback** loaded its formula and left Name EMPTY — so the sheet answered a
+// member who had just picked a named firm setup with "Give it a name to save.",
+// asking them to retype a name it was showing them on the same screen.
+describe('🔴 "Open it and edit" carries the setup`s name', () => {
+  it('prefills Name from the starter', async () => {
+    mount()
+    await flush()
+    fireEvent.click(screen.getAllByText(/open it and edit/i)[0])
+    await flush()
+    expect(screen.getByLabelText('Name').value).toBe('Classic Flag/Pullback')
+  })
+
+  it('⛔ …and NEVER overwrites a name the member already typed', async () => {
+    // Same class of loss as the Escape bug: browsing the library after naming
+    // your own work must not rename it.
+    mount()
+    await flush()
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'My own name' } })
+    await flush()
+    fireEvent.click(screen.getAllByText(/open it and edit/i)[0])
+    await flush()
+    expect(screen.getByLabelText('Name').value).toBe('My own name')
+  })
+})
+
+// ⛔⛔ THE WIRE, NOT THE COMPONENT. `ConciergeBox.test.jsx` proves the box marks
+// its description stale WHEN HANDED a changed `replacedAt` — and stayed green
+// while `BuilderSheet` stopped bumping it. A mutation run caught that: deleting
+// `setReplacedAt` from the starter lane broke nothing. Component tests are
+// structurally blind to a severed wire, which is this repo's most repeated defect,
+// so this case drives the REAL sheet: type a description, pick a starter, and the
+// mark must appear on the real box.
+describe('🔴 picking a starter marks the description stale — through the SHEET', () => {
+  it('the note appears on the real concierge box', async () => {
+    mount()
+    await flush()
+    fireEvent.change(screen.getByRole('textbox', { name: /plain English/i }),
+      { target: { value: 'stocks above the 200 day average' } })
+    await flush()
+    expect(screen.queryByTestId('concierge-stale')).toBeNull()
+
+    fireEvent.click(screen.getAllByText(/open it and edit/i)[0])
+    await flush()
+
+    expect(screen.getByTestId('concierge-stale'),
+      'the sheet loaded a starter and never told the description it was stale')
+      .toBeTruthy()
+  })
+
+  it('⛔ THE CONTROL — with no description there is nothing to mark', async () => {
+    mount()
+    await flush()
+    fireEvent.click(screen.getAllByText(/open it and edit/i)[0])
+    await flush()
+    expect(screen.queryByTestId('concierge-stale')).toBeNull()
+  })
+})

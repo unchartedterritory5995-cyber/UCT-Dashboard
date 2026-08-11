@@ -89,6 +89,27 @@ def get_breadth_universe():
     return {"tickers": tickers, "date": d, "count": len(tickers)}
 
 
+@router.get("/api/breadth-monitor/live-diag")
+def breadth_live_diag(request: Request):
+    """Anchor/coverage diagnostics for the live breadth read — the WHY behind an
+    un-anchored (raw) intraday read, especially early in the session before bars.db
+    prior-day coverage for the breadth universe is warm. Returns ONLY coverage/anchor
+    STATE (no breadth metric values). PUSH_SECRET-gated."""
+    _check_auth(request)
+    from api.services import breadth_live as bl
+    if not bl.enabled():
+        return {"enabled": False}
+    try:
+        p = bl.compute_live() or {}
+    except Exception as e:
+        return {"enabled": True, "error": repr(e)}
+    keys = ("ok", "reason", "session_live", "market_open", "session_date", "levels_as_of",
+            "anchored", "anchored_to", "degraded", "bars_coverage", "counts_anchored",
+            "anchor_withheld", "measured", "universe_size", "universe_date", "snapshot_size",
+            "traded_share", "as_of")
+    return {k: p.get(k) for k in keys}
+
+
 @router.post("/api/breadth-monitor/history/pull-now")
 def pull_breadth_ohlc_now(request: Request):
     """Force an immediate web-side pull + gap-fill merge of the latest breadth OHLC

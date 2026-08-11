@@ -149,6 +149,61 @@ function refuse(guard, detail) {
   throw new SentenceRefusal(guard, `${REFUSALS[guard]} ${detail}`)
 }
 
+/** Edit distance, capped — we only ever care whether it is SMALL. */
+function editDistance(a, b) {
+  const m = a.length
+  const n = b.length
+  if (Math.abs(m - n) > 3) return 99
+  let prev = Array.from({ length: n + 1 }, (_, j) => j)
+  for (let i = 1; i <= m; i += 1) {
+    const cur = [i]
+    for (let j = 1; j <= n; j += 1) {
+      cur[j] = Math.min(
+        prev[j] + 1,
+        cur[j - 1] + 1,
+        prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1),
+      )
+    }
+    prev = cur
+  }
+  return prev[n]
+}
+
+/** ⭐⭐ "did you mean `close`?" — THE HALF A COMPLETE LIST CANNOT SUPPLY.
+ *
+ *  ⚰️ MEASURED 2026-08-11. Typing one wrong name answered with a JSON path
+ *  (`at $.args[0].args[0].args[0]…`) followed by EVERY declared name — five
+ *  series, fifty-four scalars and the definition's own inputs, ~400 characters of
+ *  it. For a member who typed `clse` that is a wall of text with the answer buried
+ *  in the middle of it.
+ *
+ *  ⛔ THE LIST IS NOT TRUNCATED, AND THAT IS DELIBERATE. `sentence.test.js` pins
+ *  it because the message once named a FALSE vocabulary — five series while the
+ *  table declared fifty-nine names — and telling a member something untrue about
+ *  the table is the worse failure. `lesson_a_differ_can_truncate_the_names_a_rail_
+ *  exists_to_report` is the same rule. So the suggestion is ADDED IN FRONT of the
+ *  list, never instead of it.
+ *
+ *  ⚠️ Silent when nothing is close. A wrong guess ("did you mean `volume`?" for
+ *  `frobnicate`) is worse than no guess: it sends the member off after a name that
+ *  was never what they wanted.
+ */
+export function didYouMean(name, candidates) {
+  if (typeof name !== 'string' || !name) return ''
+  const needle = name.toLowerCase()
+  // Distance scales with length: one typo in `pb` is not the same evidence as one
+  // typo in `pullback_depth_pct`.
+  const limit = needle.length <= 4 ? 1 : needle.length <= 8 ? 2 : 3
+  const near = candidates
+    .map((c) => ({ c, d: editDistance(needle, String(c).toLowerCase()) }))
+    .filter((x) => x.d <= limit)
+    .sort((a, b) => a.d - b.d || String(a.c).localeCompare(String(b.c)))
+    .slice(0, 2)
+    .map((x) => x.c)
+  if (!near.length) return ''
+  return ` — did you mean ${near.map((n) => `\`${n}\``).join(' or ')}?`
+}
+
 /** ⛔ THE ONLY WAY THIS MODULE ASKS WHETHER A NAME EXISTS. `name in obj` walks
  *  the prototype chain and `obj[name]` returns whatever it finds there — which
  *  is how `toString` becomes a series in a text box. */
@@ -737,8 +792,13 @@ function renderName(node, rules, inputs, path, trace) {
     trace.push({ path, rule: 'series:input' })
     return `the input ${name}`
   }
+  // ⭐ THE SUGGESTION COMES FIRST, THE FULL LIST STILL FOLLOWS. See `didYouMean`.
+  const suggestion = didYouMean(name, [
+    ...sortedKeys(rules.series), ...sortedKeys(scalarRules), ...sortedKeys(inputs),
+  ])
   refuse('sentence:name',
-    `at ${path}: ${JSON.stringify(name)} — this table declares ${sortedKeys(rules.series).join(', ')}`
+    `at ${path}: ${JSON.stringify(name)}${suggestion}`
+    + ` — this table declares ${sortedKeys(rules.series).join(', ')}`
     + `, its scalars are ${sortedKeys(scalarRules).join(', ') || 'none'}`
     + `, and this definition declares ${sortedKeys(inputs).join(', ') || 'no inputs'}`)
 }

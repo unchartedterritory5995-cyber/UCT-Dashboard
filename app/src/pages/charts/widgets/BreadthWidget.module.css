@@ -144,6 +144,7 @@
   gap: 4px;
 }
 .hmTile {
+  position: relative;   /* anchors the hover ✕ */
   flex: 1 1 96px;
   min-width: 88px;
   display: flex;
@@ -189,3 +190,185 @@
   .hmTile { flex-basis: 80px; min-width: 74px; }
   .hmTileVal { font-size: 13px; }
 }
+
+/* ── Header row ("Breadth Monitor" · ＋ · ⚙) — same 34px rhythm as .bar so the
+   bottom divider still lands on the chart widget's gridline beside it. ── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  min-height: 34px;
+  box-sizing: border-box;
+  position: relative;   /* anchors the ＋ add-menu */
+  background: var(--bw-elev, var(--bg-elevated));
+  border-bottom: 1px solid var(--bw-divider, var(--border));
+  flex-shrink: 0;
+}
+.title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--bw-header, var(--bw-text-strong, var(--text)));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.headerBtns { margin-left: auto; display: inline-flex; align-items: center; gap: 2px; }
+.iconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: var(--bw-text-dim, var(--text-muted));
+  cursor: pointer;
+  opacity: 0.8;
+  transition: color 0.1s, background 0.1s, opacity 0.1s;
+}
+.iconBtn:hover { opacity: 1; color: var(--bw-accent, var(--ut-gold)); background: var(--bw-hover, rgba(255, 255, 255, 0.06)); }
+.iconBtnActive { opacity: 1; color: var(--bw-accent, var(--ut-gold)); background: var(--bw-accent-bg, rgba(201, 168, 76, 0.12)); }
+
+/* ── Per-tile remove ✕ (appears on tile hover, top-right) ── */
+.hmTileX {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 2;   /* above the backdrop sparkline */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 3px;
+  color: var(--bw-value, rgba(255, 255, 255, 0.85));
+  background: rgba(0, 0, 0, 0.28);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 0.1s, background 0.1s;
+}
+.hmTile:hover .hmTileX { opacity: 0.85; }
+.hmTileX:hover { opacity: 1; background: rgba(200, 40, 40, 0.85); color: #fff; }
+
+/* ── Footer (last-updated + refresh) — mirrors the Scanner widget's footer ── */
+.footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--bw-text-dim, var(--text-muted));
+  border-top: 1px solid var(--bw-divider, var(--border));
+  background: var(--bw-elev, var(--bg-elevated));
+  white-space: nowrap;
+  overflow: hidden;
+}
+.footerUpdated { overflow: hidden; text-overflow: ellipsis; }
+.footerRefresh {
+  margin-left: auto;
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--bw-text-dim, var(--text-muted));
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+}
+.footerRefresh:hover { color: var(--bw-accent, var(--ut-gold)); background: var(--bw-hover, rgba(255, 255, 255, 0.06)); }
+.footerRefreshSpin { animation: bwSpin 0.7s linear infinite; }
+@keyframes bwSpin { to { transform: rotate(360deg); } }
+
+/* ── ＋ add/remove menu (grouped checklist). Portaled to <body> + placed BESIDE
+   the widget (fixed coords from JS), like the ⚙ settings panel. ── */
+.addMenu {
+  position: fixed;
+  z-index: 4000;
+  width: 244px;
+  max-height: 72vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--menu-bg, #0c0c0e);
+  border: 1px solid var(--menu-border, #26262a);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px var(--menu-shadow, rgba(0, 0, 0, 0.55));
+  color: var(--menu-text, #e6e6e8);
+  overflow: hidden;
+}
+.addMenuHead {
+  padding: 7px 10px 5px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--menu-accent, var(--ut-gold));
+  opacity: 0.85;
+}
+.addMenuScroll { overflow-y: auto; padding: 2px 4px 6px; scrollbar-width: thin; }
+.addMenuGroup { margin-top: 4px; }
+.addMenuGroupLabel {
+  padding: 3px 6px 2px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--menu-text, #e6e6e8);
+  opacity: 0.5;
+}
+.addMenuItem {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  padding: 4px 6px;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--menu-text, #e6e6e8);
+  font-size: 11px;
+}
+.addMenuItem:hover { background: var(--menu-hover, rgba(255, 255, 255, 0.06)); }
+.addMenuCheck {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--menu-border, #3a3a3e);
+  border-radius: 3px;
+  color: #0e0f0d;
+}
+.addMenuCheckOn { background: var(--menu-accent, var(--ut-gold)); border-color: var(--menu-accent, var(--ut-gold)); }
+.addMenuLabel { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Tile sparkline styles (⚙ Tile style) ── */
+/* Inline line strip under the value ('spark'). */
+.tileSparkInline {
+  display: block;
+  width: 100%;
+  height: 15px;
+  margin-top: 3px;
+  overflow: visible;
+}
+/* Backdrop trend chart behind the label/value ('area' / 'ghost'). */
+.tileSparkBg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+}
+/* Keep the label + value legible above a backdrop chart. */
+.hmTileBackdrop .hmTileLabel,
+.hmTileBackdrop .hmTileVal { position: relative; z-index: 1; }
