@@ -178,6 +178,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
       setComparison: (arr) => persistActiveSettings({ ...chartCsRef.current, comparisonSymbols: arr, preset: 'custom' }),
       getPercentScale: () => !!chartCsRef.current?.percentScale,
       setPercentScale: (on) => persistActiveSettings({ ...chartCsRef.current, percentScale: !!on, logScale: false, preset: 'custom' }),
+      getRect: () => paneRef.current?.getRect?.() || null,
     })
     return () => { chartApiById.current.delete(id) }
   }, [chartApiById, persistActiveSettings])

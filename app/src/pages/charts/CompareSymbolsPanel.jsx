@@ -12,9 +12,35 @@ import styles from './PeriodSortPanel.module.css'
 import c from './CompareSymbolsPanel.module.css'
 
 const DEF_W = 288, MIN_W = 220
+// Fixed DARK menu palette — chart popovers stay dark in every app theme (the
+// shared .panel + this body key off --menu-*; without pinning them the panel
+// inherited the light theme's near-white values and read as invisible text).
+const MENU_VARS = {
+  '--menu-bg': '#15161a',
+  '--menu-text': '#ececef',
+  '--menu-border': '#33343a',
+  '--menu-accent': 'var(--ut-gold, #c9a84c)',
+  '--menu-hover': 'rgba(255, 255, 255, 0.07)',
+  '--menu-shadow': 'rgba(0, 0, 0, 0.6)',
+}
+
+// Center the panel on the ACTIVE chart widget (via the chart api's getRect),
+// falling back to the viewport centre.
+function centeredPos(chartApiById, activeChartRef) {
+  try {
+    const map = chartApiById?.current
+    const active = activeChartRef?.current
+    const api = map && (active && map.has(active) ? map.get(active) : (map.size ? map.get([...map.keys()][0]) : null))
+    const r = api?.getRect?.()
+    if (r && r.width) {
+      return { x: Math.round(Math.max(8, r.left + (r.width - DEF_W) / 2)), y: Math.round(Math.max(8, r.top + (r.height - 300) / 2)) }
+    }
+  } catch { /* fall through */ }
+  return { x: Math.max(12, Math.round((window.innerWidth - DEF_W) / 2)), y: 96 }
+}
 
 export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onClose }) {
-  const [pos, setPos] = useState(() => ({ x: Math.max(12, Math.round((window.innerWidth - DEF_W) / 2)), y: 96 }))
+  const [pos, setPos] = useState(() => centeredPos(chartApiById, activeChartRef))
   const [width, setWidth] = useState(DEF_W)
   const [symbols, setSymbols] = useState([])
   const [mode, setMode] = useState('overlay')  // 'overlay' | 'pct'
@@ -32,10 +58,12 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
         const active = activeChartRef?.current
         const api = (active && map.has(active)) ? map.get(active) : map.get([...map.keys()][0])
         if (api) {
+          const first = !apiRef.current
           apiRef.current = api
           setSymbols(api.getComparison() || [])
           setMode(api.getPercentScale() ? 'pct' : 'overlay')
           setReady(true)
+          if (first) setPos(centeredPos(chartApiById, activeChartRef))  // re-center once the chart is mounted
           return true
         }
       }
@@ -96,7 +124,7 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
   }
 
   return (
-    <div className={styles.panel} style={{ left: pos.x, top: pos.y, width, height: 'auto' }}>
+    <div className={styles.panel} style={{ ...MENU_VARS, left: pos.x, top: pos.y, width, height: 'auto' }}>
       <div className={styles.header} onPointerDown={onHeaderPointerDown}>
         <span className={styles.grip} aria-hidden="true" />
         <span className={c.title}>Compare Symbols</span>

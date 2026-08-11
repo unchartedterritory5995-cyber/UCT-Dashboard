@@ -361,16 +361,21 @@
    at ~top: 8px). Pointer events off so it doesn't steal hover. */
 .comparisonLegend {
   position: absolute;
-  top: 50px;
-  left: 16px;
+  /* Top-center, in the drawing-toolbar row's clear middle (like the Exit-Replay
+     pill) — NOT top-left, where it covered the OHLC legend. */
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 50;
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
-  background: rgba(0, 0, 0, 0.5);
-  padding: 4px 8px;
-  border-radius: 4px;
+  justify-content: center;
+  max-width: 60%;
+  background: rgba(10, 10, 12, 0.72);
+  padding: 3px 10px;
+  border-radius: 5px;
   font-family: var(--font-mono, 'IBM Plex Mono', monospace);
   font-size: 11px;
   pointer-events: none;
