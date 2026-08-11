@@ -1198,6 +1198,7 @@ export default function StockChart({
   hideLastValue = false,    // hide the last-price axis tag on the price series
   volumeLastValue = false,  // show the current-volume axis tag on the volume pane's right scale (like the price tag on the main chart). Opt-in so Model Book (which deliberately hides it) is unaffected.
   volumeSeparatePane = false, // force volume into its own draggable bottom pane
+  blankVolume = false,        // reserve an EMPTY, labeled volume pane (TC2000-style). For symbols with no volume (UCT breadth indicators): the pane still occupies its space + shows a "Volume" label, but renders no bars/line and no axis values (the vol series is fed whitespace, so the price scale has nothing to label). Implies a separate volume pane.
   priceScaleBottomMargin = null, // small gap below price (above a separate vol pane)
   markVolumeExtremes = false, // gold the highest-volume-ever bar (Model Book)
   disableHvc = false,         // force the 52W-volume-high gold bars OFF (intraday popup)
@@ -1838,9 +1839,11 @@ export default function StockChart({
   )
 
   // Prop overrides — memoized to prevent unstable references
-  const showVolume = showVolumeProp !== undefined ? showVolumeProp : cs.volume.visible
+  // blankVolume reserves an empty, labeled volume pane (breadth symbols with no
+  // volume) — so the pane must be ON and in its own pane regardless of prefs.
+  const showVolume = blankVolume ? true : (showVolumeProp !== undefined ? showVolumeProp : cs.volume.visible)
   // Volume in its own pane (no bottom band reserved on the price scale).
-  const volInSeparatePane = volumeSeparatePane || !!cs.volume?.separatePane
+  const volInSeparatePane = blankVolume || volumeSeparatePane || !!cs.volume?.separatePane
   // When the SURFACE passes these props they WIN over the saved prefs — the OR
   // above ignores a saved `false`, and the height reads `volumePaneHeightPct ??
   // cs.volume.paneHeightPct`. That's deliberate (the charts-workspace recipe tunes
@@ -5029,6 +5032,10 @@ export default function StockChart({
   const liveVolForSym = Number(livePrices?.[sym]?.volume)
   const volData = useMemo(() => {
     if (!sessionAppliedBars?.length) return []
+    // blankVolume (breadth): feed the series WHITESPACE (time-only points). Nothing
+    // draws, and a scale with no values renders no axis labels — so no flat 0-line and
+    // no "0" tag, while the pane itself is still reserved. See the blankVolume prop.
+    if (blankVolume) return sessionAppliedBars.map(b => ({ time: adjustTime(b.t) }))
     // Volume bars track the candle palette EXACTLY so the red/green of the
     // volume pane matches the red/green of the candles above it (a dimmed alpha
     // composites darker over the near-black canvas and reads as a mismatched hue).
@@ -5064,7 +5071,7 @@ export default function StockChart({
             : isUp ? upC : downC,
       }
     })
-  }, [sessionAppliedBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, modelBookLook, volExtremes, colorByNetChange, canvasTheme, liveVolForSym, resolvedTf])
+  }, [sessionAppliedBars, hvcSet, cs.volume.upColor, cs.volume.downColor, adjustTime, boldCandles, modelBookLook, volExtremes, colorByNetChange, canvasTheme, liveVolForSym, resolvedTf, blankVolume])
   // Volume bars past the setup day crossfade with the candles on Setup⇄Result
   // (each bar's existing alpha scaled by the fade). No-op at full opacity. The
   // re-tint effect lives AFTER updateChart (below) so its setData wins over
@@ -5076,6 +5083,7 @@ export default function StockChart({
   }, [volData, candleFrameFade, frameFadeAlpha, fadeCutoff])
   // Smooth N-SMA line for the volume pane (subtle, white).
   const volMaData = useMemo(() => {
+    if (blankVolume) return []  // no volume ⇒ no volume MA line in the empty pane
     if (!volMaPeriodEff || volMaPeriodEff < 2 || !sessionAppliedBars?.length) return []
     const out = []
     const q = []
@@ -5087,7 +5095,7 @@ export default function StockChart({
       if (q.length === volMaPeriodEff) out.push({ time: adjustTime(b.t), value: sum / volMaPeriodEff })
     }
     return out
-  }, [sessionAppliedBars, volMaPeriodEff, adjustTime])
+  }, [sessionAppliedBars, volMaPeriodEff, adjustTime, blankVolume])
   const overlayData = useMemo(() => {
     if (!sessionAppliedBars?.length || !resolvedOverlays?.length) return []
     return resolvedOverlays.map(ov => {
@@ -7155,7 +7163,9 @@ export default function StockChart({
       // Bar style: 'columns' = the built-in HistogramSeries (full-slot bars, the
       // long-standing look); 'histogram' = ThinVolumeSeries (custom series drawing
       // thin bars with a gap between each, TC2000-style).
-      const volBarStyle = cs.volume?.barStyle === 'histogram' ? 'histogram' : 'columns'
+      // blankVolume feeds whitespace — the built-in HistogramSeries handles that
+      // natively, so force 'columns' rather than risk the custom ThinVolumeSeries.
+      const volBarStyle = (!blankVolume && cs.volume?.barStyle === 'histogram') ? 'histogram' : 'columns'
       // priceScaleId / paneIndex / series TYPE are fixed at creation, so recreate
       // when the target scale OR the bar style changes. The ref stores a composite
       // key (was just the scale id) — only ever compared for equality.
@@ -11919,10 +11929,19 @@ export default function StockChart({
           ))}
         </div>
       )}
+      {/* blankVolume (breadth): a plain "Volume" label so the empty pane still reads
+          as the volume pane (TC2000-style), with no $ Vol / Avg values. */}
+      {blankVolume && showVolLegend && cs.volume?.labelVisible !== false && chartReady && (
+        <div ref={volLegendRef} className={styles.volLegend}>
+          <span className={styles.volLegItem}>
+            <span className={styles.volLegLabel}>Volume</span>
+          </span>
+        </div>
+      )}
       {/* Volume-pane legend (top-left): dollar volume + average volume over the MA
           period. Follows the crosshair (or the latest bar), pinned live to the top
           of the volume pane. */}
-      {showVolLegend && cs.volume?.labelVisible !== false && chartReady && crosshairData && (crosshairData.dollarVol != null || crosshairData.volAvg != null) && (
+      {!blankVolume && showVolLegend && cs.volume?.labelVisible !== false && chartReady && crosshairData && (crosshairData.dollarVol != null || crosshairData.volAvg != null) && (
         <div ref={volLegendRef} className={styles.volLegend}>
           {crosshairData.dollarVol != null && (
             <span className={styles.volLegItem}>

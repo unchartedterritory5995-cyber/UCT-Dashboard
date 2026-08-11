@@ -516,6 +516,12 @@ function ChartPane({
             liveUpdates: false,
             watermark: sym,
             watermarkName: breadthRec.name,
+            // Breadth indicators have no volume — the synthetic bars carry vol=0, which
+            // otherwise paints a flat line pinned at 0 (plus a "0" axis tag and a
+            // "$ Vol $0" legend) in the volume pane. Render the volume pane EMPTY: it
+            // still occupies its space + keeps a "Volume" label (TC2000-style), but no
+            // line, no bars, no axis values.
+            blankVolume: true,
           } : {})}
           {...(themeIdx.isIndex ? {
             barsOverride: themeIdx.bars,
