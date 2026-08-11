@@ -245,16 +245,25 @@ export default function VideosSection() {
   // Deep link: /desk?section=videos&v=<youtube_id> auto-plays that video once
   // the catalog loads (session-recap links in Discord/email point here). Fires
   // at most once per mount so it can't re-hijack the player after the user
-  // closes it or picks something else.
+  // closes it or picks something else. An optional &t=<seconds> (Phase 2B —
+  // ticker-moment / mention links: "what did the Desk say about this that
+  // day") rides along as a one-shot { startAt } — the SAME rail course
+  // lessons use for "watch from 22:20" picks (videoStore.play's opts.startAt,
+  // consumed by GlobalVideoLayer once the player is actually ready; see
+  // PathView.jsx's startAtOptsFor). No polling needed here — the store
+  // already owns the readiness problem.
   const [searchParams, setSearchParams] = useSearchParams()
   const deepLinkDone = useRef(false)
   useEffect(() => {
     if (deepLinkDone.current || !categories.length) return
     const ytid = searchParams.get('v')
     if (!ytid) { deepLinkDone.current = true; return }
+    const tRaw = searchParams.get('t')
+    const tSec = tRaw != null ? Math.floor(Number(tRaw)) : NaN
+    const startAt = Number.isFinite(tSec) && tSec > 0 ? tSec : null
     for (const cat of categories) {
       const vi = (cat.videos || []).findIndex((v) => v.youtube_id === ytid)
-      if (vi !== -1) { playVideo(cat.videos, vi); break }
+      if (vi !== -1) { playVideo(cat.videos, vi, startAt != null ? { startAt } : undefined); break }
     }
     deepLinkDone.current = true
   }, [categories, searchParams])
