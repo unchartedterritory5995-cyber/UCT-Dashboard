@@ -5927,7 +5927,10 @@ export default function StockChart({
     if (anchorDate) {
       // A new anchor is a FRESH user intent (they clicked a different moment), so it
       // re-takes a view the user had panned away from — the same re-arm a symbol or
-      // timeframe switch performs. Inert if the anchor names no loaded bar.
+      // timeframe switch performs (see `if (!_replayLocked) userViewMovedRef.current =
+      // false` in updateChart). Controller ruling 2026-08-11: an anchorDate change is
+      // navigation, so this re-arm is correct under the RULE — keep it.
+      // Inert if the anchor names no loaded bar.
       if (anchorIdx < 0) return
       userViewMovedRef.current = false
       applyAnchorFrame(chart)
