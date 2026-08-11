@@ -141,7 +141,7 @@ bindings:
         y = x * 2
         y + 1
 
-**2.1 Tuple returns — the ONE remaining structural gap, and the design is settled.**
+**2.1 Tuple returns — ✅ SHIPPED 2026-08-11.**
 
 ⛔ Do NOT build it for builtins. Measured across the corpus, the right-hand side
 of a destructure is: **42 × `request.security`** (Phase 3 — a different question),
@@ -165,7 +165,26 @@ Building builtin tuples would unlock exactly one call site in twenty-one scripts
    resolves `parts[index].node` rather than `value.node`. Mirror the existing
    `finally { this.frames.pop(); this.env = prevEnv }`.
 
-⚠️ **I stopped BEFORE writing this, deliberately.** The three changes are small
+✅ **BUILT — and the corpus number did NOT move, which is the honest result.**
+Script 02 cleared `pine:tuple` and met `pine:state` on the very next line, so it
+still does not translate. 10 of 21 stands. ⭐ That is `lesson_a_refusal_count_is_
+not_a_progress_metric` playing out exactly as written: a column is usable only
+when EVERY wall in its chain is down, and closing one wall moves names to the
+next one. The feature is right; the score is unchanged; both statements are true.
+
+⚠️ **TWO THINGS THE MUTATION HARNESS CORRECTED, WORTH READING BEFORE THE NEXT ONE:**
+1. `findTop` **cannot find a bracket** — it `continue`s on every one, so its
+   predicate is never offered a `]`. The first cut asked it for the closing
+   bracket, got -1 every time, and did nothing at all while every test still
+   passed for the old reason. `matchBracket` exists because of that.
+2. The `kind === 'tuple'` check does NOT protect `request.security` — that is
+   safe for a different reason (a builtin is not in `env` as a user function).
+   Dropping the check SURVIVED the first mutation run. What it actually guards is
+   a user function returning a SCALAR, and that case had no test until the
+   survivor pointed at it. **A guard tested only through the scenario that
+   motivated it can be guarding nothing.**
+
+⚠️ **Original note, kept because the reasoning still holds:** The three changes are small
 but they must land together: parts 1 and 2 without 3 produce a binding nothing
 can resolve, and part 2 without its `kind === 'tuple'` check would hand
 `request.security`'s first element to a name expecting its third — a translation

@@ -748,6 +748,47 @@ function blockStatements(toks, indents, indent) {
 const isPunct = (tok, value) => !!tok && tok.kind === 'punct' && tok.value === value
 
 /** The index of the first token at bracket depth 0 matching `pred`, or -1. */
+/** One token run split on a top-level separator — the depth rule `findTop` uses.
+ *  ⛔ Depth-aware on purpose: `[f(a, b), c]` is TWO parts, and a naive comma
+ *  split would make it three and hand a fragment to the parser. */
+function splitTopLevel(toks, sep) {
+  const out = []
+  let depth = 0
+  let start = 0
+  for (let i = 0; i < toks.length; i += 1) {
+    const tok = toks[i]
+    if (tok.kind === 'punct') {
+      if (tok.value === '(' || tok.value === '[') { depth += 1; continue }
+      if (tok.value === ')' || tok.value === ']') { depth -= 1; continue }
+      if (depth === 0 && tok.value === sep) { out.push(toks.slice(start, i)); start = i + 1 }
+    }
+  }
+  out.push(toks.slice(start))
+  return out
+}
+
+/** One token run split on a top-level separator — the depth rule `findTop` uses.
+ *  ⛔ Depth-aware on purpose: `[f(a, b), c]` is TWO parts, and a naive comma
+ *  split would make it three and hand a fragment to the parser. */
+/** The index of the bracket closing the one at `open`, or -1.
+ *
+ *  ⛔ NOT `findTop`. That walker `continue`s on every bracket, so its predicate
+ *  is never offered one — asking it for a `]` always answers -1, which is
+ *  exactly how the first cut of tuple support silently did nothing at all. */
+function matchBracket(toks, open) {
+  let depth = 0
+  for (let i = open; i < toks.length; i += 1) {
+    const tok = toks[i]
+    if (tok.kind !== 'punct') continue
+    if (tok.value === '(' || tok.value === '[') depth += 1
+    else if (tok.value === ')' || tok.value === ']') {
+      depth -= 1
+      if (depth === 0) return i
+    }
+  }
+  return -1
+}
+
 function findTop(toks, pred) {
   let depth = 0
   for (let i = 0; i < toks.length; i += 1) {
@@ -1284,6 +1325,27 @@ class Resolver {
         args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
         return cCall('accum', args)
       } finally { this.env = prevEnv }
+    }
+    // ⭐⭐ ONE ELEMENT OF A TUPLE-RETURNING FUNCTION. `[a, b] = f(x)` binds each
+    // name to a part; resolving one INLINES the call exactly as the `fn` arm
+    // below does and then takes its own element. The frame is the call's, so a
+    // part reads the caller's arguments and not somebody else's.
+    if (bound.kind === 'tuplePart') {
+      if (this.frames.length >= MAX_CALL_DEPTH) {
+        throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — \`${name}\``, locate(tok))
+      }
+      const part = bound.fn.value.parts[bound.index]
+      if (!part) {
+        // Unreachable through the destructure, which counts the parts first —
+        // but a refusal beats an `undefined` if another path ever gets here.
+        throw new PineRefusal('pine:tuple',
+          `${REFUSALS['pine:tuple']} — \`${name}\` is element ${bound.index + 1} of a `
+          + `${bound.fn.value.parts.length}-part result`, locate(tok))
+      }
+      this.frames.push(bound.args.map((a) => ({ kind: 'expr', node: a.value, env: bound.env })))
+      const prevEnv = this.env
+      this.env = part.env || prevEnv
+      try { return this.resolve(part.node) } finally { this.frames.pop(); this.env = prevEnv }
     }
     if (bound.kind === 'fn') {
       throw new PineRefusal('pine:function-def',
@@ -2315,6 +2377,32 @@ function foldStatements(stmts, ctx, env) {
       continue
     }
 
+    // ⭐⭐ A BARE `[a, b, c]` AT THE END OF A BODY IS A TUPLE RETURN — the last
+    // structural gap between a pasted script and this engine. User-defined
+    // functions already inline (multi-statement bodies and locals included), so
+    // all a tuple needs is somewhere to put its parts; each element folds in the
+    // function's own scope exactly like any other expression.
+    //
+    // ⛔ MEASURED BEFORE IT WAS BUILT. Across the corpus a destructure's
+    // right-hand side is 42x `request.security`, ~19x user-defined and ONCE a
+    // builtin — so this is deliberately the user-defined path and nothing else.
+    if (isPunct(first, '[') && findTop(toks, (t) => isPunct(t, '=')) < 0) {
+      const close = matchBracket(toks, 0)
+      if (close > 0) {
+        const inner = toks.slice(1, close)
+        const parts = splitTopLevel(inner, ',')
+          .filter((part) => part.length)
+          .map((part) => exprBinding(parseWholeExpression(part), new Map(env), locate(first)))
+        // ⛔ TWO OR MORE. `[x]` is a one-element list, not a tuple, and treating
+        // it as one would give a destructure a shape Pine never wrote.
+        if (parts.length > 1) {
+          value = { kind: 'tuple', parts, at: locate(first) }
+          i += 1
+          continue
+        }
+      }
+    }
+
     // A bare expression. In a function body the LAST one is the value; anywhere
     // else it is a side effect (`label.new(…)`) that nothing reads.
     value = exprBinding(parseWholeExpression(toks), new Map(env), locate(first))
@@ -2433,6 +2521,33 @@ export function translatePine(source, opts = {}) {
       const close = toks.findIndex((t) => isPunct(t, ']'))
       const names = toks.slice(1, close < 0 ? toks.length : close)
         .filter((t) => t.kind === 'ident' && !TYPE_WORDS.has(t.value))
+
+      // ⭐ A TUPLE-RETURNING USER FUNCTION HANDS OUT ITS PARTS BY POSITION.
+      // `[a, b] = f(x)` makes `a` element 0 of that call and `b` element 1; the
+      // call itself is inlined per part by `resolveBinding`'s `tuplePart` arm.
+      //
+      // ⛔⛔ THE `kind === 'tuple'` CHECK IS THE WHOLE SAFETY OF THIS FEATURE.
+      // Without it `request.security` — 42 of the 63 destructures in this corpus
+      // — would hand its FIRST element to a name expecting its third: a
+      // translation that parses, lints, saves, scans and is silently WRONG.
+      // Anything this engine cannot take apart must keep refusing by name.
+      const eq = close >= 0 ? close + 1 + findTop(toks.slice(close + 1), (t) => isPunct(t, '=')) : -1
+      if (close >= 0 && eq > close && names.length > 0) {
+        const rhs = toks.slice(eq + 1)
+        let call = null
+        try { call = parseWholeExpression(rhs) } catch { call = null }
+        const callee = call && call.type === 'call' ? env.get(call.name) : null
+        const value = callee && callee.kind === 'fn' ? callee.value : null
+        if (value && value.kind === 'tuple' && value.parts.length >= names.length) {
+          const callerEnv = new Map(env)
+          names.forEach((n, k) => env.set(n.value, {
+            kind: 'tuplePart', fn: callee, args: call.args, index: k,
+            env: callerEnv, at: locate(n),
+          }))
+          continue
+        }
+      }
+
       for (const n of names) markOpaque(n.value, 'pine:tuple', locate(first), `\`${n.value}\``)
       notes.push(noteOf('pine:tuple', REFUSALS['pine:tuple'], first))
       continue

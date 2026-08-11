@@ -18,18 +18,18 @@
     "translates": false,
     "outputs": 4,
     "usable": 0,
+    "hiddenScaffolding": 2,
     "selectedFormula": null,
-    "downstream": null,
     "refusal": {
-      "guard": "pine:tuple",
-      "line": 94,
-      "column": 1,
+      "guard": "pine:state",
+      "line": 87,
+      "column": 70,
       "token": "["
     },
     "perOutputRefusals": {
-      "pine:tuple": 2
+      "pine:state": 2
     },
-    "hiddenScaffolding": 2
+    "downstream": null
   },
   "03-rsi-directional-momentum-scanner.pine": {
     "version": 6,
