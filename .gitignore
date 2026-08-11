@@ -48,3 +48,6 @@ tools/taxonomy_out/
 
 # Local Python virtual environment (local dev only)
 .venv/
+
+# Pine intake bench — pasted scripts are evidence, never committed fixtures
+tests/fixtures/pine-inbox/
