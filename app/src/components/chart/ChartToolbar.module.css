@@ -15,7 +15,17 @@
   align-items: center;
   gap: 1px;
   pointer-events: auto;
-  opacity: 0.3;
+  /* ⭐⭐ RESTING OPACITY, RAISED FROM 0.3 — AND THE COLOURS WERE NEVER THE PROBLEM.
+     `toolbarFor()` already derives ink from the canvas and returns `#5a5548` on the
+     light (sunrise) canvas, which is correct. At 0.3 that composites to roughly
+     #bfc4cd over #eaf1fa — about 1.4:1 against the background, i.e. invisible.
+     ⚰️ Measured 2026-08-10: driving the real chart I could not find the Indicators
+     button by eye and had to resolve it from the accessibility tree; the dark
+     canvas is only marginally better (~2:1) and had the same complaint.
+     0.75 keeps the "findable without shouting" intent — it is still visibly
+     secondary and still steps to full on hover — while leaving the label readable
+     at rest on BOTH canvases. */
+  opacity: 0.75;
   transition: opacity 0.2s;
 }
 .toolbar:hover {
