@@ -237,6 +237,7 @@
   position: absolute;
   top: 2px;
   right: 2px;
+  z-index: 2;   /* above the backdrop sparkline */
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -348,3 +349,26 @@
 }
 .addMenuCheckOn { background: var(--menu-accent, var(--ut-gold)); border-color: var(--menu-accent, var(--ut-gold)); }
 .addMenuLabel { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── Tile sparkline styles (⚙ Tile style) ── */
+/* Inline line strip under the value ('spark'). */
+.tileSparkInline {
+  display: block;
+  width: 100%;
+  height: 15px;
+  margin-top: 3px;
+  overflow: visible;
+}
+/* Backdrop trend chart behind the label/value ('area' / 'ghost'). */
+.tileSparkBg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+}
+/* Keep the label + value legible above a backdrop chart. */
+.hmTileBackdrop .hmTileLabel,
+.hmTileBackdrop .hmTileVal { position: relative; z-index: 1; }

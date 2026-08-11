@@ -105,6 +105,14 @@
   height: 100%;
   overflow: hidden;
 }
+/* LIGHT MODE: the app's --border (#e3e5e7) is nearly invisible on the white
+   canvas, so a widget with a white body vanishes into the page. Give EVERY widget
+   a thin dark hairline in light mode so it always reads as a distinct card. */
+:global([data-theme='light']) .widget { border-color: rgba(0, 0, 0, 0.34); }
+:global([data-theme='light']) .widgetMerged {
+  border-right-color: rgba(0, 0, 0, 0.34);
+  border-bottom-color: rgba(0, 0, 0, 0.34);
+}
 /* Merged board: header-free + locked, adjacent widgets separated only by a thin grey
    line (a hair brighter than the widget's own border) over a 1px seam — TC2000-style,
    no bright bar / no wide gap. */

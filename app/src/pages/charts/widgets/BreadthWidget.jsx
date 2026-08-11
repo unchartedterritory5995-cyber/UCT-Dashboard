@@ -69,10 +69,61 @@ function useFlip(containerRef, dep) {
   }, [dep, containerRef])
 }
 
+// Readings where a RISE is deterioration → the trend line's colour inverts (more
+// names down / more new lows / higher VIX is not good news). Everything else: up = good.
+const BEAR_KEYS = new Set([
+  'down_4pct_today', 'down_20pct_5d', 'down_25pct_quarter', 'down_50pct_month', 'down_13pct_34d',
+  'new_52w_lows', 'new_20d_lows', 'vix', 'vix_10d', 'cboe_putcall', 'stage4_count', 'atr_ext_7',
+])
+function metricPolarity(m) {
+  return (BEAR_KEYS.has(m.key) || /(^|_)(down|dn)(_|$)|low(s)?($|_)|vix|putcall|stage4|atr_ext/i.test(m.key))
+    ? 'bear' : 'bull'
+}
+
+// A tile's woven-in trend line. viewBox is 100×VBH stretched to the tile
+// (preserveAspectRatio none + non-scaling stroke), so it fits any tile width.
+//   mode 'spark'  → a short line strip UNDER the value (in-flow)
+//   mode 'area'   → a filled trend as the tile BACKDROP
+//   mode 'ghost'  → a faint line as the tile BACKDROP
+const SPARK_VBW = 100
+function TileSpark({ values, mode, polarity }) {
+  const vbh = mode === 'spark' ? 18 : 44
+  const shape = useMemo(() => {
+    const vals = (values || []).filter(v => v != null && v !== '' && Number.isFinite(Number(v))).map(Number)
+    if (vals.length < 2) return null
+    const min = Math.min(...vals), max = Math.max(...vals)
+    const span = (max - min) || 1
+    const pad = 2, h = vbh - pad * 2
+    const x = i => (i / (vals.length - 1)) * SPARK_VBW
+    const y = v => pad + h - ((v - min) / span) * h
+    const line = vals.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('')
+    return { line, area: `${line}L${SPARK_VBW},${vbh}L0,${vbh}Z`, open: vals[0], now: vals.at(-1), lastX: x(vals.length - 1), lastY: y(vals.at(-1)) }
+  }, [values, vbh])
+  if (!shape) return null
+  const better = polarity === 'bear' ? -(shape.now - shape.open) : (shape.now - shape.open)
+  const stroke = better > 0 ? 'var(--gain, #16a34a)' : better < 0 ? 'var(--loss, #dc2626)' : 'var(--bw-text-dim, #8b8674)'
+  const backdrop = mode !== 'spark'
+  return (
+    <svg
+      className={backdrop ? styles.tileSparkBg : styles.tileSparkInline}
+      viewBox={`0 0 ${SPARK_VBW} ${vbh}`} preserveAspectRatio="none" aria-hidden="true"
+    >
+      {mode === 'area' && <path d={shape.area} fill={stroke} opacity="0.16" />}
+      <path
+        d={shape.line} fill="none" stroke={stroke} strokeWidth={mode === 'ghost' ? 1.4 : 1.6}
+        strokeLinejoin="round" strokeLinecap="round" opacity={mode === 'ghost' ? 0.42 : 0.95}
+        vectorEffect="non-scaling-stroke"
+      />
+      {!backdrop && <circle cx={shape.lastX} cy={shape.lastY} r="1.8" fill={stroke} />}
+    </svg>
+  )
+}
+
 // ── Heatmap: grouped 8-tier tile grid, each tile removable on hover ──
-function HeatmapView({ currentRow, visibleKeys, onDrill, onRemove, cellColors, tipColors, textColor }) {
+function HeatmapView({ currentRow, visibleKeys, tileStyle, seriesFor, onDrill, onRemove, cellColors, tipColors, textColor }) {
   const wrapRef = useRef(null)
   useFlip(wrapRef, visibleKeys.join(','))
+  const backdrop = tileStyle === 'area' || tileStyle === 'ghost'
   return (
     <div className={styles.hmWrap} ref={wrapRef}>
       {HEATMAP_GROUPS.map(g => {
@@ -85,16 +136,20 @@ function HeatmapView({ currentRow, visibleKeys, onDrill, onRemove, cellColors, t
               {metrics.map(m => {
                 const tier = m.getTier(currentRow)
                 const score = TIER_SCORES[tier]
+                const spark = tileStyle !== 'values'
+                  ? <TileSpark values={seriesFor(m.key)} mode={tileStyle} polarity={metricPolarity(m)} />
+                  : null
                 return (
                   <button
                     key={m.key}
                     data-mkey={m.key}
                     type="button"
-                    className={styles.hmTile}
+                    className={`${styles.hmTile}${backdrop ? ' ' + styles.hmTileBackdrop : ''}`}
                     style={{ background: cellColors[tier] ?? cellColors[''] }}
                     onClick={() => onDrill(m)}
                     title={`${m.label} — open Breadth`}
                   >
+                    {backdrop && spark}
                     <span
                       className={styles.hmTileX}
                       role="button"
@@ -107,6 +162,7 @@ function HeatmapView({ currentRow, visibleKeys, onDrill, onRemove, cellColors, t
                     <span className={styles.hmTileVal} style={{ color: textColor || (score != null ? tipColors[score] : 'var(--bw-text-dim, #8b8674)') }}>
                       {m.getFmt(currentRow)}
                     </span>
+                    {tileStyle === 'spark' && spark}
                   </button>
                 )
               })}
@@ -245,6 +301,30 @@ export default function BreadthWidget({ opts, onOptsChange }) {
     return filled
   }, [liveBreadth.row, rows])
 
+  // Per-reading trend series for the sparkline tile styles: today's INTRADAY path
+  // for the 7 live-sampled readings (real-time), else the last ~month of daily
+  // values (newest = the live row, so the endpoint tracks live). oldest-first.
+  const TREND_N = 24
+  const trendBase = useMemo(
+    () => (liveBreadth.row && currentRow ? [currentRow, ...rows] : rows),
+    [liveBreadth.row, currentRow, rows],
+  )
+  const seriesFor = useCallback((key) => {
+    const p = liveBreadth.path?.[key]
+    if (Array.isArray(p) && p.length >= 2) return p.map(x => x?.[1])
+    const out = []
+    for (let i = Math.min(TREND_N, trendBase.length) - 1; i >= 0; i--) out.push(trendBase[i]?.[key])
+    return out
+  }, [liveBreadth.path, trendBase])
+  const tileStyle = bwSettings.tileStyle || 'values'
+
+  // When we last pulled the data (client-side), so the footer always shows a TIME
+  // like the Scanner widget — not just a date once the live row is superseded.
+  // Stamped when the fetched `data` object changes (render-time ref, not an
+  // effect → no setState-in-effect, and no one-render lag).
+  const stampRef = useRef({ data: null, at: null })
+  if (data && data !== stampRef.current.data) stampRef.current = { data, at: Date.now() }
+  const fetchedAt = stampRef.current.at
   const [refreshing, setRefreshing] = useState(false)
   const refreshAll = useCallback(async () => {
     setRefreshing(true)
@@ -252,9 +332,15 @@ export default function BreadthWidget({ opts, onOptsChange }) {
   }, [mutate])
   const spinning = refreshing || isValidating
 
-  // "Last updated": the live intraday clock while a live row stands; else the
-  // stored collector date.
-  const updated = liveBreadth.clock ? `${liveBreadth.clock} ET` : (currentRow?.date || null)
+  // "Last updated" always carries a time: the live intraday clock while a live row
+  // stands, else the last fetch time. ET, "h:mm AM/PM".
+  const fmtEtTime = (ms) => {
+    try { return new Date(ms).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }) }
+    catch { return null }
+  }
+  const updated = liveBreadth.clock
+    ? `${liveBreadth.clock} ET`
+    : (fetchedAt ? `${fmtEtTime(fetchedAt)} ET` : (currentRow?.date || null))
 
   const drill = useCallback(() => navigate('/breadth'), [navigate])
 
@@ -306,6 +392,7 @@ export default function BreadthWidget({ opts, onOptsChange }) {
             ? <div className={styles.hint}>All readings hidden — add some with ＋.</div>
             : <HeatmapView
                 currentRow={currentRow} visibleKeys={visibleKeys}
+                tileStyle={tileStyle} seriesFor={seriesFor}
                 onDrill={drill} onRemove={removeMetric}
                 cellColors={cellColors} tipColors={tipColors} textColor={bwSettings.valueColor || null}
               />}

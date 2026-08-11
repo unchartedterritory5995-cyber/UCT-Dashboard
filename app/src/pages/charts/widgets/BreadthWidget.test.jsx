@@ -56,10 +56,11 @@ test('header reads "Breadth Monitor" (no view pills)', () => {
   expect(screen.queryByRole('button', { name: /^rings$/i })).not.toBeInTheDocument()
 })
 
-test('footer shows the last-updated stamp + a working refresh button', () => {
+test('footer shows a last-updated TIME (like the Scanner) + a refresh button', () => {
   mockData.mockReturnValue(ROWS)
   render(<Wrap />)
-  expect(screen.getByText(/Updated 2026-07-22/)).toBeInTheDocument()
+  // No live row in the test → falls back to the fetch time, always a "… ET" time.
+  expect(screen.getByText(/Updated .*ET/)).toBeInTheDocument()
   expect(screen.getByTitle('Refresh')).toBeInTheDocument()
 })
 
