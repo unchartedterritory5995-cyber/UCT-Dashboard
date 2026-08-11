@@ -13,6 +13,14 @@
   --gain: #1ae51a;
   --loss: #c41f2d;
 }
+/* `chrome={false}` (the earnings modal's Ask AI section). The canvas above is
+   the widget's IDENTITY inside the /charts grid — it makes this read as a card
+   among the other widgets. Embedded in a modal that already paints its own
+   surface, that same fill draws a second box inside the first: every sibling
+   section renders directly on the modal, and this one alone had a visible edge
+   around it. Transparent so the host surface shows through; --gain/--loss and
+   the flex layout above still apply. */
+.root.rootBare { background: transparent; }
 /* Floating ⚙ — top-right, fades in on hover so it doesn't crowd the answers. */
 .gearBtn {
   position: absolute;

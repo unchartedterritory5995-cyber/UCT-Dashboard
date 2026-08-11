@@ -1,0 +1,41 @@
+/* app/src/components/research/sections/AskAiSection.module.css
+ *
+ * AiSearchWidget is a chat layout: a scrolling body with the ask bar pinned to
+ * the bottom. Its root is `height: 100%`, which needs a parent with a DEFINITE
+ * height — and it never gets one here. Measured in the browser, not reasoned
+ * about: `.modal` is `max-height: min(88vh, 860px)` with no `height`, so the
+ * whole column is CONTENT-sized under a cap, `.canvas` is content-sized too,
+ * and a percentage height against it resolves to `auto`.
+ *
+ * So the floor below is not a fallback — it is what actually sets the height,
+ * on every layout. The canvas then sizes itself around it.
+ *
+ * ⛔ Do NOT make this viewport-relative to "use the space" on a big screen.
+ * `.canvas` is `overflow-y: auto`: the moment this panel is taller than the
+ * canvas, the canvas scrolls and the pinned ask bar goes BELOW THE FOLD — a
+ * chat box you have to scroll down to find. A fixed floor cannot do that.
+ *
+ * 420px was measured across viewport heights 640 · 700 · 768 · 900 · 1080 at
+ * 1280 wide, plus the 390-wide phone Sheet: canvas never scrolls, ask bar fully
+ * visible, no horizontal overflow, in every one. Re-measure if you change it.
+ */
+.panel {
+  display: flex;
+  flex-direction: column;
+  /* `flex: 1` against the canvas's flex column (EarningsResearchModal.module.css
+     scopes that to this section) is what BOUNDS this panel: it takes the
+     canvas's height instead of growing past it, so the widget's own body does
+     the scrolling and the ask bar stays pinned in view. The floor keeps the
+     chat usable when the canvas is short — a modal below its cap sizes the
+     canvas to this instead. */
+  flex: 1;
+  min-height: 420px;
+}
+
+/* The widget root — reached as a child because its class is its own module's.
+   `flex: 1` is what makes it fill the panel: in a COLUMN flex container
+   `align-items: stretch` stretches the cross (horizontal) axis, not this one. */
+.panel > * {
+  flex: 1;
+  min-height: 0;
+}

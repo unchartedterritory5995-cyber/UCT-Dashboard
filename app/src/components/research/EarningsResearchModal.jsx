@@ -32,6 +32,7 @@ import QuoteStrip from './QuoteStrip'
 import FinancialsSection from './sections/FinancialsSection'
 import AnalystsSection from './sections/AnalystsSection'
 import NewsSection from './sections/NewsSection'
+import AskAiSection from './sections/AskAiSection'
 import styles from './EarningsResearchModal.module.css'
 
 // Exported so a rail can assert every SECTIONS id has a panel behind it. A tab
@@ -48,6 +49,10 @@ export const PANELS = {
   analysts: AnalystsSection,
   news: NewsSection,
   filings: FilingsTab,
+  // Composes the app's existing AI Search, scoped to this company. Last in the
+  // rail because it answers a question the reader brought rather than presenting
+  // what we hold.
+  ai: AskAiSection,
 }
 
 const fmtEps = (v) => (v == null ? null : `${v < 0 ? '-' : ''}$${Math.abs(v).toFixed(2)}`)
@@ -285,6 +290,13 @@ export default function EarningsResearchModal({
         <div
           className={styles.canvas}
           data-testid="erm-canvas"
+          // Every other section is a DOCUMENT: it grows and the canvas scrolls
+          // it. Ask AI is a chat — a scrolling body with the input pinned under
+          // it — so it has to be BOUNDED by the canvas instead of growing it,
+          // or the input ends up below the canvas's own scroll fold. The CSS
+          // hook is here rather than in the section because the canvas is the
+          // element that has to change, and this stylesheet owns it.
+          data-section={active}
           role="tabpanel"
           id={`erm-rail-panel-${active}`}
           aria-labelledby={`erm-rail-tab-${active}`}
