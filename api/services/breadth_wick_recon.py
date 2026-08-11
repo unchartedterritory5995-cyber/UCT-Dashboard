@@ -292,11 +292,16 @@ def probe_day(D: str, bucket_min: int = 30) -> dict:
     try:
         client = _s3_client()
         out["s3_client"] = "built"
-        try:  # head_object = metadata only, no download
-            h = client.head_object(Bucket="flatfiles", Key=key)
-            out["s3_head_bytes"] = h.get("ContentLength")
-        except Exception as e:
-            out["s3_head_error"] = f"{type(e).__name__}: {str(e)[:200]}"
+        # Test BOTH the STOCKS key (what Phase 3 needs) and the OPTIONS key (which
+        # the flow-worker reads fine on-pod). options-ok + stocks-403 => stocks
+        # SUBSCRIPTION scope issue; both-403 => broader access/network problem.
+        opt_key = f"us_options_opra/trades_v1/{D[:4]}/{D[5:7]}/{D}.csv.gz"
+        for lbl, k in (("stocks", key), ("options", opt_key)):
+            try:
+                h = client.head_object(Bucket="flatfiles", Key=k)
+                out[f"s3_head_{lbl}"] = f"OK bytes={h.get('ContentLength')}"
+            except Exception as e:
+                out[f"s3_head_{lbl}"] = f"{type(e).__name__}: {str(e)[:120]}"
     except Exception as e:
         out["s3_client_error"] = f"{type(e).__name__}: {str(e)[:200]}"
     return out
