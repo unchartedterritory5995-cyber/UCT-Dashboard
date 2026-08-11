@@ -151,20 +151,38 @@ def test_delete_folder_collision_detection(conn):
     a_setups = notes_svc.create_folder("u1", "Setups", parent_id=a["id"], conn=conn)
     b = notes_svc.create_folder("u1", "B", parent_id=a["id"], conn=conn)
     b_setups = notes_svc.create_folder("u1", "Setups", parent_id=b["id"], conn=conn)
+    note = notes_svc.create_note("u1", {"title": "in B", "folderId": b["id"]}, conn=conn)
 
     # Attempt to delete B should fail: "Setups" already exists under A
     with pytest.raises(notes_svc.NoteValidationError) as exc_info:
         notes_svc.delete_folder("u1", b["id"], conn=conn)
     assert "already exists at the destination" in str(exc_info.value)
 
-    # Verify NOTHING changed: B still exists with its child
+    # Verify NOTHING changed: B still exists with its child, note still in B
     folders = {f["id"]: f for f in notes_svc.list_folders("u1", conn=conn)}
     assert b["id"] in folders
     assert b_setups["id"] in folders
     assert folders[b_setups["id"]]["parentId"] == b["id"]
+    got = notes_svc.get_note("u1", note["id"], conn=conn)
+    assert got["folderId"] == b["id"]
 
 
-def test_delete_folder_cross_user_parent_rejected(conn):
+def test_delete_folder_with_same_named_child_succeeds(conn):
+    # Build: Docs/{Docs} — parent and child with same name
+    docs_parent = notes_svc.create_folder("u1", "Docs", conn=conn)
+    docs_child = notes_svc.create_folder("u1", "Docs", parent_id=docs_parent["id"], conn=conn)
+
+    # Deleting the parent should succeed (child is promoted to root with its name intact)
+    assert notes_svc.delete_folder("u1", docs_parent["id"], conn=conn) is True
+
+    # Verify child is now a root folder
+    folders = {f["id"]: f for f in notes_svc.list_folders("u1", conn=conn)}
+    assert docs_child["id"] in folders
+    assert folders[docs_child["id"]]["parentId"] is None
+    assert folders[docs_child["id"]]["name"] == "Docs"
+
+
+def test_create_folder_cross_user_parent_rejected(conn):
     # Create folders for two users
     a_u1 = notes_svc.create_folder("u1", "A", conn=conn)
     a_u2 = notes_svc.create_folder("u2", "A", conn=conn)

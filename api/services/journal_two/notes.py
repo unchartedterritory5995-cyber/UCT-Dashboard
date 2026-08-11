@@ -532,15 +532,19 @@ def delete_folder(
         parent = row["parent_id"] or ""
 
         # Detect name collisions BEFORE any mutations
+        # Exclude the deleted folder itself from the destination set to avoid self-referential false positives
         collision = conn.execute(
-            "SELECT name FROM j2_note_folders WHERE user_id = ? AND parent_id = ? AND name IN "
+            "SELECT name FROM j2_note_folders WHERE user_id = ? AND parent_id = ? AND id != ? AND name IN "
             "(SELECT name FROM j2_note_folders WHERE user_id = ? AND parent_id = ?)",
-            (user_id, parent, user_id, folder_id)).fetchone()
+            (user_id, parent, folder_id, user_id, folder_id)).fetchone()
         if collision:
             raise NoteValidationError(
                 f"cannot delete: a folder named '{collision['name']}' already exists at the destination — rename it first")
 
         now = _now_iso()
+        # Delete the folder first to avoid UNIQUE constraint violations when re-parenting
+        cur = conn.execute(
+            "DELETE FROM j2_note_folders WHERE id = ? AND user_id = ?", (folder_id, user_id))
         # notes climb to the parent; at root ('' parent) they go Unfiled (NULL)
         conn.execute(
             "UPDATE j2_notes SET folder_id = ?, updated_at = ? WHERE folder_id = ? AND user_id = ?",
@@ -548,8 +552,6 @@ def delete_folder(
         conn.execute(
             "UPDATE j2_note_folders SET parent_id = ? WHERE parent_id = ? AND user_id = ?",
             (parent, folder_id, user_id))
-        cur = conn.execute(
-            "DELETE FROM j2_note_folders WHERE id = ? AND user_id = ?", (folder_id, user_id))
         conn.commit()
         return cur.rowcount > 0
     finally:
