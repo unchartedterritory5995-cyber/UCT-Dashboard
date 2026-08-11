@@ -59,3 +59,43 @@ def test_migration_v2_preserves_existing_flat_folders(tmp_path, monkeypatch):
     j2db.run_notebook_migration_v2(c)
     assert c.execute("SELECT COUNT(*) FROM j2_note_folders").fetchone()[0] == 1
     c.close()
+
+
+def test_migration_v2_recovers_from_crash_state(tmp_path, monkeypatch):
+    """Simulates a process crash between RENAME and CREATE TABLE. The next boot
+    must detect j2_note_folders_v1 stranded on disk and recover."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    c = sqlite3.connect(tmp_path / "crash.db")
+    c.row_factory = sqlite3.Row
+    # Simulate the half-migrated crash state: old rows in j2_note_folders_v1,
+    # no j2_note_folders table, and no flag file (crashed before writing the flag).
+    c.executescript("""
+        CREATE TABLE j2_note_folders_v1 (
+            id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL);
+        CREATE TABLE j2_notes (
+            id TEXT PRIMARY KEY, user_id TEXT NOT NULL, account_id TEXT,
+            folder_id TEXT, title TEXT NOT NULL, subtitle TEXT,
+            body_json TEXT NOT NULL DEFAULT '{}', body_plain TEXT NOT NULL DEFAULT '',
+            hero_image_url TEXT, ticker TEXT, tags TEXT NOT NULL DEFAULT '[]',
+            status TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+    """)
+    c.execute("INSERT INTO j2_note_folders_v1 VALUES ('f1','u1','Trading',5,'2026-01-01')")
+    c.execute("INSERT INTO j2_notes (id,user_id,folder_id,title,created_at,updated_at) VALUES ('n1','u1','f1','My note','2026-01-01','2026-01-01')")
+    c.commit()
+
+    # Run the migration. It should detect v1 exists and rebuild.
+    j2db.run_notebook_migration_v2(c)
+
+    # Verify j2_note_folders has the data with parent_id set.
+    row = c.execute("SELECT * FROM j2_note_folders WHERE id='f1'").fetchone()
+    assert row["name"] == "Trading" and row["parent_id"] == "" and row["sort_order"] == 5
+    # Verify v1 is gone.
+    v1_exists = c.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='j2_note_folders_v1'"
+    ).fetchone()
+    assert v1_exists is None
+    # Verify import_key column exists.
+    note = c.execute("SELECT folder_id, import_key FROM j2_notes WHERE id='n1'").fetchone()
+    assert note["folder_id"] == "f1" and note["import_key"] is None
+    c.close()

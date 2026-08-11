@@ -939,46 +939,76 @@ def run_notebook_migration_v1(conn: sqlite3.Connection) -> None:
 
 def run_notebook_migration_v2(conn: sqlite3.Connection) -> None:
     """Folder tree (parent_id) + import provenance columns on j2_notes.
-    Idempotent via .notebook_migration_v2 flag file AND column probes, so a
-    fresh DB created after this ships is also handled. parent_id uses ''
-    as the root sentinel (NULLs are distinct in SQLite UNIQUE constraints,
-    which would allow duplicate root names)."""
+    Idempotent via .notebook_migration_v2 flag file AND column probes + v1 leftover
+    probe, so a fresh DB created after this ships is also handled. Every step is
+    individually idempotent and resumable (never relies on transactional DDL).
+    parent_id uses '' as the root sentinel (NULLs are distinct in SQLite UNIQUE
+    constraints, which would allow duplicate root names)."""
     flag = _data_dir() / ".notebook_migration_v2"
-    try:
-        if flag.exists():
-            return
-        fcols = {r[1] for r in conn.execute("PRAGMA table_info(j2_note_folders)")}
-        if fcols and "parent_id" not in fcols:
+    if flag.exists():
+        return
+
+    # Probe sqlite_master for leftover v1 table (crash recovery). If a process dies
+    # between RENAME and CREATE TABLE, the next boot must detect and resume.
+    v1_exists = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='j2_note_folders_v1'"
+    ).fetchone() is not None
+
+    # Rebuild j2_note_folders if either:
+    # - Current table exists and is missing parent_id, OR
+    # - v1 is stranded (crashed between RENAME and CREATE new table)
+    fcols = {r[1] for r in conn.execute("PRAGMA table_info(j2_note_folders)")}
+    needs_rebuild = (fcols and "parent_id" not in fcols) or v1_exists
+
+    if needs_rebuild:
+        # Only rename if v1 doesn't exist yet (first boot of the rebuild).
+        if not v1_exists and "parent_id" not in fcols:
             conn.execute("ALTER TABLE j2_note_folders RENAME TO j2_note_folders_v1")
-            conn.execute(
-                """CREATE TABLE j2_note_folders (
-                    id          TEXT PRIMARY KEY,
-                    user_id     TEXT NOT NULL,
-                    name        TEXT NOT NULL,
-                    parent_id   TEXT NOT NULL DEFAULT '',
-                    sort_order  INTEGER NOT NULL DEFAULT 0,
-                    created_at  TEXT NOT NULL,
-                    UNIQUE(user_id, parent_id, name))"""
-            )
-            conn.execute(
-                "INSERT INTO j2_note_folders (id, user_id, name, parent_id, sort_order, created_at) "
-                "SELECT id, user_id, name, '', sort_order, created_at FROM j2_note_folders_v1"
-            )
-            conn.execute("DROP TABLE j2_note_folders_v1")
-            conn.execute(
-                "CREATE INDEX IF NOT EXISTS idx_j2_note_folders_user "
-                "ON j2_note_folders(user_id, sort_order)"
-            )
-        ncols = {r[1] for r in conn.execute("PRAGMA table_info(j2_notes)")}
-        for col in ("import_source", "import_key", "import_hash", "imported_at"):
-            if ncols and col not in ncols:
-                conn.execute(f"ALTER TABLE j2_notes ADD COLUMN {col} TEXT")
+
+        # Create new shape (idempotent: IF NOT EXISTS so re-runs are safe).
         conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_j2_notes_user_import "
-            "ON j2_notes(user_id, import_key)"
+            """CREATE TABLE IF NOT EXISTS j2_note_folders (
+                id          TEXT PRIMARY KEY,
+                user_id     TEXT NOT NULL,
+                name        TEXT NOT NULL,
+                parent_id   TEXT NOT NULL DEFAULT '',
+                sort_order  INTEGER NOT NULL DEFAULT 0,
+                created_at  TEXT NOT NULL,
+                UNIQUE(user_id, parent_id, name))"""
         )
-        conn.commit()
+
+        # Re-insert from v1 (INSERT OR IGNORE so re-runs skip already-copied rows).
+        # This is safe even if INSERT...SELECT was interrupted partway.
+        conn.execute(
+            "INSERT OR IGNORE INTO j2_note_folders (id, user_id, name, parent_id, sort_order, created_at) "
+            "SELECT id, user_id, name, '', sort_order, created_at FROM j2_note_folders_v1"
+        )
+
+        # Drop the old table (safe to re-run: DROP TABLE IF NOT EXISTS, though
+        # this one succeeds only if v1 exists, so it's idempotent by construction).
+        conn.execute("DROP TABLE IF EXISTS j2_note_folders_v1")
+
+        # Recreate the index (IF NOT EXISTS, idempotent).
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_j2_note_folders_user "
+            "ON j2_note_folders(user_id, sort_order)"
+        )
+
+    # Add import columns to j2_notes (each individually idempotent via ALTER IF NOT EXISTS pattern).
+    ncols = {r[1] for r in conn.execute("PRAGMA table_info(j2_notes)")}
+    for col in ("import_source", "import_key", "import_hash", "imported_at"):
+        if ncols and col not in ncols:
+            conn.execute(f"ALTER TABLE j2_notes ADD COLUMN {col} TEXT")
+
+    # Recreate the index (IF NOT EXISTS, idempotent).
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_j2_notes_user_import "
+        "ON j2_notes(user_id, import_key)"
+    )
+
+    conn.commit()
+    try:
         flag.parent.mkdir(parents=True, exist_ok=True)
         flag.touch()
-    except Exception as e:  # same failure posture as v1 — never block startup
-        print(f"[j2] notebook migration v2 failed: {e}")
+    except Exception:
+        pass
