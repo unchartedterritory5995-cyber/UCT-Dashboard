@@ -111,6 +111,7 @@ from api.routers import ticker_logos as ticker_logos_router
 from api.routers import broker_sync as broker_sync_router  # broker-sync (SnapTrade) -- MERGE AS A UNIT with include_router + scheduler below
 from api.routers import desk_zoom_webhook as desk_zoom_webhook_router
 from api.routers import single_stock_etfs as single_stock_etfs_router
+from api.routers import etf as etf_router
 from api.routers import waitlist as waitlist_router  # pre-launch COMING SOON capture
 # landing_analytics existed but was never mounted, so the landing page's track()
 # calls and the /admin/landing-analytics page had no backend at all.
@@ -5480,6 +5481,7 @@ app.include_router(ticker_search_router.router)
 from api.routers import delisted as delisted_router
 app.include_router(delisted_router.router)
 app.include_router(single_stock_etfs_router.router)
+app.include_router(etf_router.router)
 app.include_router(rs_ranking_router.router)
 app.include_router(intelligence_router.router)
 app.include_router(transcripts_router.router)
