@@ -236,9 +236,20 @@ export default function NotebookTab() {
               Start from a template — or a blank page.
             </p>
             {!hasActiveFilters && (
-              <p className={styles.emptyHint}>
-                Bring your notes from Notion, Obsidian, Evernote, or anywhere else.
-              </p>
+              <div className={styles.emptyImportPitch}>
+                <p className={styles.emptyHint}>
+                  Bring your notes from Notion, Obsidian, Evernote, or anywhere else.
+                </p>
+                <button
+                  type="button"
+                  className={`${styles.importBtn} ${styles.importBtnEmphasized}`}
+                  onClick={() => setImportOpen(true)}
+                  aria-haspopup="dialog"
+                >
+                  <UIcon name="upload" size={16} gold={false} />
+                  Import notes
+                </button>
+              </div>
             )}
             <div className={styles.emptyPicker}>
               <TemplatePicker onPick={handlePick} busy={creating} />

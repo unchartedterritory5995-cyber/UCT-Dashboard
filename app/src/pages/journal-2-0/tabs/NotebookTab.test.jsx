@@ -19,7 +19,15 @@ vi.mock('../components/notebook/NoteEditorPage', () => ({
   default: ({ noteId }) => <div data-testid="note-editor" data-note-id={noteId} />,
 }))
 vi.mock('../components/notebook/import/ImportWizard', () => ({
-  default: ({ open }) => (open ? <div data-testid="import-wizard" /> : null),
+  // Shallow mock — a real "onImported" trigger button lets tests fire the
+  // callback without exercising the real wizard's drop/scan/preview flow.
+  default: ({ open, onImported }) => (
+    open ? (
+      <div data-testid="import-wizard">
+        <button type="button" onClick={onImported}>fire onImported</button>
+      </div>
+    ) : null
+  ),
 }))
 
 import NotebookTab from './NotebookTab'
@@ -121,15 +129,43 @@ describe('NotebookTab — template picker', () => {
 })
 
 describe('NotebookTab — import', () => {
-  it('header Import button opens the wizard', async () => {
+  it('header AND empty-state each expose an Import entry point; the empty-state one opens the wizard', () => {
     renderTab()
     expect(screen.queryByTestId('import-wizard')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /import/i }))
+    // On <=640px the toolbar row stacks above the (scrollable) list, so the
+    // empty state needs its OWN Import CTA in view — not just the header's.
+    const importButtons = screen.getAllByRole('button', { name: /import/i })
+    expect(importButtons.length).toBeGreaterThanOrEqual(2)
+    // DOM order: header toolbar renders before the empty-state pitch, so the
+    // empty-state button is the last match.
+    fireEvent.click(importButtons[importButtons.length - 1])
+    expect(screen.getByTestId('import-wizard')).toBeInTheDocument()
+  })
+
+  it('the header Import button also opens the wizard', () => {
+    renderTab()
+    const importButtons = screen.getAllByRole('button', { name: /import/i })
+    fireEvent.click(importButtons[0])
     expect(screen.getByTestId('import-wizard')).toBeInTheDocument()
   })
 
   it('empty state pitches the import path', () => {
     renderTab()
     expect(screen.getByText(/Notion, Obsidian, Evernote/i)).toBeInTheDocument()
+  })
+
+  it('a search filter suppresses the import pitch (filtered-empty is not truly-empty)', () => {
+    renderTab()
+    const search = screen.getByPlaceholderText(/search notes/i)
+    fireEvent.change(search, { target: { value: 'nonexistent query' } })
+    expect(screen.queryByText(/Notion, Obsidian, Evernote/i)).not.toBeInTheDocument()
+  })
+
+  it('a completed import (ImportWizard calling onImported) refreshes notes', () => {
+    renderTab()
+    fireEvent.click(screen.getAllByRole('button', { name: /import/i })[0])
+    expect(mockRefresh).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByText('fire onImported'))
+    expect(mockRefresh).toHaveBeenCalled()
   })
 })
