@@ -77,6 +77,25 @@ def get_breadth_ohlc_status():
     return breadth_daily_ohlc.stats()
 
 
+@router.post("/api/breadth-monitor/history/backfill-schedule")
+def schedule_breadth_backfill(request: Request, floor: str = Query(default=""),
+                              stop: bool = Query(default=False)):
+    """Start/stop the restart-resilient scheduled deep-history backfill. Set `floor=YYYY-MM-DD`
+    and the 12-min tick sweeps chunk-by-chunk down to it, resuming after any restart; `stop=1`
+    clears it. Also kicks one tick immediately so it starts now. PUSH_SECRET-gated."""
+    _check_auth(request)
+    import threading
+    from api.services import breadth_history_recon as r
+    if stop:
+        r.set_backfill_floor(None)
+        return {"ok": True, "stopped": True}
+    if not floor:
+        return {"ok": False, "reason": "floor required (YYYY-MM-DD) or stop=1"}
+    r.set_backfill_floor(floor)
+    threading.Thread(target=r.backfill_tick, name="breadth-history-tick-kick", daemon=True).start()
+    return {"ok": True, "floor": floor, "scheduled": "every 12 min until floor reached", "kicked": True}
+
+
 @router.post("/api/breadth-monitor/history/backfill-chain")
 def backfill_chain(request: Request, floor: str = Query(...), ceiling: str = Query(default="2023-12-31"),
                    limit: int = Query(default=0, ge=0, le=6000)):

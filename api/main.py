@@ -3890,6 +3890,32 @@ async def lifespan(app: FastAPI):
             logging.getLogger(__name__).exception(
                 "[startup] failed to schedule breadth OHLC intraday aggregation")
 
+        # Deep breadth HISTORY backfill — restart-resilient. Every 12 min this sweeps the next
+        # chunk BELOW current coverage until it reaches the floor set via
+        # /history/backfill-schedule. Coverage-driven + idempotent, so a pod restart just
+        # resumes on the next tick (in-memory chains die on restart; this survives). No-ops
+        # unless a floor marker is set. Registered always; gated inside backfill_tick.
+        try:
+            def _breadth_history_backfill_tick():
+                try:
+                    from api.services import breadth_history_recon
+                    if breadth_history_recon.get_backfill_floor():
+                        res = breadth_history_recon.backfill_tick()
+                        logging.getLogger(__name__).info("[breadth-history] tick: %s", res)
+                except Exception as _e:
+                    logging.getLogger(__name__).warning("[breadth-history] tick failed: %s", _e)
+
+            _scheduler.add_job(
+                _breadth_history_backfill_tick,
+                trigger=CronTrigger(minute="*/12", timezone=_ET),
+                id="breadth_history_backfill_tick", max_instances=1,
+                coalesce=True, misfire_grace_time=300, replace_existing=True)
+            logging.getLogger(__name__).info(
+                "[startup] breadth history backfill tick scheduled (every 12 min, gated on floor marker)")
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "[startup] failed to schedule breadth history backfill tick")
+
 
         # Broker Sync -- background incremental sync across all connected users.
         # Gated by BROKER_SYNC_ENABLED (default OFF -> fully inert). Runs on the

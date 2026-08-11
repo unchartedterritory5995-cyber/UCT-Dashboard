@@ -253,6 +253,77 @@ def sweep_history(from_date: str, to_date: Optional[str] = None,
             "first_date": sweep[0] if sweep else None, "last_date": sweep[-1] if sweep else None}
 
 
+def _floor_marker_path() -> str:
+    return _os.path.join(_os.environ.get("DATA_DIR", "/data"), "breadth_history_floor.txt")
+
+
+def set_backfill_floor(floor: Optional[str]) -> None:
+    """Persist (or clear) the target floor. While a valid floor is set, the scheduled tick
+    keeps sweeping the next chunk below current coverage until it reaches this date. Durable
+    across restarts — that's what makes the backfill resilient."""
+    p = _floor_marker_path()
+    try:
+        if floor:
+            with open(p, "w") as f:
+                f.write(floor.strip())
+        elif _os.path.exists(p):
+            _os.remove(p)
+    except Exception:
+        pass
+
+
+def get_backfill_floor() -> Optional[str]:
+    try:
+        with open(_floor_marker_path()) as f:
+            v = f.read().strip()
+        return v or None
+    except Exception:
+        return None
+
+
+_TICK_LOCK = __import__("threading").Lock()
+
+
+def backfill_tick(chunk_days: int = 548, limit: int = 0) -> dict:
+    """ONE restart-safe step: if a floor is set and coverage hasn't reached it, sweep the
+    next chunk just BELOW the current coverage floor. Idempotent + resumable — reads where it
+    is from the store each time, so a pod restart simply picks up on the next tick. Serialized
+    so overlapping scheduler ticks can't double-run."""
+    floor = get_backfill_floor()
+    if not floor:
+        return {"ok": True, "idle": True}
+    if not _TICK_LOCK.acquire(blocking=False):
+        return {"ok": True, "busy": True}
+    try:
+        from datetime import date as _date, timedelta as _td
+        from api.services import breadth_daily_ohlc, breadth_live as bl
+        cur_first = (breadth_daily_ohlc.stats() or {}).get("first") or "2024-01-01"
+        if cur_first <= floor:
+            set_backfill_floor(None)   # reached the floor — stop the scheduler
+            return {"ok": True, "complete": True, "floor": floor, "coverage_first": cur_first}
+        hi = _date.fromisoformat(cur_first) - _td(days=1)
+        lo = max(_date.fromisoformat(floor), hi - _td(days=chunk_days - 1))
+        tickers, _ = bl.universe()
+        if limit:
+            tickers = tickers[:limit]
+        _SWEEP_STATE.clear()
+        _SWEEP_STATE.update(status="running", mode="tick", floor=floor,
+                            current_chunk=f"{lo.isoformat()}..{hi.isoformat()}")
+        res = sweep_history(lo.isoformat(), hi.isoformat(), tickers)
+        res.update(mode="tick", floor=floor, coverage_was=cur_first, status="done")
+        _SWEEP_STATE.clear()
+        _SWEEP_STATE.update(res)
+        return res
+    except Exception as e:
+        import traceback
+        _SWEEP_STATE.clear()
+        _SWEEP_STATE.update(status="error", mode="tick", reason=f"{type(e).__name__}: {e}",
+                            trace=traceback.format_exc()[-500:])
+        return {"ok": False, "reason": str(e)}
+    finally:
+        _TICK_LOCK.release()
+
+
 def run_backfill_chain(floor: str, ceiling: str = "2023-12-31", chunk_days: int = 730,
                        limit: int = 0) -> None:
     """SELF-CHAINING backfill, all server-side: sweep 2-year chunks from `ceiling` back to
