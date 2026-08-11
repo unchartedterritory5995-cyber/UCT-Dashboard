@@ -1260,6 +1260,23 @@ def related_videos_by_ticker(video_id: int, limit: int = 10) -> list[dict]:
     return out[:limit]
 
 
+def videos_with_ticker_moments() -> list[dict]:
+    """Every video carrying at least one ticker moment, with created_at — the
+    library-wide scan seam for cross-session ticker features (the mentions
+    endpoint; related_videos_by_ticker's own per-video variant lives above).
+    Small library (~300 rows) → Python-scan the ticker_moments JSON column in
+    the caller, no SQLite JSON queries. Returns raw (unparsed) ticker_moments
+    JSON text; the caller owns parsing + filtering."""
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            "SELECT id, youtube_id, title, created_at, ticker_moments FROM edu_videos "
+            "WHERE ticker_moments IS NOT NULL AND ticker_moments != '' AND ticker_moments != '[]'"
+        ).fetchall()
+    return [{"id": r["id"], "youtube_id": r["youtube_id"], "title": r["title"],
+             "created_at": r["created_at"], "ticker_moments": r["ticker_moments"]}
+            for r in rows]
+
+
 def set_video_insights(video_id: int, *, transcript: Optional[str] = None,
                        chapters: Optional[list] = None,
                        ticker_moments: Optional[list] = None,

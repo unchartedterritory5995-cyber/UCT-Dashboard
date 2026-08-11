@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook, waitFor, act } from '@testing-library/react'
 import { SWRConfig } from 'swr'
 import { useTickerReturns, fetcher } from './useTickerReturns'
 
@@ -45,24 +45,77 @@ describe('useTickerReturns', () => {
   })
 
   it('error → empties (never throws into render), with no unhandled rejection noise', async () => {
+    // Fake timers — the hook now bakes its own errorRetryCount/errorRetryInterval
+    // into the useSWR call (adopted from useTickerMeta's cadence below), and
+    // per SWR's mergeConfigs those LOCAL hook options always win over an
+    // SWRConfig-level override from the wrapper (mergeObjects(context, local)
+    // spreads local last) — so an errWrapper `errorRetryCount: 0` can no longer
+    // suppress the scheduled retry the way it used to. Fake timers keep that
+    // retry's setTimeout from ever actually firing (a stray real callback still
+    // pending after the test — and the hook — has moved on); vi.useRealTimers()
+    // below discards it, it is never invoked.
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     vi.spyOn(global, 'fetch').mockResolvedValue({ ok: false, status: 500 })
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
-    // errorRetryCount: 0 — this test asserts the SETTLED state after the one
-    // rejected fetcher call; it isn't exercising SWR's retry/backoff timing,
-    // so scheduled retries would just be stray timers still firing after the
-    // test (and the hook) has moved on.
     const errWrapper = ({ children }) => (
-      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0, errorRetryCount: 0 }}>
+      <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
         {children}
       </SWRConfig>
     )
     const { result, unmount } = renderHook(() => useTickerReturns(42), { wrapper: errWrapper })
-    await waitFor(() => expect(global.fetch).toHaveBeenCalled())
+    // The initial fetch/error path is promise-microtask-driven (not timer-
+    // driven) — flushing microtasks under `act` settles it without advancing
+    // any fake clock.
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(global.fetch).toHaveBeenCalled()
     expect(result.current).toEqual({ anchorDate: null, returns: {} })
     unmount()
-    // Let any stray microtask/rejection surface before asserting silence —
-    // SWR catches the fetcher's throw internally, so nothing should log here.
-    await new Promise((r) => setTimeout(r, 0))
+    vi.useRealTimers()
     expect(consoleError).not.toHaveBeenCalled()
+  })
+
+  // ── Nit (Phase 2B): adopt useTickerMeta's retry cadence ────────────────
+  // errorRetryCount: 4 / errorRetryInterval: 4000 — same self-heal-within-
+  // seconds intent as useTickerMeta, instead of SWR's un-set/unlimited
+  // default. Asserted by capturing the literal options object the hook hands
+  // useSWR (via vi.doMock, isolated to this one test with resetModules)
+  // rather than by counting real retry fetches over a faked clock — simplest/
+  // most deterministic way to pin the two literal values without fighting
+  // SWR's jittered backoff timing.
+  //
+  // CORRECTION (this comment previously claimed dedupingInterval: 300_000
+  // would absorb a retry as a deduped no-op that never re-calls the fetcher —
+  // that was WRONG, verified against swr's revalidate() source: on the ERROR
+  // path, the catch block's very first line is `cleanupState()`, which
+  // deletes FETCH[key] SYNCHRONOUSLY before onErrorRetry's setTimeout is even
+  // scheduled. So by the time a retry's revalidate() runs, FETCH[key] is
+  // already gone, `shouldStartNewRequest` is true regardless of the retry's
+  // `dedupe: true`, and the fetcher genuinely gets called again. dedupingInterval
+  // only spans the SUCCESS path (`setTimeout(cleanupState, dedupingInterval)`
+  // right after a successful `await`, deduping subsequent normal
+  // revalidations like focus/reconnect/remount) — it does not touch retries
+  // at all. Retries on this hook (and useTickerMeta.js, which ships the same
+  // shape) do re-fire on the ~4s cadence.
+  it('passes errorRetryCount: 4 and errorRetryInterval: 4000 to useSWR', async () => {
+    vi.resetModules()
+    let seenOpts = null
+    vi.doMock('swr', () => ({
+      __esModule: true,
+      default: (key, fetcherFn, opts) => {
+        if (key) seenOpts = opts
+        return { data: undefined }
+      },
+    }))
+    const fresh = await import('./useTickerReturns')
+    renderHook(() => fresh.useTickerReturns(42))
+    expect(seenOpts).toBeTruthy()
+    expect(seenOpts.errorRetryCount).toBe(4)
+    expect(seenOpts.errorRetryInterval).toBe(4000)
+    vi.doUnmock('swr')
+    vi.resetModules()
   })
 })

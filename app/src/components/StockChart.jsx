@@ -327,6 +327,100 @@ export function lastAnchorIdx(bars, anchorDate) {
   return idx
 }
 
+// ── Desk-mention chart markers (spec 2026-08-11 §C) ──────────────────────────
+// A new CATEGORY in the existing marker system, not a new mechanism: it emits the
+// same LWC marker objects the news category does, into the same `mergedMarkers`
+// array, and is gated by the same `cs.markers.<key>` switch.
+//
+// Timeframe: date-only events, so they are daily-and-up only, like the
+// earnings/splits/dividends categories rather than news. A mention carries an
+// `anchor_date` and nothing finer — on an intraday chart there is no bar a bare
+// 'YYYY-MM-DD' can sit on, and a date STRING mixed into a numeric-time marker array
+// makes `mergedMarkers`' localeCompare sort hand LWC a non-ascending list.
+//
+// ⚠️ The predicate is `parseTf(...).minutes != null`, NOT the sibling categories'
+// hand-written `!['1','5','15','30','60'].includes(tf)`. That literal is the NATIVE
+// intraday codes only; TF_MENU also offers '45', '120', '240' … which it lets
+// through as if they were daily. Using the parser makes the set impossible to
+// under-count, and an UNPARSEABLE code yields NaN — which `!= null` treats as
+// intraday, i.e. draws nothing. Refusing is the safe answer for a code we can't read.
+//
+// One marker per DAY: a session that discussed the symbol twice is still ONE dot.
+//
+// ⚠️ WHICH mention the surviving dot carries is NOT "the day's first payload row".
+// The payload is newest-VIDEO-first by anchor_date with ascending `t` inside each
+// video, but `t` is a PER-VIDEO offset — so when two shows taped the same calendar
+// day, their rows interleave on a scale that means nothing across videos. "First row
+// of the day" would then hand the click an arbitrary session, and "lowest t of the
+// day" would hand it the OLDER show. The rule is therefore two-step and deterministic:
+//   1. the day's video is the one whose first row appears earliest in payload order
+//      (payload is newest-video-first ⇒ that is the most recent session of that day),
+//   2. within that video, the EARLIEST mention (lowest `t`) — where the discussion
+//      starts is the useful place to drop the viewer.
+// A row with no usable `t` sorts last, so a seekable mention always wins over one
+// that would open the video at 0.
+// Step 1 reads the endpoint's ordering rather than re-deriving recency from
+// `video_id`/dates — the endpoint owns that ordering and this must not be a second
+// authority over it.
+//
+// Exported for its unit tests (same idiom as lastAnchorIdx above).
+export const DESK_MARKER_COLOR = '#c9a84c'
+function _mentionSeek(m) {
+  const raw = m?.t
+  const n = raw == null || raw === '' ? NaN : Number(raw)
+  return Number.isFinite(n) ? n : Infinity
+}
+export function buildDeskMentionMarkers(mentions, resolvedTf) {
+  if (parseTf(resolvedTf).minutes != null) return []
+  if (!Array.isArray(mentions)) return []
+  const byDay = new Map()   // insertion order = payload order = newest day first
+  for (const m of mentions) {
+    const day = m?.anchor_date
+    if (!day || typeof day !== 'string') continue
+    const held = byDay.get(day)
+    if (!held) { byDay.set(day, m); continue }
+    // "Same video" has to be PROVEN before one row may replace another. Without the
+    // null bail, two id-less rows both stringify to 'null' and compare EQUAL, so a
+    // second show's mention could overwrite the day's newest on `t` alone.
+    if (held.video_id == null || m.video_id == null) continue
+    // Another video on the same day is always the OLDER session — never replaces.
+    if (String(held.video_id) !== String(m.video_id)) continue
+    if (_mentionSeek(m) < _mentionSeek(held)) byDay.set(day, m)
+  }
+  const out = []
+  for (const [day, m] of byDay) {
+    out.push({
+      time: day,
+      position: 'belowBar',
+      color: DESK_MARKER_COLOR,
+      shape: 'circle',
+      // The spec's gold ◆. A letter would have collided with the dividends badge,
+      // which already draws a blue 'D' on the same chart.
+      text: '◆',
+      size: 0.8,
+      // ⚠️ LOAD-BEARING, not decoration: lightweight-charts surfaces a marker's `id`
+      // as `param.hoveredObjectId`, and the click handler's gate is built on the
+      // 'desk-' prefix. Renaming this breaks the gate, not just a lookup key.
+      id: `desk-${day}`,
+      _deskMention: m,
+    })
+  }
+  return out
+}
+
+// The Desk deep link a marker click opens (spec §B.1: VideosSection reads ?v= and
+// seeks to ?t=). `t` is omitted when the mention has none, so the video just starts
+// at 0 instead of the player being handed a NaN seek.
+// ⚠️ `t` is tested for ABSENCE before it is coerced: Number(null) and Number('') are
+// both 0, so a `Number.isFinite` gate alone turns "this mention has no timestamp" into
+// an explicit "&t=0". A real 0 (a mention at the very top of the session) still gets it.
+export function deskMentionHref(mention) {
+  if (!mention?.youtube_id) return null
+  const t = _mentionSeek(mention)
+  const seek = Number.isFinite(t) && t >= 0 ? `&t=${Math.round(t)}` : ''
+  return `/desk?section=videos&v=${encodeURIComponent(mention.youtube_id)}${seek}`
+}
+
 import useJ2ChartMarkers from '../pages/journal-2-0/hooks/useJ2ChartMarkers'
 import CountdownTimer from './chart/CountdownTimer'
 import styles from './StockChart.module.css'
@@ -335,7 +429,7 @@ import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, mergeDelta } from '../utils/barsIDB'
 import { memPeek, memPut } from '../utils/barsMemCache'
 import { resample, resampleForSpec } from '../utils/resampleBars'
-import { isNativeTf, fetchTf, resampleSpec } from './chart/timeframes'
+import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
 import { barsRenderPlan } from './chart/renderPlan'
 import ChartSkeleton from './chart/ChartSkeleton'
 import { normalizeToPctChange } from './chart/comparisonUtils'
@@ -1763,6 +1857,30 @@ export default function StockChart({
       }
     }).filter(Boolean)
   }, [showNews, newsData, resolvedTf])
+
+  // ── Desk-mention markers — /api/education/tickers/{sym}/mentions ──
+  // Same shape as the news fetch above: keyed off the setting, so an OFF toggle is
+  // a NULL SWR key and no request is made at all. A non-OK response degrades to an
+  // empty list, and buildDeskMentionMarkers is null-safe on `undefined` data — an
+  // error here must never take the other marker categories down with it.
+  const deskEnabled = !!cs.markers?.desk
+  const { data: deskData } = useSWR(
+    deskEnabled && sym ? `/api/education/tickers/${encodeURIComponent(sym)}/mentions` : null,
+    (url) => fetch(url, { credentials: 'include' }).then(r => r.ok ? r.json() : { mentions: [] }),
+    {
+      dedupingInterval: 30 * 60 * 1000,  // 30 minutes — matches the endpoint's TTL cache
+      revalidateOnFocus: false,
+    }
+  )
+  // No second `deskEnabled` gate here on purpose: a null SWR key leaves `deskData`
+  // undefined, so turning the toggle off clears the markers through this memo already
+  // (asserted by the toggle-off-after-load test). A redundant ternary here would be a
+  // gate nothing can fail.
+  const deskMarkers = useMemo(
+    () => buildDeskMentionMarkers(deskData?.mentions, resolvedTf),
+    [deskData, resolvedTf],
+  )
+
   const chartEventMarkers = useMemo(() => {
     // Only show event markers on daily/weekly — intraday bars don't line up with quarter dates
     const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
@@ -1864,7 +1982,7 @@ export default function StockChart({
 
   const mergedMarkers = useMemo(
     () => {
-      const all = [...(markers || []), ...(j2.markers || []), ...chartEventMarkers, ...newsMarkers, ...flowMarkers]
+      const all = [...(markers || []), ...(j2.markers || []), ...chartEventMarkers, ...newsMarkers, ...deskMarkers, ...flowMarkers]
       // Lightweight Charts requires markers sorted ascending by time. Daily/weekly
       // use date strings (sortable lexicographically), intraday uses unix seconds.
       return all.sort((a, b) => {
@@ -1877,7 +1995,7 @@ export default function StockChart({
         return String(ta).localeCompare(String(tb))
       })
     },
-    [markers, j2.markers, chartEventMarkers, newsMarkers, flowMarkers],
+    [markers, j2.markers, chartEventMarkers, newsMarkers, deskMarkers, flowMarkers],
   )
   const mergedPriceLines = useMemo(
     () => [...(priceLines || []), ...(j2.priceLines || []), ...dpLines, ...gexLines],
@@ -5233,6 +5351,13 @@ export default function StockChart({
     () => (cs.comparisonSymbols || []).filter(c => c && c.enabled && c.sym),
     [cs.comparisonSymbols]
   )
+  // 'same' scale = the comparison rides the base's price scale (in Percentage mode)
+  // so an out-performer visibly rises ABOVE the base (TradingView compare). When any
+  // comparison asks for that, the main scale is forced to Percentage below.
+  const hasSameScaleComparison = useMemo(
+    () => enabledComparisons.some(c => c.scaleMode === 'same'),
+    [enabledComparisons]
+  )
   // Stable cache key: sorted sym list + tf + barCount. Sorted so reorder doesn't refetch.
   const comparisonsKey = useMemo(
     () => enabledComparisons.map(c => String(c.sym).toUpperCase()).sort().join(',') || null,
@@ -5271,7 +5396,7 @@ export default function StockChart({
       const points = rawBars
         .filter(b => Number.isFinite(b?.c))
         .map(b => ({ time: adjustTime(b.t), value: b.c }))
-      return { sym: symKey, color: c.color, points }
+      return { sym: symKey, color: c.color, scaleMode: c.scaleMode === 'same' ? 'same' : 'new', points }
     })
   }, [comparisonsData, enabledComparisons, adjustTime])
 
@@ -5283,17 +5408,51 @@ export default function StockChart({
   // NOT logical indices — a comparison series with more history than the base
   // extends the logical space, so a logical-index→bar map read the wrong (often
   // last) bar and the % came out 0.00%.
-  const [framedLeftTime, setFramedLeftTime] = useState(null)
+  // A tick that bumps on every visible-range change (rAF-debounced). The baseline
+  // time is then read FRESH from getVisibleRange() in the memo below rather than
+  // cached in state — a stale cached value was the "% shows full history" bug: the
+  // subscription's first read fired before the chart settled on the framed range,
+  // and the cached number never caught up.
+  const [rangeTick, setRangeTick] = useState(0)
   useEffect(() => {
     const chart = chartRef.current
-    if (!chart || !chartReady || !enabledComparisons.length) { setFramedLeftTime(null); return undefined }
+    if (!chart || !chartReady || !enabledComparisons.length) return undefined
     const ts = chart.timeScale()
-    const apply = (range) => { if (range && range.from != null) setFramedLeftTime(Number(range.from)) }
-    const handler = (range) => apply(range)
-    try { apply(ts.getVisibleRange()) } catch { /* mid-load */ }
-    try { ts.subscribeVisibleTimeRangeChange(handler) } catch { /* older API */ }
-    return () => { try { ts.unsubscribeVisibleTimeRangeChange(handler) } catch { /* */ } }
+    let raf = 0
+    const bump = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => setRangeTick(t => (t + 1) & 0xffff)) }
+    // Drive the tick off the LOGICAL range: it fires on every pan/zoom even when an
+    // edge is in whitespace (this chart extends its axis into the future), whereas
+    // the TIME range change does not fire once an edge leaves the data.
+    try { ts.subscribeVisibleLogicalRangeChange(bump) } catch { /* older API */ }
+    bump()
+    return () => { cancelAnimationFrame(raf); try { ts.unsubscribeVisibleLogicalRangeChange(bump) } catch { /* */ } }
   }, [chartReady, enabledComparisons.length])
+
+  const framedLeftTime = useMemo(() => {
+    const chart = chartRef.current
+    if (!chart || !enabledComparisons.length) return null
+    try {
+      const ts = chart.timeScale()
+      // ⭐ Read the LEFT edge's time from its PIXEL coordinate, NOT getVisibleRange().
+      // The chart extends its date axis past the last candle (future whitespace), and
+      // getVisibleRange() returns null the moment a visible edge sits in whitespace
+      // ("cannot extrapolate time") — that null was the "% stuck at full history" bug.
+      // coordinateToTime(0) resolves the leftmost visible bar, which is always real data.
+      let t = ts.coordinateToTime(0)
+      if (t == null) {
+        const lr = ts.getVisibleLogicalRange()
+        if (lr && lr.from != null) {
+          const x = ts.logicalToCoordinate(Math.max(0, Math.ceil(lr.from)))
+          if (x != null) t = ts.coordinateToTime(x)
+        }
+      }
+      if (t == null) { const r = ts.getVisibleRange(); t = (r && r.from != null) ? r.from : null }
+      const n = Number(t)
+      return Number.isFinite(n) ? n : null
+    } catch { /* mid-load */ }
+    return null
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rangeTick, chartReady, enabledComparisons.length])
 
   // Per-comparison % over the framed window: (latest close − close at framed-left) / base.
   const comparisonFramed = useMemo(() => {
@@ -9172,13 +9331,16 @@ export default function StockChart({
   useEffect(() => {
     const chart = chartRef.current
     if (!chart) return
-    const mode = effectiveScale === 'pct' ? 2 : (effectiveScale === 'log' ? 1 : 0)
+    // A 'same'-scale comparison shares this scale, so it MUST be Percentage — that
+    // is what makes LWC rebase the base + the comparison to the same 0% left edge so
+    // an out-performer sits higher. Reverts to the A/L/% choice once none remain.
+    const mode = (hasSameScaleComparison || effectiveScale === 'pct') ? 2 : (effectiveScale === 'log' ? 1 : 0)
     // Apply to the PRICE scale (via the candle series, robust to the index pane
     // at pane 0) AND the index-comparison pane, so the A/L/% toggle switches
     // both panes together. The index line is raw price, so log/percent are valid.
     try { mainPriceScale()?.applyOptions({ mode }) } catch { /* pre-init */ }
     try { indexPaneSeriesRef.current?.priceScale().applyOptions({ mode }) } catch { /* no index pane */ }
-  }, [effectiveScale, chartReady, indexPaneSymbol, indexPaneSeries, mainPriceScale])
+  }, [effectiveScale, chartReady, indexPaneSymbol, indexPaneSeries, mainPriceScale, hasSameScaleComparison])
 
   // ── Multi-symbol comparison overlays — add/remove series ──
   // Uses left-side 'comparison' price scale (independent of right price + 'compare' scale).
@@ -9198,13 +9360,22 @@ export default function StockChart({
       }
     }
 
-    // Add or update wanted series
+    // Add or update wanted series. Each comparison rides EITHER the base's main
+    // price scale ('right', scaleMode 'same' → out-performer sits above the base) OR
+    // its own auto-fitting left % scale ('new' → fills the pane independently).
+    // LWC can't move a series between scales, so a scaleMode flip = recreate.
     for (const cmp of comparisonSeries) {
+      const wantScale = cmp.scaleMode === 'same' ? 'right' : 'left'
       let series = map.get(cmp.sym)
+      if (series && series._uctScaleId !== wantScale) {
+        try { chart.removeSeries(series) } catch {}
+        map.delete(cmp.sym)
+        series = null
+      }
       if (!series) {
         try {
           series = chart.addSeries(LineSeries, {
-            priceScaleId: 'left',
+            priceScaleId: wantScale,
             color: cmp.color,
             lineWidth: 2,
             // No on-chart chip / axis label — the docked compare legend shows the
@@ -9214,6 +9385,7 @@ export default function StockChart({
             crosshairMarkerVisible: true,
             crosshairMarkerRadius: 3,
           })
+          series._uctScaleId = wantScale
           map.set(cmp.sym, series)
         } catch {
           continue
@@ -9224,11 +9396,14 @@ export default function StockChart({
       try { series.setData(cmp.points) } catch {}
     }
 
-    // The comparison scale runs in PERCENTAGE mode (mode:2) so LWC normalizes every
-    // comparison line to its first VISIBLE value — all start at 0% on the left and
-    // re-base as you pan/zoom (they line up with each other, TradingView-style).
+    // The dedicated LEFT scale (for 'new'-mode comparisons) runs in PERCENTAGE mode
+    // so LWC rebases each of those lines to its first VISIBLE value — 0% on the left,
+    // re-based on pan/zoom, lining up with each other. It is shown only while at
+    // least one comparison uses it; 'same'-mode comparisons ride the main scale
+    // instead (forced to Percentage by the scale-mode effect above).
     try {
-      if (wanted.size > 0) {
+      const anyNewScale = comparisonSeries.some(s => s.scaleMode !== 'same')
+      if (anyNewScale) {
         chart.priceScale('left').applyOptions({
           visible: true,
           mode: 2,
@@ -10991,6 +11166,50 @@ export default function StockChart({
       try { chart.unsubscribeClick(handler) } catch {}
     }
   }, [newsMarkers, resolvedTf])
+
+  // ── Desk-mention marker click → the Desk session, seeked to the mention ──
+  // The time matcher below is the news category's, but this handler does NOT stop
+  // there, and must not be "simplified" back to it.
+  //
+  // ⛔⭐ `param.time` IS THE WHOLE BAR COLUMN. It answers the same for a click on the
+  // marker and for a click on the candle 200px above it — so a time-only handler
+  // turns every ordinary click on a mention day into a full-app navigation. News gets
+  // away with it because it opens a new tab; this one replaces the page.
+  // THE GATE is `param.hoveredObjectId`: lightweight-charts reports the id of the
+  // object actually under the cursor, and our markers carry `id: 'desk-<date>'`. Only
+  // once that prefix matches does the time lookup run, and it runs to answer WHICH
+  // mention — the gate decides IF, the time decides WHICH.
+  // (Nothing else in this repo sets a marker id, so the prefix cannot collide.)
+  //
+  // ⚠️ NAVIGATION: StockChart has NO router context — it renders inside popups and the
+  // Model Book, and its own suites mount it bare (see StockChart.anchor.test.jsx), so a
+  // `useNavigate()` here would throw on mount for every one of those callers. So this
+  // reuses THIS FILE's existing marker-click navigation primitive, the news marker's
+  // `window.open`, with '_self' instead of '_blank': the destination is an in-app route
+  // and the spec's word is "navigates", where news opens an external article in a new
+  // tab. (`window.location.assign` would do the same thing and is NOT usable — jsdom
+  // makes Location unforgeable, so a click-wire test could not see it fire.)
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart || !deskMarkers?.length) return
+    const tfSec = PERIOD_SECONDS[resolvedTf] || (resolvedTf === 'D' ? 23400 : 86400)
+    const handler = (param) => {
+      if (!param || param.time == null) return
+      // IF: the click landed on a desk marker object, not merely in its column.
+      if (!String(param.hoveredObjectId ?? '').startsWith('desk-')) return
+      // WHICH: same half-bar tolerance idiom the news matcher uses.
+      const matching = deskMarkers.find(m => {
+        if (typeof m.time === 'number' && typeof param.time === 'number') {
+          return Math.abs(m.time - param.time) < tfSec * 0.5
+        }
+        return String(m.time) === String(param.time)
+      })
+      const href = deskMentionHref(matching?._deskMention)
+      if (href) window.open(href, '_self')
+    }
+    chart.subscribeClick(handler)
+    return () => { try { chart.unsubscribeClick(handler) } catch {} }
+  }, [deskMarkers, resolvedTf])
 
   // ── Earnings marker click → themed earnings popover ──
   // Same time-match approach as news markers (LWC has no marker-click event).

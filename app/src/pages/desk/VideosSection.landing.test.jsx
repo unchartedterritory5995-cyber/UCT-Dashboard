@@ -684,6 +684,35 @@ test('?v= and ?cat= coexist: autoplay fires AND the chip filter applies', () => 
   expect(screen.getByRole('heading', { level: 2, name: 'Live Trading Sessions' })).toBeTruthy()
 })
 
+/* ── Phase 2B: ?v= + &t= — a shared-moment deep link seeks after autoplay ── */
+
+test('?v=X&t=90 autoplays AND seeds a startAt seek request for that second', () => {
+  renderSection(['/desk?section=videos&v=lib0000000a&t=90'])
+  expect(play).toHaveBeenCalledTimes(1)
+  const [listArg, indexArg, optsArg] = play.mock.calls[0]
+  expect(listArg.map((v) => v.id)).toEqual([4, 5]) // same category list as the plain ?v= case
+  expect(indexArg).toBe(0)
+  expect(optsArg).toEqual({ startAt: 90 })
+})
+
+test('?v= alone (no &t=) still calls play with no startAt opts (byte-unchanged)', () => {
+  renderSection(['/desk?section=videos&v=lib0000000a'])
+  expect(play).toHaveBeenCalledTimes(1)
+  expect(play.mock.calls[0][2]).toBeUndefined()
+})
+
+test('an invalid &t= (negative / non-numeric) is ignored — autoplay fires with no startAt', () => {
+  renderSection(['/desk?section=videos&v=lib0000000a&t=-5'])
+  expect(play).toHaveBeenCalledTimes(1)
+  expect(play.mock.calls[0][2]).toBeUndefined()
+})
+
+test('&t=0 autoplays with no startAt (nothing to seek at the very start)', () => {
+  renderSection(['/desk?section=videos&v=lib0000000a&t=0'])
+  expect(play).toHaveBeenCalledTimes(1)
+  expect(play.mock.calls[0][2]).toBeUndefined()
+})
+
 /* ── r6: "Found inside videos" — deep search below the title-match grid ─── */
 
 // Deep tests fake ONLY setTimeout/clearTimeout (the debounce) — Date stays

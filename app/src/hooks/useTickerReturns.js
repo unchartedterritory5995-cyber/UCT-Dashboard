@@ -22,6 +22,11 @@ export function useTickerReturns(videoId) {
   const { data } = useSWR(key, fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 300_000,
+    // Same retry cadence as useTickerMeta.js — ~4s backoff self-heals a
+    // transient miss within seconds instead of sitting on SWR's unset/
+    // unlimited default.
+    errorRetryCount: 4,
+    errorRetryInterval: 4000,
   })
   if (!data || typeof data !== 'object') return EMPTY
   return {

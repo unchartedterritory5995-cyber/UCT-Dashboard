@@ -601,6 +601,19 @@ function ChartSettingsPanel({
               }} />
             News markers
           </label>
+          {/* Desk mentions (spec 2026-08-11 §C). This panel is the SECOND surface for
+              cs.markers — ChartSettingsModal's Markers tab is the other — so a new
+              category has to be added in both or the toggle is missing wherever the
+              user happens to open settings. */}
+          <label className={styles.sCheck}>
+            <input type="checkbox"
+              checked={cs.markers?.desk ?? false}
+              onChange={e => {
+                const next = { ...cs, markers: { ...cs.markers, desk: e.target.checked }, preset: 'custom' }
+                onUpdateSettings(next)
+              }} />
+            Desk mentions
+          </label>
         </div>
       </div>
 

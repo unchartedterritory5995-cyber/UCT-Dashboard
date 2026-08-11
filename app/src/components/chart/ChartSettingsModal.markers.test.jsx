@@ -113,6 +113,44 @@ describe('ChartSettingsModal — Markers tab', () => {
     expect(lastCall(onChange).markers.earningsBeat.toLowerCase()).toContain('00ff00')
   })
 
+  // ── Desk mentions (spec 2026-08-11 §C) ──
+  // A category, not a mechanism: it must behave exactly like its siblings. These
+  // three assert the parts a new key can get wrong on its own — the default, the
+  // write, and the round-trip (it carries NO entry in CHART_DEFAULTS.markers, so
+  // mergeChartSettings has to preserve it purely by spreading the saved blob).
+  it('Desk mentions is OFF by default and its toggle writes cs.markers.desk', () => {
+    const onChange = vi.fn()
+    render(<ChartSettingsModal open settings={base()} onChange={onChange} />)
+    openMarkers()
+
+    const sw = screen.getByRole('switch', { name: 'Desk mentions' })
+    expect(sw.getAttribute('aria-checked')).toBe('false')   // opt-in, like News
+
+    fireEvent.click(sw)
+    const next = lastCall(onChange)
+    expect(next.markers.desk).toBe(true)
+    expect(next.markers.news).toBe(false)      // sibling intact
+    expect(next.markers.earnings).toBe(false)  // sibling intact
+    expect(next.preset).toBe('custom')
+  })
+
+  it('a saved markers.desk survives the settings round-trip and renders checked', () => {
+    const saved = mergeChartSettings(JSON.stringify({ markers: { desk: true } }))
+    expect(saved.markers.desk).toBe(true)      // the merge kept a key defaults never name
+    render(<ChartSettingsModal open settings={saved} onChange={vi.fn()} />)
+    openMarkers()
+    expect(screen.getByRole('switch', { name: 'Desk mentions' }).getAttribute('aria-checked')).toBe('true')
+  })
+
+  it('turning Desk mentions back off writes false, not a deleted key', () => {
+    const onChange = vi.fn()
+    const saved = mergeChartSettings(JSON.stringify({ markers: { desk: true } }))
+    render(<ChartSettingsModal open settings={saved} onChange={onChange} />)
+    openMarkers()
+    fireEvent.click(screen.getByRole('switch', { name: 'Desk mentions' }))
+    expect(lastCall(onChange).markers.desk).toBe(false)
+  })
+
   it('countdown toggle writes cs.countdown', () => {
     const onChange = vi.fn()
     render(<ChartSettingsModal open settings={base()} onChange={onChange} />)

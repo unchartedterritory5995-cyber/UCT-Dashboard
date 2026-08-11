@@ -82,9 +82,12 @@
 }
 .segBtn + .segBtn { border-left: 1px solid var(--border, #2e3127); }
 .segBtn:hover { color: var(--text-bright, #e0dac8); }
+/* Selected = a thicker accent outline (inset box-shadow), not a gold fill. */
 .segOn {
-  color: #1a1408;
-  background: var(--accent, #c9a84c);
+  position: relative;
+  z-index: 1;
+  color: var(--text-heading, #f0ead8);
+  box-shadow: inset 0 0 0 2px var(--accent, #c9a84c);
 }
 
 .input {
@@ -108,16 +111,17 @@
   padding: 2px 2px;
 }
 
-.list { display: flex; flex-direction: column; gap: 4px; }
+.list { display: flex; flex-direction: column; gap: 6px; }
 .row {
   display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 5px 8px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px;
   border: 1px solid var(--border, #2e3127);
   border-radius: 7px;
   background: var(--bg-surface, #1a1c17);
 }
+.rowMain { display: flex; align-items: center; gap: 9px; }
 .dot { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 3px; }
 .sym {
   flex: 1;
@@ -140,6 +144,36 @@
   cursor: pointer;
 }
 .rm:hover { background: rgba(200, 40, 40, 0.85); color: #fff; }
+
+/* Per-symbol price-scale toggle (Same % scale / New price scale) */
+.scaleSeg {
+  display: flex;
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.scaleBtn {
+  flex: 1;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  background: var(--bg-elevated, #22251e);
+  border: none;
+  color: var(--text-muted, #8c8674);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.scaleBtn + .scaleBtn { border-left: 1px solid var(--border, #2e3127); }
+.scaleBtn:hover { color: var(--text-bright, #e0dac8); }
+/* Selected = a thicker accent outline (inset box-shadow), not a gold fill. */
+.scaleOn {
+  position: relative;
+  z-index: 1;
+  color: var(--text-heading, #f0ead8);
+  box-shadow: inset 0 0 0 2px var(--accent, #c9a84c);
+}
 
 .hint {
   font-size: 11px;
