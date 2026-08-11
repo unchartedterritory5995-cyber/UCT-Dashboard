@@ -471,6 +471,9 @@ function ChartPane({
     openSettings,
     focus: () => focusableRef.current?.focus({ preventScroll: true }),
     changeSymbol: handleSymbolChange,
+    // The chart-fill rect (viewport coords) — lets a workspace tool (Compare
+    // Symbols) centre its panel on this chart.
+    getRect: () => (focusableRef.current ? focusableRef.current.getBoundingClientRect() : null),
   }), [openSettings, handleSymbolChange])
 
   return (
@@ -583,6 +586,10 @@ function ChartPane({
         <StockChart
           sym={sym}
           tf={isBreadth ? breadthTf : (themeIdx.isIndex ? indexTf : tf)}
+          /* The old drawing-toolbar compare entry is retired — comparisons are
+             managed by the /charts Tools → Compare Symbols panel now (rendering via
+             cs.comparisonSymbols is unchanged). */
+          hideCompare
           {...(isBreadth ? {
             // UCT BREADTH: /api/bars serves the synthetic candles, so NO barsOverride —
             // just freeze the live paths. Watermark = the SYMBOL on top (e.g. UCTA50)

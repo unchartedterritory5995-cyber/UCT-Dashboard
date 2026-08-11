@@ -25,6 +25,7 @@ import PopoutWindow from './popout/PopoutWindow'
 import PopoutShell from './popout/PopoutShell'
 import PoppedLayout from './popout/PoppedLayout'
 import PeriodSortPanel from './PeriodSortPanel'
+import CompareSymbolsPanel from './CompareSymbolsPanel'
 import PeriodSortConfig from './PeriodSortConfig'
 import { addWidgetTab } from './widgetTabs'
 import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y as _MARGIN_Y, BODY_PAD as _BODY_PAD } from './rowHeight'
@@ -476,6 +477,10 @@ export default function ChartsWorkspace() {
   // Ref (not state) so hover crossings never re-render anything; each widget's
   // StockChart reads it through a hotkeysActive callback at keydown time.
   const activeChartRef = useRef(null)
+  // widgetId → imperative chart API ({getComparison,setComparison,getPercentScale,
+  // setPercentScale}). Each ChartWidget registers here on mount; the Compare
+  // Symbols tool reads/writes the active chart's comparison overlays through it.
+  const chartApiByIdRef = useRef(new Map())
   // Same idea for watchlists: the last hovered/focused Watchlist widget owns the
   // arrow keys + its own scroll-into-view, so 4 watchlists don't all fight over one
   // keypress (first-mounted-wins race) or all force a reflow on every selection.
@@ -570,6 +575,9 @@ export default function ChartsWorkspace() {
   const [periodSortMode, setPeriodSortMode] = useState(false)
   const [periodSortSel, setPeriodSortSel] = useState(null)     // { sym, start, end, pct } | null
   const [periodSortPanel, setPeriodSortPanel] = useState(null) // { start, end, group } | null
+  // Tools → Compare Symbols: the floating panel that overlays other tickers' % on
+  // the active chart (auto-opens a chart widget if none exists).
+  const [compareOpen, setCompareOpen] = useState(false)
   // Replay mode: an ISO 'YYYY-MM-DD' cutoff — linked charts hide every bar after it.
   const [replayCutoff, setReplayCutoff] = useState(null)
   // "Mark start date": an ISO 'YYYY-MM-DD' + style ('line' gold vertical line | 'candle'
@@ -584,7 +592,7 @@ export default function ChartsWorkspace() {
   const exitReplay = useCallback(() => { setReplayCutoff(null); setStartMarker(null) }, [])
 
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle }),
+    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle }),
     [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle],
   )
 
@@ -731,6 +739,14 @@ export default function ChartsWorkspace() {
       return next
     })
   }, [scheduleSave, groupSyms])
+
+  // Tools → Compare Symbols: overlay other tickers' % on the active chart. If no
+  // chart widget is open, auto-open one first (it registers its API on mount and
+  // the panel picks it up). Then open the floating panel.
+  const openCompare = useCallback(() => {
+    if (!layout.widgets.some(w => w.type === 'chart')) handleAddWidget('chart')
+    setCompareOpen(true)
+  }, [layout, handleAddWidget])
 
   // Custom-Period Sort → dock the floating results as a real grid widget (carrying the
   // highlighted range), or fold it into an existing widget as a Period-Sort tab.
@@ -1374,6 +1390,12 @@ export default function ChartsWorkspace() {
                   style={periodSortMode ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
                   onClick={() => { setPeriodSortSel(null); setPeriodSortMode(true); closeToolbarMenus() }}
                 >{periodSortMode ? '✓ ' : ''}Custom-Period Sort</button>
+                <button
+                  type="button"
+                  className={styles.addMenuItem}
+                  style={compareOpen ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                  onClick={() => { openCompare(); closeToolbarMenus() }}
+                >{compareOpen ? '✓ ' : ''}Compare Symbols</button>
               </div>
             )}
           </div>
@@ -1485,6 +1507,13 @@ export default function ChartsWorkspace() {
             onDock={() => handleDockPeriodSort(periodSortPanel.start, periodSortPanel.end, periodSortPanel.group)}
             tabTargets={visibleWidgets.map(w => ({ id: w.id, label: WIDGET_LABELS[w.type] || w.type }))}
             onAddAsTab={(widgetId) => handlePeriodSortToTab(widgetId, periodSortPanel.start, periodSortPanel.end, periodSortPanel.group)}
+          />
+        )}
+        {compareOpen && (
+          <CompareSymbolsPanel
+            chartApiById={chartApiByIdRef}
+            activeChartRef={activeChartRef}
+            onClose={() => setCompareOpen(false)}
           />
         )}
       </div>

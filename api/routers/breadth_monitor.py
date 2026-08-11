@@ -171,6 +171,42 @@ def pit_validate_result():
     return cal._VSTATE
 
 
+@router.post("/api/breadth-monitor/wicks/validate")
+def wicks_validate(request: Request, days: int = Query(default=3, ge=1, le=8),
+                   bucket_min: int = Query(default=30, ge=5, le=60)):
+    """Phase-3 gate: reconstruct the last `days` sessions' wicks from S3 minute flat
+    files and compare to the store's REAL live-accumulator wicks. Background thread
+    (whole-market minute pull is heavy). Poll GET .../wicks/validate-result.
+    PUSH_SECRET-gated."""
+    _check_auth(request)
+    from api.services import breadth_wick_recon as wr
+    wr.run_validate_async(days=days, bucket_min=bucket_min)
+    return {"ok": True, "started": True, "days": days, "bucket_min": bucket_min}
+
+
+@router.get("/api/breadth-monitor/wicks/validate-result")
+def wicks_validate_result():
+    """Poll the Phase-3 wick-reconstruction validation (public — recon-vs-live wick
+    deltas, no member lists)."""
+    from api.services import breadth_wick_recon as wr
+    return wr._VWSTATE
+
+
+@router.get("/api/breadth-monitor/wicks/probe")
+def wicks_probe(request: Request, date: str = Query(default="")):
+    """Phase-3 diagnostic: pinpoint why recon_day fails (levels build vs S3 access),
+    for one day. PUSH_SECRET-gated."""
+    _check_auth(request)
+    from api.services import breadth_wick_recon as wr
+    from api.services import breadth_live as bl, breadth_daily_ohlc as store
+    D = date
+    if not D:
+        today = bl._iso(bl._ts_int(bl._now_et().date()))
+        ds = sorted(d for d in store.history("pct_above_50sma") if d < today)
+        D = ds[-1] if ds else today
+    return wr.probe_day(D)
+
+
 @router.post("/api/breadth-monitor/history/backfill-schedule")
 def schedule_breadth_backfill(request: Request, floor: str = Query(default=""),
                               stop: bool = Query(default=False)):

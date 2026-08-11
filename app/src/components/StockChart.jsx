@@ -301,6 +301,32 @@ function computeDefaultLogicalRange(barsLen, tf, { dailyDefaultBars = null, left
   return { from, to }
 }
 
+// Last bar at/before the END (UTC) of anchor day. Daily bars carry ISO 'YYYY-MM-DD'
+// strings; intraday bars carry unix seconds. Exported for its unit tests.
+// ⚠️ REQUIRES `bars` ASCENDING by time — it walks forward and `break`s at the first
+// bar past the anchor, so an unsorted array returns a short answer. Every series fed
+// to the chart is already ascending (the render plan depends on it).
+// ⚠️ The day boundary is UTC, not exchange-local. A US extended-hours bar at 19:00–20:00
+// ET falls in the NEXT UTC day, so an intraday anchor stops at the 19:00 ET bar rather
+// than the post-market close. Accepted for v1: the Desk anchor names a SESSION, and the
+// frame's job is "that day's action at the right edge", which this satisfies.
+export function lastAnchorIdx(bars, anchorDate) {
+  if (!anchorDate || !bars || bars.length === 0) return -1
+  const endMs = Date.parse(`${anchorDate}T23:59:59Z`)
+  if (!Number.isFinite(endMs)) return -1
+  let idx = -1
+  for (let i = 0; i < bars.length; i++) {
+    const t = bars[i].t
+    const ms = typeof t === 'number'
+      ? (t < 1e12 ? t * 1000 : t)
+      : Date.parse(String(t).length <= 10 ? `${t}T00:00:00Z` : String(t))
+    if (!Number.isFinite(ms)) continue
+    if (ms <= endMs) idx = i
+    else break
+  }
+  return idx
+}
+
 import useJ2ChartMarkers from '../pages/journal-2-0/hooks/useJ2ChartMarkers'
 import CountdownTimer from './chart/CountdownTimer'
 import styles from './StockChart.module.css'
@@ -313,6 +339,7 @@ import { isNativeTf, fetchTf, resampleSpec } from './chart/timeframes'
 import { barsRenderPlan } from './chart/renderPlan'
 import ChartSkeleton from './chart/ChartSkeleton'
 import { normalizeToPctChange } from './chart/comparisonUtils'
+import CompanyLogo from './CompanyLogo'
 import { composeScreenshot, downloadBlob, copyBlobToClipboard, chartStateToUrl, urlToChartState } from './chart/chartScreenshot'
 import ScreenshotPopover from './chart/ScreenshotPopover'
 import { INDICATOR_CHORDS, matchShortcut, resolveTfCycle } from './chart/keyboardShortcuts'
@@ -1217,8 +1244,13 @@ export default function StockChart({
   onPeriodSelected = null,    // (startYmd:int, endYmd:int, pct:number) => void — the highlighted [start, end] as YYYYMMDD ints + the symbol's close-to-close % move.
   onPeriodCancel = null,      // () => void — the ✕ on the "Highlight time period" banner cancels the mode.
   replayCutoff = null,        // Replay mode: 'YYYY-MM-DD' — hide every bar after this calendar day + re-frame to default zoom + freeze live. null = normal chart.
-  onExitReplay = null,        // () => void — when set + replayCutoff/startMarker active, shows an "Exit Replay Mode" pill centered in the chart's clear top area.
+  onExitReplay = null,        // () => void — when set + replayCutoff/startMarker/anchorDate active, shows an "Exit Replay Mode" pill (text overridable via exitReplayLabel) centered in the chart's clear top area.
   startMarker = null,         // 'YYYY-MM-DD' — Custom-Period Sort: draw a thin gold vertical line at this date on the chart. null = none.
+  anchorDate = null,          // 'YYYY-MM-DD' — Desk anchored+reveal: FIRST FRAME uses the default
+                              // zoom ending at this day's bar (marker line drawn there); later bars
+                              // stay LOADED off-screen right (scroll to reveal). View-only — never
+                              // slices data (contrast replayCutoff). User pan/zoom releases it.
+  exitReplayLabel = null,     // pill text override ('⟲ Back to today' for anchored charts)
   verticalLegend = false,     // Charts workspace: stack the crosshair OHLCV legend single-file down the left instead of a horizontal row near the toolbar.
   lockWatermark = false,      // Charts workspace: disable the watermark hover-arm + drag so hovering it never moves it.
   alwaysShowLegend = false,   // Charts workspace: keep the legend visible with the latest bar's values when the cursor is off the chart (instead of hiding).
@@ -5239,6 +5271,58 @@ export default function StockChart({
     })
   }, [comparisonsData, enabledComparisons, adjustTime])
 
+  // ── Compare legend: framed-window % + name/exchange ──
+  // Leftmost VISIBLE bar time (adjustTime space) = the framed baseline; re-computed
+  // on pan/zoom (rAF-debounced) so the legend %s read "since the left of what you
+  // see", not since the oldest loaded bar.
+  // Uses the visible TIME range (numeric, same adjustTime space as the series),
+  // NOT logical indices — a comparison series with more history than the base
+  // extends the logical space, so a logical-index→bar map read the wrong (often
+  // last) bar and the % came out 0.00%.
+  const [framedLeftTime, setFramedLeftTime] = useState(null)
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart || !chartReady || !enabledComparisons.length) { setFramedLeftTime(null); return undefined }
+    const ts = chart.timeScale()
+    const apply = (range) => { if (range && range.from != null) setFramedLeftTime(Number(range.from)) }
+    const handler = (range) => apply(range)
+    try { apply(ts.getVisibleRange()) } catch { /* mid-load */ }
+    try { ts.subscribeVisibleTimeRangeChange(handler) } catch { /* older API */ }
+    return () => { try { ts.unsubscribeVisibleTimeRangeChange(handler) } catch { /* */ } }
+  }, [chartReady, enabledComparisons.length])
+
+  // Per-comparison % over the framed window: (latest close − close at framed-left) / base.
+  const comparisonFramed = useMemo(() => {
+    if (!comparisonsData) return []
+    return enabledComparisons.map(c => {
+      const symKey = String(c.sym).toUpperCase()
+      const bars = comparisonsData[symKey] || []
+      let baseClose = null, lastClose = null
+      if (framedLeftTime != null) {
+        for (const b of bars) { if (Number.isFinite(b.c) && adjustTime(b.t) >= framedLeftTime) { baseClose = b.c; break } }
+      }
+      if (baseClose == null) { for (const b of bars) { if (Number.isFinite(b.c)) { baseClose = b.c; break } } }
+      for (let i = bars.length - 1; i >= 0; i--) { if (Number.isFinite(bars[i].c)) { lastClose = bars[i].c; break } }
+      const pct = (baseClose && lastClose) ? ((lastClose - baseClose) / baseClose) * 100 : null
+      return { sym: symKey, color: c.color, pct }
+    })
+  }, [comparisonsData, enabledComparisons, framedLeftTime, adjustTime])
+
+  // Name + exchange for each comparison (the legend shows "Name · Exchange").
+  const { data: comparisonMeta } = useSWR(
+    comparisonsKey ? ['comparison-meta', comparisonsKey] : null,
+    async () => {
+      const syms = enabledComparisons.map(c => String(c.sym).toUpperCase())
+      const res = await Promise.allSettled(
+        syms.map(s => fetch(`/api/ticker-meta/${encodeURIComponent(s)}`).then(r => (r.ok ? r.json() : null)).catch(() => null)),
+      )
+      const out = {}
+      res.forEach((r, i) => { out[syms[i]] = r.status === 'fulfilled' ? r.value : null })
+      return out
+    },
+    { revalidateOnFocus: false, dedupingInterval: 300_000 },
+  )
+
   // ── Index comparison pane (indexPaneSymbol, e.g. ^IXIC) ──
   // Fetch the index's bars for the same tf + bar count and draw its CLOSE as a
   // line in a dedicated pane on top of the price pane. Unlike the % comparison
@@ -5818,6 +5902,147 @@ export default function StockChart({
   // merely-connected or silently-frozen feed (that would freeze the candle while ● LIVE
   // still shows). delivering is bar-recency-gated in barsStreamManager.
   barsPushActiveRef.current = _pushOptIn && _barsPush.delivering
+
+  // ── Anchored+reveal (Desk): ONE resolution of the anchor, shared by frame + marker + pill ──
+  // The anchor bar is the last bar at/before the anchor day IN THE SERIES THE CHART
+  // ACTUALLY DREW (filteredBars — `bars` is the pre-session-filter array, a different
+  // index space on intraday with ext-hours off). Resolving it once is what keeps the
+  // gold marker line on the SAME bar the frame ends at.
+  // anchorIdx < 0 ⇒ the anchor names no loaded bar ⇒ the whole feature is INERT: no
+  // frame, no marker, no pill. A chart sitting at present must not offer "Back to today".
+  const anchorIdx = useMemo(
+    () => (anchorDate ? lastAnchorIdx(filteredBars, anchorDate) : -1),
+    [anchorDate, filteredBars]
+  )
+  const anchorActive = anchorIdx >= 0
+
+  // Marker input, resolved from the SAME bar the frame ends at — never re-derived from
+  // the raw anchorDate. ChartVLineOverlay picks the bar NEAREST the date it is handed and
+  // then indexes the array it is handed, so passing it (anchorDate, bars) diverged two
+  // ways: a Sunday anchor put the line on Monday while the frame ended Friday, and `bars`
+  // is the PRE-session-filter array — a different index space from the filteredBars the
+  // series was actually drawn from. Handing it filteredBars + the anchor bar's EXACT
+  // timestamp makes "nearest" an exact hit on that one bar.
+  // The overlay parses with Date.parse, which cannot read a bare epoch, so an intraday
+  // series (numeric t) is projected onto ISO strings — same length, same order, therefore
+  // the same index space. Without this an intraday anchor drew no line at all.
+  const anchorMarker = useMemo(() => {
+    if (!anchorActive) return null
+    const t = filteredBars[anchorIdx]?.t
+    if (t == null) return null
+    if (typeof t !== 'number') return { bars: filteredBars, date: t }
+    const iso = (v) => new Date(v < 1e12 ? v * 1000 : v).toISOString()
+    return { bars: filteredBars.map(b => ({ t: iso(b.t) })), date: iso(t) }
+  }, [anchorActive, anchorIdx, filteredBars])
+
+  // Latest-ref: `updateChart` is a useCallback that does NOT list anchorDate (adding it,
+  // or the frame helper, would re-create the callback every render and re-fire the whole
+  // repaint effect). So everything the anchor branches read must come through this ref,
+  // never through the values captured in updateChart's closure — otherwise a chart whose
+  // anchorDate changed while the bar count held would frame the PREVIOUS anchor.
+  const anchorCfgRef = useRef(null)
+  anchorCfgRef.current = { anchorIdx, resolvedTf, dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride,
+    frameKey: `${sym}_${resolvedTf}`, barsLen: filteredBars?.length || 0 }
+
+  // THE RULE: while an anchor bar exists and the user has not taken the view over, the
+  // anchor frame wins everywhere the chart would otherwise auto-frame. userViewMovedRef
+  // is the same latch replay uses — one pan/zoom and all re-assertion stops.
+  const anchorOwnsFrame = () => anchorCfgRef.current.anchorIdx >= 0 && !userViewMovedRef.current
+
+  // ── First-load layout race: ONE setVisibleLogicalRange does not stick ──────────
+  // The chart is created with autoSize, so for several frames after first paint the
+  // container is still settling (0→real size, ResizeObserver, fonts) and LWC clamps or
+  // overrides a logical-range write issued in that window. The gold marker is a canvas
+  // primitive and survived it; the FRAME silently reverted to the default latest view,
+  // so an anchored popup opened showing TODAY. Invisible to every suite because jsdom
+  // has no layout — found in the live browser.
+  // This is the same failure, and the same remedy, as the exact-range year frame:
+  // keep the computed target in a ref and re-assert it across the settle window (see
+  // yearRangeRef / yearFramedRef and their burst). Mirrored deliberately rather than
+  // reinvented, including reading the target from the REF at fire time so a staged data
+  // load cannot re-pin stale indices.
+  const anchorRangeRef = useRef(null)   // latest computed {from,to} — re-asserts read THIS, never a captured local
+  const anchorFramedRef = useRef(null)  // `${sym}_${tf}:${barsLen}:${anchorIdx}` the burst has already fired for
+
+  const scheduleAnchorReassert = () => {
+    const c = anchorCfgRef.current
+    const key = c.frameKey
+    // Re-stamped on any data phase (barsLen) or anchor change (anchorIdx), so a backfill
+    // or a new moment gets a FRESH burst against freshly computed indices; a repeat call
+    // in the same state does not stack another one.
+    const sig = `${key}:${c.barsLen}:${c.anchorIdx}`
+    if (anchorFramedRef.current === sig) return
+    anchorFramedRef.current = sig
+    const reassert = () => {
+      // Stop if the chart is torn down, the symbol/timeframe moved on, the anchor went
+      // inert, or — the release contract — the user has taken the view.
+      if (!containerRef.current || anchorCfgRef.current.frameKey !== key) return
+      if (!anchorOwnsFrame()) return
+      const r = anchorRangeRef.current
+      if (!r) return
+      try { chartRef.current?.timeScale().setVisibleLogicalRange({ from: r.from, to: r.to }) } catch { /* out of range mid-load */ }
+    }
+    requestAnimationFrame(reassert)
+    requestAnimationFrame(() => requestAnimationFrame(reassert))
+    setTimeout(reassert, 120)
+    setTimeout(reassert, 320)
+    setTimeout(reassert, 650)
+    setTimeout(reassert, 1200)
+  }
+
+  // Anchored+reveal frame: default zoom width ending at the anchor bar. Passing a
+  // VIRTUAL length (anchorIdx+1) to computeDefaultLogicalRange frames the anchor bar at
+  // LAST_CANDLE_POS exactly like the newest bar normally is — later bars run off-screen
+  // right. Returns false when no bar qualifies (caller falls through to normal framing).
+  const applyAnchorFrame = (chart) => {
+    const c = anchorCfgRef.current
+    if (!chart || c.anchorIdx < 0) return false
+    const { from, to } = computeDefaultLogicalRange(
+      c.anchorIdx + 1, c.resolvedTf,
+      { dailyDefaultBars: c.dailyDefaultBars, leftBarPad: c.leftBarPad, rightPadBars: c.rightPadBars,
+        visibleBarsOverride: c.visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) })
+    anchorRangeRef.current = { from, to }
+    try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch { return false }
+    scheduleAnchorReassert()
+    return true
+  }
+
+  // anchorDate CHANGED on an already-mounted chart. Three transitions, all real on the
+  // Desk pane: null→date (a moment opens), dateA→dateB (a different moment / the
+  // follow-along pane advancing), date→null ("⟲ Back to today"). updateChart is memoized
+  // without anchorDate, and no zoomKey moves on these, so WITHOUT this effect the marker
+  // would jump to the new date while the viewport sat still.
+  const prevAnchorRef = useRef(anchorDate)
+  useEffect(() => {
+    const prev = prevAnchorRef.current
+    if (prev === anchorDate) return
+    const chart = chartRef.current
+    // Bars not in yet: leave prevAnchorRef UNadvanced so this retries on the commit
+    // that brings them (filteredBars is a dep) instead of dropping the transition.
+    if (!chart || !filteredBars || filteredBars.length === 0) return
+    prevAnchorRef.current = anchorDate
+    if (anchorDate) {
+      // A new anchor is a FRESH user intent (they clicked a different moment), so it
+      // re-takes a view the user had panned away from — the same re-arm a symbol or
+      // timeframe switch performs (see `if (!_replayLocked) userViewMovedRef.current =
+      // false` in updateChart). Controller ruling 2026-08-11: an anchorDate change is
+      // navigation, so this re-arm is correct under the RULE — keep it.
+      // Inert if the anchor names no loaded bar.
+      if (anchorIdx < 0) return
+      userViewMovedRef.current = false
+      applyAnchorFrame(chart)
+      return
+    }
+    if (!prev) return   // never anchored → nothing to restore
+    // "Back to today": re-frame to the canonical present-day default (the same helper
+    // first load and right-click "Reset view" use) and re-arm the pinned-right net.
+    userViewMovedRef.current = false
+    const { from, to } = computeDefaultLogicalRange(
+      filteredBars.length, resolvedTf,
+      { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride,
+        plotWidthPx: plotWidthOf(chart, containerRef.current) })
+    try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch { /* mid-load */ }
+  }, [anchorDate, anchorIdx, filteredBars, resolvedTf, dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride])
 
   // ── Chart update — reuses chart instance, swaps data via setData() ─────────
   const updateChart = useCallback(() => {
@@ -8021,7 +8246,11 @@ export default function StockChart({
       try { mainPriceScale()?.applyOptions({ autoScale: true }) } catch {}
 
       let didPreserve = false
-      if (!isFirstLoad && !tfChanged && !entryDate && oldRange && oldBarCount > 0) {
+      // !anchorOwnsFrame(): a SYMBOL switch under a live anchor (the Desk follow-along
+      // pane walks `sym` with anchorDate held constant) must re-anchor on the NEW
+      // ticker's bars, not inherit the previous ticker's relative position. Falling
+      // through leaves didPreserve false so the anchor branch below gets the frame.
+      if (!anchorOwnsFrame() && !isFirstLoad && !tfChanged && !entryDate && oldRange && oldBarCount > 0) {
         const newBarCount = filteredBars.length
         const width = oldRange.to - oldRange.from
         // Symbol switch: keep the user's ZOOM LEVEL (width), but choose the anchor.
@@ -8097,6 +8326,8 @@ export default function StockChart({
           const fromBar = Math.max(0, (entryIdx >= 0 ? entryIdx : 0) - 20)
           const toBar   = (exitIdx >= 0 ? exitIdx : filteredBars.length - 1) + 28
           chart.timeScale().setVisibleLogicalRange({ from: fromBar, to: toBar })
+        } else if (anchorOwnsFrame() && applyAnchorFrame(chart)) {
+          // Anchored+reveal handled — nothing else to frame.
         } else {
           const _pt = pendingTfReframeRef.current
           if (tfChanged && _pt && _pt.width > 0) {
@@ -8118,6 +8349,10 @@ export default function StockChart({
       }
     } else if (!entryDate && !exactDateRange && _preUpdateRange && oldBarCount > 0
                && oldBarCount !== filteredBars.length) {
+      // Anchored chart: a backfill prepends older bars, shifting the anchor's index —
+      // recompute the anchor frame from data instead of preserving relative position.
+      // The moment the user moves the view, userViewMovedRef latches and this stops.
+      if (anchorOwnsFrame() && applyAnchorFrame(chart)) { /* framed */ } else {
       // SAME ticker/tf, but the bar COUNT changed since the last render — the
       // IDB-cache → network full-fetch swap OR a viewport-first older-history
       // backfill / dwell-warm (FIRST_PAINT→full, 600→12025). A backfill only
@@ -8151,6 +8386,7 @@ export default function StockChart({
         const from2 = to2 - width
         try { chart.timeScale().setVisibleLogicalRange({ from: from2, to: to2 }) } catch {}
       }
+      }   // ← closes the `if (anchorOwnsFrame() …) {} else {` wrapper above
     }
 
     // ── Keep-the-newest-candle-pinned-right safety net (workspace live charts) ──
@@ -8165,7 +8401,17 @@ export default function StockChart({
       const preLastIdx = oldBarCount - 1
       const prePad = oldRange.to - preLastIdx      // empty bars right of the last bar, BEFORE the update
       const preWidth = oldRange.to - oldRange.from
-      if (pendingTfReframeRef.current && pendingTfReframeRef.current.tf === resolvedTf) {
+      if (anchorOwnsFrame() && applyAnchorFrame(chart)) {
+        // ANCHOR WINS over both settling guards, and this is the SINGLE place that
+        // enforces it against them. A TF flip / keepPresent symbol switch arms
+        // pendingTfReframeRef, whose arm below re-asserts NEWEST-at-right on every
+        // settling commit — the clobber that flickered an anchored chart back to
+        // present. Disarming at the ARMING SITE instead was tried and rejected: it
+        // cannot cover a ref armed BEFORE anchorDate became active (flip the timeframe,
+        // then open a moment), whereas this runs on every commit whatever armed it.
+        // Verified load-bearing: disable this and the TF-flip test reds.
+        pendingTfReframeRef.current = null
+      } else if (pendingTfReframeRef.current && pendingTfReframeRef.current.tf === resolvedTf) {
         // Just switched INTO this timeframe: deterministically re-assert the PRESERVED
         // viewport (same last-candle position + zoom width as the outgoing view) on every
         // settling commit (the bars arrive in phases — IDB cache → network → backfill —
@@ -8957,18 +9203,19 @@ export default function StockChart({
             priceScaleId: 'left',
             color: cmp.color,
             lineWidth: 2,
-            lastValueVisible: true,
+            // No on-chart chip / axis label — the docked compare legend shows the
+            // symbol, name + framed % instead (owner: drop the blue "SPY" box).
+            lastValueVisible: false,
             priceLineVisible: false,
             crosshairMarkerVisible: true,
             crosshairMarkerRadius: 3,
-            title: cmp.sym,
           })
           map.set(cmp.sym, series)
         } catch {
           continue
         }
       } else {
-        try { series.applyOptions({ color: cmp.color }) } catch {}
+        try { series.applyOptions({ color: cmp.color, lastValueVisible: false }) } catch {}
       }
       try { series.setData(cmp.points) } catch {}
     }
@@ -11349,16 +11596,23 @@ export default function StockChart({
         )
       })()}
       {enabledComparisons.length > 0 && (
-        <div className={styles.comparisonLegend}>
-          <span className={styles.legendLabel}>vs {sym}:</span>
-          {comparisonSeries.map(s => {
-            const last = s.points && s.points.length ? s.points[s.points.length - 1] : null
-            const pct = last?.value
-            const valid = Number.isFinite(pct)
+        <div className={`${styles.compareRows}${legendStacked ? ' ' + styles.compareRowsSide : ''}`}>
+          {comparisonFramed.map(f => {
+            const meta = comparisonMeta?.[f.sym]
+            const name = meta?.name || f.sym
+            const exch = meta?.exchange
+            const up = f.pct != null && f.pct >= 0
             return (
-              <span key={s.sym} className={styles.legendItem} style={{ color: s.color }}>
-                {s.sym} {valid ? `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%` : '—'}
-              </span>
+              <div key={f.sym} className={styles.compareRow}>
+                <span className={styles.compareLogo}><CompanyLogo sym={f.sym} name={name} size={13} round /></span>
+                <span className={styles.compareTicker} style={{ color: f.color }}>{f.sym}</span>
+                <span className={styles.compareName}>
+                  {name}{exch ? <span className={styles.compareExch}> · {exch}</span> : null}
+                </span>
+                <span className={styles.comparePct} style={{ color: f.color }}>
+                  {f.pct != null ? `${up ? '+' : ''}${f.pct.toFixed(2)}%` : '—'}
+                </span>
+              </div>
             )
           })}
         </div>
@@ -11845,18 +12099,21 @@ export default function StockChart({
       {/* Replay mode: an "Exit Replay Mode" pill centered in THIS chart's TOOLBAR row
           (the ~30px drawing-toolbar band, between the drawing tools and Indicators) so it
           auto-positions per chart and never sits over the candles. */}
-      {(replayCutoff || startMarker) && onExitReplay && (
+      {(replayCutoff || startMarker || anchorActive) && onExitReplay && (
         <button
           type="button"
           onClick={() => onExitReplay()}
-          title="Exit replay mode — restore all bars + clear the start-date line"
+          /* Keyed off the anchor being REAL, not off exitReplayLabel: the label is
+             cosmetic and a caller could set it on a replay chart, which would then
+             claim a "today" the button does not restore. */
+          title={anchorActive ? 'Return the chart to today' : 'Exit replay mode — restore all bars + clear the start-date line'}
           style={{ position: 'absolute', top: 3, left: '50%', transform: 'translateX(-50%)', zIndex: 30,
             display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer',
             background: '#c9a84c', color: '#ffffff', border: 'none', borderRadius: 999, padding: '4px 15px',
             font: "700 12px 'Instrument Sans', system-ui, sans-serif", letterSpacing: '0.02em',
             textShadow: '0 1px 3px rgba(0,0,0,0.55)', boxShadow: '0 8px 24px -8px rgba(201,168,76,0.6)',
             whiteSpace: 'nowrap' }}
-        >⟲ Exit Replay Mode</button>
+        >{exitReplayLabel || '⟲ Exit Replay Mode'}</button>
       )}
       {/* Go to date (Alt+G): pick a date, the chart scrolls to that session. */}
       {dateJumpOpen && (
@@ -12321,6 +12578,15 @@ export default function StockChart({
       {startMarker && bars?.length > 0 && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
           <ChartVLineOverlay chartRef={chartRef} seriesRef={candleSeriesRef} bars={bars} date={startMarker} color="#c9a84c" />
+        </div>
+      )}
+      {/* Desk anchored+reveal: the same gold line, but at the resolved ANCHOR BAR (see
+          anchorMarker) so the line and the frame's right edge designate one bar. Its own
+          mount rather than a shared one — Custom-Period Sort's wiring above stays exactly
+          as it was, and startMarker keeps precedence when a surface sets both. */}
+      {!startMarker && anchorMarker && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
+          <ChartVLineOverlay chartRef={chartRef} seriesRef={candleSeriesRef} bars={anchorMarker.bars} date={anchorMarker.date} color="#c9a84c" />
         </div>
       )}
       {/* Catalyst callouts (Model Book): labels in blank space + leader lines. */}
