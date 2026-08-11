@@ -6947,6 +6947,68 @@ async def _oi_create_indexes():
         return {"ok": False, "error": str(e)}
 
 
+@app.post("/api/oi/latest-batch")
+async def _oi_latest_batch(request: Request,
+                           _user: dict = Depends(get_current_user)):
+    """Current OI for a batch of contracts, from LIVE Massive option chains —
+    powers the Leaderboard's FULL-COVERAGE still-open ranking. One chain call per
+    ticker returns EVERY strike's current OI, so the board can price all of a
+    name's contracts instead of the top-3 a per-contract fetch is limited to.
+
+    NOT the web OI-snapshot DB: that store's universe is built from web's FROZEN
+    pre-cutover flow.db, so it misses recent (post-7/13) strikes — which is why a
+    snapshot lookup returned OI for ~40/373 tickers and left small-caps like AXTI
+    understated. The live chain covers every current contract.
+
+    Bounded by DISTINCT tickers (each = one chain fetch @ concurrency 8). Body:
+    {"contracts": [{"sym","cp","strike","exp"}, ...]} (exp M/D/YYYY). Echoes each
+    contract + its OI so the caller builds its own price-cache key.
+    """
+    from fastapi.responses import JSONResponse
+    body = await request.json()
+    contracts = body.get("contracts") or []
+    if not isinstance(contracts, list):
+        return JSONResponse({"ok": False, "error": "contracts must be a list"}, status_code=400)
+    MAX_TICKERS = 160  # each ticker = one live chain fetch; keep it bounded
+    seen_tk, tuples, echo = set(), [], []
+    for c in contracts:
+        try:
+            sym, cp, strike, exp = str(c["sym"]), str(c["cp"]), c["strike"], str(c["exp"])
+        except Exception:
+            continue
+        if sym not in seen_tk:
+            if len(seen_tk) >= MAX_TICKERS:
+                continue
+            seen_tk.add(sym)
+        tuples.append((sym, cp, strike, exp)); echo.append(c)
+    if not tuples:
+        return {"ok": True, "results": [], "priced": 0, "total": 0, "tickers": 0}
+    try:
+        from api import massive_oi_snapshots as _moi
+    except ImportError:
+        import massive_oi_snapshots as _moi
+    try:
+        pairs = await _moi._fetch_oi_all_async(tuples)  # [(ck, oi_or_None)] parallel to tuples
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": f"OI fetch failed: {e}"}, status_code=502)
+    oi_by_ck = {ck: oi for ck, oi in pairs}
+    results, priced = [], 0
+    for c in echo:
+        try:
+            cp_l = "C" if str(c["cp"]).upper() in ("C", "CALL") else "P"
+            ck = _moi._contract_key(str(c["sym"]), cp_l, c["strike"], str(c["exp"]))
+        except Exception:
+            ck = None
+        oi = oi_by_ck.get(ck) if ck else None
+        val = int(oi) if (oi is not None) else None
+        if val is not None and val > 0:
+            priced += 1
+        results.append({"sym": c.get("sym"), "cp": c.get("cp"), "strike": c.get("strike"),
+                        "exp": c.get("exp"), "oi": val})
+    return {"ok": True, "results": results, "priced": priced,
+            "total": len(results), "tickers": len(seen_tk)}
+
+
 @app.post("/api/oi/confirmation-map")
 async def _oi_confirmation_map(request: Request,
                                _user: dict = Depends(get_current_user)):

@@ -3005,6 +3005,44 @@ export default function OptionsFlowDashboard() {
     }
     setFetchLoading(false);
   }
+  // Full-coverage OI for still-open: /api/oi/latest-batch pulls CURRENT OI from
+  // live Massive option chains (one chain per ticker → every strike) for a large
+  // set of contracts, and we merge it into priceCache so computeStillOpen can
+  // rank every name across ALL its strikes (not the top-3 a per-contract fetch
+  // covers). ~20-30s for the bounded candidate set. Only writes oi (preserves any
+  // live mark/greeks already cached).
+  async function fetchSnapshotOI(contracts) {
+    const items = contracts || [];
+    if (items.length === 0) return;
+    setFetchLoading(true);
+    setStatus(`Loading OI for ${items.length} contracts…`);
+    const newCache = { ...priceCache };
+    let priced = 0;
+    try {
+      for (let i = 0; i < items.length; i += 2000) {
+        const chunk = items.slice(i, i + 2000);
+        try {
+          const resp = await fetch("/api/oi/latest-batch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ contracts: chunk }),
+          });
+          if (!resp.ok) continue;
+          const data = await resp.json();
+          (data.results || []).forEach(r => {
+            if (r.oi == null) return;
+            const key = r.sym + "|" + r.cp + "|" + parseFloat(r.strike) + "|" + r.exp;
+            newCache[key] = { ...(newCache[key] || {}), oi: r.oi };
+            priced++;
+          });
+          setPriceCache({ ...newCache });
+        } catch(e) { /* keep going — partial coverage still helps */ }
+      }
+      setStatus(`Still-open OI loaded — ${priced}/${items.length} contracts priced.`);
+    } finally {
+      setFetchLoading(false);
+    }
+  }
   function collectContracts(...tradeLists) {
     const all = [];
     tradeLists.forEach(list => {
@@ -6306,6 +6344,23 @@ export default function OptionsFlowDashboard() {
                   });
                   return out;
                 })();
+                // EVERY contract of the top candidate tickers — for the full-
+                // coverage still-open (live Massive chain OI). The goal of this
+                // board is "who has flow that's STILL on the book" (conviction), so
+                // still-open must see ALL of a name's strikes, not the top-3 a
+                // per-contract fetch covers. Bounded to top-80 each side (still-open
+                // <= raw, so the displayed top comes from the top raw names); each
+                // ticker is one live chain call @ concurrency 8 (~20-30s for 160).
+                const _lbAllContracts = (() => {
+                  const seen = new Set(), out = [];
+                  [...bulls.slice(0, 80), ...bears.slice(0, 80)].forEach(tk => {
+                    Object.values(tk.contracts || {}).forEach(c => {
+                      const k = tk.sym + "|" + c.cp + "|" + c.K + "|" + c.exp;
+                      if (!seen.has(k)) { seen.add(k); out.push({ sym: tk.sym, cp: c.cp, strike: c.K, exp: c.exp }); }
+                    });
+                  });
+                  return out;
+                })();
                 const _lbOiReady = Object.keys(priceCache).length > 0;
 
                 return (
@@ -6341,23 +6396,23 @@ export default function OptionsFlowDashboard() {
                             separate Fetch-first step. Operates on the fetched OI. */}
                         <button
                           onClick={() => {
-                            if (!_lbOiReady) {
-                              if (!fetchLoading && _lbContracts.length) { setLbStillOpenOnly(true); fetchPrices(_lbContracts); }
-                            } else {
-                              setLbStillOpenOnly(v => !v);
-                            }
+                            if (fetchLoading) return;
+                            const next = !lbStillOpenOnly;
+                            setLbStillOpenOnly(next);
+                            // Turning it ON pulls the LATEST OI snapshot for EVERY
+                            // contract on the board (full coverage, one fast DB call)
+                            // so the ranking reflects each name across all its strikes.
+                            if (next && _lbAllContracts.length) fetchSnapshotOI(_lbAllContracts);
                           }}
-                          disabled={fetchLoading || _lbContracts.length === 0}
-                          title={_lbOiReady
-                            ? "Show still-open flow only — filters each ticker's bull/bear premium to positions still open today (Live OI ≥ entry). Reveals whether the leading flow is still on or already closed out."
-                            : "Show still-open flow — auto-fetches Live OI, then filters the leaderboard to positions still open today."}
+                          disabled={fetchLoading || _lbAllContracts.length === 0}
+                          title="Rank by STILL-OPEN flow — pulls the latest OI snapshot for every contract on the board (one click) and shows only premium still on the book. The conviction view: who opened flow and is still holding it."
                           style={{ padding:"4px 12px", borderRadius:6,
                             border:"1px solid "+(lbStillOpenOnly?P.bu:P.bd),
-                            cursor:(fetchLoading || !_lbContracts.length)?"not-allowed":"pointer", fontSize:9, fontWeight:700, fontFamily:"inherit",
+                            cursor:(fetchLoading || !_lbAllContracts.length)?"not-allowed":"pointer", fontSize:9, fontWeight:700, fontFamily:"inherit",
                             background:lbStillOpenOnly?P.bu+"22":"transparent",
                             color:lbStillOpenOnly?P.bu:P.mt,
-                            letterSpacing:0.5, opacity:(fetchLoading || !_lbContracts.length)?0.6:1 }}>
-                          {(fetchLoading && lbStillOpenOnly && !_lbOiReady) ? "Still-open · fetching…" : (lbStillOpenOnly ? "✓ Still-open" : "Still-open")}
+                            letterSpacing:0.5, opacity:(fetchLoading || !_lbAllContracts.length)?0.6:1 }}>
+                          {(fetchLoading && lbStillOpenOnly) ? "Still-open · loading OI…" : (lbStillOpenOnly ? "✓ Still-open" : "Still-open")}
                         </button>
                         {/* Coverage. computeStillOpen can only confirm contracts with
                             a live quote, so without this the trader cannot tell
