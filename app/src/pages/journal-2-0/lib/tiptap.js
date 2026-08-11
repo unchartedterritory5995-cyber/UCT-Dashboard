@@ -18,6 +18,13 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
   return [
     StarterKit.configure({
       heading: { levels: [1, 2, 3] },
+      // StarterKit v3 bundles its own unconfigured Link internally. Schema-level
+      // mark parsing dedups (our explicit Link below wins), but ProseMirror
+      // PLUGINS are NOT deduped — both copies register a click handler, and
+      // StarterKit's default openOnClick:true fires after ours returns false,
+      // calling window.open(href) on every link click and defeating the
+      // explicit openOnClick:false below. Disabling it here is load-bearing.
+      link: false,
     }),
     Image.configure({ inline: false, allowBase64: false }),
     Link.configure({
