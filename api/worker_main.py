@@ -232,9 +232,13 @@ def _start_breadth_backfill():
         # just re-checks and immediately completes as a no-op. To STOP mid-grind,
         # set BREADTH_HISTORY_BACKFILL_ENABLED=0 (this thread then never starts).
         env_floor = os.environ.get("BREADTH_BACKFILL_FLOOR")
-        if env_floor and not recon.get_backfill_floor():
+        if env_floor and recon.get_backfill_floor() != env_floor:
+            # env is AUTHORITATIVE: re-assert the target floor on every boot, so
+            # deepening the grind (e.g. 2023-10 -> 2008) is just an env change +
+            # redeploy. Idempotent — coverage is tracked in the OHLC store, so a
+            # completed grind re-checks and clears again in one cheap no-op tick.
             recon.set_backfill_floor(env_floor)
-            log.info(f"breadth backfill armed from BREADTH_BACKFILL_FLOOR={env_floor}")
+            log.info(f"breadth backfill floor set from BREADTH_BACKFILL_FLOOR={env_floor}")
         while True:
             slept = idle
             try:

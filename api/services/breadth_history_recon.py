@@ -288,6 +288,32 @@ def get_backfill_floor() -> Optional[str]:
 _TICK_LOCK = __import__("threading").Lock()
 
 
+def _resolve_universe():
+    """(tickers, date) to reconstruct over. Prefers breadth_live.universe() — the
+    collector's stored universe_list, i.e. the SAME population the live + 2024-now
+    rows used, so pre-2024 history joins them with no seam discontinuity.
+
+    On the WORKER pod that snapshot lives on the WEB volume and is empty here, so
+    fall back to fetching the web's /universe endpoint — keeping ONE population
+    rather than diverging to cap_universe.json (a ~40% larger set = a visible seam).
+    Returns ([], None) if neither source yields a universe (caller sweeps nothing)."""
+    from api.services import breadth_live as bl
+    tickers, d = bl.universe()
+    if tickers:
+        return tickers, d
+    import os as _os, json as _json, urllib.request as _u
+    base = _os.environ.get("DASHBOARD_URL") or "https://uctintelligence.com"
+    try:
+        req = _u.Request(base.rstrip("/") + "/api/breadth-monitor/universe",
+                         headers={"User-Agent": "Mozilla/5.0"})   # browser UA: Cloudflare 1010-blocks bare UAs
+        with _u.urlopen(req, timeout=30) as r:
+            data = _json.loads(r.read().decode())
+        t = sorted({str(x).upper() for x in (data.get("tickers") or []) if x})
+        return t, data.get("date")
+    except Exception:
+        return [], None
+
+
 def backfill_tick(chunk_days: int = 548, limit: int = 0) -> dict:
     """ONE restart-safe step: if a floor is set and coverage hasn't reached it, sweep the
     next chunk just BELOW the current coverage floor. Idempotent + resumable — reads where it
@@ -307,7 +333,7 @@ def backfill_tick(chunk_days: int = 548, limit: int = 0) -> dict:
             return {"ok": True, "complete": True, "floor": floor, "coverage_first": cur_first}
         hi = _date.fromisoformat(cur_first) - _td(days=1)
         lo = max(_date.fromisoformat(floor), hi - _td(days=chunk_days - 1))
-        tickers, _ = bl.universe()
+        tickers, _ = _resolve_universe()   # worker has no collector snapshot → fetch web's universe
         if limit:
             tickers = tickers[:limit]
         _SWEEP_STATE.clear()

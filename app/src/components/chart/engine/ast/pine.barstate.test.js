@@ -126,3 +126,41 @@ describe('🔴 the three the REQUEST decides — refused, and refused with the r
     expect(outOf('barstate.isconfirmed').ast).toBeTruthy()
   })
 })
+
+// ─── THE `&& 1` A CONFIRMED-BAR GUARD LEAVES BEHIND ─────────────────────────
+//
+// `barstate.isconfirmed` resolves to the constant 1, which is exactly right — and
+// left every guarded script reading `… && 1 ? 1 : 0`. Measured in production
+// 2026-08-11: a member pasting an ordinary Pine screen saw an unexplained "and 1"
+// in their formula and "…and 1) is not zero" in the English read-back.
+describe('a confirmed-bar guard folds away instead of littering the formula', () => {
+  it('🔴 `signal and barstate.isconfirmed` IS `signal`', () => {
+    const guarded = outOf('close > open and barstate.isconfirmed')
+    const bare = outOf('close > open')
+    expect(guarded.refusal, guarded.refusal?.message).toBeNull()
+    expect(JSON.stringify(guarded.ast)).toBe(JSON.stringify(bare.ast))
+  })
+
+  it('…in either order', () => {
+    expect(JSON.stringify(outOf('barstate.isconfirmed and close > open').ast))
+      .toBe(JSON.stringify(outOf('close > open').ast))
+  })
+
+  it('⛔⛔ AND A NON-BOOLEAN IS NEVER FOLDED — `5 && 1` is 1, but `5` is 5', () => {
+    // The whole reason this is guarded rather than a one-line rewrite. `close` is
+    // a price, not a flag; folding it would silently change the numbers a member's
+    // formula produces, which is worse than the cosmetic problem being fixed.
+    const kept = outOf('close and barstate.isconfirmed')
+    expect(kept.refusal, kept.refusal?.message).toBeNull()
+    expect(JSON.stringify(kept.ast)).not.toBe(JSON.stringify(outOf('close').ast))
+    expect(JSON.stringify(kept.ast)).toContain('&&')
+  })
+
+  it('the values still agree with the unfolded meaning, bar for bar', () => {
+    // ⛔ The fold is an identity claim; this is the claim being measured rather
+    // than asserted, on the shape that actually appears in scripts.
+    const folded = col(outOf('close > open and barstate.isconfirmed').ast)
+    const bare = col(outOf('close > open').ast)
+    expect(folded).toEqual(bare)
+  })
+})

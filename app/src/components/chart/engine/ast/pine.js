@@ -1133,6 +1133,34 @@ const PINE_OP_TO_TABLE = Object.freeze({
   and: '&&', or: '||',
 })
 
+/** `x && 1` → `x`, `x || 0` → `x`, and their mirrors — ONLY when `x` is a boolean.
+ *
+ *  ⭐ WHY THIS EXISTS: `barstate.isconfirmed` resolves to the constant 1 (this
+ *  engine evaluates closed bars, so it IS true), which is correct and left every
+ *  guarded script reading `… && 1 ? 1 : 0`. The member sees an unexplained `and 1`
+ *  and the English read-back says "…and 1) is not zero". Measured in production
+ *  2026-08-11 on a real pasted script.
+ *
+ *  ⛔⛔ THE BOOLEAN GUARD IS NOT OPTIONAL, AND IT IS WHY THIS IS NOT A ONE-LINER.
+ *  `x && 1` is `x` only when `x` is already 0/1. For an ordinary number it is NOT:
+ *  `5 && 1` is 1 while `5` is 5, so folding unguarded would silently change what a
+ *  member's formula computes — the worst outcome available and precisely the
+ *  look-alike class this engine refuses everywhere else. `treeYieldsBool` is the
+ *  table's own answer to "is this 0/1", the same one the plot linter uses.
+ *
+ *  ⚠️ NaN is safe on purpose: `NaN && 1` is "nothing" and so is `NaN`, so the
+ *  not-computable case folds to itself rather than to a number.
+ */
+function foldLogicalIdentity(op, left, right, table) {
+  const isNum = (n, v) => n && n.type === 'num' && n.value === v
+  const identity = op === '&&' ? 1 : op === '||' ? 0 : null
+  if (identity !== null) {
+    if (isNum(right, identity) && treeYieldsBool(left, table)) return left
+    if (isNum(left, identity) && treeYieldsBool(right, table)) return right
+  }
+  return cOp(op, [left, right])
+}
+
 /** ⛔ THE RECURSION CEILING FOR USER FUNCTIONS. A Pine function that calls
  *  itself is illegal Pine, but nothing here parses Pine's legality — so the
  *  depth is what stops a self-call from being a stack overflow instead of a
@@ -1346,7 +1374,8 @@ class Resolver {
           throw new PineRefusal('pine:operator',
             `${REFUSALS['pine:operator']} — \`${node.op}\``, locate(node.tok))
         }
-        return cOp(mapped, [this.resolve(node.left), this.resolve(node.right)])
+        return foldLogicalIdentity(mapped,
+          this.resolve(node.left), this.resolve(node.right), this.table)
       }
       case 'ternary': {
         const test = this.resolve(node.test)

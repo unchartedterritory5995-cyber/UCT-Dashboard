@@ -138,9 +138,25 @@ def refresh_prebuilt_lists(apply=True):
         committed.update(t.upper() for t in l["tickers"])
     delisted = sorted(committed - alive)
 
+    # UCT Index Components — re-fetch constituents from FMP so a name added to / dropped from
+    # an index flows through automatically. $vol-sorted (most liquid first). A list FMP can't
+    # return this run KEEPS its prior overlay value (fetch_index_lists omits thin/failed sets),
+    # so a bad FMP response never wipes a section.
+    from api.services import index_constituents as ic
+    prior_idx = wp._read_overlay().get("index_constituents") or {}
+    new_idx = {}
+    try:
+        for name, ticks in ic.fetch_index_lists().items():
+            ticks = sorted(ticks, key=lambda t: latest_dvol.get(t.upper(), 0), reverse=True)
+            new_idx[name.strip().lower()] = ticks
+    except Exception as e:
+        _log.warning("[prebuilt-refresh] index-constituent fetch failed: %s", e)
+    index_constituents = {**prior_idx, **new_idx}
+
     overlay = {
         "liquid_ranking": liquid,
         "delisted": delisted,
+        "index_constituents": index_constituents,
         "updated_at": time.time(),
         "checked_days": [d for d, _ in days],
     }
@@ -154,8 +170,10 @@ def refresh_prebuilt_lists(apply=True):
         _log.warning("[prebuilt-refresh] overlay write failed: %s", e)
         return {"ok": False, "reason": "write_failed"}
 
-    _log.info("[prebuilt-refresh] liquid=%d delisted=%d (%s) days=%s",
-              len(liquid), len(delisted), ",".join(delisted) or "none", ",".join(overlay["checked_days"]))
+    _log.info("[prebuilt-refresh] liquid=%d delisted=%d (%s) index=%s days=%s",
+              len(liquid), len(delisted), ",".join(delisted) or "none",
+              {k: len(v) for k, v in index_constituents.items()} or "none",
+              ",".join(overlay["checked_days"]))
 
     if apply:
         try:

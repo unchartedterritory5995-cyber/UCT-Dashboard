@@ -247,7 +247,7 @@
 :global([data-charts-theme='sunrise']) .rangeBtn { color: #47525f; }
 :global([data-charts-theme='sunrise']) .rangeBtn:hover { color: #1c2836; background: rgba(20, 45, 75, 0.08); }
 /* Vertical OHLCV legend (workspace) — date + labels + values dark & bold on the bright canvas. */
-:global([data-charts-theme='sunrise']) .legendVertical { background: rgba(255, 255, 255, 0.55); box-shadow: none; }
+:global([data-charts-theme='sunrise']) .legendVertical { background: rgba(255, 255, 255, 0.88); box-shadow: none; }
 :global([data-charts-theme='sunrise']) .vlHead { color: #16212e; font-weight: 700; }
 :global([data-charts-theme='sunrise']) .vlLabel,
 :global([data-charts-theme='sunrise']) .vlFull { color: #3f4a57; font-weight: 600; }
@@ -264,8 +264,18 @@
   row-gap: 1px;
   align-content: start;
   top: 46px;
-  /* Keep the more-transparent background; font + colors stay the original mono look. */
-  background: var(--chart-panel-bg-soft, rgba(14, 15, 13, 0.55));
+  /* ⚰️ THIS WAS `--chart-panel-bg-soft` (0.62) AND THE CANDLES CAME THROUGH THE
+     NUMBERS. Measured 2026-08-10 on the real chart: the EMA/SMA/RSI rows had
+     candlesticks running straight through their values, and several readings were
+     unreadable wherever price crossed them. This legend is not decoration — it is
+     the row of numbers a trader reads while hovering.
+
+     ⛔ THE FIX IS HERE, NOT IN `panelFor`. Raising `bgSoft` itself was the first
+     attempt and `dividerColor.test.js` refused it: the RANGE-SELECTOR BAR shares
+     that token, and its appearance is pinned. So this surface takes the opaquer
+     `--chart-panel-bg` (0.88) that the horizontal legend already uses, and the
+     shared token keeps its meaning for the bar that still wants to be soft. */
+  background: var(--chart-panel-bg, rgba(14, 15, 13, 0.88));
 }
 .vlHead {
   grid-column: 1 / -1;

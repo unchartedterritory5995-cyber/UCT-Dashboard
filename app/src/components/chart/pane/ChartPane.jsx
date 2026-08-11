@@ -529,23 +529,28 @@ function ChartPane({
             <ChartMetaRow items={metaItems} styles={styles} />
           )}
           <div className={styles.tfBarRight}>
-            {slots?.tfBarRight}
             {/* Breadth-only Line/Candles quick-toggle. Flips JUST the breadth view
                 to a clean canvas-contrasting line and back; a regular ticker on this
                 surface is unaffected and keeps the user's saved chart type. The
-                button shows the view you'll GET (Line when on candles, and vice-versa). */}
+                button shows the view you'll GET (Line when on candles, and vice-versa).
+                Placed FIRST — before the shared right-cluster slots — so on a breadth
+                chart (where the leverage pill is absent) it inherits the leverage
+                pill's exact seat: the same margin-right + the same trailing
+                [+ / gear / share], so its right edge lands on the leverage pill's
+                right edge, and the + (new chart tab) sits after it next to the gear. */}
             {isBreadth && !mini && (
               <button
                 type="button"
-                className={breadthLineOn ? `${styles.breadthLineBtn} ${styles.breadthLineBtnActive}` : styles.breadthLineBtn}
+                className={styles.breadthLineBtn}
                 onClick={toggleBreadthLine}
                 title={breadthLineOn ? 'Switch to candlesticks' : 'Switch to line chart'}
                 aria-pressed={breadthLineOn}
               >
-                <UIcon name={breadthLineOn ? 'chart' : 'wave'} size={14} gold={false} />
+                <UIcon name={breadthLineOn ? 'chart' : 'wave'} size={12} gold={false} />
                 {breadthLineOn ? 'Candles' : 'Line'}
               </button>
             )}
+            {slots?.tfBarRight}
             {/* Chart settings gear — omitted for mini (no room, no chrome) and
                 for a surface that IS the user's one chart (stored=null, no
                 onStore): its settings read now resolves from the /charts

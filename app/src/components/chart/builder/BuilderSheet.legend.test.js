@@ -23,7 +23,7 @@
 // one stayed broken, which is the whole shape of the bug.
 
 import { describe, it, expect } from 'vitest'
-import { buildDefinition } from './BuilderSheet.jsx'
+import { buildDefinition, chipName } from './BuilderSheet.jsx'
 import { legendChips } from '../engine/readout.js'
 import { parseFormula } from '../engine/ast/parse.js'
 
@@ -94,5 +94,53 @@ describe('a saved formula reaches the legend', () => {
     const chips = chipsFor(definition(''))
     expect(chips).toHaveLength(1)
     expect(String(chips[0].label || '').trim().length).toBeGreaterThan(0)
+  })
+})
+
+// ─── THE CHIP NAME ───────────────────────────────────────────────────────────
+//
+// ⚰️ MEASURED IN PRODUCTION 2026-08-11. Saving "Above 50 on volume" produced a
+// chip reading "Above 50 on " — `slice(0, 12)`, cut mid-word, trailing space
+// intact — and the controls built from it read `Hide Above 50 on ` and
+// `Above 50 on  settings`, double space and all.
+describe('chipName — a short name a member can read', () => {
+  it('leaves a short name completely alone', () => {
+    expect(chipName('RSI hot')).toBe('RSI hot')
+  })
+
+  it('🔴 never ends in a space, however it was cut', () => {
+    // The exact production case, and the one that produced the double space.
+    expect(chipName('Above 50 on volume')).toBe('Above 50 on')
+    expect(chipName('Above 50 on volume')).not.toMatch(/\s$/)
+  })
+
+  it('prefers a word boundary when one leaves something worth reading', () => {
+    expect(chipName('Breakout squeeze')).toBe('Breakout')
+  })
+
+  it('⛔ …but takes a clean cut rather than leaving a stub', () => {
+    // A boundary too early would give "A" — worse than a plain truncation.
+    expect(chipName('A verylongsinglewordhere')).toBe('A verylongsi')
+  })
+
+  it('is never longer than the cap, on any input', () => {
+    for (const s of ['Above 50 on volume', 'Breakout squeeze', 'x'.repeat(80),
+      'a b c d e f g h i j k l m n', '  padded name here  ']) {
+      expect(chipName(s).length, s).toBeLessThanOrEqual(12)
+    }
+  })
+
+  it('survives an empty or absent name without throwing', () => {
+    expect(chipName('')).toBe('')
+    expect(chipName(undefined)).toBe('')
+    expect(chipName(null)).toBe('')
+  })
+
+  it('⭐ and the DOCUMENT uses it — shortName and the plot label agree', () => {
+    const def = definition('Above 50 on volume')
+    expect(def.meta.shortName).toBe('Above 50 on')
+    expect(def.plots[0].label).toBe('Above 50 on')
+    // ⛔ The whole point: nothing downstream can build a double space from it.
+    expect(`Hide ${def.meta.shortName}`).toBe('Hide Above 50 on')
   })
 })
