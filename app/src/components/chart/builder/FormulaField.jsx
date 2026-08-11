@@ -23,6 +23,7 @@ import { readFormulaSource } from '../engine/ast/pcf'
 import { checkBudget } from '../engine/ast/budget'
 import { sentenceFor } from '../engine/ast/sentence'
 import { lintRepaint } from '../engine/ast/lint'
+import { interpret } from '../engine/ast/interpret'
 import styles from './BuilderSheet.module.css'
 
 /**
@@ -164,11 +165,56 @@ export function evaluateFormula(source, inputs = undefined, dialect = 'auto') {
     }
   }
 
+  // 🔴🔴 THE GATE MUST RUN THE TREE, AND UNTIL 2026-08-11 IT NEVER DID.
+  //
+  // Parsing, the budget, the repaint linter and the read-back all INSPECT a tree
+  // without ever evaluating it. So a formula whose refusal fires only at
+  // interpret time passed every one of them and reached the save button:
+  // `accum(close, sma(self, 3), 5)` measured `ok: true`, `saveable: true`,
+  // `non-repainting` — and throws when the chart draws it. A member could save an
+  // indicator that crashes, which is the same "green, then wrong" shape as the
+  // hidden `hlc3` and the all-NaN accumulator found the same day.
+  //
+  // ⭐ ONE PASS OVER FOUR BARS IS ENOUGH, and that is a property of the walker,
+  // not a hope: the recurrence arm PLANS its body before consuming a single bar,
+  // so a plan-time refusal fires even when the warm-up exceeds the series.
+  // Measured: the formula above refuses on exactly these four bars.
+  //
+  // ⛔ EMPTY SCALARS ARE SAFE HERE. `market_cap > 250` under `{}` returns 0
+  // rather than raising, so this cannot invent a refusal for a fundamentals
+  // formula — checked before the gate was wired, because a save gate that
+  // refuses valid work is worse than the hole it closes.
+  // ⛔ A NUMERIC STAND-IN PER DECLARED INPUT, NOT THE SCOPE ITSELF. `inputs` here
+  // is the DECLARATION map the linter and read-back take, and one of the two
+  // inputs every definition carries is `color` — a string. `interpret` takes
+  // finite numbers only, so handing it the scope refused `close * lineWidth`,
+  // a formula the whole lane below already supports. This gate asks whether the
+  // tree RUNS, never what it returns, so 1 for every name is the honest probe.
+  const probeInputs = Object.fromEntries(Object.keys(inputs || {}).map((k) => [k, 1]))
+  try {
+    void [...interpret(ast, PROBE_BARS, probeInputs, undefined, {})]
+  } catch (err) {
+    return {
+      ...blank, ast, verdict, measured: budget.measured, readback,
+      guard: err?.guard || 'interpret:node', error: msg(err),
+    }
+  }
+
   return {
     source, ok: true, ast, guard: null, error: null,
     readback, verdict, measured: budget.measured, dialect: read.dialect,
   }
 }
+
+/** Four synthetic bars, enough to reach every PLAN-time refusal in the walker.
+ *  ⛔ Deliberately tiny: this runs on the authoring path, and the tree it is
+ *  proving is the one the member is still typing. */
+const PROBE_BARS = Object.freeze([
+  { o: 10, h: 11, l: 9, c: 10, v: 1000 },
+  { o: 10, h: 12, l: 9, c: 11, v: 1100 },
+  { o: 11, h: 13, l: 10, c: 12, v: 1200 },
+  { o: 12, h: 14, l: 11, c: 13, v: 1300 },
+])
 
 /**
  * ⭐⭐ THE BADGE IS A GATE, NOT A LABEL — AND IT IS NOT THE USER'S TO SET.

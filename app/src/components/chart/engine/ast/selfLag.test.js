@@ -11,7 +11,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { evaluateFormula } from '../../builder/FormulaField.jsx'
+import { evaluateFormula, canSaveFormula } from '../../builder/FormulaField.jsx'
 import { BUILDER_INPUT_SCOPE } from '../../builder/builderInputs.js'
 import { interpret, MAX_SELF_LAG } from './interpret.js'
 import { astHash } from './parse.js'
@@ -95,5 +95,50 @@ describe('what `self[n]` still refuses, and why', () => {
   it('…and the ceiling is REACHABLE, so it is a guard rather than a latch', () => {
     // `lesson_gate_that_cannot_fail`: a cap nothing can trip is not a cap.
     expect(refusalOf(`accum(close, self[${MAX_SELF_LAG}] + 0, 250)`)).toBeNull()
+  })
+})
+
+// ─── THE SAVE GATE RUNS THE TREE ────────────────────────────────────────────
+//
+// 🔴 Parsing, the budget, the repaint linter and the read-back all INSPECT a
+// tree without evaluating it — so a formula whose refusal fires only at
+// interpret time passed all four and reached the save button. Measured
+// 2026-08-11: `accum(close, sma(self, 3), 5)` returned ok, saveable and
+// `non-repainting`, and threw when the chart drew it.
+describe('nothing saveable may throw when it runs', () => {
+  const gate = (src) => {
+    const ev = evaluateFormula(src, BUILDER_INPUT_SCOPE)
+    return { ok: ev.ok, guard: ev.guard, saveable: ev.ok ? canSaveFormula(ev, false) : false }
+  }
+
+  it('🔴 a tree that throws at interpret is REFUSED, not offered', () => {
+    for (const src of [
+      'accum(close, sma(self, 3), 5)',                       // self inside a window
+      'accum(close, accum(close, self + 1, 2) + self, 5)',   // a nested running value
+      'accum(close, (self + close)[1], 5)',                  // offset over an expression
+    ]) {
+      const g = gate(src)
+      expect(g.ok, src).toBe(false)
+      expect(g.saveable, src).toBe(false)
+      expect(g.guard, src).toBe('interpret:recurrence')
+    }
+  })
+
+  it('⛔ …and it invents NO refusal for work that is fine', () => {
+    // A gate that refuses valid work is worse than the hole it closes. Scalars
+    // resolve to 0 under an empty probe scope rather than raising, and a declared
+    // input gets a numeric stand-in — `color` is a STRING in the real scope, and
+    // handing that to the interpreter refused `close * lineWidth` on the first
+    // attempt at this gate.
+    for (const src of [
+      'accum(close, 0.27513 * (close + close[1]) / 2 + 1.36612 * self - 0.64125 * self[1], 60)',
+      'accum(close, self + 0.1 * (close - self), 250)',
+      'market_cap / 1000000 > 250',
+      'close > sma(close, 20) && volume > 500000',
+      'close * lineWidth',
+    ]) {
+      const g = gate(src)
+      expect(g.ok, `${src} — ${g.guard}`).toBe(true)
+    }
   })
 })

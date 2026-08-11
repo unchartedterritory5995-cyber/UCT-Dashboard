@@ -47,6 +47,30 @@ throws at interpret. A member can save an indicator that crashes when the chart
 draws it. Fix with 1.1 (same code) — but the gate must reject *any* throwing
 tree, not just this shape.
 
+### 🔴 Phase 1 REPRIORITISED 2026-08-11 — measured, and I had it wrong twice
+
+After `self[n]` shipped I measured what actually blocks a TUNABLE filter instead
+of assuming. A fully-derived Butterworth — every coefficient computed inline from
+the period, `pi` spelled as a literal — **already runs today**, in 405 characters
+at **86 of the 128-node ceiling**.
+
+So two items I had ranked as blockers are not:
+- ⛔ **`pi`/`e` are unnecessary.** A numeric literal works, and the derived filter
+  is MORE accurate than my hand-rounded constants (125.41819 vs 126.00998).
+- ⚠️ **`let` is not the gate.** 86/128 leaves headroom for a 2-pole design. It
+  stays worth building — a 4-pole or a busier indicator would meet the cap, and
+  405 characters on one line is miserable to edit — but it does not block anyone.
+
+**What actually blocks a member is UX, not engine capability:**
+1. **User-declared inputs (1.4)** — the `20` in that formula is baked in. Without
+   inputs an authored indicator is one frozen instance, not something tunable or
+   shareable. THIS IS THE GATE.
+2. **The editor (1.5)** — a 405-character formula in a single-line box.
+
+⭐ The lesson for whoever picks this up: I predicted the blocker three times today
+(`cum`, then `pi`, then `let`) and was wrong all three times. Measure the thing
+before building for it — the probes cost minutes and each one changed the plan.
+
 **1.3 Named intermediates (`let`).**
 Butterworth computes `c1/c2/c3` once and reuses them. Without bindings a member
 retypes subexpressions and meets `maxNodes 128` — a real ceiling and a bad
