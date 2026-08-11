@@ -112,9 +112,16 @@ def diff_members(date: str, metric: str) -> dict:
     if ts is None:
         return {"ok": False, "reason": f"no SPY session for {date}"}
 
-    metrics, members, priced, uni = recompute_close_with_members(ts)
+    try:
+        metrics, members, priced, uni = recompute_close_with_members(ts)
+    except Exception as e:
+        import traceback
+        return {"ok": False, "reason": f"recompute raised: {type(e).__name__}: {e}",
+                "trace": traceback.format_exc()[-800:], "ts": ts}
     if not members:
-        return {"ok": False, "reason": "recompute produced no members"}
+        return {"ok": False, "reason": "recompute produced no members",
+                "ts": ts, "universe": len(uni), "priced": len(priced),
+                "metric_keys": sorted(list(metrics.keys()))[:6]}
     recompute_set = _tickers_of(members.get(metric))
 
     stored_row = None
