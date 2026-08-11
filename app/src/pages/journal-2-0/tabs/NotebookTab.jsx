@@ -5,7 +5,9 @@ import NoteCard from '../components/notebook/NoteCard'
 import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
 import TemplatePicker from '../components/notebook/TemplatePicker'
+import ImportWizard from '../components/notebook/import/ImportWizard'
 import Sheet from '../../../components/mobile/Sheet'
+import UIcon from '../../../components/ui/UIcon'
 import { getTemplate } from '../lib/notebookTemplates'
 import { assembleTemplateContext } from '../lib/templateContext'
 import styles from './NotebookTab.module.css'
@@ -20,11 +22,17 @@ export default function NotebookTab() {
   const [sort, setSort] = useState('updated')
   const [creating, setCreating] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
+  // Bumped on a successful import to force-remount FolderSidebar, which owns
+  // its own useJ2NoteFolders() SWR hook — an import can create new folders
+  // and there's no other handle on that hook's mutate() from up here.
+  const [folderRefreshKey, setFolderRefreshKey] = useState(0)
   const deepLinkRan = useRef(false)
 
   const { notes, isLoading, error, refresh } = useJ2Notes({
     folderId, tag, q: q || undefined, sort,
   })
+  const hasActiveFilters = Boolean(folderId || tag || q)
 
   const openNote = (note) => {
     setSearchParams((prev) => {
@@ -98,6 +106,15 @@ export default function NotebookTab() {
   const handlePick = (tplOrNull) =>
     tplOrNull ? createFromTemplate(tplOrNull) : createNote()
 
+  // A successful import can create notes AND folders — refresh both. Notes
+  // come back through useJ2Notes' own refresh(); folders live behind
+  // FolderSidebar's own useJ2NoteFolders() hook with no exposed handle up
+  // here, so a key bump remounts it and its SWR hook re-fetches fresh.
+  const handleImported = () => {
+    refresh()
+    setFolderRefreshKey((k) => k + 1)
+  }
+
   // Deep link: ?seg=notebook&new=<templateKey>[&ticker=SYM] — Today page, the
   // EOD recap, and TradeDrawer open a pre-seeded template directly (plan §4).
   // Runs once; params are stripped either way so a stale key can't loop.
@@ -124,6 +141,7 @@ export default function NotebookTab() {
   return (
     <div className={styles.wrap}>
       <FolderSidebar
+        key={folderRefreshKey}
         notes={notes}
         activeFolderId={folderId}
         onSelectFolder={setFolderId}
@@ -160,6 +178,15 @@ export default function NotebookTab() {
           <div className={styles.newWrap}>
             <button
               type="button"
+              className={styles.importBtn}
+              onClick={() => setImportOpen(true)}
+              aria-haspopup="dialog"
+            >
+              <UIcon name="upload" size={16} gold={false} />
+              Import
+            </button>
+            <button
+              type="button"
               className={styles.templatesBtn}
               onClick={() => setPickerOpen(true)}
               disabled={creating}
@@ -188,6 +215,12 @@ export default function NotebookTab() {
           <TemplatePicker onPick={handlePick} busy={creating} />
         </Sheet>
 
+        <ImportWizard
+          open={importOpen}
+          onClose={() => setImportOpen(false)}
+          onImported={handleImported}
+        />
+
         {error && (
           <div className={styles.error}>
             Couldn't load notes: {String(error.message || error)}
@@ -202,6 +235,11 @@ export default function NotebookTab() {
             <p className={styles.emptyHint}>
               Start from a template — or a blank page.
             </p>
+            {!hasActiveFilters && (
+              <p className={styles.emptyHint}>
+                Bring your notes from Notion, Obsidian, Evernote, or anywhere else.
+              </p>
+            )}
             <div className={styles.emptyPicker}>
               <TemplatePicker onPick={handlePick} busy={creating} />
             </div>

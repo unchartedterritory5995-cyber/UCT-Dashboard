@@ -70,6 +70,20 @@
   font-weight: 600;
 }
 .templatesBtn:hover { background: rgba(201, 168, 76, 0.16); }
+.importBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: var(--color-text-primary, #e8eaed);
+  border: 1px solid var(--color-border, #232932);
+  padding: 7px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.importBtn:hover { background: var(--color-surface, #14171c); border-color: #c9a84c; }
 .newBtn:disabled, .templatesBtn:disabled { opacity: 0.6; cursor: default; }
 .grid {
   display: grid;

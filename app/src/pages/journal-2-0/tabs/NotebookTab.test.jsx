@@ -18,6 +18,9 @@ vi.mock('../components/notebook/NoteCard', () => ({
 vi.mock('../components/notebook/NoteEditorPage', () => ({
   default: ({ noteId }) => <div data-testid="note-editor" data-note-id={noteId} />,
 }))
+vi.mock('../components/notebook/import/ImportWizard', () => ({
+  default: ({ open }) => (open ? <div data-testid="import-wizard" /> : null),
+}))
 
 import NotebookTab from './NotebookTab'
 
@@ -114,5 +117,19 @@ describe('NotebookTab — template picker', () => {
     // give the effect a tick to run
     await new Promise((r) => setTimeout(r, 50))
     expect(lastPostBody).toBeNull()
+  })
+})
+
+describe('NotebookTab — import', () => {
+  it('header Import button opens the wizard', async () => {
+    renderTab()
+    expect(screen.queryByTestId('import-wizard')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /import/i }))
+    expect(screen.getByTestId('import-wizard')).toBeInTheDocument()
+  })
+
+  it('empty state pitches the import path', () => {
+    renderTab()
+    expect(screen.getByText(/Notion, Obsidian, Evernote/i)).toBeInTheDocument()
   })
 })
