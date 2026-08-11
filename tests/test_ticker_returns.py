@@ -15,8 +15,9 @@ def _mk_bars(closes, start_ymd=20260101):
 
 
 def test_anchor_date_et_converts_epoch():
-    # 2026-08-09 23:30 UTC == 19:30 ET same day (epoch 1786248000)
-    assert ticker_returns.anchor_date_et(1786248000) == "2026-08-09"
+    # 2026-08-10 02:00:00 UTC == 2026-08-09 22:00:00 EDT (UTC and ET dates differ).
+    # Discriminates against naive implementations that drop timezone conversion.
+    assert ticker_returns.anchor_date_et(1786327200) == "2026-08-09"
 
 
 def test_returns_math_basis_is_on_or_before_anchor(monkeypatch):
@@ -30,7 +31,7 @@ def test_returns_math_basis_is_on_or_before_anchor(monkeypatch):
     monkeypatch.setattr(ticker_returns.bars_sqlite, "get_bars_since",
                         lambda t, tf, k: after)
     monkeypatch.setattr(ticker_returns.edu, "get_video",
-                        lambda vid: {"id": vid, "created_at": 1786248000})
+                        lambda vid: {"id": vid, "created_at": 1786327200})
     monkeypatch.setattr(ticker_returns.edu, "get_insights",
                         lambda vid: {"ticker_moments": [{"t": 5, "ticker": "NVDA"}]})
     out = ticker_returns.returns_for_video(1)
@@ -49,7 +50,7 @@ def test_short_history_nulls_d5_d21_and_since_zero_when_no_after(monkeypatch):
     monkeypatch.setattr(ticker_returns.bars_sqlite, "get_bars_since",
                         lambda t, tf, k: [])
     monkeypatch.setattr(ticker_returns.edu, "get_video",
-                        lambda vid: {"id": vid, "created_at": 1786248000})
+                        lambda vid: {"id": vid, "created_at": 1786327200})
     monkeypatch.setattr(ticker_returns.edu, "get_insights",
                         lambda vid: {"ticker_moments": [{"t": 1, "ticker": "AAPL"}]})
     r = ticker_returns.returns_for_video(2)["returns"]["AAPL"]
@@ -64,7 +65,7 @@ def test_symbol_without_basis_omitted_and_dedup(monkeypatch):
                         lambda t, tf, k: _mk_bars([11.0]))
     calls = []
     monkeypatch.setattr(ticker_returns.edu, "get_video",
-                        lambda vid: {"id": vid, "created_at": 1786248000})
+                        lambda vid: {"id": vid, "created_at": 1786327200})
     monkeypatch.setattr(ticker_returns.edu, "get_insights", lambda vid: {
         "ticker_moments": [{"t": 1, "ticker": "TSLA"}, {"t": 9, "ticker": "TSLA"},
                            {"t": 20, "ticker": "GHOST"}]})
@@ -93,7 +94,7 @@ def test_ttl_cache_serves_then_expires(monkeypatch):
     monkeypatch.setattr(ticker_returns.bars_sqlite, "get_bars_before", counting_before)
     monkeypatch.setattr(ticker_returns.bars_sqlite, "get_bars_since", lambda t, tf, k: [])
     monkeypatch.setattr(ticker_returns.edu, "get_video",
-                        lambda vid: {"id": vid, "created_at": 1786248000})
+                        lambda vid: {"id": vid, "created_at": 1786327200})
     monkeypatch.setattr(ticker_returns.edu, "get_insights",
                         lambda vid: {"ticker_moments": [{"t": 1, "ticker": "AMD"}]})
     ticker_returns.returns_for_video(7, now=1000.0)
