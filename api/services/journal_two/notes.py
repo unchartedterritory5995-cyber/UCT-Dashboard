@@ -8,6 +8,7 @@ docs/superpowers/specs/2026-05-26-notebook-design.md
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -124,6 +125,142 @@ def _validate_ticker(raw: Any) -> str | None:
     if not re.match(r"^[A-Z0-9.\-]+$", t):
         raise NoteValidationError("ticker has invalid characters")
     return t
+
+
+# ── Import support ───────────────────────────────────────────────────────────
+
+def _import_payload_hash(note: dict) -> str:
+    """Compute a SHA256 hash of the note's immutable content for fingerprinting."""
+    basis = json.dumps({
+        "title": note.get("title") or "",
+        "subtitle": note.get("subtitle") or None,
+        "bodyJson": note.get("bodyJson") or {},
+        "tags": sorted(note.get("tags") or []),
+        "ticker": note.get("ticker") or None,
+        "folderPath": note.get("folderPath") or [],
+        "updatedAt": note.get("updatedAt") or "",
+    }, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(basis.encode("utf-8")).hexdigest()
+
+
+def _import_date(value, fallback):
+    """Validate and return an ISO date string, or fallback if invalid."""
+    if not value or not isinstance(value, str):
+        return fallback
+    try:
+        datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return value
+    except ValueError:
+        return fallback
+
+
+def import_check(user_id: str, import_keys: list[str], conn: sqlite3.Connection | None = None) -> dict:
+    """Check which import keys already exist for the user.
+
+    Returns: {"existing": {key: {"id", "updatedAt", "importHash"}}}
+    """
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        existing = {}
+        keys = [k for k in (import_keys or []) if isinstance(k, str)][:5000]
+        for i in range(0, len(keys), 500):  # SQLite variable limit safety
+            chunk = keys[i:i + 500]
+            q = ",".join("?" * len(chunk))
+            for row in conn.execute(
+                f"SELECT id, import_key, updated_at, import_hash FROM j2_notes "
+                f"WHERE user_id = ? AND import_key IN ({q})", (user_id, *chunk)):
+                existing[row["import_key"]] = {
+                    "id": row["id"], "updatedAt": row["updated_at"],
+                    "importHash": row["import_hash"]}
+        return {"existing": existing}
+    finally:
+        if owned:
+            conn.close()
+
+
+def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None = None) -> dict:
+    """Transactional upsert of notes by fingerprint.
+
+    Payload shape: {
+        "source": str,
+        "destFolderId": str|None,
+        "notes": [{importKey, title, subtitle?, bodyJson, tags, ticker?,
+                   createdAt?, updatedAt?, folderPath: [str, ...]}]
+    }
+
+    Returns: {"created": [...], "updated": [...], "skipped": [...]}
+    """
+    if not isinstance(payload, dict) or not isinstance(payload.get("notes"), list):
+        raise NoteValidationError("invalid import payload")
+    notes = payload["notes"]
+    if len(notes) > 500:
+        raise NoteValidationError("too many notes in one batch (max 500)")
+    source = (payload.get("source") or "file")[:40]
+    dest = payload.get("destFolderId") or ""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        if dest:
+            ok = conn.execute("SELECT 1 FROM j2_note_folders WHERE id = ? AND user_id = ?",
+                              (dest, user_id)).fetchone()
+            if not ok:
+                raise NoteValidationError("destination folder not found")
+        created, updated, skipped = [], [], []
+        now = _now_iso()
+        path_cache: dict[tuple, str] = {}
+        for n in notes:
+            key = n.get("importKey")
+            if not key or not isinstance(key, str):
+                raise NoteValidationError("importKey required on every note")
+            body_json = _validate_body_json(n.get("bodyJson"))
+            body_plain = extract_plain_text(body_json)
+            title = (n.get("title") or "Untitled").strip()[:MAX_TITLE_CHARS]
+            tags = _validate_tags(n.get("tags"))
+            ticker = _validate_ticker(n.get("ticker"))
+            h = _import_payload_hash(n)
+            path = tuple((n.get("folderPath") or [])[:MAX_FOLDER_DEPTH])
+            if path not in path_cache:
+                path_cache[path] = (ensure_folder_path(user_id, list(path), dest, conn=conn)
+                                    if path else (dest or None))
+            folder_id = path_cache[path] or None
+            row = conn.execute(
+                "SELECT id, import_hash FROM j2_notes WHERE user_id = ? AND import_key = ?",
+                (user_id, key)).fetchone()
+            item = {"importKey": key, "id": row["id"] if row else None}
+            if row and row["import_hash"] == h:
+                skipped.append(item); continue
+            created_at = _import_date(n.get("createdAt"), now)
+            updated_at = _import_date(n.get("updatedAt"), now)
+            if row:
+                conn.execute(
+                    "UPDATE j2_notes SET title=?, subtitle=?, body_json=?, body_plain=?, "
+                    "folder_id=?, ticker=?, tags=?, import_hash=?, imported_at=?, updated_at=? "
+                    "WHERE id=? AND user_id=?",
+                    (title, n.get("subtitle") or None, json.dumps(body_json), body_plain,
+                     folder_id, ticker, json.dumps(tags), h, now, updated_at,
+                     row["id"], user_id))
+                updated.append(item)
+            else:
+                new_id = uuid.uuid4().hex
+                conn.execute(
+                    "INSERT INTO j2_notes (id, user_id, folder_id, title, subtitle, body_json, "
+                    "body_plain, ticker, tags, import_source, import_key, import_hash, "
+                    "imported_at, created_at, updated_at) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (new_id, user_id, folder_id, title, n.get("subtitle") or None,
+                     json.dumps(body_json), body_plain, ticker, json.dumps(tags),
+                     source, key, h, now, created_at, updated_at))
+                item["id"] = new_id
+                created.append(item)
+        conn.commit()
+        return {"created": created, "updated": updated, "skipped": skipped}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        if owned:
+            conn.close()
 
 
 # ── Row mapping ──────────────────────────────────────────────────────────────

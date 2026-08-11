@@ -191,3 +191,52 @@ def test_create_folder_cross_user_parent_rejected(conn):
     with pytest.raises(notes_svc.NoteValidationError) as exc_info:
         notes_svc.create_folder("u1", "Child", parent_id=a_u2["id"], conn=conn)
     assert "parent folder not found" in str(exc_info.value)
+
+
+def _mk_import_note(key, title="T", body=None, path=("Inbox",)):
+    return {
+        "importKey": key, "title": title,
+        "bodyJson": body or {"type": "doc", "content": [
+            {"type": "paragraph", "content": [{"type": "text", "text": f"body of {title}"}]}]},
+        "tags": ["imported"], "folderPath": list(path),
+        "createdAt": "2024-03-01T12:00:00Z", "updatedAt": "2024-03-02T12:00:00Z",
+    }
+
+
+def test_import_confirm_creates_then_reimport_skips_then_change_updates(conn):
+    payload = {"source": "obsidian", "destFolderId": None,
+               "notes": [_mk_import_note("obsidian:a.md", "Alpha"),
+                          _mk_import_note("obsidian:b.md", "Beta", path=("Trading", "Setups"))]}
+    r1 = notes_svc.import_confirm("u1", payload, conn=conn)
+    assert [n["importKey"] for n in r1["created"]] == ["obsidian:a.md", "obsidian:b.md"]
+    # original dates preserved
+    note = notes_svc.get_note("u1", r1["created"][0]["id"], conn=conn)
+    assert note["createdAt"].startswith("2024-03-01")
+    # folder path materialized
+    names = {f["name"] for f in notes_svc.list_folders("u1", conn=conn)}
+    assert {"Inbox", "Trading", "Setups"} <= names
+    # identical re-import: everything skipped, nothing duplicated
+    r2 = notes_svc.import_confirm("u1", payload, conn=conn)
+    assert len(r2["skipped"]) == 2 and not r2["created"] and not r2["updated"]
+    # changed body: updated in place, same id
+    payload["notes"][0]["bodyJson"]["content"][0]["content"][0]["text"] = "edited"
+    r3 = notes_svc.import_confirm("u1", payload, conn=conn)
+    assert len(r3["updated"]) == 1
+    assert r3["updated"][0]["id"] == r1["created"][0]["id"]
+
+
+def test_import_check_reports_existing(conn):
+    notes_svc.import_confirm("u1", {"source": "x", "destFolderId": None,
+                                     "notes": [_mk_import_note("x:1")]}, conn=conn)
+    out = notes_svc.import_check("u1", ["x:1", "x:2"], conn=conn)
+    assert "x:1" in out["existing"] and "x:2" not in out["existing"]
+
+
+def test_import_confirm_is_atomic(conn):
+    bad = {"source": "x", "destFolderId": None,
+           "notes": [_mk_import_note("x:ok"),
+                      {"importKey": "x:bad", "title": "B", "bodyJson": "not-a-doc",
+                       "tags": [], "folderPath": []}]}
+    with pytest.raises(notes_svc.NoteValidationError):
+        notes_svc.import_confirm("u1", bad, conn=conn)
+    assert notes_svc.import_check("u1", ["x:ok"], conn=conn)["existing"] == {}

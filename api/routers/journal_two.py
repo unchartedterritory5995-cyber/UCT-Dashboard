@@ -1324,6 +1324,19 @@ def list_notes_endpoint(
     return {"notes": rows}
 
 
+@router.post("/notes/import/check")
+def notes_import_check_endpoint(payload: dict[str, Any], user: dict = Depends(get_current_user)):
+    return notes_service.import_check(user["id"], payload.get("importKeys") or [])
+
+
+@router.post("/notes/import/confirm")
+def notes_import_confirm_endpoint(payload: dict[str, Any], user: dict = Depends(get_current_user)):
+    try:
+        return notes_service.import_confirm(user["id"], payload)
+    except NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.get("/notes/{note_id}")
 def get_note_endpoint(
     note_id: str,
