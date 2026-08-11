@@ -77,6 +77,27 @@ def get_breadth_ohlc_status():
     return breadth_daily_ohlc.stats()
 
 
+@router.post("/api/breadth-monitor/history/sweep")
+def sweep_breadth_history(request: Request, from_date: str = Query(...),
+                          to_date: str = Query(default=""), limit: int = Query(default=0, ge=0, le=6000)):
+    """Backfill close-basis breadth history for a date range into the chart store
+    (source 'close_recon'). Loads the deep frame once, recomputes every session. Heavy →
+    runs in a BACKGROUND THREAD; poll GET .../history/sweep-status. PUSH_SECRET-gated."""
+    _check_auth(request)
+    import threading
+    from api.services import breadth_history_recon as r
+    threading.Thread(target=r.run_sweep_async, args=(from_date, to_date or None, limit),
+                     name="breadth-history-sweep", daemon=True).start()
+    return {"ok": True, "started": True, "from": from_date, "to": to_date or "(latest)"}
+
+
+@router.get("/api/breadth-monitor/history/sweep-status")
+def sweep_breadth_history_status():
+    """Poll the running/last close-basis history sweep (public — progress only)."""
+    from api.services import breadth_history_recon as r
+    return r._SWEEP_STATE
+
+
 @router.post("/api/breadth-monitor/history/recompute-deep")
 def recompute_deep_breadth(request: Request, date: str = Query(...),
                            limit: int = Query(default=0, ge=0, le=6000)):

@@ -95,78 +95,72 @@ def _lean_deep_daily(ticker: str) -> list:
         return []
 
 
-def load_deep_frame(tickers: list[str], workers: int = 12) -> dict:
-    """{ticker: {'YYYY-MM-DD': (o,h,l,c,v)}} for the whole universe, fetched in PARALLEL.
-    Load ONCE, then recompute every historical date off it (see recompute_from_frame)."""
+def load_deep_frame(tickers: list[str], since: Optional[str] = None, workers: int = 12) -> dict:
+    """Compact aligned frame for the WHOLE universe: {dates:[...], date_pos:{}, closes:np,
+    vols:np} with closes/vols shaped [n_tickers x n_dates]. NumPy (not dict-of-dicts) keeps
+    memory ~90MB for a few years x 3,700 names — safe against the pod-OOM class. `since`
+    trims each ticker to dates >= since (bound memory for a bounded sweep). Fetched PARALLEL
+    via the lean loader. Load ONCE; recompute every date off it."""
+    import numpy as np
     def _one(t):
         d = {}
         for b in (_lean_deep_daily(t) or []):
             ds = _norm_date(b.get("t"))
-            if ds:
-                d[ds] = (b.get("o"), b.get("h"), b.get("l"), b.get("c"), b.get("v"))
+            if ds and (since is None or ds >= since):
+                cf = _f(b.get("c"))
+                if cf is not None and cf > 0:
+                    vf = _f(b.get("v"))
+                    d[ds] = (cf, vf if vf is not None else float("nan"))
         return t, d
-    out: dict = {}
+    raw: dict = {}
     with _Pool(max_workers=workers) as ex:
         for t, d in ex.map(_one, tickers):
             if d:
-                out[t] = d
-    return out
+                raw[t] = d
+    all_dates = sorted({ds for d in raw.values() for ds in d})
+    date_pos = {ds: i for i, ds in enumerate(all_dates)}
+    n, D = len(tickers), len(all_dates)
+    closes = np.full((n, D), np.nan)
+    vols = np.full((n, D), np.nan)
+    for ti, t in enumerate(tickers):
+        d = raw.get(t)
+        if not d:
+            continue
+        for ds, (c, v) in d.items():
+            j = date_pos[ds]
+            closes[ti, j] = c
+            vols[ti, j] = v
+    del raw
+    return {"dates": all_dates, "date_pos": date_pos, "closes": closes, "vols": vols,
+            "names": sum(1 for i in range(n) if not np.all(np.isnan(closes[i])))}
 
 
 def recompute_from_frame(frame: dict, tickers: list[str], target_date: str,
                          window: int = 320) -> dict:
-    """PURE recompute for one date off a PRE-LOADED deep frame (see load_deep_frame). The
-    sweep loads the frame ONCE and calls this per date — no fetching here. `frame` is
-    {ticker: {'YYYY-MM-DD': (o,h,l,c,v)}}."""
+    """PURE recompute for one date by SLICING the pre-loaded numpy frame — no fetching, no
+    per-date allocation of the whole universe. Levels from the window's sessions strictly
+    before target; target's close folded in as the price (mirrors _metrics_at_close)."""
     import numpy as np
     from api.services import breadth_live as bl
-
-    all_dates: set = set()
-    for t in tickers:
-        d = frame.get(t)
-        if d:
-            all_dates.update(k for k in d.keys() if k <= target_date)
-    if target_date not in all_dates:
+    dp = frame["date_pos"]
+    tj = dp.get(target_date)
+    if tj is None:
         return {"ok": False, "reason": f"no bar on {target_date} (holiday / no data)"}
-
-    # The `window` trading days ending at target_date (union index, oldest last).
-    dates = sorted(all_dates)[-int(window):]
-    if len(dates) < 221:
-        return {"ok": False, "reason": f"only {len(dates)} union sessions <=target (need 221)"}
-    date_pos = {ds: i for i, ds in enumerate(dates)}
-    n, m = len(tickers), len(dates)
-    closes = np.full((n, m), np.nan)
-    highs = np.full((n, m), np.nan)
-    lows = np.full((n, m), np.nan)
-    vols = np.full((n, m), np.nan)
-    for ti, t in enumerate(tickers):
-        d = frame.get(t)
-        if not d:
-            continue
-        for ds, (o, h, l, c, v) in d.items():
-            j = date_pos.get(ds)   # dates > target aren't in the window index -> skipped
-            if j is None:
-                continue
-            cf, hf, lf, vf = _f(c), _f(h), _f(l), _f(v)
-            if cf is not None and cf > 0:
-                closes[ti, j] = cf
-            if hf is not None:
-                highs[ti, j] = hf
-            if lf is not None:
-                lows[ti, j] = lf
-            if vf is not None:
-                vols[ti, j] = vf
-
-    # Levels from sessions STRICTLY BEFORE target (drop the last column = target day),
-    # fold target's close in as the price — mirrors _metrics_at_close.
-    prior_ts = 0
-    levels = bl.build_levels(tickers, closes[:, :-1], vols[:, :-1], prior_ts)
-    ti_of = {t: i for i, t in enumerate(tickers)}
-    j = date_pos[target_date]
-    prices = {t: float(closes[ti_of[t], j]) for t in tickers
-              if not np.isnan(closes[ti_of[t], j]) and closes[ti_of[t], j] > 0}
-    dvols = {t: float(vols[ti_of[t], j]) for t in tickers
-             if not np.isnan(vols[ti_of[t], j]) and vols[ti_of[t], j] > 0}
+    lo = max(0, tj - int(window) + 1)
+    cols = slice(lo, tj + 1)
+    win = tj - lo + 1
+    if win < 221:
+        return {"ok": False, "reason": f"only {win} sessions <=target (need 221)"}
+    closes = frame["closes"][:, cols]
+    vols = frame["vols"][:, cols]
+    # Levels from sessions STRICTLY BEFORE target (drop the last column = target day).
+    levels = bl.build_levels(tickers, closes[:, :-1], vols[:, :-1], 0)
+    last_c = closes[:, -1]
+    last_v = vols[:, -1]
+    prices = {tickers[i]: float(last_c[i]) for i in range(len(tickers))
+              if not np.isnan(last_c[i]) and last_c[i] > 0}
+    dvols = {tickers[i]: float(last_v[i]) for i in range(len(tickers))
+             if not np.isnan(last_v[i]) and last_v[i] > 0}
     if not prices:
         return {"ok": False, "reason": "no prices on target"}
     metrics = bl.compute_metrics(levels, prices, dvols)
@@ -184,10 +178,84 @@ def recompute_close_deep(target_date: str, tickers: Optional[list[str]] = None,
         tickers, _ = bl.universe()
     if not tickers:
         return {"ok": False, "reason": "no universe"}
-    frame = load_deep_frame(tickers)
+    from datetime import date as _date, timedelta as _td
+    since = (_date.fromisoformat(target_date) - _td(days=560)).isoformat()
+    frame = load_deep_frame(tickers, since=since)
     out = recompute_from_frame(frame, tickers, target_date, window)
-    out["frame_names"] = len(frame)
+    out["frame_names"] = frame.get("names")
     return out
+
+
+_SWEEP_STATE: dict = {"status": "idle"}
+
+
+def sweep_history(from_date: str, to_date: Optional[str] = None,
+                  tickers: Optional[list[str]] = None, window: int = 320,
+                  batch: int = 4000) -> dict:
+    """Backfill close-basis breadth history for [from_date, to_date]: load the deep frame
+    ONCE, recompute every session, write close-to-close BODIES to breadth_daily_ohlc
+    (source 'close_recon'). Bounded memory (numpy frame) + batched writes. This is the
+    workhorse — heavy, so run it in a background thread (run_sweep_async)."""
+    from datetime import date as _date, timedelta as _td
+    from api.services import breadth_live as bl
+    from api.services import breadth_daily_ohlc
+    if tickers is None:
+        tickers, _ = bl.universe()
+    if not tickers:
+        return {"ok": False, "reason": "no universe"}
+    since = (_date.fromisoformat(from_date) - _td(days=560)).isoformat()  # ~1.6yr warmup for 200MA/52w
+    frame = load_deep_frame(tickers, since=since)
+    dates = frame["dates"]
+    to_date = to_date or (dates[-1] if dates else from_date)
+    sweep = [d for d in dates if from_date <= d <= to_date]
+    prev: dict = {}
+    rows: list = []
+    computed = written = 0
+    for ds in sweep:
+        r = recompute_from_frame(frame, tickers, ds, window)
+        if not r.get("ok"):
+            continue
+        for metric, val in r["metrics"].items():
+            fv = _f(val)
+            if fv is None:
+                continue
+            o = prev.get(metric, fv)                       # close-to-close body
+            rows.append((ds, metric, round(o, 4), round(max(o, fv), 4),
+                         round(min(o, fv), 4), round(fv, 4)))
+            prev[metric] = fv
+        computed += 1
+        _SWEEP_STATE.update(progress=f"{ds} ({computed}/{len(sweep)})")
+        if len(rows) >= batch:
+            written += breadth_daily_ohlc.write_bulk(rows, source="close_recon")
+            rows = []
+    if rows:
+        written += breadth_daily_ohlc.write_bulk(rows, source="close_recon")
+    return {"ok": True, "from": from_date, "to": to_date, "sessions": computed, "rows": written,
+            "frame_names": frame.get("names"),
+            "first_date": sweep[0] if sweep else None, "last_date": sweep[-1] if sweep else None}
+
+
+def run_sweep_async(from_date: str, to_date: Optional[str] = None, limit: int = 0) -> None:
+    """Background wrapper: recompute-and-store the close-basis history for a range."""
+    import time as _t
+    from api.services import breadth_live as bl
+    _SWEEP_STATE.clear()
+    _SWEEP_STATE.update(status="running", **{"from": from_date, "to": to_date})
+    try:
+        tickers, _ = bl.universe()
+        if limit:
+            tickers = tickers[:limit]
+        t0 = _t.perf_counter()
+        res = sweep_history(from_date, to_date, tickers)
+        res["elapsed_s"] = round(_t.perf_counter() - t0, 1)
+        res["status"] = "done"
+        _SWEEP_STATE.clear()
+        _SWEEP_STATE.update(res)
+    except Exception as e:
+        import traceback
+        _SWEEP_STATE.clear()
+        _SWEEP_STATE.update(status="error", reason=f"{type(e).__name__}: {e}",
+                            trace=traceback.format_exc()[-600:])
 
 
 def recompute_close(target_ts: int, tickers: Optional[list[str]] = None) -> dict:

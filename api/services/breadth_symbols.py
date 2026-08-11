@@ -304,31 +304,31 @@ def build_breadth_bars(sym: str, tf: str = "D", bars: int = 400) -> dict:
     except Exception:
         history = []
 
-    # oldest-first (date, value) with finite values only.
-    seq: list[tuple[str, float]] = []
-    for row in reversed(history):
-        d = row.get("date")
-        v = row.get(metric)
-        if not d:
-            continue
-        try:
-            fv = float(v)
-        except (TypeError, ValueError):
-            continue
-        if not math.isfinite(fv):
-            continue
-        seq.append((d, fv))
-
-    # Per-day OHLC from the wick store (live accumulator + historical reconstruction).
-    # A day with a stored row renders a real candle WITH WICKS; a day that predates the
-    # store falls back to a close-to-close body. `c` always comes from the authoritative
-    # EOD snapshot value; the stored h/l only widen the range.
+    # Per-day OHLC store (trusted sources: 'live' intraday wicks + 'close_recon' deep
+    # reconstructed history). This is where the DEEP history lives — recomputed close-basis
+    # bodies back years — so it drives the date series alongside the collector.
     ohlc_map = {}
     try:
         from api.services import breadth_daily_ohlc
         ohlc_map = breadth_daily_ohlc.history(metric)
     except Exception:
         ohlc_map = {}
+
+    # Merged close-per-day: the reconstructed/live store PLUS the collector's snapshots, with
+    # the COLLECTOR winning on any shared date (its EOD value is authoritative for days it
+    # covers; the store supplies everything before the collector started + any wick highs/lows).
+    closes_by_date: dict = {}
+    for d, row in ohlc_map.items():
+        cv = _finite(row.get("c"))
+        if cv is not None:
+            closes_by_date[d] = cv
+    for row in history:
+        d = row.get("date")
+        cv = _finite(row.get(metric))
+        if d and cv is not None:
+            closes_by_date[d] = cv
+
+    seq: list[tuple[str, float]] = sorted(closes_by_date.items())  # oldest-first
 
     daily: list[dict] = []
     prev: Optional[float] = None

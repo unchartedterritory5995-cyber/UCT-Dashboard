@@ -158,7 +158,51 @@ def set_ohlc(date: str, metric: str, o: float, h: float, l: float, c: float,
             return False
 
 
-_TRUSTED_SOURCES = ("live",)  # ONLY real intraday-sampled rows produce accurate wicks
+# Sources the chart trusts: 'live' = real intraday-sampled wicks; 'close_recon' = accurate
+# deep close-basis history recomputed from daily bars (bodies, validated to textbook extremes
+# e.g. COVID low 2% / rally 77% above 50MA). NOT 'reconstruct' (the old synchronized-extreme
+# daily-bar WICK guess, which was wrong).
+_TRUSTED_SOURCES = ("live", "close_recon")
+
+
+def write_bulk(rows: list, source: str = "close_recon", overwrite_live: bool = False) -> int:
+    """Bulk-write reconstructed rows in ONE transaction (a sweep does 100k+). `rows` =
+    [(date, metric, o, h, l, c)]. By default never overwrites a real 'live' wick row.
+    Returns the number written."""
+    _ensure_init()
+    clean = []
+    for r in rows:
+        try:
+            d, m, o, h, l, c = r
+        except (TypeError, ValueError):
+            continue
+        o, h, l, c = _finite(o), _finite(h), _finite(l), _finite(c)
+        if None in (o, h, l, c) or not d or not m:
+            continue
+        clean.append((d, m, o, h, l, c, source))
+    if not clean:
+        return 0
+    n = 0
+    with _WRITE_LOCK:
+        try:
+            with _conn() as conn:
+                if not overwrite_live:
+                    # skip any (date,metric) already carrying a real 'live' row
+                    live_keys = {(row[0], row[1]) for row in conn.execute(
+                        "SELECT date, metric FROM breadth_daily_ohlc WHERE source='live'"
+                    ).fetchall()}
+                    clean = [r for r in clean if (r[0], r[1]) not in live_keys]
+                conn.executemany(
+                    "INSERT INTO breadth_daily_ohlc(date, metric, o, h, l, c, source, updated_at) "
+                    "VALUES(?,?,?,?,?,?,?, datetime('now')) "
+                    "ON CONFLICT(date, metric) DO UPDATE SET o=excluded.o, h=excluded.h, "
+                    "l=excluded.l, c=excluded.c, source=excluded.source, updated_at=datetime('now')",
+                    clean,
+                )
+                n = len(clean)
+        except Exception:
+            return 0
+    return n
 
 
 def history(metric: str, limit: int = 6000) -> dict:
