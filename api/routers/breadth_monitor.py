@@ -80,21 +80,22 @@ def get_breadth_ohlc_status():
 @router.post("/api/breadth-monitor/history/recompute-deep")
 def recompute_deep_breadth(request: Request, date: str = Query(...),
                            limit: int = Query(default=0, ge=0, le=6000)):
-    """Phase 1 proof: recompute breadth for a PAST date sourcing daily bars from the DEEP
-    chart pipeline (not the shallow ohlcv tier). `limit` caps the universe for a fast smoke
-    (0 = full universe). Reports the metrics + timing. PUSH_SECRET-gated."""
+    """Phase 1 proof: recompute breadth for a PAST date from the DEEP chart pipeline (not
+    the shallow ohlcv tier). Runs in a BACKGROUND thread (deep Massive fetches are slow →
+    would 524 inline); poll the result with GET. `limit` caps the universe (0 = full)."""
     _check_auth(request)
-    import time as _t
+    import threading
     from api.services import breadth_history_recon as r
-    from api.services import breadth_live as bl
-    tickers, _ = bl.universe()
-    if limit:
-        tickers = tickers[:limit]
-    t0 = _t.perf_counter()
-    out = r.recompute_close_deep(date, tickers)
-    out["elapsed_s"] = round(_t.perf_counter() - t0, 1)
-    out["tickers_used"] = len(tickers)
-    return out
+    threading.Thread(target=r.run_deep_async, args=(date, limit),
+                     name=f"deep-recompute-{date}", daemon=True).start()
+    return {"ok": True, "started": True, "date": date, "poll": "GET .../history/recompute-deep-result?date="}
+
+
+@router.get("/api/breadth-monitor/history/recompute-deep-result")
+def recompute_deep_result(date: str = Query(...)):
+    """Poll a recompute-deep run (public — proof output, no secrets)."""
+    from api.services import breadth_history_recon as r
+    return r._DEEP_RESULTS.get(date) or {"status": "not_started"}
 
 
 @router.post("/api/breadth-monitor/history/validate")

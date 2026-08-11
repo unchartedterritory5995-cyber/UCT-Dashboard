@@ -24,6 +24,29 @@ def _f(v) -> Optional[float]:
         return None
 
 
+_DEEP_RESULTS: dict = {}   # date -> result (validation / proof runs, in-memory)
+
+
+def run_deep_async(date: str, limit: int = 0) -> None:
+    """Background: recompute one past date's breadth from the deep pipeline and stash the
+    result. Deep fetches (uncached history from Massive) are slow, so this can't run inline."""
+    import time as _t
+    from api.services import breadth_live as bl
+    _DEEP_RESULTS[date] = {"status": "running", "started": True}
+    try:
+        tickers, _ = bl.universe()
+        if limit:
+            tickers = tickers[:limit]
+        t0 = _t.perf_counter()
+        out = recompute_close_deep(date, tickers)
+        out["elapsed_s"] = round(_t.perf_counter() - t0, 1)
+        out["tickers_used"] = len(tickers)
+        out["status"] = "done"
+        _DEEP_RESULTS[date] = out
+    except Exception as e:
+        _DEEP_RESULTS[date] = {"status": "error", "reason": f"{type(e).__name__}: {e}"}
+
+
 def _deep_daily_bars(ticker: str, bars: int = 9000) -> list:
     """One ticker's DEEP daily bars ([{t:'YYYY-MM-DD', o,h,l,c,v}] oldest-first) via the same
     serve pipeline the charts use (memory -> disk -> deep cache -> Massive) — NOT the shallow
