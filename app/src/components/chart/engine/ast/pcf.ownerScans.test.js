@@ -17,9 +17,15 @@ import { describe, it, expect } from 'vitest'
 import { evaluateFormula, canSaveFormula } from '../../builder/FormulaField.jsx'
 import { BUILDER_INPUT_SCOPE } from '../../builder/builderInputs.js'
 import { interpret } from './interpret.js'
+import { astHash } from './parse.js'
 import { detectDialect } from './pcf.js'
 
 const read = (src) => evaluateFormula(src, BUILDER_INPUT_SCOPE)
+
+/** The tree's identity, for cases that assert two spellings are NOT the same
+ *  maths. ⛔ Compared as trees, never as strings — two sources can differ by
+ *  whitespace and mean the same thing, and that is not what these ask. */
+const astHashOf = (ev) => astHash(ev.ast)
 
 // ── the three columns ────────────────────────────────────────────────────────
 
@@ -185,5 +191,79 @@ describe('a TC2000 dialog indicator says what it is, and what to do instead', ()
       + ' AND 100 * c / maxh250 > 80')
     expect(ev.ok, ev.error || '').toBe(true)
     expect(ev.verdict.mode).toBe('non-repainting')
+  })
+})
+
+// ─── TWO MORE REAL COLUMNS: "Vol 52wk" AND THE 9EMA/200MA CROSS ─────────────
+//
+// Both read whole on the first try, so these are pins rather than fixes — and the
+// pin is the point: each one exercises something the earlier four did not.
+describe('the firm`s "Vol 52wk" column', () => {
+  // TC2000 names four of these rows after formulas of its own; they are written
+  // here exactly as that dialog spells them.
+  const PCT_CHANGE = '100 * (C - C1) / C1'          // "Price Percent Change Today"
+  const DCR = '(C-L)/(H-L) * 100'                    // "DCR" — daily close range
+  const WHOLE = `${PCT_CHANGE} > 0 and ${DCR} > 40 and C > 3 and V >= MAXV252`
+    + ' and AVG(C * V, 20) > 10000000'
+
+  it('reads, saves, and is non-repainting', () => {
+    const ev = read(WHOLE)
+    expect(ev.ok, ev.error || '').toBe(true)
+    expect(ev.dialect).toBe('pcf')
+    expect(canSaveFormula(ev, false)).toBe(true)
+    expect(ev.verdict.mode).toBe('non-repainting')
+  })
+
+  it('⭐ A MOVING AVERAGE ACCEPTS AN EXPRESSION, not just a bare column', () => {
+    // The one piece I could not predict: "Volume (Dollars) 20-Day" is the 20-day
+    // average of price x volume, which needs `C * V` INSIDE the average. Both
+    // spellings work, and this is what makes the row expressible at all.
+    expect(read('AVG(C * V, 20) > 10000000').ok).toBe(true)
+    expect(read('sma(close * volume, 20) > 10000000').ok).toBe(true)
+  })
+
+  it('⛔ …AND THE SCALAR SHORTCUT IS NOT THE SAME MATHS', () => {
+    // `avg_volume_30d * price` parses and looks equivalent. It is not: a 30-day
+    // average volume times TODAY'S price is not the 20-day average of daily
+    // dollar volume, and it is the wrong window. Pinned so nobody "simplifies"
+    // the row into it — this is the MIN/lowest trap in a liquidity filter.
+    const shortcut = read('avg_volume_30d * price > 10000000')
+    expect(shortcut.ok).toBe(true)
+    expect(astHashOf(shortcut)).not.toBe(astHashOf(read('AVG(C * V, 20) > 10000000')))
+  })
+
+  it('the 252-bar volume high is a real 52-week window', () => {
+    expect(read('V >= MAXV252').measured.maxLookback).toBe(252)
+  })
+})
+
+describe('the firm`s 9EMA-crossing-200MA column', () => {
+  const WHOLE = 'XUP(XAVGC9, AVGC200) and C > 10 and V > 500000'
+
+  it('reads, saves, and is non-repainting', () => {
+    const ev = read(WHOLE)
+    expect(ev.ok, ev.error || '').toBe(true)
+    expect(canSaveFormula(ev, false)).toBe(true)
+    expect(ev.verdict.mode).toBe('non-repainting')
+  })
+
+  it('🔴 fires ONCE on the cross — not on every bar above it', () => {
+    // ⛔ The distinction the whole column rests on. A "crossing" that reported
+    // every bar where the fast average sits above the slow one is a trend filter
+    // wearing a crossing's name, and it would fire for weeks after the event.
+    const bars = []
+    for (let i = 0; i < 260; i++) { const p = 50 - i * 0.02; bars.push({ o: p, h: p + 0.6, l: p - 0.6, c: p, v: 6e5 }) }
+    let p = bars.at(-1).c
+    for (let i = 0; i < 40; i++) { p *= 1.02; bars.push({ o: p * 0.995, h: p * 1.01, l: p * 0.99, c: p, v: 1.5e6 + i * 2e4 }) }
+
+    const ev = read(WHOLE)
+    const col = [...interpret(ev.ast, bars, undefined, undefined, {})]
+    expect(col.filter((x) => x === 1)).toHaveLength(1)
+  })
+
+  it('needs 200 bars of history before it can answer', () => {
+    // A 200-bar average inside a crossing: the column is silent, never 0, until
+    // the history exists. 201 = the average plus the crossing's own prior bar.
+    expect(read(WHOLE).measured.maxLookback).toBe(201)
   })
 })
