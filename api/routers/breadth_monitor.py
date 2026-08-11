@@ -77,6 +77,16 @@ def get_breadth_ohlc_status():
     return breadth_daily_ohlc.stats()
 
 
+@router.post("/api/breadth-monitor/history/validate")
+def validate_breadth_history_recon(request: Request, days: int = Query(default=10, ge=1, le=60)):
+    """Phase 0: recompute the last `days` COLLECTED sessions from bars and diff each metric
+    against the collector's stored value. Small diffs => the historical reconstruction is
+    faithful and the backfill can be trusted. Read-only. PUSH_SECRET-gated (heavy-ish)."""
+    _check_auth(request)
+    from api.services import breadth_history_recon
+    return breadth_history_recon.validate_recent(days)
+
+
 @router.post("/api/breadth-monitor/ohlc/backfill-intraday")
 def backfill_breadth_ohlc_intraday(request: Request, days: int = Query(default=8, ge=1, le=60)):
     """Aggregate the REAL intraday breadth samples (breadth_intraday, full-universe, ~7-day
