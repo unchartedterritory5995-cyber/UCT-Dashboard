@@ -364,3 +364,52 @@ describe('🔴 the draft button shows that it is off, and says why', () => {
     expect(screen.queryByText(/describe it first/i)).toBeNull()
   })
 })
+
+// ─── A DESCRIPTION THAT NO LONGER DESCRIBES THE FORMULA SAYS SO ─────────────
+//
+// ⚰️ MEASURED 2026-08-11: I typed a description, browsed the starter library,
+// opened **Classic Flag/Pullback**, and my old sentence was still sitting in the
+// box — now describing something I was no longer building, directly above a button
+// that would overwrite the starter I had just loaded.
+//
+// ⛔ IT IS NOT CLEARED. Silently binning typed text is the same class of loss as
+// the Escape bug this session fixed, and the member may still want it. Drafting is
+// an explicit click; all this has to do is stop the box from lying.
+describe('🔴 the description is marked stale when another lane writes the formula', () => {
+  const box = (props) => render(
+    <ConciergeBox fetchImpl={async () => ({ ok: true, json: async () => ({}) })} {...props} />,
+  )
+
+  it('says nothing while the description still matches', () => {
+    const { rerender } = box({ replacedAt: 0 })
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'above the 200' } })
+    expect(screen.queryByTestId('concierge-stale')).toBeNull()
+    // ⛔ CONTROL: an unchanged counter must not raise it either.
+    rerender(<ConciergeBox fetchImpl={async () => ({})} replacedAt={0} />)
+    expect(screen.queryByTestId('concierge-stale')).toBeNull()
+  })
+
+  it('marks it once another lane replaces the formula', () => {
+    const { rerender } = box({ replacedAt: 0 })
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'above the 200' } })
+    rerender(<ConciergeBox fetchImpl={async () => ({})} replacedAt={1} />)
+    expect(screen.getByTestId('concierge-stale')).toBeTruthy()
+    // ⭐ AND THE TEXT SURVIVES — the whole point of not clearing it.
+    expect(screen.getByRole('textbox').value).toBe('above the 200')
+  })
+
+  it('⛔ an EMPTY box is never called stale — there is nothing to be stale', () => {
+    const { rerender } = box({ replacedAt: 0 })
+    rerender(<ConciergeBox fetchImpl={async () => ({})} replacedAt={1} />)
+    expect(screen.queryByTestId('concierge-stale')).toBeNull()
+  })
+
+  it('typing again clears the mark', () => {
+    const { rerender } = box({ replacedAt: 0 })
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'above the 200' } })
+    rerender(<ConciergeBox fetchImpl={async () => ({})} replacedAt={1} />)
+    expect(screen.getByTestId('concierge-stale')).toBeTruthy()
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'a new idea' } })
+    expect(screen.queryByTestId('concierge-stale')).toBeNull()
+  })
+})

@@ -196,8 +196,13 @@ const KIND_COPY = {
  *                                     uses the global `fetch`
  */
 export default function ConciergeBox({ bars, kind = 'indicator', onAccept, fetchImpl,
-                                       disabled = false }) {
+                                       disabled = false, replacedAt = 0 }) {
   const [prompt, setPrompt] = useState('')
+  // The `replacedAt` value the description was last written against. When the host
+  // bumps `replacedAt` (another lane wrote the formula box) this no longer matches,
+  // and the description is stale until the member touches it again.
+  const [seenReplacedAt, setSeenReplacedAt] = useState(replacedAt)
+  const staleFor = replacedAt !== seenReplacedAt
   const [busy, setBusy] = useState(false)
   const [proposal, setProposal] = useState(null)
   const [refusal, setRefusal] = useState(null)
@@ -269,7 +274,7 @@ export default function ConciergeBox({ bars, kind = 'indicator', onAccept, fetch
         value={prompt}
         disabled={disabled || busy}
         placeholder={copy.placeholder}
-        onChange={(e) => setPrompt(e.target.value)}
+        onChange={(e) => { setPrompt(e.target.value); setSeenReplacedAt(replacedAt) }}
       />
       <div style={S.row}>
         {/* ⛔ ONE EXPRESSION, BOTH PROPS. `draftBlocked` decides whether the button
@@ -293,6 +298,20 @@ export default function ConciergeBox({ bars, kind = 'indicator', onAccept, fetch
             does not explain WHY, and the box it wants filled is directly above. */}
         {!busy && !disabled && !prompt.trim() ? (
           <span style={S.meta}>Describe it first</span>
+        ) : null}
+        {/* ⭐⭐ THE DESCRIPTION IS STALE, AND SAYING SO BEATS DELETING IT.
+            ⚰️ Measured 2026-08-11: I typed a description, browsed the starter
+            library, opened **Classic Flag/Pullback**, and my old sentence was still
+            sitting here — now describing something the member is no longer
+            building, above a button that would overwrite the starter they had just
+            loaded.
+            ⛔ NOT CLEARED. Silently binning typed text is the same class of loss as
+            the Escape bug, and the member may still want it. Drafting is an
+            explicit click; all this has to do is stop the box from lying. */}
+        {!busy && staleFor && prompt.trim() ? (
+          <span style={S.meta} data-testid="concierge-stale">
+            describes an earlier formula
+          </span>
         ) : null}
       </div>
 

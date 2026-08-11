@@ -262,6 +262,10 @@ export default function BuilderSheet({
   const [savedRow, setSavedRow] = useState(null)
   /** Escape / Cancel asked to close while there was unsaved work. See `dirty`. */
   const [confirmDiscard, setConfirmDiscard] = useState(false)
+  /** Bumped whenever a lane OTHER than the concierge writes the formula box —
+   *  a starter, a Pine paste. `ConciergeBox` compares it against the value its
+   *  description was last typed against, and says so rather than deleting it. */
+  const [replacedAt, setReplacedAt] = useState(0)
   const [copied, setCopied] = useState(false)
   // ⭐ THE EDIT TARGET: `{defId, version}` off the STORE's row, or null for a
   // create. It is the id the store minted — never `draftDefId()`'s — because the
@@ -624,6 +628,7 @@ export default function BuilderSheet({
             bars={bars}
             kind={buildMode === 'picker' ? 'scan' : 'indicator'}
             disabled={saving}
+            replacedAt={replacedAt}
             onAccept={(proposal) => setSource(proposal?.source || '')}
           />
 
@@ -713,6 +718,7 @@ export default function BuilderSheet({
                 // would be the same class of loss as the Escape bug: browsing the
                 // library after naming your own work must not rename it.
                 setName((prev) => (prev.trim() ? prev : entry.setup))
+                setReplacedAt((n) => n + 1)
               }}
             />
           )}
@@ -727,6 +733,7 @@ export default function BuilderSheet({
                 // same), not a prebuilt document, not a hash.
                 setSource(formula)
                 setBuildMode('formula')
+                setReplacedAt((n) => n + 1)
               }}
             />
           )}

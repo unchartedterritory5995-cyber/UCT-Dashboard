@@ -370,3 +370,36 @@ describe('🔴 "Open it and edit" carries the setup`s name', () => {
     expect(screen.getByLabelText('Name').value).toBe('My own name')
   })
 })
+
+// ⛔⛔ THE WIRE, NOT THE COMPONENT. `ConciergeBox.test.jsx` proves the box marks
+// its description stale WHEN HANDED a changed `replacedAt` — and stayed green
+// while `BuilderSheet` stopped bumping it. A mutation run caught that: deleting
+// `setReplacedAt` from the starter lane broke nothing. Component tests are
+// structurally blind to a severed wire, which is this repo's most repeated defect,
+// so this case drives the REAL sheet: type a description, pick a starter, and the
+// mark must appear on the real box.
+describe('🔴 picking a starter marks the description stale — through the SHEET', () => {
+  it('the note appears on the real concierge box', async () => {
+    mount()
+    await flush()
+    fireEvent.change(screen.getByRole('textbox', { name: /plain English/i }),
+      { target: { value: 'stocks above the 200 day average' } })
+    await flush()
+    expect(screen.queryByTestId('concierge-stale')).toBeNull()
+
+    fireEvent.click(screen.getAllByText(/open it and edit/i)[0])
+    await flush()
+
+    expect(screen.getByTestId('concierge-stale'),
+      'the sheet loaded a starter and never told the description it was stale')
+      .toBeTruthy()
+  })
+
+  it('⛔ THE CONTROL — with no description there is nothing to mark', async () => {
+    mount()
+    await flush()
+    fireEvent.click(screen.getAllByText(/open it and edit/i)[0])
+    await flush()
+    expect(screen.queryByTestId('concierge-stale')).toBeNull()
+  })
+})
