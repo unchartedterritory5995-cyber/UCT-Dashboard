@@ -7,7 +7,7 @@ import { customBreadthColors, mergeBreadthWidgetSettings } from './breadthWidget
 
 const mockData = vi.fn()
 vi.mock('../../../hooks/useMobileSWR', () => ({
-  default: () => ({ data: mockData() }),
+  default: () => ({ data: mockData(), mutate: vi.fn(), isValidating: false }),
 }))
 
 const row = (date, score) => ({
@@ -40,35 +40,55 @@ function Wrap({ initialOpts = {}, onOpts }) {
   )
 }
 
-test('defaults to the heatmap view with tier tiles from live metric defs', () => {
+test('renders the heatmap with grouped tier tiles from the live metric defs', () => {
   mockData.mockReturnValue(ROWS)
   render(<Wrap />)
-  // Group labels + a few metric tiles render with formatted values.
   expect(screen.getByText('Primary Breadth')).toBeInTheDocument()
   expect(screen.getByText('Up 4%+')).toBeInTheDocument()
-  expect(screen.getByText('120')).toBeInTheDocument()          // up_4pct_today value
+  expect(screen.getByText('120')).toBeInTheDocument()             // up_4pct_today value
   expect(screen.getAllByText(/61\.0%/).length).toBeGreaterThan(0) // pct_above_50sma fmt
 })
 
-test('shows the as-of date from the newest row', () => {
+test('header reads "Breadth Monitor" (no view pills)', () => {
   mockData.mockReturnValue(ROWS)
   render(<Wrap />)
-  expect(screen.getByText('2026-07-22')).toBeInTheDocument()
+  expect(screen.getByText('Breadth Monitor')).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /^rings$/i })).not.toBeInTheDocument()
 })
 
-test('switching to Rings persists the choice through opts', () => {
+test('footer shows the last-updated stamp + a working refresh button', () => {
+  mockData.mockReturnValue(ROWS)
+  render(<Wrap />)
+  expect(screen.getByText(/Updated 2026-07-22/)).toBeInTheDocument()
+  expect(screen.getByTitle('Refresh')).toBeInTheDocument()
+})
+
+test('the ✕ on a tile hides that reading through opts.hiddenMetrics', () => {
   mockData.mockReturnValue(ROWS)
   const onOpts = vi.fn()
   render(<Wrap onOpts={onOpts} />)
-  fireEvent.click(screen.getByRole('button', { name: /^rings$/i }))
-  expect(onOpts).toHaveBeenCalledWith(expect.objectContaining({ view: 'rings' }))
+  fireEvent.click(screen.getByLabelText('Remove Up 4%+'))
+  expect(onOpts).toHaveBeenCalledWith(
+    expect.objectContaining({ hiddenMetrics: expect.arrayContaining(['up_4pct_today']) }),
+  )
 })
 
-test('restores the persisted view from opts (rings on first render)', () => {
+test('a hidden reading renders no tile', () => {
   mockData.mockReturnValue(ROWS)
-  render(<Wrap initialOpts={{ view: 'rings' }} />)
-  // RingsView renders SVG rings — the heatmap group labels are gone.
-  expect(screen.queryByText('Primary Breadth')).not.toBeInTheDocument()
+  render(<Wrap initialOpts={{ hiddenMetrics: ['up_4pct_today'] }} />)
+  expect(screen.queryByText('Up 4%+')).not.toBeInTheDocument()
+})
+
+test('the ＋ menu toggles a reading', () => {
+  mockData.mockReturnValue(ROWS)
+  const onOpts = vi.fn()
+  render(<Wrap onOpts={onOpts} />)
+  fireEvent.click(screen.getByLabelText('Add or remove readings'))
+  const items = screen.getAllByRole('menuitemcheckbox', { name: /Up 4%/ })
+  fireEvent.click(items[0])
+  expect(onOpts).toHaveBeenCalledWith(
+    expect.objectContaining({ hiddenMetrics: expect.arrayContaining(['up_4pct_today']) }),
+  )
 })
 
 test('shows loading state before data arrives', () => {
@@ -87,14 +107,12 @@ test('customBreadthColors derives severity shades from the two hues (both requir
   expect(customBreadthColors({ upColor: '', downColor: '' })).toBeNull()
   expect(customBreadthColors({ upColor: '#3b82f6', downColor: '' })).toBeNull()
   const c = customBreadthColors({ upColor: '#3b82f6', downColor: '#a855f7' })
-  // Extremes keep the pure hue; milder tiers are tints; tile fills are dark shades.
   expect(c.viewPalette.tier.g3).toBe('#3b82f6')
   expect(c.viewPalette.tier.r3).toBe('#a855f7')
   expect(c.viewPalette.tier.g1).not.toBe(c.viewPalette.tier.g3)
   expect(c.tipColors[5]).toBe('#3b82f6')
   expect(c.tipColors[0]).toBe('#a855f7')
   expect(c.cellColors.g2).not.toBe(c.cellColors.g3)
-  // Amber caution + no-data stay on the house palette.
   expect(c.viewPalette.tier.a).toBe('#fbbf24')
   expect(c.cellColors['']).toBe('#181818')
 })
@@ -104,7 +122,6 @@ test('legacy single textColor migrates into headerColor + valueColor', () => {
   expect(m.headerColor).toBe('#ffffff')
   expect(m.valueColor).toBe('#ffffff')
   expect(m.textColor).toBeUndefined()
-  // Default blob stays defaults (no phantom migration of the old default value).
   const d = mergeBreadthWidgetSettings({ textColor: '#e0dac8' })
   expect(d.headerColor).toBe('')
   expect(d.valueColor).toBe('')
