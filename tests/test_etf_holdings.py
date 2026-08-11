@@ -29,13 +29,30 @@ def test_get_holdings_no_key_returns_empty(monkeypatch):
     assert eh.get_holdings("ZZTESTETF2") == []
 
 
-def test_etf_symbol_set_uppercases_and_drops_blanks(monkeypatch):
+def test_is_basket_etf_keeps_real_baskets_drops_leveraged_inverse_single_stock():
+    # Real baskets — incl. "Short-Term"/"Short Treasury" bond ETFs (bare SHORT is NOT a token).
+    for real in ("iShares Semiconductor ETF", "SPDR S&P 500 ETF Trust",
+                 "Vanguard Short-Term Bond ETF", "iShares Short Treasury Bond ETF",
+                 "Global X NASDAQ 100 Covered Call ETF"):
+        assert eh._is_basket_etf(real), real
+    for lev in ("ProShares UltraPro Short QQQ", "Direxion Daily Semiconductor Bull 3X Shares",
+                "GraniteShares 2x Long NVDA Daily ETF", "Defiance Daily Target 2X Long MSTR ETF",
+                "ProShares UltraShort Gold", "YieldMax NVDA Option Income Strategy ETF"):
+        assert not eh._is_basket_etf(lev), lev
+
+
+def test_etf_symbol_set_uppercases_drops_blanks_and_leveraged(monkeypatch):
     monkeypatch.setenv("MASSIVE_API_KEY", "k")
-    monkeypatch.setattr(eh, "_paginate_massive",
-                        lambda url, key, cap=400: [{"ticker": "SPY"}, {"ticker": "xlk"}, {"ticker": ""}])
+    monkeypatch.setattr(eh, "_paginate_massive", lambda url, key, cap=400: [
+        {"ticker": "SPY", "name": "SPDR S&P 500 ETF Trust"},
+        {"ticker": "xlk", "name": "Technology Select Sector SPDR Fund"},
+        {"ticker": "", "name": ""},
+        {"ticker": "SQQQ", "name": "ProShares UltraPro Short QQQ"},   # leveraged → dropped
+    ])
     eh._universe_cache["set"] = None   # bypass any warm cache
     try:
         s = eh.etf_symbol_set()
-        assert "SPY" in s and "XLK" in s and "" not in s
+        assert "SPY" in s and "XLK" in s
+        assert "" not in s and "SQQQ" not in s
     finally:
         eh._universe_cache.update({"ts": 0.0, "set": None})

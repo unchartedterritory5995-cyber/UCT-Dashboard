@@ -11,8 +11,16 @@ const DEF_W = 520, DEF_H = 560, MIN_W = 180, MIN_H = 40
 const COLORS = ['A', 'B', 'C', 'D', 'N']
 const COLOR_HEX = { A: '#c9a84c', B: '#60a5fa', C: '#4ade80', D: '#c084fc', N: '#6b7280' }
 
-export default function EtfHoldingsPanel({ sym, onClose }) {
-  const [pos, setPos] = useState(() => ({ x: Math.max(12, Math.round((window.innerWidth - DEF_W) / 2)), y: 96 }))
+export default function EtfHoldingsPanel({ sym, onClose, centerOn = null }) {
+  const [pos, setPos] = useState(() => {
+    const vw = window.innerWidth, vh = window.innerHeight
+    // Center on the chart widget when we were handed its center; else the viewport.
+    let x = centerOn ? centerOn.cx - DEF_W / 2 : (vw - DEF_W) / 2
+    let y = centerOn ? centerOn.cy - DEF_H / 2 : 96
+    x = Math.max(8, Math.min(x, vw - DEF_W - 8))    // keep fully on-screen horizontally
+    y = Math.max(8, Math.min(y, vh - 80))           // keep at least the header on-screen
+    return { x: Math.round(x), y: Math.round(y) }
+  })
   const [size, setSize] = useState({ w: DEF_W, h: DEF_H })
   const [panelColor, setPanelColor] = useState('A')
 
