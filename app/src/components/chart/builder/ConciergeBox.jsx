@@ -109,6 +109,24 @@ const S = {
   quote: { color: 'var(--text-heading)' },
 }
 
+/** ⭐⭐ A DISABLED BUTTON HAS TO LOOK DISABLED — AND AN INLINE STYLE CANNOT SAY SO.
+ *
+ *  ⚰️ MEASURED IN PRODUCTION 2026-08-11. "Draft a formula" is correctly disabled
+ *  while the description box is empty (`!prompt.trim()`), but every button on this
+ *  surface is styled with an inline `style={…}` object — and an inline style has
+ *  no `:disabled` selector, so it rendered at full strength WITH `cursor: pointer`,
+ *  actively inviting the click. I clicked it on an empty box and nothing at all
+ *  happened: no draft, no error, no hint, no visible reason. A control that looks
+ *  live and does nothing is indistinguishable from a broken one, and this is the
+ *  first button a member meets in the builder.
+ *
+ *  ⛔ HAND IT THE SAME EXPRESSION THAT DISABLES THE BUTTON, never a second copy of
+ *  the rule — one value drives both props, so the look cannot drift from the gate.
+ */
+const dimmed = (base, isDisabled) => (isDisabled
+  ? { ...base, opacity: 0.45, cursor: 'not-allowed' }
+  : base)
+
 /** The clauses the server dropped, and the columns it cannot screen on. Rendered
  *  as its own block so it can sit above a proposal AND above a refusal — a member
  *  needs it in both places, and it is the only thing on the surface that can say
@@ -254,15 +272,28 @@ export default function ConciergeBox({ bars, kind = 'indicator', onAccept, fetch
         onChange={(e) => setPrompt(e.target.value)}
       />
       <div style={S.row}>
-        <button
-          type="button"
-          style={S.button}
-          disabled={disabled || busy || !prompt.trim()}
-          onClick={submit}
-        >
-          {busy ? 'Drafting…' : 'Draft a formula'}
-        </button>
+        {/* ⛔ ONE EXPRESSION, BOTH PROPS. `draftBlocked` decides whether the button
+            works AND how it looks, so the two can never disagree — the shape that
+            let a fully-live-looking button do nothing at all. */}
+        {(() => {
+          const draftBlocked = disabled || busy || !prompt.trim()
+          return (
+            <button
+              type="button"
+              style={dimmed(S.button, draftBlocked)}
+              disabled={draftBlocked}
+              onClick={submit}
+            >
+              {busy ? 'Drafting…' : 'Draft a formula'}
+            </button>
+          )
+        })()}
         {busy ? <span style={S.meta} role="status">working</span> : null}
+        {/* Say what it is waiting for. A dimmed button explains that it is off; it
+            does not explain WHY, and the box it wants filled is directly above. */}
+        {!busy && !disabled && !prompt.trim() ? (
+          <span style={S.meta}>Describe it first</span>
+        ) : null}
       </div>
 
       {refusal ? (

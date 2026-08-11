@@ -326,3 +326,41 @@ describe('ConciergeBox', () => {
       expect(screen.queryByTestId('concierge-unavailable')).toBeNull()
     })
 })
+
+// ─── A DISABLED BUTTON MUST LOOK DISABLED ────────────────────────────────────
+//
+// ⚰️ MEASURED IN PRODUCTION 2026-08-11. "Draft a formula" is correctly disabled on
+// an empty description, but every button here is styled with an inline `style={}`
+// object — and an inline style has no `:disabled`, so it rendered at full strength
+// WITH `cursor: pointer`. I clicked it on an empty box and nothing happened: no
+// draft, no error, no hint. A control that looks live and does nothing is
+// indistinguishable from a broken one, and this is the first button in the builder.
+describe('🔴 the draft button shows that it is off, and says why', () => {
+  it('is disabled AND visibly dimmed on an empty description', () => {
+    render(<ConciergeBox fetchImpl={async () => ({ ok: true, json: async () => ({}) })} />)
+    const btn = screen.getByRole('button', { name: /draft a formula/i })
+    expect(btn).toBeDisabled()
+    // ⛔ The look, not just the gate — this is the half that shipped missing.
+    expect(btn.style.opacity, 'a disabled button rendered at full strength').toBe('0.45')
+    expect(btn.style.cursor, 'it still invited the click').toBe('not-allowed')
+  })
+
+  it('names what it is waiting for', () => {
+    render(<ConciergeBox fetchImpl={async () => ({ ok: true, json: async () => ({}) })} />)
+    expect(screen.getByText(/describe it first/i)).toBeTruthy()
+  })
+
+  it('⛔ THE CONTROL — with a description it is live again, and undimmed', () => {
+    // Without this, a build that dimmed the button permanently would pass both
+    // cases above while breaking the feature outright.
+    render(<ConciergeBox fetchImpl={async () => ({ ok: true, json: async () => ({}) })} />)
+    fireEvent.change(screen.getByRole('textbox'), {
+      target: { value: 'stocks above the 50 day average' },
+    })
+    const btn = screen.getByRole('button', { name: /draft a formula/i })
+    expect(btn).not.toBeDisabled()
+    expect(btn.style.opacity).not.toBe('0.45')
+    expect(btn.style.cursor).toBe('pointer')
+    expect(screen.queryByText(/describe it first/i)).toBeNull()
+  })
+})
