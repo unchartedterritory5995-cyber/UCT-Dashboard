@@ -595,17 +595,21 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  height: 26px;
-  padding: 0 9px;
+  /* Match the leverage / session (Include Pre-Market) pills exactly: 10px/700/
+     0.5px caps, 3px vertical padding (~21px tall), 1px border, 4px radius. The
+     margin-right mirrors the leverage pill's .wrap so, taking the pill's seat on
+     a breadth chart, this button's right edge lands on the leverage pill's. */
+  margin-right: 10px;
+  padding: 3px 9px;
   flex-shrink: 0;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
   background: transparent;
   border: 1px solid var(--border, #2e3127);
-  border-radius: 5px;
-  color: var(--text-muted, #6b7280);
+  border-radius: 4px;
+  color: var(--widget-text, var(--text-muted, #6b7280));
   cursor: pointer;
   transition: color 120ms, background 120ms, border-color 120ms;
 }
