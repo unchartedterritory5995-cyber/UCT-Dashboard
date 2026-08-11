@@ -3,12 +3,14 @@
 // intraday (unix-seconds t) series. -1 = anchor precedes all bars.
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/react'
-import { lastAnchorIdx } from './StockChart'
 
-// Shared with the lightweight-charts mock below: the WIRE test needs to see the
+// Shared with the lightweight-charts mock below: the WIRE tests need to see the
 // visible-range calls the framing branches make. A component test that only
 // mounts is blind to `anchorDate` being disconnected from the framing code.
-const spy = vi.hoisted(() => ({ setVisibleLogicalRange: null }))
+// `last` also feeds getVisibleLogicalRange — a mock that always answers null keeps
+// the didPreserve / settling paths dead, and those are exactly the paths that can
+// clobber the anchor on a symbol switch or TF flip.
+const spy = vi.hoisted(() => ({ setVisibleLogicalRange: null, last: null }))
 
 // ── Render harness: copied from StockChart.smoke.test.jsx (same mocks) so the
 // component body actually executes in jsdom. lightweight-charts touches <canvas>.
@@ -24,8 +26,8 @@ vi.mock('lightweight-charts', () => {
   // setVisibleLogicalRange forwards to the test spy (the smoke version is a no-op).
   const timeScale = {
     applyOptions: () => {}, fitContent: () => {},
-    setVisibleLogicalRange: (r) => { spy.setVisibleLogicalRange?.(r) },
-    getVisibleLogicalRange: () => null,
+    setVisibleLogicalRange: (r) => { spy.last = r; spy.setVisibleLogicalRange?.(r) },
+    getVisibleLogicalRange: () => spy.last,
     setVisibleRange: () => {}, scrollToPosition: () => {}, subscribeVisibleLogicalRangeChange: () => {},
     unsubscribeVisibleLogicalRangeChange: () => {}, timeToCoordinate: () => 0, coordinateToTime: () => null,
     resetTimeScale: () => {}, options: () => ({}), width: () => 600,
@@ -76,11 +78,20 @@ const BAR_DATES = Array.from({ length: 200 }, (_, i) =>
   new Date(Date.UTC(2026, 1, 20) - (199 - i) * 86400000).toISOString().slice(0, 10))
 const ANCHOR_IDX = 120
 const ANCHOR_DAY = BAR_DATES[ANCHOR_IDX]
+const SECOND_IDX = 60
+const SECOND_DAY = BAR_DATES[SECOND_IDX]
+const LAST_IDX = BAR_DATES.length - 1
 const FIXTURE_BARS = BAR_DATES.map((t, i) => ({ t, o: 10 + i, h: 11 + i, l: 9 + i, c: 10.5 + i, v: 1000 + i }))
+// A SHORTER second symbol: same leading dates (so ANCHOR_IDX is unchanged) but 40 fewer
+// bars AFTER the anchor. This asymmetry is what makes the symbol-switch guard OBSERVABLE
+// — with two equal-length histories, "preserve the previous ticker's bars-from-right"
+// and "re-anchor" compute the SAME window, and the test passes without the guard.
+const FIXTURE_SHORT = FIXTURE_BARS.slice(0, 160)
 
 beforeEach(() => {
   cleanup()
   spy.setVisibleLogicalRange = vi.fn()
+  spy.last = null
   // SWR data hooks fetch; serve real bars on the bars route, empty-ish elsewhere.
   vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve({
     ok: true,
@@ -90,7 +101,7 @@ beforeEach(() => {
 })
 
 // Import AFTER the mocks are registered.
-const { default: StockChart } = await import('./StockChart')
+const { default: StockChart, lastAnchorIdx } = await import('./StockChart')
 
 const D = (t) => ({ t, o: 1, h: 1, l: 1, c: 1, v: 1 })
 
@@ -123,19 +134,22 @@ describe('anchored chart — "Back to today" pill', () => {
   const LABEL = '⟲ Back to today'
 
   it('renders the exitReplayLabel pill when anchorDate + onExitReplay are set', () => {
-    render(<StockChart sym="AAPL" tf="D" anchorDate="2026-02-11" onExitReplay={() => {}} exitReplayLabel={LABEL} />)
+    render(<StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_BARS}
+      anchorDate={ANCHOR_DAY} onExitReplay={() => {}} exitReplayLabel={LABEL} />)
     expect(screen.getByRole('button', { name: LABEL })).toBeTruthy()
   })
 
   it('clicking the pill calls onExitReplay', () => {
     const onExit = vi.fn()
-    render(<StockChart sym="AAPL" tf="D" anchorDate="2026-02-11" onExitReplay={onExit} exitReplayLabel={LABEL} />)
+    render(<StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_BARS}
+      anchorDate={ANCHOR_DAY} onExitReplay={onExit} exitReplayLabel={LABEL} />)
     fireEvent.click(screen.getByRole('button', { name: LABEL }))
     expect(onExit).toHaveBeenCalledTimes(1)
   })
 
   it('no anchorDate (and no replay/startMarker) → no pill at all', () => {
-    render(<StockChart sym="AAPL" tf="D" onExitReplay={() => {}} exitReplayLabel={LABEL} />)
+    render(<StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_BARS}
+      onExitReplay={() => {}} exitReplayLabel={LABEL} />)
     expect(screen.queryByRole('button', { name: LABEL })).toBeNull()
     expect(screen.queryByRole('button', { name: '⟲ Exit Replay Mode' })).toBeNull()
   })
@@ -143,6 +157,15 @@ describe('anchored chart — "Back to today" pill', () => {
   it('replayCutoff without exitReplayLabel keeps the original pill text', () => {
     render(<StockChart sym="AAPL" tf="D" replayCutoff="2026-02-11" onExitReplay={() => {}} />)
     expect(screen.getByRole('button', { name: '⟲ Exit Replay Mode' })).toBeTruthy()
+  })
+
+  // M6 / the INERT rule: an anchor naming no loaded bar must produce no pill (and no
+  // marker, and no frame — see the framing suite). A chart already sitting at present
+  // offering "Back to today" is a button that does nothing.
+  it('anchor preceding every loaded bar → INERT: no pill', () => {
+    render(<StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_BARS}
+      anchorDate="1999-01-04" onExitReplay={() => {}} exitReplayLabel={LABEL} />)
+    expect(screen.queryByRole('button', { name: LABEL })).toBeNull()
   })
 })
 
@@ -152,28 +175,111 @@ describe('anchored chart — "Back to today" pill', () => {
 // the framed window actually ENDS at the anchor bar, with the later bars off-screen
 // right rather than the newest bar pinned at the right edge.
 describe('anchorDate → framing wire', () => {
-  const rangesFramed = () => spy.setVisibleLogicalRange.mock.calls.map(c => c[0])
+  // ⚠️ Always assert the LAST applied range, never `.some(...)`. The failure this
+  // suite exists to catch is a guard RE-FRAMING the chart back to present one commit
+  // after the anchor branch got it right — and `.some()` is blind to exactly that:
+  // the anchor's own (later clobbered) call is still in the list. Last call == what
+  // the user is looking at.
+  const lastRange = () => {
+    const calls = spy.setVisibleLogicalRange.mock.calls
+    return calls.length ? calls[calls.length - 1][0] : null
+  }
+  // The anchor bar sits at LAST_CANDLE_POS, so `to` overshoots its index by a fraction
+  // of the window; `from` is a default-zoom width behind it.
+  const endsAt = (r, idx) => !!r && r.to > idx && r.to < idx + 30 && r.from < idx
+  const endsAtPresent = (r) => !!r && r.to > LAST_IDX
+  // Stronger than lastRange() for the "anchor wins" cases: under the RULE nothing may
+  // auto-frame anywhere else while the anchor owns the view, so a clobber-then-restore
+  // WITHIN one commit is still a violation (and is invisible to a last-call assertion).
+  const everyRangeEndsAt = (idx) => {
+    const calls = spy.setVisibleLogicalRange.mock.calls
+    return calls.length > 0 && calls.every(c => endsAt(c[0], idx))
+  }
 
   it('frames the default window ENDING at the anchor bar, not at the newest bar', async () => {
     render(<StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_BARS} anchorDate={ANCHOR_DAY} />)
-    await waitFor(() => {
-      // Some applied range must put its right edge just past the anchor bar (the
-      // anchor sits at LAST_CANDLE_POS, so `to` overshoots it by a fraction of the
-      // window) and its left edge well before it — i.e. the anchor day is the last
-      // visible session, with ~80 later bars loaded off-screen to the right.
-      const hit = rangesFramed().some(r =>
-        r && r.to > ANCHOR_IDX && r.to < ANCHOR_IDX + 30 && r.from < ANCHOR_IDX)
-      expect(hit).toBe(true)
-    }, { timeout: 3000 })
+    // The anchor day is the last VISIBLE session, with ~80 later bars loaded off-screen
+    // to the right (never sliced — that is the "reveal" half of anchored+reveal).
+    await waitFor(() => expect(endsAt(lastRange(), ANCHOR_IDX)).toBe(true), { timeout: 3000 })
   })
 
   it('without anchorDate the same data frames the NEWEST bar at the right edge', async () => {
     render(<StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_BARS} />)
-    await waitFor(() => {
-      const hit = rangesFramed().some(r => r && r.to > FIXTURE_BARS.length - 1)
-      expect(hit).toBe(true)
-    }, { timeout: 3000 })
-    // …and never lands the right edge on the anchor bar.
-    expect(rangesFramed().some(r => r && r.to > ANCHOR_IDX && r.to < ANCHOR_IDX + 30)).toBe(false)
+    await waitFor(() => expect(endsAtPresent(lastRange())).toBe(true), { timeout: 3000 })
+    expect(endsAt(lastRange(), ANCHOR_IDX)).toBe(false)
+  })
+
+  it('anchor preceding every loaded bar → INERT: frames present, not the anchor', async () => {
+    render(<StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_BARS} anchorDate="1999-01-04" />)
+    await waitFor(() => expect(endsAtPresent(lastRange())).toBe(true), { timeout: 3000 })
+  })
+
+  // ── THE RULE: the anchor wins everywhere the chart would otherwise auto-frame,
+  // and every anchorDate transition re-frames a chart that is already mounted. ──
+
+  it('anchorDate → null ("Back to today") re-frames to the present-day default', async () => {
+    const { rerender } = render(
+      <StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_BARS} anchorDate={ANCHOR_DAY} />)
+    await waitFor(() => expect(endsAt(lastRange(), ANCHOR_IDX)).toBe(true), { timeout: 3000 })
+    rerender(<StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_BARS} anchorDate={null} />)
+    await waitFor(() => expect(endsAtPresent(lastRange())).toBe(true), { timeout: 3000 })
+  })
+
+  it('null → anchorDate on a mounted chart re-frames to the anchor', async () => {
+    const { rerender } = render(<StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_BARS} />)
+    await waitFor(() => expect(endsAtPresent(lastRange())).toBe(true), { timeout: 3000 })
+    rerender(<StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_BARS} anchorDate={ANCHOR_DAY} />)
+    await waitFor(() => expect(endsAt(lastRange(), ANCHOR_IDX)).toBe(true), { timeout: 3000 })
+  })
+
+  it('dateA → dateB re-frames to the NEW anchor', async () => {
+    const { rerender } = render(
+      <StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_BARS} anchorDate={ANCHOR_DAY} />)
+    await waitFor(() => expect(endsAt(lastRange(), ANCHOR_IDX)).toBe(true), { timeout: 3000 })
+    rerender(<StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_BARS} anchorDate={SECOND_DAY} />)
+    await waitFor(() => expect(endsAt(lastRange(), SECOND_IDX)).toBe(true), { timeout: 3000 })
+  })
+
+  // The release half of the contract, and the only behaviour the anchorDate-transition
+  // effect uniquely owns: after a pan the anchor stops re-asserting itself, but choosing
+  // a DIFFERENT moment is a fresh intent that re-takes the view (the same re-arm a
+  // symbol/timeframe switch performs).
+  it('a user pan releases the anchor, but a NEW anchorDate re-takes the view', async () => {
+    const { container, rerender } = render(
+      <StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_BARS} anchorDate={ANCHOR_DAY} />)
+    await waitFor(() => expect(endsAt(lastRange(), ANCHOR_IDX)).toBe(true), { timeout: 3000 })
+    const el = container.querySelector('[class*="chart"]')
+    expect(el).toBeTruthy()
+    fireEvent.wheel(el)          // latches userViewMovedRef — anchor re-assertion stops
+    spy.setVisibleLogicalRange.mockClear()
+    rerender(<StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_BARS} anchorDate={SECOND_DAY} />)
+    await waitFor(() => expect(endsAt(lastRange(), SECOND_IDX)).toBe(true), { timeout: 3000 })
+  })
+
+  // Load-bearing for the Desk follow-along pane, which walks `sym` under one constant
+  // anchorDate. The symbol switch takes the didPreserve path, which would otherwise
+  // inherit the previous ticker's relative position instead of re-anchoring.
+  it('symbol switch under a constant anchorDate re-anchors on the new ticker', async () => {
+    const { rerender } = render(
+      <StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_BARS} anchorDate={ANCHOR_DAY} />)
+    await waitFor(() => expect(endsAt(lastRange(), ANCHOR_IDX)).toBe(true), { timeout: 3000 })
+    spy.setVisibleLogicalRange.mockClear()   // only judge frames applied AFTER the switch
+    // FIXTURE_SHORT deliberately has a different post-anchor length (see its comment).
+    rerender(<StockChart sym="MSFT" tf="D" barsOverride={FIXTURE_SHORT} anchorDate={ANCHOR_DAY} />)
+    await waitFor(() => expect(endsAt(lastRange(), ANCHOR_IDX)).toBe(true), { timeout: 3000 })
+    // Not merely restored at the end — never framed anywhere else in between.
+    expect(everyRangeEndsAt(ANCHOR_IDX)).toBe(true)
+  })
+
+  // A TF flip arms pendingTfReframeRef, whose settling guard re-asserts NEWEST-at-right
+  // on every commit — the clobber that made the anchored chart flicker back to present.
+  it('timeframe flip keeps the anchor (the settling guard must not pull it to present)', async () => {
+    const { rerender } = render(
+      <StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_BARS} anchorDate={ANCHOR_DAY} />)
+    await waitFor(() => expect(endsAt(lastRange(), ANCHOR_IDX)).toBe(true), { timeout: 3000 })
+    spy.setVisibleLogicalRange.mockClear()
+    rerender(<StockChart sym="AAPL" tf="W" barsOverride={FIXTURE_BARS} anchorDate={ANCHOR_DAY} />)
+    await waitFor(() => expect(endsAt(lastRange(), ANCHOR_IDX)).toBe(true), { timeout: 3000 })
+    expect(everyRangeEndsAt(ANCHOR_IDX)).toBe(true)
   })
 })
