@@ -5258,15 +5258,19 @@ export default function StockChart({
     { revalidateOnFocus: false, dedupingInterval: 15_000 }
   )
 
-  // Per-enabled-comparison normalized {time, value} points with adjustTime applied.
+  // Per-comparison {time, value=RAW close} points. Drawn on a PERCENTAGE-mode
+  // price scale so Lightweight Charts rebases each line to its first VISIBLE value
+  // — every line starts at 0% on the left and re-bases as you pan/zoom (TradingView
+  // compare). Pre-normalizing here (the old normalizeToPctChange) fixed the baseline
+  // to the oldest bar, so the lines never lined up.
   const comparisonSeries = useMemo(() => {
     if (!comparisonsData) return []
     return enabledComparisons.map(c => {
       const symKey = String(c.sym).toUpperCase()
       const rawBars = comparisonsData[symKey] || []
-      const points = normalizeToPctChange(
-        rawBars.map(b => ({ t: adjustTime(b.t), c: b.c }))
-      )
+      const points = rawBars
+        .filter(b => Number.isFinite(b?.c))
+        .map(b => ({ time: adjustTime(b.t), value: b.c }))
       return { sym: symKey, color: c.color, points }
     })
   }, [comparisonsData, enabledComparisons, adjustTime])
@@ -9220,11 +9224,14 @@ export default function StockChart({
       try { series.setData(cmp.points) } catch {}
     }
 
-    // Toggle left price scale visibility based on whether any comparisons are active
+    // The comparison scale runs in PERCENTAGE mode (mode:2) so LWC normalizes every
+    // comparison line to its first VISIBLE value — all start at 0% on the left and
+    // re-base as you pan/zoom (they line up with each other, TradingView-style).
     try {
       if (wanted.size > 0) {
         chart.priceScale('left').applyOptions({
           visible: true,
+          mode: 2,
           scaleMargins: { top: 0.1, bottom: 0.1 },
           borderVisible: false,
         })
@@ -11612,6 +11619,17 @@ export default function StockChart({
                 <span className={styles.comparePct} style={{ color: f.color }}>
                   {f.pct != null ? `${up ? '+' : ''}${f.pct.toFixed(2)}%` : '—'}
                 </span>
+                <span
+                  className={styles.compareX}
+                  role="button"
+                  title={`Remove ${f.sym}`}
+                  aria-label={`Remove ${f.sym}`}
+                  onClick={() => handleUpdateChartSettings({
+                    ...cs,
+                    comparisonSymbols: (cs.comparisonSymbols || []).filter(x => String(x.sym).toUpperCase() !== f.sym),
+                    preset: 'custom',
+                  })}
+                >×</span>
               </div>
             )
           })}
