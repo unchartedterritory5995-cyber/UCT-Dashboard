@@ -327,6 +327,83 @@ export function lastAnchorIdx(bars, anchorDate) {
   return idx
 }
 
+// ── Desk-mention chart markers (spec 2026-08-11 §C) ──────────────────────────
+// A new CATEGORY in the existing marker system, not a new mechanism: it emits the
+// same LWC marker objects the news category does, into the same `mergedMarkers`
+// array, and is gated by the same `cs.markers.<key>` switch.
+//
+// Timeframe: date-only events, so they follow the earnings/splits/dividends rule
+// (`isDailyWeekly`) rather than the news rule. A mention carries an `anchor_date`
+// and nothing finer — on a 5-minute chart there is no bar a bare 'YYYY-MM-DD' can
+// sit on, and LWC would drop or mis-place it.
+//
+// One marker per DAY: a session that discussed the symbol twice is still ONE dot.
+//
+// ⚠️ WHICH mention the surviving dot carries is NOT "the day's first payload row".
+// The payload is newest-VIDEO-first by anchor_date with ascending `t` inside each
+// video, but `t` is a PER-VIDEO offset — so when two shows taped the same calendar
+// day, their rows interleave on a scale that means nothing across videos. "First row
+// of the day" would then hand the click an arbitrary session, and "lowest t of the
+// day" would hand it the OLDER show. The rule is therefore two-step and deterministic:
+//   1. the day's video is the one whose first row appears earliest in payload order
+//      (payload is newest-video-first ⇒ that is the most recent session of that day),
+//   2. within that video, the EARLIEST mention (lowest `t`) — where the discussion
+//      starts is the useful place to drop the viewer.
+// A row with no usable `t` sorts last, so a seekable mention always wins over one
+// that would open the video at 0.
+// Step 1 reads the endpoint's ordering rather than re-deriving recency from
+// `video_id`/dates — the endpoint owns that ordering and this must not be a second
+// authority over it.
+//
+// Exported for its unit tests (same idiom as lastAnchorIdx above).
+export const DESK_MARKER_COLOR = '#c9a84c'
+function _mentionSeek(m) {
+  const raw = m?.t
+  const n = raw == null || raw === '' ? NaN : Number(raw)
+  return Number.isFinite(n) ? n : Infinity
+}
+export function buildDeskMentionMarkers(mentions, resolvedTf) {
+  const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
+  if (!isDailyWeekly || !Array.isArray(mentions)) return []
+  const byDay = new Map()   // insertion order = payload order = newest day first
+  for (const m of mentions) {
+    const day = m?.anchor_date
+    if (!day || typeof day !== 'string') continue
+    const held = byDay.get(day)
+    if (!held) { byDay.set(day, m); continue }
+    // Another video on the same day is always the OLDER session — never replaces.
+    if (String(held.video_id) !== String(m.video_id)) continue
+    if (_mentionSeek(m) < _mentionSeek(held)) byDay.set(day, m)
+  }
+  const out = []
+  for (const [day, m] of byDay) {
+    out.push({
+      time: day,
+      position: 'belowBar',
+      color: DESK_MARKER_COLOR,
+      shape: 'circle',
+      text: 'D',
+      size: 0.8,
+      id: `desk-${day}`,
+      _deskMention: m,
+    })
+  }
+  return out
+}
+
+// The Desk deep link a marker click opens (spec §B.1: VideosSection reads ?v= and
+// seeks to ?t=). `t` is omitted when the mention has none, so the video just starts
+// at 0 instead of the player being handed a NaN seek.
+// ⚠️ `t` is tested for ABSENCE before it is coerced: Number(null) and Number('') are
+// both 0, so a `Number.isFinite` gate alone turns "this mention has no timestamp" into
+// an explicit "&t=0". A real 0 (a mention at the very top of the session) still gets it.
+export function deskMentionHref(mention) {
+  if (!mention?.youtube_id) return null
+  const t = _mentionSeek(mention)
+  const seek = Number.isFinite(t) && t >= 0 ? `&t=${Math.round(t)}` : ''
+  return `/desk?section=videos&v=${encodeURIComponent(mention.youtube_id)}${seek}`
+}
+
 import useJ2ChartMarkers from '../pages/journal-2-0/hooks/useJ2ChartMarkers'
 import CountdownTimer from './chart/CountdownTimer'
 import styles from './StockChart.module.css'
@@ -1763,6 +1840,30 @@ export default function StockChart({
       }
     }).filter(Boolean)
   }, [showNews, newsData, resolvedTf])
+
+  // ── Desk-mention markers — /api/education/tickers/{sym}/mentions ──
+  // Same shape as the news fetch above: keyed off the setting, so an OFF toggle is
+  // a NULL SWR key and no request is made at all. A non-OK response degrades to an
+  // empty list, and buildDeskMentionMarkers is null-safe on `undefined` data — an
+  // error here must never take the other marker categories down with it.
+  const deskEnabled = !!cs.markers?.desk
+  const { data: deskData } = useSWR(
+    deskEnabled && sym ? `/api/education/tickers/${encodeURIComponent(sym)}/mentions` : null,
+    (url) => fetch(url, { credentials: 'include' }).then(r => r.ok ? r.json() : { mentions: [] }),
+    {
+      dedupingInterval: 30 * 60 * 1000,  // 30 minutes — matches the endpoint's TTL cache
+      revalidateOnFocus: false,
+    }
+  )
+  // No second `deskEnabled` gate here on purpose: a null SWR key leaves `deskData`
+  // undefined, so turning the toggle off clears the markers through this memo already
+  // (asserted by the toggle-off-after-load test). A redundant ternary here would be a
+  // gate nothing can fail.
+  const deskMarkers = useMemo(
+    () => buildDeskMentionMarkers(deskData?.mentions, resolvedTf),
+    [deskData, resolvedTf],
+  )
+
   const chartEventMarkers = useMemo(() => {
     // Only show event markers on daily/weekly — intraday bars don't line up with quarter dates
     const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
@@ -1864,7 +1965,7 @@ export default function StockChart({
 
   const mergedMarkers = useMemo(
     () => {
-      const all = [...(markers || []), ...(j2.markers || []), ...chartEventMarkers, ...newsMarkers, ...flowMarkers]
+      const all = [...(markers || []), ...(j2.markers || []), ...chartEventMarkers, ...newsMarkers, ...deskMarkers, ...flowMarkers]
       // Lightweight Charts requires markers sorted ascending by time. Daily/weekly
       // use date strings (sortable lexicographically), intraday uses unix seconds.
       return all.sort((a, b) => {
@@ -1877,7 +1978,7 @@ export default function StockChart({
         return String(ta).localeCompare(String(tb))
       })
     },
-    [markers, j2.markers, chartEventMarkers, newsMarkers, flowMarkers],
+    [markers, j2.markers, chartEventMarkers, newsMarkers, deskMarkers, flowMarkers],
   )
   const mergedPriceLines = useMemo(
     () => [...(priceLines || []), ...(j2.priceLines || []), ...dpLines, ...gexLines],
@@ -10991,6 +11092,39 @@ export default function StockChart({
       try { chart.unsubscribeClick(handler) } catch {}
     }
   }, [newsMarkers, resolvedTf])
+
+  // ── Desk-mention marker click → the Desk session, seeked to the mention ──
+  // Byte-for-byte the news matcher above (LWC exposes no marker-click event, so we
+  // subscribe to every click and match the clicked time within half a bar) — the two
+  // categories must stay ONE pattern. Desk markers only exist on daily/weekly, whose
+  // time is a 'YYYY-MM-DD' string, so the numeric branch is defensive rather than live.
+  //
+  // ⚠️ NAVIGATION: StockChart has NO router context — it renders inside popups and the
+  // Model Book, and its own suites mount it bare (see StockChart.anchor.test.jsx), so a
+  // `useNavigate()` here would throw on mount for every one of those callers. So this
+  // reuses THIS FILE's existing marker-click navigation primitive, the news marker's
+  // `window.open`, with '_self' instead of '_blank': the destination is an in-app route
+  // and the spec's word is "navigates", where news opens an external article in a new
+  // tab. (`window.location.assign` would do the same thing and is NOT usable — jsdom
+  // makes Location unforgeable, so a click-wire test could not see it fire.)
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart || !deskMarkers?.length) return
+    const tfSec = PERIOD_SECONDS[resolvedTf] || (resolvedTf === 'D' ? 23400 : 86400)
+    const handler = (param) => {
+      if (!param || param.time == null) return
+      const matching = deskMarkers.find(m => {
+        if (typeof m.time === 'number' && typeof param.time === 'number') {
+          return Math.abs(m.time - param.time) < tfSec * 0.5
+        }
+        return String(m.time) === String(param.time)
+      })
+      const href = deskMentionHref(matching?._deskMention)
+      if (href) window.open(href, '_self')
+    }
+    chart.subscribeClick(handler)
+    return () => { try { chart.unsubscribeClick(handler) } catch {} }
+  }, [deskMarkers, resolvedTf])
 
   // ── Earnings marker click → themed earnings popover ──
   // Same time-match approach as news markers (LWC has no marker-click event).
