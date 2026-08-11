@@ -160,13 +160,54 @@ async function fetchWithRetry(url, opts, maxRetries = 2) {
   throw lastErr
 }
 
+// Both /images and /attachments enforce a server-side MIME allowlist
+// (_ALLOWED_IMAGE_MIMES / _ALLOWED_FILE_MIMES in api/services/journal_two/notes.py)
+// and reject on upload.content_type, NOT on the filename. `new Blob([bytes])`
+// with no `type` sends `application/octet-stream` for every part — the server
+// then 400s EVERY imported image/attachment, real browsers included. Derive a
+// MIME from the extension so the multipart part matches what the file actually is.
+const MIME_BY_EXT = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  pdf: 'application/pdf',
+  txt: 'text/plain',
+  csv: 'text/csv',
+  md: 'text/markdown',
+  zip: 'application/zip',
+  mp3: 'audio/mpeg',
+  m4a: 'audio/mp4',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.document',
+}
+
+function extOf(name) {
+  if (typeof name !== 'string') return ''
+  const base = name.split('/').pop() || ''
+  const idx = base.lastIndexOf('.')
+  return idx === -1 ? '' : base.slice(idx + 1).toLowerCase()
+}
+
+// unknown extension -> application/octet-stream. The server will then reject
+// it by name (MIME type ... not allowed) rather than the previous silent
+// blanket rejection of every upload — an honest failure instead of a hidden one.
+function mimeForName(name) {
+  return MIME_BY_EXT[extOf(name)] || 'application/octet-stream'
+}
+
 async function uploadMediaItem(noteId, item) {
   const endpoint = item.kind === 'image'
     ? `/api/j2/notes/${noteId}/images`
     : `/api/j2/notes/${noteId}/attachments`
   const bytes = await item.vfile.bytes()
+  const filename = item.name || item.vfile.path
+  // Derive from item.name; fall back to the vfile path's extension only when
+  // the name itself carries none (e.g. a bare display name with no suffix).
+  const mimeSource = extOf(item.name) ? item.name : item.vfile.path
   const fd = new FormData()
-  fd.append('file', new Blob([bytes]), item.name || item.vfile.path)
+  fd.append('file', new Blob([bytes], { type: mimeForName(mimeSource) }), filename)
   const res = await fetchWithRetry(endpoint, { method: 'POST', credentials: 'include', body: fd })
   if (!res.ok) throw new Error(`Upload failed (HTTP ${res.status})`)
   const data = await res.json()

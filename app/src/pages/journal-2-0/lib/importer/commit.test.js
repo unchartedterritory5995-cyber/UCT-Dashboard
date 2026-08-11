@@ -226,4 +226,58 @@ describe('runImport', () => {
     expect(summary.failures).toEqual([{ name: 'a.png', reason: expect.stringContaining('500') }])
     expect(calls.filter((c) => c.url === '/api/j2/notes/n1' && c.method === 'PUT')).toHaveLength(1)
   })
+
+  it('uploads media with a MIME type derived from the file name (server enforces a MIME allowlist)', async () => {
+    let capturedFile = null
+    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+      if (url.endsWith('/import/confirm')) {
+        return new Response(JSON.stringify({
+          created: [{ importKey: 'file:a.md', id: 'n1' }], updated: [], skipped: [] }))
+      }
+      if (url.includes('/images')) {
+        capturedFile = opts.body.get('file')
+        return new Response(JSON.stringify({ url: '/img/1.png' }))
+      }
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+    await runImport({
+      source: 'file', destFolderId: null,
+      docs: [{ importKey: 'file:a.md', title: 'A', tags: [], folderPath: [],
+               bodyJson: doc([img('import-ref://chart.png')]), bodyPlain: 'x',
+               media: [{ ref: 'chart.png', kind: 'image', name: 'chart.png',
+                         vfile: { bytes: async () => new Uint8Array([1]), path: 'chart.png' } }],
+               links: [] }],
+      onProgress: () => {},
+    })
+    expect(capturedFile).toBeTruthy()
+    expect(capturedFile.type).toBe('image/png')
+    expect(capturedFile.name).toBe('chart.png')
+  })
+
+  it('falls back to the vfile path extension when the media item name has none', async () => {
+    let capturedFile = null
+    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+      if (url.endsWith('/import/confirm')) {
+        return new Response(JSON.stringify({
+          created: [{ importKey: 'file:a.md', id: 'n1' }], updated: [], skipped: [] }))
+      }
+      if (url.includes('/attachments')) {
+        capturedFile = opts.body.get('file')
+        return new Response(JSON.stringify({ url: '/files/1', name: 'report', size: 1 }))
+      }
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+    await runImport({
+      source: 'file', destFolderId: null,
+      docs: [{ importKey: 'file:a.md', title: 'A', tags: [], folderPath: [],
+               bodyJson: doc([{ type: 'attachmentChip', attrs: { href: 'import-ref://report', name: 'report' } }]),
+               bodyPlain: 'x',
+               media: [{ ref: 'report', kind: 'file', name: 'report',
+                         vfile: { bytes: async () => new Uint8Array([1]), path: 'notes/report.pdf' } }],
+               links: [] }],
+      onProgress: () => {},
+    })
+    expect(capturedFile).toBeTruthy()
+    expect(capturedFile.type).toBe('application/pdf')
+  })
 })
