@@ -143,3 +143,33 @@ def test_ensure_folder_path_creates_and_reuses(conn):
     dest = notes_svc.create_folder("u1", "Imported", conn=conn)
     leaf2 = notes_svc.ensure_folder_path("u1", ["Trading"], dest_folder_id=dest["id"], conn=conn)
     assert leaf2 != leaf  # 'Trading' under 'Imported' is a different folder
+
+
+def test_delete_folder_collision_detection(conn):
+    # Build: A/{Setups, B/{Setups}}
+    a = notes_svc.create_folder("u1", "A", conn=conn)
+    a_setups = notes_svc.create_folder("u1", "Setups", parent_id=a["id"], conn=conn)
+    b = notes_svc.create_folder("u1", "B", parent_id=a["id"], conn=conn)
+    b_setups = notes_svc.create_folder("u1", "Setups", parent_id=b["id"], conn=conn)
+
+    # Attempt to delete B should fail: "Setups" already exists under A
+    with pytest.raises(notes_svc.NoteValidationError) as exc_info:
+        notes_svc.delete_folder("u1", b["id"], conn=conn)
+    assert "already exists at the destination" in str(exc_info.value)
+
+    # Verify NOTHING changed: B still exists with its child
+    folders = {f["id"]: f for f in notes_svc.list_folders("u1", conn=conn)}
+    assert b["id"] in folders
+    assert b_setups["id"] in folders
+    assert folders[b_setups["id"]]["parentId"] == b["id"]
+
+
+def test_delete_folder_cross_user_parent_rejected(conn):
+    # Create folders for two users
+    a_u1 = notes_svc.create_folder("u1", "A", conn=conn)
+    a_u2 = notes_svc.create_folder("u2", "A", conn=conn)
+
+    # Try to create a folder under u2's parent as u1 user
+    with pytest.raises(notes_svc.NoteValidationError) as exc_info:
+        notes_svc.create_folder("u1", "Child", parent_id=a_u2["id"], conn=conn)
+    assert "parent folder not found" in str(exc_info.value)

@@ -1483,10 +1483,13 @@ def delete_folder_endpoint(
     folder_id: str,
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
-    ok = notes_service.delete_folder(user["id"], folder_id)
-    if not ok:
-        raise HTTPException(status_code=404, detail="Not found")
-    return {"ok": True}
+    try:
+        ok = notes_service.delete_folder(user["id"], folder_id)
+        if not ok:
+            raise HTTPException(status_code=404, detail="Not found")
+        return {"ok": True}
+    except NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # ── Options — multi-leg strategies (Phase 5) ────────────────────────────────

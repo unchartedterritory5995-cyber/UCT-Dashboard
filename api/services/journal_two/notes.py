@@ -435,7 +435,7 @@ def create_folder(
         # Validate parent if truthy
         if parent_id:
             parent_row = conn.execute(
-                "SELECT * FROM j2_note_folders WHERE id = ? AND user_id = ?",
+                "SELECT 1 FROM j2_note_folders WHERE id = ? AND user_id = ?",
                 (parent_id, user_id)).fetchone()
             if parent_row is None:
                 raise NoteValidationError("parent folder not found")
@@ -530,6 +530,16 @@ def delete_folder(
         if row is None:
             return False
         parent = row["parent_id"] or ""
+
+        # Detect name collisions BEFORE any mutations
+        collision = conn.execute(
+            "SELECT name FROM j2_note_folders WHERE user_id = ? AND parent_id = ? AND name IN "
+            "(SELECT name FROM j2_note_folders WHERE user_id = ? AND parent_id = ?)",
+            (user_id, parent, user_id, folder_id)).fetchone()
+        if collision:
+            raise NoteValidationError(
+                f"cannot delete: a folder named '{collision['name']}' already exists at the destination — rename it first")
+
         now = _now_iso()
         # notes climb to the parent; at root ('' parent) they go Unfiled (NULL)
         conn.execute(
