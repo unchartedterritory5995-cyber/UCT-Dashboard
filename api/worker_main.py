@@ -197,6 +197,63 @@ def _start_uploader():
     threading.Thread(target=loop, daemon=True, name="s3_upload").start()
 
 
+def _start_breadth_backfill():
+    """Deep breadth-history recompute — runs HERE (worker), not on the web pod.
+
+    The close-basis recompute is a multi-minute CPU sweep that starves the web
+    pod's single shared event loop → Railway health-check kill (proven 3×, incl.
+    a 502 mid-sweep after a memory rewrite). The worker has no user event loop to
+    starve, so it grinds the history here and ships the tiny resulting DB to R2;
+    the web pod gap-fill-merges it (breadth_ohlc_sync) and serves it — never
+    running the recompute itself.
+
+    ONE bounded chunk per tick via the already-restart-safe backfill_tick + its
+    durable floor marker; uploads after any chunk that wrote rows; idles when the
+    marker is absent. Gated by BREADTH_HISTORY_BACKFILL_ENABLED (default OFF).
+    Design: docs/superpowers/specs/2026-08-11-breadth-deep-history-worker-bridge-design.md
+    """
+    if os.environ.get("BREADTH_HISTORY_BACKFILL_ENABLED") != "1":
+        log.info("breadth history backfill not started (BREADTH_HISTORY_BACKFILL_ENABLED=0)")
+        return
+
+    chunk_days = int(os.environ.get("BREADTH_BACKFILL_CHUNK_DAYS", "365"))
+    pause = int(os.environ.get("BREADTH_BACKFILL_PAUSE_SECS", "90"))
+    idle = int(os.environ.get("BREADTH_BACKFILL_IDLE_SECS", "300"))
+
+    def loop():
+        import gc
+        from api.services import breadth_history_recon as recon
+        from api.services import breadth_ohlc_sync as sync
+        while True:
+            slept = idle
+            try:
+                res = recon.backfill_tick(chunk_days=chunk_days) or {}
+                if res.get("idle") or res.get("complete"):
+                    slept = idle                       # floor absent or reached → idle-poll
+                elif res.get("busy"):
+                    slept = pause
+                elif res.get("ok"):
+                    wrote = int(res.get("rows") or 0)
+                    log.info(f"breadth backfill tick: {res}")
+                    if wrote:
+                        gc.collect()                   # return the frame's memory before we ship
+                        up = sync.upload(force=True)
+                        log.info(f"breadth ohlc upload after tick ({wrote} rows): {up}")
+                        slept = pause                  # short pause, then the next chunk
+                    else:
+                        slept = idle                   # nothing written (e.g. empty chunk) → back off
+                else:
+                    log.warning(f"breadth backfill tick returned error: {res}")
+                    slept = idle
+            except Exception as e:
+                log.exception(f"breadth backfill tick error (non-fatal): {e}")
+                slept = idle
+            time.sleep(slept)
+
+    log.info(f"starting breadth history backfill thread (chunk={chunk_days}d pause={pause}s)")
+    threading.Thread(target=loop, daemon=True, name="breadth_backfill").start()
+
+
 # ── Down-alert: the worker watches the public site and pings the owner ───────
 # The keep-warm loop already hits https://uctintelligence.com/api/health every
 # ~60s from a SEPARATE always-on process (the worker). That's the ideal probe:
@@ -517,6 +574,7 @@ def main():
         start_liveflow_monitor()
     except Exception as e:
         log.warning(f"liveflow monitor failed to start (non-fatal): {e}")
+    _start_breadth_backfill()
     _start_memwatch()
 
     # Boot fingerprint — one grep-able line so an operator can confirm which

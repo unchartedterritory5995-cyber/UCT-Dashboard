@@ -2952,6 +2952,44 @@ async def lifespan(app: FastAPI):
         threading.Thread(target=_hotset_push_loop, daemon=True, name="hotset_push").start()
         print("[startup] hot-set push loop started (web -> R2, 2-min cadence)")
 
+    # Deep breadth-history bridge: the WORKER pod computes pre-2024 breadth
+    # history (too heavy for this pod's shared event loop) and ships the tiny
+    # breadth_daily_ohlc.db to R2; this puller gap-fill-merges it in so the
+    # charts serve it. Cheap: a small GET of latest.txt on a slow cadence that
+    # short-circuits unless the worker just uploaded a new chunk. Gated by
+    # BREADTH_OHLC_REMOTE (default OFF). Separate from USE_REMOTE_BARS on
+    # purpose — different store, different lifecycle. Design:
+    # docs/superpowers/specs/2026-08-11-breadth-deep-history-worker-bridge-design.md
+    if os.environ.get("BREADTH_OHLC_REMOTE") == "1":
+        from api.services import breadth_ohlc_sync as _breadth_ohlc_sync
+
+        def _breadth_ohlc_boot_pull():
+            try:
+                ts = _breadth_ohlc_sync.sync_if_new()
+                print(f"[breadth-ohlc] boot pull: {'merged ' + ts if ts else 'already current'}")
+            except Exception as e:
+                print(f"[breadth-ohlc] boot pull error (non-fatal): {e}")
+
+        threading.Thread(target=_breadth_ohlc_boot_pull, daemon=True,
+                         name="breadth_ohlc_boot_pull").start()
+
+        def _breadth_ohlc_pull_loop():
+            import time as _t
+            interval = int(os.environ.get("BREADTH_OHLC_PULL_SECS", "600"))
+            while True:
+                _t.sleep(interval)
+                try:
+                    ts = _breadth_ohlc_sync.sync_if_new()
+                    if ts:
+                        print(f"[breadth-ohlc] merged snapshot {ts} (gap-fill)")
+                except Exception as e:
+                    print(f"[breadth-ohlc] pull error (non-fatal): {e}")
+
+        threading.Thread(target=_breadth_ohlc_pull_loop, daemon=True,
+                         name="breadth_ohlc_pull").start()
+        print("[startup] breadth-ohlc R2 puller started (gap-fill, "
+              f"{int(os.environ.get('BREADTH_OHLC_PULL_SECS', '600')) // 60}-min cadence)")
+
     # Brain Pack: nightly uct-intelligence code+KB from R2 (flag-off by default)
     if os.environ.get("BRAIN_PACK_ENABLED", "0") == "1":
         try:
