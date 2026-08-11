@@ -329,6 +329,20 @@
       "source": "BOP20 > 0",
       "note": "was a refusal fixture until the rolling sum / BOP expansion landed",
       "native": "sma((close - open) / (high - low), 20) > 0"
+    },
+    {
+      "id": "smoothed_stochastic",
+      "cite": "help-indicator-templates",
+      "what": "`STOCk.3.z` is the SLOW stochastic — %K smoothed over three bars. The smoothing is a moving average OVER the stochastic, not an argument to it, so it translates to this table without a new function",
+      "source": "STOC14.3 > 80",
+      "native": "sma(stoch(close, high, low, 14), 3) > 80"
+    },
+    {
+      "id": "stoc_smoothing_honoured",
+      "cite": "worden-syntax-table",
+      "what": "the smoothing a member wrote is neither dropped nor refused — dropping it would show them a DIFFERENT indicator under the name they typed",
+      "source": "STOC14.3 < 20",
+      "native": "sma(stoch(close, high, low, 14), 3) < 20"
     }
   ],
   "refused": [
@@ -394,15 +408,6 @@
       "guard": "pcf:name",
       "at": 0,
       "names": "RSI14"
-    },
-    {
-      "id": "smoothed_stochastic",
-      "cite": "help-indicator-templates",
-      "what": "`STOCk.3.z` is the SLOW stochastic — %K smoothed over three bars. This table declares an unsmoothed stoch, so the 3 refuses rather than being dropped",
-      "source": "STOC14.3 > 80",
-      "guard": "pcf:parameter",
-      "at": 7,
-      "names": "STOC14.3"
     },
     {
       "id": "a_name_that_is_not_a_pcf_token",
@@ -549,13 +554,13 @@
       "names": "OBV20"
     },
     {
-      "id": "stoc_smoothing_refused",
+      "id": "adx_smoothing_mismatch",
       "cite": "worden-syntax-table",
-      "what": "this table's stochastic takes no smoothing parameter, so a smoothed STOC refuses rather than silently dropping the smoothing a member wrote",
-      "source": "STOC14.3 < 20",
+      "what": "ADX's dotted number is its SMOOTHING, and this table's `adx` uses one period for both. An unequal pair refuses rather than quietly returning a 14/14 ADX — a member who asked for 14/20 must not be shown a number that is not the indicator they asked for",
+      "source": "ADX14.20 > 25",
       "guard": "pcf:parameter",
-      "at": 7,
-      "names": "STOC14.3"
+      "at": 6,
+      "names": "ADX14.20"
     }
   ],
   "_offset": "⭐ THE BAR OFFSET IS ENGINE-DEPENDENT AND THIS SECTION FLIPS WITH IT. PCF's `.z` suffix is its most-used feature, so these are the cases that decide whether a member notices a discrepancy. The expectation is DERIVED, not written: while `closedTable.json` declares no offset form, each must refuse at `pcf:offset` at the declared character; the moment it declares one, each must PARSE, carry the declared offset node, and still lint to a forward reach of 0. ⛔ Neither half may be skipped — a suite that only checked the refusal would go silently green the day the engine grew the capability and this reader failed to use it.",

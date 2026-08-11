@@ -73,7 +73,14 @@ describe('genuine TC2000 formulas produce the tree the engine already runs', () 
     // corpus being quietly emptied.
     const every = [...CORPUS.accepted, ...CORPUS.refused, ...CORPUS.offset_dependent]
     expect(CORPUS.accepted.length).toBeGreaterThanOrEqual(30)
-    expect(CORPUS.refused.length).toBeGreaterThanOrEqual(25)
+    // ⚠️ 25 → 24 ON PURPOSE, 2026-08-11, and the corpus did NOT shrink: the two
+    // `STOC14.3` cases GRADUATED from `refused` to `accepted` when the smoothed
+    // stochastic shipped, and one genuine `ADX14.20` case was added beside them.
+    // ⛔ THE FLOOR IS A NON-VACUITY GUARD, NOT A SCORE — lowering it to admit a
+    // real graduation is honest; padding it back to 25 with a near-duplicate of
+    // the ADX case to keep a number intact would be the thing it exists to stop.
+    // The one that must not move is the TOTAL, asserted below.
+    expect(CORPUS.refused.length).toBeGreaterThanOrEqual(24)
     expect(CORPUS.offset_dependent.length).toBeGreaterThanOrEqual(7)
     expect(every.length).toBeGreaterThanOrEqual(65)
     const ids = every.map((c) => c.id)
@@ -681,7 +688,12 @@ describe('the declarations themselves', () => {
 
   it('every declared mapping target resolves or is reported, never assumed', () => {
     const targets = [
-      ...Object.values(PCF_FUSED).map((f) => f.fn),
+      // ⛔ AN EXPANDING FAMILY HAS NO MAPPING TARGET TO RESOLVE — it is a formula
+      // written in this table's own words, so its `fn` is legitimately absent.
+      // Including it here asserted that `undefined` must appear in the coverage
+      // map, which held only while that map was reporting `BOP` as blocked on a
+      // function named `undefined`. The assertion and the bug propped each other up.
+      ...Object.values(PCF_FUSED).filter((f) => !f.expand).map((f) => f.fn),
       ...Object.values(PCF_CALLS).map((c) => c.fn),
     ]
     const cov = pcfCoverage()
