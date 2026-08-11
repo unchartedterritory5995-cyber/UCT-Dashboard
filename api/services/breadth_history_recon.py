@@ -41,6 +41,118 @@ def recompute_close(target_ts: int, tickers: Optional[list[str]] = None) -> dict
     return out or {}
 
 
+def recompute_close_with_members(target_ts: int, tickers: Optional[list[str]] = None):
+    """Like recompute_close but also returns the per-metric member ticker lists + the set
+    of names that had a price today — so we can diff against the collector's stored drill
+    lists and classify WHY a name differs. Returns (metrics, members, priced_set, universe_set)."""
+    from datetime import date as _date, timedelta as _td
+    from api.services import breadth_live as bl
+    import numpy as _np
+    conn = bl._bars_conn()
+    if tickers is None:
+        tickers, _ = bl.universe()
+    if not tickers:
+        return {}, {}, set(), set()
+    row = conn.execute(
+        "SELECT MAX(ts) FROM ohlcv WHERE tf='D' AND ticker='SPY' AND ts < ?", (int(target_ts),)
+    ).fetchone()
+    prior = int(row[0]) if row and row[0] else None
+    if not prior:
+        return {}, {}, set(), set()
+    start = bl._ts_int(_date.fromisoformat(bl._iso(prior)) - _td(days=bl._LOAD_CALENDAR_DAYS))
+    dates = bl._session_dates(conn, prior, start)
+    if len(dates) < 221:
+        return {}, {}, set(), set()
+    closes, volumes = bl._load_frame(conn, tickers, dates)
+    try:
+        closes = bl._apply_dividend_basis(tickers, dates, closes, int(target_ts))
+    except Exception:
+        pass
+    levels = bl.build_levels(tickers, closes, volumes, prior)
+    index_levels = bl.build_index_levels(bl._load_index_series(conn, prior, start))
+    del closes, volumes
+    day_c, day_v = bl._load_frame(conn, tickers, [int(target_ts)])
+    prices = {t: float(day_c[i, 0]) for i, t in enumerate(tickers)
+              if not _np.isnan(day_c[i, 0]) and day_c[i, 0] > 0}
+    vols = {t: float(day_v[i, 0]) for i, t in enumerate(tickers)
+            if not _np.isnan(day_v[i, 0]) and day_v[i, 0] > 0}
+    if not prices:
+        return {}, {}, set(), set()
+    members: dict = {}
+    out = bl.compute_metrics(levels, prices, vols, members=members)
+    out.update(bl.compute_index_metrics(index_levels, {}))
+    return out, members, set(prices.keys()), set(tickers)
+
+
+def _tickers_of(lst) -> set:
+    out = set()
+    for it in (lst or []):
+        if isinstance(it, str):
+            out.add(it.upper())
+        elif isinstance(it, dict):
+            t = it.get("t") or it.get("ticker") or it.get("sym")
+            if t:
+                out.add(str(t).upper())
+    return out
+
+
+def diff_members(date: str, metric: str) -> dict:
+    """For one day + one drillable metric, diff the recomputed member set against the
+    collector's stored drill list, and CLASSIFY why each mismatch happens: name absent from
+    our universe, no price in our bars that day, or a genuine threshold flip. This tells us
+    whether the count drift is a fixable data gap or inherent threshold sensitivity."""
+    from api.services import breadth_live as bl
+    from api.services import breadth_monitor
+    conn = bl._bars_conn()
+    # resolve the SPY session ts for `date`
+    ts = None
+    for r in conn.execute("SELECT ts FROM ohlcv WHERE tf='D' AND ticker='SPY' ORDER BY ts DESC LIMIT 400").fetchall():
+        if bl._iso(int(r[0])) == date:
+            ts = int(r[0]); break
+    if ts is None:
+        return {"ok": False, "reason": f"no SPY session for {date}"}
+
+    metrics, members, priced, uni = recompute_close_with_members(ts)
+    if not members:
+        return {"ok": False, "reason": "recompute produced no members"}
+    recompute_set = _tickers_of(members.get(metric))
+
+    stored_row = None
+    for r in breadth_monitor.get_history(400):
+        if r.get("date") == date:
+            stored_row = r; break
+    collector_set = _tickers_of((stored_row or {}).get(f"{metric}_list"))
+
+    only_recompute = recompute_set - collector_set
+    only_collector = collector_set - recompute_set
+
+    # classify the collector-only names (present for the collector, missing for us)
+    cls = {"not_in_universe": 0, "no_price_today": 0, "threshold_or_history": 0}
+    sample_not_in_uni, sample_no_price = [], []
+    for t in only_collector:
+        if t not in uni:
+            cls["not_in_universe"] += 1
+            if len(sample_not_in_uni) < 15:
+                sample_not_in_uni.append(t)
+        elif t not in priced:
+            cls["no_price_today"] += 1
+            if len(sample_no_price) < 15:
+                sample_no_price.append(t)
+        else:
+            cls["threshold_or_history"] += 1
+
+    return {
+        "ok": True, "date": date, "metric": metric,
+        "recompute_count": len(recompute_set), "collector_count": len(collector_set),
+        "overlap": len(recompute_set & collector_set),
+        "only_recompute": len(only_recompute), "only_collector": len(only_collector),
+        "collector_only_classified": cls,
+        "sample_not_in_universe": sorted(sample_not_in_uni),
+        "sample_no_price_today": sorted(sample_no_price),
+        "universe_size": len(uni), "priced_today": len(priced),
+    }
+
+
 def validate_recent(days: int = 10) -> dict:
     """Recompute the last `days` COLLECTED sessions and diff each metric against the value
     the collector stored (breadth_monitor). Small diffs => the recompute faithfully

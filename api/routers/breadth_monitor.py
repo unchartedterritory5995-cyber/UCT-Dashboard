@@ -87,6 +87,16 @@ def validate_breadth_history_recon(request: Request, days: int = Query(default=1
     return breadth_history_recon.validate_recent(days)
 
 
+@router.post("/api/breadth-monitor/history/member-diff")
+def diff_breadth_members(request: Request, date: str = Query(...), metric: str = Query(...)):
+    """Phase 0 diagnostic: diff the recomputed member set for one day+metric against the
+    collector's stored drill list, classifying each mismatch (not-in-universe / no-price /
+    threshold-or-history) so we can tell fixable data gaps from inherent threshold noise."""
+    _check_auth(request)
+    from api.services import breadth_history_recon
+    return breadth_history_recon.diff_members(date, metric)
+
+
 @router.post("/api/breadth-monitor/ohlc/backfill-intraday")
 def backfill_breadth_ohlc_intraday(request: Request, days: int = Query(default=8, ge=1, le=60)):
     """Aggregate the REAL intraday breadth samples (breadth_intraday, full-universe, ~7-day
