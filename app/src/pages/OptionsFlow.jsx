@@ -3005,11 +3005,12 @@ export default function OptionsFlowDashboard() {
     }
     setFetchLoading(false);
   }
-  // Full-coverage OI for still-open: pull the LATEST OI snapshot for a large set
-  // of contracts in one fast server call (DB lookup, NOT live Schwab), and merge
-  // it into priceCache so computeStillOpen can rank every name across ALL its
-  // strikes. OI is a once-daily OCC figure, so the EOD snapshot is the right
-  // source here. Only writes oi (preserves any live mark/greeks already cached).
+  // Full-coverage OI for still-open: /api/oi/latest-batch pulls CURRENT OI from
+  // live Massive option chains (one chain per ticker → every strike) for a large
+  // set of contracts, and we merge it into priceCache so computeStillOpen can
+  // rank every name across ALL its strikes (not the top-3 a per-contract fetch
+  // covers). ~20-30s for the bounded candidate set. Only writes oi (preserves any
+  // live mark/greeks already cached).
   async function fetchSnapshotOI(contracts) {
     const items = contracts || [];
     if (items.length === 0) return;
@@ -6343,13 +6344,16 @@ export default function OptionsFlowDashboard() {
                   });
                   return out;
                 })();
-                // EVERY contract of EVERY ranked ticker — for the full-coverage
-                // still-open (snapshot OI). The goal of this board is "who has flow
-                // that's STILL on the book" (conviction), so still-open must see all
-                // of a name's strikes, not just the top-3 a live fetch covers.
+                // EVERY contract of the top candidate tickers — for the full-
+                // coverage still-open (live Massive chain OI). The goal of this
+                // board is "who has flow that's STILL on the book" (conviction), so
+                // still-open must see ALL of a name's strikes, not the top-3 a
+                // per-contract fetch covers. Bounded to top-80 each side (still-open
+                // <= raw, so the displayed top comes from the top raw names); each
+                // ticker is one live chain call @ concurrency 8 (~20-30s for 160).
                 const _lbAllContracts = (() => {
                   const seen = new Set(), out = [];
-                  [...bulls, ...bears].forEach(tk => {
+                  [...bulls.slice(0, 80), ...bears.slice(0, 80)].forEach(tk => {
                     Object.values(tk.contracts || {}).forEach(c => {
                       const k = tk.sym + "|" + c.cp + "|" + c.K + "|" + c.exp;
                       if (!seen.has(k)) { seen.add(k); out.push({ sym: tk.sym, cp: c.cp, strike: c.K, exp: c.exp }); }
