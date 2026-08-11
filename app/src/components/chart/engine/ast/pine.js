@@ -351,6 +351,52 @@ const BUILTIN_SERIES_TREE = Object.freeze({
   },
 })
 
+/** ⭐⭐ PINE BUILT-INS THIS ENGINE'S EVALUATION MODEL ALREADY ANSWERS.
+ *
+ *  These are NOT approximations, and that distinction is the whole reason they are
+ *  admissible. This engine evaluates CLOSED, HISTORICAL bars, once per bar — that
+ *  is the Phase C cutover, not a property of this file — so `barstate.isconfirmed`
+ *  is not "near enough to true", it IS true, on every bar this engine will ever
+ *  evaluate. Same for the other three: there is no live tick here, no bar that is
+ *  not history, and no second evaluation of a bar that would make one "not new".
+ *
+ *  ⛔ AND THAT IS EXACTLY WHY `barstate.islast` IS NOT HERE. It reads as the
+ *  closest possible neighbour — same namespace, same shape, same one-word answer —
+ *  but its value is decided by HOW MANY BARS WERE ASKED FOR, not by the engine, so
+ *  a scan over 500 bars and the same scan over 5,000 disagree about which bar is
+ *  the last one. That is `lesson_a_derived_value_must_not_depend_on_the_request`,
+ *  and the split between these two maps is the whole judgement being made here.
+ *  `BUILTIN_REQUEST_DEPENDENT` below holds the ones that must never move up.
+ *
+ *  A boolean is a `number` 1/0 in this table (see the `true` literal in `atom`),
+ *  so all four cost the closed table exactly zero new names.
+ */
+export const BUILTIN_CONSTANT_TREE = Object.freeze({
+  'barstate.isconfirmed': () => cNum(1),
+  'barstate.ishistory': () => cNum(1),
+  'barstate.isnew': () => cNum(1),
+  'barstate.isrealtime': () => cNum(0),
+})
+
+/** The look-alikes of the four above — REFUSED, and refused with the reason.
+ *
+ *  ⛔ A GENERIC `pine:builtin` HERE WOULD BE THE WRONG SENTENCE. "This engine has
+ *  no home for that name" is false: it has a home for its three siblings. The true
+ *  sentence is that the answer would change with the request, and a member who
+ *  reads it knows to rewrite the script rather than wait for us to add the name.
+ */
+export const BUILTIN_REQUEST_DEPENDENT = Object.freeze({
+  'barstate.islast':
+    'which bar is the last one depends on how many bars were asked for, so this '
+    + 'would answer differently for the same stock on the same day',
+  'barstate.isfirst':
+    'which bar is the first one depends on how far back the request reached, so '
+    + 'this would answer differently for the same stock on the same day',
+  'barstate.islastconfirmedhistory':
+    'this names a bar relative to the end of the request, so it would answer '
+    + 'differently for the same stock on the same day',
+})
+
 /** Pine CALLS that take arguments and are an EXACT expansion in this table's own
  *  vocabulary. The sibling of `BUILTIN_SERIES_TREE`, which holds the zero-argument
  *  ones.
@@ -1415,6 +1461,17 @@ class Resolver {
       const asType = this.typeRefusalFor(name, node.tok)
       if (asType) throw asType
       const ns = name.slice(0, dot)
+      // ⭐ THE EVALUATION MODEL ANSWERS BEFORE THE NAMESPACE GUARD DOES. `barstate`
+      // is a guarded namespace, so without this the four constants never get asked.
+      // The request-dependent siblings are named FIRST, so a future edit that adds
+      // `barstate.islast` to the constant map contradicts itself here rather than
+      // silently shipping a number that changes with the bar count.
+      if (own(BUILTIN_REQUEST_DEPENDENT, name)) {
+        throw new PineRefusal('pine:builtin',
+          `${REFUSALS['pine:builtin']} — \`${name}\`: ${BUILTIN_REQUEST_DEPENDENT[name]}`,
+          locate(node.tok))
+      }
+      if (own(BUILTIN_CONSTANT_TREE, name)) return BUILTIN_CONSTANT_TREE[name]()
       if (own(NAMESPACE_GUARD, ns) && !VALUE_NAMESPACES.has(ns)) {
         const guard = NAMESPACE_GUARD[ns]
         throw new PineRefusal(guard, `${REFUSALS[guard]} — \`${name}\``, locate(node.tok))

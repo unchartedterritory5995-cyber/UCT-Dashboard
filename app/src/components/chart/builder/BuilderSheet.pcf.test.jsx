@@ -184,11 +184,28 @@ describe('🔴 TC2000 PCF reaches the shipped formula box', () => {
   })
 
   it('a TC2000 token this table has no name for refuses at `pcf:name`, not silently', async () => {
+    // ⚰️ THIS EXAMPLE WAS `SUM(C, 10)` AND IT ROTTED. `SUM` was wired to the
+    // table's rolling sum in `1a5f5b2d`, so the token chosen to demonstrate
+    // "this table has no name for it" acquired a name — and the test went red
+    // for the best possible reason, coverage growing, while reading exactly like
+    // a regression.
+    //
+    // ⛔ A NEGATIVE EXAMPLE MUST BE ONE NOBODY WILL EVER IMPLEMENT, or it is a
+    // time bomb set by our own roadmap: every real TC2000 spelling worth naming
+    // here is one somebody may wire next quarter. So the unknown half is
+    // nonsense — the same control token `pcf.vocabulary.test.js` uses.
+    //
+    // ⚠️ AND IT NEEDS A REAL MARKER BESIDE IT. `ZZNOPE9 > 100` alone is not
+    // TC2000 to the DETECTOR, so it would reach the native reader and refuse at
+    // `sentence:name` — a different guard, testing a different thing. `ATR14`
+    // makes the dialect unambiguous, which is what puts the refusal in `pcf.js`
+    // where this case belongs. (`MS20`/`OBV20` fail the same way for the same
+    // reason; both were tried.)
     mount()
-    await typeFormula('SUM(C, 10) > 100')
+    await typeFormula('ATR14 > ZZNOPE9')
     const chip = screen.getByTestId('formula-error')
     expect(chip).toHaveAttribute('data-guard', 'pcf:name')
-    expect(chip).toHaveTextContent('SUM')
+    expect(chip).toHaveTextContent('ZZNOPE9')
   })
 
   it('⛔ A NATIVE FORMULA IS UNTOUCHED — the detector cannot take one away', async () => {

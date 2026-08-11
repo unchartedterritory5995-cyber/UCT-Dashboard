@@ -248,6 +248,20 @@ describe('the whole corpus, in one number', () => {
     // of counting both: `cond ? x : na` is a per-PLOT idiom, so it was refusing
     // fifteen columns inside one Ichimoku script that the script-level number
     // could never have shown.
+    // ⭐⭐ 2026-08-10: `barstate` MOVED NEITHER NUMBER, AND THAT IS THE ENTRY
+    // WORTH READING. `barstate.isconfirmed` was the single most frequent refusal
+    // in this corpus — 15 columns and one whole script — and resolving it (this
+    // engine evaluates closed bars, so it is exactly `true`) bought ZERO columns.
+    // Every one of those columns simply refuses one wall further in: script 06's
+    // `pine:tuple` went 6 → 10, script 05's `pine:offset-literal` 1 → 3, script
+    // 20's four turned into `pine:function`.
+    //
+    // ⛔ SO A REFUSAL COUNT IS NOT A PROGRESS METRIC, and this is the measurement
+    // that proves it. Ranking work by "which guard fires most" would have picked
+    // exactly this change, shipped it, and reported a win to an owner who would
+    // see no new column anywhere. A column is usable only when EVERY wall in its
+    // chain is down, so the thing to count is `usable` — which is why it is
+    // pinned here and the guard histogram is not pinned anywhere.
     expect(translating).toBe(13)
     expect(columns).toBe(42)
   })
