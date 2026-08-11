@@ -47,14 +47,25 @@ def _disk_put(ticker: str, data: dict) -> None:
         _logger.warning("ticker_meta disk write failed for %s: %s", ticker, e)
 
 
+# yfinance reports the exchange as a MIC-ish CODE (SPY → "PCX"); map the common
+# ones to the friendly names a trader recognizes (FMP mislabels SPY as "AMEX").
+_YF_EXCHANGE = {
+    "PCX": "NYSE Arca", "NYQ": "NYSE", "ASE": "NYSE American",
+    "NMS": "NASDAQ", "NGM": "NASDAQ", "NCM": "NASDAQ", "NIM": "NASDAQ",
+    "BTS": "Cboe BZX", "BATS": "Cboe BZX", "PNK": "OTC", "OTC": "OTC",
+}
+
+
 def _from_yfinance(ticker: str):
     import yfinance as yf
     info = yf_util.bounded_call(lambda: yf.Ticker(ticker).info, None) or {}
     name = info.get("longName") or info.get("shortName")
+    exch = info.get("exchange") or None
     return {
         "name": name or None,
         "sector": info.get("sector") or None,
         "industry": info.get("industry") or None,
+        "exchange": _YF_EXCHANGE.get(exch, exch),
     }
 
 
@@ -131,6 +142,9 @@ def _from_fmp(ticker: str):
         "name": (row.get("companyName") or None),
         "sector": (row.get("sector") or None),
         "industry": (row.get("industry") or None),
+        # FMP's friendly exchange name ("NYSE Arca", "NASDAQ Global Select") — the
+        # compare-symbols legend shows it; prefer it over yfinance's code ("PCX").
+        "exchange": (row.get("exchange") or row.get("exchangeShortName") or None),
         "market_cap_musd": _fmp_market_cap_musd(row),
     }
 
@@ -146,16 +160,18 @@ def _base_meta(ticker: str) -> dict:
         return hit
 
     disk = _disk_get(ticker)
-    if disk is not None:
+    # A cached entry from before the `exchange` field existed is treated as STALE
+    # so the exchange fills in on next request rather than only after 24h expiry.
+    if disk is not None and "exchange" in disk:
         _mem.set(key, disk, ttl=_TTL)
         return disk
 
-    data = {"name": None, "sector": None, "industry": None}
+    data = {"name": None, "sector": None, "industry": None, "exchange": None}
     try:
         data = _from_yfinance(ticker)
     except Exception as e:
         _logger.info("ticker_meta yfinance failed for %s: %s — trying Finnhub", ticker, e)
-        data = {"name": None, "sector": None, "industry": None}
+        data = {"name": None, "sector": None, "industry": None, "exchange": None}
 
     # Fall back to FMP, then Finnhub, whenever the NAME is still missing — NOT
     # only when the whole payload is empty. yfinance's .info is flaky and often
@@ -172,13 +188,18 @@ def _base_meta(ticker: str) -> dict:
     # plan Task 8) — it's the paid/stronger source. Finnhub profile2 is kept
     # as an explicit, never-removed fallback for whatever FMP still can't
     # fill; it costs nothing once FMP already succeeded.
-    if not data.get("name"):
+    # Run FMP when the NAME is missing OR the exchange is (yfinance gives ugly
+    # codes like "PCX"; FMP's "NYSE Arca" is the friendly name the legend wants).
+    if not data.get("name") or not data.get("exchange"):
         try:
             fmp = _from_fmp(ticker)
             data = {
                 "name": data.get("name") or fmp.get("name"),
                 "sector": data.get("sector") or fmp.get("sector"),
                 "industry": data.get("industry") or fmp.get("industry"),
+                # Prefer yfinance's (mapped) exchange — FMP mislabels some ETFs
+                # (SPY → "AMEX"); FMP only fills the gap when yfinance had none.
+                "exchange": data.get("exchange") or fmp.get("exchange"),
             }
         except Exception as e_fmp:
             _logger.info("ticker_meta FMP failed for %s: %s — trying Finnhub", ticker, e_fmp)
@@ -190,6 +211,7 @@ def _base_meta(ticker: str) -> dict:
                 "name": data.get("name") or fh.get("name"),
                 "sector": data.get("sector") or fh.get("sector"),
                 "industry": data.get("industry") or fh.get("industry"),
+                "exchange": data.get("exchange"),
             }
         except Exception as e2:
             _logger.warning("ticker_meta Finnhub failed for %s: %s", ticker, e2)

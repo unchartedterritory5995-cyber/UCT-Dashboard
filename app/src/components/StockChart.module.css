@@ -359,30 +359,46 @@
    Renders one row of color-coded sym+% chips when any comparison
    overlay is active. Positioned below the chart toolbar (which lives
    at ~top: 8px). Pointer events off so it doesn't steal hover. */
-.comparisonLegend {
+/* Compare-symbol rows — docked to the OHLC legend: BELOW it (aligned with the
+   date's left) in horizontal mode; to the RIGHT of it in vertical mode. Each row:
+   logo · Name · Exchange · framed-window % (0% = left edge of the visible range). */
+.compareRows {
   position: absolute;
-  /* Top-center, in the drawing-toolbar row's clear middle (like the Exit-Replay
-     pill) — NOT top-left, where it covered the OHLC legend. */
-  top: 6px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 50;
+  top: 46px;         /* just under the horizontal .legend (top 28 + ~16 tall) */
+  left: 8px;         /* aligned with the legend's left / the date */
+  z-index: 4;
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  justify-content: center;
-  max-width: 60%;
-  background: rgba(10, 10, 12, 0.72);
-  padding: 3px 10px;
-  border-radius: 5px;
-  font-family: var(--font-mono, 'IBM Plex Mono', monospace);
-  font-size: 11px;
+  flex-direction: column;
+  gap: 3px;
   pointer-events: none;
+  font-family: var(--font-sans);
 }
-.legendItem {
+.compareRowsSide {   /* vertical legend → to the right of .legendVertical, near its top */
+  top: 46px;
+  left: 132px;
+}
+.compareRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  max-width: 340px;
+  background: var(--chart-panel-bg, rgba(26, 28, 23, 0.9));
+  padding: 2px 8px 2px 4px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 1.3;
+}
+.compareLogo { display: inline-flex; flex: 0 0 auto; width: 14px; height: 14px; }
+.compareName {
+  color: var(--chart-panel-text-strong, #e2dfd6);
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+.compareExch { color: var(--chart-panel-text, #a8a290); font-weight: 400; }
+.comparePct { flex: 0 0 auto; font-weight: 700; font-variant-numeric: tabular-nums; }
 
 /* ── Attribution (Apache 2.0 requirement) ── */
 .attribution {

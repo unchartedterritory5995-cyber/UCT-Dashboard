@@ -313,6 +313,7 @@ import { isNativeTf, fetchTf, resampleSpec } from './chart/timeframes'
 import { barsRenderPlan } from './chart/renderPlan'
 import ChartSkeleton from './chart/ChartSkeleton'
 import { normalizeToPctChange } from './chart/comparisonUtils'
+import CompanyLogo from './CompanyLogo'
 import { composeScreenshot, downloadBlob, copyBlobToClipboard, chartStateToUrl, urlToChartState } from './chart/chartScreenshot'
 import ScreenshotPopover from './chart/ScreenshotPopover'
 import { INDICATOR_CHORDS, matchShortcut, resolveTfCycle } from './chart/keyboardShortcuts'
@@ -5238,6 +5239,64 @@ export default function StockChart({
       return { sym: symKey, color: c.color, points }
     })
   }, [comparisonsData, enabledComparisons, adjustTime])
+
+  // ── Compare legend: framed-window % + name/exchange ──
+  // Leftmost VISIBLE bar time (adjustTime space) = the framed baseline; re-computed
+  // on pan/zoom (rAF-debounced) so the legend %s read "since the left of what you
+  // see", not since the oldest loaded bar.
+  const [framedLeftTime, setFramedLeftTime] = useState(null)
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart || !chartReady || !enabledComparisons.length || !filteredBars.length) { setFramedLeftTime(null); return undefined }
+    const ts = chart.timeScale()
+    let raf = null
+    const compute = () => {
+      try {
+        const lr = ts.getVisibleLogicalRange()
+        if (lr) {
+          const i = Math.max(0, Math.min(filteredBars.length - 1, Math.ceil(lr.from)))
+          const b = filteredBars[i]
+          if (b) setFramedLeftTime(adjustTime(b.t))
+        }
+      } catch { /* mid-load */ }
+    }
+    const handler = () => { if (raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(compute) }
+    compute()
+    try { ts.subscribeVisibleLogicalRangeChange(handler) } catch { /* older API */ }
+    return () => { try { ts.unsubscribeVisibleLogicalRangeChange(handler) } catch { /* */ }; if (raf) cancelAnimationFrame(raf) }
+  }, [chartReady, enabledComparisons.length, filteredBars, adjustTime])
+
+  // Per-comparison % over the framed window: (latest close − close at framed-left) / base.
+  const comparisonFramed = useMemo(() => {
+    if (!comparisonsData) return []
+    return enabledComparisons.map(c => {
+      const symKey = String(c.sym).toUpperCase()
+      const bars = comparisonsData[symKey] || []
+      let baseClose = null, lastClose = null
+      if (framedLeftTime != null) {
+        for (const b of bars) { if (Number.isFinite(b.c) && adjustTime(b.t) >= framedLeftTime) { baseClose = b.c; break } }
+      }
+      if (baseClose == null) { for (const b of bars) { if (Number.isFinite(b.c)) { baseClose = b.c; break } } }
+      for (let i = bars.length - 1; i >= 0; i--) { if (Number.isFinite(bars[i].c)) { lastClose = bars[i].c; break } }
+      const pct = (baseClose && lastClose) ? ((lastClose - baseClose) / baseClose) * 100 : null
+      return { sym: symKey, color: c.color, pct }
+    })
+  }, [comparisonsData, enabledComparisons, framedLeftTime, adjustTime])
+
+  // Name + exchange for each comparison (the legend shows "Name · Exchange").
+  const { data: comparisonMeta } = useSWR(
+    comparisonsKey ? ['comparison-meta', comparisonsKey] : null,
+    async () => {
+      const syms = enabledComparisons.map(c => String(c.sym).toUpperCase())
+      const res = await Promise.allSettled(
+        syms.map(s => fetch(`/api/ticker-meta/${encodeURIComponent(s)}`).then(r => (r.ok ? r.json() : null)).catch(() => null)),
+      )
+      const out = {}
+      res.forEach((r, i) => { out[syms[i]] = r.status === 'fulfilled' ? r.value : null })
+      return out
+    },
+    { revalidateOnFocus: false, dedupingInterval: 300_000 },
+  )
 
   // ── Index comparison pane (indexPaneSymbol, e.g. ^IXIC) ──
   // Fetch the index's bars for the same tf + bar count and draw its CLOSE as a
@@ -11349,16 +11408,22 @@ export default function StockChart({
         )
       })()}
       {enabledComparisons.length > 0 && (
-        <div className={styles.comparisonLegend}>
-          <span className={styles.legendLabel}>vs {sym}:</span>
-          {comparisonSeries.map(s => {
-            const last = s.points && s.points.length ? s.points[s.points.length - 1] : null
-            const pct = last?.value
-            const valid = Number.isFinite(pct)
+        <div className={`${styles.compareRows}${legendStacked ? ' ' + styles.compareRowsSide : ''}`}>
+          {comparisonFramed.map(f => {
+            const meta = comparisonMeta?.[f.sym]
+            const name = meta?.name || f.sym
+            const exch = meta?.exchange
+            const up = f.pct != null && f.pct >= 0
             return (
-              <span key={s.sym} className={styles.legendItem} style={{ color: s.color }}>
-                {s.sym} {valid ? `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%` : '—'}
-              </span>
+              <div key={f.sym} className={styles.compareRow}>
+                <span className={styles.compareLogo}><CompanyLogo sym={f.sym} name={name} size={13} round /></span>
+                <span className={styles.compareName}>
+                  {name}{exch ? <span className={styles.compareExch}> · {exch}</span> : null}
+                </span>
+                <span className={styles.comparePct} style={{ color: f.color }}>
+                  {f.pct != null ? `${up ? '+' : ''}${f.pct.toFixed(2)}%` : '—'}
+                </span>
+              </div>
             )
           })}
         </div>
