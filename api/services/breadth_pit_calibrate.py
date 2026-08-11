@@ -160,6 +160,99 @@ def run_calibration(target_days: int = 8, vol_window: int = 20,
     }
 
 
+_VSTATE: dict = {"status": "idle"}
+_PCT_METRICS = ("pct_above_10sma", "pct_above_20ema", "pct_above_50sma",
+                "pct_above_100sma", "pct_above_200sma")
+
+
+def validate_value_impact(target_days: int = 8, vol_window: int = 20,
+                          price_min: float = 3.0, dollarvol_min: float = 5e6,
+                          exchanges=None) -> dict:
+    """The decision number: does the proxy universe move the breadth VALUE vs the
+    collector's ACTUAL universe? Computes each metric over BOTH universes with the
+    SAME method (breadth_live._metrics_at_close on bars.db, same day) so the delta is
+    PURELY the universe effect — not basis/method. On recent dates every proxy/
+    collector name is active + in bars.db, so no historical frame is needed. If mean
+    |delta| ≲ 1pt, the ~0.76-Jaccard fuzz is level-negligible → Phase 2 is safe."""
+    from api.services import breadth_monitor, massive
+    from api.services import breadth_live as bl
+    from api.services import breadth_pit_universe as pit
+    from datetime import date as _d
+
+    ref_map = _build_ref_map()
+    conn = bl._bars_conn()
+    hist = breadth_monitor.get_history(target_days + 6) or []
+    dates = [h.get("date") for h in hist if h.get("date")][:target_days]
+
+    per_date = []
+    for D in dates:
+        try:
+            items = breadth_monitor.get_drill_list(D, "universe_list") or []
+        except Exception:
+            items = []
+        collector = {str(i.get("t")).upper() for i in items
+                     if isinstance(i, dict) and i.get("t")}
+        if not collector:
+            continue
+        gday = massive.get_grouped_daily_ohlcv(D)
+        if not gday:
+            continue
+        dvmap = _trailing_dollarvol(D, vol_window)
+        rows = {t: {"c": gday.get(t, {}).get("c"), "dv": dvmap.get(t)} for t in gday}
+        proxy = pit.eligible(D, rows, ref_map, price_min, dollarvol_min,
+                             allowed_exchanges=exchanges)
+        if not proxy:
+            continue
+        try:
+            D_ts = bl._ts_int(_d.fromisoformat(D))
+            v_proxy = bl._metrics_at_close(conn, sorted(proxy), D_ts) or {}
+            v_coll = bl._metrics_at_close(conn, sorted(collector), D_ts) or {}
+        except Exception:
+            continue
+        # stored collector value for context (has basis/method diffs — NOT the isolate)
+        stored = next((h for h in hist if h.get("date") == D), {})
+        row = {"date": D, "proxy_size": len(proxy), "collector_size": len(collector),
+               "deltas": {}, "proxy": {}, "collector": {}, "stored": {}}
+        for m in _PCT_METRICS:
+            a, b = v_proxy.get(m), v_coll.get(m)
+            row["proxy"][m] = round(a, 2) if a is not None else None
+            row["collector"][m] = round(b, 2) if b is not None else None
+            row["stored"][m] = stored.get(m)
+            if a is not None and b is not None:
+                row["deltas"][m] = round(a - b, 3)
+        per_date.append(row)
+
+    agg = {}
+    for m in _PCT_METRICS:
+        ds = [abs(r["deltas"][m]) for r in per_date if m in r["deltas"]]
+        if ds:
+            agg[m] = {"mean_abs_delta": round(sum(ds) / len(ds), 3),
+                      "max_abs_delta": round(max(ds), 3), "n": len(ds)}
+    overall = [v["mean_abs_delta"] for v in agg.values()]
+    return {
+        "ok": True,
+        "price_min": price_min, "dollarvol_min": dollarvol_min,
+        "overall_mean_abs_delta": round(sum(overall) / len(overall), 3) if overall else None,
+        "per_metric": agg,
+        "per_date": per_date,
+        "verdict": ("SAFE (universe fuzz is level-negligible, ≲1pt)"
+                    if overall and (sum(overall) / len(overall)) <= 1.0
+                    else "MATERIAL (universe change moves the level >1pt)"),
+    }
+
+
+def run_value_async(**kw) -> None:
+    def _run():
+        _VSTATE.clear(); _VSTATE.update(status="running")
+        try:
+            res = validate_value_impact(**kw)
+            _VSTATE.clear(); _VSTATE.update(status="done", **res)
+        except Exception as e:
+            _VSTATE.clear(); _VSTATE.update(status="error", reason=f"{type(e).__name__}: {e}",
+                                            trace=traceback.format_exc()[-900:])
+    threading.Thread(target=_run, name="pit-validate", daemon=True).start()
+
+
 def run_async(**kw) -> None:
     def _run():
         _STATE.clear(); _STATE.update(status="running", **{k: v for k, v in kw.items()})
