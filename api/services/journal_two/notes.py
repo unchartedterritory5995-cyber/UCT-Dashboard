@@ -40,6 +40,11 @@ _ALLOWED_FILE_MIMES = {
     "application/pdf", "text/plain", "text/csv", "text/markdown",
     "application/zip", "audio/mpeg", "audio/mp4",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    # xlsx's real MIME is "...spreadsheetml.sheet" — ".document" was a typo
+    # (copy-pasted from the docx entry above). Accept both: "sheet" is what a
+    # real browser/frontend sends; "document" stays for back-compat with
+    # anything already relying on the old (wrong) value.
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     "application/vnd.openxmlformats-officedocument.spreadsheetml.document",
 }
 _MAX_FILE_BYTES = 25 * 1024 * 1024
@@ -216,6 +221,16 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                               (dest, user_id)).fetchone()
             if not ok:
                 raise NoteValidationError("destination folder not found")
+        # A deep folderPath used to be truncated to MAX_FOLDER_DEPTH segments
+        # and then created UNDER destFolderId — so a dest at depth >=1 plus a
+        # path already at the cap raised "folder nesting too deep" and 400'd
+        # the whole batch. Clamp against how much room dest actually leaves:
+        # a dest at depth 1 (root) permits MAX_FOLDER_DEPTH-1 more segments,
+        # no dest (root import) permits the full MAX_FOLDER_DEPTH. Overflow
+        # segments are dropped — the note lands at the deepest allowed
+        # folder instead of failing the batch.
+        dest_depth = _folder_depth(conn, user_id, dest) if dest else 0
+        max_path_depth = max(0, MAX_FOLDER_DEPTH - dest_depth)
         created, updated, skipped = [], [], []
         # One import operation = one imported_at timestamp, deliberate
         now = _now_iso()
@@ -230,7 +245,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
             tags = _validate_tags(n.get("tags"))
             ticker = _validate_ticker(n.get("ticker"))
             h = _import_payload_hash(n)
-            path = tuple((n.get("folderPath") or [])[:MAX_FOLDER_DEPTH])
+            path = tuple((n.get("folderPath") or [])[:max_path_depth])
             if path not in path_cache:
                 path_cache[path] = (ensure_folder_path(user_id, list(path), dest, conn=conn)
                                     if path else (dest or None))

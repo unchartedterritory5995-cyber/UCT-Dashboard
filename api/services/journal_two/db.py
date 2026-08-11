@@ -400,8 +400,12 @@ CREATE INDEX IF NOT EXISTS idx_j2_notes_user_folder
     ON j2_notes(user_id, folder_id);
 CREATE INDEX IF NOT EXISTS idx_j2_notes_user_ticker
     ON j2_notes(user_id, ticker);
-CREATE INDEX IF NOT EXISTS idx_j2_notes_user_import
-    ON j2_notes(user_id, import_key);
+-- idx_j2_notes_user_import is deliberately NOT created here. Creating it in
+-- the initial executescript would run BEFORE run_notebook_migration_v2 adds
+-- the import_key column on a pre-existing (v1-shaped) database, raising
+-- "no such column: import_key" on every current user's DB. It is created
+-- (as a partial UNIQUE index) in ensure_schema() AFTER both notebook
+-- migrations run, and inside run_notebook_migration_v2 itself.
 
 CREATE TABLE IF NOT EXISTS j2_note_folders (
     id          TEXT PRIMARY KEY,
@@ -787,6 +791,28 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     except Exception as e:  # noqa: BLE001 — never crash startup over this
         print(f"[notebook-migration-v2] aborted: {e}")
 
+    # Partial UNIQUE index on (user_id, import_key) — created here, AFTER both
+    # notebook migrations, so it can never reference import_key before that
+    # column exists (the Critical-1 bug: the old copy of this statement lived
+    # in _J2_SCHEMA's executescript, which ran first). DROP-then-CREATE
+    # (rather than a bare CREATE UNIQUE INDEX IF NOT EXISTS) so a dev DB still
+    # carrying the old NON-unique index (from before this fix, or from a
+    # `run_notebook_migration_v2` that already ran once under the old code)
+    # upgrades to the unique partial form cleanly. Guarded on the column
+    # actually existing + wrapped so a prior migration failure can never take
+    # startup down over an index.
+    try:
+        ncols = {r[1] for r in conn.execute("PRAGMA table_info(j2_notes)")}
+        if "import_key" in ncols:
+            conn.execute("DROP INDEX IF EXISTS idx_j2_notes_user_import")
+            conn.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_notes_user_import "
+                "ON j2_notes(user_id, import_key) WHERE import_key IS NOT NULL"
+            )
+            conn.commit()
+    except Exception as e:  # noqa: BLE001 — never crash startup over this
+        print(f"[notebook-migration-v2] index creation aborted: {e}")
+
 
 def _data_dir() -> Path:
     return Path(os.environ.get("DATA_DIR", "/data"))
@@ -1000,10 +1026,15 @@ def run_notebook_migration_v2(conn: sqlite3.Connection) -> None:
         if ncols and col not in ncols:
             conn.execute(f"ALTER TABLE j2_notes ADD COLUMN {col} TEXT")
 
-    # Recreate the index (IF NOT EXISTS, idempotent).
+    # Recreate the index as a PARTIAL UNIQUE index — DROP-then-CREATE (not
+    # just IF NOT EXISTS) so a dev DB carrying the old non-unique version of
+    # this index upgrades cleanly. WHERE import_key IS NOT NULL because most
+    # notes are never imported (mirrors the other partial-unique indexes in
+    # this file, e.g. idx_j2_trades_extid).
+    conn.execute("DROP INDEX IF EXISTS idx_j2_notes_user_import")
     conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_j2_notes_user_import "
-        "ON j2_notes(user_id, import_key)"
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_j2_notes_user_import "
+        "ON j2_notes(user_id, import_key) WHERE import_key IS NOT NULL"
     )
 
     conn.commit()

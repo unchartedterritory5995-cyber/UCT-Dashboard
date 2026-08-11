@@ -61,6 +61,60 @@ def test_migration_v2_preserves_existing_flat_folders(tmp_path, monkeypatch):
     c.close()
 
 
+def test_ensure_schema_upgrades_a_v1_shaped_database_without_crashing(tmp_path, monkeypatch):
+    """CRITICAL regression: ensure_schema() used to executescript a
+    CREATE INDEX on j2_notes(import_key) as part of _J2_SCHEMA — BEFORE
+    run_notebook_migration_v2 adds that column — raising
+    `OperationalError: no such column: import_key` on every pre-existing
+    (v1-shaped) database. api/main.py swallows that as a non-fatal startup
+    error, so migration v2 never runs and _row_to_folder reads a missing
+    parent_id -> the Notebook sidebar 500s for every current user.
+
+    Drives ensure_schema() ITSELF (not run_notebook_migration_v2 directly,
+    which the other tests in this file already cover) over a v1-shaped DB —
+    the exact shape test_migration_v2_preserves_existing_flat_folders builds:
+    folders WITHOUT parent_id, notes WITHOUT import columns, seeded rows."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    c = sqlite3.connect(tmp_path / "v1_via_ensure_schema.db")
+    c.row_factory = sqlite3.Row
+    # v1-era table shapes (pre-parent_id, pre-import-columns).
+    c.executescript("""
+        CREATE TABLE j2_note_folders (
+            id TEXT PRIMARY KEY, user_id TEXT NOT NULL, name TEXT NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL,
+            UNIQUE(user_id, name));
+        CREATE TABLE j2_notes (
+            id TEXT PRIMARY KEY, user_id TEXT NOT NULL, account_id TEXT,
+            folder_id TEXT, title TEXT NOT NULL, subtitle TEXT,
+            body_json TEXT NOT NULL DEFAULT '{}', body_plain TEXT NOT NULL DEFAULT '',
+            hero_image_url TEXT, ticker TEXT, tags TEXT NOT NULL DEFAULT '[]',
+            status TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+    """)
+    c.execute("INSERT INTO j2_note_folders VALUES ('f1','u1','Trading',3,'2026-01-01')")
+    c.execute("INSERT INTO j2_notes (id,user_id,folder_id,title,created_at,updated_at) "
+               "VALUES ('n1','u1','f1','My note','2026-01-01','2026-01-01')")
+    c.commit()
+
+    # The whole point of the fix: this must NOT raise.
+    j2db.ensure_schema(c)
+
+    fcols = {r[1] for r in c.execute("PRAGMA table_info(j2_note_folders)")}
+    assert "parent_id" in fcols
+    ncols = {r[1] for r in c.execute("PRAGMA table_info(j2_notes)")}
+    assert "import_key" in ncols
+
+    row = c.execute("SELECT * FROM j2_note_folders WHERE id='f1'").fetchone()
+    assert row["name"] == "Trading" and row["parent_id"] == "" and row["sort_order"] == 3
+    note = c.execute("SELECT folder_id, import_key FROM j2_notes WHERE id='n1'").fetchone()
+    assert note["folder_id"] == "f1" and note["import_key"] is None
+
+    folders = notes_svc.list_folders("u1", conn=c)
+    assert len(folders) == 1
+    assert folders[0]["id"] == "f1"
+    assert folders[0]["parentId"] is None
+    c.close()
+
+
 def test_migration_v2_recovers_from_crash_state(tmp_path, monkeypatch):
     """Simulates a process crash between RENAME and CREATE TABLE. The next boot
     must detect j2_note_folders_v1 stranded on disk and recover."""
@@ -223,6 +277,40 @@ def test_import_confirm_creates_then_reimport_skips_then_change_updates(conn):
     r3 = notes_svc.import_confirm("u1", payload, conn=conn)
     assert len(r3["updated"]) == 1
     assert r3["updated"][0]["id"] == r1["created"][0]["id"]
+
+
+def test_import_confirm_clamps_folder_depth_to_dest_instead_of_raising(conn):
+    """A folderPath was truncated to MAX_FOLDER_DEPTH segments but then
+    created UNDER destFolderId (depth >= 1), so a deep path could still raise
+    NoteValidationError("folder nesting too deep") and 400 the whole batch.
+    dest sits at depth 1 (root); a 7-segment folderPath must clamp to 5
+    segments so the note's folder chain tops out at MAX_FOLDER_DEPTH (6)."""
+    dest = notes_svc.create_folder("u1", "Imported", conn=conn)
+    deep_path = tuple(f"L{i}" for i in range(7))
+    payload = {"source": "x", "destFolderId": dest["id"],
+               "notes": [_mk_import_note("x:deep", "Deep", path=deep_path)]}
+    r = notes_svc.import_confirm("u1", payload, conn=conn)
+    assert len(r["created"]) == 1
+    note = notes_svc.get_note("u1", r["created"][0]["id"], conn=conn)
+    assert note["folderId"] is not None
+    # Only 5 of the 7 requested segments should have been materialized
+    # (L5/L6 dropped) — walk the chain from the note's folder to the root.
+    folder = notes_svc.list_folders("u1", conn=conn)
+    by_id = {f["id"]: f for f in folder}
+    names = []
+    cur = note["folderId"]
+    depth = 0
+    seen = set()
+    while cur and cur not in seen:
+        seen.add(cur)
+        depth += 1
+        f = by_id[cur]
+        names.append(f["name"])
+        cur = f["parentId"]
+    assert depth == notes_svc.MAX_FOLDER_DEPTH
+    assert names == ["L4", "L3", "L2", "L1", "L0", "Imported"]
+    assert "L5" not in {f["name"] for f in folder}
+    assert "L6" not in {f["name"] for f in folder}
 
 
 def test_import_check_reports_existing(conn):
