@@ -769,6 +769,66 @@ def get_grouped_daily_closes(day_iso: str, adjusted: bool = True) -> dict:
     return out
 
 
+def get_grouped_daily_ohlcv(day_iso: str, adjusted: bool = False) -> dict:
+    """{TICKER: {"c": close, "v": volume}} for ONE date — whole US market in one call,
+    keeping VOLUME for the liquidity proxy (get_grouped_daily_closes drops it).
+    adjusted=False → RAW point-in-time price (what a historical $-price floor means).
+    Cached in-memory per (date, adjusted). {} on a non-trading day / error. (Phase-2
+    survivorship-free universe.)"""
+    ck = f"grouped_ohlcv_{day_iso}_{1 if adjusted else 0}"
+    cached = cache.get(ck)
+    if cached is not None:
+        return cached
+    try:
+        client = _get_client()
+        adj = "true" if adjusted else "false"
+        url = (f"{_REST_BASE}/v2/aggs/grouped/locale/us/market/stocks/"
+               f"{day_iso}?adjusted={adj}&apiKey={client._api_key}")
+        data = client._get(url) or {}
+    except Exception:
+        return {}
+    out: dict[str, dict] = {}
+    for r in (data.get("results") or []):
+        tk, c, v = r.get("T"), r.get("c"), r.get("v")
+        if tk and isinstance(c, (int, float)) and c > 0:
+            out[str(tk).upper()] = {"c": float(c),
+                                    "v": float(v) if isinstance(v, (int, float)) else 0.0}
+    if out:
+        cache.set(ck, out, ttl=(604800 if day_iso < _grouped_settled_cutoff() else 900))
+    return out
+
+
+def list_reference_tickers(active: bool = True, market: str = "stocks",
+                           limit: int = 1000, max_pages: int = 60) -> list[dict]:
+    """Paginated /v3/reference/tickers enumeration (active OR delisted). Returns raw
+    result dicts: {ticker, type, list_date, delisted_utc, name, cik, composite_figi, …}.
+    Best-effort ([] on error). Slow-changing → cached in-memory 24h. Follows Polygon's
+    cursor `next_url`. (Phase-2 type + list/delist window map.)"""
+    ck = f"ref_tickers_{market}_{1 if active else 0}"
+    cached = cache.get(ck)
+    if cached is not None:
+        return cached
+    out: list[dict] = []
+    try:
+        cli = _get_client()
+        url = (f"{_REST_BASE}/v3/reference/tickers?market={market}"
+               f"&active={'true' if active else 'false'}&limit={limit}"
+               f"&apiKey={cli._api_key}")
+        pages = 0
+        while url and pages < max_pages:
+            j = cli._get(url) or {}
+            for r in (j.get("results") or []):
+                out.append(r)
+            nxt = j.get("next_url")
+            url = (nxt + f"&apiKey={cli._api_key}") if nxt else None
+            pages += 1
+    except Exception:
+        pass
+    if out:
+        cache.set(ck, out, ttl=86400)
+    return out
+
+
 def get_split_tickers(from_iso: str, to_iso: str) -> set:
     """Set of tickers (provider-form) with a stock split whose execution_date falls in
     [from_iso, to_iso]. Paginated /v3/reference/splits — a handful of calls covers the
