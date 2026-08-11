@@ -121,6 +121,56 @@ def pull_breadth_ohlc_now(request: Request):
     return {"ok": True, "merged": breadth_ohlc_sync.sync_if_new()}
 
 
+@router.post("/api/breadth-monitor/pit/calibrate")
+def pit_calibrate(request: Request, target_days: int = Query(default=8, ge=1, le=40),
+                  vol_window: int = Query(default=20, ge=5, le=60),
+                  exchanges: str = Query(default="")):
+    """Phase-2 MAKE-OR-BREAK gate: run the price/liquidity-proxy vs KNOWN-universe
+    calibration in a BACKGROUND thread (whole-market grouped-daily pulls are heavy).
+    `exchanges` = comma-sep primary_exchange allowlist (e.g. XNYS,XNAS,XASE,ARCX,BATS)
+    to drop OTC; empty = no exchange filter. Poll GET .../pit/calibrate-result.
+    PUSH_SECRET-gated."""
+    _check_auth(request)
+    from api.services import breadth_pit_calibrate as cal
+    exch = [e.strip().upper() for e in exchanges.split(",") if e.strip()] or None
+    cal.run_async(target_days=target_days, vol_window=vol_window, exchanges=exch)
+    return {"ok": True, "started": True, "target_days": target_days,
+            "vol_window": vol_window, "exchanges": exch}
+
+
+@router.get("/api/breadth-monitor/pit/calibrate-result")
+def pit_calibrate_result():
+    """Poll the Phase-2 calibration run (public — proxy-vs-known-universe overlap
+    metrics, no member lists / no secrets)."""
+    from api.services import breadth_pit_calibrate as cal
+    return cal._STATE
+
+
+@router.post("/api/breadth-monitor/pit/validate")
+def pit_validate(request: Request, target_days: int = Query(default=8, ge=1, le=40),
+                 vol_window: int = Query(default=20, ge=5, le=60),
+                 price_min: float = Query(default=3.0),
+                 dollarvol_min: float = Query(default=5e6),
+                 exchanges: str = Query(default="")):
+    """Phase-2 DECISION test: does the proxy universe move the breadth VALUE vs the
+    collector's ACTUAL universe (same method, so it isolates the universe effect)?
+    Background thread; poll GET .../pit/validate-result. PUSH_SECRET-gated."""
+    _check_auth(request)
+    from api.services import breadth_pit_calibrate as cal
+    exch = [e.strip().upper() for e in exchanges.split(",") if e.strip()] or None
+    cal.run_value_async(target_days=target_days, vol_window=vol_window,
+                        price_min=price_min, dollarvol_min=dollarvol_min, exchanges=exch)
+    return {"ok": True, "started": True}
+
+
+@router.get("/api/breadth-monitor/pit/validate-result")
+def pit_validate_result():
+    """Poll the Phase-2 value-impact validation (public — per-metric breadth-value
+    deltas, no member lists)."""
+    from api.services import breadth_pit_calibrate as cal
+    return cal._VSTATE
+
+
 @router.post("/api/breadth-monitor/history/backfill-schedule")
 def schedule_breadth_backfill(request: Request, floor: str = Query(default=""),
                               stop: bool = Query(default=False)):
