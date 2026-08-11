@@ -132,3 +132,37 @@ def test_endpoint_returns_service_payload(monkeypatch):
     client = TestClient(app)
     resp = client.get("/api/education/videos/5/ticker-returns")
     assert resp.status_code == 200 and resp.json() == sentinel
+
+
+def test_endpoint_requires_auth(monkeypatch):
+    # lesson_gate_that_cannot_fail: test_endpoint_returns_service_payload uses
+    # dependency_overrides[require_paid] for every request, so deleting
+    # `Depends(require_paid)` from the route reds nothing there. This test
+    # builds the SAME app WITHOUT the override and hits the route unauthenticated
+    # — it must fail closed. Mutation-checked: with `Depends(require_paid)`
+    # removed from get_video_ticker_returns in api/routers/education.py, this
+    # test fails (200 instead of 401/403); restored, it passes.
+    ticker_returns._cache.clear()
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.routers import education
+    sentinel = {"anchor_date": "2026-08-09", "as_of": "x", "returns": {}}
+    monkeypatch.setattr(ticker_returns, "returns_for_video", lambda vid: sentinel)
+
+    # Unauthenticated request against a client with NO auth override.
+    app = FastAPI()
+    app.include_router(education.router)
+    client = TestClient(app)
+    resp = client.get("/api/education/videos/5/ticker-returns")
+    assert resp.status_code in (401, 403), \
+        f"expected the auth gate to reject an unauthenticated request, got {resp.status_code}: {resp.text}"
+
+    # Non-vacuity control: the SAME route, overridden, still returns 200 —
+    # proves the 401/403 above came from the auth dependency, not from the
+    # route/app being broken some other way.
+    app2 = FastAPI()
+    app2.include_router(education.router)
+    app2.dependency_overrides[education.require_paid] = lambda: {"email": "t@t.t"}
+    client2 = TestClient(app2)
+    resp2 = client2.get("/api/education/videos/5/ticker-returns")
+    assert resp2.status_code == 200 and resp2.json() == sentinel
