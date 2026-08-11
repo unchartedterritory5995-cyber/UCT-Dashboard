@@ -1,0 +1,82 @@
+# Pine corpus — every wall in every chain, and the real ceiling
+
+> Measured 2026-08-11 over all 21 committed third-party scripts. Written because
+> three consecutive correct fixes moved a refusal one line deeper without moving
+> the score: `ta.cross`, then tuples, then a `var` reading its own past. Each was
+> right; each was chosen by "which guard fires most", which is the ranking
+> `lesson_a_refusal_count_is_not_a_progress_metric` says never to use.
+
+**The method:** a script's OUTPUT walls are what each plot/alert hits first. Its
+FOLD walls are what the binder hit while folding names — those are invisible in
+the usual per-output count and they are the ones that show what is queued up
+BEHIND the first refusal. Reading both together is how you see a chain instead
+of a wall.
+
+## The ceiling
+
+| | scripts | why |
+|---|---|---|
+| **Reading today** | **10** | |
+| Reachable with contained work | **+3** | 05, 10, 06 — see below |
+| Needs loops / UDTs (Phase 5) | 3 | 02, 20, 21 |
+| Structurally out, correctly | 4 | 04, 09, 14, 19 |
+| | **21** | |
+
+⭐ **So the honest near-term target is 13 of 21, not 21 of 21** — and the four in
+the last row should never move, because refusing them is the correct answer.
+
+## Rank order, by whole chain rather than by guard
+
+### 🥇 10-supertrend — ONE wall, nothing behind it
+`pine:state` ×5 on `shortStop[1]`. Every other note is `chart-only`
+(`plotshape`, `fill`) which no screener column needs. **This is the only script
+in the corpus whose entire chain is one guard.**
+The shape: `x = src + atr` → `nz(x[1], x)` → `if cond` → `x := …`. The `[1]` is
+read BEFORE a later conditional reassignment, and Pine's `x[1]` means the
+previous bar's LAST assignment — so offsetting the binding in scope answers a
+different question. Fixing it means folding the conditional reassignment FIRST
+and offsetting the final binding. ⛔ Not "relax the guard": the guard is right,
+the fold order is what has to change.
+
+### 🥈 05-mtf-structure-bias — one guard, one function
+`pine:offset-literal` ×3, all through `f_struct`. Fold shows only one more
+offset-literal and `hline`. A non-literal offset is refused because the engine's
+offset carries a literal ON the node by construction (that is what makes a
+forward reference inexpressible). Needs either a constant-folder for the offset
+argument, or a refusal that stays. **Measure whether `f_struct`'s offset is
+constant-foldable before committing to this one.**
+
+### 🥉 06-adx-advanced — two addressable walls
+`pine:tuple` on `adxRaw`/`diPlus`/`diMinus` (a UDF returning a tuple — the shape
+just shipped, so re-measure: this may already be closer than it looks) plus
+`pine:block switch` in `f_smooth`. `switch` over constant arms is expressible as
+nested ternaries.
+
+### Behind Phase 5 (loops, `while`, user types)
+- **02-ict** — state, plus `for`, `while`, 7 unparseable statements, 10 fold-level tuples.
+- **20-smc-toolkit** — `ta.pivothigh`, reassign, 3 user types, 5 `for`, 3 `while`.
+- **21-volume-profile** — a `var` nothing updates, plus `for`.
+
+### Structurally out — and each is the CORRECT answer
+- **04-superguppy** — `request.security`. A scan column reads one symbol.
+- **09-on-balance-volume** — `cum`. A true cumulative changes with how many bars
+  were fetched; the engine forbids that by construction.
+- **14-bollinger-fixed** — a DISPLACED plot writes bar *i*'s value at bar *i−n*.
+  Refusing it is the repaint guarantee.
+- **19-strategy-supertrend** — a `strategy()`. Order simulation is a different
+  engine.
+
+## What this changes about how to work
+
+⛔ **Stop picking the guard with the highest count.** `pine:chart-only` appears in
+every single script and blocks nothing — it is `plotshape`/`fill`/`hline`, which a
+column does not need. `pine:statement` appears 21× in one script and is a symptom
+of loops, not a target.
+
+✅ **Pick a script whose whole chain you can clear.** Today that is 10-supertrend,
+and it is one fix. Then re-measure with this same probe rather than assuming the
+next one is 05.
+
+⚠️ **`chart-only` and `statement` counts are noise in this table on purpose.**
+They are recorded so the next reader can see they were considered and rejected,
+not omitted.

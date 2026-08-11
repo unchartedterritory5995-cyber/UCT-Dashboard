@@ -125,6 +125,15 @@ Multi-line, live preview, errors at the character. ⭐ The refusal messages are
 already the best part of this system — they name the token and the reason. They
 need a surface, not a rewrite.
 
+## ⭐ READ FIRST: `2026-08-11-pine-chain-map.md`
+
+Every wall in every refusing script, measured — and the reason this section is
+no longer a to-do list of guards. **The reachable ceiling is 13 of 21, not 21**:
+four scripts are structurally out and refusing them is the CORRECT answer, three
+need Phase 5 (loops / user types), and three are contained work. The chain map
+ranks by whole chains; it names 10-supertrend as the only script in the corpus
+whose entire chain is a single guard.
+
 ## Phase 2 — translator coverage (pasted scripts reach Phase 1)
 
 ### ⭐ PHASE 2 RE-ORDERED 2026-08-11 — measured, and 2.2 turned out to be DONE
