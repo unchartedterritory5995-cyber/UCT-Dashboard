@@ -316,7 +316,32 @@ export default function BuilderSheet({
   }, [])
 
   const mode = result?.verdict?.mode || null
-  const canSave = canSaveFormula(result, acknowledged) && name.trim() !== '' && !saving
+
+  // ⭐⭐ ONE AUTHORITY FOR "CAN THIS SAVE", AND THE HINT IS DERIVED FROM IT.
+  //
+  // ⚰️ A valid formula with an empty Name left Save greyed and said NOTHING —
+  // nothing marked Name required, nothing pointed at it. Measured in production
+  // 2026-08-10 while saving a real TC2000 column.
+  //
+  // ⛔ The hint must not RESTATE the rule. Writing `if (!name.trim()) …` beside
+  // `canSave` would put a second authority on one decision, and the day a gate
+  // moves, the button and its explanation start disagreeing — which is worse than
+  // no explanation, because the member now has a reason that is false. Both read
+  // the same `saveGates` object.
+  const saveGates = useMemo(() => ({
+    formula: canSaveFormula(result, acknowledged),
+    named: name.trim() !== '',
+    idle: !saving,
+  }), [result, acknowledged, name, saving])
+
+  const canSave = saveGates.formula && saveGates.named && saveGates.idle
+
+  // Only the NAME gate gets a sentence here. A formula problem already has the
+  // refusal chip and the repaint notice above — repeating it under the button
+  // would be a second voice for a fact the member can already see.
+  const saveHint = (saveGates.idle && saveGates.formula && !saveGates.named)
+    ? 'Give it a name to save.'
+    : null
 
   // ── focus trap ─────────────────────────────────────────────────────────────
   //
@@ -736,6 +761,10 @@ export default function BuilderSheet({
                 </span>
               )}
             </p>
+          )}
+
+          {saveHint && (
+            <p className={styles.saveHint} data-testid="save-hint">{saveHint}</p>
           )}
 
           <div className={styles.actions}>

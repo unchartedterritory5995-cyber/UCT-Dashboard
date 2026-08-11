@@ -191,7 +191,22 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
   // Groups are DERIVED, in first-appearance order. Adding a definition in a new
   // category brings its own heading; there is no group array to forget to edit —
   // the exact defect the settings modal's hardcoded section list was.
-  const groups = useMemo(() => [...new Set(rows.map((r) => r.category))], [rows])
+  //
+  // ⭐ EXCEPT the member's OWN work, which is hoisted to the front. Derivation put
+  // it LAST — below Momentum, Volatility, Volume and Trend — because a member's
+  // formulas are appended after the natives, so the thing they built took a full
+  // dialog-height of scrolling to reach while every built-in sat above it.
+  // Measured in production 2026-08-10: I saved a formula and could not find it
+  // without searching for it by name.
+  //
+  // ⛔ STILL DERIVED, NOT LISTED. The hoist is a PARTITION of the derived order on
+  // `userDefined`, so a new native category continues to bring its own heading and
+  // there is no second list to keep in step.
+  const groups = useMemo(() => {
+    const order = [...new Set(rows.map((r) => r.category))]
+    const mine = new Set(rows.filter((r) => r.userDefined).map((r) => r.category))
+    return [...order.filter((c) => mine.has(c)), ...order.filter((c) => !mine.has(c))]
+  }, [rows])
 
   const toggle = useCallback((row) => {
     const on = isRowOn(row, settings)
@@ -317,8 +332,16 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
                         {repaintNotice(row)}
                         {/* Tier is shown only when it is NOT free. Every native
                             is free today, so this renders for nothing — which is
-                            why the test asserts its ABSENCE rather than its text. */}
-                        {row.tier && row.tier !== 'free' && (
+                            why the test asserts its ABSENCE rather than its text.
+
+                            ⛔ AND NEVER ON THE MEMBER'S OWN FORMULA. A custom
+                            indicator IS premium-tier, so this badge was true and
+                            still wrong: beside "Your formula", on a row the member
+                            wrote themselves and already has on their chart, the
+                            word "Premium" reads as "you cannot use this". A tier
+                            badge is an offer to someone who does not have it, not
+                            a label on something you already own. */}
+                        {row.tier && row.tier !== 'free' && !row.userDefined && (
                           <span className={styles.tier}>{row.tier}</span>
                         )}
                       </span>

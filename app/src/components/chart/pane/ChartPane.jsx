@@ -2,6 +2,7 @@ import {
   forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState,
 } from 'react'
 import StockChart from '../../StockChart'
+import isModalOpen from '../../../utils/modalOpen'
 import ChartMetaRow from './ChartMetaRow'
 import ChartIdentityRow from './ChartIdentityRow'
 import ChartTfBar from './ChartTfBar'
@@ -377,6 +378,12 @@ function ChartPane({
   }, [])
 
   const handleChartKeyDown = useCallback((e) => {
+    // ⛔⛔ A MODAL IS OPEN => THE PANE DOES NOT CLAIM THE KEY. `SymbolSearch`
+    // deliberately returns focus to this pane when its dropdown closes, so the
+    // pane can still be the focused element while the indicator builder is open
+    // over the chart — and then every character a member types into the builder
+    // opens the ticker search instead. Measured in production 2026-08-10.
+    if (isModalOpen(e.target)) return
     // Bail if the event is bubbling up from an input (search box, etc.).
     const tgt = e.target
     if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' || tgt.isContentEditable)) return

@@ -2,6 +2,7 @@
 // Optimized: chart instance reuse, O(n) HVC, memoized data transforms
 import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
+import isModalOpen from '../utils/modalOpen'
 import useSWR, { mutate as globalMutate } from 'swr'
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, ColorType, LineType, LineStyle } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
@@ -4409,6 +4410,19 @@ export default function StockChart({
       // so the callback form costs zero re-subscribes and zero re-renders.
       const ha = hotkeysActiveRef.current
       if (typeof ha === 'function' ? !ha() : ha === false) return
+      // ⛔⛔ A MODAL IS OPEN => THE CHART DOES NOT GET THE KEY.
+      //
+      // This listener is on `document`, so it fires wherever focus happens to be —
+      // including while the indicator builder is open ON TOP of the chart. The
+      // input-tag guard below is not enough: a dialog is full of buttons, labels
+      // and panels that are none of INPUT/TEXTAREA/SELECT, and `SymbolSearch`
+      // deliberately hands focus BACK to the chart when its dropdown closes.
+      //
+      // ⚰️ MEASURED IN PRODUCTION 2026-08-10: with the New-formula dialog open, a
+      // member's formula keystrokes drove chart shortcuts and opened the ticker
+      // search — a screenshot caught `SMA(CLOSE,` in the symbol box with the
+      // builder still rendered over it.
+      if (isModalOpen(e.target)) return
       // Ignore when typing in inputs/textareas/contentEditable
       const target = e.target
       if (target) {
