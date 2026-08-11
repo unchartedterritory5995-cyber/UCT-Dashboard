@@ -676,6 +676,32 @@ function fillParams(family, firstDigits, dotted, token) {
   return values
 }
 
+/** TC2000 FUNDAMENTAL words → a declared scalar, carrying the unit conversion.
+ *
+ *  ⛔ EVERY ENTRY MUST STATE ITS UNIT RELATIONSHIP, and an entry whose units
+ *  already agree still says so, because "no conversion" and "conversion nobody
+ *  wrote" are indistinguishable in the code and one of them is a silent bug.
+ *
+ *  ⛔ AND EACH ONE READS THE SCALAR OFF THE TABLE rather than trusting that it is
+ *  there — a fundamental this manifest stops declaring must refuse by name, not
+ *  build a tree over a column that no longer exists.
+ */
+const PCF_SCALARS = Object.freeze({
+  // TC2000: millions of USD.  This table: float USD.  → divide by 1e6.
+  CAPITALIZATION: (table, token) => scalarInMillions(table, token, 'market_cap'),
+  MARKETCAP: (table, token) => scalarInMillions(table, token, 'market_cap'),
+})
+
+/** A scalar the member writes in millions, expressed in the table's own units. */
+function scalarInMillions(table, token, name) {
+  if (!own(table.scalars || {}, name)) {
+    refuse('pcf:name',
+      `\`${token.text}\` reads \`${name}\`, which this table does not declare`,
+      token.index, token.text)
+  }
+  return opNode('/', [seriesNode(name), num(1000000)])
+}
+
 /** One fused token → a canonical node. */
 function readFused(table, token, letters, nodeTypes) {
   const { base, dotted } = splitDotted(token)
@@ -778,6 +804,33 @@ function readFused(table, token, letters, nodeTypes) {
     const call = callNode(family.fn, [...series.map(seriesNode), ...ints.map(num)])
     const off = values.offset
     return off ? applyOffset(nodeTypes, call, off.value, off.index, token.text) : call
+  }
+
+  // ⭐⭐ A TC2000 FUNDAMENTAL, MAPPED ONTO A DECLARED SCALAR — WITH ITS UNIT.
+  //
+  // ⛔⛔ THE UNIT IS THE WHOLE JOB, AND GETTING IT WRONG WOULD BE SILENT. TC2000
+  // states capitalisation in MILLIONS — a $250M company reads `250` — while this
+  // table's `market_cap` is float USD straight off `get_market_cap`. Mapping the
+  // name alone would turn every real screen (`Capitalization > 250`) into
+  // "bigger than two hundred and fifty dollars", which passes the entire universe
+  // and reports a market-cap floor that is not there. Nothing refuses, nothing
+  // looks wrong, and the member's scan quietly stops filtering.
+  //
+  // So the CONVERSION RIDES ON THE NAME, because that is what the name means: the
+  // TC2000 word `Capitalization` denotes market cap in millions, and this is the
+  // expression for it. The read-back says `divided by 1000000` out loud, which is
+  // how a member confirms we read their threshold the way they meant it.
+  const scalarFn = PCF_SCALARS[upper]
+  if (scalarFn) {
+    if (dotted.length) {
+      // ⛔ A nightly scalar has no bar to be offset FROM. `Capitalization.1` is a
+      // question this data cannot answer, and answering it with today's value
+      // would be a fabricated history.
+      refuse('pcf:offset',
+        `\`${token.text}\` is a fundamental, and a fundamental has no bar offset`,
+        dotted[0].index, token.text)
+    }
+    return scalarFn(table, token)
   }
 
   // ⭐ A LOOK-ALIKE GETS ITS OWN SENTENCE. `RSI14` refusing with the same words as
@@ -1195,6 +1248,12 @@ const PCF_MARKERS = [
   /\bMOD\b(?!\s*\()/i,
   /<>/,
   /\b(X?AVG|MAX|MIN)[COHLV]\d/i,
+  // ⛔ THE FUNDAMENTALS MUST BE MARKERS TOO, for exactly the reason `BOP` was:
+  // `Capitalization > 250` carries no price letter and no fused indicator, so
+  // without this it is DETECTED as native, handed to the wrong reader, and
+  // refused at `sentence:name` for a spelling the TC2000 reader knows perfectly
+  // well. Neither word is a native name, so no native formula can be captured.
+  /\b(CAPITALIZATION|MARKETCAP)\b/i,
   // ⛔ EVERY FUSED FAMILY THIS READER ACCEPTS MUST APPEAR HERE, or the source
   // parses as TC2000 and is DETECTED as native — handed to the wrong reader, then
   // refused for a reason that has nothing to do with the script. `BOP` was added
