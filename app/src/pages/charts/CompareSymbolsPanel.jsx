@@ -8,21 +8,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import UIcon from '../../components/ui/UIcon'
 import { pickComparisonColor } from '../../components/chart/comparisonUtils'
-import styles from './PeriodSortPanel.module.css'
 import c from './CompareSymbolsPanel.module.css'
 
 const DEF_W = 288, MIN_W = 220
-// Fixed DARK menu palette — chart popovers stay dark in every app theme (the
-// shared .panel + this body key off --menu-*; without pinning them the panel
-// inherited the light theme's near-white values and read as invisible text).
-const MENU_VARS = {
-  '--menu-bg': '#15161a',
-  '--menu-text': '#ececef',
-  '--menu-border': '#33343a',
-  '--menu-accent': 'var(--ut-gold, #c9a84c)',
-  '--menu-hover': 'rgba(255, 255, 255, 0.07)',
-  '--menu-shadow': 'rgba(0, 0, 0, 0.6)',
-}
 
 // Center the panel on the ACTIVE chart widget (via the chart api's getRect),
 // falling back to the viewport centre.
@@ -124,13 +112,11 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
   }
 
   return (
-    <div className={styles.panel} style={{ ...MENU_VARS, left: pos.x, top: pos.y, width, height: 'auto' }}>
-      <div className={styles.header} onPointerDown={onHeaderPointerDown}>
-        <span className={styles.grip} aria-hidden="true" />
+    <div className={c.root} style={{ left: pos.x, top: pos.y, width, height: 'auto' }}>
+      <div className={c.header} onPointerDown={onHeaderPointerDown}>
+        <span className={c.grip} aria-hidden="true" />
         <span className={c.title}>Compare Symbols</span>
-        <div className={styles.headBtns} data-no-drag>
-          <button type="button" className={styles.close} onClick={onClose} title="Close" aria-label="Close"><UIcon name="x" size={13} gold={false} /></button>
-        </div>
+        <button type="button" className={c.close} data-no-drag onClick={onClose} title="Close" aria-label="Close"><UIcon name="x" size={13} gold={false} /></button>
       </div>
 
       <div className={c.body}>
@@ -166,10 +152,10 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
             ))}
           </div>
         )}
-        <div className={c.hint}>Normalized to 0% at the left edge of the visible range.</div>
+        <div className={c.hint}>Normalized to 0% at the left edge of the framed range.</div>
       </div>
 
-      <span className={`${styles.corner} ${styles.cornerSE}`} onPointerDown={startResize} />
+      <span className={c.corner} onPointerDown={startResize} />
     </div>
   )
 }
