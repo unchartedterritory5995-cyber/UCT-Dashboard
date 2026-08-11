@@ -332,10 +332,18 @@ export function lastAnchorIdx(bars, anchorDate) {
 // same LWC marker objects the news category does, into the same `mergedMarkers`
 // array, and is gated by the same `cs.markers.<key>` switch.
 //
-// Timeframe: date-only events, so they follow the earnings/splits/dividends rule
-// (`isDailyWeekly`) rather than the news rule. A mention carries an `anchor_date`
-// and nothing finer — on a 5-minute chart there is no bar a bare 'YYYY-MM-DD' can
-// sit on, and LWC would drop or mis-place it.
+// Timeframe: date-only events, so they are daily-and-up only, like the
+// earnings/splits/dividends categories rather than news. A mention carries an
+// `anchor_date` and nothing finer — on an intraday chart there is no bar a bare
+// 'YYYY-MM-DD' can sit on, and a date STRING mixed into a numeric-time marker array
+// makes `mergedMarkers`' localeCompare sort hand LWC a non-ascending list.
+//
+// ⚠️ The predicate is `parseTf(...).minutes != null`, NOT the sibling categories'
+// hand-written `!['1','5','15','30','60'].includes(tf)`. That literal is the NATIVE
+// intraday codes only; TF_MENU also offers '45', '120', '240' … which it lets
+// through as if they were daily. Using the parser makes the set impossible to
+// under-count, and an UNPARSEABLE code yields NaN — which `!= null` treats as
+// intraday, i.e. draws nothing. Refusing is the safe answer for a code we can't read.
 //
 // One marker per DAY: a session that discussed the symbol twice is still ONE dot.
 //
@@ -363,14 +371,18 @@ function _mentionSeek(m) {
   return Number.isFinite(n) ? n : Infinity
 }
 export function buildDeskMentionMarkers(mentions, resolvedTf) {
-  const isDailyWeekly = !['1', '5', '15', '30', '60'].includes(resolvedTf)
-  if (!isDailyWeekly || !Array.isArray(mentions)) return []
+  if (parseTf(resolvedTf).minutes != null) return []
+  if (!Array.isArray(mentions)) return []
   const byDay = new Map()   // insertion order = payload order = newest day first
   for (const m of mentions) {
     const day = m?.anchor_date
     if (!day || typeof day !== 'string') continue
     const held = byDay.get(day)
     if (!held) { byDay.set(day, m); continue }
+    // "Same video" has to be PROVEN before one row may replace another. Without the
+    // null bail, two id-less rows both stringify to 'null' and compare EQUAL, so a
+    // second show's mention could overwrite the day's newest on `t` alone.
+    if (held.video_id == null || m.video_id == null) continue
     // Another video on the same day is always the OLDER session — never replaces.
     if (String(held.video_id) !== String(m.video_id)) continue
     if (_mentionSeek(m) < _mentionSeek(held)) byDay.set(day, m)
@@ -382,8 +394,13 @@ export function buildDeskMentionMarkers(mentions, resolvedTf) {
       position: 'belowBar',
       color: DESK_MARKER_COLOR,
       shape: 'circle',
-      text: 'D',
+      // The spec's gold ◆. A letter would have collided with the dividends badge,
+      // which already draws a blue 'D' on the same chart.
+      text: '◆',
       size: 0.8,
+      // ⚠️ LOAD-BEARING, not decoration: lightweight-charts surfaces a marker's `id`
+      // as `param.hoveredObjectId`, and the click handler's gate is built on the
+      // 'desk-' prefix. Renaming this breaks the gate, not just a lookup key.
       id: `desk-${day}`,
       _deskMention: m,
     })
@@ -412,7 +429,7 @@ import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, mergeDelta } from '../utils/barsIDB'
 import { memPeek, memPut } from '../utils/barsMemCache'
 import { resample, resampleForSpec } from '../utils/resampleBars'
-import { isNativeTf, fetchTf, resampleSpec } from './chart/timeframes'
+import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
 import { barsRenderPlan } from './chart/renderPlan'
 import ChartSkeleton from './chart/ChartSkeleton'
 import { normalizeToPctChange } from './chart/comparisonUtils'
@@ -11094,10 +11111,18 @@ export default function StockChart({
   }, [newsMarkers, resolvedTf])
 
   // ── Desk-mention marker click → the Desk session, seeked to the mention ──
-  // Byte-for-byte the news matcher above (LWC exposes no marker-click event, so we
-  // subscribe to every click and match the clicked time within half a bar) — the two
-  // categories must stay ONE pattern. Desk markers only exist on daily/weekly, whose
-  // time is a 'YYYY-MM-DD' string, so the numeric branch is defensive rather than live.
+  // The time matcher below is the news category's, but this handler does NOT stop
+  // there, and must not be "simplified" back to it.
+  //
+  // ⛔⭐ `param.time` IS THE WHOLE BAR COLUMN. It answers the same for a click on the
+  // marker and for a click on the candle 200px above it — so a time-only handler
+  // turns every ordinary click on a mention day into a full-app navigation. News gets
+  // away with it because it opens a new tab; this one replaces the page.
+  // THE GATE is `param.hoveredObjectId`: lightweight-charts reports the id of the
+  // object actually under the cursor, and our markers carry `id: 'desk-<date>'`. Only
+  // once that prefix matches does the time lookup run, and it runs to answer WHICH
+  // mention — the gate decides IF, the time decides WHICH.
+  // (Nothing else in this repo sets a marker id, so the prefix cannot collide.)
   //
   // ⚠️ NAVIGATION: StockChart has NO router context — it renders inside popups and the
   // Model Book, and its own suites mount it bare (see StockChart.anchor.test.jsx), so a
@@ -11113,6 +11138,9 @@ export default function StockChart({
     const tfSec = PERIOD_SECONDS[resolvedTf] || (resolvedTf === 'D' ? 23400 : 86400)
     const handler = (param) => {
       if (!param || param.time == null) return
+      // IF: the click landed on a desk marker object, not merely in its column.
+      if (!String(param.hoveredObjectId ?? '').startsWith('desk-')) return
+      // WHICH: same half-bar tolerance idiom the news matcher uses.
       const matching = deskMarkers.find(m => {
         if (typeof m.time === 'number' && typeof param.time === 'number') {
           return Math.abs(m.time - param.time) < tfSec * 0.5

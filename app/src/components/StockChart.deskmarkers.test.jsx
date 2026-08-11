@@ -93,6 +93,21 @@ const FIXTURE_BARS = BAR_DATES.map((t, i) => ({ t, o: 10 + i, h: 11 + i, l: 9 + 
 const DAY_A = BAR_DATES[150]
 const DAY_B = BAR_DATES[120]
 const DAY_C = BAR_DATES[90]
+// Intraday series (unix SECONDS, 5 RTH bars/weekday) — the custom-TF test resamples,
+// and the resampler reads real clock times, so daily date strings cannot feed it.
+const INTRADAY_BARS = (() => {
+  const out = []
+  for (let day = Date.UTC(2026, 0, 5); out.length < 200; day += 86400000) {
+    const dow = new Date(day).getUTCDay()
+    if (dow === 0 || dow === 6) continue
+    for (const hour of [15, 16, 17, 18, 19]) {
+      const i = out.length
+      out.push({ t: (day + hour * 3600000) / 1000, o: 10 + i, h: 11 + i, l: 9 + i, c: 10.5 + i, v: 1000 + i })
+    }
+  }
+  return out
+})()
+
 const MENTIONS = [
   { video_id: 9, youtube_id: 'ytA1', title: 'Session A', anchor_date: DAY_A, t: 612, note: 'first look' },
   { video_id: 9, youtube_id: 'ytA1', title: 'Session A', anchor_date: DAY_A, t: 1804, note: 'revisited late' },
@@ -101,6 +116,20 @@ const MENTIONS = [
   { video_id: 12, youtube_id: 'ytC_new', title: 'Evening Update', anchor_date: DAY_C, t: 300, note: 'opening take' },
   { video_id: 3, youtube_id: 'ytC_old', title: 'Morning Prep', anchor_date: DAY_C, t: 30, note: 'watchlist' },
 ]
+
+// ⚠️ The bars response must MATCH the requested timeframe. `barsOverride` does not
+// stop the chart fetching a base series, and a CUSTOM code (e.g. '240') resamples
+// whatever comes back — feeding daily 'YYYY-MM-DD' bars into the intraday resampler
+// throws `RangeError: Invalid time value` from a rAF, which surfaces as an unhandled
+// error rather than a test failure. Serve unix-second bars whenever `tf` is numeric.
+const barsOrPayload = (url) => {
+  if (url.includes('/api/bars/')) {
+    const tf = new URLSearchParams(url.split('?')[1] || '').get('tf') || 'D'
+    return { ticker: 'AAPL', bars: /^\d+$/.test(tf) ? INTRADAY_BARS : FIXTURE_BARS }
+  }
+  if (url.includes('/mentions')) return { mentions: MENTIONS, as_of: '2026-02-20' }
+  return {}
+}
 
 // SWR dedupes across tests by cache key; a fresh provider per render is the cheap
 // alternative to clearing its global cache, and `sym` is varied where it matters.
@@ -111,10 +140,7 @@ beforeEach(() => {
   lw.clickHandlers = []
   fetchSpy = vi.fn((url) => Promise.resolve({
     ok: true,
-    json: () => Promise.resolve(
-      String(url).includes('/api/bars/') ? { ticker: 'AAPL', bars: FIXTURE_BARS }
-        : String(url).includes('/mentions') ? { mentions: MENTIONS, as_of: '2026-02-20' }
-          : {}),
+    json: () => Promise.resolve(barsOrPayload(String(url))),
   }))
   vi.stubGlobal('fetch', fetchSpy)
 })
@@ -157,23 +183,47 @@ describe('buildDeskMentionMarkers', () => {
     expect(buildDeskMentionMarkers(rows, 'D')[0]._deskMention.t).toBe(45)
   })
 
+  // Two id-less rows both stringify to 'null'. Without the null bail they compare
+  // EQUAL, so the second show's lower t silently overwrites the day's newest session.
+  it('rows with no video_id never claim to be the same session', () => {
+    const rows = [
+      { youtube_id: 'ytNewest', anchor_date: '2026-02-02', t: 500 },
+      { youtube_id: 'ytOlder', anchor_date: '2026-02-02', t: 10 },
+    ]
+    const [only] = buildDeskMentionMarkers(rows, 'D')
+    expect(only._deskMention.youtube_id).toBe('ytNewest')   // the day's first row holds
+    expect(only._deskMention.t).toBe(500)
+  })
+
   it('maps anchor_date straight to marker time and carries the category style', () => {
     const [a] = buildDeskMentionMarkers(MENTIONS, 'D')
     expect(a.time).toBe(DAY_A)                        // the DATE, not a re-derived one
     expect(a.position).toBe('belowBar')
     expect(a.shape).toBe('circle')
     expect(a.color).toBe(DESK_MARKER_COLOR)
-    expect(a.text).toBe('D')
+    expect(a.text).toBe('◆')                          // the spec's gold diamond
+    // The id is the click handler's GATE (hoveredObjectId startsWith 'desk-'), not a
+    // cosmetic key — assert the prefix the gate reads, not just the whole string.
     expect(a.id).toBe(`desk-${DAY_A}`)
+    expect(a.id.startsWith('desk-')).toBe(true)
   })
 
-  it('refuses every intraday timeframe, and serves the daily/weekly/monthly ones', () => {
-    for (const tf of ['1', '5', '15', '30', '60']) {
+  it('refuses every intraday timeframe, and serves the daily-and-up ones', () => {
+    // ⚠️ NOT just the 5 NATIVE intraday codes. TF_MENU also offers 45m/2h/4h, and the
+    // hand-written `!['1','5','15','30','60']` predicate the sibling categories use
+    // lets those through as if they were daily — which mixes date STRINGS into a
+    // numeric-time marker array. These are the codes that catch that.
+    for (const tf of ['1', '2', '5', '15', '30', '45', '60', '120', '240']) {
       expect(buildDeskMentionMarkers(MENTIONS, tf)).toEqual([])
     }
-    for (const tf of ['D', 'W', 'M', '3D']) {
+    for (const tf of ['D', '2D', '3D', 'W', '2W', 'M', '3M']) {
       expect(buildDeskMentionMarkers(MENTIONS, tf).length).toBe(3)
     }
+  })
+
+  it('an unreadable timeframe code draws nothing (refusing is the safe answer)', () => {
+    expect(buildDeskMentionMarkers(MENTIONS, 'wat')).toEqual([])
+    expect(buildDeskMentionMarkers(MENTIONS, undefined)).toEqual([])
   })
 
   it('is null-safe: undefined/null/non-array/empty and dateless rows all yield []', () => {
@@ -258,28 +308,65 @@ describe('desk markers reach the chart', () => {
     expect(deskMarkersDrawn()).toEqual([])
   })
 
+  // A CUSTOM intraday code, mounted. '240' is not in the sibling categories' native
+  // literal, so the old predicate called it daily and let date strings into a
+  // numeric-time markers array. Asserted on the real chart, not just the builder.
+  it('a custom intraday code (4h) draws none of them either', async () => {
+    render(<StockChart sym="WIRE4" tf="240" barsOverride={INTRADAY_BARS}
+      settingsOverride={{ markers: { desk: true } }} />)
+    await waitFor(() => expect(lw.markerSets.length).toBeGreaterThan(0), { timeout: 3000 })
+    await new Promise(r => setTimeout(r, 60))
+    expect(deskMarkersDrawn()).toEqual([])
+  })
+
   // THE CLICK WIRE. LWC has no marker-click event, so the handler is one of several
   // the chart subscribes; fire them all and assert the navigation the desk one owns.
-  it('clicking a desk marker\'s bar navigates to that day\'s Desk session + seek', async () => {
+  // A click on the MARKER carries hoveredObjectId (LWC reports the object under the
+  // cursor); a click elsewhere in the same bar column carries the same `param.time`
+  // and no id — which is exactly the difference these two tests turn on.
+  const clickMarker = (day) => {
+    for (const h of [...lw.clickHandlers]) h({ time: day, point: { x: 10, y: 10 }, hoveredObjectId: `desk-${day}` })
+  }
+  const clickBareBar = (day) => {
+    for (const h of [...lw.clickHandlers]) h({ time: day, point: { x: 10, y: 10 } })
+  }
+
+  it('clicking a desk marker navigates to that day\'s Desk session + seek', async () => {
     const open = vi.spyOn(window, 'open').mockImplementation(() => null)
     render(<StockChart sym="CLICK1" tf="D" barsOverride={FIXTURE_BARS}
       settingsOverride={{ markers: { desk: true } }} />)
     await waitFor(() => expect(deskMarkersDrawn()).toHaveLength(3), { timeout: 3000 })
 
-    for (const h of [...lw.clickHandlers]) h({ time: DAY_A, point: { x: 10, y: 10 } })
+    clickMarker(DAY_A)
     expect(open).toHaveBeenCalledWith('/desk?section=videos&v=ytA1&t=612', '_self')
 
     // The OTHER days resolve to their OWN video — a handler that always opened the
     // first mention would pass the assertion above.
     open.mockClear()
-    for (const h of [...lw.clickHandlers]) h({ time: DAY_B, point: { x: 10, y: 10 } })
+    clickMarker(DAY_B)
     expect(open).toHaveBeenCalledWith('/desk?section=videos&v=ytB2&t=0', '_self')
 
     // …and the two-show day opens the NEWEST session of that day, seeked to where it
     // first discussed the symbol.
     open.mockClear()
-    for (const h of [...lw.clickHandlers]) h({ time: DAY_C, point: { x: 10, y: 10 } })
+    clickMarker(DAY_C)
     expect(open).toHaveBeenCalledWith('/desk?section=videos&v=ytC_new&t=300', '_self')
+    open.mockRestore()
+  })
+
+  // ⛔⭐ THE REGRESSION THIS CATEGORY IS MOST LIKELY TO SHIP. `param.time` is the whole
+  // bar COLUMN, so without the hoveredObjectId gate an ordinary candle click on a
+  // mention day replaces the entire app with /desk. Same time, same bar, no marker.
+  it('clicking the CANDLE on a mention day — not the marker — navigates nowhere', async () => {
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null)
+    render(<StockChart sym="CLICK3" tf="D" barsOverride={FIXTURE_BARS}
+      settingsOverride={{ markers: { desk: true } }} />)
+    await waitFor(() => expect(deskMarkersDrawn()).toHaveLength(3), { timeout: 3000 })
+    clickBareBar(DAY_A)
+    expect(open).not.toHaveBeenCalled()
+    // …and a hovered object that belongs to some OTHER primitive is not ours either.
+    for (const h of [...lw.clickHandlers]) h({ time: DAY_A, point: { x: 10, y: 10 }, hoveredObjectId: 'earnings-badge-1' })
+    expect(open).not.toHaveBeenCalled()
     open.mockRestore()
   })
 
@@ -288,7 +375,7 @@ describe('desk markers reach the chart', () => {
     render(<StockChart sym="CLICK2" tf="D" barsOverride={FIXTURE_BARS}
       settingsOverride={{ markers: { desk: true } }} />)
     await waitFor(() => expect(deskMarkersDrawn()).toHaveLength(3), { timeout: 3000 })
-    for (const h of [...lw.clickHandlers]) h({ time: BAR_DATES[7], point: { x: 10, y: 10 } })
+    clickMarker(BAR_DATES[7])
     expect(open).not.toHaveBeenCalled()
     open.mockRestore()
   })
