@@ -13,6 +13,7 @@
  * Appearance (canvas/text/palette) stays the global ⚙ pref (breadth_widget_settings).
  */
 import { useCallback, useMemo, useRef, useState, useEffect, useLayoutEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { mutate as globalMutate } from 'swr'
 import useMobileSWR from '../../../hooks/useMobileSWR'
@@ -117,9 +118,32 @@ function HeatmapView({ currentRow, visibleKeys, onDrill, onRemove, cellColors, t
   )
 }
 
-// ── ＋ menu: every reading, grouped, with a checkmark on the shown ones ──
-function AddMenu({ hidden, onToggle, onClose, anchorEl, themeVars }) {
+// ── ＋ menu: every reading, grouped, with a checkmark on the shown ones. Opens
+// BESIDE the widget (portaled to <body>, placed toward the layout middle) just
+// like the ⚙ settings panel — so it never covers the tiles you're toggling. ──
+const ADD_MENU_W = 244
+function AddMenu({ hidden, onToggle, onClose, anchorEl, hostEl, themeVars }) {
   const ref = useRef(null)
+  const [pos, setPos] = useState(null)
+  useLayoutEffect(() => {
+    if (!hostEl) return undefined
+    const place = () => {
+      const r = hostEl.getBoundingClientRect()
+      const gap = 8
+      const preferRight = (r.left + r.width / 2) < window.innerWidth / 2
+      let left = preferRight ? r.right + gap : r.left - gap - ADD_MENU_W
+      if (preferRight && left + ADD_MENU_W > window.innerWidth - 8) left = r.left - gap - ADD_MENU_W
+      if (!preferRight && left < 8) left = Math.min(window.innerWidth - ADD_MENU_W - 8, r.right + gap)
+      left = Math.max(8, Math.min(left, window.innerWidth - ADD_MENU_W - 8))
+      let top = Math.max(8, r.top)
+      const h = Math.min(Math.round(window.innerHeight * 0.72), 560)
+      if (top + h > window.innerHeight - 8) top = Math.max(8, window.innerHeight - 8 - h)
+      setPos({ left: Math.round(left), top: Math.round(top) })
+    }
+    place()
+    window.addEventListener('resize', place)
+    return () => window.removeEventListener('resize', place)
+  }, [hostEl])
   useEffect(() => {
     const onDown = (e) => {
       if (ref.current?.contains(e.target)) return
@@ -131,8 +155,12 @@ function AddMenu({ hidden, onToggle, onClose, anchorEl, themeVars }) {
     window.addEventListener('keydown', onKey)
     return () => { clearTimeout(t); document.removeEventListener('mousedown', onDown); window.removeEventListener('keydown', onKey) }
   }, [onClose, anchorEl])
-  return (
-    <div ref={ref} className={styles.addMenu} style={themeVars || undefined}>
+  return createPortal((
+    <div
+      ref={ref}
+      className={styles.addMenu}
+      style={{ ...(themeVars || {}), width: ADD_MENU_W, ...(pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }) }}
+    >
       <div className={styles.addMenuHead}>Readings</div>
       <div className={styles.addMenuScroll}>
         {HEATMAP_GROUPS.map(g => {
@@ -155,7 +183,7 @@ function AddMenu({ hidden, onToggle, onClose, anchorEl, themeVars }) {
         })}
       </div>
     </div>
-  )
+  ), document.body)
 }
 
 export default function BreadthWidget({ opts, onOptsChange }) {
@@ -263,7 +291,7 @@ export default function BreadthWidget({ opts, onOptsChange }) {
         {addOpen && (
           <AddMenu
             hidden={hidden} onToggle={toggleMetric} onClose={() => setAddOpen(false)}
-            anchorEl={addBtnRef.current} themeVars={bwMenuVars}
+            anchorEl={addBtnRef.current} hostEl={rootRef.current} themeVars={bwMenuVars}
           />
         )}
       </div>

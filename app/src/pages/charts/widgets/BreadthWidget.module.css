@@ -284,14 +284,13 @@
 .footerRefreshSpin { animation: bwSpin 0.7s linear infinite; }
 @keyframes bwSpin { to { transform: rotate(360deg); } }
 
-/* ── ＋ add/remove menu (grouped checklist), anchored under the ＋ button ── */
+/* ── ＋ add/remove menu (grouped checklist). Portaled to <body> + placed BESIDE
+   the widget (fixed coords from JS), like the ⚙ settings panel. ── */
 .addMenu {
-  position: absolute;
-  top: calc(100% + 2px);
-  right: 6px;
-  z-index: 60;
-  width: 240px;
-  max-height: 60vh;
+  position: fixed;
+  z-index: 4000;
+  width: 244px;
+  max-height: 72vh;
   display: flex;
   flex-direction: column;
   background: var(--menu-bg, #0c0c0e);
