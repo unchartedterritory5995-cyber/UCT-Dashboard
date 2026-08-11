@@ -9,9 +9,14 @@ dollar volume so the most liquid appear first. Consumed by api/services/watchlis
 Run: railway run --service web -- python tools/build_prebuilt_lists.py
 """
 import os
+import sys
 import json
 import datetime
 import urllib.request
+
+# Run as a loose script (python tools/build_prebuilt_lists.py) puts tools/ on sys.path,
+# not the repo root — add the repo root so `from api.services import ...` resolves.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 KEY = os.environ.get("MASSIVE_API_KEY", "")
 BASE = "https://api.massive.com"
@@ -148,6 +153,20 @@ def main():
         if missing:
             print(f"  {name}: dropped (no data): {missing}")
         lists.append({"name": name, "desc": desc, "category": "UCT ETF Lists", "tickers": kept})
+
+    # UCT Index Components — constituent lists from FMP, $vol-sorted. Appended AFTER the
+    # ETF lists so the picker's first-seen category order is ETF → Index → Breadth (breadth
+    # is appended last, in code, by watchlist_prebuilt._breadth_lists). These are the committed
+    # SEED; watchlist_prebuilt_refresh keeps them fresh via the durable overlay.
+    from api.services import index_constituents as ic
+    idx = ic.fetch_index_lists(os.environ.get("FMP_API_KEY", ""))
+    for name, desc, _kind, _source, _floor in ic.INDEX_LISTS:
+        ticks = idx.get(name)
+        if not ticks:
+            print(f"  {name}: FMP returned nothing / below floor — SKIPPED")
+            continue
+        ticks = sorted(ticks, key=lambda t: dvol.get(t.upper(), 0), reverse=True)
+        lists.append({"name": name, "desc": desc, "category": ic.CATEGORY, "tickers": ticks})
 
     json.dump(lists, open(OUT, "w", encoding="utf-8"), separators=(",", ":"))
     print(f"\nwrote {len(lists)} lists -> {OUT}")
