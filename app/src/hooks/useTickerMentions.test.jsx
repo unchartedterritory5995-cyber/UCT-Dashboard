@@ -81,6 +81,42 @@ describe('useTickerMentions', () => {
     })
   })
 
+  // ── Regression: loading must SETTLE on a persistent failure ────────────
+  // The throw-on-!ok fetcher above never resolves `data` on error — only
+  // `error`. `loading: key != null && data === undefined` ALONE (the shape
+  // useVideoInsights/useVideoTranscript use) never flips false here, because
+  // those sibling hooks pair it with a resolve-null fetcher where `data`
+  // settles to `null` on failure. Without `&& !error`, the Desk tab would show
+  // an endless loading skeleton instead of the empty state on a cold/down
+  // backend — exactly the scenario the throwing fetcher exists to retry
+  // through. Tests the REAL hook (no hook-level mock) end to end.
+  it('a persistent failure settles loading to false — never an endless skeleton', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    vi.spyOn(global, 'fetch').mockResolvedValue({ ok: false, status: 500 })
+    const { result, unmount } = renderHook(
+      () => useTickerMentions('NVDA', { enabled: true }), { wrapper })
+    // Flush the FIRST attempt's promise chain (not timer-driven) — loading
+    // must already be settled false right after the first failure, not only
+    // after retries exhaust.
+    await act(async () => {
+      await Promise.resolve()
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    expect(result.current).toEqual({ mentions: [], loading: false })
+    // Advance well past the FULL errorRetryCount: 4 / errorRetryInterval: 4000
+    // backoff window (max possible: 4 retries * 1.5x jitter * 4000ms ≈ 24s) —
+    // 180s clears it with a wide margin, mirroring the reviewer's repro.
+    // loading must stay settled false throughout every retry, not flip back.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(180_000)
+    })
+    expect(result.current).toEqual({ mentions: [], loading: false })
+    unmount()
+    vi.useRealTimers()
+  })
+
   it('error → empties (never throws into render), with no unhandled rejection noise', async () => {
     // Fake timers, not an SWRConfig-level errorRetryCount override: the hook
     // bakes its own errorRetryCount/errorRetryInterval into the useSWR call

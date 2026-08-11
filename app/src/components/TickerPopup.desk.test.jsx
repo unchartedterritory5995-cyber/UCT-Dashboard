@@ -97,6 +97,11 @@ describe('TickerPopup Desk tab', () => {
     expect(screen.getByText(/Loading Desk sessions/i)).toBeInTheDocument()
   })
 
+  // { mentions: [], loading: false } is also exactly what useTickerMentions
+  // now settles to after a PERSISTENT fetch failure (see
+  // useTickerMentions.test.jsx's "a persistent failure settles loading to
+  // false" regression test) — this confirms the popup renders the empty
+  // state, not an endless skeleton, in that case too.
   it('empty state reads "No Desk sessions have covered {SYM} yet."', () => {
     mentionsReturn = { mentions: [], loading: false }
     openDeskTab()

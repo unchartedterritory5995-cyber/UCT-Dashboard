@@ -16,7 +16,7 @@ export async function fetcher(url) {
 
 export function useTickerMentions(sym, { enabled = true } = {}) {
   const key = sym && enabled ? `/api/education/tickers/${sym}/mentions` : null
-  const { data } = useSWR(key, fetcher, {
+  const { data, error } = useSWR(key, fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 300_000,
     // Same retry cadence as useTickerMeta.js — ~4s backoff self-heals a
@@ -27,6 +27,15 @@ export function useTickerMentions(sym, { enabled = true } = {}) {
   })
   return {
     mentions: Array.isArray(data?.mentions) ? data.mentions : [],
-    loading: key != null && data === undefined,
+    // `data === undefined` alone never settles on a PERSISTENT failure: the
+    // throw-on-!ok fetcher above (by design — see its comment) never resolves
+    // `data` on error, only `error`. The sibling hooks that use this same
+    // `key != null && data === undefined` shape (useVideoInsights,
+    // useVideoTranscript) pair it with a resolve-null fetcher, where `data`
+    // settles to `null` (not `undefined`) on failure — that's what makes
+    // `data === undefined` a valid "still loading" proxy there. Here it isn't,
+    // so `!error` is required too: once SWR has an error, we are no longer
+    // loading — the Desk tab must reach the empty state, not spin forever.
+    loading: key != null && data === undefined && !error,
   }
 }

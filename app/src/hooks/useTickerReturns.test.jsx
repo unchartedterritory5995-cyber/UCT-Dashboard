@@ -83,13 +83,23 @@ describe('useTickerReturns', () => {
   // seconds intent as useTickerMeta, instead of SWR's un-set/unlimited
   // default. Asserted by capturing the literal options object the hook hands
   // useSWR (via vi.doMock, isolated to this one test with resetModules)
-  // rather than by counting real retry fetches: this hook's OWN
-  // dedupingInterval: 300_000 means SWR's request-coalescing (`FETCH[key]`
-  // persists until dedupingInterval elapses — see swr's revalidate()) absorbs
-  // a retry landing well inside that window as a deduped no-op that never
-  // calls the fetcher again — the exact same interaction useTickerMeta.js
-  // already ships with. A network-call-count test would be asserting
-  // behavior SWR doesn't actually produce here; the options are the contract.
+  // rather than by counting real retry fetches over a faked clock — simplest/
+  // most deterministic way to pin the two literal values without fighting
+  // SWR's jittered backoff timing.
+  //
+  // CORRECTION (this comment previously claimed dedupingInterval: 300_000
+  // would absorb a retry as a deduped no-op that never re-calls the fetcher —
+  // that was WRONG, verified against swr's revalidate() source: on the ERROR
+  // path, the catch block's very first line is `cleanupState()`, which
+  // deletes FETCH[key] SYNCHRONOUSLY before onErrorRetry's setTimeout is even
+  // scheduled. So by the time a retry's revalidate() runs, FETCH[key] is
+  // already gone, `shouldStartNewRequest` is true regardless of the retry's
+  // `dedupe: true`, and the fetcher genuinely gets called again. dedupingInterval
+  // only spans the SUCCESS path (`setTimeout(cleanupState, dedupingInterval)`
+  // right after a successful `await`, deduping subsequent normal
+  // revalidations like focus/reconnect/remount) — it does not touch retries
+  // at all. Retries on this hook (and useTickerMeta.js, which ships the same
+  // shape) do re-fire on the ~4s cadence.
   it('passes errorRetryCount: 4 and errorRetryInterval: 4000 to useSWR', async () => {
     vi.resetModules()
     let seenOpts = null
