@@ -6947,6 +6947,55 @@ async def _oi_create_indexes():
         return {"ok": False, "error": str(e)}
 
 
+@app.post("/api/oi/latest-batch")
+async def _oi_latest_batch(request: Request,
+                           _user: dict = Depends(get_current_user)):
+    """Latest OI snapshot for a batch of contracts — powers the Leaderboard's
+    FULL-COVERAGE still-open ranking. This is a fast DB lookup over stored OI
+    snapshots (NOT a live Schwab call), so the board can price EVERY contract of
+    EVERY ticker instead of the top-3 a live fetch is limited to. OI is a
+    once-daily OCC figure, so the EOD snapshot is the correct source for
+    "is this position still on the book."
+
+    Body: {"contracts": [{"sym","cp","strike","exp"}, ...]}  (exp = M/D/YYYY)
+    Returns each input contract echoed with its latest snapshot OI (null if we
+    have no snapshot for it) so the caller builds its own cache key — avoids the
+    '60' vs '60.0' strike-format mismatch between JS and make_key().
+    """
+    from fastapi.responses import JSONResponse
+    body = await request.json()
+    contracts = body.get("contracts") or []
+    if not isinstance(contracts, list):
+        return JSONResponse({"ok": False, "error": "contracts must be a list"}, status_code=400)
+    contracts = contracts[:20000]  # hard bound
+    try:
+        from api import oi_snapshots as _oi
+    except ImportError:
+        import oi_snapshots as _oi
+    keyed, keys = [], []
+    for c in contracts:
+        try:
+            k = _oi.make_key(str(c["sym"]), str(c["cp"]), c["strike"], str(c["exp"]))
+            keyed.append((c, k)); keys.append(k)
+        except Exception:
+            keyed.append((c, None))
+    latest = {}
+    for i in range(0, len(keys), 500):  # SQLite IN() bound-variable ceiling
+        try:
+            latest.update(_oi.get_latest_oi_batch(keys[i:i + 500]) or {})
+        except Exception:
+            pass
+    results, priced = [], 0
+    for c, k in keyed:
+        v = latest.get(k) if k else None
+        oi = int(v[0]) if (v and v[0] is not None) else None
+        if oi is not None:
+            priced += 1
+        results.append({"sym": c.get("sym"), "cp": c.get("cp"), "strike": c.get("strike"),
+                        "exp": c.get("exp"), "oi": oi, "snapDate": (v[1] if v else None)})
+    return {"ok": True, "results": results, "priced": priced, "total": len(results)}
+
+
 @app.post("/api/oi/confirmation-map")
 async def _oi_confirmation_map(request: Request,
                                _user: dict = Depends(get_current_user)):
