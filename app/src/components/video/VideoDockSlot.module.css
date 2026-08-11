@@ -98,6 +98,7 @@
 .tickersToggle:focus-visible,
 .tickerSym:focus-visible,
 .tickerTime:focus-visible,
+.tickerSortBtn:focus-visible,
 .noteTime:focus-visible,
 .noteAddBtn:focus-visible,
 .notebookBtn:focus-visible,
@@ -283,6 +284,19 @@
 .saveWatchlistBtn:hover:not(:disabled) { background: rgba(201, 168, 76, 0.18); }
 .saveWatchlistBtn:disabled { opacity: 0.6; cursor: default; }
 .saveWatchlistBtn:focus-visible { outline: 2px solid #c9a84c; outline-offset: 2px; }
+/* Chronological <-> performance chip-order toggle, next to +Watchlist. Muted
+   by default, brightens to the gold accent on hover — same idiom as
+   .tickerTime/.tickersChevron below, not a bespoke "ink" token. */
+.tickerSortBtn {
+  flex: none;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary, #a8a290);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+.tickerSortBtn:hover { color: #c9a84c; }
 /* Collapsible header (chevron + label + count). */
 .tickersToggle {
   display: flex;
@@ -376,6 +390,16 @@
 .tickerTime:hover {
   color: #c9a84c;
 }
+/* Since-session % tag — green/red pill, sits between the RS badge and time. */
+.tickerRet {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+.tickerRetPos { color: #4ade80; background: rgba(74, 222, 128, 0.12); }
+.tickerRetNeg { color: #f87171; background: rgba(248, 113, 113, 0.12); }
 
 /* ── Recap: headline + poster + key takeaways ─────────────────────────────── */
 .headline {

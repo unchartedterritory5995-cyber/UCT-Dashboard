@@ -9,13 +9,14 @@
 // When MINIMIZED (the user parked the player in the corner but is still on the
 // Desk), it shows a slim "restore to theater" strip instead of fighting the
 // user by yanking the video back into the theater.
-import { useEffect, useRef, useState, useSyncExternalStore, useCallback } from 'react'
+import { useEffect, useRef, useState, useMemo, useSyncExternalStore, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { subscribe, getSnapshot, registerDockSlot, clearDockSlot, play, playIndex, expand, seekTo, getCurrentTime } from './videoStore'
 import { useVideoInsights } from '../../hooks/useVideoInsights'
 import { useVideoNotes } from '../../hooks/useVideoNotes'
 import { useVideoRelated } from '../../hooks/useVideoRelated'
 import { useVideoThread } from '../../hooks/useVideoThread'
+import { useTickerReturns } from '../../hooks/useTickerReturns'
 import TickerPopup from '../TickerPopup'
 import RsBadge from '../RsBadge'
 import TranscriptPanel from './TranscriptPanel'
@@ -44,6 +45,17 @@ export default function VideoDockSlot() {
   // non-session videos or before generation). Hook runs unconditionally.
   const { chapters, tickerMoments, headline, summary, posterUrl, loading, hasTranscript, setups } =
     useVideoInsights(active ? list[index]?.id : null)
+  // Since-session % per ticker + the session's anchor date (Task 4) — same
+  // videoId key as the insights hook above, so `current` isn't defined yet.
+  const { anchorDate, returns } = useTickerReturns(active ? list[index]?.id : null)
+  // % formatting: whole numbers ≥10 ('+14%'), one decimal below ('-3.4%').
+  const fmtPct = (p) => `${p > 0 ? '+' : p < 0 ? '' : ''}${Math.abs(p) >= 10 ? Math.round(p) : p.toFixed(1)}%`
+  const retTitle = (tm, r) => {
+    const parts = [`Since session: ${fmtPct(r.since_pct)}`]
+    if (Number.isFinite(r.d5_pct)) parts.push(`1w: ${fmtPct(r.d5_pct)}`)
+    if (Number.isFinite(r.d21_pct)) parts.push(`1m: ${fmtPct(r.d21_pct)}`)
+    return `${tm.note ? `${tm.note} · ` : ''}${parts.join(' · ')}`
+  }
   // Timestamped notes for the now-playing video (keyed by youtube_id).
   const currentYt = active ? list[index]?.youtube_id : null
   const { notes, add: addNote, remove: removeNote } = useVideoNotes(currentYt)
@@ -67,10 +79,30 @@ export default function VideoDockSlot() {
       return next
     })
   }, [])
+  // Chip order: chronological (default) or best→worst since-session %.
+  const [sortByPerf, setSortByPerf] = useState(() => {
+    try { return window.localStorage.getItem('uct.desk.tickerSort') === '1' } catch { return false }
+  })
+  const toggleSort = useCallback(() => {
+    setSortByPerf((s) => {
+      const next = !s
+      try { window.localStorage.setItem('uct.desk.tickerSort', next ? '1' : '0') } catch { /* ignore */ }
+      return next
+    })
+  }, [])
   // Which chapter is playing now — for the left-rail highlight + auto-scroll.
   const [activeChapter, setActiveChapter] = useState(-1)
   const chapterListRef = useRef(null)
   const [activeTicker, setActiveTicker] = useState(-1) // ticker chip playing now
+  // Sorting reorders the CHIPS; activeTicker stays an index into the CHRONOLOGICAL
+  // tickerMoments, so the playing-now highlight compares moment IDENTITY, not index.
+  const activeMoment = activeTicker >= 0 ? tickerMoments[activeTicker] : null
+  const displayMoments = useMemo(() => {
+    if (!sortByPerf) return tickerMoments
+    return [...tickerMoments].sort((a, b) =>
+      (returns[b.ticker]?.since_pct ?? -Infinity) - (returns[a.ticker]?.since_pct ?? -Infinity))
+  }, [tickerMoments, sortByPerf, returns])
+  const haveReturns = Object.keys(returns).length > 0
 
   const startNote = useCallback(() => setDraft({ t: getCurrentTime(), text: '' }), [])
   const saveDraft = useCallback(async () => {
@@ -507,21 +539,40 @@ export default function VideoDockSlot() {
                     : savingWl === 'saving' ? 'Saving…'
                     : '+ Watchlist'}
                 </button>
+                {haveReturns && (
+                  <button
+                    type="button"
+                    className={styles.tickerSortBtn}
+                    onClick={toggleSort}
+                    title={sortByPerf ? 'Showing best → worst since the session — click for discussion order' : 'Sort tickers by % move since the session'}
+                  >
+                    {sortByPerf ? '⇅ Perf' : '⇅ Order'}
+                  </button>
+                )}
               </div>
               {tickersOpen && (
                 <div className={styles.tickerScroll}>
                   <div className={styles.tickerRow}>
-                    {tickerMoments.map((tm, i) => (
+                    {displayMoments.map((tm, i) => (
                       <span
                         key={`${tm.ticker}-${tm.t}-${i}`}
-                        className={`${styles.tickerChip} ${i === activeTicker ? styles.tickerChipActive : ''}`}
+                        className={`${styles.tickerChip} ${tm === activeMoment ? styles.tickerChipActive : ''}`}
                         title={tm.note || tm.ticker}
                       >
-                        {/* Symbol → chart · live UCT RS-rank badge · time → seek. */}
-                        <TickerPopup sym={tm.ticker} as="button" className={styles.tickerSym}>
+                        {/* Symbol → chart ANCHORED at the session date · RS badge ·
+                            since-session % · time → seek. */}
+                        <TickerPopup sym={tm.ticker} anchorDate={anchorDate} as="button" className={styles.tickerSym}>
                           {tm.ticker}
                         </TickerPopup>
                         <RsBadge sym={tm.ticker} size="sm" />
+                        {Number.isFinite(returns[tm.ticker]?.since_pct) && (
+                          <span
+                            className={`${styles.tickerRet} ${returns[tm.ticker].since_pct >= 0 ? styles.tickerRetPos : styles.tickerRetNeg}`}
+                            title={retTitle(tm, returns[tm.ticker])}
+                          >
+                            {fmtPct(returns[tm.ticker].since_pct)}
+                          </span>
+                        )}
                         <button
                           className={styles.tickerTime}
                           onClick={() => seekTo(tm.t)}
