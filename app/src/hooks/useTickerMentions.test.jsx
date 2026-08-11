@@ -106,11 +106,19 @@ describe('useTickerMentions', () => {
     expect(global.fetch).toHaveBeenCalledTimes(1)
     expect(result.current).toEqual({ mentions: [], loading: false })
     // Advance well past the FULL errorRetryCount: 4 / errorRetryInterval: 4000
-    // backoff window (max possible: 4 retries * 1.5x jitter * 4000ms ≈ 24s) —
-    // 180s clears it with a wide margin, mirroring the reviewer's repro.
+    // backoff window. SWR's default onErrorRetry schedules each retry at
+    // `~~((Math.random() + 0.5) * (1 << retryCount)) * errorRetryInterval`, for
+    // retryCount 1..errorRetryCount (it stops once retryCount > errorRetryCount).
+    // With errorRetryInterval=4000 the worst case per retry is just under
+    // 1.5 * 2^retryCount * 4000ms, and the SUM across retryCount 1-4 approaches
+    // (but — since Math.random() < 1 strictly — never reaches) exactly
+    // 1.5 * (2+4+8+16) * 4000 = 180,000ms. 180s was therefore the true supremum
+    // with ZERO headroom, not "~24s with a wide margin" as this comment used to
+    // claim (that number was one retryCount's worst case, not the summed one).
+    // 240s clears the real bound with actual margin.
     // loading must stay settled false throughout every retry, not flip back.
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(180_000)
+      await vi.advanceTimersByTimeAsync(240_000)
     })
     expect(result.current).toEqual({ mentions: [], loading: false })
     unmount()
