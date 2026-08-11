@@ -77,7 +77,8 @@ retypes subexpressions and meets `maxNodes 128` — a real ceiling and a bad
 authoring experience regardless. Must fold to the same AST, so `astHash` and both
 walkers are untouched.
 
-**1.4 User-declared inputs. ⭐ MEASURED 2026-08-11: THE ENGINE IS ALREADY DONE.**
+**1.4 User-declared inputs. ✅ SHIPPED 2026-08-11.** Form + merge + one scope +
+save gate + server-side key validation still OUTSTANDING (see below).
 
 A member-declared `period` was driven end to end and works: `declaredInputs`
 reads any `{key}` array off a definition, `lintRepaint` and `sentenceFor` take
@@ -100,6 +101,17 @@ so a member has no way to declare one. That single hardcoding is the whole gate.
    member's list exists.
 4. Server-side validation of member keys (`user_definitions`), since a definition
    is persisted and re-read.
+
+✅ **1, 2 and 3 shipped together with the form** — `BuilderSheet` renders member
+input rows, `buildDefinition` merges them beside the chrome pair, and the
+freshness scope reads that SAME list (the second-authority trap, closed and
+mutation-checked). A key that the closed table already owns refuses by name,
+because `close` as an input would be shadowed by the real series and silently
+compute something else. An invalid key shuts the save BUTTON, not just its row.
+
+🔴 **STILL OUTSTANDING: item 4, server-side validation.** `user_definitions`
+accepts the persisted document; a member key is not yet validated there. Until it
+is, the guarantee is client-side only.
 
 ⛔ **Do not ship 1-3 without the form.** A definition shape that accepts inputs no
 surface can create is this repo's most repeated defect (eight features "built,
