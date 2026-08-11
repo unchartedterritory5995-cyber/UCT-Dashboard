@@ -171,6 +171,27 @@ def pit_validate_result():
     return cal._VSTATE
 
 
+@router.post("/api/breadth-monitor/wicks/validate")
+def wicks_validate(request: Request, days: int = Query(default=3, ge=1, le=8),
+                   bucket_min: int = Query(default=30, ge=5, le=60)):
+    """Phase-3 gate: reconstruct the last `days` sessions' wicks from S3 minute flat
+    files and compare to the store's REAL live-accumulator wicks. Background thread
+    (whole-market minute pull is heavy). Poll GET .../wicks/validate-result.
+    PUSH_SECRET-gated."""
+    _check_auth(request)
+    from api.services import breadth_wick_recon as wr
+    wr.run_validate_async(days=days, bucket_min=bucket_min)
+    return {"ok": True, "started": True, "days": days, "bucket_min": bucket_min}
+
+
+@router.get("/api/breadth-monitor/wicks/validate-result")
+def wicks_validate_result():
+    """Poll the Phase-3 wick-reconstruction validation (public — recon-vs-live wick
+    deltas, no member lists)."""
+    from api.services import breadth_wick_recon as wr
+    return wr._VWSTATE
+
+
 @router.post("/api/breadth-monitor/history/backfill-schedule")
 def schedule_breadth_backfill(request: Request, floor: str = Query(default=""),
                               stop: bool = Query(default=False)):

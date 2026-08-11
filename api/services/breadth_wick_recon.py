@@ -125,3 +125,147 @@ def aggregate_day(levels: dict, prices_by_bucket: list[dict], close_val_by_metri
             out[k] = {"o": round(c, 4), "h": round(c, 4), "l": round(c, 4),
                       "c": round(c, 4), "source": "close_recon", "flagged": reason}
     return out
+
+
+# ── Orchestrator: reconstruct one past day's wicks from S3 intraday ──────────
+_S3_KEY = "us_stocks_sip/minute_aggs_v1/{y}/{m}/{d}.csv.gz"
+_VWSTATE: dict = {"status": "idle"}
+
+
+def _s3_client():
+    try:
+        from api.services.build_intraday_cache import get_s3_client
+        return get_s3_client()
+    except Exception:
+        import os as _os, boto3
+        return boto3.client(
+            "s3", region_name="us-east-1",
+            aws_access_key_id=_os.environ.get("MASSIVE_S3_ACCESS_KEY") or _os.environ.get("MASSIVE_ACCESS_KEY"),
+            aws_secret_access_key=_os.environ.get("MASSIVE_S3_SECRET") or _os.environ.get("MASSIVE_SECRET_KEY"),
+            endpoint_url=_os.environ.get("MASSIVE_S3_ENDPOINT") or "https://files.massive.com")
+
+
+def _levels_for_day(conn, tickers, day_ts):
+    """build_levels as of the session BEFORE day_ts (MAs fixed from prior closes) —
+    mirrors breadth_live._metrics_at_close's level build, reused per-bucket."""
+    from datetime import date as _d, timedelta as _td
+    from api.services import breadth_live as bl
+    row = conn.execute("SELECT MAX(ts) FROM ohlcv WHERE tf='D' AND ticker='SPY' AND ts < ?",
+                       (day_ts,)).fetchone()
+    prior = int(row[0]) if row and row[0] else None
+    if not prior:
+        return None
+    start = bl._ts_int(_d.fromisoformat(bl._iso(prior)) - _td(days=bl._LOAD_CALENDAR_DAYS))
+    dates = bl._session_dates(conn, prior, start)
+    if len(dates) < 221:
+        return None
+    closes, vols = bl._load_frame(conn, tickers, dates)
+    closes = bl._apply_dividend_basis(tickers, dates, closes, day_ts)
+    return bl.build_levels(tickers, closes, vols, prior)
+
+
+def recon_day(D: str, universe: list, client=None, bucket_min: int = 30) -> Optional[dict]:
+    """Reconstruct one past day's per-metric OHLC wicks from S3 minute flat files.
+    D = 'YYYY-MM-DD'. Returns aggregate_day() output, or None if levels/intraday
+    unavailable. HEAVY (whole-market minute file) — call from a worker/bg thread."""
+    from datetime import date as _d
+    from api.services import breadth_live as bl
+    from api.services import build_intraday_cache as bic
+    conn = bl._bars_conn()
+    day_ts = bl._ts_int(_d.fromisoformat(D))
+    levels = _levels_for_day(conn, universe, day_ts)
+    if levels is None:
+        return None
+    client = client or _s3_client()
+    key = _S3_KEY.format(y=D[:4], m=D[5:7], d=D)
+    res = bic.download_and_resample(client, key, [bucket_min], set(universe))
+    if not res or not res.get(bucket_min):
+        return None
+    per_ticker = res[bucket_min]                     # {ticker: [{t,o,h,l,c,v}]}
+    by_tb = {tk: {b["t"]: b["c"] for b in bars} for tk, bars in per_ticker.items()}
+    buckets = sorted({b["t"] for bars in per_ticker.values() for b in bars})
+    last_px: dict = {}
+    prices_by_bucket = []
+    for T in buckets:
+        for tk in per_ticker:
+            px = by_tb[tk].get(T)
+            if px is not None:
+                last_px[tk] = px                     # carry-forward last print
+        prices_by_bucket.append(dict(last_px))
+    if not prices_by_bucket:
+        return None
+    from api.services.breadth_live import compute_metrics
+    close_m = compute_metrics(levels, prices_by_bucket[-1]) or {}
+    close_val = {k: v for k, v in close_m.items() if not k.startswith("_")}
+    return aggregate_day(levels, prices_by_bucket, close_val)
+
+
+# ── Prototype validation: recon wicks vs the REAL live-accumulator wicks ─────
+_VALIDATE_METRICS = ("pct_above_10sma", "pct_above_20ema", "pct_above_50sma",
+                     "pct_above_100sma", "pct_above_200sma",
+                     "new_20d_highs", "new_20d_lows")
+
+
+def validate_recent(days: int = 3, bucket_min: int = 30) -> dict:
+    """The Phase-3 gate: reconstruct the last `days` COMPLETED sessions' wicks from
+    S3 intraday and compare to the store's REAL 'live' wicks (same days, sampled in
+    real time). If the reconstructed high/low match the live high/low within ~1-2pt,
+    the S3-flatfile method faithfully reproduces true intraday wicks → grind back."""
+    from datetime import date as _d
+    from api.services import breadth_live as bl
+    from api.services import breadth_daily_ohlc as store
+    universe, _ = bl.universe()
+    if not universe:
+        return {"ok": False, "reason": "no universe"}
+    today = bl._iso(bl._ts_int(bl._now_et().date()))
+    live_hist = store.history("pct_above_50sma")            # {date:{o,h,l,c}} trusted
+    dates = sorted(d for d in live_hist if d < today)[-days:]
+    client = _s3_client()
+    per_date, all_dh, all_dl = [], [], []
+    for D in dates:
+        try:
+            recon = recon_day(D, universe, client, bucket_min)
+        except Exception as e:
+            per_date.append({"date": D, "error": f"{type(e).__name__}: {e}"})
+            continue
+        if not recon:
+            per_date.append({"date": D, "error": "no recon (levels/intraday unavailable)"})
+            continue
+        cmp = {}
+        for m in _VALIDATE_METRICS:
+            r = recon.get(m)
+            liveohlc = store.history(m).get(D)
+            if not r or not liveohlc:
+                continue
+            dh = round(r["h"] - liveohlc["h"], 3)
+            dl = round(r["l"] - liveohlc["l"], 3)
+            cmp[m] = {"recon_hl": [r["h"], r["l"]], "live_hl": [liveohlc["h"], liveohlc["l"]],
+                      "dh": dh, "dl": dl, "recon_src": r.get("source")}
+            if m in _PCT_METRICS:
+                all_dh.append(abs(dh)); all_dl.append(abs(dl))
+        per_date.append({"date": D, "buckets_ok": True, "metrics": cmp})
+    mean_abs = None
+    if all_dh:
+        mean_abs = round((sum(all_dh) + sum(all_dl)) / (len(all_dh) + len(all_dl)), 3)
+    return {
+        "ok": True, "days": dates, "bucket_min": bucket_min,
+        "pct_wick_mean_abs_delta": mean_abs,
+        "verdict": (("METHOD VALIDATED (recon wicks match live within ~"
+                     f"{mean_abs}pt)") if mean_abs is not None and mean_abs <= 2.0
+                    else ("MISMATCH (recon wicks diverge from live)" if mean_abs is not None
+                          else "INCONCLUSIVE (no comparable data)")),
+        "per_date": per_date,
+    }
+
+
+def run_validate_async(**kw) -> None:
+    import threading, traceback
+    def _run():
+        _VWSTATE.clear(); _VWSTATE.update(status="running")
+        try:
+            res = validate_recent(**kw)
+            _VWSTATE.clear(); _VWSTATE.update(status="done", **res)
+        except Exception as e:
+            _VWSTATE.clear(); _VWSTATE.update(status="error", reason=f"{type(e).__name__}: {e}",
+                                              trace=traceback.format_exc()[-900:])
+    threading.Thread(target=_run, name="wick-validate", daemon=True).start()
