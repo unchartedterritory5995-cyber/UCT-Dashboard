@@ -78,9 +78,12 @@ describe('a member-declared input is already wired through the whole engine', ()
     expect(ev.guard).toBe('sentence:name')
   })
 
-  it('⛔ and the builder is what limits this, so the limit is stated here', () => {
-    // If this ever stops being true, the input form has shipped and this
-    // assertion is the thing that should tell you — by name, not by absence.
+  it('⭐ the builder is NO LONGER what limits this — the form shipped', () => {
+    // This asserted `BUILDER_INPUTS` was the whole story, so that the day a form
+    // arrived the failure would say so BY NAME rather than by silence. It did,
+    // the same day. `BUILDER_INPUTS` is still the chrome pair every definition
+    // carries; what changed is that `BuilderSheet` now merges member-declared
+    // rows beside them, driven end to end by `BuilderSheet.memberInputs.test.jsx`.
     expect(BUILDER_INPUTS.map((s) => s.key).sort()).toEqual(['color', 'lineWidth'])
   })
 })

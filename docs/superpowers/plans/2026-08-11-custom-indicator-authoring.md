@@ -77,7 +77,8 @@ retypes subexpressions and meets `maxNodes 128` — a real ceiling and a bad
 authoring experience regardless. Must fold to the same AST, so `astHash` and both
 walkers are untouched.
 
-**1.4 User-declared inputs. ⭐ MEASURED 2026-08-11: THE ENGINE IS ALREADY DONE.**
+**1.4 User-declared inputs. ✅ SHIPPED 2026-08-11.** Form + merge + one scope +
+save gate + server-side key validation still OUTSTANDING (see below).
 
 A member-declared `period` was driven end to end and works: `declaredInputs`
 reads any `{key}` array off a definition, `lintRepaint` and `sentenceFor` take
@@ -101,6 +102,17 @@ so a member has no way to declare one. That single hardcoding is the whole gate.
 4. Server-side validation of member keys (`user_definitions`), since a definition
    is persisted and re-read.
 
+✅ **1, 2 and 3 shipped together with the form** — `BuilderSheet` renders member
+input rows, `buildDefinition` merges them beside the chrome pair, and the
+freshness scope reads that SAME list (the second-authority trap, closed and
+mutation-checked). A key that the closed table already owns refuses by name,
+because `close` as an input would be shadowed by the real series and silently
+compute something else. An invalid key shuts the save BUTTON, not just its row.
+
+🔴 **STILL OUTSTANDING: item 4, server-side validation.** `user_definitions`
+accepts the persisted document; a member key is not yet validated there. Until it
+is, the guarantee is client-side only.
+
 ⛔ **Do not ship 1-3 without the form.** A definition shape that accepts inputs no
 surface can create is this repo's most repeated defect (eight features "built,
 tested, green, connected to nothing" on 2026-08-08). The rail
@@ -115,9 +127,57 @@ need a surface, not a rewrite.
 
 ## Phase 2 — translator coverage (pasted scripts reach Phase 1)
 
-- **2.1 Tuple returns** `[a, b, c] = f(...)` — the most common structural blocker
-  in the corpus (10 refusals in one script alone).
-- **2.2 User-defined functions** — Pine `f(x) => ...`.
+### ⭐ PHASE 2 RE-ORDERED 2026-08-11 — measured, and 2.2 turned out to be DONE
+
+**2.2 User-defined functions: ✅ ALREADY WORK.** Driven directly, all of these
+translate today — single-expression bodies, several parameters, a body calling a
+builtin, the same function used twice, and MULTI-STATEMENT bodies with local
+bindings:
+
+    f(x) => x * 2                      → close * 2
+    g(a, b) => (a + b) / 2             → (high + low) / 2
+    h(src, n) => ta.sma(src, n) * 2    → sma(close, 20) * 2
+    k(x) =>                            → close * 2 + 1
+        y = x * 2
+        y + 1
+
+**2.1 Tuple returns — the ONE remaining structural gap, and the design is settled.**
+
+⛔ Do NOT build it for builtins. Measured across the corpus, the right-hand side
+of a destructure is: **42 × `request.security`** (Phase 3 — a different question),
+**~19 × user-defined** (`feed`, `trigger`, `exrem`, …), and **1 × `ta.dmi`**.
+Building builtin tuples would unlock exactly one call site in twenty-one scripts.
+
+**The three changes, with their anchors:**
+
+1. `foldStatements` — its final bare-expression arm (`value = exprBinding(...)`).
+   A statement that is `[a, b, c]` with no top-level `=` becomes
+   `{kind: 'tuple', parts: [exprBinding…], at}` instead of an expression. Split on
+   commas with the depth-aware `findTop` idiom; a 1-element `[x]` is NOT a tuple.
+2. The top-level destructure arm (currently `markOpaque(... 'pine:tuple' ...)`).
+   Parse the RHS, resolve the callee in `env`, and only when its binding is
+   `{kind:'fn'}` whose `value.kind === 'tuple'` bind each name to
+   `{kind: 'tuplePart', fn, args, index, env}`. **Everything else keeps refusing**
+   — `request.security` above all. A tuple this engine cannot take apart must
+   never resolve to its first element.
+3. `resolveBinding` — a new `tuplePart` arm that does what the `kind: 'fn'` call
+   already does (`this.frames.push(args.map(...))`, swap `this.env`, resolve) but
+   resolves `parts[index].node` rather than `value.node`. Mirror the existing
+   `finally { this.frames.pop(); this.env = prevEnv }`.
+
+⚠️ **I stopped BEFORE writing this, deliberately.** The three changes are small
+but they must land together: parts 1 and 2 without 3 produce a binding nothing
+can resolve, and part 2 without its `kind === 'tuple'` check would hand
+`request.security`'s first element to a name expecting its third — a translation
+that parses, saves, scans and is WRONG. That is the failure mode this whole
+document is organised against, and a half-applied translator change at a session
+boundary is how it arrives. The anchors above are exact; this is a contained
+piece of work for a session with room to finish and mutation-check it.
+
+**Expected payoff, so it can be checked rather than assumed:** scripts refusing
+ONLY at `pine:tuple` should clear — `02-ict-retracement` is the corpus candidate,
+and the Butterworth Spectral Trend the owner supplied needs this plus nothing
+else structural. Re-measure with the intake bench; do not assume.
 - **2.3 Conditional reassignment** — a `var` updated inside an `if`, which is what
   produced the dead accumulator this session.
 - **2.4 Session/`time` builtins.**
