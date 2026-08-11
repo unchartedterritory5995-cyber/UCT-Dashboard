@@ -53,7 +53,9 @@
 // universal, so the only admissible evidence is the persisted tree and the
 // manifest that describes it (obligation 1 of the record's §5).
 
-import { TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS } from './parse.js'
+import {
+  TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, LOOKBACK_RE,
+} from './parse.js'
 
 // --------------------------------------------------------------------------- //
 // the vocabulary
@@ -122,7 +124,22 @@ export const UNBOUNDED = 'unbounded'
  *  (`tools/ast_conformance.py`, which runs both interpreters against the same
  *  tree), not to this file. Stating it is the point: an unstated assumption is
  *  the one that ships. */
-const ARG_REF = /^arg(\d+)$/
+/** ⛔⛔ THE LOOKBACK GRAMMAR, READ OFF ITS OWNER — NEVER A COPY.
+ *
+ *  ⚰️ THIS WAS `/^arg(\d+)$/` AND IT BRANDED ADX AS REPAINTING. Measured in the
+ *  deployed builder 2026-08-11, seconds after ADX shipped: `ADX14.14 > 25` read
+ *  correctly, computed correctly, reported its 28-bar lookback correctly — and
+ *  then wore *"⚠️ Repaints — unanalysable: `adx` declares a window this linter
+ *  cannot bound"*, which is false. A non-repainting indicator branded repainting
+ *  is a save gate: `canSaveFormula` refuses `repaints` outright.
+ *
+ *  ⛔ IT WAS THE **FOURTH** HAND-WRITTEN COPY OF ONE GRAMMAR. Three were found
+ *  and removed when `2*argN` landed (two in `parse.test.js`, one in the parity
+ *  probe) — and this one survived because no test had ever declared a function
+ *  with a multiplied window AND asked the linter about it. The unit tests could
+ *  not see it; the browser could.
+ */
+const ARG_REF = LOOKBACK_RE
 
 const own = (o, k) => o != null && Object.prototype.hasOwnProperty.call(o, k)
 const sortedKeys = (o) => Object.keys(o || {}).sort()
@@ -191,9 +208,14 @@ function resolveDeclaration(decl, argNodes) {
   if (typeof decl === 'string') {
     const m = ARG_REF.exec(decl)
     if (!m) return UNKNOWN
-    const node = argNodes[Number(m[1])]
+    // ⭐ GROUP 2 IS THE ARGUMENT, GROUP 1 THE OPTIONAL MULTIPLIER (`2*arg3`). The
+    // multiplier is applied here so the linter bounds the SAME window the
+    // interpreter and the budget walker do — three readers, one grammar.
+    const node = argNodes[Number(m[2])]
     if (!node || node.type !== 'num') return UNKNOWN
-    return Number.isInteger(node.value) ? node.value : UNKNOWN
+    if (!Number.isInteger(node.value)) return UNKNOWN
+    const times = m[1] === undefined ? 1 : Number(m[1])
+    return times * node.value
   }
   return UNKNOWN
 }

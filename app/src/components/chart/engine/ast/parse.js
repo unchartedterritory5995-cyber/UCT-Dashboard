@@ -44,6 +44,23 @@ function deepFreeze(value) {
 }
 
 /** The imported manifest, frozen. THE one grammar. */
+/** ⭐⭐ THE SHAPE A DECLARED `lookback` MAY TAKE — a constant, `argN`, or a whole
+ *  multiple of one (`2*argN`).
+ *
+ *  ⛔ IT LIVES HERE, WITH THE TABLE, AND THAT PLACEMENT IS A RAIL'S DOING. It was
+ *  first exported from `interpret.js`, and `lint.test.js` immediately refused the
+ *  import: *"no evaluator is reachable from the linter -- its import graph is one
+ *  module wide"*. The reason is exact — if the repaint linter could reach an
+ *  evaluator, a verdict could be reached by RUNNING the formula instead of by
+ *  reading the tree, and a claim measured on one bar window is not the universal
+ *  claim the badge makes. The grammar is part of the TABLE's vocabulary, not the
+ *  evaluator's, so it belongs where every reader may see it.
+ *
+ *  ⚰️ FOUR hand-written copies of this pattern existed before it was hoisted, and
+ *  the fourth (in the linter) branded ADX as repainting in production.
+ */
+export const LOOKBACK_RE = /^(?:(\d+)\s*\*\s*)?arg(\d+)$/
+
 export const TABLE = deepFreeze(TABLE_JSON)
 
 /** The canonical node types, and there are no others.

@@ -47,7 +47,7 @@
 //     refusal. There is no `try` anywhere in this file, and `budget.test.js`
 //     asserts that structurally so the relabelling cannot be introduced quietly.
 
-import { TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, isPointwise } from './parse.js'
+import { TABLE, NODE_TYPES, RECURRENCES, RECURRENCE_BINDINGS, isPointwise, LOOKBACK_RE } from './parse.js'
 // ⚠️ A REAL ES MODULE CYCLE, DELIBERATELY — `budget.js` imports `maxLookback`,
 // `nodeCount` and `TableRefusal` back out of this file, because a second copy of
 // either measurement is a second grammar (there are already two `maxLookback`s
@@ -835,12 +835,7 @@ function offsetBars(node) {
  *  two lanes agreeing is what `test_ast_lookback_parity.py` measures. A grammar
  *  that grows past what both sides can trivially mirror is how they drift.
  */
-/** The shape a declared lookback may take. ⛔ EXPORTED so the manifest test does
- *  not keep a second copy of this grammar: `parse.test.js` used to spell
- *  `/^arg\d+$/` of its own, which agreed with itself while the implementation
- *  moved — the second-authority defect, in the rail that exists to police the
- *  manifest. `test_ast_lookback_parity.py` reads it off this source too. */
-export const LOOKBACK_RE = /^(?:(\d+)\s*\*\s*)?arg(\d+)$/
+
 
 function ownLookback(node, spec) {
   const lb = spec.lookback

@@ -8,9 +8,8 @@ import path from 'node:path'
 // runs) but the order says out loud which module owns that configuration.
 import {
   parseFormula, canonicalise, astHash, sha256Hex, assertCanonical,
-  TABLE, NODE_TYPES, REFUSALS, TableRefusal,
+  TABLE, NODE_TYPES, REFUSALS, TableRefusal, LOOKBACK_RE,
 } from './parse.js'
-import { LOOKBACK_RE } from './interpret.js'
 import jsep from 'jsep'
 
 /** The repo root, found by walking up. `import.meta.url` is an http: URL under

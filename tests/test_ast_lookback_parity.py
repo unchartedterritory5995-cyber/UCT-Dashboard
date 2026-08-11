@@ -29,15 +29,18 @@ from api.services import ast_interpret
 
 TABLE_PATH = (pathlib.Path(__file__).resolve().parents[1]
               / "app/src/components/chart/engine/ast/closedTable.json")
+# ⚠️ `parse.js`, not `interpret.js`: the grammar lives with the TABLE so the
+# repaint linter can read it without importing an evaluator — a boundary
+# `lint.test.js` enforces ("its import graph is one module wide").
 JS_PATH = (pathlib.Path(__file__).resolve().parents[1]
-           / "app/src/components/chart/engine/ast/interpret.js")
+           / "app/src/components/chart/engine/ast/parse.js")
 
 TABLE = json.loads(TABLE_PATH.read_text(encoding="utf-8"))
 FUNCTIONS = TABLE["functions"]
 
 
 def _js_lookback_pattern() -> str:
-    """The regex `interpret.js::ownLookback` actually uses, read off the source.
+    """The regex the shipped grammar declares, read off `parse.js`.
 
     ⛔ DERIVED, NEVER RETYPED. A copy of the pattern here would agree with itself
     forever while the shipped one drifted — the second-authority defect this repo
@@ -50,7 +53,7 @@ def _js_lookback_pattern() -> str:
     # moment it did. A probe pinned to one call site measures a location; this
     # one measures the declaration.
     m = re.search(r"export const LOOKBACK_RE = /\^(.+?)/\s*$", src, re.M)
-    assert m, "could not find LOOKBACK_RE's pattern in interpret.js"
+    assert m, "could not find LOOKBACK_RE's pattern in parse.js"
     return m.group(1)
 
 
