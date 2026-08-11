@@ -35,7 +35,11 @@
   background: rgba(0, 0, 0, 0.75);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
-  z-index: var(--z-modal);
+  /* Above the floating video host (GlobalVideoLayer.module.css `.host`,
+     z-index: 8500) — opened from a Desk recording, the chart must render
+     over the player, not under it. Video keeps playing underneath;
+     intended. Scoped to this overlay only — --z-modal (1000) is untouched. */
+  z-index: 8600;
   display: flex;
   align-items: center;
   justify-content: center;
