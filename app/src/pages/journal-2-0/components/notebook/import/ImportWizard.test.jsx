@@ -20,13 +20,31 @@ vi.mock('../../../lib/importer/intake', async () => {
   const actual = await vi.importActual('../../../lib/importer/intake')
   return {
     ...actual,
-    expandArchives: vi.fn(async (vfiles, opts) => {
+    expandArchives: vi.fn(async (vfiles, ...rest) => {
       if (vfiles.some((v) => v.path === 'huge.zip')) {
         throw new actual.ImportLimitError(
           'This import is larger than 2.0GB. Split it into smaller batches and try again.'
         )
       }
-      return actual.expandArchives(vfiles, opts)
+      return actual.expandArchives(vfiles, ...rest)
+    }),
+  }
+})
+
+// Controllable stall point for the "close mid-scan" race test below: real
+// `detectAdapter` for every file set except one containing the `slow.md`
+// sentinel, which hangs until the test resolves `slowGate.promise` itself.
+// Assigned per-test; untouched (null) tests never hit the sentinel branch.
+let slowGate = null
+vi.mock('../../../lib/importer/registry', async () => {
+  const actual = await vi.importActual('../../../lib/importer/registry')
+  return {
+    ...actual,
+    detectAdapter: vi.fn(async (vfiles) => {
+      if (vfiles.some((v) => v.path === 'slow.md')) {
+        await slowGate.promise
+      }
+      return actual.detectAdapter(vfiles)
     }),
   }
 })
@@ -92,5 +110,80 @@ describe('ImportWizard wire', () => {
     )
     // Recoverable, not a crash — the wizard offers a way back to the drop step.
     expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument()
+  })
+
+  it('reuses an existing "Imported from {label}" root folder instead of recreating it', async () => {
+    const EXISTING_NAME = 'Imported from Files (Markdown, Text, HTML, Word)'
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (url.endsWith('/import/check')) return new Response(JSON.stringify({ existing: {} }))
+      if (url.endsWith('/import/confirm')) return new Response(JSON.stringify({
+        created: [{ importKey: 'file:hello.md', id: 'n1' }], updated: [], skipped: [] }))
+      if (url.endsWith('/note-folders')) {
+        return new Response(JSON.stringify({
+          folders: [{ id: 'existing-folder-1', name: EXISTING_NAME, parentId: null }],
+        }))
+      }
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    const input = screen.getByTestId('import-file-input')
+    fireEvent.change(input, { target: { files: [mdFile] } })
+    await waitFor(() => expect(screen.getByText(/1 note/i)).toBeInTheDocument())
+
+    // The duplicate-looking "create new" option must not be offered — only
+    // the real folder (same name, but a real id) is in the list, and it's
+    // what's actually selected. Guarded with waitFor: the folders list
+    // resolves via a separate SWR fetch that can settle a tick after the
+    // "1 note" preview text does.
+    const select = screen.getByLabelText('Destination folder')
+    await waitFor(() => expect(select.value).toBe('existing-folder-1'))
+    const optionValues = [...select.querySelectorAll('option')].map((o) => o.value)
+    expect(optionValues).not.toContain('__new__')
+    const matchingByName = [...select.querySelectorAll('option')].filter((o) => o.textContent === EXISTING_NAME)
+    expect(matchingByName).toHaveLength(1) // the real folder only — no duplicate
+
+    fireEvent.click(screen.getByRole('button', { name: /import/i }))
+    await waitFor(() => {
+      const call = vi.mocked(fetch).mock.calls.find((c) => c[0] === '/api/j2/notes/import/confirm')
+      expect(call).toBeTruthy()
+    })
+
+    const confirmCall = vi.mocked(fetch).mock.calls.find((c) => c[0] === '/api/j2/notes/import/confirm')
+    const body = JSON.parse(confirmCall[1].body)
+    expect(body.destFolderId).toBe('existing-folder-1')
+
+    // createFolder (the hook's POST /api/j2/note-folders) must never fire.
+    const folderPosts = vi.mocked(fetch).mock.calls.filter(
+      (c) => c[0] === '/api/j2/note-folders' && c[1]?.method === 'POST'
+    )
+    expect(folderPosts).toHaveLength(0)
+  })
+
+  it('closing mid-scan cancels the pipeline — no stale state lands on the still-mounted instance', async () => {
+    let resolveGate
+    slowGate = { promise: new Promise((resolve) => { resolveGate = resolve }) }
+
+    const { rerender } = render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    const slowFile = new File(['# Slow'], 'slow.md', { type: 'text/markdown' })
+    const input = screen.getByTestId('import-file-input')
+    fireEvent.change(input, { target: { files: [slowFile] } })
+
+    // Scan is in flight and stalled inside the mocked detectAdapter.
+    await waitFor(() => expect(screen.getByText(/reading your files/i)).toBeInTheDocument())
+
+    // Simulate the parent closing the wizard mid-scan (Escape / backdrop) —
+    // same mounted ImportWizard instance, `open` just flips false.
+    rerender(<ImportWizard open={false} onClose={() => {}} onImported={() => {}} />)
+
+    // Let the stalled pipeline resume and run to whatever completion it reaches.
+    resolveGate()
+    await new Promise((r) => setTimeout(r, 30))
+
+    // Reopen — must show a fresh drop step, never a stale preview from the
+    // cancelled scan.
+    rerender(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    expect(screen.getByTestId('import-file-input')).toBeInTheDocument()
+    expect(screen.queryByText(/will create/i)).not.toBeInTheDocument()
   })
 })

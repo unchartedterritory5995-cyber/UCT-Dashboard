@@ -72,10 +72,10 @@ async function computeImportHash(doc) {
   if (!globalThis.crypto?.subtle) return null
   const basis = canonicalJson({
     title: doc.title || '',
-    subtitle: doc.subtitle ?? null,
+    subtitle: doc.subtitle || null,
     bodyJson: doc.bodyJson || {},
     tags: [...(doc.tags || [])].sort(),
-    ticker: doc.ticker ?? null,
+    ticker: doc.ticker || null,
     folderPath: doc.folderPath || [],
     updatedAt: doc.updatedAt || '',
   })
@@ -115,7 +115,6 @@ function readableError(err) {
 function phaseLabel(phase) {
   if (phase === 'confirm') return 'Saving notes'
   if (phase === 'commit') return 'Uploading media & links'
-  if (phase === 'parsing') return 'Reading files'
   return 'Working'
 }
 
@@ -187,7 +186,18 @@ export default function ImportWizard({ open, onClose, onImported }) {
   const fileInputRef = useRef(null)
   const dirInputRef = useRef(null)
 
+  // Cancel token for the async scan/confirm pipelines. Sheet's Escape handler
+  // (and the backdrop, when enabled) call onClose unconditionally — if that
+  // happens mid-scan or mid-confirm, `open` flips false, resetAll() bumps this
+  // ref, and the still-in-flight pipeline (which is running against the SAME
+  // mounted component instance, not a fresh one) checks it after every await
+  // and bails before touching state again. Without this, a cancelled scan can
+  // still land setDocs/setStep('preview') — or worse, a cancelled confirm can
+  // still call onImported — after the user believed they'd backed out.
+  const generationRef = useRef(0)
+
   const resetAll = useCallback(() => {
+    generationRef.current += 1
     setStep('drop')
     setScanMessage('')
     setError(null)
@@ -208,9 +218,21 @@ export default function ImportWizard({ open, onClose, onImported }) {
     if (!open) resetAll()
   }, [open, resetAll])
 
+  // Sheet calls this unconditionally on Escape (it doesn't consult
+  // dismissOnBackdrop) — no-op it during scanning/running so Escape can't
+  // race the pipeline the same way the backdrop guard already prevents a
+  // stray click from doing.
+  const handleSheetClose = useCallback(() => {
+    if (step === 'scanning' || step === 'running') return
+    onClose?.()
+  }, [step, onClose])
+
   // ── scan pipeline (drop -> preview) ──────────────────────────────────────
 
   const beginScan = useCallback(async (getExpanded, archiveHint) => {
+    const gen = generationRef.current
+    const cancelled = () => generationRef.current !== gen
+
     setStep('scanning')
     setError(null)
     // Render the scanning state FIRST, then defer the heavy work past a
@@ -220,18 +242,26 @@ export default function ImportWizard({ open, onClose, onImported }) {
       ? 'Unpacking archive — this can take a moment for large exports…'
       : 'Reading your files…')
     await new Promise((r) => setTimeout(r, 0))
+    if (cancelled()) return
     try {
       const { files: vfiles, warnings: expandWarnings } = await getExpanded()
+      if (cancelled()) return
 
       const { detectAdapter } = await import('../../../lib/importer/registry')
       const { adapter } = await detectAdapter(vfiles)
+      if (cancelled()) return
       setScanMessage(`Reading ${adapter.label}…`)
 
       const { docs: rawDocs, warnings: parseWarnings } = await adapter.parse(vfiles, {
-        onProgress: (p) => setScanMessage(`Reading ${adapter.label} — ${p.done}/${p.total}…`),
+        onProgress: (p) => {
+          if (cancelled()) return
+          setScanMessage(`Reading ${adapter.label} — ${p.done}/${p.total}…`)
+        },
       })
+      if (cancelled()) return
 
       const { htmlToNote } = await import('../../../lib/importer/convert')
+      if (cancelled()) return
       const converted = []
       for (let i = 0; i < rawDocs.length; i++) {
         const { bodyJson, bodyPlain } = htmlToNote(rawDocs[i].html)
@@ -239,12 +269,15 @@ export default function ImportWizard({ open, onClose, onImported }) {
         if ((i + 1) % 10 === 0) {
           setScanMessage(`Converting ${i + 1}/${rawDocs.length}…`)
           await new Promise((r) => setTimeout(r))
+          if (cancelled()) return
         }
       }
 
       const { checkExisting } = await import('../../../lib/importer/commit')
       const { existing } = await checkExisting(converted)
+      if (cancelled()) return
       const status = await classifyDocs(converted, existing)
+      if (cancelled()) return
 
       setDocs(converted)
       setDocStatus(status)
@@ -253,6 +286,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
       setExcludedFolders(new Set())
       setStep('preview')
     } catch (err) {
+      if (cancelled()) return
       setError(readableError(err))
       setStep('error')
     }
@@ -270,7 +304,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
 
   const handleNativeDrop = useCallback(async (dataTransfer) => {
     if (!dataTransfer) return
-    const archiveHint = [...(dataTransfer.files || [])].some((f) => /\.zip$/i.test(f?.name || ''))
+    const archiveHint = hasLikelyArchive(dataTransfer.files)
     await beginScan(async () => {
       const intake = await import('../../../lib/importer/intake')
       const vfiles0 = await intake.collectDropped(dataTransfer)
@@ -330,6 +364,23 @@ export default function ImportWizard({ open, onClose, onImported }) {
 
   const rootFolders = useMemo(() => folders.filter((f) => !f.parentId), [folders])
 
+  const importedFolderName = sourceLabel ? `Imported from ${sourceLabel}` : ''
+  const existingImportedFolder = useMemo(
+    () => rootFolders.find((f) => f.name === importedFolderName) || null,
+    [rootFolders, importedFolderName]
+  )
+
+  // Once a root folder already named "Imported from {label}" is known (e.g. a
+  // re-import of the same source), snap the still-default '__new__' choice to
+  // it so the select shows the REAL folder as selected instead of a
+  // duplicate-looking "create new" option pointing at a name that already
+  // exists. Only auto-switches away from the untouched default — never
+  // overrides an explicit user pick.
+  useEffect(() => {
+    if (step !== 'preview' || destChoice !== '__new__' || !existingImportedFolder) return
+    setDestChoice(existingImportedFolder.id)
+  }, [step, destChoice, existingImportedFolder])
+
   const toggleExcludeFolder = (name) => {
     setExcludedFolders((prev) => {
       const next = new Set(prev)
@@ -341,15 +392,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
 
   // ── confirm (preview -> running -> summary) ──────────────────────────────
 
-  const resolveDestFolderId = useCallback(async () => {
-    if (destChoice !== '__new__') return destChoice || null
-    const name = `Imported from ${sourceLabel}`
-    try {
-      await createFolder(name)
-    } catch {
-      // Folder creation failed — proceed unfiled rather than block the import.
-      return null
-    }
+  const lookupFolderIdByName = useCallback(async (name) => {
     try {
       const res = await fetch('/api/j2/note-folders', { credentials: 'include' })
       if (res.ok) {
@@ -361,25 +404,60 @@ export default function ImportWizard({ open, onClose, onImported }) {
       // best-effort — fall through to unfiled
     }
     return null
-  }, [destChoice, sourceLabel, createFolder])
+  }, [])
+
+  const resolveDestFolderId = useCallback(async () => {
+    if (destChoice !== '__new__') return destChoice || null
+    const name = `Imported from ${sourceLabel}`
+    // Check what we already have BEFORE creating — this is the whole fix for
+    // "re-importing the same source misfiles every note to Unfiled": a second
+    // import of the same source reuses the "Imported from {label}" folder the
+    // FIRST import created, rather than trying (and 400ing on the name
+    // collision) to create it again.
+    const already = rootFolders.find((f) => f.name === name)
+    if (already) return already.id
+    try {
+      await createFolder(name)
+    } catch {
+      // Creation failed — most likely a race where the folder was created
+      // between our `rootFolders` read and now (or the backend 400'd on a
+      // name collision it saw that we didn't). Look it up rather than giving
+      // up and silently routing the whole batch to Unfiled.
+      return lookupFolderIdByName(name)
+    }
+    // useJ2NoteFolders().create() doesn't return the created row (it POSTs
+    // then revalidates via SWR mutate()) — read it back by name.
+    return lookupFolderIdByName(name)
+  }, [destChoice, sourceLabel, rootFolders, createFolder, lookupFolderIdByName])
 
   const handleConfirm = useCallback(async () => {
+    const gen = generationRef.current
+    const cancelled = () => generationRef.current !== gen
+
     setStep('running')
     setProgress(null)
     await new Promise((r) => setTimeout(r, 0))
+    if (cancelled()) return
     try {
       const destFolderId = await resolveDestFolderId()
+      if (cancelled()) return
       const { runImport } = await import('../../../lib/importer/commit')
+      if (cancelled()) return
       const result = await runImport({
         source: sourceLabel,
         destFolderId,
         docs: visibleDocs,
-        onProgress: (p) => setProgress(p),
+        onProgress: (p) => {
+          if (cancelled()) return
+          setProgress(p)
+        },
       })
+      if (cancelled()) return
       setSummaryResult(result)
       setStep('summary')
       onImported?.()
     } catch (err) {
+      if (cancelled()) return
       setError(readableError(err))
       setStep('error')
     }
@@ -399,7 +477,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
   return (
     <Sheet
       open={open}
-      onClose={onClose}
+      onClose={handleSheetClose}
       variant={isTouch ? 'fullscreen' : 'modal'}
       title={sheetTitle}
       maxWidth={640}
@@ -523,7 +601,13 @@ export default function ImportWizard({ open, onClose, onImported }) {
                     value={destChoice}
                     onChange={(e) => setDestChoice(e.target.value)}
                   >
-                    <option value="__new__">Imported from {sourceLabel}</option>
+                    {/* Hidden once the folder already exists (e.g. a re-import
+                        of the same source) — "create new" would just collide
+                        with the real folder shown below, which is selected by
+                        default in that case (see the snap-effect above). */}
+                    {!existingImportedFolder && (
+                      <option value="__new__">Imported from {sourceLabel}</option>
+                    )}
                     {rootFolders.map((f) => (
                       <option key={f.id} value={f.id}>{f.name}</option>
                     ))}
