@@ -139,18 +139,25 @@ function toConfirmPayload(doc) {
 }
 
 /**
- * POSTs with up to 2 retries on a 5xx response (3 attempts total). A non-5xx
- * failure (4xx, or retries exhausted) is returned as-is for the caller to
- * inspect/throw on.
+ * POSTs with up to 2 retries (3 attempts total) on EITHER a 5xx response OR a
+ * thrown network error (fetch rejecting outright — offline, DNS, aborted).
+ * A non-5xx response (4xx, or a 5xx with retries exhausted) is returned
+ * as-is for the caller to inspect/throw on; a network error that's still
+ * failing on the last attempt is re-thrown.
  */
 async function fetchWithRetry(url, opts, maxRetries = 2) {
-  let attempt = 0
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const res = await fetch(url, opts)
-    if (res.ok || res.status < 500 || attempt >= maxRetries) return res
-    attempt += 1
+  let lastErr
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetch(url, opts)
+      if (res.ok || res.status < 500 || attempt === maxRetries) return res
+      lastErr = new Error(`HTTP ${res.status}`)
+    } catch (err) {
+      lastErr = err
+      if (attempt === maxRetries) throw err
+    }
   }
+  throw lastErr
 }
 
 async function uploadMediaItem(noteId, item) {
@@ -175,7 +182,7 @@ async function uploadMediaItem(noteId, item) {
  * already-committed note a no-op `skipped` entry.
  *
  * @param {{source: string, destFolderId: string|null, docs: object[], onProgress?: (p: {phase: string, done: number, total: number}) => void}} args
- * @returns {Promise<{created: number, updated: number, skipped: number, failures: Array<{name: string, reason: string}>, failedBatch: {index: number, notes: number, reason: string}|null}>}
+ * @returns {Promise<{created: number, updated: number, skipped: number, failures: Array<{name: string, reason: string}>, failedBatch: {index: number, notes: number, reason: string, message: string}|null}>}
  */
 export async function runImport({ source, destFolderId, docs, onProgress }) {
   const summary = { created: 0, updated: 0, skipped: 0, failures: [], failedBatch: null }
@@ -209,28 +216,39 @@ export async function runImport({ source, destFolderId, docs, onProgress }) {
       const reason = networkError
         ? (networkError?.message || String(networkError))
         : `HTTP ${res.status}`
-      summary.failedBatch = { index: batchIndex, notes: batch.length, reason }
+      summary.failedBatch = {
+        index: batchIndex,
+        notes: batch.length,
+        reason,
+        message: `Batch ${batchIndex + 1} failed (${reason}). Already-imported notes are safe; ` +
+          're-dropping the same export resumes where it stopped.',
+      }
       break
     }
 
     const body = await res.json()
+    // Fire onProgress per NOTE (not once per batch) — loop each response
+    // bucket's items individually so `done` climbs one at a time.
     for (const item of body.created || []) {
       idByKey[item.importKey] = item.id
       toCommit.push(item.importKey)
+      summary.created += 1
+      confirmDone += 1
+      onProgress?.({ phase: 'confirm', done: confirmDone, total: confirmTotal })
     }
     for (const item of body.updated || []) {
       idByKey[item.importKey] = item.id
       toCommit.push(item.importKey)
+      summary.updated += 1
+      confirmDone += 1
+      onProgress?.({ phase: 'confirm', done: confirmDone, total: confirmTotal })
     }
     for (const item of body.skipped || []) {
       idByKey[item.importKey] = item.id
+      summary.skipped += 1
+      confirmDone += 1
+      onProgress?.({ phase: 'confirm', done: confirmDone, total: confirmTotal })
     }
-    summary.created += (body.created || []).length
-    summary.updated += (body.updated || []).length
-    summary.skipped += (body.skipped || []).length
-
-    confirmDone += batch.length
-    onProgress?.({ phase: 'confirm', done: confirmDone, total: confirmTotal })
   }
 
   const commitTotal = toCommit.length
@@ -252,12 +270,31 @@ export async function runImport({ source, destFolderId, docs, onProgress }) {
         }
       }
       const { body: rewritten } = rewriteBody(sourceDoc.bodyJson, { mediaUrls, idByKey })
-      await fetch(`/api/j2/notes/${noteId}`, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bodyJson: rewritten }),
-      })
+      // The confirm step already counted this note as created/updated — that
+      // outcome stands regardless of what happens here. A failure below is
+      // reported via `failures` (the note's persisted body may still carry
+      // literal import-ref://import-link:// placeholders), and — critically —
+      // must NOT reject the whole runImport promise: swallow it and move on
+      // to the next note so one bad PUT can't strand every note after it.
+      try {
+        const putRes = await fetch(`/api/j2/notes/${noteId}`, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bodyJson: rewritten }),
+        })
+        if (!putRes.ok) {
+          summary.failures.push({
+            name: sourceDoc.title || importKey,
+            reason: `saving final content failed (HTTP ${putRes.status})`,
+          })
+        }
+      } catch (err) {
+        summary.failures.push({
+          name: sourceDoc.title || importKey,
+          reason: `saving final content failed (${err?.message || String(err)})`,
+        })
+      }
     }
 
     commitDone += 1
