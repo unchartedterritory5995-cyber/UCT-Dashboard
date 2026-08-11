@@ -963,7 +963,16 @@ export default function OptionsFlowDashboard() {
   // stable across the excursion. See flowViewPolicy.flowBaseFor.
   const _lastFlowMode = useRef("stocks");
   if (dataMode === "stocks" || dataMode === "index") _lastFlowMode.current = dataMode;
-  const { base: _base, effective: _flowMode } = flowBaseFor(dataMode, _lastFlowMode.current);
+  const { base: _base0, effective: _flowMode } = flowBaseFor(dataMode, _lastFlowMode.current);
+  // Mid-Small loads the UNCAPPED small-cap stream (/small-data). The bulk /data
+  // keeps only the top-50k prints by premium market-wide, which drops most of a
+  // small name's low-premium prints — so its raw totals AND still-open understate
+  // many-fold (AXTI: ~$63M true 20d bull → ~$22M capped, still-open collapses).
+  // Small-cap volume is a tiny slice of the tape, so the full stream is cheap.
+  // Stocks only (index/ETF flow isn't small-cap). Switching cap filters reloads.
+  const _base = (capFilter === "Mid-Small" && _flowMode === "stocks")
+    ? "/api/flow/small-data"
+    : _base0;
   const csvFile = (dateFrom && dateTo)
     ? `${_base}?date_from=${dateFrom}&date_to=${dateTo}`
     : (fetchDays === 0 ? `${_base}?all_data=true` : `${_base}?days=${fetchDays}`);
