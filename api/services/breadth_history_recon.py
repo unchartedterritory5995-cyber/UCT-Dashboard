@@ -96,45 +96,45 @@ def _lean_deep_daily(ticker: str) -> list:
 
 
 def load_deep_frame(tickers: list[str], since: Optional[str] = None, workers: int = 3) -> dict:
-    """Compact aligned frame for the WHOLE universe: {dates:[...], date_pos:{}, closes:np,
-    vols:np} with closes/vols shaped [n_tickers x n_dates]. NumPy (not dict-of-dicts) keeps
-    memory ~90MB for a few years x 3,700 names — safe against the pod-OOM class. `since`
-    trims each ticker to dates >= since (bound memory for a bounded sweep). Fetched PARALLEL
-    via the lean loader. Load ONCE; recompute every date off it."""
+    """Aligned frame {dates, date_pos, closes[n×D], vols[n×D]}. MEMORY-CRITICAL: instead of
+    accumulating a dict-of-all-tickers-bars (a ~280MB spike that crash-restarted the web pod),
+    preallocate the numpy arrays against a FIXED session index (SPY's trading days) and STREAM
+    each ticker straight into its row. Peak memory = just the two arrays (~20MB) + one ticker's
+    bars transiently. `since` bounds the range. Workers write DISJOINT rows (thread-safe)."""
     import numpy as np
     import time as _time
-    def _one(t):
-        d = {}
-        for b in (_lean_deep_daily(t) or []):
-            ds = _norm_date(b.get("t"))
-            if ds and (since is None or ds >= since):
-                cf = _f(b.get("c"))
-                if cf is not None and cf > 0:
-                    vf = _f(b.get("v"))
-                    d[ds] = (cf, vf if vf is not None else float("nan"))
-        _time.sleep(0.004)   # yield the GIL so the web event loop stays responsive (health checks)
-        return t, d
-    raw: dict = {}
-    with _Pool(max_workers=workers) as ex:
-        for t, d in ex.map(_one, tickers):
-            if d:
-                raw[t] = d
-    all_dates = sorted({ds for d in raw.values() for ds in d})
-    date_pos = {ds: i for i, ds in enumerate(all_dates)}
-    n, D = len(tickers), len(all_dates)
+    # Trading-session index from a complete reference (SPY has deep, gap-free daily history).
+    ref = _lean_deep_daily("SPY")
+    idx_dates = sorted({d for d in (_norm_date(b.get("t")) for b in (ref or []))
+                        if d and (since is None or d >= since)})
+    if not idx_dates:
+        return {"dates": [], "date_pos": {}, "closes": np.zeros((0, 0)),
+                "vols": np.zeros((0, 0)), "names": 0}
+    date_pos = {d: i for i, d in enumerate(idx_dates)}
+    n, D = len(tickers), len(idx_dates)
     closes = np.full((n, D), np.nan)
     vols = np.full((n, D), np.nan)
-    for ti, t in enumerate(tickers):
-        d = raw.get(t)
-        if not d:
-            continue
-        for ds, (c, v) in d.items():
-            j = date_pos[ds]
-            closes[ti, j] = c
-            vols[ti, j] = v
-    del raw
-    return {"dates": all_dates, "date_pos": date_pos, "closes": closes, "vols": vols,
-            "names": sum(1 for i in range(n) if not np.all(np.isnan(closes[i])))}
+
+    def _one(pair):
+        ti, t = pair
+        for b in (_lean_deep_daily(t) or []):
+            ds = _norm_date(b.get("t"))
+            j = date_pos.get(ds) if ds else None
+            if j is None:
+                continue
+            cf = _f(b.get("c"))
+            if cf is not None and cf > 0:
+                closes[ti, j] = cf                 # disjoint row per ticker -> no data race
+                vf = _f(b.get("v"))
+                if vf is not None:
+                    vols[ti, j] = vf
+        _time.sleep(0.004)   # yield GIL so the web event loop stays responsive (health checks)
+        return ti
+
+    with _Pool(max_workers=workers) as ex:
+        list(ex.map(_one, list(enumerate(tickers))))
+    names = int(np.count_nonzero(~np.all(np.isnan(closes), axis=1)))
+    return {"dates": idx_dates, "date_pos": date_pos, "closes": closes, "vols": vols, "names": names}
 
 
 def recompute_from_frame(frame: dict, tickers: list[str], target_date: str,
