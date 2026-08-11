@@ -210,12 +210,18 @@ def _et_today() -> Optional[str]:
 
 def _live_map() -> dict:
     """The current LIVE breadth snapshot as a FLAT {metric_key: value} dict, or {} when
-    live breadth is disabled/unavailable. `compute_live()` returns a WRAPPER — the flat
-    metric set lives under `payload["metrics"]` — so pull that out. Cached by compute_live
-    itself, so calling it per request is cheap."""
+    live breadth is disabled/unavailable/not-yet-meaningful. `compute_live()` returns a
+    WRAPPER — the flat metric set lives under `payload["metrics"]` — so pull that out.
+    Cached by compute_live itself, so calling it per request is cheap.
+
+    Gated on `breadth_live._session_started()` (today past 09:30 ET) — the SAME gate the
+    main live breadth row uses. Before the open most of the universe hasn't traded, so a
+    live read falls back to yesterday's closes and is unreliable (its own docstring:
+    "true, and useless"). Without this gate the breadth-symbol charts painted a bogus
+    pre-market developing candle that the main breadth surfaces already hide."""
     try:
         from api.services import breadth_live
-        if breadth_live.enabled():
+        if breadth_live.enabled() and breadth_live._session_started():
             payload = breadth_live.compute_live() or {}
             m = payload.get("metrics")
             return m if isinstance(m, dict) else {}

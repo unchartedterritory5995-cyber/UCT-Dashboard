@@ -92,6 +92,7 @@ def test_developing_today_candle_appended_from_live():
     hist = _fake_history([("2020-03-09", 40), ("2020-03-10", 45)])  # last EOD in the past
     with patch.object(breadth_monitor, "get_history", return_value=hist), \
          patch.object(breadth_live, "enabled", return_value=True), \
+         patch.object(breadth_live, "_session_started", return_value=True), \
          patch.object(breadth_live, "compute_live", return_value={"metrics": {"pct_above_50sma": 48.0}}):
         out = bs.build_breadth_bars("UCTA50", "D", 400)["bars"]
     assert len(out) == 3                                  # 2 stored + today's developing candle
@@ -99,6 +100,20 @@ def test_developing_today_candle_appended_from_live():
     assert last["t"] > "2020-03-10"                       # a NEW (today) session
     assert last["o"] == 45 and last["c"] == 48            # body = last close -> live value
     assert last["h"] == 48 and last["l"] == 45
+
+
+def test_no_developing_candle_before_session_start():
+    """Pre-open (session not started) must NOT paint a today candle from a live read —
+    pre-market breadth is unreliable. Regression for the bogus pre-9:30 candle."""
+    from api.services import breadth_monitor, breadth_live
+    hist = _fake_history([("2020-03-09", 40), ("2020-03-10", 45)])
+    with patch.object(breadth_monitor, "get_history", return_value=hist), \
+         patch.object(breadth_live, "enabled", return_value=True), \
+         patch.object(breadth_live, "_session_started", return_value=False), \
+         patch.object(breadth_live, "compute_live", return_value={"metrics": {"pct_above_50sma": 78.8}}):
+        out = bs.build_breadth_bars("UCTA50", "D", 400)["bars"]
+    assert len(out) == 2                                  # only the 2 stored days — no today candle
+    assert out[-1]["t"] == "2020-03-10"
 
 
 def test_unknown_symbol_returns_empty():
@@ -123,6 +138,7 @@ def test_latest_quote_uses_live_value_when_tracked():
             {"date": "2020-03-09", "pct_above_50sma": 48}]
     with patch.object(breadth_monitor, "get_history", return_value=hist), \
          patch.object(breadth_live, "enabled", return_value=True), \
+         patch.object(breadth_live, "_session_started", return_value=True), \
          patch.object(breadth_live, "compute_live", return_value={"metrics": {"pct_above_50sma": 55.0}}):
         q = bs.latest_quotes(["UCTA50"])["UCTA50"]
     assert q["price"] == 55.0                      # today's live value
