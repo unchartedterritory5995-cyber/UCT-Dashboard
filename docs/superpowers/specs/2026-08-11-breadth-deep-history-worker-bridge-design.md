@@ -199,7 +199,13 @@ explicit, admin-gated "force refresh" op, out of scope here. Noted so nobody
 ## 7. Environment variables
 
 **Worker service:**
-- `BREADTH_HISTORY_BACKFILL_ENABLED=1` — start the backfill thread
+- `BREADTH_HISTORY_BACKFILL_ENABLED=1` — start the backfill thread (also the STOP
+  switch: set `=0` and the thread never starts on the next deploy)
+- `BREADTH_BACKFILL_FLOOR=2008-01-01` — arms the grind down to this date. The
+  worker seeds its own floor marker from this on boot (the web
+  `/history/backfill-schedule` endpoint writes the marker on the WEB volume and
+  can't reach the worker). Safe to leave set: after completion a re-seed is a
+  cheap no-op (coverage already at floor → tick completes immediately).
 - `DATA_SYNC_*` — already set (shared R2 creds)
 - optional `BREADTH_BACKFILL_CHUNK_DAYS=365`, `BREADTH_BACKFILL_PAUSE_SECS=90`
 

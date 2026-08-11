@@ -224,6 +224,17 @@ def _start_breadth_backfill():
         import gc
         from api.services import breadth_history_recon as recon
         from api.services import breadth_ohlc_sync as sync
+        # Arm from env when there's no durable floor marker yet. The worker has its
+        # OWN /data volume, so the web /history/backfill-schedule endpoint (which
+        # writes the marker on the WEB volume) can't reach this thread — env is the
+        # clean cross-pod arming channel. Safe to re-seed after completion: once
+        # coverage reaches the floor, backfill_tick clears the marker and a re-seed
+        # just re-checks and immediately completes as a no-op. To STOP mid-grind,
+        # set BREADTH_HISTORY_BACKFILL_ENABLED=0 (this thread then never starts).
+        env_floor = os.environ.get("BREADTH_BACKFILL_FLOOR")
+        if env_floor and not recon.get_backfill_floor():
+            recon.set_backfill_floor(env_floor)
+            log.info(f"breadth backfill armed from BREADTH_BACKFILL_FLOOR={env_floor}")
         while True:
             slept = idle
             try:
