@@ -1,6 +1,16 @@
 .menu {
   position: fixed;
-  z-index: 2000;
+  /* Must beat TickerPopup's overlay (TickerPopup.module.css, 8600): this menu
+     is rendered by GlobalAddPositionProvider (mounted once at App.jsx's root)
+     and fires from the `uct:chart-contextmenu` event dispatched by EVERY
+     StockChart — including the one rendered inside TickerPopup's chart modal.
+     Below ModalShell's backdrop (8800): the menu always closes itself
+     (close-on-select, see the component doc above) before AddPositionModal
+     can open, so the two never actually coexist — but this keeps the whole
+     from-popup chain ordered top to bottom: video host (8500, see
+     GlobalVideoLayer.module.css) < TickerPopup (8600) < this menu (8700) <
+     ModalShell (8800). See TickerPopup.zorder.test.js for the rail. */
+  z-index: 8700;
   min-width: 210px;
   max-width: 260px;
   padding: 4px;

@@ -5,8 +5,10 @@
   inset: 0;
   background: rgba(4, 6, 10, 0.72);
   backdrop-filter: blur(6px);
-  /* Matches ModalShell — stacks above TickerPopup's modal (1000). */
-  z-index: 1100;
+  /* Matches ModalShell — stacks above TickerPopup's overlay (now 8600; see
+     ModalShell.module.css for the full from-popup chain and
+     TickerPopup.zorder.test.js for the rail). */
+  z-index: 8800;
   display: flex;
   align-items: center;
   justify-content: center;
