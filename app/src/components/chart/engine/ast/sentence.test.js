@@ -1816,7 +1816,11 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       'exp_of_a_small_number', 'exp_overflow', 'pow_square', 'pow_fractional_of_negative', 'mod_truncated',
       'mod_by_zero', 'idiv_truncated', 'sin_of_close', 'cos_of_close', 'tan_of_close',
       'atan_of_close', 'sinh_of_a_small_number', 'sinh_overflow', 'sum_of_volume', 'dev_of_close',
-      'dev_is_not_stdev',
+      // ⭐ `adx_trend_strength` added 2026-08-11 — the case ADX shipped WITHOUT.
+      // This list going red is the point of writing it out by name: a corpus case
+      // is a cross-lane obligation, so one appearing must be a deliberate edit
+      // rather than something that arrives with a fixture nobody read.
+      'dev_is_not_stdev', 'adx_trend_strength',
     ])
   })
 

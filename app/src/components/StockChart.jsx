@@ -339,6 +339,7 @@ import { isNativeTf, fetchTf, resampleSpec } from './chart/timeframes'
 import { barsRenderPlan } from './chart/renderPlan'
 import ChartSkeleton from './chart/ChartSkeleton'
 import { normalizeToPctChange } from './chart/comparisonUtils'
+import CompanyLogo from './CompanyLogo'
 import { composeScreenshot, downloadBlob, copyBlobToClipboard, chartStateToUrl, urlToChartState } from './chart/chartScreenshot'
 import ScreenshotPopover from './chart/ScreenshotPopover'
 import { INDICATOR_CHORDS, matchShortcut, resolveTfCycle } from './chart/keyboardShortcuts'
@@ -5270,6 +5271,58 @@ export default function StockChart({
     })
   }, [comparisonsData, enabledComparisons, adjustTime])
 
+  // ── Compare legend: framed-window % + name/exchange ──
+  // Leftmost VISIBLE bar time (adjustTime space) = the framed baseline; re-computed
+  // on pan/zoom (rAF-debounced) so the legend %s read "since the left of what you
+  // see", not since the oldest loaded bar.
+  // Uses the visible TIME range (numeric, same adjustTime space as the series),
+  // NOT logical indices — a comparison series with more history than the base
+  // extends the logical space, so a logical-index→bar map read the wrong (often
+  // last) bar and the % came out 0.00%.
+  const [framedLeftTime, setFramedLeftTime] = useState(null)
+  useEffect(() => {
+    const chart = chartRef.current
+    if (!chart || !chartReady || !enabledComparisons.length) { setFramedLeftTime(null); return undefined }
+    const ts = chart.timeScale()
+    const apply = (range) => { if (range && range.from != null) setFramedLeftTime(Number(range.from)) }
+    const handler = (range) => apply(range)
+    try { apply(ts.getVisibleRange()) } catch { /* mid-load */ }
+    try { ts.subscribeVisibleTimeRangeChange(handler) } catch { /* older API */ }
+    return () => { try { ts.unsubscribeVisibleTimeRangeChange(handler) } catch { /* */ } }
+  }, [chartReady, enabledComparisons.length])
+
+  // Per-comparison % over the framed window: (latest close − close at framed-left) / base.
+  const comparisonFramed = useMemo(() => {
+    if (!comparisonsData) return []
+    return enabledComparisons.map(c => {
+      const symKey = String(c.sym).toUpperCase()
+      const bars = comparisonsData[symKey] || []
+      let baseClose = null, lastClose = null
+      if (framedLeftTime != null) {
+        for (const b of bars) { if (Number.isFinite(b.c) && adjustTime(b.t) >= framedLeftTime) { baseClose = b.c; break } }
+      }
+      if (baseClose == null) { for (const b of bars) { if (Number.isFinite(b.c)) { baseClose = b.c; break } } }
+      for (let i = bars.length - 1; i >= 0; i--) { if (Number.isFinite(bars[i].c)) { lastClose = bars[i].c; break } }
+      const pct = (baseClose && lastClose) ? ((lastClose - baseClose) / baseClose) * 100 : null
+      return { sym: symKey, color: c.color, pct }
+    })
+  }, [comparisonsData, enabledComparisons, framedLeftTime, adjustTime])
+
+  // Name + exchange for each comparison (the legend shows "Name · Exchange").
+  const { data: comparisonMeta } = useSWR(
+    comparisonsKey ? ['comparison-meta', comparisonsKey] : null,
+    async () => {
+      const syms = enabledComparisons.map(c => String(c.sym).toUpperCase())
+      const res = await Promise.allSettled(
+        syms.map(s => fetch(`/api/ticker-meta/${encodeURIComponent(s)}`).then(r => (r.ok ? r.json() : null)).catch(() => null)),
+      )
+      const out = {}
+      res.forEach((r, i) => { out[syms[i]] = r.status === 'fulfilled' ? r.value : null })
+      return out
+    },
+    { revalidateOnFocus: false, dedupingInterval: 300_000 },
+  )
+
   // ── Index comparison pane (indexPaneSymbol, e.g. ^IXIC) ──
   // Fetch the index's bars for the same tf + bar count and draw its CLOSE as a
   // line in a dedicated pane on top of the price pane. Unlike the % comparison
@@ -9150,18 +9203,19 @@ export default function StockChart({
             priceScaleId: 'left',
             color: cmp.color,
             lineWidth: 2,
-            lastValueVisible: true,
+            // No on-chart chip / axis label — the docked compare legend shows the
+            // symbol, name + framed % instead (owner: drop the blue "SPY" box).
+            lastValueVisible: false,
             priceLineVisible: false,
             crosshairMarkerVisible: true,
             crosshairMarkerRadius: 3,
-            title: cmp.sym,
           })
           map.set(cmp.sym, series)
         } catch {
           continue
         }
       } else {
-        try { series.applyOptions({ color: cmp.color }) } catch {}
+        try { series.applyOptions({ color: cmp.color, lastValueVisible: false }) } catch {}
       }
       try { series.setData(cmp.points) } catch {}
     }
@@ -11542,16 +11596,23 @@ export default function StockChart({
         )
       })()}
       {enabledComparisons.length > 0 && (
-        <div className={styles.comparisonLegend}>
-          <span className={styles.legendLabel}>vs {sym}:</span>
-          {comparisonSeries.map(s => {
-            const last = s.points && s.points.length ? s.points[s.points.length - 1] : null
-            const pct = last?.value
-            const valid = Number.isFinite(pct)
+        <div className={`${styles.compareRows}${legendStacked ? ' ' + styles.compareRowsSide : ''}`}>
+          {comparisonFramed.map(f => {
+            const meta = comparisonMeta?.[f.sym]
+            const name = meta?.name || f.sym
+            const exch = meta?.exchange
+            const up = f.pct != null && f.pct >= 0
             return (
-              <span key={s.sym} className={styles.legendItem} style={{ color: s.color }}>
-                {s.sym} {valid ? `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%` : '—'}
-              </span>
+              <div key={f.sym} className={styles.compareRow}>
+                <span className={styles.compareLogo}><CompanyLogo sym={f.sym} name={name} size={13} round /></span>
+                <span className={styles.compareTicker} style={{ color: f.color }}>{f.sym}</span>
+                <span className={styles.compareName}>
+                  {name}{exch ? <span className={styles.compareExch}> · {exch}</span> : null}
+                </span>
+                <span className={styles.comparePct} style={{ color: f.color }}>
+                  {f.pct != null ? `${up ? '+' : ''}${f.pct.toFixed(2)}%` : '—'}
+                </span>
+              </div>
             )
           })}
         </div>

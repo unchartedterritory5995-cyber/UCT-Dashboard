@@ -121,6 +121,92 @@ def pull_breadth_ohlc_now(request: Request):
     return {"ok": True, "merged": breadth_ohlc_sync.sync_if_new()}
 
 
+@router.post("/api/breadth-monitor/pit/calibrate")
+def pit_calibrate(request: Request, target_days: int = Query(default=8, ge=1, le=40),
+                  vol_window: int = Query(default=20, ge=5, le=60),
+                  exchanges: str = Query(default="")):
+    """Phase-2 MAKE-OR-BREAK gate: run the price/liquidity-proxy vs KNOWN-universe
+    calibration in a BACKGROUND thread (whole-market grouped-daily pulls are heavy).
+    `exchanges` = comma-sep primary_exchange allowlist (e.g. XNYS,XNAS,XASE,ARCX,BATS)
+    to drop OTC; empty = no exchange filter. Poll GET .../pit/calibrate-result.
+    PUSH_SECRET-gated."""
+    _check_auth(request)
+    from api.services import breadth_pit_calibrate as cal
+    exch = [e.strip().upper() for e in exchanges.split(",") if e.strip()] or None
+    cal.run_async(target_days=target_days, vol_window=vol_window, exchanges=exch)
+    return {"ok": True, "started": True, "target_days": target_days,
+            "vol_window": vol_window, "exchanges": exch}
+
+
+@router.get("/api/breadth-monitor/pit/calibrate-result")
+def pit_calibrate_result():
+    """Poll the Phase-2 calibration run (public — proxy-vs-known-universe overlap
+    metrics, no member lists / no secrets)."""
+    from api.services import breadth_pit_calibrate as cal
+    return cal._STATE
+
+
+@router.post("/api/breadth-monitor/pit/validate")
+def pit_validate(request: Request, target_days: int = Query(default=8, ge=1, le=40),
+                 vol_window: int = Query(default=20, ge=5, le=60),
+                 price_min: float = Query(default=3.0),
+                 dollarvol_min: float = Query(default=5e6),
+                 exchanges: str = Query(default="")):
+    """Phase-2 DECISION test: does the proxy universe move the breadth VALUE vs the
+    collector's ACTUAL universe (same method, so it isolates the universe effect)?
+    Background thread; poll GET .../pit/validate-result. PUSH_SECRET-gated."""
+    _check_auth(request)
+    from api.services import breadth_pit_calibrate as cal
+    exch = [e.strip().upper() for e in exchanges.split(",") if e.strip()] or None
+    cal.run_value_async(target_days=target_days, vol_window=vol_window,
+                        price_min=price_min, dollarvol_min=dollarvol_min, exchanges=exch)
+    return {"ok": True, "started": True}
+
+
+@router.get("/api/breadth-monitor/pit/validate-result")
+def pit_validate_result():
+    """Poll the Phase-2 value-impact validation (public — per-metric breadth-value
+    deltas, no member lists)."""
+    from api.services import breadth_pit_calibrate as cal
+    return cal._VSTATE
+
+
+@router.post("/api/breadth-monitor/wicks/validate")
+def wicks_validate(request: Request, days: int = Query(default=3, ge=1, le=8),
+                   bucket_min: int = Query(default=30, ge=5, le=60)):
+    """Phase-3 gate: reconstruct the last `days` sessions' wicks from S3 minute flat
+    files and compare to the store's REAL live-accumulator wicks. Background thread
+    (whole-market minute pull is heavy). Poll GET .../wicks/validate-result.
+    PUSH_SECRET-gated."""
+    _check_auth(request)
+    from api.services import breadth_wick_recon as wr
+    wr.run_validate_async(days=days, bucket_min=bucket_min)
+    return {"ok": True, "started": True, "days": days, "bucket_min": bucket_min}
+
+
+@router.get("/api/breadth-monitor/wicks/validate-result")
+def wicks_validate_result():
+    """Poll the Phase-3 wick-reconstruction validation (public — recon-vs-live wick
+    deltas, no member lists)."""
+    from api.services import breadth_wick_recon as wr
+    return wr._VWSTATE
+
+
+@router.get("/api/breadth-monitor/wicks/probe")
+def wicks_probe(request: Request, date: str = Query(default="")):
+    """Phase-3 diagnostic: pinpoint why recon_day fails (levels build vs S3 access),
+    for one day. PUSH_SECRET-gated."""
+    _check_auth(request)
+    from api.services import breadth_wick_recon as wr
+    from api.services import breadth_live as bl, breadth_daily_ohlc as store
+    D = date
+    if not D:
+        today = bl._iso(bl._ts_int(bl._now_et().date()))
+        ds = sorted(d for d in store.history("pct_above_50sma") if d < today)
+        D = ds[-1] if ds else today
+    return wr.probe_day(D)
+
+
 @router.post("/api/breadth-monitor/history/backfill-schedule")
 def schedule_breadth_backfill(request: Request, floor: str = Query(default=""),
                               stop: bool = Query(default=False)):

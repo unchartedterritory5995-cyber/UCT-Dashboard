@@ -17,7 +17,12 @@
 // the reader stands, never as a target to maximise.
 
 import { describe, it, expect } from 'vitest'
-import { parsePcf, PCF_DIFFERENT_FORMULA } from './pcf.js'
+import { parsePcf, detectDialect, pcfCoverage, PCF_DIFFERENT_FORMULA, PCF_DIALOG_INDICATORS } from './pcf.js'
+import { astHash } from './parse.js'
+import TABLE from './closedTable.json'
+import { maxLookback } from './interpret.js'
+import { evaluateFormula } from '../../builder/FormulaField.jsx'
+import { BUILDER_INPUT_SCOPE } from '../../builder/builderInputs.js'
 
 /** Worden's vocabulary, one representative expression per spelling. */
 const VOCABULARY = {
@@ -48,7 +53,7 @@ const VOCABULARY = {
  *  once already. */
 const EXPECTED = {
   'price letters': 6, 'math operators': 5, 'math functions': 8, relational: 4,
-  logical: 7, crossing: 2, 'moving averages': 5, aggregates: 7, oscillators: 7,
+  logical: 7, crossing: 2, 'moving averages': 5, aggregates: 7, oscillators: 8,
   conditional: 1, stateful: 3, 'trig and hyperbolic': 5,
 }
 
@@ -116,7 +121,13 @@ describe('the TC2000 vocabulary, measured against Worden`s own syntax table', ()
     // warm-up. `2*arg3` closed that, mirrored in both lanes.
     // ⛔ AND THE DOTTED NUMBER IS SMOOTHING, NOT AN OFFSET — `ADX14.20` REFUSES
     // rather than quietly returning a 14/14 ADX.
-    expect(expected).toBe(60)
+    // ⭐ 61: `STOC14.3`, and it cost NO new vocabulary either — the smoothing is a
+    // moving average OVER the stochastic, which this table already spells, so the
+    // tree is hash-identical to `sma(stoch(c,h,l,14), 3)`. It was the last spelling
+    // refused in a 16-column sweep of real TC2000 scans. ⛔ `WSTOC` stays refused
+    // beside it on purpose: Worden's own stochastic is a DIFFERENT formula, and
+    // the two sitting one line apart is the distinction this file exists to keep.
+    expect(expected).toBe(61)
   })
 })
 
@@ -160,5 +171,154 @@ describe('a look-alike refuses with WHY, not with a typo`s message', () => {
       expect(r.error, `${name} is declared and never reached`)
         .toContain(PCF_DIFFERENT_FORMULA[name])
     }
+  })
+})
+
+// ─── THE DIALOG INDICATORS ROUTE TO THE READER THAT KNOWS THEM ───────────────
+//
+// A TC2000 dialog indicator arrives as multi-word English, so it has to be named
+// BEFORE tokenizing or the member gets "a formula is one expression, and this is
+// several" about a row they picked from a list. Two things must agree for that to
+// work: the phrase is in `PCF_DIALOG_INDICATORS`, and `detectDialect` routes it to
+// the TC2000 reader. They were two hand-written copies of one fact until 2026-08-11.
+describe('a TC2000 dialog indicator is named, never tokenized', () => {
+  it('every entry is reachable by its own name', () => {
+    // Establishes that the probe below is legitimate: these tests drive each
+    // indicator using its `name`, which is only meaningful if the entry's own
+    // pattern matches it. An entry that failed here would make every later
+    // assertion pass against a string the reader never sees.
+    for (const d of PCF_DIALOG_INDICATORS) expect(d.re.test(d.name), d.name).toBe(true)
+  })
+
+  it('⭐ every entry routes to the TC2000 reader — DERIVED, never re-typed', () => {
+    // ⛔ This loop is the whole reason the marker list stopped restating these
+    // patterns. Add a fourth indicator and it is covered the moment it lands.
+    for (const d of PCF_DIALOG_INDICATORS) {
+      expect(detectDialect(`${d.name} > 10`), d.name).toBe('pcf')
+    }
+  })
+
+  it('…and a native formula still reads as native, so that probe can tell them apart', () => {
+    // Without this the loop above would pass just as happily if `detectDialect`
+    // answered 'pcf' to everything.
+    expect(detectDialect('close > sma(close, 20)')).toBe('native')
+  })
+
+  it('each one refuses BY NAME and says what to write instead', () => {
+    for (const d of PCF_DIALOG_INDICATORS) {
+      const ev = parsePcf(`${d.name} > 10`)
+      expect(ev.ok, d.name).toBe(false)
+      expect(ev.guard, d.name).toBe('pcf:name')
+      expect(ev.token, d.name).toBe(d.name)
+      expect(ev.error, d.name).toContain(d.why)
+    }
+  })
+
+  it('🔴 the dollar-volume refusal states the CONVERTED number, not just the formula', () => {
+    // ⛔ THE UNIT IS THE DEFECT HERE, and it is the quiet kind: TC2000 quotes
+    // dollar volume in THOUSANDS, so a row copied across unchanged reads
+    // `> 10000` — ten thousand dollars — and admits the entire tape. The scan
+    // returns a full list and looks like it worked. Naming the formula without
+    // naming the conversion would leave that trap fully armed.
+    const ev = parsePcf('Volume (Dollars) 20-Day > 10000')
+    expect(ev.ok).toBe(false)
+    expect(ev.error).toContain('AVG(C * V, 20)')
+    expect(ev.error).toContain('10000000')
+  })
+})
+
+// ─── TC2000'S SMOOTHED STOCHASTIC ───────────────────────────────────────────
+//
+// `STOC<period>.<smoothing>` is the one spelling in a 16-column sweep of real
+// TC2000 scans that this reader turned away. Worden's published scans use it
+// constantly, and the smoothing is not an argument to the stochastic — it is a
+// moving average OVER it, which this table already spells.
+describe('`STOC14.3` — the smoothing is a wrapper, not an argument', () => {
+  // ⛔ BOTH SIDES GO THROUGH THE DIALECT-DETECTING FRONT DOOR. Half of these
+  // comparisons are NATIVE spellings, and `parsePcf` is the TC2000 reader — using
+  // it for both would have compared a tree against a parse failure.
+  const tree = (src) => {
+    const ev = evaluateFormula(src, BUILDER_INPUT_SCOPE)
+    expect(ev.ok, ev.error || src).toBe(true)
+    return ev.ast
+  }
+
+  it('⭐ IS THE TABLE`S OWN SPELLING, proved by tree identity', () => {
+    // ⛔ The whole basis for admitting this. If the expansion were a judgement
+    // about what Worden meant rather than an exact identity, it would belong in
+    // PCF_DIFFERENT_FORMULA refusing by name. Hash equality is what makes it a
+    // translation instead of an interpretation — and it compares TREES, so
+    // whitespace and spelling differences cannot make it pass for free.
+    expect(astHash(tree('STOC14.3 < 30')))
+      .toBe(astHash(tree('sma(stoch(close, high, low, 14), 3) < 30')))
+  })
+
+  it('a smoothing of 1 adds NOTHING — the old trees are unchanged', () => {
+    // ⛔ The compatibility half. Every `STOC14.1` already saved by a member must
+    // keep hashing to what it hashed before, or their stored scans silently
+    // become different formulas on deploy.
+    const raw = astHash(tree('stoch(close, high, low, 14) < 30'))
+    expect(astHash(tree('STOC14.1 < 30'))).toBe(raw)
+    expect(astHash(tree('STOC14 < 30'))).toBe(raw)
+  })
+
+  it('🔴 the smoothing is COUNTED in the warm-up, not lost', () => {
+    // ⚠️ Under-stating a lookback is the only direction that corrupts: it
+    // becomes `bars_wanted` for a live alert, so a window read as 14 when it
+    // needs 17 answers from data that was never fetched. The tree-sum walker
+    // gives 14+3; one bar over is deliberate and safe.
+    expect(maxLookback(tree('STOC14.1 < 30'))).toBe(14)
+    expect(maxLookback(tree('STOC14.3 < 30'))).toBe(17)
+  })
+
+  it('an offset wraps the SMOOTHED value, not the raw one', () => {
+    // `STOC14.3.1` is the smoothed stochastic as it stood a bar ago. Smoothing a
+    // shifted series instead is a different number, and it would be silent.
+    expect(astHash(tree('STOC14.3.1 < 30')))
+      .toBe(astHash(tree('sma(stoch(close, high, low, 14), 3)[1] < 30')))
+    expect(maxLookback(tree('STOC14.3.1 < 30'))).toBe(18)
+  })
+
+  it('a smoothing that is not a whole number ≥ 1 still refuses', () => {
+    for (const src of ['STOC14.0 < 30', 'STOC14.-2 < 30']) {
+      expect(parsePcf(src).ok, src).toBe(false)
+    }
+  })
+})
+
+// ─── THE COVERAGE MAP MUST AGREE WITH THE READER ────────────────────────────
+//
+// `pcfCoverage` is what an engineer reads to decide what to build next, and it
+// used to MODEL the reader's argument-filling rather than ask it. It therefore
+// disagreed with the shipped reader in the worst direction: `BOP` was reported
+// as "the table does not declare `undefined`" and `ADX` as a signature mismatch,
+// while `BOP14 > 0` and `ADX14.14 > 25` both parsed fine. A map that understates
+// support sends someone to build a thing that already works.
+describe('the coverage map does not disagree with the reader', () => {
+  it('🔴 nothing is reported blocked while its own spelling reads', () => {
+    const cov = pcfCoverage()
+    // ⛔ THE NAMES AND THEIR STATED REASONS, IN THE MESSAGE. A blocked family is
+    // allowed to exist — it just must not be one the reader is quietly handling.
+    const lying = cov.blocked.filter((b) => VOCABULARY.oscillators.some(
+      (src) => reads(src) && src.toUpperCase().startsWith(b.spelling.split('<')[0])))
+    expect(lying.map((b) => `${b.spelling}: ${b.reason}`)).toEqual([])
+  })
+
+  it('an EXPANDED family is reported as covered, not as a missing function', () => {
+    const cov = pcfCoverage()
+    expect(cov.expanded.map((e) => e.spelling).join(' | ')).toContain('BOP')
+    expect(cov.blocked.map((b) => b.spelling).join(' | ')).not.toContain('BOP')
+    // …and it is genuinely readable, which is the fact the report now matches.
+    expect(reads('BOP20 > 0')).toBe(true)
+  })
+
+  it('…and the control proves a REAL block is still reported', () => {
+    // ⛔ Without this, the two assertions above pass just as happily on a
+    // `blocked` list that had been hard-wired to empty.
+    const without = JSON.parse(JSON.stringify(TABLE))
+    delete without.functions.stoch
+    const cov = pcfCoverage(without)
+    expect(cov.blocked.map((b) => b.spelling).join(' | ')).toContain('STOC')
+    expect(reads('STOC14.3 < 20')).toBe(true)
   })
 })

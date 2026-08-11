@@ -526,11 +526,21 @@ def test_the_scalar_floor_is_ITS_OWN_and_folding_it_in_ABORTS_the_recorder():
     block (twelve pointwise functions: sqrt ln log10 exp pow mod idiv sin cos tan
     atan sinh). The scalar floor did not move
     at all, which is the whole reason these are two numbers. Seventeen indicators
-    became callable and each one owed a bar-corpus case; not one scalar did."""
+    became callable and each one owed a bar-corpus case; not one scalar did.
+
+    ⭐ 69 -> 70 ON 2026-08-11 WITH ``adx``, AND THIS PAIR OF NUMBERS IS EXACTLY
+    WHAT CAUGHT IT. ADX was declared, implemented in both lanes and shipped
+    earlier the same day; what it never got was a bar-corpus case, so its
+    JS<->Python agreement was asserted by nobody. This assertion went red beside
+    ``assert_corpus_covers_the_table`` naming ``adx`` -- two independent rails
+    reporting one omission -- and the corpus case ``adx_trend_strength`` was
+    written in response. ⛔ THE FIX IS THE CORPUS CASE; MOVING THIS NUMBER IS
+    ONLY THE ACKNOWLEDGEMENT. Bumping the literal alone would have left the
+    indicator unproven across the lanes and both rails quiet about it."""
     manifest = ac.load_manifest()
     corpus = ac.load_corpus()
     parts = ac.assert_the_two_floors_partition_the_table(manifest)
-    assert len(parts["bar"]) == 69 and len(parts["scalar"]) == 54
+    assert len(parts["bar"]) == 70 and len(parts["scalar"]) == 54
     assert not (parts["bar"] & parts["scalar"])
 
     # the control: the unmutated tool accepts the real corpus…
