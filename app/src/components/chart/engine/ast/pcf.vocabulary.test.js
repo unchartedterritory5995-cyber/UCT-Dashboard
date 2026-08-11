@@ -48,7 +48,7 @@ const VOCABULARY = {
  *  once already. */
 const EXPECTED = {
   'price letters': 6, 'math operators': 5, 'math functions': 8, relational: 4,
-  logical: 7, crossing: 2, 'moving averages': 5, aggregates: 7, oscillators: 6,
+  logical: 7, crossing: 2, 'moving averages': 5, aggregates: 7, oscillators: 7,
   conditional: 1, stateful: 3, 'trig and hyperbolic': 5,
 }
 
@@ -109,7 +109,14 @@ describe('the TC2000 vocabulary, measured against Worden`s own syntax table', ()
     //
     // ⚠️ Raising it is a deliberate edit, never a side effect — see the header on
     // why a high score is not the goal.
-    expect(expected).toBe(59)
+    // ⭐ 60: `ADX14.14`. The blocker was never the maths — both lanes already
+    // shipped a bar-aligned ADX and `plusDI`/`minusDI` were declared off it. It
+    // was the `lookback` GRAMMAR: ADX's window is 2 x period and the table could
+    // only say "one of my arguments", so declaring it would have UNDER-stated the
+    // warm-up. `2*arg3` closed that, mirrored in both lanes.
+    // ⛔ AND THE DOTTED NUMBER IS SMOOTHING, NOT AN OFFSET — `ADX14.20` REFUSES
+    // rather than quietly returning a 14/14 ADX.
+    expect(expected).toBe(60)
   })
 })
 

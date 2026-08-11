@@ -10,6 +10,7 @@ import {
   parseFormula, canonicalise, astHash, sha256Hex, assertCanonical,
   TABLE, NODE_TYPES, REFUSALS, TableRefusal,
 } from './parse.js'
+import { LOOKBACK_RE } from './interpret.js'
 import jsep from 'jsep'
 
 /** The repo root, found by walking up. `import.meta.url` is an http: URL under
@@ -414,7 +415,7 @@ describe('the hash that decides a rev bump', () => {
 })
 
 describe('the manifest', () => {
-  it('declares 5 series, 15 operators, 49 functions and 54 scalars — 123 names, one grammar', () => {
+  it('declares 5 series, 15 operators, 50 functions and 54 scalars — 124 names, one grammar', () => {
     expect(Object.keys(TABLE.series)).toHaveLength(5)
     expect(Object.keys(TABLE.operators)).toHaveLength(15)
     // ⭐ 11 -> 28 IS PHASE F. Seventeen indicators — rsi, macd, atr, the two DI
@@ -436,7 +437,7 @@ describe('the manifest', () => {
     // per-bar body, which is the warm-up and what name the body reads its own
     // past through. That is why `tableVersion` below is STILL 1: every stored
     // `astHash` is unmoved, because the tree shape did not change.
-    expect(Object.keys(TABLE.functions)).toHaveLength(49)
+    expect(Object.keys(TABLE.functions)).toHaveLength(50)
     // ⭐ THE FOURTH SECTION (Phase E Task 1). Counted SEPARATELY from the three
     // above, not folded into one total: 48 is the BAR vocabulary a corpus case
     // can exercise against 579 bars, and 54 is the per-symbol vocabulary that
@@ -448,9 +449,12 @@ describe('the manifest', () => {
     const bar = new Set([
       ...Object.keys(TABLE.series), ...Object.keys(TABLE.operators), ...Object.keys(TABLE.functions),
     ])
-    expect(bar.size).toBe(69)
+    // `adx` took the bar half to 70 (2026-08-11): the `lookback` grammar grew a
+    // whole multiple of an argument (`2*arg3`), which is the ONLY thing that had
+    // been keeping it out — its window is 2 x period and the table could not say so.
+    expect(bar.size).toBe(70)
     const declared = new Set([...bar, ...Object.keys(TABLE.scalars)])
-    expect(declared.size).toBe(123)
+    expect(declared.size).toBe(124)
     // ⚠️ `tableVersion` STAYS 1 AND THAT IS A DECISION. It versions the GRAMMAR
     // — the four node types and the keys a persisted tree may carry — and Phase
     // E widened the VOCABULARY without touching either: a scalar rides the
@@ -469,8 +473,14 @@ describe('the manifest', () => {
       if (!Array.isArray(spec.args) || spec.args.length === 0) bad.push(`${name}: no args`)
       if (typeof spec.sentence !== 'string' || !spec.sentence) bad.push(`${name}: no sentence`)
       const lb = spec.lookback
+      // ⛔ THE SHAPE IS READ OFF THE IMPLEMENTATION, NOT RESTATED HERE. This line
+      // used to spell `/^arg\d+$/` of its own, so when `lookback` grew to accept
+      // `2*arg3` (which is what let `adx` be declared) this rail failed a manifest
+      // that was correct — a second authority over one grammar, inside the file
+      // whose whole job is policing the manifest.
+      const shape = typeof lb === 'string' ? LOOKBACK_RE.exec(lb) : null
       const ok = (typeof lb === 'number' && lb >= 0)
-        || (typeof lb === 'string' && /^arg\d+$/.test(lb) && Number(lb.slice(3)) < spec.args.length)
+        || (!!shape && Number(shape[2]) < spec.args.length)
       if (!ok) bad.push(`${name}: lookback ${JSON.stringify(lb)} is neither a constant nor a real argument`)
       // Every `{n}` the sentence cites must be an argument that exists.
       for (const m of spec.sentence.matchAll(/\{(\d+)\}/g)) {
@@ -491,8 +501,14 @@ describe('the manifest', () => {
     }
     expect(TABLE._no_offset_reopened_by).toMatch(/owner/)
     // …and the reason is not just a comment: the property the linter depends on.
+    // ⛔ THE PROPERTY IS "STATICALLY DECIDABLE FROM THE DECLARATION", not "matches
+    // this literal regex". A third hand-written copy of the grammar lived here and
+    // failed the day `lookback` grew `2*arg3` — a form that is still a constant
+    // times a written argument, so `maxLookback` is still a TREE SUM and no
+    // dataflow analysis appears. Derived from the implementation's own pattern.
     for (const spec of Object.values(TABLE.functions)) {
-      expect(typeof spec.lookback === 'number' || /^arg\d+$/.test(spec.lookback)).toBe(true)
+      expect(typeof spec.lookback === 'number' || LOOKBACK_RE.test(spec.lookback),
+        `lookback ${JSON.stringify(spec.lookback)} is not statically decidable`).toBe(true)
     }
   })
 

@@ -156,6 +156,11 @@ const FORMS = [
   { kind: 'call', name: 'rsi', parts: ['the ', 1, '-bar RSI of ', 0] },
   { kind: 'call', name: 'macd', parts: ['the ', 1, '/', 2, ' MACD line of ', 0] },
   { kind: 'call', name: 'atr', parts: ['the ', 3, '-bar average true range of ', 0, ', ', 1, ' and ', 2] },
+  // ⛔ HAND-WRITTEN, like every form here. Deriving it from `closedTable`'s
+  // `sentence` would make the oracle agree with the renderer by construction and
+  // the round-trip would prove nothing — which is why declaring `adx` in the
+  // manifest correctly FAILED this rail until this line existed.
+  { kind: 'call', name: 'adx', parts: ['the ', 3, '-bar ADX of ', 0, ', ', 1, ' and ', 2] },
   { kind: 'call', name: 'plusDI', parts: ['the ', 3, '-bar +DI of ', 0, ', ', 1, ' and ', 2] },
   { kind: 'call', name: 'minusDI', parts: ['the ', 3, '-bar -DI of ', 0, ', ', 1, ' and ', 2] },
   { kind: 'call', name: 'stoch', parts: ['the ', 3, '-bar stochastic %K of ', 0, ', ', 1, ' and ', 2] },
@@ -669,6 +674,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'operator:||',
       'function:abs',
       'function:accum',
+      'function:adx',
       'function:atan',
       'function:atr',
       'function:cci',
@@ -717,7 +723,7 @@ describe('totality over the closed table — derived from the manifest, never ha
       'function:williamsR',
       'function:wma',
     ])
-    expect(entries.length).toBe(69)
+    expect(entries.length).toBe(70)
   })
 
   it('EVERY declared entry renders, is ASCII, and ROUND-TRIPS — by construction', () => {
@@ -727,7 +733,7 @@ describe('totality over the closed table — derived from the manifest, never ha
     // loop. ⛔ The count is asserted against the list above rather than retyped
     // as prose a second time.
     const subjects = treesForTheWholeTable(TABLE)
-    expect(subjects.length).toBe(69)
+    expect(subjects.length).toBe(70)
     for (const { entry, ast: tree } of subjects) {
       const s = sentenceFor(tree, {})
       expect(s, `${entry} rendered an empty sentence`).not.toBe('')
@@ -1853,7 +1859,7 @@ describe('the inversion rail — a sentence round-trips to the same maths', () =
       ...CORPUS.cases.map((c) => sentenceFor(c.ast, {})),
       ...treesForTheWholeTable(TABLE).map((t) => sentenceFor(t.ast, {})),
     ]
-    expect(sentences.length).toBe(CORPUS.cases.length + 69)
+    expect(sentences.length).toBe(CORPUS.cases.length + 70)
     for (const s of sentences) {
       const found = readSentenceCandidates(s)
       expect(found.map((f) => f.via), `${found.length} parses of: ${s}`).toHaveLength(1)

@@ -177,6 +177,20 @@ export const PCF_FUSED = Object.freeze({
   // -- see `PCF_DIFFERENT_FORMULA`. Adding a row for any of those would be the
   // `MIN`/`lowest` trap this file's header exists to warn about.
   CCI:     { spelling: 'CCI<period>[.<offset>]',     fn: 'cci',     series: ['high', 'low', 'close'], params: ['period', 'offset'] },
+  // ⭐⭐ `ADX14.14` — AND THE DOTTED NUMBER IS **SMOOTHING**, NOT AN OFFSET.
+  //
+  // ⛔ THIS IS THE `MIN`/`lowest` TRAP WEARING A NEW FACE, and it is why ADX gets
+  // its own shape instead of the generic `<period>[.<offset>]` every other family
+  // uses. Under that shape `ADX14.14` reads as "the 14-bar ADX, fourteen bars
+  // ago" — a number, on the right scale, plausible on a chart, and wrong on every
+  // bar. Worden spells it `ADX<diLength>.<adxSmoothing>`.
+  //
+  // ⛔ AND THE TWO MUST BE EQUAL, because this table's `adx` takes ONE period and
+  // uses it for both smoothings (it binds the shipped `computeADX`, which does).
+  // `matchParam` checks the second against the first and REFUSES when they
+  // differ, rather than quietly dropping a smoothing a member wrote. Dropping it
+  // is exactly what `_functions_excluded` warns about for `STOC`.
+  ADX:     { spelling: 'ADX<period>.<smoothing>',    fn: 'adx',     series: ['high', 'low', 'close'], params: ['period', 'smoothing'], matchParam: ['smoothing', 'period'] },
   DIPLUS:  { spelling: 'DIPLUS<period>[.<offset>]',  fn: 'plusDI',  series: ['high', 'low', 'close'], params: ['period', 'offset'] },
   DIMINUS: { spelling: 'DIMINUS<period>[.<offset>]', fn: 'minusDI', series: ['high', 'low', 'close'], params: ['period', 'offset'] },
   // ⭐ AN EXPANSION, NOT A TABLE CALL. Balance of Power is
@@ -791,6 +805,24 @@ function readFused(table, token, letters, nodeTypes) {
         }
         continue
       }
+      // ⭐ A PARAM THAT IS CHECKED AND NOT PASSED. `ADX14.14`'s second number is
+      // the ADX smoothing, and this table's `adx` takes ONE period for both — so
+      // the smoothing is verified to MATCH and then deliberately not pushed as an
+      // argument. ⛔ Refusing an unequal pair beats dropping it: a member who
+      // wrote `ADX14.20` and got a 14/14 ADX would be shown a number that is not
+      // the indicator they asked for.
+      if (family.matchParam && param === family.matchParam[0]) {
+        const twin = values[family.matchParam[1]]
+        const want = twin ? twin.value : null
+        const have = got.value === null ? want : got.value
+        if (have !== want) {
+          refuse('pcf:parameter',
+            `\`${token.text}\` sets ${param} to ${have} and ${family.matchParam[1]} to ${want}`
+            + `, and this table's ${family.fn} uses one period for both`,
+            got.index, token.text)
+        }
+        continue
+      }
       if (got.value === null) {
         refuse('pcf:arity',
           `\`${token.text}\` leaves ${param} unsaid and ${family.spelling} requires it`,
@@ -1304,7 +1336,7 @@ const PCF_MARKERS = [
   // refused for a reason that has nothing to do with the script. `BOP` was added
   // to `PCF_FUSED` and missed here; the corpus caught it because `detectDialect`
   // is asserted over every accepted source, which is exactly why that rail exists.
-  /\b(STDDEV|WRSI|ATR|MACD|STOC|BOP|CCI|DIPLUS|DIMINUS)\d/i,
+  /\b(STDDEV|WRSI|ATR|MACD|STOC|BOP|CCI|ADX|DIPLUS|DIMINUS)\d/i,
   /(^|[^A-Za-z0-9_.])[COHLV]\d*(?![A-Za-z0-9_])/,
   /(^|[^<>!=])=(?!=)/,
 ]
