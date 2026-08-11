@@ -99,3 +99,47 @@ def test_migration_v2_recovers_from_crash_state(tmp_path, monkeypatch):
     note = c.execute("SELECT folder_id, import_key FROM j2_notes WHERE id='n1'").fetchone()
     assert note["folder_id"] == "f1" and note["import_key"] is None
     c.close()
+
+
+def test_create_folder_with_parent_and_depth_cap(conn):
+    root = notes_svc.create_folder("u1", "A", conn=conn)
+    assert root["parentId"] is None
+    child = notes_svc.create_folder("u1", "B", parent_id=root["id"], conn=conn)
+    assert child["parentId"] == root["id"]
+    # depth cap: build a chain to MAX_FOLDER_DEPTH then one more fails
+    pid = child["id"]
+    for i in range(notes_svc.MAX_FOLDER_DEPTH - 2):
+        pid = notes_svc.create_folder("u1", f"d{i}", parent_id=pid, conn=conn)["id"]
+    with pytest.raises(notes_svc.NoteValidationError):
+        notes_svc.create_folder("u1", "too-deep", parent_id=pid, conn=conn)
+    # bogus parent rejected
+    with pytest.raises(notes_svc.NoteValidationError):
+        notes_svc.create_folder("u1", "orphan", parent_id="nope", conn=conn)
+
+
+def test_delete_folder_reparents_children_and_notes(conn):
+    a = notes_svc.create_folder("u1", "A", conn=conn)
+    b = notes_svc.create_folder("u1", "B", parent_id=a["id"], conn=conn)
+    c = notes_svc.create_folder("u1", "C", parent_id=b["id"], conn=conn)
+    note = notes_svc.create_note("u1", {"title": "in B", "folderId": b["id"]}, conn=conn)
+    assert notes_svc.delete_folder("u1", b["id"], conn=conn) is True
+    folders = {f["id"]: f for f in notes_svc.list_folders("u1", conn=conn)}
+    assert folders[c["id"]]["parentId"] == a["id"]          # child climbed to grandparent
+    got = notes_svc.get_note("u1", note["id"], conn=conn)
+    assert got["folderId"] == a["id"]                        # note climbed too
+    # root deletion → notes go Unfiled (None), children become roots
+    note2 = notes_svc.create_note("u1", {"title": "in A", "folderId": a["id"]}, conn=conn)
+    notes_svc.delete_folder("u1", a["id"], conn=conn)
+    assert notes_svc.get_note("u1", note2["id"], conn=conn)["folderId"] is None
+    assert {f["id"]: f for f in notes_svc.list_folders("u1", conn=conn)}[c["id"]]["parentId"] is None
+
+
+def test_ensure_folder_path_creates_and_reuses(conn):
+    leaf = notes_svc.ensure_folder_path("u1", ["Trading", "Setups", "VCP"], conn=conn)
+    again = notes_svc.ensure_folder_path("u1", ["Trading", "Setups", "VCP"], conn=conn)
+    assert leaf == again
+    assert len(notes_svc.list_folders("u1", conn=conn)) == 3
+    # under a destination folder
+    dest = notes_svc.create_folder("u1", "Imported", conn=conn)
+    leaf2 = notes_svc.ensure_folder_path("u1", ["Trading"], dest_folder_id=dest["id"], conn=conn)
+    assert leaf2 != leaf  # 'Trading' under 'Imported' is a different folder

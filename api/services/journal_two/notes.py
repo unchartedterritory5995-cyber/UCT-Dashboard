@@ -25,6 +25,7 @@ MAX_BODY_JSON_BYTES = 1_000_000  # 1MB
 MAX_TAG_LENGTH = 40
 MAX_TAGS = 30
 MAX_TICKER_LENGTH = 16
+MAX_FOLDER_DEPTH = 6
 
 _ATTACHMENT_ROOT = Path(
     os.environ.get(
@@ -152,7 +153,23 @@ def _row_to_folder(row: sqlite3.Row) -> dict[str, Any]:
         "name": row["name"],
         "sortOrder": row["sort_order"],
         "createdAt": row["created_at"],
+        "parentId": row["parent_id"] or None,
     }
+
+
+def _folder_depth(conn: sqlite3.Connection, user_id: str, folder_id: str) -> int:
+    """1-based depth of folder_id. Walks up; a cycle or missing parent stops the walk."""
+    depth, cur, seen = 0, folder_id, set()
+    while cur and cur not in seen:
+        seen.add(cur)
+        row = conn.execute(
+            "SELECT parent_id FROM j2_note_folders WHERE id = ? AND user_id = ?",
+            (cur, user_id)).fetchone()
+        if row is None:
+            break
+        depth += 1
+        cur = row["parent_id"]
+    return depth
 
 
 # ── Notes CRUD ───────────────────────────────────────────────────────────────
@@ -404,6 +421,7 @@ def create_folder(
     user_id: str,
     name: str,
     sort_order: int = 0,
+    parent_id: str = "",
     conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
     if not isinstance(name, str) or not name.strip():
@@ -414,13 +432,25 @@ def create_folder(
     owned = conn is None
     conn = conn or get_connection()
     try:
+        # Validate parent if truthy
+        if parent_id:
+            parent_row = conn.execute(
+                "SELECT * FROM j2_note_folders WHERE id = ? AND user_id = ?",
+                (parent_id, user_id)).fetchone()
+            if parent_row is None:
+                raise NoteValidationError("parent folder not found")
+            # Check depth cap
+            parent_depth = _folder_depth(conn, user_id, parent_id)
+            if parent_depth + 1 > MAX_FOLDER_DEPTH:
+                raise NoteValidationError("folder nesting too deep")
+
         new_id = uuid.uuid4().hex
         now = _now_iso()
         try:
             conn.execute(
-                "INSERT INTO j2_note_folders (id, user_id, name, sort_order, created_at) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (new_id, user_id, n, sort_order, now),
+                "INSERT INTO j2_note_folders (id, user_id, name, sort_order, parent_id, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (new_id, user_id, n, sort_order, parent_id, now),
             )
         except sqlite3.IntegrityError:
             raise NoteValidationError("folder with that name already exists")
@@ -489,21 +519,51 @@ def delete_folder(
     folder_id: str,
     conn: sqlite3.Connection | None = None,
 ) -> bool:
-    """Delete folder; contained notes move to Unfiled (folder_id=NULL)."""
+    """Delete folder; re-parents children and notes to the deleted folder's parent.
+    Root deletion (parent_id='') sends notes to Unfiled (NULL)."""
     owned = conn is None
     conn = conn or get_connection()
     try:
+        row = conn.execute(
+            "SELECT parent_id FROM j2_note_folders WHERE id = ? AND user_id = ?",
+            (folder_id, user_id)).fetchone()
+        if row is None:
+            return False
+        parent = row["parent_id"] or ""
+        now = _now_iso()
+        # notes climb to the parent; at root ('' parent) they go Unfiled (NULL)
         conn.execute(
-            "UPDATE j2_notes SET folder_id = NULL, updated_at = ? "
-            "WHERE folder_id = ? AND user_id = ?",
-            (_now_iso(), folder_id, user_id),
-        )
+            "UPDATE j2_notes SET folder_id = ?, updated_at = ? WHERE folder_id = ? AND user_id = ?",
+            (parent or None, now, folder_id, user_id))
+        conn.execute(
+            "UPDATE j2_note_folders SET parent_id = ? WHERE parent_id = ? AND user_id = ?",
+            (parent, folder_id, user_id))
         cur = conn.execute(
-            "DELETE FROM j2_note_folders WHERE id = ? AND user_id = ?",
-            (folder_id, user_id),
-        )
+            "DELETE FROM j2_note_folders WHERE id = ? AND user_id = ?", (folder_id, user_id))
         conn.commit()
         return cur.rowcount > 0
+    finally:
+        if owned:
+            conn.close()
+
+
+def ensure_folder_path(user_id: str, path_parts: list[str], dest_folder_id: str = "", conn=None) -> str:
+    """Upsert a folder chain under dest_folder_id; returns leaf folder id.
+    Truncates each segment to the 80-char folder-name cap."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        pid = dest_folder_id or ""
+        for raw in path_parts:
+            name = (raw or "").strip()[:80] or "Untitled"
+            row = conn.execute(
+                "SELECT id FROM j2_note_folders WHERE user_id = ? AND parent_id = ? AND name = ?",
+                (user_id, pid, name)).fetchone()
+            if row:
+                pid = row["id"]
+            else:
+                pid = create_folder(user_id, name, parent_id=pid, conn=conn)["id"]
+        return pid
     finally:
         if owned:
             conn.close()

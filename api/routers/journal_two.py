@@ -1456,6 +1456,7 @@ def create_folder_endpoint(
             user["id"],
             name=payload.get("name", ""),
             sort_order=int(payload.get("sortOrder", 0) or 0),
+            parent_id=payload.get("parentId") or "",
         )
     except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
