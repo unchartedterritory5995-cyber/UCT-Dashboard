@@ -137,6 +137,16 @@ function refuse(guard, detail) {
  *  in both lanes, not a number change here. */
 export const MAX_RECURRENCE_STEPS = 1000000
 
+/** How far back a running value may read its OWN past — `self[k]`.
+ *
+ *  ⭐ FOUR IS DERIVED, NOT CHOSEN. The deepest classical recursive filter in
+ *  common use is 2-pole (Butterworth / SuperSmoother / Ehlers), which needs
+ *  `self[1]`; 4 leaves headroom for a 4-pole design without opening the door to a
+ *  history nobody would author by hand. ⛔ IT MUST STAY SMALL: the history is
+ *  carried per STEP, and the step loop already runs `bars x warmup` times, so a
+ *  deep lag is paid on every bar of every symbol in a universe sweep. */
+export const MAX_SELF_LAG = 4
+
 /** ⛔ THE ONLY WAY THIS MODULE ASKS WHETHER A NAME EXISTS. `name in obj` walks
  *  the prototype chain and `obj[name]` returns whatever it finds there. */
 const own = (obj, name) => Object.prototype.hasOwnProperty.call(obj, name)
@@ -1189,6 +1199,8 @@ export function interpret(ast, bars, inputs, budget, scalars) {
     }
 
     const isBind = (x) => !!x && typeof x === 'object' && x.type === 'series' && x.name === bind
+    /** How many bars of its OWN past this body reads. 0 is the classic one-lag form. */
+    let maxSelfLag = 0
 
     // Which nodes of the body read the running value. Memoised over node
     // IDENTITY, so a tree that shares a subtree object answers once.
@@ -1216,9 +1228,34 @@ export function interpret(ast, bars, inputs, budget, scalars) {
       if (!reads(x)) { columns.set(x, evalNode(x)); return }
       if (isBind(x)) return
       if (x.type === 'offset') {
+        // ⭐⭐ `self[k]` IS THE SECOND-ORDER CASE, AND IT IS THE KEYSTONE. A 2-pole
+        // filter is `c1*input + c2*prev + c3*prev_prev` by definition — Butterworth,
+        // SuperSmoother, every Ehlers design — so a running value that can see only
+        // ONE bar back cannot express the DSP family at all. The step loop now keeps
+        // a bounded history instead of a single carried value.
+        //
+        // ⛔ ONLY WHEN THE OFFSET'S CHILD IS THE BIND ITSELF. `(self + close)[1]`
+        // asks for a past value of an EXPRESSION, which the step loop never computed
+        // and cannot reconstruct — that stays refused, and refusing it is what keeps
+        // `self[k]` meaning exactly "the running value k bars ago".
+        //
+        // ⚠️ STILL STRICTLY BACKWARD. `value` is a non-negative literal ON the node
+        // by construction (parse.js gives an offset no slot for an expression), so
+        // this reads history and can never reach forward.
+        if (isBind(x.args[0])) {
+          if (x.value > MAX_SELF_LAG) {
+            refuse('interpret:recurrence',
+              `— \`${bind}[${x.value}]\` looks back ${x.value} steps and the ceiling is `
+              + `${MAX_SELF_LAG}. The history is carried per step, so a deep one is paid `
+              + `on every bar of every symbol.`)
+          }
+          maxSelfLag = Math.max(maxSelfLag, x.value)
+          return
+        }
         refuse('interpret:recurrence',
-          `— \`${bind}\` sits under a bar offset in ${node.name}(…). The step loop holds `
-          + `ONE previous value, not a history of them.`)
+          `— \`${bind}\` sits under a bar offset in ${node.name}(…) applied to an `
+          + `expression rather than to \`${bind}\` itself. A past value of the running `
+          + `value is held; a past value of a formula containing it was never computed.`)
       }
       if (x.type === 'call') {
         const inner = fnSpec(x.name)
@@ -1239,13 +1276,16 @@ export function interpret(ast, bars, inputs, budget, scalars) {
     }
     plan(body)
 
-    const step = (x, j, carried) => {
+    const step = (x, j, history) => {
       if (columns.has(x)) {
         const v = columns.get(x)
         return isColumn(v) ? v[j] : v
       }
-      if (isBind(x)) return carried
-      const values = x.args.map((child) => step(child, j, carried))
+      if (isBind(x)) return history[0]
+      // `self[k]`, resolved HERE rather than by the generic offset arm — that one
+      // walks whole columns and has no idea this value exists only inside the loop.
+      if (x.type === 'offset' && isBind(x.args[0])) return history[x.value]
+      const values = x.args.map((child) => step(child, j, history))
       if (x.type === 'op') return applyOpStep(x, values)
       return POINTWISE[x.name](...values)
     }
@@ -1253,9 +1293,18 @@ export function interpret(ast, bars, inputs, budget, scalars) {
     const seed = toColumn(evalNode(node.args[rec.seed]), length)
     const out = nan(length)
     for (let i = warmup; i < length; i++) {
-      let carried = seed[i - warmup]
-      for (let j = i - warmup + 1; j <= i; j++) carried = step(body, j, carried)
-      out[i] = carried
+      // ⭐ THE SEED FILLS EVERY LAG. Before a single step has run there is no "two
+      // bars ago" to read, and the seed is the only defined value in scope — the
+      // same initial condition Pine states by hand as `nz(x[1], x)`. ⛔ NOT zero: a
+      // filter seeded at 0 spends its whole warm-up climbing back to price and
+      // reports that climb as signal.
+      const history = new Array(maxSelfLag + 1).fill(seed[i - warmup])
+      for (let j = i - warmup + 1; j <= i; j++) {
+        const next = step(body, j, history)
+        for (let k = maxSelfLag; k > 0; k--) history[k] = history[k - 1]
+        history[0] = next
+      }
+      out[i] = history[0]
     }
     return out
   }
