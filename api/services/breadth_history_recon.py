@@ -47,49 +47,87 @@ def run_deep_async(date: str, limit: int = 0) -> None:
         _DEEP_RESULTS[date] = {"status": "error", "reason": f"{type(e).__name__}: {e}"}
 
 
-def _deep_daily_bars(ticker: str, bars: int = 9000) -> list:
-    """One ticker's DEEP daily bars ([{t:'YYYY-MM-DD', o,h,l,c,v}] oldest-first) via the same
-    serve pipeline the charts use (memory -> disk -> deep cache -> Massive) — NOT the shallow
-    live ohlcv tier. Returns [] on any failure."""
-    import json as _json
-    from api.services import bars_fetch
+import glob as _glob
+import json as _json
+import os as _os
+from concurrent.futures import ThreadPoolExecutor as _Pool
+from datetime import datetime as _dt, timezone as _tz
+
+_DEEP_DIR = _os.path.join(_os.environ.get("DATA_DIR", "/data"), "bars_cache_deep")
+_CACHE_DIR = _os.path.join(_os.environ.get("DATA_DIR", "/data"), "bars_cache")
+
+
+def _norm_date(t) -> Optional[str]:
+    """A bar's `t` (unix ms/s, or 'YYYY-MM-DD') -> 'YYYY-MM-DD'."""
+    if isinstance(t, str):
+        return t[:10] if len(t) >= 10 else None
     try:
-        resp = bars_fetch._get_bars_inner(ticker, "D", bars)
-        body = getattr(resp, "body", None)
-        data = _json.loads(body) if body is not None else (resp if isinstance(resp, dict) else {})
-        return data.get("bars") or []
+        tv = int(t)
+        if tv > 1_000_000_000_000:   # ms -> s
+            tv //= 1000
+        if tv > 20_000_000:          # unix seconds
+            return _dt.fromtimestamp(tv, tz=_tz.utc).date().isoformat()
+    except (TypeError, ValueError):
+        return None
+    return None
+
+
+def _lean_deep_daily(ticker: str) -> list:
+    """One ticker's DEEP daily bars — LEAN: read the deep disk cache we already warmed
+    (free, no chart machinery), fall back to a single direct Massive daily-agg call. Skips
+    _get_bars_inner entirely (its per-request overhead made bulk use crawl). Returns
+    [{t,o,h,l,c,v}] or []."""
+    tk = ticker.upper()
+    for d in (_DEEP_DIR, _CACHE_DIR):
+        try:
+            for p in sorted(_glob.glob(_os.path.join(d, f"{tk}_D_*.json")), reverse=True):
+                with open(p) as f:
+                    data = _json.load(f)
+                bars = data.get("bars")
+                if bars and len(bars) > 250:      # deep enough to bother
+                    return bars
+        except Exception:
+            continue
+    try:
+        from api.services import massive
+        return massive.get_agg_bars(tk, "1995-01-01", "2027-01-01") or []
     except Exception:
         return []
 
 
-def recompute_close_deep(target_date: str, tickers: Optional[list[str]] = None,
+def load_deep_frame(tickers: list[str], workers: int = 12) -> dict:
+    """{ticker: {'YYYY-MM-DD': (o,h,l,c,v)}} for the whole universe, fetched in PARALLEL.
+    Load ONCE, then recompute every historical date off it (see recompute_from_frame)."""
+    def _one(t):
+        d = {}
+        for b in (_lean_deep_daily(t) or []):
+            ds = _norm_date(b.get("t"))
+            if ds:
+                d[ds] = (b.get("o"), b.get("h"), b.get("l"), b.get("c"), b.get("v"))
+        return t, d
+    out: dict = {}
+    with _Pool(max_workers=workers) as ex:
+        for t, d in ex.map(_one, tickers):
+            if d:
+                out[t] = d
+    return out
+
+
+def recompute_from_frame(frame: dict, tickers: list[str], target_date: str,
                          window: int = 320) -> dict:
-    """Recompute breadth at a PAST day's close sourcing daily bars from the DEEP pipeline
-    (the data the charts already have), not the shallow ohlcv table. Builds a [tickers x
-    window] frame ending at `target_date`, then reuses breadth_live.build_levels +
-    compute_metrics. Returns {ok, date, universe, priced, measured, metrics:{...}}."""
+    """PURE recompute for one date off a PRE-LOADED deep frame (see load_deep_frame). The
+    sweep loads the frame ONCE and calls this per date — no fetching here. `frame` is
+    {ticker: {'YYYY-MM-DD': (o,h,l,c,v)}}."""
     import numpy as np
     from api.services import breadth_live as bl
-    if tickers is None:
-        tickers, _ = bl.universe()
-    if not tickers:
-        return {"ok": False, "reason": "no universe"}
 
-    # Per ticker: {date_str: (o,h,l,c,v)} up to and including target_date.
-    per_ticker: dict = {}
     all_dates: set = set()
     for t in tickers:
-        rows = _deep_daily_bars(t)
-        d = {}
-        for b in rows:
-            ds = str(b.get("t"))[:10]
-            if ds <= target_date:
-                d[ds] = (b.get("o"), b.get("h"), b.get("l"), b.get("c"), b.get("v"))
+        d = frame.get(t)
         if d:
-            per_ticker[t] = d
-            all_dates.update(d.keys())
+            all_dates.update(k for k in d.keys() if k <= target_date)
     if target_date not in all_dates:
-        return {"ok": False, "reason": f"no bar on {target_date} for any name (market holiday?)"}
+        return {"ok": False, "reason": f"no bar on {target_date} (holiday / no data)"}
 
     # The `window` trading days ending at target_date (union index, oldest last).
     dates = sorted(all_dates)[-int(window):]
@@ -102,11 +140,11 @@ def recompute_close_deep(target_date: str, tickers: Optional[list[str]] = None,
     lows = np.full((n, m), np.nan)
     vols = np.full((n, m), np.nan)
     for ti, t in enumerate(tickers):
-        d = per_ticker.get(t)
+        d = frame.get(t)
         if not d:
             continue
         for ds, (o, h, l, c, v) in d.items():
-            j = date_pos.get(ds)
+            j = date_pos.get(ds)   # dates > target aren't in the window index -> skipped
             if j is None:
                 continue
             cf, hf, lf, vf = _f(c), _f(h), _f(l), _f(v)
@@ -135,6 +173,21 @@ def recompute_close_deep(target_date: str, tickers: Optional[list[str]] = None,
     return {"ok": True, "date": target_date, "universe": len(tickers),
             "priced": len(prices), "measured": int(metrics.get("universe_count", 0)),
             "metrics": {k: v for k, v in metrics.items() if not k.startswith("_")}}
+
+
+def recompute_close_deep(target_date: str, tickers: Optional[list[str]] = None,
+                         window: int = 320) -> dict:
+    """One-date convenience: LEAN-load the deep frame (parallel) then recompute. For many
+    dates, call load_deep_frame once + recompute_from_frame per date instead."""
+    from api.services import breadth_live as bl
+    if tickers is None:
+        tickers, _ = bl.universe()
+    if not tickers:
+        return {"ok": False, "reason": "no universe"}
+    frame = load_deep_frame(tickers)
+    out = recompute_from_frame(frame, tickers, target_date, window)
+    out["frame_names"] = len(frame)
+    return out
 
 
 def recompute_close(target_ts: int, tickers: Optional[list[str]] = None) -> dict:
