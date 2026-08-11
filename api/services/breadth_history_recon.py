@@ -95,13 +95,14 @@ def _lean_deep_daily(ticker: str) -> list:
         return []
 
 
-def load_deep_frame(tickers: list[str], since: Optional[str] = None, workers: int = 12) -> dict:
+def load_deep_frame(tickers: list[str], since: Optional[str] = None, workers: int = 3) -> dict:
     """Compact aligned frame for the WHOLE universe: {dates:[...], date_pos:{}, closes:np,
     vols:np} with closes/vols shaped [n_tickers x n_dates]. NumPy (not dict-of-dicts) keeps
     memory ~90MB for a few years x 3,700 names — safe against the pod-OOM class. `since`
     trims each ticker to dates >= since (bound memory for a bounded sweep). Fetched PARALLEL
     via the lean loader. Load ONCE; recompute every date off it."""
     import numpy as np
+    import time as _time
     def _one(t):
         d = {}
         for b in (_lean_deep_daily(t) or []):
@@ -111,6 +112,7 @@ def load_deep_frame(tickers: list[str], since: Optional[str] = None, workers: in
                 if cf is not None and cf > 0:
                     vf = _f(b.get("v"))
                     d[ds] = (cf, vf if vf is not None else float("nan"))
+        _time.sleep(0.004)   # yield the GIL so the web event loop stays responsive (health checks)
         return t, d
     raw: dict = {}
     with _Pool(max_workers=workers) as ex:
@@ -243,6 +245,8 @@ def sweep_history(from_date: str, to_date: Optional[str] = None,
             prev[metric] = fv
         computed += 1
         _SWEEP_STATE.update(progress=f"{ds} ({computed} written)")
+        import time as _time
+        _time.sleep(0.02)     # yield between recomputes so the web pod stays healthy
         if len(rows) >= batch:
             written += breadth_daily_ohlc.write_bulk(rows, source="close_recon")
             rows = []
