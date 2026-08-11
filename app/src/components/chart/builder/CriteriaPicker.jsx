@@ -449,7 +449,26 @@ function GroupEditor({ group, path, negated = false, onNegate = null, onChange, 
             // join is not a canonical picker — `canonicalPicker` flattens it —
             // so offering one would let the UI build a shape that reads back as
             // a DIFFERENT picker than the user assembled.
-            children: [...group.children, { kind: 'group', join: otherJoin, children: [defaultRow()] }],
+            //
+            // ⛔⛔ AND IT IS SEEDED WITH **TWO** ROWS, WHICH IS WHAT MAKES THE
+            // BUTTON WORK AT ALL.
+            //
+            // ⚰️ MEASURED IN THE LIVE BUILDER 2026-08-11: clicking "Add an any-of
+            // group" produced a row that looked exactly like an AND sibling — same
+            // indent, no nested Match control, labelled `Condition 1` — and the
+            // group was simply GONE. The picker's state is rebuilt from the SOURCE
+            // TEXT on every edit, and a one-child group serialises to `(close >
+            // open)`: textually identical to a bare condition. So it could not
+            // survive the round trip, and a member could never add a second row to
+            // a group that no longer existed. The whole any-of feature was
+            // unreachable through the UI.
+            //
+            // Measured both ways: `(a && (b))` reads back as two rows; `(a && (b
+            // || c))` reads back as a row and a group. Two rows is also what "any
+            // of these" MEANS — one alternative is not an alternative.
+            children: [...group.children, {
+              kind: 'group', join: otherJoin, children: [defaultRow(), defaultRow()],
+            }],
           })}
         >
           <UIcon name="plus" size={14} />

@@ -8,10 +8,12 @@
 // wrong. They are different questions and they need different files.
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import CriteriaPicker, { NUMBER_OPTION, defaultConditionSource } from './CriteriaPicker'
 import { parseFormula, TABLE, astHash } from '../engine/ast/parse'
-import { vocabulary, toSource } from './criteria'
+import { vocabulary, toSource, fromSource, canonicalPicker } from './criteria'
 
 const VOCAB = vocabulary(TABLE)
 const astOf = (src) => {
@@ -149,13 +151,20 @@ describe('the picker EDITS, and every edit emits a source the parser accepts', (
     // ⛔ THE PROOF IS THE TREE, NOT THE STRING. A nested group carrying the
     // parent's join would flatten on read-back into a picker the user never
     // assembled, and only the hash sees that.
-    const ast = parseFormula(emitted).ast
-    // ⛔ THE SEED ROW IS DERIVED, NOT RETYPED. This expectation used to spell
-    // `(open > high)` — the default row — into a case whose actual claim is about
-    // the nested group's JOIN. Changing the seed then broke a test that was never
-    // about the seed, which is the second-authority defect in miniature.
-    expect(astHash(ast))
-      .toBe(astHash(astOf(`(close > open) && (${defaultConditionSource()})`)))
+    // ⛔ THE CLAIM IS THE JOIN, SO THE JOIN IS WHAT IS ASSERTED.
+    // ⚰️ This used to hash the emitted tree against a hand-built
+    // `(close > open) && (<seed row>)`. That spelled the SEED into a case about
+    // the JOIN twice over: first as the literal `(open > high)`, then as
+    // `defaultConditionSource()` — and it broke AGAIN the moment the seed grew to
+    // two rows (which is what makes the group survive its own round trip at all).
+    // Reading the structure back is immune to both.
+    const back = fromSource(emitted)
+    const group = back && (back.group || back)
+    expect(group.join, 'the outer group lost its join').toBe('and')
+    const nested = (group.children || []).filter((c) => c.kind === 'group')
+    expect(nested, `no nested group in ${emitted}`).toHaveLength(1)
+    expect(nested[0].join, 'a nested group carrying its parent`s join flattens on read-back')
+      .toBe('or')
   })
 
   it('removing the last condition emits the EMPTY string rather than a broken shape', () => {
@@ -511,5 +520,130 @@ describe('no new chrome', () => {
     const src = fs.readFileSync(here, 'utf8')
     const imports = [...src.matchAll(/from\s+'([^']*\.css)'/g)].map((m) => m[1])
     expect(imports).toEqual(['./BuilderSheet.module.css'])
+  })
+})
+
+// ─── "ADD AN ANY-OF GROUP" HAS TO SURVIVE THE ROUND TRIP ────────────────────
+//
+// ⚰️ MEASURED IN THE LIVE BUILDER 2026-08-11. Clicking it produced a row that
+// looked exactly like an AND sibling — same indent, no nested Match control,
+// labelled `Condition 1` — and the group was GONE. The picker rebuilds its state
+// from the SOURCE TEXT on every edit, and a one-child group serialises to
+// `(close > open)`: textually identical to a bare condition. A member could never
+// add a second row to a group that no longer existed, so the any-of feature was
+// unreachable through the UI.
+describe('🔴 a new any-of group survives being written out and read back', () => {
+  it('emits a real OR group, not two ANDed rows', () => {
+    const { onSourceChange } = mount({ ast: astOf('close > open') })
+    fireEvent.click(screen.getByRole('button', { name: /add an any-of group/i }))
+    const emitted = onSourceChange.mock.calls.at(-1)[0]
+    // ⭐ The `||` is the whole point — without it the group evaporated.
+    expect(emitted, `no OR in the emitted source: ${emitted}`).toContain('||')
+  })
+
+  it('⛔ AND IT READS BACK AS A GROUP — the half that was broken', () => {
+    // Emitting `||` is not enough; the picker must SEE a group when it re-reads
+    // its own output, because that round trip is what erased it.
+    const { onSourceChange } = mount({ ast: astOf('close > open') })
+    fireEvent.click(screen.getByRole('button', { name: /add an any-of group/i }))
+    const back = fromSource(onSourceChange.mock.calls.at(-1)[0])
+    const group = back && (back.group || back)
+    const kinds = (group.children || []).map((c) => c.kind)
+    expect(kinds, `read back as ${JSON.stringify(kinds)} — the group did not survive`)
+      .toContain('group')
+  })
+
+  it('⛔ THE CONTROL — a ONE-child group is what used to vanish', () => {
+    // Pins the mechanism rather than the symptom: if a future change makes a
+    // one-child group survive, this seed can go back to one row.
+    const oneChild = {
+      kind: 'group',
+      join: 'and',
+      children: [
+        { kind: 'row', left: { t: 'name', name: 'close' }, cmp: '>', right: { t: 'num', value: 0 } },
+        { kind: 'group', join: 'or', children: [
+          { kind: 'row', left: { t: 'name', name: 'close' }, cmp: '>', right: { t: 'name', name: 'open' } },
+        ] },
+      ],
+    }
+    const back = fromSource(toSource(canonicalPicker(oneChild)))
+    const group = back && (back.group || back)
+    expect((group.children || []).map((c) => c.kind)).toEqual(['row', 'row'])
+  })
+})
+
+// ─── A CSS REGRESSION jsdom CANNOT SEE ──────────────────────────────────────
+//
+// ⛔ THIS SCANS THE STYLESHEET, and that is deliberate rather than lazy. jsdom
+// performs no layout, so a rendered assertion cannot tell a readable control from
+// a collapsed one — the same blindness `BuilderSheet.test.jsx` documents for
+// `pointer-events`, where a literally un-clickable button kept twenty-three click
+// tests green. A mutation run confirmed it: reverting this rule broke NOTHING.
+//
+// ⚰️ MEASURED IN THE LIVE BUILDER 2026-08-11. `.pickerSelect { flex: 1 1 0;
+// min-width: 0 }` let the term select shrink below its own text once the 96px
+// number input joined the row, and "a number" rendered as **"a nu"** — a control
+// whose own label was cut mid-word.
+describe('🔴 the term select cannot collapse below its own label', () => {
+  // ⛔ COMMENTS STRIPPED FIRST, AND THAT IS NOT TIDINESS. A selector is found by
+  // splitting the text before `{` on commas — and the prose above these rules
+  // contains commas, so an un-stripped comment shatters the selector into
+  // fragments and the block is silently NOT FOUND. The probe then reads an
+  // OVERRIDDEN value from an earlier block and fails a rule that is correct,
+  // which is the worst kind of red: it accuses the source of the probe's bug.
+  const css = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/components/chart/builder/BuilderSheet.module.css'), 'utf8')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+
+  /** Every block whose selector list contains `sel` exactly, in source order.
+   *  ⛔ No regex: the selector starts with a dot and the body is full of braces
+   *  and colons, and an escaped-backslash slip in the pattern silently matches
+   *  NOTHING — which reads as "the rule is fine" rather than as a broken probe. */
+  const blocksFor = (sel) => css.split('}').flatMap((block) => {
+    const at = block.lastIndexOf('{')
+    if (at === -1) return []
+    const selectors = block.slice(0, at).split(',').map((s) => s.trim())
+    return selectors.includes(sel) ? [block.slice(at + 1)] : []
+  })
+
+  const ruleFor = (sel) => (blocksFor(sel).length ? blocksFor(sel).join('\n') : null)
+
+  /** ⛔ THE EFFECTIVE VALUE, NOT THE FIRST ONE. `.pickerSelect` appears TWICE —
+   *  once in a shared block with `.pickerNum` (which legitimately keeps
+   *  `min-width: 0`) and once on its own. Reading the first block reported the
+   *  overridden value and failed a rule that was correct; the cascade means the
+   *  LAST declaration is the one on screen. */
+  const effective = (sel, prop) => {
+    let value = null
+    for (const body of blocksFor(sel)) {
+      for (const decl of body.split(';')) {
+        const [k, v] = decl.split(':')
+        if (k && v && k.trim() === prop) value = v.trim()
+      }
+    }
+    return value
+  }
+
+  it('declares a floor wide enough for "a number"', () => {
+    expect(ruleFor('.pickerSelect'), '.pickerSelect not found — did the class move?')
+      .toBeTruthy()
+    const min = effective('.pickerSelect', 'min-width')
+    expect(min, '.pickerSelect declares no min-width at all').toBeTruthy()
+    expect(min, 'the select may collapse below its own text again').not.toBe('0')
+  })
+
+  it('and the row WRAPS rather than truncating when it cannot fit', () => {
+    const rule = ruleFor('.pickerArgs')
+    expect(rule).toBeTruthy()
+    expect(rule, 'without wrapping, a narrow width clips instead of reflowing')
+      .toMatch(/flex-wrap:\s*wrap/)
+  })
+
+  it('⛔ THE CONTROL — the scan can SEE a missing declaration', () => {
+    // Without this the two cases above would pass on a regex that matched nothing.
+    expect(effective('.pickerCmp', 'min-width')).toBeNull()
+    expect(ruleFor('.__no_such_class__')).toBeNull()
+    // …and it can read a value it IS looking at, so a null never means "broken".
+    expect(effective('.pickerNum', 'flex')).toBe('0 1 96px')
   })
 })
