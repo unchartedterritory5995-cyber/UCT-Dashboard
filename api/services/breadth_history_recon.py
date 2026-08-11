@@ -52,17 +52,17 @@ def recompute_close_with_members(target_ts: int, tickers: Optional[list[str]] = 
     if tickers is None:
         tickers, _ = bl.universe()
     if not tickers:
-        return {}, {}, set(), set()
+        raise ValueError("no universe (bl.universe returned empty)")
     row = conn.execute(
         "SELECT MAX(ts) FROM ohlcv WHERE tf='D' AND ticker='SPY' AND ts < ?", (int(target_ts),)
     ).fetchone()
     prior = int(row[0]) if row and row[0] else None
     if not prior:
-        return {}, {}, set(), set()
+        raise ValueError(f"no prior SPY session before ts={target_ts}")
     start = bl._ts_int(_date.fromisoformat(bl._iso(prior)) - _td(days=bl._LOAD_CALENDAR_DAYS))
     dates = bl._session_dates(conn, prior, start)
     if len(dates) < 221:
-        return {}, {}, set(), set()
+        raise ValueError(f"only {len(dates)} sessions (need 221) prior={prior} start={start}")
     closes, volumes = bl._load_frame(conn, tickers, dates)
     try:
         closes = bl._apply_dividend_basis(tickers, dates, closes, int(target_ts))
@@ -77,7 +77,7 @@ def recompute_close_with_members(target_ts: int, tickers: Optional[list[str]] = 
     vols = {t: float(day_v[i, 0]) for i, t in enumerate(tickers)
             if not _np.isnan(day_v[i, 0]) and day_v[i, 0] > 0}
     if not prices:
-        return {}, {}, set(), set()
+        raise ValueError(f"no prices for day ts={target_ts} (universe={len(tickers)})")
     members: dict = {}
     out = bl.compute_metrics(levels, prices, vols, members=members)
     out.update(bl.compute_index_metrics(index_levels, {}))
