@@ -14,13 +14,19 @@ export const ADAPTERS = [evernoteAdapter, notionAdapter, obsidianAdapter, generi
  * the highest-confidence match. Ties are broken by registry order (the
  * earlier adapter in ADAPTERS wins) — implemented by only replacing `best`
  * on a STRICTLY greater score.
+ *
+ * Async-tolerant: an adapter's `detect()` may return a plain number OR a
+ * Promise<number> (Obsidian's does — a `.obsidian/` marker resolves
+ * synchronously, but the 0.6 content heuristic must read file bytes, which
+ * is always async). `Promise.resolve(...)` normalizes either shape, so a
+ * sync `detect()` costs nothing extra and existing adapters need no change.
  * @param {import('./intake').VFile[]} vfiles
- * @returns {{ adapter: object, confidence: number }}
+ * @returns {Promise<{ adapter: object, confidence: number }>}
  */
-export function detectAdapter(vfiles) {
+export async function detectAdapter(vfiles) {
   let best = null
   for (const adapter of ADAPTERS) {
-    const confidence = adapter.detect(vfiles)
+    const confidence = await Promise.resolve(adapter.detect(vfiles))
     if (!best || confidence > best.confidence) {
       best = { adapter, confidence }
     }
