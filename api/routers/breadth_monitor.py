@@ -77,6 +77,29 @@ def get_breadth_ohlc_status():
     return breadth_daily_ohlc.stats()
 
 
+@router.get("/api/breadth-monitor/universe")
+def get_breadth_universe():
+    """The breadth reconstruction universe — the SAME population the live row
+    measured (collector's latest universe_list). Read-only. Consumed by the WORKER
+    pod's history backfill, which can't read the collector snapshot on the web
+    volume; serving it here keeps pre-2024 reconstruction on ONE population (no
+    seam vs the live/2024 rows)."""
+    from api.services import breadth_live as bl
+    tickers, d = bl.universe()
+    return {"tickers": tickers, "date": d, "count": len(tickers)}
+
+
+@router.post("/api/breadth-monitor/history/pull-now")
+def pull_breadth_ohlc_now(request: Request):
+    """Force an immediate web-side pull + gap-fill merge of the latest breadth OHLC
+    snapshot the WORKER shipped to R2, instead of waiting for the 10-min puller
+    (BREADTH_OHLC_REMOTE). Returns the merged ts, or null if already current / R2
+    unconfigured. Safe to call repeatedly (gap-fill never clobbers). PUSH_SECRET-gated."""
+    _check_auth(request)
+    from api.services import breadth_ohlc_sync
+    return {"ok": True, "merged": breadth_ohlc_sync.sync_if_new()}
+
+
 @router.post("/api/breadth-monitor/history/backfill-schedule")
 def schedule_breadth_backfill(request: Request, floor: str = Query(default=""),
                               stop: bool = Query(default=False)):
