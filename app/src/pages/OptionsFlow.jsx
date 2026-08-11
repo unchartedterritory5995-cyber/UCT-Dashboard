@@ -1179,8 +1179,13 @@ export default function OptionsFlowDashboard() {
     // _scopeAllDirectional, so a timeframe switch should just update the flow.
     // Clearing the ticker instead nulled searchFull and blanked the page. A MODE
     // change (stocks↔index → different base) still resets. 2026-08-08.
-    const _prevBase = (_lastCsvFile.current || "").split("?")[0];
-    const _rangeOnlyChange = _prevBase !== "" && _prevBase === csvFile.split("?")[0];
+    // Normalize /small-data (the Mid-Small uncapped stream) to /data so a
+    // cap-filter-driven base swap counts as a range-only change — it must NOT
+    // reset capFilter (that would bounce Mid-Small straight back to All) or clear
+    // the Search selection. Only a real mode change (stocks↔index) differs here.
+    const _norm = (u) => (u || "").split("?")[0].replace("/small-data", "/data");
+    const _prevBase = _norm(_lastCsvFile.current);
+    const _rangeOnlyChange = _prevBase !== "" && _prevBase === _norm(csvFile);
     _lastCsvFile.current = csvFile;
 
     // Instant re-entry. parsedRows lives in component state, so leaving the page
@@ -1216,10 +1221,12 @@ export default function OptionsFlowDashboard() {
       setCsvError(null);
       setSelectedConv(null);
       setOiSearch("");
-      setCapFilter("All");
-      // Keep the Search ticker + its drilled contract across a range-only change
-      // (the view re-scopes in place); a mode change clears them.
+      // Reset the cap filter + Search selection only on a genuine mode/base change
+      // — NOT on a range change or the cap-driven /data↔/small-data swap (which
+      // would bounce Mid-Small straight back to All). Range-only changes re-scope
+      // the view in place and keep the user's cap filter + Search ticker.
       if (!_rangeOnlyChange) {
+        setCapFilter("All");
         setSelectedItem(null);
         setSelectedTicker(null);
         setSearch("");
