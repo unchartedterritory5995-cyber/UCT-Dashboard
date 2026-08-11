@@ -301,6 +301,25 @@ function computeDefaultLogicalRange(barsLen, tf, { dailyDefaultBars = null, left
   return { from, to }
 }
 
+// Last bar at/before the END (UTC) of anchor day. Daily bars carry ISO 'YYYY-MM-DD'
+// strings; intraday bars carry unix seconds. Exported for its unit tests.
+export function lastAnchorIdx(bars, anchorDate) {
+  if (!anchorDate || !bars || bars.length === 0) return -1
+  const endMs = Date.parse(`${anchorDate}T23:59:59Z`)
+  if (!Number.isFinite(endMs)) return -1
+  let idx = -1
+  for (let i = 0; i < bars.length; i++) {
+    const t = bars[i].t
+    const ms = typeof t === 'number'
+      ? (t < 1e12 ? t * 1000 : t)
+      : Date.parse(String(t).length <= 10 ? `${t}T00:00:00Z` : String(t))
+    if (!Number.isFinite(ms)) continue
+    if (ms <= endMs) idx = i
+    else break
+  }
+  return idx
+}
+
 import useJ2ChartMarkers from '../pages/journal-2-0/hooks/useJ2ChartMarkers'
 import CountdownTimer from './chart/CountdownTimer'
 import styles from './StockChart.module.css'
@@ -1217,8 +1236,13 @@ export default function StockChart({
   onPeriodSelected = null,    // (startYmd:int, endYmd:int, pct:number) => void — the highlighted [start, end] as YYYYMMDD ints + the symbol's close-to-close % move.
   onPeriodCancel = null,      // () => void — the ✕ on the "Highlight time period" banner cancels the mode.
   replayCutoff = null,        // Replay mode: 'YYYY-MM-DD' — hide every bar after this calendar day + re-frame to default zoom + freeze live. null = normal chart.
-  onExitReplay = null,        // () => void — when set + replayCutoff/startMarker active, shows an "Exit Replay Mode" pill centered in the chart's clear top area.
+  onExitReplay = null,        // () => void — when set + replayCutoff/startMarker/anchorDate active, shows an "Exit Replay Mode" pill (text overridable via exitReplayLabel) centered in the chart's clear top area.
   startMarker = null,         // 'YYYY-MM-DD' — Custom-Period Sort: draw a thin gold vertical line at this date on the chart. null = none.
+  anchorDate = null,          // 'YYYY-MM-DD' — Desk anchored+reveal: FIRST FRAME uses the default
+                              // zoom ending at this day's bar (marker line drawn there); later bars
+                              // stay LOADED off-screen right (scroll to reveal). View-only — never
+                              // slices data (contrast replayCutoff). User pan/zoom releases it.
+  exitReplayLabel = null,     // pill text override ('⟲ Back to today' for anchored charts)
   verticalLegend = false,     // Charts workspace: stack the crosshair OHLCV legend single-file down the left instead of a horizontal row near the toolbar.
   lockWatermark = false,      // Charts workspace: disable the watermark hover-arm + drag so hovering it never moves it.
   alwaysShowLegend = false,   // Charts workspace: keep the legend visible with the latest bar's values when the cursor is off the chart (instead of hiding).
@@ -5819,6 +5843,37 @@ export default function StockChart({
   // still shows). delivering is bar-recency-gated in barsStreamManager.
   barsPushActiveRef.current = _pushOptIn && _barsPush.delivering
 
+  // Anchored+reveal frame: default zoom width ending at the anchor bar. Passing a
+  // VIRTUAL length (aIdx+1) to computeDefaultLogicalRange frames the anchor bar at
+  // LAST_CANDLE_POS exactly like the newest bar normally is — later bars run off-screen
+  // right. Returns false when no bar qualifies (host falls through to normal framing).
+  const applyAnchorFrame = (chart) => {
+    if (!anchorDate || !filteredBars || filteredBars.length === 0) return false
+    const aIdx = lastAnchorIdx(filteredBars, anchorDate)
+    if (aIdx < 0) return false
+    const { from, to } = computeDefaultLogicalRange(
+      aIdx + 1, resolvedTf,
+      { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride,
+        plotWidthPx: plotWidthOf(chart, containerRef.current) })
+    try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch { return false }
+    return true
+  }
+
+  // "Back to today": anchorDate transitioning non-null → null re-frames to the
+  // canonical present-day default (same helper "Reset view" uses).
+  const prevAnchorRef = useRef(anchorDate)
+  useEffect(() => {
+    const prev = prevAnchorRef.current
+    prevAnchorRef.current = anchorDate
+    const chart = chartRef.current
+    if (!prev || anchorDate || !chart || !filteredBars || filteredBars.length === 0) return
+    const { from, to } = computeDefaultLogicalRange(
+      filteredBars.length, resolvedTf,
+      { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride,
+        plotWidthPx: plotWidthOf(chart, containerRef.current) })
+    try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch { /* mid-load */ }
+  }, [anchorDate, filteredBars, resolvedTf, dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride])
+
   // ── Chart update — reuses chart instance, swaps data via setData() ─────────
   const updateChart = useCallback(() => {
     if (!containerRef.current) return
@@ -8097,6 +8152,8 @@ export default function StockChart({
           const fromBar = Math.max(0, (entryIdx >= 0 ? entryIdx : 0) - 20)
           const toBar   = (exitIdx >= 0 ? exitIdx : filteredBars.length - 1) + 28
           chart.timeScale().setVisibleLogicalRange({ from: fromBar, to: toBar })
+        } else if (anchorDate && !userViewMovedRef.current && applyAnchorFrame(chart)) {
+          // Anchored+reveal handled — nothing else to frame.
         } else {
           const _pt = pendingTfReframeRef.current
           if (tfChanged && _pt && _pt.width > 0) {
@@ -8118,6 +8175,10 @@ export default function StockChart({
       }
     } else if (!entryDate && !exactDateRange && _preUpdateRange && oldBarCount > 0
                && oldBarCount !== filteredBars.length) {
+      // Anchored chart: a backfill prepends older bars, shifting the anchor's index —
+      // recompute the anchor frame from data instead of preserving relative position.
+      // The moment the user moves the view, userViewMovedRef latches and this stops.
+      if (anchorDate && !userViewMovedRef.current && applyAnchorFrame(chart)) { /* framed */ } else {
       // SAME ticker/tf, but the bar COUNT changed since the last render — the
       // IDB-cache → network full-fetch swap OR a viewport-first older-history
       // backfill / dwell-warm (FIRST_PAINT→full, 600→12025). A backfill only
@@ -8150,6 +8211,7 @@ export default function StockChart({
         const to2 = lastIdx + width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
         const from2 = to2 - width
         try { chart.timeScale().setVisibleLogicalRange({ from: from2, to: to2 }) } catch {}
+      }
       }
     }
 
@@ -11845,18 +11907,18 @@ export default function StockChart({
       {/* Replay mode: an "Exit Replay Mode" pill centered in THIS chart's TOOLBAR row
           (the ~30px drawing-toolbar band, between the drawing tools and Indicators) so it
           auto-positions per chart and never sits over the candles. */}
-      {(replayCutoff || startMarker) && onExitReplay && (
+      {(replayCutoff || startMarker || anchorDate) && onExitReplay && (
         <button
           type="button"
           onClick={() => onExitReplay()}
-          title="Exit replay mode — restore all bars + clear the start-date line"
+          title={exitReplayLabel ? 'Return the chart to today' : 'Exit replay mode — restore all bars + clear the start-date line'}
           style={{ position: 'absolute', top: 3, left: '50%', transform: 'translateX(-50%)', zIndex: 30,
             display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer',
             background: '#c9a84c', color: '#ffffff', border: 'none', borderRadius: 999, padding: '4px 15px',
             font: "700 12px 'Instrument Sans', system-ui, sans-serif", letterSpacing: '0.02em',
             textShadow: '0 1px 3px rgba(0,0,0,0.55)', boxShadow: '0 8px 24px -8px rgba(201,168,76,0.6)',
             whiteSpace: 'nowrap' }}
-        >⟲ Exit Replay Mode</button>
+        >{exitReplayLabel || '⟲ Exit Replay Mode'}</button>
       )}
       {/* Go to date (Alt+G): pick a date, the chart scrolls to that session. */}
       {dateJumpOpen && (
@@ -12318,9 +12380,9 @@ export default function StockChart({
       )}
       {/* Custom-Period Sort: thin gold vertical line marking the sort's START date,
           full chart height. Spans price + volume panes; rides the time axis on pan/zoom. */}
-      {startMarker && bars?.length > 0 && (
+      {(startMarker || anchorDate) && bars?.length > 0 && (
         <div style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none' }}>
-          <ChartVLineOverlay chartRef={chartRef} seriesRef={candleSeriesRef} bars={bars} date={startMarker} color="#c9a84c" />
+          <ChartVLineOverlay chartRef={chartRef} seriesRef={candleSeriesRef} bars={bars} date={startMarker || anchorDate} color="#c9a84c" />
         </div>
       )}
       {/* Catalyst callouts (Model Book): labels in blank space + leader lines. */}
