@@ -20,6 +20,15 @@ import styles from './Sheet.module.css'
  *   maxWidth           desktop modal max width (px or css), default 520
  *   ariaLabel          accessible label when no title
  *   className          applied to the panel
+ *   zIndex             optional: inline-style override for THIS instance's
+ *                      backdrop, above the shared --z-modal rung (1000) that
+ *                      every other Sheet caller (TickerHubSheet, MoreSheet,
+ *                      FiltersSheet, ...) relies on — that rung is the whole
+ *                      mobile stack's contract and must NOT move globally.
+ *                      Omitted by default, so every existing caller is
+ *                      byte-identical. See ChartContextMenu.jsx for why its
+ *                      touch bottom-sheet needs one (it can open from inside
+ *                      TickerPopup, whose overlay now sits above --z-modal).
  */
 export default function Sheet({
   open,
@@ -33,6 +42,7 @@ export default function Sheet({
   maxWidth = 520,
   ariaLabel,
   className = '',
+  zIndex,
 }) {
   const isTouch = useIsTouch()
   const panelRef = useRef(null)
@@ -108,6 +118,7 @@ export default function Sheet({
   return createPortal(
     <div
       className={`${styles.backdrop} ${styles[resolved]}`}
+      style={zIndex != null ? { zIndex } : undefined}
       onMouseDown={(e) => {
         if (dismissOnBackdrop && e.target === e.currentTarget) onClose?.()
       }}

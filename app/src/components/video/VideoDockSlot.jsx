@@ -548,7 +548,7 @@ export default function VideoDockSlot() {
                       tf={followTf}
                       onTfChange={setFollowTf}
                       stored={null}
-                      density="compact"
+                      density="mini"
                       stockChartProps={{
                         height: 260,
                         ...(anchorDate ? { anchorDate } : {}),

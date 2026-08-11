@@ -30,7 +30,15 @@
 
 .popup {
   position: fixed;   /* portaled to body; left/top set inline, edge-aware */
-  z-index: 5000;
+  /* Reachable from inside TickerPopup: ChartToolbar renders many ColorPicker
+     instances (candle/volume/background/grid/crosshair/watermark) and
+     ChartToolbar is part of StockChart at ChartPane's default density, which
+     is what TickerPopup uses (see TickerPopup.jsx's ChartPane call — no
+     `density` prop). Must beat TickerPopup's overlay (8600, TickerPopup.
+     module.css) and stay below ChartContextMenu (8700, ChartContextMenu.
+     module.css) — the right-click menu's "+ Add to Portfolio" flow should
+     still win if both are somehow open. See TickerPopup.zorder.test.js. */
+  z-index: 8650;
   background: #1a1c17;
   border: 1px solid #2e3127;
   border-radius: 6px;

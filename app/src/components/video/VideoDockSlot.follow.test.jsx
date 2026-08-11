@@ -1,6 +1,6 @@
 // Task 6 — VideoDockSlot follow-along chart pane: a collapsible "Chart follows
 // discussion" section, OFF by default, that mounts a real ChartPane (density
-// "compact", the user's own chart via stored={null}) anchored at the session
+// "mini", the user's own chart via stored={null}) anchored at the session
 // date and auto-switches its symbol to whichever ticker moment is playing now.
 //
 // Scaffolding copied from VideoDockSlot.returns.test.jsx: ChartPane is mocked
@@ -98,7 +98,7 @@ describe('VideoDockSlot follow-along chart', () => {
     await screen.findByTestId('pane-stub')
     expect(lastPane().sym).toBe('NVDA')
     expect(lastPane().stockChartProps.anchorDate).toBe('2026-02-11')
-    expect(lastPane().density).toBe('compact')
+    expect(lastPane().density).toBe('mini')
     expect(lastPane().stored).toBeNull()
     expect(lastPane().onStore).toBeUndefined()
   })

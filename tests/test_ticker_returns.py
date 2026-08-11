@@ -43,7 +43,12 @@ def test_returns_math_basis_is_on_or_before_anchor(monkeypatch):
     assert out["as_of"]
 
 
-def test_short_history_nulls_d5_d21_and_since_zero_when_no_after(monkeypatch):
+def test_day0_session_omits_symbol_with_no_post_anchor_bar(monkeypatch):
+    # Publish-evening case: the session-day bar has ts == anchor, so it never
+    # lands in `after`. Omit the symbol entirely rather than fabricate a
+    # since_pct of 0.0 — a false "+0.0%" chip on every symbol is worse than no
+    # chip. anchor_date must still flow at the top level (anchoring is
+    # unaffected by this omission).
     ticker_returns._cache.clear()
     monkeypatch.setattr(ticker_returns.bars_sqlite, "get_bars_before",
                         lambda t, tf, n, k: _mk_bars([50.0]))
@@ -53,8 +58,9 @@ def test_short_history_nulls_d5_d21_and_since_zero_when_no_after(monkeypatch):
                         lambda vid: {"id": vid, "created_at": 1786327200})
     monkeypatch.setattr(ticker_returns.edu, "get_insights",
                         lambda vid: {"ticker_moments": [{"t": 1, "ticker": "AAPL"}]})
-    r = ticker_returns.returns_for_video(2)["returns"]["AAPL"]
-    assert r["since_pct"] == 0.0 and r["d5_pct"] is None and r["d21_pct"] is None
+    out = ticker_returns.returns_for_video(2)
+    assert "AAPL" not in out["returns"]
+    assert out["anchor_date"] == "2026-08-09"
 
 
 def test_symbol_without_basis_omitted_and_dedup(monkeypatch):
@@ -126,3 +132,37 @@ def test_endpoint_returns_service_payload(monkeypatch):
     client = TestClient(app)
     resp = client.get("/api/education/videos/5/ticker-returns")
     assert resp.status_code == 200 and resp.json() == sentinel
+
+
+def test_endpoint_requires_auth(monkeypatch):
+    # lesson_gate_that_cannot_fail: test_endpoint_returns_service_payload uses
+    # dependency_overrides[require_paid] for every request, so deleting
+    # `Depends(require_paid)` from the route reds nothing there. This test
+    # builds the SAME app WITHOUT the override and hits the route unauthenticated
+    # — it must fail closed. Mutation-checked: with `Depends(require_paid)`
+    # removed from get_video_ticker_returns in api/routers/education.py, this
+    # test fails (200 instead of 401/403); restored, it passes.
+    ticker_returns._cache.clear()
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.routers import education
+    sentinel = {"anchor_date": "2026-08-09", "as_of": "x", "returns": {}}
+    monkeypatch.setattr(ticker_returns, "returns_for_video", lambda vid: sentinel)
+
+    # Unauthenticated request against a client with NO auth override.
+    app = FastAPI()
+    app.include_router(education.router)
+    client = TestClient(app)
+    resp = client.get("/api/education/videos/5/ticker-returns")
+    assert resp.status_code in (401, 403), \
+        f"expected the auth gate to reject an unauthenticated request, got {resp.status_code}: {resp.text}"
+
+    # Non-vacuity control: the SAME route, overridden, still returns 200 —
+    # proves the 401/403 above came from the auth dependency, not from the
+    # route/app being broken some other way.
+    app2 = FastAPI()
+    app2.include_router(education.router)
+    app2.dependency_overrides[education.require_paid] = lambda: {"email": "t@t.t"}
+    client2 = TestClient(app2)
+    resp2 = client2.get("/api/education/videos/5/ticker-returns")
+    assert resp2.status_code == 200 and resp2.json() == sentinel

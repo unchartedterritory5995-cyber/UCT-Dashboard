@@ -9,7 +9,10 @@ the follow-along pane all read it from this payload).
 Basis close = last daily close ON or BEFORE the anchor (a mention on a Sunday
 session anchors to Friday's close). Symbols with no basis bar (IPO'd later,
 never in the universe) are omitted — the client renders those chips plain.
-Daily bars ts is a YYYYMMDD int (bars_sqlite)."""
+Symbols with no bar AFTER the anchor are also omitted (publish evening: the
+session-day bar has ts == anchor, so it hasn't landed in `after` yet) rather
+than reported as a fabricated since_pct of 0.0 — % tags appear from the first
+trading day after the session. Daily bars ts is a YYYYMMDD int (bars_sqlite)."""
 import time
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
@@ -38,8 +41,14 @@ def _returns_for(ticker: str, anchor_ymd: int) -> dict | None:
     if basis_c <= 0:
         return None
     after = bars_sqlite.get_bars_since(ticker, "D", anchor_ymd)
+    if not after:
+        # Publish evening: the session-day bar has ts == anchor, so it never
+        # lands in `after` yet. Omit the symbol rather than report a
+        # fabricated since_pct of 0.0 (every chip a false green "+0.0%").
+        # The caller drops it from `returns`; anchor_date is unaffected.
+        return None
     return {
-        "since_pct": _pct(basis_c, float(after[-1][4])) if after else 0.0,
+        "since_pct": _pct(basis_c, float(after[-1][4])),
         "d5_pct": _pct(basis_c, float(after[4][4])) if len(after) >= 5 else None,
         "d21_pct": _pct(basis_c, float(after[20][4])) if len(after) >= 21 else None,
     }

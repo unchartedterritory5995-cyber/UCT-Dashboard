@@ -400,6 +400,27 @@
 }
 .compareExch { color: var(--chart-panel-text, #a8a290); font-weight: 400; }
 .comparePct { flex: 0 0 auto; font-weight: 700; font-variant-numeric: tabular-nums; }
+/* Hover ✕ to remove a comparison (the whole legend is pointer-events:none, so the
+   ✕ re-enables pointer events on itself). */
+.compareX {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  margin-left: 1px;
+  border-radius: 3px;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--chart-panel-text, #a8a290);
+  opacity: 0;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: opacity 0.1s, background 0.1s, color 0.1s;
+}
+.compareRow:hover .compareX { opacity: 0.75; }
+.compareX:hover { opacity: 1; background: rgba(200, 40, 40, 0.85); color: #fff; }
 
 /* ── Attribution (Apache 2.0 requirement) ── */
 .attribution {
