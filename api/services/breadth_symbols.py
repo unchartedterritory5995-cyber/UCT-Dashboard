@@ -214,15 +214,23 @@ def _live_map() -> dict:
     WRAPPER — the flat metric set lives under `payload["metrics"]` — so pull that out.
     Cached by compute_live itself, so calling it per request is cheap.
 
-    Gated on `breadth_live._session_started()` (today past 09:30 ET) — the SAME gate the
-    main live breadth row uses. Before the open most of the universe hasn't traded, so a
-    live read falls back to yesterday's closes and is unreliable (its own docstring:
-    "true, and useless"). Without this gate the breadth-symbol charts painted a bogus
-    pre-market developing candle that the main breadth surfaces already hide."""
+    Gated on `breadth_live._session_started()` (today past 09:30 ET) AND on the read being
+    `anchored` and not `degraded` — the SAME trustworthiness gate the intraday store-writer
+    uses (breadth_monitor router, ~L301). Two reasons a live read is untrustworthy:
+      • Pre-open: most of the universe hasn't traded, so it falls back to yesterday's closes
+        ("true, and useless" per the breadth_live docstring).
+      • Un-anchored (early session, before the anchor basis builds): the raw value carries the
+        split-vs-dividend basis offset on the ratio metrics and partial/degraded counts. That
+        painted the bogus early-session developing candle (200MA +6 while 40/50 −6; new-lows
+        showing a partial 19 vs ~256). The anchored store row is the authoritative today
+        candle; this fallback must match its gate or it leaks raw values before the store row
+        lands."""
     try:
         from api.services import breadth_live
         if breadth_live.enabled() and breadth_live._session_started():
             payload = breadth_live.compute_live() or {}
+            if not payload.get("anchored") or payload.get("degraded"):
+                return {}
             m = payload.get("metrics")
             return m if isinstance(m, dict) else {}
     except Exception:
