@@ -21,6 +21,26 @@ _HOLDINGS_TTL = 12 * 3600
 _UNIVERSE_TTL = 24 * 3600
 _MASSIVE_BASE = "https://api.massive.com"
 
+# ETF-name tokens that mark a LEVERAGED / INVERSE / single-stock product — funds
+# that hold swaps or futures on one name or an index, NOT a real basket of stocks.
+# "View Holdings" is only for real-basket ETFs (owner: not MSTU/SQQQ/GLL/NVDL/…),
+# so any ETF whose name contains one of these is dropped from the served set.
+# Deliberately NO bare "SHORT"/"LONG" (they match "Short-Term" / "Long-Term" bond
+# ETFs, which are real baskets); the multiplier + "ULTRA" tokens already catch the
+# ProShares/Direxion/GraniteShares leveraged & inverse lineups.
+_NON_BASKET_TOKENS = (
+    "2X", "3X", "4X", "5X", "1.5X", "1.25X", "1.75X", "2.5X",
+    "-1X", "-2X", "-3X",
+    "ULTRA", "LEVERAGED", "INVERSE", "GEARED", "DAILY TARGET",
+    "BULL", "BEAR", "BOOST", "T-REX", "YIELDMAX",
+)
+
+
+def _is_basket_etf(name: str) -> bool:
+    """True unless the ETF name marks it leveraged/inverse/single-stock."""
+    n = (name or "").upper()
+    return not any(tok in n for tok in _NON_BASKET_TOKENS)
+
 _holdings_cache: dict = {}                     # sym -> (ts, [rows])
 _universe_cache: dict = {"ts": 0.0, "set": None}
 
@@ -92,7 +112,7 @@ def etf_symbol_set() -> set:
         )
         for r in rows:
             t = str((r or {}).get("ticker") or "").strip().upper()
-            if t:
+            if t and _is_basket_etf((r or {}).get("name")):
                 s.add(t)
     if s:  # never cache an empty set over a good one
         _universe_cache["set"] = s
