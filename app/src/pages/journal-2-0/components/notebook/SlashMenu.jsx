@@ -54,6 +54,16 @@ const ITEMS = [
     command: ({ editor, range }) => editor.chain().focus().deleteRange(range).setHorizontalRule().run(),
   },
   {
+    title: 'Table',
+    description: '3x3 table with a header row',
+    command: ({ editor, range }) => editor.chain().focus().deleteRange(range).insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+  },
+  {
+    title: 'Checklist',
+    description: 'Task list with checkboxes',
+    command: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleTaskList().run(),
+  },
+  {
     title: 'Image',
     description: 'Insert an image from your computer',
     command: ({ editor, range }) => {

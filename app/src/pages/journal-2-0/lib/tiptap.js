@@ -7,8 +7,11 @@ import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
+import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table'
+import { TaskList, TaskItem } from '@tiptap/extension-list'
 import { SlashMenuExtension } from '../components/notebook/SlashMenu'
 import { VideoTimestamp } from './videoTimestampNode'
+import { AttachmentChip } from './attachmentChip'
 import { fmtTime } from '../../../components/video/playerUtils'
 
 export function buildExtensions({ placeholder = 'Start writing… or type / for blocks' } = {}) {
@@ -21,9 +24,17 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
       openOnClick: false,
       autolink: true,
       protocols: ['https'],
+      // '/journal...' is the shipped internal-note-link form; 'import-link://<targetKey>'
+      // is the TEMPORARY placeholder the import pipeline round-trips through generateJSON
+      // before rewriteBody resolves it. Without this allowance the Link mark is stripped
+      // at parse time and every wiki-link import silently dies.
+      isAllowedUri: (url, ctx) => url.startsWith('/journal') || url.startsWith('import-link://') || ctx.defaultValidate(url),
       HTMLAttributes: { rel: 'noreferrer', target: '_blank' },
     }),
     Placeholder.configure({ placeholder }),
+    Table.configure({ resizable: false }), TableRow, TableHeader, TableCell,
+    TaskList, TaskItem.configure({ nested: true }),
+    AttachmentChip,
     SlashMenuExtension,
     VideoTimestamp,
   ]
@@ -58,6 +69,7 @@ export function extractPlainText(doc) {
     if (!node || typeof node !== 'object') return
     if (node.type === 'text' && typeof node.text === 'string') out.push(node.text)
     if (node.type === 'videoTimestamp') out.push(`[${fmtTime(node.attrs?.seconds || 0)}]`)
+    if (node.type === 'attachmentChip') out.push(`[file: ${node.attrs?.name || 'file'}]`)
     for (const child of node.content || []) walk(child)
   }
   walk(doc)
