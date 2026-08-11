@@ -77,10 +77,36 @@ retypes subexpressions and meets `maxNodes 128` — a real ceiling and a bad
 authoring experience regardless. Must fold to the same AST, so `astHash` and both
 walkers are untouched.
 
-**1.4 User-declared inputs.**
-`length`, `source`, `multiplier` with defaults and ranges, so an indicator is
-tunable and shareable instead of hard-coded. `BUILDER_INPUTS` /
-`BUILDER_INPUT_SCOPE` are the existing seam.
+**1.4 User-declared inputs. ⭐ MEASURED 2026-08-11: THE ENGINE IS ALREADY DONE.**
+
+A member-declared `period` was driven end to end and works: `declaredInputs`
+reads any `{key}` array off a definition, `lintRepaint` and `sentenceFor` take
+that scope verbatim, and `interpret` takes the values by the same names. A
+Butterworth whose coefficients are DERIVED from the input parses, lints
+`non-repainting`, reads back in English, sits at 86/128 nodes, and is genuinely
+tunable — period 20 → 125.41819, period 50 → 120.12551. An undeclared name still
+refuses at `sentence:name`.
+
+🔴 **The ONLY thing missing is the builder UI.** `BuilderSheet.buildDefinition`
+writes `inputs: BUILDER_INPUTS.map(...)` — a frozen pair (`color`, `lineWidth`) —
+so a member has no way to declare one. That single hardcoding is the whole gate.
+
+**What is left, precisely:**
+1. An input-row editor in `BuilderSheet` (key, type, label, default, min/max).
+2. `buildDefinition` merges member rows with the two chrome ones.
+3. The SAME scope must reach `evaluateFormula`, `freshnessFor` and the saved
+   document — `buildDefinition` currently builds the freshness scope from
+   `BUILDER_INPUTS` separately, which becomes a second authority the moment the
+   member's list exists.
+4. Server-side validation of member keys (`user_definitions`), since a definition
+   is persisted and re-read.
+
+⛔ **Do not ship 1-3 without the form.** A definition shape that accepts inputs no
+surface can create is this repo's most repeated defect (eight features "built,
+tested, green, connected to nothing" on 2026-08-08). The rail
+`app/src/components/chart/engine/ast/memberInputs.test.js` pins what already
+works — including an assertion that `BUILDER_INPUTS` is still the frozen pair, so
+the day the form ships that test tells you BY NAME rather than by silence.
 
 **1.5 A real editor.**
 Multi-line, live preview, errors at the character. ⭐ The refusal messages are
