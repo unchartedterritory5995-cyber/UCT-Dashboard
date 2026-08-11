@@ -227,6 +227,60 @@ function ChartPane({
     writeActiveSettings({ ...chartCs, extendedHoursShading: on, preset: 'custom' })
   }, [chartCs, writeActiveSettings])
 
+  // ── UCT breadth line-chart quick-toggle ──
+  // Breadth pseudo-tickers (UCTA50 = % above 50-day MA, etc.) often read better as a
+  // clean line than as candles. A one-click Line/Candles button flips JUST the breadth
+  // view, WITHOUT touching the user's saved chart type — so switching back to a regular
+  // ticker (NVDA) instantly restores their real candlestick settings. The choice is
+  // remembered globally (localStorage) and sticks across breadth tickers + refreshes,
+  // but only ever takes effect while a breadth symbol is charted.
+  const [breadthLineOn, setBreadthLineOn] = useState(() => {
+    try { return localStorage.getItem('uct.charts.breadthLine') === '1' } catch { return false }
+  })
+  const toggleBreadthLine = useCallback(() => {
+    setBreadthLineOn(prev => {
+      const next = !prev
+      try { localStorage.setItem('uct.charts.breadthLine', next ? '1' : '0') } catch { /* private mode */ }
+      return next
+    })
+  }, [])
+  const breadthLineActive = isBreadth && breadthLineOn
+  // Merge the forced line TYPE onto the surface's own override blob (never a second
+  // settingsOverride — ChartPane already passes one). Identity-stable so StockChart's
+  // memo dep doesn't churn. null when inactive = byte-identical to the prior behavior.
+  const baseSettingsOverride = stored || ownChartSource || null
+  const effSettingsOverride = useMemo(
+    () => (breadthLineActive ? { ...(baseSettingsOverride || {}), chartType: 'line' } : baseSettingsOverride),
+    [baseSettingsOverride, breadthLineActive],
+  )
+  // Reconcile the breadth line-toggle with the settings gear so NEITHER control is ever
+  // silently disabled. Every StockChart write spreads the overridden `cs` (chartType=
+  // 'line' while the toggle forces it) and routes through onSettingsPersist, which stores
+  // the surface blob verbatim. Two things to get right:
+  //  1. THE GEAR STAYS FULLY LIVE. A deliberate chart-type pick in the gear arrives with
+  //     next.chartType !== 'line' (a non-type edit — background/MAs — instead spreads the
+  //     forced 'line', so it can't reach this branch). The gear wins: release the toggle
+  //     and persist their pick verbatim, so it takes immediate visible effect on breadth
+  //     AND sticks. (Picking 'line' itself is handled by case 2 — it's already line.)
+  //  2. THE FORCED 'line' NEVER LEAKS. An incidental spread (or a redundant 'line' pick)
+  //     carries chartType='line'; strip it back to the surface's REAL type (chartCs,
+  //     computed WITHOUT this override) so a later regular ticker on this surface — NVDA —
+  //     never loads as a line. The toggle stays on; the chart keeps showing line.
+  // No-op entirely when the toggle isn't active.
+  const persistActiveSettings = useCallback((next) => {
+    if (breadthLineActive && next && next.chartType) {
+      if (next.chartType !== 'line') {
+        setBreadthLineOn(false)
+        try { localStorage.setItem('uct.charts.breadthLine', '0') } catch { /* private mode */ }
+        writeActiveSettings(next)
+        return
+      }
+      writeActiveSettings({ ...next, chartType: chartCs.chartType || 'candles' })
+      return
+    }
+    writeActiveSettings(next)
+  }, [breadthLineActive, writeActiveSettings, chartCs.chartType])
+
   // Header customization (Chart Settings → Header). Title mode, visible timeframe
   // buttons, day-change, info stats, and the on-chart legend are all user-toggled.
   const hdr = chartCs.header
@@ -476,6 +530,22 @@ function ChartPane({
           )}
           <div className={styles.tfBarRight}>
             {slots?.tfBarRight}
+            {/* Breadth-only Line/Candles quick-toggle. Flips JUST the breadth view
+                to a clean canvas-contrasting line and back; a regular ticker on this
+                surface is unaffected and keeps the user's saved chart type. The
+                button shows the view you'll GET (Line when on candles, and vice-versa). */}
+            {isBreadth && !mini && (
+              <button
+                type="button"
+                className={breadthLineOn ? `${styles.breadthLineBtn} ${styles.breadthLineBtnActive}` : styles.breadthLineBtn}
+                onClick={toggleBreadthLine}
+                title={breadthLineOn ? 'Switch to candlesticks' : 'Switch to line chart'}
+                aria-pressed={breadthLineOn}
+              >
+                <UIcon name={breadthLineOn ? 'chart' : 'wave'} size={14} gold={false} />
+                {breadthLineOn ? 'Candles' : 'Line'}
+              </button>
+            )}
             {/* Chart settings gear — omitted for mini (no room, no chrome) and
                 for a surface that IS the user's one chart (stored=null, no
                 onStore): its settings read now resolves from the /charts
@@ -555,8 +625,11 @@ function ChartPane({
              fell back to the seed), so StockChart's own base — which reads that
              same seed — is already correct and gets no override. Both operands
              are memoized upstream, so this stays identity-stable. */
-          settingsOverride={stored || ownChartSource || null}
-          onSettingsPersist={writeActiveSettings}
+          settingsOverride={effSettingsOverride}
+          onSettingsPersist={persistActiveSettings}
+          /* UCT breadth line mode: single canvas-contrasting ink for the price line
+             (the 'line' TYPE is forced above via effSettingsOverride). */
+          breadthLine={breadthLineActive}
           onSymbolChange={onSymbolChange ? handleSymbolChange : undefined}
           onTfChange={onTfChange}
           /* Share the same saved-color swatches with the drawing color picker. */

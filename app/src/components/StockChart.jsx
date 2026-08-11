@@ -1199,6 +1199,7 @@ export default function StockChart({
   volumeLastValue = false,  // show the current-volume axis tag on the volume pane's right scale (like the price tag on the main chart). Opt-in so Model Book (which deliberately hides it) is unaffected.
   volumeSeparatePane = false, // force volume into its own draggable bottom pane
   blankVolume = false,        // reserve an EMPTY, labeled volume pane (TC2000-style). For symbols with no volume (UCT breadth indicators): the pane still occupies its space + shows a "Volume" label, but renders no bars/line and no axis values (the vol series is fed whitespace, so the price scale has nothing to label). Implies a separate volume pane.
+  breadthLine = false,        // UCT breadth line-chart mode: paint the price LINE a single canvas-contrasting ink (black on a light canvas, white on a dark one), ignoring the user's candle/net-change colors. The 'line' chart TYPE itself is forced by the surface via settingsOverride={{chartType:'line'}}; this flag only governs that one auto-color. No-op unless the chart type is already 'line'.
   priceScaleBottomMargin = null, // small gap below price (above a separate vol pane)
   markVolumeExtremes = false, // gold the highest-volume-ever bar (Model Book)
   disableHvc = false,         // force the 52W-volume-high gold bars OFF (intraday popup)
@@ -1471,6 +1472,19 @@ export default function StockChart({
       ? { color: 'rgba(0, 0, 0, 0.22)', hover: 'rgba(0, 0, 0, 0.38)' }
       : { color: 'rgba(255, 255, 255, 0.18)', hover: 'rgba(255, 255, 255, 0.32)' }
   }, [canvasSample])
+
+  // UCT breadth line-chart ink: black on a light canvas, white on a dark one, so
+  // the single-color line always contrasts the background (mirrors the axis/
+  // separator auto-ink logic above). null unless `breadthLine` is set — then it
+  // wins over every candle/net-change color for the price line. Keyed off the
+  // canvas's OWN luminance (not canvasTheme alone) so a custom light background is
+  // handled too.
+  const breadthLineColor = useMemo(() => {
+    if (!breadthLine) return null
+    const rgb = parseColor(canvasSample.top)
+    const light = rgb ? luminance(rgb) > 0.5 : false
+    return light ? '#000000' : '#ffffff'
+  }, [breadthLine, canvasSample])
 
   // ── Axis auto-ink + crosshair-label canvas blend ────────────────────────────
   // The date/time + price scale text and the crosshair's pop-up axis labels
@@ -4995,8 +5009,9 @@ export default function StockChart({
       const isLineArea = cs.chartType === 'line' || cs.chartType === 'area'
       const mode = cs.candleColorMode || 'netchange'
       // Per-segment green/red for line & area in net-change / open-close modes. One
-      // color (and every non-line/area type) stays a plain value series.
-      if (!isLineArea || mode === 'onecolor') {
+      // color (and every non-line/area type) stays a plain value series. A breadth
+      // line forces plain too — per-point colors would override its single ink.
+      if (!isLineArea || mode === 'onecolor' || breadthLineColor) {
         return displayBars.map(b => ({ time: adjustTime(b.t), value: b.c }))
       }
       let prevClose = null
@@ -5010,7 +5025,7 @@ export default function StockChart({
         return { time: adjustTime(b.t), value: b.c, color: col, lineColor: col }
       })
     },
-    [displayBars, adjustTime, cs.chartType, cs.candleColorMode, mbUp, mbDown],
+    [displayBars, adjustTime, cs.chartType, cs.candleColorMode, mbUp, mbDown, breadthLineColor],
   )
   const hvcSet = useMemo(
     () => cs.volume.hvcEnabled && !disableHvc && filteredBars?.length > 20 ? computeHVC(filteredBars) : new Set(),
@@ -6320,10 +6335,11 @@ export default function StockChart({
           break
         case 'line': {
           // One-color = the single color; net/open-close = per-segment (from
-          // closeData's per-point `color`), with the up color as the base.
-          const _lineBase = (cs.candleColorMode === 'onecolor')
+          // closeData's per-point `color`), with the up color as the base. A breadth
+          // line overrides all of that with the canvas-contrasting ink.
+          const _lineBase = breadthLineColor || ((cs.candleColorMode === 'onecolor')
             ? ((userCandleColors && cs.candles.oneColor) ? cs.candles.oneColor : mbUp)
-            : mbUp
+            : mbUp)
           priceSeries = chart.addSeries(LineSeries, { color: _lineBase, lineWidth: 2 })
           break
         }
@@ -6539,7 +6555,7 @@ export default function StockChart({
           thinBars: cs.candles.thinBars !== false,
         })
       } else if (_ct === 'line') {
-        candleSeriesRef.current.applyOptions({ color: NC.mode === 'onecolor' ? NC.one : NC.up })
+        candleSeriesRef.current.applyOptions({ color: breadthLineColor || (NC.mode === 'onecolor' ? NC.one : NC.up) })
       } else if (_ct === 'area') {
         candleSeriesRef.current.applyOptions({ lineColor: NC.mode === 'onecolor' ? NC.one : NC.up })
       }

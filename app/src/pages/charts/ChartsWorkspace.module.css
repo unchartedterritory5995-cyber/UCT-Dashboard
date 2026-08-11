@@ -590,6 +590,40 @@
   background: rgba(201, 168, 76, 0.08);
 }
 
+/* Breadth-only Line/Candles quick-toggle — a visible labeled pill in the TF bar. */
+.breadthLineBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  background: transparent;
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 5px;
+  color: var(--text-muted, #6b7280);
+  cursor: pointer;
+  transition: color 120ms, background 120ms, border-color 120ms;
+}
+.breadthLineBtn:hover {
+  color: var(--accent, #c9a84c);
+  border-color: var(--accent, #c9a84c);
+  background: rgba(201, 168, 76, 0.08);
+}
+.breadthLineBtnActive {
+  color: #0e0f0d;
+  background: var(--accent, #c9a84c);
+  border-color: var(--accent, #c9a84c);
+}
+.breadthLineBtnActive:hover {
+  color: #0e0f0d;
+  background: var(--accent, #c9a84c);
+}
+
 /* Market Cap + Next Earnings labels, in the space right of the timeframes. */
 .chartMeta {
   display: flex;
