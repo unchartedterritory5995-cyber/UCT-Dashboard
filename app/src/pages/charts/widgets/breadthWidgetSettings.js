@@ -24,6 +24,12 @@ export const BREADTH_WIDGET_DEFAULTS = {
   headerColor: '',   // section names ("SCORE", "PRIMARY BREADTH") + the as-of date
   valueColor: '',    // the readings on the tiles (values + their captions)
 
+  // Tile style — how each heatmap reading renders. 'values' is the classic
+  // label+number tile; the others weave a mini trend line into the tile (today's
+  // intraday shape for the 7 live-sampled readings, else the last ~month of daily
+  // closes; the endpoint tracks the live value).
+  tileStyle: 'values',     // 'values' | 'spark' | 'area' | 'ghost'
+
   // View color system — passed into the breadth views' options (they already
   // support these; same choices as the Breadth page's per-view Customize).
   palette: 'classic',      // 'classic' | 'colorblind' | 'mono' | 'ocean'
@@ -198,6 +204,8 @@ export function breadthWidgetStyleVars(s) {
     if (rgb && luminance(rgb) > 0.5) {
       vars['--bw-tile-border'] = 'rgba(0, 0, 0, 0.10)'
       vars['--bw-tile-label'] = 'rgba(0, 0, 0, 0.62)'
+      // Sparkline/area ink → near-black on a light canvas (owner: black lines).
+      vars['--bw-spark'] = 'rgba(0, 0, 0, 0.72)'
     }
   }
   return vars

@@ -37,6 +37,12 @@ const INTENSITY_CHOICES = [
   ['normal', 'Normal'],
   ['bold', 'Bold'],
 ]
+const TILE_STYLE_CHOICES = [
+  ['values', 'Values (numbers only)'],
+  ['spark', 'Sparkline (line under value)'],
+  ['area', 'Area (filled trend)'],
+  ['ghost', 'Backdrop (faint line)'],
+]
 
 export default function BreadthSettingsPanel({ settings: s, onChange, onReset, onClose, gearEl, hostEl, themeVars = null }) {
   const panelRef = useRef(null)
@@ -161,6 +167,19 @@ export default function BreadthSettingsPanel({ settings: s, onChange, onReset, o
               </div>
             </Row>
           )}
+
+          {/* Tiles — how each reading renders (numbers, or a woven-in trend line). */}
+          <div className={styles.sectionLabel}>Tiles</div>
+          <Row label="Tile style" hint="intraday / recent trend line">
+            <select
+              className={styles.sizeSelect}
+              value={s.tileStyle || 'values'}
+              onChange={e => set({ tileStyle: e.target.value })}
+              title="How each breadth reading renders"
+            >
+              {TILE_STYLE_CHOICES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+          </Row>
 
           {/* Text — two independent colors: headers sit ON the canvas, readings
               sit ON the dark tiles (one shared color fails on a light canvas). */}

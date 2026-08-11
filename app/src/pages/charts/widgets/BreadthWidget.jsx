@@ -1,41 +1,30 @@
 /**
- * Breadth widget — the /breadth section's pulse, live on the /charts board.
+ * Breadth widget — the /breadth Monitor's pulse, live on the /charts board.
  *
- * Reuses the Breadth page's REAL machinery: the HM_METRICS registry + 8-tier
- * colors (breadth/heatmapMetrics.js — extracted so this widget doesn't bundle
- * the whole Breadth page) and the page's SVG view components (Rings / Meters /
- * Tug / Radar / Scoreboard / Equalizer / Timeline). The Heatmap view is a
- * lightweight DOM tile grid built here (the page's echarts treemap is too heavy
- * + too chrome-y for a widget slot). Same tier logic everywhere, so the widget
- * and the page can never disagree on what "bullish" looks like.
+ * A single HEATMAP of the breadth readings (the page's HM_METRICS registry +
+ * 8-tier colors from breadth/heatmapMetrics.js), grouped Score / Primary / MA /
+ * Regime / Highs-Lows / Sentiment. Real-time: the stored history (/api/breadth-
+ * monitor) with today's LIVE intraday row (useLiveBreadth) laid on top, exactly
+ * like the Breadth section. The footer's refresh re-pulls BOTH.
  *
- * Per-widget VIEW choice persists through the workspace layout save path
- * (opts.view — same mechanism as FundamentalsWidget). Appearance (canvas, text,
- * view palette/intensity) is a global ⚙ settings pref (breadth_widget_settings)
- * that rides layout templates like every other widget-settings blob.
+ * Per-widget customization (persists through the workspace layout save path,
+ * opts.hiddenMetrics): hover a tile → an ✕ removes that reading (survivors FLIP-
+ * slide to fill); the ＋ menu (grouped, checkmarked) adds/removes any reading.
+ * Appearance (canvas/text/palette) stays the global ⚙ pref (breadth_widget_settings).
  */
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState, useEffect, useLayoutEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
+import { mutate as globalMutate } from 'swr'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import { useLiveBreadth } from '../../../hooks/useLiveBreadth'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import UIcon from '../../../components/ui/UIcon'
-import {
-  HM_METRICS, FFILL_KEYS, PCTILE_KEYS, TIER_SCORES, TIER_TIP_COLORS, TIER_CELL_COLORS,
-} from '../../breadth/heatmapMetrics'
-import { normalizeMetric, pickSignals } from '../../breadth/views/breadthViewShared'
-import { resolveDefaultVisible, optionDefaults } from '../../breadth/views/viewMetricConfig'
-import RingsView from '../../breadth/views/RingsView'
-import MetersView from '../../breadth/views/MetersView'
-import TugView from '../../breadth/views/TugView'
-import RadarView from '../../breadth/views/RadarView'
-import ScoreboardView from '../../breadth/views/ScoreboardView'
-import EqualizerView from '../../breadth/views/EqualizerView'
-import TimelineView from '../../breadth/views/TimelineView'
+import { HM_METRICS, TIER_SCORES, TIER_TIP_COLORS, TIER_CELL_COLORS, FFILL_KEYS } from '../../breadth/heatmapMetrics'
 import BreadthSettingsPanel from './BreadthSettingsPanel'
 import {
-  BREADTH_WIDGET_SETTINGS_KEY, BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthDefaultsForTheme,
+  BREADTH_WIDGET_SETTINGS_KEY, mergeBreadthWidgetSettings, breadthDefaultsForTheme,
   breadthWidgetStyleVars, customBreadthColors, isLightCanvas,
   LIGHT_TIER_CELL_COLORS, LIGHT_TIER_TIP_COLORS,
 } from './breadthWidgetSettings'
@@ -43,39 +32,92 @@ import styles from './BreadthWidget.module.css'
 
 const fetcher = (url) => fetch(url).then(r => r.json())
 
-// View registry for the widget's pill bar. 'heatmap' is widget-local (DOM tile
-// grid below); the rest reuse the Breadth page's view components. The style key
-// for the reused views matches viewMetricConfig STYLES so resolveDefaultVisible/
-// optionDefaults resolve their curated per-view metric sets.
-const WIDGET_VIEWS = [
-  { key: 'heatmap',    label: 'Heatmap', styleKey: 'treemap' },   // treemap's eligible universe
-  { key: 'rings',      label: 'Rings',   styleKey: 'rings',      Comp: RingsView },
-  { key: 'meters',     label: 'Meters',  styleKey: 'meters',     Comp: MetersView },
-  { key: 'tug',        label: 'Tug',     styleKey: 'tug',        Comp: TugView },
-  { key: 'radar',      label: 'Radar',   styleKey: 'radar',      Comp: RadarView },
-  { key: 'scoreboard', label: 'Board',   styleKey: 'scoreboard', Comp: ScoreboardView },
-  { key: 'equalizer',  label: 'EQ',      styleKey: 'equalizer',  Comp: EqualizerView },
-  { key: 'timeline',   label: 'Pulse',   styleKey: 'timeline',   Comp: TimelineView },
-]
-const VIEW_KEYS = new Set(WIDGET_VIEWS.map(v => v.key))
-
+const LIVE_URL = '/api/breadth-monitor/live'
 const ALL_METRICS = HM_METRICS.filter(m => !m.isHeader)
 
-// Heatmap group display order (matches the page's board order).
+// Heatmap group display order + labels (match the /breadth board).
 const HEATMAP_GROUPS = ['Score', 'Primary', 'MA', 'Regime', 'Highs/Lows', 'Sentiment']
 const GROUP_LABELS = {
   Score: 'Score', Primary: 'Primary Breadth', MA: 'MA Breadth',
   Regime: 'Regime', 'Highs/Lows': 'Highs / Lows', Sentiment: 'Sentiment',
 }
 
-// ── Heatmap view (widget-local): grouped 8-tier tile grid ──────────────────
-// The page's treemap look, rebuilt as a plain CSS grid: dark tier fill + bright
-// tier value — reads perfectly at widget size and costs zero chart libraries.
-function HeatmapView({ currentRow, onDrill, cellColors = TIER_CELL_COLORS, tipColors = TIER_TIP_COLORS, textColor = null }) {
+// FLIP: animate tiles sliding to their new spot when one is removed/added. Reads
+// [data-mkey] positions before/after each layout and plays the delta. No-ops under
+// reduced-motion / where Element.animate is unavailable (jsdom).
+function useFlip(containerRef, dep) {
+  const prev = useRef(new Map())
+  useLayoutEffect(() => {
+    const el = containerRef.current
+    if (!el) { prev.current = new Map(); return }
+    const reduce = typeof window !== 'undefined' && window.matchMedia
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const tiles = el.querySelectorAll('[data-mkey]')
+    const next = new Map()
+    tiles.forEach(t => next.set(t.getAttribute('data-mkey'), t.getBoundingClientRect()))
+    if (!reduce) {
+      tiles.forEach(t => {
+        const key = t.getAttribute('data-mkey')
+        const p = prev.current.get(key), n = next.get(key)
+        if (p && n && (p.left !== n.left || p.top !== n.top) && typeof t.animate === 'function') {
+          const dx = p.left - n.left, dy = p.top - n.top
+          try { t.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'translate(0,0)' }], { duration: 190, easing: 'cubic-bezier(0.22,0.61,0.36,1)' }) } catch { /* WAAPI unavailable */ }
+        }
+      })
+    }
+    prev.current = next
+  }, [dep, containerRef])
+}
+
+// A tile's woven-in trend line. viewBox is 100×VBH stretched to the tile
+// (preserveAspectRatio none + non-scaling stroke), so it fits any tile width.
+//   mode 'spark'  → a short line strip UNDER the value (in-flow)
+//   mode 'area'   → a filled trend as the tile BACKDROP
+//   mode 'ghost'  → a faint line as the tile BACKDROP
+const SPARK_VBW = 100
+function TileSpark({ values, mode }) {
+  const vbh = mode === 'spark' ? 18 : 44
+  const shape = useMemo(() => {
+    const vals = (values || []).filter(v => v != null && v !== '' && Number.isFinite(Number(v))).map(Number)
+    if (vals.length < 2) return null
+    const min = Math.min(...vals), max = Math.max(...vals)
+    const span = (max - min) || 1
+    const pad = 2, h = vbh - pad * 2
+    const x = i => (i / (vals.length - 1)) * SPARK_VBW
+    const y = v => pad + h - ((v - min) / span) * h
+    const line = vals.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('')
+    return { line, area: `${line}L${SPARK_VBW},${vbh}L0,${vbh}Z`, open: vals[0], now: vals.at(-1), lastX: x(vals.length - 1), lastY: y(vals.at(-1)) }
+  }, [values, vbh])
+  if (!shape) return null
+  // One ink colour — black lines, not green/red (owner). Adaptive: dark ink on a
+  // light canvas (--bw-spark, emitted by breadthWidgetStyleVars) / light on dark.
+  const stroke = 'var(--bw-spark, rgba(255, 255, 255, 0.82))'
+  const backdrop = mode !== 'spark'
   return (
-    <div className={styles.hmWrap}>
+    <svg
+      className={backdrop ? styles.tileSparkBg : styles.tileSparkInline}
+      viewBox={`0 0 ${SPARK_VBW} ${vbh}`} preserveAspectRatio="none" aria-hidden="true"
+    >
+      {mode === 'area' && <path d={shape.area} fill={stroke} opacity="0.16" />}
+      <path
+        d={shape.line} fill="none" stroke={stroke} strokeWidth={mode === 'ghost' ? 1.4 : 1.6}
+        strokeLinejoin="round" strokeLinecap="round" opacity={mode === 'ghost' ? 0.42 : 0.95}
+        vectorEffect="non-scaling-stroke"
+      />
+      {!backdrop && <circle cx={shape.lastX} cy={shape.lastY} r="1.8" fill={stroke} />}
+    </svg>
+  )
+}
+
+// ── Heatmap: grouped 8-tier tile grid, each tile removable on hover ──
+function HeatmapView({ currentRow, visibleKeys, tileStyle, seriesFor, onDrill, onRemove, cellColors, tipColors, textColor }) {
+  const wrapRef = useRef(null)
+  useFlip(wrapRef, visibleKeys.join(','))
+  const backdrop = tileStyle === 'area' || tileStyle === 'ghost'
+  return (
+    <div className={styles.hmWrap} ref={wrapRef}>
       {HEATMAP_GROUPS.map(g => {
-        const metrics = ALL_METRICS.filter(m => m.group === g)
+        const metrics = ALL_METRICS.filter(m => m.group === g && visibleKeys.includes(m.key))
         if (!metrics.length) return null
         return (
           <div key={g} className={styles.hmGroup}>
@@ -84,22 +126,33 @@ function HeatmapView({ currentRow, onDrill, cellColors = TIER_CELL_COLORS, tipCo
               {metrics.map(m => {
                 const tier = m.getTier(currentRow)
                 const score = TIER_SCORES[tier]
+                const spark = tileStyle !== 'values'
+                  ? <TileSpark values={seriesFor(m.key)} mode={tileStyle} />
+                  : null
                 return (
                   <button
                     key={m.key}
+                    data-mkey={m.key}
                     type="button"
-                    className={styles.hmTile}
+                    className={`${styles.hmTile}${backdrop ? ' ' + styles.hmTileBackdrop : ''}`}
                     style={{ background: cellColors[tier] ?? cellColors[''] }}
                     onClick={() => onDrill(m)}
                     title={`${m.label} — open Breadth`}
                   >
+                    {backdrop && spark}
+                    <span
+                      className={styles.hmTileX}
+                      role="button"
+                      tabIndex={-1}
+                      aria-label={`Remove ${m.label}`}
+                      title={`Remove ${m.label}`}
+                      onClick={(e) => { e.stopPropagation(); onRemove(m.key) }}
+                    ><UIcon name="x" size={9} gold={false} /></span>
                     <span className={styles.hmTileLabel}>{m.label}</span>
-                    {/* A custom ⚙ Readings color paints the values (owner ask) —
-                        the tile fill still carries the tier; unset keeps the
-                        bright tier-colored numbers. */}
                     <span className={styles.hmTileVal} style={{ color: textColor || (score != null ? tipColors[score] : 'var(--bw-text-dim, #8b8674)') }}>
                       {m.getFmt(currentRow)}
                     </span>
+                    {tileStyle === 'spark' && spark}
                   </button>
                 )
               })}
@@ -111,20 +164,87 @@ function HeatmapView({ currentRow, onDrill, cellColors = TIER_CELL_COLORS, tipCo
   )
 }
 
+// ── ＋ menu: every reading, grouped, with a checkmark on the shown ones. Opens
+// BESIDE the widget (portaled to <body>, placed toward the layout middle) just
+// like the ⚙ settings panel — so it never covers the tiles you're toggling. ──
+const ADD_MENU_W = 244
+function AddMenu({ hidden, onToggle, onClose, anchorEl, hostEl, themeVars }) {
+  const ref = useRef(null)
+  const [pos, setPos] = useState(null)
+  useLayoutEffect(() => {
+    if (!hostEl) return undefined
+    const place = () => {
+      const r = hostEl.getBoundingClientRect()
+      const gap = 8
+      const preferRight = (r.left + r.width / 2) < window.innerWidth / 2
+      let left = preferRight ? r.right + gap : r.left - gap - ADD_MENU_W
+      if (preferRight && left + ADD_MENU_W > window.innerWidth - 8) left = r.left - gap - ADD_MENU_W
+      if (!preferRight && left < 8) left = Math.min(window.innerWidth - ADD_MENU_W - 8, r.right + gap)
+      left = Math.max(8, Math.min(left, window.innerWidth - ADD_MENU_W - 8))
+      let top = Math.max(8, r.top)
+      const h = Math.min(Math.round(window.innerHeight * 0.72), 560)
+      if (top + h > window.innerHeight - 8) top = Math.max(8, window.innerHeight - 8 - h)
+      setPos({ left: Math.round(left), top: Math.round(top) })
+    }
+    place()
+    window.addEventListener('resize', place)
+    return () => window.removeEventListener('resize', place)
+  }, [hostEl])
+  useEffect(() => {
+    const onDown = (e) => {
+      if (ref.current?.contains(e.target)) return
+      if (anchorEl?.contains(e.target)) return
+      onClose()
+    }
+    const onKey = (e) => { if (e.key === 'Escape') onClose() }
+    const t = setTimeout(() => document.addEventListener('mousedown', onDown), 0)
+    window.addEventListener('keydown', onKey)
+    return () => { clearTimeout(t); document.removeEventListener('mousedown', onDown); window.removeEventListener('keydown', onKey) }
+  }, [onClose, anchorEl])
+  return createPortal((
+    <div
+      ref={ref}
+      className={styles.addMenu}
+      style={{ ...(themeVars || {}), width: ADD_MENU_W, ...(pos ? { left: pos.left, top: pos.top } : { visibility: 'hidden' }) }}
+    >
+      <div className={styles.addMenuHead}>Readings</div>
+      <div className={styles.addMenuScroll}>
+        {HEATMAP_GROUPS.map(g => {
+          const metrics = ALL_METRICS.filter(m => m.group === g)
+          if (!metrics.length) return null
+          return (
+            <div key={g} className={styles.addMenuGroup}>
+              <div className={styles.addMenuGroupLabel}>{GROUP_LABELS[g] || g}</div>
+              {metrics.map(m => {
+                const on = !hidden.has(m.key)
+                return (
+                  <button key={m.key} type="button" className={styles.addMenuItem} onClick={() => onToggle(m.key)} role="menuitemcheckbox" aria-checked={on}>
+                    <span className={`${styles.addMenuCheck}${on ? ' ' + styles.addMenuCheckOn : ''}`}>{on ? <UIcon name="sparkle" size={9} gold={false} /> : null}</span>
+                    <span className={styles.addMenuLabel}>{m.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  ), document.body)
+}
+
 export default function BreadthWidget({ opts, onOptsChange }) {
   const navigate = useNavigate()
 
-  // ── Appearance settings (⚙ panel) — mirrors the other widget settings ──
+  // ── Appearance settings (⚙) ──
   const { prefs, setPref } = usePreferences()
-  // Uncustomized (no saved pref) → DEFAULTS FOR THE CURRENT APP THEME (light → white
-  // canvas + dark header/value text), so the ⚙ swatches and the surface follow the
-  // site theme (the heat-map tiles keep their own colors).
   const bwSettings = useMemo(
     () => mergeBreadthWidgetSettings(parsePref(prefs?.[BREADTH_WIDGET_SETTINGS_KEY], null) ?? breadthDefaultsForTheme(prefs?.theme)),
     [prefs],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [addOpen, setAddOpen] = useState(false)
   const settingsBtnRef = useRef(null)
+  const addBtnRef = useRef(null)
   const rootRef = useRef(null)
   const patchSettings = useCallback((patch) => {
     setPref(BREADTH_WIDGET_SETTINGS_KEY, JSON.stringify({ ...bwSettings, ...patch }))
@@ -138,162 +258,144 @@ export default function BreadthWidget({ opts, onOptsChange }) {
     return menuThemeVars(canvas) || {}
   }, [bwSettings])
 
-  // ── View choice — per-widget, persisted via workspace opts ──
-  const view = VIEW_KEYS.has(opts?.view) ? opts.view : 'heatmap'
-  const setView = useCallback((next) => {
-    if (next === (opts?.view || 'heatmap')) return
-    onOptsChange?.({ ...(opts || {}), view: next })
-  }, [opts, onOptsChange])
+  // ── Per-widget hidden readings (persist via workspace opts; default = all shown) ──
+  const hidden = useMemo(() => new Set(Array.isArray(opts?.hiddenMetrics) ? opts.hiddenMetrics : []), [opts])
+  const visibleKeys = useMemo(() => ALL_METRICS.filter(m => !hidden.has(m.key)).map(m => m.key), [hidden])
+  const removeMetric = useCallback((key) => {
+    if (hidden.has(key)) return
+    onOptsChange?.({ ...(opts || {}), hiddenMetrics: [...hidden, key] })
+  }, [opts, onOptsChange, hidden])
+  const toggleMetric = useCallback((key) => {
+    const next = new Set(hidden)
+    if (next.has(key)) next.delete(key); else next.add(key)
+    onOptsChange?.({ ...(opts || {}), hiddenMetrics: [...next] })
+  }, [opts, onOptsChange, hidden])
 
-  // ── Data — same endpoint the Breadth page reads; 90 sessions covers the
-  // percentile windows + timeline/scoreboard history. 5-min refresh (the stored
-  // rows only change once a day at the 4:15pm collector).
-  const { data } = useMobileSWR('/api/breadth-monitor?days=90', fetcher, {
-    refreshInterval: 300_000,
-    dedupingInterval: 60_000,
-    revalidateOnFocus: false,
+  // ── Data: stored history + LIVE intraday row on top (real-time, like /breadth) ──
+  const { data, mutate, isValidating } = useMobileSWR('/api/breadth-monitor?days=90', fetcher, {
+    refreshInterval: 300_000, dedupingInterval: 60_000, revalidateOnFocus: false,
   })
   const rows = useMemo(() => data?.rows ?? [], [data])
-
-  // LIVE intraday breadth — same source + machinery the Breadth page uses. The
-  // hook polls /api/breadth-monitor/live (60s) and returns a provisional row
-  // (anchored/reconciled server-side) that sits on TOP of the stored history as
-  // "today", or null once the 4:15pm collector supersedes it (then the stored
-  // row stands). Without this the widget showed only the last EOD row all day.
   const liveBreadth = useLiveBreadth({ enabled: true })
-  // Rows used for the CURRENT reading + recent-history views: live row prepended
-  // as today. Percentiles below stay on the STORED history so the live value is
-  // ranked AGAINST history, not against itself.
-  const displayRows = useMemo(
-    () => (liveBreadth.row ? [liveBreadth.row, ...rows] : rows),
-    [liveBreadth.row, rows],
-  )
-
-  // Forward-fill the weekly/sparse sentiment keys (same as BreadthViews). The
-  // live row (newest) inherits the sparse keys forward-filled from prior rows.
-  const filledRows = useMemo(() => {
-    const asc = [...displayRows].reverse()
-    const carry = {}
-    const result = []
-    for (const row of asc) {
-      const filled = { ...row }
-      for (const k of FFILL_KEYS) {
-        if (filled[k] == null && carry[k] != null) filled[k] = carry[k]
-        else if (filled[k] != null) carry[k] = filled[k]
+  // Live intraday row on top of stored history; forward-fill the sparse weekly
+  // sentiment keys (AAII/NAAIM) from recent rows so those tiles aren't "—".
+  const currentRow = useMemo(() => {
+    const base = liveBreadth.row ? liveBreadth.row : rows[0]
+    if (!base) return null
+    const filled = { ...base }
+    for (const k of FFILL_KEYS) {
+      if (filled[k] == null) {
+        for (const r of rows) { if (r?.[k] != null) { filled[k] = r[k]; break } }
       }
-      result.push(filled)
     }
-    return result.reverse()
-  }, [displayRows])
+    return filled
+  }, [liveBreadth.row, rows])
 
-  const currentRow = filledRows[0]
-  const prevRow = filledRows[3]
-  const recentRows = useMemo(() => filledRows.slice(0, 30), [filledRows])
-
-  const pctileByKey = useMemo(() => {
-    const out = {}
-    for (const k of PCTILE_KEYS) {
-      const vals = rows.map(r => r[k]).filter(v => v != null && !isNaN(Number(v)))
-      if (vals.length > 1) out[k] = vals.map(Number).sort((a, b) => a - b)
-    }
+  // Per-reading trend series for the sparkline tile styles: today's INTRADAY path
+  // for the 7 live-sampled readings (real-time), else the last ~month of daily
+  // values (newest = the live row, so the endpoint tracks live). oldest-first.
+  const TREND_N = 24
+  const trendBase = useMemo(
+    () => (liveBreadth.row && currentRow ? [currentRow, ...rows] : rows),
+    [liveBreadth.row, currentRow, rows],
+  )
+  const seriesFor = useCallback((key) => {
+    const p = liveBreadth.path?.[key]
+    if (Array.isArray(p) && p.length >= 2) return p.map(x => x?.[1])
+    const out = []
+    for (let i = Math.min(TREND_N, trendBase.length) - 1; i >= 0; i--) out.push(trendBase[i]?.[key])
     return out
-  }, [rows])
+  }, [liveBreadth.path, trendBase])
+  const tileStyle = bwSettings.tileStyle || 'values'
 
-  const normalize = useMemo(
-    () => (metric, row) => normalizeMetric(metric, row, pctileByKey),
-    [pctileByKey],
-  )
+  // When we last pulled the data (client-side), so the footer always shows a TIME
+  // like the Scanner widget — not just a date once the live row is superseded.
+  // Stamped when the fetched `data` object changes (render-time ref, not an
+  // effect → no setState-in-effect, and no one-render lag).
+  const stampRef = useRef({ data: null, at: null })
+  if (data && data !== stampRef.current.data) stampRef.current = { data, at: Date.now() }
+  const fetchedAt = stampRef.current.at
+  const [refreshing, setRefreshing] = useState(false)
+  const refreshAll = useCallback(async () => {
+    setRefreshing(true)
+    try { await Promise.all([mutate(), globalMutate(LIVE_URL)]) } finally { setRefreshing(false) }
+  }, [mutate])
+  const spinning = refreshing || isValidating
 
-  const active = WIDGET_VIEWS.find(v => v.key === view) || WIDGET_VIEWS[0]
+  // "Last updated" always carries a time: the live intraday clock while a live row
+  // stands, else the last fetch time. ET, "h:mm AM/PM".
+  const fmtEtTime = (ms) => {
+    try { return new Date(ms).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }) }
+    catch { return null }
+  }
+  const updated = liveBreadth.clock
+    ? `${liveBreadth.clock} ET`
+    : (fetchedAt ? `${fmtEtTime(fetchedAt)} ET` : (currentRow?.date || null))
 
-  // Curated per-view default metric set (the page's smart defaults).
-  const metrics = useMemo(() => {
-    const visible = resolveDefaultVisible(active.styleKey, ALL_METRICS)
-    return ALL_METRICS.filter(m => visible.has(m.key))
-  }, [active.styleKey])
-
-  // Signal of the Day + notable divergence — same picker the page uses. The
-  // strip UI was dropped (owner: reclaim the vertical space), but the keys still
-  // flow to the views so they can star/pulse the standout metric inline.
-  const signals = useMemo(
-    () => (currentRow ? pickSignals(metrics, currentRow, prevRow, pctileByKey) : { signalKey: null, notableKey: null }),
-    [metrics, currentRow, prevRow, pctileByKey],
-  )
-
-  // Widget drills open the full Breadth section (the widget has no drill modal).
   const drill = useCallback(() => navigate('/breadth'), [navigate])
 
-  // Custom up/down direction colors (⚙): when both are set, all three tier
-  // color systems rebuild from those two hues (null = follow the named palette).
-  // A LIGHT canvas flips the heatmap tiles to soft tints with dark ink — the
-  // dark near-black tiles read as heavy ink blocks on white.
   const lightCanvas = useMemo(() => isLightCanvas(bwSettings), [bwSettings])
   const custom = useMemo(() => customBreadthColors(bwSettings, lightCanvas), [bwSettings, lightCanvas])
-
-  // View options: the view's own defaults + the ⚙ palette/intensity choice.
-  // A custom up/down pair overrides the named palette (object palette —
-  // resolveViewColors accepts it).
-  const viewOptions = useMemo(() => ({
-    ...optionDefaults(active.styleKey),
-    palette: custom ? custom.viewPalette : bwSettings.palette,
-    intensity: bwSettings.intensity,
-  }), [active.styleKey, bwSettings.palette, bwSettings.intensity, custom])
-
-  const common = {
-    currentRow, prevRow, recentRows, metrics, normalize, onDrill: drill,
-    signalKey: signals.signalKey, notableKey: signals.notableKey, options: viewOptions,
-  }
+  const cellColors = custom ? custom.cellColors : (lightCanvas ? LIGHT_TIER_CELL_COLORS : TIER_CELL_COLORS)
+  const tipColors = custom ? custom.tipColors : (lightCanvas ? LIGHT_TIER_TIP_COLORS : TIER_TIP_COLORS)
 
   return (
     <div ref={rootRef} className={styles.root} style={bwStyle}>
       {settingsOpen && (
         <BreadthSettingsPanel
-          settings={bwSettings}
-          onChange={patchSettings}
-          onReset={resetSettings}
-          onClose={() => setSettingsOpen(false)}
-          gearEl={settingsBtnRef.current}
-          hostEl={rootRef.current}
-          themeVars={bwMenuVars}
+          settings={bwSettings} onChange={patchSettings} onReset={resetSettings}
+          onClose={() => setSettingsOpen(false)} gearEl={settingsBtnRef.current}
+          hostEl={rootRef.current} themeVars={bwMenuVars}
         />
       )}
 
-      {/* View pills + date + gear */}
-      <div className={styles.bar}>
-        {WIDGET_VIEWS.map(v => (
+      {/* Header: title · ＋ add · ⚙ */}
+      <div className={styles.header}>
+        <span className={styles.title}>Breadth Monitor</span>
+        <div className={styles.headerBtns}>
           <button
-            key={v.key}
-            type="button"
-            className={`${styles.pill}${view === v.key ? ' ' + styles.pillOn : ''}`}
-            onClick={() => setView(v.key)}
-          >{v.label}</button>
-        ))}
-        {currentRow?.date && <span className={styles.asOf}>{currentRow.date}</span>}
-        <button
-          ref={settingsBtnRef}
-          type="button"
-          className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
-          onClick={() => setSettingsOpen(o => !o)}
-          title="Breadth widget settings"
-        ><UIcon name="gear" size={13} /></button>
+            ref={addBtnRef} type="button"
+            className={`${styles.iconBtn}${addOpen ? ' ' + styles.iconBtnActive : ''}`}
+            onClick={() => setAddOpen(o => !o)} title="Add / remove readings" aria-label="Add or remove readings"
+          ><UIcon name="plus" size={14} /></button>
+          <button
+            ref={settingsBtnRef} type="button"
+            className={`${styles.iconBtn}${settingsOpen ? ' ' + styles.iconBtnActive : ''}`}
+            onClick={() => setSettingsOpen(o => !o)} title="Breadth widget settings" aria-label="Breadth widget settings"
+          ><UIcon name="gear" size={13} /></button>
+        </div>
+        {addOpen && (
+          <AddMenu
+            hidden={hidden} onToggle={toggleMetric} onClose={() => setAddOpen(false)}
+            anchorEl={addBtnRef.current} hostEl={rootRef.current} themeVars={bwMenuVars}
+          />
+        )}
       </div>
 
       {!currentRow && (
-        <div className={styles.hint}>{data ? 'No breadth data yet.' : 'Loading breadth…'}</div>
+        <div className={styles.hint}>{data || liveBreadth.meta ? 'No breadth data yet.' : 'Loading breadth…'}</div>
       )}
 
       {currentRow && (
         <div className={styles.viewArea}>
-          {view === 'heatmap'
-            ? <HeatmapView
-                currentRow={currentRow} onDrill={drill}
-                cellColors={custom ? custom.cellColors : (lightCanvas ? LIGHT_TIER_CELL_COLORS : TIER_CELL_COLORS)}
-                tipColors={custom ? custom.tipColors : (lightCanvas ? LIGHT_TIER_TIP_COLORS : TIER_TIP_COLORS)}
-                textColor={bwSettings.valueColor || null}
-              />
-            : <active.Comp {...common} />}
+          {visibleKeys.length === 0
+            ? <div className={styles.hint}>All readings hidden — add some with ＋.</div>
+            : <HeatmapView
+                currentRow={currentRow} visibleKeys={visibleKeys}
+                tileStyle={tileStyle} seriesFor={seriesFor}
+                onDrill={drill} onRemove={removeMetric}
+                cellColors={cellColors} tipColors={tipColors} textColor={bwSettings.valueColor || null}
+              />}
         </div>
       )}
+
+      {/* Footer: last-updated + refresh (mirrors the Scanner widget). */}
+      <div className={styles.footer}>
+        <span className={styles.footerUpdated}>{updated ? `Updated ${updated}` : 'Live'}</span>
+        <button type="button" className={styles.footerRefresh} onClick={refreshAll} title="Refresh" aria-label="Refresh">
+          <UIcon name="refresh" size={12} gold={false} className={spinning ? styles.footerRefreshSpin : undefined} />
+        </button>
+      </div>
     </div>
   )
 }

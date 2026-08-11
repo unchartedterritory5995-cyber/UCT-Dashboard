@@ -20,9 +20,29 @@ describe('suggestionsFor', () => {
     // The whole point of keying off lifecycle: "how did the print go" is noise on
     // a company that reports tonight, and vice versa.
     expect(pre).not.toEqual(post)
-    expect(pre.join(' ')).toMatch(/into NVDA's print/)
+    expect(pre.join(' ')).toMatch(/into the print/)
     expect(post.join(' ')).toMatch(/How did NVDA's print go/)
     expect(pre.join(' ')).not.toMatch(/How did NVDA's print go/)
+    // …and the reverse: nothing pre-print asks about a number that isn't out.
+    expect(post.join(' ')).toMatch(/since the print/)
+    expect(pre.join(' ')).not.toMatch(/since the print/)
+  })
+
+  it('opens a DIFFERENT data lane with each starter, never one lane twice', () => {
+    // `/api/ai-search` gates its options-flow / analyst / insider packs on the
+    // question's wording, so a set that asked five versions of one question
+    // would answer four of them out of a web search. This asserts the SHAPE —
+    // distinct lanes — while the Python side
+    // (tests/test_ask_ai_presets_trigger_context.py) owns whether each wording
+    // still trips the real regex. Deliberately no regex copies here: retyping
+    // the backend's trigger words is exactly the drift that test exists to stop.
+    for (const lc of ['PRE', 'PRINTED']) {
+      const out = suggestionsFor({ sym: 'NVDA', lifecycle: lc })
+      expect(new Set(out).size, `duplicate starter in ${lc}`).toBe(out.length)
+      expect(out.length).toBeGreaterThanOrEqual(4)
+      expect(out.join(' ')).toMatch(/options flow/i)
+      expect(out.join(' ')).toMatch(/analyst/i)
+    }
   })
 
   it('treats every actuals-present lifecycle as reported', () => {
