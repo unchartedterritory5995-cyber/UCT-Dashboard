@@ -327,6 +327,18 @@ export default function BuilderSheet({
     setEditing({ defId: row.def_id, version: Number(row.version) || 1 })
     setName(String(row?.definition?.meta?.name || ''))
     setSource(src)
+    // ⭐ OPENING A SAVED FORMULA IS A LANE LIKE ANY OTHER. Found by enumerating
+    // every `setSource` site rather than patching the two I happened to have
+    // tested: a member with a description in the box who opens one of their own
+    // formulas to edit was left with a sentence describing something else, above
+    // a Draft button that would overwrite the formula they had just opened.
+    //
+    // ⛔ THE OTHER THREE WRITERS DELIBERATELY DO NOT BUMP, and that is the whole
+    // classification: the concierge's own `onAccept` matches its description BY
+    // DEFINITION; `cancelEdit` clears to a blank box, where the description is
+    // still the natural next thing to draft from; and the open-reset unmounts the
+    // box entirely (`if (!open) return null`), so its prompt is already gone.
+    setReplacedAt((n) => n + 1)
     setResult(evaluateFormula(src, BUILDER_INPUT_SCOPE))
     // ⛔ AND THE SHEET MOVES TO THE FORMULA. A new sheet opens on the Library
     // because a member with nothing in the box is helped by worked examples; a

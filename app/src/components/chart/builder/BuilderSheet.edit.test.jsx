@@ -553,3 +553,36 @@ describe('🔴 a formula may reference one of its own declared inputs', () => {
       .toBe('close * lineWidth')
   })
 })
+
+// ─── OPENING A SAVED FORMULA IS A LANE TOO ──────────────────────────────────
+//
+// The staleness signal shipped covering the starter and Pine lanes. It missed
+// this one, and the gap was found by ENUMERATING every `setSource` site rather
+// than by testing the two lanes I happened to have in hand — the same
+// enumerate-the-axes rule that this repo keeps relearning.
+describe('🔴 opening a saved formula marks a stale description', () => {
+  it('the note appears when a description was already typed', async () => {
+    H.rows = [storedRow()]
+    mount()
+    await flush(); await flush()
+
+    fireEvent.change(screen.getByRole('textbox', { name: /plain English/i }),
+      { target: { value: 'stocks above the 200 day average' } })
+    await flush()
+    expect(screen.queryByTestId('concierge-stale')).toBeNull()
+
+    await clickEdit()
+
+    expect(screen.getByTestId('concierge-stale'),
+      'the sheet opened a saved formula and never told the description it was stale')
+      .toBeTruthy()
+  })
+
+  it('⛔ THE CONTROL — with no description there is nothing to mark', async () => {
+    H.rows = [storedRow()]
+    mount()
+    await flush(); await flush()
+    await clickEdit()
+    expect(screen.queryByTestId('concierge-stale')).toBeNull()
+  })
+})
