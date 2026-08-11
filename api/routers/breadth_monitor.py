@@ -77,6 +77,26 @@ def get_breadth_ohlc_status():
     return breadth_daily_ohlc.stats()
 
 
+@router.post("/api/breadth-monitor/history/recompute-deep")
+def recompute_deep_breadth(request: Request, date: str = Query(...),
+                           limit: int = Query(default=0, ge=0, le=6000)):
+    """Phase 1 proof: recompute breadth for a PAST date sourcing daily bars from the DEEP
+    chart pipeline (not the shallow ohlcv tier). `limit` caps the universe for a fast smoke
+    (0 = full universe). Reports the metrics + timing. PUSH_SECRET-gated."""
+    _check_auth(request)
+    import time as _t
+    from api.services import breadth_history_recon as r
+    from api.services import breadth_live as bl
+    tickers, _ = bl.universe()
+    if limit:
+        tickers = tickers[:limit]
+    t0 = _t.perf_counter()
+    out = r.recompute_close_deep(date, tickers)
+    out["elapsed_s"] = round(_t.perf_counter() - t0, 1)
+    out["tickers_used"] = len(tickers)
+    return out
+
+
 @router.post("/api/breadth-monitor/history/validate")
 def validate_breadth_history_recon(request: Request, days: int = Query(default=10, ge=1, le=60)):
     """Phase 0: recompute the last `days` COLLECTED sessions from bars and diff each metric

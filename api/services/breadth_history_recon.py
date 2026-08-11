@@ -24,6 +24,96 @@ def _f(v) -> Optional[float]:
         return None
 
 
+def _deep_daily_bars(ticker: str, bars: int = 9000) -> list:
+    """One ticker's DEEP daily bars ([{t:'YYYY-MM-DD', o,h,l,c,v}] oldest-first) via the same
+    serve pipeline the charts use (memory -> disk -> deep cache -> Massive) — NOT the shallow
+    live ohlcv tier. Returns [] on any failure."""
+    import json as _json
+    from api.services import bars_fetch
+    try:
+        resp = bars_fetch._get_bars_inner(ticker, "D", bars)
+        body = getattr(resp, "body", None)
+        data = _json.loads(body) if body is not None else (resp if isinstance(resp, dict) else {})
+        return data.get("bars") or []
+    except Exception:
+        return []
+
+
+def recompute_close_deep(target_date: str, tickers: Optional[list[str]] = None,
+                         window: int = 320) -> dict:
+    """Recompute breadth at a PAST day's close sourcing daily bars from the DEEP pipeline
+    (the data the charts already have), not the shallow ohlcv table. Builds a [tickers x
+    window] frame ending at `target_date`, then reuses breadth_live.build_levels +
+    compute_metrics. Returns {ok, date, universe, priced, measured, metrics:{...}}."""
+    import numpy as np
+    from api.services import breadth_live as bl
+    if tickers is None:
+        tickers, _ = bl.universe()
+    if not tickers:
+        return {"ok": False, "reason": "no universe"}
+
+    # Per ticker: {date_str: (o,h,l,c,v)} up to and including target_date.
+    per_ticker: dict = {}
+    all_dates: set = set()
+    for t in tickers:
+        rows = _deep_daily_bars(t)
+        d = {}
+        for b in rows:
+            ds = str(b.get("t"))[:10]
+            if ds <= target_date:
+                d[ds] = (b.get("o"), b.get("h"), b.get("l"), b.get("c"), b.get("v"))
+        if d:
+            per_ticker[t] = d
+            all_dates.update(d.keys())
+    if target_date not in all_dates:
+        return {"ok": False, "reason": f"no bar on {target_date} for any name (market holiday?)"}
+
+    # The `window` trading days ending at target_date (union index, oldest last).
+    dates = sorted(all_dates)[-int(window):]
+    if len(dates) < 221:
+        return {"ok": False, "reason": f"only {len(dates)} union sessions <=target (need 221)"}
+    date_pos = {ds: i for i, ds in enumerate(dates)}
+    n, m = len(tickers), len(dates)
+    closes = np.full((n, m), np.nan)
+    highs = np.full((n, m), np.nan)
+    lows = np.full((n, m), np.nan)
+    vols = np.full((n, m), np.nan)
+    for ti, t in enumerate(tickers):
+        d = per_ticker.get(t)
+        if not d:
+            continue
+        for ds, (o, h, l, c, v) in d.items():
+            j = date_pos.get(ds)
+            if j is None:
+                continue
+            cf, hf, lf, vf = _f(c), _f(h), _f(l), _f(v)
+            if cf is not None and cf > 0:
+                closes[ti, j] = cf
+            if hf is not None:
+                highs[ti, j] = hf
+            if lf is not None:
+                lows[ti, j] = lf
+            if vf is not None:
+                vols[ti, j] = vf
+
+    # Levels from sessions STRICTLY BEFORE target (drop the last column = target day),
+    # fold target's close in as the price — mirrors _metrics_at_close.
+    prior_ts = 0
+    levels = bl.build_levels(tickers, closes[:, :-1], vols[:, :-1], prior_ts)
+    ti_of = {t: i for i, t in enumerate(tickers)}
+    j = date_pos[target_date]
+    prices = {t: float(closes[ti_of[t], j]) for t in tickers
+              if not np.isnan(closes[ti_of[t], j]) and closes[ti_of[t], j] > 0}
+    dvols = {t: float(vols[ti_of[t], j]) for t in tickers
+             if not np.isnan(vols[ti_of[t], j]) and vols[ti_of[t], j] > 0}
+    if not prices:
+        return {"ok": False, "reason": "no prices on target"}
+    metrics = bl.compute_metrics(levels, prices, dvols)
+    return {"ok": True, "date": target_date, "universe": len(tickers),
+            "priced": len(prices), "measured": int(metrics.get("universe_count", 0)),
+            "metrics": {k: v for k, v in metrics.items() if not k.startswith("_")}}
+
+
 def recompute_close(target_ts: int, tickers: Optional[list[str]] = None) -> dict:
     """All price-derived breadth metrics at a past session's CLOSE (the live method applied
     to a completed day). Returns {} if the day can't be built (not enough prior sessions /
