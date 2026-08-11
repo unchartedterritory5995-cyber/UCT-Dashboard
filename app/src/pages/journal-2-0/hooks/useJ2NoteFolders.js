@@ -15,11 +15,11 @@ export default function useJ2NoteFolders() {
   })
   const folders = data?.folders ?? []
 
-  const create = async (name) => {
+  const create = async (name, parentId) => {
     const res = await fetch(url, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, ...(parentId ? { parentId } : {}) }),
     })
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))

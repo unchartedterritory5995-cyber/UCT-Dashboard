@@ -53,7 +53,30 @@
   color: #e8eaed;
   font-size: 13px;
 }
-.folderItem { display: flex; }
+.folderItem { display: flex; flex-direction: column; }
+.rowWrap { display: flex; align-items: center; gap: 2px; }
+.rowWrap .row { flex: 1; min-width: 0; }
+.disclosureBtn,
+.disclosureSpacer {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.disclosureBtn {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted, #98a0aa);
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 0;
+}
+.disclosureBtn:hover { color: #c9a84c; background: var(--color-surface-hover, #1c2028); }
+.chevron { transform: rotate(-90deg); transition: transform 150ms ease; }
+.chevronOpen { transform: rotate(0deg); }
+.childrenList { display: flex; flex-direction: column; gap: 2px; }
 .actions { display: flex; gap: 4px; opacity: 0; transition: opacity 100ms ease; }
 .row:hover .actions { opacity: 1; }
 .iconBtn {
@@ -78,4 +101,6 @@
   .addBtn { min-height: var(--tap-min, 44px); font-size: 14px; }
   .editInput { font-size: 16px; min-height: var(--tap-min, 44px); }
   .iconBtn { min-width: var(--tap-min, 44px); min-height: var(--tap-min, 44px); padding: 0; }
+  .disclosureBtn,
+  .disclosureSpacer { min-width: var(--tap-min, 44px); min-height: var(--tap-min, 44px); width: var(--tap-min, 44px); height: var(--tap-min, 44px); }
 }
