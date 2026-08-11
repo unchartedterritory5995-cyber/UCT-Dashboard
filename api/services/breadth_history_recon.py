@@ -198,7 +198,7 @@ def sweep_history(from_date: str, to_date: Optional[str] = None,
     workhorse — heavy, so run it in a background thread (run_sweep_async)."""
     from datetime import date as _date, timedelta as _td
     from api.services import breadth_live as bl
-    from api.services import breadth_daily_ohlc
+    from api.services import breadth_daily_ohlc, breadth_monitor
     if tickers is None:
         tickers, _ = bl.universe()
     if not tickers:
@@ -207,15 +207,33 @@ def sweep_history(from_date: str, to_date: Optional[str] = None,
     frame = load_deep_frame(tickers, since=since)
     dates = frame["dates"]
     to_date = to_date or (dates[-1] if dates else from_date)
-    sweep = [d for d in dates if from_date <= d <= to_date]
+    # Start the derived-metric buffer ~15 sessions before from_date so ratios/score aren't
+    # cold at the range start (ratio_10day needs 10 prior days).
+    warm_start = next((d for d in dates if d >= from_date), from_date)
+    warm_idx = max(0, dates.index(warm_start) - 15) if warm_start in dates else 0
+    sweep = [d for d in dates[warm_idx:] if d <= to_date]
     prev: dict = {}
+    recent: list = []          # full derived rows, NEWEST-FIRST (derive_live_row wants that)
     rows: list = []
     computed = written = 0
     for ds in sweep:
         r = recompute_from_frame(frame, tickers, ds, window)
         if not r.get("ok"):
             continue
-        for metric, val in r["metrics"].items():
+        base = dict(r["metrics"])
+        base["date"] = ds
+        try:
+            full = breadth_monitor.derive_live_row(base, recent)   # + breadth_score, ratios, hi/lo, A/D cum
+        except Exception:
+            full = base
+        recent.insert(0, full)
+        if len(recent) > 30:
+            recent.pop()
+        if ds < from_date:      # warmup only — seed the buffer, don't store
+            continue
+        for metric, val in full.items():
+            if metric == "date":
+                continue
             fv = _f(val)
             if fv is None:
                 continue
@@ -224,7 +242,7 @@ def sweep_history(from_date: str, to_date: Optional[str] = None,
                          round(min(o, fv), 4), round(fv, 4)))
             prev[metric] = fv
         computed += 1
-        _SWEEP_STATE.update(progress=f"{ds} ({computed}/{len(sweep)})")
+        _SWEEP_STATE.update(progress=f"{ds} ({computed} written)")
         if len(rows) >= batch:
             written += breadth_daily_ohlc.write_bulk(rows, source="close_recon")
             rows = []
