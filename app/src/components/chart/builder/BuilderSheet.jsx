@@ -141,8 +141,30 @@ export function draftDefId() {
  * by a model and never typed by the author — so the sentence in the indicator
  * library is the same sentence the author confirmed before saving.
  */
+/** A chip-sized name: at most `CHIP_NAME_MAX`, cut at a word boundary when there
+ *  is a usable one, and never left with a trailing space.
+ *
+ *  ⚰️ `trimmed.slice(0, 12)` ALONE PRODUCED "Above 50 on  settings". Measured in
+ *  production 2026-08-11: saving "Above 50 on volume" gave a chip reading
+ *  "Above 50 on " — cut mid-word, trailing space intact — and the controls built
+ *  from it read `Hide Above 50 on ` and `Above 50 on  settings`, double space and
+ *  all. The cap itself is real (the chip strip is narrow); the ragged edge was not.
+ */
+const CHIP_NAME_MAX = 12
+export function chipName(name) {
+  const trimmed = String(name || '').trim()
+  if (trimmed.length <= CHIP_NAME_MAX) return trimmed
+  const cut = trimmed.slice(0, CHIP_NAME_MAX)
+  const lastSpace = cut.lastIndexOf(' ')
+  // Only prefer the word boundary when it leaves something worth reading —
+  // "Above" beats "Above 50 on", but a single stub is worse than a clean cut.
+  const out = lastSpace >= Math.ceil(CHIP_NAME_MAX / 2) ? cut.slice(0, lastSpace) : cut
+  return out.trim()
+}
+
 export function buildDefinition({ defId, name, source, ast, mode, rev = 1, version = 1, readback = '' }) {
   const trimmed = String(name || '').trim()
+  const short = chipName(trimmed)
   return {
     schemaVersion: SCHEMA_VERSION,
     id: defId,
@@ -150,7 +172,7 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
     compute: { kind: 'ast', fn: astHash(ast), rev, ast, source },
     meta: {
       name: trimmed,
-      shortName: trimmed.slice(0, 12),
+      shortName: short,
       category: 'Custom',
       description: readback,
       tags: ['custom'],
@@ -179,7 +201,7 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
     // (`nativeRegistry.validateAstLane`); a second plot is a key nothing fills.
     plots: [{
       key: 'value',
-      label: trimmed.slice(0, 12) || 'Value',
+      label: short || 'Value',
       style: 'line',
       color: '$color',
       width: '$lineWidth',
@@ -800,6 +822,13 @@ export default function BuilderSheet({
             </p>
           )}
 
+        {/* ⭐⭐ ONE STICKY FOOTER, NOT THREE STACKED THINGS.
+            ⚰️ Making `.actions` sticky on its own (2026-08-11) pinned the buttons
+            and left the two lines that EXPLAIN them scrolling underneath: driving
+            the real dialog showed Cancel/Save sitting on top of "Discard this
+            formula?", with its Keep-editing/Discard buttons peeking out below and
+            unreachable. A sticky element must carry whatever it is answering. */}
+        <div className={styles.footer}>
           {saveHint && (
             <p className={styles.saveHint} data-testid="save-hint">{saveHint}</p>
           )}
@@ -843,6 +872,7 @@ export default function BuilderSheet({
               disabled={!canSave}
             >{saving ? 'Saving…' : (editing ? 'Save changes' : 'Save')}</button>
           </div>
+        </div>
 
           {rows.length > 0 && (
             <section className={styles.listWrap} aria-labelledby="uct-saved-head">
