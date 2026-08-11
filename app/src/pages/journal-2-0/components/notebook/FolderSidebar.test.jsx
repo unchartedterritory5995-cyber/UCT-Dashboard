@@ -32,5 +32,8 @@ describe('folder tree', () => {
     expect(screen.queryByText('Setups')).not.toBeInTheDocument()
     fireEvent.click(screen.getByLabelText('Expand Trading'))
     expect(screen.getByText('Setups')).toBeInTheDocument()
+    // collapsing again hides the child once more
+    fireEvent.click(screen.getByLabelText('Collapse Trading'))
+    expect(screen.queryByText('Setups')).not.toBeInTheDocument()
   })
 })

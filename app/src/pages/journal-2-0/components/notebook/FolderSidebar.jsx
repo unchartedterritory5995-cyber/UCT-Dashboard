@@ -79,6 +79,7 @@ function FolderNode({
             type="button"
             className={styles.disclosureBtn}
             aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${node.name}`}
+            aria-expanded={isExpanded}
             onClick={(e) => { e.stopPropagation(); toggleExpanded(node.id) }}
           >
             <Chevron expanded={isExpanded} />
@@ -108,7 +109,7 @@ function FolderNode({
             <span>{node.name}</span>
             <span className={styles.actions}>
               <span
-                className={styles.iconBtn}
+                className={`${styles.iconBtn} ${styles.iconBtnAdd}`}
                 onClick={(e) => { e.stopPropagation(); onStartAddChild(node.id) }}
                 title="Add subfolder"
                 aria-label={`Add subfolder to ${node.name}`}
@@ -264,22 +265,28 @@ export default function FolderSidebar({
     <aside className={styles.sidebar}>
       <div className={styles.section}>
         <div className={styles.sectionLabel}>Folders</div>
-        <button
-          type="button"
-          className={`${styles.row} ${activeFolderId == null && !activeTag ? styles.rowActive : ''}`}
-          onClick={() => { onSelectFolder(null); onSelectTag(null) }}
-        >
-          <span>All notes</span>
-          <span className={styles.count}>{notes.length}</span>
-        </button>
-        <button
-          type="button"
-          className={`${styles.row} ${activeFolderId === '__unfiled__' ? styles.rowActive : ''}`}
-          onClick={() => { onSelectFolder('__unfiled__'); onSelectTag(null) }}
-        >
-          <span>Unfiled</span>
-          <span className={styles.count}>{unfiledCount}</span>
-        </button>
+        <div className={styles.rowWrap}>
+          <span className={styles.disclosureSpacer} aria-hidden="true" />
+          <button
+            type="button"
+            className={`${styles.row} ${activeFolderId == null && !activeTag ? styles.rowActive : ''}`}
+            onClick={() => { onSelectFolder(null); onSelectTag(null) }}
+          >
+            <span>All notes</span>
+            <span className={styles.count}>{notes.length}</span>
+          </button>
+        </div>
+        <div className={styles.rowWrap}>
+          <span className={styles.disclosureSpacer} aria-hidden="true" />
+          <button
+            type="button"
+            className={`${styles.row} ${activeFolderId === '__unfiled__' ? styles.rowActive : ''}`}
+            onClick={() => { onSelectFolder('__unfiled__'); onSelectTag(null) }}
+          >
+            <span>Unfiled</span>
+            <span className={styles.count}>{unfiledCount}</span>
+          </button>
+        </div>
         {tree.map((node) => (
           <FolderNode
             key={node.id}

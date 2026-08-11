@@ -89,6 +89,7 @@
   border-radius: 3px;
 }
 .iconBtn:hover { color: #ef4444; }
+.iconBtnAdd:hover { color: #c9a84c; }
 .addForm { display: flex; padding: 0 6px; }
 
 /* Touch: no hover to reveal row actions, so keep them always visible and
