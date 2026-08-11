@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
+import { AuthProvider } from '../../../context/AuthContext'
 
 vi.mock('../../../components/community/ShareToFloor', () => ({ default: () => <button>Share to Floor</button> }))
 vi.mock('../../../hooks/usePreferences', () => ({ default: () => ({ prefs: {}, setPref: vi.fn() }), parsePref: (v, d) => d }))
@@ -13,6 +15,12 @@ const ANSWER = { answer: 'It gapped and held.', citations: [], related_questions
 function mockAsk() {
   globalThis.fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ANSWER })
 }
+
+/** TickerPopup reaches useFlagged/useTickerTags, which call useAuth() and THROW
+ *  outside a provider — the same reason EarningsResearchModal.test.jsx wraps
+ *  every render. Only the ticker-click test needs it; the rest render bare so a
+ *  provider can never be what makes them pass. */
+const withProviders = (ui) => <AuthProvider><MemoryRouter>{ui}</MemoryRouter></AuthProvider>
 
 /** Ask a question and wait for the answer to land. */
 async function ask(sym, text) {
@@ -93,6 +101,42 @@ describe('AskAiSection', () => {
     rerender(<AskAiSection sym="NVDA" lifecycle="PRINTED" />)
     expect(screen.getByText('nvda question')).toBeTruthy()
     expect(screen.queryByText('msft question')).toBeNull()
+  })
+
+  it('a ticker in an answer opens a chart IN PLACE, not a dead button', async () => {
+    // The widget renders `[Nvidia]($NVDA)` as a button and calls `onTicker`.
+    // Inside /charts that loads the widget's colour group; here there is no
+    // workspace, so without an explicit handler it fell through to a no-op
+    // FALLBACK — a button that looked live and did nothing. Component tests on
+    // either side stay green through that: the widget correctly calls its prop,
+    // and the popup correctly opens when told to. Only the WIRE is missing.
+    // URL-aware so AuthProvider's own mount fetch can't be answered with an
+    // AI payload and invent a signed-in user this assertion never asked for.
+    globalThis.fetch = vi.fn((url) => Promise.resolve({
+      ok: true, status: 200,
+      json: async () => (String(url).includes('/api/ai-search')
+        ? { answer: 'Watch [Nvidia]($NVDA) into the print.', citations: [], related_questions: [] }
+        : {}),
+    }))
+    render(withProviders(<AskAiSection sym="AAPL" lifecycle="PRINTED" />))
+    const box = screen.getByLabelText('Ask anything about AAPL')
+    fireEvent.change(box, { target: { value: 'any read-throughs?' } })
+    fireEvent.keyDown(box, { key: 'Enter' })
+    await waitFor(() => expect(screen.getByText(/into the print/)).toBeTruthy())
+
+    const tickerBtn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === 'Nvidia')
+    expect(tickerBtn, 'answer should render the ticker as a button').toBeTruthy()
+    fireEvent.click(tickerBtn)
+
+    // The chart opens over the modal — and it must be for the CLICKED symbol,
+    // not the modal's own. A popup hardcoded to `sym` would pass a weaker
+    // assertion while showing the reader the wrong company.
+    await waitFor(() => {
+      const dialogs = [...document.querySelectorAll('[role="dialog"], [class*="modal"]')]
+      expect(dialogs.some(el => /NVDA/.test(el.textContent || ''))).toBe(true)
+    })
+    // And it did NOT navigate away: the panel is still mounted behind it.
+    expect(screen.getByTestId('erm-ask-ai')).toBeTruthy()
   })
 
   it('renders no starter with a hole in it while the symbol is still settling', () => {
