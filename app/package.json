@@ -29,6 +29,7 @@
     "chart.js": "^4.4.0",
     "echarts": "^6.0.0",
     "echarts-for-react": "^3.0.6",
+    "fflate": "^0.8.2",
     "jsep": "1.4.0",
     "lightweight-charts": "5.2.0",
     "papaparse": "^5.5.3",
