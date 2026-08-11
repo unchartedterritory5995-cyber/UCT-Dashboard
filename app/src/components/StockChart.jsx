@@ -5351,6 +5351,13 @@ export default function StockChart({
     () => (cs.comparisonSymbols || []).filter(c => c && c.enabled && c.sym),
     [cs.comparisonSymbols]
   )
+  // 'same' scale = the comparison rides the base's price scale (in Percentage mode)
+  // so an out-performer visibly rises ABOVE the base (TradingView compare). When any
+  // comparison asks for that, the main scale is forced to Percentage below.
+  const hasSameScaleComparison = useMemo(
+    () => enabledComparisons.some(c => c.scaleMode === 'same'),
+    [enabledComparisons]
+  )
   // Stable cache key: sorted sym list + tf + barCount. Sorted so reorder doesn't refetch.
   const comparisonsKey = useMemo(
     () => enabledComparisons.map(c => String(c.sym).toUpperCase()).sort().join(',') || null,
@@ -5389,7 +5396,7 @@ export default function StockChart({
       const points = rawBars
         .filter(b => Number.isFinite(b?.c))
         .map(b => ({ time: adjustTime(b.t), value: b.c }))
-      return { sym: symKey, color: c.color, points }
+      return { sym: symKey, color: c.color, scaleMode: c.scaleMode === 'same' ? 'same' : 'new', points }
     })
   }, [comparisonsData, enabledComparisons, adjustTime])
 
@@ -5401,17 +5408,33 @@ export default function StockChart({
   // NOT logical indices — a comparison series with more history than the base
   // extends the logical space, so a logical-index→bar map read the wrong (often
   // last) bar and the % came out 0.00%.
-  const [framedLeftTime, setFramedLeftTime] = useState(null)
+  // A tick that bumps on every visible-range change (rAF-debounced). The baseline
+  // time is then read FRESH from getVisibleRange() in the memo below rather than
+  // cached in state — a stale cached value was the "% shows full history" bug: the
+  // subscription's first read fired before the chart settled on the framed range,
+  // and the cached number never caught up.
+  const [rangeTick, setRangeTick] = useState(0)
   useEffect(() => {
     const chart = chartRef.current
-    if (!chart || !chartReady || !enabledComparisons.length) { setFramedLeftTime(null); return undefined }
+    if (!chart || !chartReady || !enabledComparisons.length) return undefined
     const ts = chart.timeScale()
-    const apply = (range) => { if (range && range.from != null) setFramedLeftTime(Number(range.from)) }
-    const handler = (range) => apply(range)
-    try { apply(ts.getVisibleRange()) } catch { /* mid-load */ }
-    try { ts.subscribeVisibleTimeRangeChange(handler) } catch { /* older API */ }
-    return () => { try { ts.unsubscribeVisibleTimeRangeChange(handler) } catch { /* */ } }
+    let raf = 0
+    const bump = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => setRangeTick(t => (t + 1) & 0xffff)) }
+    try { ts.subscribeVisibleTimeRangeChange(bump) } catch { /* older API */ }
+    bump()
+    return () => { cancelAnimationFrame(raf); try { ts.unsubscribeVisibleTimeRangeChange(bump) } catch { /* */ } }
   }, [chartReady, enabledComparisons.length])
+
+  const framedLeftTime = useMemo(() => {
+    const chart = chartRef.current
+    if (!chart || !enabledComparisons.length) return null
+    try {
+      const r = chart.timeScale().getVisibleRange()
+      if (r && r.from != null) { const n = Number(r.from); return Number.isFinite(n) ? n : null }
+    } catch { /* mid-load */ }
+    return null
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rangeTick, chartReady, enabledComparisons.length])
 
   // Per-comparison % over the framed window: (latest close − close at framed-left) / base.
   const comparisonFramed = useMemo(() => {
@@ -9290,13 +9313,16 @@ export default function StockChart({
   useEffect(() => {
     const chart = chartRef.current
     if (!chart) return
-    const mode = effectiveScale === 'pct' ? 2 : (effectiveScale === 'log' ? 1 : 0)
+    // A 'same'-scale comparison shares this scale, so it MUST be Percentage — that
+    // is what makes LWC rebase the base + the comparison to the same 0% left edge so
+    // an out-performer sits higher. Reverts to the A/L/% choice once none remain.
+    const mode = (hasSameScaleComparison || effectiveScale === 'pct') ? 2 : (effectiveScale === 'log' ? 1 : 0)
     // Apply to the PRICE scale (via the candle series, robust to the index pane
     // at pane 0) AND the index-comparison pane, so the A/L/% toggle switches
     // both panes together. The index line is raw price, so log/percent are valid.
     try { mainPriceScale()?.applyOptions({ mode }) } catch { /* pre-init */ }
     try { indexPaneSeriesRef.current?.priceScale().applyOptions({ mode }) } catch { /* no index pane */ }
-  }, [effectiveScale, chartReady, indexPaneSymbol, indexPaneSeries, mainPriceScale])
+  }, [effectiveScale, chartReady, indexPaneSymbol, indexPaneSeries, mainPriceScale, hasSameScaleComparison])
 
   // ── Multi-symbol comparison overlays — add/remove series ──
   // Uses left-side 'comparison' price scale (independent of right price + 'compare' scale).
@@ -9316,13 +9342,22 @@ export default function StockChart({
       }
     }
 
-    // Add or update wanted series
+    // Add or update wanted series. Each comparison rides EITHER the base's main
+    // price scale ('right', scaleMode 'same' → out-performer sits above the base) OR
+    // its own auto-fitting left % scale ('new' → fills the pane independently).
+    // LWC can't move a series between scales, so a scaleMode flip = recreate.
     for (const cmp of comparisonSeries) {
+      const wantScale = cmp.scaleMode === 'same' ? 'right' : 'left'
       let series = map.get(cmp.sym)
+      if (series && series._uctScaleId !== wantScale) {
+        try { chart.removeSeries(series) } catch {}
+        map.delete(cmp.sym)
+        series = null
+      }
       if (!series) {
         try {
           series = chart.addSeries(LineSeries, {
-            priceScaleId: 'left',
+            priceScaleId: wantScale,
             color: cmp.color,
             lineWidth: 2,
             // No on-chart chip / axis label — the docked compare legend shows the
@@ -9332,6 +9367,7 @@ export default function StockChart({
             crosshairMarkerVisible: true,
             crosshairMarkerRadius: 3,
           })
+          series._uctScaleId = wantScale
           map.set(cmp.sym, series)
         } catch {
           continue
@@ -9342,11 +9378,14 @@ export default function StockChart({
       try { series.setData(cmp.points) } catch {}
     }
 
-    // The comparison scale runs in PERCENTAGE mode (mode:2) so LWC normalizes every
-    // comparison line to its first VISIBLE value — all start at 0% on the left and
-    // re-base as you pan/zoom (they line up with each other, TradingView-style).
+    // The dedicated LEFT scale (for 'new'-mode comparisons) runs in PERCENTAGE mode
+    // so LWC rebases each of those lines to its first VISIBLE value — 0% on the left,
+    // re-based on pan/zoom, lining up with each other. It is shown only while at
+    // least one comparison uses it; 'same'-mode comparisons ride the main scale
+    // instead (forced to Percentage by the scale-mode effect above).
     try {
-      if (wanted.size > 0) {
+      const anyNewScale = comparisonSeries.some(s => s.scaleMode !== 'same')
+      if (anyNewScale) {
         chart.priceScale('left').applyOptions({
           visible: true,
           mode: 2,

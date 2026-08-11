@@ -72,7 +72,7 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
     if (!s) return
     setSymbols(prev => {
       if (prev.some(x => x.sym === s)) return prev
-      const next = [...prev, { sym: s, enabled: true, color: pickComparisonColor(prev.length) }]
+      const next = [...prev, { sym: s, enabled: true, color: pickComparisonColor(prev.length), scaleMode: 'new' }]
       apiRef.current?.setComparison(next)
       return next
     })
@@ -81,6 +81,13 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
 
   const removeSymbol = useCallback((sym) => {
     push(symbols.filter(x => x.sym !== sym))
+  }, [symbols, push])
+
+  // Per-symbol price-scale choice. 'new' = its own auto-fitting left % scale (fills
+  // the pane independently — the default). 'same' = share the base's price scale in
+  // Percentage mode, so an out-performer visibly rises above the base (TradingView).
+  const setScaleMode = useCallback((sym, sm) => {
+    push(symbols.map(x => x.sym === sym ? { ...x, scaleMode: sm } : x))
   }, [symbols, push])
 
   const setModeAndApply = useCallback((m) => {
@@ -145,9 +152,25 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
           <div className={c.list}>
             {symbols.map(s => (
               <div key={s.sym} className={c.row}>
-                <span className={c.dot} style={{ background: s.color }} />
-                <span className={c.sym}>{s.sym}</span>
-                <button type="button" className={c.rm} onClick={() => removeSymbol(s.sym)} title={`Remove ${s.sym}`} aria-label={`Remove ${s.sym}`}><UIcon name="x" size={10} gold={false} /></button>
+                <div className={c.rowMain}>
+                  <span className={c.dot} style={{ background: s.color }} />
+                  <span className={c.sym}>{s.sym}</span>
+                  <button type="button" className={c.rm} onClick={() => removeSymbol(s.sym)} title={`Remove ${s.sym}`} aria-label={`Remove ${s.sym}`}><UIcon name="x" size={10} gold={false} /></button>
+                </div>
+                <div className={c.scaleSeg} data-no-drag>
+                  <button
+                    type="button"
+                    className={`${c.scaleBtn}${(s.scaleMode === 'same') ? ' ' + c.scaleOn : ''}`}
+                    onClick={() => setScaleMode(s.sym, 'same')}
+                    title="Share the main price scale — an out-performer rises above the base (TradingView style)"
+                  >Same % scale</button>
+                  <button
+                    type="button"
+                    className={`${c.scaleBtn}${(s.scaleMode !== 'same') ? ' ' + c.scaleOn : ''}`}
+                    onClick={() => setScaleMode(s.sym, 'new')}
+                    title="Draw on its own left % scale — fills the pane independently"
+                  >New price scale</button>
+                </div>
               </div>
             ))}
           </div>
