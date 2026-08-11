@@ -105,9 +105,42 @@ describe('generic adapter — non-image attachments', () => {
     const doc = docs[0]
     expect(doc.html).toContain('data-type="attachmentChip"')
     expect(doc.html).toContain('data-import-ref="Vault/report.pdf"')
+    // AttachmentChip.parseHTML (Task 5, lib/attachmentChip.js) reads `href` /
+    // `data-name` / `data-size` — NOT `data-import-ref` — so the placeholder
+    // must also land in href or it never reaches bodyJson at all.
+    expect(doc.html).toContain('href="import-ref://Vault/report.pdf"')
     expect(doc.media[0]).toMatchObject({ ref: 'Vault/report.pdf', kind: 'file', name: 'report.pdf' })
   })
+
+  it('reaches convert.htmlToNote as a real attachmentChip node with a resolvable href (pipeline)', async () => {
+    const pdf = { path: 'Vault/report.pdf', size: 1, lastModified: null, bytes: async () => new Uint8Array([1]) }
+    const { docs } = await genericAdapter.parse([vf('Vault/note.md', '[report](report.pdf)'), pdf])
+    const { htmlToNote } = await import('./convert')
+    const { bodyJson } = htmlToNote(docs[0].html)
+    const chip = findNode(bodyJson, (n) => n.type === 'attachmentChip')
+    expect(chip).toBeTruthy()
+    expect(chip.attrs.href).toBe('import-ref://Vault/report.pdf')
+    expect(chip.attrs.name).toBe('report.pdf')
+  })
+
+  it('leaves a relative link to another importable doc (.md) as an inert anchor, not an attachment chip', async () => {
+    const other = vf('Vault/other.md', '# Other')
+    const { docs } = await genericAdapter.parse([vf('Vault/note.md', '[see also](other.md)'), other])
+    const doc = docs.find((d) => d.importKey === 'file:Vault/note.md')
+    expect(doc.html).not.toContain('data-type="attachmentChip"')
+    expect(doc.media).toHaveLength(0)
+  })
 })
+
+function findNode(node, pred) {
+  if (!node || typeof node !== 'object') return null
+  if (pred(node)) return node
+  for (const child of node.content || []) {
+    const found = findNode(child, pred)
+    if (found) return found
+  }
+  return null
+}
 
 describe('generic adapter — media dedup', () => {
   it('references the same image twice in one doc but only lists it once', async () => {

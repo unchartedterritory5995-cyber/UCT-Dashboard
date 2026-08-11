@@ -25,5 +25,12 @@ export function detectAdapter(vfiles) {
       best = { adapter, confidence }
     }
   }
+  // An all-zero result means nothing recognized any signal at all — that is
+  // not a genuine tie between two real detections, so the registry-order
+  // tie-break above (which would otherwise hand this to evernote, first in
+  // ADAPTERS) doesn't apply here. Fall through to generic explicitly.
+  if (best.confidence === 0) {
+    return { adapter: genericAdapter, confidence: 0 }
+  }
   return best
 }

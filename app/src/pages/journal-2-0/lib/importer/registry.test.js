@@ -16,4 +16,7 @@ describe('detectAdapter', () => {
   it('falls back to generic for loose markdown', () => {
     expect(detectAdapter([vf('a.md'), vf('b/c.txt')]).adapter.id).toBe('file')
   })
+  it('defaults to generic (not evernote) when nothing scores above zero', () => {
+    expect(detectAdapter([]).adapter.id).toBe('file')
+  })
 })

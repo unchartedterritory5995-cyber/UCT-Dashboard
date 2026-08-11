@@ -252,10 +252,20 @@ function resolveRelativeMedia(html, dir, byPath) {
     const target = byPath.get(resolvedPath)
     if (!target) return
     if (IMAGE_EXT.test(resolvedPath)) return // images are handled via <img>, not <a>
+    // A relative link to another importable doc (.md/.txt/.html/.docx/a
+    // TextBundle's text.md) is a link BETWEEN notes, not a file attachment —
+    // leave it as an inert relative anchor. Resolving doc-to-doc links into
+    // `data-import-link="<targetKey>"` is the Notion/Obsidian adapters' job.
+    if (SUPPORTED_EXT.test(resolvedPath)) return
     const name = basename(resolvedPath)
     a.setAttribute('data-type', 'attachmentChip')
     a.setAttribute('data-import-ref', resolvedPath)
     a.setAttribute('data-name', name)
+    // The AttachmentChip TipTap node (Task 5) reads `href` in parseHTML — not
+    // `data-import-ref` — mirroring the <img src> branch above. Without this,
+    // the placeholder never reaches bodyJson and Task 13's rewriteBody (which
+    // matches `href === 'import-ref://<ref>'`) has nothing to swap.
+    a.setAttribute('href', `import-ref://${resolvedPath}`)
     media.push({ ref: resolvedPath, vfile: target, kind: 'file', name })
   })
 
