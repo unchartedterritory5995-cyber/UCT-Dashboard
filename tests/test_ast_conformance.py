@@ -914,11 +914,28 @@ def test_the_series_chain_generator_reads_the_MANIFEST_rather_than_typing_names(
     case's claim into somebody else's."""
     manifest = ac.load_manifest()
     assert manifest is not None
-    names = sorted(manifest["series"])
+    # ⭐ SERIES *AND* SCALARS -- THE SAME UNION `generate_ast` DRAWS FROM, and this
+    # line is why the test was red. The generator was deliberately widened (its own
+    # comment says so: `series_refs` counts DISTINCT reads, so a chain cycling the
+    # five bar fields is a chain of FIVE however long it gets, and this case exists
+    # to EXCEED a cap of eight). The manifest declares only 5 series, so a 9-name
+    # chain is IMPOSSIBLE from series alone. The generator moved; this assertion
+    # did not, and it sat red rather than being followed.
+    #
+    # ⛔ READ FROM THE MANIFEST, NOT RESTATED. Spelling the union here as a literal
+    # would be the second-authority defect the test is itself about.
+    names = sorted(manifest["series"]) + sorted(manifest["scalars"])
+    assert len(manifest["series"]) < 9, (
+        "if series alone ever reaches 9 this test stops proving the scalars are "
+        "reachable -- widen the chain rather than letting it pass for a new reason")
     tree = ac.generate_ast("gen:seriesChain(9)")
     found = ac.names_in(tree)
-    assert found <= set(names), found
+    assert found <= set(names), sorted(found - set(names))
     assert len(found) == min(9, len(names))
+    # ⭐ AND THE CHAIN GENUINELY CROSSES THE BOUNDARY, which is the property the
+    # case was widened FOR: a 9-name chain that happened to be all series would
+    # satisfy everything above and still not exercise a scalar read.
+    assert found & set(manifest["scalars"]), "the chain reached no scalar at all"
     # the source of those names is the manifest, proven by asserting this file
     # never types one: the generator's own AST holds no string constant equal to a
     # declared series name.
