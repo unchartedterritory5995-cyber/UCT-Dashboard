@@ -123,14 +123,19 @@ def pull_breadth_ohlc_now(request: Request):
 
 @router.post("/api/breadth-monitor/pit/calibrate")
 def pit_calibrate(request: Request, target_days: int = Query(default=8, ge=1, le=40),
-                  vol_window: int = Query(default=20, ge=5, le=60)):
+                  vol_window: int = Query(default=20, ge=5, le=60),
+                  exchanges: str = Query(default="")):
     """Phase-2 MAKE-OR-BREAK gate: run the price/liquidity-proxy vs KNOWN-universe
     calibration in a BACKGROUND thread (whole-market grouped-daily pulls are heavy).
-    Poll GET .../pit/calibrate-result. PUSH_SECRET-gated."""
+    `exchanges` = comma-sep primary_exchange allowlist (e.g. XNYS,XNAS,XASE,ARCX,BATS)
+    to drop OTC; empty = no exchange filter. Poll GET .../pit/calibrate-result.
+    PUSH_SECRET-gated."""
     _check_auth(request)
     from api.services import breadth_pit_calibrate as cal
-    cal.run_async(target_days=target_days, vol_window=vol_window)
-    return {"ok": True, "started": True, "target_days": target_days, "vol_window": vol_window}
+    exch = [e.strip().upper() for e in exchanges.split(",") if e.strip()] or None
+    cal.run_async(target_days=target_days, vol_window=vol_window, exchanges=exch)
+    return {"ok": True, "started": True, "target_days": target_days,
+            "vol_window": vol_window, "exchanges": exch}
 
 
 @router.get("/api/breadth-monitor/pit/calibrate-result")

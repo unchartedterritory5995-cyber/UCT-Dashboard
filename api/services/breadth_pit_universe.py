@@ -58,19 +58,28 @@ def active_on(ref: Optional[dict], date: str) -> bool:
 
 def eligible(date: str, day_rows: dict, ref_map: dict,
              price_min: float = DEFAULT_PRICE_MIN,
-             dollarvol_min: float = DEFAULT_DOLLARVOL_MIN) -> set:
+             dollarvol_min: float = DEFAULT_DOLLARVOL_MIN,
+             allowed_exchanges=None) -> set:
     """The point-in-time investable universe for `date`.
 
     `day_rows`: {ticker: {"c": close, "dv": trailing-median dollar-volume}} from the
                 survivorship-free grouped-daily frame (delisted names included).
-    `ref_map` : {ticker: reference dict with type/list_date/delisted_utc}.
-    Returns the set of eligible tickers: common stock, active on `date`, above the
-    price floor, above the liquidity floor. Never raises on a malformed row."""
+    `ref_map` : {ticker: reference dict with type/list_date/delisted_utc/primary_exchange}.
+    `allowed_exchanges`: if given, keep only names whose `primary_exchange` is in this
+                set (upper-cased) — drops OTC/pink-sheet names the collector excludes.
+                None = no exchange filter.
+    Returns the set of eligible tickers: common stock, active on `date`, on an allowed
+    exchange, above the price + liquidity floors. Never raises on a malformed row."""
+    allowed = {str(x).upper() for x in allowed_exchanges} if allowed_exchanges else None
     out: set = set()
     for t, m in (day_rows or {}).items():
         ref = ref_map.get(t)
         if not is_common_stock(ref) or not active_on(ref, date):
             continue
+        if allowed is not None:
+            exch = str((ref or {}).get("primary_exchange") or "").upper()
+            if exch not in allowed:
+                continue
         try:
             c = m.get("c")
             dv = m.get("dv")

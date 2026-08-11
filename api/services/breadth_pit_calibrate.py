@@ -44,8 +44,9 @@ def _trailing_dollarvol(target_day: str, window: int, adjusted: bool = False) ->
 
 
 def _build_ref_map() -> dict:
-    """symbol → {type, list_date, delisted_utc}. Active entries win over delisted on
-    a reused symbol (calibration is on RECENT dates, where the active co. is right)."""
+    """symbol → {type, list_date, delisted_utc, primary_exchange}. Active entries win
+    over delisted on a reused symbol (calibration is on RECENT dates, where the active
+    co. is right)."""
     from api.services import massive
     ref: dict = {}
     for active in (False, True):        # do active LAST so it wins on conflict
@@ -54,13 +55,26 @@ def _build_ref_map() -> dict:
             if not sym:
                 continue
             ref[sym] = {"type": r.get("type"), "list_date": r.get("list_date"),
-                        "delisted_utc": r.get("delisted_utc")}
+                        "delisted_utc": r.get("delisted_utc"),
+                        "primary_exchange": r.get("primary_exchange")}
     return ref
+
+
+def _breakdown(syms, ref_map, key, top=8):
+    """Top `key` (e.g. primary_exchange / type) values among `syms`, for diagnosing
+    what the proxy's false-positives / misses actually are."""
+    c = defaultdict(int)
+    for s in syms:
+        c[str((ref_map.get(s) or {}).get(key) or "?")] += 1
+    return sorted(({"v": k, "n": n} for k, n in c.items()), key=lambda x: -x["n"])[:top]
 
 
 def run_calibration(target_days: int = 8, vol_window: int = 20,
                     price_grid=(3.0, 5.0, 7.0),
-                    dv_grid=(5e5, 1e6, 2e6, 5e6, 1e7)) -> dict:
+                    dv_grid=(5e5, 1e6, 2e6, 5e6, 1e7),
+                    exchanges=None) -> dict:
+    """`exchanges`: optional set/list of allowed primary_exchange codes (e.g.
+    {'XNYS','XNAS','XASE','ARCX','BATS'}) to drop OTC/pink names. None = no filter."""
     from api.services import breadth_monitor, massive
     from api.services import breadth_pit_universe as pit
 
@@ -71,6 +85,7 @@ def run_calibration(target_days: int = 8, vol_window: int = 20,
     cand_dates = [h.get("date") for h in hist if h.get("date")][:target_days]
 
     per_date = []
+    first_ctx = {}      # rows + actual for the first date → best-point diagnostic
     for D in cand_dates:
         try:
             items = breadth_monitor.get_drill_list(D, "universe_list") or []
@@ -88,10 +103,13 @@ def run_calibration(target_days: int = 8, vol_window: int = 20,
         grid = []
         for pm in price_grid:
             for dvm in dv_grid:
-                proxy = pit.eligible(D, rows, ref_map, price_min=pm, dollarvol_min=dvm)
+                proxy = pit.eligible(D, rows, ref_map, price_min=pm, dollarvol_min=dvm,
+                                     allowed_exchanges=exchanges)
                 mtr = pit.compare_universe(proxy, actual)
                 mtr["price_min"], mtr["dollarvol_min"] = pm, dvm
                 grid.append(mtr)
+        if not first_ctx:
+            first_ctx = {"date": D, "rows": rows, "actual": actual}
         per_date.append({"date": D, "actual_size": len(actual),
                          "grouped_size": len(gday), "grid": grid})
 
@@ -111,15 +129,34 @@ def run_calibration(target_days: int = 8, vol_window: int = 20,
             "n_dates": len(gs),
         })
     ranked.sort(key=lambda x: -x["mean_jaccard"])
+
+    # Diagnostic: for the best threshold on the first date, what ARE the mismatched
+    # names? (exchange + type of false-positives / misses → what filter to add next.)
+    diag = None
+    if ranked and first_ctx:
+        b = ranked[0]
+        proxy = pit.eligible(first_ctx["date"], first_ctx["rows"], ref_map,
+                             price_min=b["price_min"], dollarvol_min=b["dollarvol_min"],
+                             allowed_exchanges=exchanges)
+        act = first_ctx["actual"]
+        fp, miss = proxy - act, act - proxy
+        diag = {
+            "date": first_ctx["date"],
+            "false_positives": len(fp), "misses": len(miss),
+            "fp_by_exchange": _breakdown(fp, ref_map, "primary_exchange"),
+            "fp_by_type": _breakdown(fp, ref_map, "type"),
+            "miss_by_exchange": _breakdown(miss, ref_map, "primary_exchange"),
+            "fp_sample": sorted(fp)[:15], "miss_sample": sorted(miss)[:15],
+        }
+
     return {
         "ok": True,
+        "exchanges_filter": sorted(exchanges) if exchanges else None,
         "ref_tickers": len(ref_map), "ref_common_stock": ref_cs,
         "dates_used": [pd["date"] for pd in per_date],
         "best": ranked[0] if ranked else None,
         "ranked": ranked[:10],
-        "sample_misses": (per_date[0]["grid"] and {
-            "date": per_date[0]["date"],
-        }) if per_date else None,
+        "diagnostic": diag,
     }
 
 
