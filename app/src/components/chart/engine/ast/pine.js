@@ -351,6 +351,62 @@ const BUILTIN_SERIES_TREE = Object.freeze({
   },
 })
 
+/** Pine CALLS that take arguments and are an EXACT expansion in this table's own
+ *  vocabulary. The sibling of `BUILTIN_SERIES_TREE`, which holds the zero-argument
+ *  ones.
+ *
+ *  ⛔ AN EXPANSION IS ONLY ADMISSIBLE WHEN IT IS AN IDENTITY — the same rule that
+ *  governs `tr`. Both of these are arithmetic on arguments the member already
+ *  wrote, so nothing is chosen here and no vocabulary is added: `roc` and `avg`
+ *  cost the closed table exactly zero new names.
+ *
+ *  ⚰️ `cum` AND `barssince` WERE MEANT TO BE HERE AND ARE NOT. See
+ *  `PINE_INEXPRESSIBLE` below — they cannot be written as identities in this
+ *  engine, and a near-miss under the right name is the worst outcome available.
+ */
+const BUILTIN_CALL_TREE = Object.freeze({
+  // ta.roc(src, n) = 100 * (src - src[n]) / src[n]  — TradingView's own definition.
+  //
+  // ⛔ GROUPED LEFT, AS THE LINE ABOVE READS: `(100 * (src - src[n])) / src[n]`.
+  // The other association computes the same number and hashes DIFFERENTLY, which
+  // would mean a member who typed TradingView's formula by hand got a tree that
+  // did not match the imported one — two definitions, two cache entries, and a
+  // "why are these different?" nobody can answer from the read-back. Matching the
+  // natural spelling is what makes astHash equality worth having.
+  roc: (a) => {
+    const prev = { type: 'offset', value: a[1].value, args: [a[0]] }
+    return cOp('/', [cOp('*', [cNum(100), cOp('-', [a[0], prev])]), prev])
+  },
+  // ta.avg(a, b, ...) is the mean OF ITS ARGUMENTS, not a rolling window. ⛔ Not
+  // `sma`: reading it as one would turn a two-series average into a 2-bar average
+  // of the first, which parses, scans and is wrong on every bar.
+  avg: (a) => cOp('/', [
+    a.slice(1).reduce((acc, x) => cOp('+', [acc, x]), a[0]),
+    cNum(a.length),
+  ]),
+})
+
+/** 🔴 PINE NAMES THIS ENGINE CANNOT EXPRESS, EACH WITH THE REASON.
+ *
+ *  ⛔ THESE ARE NOT "NOT BUILT YET". Each has an obvious near-miss that would
+ *  parse, lint, save and scan — and be WRONG — which is exactly why they refuse by
+ *  name instead of quietly resolving to the neighbour.
+ *
+ *  ⭐ MEASURED, NOT ASSUMED: `accum(0, self + 1, 10)` reads 10 at bar 20 AND at
+ *  bar 49 over a 50-bar series. It is a RE-SEEDED WINDOW, not a running total.
+ */
+const PINE_INEXPRESSIBLE = Object.freeze({
+  cum: 'a running total from the first bar. This engine\'s only accumulator '
+    + 're-seeds a fixed number of bars back, so `cum` would silently become a '
+    + 'rolling sum — and a true cumulative would change value with how many bars '
+    + 'the chart requested, which this engine forbids by construction. '
+    + 'Use `sum(source, n)` when a fixed window is what you meant.',
+  barssince: 'the number of bars since a condition was last true, UNBOUNDED. This '
+    + 'engine\'s accumulator is bounded by a declared warm-up, so the answer would '
+    + 'silently cap at that window instead of counting back as far as the condition '
+    + 'requires — a different number wearing the same name.',
+})
+
 /** Pine keywords that begin a construct with no single-expression form. */
 const BLOCK_KEYWORDS = Object.freeze(new Set(['if', 'for', 'while', 'switch']))
 const TYPE_KEYWORDS = Object.freeze(new Set(['type', 'method', 'enum']))
@@ -1521,6 +1577,32 @@ class Resolver {
     const shape = PINE_CALL_SHAPES[normaliseName(base)] || null
     const candidate = shape ? shape.table : base
     const key = this.index.get(normaliseName(candidate))
+    const bare = normaliseName(base)
+    // ⭐ AN EXACT EXPANSION BEATS A REFUSAL, and it is consulted only when the
+    // table itself has no such name — so a future `roc` in `closedTable` wins.
+    if (!key && own(BUILTIN_CALL_TREE, bare)) {
+      // ⛔ `.value` IS THE ARGUMENT NODE. An arg arrives as a wrapper (`{name,
+      // value}`) so a named argument can be refused by name; handing the wrapper
+      // to `resolve` throws, and the throw surfaces as a STATEMENT-level
+      // `pine:statement` refusal — which reads as "the translator cannot parse
+      // this line" rather than "the expansion is broken", and sent me looking at
+      // the script template instead of at this expression.
+      const built = args.map((a) => this.resolve(a.value !== undefined ? a.value : a))
+      if (bare === 'roc' && (built.length !== 2 || built[1].type !== 'num')) {
+        throw new PineRefusal('pine:window',
+          `\`${pineName}\` needs a written whole-number length`, locate(tok))
+      }
+      if (bare === 'avg' && built.length < 2) {
+        throw new PineRefusal('pine:arity',
+          `\`${pineName}\` averages two or more values`, locate(tok))
+      }
+      return BUILTIN_CALL_TREE[bare](built)
+    }
+    // 🔴 NAMED AS INEXPRESSIBLE, WITH THE REASON — never resolved to a neighbour.
+    if (!key && own(PINE_INEXPRESSIBLE, bare)) {
+      throw new PineRefusal('pine:function',
+        `\`${pineName}\` is ${PINE_INEXPRESSIBLE[bare]}`, locate(tok))
+    }
     if (!key) {
       throw new PineRefusal('pine:function',
         `${REFUSALS['pine:function']} — \`${pineName}\`. This table declares `
