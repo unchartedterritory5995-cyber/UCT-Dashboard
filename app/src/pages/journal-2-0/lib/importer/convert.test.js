@@ -10,6 +10,11 @@ describe('sanitizeHtml', () => {
     expect(out).not.toContain('javascript:')
     expect(out).toContain('hi')
   })
+
+  it('removes scripts from SVG/MathML foreign content', () => {
+    const out = sanitizeHtml('<svg><script>alert(2)</script></svg>')
+    expect(out.toLowerCase()).not.toContain('script')
+  })
 })
 
 describe('htmlToNote', () => {
@@ -29,5 +34,16 @@ describe('htmlToNote', () => {
       '<h1>Title</h1><table><tr><td>alpha</td></tr></table>')
     expect(bodyJson.content.map((n) => n.type)).toEqual(['heading', 'table'])
     expect(bodyPlain).toContain('alpha')
+  })
+
+  it('converts label-wrapped checkboxes to taskItems with correct state', () => {
+    const { bodyJson } = htmlToNote(
+      '<ul class="contains-task-list">' +
+      '<li class="task-list-item"><label><input type="checkbox" checked>done task</label></li>' +
+      '<li class="task-list-item"><label><input type="checkbox">todo task</label></li></ul>')
+    const list = bodyJson.content[0]
+    expect(list.type).toBe('taskList')
+    expect(list.content[0].attrs.checked).toBe(true)
+    expect(list.content[1].attrs.checked).toBe(false)
   })
 })

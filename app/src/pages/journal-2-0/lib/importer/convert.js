@@ -5,7 +5,10 @@ const BANNED_TAGS = new Set(['SCRIPT', 'IFRAME', 'FORM', 'OBJECT', 'EMBED', 'STY
 
 export function sanitizeHtml(html) {
   const doc = new DOMParser().parseFromString(html || '', 'text/html')
-  doc.querySelectorAll([...BANNED_TAGS].join(',')).forEach((el) => el.remove())
+  // Remove banned tags by checking tagName.toUpperCase() to handle SVG/MathML foreign content
+  ;[...doc.getElementsByTagName('*')].forEach((el) => {
+    if (BANNED_TAGS.has(el.tagName.toUpperCase())) el.remove()
+  })
   doc.querySelectorAll('*').forEach((el) => {
     for (const attr of [...el.attributes]) {
       const name = attr.name.toLowerCase()
@@ -23,7 +26,7 @@ export function sanitizeHtml(html) {
 
 export function mapCheckboxLists(doc) {
   doc.querySelectorAll('li').forEach((li) => {
-    const box = li.querySelector(':scope > input[type=checkbox], :scope > p > input[type=checkbox]')
+    const box = li.querySelector(':scope > input[type=checkbox], :scope > p > input[type=checkbox], :scope > label > input[type=checkbox], :scope > p > label > input[type=checkbox]')
     if (!box && !li.classList.contains('task-list-item')) return
     li.setAttribute('data-type', 'taskItem')
     li.setAttribute('data-checked', box?.checked || box?.hasAttribute('checked') ? 'true' : 'false')
