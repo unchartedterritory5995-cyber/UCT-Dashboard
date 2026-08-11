@@ -36,6 +36,13 @@ _ATTACHMENT_ROOT = Path(
 )
 _ALLOWED_IMAGE_MIMES = {"image/png", "image/jpeg", "image/gif", "image/webp"}
 _MAX_IMAGE_BYTES = 5 * 1024 * 1024
+_ALLOWED_FILE_MIMES = {
+    "application/pdf", "text/plain", "text/csv", "text/markdown",
+    "application/zip", "audio/mpeg", "audio/mp4",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.document",
+}
+_MAX_FILE_BYTES = 25 * 1024 * 1024
 
 
 class NoteValidationError(ValueError):
@@ -773,13 +780,54 @@ async def save_note_image(
     return {"url": public_url, "width": width, "height": height}
 
 
+async def save_note_attachment(
+    user_id: str,
+    note_id: str,
+    upload,
+) -> dict[str, Any]:
+    """Validate + persist a non-image file attached to a note. Returns
+    {url, name, size}. File is stored under _ATTACHMENT_ROOT/{user_id}/notes/{note_id}/file/"""
+    if upload.content_type not in _ALLOWED_FILE_MIMES:
+        raise NoteValidationError(f"MIME type {upload.content_type} not allowed")
+    raw = await upload.read()
+    if len(raw) > _MAX_FILE_BYTES:
+        raise NoteValidationError("File must be < 25 MB")
+    if len(raw) == 0:
+        raise NoteValidationError("Empty file")
+
+    # Extract extension from filename; default to .bin if not in allowlist
+    filename = getattr(upload, "filename", "") or "attachment"
+    ext_map = {
+        ".pdf": ".pdf", ".txt": ".txt", ".csv": ".csv", ".md": ".md",
+        ".zip": ".zip", ".mp3": ".mp3", ".m4a": ".m4a",
+        ".docx": ".docx", ".xlsx": ".xlsx",
+    }
+    # Get extension from filename (case-insensitive)
+    file_ext = ""
+    if "." in filename:
+        file_ext = filename[filename.rfind("."):].lower()
+    ext = ext_map.get(file_ext, ".bin")
+
+    sub = "file"
+    target_dir = _ATTACHMENT_ROOT / user_id / "notes" / note_id / sub
+    target_dir.mkdir(parents=True, exist_ok=True)
+    new_id = uuid.uuid4().hex
+    target_path = target_dir / f"{new_id}{ext}"
+    target_path.write_bytes(raw)
+
+    public_url = (
+        f"/api/j2/notes/attachments/{user_id}/{note_id}/{sub}/{new_id}{ext}"
+    )
+    return {"url": public_url, "name": filename, "size": len(raw)}
+
+
 def serve_note_image_path(
     user_id: str,
     note_id: str,
     sub: str,
     filename: str,
 ) -> Path | None:
-    if sub not in ("hero", "inline"):
+    if sub not in ("hero", "inline", "file"):
         return None
     if "/" in filename or "\\" in filename or filename.startswith("."):
         return None

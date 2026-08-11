@@ -1439,6 +1439,24 @@ def delete_note_hero_endpoint(
     return {"ok": True}
 
 
+@router.post("/notes/{note_id}/attachments")
+async def upload_note_attachment_endpoint(
+    note_id: str,
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    n = notes_service.get_note(user["id"], note_id)
+    if n is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    try:
+        att = await notes_service.save_note_attachment(
+            user["id"], note_id, file,
+        )
+    except NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return att
+
+
 @router.get("/notes/attachments/{user_id_param}/{note_id}/{sub}/{filename}")
 def serve_note_attachment(
     user_id_param: str,

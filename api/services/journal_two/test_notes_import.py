@@ -244,3 +244,27 @@ def test_import_confirm_is_atomic(conn):
     # Verify rollback: no folders were created either
     folders = {f["name"] for f in notes_svc.list_folders("u1", conn=conn)}
     assert "Inbox" not in folders
+
+
+# ── Non-image attachment upload ──────────────────────────────────────────────
+
+class _FakeUpload:
+    def __init__(self, data: bytes, content_type="application/pdf", filename="report.pdf"):
+        self._data, self.content_type, self.filename = data, content_type, filename
+    async def read(self):
+        return self._data
+
+
+def test_save_note_attachment_stores_and_caps(conn, tmp_path, monkeypatch):
+    import asyncio
+    monkeypatch.setattr(notes_svc, "_ATTACHMENT_ROOT", tmp_path / "att")
+    note = notes_svc.create_note("u1", {"title": "n"}, conn=conn)
+    out = asyncio.run(notes_svc.save_note_attachment("u1", note["id"], _FakeUpload(b"%PDF-1.4 x")))
+    assert out["url"].startswith(f"/api/j2/notes/attachments/u1/{note['id']}/file/")
+    assert out["name"] == "report.pdf" and out["size"] == 10
+    with pytest.raises(notes_svc.NoteValidationError):
+        asyncio.run(notes_svc.save_note_attachment("u1", note["id"],
+                    _FakeUpload(b"x", content_type="application/x-msdownload")))
+    with pytest.raises(notes_svc.NoteValidationError):
+        asyncio.run(notes_svc.save_note_attachment("u1", note["id"],
+                    _FakeUpload(b"x" * (notes_svc._MAX_FILE_BYTES + 1))))
