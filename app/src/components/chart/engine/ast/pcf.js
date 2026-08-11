@@ -699,7 +699,7 @@ function fillParams(family, firstDigits, dotted, token) {
  *  ⚠️ Matched on the SOURCE before tokenizing, because these are multi-word
  *  English and the tokenizer would split them into a pile of unknown identifiers.
  */
-const PCF_DIALOG_INDICATORS = Object.freeze([
+export const PCF_DIALOG_INDICATORS = Object.freeze([
   {
     name: 'Price History',
     re: /\bPrice\s+History\b/i,
@@ -712,6 +712,19 @@ const PCF_DIALOG_INDICATORS = Object.freeze([
     re: /\bPrice\s+as\s+Percent\s+of\s+52\s+Week\s+High\b/i,
     why: 'in TC2000 that row holds a formula of its own — write it here directly as '
       + '`100 * c / maxh250`',
+  },
+  {
+    // ⚠️ THE UNIT IS THE WHOLE POINT OF THIS ENTRY. TC2000 quotes dollar volume in
+    // THOUSANDS, so a member copying their row verbatim writes `> 10000` meaning
+    // ten MILLION and gets a liquidity filter that admits every stock on the tape.
+    // It refuses nothing, returns a full list, and looks like it worked — which is
+    // why this says the number out loud rather than only naming the formula.
+    name: 'Volume (Dollars)',
+    re: /\bVolume\s*\(\s*Dollars\s*\)/i,
+    why: 'in TC2000 that row is the N-day average of price x volume — write it here '
+      + 'directly as `AVG(C * V, 20)` for the 20-day version. ⚠️ TC2000 quotes this '
+      + 'in THOUSANDS and this engine works in dollars, so its `> 10000` is '
+      + '`> 10000000` here — copied across unchanged it would pass every stock',
   },
 ])
 
@@ -1329,8 +1342,14 @@ const PCF_MARKERS = [
   /\b(CAPITALIZATION|MARKETCAP)\b/i,
   // The dialog indicators, so a member who pasted one gets the TC2000 reader's
   // named refusal instead of the native reader's "this is several expressions".
-  /\bPrice\s+History\b/i,
-  /\bPrice\s+as\s+Percent\s+of\s+52\s+Week\s+High\b/i,
+  //
+  // ⛔ DERIVED FROM THE LIST ITSELF — never re-typed here. Both phrases WERE
+  // written out a second time at this line, which is the same second-authority
+  // shape that let `lookback` disagree with itself across four readers: nothing
+  // tied the two copies together, so a third dialog indicator would have been
+  // added above, handed to the NATIVE reader, and refused for a reason that has
+  // nothing to do with what the member pasted. Now the list is the only author.
+  ...PCF_DIALOG_INDICATORS.map((d) => d.re),
   // ⛔ EVERY FUSED FAMILY THIS READER ACCEPTS MUST APPEAR HERE, or the source
   // parses as TC2000 and is DETECTED as native — handed to the wrong reader, then
   // refused for a reason that has nothing to do with the script. `BOP` was added

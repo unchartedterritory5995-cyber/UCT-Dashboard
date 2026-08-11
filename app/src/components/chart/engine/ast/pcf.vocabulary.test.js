@@ -17,7 +17,7 @@
 // the reader stands, never as a target to maximise.
 
 import { describe, it, expect } from 'vitest'
-import { parsePcf, PCF_DIFFERENT_FORMULA } from './pcf.js'
+import { parsePcf, detectDialect, PCF_DIFFERENT_FORMULA, PCF_DIALOG_INDICATORS } from './pcf.js'
 
 /** Worden's vocabulary, one representative expression per spelling. */
 const VOCABULARY = {
@@ -160,5 +160,58 @@ describe('a look-alike refuses with WHY, not with a typo`s message', () => {
       expect(r.error, `${name} is declared and never reached`)
         .toContain(PCF_DIFFERENT_FORMULA[name])
     }
+  })
+})
+
+// ─── THE DIALOG INDICATORS ROUTE TO THE READER THAT KNOWS THEM ───────────────
+//
+// A TC2000 dialog indicator arrives as multi-word English, so it has to be named
+// BEFORE tokenizing or the member gets "a formula is one expression, and this is
+// several" about a row they picked from a list. Two things must agree for that to
+// work: the phrase is in `PCF_DIALOG_INDICATORS`, and `detectDialect` routes it to
+// the TC2000 reader. They were two hand-written copies of one fact until 2026-08-11.
+describe('a TC2000 dialog indicator is named, never tokenized', () => {
+  it('every entry is reachable by its own name', () => {
+    // Establishes that the probe below is legitimate: these tests drive each
+    // indicator using its `name`, which is only meaningful if the entry's own
+    // pattern matches it. An entry that failed here would make every later
+    // assertion pass against a string the reader never sees.
+    for (const d of PCF_DIALOG_INDICATORS) expect(d.re.test(d.name), d.name).toBe(true)
+  })
+
+  it('⭐ every entry routes to the TC2000 reader — DERIVED, never re-typed', () => {
+    // ⛔ This loop is the whole reason the marker list stopped restating these
+    // patterns. Add a fourth indicator and it is covered the moment it lands.
+    for (const d of PCF_DIALOG_INDICATORS) {
+      expect(detectDialect(`${d.name} > 10`), d.name).toBe('pcf')
+    }
+  })
+
+  it('…and a native formula still reads as native, so that probe can tell them apart', () => {
+    // Without this the loop above would pass just as happily if `detectDialect`
+    // answered 'pcf' to everything.
+    expect(detectDialect('close > sma(close, 20)')).toBe('native')
+  })
+
+  it('each one refuses BY NAME and says what to write instead', () => {
+    for (const d of PCF_DIALOG_INDICATORS) {
+      const ev = parsePcf(`${d.name} > 10`)
+      expect(ev.ok, d.name).toBe(false)
+      expect(ev.guard, d.name).toBe('pcf:name')
+      expect(ev.token, d.name).toBe(d.name)
+      expect(ev.error, d.name).toContain(d.why)
+    }
+  })
+
+  it('🔴 the dollar-volume refusal states the CONVERTED number, not just the formula', () => {
+    // ⛔ THE UNIT IS THE DEFECT HERE, and it is the quiet kind: TC2000 quotes
+    // dollar volume in THOUSANDS, so a row copied across unchanged reads
+    // `> 10000` — ten thousand dollars — and admits the entire tape. The scan
+    // returns a full list and looks like it worked. Naming the formula without
+    // naming the conversion would leave that trap fully armed.
+    const ev = parsePcf('Volume (Dollars) 20-Day > 10000')
+    expect(ev.ok).toBe(false)
+    expect(ev.error).toContain('AVG(C * V, 20)')
+    expect(ev.error).toContain('10000000')
   })
 })
