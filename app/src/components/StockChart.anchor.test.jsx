@@ -10,7 +10,13 @@ import { render, cleanup, screen, fireEvent, waitFor } from '@testing-library/re
 // `last` also feeds getVisibleLogicalRange — a mock that always answers null keeps
 // the didPreserve / settling paths dead, and those are exactly the paths that can
 // clobber the anchor on a symbol switch or TF flip.
-const spy = vi.hoisted(() => ({ setVisibleLogicalRange: null, last: null }))
+// `swallowUntil` reproduces the LIVE first-load layout race in the harness: real
+// lightweight-charts clamps/ignores a logical-range write issued while the autoSize
+// container is still settling. Writes before the deadline are still RECORDED (so the
+// call list shows the attempt) but do not take effect — `last`, which backs
+// getVisibleLogicalRange, keeps reporting the un-anchored view. jsdom has no layout, so
+// without this the race cannot be reproduced and every suite passes on a broken chart.
+const spy = vi.hoisted(() => ({ setVisibleLogicalRange: null, last: null, swallowUntil: 0 }))
 
 // The marker's props are the only observable of the anchorMarker resolution. Without
 // this capture, reverting anchorMarker to the raw (bars, anchorDate) pair — undoing the
@@ -34,7 +40,11 @@ vi.mock('lightweight-charts', () => {
   // setVisibleLogicalRange forwards to the test spy (the smoke version is a no-op).
   const timeScale = {
     applyOptions: () => {}, fitContent: () => {},
-    setVisibleLogicalRange: (r) => { spy.last = r; spy.setVisibleLogicalRange?.(r) },
+    setVisibleLogicalRange: (r) => {
+      spy.setVisibleLogicalRange?.(r)                       // the attempt is always recorded
+      if (Date.now() < spy.swallowUntil) return             // …but clamped away by the layout race
+      spy.last = r                                          // effective range (what the user sees)
+    },
     getVisibleLogicalRange: () => spy.last,
     setVisibleRange: () => {}, scrollToPosition: () => {}, subscribeVisibleLogicalRangeChange: () => {},
     unsubscribeVisibleLogicalRangeChange: () => {}, timeToCoordinate: () => 0, coordinateToTime: () => null,
@@ -138,6 +148,7 @@ beforeEach(() => {
   cleanup()
   spy.setVisibleLogicalRange = vi.fn()
   spy.last = null
+  spy.swallowUntil = 0
   overlay.props = null
   // SWR data hooks fetch; serve real bars on the bars route, empty-ish elsewhere.
   vi.stubGlobal('fetch', vi.fn((url) => Promise.resolve({
@@ -349,6 +360,39 @@ describe('anchorDate → framing wire', () => {
     rerender(<StockChart sym="AAPL" tf="W" barsOverride={FIXTURE_BARS} anchorDate={ANCHOR_DAY} />)
     await waitFor(() => expect(endsAt(lastRange(), ANCHOR_IDX)).toBe(true), { timeout: 3000 })
     expect(everyRangeEndsAt(ANCHOR_IDX)).toBe(true)
+  })
+})
+
+// LIVE-ONLY REGRESSION (2026-08-11, found in the browser with all 23 suites green).
+// The anchor frame was applied exactly once, during the first-load layout race, and real
+// lightweight-charts threw that write away — the popup opened at TODAY with the gold
+// marker correctly drawn at the anchor. These tests assert on the EFFECTIVE range
+// (spy.last / getVisibleLogicalRange), never on the call list: the losing write is in the
+// call list, which is precisely why the old assertions could not see this.
+describe('anchorDate → survives the first-load layout race', () => {
+  // The un-anchored view the chart falls back to while the container settles.
+  const PRESENT_DEFAULT = { from: LAST_IDX - 65, to: LAST_IDX + 5 }
+
+  it('converges on the anchor frame even when early writes are clamped away', async () => {
+    spy.last = { ...PRESENT_DEFAULT }
+    spy.swallowUntil = Date.now() + 250     // ~the real settle window
+    render(<StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_BARS} anchorDate={ANCHOR_DAY} />)
+    // Every render-driven attempt lands inside the swallow window, so only a re-assert
+    // scheduled to fire AFTER it can make the anchor stick.
+    await waitFor(() => expect(spy.last.to > ANCHOR_IDX && spy.last.to < ANCHOR_IDX + 30).toBe(true),
+      { timeout: 3000 })
+    expect(spy.last.from).toBeLessThan(ANCHOR_IDX)
+  })
+
+  it('but a pan during that window ends the re-assertion (the latch still wins)', async () => {
+    spy.last = { ...PRESENT_DEFAULT }
+    spy.swallowUntil = Date.now() + 250
+    const { container } = render(
+      <StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_BARS} anchorDate={ANCHOR_DAY} />)
+    fireEvent.wheel(container.querySelector('[class*="chart"]'))   // latch before the burst lands
+    // Outlast the whole burst (its tail is 1200ms), then confirm nothing re-anchored.
+    await new Promise(r => setTimeout(r, 1400))
+    expect(spy.last).toEqual(PRESENT_DEFAULT)
   })
 })
 

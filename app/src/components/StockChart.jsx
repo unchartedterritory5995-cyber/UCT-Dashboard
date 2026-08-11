@@ -5888,12 +5888,54 @@ export default function StockChart({
   // never through the values captured in updateChart's closure — otherwise a chart whose
   // anchorDate changed while the bar count held would frame the PREVIOUS anchor.
   const anchorCfgRef = useRef(null)
-  anchorCfgRef.current = { anchorIdx, resolvedTf, dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride }
+  anchorCfgRef.current = { anchorIdx, resolvedTf, dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride,
+    frameKey: `${sym}_${resolvedTf}`, barsLen: filteredBars?.length || 0 }
 
   // THE RULE: while an anchor bar exists and the user has not taken the view over, the
   // anchor frame wins everywhere the chart would otherwise auto-frame. userViewMovedRef
   // is the same latch replay uses — one pan/zoom and all re-assertion stops.
   const anchorOwnsFrame = () => anchorCfgRef.current.anchorIdx >= 0 && !userViewMovedRef.current
+
+  // ── First-load layout race: ONE setVisibleLogicalRange does not stick ──────────
+  // The chart is created with autoSize, so for several frames after first paint the
+  // container is still settling (0→real size, ResizeObserver, fonts) and LWC clamps or
+  // overrides a logical-range write issued in that window. The gold marker is a canvas
+  // primitive and survived it; the FRAME silently reverted to the default latest view,
+  // so an anchored popup opened showing TODAY. Invisible to every suite because jsdom
+  // has no layout — found in the live browser.
+  // This is the same failure, and the same remedy, as the exact-range year frame:
+  // keep the computed target in a ref and re-assert it across the settle window (see
+  // yearRangeRef / yearFramedRef and their burst). Mirrored deliberately rather than
+  // reinvented, including reading the target from the REF at fire time so a staged data
+  // load cannot re-pin stale indices.
+  const anchorRangeRef = useRef(null)   // latest computed {from,to} — re-asserts read THIS, never a captured local
+  const anchorFramedRef = useRef(null)  // `${sym}_${tf}:${barsLen}:${anchorIdx}` the burst has already fired for
+
+  const scheduleAnchorReassert = () => {
+    const c = anchorCfgRef.current
+    const key = c.frameKey
+    // Re-stamped on any data phase (barsLen) or anchor change (anchorIdx), so a backfill
+    // or a new moment gets a FRESH burst against freshly computed indices; a repeat call
+    // in the same state does not stack another one.
+    const sig = `${key}:${c.barsLen}:${c.anchorIdx}`
+    if (anchorFramedRef.current === sig) return
+    anchorFramedRef.current = sig
+    const reassert = () => {
+      // Stop if the chart is torn down, the symbol/timeframe moved on, the anchor went
+      // inert, or — the release contract — the user has taken the view.
+      if (!containerRef.current || anchorCfgRef.current.frameKey !== key) return
+      if (!anchorOwnsFrame()) return
+      const r = anchorRangeRef.current
+      if (!r) return
+      try { chartRef.current?.timeScale().setVisibleLogicalRange({ from: r.from, to: r.to }) } catch { /* out of range mid-load */ }
+    }
+    requestAnimationFrame(reassert)
+    requestAnimationFrame(() => requestAnimationFrame(reassert))
+    setTimeout(reassert, 120)
+    setTimeout(reassert, 320)
+    setTimeout(reassert, 650)
+    setTimeout(reassert, 1200)
+  }
 
   // Anchored+reveal frame: default zoom width ending at the anchor bar. Passing a
   // VIRTUAL length (anchorIdx+1) to computeDefaultLogicalRange frames the anchor bar at
@@ -5906,7 +5948,9 @@ export default function StockChart({
       c.anchorIdx + 1, c.resolvedTf,
       { dailyDefaultBars: c.dailyDefaultBars, leftBarPad: c.leftBarPad, rightPadBars: c.rightPadBars,
         visibleBarsOverride: c.visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) })
+    anchorRangeRef.current = { from, to }
     try { chart.timeScale().setVisibleLogicalRange({ from, to }) } catch { return false }
+    scheduleAnchorReassert()
     return true
   }
 
