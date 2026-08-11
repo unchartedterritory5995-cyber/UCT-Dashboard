@@ -138,3 +138,52 @@ describe('🔴 the TC2000 dialog carries meaning the formula TEXT does not', () 
     expect([...interpret(good.ast, bars, {})].filter((x) => x === 1).length).toBeGreaterThan(0)
   })
 })
+
+// ─── TC2000'S DIALOG INDICATORS GET A NAMED REFUSAL ─────────────────────────
+//
+// ⚰️ `Price History > 10` — a real row from the owner's Inside-Day column —
+// refused with "a formula is one expression, and this is several". True (the
+// tokenizer split the two words) and useless: it describes our parser rather than
+// the member's TC2000 indicator, and it does not say the row can simply be
+// deleted.
+describe('a TC2000 dialog indicator says what it is, and what to do instead', () => {
+  it('Price History names itself and points at the way out', () => {
+    const ev = read('Price History > 10')
+    expect(ev.ok).toBe(false)
+    expect(ev.dialect, 'it reached the NATIVE reader, so the message is wrong')
+      .toBe('pcf')
+    expect(ev.guard).toBe('pcf:name')
+    expect(ev.error).toContain('Price History')
+    // ⭐ The actionable half — this is the sentence that saves the member's scan.
+    expect(ev.error).toMatch(/can simply be dropped/)
+  })
+
+  it('the 52-week-high row points at the formula that replaces it', () => {
+    const ev = read('Price as Percent of 52 Week High > 80')
+    expect(ev.ok).toBe(false)
+    expect(ev.error).toMatch(/100 \* c \/ maxh250/)
+  })
+
+  it('⭐ …and the formula it points at ACTUALLY READS', () => {
+    // ⛔ A refusal that recommends a spelling the reader rejects is worse than
+    // silence. This is what stops the advice from rotting.
+    const ev = read('100 * c / maxh250 > 80')
+    expect(ev.ok, ev.error || '').toBe(true)
+  })
+
+  it('⛔ THE CONTROL — an ordinary formula is untouched by the pre-scan', () => {
+    // The dialog check runs on the raw source before tokenizing, so a formula
+    // that merely contains the word "high" must not be captured by it.
+    const ev = read('c > avgc50 and h > h1')
+    expect(ev.ok, ev.error || '').toBe(true)
+    expect(ev.dialect).toBe('pcf')
+  })
+
+  it('🔴 the owner`s Inside-Day column reads once the dialog row is dropped', () => {
+    // The whole point: the rest of that TC2000 column is expressible today.
+    const ev = read('(L > L1) AND (H < H1) AND (H > L) AND V > 1000000'
+      + ' AND 100 * c / maxh250 > 80')
+    expect(ev.ok, ev.error || '').toBe(true)
+    expect(ev.verdict.mode).toBe('non-repainting')
+  })
+})

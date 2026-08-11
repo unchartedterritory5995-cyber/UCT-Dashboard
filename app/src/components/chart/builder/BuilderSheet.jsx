@@ -184,6 +184,22 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
       color: '$color',
       width: '$lineWidth',
       role: 'primary',
+      // ⛔⛔ WITHOUT THIS BLOCK THE PLOT GETS NO CHIP, AND NO CHIP MEANS NO NAME,
+      // NO HIDE, NO SETTINGS AND NO REMOVE.
+      //
+      // `readout.js::legendChips` skips any plot with no `legend` — `if (!plot ||
+      // !plot.legend || plot.legend.hide === true) continue`. That is the SAME
+      // defect `nativeRegistry`'s header records against ten shipped indicators
+      // ("a user who enabled MFI or OBV got a line with NO LABEL AT ANY TIME"),
+      // and every user-authored formula has been landing in it since: measured in
+      // production 2026-08-10, a saved TC2000 column drew an unnamed pane whose
+      // name appeared NOWHERE in the page, while RSI beside it had all three
+      // controls.
+      //
+      // ⚠️ A boolean scan plots 0/1, so the pane is a flat line at zero on a
+      // symbol that does not match — and with no label a member cannot tell
+      // "correctly 0" from "did not compute". The chip IS that distinction.
+      legend: { decimals: 2 },
     }],
   }
 }
@@ -222,6 +238,8 @@ export default function BuilderSheet({
   const [storeError, setStoreError] = useState(null)
   const [saving, setSaving] = useState(false)
   const [savedRow, setSavedRow] = useState(null)
+  /** Escape / Cancel asked to close while there was unsaved work. See `dirty`. */
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
   const [copied, setCopied] = useState(false)
   // ⭐ THE EDIT TARGET: `{defId, version}` off the STORE's row, or null for a
   // create. It is the id the store minted — never `draftDefId()`'s — because the
@@ -501,12 +519,31 @@ export default function BuilderSheet({
 
   const badge = useMemo(() => (mode ? (REPAINT_LABEL[mode] || mode) : null), [mode])
 
+  // ⭐⭐ ESCAPE MUST NOT SILENTLY BIN A MEMBER'S WORK.
+  //
+  // ⚰️ MEASURED IN PRODUCTION 2026-08-10: Escape closed the builder and discarded
+  // everything typed, with no prompt. Escape is the reflex for dismissing a stray
+  // dropdown — and until this session the chart's own ticker search was popping
+  // one open THROUGH this dialog, so the key a member reached for to clear that
+  // was the key that threw away their formula.
+  //
+  // ⛔ "DIRTY" IS UNSAVED WORK, NOT ANY WORK. Once `savedRow` exists for the text
+  // currently in the box there is nothing to lose, so the prompt does not fire and
+  // Escape stays instant — a confirm on every close trains people to dismiss it.
+  const dirty = (source.trim() !== '' || name.trim() !== '')
+    && !(savedRow && savedRow.source === source)
+
+  const requestClose = useCallback(() => {
+    if (dirty) { setConfirmDiscard(true); return }
+    onClose?.()
+  }, [dirty, onClose])
+
   if (!open) return null
 
   return (
     <Sheet
       open={open}
-      onClose={onClose}
+      onClose={requestClose}
       variant="auto"
       title={editing ? 'Edit formula' : 'New formula'}
       maxWidth={640}
@@ -767,6 +804,27 @@ export default function BuilderSheet({
             <p className={styles.saveHint} data-testid="save-hint">{saveHint}</p>
           )}
 
+          {/* ⛔ AN INLINE CONFIRM, NOT `window.confirm`. A native dialog blocks the
+              page, cannot be styled, and — measured this session — makes the
+              surface untestable through the browser, because the automation that
+              would verify this fix is exactly what a blocking modal freezes. */}
+          {confirmDiscard && (
+            <div className={styles.discardBar} role="alertdialog" data-testid="discard-confirm">
+              <span>Discard this formula?</span>
+              <button
+                type="button"
+                className={styles.ghostBtn}
+                onClick={() => setConfirmDiscard(false)}
+              >Keep editing</button>
+              <button
+                type="button"
+                className={styles.ghostBtn}
+                data-testid="discard-yes"
+                onClick={() => { setConfirmDiscard(false); onClose?.() }}
+              >Discard</button>
+            </div>
+          )}
+
           <div className={styles.actions}>
             {editing && (
               <button
@@ -775,7 +833,9 @@ export default function BuilderSheet({
                 onClick={cancelEdit}
               >New formula</button>
             )}
-            <button type="button" className={styles.ghostBtn} onClick={onClose}>Cancel</button>
+            {/* Cancel goes through the SAME door as Escape and the × — one place
+                decides whether unsaved work needs a prompt. */}
+            <button type="button" className={styles.ghostBtn} onClick={requestClose}>Cancel</button>
             <button
               type="button"
               className={styles.saveBtn}

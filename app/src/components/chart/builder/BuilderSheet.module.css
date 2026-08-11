@@ -171,6 +171,21 @@
 
 .diagRow { display: flex; }
 
+/* "Discard this formula?" — shown when Escape / Cancel / × asked to close while
+   there was unsaved work. Sits with the actions so the choice is where the eye
+   already is. */
+.discardBar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 0 0 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-warning, #d9a441);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
 /* Why Save is greyed. Sits directly above the action row, right-aligned so the
    eye lands on it on the way to the button it explains. */
 .saveHint {

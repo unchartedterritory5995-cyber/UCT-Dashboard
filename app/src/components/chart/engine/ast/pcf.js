@@ -676,6 +676,31 @@ function fillParams(family, firstDigits, dotted, token) {
   return values
 }
 
+/** TC2000 INDICATORS THAT ARE PICKED FROM ITS DIALOG, NOT TYPED AS TOKENS.
+ *
+ *  ⛔ EACH ONE SAYS WHAT TO DO INSTEAD. "We do not have that" sends a member away;
+ *  telling them their 250-bar average already refuses a symbol with less history
+ *  lets them delete the row and keep their scan.
+ *
+ *  ⚠️ Matched on the SOURCE before tokenizing, because these are multi-word
+ *  English and the tokenizer would split them into a pile of unknown identifiers.
+ */
+const PCF_DIALOG_INDICATORS = Object.freeze([
+  {
+    name: 'Price History',
+    re: /\bPrice\s+History\b/i,
+    why: 'this engine has no count of how many bars a symbol has. It is usually not '
+      + 'needed here: a long average refuses outright on a symbol without enough '
+      + 'history, so a `Price History` row can simply be dropped',
+  },
+  {
+    name: 'Price as Percent of 52 Week High',
+    re: /\bPrice\s+as\s+Percent\s+of\s+52\s+Week\s+High\b/i,
+    why: 'in TC2000 that row holds a formula of its own — write it here directly as '
+      + '`100 * c / maxh250`',
+  },
+])
+
 /** TC2000 FUNDAMENTAL words → a declared scalar, carrying the unit conversion.
  *
  *  ⛔ EVERY ENTRY MUST STATE ITS UNIT RELATIONSHIP, and an entry whose units
@@ -1200,6 +1225,22 @@ export function parsePcf(source, table = TABLE, nodeTypes = NODE_TYPES) {
       error: `${PCF_REFUSALS['pcf:empty']} — the box is blank`,
     }
   }
+  // ⭐⭐ TC2000'S DIALOG INDICATORS, NAMED BEFORE THE TOKENIZER SEES THEM.
+  //
+  // These are picked from TC2000's Indicator dropdown, not typed as formula
+  // tokens, so they arrive as MULTI-WORD English. The tokenizer splits them and
+  // the member gets "a formula is one expression, and this is several" about a
+  // real TC2000 indicator they selected from a list — a true sentence that
+  // explains nothing. Measured on a real Inside-Day column 2026-08-11.
+  const dialogHit = PCF_DIALOG_INDICATORS.find((d) => d.re.test(source))
+  if (dialogHit) {
+    return {
+      ok: false, dialect: 'pcf', guard: 'pcf:name',
+      index: source.search(dialogHit.re), token: dialogHit.name,
+      error: `\`${dialogHit.name}\` is a TC2000 indicator you pick from its dialog, `
+        + `not a formula token — ${dialogHit.why}`,
+    }
+  }
   try {
     const reader = new Reader(tokenize(source), table, nodeTypes)
     const ast = reader.expression(0)
@@ -1254,6 +1295,10 @@ const PCF_MARKERS = [
   // refused at `sentence:name` for a spelling the TC2000 reader knows perfectly
   // well. Neither word is a native name, so no native formula can be captured.
   /\b(CAPITALIZATION|MARKETCAP)\b/i,
+  // The dialog indicators, so a member who pasted one gets the TC2000 reader's
+  // named refusal instead of the native reader's "this is several expressions".
+  /\bPrice\s+History\b/i,
+  /\bPrice\s+as\s+Percent\s+of\s+52\s+Week\s+High\b/i,
   // ⛔ EVERY FUSED FAMILY THIS READER ACCEPTS MUST APPEAR HERE, or the source
   // parses as TC2000 and is DETECTED as native — handed to the wrong reader, then
   // refused for a reason that has nothing to do with the script. `BOP` was added

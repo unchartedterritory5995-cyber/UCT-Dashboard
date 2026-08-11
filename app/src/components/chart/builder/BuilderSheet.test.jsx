@@ -1098,3 +1098,62 @@ describe('the AI door is reachable FROM the builder (Task 13)', () => {
       .toEqual([])
   })
 })
+
+// ─── ESCAPE / CANCEL MUST NOT SILENTLY BIN UNSAVED WORK ─────────────────────
+//
+// ⚰️ MEASURED IN PRODUCTION 2026-08-10: Escape closed the builder and discarded
+// everything typed, with no prompt. Escape is the reflex for dismissing a stray
+// dropdown — and the chart's ticker search was popping one open THROUGH this
+// dialog, so the key a member reached for to clear that was the key that threw
+// away their formula.
+describe('🔴 closing with unsaved work asks first', () => {
+  it('Cancel on a DIRTY sheet does not close — it asks', async () => {
+    const onClose = vi.fn()
+    mount({ onClose })
+    await typeFormula('sma(close, 20)')
+
+    fireEvent.click(screen.getByRole('button', { name: /^Cancel$/ }))
+    await flush()
+
+    expect(screen.getByTestId('discard-confirm')).toBeTruthy()
+    expect(onClose, 'it closed anyway — the work is gone').not.toHaveBeenCalled()
+  })
+
+  it('…and "Discard" then actually closes', async () => {
+    const onClose = vi.fn()
+    mount({ onClose })
+    await typeFormula('sma(close, 20)')
+    fireEvent.click(screen.getByRole('button', { name: /^Cancel$/ }))
+    await flush()
+
+    fireEvent.click(screen.getByTestId('discard-yes'))
+    await flush()
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('…and "Keep editing" leaves the formula exactly where it was', async () => {
+    const onClose = vi.fn()
+    mount({ onClose })
+    await typeFormula('sma(close, 20)')
+    fireEvent.click(screen.getByRole('button', { name: /^Cancel$/ }))
+    await flush()
+
+    fireEvent.click(screen.getByRole('button', { name: /keep editing/i }))
+    await flush()
+    expect(screen.queryByTestId('discard-confirm')).toBeNull()
+    expect(onClose).not.toHaveBeenCalled()
+    expect(field().value).toBe('sma(close, 20)')
+  })
+
+  it('⛔ THE CONTROL — a CLEAN sheet closes instantly, with no prompt', async () => {
+    // Without this, a build that prompted on every close would pass every case
+    // above while training members to dismiss the prompt on reflex.
+    const onClose = vi.fn()
+    mount({ onClose })
+    fireEvent.click(screen.getByRole('button', { name: /^Cancel$/ }))
+    await flush()
+
+    expect(screen.queryByTestId('discard-confirm')).toBeNull()
+    expect(onClose).toHaveBeenCalled()
+  })
+})
