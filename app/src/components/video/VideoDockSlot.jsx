@@ -551,6 +551,7 @@ export default function VideoDockSlot() {
                       density="mini"
                       stockChartProps={{
                         height: 260,
+                        hideLegend: true, // the OHLC legend overlapped this small canvas
                         ...(anchorDate ? { anchorDate } : {}),
                       }}
                     />

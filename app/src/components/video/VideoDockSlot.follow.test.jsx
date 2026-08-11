@@ -98,6 +98,8 @@ describe('VideoDockSlot follow-along chart', () => {
     await screen.findByTestId('pane-stub')
     expect(lastPane().sym).toBe('NVDA')
     expect(lastPane().stockChartProps.anchorDate).toBe('2026-02-11')
+    // Phase 2B nit: the OHLC legend overlapped this small canvas.
+    expect(lastPane().stockChartProps.hideLegend).toBe(true)
     expect(lastPane().density).toBe('mini')
     expect(lastPane().stored).toBeNull()
     expect(lastPane().onStore).toBeUndefined()
