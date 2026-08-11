@@ -10,7 +10,7 @@
    (the trailing gear/share/add-tab stay pinned to the container's right edge),
    so the pill's right edge lines up with the session toggle's (Regular Hours /
    Include Pre-Market) right edge on the row above. Tuned by eye. */
-.wrap { display: inline-flex; margin-right: 22px; }
+.wrap { display: inline-flex; margin-right: 16px; }
 
 .pill {
   display: inline-flex;
