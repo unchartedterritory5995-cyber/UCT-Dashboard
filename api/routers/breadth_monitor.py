@@ -77,6 +77,20 @@ def get_breadth_ohlc_status():
     return breadth_daily_ohlc.stats()
 
 
+@router.post("/api/breadth-monitor/history/backfill-chain")
+def backfill_chain(request: Request, floor: str = Query(...), ceiling: str = Query(default="2023-12-31"),
+                   limit: int = Query(default=0, ge=0, le=6000)):
+    """Trigger the SELF-CHAINING deep backfill: sweeps 2-year chunks from `ceiling` back to
+    `floor` sequentially, all server-side in one background thread. Fire ONCE — it then runs
+    unattended (no repeated client calls). Poll GET .../history/sweep-status. PUSH_SECRET."""
+    _check_auth(request)
+    import threading
+    from api.services import breadth_history_recon as r
+    threading.Thread(target=r.run_backfill_chain, args=(floor, ceiling, 730, limit),
+                     name="breadth-backfill-chain", daemon=True).start()
+    return {"ok": True, "started": True, "floor": floor, "ceiling": ceiling}
+
+
 @router.post("/api/breadth-monitor/history/sweep")
 def sweep_breadth_history(request: Request, from_date: str = Query(...),
                           to_date: str = Query(default=""), limit: int = Query(default=0, ge=0, le=6000)):

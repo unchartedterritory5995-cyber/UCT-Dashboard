@@ -253,6 +253,46 @@ def sweep_history(from_date: str, to_date: Optional[str] = None,
             "first_date": sweep[0] if sweep else None, "last_date": sweep[-1] if sweep else None}
 
 
+def run_backfill_chain(floor: str, ceiling: str = "2023-12-31", chunk_days: int = 730,
+                       limit: int = 0) -> None:
+    """SELF-CHAINING backfill, all server-side: sweep 2-year chunks from `ceiling` back to
+    `floor`, one after another, in ONE background thread. Trigger it ONCE and it runs
+    unattended — no repeated client commands (each of which would hit a permission prompt
+    and stall overnight). Memory-bounded: each chunk loads + frees its own frame."""
+    from datetime import date as _date, timedelta as _td
+    from api.services import breadth_live as bl
+    _SWEEP_STATE.clear()
+    _SWEEP_STATE.update(status="running", mode="chain", floor=floor, ceiling=ceiling, chunks_done=0)
+    try:
+        tickers, _ = bl.universe()
+        if limit:
+            tickers = tickers[:limit]
+        flr = _date.fromisoformat(floor)
+        hi = _date.fromisoformat(ceiling)
+        results = []
+        while hi >= flr:
+            lo = max(flr, hi - _td(days=chunk_days - 1))
+            _SWEEP_STATE.update(current_chunk=f"{lo.isoformat()}..{hi.isoformat()}",
+                                chunks_done=len(results))
+            try:
+                res = sweep_history(lo.isoformat(), hi.isoformat(), tickers)
+                results.append({"from": lo.isoformat(), "to": hi.isoformat(),
+                                "rows": res.get("rows"), "sessions": res.get("sessions"),
+                                "names": res.get("frame_names")})
+            except Exception as ce:
+                results.append({"from": lo.isoformat(), "to": hi.isoformat(),
+                                "error": f"{type(ce).__name__}: {ce}"})
+            hi = lo - _td(days=1)
+        _SWEEP_STATE.clear()
+        _SWEEP_STATE.update(status="done", mode="chain", floor=floor, chunks=results,
+                            total_rows=sum((c.get("rows") or 0) for c in results))
+    except Exception as e:
+        import traceback
+        _SWEEP_STATE.clear()
+        _SWEEP_STATE.update(status="error", mode="chain", reason=f"{type(e).__name__}: {e}",
+                            trace=traceback.format_exc()[-600:])
+
+
 def run_sweep_async(from_date: str, to_date: Optional[str] = None, limit: int = 0) -> None:
     """Background wrapper: recompute-and-store the close-basis history for a range."""
     import time as _t
