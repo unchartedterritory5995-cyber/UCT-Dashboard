@@ -473,7 +473,9 @@ export default function ChartSettingsModal({
   const PDL_COLOR_TARGET = { high: 'pdlHighColor', low: 'pdlLowColor', close: 'pdlCloseColor' }
   const LINE_STYLES = [['solid', 'Solid'], ['dashed', 'Dashed'], ['dotted', 'Dotted']]
   const SWING_SENS = [['low', 'Low'], ['medium', 'Med'], ['high', 'High']]
-  const EVENT_MARKERS = [['earnings', 'Earnings'], ['splits', 'Splits'], ['dividends', 'Dividends'], ['news', 'News']]
+  // 'desk' = Desk-mention markers (spec 2026-08-11 §C). Opt-in like News: it carries
+  // no default in CHART_DEFAULTS.markers, so an unset blob reads undefined → OFF.
+  const EVENT_MARKERS = [['earnings', 'Earnings'], ['splits', 'Splits'], ['dividends', 'Dividends'], ['news', 'News'], ['desk', 'Desk mentions']]
   const TEXT_SIZES = [8, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 40]
   const curTextSize = settings.textSize ?? 11
   const colorSwatch = (target, label, bg) => (
