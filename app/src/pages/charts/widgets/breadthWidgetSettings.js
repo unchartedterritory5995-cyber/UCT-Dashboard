@@ -204,6 +204,8 @@ export function breadthWidgetStyleVars(s) {
     if (rgb && luminance(rgb) > 0.5) {
       vars['--bw-tile-border'] = 'rgba(0, 0, 0, 0.10)'
       vars['--bw-tile-label'] = 'rgba(0, 0, 0, 0.62)'
+      // Sparkline/area ink → near-black on a light canvas (owner: black lines).
+      vars['--bw-spark'] = 'rgba(0, 0, 0, 0.72)'
     }
   }
   return vars

@@ -69,24 +69,13 @@ function useFlip(containerRef, dep) {
   }, [dep, containerRef])
 }
 
-// Readings where a RISE is deterioration → the trend line's colour inverts (more
-// names down / more new lows / higher VIX is not good news). Everything else: up = good.
-const BEAR_KEYS = new Set([
-  'down_4pct_today', 'down_20pct_5d', 'down_25pct_quarter', 'down_50pct_month', 'down_13pct_34d',
-  'new_52w_lows', 'new_20d_lows', 'vix', 'vix_10d', 'cboe_putcall', 'stage4_count', 'atr_ext_7',
-])
-function metricPolarity(m) {
-  return (BEAR_KEYS.has(m.key) || /(^|_)(down|dn)(_|$)|low(s)?($|_)|vix|putcall|stage4|atr_ext/i.test(m.key))
-    ? 'bear' : 'bull'
-}
-
 // A tile's woven-in trend line. viewBox is 100×VBH stretched to the tile
 // (preserveAspectRatio none + non-scaling stroke), so it fits any tile width.
 //   mode 'spark'  → a short line strip UNDER the value (in-flow)
 //   mode 'area'   → a filled trend as the tile BACKDROP
 //   mode 'ghost'  → a faint line as the tile BACKDROP
 const SPARK_VBW = 100
-function TileSpark({ values, mode, polarity }) {
+function TileSpark({ values, mode }) {
   const vbh = mode === 'spark' ? 18 : 44
   const shape = useMemo(() => {
     const vals = (values || []).filter(v => v != null && v !== '' && Number.isFinite(Number(v))).map(Number)
@@ -100,8 +89,9 @@ function TileSpark({ values, mode, polarity }) {
     return { line, area: `${line}L${SPARK_VBW},${vbh}L0,${vbh}Z`, open: vals[0], now: vals.at(-1), lastX: x(vals.length - 1), lastY: y(vals.at(-1)) }
   }, [values, vbh])
   if (!shape) return null
-  const better = polarity === 'bear' ? -(shape.now - shape.open) : (shape.now - shape.open)
-  const stroke = better > 0 ? 'var(--gain, #16a34a)' : better < 0 ? 'var(--loss, #dc2626)' : 'var(--bw-text-dim, #8b8674)'
+  // One ink colour — black lines, not green/red (owner). Adaptive: dark ink on a
+  // light canvas (--bw-spark, emitted by breadthWidgetStyleVars) / light on dark.
+  const stroke = 'var(--bw-spark, rgba(255, 255, 255, 0.82))'
   const backdrop = mode !== 'spark'
   return (
     <svg
@@ -137,7 +127,7 @@ function HeatmapView({ currentRow, visibleKeys, tileStyle, seriesFor, onDrill, o
                 const tier = m.getTier(currentRow)
                 const score = TIER_SCORES[tier]
                 const spark = tileStyle !== 'values'
-                  ? <TileSpark values={seriesFor(m.key)} mode={tileStyle} polarity={metricPolarity(m)} />
+                  ? <TileSpark values={seriesFor(m.key)} mode={tileStyle} />
                   : null
                 return (
                   <button
