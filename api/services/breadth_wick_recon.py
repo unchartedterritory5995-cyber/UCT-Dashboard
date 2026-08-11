@@ -258,6 +258,50 @@ def validate_recent(days: int = 3, bucket_min: int = 30) -> dict:
     }
 
 
+def probe_day(D: str, bucket_min: int = 30) -> dict:
+    """Granular diagnostic for one day: does the LEVELS build succeed, does the S3
+    get_object succeed (capturing the real exception download_and_resample swallows),
+    and how many tickers come back? Pinpoints levels-vs-S3 failure."""
+    import os as _os
+    from datetime import date as _d
+    from api.services import breadth_live as bl
+    from api.services import build_intraday_cache as bic
+    out: dict = {"date": D}
+    try:
+        universe, _ = bl.universe()
+        out["universe_size"] = len(universe)
+    except Exception as e:
+        out["universe_error"] = f"{type(e).__name__}: {e}"; return out
+    try:
+        conn = bl._bars_conn()
+        lv = _levels_for_day(conn, universe, bl._ts_int(_d.fromisoformat(D)))
+        out["levels"] = "ok" if lv is not None else "None (<221 sessions / load fail)"
+        if lv is not None:
+            out["levels_ndates"] = lv.get("n_dates")
+    except Exception as e:
+        out["levels_error"] = f"{type(e).__name__}: {e}"
+    key = _S3_KEY.format(y=D[:4], m=D[5:7], d=D)
+    out["s3_key"] = key
+    out["s3_bucket_env"] = _os.environ.get("MASSIVE_S3_BUCKET")
+    out["get_s3_client_ok"] = None
+    try:
+        from api.services.build_intraday_cache import get_s3_client as _gsc
+        _gsc(); out["get_s3_client_ok"] = True   # does the EXISTING helper work here?
+    except Exception as e:
+        out["get_s3_client_ok"] = f"{type(e).__name__}: {str(e)[:120]}"
+    try:
+        client = _s3_client()
+        out["s3_client"] = "built"
+        try:  # head_object = metadata only, no download
+            h = client.head_object(Bucket="flatfiles", Key=key)
+            out["s3_head_bytes"] = h.get("ContentLength")
+        except Exception as e:
+            out["s3_head_error"] = f"{type(e).__name__}: {str(e)[:200]}"
+    except Exception as e:
+        out["s3_client_error"] = f"{type(e).__name__}: {str(e)[:200]}"
+    return out
+
+
 def run_validate_async(**kw) -> None:
     import threading, traceback
     def _run():

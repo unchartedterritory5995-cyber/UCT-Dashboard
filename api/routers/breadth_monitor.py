@@ -192,6 +192,21 @@ def wicks_validate_result():
     return wr._VWSTATE
 
 
+@router.get("/api/breadth-monitor/wicks/probe")
+def wicks_probe(request: Request, date: str = Query(default="")):
+    """Phase-3 diagnostic: pinpoint why recon_day fails (levels build vs S3 access),
+    for one day. PUSH_SECRET-gated."""
+    _check_auth(request)
+    from api.services import breadth_wick_recon as wr
+    from api.services import breadth_live as bl, breadth_daily_ohlc as store
+    D = date
+    if not D:
+        today = bl._iso(bl._ts_int(bl._now_et().date()))
+        ds = sorted(d for d in store.history("pct_above_50sma") if d < today)
+        D = ds[-1] if ds else today
+    return wr.probe_day(D)
+
+
 @router.post("/api/breadth-monitor/history/backfill-schedule")
 def schedule_breadth_backfill(request: Request, floor: str = Query(default=""),
                               stop: bool = Query(default=False)):
