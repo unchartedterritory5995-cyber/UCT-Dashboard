@@ -25,7 +25,7 @@ const OwnershipPanel = lazy(() => import('./fundamentals/OwnershipPanel'))
 const TAB_TO_TF = { '1min': '1', '5min': '5', '15min': '15', '30min': '30', '1hr': '60', 'Daily': 'D', 'Weekly': 'W', 'Monthly': 'M' }
 const TF_TO_TAB = Object.fromEntries(Object.entries(TAB_TO_TF).map(([k, v]) => [v, k]))
 
-export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null, open: openProp, onClose }) {
+export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null, anchorDate = null, open: openProp, onClose }) {
   // Controlled mode (open/onClose provided): no trigger element renders and the
   // parent owns open state — used for delegated $TICKER-chip clicks in The Floor,
   // where chips are sanitized static HTML, not React children. Uncontrolled mode
@@ -36,6 +36,11 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
   const closeModal = () => { if (controlled) onClose?.(); else setModalOpen(false) }
   const [tab, setTab] = useState('Daily')
   const [view, setView] = useState('chart') // 'chart' | 'fundamentals'
+  // Anchored+reveal (Desk recordings): open positioned at the session date; the
+  // chart's "⟲ Back to today" pill un-anchors. Re-arm on every open so the next
+  // look at the recording starts back at the session again.
+  const [anchored, setAnchored] = useState(true)
+  useEffect(() => { if (modalOpen) setAnchored(true) }, [modalOpen])
   const [flagToast, setFlagToast] = useState(null)
   const [compareSymbol, setCompareSymbol] = useState('')
 
@@ -218,6 +223,11 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                       priceLines,
                       compareSymbol: compareSymbol || null,
                       onCompareChange: setCompareSymbol,
+                      ...(anchorDate && anchored ? {
+                        anchorDate,
+                        exitReplayLabel: '⟲ Back to today',
+                        onExitReplay: () => setAnchored(false),
+                      } : {}),
                     }}
                   />
                 </Suspense>
