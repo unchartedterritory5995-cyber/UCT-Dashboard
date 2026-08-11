@@ -35,8 +35,17 @@
  *    Resources never referenced by an `<en-media>` are appended as the same
  *    attachment-chip markup at the end of the note. Two resources that
  *    happen to hash identically (byte-identical content) collapse to ONE
- *    deduped media entry — every `<en-media>` citing that hash still
- *    resolves against it, and it is not double-appended as unreferenced.
+ *    deduped media entry (first-wins, matching `dedupeMedia`'s own first-wins
+ *    order so a chip's `data-name` never disagrees with `media[]`'s) — every
+ *    `<en-media>` citing that hash still resolves against it, and it is not
+ *    double-appended as unreferenced.
+ *    ⚠️ `<en-media/>` is ALSO self-closing custom-tag syntax, so it is subject
+ *    to the exact same HTML-parsing trap as `<en-todo/>` above: any content
+ *    textually AFTER an `<en-media/>` on the same line (a caption, a second
+ *    `<en-media/>` citation) can land AS its child rather than as a later
+ *    sibling. `replaceEnMedia` unwraps those children out to the position
+ *    right after the injected `<img>`/chip — via the same `unwrapInPlace`
+ *    helper `extractTodoChecked` uses — so that content is never discarded.
  *  - `<en-crypt>` becomes a plain, visible
  *    `<p>[encrypted content — cannot be imported]</p>` placeholder.
  *  - `evernote:///...` links are unwrapped to their bare text (an internal
@@ -118,7 +127,14 @@ async function makeNoteDoc(noteEl, notebookName) {
 
   const resourceEls = Array.from(noteEl.querySelectorAll('resource'))
   const resources = await Promise.all(resourceEls.map(parseResource))
-  const resourcesByHash = new Map(resources.map((r) => [r.hash, r]))
+  // First-wins on a duplicate hash (byte-identical resources) — matches
+  // dedupeMedia's own first-wins order below, so an <en-media>/chip's
+  // data-name can never disagree with the media[] entry a caller resolves
+  // the same hash to. `new Map(pairs)` would be last-wins; build it by hand.
+  const resourcesByHash = new Map()
+  for (const r of resources) {
+    if (!resourcesByHash.has(r.hash)) resourcesByHash.set(r.hash, r)
+  }
 
   const innerDoc = new DOMParser().parseFromString(stripEnmlProlog(contentText), 'text/html')
   const enNote = innerDoc.querySelector('en-note') || innerDoc.body
@@ -202,19 +218,43 @@ function replaceEnCrypt(root) {
   })
 }
 
+/**
+ * `<en-media/>` is self-closing custom-tag syntax, same as `<en-todo/>` — HTML
+ * tree construction ignores the self-closing flag on it too, so content
+ * textually AFTER an `<en-media/>` on the same line (a caption, a second
+ * `<en-media/>` citation) can land AS ITS CHILD rather than as a later
+ * sibling. A plain `el.replaceWith(mediaNode)` would silently discard that
+ * subtree. Instead: insert the replacement node at el's position, then
+ * `unwrapInPlace(el)` moves el's children out to occupy el's OLD position
+ * (now immediately after the inserted node) before the empty shell is
+ * removed — so trailing content survives, in order, right after the
+ * `<img>`/chip it followed in the source.
+ */
 function replaceEnMedia(doc, root, resourcesByHash, referencedHashes) {
   root.querySelectorAll('en-media').forEach((el) => {
     const hash = (el.getAttribute('hash') || '').toLowerCase()
     const resource = resourcesByHash.get(hash)
     if (!resource) {
-      // Dangling reference — no matching resource in this note. Drop it
-      // rather than leave an unrenderable custom element behind.
-      el.remove()
+      // Dangling reference — no matching resource in this note. Unwrap
+      // rather than remove, so any trailing content HTML parsing nested
+      // inside it is not discarded along with the unrenderable tag.
+      unwrapInPlace(el)
       return
     }
     referencedHashes.add(hash)
-    el.replaceWith(mediaNode(doc, resource))
+    el.parentNode.insertBefore(mediaNode(doc, resource), el)
+    unwrapInPlace(el)
   })
+}
+
+/** Moves `el`'s children out to occupy `el`'s own position, then removes the
+ * now-empty `el`. Used to recover content HTML parsing nested inside a
+ * self-closing ENML tag (`en-todo`, `en-media`) instead of leaving it a
+ * later sibling. */
+function unwrapInPlace(el) {
+  const parent = el.parentNode
+  while (el.firstChild) parent.insertBefore(el.firstChild, el)
+  parent.removeChild(el)
 }
 
 function mediaNode(doc, resource) {
@@ -232,8 +272,14 @@ function mediaNode(doc, resource) {
 }
 
 function appendUnreferencedChips(doc, enNote, resources, referencedHashes) {
+  // Dedupe by hash, not just by `referencedHashes` membership: two resources
+  // that are BOTH unreferenced but byte-identical (same computed MD5) must
+  // not each get their own chip — that would contradict the file-level
+  // "not double-appended as unreferenced" guarantee documented above.
+  const appended = new Set()
   for (const r of resources) {
-    if (referencedHashes.has(r.hash)) continue
+    if (referencedHashes.has(r.hash) || appended.has(r.hash)) continue
+    appended.add(r.hash)
     enNote.appendChild(mediaNode(doc, { ...r, kind: 'file' }))
   }
 }
@@ -292,19 +338,16 @@ function isTodoDiv(el) {
 }
 
 /**
- * Reads `checked` off the div's `<en-todo>` and unwraps it in place — moves
- * any children `en-todo` picked up (HTML tree construction does not honor
- * ENML's self-closing syntax on this custom element, so text following
- * `<en-todo/>` can land AS en-todo's child rather than as a later sibling)
- * back out to occupy en-todo's own position, then removes the now-empty
- * en-todo. Correct regardless of which shape the parser produced.
+ * Reads `checked` off the div's `<en-todo>`, then `unwrapInPlace`s it — HTML
+ * tree construction does not honor ENML's self-closing syntax on this custom
+ * element, so text following `<en-todo/>` can land AS en-todo's child rather
+ * than as a later sibling. Correct regardless of which shape the parser
+ * produced. Same trap, same fix, as `replaceEnMedia` below.
  */
 function extractTodoChecked(div) {
   const todo = div.querySelector('en-todo')
   const checked = todo.getAttribute('checked') === 'true'
-  const parent = todo.parentNode
-  while (todo.firstChild) parent.insertBefore(todo.firstChild, todo)
-  parent.removeChild(todo)
+  unwrapInPlace(todo)
   return checked
 }
 

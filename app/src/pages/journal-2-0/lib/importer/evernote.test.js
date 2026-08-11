@@ -31,9 +31,61 @@ describe('evernote adapter', () => {
     expect(d.tags).toEqual(['swing', 'recap'])
     expect(d.html).toContain('data-type="taskList"')
     expect(d.html).toContain('data-checked="true"')
+    expect(d.html).toContain('review AAPL')
+    expect(d.html).toContain('data-checked="false"')
+    expect(d.html).toContain('size DDOG')
     expect(d.html).toContain(`import-ref://${pngMd5}`)
     expect(d.media[0]).toMatchObject({ kind: 'image', name: 'chart.png' })
     expect(d.html).toContain('encrypted content')
     expect(d.importKey).toBe('evernote:Trading Notebook/Trade recap/20240105T093000Z')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// en-media self-closing-tag trap (same HTML5 parsing quirk as en-todo): HTML
+// tree construction ignores the self-closing flag on unknown elements, so
+// content textually AFTER an `<en-media/>` on one line can land AS its child
+// rather than as a later sibling. A naive `el.replaceWith(img)` would then
+// silently discard that subtree. Reproduced + fixed in `replaceEnMedia`.
+// ---------------------------------------------------------------------------
+
+function enexWithContent(contentInner) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<en-export export-date="20260810T120000Z" application="Evernote">
+ <note><title>Media trap</title>
+  <content><![CDATA[<?xml version="1.0"?><!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">
+   <en-note>${contentInner}</en-note>]]></content>
+  <created>20240105T093000Z</created>
+  <resource><data encoding="base64">${PNG_B64}</data><mime>image/png</mime>
+   <resource-attributes><file-name>chart.png</file-name></resource-attributes></resource>
+ </note></en-export>`
+}
+
+function vfileFor(enexText, path) {
+  return { path, size: enexText.length, lastModified: null, bytes: async () => new TextEncoder().encode(enexText) }
+}
+
+describe('evernote adapter: en-media unwrap (same trap as en-todo)', () => {
+  it('caption text after <en-media/> survives beside the <img>', async () => {
+    const enexText = enexWithContent(
+      `<div><en-media type="image/png" hash="${pngMd5}"/>caption text after</div>`
+    )
+    const { docs } = await evernoteAdapter.parse([vfileFor(enexText, 'Caption.enex')])
+    const d = docs[0]
+    expect(d.html).toContain(`import-ref://${pngMd5}`)
+    expect(d.html).toContain('<img')
+    expect(d.html).toContain('caption text after')
+  })
+
+  it('two <en-media/> citations on one line both become <img>, middle text intact', async () => {
+    const enexText = enexWithContent(
+      `<div><en-media type="image/png" hash="${pngMd5}"/> middle text <en-media type="image/png" hash="${pngMd5}"/></div>`
+    )
+    const { docs } = await evernoteAdapter.parse([vfileFor(enexText, 'TwoMedia.enex')])
+    const d = docs[0]
+    expect((d.html.match(/<img/g) || []).length).toBe(2)
+    expect(d.html).toContain('middle text')
+    // Byte-identical resource -> one hash -> deduped to a single media entry.
+    expect(d.media).toHaveLength(1)
   })
 })
