@@ -430,6 +430,22 @@ const BUILTIN_CALL_TREE = Object.freeze({
     a.slice(1).reduce((acc, x) => cOp('+', [acc, x]), a[0]),
     cNum(a.length),
   ]),
+  // ta.cross(a, b) = they crossed in EITHER direction on this bar. The table
+  // already declares both directions, so this costs zero new vocabulary — the
+  // same bar `roc` and `avg` clear.
+  //
+  // ⛔ NOT `crossOver` ALONE, which is the near-miss that makes this worth
+  // writing down: it parses, lints, saves, scans, and silently answers half the
+  // question. A member screening "the 9 crossed the 200" who is handed only the
+  // upward cross loses every breakdown in the list and has no way to see it.
+  //
+  // ⚠️ The operands appear TWICE, which is affordable for the reason stated
+  // above `PCF`'s derived logic: `seriesRefs` counts DISTINCT reads, so naming a
+  // column twice is still one column.
+  cross: (a) => cOp('||', [
+    cCall('crossOver', [a[0], a[1]]),
+    cCall('crossUnder', [a[0], a[1]]),
+  ]),
 })
 
 /** 🔴 PINE NAMES THIS ENGINE CANNOT EXPRESS, EACH WITH THE REASON.
@@ -994,6 +1010,17 @@ const cSeries = (name) => ({ type: 'series', name })
 const cOp = (name, args) => ({ type: 'op', name, args })
 const cCall = (name, args) => ({ type: 'call', name, args })
 
+/** Is this tree the literal `na` this translator emits — `0 / 0`?
+ *
+ *  ⛔ A LITERAL SHAPE ONLY, never "might be NaN at runtime". Deciding that in
+ *  general is the halting problem wearing a hat; deciding THIS is reading two
+ *  `num` nodes. It exists so a seed that can only ever be blank is refusable at
+ *  translation time rather than discovered by a member whose scan finds nothing. */
+const isNaNLiteral = (n) => !!n && n.type === 'op' && n.name === '/'
+  && n.args && n.args.length === 2
+  && n.args[0].type === 'num' && n.args[0].value === 0
+  && n.args[1].type === 'num' && n.args[1].value === 0
+
 /** Printing precedence. Deliberately a LOCAL copy of `parse.js`'s binding powers
  *  rather than an import, and the copy is safe for exactly one reason: every
  *  string this printer produces is re-parsed and hashed against the tree it was
@@ -1228,6 +1255,26 @@ class Resolver {
         // bar in the past, and that one keeps its accumulator and its warm-up.
         if (bound.update && bound.update.type === 'selfref' && seed && seed.type === 'num') {
           return seed
+        }
+        // 🔴 …AND THE SAME SHAPE SEEDED `na` IS A COLUMN THAT CAN ONLY EVER BE
+        // BLANK. `accum(0/0, self, n)` never leaves its seed, so every bar is NaN
+        // — measured at 400/400 on the anchored-VWAP script in the corpus.
+        //
+        // ⛔ IT IS SAVEABLE, WHICH IS WHAT MAKES IT WORSE THAN A REFUSAL. It
+        // parses, budgets, lints `non-repainting` and clears `canSaveFormula`, so
+        // a member gets a scan that returns nothing and reads as a quiet market
+        // rather than a broken column. That is the exact failure this translator
+        // refuses `cum` and `barssince` to avoid, arrived at from the other side.
+        //
+        // ⚠️ THIS WAS REACHED ONLY WHEN `ta.cross` LANDED — the output refused
+        // earlier in the same expression until then, so the dead accumulator sat
+        // behind a louder refusal. Closing one gap is what exposed it.
+        if (bound.update && bound.update.type === 'selfref' && isNaNLiteral(seed)) {
+          throw new PineRefusal('pine:state',
+            `\`${name}\` is a \`var\` seeded \`na\` that nothing in this script updates, `
+            + 'so every bar of its column would be blank — the reassignment it needs is '
+            + 'one this translator could not fold into a single expression',
+            bound.at || locate(tok))
         }
         this.env = bound.updateEnv || prevEnv
         const update = this.resolve(bound.update)
@@ -1681,6 +1728,14 @@ class Resolver {
       if (bare === 'avg' && built.length < 2) {
         throw new PineRefusal('pine:arity',
           `\`${pineName}\` averages two or more values`, locate(tok))
+      }
+      if (bare === 'cross' && built.length !== 2) {
+        // ⛔ ARITY IS CHECKED BEFORE THE EXPANSION RUNS, like its two neighbours.
+        // `cross(x)` would otherwise build `crossOver(x, undefined)` and die in
+        // `assertCanonical` with a message about node shape — a true sentence
+        // about the wrong subject.
+        throw new PineRefusal('pine:arity',
+          `\`${pineName}\` crosses one series with another, and needs both`, locate(tok))
       }
       return BUILTIN_CALL_TREE[bare](built)
     }

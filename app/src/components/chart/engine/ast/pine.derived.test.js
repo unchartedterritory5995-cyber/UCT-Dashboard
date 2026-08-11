@@ -107,3 +107,104 @@ describe('🔴 the two that CANNOT be expressed, and say so by name', () => {
     }
   })
 })
+
+// ─── ta.cross — the EITHER-direction crossing ────────────────────────────────
+//
+// `ta.crossover` and `ta.crossunder` already mapped; `ta.cross` did not, and it
+// was the single blocker on a real published script in the corpus. The table
+// declares both directions, so this costs zero new names — the `roc`/`avg` bar.
+describe('ta.cross — either direction, spelled out', () => {
+  it('IS the native either-direction tree, by astHash', () => {
+    const native = parseFormula('crossOver(sma(close, 9), sma(close, 200))'
+      + ' || crossUnder(sma(close, 9), sma(close, 200))')
+    expect(native.ok, native.error).toBe(true)
+    expect(astHash(treeOf('ta.cross(ta.sma(close, 9), ta.sma(close, 200))')))
+      .toBe(astHash(native.ast))
+  })
+
+  it('🔴 IS NOT `crossover` ALONE — the near-miss that would answer half the question', () => {
+    // ⛔ THE WHOLE REASON THIS IS WRITTEN DOWN. Resolving `ta.cross` to
+    // `crossOver` parses, lints, saves and scans; it just silently drops every
+    // downward cross. A member screening "the 9 crossed the 200" would get a
+    // shorter list with nothing to indicate what was missing from it.
+    expect(astHash(treeOf('ta.cross(close, ta.sma(close, 10))')))
+      .not.toBe(astHash(treeOf('ta.crossover(close, ta.sma(close, 10))')))
+  })
+
+  it('fires on a DOWNWARD cross, which is the half a near-miss would lose', () => {
+    // A series that rises, then falls back through its own average. `crossover`
+    // alone is 0 on every bar of the fall; `cross` is not.
+    const bars = []
+    for (let i = 0; i < 30; i++) { const c = 100 + i; bars.push({ o: c, h: c + 1, l: c - 1, c, v: 1000 }) }
+    for (let i = 0; i < 30; i++) { const c = 130 - i * 2; bars.push({ o: c, h: c + 1, l: c - 1, c, v: 1000 }) }
+    const run = (e) => [...interpret(treeOf(e), bars, {})]
+    const both = run('ta.cross(close, ta.sma(close, 10))')
+    const up = run('ta.crossover(close, ta.sma(close, 10))')
+    expect(both.filter((x) => x === 1).length).toBeGreaterThan(up.filter((x) => x === 1).length)
+  })
+
+  it('needs both series — arity refuses before the expansion builds', () => {
+    const ref = refusalOf('ta.cross(close)')
+    expect(ref && ref.guard).toBe('pine:arity')
+    expect(ref.message).toContain('needs both')
+  })
+})
+
+// ─── A `var` SEEDED `na` THAT NOTHING UPDATES ───────────────────────────────
+//
+// 🔴 THE WORST OUTCOME AVAILABLE IS NOT A REFUSAL — IT IS A SAVEABLE DEAD
+// COLUMN. `accum(0/0, self, n)` never leaves its seed, so every bar is blank;
+// it parses, budgets, lints `non-repainting` and clears the save gate. A member
+// gets a scan that returns nothing and reads it as a quiet market.
+//
+// ⚠️ This was unreachable until `ta.cross` landed — the same expression refused
+// earlier for the missing function, so the dead accumulator sat behind a louder
+// refusal. Closing one gap is what exposed it.
+describe('a `var` seeded `na` that nothing updates refuses, rather than going blank', () => {
+  const anchored = `//@version=5
+indicator("t")
+var float acc = na
+plot(ta.cross(close, acc) ? 1 : 0)
+`
+
+  it('refuses by name at pine:state, naming the variable', () => {
+    const r = translatePine(anchored)
+    const ref = (r.outputs || []).map((o) => o.refusal).find(Boolean) || r.refusal
+    expect(ref, 'something must refuse').toBeTruthy()
+    expect(ref.guard).toBe('pine:state')
+    expect(ref.message).toContain('acc')
+    expect(ref.message).toContain('blank')
+  })
+
+  it('⛔ …and the thing it prevents is a column that is NaN on EVERY bar', () => {
+    // The proof the refusal is worth having: build the tree the translator would
+    // have emitted and run it. Not one bar of 200 carries a value.
+    const dead = parseFormula('accum(0 / 0, self, 250)')
+    expect(dead.ok, dead.error).toBe(true)
+    const bars = Array.from({ length: 200 }, (_, i) => ({ o: 10, h: 11, l: 9, c: 10 + i * 0.1, v: 1000 }))
+    const col = [...interpret(dead.ast, bars, {})]
+    expect(col.every((x) => x === null || Number.isNaN(x))).toBe(true)
+  })
+
+  it('a `var` with a CONSTANT seed is still unwrapped, not refused', () => {
+    // ⛔ The guard must be narrow. `var k = 5` is a legitimate constant and was
+    // already unwrapped; catching it here would refuse working scripts.
+    const r = translatePine(`//@version=5
+indicator("t")
+var float k = 5
+plot(close > k ? 1 : 0)
+`)
+    expect(r.ok, JSON.stringify((r.outputs || []).map((o) => o.refusal))).toBe(true)
+  })
+
+  it('…and a `var` seeded from a SERIES still keeps its accumulator', () => {
+    // `var anchor = close` really does mean a bar in the past — it is not dead,
+    // and refusing it would be the over-reach this narrowness exists to avoid.
+    const r = translatePine(`//@version=5
+indicator("t")
+var float anchor = close
+plot(close > anchor ? 1 : 0)
+`)
+    expect(r.ok, JSON.stringify((r.outputs || []).map((o) => o.refusal))).toBe(true)
+  })
+})
