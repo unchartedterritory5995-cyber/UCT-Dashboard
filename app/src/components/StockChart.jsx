@@ -5244,27 +5244,21 @@ export default function StockChart({
   // Leftmost VISIBLE bar time (adjustTime space) = the framed baseline; re-computed
   // on pan/zoom (rAF-debounced) so the legend %s read "since the left of what you
   // see", not since the oldest loaded bar.
+  // Uses the visible TIME range (numeric, same adjustTime space as the series),
+  // NOT logical indices — a comparison series with more history than the base
+  // extends the logical space, so a logical-index→bar map read the wrong (often
+  // last) bar and the % came out 0.00%.
   const [framedLeftTime, setFramedLeftTime] = useState(null)
   useEffect(() => {
     const chart = chartRef.current
-    if (!chart || !chartReady || !enabledComparisons.length || !filteredBars.length) { setFramedLeftTime(null); return undefined }
+    if (!chart || !chartReady || !enabledComparisons.length) { setFramedLeftTime(null); return undefined }
     const ts = chart.timeScale()
-    let raf = null
-    const compute = () => {
-      try {
-        const lr = ts.getVisibleLogicalRange()
-        if (lr) {
-          const i = Math.max(0, Math.min(filteredBars.length - 1, Math.ceil(lr.from)))
-          const b = filteredBars[i]
-          if (b) setFramedLeftTime(adjustTime(b.t))
-        }
-      } catch { /* mid-load */ }
-    }
-    const handler = () => { if (raf) cancelAnimationFrame(raf); raf = requestAnimationFrame(compute) }
-    compute()
-    try { ts.subscribeVisibleLogicalRangeChange(handler) } catch { /* older API */ }
-    return () => { try { ts.unsubscribeVisibleLogicalRangeChange(handler) } catch { /* */ }; if (raf) cancelAnimationFrame(raf) }
-  }, [chartReady, enabledComparisons.length, filteredBars, adjustTime])
+    const apply = (range) => { if (range && range.from != null) setFramedLeftTime(Number(range.from)) }
+    const handler = (range) => apply(range)
+    try { apply(ts.getVisibleRange()) } catch { /* mid-load */ }
+    try { ts.subscribeVisibleTimeRangeChange(handler) } catch { /* older API */ }
+    return () => { try { ts.unsubscribeVisibleTimeRangeChange(handler) } catch { /* */ } }
+  }, [chartReady, enabledComparisons.length])
 
   // Per-comparison % over the framed window: (latest close − close at framed-left) / base.
   const comparisonFramed = useMemo(() => {
@@ -9016,18 +9010,19 @@ export default function StockChart({
             priceScaleId: 'left',
             color: cmp.color,
             lineWidth: 2,
-            lastValueVisible: true,
+            // No on-chart chip / axis label — the docked compare legend shows the
+            // symbol, name + framed % instead (owner: drop the blue "SPY" box).
+            lastValueVisible: false,
             priceLineVisible: false,
             crosshairMarkerVisible: true,
             crosshairMarkerRadius: 3,
-            title: cmp.sym,
           })
           map.set(cmp.sym, series)
         } catch {
           continue
         }
       } else {
-        try { series.applyOptions({ color: cmp.color }) } catch {}
+        try { series.applyOptions({ color: cmp.color, lastValueVisible: false }) } catch {}
       }
       try { series.setData(cmp.points) } catch {}
     }
@@ -11417,6 +11412,7 @@ export default function StockChart({
             return (
               <div key={f.sym} className={styles.compareRow}>
                 <span className={styles.compareLogo}><CompanyLogo sym={f.sym} name={name} size={13} round /></span>
+                <span className={styles.compareTicker} style={{ color: f.color }}>{f.sym}</span>
                 <span className={styles.compareName}>
                   {name}{exch ? <span className={styles.compareExch}> · {exch}</span> : null}
                 </span>

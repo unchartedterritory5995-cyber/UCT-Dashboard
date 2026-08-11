@@ -364,7 +364,7 @@
    logo · Name · Exchange · framed-window % (0% = left edge of the visible range). */
 .compareRows {
   position: absolute;
-  top: 46px;         /* just under the horizontal .legend (top 28 + ~16 tall) */
+  top: 62px;         /* clear of the horizontal .legend (which can wrap to 2 rows) */
   left: 8px;         /* aligned with the legend's left / the date */
   z-index: 4;
   display: flex;
@@ -390,6 +390,7 @@
   line-height: 1.3;
 }
 .compareLogo { display: inline-flex; flex: 0 0 auto; width: 14px; height: 14px; }
+.compareTicker { flex: 0 0 auto; font-weight: 700; letter-spacing: 0.2px; }
 .compareName {
   color: var(--chart-panel-text-strong, #e2dfd6);
   font-weight: 600;
