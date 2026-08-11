@@ -2797,6 +2797,7 @@ export function translatePine(source, opts = {}) {
         formula,
         ast,
         inputsFolded: [...resolver.usedInputs.values()],
+        hidden: outputHidden(args),
         refusal: null,
       }
     } catch (err) {
@@ -2814,7 +2815,11 @@ export function translatePine(source, opts = {}) {
     resolved.push(row)
   }
 
-  const usable = resolved.filter((r) => r.refusal === null)
+  // ⛔ A HIDDEN OUTPUT IS NOT A COLUMN THE MEMBER GOT. Counting it made `ok`
+  // mean "something in here parsed" instead of "you have a scan", and the
+  // Butterworth script is the proof: four refusals, one hidden `hlc3`, verdict
+  // `translates: true`.
+  const usable = resolved.filter((r) => r.refusal === null && !r.hidden)
   const refusals = [
     ...hardRefusals,
     ...resolved.filter((r) => r.refusal).map((r) => r.refusal),
@@ -2858,7 +2863,7 @@ export function translatePine(source, opts = {}) {
  *  Otherwise the first plot that translated at all. ⛔ A member can always choose
  *  another; this decides what is on screen first, never what is possible. */
 function chooseOutput(rows, table) {
-  const ok = (r) => r.refusal === null
+  const ok = (r) => r.refusal === null && !r.hidden
   // ⛔ A CONSTANT IS NEVER THE FIRST OFFER, AND THAT IS MEASURED TOO. A published
   // indicator plots a hidden zero baseline so `fill()` has something to fill
   // against (`06-adx-advanced.pine` line 175: `pZero = plot(0.0,
@@ -2945,6 +2950,28 @@ function pickOutputArgument(args, kind, tok) {
     throw new PineRefusal('pine:statement', REFUSALS['pine:statement'], locate(tok))
   }
   return positional
+}
+
+/** Did the SCRIPT'S AUTHOR mark this output as not-for-display?
+ *
+ *  ⭐⭐ `plot(x, display = display.none)` IS SCAFFOLDING, NOT AN OFFER. Published
+ *  indicators plot a hidden series purely so `fill()` has a second edge to fill
+ *  against, and the Butterworth Spectral Trend script does exactly that with
+ *  `plot(price_source, display = display.none)` — where `price_source` is `hlc3`.
+ *
+ *  ⛔ IT READS BARS, SO EVERY "IS THIS A LIVE COLUMN?" TEST SAYS YES — which is
+ *  what made it dangerous. Every real output of that script refused, this line
+ *  did not, and the member was offered a saveable `(high + low + close) / 3`
+ *  under the title of a spectral trend filter. `chooseOutput` already declines to
+ *  offer a hidden CONSTANT baseline for this exact reason; `display.none` is the
+ *  author's own, more general statement of it, so it is the one to read.
+ */
+function outputHidden(args) {
+  const d = args.find((a) => a.name === 'display')
+  // `display.none` lexes as ONE ident — the dot is part of the name, not an
+  // operator — so this is a name comparison, not a member walk. Any other value
+  // (`display.all`, `display.pane`) is a real display and stays offerable.
+  return !!(d && d.value && d.value.type === 'name' && d.value.name === 'display.none')
 }
 
 function outputTitle(args, kind) {

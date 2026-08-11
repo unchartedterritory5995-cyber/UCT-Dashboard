@@ -15,19 +15,21 @@
   },
   "02-ict-retracement-to-order-block-screener.pine": {
     "version": 5,
-    "translates": true,
+    "translates": false,
     "outputs": 4,
-    "usable": 2,
-    "selectedFormula": "highest(high, 30)[1]",
-    "downstream": {
-      "ok": true,
-      "guard": null,
-      "repaint": "non-repainting"
+    "usable": 0,
+    "selectedFormula": null,
+    "downstream": null,
+    "refusal": {
+      "guard": "pine:tuple",
+      "line": 94,
+      "column": 1,
+      "token": "["
     },
-    "refusal": null,
     "perOutputRefusals": {
       "pine:tuple": 2
-    }
+    },
+    "hiddenScaffolding": 2
   },
   "03-rsi-directional-momentum-scanner.pine": {
     "version": 6,
@@ -81,20 +83,22 @@
   },
   "06-adx-advanced.pine": {
     "version": 6,
-    "translates": true,
+    "translates": false,
     "outputs": 12,
-    "usable": 1,
-    "selectedFormula": "0",
-    "downstream": {
-      "ok": true,
-      "guard": null,
-      "repaint": "non-repainting"
+    "usable": 0,
+    "selectedFormula": null,
+    "downstream": null,
+    "refusal": {
+      "guard": "pine:block",
+      "line": 111,
+      "column": 5,
+      "token": "switch"
     },
-    "refusal": null,
     "perOutputRefusals": {
       "pine:tuple": 10,
       "pine:block": 1
-    }
+    },
+    "hiddenScaffolding": 1
   },
   "07-rsi.pine": {
     "version": 3,
@@ -143,19 +147,21 @@
   },
   "10-supertrend.pine": {
     "version": 6,
-    "translates": true,
+    "translates": false,
     "outputs": 6,
-    "usable": 1,
-    "selectedFormula": "(open + high + low + close) / 4",
-    "downstream": {
-      "ok": true,
-      "guard": null,
-      "repaint": "non-repainting"
+    "usable": 0,
+    "selectedFormula": null,
+    "downstream": null,
+    "refusal": {
+      "guard": "pine:state",
+      "line": 39,
+      "column": 29,
+      "token": "["
     },
-    "refusal": null,
     "perOutputRefusals": {
       "pine:state": 5
-    }
+    },
+    "hiddenScaffolding": 1
   },
   "11-donchian-channel.pine": {
     "version": 3,

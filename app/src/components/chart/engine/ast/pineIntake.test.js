@@ -39,7 +39,11 @@ function diagnose(source) {
       line: o.refusal.line,
       message: String(o.refusal.message || ''),
     }))
-  const usable = (out.outputs || []).filter((o) => o.formula)
+  // ⛔ A HIDDEN OUTPUT IS SCAFFOLDING, COUNTED SEPARATELY. Folding it into the
+  // usable count is what let a script whose every real output refused report a
+  // computable column — the bench must not restate the bug it exists to find.
+  const usable = (out.outputs || []).filter((o) => o.formula && !o.hidden)
+  const scaffolding = (out.outputs || []).filter((o) => o.formula && o.hidden).length
   const selected = out.selected >= 0 ? (out.outputs || [])[out.selected] : null
 
   // ⭐ THE COLUMN GOES THROUGH THE SHIPPED DOOR, not a copy of its rules — the
@@ -62,6 +66,7 @@ function diagnose(source) {
     translates: !!out.ok,
     outputsOffered: (out.outputs || []).length,
     columnsComputable: usable.length,
+    hiddenScaffolding: scaffolding,
     formula: selected ? selected.formula : null,
     downstream,
     refusals,
