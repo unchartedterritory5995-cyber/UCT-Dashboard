@@ -81,8 +81,10 @@ def test_every_starter_names_the_symbol(block):
         ("PRE_TEMPLATES", "options flow", _FLOW_RE),
         ("PRE_TEMPLATES", "analyst", _ANALYST_RE),
         ("PRE_TEMPLATES", "insider", _INSIDER_RE),
+        ("PRE_TEMPLATES", "fundamentals", _FUNDAMENTALS_RE),
         ("POST_TEMPLATES", "options flow", _FLOW_RE),
         ("POST_TEMPLATES", "analyst", _ANALYST_RE),
+        ("POST_TEMPLATES", "fundamentals", _FUNDAMENTALS_RE),
     ],
 )
 def test_each_lane_is_opened_by_at_least_one_starter(block, gate, rx):
@@ -92,6 +94,60 @@ def test_each_lane_is_opened_by_at_least_one_starter(block, gate, rx):
     assert hits, (
         f"no {block} starter opens the {gate!r} pack — every one of them:\n  "
         + "\n  ".join(_starters(block))
+    )
+
+
+_GATES = {
+    "flow": _FLOW_RE,
+    "analyst": _ANALYST_RE,
+    "insider": _INSIDER_RE,
+    "fundamentals": _FUNDAMENTALS_RE,
+}
+
+
+def _router_gated_packs() -> set[str]:
+    """The per-ticker packs the ROUTER actually gates, read from its source.
+
+    Derived, not typed: `_assemble` opts each pack in with
+    `_perticker.append(("<name>", "_ctx_<name>"))`, plus the flow pack on its own
+    branch. Reading them here is what makes the coverage test below able to see
+    a gate that was added to the router and never given a starter — which is
+    exactly how the fundamentals pack sat unused after the first rewrite.
+    """
+    src = (
+        Path(__file__).resolve().parents[1] / "api" / "routers" / "ai_search.py"
+    ).read_text(encoding="utf-8")
+    packs = set(re.findall(r'_perticker\.append\(\(\s*"([a-z_]+)"', src))
+    if re.search(r"_FLOW_RE\.search", src):
+        packs.add("flow")
+    return packs
+
+
+def test_the_gate_map_still_matches_the_router():
+    """Control for the coverage test: if the router grows a fifth gated pack,
+    this fails and forces it into `_GATES` rather than letting the coverage
+    assertion quietly keep checking only the four it knew about."""
+    found = _router_gated_packs()
+    assert found, "parsed no gated packs out of ai_search.py — the probe is broken"
+    assert found == set(_GATES), (
+        f"router gates {sorted(found)} but this test knows {sorted(_GATES)} — "
+        "a pack was added or renamed; give it a starter and map it here"
+    )
+
+
+def test_no_gated_pack_is_left_cold():
+    """Across both lifecycles, every gated pack must be opened by some starter.
+
+    This is the assertion that would have caught the real gap: after the first
+    rewrite, options-flow / analyst / insider were opened but FUNDAMENTALS never
+    was, so valuation, margins, revenue growth and balance-sheet data were one
+    regex away from the model and never reached it from a preset.
+    """
+    everything = _starters("PRE_TEMPLATES") + _starters("POST_TEMPLATES")
+    cold = [g for g, rx in _GATES.items() if not any(rx.search(s) for s in everything)]
+    assert not cold, (
+        f"gated packs no starter ever opens: {sorted(cold)} — that data exists "
+        "and is one wording away, but no preset reaches it"
     )
 
 

@@ -46,6 +46,11 @@ const PRE_TEMPLATES = [
   (sym) => `What's the options flow saying on ${sym} into the print?`,
   // → analyst pack (estimates, targets, ratings)
   (sym) => `What are analysts' price targets and estimates for ${sym}?`,
+  // → fundamentals pack. ⚠️ "valuation" and "revenue growth" are what trip the
+  // gate — bare "margins" does NOT (measured: the gate misses "Did NVDA's
+  // margins hold up?" entirely). Reword around those two terms, not away from
+  // them; the Python contract test is what will tell you if you did.
+  (sym) => `How do ${sym}'s valuation and revenue growth look going in?`,
   // ungated — history lives on the web, not in our stores
   (sym) => `How has ${sym} traded after past earnings?`,
   // → insider pack
@@ -61,6 +66,9 @@ const POST_TEMPLATES = [
   (sym) => `Any analyst upgrades or downgrades on ${sym} since the print?`,
   // → options-flow pack
   (sym) => `What's the options flow doing on ${sym} since the print?`,
+  // → fundamentals pack. Same trap as the pre-print one: "revenue growth" is
+  // the term carrying this, not "margins".
+  (sym) => `Did ${sym}'s revenue growth and margins hold up in the print?`,
 ]
 
 /**
