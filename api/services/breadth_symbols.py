@@ -93,10 +93,10 @@ _ROWS = [
 
 # group id → pretty label for the search header + prebuilt-list name.
 LIST_META = {
-    G_MA:  {"label": "MA Breadth",   "list_name": "UCT MA Breadth"},
-    G_MOM: {"label": "Momentum",     "list_name": "UCT Momentum Breadth"},
-    G_HL:  {"label": "Highs / Lows", "list_name": "UCT Highs & Lows"},
-    G_REG: {"label": "Score / Regime","list_name": "UCT Score & Regime"},
+    G_MA:  {"label": "MA Breadth",   "list_name": "MA Breadth"},
+    G_MOM: {"label": "Momentum",     "list_name": "Momentum Breadth"},
+    G_HL:  {"label": "Highs / Lows", "list_name": "Highs & Lows"},
+    G_REG: {"label": "Score / Regime","list_name": "Score & Regime"},
 }
 GROUP_ORDER = [G_MA, G_MOM, G_HL, G_REG]
 

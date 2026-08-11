@@ -166,13 +166,23 @@ def list_prebuilt(user: dict = Depends(get_current_user)):
     resolved from the committed prebuilt config."""
     rows = watchlist_service.list_prebuilt_watchlists(limit=1000)
     try:
-        from api.services.watchlist_prebuilt import category_map, sample_map, _DEFAULT_CATEGORY
+        from api.services.watchlist_prebuilt import (
+            category_map, sample_map, category_order, _DEFAULT_CATEGORY,
+        )
         cats = category_map()
         samples = sample_map()
+        order = category_order()
         for r in rows:
             key = (r.get("name") or "").strip().lower()
             r["category"] = cats.get(key, _DEFAULT_CATEGORY)
             r["sample"] = samples.get(key, [])
+        # Group rows by the config's section order (ETF → Index → Breadth) so the picker's
+        # first-seen grouping is deterministic, not dependent on each section's alphabetically
+        # first list name. Within a section, name-sorted (the picker re-sorts A→Z anyway).
+        rows.sort(key=lambda r: (
+            order.index(r["category"]) if r.get("category") in order else len(order),
+            (r.get("name") or "").lower(),
+        ))
     except Exception:
         pass
     return rows

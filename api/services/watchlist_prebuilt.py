@@ -108,6 +108,19 @@ def category_map():
     return {l["name"].strip().lower(): l["category"] for l in _load_committed()}
 
 
+def category_order():
+    """Category sections in the order they first appear in the committed config —
+    UCT ETF Lists → UCT Index Components → UCT Breadth Indicators (breadth is appended
+    last by _load_committed). The picker renders sections in THIS order rather than
+    relying on the alphabetical accident of each section's first list name."""
+    seen = []
+    for l in _load_committed():
+        c = l["category"]
+        if c not in seen:
+            seen.append(c)
+    return seen
+
+
 def sample_map(n=5):
     """{lowercased list name: first n tickers} — a preview shown under each list name in the
     picker. Uses the overlay-applied set so the sample reflects the live (pruned) list."""
@@ -126,15 +139,22 @@ def _read_overlay():
 def _apply_overlay(lists):
     """Overlay the durable auto-refresh onto the committed baseline:
       - replace 'Liquid Major ETFs' tickers with the fresh liquidity ranking (if present)
+      - replace each UCT Index Components list with its fresh FMP constituent set (if present)
       - subtract the known-delisted set from EVERY list (curated names, minus the dead ones).
     Name/desc always stay from the committed config, so a curated edit is never lost — the
-    overlay only re-ranks the liquid list and removes tickers that stopped trading."""
+    overlay only re-ranks the liquid list, refreshes index membership, and removes tickers
+    that stopped trading."""
     ov = _read_overlay()
     liquid = [str(t).upper() for t in (ov.get("liquid_ranking") or []) if t]
     delisted = {str(t).upper() for t in (ov.get("delisted") or []) if t}
+    # {lowercased list name: [tickers]} — fresh index membership from watchlist_prebuilt_refresh.
+    index_ov = ov.get("index_constituents") if isinstance(ov.get("index_constituents"), dict) else {}
     for l in lists:
-        if l["name"].strip().lower() == _LIQUID_NAME and liquid:
+        nm = l["name"].strip().lower()
+        if nm == _LIQUID_NAME and liquid:
             l["tickers"] = liquid
+        elif nm in index_ov and index_ov[nm]:
+            l["tickers"] = [str(t).upper() for t in index_ov[nm] if t]
         if delisted:
             l["tickers"] = [t for t in l["tickers"] if t not in delisted]
     return [l for l in lists if l["tickers"]]

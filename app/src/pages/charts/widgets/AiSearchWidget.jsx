@@ -240,8 +240,27 @@ function Exchange({ entry, isLast, onTicker, onCopy, copied, onSave, isSaved, on
   )
 }
 
-export default function AiSearchWidget({ initialQuery = null, color = null, onTicker = null }) {
+/**
+ * `scope` — narrow this widget to ONE company (the earnings modal's Ask AI
+ * section). `{sym, suggestions}`: the empty state names the company and offers
+ * `suggestions` instead of the general EXAMPLES, and the ask box says so too.
+ * The ENDPOINT is unchanged — scoping is what we ask FOR, not what we allow.
+ *
+ * `chrome` — false strips the ⚙ appearance panel and the saved-answers list.
+ * Both are charts-workspace furniture: the gear edits a WIDGET canvas colour,
+ * which is meaningless inside a modal that paints its own surface.
+ *
+ * Both default to today's behaviour, so /charts and /ai-search are untouched by
+ * construction — `AiSearchWidget.test.jsx` pins that with a no-props render.
+ */
+export default function AiSearchWidget({
+  initialQuery = null, color = null, onTicker = null,
+  scope = null, chrome = true,
+  initialThread = null, onThread = null,
+}) {
   const { aiSearchBus, setGroupSym } = useWorkspace()
+  const scopeSym = scope?.sym ? String(scope.sym).toUpperCase() : null
+  const scopeExamples = Array.isArray(scope?.suggestions) ? scope.suggestions : null
 
   // ── Basic appearance settings (⚙): canvas + text. Uncustomized → the DEFAULTS
   // FOR THE CURRENT APP THEME (light → white canvas + dark text). ──
@@ -276,7 +295,11 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   // Conversation thread: every completed {id, q, answer, citations, related}
   // exchange this session, oldest → newest. The widget shows the whole thread so
   // a member can scroll back through the conversation, not just the last answer.
-  const [thread, setThread] = useState([])
+  // `initialThread` restores a conversation this widget produced EARLIER (the
+  // earnings modal unmounts inactive panels, so leaving Ask AI and coming back
+  // is a remount). Read ONCE at mount: the restored turns are the widget's own
+  // output in the widget's own shape, never re-derived by the caller.
+  const [thread, setThread] = useState(() => (Array.isArray(initialThread) ? initialThread : []))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [limitMsg, setLimitMsg] = useState(null)
@@ -291,8 +314,10 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   const bodyRef = useRef(null)
   // threadRef mirrors `thread` so run()/tryStream (stable callbacks) always read
   // the current turns without stale closures; idRef gives each turn a stable key.
-  const threadRef = useRef([])
-  const idRef = useRef(0)
+  const threadRef = useRef(Array.isArray(initialThread) ? initialThread : [])
+  // Seed PAST the restored turns' ids — `++idRef.current` from 0 against a
+  // restored thread would hand turn 5 the key React already has on turn 1.
+  const idRef = useRef(threadRef.current.reduce((m, e) => Math.max(m, e?.id || 0), 0))
   // Conversation memory sent with each ask (derived from threadRef at send time)
   // so follow-ups can resolve "it"/"that move". Never drives rendering.
   const historyRef = useRef([])
@@ -317,6 +342,15 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight
   }, [pending, streamText, thread])
+
+  // Hand the finished thread back to a caller that wants to restore it later.
+  // Deliberately an EFFECT on `thread` rather than a call beside each
+  // `setThread`: there are two mutation sites today and a third added later
+  // would silently stop notifying. One authority, derived from the state that
+  // actually rendered. The ref keeps the effect off the caller's prop identity.
+  const onThreadRef = useRef(onThread)
+  onThreadRef.current = onThread
+  useEffect(() => { onThreadRef.current?.(thread) }, [thread])
 
   // Auto-grow the ask box so a long question stays fully visible while typing
   // (caps at ~4 lines, then scrolls inside the box). Empty stays single-line —
@@ -539,9 +573,17 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
 
   const empty = thread.length === 0 && !loading && !error && !limitMsg
 
+  // `rootStyle` carries the ⚙ appearance settings — a WIDGET's canvas and text
+  // colour. With the gear hidden those are unreachable settings being applied
+  // anyway, and they would repaint a host surface the reader never chose, so the
+  // bare variant takes the ambient theme instead.
   return (
-    <div className={styles.root} ref={rootRef} style={rootStyle}>
-      {settingsOpen && (
+    <div
+      className={`${styles.root}${chrome ? '' : ` ${styles.rootBare}`}`}
+      ref={rootRef}
+      style={chrome ? rootStyle : undefined}
+    >
+      {chrome && settingsOpen && (
         <NewsSettingsPanel
           title="AI Search Settings"
           showPerf={false}
@@ -554,26 +596,34 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
           themeVars={menuVars}
         />
       )}
-      <button
-        ref={gearRef}
-        type="button"
-        className={styles.gearBtn}
-        onClick={() => setSettingsOpen(o => !o)}
-        title="AI Search settings"
-        aria-label="AI Search settings"
-      ><UIcon name="gear" size={13} /></button>
+      {chrome && (
+        <button
+          ref={gearRef}
+          type="button"
+          className={styles.gearBtn}
+          onClick={() => setSettingsOpen(o => !o)}
+          title="AI Search settings"
+          aria-label="AI Search settings"
+        ><UIcon name="gear" size={13} /></button>
+      )}
       <div className={styles.body} ref={bodyRef}>
         {empty && (
           <div className={styles.empty}>
             <span className={styles.emptySpark}><Spark size={34} /></span>
-            <div className={styles.emptyTitle}>Ask the markets anything</div>
-            <div className={styles.emptySub}>Earnings recaps, sympathy plays, catalysts, comparables — cited, current.</div>
+            <div className={styles.emptyTitle}>
+              {scopeSym ? `Ask AI about ${scopeSym}` : 'Ask the markets anything'}
+            </div>
+            <div className={styles.emptySub}>
+              {scopeSym
+                ? 'What do you want to know?'
+                : 'Earnings recaps, sympathy plays, catalysts, comparables — cited, current.'}
+            </div>
             <div className={styles.exampleWrap}>
-              {EXAMPLES.map((ex) => (
+              {(scopeExamples || EXAMPLES).map((ex) => (
                 <button key={ex} className={styles.example} onClick={() => run(ex)}>{ex}</button>
               ))}
             </div>
-            {saved.length > 0 && (
+            {chrome && saved.length > 0 && (
               <div className={styles.savedWrap}>
                 <span className={styles.savedLabel}>Saved answers</span>
                 <div className={styles.savedList}>
@@ -642,8 +692,10 @@ export default function AiSearchWidget({ initialQuery = null, color = null, onTi
         <textarea
           ref={inputRef}
           className={styles.input}
-          placeholder={thread.length > 0 ? 'Ask a follow-up…' : 'Ask anything about the markets…'}
-          aria-label="Ask anything about the markets"
+          placeholder={thread.length > 0
+            ? 'Ask a follow-up…'
+            : (scopeSym ? `Ask anything about ${scopeSym}…` : 'Ask anything about the markets…')}
+          aria-label={scopeSym ? `Ask anything about ${scopeSym}` : 'Ask anything about the markets'}
           value={query}
           rows={1}
           onChange={(e) => setQuery(e.target.value)}

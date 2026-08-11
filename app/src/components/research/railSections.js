@@ -23,6 +23,10 @@ export const SECTIONS = [
   { id: 'analysts', label: 'Analysts', icon: 'user' },
   { id: 'news', label: 'News', icon: 'document' },
   { id: 'filings', label: 'Filings', icon: 'document' },
+  // Last on purpose (owner, 2026-08-10: "just under News and Filings"). It is the
+  // only section that answers a question the reader brought rather than presenting
+  // what we hold, so it reads as the follow-on to the report, not part of it.
+  { id: 'ai', label: 'Ask AI', icon: 'sparkle' },
 ]
 
 // Order is the reading order for an earnings event: the four original sections

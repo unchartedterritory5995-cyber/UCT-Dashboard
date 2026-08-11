@@ -4,7 +4,7 @@ import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider } from '../../context/AuthContext'
 
 import EarningsResearchModal, { resolveTrapTargets, PANELS } from './EarningsResearchModal'
-import { SECTIONS, normalizeSection } from './railSections'
+import { SECTIONS, SECTION_IDS, normalizeSection } from './railSections'
 import { NOT_ADVICE } from '../../constants/disclaimer'
 import { countGoldHighlights } from '../research-kit/testing/restraint'
 
@@ -113,6 +113,98 @@ describe('shell structure', () => {
     const escapes = [...rail.querySelectorAll('a[href]')]
       .filter(a => (a.getAttribute('href') || '').includes('/research'))
     expect(escapes.map(a => a.getAttribute('href'))).toEqual([])
+  })
+
+  it('routes to every panel it declares — none is orphaned', () => {
+    // The other direction from "every id still has a panel" below. A panel with
+    // no rail entry is unreachable code that reads as a shipped feature — this
+    // repo's 2026-08-08 audit found six of nine HIGH findings were exactly that.
+    // Named, not diffed: a rail that exists to report names must put them in the
+    // message, or the failure output truncates the one thing it was built to say.
+    const orphans = Object.keys(PANELS).filter(id => !SECTION_IDS.includes(id))
+    expect(orphans, `panels no rail entry routes to: ${orphans.join(', ')}`).toEqual([])
+  })
+})
+
+// ── The AI section's WIRE ─────────────────────────────────────────────────────
+// `AskAiSection` is deliberately NOT mocked in this suite. Its own tests and
+// AiSearchWidget's own tests can both be green while the two are joined wrong —
+// component tests are structurally blind to a severed wire. These render the
+// real chain and assert the SYMBOL survives it.
+describe('Ask AI section', () => {
+  it('is the last tab, under News and Filings', () => {
+    renderModal()
+    const tabs = screen.getAllByRole('tab').map(t => t.textContent.trim())
+    expect(tabs[tabs.length - 1]).toBe('Ask AI')
+    expect(tabs.indexOf('Ask AI')).toBeGreaterThan(tabs.indexOf('News'))
+    expect(tabs.indexOf('Ask AI')).toBeGreaterThan(tabs.indexOf('Filings'))
+  })
+
+  it('opens a company-scoped AI panel — the symbol reaches the ask box', () => {
+    renderModal({ section: 'ai' })
+    // Derived from the row, not retyped: the assertion fails if the modal stops
+    // handing the panel a symbol, if the panel stops passing `scope` down, or if
+    // the widget stops honouring it — while all three stay individually correct.
+    expect(screen.getByLabelText(`Ask anything about ${row.sym}`)).toBeTruthy()
+  })
+
+  it('offers starter questions about THIS company, and asks nothing on its own', () => {
+    renderModal({ section: 'ai' })
+    const panel = screen.getByTestId('erm-ask-ai')
+    const starters = [...panel.querySelectorAll('button')]
+      .map(b => b.textContent.trim())
+      .filter(t => t.includes(row.sym))
+    expect(starters.length).toBeGreaterThan(0)
+
+    // Nothing is billed until the reader asks. `/api/ai-search` is paid-gated
+    // with a daily cap, so an auto-run would spend one on every accidental open.
+    const asked = global.fetch.mock.calls
+      .map(c => String(c[0] || ''))
+      .filter(u => u.includes('/api/ai-search'))
+    expect(asked).toEqual([])
+  })
+
+  it('stamps the canvas with the active section — the chat-layout CSS hook', () => {
+    // jsdom computes no layout, so the bounded-panel behaviour itself is
+    // untestable here; it was measured in a browser. What IS testable is the
+    // WIRE the measurement depends on. `.canvas[data-section="ai"]` is what
+    // turns the canvas into a flex column so the chat body scrolls inside
+    // itself; drop this attribute and the rule silently stops matching, the
+    // panel grows with a long answer, and the ask bar goes below the canvas
+    // fold — with every other test in this file still green.
+    const { rerender } = renderModal({ section: 'ai' })
+    expect(screen.getByTestId('erm-canvas').getAttribute('data-section')).toBe('ai')
+
+    // Derived from the active section, not hardcoded to 'ai' — a canvas frozen
+    // at one value would apply the chat layout to a document section.
+    rerender(withProviders(
+      <EarningsResearchModal
+        row={row} label="AFTER MARKET CLOSE" reportDate="2026-08-06" timing="amc"
+        section="news" onSectionChange={() => {}} onClose={() => {}}
+        isTodayReporter nowMs={NOW}
+      />,
+    ))
+    expect(screen.getByTestId('erm-canvas').getAttribute('data-section')).toBe('news')
+  })
+
+  it('carries none of the charts-workspace chrome', () => {
+    renderModal({ section: 'ai' })
+    // The ⚙ edits a chart WIDGET's canvas colour — meaningless in a modal that
+    // paints its own surface, and it would sit over the reader's answer.
+    expect(screen.queryByLabelText('AI Search settings')).toBeNull()
+  })
+
+  it('unmounts with the rest — GATE c is not special-cased for it', () => {
+    const { rerender } = renderModal({ section: 'ai' })
+    expect(screen.queryByTestId('erm-ask-ai')).toBeTruthy()
+    rerender(withProviders(
+      <EarningsResearchModal
+        row={row} label="AFTER MARKET CLOSE" reportDate="2026-08-06" timing="amc"
+        section="setup" onSectionChange={() => {}} onClose={() => {}}
+        isTodayReporter nowMs={NOW}
+      />,
+    ))
+    expect(screen.queryByTestId('erm-ask-ai')).toBeNull()
   })
 })
 
@@ -675,14 +767,17 @@ describe('the modal never hands the reader off', () => {
 })
 
 describe('the rail is curated, and old links still land', () => {
-  it('is EIGHT curated sections, not the eleven it sprawled to', () => {
+  it('is NINE curated sections, not the eleven it sprawled to', () => {
     // Eleven shallow entries split one question across three clicks and made
     // the rail scroll on phone. Consolidated to six, then News earned its own
     // place — it answers "what else happened", which nothing else covered.
-    expect(SECTIONS).toHaveLength(8)
+    // Ask AI earned the ninth (2026-08-10): every other section presents what we
+    // HOLD, and it is the only one that answers a question the reader brought.
+    // The bar for a tenth is the same — a question no existing section answers.
+    expect(SECTIONS).toHaveLength(9)
     expect(SECTIONS.map(s => s.id)).toEqual(
       ['setup', 'history', 'brief', 'call', 'financials', 'analysts',
-       'news', 'filings'])
+       'news', 'filings', 'ai'])
   })
 
   it('every id still has a panel', () => {

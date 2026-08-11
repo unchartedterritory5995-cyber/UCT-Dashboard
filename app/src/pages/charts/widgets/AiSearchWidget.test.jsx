@@ -281,4 +281,94 @@ describe('AiSearchWidget', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
     expect(writeText).toHaveBeenCalledWith('The move is real[1]. Key driver: Nvidia demand.')
   })
+
+  // ── scope + chrome: the earnings modal's Ask AI section ────────────────────
+  // Both props exist so ONE widget can serve /charts, /ai-search AND a
+  // company-scoped panel. The load-bearing pair of assertions is "scoped mode
+  // changes X" AND "unscoped mode still does X" — without the second, a scoping
+  // bug that leaked into the default path would go unnoticed.
+  describe('scope + chrome', () => {
+    const SCOPE = { sym: 'AAPL', suggestions: ["How did AAPL's print go?", 'Is AAPL extended here?'] }
+
+    it('scoped: names the company, offers ITS starters, and says so in the ask box', () => {
+      render(<AiSearchWidget scope={SCOPE} chrome={false} />)
+      expect(screen.getByText('Ask AI about AAPL')).toBeTruthy()
+      for (const q of SCOPE.suggestions) expect(screen.getByText(q)).toBeTruthy()
+      expect(screen.getByLabelText('Ask anything about AAPL')).toBeTruthy()
+      // The general examples belong to the workspace widget, not a company panel.
+      expect(screen.queryByText('Why is SMCI moving today?')).toBeNull()
+      expect(screen.queryByText('Ask the markets anything')).toBeNull()
+    })
+
+    it('chrome=false hides the ⚙ appearance settings', () => {
+      render(<AiSearchWidget scope={SCOPE} chrome={false} />)
+      expect(screen.queryByLabelText('AI Search settings')).toBeNull()
+    })
+
+    it('the DEFAULT path is untouched — no props means the widget /charts ships', () => {
+      // The control. If scoping ever leaks into the unscoped branch, this reds
+      // while every scoped test above stays green.
+      render(<AiSearchWidget />)
+      expect(screen.getByText('Ask the markets anything')).toBeTruthy()
+      expect(screen.getByText('Why is SMCI moving today?')).toBeTruthy()
+      expect(screen.getByLabelText('Ask anything about the markets')).toBeTruthy()
+      expect(screen.getByLabelText('AI Search settings')).toBeTruthy()
+    })
+
+    it('clicking a scoped starter asks THAT question', async () => {
+      mockFetchOnce(200, GOOD)
+      render(<AiSearchWidget scope={SCOPE} chrome={false} />)
+      fireEvent.click(screen.getByText("How did AAPL's print go?"))
+      await waitFor(() => expect(global.fetch).toHaveBeenCalled())
+      const sent = JSON.parse(global.fetch.mock.calls[0][1].body)
+      expect(sent.query).toBe("How did AAPL's print go?")
+    })
+
+    it('hands a finished thread back, and restores one on a later mount', async () => {
+      // How the modal survives its own GATE c: it unmounts inactive panels, so
+      // leaving Ask AI and returning is a remount. The widget stays the only
+      // thing that BUILDS a turn — the caller only stores what it was handed.
+      mockFetchOnce(200, GOOD)
+      const onThread = vi.fn()
+      const { unmount } = render(<AiSearchWidget scope={SCOPE} chrome={false} onThread={onThread} />)
+      fireEvent.change(screen.getByLabelText('Ask anything about AAPL'), { target: { value: 'why?' } })
+      fireEvent.keyDown(screen.getByLabelText('Ask anything about AAPL'), { key: 'Enter' })
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Copy' })).toBeTruthy())
+
+      const handed = onThread.mock.calls.at(-1)[0]
+      expect(handed).toHaveLength(1)
+      expect(handed[0].q).toBe('why?')
+      unmount()
+
+      // Restored WITHOUT a fetch — this is a replay, not a re-ask.
+      global.fetch = vi.fn()
+      render(<AiSearchWidget scope={SCOPE} chrome={false} initialThread={handed} />)
+      expect(screen.getByText('why?')).toBeTruthy()
+      expect(global.fetch).not.toHaveBeenCalled()
+      // The empty state is gone, so the restore actually reached the render.
+      expect(screen.queryByText('Ask AI about AAPL')).toBeNull()
+    })
+
+    it('a restored turn does not collide with the next one on React keys', async () => {
+      // `++idRef.current` from 0 against a restored thread would hand turn 2 the
+      // key React already has on turn 1 — two turns, one rendered.
+      mockFetchOnce(200, GOOD)
+      const onThread = vi.fn()
+      render(<AiSearchWidget
+        scope={SCOPE} chrome={false} onThread={onThread}
+        initialThread={[{ id: 7, q: 'earlier', answer: 'prior answer', citations: [], related: [] }]}
+      />)
+      fireEvent.change(screen.getByLabelText('Ask anything about AAPL'), { target: { value: 'and now?' } })
+      fireEvent.keyDown(screen.getByLabelText('Ask anything about AAPL'), { key: 'Enter' })
+      // Wait on the COMMITTED turn, not the in-flight question label — the
+      // pending question renders at the tail while the answer is still loading.
+      await waitFor(() => expect(onThread.mock.calls.at(-1)[0]).toHaveLength(2))
+
+      const thread = onThread.mock.calls.at(-1)[0]
+      expect(new Set(thread.map(t => t.id)).size).toBe(2)
+      // Both turns on screen — a key collision renders two entries as one.
+      expect(screen.getByText('earlier')).toBeTruthy()
+      expect(screen.getByText('and now?')).toBeTruthy()
+    })
+  })
 })

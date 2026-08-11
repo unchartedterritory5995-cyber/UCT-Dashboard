@@ -6,6 +6,24 @@
 .rail { border-right: 1px solid var(--glass-border-neutral); background: var(--glass-chrome); }
 .canvas { min-width: 0; min-height: 0; overflow-y: auto; padding: var(--space-lg); }
 .canvas:focus-visible { outline: var(--focus-ring); outline-offset: -2px; }
+/* Ask AI only — a CHAT, not a document (see the data-section note in the JSX).
+   The canvas already ends up with a bounded height once the modal reaches its
+   max-height cap (measured: 452px at a 700px viewport rising to 700px at 1080),
+   but `overflow-y: auto` + an auto-height child means a long answer GROWS the
+   panel and scrolls the canvas instead — measured at 1288px of panel inside a
+   672px canvas, putting the ask bar 633px below the fold, with the widget's own
+   scrolling body never engaging. Making the canvas a flex column hands that
+   bound to the panel, so the chat body scrolls inside itself and the ask bar
+   stays put.
+
+   ⚠️ This bounds the DESKTOP/TABLET panes only, and that is deliberate. On the
+   phone the chain breaks above here — `.phoneBody` is `flex: 0 1 auto` inside
+   Sheet's own scroll container — so the panel keeps growing and the SHEET
+   scrolls, exactly like every other section. Don't "fix" that: a fixed-height
+   internal scroller inside a scrolling sheet is a nested scroll trap on touch,
+   and the ask bar simply follows the answer, which is the ordinary mobile chat
+   shape. Verified by scrolling the real sheet, not by reading this. */
+.canvas[data-section="ai"] { display: flex; flex-direction: column; overflow: hidden; flex: 1; }
 .footer { background: var(--glass-chrome); }
 .footerInner { display: flex; gap: var(--space-sm); align-items: center; width: 100%; }
 .btnChart, .btnReport { min-height: var(--tap-min); border-radius: var(--radius-md); border: 1px solid var(--glass-border-neutral); background: var(--glass-surface); color: var(--text-bright); font-size: var(--text-sm); padding: 0 var(--space-md); cursor: pointer; }
