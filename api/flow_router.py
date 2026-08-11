@@ -285,7 +285,7 @@ def bump_data_version() -> int:
     return _current_version()
 
 
-def _build_gzipped_csv(source: str, days, dates=None) -> bytes:
+def _build_gzipped_csv(source: str, days, dates=None, max_mktcap=None) -> bytes:
     """Stream the CSV generator through the gzip compressor, returning the
     full gzipped bytes.
 
@@ -309,7 +309,11 @@ def _build_gzipped_csv(source: str, days, dates=None) -> bytes:
     cap_days = int(os.environ.get("FLOW_CSV_CAP_DAYS", "20"))
     cap_rows = int(os.environ.get("FLOW_CSV_CAP_ROWS", "50000"))
     n_days = len(dates) if dates is not None else days
-    should_cap = (n_days is None) or (n_days >= cap_days)
+    # A small-cap-scoped stream (max_mktcap set) is UNCAPPED: the whole point is
+    # to keep every low-premium print of small names, which the market-wide
+    # top-N-by-premium cap drops. Small-cap volume is a tiny slice of the tape,
+    # so streaming it in full is cheap and can't OOM the browser.
+    should_cap = (max_mktcap is None) and ((n_days is None) or (n_days >= cap_days))
 
     # 2026-07-17: pass cap_rows through so SQLite does the top-N selection in C
     # (ORDER BY CAST(Premium AS REAL) DESC LIMIT ?). This router used to collect
@@ -323,11 +327,11 @@ def _build_gzipped_csv(source: str, days, dates=None) -> bytes:
     # ordered, same as the Python sort it replaces.
     cr = cap_rows if should_cap else None
     if dates is not None:
-        gen = db.stream_csv(source=source, dates=dates, cap_rows=cr)
+        gen = db.stream_csv(source=source, dates=dates, cap_rows=cr, max_mktcap=max_mktcap)
     elif days:
-        gen = db.stream_csv(source=source, days=days, cap_rows=cr)
+        gen = db.stream_csv(source=source, days=days, cap_rows=cr, max_mktcap=max_mktcap)
     else:
-        gen = db.stream_csv(source=source, cap_rows=cr)
+        gen = db.stream_csv(source=source, cap_rows=cr, max_mktcap=max_mktcap)
 
     buf = io.BytesIO()
     # compresslevel=1: ~60% faster than default level 6, ~10% larger output.
@@ -340,7 +344,7 @@ def _build_gzipped_csv(source: str, days, dates=None) -> bytes:
     return buf.getvalue()
 
 
-def _get_cached_or_build(source: str, days, dates=None) -> tuple:
+def _get_cached_or_build(source: str, days, dates=None, max_mktcap=None) -> tuple:
     """Returns (version, gzipped_csv_bytes) for (source, days), using the
     in-memory cache when version matches. LRU eviction at _RESPONSE_CACHE_MAX.
 
@@ -369,7 +373,9 @@ def _get_cached_or_build(source: str, days, dates=None) -> tuple:
     blocks on the lock and double-checks the cache on acquire."""
     version = _current_version()
     # dates makes the key: two different calendar ranges must not share an entry.
-    key = (source, days, tuple(dates) if dates is not None else None)
+    # max_mktcap too: the uncapped small-cap payload is a different body than the
+    # capped all-cap one for the same (source, days).
+    key = (source, days, tuple(dates) if dates is not None else None, max_mktcap)
     cached = _RESPONSE_CACHE.get(key)
     if cached and cached[0] == version:
         _RESPONSE_CACHE.move_to_end(key)  # touch — most recently used
@@ -391,7 +397,7 @@ def _get_cached_or_build(source: str, days, dates=None) -> tuple:
             c2 = _RESPONSE_CACHE.get(key)
             if c2 and c2[0] == _current_version():
                 return c2[0], c2[1]
-            return _store(_build_gzipped_csv(source, days, dates))
+            return _store(_build_gzipped_csv(source, days, dates, max_mktcap))
 
     # ── We hold the build lock. ────────────────────────────────────────────
     # A STALE-but-usable payload exists, so REFRESH IT OFF THE REQUEST PATH and
@@ -413,7 +419,7 @@ def _get_cached_or_build(source: str, days, dates=None) -> tuple:
     if cached:
         def _refresh_off_request_path():
             try:
-                _store(_build_gzipped_csv(source, days, dates))
+                _store(_build_gzipped_csv(source, days, dates, max_mktcap))
             except Exception:
                 pass   # keep serving the last good payload; never wedge the lock
             finally:
@@ -426,17 +432,17 @@ def _get_cached_or_build(source: str, days, dates=None) -> tuple:
         else:
             return cached[0], cached[1]
     try:
-        return _store(_build_gzipped_csv(source, days, dates))
+        return _store(_build_gzipped_csv(source, days, dates, max_mktcap))
     finally:
         _BUILD_LOCK.release()
 
 
-def _serve_csv(source: str, days, request: Request, dates=None):
+def _serve_csv(source: str, days, request: Request, dates=None, max_mktcap=None):
     """Build (or fetch cached) gzipped CSV and return as Response with
     appropriate encoding header. Always sets Content-Length implicitly via
-    Response so CF can cache."""
+    Response so CF can cache. `max_mktcap` scopes to uncapped small-cap flow."""
     try:
-        version, gzipped = _get_cached_or_build(source, days, dates)
+        version, gzipped = _get_cached_or_build(source, days, dates, max_mktcap)
     except Exception as e:
         return Response(content=f"Error: {e}", status_code=500, media_type="text/plain")
 
@@ -604,6 +610,26 @@ def get_flow_data(request: Request, _auth: dict = Depends(require_flow_user)):
     """
     days, dates = _resolve_request("stocks", request)
     return _serve_csv("stocks", days, request, dates=dates)
+
+
+@flow_router.get("/small-data")
+def get_flow_small_data(request: Request, _auth: dict = Depends(require_flow_user)):
+    """Serve UNCAPPED small-cap stock flow (0 < MktCap < ceiling) as gzipped CSV.
+
+    The bulk /data caps to the top-50k rows by premium, which drops most of a
+    small-cap's low-premium prints — AXTI's ~$63M of true 20-day bull flow
+    arrives as ~$22M capped, and its still-open collapses because the building
+    contracts are exactly the ones cut. Small-cap volume is a tiny slice of the
+    tape, so this streams in FULL. The Mid-Small cap-filter views (Leaderboard,
+    Market Read, Top Flow) load THIS so a small name's totals AND still-open
+    reflect its complete flow. Same ?days / ?date_from&date_to scoping as /data;
+    ?maxcap=<dollars> overrides the $10B ceiling."""
+    days, dates = _resolve_request("stocks", request)
+    try:
+        ceiling = float(request.query_params.get("maxcap") or 10_000_000_000)
+    except (ValueError, TypeError):
+        ceiling = 10_000_000_000.0
+    return _serve_csv("stocks", days, request, dates=dates, max_mktcap=ceiling)
 
 
 @flow_router.get("/indexes-data")

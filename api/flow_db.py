@@ -415,7 +415,8 @@ class FlowDB:
     # ── Streaming CSV (preferred for /api/flow/data) ────────────────────
 
     def stream_csv(self, source: str = "stocks", days: int | None = None,
-                   cap_rows: int | None = None, dates: list | None = None):
+                   cap_rows: int | None = None, dates: list | None = None,
+                   max_mktcap: float | None = None):
         """
         Generator that yields CSV chunks from the database.
 
@@ -457,6 +458,17 @@ class FlowDB:
                 f"WHERE source = ? AND CreatedDate IN ({placeholders})"
             )
             params = [source] + selected_dates
+
+            # Small-cap scope (uncapped small-name flow for the Mid-Small board):
+            # keep only rows whose MktCap is a real value BELOW the ceiling. We
+            # require MktCap > 0 rather than treating blank as small — a blank is
+            # almost always a gap-fill row of a BIG name (mktcap unresolved on that
+            # row), and including it would leak large-caps into the small-cap
+            # stream (the frontend then buckets that name Unknown -> Mid-Small on
+            # partial flow). Real small-caps carry a resolved cap (e.g. AXTI ~$4.9B).
+            if max_mktcap and max_mktcap > 0:
+                sql += " AND CAST(MktCap AS REAL) > 0 AND CAST(MktCap AS REAL) < ?"
+                params.append(float(max_mktcap))
 
             # Premium-ranked cap for large ranges. Premium is stored as TEXT,
             # so the ORDER BY MUST cast to a number — a lexical sort would rank
