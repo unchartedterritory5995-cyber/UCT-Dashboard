@@ -541,7 +541,7 @@ function ChartPane({
             {isBreadth && !mini && (
               <button
                 type="button"
-                className={breadthLineOn ? `${styles.breadthLineBtn} ${styles.breadthLineBtnActive}` : styles.breadthLineBtn}
+                className={styles.breadthLineBtn}
                 onClick={toggleBreadthLine}
                 title={breadthLineOn ? 'Switch to candlesticks' : 'Switch to line chart'}
                 aria-pressed={breadthLineOn}

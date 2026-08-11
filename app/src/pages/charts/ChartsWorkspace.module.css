@@ -618,15 +618,9 @@
   border-color: var(--accent, #c9a84c);
   background: rgba(201, 168, 76, 0.08);
 }
-.breadthLineBtnActive {
-  color: #0e0f0d;
-  background: var(--accent, #c9a84c);
-  border-color: var(--accent, #c9a84c);
-}
-.breadthLineBtnActive:hover {
-  color: #0e0f0d;
-  background: var(--accent, #c9a84c);
-}
+/* No distinct "active" (line-on) styling by design: the button's LABEL already
+   flips to CANDLES when line mode is on, so both states share the one look above
+   (transparent bg, muted text). aria-pressed still carries the state to AT. */
 
 /* Market Cap + Next Earnings labels, in the space right of the timeframes. */
 .chartMeta {
