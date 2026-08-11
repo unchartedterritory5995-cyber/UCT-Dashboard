@@ -120,6 +120,42 @@ describe('notion adapter — CSV hand-parser', () => {
   })
 })
 
+describe('notion adapter — duplicate stripped-name collision', () => {
+  it('regenerates distinct importKeys (keeping the hex id) for pages that strip to the same key, and warns naming the titles', async () => {
+    const HEX_A = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+    const HEX_B = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'
+    const { docs, warnings } = await notionAdapter.parse([
+      vf(`Untitled ${HEX_A}.md`, 'no heading here'),
+      vf(`Untitled ${HEX_B}.md`, 'no heading either'),
+      vf(`Unique Page ${HEX}.md`, '# Real Title'),
+    ])
+    expect(docs).toHaveLength(3)
+
+    const untitled = docs.filter((d) => d.title === 'Untitled')
+    expect(untitled).toHaveLength(2)
+    const untitledKeys = untitled.map((d) => d.importKey)
+    // distinct — no longer collapse to the same key
+    expect(new Set(untitledKeys).size).toBe(2)
+    expect(untitledKeys).toContain(`notion:Untitled ${HEX_A}.md`)
+    expect(untitledKeys).toContain(`notion:Untitled ${HEX_B}.md`)
+
+    // the third, non-colliding doc keeps its clean, stable key
+    const unique = docs.find((d) => d.title === 'Real Title')
+    expect(unique.importKey).toBe('notion:Unique Page.md')
+
+    expect(warnings.join(' ')).toMatch(/Untitled/)
+  })
+
+  it('does not touch importKeys when there is no collision', async () => {
+    const { docs, warnings } = await notionAdapter.parse([
+      vf(`Alpha ${HEX}.md`, '# Alpha'),
+      vf(`Beta ${HEX2}.md`, '# Beta'),
+    ])
+    expect(docs.map((d) => d.importKey).sort()).toEqual(['notion:Alpha.md', 'notion:Beta.md'])
+    expect(warnings).toEqual([])
+  })
+})
+
 describe('notion adapter — detect (0.7 tier: index.html beside a hex-suffixed dir)', () => {
   it('scores 0.7 when index.html and a hex-suffixed dir are DIRECT siblings', () => {
     const score = notionAdapter.detect([

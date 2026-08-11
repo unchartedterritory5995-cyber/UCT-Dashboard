@@ -180,7 +180,10 @@ const MIME_BY_EXT = {
   mp3: 'audio/mpeg',
   m4a: 'audio/mp4',
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.document',
+  // Real xlsx MIME is "...spreadsheetml.sheet", not "...document" (that was
+  // a copy-paste typo off the docx entry above). The server now accepts
+  // both, but send the correct one.
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 }
 
 function extOf(name) {
@@ -254,9 +257,24 @@ export async function runImport({ source, destFolderId, docs, onProgress }) {
     }
 
     if (networkError || !res.ok) {
-      const reason = networkError
-        ? (networkError?.message || String(networkError))
-        : `HTTP ${res.status}`
+      let reason
+      if (networkError) {
+        reason = networkError?.message || String(networkError)
+      } else {
+        // Best-effort: surface the server's own explanation (FastAPI's
+        // {detail: "..."} error shape) instead of a bare status code, so a
+        // real cause (e.g. a DB error, a validation failure the client-side
+        // preview couldn't catch) is visible in the summary instead of just
+        // "HTTP 500".
+        let detail = null
+        try {
+          const body = await res.json()
+          detail = typeof body?.detail === 'string' ? body.detail : null
+        } catch {
+          // non-JSON body — fall back to the bare status
+        }
+        reason = detail ? `HTTP ${res.status}: ${detail}` : `HTTP ${res.status}`
+      }
       summary.failedBatch = {
         index: batchIndex,
         notes: batch.length,

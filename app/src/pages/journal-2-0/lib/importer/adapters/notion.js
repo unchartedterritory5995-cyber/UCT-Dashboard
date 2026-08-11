@@ -106,6 +106,10 @@ async function parse(vfiles, opts = {}) {
   })
 
   const docs = []
+  // Parallel to `docs` — the RAW (unstripped) source path that produced each
+  // doc, kept only to disambiguate an importKey collision below (docs
+  // themselves never carry it).
+  const rawPaths = []
   let done = 0
   for (const vfile of items) {
     try {
@@ -114,7 +118,10 @@ async function parse(vfiles, opts = {}) {
         ext === 'csv'
           ? await makeCsvDoc(vfile, warnings)
           : await makePageDoc(vfile, ext, byPath, shadow)
-      if (doc) docs.push(doc)
+      if (doc) {
+        docs.push(doc)
+        rawPaths.push(vfile.path)
+      }
     } catch (err) {
       warnings.push(`Could not import "${vfile.path}": ${err?.message || err}`)
     }
@@ -122,7 +129,50 @@ async function parse(vfiles, opts = {}) {
     onProgress?.({ phase: 'parsing', done, total: items.length })
   }
 
+  warnings.push(...resolveImportKeyCollisions(docs, rawPaths))
+
   return { docs, warnings }
+}
+
+// ---------------------------------------------------------------------------
+// duplicate stripped-importKey collision handling
+// ---------------------------------------------------------------------------
+
+/**
+ * Two distinct Notion pages can strip to the SAME importKey — e.g. two
+ * same-directory pages named "Untitled" by their author, exported as
+ * `Untitled <hexA>.md` / `Untitled <hexB>.md`. Both strip to
+ * `notion:<dir>/Untitled.md`, and import_confirm keys upserts on importKey —
+ * so without this, the second one silently UPDATEs (overwrites) the first
+ * within a single confirm, losing its content with no error.
+ *
+ * For every colliding group, regenerate every doc's importKey using its RAW
+ * (unstripped) source path, so the hex id that made the page unique in the
+ * export makes its importKey unique too. Non-colliding docs are untouched —
+ * they keep their clean, re-export-stable keys. Mutates `docs` in place;
+ * returns warning strings naming the affected titles.
+ */
+function resolveImportKeyCollisions(docs, rawPaths) {
+  const groups = new Map()
+  docs.forEach((d, i) => {
+    if (!groups.has(d.importKey)) groups.set(d.importKey, [])
+    groups.get(d.importKey).push(i)
+  })
+
+  const warnings = []
+  for (const [key, idxs] of groups) {
+    if (idxs.length <= 1) continue
+    for (const i of idxs) {
+      docs[i].importKey = `notion:${rawPaths[i]}`
+    }
+    const titles = idxs.map((i) => docs[i].title).join(', ')
+    warnings.push(
+      `Multiple pages ("${titles}") share the same name and location, so they ` +
+        `would have collapsed into one note on import (key ${key}). Kept them ` +
+        'separate using their Notion page ids.'
+    )
+  }
+  return warnings
 }
 
 // ---------------------------------------------------------------------------

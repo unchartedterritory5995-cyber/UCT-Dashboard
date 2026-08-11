@@ -247,8 +247,12 @@ export default function FolderSidebar({
 
   const onDelete = async (id, name) => {
     if (!confirm(`Delete folder "${name}"? Subfolders and notes move up one level.`)) return
-    await remove(id)
-    if (activeFolderId === id) onSelectFolder(null)
+    try {
+      await remove(id)
+      if (activeFolderId === id) onSelectFolder(null)
+    } catch (err) {
+      alert(String(err.message || err))
+    }
   }
 
   const addForm = {

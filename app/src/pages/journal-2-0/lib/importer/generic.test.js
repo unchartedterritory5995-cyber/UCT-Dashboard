@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { genericAdapter } from './adapters/generic'
+import { genericAdapter, dataUriMimeToExt } from './adapters/generic'
 
 const vf = (path, text) => ({
   path, size: text.length, lastModified: 1710000000000,
@@ -172,7 +172,7 @@ describe('generic adapter — TextBundle', () => {
 })
 
 describe('generic adapter — .docx', () => {
-  it('converts via mammoth and lifts a base64 embedded image into a media entry', async () => {
+  it('converts via mammoth and lifts a base64 embedded image into a media entry named with its real extension', async () => {
     vi.doMock('mammoth', () => ({
       convertToHtml: vi.fn(async () => ({
         value: '<h1>From Word</h1><p>hello</p>' +
@@ -184,9 +184,41 @@ describe('generic adapter — .docx', () => {
     const { docs } = await genericAdapter.parse([docxVf])
     const doc = docs[0]
     expect(doc.title).toBe('From Word')
-    expect(doc.html).toContain('import-ref://docx-img-1')
+    // vfile path, media ref/name, and the import-ref:// URL must all agree
+    expect(doc.html).toContain('import-ref://docx-img-1.png')
     expect(doc.html).not.toContain('data:image')
-    expect(doc.media[0]).toMatchObject({ ref: 'docx-img-1', kind: 'image' })
+    expect(doc.media[0]).toMatchObject({ ref: 'docx-img-1.png', name: 'docx-img-1.png', kind: 'image' })
+    expect(doc.media[0].vfile.path).toBe('docx-img-1.png')
     vi.doUnmock('mammoth')
+  })
+
+  it('keeps the bare synthetic name when the data-URI MIME is not a recognized image type', async () => {
+    vi.doMock('mammoth', () => ({
+      convertToHtml: vi.fn(async () => ({
+        value: '<img src="data:application/octet-stream;base64,AAAA">',
+        messages: [],
+      })),
+    }))
+    const docxVf = { path: 'Vault/weird.docx', size: 4, lastModified: null, bytes: async () => new Uint8Array([1, 2, 3, 4]) }
+    const { docs } = await genericAdapter.parse([docxVf])
+    expect(docs[0].html).toContain('import-ref://docx-img-1"')
+    expect(docs[0].media[0]).toMatchObject({ ref: 'docx-img-1', name: 'docx-img-1' })
+    vi.doUnmock('mammoth')
+  })
+})
+
+describe('dataUriMimeToExt', () => {
+  it('maps known image MIME types to extensions', () => {
+    expect(dataUriMimeToExt('image/png')).toBe('png')
+    expect(dataUriMimeToExt('image/jpeg')).toBe('jpg')
+    expect(dataUriMimeToExt('image/gif')).toBe('gif')
+    expect(dataUriMimeToExt('image/webp')).toBe('webp')
+    expect(dataUriMimeToExt('IMAGE/PNG')).toBe('png') // case-insensitive
+  })
+
+  it('returns null for an unknown or missing MIME type', () => {
+    expect(dataUriMimeToExt('application/octet-stream')).toBeNull()
+    expect(dataUriMimeToExt('')).toBeNull()
+    expect(dataUriMimeToExt(undefined)).toBeNull()
   })
 })

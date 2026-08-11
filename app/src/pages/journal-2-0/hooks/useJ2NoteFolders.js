@@ -40,7 +40,10 @@ export default function useJ2NoteFolders() {
     const res = await fetch(`${url}/${id}`, {
       method: 'DELETE', credentials: 'include',
     })
-    if (!res.ok) throw new Error(`${res.status}`)
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.detail || `${res.status}`)
+    }
     await mutate()
   }
   return { folders, isLoading, error, refresh: () => mutate(), create, rename, remove }

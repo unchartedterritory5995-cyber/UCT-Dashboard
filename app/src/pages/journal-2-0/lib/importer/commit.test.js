@@ -164,7 +164,9 @@ describe('runImport', () => {
     expect(summary.failedBatch).toEqual({
       index: 1,
       notes: 1,
-      reason: 'HTTP 500',
+      // the server's {detail: "db down"} body must surface, not just the
+      // bare status code
+      reason: 'HTTP 500: db down',
       message: expect.stringContaining('Batch 2 failed'),
     })
     expect(summary.failedBatch.message).toMatch(/resumes where it stopped/)
@@ -252,6 +254,33 @@ describe('runImport', () => {
     expect(capturedFile).toBeTruthy()
     expect(capturedFile.type).toBe('image/png')
     expect(capturedFile.name).toBe('chart.png')
+  })
+
+  it('derives the real xlsx MIME (spreadsheetml.sheet, not .document)', async () => {
+    let capturedFile = null
+    vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+      if (url.endsWith('/import/confirm')) {
+        return new Response(JSON.stringify({
+          created: [{ importKey: 'file:a.md', id: 'n1' }], updated: [], skipped: [] }))
+      }
+      if (url.includes('/attachments')) {
+        capturedFile = opts.body.get('file')
+        return new Response(JSON.stringify({ url: '/files/1', name: 'book.xlsx', size: 1 }))
+      }
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+    await runImport({
+      source: 'file', destFolderId: null,
+      docs: [{ importKey: 'file:a.md', title: 'A', tags: [], folderPath: [],
+               bodyJson: doc([{ type: 'attachmentChip', attrs: { href: 'import-ref://book.xlsx', name: 'book.xlsx' } }]),
+               bodyPlain: 'x',
+               media: [{ ref: 'book.xlsx', kind: 'file', name: 'book.xlsx',
+                         vfile: { bytes: async () => new Uint8Array([1]), path: 'book.xlsx' } }],
+               links: [] }],
+      onProgress: () => {},
+    })
+    expect(capturedFile).toBeTruthy()
+    expect(capturedFile.type).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
   })
 
   it('falls back to the vfile path extension when the media item name has none', async () => {

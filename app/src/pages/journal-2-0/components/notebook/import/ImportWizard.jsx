@@ -694,7 +694,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
               </ul>
               {summaryResult.failedBatch && (
                 <p className={styles.crashDetail}>
-                  Some notes could not be saved: {summaryResult.failedBatch.reason}
+                  {summaryResult.failedBatch.message} ({summaryResult.failedBatch.reason})
                 </p>
               )}
               {summaryResult.failures?.length > 0 && (

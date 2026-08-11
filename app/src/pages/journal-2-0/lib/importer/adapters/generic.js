@@ -167,11 +167,33 @@ async function convertDocx(vfile) {
   return { html, media, warnings }
 }
 
+// Data-URI MIME -> file extension, for the synthetic docx-img-N vfiles
+// below. Only the image MIMEs the server's upload allowlist recognizes
+// (_ALLOWED_IMAGE_MIMES in api/services/journal_two/notes.py) — an unknown
+// MIME maps to `null` so the caller keeps the bare, extension-less name
+// rather than guess wrong.
+const DATA_URI_MIME_EXT = {
+  'image/png': 'png',
+  'image/jpeg': 'jpg',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+}
+
+export function dataUriMimeToExt(mime) {
+  return DATA_URI_MIME_EXT[String(mime || '').toLowerCase()] || null
+}
+
 /**
  * mammoth's default image handling embeds images as base64 data URIs. Pull
- * each one out into a synthetic VFile (`docx-img-N`) so it flows through the
- * same media/upload pipeline as every other attachment, and swap the <img>
- * src for the same import-ref:// placeholder scheme used elsewhere.
+ * each one out into a synthetic VFile named `docx-img-N.<ext>` (extension
+ * derived from the data-URI's own MIME — the synthetic vfile had no
+ * filename to read one from, so without this the upload pipeline's
+ * extension-based MIME sniff (`mimeForName` in commit.js) always fell back
+ * to octet-stream and the server 400'd every docx-embedded image) so it
+ * flows through the same media/upload pipeline as every other attachment,
+ * and swap the <img> src for the same import-ref:// placeholder scheme used
+ * elsewhere. The vfile path, the media entry's ref/name, and the
+ * import-ref:// URL all use the SAME name so nothing can drift apart.
  */
 function extractDocxImages(html) {
   const doc = new DOMParser().parseFromString(html, 'text/html')
@@ -183,7 +205,8 @@ function extractDocxImages(html) {
     if (!match) return
     counter += 1
     const bytes = base64ToBytes(match[2])
-    const name = `docx-img-${counter}`
+    const ext = dataUriMimeToExt(match[1])
+    const name = ext ? `docx-img-${counter}.${ext}` : `docx-img-${counter}`
     const syntheticVfile = {
       path: name,
       size: bytes.length,

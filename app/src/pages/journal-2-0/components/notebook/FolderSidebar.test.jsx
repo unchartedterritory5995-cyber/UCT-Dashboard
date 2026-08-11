@@ -1,6 +1,8 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
 import FolderSidebar, { buildFolderTree } from './FolderSidebar'
+
+const removeMock = vi.fn()
 
 vi.mock('../../hooks/useJ2NoteFolders', () => ({
   default: () => ({
@@ -9,7 +11,7 @@ vi.mock('../../hooks/useJ2NoteFolders', () => ({
       { id: 'b', name: 'Setups', parentId: 'a', sortOrder: 0 },
       { id: 'c', name: 'Journal', parentId: null, sortOrder: 1 },
     ],
-    create: vi.fn(), rename: vi.fn(), remove: vi.fn(), refresh: vi.fn(),
+    create: vi.fn(), rename: vi.fn(), remove: removeMock, refresh: vi.fn(),
   }),
 }))
 
@@ -35,5 +37,27 @@ describe('folder tree', () => {
     // collapsing again hides the child once more
     fireEvent.click(screen.getByLabelText('Collapse Trading'))
     expect(screen.queryByText('Setups')).not.toBeInTheDocument()
+  })
+})
+
+describe('folder delete error surfacing', () => {
+  beforeEach(() => {
+    removeMock.mockReset()
+  })
+
+  it('alerts with the server-provided detail when deleting a folder fails, instead of an unhandled rejection', async () => {
+    const detail = 'cannot delete: a folder named \'Setups\' already exists at the destination — rename it first'
+    removeMock.mockRejectedValueOnce(new Error(detail))
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {})
+
+    render(<FolderSidebar notes={[]} activeFolderId={null} onSelectFolder={() => {}}
+                          activeTag={null} onSelectTag={() => {}} />)
+
+    const journalButton = screen.getByText('Journal').closest('button')
+    fireEvent.click(within(journalButton).getByTitle('Delete folder'))
+
+    await waitFor(() => expect(alertSpy).toHaveBeenCalledWith(detail))
+    expect(removeMock).toHaveBeenCalledWith('c')
   })
 })
