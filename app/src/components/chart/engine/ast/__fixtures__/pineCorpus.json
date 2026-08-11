@@ -22,8 +22,8 @@
     "selectedFormula": null,
     "refusal": {
       "guard": "pine:state",
-      "line": 87,
-      "column": 70,
+      "line": 88,
+      "column": 41,
       "token": "["
     },
     "perOutputRefusals": {

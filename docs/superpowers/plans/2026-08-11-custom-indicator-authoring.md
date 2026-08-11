@@ -197,6 +197,15 @@ piece of work for a session with room to finish and mutation-check it.
 ONLY at `pine:tuple` should clear — `02-ict-retracement` is the corpus candidate,
 and the Butterworth Spectral Trend the owner supplied needs this plus nothing
 else structural. Re-measure with the intake bench; do not assume.
+- **2.3a ✅ SHIPPED — a `var` reading its own past inside its own update.**
+  `s := cond ? 1 : s[1]` translates. ⛔ Pine counts from ONE and the accumulator
+  counts from ZERO: `s[1]` IS `self`, `s[2]` is `self[1]`. The rail asserts the
+  two spellings produce the IDENTICAL tree, because an off-by-one here reads a
+  bar too far back on every bar and nothing about the output looks wrong.
+  ⚠️ Corpus unmoved at 10/21 — script 02's refusal walked from line 87 to line 88.
+  The next wall is a state's `[1]` read from outside its update but INSIDE a
+  user-defined function, which the isolated shape handles and the real script
+  does not; that difference is the next thing to measure.
 - **2.3 Conditional reassignment** — a `var` updated inside an `if`, which is what
   produced the dead accumulator this session.
 - **2.4 Session/`time` builtins.**

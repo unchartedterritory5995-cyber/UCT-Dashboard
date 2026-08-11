@@ -1496,6 +1496,21 @@ class Resolver {
         return cOp('?:', [test, this.resolve(node.yes), this.resolve(node.no)])
       }
       case 'offset': {
+        // ⭐ A STATE VARIABLE READING ITS OWN PAST INSIDE ITS OWN UPDATE. This is
+        // the single most common `pine:state` refusal in the corpus —
+        // `entry_signal := cond ? 1 : entry_signal[1]` — and the engine has taken
+        // `self[n]` since the multi-lag recurrence landed. Only the translator
+        // was missing, so this maps Pine's 1-based count onto the accumulator's
+        // 0-based one and hands the result to the arm that already exists.
+        const lag = this.selfOffsetLag(node)
+        if (lag !== null) {
+          const spec = this.table.functions.accum
+          if (!spec) {
+            throw new PineRefusal('pine:state', REFUSALS['pine:state'], locate(node.tok))
+          }
+          const base = cSeries(spec.recurrence.binds)
+          return lag === 0 ? base : { type: 'offset', value: lag, args: [base] }
+        }
         this.guardOffsetOfMutable(node)
         // ⭐ THE CHILD RESOLVES FIRST, so `ta.sma(close, 20)[2]` and `close[2]`
         // reach the seam the same way and nesting needs no special case.
@@ -1526,6 +1541,30 @@ class Resolver {
    * `var` handler marks it — but `x = 0.0` / `x := nz(x[1]) + volume` carries no
    * `var` at all and is just as much an accumulator, and this is what catches it.
    */
+  /** `s[k]` INSIDE `s`'s OWN UPDATE — the lag it means, or `null`.
+   *
+   *  ⭐⭐ PINE COUNTS FROM ONE HERE AND THIS ENGINE COUNTS FROM ZERO, and getting
+   *  that wrong would be silent. Inside `s := … s[1] …`, Pine's `s[1]` is the
+   *  value `s` held on the PREVIOUS BAR — which is exactly what the accumulator's
+   *  own `self` already is. So `s[1]` is `self`, `s[2]` is `self[1]`, and the
+   *  answer is `k - 1`. ⛔ The rail asserts `s[1]` produces the IDENTICAL tree to
+   *  bare `s`; an off-by-one here reads a bar too far back on every bar.
+   *
+   *  ⛔ ONLY WHEN THE NAME IN SCOPE IS THE SELF-REFERENCE. Outside its own
+   *  update the same spelling means something else entirely, and
+   *  `guardOffsetOfMutable` below is what keeps answering that question. */
+  selfOffsetLag(node) {
+    if (!(node.n >= 1) || !node.arg || node.arg.type !== 'name') return null
+    const bound = this.env.get(node.arg.name)
+    // ⛔ `kind !== 'expr'` is REDUNDANT with the `selfref` test below and is kept
+    // as a cheap early exit, not as a guard — the mutation harness proved it:
+    // removing it changed no behaviour, because a `state`/`fn`/`opaque` binding
+    // carries no `.node` to be a selfref in the first place. Said here so nobody
+    // later mistakes it for the thing keeping this correct.
+    if (!bound || bound.kind !== 'expr') return null
+    return bound.node && bound.node.type === 'selfref' ? node.n - 1 : null
+  }
+
   guardOffsetOfMutable(node) {
     if (!(node.n >= 1) || node.arg.type !== 'name') return
     const name = node.arg.name

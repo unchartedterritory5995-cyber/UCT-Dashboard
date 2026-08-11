@@ -100,3 +100,52 @@ plot(a)`)
     expect(one(src).ok).toBe(false)
   })
 })
+
+// ─── A STATE VARIABLE READING ITS OWN PAST ──────────────────────────────────
+//
+// ⭐ `entry_signal := cond ? 1 : entry_signal[1]` is the most common `pine:state`
+// refusal in the corpus. The ENGINE has taken `self[n]` since the multi-lag
+// recurrence landed; only the translator was missing.
+//
+// ⛔⛔ PINE COUNTS FROM ONE AND THIS ENGINE COUNTS FROM ZERO. Inside `s`'s own
+// update, Pine's `s[1]` is the value `s` held on the PREVIOUS BAR — which is
+// exactly what the accumulator's `self` already is. `s[1]` is `self`; `s[2]` is
+// `self[1]`. An off-by-one here reads one bar too far back on every single bar
+// and nothing about the output would look wrong.
+describe('a `var` may read its own previous bar inside its own update', () => {
+  const state = (update, plot = 's') =>
+    one(`${head}var s = 0\ns := ${update}\nplot(${plot})`)
+
+  it('🔴 `s[1]` IS `self` — the identical tree to the bare spelling', () => {
+    // ⛔ THE OFF-BY-ONE, ASSERTED AS AN EQUALITY rather than by eyeballing a
+    // formula. Two spellings of one thing must produce one tree.
+    const bare = state('close > open ? 1 : s')
+    const indexed = state('close > open ? 1 : s[1]')
+    expect(bare.ok && indexed.ok).toBe(true)
+    expect(indexed.formula).toBe(bare.formula)
+    expect(indexed.formula).toContain(': self,')
+  })
+
+  it('`s[2]` is `self[1]` — one further back, not two', () => {
+    expect(state('close > open ? 1 : s[2]').formula).toContain(': self[1],')
+  })
+
+  it("⭐ the corpus's `exrem` shape translates, both halves of it", () => {
+    // `entry_signal := c1 ? 1 : c2 ? -1 : entry_signal[1]` and then
+    // `entry_signal != entry_signal[1]` — the second reads the state's past from
+    // OUTSIDE the update, which already worked by inlining the whole column.
+    const r = one(`${head}var e = 0\ne := close > open ? 1 : close < open ? -1 : e[1]\n`
+      + 'plot(e != e[1] ? 1 : 0)')
+    expect(r.ok, r.guard).toBe(true)
+    expect(r.formula).toContain('accum(')
+  })
+
+  it('⛔ a name reassigned LATER still refuses its own `[1]` — order matters', () => {
+    // Pine's `x[1]` is the previous bar's LAST assignment. When a read happens
+    // before a reassignment further down, offsetting the binding in scope would
+    // answer a different question, so it keeps refusing at `pine:state`.
+    const r = one(`${head}x = close + open\ny = nz(x[1], x)\nif close > 0\n    x := close\nplot(y)`)
+    expect(r.ok).toBe(false)
+    expect(r.guard).toBe('pine:state')
+  })
+})
