@@ -239,4 +239,8 @@ def test_import_confirm_is_atomic(conn):
                        "tags": [], "folderPath": []}]}
     with pytest.raises(notes_svc.NoteValidationError):
         notes_svc.import_confirm("u1", bad, conn=conn)
+    # Verify rollback: no notes exist
     assert notes_svc.import_check("u1", ["x:ok"], conn=conn)["existing"] == {}
+    # Verify rollback: no folders were created either
+    folders = {f["name"] for f in notes_svc.list_folders("u1", conn=conn)}
+    assert "Inbox" not in folders

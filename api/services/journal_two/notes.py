@@ -196,7 +196,10 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
     notes = payload["notes"]
     if len(notes) > 500:
         raise NoteValidationError("too many notes in one batch (max 500)")
-    source = (payload.get("source") or "file")[:40]
+    raw_source = payload.get("source")
+    if raw_source is not None and not isinstance(raw_source, str):
+        raise NoteValidationError("source must be a string")
+    source = (raw_source or "file")[:40]
     dest = payload.get("destFolderId") or ""
     owned = conn is None
     conn = conn or get_connection()
@@ -207,6 +210,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
             if not ok:
                 raise NoteValidationError("destination folder not found")
         created, updated, skipped = [], [], []
+        # One import operation = one imported_at timestamp, deliberate
         now = _now_iso()
         path_cache: dict[tuple, str] = {}
         for n in notes:
@@ -591,7 +595,8 @@ def create_folder(
             )
         except sqlite3.IntegrityError:
             raise NoteValidationError("folder with that name already exists")
-        conn.commit()
+        if owned:
+            conn.commit()
         row = conn.execute(
             "SELECT * FROM j2_note_folders WHERE id = ?", (new_id,)
         ).fetchone()
@@ -641,7 +646,8 @@ def update_folder(
             )
         except sqlite3.IntegrityError:
             raise NoteValidationError("folder with that name already exists")
-        conn.commit()
+        if owned:
+            conn.commit()
         row = conn.execute(
             "SELECT * FROM j2_note_folders WHERE id = ?", (folder_id,)
         ).fetchone()
@@ -689,7 +695,8 @@ def delete_folder(
         conn.execute(
             "UPDATE j2_note_folders SET parent_id = ? WHERE parent_id = ? AND user_id = ?",
             (parent, folder_id, user_id))
-        conn.commit()
+        if owned:
+            conn.commit()
         return cur.rowcount > 0
     finally:
         if owned:

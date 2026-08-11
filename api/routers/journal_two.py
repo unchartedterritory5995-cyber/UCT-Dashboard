@@ -1326,7 +1326,10 @@ def list_notes_endpoint(
 
 @router.post("/notes/import/check")
 def notes_import_check_endpoint(payload: dict[str, Any], user: dict = Depends(get_current_user)):
-    return notes_service.import_check(user["id"], payload.get("importKeys") or [])
+    import_keys = payload.get("importKeys")
+    if import_keys is not None and not isinstance(import_keys, list):
+        raise HTTPException(status_code=400, detail="importKeys must be a list")
+    return notes_service.import_check(user["id"], import_keys or [])
 
 
 @router.post("/notes/import/confirm")
