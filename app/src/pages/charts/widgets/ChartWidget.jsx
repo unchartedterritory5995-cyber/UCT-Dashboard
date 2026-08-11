@@ -7,6 +7,7 @@ import useWatchlistAlerts from '../../../hooks/useWatchlistAlerts'
 import AiSearchWidget from './AiSearchWidget'
 import UIcon from '../../../components/ui/UIcon'
 import LeverageInverseControl from './LeverageInverseControl'
+import ViewHoldingsControl from './ViewHoldingsControl'
 import styles from '../ChartsWorkspace.module.css'
 import ChartTabStrip from './ChartTabStrip'
 import {
@@ -326,6 +327,10 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                   candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }}
                 />
               )}
+              {/* ETF-only: takes the (absent) leverage pill's seat and opens a floating
+                  live watchlist of the fund's holdings. Mutually exclusive with the
+                  leverage pill — a symbol is a stock-with-family OR an ETF, never both. */}
+              {!isThemeIndex && <ViewHoldingsControl sym={sym} />}
               {/* Add-tab entry point — only when the strip isn't showing yet (0
                   extra tabs). Once a tab exists, the strip's own + button takes over. */}
               {extraTabs.length === 0 && (

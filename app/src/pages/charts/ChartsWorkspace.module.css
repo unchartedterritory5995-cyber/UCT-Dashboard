@@ -597,9 +597,10 @@
   gap: 5px;
   /* Match the leverage / session (Include Pre-Market) pills exactly: 10px/700/
      0.5px caps, 3px vertical padding (~21px tall), 1px border, 4px radius. The
-     margin-right mirrors the leverage pill's .wrap so, taking the pill's seat on
-     a breadth chart, this button's right edge lands on the leverage pill's. */
-  margin-right: 10px;
+     margin-right takes the leverage pill's seat on a breadth chart; tuned a touch
+     wider than the pill's 10px (eyeballed) so the LINE button's right edge lines up
+     with the session toggle's right edge on the row above. */
+  margin-right: 14px;
   padding: 3px 9px;
   flex-shrink: 0;
   font-size: 10px;
@@ -621,6 +622,33 @@
 /* No distinct "active" (line-on) styling by design: the button's LABEL already
    flips to CANDLES when line mode is on, so both states share the one look above
    (transparent bg, muted text). aria-pressed still carries the state to AT. */
+
+/* "View Holdings" button (ETF charts) — same pill look/size as the leverage &
+   session pills, in the leverage pill's seat. margin-right 10px matches the
+   leverage pill's .wrap so its right edge lands on the session toggle's. */
+.viewHoldingsBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: 10px;
+  padding: 3px 9px;
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  background: transparent;
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 4px;
+  color: var(--widget-text, var(--text-muted, #6b7280));
+  cursor: pointer;
+  transition: color 120ms, background 120ms, border-color 120ms;
+}
+.viewHoldingsBtn:hover {
+  color: var(--accent, #c9a84c);
+  border-color: var(--accent, #c9a84c);
+  background: rgba(201, 168, 76, 0.08);
+}
 
 /* Market Cap + Next Earnings labels, in the space right of the timeframes. */
 .chartMeta {

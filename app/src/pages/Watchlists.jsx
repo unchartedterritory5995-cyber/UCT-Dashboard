@@ -91,6 +91,8 @@ const COL_META = {
   periodchg: { def: 84, min: 58 },
   // Custom-Period Sort GROUP rows: how many stocks are in the theme/sector/industry.
   grpcount: { def: 60, min: 44 },
+  // View Holdings (ETF): the holding's weight in the fund (fed via metaOverride).
+  weight: { def: 74, min: 50 },
 }
 const DEFAULT_COL_ORDER = ['flag', 'sym', 'price', 'vol', 'chg']   // reorderable by dragging a header
 // [full label, abbreviation] + the min column width to still show the full word.
@@ -105,11 +107,12 @@ const COL_LABELS = {
   perf5d: ['5-Day', '5-day'], perf30d: ['30-Day', '30-day'], perf60d: ['60-Day', '60-day'], perf90d: ['90-Day', '90-day'],
   periodchg: ['% Change', '% Chg'],
   grpcount: ['Stocks', 'Stocks'],
+  weight: ['Weight %', 'Wt %'],
 }
 const COL_FULL_MINW = {
   sym: 62, name: 140, price: 46, vol: 60, chg: 80, rvol: 52, ipoDate: 60, mcap: 78, earn: 108, rating: 82,
   dchg: 84, fromopen: 92, fromhigh: 92, fromlow: 88, dcr: 40, dolvol: 92,
-  sector: 40, industry: 40, theme: 40, perf5d: 40, perf30d: 40, perf60d: 40, perf90d: 40, periodchg: 40, grpcount: 40,
+  sector: 40, industry: 40, theme: 40, perf5d: 40, perf30d: 40, perf60d: 40, perf90d: 40, periodchg: 40, grpcount: 40, weight: 56,
 }
 // Extra data columns the user can ADD via the + button (not shown by default).
 const EXTRA_COLS = [
@@ -309,6 +312,7 @@ const WatchRow = React.memo(function WatchRow({
   dchg = null, fromOpen = null, fromHigh = null, fromLow = null, dcr = null, dolvol = null, rvol = null,
   coName = null, sector = null, industry = null, theme = null,
   perf5d = null, perf30d = null, perf60d = null, perf90d = null, periodchg = null,
+  weight = null,
   isOwner, wlId,
   onSelect, onToggleFlag, onIntent, onCtx,
   // Custom-Period Sort GROUP rows (theme/sector/industry): a group row has no logo/flag,
@@ -406,6 +410,8 @@ const WatchRow = React.memo(function WatchRow({
     if (key === 'periodchg') return pctCell('periodchg', periodchg)
     // Stock-count of a theme/sector/industry (group rows only; blank for stocks).
     if (key === 'grpcount') return <span key="grpcount" className={styles.metaCell}>{grpcount != null ? grpcount : ''}</span>
+    // ETF holding weight % (View Holdings panel; fed via metaOverride).
+    if (key === 'weight') return <span key="weight" className={styles.metaCell}>{weight != null ? `${weight.toFixed(2)}%` : '—'}</span>
     return null
   }
   return (
@@ -1529,6 +1535,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
       if (key === 'mcap') return parseMcap(m?.market_cap)
       if (key === 'earn') return earnSortValue(m?.next_earnings)
       if (key === 'rating') return Number.isFinite(Number(m?.composite)) ? Number(m.composite) : null
+      if (key === 'weight') return Number.isFinite(m?.weight) ? m.weight : null
       return 0
     }
     // Text columns sort alphabetically off the meta / theme batch.
@@ -1709,6 +1716,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         perf90d={perfLive('90d')}
         periodchg={perfLive('period')}
         grpcount={metaData[sym]?.group_count ?? null}
+        weight={metaData[sym]?.weight ?? null}
         flagged={isFlagged(sym)}
         selected={selectedSym === sym}
         orderedKeys={orderedKeys}
