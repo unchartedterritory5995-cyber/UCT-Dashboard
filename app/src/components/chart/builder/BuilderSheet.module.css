@@ -186,6 +186,13 @@
   font-size: 13px;
 }
 
+/* "Delete?" — the armed state of a saved-formula row's trash icon. */
+.deleteAsk {
+  font-size: 12px;
+  color: var(--color-warning);
+  white-space: nowrap;
+}
+
 /* Why Save is greyed. Sits directly above the action row, right-aligned so the
    eye lands on it on the way to the button it explains. */
 .saveHint {

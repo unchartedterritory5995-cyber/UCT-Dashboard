@@ -1157,3 +1157,53 @@ describe('🔴 closing with unsaved work asks first', () => {
     expect(onClose).toHaveBeenCalled()
   })
 })
+
+// ─── DELETE ASKS FIRST ───────────────────────────────────────────────────────
+//
+// ⚰️ `remove` was `await deleteUserDefinition(defId)` ON THE CLICK — one tap on a
+// trash icon permanently destroyed a saved formula, no prompt and no undo, with
+// the icon inches from the pencil that edits it. Found 2026-08-11 by READING the
+// line rather than clicking it, which is the only reason the owner's own saved
+// column survived the test session.
+describe('🔴 deleting a saved formula asks first', () => {
+  const withRow = () => {
+    global.fetch = vi.fn(async (url, init = {}) => {
+      const method = init.method || 'GET'
+      if (method === 'GET') {
+        return { ok: true, status: 200, json: async () => ({ definitions: [{
+          def_id: 'u_bbbbbbbbbbbb', version: 1, rev: 1,
+          definition: { meta: { name: 'Keep me' }, compute: { source: 'close > open' } },
+        }] }) }
+      }
+      return { ok: true, status: 200, json: async () => ({ ok: true }) }
+    })
+  }
+
+  it('the trash icon ARMS a confirm — it does not delete', async () => {
+    withRow()
+    mount()
+    await flush(); await flush()
+
+    fireEvent.click(screen.getByRole('button', { name: /^Delete Keep me$/ }))
+    await flush()
+
+    // The confirm is showing…
+    expect(screen.getByRole('button', { name: /^Confirm delete Keep me$/ })).toBeTruthy()
+    // …and NOTHING was sent.
+    const deletes = H.requests.filter((r) => r.method === 'DELETE')
+    expect(deletes, 'it deleted on the first click').toHaveLength(0)
+  })
+
+  it('⛔ "Keep" disarms it, still without deleting', async () => {
+    withRow()
+    mount()
+    await flush(); await flush()
+    fireEvent.click(screen.getByRole('button', { name: /^Delete Keep me$/ }))
+    await flush()
+    fireEvent.click(screen.getByRole('button', { name: /^Keep$/ }))
+    await flush()
+
+    expect(screen.queryByRole('button', { name: /^Confirm delete/ })).toBeNull()
+    expect(H.requests.filter((r) => r.method === 'DELETE')).toHaveLength(0)
+  })
+})

@@ -537,7 +537,23 @@ export default function BuilderSheet({
     onSaved?.(res.row)
   }, [result, acknowledged, name, onSaved, settings, onChange, editing])
 
-  const remove = useCallback(async (defId) => { await deleteUserDefinition(defId) }, [])
+  // ⭐⭐ DELETE ASKS FIRST.
+  //
+  // ⚰️ THIS WAS `await deleteUserDefinition(defId)` ON THE CLICK. One tap on a
+  // trash icon permanently destroyed a saved formula — no prompt, no undo, and
+  // the icon sits inches from the pencil that EDITS it. Found 2026-08-11 by
+  // reading this line rather than clicking it, which is the only reason the
+  // owner's own saved column still exists.
+  //
+  // ⛔ THE PROMPT IS PER ROW, not a modal over the sheet: a second dialog on top
+  // of this one is where focus traps and Escape handlers start fighting, and the
+  // member needs to see WHICH formula they are about to lose. `pendingDelete`
+  // holds that row's id, so exactly one row can be armed at a time.
+  const [pendingDelete, setPendingDelete] = useState(null)
+  const remove = useCallback(async (defId) => {
+    await deleteUserDefinition(defId)
+    setPendingDelete(null)
+  }, [])
 
   const badge = useMemo(() => (mode ? (REPAINT_LABEL[mode] || mode) : null), [mode])
 
@@ -888,12 +904,29 @@ export default function BuilderSheet({
                       aria-label={`Edit ${row.definition?.meta?.name || row.def_id}`}
                       onClick={() => openForEdit(row)}
                     ><UIcon name="edit" size={14} /></button>
-                    <button
-                      type="button"
-                      className={styles.ghostBtn}
-                      aria-label={`Delete ${row.definition?.meta?.name || row.def_id}`}
-                      onClick={() => remove(row.def_id)}
-                    ><UIcon name="trash" size={14} /></button>
+                    {pendingDelete === row.def_id ? (
+                      <>
+                        <span className={styles.deleteAsk}>Delete?</span>
+                        <button
+                          type="button"
+                          className={styles.ghostBtn}
+                          onClick={() => setPendingDelete(null)}
+                        >Keep</button>
+                        <button
+                          type="button"
+                          className={styles.ghostBtn}
+                          aria-label={`Confirm delete ${row.definition?.meta?.name || row.def_id}`}
+                          onClick={() => remove(row.def_id)}
+                        >Delete</button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        className={styles.ghostBtn}
+                        aria-label={`Delete ${row.definition?.meta?.name || row.def_id}`}
+                        onClick={() => setPendingDelete(row.def_id)}
+                      ><UIcon name="trash" size={14} /></button>
+                    )}
                   </li>
                 ))}
               </ul>
