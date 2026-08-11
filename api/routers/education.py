@@ -286,6 +286,16 @@ def get_video_insights(video_id: int, _user: dict = Depends(require_paid)):
     return out
 
 
+@router.get("/videos/{video_id}/ticker-returns")
+def get_video_ticker_returns(video_id: int, _user: dict = Depends(require_paid)):
+    """% move of each ticker-moment symbol since the session date — powers the
+    Desk chip scorecard, anchored charts, and the follow-along pane. anchor_date
+    is derived here (created_at → ET) so the client never re-derives it.
+    ~10-min in-process cache per video."""
+    from api.services import ticker_returns
+    return ticker_returns.returns_for_video(int(video_id))
+
+
 @router.get("/videos/{video_id}/related")
 def get_related_videos(video_id: int, _user: dict = Depends(require_paid)):
     """Other library videos that covered any of this video's tickers."""
