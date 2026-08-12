@@ -761,7 +761,9 @@ def save_note_image_bytes(
     """Sync bytes-level image save. Validate + persist image bytes to disk.
     Returns {url, width, height}. Caller is responsible for setting
     hero_image_url on the note row (if kind=hero) or inserting an
-    image node in body_json (if kind=inline)."""
+    image node in body_json (if kind=inline).
+
+    Note: filename parameter is unused; extension is derived from content_type."""
     if content_type not in _ALLOWED_IMAGE_MIMES:
         raise NoteValidationError("Only PNG/JPG/GIF/WebP images allowed")
     if len(data) > _MAX_IMAGE_BYTES:
@@ -804,13 +806,18 @@ def save_note_attachment_bytes(
     content_type: str,
 ) -> dict[str, Any]:
     """Sync bytes-level file save. Validate + persist file bytes to disk.
-    Returns {url, name, size}. File is stored under _ATTACHMENT_ROOT/{user_id}/notes/{note_id}/file/"""
+    Returns {url, name, size}. File is stored under _ATTACHMENT_ROOT/{user_id}/notes/{note_id}/file/
+
+    Empty filename defaults to "attachment"."""
     if content_type not in _ALLOWED_FILE_MIMES:
         raise NoteValidationError(f"MIME type {content_type} not allowed")
     if len(data) > _MAX_FILE_BYTES:
         raise NoteValidationError("File must be < 25 MB")
     if len(data) == 0:
         raise NoteValidationError("Empty file")
+
+    # Fallback: empty filename becomes "attachment"
+    filename = filename or "attachment"
 
     # Extract extension from filename; default to .bin if not in allowlist
     ext_map = {
@@ -848,6 +855,9 @@ async def save_note_image(
     {url, width, height}. Caller is responsible for setting
     hero_image_url on the note row (if kind=hero) or inserting an
     image node in body_json (if kind=inline)."""
+    # Validate MIME type BEFORE reading to reject bad-MIME uploads without buffering
+    if upload.content_type not in _ALLOWED_IMAGE_MIMES:
+        raise NoteValidationError("Only PNG/JPG/GIF/WebP images allowed")
     raw = await upload.read()
     return save_note_image_bytes(
         user_id, note_id, raw, upload.filename or "image", upload.content_type, kind=kind
@@ -861,6 +871,9 @@ async def save_note_attachment(
 ) -> dict[str, Any]:
     """Validate + persist a non-image file attached to a note. Returns
     {url, name, size}. File is stored under _ATTACHMENT_ROOT/{user_id}/notes/{note_id}/file/"""
+    # Validate MIME type BEFORE reading to reject bad-MIME uploads without buffering
+    if upload.content_type not in _ALLOWED_FILE_MIMES:
+        raise NoteValidationError(f"MIME type {upload.content_type} not allowed")
     raw = await upload.read()
     filename = getattr(upload, "filename", "") or "attachment"
     return save_note_attachment_bytes(

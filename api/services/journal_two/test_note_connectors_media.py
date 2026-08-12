@@ -404,3 +404,82 @@ def test_wrapper_parity_validation_errors_match(conn, tmp_path, monkeypatch):
     fake_upload = _FakeUpload(b"x", "text/plain", "bad.txt")
     with pytest.raises(notes_svc.NoteValidationError):
         asyncio.run(notes_svc.save_note_image("u1", note["id"], fake_upload))
+
+
+def test_wrapper_image_validates_mime_before_reading(conn, tmp_path, monkeypatch):
+    """Image wrapper validates MIME type BEFORE calling read().
+    This ensures bad-MIME uploads don't buffer large bodies and read errors
+    surface as clean NoteValidationError, not unhandled exceptions."""
+    monkeypatch.setattr(notes_svc, "_ATTACHMENT_ROOT", tmp_path / "att")
+    note = notes_svc.create_note("u1", {"title": "n"}, conn=conn)
+
+    class BadReadUpload:
+        def __init__(self):
+            self.content_type = "text/plain"
+            self.filename = "bad.txt"
+            self.read_called = False
+
+        async def read(self):
+            self.read_called = True
+            raise AssertionError("must not read body")
+
+    upload = BadReadUpload()
+    with pytest.raises(notes_svc.NoteValidationError, match="PNG/JPG/GIF/WebP"):
+        asyncio.run(notes_svc.save_note_image("u1", note["id"], upload))
+
+    # Verify read() was NEVER called
+    assert not upload.read_called
+
+
+def test_wrapper_attachment_validates_mime_before_reading(conn, tmp_path, monkeypatch):
+    """Attachment wrapper validates MIME type BEFORE calling read().
+    This ensures bad-MIME uploads don't buffer large bodies."""
+    monkeypatch.setattr(notes_svc, "_ATTACHMENT_ROOT", tmp_path / "att")
+    note = notes_svc.create_note("u1", {"title": "n"}, conn=conn)
+
+    class BadReadUpload:
+        def __init__(self):
+            self.content_type = "application/x-msdownload"
+            self.filename = "hack.exe"
+            self.read_called = False
+
+        async def read(self):
+            self.read_called = True
+            raise AssertionError("must not read body")
+
+    upload = BadReadUpload()
+    with pytest.raises(notes_svc.NoteValidationError, match="not allowed"):
+        asyncio.run(notes_svc.save_note_attachment("u1", note["id"], upload))
+
+    # Verify read() was NEVER called
+    assert not upload.read_called
+
+
+def test_wrapper_attachment_filename_none_fallback(conn, tmp_path, monkeypatch):
+    """Attachment wrapper with filename=None defaults to 'attachment'."""
+    monkeypatch.setattr(notes_svc, "_ATTACHMENT_ROOT", tmp_path / "att")
+    note = notes_svc.create_note("u1", {"title": "n"}, conn=conn)
+
+    pdf_bytes = b"%PDF-1.4 x"
+    fake_upload = _FakeUpload(pdf_bytes, "application/pdf", None)
+    result = asyncio.run(notes_svc.save_note_attachment(
+        "u1", note["id"], fake_upload
+    ))
+
+    # Should use "attachment" as fallback
+    assert result["name"] == "attachment"
+    assert result["url"].endswith(".bin")
+
+
+def test_save_note_attachment_bytes_filename_none_fallback(conn, tmp_path, monkeypatch):
+    """Bytes function with empty filename defaults to 'attachment'."""
+    monkeypatch.setattr(notes_svc, "_ATTACHMENT_ROOT", tmp_path / "att")
+    note = notes_svc.create_note("u1", {"title": "n"}, conn=conn)
+
+    pdf_bytes = b"%PDF-1.4 x"
+    result = notes_svc.save_note_attachment_bytes(
+        "u1", note["id"], pdf_bytes, "", "application/pdf"
+    )
+
+    assert result["name"] == "attachment"
+    assert result["url"].endswith(".bin")
