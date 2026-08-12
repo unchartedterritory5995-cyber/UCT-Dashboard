@@ -107,6 +107,24 @@ export function reanchorRange(from, to, oldTf, newTf) {
   return { from: Math.round(center - half), to: Math.round(center + half) }
 }
 
+/** Toolbar timeframe switch for a CHART embed (spec Phase 4): re-anchor the
+ *  frozen window around the SAME CENTER at the new tf's bar size — never jump
+ *  to now. Returns { params, searchText } ready for updateAttributes, or null
+ *  when nothing changes. searchText re-derives here because this is one of
+ *  the only moments params change (the derive-don't-restate contract both
+ *  plain-text serializers rely on). */
+export function retimeChartParams(attrs, newTf) {
+  const params = attrs?.params || {}
+  const oldTf = String(params.tf ?? 'D')
+  const tf = String(newTf ?? '')
+  if (!tf || tf === oldTf) return null
+  const r = reanchorRange(params.from, params.to, oldTf, tf)
+  const next = normalizeParams('chart', {
+    ...params, tf, ...(r ? { from: r.from, to: r.to } : {}),
+  })
+  return { params: next, searchText: paramsPlainText('chart', next) }
+}
+
 // Exported twin of the registry-private converter (same dual encoding).
 export function tsToEpochSecondsPublic(v) {
   if (typeof v === 'number' && Number.isFinite(v)) return v > 10_000_000_000 ? v / 1000 : v

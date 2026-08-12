@@ -261,6 +261,28 @@ function chartBindingProbe(src) {
   return out
 }
 
+/** The MIDDLE hop the binding probes can't see: WidgetBody's actual call
+ *  `binding.props({ colorKey, opts, onOptsChange, groupId })`. HOP 1 pins the
+ *  builder DECLARES chartId and registry.test.js pins the builder THREADS a
+ *  groupId it is handed — but neither covers the invocation. A refactor that
+ *  drops groupId from this argument object (e.g. reverting to a uniform
+ *  standardProps call) keeps both green while chartId goes undefined at
+ *  mount. Returns true/false, or null when no `.props(…)` call site exists
+ *  (= re-derive the probe, never a green). */
+function bindingCallPassesGroupId(src) {
+  for (const node of walk(astOf(src).program)) {
+    if (node.type !== 'CallExpression') continue
+    const callee = node.callee
+    if (callee?.type !== 'MemberExpression' || callee.property?.name !== 'props') continue
+    const arg = node.arguments?.[0]
+    if (arg?.type !== 'ObjectExpression') continue
+    return arg.properties.some((p) => p.type === 'ObjectProperty'
+      && ((p.key.type === 'Identifier' && p.key.name === 'groupId')
+        || (p.key.type === 'StringLiteral' && p.key.value === 'groupId')))
+  }
+  return null
+}
+
 /** Whether the object literal passed as `<Name stockChartProps={{…}}>` declares
  *  a `chartId` key. `ChartPane` spreads that object onto `StockChart`, so this
  *  is the same hop as a JSX attribute — one indirection further in. */
@@ -303,6 +325,10 @@ describe('the chart id has a PRODUCER, and it reaches the popover', () => {
     expect(chartBindingProbe(
       '/* chartId */ export const WORKSPACE_WIDGETS = { chart: { component: ChartWidget, props: () => ({ color: "chartId" }) } }',
     )).toEqual({ componentName: 'ChartWidget', propsEmitsChartId: false })
+    // Controls for the invocation probe (HOP 1b).
+    expect(bindingCallPassesGroupId('const p = binding.props({ colorKey: k, groupId })')).toBe(true)
+    expect(bindingCallPassesGroupId('const p = binding.props({ colorKey: k })')).toBe(false)
+    expect(bindingCallPassesGroupId('const p = binding.other({ groupId })')).toBe(null)
   })
 
   it('⭐ HOP 1 — the workspace binding hands `ChartWidget` its persisted id', () => {
@@ -317,6 +343,14 @@ describe('the chart id has a PRODUCER, and it reaches the popover', () => {
       'WORKSPACE_WIDGETS.chart no longer binds ChartWidget — re-derive this probe').toBe('ChartWidget')
     expect(probe.propsEmitsChartId,
       'the chart binding stopped supplying a chart id: every /charts alert silently goes global').toBe(true)
+  })
+
+  it('⭐ HOP 1b — WidgetBody\'s binding invocation actually hands groupId through', () => {
+    const got = bindingCallPassesGroupId(readSrc('app/src/pages/charts/WidgetHost.jsx'))
+    expect(got,
+      'no binding.props(…) call site found in WidgetHost — re-derive this probe').not.toBe(null)
+    expect(got,
+      'WidgetBody stopped passing groupId into binding.props: chartId is undefined at mount and every /charts alert silently goes global').toBe(true)
   })
 
   it('⭐ HOP 2 — `ChartWidget` publishes it down the pane\'s StockChart passthrough', () => {

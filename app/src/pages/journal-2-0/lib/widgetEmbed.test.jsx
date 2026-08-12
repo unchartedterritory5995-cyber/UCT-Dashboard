@@ -22,7 +22,7 @@ import { buildExtensions, extractPlainText } from './tiptap'
 import {
   buildWidgetEmbedAttrs, parseChartSlashArgs, parseTfToken,
   resolveEmbedRender, embedAutoCaption, widgetSlotNode,
-  reanchorRange, countLiveEmbeds, LIVE_EMBEDS_PER_ENTRY,
+  reanchorRange, countLiveEmbeds, LIVE_EMBEDS_PER_ENTRY, retimeChartParams,
 } from './widgetEmbedCore'
 import WidgetEmbedView from '../components/notebook/WidgetEmbedView'
 
@@ -165,6 +165,27 @@ describe('timeframe re-anchoring (spec: same center, never jump to now)', () => 
     expect(r.to - r.from).toBe(20 * 3600)
     expect(reanchorRange(null, 1715000000, '5', '15')).toBeNull()
     expect(reanchorRange(1715000000, 1715000000, '5', '15')).toBeNull()
+  })
+})
+
+describe('toolbar tf switch (retimeChartParams — the re-anchor math\'s door)', () => {
+  it('re-anchors the frozen window around the same center and re-derives searchText', () => {
+    const attrs = buildWidgetEmbedAttrs('chart', {
+      symbol: 'AMD', tf: '5', from: 1715000000 - 15000, to: 1715000000 + 15000,
+    })
+    const next = retimeChartParams(attrs, '15')
+    expect(next.params.tf).toBe('15')
+    expect((next.params.from + next.params.to) / 2).toBeCloseTo(1715000000, 0)
+    expect(next.params.to - next.params.from).toBe(90000) // same bar count × 3
+    expect(next.params.symbol).toBe('AMD')
+    expect(next.searchText).toBe('[chart: AMD 15m]')
+  })
+  it('no-ops on the same tf and survives an anchorless capture', () => {
+    const attrs = buildWidgetEmbedAttrs('chart', { symbol: 'AMD', tf: '5' })
+    expect(retimeChartParams(attrs, '5')).toBeNull()
+    const bare = retimeChartParams(buildWidgetEmbedAttrs('chart', { symbol: 'SPY', tf: 'D' }), '60')
+    expect(bare.params).toEqual({ symbol: 'SPY', tf: '60' })
+    expect(bare.searchText).toBe('[chart: SPY 1h]')
   })
 })
 

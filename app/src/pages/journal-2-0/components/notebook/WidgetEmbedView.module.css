@@ -68,6 +68,16 @@
   cursor: pointer;
 }
 .toolBtn:hover { border-color: var(--ut-gold, #c9a84c); }
+.toolSelect {
+  padding: 2px 4px;
+  border-radius: 5px;
+  border: 1px solid var(--border, #333);
+  background: var(--panel, rgba(12, 12, 12, 0.92));
+  color: var(--text, #cfcfcf);
+  font-size: 11px;
+  cursor: pointer;
+}
+.toolSelect:hover { border-color: var(--ut-gold, #c9a84c); }
 .toolbarMsg {
   color: var(--ut-gold, #c9a84c);
   font-size: 11px;

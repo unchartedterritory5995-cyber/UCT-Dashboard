@@ -2,6 +2,7 @@ import { Component, Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { NodeViewWrapper } from '@tiptap/react'
 import {
   resolveEmbedRender, embedAutoCaption, countLiveEmbeds, LIVE_EMBEDS_PER_ENTRY,
+  retimeChartParams,
 } from '../../lib/widgetEmbedCore'
 import { captureElementPng, storeFallbackImage, kickSnapshotWarm } from '../../lib/embedArchive'
 import styles from './WidgetEmbedView.module.css'
@@ -129,6 +130,25 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
     updateAttributes?.({ fallback: null, capturedAt: new Date().toISOString() })
     setToolbarMsg('re-capturing…')
   }
+  // Timeframe switch (chart embeds; spec Phase 4): re-anchor around the SAME
+  // CENTER at the new tf — never jump to now. Explicit toolbar action = the
+  // only kind of write an embed takes. Native tfs only: custom multipliers
+  // fall through both durability rails (no to=, no warm) by design.
+  const switchTf = (newTf) => {
+    const next = retimeChartParams(attrs, newTf)
+    if (!next) return
+    // Refuse a switch the render chain can't serve live (e.g. 1m beyond its
+    // 60-day wall): the archive shows the OLD tf, so relabeling it would lie.
+    if (resolveEmbedRender({ ...attrs, params: next.params }).kind !== 'live') {
+      setToolbarMsg('no data that far back at that timeframe')
+      return
+    }
+    // The old archive PNG shows the old tf — clear it so self-archive
+    // re-freezes at the new one, and warm the new tf's history.
+    archivedOnceRef.current = false
+    kickSnapshotWarm(next.params)
+    updateAttributes?.({ params: next.params, searchText: next.searchText, fallback: null })
+  }
 
   // ── Self-archive + capture-time warm (the durability pipeline) ────────────
   // A freshly-inserted snapshot has no archive yet: once the live render has
@@ -199,6 +219,23 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
       {editor?.isEditable !== false && (
         <div className={styles.toolbar} contentEditable={false}>
           {toolbarMsg && <span className={styles.toolbarMsg}>{toolbarMsg}</span>}
+          {/* TF switch — chart embeds, live render path only (the archive of
+              an out-of-ceiling snapshot shows the OLD tf; switchTf refuses).
+              Native tfs only — custom multipliers skip both durability rails. */}
+          {attrs.widgetId === 'chart' && decision.kind === 'live' && (
+            <select
+              className={styles.toolSelect}
+              value={String(attrs.params?.tf ?? 'D')}
+              onChange={(e) => switchTf(e.target.value)}
+              title="Switch timeframe (re-anchors around the same moment)"
+              aria-label="Embed timeframe"
+            >
+              {[['1', '1m'], ['5', '5m'], ['15', '15m'], ['30', '30m'], ['60', '1h'],
+                ['D', 'D'], ['W', 'W'], ['M', 'M']].map(([code, label]) => (
+                  <option key={code} value={code}>{label}</option>
+              ))}
+            </select>
+          )}
           <button type="button" className={styles.toolBtn} onClick={toggleLive}
             title={attrs.mode === 'live' ? 'Freeze to snapshot' : `Go live (max ${LIVE_EMBEDS_PER_ENTRY}/entry)`}>
             {attrs.mode === 'live' ? 'Snapshot' : 'Live'}
