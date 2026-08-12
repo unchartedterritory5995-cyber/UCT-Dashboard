@@ -353,6 +353,35 @@ def test_append_widget_embed_guards(conn):
     assert svc.append_widget_embed("u2", n["id"], EMBED_ATTRS, conn=conn) is None
 
 
+def test_update_note_compare_and_set(conn, monkeypatch):
+    # A15: an optional updated_at baseline turns the full-doc PUT into a CAS,
+    # so a server-side append (Send to Journal) can never be silently deleted
+    # by a stale editor's autosave. Deterministic clock — equal stamps would
+    # make the stale-baseline case vacuously pass.
+    seq = {"n": 0}
+    def tick():
+        seq["n"] += 1
+        return f"2026-08-12T09:00:{seq['n']:02d}Z"
+    monkeypatch.setattr(svc, "_now_iso", tick)
+    n = svc.create_note("u1", {"title": "T"}, conn=conn)
+    # Matching baseline: succeeds and advances updated_at.
+    out = svc.update_note("u1", n["id"], {"title": "A"}, conn=conn,
+                          expected_updated_at=n["updatedAt"])
+    assert out["title"] == "A"
+    assert out["updatedAt"] != n["updatedAt"]
+    # A concurrent server-side append moves updated_at → stale baseline refuses.
+    svc.append_widget_embed("u1", n["id"], EMBED_ATTRS, conn=conn)
+    with pytest.raises(svc.NoteConflictError):
+        svc.update_note("u1", n["id"], {"bodyJson": {"type": "doc", "content": []}},
+                        conn=conn, expected_updated_at=out["updatedAt"])
+    # The refused write changed nothing — the appended embed survives.
+    rows = conn.execute(
+        "SELECT COUNT(*) AS c FROM j2_note_embeds WHERE note_id = ?", (n["id"],)).fetchone()
+    assert rows["c"] == 1
+    # No baseline = legacy last-writer-wins, unchanged.
+    assert svc.update_note("u1", n["id"], {"title": "B"}, conn=conn)["title"] == "B"
+
+
 def test_capture_inbox_prunes_past_the_cap(conn, monkeypatch):
     # Insert-side enforcement of the same cap the tray lists by: rows past the
     # newest N were invisible to the tray and therefore undeletable through

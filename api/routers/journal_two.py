@@ -1408,8 +1408,18 @@ def update_note_endpoint(
     patch: dict[str, Any],
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
+    # Optional compare-and-set baseline (A15): when the editor sends the
+    # updated_at it loaded/last-saved from, a concurrent server-side write
+    # (Send-to-Journal append, second tab) turns this PUT into a 409 instead
+    # of a silent clobber of that write. Absent = legacy last-writer-wins.
+    base = patch.pop("baseUpdatedAt", None) if isinstance(patch, dict) else None
     try:
-        n = notes_service.update_note(user["id"], note_id, patch)
+        n = notes_service.update_note(
+            user["id"], note_id, patch,
+            expected_updated_at=base if isinstance(base, str) and base else None,
+        )
+    except notes_service.NoteConflictError:
+        raise HTTPException(status_code=409, detail="note changed — refresh and retry")
     except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
     if n is None:

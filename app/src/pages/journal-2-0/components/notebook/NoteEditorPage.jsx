@@ -112,7 +112,12 @@ export default function NoteEditorPage({ noteId, onBack }) {
   const retryTimerRef = useRef(null)
   const retryAttemptsRef = useRef(0)
   const fileInputRef = useRef(null)
-  const lastSavedRef = useRef({ title: '', subtitle: '', bodyJson: null })
+  const lastSavedRef = useRef({ title: '', subtitle: '', bodyJson: null, updatedAt: null })
+  // One reconcile-and-retry per conflict burst (A15 compare-and-set): a 409
+  // means a server-side write (Send-to-Journal append, second tab) landed
+  // after our baseline. We merge the missing embeds in and retry ONCE — a
+  // second consecutive 409 surfaces as a save error instead of looping.
+  const conflictRetriedRef = useRef(false)
   // Latest-callback refs. TipTap's useEditor freezes the `onUpdate` closure
   // at editor-creation time and React's setTimeout fires whichever closure
   // was scheduled — both routes capture stale `title`/`subtitle`. Reading
@@ -133,6 +138,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
         title: note.title || '',
         subtitle: note.subtitle || '',
         bodyJson: note.bodyJson,
+        updatedAt: note.updatedAt || null,
       }
     }
   }, [note?.id])
@@ -148,6 +154,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
       retryTimerRef.current = null
     }
     retryAttemptsRef.current = 0
+    conflictRetriedRef.current = false // fresh edit = fresh conflict budget
     saveTimerRef.current = setTimeout(() => commitSaveRef.current(), AUTOSAVE_MS)
   }
 
@@ -244,6 +251,36 @@ export default function NoteEditorPage({ noteId, onBack }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note?.id, editor])
 
+  // A15 conflict reconcile: pull the fresh note, append any widgetEmbed the
+  // server holds that the local doc lacks (the only server-side bodyJson
+  // writer is the Send-to-Journal append, so "missing locally" ≈ "appended
+  // after our baseline"; an embed the user deleted locally in that same
+  // window gets resurrected rather than lost — the safe direction), then
+  // advance the baseline so the caller's retry wins cleanly.
+  const reconcileConflict = async () => {
+    const res = await fetch(`/api/j2/notes/${noteId}`, { credentials: 'include' })
+    if (!res.ok) throw new Error(`${res.status}`)
+    const fresh = (await res.json())?.note
+    if (!fresh) throw new Error('empty note on reconcile')
+    const embedKey = (a) => `${a?.widgetId}|${a?.capturedAt}|${a?.searchText}`
+    const localKeys = new Set()
+    editor.state.doc.descendants((n) => {
+      if (n.type.name === 'widgetEmbed') localKeys.add(embedKey(n.attrs))
+      return true
+    })
+    const missing = []
+    const walk = (node) => {
+      if (!node || typeof node !== 'object') return
+      if (node.type === 'widgetEmbed' && !localKeys.has(embedKey(node.attrs))) missing.push(node)
+      for (const child of node.content || []) walk(child)
+    }
+    walk(fresh.bodyJson)
+    // focus('end') — the appends rail (widgetEmbedInsert.test.jsx): a text
+    // position, never a NodeSelection that would swallow a trailing atom.
+    if (missing.length) editor.chain().focus('end').insertContent(missing).run()
+    lastSavedRef.current.updatedAt = fresh.updatedAt || null
+  }
+
   const commitSave = async () => {
     if (!editor) return
     saveTimerRef.current = null
@@ -263,16 +300,34 @@ export default function NoteEditorPage({ noteId, onBack }) {
     if (titleChanged) patch.title = title
     if (subtitleChanged) patch.subtitle = subtitle || null
     if (bodyChanged) patch.bodyJson = bodyJson
+    // Compare-and-set baseline (A15): the server 409s instead of letting this
+    // full-doc PUT silently delete a write that landed after our baseline.
+    if (last.updatedAt) patch.baseUpdatedAt = last.updatedAt
 
     setSaveStatus(retryAttemptsRef.current === 0 ? 'saving' : 'reconnecting')
     try {
-      await update(patch)
-      lastSavedRef.current = { title, subtitle, bodyJson }
+      const saved = await update(patch)
+      lastSavedRef.current = {
+        title, subtitle, bodyJson,
+        updatedAt: saved?.updatedAt ?? lastSavedRef.current.updatedAt,
+      }
+      conflictRetriedRef.current = false
       setSaveStatus('saved')
       setSaveErrorMsg('')
       retryAttemptsRef.current = 0
     } catch (e) {
       const status = e?.status
+      if (status === 409 && !conflictRetriedRef.current) {
+        conflictRetriedRef.current = true
+        try {
+          await reconcileConflict()
+          retryTimerRef.current = setTimeout(() => commitSaveRef.current(), 50)
+          return
+        } catch (re) {
+          console.warn('conflict reconcile failed', re)
+          // fall through: surfaces as a non-retryable save error below
+        }
+      }
       // No status = network/fetch error; 5xx = backend down or restarting.
       // Both are worth retrying. 4xx = real client/validation error — won't
       // get better on retry, so surface immediately.

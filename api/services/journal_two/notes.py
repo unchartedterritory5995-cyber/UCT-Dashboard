@@ -54,6 +54,13 @@ class NoteValidationError(ValueError):
     """Raised when note payload is malformed."""
 
 
+class NoteConflictError(Exception):
+    """Raised when a compare-and-set update loses: the note's updated_at no
+    longer matches the baseline the client edited from (A15 — a server-side
+    'Send to Journal' append or a second tab wrote in between). The router
+    maps this to 409; the editor reconciles and retries."""
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -574,7 +581,14 @@ def update_note(
     note_id: str,
     patch: dict[str, Any],
     conn: sqlite3.Connection | None = None,
+    expected_updated_at: str | None = None,
 ) -> dict[str, Any] | None:
+    """`expected_updated_at` (optional) makes the write a compare-and-set:
+    when it no longer matches the row's updated_at, another writer (the
+    'Send to Journal' server append, a second tab) got there first and a
+    blind full-doc PUT would silently delete their write — the A15 clobber.
+    Raise instead; the editor pulls the fresh note, merges, and retries.
+    None (client didn't send a baseline) keeps last-writer-wins."""
     if not isinstance(patch, dict):
         raise NoteValidationError("patch must be an object")
     owned = conn is None
@@ -586,6 +600,8 @@ def update_note(
         ).fetchone()
         if existing is None:
             return None
+        if expected_updated_at is not None and existing["updated_at"] != expected_updated_at:
+            raise NoteConflictError("note changed since the client's baseline")
 
         sets: list[str] = []
         params: list[Any] = []
