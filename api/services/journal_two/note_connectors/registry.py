@@ -90,11 +90,29 @@ def _build_dropbox(source: dict[str, Any] | None) -> Any:
     return DropboxProvider(folder_path=folder_path)
 
 
+def _onedrive_configured() -> bool:
+    from . import oauth
+    return oauth.configured("onedrive")
+
+
+def _build_onedrive(source: dict[str, Any] | None) -> Any:
+    from .providers.onedrive import OneDriveProvider
+    # Same one-connector-backs-multiple-folder-sources shape as Dropbox
+    # above (Task 3 of the msgraph wave, MUST-RESOLVE #3's identical
+    # pattern) — `source["remoteId"]` threads through as `folder_path=`.
+    # Despite the kwarg name (chosen for constructor-shape parity with
+    # `DropboxProvider`), `OneDriveProvider` treats it as a Graph
+    # drive-item folder id, never a path — see that module's own docstring.
+    folder_path = (source or {}).get("remoteId")
+    return OneDriveProvider(folder_path=folder_path)
+
+
 _REGISTRY: dict[str, ProviderEntry] = {
     "roam": ProviderEntry("roam", "Roam Research", "token", _always_configured, _build_roam),
     "craft": ProviderEntry("craft", "Craft", "token", _always_configured, _build_craft),
     "notion": ProviderEntry("notion", "Notion", "oauth", _notion_configured, _build_notion),
     "dropbox": ProviderEntry("dropbox", "Dropbox", "oauth", _dropbox_configured, _build_dropbox),
+    "onedrive": ProviderEntry("onedrive", "OneDrive", "oauth", _onedrive_configured, _build_onedrive),
 }
 
 

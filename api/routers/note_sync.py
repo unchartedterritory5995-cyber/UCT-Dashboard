@@ -526,22 +526,30 @@ async def oauth_callback(
     return RedirectResponse(f"{dashboard}/settings?connector={provider}&connected=1", status_code=302)
 
 
-# ── Dropbox folder picker (spec §7: "OWN folder picker") ─────────────────────
+# ── Folder picker (spec §7: "OWN folder picker") ──────────────────────────────
+# Dropbox originally; generalized to OneDrive (msgraph wave Task 3) — both
+# sync a PICKED FOLDER (source-level `remoteId`), unlike Notion/Roam/Craft/
+# OneNote which sync a whole workspace/graph/account and have no folder
+# concept to pick. Every provider in this set dispatches identically through
+# `provider_obj.list_folders` — no per-provider branch below.
+_FOLDER_PICKER_PROVIDERS = frozenset({"dropbox", "onedrive"})
+
 
 @router.get("/{provider}/folders")
 async def list_provider_folders(
     provider: str, path: str = "", user: dict = Depends(_paid),
 ) -> dict[str, Any]:
-    if provider != "dropbox":
-        raise HTTPException(status_code=404, detail="only dropbox exposes a folder picker")
+    if provider not in _FOLDER_PICKER_PROVIDERS:
+        raise HTTPException(status_code=404, detail="this provider does not expose a folder picker")
+    label = registry.get_entry(provider).label
     try:
         creds = connections.get_token(user["id"], provider)
     except Exception:  # noqa: BLE001 — crypto_box.CryptoBoxError etc. -> treat as needing reconnect
-        raise HTTPException(status_code=409, detail="Reconnect Dropbox — stored credentials are unreadable.")
+        raise HTTPException(status_code=409, detail=f"Reconnect {label} — stored credentials are unreadable.")
     if creds is None:
-        raise HTTPException(status_code=409, detail="Connect Dropbox first.")
+        raise HTTPException(status_code=409, detail=f"Connect {label} first.")
 
-    provider_obj = registry.build_provider("dropbox")
+    provider_obj = registry.build_provider(provider)
     try:
         folders = await provider_obj.list_folders(creds, path)
     except errors.NoteConnError as e:
