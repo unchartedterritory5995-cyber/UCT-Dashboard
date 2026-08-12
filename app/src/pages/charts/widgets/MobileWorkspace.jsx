@@ -1,9 +1,15 @@
 import { useMemo, useState } from 'react'
 import WidgetHost from '../WidgetHost'
+import { WIDGET_REGISTRY, MOBILE_MENU_TYPES } from '../../../widgets/registry'
 import styles from '../ChartsWorkspace.module.css'
 
-const TYPE_LABEL = { chart: 'Chart', watchlist: 'Watchlist', themes: 'Themes', scanner: 'Scanner', fundamentals: 'Fundamentals' }
-const ADD_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals']
+// The phone add menu offers only the registry's menus.mobile subset (the types
+// usable at 375px). The label map is DELIBERATELY that same subset: a saved
+// widget of any other type has always shown its raw type id in the tab strip
+// (the `|| w.type` fallback below), and keeping the subset keeps that byte-
+// identical.
+const ADD_TYPES = MOBILE_MENU_TYPES
+const TYPE_LABEL = Object.fromEntries(ADD_TYPES.map(t => [t, WIDGET_REGISTRY[t].labels.header]))
 
 /* MobileWorkspace — phone replacement for the react-grid-layout workspace.
  *

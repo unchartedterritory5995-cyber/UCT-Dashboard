@@ -1312,6 +1312,8 @@ def list_notes_endpoint(
     tag: str | None = None,
     ticker: str | None = None,
     q: str | None = None,
+    embed_symbol: str | None = None,
+    embed_widget: str | None = None,
     sort: str = "updated",
     limit: int = 100,
     offset: int = 0,
@@ -1319,9 +1321,46 @@ def list_notes_endpoint(
 ) -> dict[str, Any]:
     rows = notes_service.list_notes(
         user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
+        embed_symbol=embed_symbol, embed_widget=embed_widget,
         sort=sort, limit=limit, offset=offset,
     )
     return {"notes": rows}
+
+
+@router.post("/notes/{note_id}/embeds")
+def append_note_embed_endpoint(
+    note_id: str, payload: dict[str, Any], user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """'Send to Journal': append one widgetEmbed node (client-built attrs)
+    to a note's body, atomically, server-side."""
+    attrs = payload.get("attrs")
+    try:
+        note = notes_service.append_widget_embed(user["id"], note_id, attrs)
+    except notes_service.NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if note is None:
+        raise HTTPException(status_code=404, detail="note not found")
+    return {"note": note}
+
+
+@router.get("/inbox")
+def list_captures_endpoint(user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    return {"captures": notes_service.list_captures(user["id"])}
+
+
+@router.post("/inbox")
+def create_capture_endpoint(payload: dict[str, Any], user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    try:
+        return notes_service.create_capture(user["id"], payload)
+    except notes_service.NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/inbox/{capture_id}")
+def delete_capture_endpoint(capture_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    if not notes_service.delete_capture(user["id"], capture_id):
+        raise HTTPException(status_code=404, detail="capture not found")
+    return {"ok": True}
 
 
 @router.post("/notes/import/check")
@@ -1369,8 +1408,18 @@ def update_note_endpoint(
     patch: dict[str, Any],
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
+    # Optional compare-and-set baseline (A15): when the editor sends the
+    # updated_at it loaded/last-saved from, a concurrent server-side write
+    # (Send-to-Journal append, second tab) turns this PUT into a 409 instead
+    # of a silent clobber of that write. Absent = legacy last-writer-wins.
+    base = patch.pop("baseUpdatedAt", None) if isinstance(patch, dict) else None
     try:
-        n = notes_service.update_note(user["id"], note_id, patch)
+        n = notes_service.update_note(
+            user["id"], note_id, patch,
+            expected_updated_at=base if isinstance(base, str) and base else None,
+        )
+    except notes_service.NoteConflictError:
+        raise HTTPException(status_code=409, detail="note changed — refresh and retry")
     except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
     if n is None:

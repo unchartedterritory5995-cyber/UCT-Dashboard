@@ -18,22 +18,39 @@ import {
   addWidgetTab, closeWidgetTab, setActiveWidgetTab, renameWidgetTab,
   patchActiveTabColor, patchActiveTabOpts,
 } from './widgetTabs'
+import { labelMap, THEME_FOLLOW_TYPES } from '../../widgets/registry'
 import styles from './ChartsWorkspace.module.css'
 
-const TYPE_LABEL = {
-  chart: 'Chart',
-  watchlist: 'Watchlist',
-  themes: 'Themes',
-  scanner: 'Scanner',
-  fundamentals: 'Fundamentals',
-  breadth: 'Breadth',
-  aisearch: 'AI Search',
-  news: 'News',
-  profile: 'Profile',
-  alerts: 'Alerts',
-  calendar: 'Calendar',
-  optionsflow: 'Options Flow',
-  periodsort: 'Period Sort',
+const TYPE_LABEL = labelMap('header')
+
+// THE /charts host binding: registry id → { component, props }. The metadata
+// registry (src/widgets/registry.js) deliberately carries no component refs, so
+// each host owns its binding map; registry.test.js pins that every registered
+// id has an entry here AND that each props builder keeps the EXACT prop shape
+// the old WidgetBody switch passed — those shapes are load-bearing (breadth
+// takes no `color`, themes no `onOptsChange`, aisearch only `color`, and only
+// chart gets `chartId`).
+const standardProps = ({ colorKey, opts, onOptsChange }) => ({ color: colorKey, opts, onOptsChange })
+export const WORKSPACE_WIDGETS = {
+  // ⭐ `chartId` (Phase C Task 12): the slot's own PERSISTED id, which is what
+  // makes a chart's alerts scopable to it. `groupId` is already per-tab and
+  // already stable across reloads — see its declaration in `WidgetHost`.
+  chart: {
+    component: ChartWidget,
+    props: ({ colorKey, opts, onOptsChange, groupId }) => ({ color: colorKey, opts, onOptsChange, chartId: groupId }),
+  },
+  watchlist: { component: WatchlistWidget, props: standardProps },
+  themes: { component: ThemesWidget, props: ({ colorKey, opts }) => ({ color: colorKey, opts }) },
+  scanner: { component: ScannerWidget, props: standardProps },
+  fundamentals: { component: FundamentalsWidget, props: standardProps },
+  breadth: { component: BreadthWidget, props: ({ opts, onOptsChange }) => ({ opts, onOptsChange }) },
+  aisearch: { component: AiSearchWidget, props: ({ colorKey }) => ({ color: colorKey }) },
+  news: { component: NewsWidget, props: standardProps },
+  profile: { component: ProfileWidget, props: standardProps },
+  alerts: { component: AlertsWidget, props: standardProps },
+  calendar: { component: CalendarWidget, props: standardProps },
+  optionsflow: { component: OptionsFlowWidget, props: standardProps },
+  periodsort: { component: PeriodSortWidget, props: standardProps },
 }
 
 function WidgetBody({ groupId, type, color, opts, onOptsChange }) {
@@ -42,25 +59,10 @@ function WidgetBody({ groupId, type, color, opts, onOptsChange }) {
   // links purely off this `color` prop via groupSyms[color]). `groupId` is per-TAB,
   // so two "not linked" tabs in the same slot stay independent.
   const key = color === 'N' ? `N:${groupId}` : color
-  switch (type) {
-    // ⭐ `chartId` (Phase C Task 12): the slot's own PERSISTED id, which is what
-    // makes a chart's alerts scopable to it. `groupId` is already per-tab and
-    // already stable across reloads — see its declaration in `WidgetHost`.
-    case 'chart':     return <ChartWidget     color={key} opts={opts} onOptsChange={onOptsChange} chartId={groupId} />
-    case 'watchlist': return <WatchlistWidget color={key} opts={opts} onOptsChange={onOptsChange} />
-    case 'themes':    return <ThemesWidget    color={key} opts={opts} />
-    case 'scanner':   return <ScannerWidget   color={key} opts={opts} onOptsChange={onOptsChange} />
-    case 'fundamentals': return <FundamentalsWidget color={key} opts={opts} onOptsChange={onOptsChange} />
-    case 'breadth':   return <BreadthWidget opts={opts} onOptsChange={onOptsChange} />
-    case 'aisearch':  return <AiSearchWidget color={key} />
-    case 'news':      return <NewsWidget color={key} opts={opts} onOptsChange={onOptsChange} />
-    case 'profile':   return <ProfileWidget color={key} opts={opts} onOptsChange={onOptsChange} />
-    case 'alerts':    return <AlertsWidget color={key} opts={opts} onOptsChange={onOptsChange} />
-    case 'calendar':  return <CalendarWidget color={key} opts={opts} onOptsChange={onOptsChange} />
-    case 'optionsflow': return <OptionsFlowWidget color={key} opts={opts} onOptsChange={onOptsChange} />
-    case 'periodsort': return <PeriodSortWidget color={key} opts={opts} onOptsChange={onOptsChange} />
-    default:          return <div className={styles.unknownWidget}>Unknown widget type: {type}</div>
-  }
+  const binding = WORKSPACE_WIDGETS[type]
+  if (!binding) return <div className={styles.unknownWidget}>Unknown widget type: {type}</div>
+  const Widget = binding.component
+  return <Widget {...binding.props({ colorKey: key, opts, onOptsChange, groupId })} />
 }
 
 export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChange, onReplaceWidget, onPopOut, headerAtBottom = false, merged = false }) {
@@ -78,10 +80,11 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   const handleActiveColorChange = (c) => (onReplaceWidget ? replace(patchActiveTabColor(widget, c)) : onColorChange?.(c))
   const handleActiveOptsChange = (opts) => (onReplaceWidget ? replace(patchActiveTabOpts(widget, opts)) : onOptsChange?.(opts))
   const handleAddTab = onReplaceWidget ? (type) => replace(addWidgetTab(widget, { type, color: active.color })) : undefined
-  // News/Profile follow the app theme when uncustomized: on the light theme the
-  // workspace otherwise keeps this .widget dark (border + chrome). This flag lets the
-  // CSS re-flip the light tokens (incl. the border) for the whole widget.
-  const themeFollow = ['news', 'profile', 'alerts', 'calendar', 'optionsflow', 'watchlist', 'fundamentals', 'themes', 'breadth', 'scanner', 'aisearch', 'periodsort'].includes(active.type) && !active.opts?.settings
+  // Non-chart widgets follow the app theme when uncustomized: on the light theme
+  // the workspace otherwise keeps this .widget dark (border + chrome). This flag
+  // lets the CSS re-flip the light tokens (incl. the border) for the whole widget.
+  // Membership lives on the registry (themeFollow — every type except chart).
+  const themeFollow = THEME_FOLLOW_TYPES.includes(active.type) && !active.opts?.settings
   const handleSelectTab = onReplaceWidget ? (i) => replace(setActiveWidgetTab(widget, i)) : undefined
   const handleCloseTab = onReplaceWidget ? (tabId) => replace(closeWidgetTab(widget, tabId)) : undefined
   const handleRenameTab = onReplaceWidget ? (tabId, name) => replace(renameWidgetTab(widget, tabId, name)) : undefined

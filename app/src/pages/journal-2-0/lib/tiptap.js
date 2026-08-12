@@ -12,6 +12,7 @@ import { TaskList, TaskItem } from '@tiptap/extension-list'
 import { SlashMenuExtension } from '../components/notebook/SlashMenu'
 import { VideoTimestamp } from './videoTimestampNode'
 import { AttachmentChip } from './attachmentChip'
+import { WidgetEmbed } from './widgetEmbedNode'
 import { fmtTime } from '../../../components/video/playerUtils'
 
 export function buildExtensions({ placeholder = 'Start writing… or type / for blocks' } = {}) {
@@ -44,6 +45,10 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
     AttachmentChip,
     SlashMenuExtension,
     VideoTimestamp,
+    // ⚠️ Never remove: TipTap DROPS unknown node types at parse time, so
+    // unregistering WidgetEmbed would delete every embed from every note on
+    // next open. Unknown WIDGETS are handled inside its node view.
+    WidgetEmbed,
   ]
 }
 
@@ -77,6 +82,9 @@ export function extractPlainText(doc) {
     if (node.type === 'text' && typeof node.text === 'string') out.push(node.text)
     if (node.type === 'videoTimestamp') out.push(`[${fmtTime(node.attrs?.seconds || 0)}]`)
     if (node.type === 'attachmentChip') out.push(`[file: ${node.attrs?.name || 'file'}]`)
+    // searchText is derived from the registry at the only moments params
+    // change (buildWidgetEmbedAttrs) — both serializers read the stored line.
+    if (node.type === 'widgetEmbed') out.push(node.attrs?.searchText || '[widget]')
     for (const child of node.content || []) walk(child)
   }
   walk(doc)

@@ -1903,6 +1903,52 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
     return JSONResponse(content=payload, headers={"Cache-Control": "public, max-age=3600"})
 
 
+# Timeframes the snapshot warm serves. Custom intraday tfs (2/45/240/…) are
+# deliberately absent: StockChart drops `to=` for them and the registry marks
+# them non-reconstructable, so warming would bank history nothing re-reads.
+_SNAPWARM_TFS = ("1", "5", "15", "30", "60", "D", "W", "M")
+
+
+def kick_snapshot_warm(ticker: str, tf: str, need_before_ymd: int | None = None) -> bool:
+    """Capture-time warm for a journal snapshot: make sure the (ticker, tf)
+    history behind a freshly-captured embed lands in the forever-store.
+    Fire-and-forget and BOUNDED (review finding — the first cut spawned an
+    unguarded full-history thread per call, reachable by any authed user):
+    - pytest NO-OP, same reason as _maybe_kick_deepfill's (its docstring
+      carries the 16,500-fixture-bars incident);
+    - whitelisted tfs only; one dispatch per (ticker, tf) per _DEEPFILL_TTL;
+    - intraday rides the deep-fill rail's own semaphore/throttle;
+    - D/W/M runs warm_ticker_daily_deep on a daemon thread gated by the same
+      deep-fill semaphore, with the caller's cutoff day so an already-deep
+      store short-circuits instead of re-fetching 30 years.
+    Returns whether a warm was dispatched."""
+    if _os.environ.get("PYTEST_CURRENT_TEST"):
+        return False
+    tu = (ticker or "").strip().upper()
+    if not tu or tf not in _SNAPWARM_TFS:
+        return False
+    marker = f"snapwarm_{tu}_{tf}"
+    if cache.get(marker) is not None:
+        return False
+    cache.set(marker, 1, ttl=_DEEPFILL_TTL)
+    if tf in ("1", "5", "15", "30", "60"):
+        _maybe_kick_deepfill(tu, tf, 5000)
+        return True
+
+    def _run(_t=tu, _need=need_before_ymd):
+        if not _deepfill_sem.acquire(blocking=False):
+            return
+        try:
+            warm_ticker_daily_deep(_t, need_before_ymd=_need)
+        except Exception:  # noqa: BLE001
+            pass
+        finally:
+            _deepfill_sem.release()
+
+    _threading.Thread(target=_run, daemon=True, name=f"snapwarm-{tu}").start()
+    return True
+
+
 def warm_ticker_daily_deep(ticker: str, need_before_ymd: int | None = None) -> bool:
     """Fetch + persist a ticker's FULL daily history (deep: Massive + yfinance) into SQLite so
     replay / old-cutoff charts serve it INSTANTLY. Skips when SQLite already holds a bar at or

@@ -30,6 +30,7 @@ import PeriodSortConfig from './PeriodSortConfig'
 import ReplayPanel from './ReplayPanel'
 import { addWidgetTab } from './widgetTabs'
 import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y as _MARGIN_Y, BODY_PAD as _BODY_PAD } from './rowHeight'
+import { WIDGET_REGISTRY, WORKSPACE_MENU_TYPES, labelMap } from '../../widgets/registry'
 import styles from './ChartsWorkspace.module.css'
 
 const ResponsiveGridLayout = WidthProvider(Responsive)
@@ -167,24 +168,12 @@ export function uctDefaultChartSettings() {
   return JSON.stringify(parsed)
 }
 
-// Widths/minW are in 24-col units (2 units = one old column). themes minW is 2
-// so the widget can still go narrow, but the reachable middle size (3 units = 1.5
-// old cols) is the "in between" the too-thin and the good size.
-const WIDGET_DEFAULTS = {
-  chart:     { w: 12, h: 12, minW: 6, minH: 6 },
-  watchlist: { w: 6,  h: 10, minW: 2, minH: 4 },
-  themes:    { w: 6,  h: 10, minW: 2, minH: 4 },
-  scanner:   { w: 8,  h: 10, minW: 6, minH: 4 },
-  fundamentals: { w: 8, h: 6, minW: 6, minH: 2 },
-  breadth:   { w: 8,  h: 10, minW: 4, minH: 4 },
-  aisearch:  { w: 7,  h: 10, minW: 3, minH: 3 },
-  news:      { w: 6,  h: 10, minW: 2, minH: 4 },
-  profile:   { w: 6,  h: 12, minW: 3, minH: 5 },
-  alerts:    { w: 6,  h: 10, minW: 2, minH: 4 },
-  calendar:  { w: 6,  h: 10, minW: 2, minH: 4 },
-  optionsflow: { w: 8, h: 12, minW: 4, minH: 5 },
-  periodsort: { w: 6,  h: 12, minW: 3, minH: 5 },   // ~fits Flag·Symbol·%·Industry with no blank filler
-}
+// Widths/minW are in 24-col units (2 units = one old column). The values live
+// on the widget registry (src/widgets/registry.js, pinned by registry.test.js);
+// this is the id→defaults view the grid math below reads.
+const WIDGET_DEFAULTS = Object.fromEntries(
+  Object.entries(WIDGET_REGISTRY).map(([id, w]) => [id, w.defaults]),
+)
 
 // A blocked window.open returns null with no error, so this is the only way the
 // user learns why their board didn't appear on the other monitor.
@@ -222,25 +211,12 @@ function splitToSide(widgets, defaults, candidate) {
   }
 }
 
-// NOTE: 'periodsort' is intentionally NOT here — it's reachable only from Tools →
-// Custom-Period Sort (dock / add-as-tab), not the Add Widget menu. It stays registered
-// in WIDGET_DEFAULTS / WIDGET_LABELS / WidgetHost dispatch so docked instances render.
-const WIDGET_TYPES = ['chart', 'watchlist', 'themes', 'scanner', 'fundamentals', 'breadth', 'aisearch', 'news', 'profile', 'alerts', 'calendar', 'optionsflow']
-const WIDGET_LABELS = {
-  chart: 'Chart',
-  watchlist: 'Watchlist',
-  themes: 'Theme Tracker',
-  scanner: 'Scanner',
-  fundamentals: 'Fundamentals',
-  breadth: 'Breadth',
-  aisearch: 'AI Search',
-  news: 'News & Catalysts',
-  profile: 'Stock Profile',
-  alerts: 'Alerts',
-  calendar: 'Calendar',
-  optionsflow: 'Options Flow',
-  periodsort: 'Period Sort',
-}
+// NOTE: 'periodsort' is intentionally NOT in the Add Widget menu — it's reachable
+// only from Tools → Custom-Period Sort (dock / add-as-tab). Membership + labels
+// derive from the widget registry (menus.workspace: false keeps it out of the
+// menu; it stays registered so docked instances render).
+const WIDGET_TYPES = WORKSPACE_MENU_TYPES
+const WIDGET_LABELS = labelMap('menu')
 
 function parseLayout(raw) {
   if (!raw) return null

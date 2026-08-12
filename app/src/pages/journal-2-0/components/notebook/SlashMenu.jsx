@@ -10,6 +10,8 @@ import { Extension } from '@tiptap/react'
 import Suggestion from '@tiptap/suggestion'
 import { ReactRenderer } from '@tiptap/react'
 import { useEffect, useImperativeHandle, useState, forwardRef } from 'react'
+import { WIDGET_REGISTRY, JOURNAL_MENU_TYPES } from '../../../../widgets/registry'
+import { parseChartSlashArgs } from '../../lib/widgetEmbedCore'
 import styles from './SlashMenu.module.css'
 
 const ITEMS = [
@@ -74,6 +76,49 @@ const ITEMS = [
   },
 ]
 
+// ── Widget embeds (Journal Widgets) ─────────────────────────────────────────
+// Registry-driven: every menus.journal type appears here automatically. The
+// query's trailing tokens are ARGUMENTS — `/chart AMD 15m` inserts an AMD 15m
+// snapshot directly (speed is the whole feature: no modal, no picker).
+function widgetItems(query) {
+  const raw = String(query || '')
+  const first = raw.trim().split(/\s+/)[0]?.toLowerCase() || ''
+  const out = []
+  for (const id of JOURNAL_MENU_TYPES) {
+    // EXACT type-name match only (review finding): with allowSpaces keeping a
+    // mid-sentence '/' suggestion alive to end of paragraph, prefix matching
+    // ('/c NVDA…') armed an Enter trap on ordinary prose. Typing the full
+    // '/chart' is the deliberate gesture that arms the command.
+    if (first !== id) continue
+    if (id === 'chart') {
+      const rest = raw.trim().slice(first.length).trim()
+      const args = parseChartSlashArgs(rest)
+      if (args) {
+        out.push({
+          title: `Chart — ${args.symbol} · ${args.tf}`,
+          description: 'Insert a frozen chart snapshot',
+          command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range)
+              .insertWidgetEmbed('chart', { symbol: args.symbol, tf: args.tf }).run()
+          },
+        })
+      } else if (!rest) {
+        // The hint renders ONLY for a bare '/chart' — once free text follows
+        // that doesn't parse as SYMBOL [tf], the menu must offer NOTHING so
+        // Enter stays a newline and the prose survives.
+        out.push({
+          title: 'Chart',
+          description: 'Type a symbol — e.g. /chart AMD 15m',
+          command: ({ editor, range }) => {
+            editor.chain().focus().deleteRange(range).insertContent('/chart ').run()
+          },
+        })
+      }
+    }
+  }
+  return out
+}
+
 const SlashList = forwardRef((props, ref) => {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const items = props.items
@@ -82,6 +127,11 @@ const SlashList = forwardRef((props, ref) => {
 
   useImperativeHandle(ref, () => ({
     onKeyDown: ({ event }) => {
+      // No matching items = no visible menu — every key must pass through to
+      // the editor. Swallowing Enter/arrows here with an EMPTY list broke
+      // normal typing the moment allowSpaces kept a mid-sentence '/'
+      // suggestion alive past its first space.
+      if (!items.length) return false
       if (event.key === 'ArrowUp') {
         setSelectedIndex((selectedIndex + items.length - 1) % items.length)
         return true
@@ -128,13 +178,21 @@ export const SlashMenuExtension = Extension.create({
         editor: this.editor,
         char: '/',
         startOfLine: false,
+        // Widget commands carry ARGUMENTS after the type name — `/chart AMD
+        // 15m` must reach items() as one query. Space no longer exits the
+        // suggestion; with zero matches the list renders nothing and (per the
+        // guard in SlashList.onKeyDown) passes every key through.
+        allowSpaces: true,
         command: ({ editor, range, props }) => {
           props.command({ editor, range })
         },
         items: ({ query }) => {
           const q = (query || '').toLowerCase()
-          if (!q) return ITEMS
-          return ITEMS.filter((it) => it.title.toLowerCase().includes(q))
+          const widgets = widgetItems(query)
+          if (!q) return [...ITEMS, ...widgets]
+          // Widget items match on their own tokenized rules (args after the
+          // type name would defeat a plain substring filter).
+          return [...ITEMS.filter((it) => it.title.toLowerCase().includes(q)), ...widgets]
         },
         render: () => {
           let component
