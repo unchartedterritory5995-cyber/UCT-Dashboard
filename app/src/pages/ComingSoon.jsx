@@ -279,76 +279,6 @@ function FounderAccess() {
   )
 }
 
-/* ── Receipts ───────────────────────────────────────────────────────────────
-   Owner-approved public copy, shipped 2026-08-01. Approval of record:
-   docs/superpowers/specs/2026-08-signature-indicators-copy.md §6 + §8.
-
-   Every claim in here is one the code can back — the numbers come from
-   api/services/signature/rules.py, and each "non-repainting" line states its
-   mechanism rather than asserting the word. There is deliberately no accuracy
-   claim, no win rate and no backtest in it: the ledger is what will eventually
-   earn those, and until it has, the honest version of this section is the one
-   that says so. Do not add a performance number here ahead of the ledger. */
-
-function Receipts() {
-  return (
-    <section className={styles.receipts} aria-labelledby="cs-receipts">
-      <div className={styles.receiptsInner}>
-        <h2 className={styles.receiptsHead} id="cs-receipts">
-          The first indicators that show their receipts
-        </h2>
-
-        <p className={styles.receiptsLede}>
-          Most indicators are a formula with a marketing department. Ours come with a
-          paper trail.
-        </p>
-
-        <p className={styles.receiptsCopy}>
-          Three UCT Signature indicators ship on every chart in the platform. Each one is
-          computed on our servers from data most platforms don't have — the confirmed
-          dark-pool print ledger, the options tape, the live gamma chain — and each one
-          tells you exactly how it was built and exactly what it can and cannot promise.
-        </p>
-
-        <p className={styles.receiptsCopy}>
-          <strong className={styles.receiptsName}>Dark Pool Levels</strong> finds where the
-          off-exchange size actually traded. Twenty sessions of confirmed prints, clustered
-          into price areas, the five heaviest drawn on your chart. Built from settled prints
-          only, so a level doesn't move on you as the day goes on.
-        </p>
-
-        <p className={styles.receiptsCopy}>
-          <strong className={styles.receiptsName}>Flow-Confirmed Breakout</strong> waits for
-          two things to agree. Price has to clear its twenty-session range on real volume,
-          and the options tape has to have been leaning the same way on the same day. If
-          only one of them is true, we draw nothing. It is evaluated on closed bars — the
-          current session is never scored, so an arrow can't appear at 11 AM and be gone by
-          the close.
-        </p>
-
-        <p className={styles.receiptsCopy}>
-          <strong className={styles.receiptsName}>GEX Walls</strong> draws the call wall, the
-          put wall, and zero gamma off the live chain. This one moves, because the chain
-          moves, and we say so instead of pretending otherwise.
-        </p>
-
-        <p className={styles.receiptsCopy}>
-          And behind all three, from the day they launched: an append-only signal ledger.
-          Every signal, the moment it fired, the rule version that produced it, written once
-          and never edited. We are not showing you a win rate today, because we haven't
-          earned the right to. We started the record instead.
-        </p>
-
-        {/* Signs the section off in the same voice the hero opens in — the
-            locked brand tagline, in the page's existing tagline setting. */}
-        <p className={`${styles.tagline} ${styles.receiptsSignoff}`}>
-          Navigate the market, effectively.
-        </p>
-      </div>
-    </section>
-  )
-}
-
 /* ── Waitlist ───────────────────────────────────────────────────────────── */
 
 function Waitlist() {
@@ -477,104 +407,95 @@ export default function ComingSoon() {
 
   return (
     <div className={`${styles.page} ${still ? styles.still : ''}`}>
-      {/* The holding page's first screen, unchanged. It is its own positioned,
-          clipping box so the receipts section below can extend the page without
-          the decorations — all of them `inset: 0` — stretching down over it,
-          and so .curve and .marks keep sharing exactly one box (see the CRITICAL
-          note at .marks in the stylesheet). */}
-      <div className={styles.hero}>
-        <div className={styles.grid} aria-hidden="true" />
-        <Curve still={still} seam={seam} pathRef={pathRef} />
+      <div className={styles.grid} aria-hidden="true" />
+      <Curve still={still} seam={seam} pathRef={pathRef} />
 
-        {/* The compass rose, where a chart puts one: bottom-right, bled off the
-            corner, under the plotted course. The page was already a cartographer's
-            sheet (cross-hatch ground, a course, a "you are here", a waypoint) with
-            the one instrument that makes it legible missing. This is the brand
-            mark doing the job it was drawn for rather than a logo parked on top. */}
-        <div className={styles.rose} aria-hidden="true">
-          <UTMark tone="gold" spin={!still} className={styles.roseMark} />
-        </div>
-
-        <div className={styles.vignette} aria-hidden="true" />
-        <CurveMarks still={still} terminus={terminus} herePoint={herePoint} />
-
-        <header className={styles.top}>
-          {/* Stacked two-up, the way the real lockup sets it. The mark carries the
-              accessible name so the wordmark beside it isn't read out twice. */}
-          <div className={styles.brand}>
-            <UTMark size={27} title="Uncharted Territory" className={styles.brandMark} />
-            <span className={styles.wordmark} aria-hidden="true">
-              <span className={styles.wordTop}>Uncharted</span>
-              <span className={styles.wordBot}>Territory</span>
-            </span>
-          </div>
-          <Link
-            to="/login"
-            className={styles.login}
-            onClick={() => track('coming_soon_login_click')}
-          >Log in</Link>
-        </header>
-
-        <main className={styles.center}>
-          <p className={styles.eyebrow}>UCT Intelligence</p>
-
-          {/* aria-label: the two lines are separate spans so they can stagger
-              in, but their text nodes concatenate to "ComingSoon" for a screen
-              reader without it. */}
-          <h1 className={styles.monument} aria-label="Coming soon">
-            <span className={styles.monumentLine} aria-hidden="true">Coming</span>
-            <span className={styles.monumentLine} aria-hidden="true">Soon</span>
-          </h1>
-
-          <p className={styles.tagline}>Navigate the market, effectively.</p>
-
-          <p className={styles.blurb}>
-            The Trading Brain you need as a companion.
-          </p>
-
-          {/* Proof, not a claim. A stranger arriving from social has no reason to
-              believe any of the above — this is already-published work they can
-              go read before handing over an email or making a call. */}
-          <a
-            className={styles.proof}
-            href={SUBSTACK_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => track('substack_click')}
-          >
-            Already publishing weekly — read the Sunday Scans
-            <span className={styles.proofArrow} aria-hidden="true">→</span>
-          </a>
-
-          {!left && (
-            <p className={styles.opening} role="status">{passedLabel(target, now)}</p>
-          )}
-
-          {left && (
-            <div className={styles.clock} aria-label="Time until launch">
-              <div className={styles.unit}>
-                <span className={styles.num}>{left.days}</span>
-                <span className={styles.lab}>{left.days === 1 ? 'day' : 'days'}</span>
-              </div>
-              <span className={styles.sep} aria-hidden="true" />
-              <div className={styles.unit}>
-                <span className={styles.num}>{String(left.hours).padStart(2, '0')}</span>
-                <span className={styles.lab}>hrs</span>
-              </div>
-              <span className={styles.sep} aria-hidden="true" />
-              <div className={styles.unit}>
-                <span className={styles.num}>{String(left.mins).padStart(2, '0')}</span>
-                <span className={styles.lab}>min</span>
-              </div>
-            </div>
-          )}
-
-          <Waitlist />
-          <FounderAccess />
-        </main>
+      {/* The compass rose, where a chart puts one: bottom-right, bled off the
+          corner, under the plotted course. The page was already a cartographer's
+          sheet (cross-hatch ground, a course, a "you are here", a waypoint) with
+          the one instrument that makes it legible missing. This is the brand
+          mark doing the job it was drawn for rather than a logo parked on top. */}
+      <div className={styles.rose} aria-hidden="true">
+        <UTMark tone="gold" spin={!still} className={styles.roseMark} />
       </div>
 
-      <Receipts />
+      <div className={styles.vignette} aria-hidden="true" />
+      <CurveMarks still={still} terminus={terminus} herePoint={herePoint} />
+
+      <header className={styles.top}>
+        {/* Stacked two-up, the way the real lockup sets it. The mark carries the
+            accessible name so the wordmark beside it isn't read out twice. */}
+        <div className={styles.brand}>
+          <UTMark size={27} title="Uncharted Territory" className={styles.brandMark} />
+          <span className={styles.wordmark} aria-hidden="true">
+            <span className={styles.wordTop}>Uncharted</span>
+            <span className={styles.wordBot}>Territory</span>
+          </span>
+        </div>
+        <Link
+          to="/login"
+          className={styles.login}
+          onClick={() => track('coming_soon_login_click')}
+        >Log in</Link>
+      </header>
+
+      <main className={styles.center}>
+        <p className={styles.eyebrow}>UCT Intelligence</p>
+
+        {/* aria-label: the two lines are separate spans so they can stagger
+            in, but their text nodes concatenate to "ComingSoon" for a screen
+            reader without it. */}
+        <h1 className={styles.monument} aria-label="Coming soon">
+          <span className={styles.monumentLine} aria-hidden="true">Coming</span>
+          <span className={styles.monumentLine} aria-hidden="true">Soon</span>
+        </h1>
+
+        <p className={styles.tagline}>Navigate the market, effectively.</p>
+
+        <p className={styles.blurb}>
+          The Trading Brain you need as a companion.
+        </p>
+
+        {/* Proof, not a claim. A stranger arriving from social has no reason to
+            believe any of the above — this is already-published work they can
+            go read before handing over an email or making a call. */}
+        <a
+          className={styles.proof}
+          href={SUBSTACK_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => track('substack_click')}
+        >
+          Already publishing weekly — read the Sunday Scans
+          <span className={styles.proofArrow} aria-hidden="true">→</span>
+        </a>
+
+        {!left && (
+          <p className={styles.opening} role="status">{passedLabel(target, now)}</p>
+        )}
+
+        {left && (
+          <div className={styles.clock} aria-label="Time until launch">
+            <div className={styles.unit}>
+              <span className={styles.num}>{left.days}</span>
+              <span className={styles.lab}>{left.days === 1 ? 'day' : 'days'}</span>
+            </div>
+            <span className={styles.sep} aria-hidden="true" />
+            <div className={styles.unit}>
+              <span className={styles.num}>{String(left.hours).padStart(2, '0')}</span>
+              <span className={styles.lab}>hrs</span>
+            </div>
+            <span className={styles.sep} aria-hidden="true" />
+            <div className={styles.unit}>
+              <span className={styles.num}>{String(left.mins).padStart(2, '0')}</span>
+              <span className={styles.lab}>min</span>
+            </div>
+          </div>
+        )}
+
+        <Waitlist />
+        <FounderAccess />
+      </main>
 
       <footer className={styles.foot}>
         <span className={styles.copy}>© {new Date().getFullYear()} Uncharted Territory</span>

@@ -9404,6 +9404,7 @@ export default function StockChart({
     // price scale ('right', scaleMode 'same' → out-performer sits above the base) OR
     // its own auto-fitting left % scale ('new' → fills the pane independently).
     // LWC can't move a series between scales, so a scaleMode flip = recreate.
+    let createdAny = false
     for (const cmp of comparisonSeries) {
       const wantScale = cmp.scaleMode === 'same' ? 'right' : 'left'
       let series = map.get(cmp.sym)
@@ -9427,6 +9428,7 @@ export default function StockChart({
           })
           series._uctScaleId = wantScale
           map.set(cmp.sym, series)
+          createdAny = true
         } catch {
           continue
         }
@@ -9446,23 +9448,32 @@ export default function StockChart({
     }
 
     // The dedicated LEFT scale (for 'new'-mode comparisons) runs in PERCENTAGE mode
-    // so LWC rebases each of those lines to its first VISIBLE value — 0% on the left,
-    // re-based on pan/zoom, lining up with each other. It is shown only while at
-    // least one comparison uses it; 'same'-mode comparisons ride the base's dollar
-    // scale instead (transformed above, so the base scale never switches to %).
+    // so LWC rebases each of those lines to its first VISIBLE value. ⚠️ Its axis is
+    // kept HIDDEN (visible:false): a visible left axis pushes the whole plot to the
+    // RIGHT the moment a compare is added, which clipped the right-side "Post" tag.
+    // The line still renders + auto-scales on the hidden scale; the docked legend
+    // shows its %. 'same'-mode comparisons ride the base's dollar scale instead.
     try {
-      const anyNewScale = comparisonSeries.some(s => s.scaleMode !== 'same')
-      if (anyNewScale) {
-        chart.priceScale('left').applyOptions({
-          visible: true,
-          mode: 2,
-          scaleMargins: { top: 0.1, bottom: 0.1 },
-          borderVisible: false,
-        })
-      } else {
-        chart.priceScale('left').applyOptions({ visible: false })
-      }
+      chart.priceScale('left').applyOptions({
+        visible: false,
+        mode: 2,
+        scaleMargins: { top: 0.1, bottom: 0.1 },
+        borderVisible: false,
+      })
     } catch {}
+
+    // A freshly-added series sometimes doesn't paint until the next user interaction
+    // (the "line only shows after I move the chart" bug). Nudge a repaint on the next
+    // frame by re-asserting the current visible range — no view change, just a redraw.
+    if (createdAny) {
+      requestAnimationFrame(() => {
+        try {
+          const ts = chart.timeScale()
+          const r = ts.getVisibleLogicalRange()
+          if (r) ts.setVisibleLogicalRange(r)
+        } catch { /* disposed */ }
+      })
+    }
   }, [comparisonSeries, comparisonsData, filteredBars, adjustTime])
 
   // ── Index comparison pane (Model Book) — white line in a pane ON TOP ──

@@ -28,10 +28,7 @@ describe('ComingSoon', () => {
 
   it('shows the locked tagline and the product name', () => {
     renderPage()
-    // Twice, deliberately: the hero opens with it and the receipts section signs
-    // off with it. Asserting the count rather than loosening to a regex keeps
-    // this a guard on the locked wording — `feedback_brand_tagline`.
-    expect(screen.getAllByText('Navigate the market, effectively.')).toHaveLength(2)
+    expect(screen.getByText('Navigate the market, effectively.')).toBeInTheDocument()
     expect(screen.getByText('UCT Intelligence')).toBeInTheDocument()
   })
 
@@ -205,29 +202,12 @@ describe('ComingSoon', () => {
     expect(container.textContent).not.toMatch(/opening bell/i)
   })
 
-  describe('the receipts section', () => {
-    it('names all three indicators, in bold, under the approved headline', () => {
-      renderPage()
-      expect(screen.getByRole('heading', {
-        name: /the first indicators that show their receipts/i,
-      })).toBeInTheDocument()
-
-      for (const name of ['Dark Pool Levels', 'Flow-Confirmed Breakout', 'GEX Walls']) {
-        const el = screen.getByText(name)
-        expect(el.tagName).toBe('STRONG')
-      }
-    })
-
-    it('claims no performance, and says why', () => {
-      const { container } = renderPage()
-      // The whole point of the section, and the line the owner shipped knowing
-      // it is a promise: no win rate until the ledger has earned one. If a
-      // performance number ever lands on this page, this fails first.
-      expect(container.textContent).toMatch(
-        /we are not showing you a win rate today, because we haven't earned the right to/i
-      )
-      expect(container.textContent).not.toMatch(/win rate of|% accurate|accuracy|backtest/i)
-    })
+  it('makes no performance claims', () => {
+    const { container } = renderPage()
+    // No win rate, accuracy or backtest number belongs on this page until the
+    // signal ledger has earned one. If a performance claim ever lands here,
+    // this fails first.
+    expect(container.textContent).not.toMatch(/win rate|% accurate|accuracy|backtest/i)
   })
 
   describe('founder access', () => {
