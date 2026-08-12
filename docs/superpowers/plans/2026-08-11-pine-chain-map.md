@@ -175,7 +175,36 @@ forward reference inexpressible). Needs either a constant-folder for the offset
 argument, or a refusal that stays. **Measure whether `f_struct`'s offset is
 constant-foldable before committing to this one.**
 
-### 🥉 06-adx-advanced — `ta.dmi` SHIPPED, and the script still refuses (correctly)
+### 🥉 06 — the `switch` fold: ATTEMPTED, NOT LANDED. Design is sound; I ran out.
+
+**The target is right and the default arm is reachable.** `smoothType` is
+`input.string("EMA", …)` and `"EMA"` matches NO named arm, so it falls to
+`f_smooth`'s default — `ta.ema(x, len)`, a declared function. Folding the switch
+on a fixed subject yields exactly that.
+
+**The design, which I still believe is correct:**
+- In `foldStatements`, a `switch` becomes ONE binding carrying its subject, its
+  arms and its default — the arm CANNOT be chosen there, because a name is not
+  resolvable while the walk is still binding names. Same reason a tuple's parts
+  are held rather than picked.
+- In `resolveBinding`, a `switch` binding reduces: `stringValueOf(subject)` (the
+  folder already used for `==` on two strings), match an arm label, else the
+  default, else refuse by name. A subject that is not a fixed string keeps
+  refusing at `pine:block` — the branch must not move bar to bar.
+
+🔴 **IT DID NOT WORK AND I STOPPED.** A `TypeError` surfaced as `pine:statement`
+and I did not isolate it. Two candidates, both unverified: `=>` may lex as two
+tokens (`=` then `>`), which would make `findTop` for it return -1; and an arm's
+sub-statements may not carry `.header` the way I assumed. **Check both before
+writing anything** — a five-line probe printing the lexed tokens of one `switch`
+arm settles it.
+
+⚠️ **Reverted rather than left limping.** This was the third mechanical error in
+a stretch — after a wrong-but-plausible recurrence fold and a guard I mis-described
+— which is a signal about the session, not about the problem. The work is genuinely
+close; it deserves a first attempt, not a fourth.
+
+### 🥉 (context) 06 — `ta.dmi` SHIPPED, and the script still refuses (correctly)
 
 ✅ **`ta.dmi(n, n)` now maps to its three declared legs** — `plusDI`/`minusDI`/
 `adx`, each through a role order declared in `PINE_CALL_SHAPES` rather than
