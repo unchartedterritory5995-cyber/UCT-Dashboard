@@ -450,25 +450,57 @@ plot(anchor)
     const src = fs.readFileSync(path.join(DIR, '10-supertrend.pine'), 'utf8')
     const out = translatePine(src)
     const guards = out.outputs.filter((o) => o.refusal).map((o) => o.refusal.guard)
-    // `longStopPrev = nz(longStop[1], longStop)` then `longStop := …` — a trailing
-    // stop is state by construction, and five of this script's plots say so.
-    expect(guards.length).toBeGreaterThan(0)
-    expect(new Set(guards)).toEqual(new Set(['pine:state']))
-    // 🔴 AND THE SCRIPT DOES NOT TRANSLATE — corrected 2026-08-11.
+
+    // ⚰️⚰️ TWO EARLIER VERSIONS OF THIS TEST ARE PRESERVED BELOW, because each was
+    // true when written and each became false in a way worth remembering.
     //
-    // This said "the script still translates … the column that is pure is still
-    // offered", and the pure column was `plot(ohlc4, display = display.none)`:
-    // scaffolding the author explicitly hid so `fill()` had a second edge. It was
-    // never offered to anyone. The sentence read as a reassuring nuance about
-    // per-plot refusal and was in fact the false premise holding up a coverage
-    // number — which is why the assertion below is the corrected one and this
-    // note stays, rather than the line being quietly deleted.
+    // 2026-08-10 — "the script still translates … the column that is pure is still
+    // offered". The pure column was `plot(ohlc4, display = display.none)`:
+    // scaffolding the author hid so `fill()` had a second edge. Never offered to
+    // anyone. It read as a reassuring nuance about per-plot refusal and was in
+    // fact the false premise holding up a coverage number.
     //
-    // ⛔ THE PART THAT WAS TRUE IS STILL TRUE, and it is the point of this test:
-    // state refuses PER PLOT, at `pine:state`, not as one script-wide verdict.
-    expect(out.ok).toBe(false)
-    expect(out.outputs.filter((o) => o.formula && !o.hidden)).toHaveLength(0)
+    // 2026-08-11 — corrected to `out.ok === false` with all five plots refusing at
+    // `pine:state`: `longStopPrev = nz(longStop[1], longStop)` then
+    // `longStop := …`, a trailing stop being state by construction.
+    //
+    // ⭐⭐ 2026-08-12 — IT TRANSLATES. A plain name reassigned from its own
+    // previous bar emits as an `accum`, and the two stops nest inside the
+    // direction column each owning its own `self`. `pine:state` no longer fires
+    // here at all.
+    expect(guards).toEqual([])
+    expect(out.ok).toBe(true)
+    expect(out.outputs.filter((o) => o.formula && !o.hidden)).toHaveLength(5)
     expect(out.outputs.filter((o) => o.formula && o.hidden)).toHaveLength(1)
+
+    // ⛔ NOT MERELY "IT PRODUCED SOMETHING". Attempt one of this feature emitted a
+    // single flattened accumulator whose `self` meant a direction in one place and
+    // a stop price in another — it translated, the count went up, and the formula
+    // was nonsense. Reading the STRUCTURE is what caught it, so the structure is
+    // what this asserts: an outer accumulator with two further ones inside it.
+    const sel = out.outputs[out.selected].formula
+    expect(sel.startsWith('accum(')).toBe(true)
+    expect(sel.split('accum(').length - 1).toBeGreaterThanOrEqual(3)
+
+    // ⚠️ AND IT STILL CANNOT BE SAVED — see `pine.corpus.test.js`, which asserts
+    // the `budget:nodes` wall by name. Clearing one wall is not clearing them all,
+    // and this file has now twice been the place where that got blurred.
+  })
+
+  it('⛔ …and the convergence gate still refuses an accumulator that never forgets', () => {
+    // 🔴 THE OTHER HALF, AND THE REASON THE ABOVE IS SAFE. `accum` re-seeds a
+    // fixed number of bars back, so folding a running TOTAL into one would turn
+    // OBV into a rolling sum — a plausible column that is not the indicator
+    // anybody wrote. A trailing stop forgets its seed (min/max against a self-free
+    // operand); a sum never does.
+    for (const body of ['x := x[1] + volume', 'x := x[1] * 1.01']) {
+      const out = translatePine(`//@version=5\nindicator("t")\nx = 0.0\n${body}\nplot(x)\n`)
+      expect(out.ok, body).toBe(false)
+      expect(out.refusal.guard, body).toBe('pine:state')
+      // the refusal lands on the self-read the member has to change, not on the
+      // binding the gate happens to fire from
+      expect(out.refusal.line, body).toBe(4)
+    }
   })
 })
 

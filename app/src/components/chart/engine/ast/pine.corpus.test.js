@@ -107,12 +107,43 @@ describe('every script lands exactly where the snapshot says', () => {
 
 describe('a script that translates goes all the way through the SHIPPED doors', () => {
   const TRANSLATING = FILES.filter((f) => SNAPSHOT[f].translates)
+  // ⭐ TRANSLATING IS NOT THE SAME SET AS SAVEABLE, and 2026-08-12 is the day
+  // that stopped being a distinction without a difference. Script 10 clears the
+  // `pine:state` wall now — its two trailing stops emit as correctly nested
+  // accumulators — and then every one of its five columns hits `budget:nodes` at
+  // 642 nodes against a cap of 128. The closed table has no way to NAME a
+  // subexpression, so `(high+low)/2 + 3*atr(…)` is re-inlined at each of its
+  // eight uses and the two stops are inlined again inside the direction column.
+  //
+  // ⛔ THE SPLIT IS RECORDED, NOT PAPERED OVER. The block below runs on scripts
+  // the snapshot says clear the save gate; the one that does not is asserted BY
+  // NAME immediately after, with its guard. A `filter` that quietly shrinks a
+  // rail's input set is how a wall becomes invisible — the assertion after this
+  // loop is what stops that.
+  const THROUGH = TRANSLATING.filter((f) => SNAPSHOT[f].downstream && SNAPSHOT[f].downstream.ok)
 
   it('there is more than one of them, or this whole block is decorative', () => {
-    expect(TRANSLATING.length).toBeGreaterThanOrEqual(5)
+    expect(THROUGH.length).toBeGreaterThanOrEqual(5)
   })
 
-  for (const f of TRANSLATING) {
+  it('⭐ and the ones that translate but CANNOT be saved are named, with the wall they hit', () => {
+    // Nothing here is skipped silently. A script that starts clearing the budget
+    // fails this and gets promoted into THROUGH; one that starts failing it gets
+    // caught by the loop above.
+    const blocked = TRANSLATING.filter((f) => !SNAPSHOT[f].downstream || !SNAPSHOT[f].downstream.ok)
+    expect(blocked).toEqual(['10-supertrend.pine'])
+    for (const f of blocked) {
+      const out = translatePine(read(f))
+      const down = evaluateFormula(out.outputs[out.selected].formula, BUILDER_INPUT_SCOPE)
+      expect(down.ok, f).toBe(false)
+      // ⛔ the guard is asserted, not merely "it failed" — the whole point is
+      // WHICH wall, and this one moved from pine:state to the node budget.
+      expect(down.guard, f).toBe(SNAPSHOT[f].downstream.guard)
+      expect(canSaveFormula(down, false), f).toBe(false)
+    }
+  })
+
+  for (const f of THROUGH) {
     it(`${f} parses, budgets, lints, reads back and may be saved`, () => {
       const out = translatePine(read(f))
       const row = out.outputs[out.selected]
@@ -318,8 +349,21 @@ describe('the whole corpus, in one number', () => {
     // `switch` on a fixed subject reduces to its one live arm, and `ta.dmi`'s two
     // periods are compared as VALUES rather than as spellings. Nine columns out
     // of one script — the largest single gain this file has recorded.
-    expect(translating).toBe(11)
-    expect(columns).toBe(47)
+    // ⭐⭐ 11/47 → 12/52, 2026-08-12. `10-supertrend` cleared `pine:state`: a
+    // PLAIN name the script reassigns from its own previous bar now emits as an
+    // `accum`, and the two trailing stops nest correctly inside the direction
+    // column, each owning its own `self`. It took a resolution-time marker (the
+    // same `name[1]` means `self` inside that name's update and the whole
+    // accumulator anywhere else), a memo, a per-recurrence cycle stack, and a
+    // convergence gate that still refuses `x := x[1] + volume`.
+    //
+    // ⚠️⚠️ READ THE NEXT BLOCK BEFORE QUOTING 52. Five of those columns cannot be
+    // SAVED — they translate and then hit `budget:nodes` at 642 against a cap of
+    // 128, because the closed table cannot name a subexpression and the ATR term
+    // is re-inlined eight times. `saveable` below is still 11, deliberately, and
+    // it is the number that describes what a member can do.
+    expect(translating).toBe(12)
+    expect(columns).toBe(52)
   })
 
   it('⭐ every script that translates is one a member could actually SAVE', () => {
