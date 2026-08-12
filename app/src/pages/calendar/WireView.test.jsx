@@ -47,6 +47,17 @@ describe('WireView', () => {
     expect(screen.getByText(/37 reporters/i)).toBeInTheDocument()
   })
 
+  it('shows a revenue-only print instead of hiding it behind pending', () => {
+    // KOPN 2026-08-11: +22.6% on a revenue beat, NO EPS figure published.
+    // An eps-only gate rendered "numbers pending…" over revenue it had.
+    globalThis.__wire = {
+      data: { rows: [row('KOPN', 1000, { rev_act: 12.7, rev_est: 11.7 })], expected: 1 },
+    }
+    render(<WireView />)
+    expect(screen.queryByText(/pending/i)).toBeNull()
+    expect(screen.getByText(/Rev 12\.70 vs 11\.70/)).toBeInTheDocument()
+  })
+
   it('marks a row without actuals as pending', () => {
     globalThis.__wire = { data: { rows: [row('NVDA', 1000)], expected: 1 } }
     render(<WireView />)

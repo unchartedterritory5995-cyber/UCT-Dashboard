@@ -124,6 +124,70 @@ def test_intraday_recon_upgrades_body_but_never_overwrites_live(fresh_store, tmp
     assert store.history("pct_above_50sma")["2020-01-02"]["h"] == 62.0       # still the wick
 
 
+def _snap_with_times(path, rows):
+    """Like _make_snap but each row carries its own updated_at:
+    (date, metric, o, h, l, c, source, updated_at)."""
+    c = sqlite3.connect(path)
+    try:
+        c.execute(
+            """CREATE TABLE breadth_daily_ohlc (
+                date TEXT NOT NULL, metric TEXT NOT NULL,
+                o REAL, h REAL, l REAL, c REAL,
+                source TEXT DEFAULT 'live',
+                updated_at TEXT DEFAULT (datetime('now')),
+                PRIMARY KEY (date, metric))"""
+        )
+        c.executemany(
+            "INSERT INTO breadth_daily_ohlc(date,metric,o,h,l,c,source,updated_at) "
+            "VALUES(?,?,?,?,?,?,?,?)", rows)
+        c.commit()
+    finally:
+        c.close()
+
+
+def _set_local_time(date, metric, ts):
+    """Force a web-store row's updated_at (write_bulk stamps 'now'; we need to
+    backdate to test the same-rank correction tiebreaker)."""
+    conn = sqlite3.connect(store._db_path())
+    try:
+        conn.execute("UPDATE breadth_daily_ohlc SET updated_at=? WHERE date=? AND metric=?",
+                     (ts, date, metric))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def test_same_rank_correction_newer_wins_but_older_and_live_are_safe(fresh_store, tmp_path):
+    # web already has an intraday_recon wick (e.g. the OLD garbage seeded-open one)…
+    store.write_bulk([("2026-07-28", "pct_above_50sma", 48, 63, 48, 63)],
+                     source="intraday_recon")
+    _set_local_time("2026-07-28", "pct_above_50sma", "2026-08-12 01:00:00")
+    # …and a real live row we must always protect
+    store.update_intraday("2026-08-07", {"pct_above_50sma": 30.0})
+
+    # a CORRECTED sweep (same source) with a NEWER stamp → must replace the garbage
+    snap = str(tmp_path / "snap.db")
+    _snap_with_times(snap, [
+        ("2026-07-28", "pct_above_50sma", 62.5, 63.2, 62.0, 63.0, "intraday_recon",
+         "2026-08-12 02:00:00"),
+        # a same-rank row for the LIVE day, even if newer, must NOT touch live
+        ("2026-08-07", "pct_above_50sma", 99, 99, 99, 99, "intraday_recon",
+         "2030-01-01 00:00:00"),
+    ])
+    bridge._merge_from(snap)
+    h = store.history("pct_above_50sma")
+    assert h["2026-07-28"] == {"o": 62.5, "h": 63.2, "l": 62.0, "c": 63.0}   # corrected
+    assert h["2026-08-07"]["c"] == 30.0                                      # live safe
+
+    # an OLDER same-rank row must NOT overwrite the just-corrected one
+    snap2 = str(tmp_path / "snap2.db")
+    _snap_with_times(snap2, [
+        ("2026-07-28", "pct_above_50sma", 10, 90, 5, 20, "intraday_recon",
+         "2000-01-01 00:00:00")])
+    bridge._merge_from(snap2)
+    assert store.history("pct_above_50sma")["2026-07-28"]["h"] == 63.2       # unchanged
+
+
 def test_upload_and_sync_are_noops_without_credentials(fresh_store, monkeypatch):
     for var in ("DATA_SYNC_ENDPOINT_URL", "DATA_SYNC_ACCESS_KEY",
                 "DATA_SYNC_SECRET_KEY", "DATA_SYNC_BUCKET"):

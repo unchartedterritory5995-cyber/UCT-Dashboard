@@ -120,9 +120,13 @@ export default function WireView({ dateStr }) {
             <span className={mv != null && mv < 0 ? styles.down : styles.up}>
               {mv == null ? '—' : `${mv >= 0 ? '▲' : '▼'} ${Math.abs(mv).toFixed(1)}%`}
             </span>
-            {r.eps_act == null ? (
+            {r.eps_act == null && r.rev_act == null ? (
               <span className={styles.pending}>numbers pending…</span>
             ) : (
+              // Show whatever the company actually published — KOPN
+              // (2026-08-11) printed a +22% revenue beat with NO EPS figure,
+              // and an eps-only gate hid that revenue behind "pending…".
+              // fmtNum renders a missing side as an em dash, which is honest.
               <span className={styles.nums}>
                 EPS {fmtNum(r.eps_act)} vs {fmtNum(r.eps_est)}
                 {' · '}Rev {fmtNum(r.rev_act)} vs {fmtNum(r.rev_est)}
