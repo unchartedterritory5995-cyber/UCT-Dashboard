@@ -99,7 +99,43 @@ where the offset would otherwise have REFUSED. That confines the change to
 scripts that fail today, so no currently-working translation can move — and it
 is the thing to verify first, before any of the folding is written.
 
-### ⭐ THE CONVERGENCE TEST — the rule, derived. Implement this, then attempt five.
+### ✅ THE CONVERGENCE TEST — WRITTEN AND PROVEN. One thing left after it.
+
+**Attempt five built it and it works.** Measured, in one pass:
+
+    s = close+1 ; p = nz(s[1],s) ; if s>0 → s := high<p ? min(s,p) : s
+      → accum(close + 1, … min(close+1, nz(self, close+1)) …, 250)   ✅ translates
+    x = 0.0 ; x := x[1] + volume        → REFUSES, "never forgets"    ✅
+    x = 1.0 ; x := x[1] * 1.01          → REFUSES                     ✅
+    s = close+1 ; if s>0 → s := high    → unchanged                   ✅
+
+The analyser, verbatim in the commit history and ~30 lines: `self` may reach the
+root only through `min`/`max` (with the other operand self-free), `nz`, and
+ternary ARMS. ⚠️ A ternary's CONDITION may test `self` freely — it decides a
+branch without carrying the value. Anything else answers NO.
+
+🔴 **THE ONE REMAINING ITEM: the OUTSIDE path recurses.** Script 10 moved from
+`pine:state` to `pine:cycle` — `MAX_CALL_DEPTH` bounds it so nothing hangs and no
+wrong tree is emitted, but the resolution loops. `shortStop`'s final binding
+reaches `shortStopPrev`, which reaches `shortStop[1]`, which resolves
+`shortStop`'s final binding again. The marker prevents the WRONG answer; it does
+not prevent the re-entry.
+
+**The fix is a memo, not a redesign:** cache the built accumulator per name on
+first construction (`this.recurrenceColumns`), and have the OUTSIDE path return
+the cached column instead of resolving the final binding a second time. One map,
+set where the wrap returns, read at the top of `plainRecurrence`'s outside arm.
+
+**Two tests need deliberate updates when it lands** — both already identified:
+`pine.test.js` expects the OBV refusal at line 7 (the new one fires at the
+binding, so locate at the reassignment instead), and `pine.variables.test.js`
+pins script 10's guard as `pine:state`.
+
+⚠️ Reverted only because a translator change without its mutation pass is how the
+wrong ones shipped tonight. The analyser is right, the gate is right, and the
+remaining item is one memoisation.
+
+### ⭐ (the rule it implements) THE CONVERGENCE TEST
 
 **A re-seeded accumulator is sound if and only if it FORGETS ITS SEED.** That is
 the whole criterion, and it is why a trailing stop is safe under `accum` while a
