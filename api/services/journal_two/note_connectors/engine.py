@@ -12,13 +12,24 @@ boundaries in production code) so tests achieve isolation the same way
 to a temp file before any connection is opened.
 
 Flow per source, per sync:
-  1. `provider.list_changed(creds, cursor)` — the ONLY "what changed" signal.
+  1. `provider.list_changed(creds, cursor)` — the "what to FETCH" signal.
      The raw stored cursor is passed straight through; providers own their
      own overlap window internally (Craft: -1h; Roam: re-enumerates + diffs
-     edit-times) — the engine never adjusts it.
+     edit-times) — the engine never adjusts it. For a provider whose full
+     enumeration is cheap but whose content fetch is expensive (OneNote,
+     Task 6), this may be a BOUNDED content-fetch drain rather than the
+     complete remote set — see `list_present_refs` below.
   2. Full syncs (`full=True`) run delete detection FIRST, against the
      PRE-sync remote_index snapshot (see `_run_delete_detection`), then
      every seen ref is upserted into remote_index (`_touch_remote_index`).
+     Task 4: an OPTIONAL `provider.list_present_refs(creds)` hook (checked
+     via `getattr`, mirrors `list_deleted` immediately below it) supplies
+     the COMPLETE current remote set for BOTH of those steps when present
+     and successful — `index_refs` in `_do_sync` — while `list_changed`'s
+     own (possibly bounded) result still drives content fetch, unchanged.
+     A raising hook, or a provider without one (Roam/Craft/Notion/Dropbox/
+     OneDrive define none), falls back to `list_changed`'s result driving
+     everything, today's unchanged behavior.
   3. Resolve refs -> RemoteNotes, preferring `provider.fetch_many` (batched)
      with a per-ref `fetch()` fallback so one bad ref in a batch yields one
      named failure, never the whole batch.
@@ -385,6 +396,13 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
         # Raw cursor, unadjusted — providers own their own overlap window.
         cursor = None if full else source.get("cursor")
         refs = await provider.list_changed(creds, cursor=cursor)
+        # Task 4: `index_refs` is what delete detection + remote_index
+        # bookkeeping actually see. Defaults to `refs` (today's behavior,
+        # unconditionally) and is ONLY ever overridden below, on a `full`
+        # pass, by a provider that exposes `list_present_refs` and whose
+        # call succeeds — so an incremental pass, or a provider without the
+        # hook, leaves this byte-for-byte equal to `refs`.
+        index_refs = refs
 
         if full:
             # Task 11 MUST-RESOLVE #4: when the provider exposes a
@@ -406,7 +424,38 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
                         f"list_deleted sweep failed (falling back to miss-streak "
                         f"delete detection): {e}"
                     )
-            dd = _run_delete_detection(user_id, source, refs, deleted_refs=deleted_refs)
+
+            # Task 4: an optional, full-pass-only hook for a provider whose
+            # full ENUMERATION is cheap but whose content FETCH is expensive
+            # (OneNote, Task 6) — it returns the COMPLETE current remote set
+            # while `list_changed` above returns only a bounded drain (a
+            # content-fetch budget, not a full listing). Mirrors the
+            # `list_deleted` seam immediately above EXACTLY: same `getattr`
+            # gating, same full-pass-only placement, same catch-and-fall-
+            # back-with-named-failure discipline. When present and
+            # successful, `index_refs` becomes this COMPLETE set, so delete
+            # detection (`_run_delete_detection`'s `seen_ids`) and
+            # `_touch_remote_index` see every item that still exists
+            # remotely — a present-but-not-yet-fetched item is correctly
+            # touched (miss_streak reset), never mistaken for missing/
+            # deleted just because this round's bounded drain didn't reach
+            # it. `refs` itself is UNCHANGED and still drives
+            # `_fetch_remote_notes` below — enumeration is complete, content
+            # fetch stays bounded. A raising hook, or a provider without the
+            # method (Roam/Craft/Notion/Dropbox/OneDrive define none), never
+            # aborts the sync — `index_refs` simply falls back to `refs`,
+            # today's behavior, unchanged.
+            present_fn = getattr(provider, "list_present_refs", None)
+            if present_fn is not None:
+                try:
+                    index_refs = await present_fn(creds)
+                except Exception as e:  # noqa: BLE001
+                    item_failures.append(
+                        f"list_present_refs sweep failed (falling back to "
+                        f"refs-drive-everything): {e}"
+                    )
+
+            dd = _run_delete_detection(user_id, source, index_refs, deleted_refs=deleted_refs)
             # `deleted` is meaningful even alongside a warning now (Fix-round-1
             # #1a): the explicit-sever cap can refuse the LIST_DELETED signal
             # for a subset of rows in the same pass unrelated 2-strike misses
@@ -418,7 +467,7 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
             if dd["status"] == "warning":
                 delete_guard_warning = dd["reason"]
 
-        _touch_remote_index(user_id, source, provider, refs)
+        _touch_remote_index(user_id, source, provider, index_refs)
 
         remote_notes, fetch_failures = await _fetch_remote_notes(provider, creds, refs)
         item_failures.extend(fetch_failures)
