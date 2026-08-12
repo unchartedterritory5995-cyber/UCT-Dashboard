@@ -283,6 +283,126 @@ def test_connect_notion_returns_a_redirect_url_with_signed_state(client, monkeyp
     assert "state=" in url
 
 
+# ── Task 1 (msgraph-wave plan): _start_oauth/oauth_callback generalize to  ───
+# ── `provider in oauth._PROVIDERS` instead of the literal `== "notion"`.  ───
+#
+# onenote's own `registry.py` row doesn't land until Task 3/7 of that plan --
+# these tests only need to prove THIS router's generic branch (Task 1's own
+# scope), so they install a throwaway `ProviderEntry` the same shape Task 3/7
+# eventually will, without touching registry.py itself. If a real "onenote"
+# row is ever added to `registry._REGISTRY` for real, `monkeypatch.setitem`
+# below simply overrides it for the duration of the test and restores
+# whatever was there afterward -- never a permanent mutation.
+
+def _install_onenote_registry_entry(monkeypatch):
+    from api.services.journal_two.note_connectors import oauth as oauth_mod
+    from api.services.journal_two.note_connectors.registry import ProviderEntry
+
+    entry = ProviderEntry(
+        "onenote", "OneNote", "oauth", lambda: oauth_mod.configured("onenote"),
+        lambda source=None: None,
+    )
+    monkeypatch.setitem(registry._REGISTRY, "onenote", entry)
+
+
+def test_connect_onenote_not_configured_returns_503(client, monkeypatch):
+    _install_onenote_registry_entry(monkeypatch)
+    r = client.post("/api/j2/notes/connectors/onenote/connect", json={"consent": True})
+    assert r.status_code == 503
+
+
+def test_connect_onenote_returns_a_redirect_url_to_microsoft(client, monkeypatch):
+    monkeypatch.setenv("MSGRAPH_CLIENT_ID", "cid")
+    monkeypatch.setenv("MSGRAPH_CLIENT_SECRET", "csecret")
+    _install_onenote_registry_entry(monkeypatch)
+
+    r = client.post("/api/j2/notes/connectors/onenote/connect", json={"consent": True})
+    assert r.status_code == 200
+    url = r.json()["redirectUrl"]
+    assert url.startswith("https://login.microsoftonline.com/common/oauth2/v2.0/authorize")
+    assert "state=" in url
+    assert "Notes.Read" in url
+
+
+def test_callback_onenote_calls_exchange_code_and_upserts(client, monkeypatch):
+    monkeypatch.setenv("MSGRAPH_CLIENT_ID", "cid")
+    monkeypatch.setenv("MSGRAPH_CLIENT_SECRET", "csecret")
+    _install_onenote_registry_entry(monkeypatch)
+    import api.routers.note_sync as ns
+    state = ns._sign_state("u1", "onenote")
+
+    calls = []
+
+    async def fake_exchange_code(provider, code, **kw):
+        calls.append((provider, code))
+        return {"accessToken": "msgraph-tok"}
+
+    monkeypatch.setattr(ns.oauth, "exchange_code", fake_exchange_code)
+
+    r = client.get("/api/j2/notes/connectors/onenote/callback",
+                    params={"code": "authcode", "state": state}, follow_redirects=False)
+    assert r.status_code == 302
+    assert "connected=1" in r.headers["location"]
+    assert calls == [("onenote", "authcode")]
+
+    st = client.get("/api/j2/notes/connectors/status").json()
+    assert st["providers"]["onenote"]["connected"] is True
+
+
+def test_callback_onenote_provider_error_redirects_with_status_error_not_500(client, monkeypatch):
+    monkeypatch.setenv("MSGRAPH_CLIENT_ID", "cid")
+    monkeypatch.setenv("MSGRAPH_CLIENT_SECRET", "csecret")
+    _install_onenote_registry_entry(monkeypatch)
+    import api.routers.note_sync as ns
+    state = ns._sign_state("u1", "onenote")
+
+    async def fake_exchange_code(provider, code, **kw):
+        raise errors.NoteConnAuthError("microsoft rejected the code")
+
+    monkeypatch.setattr(ns.oauth, "exchange_code", fake_exchange_code)
+
+    r = client.get("/api/j2/notes/connectors/onenote/callback",
+                    params={"code": "authcode", "state": state}, follow_redirects=False)
+    assert r.status_code == 302
+    assert "connected=0" in r.headers["location"]
+    assert client.get("/api/j2/notes/connectors/status").json()["providers"]["onenote"]["connected"] is False
+
+
+def test_notion_connect_and_callback_regression_stays_green_alongside_onenote(client, monkeypatch):
+    """The router's generalized `provider in oauth._PROVIDERS` branch now
+    covers BOTH notion and onenote -- prove Notion's own connect+callback
+    round trip is unaffected when an onenote registry entry is ALSO
+    installed in the same process (guards against the branch accidentally
+    picking up cross-provider state)."""
+    monkeypatch.setenv("NOTION_CLIENT_ID", "cid")
+    monkeypatch.setenv("NOTION_CLIENT_SECRET", "csecret")
+    monkeypatch.setenv("MSGRAPH_CLIENT_ID", "mcid")
+    monkeypatch.setenv("MSGRAPH_CLIENT_SECRET", "mcsecret")
+    _install_onenote_registry_entry(monkeypatch)
+
+    r = client.post("/api/j2/notes/connectors/notion/connect", json={"consent": True})
+    assert r.status_code == 200
+    assert r.json()["redirectUrl"].startswith("https://api.notion.com/v1/oauth/authorize")
+
+    import api.routers.note_sync as ns
+    state = ns._sign_state("u1", "notion")
+
+    async def fake_exchange_code(provider, code, **kw):
+        assert provider == "notion"
+        return {"accessToken": "notion-tok", "workspaceId": "ws1", "workspaceName": "My Workspace"}
+
+    monkeypatch.setattr(ns.oauth, "exchange_code", fake_exchange_code)
+
+    r2 = client.get("/api/j2/notes/connectors/notion/callback",
+                     params={"code": "authcode", "state": state}, follow_redirects=False)
+    assert r2.status_code == 302
+    assert "connected=1" in r2.headers["location"]
+
+    st = client.get("/api/j2/notes/connectors/status").json()
+    assert st["providers"]["notion"]["connected"] is True
+    assert st["providers"]["notion"]["sources"][0]["remoteId"] == "ws1"
+
+
 # ── GET /{provider}/callback (OAuth) ─────────────────────────────────────────
 
 def test_callback_missing_code_or_state_400(client):

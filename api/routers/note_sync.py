@@ -380,9 +380,14 @@ def _start_oauth(provider: str, user_id: str) -> dict[str, Any]:
         state = _sign_state(user_id, provider)
     except errors.NoteConnNotConfigured as e:
         raise HTTPException(status_code=503, detail=str(e))
-    if provider == "notion":
-        url = oauth.authorize_url("notion", state)
-    else:  # dropbox
+    if provider in oauth._PROVIDERS:
+        # Generic path — Notion today, onenote/onedrive (Microsoft Graph)
+        # once their registry.py rows land (Task 3/7 of this plan): ZERO
+        # per-name code here, the branch is keyed on which providers
+        # `oauth.py` itself knows how to talk to.
+        url = oauth.authorize_url(provider, state)
+    else:  # dropbox -- owns its OAuth mechanics outside oauth.py, see this
+        # module's own docstring / oauth.py's docstring for why.
         from api.services.journal_two.note_connectors.providers.dropbox import authorize_url as dbx_authorize_url
         url = dbx_authorize_url(_dropbox_redirect_uri(), state)
     return {"redirectUrl": url}
@@ -443,10 +448,19 @@ async def oauth_callback(
     entry = registry.get_entry(provider)
 
     try:
-        if provider == "notion":
-            creds = await oauth.exchange_code("notion", code)
-            account_label = creds.get("workspaceName") or "Notion"
-            remote_id: str | None = creds.get("workspaceId") or creds.get("botId") or "workspace"
+        if provider in oauth._PROVIDERS:
+            # Generic path (Task 1's own scope: Notion today, onenote/
+            # onedrive once their registry.py rows land) -- ZERO per-name
+            # code. `workspaceName`/`workspaceId`/`botId` are Notion's own
+            # fields (`_normalize_token_response` never invents them for a
+            # provider that doesn't return them, e.g. Microsoft Graph), so
+            # falling back to the registry's own label/None is what keeps
+            # this branch honest for a provider with no "workspace" concept
+            # at all rather than baking Notion's vocabulary into a generic
+            # branch.
+            creds = await oauth.exchange_code(provider, code)
+            account_label = creds.get("workspaceName") or entry.label
+            remote_id: str | None = creds.get("workspaceId") or creds.get("botId")
         else:  # dropbox -- no oauth.py entry (see providers/dropbox.py's own OAuth
             # mechanics); exchanges directly against its documented private
             # helper (the module's own docstring invites this: "the router
