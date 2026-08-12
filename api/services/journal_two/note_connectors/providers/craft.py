@@ -45,9 +45,11 @@ raises just because of call order.
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 
@@ -57,6 +59,7 @@ from ..errors import (
     NoteConnAuthError,
     NoteConnRateLimited,
     NoteConnTransient,
+    NoteConnUnsupported,
 )
 from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef
 
@@ -68,9 +71,12 @@ _DEFAULT_RATE_PER_SEC = 3.0
 # "`lastModifiedDateGte={cursor-1h-overlap-ISO}`".
 _OVERLAP_HOURS = 1.0
 
-_CAPABILITY_URL_RE = re.compile(
-    r"^https://connect\.craft\.do/links/(?P<link_id>[^/]+)/api/v1$"
-)
+# No documented pagination exists at all (spec §7) — this bounds the
+# DEFENSIVE nextCursor-follow loop below so a misbehaving/malicious
+# `nextCursor` value can never hang a sync indefinitely.
+_MAX_DOCUMENT_PAGES = 50
+
+_CAPABILITY_PATH_RE = re.compile(r"^/links/(?P<link_id>[^/]+)/api/v1$")
 
 _BAD_URL_MESSAGE = "that doesn't look like a Craft API URL"
 
@@ -81,17 +87,46 @@ def parse_capability_url(raw_url: str | None) -> tuple[str, str]:
     every endpoint builder in this file can safely do
     `f"{base_url}/documents"` etc.
 
-    Tolerant of surrounding whitespace and one-or-more trailing slashes.
-    Strict about everything else: a wrong host, a missing `/api/v1` suffix,
-    an http (not https) scheme, or empty/garbage input all raise
-    `NoteConnAuthError` with the exact user-facing sentence the connect
-    screen is required to show — this is the ONE place that message lives.
+    Tolerant of surrounding whitespace, one-or-more trailing slashes, and
+    host CASING (`Connect.Craft.Do` normalizes the same as
+    `connect.craft.do` — only the host is lowercased; the `{LINK_ID}` path
+    segment is returned byte-for-byte, since Craft link ids may be
+    case-significant). Strict about everything else: a wrong host (including
+    a `connect.craft.do.evil.com` suffix-spoof — matched by exact hostname,
+    never `in`/substring), a missing `/api/v1` suffix, an http (not https)
+    scheme, or empty/garbage input all raise `NoteConnAuthError` with the
+    exact user-facing sentence the connect screen is required to show — this
+    is the ONE place that message lives.
     """
     url = (raw_url or "").strip().rstrip("/")
-    match = _CAPABILITY_URL_RE.match(url)
+    if not url:
+        raise NoteConnAuthError(_BAD_URL_MESSAGE)
+    parsed = urlsplit(url)
+    if parsed.scheme.lower() != "https":
+        raise NoteConnAuthError(_BAD_URL_MESSAGE)
+    host = (parsed.hostname or "").lower()
+    if host != "connect.craft.do":
+        raise NoteConnAuthError(_BAD_URL_MESSAGE)
+    match = _CAPABILITY_PATH_RE.match(parsed.path)
     if not match:
         raise NoteConnAuthError(_BAD_URL_MESSAGE)
-    return url, match.group("link_id")
+    base_url = f"https://connect.craft.do{parsed.path}"
+    return base_url, match.group("link_id")
+
+
+def _is_trusted_craft_host(host: str | None) -> bool:
+    """True only for `craft.do` itself or a `*.craft.do` subdomain (the
+    capability host `connect.craft.do` plus any Craft-owned asset host) —
+    EXACT/suffix matching only, never `in`/substring, so `craft.do.evil.com`
+    or `evilcraft.do` cannot spoof it. This is the boundary
+    `fetch_media` uses to decide whether our Bearer key is safe to attach:
+    a media `ref` is a URL taken from DOCUMENT CONTENT, not from Craft
+    itself, so an attacker who gets a foreign image URL into a note's
+    markdown must never receive our credential."""
+    if not host:
+        return False
+    host = host.lower()
+    return host == "craft.do" or host.endswith(".craft.do")
 
 
 def _overlap_cursor(cursor: str, *, hours: float = _OVERLAP_HOURS) -> str:
@@ -113,6 +148,27 @@ def _safe_json(response: httpx.Response) -> Any:
         return response.json()
     except ValueError:
         return None
+
+
+def _is_json_masquerading_as_markdown(response: httpx.Response, text: str) -> bool:
+    """True when a `/blocks` response is NOT trustworthy markdown, per two
+    independent signals: (1) the content-type isn't `text/*` at all, or
+    (2) the body's first non-whitespace char is `{`/`[` AND it actually
+    parses as JSON (so a markdown doc that happens to start with a literal
+    `[link](url)` — which is NOT valid JSON — is never flagged). Feeding a
+    JSON error body to `md_to_tiptap` would silently render the raw JSON
+    text as the note's entire content instead of failing loudly."""
+    content_type = (response.headers.get("content-type") or "").split(";")[0].strip().lower()
+    if not content_type.startswith("text/"):
+        return True
+    stripped = text.lstrip()
+    if stripped[:1] not in ("{", "["):
+        return False
+    try:
+        json.loads(text)
+    except ValueError:
+        return False
+    return True
 
 
 def _extract_array(data: Any, key: str) -> list[dict[str, Any]]:
@@ -295,7 +351,19 @@ class CraftProvider(NoteProvider):
 
         refs: list[RemoteRef] = []
         url: str | None = f"{base_url}/documents"
+        # Cycle/runaway guards on the DEFENSIVE nextCursor-follow loop — no
+        # documented pagination exists at all, so a well-behaved Craft space
+        # never exercises either of these; they only matter if a future/
+        # malformed response starts sending a `nextCursor`-shaped field.
+        seen_urls: set[str] = {url}
+        pages = 0
         while url:
+            pages += 1
+            if pages > _MAX_DOCUMENT_PAGES:
+                raise NoteConnTransient(
+                    f"Craft /documents pagination exceeded {_MAX_DOCUMENT_PAGES} "
+                    "pages without finishing -- aborting rather than looping forever",
+                )
             response = await self._get(url, headers=headers, params=params)
             self._raise_for_status(response)
             data = _safe_json(response) or {}
@@ -306,8 +374,18 @@ class CraftProvider(NoteProvider):
                 self._doc_meta[doc_id] = doc
                 updated_at = doc.get("lastModifiedDate") or doc.get("createdDate") or ""
                 refs.append(RemoteRef(remote_id=doc_id, updated_at=updated_at))
-            url = _extract_next_cursor(data)
+            next_url = _extract_next_cursor(data)
             params = None  # a followed cursor URL is assumed self-contained
+            if next_url is None:
+                url = None
+                continue
+            if next_url in seen_urls:
+                raise NoteConnTransient(
+                    "Craft /documents pagination cycle detected (repeated "
+                    "nextCursor) -- aborting rather than looping forever",
+                )
+            seen_urls.add(next_url)
+            url = next_url
 
         return refs
 
@@ -333,7 +411,16 @@ class CraftProvider(NoteProvider):
             f"{base_url}/blocks", headers=headers, params={"id": ref.remote_id},
         )
         self._raise_for_status(response)
-        converted = md_to_tiptap(response.text or "")
+        body_text = response.text or ""
+        if _is_json_masquerading_as_markdown(response, body_text):
+            # Craft answered with a 200 despite `Accept: text/markdown` — a
+            # JSON body handed to md_to_tiptap would silently become the
+            # note's entire visible content instead of failing loudly. Loud
+            # + retryable beats a garbled note.
+            raise NoteConnTransient(
+                "Craft returned non-markdown content", status=response.status_code,
+            )
+        converted = md_to_tiptap(body_text)
 
         return RemoteNote(
             remote_id=ref.remote_id,
@@ -348,11 +435,34 @@ class CraftProvider(NoteProvider):
         )
 
     async def fetch_media(self, credentials: dict[str, Any], ref: str) -> tuple[bytes, str]:
-        # `ref` is the Craft-hosted image URL mddoc registered verbatim
-        # (`_image_node`'s non-data-uri path uses the src AS the ref) — the
-        # same Bearer that authenticates the API also authorizes the asset.
+        # `ref` is a URL taken from DOCUMENT CONTENT (mddoc's `_image_node`
+        # uses an image's `src` verbatim as the media ref) — NOT something
+        # Craft itself vouches for. A note author (or an attacker who gets
+        # content into a synced doc) can put ANY URL there, so the Bearer key
+        # must only ever be attached when we can prove the URL actually
+        # targets Craft's own infrastructure. Security-review probe: an
+        # attacker-controlled image URL in a document must NEVER receive our
+        # token — verified by `_is_trusted_craft_host`'s exact/suffix match
+        # (never `in`/substring) on an https-only scheme. Mirrors
+        # `RoamProvider.fetch_media`'s precedent (that provider's media URLs
+        # are pre-signed Firebase links and NEVER get Roam's Authorization
+        # header either) — do not widen this to attach auth by default.
         _base_url, _link_id, bearer = self._creds(credentials)
-        response = await self._get(ref, headers={"Authorization": f"Bearer {bearer}"})
+        parsed = urlsplit(ref)
+        scheme = (parsed.scheme or "").lower()
+        if scheme != "https":
+            raise NoteConnUnsupported(
+                f"Cannot fetch Craft media over a non-https URL ({scheme or 'no scheme'!r})",
+                reason="Media reference is not a secure (https) URL",
+            )
+        headers: dict[str, str] = {}
+        if _is_trusted_craft_host(parsed.hostname):
+            headers["Authorization"] = f"Bearer {bearer}"
+        # else: an untrusted host — fetch WITHOUT credentials (public-URL
+        # fallback), never widen `_is_trusted_craft_host` to fix a legitimate
+        # asset host that fails this check; add it to that function's exact
+        # allowlist instead.
+        response = await self._get(ref, headers=headers)
         if response.status_code >= 400:
             raise NoteConnTransient(
                 f"Failed to download Craft media ({response.status_code})",
