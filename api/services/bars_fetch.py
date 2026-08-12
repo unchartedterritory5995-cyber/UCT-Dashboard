@@ -131,6 +131,12 @@ _bg_delta_sem = _threading.Semaphore(_BG_DELTA_MAX)
 # request threadpool. Kill-switch: BARS_DEEPFILL_ENABLED=0.
 _DEEPFILL_ENABLED = _os.environ.get("BARS_DEEPFILL_ENABLED", "1") == "1"
 _DEEPFILL_TTL = int(_os.environ.get("BARS_DEEPFILL_TTL_SECONDS", str(6 * 3600)))
+# Replay Mode cold intraday: cap the pre-cutoff window fetched from the provider. A replay
+# chart requests fullBarsFor(tf) (5m=30000 → ~239 days of 5-min = minutes-slow + a huge
+# payload — the "5m replay takes minutes + flickers" bug). A replay VIEW needs only a few
+# weeks of context; the store keys by ts, so these capped rows still satisfy the full
+# bars=30000 request from SQLite on the real chart fetch.
+_REPLAY_INTRADAY_COLD_BARS = int(_os.environ.get("REPLAY_INTRADAY_COLD_BARS", "4000"))
 _DEEPFILL_MAX = max(1, int(_os.environ.get("BARS_DEEPFILL_MAX", "2")))
 _deepfill_sem = _threading.Semaphore(_DEEPFILL_MAX)
 
@@ -1809,20 +1815,39 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str) -> JSONR
         # (split-adjusted, NO lookback ceiling), persist to SQLite, then serve ≤ cutoff. Slow
         # the first time (~1-3s for a 2008 window), permanently cached + fast after. Bounded by
         # `bars`: ~bars/bars_per_day*1.5 calendar days ENDING at the cutoff (not 2003→cutoff).
+        # WINDOW IS CAPPED (_REPLAY_INTRADAY_COLD_BARS) so the cold fetch is fast + small.
+        # DEDUPED via _inflight so the burst from warming all intraday TFs on replay-start
+        # (or a poll during the fetch) doesn't stampede the provider for the same window.
         try:
             mult = int(tf)
             bars_per_day = (16 * 60) // max(mult, 1)
-            lookback_days = min(9000, max(10, int(max(bars, 200) / max(bars_per_day, 1) * 1.5) + 5))
+            eff_bars = min(int(bars), _REPLAY_INTRADAY_COLD_BARS)
+            lookback_days = min(400, max(10, int(eff_bars / max(bars_per_day, 1) * 1.5) + 5))
             _to_d = datetime.strptime(str(to_str), "%Y-%m-%d")
             from_ymd = (_to_d - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
-            deep = [b for b in _fetch_intraday_range(ticker_up, tf, from_ymd, str(to_str))
-                    if int(b.get("t", 0)) <= to_key]
-            if deep:
+            cold_key = f"replayto::{ticker_up}::{tf}::{to_str}"
+            with _inflight_lock:
+                ev = _inflight.get(cold_key)
+                do_fetch = ev is None
+                if do_fetch:
+                    ev = _threading.Event()
+                    _inflight[cold_key] = ev
+            if do_fetch:
                 try:
-                    _sqlite.put_bars(ticker_up, tf, deep, date_tf=False)
-                except Exception:
-                    pass
-                rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
+                    deep = [b for b in _fetch_intraday_range(ticker_up, tf, from_ymd, str(to_str))
+                            if int(b.get("t", 0)) <= to_key]
+                    if deep:
+                        try:
+                            _sqlite.put_bars(ticker_up, tf, deep, date_tf=False)
+                        except Exception:
+                            pass
+                finally:
+                    with _inflight_lock:
+                        _inflight.pop(cold_key, None)
+                    ev.set()
+            else:
+                ev.wait(timeout=30)   # another request is fetching this exact window — wait, then read
+            rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
         except Exception:
             rows = rows or []
     if not rows:

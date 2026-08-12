@@ -10,6 +10,7 @@ import LeverageInverseControl from './LeverageInverseControl'
 import ViewHoldingsControl from './ViewHoldingsControl'
 import styles from '../ChartsWorkspace.module.css'
 import ChartTabStrip from './ChartTabStrip'
+import { prefetchReplayTimeframes } from '../../../utils/prefetchBars'
 import {
   sanitizeChartTabs, chartTabList, addChartTab, closeChartTab,
   setActiveChartTab, renameChartTab, patchChartTab,
@@ -72,6 +73,13 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // pane owns): a synthetic index has no leveraged/inverse family, so that
   // control is hidden for one.
   const isThemeIndex = typeof sym === 'string' && sym.startsWith('$IDX:')
+
+  // Replay Mode: the moment a cutoff is set, warm every intraday timeframe for THIS chart's
+  // symbol at that date in the background, so switching to 5m/1m is instant (the backend
+  // fetches + persists the pre-cutoff window once). Bounded/priority-queued in prefetchBars.
+  useEffect(() => {
+    if (replayCutoff && sym) prefetchReplayTimeframes(sym, replayCutoff)
+  }, [sym, replayCutoff])
 
   // ── Crosshair sync across EVERY chart widget ──
   // Stable per-widget id so we ignore our own broadcasts. Deliberately NOT

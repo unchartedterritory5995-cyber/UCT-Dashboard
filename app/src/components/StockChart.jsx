@@ -3745,7 +3745,10 @@ export default function StockChart({
   // any one-tf threshold yet long enough that the in-flight request rate stays
   // bounded even with many charts open. D/W/M evolve slowly — 5min is enough.
   // refreshWhenHidden:false stops backgrounded tabs from burning ticks.
-  const refreshInterval = isIntraday ? 30_000 : 300_000
+  // Replay mode is FROZEN historical data — polling it re-fetches the (large) window
+  // every 30s and blanks/repaints the chart mid-load (the "5m replay flickers" bug), so
+  // don't poll while a cutoff is set. The static `?to=` window never changes.
+  const refreshInterval = replayCutoff ? 0 : (isIntraday ? 30_000 : 300_000)
   const { data, error, mutate } = useSWR(
     swrUrl,
     fetcher,
