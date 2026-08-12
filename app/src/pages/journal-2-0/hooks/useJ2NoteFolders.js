@@ -15,11 +15,11 @@ export default function useJ2NoteFolders() {
   })
   const folders = data?.folders ?? []
 
-  const create = async (name) => {
+  const create = async (name, parentId) => {
     const res = await fetch(url, {
       method: 'POST', credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, ...(parentId ? { parentId } : {}) }),
     })
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))
@@ -40,7 +40,10 @@ export default function useJ2NoteFolders() {
     const res = await fetch(`${url}/${id}`, {
       method: 'DELETE', credentials: 'include',
     })
-    if (!res.ok) throw new Error(`${res.status}`)
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}))
+      throw new Error(body.detail || `${res.status}`)
+    }
     await mutate()
   }
   return { folders, isLoading, error, refresh: () => mutate(), create, rename, remove }

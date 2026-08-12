@@ -184,7 +184,22 @@ def recon_day(D: str, universe: list, client=None, bucket_min: int = 30) -> Opti
     per_ticker = res[bucket_min]                     # {ticker: [{t,o,h,l,c,v}]}
     by_tb = {tk: {b["t"]: b["c"] for b in bars} for tk, bars in per_ticker.items()}
     buckets = sorted({b["t"] for bars in per_ticker.values() for b in bars})
+    # Seed the carry-forward with each name's PRIOR close so breadth is always
+    # computed over the FULL universe. Without this the 9:30 bucket sees only the
+    # handful of names that printed in the first 30 min → a biased, fake-low open
+    # that becomes a garbage ~13pt lower wick. Stocks sit at prior close until they
+    # trade today; real opening gaps still show once a name prints.
     last_px: dict = {}
+    _lv_tk = levels.get("tickers") or []
+    _pc = levels.get("prev_close")
+    if _pc is not None:
+        for _i, _tk in enumerate(_lv_tk):
+            try:
+                _v = float(_pc[_i])
+            except Exception:
+                continue
+            if _v == _v and _v > 0.0:                # finite & positive
+                last_px[_tk] = _v
     prices_by_bucket = []
     for T in buckets:
         for tk in per_ticker:
@@ -337,6 +352,8 @@ def sweep_wicks(from_date: str, to_date: str, universe: Optional[list] = None,
         universe, _ = _recon._resolve_universe()
     if not universe:
         return {"ok": False, "reason": "no universe"}
+    import gc as _gc
+    import time as _t
     client = _s3_client()
     lo, hi = _d.fromisoformat(from_date), _d.fromisoformat(to_date)
     d = hi
@@ -365,6 +382,12 @@ def sweep_wicks(from_date: str, to_date: str, universe: Optional[list] = None,
                         sync.upload(force=True)
                 else:
                     failed += 1
+                # Free the day's (large) minute-frame + yield, so the worker's memory
+                # doesn't accumulate and its /health stays responsive (avoids the
+                # Railway recycle we saw on the first run).
+                del agg, rows
+                _gc.collect()
+                _t.sleep(1.0)
         d -= _td(days=1)
     sync.upload(force=True)
     return {"ok": True, "from": from_date, "to": to_date, "days_written": ok,

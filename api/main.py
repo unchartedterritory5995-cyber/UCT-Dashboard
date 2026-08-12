@@ -48,6 +48,7 @@ from api.routers import render_panels as render_panels_router
 from api.routers import live_prices as live_prices_router
 from api.routers import ticker_meta as ticker_meta_router
 from api.routers import ticker_search as ticker_search_router
+from api.routers import compare as compare_router
 from api.routers import breadth_monitor as breadth_monitor_router
 from api.routers import theme_performance as theme_performance_router
 from api.routers import groups as groups_router
@@ -5500,6 +5501,7 @@ app.include_router(stream_router.router)
 app.include_router(live_prices_router.router)
 app.include_router(ticker_meta_router.router)
 app.include_router(ticker_search_router.router)
+app.include_router(compare_router.router)
 from api.routers import delisted as delisted_router
 app.include_router(delisted_router.router)
 app.include_router(single_stock_etfs_router.router)

@@ -165,7 +165,8 @@ export const CHART_DEFAULTS = {
   heikinAshi: false,
   logScale:   false,
   percentScale: false,
-  comparisonSymbols: [], // Array<{ sym: string, color: string, enabled: boolean }>
+  comparisonSymbols: [], // Array<{ sym: string, color: string, enabled: boolean, scaleMode?, group? }>
+  compareHideBase: false, // "Group only" — hide base candles/MAs/volume, show only comparisons
   // Event markers. earningsBeat/earningsMiss default to the candle up/down colors
   // (#1ae51a / #c41f2d) so the "E" badge matches the chart out of the box; both are
   // user-overridable (Markers tab) and also color the surprise rows in the popover.
@@ -424,6 +425,7 @@ export function mergeChartSettings(userSettings) {
     comparisonSymbols: Array.isArray(parsed?.comparisonSymbols)
       ? parsed.comparisonSymbols
       : CHART_DEFAULTS.comparisonSymbols,
+    compareHideBase: parsed.compareHideBase ?? CHART_DEFAULTS.compareHideBase,
     markers: { ...CHART_DEFAULTS.markers, ...(parsed.markers || {}) },
     prevDayLevels: {
       high:  { ...CHART_DEFAULTS.prevDayLevels.high,  ...(parsed.prevDayLevels?.high || {}) },

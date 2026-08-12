@@ -8,6 +8,7 @@ docs/superpowers/specs/2026-05-26-notebook-design.md
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -25,6 +26,7 @@ MAX_BODY_JSON_BYTES = 1_000_000  # 1MB
 MAX_TAG_LENGTH = 40
 MAX_TAGS = 30
 MAX_TICKER_LENGTH = 16
+MAX_FOLDER_DEPTH = 6
 
 _ATTACHMENT_ROOT = Path(
     os.environ.get(
@@ -34,6 +36,18 @@ _ATTACHMENT_ROOT = Path(
 )
 _ALLOWED_IMAGE_MIMES = {"image/png", "image/jpeg", "image/gif", "image/webp"}
 _MAX_IMAGE_BYTES = 5 * 1024 * 1024
+_ALLOWED_FILE_MIMES = {
+    "application/pdf", "text/plain", "text/csv", "text/markdown",
+    "application/zip", "audio/mpeg", "audio/mp4",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    # xlsx's real MIME is "...spreadsheetml.sheet" — ".document" was a typo
+    # (copy-pasted from the docx entry above). Accept both: "sheet" is what a
+    # real browser/frontend sends; "document" stays for back-compat with
+    # anything already relying on the old (wrong) value.
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.document",
+}
+_MAX_FILE_BYTES = 25 * 1024 * 1024
 
 
 class NoteValidationError(ValueError):
@@ -125,6 +139,156 @@ def _validate_ticker(raw: Any) -> str | None:
     return t
 
 
+# ── Import support ───────────────────────────────────────────────────────────
+
+def _import_payload_hash(note: dict) -> str:
+    """Compute a SHA256 hash of the note's immutable content for fingerprinting."""
+    basis = json.dumps({
+        "title": note.get("title") or "",
+        "subtitle": note.get("subtitle") or None,
+        "bodyJson": note.get("bodyJson") or {},
+        "tags": sorted(note.get("tags") or []),
+        "ticker": note.get("ticker") or None,
+        "folderPath": note.get("folderPath") or [],
+        "updatedAt": note.get("updatedAt") or "",
+    }, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(basis.encode("utf-8")).hexdigest()
+
+
+def _import_date(value, fallback):
+    """Validate and return an ISO date string, or fallback if invalid."""
+    if not value or not isinstance(value, str):
+        return fallback
+    try:
+        datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return value
+    except ValueError:
+        return fallback
+
+
+def import_check(user_id: str, import_keys: list[str], conn: sqlite3.Connection | None = None) -> dict:
+    """Check which import keys already exist for the user.
+
+    Returns: {"existing": {key: {"id", "updatedAt", "importHash"}}}
+    """
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        existing = {}
+        keys = [k for k in (import_keys or []) if isinstance(k, str)][:5000]
+        for i in range(0, len(keys), 500):  # SQLite variable limit safety
+            chunk = keys[i:i + 500]
+            q = ",".join("?" * len(chunk))
+            for row in conn.execute(
+                f"SELECT id, import_key, updated_at, import_hash FROM j2_notes "
+                f"WHERE user_id = ? AND import_key IN ({q})", (user_id, *chunk)):
+                existing[row["import_key"]] = {
+                    "id": row["id"], "updatedAt": row["updated_at"],
+                    "importHash": row["import_hash"]}
+        return {"existing": existing}
+    finally:
+        if owned:
+            conn.close()
+
+
+def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None = None) -> dict:
+    """Transactional upsert of notes by fingerprint.
+
+    Payload shape: {
+        "source": str,
+        "destFolderId": str|None,
+        "notes": [{importKey, title, subtitle?, bodyJson, tags, ticker?,
+                   createdAt?, updatedAt?, folderPath: [str, ...]}]
+    }
+
+    Returns: {"created": [...], "updated": [...], "skipped": [...]}
+    """
+    if not isinstance(payload, dict) or not isinstance(payload.get("notes"), list):
+        raise NoteValidationError("invalid import payload")
+    notes = payload["notes"]
+    if len(notes) > 500:
+        raise NoteValidationError("too many notes in one batch (max 500)")
+    raw_source = payload.get("source")
+    if raw_source is not None and not isinstance(raw_source, str):
+        raise NoteValidationError("source must be a string")
+    source = (raw_source or "file")[:40]
+    dest = payload.get("destFolderId") or ""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        if dest:
+            ok = conn.execute("SELECT 1 FROM j2_note_folders WHERE id = ? AND user_id = ?",
+                              (dest, user_id)).fetchone()
+            if not ok:
+                raise NoteValidationError("destination folder not found")
+        # A deep folderPath used to be truncated to MAX_FOLDER_DEPTH segments
+        # and then created UNDER destFolderId — so a dest at depth >=1 plus a
+        # path already at the cap raised "folder nesting too deep" and 400'd
+        # the whole batch. Clamp against how much room dest actually leaves:
+        # a dest at depth 1 (root) permits MAX_FOLDER_DEPTH-1 more segments,
+        # no dest (root import) permits the full MAX_FOLDER_DEPTH. Overflow
+        # segments are dropped — the note lands at the deepest allowed
+        # folder instead of failing the batch.
+        dest_depth = _folder_depth(conn, user_id, dest) if dest else 0
+        max_path_depth = max(0, MAX_FOLDER_DEPTH - dest_depth)
+        created, updated, skipped = [], [], []
+        # One import operation = one imported_at timestamp, deliberate
+        now = _now_iso()
+        path_cache: dict[tuple, str] = {}
+        for n in notes:
+            key = n.get("importKey")
+            if not key or not isinstance(key, str):
+                raise NoteValidationError("importKey required on every note")
+            body_json = _validate_body_json(n.get("bodyJson"))
+            body_plain = extract_plain_text(body_json)
+            title = (n.get("title") or "Untitled").strip()[:MAX_TITLE_CHARS]
+            tags = _validate_tags(n.get("tags"))
+            ticker = _validate_ticker(n.get("ticker"))
+            h = _import_payload_hash(n)
+            path = tuple((n.get("folderPath") or [])[:max_path_depth])
+            if path not in path_cache:
+                path_cache[path] = (ensure_folder_path(user_id, list(path), dest, conn=conn)
+                                    if path else (dest or None))
+            folder_id = path_cache[path] or None
+            row = conn.execute(
+                "SELECT id, import_hash FROM j2_notes WHERE user_id = ? AND import_key = ?",
+                (user_id, key)).fetchone()
+            item = {"importKey": key, "id": row["id"] if row else None}
+            if row and row["import_hash"] == h:
+                skipped.append(item); continue
+            created_at = _import_date(n.get("createdAt"), now)
+            updated_at = _import_date(n.get("updatedAt"), now)
+            if row:
+                conn.execute(
+                    "UPDATE j2_notes SET title=?, subtitle=?, body_json=?, body_plain=?, "
+                    "folder_id=?, ticker=?, tags=?, import_hash=?, imported_at=?, updated_at=? "
+                    "WHERE id=? AND user_id=?",
+                    (title, n.get("subtitle") or None, json.dumps(body_json), body_plain,
+                     folder_id, ticker, json.dumps(tags), h, now, updated_at,
+                     row["id"], user_id))
+                updated.append(item)
+            else:
+                new_id = uuid.uuid4().hex
+                conn.execute(
+                    "INSERT INTO j2_notes (id, user_id, folder_id, title, subtitle, body_json, "
+                    "body_plain, ticker, tags, import_source, import_key, import_hash, "
+                    "imported_at, created_at, updated_at) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (new_id, user_id, folder_id, title, n.get("subtitle") or None,
+                     json.dumps(body_json), body_plain, ticker, json.dumps(tags),
+                     source, key, h, now, created_at, updated_at))
+                item["id"] = new_id
+                created.append(item)
+        conn.commit()
+        return {"created": created, "updated": updated, "skipped": skipped}
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        if owned:
+            conn.close()
+
+
 # ── Row mapping ──────────────────────────────────────────────────────────────
 
 def _row_to_note(row: sqlite3.Row) -> dict[str, Any]:
@@ -152,7 +316,23 @@ def _row_to_folder(row: sqlite3.Row) -> dict[str, Any]:
         "name": row["name"],
         "sortOrder": row["sort_order"],
         "createdAt": row["created_at"],
+        "parentId": row["parent_id"] or None,
     }
+
+
+def _folder_depth(conn: sqlite3.Connection, user_id: str, folder_id: str) -> int:
+    """1-based depth of folder_id. Walks up; a cycle or missing parent stops the walk."""
+    depth, cur, seen = 0, folder_id, set()
+    while cur and cur not in seen:
+        seen.add(cur)
+        row = conn.execute(
+            "SELECT parent_id FROM j2_note_folders WHERE id = ? AND user_id = ?",
+            (cur, user_id)).fetchone()
+        if row is None:
+            break
+        depth += 1
+        cur = row["parent_id"]
+    return depth
 
 
 # ── Notes CRUD ───────────────────────────────────────────────────────────────
@@ -404,6 +584,7 @@ def create_folder(
     user_id: str,
     name: str,
     sort_order: int = 0,
+    parent_id: str = "",
     conn: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
     if not isinstance(name, str) or not name.strip():
@@ -414,17 +595,30 @@ def create_folder(
     owned = conn is None
     conn = conn or get_connection()
     try:
+        # Validate parent if truthy
+        if parent_id:
+            parent_row = conn.execute(
+                "SELECT 1 FROM j2_note_folders WHERE id = ? AND user_id = ?",
+                (parent_id, user_id)).fetchone()
+            if parent_row is None:
+                raise NoteValidationError("parent folder not found")
+            # Check depth cap
+            parent_depth = _folder_depth(conn, user_id, parent_id)
+            if parent_depth + 1 > MAX_FOLDER_DEPTH:
+                raise NoteValidationError("folder nesting too deep")
+
         new_id = uuid.uuid4().hex
         now = _now_iso()
         try:
             conn.execute(
-                "INSERT INTO j2_note_folders (id, user_id, name, sort_order, created_at) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (new_id, user_id, n, sort_order, now),
+                "INSERT INTO j2_note_folders (id, user_id, name, sort_order, parent_id, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (new_id, user_id, n, sort_order, parent_id, now),
             )
         except sqlite3.IntegrityError:
             raise NoteValidationError("folder with that name already exists")
-        conn.commit()
+        if owned:
+            conn.commit()
         row = conn.execute(
             "SELECT * FROM j2_note_folders WHERE id = ?", (new_id,)
         ).fetchone()
@@ -474,7 +668,8 @@ def update_folder(
             )
         except sqlite3.IntegrityError:
             raise NoteValidationError("folder with that name already exists")
-        conn.commit()
+        if owned:
+            conn.commit()
         row = conn.execute(
             "SELECT * FROM j2_note_folders WHERE id = ?", (folder_id,)
         ).fetchone()
@@ -489,21 +684,64 @@ def delete_folder(
     folder_id: str,
     conn: sqlite3.Connection | None = None,
 ) -> bool:
-    """Delete folder; contained notes move to Unfiled (folder_id=NULL)."""
+    """Delete folder; re-parents children and notes to the deleted folder's parent.
+    Root deletion (parent_id='') sends notes to Unfiled (NULL)."""
     owned = conn is None
     conn = conn or get_connection()
     try:
-        conn.execute(
-            "UPDATE j2_notes SET folder_id = NULL, updated_at = ? "
-            "WHERE folder_id = ? AND user_id = ?",
-            (_now_iso(), folder_id, user_id),
-        )
+        row = conn.execute(
+            "SELECT parent_id FROM j2_note_folders WHERE id = ? AND user_id = ?",
+            (folder_id, user_id)).fetchone()
+        if row is None:
+            return False
+        parent = row["parent_id"] or ""
+
+        # Detect name collisions BEFORE any mutations
+        # Exclude the deleted folder itself from the destination set to avoid self-referential false positives
+        collision = conn.execute(
+            "SELECT name FROM j2_note_folders WHERE user_id = ? AND parent_id = ? AND id != ? AND name IN "
+            "(SELECT name FROM j2_note_folders WHERE user_id = ? AND parent_id = ?)",
+            (user_id, parent, folder_id, user_id, folder_id)).fetchone()
+        if collision:
+            raise NoteValidationError(
+                f"cannot delete: a folder named '{collision['name']}' already exists at the destination — rename it first")
+
+        now = _now_iso()
+        # Delete the folder first to avoid UNIQUE constraint violations when re-parenting
         cur = conn.execute(
-            "DELETE FROM j2_note_folders WHERE id = ? AND user_id = ?",
-            (folder_id, user_id),
-        )
-        conn.commit()
+            "DELETE FROM j2_note_folders WHERE id = ? AND user_id = ?", (folder_id, user_id))
+        # notes climb to the parent; at root ('' parent) they go Unfiled (NULL)
+        conn.execute(
+            "UPDATE j2_notes SET folder_id = ?, updated_at = ? WHERE folder_id = ? AND user_id = ?",
+            (parent or None, now, folder_id, user_id))
+        conn.execute(
+            "UPDATE j2_note_folders SET parent_id = ? WHERE parent_id = ? AND user_id = ?",
+            (parent, folder_id, user_id))
+        if owned:
+            conn.commit()
         return cur.rowcount > 0
+    finally:
+        if owned:
+            conn.close()
+
+
+def ensure_folder_path(user_id: str, path_parts: list[str], dest_folder_id: str = "", conn=None) -> str:
+    """Upsert a folder chain under dest_folder_id; returns leaf folder id.
+    Truncates each segment to the 80-char folder-name cap."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        pid = dest_folder_id or ""
+        for raw in path_parts:
+            name = (raw or "").strip()[:80] or "Untitled"
+            row = conn.execute(
+                "SELECT id FROM j2_note_folders WHERE user_id = ? AND parent_id = ? AND name = ?",
+                (user_id, pid, name)).fetchone()
+            if row:
+                pid = row["id"]
+            else:
+                pid = create_folder(user_id, name, parent_id=pid, conn=conn)["id"]
+        return pid
     finally:
         if owned:
             conn.close()
@@ -557,13 +795,54 @@ async def save_note_image(
     return {"url": public_url, "width": width, "height": height}
 
 
+async def save_note_attachment(
+    user_id: str,
+    note_id: str,
+    upload,
+) -> dict[str, Any]:
+    """Validate + persist a non-image file attached to a note. Returns
+    {url, name, size}. File is stored under _ATTACHMENT_ROOT/{user_id}/notes/{note_id}/file/"""
+    if upload.content_type not in _ALLOWED_FILE_MIMES:
+        raise NoteValidationError(f"MIME type {upload.content_type} not allowed")
+    raw = await upload.read()
+    if len(raw) > _MAX_FILE_BYTES:
+        raise NoteValidationError("File must be < 25 MB")
+    if len(raw) == 0:
+        raise NoteValidationError("Empty file")
+
+    # Extract extension from filename; default to .bin if not in allowlist
+    filename = getattr(upload, "filename", "") or "attachment"
+    ext_map = {
+        ".pdf": ".pdf", ".txt": ".txt", ".csv": ".csv", ".md": ".md",
+        ".zip": ".zip", ".mp3": ".mp3", ".m4a": ".m4a",
+        ".docx": ".docx", ".xlsx": ".xlsx",
+    }
+    # Get extension from filename (case-insensitive)
+    file_ext = ""
+    if "." in filename:
+        file_ext = filename[filename.rfind("."):].lower()
+    ext = ext_map.get(file_ext, ".bin")
+
+    sub = "file"
+    target_dir = _ATTACHMENT_ROOT / user_id / "notes" / note_id / sub
+    target_dir.mkdir(parents=True, exist_ok=True)
+    new_id = uuid.uuid4().hex
+    target_path = target_dir / f"{new_id}{ext}"
+    target_path.write_bytes(raw)
+
+    public_url = (
+        f"/api/j2/notes/attachments/{user_id}/{note_id}/{sub}/{new_id}{ext}"
+    )
+    return {"url": public_url, "name": filename, "size": len(raw)}
+
+
 def serve_note_image_path(
     user_id: str,
     note_id: str,
     sub: str,
     filename: str,
 ) -> Path | None:
-    if sub not in ("hero", "inline"):
+    if sub not in ("hero", "inline", "file"):
         return None
     if "/" in filename or "\\" in filename or filename.startswith("."):
         return None

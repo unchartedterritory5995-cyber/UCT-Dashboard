@@ -178,6 +178,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
       setComparison: (arr) => persistActiveSettings({ ...chartCsRef.current, comparisonSymbols: arr, preset: 'custom' }),
       getPercentScale: () => !!chartCsRef.current?.percentScale,
       setPercentScale: (on) => persistActiveSettings({ ...chartCsRef.current, percentScale: !!on, logScale: false, preset: 'custom' }),
+      // "Group only" — hide the base candles/MAs/volume so just the comparisons show.
+      getHideBase: () => !!chartCsRef.current?.compareHideBase,
+      setHideBase: (on) => persistActiveSettings({ ...chartCsRef.current, compareHideBase: !!on, preset: 'custom' }),
       getRect: () => paneRef.current?.getRect?.() || null,
     })
     return () => { chartApiById.current.delete(id) }

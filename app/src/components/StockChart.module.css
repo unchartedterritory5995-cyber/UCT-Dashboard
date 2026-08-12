@@ -426,6 +426,41 @@
 .compareRow:hover .compareX { opacity: 0.75; }
 .compareX:hover { opacity: 1; background: rgba(200, 40, 40, 0.85); color: #fff; }
 
+/* Grouped comparisons (theme/sector/industry) — one collapsible legend row. */
+.compareGroupChevron {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 12px;
+  font-size: 10px;
+  color: var(--chart-panel-text, #a8a290);
+  cursor: pointer;
+  pointer-events: auto;
+}
+.compareGroupName {
+  flex: 0 0 auto;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--chart-panel-text-strong, #e2dfd6);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.compareGroupN { flex: 0 0 auto; color: var(--chart-panel-text, #a8a290); font-weight: 400; }
+.compareGroupMembers {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: fit-content;
+  margin-top: 3px;
+  margin-left: 12px;
+  max-height: 320px;
+  overflow-y: auto;
+  pointer-events: auto;
+}
+
 /* ── Attribution (Apache 2.0 requirement) ── */
 .attribution {
   position: absolute;

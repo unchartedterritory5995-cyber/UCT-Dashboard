@@ -228,6 +228,7 @@ const ICONS = {
   ),
   menu: <path d="M4 7h16M4 12h16M4 17h16" />,
   download: <path d="M12 3.5v11.5M7.5 11l4.5 4.5 4.5-4.5M5 20h14" />,
+  upload: <path d="M12 15V3.5M7.5 8l4.5-4.5L16.5 8M5 20h14" />,
   clock: (
     <>
       <circle cx="12" cy="12" r="8.5" />

@@ -1324,6 +1324,22 @@ def list_notes_endpoint(
     return {"notes": rows}
 
 
+@router.post("/notes/import/check")
+def notes_import_check_endpoint(payload: dict[str, Any], user: dict = Depends(get_current_user)):
+    import_keys = payload.get("importKeys")
+    if import_keys is not None and not isinstance(import_keys, list):
+        raise HTTPException(status_code=400, detail="importKeys must be a list")
+    return notes_service.import_check(user["id"], import_keys or [])
+
+
+@router.post("/notes/import/confirm")
+def notes_import_confirm_endpoint(payload: dict[str, Any], user: dict = Depends(get_current_user)):
+    try:
+        return notes_service.import_confirm(user["id"], payload)
+    except NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.get("/notes/{note_id}")
 def get_note_endpoint(
     note_id: str,
@@ -1423,6 +1439,24 @@ def delete_note_hero_endpoint(
     return {"ok": True}
 
 
+@router.post("/notes/{note_id}/attachments")
+async def upload_note_attachment_endpoint(
+    note_id: str,
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    n = notes_service.get_note(user["id"], note_id)
+    if n is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    try:
+        att = await notes_service.save_note_attachment(
+            user["id"], note_id, file,
+        )
+    except NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return att
+
+
 @router.get("/notes/attachments/{user_id_param}/{note_id}/{sub}/{filename}")
 def serve_note_attachment(
     user_id_param: str,
@@ -1456,6 +1490,7 @@ def create_folder_endpoint(
             user["id"],
             name=payload.get("name", ""),
             sort_order=int(payload.get("sortOrder", 0) or 0),
+            parent_id=payload.get("parentId") or "",
         )
     except NoteValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -1482,10 +1517,13 @@ def delete_folder_endpoint(
     folder_id: str,
     user: dict = Depends(get_current_user),
 ) -> dict[str, Any]:
-    ok = notes_service.delete_folder(user["id"], folder_id)
-    if not ok:
-        raise HTTPException(status_code=404, detail="Not found")
-    return {"ok": True}
+    try:
+        ok = notes_service.delete_folder(user["id"], folder_id)
+        if not ok:
+            raise HTTPException(status_code=404, detail="Not found")
+        return {"ok": True}
+    except NoteValidationError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # ── Options — multi-leg strategies (Phase 5) ────────────────────────────────

@@ -12,12 +12,48 @@ the usual per-output count and they are the ones that show what is queued up
 BEHIND the first refusal. Reading both together is how you see a chain instead
 of a wall.
 
+## 🔴 FINAL MEASURED STATE, 2026-08-11 — every remaining script, individually
+
+11 of 21 read, 47 columns. **Not one of the remaining ten is a contained
+translator fix.** Each needs either a product decision or a substantial engine
+extension, and five of them SHOULD keep refusing. Measured per script, output
+walls and fold walls both:
+
+| Script | Wall | What it actually needs |
+|---|---|---|
+| 04-superguppy | `request.security` + `for` | multi-symbol data path |
+| 05-mtf | `request.security` ×3, nothing else | multi-symbol data path |
+| 09-obv | `cum`, nothing else | ⛔ inexpressible: a true cumulative changes with how many bars were fetched |
+| 14-bollinger | displaced `plot(offset=)` ×3 | ⛔ that refusal IS the non-repainting guarantee |
+| 19-strategy | `strategy()` | order simulation — a different engine |
+| 10-supertrend | `pine:state` ×5, nothing else | **closed-table: a recurrence needs its OWN bind** |
+| 21-volume-profile | state + `for` | loops |
+| 02-ict | state + `for` + `while` + 7 unparsed | loops |
+| 20-smc | `ta.pivothigh` + 3 user types + `for`/`while` | loops + UDTs + a drawing model |
+| 15-avwap | `time` ×7 + `for` | session model + loops |
+
+⭐ **THE ONE ENGINE CHANGE WITH REAL REACH IS DISTINCT RECURRENCE BINDS.** `accum`
+binds a single name, `self`. Two recurrences in one expression therefore collapse
+onto it — that is exactly what made the 10-supertrend fold emit `self` as both a
+direction and a stop price. The interpreter refuses a NESTED `accum` for the same
+reason, in its own words: *"which running value it names would depend on where a
+reader started counting."* Give each recurrence its own bind and that objection
+dissolves, 10 clears, and the whole trailing-stop family becomes expressible.
+
+⚠️ It is a closed-table change: both lanes, a parity case, the budget walker and
+the repaint linter. Not a translator patch. That is the honest next project.
+
+⛔ **AND FIVE SHOULD NEVER MOVE.** `request.security` (a scan column reads one
+symbol), `cum` (request-dependent by construction), a displaced plot (the repaint
+guarantee itself), `strategy()` (a different engine). Counting them as "remaining
+work" is how a roadmap starts lying.
+
 ## The ceiling
 
 | | scripts | why |
 |---|---|---|
-| **Reading today** | **10** | |
-| Reachable with contained work | **+1** | 06 only — 05 and 10 were re-measured and are NOT (see below) |
+| **Reading today** | **11** | 47 columns |
+| ✅ Reachable, and DONE | **+1** | 06 cleared 2026-08-11 — 9 columns |
 | Needs loops / UDTs (Phase 5) | 3 | 02, 20, 21 |
 | Structurally out, correctly | 5 | 04, **05**, 09, 14, 19 |
 | | **21** | |
@@ -175,7 +211,71 @@ forward reference inexpressible). Needs either a constant-folder for the offset
 argument, or a refusal that stays. **Measure whether `f_struct`'s offset is
 constant-foldable before committing to this one.**
 
-### 🥉 06-adx-advanced — `ta.dmi` SHIPPED, and the script still refuses (correctly)
+### ✅ 06-adx-advanced — CLEARED. 10/38 → 11/47, the largest single gain yet.
+
+Both walls fell, and each needed the SAME move: defer the decision to resolve
+time, where a name is a value.
+
+1. **`switch` on a fixed subject reduces to one arm.** `smoothType` is
+   `input.string("EMA", …)`, "EMA" matches no label, so it takes the default —
+   `ema(x, len)`. A subject that moves bar to bar still refuses at `pine:block`.
+2. **`ta.dmi`'s two periods are compared as VALUES, not spellings.** The first
+   cut compared the argument NODES at fold time, which refused
+   `ta.dmi(diLen, adxSmooth)` even though both inputs hold 14 — the exact call
+   this script makes. A mismatch (14 vs 20) still refuses.
+
+⭐ **The formulas were READ, not just counted** — the lesson from the recurrence
+fold that produced plausible nonsense:
+
+    adx(high, low, close, 14) - ema(adx(high, low, close, 14), 3)   ← adxHist
+    plusDI(high, low, close, 14) · minusDI(high, low, close, 14)
+    ema(adx(high, low, close, 14), 3)                               ← adxLine
+
+🔴 **AND THE BUG THAT BLOCKED THIS FOR TWO ATTEMPTS WAS ONE LINE**, in neither of
+the two places I predicted. `pine.js`'s function-call path did
+`this.resolve(bound.value.node)` — but a function's value is a BINDING, and only
+the plain `expr` kind carries a `.node`. A body ending in anything else resolved
+`undefined`, and the TypeError surfaced as `pine:statement`: "the translator
+cannot parse this line", about a line it parsed perfectly.
+
+⚠️ The fix keeps `expr` on the direct path deliberately. Routing it through
+`resolveBinding` tripped the cycle guard on `f(f(x))` — legal Pine, and covered.
+
+**Guards closed by this, all three still live for what they actually guard:**
+`pine:block` (still refuses `for`/`while`/a moving subject) joins
+`pine:role-order` and `pine:offset-literal` as no longer reachable from any
+published script here.
+
+### 🥉 (history) 06 — the `switch` fold, before it landed
+
+**The target is right and the default arm is reachable.** `smoothType` is
+`input.string("EMA", …)` and `"EMA"` matches NO named arm, so it falls to
+`f_smooth`'s default — `ta.ema(x, len)`, a declared function. Folding the switch
+on a fixed subject yields exactly that.
+
+**The design, which I still believe is correct:**
+- In `foldStatements`, a `switch` becomes ONE binding carrying its subject, its
+  arms and its default — the arm CANNOT be chosen there, because a name is not
+  resolvable while the walk is still binding names. Same reason a tuple's parts
+  are held rather than picked.
+- In `resolveBinding`, a `switch` binding reduces: `stringValueOf(subject)` (the
+  folder already used for `==` on two strings), match an arm label, else the
+  default, else refuse by name. A subject that is not a fixed string keeps
+  refusing at `pine:block` — the branch must not move bar to bar.
+
+🔴 **IT DID NOT WORK AND I STOPPED.** A `TypeError` surfaced as `pine:statement`
+and I did not isolate it. Two candidates, both unverified: `=>` may lex as two
+tokens (`=` then `>`), which would make `findTop` for it return -1; and an arm's
+sub-statements may not carry `.header` the way I assumed. **Check both before
+writing anything** — a five-line probe printing the lexed tokens of one `switch`
+arm settles it.
+
+⚠️ **Reverted rather than left limping.** This was the third mechanical error in
+a stretch — after a wrong-but-plausible recurrence fold and a guard I mis-described
+— which is a signal about the session, not about the problem. The work is genuinely
+close; it deserves a first attempt, not a fourth.
+
+### 🥉 (context) 06 — `ta.dmi` SHIPPED, and the script still refuses (correctly)
 
 ✅ **`ta.dmi(n, n)` now maps to its three declared legs** — `plusDI`/`minusDI`/
 `adx`, each through a role order declared in `PINE_CALL_SHAPES` rather than

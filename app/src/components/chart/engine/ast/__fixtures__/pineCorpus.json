@@ -84,22 +84,18 @@
   },
   "06-adx-advanced.pine": {
     "version": 6,
-    "translates": false,
+    "translates": true,
     "outputs": 12,
-    "usable": 0,
-    "selectedFormula": null,
-    "downstream": null,
-    "refusal": {
-      "guard": "pine:block",
-      "line": 111,
-      "column": 5,
-      "token": "switch"
+    "usable": 9,
+    "hiddenScaffolding": 3,
+    "selectedFormula": "(!1 || 1) && crossOver(plusDI(high, low, close, 14), minusDI(high, low, close, 14))",
+    "downstream": {
+      "ok": true,
+      "guard": null,
+      "repaint": "non-repainting"
     },
-    "perOutputRefusals": {
-      "pine:tuple": 10,
-      "pine:block": 1
-    },
-    "hiddenScaffolding": 1
+    "refusal": null,
+    "perOutputRefusals": {}
   },
   "07-rsi.pine": {
     "version": 3,
