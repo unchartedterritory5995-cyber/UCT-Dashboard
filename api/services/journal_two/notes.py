@@ -636,6 +636,133 @@ def update_note(
             conn.close()
 
 
+def append_widget_embed(
+    user_id: str,
+    note_id: str,
+    attrs: dict[str, Any],
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any] | None:
+    """Append one widgetEmbed node to a note's body — the server half of
+    'Send to Journal' from an on-screen widget. Atomic: load, append, and
+    save in one transaction, riding the same body_plain + sidecar sync every
+    body write gets. `attrs` is a complete client-built attr set
+    (buildWidgetEmbedAttrs output); minimal shape checks only, matching the
+    deliberately-permissive body validation."""
+    if not isinstance(attrs, dict) or not isinstance(attrs.get("widgetId"), str) or not attrs["widgetId"]:
+        raise NoteValidationError("attrs.widgetId required")
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute(
+            "SELECT body_json FROM j2_notes WHERE id = ? AND user_id = ?",
+            (note_id, user_id),
+        ).fetchone()
+        if row is None:
+            return None
+        try:
+            doc = json.loads(row["body_json"] or "{}")
+        except (TypeError, ValueError):
+            doc = {}
+        if not isinstance(doc, dict) or doc.get("type") != "doc":
+            doc = {"type": "doc", "content": []}
+        content = doc.get("content")
+        if not isinstance(content, list):
+            content = []
+        content.append({"type": "widgetEmbed", "attrs": attrs})
+        doc["content"] = content
+        body_json = _validate_body_json(doc)
+        body_plain = extract_plain_text(body_json)
+        conn.execute(
+            "UPDATE j2_notes SET body_json = ?, body_plain = ?, updated_at = ?"
+            " WHERE id = ? AND user_id = ?",
+            (json.dumps(body_json), body_plain, _now_iso(), note_id, user_id),
+        )
+        _sync_note_embeds(conn, user_id, note_id, body_json)
+        conn.commit()
+        out = conn.execute(
+            "SELECT * FROM j2_notes WHERE id = ?", (note_id,)
+        ).fetchone()
+        return _row_to_note(out)
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        if owned:
+            conn.close()
+
+
+# ── Capture inbox ────────────────────────────────────────────────────────────
+
+def list_captures(user_id: str, conn: sqlite3.Connection | None = None) -> list[dict[str, Any]]:
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM j2_capture_inbox WHERE user_id = ?"
+            " ORDER BY created_at DESC LIMIT 100",
+            (user_id,),
+        ).fetchall()
+        return [{
+            "id": r["id"],
+            "widgetId": r["widget_id"],
+            "params": json.loads(r["params_json"] or "{}"),
+            "searchText": r["search_text"],
+            "fallbackUrl": r["fallback_url"],
+            "capturedAt": r["captured_at"],
+            "createdAt": r["created_at"],
+        } for r in rows]
+    finally:
+        if owned:
+            conn.close()
+
+
+def create_capture(
+    user_id: str,
+    payload: dict[str, Any],
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
+    if not isinstance(payload, dict) or not isinstance(payload.get("widgetId"), str) or not payload["widgetId"]:
+        raise NoteValidationError("widgetId required")
+    params = payload.get("params")
+    if params is not None and not isinstance(params, dict):
+        raise NoteValidationError("params must be an object")
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        cid = uuid.uuid4().hex
+        now = _now_iso()
+        conn.execute(
+            "INSERT INTO j2_capture_inbox (id, user_id, widget_id, params_json,"
+            " search_text, fallback_url, captured_at, created_at)"
+            " VALUES (?,?,?,?,?,?,?,?)",
+            (cid, user_id, payload["widgetId"], json.dumps(params or {}),
+             payload.get("searchText") or None, payload.get("fallbackUrl") or None,
+             payload.get("capturedAt") or now, now),
+        )
+        conn.commit()
+        return {"id": cid, "createdAt": now}
+    finally:
+        if owned:
+            conn.close()
+
+
+def delete_capture(
+    user_id: str, capture_id: str, conn: sqlite3.Connection | None = None,
+) -> bool:
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        cur = conn.execute(
+            "DELETE FROM j2_capture_inbox WHERE id = ? AND user_id = ?",
+            (capture_id, user_id),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        if owned:
+            conn.close()
+
+
 def delete_note(
     user_id: str,
     note_id: str,

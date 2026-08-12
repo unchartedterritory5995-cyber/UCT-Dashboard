@@ -14,6 +14,8 @@ import {
   sanitizeChartTabs, chartTabList, addChartTab, closeChartTab,
   setActiveChartTab, renameChartTab, patchChartTab,
 } from '../chartTabs'
+import { buildWidgetEmbedAttrs } from '../../journal-2-0/lib/widgetEmbedCore'
+import { kickSnapshotWarm } from '../../journal-2-0/lib/embedArchive'
 
 // LWC time → a ts param (epoch seconds intraday; 'YYYY-MM-DD' for the
 // business-day objects D/W/M ranges report). The registry's `ts` coercion
@@ -292,6 +294,80 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     closeCtx()
   }, [ctxMenu, sym, createAlert, closeCtx])
 
+  // ── Send to Journal (Journal Widgets P5) ──────────────────────────────────
+  // One action, no modal: freeze exactly what this chart shows (resolved
+  // symbol, tf, merged settings, visible range) and land it as a widgetEmbed
+  // — in the LAST-ACTIVE notebook note when one exists, else the capture
+  // inbox. Fire the bars warm either way so the history outlives the session.
+  const buildJournalCapture = useCallback(() => {
+    const range = paneRef.current?.getViewState?.()?.range || null
+    return {
+      symbol: symRef.current,
+      tf: tfRef.current,
+      from: range ? lwcTimeToTs(range.from) : undefined,
+      to: range ? lwcTimeToTs(range.to) : undefined,
+      settings: chartCsRef.current,
+    }
+  }, [])
+
+  const handleSendToJournal = useCallback(async () => {
+    closeCtx()
+    const attrs = buildWidgetEmbedAttrs('chart', buildJournalCapture())
+    kickSnapshotWarm(attrs.params)
+    let last = null
+    try { last = JSON.parse(localStorage.getItem('uct.jw.lastNote') || 'null') } catch { /* noop */ }
+    try {
+      if (last?.id) {
+        const res = await fetch(`/api/j2/notes/${last.id}/embeds`, {
+          method: 'POST', credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ attrs }),
+        })
+        if (res.ok) { setCtxToast(`${attrs.params.symbol} sent to your last note`); return }
+        // 404 = the note was deleted since — fall through to the inbox.
+      }
+      const res2 = await fetch('/api/j2/inbox', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          widgetId: 'chart', params: attrs.params,
+          searchText: attrs.searchText, capturedAt: attrs.capturedAt,
+        }),
+      })
+      setCtxToast(res2.ok
+        ? `${attrs.params.symbol} captured → Notebook inbox`
+        : 'Capture failed — try again')
+    } catch {
+      setCtxToast('Capture failed — try again')
+    }
+  }, [buildJournalCapture, closeCtx])
+
+  // One-keystroke capture (Ctrl+Alt+J) — rides the exact hotkey arbitration
+  // every other chart key uses: only the last-hovered chart answers, so one
+  // press banks ONE chart into the inbox even with six on the board.
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.ctrlKey && e.altKey && (e.key === 'j' || e.key === 'J'))) return
+      if (!hotkeysIsActive()) return
+      e.preventDefault()
+      const attrs = buildWidgetEmbedAttrs('chart', buildJournalCapture())
+      kickSnapshotWarm(attrs.params)
+      fetch('/api/j2/inbox', {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          widgetId: 'chart', params: attrs.params,
+          searchText: attrs.searchText, capturedAt: attrs.capturedAt,
+        }),
+      }).then((r) => setCtxToast(r.ok
+        ? `${attrs.params.symbol} captured → Notebook inbox`
+        : 'Capture failed — try again'))
+        .catch(() => setCtxToast('Capture failed — try again'))
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [hotkeysIsActive, buildJournalCapture])
+
   const barDateStr = useCallback((t) => {
     if (typeof t === 'string') return t                 // daily 'YYYY-MM-DD'
     if (typeof t === 'number' && Number.isFinite(t)) {
@@ -426,6 +502,9 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
                 Set alert @ ${ctxMenu.price.toFixed(2)}
               </button>
             )}
+            <button type="button" className={styles.chartCtxItem} onClick={handleSendToJournal}>
+              <UIcon name="journal" size={14} className={styles.chartCtxIcon} />Send to Journal
+            </button>
             <button type="button" className={styles.chartCtxItem} onClick={() => { ctxMenu.resetView?.(); closeCtx() }}>
               <UIcon name="refresh" size={14} className={styles.chartCtxIcon} />Reset view
             </button>

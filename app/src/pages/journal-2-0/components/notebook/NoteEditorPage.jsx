@@ -1,5 +1,6 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import useSWR from 'swr'
 import { buildExtensions, uploadInlineImage } from '../../lib/tiptap'
 import { useJ2Note } from '../../hooks/useJ2Notes'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
@@ -27,6 +28,68 @@ const AUTOSAVE_MS = 800
 // After the last entry, retries continue at the cap forever (or until the
 // user edits / closes the tab). 4xx errors bypass retry entirely.
 const RETRY_BACKOFFS_MS = [1000, 2000, 4000, 8000, 15000, 30000]
+
+// The capture inbox tray: hotkey captures banked during the session, offered
+// for placement while writing. Renders nothing when the inbox is empty (the
+// common case costs one lightweight GET). Insert lands the embed at the
+// cursor and consumes the row; ✕ discards it.
+const _inboxFetcher = (url) => fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : { captures: [] }))
+function CaptureInboxTray({ editor }) {
+  const { data, mutate } = useSWR('/api/j2/inbox', _inboxFetcher, {
+    revalidateOnFocus: true, dedupingInterval: 15000,
+  })
+  const captures = data?.captures || []
+  if (!editor || !captures.length) return null
+
+  const place = async (cap) => {
+    editor.chain().focus().insertWidgetEmbed(cap.widgetId, cap.params, {
+      capturedAt: cap.capturedAt,
+      fallback: cap.fallbackUrl ? { url: cap.fallbackUrl } : null,
+    }).run()
+    await fetch(`/api/j2/inbox/${cap.id}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
+    mutate()
+  }
+  const discard = async (cap) => {
+    await fetch(`/api/j2/inbox/${cap.id}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
+    mutate()
+  }
+
+  return (
+    <div style={{
+      display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8,
+      margin: '8px 0 4px', padding: '7px 10px', borderRadius: 8,
+      border: '1px solid var(--border, #2a2a2a)', background: 'var(--panel, #101010)',
+      fontSize: 12,
+    }}>
+      <span style={{ color: 'var(--ut-gold, #c9a84c)', fontWeight: 700 }}>
+        Capture inbox ({captures.length})
+      </span>
+      {captures.map((cap) => (
+        <span key={cap.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+          <button
+            type="button"
+            onClick={() => place(cap)}
+            title="Insert at cursor"
+            style={{
+              background: 'none', border: '1px solid var(--border, #333)', borderRadius: 6,
+              color: 'var(--text, #cfcfcf)', padding: '2px 8px', cursor: 'pointer', font: 'inherit',
+            }}
+          >
+            {cap.searchText || cap.widgetId}
+          </button>
+          <button
+            type="button"
+            onClick={() => discard(cap)}
+            aria-label="Discard capture"
+            style={{ background: 'none', border: 'none', color: 'var(--text-dim, #777)', cursor: 'pointer', font: 'inherit' }}
+          >
+            ✕
+          </button>
+        </span>
+      ))}
+    </div>
+  )
+}
 
 export default function NoteEditorPage({ noteId, onBack }) {
   const { note, isLoading, update, refresh } = useJ2Note(noteId)
@@ -110,7 +173,15 @@ export default function NoteEditorPage({ noteId, onBack }) {
     // Node views can't take React props from the page; the widgetEmbed view
     // reads the note id off editor storage for its archive upload
     // (see WidgetEmbedView's self-archive effect).
-    onCreate: ({ editor: ed }) => { ed.storage.uctJournalWidgets = { noteId } },
+    onCreate: ({ editor: ed }) => {
+      ed.storage.uctJournalWidgets = { noteId }
+      // "Send to Journal" from the charts page targets the LAST-ACTIVE note
+      // (owner decision #9) — opening a note for editing is what makes it the
+      // target. Title rides along for the capture toast.
+      try {
+        localStorage.setItem('uct.jw.lastNote', JSON.stringify({ id: noteId, ts: Date.now() }))
+      } catch { /* private mode */ }
+    },
     editorProps: {
       attributes: { class: styles.proseEditor },
       handlePaste(view, event) {
@@ -425,6 +496,8 @@ export default function NoteEditorPage({ noteId, onBack }) {
             />
           </div>
         )}
+
+        <CaptureInboxTray editor={editor} />
 
         <EditorContent editor={editor} />
 

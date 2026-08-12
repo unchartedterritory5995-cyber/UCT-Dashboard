@@ -443,6 +443,24 @@ CREATE INDEX IF NOT EXISTS idx_j2_note_embeds_user_sym
 CREATE INDEX IF NOT EXISTS idx_j2_note_embeds_user_widget
     ON j2_note_embeds(user_id, widget_id);
 
+-- Capture inbox: hotkey captures during the session land here and get placed
+-- into notes while writing after the close. A row is one staged widgetEmbed
+-- (params + search line + optional archived image); placing it into a note
+-- consumes the row. A TABLE, not a preference — prefs have no delete route
+-- and no size cap (see user_definitions.py's note on that hazard).
+CREATE TABLE IF NOT EXISTS j2_capture_inbox (
+    id           TEXT PRIMARY KEY,
+    user_id      TEXT NOT NULL,
+    widget_id    TEXT NOT NULL,
+    params_json  TEXT NOT NULL DEFAULT '{}',
+    search_text  TEXT,
+    fallback_url TEXT,
+    captured_at  TEXT NOT NULL,
+    created_at   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_j2_capture_inbox_user
+    ON j2_capture_inbox(user_id, created_at DESC);
+
 -- ── Broker Sync (SnapTrade) ─────────────────────────────────────────────────
 -- One SnapTrade registration per UCT user (their "broker identity"). The
 -- userSecret is encrypted via api.services.crypto_box with a versioned prefix.

@@ -298,3 +298,50 @@ def test_import_confirm_syncs_embed_sidecar(conn):
     rows2 = conn.execute(
         "SELECT widget_id FROM j2_note_embeds WHERE note_id = ?", (nid,)).fetchall()
     assert [r["widget_id"] for r in rows2] == ["chart"]
+
+
+# ── Journal Widgets P5: send-to-journal append + capture inbox ───────────────
+
+EMBED_ATTRS = {
+    "v": 1, "widgetId": "chart", "params": {"symbol": "TSLA", "tf": "15"},
+    "capturedAt": "2026-08-12T14:00:00Z", "mode": "snapshot",
+    "searchText": "[chart: TSLA 15m]",
+}
+
+
+def test_append_widget_embed_appends_and_syncs(conn):
+    n = svc.create_note("u1", {"title": "T", "bodyJson": {
+        "type": "doc", "content": [
+            {"type": "paragraph", "content": [{"type": "text", "text": "Existing"}]}]}},
+        conn=conn)
+    out = svc.append_widget_embed("u1", n["id"], EMBED_ATTRS, conn=conn)
+    assert out["bodyJson"]["content"][-1]["type"] == "widgetEmbed"
+    assert "[chart: TSLA 15m]" in out["bodyPlain"]
+    assert "Existing" in out["bodyPlain"]
+    rows = conn.execute(
+        "SELECT symbol FROM j2_note_embeds WHERE note_id = ?", (n["id"],)).fetchall()
+    assert [r["symbol"] for r in rows] == ["TSLA"]
+
+
+def test_append_widget_embed_guards(conn):
+    n = svc.create_note("u1", {"title": "T"}, conn=conn)
+    with pytest.raises(NoteValidationError):
+        svc.append_widget_embed("u1", n["id"], {"params": {}}, conn=conn)
+    assert svc.append_widget_embed("u1", "missing", EMBED_ATTRS, conn=conn) is None
+    assert svc.append_widget_embed("u2", n["id"], EMBED_ATTRS, conn=conn) is None
+
+
+def test_capture_inbox_crud(conn):
+    made = svc.create_capture("u1", {
+        "widgetId": "chart", "params": {"symbol": "AMD", "tf": "5"},
+        "searchText": "[chart: AMD 5m]"}, conn=conn)
+    rows = svc.list_captures("u1", conn=conn)
+    assert len(rows) == 1
+    assert rows[0]["widgetId"] == "chart"
+    assert rows[0]["params"] == {"symbol": "AMD", "tf": "5"}
+    assert svc.list_captures("u2", conn=conn) == []
+    assert svc.delete_capture("u2", made["id"], conn=conn) is False
+    assert svc.delete_capture("u1", made["id"], conn=conn) is True
+    assert svc.list_captures("u1", conn=conn) == []
+    with pytest.raises(NoteValidationError):
+        svc.create_capture("u1", {"params": {}}, conn=conn)
