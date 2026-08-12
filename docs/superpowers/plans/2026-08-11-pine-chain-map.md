@@ -27,7 +27,80 @@ the last row should never move, because refusing them is the correct answer.
 
 ## Rank order, by whole chain rather than by guard
 
-### 🥇 10-supertrend — ONE wall, nothing behind it
+### 🥇 10-supertrend — ONE wall, and I MIS-SIZED THE FIX (corrected same day)
+
+🔴 **This section first said "fold the conditional reassignment FIRST and offset
+the final binding". That is wrong, and it would not have worked.** The final
+binding is not a stale value to re-point at — it is CIRCULAR across bars:
+`shortStop`'s final value depends on `shortStopPrev`, which is `shortStop`'s own
+previous-bar final value. Offsetting the final binding recurses. `shortStop[1]`
+is not a stale read; it IS `self`.
+
+⭐ **THE DESTINATION IS PROVEN REACHABLE.** Hand-written as a `var`, the identical
+logic translates today:
+
+    var s = 0.0
+    s := high < nz(s[1], close + 1) ? math.min(close + 1, nz(s[1], close + 1)) : close + 1
+    →  accum(0, high < nz(self, close + 1) ? min(close + 1, nz(self, close + 1)) : close + 1, 250)
+
+And the two halves it needs already work independently: conditional reassignment
+folds (`s = close + 1; if s > 0; s := s * 2` → `close + 1 > 0 ? (close + 1) * 2 :
+close + 1`), and a `var` reading its own past folds to `self` (shipped today).
+
+**So the real change is:** a PLAIN name (no `var`) that is reassigned later AND
+whose reassignment chain reads its own `[1]` is a RECURRENCE, and must fold like
+one — `name[1]` becomes `selfref`, the first assignment becomes the accumulator's
+SEED, and the folded reassignments become its UPDATE.
+
+⚠️ **WHY I DID NOT JUST WRITE IT.** That changes how every mutated plain name
+folds, and the corpus has 4,284 tests over this translator. Gross breakage would
+show; a subtly wrong SEED or WARMUP would not — and a trailing stop translated
+one bar off is precisely the "looks fine, is wrong" class this whole document is
+organised against.
+
+⛔ **The safety property to build it behind:** engage the recurrence path ONLY
+where the offset would otherwise have REFUSED. That confines the change to
+scripts that fail today, so no currently-working translation can move — and it
+is the thing to verify first, before any of the folding is written.
+
+🔴🔴 **ATTEMPTED AND REVERTED, 2026-08-11 — READ THIS BEFORE TRYING AGAIN.**
+
+The recurrence fold was written exactly as specified above: `name[1]` → selfref,
+the binding in scope at the read → SEED, the folded reassignments → UPDATE,
+engaged only where the offset would otherwise refuse. **On a simplified fixture
+it produced precisely the right tree.** On the real script it produced this:
+
+    accum(1, self == -1 && high > nz(self, (high+low)/2 + 3*atr(…)) ? 1 : …)
+
+⛔ **`self` APPEARS THERE AS A DIRECTION AND AS A STOP PRICE, IN ONE ACCUMULATOR.**
+`dir` is a `var` and `longStop` is a plain reassigned name, so folding the second
+inside the first collapsed two recurrences onto the one `self` the manifest
+declares. It parses, it budgets, it lints `non-repainting`, it saves — and it is
+nonsense. The corpus counted it as 11 of 21 and 43 columns.
+
+**What caught it was reading the FORMULA, not the score.** Every automated signal
+said win.
+
+A `recurrenceDepth` guard — refuse a plain-name recurrence while another
+recurrence's update is being resolved — was written next and **did not work**:
+script 10 still produced the collided tree, so the two recurrences are being
+folded on a path that guard does not sit on. Reverted rather than shipped.
+
+**For whoever picks this up:**
+- The simple, NON-NESTED trailing stop is genuinely reachable and the fold is
+  correct for it. The value is real; the containment is the hard part.
+- ⛔ The blocker is that `self` is ONE name. Two recurrences in one expression
+  need either distinct binds or a nested `accum` — and the interpreter refuses a
+  nested one BY DESIGN (`interpret:recurrence`, "which running value it names
+  would depend on where a reader started counting").
+- So this is not a translator fix at all. It is a question about the closed
+  table: can a recurrence name its own bind? Until that is answered, script 10
+  should keep refusing, and `pine:state` is the honest verdict.
+- ⚠️ Do not re-attempt from the description in this file alone. Re-run the
+  simplified fixture FIRST — it passes — and only then the real script, and read
+  the emitted formula both times.
+
+**Original chain evidence, still accurate:**
 `pine:state` ×5 on `shortStop[1]`. Every other note is `chart-only`
 (`plotshape`, `fill`) which no screener column needs. **This is the only script
 in the corpus whose entire chain is one guard.**
@@ -46,7 +119,28 @@ forward reference inexpressible). Needs either a constant-folder for the offset
 argument, or a refusal that stays. **Measure whether `f_struct`'s offset is
 constant-foldable before committing to this one.**
 
-### 🥉 06-adx-advanced — two addressable walls
+### 🥉 06-adx-advanced — `ta.dmi` SHIPPED, and the script still refuses (correctly)
+
+✅ **`ta.dmi(n, n)` now maps to its three declared legs** — `plusDI`/`minusDI`/
+`adx`, each through a role order declared in `PINE_CALL_SHAPES` rather than
+filled by the mapper (doing that refused at `pine:role-order`, correctly: the
+manifest states what KIND an argument is and never what ROLE it plays).
+
+🔴 **06 STILL DOES NOT TRANSLATE, and the reason is right.** Its call is
+`ta.dmi(diLen, adxSmooth)` — two DIFFERENT input names. Pine smooths the ADX over
+the second while the DI legs use the first; this table's `adx` takes one period
+for both. Proving the two inputs equal needs a constant folder, so the honest
+answer is to refuse — the identical decision `ADX14.20` already makes on the
+TC2000 side. A script written `ta.dmi(len, len)` works today.
+
+⛔ So the remaining wall here is the SAME one as script 05: **constant folding of
+an input to its default.** Two scripts now turn on it, which makes it the highest
+-value next item — and it is a question about how far inputs fold, not about Pine.
+
+⚠️ Also still present: `pine:block switch` in `f_smooth`. A `switch` over a folded
+constant string picks one arm — again the same folding question.
+
+### 🥉 (original) 06-adx-advanced — two addressable walls
 `pine:tuple` on `adxRaw`/`diPlus`/`diMinus` (a UDF returning a tuple — the shape
 just shipped, so re-measure: this may already be closer than it looks) plus
 `pine:block switch` in `f_smooth`. `switch` over constant arms is expressible as
