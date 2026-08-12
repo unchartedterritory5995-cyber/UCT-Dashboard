@@ -196,3 +196,184 @@ note, do not delete them** — the guards they name are all still live.
   memo unconditionally, and make `plainRecurrence` always take the INSIDE branch.
 - The Pine translator is JS-only, so there is no Python mirror — but the emitted
   tree is an ordinary `accum`, already parity-proven.
+
+---
+
+# The road to the remaining scripts (2026-08-12)
+
+Three blockers stand between 12/21 and ~16-17. A fourth thing that looks like a
+blocker is not one.
+
+## 1. The node budget counts a TREE where the honest unit is a DAG
+
+Script 10 emits 642 nodes against a cap of 128 — but not 642 DISTINCT things.
+`(high + low) / 2 + 3 * atr(high, low, close, 22)` appears **eight times
+identically**; each stop accumulator appears twice. The resolver already shares
+them by object identity and the re-parse throws that away.
+
+`nodeCount` is `flatten(ast).length` (`interpret.js`). Counting distinct
+STRUCTURAL subtrees instead is a small change — key each node
+`type|name|value|childKeys` over a reversed `flatten`, the same iterative
+children-before-parents idiom `maxLookback` already uses two functions above it.
+
+🔴🔴 **AND IT IS UNSAFE ALONE. THIS IS THE WHOLE FINDING.** The interpreter does
+NOT memoize structurally: `evalNode` runs per node object, and the only `columns`
+Map is scoped inside the recurrence planner and keyed by object identity, which a
+re-parsed tree never shares. So a DAG budget by itself would report ~100 for a
+formula that still costs 642 node-evaluations **per bar, per ticker, over 3,685
+tickers** — a budget that under-reports is a guard that has stopped guarding, and
+it would pass every existing test while doing it.
+
+**Ship the two together or neither**: memoize `evalNode` on the same structural
+key, THEN count the DAG. The memo is what makes the number true, and it makes the
+formula genuinely cheaper rather than just cheaper-looking. Rail: a formula with a
+large repeated subtree must show BOTH a reduced count AND a reduced evaluation
+count — assert the eval count, or the memo can silently not apply.
+
+⚠️ Changing a shipped guard's threshold semantics means formulas refused yesterday
+may save today. That is the intent, but the corpus snapshot is the record of it —
+regenerate it measured and read the diff, do not hand-edit.
+
+## 2. Bounded `for` loops UNROLL — they are not a totality problem
+
+Scripts 02, 15, 20, 21. Pine's loops are overwhelmingly `for i = 0 to 19` — a
+FIXED numeric range known at translation time, which unrolls into a closed
+expression. Exactly the technique that already worked twice: `switch`-on-a-fixed-
+subject reduction, and `ta.dmi`'s periods compared as values rather than
+spellings (script 06, nine columns).
+
+⛔ An UNBOUNDED `while` must keep refusing by name. The engine's totality is what
+makes it safe to run over the universe; a bounded unroll never threatens it, and
+conflating the two is how a total language stops being one.
+⚠️ Do this AFTER the DAG work — unrolled loops are precisely the shape that
+explodes node counts, so without it they would trade `pine:loop` for
+`budget:nodes` and land back here.
+
+## 3. User-defined types are records with static construction
+
+`type Point` + `Point.new(1.0)` + `p.x`. Where construction is static, field
+access resolves at translation time into the field's own expression. Smaller than
+it sounds; do it last.
+
+## ⛔ NOT a parity gap — do not "fix" these
+
+`line.new()`, `table.cell()`, `strategy.entry()` do not produce a COLUMN. They are
+drawing and order placement, a different category from "compute a value per bar",
+and refusing them by name is the engine being correct rather than short. Treating
+them as a gap would put drawing objects into a screener that has nowhere to draw.
+`request.security` is separate again: a multi-symbol DATA decision, not a language
+limit.
+
+## The DAG memo, traced to its ONE remaining question
+
+Design is settled; one fact needs checking before a line is written.
+
+**The memo must be SELF-FREE-SCOPED.** `evalNode` is a closure over fixed
+`bars`/`inputs`/`scalars`, so a subtree that does not read the recurrence bind
+yields the same column every time — memoizable. A subtree that DOES read it is
+re-evaluated per step with a different running value and must never be cached.
+This is not a new invariant: the recurrence planner already leans on exactly it
+(`if (!reads(x)) { columns.set(x, evalNode(x)); return }`). Reuse that predicate;
+do not write a second one.
+
+🔴 **THE OPEN QUESTION — ANSWER IT FIRST.** A memo hands the SAME `Float64Array`
+to two call sites. That is safe only if nothing ever writes into a column it was
+handed. `applyOp` looks safe (it goes through `lift1`/`lift3`, which allocate),
+but the windowed functions and `toColumn` were not traced. **Confirm that no
+consumer mutates an input column in place.** If any does, the memo must hand out
+copies — which still saves the recomputation but not the allocation, and changes
+the cost model the budget would then be reporting.
+
+⛔ Do not skip this on the grounds that the tests pass. An in-place write through
+a shared column corrupts a DIFFERENT column's values — a wrong number on screen,
+not a crash — and the corpus asserts structure and counts, not per-bar values.
+`self_lag_parity.json` and `nested_recurrence_parity.json` are the two fixtures
+that WOULD catch it, because they compare bar-for-bar against the other lane.
+Run those, deliberately, as the acceptance test for this change.
+
+### Order of work
+1. Answer the mutation question above.
+2. Write the FAILING rail first: a formula with a large repeated subtree,
+   asserting BOTH the node count and the evaluation count drop. Assert the eval
+   count — without it the memo can silently not apply and the budget lies again.
+3. Memoize `evalNode` (self-free only), THEN switch `nodeCount` to distinct
+   structural subtrees. Never the count alone.
+4. Regenerate the corpus MEASURED; read the diff; expect `saveable` 11 -> 12.
+5. Mutation-check: drop the memo (eval-count rail red), drop the self-free
+   scoping (parity fixtures red — this is the one that matters most).
+
+## Step 1 attempted 2026-08-12 — the code is right, the RAILS are what block it
+
+The change itself is small and it is written down here in full because it worked:
+extract ONE module-level `structuralMaps(root)` returning `{keyOf, freeOf}`
+(iterative, reversed `flatten`, children-before-parents), have `interpret` call it
+instead of building its own maps, and make
+`nodeCount = new Set(structuralMaps(ast).keyOf.values()).size`.
+
+⭐ ONE AUTHORITY IS THE POINT. The budget thresholds on these keys and the
+interpreter memoises on them; two copies of the walk would let the number a member
+is charged drift from the work the engine does.
+
+🔴 **WHAT STOPS IT: `budget.test.js` builds its trees by REPEATING ONE NODE.**
+15 tests go red, and they are right to — under DAG counting a "128-node" tree of
+identical nodes collapses to 2, so `each cap admits AT the boundary and refuses
+ONE over it` measures 2 against 128, and the compute-time refusal never fires
+because the tree is now tiny.
+
+⛔ **THOSE TESTS ARE NOT WRONG, THEIR GENERATORS ARE.** Do not relax the
+assertions to make them pass — the boundary behaviour they pin is exactly what a
+budget change must keep proving. Give them a generator that builds N DISTINCT
+subtrees (vary a literal per node: `close + 1`, `close + 2`, …) so "one over the
+cap" still means one over. A cap tested with a tree that dedups to 2 is
+`lesson_gate_that_cannot_fail` wearing a number.
+
+### What remains, precisely
+1. Rewrite `budget.test.js`'s tree generators to emit distinct subtrees, and ADD a
+   case asserting the new semantics directly: a tree of N identical subtrees
+   counts ~1, a tree of N distinct ones counts ~N. That case is the rail proving
+   the memo APPLIES — the thing the memo commit could not prove alone.
+2. Apply the `structuralMaps` + `nodeCount` change above.
+3. Regenerate the corpus MEASURED. Expect `10-supertrend` `downstream.ok` to flip
+   and `saveable` 11 -> 12; update the pinned counts and the note beside them.
+4. Mutation-check: `nodeCount` back to `flatten(ast).length` (the new count rail
+   red) · memo dropped (same rail red) · self-free scoping dropped (parity
+   fixtures red, already proven lethal).
+
+## ⭐ CORRECTION 2026-08-12 — the blocker was MINE, not `budget.test.js`'s
+
+The entry above blames `budget.test.js`'s generators. **That was wrong and it is
+worth reading why**, because it is this repo's signature defect committed by the
+person documenting it: I diagnosed from a failure count instead of from the
+artifact, and wrote up a fix to the wrong file.
+
+`chainOfNodes(n)` builds `u-(u-(…num(1)))`. Every nesting DEPTH is a structurally
+distinct subtree, so a correct DAG count returns exactly `n` and those tests
+should have stayed green. The generators are fine. **`structuralMaps` was broken.**
+
+🔴 **THE TELL, AND IT IS EXACT.** `nodeCount(chainOfNodes(128))` returned **2** —
+which is precisely the signature of the `'?' + parts.length` fallback firing at
+every level: children were NOT in `keyOf` when their parent was keyed, so every
+`u-` node keyed to the same string `opu-?0` and the whole chain collapsed to two
+distinct keys (`num1` and `opu-?0`). A wrong ORDER, not a wrong test.
+
+`flatten` is pre-order (`order.push(node)` before pushing args), so a reversed
+walk SHOULD give children-before-parents. It did not behave that way. Do not
+theorise about it — **measure it**: key a 3-node tree by hand and print the
+visit order before rebuilding anything.
+
+⛔ **AND THEN MAKE THE WALK ORDER-INDEPENDENT ANYWAY.** The fallback is what let
+this fail SILENTLY into a plausible number instead of throwing. Either do an
+explicit iterative post-order with its own stack, or keep the fallback and
+`throw` on it — a subtree whose child key is unknown must never quietly become a
+shared key, because that under-counts the budget, which is the exact direction
+that stops a guard guarding.
+
+### Revised remaining work
+1. Fix `structuralMaps`'s traversal (measure the order; make it order-independent;
+   never silently fall back).
+2. Rail: `nodeCount(chainOfNodes(N)) === N` (distinct depths) AND a tree of N
+   IDENTICAL subtrees counts ~1. The second half is the proof the memo applies.
+3. Then `nodeCount` -> distinct keys. `budget.test.js` needs NO changes.
+4. Regenerate the corpus measured; expect `saveable` 11 -> 12.
+5. Mutations: count back to `flatten().length` · memo dropped · self-free scoping
+   dropped (already proven lethal).

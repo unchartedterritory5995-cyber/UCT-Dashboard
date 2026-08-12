@@ -5399,6 +5399,14 @@ export default function StockChart({
     () => (cs.comparisonSymbols || []).filter(c => c && c.enabled && c.sym),
     [cs.comparisonSymbols]
   )
+  // "New price scale" (any non-'same' comparison) → the whole RIGHT price scale goes
+  // Percentage (owner choice 2026-08-12): base + every comparison rebase to % from the
+  // visible-left edge with their colored labels on the RIGHT. A 'same'-only set keeps
+  // the base's dollar scale (those lines are $-anchored into it instead).
+  const compareForcesPct = useMemo(
+    () => enabledComparisons.some(c => (c.scaleMode || 'new') !== 'same'),
+    [enabledComparisons]
+  )
   // hideBase ("Group only" theme view) is computed EARLY (near showVolume) so the
   // volume/watermark/indicator sources can gate on it. Nothing to redeclare here.
   // Stable cache key: sorted sym list + tf + barCount. Sorted so reorder doesn't refetch.
@@ -5512,7 +5520,8 @@ export default function StockChart({
 
       // Re-anchor 'same'-scale lines to the new visible-left (dollar-space transform),
       // but only when the anchor bar actually moved — setData every pan frame is wasteful.
-      if (li !== sameAnchorLiRef.current) {
+      // Skipped in percent mode: there every line is raw closes on the % scale (no anchor).
+      if (li !== sameAnchorLiRef.current && !compareForcesPct) {
         sameAnchorLiRef.current = li
         for (const c of comps) {
           if (c.scaleMode !== 'same') continue
@@ -5528,7 +5537,7 @@ export default function StockChart({
     compute(null)
     return () => { cancelAnimationFrame(raf); try { ts.unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* */ } }
     // Re-subscribe + recompute when the chart, the comparison set, or fetched bars change.
-  }, [chartReady, comparisonsKey, comparisonsData, filteredBars, adjustTime])
+  }, [chartReady, comparisonsKey, comparisonsData, filteredBars, adjustTime, compareForcesPct])
 
   // Docked-legend layout: split comparisons into individual tickers + named groups
   // (theme/sector/industry added as a unit). A group renders as ONE collapsible row
@@ -9410,22 +9419,24 @@ export default function StockChart({
   useEffect(() => {
     const chart = chartRef.current
     if (!chart) return
-    // The main scale mode follows ONLY the user's A/L/% toggle. A 'same'-scale
-    // comparison does NOT force Percentage here (that rebased the candles + MAs and
-    // drew LWC's 0% baseline); instead its line is transformed into the base's DOLLAR
-    // space, anchored at the visible-left edge (see the comparison render + framed
-    // effects), so an out-performer still rises above the base while the base scale
-    // stays in dollars and the MAs never move.
-    const mode = effectiveScale === 'pct' ? 2 : (effectiveScale === 'log' ? 1 : 0)
+    // The main scale mode follows the user's A/L/% toggle — EXCEPT a "New price scale"
+    // comparison forces Percentage (compareForcesPct): base + comparisons all rebase to
+    // % on the right, labels on the right. A 'same'-scale comparison still does NOT force
+    // it (its line is transformed into the base's DOLLAR space, anchored at the visible
+    // left — see the comparison render + framed effects — so the base scale stays $).
+    const mode = compareForcesPct ? 2 : (effectiveScale === 'pct' ? 2 : (effectiveScale === 'log' ? 1 : 0))
     // Apply to the PRICE scale (via the candle series, robust to the index pane
     // at pane 0) AND the index-comparison pane, so the A/L/% toggle switches
     // both panes together. The index line is raw price, so log/percent are valid.
     try { mainPriceScale()?.applyOptions({ mode }) } catch { /* pre-init */ }
     try { indexPaneSeriesRef.current?.priceScale().applyOptions({ mode }) } catch { /* no index pane */ }
-  }, [effectiveScale, chartReady, indexPaneSymbol, indexPaneSeries, mainPriceScale])
+  }, [effectiveScale, compareForcesPct, chartReady, indexPaneSymbol, indexPaneSeries, mainPriceScale])
 
   // ── Multi-symbol comparison overlays — add/remove series ──
-  // Uses left-side 'comparison' price scale (independent of right price + 'compare' scale).
+  // All comparisons ride the RIGHT price scale. When a "new price scale" comparison is
+  // present the right scale is in Percentage mode (see the scale-mode effect + compareForcesPct),
+  // so base + comparisons all rebase to % with labels on the right; a 'same'-only set keeps
+  // the right scale in dollars and the comparison lines are $-anchored into it.
   // Runs whenever `comparisonSeries` changes (sym list, fetched data, or colors).
   useEffect(() => {
     const chart = chartRef.current
@@ -9450,17 +9461,19 @@ export default function StockChart({
       }
     }
 
-    // Add or update wanted series. Each comparison rides EITHER the base's main
-    // price scale ('right', scaleMode 'same' → out-performer sits above the base) OR
-    // its own auto-fitting left % scale ('new' → fills the pane independently).
-    // LWC can't move a series between scales, so a scaleMode flip = recreate.
+    // Add or update wanted series. Every comparison rides the base's RIGHT price scale.
+    // In percent mode (compareForcesPct) all lines rebase to % there; in $ mode a 'same'
+    // line is transformed into the base's dollar space. LWC can't move a series between
+    // scales, so an old left-scale series (pre-change) is recreated on the right here.
+    // Right-axis last-value chips (colored ticker + value). Always for INDIVIDUAL
+    // comparisons; for group (theme/sector) members too — UNLESS the set is large enough
+    // that the chips would stack and overlap (a big theme), where they're read from the
+    // docked legend instead. 24 covers a normal theme while sparing a 40-name pile-up.
+    const showMemberLabels = comparisonSeries.length <= 24
     let createdAny = false
     for (const cmp of comparisonSeries) {
-      const wantScale = cmp.scaleMode === 'same' ? 'right' : 'left'
-      // Color-matched axis label (ticker) for INDIVIDUAL comparisons; suppressed for
-      // group members so a 40-name theme doesn't stack 40 overlapping axis chips —
-      // those are read from the collapsible legend instead.
-      const wantLabel = !cmp.group
+      const wantScale = 'right'
+      const wantLabel = !cmp.group || showMemberLabels
       let series = map.get(cmp.sym)
       if (series && series._uctScaleId !== wantScale) {
         try { chart.removeSeries(series) } catch {}
@@ -9490,32 +9503,24 @@ export default function StockChart({
       } else {
         try { series.applyOptions({ color: cmp.color, lastValueVisible: wantLabel, title: wantLabel ? cmp.sym : '' }) } catch {}
       }
-      // 'same' → transform into the base's dollar space anchored at the visible-left
-      // (rises above the base without % mode); 'new' → raw closes on the left % scale.
-      if (cmp.scaleMode === 'same') {
+      // Percent mode (any "new price scale" present) → feed RAW closes so the right %
+      // scale rebases each line to its first visible value (base + all comparisons in %).
+      // Otherwise (all 'same') → transform into the base's dollar space, anchored at the
+      // visible-left so an out-performer rises above the base while the scale stays $.
+      if (compareForcesPct) {
+        try { series.setData(cmp.points) } catch {}
+      } else {
         let lr = null
         try { lr = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
         const rawBars = (comparisonsData && comparisonsData[cmp.sym]) || []
         try { series.setData(anchoredSameScalePoints(rawBars, filteredBars, lr, adjustTime)) } catch {}
-      } else {
-        try { series.setData(cmp.points) } catch {}
       }
     }
 
-    // The dedicated LEFT scale (for 'new'-mode comparisons) runs in PERCENTAGE mode
-    // so LWC rebases each of those lines to its first VISIBLE value. ⚠️ Its axis is
-    // normally HIDDEN: a visible left axis pushes the whole plot to the RIGHT the
-    // moment a compare is added, which clipped the right-side "Post" tag. The line
-    // still renders + auto-scales on the hidden scale; the docked legend shows its %.
-    // In "Group only" mode the base is hidden, so we SHOW the % axis as the reference.
-    try {
-      chart.priceScale('left').applyOptions({
-        visible: hideBase,
-        mode: 2,
-        scaleMargins: { top: 0.1, bottom: 0.1 },
-        borderVisible: false,
-      })
-    } catch {}
+    // Comparisons now ride the RIGHT scale (percentage is forced there whenever a "new
+    // price scale" comparison exists — see the scale-mode effect), so the old dedicated
+    // LEFT % scale is unused. Keep its axis hidden so no empty left axis shows.
+    try { chart.priceScale('left').applyOptions({ visible: false }) } catch {}
 
     // On a STRUCTURAL change (series added/removed) restore the pre-change visible
     // range on the next frame. This does double duty: (a) prevents LWC's auto-fit to
@@ -9527,7 +9532,7 @@ export default function StockChart({
         try { chart.timeScale().setVisibleLogicalRange(savedLogical) } catch { /* disposed */ }
       })
     }
-  }, [comparisonSeries, comparisonsData, filteredBars, adjustTime, hideBase])
+  }, [comparisonSeries, comparisonsData, filteredBars, adjustTime, hideBase, compareForcesPct])
 
   // "Group only" — toggle the BASE chart's visibility (candles + volume + MA overlays)
   // so only the comparison lines show. Re-applied whenever the candle/overlay series
