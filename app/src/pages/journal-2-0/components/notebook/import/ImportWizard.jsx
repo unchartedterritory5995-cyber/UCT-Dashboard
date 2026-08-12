@@ -11,6 +11,7 @@ import Sheet from '../../../../../components/mobile/Sheet'
 import UIcon from '../../../../../components/ui/UIcon'
 import { useIsTouch } from '../../../../../hooks/useBreakpoint'
 import useJ2NoteFolders from '../../../hooks/useJ2NoteFolders'
+import ConnectTilesCompact from '../../connectors/ConnectTilesCompact'
 import styles from './ImportWizard.module.css'
 
 const EXPORT_GUIDES = [
@@ -487,6 +488,7 @@ export default function ImportWizard({ open, onClose, onImported }) {
         <div className={styles.wrap}>
           {step === 'drop' && (
             <div className={styles.dropWrap}>
+              <ConnectTilesCompact />
               <div
                 className={`${styles.dropzone} ${dragOver ? styles.dropzoneActive : ''}`}
                 onDragEnter={onDragEnter}

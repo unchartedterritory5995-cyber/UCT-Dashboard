@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import ImportWizard from './ImportWizard'
 
@@ -234,5 +234,66 @@ describe('ImportWizard wire', () => {
     rerender(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
     expect(screen.getByTestId('import-file-input')).toBeInTheDocument()
     expect(screen.queryByText(/will create/i)).not.toBeInTheDocument()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Task 12 — compact connect tiles above the dropzone (configured providers only)
+// ---------------------------------------------------------------------------
+describe('ImportWizard — connect tiles (Task 12)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  function mockConnectorsFetch(providers) {
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (String(url).includes('/api/j2/notes/connectors/status')) {
+        return new Response(JSON.stringify({ providers }))
+      }
+      if (String(url).endsWith('/note-folders')) return new Response(JSON.stringify({ folders: [] }))
+      return new Response(JSON.stringify({ ok: true }))
+    }))
+  }
+
+  it('shows a tile only for configured providers — an unconfigured provider renders nothing', async () => {
+    mockConnectorsFetch({
+      roam: { configured: true, sources: [] },
+      craft: { configured: false, sources: [] },
+      notion: { configured: false, sources: [] },
+      dropbox: { configured: false, sources: [] },
+    })
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+
+    expect(await screen.findByTestId('connect-tile-roam')).toBeInTheDocument()
+    expect(screen.queryByTestId('connect-tile-craft')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('connect-tile-notion')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('connect-tile-dropbox')).not.toBeInTheDocument()
+  })
+
+  it('renders no tile row at all when no provider is configured', async () => {
+    mockConnectorsFetch({
+      roam: { configured: false, sources: [] },
+      craft: { configured: false, sources: [] },
+      notion: { configured: false, sources: [] },
+      dropbox: { configured: false, sources: [] },
+    })
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+
+    await waitFor(() => {
+      expect(screen.queryByText(/connect an app/i)).not.toBeInTheDocument()
+    })
+  })
+
+  it('a connected provider reads "{Provider} connected" instead of "Connect {Provider}"', async () => {
+    mockConnectorsFetch({
+      roam: { configured: true, sources: [{ id: 's1', provider: 'roam', displayName: 'My Graph', syncEnabled: true, counts: {} }] },
+      craft: { configured: false, sources: [] },
+      notion: { configured: false, sources: [] },
+      dropbox: { configured: false, sources: [] },
+    })
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+
+    const tile = await screen.findByTestId('connect-tile-roam')
+    expect(tile).toHaveTextContent('Roam Research connected')
   })
 })

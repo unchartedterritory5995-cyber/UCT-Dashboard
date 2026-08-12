@@ -29,6 +29,12 @@ vi.mock('../components/notebook/import/ImportWizard', () => ({
     ) : null
   ),
 }))
+// Shallow mock — has its own SWR fetch + dedicated test file
+// (NoteConnectorsTrustStrip.test.jsx); these tests are about the tab's own
+// wiring, and leaving it real just adds an async fetch nobody here awaits.
+vi.mock('../components/connectors/NoteConnectorsTrustStrip', () => ({
+  default: () => null,
+}))
 
 import NotebookTab from './NotebookTab'
 

@@ -6,6 +6,7 @@ import FolderSidebar from '../components/notebook/FolderSidebar'
 import NoteEditorPage from '../components/notebook/NoteEditorPage'
 import TemplatePicker from '../components/notebook/TemplatePicker'
 import ImportWizard from '../components/notebook/import/ImportWizard'
+import NoteConnectorsTrustStrip from '../components/connectors/NoteConnectorsTrustStrip'
 import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
 import { getTemplate } from '../lib/notebookTemplates'
@@ -204,6 +205,8 @@ export default function NotebookTab() {
             </button>
           </div>
         </div>
+
+        <NoteConnectorsTrustStrip />
 
         <Sheet
           open={pickerOpen}

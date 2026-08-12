@@ -13,6 +13,7 @@ import VoiceSessionsPanel from '../components/voice/VoiceSessionsPanel'
 import VoiceDocumentsPanel from '../components/voice/VoiceDocumentsPanel'
 import VoiceInsightsPanel from '../components/voice/VoiceInsightsPanel'
 import BrokerConnectionsCard from './journal-2-0/components/BrokerConnectionsCard'
+import ConnectedAppsCard from './journal-2-0/components/connectors/ConnectedAppsCard'
 import IndicatorAlertManager from '../components/chart/IndicatorAlertManager'
 import { useVoice } from '../context/VoiceContext'
 import { formatETDate } from '../utils/timeAgo'
@@ -1565,6 +1566,7 @@ const SEARCH_INDEX = [
   { card: 'voiceDocs',      section: 'compass',     title: 'Voice Documents',            keywords: 'upload pdf files knowledge documents' },
   { card: 'voiceInsights',  section: 'compass',     title: 'Voice Insights Inbox',       keywords: 'proactive insights inbox compass noticed' },
   { card: 'broker',         section: 'connections', title: 'Brokerage Connections',      keywords: 'broker brokerage connect snaptrade robinhood schwab import trades positions sync auto-import' },
+  { card: 'noteConnectors', section: 'connections', title: 'Connected Apps',              keywords: 'notes connectors roam craft notion dropbox sync import notebook connect' },
   { card: 'privacy',        section: 'legal',       title: 'Data & Privacy',             keywords: 'export download my data json terms privacy policy' },
   { card: 'prefsBackup',    section: 'legal',       title: 'Preferences Backup',         keywords: 'backup restore prefs preferences export import json theme chart tag' },
   { card: 'disclaimers',    section: 'legal',       title: 'Disclaimers & Attributions', keywords: 'legal advice disclaimer market data tradingview attribution' },
@@ -2316,6 +2318,7 @@ export default function Settings() {
     ],
     connections: [
       card('broker', <BrokerConnectionsCard />),
+      card('noteConnectors', <ConnectedAppsCard />),
     ],
     legal: [
       card('privacy', privacyCard),
