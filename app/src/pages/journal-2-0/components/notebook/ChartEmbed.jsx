@@ -31,15 +31,30 @@ const noopStore = () => {}
  * - liveUpdates only in mode:'live' (badged, capped); snapshots never
  *   subscribe to anything.
  */
-export default function ChartEmbed({ attrs, height = 320 }) {
+export default function ChartEmbed({ attrs, height = 320, onBarsEmpty }) {
   const params = attrs?.params || {}
-  const anchorDate = tsToAnchorDay(params.to)
+  const anchorDay = tsToAnchorDay(params.to)
+  const live = attrs?.mode === 'live'
   const stockChartProps = useMemo(() => ({
     height: '100%',
-    liveUpdates: attrs?.mode === 'live',
+    liveUpdates: live,
     showDrawingTools: false,
-    ...(anchorDate ? { anchorDate } : {}),
-  }), [attrs?.mode, anchorDate])
+    // ⭐ SNAPSHOTS USE replayCutoff, NOT anchorDate. anchorDate is view-only
+    // framing — it never changes WHAT is fetched, so an old snapshot would
+    // fetch a today-ending window, the anchor bar wouldn't be in it, and the
+    // embed would silently show today's chart. replayCutoff is the prop that
+    // sends `?to=` (reaching the server's cold-miss deep-fetch) AND hides
+    // post-cutoff bars — actual frozen-evidence semantics. Live embeds track
+    // now and take no cutoff. ("What happened next" later = swap this for
+    // anchorDate on demand.)
+    ...(!live && anchorDay ? { replayCutoff: anchorDay } : {}),
+    // Belt-and-suspenders for the archive chain: if the cutoff window comes
+    // back with nothing (depth beyond the fetch ceilings), tell the view so
+    // it can drop to the archived image instead of an empty live chart.
+    ...(onBarsEmpty ? {
+      onBarsReady: (bars) => { if (!bars || bars.length === 0) onBarsEmpty() },
+    } : {}),
+  }), [live, anchorDay, onBarsEmpty])
 
   return (
     <div style={{ height }}>

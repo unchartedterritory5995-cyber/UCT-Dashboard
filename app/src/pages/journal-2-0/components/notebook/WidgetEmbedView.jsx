@@ -159,15 +159,19 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
     ? <ArchivedImage attrs={attrs} />
     : <PlaceholderChip attrs={attrs} reason={decision.reason} />
 
+  // An anchored window that comes back EMPTY (history beyond the fetch
+  // ceilings) must drop to the archive — an empty live chart is a broken
+  // embed wearing a frame. The live component reports it via onBarsEmpty.
+  const [barsEmpty, setBarsEmpty] = useState(false)
   let body = archived
-  if (decision.kind === 'live') {
+  if (decision.kind === 'live' && !barsEmpty) {
     const Live = EMBED_COMPONENTS[attrs.widgetId]
     body = !Live ? archived : !inView ? (
       <div className={styles.loading} style={{ height }} />
     ) : (
       <EmbedErrorBoundary fallback={archived}>
         <Suspense fallback={<div className={styles.loading} style={{ height }} />}>
-          <Live attrs={attrs} height={height} />
+          <Live attrs={attrs} height={height} onBarsEmpty={attrs.fallback?.url ? () => setBarsEmpty(true) : undefined} />
         </Suspense>
       </EmbedErrorBoundary>
     )

@@ -348,7 +348,11 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   useEffect(() => {
     const onKey = (e) => {
       if (!(e.ctrlKey && e.altKey && (e.key === 'j' || e.key === 'J'))) return
-      if (!hotkeysIsActive()) return
+      // ⛔ NOT hotkeysIsActive(): its null-means-all baseline is right for TF
+      // keys (legacy behavior) but a CAPTURE with no hovered chart would fire
+      // on EVERY mounted chart — N inbox rows per press. Capture demands an
+      // explicit owner.
+      if (activeChartRef?.current !== widgetIdRef.current) return
       e.preventDefault()
       const attrs = buildWidgetEmbedAttrs('chart', buildJournalCapture())
       kickSnapshotWarm(attrs.params)
@@ -366,7 +370,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [hotkeysIsActive, buildJournalCapture])
+  }, [activeChartRef, buildJournalCapture])
 
   const barDateStr = useCallback((t) => {
     if (typeof t === 'string') return t                 // daily 'YYYY-MM-DD'
