@@ -184,7 +184,22 @@ def recon_day(D: str, universe: list, client=None, bucket_min: int = 30) -> Opti
     per_ticker = res[bucket_min]                     # {ticker: [{t,o,h,l,c,v}]}
     by_tb = {tk: {b["t"]: b["c"] for b in bars} for tk, bars in per_ticker.items()}
     buckets = sorted({b["t"] for bars in per_ticker.values() for b in bars})
+    # Seed the carry-forward with each name's PRIOR close so breadth is always
+    # computed over the FULL universe. Without this the 9:30 bucket sees only the
+    # handful of names that printed in the first 30 min → a biased, fake-low open
+    # that becomes a garbage ~13pt lower wick. Stocks sit at prior close until they
+    # trade today; real opening gaps still show once a name prints.
     last_px: dict = {}
+    _lv_tk = levels.get("tickers") or []
+    _pc = levels.get("prev_close")
+    if _pc is not None:
+        for _i, _tk in enumerate(_lv_tk):
+            try:
+                _v = float(_pc[_i])
+            except Exception:
+                continue
+            if _v == _v and _v > 0.0:                # finite & positive
+                last_px[_tk] = _v
     prices_by_bucket = []
     for T in buckets:
         for tk in per_ticker:

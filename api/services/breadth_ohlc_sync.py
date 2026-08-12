@@ -239,8 +239,13 @@ def _remote_latest(client, bucket) -> Optional[str]:
 #      already has: live(3) > intraday_recon(2) > close_recon(1). So a real
 #      intraday_recon wick REPLACES a body-only close_recon, but a worker row NEVER
 #      overwrites a real 'live' row (the accumulator's same-day truth wins).
+#   3. CORRECT  — a re-sweep that FIXES an existing intraday_recon (same source, so no
+#      rank change) still propagates: same-rank + NEWER updated_at wins, but only for
+#      non-'live' locals. Without this, corrected wicks (e.g. the seeded-open fix)
+#      could never overwrite the garbage already on the web store.
 # `INSERT … ON CONFLICT DO UPDATE`, gated by the WHERE so only gap-fill + strict
-# upgrades pass; a lower/equal source on an existing date is excluded (untouched).
+# upgrades + same-rank corrections pass; a lower/older row on an existing date is
+# excluded (untouched).
 #
 # ⛔ DO NOT add a `s.ts > local MAX(ts)` recency clause (the bars rule) — a backfill
 # adds OLDER dates; that would reject every one. (test_gapfill_adopts_older_dates.)
@@ -259,7 +264,10 @@ WHERE s.source IN ('live','intraday_recon','close_recon')
   AND s.o = s.o AND s.h = s.h AND s.l = s.l AND s.c = s.c
   AND s.h >= s.l AND s.h >= s.o AND s.h >= s.c
   AND s.l <= s.o AND s.l <= s.c
-  AND (l.date IS NULL OR ({_RANK.format(c='s')}) > ({_RANK.format(c='l')}))
+  AND (l.date IS NULL
+       OR ({_RANK.format(c='s')}) > ({_RANK.format(c='l')})
+       OR (({_RANK.format(c='s')}) = ({_RANK.format(c='l')})
+           AND l.source <> 'live' AND s.updated_at > l.updated_at))
 ON CONFLICT(date, metric) DO UPDATE SET
   o=excluded.o, h=excluded.h, l=excluded.l, c=excluded.c,
   source=excluded.source, updated_at=excluded.updated_at

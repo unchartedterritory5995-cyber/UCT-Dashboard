@@ -4304,7 +4304,29 @@ async def lifespan(app: FastAPI):
                 _wire_tick_job,
                 trigger=CronTrigger(day_of_week="mon-fri", minute=5, timezone=_ET),
                 id="wire_detector_slow", max_instances=1, replace_existing=True)
-            print("[scheduler] earnings wire detector registered (20s in print windows)")
+
+            # Self-ENFORCING completeness: measure → heal (fresh calendar
+            # build + one tick) → re-measure → alert only what survived.
+            # Double-gated: this block needs WIRE_ENABLED, the job checks its
+            # own flag, so rollback is an env var. Times chosen after the
+            # session's natural settle points (post-BMO, midday, post-AMC,
+            # late filers) — but alignment barely matters because the heal
+            # ITSELF runs the tick it would otherwise be waiting on.
+            def _wire_coverage_job():
+                try:
+                    from api.services.wire import coverage_monitor
+                    if coverage_monitor.enabled():
+                        coverage_monitor.run_check()
+                except Exception as _e:
+                    print(f"[scheduler] wire coverage monitor error: {_e}")
+
+            _scheduler.add_job(
+                _wire_coverage_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9,13,17,21",
+                                    minute=40, timezone=_ET),
+                id="wire_coverage_monitor", max_instances=1, replace_existing=True)
+            print("[scheduler] earnings wire detector registered (20s in print windows) "
+                  "+ coverage monitor (9:40/13:40/17:40/21:40 ET)")
 
         if os.environ.get("CATALYST_ENGINE_ENABLED", "").lower() in ("1", "true", "yes"):
             from api.services.catalyst.engine import run_refresh as _cat_refresh

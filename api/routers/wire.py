@@ -10,9 +10,10 @@ snapshot shared across every row.
 """
 from __future__ import annotations
 
+import os
 import re
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Header, HTTPException, Query
 
 from api.services.cache import cache
 from api.services.serve_stale import ServeStale
@@ -125,12 +126,33 @@ def wire_coverage(date_str: str | None = Query(None, alias="date")):
             pass
         return out
 
-    return _COVERAGE_STALE.serve(
+    payload = _COVERAGE_STALE.serve(
         ck,
         fresh=lambda: cache.get(ck),
         build=_build,
         good=lambda v: bool(v) and v.get("measured") is True,
     )
+    # Overlaid OUTSIDE the cache so it can never staleness-lie across a session
+    # roll. The frontend trust line renders only for the current session —
+    # a date before the wire existed would otherwise scream "missing" about
+    # rows nobody ever recorded.
+    out = dict(payload or {})
+    out["is_current_session"] = out.get("market_date") == market_session_date()
+    return out
+
+
+@router.post("/api/calendar/wire-coverage/run")
+def wire_coverage_run(authorization: str | None = Header(None)):
+    """Run the measure→heal→re-measure→alert pass NOW (PUSH_SECRET bearer).
+
+    The scheduled job's manual trigger — a POST because the heal MUTATES
+    (forces a calendar rebuild + a detector tick); the GET above stays a pure
+    read. Same auth idiom as `/wire-feedback/recent-internal`."""
+    secret = os.environ.get("PUSH_SECRET", "")
+    if not secret or authorization != f"Bearer {secret}":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    from api.services.wire import coverage_monitor
+    return coverage_monitor.run_check()
 
 
 @router.get("/api/calendar/wire-status")

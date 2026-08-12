@@ -222,8 +222,13 @@ describe('⭐ THE MEASUREMENT — a real stored blob gains no scope and loses no
   // baseline this task minted for itself: it is what the merge already
   // answered, and a change that moved one character of one stored blob would
   // fail here with the fixture named.
+  // 2026-08-12: re-pinned when the additive, default-OFF setting `compareHideBase`
+  // ("Group only" for Compare Symbols) was added to CHART_DEFAULTS + mergeChartSettings.
+  // Every merged blob gains `compareHideBase:false` — a new key nothing reads unless
+  // the user enables it, so no pixel moves; the digest necessarily shifts by that one
+  // additive field. (Prior value: 313352ceafb4fc29b556e053f3073463de387e96273bc4cf9b651e23db690875)
   const MERGED_BLOB_DIGEST_AT_HEAD =
-    '313352ceafb4fc29b556e053f3073463de387e96273bc4cf9b651e23db690875'
+    'fe0106c948630eb11b2169fc61132292478ae106ca2406a605431a63e22e0818'
 
   it('⭐ the merged settings blob is BYTE-IDENTICAL to the tree before this task', () => {
     // ⚠️ A STATIC `node:crypto` IMPORT, NOT `await import()`. Under vitest's
