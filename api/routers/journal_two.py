@@ -1312,6 +1312,8 @@ def list_notes_endpoint(
     tag: str | None = None,
     ticker: str | None = None,
     q: str | None = None,
+    embed_symbol: str | None = None,
+    embed_widget: str | None = None,
     sort: str = "updated",
     limit: int = 100,
     offset: int = 0,
@@ -1319,6 +1321,7 @@ def list_notes_endpoint(
 ) -> dict[str, Any]:
     rows = notes_service.list_notes(
         user["id"], folder_id=folder_id, tag=tag, ticker=ticker, q=q,
+        embed_symbol=embed_symbol, embed_widget=embed_widget,
         sort=sort, limit=limit, offset=offset,
     )
     return {"notes": rows}

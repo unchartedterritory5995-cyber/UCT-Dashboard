@@ -60,23 +60,99 @@ def _now_iso() -> str:
 
 # ── Body plain-text extraction ───────────────────────────────────────────────
 
+def _fmt_secs(secs: Any) -> str:
+    """Mirror of the client's playerUtils.fmtTime — m:ss, h:mm:ss past an hour.
+    A display-format micro-mirror, pinned by test against the client's output."""
+    try:
+        s = max(0, int(secs or 0))
+    except (TypeError, ValueError):
+        s = 0
+    h, m, sec = s // 3600, (s % 3600) // 60, s % 60
+    return f"{h}:{m:02d}:{sec:02d}" if h else f"{m}:{sec:02d}"
+
+
 def extract_plain_text(doc: dict[str, Any] | None) -> str:
-    """Recursively walk a TipTap ProseMirror doc and concatenate all
-    text nodes (space-separated). Returns '' for empty/missing doc."""
+    """Recursively walk a TipTap ProseMirror doc and concatenate all text
+    nodes (space-separated), plus the search lines of the custom atom nodes.
+    This writes body_plain — the notebook search index — so it MUST stay in
+    lockstep with the client serializer (lib/tiptap.js extractPlainText).
+
+    widgetEmbed carries its line pre-computed in attrs.searchText: the CLIENT
+    derives it from the widget registry at the only moments params change
+    (insert / toolbar edit), so this side never re-owns 13 per-widget formats
+    it could drift on. Missing/blank searchText degrades to '[widget]'."""
     if not isinstance(doc, dict):
         return ""
     out: list[str] = []
     def walk(node: Any) -> None:
         if not isinstance(node, dict):
             return
-        if node.get("type") == "text":
+        ntype = node.get("type")
+        attrs = node.get("attrs") or {}
+        if ntype == "text":
             t = node.get("text")
             if isinstance(t, str):
                 out.append(t)
+        elif ntype == "videoTimestamp":
+            out.append(f"[{_fmt_secs(attrs.get('seconds'))}]")
+        elif ntype == "attachmentChip":
+            out.append(f"[file: {attrs.get('name') or 'file'}]")
+        elif ntype == "widgetEmbed":
+            st = attrs.get("searchText")
+            out.append(st if isinstance(st, str) and st else "[widget]")
         for child in node.get("content", []) or []:
             walk(child)
     walk(doc)
     return " ".join(s for s in out if s)
+
+
+# ── Widget-embed sidecar (j2_note_embeds) ────────────────────────────────────
+
+def _extract_embeds(doc: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """Every widgetEmbed node in document order, flattened to sidecar rows."""
+    rows: list[dict[str, Any]] = []
+    def walk(node: Any) -> None:
+        if not isinstance(node, dict):
+            return
+        if node.get("type") == "widgetEmbed":
+            attrs = node.get("attrs") or {}
+            params = attrs.get("params") or {}
+            widget_id = attrs.get("widgetId")
+            if isinstance(widget_id, str) and widget_id:
+                sym = params.get("symbol")
+                tf = params.get("tf")
+                rows.append({
+                    "widget_id": widget_id,
+                    "symbol": sym.upper() if isinstance(sym, str) and sym else None,
+                    "timeframe": str(tf) if tf is not None else None,
+                    "trade_ref": attrs.get("tradeRef") or None,
+                    "mode": attrs.get("mode") or None,
+                    "captured_at": attrs.get("capturedAt") or None,
+                })
+        for child in node.get("content", []) or []:
+            walk(child)
+    if isinstance(doc, dict):
+        walk(doc)
+    return rows
+
+
+def _sync_note_embeds(
+    conn: sqlite3.Connection, user_id: str, note_id: str,
+    body_json: dict[str, Any] | None,
+) -> None:
+    """Rebuild the note's j2_note_embeds projection inside the caller's
+    transaction (no commit here). Delete + insert: the row set is tiny and
+    document order (position) is the primary key."""
+    conn.execute("DELETE FROM j2_note_embeds WHERE note_id = ?", (note_id,))
+    rows = _extract_embeds(body_json)
+    if rows:
+        conn.executemany(
+            "INSERT INTO j2_note_embeds (note_id, user_id, position, widget_id,"
+            " symbol, timeframe, trade_ref, mode, captured_at)"
+            " VALUES (?,?,?,?,?,?,?,?,?)",
+            [(note_id, user_id, i, r["widget_id"], r["symbol"], r["timeframe"],
+              r["trade_ref"], r["mode"], r["captured_at"])
+             for i, r in enumerate(rows)])
 
 
 # ── Validation ───────────────────────────────────────────────────────────────
@@ -266,6 +342,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                     (title, n.get("subtitle") or None, json.dumps(body_json), body_plain,
                      folder_id, ticker, json.dumps(tags), h, now, updated_at,
                      row["id"], user_id))
+                _sync_note_embeds(conn, user_id, row["id"], body_json)
                 updated.append(item)
             else:
                 new_id = uuid.uuid4().hex
@@ -277,6 +354,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                     (new_id, user_id, folder_id, title, n.get("subtitle") or None,
                      json.dumps(body_json), body_plain, ticker, json.dumps(tags),
                      source, key, h, now, created_at, updated_at))
+                _sync_note_embeds(conn, user_id, new_id, body_json)
                 item["id"] = new_id
                 created.append(item)
         conn.commit()
@@ -344,6 +422,8 @@ def list_notes(
     tag: str | None = None,
     ticker: str | None = None,
     q: str | None = None,
+    embed_symbol: str | None = None,
+    embed_widget: str | None = None,
     sort: str = "updated",
     limit: int = 100,
     offset: int = 0,
@@ -362,6 +442,18 @@ def list_notes(
         if ticker:
             sql += " AND ticker = ?"
             params.append(ticker.strip().upper())
+        # Widget-embed filters ("every entry where I traded AMD" / "every entry
+        # with a breadth widget") — answered from the j2_note_embeds sidecar.
+        if embed_symbol:
+            sql += (" AND EXISTS (SELECT 1 FROM j2_note_embeds e"
+                    " WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id"
+                    " AND e.symbol = ?)")
+            params.append(embed_symbol.strip().upper())
+        if embed_widget:
+            sql += (" AND EXISTS (SELECT 1 FROM j2_note_embeds e"
+                    " WHERE e.note_id = j2_notes.id AND e.user_id = j2_notes.user_id"
+                    " AND e.widget_id = ?)")
+            params.append(embed_widget.strip())
         if tag:
             # JSON LIKE — case-insensitive substring of any tag value.
             sql += ' AND lower(tags) LIKE ?'
@@ -452,6 +544,7 @@ def create_note(
                 json.dumps(tags), now, now,
             ),
         )
+        _sync_note_embeds(conn, user_id, new_id, body_json)
         conn.commit()
         row = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (new_id,)
@@ -531,6 +624,8 @@ def update_note(
             f"UPDATE j2_notes SET {', '.join(sets)} WHERE id = ? AND user_id = ?",
             params,
         )
+        if "bodyJson" in patch:
+            _sync_note_embeds(conn, user_id, note_id, bj)
         conn.commit()
         row = conn.execute(
             "SELECT * FROM j2_notes WHERE id = ?", (note_id,)
@@ -553,6 +648,8 @@ def delete_note(
             "DELETE FROM j2_notes WHERE id = ? AND user_id = ?",
             (note_id, user_id),
         )
+        if cur.rowcount:
+            conn.execute("DELETE FROM j2_note_embeds WHERE note_id = ?", (note_id,))
         conn.commit()
         return cur.rowcount > 0
     finally:

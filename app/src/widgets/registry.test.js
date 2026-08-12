@@ -17,6 +17,7 @@ import {
   WORKSPACE_MENU_TYPES,
   TAB_MENU_TYPES,
   MOBILE_MENU_TYPES,
+  JOURNAL_MENU_TYPES,
   THEME_FOLLOW_TYPES,
   labelMap,
   normalizeParams,
@@ -96,6 +97,10 @@ describe('widget registry — metadata pins', () => {
 
   it('mobile offers exactly the 5 phone-usable types', () => {
     expect(MOBILE_MENU_TYPES).toEqual(['chart', 'watchlist', 'themes', 'scanner', 'fundamentals'])
+  })
+
+  it('journal slash menu offers only types with an in-editor render path (v1: chart)', () => {
+    expect(JOURNAL_MENU_TYPES).toEqual(['chart'])
   })
 
   it('every type except chart follows the app theme when uncustomized', () => {

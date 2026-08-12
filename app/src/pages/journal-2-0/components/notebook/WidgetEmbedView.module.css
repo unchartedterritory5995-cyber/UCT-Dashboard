@@ -1,0 +1,69 @@
+/* Journal Widgets — embed block frame inside the notebook editor. */
+
+.frame {
+  position: relative;
+  margin: 10px 0;
+  border: 1px solid var(--border, #2a2a2a);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--panel, #101010);
+}
+.full { width: 100%; }
+/* Two half-width embeds sit side by side for comparison; TipTap keeps them as
+   sibling blocks, so half floats and pairs pack. They stack on phones. */
+.half { width: calc(50% - 6px); display: inline-block; vertical-align: top; }
+.half + .half { margin-left: 12px; }
+@media (max-width: 700px) {
+  .half { width: 100%; display: block; }
+  .half + .half { margin-left: 0; }
+}
+.selected { border-color: var(--ut-gold, #c9a84c); }
+
+.body {
+  /* The container-query root the workspace widgets expect (.widgetBody parity)
+     — plus a real height supplied inline when a live component mounts. */
+  container-type: inline-size;
+  min-height: 42px;
+}
+
+.archived { margin: 0; }
+.archivedImg { display: block; max-width: 100%; height: auto; }
+.archivedLabel {
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--text-dim, #8a8a8a);
+  border-top: 1px solid var(--border, #2a2a2a);
+}
+
+.placeholder {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 12px 14px;
+  font-size: 13px;
+}
+.placeholderLine { color: var(--text, #cfcfcf); font-weight: 600; }
+.placeholderWhy { color: var(--text-dim, #8a8a8a); font-size: 11px; }
+
+.loading { background: var(--panel-2, #141414); }
+
+.liveBadge {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #0c0c0c;
+  background: var(--ut-gold, #c9a84c);
+  pointer-events: none;
+}
+
+.caption {
+  padding: 5px 10px 7px;
+  font-size: 12px;
+  color: var(--text-dim, #9a9a9a);
+  border-top: 1px solid var(--border, #2a2a2a);
+}

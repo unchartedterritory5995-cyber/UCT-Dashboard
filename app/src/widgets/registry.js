@@ -33,6 +33,11 @@
 //                    It stays registered so docked instances render.
 // - menus.mobile   — membership in MobileWorkspace's add menu (the 5 types
 //                    that are usable at 375px).
+// - menus.journal  — offered by the notebook's slash menu / insert palette.
+//                    v1: chart only — it renders live from frozen params; the
+//                    other types embed via CAPTURE (params + archived image),
+//                    so slash-inserting one would create a dead placeholder.
+//                    Flip per-type as each gains an in-editor render path.
 // - themeFollow    — when uncustomized, the widget chrome re-flips to the app
 //                    theme's light tokens (every type except chart, whose
 //                    canvas always comes from its own settings blob).
@@ -120,12 +125,20 @@ function chartReconstructable(params) {
   return ageDays <= ceiling
 }
 
-export const WIDGET_REGISTRY = Object.freeze({
+// Object.freeze is shallow — a consumer could still mutate entry.defaults and
+// silently reshape every host's grid. Freeze the whole tree once at init.
+function deepFreeze(obj) {
+  for (const v of Object.values(obj)) {
+    if (v && typeof v === 'object' && !Object.isFrozen(v)) deepFreeze(v)
+  }
+  return Object.freeze(obj)
+}
+
+export const WIDGET_REGISTRY = deepFreeze({
   chart: {
-    id: 'chart',
     labels: { header: 'Chart', menu: 'Chart', tab: 'Chart' },
     defaults: { w: 12, h: 12, minW: 6, minH: 6 },
-    menus: { workspace: true, tab: true, mobile: true },
+    menus: { workspace: true, tab: true, mobile: true, journal: true },
     themeFollow: false,
     paramsSchema: [
       { key: 'symbol', type: 'symbol', required: true },
@@ -139,10 +152,9 @@ export const WIDGET_REGISTRY = Object.freeze({
     liveCapable: true,
   },
   watchlist: {
-    id: 'watchlist',
     labels: { header: 'Watchlist', menu: 'Watchlist', tab: 'Watchlist' },
     defaults: { w: 6, h: 10, minW: 2, minH: 4 },
-    menus: { workspace: true, tab: true, mobile: true },
+    menus: { workspace: true, tab: true, mobile: true, journal: false },
     themeFollow: true,
     paramsSchema: [
       { key: 'watchKey', type: 'string', required: true },  // 'flagged' | user:<id> | community:<id> | tag:<color>
@@ -157,10 +169,9 @@ export const WIDGET_REGISTRY = Object.freeze({
     liveCapable: false,
   },
   themes: {
-    id: 'themes',
     labels: { header: 'Themes', menu: 'Theme Tracker', tab: 'Themes' },
     defaults: { w: 6, h: 10, minW: 2, minH: 4 },
-    menus: { workspace: true, tab: true, mobile: true },
+    menus: { workspace: true, tab: true, mobile: true, journal: false },
     themeFollow: true,
     paramsSchema: [
       // ⚠️ All of this is TRANSIENT React state in ThemeTrackerPage today (the
@@ -178,10 +189,9 @@ export const WIDGET_REGISTRY = Object.freeze({
     liveCapable: false,
   },
   scanner: {
-    id: 'scanner',
     labels: { header: 'Scanner', menu: 'Scanner', tab: 'Scanner' },
     defaults: { w: 8, h: 10, minW: 6, minH: 4 },
-    menus: { workspace: true, tab: true, mobile: true },
+    menus: { workspace: true, tab: true, mobile: true, journal: false },
     themeFollow: true,
     paramsSchema: [
       { key: 'scanKey', type: 'string', required: true },   // the WIRE contract (names get re-copywritten)
@@ -195,10 +205,9 @@ export const WIDGET_REGISTRY = Object.freeze({
     liveCapable: false,
   },
   fundamentals: {
-    id: 'fundamentals',
     labels: { header: 'Fundamentals', menu: 'Fundamentals', tab: 'Fundamentals' },
     defaults: { w: 8, h: 6, minW: 6, minH: 2 },
-    menus: { workspace: true, tab: true, mobile: true },
+    menus: { workspace: true, tab: true, mobile: true, journal: false },
     themeFollow: true,
     paramsSchema: [
       { key: 'symbol', type: 'symbol', required: true },
@@ -213,10 +222,9 @@ export const WIDGET_REGISTRY = Object.freeze({
     liveCapable: false,
   },
   breadth: {
-    id: 'breadth',
     labels: { header: 'Breadth', menu: 'Breadth', tab: 'Breadth' },
     defaults: { w: 8, h: 10, minW: 4, minH: 4 },
-    menus: { workspace: true, tab: true, mobile: false },
+    menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
     paramsSchema: [
       { key: 'hiddenMetrics', type: 'json', default: [] },
@@ -234,10 +242,9 @@ export const WIDGET_REGISTRY = Object.freeze({
     liveCapable: false,
   },
   aisearch: {
-    id: 'aisearch',
     labels: { header: 'AI Search', menu: 'AI Search', tab: 'AI Search' },
     defaults: { w: 7, h: 10, minW: 3, minH: 3 },
-    menus: { workspace: true, tab: true, mobile: false },
+    menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
     paramsSchema: [
       // The widget already supports thread restore first-class (initialThread
@@ -253,10 +260,9 @@ export const WIDGET_REGISTRY = Object.freeze({
     liveCapable: false,
   },
   news: {
-    id: 'news',
     labels: { header: 'News', menu: 'News & Catalysts', tab: 'News' },
     defaults: { w: 6, h: 10, minW: 2, minH: 4 },
-    menus: { workspace: true, tab: true, mobile: false },
+    menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
     paramsSchema: [
       { key: 'symbol', type: 'symbol', required: true },
@@ -269,10 +275,9 @@ export const WIDGET_REGISTRY = Object.freeze({
     liveCapable: false,
   },
   profile: {
-    id: 'profile',
     labels: { header: 'Profile', menu: 'Stock Profile', tab: 'Profile' },
     defaults: { w: 6, h: 12, minW: 3, minH: 5 },
-    menus: { workspace: true, tab: true, mobile: false },
+    menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
     paramsSchema: [
       { key: 'symbol', type: 'symbol', required: true },
@@ -285,10 +290,9 @@ export const WIDGET_REGISTRY = Object.freeze({
     liveCapable: false,
   },
   alerts: {
-    id: 'alerts',
     labels: { header: 'Alerts', menu: 'Alerts', tab: 'Alerts' },
     defaults: { w: 6, h: 10, minW: 2, minH: 4 },
-    menus: { workspace: true, tab: true, mobile: false },
+    menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
     paramsSchema: [
       // The payload IS the params: the user's mutable alert list × the live
@@ -302,10 +306,9 @@ export const WIDGET_REGISTRY = Object.freeze({
     liveCapable: false,
   },
   calendar: {
-    id: 'calendar',
     labels: { header: 'Calendar', menu: 'Calendar', tab: 'Calendar' },
     defaults: { w: 6, h: 10, minW: 2, minH: 4 },
-    menus: { workspace: true, tab: true, mobile: false },
+    menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
     paramsSchema: [
       // The widget renders ONE DAY (the week is only the fetch granularity).
@@ -321,10 +324,9 @@ export const WIDGET_REGISTRY = Object.freeze({
     liveCapable: false,
   },
   optionsflow: {
-    id: 'optionsflow',
     labels: { header: 'Options Flow', menu: 'Options Flow', tab: 'Flow' },
     defaults: { w: 8, h: 12, minW: 4, minH: 5 },
-    menus: { workspace: true, tab: true, mobile: false },
+    menus: { workspace: true, tab: true, mobile: false, journal: false },
     themeFollow: true,
     paramsSchema: [
       { key: 'lead', type: 'enum', options: ['tape', 'biggest', 'sentiment'], default: 'tape' },
@@ -338,11 +340,10 @@ export const WIDGET_REGISTRY = Object.freeze({
     liveCapable: false,
   },
   periodsort: {
-    id: 'periodsort',
     // ~fits Flag·Symbol·%·Industry with no blank filler
     labels: { header: 'Period Sort', menu: 'Period Sort', tab: 'Period Sort' },
     defaults: { w: 6, h: 12, minW: 3, minH: 5 },
-    menus: { workspace: false, tab: false, mobile: false },
+    menus: { workspace: false, tab: false, mobile: false, journal: false },
     themeFollow: true,
     paramsSchema: [
       { key: 'start', type: 'number', required: true },      // YYYYMMDD int (the widget's wire format)
@@ -364,6 +365,7 @@ export const WIDGET_IDS = Object.keys(WIDGET_REGISTRY)
 export const WORKSPACE_MENU_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.workspace)
 export const TAB_MENU_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.tab)
 export const MOBILE_MENU_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.mobile)
+export const JOURNAL_MENU_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].menus.journal)
 export const THEME_FOLLOW_TYPES = WIDGET_IDS.filter(id => WIDGET_REGISTRY[id].themeFollow)
 
 /** Full id→label map for one label kind ('header' | 'menu' | 'tab').

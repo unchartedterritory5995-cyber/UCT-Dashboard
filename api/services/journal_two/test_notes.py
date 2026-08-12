@@ -190,3 +190,111 @@ def test_validation_body_must_be_doc(conn):
 def test_validation_folder_must_exist(conn):
     with pytest.raises(NoteValidationError):
         svc.create_note("u1", {"title": "T", "folderId": "missing"}, conn=conn)
+
+
+# ── Journal Widgets: widgetEmbed serialization + sidecar index ───────────────
+
+WIDGET_DOC = {"type": "doc", "content": [
+    {"type": "paragraph", "content": [{"type": "text", "text": "Setup review"}]},
+    {"type": "widgetEmbed", "attrs": {
+        "v": 1, "widgetId": "chart",
+        "params": {"symbol": "AMD", "tf": "5"},
+        "capturedAt": "2026-03-13T15:45:00Z", "mode": "snapshot",
+        "searchText": "[chart: AMD 5m]", "tradeRef": "tr_1"}},
+    {"type": "widgetEmbed", "attrs": {
+        "v": 1, "widgetId": "breadth", "params": {},
+        "capturedAt": "2026-03-13T15:50:00Z", "mode": "live",
+        "searchText": "[breadth: heatmap]"}},
+]}
+
+
+def test_extract_plain_text_emits_widget_embed_search_text():
+    txt = extract_plain_text(WIDGET_DOC)
+    assert "[chart: AMD 5m]" in txt
+    assert "[breadth: heatmap]" in txt
+
+
+def test_extract_plain_text_widget_embed_without_search_text_degrades():
+    doc = {"type": "doc", "content": [
+        {"type": "widgetEmbed", "attrs": {"widgetId": "gone"}}]}
+    assert "[widget]" in extract_plain_text(doc)
+
+
+def test_extract_plain_text_matches_client_for_custom_nodes():
+    # The client serializer (lib/tiptap.js extractPlainText) has emitted these
+    # two for months; the server walked only text nodes — the drift this pins shut.
+    doc = {"type": "doc", "content": [
+        {"type": "videoTimestamp", "attrs": {"seconds": 75}},
+        {"type": "attachmentChip", "attrs": {"name": "plan.pdf"}},
+    ]}
+    txt = extract_plain_text(doc)
+    assert "[1:15]" in txt
+    assert "[file: plan.pdf]" in txt
+
+
+def test_create_note_syncs_embed_sidecar(conn):
+    n = svc.create_note("u1", {"title": "T", "bodyJson": WIDGET_DOC}, conn=conn)
+    rows = conn.execute(
+        "SELECT * FROM j2_note_embeds WHERE note_id = ? ORDER BY position",
+        (n["id"],)).fetchall()
+    assert [r["widget_id"] for r in rows] == ["chart", "breadth"]
+    assert rows[0]["symbol"] == "AMD"
+    assert rows[0]["timeframe"] == "5"
+    assert rows[0]["trade_ref"] == "tr_1"
+    assert rows[0]["mode"] == "snapshot"
+    assert rows[0]["user_id"] == "u1"
+    assert rows[1]["symbol"] is None
+
+
+def test_update_note_resyncs_and_delete_cleans_sidecar(conn):
+    n = svc.create_note("u1", {"title": "T", "bodyJson": WIDGET_DOC}, conn=conn)
+    svc.update_note("u1", n["id"], {"bodyJson": {
+        "type": "doc", "content": [WIDGET_DOC["content"][1]]}}, conn=conn)
+    rows = conn.execute(
+        "SELECT widget_id FROM j2_note_embeds WHERE note_id = ?", (n["id"],)).fetchall()
+    assert [r["widget_id"] for r in rows] == ["chart"]
+    svc.delete_note("u1", n["id"], conn=conn)
+    left = conn.execute(
+        "SELECT COUNT(*) AS c FROM j2_note_embeds WHERE note_id = ?", (n["id"],)).fetchone()
+    assert left["c"] == 0
+
+
+def test_update_note_without_body_change_keeps_sidecar(conn):
+    n = svc.create_note("u1", {"title": "T", "bodyJson": WIDGET_DOC}, conn=conn)
+    svc.update_note("u1", n["id"], {"title": "Renamed"}, conn=conn)
+    rows = conn.execute(
+        "SELECT COUNT(*) AS c FROM j2_note_embeds WHERE note_id = ?", (n["id"],)).fetchone()
+    assert rows["c"] == 2
+
+
+def test_list_notes_filters_by_embed_symbol_and_widget(conn):
+    svc.create_note("u1", {"title": "With AMD", "bodyJson": WIDGET_DOC}, conn=conn)
+    svc.create_note("u1", {"title": "Plain"}, conn=conn)
+    got = svc.list_notes("u1", embed_symbol="amd", conn=conn)
+    assert [n["title"] for n in got] == ["With AMD"]
+    got2 = svc.list_notes("u1", embed_widget="breadth", conn=conn)
+    assert [n["title"] for n in got2] == ["With AMD"]
+    # And the searchText line is findable through the existing q= path.
+    got3 = svc.list_notes("u1", q="chart: amd", conn=conn)
+    assert [n["title"] for n in got3] == ["With AMD"]
+    # Scoped to the owner.
+    assert svc.list_notes("u2", embed_symbol="AMD", conn=conn) == []
+
+
+def test_import_confirm_syncs_embed_sidecar(conn):
+    res = svc.import_confirm("u1", {"source": "generic", "notes": [
+        {"importKey": "k1", "title": "Imp", "bodyJson": WIDGET_DOC, "tags": []},
+    ]}, conn=conn)
+    nid = res["created"][0]["id"]
+    rows = conn.execute(
+        "SELECT widget_id FROM j2_note_embeds WHERE note_id = ? ORDER BY position",
+        (nid,)).fetchall()
+    assert [r["widget_id"] for r in rows] == ["chart", "breadth"]
+    # Re-import with a changed body re-syncs rather than duplicating.
+    doc2 = {"type": "doc", "content": [WIDGET_DOC["content"][1]]}
+    svc.import_confirm("u1", {"source": "generic", "notes": [
+        {"importKey": "k1", "title": "Imp", "bodyJson": doc2, "tags": []},
+    ]}, conn=conn)
+    rows2 = conn.execute(
+        "SELECT widget_id FROM j2_note_embeds WHERE note_id = ?", (nid,)).fetchall()
+    assert [r["widget_id"] for r in rows2] == ["chart"]
