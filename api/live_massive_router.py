@@ -280,7 +280,10 @@ DEFAULT_THRESHOLDS = {
     # LEAPS tier). Grades the AGGREGATE, not the single print.
     "alpha_leaps_enabled": True,
     "alpha_leaps_min_aggregate_premium": 3_000_000,
-    "alpha_leaps_max_otm_pct": 15.0,
+    # 50%, not "near-the-money" 15% — a far-OTM LEAP on a momentum name (CRWV
+    # 180C ~39% OTM, 13mo out) is a leveraged conviction bet, not a lottery; the
+    # separate deep-OTM lottery filter still drops the truly-crazy before the tier.
+    "alpha_leaps_max_otm_pct": 50.0,
     # Global deep-ITM filter (added 6/30 morning).
     #
     # Trades deeper than this threshold are "synthetic stock substitute"
@@ -1200,7 +1203,7 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
                 and agg_ask_premium >= _al_th.get(
                     "alpha_leaps_min_aggregate_premium", 3_000_000)
                 and money_pct is not None
-                and abs(money_pct) <= _al_th.get("alpha_leaps_max_otm_pct", 15.0)):
+                and abs(money_pct) <= _al_th.get("alpha_leaps_max_otm_pct", 50.0)):
             return (f"UCT Alpha LEAPS {direction}", "alpha_leaps",
                     TIER_PRIORITY["alpha_leaps"])
         # Alpha Gold — rarest, top tier
