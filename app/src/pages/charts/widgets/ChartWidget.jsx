@@ -328,6 +328,11 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
           // Replay mode: hide every bar after this ISO date (null = normal chart) + show
           // the "Exit Replay Mode" pill centered in this chart's clear top area.
           replayCutoff: replayCutoff || null,
+          // FULLY freeze live in replay: replay is static historical data, so kill the SSE
+          // subscription + the per-tick live-price re-render (was left on, which churned the
+          // chart every ~100ms — candles flickering off/on + a laggy crosshair). Same as Model
+          // Book's static charts. null cutoff → undefined → StockChart's live default (true).
+          liveUpdates: replayCutoff ? false : undefined,
           onExitReplay: (replayCutoff || startMarker) ? exitReplay : undefined,
           // Custom-Period Sort "Mark start date": either a thin gold vertical LINE (overlay)
           // or paint the start-date CANDLE gold (highlightBarTime). Only one is active.
