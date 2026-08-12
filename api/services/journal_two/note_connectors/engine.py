@@ -604,6 +604,37 @@ def _write_tags_preserving_updated_at(
     )
 
 
+def _write_import_hash_preserving_updated_at(
+    conn: sqlite3.Connection, user_id: str, note_id: str, import_hash: str,
+) -> None:
+    """Writes ONLY the `import_hash` column, WITHOUT touching `updated_at`/
+    `imported_at`/content (Fix-round-3 Important; same "raw write, skip
+    updated_at" idiom as `_write_tags_preserving_updated_at` right above).
+
+    Used EXCLUSIVELY by `_import_remote_notes`'s pre-confirm conflict check,
+    on the ORIGINAL note's row, the moment a GENUINE conflict is detected
+    (remote content changed while the user had it locally edited). Once a
+    note is conflicted, `import_confirm` is never called again for its
+    ORIGINAL import_key (only the `{key}#remote` sibling gets confirmed) —
+    so without this write, the original's `import_hash` stays frozen at
+    whatever it was BEFORE the very first conflict, forever. The next
+    pass's "did remote content change SINCE LAST TIME" comparison would then
+    always answer "yes" (comparing against a hash from a version further and
+    further in the past), even when the remote genuinely stopped moving
+    right after the first conflict — permanently re-tallying `conflicts`,
+    re-confirming a sibling that's usually a no-op skip, and, if the user
+    ever deleted that sibling, silently resurrecting it on every subsequent
+    sync. This write makes the original's `import_hash` track "the last
+    remote content this sync actually saw" independent of what's displayed
+    (which stays exactly as the user left it) — the correct baseline for
+    "changed since last pass," not "changed since the user's edit was first
+    detected"."""
+    conn.execute(
+        "UPDATE j2_notes SET import_hash = ? WHERE id = ? AND user_id = ?",
+        (import_hash, note_id, user_id),
+    )
+
+
 def _tag_note_source_deleted(conn: sqlite3.Connection, user_id: str, import_key: str) -> None:
     """NEVER deletes the note — flags it (mirrors the `demote_broker_accounts`
     instinct: a missing-remote item soft-degrades, it doesn't vanish)."""
@@ -732,15 +763,21 @@ def _bulk_existing_note_meta(
     conn: sqlite3.Connection, user_id: str, import_keys: list[str],
 ) -> dict[str, dict[str, Any]]:
     """Raw SQL — `notes_svc._row_to_note` doesn't surface `imported_at`
-    (internal import provenance), which the conflict check needs alongside
-    `updated_at`/`tags`/`folder_id`."""
+    (internal import provenance) or `import_hash`, which the conflict check
+    needs alongside `updated_at`/`tags`/`folder_id`.
+
+    `import_hash` (Fix-round-3 Important) is what lets the pre-confirm
+    conflict check distinguish "the user edited this AND the remote actually
+    changed" from "the user edited this once, and every subsequent sync of
+    UNCHANGED remote content re-tallies the same non-conflict as a conflict
+    forever" — see `_import_remote_notes`."""
     keys = list(dict.fromkeys(k for k in import_keys if k))
     out: dict[str, dict[str, Any]] = {}
     for i in range(0, len(keys), 500):  # sqlite variable-limit safety
         chunk = keys[i:i + 500]
         placeholders = ",".join("?" * len(chunk))
         rows = conn.execute(
-            f"SELECT id, import_key, updated_at, imported_at, tags, folder_id "
+            f"SELECT id, import_key, updated_at, imported_at, tags, folder_id, import_hash "
             f"FROM j2_notes WHERE user_id = ? AND import_key IN ({placeholders})",
             (user_id, *chunk),
         ).fetchall()
@@ -751,6 +788,7 @@ def _bulk_existing_note_meta(
                 "importedAt": row["imported_at"],
                 "tags": json.loads(row["tags"] or "[]"),
                 "folderId": row["folder_id"],
+                "importHash": row["import_hash"],
             }
     return out
 
@@ -1213,18 +1251,57 @@ async def _import_remote_notes(
 
         for rn, key in zip(remote_notes, import_keys):
             meta = existing.get(key)
-            if meta and _is_conflict(meta):
-                # Local edit since the last sync -> NEVER overwrite the
-                # original. Route the fresh remote content to a sibling note
-                # instead; both versions survive.
+            # `entry` is what WOULD be written under the ORIGINAL import_key —
+            # built unconditionally (not just in the else-branch) because
+            # Fix-round-3 needs its hash regardless of which path is taken.
+            entry = _build_confirm_entry(rn, key)
+            # Fix-round-3 Important (live-gate 23rd check): a conflict is only
+            # a conflict when the REMOTE side actually changed. `_is_conflict`
+            # alone (`updated_at > imported_at`) is permanently true for any
+            # note the user ever legitimately edited — without the hash gate,
+            # EVERY subsequent full sync of UNCHANGED remote content re-tallied
+            # a phantom conflict: `counts.conflicts` never cleared on the trust
+            # strip, the `{key}#remote` sibling was re-confirmed every pass
+            # (harmless only because import_confirm's OWN hash check no-ops an
+            # unchanged sibling that still exists), and — the sharp edge — if
+            # the user deleted that "(synced copy)" sibling, the next sync's
+            # `import_confirm` found no row for `{key}#remote` and silently
+            # RECREATED it, forever, as long as the original stayed
+            # user-edited. Comparing `entry`'s hash (the SAME
+            # `notes_svc._import_payload_hash` basis `import_confirm` itself
+            # uses, over the SAME placeholder-body shape `_build_confirm_entry`
+            # produces — never re-derived here) against the original's stored
+            # `import_hash` answers "did the remote content change since the
+            # last time we looked," independent of the user's own edit.
+            is_genuine_conflict = (
+                meta is not None and _is_conflict(meta)
+                and notes_svc._import_payload_hash(entry) != (meta.get("importHash") or "")
+            )
+            if is_genuine_conflict:
+                # Local edit since the last sync AND the remote genuinely
+                # changed -> NEVER overwrite the original. Route the fresh
+                # remote content to a sibling note instead; both versions
+                # survive.
                 pre_confirm_conflicts += 1
                 sibling_key = f"{key}#remote"
-                entry = _build_confirm_entry(rn, sibling_key, sibling=True)
-                sibling_items.append((entry, rn, sibling_key, meta["folderId"]))
+                sibling_entry = _build_confirm_entry(rn, sibling_key, sibling=True)
+                sibling_items.append((sibling_entry, rn, sibling_key, meta["folderId"]))
                 if "sync-conflict" not in (meta["tags"] or []):
                     conflict_tag_updates[meta["id"]] = list(meta["tags"] or []) + ["sync-conflict"]
+                # Record what we just saw as the new "last seen remote hash"
+                # baseline on the ORIGINAL row (never touching its content or
+                # updated_at/imported_at) — see
+                # `_write_import_hash_preserving_updated_at`'s docstring for
+                # why skipping this freezes the comparison at the FIRST
+                # conflict forever instead of tracking pass-to-pass change.
+                _write_import_hash_preserving_updated_at(
+                    conn, user_id, meta["id"], notes_svc._import_payload_hash(entry))
             else:
-                entry = _build_confirm_entry(rn, key)
+                # Either no genuine conflict, or a conflict whose remote side
+                # is UNCHANGED -> plain pass-through. `import_confirm`'s own
+                # hash check on `entry` no-ops it (skipped) when nothing
+                # changed -- no tally, no sibling confirm, no resurrection of
+                # a sibling the user deleted.
                 normal_items.append((entry, rn, key))
 
         totals: dict[str, Any] = {

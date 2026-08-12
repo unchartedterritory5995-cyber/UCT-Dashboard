@@ -398,6 +398,104 @@ async def test_conflict_resync_updates_the_sibling_not_the_original(source, prov
 
 
 # ---------------------------------------------------------------------------
+# Fix-round-3 Important (live-gate 23rd check): a conflict is only a conflict
+# when the REMOTE side actually changed -- `_is_conflict(meta)` alone is
+# permanently true for any note the user ever legitimately edited.
+# ---------------------------------------------------------------------------
+
+async def test_conflicted_note_with_unchanged_remote_does_not_re_tally_or_resurrect_sibling(
+    source, provider,
+):
+    """(a) A note the user edited, whose remote content is genuinely UNCHANGED
+    on the next full pass, must produce conflicts == 0 and never touch a
+    sibling -- including a previously-deleted one, which must STAY deleted
+    (the exact "delete the copy and it comes right back" defect the live
+    gate's 23rd check found: `import_confirm` finds no row for
+    `{key}#remote` and silently recreates it)."""
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Note A", text="remote v1")}
+    await engine.sync_source(source["id"], full=True)
+    original = notes_svc.list_notes("u1")[0]
+
+    # Genuine user edit -- via the PUBLIC update_note path, exactly as a real
+    # edit in the notes UI would (this is what makes _is_conflict permanently
+    # true for this note from here on).
+    notes_svc.update_note("u1", original["id"], {"title": "locally edited"})
+
+    # Remote changes ONCE -> a genuine conflict, sibling created (baseline;
+    # the machinery must still fire on a real change).
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-05T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Note A", text="remote v2",
+                                       updated_at="2026-08-05T00:00:00+00:00")}
+    r_conflict = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r_conflict["conflicts"] == 1
+    sibling = next(n for n in notes_svc.list_notes("u1") if n["id"] != original["id"])
+    assert sibling["title"] == "Note A (synced copy)"
+
+    # The user deletes the "(synced copy)" note.
+    assert notes_svc.delete_note("u1", sibling["id"]) is True
+    assert len(notes_svc.list_notes("u1")) == 1
+
+    # Remote STAYS AT v2 (byte-identical to the last sync) -- a heal-phase /
+    # routine full pass with nothing new. Repeated twice: the live gate's
+    # bug reproduces on EVERY pass, not just the first.
+    for _ in range(2):
+        provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-05T00:00:00+00:00")]
+        provider.notes_by_id = {"p1": _rn("p1", "Note A", text="remote v2",
+                                           updated_at="2026-08-05T00:00:00+00:00")}
+        result = await engine.sync_source(source["id"], full=True, manual=True)
+
+        assert result["conflicts"] == 0
+        assert result["created"] == 0
+        assert result["updated"] == 0
+
+        all_notes = notes_svc.list_notes("u1")
+        assert len(all_notes) == 1, (
+            f"the deleted sibling was resurrected: {[n['title'] for n in all_notes]}"
+        )
+        kept = notes_svc.get_note("u1", original["id"])
+        assert kept["title"] == "locally edited"  # original still untouched
+        assert not any("(synced copy)" in n["title"] for n in all_notes)
+
+
+async def test_conflicted_note_with_remote_change_after_an_unchanged_pass_still_conflicts(
+    source, provider,
+):
+    """(b) After an unchanged-remote pass produces no conflict, a REAL
+    subsequent remote change must still fire the conflict machinery --
+    proves the hash gate doesn't blind it to genuine changes."""
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Note B", text="remote v1")}
+    await engine.sync_source(source["id"], full=True)
+    original = notes_svc.list_notes("u1")[0]
+    notes_svc.update_note("u1", original["id"], {"title": "locally edited"})
+
+    # Pass 1: remote unchanged -> no conflict (this is the (a) scenario).
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Note B", text="remote v1")}
+    r1 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r1["conflicts"] == 0
+    assert len(notes_svc.list_notes("u1")) == 1
+
+    # Pass 2: remote genuinely changes -> conflicts == 1, sibling carries the
+    # NEW content.
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-09T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Note B", text="remote v2",
+                                       updated_at="2026-08-09T00:00:00+00:00")}
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r2["conflicts"] == 1
+
+    all_notes = notes_svc.list_notes("u1")
+    assert len(all_notes) == 2
+    sibling = next(n for n in all_notes if n["id"] != original["id"])
+    assert sibling["title"] == "Note B (synced copy)"
+    assert sibling["bodyPlain"].strip() == "remote v2"
+    assert "sync-conflict" in sibling["tags"]
+    kept_original = notes_svc.get_note("u1", original["id"])
+    assert kept_original["title"] == "locally edited"  # still untouched
+
+
+# ---------------------------------------------------------------------------
 # 5. Delete detection: 2-strikes + refuse guard
 # ---------------------------------------------------------------------------
 
