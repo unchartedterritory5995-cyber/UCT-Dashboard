@@ -338,3 +338,42 @@ cap" still means one over. A cap tested with a tree that dedups to 2 is
 4. Mutation-check: `nodeCount` back to `flatten(ast).length` (the new count rail
    red) · memo dropped (same rail red) · self-free scoping dropped (parity
    fixtures red, already proven lethal).
+
+## ⭐ CORRECTION 2026-08-12 — the blocker was MINE, not `budget.test.js`'s
+
+The entry above blames `budget.test.js`'s generators. **That was wrong and it is
+worth reading why**, because it is this repo's signature defect committed by the
+person documenting it: I diagnosed from a failure count instead of from the
+artifact, and wrote up a fix to the wrong file.
+
+`chainOfNodes(n)` builds `u-(u-(…num(1)))`. Every nesting DEPTH is a structurally
+distinct subtree, so a correct DAG count returns exactly `n` and those tests
+should have stayed green. The generators are fine. **`structuralMaps` was broken.**
+
+🔴 **THE TELL, AND IT IS EXACT.** `nodeCount(chainOfNodes(128))` returned **2** —
+which is precisely the signature of the `'?' + parts.length` fallback firing at
+every level: children were NOT in `keyOf` when their parent was keyed, so every
+`u-` node keyed to the same string `opu-?0` and the whole chain collapsed to two
+distinct keys (`num1` and `opu-?0`). A wrong ORDER, not a wrong test.
+
+`flatten` is pre-order (`order.push(node)` before pushing args), so a reversed
+walk SHOULD give children-before-parents. It did not behave that way. Do not
+theorise about it — **measure it**: key a 3-node tree by hand and print the
+visit order before rebuilding anything.
+
+⛔ **AND THEN MAKE THE WALK ORDER-INDEPENDENT ANYWAY.** The fallback is what let
+this fail SILENTLY into a plausible number instead of throwing. Either do an
+explicit iterative post-order with its own stack, or keep the fallback and
+`throw` on it — a subtree whose child key is unknown must never quietly become a
+shared key, because that under-counts the budget, which is the exact direction
+that stops a guard guarding.
+
+### Revised remaining work
+1. Fix `structuralMaps`'s traversal (measure the order; make it order-independent;
+   never silently fall back).
+2. Rail: `nodeCount(chainOfNodes(N)) === N` (distinct depths) AND a tree of N
+   IDENTICAL subtrees counts ~1. The second half is the proof the memo applies.
+3. Then `nodeCount` -> distinct keys. `budget.test.js` needs NO changes.
+4. Regenerate the corpus measured; expect `saveable` 11 -> 12.
+5. Mutations: count back to `flatten().length` · memo dropped · self-free scoping
+   dropped (already proven lethal).
