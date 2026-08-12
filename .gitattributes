@@ -15,3 +15,14 @@
 *.woff  binary
 *.ttf   binary
 *.otf   binary
+
+# note-connectors cross-language schema rail (Task 5): the Python drift test
+# (`test_note_convert_fixtures.py`) byte-compares a freshly regenerated copy
+# of these fixtures against the committed ones. `fixtures_gen.py` always
+# writes `\n`-only. Without `eol=lf` here, `core.autocrlf=true` (this box) on
+# a future clone/checkout would silently rewrite the committed copies to
+# CRLF, and the drift test would then report every fixture as "stale" for a
+# line-ending reason that has nothing to do with converter drift — the same
+# CRLF-only-on-Windows failure class as the chart-parity harness above.
+api/services/journal_two/note_connectors/convert/fixtures_in/*.md text eol=lf
+app/src/pages/journal-2-0/lib/importer/__fixtures__/server_convert/*.json text eol=lf
