@@ -37,14 +37,14 @@ Spec: docs/superpowers/specs/2026-08-11-note-connectors-design.md §4.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from markdown_it import MarkdownIt
 from markdown_it.token import Token
 from mdit_py_plugins.tasklists import tasklists_plugin
 
-REF_PREFIX = "import-ref://"
-LINK_PREFIX = "import-link://"
+from . import LINK_PREFIX, REF_PREFIX
 
 _MD: MarkdownIt | None = None
 
@@ -62,11 +62,13 @@ def _get_md() -> MarkdownIt:
 
 
 class _Ctx:
-    __slots__ = ("media", "links")
+    __slots__ = ("media", "links", "media_refs", "data_uri_counter")
 
     def __init__(self) -> None:
         self.media: list[dict[str, Any]] = []
         self.links: list[str] = []
+        self.media_refs: set[str] = set()  # dedup guard for `_register_media`
+        self.data_uri_counter: int = 0  # for synthesizing bounded md-img-N refs
 
 
 def md_to_tiptap(md: str | None) -> dict[str, Any]:
@@ -118,8 +120,15 @@ def _blocks(tokens: list[Token], start: int, end: int, ctx: _Ctx) -> list[dict[s
         if t.type == "heading_open":
             level = min(int(t.tag[1:]), 3)
             inline = tokens[i + 1]
-            content = _inline_nodes(inline.children or [], ctx)
-            out.append({"type": "heading", "attrs": {"level": level}, "content": content})
+            flat = _inline_nodes(inline.children or [], ctx)
+            # Heading's content model is `inline*` (verified against the
+            # installed @tiptap/extension-heading@3.23.6 source) — it cannot
+            # hold a block-level Image node. Hoist any image OUT as a sibling
+            # block right after the heading; the heading keeps only its text.
+            text_items = [n for n in flat if n.get("type") != "image"]
+            images = [n for n in flat if n.get("type") == "image"]
+            out.append({"type": "heading", "attrs": {"level": level}, "content": text_items})
+            out.extend(images)
             i += 3
 
         elif t.type == "paragraph_open":
@@ -130,16 +139,12 @@ def _blocks(tokens: list[Token], start: int, end: int, ctx: _Ctx) -> list[dict[s
 
         elif t.type == "bullet_list_open":
             j = _find_close(tokens, i, "bullet_list_close")
-            is_task = "contains-task-list" in (t.attrs.get("class") or "")
-            items = _list_items(tokens, i + 1, j, ctx, is_task)
-            out.append({"type": "taskList" if is_task else "bulletList", "content": items})
+            out.extend(_list_runs(tokens, i + 1, j, ctx, ordered=False))
             i = j + 1
 
         elif t.type == "ordered_list_open":
             j = _find_close(tokens, i, "ordered_list_close")
-            items = _list_items(tokens, i + 1, j, ctx, False)
-            start_at = t.attrs.get("start", 1)
-            out.append({"type": "orderedList", "attrs": {"start": start_at}, "content": items})
+            out.extend(_list_runs(tokens, i + 1, j, ctx, ordered=True))
             i = j + 1
 
         elif t.type == "table_open":
@@ -209,10 +214,19 @@ def _wrap_paragraph(flat: list[dict[str, Any]]) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 
 
-def _list_items(
-    tokens: list[Token], start: int, end: int, ctx: _Ctx, is_task: bool,
+def _list_runs(
+    tokens: list[Token], start: int, end: int, ctx: _Ctx, ordered: bool,
 ) -> list[dict[str, Any]]:
-    items: list[dict[str, Any]] = []
+    """A markdown list can mix checkbox (`- [ ] x`) and plain items freely,
+    but TipTap's schema cannot: `taskList` requires `taskItem+` and
+    `bulletList`/`orderedList` require `listItem+` (verified against the
+    installed @tiptap/extension-list@3.23.6 source) — a `listItem` inside a
+    `taskList` (or vice versa) is schema-invalid. So a single markdown list
+    can emit MULTIPLE sibling list nodes: parse every item first, then split
+    into consecutive same-kind RUNS, each becoming its own taskList/
+    bulletList/orderedList. Recursion into `_blocks`/`_task_item_blocks` for
+    each item's content means nested mixed lists split the same way."""
+    parsed: list[dict[str, Any]] = []
     i = start
     while i < end:
         t = tokens[i]
@@ -221,14 +235,45 @@ def _list_items(
             continue
         j = _find_close(tokens, i, "list_item_close")
         classes = t.attrs.get("class") or ""
-        if is_task and "task-list-item" in classes:
+        if "task-list-item" in classes:
             checked, content = _task_item_blocks(tokens, i + 1, j, ctx)
-            items.append({"type": "taskItem", "attrs": {"checked": checked}, "content": content})
+            parsed.append({"task": True, "checked": checked, "content": content})
         else:
             content = _blocks(tokens, i + 1, j, ctx)
-            items.append({"type": "listItem", "content": content})
+            marker = None
+            if ordered and t.info:
+                try:
+                    marker = int(t.info)
+                except ValueError:
+                    marker = None
+            parsed.append({"task": False, "content": content, "marker": marker})
         i = j + 1
-    return items
+
+    out: list[dict[str, Any]] = []
+    idx = 0
+    while idx < len(parsed):
+        is_task = parsed[idx]["task"]
+        run = []
+        while idx < len(parsed) and parsed[idx]["task"] == is_task:
+            run.append(parsed[idx])
+            idx += 1
+        if is_task:
+            items = [
+                {"type": "taskItem", "attrs": {"checked": p["checked"]}, "content": p["content"]}
+                for p in run
+            ]
+            out.append({"type": "taskList", "content": items})
+        else:
+            items = [{"type": "listItem", "content": p["content"]} for p in run]
+            if ordered:
+                # Each RUN restarts numbering from its own first item's own
+                # marker digit (not always 1) — the source's own numbering,
+                # not a guess.
+                start_at = run[0]["marker"] if run[0]["marker"] is not None else 1
+                out.append({"type": "orderedList", "attrs": {"start": start_at}, "content": items})
+            else:
+                out.append({"type": "bulletList", "content": items})
+    return out
 
 
 def _task_item_blocks(
@@ -297,14 +342,17 @@ def _table_cells(tokens: list[Token], start: int, end: int, ctx: _Ctx) -> list[d
         if t.type in ("th_open", "td_open"):
             close_type = "th_close" if t.type == "th_open" else "td_close"
             j = _find_close(tokens, i, close_type)
-            inline_nodes: list[dict[str, Any]] = []
+            flat: list[dict[str, Any]] = []
             if j > i + 1 and tokens[i + 1].type == "inline":
-                inline_nodes = _inline_nodes(tokens[i + 1].children or [], ctx)
+                flat = _inline_nodes(tokens[i + 1].children or [], ctx)
             node_type = "tableHeader" if t.type == "th_open" else "tableCell"
-            cells.append({
-                "type": node_type,
-                "content": [{"type": "paragraph", "content": inline_nodes}],
-            })
+            # TableCell/TableHeader content model is `block+` (verified
+            # against the installed @tiptap/extension-table@3.23.6 source),
+            # so an image can sit as a sibling BLOCK next to the cell's
+            # paragraph — `_wrap_paragraph` (already used for top-level
+            # paragraphs) produces exactly that shape. A cell with no image
+            # still comes out as the plain single `[paragraph]` it always was.
+            cells.append({"type": node_type, "content": _wrap_paragraph(flat)})
             i = j + 1
         else:
             i += 1
@@ -323,13 +371,64 @@ def _pop_mark(stack: list[dict[str, Any]], mark_type: str) -> None:
             return
 
 
-def _image_node(token: Token, ctx: _Ctx) -> dict[str, Any]:
+def _register_media(
+    ctx: _Ctx, ref: str, kind: str, name: str, data_uri: str | None = None,
+) -> None:
+    """Adds one `{ref, kind, name[, data_uri]}` media entry, deduped by
+    `ref` (mirrors `dedupeMedia` in the JS adapters — the SAME src/path
+    referenced twice in one document must not produce two upload jobs for
+    identical bytes; every occurrence's placeholder still points at the one
+    registered ref)."""
+    if ref in ctx.media_refs:
+        return
+    ctx.media_refs.add(ref)
+    entry: dict[str, Any] = {"ref": ref, "kind": kind, "name": name}
+    if data_uri is not None:
+        entry["data_uri"] = data_uri
+    ctx.media.append(entry)
+
+
+# Base64 data-URI images (`![x](data:image/png;base64,...)`) carry the WHOLE
+# encoded payload as their "src" — using that verbatim as a media `ref` would
+# explode the ref string (and the `import-ref://` placeholder embedding it)
+# to the size of the image itself. Mirrors the JS docx importer's synthetic
+# `docx-img-N.<ext>` convention (`adapters/generic.js::extractDocxImages`):
+# assign a small counter-based ref instead, and carry the original data URI
+# on the media entry's `data_uri` field so the engine can decode bytes from
+# it directly (no upload-by-URL round trip needed for an already-inline image).
+_DATA_URI_RE = re.compile(r"^data:([^;,]+);base64,([\s\S]*)$")
+_DATA_URI_MIME_EXT = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/gif": "gif",
+    "image/webp": "webp",
+}
+
+
+def _data_uri_image_node(src: str, ctx: _Ctx) -> dict[str, Any] | None:
+    match = _DATA_URI_RE.match(src)
+    if not match:
+        return None
+    ext = _DATA_URI_MIME_EXT.get(match.group(1).strip().lower())
+    if ext is None:
+        return None
+    ctx.data_uri_counter += 1
+    ref = f"md-img-{ctx.data_uri_counter}.{ext}"
+    _register_media(ctx, ref=ref, kind="image", name=ref, data_uri=src)
+    return {"type": "image", "attrs": {"src": f"{REF_PREFIX}{ref}"}}
+
+
+def _image_node(token: Token, ctx: _Ctx) -> dict[str, Any] | None:
+    """Returns the TipTap image node, or `None` when the src is an
+    unsupported data URI (caller degrades to visible text in that case)."""
     src = token.attrs.get("src") or ""
     if src.startswith(REF_PREFIX):
         # Already a connector-supplied placeholder — pass through untouched,
         # no duplicate media entry (the connector already registered it).
         return {"type": "image", "attrs": {"src": src}}
-    ctx.media.append({"ref": src, "kind": "image", "name": _basename(src)})
+    if src.startswith("data:"):
+        return _data_uri_image_node(src, ctx)
+    _register_media(ctx, ref=src, kind="image", name=_basename(src))
     return {"type": "image", "attrs": {"src": f"{REF_PREFIX}{src}"}}
 
 
@@ -337,6 +436,41 @@ def _basename(ref: str) -> str:
     clean = ref.split("#", 1)[0].split("?", 1)[0]
     tail = clean.rsplit("/", 1)[-1]
     return tail or clean
+
+
+# Mirrors @tiptap/extension-link@3.23.6's `isAllowedUri` helper
+# (`src/link.ts`) combined with `tiptap.js`'s `Link.configure({
+# protocols: ['https'], isAllowedUri })` override — VERIFIED against the
+# literal installed-version source (`node_modules`-equivalent fetched
+# directly), not paraphrased or assumed. Two things that source disproves a
+# naive reading of the app's config:
+#   1. `protocols: ['https']` does NOT restrict validation to https-only —
+#      the helper's `allowedProtocols` array starts from a hardcoded default
+#      list and the `protocols` OPTION IS APPENDED to it, never replaces it.
+#      So http/ftp/ftps/mailto/tel/callto/sms/cid/xmpp are ALL still allowed
+#      by `ctx.defaultValidate` regardless of the app-level config.
+#   2. A scheme-less URL (relative path, hash link, bare text) is ALSO
+#      allowed — the regex's `[^a-z]|[a-z0-9+.-]+(?:[^a-z+.-:]|$)` branch.
+# On top of that base policy, tiptap.js's own `isAllowedUri` override
+# explicitly allows `/journal...` and `import-link://...`. Only a URL with an
+# explicit, unlisted scheme (`javascript:`, `vbscript:`, ...) is rejected —
+# the mark is stripped and the text run is kept, mirroring the real editor's
+# parseHTML rule returning `false` for a disallowed `<a href>`.
+_LINK_ALLOWED_PROTOCOLS = (
+    "http", "https", "ftp", "ftps", "mailto", "tel", "callto", "sms", "cid", "xmpp",
+)
+_LINK_URI_RE = re.compile(
+    r"^(?:(?:" + "|".join(_LINK_ALLOWED_PROTOCOLS) + r"):|[^a-z]|[a-z0-9+.\-]+(?:[^a-z+.\-:]|$))",
+    re.IGNORECASE,
+)
+
+
+def _is_allowed_link_href(href: str) -> bool:
+    if not href:
+        return True  # mirrors the JS helper's `!uri` short-circuit
+    if href.startswith("/journal") or href.startswith(LINK_PREFIX):
+        return True
+    return bool(_LINK_URI_RE.match(href))
 
 
 def _inline_nodes(
@@ -404,14 +538,24 @@ def _inline_nodes(
 
         elif child.type == "link_open":
             href = child.attrs.get("href") or ""
-            if href.startswith(LINK_PREFIX):
-                ctx.links.append(href[len(LINK_PREFIX):])
-            marks.append({"type": "link", "attrs": {"href": href}})
+            if _is_allowed_link_href(href):
+                if href.startswith(LINK_PREFIX):
+                    ctx.links.append(href[len(LINK_PREFIX):])
+                marks.append({"type": "link", "attrs": {"href": href}})
+            # else: disallowed scheme -> no mark pushed. `link_close` below
+            # is then a safe no-op (nothing matching 'link' on the stack),
+            # so the text run itself still comes through, unmarked —
+            # mirroring the real editor's parseHTML rejecting the `<a>` while
+            # its text content still parses.
         elif child.type == "link_close":
             _pop_mark(marks, "link")
 
         elif child.type == "image":
-            items.append(_image_node(child, ctx))
+            node = _image_node(child, ctx)
+            if node is None:
+                push_text("[unsupported image]")
+            else:
+                items.append(node)
 
         elif child.type == "html_inline":
             # An injected task-checkbox token is stripped by the caller

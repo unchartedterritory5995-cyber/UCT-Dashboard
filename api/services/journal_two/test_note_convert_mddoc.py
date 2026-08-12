@@ -497,3 +497,268 @@ def test_rewrite_body_defaults_media_urls_and_id_by_key_to_empty():
     out, dropped_media = rewrite_body(body)
     assert dropped_media == ["x.png"]
     assert [n for n in out["content"] if n["type"] == "image"] == []
+
+
+# ---------------------------------------------------------------------------
+# Fix-round findings (code review): 2 Criticals + 2 Importants + 2 minors.
+# Verified against the installed @tiptap/extension-{heading,table,list}
+# source (not assumed): Heading content = `inline*` (no block image child
+# allowed), TableCell/TableHeader content = `block+` (an image CAN sit as a
+# paragraph's sibling inside a cell), TaskList content = `taskItem+` and
+# BulletList/OrderedList content = `listItem+` (mixing is schema-invalid).
+# ---------------------------------------------------------------------------
+
+
+def test_image_inside_a_heading_is_hoisted_out_not_embedded():
+    # Critical 1a. Heading's content model is inline-only; an Image node
+    # (block-level) inside heading.content would be schema-invalid.
+    result = md_to_tiptap("# Title ![i](x.png)\n")
+    top = result["doc"]["content"]
+    assert _types(top) == ["heading", "image"]
+    heading = top[0]
+    assert all(n.get("type") != "image" for n in heading["content"])
+    assert _plain_text(heading) == "Title "
+    assert top[1]["attrs"]["src"] == "import-ref://x.png"
+
+
+def test_image_inside_a_table_cell_is_a_sibling_block_not_embedded_in_the_paragraph():
+    # Critical 1b. TableCell/TableHeader content is block+, so an image is
+    # valid as a SIBLING of the cell's paragraph (not inside it).
+    result = md_to_tiptap("| A |\n| --- |\n| ![i](x.png) |\n")
+    table = result["doc"]["content"][0]
+    assert table["type"] == "table"
+    cell = table["content"][1]["content"][0]  # first data row, first cell
+    assert cell["type"] == "tableCell"
+    assert _types(cell["content"]) == ["image"]
+    assert cell["content"][0]["attrs"]["src"] == "import-ref://x.png"
+    # never embedded inside the (now-absent, since the cell was ONLY an
+    # image) or any other paragraph's content array
+    for node in cell["content"]:
+        if node["type"] == "paragraph":
+            assert all(n.get("type") != "image" for n in node.get("content", []))
+
+
+def test_image_beside_text_in_a_table_cell_splits_paragraph_then_image():
+    result = md_to_tiptap("| A |\n| --- |\n| before ![i](x.png) |\n")
+    table = result["doc"]["content"][0]
+    cell = table["content"][1]["content"][0]
+    assert _types(cell["content"]) == ["paragraph", "image"]
+    assert _plain_text(cell["content"][0]) == "before "
+
+
+def test_mixed_task_and_plain_list_splits_into_adjacent_runs():
+    # Critical 2. A single bulletList can't hold both taskItem and listItem
+    # children — split into consecutive same-kind runs.
+    result = md_to_tiptap("- [ ] a\n- plain\n- [x] b\n")
+    top = result["doc"]["content"]
+    assert _types(top) == ["taskList", "bulletList", "taskList"]
+    assert len(top[0]["content"]) == 1
+    assert top[0]["content"][0]["attrs"]["checked"] is False
+    assert _plain_text(top[0]) == "a"
+    assert len(top[1]["content"]) == 1
+    assert top[1]["content"][0]["type"] == "listItem"
+    assert _plain_text(top[1]) == "plain"
+    assert len(top[2]["content"]) == 1
+    assert top[2]["content"][0]["attrs"]["checked"] is True
+    assert _plain_text(top[2]) == "b"
+
+
+def test_mixed_task_and_plain_list_nested_also_splits_into_runs():
+    md = (
+        "- [ ] Top task\n"
+        "  - Nested plain\n"
+        "  - [x] Nested task\n"
+        "- Plain top\n"
+    )
+    result = md_to_tiptap(md)
+    top = result["doc"]["content"]
+    assert _types(top) == ["taskList", "bulletList"]
+
+    top_task_item = top[0]["content"][0]
+    assert top_task_item["type"] == "taskItem"
+    assert top_task_item["attrs"]["checked"] is False
+    # nested content: paragraph("Top task"), then the nested mixed list's
+    # own split runs (bulletList, taskList)
+    assert _types(top_task_item["content"]) == ["paragraph", "bulletList", "taskList"]
+    nested_bullet = top_task_item["content"][1]
+    nested_task = top_task_item["content"][2]
+    assert _plain_text(nested_bullet) == "Nested plain"
+    assert nested_task["content"][0]["attrs"]["checked"] is True
+    assert _plain_text(nested_task) == "Nested task"
+
+    assert _plain_text(top[1]) == "Plain top"
+
+
+def test_ordered_list_run_after_a_task_run_keeps_its_own_marker_number():
+    result = md_to_tiptap("5. [ ] a task\n6. plain six\n")
+    top = result["doc"]["content"]
+    assert _types(top) == ["taskList", "orderedList"]
+    assert top[1]["attrs"]["start"] == 6
+
+
+def test_data_uri_image_gets_a_bounded_synthetic_ref():
+    # Important 3. A tiny 1x1 transparent PNG, base64-encoded.
+    tiny_png_b64 = (
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY"
+        "42YAAAAASUVORK5CYII="
+    )
+    src = f"data:image/png;base64,{tiny_png_b64}"
+    result = md_to_tiptap(f"![tiny]({src})\n")
+    image = result["doc"]["content"][0]
+    assert image["type"] == "image"
+    assert image["attrs"]["src"] == "import-ref://md-img-1.png"
+    assert len(image["attrs"]["src"]) < 100  # bounded, not the whole payload
+
+    assert len(result["media"]) == 1
+    entry = result["media"][0]
+    assert entry["ref"] == "md-img-1.png"
+    assert entry["kind"] == "image"
+    assert entry["name"] == "md-img-1.png"
+    assert entry["data_uri"] == src
+
+
+def test_multiple_data_uri_images_get_distinct_incrementing_refs():
+    b64 = "AAAA"
+    src1 = f"data:image/png;base64,{b64}"
+    src2 = f"data:image/jpeg;base64,{b64}"
+    result = md_to_tiptap(f"![a]({src1}) ![b]({src2})\n")
+    refs = [n["attrs"]["src"] for n in result["doc"]["content"] if n["type"] == "image"]
+    assert refs == ["import-ref://md-img-1.png", "import-ref://md-img-2.jpg"]
+    assert [m["ref"] for m in result["media"]] == ["md-img-1.png", "md-img-2.jpg"]
+
+
+def test_unsupported_data_uri_mime_degrades_image_to_visible_text():
+    # An SVG data URI (not in the png/jpeg/gif/webp allowlist) never even
+    # reaches _image_node through real markdown parsing: markdown-it-py's
+    # OWN image-destination validator (`markdown_it.common.normalize_url`,
+    # `GOOD_DATA_RE = r"^data:image\/(gif|png|jpeg|webp);"`) restricts data:
+    # image sources to the exact same four MIME types mddoc.py supports —
+    # anything else fails to tokenize as an image AT ALL and falls back to
+    # literal, unbounded markdown source text (a separate, pre-existing
+    # markdown-it-py behavior, out of scope for this fix). So the "unknown
+    # mime -> visible text" branch this test covers is exercised directly
+    # against the internal helper — defense-in-depth against a future
+    # markdown-it-py upgrade loosening that upstream gate, per the review
+    # finding's explicit "unknown -> skip image" requirement.
+    from api.services.journal_two.note_connectors.convert import mddoc
+
+    ctx = mddoc._Ctx()
+    node = mddoc._data_uri_image_node("data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=", ctx)
+    assert node is None
+    assert ctx.media == []
+
+
+def test_non_base64_data_uri_also_degrades_image_to_visible_text():
+    # Same reasoning as above: a malformed (non-base64) data URI never
+    # reaches an "image" token through real parsing either — tested directly
+    # against the internal helper.
+    from api.services.journal_two.note_connectors.convert import mddoc
+
+    ctx = mddoc._Ctx()
+    node = mddoc._data_uri_image_node("data:image/png,not-base64-at-all", ctx)
+    assert node is None
+    assert ctx.media == []
+
+
+def test_data_uri_image_end_to_end_through_inline_nodes_when_unsupported():
+    # The PUBLIC-entrypoint-reachable path for the "unknown -> visible text"
+    # branch: call `_inline_nodes` directly with a synthetic `image` token
+    # whose src is an unsupported data URI (bypassing markdown-it-py's own
+    # upstream gate, which a real `![x](data:image/svg+xml;...)` markdown
+    # string cannot get past — see the two tests above). This proves
+    # `_inline_nodes` degrades to "[unsupported image]" text if it is ever
+    # handed such a token by any future caller/plugin change.
+    from markdown_it.token import Token
+
+    from api.services.journal_two.note_connectors.convert import mddoc
+
+    ctx = mddoc._Ctx()
+    tok = Token("image", "img", 0)
+    tok.attrs = {"src": "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="}
+    items = mddoc._inline_nodes([tok], ctx)
+    assert len(items) == 1
+    assert items[0]["type"] == "text"
+    assert items[0]["text"] == "[unsupported image]"
+    assert ctx.media == []
+
+
+def test_link_with_a_default_allowed_scheme_keeps_its_mark():
+    # Important 4. The real editor's protocols:['https'] config APPENDS to
+    # (never replaces) tiptap's built-in default allowlist, which already
+    # includes http/https/ftp/ftps/mailto/tel/callto/sms/cid/xmpp — verified
+    # against the installed @tiptap/extension-link@3.23.6 source. So a plain
+    # http:// link is, in fact, allowed by the real editor.
+    for href in (
+        "http://example.com",
+        "https://example.com",
+        "ftp://example.com/file",
+        "mailto:a@example.com",
+    ):
+        result = md_to_tiptap(f"[text]({href})\n")
+        para = result["doc"]["content"][0]
+        text_node = next(n for n in para["content"] if n["text"] == "text")
+        assert text_node.get("marks") == [{"type": "link", "attrs": {"href": href}}], href
+
+
+def test_link_with_a_disallowed_scheme_strips_the_mark_keeps_the_text():
+    # `whatsapp://...` is the reachable case: markdown-it-py's OWN link
+    # validator (`normalize_url.BAD_PROTO_RE = ^(vbscript|javascript|file|
+    # data):`) only blocks those four prefixes, so an arbitrary custom
+    # scheme like this one DOES become a link_open token (verified) — unlike
+    # `javascript:`, which markdown-it-py's parser refuses to tokenize as a
+    # link AT ALL (falls back to raw literal source text, a layer earlier
+    # than mddoc.py's own `_is_allowed_link_href` ever runs). This is the
+    # case that actually exercises the Tiptap-allowlist check.
+    result = md_to_tiptap("[text](whatsapp://send?text=hi)\n")
+    para = result["doc"]["content"][0]
+    assert _plain_text(para) == "text"
+    for n in para["content"]:
+        if n.get("type") == "text":
+            assert n.get("marks", []) == []
+
+
+def test_javascript_scheme_link_never_becomes_a_mark_either_markdown_it_blocks_it_first():
+    # Documents the OTHER defense layer: markdown-it-py's own parser already
+    # refuses to tokenize a `javascript:` destination as a link at all (same
+    # BAD_PROTO_RE gate noted above), so this never even reaches
+    # `_is_allowed_link_href`. End result is the same (no link mark reaches
+    # the doc) via a different mechanism — raw source text, unparsed.
+    result = md_to_tiptap("[text](javascript:alert(1))\n")
+    para = result["doc"]["content"][0]
+    assert "javascript:" in _plain_text(para)
+    for n in para["content"]:
+        if n.get("type") == "text":
+            assert n.get("marks", []) == []
+
+
+def test_relative_and_journal_and_import_link_hrefs_still_allowed():
+    for href in ("/journal?j2tab=notebook&note=1", "import-link://obsidian:x.md", "#anchor"):
+        result = md_to_tiptap(f"[text]({href})\n")
+        para = result["doc"]["content"][0]
+        text_node = next(n for n in para["content"] if n["text"] == "text")
+        assert text_node["marks"][0]["attrs"]["href"] == href
+
+
+def test_media_dedup_by_ref_minor():
+    # Minor: the SAME image src referenced twice must not produce two media
+    # entries (JS parity, `dedupeMedia`) — both occurrences still carry the
+    # placeholder pointing at the one registered ref.
+    result = md_to_tiptap("![a](shared.png)\n\n![b](shared.png)\n")
+    assert len(result["media"]) == 1
+    assert result["media"][0]["ref"] == "shared.png"
+    images = [n for n in result["doc"]["content"] if n["type"] == "image"]
+    assert [img["attrs"]["src"] for img in images] == [
+        "import-ref://shared.png", "import-ref://shared.png",
+    ]
+
+
+def test_ref_and_link_prefix_constants_are_the_single_package_authority():
+    # Minor: both modules now import the SAME constants from the package
+    # __init__ rather than each defining their own copy.
+    from api.services.journal_two.note_connectors import convert as convert_pkg
+    from api.services.journal_two.note_connectors.convert import mddoc, rewrite
+
+    assert mddoc.REF_PREFIX is convert_pkg.REF_PREFIX
+    assert mddoc.LINK_PREFIX is convert_pkg.LINK_PREFIX
+    assert rewrite.REF_PREFIX is convert_pkg.REF_PREFIX
+    assert rewrite.LINK_PREFIX is convert_pkg.LINK_PREFIX

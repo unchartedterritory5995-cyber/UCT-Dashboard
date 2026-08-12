@@ -29,8 +29,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-REF_PREFIX = "import-ref://"
-LINK_PREFIX = "import-link://"
+from . import LINK_PREFIX, REF_PREFIX
 
 
 def _ref_from_placeholder(value: Any) -> str | None:
