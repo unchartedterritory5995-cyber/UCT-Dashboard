@@ -414,6 +414,12 @@ function ChartPane({
 
   const searchRef = useRef(null)
   const focusableRef = useRef(null)
+  // Last visible time-range StockChart reported (time-space {from,to}; LWC
+  // time values — unix seconds intraday, business-day objects/strings on
+  // D/W/M). Read on demand by ref.getViewState() so a capture ("send this
+  // chart to the journal exactly as shown") can freeze the window the user
+  // was actually looking at.
+  const viewRangeRef = useRef(null)
 
   // Null-safe for the TF BAR only. StockChart keeps the raw prop: several of its
   // behaviors key off whether an onTfChange exists at all, and a surface that
@@ -483,6 +489,9 @@ function ChartPane({
     // The chart-fill rect (viewport coords) — lets a workspace tool (Compare
     // Symbols) centre its panel on this chart.
     getRect: () => (focusableRef.current ? focusableRef.current.getBoundingClientRect() : null),
+    // The visible time-range at this instant (null before the first report) —
+    // the journal-capture read-out.
+    getViewState: () => ({ range: viewRangeRef.current }),
   }), [openSettings, handleSymbolChange])
 
   return (
@@ -709,6 +718,13 @@ function ChartPane({
           priceScaleBottomMargin={0.10}
           sessionView={sessionView}
           {...(stockChartProps || {})}
+          /* AFTER the host spread on purpose (the last prop wins): record the
+             visible time-range for journal capture, CHAINING any host-supplied
+             handler so the multi-chart sync path keeps firing. Deliberately an
+             inline arrow — its per-render identity makes StockChart's
+             subscription effect re-run, which self-heals a lost subscription
+             if the underlying chart instance is ever recreated. */
+          onTimeRangeChange={(r) => { viewRangeRef.current = r; stockChartProps?.onTimeRangeChange?.(r) }}
         />
         {flagToast && (
           <div className={styles.flagToast}>

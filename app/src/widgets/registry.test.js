@@ -19,6 +19,10 @@ import {
   MOBILE_MENU_TYPES,
   THEME_FOLLOW_TYPES,
   labelMap,
+  normalizeParams,
+  validateParams,
+  paramsPlainText,
+  isReconstructable,
 } from './registry'
 import { WORKSPACE_WIDGETS } from '../pages/charts/WidgetHost'
 
@@ -132,5 +136,114 @@ describe('widget registry — workspace host bindings', () => {
     const fn = () => {}
     const p = WORKSPACE_WIDGETS.chart.props({ colorKey: 'N:w-1', opts: { a: 1 }, onOptsChange: fn, groupId: 'w-1' })
     expect(p).toEqual({ color: 'N:w-1', opts: { a: 1 }, onOptsChange: fn, chartId: 'w-1' })
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PARAMS LAYER (Journal Widgets P2) — captureParams normalization, round-trip
+// serialization, plain-text lines, reconstructable verdicts.
+// ═══════════════════════════════════════════════════════════════════════════
+
+// One representative live-state capture per widget type. These are the values
+// a capture provider would hand normalizeParams — loose, over-full (stray keys
+// a provider might leak), with everything the audit said each type freezes.
+const CAPTURE_FIXTURES = {
+  chart: { symbol: 'amd', tf: '5', from: 1710338700, to: 1710343800, settings: { chartType: 'candles', background: '#0f0f0f' }, _stray: true },
+  watchlist: { watchKey: 'user:42', watchName: 'AI Leaders', watchTab: 'mine', settings: { bg: '#111' }, cols: { order: ['flag', 'sym'], sort: { key: 'chg', dir: 'desc' } }, symbols: ['NVDA', 'AMD'] },
+  themes: { period: '1m', sortDir: 'desc', openTheme: 'Quantum Computing', search: '', selectedSym: 'IONQ', settings: { bg: '#101010' } },
+  scanner: { scanKey: 'top-gainers-30d', scanName: 'Top Gainers (30d)', settings: { bg: '#111' }, cols: { order: ['sym'] }, asOf: '2026-08-11 13:26 ET' },
+  fundamentals: { symbol: 'NVDA', view: 'quarterly', company: 'NVIDIA Corp', settings: { bg: '#141414' } },
+  breadth: { hiddenMetrics: ['naaim'], tileStyle: 'spark', settings: { bg: '#0f0f0f' }, row: { date: '2026-08-11', pct_above_50sma: 48.2 }, series: { pct_above_50sma: [44, 46, 48.2] }, updated: '1:26 PM ET' },
+  aisearch: { thread: [{ id: 1, q: 'Why is SMCI moving today?', answer: 'Because…', citations: [] }], settings: { bg: '#101010' } },
+  news: { symbol: 'NVDA', filter: 'up', company: 'NVIDIA Corp', settings: { bg: '#101010' } },
+  profile: { symbol: 'NVDA', company: 'NVIDIA Corp', statYear: 2026, settings: { bg: '#101010' } },
+  alerts: { alerts: [{ id: 'a1', sym: 'NVDA', direction: 'above', target_price: 190, levelAtCapture: 190, priceAtCapture: 182.4, isActive: true }], settings: { bg: '#101010' } },
+  calendar: { date: '2026-08-06', econStars: 3, selectedSym: 'AMD', tbdOpen: false, sections: { bmo: { sortBy: 'mcap', sortDir: 'desc', showAll: false }, amc: { sortBy: 'im', sortDir: 'desc', showAll: true } }, settings: { bg: '#101010' } },
+  optionsflow: { lead: 'tape', scope: 'symbol', symbol: 'NVDA', filters: { minPrem: 1000000, cp: 'C', type: 'all', dir: 'all' }, settings: { bg: '#101010' } },
+  periodsort: { start: 20260706, end: 20260805, group: 'theme', settings: { bg: '#101010' }, colCfg: { order: ['flag', 'sym', 'periodchg'], sort: { key: 'periodchg', dir: 'desc' } } },
+}
+
+describe('widget registry — params layer', () => {
+  it('every widget type declares a paramsSchema, plainText, reconstructable, and liveCapable', () => {
+    for (const id of WIDGET_IDS) {
+      const w = WIDGET_REGISTRY[id]
+      expect(Array.isArray(w.paramsSchema), `${id}.paramsSchema`).toBe(true)
+      expect(w.paramsSchema.length, `${id}.paramsSchema empty`).toBeGreaterThan(0)
+      expect(typeof w.plainText, `${id}.plainText`).toBe('function')
+      expect(['boolean', 'function'].includes(typeof w.reconstructable), `${id}.reconstructable`).toBe(true)
+      expect(typeof w.liveCapable, `${id}.liveCapable`).toBe('boolean')
+    }
+  })
+
+  it('round-trips capture → normalize → JSON → parse → validate for all 13 types', () => {
+    for (const id of WIDGET_IDS) {
+      const norm = normalizeParams(id, CAPTURE_FIXTURES[id])
+      // Serialization round-trip must be lossless (the doc stores JSON).
+      const revived = JSON.parse(JSON.stringify(norm))
+      expect(revived, `round-trip for '${id}'`).toEqual(norm)
+      const verdict = validateParams(id, revived)
+      expect(verdict.ok, `validate for '${id}': ${JSON.stringify(verdict.errors)}`).toBe(true)
+    }
+  })
+
+  it('normalize drops keys a provider leaked that are not in the schema', () => {
+    const norm = normalizeParams('chart', CAPTURE_FIXTURES.chart)
+    expect(norm._stray).toBeUndefined()
+    expect(norm.symbol).toBe('AMD') // and coerces symbols to upper-case
+  })
+
+  it('normalize applies declared defaults and validate flags missing required keys', () => {
+    expect(normalizeParams('news', { symbol: 'nvda' }).filter).toBe('all')
+    expect(normalizeParams('chart', { symbol: 'AMD' }).tf).toBe('D')
+    const bad = validateParams('chart', {})
+    expect(bad.ok).toBe(false)
+    expect(bad.errors.join(' ')).toMatch(/symbol/)
+    // Unknown widget id: never throws, reports itself.
+    expect(validateParams('nope', {}).ok).toBe(false)
+  })
+
+  it('validate tolerates unknown keys on stored params (forward compatibility)', () => {
+    const norm = normalizeParams('news', CAPTURE_FIXTURES.news)
+    const future = { ...norm, futureKnob: 'v2-only' }
+    expect(validateParams('news', future).ok).toBe(true)
+  })
+
+  it('plain-text lines are stable and self-documenting', () => {
+    expect(paramsPlainText('chart', normalizeParams('chart', CAPTURE_FIXTURES.chart))).toBe('[chart: AMD 5m]')
+    expect(paramsPlainText('watchlist', normalizeParams('watchlist', CAPTURE_FIXTURES.watchlist))).toBe('[watchlist: AI Leaders — 2 symbols]')
+    expect(paramsPlainText('breadth', normalizeParams('breadth', CAPTURE_FIXTURES.breadth))).toBe('[breadth: heatmap — 1:26 PM ET]')
+    expect(paramsPlainText('optionsflow', normalizeParams('optionsflow', CAPTURE_FIXTURES.optionsflow))).toBe('[flow: NVDA · tape]')
+    expect(paramsPlainText('calendar', normalizeParams('calendar', CAPTURE_FIXTURES.calendar))).toBe('[calendar: 2026-08-06]')
+    expect(paramsPlainText('periodsort', normalizeParams('periodsort', CAPTURE_FIXTURES.periodsort))).toBe('[periodsort: 2026-07-06 → 2026-08-05 · theme]')
+    expect(paramsPlainText('aisearch', normalizeParams('aisearch', CAPTURE_FIXTURES.aisearch))).toBe('[ai search: "Why is SMCI moving today?"]')
+    // Unknown id degrades to a generic label, never throws (render chain rule).
+    expect(paramsPlainText('nope', {})).toBe('[widget]')
+  })
+
+  it('chart reconstructability follows the per-timeframe fetch ceilings', () => {
+    const now = Date.now()
+    const daysAgo = (d) => Math.floor(now / 1000) - d * 86400
+    // 1m: hard 60-day wall.
+    expect(isReconstructable('chart', { symbol: 'A', tf: '1', to: daysAgo(30) })).toBe(true)
+    expect(isReconstructable('chart', { symbol: 'A', tf: '1', to: daysAgo(90) })).toBe(false)
+    // 5m: ~365 days.
+    expect(isReconstructable('chart', { symbol: 'A', tf: '5', to: daysAgo(200) })).toBe(true)
+    expect(isReconstructable('chart', { symbol: 'A', tf: '5', to: daysAgo(400) })).toBe(false)
+    // Daily: any horizon, including string dates.
+    expect(isReconstructable('chart', { symbol: 'A', tf: 'D', to: '2019-03-13' })).toBe(true)
+    // No anchor at all (capture without a range): renderable from latest bars.
+    expect(isReconstructable('chart', { symbol: 'A', tf: '15' })).toBe(true)
+    // Every non-chart type is image-only in v1.
+    for (const id of WIDGET_IDS.filter(x => x !== 'chart')) {
+      expect(isReconstructable(id, normalizeParams(id, CAPTURE_FIXTURES[id])), id).toBe(false)
+    }
+    // Unknown/removed widget type: image, never a re-render attempt.
+    expect(isReconstructable('nope', {})).toBe(false)
+  })
+
+  it('only chart is live-capable in v1', () => {
+    for (const id of WIDGET_IDS) {
+      expect(WIDGET_REGISTRY[id].liveCapable, id).toBe(id === 'chart')
+    }
   })
 })

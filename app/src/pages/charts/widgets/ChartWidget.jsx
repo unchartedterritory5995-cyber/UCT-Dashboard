@@ -15,6 +15,17 @@ import {
   setActiveChartTab, renameChartTab, patchChartTab,
 } from '../chartTabs'
 
+// LWC time → a ts param (epoch seconds intraday; 'YYYY-MM-DD' for the
+// business-day objects D/W/M ranges report). The registry's `ts` coercion
+// accepts both encodings — the same dual encoding the bars store uses.
+function lwcTimeToTs(t) {
+  if (typeof t === 'number' || typeof t === 'string') return t
+  if (t && typeof t === 'object' && t.year) {
+    return `${t.year}-${String(t.month).padStart(2, '0')}-${String(t.day).padStart(2, '0')}`
+  }
+  return undefined
+}
+
 // The whole chart shell — identity row, timeframe bar, meta strip, settings
 // modal, focus surface, StockChart — is ChartPane. What is left here is the
 // WORKSPACE: color groups, chart tabs, the crosshair bus, hotkey arbitration,
@@ -126,6 +137,12 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   }, [activeChartRef])
 
   const tf = isMainTab ? (opts?.tf || 'D') : (activeExtra?.tf || 'D')
+  // Ref mirrors for the capture read-out below — it lives in an effect keyed
+  // on other deps, so it must read the CURRENT symbol/tf, not a stale closure.
+  const symRef = useRef(sym)
+  symRef.current = sym
+  const tfRef = useRef(tf)
+  tfRef.current = tf
   const setTf = useCallback((nextTf) => {
     if (nextTf === tf) return
     if (isMainTab) onOptsChange?.({ ...(opts || {}), tf: nextTf })
@@ -182,6 +199,22 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
       getHideBase: () => !!chartCsRef.current?.compareHideBase,
       setHideBase: (on) => persistActiveSettings({ ...chartCsRef.current, compareHideBase: !!on, preset: 'custom' }),
       getRect: () => paneRef.current?.getRect?.() || null,
+      // Journal Widgets capture: the live "what am I looking at" read-out.
+      // registry normalizeParams('chart', …) turns this into frozen embed
+      // params. Symbol is the RESOLVED ticker (never the color-group letter);
+      // settings is the fully-MERGED blob (never a null opts.settings that
+      // would re-resolve from the global seed later). All reads go through
+      // refs so the entry never goes stale between effect runs.
+      getCaptureState: () => {
+        const range = paneRef.current?.getViewState?.()?.range || null
+        return {
+          symbol: symRef.current,
+          tf: tfRef.current,
+          from: range ? lwcTimeToTs(range.from) : undefined,
+          to: range ? lwcTimeToTs(range.to) : undefined,
+          settings: chartCsRef.current,
+        }
+      },
     })
     return () => { chartApiById.current.delete(id) }
   }, [chartApiById, persistActiveSettings])
