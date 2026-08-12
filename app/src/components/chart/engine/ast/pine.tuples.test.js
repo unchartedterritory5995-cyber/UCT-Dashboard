@@ -149,3 +149,47 @@ describe('a `var` may read its own previous bar inside its own update', () => {
     expect(r.guard).toBe('pine:state')
   })
 })
+
+// ─── ta.dmi — the one BUILTIN tuple in the corpus ───────────────────────────
+//
+// Pine answers `[+DI, -DI, ADX]` and this table declares all three by name, so
+// this is an exact mapping rather than a judgement.
+describe('`ta.dmi` hands out three legs the table already declares', () => {
+  const dmi = (plot, args = '14, 14') =>
+    one(`${head}[p, m, a] = ta.dmi(${args})\nplot(${plot})`)
+
+  it('each leg resolves to its own declared function', () => {
+    expect(dmi('p').formula).toBe('plusDI(high, low, close, 14)')
+    expect(dmi('m').formula).toBe('minusDI(high, low, close, 14)')
+    expect(dmi('a').formula).toBe('adx(high, low, close, 14)')
+  })
+
+  it('⛔ the three SERIES come from a declared role order, not from the mapper', () => {
+    // Filling `high, low, close` inside the destructure refused at
+    // `pine:role-order`, correctly — the manifest states what KIND each argument
+    // is and never what ROLE it plays. The order is declared in
+    // `PINE_CALL_SHAPES` and the read-back says the series out loud.
+    expect(dmi('a').formula).toContain('high, low, close')
+  })
+
+  it('🔴 MISMATCHED periods REFUSE — no quietly-14/14 ADX', () => {
+    // Pine smooths ADX over its SECOND argument while the DI legs use the first;
+    // this table's `adx` takes one period for both. Identical decision to
+    // `ADX14.20` on the TC2000 side, and the same reason: a member who asked for
+    // 14/20 must not be handed a number that is not the indicator they asked for.
+    expect(dmi('a', '14, 20').ok).toBe(false)
+  })
+
+  it('…and two DIFFERENT names refuse too, even if they might be equal', () => {
+    // ⛔ Proving `diLen === adxSmooth` needs a constant folder. Without one the
+    // honest answer is to refuse — which is why corpus script 06, whose call is
+    // `ta.dmi(diLen, adxSmooth)`, still does not translate.
+    const r = one(`${head}a1 = input.int(14)\na2 = input.int(14)\n[p, m, a] = ta.dmi(a1, a2)\nplot(a)`)
+    expect(r.ok).toBe(false)
+  })
+
+  it('a destructure of some OTHER builtin is untouched', () => {
+    expect(one(`${head}[a, b] = request.security(syminfo.tickerid, "D", [close, open])\nplot(a)`).ok)
+      .toBe(false)
+  })
+})

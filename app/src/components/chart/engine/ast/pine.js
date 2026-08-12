@@ -287,6 +287,19 @@ export const PINE_CALL_SHAPES = Object.freeze({
   // that it takes four arguments, and had no way to know WHICH three to fill:
   // refusing was right, and declaring the order is what makes it unnecessary.
   atr: { table: 'atr', pineArity: 1, build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 0 }] },
+  // ⭐⭐ THE THREE LEGS `ta.dmi` ANSWERS WITH. Pine has no singular spelling for
+  // them — the only way to reach one is to destructure `[+DI, -DI, ADX]` — so
+  // these keys are synthetic and `dmiParts` is their only caller.
+  //
+  // ⛔ THEY ARE DECLARED HERE RATHER THAN BUILT AT THE DESTRUCTURE, and that is
+  // the point of this table: the manifest states what KIND each argument is and
+  // never what ROLE it plays, so a translator that filled `high, low, close`
+  // itself would be supplying a role order nobody measured. Written out, the
+  // read-back says the three series out loud and a member sees what was
+  // understood. (Building them inline refused at `pine:role-order`, correctly.)
+  'dmiplusleg': { table: 'plusDI', pineArity: 1, build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 0 }] },
+  'dmiminusleg': { table: 'minusDI', pineArity: 1, build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 0 }] },
+  'dmiadxleg': { table: 'adx', pineArity: 1, build: [{ series: 'high' }, { series: 'low' }, { series: 'close' }, { pine: 0 }] },
 })
 
 /** Pine v1–v4 spelled several of these WITHOUT a namespace; v5 moved them into
@@ -787,6 +800,45 @@ function matchBracket(toks, open) {
     }
   }
   return -1
+}
+
+/** The `=` after a destructure's `]`, or -1. */
+function eqAtDmi(toks, close) {
+  const rel = findTop(toks.slice(close + 1), (t) => isPunct(t, '='))
+  return rel < 0 ? -1 : close + 1 + rel
+}
+
+/** `[a, b, c] = ta.dmi(diLen, adxLen)` → three bindings, or `null`.
+ *
+ *  ⛔ NOTHING IS INVENTED HERE. Each part is an ordinary Pine call node naming a
+ *  function the MANIFEST declares (`plusDI`/`minusDI`/`adx`), handed to the same
+ *  resolver every other call goes through — so the arity, the argument roles and
+ *  the lookback all come from the table rather than from this function. */
+function dmiParts(toks, close, names, env, first) {
+  if (names.length !== 3) return null
+  const eq = eqAtDmi(toks, close)
+  let call = null
+  try { call = parseWholeExpression(toks.slice(eq + 1)) } catch { return null }
+  // `ta.dmi` and a bare `dmi` are the same call; `normaliseName` lowercases and
+  // drops underscores but keeps the namespace, so the segment is taken here.
+  const bare = normaliseName(String(call.name).split('.').pop())
+  if (!call || call.type !== 'call' || bare !== 'dmi') return null
+  const args = (call.args || []).map((a) => a.value)
+  if (args.length !== 2) return null
+  // ⛔ The two periods must be the SAME token-for-token expression. Comparing
+  // resolved values would need a constant folder; comparing spelling is exact
+  // for the shape that matters and refuses everything it cannot prove equal.
+  const spell = (n) => JSON.stringify(n, (k, v) => (k === 'tok' ? undefined : v))
+  if (spell(args[0]) !== spell(args[1])) return null
+  const at = locate(first)
+  // Each leg is an ordinary Pine call whose ROLE ORDER is declared in
+  // `PINE_CALL_SHAPES`, so the three series come from the table's own statement
+  // of them rather than from this function. (Filling them here refused at
+  // `pine:role-order`, correctly.)
+  const part = (pineName) => exprBinding({
+    type: 'call', name: pineName, args: [{ value: args[0] }], tok: first,
+  }, new Map(env), at)
+  return [part('dmiplusleg'), part('dmiminusleg'), part('dmiadxleg')]
 }
 
 function findTop(toks, pred) {
@@ -2560,6 +2612,24 @@ export function translatePine(source, opts = {}) {
       const close = toks.findIndex((t) => isPunct(t, ']'))
       const names = toks.slice(1, close < 0 ? toks.length : close)
         .filter((t) => t.kind === 'ident' && !TYPE_WORDS.has(t.value))
+
+      // ⭐⭐ `ta.dmi(diLen, adxLen)` — THE ONE BUILTIN TUPLE IN THE CORPUS, and it
+      // is an exact mapping rather than a judgement: Pine answers
+      // `[+DI, -DI, ADX]` and this table declares all three by name.
+      //
+      // ⛔ THE TWO PERIODS MUST MATCH. Pine smooths the ADX over its SECOND
+      // argument while the DI legs use the first; this table's `adx` takes one
+      // period for both. `ta.dmi(14, 20)` therefore refuses rather than quietly
+      // returning a 14/14 ADX — the identical decision `ADX14.20` already makes
+      // on the TC2000 side, and the same reason: a member who asked for 14/20
+      // must not be shown a number that is not the indicator they asked for.
+      const dmi = close >= 0 && eqAtDmi(toks, close) >= 0
+        ? dmiParts(toks, close, names, env, first)
+        : null
+      if (dmi) {
+        names.forEach((n, k) => env.set(n.value, dmi[k]))
+        continue
+      }
 
       // ⭐ A TUPLE-RETURNING USER FUNCTION HANDS OUT ITS PARTS BY POSITION.
       // `[a, b] = f(x)` makes `a` element 0 of that call and `b` element 1; the

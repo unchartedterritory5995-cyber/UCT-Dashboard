@@ -119,7 +119,28 @@ forward reference inexpressible). Needs either a constant-folder for the offset
 argument, or a refusal that stays. **Measure whether `f_struct`'s offset is
 constant-foldable before committing to this one.**
 
-### 🥉 06-adx-advanced — two addressable walls
+### 🥉 06-adx-advanced — `ta.dmi` SHIPPED, and the script still refuses (correctly)
+
+✅ **`ta.dmi(n, n)` now maps to its three declared legs** — `plusDI`/`minusDI`/
+`adx`, each through a role order declared in `PINE_CALL_SHAPES` rather than
+filled by the mapper (doing that refused at `pine:role-order`, correctly: the
+manifest states what KIND an argument is and never what ROLE it plays).
+
+🔴 **06 STILL DOES NOT TRANSLATE, and the reason is right.** Its call is
+`ta.dmi(diLen, adxSmooth)` — two DIFFERENT input names. Pine smooths the ADX over
+the second while the DI legs use the first; this table's `adx` takes one period
+for both. Proving the two inputs equal needs a constant folder, so the honest
+answer is to refuse — the identical decision `ADX14.20` already makes on the
+TC2000 side. A script written `ta.dmi(len, len)` works today.
+
+⛔ So the remaining wall here is the SAME one as script 05: **constant folding of
+an input to its default.** Two scripts now turn on it, which makes it the highest
+-value next item — and it is a question about how far inputs fold, not about Pine.
+
+⚠️ Also still present: `pine:block switch` in `f_smooth`. A `switch` over a folded
+constant string picks one arm — again the same folding question.
+
+### 🥉 (original) 06-adx-advanced — two addressable walls
 `pine:tuple` on `adxRaw`/`diPlus`/`diMinus` (a UDF returning a tuple — the shape
 just shipped, so re-measure: this may already be closer than it looks) plus
 `pine:block switch` in `f_smooth`. `switch` over constant arms is expressible as
