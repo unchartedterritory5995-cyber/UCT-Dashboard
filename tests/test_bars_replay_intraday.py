@@ -98,6 +98,30 @@ def test_partial_window_refetches_a_different_date(fresh_db):
     assert body["bars"][-1]["c"] == pytest.approx(130.6)
 
 
+def test_replay_effective_symbol_maps_qqq_era():
+    f = bars_fetch._replay_effective_symbol
+    assert f("QQQ", "2010-05-06") == "QQQQ"   # QQQQ era (Nasdaq listing)
+    assert f("QQQ", "2003-06-15") == "QQQ"     # before the change
+    assert f("QQQ", "2015-01-01") == "QQQ"     # after the back-rename
+    assert f("SPY", "2010-05-06") == "SPY"     # unaffected ticker
+
+
+def test_qqq_replay_fetches_and_serves_under_qqqq(fresh_db):
+    # A QQQ replay in the QQQQ era must read/fetch/persist under QQQQ, but label the response QQQ.
+    deep = [
+        {"t": _ts(2010, 5, 5, 14, 30), "o": 48.0, "h": 48.2, "l": 47.9, "c": 48.1, "v": 1000},
+        {"t": _ts(2010, 5, 6, 20, 0),  "o": 47.0, "h": 47.1, "l": 46.5, "c": 46.6, "v": 2000},
+    ]
+    with patch.object(bars_fetch, "_fetch_intraday_range", return_value=list(deep)) as spy:
+        resp = bars_fetch._get_bars_to_response("QQQ", "5", 6000, "2010-05-06")
+
+    assert spy.call_args[0][0] == "QQQQ"                 # fetched under the era symbol
+    assert bars_sqlite.get_bars("QQQQ", "5", 10)         # persisted under QQQQ
+    body = _body(resp)
+    assert body["ticker"] == "QQQ"                       # response labeled with the requested symbol
+    assert body["bars"][-1]["c"] == pytest.approx(46.6)
+
+
 def test_fetch_intraday_range_maps_ms_to_seconds_and_paginates():
     raw_p1 = {"results": [{"t": 1200322200000, "o": 6.9, "h": 6.95, "l": 6.88, "c": 6.92, "v": 1000}],
               "next_url": "https://api.massive.com/next?cursor=abc"}

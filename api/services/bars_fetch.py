@@ -1769,6 +1769,24 @@ def _get_delisted_bars_response(record: dict, tf: str, bars: int, serve_as: str 
     return JSONResponse(content=payload, headers={"Cache-Control": "no-store"})
 
 
+# Symbol continuity for replay: a few symbols were RENAMED and the provider stores each era's
+# history under the symbol of that era. Map (ticker, cutoff-date) → the symbol that actually
+# holds the requested era, so a replay to e.g. QQQ in 2010 serves the QQQQ-era history instead
+# of stopping dead at the 2004 symbol change. ISO 'YYYY-MM-DD' compares correctly as strings.
+# Scoped to the replay pre-cutoff path only (normal/live charts untouched) — the small, targeted
+# slice of the broader symbol-continuity work. Extend as more cases surface.
+_REPLAY_SYMBOL_ERAS = {
+    "QQQ": [("2004-12-01", "2011-03-22", "QQQQ")],   # QQQ → QQQQ (Nasdaq listing) → back to QQQ
+}
+
+
+def _replay_effective_symbol(ticker: str, to_str: str) -> str:
+    for lo, hi, alias in _REPLAY_SYMBOL_ERAS.get(ticker, ()):
+        if lo <= str(to_str) <= hi:
+            return alias
+    return ticker
+
+
 def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bool = False) -> JSONResponse:
     """Serve up to `bars` bars ENDING AT `to_str` (YYYY-MM-DD) from SQLite — the
     replay-mode PRE-CUTOFF window. This history is static, so there's NO freshness check
@@ -1789,6 +1807,12 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
                                   tzinfo=_ZI("America/New_York")).timestamp())
     except Exception:
         return _get_bars_inner(ticker, tf, bars)
+    # Symbol continuity: a replay cutoff in an era when this ticker traded under a DIFFERENT
+    # symbol must read/fetch that era's data (QQQ was "QQQQ" 2004-12→2011, so a 2010 QQQ replay
+    # would otherwise stop at the Nov-2004 change). Data ops below use `ticker_up` (rebound to the
+    # era symbol); the response is still labeled with what the client requested (resp_ticker).
+    resp_ticker = ticker_up
+    ticker_up = _replay_effective_symbol(ticker_up, to_str)
     try:
         rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
     except Exception:
@@ -1875,7 +1899,7 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bo
     if not rows:
         return _get_bars_inner(ticker, tf, bars)   # last resort — client filters
     _mark_serve("sqlite")
-    payload = {"ticker": ticker_up, "tf": tf, "bars": _fmt_sqlite_bars(rows, tf, ticker_up)}
+    payload = {"ticker": resp_ticker, "tf": tf, "bars": _fmt_sqlite_bars(rows, tf, ticker_up)}
     return JSONResponse(content=payload, headers={"Cache-Control": "public, max-age=3600"})
 
 
