@@ -116,6 +116,44 @@ def test_batch_rich_snapshots_ext_price_populated():
     assert result["NVDA"]["ext_session"] is None
 
 
+def test_ext_price_prefers_minute_close_when_last_trade_is_stale():
+    """SPY-class bug: lastTrade sits pinned to the 4pm regular close in post-market,
+    while min.c carries the real after-hours price. Use min.c there."""
+    from api.services.massive import _ext_price_for
+    # Stale lastTrade == regular close; min.c is the live post-market print.
+    assert _ext_price_for("post_market", {"p": 770.56}, {"c": 770.98}, {"c": 770.56}) == (770.98, "post_market")
+    # Fresh lastTrade (differs from the close) is used directly.
+    assert _ext_price_for("post_market", {"p": 580.20}, {"c": 580.15}, {"c": 579.00}) == (580.20, "post_market")
+    # Genuinely flat after-hours → honest regular close (0% move), not dropped.
+    assert _ext_price_for("post_market", {"p": 100.0}, {"c": 100.0}, {"c": 100.0}) == (100.0, "post_market")
+    # Missing lastTrade → fall back to the minute close.
+    assert _ext_price_for("pre_market", {}, {"c": 50.5}, {"c": 50.0}) == (50.5, "pre_market")
+    # Regular session → no extended fields.
+    assert _ext_price_for("regular", {"p": 770.56}, {"c": 770.98}, {"c": 770.56}) == (None, None)
+    # Nothing usable → None.
+    assert _ext_price_for("post_market", {}, {}, {}) == (None, None)
+
+
+def test_batch_rich_snapshots_stale_last_trade_uses_min_close():
+    client = _make_client()
+    payload = {
+        "status": "OK",
+        "tickers": [{
+            "ticker": "SPY",
+            "todaysChangePerc": -0.32,
+            "day":      {"c": 770.56, "o": 774.5, "v": 3e7},
+            "prevDay":  {"c": 773.03, "v": 4e7},
+            "lastTrade": {"p": 770.56},   # STALE — pinned to the 4pm close
+            "min":      {"c": 770.98},    # real post-market price
+        }],
+    }
+    with mock.patch.object(client, "_get", return_value=payload), \
+         mock.patch("api.services.massive._detect_session", return_value="post_market"):
+        result = client.get_batch_rich_snapshots(["SPY"])
+    assert result["SPY"]["ext_price"] == 770.98
+    assert result["SPY"]["ext_session"] == "post_market"
+
+
 def test_batch_rich_snapshots_no_ext_during_regular():
     client = _make_client()
     with mock.patch.object(client, "_get", return_value=_BATCH_PAYLOAD), \
