@@ -5448,48 +5448,45 @@ export default function StockChart({
     return () => { cancelAnimationFrame(raf); try { ts.unsubscribeVisibleLogicalRangeChange(bump) } catch { /* */ } }
   }, [chartReady, enabledComparisons.length])
 
-  const framedLeftTime = useMemo(() => {
-    const chart = chartRef.current
-    if (!chart || !enabledComparisons.length) return null
-    try {
-      const ts = chart.timeScale()
-      // ⭐ Read the LEFT edge's time from its PIXEL coordinate, NOT getVisibleRange().
-      // The chart extends its date axis past the last candle (future whitespace), and
-      // getVisibleRange() returns null the moment a visible edge sits in whitespace
-      // ("cannot extrapolate time") — that null was the "% stuck at full history" bug.
-      // coordinateToTime(0) resolves the leftmost visible bar, which is always real data.
-      let t = ts.coordinateToTime(0)
-      if (t == null) {
-        const lr = ts.getVisibleLogicalRange()
-        if (lr && lr.from != null) {
-          const x = ts.logicalToCoordinate(Math.max(0, Math.ceil(lr.from)))
-          if (x != null) t = ts.coordinateToTime(x)
-        }
-      }
-      if (t == null) { const r = ts.getVisibleRange(); t = (r && r.from != null) ? r.from : null }
-      const n = Number(t)
-      return Number.isFinite(n) ? n : null
-    } catch { /* mid-load */ }
-    return null
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rangeTick, chartReady, enabledComparisons.length])
-
-  // Per-comparison % over the framed window: (latest close − close at framed-left) / base.
+  // Per-comparison % over the FRAMED window = (last visible close / first visible
+  // close − 1). ⭐ The first/last visible bar time is read from the SERIES ITSELF via
+  // barsInLogicalRange(getVisibleLogicalRange()) — LWC clamps it to that series' real
+  // data, so it is exactly what the drawn line uses and stays correct despite the
+  // future-whitespace axis and differing per-symbol history. (getVisibleRange() and
+  // coordinateToTime(0) both mis-fired on the whitespace-extended axis → the % was
+  // stuck at the full-history number.) Recomputes on every pan/zoom via rangeTick.
   const comparisonFramed = useMemo(() => {
     if (!comparisonsData) return []
+    const chart = chartRef.current
+    let lr = null
+    try { lr = chart?.timeScale?.().getVisibleLogicalRange?.() } catch { /* mid-load */ }
     return enabledComparisons.map(c => {
       const symKey = String(c.sym).toUpperCase()
       const bars = comparisonsData[symKey] || []
+      let fromTime = null, toTime = null
+      if (lr) {
+        try {
+          const info = comparisonSeriesRefs.current.get(symKey)?.barsInLogicalRange(lr)
+          if (info) {
+            if (info.from != null) { const n = Number(info.from); if (Number.isFinite(n)) fromTime = n }
+            if (info.to != null) { const n = Number(info.to); if (Number.isFinite(n)) toTime = n }
+          }
+        } catch { /* series not ready */ }
+      }
       let baseClose = null, lastClose = null
-      if (framedLeftTime != null) {
-        for (const b of bars) { if (Number.isFinite(b.c) && adjustTime(b.t) >= framedLeftTime) { baseClose = b.c; break } }
+      if (fromTime != null) {
+        for (const b of bars) { if (Number.isFinite(b.c) && adjustTime(b.t) >= fromTime) { baseClose = b.c; break } }
       }
       if (baseClose == null) { for (const b of bars) { if (Number.isFinite(b.c)) { baseClose = b.c; break } } }
-      for (let i = bars.length - 1; i >= 0; i--) { if (Number.isFinite(bars[i].c)) { lastClose = bars[i].c; break } }
+      if (toTime != null) {
+        for (let i = bars.length - 1; i >= 0; i--) { if (Number.isFinite(bars[i].c) && adjustTime(bars[i].t) <= toTime) { lastClose = bars[i].c; break } }
+      }
+      if (lastClose == null) { for (let i = bars.length - 1; i >= 0; i--) { if (Number.isFinite(bars[i].c)) { lastClose = bars[i].c; break } } }
       const pct = (baseClose && lastClose) ? ((lastClose - baseClose) / baseClose) * 100 : null
       return { sym: symKey, color: c.color, pct }
     })
-  }, [comparisonsData, enabledComparisons, framedLeftTime, adjustTime])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comparisonsData, enabledComparisons, rangeTick, adjustTime])
 
   // Name + exchange for each comparison (the legend shows "Name · Exchange").
   const { data: comparisonMeta } = useSWR(

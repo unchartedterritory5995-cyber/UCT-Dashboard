@@ -43,6 +43,13 @@ test('removing a symbol writes the pruned list', () => {
   expect(api.setComparison).toHaveBeenLastCalledWith([])
 })
 
+test('the per-symbol "Same % scale" toggle writes scaleMode to the chart', () => {
+  const api = makeApi([{ sym: 'QQQ', enabled: true, color: '#60a5fa', scaleMode: 'new' }])
+  render(<Wrap api={api} />)
+  fireEvent.click(screen.getByText('Same % scale'))
+  expect(api.setComparison).toHaveBeenLastCalledWith([expect.objectContaining({ sym: 'QQQ', scaleMode: 'same' })])
+})
+
 test('the "All %" mode toggles the chart percent scale', () => {
   const api = makeApi()
   render(<Wrap api={api} />)
