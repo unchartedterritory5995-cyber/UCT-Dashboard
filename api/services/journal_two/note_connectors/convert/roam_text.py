@@ -56,8 +56,10 @@ memoized here. `providers/roam.py` owns their lifetime (see the docstring on
 
 from __future__ import annotations
 
+import copy
 import re
 from collections.abc import Callable
+from typing import Any
 
 # Fence alternative MUST come first — at a run of 3+ backticks it has to win
 # over the inline-span alternative, or the inline pattern would consume just
@@ -170,3 +172,133 @@ def convert_roam_markdown(
         return out
 
     return _transform_outside_code(text, _transform)
+
+
+# ---------------------------------------------------------------------------
+# Post-md_to_tiptap repair: a bare {{[[TODO]]}}/{{[[DONE]]}} with no other
+# text degrades to a literal "[ ]"/"[x]" listItem (probe-confirmed — see
+# `providers/roam.py`'s `_entity_to_remote_note`, which calls this on every
+# doc). Fixed HERE, post-conversion, rather than by inventing an invisible
+# placeholder character at the markdown layer: an invisible character would
+# leak into the final note as a stray character on any path that skips this
+# repair, which is a worse failure than the one it would prevent.
+# ---------------------------------------------------------------------------
+
+
+def _item_plain_text(item: Any) -> str:
+    """Concatenates every text node under one listItem, depth-first."""
+    out: list[str] = []
+
+    def walk(n: Any) -> None:
+        if not isinstance(n, dict):
+            return
+        if n.get("type") == "text":
+            out.append(n.get("text", ""))
+        for child in n.get("content") or []:
+            walk(child)
+
+    walk(item)
+    return "".join(out)
+
+
+def _empty_task_state(item: Any) -> bool | None:
+    """`None` if `item` is a normal listItem; else the `checked` state a
+    bare `{{[[TODO]]}}` (`False`)/`{{[[DONE]]}}` (`True`) block degraded to."""
+    if not isinstance(item, dict):
+        return None
+    text = _item_plain_text(item).strip()
+    if text == "[ ]":
+        return False
+    if text == "[x]":
+        return True
+    return None
+
+
+def _split_bullet_list_runs(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Given a `bulletList`'s `content` (already-walked `listItem`s, some
+    possibly flagged bare-checkbox artifacts), returns sibling `taskList`/
+    `bulletList` nodes — mirrors `mddoc.py`'s `_list_runs` run-splitting,
+    re-derived here post-hoc since TipTap forbids a `listItem` inside a
+    `taskList` (or vice versa), so a mixed bulletList can't just have one
+    item's type swapped in place."""
+    runs: list[dict[str, Any]] = []
+    idx = 0
+    n = len(items)
+    while idx < n:
+        is_task = _empty_task_state(items[idx]) is not None
+        run: list[dict[str, Any]] = []
+        while idx < n and (_empty_task_state(items[idx]) is not None) == is_task:
+            run.append(items[idx])
+            idx += 1
+        if is_task:
+            task_items = [
+                {
+                    "type": "taskItem",
+                    "attrs": {"checked": _empty_task_state(it)},
+                    "content": [{"type": "paragraph", "content": []}],
+                }
+                for it in run
+            ]
+            runs.append({"type": "taskList", "content": task_items})
+        else:
+            runs.append({"type": "bulletList", "content": run})
+    return runs
+
+
+def _walk_node(node: Any) -> Any:
+    if not isinstance(node, dict):
+        return copy.deepcopy(node)
+    new_node = copy.deepcopy(node)
+    content = node.get("content")
+    if isinstance(content, list):
+        new_node["content"] = _walk_content(content)
+    return new_node
+
+
+def _walk_content(content: list[Any]) -> list[Any]:
+    out: list[Any] = []
+    for child in content:
+        if not isinstance(child, dict):
+            out.append(copy.deepcopy(child))
+            continue
+        if child.get("type") == "bulletList":
+            raw_items = child.get("content") or []
+            walked_items = [_walk_node(it) for it in raw_items]
+            if any(_empty_task_state(it) is not None for it in walked_items):
+                out.extend(_split_bullet_list_runs(walked_items))
+                continue
+            new_child = copy.deepcopy(child)
+            new_child["content"] = walked_items
+            out.append(new_child)
+        else:
+            out.append(_walk_node(child))
+    return out
+
+
+def fix_empty_task_items(doc: dict[str, Any]) -> dict[str, Any]:
+    """Post-`md_to_tiptap` repair for Roam's `{{[[TODO]]}}`/`{{[[DONE]]}}`
+    blocks that carry NO other text.
+
+    `convert_roam_markdown`'s TODO/DONE pass rewrites a block's entire
+    content into GFM checkbox syntax (`- [ ] `/`- [x] `), normally followed
+    by the block's own remaining text. When a Roam block is LITERALLY just
+    the `{{[[TODO]]}}`/`{{[[DONE]]}}` token, that produces a bullet line
+    whose content — once whitespace is trimmed — is nothing but the
+    checkbox marker itself, and `mdit_py_plugins.tasklists` needs some
+    non-whitespace content after the marker to flag the item as a
+    task-list-item at all. So `md_to_tiptap` (correctly, given ITS input)
+    emits a plain `listItem` whose only content is the literal text
+    "[ ]"/"[x]" rather than a `taskItem`.
+
+    This walks the ALREADY-CONVERTED TipTap doc and repairs it directly: any
+    `listItem` whose ENTIRE plain-text content is exactly "[ ]"/"[x]"
+    becomes a `taskItem` with the right `checked` state and an EMPTY
+    paragraph (no leftover placeholder text — no invisible characters
+    either). A `bulletList` mixing such items with normal text-bearing
+    siblings is split into consecutive taskList/bulletList RUNS.
+
+    Recurses into every node's `content`; returns a NEW doc and never
+    mutates its input, consistent with `convert.rewrite.rewrite_body`'s
+    contract.
+    """
+    return _walk_node(doc)

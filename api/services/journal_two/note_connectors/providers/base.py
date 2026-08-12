@@ -114,6 +114,18 @@ class NoteProvider(ABC):
         PLACEHOLDER body (unresolved media/link refs) — the engine uploads
         media and calls `rewrite_body` afterward."""
 
+    async def fetch_many(
+        self, credentials: dict[str, Any], refs: list[RemoteRef],
+    ) -> list[RemoteNote]:
+        """OPTIONAL batch resolution, `refs` -> `RemoteNote`s in the SAME
+        order. Default implementation just loops `fetch()` one ref at a
+        time — correct for any provider, but wasteful for one whose API
+        supports true batch resolution (Roam's `pull-many`, up to 40 eids
+        per call), which should override this method for real batching.
+        The sync engine (Task 8) prefers `fetch_many` when a provider
+        overrides it, falling back to per-ref `fetch()` otherwise."""
+        return [await self.fetch(credentials, ref) for ref in refs]
+
     @abstractmethod
     async def fetch_media(
         self, credentials: dict[str, Any], ref: str,

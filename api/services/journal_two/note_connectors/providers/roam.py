@@ -7,17 +7,23 @@ Bearer-token authenticated:
     POST https://api.roamresearch.com/api/graph/{GRAPH}/pull         (single-entity pull)
     POST https://api.roamresearch.com/api/graph/{GRAPH}/pull-many    (batch pull)
 
-Three provider-specific behaviors this file exists to get right (each has a
+Provider-specific behaviors this file exists to get right (each has a
 dedicated test):
 
-  1. **308 redirect re-auth.** Roam's backend fronts multiple "peer" hosts and
-     can 308 a request to a peer-specific URL. An httpx client with
-     `follow_redirects=True` would re-issue the redirected request WITHOUT the
-     `Authorization` header (cross-origin redirect — the standard/safe fetch
-     behavior almost every HTTP client defaults to), silently turning every
-     redirected call into an unauthenticated 401. We build our client with
-     `follow_redirects=False` and manually re-send the SAME method/body to the
-     `Location` URL, WITH `Authorization` reattached (`_send_with_redirect`).
+  1. **308 redirect re-auth, HOST-VALIDATED.** Roam's backend fronts multiple
+     "peer" hosts and can 308 a request to a peer-specific URL. An httpx
+     client with `follow_redirects=True` would re-issue the redirected
+     request WITHOUT the `Authorization` header (cross-origin redirect — the
+     standard/safe fetch behavior almost every HTTP client defaults to),
+     silently turning every redirected call into an unauthenticated 401. We
+     build our client with `follow_redirects=False` and manually re-send the
+     SAME method/body to the `Location` URL, WITH `Authorization` reattached
+     (`_send_with_redirect`) — but ONLY after checking the redirect target is
+     `https://api.roamresearch.com` or an `*.api.roamresearch.com` subdomain
+     (`_is_allowed_redirect_target`). A redirect anywhere else is refused
+     BEFORE the second request is ever sent — otherwise a compromised or
+     misbehaving server could 308 us into leaking the Bearer token to an
+     arbitrary host.
   2. **503 cold-start retry ladder.** An idle graph "wakes" on first access
      and can 503 for a few seconds. Retry ladder: 3 retries, waiting
      2s/5s/10s between attempts (`_COLD_START_RETRY_DELAYS`), sleep injectable
@@ -29,14 +35,28 @@ dedicated test):
      response whose body mentions "encrypt" as that signal and raise
      `NoteConnUnsupported` with a clear, user-facing reason; every OTHER
      non-success status is a plain `NoteConnTransient`.
+  4. **The taxonomy contract holds even when the network itself misbehaves.**
+     A raw httpx transport exception (timeout, connection refused, …) or an
+     unparseable JSON body would otherwise escape as a bare `httpx`/`json`
+     exception, breaking the "providers raise ONLY the errors taxonomy"
+     contract every caller relies on. Both are wrapped at their ONE
+     chokepoint each — `_send_with_redirect` for transport errors, `_call`
+     for the JSON parse — into `NoteConnTransient`, never per-call-site.
+  5. **`fetch()`/`fetch_many()` need `list_changed()` to have run first.**
+     The full-graph `title->uid` map that resolves `[[Page Link]]`s is built
+     by `list_changed()` (see `self._title_to_uid`). Calling `fetch()` cold,
+     on a provider instance that never enumerated, wouldn't crash — it would
+     silently resolve every link as unresolved plain text. `self._enumerated`
+     turns that into a loud `RuntimeError` instead of a quiet content bug.
 
 Everything else (enumeration, page-tree pull, wiki-syntax conversion) is
-built on top of those three primitives.
+built on top of those primitives.
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 import re
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
@@ -45,7 +65,7 @@ from typing import Any
 import httpx
 
 from ..convert import md_to_tiptap
-from ..convert.roam_text import convert_roam_markdown
+from ..convert.roam_text import convert_roam_markdown, fix_empty_task_items
 from ..errors import (
     NoteConnAuthError,
     NoteConnTransient,
@@ -54,6 +74,10 @@ from ..errors import (
 from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef
 
 _API_BASE = "https://api.roamresearch.com/api/graph"
+
+# Only a redirect back onto Roam's own domain is ever followed — see module
+# docstring point 1.
+_ALLOWED_REDIRECT_HOST = "api.roamresearch.com"
 
 # 3 retries, waiting this long BEFORE each one (i.e. up to 4 total attempts:
 # the original + 3 retries), per spec §7's "retry ladder (3 attempts,
@@ -98,6 +122,24 @@ def _epoch_ms_to_iso(ms: int) -> str:
 
 def _is_daily_note_title(title: str | None) -> bool:
     return bool(title) and bool(_DAILY_NOTE_RE.match(title))
+
+
+def _is_allowed_redirect_target(url: httpx.URL) -> bool:
+    """https-only; host must be exactly `api.roamresearch.com` or a
+    subdomain of it (`peer-3.api.roamresearch.com`, etc.) — see module
+    docstring point 1. A relative Location (no host at all) is rejected by
+    the same `host == ""` falling through to `False`."""
+    if url.scheme != "https":
+        return False
+    host = url.host or ""
+    return host == _ALLOWED_REDIRECT_HOST or host.endswith(f".{_ALLOWED_REDIRECT_HOST}")
+
+
+def _edn_escape_uid(uid: str) -> str:
+    """A Roam uid should never legitimately contain a `"`, but if one ever
+    did, an unescaped quote would break out of the EDN string literal inside
+    the `eids` vector handed to `pull-many` — escape defensively."""
+    return uid.replace('"', '\\"')
 
 
 def _children_to_lines(children: list[dict[str, Any]], indent: int) -> list[str]:
@@ -162,6 +204,10 @@ class RoamProvider(NoteProvider):
         # the map as an explicit parameter — nothing inside roam_text.py
         # ever reaches back into `self`.
         self._title_to_uid: dict[str, str] = {}
+        # Flips True at the end of `list_changed()` — see module docstring
+        # point 5. `fetch()`/`fetch_many()` refuse to run before this is
+        # True rather than silently resolving every [[link]] as unresolved.
+        self._enumerated: bool = False
 
     async def aclose(self) -> None:
         if self._owns_client and self._client is not None:
@@ -192,17 +238,33 @@ class RoamProvider(NoteProvider):
         self, client: httpx.AsyncClient, url: str, headers: dict[str, str],
         body: dict[str, Any], max_hops: int = 3,
     ) -> httpx.Response:
-        """POSTs `body` to `url`; on a 307/308 with a `Location`, manually
-        re-sends the SAME body + headers (Authorization included) to that
-        URL rather than relying on httpx's redirect-follow (which would drop
-        Authorization on the cross-host hop). Bounded to `max_hops` so a
-        misbehaving peer chain can never loop forever."""
+        """POSTs `body` to `url`; on a 307/308 with a `Location` pointing
+        back at Roam's own domain, manually re-sends the SAME body + headers
+        (Authorization included) to that URL rather than relying on httpx's
+        redirect-follow (which would drop Authorization on the cross-host
+        hop). A redirect Location OUTSIDE `api.roamresearch.com`/
+        `*.api.roamresearch.com` is refused — the second request (carrying
+        the Bearer token) is never sent — raising `NoteConnTransient`
+        instead. Bounded to `max_hops` so a misbehaving peer chain can never
+        loop forever. Also the SOLE chokepoint that wraps raw httpx
+        transport exceptions (timeout, connection refused, …) into the
+        errors taxonomy — see module docstring point 4."""
         current_url = url
         response: httpx.Response | None = None
         for _ in range(max_hops):
-            response = await client.post(current_url, headers=headers, json=body)
+            try:
+                response = await client.post(current_url, headers=headers, json=body)
+            except httpx.RequestError as exc:
+                raise NoteConnTransient(f"Roam request failed: {exc}") from exc
             if response.status_code in (307, 308) and "location" in response.headers:
-                current_url = response.headers["location"]
+                location = response.headers["location"]
+                target = httpx.URL(location)
+                if not _is_allowed_redirect_target(target):
+                    raise NoteConnTransient(
+                        f"Roam redirected to an unexpected host ({target.host!r}) "
+                        "— refusing to forward credentials there",
+                    )
+                current_url = location
                 continue
             return response
         assert response is not None  # max_hops >= 1 guarantees at least one send
@@ -219,7 +281,13 @@ class RoamProvider(NoteProvider):
         while True:
             response = await self._send_with_redirect(client, url, headers, body)
             if response.status_code == 200:
-                return response.json()
+                try:
+                    return response.json()
+                except json.JSONDecodeError as exc:
+                    snippet = (response.text or "")[:200]
+                    raise NoteConnTransient(
+                        f"Roam returned invalid JSON: {exc}. Body snippet: {snippet!r}",
+                    ) from exc
             if response.status_code in (401, 403):
                 raise NoteConnAuthError(
                     f"Roam rejected the graph token ({response.status_code})",
@@ -261,13 +329,15 @@ class RoamProvider(NoteProvider):
         out: dict[str, dict[str, Any]] = {}
         for start in range(0, len(uids), _PULL_MANY_BATCH):
             chunk = uids[start:start + _PULL_MANY_BATCH]
-            eids = "[" + " ".join(f'[:block/uid "{uid}"]' for uid in chunk) + "]"
+            eids = "[" + " ".join(
+                f'[:block/uid "{_edn_escape_uid(uid)}"]' for uid in chunk
+            ) + "]"
             data = await self._call(
                 graph, token, "pull-many", {"eids": eids, "selector": _PULL_SELECTOR},
             )
             result = data.get("result") or {}
             for uid in chunk:
-                entity = result.get(f'[:block/uid "{uid}"]')
+                entity = result.get(f'[:block/uid "{_edn_escape_uid(uid)}"]')
                 if entity is not None:
                     out[uid] = entity
         return out
@@ -289,6 +359,7 @@ class RoamProvider(NoteProvider):
         # §7) so a [[link]] to an unchanged page still resolves during the
         # `fetch()` calls that follow this one on the same instance.
         self._title_to_uid = {title: uid for uid, title, _time in rows}
+        self._enumerated = True
         refs: list[RemoteRef] = []
         for uid, _title, time_ms in rows:
             updated_at = _epoch_ms_to_iso(time_ms)
@@ -298,14 +369,16 @@ class RoamProvider(NoteProvider):
         refs.sort(key=lambda r: r.updated_at)
         return refs
 
-    async def fetch(self, credentials: dict[str, Any], ref: RemoteRef) -> RemoteNote:
-        graph, token = self._creds(credentials)
-        pulled = await self._pull_many(graph, token, [ref.remote_id])
-        entity = pulled.get(ref.remote_id)
-        if entity is None:
-            raise NoteConnTransient(
-                f"Roam pull-many returned no data for uid {ref.remote_id!r}",
+    def _require_enumerated(self) -> None:
+        if not self._enumerated:
+            raise RuntimeError(
+                "call list_changed() before fetch() — the link-resolution "
+                "map is built there",
             )
+
+    def _entity_to_remote_note(
+        self, ref: RemoteRef, entity: dict[str, Any], graph: str,
+    ) -> RemoteNote:
         title = entity.get(":node/title") or ref.remote_id
         uid_to_string = _collect_uid_to_string(entity)
         raw_lines = _children_to_lines(entity.get(":block/children") or [], indent=0)
@@ -316,11 +389,15 @@ class RoamProvider(NoteProvider):
             uid_to_string=uid_to_string,
         )
         converted = md_to_tiptap(final_md)
+        # Repairs a bare {{[[TODO]]}}/{{[[DONE]]}} block (no other text),
+        # which md_to_tiptap alone can't recognize as a task item — see
+        # roam_text.fix_empty_task_items's docstring.
+        doc = fix_empty_task_items(converted["doc"])
         folder_path = ["Daily Notes"] if _is_daily_note_title(title) else []
         return RemoteNote(
             remote_id=ref.remote_id,
             title=title,
-            doc=converted["doc"],
+            doc=doc,
             media=converted["media"],
             links=converted["links"],
             tags=[],
@@ -329,13 +406,49 @@ class RoamProvider(NoteProvider):
             updated_at=ref.updated_at,
         )
 
+    async def fetch(self, credentials: dict[str, Any], ref: RemoteRef) -> RemoteNote:
+        self._require_enumerated()
+        graph, token = self._creds(credentials)
+        pulled = await self._pull_many(graph, token, [ref.remote_id])
+        entity = pulled.get(ref.remote_id)
+        if entity is None:
+            raise NoteConnTransient(
+                f"Roam pull-many returned no data for uid {ref.remote_id!r}",
+            )
+        return self._entity_to_remote_note(ref, entity, graph)
+
+    async def fetch_many(
+        self, credentials: dict[str, Any], refs: list[RemoteRef],
+    ) -> list[RemoteNote]:
+        """True batch resolution via `pull-many` (≤40 eids/call — see
+        `_pull_many`), overriding the base class's per-ref loop. The engine
+        (Task 8) prefers this over repeated `fetch()` calls when a provider
+        supplies it."""
+        self._require_enumerated()
+        if not refs:
+            return []
+        graph, token = self._creds(credentials)
+        pulled = await self._pull_many(graph, token, [ref.remote_id for ref in refs])
+        notes: list[RemoteNote] = []
+        for ref in refs:
+            entity = pulled.get(ref.remote_id)
+            if entity is None:
+                raise NoteConnTransient(
+                    f"Roam pull-many returned no data for uid {ref.remote_id!r}",
+                )
+            notes.append(self._entity_to_remote_note(ref, entity, graph))
+        return notes
+
     async def fetch_media(self, credentials: dict[str, Any], ref: str) -> tuple[bytes, str]:
         # Firebase Storage URLs are pre-signed/public — no Roam Authorization
         # header needed, and (unlike the graph-data endpoints) a normal
         # redirect-following GET is fine here since there's no auth header
         # to lose on the hop.
         client = await self._get_client()
-        response = await client.get(ref, follow_redirects=True)
+        try:
+            response = await client.get(ref, follow_redirects=True)
+        except httpx.RequestError as exc:
+            raise NoteConnTransient(f"Failed to download Roam media: {exc}") from exc
         if response.status_code >= 400:
             raise NoteConnTransient(
                 f"Failed to download Roam media ({response.status_code})",

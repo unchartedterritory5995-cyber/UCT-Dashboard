@@ -31,13 +31,18 @@ import json
 import httpx
 import pytest
 
-from api.services.journal_two.note_connectors.convert.roam_text import convert_roam_markdown
+from api.services.journal_two.note_connectors.convert import md_to_tiptap
+from api.services.journal_two.note_connectors.convert.roam_text import (
+    convert_roam_markdown,
+    fix_empty_task_items,
+)
 from api.services.journal_two.note_connectors.errors import (
     NoteConnAuthError,
     NoteConnTransient,
     NoteConnUnsupported,
 )
 from api.services.journal_two.note_connectors.providers import roam as roam_module
+from api.services.journal_two.note_connectors.providers.base import RemoteRef
 from api.services.journal_two.note_connectors.providers.roam import RoamProvider
 
 GRAPH = "my-graph"
@@ -298,7 +303,7 @@ async def test_308_redirect_resends_same_body_and_authorization_to_peer_host():
             assert request.url.host == "api.roamresearch.com"
             return httpx.Response(
                 308,
-                headers={"location": "https://peer-3.roamresearch.com/api/graph/my-graph/q"},
+                headers={"location": "https://peer-3.api.roamresearch.com/api/graph/my-graph/q"},
             )
         return httpx.Response(200, json={"result": 3})
 
@@ -307,7 +312,7 @@ async def test_308_redirect_resends_same_body_and_authorization_to_peer_host():
 
     assert info.label == GRAPH
     assert len(calls) == 2
-    assert calls[1].url.host == "peer-3.roamresearch.com"
+    assert calls[1].url.host == "peer-3.api.roamresearch.com"
     # the redirected request carried the SAME body...
     assert calls[1].content == calls[0].content
     assert json.loads(calls[1].content) == {"query": roam_module._VALIDATE_QUERY, "args": []}
@@ -324,6 +329,101 @@ async def test_redirect_loop_is_bounded_not_infinite():
     provider = _make_provider(handler)
     with pytest.raises(NoteConnTransient):
         await provider.validate(CREDS)
+
+
+# ---------------------------------------------------------------------------
+# Review finding 1: a 308 to an UNTRUSTED host must never leak the Bearer
+# token — the redirect target host is validated BEFORE the second request
+# is sent, not after.
+# ---------------------------------------------------------------------------
+
+
+async def test_308_redirect_to_an_untrusted_host_is_rejected_and_never_re_sent():
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(
+            308, headers={"location": "https://attacker.evil.com/api/graph/my-graph/q"},
+        )
+
+    provider = _make_provider(handler)
+    with pytest.raises(NoteConnTransient):
+        await provider.validate(CREDS)
+
+    # The critical property: the handler was invoked exactly ONCE — the
+    # attacker host never received a second request (and therefore never
+    # received the Authorization header).
+    assert len(calls) == 1
+
+
+async def test_308_redirect_to_a_valid_peer_subdomain_is_followed_with_auth():
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if len(calls) == 1:
+            return httpx.Response(
+                308,
+                headers={"location": "https://peer-9.api.roamresearch.com/api/graph/my-graph/q"},
+            )
+        return httpx.Response(200, json={"result": 3})
+
+    provider = _make_provider(handler)
+    info = await provider.validate(CREDS)
+
+    assert info.label == GRAPH
+    assert len(calls) == 2
+    assert calls[1].url.host == "peer-9.api.roamresearch.com"
+    assert calls[1].headers["authorization"] == f"Bearer {TOKEN}"
+
+
+async def test_redirect_to_http_on_the_right_host_is_still_rejected():
+    """https-only — a plaintext redirect (even nominally same-host) must
+    not be followed, since a downgrade to http would put the Bearer token
+    on the wire unencrypted."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            308, headers={"location": "http://api.roamresearch.com/api/graph/my-graph/q"},
+        )
+
+    provider = _make_provider(handler)
+    with pytest.raises(NoteConnTransient):
+        await provider.validate(CREDS)
+
+
+def test_is_allowed_redirect_target_accepts_only_https_roam_hosts():
+    allow = roam_module._is_allowed_redirect_target
+    assert allow(httpx.URL("https://api.roamresearch.com/x")) is True
+    assert allow(httpx.URL("https://peer-3.api.roamresearch.com/x")) is True
+    assert allow(httpx.URL("https://attacker.evil.com/x")) is False
+    assert allow(httpx.URL("https://notapi.roamresearch.com.evil.com/x")) is False
+    assert allow(httpx.URL("http://api.roamresearch.com/x")) is False
+
+
+# ---------------------------------------------------------------------------
+# Review finding 2: raw httpx transport/JSON exceptions must never escape
+# the errors taxonomy — wrapped at their one chokepoint into NoteConnTransient.
+# ---------------------------------------------------------------------------
+
+
+async def test_transport_exception_is_wrapped_as_note_conn_transient():
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectTimeout("simulated connect timeout")
+
+    provider = _make_provider(handler)
+    with pytest.raises(NoteConnTransient):
+        await provider.validate(CREDS)
+
+
+async def test_invalid_json_response_is_wrapped_as_transient_with_a_snippet():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"not valid json{{{")
+
+    provider = _make_provider(handler)
+    with pytest.raises(NoteConnTransient) as exc_info:
+        await provider.validate(CREDS)
+    assert "not valid json" in str(exc_info.value)
 
 
 # ---------------------------------------------------------------------------
@@ -430,6 +530,93 @@ async def test_list_changed_still_builds_the_full_title_map_even_when_filtered()
 
     assert provider._title_to_uid.get("Setup Library") == PAGE_2_UID
     assert provider._title_to_uid.get("Trading Notes") == PAGE_1_UID
+
+
+# ---------------------------------------------------------------------------
+# Review finding 5: fetch()/fetch_many() must refuse to run before
+# list_changed() has populated the link-resolution map — a loud RuntimeError
+# instead of a quiet content bug (every link silently unresolved).
+# ---------------------------------------------------------------------------
+
+
+async def test_fetch_before_list_changed_raises_runtime_error():
+    provider = _make_provider()
+    ref = RemoteRef(remote_id=PAGE_1_UID, updated_at="2026-08-11T00:00:00+00:00")
+    with pytest.raises(RuntimeError, match="list_changed"):
+        await provider.fetch(CREDS, ref)
+
+
+async def test_fetch_many_before_list_changed_raises_runtime_error():
+    provider = _make_provider()
+    ref = RemoteRef(remote_id=PAGE_1_UID, updated_at="2026-08-11T00:00:00+00:00")
+    with pytest.raises(RuntimeError, match="list_changed"):
+        await provider.fetch_many(CREDS, [ref])
+
+
+async def test_fetch_after_list_changed_works_normally():
+    """The positive case — proves the guard doesn't just always raise."""
+    provider = _make_provider()
+    changed = await provider.list_changed(CREDS)
+    ref = next(r for r in changed if r.remote_id == PAGE_1_UID)
+    note = await provider.fetch(CREDS, ref)
+    assert note.remote_id == PAGE_1_UID
+
+
+# ---------------------------------------------------------------------------
+# Review finding 4: pull-many batching is real — fetch_many() overrides the
+# base class's per-ref loop with true ≤40-eid batch calls.
+# ---------------------------------------------------------------------------
+
+
+async def test_fetch_many_batches_into_ceil_n_over_40_pull_many_calls():
+    pull_many_calls = {"n": 0}
+    total_refs = 81  # ceil(81 / 40) == 3
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content or b"{}")
+        if request.url.path.endswith("/q"):
+            return httpx.Response(200, json={"result": ENUMERATE_ROWS})
+        if request.url.path.endswith("/pull-many"):
+            pull_many_calls["n"] += 1
+            eids = payload.get("eids", "")
+            result = {}
+            for i in range(total_refs):
+                uid = f"batch-uid-{i}"
+                if f'"{uid}"' in eids:
+                    result[f'[:block/uid "{uid}"]'] = {
+                        ":block/uid": uid, ":node/title": f"Page {i}", ":block/children": [],
+                    }
+            return httpx.Response(200, json={"result": result})
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    await provider.list_changed(CREDS)  # satisfies the finding-5 guard
+
+    refs = [
+        RemoteRef(remote_id=f"batch-uid-{i}", updated_at="2026-08-11T00:00:00+00:00")
+        for i in range(total_refs)
+    ]
+    notes = await provider.fetch_many(CREDS, refs)
+
+    assert pull_many_calls["n"] == 3
+    assert len(notes) == total_refs
+    assert {n.remote_id for n in notes} == {r.remote_id for r in refs}
+
+
+async def test_fetch_many_empty_refs_makes_no_pull_many_call():
+    call_count = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/q"):
+            return httpx.Response(200, json={"result": ENUMERATE_ROWS})
+        call_count["n"] += 1
+        return httpx.Response(200, json={"result": {}})
+
+    provider = _make_provider(handler)
+    await provider.list_changed(CREDS)
+    notes = await provider.fetch_many(CREDS, [])
+    assert notes == []
+    assert call_count["n"] == 0
 
 
 # ---------------------------------------------------------------------------
@@ -563,3 +750,120 @@ def test_two_calls_with_different_maps_produce_different_output():
     assert first != second
     assert "uid-a" in first
     assert "uid-b" in second
+
+
+# ---------------------------------------------------------------------------
+# Review finding 3: a bare {{[[TODO]]}}/{{[[DONE]]}} with NO other text
+# degrades to a literal "[ ]"/"[x]" listItem coming out of md_to_tiptap
+# (mdit_py_plugins.tasklists needs non-whitespace content after the marker
+# to flag task-list-item at all — confirmed empirically). `fix_empty_task_items`
+# repairs this POST-conversion, per the review ruling.
+# ---------------------------------------------------------------------------
+
+
+def test_md_to_tiptap_alone_reproduces_the_bug_control():
+    """Control: WITHOUT the fix, a bare checkbox is literal text, not a task
+    item — proves the test setup actually reproduces the defect the fix
+    exists for (a fix with no reproducing control is unverifiable)."""
+    raw_doc = md_to_tiptap("- [ ] ")["doc"]
+    assert _find_all(raw_doc, "taskItem") == []
+    assert "[ ]" in _doc_text(raw_doc)
+
+
+def test_bare_todo_with_no_trailing_text_becomes_a_real_empty_unchecked_task_item():
+    md = convert_roam_markdown("- {{[[TODO]]}}", graph="g")
+    raw_doc = md_to_tiptap(md)["doc"]
+    fixed = fix_empty_task_items(raw_doc)
+
+    task_items = _find_all(fixed, "taskItem")
+    assert len(task_items) == 1
+    assert task_items[0]["attrs"]["checked"] is False
+    assert task_items[0]["content"] == [{"type": "paragraph", "content": []}]
+    assert _plain_text(task_items[0]) == ""
+    assert _find_all(fixed, "listItem") == []  # no leftover plain listItem
+
+
+def test_bare_done_with_no_trailing_text_becomes_a_real_empty_checked_task_item():
+    md = convert_roam_markdown("- {{[[DONE]]}}", graph="g")
+    fixed = fix_empty_task_items(md_to_tiptap(md)["doc"])
+
+    task_items = _find_all(fixed, "taskItem")
+    assert len(task_items) == 1
+    assert task_items[0]["attrs"]["checked"] is True
+    assert task_items[0]["content"] == [{"type": "paragraph", "content": []}]
+
+
+def test_bare_empty_todo_mixed_with_text_bearing_siblings_splits_into_runs():
+    md = convert_roam_markdown(
+        "- {{[[TODO]]}}\n- some other text\n- {{[[DONE]]}}",
+        graph="g",
+    )
+    raw_doc = md_to_tiptap(md)["doc"]
+    fixed = fix_empty_task_items(raw_doc)
+
+    # Three sibling runs: taskList([ ]) , bulletList(text), taskList([x])
+    top_level_types = [n["type"] for n in fixed["content"]]
+    assert top_level_types == ["taskList", "bulletList", "taskList"]
+
+    first_task = fixed["content"][0]["content"][0]
+    assert first_task["type"] == "taskItem"
+    assert first_task["attrs"]["checked"] is False
+    assert _plain_text(first_task) == ""
+
+    middle_item = fixed["content"][1]["content"][0]
+    assert middle_item["type"] == "listItem"
+    assert _plain_text(middle_item) == "some other text"
+
+    last_task = fixed["content"][2]["content"][0]
+    assert last_task["type"] == "taskItem"
+    assert last_task["attrs"]["checked"] is True
+
+
+def test_fix_empty_task_items_is_a_pure_noop_on_a_doc_with_no_bare_checkboxes():
+    md = convert_roam_markdown("- {{[[TODO]]}} buy milk\n- plain item", graph="g")
+    raw_doc = md_to_tiptap(md)["doc"]
+    fixed = fix_empty_task_items(raw_doc)
+    assert fixed == raw_doc
+
+
+def test_fix_empty_task_items_never_mutates_its_input():
+    md = convert_roam_markdown("- {{[[TODO]]}}", graph="g")
+    raw_doc = md_to_tiptap(md)["doc"]
+    import copy
+    snapshot = copy.deepcopy(raw_doc)
+    fix_empty_task_items(raw_doc)
+    assert raw_doc == snapshot
+
+
+async def test_fetch_end_to_end_repairs_a_bare_todo_block():
+    """End-to-end via the real provider fetch path (not just the roam_text/
+    mddoc unit level) — proves `_entity_to_remote_note` actually calls the
+    fix, not just that the fix works in isolation."""
+    uid = "bare-todo-page"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content or b"{}")
+        if request.url.path.endswith("/q"):
+            return httpx.Response(
+                200, json={"result": [[uid, "Bare Todo Page", 1755000000000]]},
+            )
+        if request.url.path.endswith("/pull-many"):
+            entity = {
+                ":block/uid": uid,
+                ":node/title": "Bare Todo Page",
+                ":block/children": [
+                    {":block/uid": "b1", ":block/string": "{{[[TODO]]}}", ":block/order": 0},
+                ],
+            }
+            return httpx.Response(200, json=_pull_many_result(entity))
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    changed = await provider.list_changed(CREDS)
+    ref = next(r for r in changed if r.remote_id == uid)
+    note = await provider.fetch(CREDS, ref)
+
+    task_items = _find_all(note.doc, "taskItem")
+    assert len(task_items) == 1
+    assert task_items[0]["attrs"]["checked"] is False
+    assert _find_all(note.doc, "listItem") == []
