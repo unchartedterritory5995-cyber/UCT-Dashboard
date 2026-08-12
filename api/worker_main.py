@@ -269,6 +269,38 @@ def _start_breadth_backfill():
     threading.Thread(target=loop, daemon=True, name="breadth_backfill").start()
 
 
+def _start_wick_backfill():
+    """Phase-3 wick grind (WORKER): reconstruct real intraday high/low for past days
+    from Massive stocks minute flat files and ship them via the R2 bridge (they upgrade
+    the body-only close_recon candles to true wicks; never overwrite real 'live' rows).
+    Runs the env-configured range once, then idles. Gated by BREADTH_WICKS_ENABLED=1 +
+    BREADTH_WICKS_FROM/TO (YYYY-MM-DD). Resumable — days already carrying intraday_recon
+    are skipped. Design: docs/superpowers/specs/2026-08-11-breadth-historical-wicks-phase3-design.md
+    """
+    if os.environ.get("BREADTH_WICKS_ENABLED") != "1":
+        log.info("breadth wick backfill not started (BREADTH_WICKS_ENABLED=0)")
+        return
+    frm = os.environ.get("BREADTH_WICKS_FROM")
+    to = os.environ.get("BREADTH_WICKS_TO")
+    if not (frm and to):
+        log.info("breadth wick backfill: set BREADTH_WICKS_FROM/TO to run; idle")
+        return
+    upload_every = int(os.environ.get("BREADTH_WICKS_UPLOAD_EVERY", "10"))
+
+    def run():
+        time.sleep(30)                              # let boot settle
+        from api.services import breadth_wick_recon as wr
+        log.info(f"breadth wick sweep starting {frm}..{to} (upload_every={upload_every})")
+        try:
+            res = wr.sweep_wicks(frm, to, upload_every=upload_every)
+            log.info(f"breadth wick sweep DONE: {res}")
+        except Exception as e:
+            log.exception(f"breadth wick sweep failed: {e}")
+
+    threading.Thread(target=run, daemon=True, name="wick_backfill").start()
+    log.info(f"breadth wick backfill armed: {frm}..{to}")
+
+
 def _probe_flatfile_access():
     """One-shot boot diagnostic: can THIS (worker) pod read Massive STOCKS flat files?
     Phase-3 wick reconstruction needs us_stocks_sip minute aggs; the web pod + local
@@ -624,6 +656,7 @@ def main():
         log.warning(f"liveflow monitor failed to start (non-fatal): {e}")
     _start_breadth_backfill()
     _probe_flatfile_access()
+    _start_wick_backfill()
     _start_memwatch()
 
     # Boot fingerprint — one grep-able line so an operator can confirm which
