@@ -213,6 +213,27 @@ const engineLwc = () => (_engineLwc || (_engineLwc = {
   LineSeries, HistogramSeries, AreaSeries, BaselineSeries, LineStyle, LineType,
 }))
 
+// "Same % scale" comparison → transform the comparison's raw closes into the base's
+// DOLLAR space, anchored at the visible-left edge: value = baseAnchorClose ×
+// (close / cmpAnchorClose). The line then touches the base's price at the left edge
+// and diverges by RELATIVE performance, so an out-performer rises above the base —
+// WITHOUT switching the main scale to Percentage (which would rebase the candles +
+// MAs and draw a 0% baseline). `lr` = the visible LOGICAL range {from,to}; fbars =
+// the base bar array; adjustTime maps a raw bar time to chart-time.
+function anchoredSameScalePoints(cmpBars, fbars, lr, adjustTime) {
+  if (!cmpBars || !cmpBars.length || !fbars || !fbars.length) return []
+  const N = fbars.length
+  const li = lr && Number.isFinite(lr.from) ? Math.max(0, Math.min(N - 1, Math.round(lr.from))) : 0
+  const fromTime = adjustTime(fbars[li].t)
+  const baseAnchor = fbars[li].c
+  let cmpAnchor = null
+  for (const b of cmpBars) { if (Number.isFinite(b.c) && adjustTime(b.t) >= fromTime) { cmpAnchor = b.c; break } }
+  if (cmpAnchor == null) { for (const b of cmpBars) { if (Number.isFinite(b.c)) { cmpAnchor = b.c; break } } }
+  if (!Number.isFinite(baseAnchor) || !Number.isFinite(cmpAnchor) || cmpAnchor === 0) return []
+  const k = baseAnchor / cmpAnchor
+  return cmpBars.filter(b => Number.isFinite(b.c)).map(b => ({ time: adjustTime(b.t), value: b.c * k }))
+}
+
 // Beyond this, a Massive bar tick is considered stale and the legend falls back
 // to the Finnhub price (mirrors BAR_TICK_FRESH_MS in useRealtimeBarPrices).
 const LIVE_TICK_FRESH_MS = 6000
@@ -5371,13 +5392,6 @@ export default function StockChart({
     () => (cs.comparisonSymbols || []).filter(c => c && c.enabled && c.sym),
     [cs.comparisonSymbols]
   )
-  // 'same' scale = the comparison rides the base's price scale (in Percentage mode)
-  // so an out-performer visibly rises ABOVE the base (TradingView compare). When any
-  // comparison asks for that, the main scale is forced to Percentage below.
-  const hasSameScaleComparison = useMemo(
-    () => enabledComparisons.some(c => c.scaleMode === 'same'),
-    [enabledComparisons]
-  )
   // Stable cache key: sorted sym list + tf + barCount. Sorted so reorder doesn't refetch.
   const comparisonsKey = useMemo(
     () => enabledComparisons.map(c => String(c.sym).toUpperCase()).sort().join(',') || null,
@@ -5437,6 +5451,7 @@ export default function StockChart({
   const [comparisonFramed, setComparisonFramed] = useState([])
   const framedSrcRef = useRef({ bars: null, comps: [], cmpData: null })
   framedSrcRef.current = { bars: filteredBars, comps: enabledComparisons, cmpData: comparisonsData }
+  const sameAnchorLiRef = useRef(-1)  // last visible-left index the 'same' lines were re-anchored to
   useEffect(() => {
     const chart = chartRef.current
     if (!chart || !chartReady) { setComparisonFramed([]); return undefined }
@@ -5452,10 +5467,10 @@ export default function StockChart({
       // bar; logical 0 aligns with it when the base has the earliest history (the
       // usual case: base is SPY/QQQ/etc.). Clamped so whitespace over/undershoot maps
       // to the first/last real bar.
-      let fromTime = null, toTime = null
+      let fromTime = null, toTime = null, li = -1
       if (lr && fbars && fbars.length) {
         const N = fbars.length
-        const li = Math.max(0, Math.min(N - 1, Math.round(lr.from)))
+        li = Math.max(0, Math.min(N - 1, Math.round(lr.from)))
         const ri = Math.max(0, Math.min(N - 1, Math.round(lr.to)))
         fromTime = adjustTime(fbars[li].t)
         toTime = adjustTime(fbars[ri].t)
@@ -5472,6 +5487,19 @@ export default function StockChart({
         return { sym: symKey, color: c.color, pct }
       })
       setComparisonFramed(out)
+
+      // Re-anchor 'same'-scale lines to the new visible-left (dollar-space transform),
+      // but only when the anchor bar actually moved — setData every pan frame is wasteful.
+      if (li !== sameAnchorLiRef.current) {
+        sameAnchorLiRef.current = li
+        for (const c of comps) {
+          if (c.scaleMode !== 'same') continue
+          const series = comparisonSeriesRefs.current.get(String(c.sym).toUpperCase())
+          if (!series) continue
+          const rawBars = (cmpData && cmpData[String(c.sym).toUpperCase()]) || []
+          try { series.setData(anchoredSameScalePoints(rawBars, fbars, lr, adjustTime)) } catch { /* series busy */ }
+        }
+      }
     }
     const onRange = (range) => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => compute(range)) }
     try { ts.subscribeVisibleLogicalRangeChange(onRange) } catch { /* older API */ }
@@ -9340,16 +9368,19 @@ export default function StockChart({
   useEffect(() => {
     const chart = chartRef.current
     if (!chart) return
-    // A 'same'-scale comparison shares this scale, so it MUST be Percentage — that
-    // is what makes LWC rebase the base + the comparison to the same 0% left edge so
-    // an out-performer sits higher. Reverts to the A/L/% choice once none remain.
-    const mode = (hasSameScaleComparison || effectiveScale === 'pct') ? 2 : (effectiveScale === 'log' ? 1 : 0)
+    // The main scale mode follows ONLY the user's A/L/% toggle. A 'same'-scale
+    // comparison does NOT force Percentage here (that rebased the candles + MAs and
+    // drew LWC's 0% baseline); instead its line is transformed into the base's DOLLAR
+    // space, anchored at the visible-left edge (see the comparison render + framed
+    // effects), so an out-performer still rises above the base while the base scale
+    // stays in dollars and the MAs never move.
+    const mode = effectiveScale === 'pct' ? 2 : (effectiveScale === 'log' ? 1 : 0)
     // Apply to the PRICE scale (via the candle series, robust to the index pane
     // at pane 0) AND the index-comparison pane, so the A/L/% toggle switches
     // both panes together. The index line is raw price, so log/percent are valid.
     try { mainPriceScale()?.applyOptions({ mode }) } catch { /* pre-init */ }
     try { indexPaneSeriesRef.current?.priceScale().applyOptions({ mode }) } catch { /* no index pane */ }
-  }, [effectiveScale, chartReady, indexPaneSymbol, indexPaneSeries, mainPriceScale, hasSameScaleComparison])
+  }, [effectiveScale, chartReady, indexPaneSymbol, indexPaneSeries, mainPriceScale])
 
   // ── Multi-symbol comparison overlays — add/remove series ──
   // Uses left-side 'comparison' price scale (independent of right price + 'compare' scale).
@@ -9402,14 +9433,23 @@ export default function StockChart({
       } else {
         try { series.applyOptions({ color: cmp.color, lastValueVisible: false }) } catch {}
       }
-      try { series.setData(cmp.points) } catch {}
+      // 'same' → transform into the base's dollar space anchored at the visible-left
+      // (rises above the base without % mode); 'new' → raw closes on the left % scale.
+      if (cmp.scaleMode === 'same') {
+        let lr = null
+        try { lr = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
+        const rawBars = (comparisonsData && comparisonsData[cmp.sym]) || []
+        try { series.setData(anchoredSameScalePoints(rawBars, filteredBars, lr, adjustTime)) } catch {}
+      } else {
+        try { series.setData(cmp.points) } catch {}
+      }
     }
 
     // The dedicated LEFT scale (for 'new'-mode comparisons) runs in PERCENTAGE mode
     // so LWC rebases each of those lines to its first VISIBLE value — 0% on the left,
     // re-based on pan/zoom, lining up with each other. It is shown only while at
-    // least one comparison uses it; 'same'-mode comparisons ride the main scale
-    // instead (forced to Percentage by the scale-mode effect above).
+    // least one comparison uses it; 'same'-mode comparisons ride the base's dollar
+    // scale instead (transformed above, so the base scale never switches to %).
     try {
       const anyNewScale = comparisonSeries.some(s => s.scaleMode !== 'same')
       if (anyNewScale) {
@@ -9423,7 +9463,7 @@ export default function StockChart({
         chart.priceScale('left').applyOptions({ visible: false })
       }
     } catch {}
-  }, [comparisonSeries])
+  }, [comparisonSeries, comparisonsData, filteredBars, adjustTime])
 
   // ── Index comparison pane (Model Book) — white line in a pane ON TOP ──
   // Creates a LineSeries in its own pane, moves that pane to index 0 (above the
