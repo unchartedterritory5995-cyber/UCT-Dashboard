@@ -471,10 +471,19 @@ def test_callback_fails_closed_with_no_secret_configured(client, monkeypatch):
     assert r.status_code == 503
 
 
-def test_callback_returns_503_not_a_raw_traceback_when_encryption_key_unset(client, monkeypatch):
-    """Final-review Important #C, the callback path: `upsert_connector`'s
-    `crypto_box.CryptoBoxError` must map to a clean 503, never an unhandled
-    500 with a traceback -- and never a redirect that hides the failure."""
+def test_callback_redirects_to_settings_connected_0_when_encryption_key_unset(client, monkeypatch):
+    """Final-review Important #C fixed the callback path's raw 500;
+    post-ship polish item #2 revisited the shape of THAT fix: the callback
+    is a top-level browser GET completing the user's own OAuth redirect
+    (never an XHR), so a 503 JSON body here would render as a raw error
+    page mid-flow instead of landing the user back on Settings. Same
+    misconfig (`NOTE_ENCRYPTION_KEY` unset), same "nothing got connected"
+    outcome -- surfaced as a redirect now, matching every other
+    connect-time failure this endpoint already redirects on
+    (`errors.NoteConnError`, above this test in the file). The
+    TOKEN-connect path (`_connect_token_provider`, an XHR call site) is
+    unaffected and keeps its 503 JSON -- see
+    `test_connect_roam_returns_503_not_a_raw_traceback_when_encryption_key_unset`."""
     monkeypatch.setenv("NOTION_CLIENT_ID", "cid")
     monkeypatch.setenv("NOTION_CLIENT_SECRET", "csecret")
     monkeypatch.delenv("NOTE_ENCRYPTION_KEY", raising=False)
@@ -488,10 +497,15 @@ def test_callback_returns_503_not_a_raw_traceback_when_encryption_key_unset(clie
 
     r = client.get("/api/j2/notes/connectors/notion/callback",
                     params={"code": "authcode", "state": state}, follow_redirects=False)
-    assert r.status_code == 503
-    body = r.json()
-    assert "detail" in body and isinstance(body["detail"], str)
-    assert "Traceback" not in body["detail"]
+    assert r.status_code == 302
+    location = r.headers["location"]
+    assert location.endswith("/settings?connector=notion&connected=0")
+    # `connected=0` (never `1`) matters concretely, not just as a string:
+    # the shipped frontend self-heal effect (ConnectedAppsCard.jsx) is a
+    # no-op unless `connected == '1'` -- this redirect must never trip it
+    # into believing Notion connected when the connector row was never
+    # written.
+    assert client.get("/api/j2/notes/connectors/status").json()["providers"]["notion"]["connected"] is False
     assert client.get("/api/j2/notes/connectors/status").json()["providers"]["notion"]["connected"] is False
 
 

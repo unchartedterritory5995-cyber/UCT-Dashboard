@@ -78,7 +78,6 @@ export default function ConnectedAppsCard() {
     if (providers.dropbox?.connected && providers.dropbox.sources.length === 0) {
       setDropboxPickerOpen(true)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [providers, isLoading])
 
   if (!isPaid) {

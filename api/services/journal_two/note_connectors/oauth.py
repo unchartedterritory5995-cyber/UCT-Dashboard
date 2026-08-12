@@ -1,9 +1,17 @@
 """Generic OAuth2 client-credentials-grant module for note connectors.
 
-Notion (this task) is the first consumer; Dropbox (a later task) is a
-second, similarly-shaped OAuth2 provider — this module is written generic
-enough that adding it later is a `_PROVIDERS` entry, not a redesign. Only
-`"notion"` is registered here; a later task registers `"dropbox"`.
+Notion is the only consumer. Only `"notion"` is registered in `_PROVIDERS`
+— Dropbox is a similarly-shaped OAuth2 provider but is DELIBERATELY NOT
+here: its offline-refresh mechanics live as private helpers on the provider
+module itself (`providers/dropbox.py::_exchange_authorization_code`/
+`_refresh_access_token`, per that module's own "CONCURRENCY NOTE" —
+written before this file existed, self-contained on purpose), and
+`api/routers/note_sync.py`'s OAuth callback calls those directly (plus its
+own `_dropbox_redirect_uri()`) rather than going through
+`authorize_url`/`exchange_code` here. This module is still written generic
+enough that folding Dropbox in would be a `_PROVIDERS` entry, not a
+redesign — that consolidation just hasn't been done, not because the shape
+doesn't fit.
 
 Three entry points (task brief, verbatim signatures):
   - `authorize_url(provider, state)` — the URL to redirect the user to.

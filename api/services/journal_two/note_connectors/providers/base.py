@@ -173,6 +173,29 @@ class NoteProvider(ABC):
 # spirit but `async def` because refusing a bad HOSTNAME (as opposed to a
 # bad literal IP) requires resolving it first, and DNS resolution must not
 # block the event loop.
+#
+# ⚠️ NOT REBINDING-PROOF — READ BEFORE TRUSTING THIS AS A HARD BOUNDARY.
+# This guard is RESOLVE-THEN-FETCH, not resolve-and-connect-to-that-exact-
+# address: `assert_public_https` resolves `host` once and checks THOSE
+# addresses, then hands the same `host` string back to httpx, which does
+# its OWN independent `getaddrinfo` at TCP-connect time. A DNS server an
+# attacker controls (or a compromised/rebinding-capable resolver) can
+# legitimately answer PUBLIC on the first lookup and PRIVATE on the second,
+# a few milliseconds later — "DNS rebinding" — and this guard cannot see
+# the second answer at all. Closing that gap for real means never letting
+# httpx re-resolve the hostname: pin the address this function already
+# validated and connect to it directly (e.g. an httpx transport that
+# accepts a literal IP + a Host header, or a custom `AsyncHTTPTransport`
+# with connection-level IP pinning) — deliberately NOT built here. This
+# guard is accepted as-is because every call site already established (see
+# each provider's own credential-boundary note) that a content-controlled
+# fetch carries NO credential to steal — the worst a successful rebind
+# achieves is an unauthenticated GET landing on an internal service the
+# attacker already had to guess the existence of, not a token leak. Treat
+# this as a defense-in-depth SPEED BUMP against the common case (a literal
+# private IP or a static private-pointing hostname typed into note
+# content), never as a hard guarantee against a DETERMINED, actively
+# rebinding adversary.
 
 
 async def _resolve_host(host: str) -> list[str]:
@@ -225,7 +248,15 @@ async def assert_public_https(url: str, *, what: str = "media reference") -> str
     resolution failure is a network condition, not proof the reference is
     unsafe, so it gets the taxonomy's normal "safe to retry" treatment
     rather than being refused outright. Returns `url` unchanged on success
-    so a call site can inline it."""
+    so a call site can inline it.
+
+    ⚠️ NOT rebinding-proof: this resolves `host` and checks THOSE
+    addresses, but the caller's subsequent `client.get`/`client.stream`
+    re-resolves independently at connect time -- a DNS-rebinding attacker
+    can answer differently between the two lookups. See the module-level
+    comment above this section for why that gap is accepted here (no
+    credential ever rides on this fetch) rather than closed with a
+    connect-by-pinned-IP transport."""
     parsed = urlsplit(url)
     if (parsed.scheme or "").lower() != "https":
         raise NoteConnUnsupported(
@@ -272,7 +303,14 @@ async def guarded_media_get(
     at a time, running `assert_public_https` before every single request
     (the first and every subsequent hop) so no Location header ever reaches
     `client.get` unchecked. Bounded by `max_redirects` so a malicious or
-    misconfigured server chaining redirects can't hang the request."""
+    misconfigured server chaining redirects can't hang the request.
+
+    ⚠️ Inherits `assert_public_https`'s NOT-rebinding-proof caveat at every
+    hop: each `assert_public_https` call resolves and checks a hostname,
+    then the very next line's `client.get` re-resolves that SAME hostname
+    itself to actually connect -- a DNS-rebinding attacker controlling the
+    answer between those two lookups is not caught. See the module-level
+    comment above this section."""
     next_url = url
     for _ in range(max_redirects + 1):
         await assert_public_https(next_url, what=what)

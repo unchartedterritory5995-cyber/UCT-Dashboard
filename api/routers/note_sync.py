@@ -479,7 +479,26 @@ async def oauth_callback(
             status_code=302,
         )
 
-    _upsert_connector_or_503(user_id, provider, creds, account_label=account_label)
+    try:
+        _upsert_connector_or_503(user_id, provider, creds, account_label=account_label)
+    except HTTPException:
+        # Polish item #2: this is a top-level browser GET (the user's own
+        # navigation completing the OAuth redirect), not an XHR — letting
+        # `_upsert_connector_or_503`'s 503 propagate here would render as a
+        # raw JSON error page mid-flow instead of landing the user back on
+        # Settings. Same misconfig (`NOTE_ENCRYPTION_KEY` unset), same
+        # "nothing got connected" outcome as the `errors.NoteConnError`
+        # branch above — just without a `reason=` (the token-connect path,
+        # `_connect_token_provider`, is the XHR call site and keeps the
+        # 503 JSON `_upsert_connector_or_503` itself raises; only THIS
+        # call site needs the redirect treatment). `connected=0` (never
+        # `1`) is the self-heal effect's own contract
+        # (`ConnectedAppsCard.jsx`: `params.get('connected') !== '1'` is a
+        # no-op) — inert on arrival, not a false "connected" signal.
+        return RedirectResponse(
+            f"{dashboard}/settings?connector={provider}&connected=0",
+            status_code=302,
+        )
     if remote_id:
         dest_folder_id = _default_dest_folder_id(user_id, f"{entry.label} — {account_label}")
         connections.create_source(
