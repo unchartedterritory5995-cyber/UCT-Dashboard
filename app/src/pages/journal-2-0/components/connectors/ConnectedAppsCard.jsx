@@ -6,7 +6,7 @@
  * Card states (spec §8 / task brief):
  *   - !isPaid                       -> upsell
  *   - provider.configured === false -> "Coming soon" tile (dark provider, no env creds yet)
- *   - configured, no sources        -> "Connect" (token modal for roam/craft, OAuth redirect for notion/dropbox)
+ *   - configured, no sources        -> "Connect" (token modal for roam/craft, consent panel + OAuth redirect for notion/dropbox)
  *   - configured, sources.length>0  -> "Connected · N source(s)" + a SourceRow per source
  *
  * OAuth return: the backend's own `/{provider}/callback` route does the code
@@ -14,11 +14,17 @@
  * (task brief) — this card detects that querystring the way
  * BrokerConnectionsCard detects `?broker=connected`: refresh status, then
  * strip the params so a refresh doesn't replay the self-heal.
+ *
+ * Consent (fix-round 1, finding #1): OAuth providers don't get an immediate
+ * redirect on "Connect" — first click reveals a `ConnectConsentPanel`
+ * (mirrors BrokerConnectionsCard's `showConsent` panel); only its "Continue"
+ * (disabled until checked) fires `startOAuth`, which sends `consent: true`.
  */
 import { useEffect, useRef, useState } from 'react'
 import TileCard from '../../../../components/TileCard'
 import { useAuth } from '../../../../context/AuthContext'
 import useNoteConnectors, { NOTE_CONNECTOR_PROVIDERS } from '../../hooks/useNoteConnectors'
+import ConnectConsentPanel from './ConnectConsentPanel'
 import ConnectTokenModal from './ConnectTokenModal'
 import SourceRow from './SourceRow'
 import styles from './ConnectedAppsCard.module.css'
@@ -30,6 +36,8 @@ export default function ConnectedAppsCard() {
   } = useNoteConnectors()
 
   const [tokenModalProvider, setTokenModalProvider] = useState(null)
+  const [consentProvider, setConsentProvider] = useState(null)   // oauth key currently showing its consent panel
+  const [consentChecked, setConsentChecked] = useState(false)
   const [busyProvider, setBusyProvider] = useState(null)
   const [actionError, setActionError] = useState(null)
 
@@ -74,20 +82,33 @@ export default function ConnectedAppsCard() {
     )
   }
 
-  const openConnect = async (p) => {
+  const openConnect = (p) => {
     setActionError(null)
     if (p.tokenKind === 'oauth') {
-      setBusyProvider(p.key)
-      try {
-        await startOAuth(p.key)
-      } catch (err) {
-        setActionError(err?.detail || err?.message || 'Could not start the connection.')
-        setBusyProvider(null)
-      }
-      // On success `startOAuth` navigates the browser away — no need to clear busy.
+      // Reveal the consent panel — startOAuth only fires from its "Continue"
+      // (disabled until checked), never on this first click.
+      setConsentProvider(p.key)
+      setConsentChecked(false)
     } else {
       setTokenModalProvider(p.key)
     }
+  }
+
+  const confirmOAuthConnect = async (p) => {
+    setActionError(null)
+    setBusyProvider(p.key)
+    try {
+      await startOAuth(p.key)
+      // On success `startOAuth` navigates the browser away — no need to clear busy/consent.
+    } catch (err) {
+      setActionError(err?.detail || err?.message || 'Could not start the connection.')
+      setBusyProvider(null)
+    }
+  }
+
+  const cancelOAuthConsent = () => {
+    setConsentProvider(null)
+    setConsentChecked(false)
   }
 
   const handleSync = (source) => syncSource(source.id)
@@ -114,20 +135,22 @@ export default function ConnectedAppsCard() {
 
         <div className={styles.tiles}>
           {NOTE_CONNECTOR_PROVIDERS.map((p) => {
-            const info = providers[p.key] || {}
-            const sources = info.sources || []
-            const connected = sources.length > 0
+            // Always fully-shaped — normalizeStatus guarantees every provider
+            // key, so no `|| {}` fallback and no re-deriving `connected` here.
+            const info = providers[p.key]
+            const { configured, connected, sources } = info
+            const showingConsent = p.tokenKind === 'oauth' && consentProvider === p.key
             return (
               <div key={p.key} className={styles.tile} data-provider={p.key} data-testid={`connector-tile-${p.key}`}>
                 <div className={styles.tileHead}>
                   <span className={styles.tileName}>{p.label}</span>
-                  {!info.configured ? (
+                  {!configured ? (
                     <span className={styles.comingSoon}>Coming soon</span>
                   ) : connected ? (
                     <span className={styles.connectedBadge}>
                       Connected · {sources.length} source{sources.length === 1 ? '' : 's'}
                     </span>
-                  ) : (
+                  ) : showingConsent ? null : (
                     <button
                       type="button"
                       className={styles.primaryBtn}
@@ -138,6 +161,17 @@ export default function ConnectedAppsCard() {
                     </button>
                   )}
                 </div>
+
+                {!connected && showingConsent && (
+                  <ConnectConsentPanel
+                    providerLabel={p.label}
+                    checked={consentChecked}
+                    onCheck={setConsentChecked}
+                    busy={busyProvider === p.key}
+                    onConfirm={() => confirmOAuthConnect(p)}
+                    onCancel={cancelOAuthConsent}
+                  />
+                )}
 
                 {connected && (
                   <div className={styles.sourcesWrap}>

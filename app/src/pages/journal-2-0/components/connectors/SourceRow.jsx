@@ -38,7 +38,9 @@ export default function SourceRow({ source, providerSourceCount = 1, onSync, onT
   useEffect(() => () => clearTimeout(armTimer.current), [])
 
   const tone = freshnessTone(source)
-  const counts = source.counts || {}
+  // `source.counts` is always a fully-shaped object — normalizeStatus
+  // (useNoteConnectors.js) guarantees it, so no `|| {}` fallback here.
+  const counts = source.counts
   const conflicts = counts.conflicts || 0
 
   const handleSync = async () => {

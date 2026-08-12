@@ -250,6 +250,9 @@ describe('ImportWizard — connect tiles (Task 12)', () => {
       if (String(url).includes('/api/j2/notes/connectors/status')) {
         return new Response(JSON.stringify({ providers }))
       }
+      if (String(url).includes('/connect')) {
+        return new Response(JSON.stringify({ redirectUrl: 'https://api.notion.com/v1/oauth/authorize?x=1' }))
+      }
       if (String(url).endsWith('/note-folders')) return new Response(JSON.stringify({ folders: [] }))
       return new Response(JSON.stringify({ ok: true }))
     }))
@@ -295,5 +298,30 @@ describe('ImportWizard — connect tiles (Task 12)', () => {
 
     const tile = await screen.findByTestId('connect-tile-roam')
     expect(tile).toHaveTextContent('Roam Research connected')
+  })
+
+  it('an OAuth tile (notion) gates behind consent too — no connect POST until checked (fix-round 1, finding #1)', async () => {
+    mockConnectorsFetch({
+      roam: { configured: false, sources: [] },
+      craft: { configured: false, sources: [] },
+      notion: { configured: true, sources: [] },
+      dropbox: { configured: false, sources: [] },
+    })
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+
+    fireEvent.click(await screen.findByTestId('connect-tile-notion'))
+    const continueBtn = await screen.findByRole('button', { name: /^continue$/i })
+    expect(continueBtn).toBeDisabled()
+    await new Promise((r) => setTimeout(r, 20))
+    expect(vi.mocked(fetch).mock.calls.some((c) => String(c[0]).includes('/notion/connect'))).toBe(false)
+
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: /^continue$/i }))
+
+    await waitFor(() => {
+      const call = vi.mocked(fetch).mock.calls.find((c) => String(c[0]).includes('/notion/connect'))
+      expect(call).toBeTruthy()
+      expect(JSON.parse(call[1].body)).toEqual({ consent: true })
+    })
   })
 })

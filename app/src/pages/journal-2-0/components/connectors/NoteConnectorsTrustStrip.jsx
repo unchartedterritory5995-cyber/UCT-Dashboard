@@ -16,8 +16,10 @@ export default function NoteConnectorsTrustStrip() {
   const { providers, isLoading } = useNoteConnectors()
   if (isLoading) return null
 
+  // `providers[key].sources` is always an array — normalizeStatus guarantees
+  // every provider key + shape, so no `|| []` fallback needed here.
   const sources = Object.entries(providers).flatMap(([key, info]) =>
-    (info.sources || []).map((s) => ({ ...s, providerLabel: LABEL_BY_KEY[key] || key }))
+    info.sources.map((s) => ({ ...s, providerLabel: LABEL_BY_KEY[key] || key }))
   )
   if (sources.length === 0) return null
 

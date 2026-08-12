@@ -9,6 +9,12 @@
  * POSTs to `connectToken(provider, payload)` (from useNoteConnectors) and
  * renders a 400's `detail` inline rather than a toast/alert — the user needs
  * to see it right next to the field they can fix.
+ *
+ * Consent (fix-round 1, finding #1): spec §8 requires "Paid-plan gate mirrors
+ * broker connect; consent checkbox required" — mirrors
+ * BrokerConnectionsCard's consent panel. A required checkbox gates
+ * `canSubmit` alongside the credential fields, and `consent: true` rides in
+ * the connect POST body — the backend router 400s a connect without it.
  */
 import { useEffect, useState } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
@@ -21,6 +27,7 @@ export default function ConnectTokenModal({ open, provider, providerLabel, conne
   const [token, setToken] = useState('')
   const [apiUrl, setApiUrl] = useState('')
   const [apiKey, setApiKey] = useState('')
+  const [consentChecked, setConsentChecked] = useState(false)
   const [busy, setBusy] = useState(false)
   const [errorDetail, setErrorDetail] = useState(null)
 
@@ -31,13 +38,15 @@ export default function ConnectTokenModal({ open, provider, providerLabel, conne
     setToken('')
     setApiUrl('')
     setApiKey('')
+    setConsentChecked(false)
     setErrorDetail(null)
     setBusy(false)
   }, [open, provider])
 
-  const canSubmit = isRoam
+  const fieldsFilled = isRoam
     ? graphName.trim().length > 0 && token.trim().length > 0
     : apiUrl.trim().length > 0 && apiKey.trim().length > 0
+  const canSubmit = fieldsFilled && consentChecked
 
   const handleClose = () => {
     if (busy) return
@@ -51,8 +60,8 @@ export default function ConnectTokenModal({ open, provider, providerLabel, conne
     setErrorDetail(null)
     try {
       const payload = isRoam
-        ? { graphName: graphName.trim(), token: token.trim() }
-        : { apiUrl: apiUrl.trim(), apiKey: apiKey.trim() }
+        ? { graphName: graphName.trim(), token: token.trim(), consent: true }
+        : { apiUrl: apiUrl.trim(), apiKey: apiKey.trim(), consent: true }
       await connectToken(provider, payload)
       onConnected?.()
       onClose?.()
@@ -126,6 +135,15 @@ export default function ConnectTokenModal({ open, provider, providerLabel, conne
             </p>
           </>
         )}
+
+        <label className={styles.consentCheck}>
+          <input
+            type="checkbox"
+            checked={consentChecked}
+            onChange={(e) => setConsentChecked(e.target.checked)}
+          />
+          I authorize UCT Intelligence to access my {providerLabel} account to import my notes.
+        </label>
 
         {errorDetail && <div className={styles.error} role="alert">{errorDetail}</div>}
 
