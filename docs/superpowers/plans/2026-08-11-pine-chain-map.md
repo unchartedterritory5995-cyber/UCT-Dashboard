@@ -99,6 +99,44 @@ where the offset would otherwise have REFUSED. That confines the change to
 scripts that fail today, so no currently-working translation can move — and it
 is the thing to verify first, before any of the folding is written.
 
+🛑 **ATTEMPT FOUR — THE DESIGN WAS RIGHT AND THE FEATURE IS STILL WRONG. STOP HERE.**
+
+The resolution-time marker WORKS. `buildingRecurrence` tells the two positions
+apart, and the simple trailing stop translates correctly:
+
+    s = close + 1 ; p = nz(s[1], s) ; if s > 0 → s := high < p ? min(s, p) : s
+    → accum(close + 1, close + 1 > 0 ? (high < nz(self, close+1) ? min(…) : …) : …, 250)
+
+🔴 **AND IT WOULD SILENTLY MISTRANSLATE A HAND-ROLLED CUMULATIVE.** An existing
+rail caught it — `pine.variables.test.js`, which exists for exactly this:
+
+    x = 0.0
+    x := x[1] + volume          ← OBV by hand
+
+That becomes `accum(0, self + volume, 250)`. **`accum` RE-SEEDS EVERY 250 BARS.**
+It is a rolling sum, not a cumulative — which is precisely why `cum` is refused
+in the first place: a true cumulative changes value with how many bars were
+fetched. The plain-name recurrence path cannot tell a TRAILING STOP (bounded,
+correct under a re-seeding accumulator) from a RUNNING TOTAL (unbounded, wrong
+under one), because both are spelled `x := f(x[1])`.
+
+⛔ **SO THIS IS NOT A TRANSLATOR PROBLEM EITHER.** It is the same wall as `cum`,
+reached from the other side. Any general `x := f(x[1])` fold has to answer:
+*is this update bounded?* An accumulator that re-seeds is only sound when the
+update CONVERGES — a stop that clamps to a min/max does; a sum does not.
+
+**What a fifth attempt would need, and it is a real piece of design:**
+- a convergence test on the update tree — a min/max/clamp against a bounded
+  input is safe; an unbounded `self + x` is not — and refusal by name when it
+  cannot be shown;
+- or an unbounded accumulator with an ABSOLUTE seed, which is the same thing
+  `cum` needs and which the engine forbids by construction today.
+
+⭐ Four attempts, and each one narrowed it: attempt 1 found the collision,
+2 found the shared `self`, 3 found the neighbouring-binding escape, 4 found the
+boundedness question. The engine half below is real and shipped. This half should
+not ship until boundedness has an answer.
+
 ✅ **THE ENGINE HALF IS SHIPPED.** `self` now binds to the NEAREST ENCLOSING
 recurrence, so two independent accumulators can sit in one expression — proved
 across both lanes at 0.000e+00. The claim that this needed a closed-table change
