@@ -82,6 +82,7 @@ def _in_market_hours(now_et: datetime = None) -> bool:
 # bullish and bearish share priority 3 (same conviction weight, just opposite
 # direction — used for grouping in the UI).
 TIER_PRIORITY = {
+    "alpha_leaps": 1,   # aggregate-conviction LEAP position (see _derive_alert_name)
     "alpha":   1,
     "size":    2,
     "bullish": 3,
@@ -269,6 +270,17 @@ DEFAULT_THRESHOLDS = {
     #   alpha_max_weekly_dte to 179  → Alpha Gold eligible
     #   180+                         → LEAPS tier
     "alpha_max_weekly_dte": 7,
+    # ── Alpha LEAPS — aggregate-conviction LEAP tier (2026-08-11) ──────────
+    # A LEAP (DTE>=180) ask-side position BUILT with size across multiple
+    # prints (sweeps + blocks) on ONE (symbol,strike,expiry) — session
+    # aggregate ASK premium >= alpha_leaps_min_aggregate_premium AND near-the-
+    # money (abs moneyness <= alpha_leaps_max_otm_pct) — surfaces at the top as
+    # its own "Alpha LEAPS" tier (counts blocks, ignores the <180 Alpha Gold
+    # DTE cap). Set alpha_leaps_enabled=False to disable (rows fall back to the
+    # LEAPS tier). Grades the AGGREGATE, not the single print.
+    "alpha_leaps_enabled": True,
+    "alpha_leaps_min_aggregate_premium": 3_000_000,
+    "alpha_leaps_max_otm_pct": 15.0,
     # Global deep-ITM filter (added 6/30 morning).
     #
     # Trades deeper than this threshold are "synthetic stock substitute"
@@ -1011,6 +1023,31 @@ def _build_session_long_ledger(rows) -> dict:
     return {rid: totals.get(key, 0.0) for rid, key in row_key.items()}
 
 
+def _build_session_ask_premium_ledger(rows) -> dict:
+    """ask_prem[row_id] = TOTAL ask-side (A/AA) PREMIUM on the row's contract
+    across the whole session (ORDER-INDEPENDENT). Sibling of
+    _build_session_long_ledger (which sums ask VOLUME) — this sums ask PREMIUM
+    so the classifier can grade an AGGREGATE position: sweeps AND blocks on the
+    SAME (symbol, strike, expiry) that add up to institutional conviction (the
+    Alpha LEAPS tier). Fed the FULL day's sided prints per contract (see
+    _compute_recent). Pure + testable. Contract = (ticker, cp, strike, exp)."""
+    totals: dict = {}     # contract_key -> total ask premium
+    row_key: dict = {}    # row_id -> contract_key
+    for r in rows:
+        rid = r["id"]
+        if rid is None:
+            continue
+        key = (r["Symbol"], r["CallPut"], r["Strike"], r["ExpirationDate"])
+        row_key[rid] = key
+        if (r["Side"] or "").strip().upper() in ("A", "AA"):
+            try:
+                p = float(r["Premium"] or 0)
+            except (TypeError, ValueError):
+                p = 0.0
+            totals[key] = totals.get(key, 0.0) + p
+    return {rid: totals.get(key, 0.0) for rid, key in row_key.items()}
+
+
 def _demote_contaminated_sell(a: dict, gross_ask_map: dict, thresholds: dict) -> None:
     """Clean-directional gate. A bid-side SELL on a MIXED contract — one whose
     TOTAL session ASK-buying is >= tradeSize × close_min_long_frac — can't be
@@ -1046,7 +1083,8 @@ def _demote_contaminated_sell(a: dict, gross_ask_map: dict, thresholds: dict) ->
         a["_tierPriority"] = TIER_PRIORITY["size"]
 
 
-def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None):
+def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None,
+                       agg_ask_premium: float = 0.0):
     """Returns (alertName, tier_key, tier_priority), or None if the row
     is a WHITE color that didn't qualify for premium-override promotion.
 
@@ -1141,6 +1179,30 @@ def _derive_alert_name(row: dict, direction: str, money_pct: float | None = None
                 color = "MAGENTA"
 
     if color == "MAGENTA":
+        # ─── Alpha LEAPS — aggregate-conviction on a LEAP position ─────────
+        # A LEAP (DTE>=180) is demoted out of Alpha Gold by design (Alpha Gold
+        # is <180) and would only reach the LEAPS tier. But when a position is
+        # BUILT with size — multiple ask-side prints (sweeps AND blocks) on the
+        # SAME (symbol, strike, expiry) summing to a large AGGREGATE premium,
+        # near-the-money — that's institutional conviction, not slow
+        # positioning. Grade the AGGREGATE, not the single print: count blocks
+        # (they add to the same strike) and don't demote for LEAP DTE. Fires
+        # ONLY for LEAPS; short-dated conviction still flows to Alpha Gold
+        # below. agg_ask_premium = the session's total A/AA premium on this
+        # contract (_build_session_ask_premium_ledger, threaded from
+        # _compute_recent). Tunable via the alpha_leaps_* thresholds.
+        try:
+            _al_th = _load_thresholds()
+        except Exception:
+            _al_th = DEFAULT_THRESHOLDS
+        if (_al_th.get("alpha_leaps_enabled", True)
+                and is_leaps and side_is_ask
+                and agg_ask_premium >= _al_th.get(
+                    "alpha_leaps_min_aggregate_premium", 3_000_000)
+                and money_pct is not None
+                and abs(money_pct) <= _al_th.get("alpha_leaps_max_otm_pct", 15.0)):
+            return (f"UCT Alpha LEAPS {direction}", "alpha_leaps",
+                    TIER_PRIORITY["alpha_leaps"])
         # Alpha Gold — rarest, top tier
         if premium >= 1_000_000 and side_is_ask and not is_leaps:
             # ─── Alpha Gold quality gates (ALL must pass) ──────────────
@@ -1374,7 +1436,8 @@ def _compute_conviction(premium: int, oi: int, volume: int,
     return (round(score, 1), grade)
 
 
-def _row_to_alert(row: dict, require_direction: bool = True) -> dict | None:
+def _row_to_alert(row: dict, require_direction: bool = True,
+                  agg_ask_premium: float = 0.0) -> dict | None:
     """Translate a FlowDB row to the alert shape LiveFlow.jsx expects.
     Returns None if the row should be skipped (e.g., unclassified side).
 
@@ -1634,7 +1697,8 @@ def _row_to_alert(row: dict, require_direction: bool = True) -> dict | None:
         result = (("UCT Size - Hedge Block" if _heavy_block else "UCT Size - Not Clean"),
                   "size", TIER_PRIORITY["size"])
     else:
-        result = _derive_alert_name(row, direction, money_pct=money_pct)
+        result = _derive_alert_name(row, direction, money_pct=money_pct,
+                                    agg_ask_premium=agg_ask_premium)
     if result is None:
         return None  # WHITE row that didn't qualify for premium override
     alert_name, tier_key, tier_priority = result
@@ -2515,16 +2579,26 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
         # trackable long). Runs only when enabled. Perf: a narrow 7-col
         # projection; cache it (watermark) if it ever strains RTH.
         _close_th = _load_thresholds()
-        if _close_th.get("close_detector_enabled", False):
+        _close_on = _close_th.get("close_detector_enabled", False)
+        _alpha_leaps_on = _close_th.get("alpha_leaps_enabled", True)
+        if _close_on or _alpha_leaps_on:
+            # ONE full-session ask/bid projection feeds BOTH the clean-directional
+            # ledger (ask VOLUME per contract) and the Alpha LEAPS ledger (ask
+            # PREMIUM per contract). Premium is added to the projection for the
+            # latter; the query is otherwise unchanged.
             _lc = conn.execute(f"""
-                SELECT id, Symbol, CallPut, Strike, ExpirationDate, Side, Volume
+                SELECT id, Symbol, CallPut, Strike, ExpirationDate, Side, Volume, Premium
                   FROM flow
                  WHERE {source_clause} AND CreatedDate = ?{sym_clause}
                    AND Side IN ('A','AA','B','BB')
             """, (today, *sym_params))
-            _gross_before = _build_session_long_ledger(_lc.fetchall())
+            _ledger_rows = _lc.fetchall()
+            _gross_before = _build_session_long_ledger(_ledger_rows) if _close_on else {}
+            _ask_prem_ledger = (_build_session_ask_premium_ledger(_ledger_rows)
+                                if _alpha_leaps_on else {})
         else:
             _gross_before = {}
+            _ask_prem_ledger = {}
     finally:
         conn.close()
 
@@ -2549,7 +2623,9 @@ def _compute_recent_core(today, limit, min_grade, sort_by, tier, curated, only_s
     for _i, r in enumerate(rows):
         if _FILL_YIELD_ROWS and _i and _i % _FILL_YIELD_ROWS == 0:
             time.sleep(_FILL_YIELD_SEC)   # release GIL so the WS keepalive breathes
-        a = _incr_classify(r) if _incremental else _row_to_alert(dict(r))
+        a = (_incr_classify(r) if _incremental
+             else _row_to_alert(dict(r),
+                                agg_ask_premium=_ask_prem_ledger.get(r["id"], 0.0)))
         if a is None:
             skipped_unclassified += 1
             continue
@@ -4469,6 +4545,9 @@ def should_auto_push(alert: dict, cfg: dict = None) -> bool:
     # ── Single-print tiers ──
     if cfg.get("alpha_gold") and (tier == "alpha" or "alpha gold" in name):
         return True
+    # Alpha LEAPS rides the same auto-push toggle as Alpha Gold (top conviction).
+    if cfg.get("alpha_gold") and (tier == "alpha_leaps" or "alpha leaps" in name):
+        return True
     if cfg.get("grade_a") and grade in ("A+", "A"):
         return True
     if cfg.get("size_sweep_enabled"):
@@ -5099,6 +5178,10 @@ async def save_thresholds(request: Request, _auth: dict = Depends(require_flow_a
         "alpha_min_vol_oi_ratio",    # vol > OI fresh-positioning gate
         "alpha_exclude_block_type",  # BLOCK trades excluded from Alpha Gold
         "alpha_max_weekly_dte",      # 7/8: short-dated (weekly) exclusion from Alpha
+        # Alpha LEAPS aggregate-conviction tier (2026-08-11)
+        "alpha_leaps_enabled",               # master gate for the Alpha LEAPS tier
+        "alpha_leaps_min_aggregate_premium", # session ask-premium floor per contract ($3M)
+        "alpha_leaps_max_otm_pct",           # near-the-money bound (abs moneyness %)
         "max_itm_pct",               # global deep-ITM filter (drops entirely)
         "size_min_vol_oi_ratio",     # vol > OI gate for Size tier
         "derive_strict_bid_only_bb", # B alone is ambiguous, only BB counts as bid-side
