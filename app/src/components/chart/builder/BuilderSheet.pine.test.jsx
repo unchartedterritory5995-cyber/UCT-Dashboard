@@ -227,7 +227,13 @@ describe('a script this engine cannot run says so, at its own token', () => {
   it('a variable bar offset is refused at the index, with the caret under it', async () => {
     mount()
     await flush()
-    await paste('//@version=5\nindicator("t")\nn = 3\nplot(close - close[n])\n')
+    // ⚠️ THE EXAMPLE MOVED 2026-08-11, THE BEHAVIOUR UNDER TEST DID NOT. `n = 3`
+    // used to refuse here and now FOLDS to `close[3]` — owner decision: the
+    // stored tree is authoritative, so an input is frozen for offsets exactly as
+    // it already was for lengths. What this test is about is the CARET landing
+    // under the index, so it now uses an index that genuinely cannot be reduced
+    // — a series — and the guard it names is unchanged.
+    await paste('//@version=5\nindicator("t")\nn = ta.sma(close, 3)\nplot(close - close[n])\n')
 
     const chip = screen.getByTestId('pine-refusal')
     expect(chip.getAttribute('data-guard')).toBe('pine:offset-literal')

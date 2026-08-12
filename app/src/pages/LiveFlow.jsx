@@ -127,6 +127,7 @@ function isHistoryActive(from, to) {
 // visual signal whenever a new one arrives. Bullish/Bearish stay clearly
 // green/red but desaturated. LEAPS/Unusual deeper / less luminous.
 const TIER_META = {
+  alpha_leaps: { label: "Alpha LEAPS", color: "#B583FF", bg: "#B583FF14" },  // aggregate-conviction LEAP position
   alpha:   { label: "Alpha Gold", color: "#FFD93B", bg: "#FFD93B14" },  // BRIGHT — the star
   bullish: { label: "Bullish",    color: "#4F8266", bg: "#4F826614" },  // muted forest
   bearish: { label: "Bearish",    color: "#8F4F4F", bg: "#8F4F4F14" },  // muted brick
@@ -134,19 +135,20 @@ const TIER_META = {
   unusual: { label: "Unusual",    color: "#4A7290", bg: "#4A729014" },  // muted steel blue
   algo:    { label: "Algo",       color: "#6B6B72", bg: "#6B6B7214" },  // neutral slate
 };
-const TIER_ORDER = ["alpha", "bullish", "bearish", "leaps", "unusual", "algo"];
+const TIER_ORDER = ["alpha_leaps", "alpha", "bullish", "bearish", "leaps", "unusual", "algo"];
 
 // Tiers that mix calls and puts (rows can be either direction). In these
 // sections, row text is tinted green/red based on cp so direction is visible
 // at a glance without scanning the C/P column. Bullish/Bearish tiers don't
 // need this — their direction is self-evident from the tier itself.
-const MIXED_DIRECTION_TIERS = new Set(["alpha", "leaps", "unusual", "algo"]);
+const MIXED_DIRECTION_TIERS = new Set(["alpha_leaps", "alpha", "leaps", "unusual", "algo"]);
 
 // Map alert → tier key via priority cascade (first match wins). Special tiers
 // take precedence over direction tiers — e.g. a bullish LEAPS trade lands in
 // the LEAPS section, not the Bullish section.
 function deriveTier(alert) {
   const name = (alert?.alertName || "").toLowerCase();
+  if (name.includes("alpha leaps")) return "alpha_leaps";  // MUST precede "leaps" + "alpha gold"
   if (name.includes("alpha gold")) return "alpha";
   if (name.includes("leaps")) return "leaps";
   if (name.includes("unusual") || name.includes("vol>oi")) return "unusual";

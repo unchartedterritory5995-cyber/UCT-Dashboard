@@ -23,7 +23,7 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Query
 from fastapi.responses import JSONResponse
 from api.services.cache import TTLCache
-from api.services.massive import _get_client, _detect_session
+from api.services.massive import _get_client, _detect_session, _ext_price_for
 
 router = APIRouter()
 
@@ -442,15 +442,16 @@ def _fetch_snapshots(client, tickers: list[str], session: str) -> dict:
         ext_price = None
         ext_session = None
         if session != "regular":
-            lt_price = last_trade.get("p")
-            if lt_price and float(lt_price) > 0:
-                ext_price = round(float(lt_price), 2)
-                ext_session = session
+            # min.c-aware: a STALE lastTrade (SPY sits pinned to the 4pm regular close
+            # in pre/post) falls back to the minute-aggregate close that the chart's
+            # extended bars use. See _ext_price_for.
+            ext_price, ext_session = _ext_price_for(session, last_trade, minute, day)
+            if ext_price is not None:
                 _EXT_LAST[ticker] = (_today, session, ext_price)
             else:
-                # Empty lastTrade on THIS poll only — see _EXT_LAST. Re-serve the
-                # last print from this same session so the ticker never reads as
-                # "no extended session" (which sends the chart back to the stale
+                # Empty read on THIS poll only — see _EXT_LAST. Re-serve the last
+                # print from this same session so the ticker never reads as "no
+                # extended session" (which sends the chart back to the stale
                 # regular/prior close for one tick = the ghost wick).
                 prior = _EXT_LAST.get(ticker)
                 if prior is not None and prior[0] == _today and prior[1] == session:

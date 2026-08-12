@@ -145,6 +145,10 @@ const TIER_META = {
   // signal QUALITY and how to use the tier, NOT the underlying rules
   // (premium thresholds, V/OI ratios, DTE cutoffs, side classification).
   // This is proprietary algo logic and shouldn't be exposed via tooltips.
+  alpha_leaps: {
+    label: "Alpha LEAPS", color: "#B583FF", bg: "#B583FF14",
+    desc: "Aggregate-conviction LEAP position — sweeps + blocks stacked on one strike with size, near-the-money. Top-tier signal.",
+  },
   alpha: {
     label: "Alpha Gold", color: "#FFD93B", bg: "#FFD93B14",
     desc: "Highest-conviction directional flow. Top-tier signal — primary trading candidate.",
@@ -174,7 +178,7 @@ const TIER_META = {
     desc: "Multi-leg / complex strategies. Non-directional — treat as background.",
   },
 };
-const TIER_ORDER = ["alpha", "size", "bullish", "bearish", "leaps", "unusual"];  // "algo" removed 2026-07-21 (Bullflow-era; Massive has no tradeType) — algo rows auto-hide (no filter key)
+const TIER_ORDER = ["alpha_leaps", "alpha", "size", "bullish", "bearish", "leaps", "unusual"];  // "algo" removed 2026-07-21 (Bullflow-era; Massive has no tradeType) — algo rows auto-hide (no filter key)
 
 // ─── localStorage keys ────────────────────────────────────────────────────
 const LS_KEY_FILTERS = "uct_liveflow_massive_filters_v1";
@@ -219,13 +223,15 @@ function _expSortVal(exp) {
 }
 
 function loadFilters() {
+  const def = {};
+  for (const t of TIER_ORDER) def[t] = true;
   try {
     const v = JSON.parse(localStorage.getItem(LS_KEY_FILTERS) || "null");
-    if (v && typeof v === "object") return v;
+    // Merge over defaults so a NEWLY-added tier (e.g. alpha_leaps) defaults ON
+    // for existing users instead of being undefined→hidden by their saved blob.
+    if (v && typeof v === "object") return { ...def, ...v };
   } catch {}
-  const f = {};
-  for (const t of TIER_ORDER) f[t] = true;
-  return f;
+  return def;
 }
 function saveFilters(f) {
   try { localStorage.setItem(LS_KEY_FILTERS, JSON.stringify(f)); } catch {}
