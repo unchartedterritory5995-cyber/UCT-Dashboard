@@ -22,6 +22,7 @@ import { buildExtensions, extractPlainText } from './tiptap'
 import {
   buildWidgetEmbedAttrs, parseChartSlashArgs, parseTfToken,
   resolveEmbedRender, embedAutoCaption, widgetSlotNode,
+  reanchorRange, countLiveEmbeds, LIVE_EMBEDS_PER_ENTRY,
 } from './widgetEmbedCore'
 import WidgetEmbedView from '../components/notebook/WidgetEmbedView'
 
@@ -134,6 +135,40 @@ describe('document round-trip', () => {
     const txt = extractPlainText(doc)
     expect(txt).toContain('[chart: AMD 5m]')
     expect(txt).toContain('[widget]')
+  })
+})
+
+describe('timeframe re-anchoring (spec: same center, never jump to now)', () => {
+  it('keeps the center timestamp and re-sizes the window by bar count', () => {
+    // 100 five-minute bars: 30,000s window centered on 1,715,000,000.
+    const from = 1715000000 - 15000
+    const to = 1715000000 + 15000
+    const r = reanchorRange(from, to, '5', '15')
+    // Same bar count at 15m = 3× the span, same center.
+    expect((r.from + r.to) / 2).toBeCloseTo(1715000000, 0)
+    expect(r.to - r.from).toBe(90000)
+    // Downshift: 15m → 5m shrinks the window back, same center.
+    const r2 = reanchorRange(r.from, r.to, '15', '5')
+    expect((r2.from + r2.to) / 2).toBeCloseTo(1715000000, 0)
+    expect(r2.to - r2.from).toBe(30000)
+  })
+  it('handles intraday ↔ daily and rejects unusable ranges', () => {
+    const r = reanchorRange(1715000000, 1715000000 + 20 * 86400, 'D', '60')
+    expect((r.from + r.to) / 2).toBeCloseTo(1715000000 + 10 * 86400, 0)
+    expect(r.to - r.from).toBe(20 * 3600)
+    expect(reanchorRange(null, 1715000000, '5', '15')).toBeNull()
+    expect(reanchorRange(1715000000, 1715000000, '5', '15')).toBeNull()
+  })
+})
+
+describe('live-embed budget', () => {
+  it('counts live embeds and the cap constant matches the owner decision', () => {
+    const live = { type: 'widgetEmbed', attrs: { mode: 'live' } }
+    const snap = { type: 'widgetEmbed', attrs: { mode: 'snapshot' } }
+    const doc = { type: 'doc', content: [live, snap, { type: 'paragraph', content: [] }, live] }
+    expect(countLiveEmbeds(doc)).toBe(2)
+    expect(countLiveEmbeds({})).toBe(0)
+    expect(LIVE_EMBEDS_PER_ENTRY).toBe(3)
   })
 })
 

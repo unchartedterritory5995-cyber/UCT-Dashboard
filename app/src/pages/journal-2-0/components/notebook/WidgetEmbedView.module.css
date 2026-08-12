@@ -47,6 +47,35 @@
 
 .loading { background: var(--panel-2, #141414); }
 
+.toolbar {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  z-index: 3;
+  display: none;
+  align-items: center;
+  gap: 4px;
+}
+.frame:hover .toolbar,
+.selected .toolbar { display: inline-flex; }
+.toolBtn {
+  padding: 2px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--border, #333);
+  background: var(--panel, rgba(12, 12, 12, 0.92));
+  color: var(--text, #cfcfcf);
+  font-size: 11px;
+  cursor: pointer;
+}
+.toolBtn:hover { border-color: var(--ut-gold, #c9a84c); }
+.toolbarMsg {
+  color: var(--ut-gold, #c9a84c);
+  font-size: 11px;
+  padding-right: 4px;
+}
+/* The toolbar shares the corner with the LIVE badge — drop the badge below it. */
+.frame:hover .liveBadge, .selected .liveBadge { top: 32px; }
+
 .liveBadge {
   position: absolute;
   top: 6px;

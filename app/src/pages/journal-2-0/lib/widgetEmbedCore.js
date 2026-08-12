@@ -79,6 +79,54 @@ export function resolveEmbedRender(attrs) {
   return { kind: hasImage ? 'image' : 'placeholder', reason: 'image-only' }
 }
 
+// Seconds per bar for re-anchoring math. Daily+ use calendar approximations —
+// the bars API aligns to real sessions; this only sizes the WINDOW.
+const TF_SECONDS = { D: 86400, W: 7 * 86400, M: 30 * 86400 }
+function tfSeconds(tf) {
+  const t = String(tf ?? 'D')
+  if (/^\d+$/.test(t)) return Number(t) * 60
+  return TF_SECONDS[t] || 86400
+}
+
+/** Timeframe switches re-anchor around the SAME CENTER timestamp — never jump
+ *  to now (spec Phase 4 rule). Keeps the old window's bar count at the new
+ *  timeframe's bar size. Inputs/outputs are epoch seconds; null when the old
+ *  range is unusable (caller keeps the old anchor). */
+export function reanchorRange(from, to, oldTf, newTf) {
+  const f = tsToEpochSecondsPublic(from)
+  const t = tsToEpochSecondsPublic(to)
+  if (f == null || t == null || t <= f) return null
+  const center = (f + t) / 2
+  const bars = Math.max(1, Math.round((t - f) / tfSeconds(oldTf)))
+  const half = (bars * tfSeconds(newTf)) / 2
+  return { from: Math.round(center - half), to: Math.round(center + half) }
+}
+
+// Exported twin of the registry-private converter (same dual encoding).
+export function tsToEpochSecondsPublic(v) {
+  if (typeof v === 'number' && Number.isFinite(v)) return v > 10_000_000_000 ? v / 1000 : v
+  if (typeof v === 'string') {
+    const ms = Date.parse(v)
+    return Number.isFinite(ms) ? ms / 1000 : null
+  }
+  return null
+}
+
+/** Live embeds allowed per entry (owner decision #11). */
+export const LIVE_EMBEDS_PER_ENTRY = 3
+
+/** Count mode:'live' widgetEmbed nodes in a doc JSON. */
+export function countLiveEmbeds(doc) {
+  let n = 0
+  const walk = (node) => {
+    if (!node || typeof node !== 'object') return
+    if (node.type === 'widgetEmbed' && node.attrs?.mode === 'live') n += 1
+    for (const child of node.content || []) walk(child)
+  }
+  walk(doc)
+  return n
+}
+
 /** A template-declarable widget slot. Entry templates (notebookTemplates.js
  *  TEMPLATES[].build(ctx)) push this node straight into their returned doc
  *  content — the stated integration point: the owner's regenerated templates
