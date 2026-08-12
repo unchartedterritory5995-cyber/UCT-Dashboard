@@ -194,7 +194,13 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
       'pine:request', // 04, 12
       'pine:state', // 10 — a trailing stop is a real accumulator
       'pine:reassign', // 20 — a `:=` inside UDT/array code the fold cannot read
-      'pine:block', // 06 — a `switch` inside a user function
+      // ⚰️ `pine:block` LEFT THIS LIST 2026-08-11, CLOSED not weakened — the third
+      // guard to go that way, after `pine:role-order` and `pine:offset-literal`.
+      // It fired only on 06's `switch` inside `f_smooth`, and a `switch` on a
+      // FIXED subject is one arm: `smoothType` is `input.string("EMA", …)`, so
+      // every other arm is dead code. ⛔ THE GUARD IS STILL LIVE for `for`,
+      // `while`, and a `switch` whose subject moves bar to bar — it is simply no
+      // longer reachable from any published script in this corpus.
       // ⚰️ `pine:offset-literal` LEFT THIS LIST 2026-08-11, CLOSED RATHER THAN
       // WEAKENED — the same way `pine:role-order` did below. It fired on 05's
       // `hh[len]`, where `len` is a UDF parameter bound to an input; an input
@@ -238,7 +244,7 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
     // index that cannot be reduced; it is simply no longer reachable from these
     // 21 scripts. Exactly the movement this number exists to force somebody to
     // acknowledge, rather than a list going quietly stale.
-    expect(fired.size).toBe(11)
+    expect(fired.size).toBe(10)
   })
 
   it('⛔ and NOTHING in the corpus is blocked on the bar offset any more', () => {
@@ -307,8 +313,13 @@ describe('the whole corpus, in one number', () => {
     // ⚠️ A number going DOWN here is why it is pinned in both directions. This is
     // a correction, not a regression: nothing that worked yesterday stopped
     // working, and 10/38 is the first honest reading this file has published.
-    expect(translating).toBe(10)
-    expect(columns).toBe(38)
+    // ⭐⭐ 10/38 → 11/47, 2026-08-11. `06-adx-advanced` cleared, and it took TWO
+    // fixes that each had to be DEFERRED TO RESOLVE TIME to work at all: a
+    // `switch` on a fixed subject reduces to its one live arm, and `ta.dmi`'s two
+    // periods are compared as VALUES rather than as spellings. Nine columns out
+    // of one script — the largest single gain this file has recorded.
+    expect(translating).toBe(11)
+    expect(columns).toBe(47)
   })
 
   it('⭐ every script that translates is one a member could actually SAVE', () => {
@@ -317,7 +328,7 @@ describe('the whole corpus, in one number', () => {
     // read-back — and a coverage number that counted translations would be
     // reporting the first of those as if it were the second.
     const saveable = FILES.filter((f) => SNAPSHOT[f].downstream && SNAPSHOT[f].downstream.ok)
-    expect(saveable.length).toBe(10)
+    expect(saveable.length).toBe(11)
     for (const f of saveable) {
       expect(SNAPSHOT[f].downstream.repaint, f).toBe('non-repainting')
     }

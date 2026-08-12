@@ -825,20 +825,20 @@ function dmiParts(toks, close, names, env, first) {
   if (!call || call.type !== 'call' || bare !== 'dmi') return null
   const args = (call.args || []).map((a) => a.value)
   if (args.length !== 2) return null
-  // ⛔ The two periods must be the SAME token-for-token expression. Comparing
-  // resolved values would need a constant folder; comparing spelling is exact
-  // for the shape that matters and refuses everything it cannot prove equal.
-  const spell = (n) => JSON.stringify(n, (k, v) => (k === 'tok' ? undefined : v))
-  if (spell(args[0]) !== spell(args[1])) return null
   const at = locate(first)
   // Each leg is an ordinary Pine call whose ROLE ORDER is declared in
   // `PINE_CALL_SHAPES`, so the three series come from the table's own statement
   // of them rather than from this function. (Filling them here refused at
   // `pine:role-order`, correctly.)
-  const part = (pineName) => exprBinding({
-    type: 'call', name: pineName, args: [{ value: args[0] }], tok: first,
-  }, new Map(env), at)
-  return [part('dmiplusleg'), part('dmiminusleg'), part('dmiadxleg')]
+  // ⛔ THE TWO PERIODS ARE COMPARED AT RESOLVE TIME, NOT HERE. At fold time a
+  // name is not a value, so the first cut compared the two argument nodes by
+  // SPELLING — which refused `ta.dmi(diLen, adxSmooth)` even when both inputs
+  // hold 14, and that is exactly the call the corpus's ADX script makes.
+  // Deferring it is the same shape `switch` and a tuple part already use.
+  const leg = (pineName) => ({
+    kind: 'dmiLeg', pineName, a: args[0], b: args[1], env: new Map(env), at,
+  })
+  return [leg('dmiplusleg'), leg('dmiminusleg'), leg('dmiadxleg')]
 }
 
 function findTop(toks, pred) {
@@ -1407,6 +1407,62 @@ class Resolver {
     // name to a part; resolving one INLINES the call exactly as the `fn` arm
     // below does and then takes its own element. The frame is the call's, so a
     // part reads the caller's arguments and not somebody else's.
+    // ⭐⭐ A `switch` REDUCED TO ITS ONE LIVE ARM. The subject must be a string
+    // this script FIXES — an `input.string("EMA", …)` or a literal — because the
+    // whole basis for reducing it is that the branch does not move bar to bar.
+    // Anything else and every arm would have to exist at once, which is a menu
+    // rather than a column, and it keeps refusing at `pine:block`.
+    if (bound.kind === 'switch') {
+      const subject = this.stringValueOf(bound.subject)
+      if (subject === null) {
+        throw new PineRefusal('pine:block',
+          `${REFUSALS['pine:block']} — \`switch\`, and this one's subject is not a value the `
+          + 'script fixes, so every arm would have to exist at once',
+          bound.at || locate(tok))
+      }
+      let picked = null
+      for (const arm of bound.arms) {
+        const label = this.stringValueOf(parseWholeExpression(arm.match))
+        if (label !== null && label === subject) { picked = arm.binding; break }
+      }
+      if (!picked) picked = bound.fallback
+      if (!picked) {
+        // ⛔ Pine falls through to `na` when nothing matches and there is no
+        // default. This engine HAS a not-computable, but choosing it here would
+        // invent a column the script does not describe — so it is named instead.
+        throw new PineRefusal('pine:block',
+          `${REFUSALS['pine:block']} — \`switch\` on \`${subject}\`, and no arm matches it `
+          + 'and there is no default', bound.at || locate(tok))
+      }
+      return this.resolveBinding(picked, tok, name)
+    }
+    // ⭐ ONE LEG OF `ta.dmi`, with its two periods compared HERE where they are
+    // values rather than names.
+    //
+    // ⛔ PINE SMOOTHS THE ADX OVER ITS SECOND ARGUMENT while the DI legs use the
+    // first; this table's `adx` takes ONE period for both. So an unequal pair
+    // refuses rather than quietly returning a 14/14 ADX — the identical decision
+    // `ADX14.20` makes on the TC2000 side, and the same reason: a member who
+    // asked for 14/20 must not be handed a number that is not the indicator they
+    // asked for.
+    if (bound.kind === 'dmiLeg') {
+      const prevEnv = this.env
+      this.env = bound.env || prevEnv
+      try {
+        const a = this.resolve(bound.a)
+        const b = this.resolve(bound.b)
+        const same = a.type === 'num' && b.type === 'num' && a.value === b.value
+        if (!same) {
+          throw new PineRefusal('pine:tuple',
+            `${REFUSALS['pine:tuple']} — \`ta.dmi\` smooths its ADX over the SECOND period `
+            + 'and this table uses one period for both, so the two must agree',
+            bound.at || locate(tok))
+        }
+        return this.resolve({
+          type: 'call', name: bound.pineName, args: [{ value: bound.a }], tok,
+        })
+      } finally { this.env = prevEnv }
+    }
     if (bound.kind === 'tuplePart') {
       if (this.frames.length >= MAX_CALL_DEPTH) {
         throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — \`${name}\``, locate(tok))
@@ -1910,7 +1966,29 @@ class Resolver {
     this.frames.push(node.args.map((a) => ({ kind: 'expr', node: a.value, env: callerEnv })))
     const prevEnv = this.env
     this.env = bound.value.env || prevEnv
-    try { return this.resolve(bound.value.node) } finally { this.frames.pop(); this.env = prevEnv }
+    // ⛔ THROUGH `resolveBinding`, NOT `resolve(bound.value.node)`. A function's
+    // value is a BINDING and only the plain `expr` kind carries a `.node` — so
+    // reaching for one directly resolved `undefined` the moment a body ended in
+    // anything else. Measured: a body ending in a `switch` produced a TypeError
+    // that surfaced as `pine:statement`, which reads as "the translator cannot
+    // parse this line" about a line it parsed perfectly well.
+    //
+    // ⚠️ THE ENV IS SET HERE AND SET AGAIN INSIDE, deliberately: `resolveBinding`
+    // swaps to the binding's own env, which for an `expr` is the same object this
+    // line just chose. Leaving both is what keeps every OTHER binding kind
+    // reaching its own scope rather than the caller's.
+    //
+    // ⛔ AND THE `expr` KIND KEEPS THE DIRECT PATH, WHICH IS NOT AN OPTIMISATION.
+    // `resolveBinding` guards against cycles with `this.stack`, and a function
+    // called INSIDE ITSELF — `f(f(x))`, legal Pine and covered by
+    // `pine.variables.test.js` — re-enters the same value binding. Routing the
+    // common case through there reported `pine:cycle` for a call that simply
+    // nests. Measured: it went red on the first attempt at this fix.
+    try {
+      return bound.value.kind === 'expr'
+        ? this.resolve(bound.value.node)
+        : this.resolveBinding(bound.value, node.tok, name)
+    } finally { this.frames.pop(); this.env = prevEnv }
   }
 
   /** ⭐ THE DERIVED MAP. `pineName` is what the member wrote; `base` is it with a
@@ -2450,6 +2528,45 @@ function foldStatements(stmts, ctx, env) {
     }
     if (first.kind === 'ident' && TYPE_KEYWORDS.has(first.value)) {
       throw new PineRefusal('pine:type', REFUSALS['pine:type'], locate(first))
+    }
+    // ⭐⭐ A `switch` ON A FIXED SUBJECT IS ONE ARM. Published indicators lean on
+    // this hard: `f_smooth(x, len, mode)` with `mode` an `input.string("EMA", …)`
+    // is a menu a member picks from once, not a branch that moves bar to bar.
+    // Every arm but the chosen one is dead the moment the input folds.
+    //
+    // ⛔ THE ARM IS PICKED AT RESOLVE TIME, NOT HERE. Choosing now would need the
+    // subject's VALUE, and a name is not resolvable while the walk is still
+    // binding names — the same reason a tuple's parts are held rather than
+    // chosen. So the whole `switch` becomes ONE binding carrying its subject and
+    // its arms, and `resolveBinding` reduces it once the subject can be read.
+    if (first.kind === 'ident' && first.value === 'switch' && toks.length > 1) {
+      const arms = []
+      let fallback = null
+      let usable = true
+      for (const arm of (st.sub || [])) {
+        const at = findTop(arm.header, (t) => isPunct(t, '=>'))
+        if (at < 0) { usable = false; break }
+        const rhs = arm.header.slice(at + 1)
+        const binding = rhs.length
+          ? exprBinding(parseWholeExpression(rhs), new Map(env), locate(arm.header[0]))
+          : (arm.sub && arm.sub.length ? foldStatements(arm.sub, ctx, new Map(env)) : null)
+        if (!binding) { usable = false; break }
+        // A bare `=>` with nothing before it is Pine's default arm.
+        if (at === 0) fallback = binding
+        else arms.push({ match: arm.header.slice(0, at), binding })
+      }
+      if (usable && (arms.length || fallback)) {
+        value = {
+          kind: 'switch',
+          subject: parseWholeExpression(toks.slice(1)),
+          env: new Map(env),
+          arms,
+          fallback,
+          at: locate(first),
+        }
+        i += 1
+        continue
+      }
     }
     if (first.kind === 'ident' && (first.value === 'for' || first.value === 'while' || first.value === 'switch')) {
       throw new PineRefusal('pine:block',

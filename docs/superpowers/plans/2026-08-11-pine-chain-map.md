@@ -16,8 +16,8 @@ of a wall.
 
 | | scripts | why |
 |---|---|---|
-| **Reading today** | **10** | |
-| Reachable with contained work | **+1** | 06 only — 05 and 10 were re-measured and are NOT (see below) |
+| **Reading today** | **11** | 47 columns |
+| ✅ Reachable, and DONE | **+1** | 06 cleared 2026-08-11 — 9 columns |
 | Needs loops / UDTs (Phase 5) | 3 | 02, 20, 21 |
 | Structurally out, correctly | 5 | 04, **05**, 09, 14, 19 |
 | | **21** | |
@@ -175,7 +175,42 @@ forward reference inexpressible). Needs either a constant-folder for the offset
 argument, or a refusal that stays. **Measure whether `f_struct`'s offset is
 constant-foldable before committing to this one.**
 
-### 🥉 06 — the `switch` fold: ATTEMPTED, NOT LANDED. Design is sound; I ran out.
+### ✅ 06-adx-advanced — CLEARED. 10/38 → 11/47, the largest single gain yet.
+
+Both walls fell, and each needed the SAME move: defer the decision to resolve
+time, where a name is a value.
+
+1. **`switch` on a fixed subject reduces to one arm.** `smoothType` is
+   `input.string("EMA", …)`, "EMA" matches no label, so it takes the default —
+   `ema(x, len)`. A subject that moves bar to bar still refuses at `pine:block`.
+2. **`ta.dmi`'s two periods are compared as VALUES, not spellings.** The first
+   cut compared the argument NODES at fold time, which refused
+   `ta.dmi(diLen, adxSmooth)` even though both inputs hold 14 — the exact call
+   this script makes. A mismatch (14 vs 20) still refuses.
+
+⭐ **The formulas were READ, not just counted** — the lesson from the recurrence
+fold that produced plausible nonsense:
+
+    adx(high, low, close, 14) - ema(adx(high, low, close, 14), 3)   ← adxHist
+    plusDI(high, low, close, 14) · minusDI(high, low, close, 14)
+    ema(adx(high, low, close, 14), 3)                               ← adxLine
+
+🔴 **AND THE BUG THAT BLOCKED THIS FOR TWO ATTEMPTS WAS ONE LINE**, in neither of
+the two places I predicted. `pine.js`'s function-call path did
+`this.resolve(bound.value.node)` — but a function's value is a BINDING, and only
+the plain `expr` kind carries a `.node`. A body ending in anything else resolved
+`undefined`, and the TypeError surfaced as `pine:statement`: "the translator
+cannot parse this line", about a line it parsed perfectly.
+
+⚠️ The fix keeps `expr` on the direct path deliberately. Routing it through
+`resolveBinding` tripped the cycle guard on `f(f(x))` — legal Pine, and covered.
+
+**Guards closed by this, all three still live for what they actually guard:**
+`pine:block` (still refuses `for`/`while`/a moving subject) joins
+`pine:role-order` and `pine:offset-literal` as no longer reachable from any
+published script here.
+
+### 🥉 (history) 06 — the `switch` fold, before it landed
 
 **The target is right and the default arm is reachable.** `smoothType` is
 `input.string("EMA", …)` and `"EMA"` matches NO named arm, so it falls to
