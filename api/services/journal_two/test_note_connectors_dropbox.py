@@ -54,6 +54,7 @@ from api.services.journal_two.note_connectors.errors import (
     NoteConnTransient,
     NoteConnUnsupported,
 )
+from api.services.journal_two.note_connectors.providers import base as base_module
 from api.services.journal_two.note_connectors.providers import dropbox as dropbox_module
 from api.services.journal_two.note_connectors.providers.base import (
     AccountInfo,
@@ -162,6 +163,15 @@ def _make_provider(handler=_default_handler, *, sleep_fn=None, folder_path=FOLDE
     return DropboxProvider(client=client, sleep_fn=sleep_fn, folder_path=folder_path)
 
 
+async def _fake_resolve_host(addrs: list[str]) -> list[str]:
+    """Stand-in for `base._resolve_host` in SSRF-guard tests -- keeps
+    `assert_public_https`'s hostname-resolution branch hermetic (no live
+    DNS lookup, per this file's own "no live calls anywhere" module
+    docstring) while still exercising its real IP-range check on whatever
+    address list the test hands it."""
+    return addrs
+
+
 @pytest.fixture(autouse=True)
 def _dropbox_app_env(monkeypatch):
     monkeypatch.setenv("DROPBOX_APP_KEY", "test-app-key")
@@ -242,11 +252,16 @@ async def test_every_request_across_a_full_sync_targets_only_dropbox_hosts_with_
         assert req.headers.get("authorization") == f"Bearer {ACCESS_TOKEN}"
 
 
-async def test_fetch_media_external_url_never_receives_the_access_token():
+async def test_fetch_media_external_url_never_receives_the_access_token(monkeypatch):
     """A media `ref` handed to `fetch_media` that did NOT resolve to a known
     in-folder Dropbox path (an external URL, or a broken relative
     reference) must NEVER carry the Dropbox Bearer token — mirrors
     `CraftProvider.fetch_media`'s attacker-controlled-URL precedent."""
+    # `evil.example.com` isn't a literal IP, so the final-review Item D SSRF
+    # guard (`assert_public_https`) would otherwise resolve it via a REAL
+    # DNS lookup -- stub the resolver so this stays hermetic and keeps
+    # testing what it's named for (the credential boundary), not DNS.
+    monkeypatch.setattr(base_module, "_resolve_host", lambda host: _fake_resolve_host(["142.250.0.1"]))
     captured: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -276,6 +291,64 @@ async def test_fetch_media_rejects_non_https_scheme_without_making_a_request():
         await provider.fetch_media(CREDS, "http://example.com/img.png")
 
     assert request_count == 0, "a non-https, non-Dropbox ref must be refused before any request"
+
+
+# ---------------------------------------------------------------------------
+# fetch_media SSRF guard (final-review Item D) — the external-URL fallback
+# branch used to do a plain `client.get(ref, follow_redirects=True)` with
+# https-scheme-only checking; no host/IP validation at all.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://127.0.0.1/img.png",
+        "https://10.1.2.3/img.png",
+        "https://169.254.169.254/latest/meta-data/",  # cloud metadata endpoint
+        "https://[::1]/img.png",
+    ],
+)
+async def test_fetch_media_refuses_loopback_private_and_link_local_hosts(url):
+    def handler(request: httpx.Request) -> httpx.Response:  # pragma: no cover
+        raise AssertionError("must never issue a request to a private/internal host")
+
+    provider = _make_provider(handler)
+    with pytest.raises(NoteConnUnsupported):
+        await provider.fetch_media(CREDS, url)
+
+
+async def test_fetch_media_https_public_host_passes(monkeypatch):
+    monkeypatch.setattr(base_module, "_resolve_host", lambda host: _fake_resolve_host(["142.250.0.1"]))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.host == "cdn.example.com"
+        return httpx.Response(200, content=b"ok", headers={"content-type": "image/png"})
+
+    provider = _make_provider(handler)
+    data, content_type = await provider.fetch_media(CREDS, "https://cdn.example.com/img.png")
+    assert data == b"ok"
+    assert content_type == "image/png"
+
+
+async def test_fetch_media_refuses_a_redirect_that_targets_a_private_host(monkeypatch):
+    """A public-looking https URL that 302s to a private/internal address
+    must be refused BEFORE the second hop is ever requested -- the ref-
+    fetch fallback branch passed `follow_redirects=True` to plain
+    `client.get`, which re-validates nothing between hops."""
+    monkeypatch.setattr(base_module, "_resolve_host", lambda host: _fake_resolve_host(["142.250.0.1"]))
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        if str(request.url) == "https://cdn.example.com/img.png":
+            return httpx.Response(302, headers={"location": "http://169.254.169.254/latest/meta-data/"})
+        raise AssertionError(f"must never reach the redirect target, got {request.url}")
+
+    provider = _make_provider(handler)
+    with pytest.raises(NoteConnUnsupported):
+        await provider.fetch_media(CREDS, "https://cdn.example.com/img.png")
+    assert calls == ["https://cdn.example.com/img.png"]
 
 
 # ---------------------------------------------------------------------------
@@ -365,14 +438,17 @@ async def test_fetch_before_list_changed_raises_runtime_error():
 # ---------------------------------------------------------------------------
 
 
-async def test_unchanged_content_hash_is_not_re_emitted_on_a_second_full_listing():
-    """The actual "content_hash change skip" mechanism (review fix): a full
-    listing that returns the SAME content_hash for a path this process has
-    already seen does NOT re-emit it as a `RemoteRef` at all -- proven here
-    across two DIFFERENT `DropboxProvider` instances (mirrors the real
-    fresh-instance-per-sync boundary `_default_provider_factory` imposes),
-    since the tracking lives in the module-level `_LAST_SEEN_HASHES`, not on
-    `self`."""
+async def test_a_full_listing_NEVER_content_hash_filters_even_when_unchanged():
+    """Final-review CRITICAL fix: a FULL listing (`cursor=None`, or the
+    reset->full-relist fallback) must return EVERY present file
+    unconditionally, hash-skip or not -- it is the engine's ONLY "complete
+    present enumeration" signal (`_touch_remote_index` + `_run_delete_
+    detection` both assume a full pass yields everyone still there). Before
+    this fix, an unchanged file was silently ABSENT from a second full
+    listing's refs, which `_run_delete_detection` reads as a miss -- two
+    such passes falsely severed a file that never moved. Proven across two
+    DIFFERENT `DropboxProvider` instances (mirrors the real
+    fresh-instance-per-sync boundary `_default_provider_factory` imposes)."""
     entries = [{
         ".tag": "file", "name": "a.md", "path_lower": "/team notes/a.md",
         "content_hash": "hash-v1", "server_modified": "2026-08-01T00:00:00Z",
@@ -384,12 +460,46 @@ async def test_unchanged_content_hash_is_not_re_emitted_on_a_second_full_listing
         return httpx.Response(404)
 
     provider_1 = _make_provider(handler)
-    refs_1 = await provider_1.list_changed(CREDS)
+    refs_1 = await provider_1.list_changed(CREDS)  # full (cursor=None)
     assert [r.remote_id for r in refs_1] == ["/team notes/a.md"]  # first sync -- always emitted
 
-    provider_2 = _make_provider(handler)  # a FRESH instance, same folder -- next sync
-    refs_2 = await provider_2.list_changed(CREDS)
-    assert refs_2 == []  # unchanged content_hash -- skipped entirely
+    provider_2 = _make_provider(handler)  # a FRESH instance, same folder -- next FULL sync
+    refs_2 = await provider_2.list_changed(CREDS)  # still cursor=None -> still full
+    assert [r.remote_id for r in refs_2] == ["/team notes/a.md"], (
+        "a full listing must return an UNCHANGED present file, not silently drop it"
+    )
+
+
+async def test_unchanged_content_hash_IS_skipped_on_a_true_incremental_listing():
+    """The content_hash skip mechanism is real -- just scoped to the
+    INCREMENTAL path only (`list_folder/continue`, `cursor` supplied and
+    honored). Dropbox's own delta API already omits unchanged files from a
+    `continue` response in real usage; this pins that this provider does not
+    ALSO re-filter an entry the (mocked) API still included for some reason
+    -- the skip is genuinely applied, not a no-op, when `is_full=False`."""
+    entries = [{
+        ".tag": "file", "name": "a.md", "path_lower": "/team notes/a.md",
+        "content_hash": "hash-v1", "server_modified": "2026-08-01T00:00:00Z",
+    }]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/2/files/list_folder":
+            return httpx.Response(200, json={"entries": entries, "cursor": "seed-cursor", "has_more": False})
+        if request.url.path == "/2/files/list_folder/continue":
+            # The real Dropbox delta API would simply omit an unchanged file
+            # from a `continue` response -- but even if the (mocked) server
+            # includes it anyway, THIS provider's own hash-skip must still
+            # catch it on the incremental path.
+            return httpx.Response(200, json={"entries": entries, "cursor": "next-cursor", "has_more": False})
+        return httpx.Response(404)
+
+    provider_1 = _make_provider(handler)
+    refs_1 = await provider_1.list_changed(CREDS)  # seed: full listing
+    assert [r.remote_id for r in refs_1] == ["/team notes/a.md"]
+
+    provider_2 = _make_provider(handler)  # fresh instance, same folder
+    refs_2 = await provider_2.list_changed(CREDS, cursor="seed-cursor")  # TRUE incremental call
+    assert refs_2 == []  # unchanged content_hash on an incremental call -- skipped
 
 
 async def test_changed_content_hash_is_re_emitted_with_the_real_server_modified_timestamp():
@@ -1535,3 +1645,164 @@ async def test_non_iso_updated_at_falls_back_consistently_and_never_conflicts_on
     assert len(notes) == 1  # no `#remote` conflict sibling was created
     assert "sync-conflict" not in notes[0]["tags"]
     assert notes[0]["bodyPlain"] == "content version 2"  # the update actually applied
+
+
+# ---------------------------------------------------------------------------
+# Final-review CRITICAL fix: composed engine+dropbox delete-detection tests.
+# Uses the REAL DropboxProvider (mock transport) wired into the REAL engine
+# via `note_engine._provider_factory` -- proves the fix at the level the bug
+# actually manifested (delete detection reading `refs`), not just at the
+# provider's own `list_changed()` return value.
+# ---------------------------------------------------------------------------
+
+
+def _dropbox_provider_factory_for(handler):
+    """Mirrors `registry._build_dropbox`'s "fresh instance per sync" contract
+    -- a NEW `DropboxProvider` bound to the SAME mock transport/handler on
+    every `_provider_factory` call, exactly like production builds a fresh
+    instance per `_do_sync`. `_LAST_SEEN_HASHES` (module-level, not
+    instance-level) is what actually needs to persist across these fresh
+    instances -- the dropbox test file's autouse `_reset_last_seen_hashes`
+    fixture keeps that isolated between tests."""
+    def factory(name, source=None):
+        client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        return DropboxProvider(client=client, folder_path=FOLDER)
+    return factory
+
+
+def _churn_entry(path: str, name: str, content_hash: str, server_modified: str) -> dict:
+    return {
+        ".tag": "file", "name": name, "path_lower": path,
+        "content_hash": content_hash, "server_modified": server_modified,
+    }
+
+
+async def test_two_full_passes_with_churn_but_no_deletions_severs_nothing(
+    _engine_db, monkeypatch,
+):
+    """(2) Composed engine+dropbox scenario, the reviewer's exact repro
+    shape: two full passes, SOME files changed, SOME unchanged, NONE
+    deleted. Must produce ZERO severs and ZERO bumped miss_streaks on the
+    still-present files -- before the fix, the unchanged file(s) were
+    silently absent from a full pass's `refs`, which `_run_delete_detection`
+    reads as "missing" and bumps toward a false sever."""
+    a_path, b_path = "/team notes/a.md", "/team notes/b.md"
+    pass_num = {"n": 0}
+    contents = {a_path: b"# A v1\n", b_path: b"# B stable\n"}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "api.dropboxapi.com" and request.url.path == "/2/files/list_folder":
+            pass_num["n"] += 1
+            if pass_num["n"] == 1:
+                entries = [
+                    _churn_entry(a_path, "a.md", "a-hash-v1", "2026-08-01T00:00:00Z"),
+                    _churn_entry(b_path, "b.md", "b-hash-stable", "2026-08-01T00:00:00Z"),
+                ]
+            else:
+                # a.md's content_hash CHANGES; b.md's does NOT -- neither is
+                # deleted, both still appear in this full listing.
+                entries = [
+                    _churn_entry(a_path, "a.md", "a-hash-v2", "2026-08-05T00:00:00Z"),
+                    _churn_entry(b_path, "b.md", "b-hash-stable", "2026-08-01T00:00:00Z"),
+                ]
+            return httpx.Response(200, json={"entries": entries, "cursor": f"c{pass_num['n']}", "has_more": False})
+        if request.url.host == "content.dropboxapi.com" and request.url.path == "/2/files/download":
+            arg = _dbx_api_arg(request)
+            return httpx.Response(200, content=contents[arg["path"]])
+        return httpx.Response(404)
+
+    monkeypatch.setattr(note_engine, "_provider_factory", _dropbox_provider_factory_for(handler))
+    _engine_db.upsert_connector("u1", "dropbox", CREDS)
+    source = _engine_db.create_source("u1", "dropbox", FOLDER)
+
+    result_1 = await note_engine.sync_source(source["id"], full=True, manual=True)
+    assert result_1["created"] == 2
+    assert result_1["sourceDeleted"] == 0
+
+    contents[a_path] = b"# A v2 -- changed\n"  # a.md's content genuinely changes for pass 2
+
+    result_2 = await note_engine.sync_source(source["id"], full=True, manual=True)
+    assert result_2["sourceDeleted"] == 0
+    assert result_2["updated"] == 1   # a.md's content changed
+    assert result_2["skipped"] == 1   # b.md's did not
+
+    conn = auth_db.get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT remote_id, miss_streak FROM j2_note_remote_index WHERE user_id = ?",
+            ("u1",),
+        ).fetchall()
+    finally:
+        conn.close()
+    assert len(rows) == 2  # both still tracked -- neither severed
+    for row in rows:
+        assert row["miss_streak"] == 0, (
+            f"{row['remote_id']} has miss_streak={row['miss_streak']} -- a present, "
+            f"unchanged file was wrongly treated as a miss"
+        )
+    notes = notes_svc.list_notes("u1")
+    assert not any("source-deleted" in n["tags"] for n in notes)
+
+
+async def test_a_real_deletion_still_severs_after_two_full_passes(_engine_db, monkeypatch):
+    """(3) Control for the fix above: genuine delete detection must still
+    WORK. Three files; the third is truly removed from the Dropbox listing
+    starting pass 2 (never reappears) while the other two stay present and
+    UNCHANGED throughout (proving they don't confound the guard) -- must
+    sever only after the SECOND consecutive full pass that omits it, same
+    as the pre-existing 2-strike contract."""
+    a_path, b_path, c_path = "/team notes/a.md", "/team notes/b.md", "/team notes/c.md"
+    pass_num = {"n": 0}
+    contents = {a_path: b"# A\n", b_path: b"# B\n", c_path: b"# C\n"}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "api.dropboxapi.com" and request.url.path == "/2/files/list_folder":
+            pass_num["n"] += 1
+            entries = [
+                _churn_entry(a_path, "a.md", "a-hash-stable", "2026-08-01T00:00:00Z"),
+                _churn_entry(b_path, "b.md", "b-hash-stable", "2026-08-01T00:00:00Z"),
+            ]
+            if pass_num["n"] == 1:
+                entries.append(_churn_entry(c_path, "c.md", "c-hash-stable", "2026-08-01T00:00:00Z"))
+            # pass 2 and pass 3: c.md is genuinely gone -- never in the listing.
+            return httpx.Response(200, json={"entries": entries, "cursor": f"c{pass_num['n']}", "has_more": False})
+        if request.url.host == "content.dropboxapi.com" and request.url.path == "/2/files/download":
+            arg = _dbx_api_arg(request)
+            return httpx.Response(200, content=contents[arg["path"]])
+        return httpx.Response(404)
+
+    monkeypatch.setattr(note_engine, "_provider_factory", _dropbox_provider_factory_for(handler))
+    _engine_db.upsert_connector("u1", "dropbox", CREDS)
+    source = _engine_db.create_source("u1", "dropbox", FOLDER)
+
+    result_1 = await note_engine.sync_source(source["id"], full=True, manual=True)
+    assert result_1["created"] == 3
+    assert result_1["sourceDeleted"] == 0
+
+    # a.md and b.md are UNCHANGED (same content_hash) on both remaining
+    # passes -- with the fix they still appear in `refs` every time, so they
+    # never accumulate a miss_streak of their own.
+    result_2 = await note_engine.sync_source(source["id"], full=True, manual=True)
+    assert result_2["sourceDeleted"] == 0  # first miss for c.md -- not severed yet
+
+    result_3 = await note_engine.sync_source(source["id"], full=True, manual=True)
+    assert result_3["sourceDeleted"] == 1  # second consecutive miss -- severed now
+
+    conn = auth_db.get_connection()
+    try:
+        remaining = {
+            r["remote_id"] for r in conn.execute(
+                "SELECT remote_id FROM j2_note_remote_index WHERE user_id = ?", ("u1",),
+            ).fetchall()
+        }
+    finally:
+        conn.close()
+    assert remaining == {a_path, b_path}  # c.md's index row is gone; a/b still tracked
+
+    notes = notes_svc.list_notes("u1")
+    c_note = next(n for n in notes if n["title"] == "c")
+    assert "source-deleted" in c_note["tags"]
+    a_note = next(n for n in notes if n["title"] == "a")
+    b_note = next(n for n in notes if n["title"] == "b")
+    assert "source-deleted" not in a_note["tags"]
+    assert "source-deleted" not in b_note["tags"]

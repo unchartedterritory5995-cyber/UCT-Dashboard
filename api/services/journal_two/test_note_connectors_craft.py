@@ -41,6 +41,7 @@ from api.services.journal_two.note_connectors.errors import (
     NoteConnTransient,
     NoteConnUnsupported,
 )
+from api.services.journal_two.note_connectors.providers import base as base_module
 from api.services.journal_two.note_connectors.providers.base import RemoteRef
 from api.services.journal_two.note_connectors.providers.craft import (
     CraftProvider,
@@ -101,6 +102,15 @@ def _default_handler(request: httpx.Request) -> httpx.Response:
 def _make_provider(handler=_default_handler, rate_limiter=None) -> CraftProvider:
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     return CraftProvider(client=client, rate_limiter=rate_limiter)
+
+
+async def _fake_resolve_host(addrs: list[str]) -> list[str]:
+    """Stand-in for `base._resolve_host` in SSRF-guard tests -- keeps
+    `assert_public_https`'s hostname-resolution branch hermetic (no live
+    DNS lookup, per this file's own "no live calls anywhere" module
+    docstring) while still exercising its real IP-range check on whatever
+    address list the test hands it."""
+    return addrs
 
 
 def _find_all(doc, node_type: str) -> list[dict]:
@@ -434,11 +444,16 @@ async def test_fetch_media_attaches_bearer_for_a_craft_do_asset_subdomain():
     assert seen_headers.get("authorization") == f"Bearer {BEARER}"
 
 
-async def test_fetch_media_probe_attacker_host_receives_no_authorization_header():
+async def test_fetch_media_probe_attacker_host_receives_no_authorization_header(monkeypatch):
     """The load-bearing security probe: an attacker-controlled URL smuggled
     into a document's markdown (e.g. via a malicious/compromised note) must
     NEVER receive the Bearer key — captured via the actual outbound request,
     not merely inferred from the response."""
+    # `evil.example.com` isn't a literal IP, so the final-review Item D SSRF
+    # guard would otherwise resolve it via a REAL DNS lookup -- stub the
+    # resolver so this stays hermetic and keeps testing what it's named for
+    # (the credential boundary), not DNS.
+    monkeypatch.setattr(base_module, "_resolve_host", lambda host: _fake_resolve_host(["142.250.0.1"]))
     captured_requests: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -453,9 +468,10 @@ async def test_fetch_media_probe_attacker_host_receives_no_authorization_header(
     assert data == b"stolen?"  # the (harmless, unauthenticated) fetch itself still works
 
 
-async def test_fetch_media_probe_host_suffix_spoof_receives_no_authorization_header():
+async def test_fetch_media_probe_host_suffix_spoof_receives_no_authorization_header(monkeypatch):
     """`evilcraft.do` and `craft.do.evil.com`-shaped hosts must not slip past
     the trust check via a naive substring/`in` test."""
+    monkeypatch.setattr(base_module, "_resolve_host", lambda host: _fake_resolve_host(["142.250.0.1"]))
     captured_requests: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -473,6 +489,44 @@ async def test_fetch_media_probe_host_suffix_spoof_receives_no_authorization_hea
     assert len(captured_requests) == 3
     for req in captured_requests:
         assert "authorization" not in {k.lower() for k in req.headers.keys()}
+
+
+# ---------------------------------------------------------------------------
+# fetch_media SSRF guard (final-review Item D) — the no-auth fallback branch
+# (an untrusted host) used to blindly GET wherever `ref` pointed once past
+# the https-scheme check; no host/IP validation at all.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://127.0.0.1/img.png",
+        "https://10.1.2.3/img.png",
+        "https://169.254.169.254/latest/meta-data/",  # cloud metadata endpoint
+        "https://[::1]/img.png",
+    ],
+)
+async def test_fetch_media_refuses_loopback_private_and_link_local_hosts(url):
+    def handler(request: httpx.Request) -> httpx.Response:  # pragma: no cover
+        raise AssertionError("must never issue a request to a private/internal host")
+
+    provider = _make_provider(handler)
+    with pytest.raises(NoteConnUnsupported):
+        await provider.fetch_media(CREDS, url)
+
+
+async def test_fetch_media_untrusted_https_public_host_passes(monkeypatch):
+    monkeypatch.setattr(base_module, "_resolve_host", lambda host: _fake_resolve_host(["142.250.0.1"]))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.host == "public-cdn.example.com"
+        return httpx.Response(200, content=b"ok", headers={"content-type": "image/png"})
+
+    provider = _make_provider(handler)
+    data, content_type = await provider.fetch_media(CREDS, "https://public-cdn.example.com/img.png")
+    assert data == b"ok"
+    assert content_type == "image/png"
 
 
 async def test_fetch_media_rejects_non_https_scheme_without_making_a_request():

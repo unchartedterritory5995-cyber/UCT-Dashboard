@@ -244,6 +244,28 @@ def test_connect_paid_gate_blocks_free_user(client):
     assert client.get("/api/j2/notes/connectors/status").status_code == 200
 
 
+# ── Final-review Important #C: missing NOTE_ENCRYPTION_KEY -> clean 503 ──────
+
+def test_connect_roam_returns_503_not_a_raw_traceback_when_encryption_key_unset(client, monkeypatch):
+    """`connections.upsert_connector` is the ONE call site that encrypts the
+    stored token -- with `NOTE_ENCRYPTION_KEY` unset it raises a bare
+    `crypto_box.CryptoBoxError`, which used to escape as an unhandled 500.
+    Must map to the same clean 503 shape `NoteConnNotConfigured` produces
+    elsewhere, never a traceback."""
+    monkeypatch.delenv("NOTE_ENCRYPTION_KEY", raising=False)
+    fake = FakeTokenProvider(label="my-graph")
+    monkeypatch.setattr(registry, "build_provider", lambda name, source=None: fake)
+
+    r = client.post("/api/j2/notes/connectors/roam/connect",
+                     json={"consent": True, "graphName": "my-graph", "token": "tok"})
+    assert r.status_code == 503
+    body = r.json()
+    assert "detail" in body and isinstance(body["detail"], str)
+    assert "Traceback" not in body["detail"]
+    # The connector must never have been partially persisted.
+    assert client.get("/api/j2/notes/connectors/status").json()["providers"]["roam"]["connected"] is False
+
+
 # ── POST /{provider}/connect — OAuth providers (notion/dropbox) ─────────────
 
 def test_connect_notion_not_configured_returns_503(client):
@@ -447,6 +469,30 @@ def test_callback_fails_closed_with_no_secret_configured(client, monkeypatch):
     r = client.get("/api/j2/notes/connectors/notion/callback",
                     params={"code": "authcode", "state": state}, follow_redirects=False)
     assert r.status_code == 503
+
+
+def test_callback_returns_503_not_a_raw_traceback_when_encryption_key_unset(client, monkeypatch):
+    """Final-review Important #C, the callback path: `upsert_connector`'s
+    `crypto_box.CryptoBoxError` must map to a clean 503, never an unhandled
+    500 with a traceback -- and never a redirect that hides the failure."""
+    monkeypatch.setenv("NOTION_CLIENT_ID", "cid")
+    monkeypatch.setenv("NOTION_CLIENT_SECRET", "csecret")
+    monkeypatch.delenv("NOTE_ENCRYPTION_KEY", raising=False)
+    import api.routers.note_sync as ns
+    state = ns._sign_state("u1", "notion")
+
+    async def fake_exchange_code(provider, code, **kw):
+        return {"accessToken": "notion-tok", "workspaceId": "ws1", "workspaceName": "My Workspace"}
+
+    monkeypatch.setattr(ns.oauth, "exchange_code", fake_exchange_code)
+
+    r = client.get("/api/j2/notes/connectors/notion/callback",
+                    params={"code": "authcode", "state": state}, follow_redirects=False)
+    assert r.status_code == 503
+    body = r.json()
+    assert "detail" in body and isinstance(body["detail"], str)
+    assert "Traceback" not in body["detail"]
+    assert client.get("/api/j2/notes/connectors/status").json()["providers"]["notion"]["connected"] is False
 
 
 # ── DELETE /{provider} (disconnect cascade) ───────────────────────────────────

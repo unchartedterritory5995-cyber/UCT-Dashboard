@@ -40,6 +40,7 @@ from api.middleware.auth_middleware import (
     get_current_user_optional,
     require_plan,
 )
+from api.services import crypto_box
 from api.services.auth_db import get_connection
 from api.services.journal_two import notes as notes_svc
 from api.services.journal_two.note_connectors import connections, engine, errors, oauth, registry
@@ -183,6 +184,25 @@ def _raise_for_provider_error(e: Exception) -> None:
     if isinstance(e, errors.NoteConnTransient):
         raise HTTPException(status_code=503, detail=str(e))
     raise HTTPException(status_code=502, detail=str(e))
+
+
+def _upsert_connector_or_503(
+    user_id: str, provider: str, creds: dict[str, Any], *, account_label: str | None,
+) -> dict[str, Any]:
+    """Final-review Important #C: `connections.upsert_connector` is the ONE
+    call site that invokes `crypto_box.NoteBox.encrypt` — with
+    `NOTE_ENCRYPTION_KEY` unset, that raises a bare `crypto_box.
+    CryptoBoxError`, which is NOT part of the `note_connectors.errors`
+    taxonomy `_raise_for_provider_error` maps, so it used to escape both
+    `_connect_token_provider` and `oauth_callback` as an unhandled 500 with
+    a traceback. Caught here and mapped to the SAME 503/not-configured
+    shape `NoteConnNotConfigured` produces elsewhere in this router — a
+    missing encryption key is a server misconfiguration, not a client
+    error, and must never leak a traceback to the caller."""
+    try:
+        return connections.upsert_connector(user_id, provider, creds, account_label=account_label)
+    except crypto_box.CryptoBoxError as e:
+        raise HTTPException(status_code=503, detail=f"note connector storage is not configured: {e}")
 
 
 async def _aclose(provider_obj: Any) -> None:
@@ -344,7 +364,7 @@ async def _connect_token_provider(provider: str, body: ConnectBody, user_id: str
     finally:
         await _aclose(provider_obj)
 
-    connections.upsert_connector(user_id, provider, creds, account_label=info.label)
+    _upsert_connector_or_503(user_id, provider, creds, account_label=info.label)
     dest_folder_id = _default_dest_folder_id(user_id, f"{entry.label} — {info.label}")
     source = connections.create_source(
         user_id, provider, remote_id, display_name=info.label, dest_folder_id=dest_folder_id,
@@ -459,7 +479,7 @@ async def oauth_callback(
             status_code=302,
         )
 
-    connections.upsert_connector(user_id, provider, creds, account_label=account_label)
+    _upsert_connector_or_503(user_id, provider, creds, account_label=account_label)
     if remote_id:
         dest_folder_id = _default_dest_folder_id(user_id, f"{entry.label} — {account_label}")
         connections.create_source(

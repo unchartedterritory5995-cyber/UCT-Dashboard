@@ -38,6 +38,7 @@ from cryptography.fernet import Fernet
 from api.services import auth_db
 from api.services.journal_two.db import ensure_schema
 from api.services.journal_two.note_connectors import errors
+from api.services.journal_two.note_connectors.providers import base as base_module
 from api.services.journal_two.note_connectors.providers.base import RemoteRef
 from api.services.journal_two.note_connectors.providers.notion import NotionProvider
 
@@ -111,6 +112,30 @@ def _all_marks(node, mark_type):
 
     walk(node)
     return marks
+
+
+async def _fake_resolve_host(addrs: list[str]) -> list[str]:
+    """Stand-in for `base._resolve_host` -- keeps `assert_public_https`'s
+    hostname-resolution branch hermetic (no live DNS lookup, per this
+    file's own "no live calls anywhere" module docstring) while still
+    exercising its real IP-range check on whatever address list is handed
+    in."""
+    return addrs
+
+
+@pytest.fixture(autouse=True)
+def _stub_dns_resolution(monkeypatch):
+    """Final-review Item D added an SSRF guard (`assert_public_https`) to
+    both of this provider's media-download paths (`fetch_media`'s external
+    URL, `_get_media_bytes`'s internal S3 url). Neither
+    `s3.notion-static.com` nor `cdn.example.com` (this file's fixture
+    hostnames) is a real, resolvable domain, so unguarded they'd fail a
+    REAL DNS lookup rather than exercising the fixtures' actual HTTP
+    behavior through the mocked transport. Autouse rather than per-test
+    because the vast majority of this file's ~40 tests touch one of these
+    two hostnames somewhere in a page traversal; the dedicated SSRF-refusal
+    tests below use literal IPs, which never reach this resolver at all."""
+    monkeypatch.setattr(base_module, "_resolve_host", lambda host: _fake_resolve_host(["142.250.0.1"]))
 
 
 def _make_provider(handler, *, rate_limiter=None, sleep_fn=None) -> NotionProvider:
@@ -1070,6 +1095,78 @@ async def test_external_media_fetch_media_carries_no_auth_header():
     assert content_type == "image/png"
     assert len(captured) == 1
     assert "authorization" not in {k.lower() for k in captured[0].headers.keys()}
+
+
+# ---------------------------------------------------------------------------
+# fetch_media SSRF guard (final-review Item D) — `external`-type media is an
+# arbitrary permanent host from document content; `fetch_media` had no
+# scheme/host validation at all.
+# ---------------------------------------------------------------------------
+
+
+async def test_fetch_media_refuses_a_plain_http_url_without_making_a_request():
+    def handler(request: httpx.Request) -> httpx.Response:  # pragma: no cover
+        raise AssertionError("must never issue a request for a non-https ref")
+
+    provider = _make_provider(handler)
+    with pytest.raises(errors.NoteConnUnsupported):
+        await provider.fetch_media(CREDS, "http://example.com/img.png")
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://127.0.0.1/img.png",
+        "https://10.1.2.3/img.png",
+        "https://169.254.169.254/latest/meta-data/",  # cloud metadata endpoint
+        "https://[::1]/img.png",
+    ],
+)
+async def test_fetch_media_refuses_loopback_private_and_link_local_hosts(url):
+    def handler(request: httpx.Request) -> httpx.Response:  # pragma: no cover
+        raise AssertionError("must never issue a request to a private/internal host")
+
+    provider = _make_provider(handler)
+    with pytest.raises(errors.NoteConnUnsupported):
+        await provider.fetch_media(CREDS, url)
+
+
+async def test_fetch_media_https_public_host_passes():
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert str(request.url) == EXTERNAL_IMAGE_URL
+        return httpx.Response(200, content=_PNG_BYTES, headers={"content-type": "image/png"})
+
+    provider = _make_provider(handler)
+    data, content_type = await provider.fetch_media(CREDS, EXTERNAL_IMAGE_URL)
+    assert data == _PNG_BYTES
+    assert content_type == "image/png"
+
+
+async def test_internal_media_download_from_a_private_host_yields_a_missing_marker_not_a_crash():
+    """`_get_media_bytes` (the `file`-type internal download, at traversal
+    time) never raises for a bad url by contract -- it degrades to "this
+    media just isn't available," same as any other download failure. This
+    proves the SSRF guard applied there folds into that SAME contract
+    rather than becoming a surprise unhandled raise mid-traversal."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == _API_HOST:
+            if request.url.path == "/v1/pages/page-priv" and request.method == "GET":
+                return httpx.Response(200, json={"id": "page-priv", "properties": {"title": _title_prop("P")}})
+            if request.url.path == "/v1/blocks/page-priv/children" and request.method == "GET":
+                return httpx.Response(200, json={
+                    "results": [_block(
+                        "img-priv", "image",
+                        {"type": "file", "file": {"url": "https://169.254.169.254/latest/meta-data/"}, "caption": []},
+                    )],
+                    "has_more": False,
+                })
+            return httpx.Response(404)
+        raise AssertionError(f"must never issue a request to a private host, got {request.url}")
+
+    provider = _make_provider(handler)
+    note = await provider.fetch(CREDS, RemoteRef(remote_id="page-priv", updated_at="x"))
+    assert note.media == []
+    assert "[image unavailable" in json.dumps(note.doc)
 
 
 async def test_media_403_refetches_block_once_and_retries():

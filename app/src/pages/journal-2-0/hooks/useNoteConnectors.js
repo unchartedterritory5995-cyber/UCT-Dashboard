@@ -121,6 +121,17 @@ function normalizeProvider(raw) {
  * component reads. Always returns all four wave-1 provider keys (a raw
  * payload missing a key, in ANY casing, still renders a "not configured"
  * tile rather than the component needing its own `|| {}` fallback).
+ *
+ * `enabled` (final-review Item B) — the router's `_sync_enabled()` gate
+ * (`NOTE_SYNC_ENABLED` env var, default true) for whether the BACKGROUND
+ * scheduler runs sync passes at all, independent of any one connector's
+ * own `connected`/`sources` state. Had no consumer before this fix: a paid
+ * user could connect + manually sync once, see a healthy tile, and never
+ * get another background pass, silently. `pick()` keeps this
+ * casing-tolerant like every other field here; the fallback is `true` (not
+ * `false`) so a payload that's still loading/absent, or simply omits the
+ * key, never falsely shows the "sync is paused" notice — only an EXPLICIT
+ * `false` from the server does.
  */
 export function normalizeStatus(raw) {
   const rawProviders = (raw && raw.providers) || {}
@@ -128,7 +139,8 @@ export function normalizeStatus(raw) {
   for (const p of NOTE_CONNECTOR_PROVIDERS) {
     providers[p.key] = normalizeProvider(rawProviders[p.key])
   }
-  return { providers }
+  const enabled = !!pick(raw, 'enabled', 'enabled', true)
+  return { providers, enabled }
 }
 
 // ── Dropbox folder picker (Task 12b) ─────────────────────────────────────
@@ -154,7 +166,7 @@ export default function useNoteConnectors() {
     { revalidateOnFocus: false, shouldRetryOnError: false }
   )
 
-  const providers = normalizeStatus(data).providers
+  const { providers, enabled } = normalizeStatus(data)
 
   // Token providers (roam/craft): payload carries the pasted credentials.
   // Callers (ConnectTokenModal) only invoke this after their own consent
@@ -277,6 +289,7 @@ export default function useNoteConnectors() {
 
   return {
     providers,
+    enabled,
     isLoading,
     error,
     refresh,

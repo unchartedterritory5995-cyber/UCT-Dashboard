@@ -37,8 +37,8 @@ import styles from './ConnectedAppsCard.module.css'
 export default function ConnectedAppsCard() {
   const { isPaid, startCheckout } = useAuth()
   const {
-    providers, isLoading, refresh, connectToken, startOAuth, syncSource, updateSource, disconnect,
-    listFolders, addSource,
+    providers, enabled, isLoading, refresh, connectToken, startOAuth, syncSource, updateSource,
+    disconnect, listFolders, addSource,
   } = useNoteConnectors()
 
   const [tokenModalProvider, setTokenModalProvider] = useState(null)
@@ -156,6 +156,20 @@ export default function ConnectedAppsCard() {
           syncing into the Notebook in the background.
         </p>
         {actionError && <div className={styles.error} role="alert">{actionError}</div>}
+
+        {/* Final-review Item B: `enabled` (server's NOTE_SYNC_ENABLED gate)
+            has no consumer without this — a connected, healthy-looking tile
+            with the background scheduler off is a SILENT failure mode (one
+            manual sync, then nothing, forever). Deliberately dim/informational
+            (not styles.error/role=alert) — this isn't a per-action failure,
+            it's an ambient fact about the server the whole card should be
+            read in light of. */}
+        {enabled === false && (
+          <p className={styles.pausedNotice} data-testid="sync-paused-notice">
+            Background sync is paused on this server — connected apps sync
+            when it&rsquo;s re-enabled.
+          </p>
+        )}
 
         <div className={styles.tiles}>
           {NOTE_CONNECTOR_PROVIDERS.map((p) => {

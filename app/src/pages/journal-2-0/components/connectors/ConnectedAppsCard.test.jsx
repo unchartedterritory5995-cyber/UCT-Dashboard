@@ -493,6 +493,34 @@ describe('ConnectedAppsCard — Dropbox folder picker + sourceless-connected sta
   })
 })
 
+describe('ConnectedAppsCard — background sync paused notice (final-review Item B)', () => {
+  afterEach(() => {
+    window.history.replaceState({}, '', '/settings')
+    vi.restoreAllMocks()
+  })
+
+  it('renders a dim, honest notice above the tiles when the server reports enabled:false', async () => {
+    mockFetch([['/api/j2/notes/connectors/status', { body: { enabled: false, ...EMPTY_STATUS } }]])
+    render(<ConnectedAppsCard />)
+    expect(await screen.findByTestId('sync-paused-notice')).toBeInTheDocument()
+    expect(screen.getByText(/background sync is paused on this server/i)).toBeInTheDocument()
+  })
+
+  it('does not render the notice when the server sends enabled:true', async () => {
+    mockFetch([['/api/j2/notes/connectors/status', { body: { enabled: true, ...EMPTY_STATUS } }]])
+    render(<ConnectedAppsCard />)
+    await screen.findByTestId('connector-tile-roam')
+    expect(screen.queryByTestId('sync-paused-notice')).not.toBeInTheDocument()
+  })
+
+  it('does not render the notice when the server omits `enabled` entirely (the safe default)', async () => {
+    mockFetch([['/api/j2/notes/connectors/status', { body: EMPTY_STATUS }]])
+    render(<ConnectedAppsCard />)
+    await screen.findByTestId('connector-tile-roam')
+    expect(screen.queryByTestId('sync-paused-notice')).not.toBeInTheDocument()
+  })
+})
+
 describe('ConnectedAppsCard — normalization contract (fix-round 1, finding #2)', () => {
   afterEach(() => {
     window.history.replaceState({}, '', '/settings')

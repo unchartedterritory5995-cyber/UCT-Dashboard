@@ -125,7 +125,7 @@ import httpx
 from ...notes import _MAX_FILE_BYTES
 from .. import errors
 from ..convert import ATTACHMENT_REF_PREFIX, LINK_PREFIX, REF_PREFIX, html_to_tiptap, md_to_tiptap
-from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef
+from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, guarded_media_get
 
 
 _API_BASE = "https://api.dropboxapi.com/2"
@@ -678,19 +678,42 @@ class DropboxProvider(NoteProvider):
 
     def _entries_to_refs(
         self, entries: list[dict[str, Any]], folder_path: str, credentials: dict[str, Any],
+        *, is_full: bool = False,
     ) -> list[RemoteRef]:
         """Maps `entries` -> `RemoteRef`s, skip-detecting via `content_hash`
         against `_LAST_SEEN_HASHES` (module-level, see its own docstring) —
         a file whose hash matches what THIS PROCESS last saw for it, FOR
         THIS SAME DROPBOX ACCOUNT (`_tenant_key(credentials)`), is NOT
-        re-emitted, even on a full listing (Dropbox's own delta API already
-        skips unchanged files on a true incremental `continue`; this closes
-        the same gap for the FULL-listing path, which is this provider's
-        common case per the module docstring's cursor-representation note).
-        The `(tenant_key, folder_path)` compound key is what keeps two
-        different accounts sharing a folder_path + a byte-identical file
-        from cross-contaminating each other's skip-detection (see
-        `_LAST_SEEN_HASHES`'s docstring)."""
+        re-emitted -- but ONLY on an INCREMENTAL listing (`is_full=False`,
+        Dropbox's own delta API already skips unchanged files on a true
+        `list_folder/continue`).
+
+        Final-review CRITICAL fix: this filter used to apply on a FULL
+        listing too. A full listing is the engine's ONLY "complete present
+        enumeration" signal — `_touch_remote_index` upserts every returned
+        ref as "still here," and `_run_delete_detection` treats everything
+        NOT returned as a miss. Content-hash-filtering a full listing meant
+        an unchanged file was ABSENT from `refs` on every full pass, so the
+        engine saw it "missing," bumped its `miss_streak`, and severed it
+        after 2 full passes even though it never moved — a 10-file folder
+        where 6 change on night 2 loses the other 4 on night 3. A LOW-churn
+        folder (nothing changes) instead tripped `_run_delete_detection`'s
+        own <50%-enumeration refuse guard on EVERY full pass (returning
+        near-zero of the previously-tracked count), so delete detection
+        never ran there AT ALL. Full listings now return every PRESENT file
+        unconditionally — Roam/Notion's contract exactly — accepting a
+        once-a-day re-download of unchanged files on the nightly full pass
+        (matches Roam's own re-enumerate-everything cost profile) in
+        exchange for delete detection actually working. This also gives a
+        file whose PREVIOUS fetch failed a nightly retry for free (closes
+        the ledgered opaque-cursor-past-failures compounding note).
+
+        Hashes are still RECORDED on every path (full or incremental) so
+        skip-detection has correct state the next time an incremental call
+        needs it. The `(tenant_key, folder_path)` compound key is what
+        keeps two different accounts sharing a folder_path + a byte-
+        identical file from cross-contaminating each other's skip-detection
+        (see `_LAST_SEEN_HASHES`'s docstring)."""
         cache_key = (_tenant_key(credentials), folder_path)
         seen = _LAST_SEEN_HASHES.setdefault(cache_key, {})
         refs: list[RemoteRef] = []
@@ -701,8 +724,8 @@ class DropboxProvider(NoteProvider):
             if not path_lower or _extension(path_lower) not in _NOTE_EXTENSIONS:
                 continue  # media/other attachments are resolved by reference, not enumerated
             content_hash = entry.get("content_hash") or ""
-            if content_hash and seen.get(path_lower) == content_hash:
-                continue  # unchanged since this process last saw it -- skip
+            if not is_full and content_hash and seen.get(path_lower) == content_hash:
+                continue  # unchanged since this process last saw it -- skip (INCREMENTAL only)
             if content_hash:
                 seen[path_lower] = content_hash
             refs.append(RemoteRef(remote_id=path_lower, updated_at=_change_timestamp(entry)))
@@ -758,7 +781,14 @@ class DropboxProvider(NoteProvider):
         _require_configured()
         folder_path = self._resolve_folder_path(credentials)
 
+        # `is_full` decides whether `_entries_to_refs` applies the
+        # content-hash skip filter (Final-review CRITICAL fix — see that
+        # method's docstring). A reset-triggered fallback IS a full
+        # re-list (Dropbox invalidated the incremental cursor and this
+        # branch re-enumerates everything from scratch), so it counts as
+        # full too, not just the `cursor is None` case.
         if cursor:
+            is_full = False
             try:
                 first = await self._send(
                     credentials, "/files/list_folder/continue",
@@ -770,7 +800,9 @@ class DropboxProvider(NoteProvider):
                 # "CURSOR REPRESENTATION" section for why this is the
                 # EXPECTED steady-state, not an edge case.
                 entries = await self._full_listing_entries(credentials, folder_path)
+                is_full = True
         else:
+            is_full = True
             entries = await self._full_listing_entries(credentials, folder_path)
 
         self._index_entries(folder_path, entries)
@@ -782,7 +814,7 @@ class DropboxProvider(NoteProvider):
         # `_full_listing_entries`'s own internal `_drain`), so this is
         # always the cursor for the listing this call JUST returned.
         self.opaque_cursor = self._last_drain_cursor
-        return self._entries_to_refs(entries, folder_path, credentials)
+        return self._entries_to_refs(entries, folder_path, credentials, is_full=is_full)
 
     def _resolve_one_relative_ref(self, url: str, file_dir: str) -> str | None:
         """Pure lookup — `url` must already be decoded/normalized by the
@@ -1087,7 +1119,11 @@ class DropboxProvider(NoteProvider):
         # from DOCUMENT CONTENT. The Dropbox access token is NEVER attached
         # here (mirrors CraftProvider.fetch_media's precedent): only
         # `_send()` (hardcoded to `_API_BASE`/`_CONTENT_BASE`) ever carries
-        # it, and this branch never calls `_send()`.
+        # it, and this branch never calls `_send()`. Final-review Item D:
+        # `guarded_media_get` re-asserts the https+public-host check on the
+        # initial URL AND on every redirect hop (this call also passes
+        # `follow_redirects=True`-equivalent behavior manually, hop by hop,
+        # since plain httpx auto-follow re-validates nothing between hops).
         parsed = urlsplit(ref)
         if (parsed.scheme or "").lower() != "https":
             raise errors.NoteConnUnsupported(
@@ -1096,10 +1132,7 @@ class DropboxProvider(NoteProvider):
                        "folder and is not a secure (https) URL",
             )
         client = await self._get_client()
-        try:
-            response = await client.get(ref, follow_redirects=True)
-        except httpx.RequestError as exc:
-            raise errors.NoteConnTransient(f"Failed to download media: {exc}") from exc
+        response = await guarded_media_get(client, ref, what="Dropbox media")
         if response.status_code >= 400:
             raise errors.NoteConnTransient(
                 f"Failed to download media ({response.status_code})",

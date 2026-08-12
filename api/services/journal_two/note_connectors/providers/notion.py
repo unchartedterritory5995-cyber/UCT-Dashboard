@@ -72,8 +72,9 @@ from ..errors import (
     NoteConnError,
     NoteConnRateLimited,
     NoteConnTransient,
+    NoteConnUnsupported,
 )
-from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef
+from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, assert_public_https
 
 # The SAME byte limits notes.py's own persistence layer enforces on decoded
 # media bytes (`save_note_image_bytes`/`save_note_attachment_bytes`) —
@@ -397,8 +398,14 @@ class NotionProvider(NoteProvider):
         # `ref` here is an `external`-type media url (a permanent, arbitrary
         # host) registered by `_resolve_media` below — the Notion bearer is
         # NEVER attached to it (credential-boundary rule). Plain,
-        # unauthenticated GET, exactly like the S3 download path.
+        # unauthenticated GET, exactly like the S3 download path. Final-
+        # review Item D: this is exactly the unguarded, content-controlled
+        # fetch the review named — `assert_public_https` refuses non-https
+        # and loopback/private/link-local/metadata hosts before the GET;
+        # `client.get(ref)` here never opts into `follow_redirects=True`
+        # (httpx's own default is False), so one host check is enough.
         client = await self._get_client()
+        await assert_public_https(ref, what="Notion media")
         try:
             response = await client.get(ref)
         except httpx.RequestError as exc:
@@ -588,7 +595,22 @@ class NotionProvider(NoteProvider):
         one: this module embeds the base64 form directly into the note's
         TipTap doc during traversal, well before `import_confirm`'s own
         whole-doc size gate would ever get a chance to catch an oversized
-        result."""
+        result. Final-review Item D: `url` here is Notion-issued (a
+        pre-signed S3 link from the block's OWN `file.url` field, not text a
+        note author can type in) so the practical SSRF exposure is far
+        lower than `fetch_media`'s genuine external-URL case -- but the
+        guard is cheap and this IS content fetched during traversal
+        without a host allowlist, exactly what the review asked to have
+        checked, so it gets the same `assert_public_https` treatment for
+        defense-in-depth. A resolution/scheme refusal here folds into the
+        existing "treat as unavailable" `None` return below rather than
+        raising, matching this method's own contract of never raising for
+        a bad url -- `_download_internal`'s caller already treats a `None`
+        data return as "this media just isn't available.\""""
+        try:
+            await assert_public_https(url, what="Notion media")
+        except (NoteConnUnsupported, NoteConnTransient):
+            return None, "", None
         client = await self._get_client()
         try:
             async with client.stream("GET", url) as response:

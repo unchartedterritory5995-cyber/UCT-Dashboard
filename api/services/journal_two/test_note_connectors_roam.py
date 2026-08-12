@@ -41,6 +41,7 @@ from api.services.journal_two.note_connectors.errors import (
     NoteConnTransient,
     NoteConnUnsupported,
 )
+from api.services.journal_two.note_connectors.providers import base as base_module
 from api.services.journal_two.note_connectors.providers import roam as roam_module
 from api.services.journal_two.note_connectors.providers.base import RemoteRef
 from api.services.journal_two.note_connectors.providers.roam import RoamProvider
@@ -149,6 +150,14 @@ def _default_handler(request: httpx.Request) -> httpx.Response:
 def _make_provider(handler=_default_handler, sleep_fn=None) -> RoamProvider:
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=False)
     return RoamProvider(client=client, sleep_fn=sleep_fn)
+
+
+async def _fake_resolve_host(addrs: list[str]) -> list[str]:
+    """Stand-in for `base._resolve_host` in SSRF-guard tests -- keeps
+    `assert_public_https`'s hostname-resolution branch hermetic (no live
+    DNS lookup) while still exercising its real IP-range check on whatever
+    address list the test hands it."""
+    return addrs
 
 
 def _find_all(doc, node_type: str) -> list[dict]:
@@ -287,6 +296,79 @@ async def test_fetch_media_downloads_bytes_and_content_type():
     data, content_type = await provider.fetch_media(CREDS, FIREBASE_URL)
     assert data == b"\x89PNG\r\n"
     assert content_type == "image/png"
+
+
+# ---------------------------------------------------------------------------
+# fetch_media SSRF guard (final-review Item D) — `ref` is an image src taken
+# verbatim from graph CONTENT, not a Roam-vouched URL, and this call used to
+# do a plain `client.get(ref, follow_redirects=True)` with no scheme/host
+# check at all.
+# ---------------------------------------------------------------------------
+
+
+async def test_fetch_media_refuses_a_plain_http_url_without_making_a_request():
+    def handler(request: httpx.Request) -> httpx.Response:  # pragma: no cover
+        raise AssertionError("must never issue a request for a non-https ref")
+
+    provider = _make_provider(handler)
+    with pytest.raises(NoteConnUnsupported):
+        await provider.fetch_media(CREDS, "http://example.com/img.png")
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://127.0.0.1/img.png",
+        "https://10.1.2.3/img.png",
+        "https://169.254.169.254/latest/meta-data/",  # cloud metadata endpoint
+        "https://[::1]/img.png",
+    ],
+)
+async def test_fetch_media_refuses_loopback_private_and_link_local_hosts(url):
+    def handler(request: httpx.Request) -> httpx.Response:  # pragma: no cover
+        raise AssertionError("must never issue a request to a private/internal host")
+
+    provider = _make_provider(handler)
+    with pytest.raises(NoteConnUnsupported):
+        await provider.fetch_media(CREDS, url)
+
+
+async def test_fetch_media_https_public_host_passes(monkeypatch):
+    # `base._resolve_host` is the one seam that would otherwise make this a
+    # LIVE DNS lookup (this file's own module docstring: "No live calls
+    # anywhere") -- stub it to a known-public address so the guard's
+    # is-this-IP-public check runs for real without a real network call.
+    monkeypatch.setattr(base_module, "_resolve_host", lambda host: _fake_resolve_host(["142.250.0.1"]))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert str(request.url) == "https://firebasestorage.googleapis.com/v0/b/x/o/img.png?alt=media"
+        return httpx.Response(200, content=b"ok", headers={"content-type": "image/png"})
+
+    provider = _make_provider(handler)
+    data, content_type = await provider.fetch_media(CREDS, FIREBASE_URL)
+    assert data == b"ok"
+    assert content_type == "image/png"
+
+
+async def test_fetch_media_refuses_a_redirect_that_targets_a_private_host(monkeypatch):
+    """A public-looking https URL that 302s to a private/internal address
+    must be refused BEFORE the second hop is ever requested -- plain
+    `follow_redirects=True` would sail straight through since httpx's
+    auto-follow re-validates nothing between hops."""
+    monkeypatch.setattr(base_module, "_resolve_host", lambda host: _fake_resolve_host(["142.250.0.1"]))
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        if str(request.url) == "https://cdn.example.com/img.png":
+            return httpx.Response(302, headers={"location": "http://169.254.169.254/latest/meta-data/"})
+        raise AssertionError(f"must never reach the redirect target, got {request.url}")
+
+    provider = _make_provider(handler)
+    with pytest.raises(NoteConnUnsupported):
+        await provider.fetch_media(CREDS, "https://cdn.example.com/img.png")
+    # the FIRST hop is fine (public https) -- only the redirect target is refused.
+    assert calls == ["https://cdn.example.com/img.png"]
 
 
 # ---------------------------------------------------------------------------

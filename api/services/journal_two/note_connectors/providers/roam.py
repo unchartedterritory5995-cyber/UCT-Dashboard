@@ -71,7 +71,7 @@ from ..errors import (
     NoteConnTransient,
     NoteConnUnsupported,
 )
-from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef
+from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, guarded_media_get
 
 _API_BASE = "https://api.roamresearch.com/api/graph"
 
@@ -441,14 +441,16 @@ class RoamProvider(NoteProvider):
 
     async def fetch_media(self, credentials: dict[str, Any], ref: str) -> tuple[bytes, str]:
         # Firebase Storage URLs are pre-signed/public — no Roam Authorization
-        # header needed, and (unlike the graph-data endpoints) a normal
-        # redirect-following GET is fine here since there's no auth header
-        # to lose on the hop.
+        # header needed, and (unlike the graph-data endpoints) a redirect-
+        # following GET is fine credential-wise (there's no auth header to
+        # lose on the hop). BUT `ref` is an image src taken verbatim from
+        # graph CONTENT, not a Roam-vouched URL — final-review Item D:
+        # `guarded_media_get` enforces https + a public-IP host on the
+        # initial URL AND every redirect hop before issuing that hop's
+        # request (plain `follow_redirects=True` would happily follow a
+        # public-looking URL straight to a private/internal address).
         client = await self._get_client()
-        try:
-            response = await client.get(ref, follow_redirects=True)
-        except httpx.RequestError as exc:
-            raise NoteConnTransient(f"Failed to download Roam media: {exc}") from exc
+        response = await guarded_media_get(client, ref, what="Roam media")
         if response.status_code >= 400:
             raise NoteConnTransient(
                 f"Failed to download Roam media ({response.status_code})",

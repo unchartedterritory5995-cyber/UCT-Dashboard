@@ -119,6 +119,22 @@ describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, c
   })
 })
 
+describe('normalizeStatus — enabled (final-review Item B: status.enabled had no consumer)', () => {
+  it('defaults to true when the raw payload omits `enabled` or is itself absent — a missing/loading payload must never falsely trip the "sync is paused" notice', () => {
+    for (const raw of [undefined, null, {}, { providers: {} }]) {
+      expect(normalizeStatus(raw).enabled).toBe(true)
+    }
+  })
+
+  it('reads an explicit `enabled: false` through unchanged', () => {
+    expect(normalizeStatus({ enabled: false, providers: {} }).enabled).toBe(false)
+  })
+
+  it('reads an explicit `enabled: true` through unchanged', () => {
+    expect(normalizeStatus({ enabled: true, providers: {} }).enabled).toBe(true)
+  })
+})
+
 describe('normalizeFolders — the Dropbox folder-picker contract (Task 12b)', () => {
   it('translates GET /{provider}/folders\' {folders:[{path_lower,name}]} into camelCase', () => {
     const out = normalizeFolders({

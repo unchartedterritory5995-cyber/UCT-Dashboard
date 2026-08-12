@@ -15,9 +15,17 @@ themselves.
 
 from __future__ import annotations
 
+import asyncio
+import ipaddress
+import socket
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import urljoin, urlsplit
+
+import httpx
+
+from ..errors import NoteConnTransient, NoteConnUnsupported
 
 
 @dataclass
@@ -147,3 +155,139 @@ class NoteProvider(ABC):
     ) -> tuple[bytes, str]:
         """Downloads one media reference (a `ref` string taken from a
         `RemoteNote`'s `media` list) -> `(bytes, content_type)`."""
+
+
+# ── SSRF guard for content-controlled media refs (final-review Item D) ────
+#
+# `fetch_media`'s `ref` is, on every provider's genuine-external-URL branch,
+# a string taken verbatim from a note's CONTENT (an image `src`, a pasted
+# link) — never something the provider itself vouches for the way its own
+# API host is vouched for. No provider attaches a credential to this fetch
+# (see each provider's own credential-boundary note), so the risk here is
+# never token leakage; it's the server blindly issuing a GET wherever an
+# attacker-controlled string points, e.g. at a cloud metadata endpoint or an
+# internal service that trusts requests originating from this host.
+#
+# `assert_public_https` is the shared check every such fetch site must run
+# BEFORE the request leaves this process. It is deliberately synchronous in
+# spirit but `async def` because refusing a bad HOSTNAME (as opposed to a
+# bad literal IP) requires resolving it first, and DNS resolution must not
+# block the event loop.
+
+
+async def _resolve_host(host: str) -> list[str]:
+    """The REAL DNS lookup `assert_public_https` uses for a non-literal-IP
+    hostname -- pulled out to its own module-level function (same
+    injectable-seam idiom as `RoamProvider`'s `sleep_fn`) purely so tests
+    can monkeypatch `base._resolve_host` and stay hermetic (this repo's own
+    provider-test convention is "no live calls anywhere," and a real
+    `getaddrinfo` is a live call). Production code never overrides this."""
+    loop = asyncio.get_running_loop()
+    infos = await loop.getaddrinfo(host, None)
+    return [info[4][0] for info in infos]
+
+
+def _is_disallowed_ip(addr: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    """True for any address family a public https:// media fetch must never
+    reach: loopback (127.0.0.1, ::1), RFC1918/ULA private ranges, link-local
+    (169.254.0.0/16 -- this is ALSO where the AWS/GCP/Azure metadata endpoint
+    169.254.169.254 lives, so this one check covers that named risk too),
+    multicast, "reserved," and unspecified (0.0.0.0, ::). `is_private` alone
+    already covers most of these in the stdlib's own categorization, but
+    each is named explicitly so a refusal reads as "this is a loopback
+    address" rather than an opaque "this is private," and so the check
+    doesn't silently stop covering a category if a future Python release
+    ever narrows what `is_private` means."""
+    return (
+        addr.is_private
+        or addr.is_loopback
+        or addr.is_link_local
+        or addr.is_multicast
+        or addr.is_reserved
+        or addr.is_unspecified
+    )
+
+
+async def assert_public_https(url: str, *, what: str = "media reference") -> str:
+    """SSRF guard for a `ref` taken from content an attacker fully controls.
+    Enforces: (1) `https://` scheme -- never bare `http://` or any other
+    scheme; (2) every IP address the host resolves to is a PUBLIC address --
+    a hostname that merely LOOKS public but resolves (via attacker-influenced
+    DNS, or simply because someone registered it) to a loopback/private/
+    link-local/metadata address is refused exactly like a literal
+    `http://127.0.0.1/...` would be. A literal IP in the URL skips DNS
+    resolution and is checked directly.
+
+    Raises `NoteConnUnsupported` on any refusal (same taxonomy member the
+    pre-existing https-scheme-only checks in dropbox.py/craft.py already
+    raised, so no call site's error handling needs to change) and
+    `NoteConnTransient` if the hostname simply fails to resolve -- a
+    resolution failure is a network condition, not proof the reference is
+    unsafe, so it gets the taxonomy's normal "safe to retry" treatment
+    rather than being refused outright. Returns `url` unchanged on success
+    so a call site can inline it."""
+    parsed = urlsplit(url)
+    if (parsed.scheme or "").lower() != "https":
+        raise NoteConnUnsupported(
+            f"Cannot fetch {what} over a non-https URL ({parsed.scheme or 'no scheme'!r})",
+            reason="Media reference is not a secure (https) URL",
+        )
+    host = parsed.hostname
+    if not host:
+        raise NoteConnUnsupported(
+            f"Cannot fetch {what}: URL has no host",
+            reason="Media reference has no host",
+        )
+    try:
+        addrs = [ipaddress.ip_address(host)]
+    except ValueError:
+        try:
+            resolved = await _resolve_host(host)
+        except (socket.gaierror, OSError) as exc:
+            raise NoteConnTransient(
+                f"Could not resolve host for {what} ({host!r}): {exc}",
+            ) from exc
+        addrs = [ipaddress.ip_address(a) for a in resolved]
+    for addr in addrs:
+        if _is_disallowed_ip(addr):
+            raise NoteConnUnsupported(
+                f"Cannot fetch {what}: host resolves to a non-public address ({addr})",
+                reason="Media reference points at a private/internal network address",
+            )
+    return url
+
+
+_REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
+
+
+async def guarded_media_get(
+    client: httpx.AsyncClient, url: str, *, what: str = "media reference", max_redirects: int = 5,
+) -> httpx.Response:
+    """Guarded stand-in for `client.get(url, follow_redirects=True)` on a
+    content-controlled `ref`. `follow_redirects=True` alone re-validates
+    NOTHING between hops -- a public-looking URL that 302s to
+    `http://169.254.169.254/...` would sail straight through, since httpx's
+    own redirect-follow only ever looks at the ORIGINAL request's settings,
+    not each new target. This follows redirects manually instead, one hop
+    at a time, running `assert_public_https` before every single request
+    (the first and every subsequent hop) so no Location header ever reaches
+    `client.get` unchecked. Bounded by `max_redirects` so a malicious or
+    misconfigured server chaining redirects can't hang the request."""
+    next_url = url
+    for _ in range(max_redirects + 1):
+        await assert_public_https(next_url, what=what)
+        try:
+            response = await client.get(next_url, follow_redirects=False)
+        except httpx.RequestError as exc:
+            raise NoteConnTransient(f"Failed to download {what}: {exc}") from exc
+        if response.status_code in _REDIRECT_STATUSES:
+            location = response.headers.get("location")
+            if not location:
+                return response
+            next_url = urljoin(next_url, location)
+            continue
+        return response
+    raise NoteConnUnsupported(
+        f"Too many redirects fetching {what}",
+        reason="Media reference redirected too many times",
+    )

@@ -61,7 +61,7 @@ from ..errors import (
     NoteConnTransient,
     NoteConnUnsupported,
 )
-from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef
+from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, assert_public_https
 
 # Self-imposed politeness ceiling — Craft documents no rate limit for this
 # API (spec §7).
@@ -458,10 +458,23 @@ class CraftProvider(NoteProvider):
         headers: dict[str, str] = {}
         if _is_trusted_craft_host(parsed.hostname):
             headers["Authorization"] = f"Bearer {bearer}"
-        # else: an untrusted host — fetch WITHOUT credentials (public-URL
-        # fallback), never widen `_is_trusted_craft_host` to fix a legitimate
-        # asset host that fails this check; add it to that function's exact
-        # allowlist instead.
+        else:
+            # An untrusted host — fetch WITHOUT credentials (public-URL
+            # fallback), never widen `_is_trusted_craft_host` to fix a
+            # legitimate asset host that fails this check; add it to that
+            # function's exact allowlist instead. Final-review Item D: this
+            # fallback still blindly GETs wherever `ref` points --
+            # `assert_public_https` refuses a host that resolves to
+            # loopback/private/link-local/metadata before that GET is
+            # issued (`_get`'s client never auto-follows redirects --
+            # httpx's default is `follow_redirects=False`, and nothing here
+            # overrides it -- so a single host check is sufficient, no
+            # redirect-hop revalidation needed). Scoped to ONLY this
+            # no-auth branch -- the trusted-host branch above targets
+            # Craft's OWN infrastructure (an exact/suffix-matched domain
+            # Craft controls, not attacker-arbitrary), so it carries none
+            # of the risk this guard exists for.
+            await assert_public_https(ref, what="Craft media")
         response = await self._get(ref, headers=headers)
         if response.status_code >= 400:
             raise NoteConnTransient(
