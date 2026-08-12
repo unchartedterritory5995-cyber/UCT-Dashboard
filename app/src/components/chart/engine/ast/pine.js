@@ -986,6 +986,31 @@ function parseOffsetIndex(cur, openTok) {
   if (negative) cur.next()
   const tok = cur.peek()
   if (!tok || tok.kind !== 'number' || !Number.isInteger(tok.value)) {
+    // ⭐⭐ AN INPUT IS ALREADY A CONSTANT EVERYWHERE ELSE, AND THIS WAS THE ONE
+    // PLACE IT WAS NOT. `ta.sma(close, n)` with `n = input.int(10)` folds to
+    // `sma(close, 10)` — the window arm RESOLVES its argument and then requires a
+    // `num`. This arm demanded a numeric TOKEN, so the very same folded 10 was a
+    // legal length and an illegal offset.
+    //
+    // ⚠️ OWNER DECISION, 2026-08-11: THE STORED TREE IS AUTHORITATIVE. Folding an
+    // input therefore freezes its default into the saved definition — and that is
+    // ALREADY true of every length, so folding the offset makes the two agree
+    // rather than introducing a new surprise. A member's knob is frozen for both
+    // or for neither; it was frozen for one.
+    //
+    // ⛔ THE CANONICAL GUARANTEE IS UNTOUCHED. What is deferred is WHEN the number
+    // is known, never whether: the expression resolves before an offset node is
+    // built, and anything that is not a non-negative whole number refuses exactly
+    // as it did. `parse.js` still gives an offset no slot for an expression, so
+    // "the offset is a literal" stays true by construction of the emitted node.
+    if (tok && !isPunct(tok, ']')) {
+      const expr = parseExpression(cur, 0)
+      if (!isPunct(cur.peek(), ']')) {
+        throw new PineRefusal('pine:offset-literal', REFUSALS['pine:offset-literal'],
+          locate(cur.peek() || tok))
+      }
+      return { expr, tok }
+    }
     throw new PineRefusal('pine:offset-literal', REFUSALS['pine:offset-literal'],
       locate(tok || openTok))
   }
@@ -1548,6 +1573,39 @@ class Resolver {
         return cOp('?:', [test, this.resolve(node.yes), this.resolve(node.no)])
       }
       case 'offset': {
+        // ⭐ A FOLDED OFFSET INDEX. `close[n]` with `n = input.int(10)` arrives
+        // as an expression rather than a number; resolving it FIRST means every
+        // guard below — and the canonical node at the end — sees the same plain
+        // integer a written literal would have given them.
+        if (node.n && typeof node.n === 'object' && node.n.expr) {
+          const folded = this.resolve(node.n.expr)
+          if (folded.type !== 'num' || !Number.isInteger(folded.value)) {
+            throw new PineRefusal('pine:offset-literal',
+              `${REFUSALS['pine:offset-literal']} — this one does not reduce to a whole `
+              + 'number, so the window it opens would depend on a value that can change',
+              locate(node.n.tok || node.tok))
+          }
+          // ⚠️ UNREACHABLE TODAY, KEPT DELIBERATELY, AND SAID SO. The mutation
+          // harness proved it: deleting this changes no test, because nothing
+          // currently folds to a NEGATIVE `num` — `-1` resolves to a `u-` op and
+          // `0 - 2` to a `-` op, so both fail the whole-number check above and
+          // refuse at `pine:offset-literal` one line earlier.
+          //
+          // ⛔ It stays because it goes live the day anything folds constant
+          // arithmetic, and what it guards is the forward reference: `close[-1]`
+          // is NEXT BAR, the one construction the non-repainting guarantee rests
+          // on being inexpressible. A dead check in front of that is cheap. The
+          // dishonest thing would be to leave it undocumented and let the next
+          // reader believe it is the check doing the work.
+          if (folded.value < 0) {
+            throw new PineRefusal('pine:offset-negative',
+              REFUSALS['pine:offset-negative'], locate(node.n.tok || node.tok))
+          }
+          // ⛔ A COPY, NEVER A MUTATION OF THE PARSED NODE. Outputs share one
+          // parse tree and each gets its own resolver; writing the folded value
+          // back would leak one output's resolution into the next.
+          node = { ...node, n: folded.value }
+        }
         // ⭐ A STATE VARIABLE READING ITS OWN PAST INSIDE ITS OWN UPDATE. This is
         // the single most common `pine:state` refusal in the corpus —
         // `entry_signal := cond ? 1 : entry_signal[1]` — and the engine has taken
