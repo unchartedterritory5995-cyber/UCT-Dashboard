@@ -2032,9 +2032,16 @@ export default function StockChart({
   )
 
   // Prop overrides — memoized to prevent unstable references
+  // "Group only" theme view: the base ticker is hidden and the canvas shows only the
+  // comparison group, so the base's volume / moving averages / watermark are all
+  // suppressed at their source (gating here is robust — nothing re-asserts them).
+  // Gated on actually having comparisons so an orphan flag can't blank a normal chart.
+  const hideBase = !!cs.compareHideBase && (cs.comparisonSymbols || []).some(x => x && x.enabled && x.sym)
+  const hideBaseRef = useRef(hideBase)
+  hideBaseRef.current = hideBase
   // blankVolume reserves an empty, labeled volume pane (breadth symbols with no
   // volume) — so the pane must be ON and in its own pane regardless of prefs.
-  const showVolume = blankVolume ? true : (showVolumeProp !== undefined ? showVolumeProp : cs.volume.visible)
+  const showVolume = hideBase ? false : (blankVolume ? true : (showVolumeProp !== undefined ? showVolumeProp : cs.volume.visible))
   // Volume in its own pane (no bottom band reserved on the price scale).
   const volInSeparatePane = blankVolume || volumeSeparatePane || !!cs.volume?.separatePane
   // When the SURFACE passes these props they WIN over the saved prefs — the OR
@@ -5392,30 +5399,41 @@ export default function StockChart({
     () => (cs.comparisonSymbols || []).filter(c => c && c.enabled && c.sym),
     [cs.comparisonSymbols]
   )
-  // "Group only" — hide the base candles/MAs/volume so ONLY the comparisons show
-  // (a pure relative-performance view). Gated on having comparisons so the flag can
-  // never blank a chart with nothing to fall back to; turning it off restores the base.
-  const hideBase = !!cs.compareHideBase && enabledComparisons.length > 0
+  // hideBase ("Group only" theme view) is computed EARLY (near showVolume) so the
+  // volume/watermark/indicator sources can gate on it. Nothing to redeclare here.
   // Stable cache key: sorted sym list + tf + barCount. Sorted so reorder doesn't refetch.
   const comparisonsKey = useMemo(
     () => enabledComparisons.map(c => String(c.sym).toUpperCase()).sort().join(',') || null,
     [enabledComparisons]
   )
+  // Comparisons don't need deep inception history — a bounded window is plenty for a
+  // relative-performance overlay, and it stops a big GROUP (many members) from firing
+  // N huge concurrent fetches the backend drops, which showed up as "some theme
+  // tickers are missing." Capped depth + bounded concurrency + one retry.
+  const cmpBarCount = Math.min(barCount || 1500, 2000)
   const { data: comparisonsData } = useSWR(
-    comparisonsKey ? ['comparison-bars', comparisonsKey, resolvedTf, barCount] : null,
+    comparisonsKey ? ['comparison-bars', comparisonsKey, resolvedTf, cmpBarCount] : null,
     async () => {
       const syms = enabledComparisons.map(c => String(c.sym).toUpperCase())
-      const results = await Promise.allSettled(
-        syms.map(s =>
-          fetch(`/api/bars/${encodeURIComponent(s)}?tf=${resolvedTf}&bars=${barCount}`)
-            .then(r => (r.ok ? r.json() : { bars: [] }))
-            .catch(() => ({ bars: [] }))
-        )
-      )
+      const fetchOne = async (s) => {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const r = await fetch(`/api/bars/${encodeURIComponent(s)}?tf=${resolvedTf}&bars=${cmpBarCount}`)
+            if (r.ok) {
+              const j = await r.json()
+              const bars = j?.bars || []
+              if (bars.length || attempt > 0) return bars   // accept empty only after a retry
+            }
+          } catch { /* fall through to retry */ }
+        }
+        return []
+      }
       const out = {}
-      results.forEach((r, i) => {
-        out[syms[i]] = r.status === 'fulfilled' ? (r.value?.bars || []) : []
+      const queue = [...syms]
+      const workers = Array.from({ length: Math.min(4, queue.length || 1) }, async () => {
+        while (queue.length) { const s = queue.shift(); out[s] = await fetchOne(s) }
       })
+      await Promise.all(workers)
       return out
     },
     { revalidateOnFocus: false, dedupingInterval: 15_000 }
@@ -6643,7 +6661,7 @@ export default function StockChart({
       } catch { /* older pane API — primitive optional */ }
     }
     {
-      const wmLines = (cs.watermark.visible && !hideWatermark)
+      const wmLines = (cs.watermark.visible && !hideWatermark && !hideBaseRef.current)
         ? composeWatermarkLines(watermark ?? sym, watermarkMeta, cs.watermark.lines)
         : []
       // centerWatermarkOnPlot: pin the horizontal center to the middle of the
@@ -7987,7 +8005,8 @@ export default function StockChart({
         // re-asserts on every bind, so without this a hidden engine series would
         // reappear on the next paint. Read from a ref, not a dependency — see the
         // ref's declaration.
-        indicatorsHidden: indicatorsHiddenRef.current,
+        // …also hidden in "Group only" theme view (base MAs/indicators suppressed).
+        indicatorsHidden: indicatorsHiddenRef.current || hideBaseRef.current,
         // Placement inputs. `resolvePlacement` reads these and nothing else, so
         // the engine lands in the legacy bands by construction.
         paneMargins,
@@ -9517,9 +9536,17 @@ export default function StockChart({
   useEffect(() => {
     if (!chartReady) return
     const vis = !hideBase
-    try { candleSeriesRef.current?.applyOptions?.({ visible: vis }) } catch { /* disposed */ }
-    try { volumeSeriesRef.current?.applyOptions?.({ visible: vis }) } catch { /* no volume */ }
-    try { for (const s of (overlaySeriesRefs.current || [])) { s?.applyOptions?.({ visible: vis }) } } catch { /* */ }
+    const setVis = (s) => { try { s?.applyOptions?.({ visible: vis }) } catch { /* disposed */ } }
+    setVis(candleSeriesRef.current)                                   // base candles
+    setVis(volumeSeriesRef.current)                                   // volume (also source-gated via showVolume)
+    for (const s of (overlaySeriesRefs.current || [])) setVis(s)      // legacy MA overlays
+    // Engine-drawn indicators (MAs/VWAP/etc.) are primarily suppressed via the binder's
+    // `indicatorsHidden` input, but hide any live bindings here too so the change lands
+    // on the current frame instead of only the next engine sync.
+    try {
+      const eng = engineRef.current
+      if (eng?.binder?.bindings) { for (const b of eng.binder.bindings()) setVis(b.series) }
+    } catch { /* binder disposed */ }
   }, [hideBase, chartReady, ohlcData, overlayData, resolvedOverlays])
 
   // ── Index comparison pane (Model Book) — white line in a pane ON TOP ──
