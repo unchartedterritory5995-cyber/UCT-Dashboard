@@ -707,14 +707,23 @@ def append_widget_embed(
 
 # ── Capture inbox ────────────────────────────────────────────────────────────
 
+# One cap, two queries: the tray lists the newest N, and create_capture prunes
+# past the same N — the table was made a table BECAUSE prefs had no size cap
+# (db.py's schema note), so the cap must hold on the INSERT side too. Without
+# the prune, rows past the newest N were invisible to the tray and therefore
+# undeletable through the only delete path the UI exposes: unbounded growth,
+# one layer down from the hazard the table was created to avoid.
+_CAPTURE_INBOX_CAP = 100
+
+
 def list_captures(user_id: str, conn: sqlite3.Connection | None = None) -> list[dict[str, Any]]:
     owned = conn is None
     conn = conn or get_connection()
     try:
         rows = conn.execute(
             "SELECT * FROM j2_capture_inbox WHERE user_id = ?"
-            " ORDER BY created_at DESC LIMIT 100",
-            (user_id,),
+            " ORDER BY created_at DESC LIMIT ?",
+            (user_id, _CAPTURE_INBOX_CAP),
         ).fetchall()
         return [{
             "id": r["id"],
@@ -752,6 +761,14 @@ def create_capture(
             (cid, user_id, payload["widgetId"], json.dumps(params or {}),
              payload.get("searchText") or None, payload.get("fallbackUrl") or None,
              payload.get("capturedAt") or now, now),
+        )
+        # Keep only the newest _CAPTURE_INBOX_CAP rows — anything older is
+        # unreachable through the tray anyway (see the cap's comment above).
+        conn.execute(
+            "DELETE FROM j2_capture_inbox WHERE user_id = ? AND id NOT IN ("
+            " SELECT id FROM j2_capture_inbox WHERE user_id = ?"
+            " ORDER BY created_at DESC LIMIT ?)",
+            (user_id, user_id, _CAPTURE_INBOX_CAP),
         )
         conn.commit()
         return {"id": cid, "createdAt": now}

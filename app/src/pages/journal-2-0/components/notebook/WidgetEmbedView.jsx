@@ -99,7 +99,20 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   //    writes — scroll/zoom inside the chart never persist anything) ────────
   const toggleLive = () => {
     if (attrs.mode === 'live') { updateAttributes?.({ mode: 'snapshot' }); return }
-    const liveCount = countLiveEmbeds(editor?.getJSON?.() || {})
+    // Count over the live ProseMirror doc, not editor.getJSON(): getJSON
+    // serializes the ENTIRE document (every embed dragging its multi-KB
+    // frozen settings blob) just to count nodes — a main-thread hitch that
+    // grows with note length, on every toolbar click. countLiveEmbeds stays
+    // the JSON-shaped twin for callers that hold a doc JSON.
+    let liveCount = 0
+    if (editor?.state?.doc) {
+      editor.state.doc.descendants((n) => {
+        if (n.type.name === 'widgetEmbed' && n.attrs?.mode === 'live') liveCount += 1
+        return true
+      })
+    } else {
+      liveCount = countLiveEmbeds(editor?.getJSON?.() || {})
+    }
     if (liveCount >= LIVE_EMBEDS_PER_ENTRY) {
       setToolbarMsg(`live cap: ${LIVE_EMBEDS_PER_ENTRY} per entry`)
       return

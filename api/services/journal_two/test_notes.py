@@ -353,6 +353,25 @@ def test_append_widget_embed_guards(conn):
     assert svc.append_widget_embed("u2", n["id"], EMBED_ATTRS, conn=conn) is None
 
 
+def test_capture_inbox_prunes_past_the_cap(conn, monkeypatch):
+    # Insert-side enforcement of the same cap the tray lists by: rows past the
+    # newest N were invisible to the tray and therefore undeletable through
+    # the only delete path the UI exposes — the unbounded-growth hazard the
+    # table was created to avoid, one layer down.
+    monkeypatch.setattr(svc, "_CAPTURE_INBOX_CAP", 5)
+    seq = {"n": 0}
+    def tick():
+        seq["n"] += 1
+        return f"2026-08-12T{seq['n'] // 60:02d}:{seq['n'] % 60:02d}:00Z"
+    monkeypatch.setattr(svc, "_now_iso", tick)
+    ids = [svc.create_capture("u1", {"widgetId": "chart"}, conn=conn)["id"] for _ in range(8)]
+    rows = svc.list_captures("u1", conn=conn)
+    assert [r["id"] for r in rows] == list(reversed(ids[3:]))  # newest 5 only
+    left = conn.execute(
+        "SELECT COUNT(*) AS c FROM j2_capture_inbox WHERE user_id = 'u1'").fetchone()
+    assert left["c"] == 5, "pruned rows must be DELETED, not merely unlisted"
+
+
 def test_capture_inbox_crud(conn):
     made = svc.create_capture("u1", {
         "widgetId": "chart", "params": {"symbol": "AMD", "tf": "5"},
