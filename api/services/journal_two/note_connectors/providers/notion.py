@@ -332,15 +332,15 @@ class NotionProvider(NoteProvider):
         """Pages currently in Notion's trash, via search's own `in_trash`
         flag — spec §7: "in_trash sweep (search filter) — expose via
         list_deleted() for the engine's full pass." NOT part of the
-        `NoteProvider` ABC and NOT YET called from
-        `note_connectors/engine.py` (a forward-looking hook, matching the
-        design's other scaffolded-but-unwired pieces, e.g. the Notion
-        webhook receiver — spec §2 non-goals). `engine.py`'s existing
-        generic 2-strike miss-streak delete detection already catches a
-        page a full re-enumeration stops returning, INCLUDING one moved to
-        trash (`list_changed` excludes `in_trash` pages above); this
-        exposes a faster, provider-precise signal for whenever a future
-        pass wires it in."""
+        `NoteProvider` ABC, but — Task 11 fix-round-1 Important #1c — IS
+        NOW CALLED from `note_connectors/engine.py`'s `_do_sync`, on every
+        FULL sync (`getattr(provider, "list_deleted", None)`, then fed into
+        `_run_delete_detection(..., deleted_refs=...)` as a CERTAIN
+        deletion signal). Do not treat this as inert or "forward-looking" —
+        a bug here can sever a live note ahead of the generic 2-strike
+        miss-streak detector (bounded by `_run_delete_detection`'s own
+        20%-of-tracked-items cap, refused-with-warning above that, same
+        shape as its <50% full-enumeration refuse guard)."""
         token = self._creds(credentials)
         refs: list[RemoteRef] = []
         start_cursor: str | None = None

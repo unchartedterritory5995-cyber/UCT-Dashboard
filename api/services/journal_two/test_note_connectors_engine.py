@@ -35,6 +35,7 @@ import asyncio
 import base64
 import importlib
 import json
+import threading
 
 import pytest
 from cryptography.fernet import Fernet
@@ -1296,3 +1297,262 @@ async def test_overflow_row_notes_are_exempt_from_delete_detection_by_constructi
 
     overflow_note = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Overflow Row")
     assert "source-deleted" not in overflow_note["tags"]
+
+
+# ---------------------------------------------------------------------------
+# Fix-round-1 Important #1a: explicit-sever blast-radius bound.
+# ---------------------------------------------------------------------------
+
+async def test_list_deleted_blast_radius_over_cap_refuses_and_falls_back_to_miss_streak(source, provider):
+    """100 tracked notes; enumeration returns 60 (passes the existing <50%
+    guard); a buggy `list_deleted` names the other 40 as deleted. Without
+    the #1a cap this severed all 40 in one pass, permanently (tags are
+    append-only). The cap (20% of prev_count) must refuse the explicit
+    signal for all 40 and fall back to the ordinary 2-strike counter."""
+    refs = [RemoteRef(remote_id=f"p{i}", updated_at="2026-08-01T00:00:00+00:00") for i in range(100)]
+    provider.refs = refs
+    provider.notes_by_id = {r.remote_id: _rn(r.remote_id, f"Note {r.remote_id}") for r in refs}
+    await engine.sync_source(source["id"], full=True)
+    assert len(_remote_index_rows(source["id"])) == 100
+
+    kept = refs[:60]
+    missing = refs[60:]
+    provider.refs = kept
+    provider.notes_by_id = {r.remote_id: provider.notes_by_id[r.remote_id] for r in kept}
+
+    async def _list_deleted(credentials):
+        return [RemoteRef(remote_id=r.remote_id, updated_at="2026-08-02T00:00:00+00:00") for r in missing]
+
+    provider.list_deleted = _list_deleted
+
+    result = await engine.sync_source(source["id"], full=True, manual=True)
+    assert result["status"] == "warning"
+    assert result["sourceDeleted"] == 0  # nothing severed THIS pass
+    assert "explicit" in (result["deleteDetectionWarning"] or "").lower()
+
+    notes = notes_svc.list_notes("u1")
+    for r in missing:
+        note = next(n for n in notes if n["title"] == f"Note {r.remote_id}")
+        assert "source-deleted" not in note["tags"]
+
+    remaining = {row["remote_id"]: row for row in _remote_index_rows(source["id"])}
+    assert len(remaining) == 100  # all 100 still tracked -- nothing severed
+    for r in missing:
+        assert remaining[r.remote_id]["miss_streak"] == 1  # generic path still counted the miss
+
+
+async def test_list_deleted_blast_radius_under_cap_still_severs_immediately(source, provider):
+    """Regression: a SMALL, plausible explicit-delete set (well under the
+    20% cap) must still sever immediately, unaffected by the new bound --
+    this is `test_list_deleted_severs_immediately_without_waiting_for_two_
+    misses` again, at a larger scale to prove the cap math (20 of 100)."""
+    refs = [RemoteRef(remote_id=f"p{i}", updated_at="2026-08-01T00:00:00+00:00") for i in range(100)]
+    provider.refs = refs
+    provider.notes_by_id = {r.remote_id: _rn(r.remote_id, f"Note {r.remote_id}") for r in refs}
+    await engine.sync_source(source["id"], full=True)
+
+    kept = refs[:85]
+    missing = refs[85:]  # 15 missing -- under the 20-item cap (20% of 100)
+    provider.refs = kept
+    provider.notes_by_id = {r.remote_id: provider.notes_by_id[r.remote_id] for r in kept}
+
+    async def _list_deleted(credentials):
+        return [RemoteRef(remote_id=r.remote_id, updated_at="2026-08-02T00:00:00+00:00") for r in missing]
+
+    provider.list_deleted = _list_deleted
+
+    result = await engine.sync_source(source["id"], full=True, manual=True)
+    assert result["status"] == "ok"
+    assert result["sourceDeleted"] == 15
+
+    notes = notes_svc.list_notes("u1")
+    for r in missing:
+        note = next(n for n in notes if n["title"] == f"Note {r.remote_id}")
+        assert "source-deleted" in note["tags"]
+
+
+async def test_unrelated_two_strike_severs_still_apply_alongside_a_refused_explicit_signal(source, provider):
+    """A refused explicit signal must not swallow GENUINE, unrelated 2-strike
+    severs happening in the same pass -- `deleted_count` stays accurate even
+    when `status == "warning"`."""
+    refs = [RemoteRef(remote_id=f"p{i}", updated_at="2026-08-01T00:00:00+00:00") for i in range(100)]
+    refs.append(RemoteRef(remote_id="already-missing-once", updated_at="2026-08-01T00:00:00+00:00"))
+    provider.refs = refs
+    provider.notes_by_id = {r.remote_id: _rn(r.remote_id, f"Note {r.remote_id}") for r in refs}
+    await engine.sync_source(source["id"], full=True)
+
+    # Round 2: "already-missing-once" goes missing for the FIRST time (bumps
+    # its miss_streak to 1, not yet severed) -- everything else present.
+    provider.refs = refs[:-1]
+    provider.notes_by_id = {r.remote_id: provider.notes_by_id[r.remote_id] for r in refs[:-1]}
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r2["sourceDeleted"] == 0
+
+    # Round 3: "already-missing-once" misses a SECOND time (real 2-strike
+    # sever) WHILE a buggy list_deleted also claims 40 of the other 100 are
+    # deleted (refused by the #1a cap).
+    kept = refs[:60]
+    over_cap_missing = refs[60:100]
+    provider.refs = kept
+    provider.notes_by_id = {r.remote_id: provider.notes_by_id[r.remote_id] for r in kept}
+
+    async def _list_deleted(credentials):
+        return [RemoteRef(remote_id=r.remote_id, updated_at="2026-08-03T00:00:00+00:00")
+                for r in over_cap_missing]
+
+    provider.list_deleted = _list_deleted
+
+    r3 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r3["status"] == "warning"
+    assert r3["sourceDeleted"] == 1  # the genuine 2-strike sever still counted
+    tagged = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Note already-missing-once")
+    assert "source-deleted" in tagged["tags"]
+
+
+# ---------------------------------------------------------------------------
+# Fix-round-1 Important #1b: un-tag heal on reappearance.
+# ---------------------------------------------------------------------------
+
+async def test_severed_note_is_untagged_when_the_remote_id_reappears(source, provider):
+    """`_tag_note_source_deleted` only ever APPENDS the tag -- without a
+    heal, a false-positive sever (or a genuine provider-side restore) is
+    PERMANENT. When a previously-severed remote_id reappears in a listing,
+    the tag comes off and tracking resumes.
+
+    Uses 3 tracked items (p2/p3 always present) rather than 1 -- with only
+    ONE tracked item, the pre-existing <50%-enumeration refuse guard fires
+    on the very FIRST miss (0 seen of 1 is always <50%), so a lone item can
+    never reach a genuine 2-strike sever at all; p2/p3 keep `seen_ids` at
+    2-of-3 (>=50%) while p1 goes missing."""
+    provider.refs = [
+        RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="p2", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="p3", updated_at="2026-08-01T00:00:00+00:00"),
+    ]
+    provider.notes_by_id = {
+        "p1": _rn("p1", "Comeback Kid"),
+        "p2": _rn("p2", "Steady Two"),
+        "p3": _rn("p3", "Steady Three"),
+    }
+    await engine.sync_source(source["id"], full=True)
+
+    # Two consecutive full misses of p1 (p2/p3 stay present) -> generic
+    # 2-strike sever.
+    provider.refs = [
+        RemoteRef(remote_id="p2", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="p3", updated_at="2026-08-01T00:00:00+00:00"),
+    ]
+    provider.notes_by_id = {"p2": provider.notes_by_id["p2"], "p3": provider.notes_by_id["p3"]}
+    await engine.sync_source(source["id"], full=True, manual=True)
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r2["sourceDeleted"] == 1
+    tagged = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Comeback Kid")
+    assert "source-deleted" in tagged["tags"]
+    assert {r["remote_id"] for r in _remote_index_rows(source["id"])} == {"p2", "p3"}
+
+    # The remote item comes BACK -- next sync must heal the tag AND
+    # reinstate remote_index tracking.
+    provider.refs = [
+        RemoteRef(remote_id="p1", updated_at="2026-08-03T00:00:00+00:00"),
+        RemoteRef(remote_id="p2", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="p3", updated_at="2026-08-01T00:00:00+00:00"),
+    ]
+    provider.notes_by_id["p1"] = _rn("p1", "Comeback Kid", updated_at="2026-08-03T00:00:00+00:00")
+    await engine.sync_source(source["id"], full=True, manual=True)
+
+    healed = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Comeback Kid")
+    assert "source-deleted" not in healed["tags"]
+    assert {r["remote_id"] for r in _remote_index_rows(source["id"])} == {"p1", "p2", "p3"}
+
+
+async def test_untag_heal_never_fires_for_a_note_still_continuously_tracked(source, provider):
+    """Regression / non-vacuity: a note that was NEVER severed (its
+    remote_index row never left) must never be touched by the heal path --
+    `_touch_remote_index`'s "new to the index" check must correctly skip
+    it every round."""
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Steady")}
+    await engine.sync_source(source["id"], full=True)
+
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-02T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Steady", updated_at="2026-08-02T00:00:00+00:00")}
+    await engine.sync_source(source["id"], full=True, manual=True)
+
+    note = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Steady")
+    assert "source-deleted" not in note["tags"]
+
+
+# ---------------------------------------------------------------------------
+# Fix-round-1 Important #4: loop-agnostic per-source mutual exclusion.
+# ---------------------------------------------------------------------------
+
+def test_try_acquire_and_release_source_is_a_plain_mutex_never_loop_bound():
+    """`_try_acquire_source`/`_release_source` touch no asyncio primitive at
+    all -- calling them with NO running event loop at all (this is a plain
+    `def` test, not `async def`) proves they carry no loop affinity by
+    construction."""
+    sid = "no-loop-source"
+    assert engine._try_acquire_source(sid) is True
+    assert engine._try_acquire_source(sid) is False  # already held
+    engine._release_source(sid)
+    assert engine._try_acquire_source(sid) is True
+    engine._release_source(sid)
+
+
+async def test_contended_sync_from_two_different_event_loops_never_raises_runtimeerror(
+    source, provider, monkeypatch,
+):
+    """The reviewer's probe: `engine._locks` was an `asyncio.Lock` dict, so
+    a SECOND contended acquire from a DIFFERENT event loop than the one
+    that first acquired it raised `RuntimeError: <Lock> is bound to a
+    different event loop`. Reproduces the real production shape --
+    `scheduler.py`'s BackgroundScheduler jobs run each fire on a FRESH
+    `asyncio.run()` loop on a worker thread, while the router's manual
+    "Sync now" runs on the long-lived uvicorn loop -- via a real OS thread
+    running its own `asyncio.run()`, contending on the SAME source_id as
+    this test's own (pytest-asyncio) event loop. Must resolve to a clean
+    "busy"/"ok" split, never a crash on either side."""
+    monkeypatch.setattr(engine, "_LOCKED_RETRY_DELAYS", (0.01, 0.01, 0.01))
+
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "First")}
+
+    release_gate = threading.Event()
+    entered_gate = threading.Event()
+    real_list_changed = provider.list_changed
+
+    async def blocking_list_changed(credentials, cursor=None):
+        entered_gate.set()
+        while not release_gate.is_set():
+            await asyncio.sleep(0.01)
+        return await real_list_changed(credentials, cursor=cursor)
+
+    monkeypatch.setattr(provider, "list_changed", blocking_list_changed)
+
+    results: dict[str, Any] = {}
+    thread_errors: list[BaseException] = []
+
+    def run_on_own_loop():
+        try:
+            results["first"] = asyncio.run(engine.sync_source(source["id"], manual=True))
+        except BaseException as e:  # noqa: BLE001 -- must capture, never let a RuntimeError vanish on the thread
+            thread_errors.append(e)
+
+    t1 = threading.Thread(target=run_on_own_loop)
+    t1.start()
+    assert entered_gate.wait(timeout=5), "first sync never entered list_changed"
+
+    # Second caller: SAME source_id, THIS test's own (different) event loop.
+    second_task = asyncio.create_task(engine.sync_source(source["id"], manual=True))
+    await asyncio.sleep(0.05)
+    release_gate.set()
+    try:
+        results["second"] = await asyncio.wait_for(second_task, timeout=5)
+    except BaseException as e:  # noqa: BLE001
+        thread_errors.append(e)
+    t1.join(timeout=5)
+
+    assert thread_errors == [], f"cross-loop contention raised: {thread_errors!r}"
+    statuses = {results["first"]["status"], results["second"]["status"]}
+    assert statuses <= {"ok", "busy"}
+    assert "ok" in statuses  # at least one call actually completed the sync

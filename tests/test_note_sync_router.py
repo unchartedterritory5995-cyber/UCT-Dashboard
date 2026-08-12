@@ -76,6 +76,12 @@ def client(tmp_path, monkeypatch):
     app.dependency_overrides[authmw.get_current_user] = lambda: {"id": "u1", "role": "member"}
     app.dependency_overrides[authmw.get_current_user_with_plan] = \
         lambda: {"id": "u1", "plan": "pro", "role": "member"}
+    # Fix-round-1 Important #2: the OAuth callback binds to the session via
+    # get_current_user_optional (never raises) -- default the test session
+    # to the SAME user as get_current_user so every EXISTING happy-path
+    # callback test still completes; individual cross-user/anonymous tests
+    # override this per-test.
+    app.dependency_overrides[authmw.get_current_user_optional] = lambda: {"id": "u1", "role": "member"}
 
     c = TestClient(app)
     c._app = app
@@ -282,11 +288,12 @@ def test_callback_expired_state_400(client, monkeypatch):
     import hmac
     import time as _time
     # Hand-build a state carrying a timestamp an hour in the past (well past
-    # the 10-min TTL) using the router's OWN signing algorithm, rather than
-    # mutating the process-global `time` module (which would leak into
-    # every other test sharing this interpreter).
+    # the 10-min TTL) using the router's OWN signing algorithm (incl. its
+    # nonce field), rather than mutating the process-global `time` module
+    # (which would leak into every other test sharing this interpreter).
     ts = str(int(_time.time()) - 3600)
-    payload = f"u1:notion:{ts}"
+    nonce = "expired-test-nonce"
+    payload = f"u1:notion:{ts}:{nonce}"
     sig = hmac.new(ns._state_secret(), payload.encode("utf-8"), hashlib.sha256).hexdigest()
     state = base64.urlsafe_b64encode(f"{payload}:{sig}".encode("utf-8")).decode("utf-8")
     r = client.get("/api/j2/notes/connectors/notion/callback",
@@ -364,6 +371,84 @@ def test_callback_provider_error_redirects_with_status_error_not_500(client, mon
     assert client.get("/api/j2/notes/connectors/status").json()["providers"]["notion"]["connected"] is False
 
 
+# ── Fix-round-1 Important #2: OAuth callback session binding + replay ────────
+
+def test_callback_cross_user_state_is_rejected(client, monkeypatch):
+    """A state minted for user2 must NEVER complete inside user1's browser
+    session — the reviewer's probe found exactly this landed the connector
+    on the wrong account."""
+    monkeypatch.setenv("NOTION_CLIENT_ID", "cid")
+    monkeypatch.setenv("NOTION_CLIENT_SECRET", "csecret")
+    import api.routers.note_sync as ns
+    state_for_user2 = ns._sign_state("user2", "notion")
+
+    # This client's session dependency override (from the `client` fixture)
+    # is "u1" -- a genuinely DIFFERENT user completing user2's state.
+    r = client.get("/api/j2/notes/connectors/notion/callback",
+                    params={"code": "authcode", "state": state_for_user2}, follow_redirects=False)
+    assert r.status_code == 400
+    assert client.get("/api/j2/notes/connectors/status").json()["providers"]["notion"]["connected"] is False
+
+
+def test_callback_with_no_session_is_rejected(client, monkeypatch):
+    monkeypatch.setenv("NOTION_CLIENT_ID", "cid")
+    monkeypatch.setenv("NOTION_CLIENT_SECRET", "csecret")
+    import api.routers.note_sync as ns
+    from api.middleware import auth_middleware as authmw
+    state = ns._sign_state("u1", "notion")
+
+    client._app.dependency_overrides[authmw.get_current_user_optional] = lambda: None
+    r = client.get("/api/j2/notes/connectors/notion/callback",
+                    params={"code": "authcode", "state": state}, follow_redirects=False)
+    assert r.status_code == 400
+
+
+def test_callback_replayed_state_is_rejected_on_second_use(client, monkeypatch):
+    monkeypatch.setenv("NOTION_CLIENT_ID", "cid")
+    monkeypatch.setenv("NOTION_CLIENT_SECRET", "csecret")
+    import api.routers.note_sync as ns
+    state = ns._sign_state("u1", "notion")
+
+    async def fake_exchange_code(provider, code, **kw):
+        return {"accessToken": "notion-tok", "workspaceId": "ws1", "workspaceName": "My Workspace"}
+
+    monkeypatch.setattr(ns.oauth, "exchange_code", fake_exchange_code)
+
+    r1 = client.get("/api/j2/notes/connectors/notion/callback",
+                     params={"code": "authcode", "state": state}, follow_redirects=False)
+    assert r1.status_code == 302
+    assert "connected=1" in r1.headers["location"]
+
+    r2 = client.get("/api/j2/notes/connectors/notion/callback",
+                     params={"code": "authcode", "state": state}, follow_redirects=False)
+    assert r2.status_code == 400
+
+
+# ── Fix-round-1 Important #3: OAuth state signing fails closed ───────────────
+
+def test_connect_oauth_fails_closed_with_no_secret_configured(client, monkeypatch):
+    monkeypatch.setenv("NOTION_CLIENT_ID", "cid")
+    monkeypatch.setenv("NOTION_CLIENT_SECRET", "csecret")
+    monkeypatch.delenv("PUSH_SECRET", raising=False)
+    monkeypatch.delenv("VOICE_ACTION_SECRET", raising=False)
+    r = client.post("/api/j2/notes/connectors/notion/connect", json={"consent": True})
+    assert r.status_code == 503
+
+
+def test_callback_fails_closed_with_no_secret_configured(client, monkeypatch):
+    monkeypatch.setenv("NOTION_CLIENT_ID", "cid")
+    monkeypatch.setenv("NOTION_CLIENT_SECRET", "csecret")
+    # Mint the state WHILE a secret is configured (mirrors a real in-flight
+    # redirect), then pull the secret before the callback lands.
+    import api.routers.note_sync as ns
+    state = ns._sign_state("u1", "notion")
+    monkeypatch.delenv("PUSH_SECRET", raising=False)
+    monkeypatch.delenv("VOICE_ACTION_SECRET", raising=False)
+    r = client.get("/api/j2/notes/connectors/notion/callback",
+                    params={"code": "authcode", "state": state}, follow_redirects=False)
+    assert r.status_code == 503
+
+
 # ── DELETE /{provider} (disconnect cascade) ───────────────────────────────────
 
 def test_disconnect_keeps_notes_and_severs_sources(client, monkeypatch):
@@ -400,6 +485,66 @@ def test_disconnect_paid_gate_403(client):
     _free_user(client)
     r = client.delete("/api/j2/notes/connectors/roam")
     assert r.status_code == 403
+
+
+# ── Fix-round-1 Important #5: Dropbox best-effort revoke on disconnect ───────
+
+def test_disconnect_dropbox_calls_revoke_with_the_stored_credentials(client, monkeypatch):
+    monkeypatch.setenv("DROPBOX_APP_KEY", "key")
+    monkeypatch.setenv("DROPBOX_APP_SECRET", "secret")
+    connections.upsert_connector("u1", "dropbox", {"accessToken": "dbx-tok-abc"})
+
+    calls = []
+
+    async def fake_revoke_token(credentials, **kw):
+        calls.append(credentials)
+
+    import api.services.journal_two.note_connectors.providers.dropbox as dbx_module
+    monkeypatch.setattr(dbx_module, "revoke_token", fake_revoke_token)
+
+    r = client.delete("/api/j2/notes/connectors/dropbox")
+    assert r.status_code == 200
+    assert r.json()["disconnected"] is True
+    assert calls == [{"accessToken": "dbx-tok-abc"}]
+
+
+def test_disconnect_dropbox_succeeds_even_when_revoke_fails(client, monkeypatch):
+    monkeypatch.setenv("DROPBOX_APP_KEY", "key")
+    monkeypatch.setenv("DROPBOX_APP_SECRET", "secret")
+    connections.upsert_connector("u1", "dropbox", {"accessToken": "dbx-tok-abc"})
+
+    async def failing_revoke_token(credentials, **kw):
+        raise errors.NoteConnTransient("Dropbox revoke endpoint unreachable")
+
+    import api.services.journal_two.note_connectors.providers.dropbox as dbx_module
+    monkeypatch.setattr(dbx_module, "revoke_token", failing_revoke_token)
+
+    r = client.delete("/api/j2/notes/connectors/dropbox")
+    assert r.status_code == 200
+    assert r.json()["disconnected"] is True
+    assert client.get("/api/j2/notes/connectors/status").json()["providers"]["dropbox"]["connected"] is False
+
+
+def test_disconnect_roam_never_calls_dropbox_revoke(client, monkeypatch):
+    """Revoke is Dropbox-only by design (Roam/Craft = user-managed tokens,
+    Notion = no revoke endpoint) -- proves the router doesn't accidentally
+    fire it for every provider."""
+    fake = FakeTokenProvider(label="my-graph")
+    monkeypatch.setattr(registry, "build_provider", lambda name, source=None: fake)
+    client.post("/api/j2/notes/connectors/roam/connect",
+                json={"consent": True, "graphName": "my-graph", "token": "tok"})
+
+    calls = []
+
+    async def spy_revoke_token(credentials, **kw):
+        calls.append(credentials)
+
+    import api.services.journal_two.note_connectors.providers.dropbox as dbx_module
+    monkeypatch.setattr(dbx_module, "revoke_token", spy_revoke_token)
+
+    r = client.delete("/api/j2/notes/connectors/roam")
+    assert r.status_code == 200
+    assert calls == []
 
 
 # ── POST /sources/{id}/sync (manual) ──────────────────────────────────────────

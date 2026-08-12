@@ -1203,3 +1203,44 @@ def _parse_oauth_response(resp: httpx.Response) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise errors.NoteConnTransient("Dropbox OAuth token response was not valid JSON")
     return data
+
+
+async def revoke_token(
+    credentials: dict[str, Any], *, client: httpx.AsyncClient | None = None,
+) -> None:
+    """`POST /2/auth/token/revoke` — Task 11 Fix-round-1 Important #5 (spec
+    §8: "revoke best-effort, purge tokens, keep notes"). Revokes the
+    access token so it stops working at Dropbox's end, not just locally.
+    The credential-boundary rule holds here exactly like every other call
+    in this module: the token is attached ONLY to `_API_BASE`
+    (api.dropboxapi.com), never logged.
+
+    This function itself still RAISES the normal errors taxonomy on
+    failure (consistent with every other provider method, and so a caller
+    that wants to observe/log the failure specifically can) — it is the
+    ROUTER's job (`api/routers/note_sync.py::_best_effort_revoke_dropbox`)
+    to treat the call as best-effort and never let a failure here block or
+    fail the disconnect itself. A missing `accessToken` is a silent no-op
+    (nothing to revoke), not an error — a connector that's already broken
+    (e.g. an unreadable/corrupt stored credential) must still be
+    disconnectable."""
+    _require_configured()
+    token = credentials.get("accessToken")
+    if not token:
+        return
+    owns_client = client is None
+    http_client = client or httpx.AsyncClient(timeout=15.0)
+    try:
+        try:
+            response = await http_client.post(
+                f"{_API_BASE}/auth/token/revoke",
+                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                content=b"null",
+            )
+        except httpx.RequestError as exc:
+            raise errors.NoteConnTransient(f"Dropbox token revoke request failed: {exc}") from exc
+    finally:
+        if owns_client:
+            await http_client.aclose()
+    if response.status_code != 200:
+        _raise_generic_error(response)

@@ -24,6 +24,7 @@ import hashlib
 import hmac as _hmac
 import logging
 import os
+import secrets
 import time
 from typing import Any
 from urllib.parse import quote
@@ -36,6 +37,7 @@ from pydantic import BaseModel
 from api.middleware.auth_middleware import (
     PAID_PLANS,
     get_current_user,
+    get_current_user_optional,
     require_plan,
 )
 from api.services.auth_db import get_connection
@@ -82,24 +84,53 @@ class SourceUpdateBody(BaseModel):
     destFolderId: str | None = None
 
 
-# ── signed, time-bounded OAuth state (spec §8; repo idiom: calendar.py's
-#    export-token HMAC-PUSH_SECRET pattern, widened with an embedded
-#    timestamp so state is TIME-BOUNDED, not just tamper-evident) ───────────
+# ── signed, time-bounded, single-use OAuth state (spec §8; repo idiom:
+#    calendar.py's export-token HMAC-PUSH_SECRET pattern, widened with an
+#    embedded timestamp + nonce so state is TIME-BOUNDED and SINGLE-USE, not
+#    just tamper-evident) ───────────────────────────────────────────────────
 
 def _state_secret() -> bytes:
+    """FAILS CLOSED (Fix-round-1 Important #3). With neither `PUSH_SECRET`
+    nor `VOICE_ACTION_SECRET` set, a constant, source-visible fallback would
+    let anyone who can read this repo forge a state that authorizes
+    attaching an arbitrary OAuth account to an ARBITRARY user_id — unlike
+    calendar.py's `_ics_secret` precedent (read-only blast radius: a forged
+    token only grants read access to one user's OWN calendar feed), this
+    secret gates a WRITE that crosses accounts. Raises `NoteConnNotConfigured`
+    rather than signing/verifying with a known constant; callers (`connect`,
+    `oauth_callback`) map it to a 503."""
     s = os.environ.get("PUSH_SECRET", "") or os.environ.get("VOICE_ACTION_SECRET", "")
-    if s:
-        return s.encode("utf-8")
-    # Deterministic fallback so a mid-flight OAuth redirect doesn't break on
-    # a process restart with neither env var set (matches calendar.py's
-    # `_ics_secret` fallback shape) -- non-fatal in local dev, PUSH_SECRET is
-    # always set in prod.
-    return b"uct_note_sync_state_fallback_secret"
+    if not s:
+        raise errors.NoteConnNotConfigured(
+            "OAuth state signing is not configured (set PUSH_SECRET)"
+        )
+    return s.encode("utf-8")
+
+
+# Single-use nonce tracking (Fix-round-1 Important #2c) — process-local,
+# same accepted single-process-pod shape as `engine._inflight_sources` /
+# `oauth._refresh_locks` elsewhere in this module family (this repo's own
+# CLAUDE.md documents the web pod as ONE uvicorn process). A leaked state
+# (logged proxy, shared screen, browser history sync) is otherwise valid and
+# replayable for its whole TTL; recording used nonces here closes that
+# without a DB table for what is, structurally, a 10-minute-lived value.
+# Lost on process restart — worst case a state minted just before a restart
+# becomes replayable again for the remainder of its TTL, an acceptable,
+# bounded window for a value that already requires PUSH_SECRET to forge.
+_used_state_nonces: dict[str, float] = {}
+
+
+def _prune_used_nonces() -> None:
+    now = time.time()
+    expired = [n for n, exp in _used_state_nonces.items() if exp <= now]
+    for n in expired:
+        _used_state_nonces.pop(n, None)
 
 
 def _sign_state(user_id: str, provider: str) -> str:
     ts = str(int(time.time()))
-    payload = f"{user_id}:{provider}:{ts}"
+    nonce = secrets.token_urlsafe(16)
+    payload = f"{user_id}:{provider}:{ts}:{nonce}"
     sig = _hmac.new(_state_secret(), payload.encode("utf-8"), hashlib.sha256).hexdigest()
     raw = f"{payload}:{sig}"
     return base64.urlsafe_b64encode(raw.encode("utf-8")).decode("utf-8")
@@ -107,19 +138,22 @@ def _sign_state(user_id: str, provider: str) -> str:
 
 def _verify_state(state: str, *, provider: str) -> str:
     """Returns the embedded `user_id` on success. Raises `HTTPException(400)`
-    on ANY failure — malformed, wrong provider, bad signature, or expired —
-    a single generic message so a probing attacker learns nothing about
-    which check failed."""
+    on ANY failure — malformed, wrong provider, bad signature, expired, or
+    already-used — a single generic message so a probing attacker learns
+    nothing about which check failed. Raises `errors.NoteConnNotConfigured`
+    (mapped to 503 by the caller) when no signing secret is configured at
+    all — a distinct, server-side-only signal, never confused with a
+    client-supplied bad state."""
     bad = HTTPException(status_code=400, detail="invalid or expired state")
     try:
         raw = base64.urlsafe_b64decode(state.encode("utf-8")).decode("utf-8")
-        user_id, state_provider, ts_str, sig = raw.split(":", 3)
+        user_id, state_provider, ts_str, nonce, sig = raw.split(":", 4)
     except Exception:
         raise bad
-    if state_provider != provider or not user_id:
+    if state_provider != provider or not user_id or not nonce:
         raise bad
-    payload = f"{user_id}:{state_provider}:{ts_str}"
-    expected = _hmac.new(_state_secret(), payload.encode("utf-8"), hashlib.sha256).hexdigest()
+    payload = f"{user_id}:{state_provider}:{ts_str}:{nonce}"
+    expected = _hmac.new(_state_secret(), payload.encode("utf-8"), hashlib.sha256).hexdigest()  # NoteConnNotConfigured propagates
     if not _hmac.compare_digest(expected, sig):
         raise bad
     try:
@@ -128,6 +162,10 @@ def _verify_state(state: str, *, provider: str) -> str:
         raise bad
     if time.time() - ts > _STATE_TTL_SECONDS:
         raise bad
+    _prune_used_nonces()
+    if nonce in _used_state_nonces:
+        raise bad  # replay
+    _used_state_nonces[nonce] = time.time() + _STATE_TTL_SECONDS + 5
     return user_id
 
 
@@ -318,7 +356,10 @@ def _start_oauth(provider: str, user_id: str) -> dict[str, Any]:
     entry = registry.get_entry(provider)
     if not entry.configured():
         raise HTTPException(status_code=503, detail=f"{entry.label} is not configured on this server.")
-    state = _sign_state(user_id, provider)
+    try:
+        state = _sign_state(user_id, provider)
+    except errors.NoteConnNotConfigured as e:
+        raise HTTPException(status_code=503, detail=str(e))
     if provider == "notion":
         url = oauth.authorize_url("notion", state)
     else:  # dropbox
@@ -345,7 +386,18 @@ async def connect(provider: str, body: ConnectBody, user: dict = Depends(_paid))
 @router.get("/{provider}/callback")
 async def oauth_callback(
     provider: str, code: str | None = None, state: str | None = None, error: str | None = None,
+    user: dict | None = Depends(get_current_user_optional),
 ) -> RedirectResponse:
+    """Fix-round-1 Important #2: the redirect from the provider is a
+    top-level browser GET, so the user's OWN `Lax` session cookie arrives
+    with it — `get_current_user_optional` (never raises; `None` when
+    missing/invalid) reads it. Binding this to the state's own embedded
+    user_id closes the account-takeover the reviewer's probe demonstrated:
+    a state minted for user2, completed inside user1's browser session (or
+    with NO session at all), attached user2's workspace to user1's
+    Notebook. HMAC+TTL alone only proves the state wasn't tampered with and
+    hasn't expired — neither proves it's being redeemed by the SAME person
+    who started the flow."""
     dashboard = _dashboard_url()
     if not registry.is_known(provider) or registry.get_entry(provider).connect_kind != "oauth":
         raise HTTPException(status_code=404, detail=f"unknown OAuth provider {provider!r}")
@@ -358,7 +410,16 @@ async def oauth_callback(
     if not code or not state:
         raise HTTPException(status_code=400, detail="missing code/state")
 
-    user_id = _verify_state(state, provider=provider)  # raises 400 on failure
+    try:
+        state_user_id = _verify_state(state, provider=provider)  # raises 400 on failure (incl. replay)
+    except errors.NoteConnNotConfigured as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    if user is None or user.get("id") != state_user_id:
+        # SAME generic failure as a bad/expired/replayed state — a missing
+        # session and a cross-user session are deliberately indistinguishable
+        # from a bad signature to anyone probing this endpoint.
+        raise HTTPException(status_code=400, detail="invalid or expired state")
+    user_id = state_user_id
     entry = registry.get_entry(provider)
 
     try:
@@ -513,13 +574,41 @@ def update_source(source_id: str, body: SourceUpdateBody, user: dict = Depends(_
 
 # ── DELETE /{provider} (disconnect) ───────────────────────────────────────────
 
+async def _best_effort_revoke_dropbox(user_id: str) -> None:
+    """Fix-round-1 Important #5 (spec §8: "revoke best-effort, purge
+    tokens, keep notes"). Dropbox exposes `POST /2/auth/token/revoke`
+    (`providers/dropbox.py::revoke_token`) — called here, BEFORE the token
+    is purged (it needs to still be readable), and NEVER allowed to block
+    or fail the disconnect: any failure (network, already-revoked, an
+    unreadable stored credential) is caught and logged, not raised.
+    Notion has no revoke endpoint for a third-party OAuth app (the user's
+    own Notion "Connections" settings is the only place that grant can be
+    pulled) and Roam/Craft credentials are user-pasted tokens they manage
+    themselves, never app-issued OAuth grants — there is nothing on our
+    side to revoke for either, so this is Dropbox-only by design, not an
+    oversight."""
+    try:
+        creds = connections.get_token(user_id, "dropbox")
+    except Exception:  # noqa: BLE001 — crypto_box.CryptoBoxError etc. -> nothing readable to revoke
+        return
+    if creds is None:
+        return
+    try:
+        from api.services.journal_two.note_connectors.providers.dropbox import revoke_token
+        await revoke_token(creds)
+    except Exception as e:  # noqa: BLE001 — best-effort; must NEVER block or fail the disconnect
+        log.warning("[note_sync] Dropbox token revoke failed (disconnect proceeds regardless): %s", e)
+
+
 @router.delete("/{provider}")
-def disconnect(provider: str, user: dict = Depends(_paid)) -> dict[str, Any]:
+async def disconnect(provider: str, user: dict = Depends(_paid)) -> dict[str, Any]:
     """Purges the connector's token + every source/log/remote-index row for
     this provider — NEVER touches `j2_notes`/`j2_note_folders` (spares
     already-synced notes; `connections.delete_connector`'s own contract)."""
     if not registry.is_known(provider):
         raise HTTPException(status_code=404, detail=f"unknown provider {provider!r}")
+    if provider == "dropbox":
+        await _best_effort_revoke_dropbox(user["id"])
     ok = connections.delete_connector(user["id"], provider)
     if not ok:
         raise HTTPException(status_code=404, detail=f"{provider} is not connected")

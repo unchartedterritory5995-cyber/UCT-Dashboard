@@ -70,6 +70,7 @@ import logging
 import os
 import random
 import sqlite3
+import threading
 from datetime import datetime, timezone
 from typing import Any
 
@@ -83,9 +84,43 @@ from api.services.journal_two.note_connectors.providers.base import (
 
 log = logging.getLogger("note_connectors.engine")
 
-# Per-source async locks (process-local) — prevents scheduler + manual
+# Per-source mutual exclusion (process-local) — prevents scheduler + manual
 # "Sync now" + webhook-triggered calls from double-processing one source.
-_locks: dict[str, asyncio.Lock] = {}
+#
+# Fix-round-1 Important #4: this was an `asyncio.Lock` dict until the
+# reviewer's probe found it crashes across event loops. An `asyncio.Lock`
+# binds to whichever loop FIRST contends on it; this engine is invoked from
+# TWO genuinely different loops in production — the long-lived uvicorn loop
+# (the router's manual "Sync now" / background sync) and a FRESH loop per
+# `asyncio.run(...)` call from `note_connectors/scheduler.py`'s
+# BackgroundScheduler jobs (the due-tick and the nightly full pass are two
+# SEPARATE job ids, `max_instances=1` is per-job, so they can genuinely
+# overlap on the SAME source). A second contended acquire from a different
+# loop raised `RuntimeError: <Lock> is bound to a different event loop` —
+# a 500 to a member clicking "Sync now" during the 01:47 nightly pass, not
+# a graceful "busy".
+#
+# A plain `threading.Lock`-guarded set has NO loop affinity at all (it is
+# not an asyncio primitive), so it holds correctly regardless of which
+# event loop — or which OS thread — calls in. The critical sections below
+# are a single dict/set mutation each (no I/O, no `await`), so guarding
+# them with a synchronous lock never blocks an event loop for a
+# meaningful duration.
+_inflight_lock = threading.Lock()
+_inflight_sources: set[str] = set()
+
+
+def _try_acquire_source(source_id: str) -> bool:
+    with _inflight_lock:
+        if source_id in _inflight_sources:
+            return False
+        _inflight_sources.add(source_id)
+        return True
+
+
+def _release_source(source_id: str) -> None:
+    with _inflight_lock:
+        _inflight_sources.discard(source_id)
 
 # Backoff ladder after a transient sqlite3 "database is locked" (mirrors
 # broker/sync.py's _LOCKED_RETRY_DELAYS exactly). Jittered so parallel
@@ -160,13 +195,7 @@ def _default_provider_factory(
 _provider_factory = _default_provider_factory
 
 
-# ── Locks + cooldown ─────────────────────────────────────────────────────────
-
-def _lock_for(source_id: str) -> asyncio.Lock:
-    # setdefault is atomic (no await in between) -> no lazy-create TOCTOU
-    # race that could hand two coroutines distinct locks for one source.
-    return _locks.setdefault(source_id, asyncio.Lock())
-
+# ── Cooldown ─────────────────────────────────────────────────────────────────
 
 def _within_cooldown(source: dict[str, Any]) -> bool:
     last = _parse_iso(source.get("lastSyncAt"))
@@ -222,8 +251,19 @@ def _finish_log(
 async def sync_source(
     source_id: str, *, full: bool = False, manual: bool = False,
 ) -> dict[str, Any]:
-    """Sync one source. Serialized per source via an asyncio lock. A source
-    synced within the cooldown window is skipped unless `manual=True`."""
+    """Sync one source. Serialized per source via a loop-agnostic in-flight
+    guard (Fix-round-1 #4 — see `_try_acquire_source`'s module-level
+    docstring for why this is NOT an `asyncio.Lock`). A source synced within
+    the cooldown window is skipped unless `manual=True`.
+
+    Reuses the SAME retry ladder (`_LOCKED_RETRY_DELAYS`) for two distinct
+    reasons a single attempt can fail to make progress: the source is
+    already being synced elsewhere ("busy" — checked BEFORE each attempt),
+    or a transient sqlite "database is locked" mid-sync (checked in the
+    `except`). Only after every attempt is still busy does this return a
+    `"busy"` status rather than raising — a caller in a race with the
+    nightly full pass or another "Sync now" click gets a clean, actionable
+    answer, never a crash."""
     source = connections.get_source_by_id(source_id)
     if source is None:
         raise ValueError(f"unknown note-connector source {source_id!r}")
@@ -231,16 +271,22 @@ async def sync_source(
     if not manual and _within_cooldown(source):
         return {"status": "cooldown", "lastSyncAt": source.get("lastSyncAt")}
 
-    async with _lock_for(source_id):
-        attempts = 1 + len(_LOCKED_RETRY_DELAYS)
-        for attempt in range(attempts):
-            try:
-                return await _do_sync(source["userId"], source_id, full=full)
-            except sqlite3.OperationalError as e:
-                if "locked" not in str(e).lower() or attempt == attempts - 1:
-                    raise
-                await asyncio.sleep(_LOCKED_RETRY_DELAYS[attempt] * random.uniform(0.5, 1.5))
-        raise RuntimeError("unreachable")  # loop always returns or raises
+    attempts = 1 + len(_LOCKED_RETRY_DELAYS)
+    for attempt in range(attempts):
+        if not _try_acquire_source(source_id):
+            if attempt == attempts - 1:
+                return {"status": "busy", "sourceId": source_id}
+            await asyncio.sleep(_LOCKED_RETRY_DELAYS[attempt] * random.uniform(0.5, 1.5))
+            continue
+        try:
+            return await _do_sync(source["userId"], source_id, full=full)
+        except sqlite3.OperationalError as e:
+            if "locked" not in str(e).lower() or attempt == attempts - 1:
+                raise
+            await asyncio.sleep(_LOCKED_RETRY_DELAYS[attempt] * random.uniform(0.5, 1.5))
+        finally:
+            _release_source(source_id)
+    raise RuntimeError("unreachable")  # loop always returns or raises
 
 
 async def sync_due_sources() -> None:
@@ -323,10 +369,16 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
                         f"delete detection): {e}"
                     )
             dd = _run_delete_detection(user_id, source, refs, deleted_refs=deleted_refs)
+            # `deleted` is meaningful even alongside a warning now (Fix-round-1
+            # #1a): the explicit-sever cap can refuse the LIST_DELETED signal
+            # for a subset of rows in the same pass unrelated 2-strike misses
+            # still legitimately sever — unlike the <50% guard, which always
+            # returns deleted=0 because it refuses the WHOLE pass before any
+            # row is touched. Reading `dd["deleted"]` unconditionally is a
+            # strict superset of the old "else" branch's behavior.
+            deleted_count = dd["deleted"]
             if dd["status"] == "warning":
                 delete_guard_warning = dd["reason"]
-            else:
-                deleted_count = dd["deleted"]
 
         _touch_remote_index(user_id, source, provider, refs)
 
@@ -429,7 +481,21 @@ def _run_delete_detection(
     `existing_rows` entry for it here to act on. Still subject to the SAME
     refuse-guard as the generic path below — an untrustworthy round (< 50%
     enumeration) leaves the index untouched for explicit deletions too, not
-    just miss-streak ones."""
+    just miss-streak ones.
+
+    Fix-round-1 Important #1a — EXPLICIT-SEVER BOUND: the 2-strike
+    miss-streak path bounds a bad ENUMERATION (the <50% guard above); until
+    this fix, nothing bounded a bad `deleted_refs` SIGNAL — a buggy/
+    compromised `list_deleted` naming 40 of a source's 100 tracked items as
+    "deleted" would sever all 40 in ONE pass, and `_tag_note_source_deleted`
+    only ever APPENDS its tag, so that damage was PERMANENT until Fix-round-1
+    #1b's un-tag heal landed. Mirrors the <50% guard's ALL-OR-NOTHING shape:
+    when the explicit-delete candidates exceed 20% of the previously-tracked
+    count in one pass, NONE of them sever this round — every one of those
+    rows instead falls through to the ordinary miss-streak counter below
+    (a genuine mass-deletion still gets caught, just via the same bounded,
+    2-strike path everything else uses, never in a single certain-but-wrong
+    pass)."""
     source_id = source["id"]
     seen_ids = {r.remote_id for r in refs}
     explicit_deleted_ids = {r.remote_id for r in (deleted_refs or [])}
@@ -452,13 +518,29 @@ def _run_delete_detection(
                 ),
             }
 
+        missing_rows = [row for row in existing_rows if row["remote_id"] not in seen_ids]
+        explicit_candidates = [row for row in missing_rows if row["remote_id"] in explicit_deleted_ids]
+
+        explicit_refused = False
+        explicit_refuse_reason: str | None = None
+        if explicit_candidates:
+            explicit_cap = max(1, int(prev_count * 0.2)) if prev_count > 0 else 0
+            if len(explicit_candidates) > explicit_cap:
+                explicit_refused = True
+                explicit_refuse_reason = (
+                    f"explicit-delete signal refused for source {source_id}: "
+                    f"list_deleted named {len(explicit_candidates)} of {prev_count} "
+                    f"previously-known items as deleted in one pass "
+                    f"(> {explicit_cap}, the 20% cap) — falling back to "
+                    f"miss-streak detection for them"
+                )
+
         deleted = 0
-        for row in existing_rows:
-            if row["remote_id"] in seen_ids:
-                continue  # still present -> refreshed by _touch_remote_index
-            if row["remote_id"] in explicit_deleted_ids:
-                # A CERTAIN signal from the provider's own trash sweep —
-                # sever immediately, no need to wait for a second miss.
+        for row in missing_rows:
+            if not explicit_refused and row["remote_id"] in explicit_deleted_ids:
+                # A CERTAIN signal from the provider's own trash sweep,
+                # within the blast-radius cap — sever immediately, no need
+                # to wait for a second miss.
                 _tag_note_source_deleted(conn, user_id, row["import_key"])
                 conn.execute(
                     "DELETE FROM j2_note_remote_index "
@@ -483,6 +565,8 @@ def _run_delete_detection(
                     (streak, user_id, source_id, row["remote_id"]),
                 )
         conn.commit()
+        if explicit_refused:
+            return {"status": "warning", "deleted": deleted, "reason": explicit_refuse_reason}
         return {"status": "ok", "deleted": deleted, "reason": None}
     finally:
         conn.close()
@@ -504,19 +588,56 @@ def _tag_note_source_deleted(conn: sqlite3.Connection, user_id: str, import_key:
     notes_svc.update_note(user_id, row["id"], {"tags": tags}, conn=conn)
 
 
+def _untag_note_source_reappeared(conn: sqlite3.Connection, user_id: str, import_key: str) -> None:
+    """Un-tag heal (Fix-round-1 Important #1b). `_tag_note_source_deleted`
+    only ever APPENDS `source-deleted` — without this, a false-positive
+    sever (a transient enumeration gap that happened to land two full syncs
+    in a row, or a bad `list_deleted` signal that slipped under the #1a
+    cap) is PERMANENT: the note stays flagged forever even once the source
+    is tracking the item again. Mirrors `_tag_note_source_deleted`'s shape
+    exactly, in reverse. A no-op (not an error) when the note was never
+    tagged, or was never successfully imported in the first place."""
+    row = conn.execute(
+        "SELECT id, tags FROM j2_notes WHERE user_id = ? AND import_key = ?",
+        (user_id, import_key),
+    ).fetchone()
+    if row is None:
+        return
+    tags = json.loads(row["tags"] or "[]")
+    if "source-deleted" not in tags:
+        return
+    tags = [t for t in tags if t != "source-deleted"]
+    notes_svc.update_note(user_id, row["id"], {"tags": tags}, conn=conn)
+
+
 def _touch_remote_index(
     user_id: str, source: dict[str, Any], provider: NoteProvider, refs: list[RemoteRef],
 ) -> None:
     """Upserts every SEEN ref (regardless of whether its content was
     successfully fetched/imported — existence is the signal remote_index
-    tracks, not import success). Resets miss_streak on every touch."""
+    tracks, not import success). Resets miss_streak on every touch.
+
+    Also runs the Fix-round-1 #1b un-tag heal for any ref NOT already in
+    the index — i.e. genuinely new OR reappearing after a prior sever.
+    Bounded to one bulk existence-check query (never N+1): an
+    already-continuously-tracked ref can never carry the tag (its index row
+    would still exist, so `_run_delete_detection` would never have severed
+    it), so only the "new to the index" subset needs the per-note check."""
     if not refs:
         return
     now = _now_iso()
     conn = get_connection()
     try:
+        existing_ids = {
+            row["remote_id"] for row in conn.execute(
+                "SELECT remote_id FROM j2_note_remote_index WHERE user_id = ? AND source_id = ?",
+                (user_id, source["id"]),
+            ).fetchall()
+        }
         for ref in refs:
             key = provider.import_key(source["remoteId"], ref.remote_id)
+            if ref.remote_id not in existing_ids:
+                _untag_note_source_reappeared(conn, user_id, key)
             conn.execute(
                 """
                 INSERT INTO j2_note_remote_index
