@@ -17,12 +17,12 @@ of a wall.
 | | scripts | why |
 |---|---|---|
 | **Reading today** | **10** | |
-| Reachable with contained work | **+3** | 05, 10, 06 — see below |
+| Reachable with contained work | **+1** | 06 only — 05 and 10 were re-measured and are NOT (see below) |
 | Needs loops / UDTs (Phase 5) | 3 | 02, 20, 21 |
-| Structurally out, correctly | 4 | 04, 09, 14, 19 |
+| Structurally out, correctly | 5 | 04, **05**, 09, 14, 19 |
 | | **21** | |
 
-⭐ **So the honest near-term target is 13 of 21, not 21 of 21** — and the four in
+⭐ **REVISED 2026-08-11 (later): the honest near-term target is 11 of 21, not 13** — 05 turned out to be `request.security` behind the offset guard, and 10 needs a closed-table answer about `self`. The original 13 is left below struck through in the per-script sections so the correction is legible — and the four in
 the last row should never move, because refusing them is the correct answer.
 
 ## Rank order, by whole chain rather than by guard
@@ -111,7 +111,45 @@ different question. Fixing it means folding the conditional reassignment FIRST
 and offsetting the final binding. ⛔ Not "relax the guard": the guard is right,
 the fold order is what has to change.
 
-### 🥈 05-mtf-structure-bias — one guard, one function
+### 🛑 CONSTANT-FOLDING AN OFFSET — BUILT, WORKS, REVERTED. OWNER CALL NEEDED.
+
+**The inconsistency is real and measured.** An input already folds when used as a
+LENGTH — `n = input.int(10)`, `ta.sma(close, n)` → `sma(close, 10)`, because the
+window arm RESOLVES its argument and then requires a `num`. The OFFSET arm
+demanded a numeric TOKEN, so the very same folded 10 was a legal length and an
+illegal offset.
+
+**Folding it works.** Implemented, and script 05's shape translated:
+`highest(high, 10) > highest(high, 10)[10] ? 1 : 0`.
+
+🔴 **BUT IT OVERRIDES AN EXPLICIT RAIL** — `pine.offset.test.js`: *"a variable
+index is refused — a window that moves cannot be bounded"* — and the parser's own
+comment: *"a variable index would make the window depend on a KNOB and the repaint
+linter could not bound it."*
+
+⚠️ **THE TRADE, STATED PLAINLY:** folding bakes an input's DEFAULT into the saved
+tree. A member who later turns that knob gets a length that moves and an offset
+that does not. The window arm already makes that trade; folding the offset extends
+it somewhere new. Whether that is right is a PRODUCT decision about what a saved
+indicator means when its inputs change — not something to settle inside a parser.
+
+**To decide it, answer one question:** when a member changes an input on a saved
+definition, is the tree re-translated, or is the stored tree authoritative? If it
+re-translates, folding is plainly right and the rail should move. If the tree is
+frozen, folding an offset silently freezes part of the member's knob and the rail
+is right. `inputsFolded` is recorded per output, so the system already tracks
+which inputs were folded — that is where to look first.
+
+⛔ Reverted rather than shipped. Nothing about the current behaviour changed.
+
+### 🥈 05-mtf-structure-bias — and it is NOT what this file said
+
+⚠️ With the offset folded, 05's refusal moved from `pine:offset-literal` to
+`pine:request` ×3 — **`request.security`, on every output**. So 05 belongs in the
+structurally-out group beside 04, not in the reachable group. This section had it
+ranked second-easiest; that was wrong, and the fold is what proved it.
+
+### 🥈 (original) 05-mtf-structure-bias — one guard, one function
 `pine:offset-literal` ×3, all through `f_struct`. Fold shows only one more
 offset-literal and `hline`. A non-literal offset is refused because the engine's
 offset carries a literal ON the node by construction (that is what makes a
