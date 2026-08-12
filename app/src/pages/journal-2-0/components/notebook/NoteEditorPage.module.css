@@ -170,6 +170,61 @@
   border-top: 1px solid var(--color-border, #232932);
   margin: 28px 0;
 }
+/* Task list — checkbox aligned with the label on the first line, wrapped
+   text indents underneath it instead of under the box. */
+.proseEditor ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+  margin: 12px 0;
+}
+.proseEditor ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 6px 0;
+}
+.proseEditor ul[data-type="taskList"] li > label {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  padding-top: 2px;
+  user-select: none;
+}
+.proseEditor ul[data-type="taskList"] li > label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #c9a84c;
+  cursor: pointer;
+}
+.proseEditor ul[data-type="taskList"] li > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.proseEditor ul[data-type="taskList"] li[data-checked="true"] > div {
+  color: var(--color-text-muted, #98a0aa);
+  text-decoration: line-through;
+}
+/* Attachment chip — a bordered pill, no icon (UIcon is a React SVG system
+   and can't be reached from generated editor HTML). */
+.proseEditor a[data-type="attachmentChip"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0;
+  padding: 6px 14px;
+  border: 1px solid var(--color-border, #232932);
+  border-radius: 999px;
+  background: var(--color-surface, #14171c);
+  color: var(--color-text-primary, #e8eaed);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  max-width: 100%;
+}
+.proseEditor a[data-type="attachmentChip"]:hover {
+  border-color: #c9a84c;
+  color: #c9a84c;
+}
 .proseEditor p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   color: var(--color-text-muted, #98a0aa);

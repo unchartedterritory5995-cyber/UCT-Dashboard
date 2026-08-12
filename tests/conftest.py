@@ -279,3 +279,24 @@ def _reset_signature_serve_stale():
     _clear()
     yield
     _clear()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _setup_j2_database():
+    """Initialize the J2 schema in the test auth.db.
+
+    The app uses auth_db.get_connection() which was already isolated by the
+    root conftest.py. This fixture just ensures the J2 schema is created
+    in that isolated database. This is needed for HTTP endpoint tests that
+    call actual service layers.
+    """
+    from api.services.auth_db import get_connection
+    from api.services.journal_two import db as j2db
+
+    conn = get_connection()
+    try:
+        j2db.ensure_schema(conn)
+    finally:
+        conn.close()
+
+    yield

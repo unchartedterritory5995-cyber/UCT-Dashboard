@@ -7,23 +7,41 @@ import StarterKit from '@tiptap/starter-kit'
 import Image from '@tiptap/extension-image'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
+import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table'
+import { TaskList, TaskItem } from '@tiptap/extension-list'
 import { SlashMenuExtension } from '../components/notebook/SlashMenu'
 import { VideoTimestamp } from './videoTimestampNode'
+import { AttachmentChip } from './attachmentChip'
 import { fmtTime } from '../../../components/video/playerUtils'
 
 export function buildExtensions({ placeholder = 'Start writing… or type / for blocks' } = {}) {
   return [
     StarterKit.configure({
       heading: { levels: [1, 2, 3] },
+      // StarterKit v3 bundles its own unconfigured Link internally. Schema-level
+      // mark parsing dedups (our explicit Link below wins), but ProseMirror
+      // PLUGINS are NOT deduped — both copies register a click handler, and
+      // StarterKit's default openOnClick:true fires after ours returns false,
+      // calling window.open(href) on every link click and defeating the
+      // explicit openOnClick:false below. Disabling it here is load-bearing.
+      link: false,
     }),
     Image.configure({ inline: false, allowBase64: false }),
     Link.configure({
       openOnClick: false,
       autolink: true,
       protocols: ['https'],
+      // '/journal...' is the shipped internal-note-link form; 'import-link://<targetKey>'
+      // is the TEMPORARY placeholder the import pipeline round-trips through generateJSON
+      // before rewriteBody resolves it. Without this allowance the Link mark is stripped
+      // at parse time and every wiki-link import silently dies.
+      isAllowedUri: (url, ctx) => url.startsWith('/journal') || url.startsWith('import-link://') || ctx.defaultValidate(url),
       HTMLAttributes: { rel: 'noreferrer', target: '_blank' },
     }),
     Placeholder.configure({ placeholder }),
+    Table.configure({ resizable: false }), TableRow, TableHeader, TableCell,
+    TaskList, TaskItem.configure({ nested: true }),
+    AttachmentChip,
     SlashMenuExtension,
     VideoTimestamp,
   ]
@@ -58,6 +76,7 @@ export function extractPlainText(doc) {
     if (!node || typeof node !== 'object') return
     if (node.type === 'text' && typeof node.text === 'string') out.push(node.text)
     if (node.type === 'videoTimestamp') out.push(`[${fmtTime(node.attrs?.seconds || 0)}]`)
+    if (node.type === 'attachmentChip') out.push(`[file: ${node.attrs?.name || 'file'}]`)
     for (const child of node.content || []) walk(child)
   }
   walk(doc)
