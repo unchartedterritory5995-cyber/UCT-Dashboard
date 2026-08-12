@@ -69,16 +69,17 @@
     "translates": false,
     "outputs": 3,
     "usable": 0,
+    "hiddenScaffolding": 0,
     "selectedFormula": null,
     "downstream": null,
     "refusal": {
-      "guard": "pine:offset-literal",
-      "line": 45,
-      "column": 20,
-      "token": "len"
+      "guard": "pine:request",
+      "line": 52,
+      "column": 6,
+      "token": "request.security"
     },
     "perOutputRefusals": {
-      "pine:offset-literal": 3
+      "pine:request": 3
     }
   },
   "06-adx-advanced.pine": {

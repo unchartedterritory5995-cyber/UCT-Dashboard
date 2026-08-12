@@ -111,7 +111,25 @@ different question. Fixing it means folding the conditional reassignment FIRST
 and offsetting the final binding. ⛔ Not "relax the guard": the guard is right,
 the fold order is what has to change.
 
-### 🛑 CONSTANT-FOLDING AN OFFSET — BUILT, WORKS, REVERTED. OWNER CALL NEEDED.
+### ✅ CONSTANT-FOLDING AN OFFSET — SHIPPED. Owner answered: the tree is frozen.
+
+**The answer resolved it toward folding, not away.** If the stored tree is
+authoritative then a LENGTH is already frozen — `ta.sma(close, n)` has folded to
+`sma(close, 10)` all along. Folding the offset makes a member's knob frozen for
+both rather than for one and not the other, which is the consistent behaviour.
+
+⛔ Still refused, and each was checked: a SERIES index, a series-NAME index,
+`1 + 1`, `1.5`, `bar_index`, and `close[-1]`.
+
+⚠️ **Two things the mutation harness corrected, both worth reading:**
+1. The `folded.value < 0` check is **unreachable today** — `-1` resolves to a
+   `u-` op, not a negative `num`, so it refuses one check earlier. Kept and
+   documented as dead rather than deleted or left looking load-bearing.
+2. `pine:offset-literal` no longer fires on ANY published script in the corpus,
+   so it left the coverage list — the pinned guard COUNT (12 → 11) is what forced
+   that to be acknowledged instead of the list going quietly stale.
+
+### 🛑 (original) CONSTANT-FOLDING AN OFFSET — the reasoning before the answer
 
 **The inconsistency is real and measured.** An input already folds when used as a
 LENGTH — `n = input.int(10)`, `ta.sma(close, n)` → `sma(close, 10)`, because the

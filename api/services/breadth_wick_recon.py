@@ -328,11 +328,13 @@ def sweep_wicks(from_date: str, to_date: str, universe: Optional[list] = None,
     written; a rejected (garbage) wick stays a body (close_recon untouched). Resumable:
     a day already carrying intraday_recon is skipped. HEAVY — worker/bg only."""
     from datetime import date as _d, timedelta as _td
-    from api.services import breadth_live as bl
     from api.services import breadth_daily_ohlc as store
     from api.services import breadth_ohlc_sync as sync
     if universe is None:
-        universe, _ = bl.universe()
+        # WORKER has no collector snapshot → resolve the SAME universe the web/live
+        # rows used (Phase-1 helper fetches web's /universe endpoint when local empty).
+        from api.services import breadth_history_recon as _recon
+        universe, _ = _recon._resolve_universe()
     if not universe:
         return {"ok": False, "reason": "no universe"}
     client = _s3_client()

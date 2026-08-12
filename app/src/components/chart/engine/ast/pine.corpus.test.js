@@ -195,7 +195,15 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
       'pine:state', // 10 — a trailing stop is a real accumulator
       'pine:reassign', // 20 — a `:=` inside UDT/array code the fold cannot read
       'pine:block', // 06 — a `switch` inside a user function
-      'pine:offset-literal', // 05 — `hh[len]`, a variable bar offset
+      // ⚰️ `pine:offset-literal` LEFT THIS LIST 2026-08-11, CLOSED RATHER THAN
+      // WEAKENED — the same way `pine:role-order` did below. It fired on 05's
+      // `hh[len]`, where `len` is a UDF parameter bound to an input; an input
+      // already folded to a literal as a LENGTH and now folds as an OFFSET too,
+      // so 05's refusal moved on to `pine:request`. ⛔ THE GUARD IS STILL LIVE
+      // and still right for an index that genuinely cannot be reduced — a series
+      // index, `1 + 1`, `bar_index` — it is simply no longer reachable from any
+      // PUBLISHED script in this corpus, which is what this list tracks.
+      // `pine.offset.test.js` holds the snippets that still exercise it.
       'pine:tuple', // 02, 06, 19
       // ⚰️ `pine:role-order` LEFT THIS LIST BECAUSE IT WAS CLOSED, not because it
       // stopped mattering. It fired on `18-normalized-average-true-range` for
@@ -222,7 +230,15 @@ describe('a script that refuses refuses for a DECLARED reason', () => {
     }
     // ⛔ AND THE COUNT, so a guard that stops firing on the corpus is noticed
     // rather than quietly leaving the list above still true.
-    expect(fired.size).toBe(12)
+    //
+    // ⭐ 12 → 11 ON 2026-08-11, AND THIS ASSERTION IS WHAT NOTICED. Folding an
+    // input into a bar offset took `pine:offset-literal` off the corpus — 05's
+    // `hh[len]` was its only published source, and that script now refuses at
+    // `pine:request` instead. The guard is still live and still right for an
+    // index that cannot be reduced; it is simply no longer reachable from these
+    // 21 scripts. Exactly the movement this number exists to force somebody to
+    // acknowledge, rather than a list going quietly stale.
+    expect(fired.size).toBe(11)
   })
 
   it('⛔ and NOTHING in the corpus is blocked on the bar offset any more', () => {
