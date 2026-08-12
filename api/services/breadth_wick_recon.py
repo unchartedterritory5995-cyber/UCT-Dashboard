@@ -335,6 +335,16 @@ def _has_intraday_recon(D: str) -> bool:
         return False
 
 
+def _malloc_trim():
+    """Return freed heap pages to the OS. numpy/gc free the objects but glibc keeps the
+    arena, so RSS climbs across a long sweep until the pod OOM-recycles. No-op off glibc."""
+    try:
+        import ctypes
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except Exception:
+        pass
+
+
 def sweep_wicks(from_date: str, to_date: str, universe: Optional[list] = None,
                 upload_every: int = 10, skip_done: bool = True) -> dict:
     """WORKER sweep: reconstruct real intraday wicks for [from_date, to_date] and write
@@ -384,9 +394,12 @@ def sweep_wicks(from_date: str, to_date: str, universe: Optional[list] = None,
                     failed += 1
                 # Free the day's (large) minute-frame + yield, so the worker's memory
                 # doesn't accumulate and its /health stays responsive (avoids the
-                # Railway recycle we saw on the first run).
+                # Railway recycle we saw on the first run). gc frees the Python objects
+                # but glibc keeps the arena → RSS still climbs ~20-30MB/day across a long
+                # sweep until OOM; malloc_trim RETURNS the freed pages to the OS.
                 del agg, rows
                 _gc.collect()
+                _malloc_trim()
                 _t.sleep(1.0)
         d -= _td(days=1)
     sync.upload(force=True)
