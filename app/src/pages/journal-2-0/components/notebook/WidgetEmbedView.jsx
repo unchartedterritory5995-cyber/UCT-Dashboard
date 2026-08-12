@@ -10,6 +10,12 @@ import styles from './WidgetEmbedView.module.css'
 // How long a live embed gets to settle (bars fetched, chart painted) before
 // the self-archive rasterizes it. A late capture is fine — a blank one isn't.
 const ARCHIVE_SETTLE_MS = 3500
+// The settle clock alone raced a still-painting chart (live finding: a
+// re-capture fired ~4s after the embed scrolled into a cold session and
+// archived a candle-less frame). The chart's zero-arg onBarsReady signal
+// gates the capture; if it hasn't fired, re-check on this cadence, bounded.
+const ARCHIVE_RETRY_MS = 2000
+const ARCHIVE_MAX_RETRIES = 5
 
 // The journal's widget-component bindings — which registry ids can mount LIVE
 // inside a note, and with what renderer. Everything else renders its archived
@@ -76,6 +82,11 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   // embed's own rendered width at ~the chart page's aspect. Track width via
   // ResizeObserver so Half/Full toggles and window resizes re-proportion.
   const [wrapWidth, setWrapWidth] = useState(0)
+  // Chart-paint signal for the self-archive gate (zero-arg contract; carries
+  // no data). Sticky within a mount: once bars have painted, later
+  // re-captures in the same session need no wait.
+  const barsReadyRef = useRef(false)
+  const handleBarsReady = useCallback(() => { barsReadyRef.current = true }, [])
   useEffect(() => {
     const el = wrapRef.current
     if (!el || typeof ResizeObserver === 'undefined') return undefined
@@ -114,7 +125,16 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   // ── Toolbar actions (owner spec Phase 5; explicit actions are the ONLY
   //    writes — scroll/zoom inside the chart never persist anything) ────────
   const toggleLive = () => {
-    if (attrs.mode === 'live') { updateAttributes?.({ mode: 'snapshot' }); return }
+    if (attrs.mode === 'live') {
+      // Freezing an ANNOTATED live embed: the stored archive predates the
+      // marks — clear it so self-archive re-freezes what's shown now,
+      // drawings included. Unannotated freezes keep their archive (it still
+      // matches the frozen params).
+      const hasMarks = Array.isArray(attrs.annotations) && attrs.annotations.length > 0
+      if (hasMarks) archivedOnceRef.current = false
+      updateAttributes?.(hasMarks ? { mode: 'snapshot', fallback: null } : { mode: 'snapshot' })
+      return
+    }
     // Count over the live ProseMirror doc, not editor.getJSON(): getJSON
     // serializes the ENTIRE document (every embed dragging its multi-KB
     // frozen settings blob) just to count nodes — a main-thread hitch that
@@ -159,8 +179,11 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
       return
     }
     // The old archive PNG shows the old tf — clear it so self-archive
-    // re-freezes at the new one, and warm the new tf's history.
+    // re-freezes at the new one, and warm the new tf's history. The new tf's
+    // bars haven't painted yet: reset the ready gate or the re-freeze could
+    // rasterize the OLD tf mid-swap.
     archivedOnceRef.current = false
+    barsReadyRef.current = false
     kickSnapshotWarm(next.params)
     updateAttributes?.({ params: next.params, searchText: next.searchText, fallback: null })
   }
@@ -182,7 +205,18 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
     // The warm needs no note context and the server rail is bounded/throttled
     // — fire it the moment a fresh snapshot mounts.
     kickSnapshotWarm(attrs.params)
-    const t = setTimeout(async () => {
+    let timer = null
+    let retries = 0
+    const fire = async () => {
+      // Don't rasterize a chart that hasn't painted its bars yet — the settle
+      // clock alone once archived a candle-less frame (live finding). After
+      // the retry budget, capture anyway: non-chart live embeds have no bars
+      // signal, and a best-effort late frame beats no archive at all.
+      if (!barsReadyRef.current && retries < ARCHIVE_MAX_RETRIES) {
+        retries += 1
+        timer = setTimeout(fire, ARCHIVE_RETRY_MS)
+        return
+      }
       // Resolve the gates HERE, after the settle window — node-view effects
       // can run before the page's onCreate stamps editor.storage, and gating
       // at effect time silently killed the archive on every mount.
@@ -202,8 +236,9 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
         archivedOnceRef.current = false
         console.debug('[widget-embed] archive failed: %s', e?.message || e)
       }
-    }, ARCHIVE_SETTLE_MS)
-    return () => clearTimeout(t)
+    }
+    timer = setTimeout(fire, ARCHIVE_SETTLE_MS)
+    return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [needsArchive, editor, inView])
 
@@ -217,10 +252,29 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   // persists), renders read-only on later opens, and never touches the
   // global /charts drawing store — frozen evidence stays frozen.
   const [annotate, setAnnotate] = useState(false)
+  // Marks changed this draw session → the stored archive PNG no longer shows
+  // what the reader sees. Cleared when the exit re-freeze fires.
+  const annotationsDirtyRef = useRef(false)
   const handleAnnotationsChange = useCallback(
-    (drawings) => updateAttributes?.({ annotations: Array.isArray(drawings) ? drawings : [] }),
+    (drawings) => {
+      annotationsDirtyRef.current = true
+      updateAttributes?.({ annotations: Array.isArray(drawings) ? drawings : [] })
+    },
     [updateAttributes],
   )
+  const toggleAnnotate = () => {
+    const exiting = annotate
+    setAnnotate(!annotate)
+    // Done after changed marks: re-arm the self-archive so the fallback
+    // re-freezes WITH the drawings — otherwise annotations exist only on the
+    // live render path and vanish the day the embed degrades to its image.
+    // Snapshot mode only: self-archive never runs for mode:'live' (clearing
+    // there would orphan the archive); toggleLive's freeze re-freezes instead.
+    if (exiting && annotationsDirtyRef.current) {
+      annotationsDirtyRef.current = false
+      if (attrs.mode === 'snapshot') recapture()
+    }
+  }
 
   let body = archived
   if (decision.kind === 'live') {
@@ -235,6 +289,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
             height={height}
             annotate={annotate}
             onAnnotationsChange={annotate ? handleAnnotationsChange : null}
+            onBarsReady={handleBarsReady}
           />
         </Suspense>
       </EmbedErrorBoundary>
@@ -290,7 +345,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
             <button
               type="button"
               className={`${styles.toolBtn} ${annotate ? styles.toolBtnActive : ''}`}
-              onClick={() => setAnnotate((a) => !a)}
+              onClick={toggleAnnotate}
               title={annotate ? 'Exit drawing mode' : 'Draw on this snapshot (lines, text — saved with the embed)'}
             >
               {annotate ? 'Done' : 'Draw'}

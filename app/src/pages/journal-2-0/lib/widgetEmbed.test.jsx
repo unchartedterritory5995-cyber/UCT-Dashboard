@@ -9,7 +9,7 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 // Same entry the importer's convert.js round-trips through.
 import { generateHTML, generateJSON } from '@tiptap/core'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 vi.mock('@tiptap/react', async (orig) => {
   const mod = await orig()
@@ -17,6 +17,14 @@ vi.mock('@tiptap/react', async (orig) => {
   // not. A plain div keeps these tests about the CHAIN, not the editor.
   return { ...mod, NodeViewWrapper: (props) => <div {...props} /> }
 })
+
+// The self-archive pipeline does real fetches (bars warm, PNG upload) — keep
+// the durability plumbing out of jsdom.
+vi.mock('./embedArchive', () => ({
+  captureElementPng: vi.fn(async () => null),
+  storeFallbackImage: vi.fn(async () => ({ url: '/api/x.png' })),
+  kickSnapshotWarm: vi.fn(),
+}))
 
 // The live chart renderer drags ChartPane/StockChart into jsdom; draw-mode
 // tests are about the VIEW's toolbar + annotation wiring, so stub it with a
@@ -28,6 +36,11 @@ vi.mock('../components/notebook/ChartEmbed', () => ({
         type="button"
         data-testid="emit-drawing"
         onClick={() => props.onAnnotationsChange?.([{ id: 'probe-line' }])}
+      />
+      <button
+        type="button"
+        data-testid="emit-bars-ready"
+        onClick={() => props.onBarsReady?.()}
       />
     </div>
   ),
@@ -308,4 +321,90 @@ describe('WidgetEmbedView draw mode', () => {
     fireEvent.click(screen.getByTestId('emit-drawing'))
     expect(updateAttributes).toHaveBeenCalledWith({ annotations: [{ id: 'probe-line' }] })
   })
+
+  it('Done after changed marks re-freezes the archive; Done without changes does not', async () => {
+    const updateAttributes = vi.fn()
+    const attrs = { ...liveChartAttrs(), fallback: { url: '/api/old.png', w: 800, h: 400 } }
+    render(<WidgetEmbedView node={{ attrs }} selected={false} updateAttributes={updateAttributes} />)
+    await screen.findByTestId('chart-embed-stub')
+
+    const refreeze = () => updateAttributes.mock.calls.filter(([a]) => a && a.fallback === null)
+
+    // Draw → Done with NO edits: the archive still matches — no re-freeze.
+    fireEvent.click(screen.getByText('Draw'))
+    fireEvent.click(screen.getByText('Done'))
+    expect(refreeze()).toHaveLength(0)
+
+    // Draw → edit → Done: fallback cleared (re-arms self-archive) with a
+    // fresh capturedAt stamp.
+    fireEvent.click(screen.getByText('Draw'))
+    fireEvent.click(screen.getByTestId('emit-drawing'))
+    fireEvent.click(screen.getByText('Done'))
+    expect(refreeze()).toHaveLength(1)
+    expect(refreeze()[0][0].capturedAt).toBeTruthy()
+  })
+
+  it('live-mode embeds skip the Done re-freeze (self-archive is snapshot-only); freezing with marks re-freezes', async () => {
+    const updateAttributes = vi.fn()
+    const attrs = {
+      ...buildWidgetEmbedAttrs('chart', { symbol: 'NVDA', tf: '5', from: nowSec - 3600, to: nowSec },
+        { mode: 'live', annotations: [{ id: 'mark' }] }),
+      fallback: { url: '/api/old.png', w: 800, h: 400 },
+    }
+    render(<WidgetEmbedView node={{ attrs }} selected={false} updateAttributes={updateAttributes} />)
+    await screen.findByTestId('chart-embed-stub')
+
+    // Done after an edit on a LIVE embed: clearing fallback would orphan the
+    // archive (needsArchive requires mode:'snapshot') — must NOT fire.
+    fireEvent.click(screen.getByText('Draw'))
+    fireEvent.click(screen.getByTestId('emit-drawing'))
+    fireEvent.click(screen.getByText('Done'))
+    expect(updateAttributes.mock.calls.filter(([a]) => a && a.fallback === null)).toHaveLength(0)
+
+    // Freezing the annotated live embed re-freezes: mode + fallback together.
+    fireEvent.click(screen.getByText('Snapshot'))
+    expect(updateAttributes).toHaveBeenCalledWith({ mode: 'snapshot', fallback: null })
+  })
+})
+
+describe('WidgetEmbedView self-archive bars-ready gate', () => {
+  const editor = { storage: { uctJournalWidgets: { noteId: 'note-1' } }, isEditable: true }
+  const bareAttrs = () =>
+    buildWidgetEmbedAttrs('chart', { symbol: 'NVDA', tf: '5', from: nowSec - 3600, to: nowSec })
+
+  let RealIO
+  beforeAll(async () => {
+    RealIO = globalThis.IntersectionObserver
+    globalThis.IntersectionObserver = class {
+      constructor(cb) { this.cb = cb }
+      observe() { this.cb([{ isIntersecting: true }], this) }
+      unobserve() {}
+      disconnect() {}
+    }
+  })
+  afterAll(() => { globalThis.IntersectionObserver = RealIO })
+
+  it('never rasterizes before the chart signals bars-ready (the blank-archive race)', async () => {
+    const { captureElementPng } = await import('./embedArchive')
+    captureElementPng.mockClear()
+    render(<WidgetEmbedView node={{ attrs: bareAttrs() }} selected={false} editor={editor} updateAttributes={vi.fn()} />)
+    await screen.findByTestId('chart-embed-stub')
+    // Past the settle window with NO ready signal: the gate must hold.
+    await new Promise((r) => setTimeout(r, 4000))
+    expect(captureElementPng).not.toHaveBeenCalled()
+  }, 10000)
+
+  it('captures once bars are ready and patches the fallback onto the node', async () => {
+    const { captureElementPng, storeFallbackImage } = await import('./embedArchive')
+    captureElementPng.mockClear()
+    captureElementPng.mockResolvedValue(new Blob(['x'], { type: 'image/png' }))
+    storeFallbackImage.mockResolvedValue({ url: '/api/fresh.png', width: 800, height: 400 })
+    const updateAttributes = vi.fn()
+    render(<WidgetEmbedView node={{ attrs: bareAttrs() }} selected={false} editor={editor} updateAttributes={updateAttributes} />)
+    fireEvent.click(await screen.findByTestId('emit-bars-ready'))
+    await waitFor(() => expect(captureElementPng).toHaveBeenCalled(), { timeout: 6000 })
+    await waitFor(() => expect(updateAttributes).toHaveBeenCalledWith({
+      fallback: { url: '/api/fresh.png', w: 800, h: 400 },
+    }), { timeout: 2000 })
+  }, 12000)
 })
