@@ -94,30 +94,55 @@ def _dedup_upper(seq) -> List[str]:
     return out
 
 _BASE_EXTRA = _dedup_upper(os.environ.get("DARKPOOL_BASE_UNIVERSE_EXTRA", "").split(","))
-# Full base for the NIGHTLY run (~110 names). Core subset for the intraday poller
-# (kept small so the every-few-minutes REST load stays light).
-BASE_UNIVERSE = _dedup_upper([
-    # broad index
-    "SPY", "QQQ", "IWM", "DIA", "VOO", "VTI", "RSP", "MDY",
-    # sector SPDRs
-    "XLE", "XLF", "XLK", "XLV", "XLI", "XLY", "XLP", "XLU", "XLB", "XLRE", "XLC",
-    # commodity / energy / metals
-    "USO", "UNG", "GLD", "SLV", "GDX", "GDXJ", "XOP", "OIH",
-    # rates / credit / vol
-    "TLT", "IEF", "SHY", "AGG", "BND", "HYG", "LQD", "TIP", "VXX", "UVXY",
-    # thematic / intl / leveraged / crypto-proxy
-    "SMH", "SOXX", "SOXL", "TQQQ", "SQQQ", "ARKK", "KWEB", "FXI", "EEM", "EFA",
-    "IBIT", "GBTC",
-    # megacaps
-    "AAPL", "MSFT", "NVDA", "GOOGL", "GOOG", "AMZN", "META", "TSLA", "AVGO",
-    "JPM", "LLY", "V", "MA", "UNH", "XOM", "JNJ", "WMT", "PG", "HD", "COST",
-    "ORCL", "NFLX", "AMD", "CRM", "BAC", "KO", "PEP", "ADBE", "CVX", "MRK",
-    "TMO", "ABBV", "CSCO", "MCD", "WFC", "DIS", "INTC", "QCOM", "TXN", "IBM",
-    "GE", "CAT", "BA", "PLTR", "SMCI", "MU", "MRVL", "CRWD", "COIN", "MSTR",
-] + _BASE_EXTRA)
+# ── Data-driven base from the BBS dark-pool download (7/2–8/11/2026) ──────────
+# Every ticker with >= $1B total dark-pool notional over that ~6-week window; these
+# 271 names (91 ETF + 180 stock) capture ~79% of ALL dark-pool notional in the
+# sample. Ranked by notional. Refresh from a newer BBS/Massive export when it
+# drifts (full 3401-name ranking was saved to Downloads/darkpool_ticker_ranking.csv,
+# outside the repo).
+_BASE_ETFS = [
+    "SPY", "QQQ", "SMH", "IVV", "LQD", "HYG", "VOO", "IWM", "TLT", "SPYM", "EWY", "GLD",
+    "XLF", "IQMM", "IEF", "EEM", "EFV", "VUG", "IEFA", "SOXX", "IEMG", "AGG", "USHY", "VTV",
+    "EFA", "IWF", "BIL", "IGV", "DRAM", "RSP", "VEA", "VCIT", "GOOGN", "GDX", "IWR", "BND",
+    "EMB", "XLV", "EWZ", "XLE", "VTI", "ACWI", "DIA", "GOOGM", "VCSH", "IWD", "MUB", "SKHY",
+    "FXI", "XLK", "XLY", "EWT", "SCZ", "XLI", "SGOV", "VXUS", "XLC", "VO", "QQQM", "IAU",
+    "SPYG", "IBIT", "ITOT", "VGT", "IJR", "VWO", "KRE", "FINA", "XLP", "IXUS", "JPST", "PDBC",
+    "JAAA", "SPHY", "GLDM", "XBI", "IJH", "XLU", "KLMN", "KWEB", "EWJ", "BNDX", "MBB", "SHY",
+    "HGER", "SPSB", "SCHX", "SCHD", "PAAA", "SLV", "IEI",
+]
+_BASE_STOCKS = [
+    "AAPL", "NVDA", "MSFT", "MU", "AMZN", "META", "SPCX", "AVGO", "AMD", "SNDK", "GOOGL", "INTC",
+    "JPM", "TSLA", "GOOG", "TSM", "ORCL", "XOM", "CRM", "PLTR", "CSCO", "MRVL", "NFLX", "TXN",
+    "FERG", "AMAT", "NBIS", "UNH", "LRCX", "ABBV", "WFC", "C", "KLAC", "BE", "NEE", "IBM",
+    "LLY", "WMT", "CAT", "PG", "JNJ", "BAC", "CRNX", "COST", "ACN", "V", "QCOM", "KO",
+    "MRK", "MCD", "TD", "GEV", "NOW", "VZ", "PANW", "IREN", "BKNG", "AXP", "ABT", "NKE",
+    "FCX", "CRWD", "CVS", "PFE", "FIG", "BRK.B", "HD", "DDOG", "SHOP", "CVX", "CMCSA", "INTU",
+    "T", "CRWV", "LOW", "RTX", "SPGI", "DIS", "MDLZ", "PDD", "WDC", "BSX", "PEP", "BNS",
+    "MA", "SNOW", "MS", "COP", "DHR", "MCK", "COF", "HOOD", "SCHW", "RY", "ECHO", "TMUS",
+    "SBUX", "ARM", "WELL", "CTSH", "ADBE", "HON", "GS", "GLW", "AEP", "PM", "GILD", "CVNA",
+    "AON", "GE", "BNY", "BMY", "TJX", "UBER", "TRP", "MCHP", "AMGN", "PYPL", "VLO", "ICE",
+    "APP", "MNST", "MET", "PCAR", "ADI", "FISV", "PLD", "COHR", "NXPI", "WBD", "LITE", "GM",
+    "SMCI", "KVUE", "RVMD", "PNC", "BABA", "TER", "FTNT", "MO", "DELL", "ORLY", "BX", "EXC",
+    "APO", "WDAY", "TECH", "SO", "SHEL", "EA", "TRV", "BA", "EQIX", "HONA", "SLB", "IBN",
+    "BKR", "MDT", "ROKU", "BTSG", "DVN", "HPE", "APH", "ASML", "TPR", "KDP", "ASTS", "DE",
+    "CLS", "INFY", "RIVN", "WBS", "BLK", "BMO", "SNPS", "CMS", "QXO", "PATH", "SU", "EXPE",
+]
+# Must-cover supplement — liquid names that block dark in SIZE but SPORADICALLY, so
+# they fall UNDER the $1B window cut yet still print huge single blocks we must never
+# miss. USO is the canonical case: its 6-week total was < $1B, so a pure notional cut
+# would drop the very ticker that started this — even though it printed a $446M block
+# on 8/11. Commodity / rates / vol / crypto-proxy ETFs + remaining sector SPDRs.
+_BASE_SUPPLEMENT = [
+    "USO", "UNG", "OIH", "XOP", "GDXJ", "XLB", "XLRE", "SOXL", "TQQQ", "SQQQ",
+    "VXX", "UVXY", "ARKK", "GBTC", "MSTR", "COIN", "TIP",
+]
+BASE_UNIVERSE = _dedup_upper(_BASE_ETFS + _BASE_STOCKS + _BASE_SUPPLEMENT + _BASE_EXTRA)
+# Intraday core — kept SMALL (polled every few minutes): the top ETFs that block in
+# size (incl. commodity/rates like USO) + the megacaps. Extend via env.
 BASE_UNIVERSE_CORE = _dedup_upper([
-    "SPY", "QQQ", "IWM", "DIA", "USO", "UNG", "GLD", "SLV", "GDX", "XOP",
-    "XLE", "XLF", "SMH", "TLT", "HYG", "TQQQ", "SQQQ", "VXX", "ARKK", "FXI",
+    "SPY", "QQQ", "IWM", "DIA", "SMH", "IVV", "VOO", "XLF", "XLE", "XLK", "GLD", "SLV",
+    "GDX", "USO", "UNG", "TLT", "HYG", "LQD", "EEM", "FXI", "KWEB", "SOXX", "IBIT",
+    "AAPL", "NVDA", "MSFT", "AMZN", "META", "GOOGL", "TSLA", "AVGO", "AMD", "MU", "PLTR", "INTC",
 ] + _BASE_EXTRA)
 
 CSV_COLUMNS = [

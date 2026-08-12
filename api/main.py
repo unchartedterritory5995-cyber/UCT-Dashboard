@@ -3578,6 +3578,26 @@ async def lifespan(app: FastAPI):
         except Exception as _e_dpi:
             print(f"[startup] darkpool Massive ingest job skip: {_e_dpi}")
 
+        # -- Dark pool: ALL-SYMBOLS flat-file ingest (2026-08-11) ---------------
+        # The per-ticker 19:20 ingest above only covers a ticker universe. This
+        # job scans the WHOLE prior-day US-stocks flat file (us_stocks_sip/
+        # trades_v1, T+1, ~3.5GB, streamed) and captures EVERY ticker's
+        # off-exchange >= $4M prints — dark pool matters most on off-radar names
+        # the universe can't see. Runs 11:45 ET (after the ~11:00 T+1 publish),
+        # WEB-side (owns darkpool.db). Self-gates on DARKPOOL_FLATFILE_ENABLED=1
+        # (ships DARK — a deploy alone does nothing). Dedup makes it safe beside
+        # the per-ticker pass.
+        try:
+            from api.darkpool_flatfile_ingest import scheduled_run as _dp_ff_run
+            _scheduler.add_job(
+                _dp_ff_run,
+                trigger=CronTrigger(day_of_week="mon-fri", hour=11, minute=45, timezone=_ET),
+                id="darkpool_flatfile_ingest", max_instances=1, replace_existing=True,
+                misfire_grace_time=7200)
+            print("[startup] darkpool ALL-SYMBOLS flat-file ingest scheduled (weekdays 11:45 ET, gated)")
+        except Exception as _e_dpff:
+            print(f"[startup] darkpool flat-file ingest job skip: {_e_dpff}")
+
         # -- Dark pool: intraday live-preview poller (2026-07-27) ---------------
         # Near-real-time (~3 min) companion to the nightly ingest above. Polls
         # off-exchange prints INCREMENTALLY during market hours into the
