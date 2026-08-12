@@ -82,6 +82,32 @@ def test_a_feed_row_still_pending_while_the_provider_has_numbers():
     assert out["ok"] is False
 
 
+def test_a_revenue_only_reporter_showing_its_revenue_is_complete():
+    """KOPN, 2026-08-11 (+22.6% on a revenue beat): the provider published
+    revenue with NO EPS actual, and the feed row carried that revenue. An
+    eps-null check called it pending FOREVER — nightly alert noise about a
+    name showing everything there was to show. Pending must mean the feed
+    lacks a figure the provider PUBLISHED, field by field."""
+    out = coverage.assess(
+        provider={"KOPN": _prow("KOPN", eps_act=None, rev_act=12_700_000)},
+        wire_rows=[{"sym": "KOPN", "eps_act": None, "rev_act": 12.7,
+                    "first_seen_at": 1000.0}],
+        roster_syms={"KOPN"},
+    )
+    assert out["numbers_pending_on_feed"] == []
+    assert out["on_feed_with_numbers"] == 1
+    assert out["ok"] is True
+
+
+def test_a_feed_row_lacking_only_the_published_revenue_is_still_pending():
+    out = coverage.assess(
+        provider={"CAH": _prow("CAH")},                     # eps AND rev published
+        wire_rows=[_wrow("CAH", eps_act=1.0) | {"rev_act": None}],
+        roster_syms={"CAH"},
+    )
+    assert out["numbers_pending_on_feed"] == ["CAH"]
+
+
 def test_a_scheduled_reporter_without_actuals_is_not_missing():
     """No published actuals ⇒ it has not reported yet. Never in the denominator."""
     out = coverage.assess(
