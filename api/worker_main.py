@@ -286,13 +286,17 @@ def _start_wick_backfill():
         log.info("breadth wick backfill: set BREADTH_WICKS_FROM/TO to run; idle")
         return
     upload_every = int(os.environ.get("BREADTH_WICKS_UPLOAD_EVERY", "10"))
+    # RESWEEP=1 forces re-processing days that already carry intraday_recon — needed
+    # to propagate a method CORRECTION (e.g. the seeded-open wick fix) over old rows.
+    skip_done = os.environ.get("BREADTH_WICKS_RESWEEP") != "1"
 
     def run():
         time.sleep(30)                              # let boot settle
         from api.services import breadth_wick_recon as wr
-        log.info(f"breadth wick sweep starting {frm}..{to} (upload_every={upload_every})")
+        log.info(f"breadth wick sweep starting {frm}..{to} "
+                 f"(upload_every={upload_every}, skip_done={skip_done})")
         try:
-            res = wr.sweep_wicks(frm, to, upload_every=upload_every)
+            res = wr.sweep_wicks(frm, to, upload_every=upload_every, skip_done=skip_done)
             log.info(f"breadth wick sweep DONE: {res}")
         except Exception as e:
             log.exception(f"breadth wick sweep failed: {e}")

@@ -236,7 +236,11 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
     // Generated ONCE, on the tree before this task's implementation, by printing
     // `digest(corpus().map(digest).join('|'))`. If it moves, a per-definition
     // door changed behaviour — that is a FINDING, not a number to refresh.
+    // 2026-08-12: re-pinned for the additive, default-OFF `compareHideBase` setting
+    // ("Group only") added to CHART_DEFAULTS + mergeChartSettings. No per-definition
+    // door changed — every corpus blob simply gained `compareHideBase:false`.
+    // (Prior value: b73bd284369a0181773fc2c4e487636726f14cb3b1196e35f01f1eaa011303d7)
     expect(digest(corpus().map(digest).join('|')))
-      .toBe('b73bd284369a0181773fc2c4e487636726f14cb3b1196e35f01f1eaa011303d7')
+      .toBe('4cd29324dc8addd6bc54e3f5cbc23bbfcecdc8dc1fea4565d1dcd7eba5ae95f6')
   })
 })

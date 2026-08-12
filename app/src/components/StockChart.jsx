@@ -9415,11 +9415,19 @@ export default function StockChart({
     const map = comparisonSeriesRefs.current
     const wanted = new Set(comparisonSeries.map(s => s.sym))
 
+    // Snapshot the visible range so a structural change (add/remove series) can't make
+    // LWC auto-fit the chart to the comparison's full history — the "chart snaps back
+    // to 2011-12 when I click a button" bug. Restored after, on the next frame.
+    let savedLogical = null
+    try { savedLogical = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
+
     // Remove series no longer wanted
+    let removedAny = false
     for (const [sym, series] of map.entries()) {
       if (!wanted.has(sym)) {
         try { chart.removeSeries(series) } catch {}
         map.delete(sym)
+        removedAny = true
       }
     }
 
@@ -9430,6 +9438,10 @@ export default function StockChart({
     let createdAny = false
     for (const cmp of comparisonSeries) {
       const wantScale = cmp.scaleMode === 'same' ? 'right' : 'left'
+      // Color-matched axis label (ticker) for INDIVIDUAL comparisons; suppressed for
+      // group members so a 40-name theme doesn't stack 40 overlapping axis chips —
+      // those are read from the collapsible legend instead.
+      const wantLabel = !cmp.group
       let series = map.get(cmp.sym)
       if (series && series._uctScaleId !== wantScale) {
         try { chart.removeSeries(series) } catch {}
@@ -9442,9 +9454,10 @@ export default function StockChart({
             priceScaleId: wantScale,
             color: cmp.color,
             lineWidth: 2,
-            // No on-chart chip / axis label — the docked compare legend shows the
-            // symbol, name + framed % instead (owner: drop the blue "SPY" box).
-            lastValueVisible: false,
+            // Owner: show a little price-scale label in the LINE'S colour with the
+            // ticker on it (individual compares only — see wantLabel).
+            lastValueVisible: wantLabel,
+            title: wantLabel ? cmp.sym : '',
             priceLineVisible: false,
             crosshairMarkerVisible: true,
             crosshairMarkerRadius: 3,
@@ -9456,7 +9469,7 @@ export default function StockChart({
           continue
         }
       } else {
-        try { series.applyOptions({ color: cmp.color, lastValueVisible: false }) } catch {}
+        try { series.applyOptions({ color: cmp.color, lastValueVisible: wantLabel, title: wantLabel ? cmp.sym : '' }) } catch {}
       }
       // 'same' → transform into the base's dollar space anchored at the visible-left
       // (rises above the base without % mode); 'new' → raw closes on the left % scale.
@@ -9485,16 +9498,14 @@ export default function StockChart({
       })
     } catch {}
 
-    // A freshly-added series sometimes doesn't paint until the next user interaction
-    // (the "line only shows after I move the chart" bug). Nudge a repaint on the next
-    // frame by re-asserting the current visible range — no view change, just a redraw.
-    if (createdAny) {
+    // On a STRUCTURAL change (series added/removed) restore the pre-change visible
+    // range on the next frame. This does double duty: (a) prevents LWC's auto-fit to
+    // the comparison's full history (the 2011-12 snap-back), and (b) nudges a repaint
+    // so a freshly-added line paints immediately instead of only after the user moves
+    // the chart. NOT done on data-only updates (would fight the user's panning).
+    if ((createdAny || removedAny) && savedLogical) {
       requestAnimationFrame(() => {
-        try {
-          const ts = chart.timeScale()
-          const r = ts.getVisibleLogicalRange()
-          if (r) ts.setVisibleLogicalRange(r)
-        } catch { /* disposed */ }
+        try { chart.timeScale().setVisibleLogicalRange(savedLogical) } catch { /* disposed */ }
       })
     }
   }, [comparisonSeries, comparisonsData, filteredBars, adjustTime, hideBase])
@@ -11920,7 +11931,7 @@ export default function StockChart({
         <div className={`${styles.compareRows}${legendStacked ? ' ' + styles.compareRowsSide : ''}`}>
           {/* Groups (theme/sector/industry) — one collapsible row each */}
           {comparisonLegend.groups.map(g => {
-            const open = !!openCmpGroups[g.name]
+            const open = openCmpGroups[g.name] ?? true   // expanded by default; user can collapse
             const gUp = g.avg != null && g.avg >= 0
             return (
               <div key={`g:${g.name}`}>
@@ -11929,7 +11940,7 @@ export default function StockChart({
                     className={styles.compareGroupChevron}
                     role="button"
                     aria-label={open ? 'Collapse' : 'Expand'}
-                    onClick={() => setOpenCmpGroups(p => ({ ...p, [g.name]: !p[g.name] }))}
+                    onClick={() => setOpenCmpGroups(p => ({ ...p, [g.name]: !(p[g.name] ?? true) }))}
                   >{open ? '▾' : '▸'}</span>
                   <span className={styles.compareGroupName}>{g.name}</span>
                   <span className={styles.compareGroupN}>· {g.items.length}</span>
@@ -11951,14 +11962,32 @@ export default function StockChart({
                 {open && (
                   <div className={styles.compareGroupMembers}>
                     {g.items.map(m => {
+                      const mmeta = comparisonMeta?.[m.sym]
+                      const mname = mmeta?.name || m.sym
+                      const mexch = mmeta?.exchange
                       const mUp = m.pct != null && m.pct >= 0
                       return (
-                        <span key={m.sym} className={styles.compareMember}>
-                          <span className={styles.compareMemberSym} style={{ color: m.color }}>{m.sym}</span>
-                          <span className={styles.compareMemberPct} style={{ color: m.color }}>
-                            {m.pct != null ? `${mUp ? '+' : ''}${m.pct.toFixed(1)}%` : '—'}
+                        <div key={m.sym} className={styles.compareRow}>
+                          <span className={styles.compareLogo}><CompanyLogo sym={m.sym} name={mname} size={13} round /></span>
+                          <span className={styles.compareTicker} style={{ color: m.color }}>{m.sym}</span>
+                          <span className={styles.compareName}>
+                            {mname}{mexch ? <span className={styles.compareExch}> · {mexch}</span> : null}
                           </span>
-                        </span>
+                          <span className={styles.comparePct} style={{ color: m.color }}>
+                            {m.pct != null ? `${mUp ? '+' : ''}${m.pct.toFixed(2)}%` : '—'}
+                          </span>
+                          <span
+                            className={styles.compareX}
+                            role="button"
+                            title={`Remove ${m.sym}`}
+                            aria-label={`Remove ${m.sym}`}
+                            onClick={() => handleUpdateChartSettings({
+                              ...cs,
+                              comparisonSymbols: (cs.comparisonSymbols || []).filter(x => String(x.sym).toUpperCase() !== m.sym),
+                              preset: 'custom',
+                            })}
+                          >×</span>
+                        </div>
                       )
                     })}
                   </div>
