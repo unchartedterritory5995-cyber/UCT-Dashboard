@@ -48,31 +48,31 @@ Dropbox mechanics (research, binding per the brief):
     fixes).
 
 ────────────────────────────────────────────────────────────────────────────
-KNOWN, DOCUMENTED DESIGN GAP — read before wiring this provider into a source
+SOURCE-AWARE CONSTRUCTION — RESOLVED (Task 11 MUST-RESOLVE #3)
 ────────────────────────────────────────────────────────────────────────────
-`NoteProvider.list_changed`/`fetch`/`fetch_media` (base.py) take ONLY
-`credentials` — there is no per-SOURCE parameter, because `engine._do_sync`
-(out of this task's scope to change) does exactly:
+`NoteProvider.list_changed`/`fetch`/`fetch_media` (base.py) still take ONLY
+`credentials` — there is no per-SOURCE parameter on those methods. What
+changed is CONSTRUCTION: `engine._do_sync` now does
 
-    provider = _provider_factory(source["provider"])          # name only
+    provider = _provider_factory(source["provider"], source)   # full source row
     creds = connections.get_token(user_id, source["provider"]) # connector-level
-    refs = await provider.list_changed(creds, cursor=cursor)   # no source info
+    refs = await provider.list_changed(creds, cursor=cursor)   # still no source info
 
-Roam/Craft never hit this: for them, "connector" and "source" are 1:1 (a
+and `_default_provider_factory` delegates to `registry.build_provider(name,
+source)`, whose `_build_dropbox` reads `source["remoteId"]` (spec §5's
+`remote_id` column comment: "... / folder id" for Dropbox) and passes it as
+`folder_path=` at construction — this is option 1 below, now live.
+
+Roam/Craft never needed this: for them, "connector" and "source" are 1:1 (a
 graph token / capability URL both up front be a single graph/space, so the
 credentials dict itself IS the source identity). Dropbox is the first
 provider where that's false BY DESIGN — one OAuth connection (one connector
 row, `j2_note_connectors` is PK'd `(user_id, provider)`, so only ONE Dropbox
 connector can ever exist per user) can back MULTIPLE folders/sources
-(`j2_note_sources` has no such uniqueness constraint on remote_id). So
-`list_changed`/`fetch`/`fetch_media` need to know WHICH folder, and the
-current contract has nowhere to put that.
+(`j2_note_sources` has no such uniqueness constraint on remote_id).
 
-`_default_provider_factory`'s own docstring flags itself as "a test seam;
-Task 11's registry replaces this" — i.e. a source-aware construction path is
-already expected to land. Until then, `DropboxProvider` accepts the target
-folder path in EITHER of two ways (documented so the eventual router/registry
-task has a concrete contract to satisfy):
+`DropboxProvider` still accepts the target folder path in EITHER of two ways
+(the second remains a defensive fallback, not the live path):
 
   1. At construction: `DropboxProvider(folder_path="/team notes")` — the
      shape a source-aware factory would use.
@@ -85,30 +85,28 @@ If neither is supplied, every method raises `NoteConnAuthError` with an
 actionable message rather than doing something silently wrong.
 
 ────────────────────────────────────────────────────────────────────────────
-CURSOR REPRESENTATION — the other documented tradeoff
+CURSOR REPRESENTATION — RESOLVED (Task 11 MUST-RESOLVE #1: opaque-cursor mode)
 ────────────────────────────────────────────────────────────────────────────
-`engine._do_sync` persists `source.cursor <- max(ref.updated_at for ref in
-refs)` after every successful sync (engine.py's own docstring, point 6), and
-hands that value straight back as `cursor` on the next call — there is no
-separate channel for a provider to store its OWN opaque state across syncs.
-`RemoteRef.updated_at` carries Dropbox's `server_modified` (see
-`_change_timestamp`) — a real ISO-8601 timestamp, but still NOT a real
-Dropbox `list_folder` continuation cursor (Dropbox's own cursor is an opaque
-token this provider never gets a channel to persist across the
-fresh-instance-per-sync boundary).
+Originally `engine._do_sync` only ever persisted `source.cursor <-
+max(ref.updated_at for ref in refs)` — a timestamp derivation with no channel
+for a provider to hand back its OWN opaque continuation token, so a Dropbox
+sync here always degraded to a full recursive re-list (self-healing via the
+`409 {".tag": "reset"}` fallback below, but not maximally efficient).
 
-Consequence: `list_changed(credentials, cursor=<some file's server_modified
-timestamp>)` will almost always fail Dropbox's own cursor validation. This is
-handled, not ignored: Dropbox's `409 {".tag": "reset"}` response is EXACTLY
-the documented recovery signal for "this cursor isn't recognized," and
-`list_changed` below catches it and falls back to a full recursive re-list
-transparently. The net effect (today, until a future task threads a
-provider-private cursor store through the source row) is that Dropbox syncs
-here are always effectively FULL listings — correct, self-healing, just not
-maximally efficient (mitigated by the `content_hash`-driven skip-detection in
-`_entries_to_refs`, which keeps a full listing from re-emitting every
-unchanged file). `list_folder/continue` is still implemented faithfully (not
-stubbed out) so it activates for free the day a real cursor can flow through.
+`providers/base.py::NoteProvider.opaque_cursor` closes that gap: this
+provider stashes the real Dropbox `list_folder`/`list_folder/continue`
+cursor from every `_drain()` call on `self._last_drain_cursor`, and
+`list_changed()` publishes it onto `self.opaque_cursor` before returning.
+The engine reads `provider.opaque_cursor` back after `list_changed()` and,
+when it is not None, persists THAT value verbatim (never re-deriving from
+`ref.updated_at`) and hands it back unchanged as `cursor` on the next call —
+so a Dropbox sync now genuinely continues from where it left off via
+`list_folder/continue`, and the `409 reset` -> full-re-list fallback below is
+back to being the actual edge case (cursor invalidated server-side) rather
+than the permanent steady state. `RemoteRef.updated_at`/`RemoteNote.
+updated_at` are UNCHANGED by this — they still carry `server_modified` (see
+`_change_timestamp`), a real ISO-8601 timestamp used only for note
+freshness/display, never for cursor comparison.
 """
 
 from __future__ import annotations
@@ -497,6 +495,16 @@ class DropboxProvider(NoteProvider):
         self._folder_root: str = ""
         self._enumerated = False
         self._download_semaphore = asyncio.Semaphore(_MAX_CONCURRENT_DOWNLOADS)
+        # Task 11 MUST-RESOLVE #1 (opaque-cursor mode): the raw Dropbox
+        # `list_folder` continuation cursor from the MOST RECENT `_drain()`
+        # call, captured here so `list_changed()` can publish it on
+        # `self.opaque_cursor` (base.py) after enumeration finishes. Kept as
+        # a separate instance var from `opaque_cursor` itself (rather than
+        # writing `opaque_cursor` directly inside `_drain`) so `_drain`
+        # stays a pure pagination helper shared by `list_changed` AND
+        # `list_folders` (the connect-flow folder PICKER, which must never
+        # perturb `opaque_cursor` — only `list_changed` owns that).
+        self._last_drain_cursor: str | None = None
 
     async def aclose(self) -> None:
         if self._owns_client and self._client is not None:
@@ -609,7 +617,17 @@ class DropboxProvider(NoteProvider):
         """Given the response of an initial `list_folder`/`list_folder/
         continue` call, pages via `list_folder/continue` until `has_more` is
         false. Raises `_ResetSignal` (internal) on a `.tag: reset` 409 at
-        ANY point in the loop — including the very first response."""
+        ANY point in the loop — including the very first response.
+
+        Stashes the FINAL page's `cursor` on `self._last_drain_cursor` —
+        Dropbox always returns a valid continuation cursor once `has_more`
+        goes false, even for a small/empty folder, and that cursor is what
+        `list_changed()` republishes as the opaque cursor (Task 11
+        MUST-RESOLVE #1). `list_folders` (the folder PICKER) also drains
+        through here and will overwrite this instance var too — harmless,
+        since only `list_changed()` ever reads it back onto
+        `self.opaque_cursor`, and the engine always calls `list_changed()`
+        fresh before checking that attribute."""
         if first.status_code != 200:
             _raise_list_folder_error(first)
         data = first.json()
@@ -634,6 +652,7 @@ class DropboxProvider(NoteProvider):
             entries.extend(data.get("entries") or [])
             cursor = data.get("cursor")
             has_more = bool(data.get("has_more"))
+        self._last_drain_cursor = cursor
         return entries
 
     async def _full_listing_entries(
@@ -755,6 +774,14 @@ class DropboxProvider(NoteProvider):
             entries = await self._full_listing_entries(credentials, folder_path)
 
         self._index_entries(folder_path, entries)
+        # Task 11 MUST-RESOLVE #1: publish the REAL Dropbox continuation
+        # cursor from this listing (whichever branch produced it) so the
+        # engine persists it VERBATIM and hands it back unchanged next sync
+        # — see base.py's `opaque_cursor` docstring. `_last_drain_cursor` is
+        # set by every `_drain()` call above (both the `continue` branch and
+        # `_full_listing_entries`'s own internal `_drain`), so this is
+        # always the cursor for the listing this call JUST returned.
+        self.opaque_cursor = self._last_drain_cursor
         return self._entries_to_refs(entries, folder_path, credentials)
 
     def _resolve_one_relative_ref(self, url: str, file_dir: str) -> str | None:

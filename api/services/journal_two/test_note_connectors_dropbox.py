@@ -1514,7 +1514,10 @@ async def test_non_iso_updated_at_falls_back_consistently_and_never_conflicts_on
     _engine_db.upsert_connector("u1", "fake", {"token": "abc"})
     source = _engine_db.create_source("u1", "fake", "fake-graph")
     provider = _NonIsoFakeProvider(updated_at="a" * 64)  # content-hash-shaped, non-ISO
-    monkeypatch.setattr(note_engine, "_provider_factory", lambda name: provider)
+    # Task 11 widened `_provider_factory`'s call site to always pass BOTH
+    # positional args (`provider_name, source`) -- see engine.py's
+    # `_default_provider_factory` docstring. This fake ignores `source`.
+    monkeypatch.setattr(note_engine, "_provider_factory", lambda name, source=None: provider)
 
     result_1 = await note_engine.sync_source(source["id"], full=True, manual=True)
     assert result_1["status"] == "ok"

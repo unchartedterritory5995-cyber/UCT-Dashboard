@@ -151,7 +151,10 @@ def _rn(remote_id, title, *, text=None, updated_at="2026-08-01T00:00:00+00:00",
 @pytest.fixture
 def provider(monkeypatch):
     p = FakeProvider()
-    monkeypatch.setattr(engine, "_provider_factory", lambda name: p)
+    # Task 11 widened `_provider_factory`'s call site to always pass BOTH
+    # positional args (`provider_name, source`) — see engine.py's
+    # `_default_provider_factory` docstring. This fake ignores `source`.
+    monkeypatch.setattr(engine, "_provider_factory", lambda name, source=None: p)
     return p
 
 
@@ -1073,3 +1076,223 @@ async def test_final_pass_failure_leaves_the_mark_intact_and_self_heals_next_syn
     note_b = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Note B")
     assert f"/journal?j2tab=notebook&note={note_b['id']}" in json.dumps(note_a2["bodyJson"])
     assert "import-link://" not in json.dumps(note_a2["bodyJson"])
+
+
+# ---------------------------------------------------------------------------
+# Task 11 MUST-RESOLVE #1: opaque-cursor mode (Dropbox-style) vs timestamp
+# mode (Roam/Craft/Notion) -- both modes proven, regression-safe.
+# ---------------------------------------------------------------------------
+
+class OpaqueCursorFakeProvider(FakeProvider):
+    """A provider that publishes a Dropbox-style opaque continuation cursor
+    on `self.opaque_cursor` (base.py) after every `list_changed()` call --
+    proves the engine takes it verbatim over the timestamp derivation."""
+
+    def __init__(self, *, next_cursors: list[str]):
+        super().__init__()
+        self._next_cursors = list(next_cursors)
+
+    async def list_changed(self, credentials, cursor=None):
+        refs = await super().list_changed(credentials, cursor=cursor)
+        if self._next_cursors:
+            self.opaque_cursor = self._next_cursors.pop(0)
+        return refs
+
+
+async def test_opaque_cursor_mode_takes_precedence_over_timestamp_derivation(db, monkeypatch):
+    provider = OpaqueCursorFakeProvider(next_cursors=["dbx-cursor-1", "dbx-cursor-2"])
+    monkeypatch.setattr(engine, "_provider_factory", lambda name, source=None: provider)
+    db.upsert_connector("u1", "dropbox", {"accessToken": "abc"})
+    source = db.create_source("u1", "dropbox", "/team notes")
+
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "First")}
+
+    result = await engine.sync_source(source["id"], full=True)
+    assert result["status"] == "ok"
+
+    got = engine.connections.get_source_by_id(source["id"])
+    assert got["cursor"] == "dbx-cursor-1"  # opaque, NOT the ref's updated_at
+
+
+async def test_opaque_cursor_persists_even_on_an_empty_delta(db, monkeypatch):
+    """An opaque cursor must advance UNCONDITIONALLY (unlike timestamp mode,
+    which only advances on a non-empty `refs`) -- an empty incremental
+    delta still needs its continuation cursor persisted, or the next call
+    would fall back to a full re-list every time."""
+    provider = OpaqueCursorFakeProvider(next_cursors=["dbx-cursor-1", "dbx-cursor-2"])
+    monkeypatch.setattr(engine, "_provider_factory", lambda name, source=None: provider)
+    db.upsert_connector("u1", "dropbox", {"accessToken": "abc"})
+    source = db.create_source("u1", "dropbox", "/team notes")
+
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "First")}
+    await engine.sync_source(source["id"], full=True)
+
+    # Second sync: raw stored cursor handed back verbatim, and an EMPTY
+    # delta this time -- the opaque cursor must still advance.
+    provider.refs = []
+    provider.notes_by_id = {}
+    result2 = await engine.sync_source(source["id"], full=False, manual=True)
+    assert provider.list_changed_calls[-1] == "dbx-cursor-1"  # round-tripped raw, unadjusted
+    assert result2["status"] == "ok"
+
+    got2 = engine.connections.get_source_by_id(source["id"])
+    assert got2["cursor"] == "dbx-cursor-2"  # advanced despite refs == []
+
+
+async def test_timestamp_cursor_mode_unaffected_by_the_opaque_cursor_feature(source, provider):
+    """Regression: plain FakeProvider never sets `opaque_cursor` (stays the
+    base.py class default `None`) -- Roam/Craft/Notion's existing
+    timestamp-derived cursor is completely unchanged by opaque-cursor mode."""
+    assert provider.opaque_cursor is None
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "First")}
+    await engine.sync_source(source["id"], full=True)
+    got = engine.connections.get_source_by_id(source["id"])
+    assert got["cursor"] == "2026-08-01T00:00:00+00:00"
+
+
+# ---------------------------------------------------------------------------
+# Task 11 MUST-RESOLVE #3: source-aware provider construction
+# ---------------------------------------------------------------------------
+
+async def test_provider_factory_receives_the_full_source_row(db, monkeypatch):
+    captured: dict = {}
+
+    def spy_factory(name, source=None):
+        captured["name"] = name
+        captured["source"] = source
+        return FakeProvider()
+
+    monkeypatch.setattr(engine, "_provider_factory", spy_factory)
+    db.upsert_connector("u1", "fake", {"token": "abc"})
+    source = db.create_source("u1", "fake", "fake-graph")
+
+    await engine.sync_source(source["id"], full=True)
+
+    assert captured["name"] == "fake"
+    assert captured["source"]["id"] == source["id"]
+    assert captured["source"]["remoteId"] == "fake-graph"
+
+
+def test_default_provider_factory_delegates_to_the_registry(monkeypatch):
+    """Task 11: `_default_provider_factory` no longer hand-dispatches
+    roam/craft by name -- it delegates entirely to `registry.build_provider`
+    (per `providers/base.py`'s own documented contract that the engine
+    "never imports a concrete provider module directly except through the
+    registry")."""
+    from api.services.journal_two.note_connectors import registry
+    calls = []
+    monkeypatch.setattr(
+        registry, "build_provider",
+        lambda name, source=None: (calls.append((name, source)), "SENTINEL")[1],
+    )
+    result = engine._default_provider_factory("notion", {"remoteId": "ws1"})
+    assert result == "SENTINEL"
+    assert calls == [("notion", {"remoteId": "ws1"})]
+
+
+# ---------------------------------------------------------------------------
+# Task 11 MUST-RESOLVE #4 + #5: list_deleted wiring into the full pass, and
+# the Notion >50-row database-overflow exemption from delete detection.
+# ---------------------------------------------------------------------------
+
+async def test_list_deleted_severs_immediately_without_waiting_for_two_misses(source, provider):
+    provider.refs = [
+        RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="p2", updated_at="2026-08-01T00:00:00+00:00"),
+    ]
+    provider.notes_by_id = {
+        "p1": _rn("p1", "Keeper"),
+        "p2": _rn("p2", "Trashed"),
+    }
+    await engine.sync_source(source["id"], full=True)
+    assert {r["remote_id"] for r in _remote_index_rows(source["id"])} == {"p1", "p2"}
+
+    # Second full sync: p2 no longer appears in list_changed AND is named by
+    # list_deleted -- must sever on THIS pass, not require a second miss.
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": provider.notes_by_id["p1"]}
+
+    async def _list_deleted(credentials):
+        return [RemoteRef(remote_id="p2", updated_at="2026-08-02T00:00:00+00:00")]
+
+    provider.list_deleted = _list_deleted
+
+    result = await engine.sync_source(source["id"], full=True, manual=True)
+    assert result["status"] == "ok"
+    assert result["sourceDeleted"] == 1
+
+    notes = notes_svc.list_notes("u1")
+    trashed = next(n for n in notes if n["title"] == "Trashed")
+    assert "source-deleted" in trashed["tags"]
+    assert {r["remote_id"] for r in _remote_index_rows(source["id"])} == {"p1"}
+
+
+async def test_list_deleted_is_never_called_when_the_provider_lacks_it(source, provider):
+    """Regression: FakeProvider (Roam/Craft-shaped) has no `list_deleted` --
+    the generic miss-streak detector remains the ONLY signal, unchanged."""
+    assert getattr(provider, "list_deleted", None) is None
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Keeper")}
+    result = await engine.sync_source(source["id"], full=True)
+    assert result["status"] == "ok"
+    assert result["sourceDeleted"] == 0
+
+
+async def test_list_deleted_failure_falls_back_to_miss_streak_detection(source, provider):
+    """A failing trash sweep (rate limit, transient, etc.) must never abort
+    the sync -- the generic 2-strike detector remains the fallback signal,
+    surfaced as a named, non-fatal failure."""
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Keeper")}
+    await engine.sync_source(source["id"], full=True)
+
+    async def _boom(credentials):
+        raise RuntimeError("Notion search rate limited")
+
+    provider.list_deleted = _boom
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+
+    result = await engine.sync_source(source["id"], full=True, manual=True)
+    assert result["status"] == "ok"  # never aborts
+    assert any("list_deleted sweep failed" in f for f in result["failures"])
+
+
+async def test_overflow_row_notes_are_exempt_from_delete_detection_by_construction(source, provider):
+    """MUST-RESOLVE #5: a >50-row Notion database's per-row overflow notes
+    (EXTRA RemoteNotes returned by `fetch_many`, never appearing in
+    `list_changed()`'s own `refs`) never enter `j2_note_remote_index` in the
+    first place -- so even a (hypothetically confused) `list_deleted` signal
+    naming an overflow row's remote_id can never touch it. Pinned by having
+    `list_deleted` claim the overflow row IS deleted and proving nothing
+    happens to it."""
+    parent = _rn("parent", "Database Page")
+    overflow = _rn("row-99", "Overflow Row")
+    provider.refs = [RemoteRef(remote_id="parent", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"parent": parent}
+
+    original_fetch_many = provider.fetch_many
+
+    async def fetch_many_with_overflow(credentials, refs):
+        notes = await original_fetch_many(credentials, refs)
+        return notes + [overflow]
+
+    provider.fetch_many = fetch_many_with_overflow
+
+    r1 = await engine.sync_source(source["id"], full=True)
+    assert r1["created"] == 2
+    assert {r["remote_id"] for r in _remote_index_rows(source["id"])} == {"parent"}  # overflow never tracked
+
+    async def _list_deleted(credentials):
+        return [RemoteRef(remote_id="row-99", updated_at="2026-08-02T00:00:00+00:00")]
+
+    provider.list_deleted = _list_deleted
+
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r2["status"] == "ok"
+    assert r2["sourceDeleted"] == 0  # nothing severed -- overflow row was never tracked
+
+    overflow_note = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Overflow Row")
+    assert "source-deleted" not in overflow_note["tags"]

@@ -125,25 +125,38 @@ def _chunks(seq: list, n: int):
         yield seq[i:i + n]
 
 
-# ── Provider resolution (test seam; Task 11's registry replaces this) ───────
+# ── Provider resolution (Task 11: delegates to the registry) ────────────────
 
-def _default_provider_factory(provider_name: str) -> NoteProvider:
+def _default_provider_factory(
+    provider_name: str, source: dict[str, Any] | None = None,
+) -> NoteProvider:
     """Builds a FRESH provider instance per sync call — providers may keep
     per-sync instance state (Roam's title->uid link map), so a shared/cached
-    instance across sources or across calls would be wrong. Lazy imports so
-    importing this module never pulls in httpx-based provider modules unless
-    a provider actually needs resolving."""
-    if provider_name == "roam":
-        from .providers.roam import RoamProvider
-        return RoamProvider()
-    if provider_name == "craft":
-        from .providers.craft import CraftProvider
-        return CraftProvider()
-    raise errors.NoteConnNotConfigured(f"no provider registered for {provider_name!r}")
+    instance across sources or across calls would be wrong.
+
+    `source` (Task 11 MUST-RESOLVE #3) is the full `j2_note_sources` row
+    being synced — threaded through so a provider that needs SOURCE-level
+    info beyond just the connector's credentials (Dropbox: which folder —
+    stored on `source["remoteId"]` per spec §5's `remote_id` column comment,
+    "folder id" for Dropbox) can be constructed correctly. Roam/Craft/Notion
+    ignore it entirely (their credentials dict alone already identifies the
+    one graph/space/workspace they sync).
+
+    Delegates to `registry.py` — mirrors `providers/base.py`'s own
+    documented contract ("the engine ... never imports a concrete provider
+    module directly except through the registry (Task 11)"); this function
+    itself does no provider imports anymore, real or lazy."""
+    from . import registry
+    return registry.build_provider(provider_name, source)
 
 
 # Module-level so tests can `monkeypatch.setattr(engine, "_provider_factory", ...)`
-# to inject a fake provider without touching real provider modules.
+# to inject a fake provider without touching real provider modules. The call
+# site (`_do_sync` below) now always passes BOTH positional args
+# (`provider_name, source`) — Task 11 widened the signature for MUST-RESOLVE
+# #3 (Dropbox folder-path threading), so a test fake must accept a second
+# param too (`lambda name, source: p`, or `lambda name, source=None: p` if it
+# doesn't care about `source`).
 _provider_factory = _default_provider_factory
 
 
@@ -242,6 +255,27 @@ async def sync_due_sources() -> None:
             log.exception("note-connector sync failed for source %s", source["id"])
 
 
+async def sync_all_active_sources_full() -> None:
+    """Scheduler entry for the nightly FULL-listing pass (Task 11
+    MUST-RESOLVE #2) — every sync-enabled, active source across ALL users,
+    regardless of `last_sync_at`/cooldown (`full=True, manual=True`).
+
+    Delete detection (`_run_delete_detection`'s 2-strike miss_streak, plus
+    Task 11's `list_deleted` wiring) ONLY runs when `full=True` — which
+    `sync_due_sources` above NEVER passes (it always calls the 1-arg
+    `sync_source(id)`, i.e. incremental/cursor mode). Without this job,
+    delete detection is built, tested, and green, but UNREACHABLE in
+    production — the exact defect class this repo's `lesson_built_tested_
+    green_and_unreachable` names. Serial + exception-walled per source,
+    mirroring `sync_due_sources`."""
+    sources = connections.list_all_sources()
+    for source in sources:
+        try:
+            await sync_source(source["id"], full=True, manual=True)
+        except Exception:  # noqa: BLE001 — isolate per-source failures
+            log.exception("note-connector FULL sync failed for source %s", source["id"])
+
+
 # ── Core per-source sync ─────────────────────────────────────────────────────
 
 async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any]:
@@ -257,7 +291,7 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
     provider: NoteProvider | None = None
 
     try:
-        provider = _provider_factory(source["provider"])
+        provider = _provider_factory(source["provider"], source)
         creds = connections.get_token(user_id, source["provider"])
         if creds is None:
             raise errors.NoteConnNotConfigured(
@@ -269,7 +303,26 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
         refs = await provider.list_changed(creds, cursor=cursor)
 
         if full:
-            dd = _run_delete_detection(user_id, source, refs)
+            # Task 11 MUST-RESOLVE #4: when the provider exposes a
+            # provider-precise trash sweep (Notion's `list_deleted`, NOT
+            # part of the abstract `NoteProvider` contract — checked via
+            # `getattr`), call it and feed the result into delete detection
+            # as a CERTAIN signal, bypassing the generic 2-strike
+            # miss-streak wait for exactly those items. A failing sweep
+            # (rate limit, transient, provider without one) never aborts
+            # the sync — the generic detector remains the fallback/only
+            # signal, unchanged from before this wiring existed.
+            deleted_refs: list[RemoteRef] = []
+            list_deleted_fn = getattr(provider, "list_deleted", None)
+            if list_deleted_fn is not None:
+                try:
+                    deleted_refs = await list_deleted_fn(creds)
+                except Exception as e:  # noqa: BLE001
+                    item_failures.append(
+                        f"list_deleted sweep failed (falling back to miss-streak "
+                        f"delete detection): {e}"
+                    )
+            dd = _run_delete_detection(user_id, source, refs, deleted_refs=deleted_refs)
             if dd["status"] == "warning":
                 delete_guard_warning = dd["reason"]
             else:
@@ -289,7 +342,19 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
             counts["conflicts"] += result["conflicts"]
             item_failures.extend(result["failures"])
 
-        if refs:
+        # Task 11 MUST-RESOLVE #1: an opaque cursor the provider published
+        # on ITSELF (Dropbox — see base.py's `opaque_cursor` docstring)
+        # takes precedence, stored VERBATIM, and unconditionally (even with
+        # `refs == []` — an empty incremental delta still needs its
+        # continuation cursor persisted so the NEXT call keeps continuing
+        # from here rather than falling back to a full re-list). Timestamp
+        # mode (Roam/Craft/Notion — `opaque_cursor` stays the class default
+        # `None`) is completely unchanged: only advances on a non-empty
+        # `refs`, derived as `max(updated_at)`.
+        opaque_cursor = getattr(provider, "opaque_cursor", None)
+        if opaque_cursor is not None:
+            connections.update_cursor(user_id, source_id, opaque_cursor)
+        elif refs:
             newest = max(r.updated_at for r in refs)
             connections.update_cursor(user_id, source_id, newest)
 
@@ -339,15 +404,35 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
 
 def _run_delete_detection(
     user_id: str, source: dict[str, Any], refs: list[RemoteRef],
+    *, deleted_refs: list[RemoteRef] | None = None,
 ) -> dict[str, Any]:
     """Runs BEFORE `_touch_remote_index` so `prev_count` reflects the index
     as of before this sync touched anything — touching first would inflate
     the denominator with brand-new rows and mask a genuine bad-enumeration
     refuse case. Refs seen this round and refs not seen are disjoint sets, so
     running the two passes in either order never double-touches a row; only
-    the refuse-guard's denominator cares about ordering."""
+    the refuse-guard's denominator cares about ordering.
+
+    `deleted_refs` (Task 11 MUST-RESOLVE #4) is an OPTIONAL, provider-precise
+    CERTAIN-deletion signal (Notion's trash sweep via `list_deleted`) — a
+    remote_id in this set skips straight to being tagged+severed, bypassing
+    the generic 2-strike miss-streak wait, but ONLY for rows already tracked
+    in `j2_note_remote_index` (this function only ever iterates
+    `existing_rows`, never `deleted_refs` directly). That is what makes the
+    Notion >50-row database-overflow exemption (MUST-RESOLVE #5) hold
+    automatically, with no special-case code: overflow row-pages are
+    resolved as EXTRA `RemoteNote`s during `fetch_many` (engine.py's
+    `_fetch_remote_notes`/`_import_remote_notes`), which runs AFTER this
+    function and `_touch_remote_index` — their remote_ids never enter
+    `j2_note_remote_index` in the first place, so even if `list_deleted()`'s
+    own search happened to also surface one of their ids, there is no
+    `existing_rows` entry for it here to act on. Still subject to the SAME
+    refuse-guard as the generic path below — an untrustworthy round (< 50%
+    enumeration) leaves the index untouched for explicit deletions too, not
+    just miss-streak ones."""
     source_id = source["id"]
     seen_ids = {r.remote_id for r in refs}
+    explicit_deleted_ids = {r.remote_id for r in (deleted_refs or [])}
     conn = get_connection()
     try:
         existing_rows = conn.execute(
@@ -371,6 +456,17 @@ def _run_delete_detection(
         for row in existing_rows:
             if row["remote_id"] in seen_ids:
                 continue  # still present -> refreshed by _touch_remote_index
+            if row["remote_id"] in explicit_deleted_ids:
+                # A CERTAIN signal from the provider's own trash sweep —
+                # sever immediately, no need to wait for a second miss.
+                _tag_note_source_deleted(conn, user_id, row["import_key"])
+                conn.execute(
+                    "DELETE FROM j2_note_remote_index "
+                    "WHERE user_id = ? AND source_id = ? AND remote_id = ?",
+                    (user_id, source_id, row["remote_id"]),
+                )
+                deleted += 1
+                continue
             streak = (row["miss_streak"] or 0) + 1
             if streak >= 2:
                 _tag_note_source_deleted(conn, user_id, row["import_key"])

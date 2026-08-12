@@ -75,6 +75,21 @@ class NoteProvider(ABC):
 
     name: str = ""
 
+    # Opaque-cursor extension point (Task 11 MUST-RESOLVE #1). A provider
+    # whose native change-feed is an opaque continuation token (Dropbox's
+    # `list_folder` cursor) rather than a comparable timestamp sets this
+    # attribute, VERBATIM, at the end of its own `list_changed()` — the
+    # engine reads it back after that call and, when not None, persists it
+    # via `connections.update_cursor` UNCHANGED (never parsed or compared),
+    # taking precedence over the default `max(ref.updated_at for ref in
+    # refs)` derivation. Roam/Craft/Notion never set this (it stays this
+    # class-level default), so their existing timestamp-cursor mode is
+    # unaffected. Deliberately a plain attribute, not a `list_changed`
+    # return-value change — every provider already implements the
+    # `list[RemoteRef]` return contract, and widening it to a tuple for one
+    # provider would be a breaking change to three others for no reason.
+    opaque_cursor: str | None = None
+
     def import_key(self, source_remote_id: str, remote_id: str) -> str:
         """Formats the durable `import_key` a synced note upserts under
         (`j2_note_remote_index.import_key`). The ENGINE never hand-builds

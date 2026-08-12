@@ -420,6 +420,39 @@ def update_cursor(
     return _update_source_fields(user_id, source_id, {"cursor": cursor}, conn)
 
 
+def set_dest_folder_id(
+    user_id: str, source_id: str, dest_folder_id: str | None,
+    conn: sqlite3.Connection | None = None,
+) -> bool:
+    """Router-facing setter for `PUT /sources/{id}` (spec §8: "sync_enabled,
+    dest folder"). No existing writer touched this column outside
+    `create_source`'s initial insert; added here (Task 11) rather than
+    reaching into the private `_update_source_fields` from the router
+    module, which would cross the module's own encapsulation boundary."""
+    return _update_source_fields(user_id, source_id, {"dest_folder_id": dest_folder_id}, conn)
+
+
+def list_all_sources(conn: sqlite3.Connection | None = None) -> list[dict[str, Any]]:
+    """Every sync-enabled, active source across ALL users — the nightly
+    FULL-sync job's enumeration (Task 11 MUST-RESOLVE #2). Mirrors
+    `list_due_sources` but with no recency filter: "full-sync everything
+    active tonight," not "what's due right now." Delete detection (engine's
+    2-strike miss_streak) only runs on a full listing, which the
+    interval-based `sync_due_sources` path never produces on its own — this
+    is what makes delete detection reachable in production at all."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        rows = conn.execute(
+            "SELECT * FROM j2_note_sources WHERE sync_enabled = 1 AND status = 'active' "
+            "ORDER BY created_at ASC",
+        ).fetchall()
+        return [_row_to_source(r) for r in rows]
+    finally:
+        if owned:
+            conn.close()
+
+
 def record_sync_result(
     user_id: str, source_id: str, *, ok: bool, error: str | None = None,
     conn: sqlite3.Connection | None = None,

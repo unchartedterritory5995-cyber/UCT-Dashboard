@@ -110,6 +110,7 @@ from api.routers import expected_move as expected_move_router
 from api.routers import earnings_intel as earnings_intel_router
 from api.routers import ticker_logos as ticker_logos_router
 from api.routers import broker_sync as broker_sync_router  # broker-sync (SnapTrade) -- MERGE AS A UNIT with include_router + scheduler below
+from api.routers import note_sync as note_sync_router  # note connectors (Roam/Craft/Notion/Dropbox) -- router mounts unconditionally; scheduler gated by NOTE_SYNC_ENABLED below
 from api.routers import desk_zoom_webhook as desk_zoom_webhook_router
 from api.routers import single_stock_etfs as single_stock_etfs_router
 from api.routers import etf as etf_router
@@ -4033,6 +4034,37 @@ async def lifespan(app: FastAPI):
                   f"{_broker_sync_engine._default_interval_min()}m; recent-orders poll 5m mkt-hours; "
                   "nightly reconcile 2:30am ET; fleet monitor :37 hourly)")
 
+        # Note Connectors (Roam/Craft/Notion/Dropbox) -- background sync of
+        # external note libraries into the Notebook. Gated by
+        # NOTE_SYNC_ENABLED (default OFF -> fully inert); the router above
+        # mounts UNCONDITIONALLY (endpoints check per-provider config), only
+        # the scheduler is flag-gated. DOUBLE-gated, mirroring the
+        # awareness-engine idiom (_add_compass_job/_awareness_engine_scan
+        # above): registration here AND each job body in
+        # note_connectors/scheduler.py re-checks NOTE_SYNC_ENABLED itself.
+        if os.getenv("NOTE_SYNC_ENABLED") == "1":
+            from api.services.journal_two.note_connectors import scheduler as _note_sync_scheduler
+            # Incremental tick, cron minute :23 (Global Constraint: offset
+            # from other jobs) -- per-source cooldown/interval
+            # (NOTE_SYNC_INTERVAL_MIN, default 30m) governs actual cadence.
+            _scheduler.add_job(
+                _note_sync_scheduler.run_due_sync_blocking,
+                trigger=CronTrigger(minute=23, timezone=_ET),
+                id="note_sync_due", max_instances=1, replace_existing=True,
+            )
+            # Nightly FULL-listing pass (MUST-RESOLVE #2, distinct minute
+            # offset from the tick above) -- delete detection (engine.py's
+            # 2-strike miss_streak + the list_deleted wiring) ONLY runs on a
+            # full listing, which the incremental tick never produces; this
+            # is the only path that ever reaches it in production.
+            _scheduler.add_job(
+                _note_sync_scheduler.run_full_nightly_sync_blocking,
+                trigger=CronTrigger(hour=1, minute=47, timezone=_ET),
+                id="note_sync_full_nightly", max_instances=1, replace_existing=True,
+            )
+            print("[startup] Note-connector sync scheduler ON (due tick hourly :23, "
+                  "full nightly 01:47 ET)")
+
         def _cot_daily_catchup():
             try:
                 from datetime import date as _dt
@@ -5551,6 +5583,7 @@ app.include_router(expected_move_router.router)
 app.include_router(earnings_intel_router.router)
 app.include_router(ticker_logos_router.router)
 app.include_router(broker_sync_router.router)  # broker-sync (SnapTrade) /api/j2/broker/*
+app.include_router(note_sync_router.router)  # note connectors /api/j2/notes/connectors/* -- unconditional; per-provider config checked in-endpoint
 app.include_router(desk_zoom_webhook_router.router)
 app.include_router(signature_router.router)  # UCT Signature indicators /api/signature/*
 
