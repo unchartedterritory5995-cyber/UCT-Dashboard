@@ -63,6 +63,43 @@ where the offset would otherwise have REFUSED. That confines the change to
 scripts that fail today, so no currently-working translation can move — and it
 is the thing to verify first, before any of the folding is written.
 
+🔴🔴 **ATTEMPTED AND REVERTED, 2026-08-11 — READ THIS BEFORE TRYING AGAIN.**
+
+The recurrence fold was written exactly as specified above: `name[1]` → selfref,
+the binding in scope at the read → SEED, the folded reassignments → UPDATE,
+engaged only where the offset would otherwise refuse. **On a simplified fixture
+it produced precisely the right tree.** On the real script it produced this:
+
+    accum(1, self == -1 && high > nz(self, (high+low)/2 + 3*atr(…)) ? 1 : …)
+
+⛔ **`self` APPEARS THERE AS A DIRECTION AND AS A STOP PRICE, IN ONE ACCUMULATOR.**
+`dir` is a `var` and `longStop` is a plain reassigned name, so folding the second
+inside the first collapsed two recurrences onto the one `self` the manifest
+declares. It parses, it budgets, it lints `non-repainting`, it saves — and it is
+nonsense. The corpus counted it as 11 of 21 and 43 columns.
+
+**What caught it was reading the FORMULA, not the score.** Every automated signal
+said win.
+
+A `recurrenceDepth` guard — refuse a plain-name recurrence while another
+recurrence's update is being resolved — was written next and **did not work**:
+script 10 still produced the collided tree, so the two recurrences are being
+folded on a path that guard does not sit on. Reverted rather than shipped.
+
+**For whoever picks this up:**
+- The simple, NON-NESTED trailing stop is genuinely reachable and the fold is
+  correct for it. The value is real; the containment is the hard part.
+- ⛔ The blocker is that `self` is ONE name. Two recurrences in one expression
+  need either distinct binds or a nested `accum` — and the interpreter refuses a
+  nested one BY DESIGN (`interpret:recurrence`, "which running value it names
+  would depend on where a reader started counting").
+- So this is not a translator fix at all. It is a question about the closed
+  table: can a recurrence name its own bind? Until that is answered, script 10
+  should keep refusing, and `pine:state` is the honest verdict.
+- ⚠️ Do not re-attempt from the description in this file alone. Re-run the
+  simplified fixture FIRST — it passes — and only then the real script, and read
+  the emitted formula both times.
+
 **Original chain evidence, still accurate:**
 `pine:state` ×5 on `shortStop[1]`. Every other note is `chart-only`
 (`plotshape`, `fill`) which no screener column needs. **This is the only script
