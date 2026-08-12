@@ -2,7 +2,7 @@ import { Component, Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { NodeViewWrapper } from '@tiptap/react'
 import {
   resolveEmbedRender, embedAutoCaption, countLiveEmbeds, LIVE_EMBEDS_PER_ENTRY,
-  retimeChartParams,
+  retimeChartParams, embedRenderHeight,
 } from '../../lib/widgetEmbedCore'
 import { captureElementPng, storeFallbackImage, kickSnapshotWarm } from '../../lib/embedArchive'
 import styles from './WidgetEmbedView.module.css'
@@ -66,12 +66,27 @@ function PlaceholderChip({ attrs, reason }) {
 export default function WidgetEmbedView({ node, selected, editor, updateAttributes, deleteNode }) {
   const attrs = node.attrs || {}
   const decision = resolveEmbedRender(attrs)
-  const height = attrs.layout?.height || 320
   const half = attrs.layout?.width === 'half'
   const bodyRef = useRef(null)
   const wrapRef = useRef(null)
   const archivedOnceRef = useRef(false)
   const [toolbarMsg, setToolbarMsg] = useState(null)
+
+  // Screenshot-like proportions: with no explicit height, derive it from the
+  // embed's own rendered width at ~the chart page's aspect. Track width via
+  // ResizeObserver so Half/Full toggles and window resizes re-proportion.
+  const [wrapWidth, setWrapWidth] = useState(0)
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return undefined
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect?.width
+      if (Number.isFinite(w) && w > 0) setWrapWidth(w)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const height = embedRenderHeight(attrs.layout?.height, wrapWidth)
 
   // ── Below-the-fold laziness (Phase 6 #10, ~20-embeds/entry target) ────────
   // A live component only mounts once the block nears the viewport; until

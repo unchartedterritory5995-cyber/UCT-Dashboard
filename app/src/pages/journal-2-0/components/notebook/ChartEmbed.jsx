@@ -43,6 +43,10 @@ export default function ChartEmbed({ attrs, height = 320 }) {
     height: '100%',
     liveUpdates: live,
     showDrawingTools: false,
+    // The 3M/6M/YTD range-selector pills float mid-frame at embed sizes and
+    // collide with the legend (owner feedback with screenshots) — an embed's
+    // window is its FROZEN range anyway, so the selector has no job here.
+    showRangeSelector: false,
     // ⭐ SNAPSHOTS USE replayCutoff, NOT anchorDate. anchorDate is view-only
     // framing — it never changes WHAT is fetched, so an old snapshot would
     // fetch a today-ending window, the anchor bar wouldn't be in it, and the

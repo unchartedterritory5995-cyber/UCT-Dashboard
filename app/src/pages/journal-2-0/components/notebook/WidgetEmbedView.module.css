@@ -8,7 +8,21 @@
   overflow: hidden;
   background: var(--panel, #101010);
 }
-.full { width: 100%; }
+/* Full-width embeds BREAK OUT of the prose column (owner feedback: charts in
+   a ~600px text column can never look like a chart-page screenshot). The
+   frame widens toward the viewport — capped so it never crowds the app
+   sidebar — and centers on the column via symmetric negative margins; the
+   view's ResizeObserver height then follows the measured width, so bigger
+   automatically means taller at the same chart-page aspect. clamp() floors at
+   the column width for small windows. */
+.full {
+  --embed-w: clamp(100%, calc(100vw - 220px), 1100px);
+  width: var(--embed-w);
+  margin-left: calc((100% - var(--embed-w)) / 2);
+}
+@media (max-width: 900px) {
+  .full { --embed-w: 100%; }
+}
 /* Two half-width embeds sit side by side for comparison; TipTap keeps them as
    sibling blocks, so half floats and pairs pack. They stack on phones. */
 .half { width: calc(50% - 6px); display: inline-block; vertical-align: top; }

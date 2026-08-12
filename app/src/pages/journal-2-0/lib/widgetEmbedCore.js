@@ -29,7 +29,11 @@ export function buildWidgetEmbedAttrs(widgetId, capture = {}, extra = {}) {
     caption: extra.caption || null,             // user free-text only; auto-caption derives at render
     layout: {
       width: extra.layout?.width === 'half' ? 'half' : 'full',
-      height: Number.isFinite(extra.layout?.height) ? extra.layout.height : 320,
+      // null = AUTO: the view derives height from its rendered width at the
+      // chart page's aspect (embedRenderHeight), so an embed is proportioned
+      // like a screenshot of the real chart instead of a full-chrome chart
+      // crammed into a short box (owner feedback after first prod use).
+      height: Number.isFinite(extra.layout?.height) ? extra.layout.height : null,
     },
     searchText: paramsPlainText(widgetId, params),
   }
@@ -137,6 +141,24 @@ export function tsToEpochSecondsPublic(v) {
 
 /** Live embeds allowed per entry (owner decision #11). */
 export const LIVE_EMBEDS_PER_ENTRY = 3
+
+// The v1 default embed height. Every embed created before auto-height stored
+// this literal (nobody ever CHOSE it — it was only ever the default), so the
+// renderer treats a stored 320 as auto too rather than freezing early embeds
+// in the cramped look this replaced.
+export const EMBED_LEGACY_DEFAULT_HEIGHT = 320
+
+/** The height an embed renders at. Explicit user-set heights win; null/legacy-
+ *  default derive from the rendered WIDTH at ~the chart page's proportions
+ *  (a full-width prose-column embed lands ~530px — screenshot-like; half-width
+ *  pairs scale down with their width, floored so candles stay readable). */
+export function embedRenderHeight(layoutHeight, width) {
+  if (Number.isFinite(layoutHeight) && layoutHeight > 0 && layoutHeight !== EMBED_LEGACY_DEFAULT_HEIGHT) {
+    return Math.round(layoutHeight)
+  }
+  const w = Number.isFinite(width) && width > 0 ? width : 966
+  return Math.max(300, Math.min(640, Math.round(w * 0.55)))
+}
 
 /** Count mode:'live' widgetEmbed nodes in a doc JSON. */
 export function countLiveEmbeds(doc) {

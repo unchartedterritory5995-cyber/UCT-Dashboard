@@ -23,6 +23,7 @@ import {
   buildWidgetEmbedAttrs, parseChartSlashArgs, parseTfToken,
   resolveEmbedRender, embedAutoCaption, widgetSlotNode,
   reanchorRange, countLiveEmbeds, LIVE_EMBEDS_PER_ENTRY, retimeChartParams,
+  embedRenderHeight, EMBED_LEGACY_DEFAULT_HEIGHT,
 } from './widgetEmbedCore'
 import WidgetEmbedView from '../components/notebook/WidgetEmbedView'
 
@@ -37,7 +38,8 @@ describe('buildWidgetEmbedAttrs', () => {
     expect(attrs.params._leak).toBeUndefined()
     expect(attrs.mode).toBe('snapshot')
     expect(attrs.fallback).toBeNull()
-    expect(attrs.layout).toEqual({ width: 'full', height: 320 })
+    // height null = AUTO (derived from rendered width at chart-page aspect)
+    expect(attrs.layout).toEqual({ width: 'full', height: null })
     expect(attrs.searchText).toBe('[chart: AMD 5m]')
     expect(typeof attrs.capturedAt).toBe('string')
   })
@@ -186,6 +188,19 @@ describe('toolbar tf switch (retimeChartParams — the re-anchor math\'s door)',
     const bare = retimeChartParams(buildWidgetEmbedAttrs('chart', { symbol: 'SPY', tf: 'D' }), '60')
     expect(bare.params).toEqual({ symbol: 'SPY', tf: '60' })
     expect(bare.searchText).toBe('[chart: SPY 1h]')
+  })
+})
+
+describe('embed render height (screenshot proportions)', () => {
+  it('auto height follows the rendered width at chart-page aspect, clamped', () => {
+    expect(embedRenderHeight(null, 966)).toBe(531)
+    expect(embedRenderHeight(null, 460)).toBe(300)   // half-width floor
+    expect(embedRenderHeight(null, 2000)).toBe(640)  // ceiling
+    expect(embedRenderHeight(null, 0)).toBe(531)     // unmeasured → prose-column default
+  })
+  it('the v1 default 320 reads as auto (nobody ever chose it); explicit heights win', () => {
+    expect(embedRenderHeight(EMBED_LEGACY_DEFAULT_HEIGHT, 966)).toBe(531)
+    expect(embedRenderHeight(480, 966)).toBe(480)
   })
 })
 
