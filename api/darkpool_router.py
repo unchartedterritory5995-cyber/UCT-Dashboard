@@ -475,6 +475,7 @@ async def massive_ingest_status():
 @router.post("/flatfile-ingest")
 async def flatfile_ingest(
     date: str = Query(None, description="M/D/YYYY — defaults to the prior trading day (flat files are T+1)"),
+    back: int = Query(None, ge=1, le=30, description="Backfill the last N trading days in ONE server-side job (loops on the pod so it survives the client's 2-min shell cap; overrides date)."),
     dry_run: bool = Query(False, description="Scan + report, do not write to the DB"),
     _auth: dict = Depends(require_flow_admin),
 ):
@@ -482,15 +483,20 @@ async def flatfile_ingest(
     off-exchange (dark) prints >= $4M — no universe. This is the all-symbols
     authoritative pass; the per-ticker /massive-ingest stays for real-time.
 
-    Long call (~5-15 min, streams ~3.5GB) — fire-and-forget; poll
-    /flatfile-ingest/status. Ignores DARKPOOL_FLATFILE_ENABLED (that gate only
-    governs the scheduled job) so a manual run always works. Safe to re-run
-    (darkpool_db dedups on date+timestamp+ticker+price+notional+message)."""
+    Long call (~5-15 min/day, streams ~3.5GB) — fire-and-forget; poll
+    /flatfile-ingest/status. `back=N` runs an N-day backfill sequentially in the
+    SAME background job (one POST, no 45-min client loop). Ignores
+    DARKPOOL_FLATFILE_ENABLED (that gate only governs the scheduled job) so a
+    manual run always works. Safe to re-run (darkpool_db dedups on
+    date+timestamp+ticker+price+notional+message)."""
     try:
-        from api.darkpool_flatfile_ingest import run_flatfile_ingest_background
+        from api.darkpool_flatfile_ingest import (
+            run_flatfile_ingest_background, _last_n_trading_days)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"flatfile module unavailable: {e}")
-    return JSONResponse(run_flatfile_ingest_background(date_mdyyyy=date, dry_run=dry_run))
+    dates = _last_n_trading_days(back) if back else None
+    return JSONResponse(run_flatfile_ingest_background(
+        date_mdyyyy=date, dry_run=dry_run, dates=dates))
 
 
 @router.get("/flatfile-ingest/status")

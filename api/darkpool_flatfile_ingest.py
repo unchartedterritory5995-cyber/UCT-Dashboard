@@ -88,6 +88,19 @@ def _latest_trading_day(today: Optional[datetime.date] = None) -> datetime.date:
     return d
 
 
+def _last_n_trading_days(n: int, today: Optional[datetime.date] = None) -> list:
+    """The last `n` completed trading days, OLDEST first (so a backfill runs
+    forward). Weekday-only (holidays 404 harmlessly)."""
+    out = []
+    d = _latest_trading_day(today)
+    for _ in range(max(1, n)):
+        out.append(f"{d.month}/{d.day}/{d.year}")
+        d -= datetime.timedelta(days=1)
+        while d.weekday() >= 5:
+            d -= datetime.timedelta(days=1)
+    return list(reversed(out))
+
+
 def _open_stream(d: datetime.date):
     """Return a streaming, decompressed, text file-like over the day's flat file,
     or None if the file isn't published (404/403 — T+1 not ready / weekend)."""
@@ -230,9 +243,16 @@ def run_flatfile_ingest(date_mdyyyy: Optional[str] = None,
 
 
 def run_flatfile_ingest_background(date_mdyyyy: Optional[str] = None,
-                                   dry_run: bool = False) -> dict:
+                                   dry_run: bool = False,
+                                   dates: Optional[list] = None) -> dict:
     """Fire-and-forget (a full scan takes minutes; Cloudflare kills the origin at
-    ~100s). Start a daemon thread and poll get_run_state()."""
+    ~100s, and a client `!` shell caps at ~2 min — far short of a multi-day
+    backfill). Start a daemon thread and poll get_run_state().
+
+    `dates` (a list of M/D/YYYY) runs a MULTI-DAY backfill sequentially inside the
+    ONE background job (the single run-lock forces sequential anyway); last_result
+    becomes the list of per-day summaries. Otherwise a single `date_mdyyyy` runs."""
+    plan = list(dates) if dates else [date_mdyyyy]
     with _run_lock:
         if _run_state["running"]:
             return {"started": False, "reason": "already running", "state": dict(_run_state)}
@@ -243,9 +263,16 @@ def run_flatfile_ingest_background(date_mdyyyy: Optional[str] = None,
 
     def _worker():
         try:
-            res = run_flatfile_ingest(date_mdyyyy=date_mdyyyy, dry_run=dry_run)
-            with _run_lock:
-                _run_state["last_result"] = res
+            results = []
+            multi = len(plan) > 1
+            for i, dstr in enumerate(plan, 1):
+                if multi:
+                    with _run_lock:
+                        _run_state["phase"] = f"day {i}/{len(plan)} ({dstr}) starting"
+                res = run_flatfile_ingest(date_mdyyyy=dstr, dry_run=dry_run)
+                results.append(res)
+                with _run_lock:
+                    _run_state["last_result"] = results if multi else res
         except Exception as e:  # noqa: BLE001
             logger.exception("[darkpool-ff] background run failed")
             with _run_lock:
@@ -258,7 +285,8 @@ def run_flatfile_ingest_background(date_mdyyyy: Optional[str] = None,
                                              if ET else datetime.datetime.now().isoformat())
 
     threading.Thread(target=_worker, daemon=True, name="darkpool-flatfile-ingest").start()
-    return {"started": True, "poll": "GET /api/darkpool/flatfile-ingest/status"}
+    return {"started": True, "days": len(plan),
+            "poll": "GET /api/darkpool/flatfile-ingest/status"}
 
 
 def scheduled_run() -> None:
