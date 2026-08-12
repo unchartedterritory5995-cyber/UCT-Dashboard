@@ -33,7 +33,13 @@ _logger = logging.getLogger(__name__)
 
 
 def _has_actuals(row: dict) -> bool:
-    return row.get("epsActual") is not None or row.get("revenueActual") is not None
+    # Revenue is TRUTHY, not is-not-None — the repo-wide convention (`if
+    # rev_a:` on every provider leg): Finnhub codes "no figure" as
+    # `revenueActual: 0` (TSHA 2026-08-11, a clinical-stage biotech, -0.13
+    # EPS published and revenue 0). Treating that placeholder as a published
+    # number made TSHA "pending" forever against a figure that doesn't exist.
+    # EPS stays is-not-None: an EPS of exactly 0.00 is a real print.
+    return row.get("epsActual") is not None or bool(row.get("revenueActual"))
 
 
 def assess(*, provider: dict[str, dict], wire_rows: list[dict],
@@ -59,7 +65,7 @@ def assess(*, provider: dict[str, dict], wire_rows: list[dict],
     def _lags(sym: str) -> bool:
         prov, row = reported[sym], wire_by_sym[sym]
         return ((prov.get("epsActual") is not None and row.get("eps_act") is None)
-                or (prov.get("revenueActual") is not None and row.get("rev_act") is None))
+                or (bool(prov.get("revenueActual")) and row.get("rev_act") is None))
 
     pending = sorted(s for s in reported if s in wire_by_sym and _lags(s))
     with_numbers = sum(1 for s in reported
