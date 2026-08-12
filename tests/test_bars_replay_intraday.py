@@ -77,6 +77,27 @@ def test_second_call_serves_from_sqlite_without_refetching(fresh_db):
     assert body["bars"][-1]["c"] == pytest.approx(7.00)
 
 
+def test_partial_window_refetches_a_different_date(fresh_db):
+    # Seed a 2008 window (as if a prior replay fetched it).
+    with patch.object(bars_fetch, "_fetch_intraday_range", return_value=list(_DEEP_2008)):
+        bars_fetch._get_bars_to_response("AAPL", "5", 6000, "2008-01-15")
+
+    # Now request a 2015 date. The store has 2008 rows (all <= the 2015 key) but NOT the 2015
+    # window — it must fetch 2015, not serve the stale 2008 rows as if they end at the cutoff.
+    deep_2015 = [
+        {"t": _ts(2015, 6, 10, 14, 30), "o": 130.0, "h": 130.5, "l": 129.8, "c": 130.2, "v": 1000},
+        {"t": _ts(2015, 6, 10, 15, 0),  "o": 130.2, "h": 130.8, "l": 130.0, "c": 130.6, "v": 1200},
+    ]
+    with patch.object(bars_fetch, "_fetch_intraday_range", return_value=list(deep_2015)) as spy:
+        resp = bars_fetch._get_bars_to_response("AAPL", "5", 6000, "2015-06-10")
+
+    assert spy.called   # the 2015 window was re-fetched, not served stale from 2008
+    body = _body(resp)
+    # The NEWEST served bar is the 2015 one (the correct cutoff), not the 2008 stale window.
+    assert body["bars"][-1]["t"] == deep_2015[-1]["t"]
+    assert body["bars"][-1]["c"] == pytest.approx(130.6)
+
+
 def test_fetch_intraday_range_maps_ms_to_seconds_and_paginates():
     raw_p1 = {"results": [{"t": 1200322200000, "o": 6.9, "h": 6.95, "l": 6.88, "c": 6.92, "v": 1000}],
               "next_url": "https://api.massive.com/next?cursor=abc"}

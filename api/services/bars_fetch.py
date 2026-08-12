@@ -1807,7 +1807,17 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str) -> JSONR
                 rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
         except Exception:
             rows = rows or []
-    if not rows and not date_tf:
+    # Cold/PARTIAL INTRADAY replay: fetch the requested window when the store doesn't COVER it —
+    # "covered" = the newest stored bar ≤ cutoff is within ~7 days of the cutoff. Otherwise only
+    # some OTHER (older) window is stored (e.g. replayed 2012 earlier, now asking for 2015: the
+    # 2012 rows are ≤ the 2015 key but are the WRONG window and would serve stale). Empty = fetch.
+    _intraday_window_missing = False
+    if not date_tf:
+        try:
+            _intraday_window_missing = (not rows) or (to_key - int(rows[-1][0]) > 7 * 86400)
+        except Exception:
+            _intraday_window_missing = not rows
+    if _intraday_window_missing:
         # Cold INTRADAY replay (e.g. AAPL 5-min at a 2008 cutoff — deep intraday this pod has
         # never fetched). The daily branch above is date_tf-only; without this an old intraday
         # cutoff falls to _get_bars_inner (recent-window) → EMPTY after the client's cutoff
