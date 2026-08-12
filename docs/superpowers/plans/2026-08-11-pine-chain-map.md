@@ -99,7 +99,40 @@ where the offset would otherwise have REFUSED. That confines the change to
 scripts that fail today, so no currently-working translation can move — and it
 is the thing to verify first, before any of the folding is written.
 
-🛑 **ATTEMPT FOUR — THE DESIGN WAS RIGHT AND THE FEATURE IS STILL WRONG. STOP HERE.**
+### ⭐ THE CONVERGENCE TEST — the rule, derived. Implement this, then attempt five.
+
+**A re-seeded accumulator is sound if and only if it FORGETS ITS SEED.** That is
+the whole criterion, and it is why a trailing stop is safe under `accum` while a
+running total is not:
+
+| update shape | forgets the seed? | verdict |
+|---|---|---|
+| `min(x, self)` / `max(x, self)`, `x` self-free | yes, once `x` dominates | ✅ sound |
+| `cond ? self : x` — a hold or a passthrough | yes | ✅ sound |
+| `nz(self, x)` | passthrough | ✅ sound |
+| bare `self` | trivially | ✅ sound |
+| `self + x`, `self - x`, `self * x`, `self / x` | **never** | ⛔ refuse |
+| `self` inside any other call | unknown | ⛔ refuse |
+
+**The analysis:** walk the resolved update tree. `self` may reach the root ONLY
+through `min`/`max`/`nz` and through ternary ARMS. Reaching it through an
+arithmetic operator, or through any other function, refuses by name.
+
+⛔ **CONSERVATIVE ON PURPOSE.** An unrecognised shape refuses rather than being
+assumed convergent — this decides whether a member's saved indicator is the
+indicator they wrote, and the failure it prevents (a hand-rolled OBV silently
+becoming a 250-bar rolling sum) is invisible in the output.
+
+⚠️ **The refusal message must name the reason, not the shape:** *"this value adds
+to its own previous bar, so it never forgets where it started — and this engine's
+accumulator re-seeds, which would make it a rolling sum rather than a running
+total."* That sentence is also the honest answer to why `cum` refuses, so the two
+finally agree.
+
+**Then attempt five is mechanical:** the marker from attempt four (validated,
+correct) plus this gate in front of the wrap. Nothing else changes.
+
+🛑 **ATTEMPT FOUR — THE DESIGN WAS RIGHT AND THE FEATURE IS STILL WRONG.**
 
 The resolution-time marker WORKS. `buildingRecurrence` tells the two positions
 apart, and the simple trailing stop translates correctly:
