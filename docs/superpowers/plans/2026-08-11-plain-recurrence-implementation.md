@@ -196,3 +196,70 @@ note, do not delete them** — the guards they name are all still live.
   memo unconditionally, and make `plainRecurrence` always take the INSIDE branch.
 - The Pine translator is JS-only, so there is no Python mirror — but the emitted
   tree is an ordinary `accum`, already parity-proven.
+
+---
+
+# The road to the remaining scripts (2026-08-12)
+
+Three blockers stand between 12/21 and ~16-17. A fourth thing that looks like a
+blocker is not one.
+
+## 1. The node budget counts a TREE where the honest unit is a DAG
+
+Script 10 emits 642 nodes against a cap of 128 — but not 642 DISTINCT things.
+`(high + low) / 2 + 3 * atr(high, low, close, 22)` appears **eight times
+identically**; each stop accumulator appears twice. The resolver already shares
+them by object identity and the re-parse throws that away.
+
+`nodeCount` is `flatten(ast).length` (`interpret.js`). Counting distinct
+STRUCTURAL subtrees instead is a small change — key each node
+`type|name|value|childKeys` over a reversed `flatten`, the same iterative
+children-before-parents idiom `maxLookback` already uses two functions above it.
+
+🔴🔴 **AND IT IS UNSAFE ALONE. THIS IS THE WHOLE FINDING.** The interpreter does
+NOT memoize structurally: `evalNode` runs per node object, and the only `columns`
+Map is scoped inside the recurrence planner and keyed by object identity, which a
+re-parsed tree never shares. So a DAG budget by itself would report ~100 for a
+formula that still costs 642 node-evaluations **per bar, per ticker, over 3,685
+tickers** — a budget that under-reports is a guard that has stopped guarding, and
+it would pass every existing test while doing it.
+
+**Ship the two together or neither**: memoize `evalNode` on the same structural
+key, THEN count the DAG. The memo is what makes the number true, and it makes the
+formula genuinely cheaper rather than just cheaper-looking. Rail: a formula with a
+large repeated subtree must show BOTH a reduced count AND a reduced evaluation
+count — assert the eval count, or the memo can silently not apply.
+
+⚠️ Changing a shipped guard's threshold semantics means formulas refused yesterday
+may save today. That is the intent, but the corpus snapshot is the record of it —
+regenerate it measured and read the diff, do not hand-edit.
+
+## 2. Bounded `for` loops UNROLL — they are not a totality problem
+
+Scripts 02, 15, 20, 21. Pine's loops are overwhelmingly `for i = 0 to 19` — a
+FIXED numeric range known at translation time, which unrolls into a closed
+expression. Exactly the technique that already worked twice: `switch`-on-a-fixed-
+subject reduction, and `ta.dmi`'s periods compared as values rather than
+spellings (script 06, nine columns).
+
+⛔ An UNBOUNDED `while` must keep refusing by name. The engine's totality is what
+makes it safe to run over the universe; a bounded unroll never threatens it, and
+conflating the two is how a total language stops being one.
+⚠️ Do this AFTER the DAG work — unrolled loops are precisely the shape that
+explodes node counts, so without it they would trade `pine:loop` for
+`budget:nodes` and land back here.
+
+## 3. User-defined types are records with static construction
+
+`type Point` + `Point.new(1.0)` + `p.x`. Where construction is static, field
+access resolves at translation time into the field's own expression. Smaller than
+it sounds; do it last.
+
+## ⛔ NOT a parity gap — do not "fix" these
+
+`line.new()`, `table.cell()`, `strategy.entry()` do not produce a COLUMN. They are
+drawing and order placement, a different category from "compute a value per bar",
+and refusing them by name is the engine being correct rather than short. Treating
+them as a gap would put drawing objects into a screener that has nowhere to draw.
+`request.security` is separate again: a multi-symbol DATA decision, not a language
+limit.
