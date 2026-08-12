@@ -53,6 +53,8 @@ cryptography>=43.0.0,<50 # Fernet — broker secret-at-rest (api.services.crypto
 # ── Non-critical: open bounds are fine (mature APIs, and they break LOUDLY) ──
 tzdata>=2024.1
 email-validator>=2.1.0
+markdown-it-py>=4.0.0,<5  # server-side markdown->TipTap converter (api/services/journal_two/note_connectors/convert/mddoc.py)
+mdit-py-plugins>=0.6.0,<1  # GFM tables + tasklists plugin, used alongside markdown-it-py above
 numpy>=1.26.0
 scipy>=1.13.0
 Pillow>=10.0.0
