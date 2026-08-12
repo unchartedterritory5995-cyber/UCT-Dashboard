@@ -477,6 +477,50 @@ async def test_updated_at_is_never_content_hash_shaped():
     assert note.updated_at == "2026-08-01T00:00:00Z"
 
 
+async def test_last_seen_hashes_disambiguates_by_credentials_not_just_folder_path():
+    """Round-2 review fix: `_LAST_SEEN_HASHES` keyed by `folder_path` ALONE is a
+    same-process CROSS-TENANT hazard, not a future scale-out risk. Dropbox's
+    `content_hash` is content-addressed (identical bytes -> identical hash in
+    ANY account), and the web pod is ONE process serving every user's sync via
+    `sync_due_sources()`. Two different accounts (different `refreshToken`)
+    syncing a folder with the SAME `folder_path` and holding a byte-identical
+    file (same `path_lower` + `content_hash` -- a shared template, shared
+    course notes) must each see their OWN file on their OWN first sync. Before
+    the credentials-derived keying fix, account B's file was silently skipped
+    the moment account A's provider instance (sharing the SAME module-level
+    cache) had already recorded that folder_path + path_lower + hash
+    combination -- invisible: no error, no log, just a note that never
+    imports."""
+    shared_entries = [{
+        ".tag": "file", "name": "shared.md", "path_lower": "/team notes/shared.md",
+        "content_hash": "identical-hash-both-accounts", "server_modified": "2026-08-01T00:00:00Z",
+    }]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/2/files/list_folder":
+            return httpx.Response(200, json={"entries": shared_entries, "cursor": "c", "has_more": False})
+        return httpx.Response(404)
+
+    creds_account_a = {
+        "accessToken": "token-a", "refreshToken": "refresh-token-account-a", "folderPath": FOLDER,
+    }
+    creds_account_b = {
+        "accessToken": "token-b", "refreshToken": "refresh-token-account-b", "folderPath": FOLDER,
+    }
+
+    provider_a = _make_provider(handler)
+    refs_a = await provider_a.list_changed(creds_account_a)
+    assert [r.remote_id for r in refs_a] == ["/team notes/shared.md"]  # account A's first sync
+
+    # A DIFFERENT account (different refreshToken), first sync, SAME
+    # folder_path + byte-identical file -- must NOT be skipped.
+    provider_b = _make_provider(handler)
+    refs_b = await provider_b.list_changed(creds_account_b)
+    assert [r.remote_id for r in refs_b] == ["/team notes/shared.md"], (
+        "account B's file was silently skipped -- cross-tenant _LAST_SEEN_HASHES collision"
+    )
+
+
 # ---------------------------------------------------------------------------
 # 3. 409 reset -> full re-list
 # ---------------------------------------------------------------------------

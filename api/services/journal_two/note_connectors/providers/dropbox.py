@@ -114,6 +114,7 @@ stubbed out) so it activates for free the day a real cursor can flow through.
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import os
 import posixpath
@@ -351,24 +352,65 @@ def _change_timestamp(entry: dict[str, Any]) -> str:
     return entry.get("server_modified") or ""
 
 
-# Per-process (NOT per-instance) content-hash memory: folder_path ->
-# {path_lower: content_hash}. A fresh `DropboxProvider` is constructed every
-# sync (`_default_provider_factory`), so per-file skip-detection ("has this
-# file's CONTENT actually changed since we last looked") needs somewhere to
-# live that survives that boundary — this mirrors `engine.py`'s own
-# module-level `_locks` dict (a per-process correctness guard, not a cache;
-# see the CLAUDE.md "SINGLE-PROCESS assumptions" note). Keyed by folder_path
-# rather than a stronger per-account/per-source id (unavailable here — see
-# the module docstring's design-gap note) — two different Dropbox accounts
-# happening to sync a folder with the IDENTICAL path string AND a file at
-# the identical path_lower AND an identical content_hash is the only
-# collision scenario, which is astronomically unlikely; documented, not
-# engineered around, consistent with this module's other wave-1 tradeoffs.
+# Per-process (NOT per-instance) content-hash memory: (tenant_key,
+# folder_path) -> {path_lower: content_hash}. A fresh `DropboxProvider` is
+# constructed every sync (`_default_provider_factory`), so per-file
+# skip-detection ("has this file's CONTENT actually changed since we last
+# looked") needs somewhere to live that survives that boundary.
+#
+# ⚠️ MUST be keyed by MORE than `folder_path` alone — review fix (round 2).
+# This is a SAME-PROCESS, PRESENT-DAY CROSS-TENANT HAZARD, not a future
+# scale-out risk and not "astronomically unlikely": Dropbox's `content_hash`
+# is CONTENT-ADDRESSED (identical bytes produce the identical hash in ANY
+# account — it carries no account/tenant information at all), and the web
+# pod is ONE process serving EVERY user's sync through `sync_due_sources()`.
+# If two different users each connect a Dropbox folder with the same
+# `folder_path` string (plausible in a trading-journal product — a shared
+# firm template, shared course notes) and both hold a byte-identical file at
+# the same `path_lower`, a `folder_path`-only key would let user A's sync
+# "poison" user B's entry: B's file silently never gets emitted on B's own
+# FIRST sync, with no error and nothing to grep for.
+#
+# This is also NOT analogous to `engine.py`'s module-level `_locks` dict
+# (an earlier version of this comment made that comparison, and it doesn't
+# hold): `_locks` is a CONCURRENCY GUARD whose failure mode is contention
+# (two syncs of the same source briefly serialize instead of running in
+# parallel — self-correcting, no data loss). `_LAST_SEEN_HASHES` is a DATA
+# CACHE whose failure mode is a SILENT WRONG SKIP across tenants — a
+# correctness bug, not a performance one.
+#
+# Fix: every entry is keyed by `(tenant_key, folder_path)`, where
+# `tenant_key` is derived from the connector's `refreshToken` (see
+# `_tenant_key`) — a value already in scope at the `list_changed` call site,
+# stable for the life of one OAuth connection, and unique per Dropbox
+# account. Two different accounts can never collide, regardless of what
+# folder_path or file content they happen to share.
+#
 # Lost on process restart — worst case is simply re-emitting every unchanged
 # file once, which `import_confirm`'s own hash-basis (fed by
 # `server_modified`, independent of this cache) still correctly no-ops on
 # the DB side.
-_LAST_SEEN_HASHES: dict[str, dict[str, str]] = {}
+_LAST_SEEN_HASHES: dict[tuple[str, str], dict[str, str]] = {}
+
+
+def _tenant_key(credentials: dict[str, Any]) -> str:
+    """A stable, per-CONNECTION disambiguator for `_LAST_SEEN_HASHES` (see
+    that dict's docstring for the cross-tenant hazard this closes) —
+    derived from `refreshToken`: the one value that's both already in scope
+    at every `list_changed` call site AND stays constant for the life of
+    one OAuth connection (Dropbox's offline-access model never rotates it).
+    Deliberately NOT derived from `accessToken`, which DOES rotate on every
+    refresh — keying on that would fragment one tenant's own cache on every
+    token refresh instead of fixing the cross-tenant problem. Falls back to
+    `accessToken` only when `refreshToken` is somehow absent (defensive;
+    every real offline-access connection has one) — a safe degradation
+    (that tenant's own skip-detection resets more often; never a
+    cross-tenant leak, since the fallback key is still per-credentials-dict,
+    never shared across accounts). Hashed + truncated only to keep dict
+    keys short and to never retain a raw token in memory any longer than
+    the call that derives this."""
+    material = credentials.get("refreshToken") or credentials.get("accessToken") or ""
+    return hashlib.sha256(material.encode("utf-8")).hexdigest()[:16]
 
 
 def _title_from_path(path_lower: str, entry: dict[str, Any] | None) -> str:
@@ -615,15 +657,23 @@ class DropboxProvider(NoteProvider):
                 "Dropbox invalidated the list_folder cursor mid-listing -- retry the sync",
             ) from exc
 
-    def _entries_to_refs(self, entries: list[dict[str, Any]], folder_path: str) -> list[RemoteRef]:
+    def _entries_to_refs(
+        self, entries: list[dict[str, Any]], folder_path: str, credentials: dict[str, Any],
+    ) -> list[RemoteRef]:
         """Maps `entries` -> `RemoteRef`s, skip-detecting via `content_hash`
         against `_LAST_SEEN_HASHES` (module-level, see its own docstring) —
-        a file whose hash matches what THIS PROCESS last saw for it is NOT
+        a file whose hash matches what THIS PROCESS last saw for it, FOR
+        THIS SAME DROPBOX ACCOUNT (`_tenant_key(credentials)`), is NOT
         re-emitted, even on a full listing (Dropbox's own delta API already
         skips unchanged files on a true incremental `continue`; this closes
         the same gap for the FULL-listing path, which is this provider's
-        common case per the module docstring's cursor-representation note)."""
-        seen = _LAST_SEEN_HASHES.setdefault(folder_path, {})
+        common case per the module docstring's cursor-representation note).
+        The `(tenant_key, folder_path)` compound key is what keeps two
+        different accounts sharing a folder_path + a byte-identical file
+        from cross-contaminating each other's skip-detection (see
+        `_LAST_SEEN_HASHES`'s docstring)."""
+        cache_key = (_tenant_key(credentials), folder_path)
+        seen = _LAST_SEEN_HASHES.setdefault(cache_key, {})
         refs: list[RemoteRef] = []
         for entry in entries:
             if entry.get(".tag") != "file":
@@ -705,7 +755,7 @@ class DropboxProvider(NoteProvider):
             entries = await self._full_listing_entries(credentials, folder_path)
 
         self._index_entries(folder_path, entries)
-        return self._entries_to_refs(entries, folder_path)
+        return self._entries_to_refs(entries, folder_path, credentials)
 
     def _resolve_one_relative_ref(self, url: str, file_dir: str) -> str | None:
         """Pure lookup — `url` must already be decoded/normalized by the
