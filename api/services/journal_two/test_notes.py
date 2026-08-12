@@ -232,6 +232,28 @@ def test_extract_plain_text_matches_client_for_custom_nodes():
     assert "[file: plan.pdf]" in txt
 
 
+def test_non_dict_attrs_or_params_never_500_a_note_write(conn):
+    # The body validator is deliberately permissive and the importer
+    # round-trips arbitrary HTML (widgetEmbedNode.jsx jsonAttr JSON.parses
+    # data-params='[1]' into a LIST) — so every custom-node branch must
+    # DEGRADE on a truthy non-dict attrs/params, never raise. Before the
+    # hardening, .get() on a list 500'd EVERY save of the note, permanently.
+    doc = {"type": "doc", "content": [
+        {"type": "widgetEmbed", "attrs": {"widgetId": "chart", "params": [1]}},
+        {"type": "widgetEmbed", "attrs": [1]},
+        {"type": "videoTimestamp", "attrs": [1]},
+        {"type": "attachmentChip", "attrs": "nope"},
+    ]}
+    n = svc.create_note("u1", {"title": "T", "bodyJson": doc}, conn=conn)  # must not raise
+    assert "[widget]" in n["bodyPlain"]
+    assert "[file: file]" in n["bodyPlain"]
+    rows = conn.execute(
+        "SELECT symbol FROM j2_note_embeds WHERE note_id = ?", (n["id"],)).fetchall()
+    # The list-params embed still indexes (symbol unknown); the attrs-less one
+    # has no widgetId and is skipped.
+    assert [r["symbol"] for r in rows] == [None]
+
+
 def test_create_note_syncs_embed_sidecar(conn):
     n = svc.create_note("u1", {"title": "T", "bodyJson": WIDGET_DOC}, conn=conn)
     rows = conn.execute(

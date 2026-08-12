@@ -88,7 +88,14 @@ def extract_plain_text(doc: dict[str, Any] | None) -> str:
         if not isinstance(node, dict):
             return
         ntype = node.get("type")
-        attrs = node.get("attrs") or {}
+        # attrs may be any JSON shape (permissive body validator + importer
+        # round-trip) — a truthy NON-dict (list/string/number) must not reach
+        # .get() in the branches below, or every save of the note 500s. The
+        # widgetEmbed branch got this guard in the review fix pass; a non-dict
+        # on videoTimestamp/attachmentChip crashed identically.
+        attrs = node.get("attrs")
+        if not isinstance(attrs, dict):
+            attrs = {}
         if ntype == "text":
             t = node.get("text")
             if isinstance(t, str):
