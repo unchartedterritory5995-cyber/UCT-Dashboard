@@ -1034,7 +1034,7 @@ export function interpret(ast, bars, inputs, budget, scalars) {
     return scope[name]
   }
 
-  const evalNode = (n) => {
+  const evalNodeRaw = (n) => {
     // ⚠️ NOT `assertNode` — the `default` arm below IS the guard here, and it has
     // to be REACHABLE for the mutation that deletes it to be lethal. A validating
     // pre-pass would make `default:` unreachable, which is how a guard becomes an
@@ -1100,6 +1100,71 @@ export function interpret(ast, bars, inputs, budget, scalars) {
         return refuse('interpret:node',
           `unknown node type ${JSON.stringify(n.type)} — legal types are ${NODE_TYPES.join(', ')}`)
     }
+  }
+
+  // ─── STRUCTURAL MEMO ──────────────────────────────────────────────────────
+  //
+  // ⭐⭐ THE SAME SUBTREE, WRITTEN TWICE, COSTS ONCE. A translated script inlines
+  // rather than names: script 10's `(high+low)/2 + 3*atr(high,low,close,22)`
+  // appears EIGHT times in one column because the closed table has no way to bind
+  // an intermediate. Without this the engine recomputes each one, per bar, per
+  // ticker, over the whole universe.
+  //
+  // 🔴🔴 SELF-FREE ONLY, AND THAT IS THE WHOLE SAFETY ARGUMENT. `evalNodeRaw` is a
+  // closure over fixed `bars`/`inputs`/`scalars`, so a subtree that does not read
+  // a recurrence bind yields the same column every time. A subtree that DOES read
+  // one is re-evaluated per step with a different running value, and caching it
+  // would freeze the recurrence at its first step — a wrong NUMBER, silently, not
+  // a crash. The two cross-lane parity fixtures are what would catch that, and
+  // they are the acceptance test for this change.
+  //
+  // ⚠️ Sharing the returned `Float64Array` between call sites is safe because
+  // every producer allocates: `lift1`/`lift2`/`lift3` each build a fresh `out` and
+  // only READ their inputs, and `toColumn` allocates `col`. ⛔ A future builtin
+  // that writes into a column it was handed would break this silently — allocate,
+  // never mutate an input.
+  const bindNames = new Set()
+  for (const k of Object.keys(RECURRENCES)) {
+    const b = RECURRENCES[k] && RECURRENCES[k].binds
+    if (typeof b === 'string') bindNames.add(b)
+  }
+  const keyOf = new Map()
+  const freeOf = new Map()
+  const memo = new Map()
+
+  // ⛔ ITERATIVE, children-before-parents over a reversed `flatten` — the same
+  // idiom `maxLookback` and `nodeCount` use, and for the same reason: this must
+  // survive a tree deep enough to overflow a recursive walk.
+  const describeAll = (root) => {
+    const nodes = flatten(root)
+    for (let i = nodes.length - 1; i >= 0; i--) {
+      const n = nodes[i]
+      if (keyOf.has(n)) continue
+      if (!n || typeof n !== 'object' || Array.isArray(n)) {
+        keyOf.set(n, 'lit' + JSON.stringify(n ?? null))
+        freeOf.set(n, true)
+        continue
+      }
+      const args = Array.isArray(n.args) ? n.args : []
+      let free = !(n.type === 'series' && bindNames.has(n.name))
+      const parts = []
+      for (const a of args) {
+        if (!keyOf.has(a)) { free = false; parts.push('?'); continue }
+        parts.push(keyOf.get(a))
+        if (!freeOf.get(a)) free = false
+      }
+      keyOf.set(n, `${n.type}${n.name ?? ''}${n.value ?? ''}${parts.join('')}`)
+      freeOf.set(n, free)
+    }
+  }
+  describeAll(ast)
+
+  const evalNode = (n) => {
+    const key = freeOf.get(n) ? keyOf.get(n) : undefined
+    if (key !== undefined && memo.has(key)) return memo.get(key)
+    const value = evalNodeRaw(n)
+    if (key !== undefined) memo.set(key, value)
+    return value
   }
 
   const applyOp = (node, values) => {
