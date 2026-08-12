@@ -11,7 +11,7 @@ import time as _time
 from datetime import datetime
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
-from api.middleware.auth_middleware import require_admin
+from api.middleware.auth_middleware import get_current_user, require_admin
 # ORJSONResponse: ~7-8x faster serialize than stdlib on the shared event loop +
 # NaN/Inf -> null (stdlib emits invalid `NaN` tokens that crash client JSON.parse).
 # Aliased as JSONResponse so the index-bars response and the 503 error paths below
@@ -266,6 +266,20 @@ def debug_source(ticker: str, tf: str = Query(default="60"), src_override: int =
             out["focus_date"] = {"error": str(e)[:200]}
 
     return out
+
+
+@router.post("/api/bars/warm")
+def warm_bars_endpoint(payload: dict = Body(...), user: dict = Depends(get_current_user)):
+    """Journal Widgets capture-time warm: fire-and-forget deep-fill of one
+    (ticker, tf) so a freshly-captured embed's history lands in the
+    forever-store. Auth-gated (it can trigger provider fetches); returns
+    immediately — the warm itself runs on the bounded background rails."""
+    ticker = str(payload.get("ticker") or "").strip().upper()
+    tf = str(payload.get("tf") or "D")
+    if not ticker:
+        raise HTTPException(status_code=400, detail="ticker required")
+    from api.services.bars_fetch import kick_snapshot_warm
+    return {"ok": True, "kicked": kick_snapshot_warm(ticker, tf)}
 
 
 @router.get("/api/bars/{ticker}")
