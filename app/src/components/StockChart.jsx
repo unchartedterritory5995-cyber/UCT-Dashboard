@@ -5392,6 +5392,10 @@ export default function StockChart({
     () => (cs.comparisonSymbols || []).filter(c => c && c.enabled && c.sym),
     [cs.comparisonSymbols]
   )
+  // "Group only" — hide the base candles/MAs/volume so ONLY the comparisons show
+  // (a pure relative-performance view). Gated on having comparisons so the flag can
+  // never blank a chart with nothing to fall back to; turning it off restores the base.
+  const hideBase = !!cs.compareHideBase && enabledComparisons.length > 0
   // Stable cache key: sorted sym list + tf + barCount. Sorted so reorder doesn't refetch.
   const comparisonsKey = useMemo(
     () => enabledComparisons.map(c => String(c.sym).toUpperCase()).sort().join(',') || null,
@@ -5484,7 +5488,7 @@ export default function StockChart({
         if (toTime != null) { for (let i = bars.length - 1; i >= 0; i--) { if (Number.isFinite(bars[i].c) && adjustTime(bars[i].t) <= toTime) { lastClose = bars[i].c; break } } }
         if (lastClose == null) { for (let i = bars.length - 1; i >= 0; i--) { if (Number.isFinite(bars[i].c)) { lastClose = bars[i].c; break } } }
         const pct = (baseClose && lastClose) ? ((lastClose - baseClose) / baseClose) * 100 : null
-        return { sym: symKey, color: c.color, pct }
+        return { sym: symKey, color: c.color, pct, group: c.group || null }
       })
       setComparisonFramed(out)
 
@@ -5507,6 +5511,25 @@ export default function StockChart({
     return () => { cancelAnimationFrame(raf); try { ts.unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* */ } }
     // Re-subscribe + recompute when the chart, the comparison set, or fetched bars change.
   }, [chartReady, comparisonsKey, comparisonsData, filteredBars, adjustTime])
+
+  // Docked-legend layout: split comparisons into individual tickers + named groups
+  // (theme/sector/industry added as a unit). A group renders as ONE collapsible row
+  // ("Memory & HBM · N", avg %) so a 40-name overlay doesn't flood the legend.
+  const [openCmpGroups, setOpenCmpGroups] = useState({})
+  const comparisonLegend = useMemo(() => {
+    const inds = []
+    const gmap = new Map()
+    for (const f of comparisonFramed) {
+      if (f.group) { if (!gmap.has(f.group)) gmap.set(f.group, []); gmap.get(f.group).push(f) }
+      else inds.push(f)
+    }
+    const groups = [...gmap.entries()].map(([name, items]) => {
+      const vals = items.map(i => i.pct).filter(v => Number.isFinite(v))
+      const avg = vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null
+      return { name, items, avg }
+    })
+    return { inds, groups }
+  }, [comparisonFramed])
 
   // Name + exchange for each comparison (the legend shows "Name · Exchange").
   const { data: comparisonMeta } = useSWR(
@@ -9449,13 +9472,13 @@ export default function StockChart({
 
     // The dedicated LEFT scale (for 'new'-mode comparisons) runs in PERCENTAGE mode
     // so LWC rebases each of those lines to its first VISIBLE value. ⚠️ Its axis is
-    // kept HIDDEN (visible:false): a visible left axis pushes the whole plot to the
-    // RIGHT the moment a compare is added, which clipped the right-side "Post" tag.
-    // The line still renders + auto-scales on the hidden scale; the docked legend
-    // shows its %. 'same'-mode comparisons ride the base's dollar scale instead.
+    // normally HIDDEN: a visible left axis pushes the whole plot to the RIGHT the
+    // moment a compare is added, which clipped the right-side "Post" tag. The line
+    // still renders + auto-scales on the hidden scale; the docked legend shows its %.
+    // In "Group only" mode the base is hidden, so we SHOW the % axis as the reference.
     try {
       chart.priceScale('left').applyOptions({
-        visible: false,
+        visible: hideBase,
         mode: 2,
         scaleMargins: { top: 0.1, bottom: 0.1 },
         borderVisible: false,
@@ -9474,7 +9497,19 @@ export default function StockChart({
         } catch { /* disposed */ }
       })
     }
-  }, [comparisonSeries, comparisonsData, filteredBars, adjustTime])
+  }, [comparisonSeries, comparisonsData, filteredBars, adjustTime, hideBase])
+
+  // "Group only" — toggle the BASE chart's visibility (candles + volume + MA overlays)
+  // so only the comparison lines show. Re-applied whenever the candle/overlay series
+  // are recreated (data/settings change) so the hidden state survives. Turning it off
+  // restores every series to visible.
+  useEffect(() => {
+    if (!chartReady) return
+    const vis = !hideBase
+    try { candleSeriesRef.current?.applyOptions?.({ visible: vis }) } catch { /* disposed */ }
+    try { volumeSeriesRef.current?.applyOptions?.({ visible: vis }) } catch { /* no volume */ }
+    try { for (const s of (overlaySeriesRefs.current || [])) { s?.applyOptions?.({ visible: vis }) } } catch { /* */ }
+  }, [hideBase, chartReady, ohlcData, overlayData, resolvedOverlays])
 
   // ── Index comparison pane (Model Book) — white line in a pane ON TOP ──
   // Creates a LineSeries in its own pane, moves that pane to index 0 (above the
@@ -11883,7 +11918,56 @@ export default function StockChart({
       })()}
       {enabledComparisons.length > 0 && (
         <div className={`${styles.compareRows}${legendStacked ? ' ' + styles.compareRowsSide : ''}`}>
-          {comparisonFramed.map(f => {
+          {/* Groups (theme/sector/industry) — one collapsible row each */}
+          {comparisonLegend.groups.map(g => {
+            const open = !!openCmpGroups[g.name]
+            const gUp = g.avg != null && g.avg >= 0
+            return (
+              <div key={`g:${g.name}`}>
+                <div className={styles.compareRow}>
+                  <span
+                    className={styles.compareGroupChevron}
+                    role="button"
+                    aria-label={open ? 'Collapse' : 'Expand'}
+                    onClick={() => setOpenCmpGroups(p => ({ ...p, [g.name]: !p[g.name] }))}
+                  >{open ? '▾' : '▸'}</span>
+                  <span className={styles.compareGroupName}>{g.name}</span>
+                  <span className={styles.compareGroupN}>· {g.items.length}</span>
+                  <span className={styles.comparePct} style={{ color: gUp ? '#3fb27f' : '#e2686b' }}>
+                    {g.avg != null ? `${gUp ? '+' : ''}${g.avg.toFixed(2)}%` : '—'}
+                  </span>
+                  <span
+                    className={styles.compareX}
+                    role="button"
+                    title={`Remove ${g.name}`}
+                    aria-label={`Remove ${g.name}`}
+                    onClick={() => handleUpdateChartSettings({
+                      ...cs,
+                      comparisonSymbols: (cs.comparisonSymbols || []).filter(x => x.group !== g.name),
+                      preset: 'custom',
+                    })}
+                  >×</span>
+                </div>
+                {open && (
+                  <div className={styles.compareGroupMembers}>
+                    {g.items.map(m => {
+                      const mUp = m.pct != null && m.pct >= 0
+                      return (
+                        <span key={m.sym} className={styles.compareMember}>
+                          <span className={styles.compareMemberSym} style={{ color: m.color }}>{m.sym}</span>
+                          <span className={styles.compareMemberPct} style={{ color: m.color }}>
+                            {m.pct != null ? `${mUp ? '+' : ''}${m.pct.toFixed(1)}%` : '—'}
+                          </span>
+                        </span>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+          {/* Individual tickers */}
+          {comparisonLegend.inds.map(f => {
             const meta = comparisonMeta?.[f.sym]
             const name = meta?.name || f.sym
             const exch = meta?.exchange

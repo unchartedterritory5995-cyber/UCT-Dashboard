@@ -337,6 +337,8 @@ def sweep_wicks(from_date: str, to_date: str, universe: Optional[list] = None,
         universe, _ = _recon._resolve_universe()
     if not universe:
         return {"ok": False, "reason": "no universe"}
+    import gc as _gc
+    import time as _t
     client = _s3_client()
     lo, hi = _d.fromisoformat(from_date), _d.fromisoformat(to_date)
     d = hi
@@ -365,6 +367,12 @@ def sweep_wicks(from_date: str, to_date: str, universe: Optional[list] = None,
                         sync.upload(force=True)
                 else:
                     failed += 1
+                # Free the day's (large) minute-frame + yield, so the worker's memory
+                # doesn't accumulate and its /health stays responsive (avoids the
+                # Railway recycle we saw on the first run).
+                del agg, rows
+                _gc.collect()
+                _t.sleep(1.0)
         d -= _td(days=1)
     sync.upload(force=True)
     return {"ok": True, "from": from_date, "to": to_date, "days_written": ok,
