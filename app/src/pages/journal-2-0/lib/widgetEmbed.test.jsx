@@ -51,6 +51,13 @@ describe('slash arg parsing', () => {
     expect(parseChartSlashArgs('brk.b w')).toEqual({ symbol: 'BRK.B', tf: 'W' })
     expect(parseChartSlashArgs('')).toBeNull()
     expect(parseChartSlashArgs('123')).toBeNull()
+    // Prose after '/chart' must parse as NOTHING — with allowSpaces the
+    // suggestion stays alive mid-sentence, and a lenient parse turned
+    // '/chart looks great here' + Enter into a LOOKS·D embed that ate the
+    // sentence (review finding).
+    expect(parseChartSlashArgs('looks great here')).toBeNull()
+    expect(parseChartSlashArgs('looks great')).toBeNull()
+    expect(parseChartSlashArgs('AMD notatf')).toBeNull()
   })
   it('maps timeframe tokens onto bars-API codes', () => {
     expect(parseTfToken('5m')).toBe('5')

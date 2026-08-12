@@ -238,6 +238,11 @@ describe('widget registry — params layer', () => {
     expect(isReconstructable('chart', { symbol: 'A', tf: 'D', to: '2019-03-13' })).toBe(true)
     // No anchor at all (capture without a range): renderable from latest bars.
     expect(isReconstructable('chart', { symbol: 'A', tf: '15' })).toBe(true)
+    // Custom intraday tfs with an anchor: BOTH durability rails skip them
+    // (StockChart drops to=, the warm has no resample target) — never promise
+    // a re-render the rails can't serve; archive instead.
+    expect(isReconstructable('chart', { symbol: 'A', tf: '45', to: daysAgo(10) })).toBe(false)
+    expect(isReconstructable('chart', { symbol: 'A', tf: '45' })).toBe(true)
     // Every non-chart type is image-only in v1.
     for (const id of WIDGET_IDS.filter(x => x !== 'chart')) {
       expect(isReconstructable(id, normalizeParams(id, CAPTURE_FIXTURES[id])), id).toBe(false)

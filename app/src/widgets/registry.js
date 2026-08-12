@@ -81,8 +81,6 @@
 // where a live re-render had become possible); it can never break an entry.
 // Daily/weekly/monthly are effectively unbounded (30y + yfinance to IPO).
 const CHART_TF_CEILING_DAYS = { 1: 60, 5: 365, 15: 1000, 30: 3200, 60: 3200 }
-// The server's fallback ceiling for other intraday multipliers (custom TFs).
-const CHART_TF_CEILING_DEFAULT_DAYS = 2200
 
 // Search-index text for a timeframe code. Deliberately LOCAL and minimal:
 // this is what lands in body_plain for search, not a UI label (the UI keeps
@@ -120,7 +118,12 @@ function chartReconstructable(params) {
   if (!/^\d+$/.test(tf)) return true
   const to = tsToEpochSeconds(params?.to)
   if (to == null) return true
-  const ceiling = CHART_TF_CEILING_DAYS[tf] ?? CHART_TF_CEILING_DEFAULT_DAYS
+  // Custom intraday tfs (2/45/240/…) fall through BOTH durability rails:
+  // StockChart drops `?to=` for them and the snapshot warm can't target their
+  // resample base — so an anchored custom-tf snapshot must never PROMISE a
+  // re-render the rails can't serve (review finding). Archive it.
+  const ceiling = CHART_TF_CEILING_DAYS[tf]
+  if (ceiling === undefined) return false
   const ageDays = (Date.now() / 1000 - to) / 86400
   return ageDays <= ceiling
 }

@@ -123,7 +123,11 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   // patch fallback onto the node (autosave persists it). Fire the bars warm
   // immediately so the (symbol, tf) history lands in the forever-store.
   // Owner-editing sessions only (editor.isEditable) — a reader never uploads.
-  const needsArchive = decision.kind === 'live' && !attrs.fallback?.url && attrs.mode === 'snapshot'
+  // inView gates the archive too (review finding): below the fold the body
+  // holds only the grey loading skeleton — rasterizing THAT would upload a
+  // blank PNG as the permanent archive. The settle clock starts once the
+  // live component is actually mounting.
+  const needsArchive = decision.kind === 'live' && !attrs.fallback?.url && attrs.mode === 'snapshot' && inView
   useEffect(() => {
     if (!needsArchive || archivedOnceRef.current) return undefined
     archivedOnceRef.current = true
@@ -153,25 +157,21 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
     }, ARCHIVE_SETTLE_MS)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [needsArchive, editor])
+  }, [needsArchive, editor, inView])
 
   const archived = attrs.fallback?.url
     ? <ArchivedImage attrs={attrs} />
     : <PlaceholderChip attrs={attrs} reason={decision.reason} />
 
-  // An anchored window that comes back EMPTY (history beyond the fetch
-  // ceilings) must drop to the archive — an empty live chart is a broken
-  // embed wearing a frame. The live component reports it via onBarsEmpty.
-  const [barsEmpty, setBarsEmpty] = useState(false)
   let body = archived
-  if (decision.kind === 'live' && !barsEmpty) {
+  if (decision.kind === 'live') {
     const Live = EMBED_COMPONENTS[attrs.widgetId]
     body = !Live ? archived : !inView ? (
       <div className={styles.loading} style={{ height }} />
     ) : (
       <EmbedErrorBoundary fallback={archived}>
         <Suspense fallback={<div className={styles.loading} style={{ height }} />}>
-          <Live attrs={attrs} height={height} onBarsEmpty={attrs.fallback?.url ? () => setBarsEmpty(true) : undefined} />
+          <Live attrs={attrs} height={height} />
         </Suspense>
       </EmbedErrorBoundary>
     )
@@ -194,9 +194,16 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
             title={half ? 'Full width' : 'Half width (pair two side-by-side)'}>
             {half ? 'Full' : 'Half'}
           </button>
-          <button type="button" className={styles.toolBtn} onClick={recapture} title="Re-capture the archive image">
-            Re-capture
-          </button>
+          {/* Re-capture only where a NEW capture can actually happen — for
+              image-only widget types the archive IS the capture, and clearing
+              it would permanently destroy the only image with nothing to
+              re-arm the pipeline (review finding: destructive control with no
+              recovery, the 8/10 builder-sweep defect class). */}
+          {decision.kind === 'live' && (
+            <button type="button" className={styles.toolBtn} onClick={recapture} title="Re-capture the archive image">
+              Re-capture
+            </button>
+          )}
           <button type="button" className={styles.toolBtn} onClick={() => deleteNode?.()} title="Remove embed">
             ✕
           </button>

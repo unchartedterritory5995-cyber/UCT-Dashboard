@@ -98,7 +98,10 @@ def extract_plain_text(doc: dict[str, Any] | None) -> str:
         elif ntype == "attachmentChip":
             out.append(f"[file: {attrs.get('name') or 'file'}]")
         elif ntype == "widgetEmbed":
-            st = attrs.get("searchText")
+            # attrs may be any JSON shape (the body validator is deliberately
+            # permissive and the importer round-trips arbitrary HTML) — a
+            # non-dict here must degrade, never 500 the note write.
+            st = attrs.get("searchText") if isinstance(attrs, dict) else None
             out.append(st if isinstance(st, str) and st else "[widget]")
         for child in node.get("content", []) or []:
             walk(child)
@@ -115,8 +118,12 @@ def _extract_embeds(doc: dict[str, Any] | None) -> list[dict[str, Any]]:
         if not isinstance(node, dict):
             return
         if node.get("type") == "widgetEmbed":
-            attrs = node.get("attrs") or {}
-            params = attrs.get("params") or {}
+            attrs = node.get("attrs")
+            if not isinstance(attrs, dict):
+                attrs = {}
+            params = attrs.get("params")
+            if not isinstance(params, dict):
+                params = {}
             widget_id = attrs.get("widgetId")
             if isinstance(widget_id, str) and widget_id:
                 sym = params.get("symbol")

@@ -43,7 +43,9 @@ export function kickSnapshotWarm(params) {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ticker, tf: params.tf || 'D' }),
+      // `to` (the capture anchor) lets the daily warm short-circuit when the
+      // store already holds history at/before it, instead of a full re-fetch.
+      body: JSON.stringify({ ticker, tf: params.tf || 'D', to: params.to ?? null }),
     }).catch(() => {})
   } catch { /* fire-and-forget */ }
 }

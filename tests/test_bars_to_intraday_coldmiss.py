@@ -16,7 +16,17 @@ def _mk_rows(to_key: int) -> list[dict]:
     return [{"ts": to_key - 300, "o": 1.0, "h": 1.2, "l": 0.9, "c": 1.1, "v": 100}]
 
 
+def _fresh_cache(monkeypatch):
+    """Isolate the module-level TTL cache so markers from other tests (or
+    earlier runs in this process) can't make dedupe tests vacuous."""
+    store: dict = {}
+    monkeypatch.setattr(bars_fetch.cache, "get", lambda k: store.get(k))
+    monkeypatch.setattr(bars_fetch.cache, "set", lambda k, v, ttl=None: store.__setitem__(k, v))
+    return store
+
+
 def test_intraday_to_cold_miss_deep_fetches_persists_and_serves(monkeypatch):
+    _fresh_cache(monkeypatch)
     calls: dict = {}
     reads = {"n": 0}
 
@@ -61,7 +71,11 @@ def test_intraday_to_warm_store_never_calls_provider(monkeypatch):
     assert "fetch" not in called, "warm store must be an index seek, no provider call"
 
 
-def test_kick_snapshot_warm_dispatches_by_timeframe(monkeypatch):
+def test_kick_snapshot_warm_dispatches_bounded(monkeypatch):
+    _fresh_cache(monkeypatch)
+    # The pytest no-op guard is itself under test elsewhere; lift it here to
+    # exercise the dispatch logic.
+    monkeypatch.delenv("PYTEST_CURRENT_TEST", raising=False)
     calls = {}
     monkeypatch.setattr(
         bars_fetch, "_maybe_kick_deepfill",
@@ -69,7 +83,7 @@ def test_kick_snapshot_warm_dispatches_by_timeframe(monkeypatch):
     )
     monkeypatch.setattr(
         bars_fetch, "warm_ticker_daily_deep",
-        lambda t, need_before_ymd=None: calls.setdefault("daily", t) or True,
+        lambda t, need_before_ymd=None: calls.setdefault("daily", (t, need_before_ymd)) or True,
     )
     # Daily runs on a fire-and-forget thread — make it synchronous for the test.
     class _Sync:
@@ -81,6 +95,32 @@ def test_kick_snapshot_warm_dispatches_by_timeframe(monkeypatch):
 
     assert bars_fetch.kick_snapshot_warm("amd", "5") is True
     assert calls["intraday"] == ("AMD", "5", 5000)
-    assert bars_fetch.kick_snapshot_warm("NVDA", "D") is True
-    assert calls["daily"] == "NVDA"
+    assert bars_fetch.kick_snapshot_warm("NVDA", "D", need_before_ymd=20260313) is True
+    assert calls["daily"] == ("NVDA", 20260313)
     assert bars_fetch.kick_snapshot_warm("", "5") is False
+    # Custom/garbage tfs take NO warm (neither rail can serve them).
+    assert bars_fetch.kick_snapshot_warm("AMD", "45") is False
+    assert bars_fetch.kick_snapshot_warm("AMD", "banana") is False
+    # One dispatch per (ticker, tf) per TTL — a repeat is deduped.
+    assert bars_fetch.kick_snapshot_warm("AMD", "5") is False
+
+
+def test_kick_snapshot_warm_is_a_pytest_noop():
+    # The bare-daemon-thread incident class (bars_fetch.py:172-191): test runs
+    # must never dispatch provider fetches. PYTEST_CURRENT_TEST is set here.
+    assert bars_fetch.kick_snapshot_warm("AMD", "D") is False
+
+
+def test_intraday_cold_miss_attempts_once_per_window(monkeypatch):
+    store = _fresh_cache(monkeypatch)
+    fetches = {"n": 0}
+    monkeypatch.setattr(bars_fetch._sqlite, "get_bars_before", lambda *a: [])
+    monkeypatch.setattr(
+        bars_fetch, "_fetch_intraday_massive",
+        lambda *a: fetches.__setitem__("n", fetches["n"] + 1) or [],
+    )
+    monkeypatch.setattr(bars_fetch, "_get_bars_inner", lambda *a: "FALLTHROUGH")
+    assert bars_fetch._get_bars_to_response("AMD", "5", 100, "2026-03-13") == "FALLTHROUGH"
+    assert bars_fetch._get_bars_to_response("AMD", "5", 100, "2026-03-13") == "FALLTHROUGH"
+    assert fetches["n"] == 1, "an unfillable window must not re-fetch every open"
+    assert any(k.startswith("to_coldmiss_AMD_5_") for k in store)

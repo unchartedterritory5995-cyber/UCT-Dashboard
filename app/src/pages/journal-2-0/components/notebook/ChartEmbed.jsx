@@ -1,18 +1,22 @@
 import { useMemo } from 'react'
 import ChartPane from '../../../../components/chart/pane/ChartPane'
 
-// A ts param (epoch seconds or 'YYYY-MM-DD') → the calendar day StockChart's
-// anchorDate speaks. Day precision is deliberate for v1: anchored+reveal
-// framing ends the first frame at this day's bar and keeps later bars loaded
-// off-screen — exactly snapshot semantics, riding the contract-tested
-// anchorDate rail (StockChart.anchor.test.jsx) instead of racing raw
-// setVisibleRange writes against the first-load layout pass.
-function tsToAnchorDay(v) {
+// A ts param (epoch seconds or 'YYYY-MM-DD') → the ET SESSION day the cutoff
+// speaks. ⛔ Never toISOString(): UTC flips to the next calendar day at
+// 8:00 PM ET, so an evening capture would stamp TOMORROW as the cutoff and
+// the "frozen" snapshot would include a full session that printed after the
+// user wrote the entry (review finding). en-CA locale renders YYYY-MM-DD.
+export function tsToAnchorDay(v) {
   if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}/.test(v)) return v.slice(0, 10)
   if (typeof v === 'number' && Number.isFinite(v)) {
     const ms = v > 10_000_000_000 ? v : v * 1000
     const d = new Date(ms)
-    return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10)
+    if (Number.isNaN(d.getTime())) return null
+    try {
+      return d.toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+    } catch {
+      return d.toISOString().slice(0, 10)
+    }
   }
   return null
 }
@@ -31,7 +35,7 @@ const noopStore = () => {}
  * - liveUpdates only in mode:'live' (badged, capped); snapshots never
  *   subscribe to anything.
  */
-export default function ChartEmbed({ attrs, height = 320, onBarsEmpty }) {
+export default function ChartEmbed({ attrs, height = 320 }) {
   const params = attrs?.params || {}
   const anchorDay = tsToAnchorDay(params.to)
   const live = attrs?.mode === 'live'
@@ -47,14 +51,14 @@ export default function ChartEmbed({ attrs, height = 320, onBarsEmpty }) {
     // post-cutoff bars — actual frozen-evidence semantics. Live embeds track
     // now and take no cutoff. ("What happened next" later = swap this for
     // anchorDate on demand.)
+    // ⛔ NO onBarsReady empty-check here: StockChart invokes it with ZERO
+    // arguments (contract '() => void'), so an arg-inspecting callback fires
+    // unconditionally and permanently pins archived embeds to their PNG
+    // (review finding on the first cut). An empty cutoff window rendering an
+    // empty chart is the accepted residual until a real emptiness signal
+    // exists.
     ...(!live && anchorDay ? { replayCutoff: anchorDay } : {}),
-    // Belt-and-suspenders for the archive chain: if the cutoff window comes
-    // back with nothing (depth beyond the fetch ceilings), tell the view so
-    // it can drop to the archived image instead of an empty live chart.
-    ...(onBarsEmpty ? {
-      onBarsReady: (bars) => { if (!bars || bars.length === 0) onBarsEmpty() },
-    } : {}),
-  }), [live, anchorDay, onBarsEmpty])
+  }), [live, anchorDay])
 
   return (
     <div style={{ height }}>

@@ -273,13 +273,29 @@ def warm_bars_endpoint(payload: dict = Body(...), user: dict = Depends(get_curre
     """Journal Widgets capture-time warm: fire-and-forget deep-fill of one
     (ticker, tf) so a freshly-captured embed's history lands in the
     forever-store. Auth-gated (it can trigger provider fetches); returns
-    immediately — the warm itself runs on the bounded background rails."""
+    immediately — the warm itself runs on the bounded background rails.
+    Optional `to` (the capture's anchor: epoch seconds or 'YYYY-MM-DD') lets
+    the daily warm short-circuit when the store is already deep enough."""
+    from api.services.bars_fetch import _SNAPWARM_TFS, kick_snapshot_warm
     ticker = str(payload.get("ticker") or "").strip().upper()
     tf = str(payload.get("tf") or "D")
     if not ticker:
         raise HTTPException(status_code=400, detail="ticker required")
-    from api.services.bars_fetch import kick_snapshot_warm
-    return {"ok": True, "kicked": kick_snapshot_warm(ticker, tf)}
+    if tf not in _SNAPWARM_TFS:
+        raise HTTPException(status_code=400, detail="unsupported tf")
+    need_before = None
+    to_raw = payload.get("to")
+    try:
+        if isinstance(to_raw, str) and len(to_raw) >= 10:
+            need_before = int(to_raw[:10].replace("-", ""))
+        elif isinstance(to_raw, (int, float)) and to_raw > 0:
+            secs = to_raw / 1000 if to_raw > 10_000_000_000 else to_raw
+            from zoneinfo import ZoneInfo
+            need_before = int(datetime.fromtimestamp(
+                secs, tz=ZoneInfo("America/New_York")).strftime("%Y%m%d"))
+    except Exception:
+        need_before = None
+    return {"ok": True, "kicked": kick_snapshot_warm(ticker, tf, need_before_ymd=need_before)}
 
 
 @router.get("/api/bars/{ticker}")

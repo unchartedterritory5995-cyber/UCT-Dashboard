@@ -55,13 +55,18 @@ export function parseTfToken(tok) {
 const SYMBOL_RE = /^[A-Za-z][A-Za-z.\-]{0,9}$/
 
 /** Parse the free text after '/chart' — "AMD 15m", "amd", "NVDA d" —
- *  → { symbol, tf } or null when no plausible symbol is present yet. */
+ *  → { symbol, tf } or null. STRICT on shape (review finding): with
+ *  allowSpaces keeping a mid-text '/' suggestion alive, prose like
+ *  "/chart looks great here" must parse as NOTHING (menu closes, Enter is a
+ *  newline) — never as a LOOKS·D embed that eats the sentence. At most two
+ *  tokens, and a second token must be a real timeframe. */
 export function parseChartSlashArgs(rest) {
   const tokens = String(rest || '').trim().split(/\s+/).filter(Boolean)
-  if (!tokens.length || !SYMBOL_RE.test(tokens[0])) return null
-  const symbol = tokens[0].toUpperCase()
+  if (!tokens.length || tokens.length > 2) return null
+  if (!SYMBOL_RE.test(tokens[0])) return null
   const tf = tokens[1] ? parseTfToken(tokens[1]) : null
-  return { symbol, tf: tf || 'D' }
+  if (tokens[1] && !tf) return null
+  return { symbol: tokens[0].toUpperCase(), tf: tf || 'D' }
 }
 
 /** The render-path decision for one embed — the never-a-broken-embed chain.

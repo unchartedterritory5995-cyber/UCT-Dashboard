@@ -85,9 +85,11 @@ function widgetItems(query) {
   const first = raw.trim().split(/\s+/)[0]?.toLowerCase() || ''
   const out = []
   for (const id of JOURNAL_MENU_TYPES) {
-    const meta = WIDGET_REGISTRY[id]
-    const label = meta.labels.menu.toLowerCase()
-    if (first && !id.startsWith(first) && !label.startsWith(first)) continue
+    // EXACT type-name match only (review finding): with allowSpaces keeping a
+    // mid-sentence '/' suggestion alive to end of paragraph, prefix matching
+    // ('/c NVDA…') armed an Enter trap on ordinary prose. Typing the full
+    // '/chart' is the deliberate gesture that arms the command.
+    if (first !== id) continue
     if (id === 'chart') {
       const rest = raw.trim().slice(first.length).trim()
       const args = parseChartSlashArgs(rest)
@@ -100,12 +102,14 @@ function widgetItems(query) {
               .insertWidgetEmbed('chart', { symbol: args.symbol, tf: args.tf }).run()
           },
         })
-      } else {
+      } else if (!rest) {
+        // The hint renders ONLY for a bare '/chart' — once free text follows
+        // that doesn't parse as SYMBOL [tf], the menu must offer NOTHING so
+        // Enter stays a newline and the prose survives.
         out.push({
           title: 'Chart',
           description: 'Type a symbol — e.g. /chart AMD 15m',
           command: ({ editor, range }) => {
-            // No symbol yet: put the slash text back so the user can finish it.
             editor.chain().focus().deleteRange(range).insertContent('/chart ').run()
           },
         })

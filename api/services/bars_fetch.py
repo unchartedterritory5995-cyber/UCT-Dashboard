@@ -1757,20 +1757,29 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str) -> JSONR
         # on a ticker whose intraday depth never reached this pod). Falling to
         # _get_bars_inner would fetch a window ENDING TODAY, which the client's
         # cutoff filter then EMPTIES → an archived chart that renders nothing,
-        # silently. Mirror the daily branch above: do the deep intraday fetch
-        # ONCE (bounded by the tf's own fetch ceiling inside
-        # _fetch_intraday_massive), persist into the forever-store, then serve
-        # ≤ cutoff from SQLite. Slow the first time, permanently fast after.
-        try:
-            deep = _fetch_intraday_massive(ticker_up, tf, max(bars, 5000))
-            if deep:
-                try:
-                    _sqlite.put_bars(ticker_up, tf, deep, date_tf=False)
-                except Exception:
-                    pass
-                rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
-        except Exception:
-            rows = rows or []
+        # silently. Mirror the daily branch above: deep intraday fetch, persist
+        # into the forever-store, then serve ≤ cutoff from SQLite.
+        # BOUNDED like every deep rail (review finding): one attempt per
+        # (ticker, tf, cutoff) per TTL — a window the provider can't fill must
+        # not re-fetch on every note open — and never past the deep-fill
+        # concurrency budget on the request path (the 64-worker-threadpool
+        # class of the documented 524). Marker stamped BEFORE fetching so a
+        # burst of concurrent opens costs one attempt.
+        marker = f"to_coldmiss_{ticker_up}_{tf}_{to_str}"
+        if cache.get(marker) is None and _deepfill_sem.acquire(blocking=False):
+            cache.set(marker, 1, ttl=_DEEPFILL_TTL)
+            try:
+                deep = _fetch_intraday_massive(ticker_up, tf, max(bars, 5000))
+                if deep:
+                    try:
+                        _sqlite.put_bars(ticker_up, tf, deep, date_tf=False)
+                    except Exception:
+                        pass
+                    rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
+            except Exception:
+                rows = rows or []
+            finally:
+                _deepfill_sem.release()
     if not rows:
         return _get_bars_inner(ticker, tf, bars)   # last resort — client filters
     _mark_serve("sqlite")
@@ -1778,26 +1787,49 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str) -> JSONR
     return JSONResponse(content=payload, headers={"Cache-Control": "public, max-age=3600"})
 
 
-def kick_snapshot_warm(ticker: str, tf: str) -> bool:
+# Timeframes the snapshot warm serves. Custom intraday tfs (2/45/240/…) are
+# deliberately absent: StockChart drops `to=` for them and the registry marks
+# them non-reconstructable, so warming would bank history nothing re-reads.
+_SNAPWARM_TFS = ("1", "5", "15", "30", "60", "D", "W", "M")
+
+
+def kick_snapshot_warm(ticker: str, tf: str, need_before_ymd: int | None = None) -> bool:
     """Capture-time warm for a journal snapshot: make sure the (ticker, tf)
-    history behind a freshly-captured embed lands in the forever-store, so the
-    embed can re-render from data for the life of the entry. Fire-and-forget,
-    best-effort, never blocks the caller:
-    - intraday → the existing bounded deep-fill rail (semaphored, throttled,
-      6h per-tier TTL — and a deliberate NO-OP under pytest, see its docstring)
-    - D/W/M   → warm_ticker_daily_deep on a daemon thread (same shape the
-      deep-fill rail uses).
-    Returns whether a warm was dispatched (False only for a blank ticker)."""
-    tu = (ticker or "").strip().upper()
-    if not tu:
+    history behind a freshly-captured embed lands in the forever-store.
+    Fire-and-forget and BOUNDED (review finding — the first cut spawned an
+    unguarded full-history thread per call, reachable by any authed user):
+    - pytest NO-OP, same reason as _maybe_kick_deepfill's (its docstring
+      carries the 16,500-fixture-bars incident);
+    - whitelisted tfs only; one dispatch per (ticker, tf) per _DEEPFILL_TTL;
+    - intraday rides the deep-fill rail's own semaphore/throttle;
+    - D/W/M runs warm_ticker_daily_deep on a daemon thread gated by the same
+      deep-fill semaphore, with the caller's cutoff day so an already-deep
+      store short-circuits instead of re-fetching 30 years.
+    Returns whether a warm was dispatched."""
+    if _os.environ.get("PYTEST_CURRENT_TEST"):
         return False
+    tu = (ticker or "").strip().upper()
+    if not tu or tf not in _SNAPWARM_TFS:
+        return False
+    marker = f"snapwarm_{tu}_{tf}"
+    if cache.get(marker) is not None:
+        return False
+    cache.set(marker, 1, ttl=_DEEPFILL_TTL)
     if tf in ("1", "5", "15", "30", "60"):
         _maybe_kick_deepfill(tu, tf, 5000)
         return True
-    _threading.Thread(
-        target=lambda: warm_ticker_daily_deep(tu),
-        daemon=True, name=f"snapwarm-{tu}",
-    ).start()
+
+    def _run(_t=tu, _need=need_before_ymd):
+        if not _deepfill_sem.acquire(blocking=False):
+            return
+        try:
+            warm_ticker_daily_deep(_t, need_before_ymd=_need)
+        except Exception:  # noqa: BLE001
+            pass
+        finally:
+            _deepfill_sem.release()
+
+    _threading.Thread(target=_run, daemon=True, name=f"snapwarm-{tu}").start()
     return True
 
 

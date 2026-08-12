@@ -708,14 +708,16 @@ The `/charts` tab is a TradingView-grade react-grid-layout workspace. Replaces V
 - **Top-level shell:** `app/src/pages/charts/ChartsWorkspace.jsx` — owns layout state + 4 color groups + viewport-lock sizing. Layout persists to `usePreferences('charts_workspace_layout')` (debounced 500ms). Color-group syms persist to `charts_workspace_groups`.
 - **Grid:** `react-grid-layout@^1.5.3` Responsive component. `cols={12}`, `FIXED_ROWS=20`, `rowHeight` computed dynamically via `ResizeObserver` on `.workspaceBody` so the grid always fills the visible viewport exactly. `maxRows={20}` + `overflow: hidden` on body = no outer scroll. `margin=[6,6]`, `compactType: 'vertical'`. `resizeHandles={['nw','ne','sw','se']}` enables resize from all 4 corners.
 - **Color groups (A/B/C/D)** are how widgets link tickers. A widget assigned color A reads/writes `groupSyms.A`; multiple widgets on the same color stay in lockstep. `WorkspaceContext` (`useWorkspace()`) exposes `{groupSyms, setGroupSym(color, sym)}`. `ChartsSymContext` (V1 API, `useChartsSym()`) is now a shim: explicit Provider → WorkspaceContext Group A → null fallback. Watchlists/ThemeTrackerPage/Screener (V1-era) still work without code change because they default to Group A.
-- **Widget types — ⭐ measure it, don't quote it:** the authoritative list is the
-  `switch` in `app/src/pages/charts/WidgetHost.jsx`; read the `case` labels there.
-  ⚰️ This line enumerated **four** (`chart` · `watchlist` · `themes` · `scanner`)
-  while `WidgetHost` dispatched **thirteen** — the four originals plus `fundamentals`,
-  `breadth`, `aisearch`, `news`, `profile`, `alerts`, `calendar`, `optionsflow`,
-  `periodsort`. Nine widgets shipped into a doc that said they did not exist. Same
-  defect shape as the writer-index `FOUR`, the COT router's "4 routes", and the setup
-  catalog's "24": **a hand-typed enumeration beside the source that owns it.**
+- **Widget types — ⭐ measure it, don't quote it:** the authoritative list is
+  `WIDGET_REGISTRY` in `app/src/widgets/registry.js` (metadata + menu membership
+  + journal-embed params), with the /charts component bindings in
+  `WORKSPACE_WIDGETS` in `WidgetHost.jsx` — `registry.test.js` pins that the two
+  can never drift. ⚰️ This line previously pointed at "the `switch` in
+  WidgetHost" (replaced by the registry, 2026-08-12), and before that
+  enumerated **four** types while WidgetHost dispatched **thirteen** — nine
+  widgets shipped into a doc that said they did not exist. Same defect shape as
+  the writer-index `FOUR`, the COT router's "4 routes", and the setup catalog's
+  "24": **a hand-typed enumeration beside the source that owns it.**
   Each widget is wrapped in a scoped `ChartsSymContext.Provider` so the wrapped page publishes/reads tickers from THE WIDGET'S color group, not Group A.
 - **WidgetHost** (`app/src/pages/charts/WidgetHost.jsx`): type dispatcher + `WidgetHeader`. **WidgetHeader** is the drag bar with drag grip (`.charts-widget-drag-handle` consumed by RGL `draggableHandle`), color-cycle dot, close button. **Label is visually hidden (sr-only)** — color dot + body content identify the widget.
 - **Mobile (`<640px`)** bypasses RGL entirely → `ChartsWorkspace.jsx` renders **`MobileWorkspace`** (ticker persists to `localStorage['charts_mobile_sym']`). ⚰️ This said `MobileChartFallback`, which is orphaned — see *⚰️ DOCUMENTED BUT UNREACHABLE*.
@@ -757,8 +759,9 @@ The `/charts` tab is a TradingView-grade react-grid-layout workspace. Replaces V
 ### Files
 - Workspace: `app/src/pages/charts/{ChartsWorkspace,WidgetHost,WidgetHeader,WorkspaceContext,ChartsSymContext,LegacyRedirect}.jsx` + `ChartsWorkspace.module.css`
 - Widgets: `app/src/pages/charts/widgets/` — **list the directory, don't trust a
-  roster here** (43 `.jsx` files at 2026-08-09, tests included). Entry points are the
-  `case` labels in `WidgetHost.jsx` plus `MobileWorkspace.jsx` for the phone branch.
+  roster here** (43 `.jsx` files at 2026-08-09, tests included). Entry points are
+  `WIDGET_REGISTRY` (`app/src/widgets/registry.js`) + the `WORKSPACE_WIDGETS`
+  bindings in `WidgetHost.jsx`, plus `MobileWorkspace.jsx` for the phone branch.
   ⚰️ This named five files and included `MobileChartFallback`, which is orphaned.
 - Hooks: `app/src/hooks/useMediaQuery.js`
 - Embedded pages (existing): `app/src/pages/{Watchlists,ThemeTrackerPage,Screener}.jsx` with new `embedded` prop
