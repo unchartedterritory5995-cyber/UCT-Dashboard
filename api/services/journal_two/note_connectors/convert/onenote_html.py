@@ -104,8 +104,19 @@ def _attr_value(text: str, name: str) -> str | None:
     """First `name="value"` occurrence in `text` (double-quoted only — every
     OneNote/Graph-generated attribute in practice is; a single-quoted or
     unquoted attribute is outside this pre-pass's scope, same tolerance
-    level `providers/dropbox.py`'s own regex helpers assume)."""
-    m = re.search(rf'\b{re.escape(name)}\s*=\s*"(?P<value>[^"]*)"', text, re.IGNORECASE)
+    level `providers/dropbox.py`'s own regex helpers assume).
+
+    Fix (review round, task-5): a bare `\\b` word-boundary before `name` is
+    NOT a safe attribute-start anchor, because `\\b` treats `-` as a boundary
+    too — `\\bsrc\\b` matches the tail of `data-fullres-src` just as readily
+    as a standalone `src` attribute. On a real OneNote `<img>` where
+    `data-fullres-src` happens to appear BEFORE `src` in source order,
+    `_attr_value(tag, "src")` would silently return the fullres value instead
+    of the real `src`. `(?<![\\w-])` (a negative lookbehind rejecting any
+    word character OR hyphen immediately before `name`) requires an actual
+    attribute boundary — start-of-string, whitespace, or `<` are all fine;
+    another attribute's trailing hyphenated segment is not."""
+    m = re.search(rf'(?<![\w-]){re.escape(name)}\s*=\s*"(?P<value>[^"]*)"', text, re.IGNORECASE)
     return m.group("value") if m else None
 
 

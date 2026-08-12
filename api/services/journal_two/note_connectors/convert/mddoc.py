@@ -1002,6 +1002,17 @@ def _html_list_or_tasklist(
         parsed = [{"task": False, "content": [{"type": "paragraph", "content": []}]}]
 
     out: list[dict[str, Any]] = []
+    # `consumed` = how many of the ORIGINAL `<ol>`'s `<li>` items preceding
+    # runs have already accounted for — every item (task or plain) occupies
+    # one ordinal slot in the source numbering, so a later orderedList run
+    # must pick up numbering where the run(s) before it left off, not restart
+    # at the `<ol>`'s own `start` attr every time. Fix (review round,
+    # task-5): a to-do splitting `<ol start="5">` into
+    # `[taskList(1 item), orderedList(1 item)]` must number that trailing
+    # item 6, not 5 — a numbered OneNote list with an embedded checkbox item
+    # otherwise renders visibly-wrong numbers. `<ul>` is unaffected: `consumed`
+    # is only ever READ inside the `if ordered:` branch below.
+    consumed = 0
     idx = 0
     while idx < len(parsed):
         is_task = parsed[idx]["task"]
@@ -1023,10 +1034,12 @@ def _html_list_or_tasklist(
             if ordered:
                 start_raw = node.attrs.get("start")
                 try:
-                    result["attrs"] = {"start": int(start_raw)} if start_raw else {"start": 1}
+                    base_start = int(start_raw) if start_raw else 1
                 except (TypeError, ValueError):
-                    result["attrs"] = {"start": 1}
+                    base_start = 1
+                result["attrs"] = {"start": base_start + consumed}
             out.append(result)
+        consumed += len(run)
     return out
 
 

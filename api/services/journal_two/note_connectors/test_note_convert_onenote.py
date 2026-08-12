@@ -217,6 +217,50 @@ def test_resource_image_referenced_twice_dedupes_to_one_media_entry():
 
 
 # ---------------------------------------------------------------------------
+# _attr_value attribute-name-collision robustness (review round, task-5):
+# a bare regex word boundary (\b) treats `-` as a boundary too, so a naive
+# lookup for "src" could match the TAIL of "data-fullres-src" when that
+# attribute happens to appear first in the tag -- pure luck of check-ordering
+# (`_rewrite_resource_images` checks fullres before src) hid the bug, and
+# real Microsoft Graph attribute ordering was unverified. `_attr_value` must
+# require an actual attribute boundary before the name it's looking for.
+# ---------------------------------------------------------------------------
+
+
+def test_attr_value_with_reversed_attribute_order_does_not_collide():
+    from api.services.journal_two.note_connectors.convert.onenote_html import _attr_value
+
+    tag = (
+        '<img data-fullres-src="https://graph.microsoft.com/v1.0/me/onenote/'
+        'resources/0-FULL!1-x/$value" '
+        'src="https://graph.microsoft.com/v1.0/me/onenote/resources/'
+        '0-THUMB!1-y/$value">'
+    )
+    assert _attr_value(tag, "src") == (
+        "https://graph.microsoft.com/v1.0/me/onenote/resources/0-THUMB!1-y/$value"
+    )
+    assert _attr_value(tag, "data-fullres-src") == (
+        "https://graph.microsoft.com/v1.0/me/onenote/resources/0-FULL!1-x/$value"
+    )
+
+
+def test_resource_image_with_reversed_attribute_order_still_prefers_fullres():
+    # End-to-end: even with data-fullres-src appearing BEFORE src in the tag
+    # (the case pure check-ordering luck was hiding), resource-id extraction
+    # still resolves to the fullres id, not the thumbnail's.
+    html = (
+        '<img data-fullres-src="https://graph.microsoft.com/v1.0/me/onenote/'
+        'resources/0-FULL!1-x/$value?fullSize=true" '
+        'src="https://graph.microsoft.com/v1.0/me/onenote/resources/'
+        '0-THUMB!1-y/$value">'
+    )
+    result = onenote_html_to_tiptap(html)
+    image = result["doc"]["content"][0]
+    assert image["attrs"]["src"] == "import-ref://onenote-res://0-FULL!1-x"
+    assert result["media"] == [{"ref": "onenote-res://0-FULL!1-x", "kind": "image", "name": "0-FULL!1-x"}]
+
+
+# ---------------------------------------------------------------------------
 # external <img src="https://…"> (not a onenote resource) stays a plain
 # image ref -- never gets the onenote-res:// prefix
 # ---------------------------------------------------------------------------
@@ -482,8 +526,43 @@ def test_html_to_tiptap_task_marker_produces_taskitem_directly():
 
 
 def test_html_to_tiptap_ordered_task_marker_also_splits_into_runs():
+    # Visual-correctness assertion (review round, task-5): the source `<ol>`
+    # numbers "Done" as item 5 and "Continue numbering" as item 6 -- the
+    # trailing orderedList run must CONTINUE that numbering, not restart at
+    # the <ol>'s own start=5. A prior version of this test only asserted the
+    # split happened and missed that the second run silently reused start=5,
+    # which renders the wrong number on screen for a numbered OneNote list
+    # with an embedded checkbox item.
     html = '<ol start="5"><li data-uct-task="1">Done</li><li>Continue numbering</li></ol>'
     result = html_to_tiptap(html)
     top = result["doc"]["content"]
     assert _types(top) == ["taskList", "orderedList"]
-    assert top[1]["attrs"]["start"] == 5
+    assert top[1]["attrs"]["start"] == 6
+
+
+def test_html_to_tiptap_ordered_task_marker_numbering_continues_across_multiple_runs():
+    # A task run in the MIDDLE of a longer ordered list: A=3 (first run's own
+    # start), B is the task item consuming ordinal 4, so the trailing run
+    # (C, D) must start at 5 -- accounting for BOTH preceding runs' items,
+    # not just the immediately-prior one.
+    html = '<ol start="3"><li>A</li><li data-uct-task="0">B</li><li>C</li><li>D</li></ol>'
+    result = html_to_tiptap(html)
+    top = result["doc"]["content"]
+    assert _types(top) == ["orderedList", "taskList", "orderedList"]
+    assert top[0]["attrs"]["start"] == 3
+    assert [_plain_text(li) for li in top[0]["content"]] == ["A"]
+    assert top[2]["attrs"]["start"] == 5
+    assert [_plain_text(li) for li in top[2]["content"]] == ["C", "D"]
+
+
+def test_html_to_tiptap_ordered_list_without_a_task_marker_keeps_its_own_start_unchanged():
+    # Regression guard: the numbering-continuation fix touches ONLY the
+    # task-marker-present branch of _html_list_or_tasklist -- an ordinary
+    # <ol> with no data-uct-task anywhere must still fall straight through to
+    # the original, unmodified _html_convert_list (single node, start taken
+    # verbatim from the <ol>'s own attribute).
+    html = '<ol start="7"><li>One</li><li>Two</li></ol>'
+    result = html_to_tiptap(html)
+    top = result["doc"]["content"]
+    assert _types(top) == ["orderedList"]
+    assert top[0]["attrs"]["start"] == 7
