@@ -42,10 +42,16 @@ function CaptureInboxTray({ editor }) {
   if (!editor || !captures.length) return null
 
   const place = async (cap) => {
-    editor.chain().focus().insertWidgetEmbed(cap.widgetId, cap.params, {
+    // focus('end'), never bare focus(): with no prior selection and a doc
+    // that ENDS in an atom node, focus() lands a NodeSelection on that atom
+    // and insertContent REPLACES it — the tray silently ate the last embed
+    // (probed in widgetEmbedInsert.test.jsx). 'end' is a text position, so
+    // the capture APPENDS. The row is only consumed when the insert ran.
+    const ok = editor.chain().focus('end').insertWidgetEmbed(cap.widgetId, cap.params, {
       capturedAt: cap.capturedAt,
       fallback: cap.fallbackUrl ? { url: cap.fallbackUrl } : null,
     }).run()
+    if (!ok) return
     await fetch(`/api/j2/inbox/${cap.id}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
     mutate()
   }
