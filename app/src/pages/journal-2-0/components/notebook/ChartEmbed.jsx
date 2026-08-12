@@ -35,10 +35,11 @@ const noopStore = () => {}
  * - liveUpdates only in mode:'live' (badged, capped); snapshots never
  *   subscribe to anything.
  */
-export default function ChartEmbed({ attrs, height = 320 }) {
+export default function ChartEmbed({ attrs, height = 320, annotate = false, onAnnotationsChange = null }) {
   const params = attrs?.params || {}
   const anchorDay = tsToAnchorDay(params.to)
   const live = attrs?.mode === 'live'
+  const annotations = Array.isArray(attrs?.annotations) ? attrs.annotations : []
   const stockChartProps = useMemo(() => ({
     height: '100%',
     liveUpdates: live,
@@ -62,7 +63,18 @@ export default function ChartEmbed({ attrs, height = 320 }) {
     // empty chart is the accepted residual until a real emptiness signal
     // exists.
     ...(!live && anchorDay ? { replayCutoff: anchorDay } : {}),
-  }), [live, anchorDay])
+    // ── Per-embed annotations (owner spec Phase 6 #1) ─────────────────────
+    // StockChart's CONTROLLED annotation layer (the Model Book authoring
+    // system): drawings render from the embed node's own attrs and edits
+    // bubble back via onAnnotationsChange — no localStorage, no global
+    // per-symbol drawing store, so marks on a journal snapshot can never
+    // bleed onto /charts (or vice versa). annotate=true adds the full
+    // drawing toolbar (lines, text, color/width, clear).
+    annotations,
+    annotationsVisible: true,
+    annotationsEditable: !!annotate,
+    ...(onAnnotationsChange ? { onAnnotationsChange } : {}),
+  }), [live, anchorDay, annotations, annotate, onAnnotationsChange])
 
   return (
     <div style={{ height }}>

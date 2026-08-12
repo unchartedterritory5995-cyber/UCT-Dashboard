@@ -71,7 +71,28 @@
   gap: 4px;
 }
 .frame:hover .toolbar,
-.selected .toolbar { display: inline-flex; }
+.selected .toolbar,
+.annotating .toolbar { display: inline-flex; }
+/* While drawing, keep the frame visibly in-mode and its Done button findable. */
+.annotating { border-color: var(--ut-gold, #c9a84c); }
+/* Draw mode: StockChart's drawing toolbar owns the embed's top strip (root
+   z-index 5, flyouts 10–20 — measured in ChartToolbar.module.css — and it
+   grows wider once a mark is selected), so at top:6 the embed toolbar is
+   painted over and Done, the only exit, becomes unclickable. Drop the lone
+   Done button below that row and above the toolbar's z-range. */
+.annotating .toolbar {
+  top: 38px;
+  z-index: 30;
+}
+/* The LIVE badge shares the same corner; while drawing it would sit exactly
+   where Done now lives. The author is actively editing this embed — the badge
+   returns on Done. */
+.annotating .liveBadge { display: none; }
+.toolBtnActive {
+  background: var(--ut-gold, #c9a84c);
+  color: #0c0c0c;
+  border-color: var(--ut-gold, #c9a84c);
+}
 .toolBtn {
   padding: 2px 8px;
   border-radius: 5px;

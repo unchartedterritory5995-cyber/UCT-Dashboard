@@ -1,4 +1,4 @@
-import { Component, Suspense, lazy, useEffect, useRef, useState } from 'react'
+import { Component, Suspense, lazy, useCallback, useEffect, useRef, useState } from 'react'
 import { NodeViewWrapper } from '@tiptap/react'
 import {
   resolveEmbedRender, embedAutoCaption, countLiveEmbeds, LIVE_EMBEDS_PER_ENTRY,
@@ -211,6 +211,17 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
     ? <ArchivedImage attrs={attrs} />
     : <PlaceholderChip attrs={attrs} reason={decision.reason} />
 
+  // ── Per-embed annotations (drawings + text saved ON the snapshot) ────────
+  // Draw mode mounts StockChart's controlled annotation toolbar inside the
+  // embed; every add/edit/remove streams into attrs.annotations (autosave
+  // persists), renders read-only on later opens, and never touches the
+  // global /charts drawing store — frozen evidence stays frozen.
+  const [annotate, setAnnotate] = useState(false)
+  const handleAnnotationsChange = useCallback(
+    (drawings) => updateAttributes?.({ annotations: Array.isArray(drawings) ? drawings : [] }),
+    [updateAttributes],
+  )
+
   let body = archived
   if (decision.kind === 'live') {
     const Live = EMBED_COMPONENTS[attrs.widgetId]
@@ -219,7 +230,12 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
     ) : (
       <EmbedErrorBoundary fallback={archived}>
         <Suspense fallback={<div className={styles.loading} style={{ height }} />}>
-          <Live attrs={attrs} height={height} />
+          <Live
+            attrs={attrs}
+            height={height}
+            annotate={annotate}
+            onAnnotationsChange={annotate ? handleAnnotationsChange : null}
+          />
         </Suspense>
       </EmbedErrorBoundary>
     )
@@ -228,7 +244,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   return (
     <NodeViewWrapper
       ref={wrapRef}
-      className={`${styles.frame} ${half ? styles.half : styles.full} ${selected ? styles.selected : ''}`}
+      className={`${styles.frame} ${half ? styles.half : styles.full} ${selected ? styles.selected : ''} ${annotate ? styles.annotating : ''}`}
       data-widget-embed-view={attrs.widgetId || 'unknown'}
     >
       {editor?.isEditable !== false && (
@@ -236,8 +252,13 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
           {toolbarMsg && <span className={styles.toolbarMsg}>{toolbarMsg}</span>}
           {/* TF switch — chart embeds, live render path only (the archive of
               an out-of-ceiling snapshot shows the OLD tf; switchTf refuses).
-              Native tfs only — custom multipliers skip both durability rails. */}
-          {attrs.widgetId === 'chart' && decision.kind === 'live' && (
+              Native tfs only — custom multipliers skip both durability rails.
+              Draw mode collapses the toolbar to the lone Done button: the
+              chart's own drawing toolbar owns the top strip (z 5–20, and it
+              WIDENS once a mark exists), so everything else is unreachable
+              anyway — and ✕ next to a drawing gesture is a destructive
+              misclick (the 8/10 builder-sweep defect class). */}
+          {!annotate && attrs.widgetId === 'chart' && decision.kind === 'live' && (
             <select
               className={styles.toolSelect}
               value={String(attrs.params?.tf ?? 'D')}
@@ -251,27 +272,45 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
               ))}
             </select>
           )}
-          <button type="button" className={styles.toolBtn} onClick={toggleLive}
-            title={attrs.mode === 'live' ? 'Freeze to snapshot' : `Go live (max ${LIVE_EMBEDS_PER_ENTRY}/entry)`}>
-            {attrs.mode === 'live' ? 'Snapshot' : 'Live'}
-          </button>
-          <button type="button" className={styles.toolBtn} onClick={toggleWidth}
-            title={half ? 'Full width' : 'Half width (pair two side-by-side)'}>
-            {half ? 'Full' : 'Half'}
-          </button>
+          {!annotate && (
+            <button type="button" className={styles.toolBtn} onClick={toggleLive}
+              title={attrs.mode === 'live' ? 'Freeze to snapshot' : `Go live (max ${LIVE_EMBEDS_PER_ENTRY}/entry)`}>
+              {attrs.mode === 'live' ? 'Snapshot' : 'Live'}
+            </button>
+          )}
+          {!annotate && (
+            <button type="button" className={styles.toolBtn} onClick={toggleWidth}
+              title={half ? 'Full width' : 'Half width (pair two side-by-side)'}>
+              {half ? 'Full' : 'Half'}
+            </button>
+          )}
+          {/* Draw mode — chart embeds on the live render path. Done exits;
+              the marks are already persisted per-edit. */}
+          {attrs.widgetId === 'chart' && decision.kind === 'live' && (
+            <button
+              type="button"
+              className={`${styles.toolBtn} ${annotate ? styles.toolBtnActive : ''}`}
+              onClick={() => setAnnotate((a) => !a)}
+              title={annotate ? 'Exit drawing mode' : 'Draw on this snapshot (lines, text — saved with the embed)'}
+            >
+              {annotate ? 'Done' : 'Draw'}
+            </button>
+          )}
           {/* Re-capture only where a NEW capture can actually happen — for
               image-only widget types the archive IS the capture, and clearing
               it would permanently destroy the only image with nothing to
               re-arm the pipeline (review finding: destructive control with no
               recovery, the 8/10 builder-sweep defect class). */}
-          {decision.kind === 'live' && (
+          {!annotate && decision.kind === 'live' && (
             <button type="button" className={styles.toolBtn} onClick={recapture} title="Re-capture the archive image">
               Re-capture
             </button>
           )}
-          <button type="button" className={styles.toolBtn} onClick={() => deleteNode?.()} title="Remove embed">
-            ✕
-          </button>
+          {!annotate && (
+            <button type="button" className={styles.toolBtn} onClick={() => deleteNode?.()} title="Remove embed">
+              ✕
+            </button>
+          )}
         </div>
       )}
       {/* Explicit pixel height + inline-size containment: every workspace

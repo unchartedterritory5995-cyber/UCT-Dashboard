@@ -6,10 +6,10 @@
 // buildExtensions the editor uses); (3) the client plain-text serializer
 // emits the stored searchText line — the same line the server serializer
 // reads — so notebook search sees embeds identically on both sides.
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 // Same entry the importer's convert.js round-trips through.
 import { generateHTML, generateJSON } from '@tiptap/core'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 
 vi.mock('@tiptap/react', async (orig) => {
   const mod = await orig()
@@ -17,6 +17,21 @@ vi.mock('@tiptap/react', async (orig) => {
   // not. A plain div keeps these tests about the CHAIN, not the editor.
   return { ...mod, NodeViewWrapper: (props) => <div {...props} /> }
 })
+
+// The live chart renderer drags ChartPane/StockChart into jsdom; draw-mode
+// tests are about the VIEW's toolbar + annotation wiring, so stub it with a
+// probe that surfaces the two props under test.
+vi.mock('../components/notebook/ChartEmbed', () => ({
+  default: (props) => (
+    <div data-testid="chart-embed-stub" data-annotate={String(!!props.annotate)}>
+      <button
+        type="button"
+        data-testid="emit-drawing"
+        onClick={() => props.onAnnotationsChange?.([{ id: 'probe-line' }])}
+      />
+    </div>
+  ),
+}))
 
 import { buildExtensions, extractPlainText } from './tiptap'
 import {
@@ -231,5 +246,66 @@ describe('WidgetEmbedView fallback rendering', () => {
   it('derives the auto-caption from params, never from stored text', () => {
     const attrs = buildWidgetEmbedAttrs('chart', { symbol: 'AMD', tf: '5' }, { capturedAt: '2026-03-13T15:45:00Z' })
     expect(embedAutoCaption(attrs)).toBe('chart: AMD 5m · captured Mar 13, 2026')
+  })
+})
+
+describe('WidgetEmbedView draw mode', () => {
+  const liveChartAttrs = () =>
+    buildWidgetEmbedAttrs('chart', { symbol: 'NVDA', tf: '5', from: nowSec - 3600, to: nowSec })
+
+  // test-setup.js polyfills IntersectionObserver as a NOOP (never fires), so
+  // the view's below-the-fold gate would hold inView=false forever and the
+  // live component under test could never mount. These tests need the gate to
+  // OPEN — an IO that reports intersection on observe, exactly what a browser
+  // does for an on-screen embed.
+  let RealIO
+  beforeAll(() => {
+    RealIO = globalThis.IntersectionObserver
+    globalThis.IntersectionObserver = class {
+      constructor(cb) { this.cb = cb }
+      observe() { this.cb([{ isIntersecting: true }], this) }
+      unobserve() {}
+      disconnect() {}
+    }
+  })
+  afterAll(() => { globalThis.IntersectionObserver = RealIO })
+
+  it('Draw collapses the toolbar to the lone Done button (the chart drawing toolbar owns the top strip)', async () => {
+    render(<WidgetEmbedView node={{ attrs: liveChartAttrs() }} selected={false} updateAttributes={() => {}} />)
+    await screen.findByTestId('chart-embed-stub')
+    // Full toolbar before drawing.
+    expect(screen.getByTitle('Remove embed')).toBeTruthy()
+    expect(screen.getByText('Re-capture')).toBeTruthy()
+    expect(screen.getByLabelText('Embed timeframe')).toBeTruthy()
+
+    fireEvent.click(screen.getByText('Draw'))
+    expect(screen.getByText('Done')).toBeTruthy()
+    // Everything else leaves the strip — including the destructive ✕, one
+    // misclick away from a drawing gesture.
+    expect(screen.queryByTitle('Remove embed')).toBeNull()
+    expect(screen.queryByText('Re-capture')).toBeNull()
+    expect(screen.queryByText('Live')).toBeNull()
+    expect(screen.queryByText('Half')).toBeNull()
+    expect(screen.queryByLabelText('Embed timeframe')).toBeNull()
+
+    fireEvent.click(screen.getByText('Done'))
+    expect(screen.getByText('Draw')).toBeTruthy()
+    expect(screen.getByTitle('Remove embed')).toBeTruthy()
+  })
+
+  it('annotate + onAnnotationsChange reach the chart only in draw mode; edits land in attrs.annotations', async () => {
+    const updateAttributes = vi.fn()
+    render(<WidgetEmbedView node={{ attrs: liveChartAttrs() }} selected={false} updateAttributes={updateAttributes} />)
+    const stub = await screen.findByTestId('chart-embed-stub')
+
+    // Read-only until Draw: annotate off, and the change callback is absent.
+    expect(stub.getAttribute('data-annotate')).toBe('false')
+    fireEvent.click(screen.getByTestId('emit-drawing'))
+    expect(updateAttributes).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByText('Draw'))
+    expect(screen.getByTestId('chart-embed-stub').getAttribute('data-annotate')).toBe('true')
+    fireEvent.click(screen.getByTestId('emit-drawing'))
+    expect(updateAttributes).toHaveBeenCalledWith({ annotations: [{ id: 'probe-line' }] })
   })
 })
