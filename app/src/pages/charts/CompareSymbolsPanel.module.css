@@ -272,6 +272,43 @@
   box-shadow: inset 0 0 0 2px var(--accent, #c9a84c);
 }
 
+/* "Group only" toggle — prominent + obviously reversible when ON. */
+.hideBaseToggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: left;
+  background: var(--bg-surface, #1a1c17);
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 7px;
+  color: var(--text-bright, #e0dac8);
+  cursor: pointer;
+}
+.hideBaseToggle:hover { border-color: var(--accent, #c9a84c); }
+.hideBaseOn {
+  color: var(--text-heading, #f0ead8);
+  box-shadow: inset 0 0 0 2px var(--accent, #c9a84c);
+}
+.hideBaseBox {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 4px;
+  font-size: 11px;
+  color: #1a1408;
+  background: transparent;
+}
+.hideBaseOn .hideBaseBox { background: var(--accent, #c9a84c); border-color: var(--accent, #c9a84c); }
+
 .hint {
   font-size: 11px;
   color: var(--text-muted, #8c8674);

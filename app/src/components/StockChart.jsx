@@ -5392,6 +5392,10 @@ export default function StockChart({
     () => (cs.comparisonSymbols || []).filter(c => c && c.enabled && c.sym),
     [cs.comparisonSymbols]
   )
+  // "Group only" — hide the base candles/MAs/volume so ONLY the comparisons show
+  // (a pure relative-performance view). Gated on having comparisons so the flag can
+  // never blank a chart with nothing to fall back to; turning it off restores the base.
+  const hideBase = !!cs.compareHideBase && enabledComparisons.length > 0
   // Stable cache key: sorted sym list + tf + barCount. Sorted so reorder doesn't refetch.
   const comparisonsKey = useMemo(
     () => enabledComparisons.map(c => String(c.sym).toUpperCase()).sort().join(',') || null,
@@ -9468,13 +9472,13 @@ export default function StockChart({
 
     // The dedicated LEFT scale (for 'new'-mode comparisons) runs in PERCENTAGE mode
     // so LWC rebases each of those lines to its first VISIBLE value. ⚠️ Its axis is
-    // kept HIDDEN (visible:false): a visible left axis pushes the whole plot to the
-    // RIGHT the moment a compare is added, which clipped the right-side "Post" tag.
-    // The line still renders + auto-scales on the hidden scale; the docked legend
-    // shows its %. 'same'-mode comparisons ride the base's dollar scale instead.
+    // normally HIDDEN: a visible left axis pushes the whole plot to the RIGHT the
+    // moment a compare is added, which clipped the right-side "Post" tag. The line
+    // still renders + auto-scales on the hidden scale; the docked legend shows its %.
+    // In "Group only" mode the base is hidden, so we SHOW the % axis as the reference.
     try {
       chart.priceScale('left').applyOptions({
-        visible: false,
+        visible: hideBase,
         mode: 2,
         scaleMargins: { top: 0.1, bottom: 0.1 },
         borderVisible: false,
@@ -9493,7 +9497,19 @@ export default function StockChart({
         } catch { /* disposed */ }
       })
     }
-  }, [comparisonSeries, comparisonsData, filteredBars, adjustTime])
+  }, [comparisonSeries, comparisonsData, filteredBars, adjustTime, hideBase])
+
+  // "Group only" — toggle the BASE chart's visibility (candles + volume + MA overlays)
+  // so only the comparison lines show. Re-applied whenever the candle/overlay series
+  // are recreated (data/settings change) so the hidden state survives. Turning it off
+  // restores every series to visible.
+  useEffect(() => {
+    if (!chartReady) return
+    const vis = !hideBase
+    try { candleSeriesRef.current?.applyOptions?.({ visible: vis }) } catch { /* disposed */ }
+    try { volumeSeriesRef.current?.applyOptions?.({ visible: vis }) } catch { /* no volume */ }
+    try { for (const s of (overlaySeriesRefs.current || [])) { s?.applyOptions?.({ visible: vis }) } } catch { /* */ }
+  }, [hideBase, chartReady, ohlcData, overlayData, resolvedOverlays])
 
   // ── Index comparison pane (Model Book) — white line in a pane ON TOP ──
   // Creates a LineSeries in its own pane, moves that pane to index 0 (above the

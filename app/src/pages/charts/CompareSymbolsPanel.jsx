@@ -25,6 +25,7 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
   const [groupQuery, setGroupQuery] = useState('')
   const [groupBusy, setGroupBusy] = useState(false)
   const [expanded, setExpanded] = useState({})       // group name -> bool (panel expand)
+  const [hideBase, setHideBase] = useState(false)    // "Group only" — hide base candles/MAs/volume
   const apiRef = useRef(null)
 
   // Resolve the target chart's API — the active chart if it's registered, else the
@@ -40,6 +41,7 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
           apiRef.current = api
           setSymbols(api.getComparison() || [])
           try { if (api.getPercentScale && api.getPercentScale()) api.setPercentScale(false) } catch { /* older api */ }
+          try { setHideBase(!!(api.getHideBase && api.getHideBase())) } catch { /* older api */ }
           setReady(true)
           return true
         }
@@ -115,7 +117,10 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
 
   const removeSymbol = useCallback((sym) => { push(symbols.filter(x => x.sym !== sym)) }, [symbols, push])
   const removeGroup = useCallback((name) => { push(symbols.filter(x => x.group !== name)) }, [symbols, push])
-  const clearAll = useCallback(() => { push([]) }, [push])
+  const clearAll = useCallback(() => { push([]); setHideBase(false); apiRef.current?.setHideBase?.(false) }, [push])
+  const toggleHideBase = useCallback(() => {
+    setHideBase(v => { const nv = !v; apiRef.current?.setHideBase?.(nv); return nv })
+  }, [])
 
   // Per-item scale choice. For a group it applies to every member.
   const setScaleMode = useCallback((sym, sm) => {
@@ -259,6 +264,17 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
                 </div>
               ))}
             </div>
+          )}
+          {!nothing && (
+            <button
+              type="button"
+              className={`${c.hideBaseToggle}${hideBase ? ' ' + c.hideBaseOn : ''}`}
+              onClick={toggleHideBase}
+              title={hideBase ? 'Show the base chart, volume and moving averages again' : 'Hide the base chart so only the comparison lines show'}
+            >
+              <span className={c.hideBaseBox}>{hideBase ? '✓' : ''}</span>
+              <span>{hideBase ? 'Group only — base chart hidden (click to bring it back)' : 'Group only — hide the base chart'}</span>
+            </button>
           )}
           <div className={c.hint}>Normalized to 0% at the left edge of the framed range.</div>
         </div>
