@@ -301,3 +301,40 @@ Run those, deliberately, as the acceptance test for this change.
 4. Regenerate the corpus MEASURED; read the diff; expect `saveable` 11 -> 12.
 5. Mutation-check: drop the memo (eval-count rail red), drop the self-free
    scoping (parity fixtures red — this is the one that matters most).
+
+## Step 1 attempted 2026-08-12 — the code is right, the RAILS are what block it
+
+The change itself is small and it is written down here in full because it worked:
+extract ONE module-level `structuralMaps(root)` returning `{keyOf, freeOf}`
+(iterative, reversed `flatten`, children-before-parents), have `interpret` call it
+instead of building its own maps, and make
+`nodeCount = new Set(structuralMaps(ast).keyOf.values()).size`.
+
+⭐ ONE AUTHORITY IS THE POINT. The budget thresholds on these keys and the
+interpreter memoises on them; two copies of the walk would let the number a member
+is charged drift from the work the engine does.
+
+🔴 **WHAT STOPS IT: `budget.test.js` builds its trees by REPEATING ONE NODE.**
+15 tests go red, and they are right to — under DAG counting a "128-node" tree of
+identical nodes collapses to 2, so `each cap admits AT the boundary and refuses
+ONE over it` measures 2 against 128, and the compute-time refusal never fires
+because the tree is now tiny.
+
+⛔ **THOSE TESTS ARE NOT WRONG, THEIR GENERATORS ARE.** Do not relax the
+assertions to make them pass — the boundary behaviour they pin is exactly what a
+budget change must keep proving. Give them a generator that builds N DISTINCT
+subtrees (vary a literal per node: `close + 1`, `close + 2`, …) so "one over the
+cap" still means one over. A cap tested with a tree that dedups to 2 is
+`lesson_gate_that_cannot_fail` wearing a number.
+
+### What remains, precisely
+1. Rewrite `budget.test.js`'s tree generators to emit distinct subtrees, and ADD a
+   case asserting the new semantics directly: a tree of N identical subtrees
+   counts ~1, a tree of N distinct ones counts ~N. That case is the rail proving
+   the memo APPLIES — the thing the memo commit could not prove alone.
+2. Apply the `structuralMaps` + `nodeCount` change above.
+3. Regenerate the corpus MEASURED. Expect `10-supertrend` `downstream.ok` to flip
+   and `saveable` 11 -> 12; update the pinned counts and the note beside them.
+4. Mutation-check: `nodeCount` back to `flatten(ast).length` (the new count rail
+   red) · memo dropped (same rail red) · self-free scoping dropped (parity
+   fixtures red, already proven lethal).
