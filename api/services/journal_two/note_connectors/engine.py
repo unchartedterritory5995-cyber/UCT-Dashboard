@@ -173,13 +173,14 @@ def _finish_log(
             UPDATE j2_note_sync_log
                SET finished_at = ?, status = ?, error = ?,
                    notes_created = ?, notes_updated = ?, notes_skipped = ?,
-                   media_uploaded = ?
+                   media_uploaded = ?, conflicts = ?
              WHERE id = ?
             """,
             (
                 _now_iso(), status, error,
                 int(counts.get("created", 0)), int(counts.get("updated", 0)),
                 int(counts.get("skipped", 0)), int(counts.get("mediaUploaded", 0)),
+                int(counts.get("conflicts", 0)),
                 log_id,
             ),
         )
@@ -234,7 +235,7 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
         raise ValueError(f"unknown note-connector source {source_id!r}")
 
     log_id = _start_log(user_id, source_id)
-    counts = {"created": 0, "updated": 0, "skipped": 0, "mediaUploaded": 0}
+    counts = {"created": 0, "updated": 0, "skipped": 0, "mediaUploaded": 0, "conflicts": 0}
     item_failures: list[str] = []
     delete_guard_warning: str | None = None
     deleted_count = 0
@@ -270,6 +271,7 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
             counts["updated"] += result["updated"]
             counts["skipped"] += result["skipped"]
             counts["mediaUploaded"] += result["mediaUploaded"]
+            counts["conflicts"] += result["conflicts"]
             item_failures.extend(result["failures"])
 
         if refs:
@@ -295,6 +297,17 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
         }
     except Exception as e:
         connections.record_sync_result(user_id, source_id, ok=False, error=str(e))
+        if isinstance(e, errors.NoteConnAuthError):
+            # Auth rejected (incl. NoteConnTokenExpired, a subclass) — retrying
+            # on the next scheduled sync would just fail identically forever
+            # (mirrors broker/sync.py's SnapAuthError handling). Mark BOTH the
+            # source and the connector 'broken' so list_due_sources excludes
+            # this source going forward and the UI prompts a reconnect.
+            try:
+                connections.set_source_status(user_id, source_id, "broken", error=str(e))
+                connections.set_connector_status(user_id, source["provider"], "broken")
+            except Exception:  # noqa: BLE001 — never let this bookkeeping mask the real error
+                pass
         _finish_log(log_id, status="error", counts=counts, error=str(e))
         raise
     finally:
@@ -474,7 +487,8 @@ def _bulk_existing_note_meta(
 
 def _apply_resolved_body(
     conn: sqlite3.Connection, user_id: str, note_id: str, body: dict[str, Any],
-) -> None:
+    *, expected_updated_at: str | None,
+) -> bool:
     """Writes the placeholder-resolved body directly, WITHOUT bumping
     `updated_at` (unlike `notes_svc.update_note`). This call is the sync
     engine completing the SAME import operation (import-ref:// -> a real
@@ -484,13 +498,98 @@ def _apply_resolved_body(
     stranding it just after `imported_at` and making `_is_conflict` treat
     EVERY note that ever needed a rewrite pass as locally-edited on its very
     next sync (a false-positive conflict that reproduced on every 2nd sync
-    of any note carrying media or a cross-note link)."""
+    of any note carrying media or a cross-note link).
+
+    Optimistic-locked on `updated_at == expected_updated_at` — the value
+    `import_confirm` just stamped for this note, captured by the caller
+    immediately after its confirm call. If a user's own edit lands in the
+    window between confirm and this write (via `notes_svc.update_note`,
+    which always bumps `updated_at`), the guard fails (rowcount 0) and this
+    returns False — the caller must NOT overwrite in that case; it re-routes
+    the already-resolved content into a conflict sibling instead (spec §6)."""
     body_plain = notes_svc.extract_plain_text(body)
-    conn.execute(
-        "UPDATE j2_notes SET body_json = ?, body_plain = ? WHERE id = ? AND user_id = ?",
-        (json.dumps(body), body_plain, note_id, user_id),
+    cur = conn.execute(
+        "UPDATE j2_notes SET body_json = ?, body_plain = ? "
+        "WHERE id = ? AND user_id = ? AND updated_at = ?",
+        (json.dumps(body), body_plain, note_id, user_id, expected_updated_at),
     )
     conn.commit()
+    return cur.rowcount > 0
+
+
+def _find_stranded_placeholder_ids(
+    conn: sqlite3.Connection, note_ids: list[str],
+) -> set[str]:
+    """Targeted SELECT on exactly the given (already-known 'skipped') note
+    ids — never a table scan. A hit means a PRIOR sync round's resolve step
+    never completed for this note (e.g. it was in a confirm batch whose
+    resolve step raised, before Critical 3's per-batch pipeline existed, or
+    a process crash mid-resolve) and the literal placeholder is still sitting
+    in the stored body. Self-heal (Critical 3b): any hit re-enters Phase 2
+    even though its content hash says 'unchanged'."""
+    if not note_ids:
+        return set()
+    out: set[str] = set()
+    for i in range(0, len(note_ids), 500):
+        chunk = note_ids[i:i + 500]
+        placeholders = ",".join("?" * len(chunk))
+        rows = conn.execute(
+            f"SELECT id, body_json FROM j2_notes WHERE id IN ({placeholders})", chunk,
+        ).fetchall()
+        for row in rows:
+            body = row["body_json"] or ""
+            if "import-ref://" in body or "import-link://" in body:
+                out.add(row["id"])
+    return out
+
+
+def _reroute_resolved_body_to_sibling(
+    conn: sqlite3.Connection, user_id: str, source: dict[str, Any],
+    rn: RemoteNote, key: str, resolved_body: dict[str, Any],
+) -> list[str]:
+    """Critical 2's race path: `_apply_resolved_body`'s optimistic lock
+    failed, meaning a concurrent user edit landed between this note's
+    `import_confirm` and this resolve step. The original is left exactly as
+    the racing edit + confirm left it (never touched here) — the ALREADY-
+    RESOLVED remote content goes to a sibling instead, and both are tagged
+    'sync-conflict'. Returns a list of failure strings (empty on success);
+    never raises."""
+    failures: list[str] = []
+    sibling_key = f"{key}#remote"
+    row = conn.execute(
+        "SELECT id, tags, folder_id FROM j2_notes WHERE user_id = ? AND import_key = ?",
+        (user_id, key),
+    ).fetchone()
+    original_folder_id = row["folder_id"] if row else None
+    tags = list(rn.tags or [])
+    if "sync-conflict" not in tags:
+        tags.append("sync-conflict")
+    entry: dict[str, Any] = {
+        "importKey": sibling_key,
+        "title": f"{rn.title} (synced copy)",
+        "bodyJson": resolved_body,  # already resolved — no further rewrite needed
+        "tags": tags,
+        "folderPath": [],
+    }
+    if rn.created_at:
+        entry["createdAt"] = rn.created_at
+    if rn.updated_at:
+        entry["updatedAt"] = rn.updated_at
+    try:
+        notes_svc.import_confirm(
+            user_id,
+            {"source": source["provider"], "destFolderId": original_folder_id, "notes": [entry]},
+            conn=conn,
+        )
+    except Exception as e:  # noqa: BLE001 — the original is safe either way; a later sync retries
+        failures.append(f"conflict sibling for {key!r} failed after a body-write race: {e}")
+        return failures
+    if row is not None:
+        cur_tags = json.loads(row["tags"] or "[]")
+        if "sync-conflict" not in cur_tags:
+            cur_tags.append("sync-conflict")
+            notes_svc.update_note(user_id, row["id"], {"tags": cur_tags}, conn=conn)
+    return failures
 
 
 def _build_confirm_entry(
@@ -558,6 +657,149 @@ async def _upload_media_for_note(
     return media_urls, uploaded, failures
 
 
+def _bulk_note_updated_at(conn: sqlite3.Connection, note_ids: list[str]) -> dict[str, str | None]:
+    """Bulk-reads current `updated_at` for exactly the given ids — used to
+    snapshot the optimistic-lock baseline right after confirm (Critical 2),
+    before the (potentially slow) media/rewrite work for this batch begins."""
+    if not note_ids:
+        return {}
+    out: dict[str, str | None] = {}
+    for i in range(0, len(note_ids), 500):
+        chunk = note_ids[i:i + 500]
+        placeholders = ",".join("?" * len(chunk))
+        rows = conn.execute(
+            f"SELECT id, updated_at FROM j2_notes WHERE id IN ({placeholders})", chunk,
+        ).fetchall()
+        for row in rows:
+            out[row["id"]] = row["updated_at"]
+    return out
+
+
+def _merge_batch_result(totals: dict[str, Any], res: dict[str, Any]) -> None:
+    totals["created"] += res["created"]
+    totals["updated"] += res["updated"]
+    totals["skipped"] += res["skipped"]
+    totals["mediaUploaded"] += res["mediaUploaded"]
+    totals["conflicts"] += res.get("conflicts", 0)
+    totals["failures"].extend(res["failures"])
+
+
+async def _confirm_and_resolve_batch(
+    conn: sqlite3.Connection, user_id: str, source: dict[str, Any],
+    provider: NoteProvider, creds: dict[str, Any], dest_folder_id: str | None,
+    entries: list[dict[str, Any]], pairs: list[tuple[RemoteNote, str]],
+) -> dict[str, Any]:
+    """Confirms ONE batch, then immediately resolves (media + links +
+    validate + write) every created/updated note in THAT SAME batch, plus
+    any 'skipped' note whose stored body still carries a stranded literal
+    placeholder (self-heal). Per Critical 3 (PRIMARY): confirm batch N ->
+    resolve batch N -> only THEN move to batch N+1, so a later batch's
+    failure can never strand an already-resolved earlier batch.
+
+    Never raises — a bad batch's `import_confirm` exception is caught and
+    turned into a named failure (SAFETY NET half of Critical 3: one bad
+    batch degrades gracefully like a bad ref/bad media item already do,
+    instead of aborting the rest of the sync or the notes already resolved
+    by prior batches)."""
+    result: dict[str, Any] = {
+        "created": 0, "updated": 0, "skipped": 0, "mediaUploaded": 0,
+        "conflicts": 0, "failures": [],
+    }
+    try:
+        r = notes_svc.import_confirm(
+            user_id,
+            {"source": source["provider"], "destFolderId": dest_folder_id, "notes": entries},
+            conn=conn,
+        )
+    except Exception as e:  # noqa: BLE001 — one bad batch must not strand others or abort the sync
+        result["failures"].append(
+            f"confirm failed for a batch of {len(entries)} note(s): {e}"
+        )
+        return result
+
+    result["created"] = len(r["created"])
+    result["updated"] = len(r["updated"])
+    result["skipped"] = len(r["skipped"])
+    outcome_by_key: dict[str, tuple[str, str]] = {}
+    for item in r["created"]:
+        outcome_by_key[item["importKey"]] = ("created", item["id"])
+    for item in r["updated"]:
+        outcome_by_key[item["importKey"]] = ("updated", item["id"])
+    for item in r["skipped"]:
+        outcome_by_key[item["importKey"]] = ("skipped", item["id"])
+
+    # Self-heal (Critical 3, SAFETY NET): a note marked 'skipped' this round
+    # (content hash unchanged) may still carry a stranded import-ref://
+    # import-link:// placeholder from a PRIOR round whose resolve step never
+    # completed. Targeted SELECT on just this batch's skipped ids.
+    skipped_ids = [nid for (status, nid) in outcome_by_key.values() if status == "skipped"]
+    stranded = _find_stranded_placeholder_ids(conn, skipped_ids)
+
+    # Critical 2: capture each note's updated_at IMMEDIATELY after confirm —
+    # before ANY media download / rewrite work begins for this batch — as
+    # the optimistic-lock baseline. The media+rewrite step below is
+    # network-bound and can take a while; THAT whole window is what the lock
+    # protects. Capturing this right before the write instead would only
+    # guard the few-microsecond gap between the SELECT and the UPDATE and
+    # miss the real race window entirely.
+    ids_needing_baseline = [
+        nid for (status, nid) in outcome_by_key.values()
+        if status != "skipped" or nid in stranded
+    ]
+    baseline_updated_at = _bulk_note_updated_at(conn, ids_needing_baseline)
+
+    link_targets = sorted({lk for rn, _k in pairs for lk in (rn.links or [])})
+    id_by_key: dict[str, str] = {}
+    if link_targets:
+        link_check = notes_svc.import_check(user_id, link_targets, conn=conn)
+        id_by_key = {k: v["id"] for k, v in link_check["existing"].items()}
+
+    for rn, key in pairs:
+        outcome = outcome_by_key.get(key)
+        if outcome is None:
+            continue  # shouldn't happen, but a lookup miss must never crash the sync
+        status, note_id = outcome
+        healing = status == "skipped" and note_id in stranded
+        if status == "skipped" and not healing:
+            continue  # unchanged, no stranded placeholder -> nothing to do
+        if not healing and not rn.media and not rn.links:
+            continue  # nothing to resolve -> placeholder body IS the final body
+
+        media_urls: dict[str, str] = {}
+        if rn.media:
+            media_urls, up, med_failures = await _upload_media_for_note(
+                provider, creds, user_id, note_id, rn.media)
+            result["mediaUploaded"] += up
+            result["failures"].extend(med_failures)
+
+        body, _dropped = rewrite_body(rn.doc, media_urls, id_by_key)
+
+        # Important 6: validate the RESOLVED doc (1MB/shape backstop) before
+        # the raw write — a malformed/oversized result must never land in
+        # the DB. Leave the placeholder body in place; the self-heal branch
+        # above retries it on a future sync once the underlying issue clears.
+        try:
+            notes_svc._validate_body_json(body)
+        except notes_svc.NoteValidationError as e:
+            result["failures"].append(
+                f"resolved body failed validation for note {note_id!r}: {e}"
+            )
+            continue
+
+        expected = baseline_updated_at.get(note_id)
+        applied = _apply_resolved_body(conn, user_id, note_id, body, expected_updated_at=expected)
+        if not applied:
+            # A concurrent user edit landed in the window between confirm
+            # and this write — never clobber it. Reroute the ALREADY-
+            # RESOLVED content to a conflict sibling instead (spec §6).
+            result["failures"].extend(
+                _reroute_resolved_body_to_sibling(conn, user_id, source, rn, key, body)
+            )
+            result["conflicts"] += 1
+
+    return result
+
+
 async def _import_remote_notes(
     user_id: str, source: dict[str, Any], provider: NoteProvider, creds: dict[str, Any],
     remote_notes: list[RemoteNote],
@@ -569,11 +811,11 @@ async def _import_remote_notes(
         ]
         existing = _bulk_existing_note_meta(conn, user_id, import_keys)
 
-        normal_entries: list[dict[str, Any]] = []
-        normal_pairs: list[tuple[RemoteNote, str]] = []
+        normal_items: list[tuple[dict[str, Any], RemoteNote, str]] = []
         # (confirm_entry, remote_note, sibling_key, original_folder_id)
-        sibling_jobs: list[tuple[dict[str, Any], RemoteNote, str, str | None]] = []
+        sibling_items: list[tuple[dict[str, Any], RemoteNote, str, str | None]] = []
         conflict_tag_updates: dict[str, list[str]] = {}  # original note id -> new tags
+        pre_confirm_conflicts = 0
 
         for rn, key in zip(remote_notes, import_keys):
             meta = existing.get(key)
@@ -581,101 +823,55 @@ async def _import_remote_notes(
                 # Local edit since the last sync -> NEVER overwrite the
                 # original. Route the fresh remote content to a sibling note
                 # instead; both versions survive.
+                pre_confirm_conflicts += 1
                 sibling_key = f"{key}#remote"
                 entry = _build_confirm_entry(rn, sibling_key, sibling=True)
-                sibling_jobs.append((entry, rn, sibling_key, meta["folderId"]))
+                sibling_items.append((entry, rn, sibling_key, meta["folderId"]))
                 if "sync-conflict" not in (meta["tags"] or []):
                     conflict_tag_updates[meta["id"]] = list(meta["tags"] or []) + ["sync-conflict"]
             else:
                 entry = _build_confirm_entry(rn, key)
-                normal_entries.append(entry)
-                normal_pairs.append((rn, key))
+                normal_items.append((entry, rn, key))
 
-        created = updated = skipped = 0
-        outcome_by_key: dict[str, tuple[str, str]] = {}  # import_key -> (status, note_id)
+        totals: dict[str, Any] = {
+            "created": 0, "updated": 0, "skipped": 0, "mediaUploaded": 0,
+            "conflicts": pre_confirm_conflicts, "failures": [],
+        }
 
-        def _record_outcome(result: dict[str, Any]) -> None:
-            nonlocal created, updated, skipped
-            created += len(result["created"])
-            updated += len(result["updated"])
-            skipped += len(result["skipped"])
-            for item in result["created"]:
-                outcome_by_key[item["importKey"]] = ("created", item["id"])
-            for item in result["updated"]:
-                outcome_by_key[item["importKey"]] = ("updated", item["id"])
-            for item in result["skipped"]:
-                outcome_by_key[item["importKey"]] = ("skipped", item["id"])
-
-        for batch in _chunks(normal_entries, _CONFIRM_BATCH_SIZE):
-            r = notes_svc.import_confirm(
-                user_id,
-                {
-                    "source": source["provider"],
-                    "destFolderId": source.get("destFolderId"),
-                    "notes": batch,
-                },
-                conn=conn,
+        # Per-batch pipeline (Critical 3, PRIMARY): confirm batch N, resolve
+        # batch N immediately, THEN move to batch N+1. Known, deliberate
+        # tradeoff: an import-link:// from a note in batch N to a note that
+        # only lands in a LATER batch N+k resolves as unresolved this round
+        # (mark dropped, text kept) rather than waiting for the whole round —
+        # narrower than the stranding bug this fixes, and only reachable
+        # when a single sync round changes > _CONFIRM_BATCH_SIZE notes.
+        for batch in _chunks(normal_items, _CONFIRM_BATCH_SIZE):
+            entries = [e for e, _rn, _k in batch]
+            pairs = [(rn, k) for _e, rn, k in batch]
+            res = await _confirm_and_resolve_batch(
+                conn, user_id, source, provider, creds,
+                source.get("destFolderId"), entries, pairs,
             )
-            _record_outcome(r)
+            _merge_batch_result(totals, res)
 
         # Siblings land under the ORIGINAL note's CURRENT folder (its own
         # folderPath is [] so it resolves straight to destFolderId) — that
-        # can differ per conflicting note, so each gets its own confirm call
-        # rather than sharing the batch-wide destFolderId above. Conflicts
-        # are rare; correctness beats micro-batching here.
-        for entry, rn, sibling_key, original_folder_id in sibling_jobs:
-            r = notes_svc.import_confirm(
-                user_id,
-                {
-                    "source": source["provider"],
-                    "destFolderId": original_folder_id,
-                    "notes": [entry],
-                },
-                conn=conn,
+        # can differ per conflicting note, so each gets its own confirm+
+        # resolve pass rather than sharing the batch-wide destFolderId
+        # above. Conflicts are rare; correctness beats micro-batching here.
+        for entry, rn, sibling_key, original_folder_id in sibling_items:
+            res = await _confirm_and_resolve_batch(
+                conn, user_id, source, provider, creds,
+                original_folder_id, [entry], [(rn, sibling_key)],
             )
-            _record_outcome(r)
+            _merge_batch_result(totals, res)
 
-        # Tag the ORIGINAL note in a conflict — add-tag only, body/title
-        # untouched. Both the original and its sibling now carry
+        # Tag the ORIGINAL note in a pre-confirm conflict — add-tag only,
+        # body/title untouched. Both the original and its sibling now carry
         # 'sync-conflict'; neither version was lost.
         for note_id, tags in conflict_tag_updates.items():
             notes_svc.update_note(user_id, note_id, {"tags": tags}, conn=conn)
 
-        # Phase 2 (spec §3): media upload + rewrite_body + update_note, only
-        # for notes that actually changed and only after confirm committed.
-        media_uploaded = 0
-        failures: list[str] = []
-
-        all_pairs = normal_pairs + [(rn, sib_key) for (_e, rn, sib_key, _f) in sibling_jobs]
-        link_targets = sorted({lk for rn, _k in all_pairs for lk in (rn.links or [])})
-        id_by_key: dict[str, str] = {}
-        if link_targets:
-            link_check = notes_svc.import_check(user_id, link_targets, conn=conn)
-            id_by_key = {k: v["id"] for k, v in link_check["existing"].items()}
-
-        for rn, key in all_pairs:
-            outcome = outcome_by_key.get(key)
-            if outcome is None:
-                continue  # shouldn't happen, but a lookup miss must never crash the sync
-            status, note_id = outcome
-            if status == "skipped":
-                continue  # unchanged -> the resolved body from the prior sync is still correct
-            if not rn.media and not rn.links:
-                continue  # nothing to resolve -> placeholder body IS the final body
-
-            media_urls: dict[str, str] = {}
-            if rn.media:
-                media_urls, up, med_failures = await _upload_media_for_note(
-                    provider, creds, user_id, note_id, rn.media)
-                media_uploaded += up
-                failures.extend(med_failures)
-
-            body, _dropped = rewrite_body(rn.doc, media_urls, id_by_key)
-            _apply_resolved_body(conn, user_id, note_id, body)
-
-        return {
-            "created": created, "updated": updated, "skipped": skipped,
-            "mediaUploaded": media_uploaded, "failures": failures,
-        }
+        return totals
     finally:
         conn.close()

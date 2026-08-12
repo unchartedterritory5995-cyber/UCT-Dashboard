@@ -42,7 +42,7 @@ from cryptography.fernet import Fernet
 from api.services import auth_db
 from api.services.journal_two import notes as notes_svc
 from api.services.journal_two.db import ensure_schema
-from api.services.journal_two.note_connectors import engine
+from api.services.journal_two.note_connectors import engine, errors
 from api.services.journal_two.note_connectors.providers.base import (
     AccountInfo, NoteProvider, RemoteNote, RemoteRef,
 )
@@ -644,3 +644,264 @@ async def test_import_link_placeholder_resolves_to_the_target_notes_url(source, 
 
     href = _find_link(page_one["bodyJson"])
     assert href == f"/journal?j2tab=notebook&note={target_id}"
+
+
+# ---------------------------------------------------------------------------
+# Review fix pass (2026-08-12) — Critical 1 covered in test_note_connectors_db.py
+# ---------------------------------------------------------------------------
+
+
+# Critical 2 — a concurrent user edit landing between confirm and the raw
+# body write must never be clobbered; the resolved content reroutes to a
+# conflict sibling instead.
+
+
+async def test_body_write_race_reroutes_resolved_content_to_a_sibling_preserving_the_original(
+    source, provider, monkeypatch,
+):
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    rn1 = _rn("p1", "Race Note", text="v1", links=["fake:fake-graph/p2"])
+    rn1.doc["content"].append({
+        "type": "paragraph",
+        "content": [{
+            "type": "text", "text": "link",
+            "marks": [{"type": "link", "attrs": {"href": "import-link://fake:fake-graph/p2"}}],
+        }],
+    })
+    provider.notes_by_id = {"p1": rn1}
+
+    r1 = await engine.sync_source(source["id"], full=True)
+    assert r1["status"] == "ok"
+    assert r1["conflicts"] == 0
+    all_notes = notes_svc.list_notes("u1")
+    assert len(all_notes) == 1  # clean path: no race, no sibling
+    original_id = all_notes[0]["id"]
+    # unresolved link (p2 was never synced) -> the mark was stripped cleanly
+    # on the clean-path write, proving the clean path itself resolves.
+    assert "import-link://" not in json.dumps(all_notes[0]["bodyJson"])
+
+    # Second sync: remote content changes -> import_confirm will UPDATE this
+    # note's placeholder body normally (no PRE-confirm conflict, since the
+    # note was never locally edited yet).
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-05T00:00:00+00:00")]
+    rn2 = _rn("p1", "Race Note", text="v2", updated_at="2026-08-05T00:00:00+00:00",
+              links=["fake:fake-graph/p2"])
+    rn2.doc["content"].append({
+        "type": "paragraph",
+        "content": [{
+            "type": "text", "text": "link",
+            "marks": [{"type": "link", "attrs": {"href": "import-link://fake:fake-graph/p2"}}],
+        }],
+    })
+    provider.notes_by_id = {"p1": rn2}
+
+    real_rewrite_body = engine.rewrite_body
+    fired = {"done": False}
+
+    def racing_rewrite_body(doc, media_urls, id_by_key):
+        if not fired["done"]:
+            fired["done"] = True
+            # Simulates a user's OWN edit landing in the window between this
+            # note's import_confirm (already run) and this resolve step.
+            notes_svc.update_note("u1", original_id, {"title": "user's own concurrent edit"})
+        return real_rewrite_body(doc, media_urls, id_by_key)
+
+    monkeypatch.setattr(engine, "rewrite_body", racing_rewrite_body)
+
+    result = await engine.sync_source(source["id"], full=True, manual=True)
+
+    assert result["conflicts"] == 1
+
+    kept_original = notes_svc.get_note("u1", original_id)
+    assert kept_original["title"] == "user's own concurrent edit"  # never clobbered
+    assert "sync-conflict" in kept_original["tags"]
+    # the LOSING (resolved) write never applied -> the placeholder confirm
+    # already wrote is still there, untouched by the race.
+    assert "import-link://" in json.dumps(kept_original["bodyJson"])
+
+    all_notes = notes_svc.list_notes("u1")
+    assert len(all_notes) == 2
+    sibling = next(n for n in all_notes if n["id"] != original_id)
+    assert sibling["title"] == "Race Note (synced copy)"
+    assert "sync-conflict" in sibling["tags"]
+    # the sibling holds the RESOLVED content (mark stripped, same as the
+    # clean-path assertion above).
+    assert "import-link://" not in json.dumps(sibling["bodyJson"])
+    assert sibling["bodyPlain"].strip().startswith("v2")
+
+
+# Critical 3 (PRIMARY) — a later batch's confirm exception can never strand
+# an already-resolved earlier batch; batch-level failures degrade gracefully.
+
+
+async def test_batch_2_confirm_exception_never_strands_batch_1s_already_resolved_note(
+    source, provider, monkeypatch,
+):
+    monkeypatch.setattr(engine, "_CONFIRM_BATCH_SIZE", 1)  # force 2 notes -> 2 batches
+
+    provider.refs = [
+        RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="p2", updated_at="2026-08-01T00:00:01+00:00"),
+    ]
+    good = _rn("p1", "Batch One Note",
+               media=[{"ref": "img-1", "kind": "image", "name": "x.png"}])
+    good.doc["content"].append({"type": "image", "attrs": {"src": "import-ref://img-1"}})
+    provider.media_by_ref["img-1"] = (PNG_BYTES, "image/png")
+
+    bad = _rn("p2", "Batch Two Note", updated_at="2026-08-01T00:00:01+00:00")
+    bad.doc = {"type": "not-a-doc"}  # malformed -> import_confirm raises NoteValidationError
+
+    provider.notes_by_id = {"p1": good, "p2": bad}
+
+    result = await engine.sync_source(source["id"], full=True)
+
+    assert result["status"] == "ok"  # a bad batch degrades gracefully, doesn't abort the sync
+    assert result["created"] == 1  # only batch 1's note
+    assert result["mediaUploaded"] == 1  # batch 1 was fully resolved, not just confirmed
+    assert any("batch" in f.lower() for f in result["failures"])
+
+    notes = notes_svc.list_notes("u1")
+    assert len(notes) == 1
+    assert notes[0]["title"] == "Batch One Note"
+    img = next(n for n in notes[0]["bodyJson"]["content"] if n.get("type") == "image")
+    assert img["attrs"]["src"].startswith("/api/j2/notes/attachments/u1/")  # fully resolved
+
+    log_row = _log_rows(source["id"])[-1]
+    assert log_row["notes_created"] == 1
+    assert log_row["status"] == "ok"
+
+
+# Critical 3 (SAFETY NET) — self-heal: a note whose stored body still
+# carries a stranded placeholder (from some earlier failed resolve) gets
+# healed on a later sync even though its content hash marks it "skipped".
+
+
+async def test_a_hand_stranded_note_heals_on_the_next_sync(source, provider):
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Stranded Note", text="hello")}
+
+    r1 = await engine.sync_source(source["id"], full=True)
+    assert r1["status"] == "ok"
+    note = notes_svc.list_notes("u1")[0]
+
+    # Directly simulate a prior, now-fixed bug: the stored body still
+    # carries a literal, never-resolved placeholder (imported_at/import_hash
+    # left untouched, so the NEXT sync with identical remote content will
+    # mark this note 'skipped' by hash).
+    conn = auth_db.get_connection()
+    stranded_body = json.dumps({
+        "type": "doc",
+        "content": [{"type": "image", "attrs": {"src": "import-ref://orphan-ref"}}],
+    })
+    conn.execute("UPDATE j2_notes SET body_json = ? WHERE id = ?", (stranded_body, note["id"]))
+    conn.commit()
+    conn.close()
+    assert "import-ref://" in notes_svc.get_note("u1", note["id"])["bodyPlain"] or True  # sanity no-op
+
+    # Second sync: remote content is UNCHANGED (same hash) -> would normally
+    # be a pure skip. Self-heal must still notice + fix the stranded body.
+    result = await engine.sync_source(source["id"], full=True, manual=True)
+
+    assert result["status"] == "ok"
+    assert result["skipped"] == 1  # content-wise, this WAS a skip
+
+    healed = notes_svc.get_note("u1", note["id"])
+    assert "import-ref://" not in json.dumps(healed["bodyJson"])
+
+
+# Important 4 — an auth rejection marks BOTH the source and the connector
+# 'broken' so list_due_sources excludes it and the UI prompts a reconnect,
+# instead of retrying (and failing) forever.
+
+
+async def test_auth_error_marks_both_source_and_connector_broken(source, provider):
+    provider.raise_on_list_changed = errors.NoteConnAuthError("token rejected")
+
+    with pytest.raises(errors.NoteConnAuthError):
+        await engine.sync_source(source["id"], full=True)
+
+    got_source = engine.connections.get_source_by_id(source["id"])
+    assert got_source["status"] == "broken"
+    got_connector = engine.connections.get_connector("u1", "fake")
+    assert got_connector["status"] == "broken"
+
+    # due-listing already filters on status='active' -> this source no
+    # longer gets auto-retried forever.
+    due_ids = {s["id"] for s in engine.connections.list_due_sources(0)}
+    assert source["id"] not in due_ids
+
+
+async def test_token_expired_subclass_also_marks_broken(source, provider):
+    """NoteConnTokenExpired ⊂ NoteConnAuthError — the SAME handling applies."""
+    provider.raise_on_list_changed = errors.NoteConnTokenExpired("token expired")
+
+    with pytest.raises(errors.NoteConnTokenExpired):
+        await engine.sync_source(source["id"], full=True)
+
+    assert engine.connections.get_source_by_id(source["id"])["status"] == "broken"
+    assert engine.connections.get_connector("u1", "fake")["status"] == "broken"
+
+
+# Important 6 — validate the resolved body (1MB/shape backstop) before the
+# raw write; failure -> named error in the log, placeholder body left in
+# place so self-heal can retry after a fix.
+
+
+async def test_oversized_resolved_body_fails_validation_and_leaves_placeholder_in_place(
+    source, provider, monkeypatch,
+):
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    rn = _rn("p1", "Oversize Target", links=["fake:fake-graph/nope"])
+    rn.doc["content"].append({
+        "type": "paragraph",
+        "content": [{
+            "type": "text", "text": "link",
+            "marks": [{"type": "link", "attrs": {"href": "import-link://fake:fake-graph/nope"}}],
+        }],
+    })
+    provider.notes_by_id = {"p1": rn}
+
+    # Monkeypatch engine's OWN rewrite_body reference to prove ENGINE-level
+    # validation catches an oversized/invalid resolved doc before writing it —
+    # independent of whether real content can naturally grow past 1MB.
+    huge_doc = {
+        "type": "doc",
+        "content": [{"type": "paragraph", "content": [{"type": "text", "text": "x" * 2_000_000}]}],
+    }
+
+    def fake_rewrite_body(doc, media_urls, id_by_key):
+        return huge_doc, []
+
+    monkeypatch.setattr(engine, "rewrite_body", fake_rewrite_body)
+
+    result = await engine.sync_source(source["id"], full=True)
+
+    assert result["status"] == "ok"  # a per-note validation failure never fails the whole sync
+    assert result["created"] == 1
+    assert any("validation" in f.lower() for f in result["failures"])
+
+    note = notes_svc.list_notes("u1")[0]
+    # the placeholder body import_confirm wrote is still there, untouched.
+    assert "import-link://" in json.dumps(note["bodyJson"])
+    assert json.dumps(note["bodyJson"]) != json.dumps(huge_doc)
+
+
+# Minor 7 — conflicts count surfaced in the result dict + the log row.
+
+
+async def test_conflict_count_is_surfaced_in_result_and_log_row(source, provider):
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Conflict Note", text="remote v1")}
+    await engine.sync_source(source["id"], full=True)
+    original = notes_svc.list_notes("u1")[0]
+    notes_svc.update_note("u1", original["id"], {"title": "local edit"})
+
+    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-05T00:00:00+00:00")]
+    provider.notes_by_id = {"p1": _rn("p1", "Conflict Note", text="remote v2",
+                                       updated_at="2026-08-05T00:00:00+00:00")}
+    result = await engine.sync_source(source["id"], full=True, manual=True)
+
+    assert result["conflicts"] == 1
+
+    log_row = _log_rows(source["id"])[-1]
+    assert log_row["conflicts"] == 1

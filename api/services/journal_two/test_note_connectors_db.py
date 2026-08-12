@@ -10,7 +10,9 @@ import sqlite3
 
 import pytest
 
+from api.services import auth_db
 from api.services.journal_two import db as j2db
+from api.services.journal_two.note_connectors import engine
 
 _CONNECTOR_TABLES = (
     "j2_note_connectors",
@@ -117,3 +119,76 @@ def test_migration_v3_flag_file_makes_second_call_a_noop(tmp_path, monkeypatch):
     # Second direct call must not raise even though the tables already exist.
     j2db.run_notebook_migration_v3(c)
     c.close()
+
+
+def test_ensure_schema_adds_miss_streak_and_conflicts_to_a_pre_task8_shaped_db(tmp_path, monkeypatch):
+    """CRITICAL regression (review 2026-08-12): run_notebook_migration_v3 is
+    flag-gated (returns instantly once `.notebook_migration_v3` exists on
+    disk) AND its CREATE TABLE IF NOT EXISTS statements no-op on a table that
+    already exists — so a DB that ran ensure_schema() under a _J2_SCHEMA
+    snapshot from BEFORE Task 8 added `miss_streak`/`conflicts` never gains
+    those columns, no matter how many times ensure_schema() reruns.
+
+    Builds the exact pre-Task-8 shape of j2_note_remote_index/j2_note_sync_log
+    (no miss_streak, no conflicts), touches the v3 flag file (simulating an
+    already-migrated production DB), drives ensure_schema() ITSELF, and then
+    proves the column is not just PRESENT but actually USABLE by running a
+    real delete-detection pass (`engine._run_delete_detection`) against it."""
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    dbfile = tmp_path / "pre_task8.db"
+    c = sqlite3.connect(dbfile)
+    c.row_factory = sqlite3.Row
+    c.executescript(j2db._J2_SCHEMA)
+    c.execute("DROP TABLE j2_note_remote_index")
+    c.execute("DROP TABLE j2_note_sync_log")
+    c.executescript("""
+        CREATE TABLE j2_note_remote_index (
+            user_id TEXT NOT NULL, source_id TEXT NOT NULL, remote_id TEXT NOT NULL,
+            import_key TEXT NOT NULL, remote_updated_at TEXT, seen_at TEXT NOT NULL,
+            PRIMARY KEY(user_id, source_id, remote_id));
+        CREATE TABLE j2_note_sync_log (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, source_id TEXT NOT NULL, user_id TEXT NOT NULL,
+            started_at TEXT, finished_at TEXT, status TEXT, error TEXT,
+            notes_created INTEGER, notes_updated INTEGER, notes_skipped INTEGER,
+            media_uploaded INTEGER);
+    """)
+    c.commit()
+    # Simulate an already-migrated production DB: the v3 flag already exists.
+    (tmp_path / ".notebook_migration_v3").touch()
+
+    rcols_before = {r[1] for r in c.execute("PRAGMA table_info(j2_note_remote_index)")}
+    lcols_before = {r[1] for r in c.execute("PRAGMA table_info(j2_note_sync_log)")}
+    assert "miss_streak" not in rcols_before
+    assert "conflicts" not in lcols_before
+
+    # The whole point of the fix: this must add the columns despite the flag.
+    j2db.ensure_schema(c)
+
+    rcols = {r[1] for r in c.execute("PRAGMA table_info(j2_note_remote_index)")}
+    lcols = {r[1] for r in c.execute("PRAGMA table_info(j2_note_sync_log)")}
+    assert "miss_streak" in rcols
+    assert "conflicts" in lcols
+    c.close()
+
+    # Not just present — USABLE, via the real engine code path (not hand-rolled SQL).
+    monkeypatch.setattr(auth_db, "_DB_PATH", str(dbfile))
+    conn2 = auth_db.get_connection()
+    conn2.execute(
+        "INSERT INTO j2_note_remote_index (user_id, source_id, remote_id, import_key, seen_at) "
+        "VALUES ('u1','s1','r1','fake:g/r1','2026-08-01T00:00:00+00:00')"
+    )
+    conn2.commit()
+    conn2.close()
+
+    from api.services.journal_two.note_connectors.providers.base import RemoteRef
+    seen_ref = RemoteRef(remote_id="r1", updated_at="2026-08-02T00:00:00+00:00")
+    dd = engine._run_delete_detection("u1", {"id": "s1", "remoteId": "g"}, [seen_ref])
+    assert dd["status"] == "ok"
+    assert dd["deleted"] == 0
+
+    conn3 = auth_db.get_connection()
+    row = conn3.execute(
+        "SELECT miss_streak FROM j2_note_remote_index WHERE remote_id = 'r1'"
+    ).fetchone()
+    conn3.close()
+    assert row["miss_streak"] == 0  # still present/seen — column read+wrote cleanly

@@ -472,7 +472,8 @@ CREATE TABLE IF NOT EXISTS j2_note_sync_log (
     notes_created   INTEGER,
     notes_updated   INTEGER,
     notes_skipped   INTEGER,
-    media_uploaded  INTEGER
+    media_uploaded  INTEGER,
+    conflicts       INTEGER
 );
 
 CREATE TABLE IF NOT EXISTS j2_note_remote_index (
@@ -885,6 +886,29 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     except Exception as e:  # noqa: BLE001 — never crash startup over this
         print(f"[notebook-migration-v3] aborted: {e}")
 
+    # Note Connectors additive columns (Task 8): `miss_streak` on
+    # j2_note_remote_index (2-strikes delete-detection counter) and
+    # `conflicts` on j2_note_sync_log. run_notebook_migration_v3 above is
+    # flag-gated (returns instantly once `.notebook_migration_v3` exists) AND
+    # its CREATE TABLE IF NOT EXISTS statements no-op on a table that already
+    # exists — so ANY DB that ran ensure_schema() under a _J2_SCHEMA snapshot
+    # from before these two columns existed never gains them without a
+    # dedicated ALTER. Mirrors the _PHASE_2_ALTERS idiom exactly (idempotent
+    # via try/except, since SQLite has no ADD COLUMN IF NOT EXISTS). Placed
+    # HERE, after the v3 call, so it never runs before the tables exist on a
+    # DB whose _J2_SCHEMA predates the Note Connectors tables entirely.
+    for stmt in (
+        "ALTER TABLE j2_note_remote_index ADD COLUMN miss_streak INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE j2_note_sync_log ADD COLUMN conflicts INTEGER",
+    ):
+        try:
+            conn.execute(stmt)
+        except sqlite3.OperationalError as e:
+            msg = str(e).lower()
+            if "duplicate column" not in msg and "already exists" not in msg:
+                raise
+    conn.commit()
+
     # Index on j2_note_sources — created here, AFTER migration v3, so it can
     # never run before the table exists on a DB whose _J2_SCHEMA predates the
     # Note Connectors tables (mirrors idx_j2_notes_user_import above).
@@ -1179,7 +1203,8 @@ _NOTE_CONNECTOR_TABLE_DDL = {
             notes_created   INTEGER,
             notes_updated   INTEGER,
             notes_skipped   INTEGER,
-            media_uploaded  INTEGER
+            media_uploaded  INTEGER,
+            conflicts       INTEGER
         )
     """,
     "j2_note_remote_index": """
