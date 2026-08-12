@@ -50,6 +50,7 @@ from api.darkpool_massive_ingest import (
     _print_to_row,
     _rows_to_csv,
     resolve_universe,
+    BASE_UNIVERSE_CORE,
     _today_mdyyyy,
     _et_ns,
 )
@@ -104,7 +105,7 @@ def _reset_session(date_mdyyyy: str) -> None:
     _session_date = date_mdyyyy
     _cursor_ns = _et_ns(date_mdyyyy, INTRADAY_WINDOW_START)
     try:
-        _universe = resolve_universe(INTRADAY_TOP_N)
+        _universe = resolve_universe(INTRADAY_TOP_N, base=BASE_UNIVERSE_CORE)
     except Exception as e:
         logger.warning("[darkpool_intraday] universe resolve failed: %s", e)
         _universe = []
