@@ -80,18 +80,24 @@ const ITEMS = [
 // Registry-driven: every menus.journal type appears here automatically. The
 // query's trailing tokens are ARGUMENTS — `/chart AMD 15m` inserts an AMD 15m
 // snapshot directly (speed is the whole feature: no modal, no picker).
-function widgetItems(query) {
+export function widgetItems(query) {
   const raw = String(query || '')
-  const first = raw.trim().split(/\s+/)[0]?.toLowerCase() || ''
+  const tokens = raw.trim().split(/\s+/).filter(Boolean)
+  const first = tokens[0]?.toLowerCase() || ''
+  const singleToken = tokens.length <= 1
   const out = []
   for (const id of JOURNAL_MENU_TYPES) {
-    // EXACT type-name match only (review finding): with allowSpaces keeping a
-    // mid-sentence '/' suggestion alive to end of paragraph, prefix matching
-    // ('/c NVDA…') armed an Enter trap on ordinary prose. Typing the full
-    // '/chart' is the deliberate gesture that arms the command.
-    if (first !== id) continue
+    // Two matching regimes (the first cut of the Enter-trap fix demanded the
+    // exact word everywhere and killed discoverability — '/ch' showed nothing):
+    // - SINGLE token: prefix match. '/ch' offers Chart, and its command
+    //   COMPLETES the text to '/chart ' — there is no prose after the name
+    //   yet, so nothing can be eaten.
+    // - Once a SPACE exists (args/prose follow): the exact type name only.
+    //   With allowSpaces keeping a mid-sentence '/' suggestion alive, prefix
+    //   matching here ('/c NVDA…') armed an Enter trap on ordinary prose.
+    if (singleToken ? !id.startsWith(first) : first !== id) continue
     if (id === 'chart') {
-      const rest = raw.trim().slice(first.length).trim()
+      const rest = singleToken ? '' : raw.trim().slice(first.length).trim()
       const args = parseChartSlashArgs(rest)
       if (args) {
         out.push({
