@@ -31,7 +31,9 @@ from __future__ import annotations
 REF_PREFIX = "import-ref://"
 LINK_PREFIX = "import-link://"
 
-from .mddoc import md_to_tiptap
+from .mddoc import html_to_tiptap, md_to_tiptap
 from .rewrite import rewrite_body
 
-__all__ = ["REF_PREFIX", "LINK_PREFIX", "md_to_tiptap", "rewrite_body"]
+__all__ = [
+    "REF_PREFIX", "LINK_PREFIX", "md_to_tiptap", "html_to_tiptap", "rewrite_body",
+]

@@ -38,6 +38,7 @@ Spec: docs/superpowers/specs/2026-08-11-note-connectors-design.md §4.
 from __future__ import annotations
 
 import re
+from html.parser import HTMLParser
 from typing import Any
 
 from markdown_it import MarkdownIt
@@ -612,3 +613,414 @@ def _inline_nodes(
                 push_text(content)
 
     return items
+
+
+# ---------------------------------------------------------------------------
+# html_to_tiptap — HTML -> TipTap JSON (the Dropbox connector's `.html` path)
+# ---------------------------------------------------------------------------
+#
+# Added for the Dropbox folder-sync provider (task-10 brief): a note authored
+# as an exported/synced `.html` file has no browser/DOM available server-side
+# (background sync job, same constraint `md_to_tiptap` above solves for
+# markdown) and no markdown-it token stream to walk either. This is a SECOND,
+# independent walker over a bounded `html.parser.HTMLParser`-built tree,
+# deliberately reusing `_Ctx`/`_register_media`/`_data_uri_image_node`/
+# `_basename`/`_is_allowed_link_href`/`_wrap_paragraph` from above so the two
+# converters can never drift on the placeholder conventions or link policy —
+# only ONE `_is_allowed_link_href` exists in this file, and both converters
+# call it.
+#
+# `html.parser.HTMLParser` is a pure tokenizer (no DOM, no CSS, no script
+# execution of any kind) — safe to run over untrusted synced content. Output
+# stays inside the EXACT SAME node/mark vocabulary declared at the top of
+# this file; anything encountered outside it degrades to nothing (unknown
+# tags) or to visible literal text (unsupported images), never a foreign
+# TipTap node type.
+#
+# Explicit, documented scope decisions (the brief names the vocabulary but
+# leaves these to the implementer):
+#   - `<script>`/`<style>` are dropped ENTIRELY — tag AND all descendant
+#     text/markup never reaches `handle_data` at all (tracked via
+#     `_skip_depth`, not merely un-mapped).
+#   - `<head>` is ALSO dropped entirely (not just "unknown, unwrap"), because
+#     unwrapping it would splice a `<title>`'s text (and any stray
+#     `<meta>`/`<link>` remnants) into the document as a stray leading
+#     paragraph — a real, visible corruption a browser never shows a reader,
+#     and the brief's vocabulary list implicitly assumes only BODY content
+#     reaches it. `<html>`/`<body>` themselves are ordinary "unknown, unwrap"
+#     (pure structural wrappers with no content of their own).
+#   - Task lists (`<input type="checkbox">` inside `<li>`) are NOT
+#     recognized — the brief's HTML vocabulary list has no `taskList`/
+#     `taskItem` entry (unlike markdown's checkbox syntax); a checkbox input
+#     is an unknown/void tag and simply vanishes, its sibling text becomes a
+#     plain `listItem`.
+
+
+_HTML_KNOWN_TAGS = frozenset({
+    "p", "h1", "h2", "h3", "h4", "h5", "h6",
+    "ul", "ol", "li",
+    "table", "tr", "td", "th",
+    "pre", "code",
+    "blockquote", "hr", "br", "img", "a",
+    "b", "strong", "i", "em", "s", "del", "strike",
+})
+
+# Tags whose content model never permits children (no close tag expected) —
+# appended as a leaf, never pushed onto the open-element stack.
+_HTML_VOID_TAGS = frozenset({"br", "hr", "img"})
+
+# Dropped ENTIRELY (tag + every descendant, text included) — see module note
+# above. `head` is a deliberate addition beyond the brief's explicit
+# script/style pair.
+_HTML_DROPPED_TAGS = frozenset({"script", "style", "head"})
+
+_HTML_INLINE_MARK_TAGS = {
+    "b": "bold", "strong": "bold",
+    "i": "italic", "em": "italic",
+    "s": "strike", "del": "strike", "strike": "strike",
+    "code": "code",
+}
+
+
+class _HtmlNode:
+    """One element in the bounded DOM-ish tree `_HtmlDomBuilder` builds.
+    `children` holds a mix of `_HtmlNode` and plain `str` (text runs) —
+    mirrors how markdown-it's inline `children` list mixes token types,
+    which is exactly what `_inline_nodes` above already walks, so the shape
+    is deliberately familiar."""
+
+    __slots__ = ("tag", "attrs", "children")
+
+    def __init__(self, tag: str, attrs: dict[str, str | None]) -> None:
+        self.tag = tag
+        self.attrs = attrs
+        self.children: list[Any] = []
+
+
+class _HtmlDomBuilder(HTMLParser):
+    """SAX-style `html.parser.HTMLParser` callbacks -> a small in-memory
+    tree. Tolerant of unbalanced/malformed markup: an unmatched close tag is
+    ignored (not desynced against the stack); an unclosed open tag at EOF
+    simply contains everything that followed it as descendants rather than
+    raising. `convert_charrefs=True` means `handle_data` already receives
+    entities (`&amp;`, `&#39;`, ...) decoded — no manual unescaping needed."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.root = _HtmlNode("root", {})
+        self._stack: list[_HtmlNode] = [self.root]
+        self._skip_depth = 0
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        tag = tag.lower()
+        if tag in _HTML_DROPPED_TAGS:
+            self._skip_depth += 1
+            return
+        if self._skip_depth:
+            return
+        node = _HtmlNode(tag, {k.lower(): v for k, v in attrs})
+        self._stack[-1].children.append(node)
+        if tag not in _HTML_VOID_TAGS:
+            self._stack.append(node)
+
+    def handle_endtag(self, tag: str) -> None:
+        tag = tag.lower()
+        if tag in _HTML_DROPPED_TAGS:
+            if self._skip_depth:
+                self._skip_depth -= 1
+            return
+        if self._skip_depth or tag in _HTML_VOID_TAGS:
+            return
+        for i in range(len(self._stack) - 1, 0, -1):
+            if self._stack[i].tag == tag:
+                del self._stack[i:]
+                return
+        # Stray close tag with no matching open -> ignore (malformed HTML).
+
+    def handle_data(self, data: str) -> None:
+        if self._skip_depth or not data:
+            return
+        self._stack[-1].children.append(data)
+
+
+def _unwrap_unknown_html(nodes: list[Any]) -> list[Any]:
+    """Splices any tag NOT in `_HTML_KNOWN_TAGS` (e.g. `div`/`span`/`html`/
+    `body`/`section`) out of the tree, recursively, replacing it in place
+    with its own (already-unwrapped) children — "unknown tags unwrap to
+    children" per the brief, applied bottom-up in one pass so a chain of
+    nested unknowns (`<div><span>x</span></div>`) fully flattens."""
+    out: list[Any] = []
+    for n in nodes:
+        if isinstance(n, str):
+            out.append(n)
+            continue
+        if n.tag in _HTML_KNOWN_TAGS:
+            n.children = _unwrap_unknown_html(n.children)
+            out.append(n)
+        else:
+            out.extend(_unwrap_unknown_html(n.children))
+    return out
+
+
+def _html_image_node(node: "_HtmlNode", ctx: _Ctx) -> dict[str, Any] | None:
+    src = (node.attrs.get("src") or "").strip()
+    if not src:
+        return None
+    if src.startswith(REF_PREFIX):
+        return {"type": "image", "attrs": {"src": src}}
+    if src.startswith("data:"):
+        return _data_uri_image_node(src, ctx)
+    _register_media(ctx, ref=src, kind="image", name=_basename(src))
+    return {"type": "image", "attrs": {"src": f"{REF_PREFIX}{src}"}}
+
+
+_HTML_WHITESPACE_RE = re.compile(r"[ \t\r\n\f]+")
+
+
+def _html_inline_walk(
+    nodes: list[Any], ctx: _Ctx, marks: list[dict[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """Inline-context walk (text runs + composed marks + hardBreak + image),
+    mirroring `_inline_nodes`'s text-merge/marks-stack shape above. A block
+    tag (p/h1-6/ul/ol/table/pre/blockquote/hr) reached HERE means one was
+    nested inside inline markup in the source (e.g. malformed `<b><p>x</p>
+    </b>`) — TipTap marks cannot wrap a block node, so it degrades to
+    walking that tag's OWN children inline (dropping just its block-ness,
+    never the content)."""
+    marks = list(marks or [])
+    items: list[dict[str, Any]] = []
+
+    def push_text(text: str) -> None:
+        if text == "":
+            return
+        node: dict[str, Any] = {"type": "text", "text": text}
+        if marks:
+            node["marks"] = [dict(m) for m in marks]
+        if (
+            items
+            and items[-1].get("type") == "text"
+            and items[-1].get("marks", []) == node.get("marks", [])
+        ):
+            items[-1]["text"] += text
+        else:
+            items.append(node)
+
+    for n in nodes:
+        if isinstance(n, str):
+            # A bounded, simple whitespace collapse (any run of HTML
+            # whitespace -> one space) — not the full HTML5 whitespace
+            # algorithm, but sufficient for note content exported from
+            # ordinary apps, and avoids literal source-formatting newlines
+            # leaking into the rendered text.
+            push_text(_HTML_WHITESPACE_RE.sub(" ", n))
+            continue
+
+        tag = n.tag
+        if tag in _HTML_INLINE_MARK_TAGS:
+            child_marks = marks + [{"type": _HTML_INLINE_MARK_TAGS[tag]}]
+            items.extend(_html_inline_walk(n.children, ctx, child_marks))
+        elif tag == "a":
+            href = (n.attrs.get("href") or "").strip()
+            if _is_allowed_link_href(href):
+                if href.startswith(LINK_PREFIX):
+                    ctx.links.append(href[len(LINK_PREFIX):])
+                link_marks = marks + [{"type": "link", "attrs": {"href": href}}]
+                items.extend(_html_inline_walk(n.children, ctx, link_marks))
+            else:
+                items.extend(_html_inline_walk(n.children, ctx, marks))
+        elif tag == "br":
+            items.append({"type": "hardBreak"})
+        elif tag == "img":
+            node_out = _html_image_node(n, ctx)
+            if node_out is None:
+                push_text("[unsupported image]")
+            else:
+                items.append(node_out)
+        else:
+            # A block tag landed in inline position -> degrade per the
+            # docstring above: walk ITS children inline, dropping only its
+            # block-ness.
+            items.extend(_html_inline_walk(n.children, ctx, marks))
+
+    return items
+
+
+def _html_convert_pre(node: "_HtmlNode") -> dict[str, Any]:
+    """`<pre>` (optionally wrapping `<code class="language-x">`) -> TipTap
+    `codeBlock`. Content is extracted VERBATIM (whitespace-preserving,
+    entity-decoded by the parser, formatting/marks discarded) — never routed
+    through `_html_inline_walk`, which would collapse whitespace and could
+    apply marks that have no meaning inside a code block."""
+    code_node: _HtmlNode | None = None
+    for c in node.children:
+        if not isinstance(c, str) and c.tag == "code":
+            code_node = c
+            break
+    source = code_node if code_node is not None else node
+    language = None
+    if code_node is not None:
+        for token in (code_node.attrs.get("class") or "").split():
+            if token.startswith("language-"):
+                language = token[len("language-"):]
+                break
+    text = _html_literal_text(source.children)
+    content = [{"type": "text", "text": text}] if text else []
+    return {"type": "codeBlock", "attrs": {"language": language}, "content": content}
+
+
+def _html_literal_text(nodes: list[Any]) -> str:
+    out: list[str] = []
+    for n in nodes:
+        if isinstance(n, str):
+            out.append(n)
+        else:
+            if n.tag == "br":
+                out.append("\n")
+            out.append(_html_literal_text(n.children))
+    return "".join(out)
+
+
+def _html_convert_list(node: "_HtmlNode", ctx: _Ctx, *, ordered: bool) -> dict[str, Any]:
+    """`<ul>`/`<ol>` -> `bulletList`/`orderedList`. Only direct `<li>`
+    children become items (TipTap's content model is `listItem+`); any other
+    stray child is dropped. Unlike markdown lists, raw HTML `<ul>`/`<ol>`
+    markup can't mix task-list and plain items (no checkbox syntax in this
+    vocabulary — see the module note above), so — unlike `md_to_tiptap`'s
+    `_list_runs` — a single list node is always correct here, no run-
+    splitting needed."""
+    items: list[dict[str, Any]] = []
+    for child in node.children:
+        if isinstance(child, str) or child.tag != "li":
+            continue
+        content = _html_blocks_walk(child.children, ctx)
+        if not content:
+            content = [{"type": "paragraph", "content": []}]
+        items.append({"type": "listItem", "content": content})
+    if not items:
+        items = [{"type": "listItem", "content": [{"type": "paragraph", "content": []}]}]
+    result: dict[str, Any] = {
+        "type": "orderedList" if ordered else "bulletList", "content": items,
+    }
+    if ordered:
+        start_raw = node.attrs.get("start")
+        try:
+            result["attrs"] = {"start": int(start_raw)} if start_raw else {"start": 1}
+        except (TypeError, ValueError):
+            result["attrs"] = {"start": 1}
+    return result
+
+
+def _html_convert_table(node: "_HtmlNode", ctx: _Ctx) -> dict[str, Any]:
+    """`<table>` -> TipTap `table`. `thead`/`tbody`/`tfoot` are not in the
+    declared vocabulary, so `_unwrap_unknown_html` has already spliced them
+    away by the time this runs — `table`'s direct children are always bare
+    `tr` nodes regardless of whether the source wrapped them."""
+    rows: list[dict[str, Any]] = []
+    for tr in node.children:
+        if isinstance(tr, str) or tr.tag != "tr":
+            continue
+        cells: list[dict[str, Any]] = []
+        for cell in tr.children:
+            if isinstance(cell, str) or cell.tag not in ("td", "th"):
+                continue
+            content = _html_blocks_walk(cell.children, ctx)
+            if not content:
+                content = [{"type": "paragraph", "content": []}]
+            cell_type = "tableHeader" if cell.tag == "th" else "tableCell"
+            cells.append({"type": cell_type, "content": content})
+        rows.append({"type": "tableRow", "content": cells})
+    return {"type": "table", "content": rows}
+
+
+def _html_blocks_walk(nodes: list[Any], ctx: _Ctx) -> list[dict[str, Any]]:
+    """Block-context walk, mirroring `_blocks` above. Stray inline content
+    encountered directly (text, or an inline-vocabulary tag with no `<p>`
+    wrapper) is buffered and wrapped into implicit paragraph(s) on the next
+    block boundary (or at the end) via `_wrap_paragraph` — reused verbatim
+    from the markdown converter above, including its `image`-hoisting
+    behavior. `_wrap_paragraph` is ONLY ever called here with a non-empty
+    buffer (guarded by `if buf:`) — it unconditionally emits a paragraph for
+    an EMPTY buffer too (by design, for markdown's own call sites), which
+    would insert a spurious blank paragraph between every pair of sibling
+    block tags if called unconditionally on every flush."""
+    out: list[dict[str, Any]] = []
+    buf: list[dict[str, Any]] = []
+
+    def flush() -> None:
+        nonlocal buf
+        if buf:
+            out.extend(_wrap_paragraph(buf))
+            buf = []
+
+    for n in nodes:
+        if isinstance(n, str):
+            if n.strip() == "":
+                continue  # pure whitespace between block siblings -> noise
+            buf.extend(_html_inline_walk([n], ctx))
+            continue
+
+        tag = n.tag
+        if tag == "p":
+            flush()
+            # `_wrap_paragraph` always returns >=1 node (even for an empty
+            # `<p></p>`) — see its own docstring above.
+            out.extend(_wrap_paragraph(_html_inline_walk(n.children, ctx)))
+        elif tag in ("h1", "h2", "h3", "h4", "h5", "h6"):
+            flush()
+            level = min(int(tag[1]), 3)
+            flat = _html_inline_walk(n.children, ctx)
+            text_items = [x for x in flat if x.get("type") != "image"]
+            images = [x for x in flat if x.get("type") == "image"]
+            out.append({"type": "heading", "attrs": {"level": level}, "content": text_items})
+            out.extend(images)
+        elif tag == "ul":
+            flush()
+            out.append(_html_convert_list(n, ctx, ordered=False))
+        elif tag == "ol":
+            flush()
+            out.append(_html_convert_list(n, ctx, ordered=True))
+        elif tag == "table":
+            flush()
+            out.append(_html_convert_table(n, ctx))
+        elif tag == "pre":
+            flush()
+            out.append(_html_convert_pre(n))
+        elif tag == "blockquote":
+            flush()
+            inner = _html_blocks_walk(n.children, ctx)
+            out.append({"type": "blockquote", "content": inner or [{"type": "paragraph", "content": []}]})
+        elif tag == "hr":
+            flush()
+            out.append({"type": "horizontalRule"})
+        else:
+            # Any remaining known tag here (a/b/strong/i/em/s/del/strike/
+            # code/img/br, or a stray li/tr/td/th outside its proper
+            # parent) is inline-vocabulary or out-of-context — buffer it
+            # like stray text rather than crash or drop it.
+            buf.extend(_html_inline_walk([n], ctx))
+
+    flush()
+    return out
+
+
+def html_to_tiptap(html: str | None) -> dict[str, Any]:
+    """Convert an HTML document/fragment into `{doc, media, links}` — the
+    Dropbox connector's converter for `.html` files. Output shape is
+    IDENTICAL to `md_to_tiptap`'s (same three keys, same placeholder
+    conventions) so callers can treat both converters interchangeably.
+
+    A bounded `html.parser.HTMLParser` walk (pure tokenizer — never executes
+    script, never resolves external entities/DTDs) builds a small tree,
+    `<script>`/`<style>`/`<head>` are dropped entirely (see module note
+    above for why `<head>` joins the brief's explicit script/style pair),
+    every other tag not in the declared vocabulary unwraps to its children,
+    and content stays inside the SAME node/mark vocabulary declared at the
+    top of this file — never a foreign TipTap node type.
+    """
+    builder = _HtmlDomBuilder()
+    builder.feed(html or "")
+    builder.close()
+    nodes = _unwrap_unknown_html(builder.root.children)
+    ctx = _Ctx()
+    content = _html_blocks_walk(nodes, ctx)
+    return {"doc": {"type": "doc", "content": content}, "media": ctx.media, "links": ctx.links}

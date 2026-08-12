@@ -880,3 +880,283 @@ def test_ref_and_link_prefix_constants_are_the_single_package_authority():
     assert mddoc.LINK_PREFIX is convert_pkg.LINK_PREFIX
     assert rewrite.REF_PREFIX is convert_pkg.REF_PREFIX
     assert rewrite.LINK_PREFIX is convert_pkg.LINK_PREFIX
+
+
+# ---------------------------------------------------------------------------
+# html_to_tiptap — the Dropbox connector's `.html` converter (task-10 brief).
+# Added for the Dropbox folder-sync provider; shares `_Ctx`/`_register_media`/
+# `_data_uri_image_node`/`_basename`/`_is_allowed_link_href`/`_wrap_paragraph`
+# with md_to_tiptap above (same module) so the two converters can never drift
+# on placeholder conventions or link policy.
+#
+# Declared vocabulary under test: p/h1-6(clamp to 3)/ul/ol/li/table/tr/
+# td-th/pre-code/blockquote/hr/br/img(->import-ref media)/a(href policy same
+# as mddoc)/b-strong/i-em/s-del(-strike)/code — unknown tags unwrap to
+# children, scripts/styles/head dropped entirely, NEVER a foreign node type.
+# ---------------------------------------------------------------------------
+
+from api.services.journal_two.note_connectors.convert.mddoc import html_to_tiptap
+
+_TIPTAP_NODE_VOCAB = {
+    "doc", "paragraph", "heading", "bulletList", "orderedList", "listItem",
+    "table", "tableRow", "tableHeader", "tableCell", "codeBlock",
+    "blockquote", "horizontalRule", "hardBreak", "image", "text",
+}
+_TIPTAP_MARK_VOCAB = {"bold", "italic", "strike", "code", "link"}
+
+
+def _assert_in_vocabulary(node) -> None:
+    """Recursively asserts every node type (and every mark type) in `node`
+    is one `buildExtensions()` actually declares — the rail this whole
+    converter exists to guarantee: NEVER a foreign TipTap node type."""
+    if not isinstance(node, dict):
+        return
+    node_type = node.get("type")
+    if node_type is not None:
+        assert node_type in _TIPTAP_NODE_VOCAB, f"foreign node type: {node_type!r}"
+    for mark in node.get("marks") or []:
+        assert mark.get("type") in _TIPTAP_MARK_VOCAB, f"foreign mark type: {mark.get('type')!r}"
+    for child in node.get("content") or []:
+        _assert_in_vocabulary(child)
+
+
+def test_html_empty_and_none_produce_an_empty_doc():
+    for value in ("", None, "   \n\t  "):
+        result = html_to_tiptap(value)
+        assert result["doc"] == {"type": "doc", "content": []}
+        assert result["media"] == []
+        assert result["links"] == []
+
+
+HTML_GOLDEN = """\
+<html>
+<head><title>Should never appear</title><meta charset="utf-8"></head>
+<body>
+<h1>Title One</h1>
+<h6>Should Clamp</h6>
+<p>Some <em>italic</em>, <strong>bold</strong>, <del>strikethrough</del>, and <code>inline code</code> text.</p>
+<ul>
+<li>Fruit</li>
+<li>Veggie</li>
+</ul>
+<ol start="2">
+<li>Second</li>
+<li>Third</li>
+</ol>
+<table>
+<thead><tr><th>Col A</th><th>Col B</th></tr></thead>
+<tbody>
+<tr><td>one</td><td>two</td></tr>
+</tbody>
+</table>
+<pre><code class="language-python">def f():
+    return 1</code></pre>
+<blockquote><p>A quote</p></blockquote>
+<hr>
+<p>Line one<br>Line two</p>
+<p><a href="https://example.com">a link</a></p>
+<img src="chart.png" alt="chart">
+</body>
+</html>
+"""
+
+
+def test_html_golden_fixture_covers_every_declared_construct():
+    result = html_to_tiptap(HTML_GOLDEN)
+    doc = result["doc"]
+    _assert_in_vocabulary(doc)
+
+    types = _types(doc["content"])
+    assert "heading" in types
+    assert "bulletList" in types
+    assert "orderedList" in types
+    assert "table" in types
+    assert "codeBlock" in types
+    assert "blockquote" in types
+    assert "horizontalRule" in types
+    assert "image" in types
+
+    # <head>/<title> never leaked into the body as a stray paragraph.
+    full_text = _plain_text(doc)
+    assert "Should never appear" not in full_text
+
+    heading = next(n for n in doc["content"] if n["type"] == "heading")
+    assert heading["attrs"]["level"] == 1
+    assert _plain_text(heading) == "Title One"
+
+    clamped = next(n for n in doc["content"] if n["type"] == "heading" and _plain_text(n) == "Should Clamp")
+    assert clamped["attrs"]["level"] == 3  # h6 clamps to 3, same as md_to_tiptap
+
+    para = next(n for n in doc["content"] if n["type"] == "paragraph" and "italic" in _plain_text(n))
+    marks_seen = {m["type"] for n in para["content"] for m in n.get("marks", [])}
+    assert marks_seen == {"italic", "bold", "strike", "code"}
+
+    bullets = next(n for n in doc["content"] if n["type"] == "bulletList")
+    assert [_plain_text(li) for li in bullets["content"]] == ["Fruit", "Veggie"]
+
+    ordered = next(n for n in doc["content"] if n["type"] == "orderedList")
+    assert ordered["attrs"]["start"] == 2
+    assert [_plain_text(li) for li in ordered["content"]] == ["Second", "Third"]
+
+    table = next(n for n in doc["content"] if n["type"] == "table")
+    assert _types(table["content"]) == ["tableRow", "tableRow"]
+    header_row, data_row = table["content"]
+    assert _types(header_row["content"]) == ["tableHeader", "tableHeader"]
+    assert _types(data_row["content"]) == ["tableCell", "tableCell"]
+    assert [_plain_text(c) for c in header_row["content"]] == ["Col A", "Col B"]
+    assert [_plain_text(c) for c in data_row["content"]] == ["one", "two"]
+
+    code_block = next(n for n in doc["content"] if n["type"] == "codeBlock")
+    assert code_block["attrs"]["language"] == "python"
+    assert code_block["content"][0]["text"] == "def f():\n    return 1"
+
+    quote = next(n for n in doc["content"] if n["type"] == "blockquote")
+    assert _plain_text(quote) == "A quote"
+
+    br_para = next(n for n in doc["content"] if n["type"] == "paragraph" and "Line one" in _plain_text(n))
+    assert _types(br_para["content"]) == ["text", "hardBreak", "text"]
+
+    link_para = next(n for n in doc["content"] if n["type"] == "paragraph" and _plain_text(n) == "a link")
+    link_text = next(n for n in link_para["content"] if n["type"] == "text")
+    assert link_text["marks"] == [{"type": "link", "attrs": {"href": "https://example.com"}}]
+
+    assert result["media"] == [{"ref": "chart.png", "kind": "image", "name": "chart.png"}]
+    image_node = next(n for n in doc["content"] if n["type"] == "image")
+    assert image_node["attrs"]["src"] == "import-ref://chart.png"
+
+
+def test_html_script_and_style_are_dropped_entirely():
+    html = (
+        "<p>before</p>"
+        "<script>alert('should never appear, not even as text');</script>"
+        "<style>.x { color: red; /* should never appear */ }</style>"
+        "<p>after</p>"
+    )
+    result = html_to_tiptap(html)
+    full_text = _plain_text(result["doc"])
+    assert "alert(" not in full_text
+    assert "should never appear" not in full_text
+    assert "color: red" not in full_text
+    assert full_text == "beforeafter"
+
+
+def test_html_head_is_dropped_entirely_not_unwrapped():
+    """`<head>` is deliberately treated like script/style (dropped whole),
+    NOT "unknown, unwrap" -- unwrapping would splice `<title>`'s text into
+    the document as a stray leading paragraph, a real visible corruption a
+    browser never shows a reader."""
+    html = "<html><head><title>My Doc Title</title></head><body><p>real content</p></body></html>"
+    result = html_to_tiptap(html)
+    assert _plain_text(result["doc"]) == "real content"
+
+
+def test_html_unknown_tags_unwrap_to_children():
+    html = "<div><section><p>wrapped</p></section></div>"
+    result = html_to_tiptap(html)
+    assert _types(result["doc"]["content"]) == ["paragraph"]
+    assert _plain_text(result["doc"]) == "wrapped"
+
+
+def test_html_unknown_tag_with_bare_inline_content_becomes_a_paragraph():
+    html = "<span>just some text, no wrapping p</span>"
+    result = html_to_tiptap(html)
+    assert _types(result["doc"]["content"]) == ["paragraph"]
+    assert _plain_text(result["doc"]) == "just some text, no wrapping p"
+
+
+def test_html_malformed_unclosed_tag_does_not_crash():
+    html = "<p>opened but never closed"
+    result = html_to_tiptap(html)  # must not raise
+    assert _plain_text(result["doc"]) == "opened but never closed"
+
+
+def test_html_malformed_stray_close_tag_is_ignored():
+    html = "<p>text</p></div></span>"
+    result = html_to_tiptap(html)  # must not raise
+    assert _plain_text(result["doc"]) == "text"
+
+
+def test_html_link_with_disallowed_scheme_strips_the_mark_keeps_the_text():
+    # Same policy as md_to_tiptap (shared `_is_allowed_link_href`) —
+    # `javascript:` is refused.
+    result = html_to_tiptap('<p><a href="javascript:alert(1)">text</a></p>')
+    para = result["doc"]["content"][0]
+    assert _plain_text(para) == "text"
+    for n in para["content"]:
+        if n.get("type") == "text":
+            assert n.get("marks", []) == []
+
+
+def test_html_link_with_default_allowed_scheme_keeps_its_mark():
+    result = html_to_tiptap('<p><a href="mailto:a@example.com">mail</a></p>')
+    para = result["doc"]["content"][0]
+    text_node = next(n for n in para["content"] if n["text"] == "mail")
+    assert text_node["marks"] == [{"type": "link", "attrs": {"href": "mailto:a@example.com"}}]
+
+
+def test_html_import_link_href_recorded_in_links():
+    result = html_to_tiptap('<p><a href="import-link://obsidian:other.md">ref</a></p>')
+    assert result["links"] == ["obsidian:other.md"]
+
+
+def test_html_data_uri_image_reuses_the_shared_data_uri_handling():
+    png_data_uri = "data:image/png;base64,iVBORw0KGgo="
+    result = html_to_tiptap(f'<img src="{png_data_uri}">')
+    assert len(result["media"]) == 1
+    entry = result["media"][0]
+    assert entry["ref"].startswith("md-img-1.")
+    assert entry["data_uri"] == png_data_uri
+    image_node = result["doc"]["content"][0]
+    assert image_node["type"] == "image"
+    assert image_node["attrs"]["src"] == f"import-ref://{entry['ref']}"
+
+
+def test_html_import_ref_placeholder_image_passes_through_untouched():
+    result = html_to_tiptap('<img src="import-ref://already-registered.png">')
+    assert result["media"] == []  # no duplicate registration
+    assert result["doc"]["content"][0]["attrs"]["src"] == "import-ref://already-registered.png"
+
+
+def test_html_nested_marks_compose_on_one_text_node():
+    result = html_to_tiptap("<p><strong><em>both</em></strong></p>")
+    para = result["doc"]["content"][0]
+    text_node = next(n for n in para["content"] if n["type"] == "text")
+    assert text_node["text"] == "both"
+    assert {m["type"] for m in text_node["marks"]} == {"bold", "italic"}
+
+
+def test_html_entities_are_decoded():
+    result = html_to_tiptap("<p>Fish &amp; Chips &mdash; caf&eacute;</p>")
+    assert _plain_text(result["doc"]) == "Fish & Chips — café"
+
+
+def test_html_whitespace_between_block_tags_does_not_create_stray_paragraphs():
+    html = "<p>one</p>\n\n  \n<p>two</p>"
+    result = html_to_tiptap(html)
+    assert _types(result["doc"]["content"]) == ["paragraph", "paragraph"]
+
+
+def test_html_blockquote_and_table_cell_never_end_up_with_zero_blocks():
+    html = "<blockquote></blockquote><table><tr><td></td></tr></table>"
+    result = html_to_tiptap(html)
+    quote = next(n for n in result["doc"]["content"] if n["type"] == "blockquote")
+    assert quote["content"] == [{"type": "paragraph", "content": []}]
+    table = next(n for n in result["doc"]["content"] if n["type"] == "table")
+    cell = table["content"][0]["content"][0]
+    assert cell["content"] == [{"type": "paragraph", "content": []}]
+
+
+def test_html_never_emits_a_foreign_node_type_stress_fixture():
+    stress_html = (
+        "<html><head><title>x</title><script>y()</script></head><body>"
+        "<h2>H</h2><p>t <b>b</b> <i>i</i> <s>s</s> <code>c</code> "
+        '<a href="https://x.com">l</a></p>'
+        "<ul><li>a<ol><li>nested</li></ol></li></ul>"
+        "<table><tr><th>h</th></tr><tr><td>d</td></tr></table>"
+        "<pre><code>raw</code></pre><blockquote><p>q</p></blockquote><hr>"
+        '<p>br<br>k</p><img src="i.png">'
+        "<unknowntag><em>still unwraps</em></unknowntag>"
+        "</body></html>"
+    )
+    result = html_to_tiptap(stress_html)
+    _assert_in_vocabulary(result["doc"])
