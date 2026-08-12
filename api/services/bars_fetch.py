@@ -733,6 +733,55 @@ def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
         return []
 
 
+def _fetch_intraday_range(ticker: str, tf: str, from_ymd: str, to_ymd: str) -> list[dict]:
+    """Deep intraday OHLCV for an EXPLICIT date range [from_ymd, to_ymd] (YYYY-MM-DD),
+    split-ADJUSTED, next_url-paginated. Unlike `_fetch_intraday_massive` there is NO per-TF
+    lookback ceiling — the date range IS the bound — so Replay Mode can reach the provider's
+    intraday floor (~2003-09-10). `adjusted=true` means 2008 AAPL comes back at its ~$7
+    split-adjusted level (matching the daily charts). tf='60' is resampled from 15-min via the
+    canonical session-anchored bucketer (9:30-10:00 first candle), exactly like the live path —
+    a direct /range/60/minute call would clock-hour-align and mismatch the rest of the app.
+    Returns [] on error; the caller persists to SQLite + serves. Note: bars are adjusted AS OF
+    FETCH TIME — a future split on the ticker would make cached pre-split intraday stale until
+    re-fetched (same class the daily reconciliation worker handles for D/W/M)."""
+    if tf == "60":
+        src = _fetch_intraday_range(ticker, "15", from_ymd, to_ymd)   # 15m base, session-anchored
+        return _session_resample_hourly(src) if src else []
+    multiplier = int(tf)
+    try:
+        client = _get_client()
+        url = (
+            f"{_REST_BASE}/v2/aggs/ticker/{to_polygon_symbol(ticker)}/range/{multiplier}/minute"
+            f"/{from_ymd}/{to_ymd}"
+            f"?adjusted=true&sort=asc&limit=50000&apiKey={client._api_key}"
+        )
+        all_results: list[dict] = []
+        # 60 pages × 50000 = 3M bars — a decade of 1-min (~1M) fits with headroom; the
+        # caller's date range + `bars` bound keep real requests far below this.
+        for _page in range(60):
+            data = client._get(url)
+            all_results.extend(data.get("results") or [])
+            next_url = data.get("next_url")
+            if not next_url:
+                break
+            sep = "&" if "?" in next_url else "?"
+            url = f"{next_url}{sep}apiKey={client._api_key}"
+        if not all_results:
+            return []
+        return [
+            {"t": int(bar["t"] / 1000), "o": _px(bar["o"]), "h": _px(bar["h"]),
+             "l": _px(bar["l"]), "c": _px(bar["c"]), "v": int(bar.get("v", 0))}
+            for bar in all_results
+        ]
+    except Exception as _e:
+        import logging as _log
+        _log.getLogger(__name__).error(
+            f"[bars] _fetch_intraday_range {ticker} tf={tf} {from_ymd}..{to_ymd} "
+            f"failed: {type(_e).__name__}: {_e}"
+        )
+        return []
+
+
 def _paginate_massive_aggs(client, url: str) -> list[dict]:
     """Follow Massive/Polygon ``next_url`` pagination, returning ALL raw
     result dicts across pages.
@@ -1747,6 +1796,30 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str) -> JSONR
             if deep:
                 try:
                     _sqlite.put_bars(ticker_up, tf, deep, date_tf=True)
+                except Exception:
+                    pass
+                rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
+        except Exception:
+            rows = rows or []
+    if not rows and not date_tf:
+        # Cold INTRADAY replay (e.g. AAPL 5-min at a 2008 cutoff — deep intraday this pod has
+        # never fetched). The daily branch above is date_tf-only; without this an old intraday
+        # cutoff falls to _get_bars_inner (recent-window) → EMPTY after the client's cutoff
+        # filter → "Failed to load chart". Fetch the pre-cutoff window ONCE from Massive
+        # (split-adjusted, NO lookback ceiling), persist to SQLite, then serve ≤ cutoff. Slow
+        # the first time (~1-3s for a 2008 window), permanently cached + fast after. Bounded by
+        # `bars`: ~bars/bars_per_day*1.5 calendar days ENDING at the cutoff (not 2003→cutoff).
+        try:
+            mult = int(tf)
+            bars_per_day = (16 * 60) // max(mult, 1)
+            lookback_days = min(9000, max(10, int(max(bars, 200) / max(bars_per_day, 1) * 1.5) + 5))
+            _to_d = datetime.strptime(str(to_str), "%Y-%m-%d")
+            from_ymd = (_to_d - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+            deep = [b for b in _fetch_intraday_range(ticker_up, tf, from_ymd, str(to_str))
+                    if int(b.get("t", 0)) <= to_key]
+            if deep:
+                try:
+                    _sqlite.put_bars(ticker_up, tf, deep, date_tf=False)
                 except Exception:
                     pass
                 rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)

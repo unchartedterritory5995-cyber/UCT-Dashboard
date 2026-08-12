@@ -23,6 +23,10 @@ const FALLBACK = {
   // Replay mode: an ISO 'YYYY-MM-DD' cutoff; linked charts hide every bar after it.
   replayCutoff: null,
   exitReplay: () => {},
+  // Replay Mode "Pick on chart": arm click/drag on the active chart to choose the cutoff.
+  replayArmPick: false,
+  onReplayCutoffPicked: () => {},
+  onReplayPickCancel: () => {},
   // Custom-Period Sort "Mark start date": an ISO 'YYYY-MM-DD' + style ('line' gold
   // vertical line | 'candle' gold start-date candle). Cleared by exitReplay.
   startMarker: null,

@@ -21,7 +21,7 @@ import {
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
-  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle } = useWorkspace()
+  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel } = useWorkspace()
   const { createAlert } = useWatchlistAlerts()
   // Imperative handle on the pane: the right-click menu opens its settings
   // modal, and the leverage picker routes its symbol change through it so the
@@ -311,6 +311,12 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             ? (start, end, pct) => wsOnPeriodSelected?.(sym, start, end, pct)
             : undefined,
           onPeriodCancel: periodSortMode ? wsOnPeriodCancel : undefined,
+          // Replay Mode "Pick on chart": click/drag to choose the cutoff. Only the active
+          // chart is armed (replayArmPick is a single workspace flag; the active chart is
+          // the one the user is looking at when they hit "Pick on chart").
+          replayPick: !!replayArmPick,
+          onReplayCutoffPicked: replayArmPick ? wsOnReplayCutoffPicked : undefined,
+          onReplayPickCancel: replayArmPick ? wsOnReplayPickCancel : undefined,
           // Replay mode: hide every bar after this ISO date (null = normal chart) + show
           // the "Exit Replay Mode" pill centered in this chart's clear top area.
           replayCutoff: replayCutoff || null,
