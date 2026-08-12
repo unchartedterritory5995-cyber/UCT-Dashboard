@@ -220,6 +220,47 @@ function chartIdOn(src, name) {
   return { total, withProp }
 }
 
+/** The WORKSPACE_WIDGETS binding for 'chart' in WidgetHost source: the bound
+ *  component's identifier name + whether the props builder emits a `chartId`
+ *  key. WidgetHost stopped mounting literal `<ChartWidget>` JSX when the widget
+ *  registry landed (the hand-written switch became a binding map), so HOP 1
+ *  probes the binding instead: `{ component: ChartWidget, props: (…) => ({ …,
+ *  chartId }) }`. Returns { componentName: null, propsEmitsChartId: false }
+ *  when the map or its chart entry is missing, so a rename reads as "re-derive
+ *  this probe", never as a green. */
+function chartBindingProbe(src) {
+  const out = { componentName: null, propsEmitsChartId: false }
+  for (const node of walk(astOf(src).program)) {
+    if (node.type !== 'VariableDeclarator') continue
+    if (node.id?.type !== 'Identifier' || node.id.name !== 'WORKSPACE_WIDGETS') continue
+    if (node.init?.type !== 'ObjectExpression') continue
+    const entry = node.init.properties.find((p) => p.type === 'ObjectProperty'
+      && ((p.key.type === 'Identifier' && p.key.name === 'chart')
+        || (p.key.type === 'StringLiteral' && p.key.value === 'chart')))
+    if (!entry || entry.value?.type !== 'ObjectExpression') continue
+    for (const p of entry.value.properties) {
+      if (p.type !== 'ObjectProperty' || p.key.type !== 'Identifier') continue
+      if (p.key.name === 'component' && p.value.type === 'Identifier') out.componentName = p.value.name
+      if (p.key.name === 'props' && p.value.type === 'ArrowFunctionExpression') {
+        // Arrow body: a parenthesized object literal, or a block whose return
+        // yields one — either way the emitted object must DECLARE `chartId`.
+        const body = p.value.body.type === 'ObjectExpression'
+          ? p.value.body
+          : (p.value.body.type === 'BlockStatement'
+            ? [...walk(p.value.body)].find((n) => n.type === 'ReturnStatement')?.argument
+            : null)
+        if (body?.type === 'ObjectExpression' && body.properties.some((q) =>
+          q.type === 'ObjectProperty'
+          && ((q.key.type === 'Identifier' && q.key.name === 'chartId')
+            || (q.key.type === 'StringLiteral' && q.key.value === 'chartId')))) {
+          out.propsEmitsChartId = true
+        }
+      }
+    }
+  }
+  return out
+}
+
 /** Whether the object literal passed as `<Name stockChartProps={{…}}>` declares
  *  a `chartId` key. `ChartPane` spreads that object onto `StockChart`, so this
  *  is the same hop as a JSX attribute — one indirection further in. */
@@ -249,12 +290,33 @@ describe('the chart id has a PRODUCER, and it reaches the popover', () => {
       .toEqual({ total: 1, withProp: 0 })
     expect(stockChartPropsHasChartId('const a = <P stockChartProps={{ chartId: id }} />')).toBe(true)
     expect(stockChartPropsHasChartId('const a = <P stockChartProps={{ other: id }} />')).toBe(false)
+    // Controls for the binding-map probe (HOP 1's post-registry shape).
+    expect(chartBindingProbe(
+      'export const WORKSPACE_WIDGETS = { chart: { component: ChartWidget, props: ({ groupId }) => ({ chartId: groupId }) } }',
+    )).toEqual({ componentName: 'ChartWidget', propsEmitsChartId: true })
+    expect(chartBindingProbe(
+      'export const WORKSPACE_WIDGETS = { chart: { component: ChartWidget, props: () => ({ color: 1 }) } }',
+    )).toEqual({ componentName: 'ChartWidget', propsEmitsChartId: false })
+    expect(chartBindingProbe('const OTHER = { chart: { component: ChartWidget } }'))
+      .toEqual({ componentName: null, propsEmitsChartId: false })
+    // A comment or a STRING VALUE mentioning chartId must NOT satisfy it.
+    expect(chartBindingProbe(
+      '/* chartId */ export const WORKSPACE_WIDGETS = { chart: { component: ChartWidget, props: () => ({ color: "chartId" }) } }',
+    )).toEqual({ componentName: 'ChartWidget', propsEmitsChartId: false })
   })
 
-  it('⭐ HOP 1 — the workspace slot hands `ChartWidget` its persisted id', () => {
-    const { total, withProp } = chartIdOn(readSrc('app/src/pages/charts/WidgetHost.jsx'), 'ChartWidget')
-    expect(total, '<ChartWidget> is no longer mounted in WidgetHost — re-derive this probe').toBe(1)
-    expect(withProp, 'WidgetHost stopped supplying a chart id: every /charts alert silently goes global').toBe(1)
+  it('⭐ HOP 1 — the workspace binding hands `ChartWidget` its persisted id', () => {
+    // WidgetHost no longer mounts literal <ChartWidget> JSX: since the widget
+    // registry, the slot renders a generic <Widget {...binding.props(…)}> over
+    // WORKSPACE_WIDGETS. The id wire therefore lives in chart's BINDING — its
+    // component must still be ChartWidget and its props builder must still emit
+    // `chartId`. (src/widgets/registry.test.js additionally pins the runtime
+    // threading: props({ groupId: 'w-1' }) → { chartId: 'w-1' }.)
+    const probe = chartBindingProbe(readSrc('app/src/pages/charts/WidgetHost.jsx'))
+    expect(probe.componentName,
+      'WORKSPACE_WIDGETS.chart no longer binds ChartWidget — re-derive this probe').toBe('ChartWidget')
+    expect(probe.propsEmitsChartId,
+      'the chart binding stopped supplying a chart id: every /charts alert silently goes global').toBe(true)
   })
 
   it('⭐ HOP 2 — `ChartWidget` publishes it down the pane\'s StockChart passthrough', () => {
