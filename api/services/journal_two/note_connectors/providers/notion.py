@@ -75,6 +75,12 @@ from ..errors import (
 )
 from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef
 
+# The SAME byte limits notes.py's own persistence layer enforces on decoded
+# media bytes (`save_note_image_bytes`/`save_note_attachment_bytes`) —
+# imported, never retyped, so nothing that clears the guard below can later
+# fail that stricter, downstream check.
+from ...notes import _MAX_FILE_BYTES, _MAX_IMAGE_BYTES
+
 _API_BASE = "https://api.notion.com/v1"
 
 # Self-imposed politeness ceiling (spec §7: "self-imposed 3 rps token bucket").
@@ -93,6 +99,17 @@ _MAX_DATA_SOURCE_PAGES = 100  # bounds POST /v1/data_sources/{id}/query paginati
 # forever.
 _MAX_RATE_RETRIES = 3
 _DEFAULT_RETRY_DELAY = 1.0
+
+
+class _MediaTooLarge(Exception):
+    """Internal-only signal: a `file`-type (pre-signed S3) media download hit
+    the size cap (Content-Length pre-check or the cumulative streamed byte
+    count) before finishing. Caught in `_resolve_media`, turned into a named
+    `too_large` result — never lets a giant file get fully buffered +
+    base64-embedded into a note's TipTap doc, which would otherwise blow
+    past `notes_svc.MAX_BODY_JSON_BYTES` (1MB) during `import_confirm` well
+    after the (wasted) download+encode work was already done."""
+
 
 # NOTE (known, deliberate limitation): a `child_database` with >50 rows
 # spawns extra per-row `RemoteNote`s (see notion_blocks.py's
@@ -296,6 +313,19 @@ class NotionProvider(NoteProvider):
             start_cursor = data.get("next_cursor")
             if not start_cursor:
                 break
+        else:
+            # The loop ran out of iterations WITHOUT ever hitting a `break`
+            # above (an early `stop`, or `has_more` finally false) — i.e.
+            # `has_more` was STILL true after `_MAX_SEARCH_PAGES` pages. A
+            # workspace this large silently losing its oldest pages on the
+            # FIRST sync (while reporting success) is the house silent-
+            # truncation bug class (see providers/craft.py's precedent) —
+            # loud and named beats quiet and wrong.
+            raise NoteConnTransient(
+                f"Notion search (list_changed) exceeded {_MAX_SEARCH_PAGES} pages "
+                f"without finishing ({len(refs)} pages collected so far) -- "
+                "aborting rather than silently truncating the sync",
+            )
         return refs
 
     async def list_deleted(self, credentials: dict[str, Any]) -> list[RemoteRef]:
@@ -332,6 +362,12 @@ class NotionProvider(NoteProvider):
             start_cursor = data.get("next_cursor")
             if not start_cursor:
                 break
+        else:
+            raise NoteConnTransient(
+                f"Notion search (list_deleted) exceeded {_MAX_SEARCH_PAGES} pages "
+                f"without finishing ({len(refs)} trashed pages collected so far) -- "
+                "aborting rather than silently truncating the trash sweep",
+            )
         return refs
 
     async def fetch(self, credentials: dict[str, Any], ref: RemoteRef) -> RemoteNote:
@@ -440,6 +476,13 @@ class NotionProvider(NoteProvider):
             start_cursor = data.get("next_cursor")
             if not start_cursor:
                 break
+        else:
+            raise NoteConnTransient(
+                f"Notion block children ({block_id}) pagination exceeded "
+                f"{_MAX_CHILDREN_PAGES} pages without finishing ({len(out)} "
+                "blocks collected so far) -- aborting rather than silently "
+                "truncating the page",
+            )
         return out
 
     async def _get_block(self, block_id: str, token: str) -> dict[str, Any] | None:
@@ -471,6 +514,12 @@ class NotionProvider(NoteProvider):
             start_cursor = data.get("next_cursor")
             if not start_cursor:
                 break
+        else:
+            raise NoteConnTransient(
+                f"Notion data_source query ({data_source_id}) pagination exceeded "
+                f"{_MAX_DATA_SOURCE_PAGES} pages without finishing ({len(rows)} "
+                "rows collected so far) -- aborting rather than silently truncating",
+            )
         return rows
 
     # ── media (credential-boundary critical path — see module docstring) ──
@@ -485,9 +534,16 @@ class NotionProvider(NoteProvider):
         if is_external:
             # Permanent url, no expiry -> defer to fetch_media() at the
             # engine's normal upload-pass time (no reason to double-fetch).
+            # notes_svc's OWN size check already guards that later path
+            # (save_note_image_bytes/save_note_attachment_bytes) — no
+            # separate cap needed here for content we never download now.
             return {"ref": url, "kind": kind, "name": name}
 
-        data, content_type = await self._download_internal(block, url, token)
+        cap = _MAX_IMAGE_BYTES if kind == "image" else _MAX_FILE_BYTES
+        try:
+            data, content_type = await self._download_internal(block, url, token, cap=cap)
+        except _MediaTooLarge:
+            return {"too_large": True, "name": name}
         if data is None:
             return None
         ref = f"notion:{block.get('id')}"
@@ -495,9 +551,9 @@ class NotionProvider(NoteProvider):
         return {"ref": ref, "kind": kind, "name": name, "data_uri": f"data:{content_type};base64,{b64}"}
 
     async def _download_internal(
-        self, block: dict[str, Any], url: str, token: str,
+        self, block: dict[str, Any], url: str, token: str, *, cap: int,
     ) -> tuple[bytes | None, str]:
-        data, content_type, status = await self._get_media_bytes(url)
+        data, content_type, status = await self._get_media_bytes(url, cap=cap)
         if status == 403:
             # Pre-signed url expired mid-traversal — refetch the BLOCK
             # (a normal, authenticated api.notion.com call) for a fresh
@@ -505,18 +561,54 @@ class NotionProvider(NoteProvider):
             fresh_block = await self._get_block(block.get("id"), token)
             info2 = notion_blocks.extract_media_info(fresh_block) if fresh_block else None
             if info2 is not None and not info2[1]:
-                data, content_type, status = await self._get_media_bytes(info2[0])
+                data, content_type, status = await self._get_media_bytes(info2[0], cap=cap)
         if data is None or (status is not None and status >= 400):
             return None, ""
         return data, content_type
 
-    async def _get_media_bytes(self, url: str) -> tuple[bytes | None, str, int | None]:
+    async def _get_media_bytes(
+        self, url: str, *, cap: int,
+    ) -> tuple[bytes | None, str, int | None]:
+        """Streamed GET, NEVER Authorization-headed (credential-boundary
+        rule). `cap` is the SAME raw-byte limit notes.py's own persistence
+        layer will enforce on the decoded bytes (`_MAX_IMAGE_BYTES`/
+        `_MAX_FILE_BYTES`, imported not retyped) — checked TWICE:
+
+          1. Against `Content-Length` (when the server sends one) BEFORE any
+             body bytes are read at all.
+          2. Against the CUMULATIVE streamed byte count on every chunk, so a
+             server that lies about (or omits) Content-Length can still only
+             overshoot the cap by about one chunk's worth before this aborts
+             the read — no need for a separate numeric margin constant.
+
+        Raises `_MediaTooLarge` (never returns a partial/oversized buffer)
+        on either trip. base64-encoding the survivors afterward inflates
+        the EMBEDDED size further (~4/3) — which is exactly why the cap
+        enforced here is the raw persistence limit itself, not a looser
+        one: this module embeds the base64 form directly into the note's
+        TipTap doc during traversal, well before `import_confirm`'s own
+        whole-doc size gate would ever get a chance to catch an oversized
+        result."""
         client = await self._get_client()
         try:
-            response = await client.get(url)  # NEVER attach Authorization here
+            async with client.stream("GET", url) as response:
+                if response.status_code >= 400:
+                    return None, "", response.status_code
+                content_length = response.headers.get("content-length")
+                if content_length is not None:
+                    try:
+                        if int(content_length) > cap:
+                            raise _MediaTooLarge()
+                    except ValueError:
+                        pass  # unparseable header -> fall through to the streamed check
+                content_type = response.headers.get("content-type", "application/octet-stream")
+                total = 0
+                chunks: list[bytes] = []
+                async for chunk in response.aiter_bytes():
+                    total += len(chunk)
+                    if total > cap:
+                        raise _MediaTooLarge()
+                    chunks.append(chunk)
+                return b"".join(chunks), content_type, response.status_code
         except httpx.RequestError:
             return None, "", None
-        if response.status_code >= 400:
-            return None, "", response.status_code
-        content_type = response.headers.get("content-type", "application/octet-stream")
-        return response.content, content_type, response.status_code

@@ -140,10 +140,12 @@ DATA_SOURCE_SMALL_ID = "ds-small"
 
 S3_IMAGE_URL = "https://s3.notion-static.com/internal/image.png?X-Amz-Signature=abc"
 S3_VIDEO_URL = "https://s3.notion-static.com/internal/video.mp4?X-Amz-Signature=def"
+S3_AUDIO_URL = "https://s3.notion-static.com/internal/memo.mp3?X-Amz-Signature=ghi"
 EXTERNAL_IMAGE_URL = "https://cdn.example.com/pic.png"
 
 _PNG_BYTES = b"\x89PNG\r\n\x1a\n" + b"fakepngdata"
 _MP4_BYTES = b"fakemp4videodata"
+_MP3_BYTES = b"fakemp3audiodata"
 
 
 def _dispatch_children_map() -> dict[str, list[dict]]:
@@ -185,6 +187,7 @@ def _dispatch_children_map() -> dict[str, list[dict]]:
             }),
             _block("b-image-internal", "image", {"type": "file", "file": {"url": S3_IMAGE_URL}, "caption": []}),
             _block("b-video-internal", "video", {"type": "file", "file": {"url": S3_VIDEO_URL}}),
+            _block("b-audio-internal", "audio", {"type": "file", "file": {"url": S3_AUDIO_URL}}),
             _block("b-bookmark", "bookmark", {"url": "https://example.com", "caption": [_rt("Example Site")]}),
             _block("b-toc", "table_of_contents", {}),
             _block("b-breadcrumb", "breadcrumb", {}),
@@ -234,6 +237,8 @@ def _dispatch_handler():
                 return httpx.Response(200, content=_PNG_BYTES, headers={"content-type": "image/png"})
             if str(request.url) == S3_VIDEO_URL:
                 return httpx.Response(200, content=_MP4_BYTES, headers={"content-type": "video/mp4"})
+            if str(request.url) == S3_AUDIO_URL:
+                return httpx.Response(200, content=_MP3_BYTES, headers={"content-type": "audio/mpeg"})
             if str(request.url) == EXTERNAL_IMAGE_URL:
                 return httpx.Response(200, content=_PNG_BYTES, headers={"content-type": "image/png"})
             return httpx.Response(404)
@@ -365,19 +370,28 @@ async def test_dispatch_table_covers_every_mapped_block_type():
     # equation -> codeBlock-styled text
     assert any(c["attrs"]["language"] is None and "E=mc^2" in _plain_text(c) for c in code_blocks)
 
-    # media: external image deferred (no data_uri), internal image downloaded now
-    assert len(note.media) == 3  # external image, internal image, internal video
+    # media: external image deferred (no data_uri), internal image/video/audio
+    # downloaded now
+    assert len(note.media) == 4  # external image, internal image, internal video, internal audio
     external_entry = next(m for m in note.media if m["ref"] == EXTERNAL_IMAGE_URL)
     assert "data_uri" not in external_entry
     internal_image_entry = next(m for m in note.media if m["ref"] == "notion:b-image-internal")
     assert internal_image_entry["data_uri"].startswith("data:image/png;base64,")
     internal_video_entry = next(m for m in note.media if m["ref"] == "notion:b-video-internal")
     assert internal_video_entry["kind"] == "file"
+    internal_audio_entry = next(m for m in note.media if m["ref"] == "notion:b-audio-internal")
+    assert internal_audio_entry["kind"] == "file"
+    assert internal_audio_entry["data_uri"].startswith("data:audio/mpeg;base64,")
     images = _find_all(doc, "image")
     assert any(i["attrs"]["src"] == f"import-ref://{EXTERNAL_IMAGE_URL}" for i in images)
     assert any(i["attrs"]["src"] == "import-ref://notion:b-image-internal" for i in images)
     attachment_chips = _find_all(doc, "attachmentChip")
     assert any(a["attrs"]["href"] == "import-ref://notion:b-video-internal" for a in attachment_chips)
+    assert any(a["attrs"]["href"] == "import-ref://notion:b-audio-internal" for a in attachment_chips), (
+        "a real Notion `audio` block must route through the media dispatch table "
+        "(attachmentChip), not fall through to a generic unsupported-block marker"
+    )
+    assert "[unsupported block: audio]" not in plain_whole
 
     # bookmark -> plain external link (NOT import-link)
     bookmark_marks = [m for m in child_page_links if m["attrs"]["href"] == "https://example.com"]
@@ -590,6 +604,39 @@ async def test_search_pagination_follows_has_more_and_next_cursor():
     assert {r.remote_id for r in refs} == {"s-1", "s-2"}
 
 
+async def test_children_pagination_exhausting_the_cap_raises_named_transient():
+    """A workspace whose block-children pagination never resolves
+    `has_more: false` within `_MAX_CHILDREN_PAGES` must fail LOUDLY (a
+    named `NoteConnTransient` naming the block id + page count) rather than
+    silently returning a truncated block list while the sync reports
+    success — the house silent-truncation bug class, mirrored from
+    `providers/craft.py`'s own pagination-cap precedent."""
+    from api.services.journal_two.note_connectors.providers.notion import _MAX_CHILDREN_PAGES
+
+    call_count = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host != _API_HOST:
+            return httpx.Response(404)
+        path, method = request.url.path, request.method
+        if path == "/v1/pages/page-forever" and method == "GET":
+            return httpx.Response(200, json={"id": "page-forever", "properties": {"title": _title_prop("F")}})
+        if path == "/v1/blocks/page-forever/children" and method == "GET":
+            call_count["n"] += 1
+            # ALWAYS has_more -> a genuinely runaway/misbehaving workspace.
+            return httpx.Response(200, json={
+                "results": [_block(f"item-{call_count['n']}", "paragraph", {"rich_text": [_rt("x")]})],
+                "has_more": True, "next_cursor": f"cursor-{call_count['n']}",
+            })
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    with pytest.raises(errors.NoteConnTransient, match="pagination exceeded"):
+        await provider.fetch(CREDS, RemoteRef(remote_id="page-forever", updated_at="x"))
+
+    assert call_count["n"] == _MAX_CHILDREN_PAGES, "the cap must actually stop it, not merely eventually raise"
+
+
 # ---------------------------------------------------------------------------
 # 3. Token refresh race (oauth.py).
 # ---------------------------------------------------------------------------
@@ -656,6 +703,80 @@ async def test_two_concurrent_refresh_calls_on_an_expired_token_post_exactly_onc
     # persisted for future calls too
     assert conns.get_token("u1", "notion")["accessToken"] == "access-2"
     assert conns.get_token("u1", "notion")["refreshToken"] == "refresh-def"
+
+
+async def test_refresh_for_different_users_does_not_serialize(db):
+    """Fold-in (reviewer probe): the lock is keyed per (user_id, provider) —
+    two DIFFERENT users refreshing at the same time must run CONCURRENTLY,
+    not queue behind one shared lock. Proven via mutual deadlock rather than
+    a wall-clock timing threshold: each handler waits for the OTHER user's
+    request to have STARTED before it will return. If the two
+    `refresh_if_needed` calls were serialized behind a single lock (e.g. a
+    bug keying the lock on provider alone, ignoring user_id), u2's handler
+    would never start until u1's whole call — POST included — finished, so
+    u1's handler would wait forever for a signal that never comes and the
+    outer `asyncio.wait_for` would time out and fail the test."""
+    conns, oauth_mod = db
+    conns.upsert_connector("u1", "notion", _stored_token(expires_in=-10, refresh_token="r1"))
+    conns.upsert_connector("u2", "notion", _stored_token(expires_in=-10, refresh_token="r2"))
+
+    started = {"u1": asyncio.Event(), "u2": asyncio.Event()}
+
+    async def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content or b"{}")
+        who = "u1" if body["refresh_token"] == "r1" else "u2"
+        other = "u2" if who == "u1" else "u1"
+        started[who].set()
+        await asyncio.wait_for(started[other].wait(), timeout=2)
+        return httpx.Response(200, json={"access_token": f"access-{who}", "refresh_token": f"{who}-new"})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+
+    results = await asyncio.wait_for(
+        asyncio.gather(
+            oauth_mod.refresh_if_needed("u1", "notion", client=client),
+            oauth_mod.refresh_if_needed("u2", "notion", client=client),
+        ),
+        timeout=5,
+    )
+
+    assert results[0]["accessToken"] == "access-u1"
+    assert results[1]["accessToken"] == "access-u2"
+
+
+async def test_refresh_preserves_workspace_fields_when_response_omits_them(db):
+    """Fold-in (reviewer probe): a refresh-grant response commonly returns
+    only access_token/refresh_token (no workspace_name/workspace_id/
+    workspace_icon/bot_id — those were only ever on the INITIAL exchange).
+    Since `upsert_connector` REPLACES the whole stored blob, the refreshed
+    credential must fall back to whatever was already stored for any field
+    the fresh response left out — mirroring the existing refreshToken
+    fallback — so a routine refresh can never blank the connected-account
+    label the UI shows."""
+    conns, oauth_mod = db
+    conns.upsert_connector("u1", "notion", {
+        "accessToken": "access-1", "refreshToken": "refresh-abc", "botId": "bot-1",
+        "workspaceId": "ws-1", "workspaceName": "Acme Trading", "workspaceIcon": "https://icon.example/a.png",
+        "expiresAt": _stored_token(expires_in=-10)["expiresAt"],
+    })
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        # Deliberately omits bot_id/workspace_* -- only the minimal refresh
+        # response shape a real provider commonly sends.
+        return httpx.Response(200, json={"access_token": "access-2", "refresh_token": "refresh-def"})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    result = await oauth_mod.refresh_if_needed("u1", "notion", client=client)
+
+    assert result["accessToken"] == "access-2"  # the fresh value wins
+    assert result["botId"] == "bot-1"  # preserved from the prior stored blob
+    assert result["workspaceId"] == "ws-1"
+    assert result["workspaceName"] == "Acme Trading"
+    assert result["workspaceIcon"] == "https://icon.example/a.png"
+    # persisted, not just returned -- the NEXT read must also see them
+    stored = conns.get_token("u1", "notion")
+    assert stored["workspaceName"] == "Acme Trading"
+    assert stored["botId"] == "bot-1"
 
 
 async def test_refresh_not_needed_makes_no_network_call(db):
@@ -1003,6 +1124,44 @@ async def test_media_permanent_failure_degrades_to_visible_marker_not_a_crash():
 
     assert note.media == []
     assert "[image unavailable" in json.dumps(note.doc)
+
+
+async def test_internal_media_exceeding_content_length_cap_yields_too_large_marker():
+    """The size guard on the synchronous download+embed path (review
+    finding #3): a `file`-type media block whose server-declared
+    `Content-Length` already exceeds notes.py's own image persistence cap
+    (`_MAX_IMAGE_BYTES`, 5MB) must be refused BEFORE the body is consumed —
+    proven here by returning a response whose (small, harmless) ACTUAL body
+    would otherwise have downloaded fine; the guard must still refuse it
+    purely off the declared length, not off what actually arrives."""
+    from api.services.journal_two.notes import _MAX_IMAGE_BYTES
+
+    oversized_declared_length = _MAX_IMAGE_BYTES + (1024 * 1024)  # 1MB over the 5MB cap
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == _API_HOST:
+            if request.url.path == "/v1/pages/page-big-media" and request.method == "GET":
+                return httpx.Response(200, json={"id": "page-big-media", "properties": {"title": _title_prop("Big Media")}})
+            if request.url.path == "/v1/blocks/page-big-media/children" and request.method == "GET":
+                return httpx.Response(200, json={
+                    "results": [_block("img-huge", "image", {"type": "file", "file": {"url": S3_IMAGE_URL}, "caption": []})],
+                    "has_more": False,
+                })
+            return httpx.Response(404)
+        if str(request.url) == S3_IMAGE_URL:
+            # Body is deliberately tiny (a real oversized fixture would bloat
+            # the test) -- the guard must trip on the DECLARED length alone.
+            return httpx.Response(200, content=_PNG_BYTES, headers={
+                "content-length": str(oversized_declared_length), "content-type": "image/png",
+            })
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    note = await provider.fetch(CREDS, RemoteRef(remote_id="page-big-media", updated_at="x"))
+
+    assert note.media == [], "an over-cap media item must never be registered/embedded"
+    assert "[media too large: " in json.dumps(note.doc)
+    assert "[image unavailable" not in json.dumps(note.doc), "too-large is a DISTINCT failure from a download error"
 
 
 # ---------------------------------------------------------------------------

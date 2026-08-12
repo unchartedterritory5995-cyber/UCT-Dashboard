@@ -20,7 +20,7 @@ code(+caption) / divider / table(+table_row) / child_database (<=50 rows ->
 inline table, >50 -> per-row pages, spec's "wizard parity" threshold) /
 child_page -> import-link:// / link_to_page -> import-link:// / synced_block
 (resolve the original ONCE, cycle-guarded) / column_list -> sequential /
-equation -> codeBlock-styled text / image·video·file·pdf -> media
+equation -> codeBlock-styled text / image·video·file·pdf·audio -> media
 placeholders / bookmark·link_preview·embed -> plain external link.
 table_of_contents/breadcrumb are Notion-UI-only navigational blocks with no
 user content to preserve — deliberately DROPPED (not routed through the
@@ -73,13 +73,13 @@ FetchChildrenFn = Callable[[str], Awaitable[list[dict[str, Any]]]]
 QueryDatabaseFn = Callable[[str], Awaitable[list[dict[str, Any]]]]
 ResolveMediaFn = Callable[[dict[str, Any]], Awaitable[dict[str, Any] | None]]
 
-_MEDIA_BLOCK_TYPES = ("image", "video", "file", "pdf")
+_MEDIA_BLOCK_TYPES = ("image", "video", "file", "pdf", "audio")
 
 
 # ── small pure helpers (no I/O; independently testable) ─────────────────────
 
 def extract_media_info(block: dict[str, Any]) -> tuple[str, bool, str] | None:
-    """`(url, is_external, name)` for an image/video/file/pdf block, or
+    """`(url, is_external, name)` for an image/video/file/pdf/audio block, or
     `None` if the block isn't a media type or carries no url. `is_external`
     distinguishes Notion-hosted (pre-signed, ~1h-expiring S3 url — MUST be
     downloaded NOW, during traversal) from `external` (an arbitrary,
@@ -428,6 +428,7 @@ class NotionBlockConverter:
             "equation": self._equation_block,
             "image": self._media_block, "video": self._media_block,
             "file": self._media_block, "pdf": self._media_block,
+            "audio": self._media_block,
             "bookmark": self._external_link_block,
             "link_preview": self._external_link_block,
             "embed": self._external_link_block,
@@ -722,6 +723,19 @@ class NotionBlockConverter:
             if info is not None:
                 name = info[2]
             nodes = [_text_para(f"[{btype} unavailable: {name or btype}]")]
+            if caption:
+                nodes.append(_para([_add_mark(n, "italic") for n in caption]))
+            return None, nodes
+
+        if resolution.get("too_large"):
+            # Distinct from "unavailable" (download failed/errored) — this
+            # one downloaded fine but exceeded the persistence-layer size
+            # cap (`providers/notion.py::_resolve_media`, checked via
+            # Content-Length before the body is even read where possible).
+            # Named per-media failure, never a silent drop — same principle
+            # as every other unresolved-media marker in this dispatch table.
+            name = resolution.get("name") or btype
+            nodes = [_text_para(f"[media too large: {name}]")]
             if caption:
                 nodes.append(_para([_add_mark(n, "italic") for n in caption]))
             return None, nodes

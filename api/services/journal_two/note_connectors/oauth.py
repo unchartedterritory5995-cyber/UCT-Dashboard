@@ -304,7 +304,10 @@ async def exchange_code(
 # Per-(user_id, provider) locks, process-local — mirrors engine.py's
 # `_locks`/`_lock_for` pattern exactly (setdefault is atomic, no
 # lazy-create TOCTOU race between two coroutines getting distinct locks for
-# the same key).
+# the same key). Grows one entry per DISTINCT (user_id, provider) pair ever
+# refreshed and is never evicted — same accepted shape as the broker sync
+# module's own `_locks` dict (bounded in practice by the number of active
+# connected accounts, not request volume); out of scope here to add eviction.
 _refresh_locks: dict[tuple[str, str], asyncio.Lock] = {}
 
 
@@ -368,5 +371,25 @@ async def refresh_if_needed(
             # safely if a response ever omits it rather than losing the
             # ability to refresh again next time.
             new_creds["refreshToken"] = refresh_token
+        # A refresh grant response commonly omits the workspace-identity
+        # fields (bot_id/workspace_id/workspace_name/workspace_icon) — they
+        # were only ever returned on the INITIAL exchange. `upsert_connector`
+        # REPLACES the whole stored blob (it's the one write site, and it
+        # doesn't merge), so falling back to whatever was already stored
+        # for any field the fresh response left out is what stops a refresh
+        # from silently blanking the connected-account label the UI shows —
+        # same fallback shape as `refreshToken` just above.
+        for field_name in ("botId", "workspaceId", "workspaceName", "workspaceIcon"):
+            if field_name not in new_creds and field_name in creds:
+                new_creds[field_name] = creds[field_name]
+        # KNOWN, ACCEPTED gap (deferred, not fixed here): a crash between
+        # this POST succeeding (Notion has already rotated the refresh
+        # token server-side) and the `upsert_connector` write below landing
+        # would strand the OLD refresh_token as permanently invalid with
+        # nothing locally recording the NEW one. This is inherent to
+        # refresh-token ROTATION itself (any rotating-pair OAuth provider
+        # has the identical window) — the connector would surface as
+        # 'broken' on its next use and prompt a reconnect, the same
+        # recovery path an outright-revoked token already takes.
         connections.upsert_connector(user_id, provider, new_creds, record_consent=False)
         return new_creds
