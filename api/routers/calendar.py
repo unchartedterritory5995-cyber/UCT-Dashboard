@@ -484,10 +484,14 @@ def _patch_today_actuals(days: dict, today_str: str) -> None:
 
     # Every still-pending reporter across those days, grouped by symbol (a name
     # can appear once per week, but group defensively).
+    # "Pending" is FIELD-BY-FIELD, never "eps is null": companies publish EPS
+    # and revenue separately (KOPN 8/11 printed revenue with no EPS; LITE
+    # printed EPS while its revenue leg stayed frozen because this filter
+    # skipped any entry that already had an EPS).
     pending_by_sym: dict[str, list[dict]] = {}
     for ds in past_dates:
         for e in _day_entries(days[ds]):
-            if e.get("eps_act") is None and e.get("sym"):
+            if e.get("sym") and (e.get("eps_act") is None or e.get("rev_act") is None):
                 pending_by_sym.setdefault(e["sym"], []).append(e)
     if not pending_by_sym:
         return
@@ -514,7 +518,9 @@ def _patch_today_actuals(days: dict, today_str: str) -> None:
                 fh_map = {
                     e["symbol"]: e
                     for e in data.get("earningsCalendar", [])
-                    if e.get("symbol") in pending_by_sym and e.get("epsActual") is not None
+                    if e.get("symbol") in pending_by_sym
+                    and (e.get("epsActual") is not None
+                         or e.get("revenueActual") is not None)
                 }
                 patched = 0
                 for sym, entries in pending_by_sym.items():
@@ -522,12 +528,16 @@ def _patch_today_actuals(days: dict, today_str: str) -> None:
                     if not fh:
                         continue
                     for entry in entries:
-                        entry["eps_act"] = round(float(fh["epsActual"]), 2)
+                        # Fill only the NULL fields — an entry now enters this
+                        # loop with one leg already published, and that leg
+                        # must never be overwritten by a second source.
+                        if entry.get("eps_act") is None and fh.get("epsActual") is not None:
+                            entry["eps_act"] = round(float(fh["epsActual"]), 2)
                         if entry.get("eps_est") is None and fh.get("epsEstimate") is not None:
                             entry["eps_est"] = round(float(fh["epsEstimate"]), 2)
                         rev_a = fh.get("revenueActual")
                         rev_e = fh.get("revenueEstimate")
-                        if rev_a:
+                        if rev_a and entry.get("rev_act") is None:
                             entry["rev_act"] = rev_a / 1_000_000
                         if rev_e and entry.get("rev_est") is None:
                             entry["rev_est"] = rev_e / 1_000_000
@@ -541,7 +551,8 @@ def _patch_today_actuals(days: dict, today_str: str) -> None:
     # throttled, errored, or no key). Never adds a new bmo/amc member.
     still_pending = {
         sym: entries for sym, entries in pending_by_sym.items()
-        if any(e.get("eps_act") is None for e in entries)
+        if any(e.get("eps_act") is None or e.get("rev_act") is None
+               for e in entries)
     }
     if not still_pending:
         return
@@ -552,7 +563,8 @@ def _patch_today_actuals(days: dict, today_str: str) -> None:
         fmp_map = {}
         for row in fmp_rows:
             sym = (row.get("symbol") or "").strip().upper()
-            if sym in still_pending and row.get("epsActual") is not None:
+            if sym in still_pending and (row.get("epsActual") is not None
+                                         or row.get("revenueActual") is not None):
                 fmp_map[sym] = row
         patched = 0
         for sym, entries in still_pending.items():
@@ -560,9 +572,10 @@ def _patch_today_actuals(days: dict, today_str: str) -> None:
             if not fr:
                 continue
             for entry in entries:
-                if entry.get("eps_act") is not None:
+                if entry.get("eps_act") is not None and entry.get("rev_act") is not None:
                     continue
-                entry["eps_act"] = round(float(fr["epsActual"]), 2)
+                if entry.get("eps_act") is None and fr.get("epsActual") is not None:
+                    entry["eps_act"] = round(float(fr["epsActual"]), 2)
                 if entry.get("eps_est") is None and fr.get("epsEstimated") is not None:
                     entry["eps_est"] = round(float(fr["epsEstimated"]), 2)
                 rev_a = fr.get("revenueActual")
@@ -616,11 +629,19 @@ def _merge_sticky_actuals(days: dict, today_str: str) -> None:
                     sym = e.get("sym")
                     if not sym:
                         continue
-                    if e.get("eps_act") is not None:
-                        snap = {k: e.get(k) for k in _STICKY_FIELDS}
+                    if e.get("eps_act") is not None or e.get("rev_act") is not None:
+                        # Harvest FIELD-MERGED, one-way per field: a revenue-only
+                        # print (KOPN 8/11) must be remembered, and its snapshot
+                        # must never erase an eps the ledger already holds.
+                        held = day_map.get(sym) or {}
+                        snap = {k: (e.get(k) if e.get(k) is not None else held.get(k))
+                                for k in _STICKY_FIELDS}
                         if day_map.get(sym) != snap:
                             day_map[sym] = snap
                             changed = True
+                        for k in _STICKY_FIELDS:
+                            if e.get(k) is None and snap.get(k) is not None:
+                                e[k] = snap[k]
                     elif sym in day_map:
                         held = day_map[sym]
                         e["eps_act"] = held.get("eps_act")

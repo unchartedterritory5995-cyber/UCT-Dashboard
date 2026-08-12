@@ -148,3 +148,34 @@ def test_many_reporters_only_the_qualifying_ones_come_through():
     }
     rows = detect_rows(reporters, snapshot, existing={}, now_ts=1000.0, market_date=DAY)
     assert sorted(r["sym"] for r in rows) == ["NVDA", "SBUX"]
+
+
+def test_a_row_with_eps_still_gains_its_revenue_leg():
+    """LITE, 2026-08-11: eps_act 3.23 landed, rev_act froze at None all
+    evening — the old gate only upgraded when EPS was null, so a row could
+    never gain the revenue leg once its EPS arrived. Fields land separately;
+    the upgrade must be field-by-field."""
+    existing = {"LITE": {"sym": "LITE", "first_seen_at": 500.0, "trigger": "price",
+                         "eps_act": 3.23, "eps_est": 3.1, "rev_act": None,
+                         "rev_est": 480.0, "confirmed": 1, "peak_move_pct": 6.4}}
+    rep = {"sym": "LITE", "timing": "amc", "eps_act": 3.23, "eps_est": 3.1,
+           "rev_act": 495.2, "rev_est": 480.0}
+    rows = detect_rows([rep], {"LITE": _snap(106.4, 100.0, 10**6)},
+                       existing=existing, now_ts=9999.0, market_date=DAY)
+    assert rows and rows[0]["rev_act"] == 495.2
+    assert rows[0]["eps_act"] == 3.23
+    assert rows[0]["first_seen_at"] == 500.0
+
+
+def test_an_upgrade_never_regresses_a_stored_figure():
+    """A reporter row that momentarily loses a field (degraded rebuild) must
+    not null out a number the reader has already seen."""
+    existing = {"NVDA": {"sym": "NVDA", "first_seen_at": 500.0, "trigger": "actuals",
+                         "eps_act": 1.24, "eps_est": 1.11, "rev_act": None,
+                         "rev_est": 49.0, "confirmed": 1, "peak_move_pct": 2.0}}
+    rep = {"sym": "NVDA", "timing": "amc", "eps_act": None, "eps_est": 1.11,
+           "rev_act": 51.2, "rev_est": 49.0}
+    rows = detect_rows([rep], {"NVDA": _snap(102.0, 100.0, 10**6)},
+                       existing=existing, now_ts=9999.0, market_date=DAY)
+    assert rows and rows[0]["rev_act"] == 51.2      # gained the revenue leg
+    assert rows[0]["eps_act"] == 1.24               # kept the eps it already had

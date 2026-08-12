@@ -50,33 +50,50 @@ def download_and_resample(client, s3_key, timeframes, tickers_filter):
 
     Returns: {tf_mult: {ticker: [resampled_bars]}} — only filtered tickers.
     """
+    # STREAM the gzip line-by-line. Decompressing + splitting the whole 28MB
+    # whole-market file at once inflated to ~1GB peak (raw bytes + decoded string
+    # + a list of every minute row) BEFORE filtering — enough to OOM the worker
+    # mid breadth-wick sweep. Streaming holds only our filtered universe (a few MB).
     try:
         obj = client.get_object(Bucket='flatfiles', Key=s3_key)
-        raw = gzip.decompress(obj['Body'].read())
+        gz = gzip.GzipFile(fileobj=obj['Body'])          # incremental inflate over the S3 stream
+        reader = io.TextIOWrapper(gz, encoding='utf-8', newline='')
     except Exception as e:
         return None
 
     # Parse minute bars grouped by ticker
     ticker_minutes = defaultdict(list)
-    for line in raw.decode('utf-8').strip().split('\n')[1:]:  # skip header
-        parts = line.split(',')
-        if len(parts) < 7:
-            continue
-        sym = parts[0]
-        if tickers_filter and sym not in tickers_filter:
-            continue
+    try:
+        _skipped_header = False
+        for line in reader:                              # one line at a time
+            if not _skipped_header:
+                _skipped_header = True
+                continue
+            parts = line.rstrip('\n').split(',')
+            if len(parts) < 7:
+                continue
+            sym = parts[0]
+            if tickers_filter and sym not in tickers_filter:
+                continue
+            try:
+                ts_s = int(parts[6]) // 1_000_000_000
+                ticker_minutes[sym].append({
+                    't': ts_s,
+                    'o': float(parts[2]),  # open
+                    'h': float(parts[4]),  # high
+                    'l': float(parts[5]),  # low
+                    'c': float(parts[3]),  # close
+                    'v': int(float(parts[1])),  # volume
+                })
+            except (ValueError, IndexError):
+                continue
+    except Exception:
+        return None
+    finally:
         try:
-            ts_s = int(parts[6]) // 1_000_000_000
-            ticker_minutes[sym].append({
-                't': ts_s,
-                'o': float(parts[2]),  # open
-                'h': float(parts[4]),  # high
-                'l': float(parts[5]),  # low
-                'c': float(parts[3]),  # close
-                'v': int(float(parts[1])),  # volume
-            })
-        except (ValueError, IndexError):
-            continue
+            reader.close()
+        except Exception:
+            pass
 
     # Resample each ticker's minute bars to each target TF
     result = {tf: {} for tf in timeframes}

@@ -195,3 +195,20 @@ def test_endpoint_rejects_a_malformed_date_without_a_provider_call(monkeypatch):
     assert r.status_code == 200
     assert r.json()["measured"] is False
     called.assert_not_called()
+
+
+def test_a_provider_zero_revenue_placeholder_is_not_a_published_figure():
+    """TSHA, 2026-08-11: Finnhub coded 'no revenue figure' as
+    `revenueActual: 0` beside a real EPS print. The repo-wide convention
+    (`if rev_a:` on every provider leg) treats falsy revenue as absent —
+    the check must too, or the name reads pending forever against a number
+    that does not exist. An EPS of exactly 0.00 stays a real print."""
+    out = coverage.assess(
+        provider={"TSHA": _prow("TSHA", eps_act=-0.13, rev_act=0)},
+        wire_rows=[{"sym": "TSHA", "eps_act": -0.13, "rev_act": None,
+                    "first_seen_at": 1000.0}],
+        roster_syms={"TSHA"},
+    )
+    assert out["numbers_pending_on_feed"] == []
+    assert out["on_feed_with_numbers"] == 1
+    assert out["ok"] is True
