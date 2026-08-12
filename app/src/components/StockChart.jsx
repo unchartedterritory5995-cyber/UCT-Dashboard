@@ -5421,72 +5421,64 @@ export default function StockChart({
   }, [comparisonsData, enabledComparisons, adjustTime])
 
   // ── Compare legend: framed-window % + name/exchange ──
-  // Leftmost VISIBLE bar time (adjustTime space) = the framed baseline; re-computed
-  // on pan/zoom (rAF-debounced) so the legend %s read "since the left of what you
-  // see", not since the oldest loaded bar.
-  // Uses the visible TIME range (numeric, same adjustTime space as the series),
-  // NOT logical indices — a comparison series with more history than the base
-  // extends the logical space, so a logical-index→bar map read the wrong (often
-  // last) bar and the % came out 0.00%.
-  // A tick that bumps on every visible-range change (rAF-debounced). The baseline
-  // time is then read FRESH from getVisibleRange() in the memo below rather than
-  // cached in state — a stale cached value was the "% shows full history" bug: the
-  // subscription's first read fired before the chart settled on the framed range,
-  // and the cached number never caught up.
-  const [rangeTick, setRangeTick] = useState(0)
+  // The % each comparison shows = (last-visible close / first-visible close − 1),
+  // i.e. its move across exactly what's on screen, updating as you pan/zoom.
+  //
+  // ⭐ HOW THE VISIBLE WINDOW IS RESOLVED — and why the obvious ways don't work here:
+  // this chart extends its date axis PAST the last candle (future whitespace, see the
+  // future-axis feature). With whitespace on screen, LWC's getVisibleRange() returns
+  // null, coordinateToTime() is unreliable, and barsInLogicalRange() returned nothing —
+  // every "what time is visible" chart API failed, so the legend fell back to the
+  // oldest bar and printed the full-history % (the +1189% that would not move). The
+  // ONE thing that survives whitespace is the LOGICAL range: subscribeVisibleLogical-
+  // RangeChange hands us {from,to} float indices on every pan/zoom, and we map those
+  // straight onto our OWN base-bar array (filteredBars) — no chart time API involved.
+  // Held in a ref so the subscription callback always sees the latest bars/comparisons.
+  const [comparisonFramed, setComparisonFramed] = useState([])
+  const framedSrcRef = useRef({ bars: null, comps: [], cmpData: null })
+  framedSrcRef.current = { bars: filteredBars, comps: enabledComparisons, cmpData: comparisonsData }
   useEffect(() => {
     const chart = chartRef.current
-    if (!chart || !chartReady || !enabledComparisons.length) return undefined
+    if (!chart || !chartReady) { setComparisonFramed([]); return undefined }
     const ts = chart.timeScale()
     let raf = 0
-    const bump = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => setRangeTick(t => (t + 1) & 0xffff)) }
-    // Drive the tick off the LOGICAL range: it fires on every pan/zoom even when an
-    // edge is in whitespace (this chart extends its axis into the future), whereas
-    // the TIME range change does not fire once an edge leaves the data.
-    try { ts.subscribeVisibleLogicalRangeChange(bump) } catch { /* older API */ }
-    bump()
-    return () => { cancelAnimationFrame(raf); try { ts.unsubscribeVisibleLogicalRangeChange(bump) } catch { /* */ } }
-  }, [chartReady, enabledComparisons.length])
-
-  // Per-comparison % over the FRAMED window = (last visible close / first visible
-  // close − 1). ⭐ The first/last visible bar time is read from the SERIES ITSELF via
-  // barsInLogicalRange(getVisibleLogicalRange()) — LWC clamps it to that series' real
-  // data, so it is exactly what the drawn line uses and stays correct despite the
-  // future-whitespace axis and differing per-symbol history. (getVisibleRange() and
-  // coordinateToTime(0) both mis-fired on the whitespace-extended axis → the % was
-  // stuck at the full-history number.) Recomputes on every pan/zoom via rangeTick.
-  const comparisonFramed = useMemo(() => {
-    if (!comparisonsData) return []
-    const chart = chartRef.current
-    let lr = null
-    try { lr = chart?.timeScale?.().getVisibleLogicalRange?.() } catch { /* mid-load */ }
-    return enabledComparisons.map(c => {
-      const symKey = String(c.sym).toUpperCase()
-      const bars = comparisonsData[symKey] || []
+    const compute = (range) => {
+      const { bars: fbars, comps, cmpData } = framedSrcRef.current
+      if (!comps.length || !cmpData) { setComparisonFramed([]); return }
+      let lr = range
+      if (!lr) { try { lr = ts.getVisibleLogicalRange() } catch { /* mid-load */ } }
+      // Left/right visible bar TIME from our base-bar array (adjustTime space) — the
+      // same space the comparison points use. filteredBars[0] is the base's earliest
+      // bar; logical 0 aligns with it when the base has the earliest history (the
+      // usual case: base is SPY/QQQ/etc.). Clamped so whitespace over/undershoot maps
+      // to the first/last real bar.
       let fromTime = null, toTime = null
-      if (lr) {
-        try {
-          const info = comparisonSeriesRefs.current.get(symKey)?.barsInLogicalRange(lr)
-          if (info) {
-            if (info.from != null) { const n = Number(info.from); if (Number.isFinite(n)) fromTime = n }
-            if (info.to != null) { const n = Number(info.to); if (Number.isFinite(n)) toTime = n }
-          }
-        } catch { /* series not ready */ }
+      if (lr && fbars && fbars.length) {
+        const N = fbars.length
+        const li = Math.max(0, Math.min(N - 1, Math.round(lr.from)))
+        const ri = Math.max(0, Math.min(N - 1, Math.round(lr.to)))
+        fromTime = adjustTime(fbars[li].t)
+        toTime = adjustTime(fbars[ri].t)
       }
-      let baseClose = null, lastClose = null
-      if (fromTime != null) {
-        for (const b of bars) { if (Number.isFinite(b.c) && adjustTime(b.t) >= fromTime) { baseClose = b.c; break } }
-      }
-      if (baseClose == null) { for (const b of bars) { if (Number.isFinite(b.c)) { baseClose = b.c; break } } }
-      if (toTime != null) {
-        for (let i = bars.length - 1; i >= 0; i--) { if (Number.isFinite(bars[i].c) && adjustTime(bars[i].t) <= toTime) { lastClose = bars[i].c; break } }
-      }
-      if (lastClose == null) { for (let i = bars.length - 1; i >= 0; i--) { if (Number.isFinite(bars[i].c)) { lastClose = bars[i].c; break } } }
-      const pct = (baseClose && lastClose) ? ((lastClose - baseClose) / baseClose) * 100 : null
-      return { sym: symKey, color: c.color, pct }
-    })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [comparisonsData, enabledComparisons, rangeTick, adjustTime])
+      const out = comps.map(c => {
+        const symKey = String(c.sym).toUpperCase()
+        const bars = (cmpData && cmpData[symKey]) || []
+        let baseClose = null, lastClose = null
+        if (fromTime != null) { for (const b of bars) { if (Number.isFinite(b.c) && adjustTime(b.t) >= fromTime) { baseClose = b.c; break } } }
+        if (baseClose == null) { for (const b of bars) { if (Number.isFinite(b.c)) { baseClose = b.c; break } } }
+        if (toTime != null) { for (let i = bars.length - 1; i >= 0; i--) { if (Number.isFinite(bars[i].c) && adjustTime(bars[i].t) <= toTime) { lastClose = bars[i].c; break } } }
+        if (lastClose == null) { for (let i = bars.length - 1; i >= 0; i--) { if (Number.isFinite(bars[i].c)) { lastClose = bars[i].c; break } } }
+        const pct = (baseClose && lastClose) ? ((lastClose - baseClose) / baseClose) * 100 : null
+        return { sym: symKey, color: c.color, pct }
+      })
+      setComparisonFramed(out)
+    }
+    const onRange = (range) => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => compute(range)) }
+    try { ts.subscribeVisibleLogicalRangeChange(onRange) } catch { /* older API */ }
+    compute(null)
+    return () => { cancelAnimationFrame(raf); try { ts.unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* */ } }
+    // Re-subscribe + recompute when the chart, the comparison set, or fetched bars change.
+  }, [chartReady, comparisonsKey, comparisonsData, filteredBars, adjustTime])
 
   // Name + exchange for each comparison (the legend shows "Name · Exchange").
   const { data: comparisonMeta } = useSWR(
