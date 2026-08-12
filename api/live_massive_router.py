@@ -82,7 +82,7 @@ def _in_market_hours(now_et: datetime = None) -> bool:
 # bullish and bearish share priority 3 (same conviction weight, just opposite
 # direction — used for grouping in the UI).
 TIER_PRIORITY = {
-    "alpha_leaps": 1,   # aggregate-conviction LEAP position (see _derive_alert_name)
+    "alpha_leaps": 1,   # aggregate-conviction LEAP position (see _derive_alert_name); shipped 2026-08-11
     "alpha":   1,
     "size":    2,
     "bullish": 3,
