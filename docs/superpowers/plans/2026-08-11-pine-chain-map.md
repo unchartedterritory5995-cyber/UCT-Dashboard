@@ -99,6 +99,77 @@ where the offset would otherwise have REFUSED. That confines the change to
 scripts that fail today, so no currently-working translation can move — and it
 is the thing to verify first, before any of the folding is written.
 
+### ⭐ THE CONVERGENCE TEST — the rule, derived. Implement this, then attempt five.
+
+**A re-seeded accumulator is sound if and only if it FORGETS ITS SEED.** That is
+the whole criterion, and it is why a trailing stop is safe under `accum` while a
+running total is not:
+
+| update shape | forgets the seed? | verdict |
+|---|---|---|
+| `min(x, self)` / `max(x, self)`, `x` self-free | yes, once `x` dominates | ✅ sound |
+| `cond ? self : x` — a hold or a passthrough | yes | ✅ sound |
+| `nz(self, x)` | passthrough | ✅ sound |
+| bare `self` | trivially | ✅ sound |
+| `self + x`, `self - x`, `self * x`, `self / x` | **never** | ⛔ refuse |
+| `self` inside any other call | unknown | ⛔ refuse |
+
+**The analysis:** walk the resolved update tree. `self` may reach the root ONLY
+through `min`/`max`/`nz` and through ternary ARMS. Reaching it through an
+arithmetic operator, or through any other function, refuses by name.
+
+⛔ **CONSERVATIVE ON PURPOSE.** An unrecognised shape refuses rather than being
+assumed convergent — this decides whether a member's saved indicator is the
+indicator they wrote, and the failure it prevents (a hand-rolled OBV silently
+becoming a 250-bar rolling sum) is invisible in the output.
+
+⚠️ **The refusal message must name the reason, not the shape:** *"this value adds
+to its own previous bar, so it never forgets where it started — and this engine's
+accumulator re-seeds, which would make it a rolling sum rather than a running
+total."* That sentence is also the honest answer to why `cum` refuses, so the two
+finally agree.
+
+**Then attempt five is mechanical:** the marker from attempt four (validated,
+correct) plus this gate in front of the wrap. Nothing else changes.
+
+🛑 **ATTEMPT FOUR — THE DESIGN WAS RIGHT AND THE FEATURE IS STILL WRONG.**
+
+The resolution-time marker WORKS. `buildingRecurrence` tells the two positions
+apart, and the simple trailing stop translates correctly:
+
+    s = close + 1 ; p = nz(s[1], s) ; if s > 0 → s := high < p ? min(s, p) : s
+    → accum(close + 1, close + 1 > 0 ? (high < nz(self, close+1) ? min(…) : …) : …, 250)
+
+🔴 **AND IT WOULD SILENTLY MISTRANSLATE A HAND-ROLLED CUMULATIVE.** An existing
+rail caught it — `pine.variables.test.js`, which exists for exactly this:
+
+    x = 0.0
+    x := x[1] + volume          ← OBV by hand
+
+That becomes `accum(0, self + volume, 250)`. **`accum` RE-SEEDS EVERY 250 BARS.**
+It is a rolling sum, not a cumulative — which is precisely why `cum` is refused
+in the first place: a true cumulative changes value with how many bars were
+fetched. The plain-name recurrence path cannot tell a TRAILING STOP (bounded,
+correct under a re-seeding accumulator) from a RUNNING TOTAL (unbounded, wrong
+under one), because both are spelled `x := f(x[1])`.
+
+⛔ **SO THIS IS NOT A TRANSLATOR PROBLEM EITHER.** It is the same wall as `cum`,
+reached from the other side. Any general `x := f(x[1])` fold has to answer:
+*is this update bounded?* An accumulator that re-seeds is only sound when the
+update CONVERGES — a stop that clamps to a min/max does; a sum does not.
+
+**What a fifth attempt would need, and it is a real piece of design:**
+- a convergence test on the update tree — a min/max/clamp against a bounded
+  input is safe; an unbounded `self + x` is not — and refusal by name when it
+  cannot be shown;
+- or an unbounded accumulator with an ABSOLUTE seed, which is the same thing
+  `cum` needs and which the engine forbids by construction today.
+
+⭐ Four attempts, and each one narrowed it: attempt 1 found the collision,
+2 found the shared `self`, 3 found the neighbouring-binding escape, 4 found the
+boundedness question. The engine half below is real and shipped. This half should
+not ship until boundedness has an answer.
+
 ✅ **THE ENGINE HALF IS SHIPPED.** `self` now binds to the NEAREST ENCLOSING
 recurrence, so two independent accumulators can sit in one expression — proved
 across both lanes at 0.000e+00. The claim that this needed a closed-table change

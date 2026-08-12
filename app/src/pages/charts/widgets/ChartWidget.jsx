@@ -190,8 +190,13 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // user can type the next ticker without re-clicking the chart.
   const handleSymbolChange = useCallback((s) => {
     if (!s) return
+    // Searching a ticker ABANDONS "Group only" theme view: restore a normal chart of
+    // the new ticker by clearing the hide-base flag + the group overlays.
+    if (chartCsRef.current?.compareHideBase) {
+      persistActiveSettings({ ...chartCsRef.current, compareHideBase: false, comparisonSymbols: [], preset: 'custom' })
+    }
     setGroupSym(activeColor, s)
-  }, [activeColor, setGroupSym])
+  }, [activeColor, setGroupSym, persistActiveSettings])
 
   // ── Tab handlers (all go through the pure chartTabs reducer) ──
   const tabList = useMemo(() => chartTabList(opts), [opts])
