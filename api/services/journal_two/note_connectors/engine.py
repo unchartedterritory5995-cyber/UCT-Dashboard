@@ -572,6 +572,38 @@ def _run_delete_detection(
         conn.close()
 
 
+def _write_tags_preserving_updated_at(
+    conn: sqlite3.Connection, user_id: str, note_id: str, tags: list[str],
+) -> None:
+    """Writes ONLY the `tags` column, deliberately WITHOUT bumping
+    `updated_at` — used EXCLUSIVELY by the engine's own sever/un-sever tag
+    writes (`_tag_note_source_deleted`, `_untag_note_source_reappeared`),
+    never by a real user edit (Fix-round-2 Important, carried from Task 8:
+    made user-visible by round-1's heal path, not introduced by it).
+
+    Root cause: `notes_svc.update_note` (notes.py) unconditionally bumps
+    `updated_at` to now on ANY patch, including a tags-only one. `_is_conflict`
+    (`updated_at > imported_at`) has no way to tell "the user edited this"
+    apart from "the engine's OWN bookkeeping wrote to this row" — so the
+    sever-tag write alone made `updated_at > imported_at` PERMANENTLY true,
+    and the next time that remote_id reappeared, `_import_remote_notes`
+    treated it as a local edit and duplicated it into a "(synced copy)"
+    conflict sibling (tagging BOTH `sync-conflict`) — every single time,
+    forever, even for content that never actually changed. The round-1
+    un-tag heal's own `update_note` call made this WORSE (re-bumped on
+    every heal), not better.
+
+    Mirrors `_apply_resolved_body`'s established "raw write, skip
+    updated_at" idiom for the identical reason. Deliberately does NOT touch
+    `notes_svc.update_note` itself or any other caller of it — a genuine
+    user tag edit (via the notes UI) must keep bumping `updated_at`
+    normally, or the conflict machinery would go blind to real edits too."""
+    conn.execute(
+        "UPDATE j2_notes SET tags = ? WHERE id = ? AND user_id = ?",
+        (json.dumps(tags), note_id, user_id),
+    )
+
+
 def _tag_note_source_deleted(conn: sqlite3.Connection, user_id: str, import_key: str) -> None:
     """NEVER deletes the note — flags it (mirrors the `demote_broker_accounts`
     instinct: a missing-remote item soft-degrades, it doesn't vanish)."""
@@ -585,7 +617,7 @@ def _tag_note_source_deleted(conn: sqlite3.Connection, user_id: str, import_key:
     if "source-deleted" in tags:
         return
     tags.append("source-deleted")
-    notes_svc.update_note(user_id, row["id"], {"tags": tags}, conn=conn)
+    _write_tags_preserving_updated_at(conn, user_id, row["id"], tags)
 
 
 def _untag_note_source_reappeared(conn: sqlite3.Connection, user_id: str, import_key: str) -> None:
@@ -607,7 +639,7 @@ def _untag_note_source_reappeared(conn: sqlite3.Connection, user_id: str, import
     if "source-deleted" not in tags:
         return
     tags = [t for t in tags if t != "source-deleted"]
-    notes_svc.update_note(user_id, row["id"], {"tags": tags}, conn=conn)
+    _write_tags_preserving_updated_at(conn, user_id, row["id"], tags)
 
 
 def _touch_remote_index(
@@ -618,11 +650,17 @@ def _touch_remote_index(
     tracks, not import success). Resets miss_streak on every touch.
 
     Also runs the Fix-round-1 #1b un-tag heal for any ref NOT already in
-    the index — i.e. genuinely new OR reappearing after a prior sever.
-    Bounded to one bulk existence-check query (never N+1): an
-    already-continuously-tracked ref can never carry the tag (its index row
-    would still exist, so `_run_delete_detection` would never have severed
-    it), so only the "new to the index" subset needs the per-note check."""
+    the index — i.e. genuinely new OR reappearing after a prior sever. ONE
+    bulk existence-check query up front narrows the candidate set (an
+    already-continuously-tracked ref can never carry the tag, since its
+    index row would still exist and `_run_delete_detection` would never
+    have severed it) — but each ref in that narrowed "new to the index"
+    subset still runs its own `_untag_note_source_reappeared` lookup
+    (one SELECT per ref, not batched). Accurate claim: bounded to 1 bulk
+    query + at most len(refs) per-ref lookups, never a query per ALREADY-
+    tracked ref — not "never N+1" outright. Fine at today's per-sync ref
+    counts; batch `_untag_note_source_reappeared` into one bulk read if a
+    source's per-sync ref count ever grows enough to matter."""
     if not refs:
         return
     now = _now_iso()

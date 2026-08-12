@@ -1405,7 +1405,15 @@ async def test_unrelated_two_strike_severs_still_apply_alongside_a_refused_expli
     r3 = await engine.sync_source(source["id"], full=True, manual=True)
     assert r3["status"] == "warning"
     assert r3["sourceDeleted"] == 1  # the genuine 2-strike sever still counted
-    tagged = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Note already-missing-once")
+    # 101 notes exist in this test -- list_notes' default limit=100 would
+    # silently truncate depending on sort-tiebreak order (Fix-round-2's own
+    # timestamp-neutral tag write means a severed note no longer jumps to
+    # the top of `sort="updated"` by virtue of being touched -- correctly
+    # so; the test must not depend on that incidental ordering to find it).
+    tagged = next(
+        n for n in notes_svc.list_notes("u1", limit=200)
+        if n["title"] == "Note already-missing-once"
+    )
     assert "source-deleted" in tagged["tags"]
 
 
@@ -1480,6 +1488,113 @@ async def test_untag_heal_never_fires_for_a_note_still_continuously_tracked(sour
 
     note = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Steady")
     assert "source-deleted" not in note["tags"]
+
+
+# ---------------------------------------------------------------------------
+# Fix-round-2 Important: the engine's own sever/heal tag writes must be
+# timestamp-neutral, or a reappearing note gets a phantom conflict duplicate.
+# ---------------------------------------------------------------------------
+
+async def test_severed_note_reappearing_does_not_create_a_conflict_duplicate(source, provider):
+    """Root cause: `_tag_note_source_deleted` (via `notes_svc.update_note`)
+    used to bump `updated_at`, making `_is_conflict` (`updated_at >
+    imported_at`) true FOREVER -- so a reappearing note always got
+    duplicated into a "(synced copy)" conflict sibling, tags on both,
+    `conflicts` == 1 on every subsequent sync. Asserts the COUNT of notes
+    matching the title, not `next(...)` -- a `next()` lookup is BLIND to a
+    second matching note by construction (the exact gap the reviewer found
+    in the round-1 heal test, which only ever proved the ORIGINAL was
+    healed and never checked whether a sibling also existed)."""
+    provider.refs = [
+        RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="p2", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="p3", updated_at="2026-08-01T00:00:00+00:00"),
+    ]
+    provider.notes_by_id = {
+        "p1": _rn("p1", "Comeback Kid"),
+        "p2": _rn("p2", "Steady Two"),
+        "p3": _rn("p3", "Steady Three"),
+    }
+    await engine.sync_source(source["id"], full=True)
+
+    # Two consecutive full misses of p1 (p2/p3 stay present) -> generic
+    # 2-strike sever.
+    provider.refs = [
+        RemoteRef(remote_id="p2", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="p3", updated_at="2026-08-01T00:00:00+00:00"),
+    ]
+    provider.notes_by_id = {"p2": provider.notes_by_id["p2"], "p3": provider.notes_by_id["p3"]}
+    await engine.sync_source(source["id"], full=True, manual=True)
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r2["sourceDeleted"] == 1
+
+    # Reappears with the SAME content (no genuine user edit) -- must NOT
+    # duplicate into a conflict sibling.
+    provider.refs = [
+        RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="p2", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="p3", updated_at="2026-08-01T00:00:00+00:00"),
+    ]
+    provider.notes_by_id["p1"] = _rn("p1", "Comeback Kid")
+    r3 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r3["conflicts"] == 0
+
+    matches = [n for n in notes_svc.list_notes("u1") if n["title"] == "Comeback Kid"]
+    assert len(matches) == 1, (
+        f"expected exactly one note titled 'Comeback Kid', got {len(matches)}: "
+        f"{[m['title'] for m in notes_svc.list_notes('u1')]}"
+    )
+    assert "sync-conflict" not in matches[0]["tags"]
+    assert "source-deleted" not in matches[0]["tags"]
+    assert not any("(synced copy)" in n["title"] for n in notes_svc.list_notes("u1"))
+
+
+async def test_a_genuine_user_edit_during_the_severed_window_still_conflicts_on_reappearance(
+    source, provider,
+):
+    """The timestamp-neutral fix must be NARROW: it only silences the
+    engine's OWN tag-write, never a real user edit. A genuine edit (mirrors
+    what the notes UI does -- a plain `notes_svc.update_note` call, no
+    `conn=` threading through the engine's neutral helper) that happens
+    WHILE the note is severed must still route to a conflict sibling once
+    it reappears, per spec §6."""
+    provider.refs = [
+        RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="p2", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="p3", updated_at="2026-08-01T00:00:00+00:00"),
+    ]
+    provider.notes_by_id = {
+        "p1": _rn("p1", "Edited While Gone"),
+        "p2": _rn("p2", "Steady Two"),
+        "p3": _rn("p3", "Steady Three"),
+    }
+    await engine.sync_source(source["id"], full=True)
+
+    provider.refs = [
+        RemoteRef(remote_id="p2", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="p3", updated_at="2026-08-01T00:00:00+00:00"),
+    ]
+    provider.notes_by_id = {"p2": provider.notes_by_id["p2"], "p3": provider.notes_by_id["p3"]}
+    await engine.sync_source(source["id"], full=True, manual=True)
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r2["sourceDeleted"] == 1
+
+    # A GENUINE user edit while the note sits severed -- the real
+    # notes_svc.update_note path, which DOES bump updated_at (as it must).
+    original = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Edited While Gone")
+    notes_svc.update_note("u1", original["id"], {"title": "Edited While Gone (user touched)"})
+
+    provider.refs = [
+        RemoteRef(remote_id="p1", updated_at="2026-08-03T00:00:00+00:00"),
+        RemoteRef(remote_id="p2", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="p3", updated_at="2026-08-01T00:00:00+00:00"),
+    ]
+    provider.notes_by_id["p1"] = _rn("p1", "Edited While Gone", updated_at="2026-08-03T00:00:00+00:00")
+    r3 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r3["conflicts"] == 1
+
+    sibling = next(n for n in notes_svc.list_notes("u1") if "(synced copy)" in n["title"])
+    assert "sync-conflict" in sibling["tags"]
 
 
 # ---------------------------------------------------------------------------
