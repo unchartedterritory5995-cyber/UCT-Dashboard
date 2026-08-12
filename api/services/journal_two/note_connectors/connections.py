@@ -330,6 +330,27 @@ def get_source(
             conn.close()
 
 
+def get_source_by_id(
+    source_id: str, conn: sqlite3.Connection | None = None,
+) -> dict[str, Any] | None:
+    """Like `get_source`, but not scoped to a caller-known `user_id` — the
+    sync engine's entry point (`engine.sync_source(source_id, ...)`, and the
+    scheduler/webhook callers behind it) only ever has the source id.
+    `j2_note_sources.id` is a UUID primary key, so no user scoping is needed
+    for correctness (mirrors how `sync_due_sources`/the scheduler already
+    reach across users via `list_due_sources`)."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute(
+            "SELECT * FROM j2_note_sources WHERE id = ?", (source_id,),
+        ).fetchone()
+        return _row_to_source(row) if row else None
+    finally:
+        if owned:
+            conn.close()
+
+
 def list_sources(
     user_id: str, conn: sqlite3.Connection | None = None,
 ) -> list[dict[str, Any]]:

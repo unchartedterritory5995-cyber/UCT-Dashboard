@@ -482,6 +482,7 @@ CREATE TABLE IF NOT EXISTS j2_note_remote_index (
     import_key        TEXT NOT NULL,
     remote_updated_at TEXT,
     seen_at           TEXT NOT NULL,
+    miss_streak       INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY(user_id, source_id, remote_id)
 );
 
@@ -1189,6 +1190,7 @@ _NOTE_CONNECTOR_TABLE_DDL = {
             import_key        TEXT NOT NULL,
             remote_updated_at TEXT,
             seen_at           TEXT NOT NULL,
+            miss_streak       INTEGER NOT NULL DEFAULT 0,
             PRIMARY KEY(user_id, source_id, remote_id)
         )
     """,
