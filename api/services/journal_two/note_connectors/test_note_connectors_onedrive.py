@@ -40,16 +40,16 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from api.services.journal_two.note_connectors.convert import html_to_tiptap, md_to_tiptap
+from api.services.journal_two.note_connectors.convert import html_to_tiptap, md_to_tiptap, txt_to_tiptap
 from api.services.journal_two.note_connectors.errors import (
     NoteConnAuthError,
     NoteConnTokenExpired,
     NoteConnUnsupported,
 )
 from api.services.journal_two.note_connectors.providers.base import AccountInfo
-from api.services.journal_two.note_connectors.providers.dropbox import _txt_to_tiptap
 from api.services.journal_two.note_connectors.providers.msgraph_base import GRAPH_API_BASE
 from api.services.journal_two.note_connectors.providers.onedrive import OneDriveProvider
+from api.services.journal_two.notes import _MAX_FILE_BYTES
 
 ACCESS_TOKEN = "graph-access-token-abc"
 FOLDER_ID = "FOLDER-ID-1"
@@ -376,6 +376,41 @@ async def test_download_follows_302_to_unauthenticated_url():
     assert seen["download:item-plain-md"] is None  # second (pre-authenticated URL) hop is NOT
 
 
+async def test_download_streams_and_rejects_an_over_cap_file_via_content_length():
+    """Fix-round-1 Important #2: `_download_content` must STREAM the
+    download hop with a Content-Length pre-check, never buffer the whole
+    body before checking `_MAX_FILE_BYTES` — proven at the OneDrive
+    integration level (the shared primitive itself is unit-tested in
+    `test_note_connectors_base.py`). A real over-cap body would be huge;
+    the mock body stays small but advertises the true size via
+    Content-Length, so a bug that reverted to buffer-then-check would still
+    raise here (this alone doesn't prove non-buffering) — the primitive-
+    level test file is what proves the early-reject/running-total shape;
+    this test proves OneDrive's OWN download path is actually WIRED to it."""
+    over_cap_size = _MAX_FILE_BYTES + 1
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        host = request.url.host
+        path = request.url.path
+        if host == "graph.microsoft.com":
+            if path == f"/v1.0/me/drive/items/{FOLDER_ID}/delta" and not request.url.query:
+                return httpx.Response(200, json={"value": FULL_LISTING_ITEMS, "@odata.deltaLink": DELTA_LINK_FULL})
+            if path == "/v1.0/me/drive/items/item-plain-md/content":
+                return httpx.Response(302, headers={"location": "https://8.8.8.8/dl/item-plain-md"})
+            return httpx.Response(404)
+        if host == "8.8.8.8":
+            return httpx.Response(
+                200, content=b"x" * 10, headers={"content-length": str(over_cap_size)},
+            )
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    refs = await provider.list_changed(CREDS)
+    ref = next(r for r in refs if r.remote_id == "item-plain-md")
+    with pytest.raises(NoteConnUnsupported):
+        await provider.fetch(CREDS, ref)
+
+
 # ---------------------------------------------------------------------------
 # 8. Extension routing.
 # ---------------------------------------------------------------------------
@@ -402,7 +437,7 @@ async def test_extension_routing_txt_produces_expected_doc():
     provider, refs, _ = await _synced_provider()
     ref = next(r for r in refs if r.remote_id == "item-scratch-txt")
     note = await provider.fetch(CREDS, ref)
-    assert note.doc == _txt_to_tiptap(SCRATCH_TXT_TEXT)["doc"]
+    assert note.doc == txt_to_tiptap(SCRATCH_TXT_TEXT)["doc"]
 
 
 async def test_extension_routing_docx_raises_named_unsupported():

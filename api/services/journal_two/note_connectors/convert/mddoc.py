@@ -1035,6 +1035,43 @@ def _html_blocks_walk(nodes: list[Any], ctx: _Ctx) -> list[dict[str, Any]]:
     return out
 
 
+def txt_to_tiptap(text: str | None) -> dict[str, Any]:
+    """Plain-text (.txt) -> TipTap JSON with NO markdown parsing — every
+    character is literal (a `*`/`#`/`_` is never interpreted as syntax).
+    Blank-line-separated blocks become separate paragraphs; single newlines
+    within a block become explicit `hardBreak`s (preserves a plain-text
+    file's original line layout, which its author typically intends
+    verbatim, unlike markdown's line-reflow convention). No links/media are
+    possible in plain text, so both lists are always empty.
+
+    Originally a Dropbox-only private helper (`providers/dropbox.py::
+    _txt_to_tiptap`) — lifted here (msgraph fix-round-1 Minor #3) once the
+    OneDrive connector needed the IDENTICAL `.txt` conversion and importing
+    a sibling provider's private, underscore-prefixed name meant a
+    Dropbox-internal refactor could silently break OneDrive with no
+    compiler/lint signal. Both `dropbox.py` and `onedrive.py` now import
+    THIS one function — a Dropbox-only fallback per the ORIGINAL task
+    brief's own wording ("reuse the mddoc helper if one exists, else
+    escape+paragraphs") is exactly what this move makes true: `mddoc.py`
+    now HAS a ready-made text-literal helper, shared like `md_to_tiptap`/
+    `html_to_tiptap` above it. Output shape is IDENTICAL to the original —
+    this is a pure relocation, not a rewrite."""
+    raw = (text or "").replace("\r\n", "\n").replace("\r", "\n").strip("\n")
+    if raw.strip() == "":
+        return {"doc": {"type": "doc", "content": []}, "media": [], "links": []}
+    content: list[dict[str, Any]] = []
+    for block in re.split(r"\n{2,}", raw):
+        lines = block.split("\n")
+        para: list[dict[str, Any]] = []
+        for i, line in enumerate(lines):
+            if i > 0:
+                para.append({"type": "hardBreak"})
+            if line:
+                para.append({"type": "text", "text": line})
+        content.append({"type": "paragraph", "content": para})
+    return {"doc": {"type": "doc", "content": content}, "media": [], "links": []}
+
+
 def html_to_tiptap(html: str | None) -> dict[str, Any]:
     """Convert an HTML document/fragment into `{doc, media, links}` — the
     Dropbox connector's converter for `.html` files. Output shape is

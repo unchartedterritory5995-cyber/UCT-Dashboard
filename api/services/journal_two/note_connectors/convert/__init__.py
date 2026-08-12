@@ -42,10 +42,10 @@ LINK_PREFIX = "import-link://"
 # connector to use it.
 ATTACHMENT_REF_PREFIX = "import-attachment-ref://"
 
-from .mddoc import html_to_tiptap, md_to_tiptap
+from .mddoc import html_to_tiptap, md_to_tiptap, txt_to_tiptap
 from .rewrite import rewrite_body
 
 __all__ = [
     "REF_PREFIX", "LINK_PREFIX", "ATTACHMENT_REF_PREFIX",
-    "md_to_tiptap", "html_to_tiptap", "rewrite_body",
+    "md_to_tiptap", "html_to_tiptap", "txt_to_tiptap", "rewrite_body",
 ]

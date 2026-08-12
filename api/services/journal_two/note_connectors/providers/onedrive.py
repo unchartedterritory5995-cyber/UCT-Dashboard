@@ -77,10 +77,23 @@ import httpx
 
 from ...notes import _MAX_FILE_BYTES
 from .. import errors
-from ..convert import ATTACHMENT_REF_PREFIX, LINK_PREFIX, REF_PREFIX, html_to_tiptap, md_to_tiptap
+from ..convert import (
+    ATTACHMENT_REF_PREFIX,
+    LINK_PREFIX,
+    REF_PREFIX,
+    html_to_tiptap,
+    md_to_tiptap,
+    txt_to_tiptap,
+)
 from . import msgraph_base
-from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, guarded_media_get
-from .dropbox import _txt_to_tiptap
+from .base import (
+    AccountInfo,
+    NoteProvider,
+    RemoteNote,
+    RemoteRef,
+    guarded_media_get,
+    guarded_media_stream,
+)
 
 # Extensions the picker/enumerator treats as note CANDIDATES. `.docx` is
 # included here (so a Word file shows up as a named, per-item failure rather
@@ -425,38 +438,60 @@ class OneDriveProvider(NoteProvider):
     async def _download_content(self, credentials: dict[str, Any], item_id: str) -> bytes:
         """`GET /me/drive/items/{id}/content` (Graph, authenticated) ->
         `302` to a pre-authenticated download URL -> that second hop is
-        fetched via `guarded_media_get` with NO Authorization header at all
-        (Microsoft's own docs: "you don't need to include an Authorization
-        header when you access the download URL") -- see the module
-        docstring's CREDENTIAL BOUNDARY section. `MSGraphClient.send` never
-        auto-follows redirects (no `follow_redirects=True` is ever passed),
-        so the 302 response itself is what this method inspects."""
+        fetched via `guarded_media_stream` with NO Authorization header at
+        all (Microsoft's own docs: "you don't need to include an
+        Authorization header when you access the download URL") -- see the
+        module docstring's CREDENTIAL BOUNDARY section. `MSGraphClient.send`
+        never auto-follows redirects (no `follow_redirects=True` is ever
+        passed), so the 302 response itself is what this method inspects.
+
+        STREAMS the second hop (fix-round-1 Important #2), enforcing
+        `_MAX_FILE_BYTES` as early as possible: first via `Content-Length`
+        when the server supplies one (rejects before reading any body bytes
+        at all), and unconditionally via a running total while streaming
+        (the backstop regardless of whether Content-Length was present/
+        honest) -- mirrors `DropboxProvider._download_streamed`'s shape.
+        This is OneDrive's PRIMARY content path (both `fetch()`'s note
+        bodies AND same-drive `fetch_media` route through here), unlike
+        Dropbox's `fetch_media` external-URL branch (which stays a plain,
+        unstreamed `guarded_media_get` -- a rarer, content-embedded-URL
+        case, not the connector's main download path) -- so unlike that
+        branch, buffering this one whole before checking the cap would let
+        an ordinary large synced file OOM the single web pod. An over-cap
+        file raises `NoteConnUnsupported`, caught by the engine's existing
+        per-item try/except as ONE named media failure, never a crash of
+        the whole note or sync."""
         response = await self._graph.send(credentials, "GET", f"/me/drive/items/{item_id}/content")
         if response.status_code in _REDIRECT_STATUSES:
             location = response.headers.get("location")
             if not location:
                 raise errors.NoteConnTransient("OneDrive content redirect had no Location header")
             client = await self._graph.get_client()
-            dl_response = await guarded_media_get(client, location, what="OneDrive file content")
+            content, dl_response = await guarded_media_stream(
+                client, location, what="OneDrive file content", max_bytes=_MAX_FILE_BYTES,
+            )
             if dl_response.status_code >= 400:
                 raise errors.NoteConnTransient(
                     f"Failed to download OneDrive file content ({dl_response.status_code})",
                     status=dl_response.status_code,
                 )
-            content = dl_response.content
-        elif response.status_code == 200:
+            return content
+        if response.status_code == 200:
             # Defensive fallback (not the documented common case): some
-            # small/edge responses could come back inline without a redirect.
+            # small/edge responses could come back inline without a
+            # redirect. `MSGraphClient.send` itself never streams (it's the
+            # AUTHENTICATED hop, and Graph's documented shape for content is
+            # always the 302 above) -- buffered here is accepted since this
+            # branch is not the primary path the OOM risk was named against.
             content = response.content
-        else:
-            msgraph_base.raise_for_status(response)
-            raise AssertionError("unreachable")  # raise_for_status always raises here
-        if len(content) > _MAX_FILE_BYTES:
-            raise errors.NoteConnUnsupported(
-                f"OneDrive file exceeds the {_MAX_FILE_BYTES}-byte import cap",
-                reason="File is larger than the 25 MB import limit",
-            )
-        return content
+            if len(content) > _MAX_FILE_BYTES:
+                raise errors.NoteConnUnsupported(
+                    f"OneDrive file exceeds the {_MAX_FILE_BYTES}-byte import cap",
+                    reason="File is larger than the 25 MB import limit",
+                )
+            return content
+        msgraph_base.raise_for_status(response)
+        raise AssertionError("unreachable")  # raise_for_status always raises here
 
     async def fetch(self, credentials: dict[str, Any], ref: RemoteRef) -> RemoteNote:
         self._require_enumerated()
@@ -481,7 +516,7 @@ class OneDriveProvider(NoteProvider):
             text = self._resolve_relative_attachments_html(text, item_id)
             converted = html_to_tiptap(text)
         else:  # .txt
-            converted = _txt_to_tiptap(text)
+            converted = txt_to_tiptap(text)
 
         updated_at = (item or {}).get("lastModifiedDateTime") or ref.updated_at
         return RemoteNote(
