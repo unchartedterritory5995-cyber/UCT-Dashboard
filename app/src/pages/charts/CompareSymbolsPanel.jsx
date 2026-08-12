@@ -13,7 +13,6 @@ import c from './CompareSymbolsPanel.module.css'
 
 export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onClose }) {
   const [symbols, setSymbols] = useState([])
-  const [mode, setMode] = useState('overlay')  // 'overlay' | 'pct'
   const [ready, setReady] = useState(false)
   const [entry, setEntry] = useState('')
   const apiRef = useRef(null)
@@ -30,7 +29,9 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
         if (api) {
           apiRef.current = api
           setSymbols(api.getComparison() || [])
-          setMode(api.getPercentScale() ? 'pct' : 'overlay')
+          // Compare no longer flips the base into % scale (that detached the MAs). If
+          // a chart is still stuck in % from the retired "All %" mode, clear it once.
+          try { if (api.getPercentScale && api.getPercentScale()) api.setPercentScale(false) } catch { /* older api */ }
           setReady(true)
           return true
         }
@@ -77,11 +78,6 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
     push(symbols.map(x => x.sym === sym ? { ...x, scaleMode: sm } : x))
   }, [symbols, push])
 
-  const setModeAndApply = useCallback((m) => {
-    setMode(m)
-    apiRef.current?.setPercentScale(m === 'pct')
-  }, [])
-
   return (
     <div className={shell.cfgBackdrop} onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className={c.card} role="dialog" aria-label="Compare Symbols">
@@ -91,12 +87,6 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
         </div>
 
         <div className={c.body}>
-          {/* Display mode */}
-          <div className={c.seg}>
-            <button type="button" className={`${c.segBtn}${mode === 'overlay' ? ' ' + c.segOn : ''}`} onClick={() => setModeAndApply('overlay')} title="Base stays candles; compared tickers draw as % lines">Candles + %</button>
-            <button type="button" className={`${c.segBtn}${mode === 'pct' ? ' ' + c.segOn : ''}`} onClick={() => setModeAndApply('pct')} title="Every line (incl. the base) shown as % from the visible left edge">All %</button>
-          </div>
-
           {/* Add a symbol */}
           <input
             className={c.input}

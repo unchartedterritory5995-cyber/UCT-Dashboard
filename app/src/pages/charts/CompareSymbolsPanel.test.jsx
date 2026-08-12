@@ -50,11 +50,9 @@ test('the per-symbol "Same % scale" toggle writes scaleMode to the chart', () =>
   expect(api.setComparison).toHaveBeenLastCalledWith([expect.objectContaining({ sym: 'QQQ', scaleMode: 'same' })])
 })
 
-test('the "All %" mode toggles the chart percent scale', () => {
+test('clears a chart stuck in % scale on open (retired "All %" cleanup)', () => {
   const api = makeApi()
+  api.getPercentScale = vi.fn(() => true)
   render(<Wrap api={api} />)
-  fireEvent.click(screen.getByText('All %'))
-  expect(api.setPercentScale).toHaveBeenCalledWith(true)
-  fireEvent.click(screen.getByText('Candles + %'))
-  expect(api.setPercentScale).toHaveBeenLastCalledWith(false)
+  expect(api.setPercentScale).toHaveBeenCalledWith(false)
 })
