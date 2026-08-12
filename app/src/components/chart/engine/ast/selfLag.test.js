@@ -112,9 +112,13 @@ describe('nothing saveable may throw when it runs', () => {
   }
 
   it('🔴 a tree that throws at interpret is REFUSED, not offered', () => {
+    // ⚰️ `accum(close, accum(close, self + 1, 2) + self, 5)` LEFT THIS LIST when
+    // `self` gained lexical scoping — a nested recurrence brings its OWN running
+    // value, so an independent inner accumulator is an ordinary column evaluated
+    // once, not an ambiguity. It is asserted as WORKING in `nestedRecurrence`
+    // below rather than dropped from the file.
     for (const src of [
       'accum(close, sma(self, 3), 5)',                       // self inside a window
-      'accum(close, accum(close, self + 1, 2) + self, 5)',   // a nested running value
       'accum(close, (self + close)[1], 5)',                  // offset over an expression
     ]) {
       const g = gate(src)
@@ -140,5 +144,47 @@ describe('nothing saveable may throw when it runs', () => {
       const g = gate(src)
       expect(g.ok, `${src} — ${g.guard}`).toBe(true)
     }
+  })
+})
+
+// ─── `self` BINDS TO THE NEAREST ENCLOSING RECURRENCE ───────────────────────
+//
+// ⭐⭐ THE SCOPING RULE, AND IT IS WHAT MAKES THE TRAILING-STOP FAMILY POSSIBLE.
+// A nested recurrence brings its OWN running value. Until this rule existed the
+// planner descended into an inner `accum` and counted that inner `self` as a
+// read of the OUTER's bind — so an INDEPENDENT inner accumulator was refused as
+// though it were ambiguous, and a translator folding two recurrences into one
+// emitted `self` meaning two different things in one expression.
+//
+// ⛔ NOTHING IN THE PARTITION CHANGED. A subtree that does not read this
+// recurrence's bind was already evaluated ONCE as an ordinary column; the rule
+// simply lets a nested `accum` be one of those. It computes over every bar on
+// its own, exactly as it would standing alone.
+describe('nestedRecurrence — an inner accumulator owns its own `self`', () => {
+  const inner = 'accum(close, self + 0.1 * (close - self), 60)'
+
+  it('🔴 a nested INDEPENDENT recurrence runs instead of refusing', () => {
+    const nested = col(`accum(close, self + 0.05 * (${inner} - self), 60)`)
+    expect(Number.isFinite(nested.at(-1))).toBe(true)
+  })
+
+  it('…and the inner one still equals itself standing alone', () => {
+    // ⛔ THE ASSERTION THAT MAKES THIS A SCOPING RULE RATHER THAN A HOLE. If the
+    // inner accumulator were sharing the outer's running value, its own column
+    // would come out different from the same formula on its own.
+    const alone = col(inner)
+    const insideAnother = col(`accum(0, ${inner} > self ? self : self, 60)`)
+    expect(Number.isFinite(alone.at(-1))).toBe(true)
+    expect(Number.isFinite(insideAnother.at(-1))).toBe(true)
+    // the outer here ignores its own past, so it is only ever its seed
+    expect(insideAnother.at(-1)).toBe(0)
+  })
+
+  it('⛔ `self` inside a WINDOW still refuses — this closed one shape, not the guard', () => {
+    expect(refusalOf('accum(close, sma(self, 3), 250)').guard).toBe('interpret:recurrence')
+  })
+
+  it('⛔ and an offset over an expression containing it still refuses', () => {
+    expect(refusalOf('accum(close, (self + close)[1], 250)').guard).toBe('interpret:recurrence')
   })
 })

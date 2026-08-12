@@ -99,7 +99,42 @@ where the offset would otherwise have REFUSED. That confines the change to
 scripts that fail today, so no currently-working translation can move — and it
 is the thing to verify first, before any of the folding is written.
 
-🔴🔴 **ATTEMPTED AND REVERTED, 2026-08-11 — READ THIS BEFORE TRYING AGAIN.**
+✅ **THE ENGINE HALF IS SHIPPED.** `self` now binds to the NEAREST ENCLOSING
+recurrence, so two independent accumulators can sit in one expression — proved
+across both lanes at 0.000e+00. The claim that this needed a closed-table change
+was WRONG; it was one condition in `reads()` per lane.
+
+🔴🔴 **THE TRANSLATOR HALF FAILED A THIRD TIME, AND NOW THE REASON IS EXACT.**
+Not a vague "it collided" — here is the mechanism:
+
+    shortStop     = src + atr
+    shortStopPrev = nz(shortStop[1], shortStop)   ← a DIFFERENT name
+    if …  shortStop := … shortStopPrev …
+
+`shortStop[1]` is read while resolving **`shortStopPrev`**, which is its own
+binding. My code emitted a bare `self` there and recorded the seed under
+`shortStop`. But the wrap fires on the name whose final binding is being
+resolved — and that name is `shortStopPrev`, which has no seed recorded. So the
+`self` escapes its own accumulator and is captured by whatever encloses it,
+which is `dir`'s. One accumulator, `self` meaning a direction in one place and a
+stop price in another.
+
+⭐ **AND THE CORRECT RULE IS NOW CLEAR, WHICH IS THE DELIVERABLE:**
+`name[1]` means two different trees depending on WHERE it is read.
+- **Inside that name's own update** → `self`.
+- **Anywhere else** (the `shortStopPrev` case) → `accum_name(…)[1]`, the whole
+  accumulator offset by one bar.
+
+⚠️ That second form already works for a `var` state — measured: reading a state's
+past from outside its update inlines the accumulator and offsets it. What the
+plain-name path lacks is the ability to tell the two positions apart, because it
+has no notion of "am I currently building THIS name's recurrence".
+
+**So the next attempt needs a resolution-time marker for the recurrence under
+construction** — not more folding. Reverted rather than shipped; the engine half
+stands on its own and is already in use by the multi-lag work.
+
+🔴🔴 **(history) ATTEMPTED AND REVERTED — READ THIS BEFORE TRYING AGAIN.**
 
 The recurrence fold was written exactly as specified above: `name[1]` → selfref,
 the binding in scope at the read → SEED, the folded reassignments → UPDATE,

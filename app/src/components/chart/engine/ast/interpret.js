@@ -1208,7 +1208,24 @@ export function interpret(ast, bars, inputs, budget, scalars) {
     const reads = (x) => {
       if (readsBind.has(x)) return readsBind.get(x)
       let answer = isBind(x)
-      if (!answer && x && typeof x === 'object' && Array.isArray(x.args)) {
+      // ⭐⭐ `self` BINDS TO THE NEAREST ENCLOSING RECURRENCE, and this line is the
+      // whole of that rule. A NESTED recurrence brings its own `self`, so the
+      // walk must not descend into one and count that inner `self` as a read of
+      // the OUTER's running value — which is what it did, and why an independent
+      // inner accumulator was refused as if it were ambiguous.
+      //
+      // ⛔ AND THE PAYOFF IS THE PARTITION BELOW, UNCHANGED. A subtree that does
+      // not read this recurrence's bind is already evaluated ONCE as an ordinary
+      // column; stopping here simply lets a nested `accum` be one of those. It
+      // computes over every bar on its own, exactly as it would standing alone,
+      // and the outer step loop reads its finished column per bar.
+      //
+      // ⭐ THIS IS WHAT THE TRAILING-STOP FAMILY NEEDS. `dir` is one recurrence
+      // and `longStop` another; folding them into one accumulator made `self`
+      // mean a direction in one place and a stop price in another. Two separate
+      // accumulators, each owning its own `self`, is the shape that is correct.
+      const nested = x && typeof x === 'object' && x.type === 'call' && own(RECURRENCES, x.name)
+      if (!answer && !nested && x && typeof x === 'object' && Array.isArray(x.args)) {
         for (const child of x.args) if (reads(child)) { answer = true; break }
       }
       readsBind.set(x, answer)
