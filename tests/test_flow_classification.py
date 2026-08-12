@@ -182,6 +182,105 @@ def test_override_disabled_yellow_whale_not_promoted(monkeypatch):
     assert tier == "bullish"
 
 
+# ── Alpha LEAPS — aggregate-conviction LEAP tier (2026-08-11) ────────────
+# A LEAP (DTE>=180) is demoted out of Alpha Gold by design and would only
+# reach the LEAPS tier. But a position BUILT with size — multiple ask-side
+# prints (sweeps + blocks) on the SAME contract summing to a large AGGREGATE
+# premium, near-the-money — is institutional conviction. The classifier grades
+# the AGGREGATE (agg_ask_premium, from _build_session_ask_premium_ledger):
+# counts blocks and ignores the <180 Alpha Gold DTE cap. Motivating case:
+# CRWD 235C 12/17/2027 (~493 DTE), ~5% OTM, $12M of ask-side sweeps+blocks.
+
+_LEAPTH = {"alpha_leaps_enabled": True,
+           "alpha_leaps_min_aggregate_premium": 3_000_000,
+           "alpha_leaps_max_otm_pct": 15.0}
+
+
+def _leaprow(**over):
+    # MAGENTA so it reaches the tier branch; DTE 493 = LEAP; ask side; V/OI>1
+    # so a below-floor row cleanly falls to the LEAPS tier (not dropped).
+    r = {"Color": "MAGENTA", "Type": "SWEEP", "Premium": "1740000", "Side": "A",
+         "Dte": "493", "Volume": "6000", "OI": "5000", "Symbol": "CRWD"}
+    r.update(over)
+    return r
+
+
+def test_leap_ask_cluster_over_floor_is_alpha_leaps(monkeypatch):
+    monkeypatch.setattr(m, "_load_thresholds", lambda: _LEAPTH)
+    monkeypatch.setattr(m, "_is_unusual_classification", lambda *a, **k: False)
+    name, tier, _ = m._derive_alert_name(
+        _leaprow(), "Bull", money_pct=-5.2, agg_ask_premium=12_010_000)
+    assert tier == "alpha_leaps"
+    assert name == "UCT Alpha LEAPS Bull"
+
+
+def test_alpha_leaps_counts_blocks(monkeypatch):
+    # BLOCK type is EXCLUDED from Alpha Gold, but Alpha LEAPS grades the whole
+    # position — a block adding to the same strike still qualifies.
+    monkeypatch.setattr(m, "_load_thresholds", lambda: _LEAPTH)
+    monkeypatch.setattr(m, "_is_unusual_classification", lambda *a, **k: False)
+    r = _leaprow(Type="BLOCK", Premium="4490000")
+    name, tier, _ = m._derive_alert_name(
+        r, "Bull", money_pct=-5.2, agg_ask_premium=12_010_000)
+    assert tier == "alpha_leaps"
+
+
+def test_leap_under_aggregate_floor_falls_to_leaps(monkeypatch):
+    # Aggregate below $3M → not conviction → normal LEAPS tier.
+    monkeypatch.setattr(m, "_load_thresholds", lambda: _LEAPTH)
+    monkeypatch.setattr(m, "_is_unusual_classification", lambda *a, **k: False)
+    name, tier, _ = m._derive_alert_name(
+        _leaprow(), "Bull", money_pct=-5.2, agg_ask_premium=2_000_000)
+    assert tier == "leaps"
+
+
+def test_deep_otm_leap_not_alpha_leaps(monkeypatch):
+    # Huge aggregate but deep OTM (lottery, not near-the-money) → not Alpha LEAPS.
+    monkeypatch.setattr(m, "_load_thresholds", lambda: _LEAPTH)
+    monkeypatch.setattr(m, "_is_unusual_classification", lambda *a, **k: False)
+    name, tier, _ = m._derive_alert_name(
+        _leaprow(), "Bull", money_pct=-30.0, agg_ask_premium=12_010_000)
+    assert tier == "leaps"
+
+
+def test_short_dated_cluster_is_alpha_gold_not_alpha_leaps(monkeypatch):
+    # DTE < 180 is NOT a LEAP — a big ask sweep goes to Alpha Gold as before.
+    monkeypatch.setattr(m, "_load_thresholds", lambda: _LEAPTH)
+    monkeypatch.setattr(m, "_is_unusual_classification", lambda *a, **k: False)
+    r = _leaprow(Dte="30", Premium="4490000")
+    name, tier, _ = m._derive_alert_name(
+        r, "Bull", money_pct=2.0, agg_ask_premium=12_010_000)
+    assert tier == "alpha"
+
+
+def test_alpha_leaps_disabled_falls_to_leaps(monkeypatch):
+    # Kill switch: disabled → the same row reverts to the LEAPS tier.
+    th = dict(_LEAPTH, alpha_leaps_enabled=False)
+    monkeypatch.setattr(m, "_load_thresholds", lambda: th)
+    monkeypatch.setattr(m, "_is_unusual_classification", lambda *a, **k: False)
+    name, tier, _ = m._derive_alert_name(
+        _leaprow(), "Bull", money_pct=-5.2, agg_ask_premium=12_010_000)
+    assert tier == "leaps"
+
+
+def test_alpha_leaps_ask_premium_ledger_sums_only_ask(monkeypatch):
+    # The ledger sums A/AA premium per (symbol, strike, expiry) across the
+    # session and maps every row_id to that contract total (bid rows included
+    # for lookup, but they add 0). Order-independent.
+    rows = [
+        {"id": 1, "Symbol": "CRWD", "CallPut": "CALL", "Strike": "235",
+         "ExpirationDate": "12/17/2027", "Side": "A",  "Premium": "1200000"},
+        {"id": 2, "Symbol": "CRWD", "CallPut": "CALL", "Strike": "235",
+         "ExpirationDate": "12/17/2027", "Side": "A",  "Premium": "4490000"},
+        {"id": 3, "Symbol": "CRWD", "CallPut": "CALL", "Strike": "235",
+         "ExpirationDate": "12/17/2027", "Side": "BB", "Premium": "9990000"},
+    ]
+    led = m._build_session_ask_premium_ledger(rows)
+    assert led[1] == 5_690_000  # 1.2M + 4.49M ask; the BB print adds 0
+    assert led[2] == 5_690_000
+    assert led[3] == 5_690_000  # bid row still maps to the contract's ask total
+
+
 # ── Clean-directional gate — drop contaminated bid-sells (2026-07-31) ────
 # Session long-build ledger = cumulative ASK-side volume per contract. A
 # bid-side SELL on a contract with meaningful prior ask-buying is a mix of
