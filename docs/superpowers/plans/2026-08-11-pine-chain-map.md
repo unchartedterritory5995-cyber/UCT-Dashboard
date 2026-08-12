@@ -27,7 +27,43 @@ the last row should never move, because refusing them is the correct answer.
 
 ## Rank order, by whole chain rather than by guard
 
-### 🥇 10-supertrend — ONE wall, nothing behind it
+### 🥇 10-supertrend — ONE wall, and I MIS-SIZED THE FIX (corrected same day)
+
+🔴 **This section first said "fold the conditional reassignment FIRST and offset
+the final binding". That is wrong, and it would not have worked.** The final
+binding is not a stale value to re-point at — it is CIRCULAR across bars:
+`shortStop`'s final value depends on `shortStopPrev`, which is `shortStop`'s own
+previous-bar final value. Offsetting the final binding recurses. `shortStop[1]`
+is not a stale read; it IS `self`.
+
+⭐ **THE DESTINATION IS PROVEN REACHABLE.** Hand-written as a `var`, the identical
+logic translates today:
+
+    var s = 0.0
+    s := high < nz(s[1], close + 1) ? math.min(close + 1, nz(s[1], close + 1)) : close + 1
+    →  accum(0, high < nz(self, close + 1) ? min(close + 1, nz(self, close + 1)) : close + 1, 250)
+
+And the two halves it needs already work independently: conditional reassignment
+folds (`s = close + 1; if s > 0; s := s * 2` → `close + 1 > 0 ? (close + 1) * 2 :
+close + 1`), and a `var` reading its own past folds to `self` (shipped today).
+
+**So the real change is:** a PLAIN name (no `var`) that is reassigned later AND
+whose reassignment chain reads its own `[1]` is a RECURRENCE, and must fold like
+one — `name[1]` becomes `selfref`, the first assignment becomes the accumulator's
+SEED, and the folded reassignments become its UPDATE.
+
+⚠️ **WHY I DID NOT JUST WRITE IT.** That changes how every mutated plain name
+folds, and the corpus has 4,284 tests over this translator. Gross breakage would
+show; a subtly wrong SEED or WARMUP would not — and a trailing stop translated
+one bar off is precisely the "looks fine, is wrong" class this whole document is
+organised against.
+
+⛔ **The safety property to build it behind:** engage the recurrence path ONLY
+where the offset would otherwise have REFUSED. That confines the change to
+scripts that fail today, so no currently-working translation can move — and it
+is the thing to verify first, before any of the folding is written.
+
+**Original chain evidence, still accurate:**
 `pine:state` ×5 on `shortStop[1]`. Every other note is `chart-only`
 (`plotshape`, `fill`) which no screener column needs. **This is the only script
 in the corpus whose entire chain is one guard.**
