@@ -1358,6 +1358,9 @@ export default function StockChart({
   periodSelect = false,       // Custom-Period Sort: plain left-drag highlights a time period (translucent band) instead of panning; fires onPeriodSelected(startYmd, endYmd) on release.
   onPeriodSelected = null,    // (startYmd:int, endYmd:int, pct:number) => void — the highlighted [start, end] as YYYYMMDD ints + the symbol's close-to-close % move.
   onPeriodCancel = null,      // () => void — the ✕ on the "Highlight time period" banner cancels the mode.
+  replayPick = false,         // Replay Mode: click/drag the chart to pick the cutoff bar (single gold vertical edge). SEPARATE from periodSelect (Custom-Period Sort) — own handler, own arming.
+  onReplayCutoffPicked = null,// (iso:'YYYY-MM-DD') => void — fired on release with the picked cutoff date.
+  onReplayPickCancel = null,  // () => void — the ✕ on the "Set replay cutoff" banner cancels the pick.
   replayCutoff = null,        // Replay mode: 'YYYY-MM-DD' — hide every bar after this calendar day + re-frame to default zoom + freeze live. null = normal chart.
   onExitReplay = null,        // () => void — when set + replayCutoff/startMarker/anchorDate active, shows an "Exit Replay Mode" pill (text overridable via exitReplayLabel) centered in the chart's clear top area.
   startMarker = null,         // 'YYYY-MM-DD' — Custom-Period Sort: draw a thin gold vertical line at this date on the chart. null = none.
@@ -3742,7 +3745,10 @@ export default function StockChart({
   // any one-tf threshold yet long enough that the in-flight request rate stays
   // bounded even with many charts open. D/W/M evolve slowly — 5min is enough.
   // refreshWhenHidden:false stops backgrounded tabs from burning ticks.
-  const refreshInterval = isIntraday ? 30_000 : 300_000
+  // Replay mode is FROZEN historical data — polling it re-fetches the (large) window
+  // every 30s and blanks/repaints the chart mid-load (the "5m replay flickers" bug), so
+  // don't poll while a cutoff is set. The static `?to=` window never changes.
+  const refreshInterval = replayCutoff ? 0 : (isIntraday ? 30_000 : 300_000)
   const { data, error, mutate } = useSWR(
     swrUrl,
     fetcher,
@@ -10759,6 +10765,72 @@ export default function StockChart({
     }
   }, [periodSelect, chartReady, frozen, onPeriodSelected, canvasTheme, themeColors.crosshairColor])
 
+  // ── Replay Mode: click/drag to pick the cutoff bar ────────────────────────
+  // Armed by `replayPick` (Tools → Replay → "Pick on chart"). Reuses the period-select
+  // canvas + pixel→date mapping but draws ONE dashed gold vertical edge (dimming what will
+  // be hidden to its right) and reports a single ISO 'YYYY-MM-DD' cutoff on release — a
+  // plain click works, no drag needed. Fully separate from the Custom-Period-Sort drag.
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || !chartReady || !replayPick) return undefined
+    const getPos = (e) => { const r = el.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, w: r.width, h: r.height } }
+    const isoAtX = (x) => {
+      const chart = chartRef.current; if (!chart) return null
+      let logical = null; try { logical = chart.timeScale().coordinateToLogical(x) } catch { return null }
+      if (logical == null) return null
+      const arr = drawBarsRef.current || []
+      if (!arr.length) return null
+      const bar = arr[Math.max(0, Math.min(arr.length - 1, Math.round(logical)))]
+      const t = bar?.t
+      if (t == null) return null
+      if (typeof t === 'number') return new Date(t * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(t))
+      return m ? `${m[1]}-${m[2]}-${m[3]}` : null
+    }
+    const clearC = () => { const c = periodSelectCanvasRef.current; if (c) { const ctx = c.getContext('2d'); if (ctx) ctx.clearRect(0, 0, c.width, c.height) } }
+    const drawEdge = (x, w, h) => {
+      const c = periodSelectCanvasRef.current; if (!c) return
+      const dpr = window.devicePixelRatio || 1
+      const W = Math.round(w * dpr), H = Math.round(h * dpr)
+      if (c.width !== W || c.height !== H) { c.width = W; c.height = H; c.style.width = w + 'px'; c.style.height = h + 'px' }
+      const ctx = c.getContext('2d'); if (!ctx) return
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      ctx.clearRect(0, 0, w, h)
+      ctx.fillStyle = 'rgba(201,168,76,0.08)'; ctx.fillRect(x, 0, Math.max(0, w - x), h)   // dim the hidden future
+      ctx.strokeStyle = 'rgba(201,168,76,0.95)'; ctx.lineWidth = 1; ctx.setLineDash([4, 3])
+      ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, h); ctx.stroke(); ctx.setLineDash([])
+    }
+    const onMove = (e) => { const { x, w, h } = getPos(e); drawEdge(Math.max(0, Math.min(w, x)), w, h); setPeriodDragging(true) }
+    const end = (e) => {
+      try { chartRef.current?.applyOptions({ handleScroll: frozen ? false : true, handleScale: !frozen }) } catch { /* noop */ }
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', end)
+      window.removeEventListener('pointercancel', end)
+      clearC(); setPeriodDragging(false)
+      const { x } = getPos(e)
+      const iso = isoAtX(Math.max(0, x))
+      if (iso) onReplayCutoffPicked?.(iso)
+    }
+    const onDown = (e) => {
+      if (e.button !== 0 || (e.pointerType && e.pointerType !== 'mouse')) return
+      const chart = chartRef.current; if (!chart) return
+      e.preventDefault()
+      try { chart.applyOptions({ handleScroll: false, handleScale: false }) } catch { /* noop */ }
+      const { x, w, h } = getPos(e); drawEdge(x, w, h)
+      window.addEventListener('pointermove', onMove)
+      window.addEventListener('pointerup', end)
+      window.addEventListener('pointercancel', end)
+    }
+    el.addEventListener('pointerdown', onDown)
+    return () => {
+      el.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', end)
+      window.removeEventListener('pointercancel', end)
+      clearC(); setPeriodDragging(false)
+    }
+  }, [replayPick, chartReady, frozen, onReplayCutoffPicked])
+
   // ── Ctrl+drag to draw a trendline ─────────────────────────────────────────
   // Mirrors the Shift+drag measure: listens on the chart container so it works
   // over empty chart space (the drawing overlay is pointer-events:none there),
@@ -12512,7 +12584,7 @@ export default function StockChart({
       )}
       {/* Custom-Period Sort: translucent highlight band while dragging + a hint banner
           (black canvas / white text to match the Chart Settings menu). */}
-      {periodSelect && (<>
+      {(periodSelect || replayPick) && (<>
         <canvas
           ref={periodSelectCanvasRef}
           style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 6 }}
@@ -12525,17 +12597,17 @@ export default function StockChart({
           /* Fade out the moment the drag starts so it never blocks the chart. */
           opacity: periodDragging ? 0 : 1, transition: 'opacity 140ms ease' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: '#ededed', letterSpacing: '0.01em' }}>Highlight time period</span>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: '#ededed', letterSpacing: '0.01em' }}>{replayPick ? 'Set replay cutoff' : 'Highlight time period'}</span>
             <button
               type="button"
-              onClick={() => onPeriodCancel?.()}
+              onClick={() => (replayPick ? onReplayPickCancel?.() : onPeriodCancel?.())}
               title="Cancel"
               aria-label="Cancel"
               style={{ pointerEvents: 'auto', border: 'none', background: 'transparent', color: '#c9c9c9',
                 fontSize: 13, lineHeight: 1, cursor: 'pointer', padding: 0 }}
             >✕</button>
           </div>
-          <span style={{ fontSize: 11, color: '#c2c2c2', letterSpacing: '0.01em' }}>Click, hold, and drag across the chart</span>
+          <span style={{ fontSize: 11, color: '#c2c2c2', letterSpacing: '0.01em' }}>{replayPick ? 'Click the chart where price should cut off' : 'Click, hold, and drag across the chart'}</span>
         </div>
       </>)}
       {/* Replay mode: an "Exit Replay Mode" pill centered in THIS chart's TOOLBAR row

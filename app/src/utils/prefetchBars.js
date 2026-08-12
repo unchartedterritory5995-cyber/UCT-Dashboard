@@ -105,6 +105,24 @@ export function prefetchAllTimeframes(sym) {
   for (const tf of ALL_TFS) _enqueue(_url(sym, tf))
 }
 
+// Replay Mode: warm every intraday timeframe for a chosen cutoff date so switching TF in
+// replay is INSTANT. Each request hits the backend's `?to=` replay path, which fetches the
+// (capped) pre-cutoff window ONCE and persists it to bars.db — so by the time the user clicks
+// 5m/1m the data is already stored server-side and serves from SQLite with no cold fetch.
+// Priority-queued (the user just entered replay and will click a TF within seconds) and
+// deduped server-side by (sym,tf,to). Fire this the moment a replay cutoff is set.
+// `warm=1` makes each request BEST-EFFORT server-side: if the pod is busy it skips the
+// provider fetch (the on-demand click will fetch it) so warming can never starve the chart
+// the user is waiting on. 1-min is left out (heaviest, rarely the first click) — it fetches
+// on demand if clicked.
+const REPLAY_WARM_TFS = ['5', '15', '30', '60']
+export function prefetchReplayTimeframes(sym, cutoffIso, { bars = 4000 } = {}) {
+  if (!sym || !cutoffIso) return
+  for (const tf of REPLAY_WARM_TFS) {
+    _enqueue(`/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bars}&to=${encodeURIComponent(cutoffIso)}&warm=1`, false)
+  }
+}
+
 // ── Durable (IndexedDB) prefetch ─────────────────────────────────────────────
 // prefetchBars (above) warms only SWR's IN-MEMORY cache, which is wiped on every
 // page reload — so after a HARD REFRESH every chart re-fetches and the user waits

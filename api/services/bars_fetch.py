@@ -131,6 +131,17 @@ _bg_delta_sem = _threading.Semaphore(_BG_DELTA_MAX)
 # request threadpool. Kill-switch: BARS_DEEPFILL_ENABLED=0.
 _DEEPFILL_ENABLED = _os.environ.get("BARS_DEEPFILL_ENABLED", "1") == "1"
 _DEEPFILL_TTL = int(_os.environ.get("BARS_DEEPFILL_TTL_SECONDS", str(6 * 3600)))
+# Replay Mode cold intraday: cap the pre-cutoff window fetched from the provider. A replay
+# chart requests fullBarsFor(tf) (5m=30000 → ~239 days of 5-min = minutes-slow + a huge
+# payload — the "5m replay takes minutes + flickers" bug). A replay VIEW needs only a few
+# weeks of context; the store keys by ts, so these capped rows still satisfy the full
+# bars=30000 request from SQLite on the real chart fetch.
+_REPLAY_INTRADAY_COLD_BARS = int(_os.environ.get("REPLAY_INTRADAY_COLD_BARS", "4000"))
+# Global cap on CONCURRENT replay cold fetches so warming (5 TFs at once) + other users'
+# replays can't saturate the single-process web pod's threadpool → the 524-outage class.
+# Warm requests are best-effort (skip when no slot); real chart requests wait for one.
+_REPLAY_COLD_CONCURRENCY = int(_os.environ.get("REPLAY_COLD_CONCURRENCY", "2"))
+_replay_cold_sem = _threading.Semaphore(_REPLAY_COLD_CONCURRENCY)
 _DEEPFILL_MAX = max(1, int(_os.environ.get("BARS_DEEPFILL_MAX", "2")))
 _deepfill_sem = _threading.Semaphore(_DEEPFILL_MAX)
 
@@ -729,6 +740,55 @@ def _fetch_intraday_massive(ticker: str, tf: str, max_bars: int) -> list[dict]:
         import logging as _log
         _log.getLogger(__name__).error(
             f"[bars] _fetch_intraday_massive {ticker} tf={tf} failed: {type(_e).__name__}: {_e}"
+        )
+        return []
+
+
+def _fetch_intraday_range(ticker: str, tf: str, from_ymd: str, to_ymd: str) -> list[dict]:
+    """Deep intraday OHLCV for an EXPLICIT date range [from_ymd, to_ymd] (YYYY-MM-DD),
+    split-ADJUSTED, next_url-paginated. Unlike `_fetch_intraday_massive` there is NO per-TF
+    lookback ceiling — the date range IS the bound — so Replay Mode can reach the provider's
+    intraday floor (~2003-09-10). `adjusted=true` means 2008 AAPL comes back at its ~$7
+    split-adjusted level (matching the daily charts). tf='60' is resampled from 15-min via the
+    canonical session-anchored bucketer (9:30-10:00 first candle), exactly like the live path —
+    a direct /range/60/minute call would clock-hour-align and mismatch the rest of the app.
+    Returns [] on error; the caller persists to SQLite + serves. Note: bars are adjusted AS OF
+    FETCH TIME — a future split on the ticker would make cached pre-split intraday stale until
+    re-fetched (same class the daily reconciliation worker handles for D/W/M)."""
+    if tf == "60":
+        src = _fetch_intraday_range(ticker, "15", from_ymd, to_ymd)   # 15m base, session-anchored
+        return _session_resample_hourly(src) if src else []
+    multiplier = int(tf)
+    try:
+        client = _get_client()
+        url = (
+            f"{_REST_BASE}/v2/aggs/ticker/{to_polygon_symbol(ticker)}/range/{multiplier}/minute"
+            f"/{from_ymd}/{to_ymd}"
+            f"?adjusted=true&sort=asc&limit=50000&apiKey={client._api_key}"
+        )
+        all_results: list[dict] = []
+        # 60 pages × 50000 = 3M bars — a decade of 1-min (~1M) fits with headroom; the
+        # caller's date range + `bars` bound keep real requests far below this.
+        for _page in range(60):
+            data = client._get(url)
+            all_results.extend(data.get("results") or [])
+            next_url = data.get("next_url")
+            if not next_url:
+                break
+            sep = "&" if "?" in next_url else "?"
+            url = f"{next_url}{sep}apiKey={client._api_key}"
+        if not all_results:
+            return []
+        return [
+            {"t": int(bar["t"] / 1000), "o": _px(bar["o"]), "h": _px(bar["h"]),
+             "l": _px(bar["l"]), "c": _px(bar["c"]), "v": int(bar.get("v", 0))}
+            for bar in all_results
+        ]
+    except Exception as _e:
+        import logging as _log
+        _log.getLogger(__name__).error(
+            f"[bars] _fetch_intraday_range {ticker} tf={tf} {from_ymd}..{to_ymd} "
+            f"failed: {type(_e).__name__}: {_e}"
         )
         return []
 
@@ -1709,7 +1769,25 @@ def _get_delisted_bars_response(record: dict, tf: str, bars: int, serve_as: str 
     return JSONResponse(content=payload, headers={"Cache-Control": "no-store"})
 
 
-def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str) -> JSONResponse:
+# Symbol continuity for replay: a few symbols were RENAMED and the provider stores each era's
+# history under the symbol of that era. Map (ticker, cutoff-date) → the symbol that actually
+# holds the requested era, so a replay to e.g. QQQ in 2010 serves the QQQQ-era history instead
+# of stopping dead at the 2004 symbol change. ISO 'YYYY-MM-DD' compares correctly as strings.
+# Scoped to the replay pre-cutoff path only (normal/live charts untouched) — the small, targeted
+# slice of the broader symbol-continuity work. Extend as more cases surface.
+_REPLAY_SYMBOL_ERAS = {
+    "QQQ": [("2004-12-01", "2011-03-22", "QQQQ")],   # QQQ → QQQQ (Nasdaq listing) → back to QQQ
+}
+
+
+def _replay_effective_symbol(ticker: str, to_str: str) -> str:
+    for lo, hi, alias in _REPLAY_SYMBOL_ERAS.get(ticker, ()):
+        if lo <= str(to_str) <= hi:
+            return alias
+    return ticker
+
+
+def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bool = False) -> JSONResponse:
     """Serve up to `bars` bars ENDING AT `to_str` (YYYY-MM-DD) from SQLite — the
     replay-mode PRE-CUTOFF window. This history is static, so there's NO freshness check
     and NO provider call: a fast index-seek read (the fix for replay charts on old tickers
@@ -1729,6 +1807,12 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str) -> JSONR
                                   tzinfo=_ZI("America/New_York")).timestamp())
     except Exception:
         return _get_bars_inner(ticker, tf, bars)
+    # Symbol continuity: a replay cutoff in an era when this ticker traded under a DIFFERENT
+    # symbol must read/fetch that era's data (QQQ was "QQQQ" 2004-12→2011, so a 2010 QQQ replay
+    # would otherwise stop at the Nov-2004 change). Data ops below use `ticker_up` (rebound to the
+    # era symbol); the response is still labeled with what the client requested (resp_ticker).
+    resp_ticker = ticker_up
+    ticker_up = _replay_effective_symbol(ticker_up, to_str)
     try:
         rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
     except Exception:
@@ -1752,38 +1836,70 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str) -> JSONR
                 rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
         except Exception:
             rows = rows or []
-    if not rows and not date_tf:
-        # Intraday cold miss at/before the cutoff (a months-old journal snapshot
-        # on a ticker whose intraday depth never reached this pod). Falling to
-        # _get_bars_inner would fetch a window ENDING TODAY, which the client's
-        # cutoff filter then EMPTIES → an archived chart that renders nothing,
-        # silently. Mirror the daily branch above: deep intraday fetch, persist
-        # into the forever-store, then serve ≤ cutoff from SQLite.
-        # BOUNDED like every deep rail (review finding): one attempt per
-        # (ticker, tf, cutoff) per TTL — a window the provider can't fill must
-        # not re-fetch on every note open — and never past the deep-fill
-        # concurrency budget on the request path (the 64-worker-threadpool
-        # class of the documented 524). Marker stamped BEFORE fetching so a
-        # burst of concurrent opens costs one attempt.
-        marker = f"to_coldmiss_{ticker_up}_{tf}_{to_str}"
-        if cache.get(marker) is None and _deepfill_sem.acquire(blocking=False):
-            cache.set(marker, 1, ttl=_DEEPFILL_TTL)
-            try:
-                deep = _fetch_intraday_massive(ticker_up, tf, max(bars, 5000))
-                if deep:
-                    try:
-                        _sqlite.put_bars(ticker_up, tf, deep, date_tf=False)
-                    except Exception:
-                        pass
-                    rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
-            except Exception:
-                rows = rows or []
-            finally:
-                _deepfill_sem.release()
+    # Cold/PARTIAL INTRADAY replay: fetch the requested window when the store doesn't COVER it —
+    # "covered" = the newest stored bar ≤ cutoff is within ~7 days of the cutoff. Otherwise only
+    # some OTHER (older) window is stored (e.g. replayed 2012 earlier, now asking for 2015: the
+    # 2012 rows are ≤ the 2015 key but are the WRONG window and would serve stale). Empty = fetch.
+    _intraday_window_missing = False
+    if not date_tf:
+        try:
+            _intraday_window_missing = (not rows) or (to_key - int(rows[-1][0]) > 7 * 86400)
+        except Exception:
+            _intraday_window_missing = not rows
+    if _intraday_window_missing:
+        # Cold INTRADAY replay (e.g. AAPL 5-min at a 2008 cutoff — deep intraday this pod has
+        # never fetched). The daily branch above is date_tf-only; without this an old intraday
+        # cutoff falls to _get_bars_inner (recent-window) → EMPTY after the client's cutoff
+        # filter → "Failed to load chart". Fetch the pre-cutoff window ONCE from Massive
+        # (split-adjusted, NO lookback ceiling), persist to SQLite, then serve ≤ cutoff. Slow
+        # the first time (~1-3s for a 2008 window), permanently cached + fast after. Bounded by
+        # `bars`: ~bars/bars_per_day*1.5 calendar days ENDING at the cutoff (not 2003→cutoff).
+        # WINDOW IS CAPPED (_REPLAY_INTRADAY_COLD_BARS) so the cold fetch is fast + small.
+        # DEDUPED via _inflight so the burst from warming all intraday TFs on replay-start
+        # (or a poll during the fetch) doesn't stampede the provider for the same window.
+        try:
+            mult = int(tf)
+            bars_per_day = (16 * 60) // max(mult, 1)
+            eff_bars = min(int(bars), _REPLAY_INTRADAY_COLD_BARS)
+            lookback_days = min(400, max(10, int(eff_bars / max(bars_per_day, 1) * 1.5) + 5))
+            _to_d = datetime.strptime(str(to_str), "%Y-%m-%d")
+            from_ymd = (_to_d - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+            cold_key = f"replayto::{ticker_up}::{tf}::{to_str}"
+            with _inflight_lock:
+                ev = _inflight.get(cold_key)
+                do_fetch = ev is None
+                if do_fetch:
+                    ev = _threading.Event()
+                    _inflight[cold_key] = ev
+            if do_fetch:
+                # Global concurrency cap (_replay_cold_sem): a WARM request skips the fetch when
+                # no slot is free (the on-demand chart request will fetch it later) so warming 5
+                # TFs can't saturate the pod; a real CHART request waits up to 20s for a slot.
+                got_slot = _replay_cold_sem.acquire(blocking=False) if warm else _replay_cold_sem.acquire(timeout=20)
+                try:
+                    if got_slot:
+                        deep = [b for b in _fetch_intraday_range(ticker_up, tf, from_ymd, str(to_str))
+                                if int(b.get("t", 0)) <= to_key]
+                        if deep:
+                            try:
+                                _sqlite.put_bars(ticker_up, tf, deep, date_tf=False)
+                            except Exception:
+                                pass
+                finally:
+                    if got_slot:
+                        _replay_cold_sem.release()
+                    with _inflight_lock:
+                        _inflight.pop(cold_key, None)
+                    ev.set()
+            else:
+                ev.wait(timeout=30)   # another request is fetching this exact window — wait, then read
+            rows = _sqlite.get_bars_before(ticker_up, tf, bars, to_key)
+        except Exception:
+            rows = rows or []
     if not rows:
         return _get_bars_inner(ticker, tf, bars)   # last resort — client filters
     _mark_serve("sqlite")
-    payload = {"ticker": ticker_up, "tf": tf, "bars": _fmt_sqlite_bars(rows, tf, ticker_up)}
+    payload = {"ticker": resp_ticker, "tf": tf, "bars": _fmt_sqlite_bars(rows, tf, ticker_up)}
     return JSONResponse(content=payload, headers={"Cache-Control": "public, max-age=3600"})
 
 

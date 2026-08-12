@@ -305,6 +305,7 @@ def get_bars(
     bars: int = Query(default=200, ge=1, le=60000, description="Max bars to return"),
     since: str = Query(default="", description="Return only bars with t > since (browser delta sync)"),
     to: str = Query(default="", description="Return bars ending at this date (YYYY-MM-DD) — replay pre-cutoff window"),
+    warm: int = Query(default=0, description="1 = best-effort background warm (skips the provider fetch when the pod is busy, so it can't starve a real chart request)"),
 ):
     """Return OHLCV bars for client-side charting (Lightweight Charts v5).
 
@@ -366,7 +367,7 @@ def get_bars(
                 response = JSONResponse(content=data)
             elif to:
                 # Replay pre-cutoff window: bars ENDING AT `to`, served fast from SQLite.
-                response = _get_bars_to_response(ticker, tf, bars, to)
+                response = _get_bars_to_response(ticker, tf, bars, to, warm=bool(warm))
             elif since:
                 response = _get_bars_since_response(ticker, tf, bars, since)
             else:

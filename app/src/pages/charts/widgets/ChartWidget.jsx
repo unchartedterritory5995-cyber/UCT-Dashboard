@@ -10,6 +10,7 @@ import LeverageInverseControl from './LeverageInverseControl'
 import ViewHoldingsControl from './ViewHoldingsControl'
 import styles from '../ChartsWorkspace.module.css'
 import ChartTabStrip from './ChartTabStrip'
+import { prefetchReplayTimeframes } from '../../../utils/prefetchBars'
 import {
   sanitizeChartTabs, chartTabList, addChartTab, closeChartTab,
   setActiveChartTab, renameChartTab, patchChartTab,
@@ -34,7 +35,7 @@ function lwcTimeToTs(t) {
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
-  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle } = useWorkspace()
+  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: wsOnReplayCutoffPicked, onReplayPickCancel: wsOnReplayPickCancel } = useWorkspace()
   const { createAlert } = useWatchlistAlerts()
   // Imperative handle on the pane: the right-click menu opens its settings
   // modal, and the leverage picker routes its symbol change through it so the
@@ -85,6 +86,13 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
   // pane owns): a synthetic index has no leveraged/inverse family, so that
   // control is hidden for one.
   const isThemeIndex = typeof sym === 'string' && sym.startsWith('$IDX:')
+
+  // Replay Mode: the moment a cutoff is set, warm every intraday timeframe for THIS chart's
+  // symbol at that date in the background, so switching to 5m/1m is instant (the backend
+  // fetches + persists the pre-cutoff window once). Bounded/priority-queued in prefetchBars.
+  useEffect(() => {
+    if (replayCutoff && sym) prefetchReplayTimeframes(sym, replayCutoff)
+  }, [sym, replayCutoff])
 
   // ── Crosshair sync across EVERY chart widget ──
   // Stable per-widget id so we ignore our own broadcasts. Deliberately NOT
@@ -424,9 +432,20 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
             ? (start, end, pct) => wsOnPeriodSelected?.(sym, start, end, pct)
             : undefined,
           onPeriodCancel: periodSortMode ? wsOnPeriodCancel : undefined,
+          // Replay Mode "Pick on chart": click/drag to choose the cutoff. Only the active
+          // chart is armed (replayArmPick is a single workspace flag; the active chart is
+          // the one the user is looking at when they hit "Pick on chart").
+          replayPick: !!replayArmPick,
+          onReplayCutoffPicked: replayArmPick ? wsOnReplayCutoffPicked : undefined,
+          onReplayPickCancel: replayArmPick ? wsOnReplayPickCancel : undefined,
           // Replay mode: hide every bar after this ISO date (null = normal chart) + show
           // the "Exit Replay Mode" pill centered in this chart's clear top area.
           replayCutoff: replayCutoff || null,
+          // FULLY freeze live in replay: replay is static historical data, so kill the SSE
+          // subscription + the per-tick live-price re-render (was left on, which churned the
+          // chart every ~100ms — candles flickering off/on + a laggy crosshair). Same as Model
+          // Book's static charts. null cutoff → undefined → StockChart's live default (true).
+          liveUpdates: replayCutoff ? false : undefined,
           onExitReplay: (replayCutoff || startMarker) ? exitReplay : undefined,
           // Custom-Period Sort "Mark start date": either a thin gold vertical LINE (overlay)
           // or paint the start-date CANDLE gold (highlightBarTime). Only one is active.
