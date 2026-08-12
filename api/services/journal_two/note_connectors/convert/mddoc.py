@@ -71,6 +71,45 @@ class _Ctx:
         self.data_uri_counter: int = 0  # for synthesizing bounded md-img-N refs
 
 
+# A data-URI image whose MIME isn't one mddoc supports (png/jpeg/gif/webp) never
+# tokenizes as an `image` at all: markdown-it-py's OWN destination validator
+# (`markdown_it.common.normalize_url`, `GOOD_DATA_RE = r"^data:image\/(gif|png|
+# jpeg|webp);"`) already restricts `data:` image sources to exactly those four
+# MIMEs — anything else falls back to literal, UNBOUNDED source text instead (a
+# real base64 payload can run tens of KB; probed: a 20KB SVG produced a single
+# 20,307-char text node, media []). That is worse than the ref-exploding bug
+# `_data_uri_image_node` guards against below — the giant string lands as
+# VISIBLE note content instead of a placeholder, and it never even reaches
+# `_image_node`'s "unsupported -> visible marker" fallback because it never
+# becomes an `image` token in the first place.
+#
+# Fix: a pre-tokenization pass over the RAW markdown string, before it ever
+# reaches `_get_md().parse(...)`. Non-greedy on the base64 payload (deliberately,
+# per review) and tolerant of an optional `"title"`/'title' suffix — CommonMark
+# image syntax allows `![alt](url "title")`. A payload with a SUPPORTED mime is
+# left byte-for-byte untouched (`re.Match.group(0)`); it still flows through the
+# normal tokenize -> `_image_node` -> `_data_uri_image_node` path, which assigns
+# it a bounded `md-img-N.<ext>` ref exactly as before.
+_UNSUPPORTED_DATA_IMAGE_MD_RE = re.compile(
+    r"!\[(?P<alt>[^\]]*)\]\("
+    r"\s*data:(?P<mime>[^;,\s]+);base64,(?P<payload>[A-Za-z0-9+/=]*?)"
+    r"\s*(?:\"[^\"]*\"|'[^']*')?\s*"
+    r"\)"
+)
+
+
+def _strip_unsupported_data_uri_images(md: str) -> str:
+    def _replace(match: "re.Match[str]") -> str:
+        mime = match.group("mime").strip()
+        if mime.lower() in _DATA_URI_MIME_EXT:
+            return match.group(0)  # supported — untouched, handled downstream
+        alt = match.group("alt").strip()
+        marker = f"[unsupported image: {alt}, {mime}]" if alt else f"[unsupported image: {mime}]"
+        return marker
+
+    return _UNSUPPORTED_DATA_IMAGE_MD_RE.sub(_replace, md)
+
+
 def md_to_tiptap(md: str | None) -> dict[str, Any]:
     """Convert a markdown string into `{doc, media, links}`.
 
@@ -83,7 +122,8 @@ def md_to_tiptap(md: str | None) -> dict[str, Any]:
     - `links` — the target key (prefix stripped) of every `import-link://`
       href encountered, in document order.
     """
-    tokens = _get_md().parse(md or "")
+    cleaned = _strip_unsupported_data_uri_images(md or "")
+    tokens = _get_md().parse(cleaned)
     ctx = _Ctx()
     content = _blocks(tokens, 0, len(tokens), ctx)
     return {"doc": {"type": "doc", "content": content}, "media": ctx.media, "links": ctx.links}

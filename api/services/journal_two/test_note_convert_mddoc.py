@@ -627,19 +627,88 @@ def test_multiple_data_uri_images_get_distinct_incrementing_refs():
     assert [m["ref"] for m in result["media"]] == ["md-img-1.png", "md-img-2.jpg"]
 
 
+# ---------------------------------------------------------------------------
+# Round-2 review finding: unsupported-MIME data-URI images (SVG is the
+# realistic case) previously never tokenized as images at all — markdown-it's
+# own GOOD_DATA_RE gate (below) rejects them before mddoc.py's code ever
+# runs, so the entire `![alt](data:image/svg+xml;base64,<huge payload>)`
+# fell back to ONE giant literal text node (probe: a 20KB SVG produced a
+# 20,307-char text node, media []). `_strip_unsupported_data_uri_images` is a
+# pre-tokenization regex pass over the RAW markdown that replaces exactly
+# that construct with a short `[unsupported image: ...]` marker BEFORE
+# `_get_md().parse(...)` ever sees it, so the giant string never reaches the
+# token stream (and, downstream, never risks the whole note tripping
+# `notes.py::MAX_BODY_JSON_BYTES` with no indication of why).
+# ---------------------------------------------------------------------------
+
+
+def test_svg_data_uri_pretokenization_pass_produces_a_short_marker_not_a_giant_node():
+    big_payload = "A" * 20000  # mirrors the reviewer's ~20KB probe
+    src = f"data:image/svg+xml;base64,{big_payload}"
+    result = md_to_tiptap(f"![diagram]({src})\n")
+
+    top = result["doc"]["content"]
+    assert len(top) == 1
+    para = top[0]
+    assert para["type"] == "paragraph"
+    assert len(para["content"]) == 1
+    text_node = para["content"][0]
+    assert text_node["type"] == "text"
+    assert text_node["text"] == "[unsupported image: diagram, image/svg+xml]"
+    assert len(text_node["text"]) < 100  # short marker, NOT the 20K payload
+    assert result["media"] == []
+
+
+def test_unsupported_data_uri_without_alt_omits_the_alt_segment_from_the_marker():
+    src = "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="
+    result = md_to_tiptap(f"![]({src})\n")
+    para = result["doc"]["content"][0]
+    assert para["content"][0]["text"] == "[unsupported image: image/svg+xml]"
+    assert result["media"] == []
+
+
+def test_unsupported_data_uri_with_a_title_suffix_is_still_caught():
+    # CommonMark image syntax allows `![alt](url "title")` — the pre-pass
+    # regex must tolerate it (non-greedy payload capture, optional quoted
+    # title before the closing paren) rather than leaving a dangling
+    # `"title")` fragment behind or failing to match at all.
+    src = "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4="
+    result = md_to_tiptap(f'![diagram]({src} "an svg diagram")\n')
+    para = result["doc"]["content"][0]
+    assert para["content"][0]["text"] == "[unsupported image: diagram, image/svg+xml]"
+    assert "title" not in para["content"][0]["text"]
+    assert result["media"] == []
+
+
+def test_supported_png_data_uri_is_untouched_by_the_pretokenization_pass_regression():
+    # Regression: the pre-pass must leave a SUPPORTED mime's data URI
+    # byte-for-byte untouched so it still flows through the normal
+    # tokenize -> _image_node -> _data_uri_image_node path and gets its
+    # bounded md-img-N ref exactly as before this round's fix.
+    tiny_png_b64 = (
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY"
+        "42YAAAAASUVORK5CYII="
+    )
+    src = f"data:image/png;base64,{tiny_png_b64}"
+    result = md_to_tiptap(f"![tiny]({src})\n")
+    image = result["doc"]["content"][0]
+    assert image == {"type": "image", "attrs": {"src": "import-ref://md-img-1.png"}}
+    assert result["media"] == [
+        {"ref": "md-img-1.png", "kind": "image", "name": "md-img-1.png", "data_uri": src},
+    ]
+
+
 def test_unsupported_data_uri_mime_degrades_image_to_visible_text():
-    # An SVG data URI (not in the png/jpeg/gif/webp allowlist) never even
-    # reaches _image_node through real markdown parsing: markdown-it-py's
-    # OWN image-destination validator (`markdown_it.common.normalize_url`,
-    # `GOOD_DATA_RE = r"^data:image\/(gif|png|jpeg|webp);"`) restricts data:
-    # image sources to the exact same four MIME types mddoc.py supports —
-    # anything else fails to tokenize as an image AT ALL and falls back to
-    # literal, unbounded markdown source text (a separate, pre-existing
-    # markdown-it-py behavior, out of scope for this fix). So the "unknown
-    # mime -> visible text" branch this test covers is exercised directly
-    # against the internal helper — defense-in-depth against a future
-    # markdown-it-py upgrade loosening that upstream gate, per the review
-    # finding's explicit "unknown -> skip image" requirement.
+    # Defense-in-depth at the internal-helper level: with the round-2 fix,
+    # `_strip_unsupported_data_uri_images` already catches every unsupported
+    # `;base64,` data-URI image BEFORE tokenization (see the tests above), so
+    # `_data_uri_image_node`'s own "unknown mime -> None" branch is no longer
+    # reachable through `md_to_tiptap` at all — it and markdown-it-py's own
+    # GOOD_DATA_RE gate (`markdown_it.common.normalize_url`,
+    # `r"^data:image\/(gif|png|jpeg|webp);"`) now form two independent layers
+    # in front of it. Kept as a direct unit test of the helper's own contract
+    # (still matches the review finding's literal "unknown -> skip image"
+    # requirement) — future-proofing if either upstream layer ever changes.
     from api.services.journal_two.note_connectors.convert import mddoc
 
     ctx = mddoc._Ctx()
@@ -649,9 +718,12 @@ def test_unsupported_data_uri_mime_degrades_image_to_visible_text():
 
 
 def test_non_base64_data_uri_also_degrades_image_to_visible_text():
-    # Same reasoning as above: a malformed (non-base64) data URI never
-    # reaches an "image" token through real parsing either — tested directly
-    # against the internal helper.
+    # A malformed (non-base64) data URI has no `;base64,` marker, so it's
+    # outside the pre-pass regex's scope (which mirrors the review finding's
+    # literal `data:<mime>;base64,<payload>` pattern) — it still falls
+    # through to raw literal source text via real parsing, same as before
+    # this round. Tested directly against the internal helper for its own
+    # contract.
     from api.services.journal_two.note_connectors.convert import mddoc
 
     ctx = mddoc._Ctx()
@@ -662,10 +734,9 @@ def test_non_base64_data_uri_also_degrades_image_to_visible_text():
 
 def test_data_uri_image_end_to_end_through_inline_nodes_when_unsupported():
     # The PUBLIC-entrypoint-reachable path for the "unknown -> visible text"
-    # branch: call `_inline_nodes` directly with a synthetic `image` token
-    # whose src is an unsupported data URI (bypassing markdown-it-py's own
-    # upstream gate, which a real `![x](data:image/svg+xml;...)` markdown
-    # string cannot get past — see the two tests above). This proves
+    # branch inside `_inline_nodes` itself: call it directly with a synthetic
+    # `image` token whose src is an unsupported data URI (bypassing both the
+    # new pre-pass AND markdown-it-py's own upstream gate). This proves
     # `_inline_nodes` degrades to "[unsupported image]" text if it is ever
     # handed such a token by any future caller/plugin change.
     from markdown_it.token import Token
