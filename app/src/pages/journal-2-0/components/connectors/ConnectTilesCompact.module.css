@@ -35,6 +35,15 @@
   border-color: rgba(54, 192, 138, 0.4);
   color: var(--color-success, #36c08a);
 }
+/* Task 12b: a connected-but-sourceless Dropbox tile must NOT read as healthy
+   — this comes after [data-connected="true"] in source order (same
+   specificity) so it wins the tie and overrides the green styling. */
+.tile[data-needs-folder="true"] {
+  border-color: rgba(224, 161, 26, 0.5);
+  background: rgba(224, 161, 26, 0.1);
+  color: #e0a11a;
+  font-weight: 700;
+}
 
 .error {
   font-size: 12px;

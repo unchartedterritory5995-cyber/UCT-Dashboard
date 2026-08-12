@@ -250,6 +250,13 @@ describe('ImportWizard — connect tiles (Task 12)', () => {
       if (String(url).includes('/api/j2/notes/connectors/status')) {
         return new Response(JSON.stringify({ providers }))
       }
+      // MUST come before the '/connect' check below — '/api/j2/notes/
+      // connectors/dropbox/folders' contains the substring '/connect' as a
+      // prefix of '/connectors', so a naive ordering would misroute the
+      // Dropbox folder-picker GET into the OAuth-connect branch.
+      if (String(url).includes('/dropbox/folders')) {
+        return new Response(JSON.stringify({ folders: [] }))
+      }
       if (String(url).includes('/connect')) {
         return new Response(JSON.stringify({ redirectUrl: 'https://api.notion.com/v1/oauth/authorize?x=1' }))
       }
@@ -289,7 +296,9 @@ describe('ImportWizard — connect tiles (Task 12)', () => {
 
   it('a connected provider reads "{Provider} connected" instead of "Connect {Provider}"', async () => {
     mockConnectorsFetch({
-      roam: { configured: true, sources: [{ id: 's1', provider: 'roam', displayName: 'My Graph', syncEnabled: true, counts: {} }] },
+      // `connected` is connector-level (read directly, per the shipped
+      // router) — not derived from sources.length (Task 12b correction).
+      roam: { configured: true, connected: true, sources: [{ id: 's1', provider: 'roam', displayName: 'My Graph', syncEnabled: true, counts: {} }] },
       craft: { configured: false, sources: [] },
       notion: { configured: false, sources: [] },
       dropbox: { configured: false, sources: [] },
@@ -323,5 +332,28 @@ describe('ImportWizard — connect tiles (Task 12)', () => {
       expect(call).toBeTruthy()
       expect(JSON.parse(call[1].body)).toEqual({ consent: true })
     })
+  })
+
+  // Task 12b: the OAuth return always redirects to /settings (the router
+  // hardcodes it), so this surface never auto-opens the picker — but a user
+  // can still arrive here later with Dropbox connected-but-sourceless
+  // (connected via Settings, closed the picker without picking, then opened
+  // the wizard). The tile must read that state honestly rather than showing
+  // a misleadingly-healthy "Dropbox connected" pill with a dead Sync.
+  it('a connected-but-sourceless Dropbox tile reads "Choose a folder", not "Dropbox connected" — and opens the same picker', async () => {
+    mockConnectorsFetch({
+      roam: { configured: false, sources: [] },
+      craft: { configured: false, sources: [] },
+      notion: { configured: false, sources: [] },
+      dropbox: { configured: true, connected: true, sources: [] },
+    })
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+
+    const tile = await screen.findByTestId('connect-tile-dropbox')
+    expect(tile).toHaveTextContent(/choose a folder/i)
+    expect(tile).not.toHaveTextContent('Dropbox connected')
+
+    fireEvent.click(tile)
+    expect(await screen.findByText('Choose a Dropbox folder')).toBeInTheDocument()
   })
 })

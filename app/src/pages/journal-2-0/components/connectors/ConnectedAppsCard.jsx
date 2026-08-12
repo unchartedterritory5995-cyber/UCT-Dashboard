@@ -1,19 +1,23 @@
 /**
- * ConnectedAppsCard — Settings panel for note connectors (spec §8, Task 12).
- * Mirrors BrokerConnectionsCard's shape: upsell when !isPaid, per-provider
- * tiles from GET /status, OAuth return-querystring self-heal.
+ * ConnectedAppsCard — Settings panel for note connectors (spec §8, Task 12
+ * + 12b). Mirrors BrokerConnectionsCard's shape: upsell when !isPaid,
+ * per-provider tiles from GET /status, OAuth return-querystring self-heal.
  *
- * Card states (spec §8 / task brief):
- *   - !isPaid                       -> upsell
- *   - provider.configured === false -> "Coming soon" tile (dark provider, no env creds yet)
- *   - configured, no sources        -> "Connect" (token modal for roam/craft, consent panel + OAuth redirect for notion/dropbox)
- *   - configured, sources.length>0  -> "Connected · N source(s)" + a SourceRow per source
+ * Card states (spec §8 / task brief, corrected by Task 12b):
+ *   - !isPaid                                -> upsell
+ *   - provider.configured === false          -> "Coming soon" tile (dark provider, no env creds yet)
+ *   - configured, !connected                 -> "Connect" (token modal for roam/craft, consent panel + OAuth redirect for notion/dropbox)
+ *   - dropbox, connected, sources.length===0 -> "Choose folder" CTA (amber, NOT the green Connected badge) -> DropboxFolderPicker
+ *   - connected, sources.length>0            -> "Connected · N source(s)" + a SourceRow per source
  *
  * OAuth return: the backend's own `/{provider}/callback` route does the code
- * exchange and redirects the browser back with `?connector=notion&connected=1`
- * (task brief) — this card detects that querystring the way
- * BrokerConnectionsCard detects `?broker=connected`: refresh status, then
- * strip the params so a refresh doesn't replay the self-heal.
+ * exchange and redirects the browser back with `?connector=<provider>&connected=1`
+ * (verified against the shipped router) — this card detects that querystring
+ * the way BrokerConnectionsCard detects `?broker=connected`: refresh status,
+ * strip the params, and — Task 12b — if the just-returned provider is
+ * Dropbox and lands connected-but-sourceless, auto-open the folder picker
+ * (the router's own comment: "Dropbox needs a FOLDER before a source can
+ * exist"; the callback deliberately does NOT create one).
  *
  * Consent (fix-round 1, finding #1): OAuth providers don't get an immediate
  * redirect on "Connect" — first click reveals a `ConnectConsentPanel`
@@ -26,6 +30,7 @@ import { useAuth } from '../../../../context/AuthContext'
 import useNoteConnectors, { NOTE_CONNECTOR_PROVIDERS } from '../../hooks/useNoteConnectors'
 import ConnectConsentPanel from './ConnectConsentPanel'
 import ConnectTokenModal from './ConnectTokenModal'
+import DropboxFolderPicker from './DropboxFolderPicker'
 import SourceRow from './SourceRow'
 import styles from './ConnectedAppsCard.module.css'
 
@@ -33,6 +38,7 @@ export default function ConnectedAppsCard() {
   const { isPaid, startCheckout } = useAuth()
   const {
     providers, isLoading, refresh, connectToken, startOAuth, syncSource, updateSource, disconnect,
+    listFolders, addSource,
   } = useNoteConnectors()
 
   const [tokenModalProvider, setTokenModalProvider] = useState(null)
@@ -40,22 +46,40 @@ export default function ConnectedAppsCard() {
   const [consentChecked, setConsentChecked] = useState(false)
   const [busyProvider, setBusyProvider] = useState(null)
   const [actionError, setActionError] = useState(null)
+  const [dropboxPickerOpen, setDropboxPickerOpen] = useState(false)
 
   // OAuth return self-heal: ?connector=<provider>&connected=1 — the backend
-  // callback already created the source row(s); this just needs to see them.
+  // callback already created the source row for roam/craft/notion. Dropbox
+  // is the one exception (connector only, no source yet) — remember it here
+  // so the follow-up effect (below, once fresh `providers` lands) can
+  // auto-open the folder picker instead of leaving a silently-incomplete tile.
   const healedRef = useRef(false)
+  const autoPickProviderRef = useRef(null)
   useEffect(() => {
     if (healedRef.current) return
     const params = new URLSearchParams(window.location.search)
     const connector = params.get('connector')
     if (!connector || params.get('connected') !== '1') return
     healedRef.current = true
+    autoPickProviderRef.current = connector
     params.delete('connector')
     params.delete('connected')
     const qs = params.toString()
     window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''))
     refresh()
   }, [refresh])
+
+  // Fires once fresh status has landed after the return above. Split from
+  // the effect that triggers `refresh()` because `mutate()` is async — this
+  // one reacts to the NEW `providers` value rather than racing it.
+  useEffect(() => {
+    if (autoPickProviderRef.current !== 'dropbox' || isLoading) return
+    autoPickProviderRef.current = null
+    if (providers.dropbox?.connected && providers.dropbox.sources.length === 0) {
+      setDropboxPickerOpen(true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [providers, isLoading])
 
   if (!isPaid) {
     return (
@@ -140,12 +164,25 @@ export default function ConnectedAppsCard() {
             const info = providers[p.key]
             const { configured, connected, sources } = info
             const showingConsent = p.tokenKind === 'oauth' && consentProvider === p.key
+            // Only Dropbox's connect flow can land connector-without-source
+            // today (Roam/Craft/Notion create both atomically — see the
+            // router) — scope the CTA to it rather than a state no other
+            // provider can currently reach.
+            const needsFolder = p.key === 'dropbox' && connected && sources.length === 0
             return (
               <div key={p.key} className={styles.tile} data-provider={p.key} data-testid={`connector-tile-${p.key}`}>
                 <div className={styles.tileHead}>
                   <span className={styles.tileName}>{p.label}</span>
                   {!configured ? (
                     <span className={styles.comingSoon}>Coming soon</span>
+                  ) : needsFolder ? (
+                    <button
+                      type="button"
+                      className={styles.chooseFolderBtn}
+                      onClick={() => setDropboxPickerOpen(true)}
+                    >
+                      Choose folder
+                    </button>
                   ) : connected ? (
                     <span className={styles.connectedBadge}>
                       Connected · {sources.length} source{sources.length === 1 ? '' : 's'}
@@ -162,6 +199,12 @@ export default function ConnectedAppsCard() {
                   )}
                 </div>
 
+                {needsFolder && (
+                  <p className={styles.needsFolderHint}>
+                    Connected — pick a folder to start syncing.
+                  </p>
+                )}
+
                 {!connected && showingConsent && (
                   <ConnectConsentPanel
                     providerLabel={p.label}
@@ -173,7 +216,7 @@ export default function ConnectedAppsCard() {
                   />
                 )}
 
-                {connected && (
+                {connected && sources.length > 0 && (
                   <div className={styles.sourcesWrap}>
                     {sources.map((s) => (
                       <SourceRow
@@ -200,6 +243,14 @@ export default function ConnectedAppsCard() {
         connectToken={connectToken}
         onClose={() => setTokenModalProvider(null)}
         onConnected={refresh}
+      />
+
+      <DropboxFolderPicker
+        open={dropboxPickerOpen}
+        listFolders={listFolders}
+        addSource={addSource}
+        onClose={() => setDropboxPickerOpen(false)}
+        onPicked={() => {}}
       />
     </TileCard>
   )

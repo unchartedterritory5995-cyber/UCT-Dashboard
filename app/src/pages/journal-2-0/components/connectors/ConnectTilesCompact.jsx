@@ -10,21 +10,36 @@
  * Settings card: token modal for roam/craft, or (fix-round 1, finding #1) a
  * `ConnectConsentPanel` for notion/dropbox — OAuth never fires straight off
  * the tile click, same consent gate as the Settings card.
+ *
+ * Dropbox sourceless-connected (Task 12b): the OAuth return always lands on
+ * `/settings` (the router hardcodes its redirect there), so THIS surface
+ * never auto-opens the folder picker on return — but a user can still land
+ * here later with Dropbox connected-but-no-folder (they connected via
+ * Settings, closed the picker without picking, then opened the wizard).
+ * Showing a healthy "Dropbox connected" tile in that state would be the
+ * exact "built, tested, green, connected to nothing" class of bug this
+ * codebase has hit before — so this tile reads the SAME `needsFolder`
+ * signal as the Settings card and opens the SAME `DropboxFolderPicker`
+ * rather than a misleading connected pill.
  */
 import { useState } from 'react'
 import UIcon from '../../../../components/ui/UIcon'
 import useNoteConnectors, { NOTE_CONNECTOR_PROVIDERS } from '../../hooks/useNoteConnectors'
 import ConnectConsentPanel from './ConnectConsentPanel'
 import ConnectTokenModal from './ConnectTokenModal'
+import DropboxFolderPicker from './DropboxFolderPicker'
 import styles from './ConnectTilesCompact.module.css'
 
 export default function ConnectTilesCompact() {
-  const { providers, isLoading, connectToken, startOAuth, refresh } = useNoteConnectors()
+  const {
+    providers, isLoading, connectToken, startOAuth, refresh, listFolders, addSource,
+  } = useNoteConnectors()
   const [tokenModalProvider, setTokenModalProvider] = useState(null)
   const [consentProvider, setConsentProvider] = useState(null)
   const [consentChecked, setConsentChecked] = useState(false)
   const [busyProvider, setBusyProvider] = useState(null)
   const [error, setError] = useState(null)
+  const [dropboxPickerOpen, setDropboxPickerOpen] = useState(false)
 
   if (isLoading) return null
 
@@ -68,19 +83,29 @@ export default function ConnectTilesCompact() {
       <p className={styles.label}>Or connect an app — your notes stay in sync automatically</p>
       <div className={styles.tiles}>
         {configured.map((p) => {
-          const connected = providers[p.key].connected
+          const info = providers[p.key]
+          // Only Dropbox can be connected-with-zero-sources today (see the
+          // hook's module docstring) — scoped the same way the Settings
+          // card scopes it.
+          const needsFolder = p.key === 'dropbox' && info.connected && info.sources.length === 0
+          const label = needsFolder
+            ? `Choose a folder for ${p.label}`
+            : info.connected
+              ? `${p.label} connected`
+              : `Connect ${p.label}`
           return (
             <button
               key={p.key}
               type="button"
               className={styles.tile}
-              data-connected={connected}
+              data-connected={info.connected}
+              data-needs-folder={needsFolder}
               data-testid={`connect-tile-${p.key}`}
               disabled={busyProvider === p.key || (p.tokenKind === 'oauth' && consentProvider === p.key)}
-              onClick={() => openConnect(p)}
+              onClick={() => (needsFolder ? setDropboxPickerOpen(true) : openConnect(p))}
             >
               <UIcon name="link" size={13} gold={false} />
-              {connected ? `${p.label} connected` : `Connect ${p.label}`}
+              {label}
             </button>
           )
         })}
@@ -105,6 +130,14 @@ export default function ConnectTilesCompact() {
         connectToken={connectToken}
         onClose={() => setTokenModalProvider(null)}
         onConnected={refresh}
+      />
+
+      <DropboxFolderPicker
+        open={dropboxPickerOpen}
+        listFolders={listFolders}
+        addSource={addSource}
+        onClose={() => setDropboxPickerOpen(false)}
+        onPicked={() => {}}
       />
     </div>
   )

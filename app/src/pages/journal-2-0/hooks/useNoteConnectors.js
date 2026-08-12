@@ -1,30 +1,39 @@
 /**
- * Journal 2.0 — Note Connectors (Task 12).
+ * Journal 2.0 — Note Connectors (Task 12 + 12b).
  *
- * SWR status fetch + action helpers over the note-connectors router
- * (spec docs/superpowers/specs/2026-08-11-note-connectors-design.md §8):
+ * SWR status fetch + action helpers over the note-connectors router. Task 12b
+ * (2026-08-12) read the SHIPPED router (`api/routers/note_sync.py`, commit
+ * `20f0e828c`) + its tests (`tests/test_note_sync_router.py`) instead of
+ * guessing further — the real endpoints/shapes:
  *
- *   GET    /api/j2/notes/connectors/status                — providers configured/connected + per-source freshness
+ *   GET    /api/j2/notes/connectors/status                — {enabled, providers: {name: {configured, connectKind, connected, status, accountLabel, sources[]}}}
  *   POST   /api/j2/notes/connectors/{provider}/connect     — token payload (roam/craft) OR {consent:true} to start OAuth (notion/dropbox) -> {redirectUrl}
  *   GET    /api/j2/notes/connectors/{provider}/callback    — OAuth return (backend-owned; the browser never calls this directly)
+ *   GET    /api/j2/notes/connectors/{provider}/folders?path= — Dropbox-only folder picker; {folders: [{path_lower, name}]}; 404 for any other provider
+ *   POST   /api/j2/notes/connectors/{provider}/sources     — {remoteId, displayName?, destFolderId?} -> {source}; 409 if not connected yet
  *   POST   /api/j2/notes/connectors/sources/{id}/sync      — manual sync, background=1 supported
  *   PUT    /api/j2/notes/connectors/sources/{id}           — sync_enabled / dest folder
  *   DELETE /api/j2/notes/connectors/{provider}             — disconnect (keeps notes, severs the source links)
  *
- * The backend router is being built in a parallel task — this hook binds to
- * the endpoint PATHS the spec commits to; the exact JSON field names below
- * are this task's own reasonable contract (documented in the task report)
- * since §8 only describes the shape in prose.
- *
  * **Field-name contract lives HERE, and only here** (fix-round 1, finding
  * #2). `normalizeStatus(raw)` is the single translation layer between
- * whatever `GET /status` actually returns (camelCase today; the spec itself
- * writes `redirect_url` snake_case for the connect response, so the real
- * router may not match) and the stable shape every consumer component reads:
- * `providers[key] = { configured, connected, sources: [...] }` — always
- * present for all four wave-1 providers, `connected` computed ONCE here
- * (never re-derived as `sources.length > 0` downstream). If the real router
- * lands with different keys, this is the ONLY file that needs to change.
+ * whatever `GET /status` returns and the stable shape every consumer
+ * component reads: `providers[key] = { configured, connected, connectKind,
+ * accountLabel, status, sources: [...] }` — always present for all four
+ * wave-1 providers.
+ *
+ * ⚠️ **`connected` is CONNECTOR-level, read directly off the router — it is
+ * NOT `sources.length > 0`** (Task 12b correction; the router literally
+ * computes `"connected": connector is not None`, independent of source
+ * count). This is load-bearing: Dropbox's OAuth callback deliberately creates
+ * the connector WITHOUT a source (`remote_id = None` — "Dropbox needs a
+ * FOLDER before a source can exist"), so `connected:true, sources:[]` is a
+ * real, intended state — the "choose a folder" state the UI must surface. A
+ * re-derivation from `sources.length` (Task 12's original guess, before the
+ * router existed to read) makes that state UNREACHABLE. Roam/Craft/Notion
+ * create connector+source atomically, so for them `connected` and
+ * `sources.length>0` happen to coincide — that coincidence is exactly what
+ * hid the bug until Dropbox's router landed.
  */
 import { useCallback } from 'react'
 import useSWR from 'swr'
@@ -95,9 +104,15 @@ function normalizeProvider(raw) {
   const sources = ((raw && raw.sources) || []).map(normalizeSource).filter(Boolean)
   return {
     configured: !!pick(raw, 'configured', 'is_configured', false),
+    // Read directly off the connector-existence flag the router computes —
+    // NEVER re-derived from sources.length (see the module docstring; this
+    // is the Task 12b correction that makes the Dropbox sourceless-connected
+    // state representable at all).
+    connected: !!pick(raw, 'connected', 'connected', false),
+    connectKind: pick(raw, 'connectKind', 'connect_kind', null),
+    accountLabel: pick(raw, 'accountLabel', 'account_label', null),
+    status: raw && raw.status !== undefined ? raw.status : null,
     sources,
-    // Computed ONCE, here — every consumer reads this, never `sources.length > 0` again.
-    connected: sources.length > 0,
   }
 }
 
@@ -114,6 +129,22 @@ export function normalizeStatus(raw) {
     providers[p.key] = normalizeProvider(rawProviders[p.key])
   }
   return { providers }
+}
+
+// ── Dropbox folder picker (Task 12b) ─────────────────────────────────────
+
+function normalizeFolder(raw) {
+  if (!raw) return null
+  return {
+    pathLower: pick(raw, 'pathLower', 'path_lower', ''),
+    name: raw.name || '',
+  }
+}
+
+/** Translate `GET /{provider}/folders` -> `{folders}` into a stable camelCase list. */
+export function normalizeFolders(raw) {
+  const list = (raw && raw.folders) || []
+  return list.map(normalizeFolder).filter(Boolean)
 }
 
 export default function useNoteConnectors() {
@@ -206,6 +237,38 @@ export default function useNoteConnectors() {
     [mutate]
   )
 
+  // GET /{provider}/folders?path= — Dropbox-only (the router 404s any other
+  // provider); `path` omitted/'' lists the account root. Returns the
+  // normalized `{pathLower, name}[]` list, never raw keys.
+  const listFolders = useCallback(async (provider, path = '') => {
+    const qs = path ? `?path=${encodeURIComponent(path)}` : ''
+    const r = await fetch(`/api/j2/notes/connectors/${provider}/folders${qs}`, {
+      credentials: 'include',
+    })
+    if (!r.ok) throw await readError(r, 'Could not load folders.')
+    const body = await r.json().catch(() => ({}))
+    return normalizeFolders(body)
+  }, [])
+
+  // POST /{provider}/sources — creates an additional/first source under an
+  // already-connected provider (409 if the connector doesn't exist yet).
+  // Used by DropboxFolderPicker to turn a picked folder into a real source.
+  const addSource = useCallback(
+    async (provider, payload) => {
+      const r = await fetch(`/api/j2/notes/connectors/${provider}/sources`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload || {}),
+      })
+      if (!r.ok) throw await readError(r, 'Could not connect that folder.')
+      const body = await r.json().catch(() => ({}))
+      await mutate()
+      return body
+    },
+    [mutate]
+  )
+
   // useCallback so identity is stable across renders — ConnectedAppsCard's
   // OAuth-return self-heal effect depends on [refresh]; without this it was
   // a fresh function every render, re-running the effect every render and
@@ -223,5 +286,7 @@ export default function useNoteConnectors() {
     syncSource,
     updateSource,
     disconnect,
+    listFolders,
+    addSource,
   }
 }
