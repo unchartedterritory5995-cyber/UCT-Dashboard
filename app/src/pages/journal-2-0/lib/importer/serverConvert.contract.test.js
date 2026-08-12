@@ -99,4 +99,20 @@ describe('semantic pins', () => {
     const matches = fixtures.filter(({ fixture }) => generateHTML(fixture.doc, extensions).includes('href="https://example.com/design"'))
     expect(matches.length).toBeGreaterThan(0)
   })
+
+  // Scoped to ONE fixture (07-onenote-task-list, produced by html_to_tiptap's
+  // additive `data-uct-task` branch, mddoc.py::_html_list_or_tasklist) rather
+  // than the generic "at least one fixture" pins above: 02-mixed-task-list
+  // (the markdown checkbox path) already satisfies those independently of
+  // whether the HTML branch's checked attr is right or wrong, so a mutation
+  // localized to the HTML branch would slip past them silently. This pin is
+  // the mutation-check target (task-5 brief): corrupt the taskItem `checked`
+  // attr in `_html_list_or_tasklist`, regenerate fixtures, and THIS goes red.
+  it('07-onenote-task-list fixture keeps both checked and unchecked task states', () => {
+    const entry = fixtures.find(({ file }) => file === '07-onenote-task-list.json')
+    expect(entry).toBeTruthy()
+    const html = generateHTML(entry.fixture.doc, extensions)
+    expect(html).toContain('data-checked="true"')
+    expect(html).toContain('data-checked="false"')
+  })
 })

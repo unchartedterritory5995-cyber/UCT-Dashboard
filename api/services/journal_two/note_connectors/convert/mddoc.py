@@ -662,11 +662,16 @@ def _inline_nodes(
 #     and the brief's vocabulary list implicitly assumes only BODY content
 #     reaches it. `<html>`/`<body>` themselves are ordinary "unknown, unwrap"
 #     (pure structural wrappers with no content of their own).
-#   - Task lists (`<input type="checkbox">` inside `<li>`) are NOT
-#     recognized — the brief's HTML vocabulary list has no `taskList`/
-#     `taskItem` entry (unlike markdown's checkbox syntax); a checkbox input
-#     is an unknown/void tag and simply vanishes, its sibling text becomes a
-#     plain `listItem`.
+#   - Task lists: a raw `<input type="checkbox">` inside `<li>` is still NOT
+#     recognized (an unknown/void tag that simply vanishes, sibling text
+#     becomes a plain `listItem`) — no connector emits that shape. The ONE
+#     additive exception (task-5 brief, note-connectors) is
+#     `<li data-uct-task="0"|"1">`: a connector-supplied marker (OneNote's
+#     to-do pre-pass, `convert/onenote_html.py`, is the first and so-far-only
+#     producer) meaning "this `<li>` is a checkbox item; `1` = checked". See
+#     `_html_list_or_tasklist` below — INERT for every other caller (Dropbox's
+#     `.html` path and any generic HTML never emit this attribute, so their
+#     `_html_convert_list` output is byte-for-byte unchanged).
 
 
 _HTML_KNOWN_TAGS = frozenset({
@@ -915,11 +920,14 @@ def _html_literal_text(nodes: list[Any]) -> str:
 def _html_convert_list(node: "_HtmlNode", ctx: _Ctx, *, ordered: bool) -> dict[str, Any]:
     """`<ul>`/`<ol>` -> `bulletList`/`orderedList`. Only direct `<li>`
     children become items (TipTap's content model is `listItem+`); any other
-    stray child is dropped. Unlike markdown lists, raw HTML `<ul>`/`<ol>`
-    markup can't mix task-list and plain items (no checkbox syntax in this
-    vocabulary — see the module note above), so — unlike `md_to_tiptap`'s
-    `_list_runs` — a single list node is always correct here, no run-
-    splitting needed."""
+    stray child is dropped. Raw HTML `<ul>`/`<ol>` markup can't normally mix
+    task-list and plain items (no checkbox syntax in this vocabulary — see
+    the module note above), so — unlike `md_to_tiptap`'s `_list_runs` — a
+    single list node is always correct here, no run-splitting needed. Called
+    ONLY when `_html_list_or_tasklist` (below) has already determined none of
+    this list's `<li>` children carry the `data-uct-task` marker; this
+    function itself has NO knowledge of that attribute, which is exactly
+    what keeps it byte-for-byte unchanged for every marker-free caller."""
     items: list[dict[str, Any]] = []
     for child in node.children:
         if isinstance(child, str) or child.tag != "li":
@@ -940,6 +948,86 @@ def _html_convert_list(node: "_HtmlNode", ctx: _Ctx, *, ordered: bool) -> dict[s
         except (TypeError, ValueError):
             result["attrs"] = {"start": 1}
     return result
+
+
+# `data-uct-task` values `_html_list_or_tasklist` treats as a checkbox marker
+# — anything else (missing attr, or some other value) is not a task item.
+_HTML_TASK_CHECKED_VALUES = {"0": False, "1": True}
+
+
+def _html_has_task_marker(node: "_HtmlNode") -> bool:
+    return any(
+        not isinstance(child, str)
+        and child.tag == "li"
+        and child.attrs.get("data-uct-task") in _HTML_TASK_CHECKED_VALUES
+        for child in node.children
+    )
+
+
+def _html_list_or_tasklist(
+    node: "_HtmlNode", ctx: _Ctx, *, ordered: bool,
+) -> list[dict[str, Any]]:
+    """`<ul>`/`<ol>` -> one or more sibling list nodes. THE ONE ADDITIVE
+    BRANCH (task-5 brief, note-connectors): inert for ordinary HTML — no
+    caller other than `convert/onenote_html.py`'s to-do pre-pass ever emits
+    `data-uct-task`, so `_html_has_task_marker` is false and this falls
+    straight through to `_html_convert_list`'s original, UNCHANGED single-
+    node behavior (byte-for-byte identical output for Dropbox's `.html` path
+    and any generic HTML import).
+
+    Only when at least one direct `<li>` child carries `data-uct-task="0"`/
+    `"1"` does this split the list into RUNS of consecutive task/non-task
+    items — mirroring `_list_runs`'s markdown-checkbox run-grouping above —
+    because TipTap's schema requires `taskList` to hold only `taskItem+` and
+    `bulletList`/`orderedList` to hold only `listItem+` (verified against the
+    installed `@tiptap/extension-list` source, same citation `_list_runs`
+    already carries): a `<ul>` mixing plain and to-do `<li>`s cannot become
+    one node."""
+    if not _html_has_task_marker(node):
+        return [_html_convert_list(node, ctx, ordered=ordered)]
+
+    parsed: list[dict[str, Any]] = []
+    for child in node.children:
+        if isinstance(child, str) or child.tag != "li":
+            continue
+        content = _html_blocks_walk(child.children, ctx)
+        if not content:
+            content = [{"type": "paragraph", "content": []}]
+        checked = _HTML_TASK_CHECKED_VALUES.get(child.attrs.get("data-uct-task"))
+        if checked is None:
+            parsed.append({"task": False, "content": content})
+        else:
+            parsed.append({"task": True, "checked": checked, "content": content})
+    if not parsed:
+        parsed = [{"task": False, "content": [{"type": "paragraph", "content": []}]}]
+
+    out: list[dict[str, Any]] = []
+    idx = 0
+    while idx < len(parsed):
+        is_task = parsed[idx]["task"]
+        run: list[dict[str, Any]] = []
+        while idx < len(parsed) and parsed[idx]["task"] == is_task:
+            run.append(parsed[idx])
+            idx += 1
+        if is_task:
+            items = [
+                {"type": "taskItem", "attrs": {"checked": p["checked"]}, "content": p["content"]}
+                for p in run
+            ]
+            out.append({"type": "taskList", "content": items})
+        else:
+            items = [{"type": "listItem", "content": p["content"]} for p in run]
+            result: dict[str, Any] = {
+                "type": "orderedList" if ordered else "bulletList", "content": items,
+            }
+            if ordered:
+                start_raw = node.attrs.get("start")
+                try:
+                    result["attrs"] = {"start": int(start_raw)} if start_raw else {"start": 1}
+                except (TypeError, ValueError):
+                    result["attrs"] = {"start": 1}
+            out.append(result)
+    return out
 
 
 def _html_convert_table(node: "_HtmlNode", ctx: _Ctx) -> dict[str, Any]:
@@ -1007,10 +1095,10 @@ def _html_blocks_walk(nodes: list[Any], ctx: _Ctx) -> list[dict[str, Any]]:
             out.extend(hoisted)
         elif tag == "ul":
             flush()
-            out.append(_html_convert_list(n, ctx, ordered=False))
+            out.extend(_html_list_or_tasklist(n, ctx, ordered=False))
         elif tag == "ol":
             flush()
-            out.append(_html_convert_list(n, ctx, ordered=True))
+            out.extend(_html_list_or_tasklist(n, ctx, ordered=True))
         elif tag == "table":
             flush()
             out.append(_html_convert_table(n, ctx))
