@@ -83,7 +83,8 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
     if (!s) return
     setSymbols(prev => {
       if (prev.some(x => x.sym === s)) return prev
-      const next = [...prev, { sym: s, enabled: true, color: pickComparisonColor(prev.length), scaleMode: 'new' }]
+      const used = prev.map(x => x.color)
+      const next = [...prev, { sym: s, enabled: true, color: pickComparisonColor(prev.length, used), scaleMode: 'new' }]
       apiRef.current?.setComparison(next)
       return next
     })
@@ -99,11 +100,14 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
       if (!members.length) return
       setSymbols(prev => {
         const have = new Set(prev.map(x => x.sym))
+        const used = new Set(prev.map(x => String(x.color).toLowerCase()))
         let idx = prev.length
         const additions = []
         for (const s of members) {
           if (have.has(s)) continue
-          additions.push({ sym: s, enabled: true, color: pickComparisonColor(idx++), scaleMode: 'new', group: name })
+          const color = pickComparisonColor(idx++, used)
+          used.add(color.toLowerCase())
+          additions.push({ sym: s, enabled: true, color, scaleMode: 'new', group: name })
         }
         if (!additions.length) return prev
         const next = [...prev, ...additions]
@@ -233,7 +237,7 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
                     </div>
                     <div className={c.scaleSeg}>
                       <button type="button" className={`${c.scaleBtn}${scaleMode === 'same' ? ' ' + c.scaleOn : ''}`} onClick={() => setGroupScale(g.name, 'same')} title="Share the main price scale">Same % scale</button>
-                      <button type="button" className={`${c.scaleBtn}${scaleMode !== 'same' ? ' ' + c.scaleOn : ''}`} onClick={() => setGroupScale(g.name, 'new')} title="Own left % scale">New price scale</button>
+                      <button type="button" className={`${c.scaleBtn}${scaleMode !== 'same' ? ' ' + c.scaleOn : ''}`} onClick={() => setGroupScale(g.name, 'new')} title="Right % scale — base + all comparisons shown in %">New price scale</button>
                     </div>
                     {open && (
                       <div className={c.groupMembers}>
@@ -259,7 +263,7 @@ export default function CompareSymbolsPanel({ chartApiById, activeChartRef, onCl
                   </div>
                   <div className={c.scaleSeg}>
                     <button type="button" className={`${c.scaleBtn}${s.scaleMode === 'same' ? ' ' + c.scaleOn : ''}`} onClick={() => setScaleMode(s.sym, 'same')} title="Share the main price scale">Same % scale</button>
-                    <button type="button" className={`${c.scaleBtn}${s.scaleMode !== 'same' ? ' ' + c.scaleOn : ''}`} onClick={() => setScaleMode(s.sym, 'new')} title="Own left % scale">New price scale</button>
+                    <button type="button" className={`${c.scaleBtn}${s.scaleMode !== 'same' ? ' ' + c.scaleOn : ''}`} onClick={() => setScaleMode(s.sym, 'new')} title="Right % scale — base + all comparisons shown in %">New price scale</button>
                   </div>
                 </div>
               ))}
