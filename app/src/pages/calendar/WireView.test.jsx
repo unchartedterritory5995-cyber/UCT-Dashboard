@@ -8,6 +8,9 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
 vi.mock('./useWire', () => ({ useWire: () => globalThis.__wire }))
+vi.mock('./useWireCoverage', () => ({
+  useWireCoverage: () => (globalThis.__wireCov ?? { data: null }),
+}))
 
 import WireView from './WireView'
 

@@ -10,6 +10,7 @@
 import { useMemo } from 'react'
 import styles from './WireView.module.css'
 import { useWire } from './useWire'
+import { useWireCoverage } from './useWireCoverage'
 
 /** Compact money: 51.2B / 9.4M / 1.24 */
 function fmtNum(v) {
@@ -35,8 +36,55 @@ function fmtTime(epochSeconds) {
   })
 }
 
+const COV_NAME_CAP = 8
+
+/**
+ * The trust line: is what you're reading COMPLETE? Rendered only for the
+ * current session (a date before the wire existed would scream "missing"
+ * about rows nobody ever recorded — the server decides via
+ * `is_current_session`, one authority). Three honest states: complete,
+ * incomplete WITH THE NAMES, and unmeasured — which renders as unknown,
+ * never as clean.
+ */
+function CoverageLine({ cov }) {
+  if (!cov || !cov.is_current_session) return null
+  if (cov.measured === false) {
+    return (
+      <div className={styles.covUnknown} data-testid="wire-coverage">
+        Completeness unverified — the provider check is unavailable right now
+      </div>
+    )
+  }
+  const missing = cov.missing_from_feed ?? []
+  const pending = cov.numbers_pending_on_feed ?? []
+  if (!missing.length && !pending.length) {
+    return (
+      <div className={styles.covOk} data-testid="wire-coverage">
+        ✓ Complete — all {cov.reported} reported names are on the feed
+      </div>
+    )
+  }
+  const names = (syms) => {
+    const shown = syms.slice(0, COV_NAME_CAP).join(', ')
+    const extra = syms.length - COV_NAME_CAP
+    return extra > 0 ? `${shown} +${extra} more` : shown
+  }
+  return (
+    <div className={styles.covWarn} data-testid="wire-coverage">
+      {missing.length > 0 && (
+        <span>{missing.length} reported {missing.length === 1 ? 'name' : 'names'} not
+          {' '}shown yet: {names(missing)}</span>
+      )}
+      {pending.length > 0 && (
+        <span>{missing.length > 0 ? ' · ' : ''}numbers pending for {names(pending)}</span>
+      )}
+    </div>
+  )
+}
+
 export default function WireView({ dateStr }) {
   const { data } = useWire(dateStr)
+  const { data: cov } = useWireCoverage(dateStr)
   const rows = data?.rows ?? []
   const expected = data?.expected ?? 0
 
@@ -49,16 +97,20 @@ export default function WireView({ dateStr }) {
 
   if (!ordered.length) {
     return (
-      <div className={styles.empty}>
-        {expected > 0
-          ? `${expected} reporters this session — waiting on the first print`
-          : 'No reporters scheduled'}
-      </div>
+      <>
+        <CoverageLine cov={cov} />
+        <div className={styles.empty}>
+          {expected > 0
+            ? `${expected} reporters this session — waiting on the first print`
+            : 'No reporters scheduled'}
+        </div>
+      </>
     )
   }
 
   return (
     <div className={styles.wire}>
+      <CoverageLine cov={cov} />
       {ordered.map(r => {
         const mv = r.move_pct
         return (
