@@ -76,7 +76,7 @@ from typing import Any
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import notes as notes_svc
-from api.services.journal_two.note_connectors import connections, errors
+from api.services.journal_two.note_connectors import connections, errors, oauth
 from api.services.journal_two.note_connectors.convert import rewrite_body
 from api.services.journal_two.note_connectors.providers.base import (
     NoteProvider, RemoteNote, RemoteRef,
@@ -322,6 +322,44 @@ async def sync_all_active_sources_full() -> None:
             log.exception("note-connector FULL sync failed for source %s", source["id"])
 
 
+# ── Credential resolution (Fix-round-1 Important #1) ────────────────────────
+
+async def _resolve_credentials(user_id: str, provider_name: str) -> dict[str, Any] | None:
+    """Returns the current, USABLE credentials dict for (user_id,
+    provider_name) — refreshing first when the provider is one `oauth.py`
+    knows how to refresh (`oauth.is_registered`) AND its stored token is
+    at/near expiry. `None` if there is no connected credential at all
+    (matches `connections.get_token`'s own contract).
+
+    `oauth.refresh_if_needed` (built in Task 1) already does the hard part —
+    lock-guarded, re-reads the stored credential after acquiring the lock,
+    and PERSISTS a refreshed (and, for Microsoft Graph, ROTATED)
+    refresh_token via `connections.upsert_connector` — but had ZERO call
+    sites before this. That gap is a correctness bug for Microsoft Graph
+    specifically, not just a missed optimization: Graph access tokens are
+    short-lived (~60-90min) AND redeeming the refresh token returns a NEW
+    refresh_token that immediately invalidates the old one. A provider that
+    refreshed reactively in its own `_send`/`send` on a bare 401 WITHOUT
+    persisting (Dropbox's `_try_refresh` shape — safe there only because
+    Dropbox refresh tokens do NOT rotate) would silently strand the OLD,
+    now-dead refresh_token in the DB the moment it refreshed once, breaking
+    the connector on the very next sync tick. Calling the already-built,
+    already-persisting `refresh_if_needed` HERE — before every sync tick,
+    for every provider `oauth.py` knows about — closes that gap for Notion,
+    OneNote, and OneDrive at once, with no per-provider code.
+
+    Providers `oauth.py` does NOT register (Dropbox — its own app key/secret
+    and refresh mechanics live entirely in `providers/dropbox.py` by
+    design) fall back to the plain `connections.get_token` read, BYTE-
+    IDENTICAL to this function's pre-fix-round-1 behavior. `refresh_if_needed`
+    is itself a safe no-op for a registered provider whose stored token
+    carries no `expiresAt` (Notion — tokens don't expire, so this makes
+    ZERO extra network calls for it, same as before) or no `refreshToken`."""
+    if oauth.is_registered(provider_name):
+        return await oauth.refresh_if_needed(user_id, provider_name)
+    return connections.get_token(user_id, provider_name)
+
+
 # ── Core per-source sync ─────────────────────────────────────────────────────
 
 async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any]:
@@ -338,7 +376,7 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
 
     try:
         provider = _provider_factory(source["provider"], source)
-        creds = connections.get_token(user_id, source["provider"])
+        creds = await _resolve_credentials(user_id, source["provider"])
         if creds is None:
             raise errors.NoteConnNotConfigured(
                 f"no connected credentials for provider {source['provider']!r}"

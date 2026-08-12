@@ -97,6 +97,33 @@ async def test_exchange_code_onedrive_also_form_encoded(monkeypatch):
     assert seen["body"]["client_secret"] == "csecret"
 
 
+async def test_exchange_code_onedrive_normalizes_expires_in_to_expiresAt(monkeypatch):
+    """Fix-round-1 review confirmation: a Microsoft Graph token response
+    carrying `expires_in` produces `expiresAt` in the stored credentials.
+    `_normalize_token_response` already does this GENERICALLY (unchanged by
+    the fix-round-1 engine wiring), but nothing previously asserted it for
+    the msgraph shape specifically -- and it is exactly what lets
+    `engine._resolve_credentials` -> `oauth.refresh_if_needed` know WHEN a
+    stored OneDrive/OneNote token needs a proactive refresh."""
+    monkeypatch.setenv("MSGRAPH_CLIENT_ID", "cid")
+    monkeypatch.setenv("MSGRAPH_CLIENT_SECRET", "csecret")
+    from api.services.journal_two.note_connectors import oauth as oauth_mod
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200, json={"access_token": "tok-1", "refresh_token": "ref-1", "expires_in": 3600},
+        )
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    creds = await oauth_mod.exchange_code("onedrive", "code-1", client=client)
+
+    assert "expiresAt" in creds
+    parsed = datetime.fromisoformat(creds["expiresAt"])
+    delta = parsed - datetime.now(timezone.utc)
+    # ~1h out; generous slack for wall-clock time spent running the test.
+    assert timedelta(minutes=55) < delta < timedelta(minutes=65)
+
+
 # ---------------------------------------------------------------------------
 # 2. configured() -- true iff BOTH MSGRAPH env vars are set.
 # ---------------------------------------------------------------------------

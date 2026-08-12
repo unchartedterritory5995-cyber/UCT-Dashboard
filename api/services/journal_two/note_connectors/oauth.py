@@ -183,6 +183,22 @@ def _parse_retry_after(value: str | None) -> float | None:
 
 # ── Provider config / configured() ──────────────────────────────────────────
 
+def is_registered(provider: str) -> bool:
+    """True iff `provider` has a `_PROVIDERS` entry — i.e. this module knows
+    how to `authorize_url`/`exchange_code`/`refresh_if_needed` it, REGARDLESS
+    of whether its app credentials are currently set (`configured()` answers
+    that separate question). Added for the msgraph fix-round-1 review
+    (Important #1): `engine.py::_resolve_credentials` uses this — not the
+    private `_PROVIDERS` dict directly — to decide whether a sync tick
+    should route a provider's stored credentials through the (persisting)
+    `refresh_if_needed` before use, or through the plain `connections.
+    get_token` read Dropbox/Roam/Craft always used. Dropbox is deliberately
+    NOT registered here (its own app key/secret and refresh mechanics live
+    entirely in `providers/dropbox.py` — see that module's docstring), so
+    this returns `False` for it, same as any other unregistered name."""
+    return provider in _PROVIDERS
+
+
 def configured(provider: str) -> bool:
     """True iff `provider` is a KNOWN OAuth provider AND both its client id
     and secret env vars are set. False (never raises) for an unknown
