@@ -1175,6 +1175,134 @@ def _backfill_past_days(days: dict, week_dates: list[date], today: date,
     return added
 
 
+# ── Today-roster supplement (current week only) ───────────────────────────────
+
+def _supplement_today_roster(days: dict, today_str: str, cap_uni: set | None) -> int:
+    """ADD every in-universe reporter the providers know for TODAY that the
+    live schedule missed. Returns the number of entries added. Never raises.
+
+    The live schedule (EW+Finviz) under-covers the live session — measured
+    2026-08-11: it knew 59 names for the day against FMP's 104 in-universe
+    reporters, 87 of which had already PUBLISHED actuals (SLAB: EPS 0.71 vs
+    0.69 est, invisible). Nothing else was allowed to add a reporter to today:
+    `_patch_today_actuals` only fills fields on entries that already exist, and
+    `_backfill_past_days` deliberately stops at `d < today`. The earnings wire
+    builds its watchlist from this same payload (`detector.todays_reporters`),
+    so a reporter the schedule missed could never reach the feed until the day
+    rolled past.
+
+    Same two legs, same precedence as `_build_range_week`: Finnhub adds into
+    its stated session bucket (bmo/amc; anything else lands honestly in `tbd`),
+    then the FMP one-day chunk adds whatever is still missing into `tbd` (FMP
+    carries no session field — an unknown session is never coerced). ADD-ONLY:
+    entries the live schedule already owns are untouched — EW resolves the
+    session and carries the anticipation rank, and blank actuals on existing
+    entries are `_patch_today_actuals`' job, which runs right after this.
+
+    Today then takes `_PAST_SESSION_CAP`, not the schedule's [:40]: once prints
+    land, the live session has no anticipation left to rank — cutting it just
+    hides reporters (the same argument `_backfill_past_days` records for
+    finished days). Existing EW-ranked entries sort ahead of the appended tail,
+    so the cap only ever cuts supplement adds.
+
+    Cost: one Finnhub call + one FMP day-chunk per `calendar_weekly` miss
+    (10-min TTL), matching the past-day backfill's budget.
+    """
+    day = days.get(today_str)
+    if not isinstance(day, dict):
+        return 0                     # weekend: the shown week has no 'today'
+
+    def _keep(sym: str) -> bool:
+        if cap_uni:
+            return sym in cap_uni
+        return _is_us_symbol(sym)
+
+    _EPS_SENTINELS = frozenset({999.0, -999.0, 9999.0, -9999.0, 999.99, -999.99})
+
+    def _clean_eps(v):
+        if v is None:
+            return None
+        try:
+            fv = float(v)
+        except (TypeError, ValueError):
+            return None
+        if fv in _EPS_SENTINELS or abs(fv) > 200:
+            return None
+        return round(fv, 2)
+
+    added = 0
+    try:
+        seen = {e.get("sym") for e in _day_entries(day)}
+
+        fh_rows: list = []
+        try:
+            fh_rows = (_fh_get_month(today_str, today_str) or {}).get("earningsCalendar") or []
+        except Exception as exc:
+            _logger.warning("Calendar: today-roster Finnhub leg failed: %s", exc)
+        for row in fh_rows:
+            sym = (row.get("symbol") or "").strip().upper()
+            if (not sym or sym in seen
+                    or str(row.get("date") or "")[:10] != today_str
+                    or not _keep(sym)):
+                continue
+            hour = (row.get("hour") or "").lower()
+            timing = hour if hour in ("bmo", "amc") else "tbd"
+            rev_est_raw = row.get("revenueEstimate")
+            rev_act_raw = row.get("revenueActual")
+            day[timing].append({
+                "sym":     sym,
+                "eps_est": _clean_eps(row.get("epsEstimate")),
+                "eps_act": _clean_eps(row.get("epsActual")),
+                "rev_est": round(rev_est_raw / 1_000_000, 1) if rev_est_raw else None,
+                "rev_act": round(rev_act_raw / 1_000_000, 1) if rev_act_raw else None,
+                "ew":      0,
+                "time_et": None,
+            })
+            seen.add(sym)
+            added += 1
+
+        fmp_rows = None
+        try:
+            fmp_rows = _fmp_range_week(today_str, today_str)
+        except Exception as exc:
+            _logger.warning("Calendar: today-roster FMP leg failed: %s", exc)
+        for row in fmp_rows or []:
+            sym = (row.get("symbol") or "").strip().upper()
+            if (not sym or sym in seen
+                    or str(row.get("date") or "")[:10] != today_str
+                    or not _keep(sym)):
+                continue
+            rev_est_raw = row.get("revenueEstimated")
+            rev_act_raw = row.get("revenueActual")
+            day["tbd"].append({
+                "sym":     sym,
+                "eps_est": _clean_eps(row.get("epsEstimated")),
+                "eps_act": _clean_eps(row.get("epsActual")),
+                "rev_est": round(rev_est_raw / 1_000_000, 1) if rev_est_raw else None,
+                "rev_act": round(rev_act_raw / 1_000_000, 1) if rev_act_raw else None,
+                "ew":      0,
+                "time_et": None,
+            })
+            seen.add(sym)
+            added += 1
+
+        if added:
+            for bucket in ("bmo", "amc", "tbd"):
+                bucket_rows = day.get(bucket) or []
+                bucket_rows.sort(key=lambda e: (
+                    -(e.get("ew") or 0),
+                    e.get("eps_est") is None and e.get("rev_est") is None,
+                    e.get("sym") or "",
+                ))
+                day[bucket] = bucket_rows[:_PAST_SESSION_CAP]
+            _logger.info("Calendar: today-roster supplement added %d reporters for %s",
+                         added, today_str)
+    except Exception as exc:
+        _logger.warning("Calendar: today-roster supplement failed: %s", exc)
+
+    return added
+
+
 # ── Company names (batched, non-blocking) ─────────────────────────────────────
 # EarningsCard renders entry.name — permanently blank until now. Names come
 # from the ticker_meta mem/disk cache ONLY (prewarmed for the cap universe);
@@ -1989,6 +2117,13 @@ def _build_current_week() -> dict:
     #    date once it reports, so Monday empties out mid-week. Runs AFTER the
     #    wire-fallback decision above so it can never mask an empty live build.
     _backfill_past_days(days, week_dates, today, cap_uni)
+
+    # ── 3c. TODAY's roster from the provider calendars (add-only) ────────────
+    #    EW+Finviz under-cover the live session (59 names vs FMP's 104
+    #    in-universe on 2026-08-11) and the actuals patch below can only fill
+    #    entries that already exist. The earnings wire watches this payload —
+    #    a reporter missing here is structurally invisible to the feed.
+    _supplement_today_roster(days, today.isoformat(), cap_uni)
 
     # ── 4. Finnhub actuals patch for today's pending reporters ───────────────
     #    Catches companies that report BMO after the 7:35 AM wire run.
