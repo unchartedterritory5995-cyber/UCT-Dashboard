@@ -527,7 +527,12 @@ export default function ImportWizard({ open, onClose, onImported }) {
                 data-testid="import-file-input"
                 className={styles.hiddenInput}
                 onChange={(e) => {
-                  const files = e.target.files
+                  // `e.target.files` is a LIVE FileList backed by the input's
+                  // current value — clearing `value` (so picking the same
+                  // file twice still fires onChange) empties it in place.
+                  // Snapshot to a plain array FIRST, or the clear races the
+                  // read and handleInputFiles sees zero files every time.
+                  const files = Array.from(e.target.files || [])
                   e.target.value = ''
                   handleInputFiles(files)
                 }}
@@ -540,7 +545,8 @@ export default function ImportWizard({ open, onClose, onImported }) {
                 data-testid="import-dir-input"
                 className={styles.hiddenInput}
                 onChange={(e) => {
-                  const files = e.target.files
+                  // Same live-FileList hazard as import-file-input above.
+                  const files = Array.from(e.target.files || [])
                   e.target.value = ''
                   handleInputFiles(files)
                 }}

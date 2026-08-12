@@ -11,6 +11,39 @@ function makeFile(name, relPath, content = '# x') {
   return f
 }
 
+// A real `<input type="file">`'s `.files` is a LIVE FileList backed by the
+// input's own state: reading it returns the SAME object every time, and
+// clearing `input.value` (done so re-picking the same file still fires
+// onChange) empties that object IN PLACE. jsdom's `fireEvent.change(input,
+// {target: {files: [...]}})` instead does `Object.defineProperty(node,
+// 'files', {value: [...]})` — a STATIC snapshot, never live-bound to
+// `value` — which is why that idiom cannot catch a handler that reads
+// `.files` after clearing `.value`. This class simulates the live coupling:
+// same object identity across every `.files` read, contents zeroed when
+// `.value` is set to `''`.
+class LiveFileList {
+  constructor(files) {
+    this._files = [...files]
+  }
+  get length() { return this._files.length }
+  item(i) { return this._files[i] ?? null }
+  [Symbol.iterator]() { return this._files[Symbol.iterator]() }
+}
+
+function installLiveFileInput(input, files) {
+  const liveList = new LiveFileList(files)
+  Object.defineProperty(input, 'files', {
+    configurable: true,
+    get() { return liveList },
+  })
+  Object.defineProperty(input, 'value', {
+    configurable: true,
+    set(v) {
+      if (v === '') liveList._files = [] // real browser: clearing value empties the live FileList in place
+    },
+  })
+}
+
 // Real `expandArchives` for every path except a sentinel `huge.zip` name,
 // which throws the same ImportLimitError the real implementation would raise
 // for an oversized archive (constructing an actual >2GB File in a unit test
@@ -73,6 +106,22 @@ describe('ImportWizard wire', () => {
       expect(urls).toContain('/api/j2/notes/import/confirm')
     })
     await waitFor(() => expect(screen.getByText(/imported/i)).toBeInTheDocument())
+  })
+
+  it('snapshots a LIVE FileList before clearing input.value (real-browser file-picker regression)', async () => {
+    // Real Chromium: choosing a file, then clearing input.value (done so
+    // re-picking the same file still fires onChange), truncates the live
+    // FileList in place. A handler that reads `.files` AFTER the clear sees
+    // zero files every time — the wizard silently never leaves the drop
+    // step. `LiveFileList`/`installLiveFileInput` (top of file) simulate
+    // that live coupling; jsdom's own `fireEvent.change(input, {target:
+    // {files:[...]}})` idiom is a static, non-live assignment and is
+    // structurally blind to this class of bug.
+    render(<ImportWizard open onClose={() => {}} onImported={() => {}} />)
+    const input = screen.getByTestId('import-file-input')
+    installLiveFileInput(input, [mdFile])
+    fireEvent.change(input, {})
+    await waitFor(() => expect(screen.getByText(/1 note/i)).toBeInTheDocument())
   })
 
   it('unchecking a top-level folder excludes its notes from the confirm payload', async () => {
