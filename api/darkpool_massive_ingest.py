@@ -73,6 +73,78 @@ UNIVERSE_LOOKBACK_DAYS = int(os.environ.get("DARKPOOL_UNIVERSE_DAYS", "10"))
 PAGE_CAP = int(os.environ.get("DARKPOOL_PAGE_CAP", "60"))
 TIME_BUDGET_SEC = float(os.environ.get("DARKPOOL_TIME_BUDGET_SEC", "3600"))
 
+# ── Base universe — ALWAYS pulled, regardless of recent darkpool.db activity ──
+# resolve_universe() ranks tickers by recent notional in our OWN db, a
+# self-referential trap: a liquid name that goes quiet for UNIVERSE_LOOKBACK_DAYS
+# drops out of the ranking and is then NEVER pulled again, so a later big block on
+# it is invisible. (Exactly how USO went dark: last data BBS-era 7/22 -> aged out
+# of the 10-day window -> the Massive ingest stopped asking Massive about it -> a
+# $446M 8/11 block never landed.) The base list breaks the loop: these names are
+# unioned in and placed FIRST, so the time budget can never truncate them — a
+# major ETF / megacap is always monitored even after a quiet stretch. Extend at
+# runtime via DARKPOOL_BASE_UNIVERSE_EXTRA (comma-separated).
+def _dedup_upper(seq) -> List[str]:
+    seen: set = set()
+    out: List[str] = []
+    for x in seq:
+        u = (x or "").strip().upper()
+        if u and u not in seen:
+            seen.add(u)
+            out.append(u)
+    return out
+
+_BASE_EXTRA = _dedup_upper(os.environ.get("DARKPOOL_BASE_UNIVERSE_EXTRA", "").split(","))
+# ── Data-driven base from the BBS dark-pool download (7/2–8/11/2026) ──────────
+# Every ticker with >= $1B total dark-pool notional over that ~6-week window; these
+# 271 names (91 ETF + 180 stock) capture ~79% of ALL dark-pool notional in the
+# sample. Ranked by notional. Refresh from a newer BBS/Massive export when it
+# drifts (full 3401-name ranking was saved to Downloads/darkpool_ticker_ranking.csv,
+# outside the repo).
+_BASE_ETFS = [
+    "SPY", "QQQ", "SMH", "IVV", "LQD", "HYG", "VOO", "IWM", "TLT", "SPYM", "EWY", "GLD",
+    "XLF", "IQMM", "IEF", "EEM", "EFV", "VUG", "IEFA", "SOXX", "IEMG", "AGG", "USHY", "VTV",
+    "EFA", "IWF", "BIL", "IGV", "DRAM", "RSP", "VEA", "VCIT", "GOOGN", "GDX", "IWR", "BND",
+    "EMB", "XLV", "EWZ", "XLE", "VTI", "ACWI", "DIA", "GOOGM", "VCSH", "IWD", "MUB", "SKHY",
+    "FXI", "XLK", "XLY", "EWT", "SCZ", "XLI", "SGOV", "VXUS", "XLC", "VO", "QQQM", "IAU",
+    "SPYG", "IBIT", "ITOT", "VGT", "IJR", "VWO", "KRE", "FINA", "XLP", "IXUS", "JPST", "PDBC",
+    "JAAA", "SPHY", "GLDM", "XBI", "IJH", "XLU", "KLMN", "KWEB", "EWJ", "BNDX", "MBB", "SHY",
+    "HGER", "SPSB", "SCHX", "SCHD", "PAAA", "SLV", "IEI",
+]
+_BASE_STOCKS = [
+    "AAPL", "NVDA", "MSFT", "MU", "AMZN", "META", "SPCX", "AVGO", "AMD", "SNDK", "GOOGL", "INTC",
+    "JPM", "TSLA", "GOOG", "TSM", "ORCL", "XOM", "CRM", "PLTR", "CSCO", "MRVL", "NFLX", "TXN",
+    "FERG", "AMAT", "NBIS", "UNH", "LRCX", "ABBV", "WFC", "C", "KLAC", "BE", "NEE", "IBM",
+    "LLY", "WMT", "CAT", "PG", "JNJ", "BAC", "CRNX", "COST", "ACN", "V", "QCOM", "KO",
+    "MRK", "MCD", "TD", "GEV", "NOW", "VZ", "PANW", "IREN", "BKNG", "AXP", "ABT", "NKE",
+    "FCX", "CRWD", "CVS", "PFE", "FIG", "BRK.B", "HD", "DDOG", "SHOP", "CVX", "CMCSA", "INTU",
+    "T", "CRWV", "LOW", "RTX", "SPGI", "DIS", "MDLZ", "PDD", "WDC", "BSX", "PEP", "BNS",
+    "MA", "SNOW", "MS", "COP", "DHR", "MCK", "COF", "HOOD", "SCHW", "RY", "ECHO", "TMUS",
+    "SBUX", "ARM", "WELL", "CTSH", "ADBE", "HON", "GS", "GLW", "AEP", "PM", "GILD", "CVNA",
+    "AON", "GE", "BNY", "BMY", "TJX", "UBER", "TRP", "MCHP", "AMGN", "PYPL", "VLO", "ICE",
+    "APP", "MNST", "MET", "PCAR", "ADI", "FISV", "PLD", "COHR", "NXPI", "WBD", "LITE", "GM",
+    "SMCI", "KVUE", "RVMD", "PNC", "BABA", "TER", "FTNT", "MO", "DELL", "ORLY", "BX", "EXC",
+    "APO", "WDAY", "TECH", "SO", "SHEL", "EA", "TRV", "BA", "EQIX", "HONA", "SLB", "IBN",
+    "BKR", "MDT", "ROKU", "BTSG", "DVN", "HPE", "APH", "ASML", "TPR", "KDP", "ASTS", "DE",
+    "CLS", "INFY", "RIVN", "WBS", "BLK", "BMO", "SNPS", "CMS", "QXO", "PATH", "SU", "EXPE",
+]
+# Must-cover supplement — liquid names that block dark in SIZE but SPORADICALLY, so
+# they fall UNDER the $1B window cut yet still print huge single blocks we must never
+# miss. USO is the canonical case: its 6-week total was < $1B, so a pure notional cut
+# would drop the very ticker that started this — even though it printed a $446M block
+# on 8/11. Commodity / rates / vol / crypto-proxy ETFs + remaining sector SPDRs.
+_BASE_SUPPLEMENT = [
+    "USO", "UNG", "OIH", "XOP", "GDXJ", "XLB", "XLRE", "SOXL", "TQQQ", "SQQQ",
+    "VXX", "UVXY", "ARKK", "GBTC", "MSTR", "COIN", "TIP",
+]
+BASE_UNIVERSE = _dedup_upper(_BASE_ETFS + _BASE_STOCKS + _BASE_SUPPLEMENT + _BASE_EXTRA)
+# Intraday core — kept SMALL (polled every few minutes): the top ETFs that block in
+# size (incl. commodity/rates like USO) + the megacaps. Extend via env.
+BASE_UNIVERSE_CORE = _dedup_upper([
+    "SPY", "QQQ", "IWM", "DIA", "SMH", "IVV", "VOO", "XLF", "XLE", "XLK", "GLD", "SLV",
+    "GDX", "USO", "UNG", "TLT", "HYG", "LQD", "EEM", "FXI", "KWEB", "SOXX", "IBIT",
+    "AAPL", "NVDA", "MSFT", "AMZN", "META", "GOOGL", "TSLA", "AVGO", "AMD", "MU", "PLTR", "INTC",
+] + _BASE_EXTRA)
+
 CSV_COLUMNS = [
     "Date", "Timestamp", "Ticker", "Volume", "Price", "Pct_of_Avg30Day",
     "Notional", "Message", "Type", "SecurityType", "Industry", "Sector",
@@ -108,13 +180,17 @@ def _get(url: str, timeout: int = 60) -> dict:
 
 
 def resolve_universe(top_n: int = TOP_N_TICKERS,
-                     lookback_days: int = UNIVERSE_LOOKBACK_DAYS) -> List[str]:
-    """Tickers to pull, ranked by recent dark-pool notional in our own DB.
+                     lookback_days: int = UNIVERSE_LOOKBACK_DAYS,
+                     base: Optional[List[str]] = None) -> List[str]:
+    """Tickers to pull: `base` (always-covered majors) FIRST, then the tickers
+    ranked by recent dark-pool notional in our own DB.
 
-    Deriving the universe from darkpool.db (rather than a static index list)
-    keeps continuity with what the page already shows and lets it drift with
-    the market — small caps BBS surfaced stay in, and newly-active names get
-    picked up as soon as they appear once.
+    The self-ranked list keeps continuity with what the page shows and drifts
+    with the market, but on its own it is a self-referential trap — a name that
+    goes quiet for `lookback_days` drops out and is never pulled again (see
+    BASE_UNIVERSE for the USO incident). `base` is unioned in FIRST (dedup,
+    order-preserving) so a major ETF/megacap is always monitored and can never be
+    starved by the time budget; pass None to recover the pure self-ranked list.
     """
     try:
         from api import darkpool_db
@@ -128,7 +204,7 @@ def resolve_universe(top_n: int = TOP_N_TICKERS,
         dates.sort(key=darkpool_db.parse_date_to_sortable, reverse=True)
         recent = dates[:lookback_days]
         if not recent:
-            return []
+            return _dedup_upper(list(base)) if base else []
         ph = ",".join("?" * len(recent))
         rows = conn.execute(
             f"""SELECT ticker, SUM(COALESCE(notional,0)) AS n
@@ -136,7 +212,10 @@ def resolve_universe(top_n: int = TOP_N_TICKERS,
                  WHERE date IN ({ph}) AND notional IS NOT NULL
                  GROUP BY ticker ORDER BY n DESC LIMIT ?""",
             (*recent, top_n)).fetchall()
-        return [r["ticker"] for r in rows]
+        ranked = [r["ticker"] for r in rows]
+        # base FIRST so the time budget can never truncate the must-cover names;
+        # the self-ranked recent-activity names fill the remainder.
+        return _dedup_upper(list(base) + ranked) if base else ranked
     finally:
         conn.close()
 
@@ -300,7 +379,7 @@ def run_ingest(date_mdyyyy: Optional[str] = None,
     if not API_KEY:
         return {"ok": False, "error": "MASSIVE_API_KEY not set"}
 
-    universe = tickers if tickers else resolve_universe(top_n)
+    universe = tickers if tickers else resolve_universe(top_n, base=BASE_UNIVERSE)
     if not universe:
         return {"ok": False, "error": "empty universe — darkpool.db has no rows to rank"}
 

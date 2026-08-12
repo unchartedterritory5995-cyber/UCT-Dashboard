@@ -27,6 +27,7 @@ import PoppedLayout from './popout/PoppedLayout'
 import PeriodSortPanel from './PeriodSortPanel'
 import CompareSymbolsPanel from './CompareSymbolsPanel'
 import PeriodSortConfig from './PeriodSortConfig'
+import ReplayPanel from './ReplayPanel'
 import { addWidgetTab } from './widgetTabs'
 import { computeRowHeight as rowHeightFor, FIXED_ROWS as _FIXED_ROWS, MARGIN_Y as _MARGIN_Y, BODY_PAD as _BODY_PAD } from './rowHeight'
 import styles from './ChartsWorkspace.module.css'
@@ -580,6 +581,11 @@ export default function ChartsWorkspace() {
   const [compareOpen, setCompareOpen] = useState(false)
   // Replay mode: an ISO 'YYYY-MM-DD' cutoff — linked charts hide every bar after it.
   const [replayCutoff, setReplayCutoff] = useState(null)
+  // Tools → Replay Mode: the dedicated replay dialog (separate from Custom-Period Sort;
+  // it writes the SAME shared `replayCutoff` chart prop but edits no CPS file).
+  const [replayOpen, setReplayOpen] = useState(false)
+  // "Pick on chart": arm click/drag on the active chart to choose the replay cutoff.
+  const [replayArmPick, setReplayArmPick] = useState(false)
   // "Mark start date": an ISO 'YYYY-MM-DD' + style ('line' gold vertical line | 'candle'
   // gold start-date candle) — linked charts mark the sort's start date.
   const [startMarker, setStartMarker] = useState(null)
@@ -590,10 +596,15 @@ export default function ChartsWorkspace() {
   }, [])
   const handlePeriodCancel = useCallback(() => setPeriodSortMode(false), [])
   const exitReplay = useCallback(() => { setReplayCutoff(null); setStartMarker(null) }, [])
+  // Replay Mode "Pick on chart" — defined here (before workspaceValue) since the memo
+  // exposes them to the charts. A picked cutoff sets the shared cutoff, disarms the pick,
+  // and reopens the dialog (now showing the picked date) so the timeframe can be adjusted.
+  const handleReplayCutoffPicked = useCallback((iso) => { setReplayCutoff(iso || null); setReplayArmPick(false); setReplayOpen(true) }, [])
+  const cancelReplayPick = useCallback(() => { setReplayArmPick(false); setReplayOpen(true) }, [])
 
   const workspaceValue = useMemo(
-    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle }),
-    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle],
+    () => ({ groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, crosshairBus: crosshairBusRef.current, aiSearchBus: aiSearchBusRef.current, activeChartRef, chartApiById: chartApiByIdRef, activeWatchlistRef, periodSortMode, onPeriodSelected: handlePeriodSelected, onPeriodCancel: handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, onReplayCutoffPicked: handleReplayCutoffPicked, onReplayPickCancel: cancelReplayPick }),
+    [groupSyms, setGroupSym, chartsTheme, widgetCanvasByType, widgetCanvasById, periodSortMode, handlePeriodSelected, handlePeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle, replayArmPick, handleReplayCutoffPicked, cancelReplayPick],
   )
 
   // Debounced layout persist (500ms).
@@ -747,6 +758,22 @@ export default function ChartsWorkspace() {
     if (!layout.widgets.some(w => w.type === 'chart')) handleAddWidget('chart')
     setCompareOpen(true)
   }, [layout, handleAddWidget])
+
+  // Tools → Replay Mode. Auto-adds a chart if none exists (like openCompare), then opens
+  // the dialog. `startReplay` sets the shared cutoff + switches every chart to the chosen
+  // timeframe (deep intraday is fetched date-anchored via the chart's ?to= path).
+  const openReplay = useCallback(() => {
+    if (!layout.widgets.some(w => w.type === 'chart')) handleAddWidget('chart')
+    setReplayOpen(true)
+  }, [layout, handleAddWidget])
+  const startReplay = useCallback((cutoffIso, tf) => {
+    setReplayCutoff(cutoffIso || null)
+    if (tf) applyTfToCharts(tf)
+    setReplayOpen(false)
+  }, [applyTfToCharts])
+  const exitReplayMode = useCallback(() => { setReplayCutoff(null); setStartMarker(null); setReplayOpen(false); setReplayArmPick(false) }, [])
+  // "Pick on chart": close the dialog + arm the drag so the chart is visible to click on.
+  const armReplayPick = useCallback(() => { setReplayOpen(false); setReplayArmPick(true) }, [])
 
   // Custom-Period Sort → dock the floating results as a real grid widget (carrying the
   // highlighted range), or fold it into an existing widget as a Period-Sort tab.
@@ -1396,6 +1423,12 @@ export default function ChartsWorkspace() {
                   style={compareOpen ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
                   onClick={() => { openCompare(); closeToolbarMenus() }}
                 >{compareOpen ? '✓ ' : ''}Compare Symbols</button>
+                <button
+                  type="button"
+                  className={styles.addMenuItem}
+                  style={replayCutoff ? { color: 'var(--ut-gold, #c9a84c)' } : undefined}
+                  onClick={() => { openReplay(); closeToolbarMenus() }}
+                >{replayCutoff ? '✓ ' : ''}Replay Mode</button>
               </div>
             )}
           </div>
@@ -1514,6 +1547,16 @@ export default function ChartsWorkspace() {
             chartApiById={chartApiByIdRef}
             activeChartRef={activeChartRef}
             onClose={() => setCompareOpen(false)}
+          />
+        )}
+        {replayOpen && (
+          <ReplayPanel
+            active={!!replayCutoff}
+            cutoff={replayCutoff}
+            onStart={startReplay}
+            onArmPick={armReplayPick}
+            onExit={exitReplayMode}
+            onClose={() => setReplayOpen(false)}
           />
         )}
       </div>

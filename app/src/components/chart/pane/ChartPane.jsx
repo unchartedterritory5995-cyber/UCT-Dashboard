@@ -284,7 +284,16 @@ function ChartPane({
   // Header customization (Chart Settings → Header). Title mode, visible timeframe
   // buttons, day-change, info stats, and the on-chart legend are all user-toggled.
   const hdr = chartCs.header
-  const headerLabel = isBreadth
+  // "Group only" theme view: the base ticker is hidden and the canvas shows a whole
+  // theme/sector/industry, so the header stops naming the (invisible) ticker and names
+  // the GROUP instead ("Memory & HBM"). One group → its name; several → a count.
+  const _cmpGroups = [...new Set((chartCs.comparisonSymbols || []).filter(x => x && x.enabled && x.group).map(x => x.group))]
+  const _themeViewLabel = (chartCs.compareHideBase && _cmpGroups.length)
+    ? (_cmpGroups.length === 1 ? _cmpGroups[0] : `${_cmpGroups.length} groups`)
+    : null
+  const headerLabel = _themeViewLabel
+    ? _themeViewLabel
+    : isBreadth
     ? `${sym} · ${breadthRec.name}`
     : themeIdx.isIndex
     ? indexLabel
@@ -489,12 +498,12 @@ function ChartPane({
           sym={sym}
           displayLabel={headerLabel}
           labelColor={hdrColors.title || null}
-          logoSym={synthDailyOnly ? null : sym}
+          logoSym={(_themeViewLabel || synthDailyOnly) ? null : sym}
           brandLogo={themeIdx.isIndex || isBreadth}
           boundsRef={focusableRef}
           themeVars={menuVars}
           onSymbolChange={onSymbolChange ? handleSymbolChange : null}
-          showChange={hdr.showChange && !isDelisted && !isBreadth && !(themeIdx.isIndex && !idxGain)}
+          showChange={!_themeViewLabel && hdr.showChange && !isDelisted && !isBreadth && !(themeIdx.isIndex && !idxGain)}
           dayGain={themeIdx.isIndex ? idxGain : null}
           delistedDate={isDelisted ? delistedInfo.delisted_date : null}
           dayGainColors={{

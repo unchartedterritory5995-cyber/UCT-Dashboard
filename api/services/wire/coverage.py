@@ -33,7 +33,13 @@ _logger = logging.getLogger(__name__)
 
 
 def _has_actuals(row: dict) -> bool:
-    return row.get("epsActual") is not None or row.get("revenueActual") is not None
+    # Revenue is TRUTHY, not is-not-None — the repo-wide convention (`if
+    # rev_a:` on every provider leg): Finnhub codes "no figure" as
+    # `revenueActual: 0` (TSHA 2026-08-11, a clinical-stage biotech, -0.13
+    # EPS published and revenue 0). Treating that placeholder as a published
+    # number made TSHA "pending" forever against a figure that doesn't exist.
+    # EPS stays is-not-None: an EPS of exactly 0.00 is a real print.
+    return row.get("epsActual") is not None or bool(row.get("revenueActual"))
 
 
 def assess(*, provider: dict[str, dict], wire_rows: list[dict],
@@ -50,12 +56,20 @@ def assess(*, provider: dict[str, dict], wire_rows: list[dict],
     missing_on_roster = [s for s in missing if s in roster_syms]
     missing_not_on_roster = [s for s in missing if s not in roster_syms]
 
-    # "Numbers visible" matches what the reader sees: WireView renders
-    # "numbers pending…" whenever eps_act is null, whatever rev_act says.
-    pending = sorted(s for s in reported
-                     if s in wire_by_sym and wire_by_sym[s].get("eps_act") is None)
+    # "Numbers pending" means the feed lacks a figure THE PROVIDER PUBLISHED —
+    # field by field, never "eps is null". KOPN (2026-08-11, +22.6% on a
+    # revenue beat) published revenue with NO EPS actual: the row carried the
+    # revenue, an eps-null check called it pending forever, and a monitor
+    # keyed on that would have alerted nightly about a name that was showing
+    # everything there was to show.
+    def _lags(sym: str) -> bool:
+        prov, row = reported[sym], wire_by_sym[sym]
+        return ((prov.get("epsActual") is not None and row.get("eps_act") is None)
+                or (bool(prov.get("revenueActual")) and row.get("rev_act") is None))
+
+    pending = sorted(s for s in reported if s in wire_by_sym and _lags(s))
     with_numbers = sum(1 for s in reported
-                       if s in wire_by_sym and wire_by_sym[s].get("eps_act") is not None)
+                       if s in wire_by_sym and not _lags(s))
 
     return {
         "reported":                 len(reported),

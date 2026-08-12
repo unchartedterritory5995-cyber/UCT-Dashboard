@@ -3579,6 +3579,26 @@ async def lifespan(app: FastAPI):
         except Exception as _e_dpi:
             print(f"[startup] darkpool Massive ingest job skip: {_e_dpi}")
 
+        # -- Dark pool: ALL-SYMBOLS flat-file ingest (2026-08-11) ---------------
+        # The per-ticker 19:20 ingest above only covers a ticker universe. This
+        # job scans the WHOLE prior-day US-stocks flat file (us_stocks_sip/
+        # trades_v1, T+1, ~3.5GB, streamed) and captures EVERY ticker's
+        # off-exchange >= $4M prints — dark pool matters most on off-radar names
+        # the universe can't see. Runs 11:45 ET (after the ~11:00 T+1 publish),
+        # WEB-side (owns darkpool.db). Self-gates on DARKPOOL_FLATFILE_ENABLED=1
+        # (ships DARK — a deploy alone does nothing). Dedup makes it safe beside
+        # the per-ticker pass.
+        try:
+            from api.darkpool_flatfile_ingest import scheduled_run as _dp_ff_run
+            _scheduler.add_job(
+                _dp_ff_run,
+                trigger=CronTrigger(day_of_week="mon-fri", hour=11, minute=45, timezone=_ET),
+                id="darkpool_flatfile_ingest", max_instances=1, replace_existing=True,
+                misfire_grace_time=7200)
+            print("[startup] darkpool ALL-SYMBOLS flat-file ingest scheduled (weekdays 11:45 ET, gated)")
+        except Exception as _e_dpff:
+            print(f"[startup] darkpool flat-file ingest job skip: {_e_dpff}")
+
         # -- Dark pool: intraday live-preview poller (2026-07-27) ---------------
         # Near-real-time (~3 min) companion to the nightly ingest above. Polls
         # off-exchange prints INCREMENTALLY during market hours into the
@@ -4336,7 +4356,29 @@ async def lifespan(app: FastAPI):
                 _wire_tick_job,
                 trigger=CronTrigger(day_of_week="mon-fri", minute=5, timezone=_ET),
                 id="wire_detector_slow", max_instances=1, replace_existing=True)
-            print("[scheduler] earnings wire detector registered (20s in print windows)")
+
+            # Self-ENFORCING completeness: measure → heal (fresh calendar
+            # build + one tick) → re-measure → alert only what survived.
+            # Double-gated: this block needs WIRE_ENABLED, the job checks its
+            # own flag, so rollback is an env var. Times chosen after the
+            # session's natural settle points (post-BMO, midday, post-AMC,
+            # late filers) — but alignment barely matters because the heal
+            # ITSELF runs the tick it would otherwise be waiting on.
+            def _wire_coverage_job():
+                try:
+                    from api.services.wire import coverage_monitor
+                    if coverage_monitor.enabled():
+                        coverage_monitor.run_check()
+                except Exception as _e:
+                    print(f"[scheduler] wire coverage monitor error: {_e}")
+
+            _scheduler.add_job(
+                _wire_coverage_job,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9,13,17,21",
+                                    minute=40, timezone=_ET),
+                id="wire_coverage_monitor", max_instances=1, replace_existing=True)
+            print("[scheduler] earnings wire detector registered (20s in print windows) "
+                  "+ coverage monitor (9:40/13:40/17:40/21:40 ET)")
 
         if os.environ.get("CATALYST_ENGINE_ENABLED", "").lower() in ("1", "true", "yes"):
             from api.services.catalyst.engine import run_refresh as _cat_refresh

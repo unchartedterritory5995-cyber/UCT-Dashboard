@@ -1358,6 +1358,9 @@ export default function StockChart({
   periodSelect = false,       // Custom-Period Sort: plain left-drag highlights a time period (translucent band) instead of panning; fires onPeriodSelected(startYmd, endYmd) on release.
   onPeriodSelected = null,    // (startYmd:int, endYmd:int, pct:number) => void — the highlighted [start, end] as YYYYMMDD ints + the symbol's close-to-close % move.
   onPeriodCancel = null,      // () => void — the ✕ on the "Highlight time period" banner cancels the mode.
+  replayPick = false,         // Replay Mode: click/drag the chart to pick the cutoff bar (single gold vertical edge). SEPARATE from periodSelect (Custom-Period Sort) — own handler, own arming.
+  onReplayCutoffPicked = null,// (iso:'YYYY-MM-DD') => void — fired on release with the picked cutoff date.
+  onReplayPickCancel = null,  // () => void — the ✕ on the "Set replay cutoff" banner cancels the pick.
   replayCutoff = null,        // Replay mode: 'YYYY-MM-DD' — hide every bar after this calendar day + re-frame to default zoom + freeze live. null = normal chart.
   onExitReplay = null,        // () => void — when set + replayCutoff/startMarker/anchorDate active, shows an "Exit Replay Mode" pill (text overridable via exitReplayLabel) centered in the chart's clear top area.
   startMarker = null,         // 'YYYY-MM-DD' — Custom-Period Sort: draw a thin gold vertical line at this date on the chart. null = none.
@@ -2032,9 +2035,16 @@ export default function StockChart({
   )
 
   // Prop overrides — memoized to prevent unstable references
+  // "Group only" theme view: the base ticker is hidden and the canvas shows only the
+  // comparison group, so the base's volume / moving averages / watermark are all
+  // suppressed at their source (gating here is robust — nothing re-asserts them).
+  // Gated on actually having comparisons so an orphan flag can't blank a normal chart.
+  const hideBase = !!cs.compareHideBase && (cs.comparisonSymbols || []).some(x => x && x.enabled && x.sym)
+  const hideBaseRef = useRef(hideBase)
+  hideBaseRef.current = hideBase
   // blankVolume reserves an empty, labeled volume pane (breadth symbols with no
   // volume) — so the pane must be ON and in its own pane regardless of prefs.
-  const showVolume = blankVolume ? true : (showVolumeProp !== undefined ? showVolumeProp : cs.volume.visible)
+  const showVolume = hideBase ? false : (blankVolume ? true : (showVolumeProp !== undefined ? showVolumeProp : cs.volume.visible))
   // Volume in its own pane (no bottom band reserved on the price scale).
   const volInSeparatePane = blankVolume || volumeSeparatePane || !!cs.volume?.separatePane
   // When the SURFACE passes these props they WIN over the saved prefs — the OR
@@ -3735,7 +3745,10 @@ export default function StockChart({
   // any one-tf threshold yet long enough that the in-flight request rate stays
   // bounded even with many charts open. D/W/M evolve slowly — 5min is enough.
   // refreshWhenHidden:false stops backgrounded tabs from burning ticks.
-  const refreshInterval = isIntraday ? 30_000 : 300_000
+  // Replay mode is FROZEN historical data — polling it re-fetches the (large) window
+  // every 30s and blanks/repaints the chart mid-load (the "5m replay flickers" bug), so
+  // don't poll while a cutoff is set. The static `?to=` window never changes.
+  const refreshInterval = replayCutoff ? 0 : (isIntraday ? 30_000 : 300_000)
   const { data, error, mutate } = useSWR(
     swrUrl,
     fetcher,
@@ -5392,30 +5405,49 @@ export default function StockChart({
     () => (cs.comparisonSymbols || []).filter(c => c && c.enabled && c.sym),
     [cs.comparisonSymbols]
   )
-  // "Group only" — hide the base candles/MAs/volume so ONLY the comparisons show
-  // (a pure relative-performance view). Gated on having comparisons so the flag can
-  // never blank a chart with nothing to fall back to; turning it off restores the base.
-  const hideBase = !!cs.compareHideBase && enabledComparisons.length > 0
+  // "New price scale" (any non-'same' comparison) → the whole RIGHT price scale goes
+  // Percentage (owner choice 2026-08-12): base + every comparison rebase to % from the
+  // visible-left edge with their colored labels on the RIGHT. A 'same'-only set keeps
+  // the base's dollar scale (those lines are $-anchored into it instead).
+  const compareForcesPct = useMemo(
+    () => enabledComparisons.some(c => (c.scaleMode || 'new') !== 'same'),
+    [enabledComparisons]
+  )
+  // hideBase ("Group only" theme view) is computed EARLY (near showVolume) so the
+  // volume/watermark/indicator sources can gate on it. Nothing to redeclare here.
   // Stable cache key: sorted sym list + tf + barCount. Sorted so reorder doesn't refetch.
   const comparisonsKey = useMemo(
     () => enabledComparisons.map(c => String(c.sym).toUpperCase()).sort().join(',') || null,
     [enabledComparisons]
   )
+  // Comparisons don't need deep inception history — a bounded window is plenty for a
+  // relative-performance overlay, and it stops a big GROUP (many members) from firing
+  // N huge concurrent fetches the backend drops, which showed up as "some theme
+  // tickers are missing." Capped depth + bounded concurrency + one retry.
+  const cmpBarCount = Math.min(barCount || 1500, 2000)
   const { data: comparisonsData } = useSWR(
-    comparisonsKey ? ['comparison-bars', comparisonsKey, resolvedTf, barCount] : null,
+    comparisonsKey ? ['comparison-bars', comparisonsKey, resolvedTf, cmpBarCount] : null,
     async () => {
       const syms = enabledComparisons.map(c => String(c.sym).toUpperCase())
-      const results = await Promise.allSettled(
-        syms.map(s =>
-          fetch(`/api/bars/${encodeURIComponent(s)}?tf=${resolvedTf}&bars=${barCount}`)
-            .then(r => (r.ok ? r.json() : { bars: [] }))
-            .catch(() => ({ bars: [] }))
-        )
-      )
+      const fetchOne = async (s) => {
+        for (let attempt = 0; attempt < 2; attempt++) {
+          try {
+            const r = await fetch(`/api/bars/${encodeURIComponent(s)}?tf=${resolvedTf}&bars=${cmpBarCount}`)
+            if (r.ok) {
+              const j = await r.json()
+              const bars = j?.bars || []
+              if (bars.length || attempt > 0) return bars   // accept empty only after a retry
+            }
+          } catch { /* fall through to retry */ }
+        }
+        return []
+      }
       const out = {}
-      results.forEach((r, i) => {
-        out[syms[i]] = r.status === 'fulfilled' ? (r.value?.bars || []) : []
+      const queue = [...syms]
+      const workers = Array.from({ length: Math.min(4, queue.length || 1) }, async () => {
+        while (queue.length) { const s = queue.shift(); out[s] = await fetchOne(s) }
       })
+      await Promise.all(workers)
       return out
     },
     { revalidateOnFocus: false, dedupingInterval: 15_000 }
@@ -5494,7 +5526,8 @@ export default function StockChart({
 
       // Re-anchor 'same'-scale lines to the new visible-left (dollar-space transform),
       // but only when the anchor bar actually moved — setData every pan frame is wasteful.
-      if (li !== sameAnchorLiRef.current) {
+      // Skipped in percent mode: there every line is raw closes on the % scale (no anchor).
+      if (li !== sameAnchorLiRef.current && !compareForcesPct) {
         sameAnchorLiRef.current = li
         for (const c of comps) {
           if (c.scaleMode !== 'same') continue
@@ -5510,7 +5543,7 @@ export default function StockChart({
     compute(null)
     return () => { cancelAnimationFrame(raf); try { ts.unsubscribeVisibleLogicalRangeChange(onRange) } catch { /* */ } }
     // Re-subscribe + recompute when the chart, the comparison set, or fetched bars change.
-  }, [chartReady, comparisonsKey, comparisonsData, filteredBars, adjustTime])
+  }, [chartReady, comparisonsKey, comparisonsData, filteredBars, adjustTime, compareForcesPct])
 
   // Docked-legend layout: split comparisons into individual tickers + named groups
   // (theme/sector/industry added as a unit). A group renders as ONE collapsible row
@@ -6643,7 +6676,7 @@ export default function StockChart({
       } catch { /* older pane API — primitive optional */ }
     }
     {
-      const wmLines = (cs.watermark.visible && !hideWatermark)
+      const wmLines = (cs.watermark.visible && !hideWatermark && !hideBaseRef.current)
         ? composeWatermarkLines(watermark ?? sym, watermarkMeta, cs.watermark.lines)
         : []
       // centerWatermarkOnPlot: pin the horizontal center to the middle of the
@@ -7987,7 +8020,8 @@ export default function StockChart({
         // re-asserts on every bind, so without this a hidden engine series would
         // reappear on the next paint. Read from a ref, not a dependency — see the
         // ref's declaration.
-        indicatorsHidden: indicatorsHiddenRef.current,
+        // …also hidden in "Group only" theme view (base MAs/indicators suppressed).
+        indicatorsHidden: indicatorsHiddenRef.current || hideBaseRef.current,
         // Placement inputs. `resolvePlacement` reads these and nothing else, so
         // the engine lands in the legacy bands by construction.
         paneMargins,
@@ -9391,22 +9425,24 @@ export default function StockChart({
   useEffect(() => {
     const chart = chartRef.current
     if (!chart) return
-    // The main scale mode follows ONLY the user's A/L/% toggle. A 'same'-scale
-    // comparison does NOT force Percentage here (that rebased the candles + MAs and
-    // drew LWC's 0% baseline); instead its line is transformed into the base's DOLLAR
-    // space, anchored at the visible-left edge (see the comparison render + framed
-    // effects), so an out-performer still rises above the base while the base scale
-    // stays in dollars and the MAs never move.
-    const mode = effectiveScale === 'pct' ? 2 : (effectiveScale === 'log' ? 1 : 0)
+    // The main scale mode follows the user's A/L/% toggle — EXCEPT a "New price scale"
+    // comparison forces Percentage (compareForcesPct): base + comparisons all rebase to
+    // % on the right, labels on the right. A 'same'-scale comparison still does NOT force
+    // it (its line is transformed into the base's DOLLAR space, anchored at the visible
+    // left — see the comparison render + framed effects — so the base scale stays $).
+    const mode = compareForcesPct ? 2 : (effectiveScale === 'pct' ? 2 : (effectiveScale === 'log' ? 1 : 0))
     // Apply to the PRICE scale (via the candle series, robust to the index pane
     // at pane 0) AND the index-comparison pane, so the A/L/% toggle switches
     // both panes together. The index line is raw price, so log/percent are valid.
     try { mainPriceScale()?.applyOptions({ mode }) } catch { /* pre-init */ }
     try { indexPaneSeriesRef.current?.priceScale().applyOptions({ mode }) } catch { /* no index pane */ }
-  }, [effectiveScale, chartReady, indexPaneSymbol, indexPaneSeries, mainPriceScale])
+  }, [effectiveScale, compareForcesPct, chartReady, indexPaneSymbol, indexPaneSeries, mainPriceScale])
 
   // ── Multi-symbol comparison overlays — add/remove series ──
-  // Uses left-side 'comparison' price scale (independent of right price + 'compare' scale).
+  // All comparisons ride the RIGHT price scale. When a "new price scale" comparison is
+  // present the right scale is in Percentage mode (see the scale-mode effect + compareForcesPct),
+  // so base + comparisons all rebase to % with labels on the right; a 'same'-only set keeps
+  // the right scale in dollars and the comparison lines are $-anchored into it.
   // Runs whenever `comparisonSeries` changes (sym list, fetched data, or colors).
   useEffect(() => {
     const chart = chartRef.current
@@ -9415,21 +9451,35 @@ export default function StockChart({
     const map = comparisonSeriesRefs.current
     const wanted = new Set(comparisonSeries.map(s => s.sym))
 
+    // Snapshot the visible range so a structural change (add/remove series) can't make
+    // LWC auto-fit the chart to the comparison's full history — the "chart snaps back
+    // to 2011-12 when I click a button" bug. Restored after, on the next frame.
+    let savedLogical = null
+    try { savedLogical = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
+
     // Remove series no longer wanted
+    let removedAny = false
     for (const [sym, series] of map.entries()) {
       if (!wanted.has(sym)) {
         try { chart.removeSeries(series) } catch {}
         map.delete(sym)
+        removedAny = true
       }
     }
 
-    // Add or update wanted series. Each comparison rides EITHER the base's main
-    // price scale ('right', scaleMode 'same' → out-performer sits above the base) OR
-    // its own auto-fitting left % scale ('new' → fills the pane independently).
-    // LWC can't move a series between scales, so a scaleMode flip = recreate.
+    // Add or update wanted series. Every comparison rides the base's RIGHT price scale.
+    // In percent mode (compareForcesPct) all lines rebase to % there; in $ mode a 'same'
+    // line is transformed into the base's dollar space. LWC can't move a series between
+    // scales, so an old left-scale series (pre-change) is recreated on the right here.
+    // Right-axis last-value chips (colored ticker + value). Always for INDIVIDUAL
+    // comparisons; for group (theme/sector) members too — UNLESS the set is large enough
+    // that the chips would stack and overlap (a big theme), where they're read from the
+    // docked legend instead. 24 covers a normal theme while sparing a 40-name pile-up.
+    const showMemberLabels = comparisonSeries.length <= 24
     let createdAny = false
     for (const cmp of comparisonSeries) {
-      const wantScale = cmp.scaleMode === 'same' ? 'right' : 'left'
+      const wantScale = 'right'
+      const wantLabel = !cmp.group || showMemberLabels
       let series = map.get(cmp.sym)
       if (series && series._uctScaleId !== wantScale) {
         try { chart.removeSeries(series) } catch {}
@@ -9442,9 +9492,10 @@ export default function StockChart({
             priceScaleId: wantScale,
             color: cmp.color,
             lineWidth: 2,
-            // No on-chart chip / axis label — the docked compare legend shows the
-            // symbol, name + framed % instead (owner: drop the blue "SPY" box).
-            lastValueVisible: false,
+            // Owner: show a little price-scale label in the LINE'S colour with the
+            // ticker on it (individual compares only — see wantLabel).
+            lastValueVisible: wantLabel,
+            title: wantLabel ? cmp.sym : '',
             priceLineVisible: false,
             crosshairMarkerVisible: true,
             crosshairMarkerRadius: 3,
@@ -9456,48 +9507,38 @@ export default function StockChart({
           continue
         }
       } else {
-        try { series.applyOptions({ color: cmp.color, lastValueVisible: false }) } catch {}
+        try { series.applyOptions({ color: cmp.color, lastValueVisible: wantLabel, title: wantLabel ? cmp.sym : '' }) } catch {}
       }
-      // 'same' → transform into the base's dollar space anchored at the visible-left
-      // (rises above the base without % mode); 'new' → raw closes on the left % scale.
-      if (cmp.scaleMode === 'same') {
+      // Percent mode (any "new price scale" present) → feed RAW closes so the right %
+      // scale rebases each line to its first visible value (base + all comparisons in %).
+      // Otherwise (all 'same') → transform into the base's dollar space, anchored at the
+      // visible-left so an out-performer rises above the base while the scale stays $.
+      if (compareForcesPct) {
+        try { series.setData(cmp.points) } catch {}
+      } else {
         let lr = null
         try { lr = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
         const rawBars = (comparisonsData && comparisonsData[cmp.sym]) || []
         try { series.setData(anchoredSameScalePoints(rawBars, filteredBars, lr, adjustTime)) } catch {}
-      } else {
-        try { series.setData(cmp.points) } catch {}
       }
     }
 
-    // The dedicated LEFT scale (for 'new'-mode comparisons) runs in PERCENTAGE mode
-    // so LWC rebases each of those lines to its first VISIBLE value. ⚠️ Its axis is
-    // normally HIDDEN: a visible left axis pushes the whole plot to the RIGHT the
-    // moment a compare is added, which clipped the right-side "Post" tag. The line
-    // still renders + auto-scales on the hidden scale; the docked legend shows its %.
-    // In "Group only" mode the base is hidden, so we SHOW the % axis as the reference.
-    try {
-      chart.priceScale('left').applyOptions({
-        visible: hideBase,
-        mode: 2,
-        scaleMargins: { top: 0.1, bottom: 0.1 },
-        borderVisible: false,
-      })
-    } catch {}
+    // Comparisons now ride the RIGHT scale (percentage is forced there whenever a "new
+    // price scale" comparison exists — see the scale-mode effect), so the old dedicated
+    // LEFT % scale is unused. Keep its axis hidden so no empty left axis shows.
+    try { chart.priceScale('left').applyOptions({ visible: false }) } catch {}
 
-    // A freshly-added series sometimes doesn't paint until the next user interaction
-    // (the "line only shows after I move the chart" bug). Nudge a repaint on the next
-    // frame by re-asserting the current visible range — no view change, just a redraw.
-    if (createdAny) {
+    // On a STRUCTURAL change (series added/removed) restore the pre-change visible
+    // range on the next frame. This does double duty: (a) prevents LWC's auto-fit to
+    // the comparison's full history (the 2011-12 snap-back), and (b) nudges a repaint
+    // so a freshly-added line paints immediately instead of only after the user moves
+    // the chart. NOT done on data-only updates (would fight the user's panning).
+    if ((createdAny || removedAny) && savedLogical) {
       requestAnimationFrame(() => {
-        try {
-          const ts = chart.timeScale()
-          const r = ts.getVisibleLogicalRange()
-          if (r) ts.setVisibleLogicalRange(r)
-        } catch { /* disposed */ }
+        try { chart.timeScale().setVisibleLogicalRange(savedLogical) } catch { /* disposed */ }
       })
     }
-  }, [comparisonSeries, comparisonsData, filteredBars, adjustTime, hideBase])
+  }, [comparisonSeries, comparisonsData, filteredBars, adjustTime, hideBase, compareForcesPct])
 
   // "Group only" — toggle the BASE chart's visibility (candles + volume + MA overlays)
   // so only the comparison lines show. Re-applied whenever the candle/overlay series
@@ -9506,9 +9547,17 @@ export default function StockChart({
   useEffect(() => {
     if (!chartReady) return
     const vis = !hideBase
-    try { candleSeriesRef.current?.applyOptions?.({ visible: vis }) } catch { /* disposed */ }
-    try { volumeSeriesRef.current?.applyOptions?.({ visible: vis }) } catch { /* no volume */ }
-    try { for (const s of (overlaySeriesRefs.current || [])) { s?.applyOptions?.({ visible: vis }) } } catch { /* */ }
+    const setVis = (s) => { try { s?.applyOptions?.({ visible: vis }) } catch { /* disposed */ } }
+    setVis(candleSeriesRef.current)                                   // base candles
+    setVis(volumeSeriesRef.current)                                   // volume (also source-gated via showVolume)
+    for (const s of (overlaySeriesRefs.current || [])) setVis(s)      // legacy MA overlays
+    // Engine-drawn indicators (MAs/VWAP/etc.) are primarily suppressed via the binder's
+    // `indicatorsHidden` input, but hide any live bindings here too so the change lands
+    // on the current frame instead of only the next engine sync.
+    try {
+      const eng = engineRef.current
+      if (eng?.binder?.bindings) { for (const b of eng.binder.bindings()) setVis(b.series) }
+    } catch { /* binder disposed */ }
   }, [hideBase, chartReady, ohlcData, overlayData, resolvedOverlays])
 
   // ── Index comparison pane (Model Book) — white line in a pane ON TOP ──
@@ -10716,6 +10765,72 @@ export default function StockChart({
     }
   }, [periodSelect, chartReady, frozen, onPeriodSelected, canvasTheme, themeColors.crosshairColor])
 
+  // ── Replay Mode: click/drag to pick the cutoff bar ────────────────────────
+  // Armed by `replayPick` (Tools → Replay → "Pick on chart"). Reuses the period-select
+  // canvas + pixel→date mapping but draws ONE dashed gold vertical edge (dimming what will
+  // be hidden to its right) and reports a single ISO 'YYYY-MM-DD' cutoff on release — a
+  // plain click works, no drag needed. Fully separate from the Custom-Period-Sort drag.
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || !chartReady || !replayPick) return undefined
+    const getPos = (e) => { const r = el.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top, w: r.width, h: r.height } }
+    const isoAtX = (x) => {
+      const chart = chartRef.current; if (!chart) return null
+      let logical = null; try { logical = chart.timeScale().coordinateToLogical(x) } catch { return null }
+      if (logical == null) return null
+      const arr = drawBarsRef.current || []
+      if (!arr.length) return null
+      const bar = arr[Math.max(0, Math.min(arr.length - 1, Math.round(logical)))]
+      const t = bar?.t
+      if (t == null) return null
+      if (typeof t === 'number') return new Date(t * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(t))
+      return m ? `${m[1]}-${m[2]}-${m[3]}` : null
+    }
+    const clearC = () => { const c = periodSelectCanvasRef.current; if (c) { const ctx = c.getContext('2d'); if (ctx) ctx.clearRect(0, 0, c.width, c.height) } }
+    const drawEdge = (x, w, h) => {
+      const c = periodSelectCanvasRef.current; if (!c) return
+      const dpr = window.devicePixelRatio || 1
+      const W = Math.round(w * dpr), H = Math.round(h * dpr)
+      if (c.width !== W || c.height !== H) { c.width = W; c.height = H; c.style.width = w + 'px'; c.style.height = h + 'px' }
+      const ctx = c.getContext('2d'); if (!ctx) return
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+      ctx.clearRect(0, 0, w, h)
+      ctx.fillStyle = 'rgba(201,168,76,0.08)'; ctx.fillRect(x, 0, Math.max(0, w - x), h)   // dim the hidden future
+      ctx.strokeStyle = 'rgba(201,168,76,0.95)'; ctx.lineWidth = 1; ctx.setLineDash([4, 3])
+      ctx.beginPath(); ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, h); ctx.stroke(); ctx.setLineDash([])
+    }
+    const onMove = (e) => { const { x, w, h } = getPos(e); drawEdge(Math.max(0, Math.min(w, x)), w, h); setPeriodDragging(true) }
+    const end = (e) => {
+      try { chartRef.current?.applyOptions({ handleScroll: frozen ? false : true, handleScale: !frozen }) } catch { /* noop */ }
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', end)
+      window.removeEventListener('pointercancel', end)
+      clearC(); setPeriodDragging(false)
+      const { x } = getPos(e)
+      const iso = isoAtX(Math.max(0, x))
+      if (iso) onReplayCutoffPicked?.(iso)
+    }
+    const onDown = (e) => {
+      if (e.button !== 0 || (e.pointerType && e.pointerType !== 'mouse')) return
+      const chart = chartRef.current; if (!chart) return
+      e.preventDefault()
+      try { chart.applyOptions({ handleScroll: false, handleScale: false }) } catch { /* noop */ }
+      const { x, w, h } = getPos(e); drawEdge(x, w, h)
+      window.addEventListener('pointermove', onMove)
+      window.addEventListener('pointerup', end)
+      window.addEventListener('pointercancel', end)
+    }
+    el.addEventListener('pointerdown', onDown)
+    return () => {
+      el.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', end)
+      window.removeEventListener('pointercancel', end)
+      clearC(); setPeriodDragging(false)
+    }
+  }, [replayPick, chartReady, frozen, onReplayCutoffPicked])
+
   // ── Ctrl+drag to draw a trendline ─────────────────────────────────────────
   // Mirrors the Shift+drag measure: listens on the chart container so it works
   // over empty chart space (the drawing overlay is pointer-events:none there),
@@ -11920,7 +12035,7 @@ export default function StockChart({
         <div className={`${styles.compareRows}${legendStacked ? ' ' + styles.compareRowsSide : ''}`}>
           {/* Groups (theme/sector/industry) — one collapsible row each */}
           {comparisonLegend.groups.map(g => {
-            const open = !!openCmpGroups[g.name]
+            const open = openCmpGroups[g.name] ?? true   // expanded by default; user can collapse
             const gUp = g.avg != null && g.avg >= 0
             return (
               <div key={`g:${g.name}`}>
@@ -11929,7 +12044,7 @@ export default function StockChart({
                     className={styles.compareGroupChevron}
                     role="button"
                     aria-label={open ? 'Collapse' : 'Expand'}
-                    onClick={() => setOpenCmpGroups(p => ({ ...p, [g.name]: !p[g.name] }))}
+                    onClick={() => setOpenCmpGroups(p => ({ ...p, [g.name]: !(p[g.name] ?? true) }))}
                   >{open ? '▾' : '▸'}</span>
                   <span className={styles.compareGroupName}>{g.name}</span>
                   <span className={styles.compareGroupN}>· {g.items.length}</span>
@@ -11951,14 +12066,32 @@ export default function StockChart({
                 {open && (
                   <div className={styles.compareGroupMembers}>
                     {g.items.map(m => {
+                      const mmeta = comparisonMeta?.[m.sym]
+                      const mname = mmeta?.name || m.sym
+                      const mexch = mmeta?.exchange
                       const mUp = m.pct != null && m.pct >= 0
                       return (
-                        <span key={m.sym} className={styles.compareMember}>
-                          <span className={styles.compareMemberSym} style={{ color: m.color }}>{m.sym}</span>
-                          <span className={styles.compareMemberPct} style={{ color: m.color }}>
-                            {m.pct != null ? `${mUp ? '+' : ''}${m.pct.toFixed(1)}%` : '—'}
+                        <div key={m.sym} className={styles.compareRow}>
+                          <span className={styles.compareLogo}><CompanyLogo sym={m.sym} name={mname} size={13} round /></span>
+                          <span className={styles.compareTicker} style={{ color: m.color }}>{m.sym}</span>
+                          <span className={styles.compareName}>
+                            {mname}{mexch ? <span className={styles.compareExch}> · {mexch}</span> : null}
                           </span>
-                        </span>
+                          <span className={styles.comparePct} style={{ color: m.color }}>
+                            {m.pct != null ? `${mUp ? '+' : ''}${m.pct.toFixed(2)}%` : '—'}
+                          </span>
+                          <span
+                            className={styles.compareX}
+                            role="button"
+                            title={`Remove ${m.sym}`}
+                            aria-label={`Remove ${m.sym}`}
+                            onClick={() => handleUpdateChartSettings({
+                              ...cs,
+                              comparisonSymbols: (cs.comparisonSymbols || []).filter(x => String(x.sym).toUpperCase() !== m.sym),
+                              preset: 'custom',
+                            })}
+                          >×</span>
+                        </div>
                       )
                     })}
                   </div>
@@ -12451,7 +12584,7 @@ export default function StockChart({
       )}
       {/* Custom-Period Sort: translucent highlight band while dragging + a hint banner
           (black canvas / white text to match the Chart Settings menu). */}
-      {periodSelect && (<>
+      {(periodSelect || replayPick) && (<>
         <canvas
           ref={periodSelectCanvasRef}
           style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none', zIndex: 6 }}
@@ -12464,17 +12597,17 @@ export default function StockChart({
           /* Fade out the moment the drag starts so it never blocks the chart. */
           opacity: periodDragging ? 0 : 1, transition: 'opacity 140ms ease' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 12.5, fontWeight: 600, color: '#ededed', letterSpacing: '0.01em' }}>Highlight time period</span>
+            <span style={{ fontSize: 12.5, fontWeight: 600, color: '#ededed', letterSpacing: '0.01em' }}>{replayPick ? 'Set replay cutoff' : 'Highlight time period'}</span>
             <button
               type="button"
-              onClick={() => onPeriodCancel?.()}
+              onClick={() => (replayPick ? onReplayPickCancel?.() : onPeriodCancel?.())}
               title="Cancel"
               aria-label="Cancel"
               style={{ pointerEvents: 'auto', border: 'none', background: 'transparent', color: '#c9c9c9',
                 fontSize: 13, lineHeight: 1, cursor: 'pointer', padding: 0 }}
             >✕</button>
           </div>
-          <span style={{ fontSize: 11, color: '#c2c2c2', letterSpacing: '0.01em' }}>Click, hold, and drag across the chart</span>
+          <span style={{ fontSize: 11, color: '#c2c2c2', letterSpacing: '0.01em' }}>{replayPick ? 'Click the chart where price should cut off' : 'Click, hold, and drag across the chart'}</span>
         </div>
       </>)}
       {/* Replay mode: an "Exit Replay Mode" pill centered in THIS chart's TOOLBAR row

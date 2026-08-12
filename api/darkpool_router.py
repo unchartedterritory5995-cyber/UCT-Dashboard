@@ -471,6 +471,45 @@ async def massive_ingest_status():
     return JSONResponse(get_run_state())
 
 
+# ── Admin: ALL-SYMBOLS dark-pool ingest from the daily stocks flat file ────────
+@router.post("/flatfile-ingest")
+async def flatfile_ingest(
+    date: str = Query(None, description="M/D/YYYY — defaults to the prior trading day (flat files are T+1)"),
+    back: int = Query(None, ge=1, le=30, description="Backfill the last N trading days in ONE server-side job (loops on the pod so it survives the client's 2-min shell cap; overrides date)."),
+    dry_run: bool = Query(False, description="Scan + report, do not write to the DB"),
+    _auth: dict = Depends(require_flow_admin),
+):
+    """Scan the WHOLE day's US-stocks flat file and ingest EVERY ticker's
+    off-exchange (dark) prints >= $4M — no universe. This is the all-symbols
+    authoritative pass; the per-ticker /massive-ingest stays for real-time.
+
+    Long call (~5-15 min/day, streams ~3.5GB) — fire-and-forget; poll
+    /flatfile-ingest/status. `back=N` runs an N-day backfill sequentially in the
+    SAME background job (one POST, no 45-min client loop). Ignores
+    DARKPOOL_FLATFILE_ENABLED (that gate only governs the scheduled job) so a
+    manual run always works. Safe to re-run (darkpool_db dedups on
+    date+timestamp+ticker+price+notional+message)."""
+    try:
+        from api.darkpool_flatfile_ingest import (
+            run_flatfile_ingest_background, _last_n_trading_days)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"flatfile module unavailable: {e}")
+    dates = _last_n_trading_days(back) if back else None
+    return JSONResponse(run_flatfile_ingest_background(
+        date_mdyyyy=date, dry_run=dry_run, dates=dates))
+
+
+@router.get("/flatfile-ingest/status")
+async def flatfile_ingest_status():
+    """Progress + last result of the all-symbols flat-file ingest. `phase` shows
+    scan progress (e.g. "40M scanned, 3120 kept")."""
+    try:
+        from api.darkpool_flatfile_ingest import get_run_state
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"flatfile module unavailable: {e}")
+    return JSONResponse(get_run_state())
+
+
 # ── Member: Today's live intraday preview ─────────────────────────────────────
 @router.get("/today")
 async def get_darkpool_today(_auth: dict = Depends(require_flow_user)):

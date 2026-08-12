@@ -94,10 +94,23 @@ def detect_rows(reporters, snapshot, existing, now_ts, market_date) -> list[dict
         # Existing row — write only if something actually changed.
         prior_peak = float(prior.get("peak_move_pct") or 0.0)
         new_peak = max(prior_peak, live_peak)
-        gained_actuals = has_act and prior.get("eps_act") is None
+        # Field by field, not "eps is null": companies publish EPS and revenue
+        # SEPARATELY (LITE 2026-08-11 held eps_act 3.23 with rev_act frozen
+        # None all evening — an eps-only gate meant a row could never gain the
+        # revenue leg once its EPS landed).
+        gained_actuals = (
+            (rep.get("eps_act") is not None and prior.get("eps_act") is None)
+            or (rep.get("rev_act") is not None and prior.get("rev_act") is None))
         peak_grew = new_peak > prior_peak + 1e-9
         if not (gained_actuals or peak_grew):
             continue
+
+        def _keep(field):
+            # An upgrade must never REGRESS a stored figure: a reporter row
+            # that momentarily loses a field (degraded rebuild) cannot null
+            # out a number the reader has already seen.
+            v = rep.get(field)
+            return v if v is not None else prior.get(field)
 
         out.append({
             "market_date":   market_date,
@@ -105,8 +118,8 @@ def detect_rows(reporters, snapshot, existing, now_ts, market_date) -> list[dict
             "timing":        rep.get("timing"),
             "first_seen_at": prior["first_seen_at"],   # IMMUTABLE
             "trigger":       prior.get("trigger"),     # the ORIGINAL trigger
-            "eps_act": rep.get("eps_act"), "eps_est": rep.get("eps_est"),
-            "rev_act": rep.get("rev_act"), "rev_est": rep.get("rev_est"),
+            "eps_act": _keep("eps_act"), "eps_est": _keep("eps_est"),
+            "rev_act": _keep("rev_act"), "rev_est": _keep("rev_est"),
             "eps_src": ("provider" if rep.get("eps_act") is not None
                         else prior.get("eps_src")),
             "rev_src": ("provider" if rep.get("rev_act") is not None

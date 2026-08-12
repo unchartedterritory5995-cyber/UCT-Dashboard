@@ -841,6 +841,56 @@ function dmiParts(toks, close, names, env, first) {
   return [leg('dmiplusleg'), leg('dmiminusleg'), leg('dmiadxleg')]
 }
 
+function containsSelfSeries(node, table) {
+  const spec = table.functions.accum
+  if (!spec) return false
+  const bind = spec.recurrence.binds
+  const walk = (n) => {
+    if (!n || typeof n !== 'object') return false
+    if (n.type === 'series' && n.name === bind) return true
+    return (n.args || []).some(walk)
+  }
+  return walk(node)
+}
+
+/** ⭐⭐ DOES THIS UPDATE FORGET ITS SEED? `accum` RE-SEEDS a fixed number of bars
+ *  back — deliberately, so a column cannot depend on where a fetch happened to
+ *  start — and that is sound ONLY for an update that forgets where it began.
+ *  `min`/`max` against a self-free operand forget once that operand dominates; a
+ *  ternary arm that holds or passes through forgets; `nz` passes through.
+ *  `self + x` NEVER forgets.
+ *
+ *  🔴 `x := x[1] + volume` is OBV by hand, and folding it would turn a running
+ *  total into a ROLLING SUM — a plausible column that is not the indicator
+ *  anybody wrote. That is the same fact `cum` refuses for, reached from the other
+ *  side, so the two rules finally agree.
+ *
+ *  ⚠️ A TERNARY'S CONDITION MAY TEST `self` FREELY — it picks a branch without
+ *  carrying the value forward. Only the ARMS must forget.
+ *  ⛔ Conservative by construction: an unrecognised shape answers NO. A wrong yes
+ *  is invisible in the output; a wrong no is a named refusal somebody can read. */
+function forgetsItsSeed(node, table) {
+  const spec = table.functions.accum
+  if (!spec) return false
+  const bind = spec.recurrence.binds
+  const isSelf = (n) => !!n && n.type === 'series' && n.name === bind
+  const carries = (n) => containsSelfSeries(n, table)
+  const ok = (n) => {
+    if (!n || typeof n !== 'object') return true
+    if (isSelf(n)) return true
+    if (!carries(n)) return true
+    const args = n.args || []
+    if (n.type === 'call' && (n.name === 'min' || n.name === 'max')) {
+      const withSelf = args.filter(carries)
+      return withSelf.length === 1 && ok(withSelf[0])
+    }
+    if (n.type === 'call' && n.name === 'nz') return args.every(ok)
+    if (n.type === 'op' && n.name === '?:') return ok(args[1]) && ok(args[2])
+    return false
+  }
+  return ok(node)
+}
+
 function findTop(toks, pred) {
   let depth = 0
   for (let i = 0; i < toks.length; i += 1) {
@@ -1334,6 +1384,29 @@ class Resolver {
     this.finalBindings = opts.finalBindings || new Map()
     /** name → the mutator tokens found by the raw-token scan. */
     this.mutated = opts.mutated || new Map()
+    /** name → the binding in scope where its own `[1]` was read: the SEED. */
+    this.recurrenceSeeds = new Map()
+    /** name → the location of the `[` that read it. ⛔ THE REFUSAL MUST LAND ON
+     *  THE SELF-READ, not on the binding the gate happens to fire from — that
+     *  token is the thing a member has to change. */
+    this.recurrenceSeedAt = new Map()
+    /** name → the accumulator already built, so the outside path does not rebuild
+     *  it: `shortStopPrev` reads `shortStop[1]`, which builds `shortStop`, whose
+     *  update reads `shortStopPrev` again.
+     *
+     *  ⚠️ MUTATION-SURVIVED 2026-08-12, and the note that used to sit here called
+     *  it "THE MEMO that stops the outside path re-entering" — implying a
+     *  correctness guard. Disabling it leaves all 843 tests green, because the
+     *  rebuild produces the SAME tree; the marker and the per-recurrence cycle
+     *  stack are what make re-entry safe. This is a COST cut on a resolution that
+     *  is already exponential in the emitted text, nothing more. Recorded rather
+     *  than deleted so the next reader does not mistake it for a rail — and so
+     *  nobody re-derives its necessity from a comment that overclaimed. */
+    this.recurrenceColumns = new Map()
+    /** The name whose recurrence is being built RIGHT NOW. `name[1]` is `self`
+     *  inside that name's own update and the whole accumulator offset a bar
+     *  anywhere else; without this marker the two cannot be told apart. */
+    this.buildingRecurrence = null
   }
 
   /** Resolve THROUGH a binding: swap to the environment the binding was written
@@ -1499,10 +1572,57 @@ class Resolver {
     if (this.stack.has(bound)) {
       throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — \`${name}\``, locate(tok))
     }
+    const wasBuilding = this.buildingRecurrence
+    const isFinalOfMutable = !!name && this.mutated.has(name)
+      && this.finalBindings.get(name) === bound
+    // ⭐⭐ A FRESH CYCLE STACK INSIDE A RECURRENCE BUILD. The same binding legally
+    // resolves TWICE here — `shortStopPrev` once outside the recurrence and once
+    // within its update — yielding a DIFFERENT tree each time, because
+    // `shortStop[1]` is the accumulator outside and `self` inside. The shared
+    // stack read that as a cycle. Scoping it keeps genuine self-cycles caught.
+    const prevStack = this.stack
+    if (isFinalOfMutable) { this.buildingRecurrence = name; this.stack = new Set() }
     this.stack.add(bound)
     const prevEnv = this.env
     if (bound.env) this.env = bound.env
-    try { return this.resolve(bound.node) } finally { this.stack.delete(bound); this.env = prevEnv }
+    try {
+      const body = this.resolve(bound.node)
+      if (isFinalOfMutable && this.recurrenceSeeds.has(name)
+          && containsSelfSeries(body, this.table)) {
+        // 🔴🔴 THE CONVERGENCE GATE — see `forgetsItsSeed`.
+        if (!forgetsItsSeed(body, this.table)) {
+          // ⛔ The DECLARED sentence leads; the specifics follow. Two rails hold
+          // this — the refusal corpus and "refuses for a DECLARED reason" — and
+          // both exist because a hand-written message drifts from the guard it
+          // claims to be.
+          throw new PineRefusal('pine:state',
+            `${REFUSALS['pine:state']} — \`${name}\` builds on its own previous bar `
+            + 'without ever forgetting where it started, and this engine\'s accumulator '
+            + 're-seeds a fixed number of bars back, so it would become a rolling sum '
+            + 'rather than a running total',
+            this.recurrenceSeedAt.get(name) || bound.at || locate(tok))
+        }
+        const spec = this.table.functions.accum
+        const seedBinding = this.recurrenceSeeds.get(name)
+        this.recurrenceSeeds.delete(name)
+        this.recurrenceSeedAt.delete(name)
+        this.buildingRecurrence = wasBuilding
+        const seed = this.resolveBinding(seedBinding, tok, name)
+        const args = []
+        args[spec.recurrence.seed] = seed
+        args[spec.recurrence.body] = body
+        args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
+        const built = cCall('accum', args)
+        this.recurrenceColumns.set(name, built)
+        return built
+      }
+      return body
+    } finally {
+      this.stack.delete(bound)
+      this.stack = prevStack
+      this.env = prevEnv
+      this.buildingRecurrence = wasBuilding
+    }
   }
 
   /** Walk into a binding the way `resolveBinding` does, but for a QUESTION about
@@ -1677,6 +1797,8 @@ class Resolver {
           const base = cSeries(spec.recurrence.binds)
           return lag === 0 ? base : { type: 'offset', value: lag, args: [base] }
         }
+        const plain = this.plainRecurrence(node, node.tok)
+        if (plain !== null) return plain
         this.guardOffsetOfMutable(node)
         // ⭐ THE CHILD RESOLVES FIRST, so `ta.sma(close, 20)[2]` and `close[2]`
         // reach the seam the same way and nesting needs no special case.
@@ -1729,6 +1851,40 @@ class Resolver {
     // later mistakes it for the thing keeping this correct.
     if (!bound || bound.kind !== 'expr') return null
     return bound.node && bound.node.type === 'selfref' ? node.n - 1 : null
+  }
+
+  /** `name[k]` where `name` is a PLAIN name the script reassigns later. It means
+   *  TWO different trees depending on WHERE it is read — `self` inside that
+   *  name's own update, the whole accumulator offset k bars anywhere else. Four
+   *  earlier attempts failed by emitting one of them everywhere. */
+  plainRecurrence(node, tok) {
+    if (!(node.n >= 1) || !node.arg || node.arg.type !== 'name') return null
+    const name = node.arg.name
+    if (!this.mutated.has(name)) return null
+    const spec = this.table.functions.accum
+    if (!spec) return null
+    if (this.buildingRecurrence === name) {
+      const bound = this.env.get(name)
+      if (bound && !this.recurrenceSeeds.has(name)) {
+        this.recurrenceSeeds.set(name, bound)
+        this.recurrenceSeedAt.set(name, locate(tok))
+      }
+      const base = cSeries(spec.recurrence.binds)
+      return node.n === 1 ? base : { type: 'offset', value: node.n - 1, args: [base] }
+    }
+    if (this.recurrenceColumns.has(name)) {
+      return { type: 'offset', value: node.n, args: [this.recurrenceColumns.get(name)] }
+    }
+    const final = this.finalBindings.get(name)
+    if (!final || final === this.env.get(name)) return null
+    const seedHere = this.env.get(name)
+    if (seedHere && !this.recurrenceSeeds.has(name)) {
+      this.recurrenceSeeds.set(name, seedHere)
+      this.recurrenceSeedAt.set(name, locate(tok))
+    }
+    const column = this.resolveBinding(final, tok, name)
+    if (!this.recurrenceColumns.has(name)) return null
+    return { type: 'offset', value: node.n, args: [column] }
   }
 
   guardOffsetOfMutable(node) {

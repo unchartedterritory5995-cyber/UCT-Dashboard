@@ -1550,7 +1550,20 @@ def interpret(ast: Any, bars: List[dict],
             if key in reads_cache:
                 return reads_cache[key]
             answer = is_bind(x)
-            if not answer and isinstance(x, dict) and isinstance(x.get("args"), list):
+            # ⭐⭐ ``self`` BINDS TO THE NEAREST ENCLOSING RECURRENCE, and this is the
+            # whole of that rule -- mirrored line for line from the JS lane. A
+            # NESTED recurrence brings its own ``self``, so the walk must not
+            # descend into one and count that inner ``self`` as a read of the
+            # OUTER's running value.
+            #
+            # ⛔ THE PAYOFF IS THE PARTITION BELOW, UNCHANGED. A subtree that does
+            # not read this recurrence's bind is already evaluated ONCE as an
+            # ordinary column; stopping here lets a nested ``accum`` be one of
+            # those. It computes over every bar on its own, exactly as it would
+            # standing alone, and the outer step loop reads its finished column.
+            nested = (isinstance(x, dict) and x.get("type") == "call"
+                      and x.get("name") in RECURRENCES)
+            if not answer and not nested and isinstance(x, dict) and isinstance(x.get("args"), list):
                 for child in x["args"]:
                     if reads(child):
                         answer = True

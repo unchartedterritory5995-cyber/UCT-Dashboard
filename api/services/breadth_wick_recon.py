@@ -184,7 +184,22 @@ def recon_day(D: str, universe: list, client=None, bucket_min: int = 30) -> Opti
     per_ticker = res[bucket_min]                     # {ticker: [{t,o,h,l,c,v}]}
     by_tb = {tk: {b["t"]: b["c"] for b in bars} for tk, bars in per_ticker.items()}
     buckets = sorted({b["t"] for bars in per_ticker.values() for b in bars})
+    # Seed the carry-forward with each name's PRIOR close so breadth is always
+    # computed over the FULL universe. Without this the 9:30 bucket sees only the
+    # handful of names that printed in the first 30 min → a biased, fake-low open
+    # that becomes a garbage ~13pt lower wick. Stocks sit at prior close until they
+    # trade today; real opening gaps still show once a name prints.
     last_px: dict = {}
+    _lv_tk = levels.get("tickers") or []
+    _pc = levels.get("prev_close")
+    if _pc is not None:
+        for _i, _tk in enumerate(_lv_tk):
+            try:
+                _v = float(_pc[_i])
+            except Exception:
+                continue
+            if _v == _v and _v > 0.0:                # finite & positive
+                last_px[_tk] = _v
     prices_by_bucket = []
     for T in buckets:
         for tk in per_ticker:
@@ -320,6 +335,16 @@ def _has_intraday_recon(D: str) -> bool:
         return False
 
 
+def _malloc_trim():
+    """Return freed heap pages to the OS. numpy/gc free the objects but glibc keeps the
+    arena, so RSS climbs across a long sweep until the pod OOM-recycles. No-op off glibc."""
+    try:
+        import ctypes
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except Exception:
+        pass
+
+
 def sweep_wicks(from_date: str, to_date: str, universe: Optional[list] = None,
                 upload_every: int = 10, skip_done: bool = True) -> dict:
     """WORKER sweep: reconstruct real intraday wicks for [from_date, to_date] and write
@@ -369,9 +394,12 @@ def sweep_wicks(from_date: str, to_date: str, universe: Optional[list] = None,
                     failed += 1
                 # Free the day's (large) minute-frame + yield, so the worker's memory
                 # doesn't accumulate and its /health stays responsive (avoids the
-                # Railway recycle we saw on the first run).
+                # Railway recycle we saw on the first run). gc frees the Python objects
+                # but glibc keeps the arena → RSS still climbs ~20-30MB/day across a long
+                # sweep until OOM; malloc_trim RETURNS the freed pages to the OS.
                 del agg, rows
                 _gc.collect()
+                _malloc_trim()
                 _t.sleep(1.0)
         d -= _td(days=1)
     sync.upload(force=True)
