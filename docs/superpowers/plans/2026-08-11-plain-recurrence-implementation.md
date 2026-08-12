@@ -263,3 +263,41 @@ and refusing them by name is the engine being correct rather than short. Treatin
 them as a gap would put drawing objects into a screener that has nowhere to draw.
 `request.security` is separate again: a multi-symbol DATA decision, not a language
 limit.
+
+## The DAG memo, traced to its ONE remaining question
+
+Design is settled; one fact needs checking before a line is written.
+
+**The memo must be SELF-FREE-SCOPED.** `evalNode` is a closure over fixed
+`bars`/`inputs`/`scalars`, so a subtree that does not read the recurrence bind
+yields the same column every time — memoizable. A subtree that DOES read it is
+re-evaluated per step with a different running value and must never be cached.
+This is not a new invariant: the recurrence planner already leans on exactly it
+(`if (!reads(x)) { columns.set(x, evalNode(x)); return }`). Reuse that predicate;
+do not write a second one.
+
+🔴 **THE OPEN QUESTION — ANSWER IT FIRST.** A memo hands the SAME `Float64Array`
+to two call sites. That is safe only if nothing ever writes into a column it was
+handed. `applyOp` looks safe (it goes through `lift1`/`lift3`, which allocate),
+but the windowed functions and `toColumn` were not traced. **Confirm that no
+consumer mutates an input column in place.** If any does, the memo must hand out
+copies — which still saves the recomputation but not the allocation, and changes
+the cost model the budget would then be reporting.
+
+⛔ Do not skip this on the grounds that the tests pass. An in-place write through
+a shared column corrupts a DIFFERENT column's values — a wrong number on screen,
+not a crash — and the corpus asserts structure and counts, not per-bar values.
+`self_lag_parity.json` and `nested_recurrence_parity.json` are the two fixtures
+that WOULD catch it, because they compare bar-for-bar against the other lane.
+Run those, deliberately, as the acceptance test for this change.
+
+### Order of work
+1. Answer the mutation question above.
+2. Write the FAILING rail first: a formula with a large repeated subtree,
+   asserting BOTH the node count and the evaluation count drop. Assert the eval
+   count — without it the memo can silently not apply and the budget lies again.
+3. Memoize `evalNode` (self-free only), THEN switch `nodeCount` to distinct
+   structural subtrees. Never the count alone.
+4. Regenerate the corpus MEASURED; read the diff; expect `saveable` 11 -> 12.
+5. Mutation-check: drop the memo (eval-count rail red), drop the self-free
+   scoping (parity fixtures red — this is the one that matters most).
