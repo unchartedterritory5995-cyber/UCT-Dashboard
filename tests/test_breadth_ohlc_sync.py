@@ -101,6 +101,29 @@ def test_merge_is_idempotent(fresh_store, tmp_path):
     assert bridge._merge_from(snap) == 0   # second pass adopts nothing
 
 
+def test_intraday_recon_upgrades_body_but_never_overwrites_live(fresh_store, tmp_path):
+    # web has a body-only close_recon day + a REAL live-accumulator wick day
+    store.write_bulk([("2020-01-02", "pct_above_50sma", 50, 50, 50, 50)], source="close_recon")
+    store.update_intraday("2026-08-07", {"pct_above_50sma": 30.0})   # live seed o=h=l=c=30
+    store.update_intraday("2026-08-07", {"pct_above_50sma": 35.0})   # live now o30 h35 l30 c35
+    snap = str(tmp_path / "snap.db")
+    _make_snap(snap, [
+        # a real intraday_recon WICK for the body day → must UPGRADE (2 > 1)
+        ("2020-01-02", "pct_above_50sma", 50, 62, 45, 55, "intraday_recon"),
+        # an intraday_recon row for the LIVE day → must NOT overwrite live (2 < 3)
+        ("2026-08-07", "pct_above_50sma", 99, 99, 99, 99, "intraday_recon"),
+    ])
+    bridge._merge_from(snap)
+    h = store.history("pct_above_50sma")
+    assert h["2020-01-02"] == {"o": 50.0, "h": 62.0, "l": 45.0, "c": 55.0}   # body -> real wick
+    assert h["2026-08-07"]["c"] == 35.0 and h["2026-08-07"]["h"] == 35.0     # live preserved
+    # and it doesn't DOWNGRADE: a close_recon row must not replace the intraday_recon wick
+    snap2 = str(tmp_path / "snap2.db")
+    _make_snap(snap2, [("2020-01-02", "pct_above_50sma", 50, 50, 50, 50, "close_recon")])
+    bridge._merge_from(snap2)
+    assert store.history("pct_above_50sma")["2020-01-02"]["h"] == 62.0       # still the wick
+
+
 def test_upload_and_sync_are_noops_without_credentials(fresh_store, monkeypatch):
     for var in ("DATA_SYNC_ENDPOINT_URL", "DATA_SYNC_ACCESS_KEY",
                 "DATA_SYNC_SECRET_KEY", "DATA_SYNC_BUCKET"):

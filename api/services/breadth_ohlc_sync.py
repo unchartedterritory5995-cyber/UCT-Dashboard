@@ -233,29 +233,36 @@ def _remote_latest(client, bucket) -> Optional[str]:
         return None
 
 
-# THE gap-fill merge (spec §6). `INSERT OR IGNORE` on PK (date, metric) adopts
-# ONLY (date, metric) pairs the web pod lacks and leaves every existing local
-# row untouched — so it can only ever ADD older history, never regress a real
-# 'live' intraday wick or a row already being served. That is the same safety
-# guarantee as the bars newer-wins merge, reached more simply.
+# The SOURCE-PRECEDENCE merge. Two things at once:
+#   1. GAP-FILL — adopt any (date, metric) the web pod LACKS (older history).
+#   2. UPGRADE  — adopt a HIGHER-fidelity source over a lower one for a date the web
+#      already has: live(3) > intraday_recon(2) > close_recon(1). So a real
+#      intraday_recon wick REPLACES a body-only close_recon, but a worker row NEVER
+#      overwrites a real 'live' row (the accumulator's same-day truth wins).
+# `INSERT … ON CONFLICT DO UPDATE`, gated by the WHERE so only gap-fill + strict
+# upgrades pass; a lower/equal source on an existing date is excluded (untouched).
 #
-# ⛔ DO NOT add a `s.ts > local MAX(ts)` recency clause (the bars rule). A
-# backfill's whole job is to add OLDER dates; that clause would reject every one
-# of them. This is asserted by test_gapfill_adopts_older_dates.
-#
-# The trailing predicates are a geometry/finite gate (rejection, never repair):
-# NaN fails `s.x = s.x`; ordering `l <= min(o,c) <= max(o,c) <= h` must hold.
-# NOTE: no `> 0` check — breadth values are legitimately zero or negative
-# (0% above a MA at a washout; McClellan / adv-decline lines go negative).
-_MERGE_SQL = """
-INSERT OR IGNORE INTO breadth_daily_ohlc(date,metric,o,h,l,c,source,updated_at)
+# ⛔ DO NOT add a `s.ts > local MAX(ts)` recency clause (the bars rule) — a backfill
+# adds OLDER dates; that would reject every one. (test_gapfill_adopts_older_dates.)
+# Geometry/finite gate is a rejection, never a repair: NaN fails `s.x = s.x`;
+# `l <= min(o,c) <= max(o,c) <= h` must hold. No `> 0` — breadth is legitimately
+# zero/negative (0% above a MA at a washout; McClellan / adv-decline go negative).
+_RANK = ("CASE {c}.source WHEN 'live' THEN 3 WHEN 'intraday_recon' THEN 2 "
+         "WHEN 'close_recon' THEN 1 ELSE 0 END")
+_MERGE_SQL = f"""
+INSERT INTO breadth_daily_ohlc(date,metric,o,h,l,c,source,updated_at)
 SELECT s.date,s.metric,s.o,s.h,s.l,s.c,s.source,s.updated_at
 FROM snap.breadth_daily_ohlc s
-WHERE s.source IN ('live','close_recon')
+LEFT JOIN breadth_daily_ohlc l ON l.date = s.date AND l.metric = s.metric
+WHERE s.source IN ('live','intraday_recon','close_recon')
   AND s.o IS NOT NULL AND s.h IS NOT NULL AND s.l IS NOT NULL AND s.c IS NOT NULL
   AND s.o = s.o AND s.h = s.h AND s.l = s.l AND s.c = s.c
   AND s.h >= s.l AND s.h >= s.o AND s.h >= s.c
   AND s.l <= s.o AND s.l <= s.c
+  AND (l.date IS NULL OR ({_RANK.format(c='s')}) > ({_RANK.format(c='l')}))
+ON CONFLICT(date, metric) DO UPDATE SET
+  o=excluded.o, h=excluded.h, l=excluded.l, c=excluded.c,
+  source=excluded.source, updated_at=excluded.updated_at
 """
 
 

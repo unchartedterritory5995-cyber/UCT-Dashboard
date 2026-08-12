@@ -307,6 +307,71 @@ def probe_day(D: str, bucket_min: int = 30) -> dict:
     return out
 
 
+def _has_intraday_recon(D: str) -> bool:
+    """True if the store already holds an intraday_recon row for D (resume/skip)."""
+    from api.services import breadth_daily_ohlc as store
+    try:
+        with store._conn() as c:
+            r = c.execute("SELECT 1 FROM breadth_daily_ohlc WHERE date=? AND "
+                          "metric='pct_above_50sma' AND source='intraday_recon' LIMIT 1",
+                          (D,)).fetchone()
+        return r is not None
+    except Exception:
+        return False
+
+
+def sweep_wicks(from_date: str, to_date: str, universe: Optional[list] = None,
+                upload_every: int = 10, skip_done: bool = True) -> dict:
+    """WORKER sweep: reconstruct real intraday wicks for [from_date, to_date] and write
+    them (source='intraday_recon') to the store, newest→oldest, shipping via the R2
+    bridge every `upload_every` days. Only rows aggregate_day accepted as real wicks are
+    written; a rejected (garbage) wick stays a body (close_recon untouched). Resumable:
+    a day already carrying intraday_recon is skipped. HEAVY — worker/bg only."""
+    from datetime import date as _d, timedelta as _td
+    from api.services import breadth_daily_ohlc as store
+    from api.services import breadth_ohlc_sync as sync
+    if universe is None:
+        # WORKER has no collector snapshot → resolve the SAME universe the web/live
+        # rows used (Phase-1 helper fetches web's /universe endpoint when local empty).
+        from api.services import breadth_history_recon as _recon
+        universe, _ = _recon._resolve_universe()
+    if not universe:
+        return {"ok": False, "reason": "no universe"}
+    client = _s3_client()
+    lo, hi = _d.fromisoformat(from_date), _d.fromisoformat(to_date)
+    d = hi
+    ok = skipped = failed = written = 0
+    samples = []
+    while d >= lo:
+        if d.weekday() < 5:                       # skip weekends (no flat file)
+            D = d.isoformat()
+            if skip_done and _has_intraday_recon(D):
+                skipped += 1
+            else:
+                try:
+                    agg = recon_day(D, universe, client)
+                except Exception:
+                    agg = None
+                rows = [(D, m, r["o"], r["h"], r["l"], r["c"])
+                        for m, r in (agg or {}).items()
+                        if r.get("source") == "intraday_recon"] if agg else []
+                if rows:
+                    written += store.write_bulk(rows, source="intraday_recon")
+                    ok += 1
+                    p = (agg or {}).get("pct_above_50sma")
+                    if p and len(samples) < 8:
+                        samples.append({"date": D, "pct_above_50sma_hl": [p["h"], p["l"]]})
+                    if upload_every and ok % upload_every == 0:
+                        sync.upload(force=True)
+                else:
+                    failed += 1
+        d -= _td(days=1)
+    sync.upload(force=True)
+    return {"ok": True, "from": from_date, "to": to_date, "days_written": ok,
+            "days_skipped": skipped, "days_failed": failed, "rows": written,
+            "samples": samples}
+
+
 def run_validate_async(**kw) -> None:
     import threading, traceback
     def _run():

@@ -162,7 +162,7 @@ def set_ohlc(date: str, metric: str, o: float, h: float, l: float, c: float,
 # deep close-basis history recomputed from daily bars (bodies, validated to textbook extremes
 # e.g. COVID low 2% / rally 77% above 50MA). NOT 'reconstruct' (the old synchronized-extreme
 # daily-bar WICK guess, which was wrong).
-_TRUSTED_SOURCES = ("live", "close_recon")
+_TRUSTED_SOURCES = ("live", "intraday_recon", "close_recon")
 
 
 def write_bulk(rows: list, source: str = "close_recon", overwrite_live: bool = False) -> int:

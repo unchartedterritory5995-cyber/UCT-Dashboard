@@ -135,20 +135,15 @@ class _MassiveRestClient:
         day        = t.get("day", {})
         last_trade = t.get("lastTrade", {})
         prev_day   = t.get("prevDay", {})
+        minute     = t.get("min", {})
 
         # Pre-market: day.c == 0 (no regular-session trades yet).
         # Fall back to lastTrade.p (last extended-hours print) then prevDay.c.
         close = day.get("c") or last_trade.get("p") or prev_day.get("c") or 0.0
 
-        # A4: Extended-hours fields
+        # A4: Extended-hours fields (min.c-aware — see _ext_price_for)
         session = _detect_session()
-        ext_price = None
-        ext_session = None
-        if session != "regular":
-            lt_price = last_trade.get("p")
-            if lt_price and float(lt_price) > 0:
-                ext_price = round(float(lt_price), 2)
-                ext_session = session  # "pre_market" | "post_market"
+        ext_price, ext_session = _ext_price_for(session, last_trade, minute, day)
 
         return {
             "close":       close,
@@ -307,17 +302,12 @@ class _MassiveRestClient:
             day      = t.get("day", {})
             prev_day = t.get("prevDay", {})
             last     = t.get("lastTrade", {})
+            minute   = t.get("min", {})
             close    = day.get("c") or last.get("p") or prev_day.get("c") or 0.0
             vol      = int(prev_day.get("v") or day.get("v") or 0)
 
-            # A4: Extended-hours fields
-            ext_price = None
-            ext_session = None
-            if session != "regular":
-                lt_price = last.get("p")
-                if lt_price and float(lt_price) > 0:
-                    ext_price = round(float(lt_price), 2)
-                    ext_session = session
+            # A4: Extended-hours fields (min.c-aware — see _ext_price_for)
+            ext_price, ext_session = _ext_price_for(session, last, minute, day)
 
             result[ticker] = {
                 "price":       round(float(close), 2),
@@ -553,6 +543,43 @@ def _detect_session() -> str:
     if hour_min >= 1600:
         return "post_market"
     return "regular"
+
+
+def _ext_price_for(session: str, last_trade: dict, minute: dict, day: dict):
+    """Resolve the live pre/post-market price for one ticker, robust to a stale
+    lastTrade.
+
+    Returns (ext_price, ext_session) — both None during the regular session.
+
+    ⚠️ Some tickers (notably SPY) return a STALE `lastTrade` in pre/post-market that
+    stays pinned to the 4pm REGULAR close, while the minute-aggregate close (`min.c`,
+    which the chart's extended-hours bars are built from) carries the real live price
+    (e.g. SPY 770.98 post-close vs the frozen 770.56). QQQ's lastTrade is fresh, which
+    is why it looked right and SPY didn't. Prefer lastTrade only when it reflects a
+    genuine extended move (differs from the regular close); otherwise use `min.c`.
+    """
+    if session == "regular":
+        return None, None
+
+    def _pf(v):
+        try:
+            v = float(v)
+            return round(v, 2) if v > 0 else None
+        except (TypeError, ValueError):
+            return None
+
+    lt = _pf((last_trade or {}).get("p"))
+    mc = _pf((minute or {}).get("c"))
+    dc = _pf((day or {}).get("c"))
+    if lt is not None and (dc is None or lt != dc):
+        cand = lt
+    elif mc is not None:
+        cand = mc
+    else:
+        cand = lt
+    if cand is not None:
+        return cand, session
+    return None, None
 
 
 def get_extended_movers() -> dict:
