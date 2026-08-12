@@ -12,6 +12,42 @@ the usual per-output count and they are the ones that show what is queued up
 BEHIND the first refusal. Reading both together is how you see a chain instead
 of a wall.
 
+## 🔴 FINAL MEASURED STATE, 2026-08-11 — every remaining script, individually
+
+11 of 21 read, 47 columns. **Not one of the remaining ten is a contained
+translator fix.** Each needs either a product decision or a substantial engine
+extension, and five of them SHOULD keep refusing. Measured per script, output
+walls and fold walls both:
+
+| Script | Wall | What it actually needs |
+|---|---|---|
+| 04-superguppy | `request.security` + `for` | multi-symbol data path |
+| 05-mtf | `request.security` ×3, nothing else | multi-symbol data path |
+| 09-obv | `cum`, nothing else | ⛔ inexpressible: a true cumulative changes with how many bars were fetched |
+| 14-bollinger | displaced `plot(offset=)` ×3 | ⛔ that refusal IS the non-repainting guarantee |
+| 19-strategy | `strategy()` | order simulation — a different engine |
+| 10-supertrend | `pine:state` ×5, nothing else | **closed-table: a recurrence needs its OWN bind** |
+| 21-volume-profile | state + `for` | loops |
+| 02-ict | state + `for` + `while` + 7 unparsed | loops |
+| 20-smc | `ta.pivothigh` + 3 user types + `for`/`while` | loops + UDTs + a drawing model |
+| 15-avwap | `time` ×7 + `for` | session model + loops |
+
+⭐ **THE ONE ENGINE CHANGE WITH REAL REACH IS DISTINCT RECURRENCE BINDS.** `accum`
+binds a single name, `self`. Two recurrences in one expression therefore collapse
+onto it — that is exactly what made the 10-supertrend fold emit `self` as both a
+direction and a stop price. The interpreter refuses a NESTED `accum` for the same
+reason, in its own words: *"which running value it names would depend on where a
+reader started counting."* Give each recurrence its own bind and that objection
+dissolves, 10 clears, and the whole trailing-stop family becomes expressible.
+
+⚠️ It is a closed-table change: both lanes, a parity case, the budget walker and
+the repaint linter. Not a translator patch. That is the honest next project.
+
+⛔ **AND FIVE SHOULD NEVER MOVE.** `request.security` (a scan column reads one
+symbol), `cum` (request-dependent by construction), a displaced plot (the repaint
+guarantee itself), `strategy()` (a different engine). Counting them as "remaining
+work" is how a roadmap starts lying.
+
 ## The ceiling
 
 | | scripts | why |
