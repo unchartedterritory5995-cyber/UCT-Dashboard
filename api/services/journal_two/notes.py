@@ -749,37 +749,38 @@ def ensure_folder_path(user_id: str, path_parts: list[str], dest_folder_id: str 
 
 # ── Image upload ─────────────────────────────────────────────────────────────
 
-async def save_note_image(
+def save_note_image_bytes(
     user_id: str,
     note_id: str,
-    upload,
+    data: bytes,
+    filename: str,
+    content_type: str,
     *,
     kind: str = "inline",  # "inline" or "hero"
 ) -> dict[str, Any]:
-    """Validate + persist an image attached to a note. Returns
-    {url, width, height}. Caller is responsible for setting
+    """Sync bytes-level image save. Validate + persist image bytes to disk.
+    Returns {url, width, height}. Caller is responsible for setting
     hero_image_url on the note row (if kind=hero) or inserting an
     image node in body_json (if kind=inline)."""
-    if upload.content_type not in _ALLOWED_IMAGE_MIMES:
+    if content_type not in _ALLOWED_IMAGE_MIMES:
         raise NoteValidationError("Only PNG/JPG/GIF/WebP images allowed")
-    raw = await upload.read()
-    if len(raw) > _MAX_IMAGE_BYTES:
+    if len(data) > _MAX_IMAGE_BYTES:
         raise NoteValidationError("Image must be < 5 MB")
-    if len(raw) == 0:
+    if len(data) == 0:
         raise NoteValidationError("Empty file")
 
     ext_map = {
         "image/png": ".png", "image/jpeg": ".jpg",
         "image/gif": ".gif", "image/webp": ".webp",
     }
-    ext = ext_map.get(upload.content_type, ".png")
+    ext = ext_map.get(content_type, ".png")
 
     sub = "hero" if kind == "hero" else "inline"
     target_dir = _ATTACHMENT_ROOT / user_id / "notes" / note_id / sub
     target_dir.mkdir(parents=True, exist_ok=True)
     new_id = uuid.uuid4().hex
     target_path = target_dir / f"{new_id}{ext}"
-    target_path.write_bytes(raw)
+    target_path.write_bytes(data)
 
     public_url = (
         f"/api/j2/notes/attachments/{user_id}/{note_id}/{sub}/{new_id}{ext}"
@@ -795,23 +796,23 @@ async def save_note_image(
     return {"url": public_url, "width": width, "height": height}
 
 
-async def save_note_attachment(
+def save_note_attachment_bytes(
     user_id: str,
     note_id: str,
-    upload,
+    data: bytes,
+    filename: str,
+    content_type: str,
 ) -> dict[str, Any]:
-    """Validate + persist a non-image file attached to a note. Returns
-    {url, name, size}. File is stored under _ATTACHMENT_ROOT/{user_id}/notes/{note_id}/file/"""
-    if upload.content_type not in _ALLOWED_FILE_MIMES:
-        raise NoteValidationError(f"MIME type {upload.content_type} not allowed")
-    raw = await upload.read()
-    if len(raw) > _MAX_FILE_BYTES:
+    """Sync bytes-level file save. Validate + persist file bytes to disk.
+    Returns {url, name, size}. File is stored under _ATTACHMENT_ROOT/{user_id}/notes/{note_id}/file/"""
+    if content_type not in _ALLOWED_FILE_MIMES:
+        raise NoteValidationError(f"MIME type {content_type} not allowed")
+    if len(data) > _MAX_FILE_BYTES:
         raise NoteValidationError("File must be < 25 MB")
-    if len(raw) == 0:
+    if len(data) == 0:
         raise NoteValidationError("Empty file")
 
     # Extract extension from filename; default to .bin if not in allowlist
-    filename = getattr(upload, "filename", "") or "attachment"
     ext_map = {
         ".pdf": ".pdf", ".txt": ".txt", ".csv": ".csv", ".md": ".md",
         ".zip": ".zip", ".mp3": ".mp3", ".m4a": ".m4a",
@@ -828,12 +829,43 @@ async def save_note_attachment(
     target_dir.mkdir(parents=True, exist_ok=True)
     new_id = uuid.uuid4().hex
     target_path = target_dir / f"{new_id}{ext}"
-    target_path.write_bytes(raw)
+    target_path.write_bytes(data)
 
     public_url = (
         f"/api/j2/notes/attachments/{user_id}/{note_id}/{sub}/{new_id}{ext}"
     )
-    return {"url": public_url, "name": filename, "size": len(raw)}
+    return {"url": public_url, "name": filename, "size": len(data)}
+
+
+async def save_note_image(
+    user_id: str,
+    note_id: str,
+    upload,
+    *,
+    kind: str = "inline",  # "inline" or "hero"
+) -> dict[str, Any]:
+    """Validate + persist an image attached to a note. Returns
+    {url, width, height}. Caller is responsible for setting
+    hero_image_url on the note row (if kind=hero) or inserting an
+    image node in body_json (if kind=inline)."""
+    raw = await upload.read()
+    return save_note_image_bytes(
+        user_id, note_id, raw, upload.filename or "image", upload.content_type, kind=kind
+    )
+
+
+async def save_note_attachment(
+    user_id: str,
+    note_id: str,
+    upload,
+) -> dict[str, Any]:
+    """Validate + persist a non-image file attached to a note. Returns
+    {url, name, size}. File is stored under _ATTACHMENT_ROOT/{user_id}/notes/{note_id}/file/"""
+    raw = await upload.read()
+    filename = getattr(upload, "filename", "") or "attachment"
+    return save_note_attachment_bytes(
+        user_id, note_id, raw, filename, upload.content_type
+    )
 
 
 def serve_note_image_path(
