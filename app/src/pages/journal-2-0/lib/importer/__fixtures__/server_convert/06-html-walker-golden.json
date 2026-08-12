@@ -1,0 +1,354 @@
+{
+  "doc": {
+    "content": [
+      {
+        "attrs": {
+          "level": 1
+        },
+        "content": [
+          {
+            "text": "Trip Notes",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "attrs": {
+          "level": 3
+        },
+        "content": [
+          {
+            "text": "Should Clamp",
+            "type": "text"
+          }
+        ],
+        "type": "heading"
+      },
+      {
+        "content": [
+          {
+            "text": "Some ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "bold",
+            "type": "text"
+          },
+          {
+            "text": ", ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "type": "italic"
+              }
+            ],
+            "text": "italic",
+            "type": "text"
+          },
+          {
+            "text": ", ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "type": "strike"
+              }
+            ],
+            "text": "struck",
+            "type": "text"
+          },
+          {
+            "text": ", and ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "type": "code"
+              }
+            ],
+            "text": "inline code",
+            "type": "text"
+          },
+          {
+            "text": " text.",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "content": [
+                  {
+                    "text": "Fruit ",
+                    "type": "text"
+                  }
+                ],
+                "type": "paragraph"
+              },
+              {
+                "content": [
+                  {
+                    "content": [
+                      {
+                        "content": [
+                          {
+                            "text": "Apple",
+                            "type": "text"
+                          }
+                        ],
+                        "type": "paragraph"
+                      }
+                    ],
+                    "type": "listItem"
+                  },
+                  {
+                    "content": [
+                      {
+                        "content": [
+                          {
+                            "text": "Banana",
+                            "type": "text"
+                          }
+                        ],
+                        "type": "paragraph"
+                      }
+                    ],
+                    "type": "listItem"
+                  }
+                ],
+                "type": "bulletList"
+              }
+            ],
+            "type": "listItem"
+          },
+          {
+            "content": [
+              {
+                "content": [
+                  {
+                    "text": "Veggie",
+                    "type": "text"
+                  }
+                ],
+                "type": "paragraph"
+              }
+            ],
+            "type": "listItem"
+          }
+        ],
+        "type": "bulletList"
+      },
+      {
+        "attrs": {
+          "start": 3
+        },
+        "content": [
+          {
+            "content": [
+              {
+                "content": [
+                  {
+                    "text": "Third",
+                    "type": "text"
+                  }
+                ],
+                "type": "paragraph"
+              }
+            ],
+            "type": "listItem"
+          },
+          {
+            "content": [
+              {
+                "content": [
+                  {
+                    "text": "Fourth",
+                    "type": "text"
+                  }
+                ],
+                "type": "paragraph"
+              }
+            ],
+            "type": "listItem"
+          }
+        ],
+        "type": "orderedList"
+      },
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "content": [
+                  {
+                    "content": [
+                      {
+                        "text": "Symbol",
+                        "type": "text"
+                      }
+                    ],
+                    "type": "paragraph"
+                  }
+                ],
+                "type": "tableHeader"
+              },
+              {
+                "content": [
+                  {
+                    "content": [
+                      {
+                        "text": "Chart",
+                        "type": "text"
+                      }
+                    ],
+                    "type": "paragraph"
+                  }
+                ],
+                "type": "tableHeader"
+              }
+            ],
+            "type": "tableRow"
+          },
+          {
+            "content": [
+              {
+                "content": [
+                  {
+                    "content": [
+                      {
+                        "text": "NVDA",
+                        "type": "text"
+                      }
+                    ],
+                    "type": "paragraph"
+                  }
+                ],
+                "type": "tableCell"
+              },
+              {
+                "content": [
+                  {
+                    "attrs": {
+                      "src": "import-ref://https://example.com/charts/nvda.png"
+                    },
+                    "type": "image"
+                  }
+                ],
+                "type": "tableCell"
+              }
+            ],
+            "type": "tableRow"
+          }
+        ],
+        "type": "table"
+      },
+      {
+        "attrs": {
+          "language": "python"
+        },
+        "content": [
+          {
+            "text": "print(\"hello\")",
+            "type": "text"
+          }
+        ],
+        "type": "codeBlock"
+      },
+      {
+        "content": [
+          {
+            "content": [
+              {
+                "text": "A quoted line",
+                "type": "text"
+              }
+            ],
+            "type": "paragraph"
+          }
+        ],
+        "type": "blockquote"
+      },
+      {
+        "type": "horizontalRule"
+      },
+      {
+        "content": [
+          {
+            "text": "Read the ",
+            "type": "text"
+          },
+          {
+            "marks": [
+              {
+                "attrs": {
+                  "href": "https://example.com/docs"
+                },
+                "type": "link"
+              }
+            ],
+            "text": "docs",
+            "type": "text"
+          },
+          {
+            "text": " for details.",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "content": [
+          {
+            "text": "See the ",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      },
+      {
+        "attrs": {
+          "href": "import-ref://book.xlsx",
+          "name": "book.xlsx"
+        },
+        "type": "attachmentChip"
+      },
+      {
+        "content": [
+          {
+            "text": " for the raw numbers.",
+            "type": "text"
+          }
+        ],
+        "type": "paragraph"
+      }
+    ],
+    "type": "doc"
+  },
+  "links": [],
+  "media": [
+    {
+      "kind": "image",
+      "name": "nvda.png",
+      "ref": "https://example.com/charts/nvda.png"
+    },
+    {
+      "kind": "file",
+      "name": "book.xlsx",
+      "ref": "book.xlsx"
+    }
+  ]
+}

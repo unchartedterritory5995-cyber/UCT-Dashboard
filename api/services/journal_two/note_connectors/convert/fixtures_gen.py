@@ -1,8 +1,11 @@
 """Cross-language schema-rail fixture generator.
 
-Walks every `*.md` file in `convert/fixtures_in/` (sorted by filename), runs
-each through `mddoc.md_to_tiptap`, and writes the full `{doc, media, links}`
-result as JSON to:
+Walks every `*.md` and `*.html` file in `convert/fixtures_in/` (sorted by
+filename across both extensions together), runs each through the matching
+converter — `mddoc.md_to_tiptap` for `.md`, `mddoc.html_to_tiptap` for
+`.html` (the Dropbox connector's own walker; same `{doc, media, links}`
+output shape, see that function's docstring) — and writes the full result as
+JSON to:
 
     app/src/pages/journal-2-0/lib/importer/__fixtures__/server_convert/<stem>.json
 
@@ -32,7 +35,7 @@ from __future__ import annotations
 import json
 import pathlib
 
-from .mddoc import md_to_tiptap
+from .mddoc import html_to_tiptap, md_to_tiptap
 
 _HERE = pathlib.Path(__file__).resolve().parent
 FIXTURES_IN_DIR = _HERE / "fixtures_in"
@@ -61,16 +64,22 @@ def generate(
     out_dir: pathlib.Path = FIXTURES_OUT_DIR,
     in_dir: pathlib.Path = FIXTURES_IN_DIR,
 ) -> list[pathlib.Path]:
-    """Regenerates every fixture JSON under `out_dir` from every `*.md` file
-    under `in_dir`. Returns the sorted list of paths written. `out_dir` is
-    created if missing; existing files not matching a current input stem are
-    left alone (a removed fixture input is a deliberate follow-up deletion,
-    not something this function silently prunes)."""
+    """Regenerates every fixture JSON under `out_dir` from every `*.md`/
+    `*.html` file under `in_dir`. Returns the sorted list of paths written
+    (sorted by filename across both extensions together, so e.g. a future
+    `05b-*.html` would still land between `05-*.md` and `06-*.md`). `out_dir`
+    is created if missing; existing files not matching a current input stem
+    are left alone (a removed fixture input is a deliberate follow-up
+    deletion, not something this function silently prunes)."""
     out_dir.mkdir(parents=True, exist_ok=True)
     written: list[pathlib.Path] = []
-    for md_path in sorted(in_dir.glob("*.md")):
-        result = md_to_tiptap(md_path.read_text(encoding="utf-8"))
-        out_path = out_dir / f"{md_path.stem}.json"
+    in_paths = sorted(
+        (*in_dir.glob("*.md"), *in_dir.glob("*.html")), key=lambda p: p.name,
+    )
+    for in_path in in_paths:
+        text = in_path.read_text(encoding="utf-8")
+        result = html_to_tiptap(text) if in_path.suffix == ".html" else md_to_tiptap(text)
+        out_path = out_dir / f"{in_path.stem}.json"
         out_path.write_text(_render(result), encoding="utf-8", newline="\n")
         written.append(out_path)
     return written

@@ -1,0 +1,44 @@
+<!--
+Exported note HTML — exercises mddoc.py's SECOND, independent walker
+(html_to_tiptap, the Dropbox `.html` path), not the markdown-it one every
+other fixture in this directory runs through. Covers: heading level clamp
+(h5 -> 3, mirroring the markdown fixture's ##### clamp), inline marks
+(bold/italic/strike/code), a nested bullet list, an ordered list with a
+custom `start`, a table with an image cell, a fenced code block via
+`<pre><code class="language-...">`, a blockquote, a horizontal rule, an
+external link, an `import-attachment-ref://`-prefixed href (the
+connector-pre-resolved-attachment case -> block-level `attachmentChip`,
+per mddoc.py's ATTACHMENT_REF_PREFIX handling — not exercised by any other
+committed fixture in this directory), and a wrapping `<div>` that must
+unwrap to its children (div is not in the declared HTML vocabulary) rather
+than appear in the output or swallow its content. This comment itself is
+dropped by the parser (HTMLParser's default handle_comment is a no-op) so
+it never reaches the converted doc.
+-->
+<div>
+<h1>Trip Notes</h1>
+<h5>Should Clamp</h5>
+<p>Some <b>bold</b>, <i>italic</i>, <s>struck</s>, and <code>inline code</code> text.</p>
+<ul>
+  <li>Fruit
+    <ul>
+      <li>Apple</li>
+      <li>Banana</li>
+    </ul>
+  </li>
+  <li>Veggie</li>
+</ul>
+<ol start="3">
+  <li>Third</li>
+  <li>Fourth</li>
+</ol>
+<table>
+  <tr><th>Symbol</th><th>Chart</th></tr>
+  <tr><td>NVDA</td><td><img src="https://example.com/charts/nvda.png"></td></tr>
+</table>
+<pre><code class="language-python">print("hello")</code></pre>
+<blockquote><p>A quoted line</p></blockquote>
+<hr>
+<p>Read the <a href="https://example.com/docs">docs</a> for details.</p>
+<p>See the <a href="import-attachment-ref://book.xlsx">spreadsheet</a> for the raw numbers.</p>
+</div>

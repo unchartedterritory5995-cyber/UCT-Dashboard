@@ -25,4 +25,5 @@
 # line-ending reason that has nothing to do with converter drift — the same
 # CRLF-only-on-Windows failure class as the chart-parity harness above.
 api/services/journal_two/note_connectors/convert/fixtures_in/*.md text eol=lf
+api/services/journal_two/note_connectors/convert/fixtures_in/*.html text eol=lf
 app/src/pages/journal-2-0/lib/importer/__fixtures__/server_convert/*.json text eol=lf

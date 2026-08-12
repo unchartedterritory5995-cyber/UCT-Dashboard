@@ -25,14 +25,18 @@ from api.services.journal_two.note_connectors.convert import fixtures_gen
 
 def test_fixtures_in_dir_has_committed_inputs():
     md_files = sorted(fixtures_gen.FIXTURES_IN_DIR.glob("*.md"))
+    html_files = sorted(fixtures_gen.FIXTURES_IN_DIR.glob("*.html"))
     assert md_files, "expected at least one *.md fixture input"
+    assert html_files, "expected at least one *.html fixture input (html_to_tiptap rail)"
 
 
 def test_committed_fixtures_exist_and_are_non_empty():
     assert fixtures_gen.FIXTURES_OUT_DIR.is_dir()
     json_files = sorted(fixtures_gen.FIXTURES_OUT_DIR.glob("*.json"))
-    md_files = sorted(fixtures_gen.FIXTURES_IN_DIR.glob("*.md"))
-    assert len(json_files) == len(md_files)
+    input_files = sorted(fixtures_gen.FIXTURES_IN_DIR.glob("*.md")) + sorted(
+        fixtures_gen.FIXTURES_IN_DIR.glob("*.html")
+    )
+    assert len(json_files) == len(input_files)
     for path in json_files:
         assert path.stat().st_size > 0
 
