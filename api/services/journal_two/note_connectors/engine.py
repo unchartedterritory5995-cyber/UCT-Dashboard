@@ -33,14 +33,29 @@ Flow per source, per sync:
   5. `import_confirm` is called with the PLACEHOLDER body (import-ref://,
      import-link://) in <=200-note batches — the hash is computed over that
      placeholder body, with the remote's own `updatedAt` in the hash basis
-     (it IS the change signal). Only AFTER confirm: media is downloaded
-     (`provider.fetch_media` or a `data_uri` entry decoded directly) and
-     `rewrite_body` resolves the placeholders; the result is written via
-     `_apply_resolved_body` (NOT `notes_svc.update_note`) — that raw write
-     deliberately skips bumping `updated_at`, since this step is completing
-     the SAME import episode `import_confirm` just stamped, not a new edit
-     (see `_apply_resolved_body`'s docstring for the false-conflict bug this
-     avoids).
+     (it IS the change signal). Resolution happens in TWO passes, deliberately
+     split (round-2 review fix, 2026-08-12):
+       a. Per-batch, immediately after that batch's confirm:
+          `_confirm_and_resolve_batch` downloads media (`provider.fetch_media`
+          or a `data_uri` entry decoded directly) and resolves ONLY
+          `import-ref://` media placeholders — `import-link://` marks pass
+          through completely untouched (`strip_unresolved_links=False`),
+          because a link's target may not be confirmed yet (a later batch).
+       b. Once every batch (+ conflict siblings) has confirmed, ONE final
+          sweep (`_resolve_links_final_pass`) resolves every `import-link://`
+          mark across the whole round via a single `import_check` — this
+          naturally covers a same-round forward reference into a later batch.
+     Every write in both passes goes through `_apply_resolved_body` (NOT
+     `notes_svc.update_note`) — that raw write deliberately skips bumping
+     `updated_at`, since this step is completing the SAME import episode
+     `import_confirm` just stamped, not a new edit (see
+     `_apply_resolved_body`'s docstring for the false-conflict bug this
+     avoids), and is optimistic-locked so a concurrent user edit can never be
+     clobbered (reroutes to a conflict sibling instead — spec §6). A mark
+     that's still unresolved after BOTH passes (target genuinely absent from
+     this round) stays as an inert intact placeholder rather than being
+     silently stripped, so self-heal's substring check keeps a real signal
+     to retry against on a future sync.
   6. Cursor advances to `max(ref.updated_at for ref in refs)` ONLY if the
      whole sync completed without raising — a provider exception mid-source
      updates the log row to 'error' and leaves the cursor untouched.
@@ -546,14 +561,19 @@ def _find_stranded_placeholder_ids(
 def _reroute_resolved_body_to_sibling(
     conn: sqlite3.Connection, user_id: str, source: dict[str, Any],
     rn: RemoteNote, key: str, resolved_body: dict[str, Any],
-) -> list[str]:
+) -> tuple[str | None, list[str]]:
     """Critical 2's race path: `_apply_resolved_body`'s optimistic lock
     failed, meaning a concurrent user edit landed between this note's
     `import_confirm` and this resolve step. The original is left exactly as
     the racing edit + confirm left it (never touched here) — the ALREADY-
     RESOLVED remote content goes to a sibling instead, and both are tagged
-    'sync-conflict'. Returns a list of failure strings (empty on success);
-    never raises."""
+    'sync-conflict'. Returns `(sibling_note_id_or_None, failures)`; never
+    raises. Called from two stages with different `resolved_body` states —
+    the per-batch media pass (media resolved, links still intact
+    placeholders) and the final link pass (links now also resolved) — the
+    per-batch caller must still add the sibling to "touched" for the link
+    pass; the final-pass caller needs no further action (its own output IS
+    the fully-resolved content)."""
     failures: list[str] = []
     sibling_key = f"{key}#remote"
     row = conn.execute(
@@ -567,7 +587,7 @@ def _reroute_resolved_body_to_sibling(
     entry: dict[str, Any] = {
         "importKey": sibling_key,
         "title": f"{rn.title} (synced copy)",
-        "bodyJson": resolved_body,  # already resolved — no further rewrite needed
+        "bodyJson": resolved_body,  # media already resolved — links resolve in the final pass
         "tags": tags,
         "folderPath": [],
     }
@@ -576,20 +596,24 @@ def _reroute_resolved_body_to_sibling(
     if rn.updated_at:
         entry["updatedAt"] = rn.updated_at
     try:
-        notes_svc.import_confirm(
+        sib_result = notes_svc.import_confirm(
             user_id,
             {"source": source["provider"], "destFolderId": original_folder_id, "notes": [entry]},
             conn=conn,
         )
     except Exception as e:  # noqa: BLE001 — the original is safe either way; a later sync retries
         failures.append(f"conflict sibling for {key!r} failed after a body-write race: {e}")
-        return failures
+        return None, failures
+    sibling_id = next(
+        (item["id"] for group in ("created", "updated", "skipped") for item in sib_result[group]),
+        None,
+    )
     if row is not None:
         cur_tags = json.loads(row["tags"] or "[]")
         if "sync-conflict" not in cur_tags:
             cur_tags.append("sync-conflict")
             notes_svc.update_note(user_id, row["id"], {"tags": cur_tags}, conn=conn)
-    return failures
+    return sibling_id, failures
 
 
 def _build_confirm_entry(
@@ -675,13 +699,102 @@ def _bulk_note_updated_at(conn: sqlite3.Connection, note_ids: list[str]) -> dict
     return out
 
 
-def _merge_batch_result(totals: dict[str, Any], res: dict[str, Any]) -> None:
+def _bulk_note_body_json(conn: sqlite3.Connection, note_ids: list[str]) -> dict[str, str | None]:
+    """Bulk-reads the raw (still-JSON-encoded) `body_json` TEXT for exactly
+    the given ids — used by the final link-resolution pass to read each
+    note's CURRENT stored body (whatever the per-batch media pass left it
+    at) without re-fetching one row at a time."""
+    if not note_ids:
+        return {}
+    out: dict[str, str | None] = {}
+    for i in range(0, len(note_ids), 500):
+        chunk = note_ids[i:i + 500]
+        placeholders = ",".join("?" * len(chunk))
+        rows = conn.execute(
+            f"SELECT id, body_json FROM j2_notes WHERE id IN ({placeholders})", chunk,
+        ).fetchall()
+        for row in rows:
+            out[row["id"]] = row["body_json"]
+    return out
+
+
+def _merge_batch_result(
+    totals: dict[str, Any], res: dict[str, Any], all_touched: list[tuple[RemoteNote, str, str]],
+) -> None:
     totals["created"] += res["created"]
     totals["updated"] += res["updated"]
     totals["skipped"] += res["skipped"]
     totals["mediaUploaded"] += res["mediaUploaded"]
     totals["conflicts"] += res.get("conflicts", 0)
     totals["failures"].extend(res["failures"])
+    all_touched.extend(res.get("touched", []))
+
+
+async def _resolve_links_final_pass(
+    conn: sqlite3.Connection, user_id: str, source: dict[str, Any],
+    touched: list[tuple[RemoteNote, str, str]],
+) -> dict[str, Any]:
+    """Runs AFTER every batch (normal + sibling) has confirmed+resolved its
+    media (Critical 3's stranding fix stays intact for media; this is the
+    round-2 review fix for links). Accumulates `id_by_key` across the WHOLE
+    round via ONE `import_check` covering every link target any touched note
+    references — this naturally includes a note confirmed in a LATER batch,
+    since by now every batch has already confirmed, closing the cross-batch
+    hole the per-batch design had. Cheap: no network calls, just DB reads +
+    pure `rewrite_body` + guarded writes.
+
+    Never strips an unresolved mark (`strip_unresolved_links=False`) — a
+    target genuinely absent from this round (deleted, never synced, wrong
+    provider) stays as an inert intact placeholder rather than being
+    silently erased, so self-heal keeps a real, greppable signal to retry
+    against on a future sync."""
+    result: dict[str, Any] = {"conflicts": 0, "failures": []}
+    candidates = [(rn, key, note_id) for rn, key, note_id in touched if rn.links]
+    if not candidates:
+        return result
+
+    link_targets = sorted({lk for rn, _k, _n in candidates for lk in rn.links})
+    link_check = notes_svc.import_check(user_id, link_targets, conn=conn)
+    id_by_key = {k: v["id"] for k, v in link_check["existing"].items()}
+    if not id_by_key:
+        return result  # nothing resolvable yet -> leave every mark intact; self-heal retries later
+
+    note_ids = [note_id for _rn, _k, note_id in candidates]
+    baseline_updated_at = _bulk_note_updated_at(conn, note_ids)
+    current_bodies = _bulk_note_body_json(conn, note_ids)
+
+    for rn, key, note_id in candidates:
+        raw_body = current_bodies.get(note_id)
+        if raw_body is None or "import-link://" not in raw_body:
+            continue  # note vanished, or nothing left to resolve
+        try:
+            doc = json.loads(raw_body)
+        except (TypeError, ValueError) as e:
+            result["failures"].append(f"link pass: unreadable stored body for note {note_id!r}: {e}")
+            continue
+
+        body, _dropped = rewrite_body(doc, {}, id_by_key, strip_unresolved_links=False)
+
+        try:
+            notes_svc._validate_body_json(body)
+        except notes_svc.NoteValidationError as e:
+            result["failures"].append(
+                f"link pass: resolved body failed validation for note {note_id!r}: {e}"
+            )
+            continue
+
+        expected = baseline_updated_at.get(note_id)
+        applied = _apply_resolved_body(conn, user_id, note_id, body, expected_updated_at=expected)
+        if not applied:
+            sibling_id, reroute_failures = _reroute_resolved_body_to_sibling(
+                conn, user_id, source, rn, key, body)
+            result["failures"].extend(reroute_failures)
+            result["conflicts"] += 1
+            # Not recursed further: the sibling's link mark is now resolved
+            # (it was built from `body`, this pass's OWN resolved output),
+            # so it needs no second visit.
+
+    return result
 
 
 async def _confirm_and_resolve_batch(
@@ -689,12 +802,25 @@ async def _confirm_and_resolve_batch(
     provider: NoteProvider, creds: dict[str, Any], dest_folder_id: str | None,
     entries: list[dict[str, Any]], pairs: list[tuple[RemoteNote, str]],
 ) -> dict[str, Any]:
-    """Confirms ONE batch, then immediately resolves (media + links +
-    validate + write) every created/updated note in THAT SAME batch, plus
-    any 'skipped' note whose stored body still carries a stranded literal
-    placeholder (self-heal). Per Critical 3 (PRIMARY): confirm batch N ->
-    resolve batch N -> only THEN move to batch N+1, so a later batch's
-    failure can never strand an already-resolved earlier batch.
+    """Confirms ONE batch, then immediately resolves MEDIA (upload +
+    validate + guarded write) for every created/updated note in THAT SAME
+    batch, plus any 'skipped' note whose stored body still carries a
+    stranded literal placeholder (self-heal). Per Critical 3 (PRIMARY):
+    confirm batch N -> resolve batch N's media -> only THEN move to batch
+    N+1, so a later batch's failure can never strand an already-resolved
+    earlier batch's media.
+
+    LINK resolution is deliberately NOT done here (round-2 review fix,
+    2026-08-12): a link target that lands in a LATER batch doesn't exist yet
+    at this point in the pipeline, and the original per-batch design
+    resolved links with whatever `id_by_key` it had *right then* — which,
+    with `strip_unresolved_links` defaulting True, silently and permanently
+    ERASED any forward reference to a not-yet-confirmed note (the mark was
+    dropped, and since the erased body then hashed as "no placeholder left",
+    self-heal's substring check could never find it again either). Every
+    note this pass touches that has `rn.links` is returned in `"touched"`
+    for `_resolve_links_final_pass` to handle in ONE sweep after every batch
+    (normal + sibling) has confirmed — see `_import_remote_notes`.
 
     Never raises — a bad batch's `import_confirm` exception is caught and
     turned into a named failure (SAFETY NET half of Critical 3: one bad
@@ -703,7 +829,7 @@ async def _confirm_and_resolve_batch(
     by prior batches)."""
     result: dict[str, Any] = {
         "created": 0, "updated": 0, "skipped": 0, "mediaUploaded": 0,
-        "conflicts": 0, "failures": [],
+        "conflicts": 0, "failures": [], "touched": [],
     }
     try:
         r = notes_svc.import_confirm(
@@ -748,12 +874,6 @@ async def _confirm_and_resolve_batch(
     ]
     baseline_updated_at = _bulk_note_updated_at(conn, ids_needing_baseline)
 
-    link_targets = sorted({lk for rn, _k in pairs for lk in (rn.links or [])})
-    id_by_key: dict[str, str] = {}
-    if link_targets:
-        link_check = notes_svc.import_check(user_id, link_targets, conn=conn)
-        id_by_key = {k: v["id"] for k, v in link_check["existing"].items()}
-
     for rn, key in pairs:
         outcome = outcome_by_key.get(key)
         if outcome is None:
@@ -762,8 +882,14 @@ async def _confirm_and_resolve_batch(
         healing = status == "skipped" and note_id in stranded
         if status == "skipped" and not healing:
             continue  # unchanged, no stranded placeholder -> nothing to do
-        if not healing and not rn.media and not rn.links:
-            continue  # nothing to resolve -> placeholder body IS the final body
+
+        if not healing and not rn.media:
+            # No media to resolve in THIS pass. If it has links, the final
+            # link pass reads the confirm-written body directly — nothing
+            # else has touched it since, so no write happens here at all.
+            if rn.links:
+                result["touched"].append((rn, key, note_id))
+            continue
 
         media_urls: dict[str, str] = {}
         if rn.media:
@@ -772,7 +898,10 @@ async def _confirm_and_resolve_batch(
             result["mediaUploaded"] += up
             result["failures"].extend(med_failures)
 
-        body, _dropped = rewrite_body(rn.doc, media_urls, id_by_key)
+        # MEDIA ONLY in this pass: id_by_key={} + strip_unresolved_links=False
+        # means every import-link:// mark passes through completely
+        # untouched (not stripped, not resolved) for the final pass to see.
+        body, _dropped = rewrite_body(rn.doc, media_urls, {}, strip_unresolved_links=False)
 
         # Important 6: validate the RESOLVED doc (1MB/shape backstop) before
         # the raw write — a malformed/oversized result must never land in
@@ -784,18 +913,28 @@ async def _confirm_and_resolve_batch(
             result["failures"].append(
                 f"resolved body failed validation for note {note_id!r}: {e}"
             )
+            if rn.links:
+                result["touched"].append((rn, key, note_id))  # placeholder still intact
             continue
 
         expected = baseline_updated_at.get(note_id)
         applied = _apply_resolved_body(conn, user_id, note_id, body, expected_updated_at=expected)
-        if not applied:
+        if applied:
+            if rn.links:
+                result["touched"].append((rn, key, note_id))
+        else:
             # A concurrent user edit landed in the window between confirm
             # and this write — never clobber it. Reroute the ALREADY-
-            # RESOLVED content to a conflict sibling instead (spec §6).
-            result["failures"].extend(
-                _reroute_resolved_body_to_sibling(conn, user_id, source, rn, key, body)
-            )
+            # (media-)RESOLVED content to a conflict sibling instead (spec
+            # §6); the original is never added to "touched" (it must not be
+            # written to again), the sibling is (it still needs its links
+            # resolved in the final pass).
+            sibling_id, reroute_failures = _reroute_resolved_body_to_sibling(
+                conn, user_id, source, rn, key, body)
+            result["failures"].extend(reroute_failures)
             result["conflicts"] += 1
+            if sibling_id and rn.links:
+                result["touched"].append((rn, f"{key}#remote", sibling_id))
 
     return result
 
@@ -837,14 +976,17 @@ async def _import_remote_notes(
             "created": 0, "updated": 0, "skipped": 0, "mediaUploaded": 0,
             "conflicts": pre_confirm_conflicts, "failures": [],
         }
+        all_touched: list[tuple[RemoteNote, str, str]] = []
 
         # Per-batch pipeline (Critical 3, PRIMARY): confirm batch N, resolve
-        # batch N immediately, THEN move to batch N+1. Known, deliberate
-        # tradeoff: an import-link:// from a note in batch N to a note that
-        # only lands in a LATER batch N+k resolves as unresolved this round
-        # (mark dropped, text kept) rather than waiting for the whole round —
-        # narrower than the stranding bug this fixes, and only reachable
-        # when a single sync round changes > _CONFIRM_BATCH_SIZE notes.
+        # batch N's MEDIA immediately, THEN move to batch N+1 — a later
+        # batch's failure can never strand an already-resolved earlier
+        # batch's media. LINK resolution is deliberately deferred to
+        # `_resolve_links_final_pass` below, run once every batch (+
+        # siblings) has confirmed — see `_confirm_and_resolve_batch`'s
+        # docstring for why (a per-batch link resolution silently and
+        # permanently erased any forward reference to a not-yet-confirmed
+        # note; round-2 review fix, 2026-08-12).
         for batch in _chunks(normal_items, _CONFIRM_BATCH_SIZE):
             entries = [e for e, _rn, _k in batch]
             pairs = [(rn, k) for _e, rn, k in batch]
@@ -852,7 +994,7 @@ async def _import_remote_notes(
                 conn, user_id, source, provider, creds,
                 source.get("destFolderId"), entries, pairs,
             )
-            _merge_batch_result(totals, res)
+            _merge_batch_result(totals, res, all_touched)
 
         # Siblings land under the ORIGINAL note's CURRENT folder (its own
         # folderPath is [] so it resolves straight to destFolderId) — that
@@ -864,13 +1006,30 @@ async def _import_remote_notes(
                 conn, user_id, source, provider, creds,
                 original_folder_id, [entry], [(rn, sibling_key)],
             )
-            _merge_batch_result(totals, res)
+            _merge_batch_result(totals, res, all_touched)
 
         # Tag the ORIGINAL note in a pre-confirm conflict — add-tag only,
         # body/title untouched. Both the original and its sibling now carry
         # 'sync-conflict'; neither version was lost.
         for note_id, tags in conflict_tag_updates.items():
             notes_svc.update_note(user_id, note_id, {"tags": tags}, conn=conn)
+
+        # Final pass (Critical 3 round-2 fix, PRIMARY): resolve every
+        # import-link:// mark across the WHOLE round now that every batch
+        # (normal + sibling) has confirmed, so a same-round forward
+        # reference resolves correctly regardless of which batch its target
+        # landed in. Safety-netted as a UNIT: a total failure here (e.g. the
+        # bulk `import_check` call itself raising) must not lose an
+        # otherwise-successful sync — every note's media is already
+        # resolved+written, and any note whose link never got resolved this
+        # round simply keeps its intact `import-link://` placeholder (never
+        # stripped) for self-heal to pick up on a future sync.
+        try:
+            link_result = await _resolve_links_final_pass(conn, user_id, source, all_touched)
+            totals["conflicts"] += link_result["conflicts"]
+            totals["failures"].extend(link_result["failures"])
+        except Exception as e:  # noqa: BLE001
+            totals["failures"].append(f"link resolution pass failed: {e}")
 
         return totals
     finally:

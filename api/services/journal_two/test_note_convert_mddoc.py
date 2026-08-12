@@ -410,6 +410,53 @@ def test_rewrite_body_removes_unresolved_link_mark_but_keeps_the_text():
     assert dropped_media == []
 
 
+def test_rewrite_body_strip_unresolved_links_false_keeps_the_mark_intact():
+    """The sync engine's safety net (review fix 2026-08-12): passing
+    `strip_unresolved_links=False` keeps an unresolvable import-link:// mark
+    (href unchanged) instead of dropping it — so a later pass, or the
+    engine's self-heal substring check, can still find and resolve it.
+    Wizard-parity default (True, exercised above) is completely unaffected."""
+    body = _doc([{
+        "type": "paragraph",
+        "content": [{
+            "type": "text", "text": "ghost",
+            "marks": [{"type": "link", "attrs": {"href": "import-link://obsidian:gone.md"}}],
+        }],
+    }])
+
+    out, dropped_media = rewrite_body(
+        body, media_urls={}, id_by_key={}, strip_unresolved_links=False)
+
+    text_node = out["content"][0]["content"][0]
+    assert text_node["text"] == "ghost"
+    assert text_node["marks"] == [
+        {"type": "link", "attrs": {"href": "import-link://obsidian:gone.md"}}
+    ]
+    assert dropped_media == []
+
+
+def test_rewrite_body_strip_unresolved_links_false_still_resolves_a_known_target():
+    """The safety-net flag only changes the UNRESOLVED path — a resolvable
+    link still resolves exactly as before regardless of the flag."""
+    body = _doc([{
+        "type": "paragraph",
+        "content": [{
+            "type": "text", "text": "known",
+            "marks": [{"type": "link", "attrs": {"href": "import-link://obsidian:known.md"}}],
+        }],
+    }])
+
+    out, _dropped = rewrite_body(
+        body, media_urls={}, id_by_key={"obsidian:known.md": "note-42"},
+        strip_unresolved_links=False,
+    )
+
+    text_node = out["content"][0]["content"][0]
+    assert text_node["marks"] == [
+        {"type": "link", "attrs": {"href": "/journal?j2tab=notebook&note=note-42"}}
+    ]
+
+
 def test_rewrite_body_swaps_attachment_chip_href_and_drops_missing_by_name():
     body = _doc([
         {"type": "attachmentChip", "attrs": {"href": "import-ref://book.xlsx", "name": "book.xlsx", "size": None}},

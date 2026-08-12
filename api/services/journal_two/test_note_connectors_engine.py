@@ -605,7 +605,18 @@ async def test_sync_due_sources_isolates_a_failing_source(db, provider):
 
 
 # ---------------------------------------------------------------------------
-# link resolution across the batch (import-link:// -> a real note URL)
+# Link resolution (import-link:// -> a real note URL), via the FINAL pass
+# (`_resolve_links_final_pass`, added in the 2026-08-12 review round-2 fix).
+#
+# ⚠️ Both notes below land in the SAME confirm batch (default
+# `_CONFIRM_BATCH_SIZE`), so this test alone does NOT prove cross-batch
+# resolution — that was exactly the false confidence that hid the original
+# bug (link resolution used to run inside each batch's OWN resolve step, so
+# a same-batch case like this one always "just worked" even before the fix,
+# while a genuinely cross-batch forward reference was silently and
+# permanently erased). The dedicated cross-batch regression is
+# `test_cross_batch_forward_link_resolves_in_the_final_pass` below, which
+# forces `_CONFIRM_BATCH_SIZE=1` so the two notes land in DIFFERENT batches.
 # ---------------------------------------------------------------------------
 
 async def test_import_link_placeholder_resolves_to_the_target_notes_url(source, provider):
@@ -659,7 +670,13 @@ async def test_import_link_placeholder_resolves_to_the_target_notes_url(source, 
 async def test_body_write_race_reroutes_resolved_content_to_a_sibling_preserving_the_original(
     source, provider, monkeypatch,
 ):
-    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
+    # "p2" (the link target) IS synced alongside "p1" in round 1 so the link
+    # actually resolves on the clean path — proving the positive case, not
+    # just the "stays intact forever" negative case (covered elsewhere).
+    provider.refs = [
+        RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="p2", updated_at="2026-08-01T00:00:00+00:00"),
+    ]
     rn1 = _rn("p1", "Race Note", text="v1", links=["fake:fake-graph/p2"])
     rn1.doc["content"].append({
         "type": "paragraph",
@@ -668,22 +685,28 @@ async def test_body_write_race_reroutes_resolved_content_to_a_sibling_preserving
             "marks": [{"type": "link", "attrs": {"href": "import-link://fake:fake-graph/p2"}}],
         }],
     })
-    provider.notes_by_id = {"p1": rn1}
+    provider.notes_by_id = {"p1": rn1, "p2": _rn("p2", "Target Note")}
 
     r1 = await engine.sync_source(source["id"], full=True)
     assert r1["status"] == "ok"
     assert r1["conflicts"] == 0
     all_notes = notes_svc.list_notes("u1")
-    assert len(all_notes) == 1  # clean path: no race, no sibling
-    original_id = all_notes[0]["id"]
-    # unresolved link (p2 was never synced) -> the mark was stripped cleanly
-    # on the clean-path write, proving the clean path itself resolves.
-    assert "import-link://" not in json.dumps(all_notes[0]["bodyJson"])
+    assert len(all_notes) == 2  # clean path: no race, no sibling
+    original = next(n for n in all_notes if n["title"] == "Race Note")
+    target = next(n for n in all_notes if n["title"] == "Target Note")
+    original_id = original["id"]
+    # the link resolved cleanly to the target's real URL on the clean path
+    # (via the final link-resolution pass), proving the clean path itself
+    # resolves correctly, not just that it "doesn't crash".
+    assert f"/journal?j2tab=notebook&note={target['id']}" in json.dumps(original["bodyJson"])
 
     # Second sync: remote content changes -> import_confirm will UPDATE this
     # note's placeholder body normally (no PRE-confirm conflict, since the
     # note was never locally edited yet).
-    provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-05T00:00:00+00:00")]
+    provider.refs = [
+        RemoteRef(remote_id="p1", updated_at="2026-08-05T00:00:00+00:00"),
+        RemoteRef(remote_id="p2", updated_at="2026-08-01T00:00:00+00:00"),
+    ]
     rn2 = _rn("p1", "Race Note", text="v2", updated_at="2026-08-05T00:00:00+00:00",
               links=["fake:fake-graph/p2"])
     rn2.doc["content"].append({
@@ -693,18 +716,19 @@ async def test_body_write_race_reroutes_resolved_content_to_a_sibling_preserving
             "marks": [{"type": "link", "attrs": {"href": "import-link://fake:fake-graph/p2"}}],
         }],
     })
-    provider.notes_by_id = {"p1": rn2}
+    provider.notes_by_id = {"p1": rn2, "p2": _rn("p2", "Target Note")}
 
     real_rewrite_body = engine.rewrite_body
     fired = {"done": False}
 
-    def racing_rewrite_body(doc, media_urls, id_by_key):
+    def racing_rewrite_body(doc, media_urls, id_by_key, *, strip_unresolved_links=True):
         if not fired["done"]:
             fired["done"] = True
             # Simulates a user's OWN edit landing in the window between this
             # note's import_confirm (already run) and this resolve step.
             notes_svc.update_note("u1", original_id, {"title": "user's own concurrent edit"})
-        return real_rewrite_body(doc, media_urls, id_by_key)
+        return real_rewrite_body(
+            doc, media_urls, id_by_key, strip_unresolved_links=strip_unresolved_links)
 
     monkeypatch.setattr(engine, "rewrite_body", racing_rewrite_body)
 
@@ -720,13 +744,12 @@ async def test_body_write_race_reroutes_resolved_content_to_a_sibling_preserving
     assert "import-link://" in json.dumps(kept_original["bodyJson"])
 
     all_notes = notes_svc.list_notes("u1")
-    assert len(all_notes) == 2
-    sibling = next(n for n in all_notes if n["id"] != original_id)
-    assert sibling["title"] == "Race Note (synced copy)"
+    assert len(all_notes) == 3  # original + target + the new conflict sibling
+    sibling = next(n for n in all_notes if n["title"] == "Race Note (synced copy)")
     assert "sync-conflict" in sibling["tags"]
-    # the sibling holds the RESOLVED content (mark stripped, same as the
-    # clean-path assertion above).
-    assert "import-link://" not in json.dumps(sibling["bodyJson"])
+    # the sibling holds the RESOLVED content (link resolved to the target,
+    # same as the clean-path assertion above).
+    assert f"/journal?j2tab=notebook&note={target['id']}" in json.dumps(sibling["bodyJson"])
     assert sibling["bodyPlain"].strip().startswith("v2")
 
 
@@ -850,15 +873,12 @@ async def test_token_expired_subclass_also_marks_broken(source, provider):
 async def test_oversized_resolved_body_fails_validation_and_leaves_placeholder_in_place(
     source, provider, monkeypatch,
 ):
+    """Exercises the PER-BATCH (media) pass's validation call — the note has
+    media so `_confirm_and_resolve_batch` actually reaches `rewrite_body`."""
     provider.refs = [RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00")]
-    rn = _rn("p1", "Oversize Target", links=["fake:fake-graph/nope"])
-    rn.doc["content"].append({
-        "type": "paragraph",
-        "content": [{
-            "type": "text", "text": "link",
-            "marks": [{"type": "link", "attrs": {"href": "import-link://fake:fake-graph/nope"}}],
-        }],
-    })
+    rn = _rn("p1", "Oversize Target", media=[{"ref": "img-1", "kind": "image", "name": "x.png"}])
+    rn.doc["content"].append({"type": "image", "attrs": {"src": "import-ref://img-1"}})
+    provider.media_by_ref["img-1"] = (PNG_BYTES, "image/png")
     provider.notes_by_id = {"p1": rn}
 
     # Monkeypatch engine's OWN rewrite_body reference to prove ENGINE-level
@@ -869,7 +889,7 @@ async def test_oversized_resolved_body_fails_validation_and_leaves_placeholder_i
         "content": [{"type": "paragraph", "content": [{"type": "text", "text": "x" * 2_000_000}]}],
     }
 
-    def fake_rewrite_body(doc, media_urls, id_by_key):
+    def fake_rewrite_body(doc, media_urls, id_by_key, *, strip_unresolved_links=True):
         return huge_doc, []
 
     monkeypatch.setattr(engine, "rewrite_body", fake_rewrite_body)
@@ -882,8 +902,50 @@ async def test_oversized_resolved_body_fails_validation_and_leaves_placeholder_i
 
     note = notes_svc.list_notes("u1")[0]
     # the placeholder body import_confirm wrote is still there, untouched.
-    assert "import-link://" in json.dumps(note["bodyJson"])
+    assert "import-ref://img-1" in json.dumps(note["bodyJson"])
     assert json.dumps(note["bodyJson"]) != json.dumps(huge_doc)
+
+
+async def test_oversized_resolved_link_body_fails_validation_in_the_final_pass(
+    source, provider, monkeypatch,
+):
+    """Same backstop, but exercised via the FINAL link-resolution pass
+    (`_resolve_links_final_pass`) — a separate call site with its own
+    validation check. The link target ("p2") is synced in the SAME round so
+    it actually resolves and the (fake) rewrite_body gets invoked."""
+    provider.refs = [
+        RemoteRef(remote_id="p1", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="p2", updated_at="2026-08-01T00:00:00+00:00"),
+    ]
+    rn = _rn("p1", "Oversize Link Source", links=["fake:fake-graph/p2"])
+    rn.doc["content"].append({
+        "type": "paragraph",
+        "content": [{
+            "type": "text", "text": "link",
+            "marks": [{"type": "link", "attrs": {"href": "import-link://fake:fake-graph/p2"}}],
+        }],
+    })
+    provider.notes_by_id = {"p1": rn, "p2": _rn("p2", "Target")}
+
+    huge_doc = {
+        "type": "doc",
+        "content": [{"type": "paragraph", "content": [{"type": "text", "text": "x" * 2_000_000}]}],
+    }
+
+    def fake_rewrite_body(doc, media_urls, id_by_key, *, strip_unresolved_links=True):
+        return huge_doc, []
+
+    monkeypatch.setattr(engine, "rewrite_body", fake_rewrite_body)
+
+    result = await engine.sync_source(source["id"], full=True)
+
+    assert result["status"] == "ok"
+    assert result["created"] == 2
+    assert any("validation" in f.lower() for f in result["failures"])
+
+    source_note = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Oversize Link Source")
+    assert "import-link://" in json.dumps(source_note["bodyJson"])
+    assert json.dumps(source_note["bodyJson"]) != json.dumps(huge_doc)
 
 
 # Minor 7 — conflicts count surfaced in the result dict + the log row.
@@ -905,3 +967,109 @@ async def test_conflict_count_is_surfaced_in_result_and_log_row(source, provider
 
     log_row = _log_rows(source["id"])[-1]
     assert log_row["conflicts"] == 1
+
+
+# ---------------------------------------------------------------------------
+# Round 2 review fix (2026-08-12) — cross-batch import-link:// resolution.
+#
+# The per-batch pipeline (Critical 3, round 1) resolved MEDIA and LINKS
+# together, inside each batch's own resolve step. A link whose target landed
+# in a LATER batch didn't exist yet at that point, and with
+# `strip_unresolved_links` defaulting True the mark was silently DROPPED
+# (not just left unresolved) — permanently, since the erased body then had
+# no "import-link://" substring left for self-heal's grep to find. Fixed by
+# splitting link resolution into `_resolve_links_final_pass`, run once after
+# every batch (+ conflict siblings) has confirmed, using
+# `strip_unresolved_links=False` so an unresolved mark always stays
+# greppable until it genuinely resolves.
+# ---------------------------------------------------------------------------
+
+
+async def test_cross_batch_forward_link_resolves_in_the_final_pass(source, provider, monkeypatch):
+    """Note A (batch 1) forward-links Note B (batch 2, confirmed AFTER A).
+    Under the pre-fix per-batch design this would have permanently erased
+    the link; the final pass runs after BOTH batches, so it resolves."""
+    monkeypatch.setattr(engine, "_CONFIRM_BATCH_SIZE", 1)  # force A and B into separate batches
+
+    provider.refs = [
+        RemoteRef(remote_id="a", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="b", updated_at="2026-08-01T00:00:01+00:00"),
+    ]
+    a = _rn("a", "Note A", links=["fake:fake-graph/b"])
+    a.doc["content"].append({
+        "type": "paragraph",
+        "content": [{
+            "type": "text", "text": "link to B",
+            "marks": [{"type": "link", "attrs": {"href": "import-link://fake:fake-graph/b"}}],
+        }],
+    })
+    b = _rn("b", "Note B", updated_at="2026-08-01T00:00:01+00:00")
+    provider.notes_by_id = {"a": a, "b": b}
+
+    result = await engine.sync_source(source["id"], full=True)
+
+    assert result["status"] == "ok"
+    assert result["created"] == 2
+
+    note_a = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Note A")
+    note_b = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Note B")
+    assert f"/journal?j2tab=notebook&note={note_b['id']}" in json.dumps(note_a["bodyJson"])
+    assert "import-link://" not in json.dumps(note_a["bodyJson"])
+
+
+async def test_final_pass_failure_leaves_the_mark_intact_and_self_heals_next_sync(
+    source, provider, monkeypatch,
+):
+    """A total final-pass failure (e.g. the bulk `import_check` call itself
+    raising) must not lose an otherwise-successful sync, and must never
+    strip the unresolved mark — it stays intact so a later sync (here, via
+    self-heal, since the remote content is unchanged) finishes the job."""
+    provider.refs = [
+        RemoteRef(remote_id="a", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="b", updated_at="2026-08-01T00:00:01+00:00"),
+    ]
+    a = _rn("a", "Note A", links=["fake:fake-graph/b"])
+    a.doc["content"].append({
+        "type": "paragraph",
+        "content": [{
+            "type": "text", "text": "link to B",
+            "marks": [{"type": "link", "attrs": {"href": "import-link://fake:fake-graph/b"}}],
+        }],
+    })
+    b = _rn("b", "Note B", updated_at="2026-08-01T00:00:01+00:00")
+    provider.notes_by_id = {"a": a, "b": b}
+
+    real_import_check = notes_svc.import_check
+
+    def failing_import_check(*args, **kwargs):
+        raise RuntimeError("simulated final-pass failure")
+
+    monkeypatch.setattr(notes_svc, "import_check", failing_import_check)
+
+    result = await engine.sync_source(source["id"], full=True)
+
+    assert result["status"] == "ok"  # the safety net: an otherwise-successful sync still completes
+    assert result["created"] == 2
+    assert any("link resolution pass failed" in f for f in result["failures"])
+
+    note_a = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Note A")
+    assert "import-link://fake:fake-graph/b" in json.dumps(note_a["bodyJson"])  # intact, not stripped
+
+    # Restore the real import_check and re-sync with IDENTICAL remote
+    # content -> "a" hashes unchanged -> marked 'skipped' by import_confirm
+    # -> self-heal must still notice the stranded placeholder and finish it.
+    monkeypatch.setattr(notes_svc, "import_check", real_import_check)
+
+    provider.refs = [
+        RemoteRef(remote_id="a", updated_at="2026-08-01T00:00:00+00:00"),
+        RemoteRef(remote_id="b", updated_at="2026-08-01T00:00:01+00:00"),
+    ]
+    provider.notes_by_id = {"a": a, "b": b}
+
+    result2 = await engine.sync_source(source["id"], full=True, manual=True)
+
+    assert result2["status"] == "ok"
+    note_a2 = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Note A")
+    note_b = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Note B")
+    assert f"/journal?j2tab=notebook&note={note_b['id']}" in json.dumps(note_a2["bodyJson"])
+    assert "import-link://" not in json.dumps(note_a2["bodyJson"])
