@@ -137,6 +137,11 @@ _DEEPFILL_TTL = int(_os.environ.get("BARS_DEEPFILL_TTL_SECONDS", str(6 * 3600)))
 # weeks of context; the store keys by ts, so these capped rows still satisfy the full
 # bars=30000 request from SQLite on the real chart fetch.
 _REPLAY_INTRADAY_COLD_BARS = int(_os.environ.get("REPLAY_INTRADAY_COLD_BARS", "4000"))
+# Global cap on CONCURRENT replay cold fetches so warming (5 TFs at once) + other users'
+# replays can't saturate the single-process web pod's threadpool → the 524-outage class.
+# Warm requests are best-effort (skip when no slot); real chart requests wait for one.
+_REPLAY_COLD_CONCURRENCY = int(_os.environ.get("REPLAY_COLD_CONCURRENCY", "2"))
+_replay_cold_sem = _threading.Semaphore(_REPLAY_COLD_CONCURRENCY)
 _DEEPFILL_MAX = max(1, int(_os.environ.get("BARS_DEEPFILL_MAX", "2")))
 _deepfill_sem = _threading.Semaphore(_DEEPFILL_MAX)
 
@@ -1764,7 +1769,7 @@ def _get_delisted_bars_response(record: dict, tf: str, bars: int, serve_as: str 
     return JSONResponse(content=payload, headers={"Cache-Control": "no-store"})
 
 
-def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str) -> JSONResponse:
+def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str, warm: bool = False) -> JSONResponse:
     """Serve up to `bars` bars ENDING AT `to_str` (YYYY-MM-DD) from SQLite — the
     replay-mode PRE-CUTOFF window. This history is static, so there's NO freshness check
     and NO provider call: a fast index-seek read (the fix for replay charts on old tickers
@@ -1843,15 +1848,22 @@ def _get_bars_to_response(ticker: str, tf: str, bars: int, to_str: str) -> JSONR
                     ev = _threading.Event()
                     _inflight[cold_key] = ev
             if do_fetch:
+                # Global concurrency cap (_replay_cold_sem): a WARM request skips the fetch when
+                # no slot is free (the on-demand chart request will fetch it later) so warming 5
+                # TFs can't saturate the pod; a real CHART request waits up to 20s for a slot.
+                got_slot = _replay_cold_sem.acquire(blocking=False) if warm else _replay_cold_sem.acquire(timeout=20)
                 try:
-                    deep = [b for b in _fetch_intraday_range(ticker_up, tf, from_ymd, str(to_str))
-                            if int(b.get("t", 0)) <= to_key]
-                    if deep:
-                        try:
-                            _sqlite.put_bars(ticker_up, tf, deep, date_tf=False)
-                        except Exception:
-                            pass
+                    if got_slot:
+                        deep = [b for b in _fetch_intraday_range(ticker_up, tf, from_ymd, str(to_str))
+                                if int(b.get("t", 0)) <= to_key]
+                        if deep:
+                            try:
+                                _sqlite.put_bars(ticker_up, tf, deep, date_tf=False)
+                            except Exception:
+                                pass
                 finally:
+                    if got_slot:
+                        _replay_cold_sem.release()
                     with _inflight_lock:
                         _inflight.pop(cold_key, None)
                     ev.set()

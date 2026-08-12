@@ -111,11 +111,15 @@ export function prefetchAllTimeframes(sym) {
 // 5m/1m the data is already stored server-side and serves from SQLite with no cold fetch.
 // Priority-queued (the user just entered replay and will click a TF within seconds) and
 // deduped server-side by (sym,tf,to). Fire this the moment a replay cutoff is set.
-const REPLAY_WARM_TFS = ['5', '15', '30', '60', '1']
+// `warm=1` makes each request BEST-EFFORT server-side: if the pod is busy it skips the
+// provider fetch (the on-demand click will fetch it) so warming can never starve the chart
+// the user is waiting on. 1-min is left out (heaviest, rarely the first click) — it fetches
+// on demand if clicked.
+const REPLAY_WARM_TFS = ['5', '15', '30', '60']
 export function prefetchReplayTimeframes(sym, cutoffIso, { bars = 4000 } = {}) {
   if (!sym || !cutoffIso) return
   for (const tf of REPLAY_WARM_TFS) {
-    _enqueue(`/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bars}&to=${encodeURIComponent(cutoffIso)}`, true)
+    _enqueue(`/api/bars/${encodeURIComponent(sym)}?tf=${tf}&bars=${bars}&to=${encodeURIComponent(cutoffIso)}&warm=1`, false)
   }
 }
 
