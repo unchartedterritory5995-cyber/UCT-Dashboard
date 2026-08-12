@@ -39,10 +39,13 @@ Dropbox mechanics (research, binding per the brief):
     MUST be honored — Dropbox notes it may reflect lock contention, not a
     genuine quota breach, so the correct remedy is the same either way: wait
     and retry.
-  - `content_hash` on file metadata is the per-file change-detection
-    surrogate (see `_change_signal`'s docstring for why it — not
-    `server_modified` — was chosen, and the cursor-representation tradeoff
-    that choice implies).
+  - `content_hash` on file metadata drives PER-FILE SKIP-DETECTION inside
+    this provider (`_entries_to_refs`'s `_LAST_SEEN_HASHES` check — a file
+    whose hash hasn't changed since this process last saw it is never
+    re-emitted). `RemoteRef`/`RemoteNote.updated_at` carry `server_modified`
+    instead — a REAL ISO-8601 timestamp — never `content_hash` (see
+    `_change_timestamp`'s docstring for the fidelity/safety bug that choice
+    fixes).
 
 ────────────────────────────────────────────────────────────────────────────
 KNOWN, DOCUMENTED DESIGN GAP — read before wiring this provider into a source
@@ -88,23 +91,24 @@ CURSOR REPRESENTATION — the other documented tradeoff
 refs)` after every successful sync (engine.py's own docstring, point 6), and
 hands that value straight back as `cursor` on the next call — there is no
 separate channel for a provider to store its OWN opaque state across syncs.
-The task brief is explicit that `RemoteRef.updated_at` should carry Dropbox's
-`content_hash` (see `_change_signal`), which is the CORRECT signal for
-per-file change detection (feeds `j2_note_remote_index.remote_updated_at`
-and, via `RemoteNote.updated_at`, the engine's `import_confirm` hash basis)
-but is NOT a real Dropbox `list_folder` continuation cursor.
+`RemoteRef.updated_at` carries Dropbox's `server_modified` (see
+`_change_timestamp`) — a real ISO-8601 timestamp, but still NOT a real
+Dropbox `list_folder` continuation cursor (Dropbox's own cursor is an opaque
+token this provider never gets a channel to persist across the
+fresh-instance-per-sync boundary).
 
-Consequence: `list_changed(credentials, cursor=<some file's content_hash>)`
-will almost always fail Dropbox's own cursor validation. This is handled,
-not ignored: Dropbox's `409 {".tag": "reset"}` response is EXACTLY the
-documented recovery signal for "this cursor isn't recognized," and
+Consequence: `list_changed(credentials, cursor=<some file's server_modified
+timestamp>)` will almost always fail Dropbox's own cursor validation. This is
+handled, not ignored: Dropbox's `409 {".tag": "reset"}` response is EXACTLY
+the documented recovery signal for "this cursor isn't recognized," and
 `list_changed` below catches it and falls back to a full recursive re-list
 transparently. The net effect (today, until a future task threads a
 provider-private cursor store through the source row) is that Dropbox syncs
 here are always effectively FULL listings — correct, self-healing, just not
-maximally efficient. `list_folder/continue` is still implemented faithfully
-(not stubbed out) so it activates for free the day a real cursor can flow
-through.
+maximally efficient (mitigated by the `content_hash`-driven skip-detection in
+`_entries_to_refs`, which keeps a full listing from re-emitting every
+unchanged file). `list_folder/continue` is still implemented faithfully (not
+stubbed out) so it activates for free the day a real cursor can flow through.
 """
 
 from __future__ import annotations
@@ -115,12 +119,13 @@ import os
 import posixpath
 import re
 from typing import Any
-from urllib.parse import unquote, urlencode, urlsplit
+from urllib.parse import quote, unquote, urlencode, urlsplit
 
 import httpx
 
+from ...notes import _MAX_FILE_BYTES
 from .. import errors
-from ..convert import LINK_PREFIX, REF_PREFIX, html_to_tiptap, md_to_tiptap
+from ..convert import ATTACHMENT_REF_PREFIX, LINK_PREFIX, REF_PREFIX, html_to_tiptap, md_to_tiptap
 from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef
 
 
@@ -140,12 +145,39 @@ OAUTH_TOKEN_ACCESS_TYPE = "offline"
 # own note.
 _NOTE_EXTENSIONS = (".md", ".txt", ".html", ".htm")
 
-# Internal-only prefix marking a media ref this provider has already
-# resolved to an absolute Dropbox `path_lower` (see `_resolve_one_relative_ref`
-# / `fetch_media`) — distinguishes "download via the Dropbox content API" from
-# a genuine external `https://` URL. Never leaks outward; stripped in
-# `fetch_media` before it ever reaches Dropbox.
-_DBX_PATH_SCHEME = "dbx-path:"
+# Internal-only prefixes marking a media/attachment ref this provider has
+# already resolved to an absolute Dropbox `path_lower` (see
+# `_resolve_one_relative_ref` / `fetch_media`) — distinguishing "download via
+# the Dropbox content API" from a genuine external `https://` URL. Never
+# leak outward; stripped in `fetch_media` before anything reaches Dropbox.
+#
+# TWO ENCODING DOMAINS, never mixed (review fix — a prior version relied on
+# markdown-it-py's own `normalizeLink` to percent-encode an angle-bracket
+# destination, then blindly `unquote()`'d it on the way back; that round-trip
+# is NOT provably symmetric for a path containing a literal "%" — see
+# `test_markdown_media_ref_round_trips_byte_exact_adversarial_names` /
+# `test_html_media_ref_round_trips_byte_exact_adversarial_names` in the test
+# file):
+#   - MD-sourced refs (`_MD_*`): WE percent-encode the resolved path
+#     ourselves (`quote(resolved, safe="/")`) before angle-bracket-wrapping
+#     it in the rewritten markdown source. markdown-it-py's `normalizeLink`
+#     is idempotent on an already-percent-encoded, already-ASCII-safe string
+#     (verified empirically — it leaves ours byte-for-byte unchanged), so
+#     `fetch_media` un-quotes EXACTLY ONCE to recover the original path.
+#   - HTML-sourced refs (`_HTML_SCHEME`): NEVER percent-encoded by anything
+#     in this pipeline (`html.parser` attribute values are literal text) and
+#     therefore NEVER unquoted in `fetch_media` — doing so would corrupt a
+#     real filename that happens to contain a literal "%" sequence.
+#
+# `_MD_ATTACH_SCHEME` exists only to tell `_promote_md_attachments` apart
+# from a genuine `_MD_MEDIA_SCHEME` image after `md_to_tiptap` returns (see
+# that function's docstring) — both decode identically (MD-sourced, unquote
+# once).
+_MD_MEDIA_SCHEME = "dbx-md-media:"
+_MD_ATTACH_SCHEME = "dbx-md-attach:"
+_MD_SCHEMES = (_MD_MEDIA_SCHEME, _MD_ATTACH_SCHEME)
+
+_HTML_SCHEME = "dbx-html:"
 
 _MAX_LIST_PAGES = 500  # defensive cap against a pathological has_more loop
 _RATE_LIMIT_MAX_RETRIES = 3
@@ -295,21 +327,48 @@ def _extension(path_lower: str) -> str:
     return path_lower[idx:] if idx != -1 else ""
 
 
-def _change_signal(entry: dict[str, Any]) -> str:
-    """The per-file change-detection surrogate — stored as BOTH
-    `RemoteRef.updated_at` (-> `j2_note_remote_index.remote_updated_at`, per
-    the brief's explicit directive) and `RemoteNote.updated_at` (-> the
-    engine's `import_confirm` hash basis, so an unchanged file hashes
-    identically and is correctly skipped downstream). Dropbox's
-    `content_hash` reflects file CONTENT ONLY — ignoring metadata-only
-    touches like an in-place rename/move some sync clients perform without
-    altering bytes — which is a more reliable "did this note actually
-    change" signal than `server_modified` (which some clients bump on
-    metadata-only touches). See the module docstring's cursor-representation
-    note for the tradeoff this choice implies for `source.cursor`. Falls
-    back to `server_modified` for the rare entry shape lacking
-    `content_hash` (defensive; real Dropbox `FileMetadata` always has it)."""
-    return entry.get("content_hash") or entry.get("server_modified") or ""
+def _change_timestamp(entry: dict[str, Any]) -> str:
+    """`RemoteRef.updated_at` / `RemoteNote.updated_at` — a REAL ISO-8601
+    timestamp (Dropbox's `server_modified`), matching `base.py`'s own
+    contract ("ALWAYS an ISO-8601 UTC string").
+
+    Review fix (fidelity + safety): an earlier version used `content_hash`
+    (a 64-char hex digest, NOT ISO-parseable) here. Two problems: (1)
+    fidelity — every synced note's displayed "last updated" read as "just
+    synced" instead of the file's real modification time, because it was
+    never a real date to begin with; (2) safety — `notes.py::_import_date`
+    silently falls back to the CURRENT sync time (`now`) whenever the
+    supplied `updatedAt` fails `datetime.fromisoformat`, which a content
+    hash always does. `content_hash` is still used, separately, for
+    per-file SKIP-detection (`_entries_to_refs`'s `_LAST_SEEN_HASHES` check)
+    — it never flows into a field anything downstream tries to parse as a
+    date. Falls back to an EMPTY STRING (never to content_hash) when
+    `server_modified` is absent from a defensive/malformed entry shape —
+    `_import_date`'s `not value` fast path treats `""` as "no value
+    supplied" and uses ITS OWN fallback without ever attempting (and
+    failing) to parse it. Real Dropbox `FileMetadata` always includes
+    `server_modified`."""
+    return entry.get("server_modified") or ""
+
+
+# Per-process (NOT per-instance) content-hash memory: folder_path ->
+# {path_lower: content_hash}. A fresh `DropboxProvider` is constructed every
+# sync (`_default_provider_factory`), so per-file skip-detection ("has this
+# file's CONTENT actually changed since we last looked") needs somewhere to
+# live that survives that boundary — this mirrors `engine.py`'s own
+# module-level `_locks` dict (a per-process correctness guard, not a cache;
+# see the CLAUDE.md "SINGLE-PROCESS assumptions" note). Keyed by folder_path
+# rather than a stronger per-account/per-source id (unavailable here — see
+# the module docstring's design-gap note) — two different Dropbox accounts
+# happening to sync a folder with the IDENTICAL path string AND a file at
+# the identical path_lower AND an identical content_hash is the only
+# collision scenario, which is astronomically unlikely; documented, not
+# engineered around, consistent with this module's other wave-1 tradeoffs.
+# Lost on process restart — worst case is simply re-emitting every unchanged
+# file once, which `import_confirm`'s own hash-basis (fed by
+# `server_modified`, independent of this cache) still correctly no-ops on
+# the DB side.
+_LAST_SEEN_HASHES: dict[str, dict[str, str]] = {}
 
 
 def _title_from_path(path_lower: str, entry: dict[str, Any] | None) -> str:
@@ -319,8 +378,32 @@ def _title_from_path(path_lower: str, entry: dict[str, Any] | None) -> str:
     return stem or base
 
 
+def _basename_of_ref(ref: str) -> str:
+    """Basename for a media/attachment `ref` string — decodes MD-family
+    percent-encoding first (a no-op for HTML-family refs, which were never
+    encoded to begin with; see the module docstring's "TWO ENCODING
+    DOMAINS" note)."""
+    path = ref
+    for scheme in _MD_SCHEMES:
+        if ref.startswith(scheme):
+            path = unquote(ref[len(scheme):])
+            break
+    else:
+        if ref.startswith(_HTML_SCHEME):
+            path = ref[len(_HTML_SCHEME):]
+    clean = path.split("#", 1)[0].split("?", 1)[0]
+    tail = clean.rsplit("/", 1)[-1]
+    return tail or clean
+
+
 _MD_IMAGE_RE = re.compile(r"(!\[[^\]]*\]\()\s*([^)\s]+)((?:\s+\"[^\"]*\")?\s*\))")
+# Same shape as `_MD_IMAGE_RE` but for plain `[text](url)` LINKS (negative
+# lookbehind excludes image syntax) — captures link text separately (group 1)
+# so a resolved attachment can be re-emitted as `![text](...)` (see
+# `_resolve_relative_attachments_markdown`).
+_MD_LINK_RE = re.compile(r"(?<!\!)\[([^\]]*)\]\(\s*([^)\s]+)((?:\s+\"[^\"]*\")?\s*\))")
 _HTML_IMG_SRC_RE = re.compile(r'(<img\b[^>]*?\bsrc\s*=\s*)(["\'])(.*?)\2', re.IGNORECASE | re.DOTALL)
+_HTML_A_HREF_RE = re.compile(r'(<a\b[^>]*?\bhref\s*=\s*)(["\'])(.*?)\2', re.IGNORECASE | re.DOTALL)
 
 
 def _looks_like_local_path(url: str) -> bool:
@@ -329,7 +412,7 @@ def _looks_like_local_path(url: str) -> bool:
     something already carrying one of mddoc's own placeholder prefixes."""
     if not url:
         return False
-    if url.startswith((REF_PREFIX, LINK_PREFIX, "data:", _DBX_PATH_SCHEME)):
+    if url.startswith((REF_PREFIX, LINK_PREFIX, "data:") + _MD_SCHEMES + (_HTML_SCHEME,)):
         return False
     first_segment = url.split("/", 1)[0]
     if "://" in first_segment or first_segment.startswith("mailto:"):
@@ -532,7 +615,15 @@ class DropboxProvider(NoteProvider):
                 "Dropbox invalidated the list_folder cursor mid-listing -- retry the sync",
             ) from exc
 
-    def _entries_to_refs(self, entries: list[dict[str, Any]]) -> list[RemoteRef]:
+    def _entries_to_refs(self, entries: list[dict[str, Any]], folder_path: str) -> list[RemoteRef]:
+        """Maps `entries` -> `RemoteRef`s, skip-detecting via `content_hash`
+        against `_LAST_SEEN_HASHES` (module-level, see its own docstring) —
+        a file whose hash matches what THIS PROCESS last saw for it is NOT
+        re-emitted, even on a full listing (Dropbox's own delta API already
+        skips unchanged files on a true incremental `continue`; this closes
+        the same gap for the FULL-listing path, which is this provider's
+        common case per the module docstring's cursor-representation note)."""
+        seen = _LAST_SEEN_HASHES.setdefault(folder_path, {})
         refs: list[RemoteRef] = []
         for entry in entries:
             if entry.get(".tag") != "file":
@@ -540,7 +631,12 @@ class DropboxProvider(NoteProvider):
             path_lower = entry.get("path_lower")
             if not path_lower or _extension(path_lower) not in _NOTE_EXTENSIONS:
                 continue  # media/other attachments are resolved by reference, not enumerated
-            refs.append(RemoteRef(remote_id=path_lower, updated_at=_change_signal(entry)))
+            content_hash = entry.get("content_hash") or ""
+            if content_hash and seen.get(path_lower) == content_hash:
+                continue  # unchanged since this process last saw it -- skip
+            if content_hash:
+                seen[path_lower] = content_hash
+            refs.append(RemoteRef(remote_id=path_lower, updated_at=_change_timestamp(entry)))
         return refs
 
     def _index_entries(self, folder_path: str, entries: list[dict[str, Any]]) -> None:
@@ -609,9 +705,14 @@ class DropboxProvider(NoteProvider):
             entries = await self._full_listing_entries(credentials, folder_path)
 
         self._index_entries(folder_path, entries)
-        return self._entries_to_refs(entries)
+        return self._entries_to_refs(entries, folder_path)
 
     def _resolve_one_relative_ref(self, url: str, file_dir: str) -> str | None:
+        """Pure lookup — `url` must already be decoded/normalized by the
+        CALLER (deliberately: MD sources conventionally percent-encode
+        special characters in a relative destination, HTML attribute values
+        never are — see each caller's own comment). Never decodes internally,
+        so this one function can't accidentally apply the wrong rule."""
         if not _looks_like_local_path(url):
             return None
         candidate = posixpath.normpath(posixpath.join(file_dir, url)).lower()
@@ -624,30 +725,130 @@ class DropboxProvider(NoteProvider):
         file_dir = posixpath.dirname(path_lower)
 
         def repl(m: "re.Match[str]") -> str:
-            resolved = self._resolve_one_relative_ref(m.group(2), file_dir)
+            # CommonMark bare/percent-encoded convention: a markdown author
+            # (or exporter) referencing a local path containing a space MUST
+            # percent-encode it in a BARE `(url)` destination (angle-bracket
+            # `<...>` with a raw space is the alternative CommonMark allows,
+            # but is NOT handled by this regex — a documented, bounded
+            # limitation; such a reference degrades to an untouched, inert
+            # link rather than crashing). Decode before resolving so either
+            # convention's ENCODED form still matches the real (never
+            # encoded) Dropbox `path_lower`.
+            resolved = self._resolve_one_relative_ref(unquote(m.group(2)), file_dir)
             if resolved is None:
                 return m.group(0)
-            # Angle-bracket destination form (CommonMark-legal) -- a bare
-            # `(url)` destination cannot contain a raw space, and Dropbox
-            # paths routinely do (folder/file names with spaces). markdown-
-            # it-py still percent-encodes the destination it parses out of
-            # `<...>` (its own `normalizeLink`), so `fetch_media` below
-            # un-quotes a `dbx-path:` ref before using it as a real Dropbox
-            # path -- this wrapping and that un-quoting are a matched pair.
-            return f"{m.group(1)}<{_DBX_PATH_SCHEME}{resolved}>{m.group(3)}"
+            # WE percent-encode (never markdown-it-py) — see the module
+            # docstring's "TWO ENCODING DOMAINS" note. Angle-bracket form is
+            # kept for robustness/clarity even though a fully-encoded
+            # destination no longer strictly needs it.
+            encoded = quote(resolved, safe="/")
+            return f"{m.group(1)}<{_MD_MEDIA_SCHEME}{encoded}>{m.group(3)}"
 
         return _MD_IMAGE_RE.sub(repl, text)
+
+    def _resolve_relative_attachments_markdown(self, text: str, path_lower: str) -> str:
+        """Rewrites `[text](relpath)` links (NOT image syntax) that resolve
+        to a co-located FILE with a non-note extension into synthetic
+        markdown IMAGE syntax carrying `_MD_ATTACH_SCHEME` — reusing
+        `md_to_tiptap`'s own image block-hoisting + media-registration
+        machinery for free (mirrors the wizard's `generic.js:265-292`
+        resolveRelativeMedia precedent, which does the equivalent DOM-
+        attribute rewrite once ProseMirror's schema-guided HTML parser is
+        available to do the block-hoisting itself; we have no such parser
+        here for markdown, hence the borrow-image-hoisting trick).
+        `fetch()` POST-PROCESSES the returned doc via
+        `_promote_md_attachments`, converting each resulting `image` node
+        whose src carries `_MD_ATTACH_SCHEME` into a real `attachmentChip`
+        node (block-level atom, per the installed AttachmentChip TipTap
+        node) and fixing its media `kind` to `'file'`.
+
+        A relative link to another IMPORTABLE note extension (.md/.txt/
+        .html) is left as an ordinary, untouched relative link -- cross-note
+        linking is FUTURE connector work (mirrors generic.js's own
+        `SUPPORTED_EXT` check), not wired here."""
+        file_dir = posixpath.dirname(path_lower)
+
+        def repl(m: "re.Match[str]") -> str:
+            link_text = m.group(1)
+            resolved = self._resolve_one_relative_ref(unquote(m.group(2)), file_dir)
+            if resolved is None:
+                return m.group(0)
+            if _extension(resolved) in _NOTE_EXTENSIONS:
+                return m.group(0)  # inert relative anchor -- cross-note linking is future work
+            encoded = quote(resolved, safe="/")
+            return f"![{link_text}](<{_MD_ATTACH_SCHEME}{encoded}>{m.group(3)}"
+
+        return _MD_LINK_RE.sub(repl, text)
+
+    def _promote_md_attachments(self, converted: dict[str, Any]) -> dict[str, Any]:
+        """Second half of the markdown-attachment trick (see
+        `_resolve_relative_attachments_markdown`): walks the doc
+        `md_to_tiptap` already produced (with normal image-hoisting/
+        media-registration already applied by mddoc.py) and converts every
+        `image` node whose `src` carries `_MD_ATTACH_SCHEME` into a real
+        `attachmentChip` node, and every matching `media` entry's `kind`
+        from `'image'` (what `md_to_tiptap`'s generic image path always
+        registers) to `'file'`. Never mutates `converted`."""
+        marker = f"{REF_PREFIX}{_MD_ATTACH_SCHEME}"
+
+        def walk(node: Any) -> Any:
+            if not isinstance(node, dict):
+                return node
+            if node.get("type") == "image":
+                src = (node.get("attrs") or {}).get("src", "")
+                if src.startswith(marker):
+                    ref = src[len(REF_PREFIX):]
+                    name = _basename_of_ref(ref)
+                    return {"type": "attachmentChip", "attrs": {"href": src, "name": name}}
+                return node
+            if isinstance(node.get("content"), list):
+                new_node = dict(node)
+                new_node["content"] = [walk(c) for c in node["content"]]
+                return new_node
+            return node
+
+        doc = walk(converted["doc"])
+        media = [
+            {**m, "kind": "file"} if m.get("ref", "").startswith(_MD_ATTACH_SCHEME) else m
+            for m in converted["media"]
+        ]
+        return {"doc": doc, "media": media, "links": converted["links"]}
 
     def _resolve_relative_media_html(self, text: str, path_lower: str) -> str:
         file_dir = posixpath.dirname(path_lower)
 
         def repl(m: "re.Match[str]") -> str:
+            # HTML attribute values are literal -- NEVER decoded (see the
+            # module docstring's "TWO ENCODING DOMAINS" note).
             resolved = self._resolve_one_relative_ref(m.group(3), file_dir)
             if resolved is None:
                 return m.group(0)
-            return f"{m.group(1)}{m.group(2)}{_DBX_PATH_SCHEME}{resolved}{m.group(2)}"
+            return f"{m.group(1)}{m.group(2)}{_HTML_SCHEME}{resolved}{m.group(2)}"
 
         return _HTML_IMG_SRC_RE.sub(repl, text)
+
+    def _resolve_relative_attachments_html(self, text: str, path_lower: str) -> str:
+        """`<a href="relpath">` -> `<a href="{ATTACHMENT_REF_PREFIX}
+        {_HTML_SCHEME}{resolved}">` for a co-located FILE with a non-note
+        extension. `mddoc.py`'s HTML walker recognizes
+        `ATTACHMENT_REF_PREFIX` generically (the same "connector already
+        resolved this" convention `REF_PREFIX` uses for images) and emits a
+        real `attachmentChip` node directly -- no post-processing needed on
+        the HTML side, unlike markdown's image-syntax trick. A relative link
+        to another importable note extension is left untouched (future
+        cross-note-linking work, same as the markdown path)."""
+        file_dir = posixpath.dirname(path_lower)
+
+        def repl(m: "re.Match[str]") -> str:
+            prefix, q, url = m.group(1), m.group(2), m.group(3)
+            resolved = self._resolve_one_relative_ref(url, file_dir)
+            if resolved is None:
+                return m.group(0)
+            if _extension(resolved) in _NOTE_EXTENSIONS:
+                return m.group(0)
+            return f"{prefix}{q}{ATTACHMENT_REF_PREFIX}{_HTML_SCHEME}{resolved}{q}"
+
+        return _HTML_A_HREF_RE.sub(repl, text)
 
     def _relative_folder(self, path_lower: str) -> list[str]:
         """The file's directory segments RELATIVE to the synced folder
@@ -663,14 +864,76 @@ class DropboxProvider(NoteProvider):
         return [seg for seg in rel.split("/") if seg] if rel else []
 
     async def _download(self, credentials: dict[str, Any], path_lower: str) -> bytes:
+        """STREAMS the download (never `_send`'s buffer-the-whole-body
+        `client.post`), enforcing `_MAX_FILE_BYTES` (imported from
+        `notes.py` — the SAME 25MB cap `save_note_attachment_bytes` enforces,
+        never retyped) as early as possible: first via the `Content-Length`
+        response header when Dropbox supplies one (rejects before reading
+        any body bytes at all), and unconditionally via a running total
+        while streaming (the guaranteed backstop regardless of whether
+        Content-Length was present/honest). An over-cap file raises
+        `NoteConnUnsupported` — caught by the engine's existing per-item
+        try/except (`_upload_media_for_note`) as ONE named media failure,
+        never a crash of the whole note or sync. Still honors one 401
+        refresh-and-retry and the bounded 429 ladder, same as `_send`."""
         async with self._download_semaphore:
-            response = await self._send(
-                credentials, "/files/download", json_body=None, is_content=True,
-                dbx_api_arg={"path": path_lower},
-            )
-        if response.status_code != 200:
-            _raise_generic_error(response)
-        return response.content
+            return await self._download_streamed(credentials, path_lower)
+
+    async def _download_streamed(self, credentials: dict[str, Any], path_lower: str) -> bytes:
+        client = await self._get_client()
+        url = f"{_CONTENT_BASE}/files/download"
+        refreshed_once = False
+        attempt = 0
+        while True:
+            token = self._effective_access_token(credentials)
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Dropbox-API-Arg": json.dumps({"path": path_lower}, ensure_ascii=True),
+            }
+            try:
+                async with client.stream("POST", url, headers=headers, content=b"") as response:
+                    if response.status_code != 200:
+                        await response.aread()  # populate .content/.json() for error inspection
+                        if response.status_code == 401 and not refreshed_once:
+                            refreshed_once = True
+                            new_token = await self._try_refresh(credentials)
+                            if new_token is not None:
+                                self._access_token_override = new_token
+                                continue
+                            _raise_generic_error(response)
+                        if response.status_code == 429 and attempt < _RATE_LIMIT_MAX_RETRIES:
+                            await self._sleep(_retry_after_seconds(response))
+                            attempt += 1
+                            continue
+                        _raise_generic_error(response)
+
+                    content_length = response.headers.get("content-length")
+                    if content_length is not None:
+                        try:
+                            over_cap = int(content_length) > _MAX_FILE_BYTES
+                        except ValueError:
+                            over_cap = False
+                        if over_cap:
+                            raise errors.NoteConnUnsupported(
+                                f"Dropbox file exceeds the {_MAX_FILE_BYTES}-byte import "
+                                f"cap (reported size {content_length} bytes)",
+                                reason="File is larger than the 25 MB import limit",
+                            )
+
+                    chunks: list[bytes] = []
+                    total = 0
+                    async for chunk in response.aiter_bytes():
+                        total += len(chunk)
+                        if total > _MAX_FILE_BYTES:
+                            raise errors.NoteConnUnsupported(
+                                f"Dropbox file exceeds the {_MAX_FILE_BYTES}-byte import "
+                                "cap (exceeded while streaming)",
+                                reason="File is larger than the 25 MB import limit",
+                            )
+                        chunks.append(chunk)
+                    return b"".join(chunks)
+            except httpx.RequestError as exc:
+                raise errors.NoteConnTransient(f"Dropbox download request failed: {exc}") from exc
 
     async def fetch(self, credentials: dict[str, Any], ref: RemoteRef) -> RemoteNote:
         _require_configured()
@@ -683,14 +946,17 @@ class DropboxProvider(NoteProvider):
 
         if ext in (".html", ".htm"):
             text = self._resolve_relative_media_html(text, path_lower)
+            text = self._resolve_relative_attachments_html(text, path_lower)
             converted = html_to_tiptap(text)
         elif ext == ".md":
             text = self._resolve_relative_media_markdown(text, path_lower)
+            text = self._resolve_relative_attachments_markdown(text, path_lower)
             converted = md_to_tiptap(text)
+            converted = self._promote_md_attachments(converted)
         else:  # .txt
             converted = _txt_to_tiptap(text)
 
-        change_signal = _change_signal(entry) if entry else ref.updated_at
+        updated_at = _change_timestamp(entry) if entry else ref.updated_at
         return RemoteNote(
             remote_id=path_lower,
             title=_title_from_path(path_lower, entry),
@@ -702,7 +968,7 @@ class DropboxProvider(NoteProvider):
             created_at=None,  # Dropbox FileMetadata has no field distinct from
             # client_modified/server_modified that means "created" — leaving
             # this None is honest rather than guessing.
-            updated_at=change_signal,
+            updated_at=updated_at,
         )
 
     async def fetch_many(
@@ -723,13 +989,19 @@ class DropboxProvider(NoteProvider):
 
     async def fetch_media(self, credentials: dict[str, Any], ref: str) -> tuple[bytes, str]:
         _require_configured()
-        if ref.startswith(_DBX_PATH_SCHEME):
-            # `unquote` reverses markdown-it-py's `normalizeLink` percent-
-            # encoding of the angle-bracket destination `_resolve_relative_
-            # media_markdown` writes (a raw Dropbox path can contain spaces,
-            # which bare markdown destinations can't) -- a no-op for the
-            # HTML path, which was never percent-encoded to begin with.
-            path_lower = unquote(ref[len(_DBX_PATH_SCHEME):])
+        # MD-sourced (unquote EXACTLY ONCE — reverses OUR OWN `quote()` call
+        # in the resolver, never markdown-it-py's; see the module docstring's
+        # "TWO ENCODING DOMAINS" note) vs HTML-sourced (NEVER unquoted —
+        # HTML attribute values are literal) — two disjoint scheme families,
+        # checked separately so neither branch can accidentally apply the
+        # other's decode rule.
+        for scheme in _MD_SCHEMES:
+            if ref.startswith(scheme):
+                path_lower = unquote(ref[len(scheme):])
+                content = await self._download(credentials, path_lower)
+                return content, _guess_content_type(path_lower)
+        if ref.startswith(_HTML_SCHEME):
+            path_lower = ref[len(_HTML_SCHEME):]
             content = await self._download(credentials, path_lower)
             return content, _guess_content_type(path_lower)
 

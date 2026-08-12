@@ -8,11 +8,13 @@ function defined in each test. `pytest.ini`'s `asyncio_mode = auto` means the
 The five required test areas from the task brief:
   1. list+continue fixture -> notes (has_more pagination aggregates across
      BOTH `list_folder` and `list_folder/continue` pages into one result).
-  2. content_hash change skip -- an unchanged file's change signal
-     (`RemoteRef.updated_at` / `RemoteNote.updated_at`) is IDENTICAL across
-     two full listings; a changed one differs. This is the mechanism the
-     engine's `import_confirm` hash-basis skip decision depends on
-     downstream (engine.py itself is out of this task's scope to test).
+  2. content_hash change skip -- an unchanged file (same `content_hash` as
+     the last time THIS PROCESS saw it, via the module-level
+     `_LAST_SEEN_HASHES`) is NOT re-emitted as a `RemoteRef` on a subsequent
+     `list_changed` call; a genuinely changed one IS. `RemoteRef`/
+     `RemoteNote.updated_at` themselves carry `server_modified` (a real
+     ISO-8601 date — review fix, see `dropbox._change_timestamp`'s
+     docstring), never `content_hash`.
   3. 409 `.tag: reset` -> falls back to a full recursive re-list.
   4. deleted entries -- a `.tag: "deleted"` entry never becomes a RemoteRef
      on a full pass (the actual "flag as source-deleted after 2 misses"
@@ -34,11 +36,16 @@ from __future__ import annotations
 
 import asyncio
 import json
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, quote
 
 import httpx
 import pytest
+from cryptography.fernet import Fernet
 
+from api.services import auth_db
+from api.services.journal_two import notes as notes_svc
+from api.services.journal_two.db import ensure_schema
+from api.services.journal_two.note_connectors import engine as note_engine
 from api.services.journal_two.note_connectors.errors import (
     NoteConnAuthError,
     NoteConnNotConfigured,
@@ -47,7 +54,13 @@ from api.services.journal_two.note_connectors.errors import (
     NoteConnTransient,
     NoteConnUnsupported,
 )
-from api.services.journal_two.note_connectors.providers.base import RemoteRef
+from api.services.journal_two.note_connectors.providers import dropbox as dropbox_module
+from api.services.journal_two.note_connectors.providers.base import (
+    AccountInfo,
+    NoteProvider,
+    RemoteNote,
+    RemoteRef,
+)
 from api.services.journal_two.note_connectors.providers.dropbox import (
     DropboxProvider,
     _exchange_authorization_code,
@@ -155,6 +168,21 @@ def _dropbox_app_env(monkeypatch):
     monkeypatch.setenv("DROPBOX_APP_SECRET", "test-app-secret")
 
 
+@pytest.fixture(autouse=True)
+def _reset_last_seen_hashes():
+    """`dropbox._LAST_SEEN_HASHES` is a PER-PROCESS (module-level, not
+    instance-level) cache by design — see its docstring — so it survives
+    across the `_make_provider()` calls different tests make. Without this
+    reset, a test asserting "unchanged content_hash is skipped" could pass
+    for the wrong reason (polluted by an EARLIER test's entry sharing the
+    same folder_path/path_lower/content_hash), and a later test could fail
+    because an earlier one already "saw" its hash. Clears both before AND
+    after so failures don't leak into whichever test runs next either."""
+    dropbox_module._LAST_SEEN_HASHES.clear()
+    yield
+    dropbox_module._LAST_SEEN_HASHES.clear()
+
+
 # ---------------------------------------------------------------------------
 # Env darkness: configured() False -> import inert, NotConfigured on use.
 # ---------------------------------------------------------------------------
@@ -184,7 +212,7 @@ async def test_not_configured_raises_on_every_public_method(monkeypatch):
     with pytest.raises(NoteConnNotConfigured):
         await provider.fetch(CREDS, RemoteRef(remote_id="/notes/x.md", updated_at="h1"))
     with pytest.raises(NoteConnNotConfigured):
-        await provider.fetch_media(CREDS, "dbx-path:/notes/img.png")
+        await provider.fetch_media(CREDS, "dbx-md-media:/notes/img.png")
     with pytest.raises(NoteConnNotConfigured):
         await provider.list_folders(CREDS)
 
@@ -300,7 +328,7 @@ async def test_fetch_resolves_a_relative_image_reference_via_the_path_map():
     """`setup.md` references `../assets/chart.png` relative to its OWN
     directory (`/team notes/sub`), which resolves to `chart.png`'s real
     `path_lower` -- built from the path->entry map `list_changed` indexed.
-    The resulting media ref carries the internal `dbx-path:` scheme so
+    The resulting media ref carries the internal `dbx-md-media:` scheme so
     `fetch_media` knows to download it via the Dropbox content API rather
     than treating it as an external URL."""
     provider = _make_provider()
@@ -310,10 +338,11 @@ async def test_fetch_resolves_a_relative_image_reference_via_the_path_map():
     note = await provider.fetch(CREDS, ref)
 
     assert len(note.media) == 1
-    # markdown-it-py percent-encodes the angle-bracket destination it parses
-    # (the space in "team notes" -> %20) -- `fetch_media` reverses this
-    # before it ever reaches the real Dropbox path, verified below.
-    assert note.media[0]["ref"] == "dbx-path:/team%20notes/assets/chart.png"
+    # WE percent-encode the resolved path ourselves (the space in "team
+    # notes" -> %20) before angle-bracket-wrapping it -- `fetch_media`
+    # reverses this (exactly once) before it ever reaches the real Dropbox
+    # path, verified below.
+    assert note.media[0]["ref"] == "dbx-md-media:/team%20notes/assets/chart.png"
 
     data, content_type = await provider.fetch_media(CREDS, note.media[0]["ref"])
     assert data == FILE_CONTENTS[CHART_PNG_PATH]
@@ -336,11 +365,14 @@ async def test_fetch_before_list_changed_raises_runtime_error():
 # ---------------------------------------------------------------------------
 
 
-async def test_unchanged_content_hash_yields_an_identical_change_signal_across_syncs():
-    """Proves the mechanism the engine's `import_confirm` hash-basis skip
-    depends on: an unchanged file's `RemoteRef.updated_at` (and, via
-    `fetch()`, `RemoteNote.updated_at`) must be BYTE-IDENTICAL across two
-    full listings -- never derived from wall-clock time."""
+async def test_unchanged_content_hash_is_not_re_emitted_on_a_second_full_listing():
+    """The actual "content_hash change skip" mechanism (review fix): a full
+    listing that returns the SAME content_hash for a path this process has
+    already seen does NOT re-emit it as a `RemoteRef` at all -- proven here
+    across two DIFFERENT `DropboxProvider` instances (mirrors the real
+    fresh-instance-per-sync boundary `_default_provider_factory` imposes),
+    since the tracking lives in the module-level `_LAST_SEEN_HASHES`, not on
+    `self`."""
     entries = [{
         ".tag": "file", "name": "a.md", "path_lower": "/team notes/a.md",
         "content_hash": "hash-v1", "server_modified": "2026-08-01T00:00:00Z",
@@ -349,43 +381,51 @@ async def test_unchanged_content_hash_yields_an_identical_change_signal_across_s
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/2/files/list_folder":
             return httpx.Response(200, json={"entries": entries, "cursor": "c", "has_more": False})
-        if request.url.path == "/2/files/download":
-            return httpx.Response(200, content=b"# A\n")
         return httpx.Response(404)
 
-    provider = _make_provider(handler)
-    refs_1 = await provider.list_changed(CREDS)
-    note_1 = await provider.fetch(CREDS, refs_1[0])
-    refs_2 = await provider.list_changed(CREDS)  # a second full pass (next sync)
-    note_2 = await provider.fetch(CREDS, refs_2[0])
+    provider_1 = _make_provider(handler)
+    refs_1 = await provider_1.list_changed(CREDS)
+    assert [r.remote_id for r in refs_1] == ["/team notes/a.md"]  # first sync -- always emitted
 
-    assert refs_1[0].updated_at == refs_2[0].updated_at == "hash-v1"
-    assert note_1.updated_at == note_2.updated_at == "hash-v1"
+    provider_2 = _make_provider(handler)  # a FRESH instance, same folder -- next sync
+    refs_2 = await provider_2.list_changed(CREDS)
+    assert refs_2 == []  # unchanged content_hash -- skipped entirely
 
 
-async def test_changed_content_hash_yields_a_different_change_signal():
+async def test_changed_content_hash_is_re_emitted_with_the_real_server_modified_timestamp():
     """Control for the test above: a GENUINE content change must NOT be
-    silently hidden by whatever change-detection scheme is chosen."""
+    silently hidden by skip-detection, and `updated_at` is the REAL
+    `server_modified` timestamp (never `content_hash` -- review fidelity
+    fix: a hash there made every note read "just synced")."""
     call_count = {"n": 0}
 
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == "/2/files/list_folder":
             call_count["n"] += 1
             h = "hash-v1" if call_count["n"] == 1 else "hash-v2"
-            entries = [{".tag": "file", "name": "a.md", "path_lower": "/team notes/a.md", "content_hash": h}]
+            entries = [{
+                ".tag": "file", "name": "a.md", "path_lower": "/team notes/a.md",
+                "content_hash": h, "server_modified": "2026-08-0" + str(call_count["n"]) + "T00:00:00Z",
+            }]
             return httpx.Response(200, json={"entries": entries, "cursor": "c", "has_more": False})
         return httpx.Response(404)
 
-    provider = _make_provider(handler)
-    refs_1 = await provider.list_changed(CREDS)
-    refs_2 = await provider.list_changed(CREDS)
+    provider_1 = _make_provider(handler)
+    refs_1 = await provider_1.list_changed(CREDS)
+    provider_2 = _make_provider(handler)
+    refs_2 = await provider_2.list_changed(CREDS)
 
-    assert refs_1[0].updated_at == "hash-v1"
-    assert refs_2[0].updated_at == "hash-v2"
+    assert len(refs_1) == 1 and len(refs_2) == 1  # NOT skipped -- content genuinely changed
+    assert refs_1[0].updated_at == "2026-08-01T00:00:00Z"
+    assert refs_2[0].updated_at == "2026-08-02T00:00:00Z"
     assert refs_1[0].updated_at != refs_2[0].updated_at
 
 
-async def test_change_signal_falls_back_to_server_modified_when_content_hash_absent():
+async def test_entries_without_content_hash_are_never_skipped():
+    """Skip-detection only ever engages when Dropbox actually supplied a
+    `content_hash` (defensive-only per `_change_timestamp`'s docstring --
+    real `FileMetadata` always has one). An entry lacking it must be
+    re-emitted on every listing rather than silently vanishing."""
     entries = [{
         ".tag": "file", "name": "a.md", "path_lower": "/team notes/a.md",
         "server_modified": "2026-08-03T00:00:00Z",  # no content_hash on this entry
@@ -396,9 +436,45 @@ async def test_change_signal_falls_back_to_server_modified_when_content_hash_abs
             return httpx.Response(200, json={"entries": entries, "cursor": "c", "has_more": False})
         return httpx.Response(404)
 
+    provider_1 = _make_provider(handler)
+    refs_1 = await provider_1.list_changed(CREDS)
+    provider_2 = _make_provider(handler)
+    refs_2 = await provider_2.list_changed(CREDS)
+
+    assert len(refs_1) == 1
+    assert len(refs_2) == 1  # NOT skipped, despite an identical listing
+    assert refs_1[0].updated_at == refs_2[0].updated_at == "2026-08-03T00:00:00Z"
+
+
+async def test_updated_at_is_never_content_hash_shaped():
+    """Direct fidelity assertion: `RemoteRef.updated_at` and
+    `RemoteNote.updated_at` are real ISO-8601 timestamps
+    (`datetime.fromisoformat` must accept them), never the raw
+    `content_hash` hex digest -- the exact bug that made every synced
+    Dropbox note read "just synced" (`notes.py::_import_date` silently
+    falls back to `now` on anything that fails ISO parsing)."""
+    from datetime import datetime
+
+    entries = [{
+        ".tag": "file", "name": "a.md", "path_lower": TRADING_MD_PATH,
+        "content_hash": "a" * 64, "server_modified": "2026-08-01T00:00:00Z",
+    }]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/2/files/list_folder":
+            return httpx.Response(200, json={"entries": entries, "cursor": "c", "has_more": False})
+        if request.url.path == "/2/files/download":
+            return httpx.Response(200, content=b"# A\n")
+        return httpx.Response(404)
+
     provider = _make_provider(handler)
     refs = await provider.list_changed(CREDS)
-    assert refs[0].updated_at == "2026-08-03T00:00:00Z"
+    note = await provider.fetch(CREDS, refs[0])
+
+    datetime.fromisoformat(refs[0].updated_at.replace("Z", "+00:00"))  # must not raise
+    datetime.fromisoformat(note.updated_at.replace("Z", "+00:00"))  # must not raise
+    assert refs[0].updated_at == "2026-08-01T00:00:00Z"
+    assert note.updated_at == "2026-08-01T00:00:00Z"
 
 
 # ---------------------------------------------------------------------------
@@ -782,7 +858,7 @@ async def test_html_file_resolves_relative_image_src_via_path_map():
     ref = next(r for r in refs if r.remote_id == html_path)
     note = await provider.fetch(CREDS, ref)
 
-    assert note.media == [{"ref": f"dbx-path:{CHART_PNG_PATH}", "kind": "image", "name": "chart.png"}]
+    assert note.media == [{"ref": f"dbx-html:{CHART_PNG_PATH}", "kind": "image", "name": "chart.png"}]
     data, content_type = await provider.fetch_media(CREDS, note.media[0]["ref"])
     assert data == b"\x89PNG\r\n"
     assert content_type == "image/png"
@@ -960,3 +1036,455 @@ def test_import_key_uses_the_default_provider_colon_source_slash_remote_format()
     key = provider.import_key(FOLDER.lower(), TRADING_MD_PATH)
     assert key == f"dropbox:{FOLDER.lower()}/{TRADING_MD_PATH}"
     assert key == "dropbox:/team notes//team notes/trading.md"
+
+
+# ---------------------------------------------------------------------------
+# Attachment support (review fix #1) — co-located non-image files referenced
+# by a note become `attachmentChip` nodes + `kind: 'file'` media entries,
+# mirroring the wizard's `generic.js:265-292` `resolveRelativeMedia`
+# precedent. A relative link to another IMPORTABLE note extension stays an
+# inert relative anchor — cross-note linking is future connector work.
+# ---------------------------------------------------------------------------
+
+
+async def test_markdown_attachment_link_becomes_an_attachment_chip():
+    note_path = "/team notes/note.md"
+    pdf_path = "/team notes/report.pdf"
+    entries = [
+        {".tag": "file", "name": "note.md", "path_lower": note_path, "content_hash": "h1"},
+        {".tag": "file", "name": "report.pdf", "path_lower": pdf_path, "content_hash": "h2"},
+    ]
+    text = "See [report](report.pdf) for details.\n"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/2/files/list_folder":
+            return httpx.Response(200, json={"entries": entries, "cursor": "c", "has_more": False})
+        if request.url.path == "/2/files/download":
+            arg = _dbx_api_arg(request)
+            if arg["path"] == note_path:
+                return httpx.Response(200, content=text.encode("utf-8"))
+            if arg["path"] == pdf_path:
+                return httpx.Response(200, content=b"%PDF-1.4")
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    refs = await provider.list_changed(CREDS)
+    ref = next(r for r in refs if r.remote_id == note_path)
+    note = await provider.fetch(CREDS, ref)
+
+    chips = [n for n in note.doc["content"] if n["type"] == "attachmentChip"]
+    assert len(chips) == 1
+    assert chips[0]["attrs"]["name"] == "report.pdf"
+    assert chips[0]["attrs"]["href"].startswith("import-ref://dbx-md-attach:")
+
+    assert len(note.media) == 1
+    assert note.media[0]["kind"] == "file"
+    assert note.media[0]["name"] == "report.pdf"
+
+    data, _content_type = await provider.fetch_media(CREDS, note.media[0]["ref"])
+    assert data == b"%PDF-1.4"
+
+
+async def test_markdown_relative_link_to_another_note_extension_stays_inert():
+    """A relative link to another `.md` file is NOT converted to an
+    attachment — cross-note linking is future connector work."""
+    note_path = "/team notes/note.md"
+    other_path = "/team notes/other.md"
+    entries = [
+        {".tag": "file", "name": "note.md", "path_lower": note_path, "content_hash": "h1"},
+        {".tag": "file", "name": "other.md", "path_lower": other_path, "content_hash": "h2"},
+    ]
+    text = "See [other note](other.md) for details.\n"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/2/files/list_folder":
+            return httpx.Response(200, json={"entries": entries, "cursor": "c", "has_more": False})
+        if request.url.path == "/2/files/download":
+            if _dbx_api_arg(request)["path"] == note_path:
+                return httpx.Response(200, content=text.encode("utf-8"))
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    refs = await provider.list_changed(CREDS)
+    ref = next(r for r in refs if r.remote_id == note_path)
+    note = await provider.fetch(CREDS, ref)
+
+    assert not [n for n in note.doc["content"] if n["type"] == "attachmentChip"]
+    assert note.media == []
+    para = note.doc["content"][0]
+    linked = next(n for n in para["content"] if n.get("marks"))
+    assert linked["marks"][0]["attrs"]["href"] == "other.md"  # untouched
+
+
+async def test_html_attachment_link_becomes_an_attachment_chip():
+    html_path = "/team notes/page.html"
+    pdf_path = "/team notes/report.pdf"
+    entries = [
+        {".tag": "file", "name": "page.html", "path_lower": html_path, "content_hash": "h1"},
+        {".tag": "file", "name": "report.pdf", "path_lower": pdf_path, "content_hash": "h2"},
+    ]
+    html = '<p>See <a href="report.pdf">report</a> for details.</p>'
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/2/files/list_folder":
+            return httpx.Response(200, json={"entries": entries, "cursor": "c", "has_more": False})
+        if request.url.path == "/2/files/download":
+            arg = _dbx_api_arg(request)
+            if arg["path"] == html_path:
+                return httpx.Response(200, content=html.encode("utf-8"))
+            if arg["path"] == pdf_path:
+                return httpx.Response(200, content=b"%PDF-1.4")
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    refs = await provider.list_changed(CREDS)
+    ref = next(r for r in refs if r.remote_id == html_path)
+    note = await provider.fetch(CREDS, ref)
+
+    chips = [n for n in note.doc["content"] if n["type"] == "attachmentChip"]
+    assert len(chips) == 1
+    assert chips[0]["attrs"]["name"] == "report.pdf"
+
+    assert len(note.media) == 1
+    assert note.media[0]["kind"] == "file"
+    data, _content_type = await provider.fetch_media(CREDS, note.media[0]["ref"])
+    assert data == b"%PDF-1.4"
+
+
+async def test_html_relative_link_to_another_note_extension_stays_inert():
+    html_path = "/team notes/page.html"
+    other_path = "/team notes/other.html"
+    entries = [
+        {".tag": "file", "name": "page.html", "path_lower": html_path, "content_hash": "h1"},
+        {".tag": "file", "name": "other.html", "path_lower": other_path, "content_hash": "h2"},
+    ]
+    html = '<p>See <a href="other.html">other note</a></p>'
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/2/files/list_folder":
+            return httpx.Response(200, json={"entries": entries, "cursor": "c", "has_more": False})
+        if request.url.path == "/2/files/download":
+            if _dbx_api_arg(request)["path"] == html_path:
+                return httpx.Response(200, content=html.encode("utf-8"))
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    refs = await provider.list_changed(CREDS)
+    ref = next(r for r in refs if r.remote_id == html_path)
+    note = await provider.fetch(CREDS, ref)
+
+    assert not [n for n in note.doc["content"] if n["type"] == "attachmentChip"]
+    assert note.media == []
+
+
+# ---------------------------------------------------------------------------
+# 25MB attachment cap enforced at DOWNLOAD time (review fix #1) — imports
+# notes.py's OWN `_MAX_FILE_BYTES`, never retypes it.
+# ---------------------------------------------------------------------------
+
+
+async def test_download_rejects_a_file_over_the_cap_via_content_length_header():
+    big_path = "/team notes/huge.pdf"
+    over_cap_size = dropbox_module._MAX_FILE_BYTES + 1
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/2/files/download":
+            # A real over-cap body would be huge; keep the MOCK body small
+            # but advertise the true size via Content-Length, proving the
+            # header check rejects BEFORE reading a large body.
+            return httpx.Response(
+                200, content=b"x" * 10, headers={"content-length": str(over_cap_size)},
+            )
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    with pytest.raises(NoteConnUnsupported):
+        await provider._download(CREDS, big_path)
+
+
+async def test_download_rejects_a_file_over_the_cap_via_streamed_accumulation():
+    """Backstop for when Content-Length is absent or understated: the
+    RUNNING TOTAL while streaming is the guaranteed enforcement point,
+    regardless of what (or whether) the header claims."""
+    big_path = "/team notes/huge.bin"
+    chunk = b"x" * 4096
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/2/files/download":
+            n_chunks = (dropbox_module._MAX_FILE_BYTES // len(chunk)) + 10
+            return httpx.Response(200, content=chunk * n_chunks)  # no content-length asserted
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    with pytest.raises(NoteConnUnsupported):
+        await provider._download(CREDS, big_path)
+
+
+async def test_download_under_the_cap_succeeds_normally():
+    small_path = "/team notes/small.md"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/2/files/download":
+            return httpx.Response(200, content=b"small content")
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    data = await provider._download(CREDS, small_path)
+    assert data == b"small content"
+
+
+async def test_over_cap_attachment_is_a_named_media_failure_not_a_crash():
+    """An over-cap CO-LOCATED ATTACHMENT surfaces as a per-item failure the
+    engine's `_upload_media_for_note` catches (matches every other
+    `fetch_media` failure mode) — fetching the NOTE ITSELF still succeeds,
+    just with that one attachment's download raising when actually
+    requested."""
+    note_path = "/team notes/note.md"
+    huge_path = "/team notes/huge.pdf"
+    entries = [
+        {".tag": "file", "name": "note.md", "path_lower": note_path, "content_hash": "h1"},
+        {".tag": "file", "name": "huge.pdf", "path_lower": huge_path, "content_hash": "h2"},
+    ]
+    text = "See [huge](huge.pdf) for details.\n"
+    over_cap_size = dropbox_module._MAX_FILE_BYTES + 1
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/2/files/list_folder":
+            return httpx.Response(200, json={"entries": entries, "cursor": "c", "has_more": False})
+        if request.url.path == "/2/files/download":
+            arg = _dbx_api_arg(request)
+            if arg["path"] == note_path:
+                return httpx.Response(200, content=text.encode("utf-8"))
+            if arg["path"] == huge_path:
+                return httpx.Response(
+                    200, content=b"x" * 10, headers={"content-length": str(over_cap_size)},
+                )
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    refs = await provider.list_changed(CREDS)
+    ref = next(r for r in refs if r.remote_id == note_path)
+    note = await provider.fetch(CREDS, ref)  # succeeds -- the NOTE ITSELF is small
+
+    assert len(note.media) == 1
+    with pytest.raises(NoteConnUnsupported):
+        await provider.fetch_media(CREDS, note.media[0]["ref"])
+
+
+# ---------------------------------------------------------------------------
+# Round-trip property test (review fix #2) — the encode/decode pair must be
+# EXACTLY-ONCE and provably symmetric for adversarial filenames, for BOTH md
+# and html paths, asserting the byte-exact original path reaches the
+# captured Dropbox-API-Arg.
+# ---------------------------------------------------------------------------
+
+ADVERSARIAL_NAMES = [
+    "sub dir/file %20 name.png",
+    "100% done note.md",
+    "café 文件.png",
+]
+
+
+@pytest.mark.parametrize("rel_name", ADVERSARIAL_NAMES)
+async def test_markdown_media_ref_round_trips_byte_exact_adversarial_names(rel_name):
+    note_path = "/team notes/note.md"
+    target_path = f"/team notes/{rel_name}".lower()
+    entries = [
+        {".tag": "file", "name": "note.md", "path_lower": note_path, "content_hash": "h1"},
+        {".tag": "file", "name": rel_name, "path_lower": target_path, "content_hash": "h2"},
+    ]
+    # A well-formed markdown SOURCE percent-encodes a bare destination
+    # containing a space (CommonMark requires it) — `safe="/"` preserves the
+    # real subdirectory separator in "sub dir/file ...".
+    encoded_source_ref = quote(rel_name, safe="/")
+    text = f"![x]({encoded_source_ref})\n"
+    captured_paths: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/2/files/list_folder":
+            return httpx.Response(200, json={"entries": entries, "cursor": "c", "has_more": False})
+        if request.url.path == "/2/files/download":
+            arg = _dbx_api_arg(request)
+            captured_paths.append(arg["path"])
+            if arg["path"] == note_path:
+                return httpx.Response(200, content=text.encode("utf-8"))
+            return httpx.Response(200, content=b"binary-bytes")
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    refs = await provider.list_changed(CREDS)
+    ref = next(r for r in refs if r.remote_id == note_path)
+    note = await provider.fetch(CREDS, ref)
+
+    assert len(note.media) == 1
+    data, _content_type = await provider.fetch_media(CREDS, note.media[0]["ref"])
+    assert data == b"binary-bytes"
+    assert captured_paths[-1] == target_path, (
+        f"round-trip corrupted: sent {captured_paths[-1]!r}, expected {target_path!r}"
+    )
+
+
+@pytest.mark.parametrize("rel_name", ADVERSARIAL_NAMES)
+async def test_html_media_ref_round_trips_byte_exact_adversarial_names(rel_name):
+    html_path = "/team notes/page.html"
+    target_path = f"/team notes/{rel_name}".lower()
+    entries = [
+        {".tag": "file", "name": "page.html", "path_lower": html_path, "content_hash": "h1"},
+        {".tag": "file", "name": rel_name, "path_lower": target_path, "content_hash": "h2"},
+    ]
+    # HTML attribute values carry the literal name -- no percent-encoding,
+    # ever, on this path.
+    html = f'<img src="{rel_name}">'
+    captured_paths: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/2/files/list_folder":
+            return httpx.Response(200, json={"entries": entries, "cursor": "c", "has_more": False})
+        if request.url.path == "/2/files/download":
+            arg = _dbx_api_arg(request)
+            captured_paths.append(arg["path"])
+            if arg["path"] == html_path:
+                return httpx.Response(200, content=html.encode("utf-8"))
+            return httpx.Response(200, content=b"binary-bytes")
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    refs = await provider.list_changed(CREDS)
+    ref = next(r for r in refs if r.remote_id == html_path)
+    note = await provider.fetch(CREDS, ref)
+
+    assert len(note.media) == 1
+    data, _content_type = await provider.fetch_media(CREDS, note.media[0]["ref"])
+    assert data == b"binary-bytes"
+    assert captured_paths[-1] == target_path, (
+        f"round-trip corrupted: sent {captured_paths[-1]!r}, expected {target_path!r}"
+    )
+
+
+async def test_html_attachment_ref_is_never_unquoted_even_with_a_literal_percent_sequence():
+    """The other half of the "never unquoted" rule: an HTML-sourced ref
+    containing what LOOKS LIKE a percent-escape (`%2520`) is a LITERAL
+    filename fragment (never written there by any encoding pass in this
+    pipeline) and must reach Dropbox byte-for-byte, NOT get "helpfully"
+    decoded into `%20`."""
+    html_path = "/team notes/page.html"
+    literal_name = "weird%2520name.png"
+    target_path = f"/team notes/{literal_name}"
+    entries = [
+        {".tag": "file", "name": "page.html", "path_lower": html_path, "content_hash": "h1"},
+        {".tag": "file", "name": literal_name, "path_lower": target_path, "content_hash": "h2"},
+    ]
+    html = f'<img src="{literal_name}">'
+    captured_paths: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/2/files/list_folder":
+            return httpx.Response(200, json={"entries": entries, "cursor": "c", "has_more": False})
+        if request.url.path == "/2/files/download":
+            arg = _dbx_api_arg(request)
+            captured_paths.append(arg["path"])
+            if arg["path"] == html_path:
+                return httpx.Response(200, content=html.encode("utf-8"))
+            return httpx.Response(200, content=b"binary-bytes")
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    refs = await provider.list_changed(CREDS)
+    ref = next(r for r in refs if r.remote_id == html_path)
+    note = await provider.fetch(CREDS, ref)
+    await provider.fetch_media(CREDS, note.media[0]["ref"])
+
+    assert captured_paths[-1] == target_path  # byte-exact -- NOT decoded to "weird%20name.png"
+
+
+# ---------------------------------------------------------------------------
+# Engine-level safety net (review fix #3): a non-ISO `updatedAt` must not
+# explode into a false conflict on re-sync. Uses the SAME fixture idiom as
+# `test_note_connectors_engine.py` (temp auth.db + a fake `NoteProvider`),
+# scoped locally here since this task owns only dropbox.py/mddoc.py/this
+# test file — this PINS engine.py's EXISTING, already-correct behavior
+# (traced during review), it does not change engine.py.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def _engine_db(tmp_path, monkeypatch):
+    dbfile = tmp_path / "auth.db"
+    monkeypatch.setattr(auth_db, "_DB_PATH", str(dbfile))
+    conn = auth_db.get_connection()
+    ensure_schema(conn)
+    conn.close()
+    monkeypatch.setenv("NOTE_ENCRYPTION_KEY", Fernet.generate_key().decode())
+    monkeypatch.setattr(notes_svc, "_ATTACHMENT_ROOT", tmp_path / "att")
+    import api.services.journal_two.note_connectors.connections as conns
+    return conns
+
+
+class _NonIsoFakeProvider(NoteProvider):
+    """Emits a NON-ISO `updatedAt` (a 64-char hex digest — exactly the shape
+    a content_hash-as-updated_at regression would reintroduce) on every
+    fetch, with DIFFERENT body content each call (forcing a real UPDATE, not
+    a hash-match skip, on the second sync) — pins the engine's existing
+    safety net independent of which real provider might one day trigger it
+    again."""
+
+    name = "fake"
+
+    def __init__(self, updated_at: str):
+        self._updated_at = updated_at
+        self._call_count = 0
+
+    async def validate(self, credentials):
+        return AccountInfo(label="fake")
+
+    async def list_changed(self, credentials, cursor=None):
+        return [RemoteRef(remote_id="p1", updated_at=self._updated_at)]
+
+    async def fetch(self, credentials, ref):
+        self._call_count += 1
+        text = f"content version {self._call_count}"
+        return RemoteNote(
+            remote_id=ref.remote_id, title="Note",
+            doc={"type": "doc", "content": [
+                {"type": "paragraph", "content": [{"type": "text", "text": text}]},
+            ]},
+            media=[], links=[], tags=[], folder_path=[],
+            created_at=None, updated_at=self._updated_at,
+        )
+
+    async def fetch_media(self, credentials, ref):
+        raise AssertionError("not used in this test")
+
+
+async def test_non_iso_updated_at_falls_back_consistently_and_never_conflicts_on_resync(
+    _engine_db, monkeypatch,
+):
+    """The safety net the review traced: `notes.py::_import_date` silently
+    falls back to `now` for BOTH `updated_at` and `imported_at` on the SAME
+    `import_confirm` call whenever the supplied `updatedAt` fails ISO
+    parsing (a content-hash-shaped string always does) — so they land
+    EQUAL, never stale, and `engine._is_conflict` (`updated > imported`)
+    never fires. Pinned so a future `import_confirm`/`_import_date` refactor
+    can't silently reintroduce a conflict-explosion for any provider that
+    ever emits a non-ISO `updatedAt` again."""
+    _engine_db.upsert_connector("u1", "fake", {"token": "abc"})
+    source = _engine_db.create_source("u1", "fake", "fake-graph")
+    provider = _NonIsoFakeProvider(updated_at="a" * 64)  # content-hash-shaped, non-ISO
+    monkeypatch.setattr(note_engine, "_provider_factory", lambda name: provider)
+
+    result_1 = await note_engine.sync_source(source["id"], full=True, manual=True)
+    assert result_1["status"] == "ok"
+    assert result_1["created"] == 1
+
+    # Re-sync WITHOUT any local edit in between, but with genuinely DIFFERENT
+    # remote content (forcing a real update, not a hash-match skip) — must
+    # not create a conflict sibling or tag the note sync-conflict.
+    result_2 = await note_engine.sync_source(source["id"], full=True, manual=True)
+    assert result_2["status"] == "ok"
+    assert result_2["updated"] == 1
+    assert result_2["conflicts"] == 0
+
+    notes = notes_svc.list_notes("u1")
+    assert len(notes) == 1  # no `#remote` conflict sibling was created
+    assert "sync-conflict" not in notes[0]["tags"]
+    assert notes[0]["bodyPlain"] == "content version 2"  # the update actually applied

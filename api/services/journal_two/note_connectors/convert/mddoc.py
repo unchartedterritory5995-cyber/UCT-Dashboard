@@ -45,7 +45,7 @@ from markdown_it import MarkdownIt
 from markdown_it.token import Token
 from mdit_py_plugins.tasklists import tasklists_plugin
 
-from . import LINK_PREFIX, REF_PREFIX
+from . import ATTACHMENT_REF_PREFIX, LINK_PREFIX, REF_PREFIX
 
 _MD: MarkdownIt | None = None
 
@@ -229,16 +229,29 @@ def _blocks(tokens: list[Token], start: int, end: int, ctx: _Ctx) -> list[dict[s
     return out
 
 
+# Node types that must be HOISTED out of inline content to their own sibling
+# block — both are block-level atoms in the installed TipTap config
+# (`extension-image`'s `inline: false`; `attachmentChip.js`'s `group:
+# 'block'`), so neither can legally sit inside a paragraph's own `content`.
+# `attachmentChip` never appears here from the MARKDOWN walker directly (only
+# via the Dropbox connector's post-`md_to_tiptap` promotion pass — see
+# `providers/dropbox.py::_promote_md_attachments`); it's included here purely
+# so the HTML walker's `_html_inline_walk` (which CAN emit one directly, via
+# `ATTACHMENT_REF_PREFIX`) gets the same correct hoisting for free. Widening
+# this set is a strict no-op for existing markdown-walker output.
+_HOISTABLE_BLOCK_TYPES = frozenset({"image", "attachmentChip"})
+
+
 def _wrap_paragraph(flat: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Splits a flat inline-node sequence into block-level nodes, hoisting
-    any `image` item out to its own sibling block. TipTap's Image node is
-    block-level (`inline: false` in tiptap.js), so `text ![x](y) text` must
-    become `paragraph, image, paragraph` — embedding the image inside a
+    any `image`/`attachmentChip` item out to its own sibling block. Both are
+    block-level in the real editor's schema, so `text ![x](y) text` must
+    become `paragraph, image, paragraph` — embedding either inside a
     paragraph's content would be schema-invalid in the real editor."""
     out: list[dict[str, Any]] = []
     buf: list[dict[str, Any]] = []
     for item in flat:
-        if item.get("type") == "image":
+        if item.get("type") in _HOISTABLE_BLOCK_TYPES:
             if buf:
                 out.append({"type": "paragraph", "content": buf})
                 buf = []
@@ -821,7 +834,26 @@ def _html_inline_walk(
             items.extend(_html_inline_walk(n.children, ctx, child_marks))
         elif tag == "a":
             href = (n.attrs.get("href") or "").strip()
-            if _is_allowed_link_href(href):
+            if href.startswith(ATTACHMENT_REF_PREFIX):
+                # A connector (Dropbox's `_resolve_relative_attachments_html`)
+                # already resolved this `<a href>` to a co-located FILE
+                # attachment — mirrors `_html_image_node`'s `REF_PREFIX`-on-
+                # `src` "already a connector-supplied placeholder" rule, one
+                # level up (a whole separate prefix, not `REF_PREFIX` itself,
+                # since this signal lives on `<a href>` — a normal LINK
+                # target — not an image `src`, and the two must never be
+                # ambiguous). `attachmentChip` is a BLOCK-level atom (its
+                # installed TipTap node: `group: 'block'`), hoisted out of
+                # this paragraph/heading exactly like `image` already is —
+                # see `_wrap_paragraph`'s widened `_HOISTABLE_BLOCK_TYPES`.
+                ref = href[len(ATTACHMENT_REF_PREFIX):]
+                name = _basename(ref)
+                _register_media(ctx, ref=ref, kind="file", name=name)
+                items.append({
+                    "type": "attachmentChip",
+                    "attrs": {"href": f"{REF_PREFIX}{ref}", "name": name},
+                })
+            elif _is_allowed_link_href(href):
                 if href.startswith(LINK_PREFIX):
                     ctx.links.append(href[len(LINK_PREFIX):])
                 link_marks = marks + [{"type": "link", "attrs": {"href": href}}]
@@ -969,10 +1001,10 @@ def _html_blocks_walk(nodes: list[Any], ctx: _Ctx) -> list[dict[str, Any]]:
             flush()
             level = min(int(tag[1]), 3)
             flat = _html_inline_walk(n.children, ctx)
-            text_items = [x for x in flat if x.get("type") != "image"]
-            images = [x for x in flat if x.get("type") == "image"]
+            text_items = [x for x in flat if x.get("type") not in _HOISTABLE_BLOCK_TYPES]
+            hoisted = [x for x in flat if x.get("type") in _HOISTABLE_BLOCK_TYPES]
             out.append({"type": "heading", "attrs": {"level": level}, "content": text_items})
-            out.extend(images)
+            out.extend(hoisted)
         elif tag == "ul":
             flush()
             out.append(_html_convert_list(n, ctx, ordered=False))

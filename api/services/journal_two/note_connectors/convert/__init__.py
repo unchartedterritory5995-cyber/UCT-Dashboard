@@ -30,10 +30,22 @@ from __future__ import annotations
 # package's.)
 REF_PREFIX = "import-ref://"
 LINK_PREFIX = "import-link://"
+# A THIRD, generic placeholder prefix (added for the Dropbox connector's
+# `.html` attachment support, task-10 review round): marks an `<a href>` a
+# connector has ALREADY resolved to a real file attachment (as opposed to a
+# normal link, which uses `LINK_PREFIX`, or an image reference, which uses
+# `REF_PREFIX` on `src`) — `mddoc.py`'s HTML walker recognizes it generically
+# and emits a block-level `attachmentChip` node directly (mirrors the
+# `REF_PREFIX`-on-`src` "already a connector-supplied placeholder" rule
+# `_html_image_node`/`_image_node` both already implement). Provider-agnostic
+# by design, like `REF_PREFIX`/`LINK_PREFIX` — Dropbox is simply the first
+# connector to use it.
+ATTACHMENT_REF_PREFIX = "import-attachment-ref://"
 
 from .mddoc import html_to_tiptap, md_to_tiptap
 from .rewrite import rewrite_body
 
 __all__ = [
-    "REF_PREFIX", "LINK_PREFIX", "md_to_tiptap", "html_to_tiptap", "rewrite_body",
+    "REF_PREFIX", "LINK_PREFIX", "ATTACHMENT_REF_PREFIX",
+    "md_to_tiptap", "html_to_tiptap", "rewrite_body",
 ]
