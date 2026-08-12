@@ -107,6 +107,10 @@ export default function NoteEditorPage({ noteId, onBack }) {
   const editor = useEditor({
     extensions: buildExtensions(),
     content: bodyForEditor || { type: 'doc', content: [] },
+    // Node views can't take React props from the page; the widgetEmbed view
+    // reads the note id off editor storage for its archive upload
+    // (see WidgetEmbedView's self-archive effect).
+    onCreate: ({ editor: ed }) => { ed.storage.uctJournalWidgets = { noteId } },
     editorProps: {
       attributes: { class: styles.proseEditor },
       handlePaste(view, event) {
