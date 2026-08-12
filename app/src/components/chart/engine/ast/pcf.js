@@ -161,7 +161,7 @@ export const PCF_FUSED = Object.freeze({
   WRSI:   { spelling: 'WRSI<period>[.<offset>]',          fn: 'rsi',     series: ['close'], params: ['period', 'offset'] },
   ATR:    { spelling: 'ATR<period>[.<offset>]',           fn: 'atr',     series: ['high', 'low', 'close'], params: ['period', 'offset'] },
   MACD:   { spelling: 'MACD<fast>.<slow>[.<offset>]',     fn: 'macd',    series: ['close'], params: ['fast', 'slow', 'offset'] },
-  STOC:   { spelling: 'STOC<period>.<smoothing>[.<offset>]', fn: 'stoch', series: ['close', 'high', 'low'], params: ['period', 'smoothing', 'offset'], fixed: { smoothing: 1 } },
+  STOC:   { spelling: 'STOC<period>.<smoothing>[.<offset>]', fn: 'stoch', series: ['close', 'high', 'low'], params: ['period', 'smoothing', 'offset'], smoothParam: 'smoothing' },
 
   // Measured 2026-08-09 against Worden's own syntax table: these three were the
   // ONLY oscillators in the whole PCF vocabulary that this engine already
@@ -805,9 +805,28 @@ function readFused(table, token, letters, nodeTypes) {
     const values = fillParams(family, digits, dotted, token)
 
     const ints = []
+    let smoothBy = 1
     for (const param of family.params) {
       if (param === 'offset') continue
       const got = values[param]
+      // ⭐ A SMOOTHING PARAM IS NOT AN ARGUMENT — IT IS A WRAPPER. `STOC14.3` is
+      // the 14-bar raw %K put through a 3-bar average, which this table already
+      // spells `sma(stoch(...), 3)`. Pushing 3 into `stoch` as a second int would
+      // be a different indicator wearing the same name; refusing it outright
+      // (which this family did until 2026-08-11) turns away a spelling Worden's
+      // own published scans use constantly. ⛔ Admissible ONLY because it is an
+      // exact identity — the same bar `PCF_EXPANSIONS` has to clear.
+      if (family.smoothParam === param) {
+        smoothBy = got.value === null
+          ? 1
+          : wholeNumber(got.value, param, got.index, token.text)
+        if (smoothBy < 1) {
+          refuse('pcf:parameter',
+            `\`${token.text}\` smooths over ${smoothBy} bars, and a smoothing period starts at 1`,
+            got.index, token.text)
+        }
+        continue
+      }
       if (family.fixed && own(family.fixed, param)) {
         const want = family.fixed[param]
         const have = got.value === null ? want : got.value
@@ -871,7 +890,17 @@ function readFused(table, token, letters, nodeTypes) {
     // for an SMA and a DIFFERENT number for an EMA, an RSI or an ATR. Getting
     // this the other way round is a silent misread on every recursive indicator
     // the manifest declares.
-    const call = callNode(family.fn, [...series.map(seriesNode), ...ints.map(num)])
+    const base = callNode(family.fn, [...series.map(seriesNode), ...ints.map(num)])
+    // ⛔ `sma` IS CHECKED AGAINST THE MANIFEST BEFORE IT IS USED, exactly as the
+    // expansion branch does — this file may declare that TC2000 smooths %K, but
+    // never that this table happens to own the average that does it.
+    const call = smoothBy > 1
+      ? (resolveFn(table, 'sma', family.spelling, token.index, token.text),
+        callNode('sma', [base, num(smoothBy)]))
+      : base
+    // ⚠️ AND THE OFFSET WRAPS THE SMOOTHED VALUE, not the raw one: `STOC14.3.1`
+    // is the smoothed stochastic as it stood a bar ago. Applying it to `base`
+    // would smooth a shifted series instead — a different number, silently.
     const off = values.offset
     return off ? applyOffset(nodeTypes, call, off.value, off.index, token.text) : call
   }
@@ -1425,6 +1454,12 @@ export function pcfCoverage(table = TABLE, nodeTypes = NODE_TYPES) {
   const binding = offsetBinding(nodeTypes)
   const live = []
   const blocked = []
+  // ⭐ A THIRD BUCKET, BECAUSE THERE ARE THREE ANSWERS, NOT TWO. A family that
+  // EXPANDS into this table's own arithmetic is covered without pointing at any
+  // one declared function, and forcing it into `live` would break that list's
+  // invariant (every `fn` is a declared name) while forcing it into `blocked`
+  // reports a working spelling as missing. Both were tried; both were wrong.
+  const expanded = []
 
   const consider = (spelling, fn, wanted, note) => {
     if (!own(table.functions, fn)) {
@@ -1451,8 +1486,30 @@ export function pcfCoverage(table = TABLE, nodeTypes = NODE_TYPES) {
   }
 
   for (const [name, family] of Object.entries(PCF_FUSED)) {
+    // ⭐⭐ AN EXPANDING FAMILY HAS NO `fn` TO CHECK — it IS a formula in this
+    // table's own vocabulary. Asking `own(table.functions, undefined)` reported
+    // `BOP` as "the table does not declare `undefined`" while `BOP14 > 0` parsed
+    // perfectly: a map of what is missing, naming a function that was never
+    // supposed to exist. ⛔ A COVERAGE REPORT THAT UNDERSTATES SUPPORT IS WORSE
+    // THAN NONE — it is read to decide what to build, so it sends someone to
+    // build a thing that already works.
+    if (family.expand) {
+      expanded.push({ spelling: family.spelling, note: 'an exact identity in this table’s own vocabulary' })
+      continue
+    }
     const series = family.field ? [...letters.values()].slice(0, 1) : family.series
-    const ints = family.params.filter((p) => p !== 'offset' && !(family.fixed && own(family.fixed, p)))
+    // ⛔ EXCLUDE EXACTLY WHAT `readFused` EXCLUDES, and for the same reasons: an
+    // `offset` wraps the call, a `fixed` param is verified and dropped, a
+    // `matchParam` is verified against its twin and dropped (`ADX14.14`), and a
+    // `smoothParam` becomes a moving average AROUND the call (`STOC14.3`). Any
+    // of these counted as an argument makes this report a signature mismatch
+    // against a reader that never fills it — which is what branded `ADX` blocked
+    // while `ADX14.14 > 25` was reading fine.
+    const passed = (p) => p !== 'offset'
+      && !(family.fixed && own(family.fixed, p))
+      && !(family.matchParam && p === family.matchParam[0])
+      && !(family.smoothParam && p === family.smoothParam)
+    const ints = family.params.filter(passed)
     consider(family.spelling, family.fn,
       [...series.map(() => 'series'), ...ints.map(() => 'int')],
       family.field ? `over ${[...letters.keys()].join('/')}` : undefined)
@@ -1562,6 +1619,7 @@ export function pcfCoverage(table = TABLE, nodeTypes = NODE_TYPES) {
     offset: { binding, node: OFFSET_NODE, nodeTypes: [...nodeTypes] },
     live,
     blocked,
+    expanded,
     refused,
   }
 }

@@ -456,3 +456,73 @@
   .pickerRow { flex-wrap: wrap; }
   .pickerSelect { flex: 1 1 100%; }
 }
+
+/* ── the member's own inputs ───────────────────────────────────────────────
+   ⭐ What makes an authored indicator TUNABLE rather than one frozen instance.
+   ⛔ Tokens only — this file declares no colour literals. */
+.inputRow {
+  display: grid;
+  grid-template-columns: 1fr 96px auto;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.inputKey,
+.inputDefault {
+  min-height: var(--tap-min);
+  padding: 6px 8px;
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-bright);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 13px;
+}
+
+.inputKey[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+
+.inputRemove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.inputRemove:hover {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+/* The REASON, on its own line and spanning the row — every other refusal on
+   this surface names what is wrong, and this must not be the one that doesn't. */
+.inputProblem {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-danger);
+}
+
+.addInput {
+  min-height: var(--tap-min);
+  padding: 6px 10px;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.addInput:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}

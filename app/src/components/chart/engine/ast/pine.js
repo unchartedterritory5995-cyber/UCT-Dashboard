@@ -430,6 +430,22 @@ const BUILTIN_CALL_TREE = Object.freeze({
     a.slice(1).reduce((acc, x) => cOp('+', [acc, x]), a[0]),
     cNum(a.length),
   ]),
+  // ta.cross(a, b) = they crossed in EITHER direction on this bar. The table
+  // already declares both directions, so this costs zero new vocabulary — the
+  // same bar `roc` and `avg` clear.
+  //
+  // ⛔ NOT `crossOver` ALONE, which is the near-miss that makes this worth
+  // writing down: it parses, lints, saves, scans, and silently answers half the
+  // question. A member screening "the 9 crossed the 200" who is handed only the
+  // upward cross loses every breakdown in the list and has no way to see it.
+  //
+  // ⚠️ The operands appear TWICE, which is affordable for the reason stated
+  // above `PCF`'s derived logic: `seriesRefs` counts DISTINCT reads, so naming a
+  // column twice is still one column.
+  cross: (a) => cOp('||', [
+    cCall('crossOver', [a[0], a[1]]),
+    cCall('crossUnder', [a[0], a[1]]),
+  ]),
 })
 
 /** 🔴 PINE NAMES THIS ENGINE CANNOT EXPRESS, EACH WITH THE REASON.
@@ -732,6 +748,47 @@ function blockStatements(toks, indents, indent) {
 const isPunct = (tok, value) => !!tok && tok.kind === 'punct' && tok.value === value
 
 /** The index of the first token at bracket depth 0 matching `pred`, or -1. */
+/** One token run split on a top-level separator — the depth rule `findTop` uses.
+ *  ⛔ Depth-aware on purpose: `[f(a, b), c]` is TWO parts, and a naive comma
+ *  split would make it three and hand a fragment to the parser. */
+function splitTopLevel(toks, sep) {
+  const out = []
+  let depth = 0
+  let start = 0
+  for (let i = 0; i < toks.length; i += 1) {
+    const tok = toks[i]
+    if (tok.kind === 'punct') {
+      if (tok.value === '(' || tok.value === '[') { depth += 1; continue }
+      if (tok.value === ')' || tok.value === ']') { depth -= 1; continue }
+      if (depth === 0 && tok.value === sep) { out.push(toks.slice(start, i)); start = i + 1 }
+    }
+  }
+  out.push(toks.slice(start))
+  return out
+}
+
+/** One token run split on a top-level separator — the depth rule `findTop` uses.
+ *  ⛔ Depth-aware on purpose: `[f(a, b), c]` is TWO parts, and a naive comma
+ *  split would make it three and hand a fragment to the parser. */
+/** The index of the bracket closing the one at `open`, or -1.
+ *
+ *  ⛔ NOT `findTop`. That walker `continue`s on every bracket, so its predicate
+ *  is never offered one — asking it for a `]` always answers -1, which is
+ *  exactly how the first cut of tuple support silently did nothing at all. */
+function matchBracket(toks, open) {
+  let depth = 0
+  for (let i = open; i < toks.length; i += 1) {
+    const tok = toks[i]
+    if (tok.kind !== 'punct') continue
+    if (tok.value === '(' || tok.value === '[') depth += 1
+    else if (tok.value === ')' || tok.value === ']') {
+      depth -= 1
+      if (depth === 0) return i
+    }
+  }
+  return -1
+}
+
 function findTop(toks, pred) {
   let depth = 0
   for (let i = 0; i < toks.length; i += 1) {
@@ -994,6 +1051,17 @@ const cSeries = (name) => ({ type: 'series', name })
 const cOp = (name, args) => ({ type: 'op', name, args })
 const cCall = (name, args) => ({ type: 'call', name, args })
 
+/** Is this tree the literal `na` this translator emits — `0 / 0`?
+ *
+ *  ⛔ A LITERAL SHAPE ONLY, never "might be NaN at runtime". Deciding that in
+ *  general is the halting problem wearing a hat; deciding THIS is reading two
+ *  `num` nodes. It exists so a seed that can only ever be blank is refusable at
+ *  translation time rather than discovered by a member whose scan finds nothing. */
+const isNaNLiteral = (n) => !!n && n.type === 'op' && n.name === '/'
+  && n.args && n.args.length === 2
+  && n.args[0].type === 'num' && n.args[0].value === 0
+  && n.args[1].type === 'num' && n.args[1].value === 0
+
 /** Printing precedence. Deliberately a LOCAL copy of `parse.js`'s binding powers
  *  rather than an import, and the copy is safe for exactly one reason: every
  *  string this printer produces is re-parsed and hashed against the tree it was
@@ -1229,6 +1297,26 @@ class Resolver {
         if (bound.update && bound.update.type === 'selfref' && seed && seed.type === 'num') {
           return seed
         }
+        // 🔴 …AND THE SAME SHAPE SEEDED `na` IS A COLUMN THAT CAN ONLY EVER BE
+        // BLANK. `accum(0/0, self, n)` never leaves its seed, so every bar is NaN
+        // — measured at 400/400 on the anchored-VWAP script in the corpus.
+        //
+        // ⛔ IT IS SAVEABLE, WHICH IS WHAT MAKES IT WORSE THAN A REFUSAL. It
+        // parses, budgets, lints `non-repainting` and clears `canSaveFormula`, so
+        // a member gets a scan that returns nothing and reads as a quiet market
+        // rather than a broken column. That is the exact failure this translator
+        // refuses `cum` and `barssince` to avoid, arrived at from the other side.
+        //
+        // ⚠️ THIS WAS REACHED ONLY WHEN `ta.cross` LANDED — the output refused
+        // earlier in the same expression until then, so the dead accumulator sat
+        // behind a louder refusal. Closing one gap is what exposed it.
+        if (bound.update && bound.update.type === 'selfref' && isNaNLiteral(seed)) {
+          throw new PineRefusal('pine:state',
+            `\`${name}\` is a \`var\` seeded \`na\` that nothing in this script updates, `
+            + 'so every bar of its column would be blank — the reassignment it needs is '
+            + 'one this translator could not fold into a single expression',
+            bound.at || locate(tok))
+        }
         this.env = bound.updateEnv || prevEnv
         const update = this.resolve(bound.update)
         const args = []
@@ -1237,6 +1325,27 @@ class Resolver {
         args[spec.recurrence.warmup] = cNum(PINE_STATE_WARMUP)
         return cCall('accum', args)
       } finally { this.env = prevEnv }
+    }
+    // ⭐⭐ ONE ELEMENT OF A TUPLE-RETURNING FUNCTION. `[a, b] = f(x)` binds each
+    // name to a part; resolving one INLINES the call exactly as the `fn` arm
+    // below does and then takes its own element. The frame is the call's, so a
+    // part reads the caller's arguments and not somebody else's.
+    if (bound.kind === 'tuplePart') {
+      if (this.frames.length >= MAX_CALL_DEPTH) {
+        throw new PineRefusal('pine:cycle', `${REFUSALS['pine:cycle']} — \`${name}\``, locate(tok))
+      }
+      const part = bound.fn.value.parts[bound.index]
+      if (!part) {
+        // Unreachable through the destructure, which counts the parts first —
+        // but a refusal beats an `undefined` if another path ever gets here.
+        throw new PineRefusal('pine:tuple',
+          `${REFUSALS['pine:tuple']} — \`${name}\` is element ${bound.index + 1} of a `
+          + `${bound.fn.value.parts.length}-part result`, locate(tok))
+      }
+      this.frames.push(bound.args.map((a) => ({ kind: 'expr', node: a.value, env: bound.env })))
+      const prevEnv = this.env
+      this.env = part.env || prevEnv
+      try { return this.resolve(part.node) } finally { this.frames.pop(); this.env = prevEnv }
     }
     if (bound.kind === 'fn') {
       throw new PineRefusal('pine:function-def',
@@ -1387,6 +1496,21 @@ class Resolver {
         return cOp('?:', [test, this.resolve(node.yes), this.resolve(node.no)])
       }
       case 'offset': {
+        // ⭐ A STATE VARIABLE READING ITS OWN PAST INSIDE ITS OWN UPDATE. This is
+        // the single most common `pine:state` refusal in the corpus —
+        // `entry_signal := cond ? 1 : entry_signal[1]` — and the engine has taken
+        // `self[n]` since the multi-lag recurrence landed. Only the translator
+        // was missing, so this maps Pine's 1-based count onto the accumulator's
+        // 0-based one and hands the result to the arm that already exists.
+        const lag = this.selfOffsetLag(node)
+        if (lag !== null) {
+          const spec = this.table.functions.accum
+          if (!spec) {
+            throw new PineRefusal('pine:state', REFUSALS['pine:state'], locate(node.tok))
+          }
+          const base = cSeries(spec.recurrence.binds)
+          return lag === 0 ? base : { type: 'offset', value: lag, args: [base] }
+        }
         this.guardOffsetOfMutable(node)
         // ⭐ THE CHILD RESOLVES FIRST, so `ta.sma(close, 20)[2]` and `close[2]`
         // reach the seam the same way and nesting needs no special case.
@@ -1417,6 +1541,30 @@ class Resolver {
    * `var` handler marks it — but `x = 0.0` / `x := nz(x[1]) + volume` carries no
    * `var` at all and is just as much an accumulator, and this is what catches it.
    */
+  /** `s[k]` INSIDE `s`'s OWN UPDATE — the lag it means, or `null`.
+   *
+   *  ⭐⭐ PINE COUNTS FROM ONE HERE AND THIS ENGINE COUNTS FROM ZERO, and getting
+   *  that wrong would be silent. Inside `s := … s[1] …`, Pine's `s[1]` is the
+   *  value `s` held on the PREVIOUS BAR — which is exactly what the accumulator's
+   *  own `self` already is. So `s[1]` is `self`, `s[2]` is `self[1]`, and the
+   *  answer is `k - 1`. ⛔ The rail asserts `s[1]` produces the IDENTICAL tree to
+   *  bare `s`; an off-by-one here reads a bar too far back on every bar.
+   *
+   *  ⛔ ONLY WHEN THE NAME IN SCOPE IS THE SELF-REFERENCE. Outside its own
+   *  update the same spelling means something else entirely, and
+   *  `guardOffsetOfMutable` below is what keeps answering that question. */
+  selfOffsetLag(node) {
+    if (!(node.n >= 1) || !node.arg || node.arg.type !== 'name') return null
+    const bound = this.env.get(node.arg.name)
+    // ⛔ `kind !== 'expr'` is REDUNDANT with the `selfref` test below and is kept
+    // as a cheap early exit, not as a guard — the mutation harness proved it:
+    // removing it changed no behaviour, because a `state`/`fn`/`opaque` binding
+    // carries no `.node` to be a selfref in the first place. Said here so nobody
+    // later mistakes it for the thing keeping this correct.
+    if (!bound || bound.kind !== 'expr') return null
+    return bound.node && bound.node.type === 'selfref' ? node.n - 1 : null
+  }
+
   guardOffsetOfMutable(node) {
     if (!(node.n >= 1) || node.arg.type !== 'name') return
     const name = node.arg.name
@@ -1681,6 +1829,14 @@ class Resolver {
       if (bare === 'avg' && built.length < 2) {
         throw new PineRefusal('pine:arity',
           `\`${pineName}\` averages two or more values`, locate(tok))
+      }
+      if (bare === 'cross' && built.length !== 2) {
+        // ⛔ ARITY IS CHECKED BEFORE THE EXPANSION RUNS, like its two neighbours.
+        // `cross(x)` would otherwise build `crossOver(x, undefined)` and die in
+        // `assertCanonical` with a message about node shape — a true sentence
+        // about the wrong subject.
+        throw new PineRefusal('pine:arity',
+          `\`${pineName}\` crosses one series with another, and needs both`, locate(tok))
       }
       return BUILTIN_CALL_TREE[bare](built)
     }
@@ -2260,6 +2416,32 @@ function foldStatements(stmts, ctx, env) {
       continue
     }
 
+    // ⭐⭐ A BARE `[a, b, c]` AT THE END OF A BODY IS A TUPLE RETURN — the last
+    // structural gap between a pasted script and this engine. User-defined
+    // functions already inline (multi-statement bodies and locals included), so
+    // all a tuple needs is somewhere to put its parts; each element folds in the
+    // function's own scope exactly like any other expression.
+    //
+    // ⛔ MEASURED BEFORE IT WAS BUILT. Across the corpus a destructure's
+    // right-hand side is 42x `request.security`, ~19x user-defined and ONCE a
+    // builtin — so this is deliberately the user-defined path and nothing else.
+    if (isPunct(first, '[') && findTop(toks, (t) => isPunct(t, '=')) < 0) {
+      const close = matchBracket(toks, 0)
+      if (close > 0) {
+        const inner = toks.slice(1, close)
+        const parts = splitTopLevel(inner, ',')
+          .filter((part) => part.length)
+          .map((part) => exprBinding(parseWholeExpression(part), new Map(env), locate(first)))
+        // ⛔ TWO OR MORE. `[x]` is a one-element list, not a tuple, and treating
+        // it as one would give a destructure a shape Pine never wrote.
+        if (parts.length > 1) {
+          value = { kind: 'tuple', parts, at: locate(first) }
+          i += 1
+          continue
+        }
+      }
+    }
+
     // A bare expression. In a function body the LAST one is the value; anywhere
     // else it is a side effect (`label.new(…)`) that nothing reads.
     value = exprBinding(parseWholeExpression(toks), new Map(env), locate(first))
@@ -2378,6 +2560,33 @@ export function translatePine(source, opts = {}) {
       const close = toks.findIndex((t) => isPunct(t, ']'))
       const names = toks.slice(1, close < 0 ? toks.length : close)
         .filter((t) => t.kind === 'ident' && !TYPE_WORDS.has(t.value))
+
+      // ⭐ A TUPLE-RETURNING USER FUNCTION HANDS OUT ITS PARTS BY POSITION.
+      // `[a, b] = f(x)` makes `a` element 0 of that call and `b` element 1; the
+      // call itself is inlined per part by `resolveBinding`'s `tuplePart` arm.
+      //
+      // ⛔⛔ THE `kind === 'tuple'` CHECK IS THE WHOLE SAFETY OF THIS FEATURE.
+      // Without it `request.security` — 42 of the 63 destructures in this corpus
+      // — would hand its FIRST element to a name expecting its third: a
+      // translation that parses, lints, saves, scans and is silently WRONG.
+      // Anything this engine cannot take apart must keep refusing by name.
+      const eq = close >= 0 ? close + 1 + findTop(toks.slice(close + 1), (t) => isPunct(t, '=')) : -1
+      if (close >= 0 && eq > close && names.length > 0) {
+        const rhs = toks.slice(eq + 1)
+        let call = null
+        try { call = parseWholeExpression(rhs) } catch { call = null }
+        const callee = call && call.type === 'call' ? env.get(call.name) : null
+        const value = callee && callee.kind === 'fn' ? callee.value : null
+        if (value && value.kind === 'tuple' && value.parts.length >= names.length) {
+          const callerEnv = new Map(env)
+          names.forEach((n, k) => env.set(n.value, {
+            kind: 'tuplePart', fn: callee, args: call.args, index: k,
+            env: callerEnv, at: locate(n),
+          }))
+          continue
+        }
+      }
+
       for (const n of names) markOpaque(n.value, 'pine:tuple', locate(first), `\`${n.value}\``)
       notes.push(noteOf('pine:tuple', REFUSALS['pine:tuple'], first))
       continue
@@ -2742,6 +2951,7 @@ export function translatePine(source, opts = {}) {
         formula,
         ast,
         inputsFolded: [...resolver.usedInputs.values()],
+        hidden: outputHidden(args),
         refusal: null,
       }
     } catch (err) {
@@ -2759,7 +2969,11 @@ export function translatePine(source, opts = {}) {
     resolved.push(row)
   }
 
-  const usable = resolved.filter((r) => r.refusal === null)
+  // ⛔ A HIDDEN OUTPUT IS NOT A COLUMN THE MEMBER GOT. Counting it made `ok`
+  // mean "something in here parsed" instead of "you have a scan", and the
+  // Butterworth script is the proof: four refusals, one hidden `hlc3`, verdict
+  // `translates: true`.
+  const usable = resolved.filter((r) => r.refusal === null && !r.hidden)
   const refusals = [
     ...hardRefusals,
     ...resolved.filter((r) => r.refusal).map((r) => r.refusal),
@@ -2803,7 +3017,7 @@ export function translatePine(source, opts = {}) {
  *  Otherwise the first plot that translated at all. ⛔ A member can always choose
  *  another; this decides what is on screen first, never what is possible. */
 function chooseOutput(rows, table) {
-  const ok = (r) => r.refusal === null
+  const ok = (r) => r.refusal === null && !r.hidden
   // ⛔ A CONSTANT IS NEVER THE FIRST OFFER, AND THAT IS MEASURED TOO. A published
   // indicator plots a hidden zero baseline so `fill()` has something to fill
   // against (`06-adx-advanced.pine` line 175: `pZero = plot(0.0,
@@ -2890,6 +3104,28 @@ function pickOutputArgument(args, kind, tok) {
     throw new PineRefusal('pine:statement', REFUSALS['pine:statement'], locate(tok))
   }
   return positional
+}
+
+/** Did the SCRIPT'S AUTHOR mark this output as not-for-display?
+ *
+ *  ⭐⭐ `plot(x, display = display.none)` IS SCAFFOLDING, NOT AN OFFER. Published
+ *  indicators plot a hidden series purely so `fill()` has a second edge to fill
+ *  against, and the Butterworth Spectral Trend script does exactly that with
+ *  `plot(price_source, display = display.none)` — where `price_source` is `hlc3`.
+ *
+ *  ⛔ IT READS BARS, SO EVERY "IS THIS A LIVE COLUMN?" TEST SAYS YES — which is
+ *  what made it dangerous. Every real output of that script refused, this line
+ *  did not, and the member was offered a saveable `(high + low + close) / 3`
+ *  under the title of a spectral trend filter. `chooseOutput` already declines to
+ *  offer a hidden CONSTANT baseline for this exact reason; `display.none` is the
+ *  author's own, more general statement of it, so it is the one to read.
+ */
+function outputHidden(args) {
+  const d = args.find((a) => a.name === 'display')
+  // `display.none` lexes as ONE ident — the dot is part of the name, not an
+  // operator — so this is a name comparison, not a member walk. Any other value
+  // (`display.all`, `display.pane`) is a real display and stays offerable.
+  return !!(d && d.value && d.value.type === 'name' && d.value.name === 'display.none')
 }
 
 function outputTitle(args, kind) {

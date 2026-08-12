@@ -9,18 +9,23 @@
 // When MINIMIZED (the user parked the player in the corner but is still on the
 // Desk), it shows a slim "restore to theater" strip instead of fighting the
 // user by yanking the video back into the theater.
-import { useEffect, useRef, useState, useSyncExternalStore, useCallback } from 'react'
+import { useEffect, useRef, useState, useMemo, useSyncExternalStore, useCallback, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { subscribe, getSnapshot, registerDockSlot, clearDockSlot, play, playIndex, expand, seekTo, getCurrentTime } from './videoStore'
 import { useVideoInsights } from '../../hooks/useVideoInsights'
 import { useVideoNotes } from '../../hooks/useVideoNotes'
 import { useVideoRelated } from '../../hooks/useVideoRelated'
 import { useVideoThread } from '../../hooks/useVideoThread'
+import { useTickerReturns } from '../../hooks/useTickerReturns'
 import TickerPopup from '../TickerPopup'
 import RsBadge from '../RsBadge'
 import TranscriptPanel from './TranscriptPanel'
 import CompassAssistButton from '../voice/CompassAssistButton'
+import UIcon from '../ui/UIcon'
 import styles from './VideoDockSlot.module.css'
+
+// Heavy lazy chunk — must not load for viewers who never open the follow pane.
+const ChartPane = lazy(() => import('../chart/pane/ChartPane'))
 
 const thumb = (id) => `https://i.ytimg.com/vi/${id}/hqdefault.jpg`
 
@@ -44,6 +49,17 @@ export default function VideoDockSlot() {
   // non-session videos or before generation). Hook runs unconditionally.
   const { chapters, tickerMoments, headline, summary, posterUrl, loading, hasTranscript, setups } =
     useVideoInsights(active ? list[index]?.id : null)
+  // Since-session % per ticker + the session's anchor date (Task 4) — same
+  // videoId key as the insights hook above, so `current` isn't defined yet.
+  const { anchorDate, returns } = useTickerReturns(active ? list[index]?.id : null)
+  // % formatting: whole numbers ≥10 ('+14%'), one decimal below ('-3.4%').
+  const fmtPct = (p) => `${p > 0 ? '+' : p < 0 ? '' : ''}${Math.abs(p) >= 10 ? Math.round(p) : p.toFixed(1)}%`
+  const retTitle = (tm, r) => {
+    const parts = [`Since session: ${fmtPct(r.since_pct)}`]
+    if (Number.isFinite(r.d5_pct)) parts.push(`1w: ${fmtPct(r.d5_pct)}`)
+    if (Number.isFinite(r.d21_pct)) parts.push(`1m: ${fmtPct(r.d21_pct)}`)
+    return `${tm.note ? `${tm.note} · ` : ''}${parts.join(' · ')}`
+  }
   // Timestamped notes for the now-playing video (keyed by youtube_id).
   const currentYt = active ? list[index]?.youtube_id : null
   const { notes, add: addNote, remove: removeNote } = useVideoNotes(currentYt)
@@ -67,10 +83,48 @@ export default function VideoDockSlot() {
       return next
     })
   }, [])
+  // Chip order: chronological (default) or best→worst since-session %.
+  const [sortByPerf, setSortByPerf] = useState(() => {
+    try { return window.localStorage.getItem('uct.desk.tickerSort') === '1' } catch { return false }
+  })
+  const toggleSort = useCallback(() => {
+    setSortByPerf((s) => {
+      const next = !s
+      try { window.localStorage.setItem('uct.desk.tickerSort', next ? '1' : '0') } catch { /* ignore */ }
+      return next
+    })
+  }, [])
   // Which chapter is playing now — for the left-rail highlight + auto-scroll.
   const [activeChapter, setActiveChapter] = useState(-1)
   const chapterListRef = useRef(null)
   const [activeTicker, setActiveTicker] = useState(-1) // ticker chip playing now
+  // Sorting reorders the CHIPS; activeTicker stays an index into the CHRONOLOGICAL
+  // tickerMoments, so the playing-now highlight compares moment IDENTITY, not index.
+  const activeMoment = activeTicker >= 0 ? tickerMoments[activeTicker] : null
+  const displayMoments = useMemo(() => {
+    if (!sortByPerf) return tickerMoments
+    return [...tickerMoments].sort((a, b) =>
+      (returns[b.ticker]?.since_pct ?? -Infinity) - (returns[a.ticker]?.since_pct ?? -Infinity))
+  }, [tickerMoments, sortByPerf, returns])
+  const haveReturns = Object.keys(returns).length > 0
+
+  // Follow-along chart: auto-switches to the ticker under discussion. OFF by
+  // default — ChartPane is a heavy lazy chunk; it must not load for viewers who
+  // never opt in. followSym reuses the identity-safe activeMoment above (the
+  // moment whose timestamp the playhead is currently at/past), falling back to
+  // the first covered ticker before playback crosses any moment.
+  const [followOpen, setFollowOpen] = useState(() => {
+    try { return window.localStorage.getItem('uct.desk.followChart') === '1' } catch { return false }
+  })
+  const toggleFollow = useCallback(() => {
+    setFollowOpen((o) => {
+      const next = !o
+      try { window.localStorage.setItem('uct.desk.followChart', next ? '1' : '0') } catch { /* ignore */ }
+      return next
+    })
+  }, [])
+  const [followTf, setFollowTf] = useState('D')
+  const followSym = (activeMoment || tickerMoments[0])?.ticker || null
 
   const startNote = useCallback(() => setDraft({ t: getCurrentTime(), text: '' }), [])
   const saveDraft = useCallback(async () => {
@@ -474,6 +528,39 @@ export default function VideoDockSlot() {
             </div>
           )}
           {tickerMoments.length > 0 && (
+            <div className={styles.followWrap}>
+              <button
+                type="button"
+                className={styles.followToggle}
+                onClick={toggleFollow}
+                aria-expanded={followOpen}
+                title="A chart that automatically switches to the ticker being discussed"
+              >
+                <UIcon name="chart" size={13} />
+                <span className={styles.insHead}>Chart follows discussion</span>
+                <span className={styles.followState}>{followOpen ? 'On' : 'Off'}</span>
+              </button>
+              {followOpen && followSym && (
+                <div className={styles.followPane}>
+                  <Suspense fallback={<div className={styles.followLoading}>Loading chart…</div>}>
+                    <ChartPane
+                      sym={followSym}
+                      tf={followTf}
+                      onTfChange={setFollowTf}
+                      stored={null}
+                      density="mini"
+                      stockChartProps={{
+                        height: 260,
+                        hideLegend: true, // the OHLC legend overlapped this small canvas
+                        ...(anchorDate ? { anchorDate } : {}),
+                      }}
+                    />
+                  </Suspense>
+                </div>
+              )}
+            </div>
+          )}
+          {tickerMoments.length > 0 && (
             <div className={styles.tickersWrap}>
               {/* Collapsible so a long stream's ticker cloud doesn't dominate
                   the rail; scroll-capped when open. Save turns the covered
@@ -507,21 +594,40 @@ export default function VideoDockSlot() {
                     : savingWl === 'saving' ? 'Saving…'
                     : '+ Watchlist'}
                 </button>
+                {haveReturns && (
+                  <button
+                    type="button"
+                    className={styles.tickerSortBtn}
+                    onClick={toggleSort}
+                    title={sortByPerf ? 'Showing best → worst since the session — click for discussion order' : 'Sort tickers by % move since the session'}
+                  >
+                    {sortByPerf ? '⇅ Perf' : '⇅ Order'}
+                  </button>
+                )}
               </div>
               {tickersOpen && (
                 <div className={styles.tickerScroll}>
                   <div className={styles.tickerRow}>
-                    {tickerMoments.map((tm, i) => (
+                    {displayMoments.map((tm, i) => (
                       <span
                         key={`${tm.ticker}-${tm.t}-${i}`}
-                        className={`${styles.tickerChip} ${i === activeTicker ? styles.tickerChipActive : ''}`}
+                        className={`${styles.tickerChip} ${tm === activeMoment ? styles.tickerChipActive : ''}`}
                         title={tm.note || tm.ticker}
                       >
-                        {/* Symbol → chart · live UCT RS-rank badge · time → seek. */}
-                        <TickerPopup sym={tm.ticker} as="button" className={styles.tickerSym}>
+                        {/* Symbol → chart ANCHORED at the session date · RS badge ·
+                            since-session % · time → seek. */}
+                        <TickerPopup sym={tm.ticker} anchorDate={anchorDate} as="button" className={styles.tickerSym}>
                           {tm.ticker}
                         </TickerPopup>
                         <RsBadge sym={tm.ticker} size="sm" />
+                        {Number.isFinite(returns[tm.ticker]?.since_pct) && (
+                          <span
+                            className={`${styles.tickerRet} ${returns[tm.ticker].since_pct >= 0 ? styles.tickerRetPos : styles.tickerRetNeg}`}
+                            title={retTitle(tm, returns[tm.ticker])}
+                          >
+                            {fmtPct(returns[tm.ticker].since_pct)}
+                          </span>
+                        )}
                         <button
                           className={styles.tickerTime}
                           onClick={() => seekTo(tm.t)}

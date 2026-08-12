@@ -269,6 +269,39 @@ def _start_breadth_backfill():
     threading.Thread(target=loop, daemon=True, name="breadth_backfill").start()
 
 
+def _probe_flatfile_access():
+    """One-shot boot diagnostic: can THIS (worker) pod read Massive STOCKS flat files?
+    Phase-3 wick reconstruction needs us_stocks_sip minute aggs; the web pod + local
+    both 403. Isolated from the Options Flow system — just a HEAD. Logs the result for
+    a recent stocks + options key so we can settle whether the worker's origin has
+    flat-file access (unblocks Phase 3 without any Massive change if so)."""
+    try:
+        import os as _os, boto3
+        from datetime import date as _date, timedelta as _td
+        ak = _os.environ.get("MASSIVE_S3_ACCESS_KEY")
+        sk = _os.environ.get("MASSIVE_S3_SECRET")
+        ep = _os.environ.get("MASSIVE_S3_ENDPOINT") or "https://files.massive.com"
+        bk = _os.environ.get("MASSIVE_S3_BUCKET") or "flatfiles"
+        if not (ak and sk):
+            log.info("[flatfile-probe] MASSIVE_S3 creds not set"); return
+        cl = boto3.client("s3", region_name="us-east-1", aws_access_key_id=ak,
+                          aws_secret_access_key=sk, endpoint_url=ep)
+        d = _date.today() - _td(days=3)          # T-3, safely published
+        while d.weekday() >= 5:
+            d -= _td(days=1)
+        ds = d.strftime("%Y/%m/%Y-%m-%d")
+        log.info(f"[flatfile-probe] endpoint={ep} bucket={bk} date={ds}")
+        for lbl, key in (("stocks", f"us_stocks_sip/minute_aggs_v1/{ds}.csv.gz"),
+                         ("options", f"us_options_opra/trades_v1/{ds}.csv.gz")):
+            try:
+                h = cl.head_object(Bucket=bk, Key=key)
+                log.info(f"[flatfile-probe] {lbl} HEAD OK bytes={h.get('ContentLength')}")
+            except Exception as e:
+                log.info(f"[flatfile-probe] {lbl} HEAD FAIL {type(e).__name__}: {str(e)[:130]}")
+    except Exception as e:
+        log.warning(f"[flatfile-probe] failed: {e}")
+
+
 # ── Down-alert: the worker watches the public site and pings the owner ───────
 # The keep-warm loop already hits https://uctintelligence.com/api/health every
 # ~60s from a SEPARATE always-on process (the worker). That's the ideal probe:
@@ -590,6 +623,7 @@ def main():
     except Exception as e:
         log.warning(f"liveflow monitor failed to start (non-fatal): {e}")
     _start_breadth_backfill()
+    _probe_flatfile_access()
     _start_memwatch()
 
     # Boot fingerprint — one grep-able line so an operator can confirm which

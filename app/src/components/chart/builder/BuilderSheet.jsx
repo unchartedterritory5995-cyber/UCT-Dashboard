@@ -88,6 +88,8 @@ import { freshnessFor } from '../engine/ast/freshness'
 // COME FROM ONE MODULE, so "the sentence may name it" and "the document declares
 // it" are the same fact rather than two lists somebody keeps in step.
 import { BUILDER_INPUTS, BUILDER_INPUT_SCOPE } from './builderInputs'
+import { declaredInputs } from '../engine/ast/lint'
+import TABLE from '../engine/ast/closedTable.json'
 import * as engineRegistry from '../engine/nativeRegistry'
 import { validateUserDefinitions, installUserDefinitions } from '../engine/nativeRegistry'
 import { addInstance } from '../engine/instanceControls'
@@ -162,7 +164,13 @@ export function chipName(name) {
   return out.trim()
 }
 
-export function buildDefinition({ defId, name, source, ast, mode, rev = 1, version = 1, readback = '' }) {
+export function buildDefinition({ defId, name, source, ast, mode, rev = 1, version = 1,
+  readback = '', inputs = BUILDER_INPUTS }) {
+  // ⛔ ONE LIST, READ TWICE — never two lists that agree today. The freshness
+  // scope below and the document's own `inputs` are the SAME array, because a
+  // member-declared name that reached one and not the other would badge a
+  // formula off a scope the saved document does not carry.
+  const declared = Array.isArray(inputs) && inputs.length ? inputs : BUILDER_INPUTS
   const trimmed = String(name || '').trim()
   const short = chipName(trimmed)
   return {
@@ -189,14 +197,14 @@ export function buildDefinition({ defId, name, source, ast, mode, rev = 1, versi
       // tree by the SAME kind of reader, never typed and never offered as a
       // form field. `BUILDER_INPUTS` is the scope the read-back already uses.
       freshness: freshnessFor(ast, {
-        inputs: Object.fromEntries(BUILDER_INPUTS.map((s) => [s.key, true])),
+        inputs: Object.fromEntries(declared.map((spec) => [spec.key, true])),
       }).mode,
     },
     placement: { target: 'pane', pane: { height: 0.15 } },
     // ⛔ SPREAD FROM `BUILDER_INPUTS`, WHICH IS ALSO WHAT THE READ-BACK'S SCOPE IS
     // DERIVED FROM. Copied so a caller cannot mutate the frozen source array's
     // members through the document it just received.
-    inputs: BUILDER_INPUTS.map((spec) => ({ ...spec })),
+    inputs: declared.map((spec) => ({ ...spec })),
     // ⛔ EXACTLY ONE DATA-BEARING PLOT. One formula is one series
     // (`nativeRegistry.validateAstLane`); a second plot is a key nothing fills.
     plots: [{
@@ -253,6 +261,55 @@ export class BuilderBoundary extends Component {
 export default function BuilderSheet({
   open, onClose, onSaved = null, settings = null, onChange = null, bars = null,
 }) {
+  /** ⭐ THE MEMBER'S OWN INPUTS. `color` and `lineWidth` are chrome every
+   *  definition carries; these are the ones that make an indicator TUNABLE —
+   *  `period` in `exp(-1.414 * 3.14159 / period)` instead of a baked-in 20. */
+  const [memberInputs, setMemberInputs] = useState([])
+  /** ⛔ ONE SCOPE, DERIVED, AND `useMemo` IS LOAD-BEARING. `FormulaField` keeps
+   *  `inputs` in its debounce dependency list, so a fresh object per render would
+   *  restart the 250 ms timer every render and the box would never settle —
+   *  the reason `BUILDER_INPUT_SCOPE` was frozen at module level to begin with. */
+  const inputScope = useMemo(
+    () => declaredInputs({ inputs: [...BUILDER_INPUTS, ...memberInputs] }),
+    [memberInputs],
+  )
+  /** Every name the closed table already owns — DERIVED from the manifest, never
+   *  a list typed here. ⛔ An input called `close` would be shadowed by the real
+   *  series and silently do nothing: the formula would parse, lint, save and draw
+   *  the wrong thing, which is the exact failure this builder keeps finding. */
+  const RESERVED = useMemo(() => new Set([
+    ...Object.keys(TABLE.series || {}),
+    ...Object.keys(TABLE.functions || {}),
+    ...Object.keys(TABLE.scalars || {}),
+    ...BUILDER_INPUTS.map((spec) => spec.key),
+  ]), [])
+
+  /** Why this key cannot be used, or `null`. Returned as a SENTENCE, because the
+   *  refusal messages elsewhere in this engine are the part members can act on. */
+  const inputKeyProblem = useCallback((key, atIndex) => {
+    if (!key) return 'give the input a name'
+    if (!/^[a-z][a-zA-Z0-9_]*$/.test(key)) {
+      return 'a name starts with a lowercase letter and holds letters, digits and underscores'
+    }
+    if (RESERVED.has(key)) return `\`${key}\` is already a name this engine computes`
+    if (memberInputs.some((spec, i) => i !== atIndex && spec.key === key)) {
+      return `this formula already declares \`${key}\``
+    }
+    return null
+  }, [RESERVED, memberInputs])
+
+  const inputsValid = memberInputs.every((spec, i) => inputKeyProblem(spec.key, i) === null)
+
+  const addInput = useCallback(() => {
+    setMemberInputs((prev) => [...prev, { key: '', type: 'int', label: '', default: 14, min: 1, max: 500 }])
+  }, [])
+  const patchInput = useCallback((i, patch) => {
+    setMemberInputs((prev) => prev.map((spec, j) => (j === i ? { ...spec, ...patch } : spec)))
+  }, [])
+  const removeInput = useCallback((i) => {
+    setMemberInputs((prev) => prev.filter((_, j) => j !== i))
+  }, [])
+
   const [source, setSource] = useState('')
   const [name, setName] = useState('')
   const [result, setResult] = useState(() => evaluateFormula('', BUILDER_INPUT_SCOPE))
@@ -302,7 +359,7 @@ export default function BuilderSheet({
   // Save button whose read-back describes a tree the box no longer shows.
   useEffect(() => {
     if (!open) return
-    setSource(''); setName(''); setResult(evaluateFormula('', BUILDER_INPUT_SCOPE))
+    setSource(''); setName(''); setMemberInputs([]); setResult(evaluateFormula('', inputScope))
     setAcknowledged(false); setStoreError(null); setSavedRow(null); setCopied(false)
     setEditing(null); setBuildMode('library'); setPickerNote(null)
   }, [open])
@@ -339,7 +396,7 @@ export default function BuilderSheet({
     // still the natural next thing to draft from; and the open-reset unmounts the
     // box entirely (`if (!open) return null`), so its prompt is already gone.
     setReplacedAt((n) => n + 1)
-    setResult(evaluateFormula(src, BUILDER_INPUT_SCOPE))
+    setResult(evaluateFormula(src, inputScope))
     // ⛔ AND THE SHEET MOVES TO THE FORMULA. A new sheet opens on the Library
     // because a member with nothing in the box is helped by worked examples; a
     // member editing their OWN definition is not, and leaving a gallery of
@@ -350,7 +407,7 @@ export default function BuilderSheet({
 
   const cancelEdit = useCallback(() => {
     setEditing(null); setSource(''); setName('')
-    setResult(evaluateFormula('', BUILDER_INPUT_SCOPE))
+    setResult(evaluateFormula('', inputScope))
     setAcknowledged(false); setStoreError(null); setSavedRow(null)
   }, [])
 
@@ -388,16 +445,25 @@ export default function BuilderSheet({
     formula: canSaveFormula(result, acknowledged),
     named: name.trim() !== '',
     idle: !saving,
-  }), [result, acknowledged, name, saving])
+    // ⛔ THE INPUT GATE BELONGS HERE, NOT BESIDE `save()`. Checking it only in the
+    // handler would leave the button ENABLED while the save silently returned —
+    // a dead control, and a second authority over one decision, which is the
+    // defect the comment above this object exists to prevent.
+    inputs: inputsValid,
+  }), [result, acknowledged, name, saving, inputsValid])
 
-  const canSave = saveGates.formula && saveGates.named && saveGates.idle
+  const canSave = saveGates.formula && saveGates.named && saveGates.idle && saveGates.inputs
 
   // Only the NAME gate gets a sentence here. A formula problem already has the
   // refusal chip and the repaint notice above — repeating it under the button
   // would be a second voice for a fact the member can already see.
   const saveHint = (saveGates.idle && saveGates.formula && !saveGates.named)
     ? 'Give it a name to save.'
-    : null
+    // An input problem already names itself on its own row, so this points at
+    // WHICH gate is shut without restating the reason a second time.
+    : (saveGates.idle && saveGates.formula && saveGates.named && !saveGates.inputs)
+      ? 'Fix the input names above to save.'
+      : null
 
   // ── focus trap ─────────────────────────────────────────────────────────────
   //
@@ -458,7 +524,10 @@ export default function BuilderSheet({
   }, [result, mode])
 
   const save = useCallback(async () => {
-    if (!canSaveFormula(result, acknowledged) || !name.trim()) return
+    // ⛔ AN INVALID INPUT KEY BLOCKS THE SAVE. The document would otherwise
+    // carry a declaration the formula cannot reference — or worse, one that
+    // SHADOWS a table name and quietly computes something else.
+    if (!canSave) return
     setSaving(true)
     setStoreError(null)
     // ⚠️ THE DOCUMENT'S OWN `version` MOVES ON AN EDIT, AND IT HAS TO.
@@ -475,6 +544,7 @@ export default function BuilderSheet({
       ast: result.ast,
       mode: result.verdict.mode,
       readback: result.readback,
+      inputs: [...BUILDER_INPUTS, ...memberInputs],
     })
     // ⭐ THE SHIPPED VALIDATION DOOR, NOT A SECOND ONE. `validateUserDefinitions`
     // is `defSchema` + the `supportedKinds` filter + the ast lane's own gates
@@ -768,8 +838,64 @@ export default function BuilderSheet({
             onEvaluated={handleEvaluated}
             result={result}
             autoFocus
-            inputs={BUILDER_INPUT_SCOPE}
+            inputs={inputScope}
           />
+
+          {/* ── THE MEMBER'S OWN INPUTS ──────────────────────────────────────
+              ⭐ WHAT MAKES AN AUTHORED INDICATOR TUNABLE RATHER THAN FROZEN.
+              Without these the period lives in the formula as a literal, so a
+              saved indicator is ONE INSTANCE of itself — nobody can change it,
+              and sharing it hands over somebody else's constant. */}
+          <section className={styles.readbackWrap} aria-labelledby="uct-inputs-head">
+            <h3 className={styles.sectionHead} id="uct-inputs-head">Inputs you can change later</h3>
+            {memberInputs.length === 0 && (
+              <p className={styles.measured} data-testid="no-inputs">
+                None yet. Add one to turn a number in your formula into a setting —
+                write <code>period</code> instead of <code>20</code>.
+              </p>
+            )}
+            {memberInputs.map((spec, i) => {
+              const problem = inputKeyProblem(spec.key, i)
+              return (
+                <div className={styles.inputRow} key={`member-input-${i}`} data-testid={`member-input-${i}`}>
+                  <input
+                    className={styles.inputKey}
+                    value={spec.key}
+                    placeholder="period"
+                    aria-label={`Input ${i + 1} name`}
+                    aria-invalid={problem ? 'true' : undefined}
+                    onChange={(e) => patchInput(i, { key: e.target.value.trim() })}
+                  />
+                  <input
+                    className={styles.inputDefault}
+                    type="number"
+                    value={spec.default}
+                    aria-label={`Input ${i + 1} default`}
+                    onChange={(e) => patchInput(i, { default: Number(e.target.value) })}
+                  />
+                  <button
+                    type="button"
+                    className={styles.inputRemove}
+                    onClick={() => removeInput(i)}
+                    aria-label={`Remove input ${i + 1}`}
+                  >
+                    <UIcon name="trash" size={14} />
+                  </button>
+                  {/* ⛔ THE REASON, NOT A RED BORDER. Every other refusal on this
+                      surface names what is wrong; a silent invalid state here
+                      would be the one place a member has to guess. */}
+                  {problem && (
+                    <p className={styles.inputProblem} role="alert" data-testid={`member-input-problem-${i}`}>
+                      {problem}
+                    </p>
+                  )}
+                </div>
+              )
+            })}
+            <button type="button" className={styles.addInput} onClick={addInput} data-testid="add-input">
+              + Add an input
+            </button>
+          </section>
 
           {/* ── THE READ-BACK ────────────────────────────────────────────────
               ⛔ `{result.readback}` AND NOTHING ELSE. See the header. */}

@@ -1,10 +1,12 @@
 // app/src/components/TickerPopup.jsx
 import { useState, useEffect, lazy, Suspense } from 'react'
+import { useNavigate } from 'react-router-dom'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import UIcon from './ui/UIcon'
 import { setVoicePageHint } from '../context/VoiceContext'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
+import { useTickerMentions } from '../hooks/useTickerMentions'
 import { TAG_BY_KEY } from '../constants/tagColors'
 import TickerActionsMenu, { useTickerActions } from './TickerActions'
 import { useTickerHub } from './mobile/TickerHubContext'
@@ -25,7 +27,7 @@ const OwnershipPanel = lazy(() => import('./fundamentals/OwnershipPanel'))
 const TAB_TO_TF = { '1min': '1', '5min': '5', '15min': '15', '30min': '30', '1hr': '60', 'Daily': 'D', 'Weekly': 'W', 'Monthly': 'M' }
 const TF_TO_TAB = Object.fromEntries(Object.entries(TAB_TO_TF).map(([k, v]) => [v, k]))
 
-export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null, open: openProp, onClose }) {
+export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null, anchorDate = null, open: openProp, onClose }) {
   // Controlled mode (open/onClose provided): no trigger element renders and the
   // parent owns open state — used for delegated $TICKER-chip clicks in The Floor,
   // where chips are sanitized static HTML, not React children. Uncontrolled mode
@@ -36,6 +38,11 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
   const closeModal = () => { if (controlled) onClose?.(); else setModalOpen(false) }
   const [tab, setTab] = useState('Daily')
   const [view, setView] = useState('chart') // 'chart' | 'fundamentals'
+  // Anchored+reveal (Desk recordings): open positioned at the session date; the
+  // chart's "⟲ Back to today" pill un-anchors. Re-arm on every open so the next
+  // look at the recording starts back at the session again.
+  const [anchored, setAnchored] = useState(true)
+  useEffect(() => { if (modalOpen) setAnchored(true) }, [modalOpen])
   const [flagToast, setFlagToast] = useState(null)
   const [compareSymbol, setCompareSymbol] = useState('')
 
@@ -45,6 +52,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
   const tickerActions = useTickerActions()
   const { openTicker } = useTickerHub()
   const isTouch = useIsTouch()
+  const navigate = useNavigate()
 
   // Fetch live price only when modal is open
   const { prices } = useRealtimePrices(modalOpen && sym ? [sym] : [])
@@ -192,6 +200,14 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                 >
                   Ownership
                 </button>
+                <button
+                  className={`${styles.modalModeBtn} ${view === 'desk' ? styles.modalModeBtnActive : ''}`}
+                  onClick={() => setView('desk')}
+                  role="tab"
+                  aria-selected={view === 'desk'}
+                >
+                  Desk
+                </button>
               </div>
               {/* The timeframe row used to live here. ChartPane owns it now — it
                   renders the same bar /charts does, honouring the user's own
@@ -218,6 +234,11 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                       priceLines,
                       compareSymbol: compareSymbol || null,
                       onCompareChange: setCompareSymbol,
+                      ...(anchorDate && anchored ? {
+                        anchorDate,
+                        exitReplayLabel: '⟲ Back to today',
+                        onExitReplay: () => setAnchored(false),
+                      } : {}),
                     }}
                   />
                 </Suspense>
@@ -229,6 +250,15 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                 <Suspense fallback={<div className={styles.chartLoading}>Loading ownership…</div>}>
                   <OwnershipPanel sym={sym} />
                 </Suspense>
+              ) : view === 'desk' ? (
+                <DeskMentions
+                  sym={sym}
+                  enabled={view === 'desk'}
+                  onOpen={(m) => {
+                    navigate(`/desk?section=videos&v=${m.youtube_id}&t=${m.t}`)
+                    closeModal()
+                  }}
+                />
               ) : (
                 <Suspense fallback={<div className={styles.chartLoading}>Loading fundamentals…</div>}>
                   <FundamentalSnapshot sym={sym} enabled={view === 'fundamentals'} />
@@ -240,5 +270,42 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
         </div>
       )}
     </>
+  )
+}
+
+// "Desk" tab — every Desk session that discussed this ticker, newest-first in
+// server order from useTickerMentions (see spec section A: the mentions
+// endpoint is the single authority for this AND the chart-marker layer).
+// Fetches only while `enabled` (the tab is active — the whole modal already
+// only renders while open, so mounting here already implies both). Row click
+// deep-links back into the Desk player at that exact moment and closes the
+// popup — every chart becomes a door to "what did the Desk say about this."
+function DeskMentions({ sym, enabled, onOpen }) {
+  const { mentions, loading } = useTickerMentions(sym, { enabled })
+  if (loading) {
+    return <div className={styles.chartLoading}>Loading Desk sessions…</div>
+  }
+  if (!mentions.length) {
+    return (
+      <div className={styles.deskEmpty}>
+        No Desk sessions have covered {sym} yet.
+      </div>
+    )
+  }
+  return (
+    <div className={styles.deskList} data-testid="desk-mentions-list">
+      {mentions.map((m, i) => (
+        <button
+          key={`${m.video_id}-${m.t}-${i}`}
+          type="button"
+          className={styles.deskRow}
+          onClick={() => onOpen(m)}
+        >
+          <span className={styles.deskDate}>{m.anchor_date}</span>
+          <span className={styles.deskSep} aria-hidden="true">·</span>
+          <span className={styles.deskNote}>{m.note || m.title}</span>
+        </button>
+      ))}
+    </div>
   )
 }

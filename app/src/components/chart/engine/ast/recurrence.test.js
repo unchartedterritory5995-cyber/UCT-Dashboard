@@ -220,9 +220,27 @@ describe('a running value refuses what the step loop cannot honestly answer', ()
     }
   }
 
-  it('`self` under a bar offset — the step loop holds one value, not a history', () => {
+  it('⭐ `self[1]` is SUPPORTED now — superseded 2026-08-11, deliberately', () => {
+    // This asserted `interpret:recurrence`, on the reasoning that "the step loop
+    // holds one value, not a history of them". That was true of the loop and
+    // false as a limit: a 2-pole filter IS `c1*x + c2*prev + c3*prev_prev`, so
+    // refusing a second lag refused the whole DSP family — Butterworth,
+    // SuperSmoother, every Ehlers design. The loop now carries a bounded history.
+    //
+    // ⛔ THE ASSERTION IS INVERTED RATHER THAN DELETED, because the guard it
+    // named is still live for the neighbouring shapes below, and a reader
+    // meeting those needs to know this one moved on purpose.
     expect(guardOf(() => interpret(
       call('accum', num(0), op('+', off(1, self()), num(1)), num(5)), bars(40))))
+      .toBe('(did not refuse)')
+  })
+
+  it('…but an offset over an EXPRESSION containing `self` still refuses', () => {
+    // `(self + 1)[1]` asks for a past value of a formula the step loop never
+    // computed — which is what keeps `self[k]` meaning exactly "the running
+    // value k bars ago" rather than something a reader has to reconstruct.
+    expect(guardOf(() => interpret(
+      call('accum', num(0), off(1, op('+', self(), num(1))), num(5)), bars(40))))
       .toBe('interpret:recurrence')
   })
 

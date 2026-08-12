@@ -21,7 +21,7 @@ import {
 // the right-click menu and the workspace-only chrome (leverage picker, add-tab,
 // Share to the Floor).
 export default function ChartWidget({ color, opts, onOptsChange, chartId = null }) {
-  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle } = useWorkspace()
+  const { groupSyms, setGroupSym, crosshairBus, aiSearchBus, chartsTheme, activeChartRef, chartApiById, periodSortMode, onPeriodSelected: wsOnPeriodSelected, onPeriodCancel: wsOnPeriodCancel, replayCutoff, exitReplay, startMarker, startMarkerStyle } = useWorkspace()
   const { createAlert } = useWatchlistAlerts()
   // Imperative handle on the pane: the right-click menu opens its settings
   // modal, and the leverage picker routes its symbol change through it so the
@@ -164,6 +164,24 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
     onStore: persistActiveSettings,
     chartsTheme,
   })
+
+  // Expose an imperative chart API for the Compare Symbols tool (read/write the
+  // active chart's comparison overlays + the % price scale). Reads live settings
+  // through a ref so the registered fns never go stale.
+  const chartCsRef = useRef(chartCs)
+  chartCsRef.current = chartCs
+  useEffect(() => {
+    if (!chartApiById) return undefined
+    const id = widgetIdRef.current
+    chartApiById.current.set(id, {
+      getComparison: () => (Array.isArray(chartCsRef.current?.comparisonSymbols) ? chartCsRef.current.comparisonSymbols : []),
+      setComparison: (arr) => persistActiveSettings({ ...chartCsRef.current, comparisonSymbols: arr, preset: 'custom' }),
+      getPercentScale: () => !!chartCsRef.current?.percentScale,
+      setPercentScale: (on) => persistActiveSettings({ ...chartCsRef.current, percentScale: !!on, logScale: false, preset: 'custom' }),
+      getRect: () => paneRef.current?.getRect?.() || null,
+    })
+    return () => { chartApiById.current.delete(id) }
+  }, [chartApiById, persistActiveSettings])
 
   // Every ticker change routes through here; the pane adds the refocus so the
   // user can type the next ticker without re-clicking the chart.

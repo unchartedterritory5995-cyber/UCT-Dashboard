@@ -7,10 +7,17 @@
   inset: 0;
   background: rgba(4, 6, 10, 0.72);
   backdrop-filter: blur(6px);
-  /* Sits above TickerPopup's modal (var(--z-modal) = 1000) so that
-     right-click → Add to Portfolio stacks on top when launched from a
-     chart inside another modal. */
-  z-index: 1100;
+  /* Sits above TickerPopup's overlay (TickerPopup.module.css, 8600 — itself
+     raised above the floating video host's 8500, GlobalVideoLayer.module.css)
+     so that right-click → Add to Portfolio stacks on top when launched from a
+     chart inside another modal (incl. one opened over a playing Desk video).
+     Also above ChartContextMenu (8700, ChartContextMenu.module.css) — the two
+     never actually coexist (the menu closes itself before this modal opens),
+     but this keeps the whole from-popup chain ordered top to bottom: video
+     host (8500) < TickerPopup (8600) < ChartContextMenu (8700) < this modal
+     (8800). PortfolioSettingsModal.module.css mirrors this exact contract.
+     See TickerPopup.zorder.test.js for the rail. */
+  z-index: 8800;
   display: flex;
   align-items: center;
   justify-content: center;

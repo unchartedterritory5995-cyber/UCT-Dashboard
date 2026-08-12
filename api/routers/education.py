@@ -286,6 +286,27 @@ def get_video_insights(video_id: int, _user: dict = Depends(require_paid)):
     return out
 
 
+@router.get("/videos/{video_id}/ticker-returns")
+def get_video_ticker_returns(video_id: int, _user: dict = Depends(require_paid)):
+    """% move of each ticker-moment symbol since the session date — powers the
+    Desk chip scorecard, anchored charts, and the follow-along pane. anchor_date
+    is derived here (created_at → ET) so the client never re-derives it.
+    ~10-min in-process cache per video."""
+    from api.services import ticker_returns
+    return ticker_returns.returns_for_video(int(video_id))
+
+
+@router.get("/tickers/{sym}/mentions")
+def get_ticker_mentions(sym: str, _user: dict = Depends(require_paid)):
+    """Every Desk session mention of a ticker, newest-first — the single
+    authority behind StockChart's Desk-mentions chart markers and
+    TickerPopup's Desk timeline tab. anchor_date is derived here (created_at
+    → ET) so the client never re-derives it. Unknown/uncovered sym still 200s
+    with an empty list. ~10-min in-process cache per symbol."""
+    from api.services import ticker_mentions
+    return ticker_mentions.mentions_for_symbol(sym)
+
+
 @router.get("/videos/{video_id}/related")
 def get_related_videos(video_id: int, _user: dict = Depends(require_paid)):
     """Other library videos that covered any of this video's tickers."""

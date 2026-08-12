@@ -25,6 +25,17 @@ import Sheet from '../mobile/Sheet'
 import UIcon from '../ui/UIcon'
 import styles from './ChartContextMenu.module.css'
 
+// Sheet's shared backdrop rung is --z-modal (1000, mobile/Sheet.module.css) —
+// fine for every other Sheet caller, but this menu can open from inside
+// TickerPopup on a coarse-pointer device too (iOS long-press on flow tapes
+// uses TickerPopup's controlled mode), and TickerPopup's own overlay now sits
+// at 8600. Without elevating THIS instance, the touch bottom-sheet render
+// path re-introduces the exact bug the desktop `.menu` z-index (8700, see
+// ChartContextMenu.module.css) was raised to fix — just through the other
+// render branch. Kept in sync with that value by TickerPopup.zorder.test.js's
+// rail, not by hand — if the two ever drift, the rail reds.
+const TOUCH_SHEET_Z_INDEX = 8700
+
 export default function ChartContextMenu({ open, x, y, sections = [], onClose }) {
   const menuRef = useRef(null)
   const [expanded, setExpanded] = useState(null)  // id of the open submenu
@@ -66,7 +77,13 @@ export default function ChartContextMenu({ open, x, y, sections = [], onClose })
   // Touch: bottom-sheet with full-width, ≥44px tap targets.
   if (isTouch) {
     return (
-      <Sheet open onClose={onClose} variant="bottom-sheet" ariaLabel="Chart actions">
+      <Sheet
+        open
+        onClose={onClose}
+        variant="bottom-sheet"
+        ariaLabel="Chart actions"
+        zIndex={TOUCH_SHEET_Z_INDEX}
+      >
         <div className={styles.sheetMenu} role="menu">{rows}</div>
       </Sheet>
     )

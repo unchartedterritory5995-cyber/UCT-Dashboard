@@ -1,0 +1,170 @@
+/* Centered modal card — identical chrome to the Custom-Period Sort dialog (dimmed
+   backdrop from PeriodSortPanel .cfgBackdrop). Theme-following: white surface + dark
+   text in light mode, dark surface in dark mode. NOT draggable / resizable. */
+.card {
+  width: 340px;
+  max-width: 92vw;
+  background: var(--bg-elevated, #22251e);
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 12px;
+  box-shadow: 0 24px 64px -24px rgba(0, 0, 0, 0.6);
+  color: var(--text, #b6b09d);
+  font: 12px 'Instrument Sans', system-ui, sans-serif;
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border, #2e3127);
+}
+.headTitle {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text-heading, #f0ead8);
+}
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: var(--text-muted, #8c8674);
+  cursor: pointer;
+}
+.close:hover { color: var(--text-heading, #f0ead8); background: var(--bg-hover, rgba(0, 0, 0, 0.06)); }
+
+.body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Mode segmented control */
+.seg {
+  display: flex;
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.segBtn {
+  flex: 1;
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  background: var(--bg-surface, #1a1c17);
+  border: none;
+  color: var(--text-muted, #8c8674);
+  cursor: pointer;
+}
+.segBtn + .segBtn { border-left: 1px solid var(--border, #2e3127); }
+.segBtn:hover { color: var(--text-bright, #e0dac8); }
+/* Selected = a thicker accent outline (inset box-shadow), not a gold fill. */
+.segOn {
+  position: relative;
+  z-index: 1;
+  color: var(--text-heading, #f0ead8);
+  box-shadow: inset 0 0 0 2px var(--accent, #c9a84c);
+}
+
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 12px;
+  background: var(--bg-surface, #1a1c17);
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 7px;
+  color: var(--text-bright, #e0dac8);
+  outline: none;
+}
+.input:focus { border-color: var(--accent, #c9a84c); }
+.input::placeholder { color: var(--text-muted, #8c8674); }
+
+.empty {
+  font-size: 12px;
+  color: var(--text-muted, #8c8674);
+  padding: 2px 2px;
+}
+
+.list { display: flex; flex-direction: column; gap: 6px; }
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 7px;
+  background: var(--bg-surface, #1a1c17);
+}
+.rowMain { display: flex; align-items: center; gap: 9px; }
+.dot { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 3px; }
+.sym {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--text-bright, #e0dac8);
+}
+.rm {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  color: var(--text-muted, #8c8674);
+  cursor: pointer;
+}
+.rm:hover { background: rgba(200, 40, 40, 0.85); color: #fff; }
+
+/* Per-symbol price-scale toggle (Same % scale / New price scale) */
+.scaleSeg {
+  display: flex;
+  border: 1px solid var(--border, #2e3127);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.scaleBtn {
+  flex: 1;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  background: var(--bg-elevated, #22251e);
+  border: none;
+  color: var(--text-muted, #8c8674);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.scaleBtn + .scaleBtn { border-left: 1px solid var(--border, #2e3127); }
+.scaleBtn:hover { color: var(--text-bright, #e0dac8); }
+/* Selected = a thicker accent outline (inset box-shadow), not a gold fill. */
+.scaleOn {
+  position: relative;
+  z-index: 1;
+  color: var(--text-heading, #f0ead8);
+  box-shadow: inset 0 0 0 2px var(--accent, #c9a84c);
+}
+
+.hint {
+  font-size: 11px;
+  color: var(--text-muted, #8c8674);
+  padding-top: 2px;
+}
