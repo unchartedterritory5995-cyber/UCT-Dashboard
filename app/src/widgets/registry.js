@@ -259,7 +259,10 @@ export const WIDGET_REGISTRY = deepFreeze({
       const last = Array.isArray(p.thread) && p.thread.length ? p.thread[p.thread.length - 1] : null
       return last?.q ? `[ai search: "${last.q}"]` : '[ai search]'
     },
-    reconstructable: false,                     // re-running the query returns a DIFFERENT answer
+    // The captured THREAD is the params (never re-queried — re-running would
+    // return a DIFFERENT answer): AiSearchEmbed re-renders the stored
+    // conversation read-only via the widget's own initialThread seam.
+    reconstructable: (p) => Array.isArray(p?.thread) && p.thread.length > 0,
     liveCapable: false,
   },
   news: {

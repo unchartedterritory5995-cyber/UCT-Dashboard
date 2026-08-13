@@ -26,6 +26,7 @@ const ARCHIVE_MAX_RETRIES = 5
 const EMBED_COMPONENTS = {
   chart: lazy(() => import('./ChartEmbed')),
   calendar: lazy(() => import('./CalendarEmbed')),
+  aisearch: lazy(() => import('./AiSearchEmbed')),
 }
 
 // The never-a-broken-embed rule, enforced at the React layer too: any render
