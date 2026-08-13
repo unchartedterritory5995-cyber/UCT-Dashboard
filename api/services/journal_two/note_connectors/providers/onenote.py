@@ -118,21 +118,45 @@ the engine's optional `getattr(provider, "list_present_refs", None)` hook
 detection see everything while `list_changed`'s bounded refs still drive
 the actual (paced) content fetch, unchanged.
 
-── Per-tick admission control (spec §10) ───────────────────────────────────
+── Per-tick admission control (spec §10) — COMPLETE-OR-NOTHING enumeration ─
 
 `MSGRAPH_ONENOTE_MAX_REQUESTS_PER_TICK` (default 120) bounds the number of
 Graph requests `list_changed`'s ENUMERATION pass will issue in one tick —
 guarding a pathologically large notebook (far more sections/pages than 120
 requests × 100 pages/request can enumerate) against an unbounded request
-storm. When the budget would be exceeded, enumeration stops at the LAST
-FULLY-ENUMERATED SECTION — a section's own `$skip` pages are never used
-partially (an in-progress section's partial page list is discarded whole,
-never contributing a candidate), so the watermark this tick computes (if
-any) is always derived from COMPLETE section data, never an interior slice
-that could hide an older, not-yet-seen candidate. If not even one section
-finished, `list_changed` returns no refs and republishes the SAME cursor
-unchanged — no progress, but zero risk of skipping a page. `fetch`/
-`fetch_media` (content, already bounded by K) are not additionally
+storm.
+
+⚠️ Fix-round-1 Important #1 (Finding A — a real, confirmed skip bug, fixed
+here): the watermark MUST be computed over a COMPLETE enumeration of every
+section, never a partial one — a partial enumeration is not merely "less
+data," it is UNSAFE data, because a section this tick never got to might
+hold a page OLDER than the newest page a section it DID reach happened to
+have. The earlier design here discarded only the one in-progress section
+and still advanced the watermark off whatever fully-enumerated sections it
+had — which looks safe (no MID-section slice ever contributes) but is not:
+if section A (fully enumerated) has the notebook's NEWEST page and section B
+(never reached this tick, budget already spent) has an OLDER page nobody
+has ever seen, advancing the watermark to section A's newest instant makes
+that older page permanently `< watermark` — filtered out on every future
+tick, forever, with no error and no visibility. `repro_budget_skip.py`
+(fix-round-1) reproduced exactly this.
+
+The fix: `list_changed` treats its ENTIRE enumeration pass (every section,
+every `$skip` page — the same cheap, complete walk `list_present_refs`
+already does) as one atomic unit. If `_BudgetExhausted` fires ANYWHERE
+during that walk — mid-section or merely before starting the next one — the
+WHOLE tick is a no-op: zero refs returned, the cursor republished
+UNCHANGED. No partial credit, ever. Only when the complete walk finishes
+within budget does `list_changed` proceed to filter/sort/select — and at
+that point K only bounds the *returned* refs (i.e. paces **content**
+fetch), never the enumeration that computed the watermark, so the watermark
+is always correct by construction. Given the default budget (120 requests,
+enough for roughly ~119 sections' worth of listing, or many more pages —
+each section needs only 1 request per 100 of its own pages), this makes
+"the tick makes zero progress" a real but rare, self-correcting outcome
+(the identical cheap enumeration just retries in full next tick) reserved
+for pathologically large accounts — never the alternative of a silent skip.
+`fetch`/`fetch_media` (content, already bounded by K) are not additionally
 budget-gated here — K itself already bounds that cost, and Graph's own 429
 + this module's backoff is spec §10's named backstop against a burst of
 manual "Sync now" clicks.
@@ -417,33 +441,23 @@ class OneNoteProvider(NoteProvider):
             )
         return items
 
-    async def list_changed(
-        self, credentials: dict[str, Any], cursor: str | None = None,
+    async def _enumerate_candidates(
+        self, req: Any, watermark: str, at_watermark_ids: set[str],
     ) -> list[RemoteRef]:
-        watermark, at_watermark_ids = _parse_watermark(cursor)
-        self._page_meta = {}
-        budget = _max_requests_per_tick()
-        req = self._make_req(credentials, budget)
-
-        try:
-            sections = await self._list_sections(req)
-        except _BudgetExhausted:
-            # Can't even list the notebook/section tree within budget --
-            # nothing enumerated this tick. Republish the SAME cursor
-            # (below) so the next tick simply retries; no progress, but
-            # zero risk of skipping anything.
-            sections = []
-
+        """The COMPLETE candidate walk backing `list_changed` -- every
+        section, every `$skip` page (identical cost/shape to
+        `list_present_refs`'s own walk), filtered by watermark + populating
+        `self._page_meta` as it goes. Deliberately raises `_BudgetExhausted`
+        (never catches it) the instant ANY request within this walk would
+        exceed the tick's budget -- fix-round-1 Important #1 (Finding A):
+        the caller (`list_changed`) treats that as "this WHOLE enumeration
+        is incomplete," discarding every candidate found so far, rather than
+        advancing the watermark off a partial view that might be hiding an
+        older, not-yet-seen page in a section this walk never reached."""
+        sections = await self._list_sections(req)
         candidates: list[RemoteRef] = []
         for section in sections:
-            try:
-                items = await self._list_section_pages(req, section["id"])
-            except _BudgetExhausted:
-                # This section's page list was only PARTIALLY fetched --
-                # discard it whole (never a mid-section slice) and stop
-                # enumerating further sections. Every candidate already
-                # collected came from a FULLY enumerated section.
-                break
+            items = await self._list_section_pages(req, section["id"])
             for item in items:
                 page_id = item.get("id")
                 updated_at = item.get("lastModifiedDateTime") or ""
@@ -459,14 +473,41 @@ class OneNoteProvider(NoteProvider):
                     "section_name": section["name"],
                 }
                 candidates.append(RemoteRef(remote_id=page_id, updated_at=updated_at))
+        return candidates
+
+    async def list_changed(
+        self, credentials: dict[str, Any], cursor: str | None = None,
+    ) -> list[RemoteRef]:
+        watermark, at_watermark_ids = _parse_watermark(cursor)
+        self._page_meta = {}
+        budget = _max_requests_per_tick()
+        req = self._make_req(credentials, budget)
+
+        try:
+            candidates = await self._enumerate_candidates(req, watermark, at_watermark_ids)
+        except _BudgetExhausted:
+            # The COMPLETE enumeration (cheap: id+timestamp only, same cost
+            # as list_present_refs) could not finish within this tick's
+            # request budget -- a pathologically large account (more
+            # sections/pages than the budget can even LIST, independent of
+            # content fetch entirely). Advancing the watermark here would
+            # necessarily be computed over an INCOMPLETE view and risks
+            # silently skipping an older page in a section never reached
+            # (fix-round-1 Important #1 -- see module docstring's "Per-tick
+            # admission control" section). Make NO progress this tick
+            # instead: republish the cursor UNCHANGED; the next tick simply
+            # retries the identical (cheap) enumeration from scratch.
+            self._page_meta = {}
+            self.opaque_cursor = _encode_watermark(watermark, sorted(at_watermark_ids))
+            return []
 
         candidates.sort(key=lambda r: _sort_key(r.updated_at))
         selected = candidates[:_pages_per_tick()]
 
         if not selected:
-            # Nothing new (or the budget ran out before any section could
-            # be fully enumerated) -- republish the cursor UNCHANGED so the
-            # next tick resumes from exactly the same point.
+            # Enumeration completed (COMPLETE, not partial) and found
+            # nothing new -- republish the cursor UNCHANGED so the next
+            # tick resumes from exactly the same point.
             self.opaque_cursor = _encode_watermark(watermark, sorted(at_watermark_ids))
             return []
 

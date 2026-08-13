@@ -356,6 +356,85 @@ async def test_no_cursor_and_unparseable_cursor_both_mean_full_initial_sync(monk
 
 
 # ---------------------------------------------------------------------------
+# Minor (fix-round-1): fractional/mixed-precision timestamp ordering.
+# `_parse_dt`/`_at_or_after`/`_same_instant` exist specifically so OneNote's
+# up-to-7-digit fractional-second timestamps compare as REAL instants rather
+# than raw strings -- a naive string compare misorders `"...:00Z"` against
+# `"...:00.5Z"` (`.` < `Z` in ASCII, exactly backwards: the fractional value
+# is LATER but would sort as EARLIER). Every fixture elsewhere in this file
+# is whole-second by construction, so that robustness code was previously
+# unexercised by any test -- pinned here directly against the helpers, and
+# end-to-end through `list_changed`'s sort/filter.
+# ---------------------------------------------------------------------------
+
+
+def test_fractional_second_timestamps_compare_as_real_instants_not_strings():
+    from api.services.journal_two.note_connectors.providers.onenote import (
+        _at_or_after, _same_instant, _sort_key,
+    )
+
+    whole = "2026-08-01T00:00:00Z"          # real instant: +0.0s (earliest)
+    half = "2026-08-01T00:00:00.5Z"          # real instant: +0.5s
+    micros = "2026-08-01T00:00:00.9999999Z"  # real instant: +0.9999999s (latest)
+
+    # A naive string compare gets `whole` backwards -- it has no fractional
+    # part, so its char right after "00" is 'Z' (ASCII 90), which sorts
+    # AFTER '.' (ASCII 46) that starts every fractional string, regardless
+    # of the fractional value. So `whole` (chronologically EARLIEST) sorts
+    # LAST as a raw string; `half`/`micros` (which both start with '.')
+    # still compare correctly against each other.
+    assert half < micros < whole  # sanity: the naive string trap really exists
+    # `_at_or_after`/`_same_instant`/`_sort_key` must recover the OPPOSITE
+    # (real, chronological) ordering: whole < half < micros.
+    assert _at_or_after(half, whole) and not _at_or_after(whole, half)
+    assert _at_or_after(micros, half) and not _at_or_after(half, micros)
+    assert not _same_instant(whole, half)
+    assert not _same_instant(half, micros)
+
+    # A real collision at DIFFERENT fractional precision (a page truncated
+    # to whole seconds by one code path, sub-second by another) still
+    # compares equal as an instant even though the strings differ.
+    whole_exact = "2026-08-01T00:00:05Z"
+    zero_fraction = "2026-08-01T00:00:05.0000000Z"
+    assert whole_exact != zero_fraction  # different strings
+    assert _same_instant(whole_exact, zero_fraction)  # same real instant
+
+    ordered = sorted([micros, whole, half], key=_sort_key)
+    assert ordered == [whole, half, micros]
+
+
+async def test_fractional_second_watermark_drain_orders_and_advances_correctly(monkeypatch):
+    """End-to-end: three pages sharing the same WHOLE second but differing
+    only in fractional precision must drain oldest-instant-first and the
+    watermark must land on the correct (newest-instant) boundary -- proving
+    the helper-level guarantee above actually reaches `list_changed`."""
+    monkeypatch.setenv("MSGRAPH_ONENOTE_PAGES_PER_TICK", "2")
+    frac_section = [{"id": "sec-frac", "name": "Frac Section", "notebook_name": "NB"}]
+    t_whole = "2026-08-01T00:00:00Z"
+    t_half = "2026-08-01T00:00:00.5000000Z"
+    t_micros = "2026-08-01T00:00:00.9999999Z"
+    frac_pages = {
+        "sec-frac": [
+            {"id": "page-micros", "title": "Micros", "lastModifiedDateTime": t_micros},
+            {"id": "page-whole", "title": "Whole", "lastModifiedDateTime": t_whole},
+            {"id": "page-half", "title": "Half", "lastModifiedDateTime": t_half},
+        ],
+    }
+    handler, _auth, _skip = _make_graph_handler(frac_section, frac_pages)
+    provider = _make_provider(handler)
+
+    refs = await provider.list_changed(CREDS)
+    # Real-instant ascending order, NOT source/string order.
+    assert [r.remote_id for r in refs] == ["page-whole", "page-half"]
+    cursor = json.loads(provider.opaque_cursor)
+    assert cursor["watermark"] == t_half
+    assert cursor["at_watermark_ids"] == ["page-half"]
+
+    refs2 = await provider.list_changed(CREDS, cursor=provider.opaque_cursor)
+    assert [r.remote_id for r in refs2] == ["page-micros"]
+
+
+# ---------------------------------------------------------------------------
 # 6. list_present_refs is COMPLETE, regardless of K.
 # ---------------------------------------------------------------------------
 
@@ -382,7 +461,14 @@ async def test_list_present_refs_walks_all_pages_of_a_multi_skip_section():
 
 
 # ---------------------------------------------------------------------------
-# 9. Per-tick request-budget bail leaves a resumable cursor.
+# 9. Per-tick request-budget bail leaves a resumable cursor -- COMPLETE-OR-
+#    NOTHING enumeration (fix-round-1 Important #1 / Finding A). An earlier
+#    design advanced the watermark off whatever sections it DID fully
+#    enumerate even when other sections were never reached -- which silently
+#    skipped an older page sitting in a deferred section forever
+#    (`repro_budget_skip.py`). The fix: the watermark only ever advances
+#    over a COMPLETE enumeration; a budget bail anywhere makes the WHOLE
+#    tick a no-op (empty refs, cursor unchanged), never a partial advance.
 # ---------------------------------------------------------------------------
 
 BUDGET_SECTION_A = {"id": "sec-a", "name": "Section A", "notebook_name": "NB"}
@@ -395,26 +481,89 @@ BUDGET_PAGES = {
 }
 
 
-async def test_budget_bail_leaves_resumable_cursor_no_drop_or_duplicate(monkeypatch):
+async def test_budget_bail_before_full_enumeration_makes_no_progress_then_resumes(monkeypatch):
+    """Budget = 2 covers exactly [notebooks-list, section-A's one page-list
+    request] -- section B is never reached. The ENTIRE tick must be a
+    no-op: zero refs, cursor unchanged (NOT an advance to section A's
+    page, which was the pre-fix bug's exact shape). Once the budget is
+    lifted, the next tick's COMPLETE enumeration finds both pages and
+    returns them together, ascending, each exactly once."""
     handler, _auth, _skip = _make_graph_handler(BUDGET_SPECS, BUDGET_PAGES)
     provider = _make_provider(handler)
 
-    # Budget = 2: covers exactly [notebooks-list, section-A's one page-list
-    # request]. Before section B's first request the running count (2)
-    # already meets the budget -> stop, discarding section B entirely (it
-    # was never touched, so nothing partial leaks in).
     monkeypatch.setenv("MSGRAPH_ONENOTE_MAX_REQUESTS_PER_TICK", "2")
     refs1 = await provider.list_changed(CREDS)
-    assert [r.remote_id for r in refs1] == ["page-a"]
+    assert refs1 == []
     cursor1 = provider.opaque_cursor
-    assert json.loads(cursor1)["watermark"] == BUDGET_TA
+    assert json.loads(cursor1) == {"v": 1, "watermark": "1970-01-01T00:00:00Z", "at_watermark_ids": []}
 
     # Next tick, budget lifted (mirrors a fresh hourly tick under the
-    # production default) -- resumes from the persisted cursor, reaches
-    # section B, returns page-b exactly once. page-a is NOT re-returned.
+    # production default) -- resumes from the UNCHANGED cursor, a complete
+    # enumeration now fits, both pages return together in one tick.
     monkeypatch.setenv("MSGRAPH_ONENOTE_MAX_REQUESTS_PER_TICK", "10")
     refs2 = await provider.list_changed(CREDS, cursor=cursor1)
-    assert [r.remote_id for r in refs2] == ["page-b"]
+    assert [r.remote_id for r in refs2] == ["page-a", "page-b"]
+
+
+# The Finding-A repro scenario itself: the section enumerated FIRST (and
+# fully, within budget) holds the NEWEST page; the section deferred by the
+# budget holds an OLDER page nobody has ever seen. The pre-fix bug advanced
+# the watermark to the newest-seen instant anyway, which then permanently
+# filtered the older, never-seen page out (`updated_at < watermark` forever).
+SKIP_BUG_SPECS = [
+    {"id": "sec-new", "name": "New Section", "notebook_name": "NB"},
+    {"id": "sec-old", "name": "Old Section (deferred)", "notebook_name": "NB"},
+]
+SKIP_BUG_T_OLD, SKIP_BUG_T_NEW = _ts(50), _ts(100)
+SKIP_BUG_PAGES = {
+    "sec-new": [{"id": "page-new", "title": "New", "lastModifiedDateTime": SKIP_BUG_T_NEW}],
+    "sec-old": [{"id": "page-old", "title": "Old", "lastModifiedDateTime": SKIP_BUG_T_OLD}],
+}
+
+
+async def test_budget_bail_never_permanently_skips_an_older_page_in_a_deferred_section(monkeypatch):
+    handler, _auth, _skip = _make_graph_handler(SKIP_BUG_SPECS, SKIP_BUG_PAGES)
+    provider = _make_provider(handler)
+
+    # Budget = 2: notebooks-list + sec-new's one page-list request fit;
+    # sec-old (holding the OLDER page) is deferred. Pre-fix, this tick
+    # would have advanced the watermark to page-new's instant (T_NEW),
+    # permanently filtering page-old out on every future tick. Post-fix:
+    # zero progress, cursor unchanged.
+    monkeypatch.setenv("MSGRAPH_ONENOTE_MAX_REQUESTS_PER_TICK", "2")
+    refs1 = await provider.list_changed(CREDS)
+    assert refs1 == []
+    cursor1 = provider.opaque_cursor
+    assert json.loads(cursor1)["watermark"] == "1970-01-01T00:00:00Z"
+
+    # Budget lifted -- a complete enumeration now fits in one tick. Both
+    # pages return, ascending (page-old FIRST, since it's genuinely older),
+    # each exactly once. page-old is NOT permanently lost.
+    monkeypatch.setenv("MSGRAPH_ONENOTE_MAX_REQUESTS_PER_TICK", "10")
+    refs2 = await provider.list_changed(CREDS, cursor=cursor1)
+    assert [r.remote_id for r in refs2] == ["page-old", "page-new"]
+
+    # A further tick finds nothing new -- both were genuinely drained once.
+    refs3 = await provider.list_changed(CREDS, cursor=provider.opaque_cursor)
+    assert refs3 == []
+
+
+async def test_budget_bail_mid_section_page_listing_also_makes_no_progress(monkeypatch):
+    """Budget = 2 covers [notebooks-list, the section's FIRST `$skip` page]
+    but NOT the second `$skip` page a 150-page section needs -- proving
+    "complete or nothing" holds even when the bail happens MID-SECTION
+    (not just between two whole sections): the second `$skip` page is
+    never even requested, and the tick returns nothing rather than the
+    first 100 (newest-of-them-all-so-far, but still an incomplete view)."""
+    handler, _auth, skip_calls = _make_graph_handler(SKIP_SECTION_SPECS, {SKIP_SECTION_ID: SKIP_PAGES})
+    provider = _make_provider(handler)
+    monkeypatch.setenv("MSGRAPH_ONENOTE_MAX_REQUESTS_PER_TICK", "2")
+
+    refs = await provider.list_changed(CREDS)
+    assert refs == []
+    assert skip_calls == [(SKIP_SECTION_ID, 0)]  # the 2nd $skip page was never attempted
+    cursor = json.loads(provider.opaque_cursor)
+    assert cursor == {"v": 1, "watermark": "1970-01-01T00:00:00Z", "at_watermark_ids": []}
 
 
 async def test_budget_exhausted_before_any_section_completes_makes_no_progress_safely(monkeypatch):
