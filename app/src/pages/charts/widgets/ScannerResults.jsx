@@ -121,6 +121,11 @@ const SCAN_ENDPOINTS = {
   'top-gainers-90d': '/api/scans/top-gainers-90d',
 }
 
+// Send-to-Journal door (payload freeze): the shared flow + the shared toast.
+import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
+import useLivePrices from '../../../hooks/useLivePrices'
+
 export default function ScannerResults({ scanKey, scanName, color, settingsOverride = null, onSettingsPersist = null, onExit }) {
   const { groupSyms, setGroupSym } = useWorkspace() || {}
   // Stable per-instance key for the wrapped watchlist table (arrow-nav / active id).
@@ -145,6 +150,10 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
   // the whole table (the scan endpoint returns a fresh object each poll).
   const symKey = (data?.results || []).map(r => r.sym).join(',')
   const symbols = useMemo(() => (symKey ? symKey.split(',') : []), [symKey])
+  // Door state: prices ride the SHARED polling store (the wrapped table
+  // already polls these symbols — same slice, no extra request).
+  const { prices: doorPrices } = useLivePrices(symbols)
+  const [journalMsg, setJournalMsg] = useJournalToast()
   // Distinguish "still building the reference" from "genuinely no qualifiers".
   const emptyCopy = SCAN_EMPTY_TEXT[scanKey] || { building: 'Building…', none: 'No matches yet today.' }
   const scanEmptyText = !data
@@ -195,6 +204,35 @@ export default function ScannerResults({ scanKey, scanName, color, settingsOverr
     <div className={styles.scanFooter}>
       <span className={styles.scanCount}>{symbols.length} {symbols.length === 1 ? 'stock' : 'stocks'}</span>
       {data?.as_of && <span className={styles.scanUpdated}>· Updated {fmtScanTime(data.as_of)} ET</span>}
+      {symbols.length > 0 && (
+        <button
+          type="button"
+          className={styles.scanRefresh}
+          onClick={async () => {
+            setJournalMsg('sending…')
+            const period = GAINERS_PERIOD[scanKey] || null
+            setJournalMsg(await sendCaptureToJournal('scanner', {
+              scanKey, scanName: scanName || null,
+              asOf: data?.as_of ? `${fmtScanTime(data.as_of)} ET` : null,
+              rows: symbols.map((sym) => {
+                const live = doorPrices[sym] || {}
+                const nd = period != null ? perfOverride?.[sym]?.[period] : null
+                return {
+                  sym,
+                  price: Number.isFinite(Number(live.price)) ? Number(live.price) : null,
+                  chgPct: Number.isFinite(Number(live.change_pct)) ? Number(live.change_pct) : null,
+                  ...(nd != null ? { extraValue: `${Number(nd) > 0 ? '+' : ''}${Number(nd).toFixed(1)}% ${period}` } : {}),
+                }
+              }),
+            }, { label: scanName || 'Scan' }))
+          }}
+          title="Send this scan to Journal"
+          aria-label="Send this scan to Journal"
+        >
+          <UIcon name="journal" size={12} gold={false} />
+        </button>
+      )}
+      <JournalToast msg={journalMsg} style={{ top: 'auto', bottom: 26, right: 10 }} />
       <button
         type="button"
         className={styles.scanRefresh}

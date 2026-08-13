@@ -409,8 +409,10 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
           <button
             type="button"
             className={styles.gearBtn}
+            style={{ right: 34 }}
             onClick={sendDayToJournal}
             title="Send this day to Journal"
+            aria-label="Send this day to Journal"
           ><UIcon name="journal" size={13} /></button>
         )}
         <button

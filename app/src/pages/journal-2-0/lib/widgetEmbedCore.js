@@ -16,7 +16,15 @@ export const WIDGET_EMBED_VERSION = 1
  *  the SAME params object at the only moment they change — the server-side
  *  serializer reads that stored line, so client and server can never drift. */
 export function buildWidgetEmbedAttrs(widgetId, capture = {}, extra = {}) {
-  const params = normalizeParams(widgetId, capture)
+  const cap = { ...capture }
+  // Frozen means ANCHORED. A chart capture arriving with NO `to` — the slash
+  // and preset paths — gets the insert moment stamped, or the "snapshot"
+  // fetches a today-ending window forever under a months-old caption (panel
+  // finding, confirmed independently by two reviewers). `to: null` is the
+  // explicit opt-out for the one deliberately rolling window (/compare's
+  // "after · now" half — its caption says so).
+  if (widgetId === 'chart' && cap.to === undefined) cap.to = Math.floor(Date.now() / 1000)
+  const params = normalizeParams(widgetId, cap)
   return {
     v: WIDGET_EMBED_VERSION,
     widgetId,
@@ -43,16 +51,23 @@ export function buildWidgetEmbedAttrs(widgetId, capture = {}, extra = {}) {
 // Bare numbers pass through ('15' → '15'); '1h' and '60m' land on '60'.
 const TF_TOKENS = {
   '1m': '1', '5m': '5', '15m': '15', '30m': '30', '60m': '60', '1h': '60',
+  '1d': 'D', '1w': 'W', '1mo': 'M',
   h: '60', d: 'D', day: 'D', daily: 'D', w: 'W', week: 'W', weekly: 'W',
   mo: 'M', month: 'M', monthly: 'M',
 }
 
 export function parseTfToken(tok) {
   if (!tok) return null
-  const t = String(tok).trim().toLowerCase()
+  const raw = String(tok).trim()
+  // Case decides month-vs-minute exactly like the chart's own labels ('1m'
+  // one minute, '1M' one month) — resolve the ambiguous forms BEFORE
+  // lowercasing. Panel finding: '/chart AMD 1M' silently inserted a
+  // one-MINUTE chart, wrong evidence with a 60-day re-render lifespan.
+  if (raw === 'M' || raw === '1M') return 'M'
+  const t = raw.toLowerCase()
   if (TF_TOKENS[t]) return TF_TOKENS[t]
   if (/^\d+$/.test(t)) return t
-  if (t === 'm') return 'M' // bare capital-M convention: month (minutes need '1m' etc.)
+  if (t === 'm') return 'M' // bare lowercase m: month (minutes are '1m' etc.)
   return null
 }
 
@@ -102,7 +117,15 @@ export function parseDayToken(tok) {
   if (m) {
     let y = m[3] ? +m[3] : new Date().getFullYear()
     if (y < 100) y += 2000
-    return validDay(y, +m[1], +m[2])
+    let day = validDay(y, +m[1], +m[2])
+    // A YEARLESS M/D that lands in the future means LAST year's date —
+    // reviewing a late-December setup on Jan 2 must not anchor at NEXT
+    // December (panel finding: a future cutoff renders identical
+    // before/after halves with no warning).
+    if (day && !m[3] && day > new Date().toISOString().slice(0, 10)) {
+      day = validDay(y - 1, +m[1], +m[2])
+    }
+    return day
   }
   return null
 }

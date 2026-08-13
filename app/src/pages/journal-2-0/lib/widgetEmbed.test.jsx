@@ -66,7 +66,7 @@ describe('buildWidgetEmbedAttrs', () => {
     const attrs = buildWidgetEmbedAttrs('chart', { symbol: 'amd', tf: '5', _leak: 1 })
     expect(attrs.v).toBe(1)
     expect(attrs.widgetId).toBe('chart')
-    expect(attrs.params).toEqual({ symbol: 'AMD', tf: '5' })
+    expect(attrs.params).toEqual({ symbol: 'AMD', tf: '5', to: expect.any(Number) })
     expect(attrs.params._leak).toBeUndefined()
     expect(attrs.mode).toBe('snapshot')
     expect(attrs.fallback).toBeNull()
@@ -74,6 +74,23 @@ describe('buildWidgetEmbedAttrs', () => {
     expect(attrs.layout).toEqual({ width: 'full', height: null })
     expect(attrs.searchText).toBe('[chart: AMD 5m]')
     expect(typeof attrs.capturedAt).toBe('string')
+  })
+})
+
+describe('frozen means anchored (panel finding)', () => {
+  it('a chart capture with NO `to` gets the insert moment stamped', () => {
+    const attrs = buildWidgetEmbedAttrs('chart', { symbol: 'AMD', tf: '15' })
+    const to = Number(attrs.params.to)
+    expect(Number.isFinite(to)).toBe(true)
+    expect(Math.abs(Date.now() / 1000 - to)).toBeLessThan(60)
+  })
+  it('`to: null` is the explicit rolling-window opt-out (/compare after-half)', () => {
+    const attrs = buildWidgetEmbedAttrs('chart', { symbol: 'AMD', tf: 'D', to: null })
+    expect(attrs.params.to == null).toBe(true)
+  })
+  it('non-chart captures are untouched', () => {
+    const attrs = buildWidgetEmbedAttrs('news', { symbol: 'AMD', events: [{ t: 1 }] })
+    expect('to' in attrs.params).toBe(false)
   })
 })
 
@@ -93,6 +110,24 @@ describe('slash arg parsing', () => {
     expect(parseChartSlashArgs('looks great')).toBeNull()
     expect(parseChartSlashArgs('AMD notatf')).toBeNull()
   })
+  it('month-vs-minute is decided by case, like the chart labels (panel finding)', () => {
+    expect(parseTfToken('1M')).toBe('M')   // one MONTH — was silently one minute
+    expect(parseTfToken('M')).toBe('M')
+    expect(parseTfToken('1m')).toBe('1')
+    expect(parseTfToken('1d')).toBe('D')
+    expect(parseTfToken('1D')).toBe('D')
+    expect(parseTfToken('1w')).toBe('W')
+    expect(parseTfToken('1mo')).toBe('M')
+  })
+
+  it('a yearless M/D in the future rolls back a year (Dec setups reviewed in Jan)', () => {
+    const tomorrow = new Date(Date.now() + 86400000)
+    const tok = `${tomorrow.getMonth() + 1}/${tomorrow.getDate()}`
+    const parsed = parseDayToken(tok)
+    expect(parsed).toBeTruthy()
+    expect(parsed < new Date().toISOString().slice(0, 10)).toBe(true)   // last year
+  })
+
   it('parses the composition presets strictly (mtf / compare / day tokens)', () => {
     expect(parseMtfSlashArgs('AMD')).toEqual({ symbol: 'AMD', tfs: ['D', '60', '15'] })
     expect(parseMtfSlashArgs('amd nvda')).toBeNull()
@@ -180,7 +215,7 @@ describe('document round-trip', () => {
     const exts = buildExtensions()
     const revived = generateJSON(generateHTML(doc, exts), exts)
     const node = revived.content.find(n => n.type === 'widgetEmbed')
-    expect(node.attrs.params).toEqual({ symbol: 'SPY', tf: 'D' })
+    expect(node.attrs.params).toEqual({ symbol: 'SPY', tf: 'D', to: expect.any(Number) })
     expect(node.attrs.searchText).toBe('[chart: SPY D]')
   })
 
@@ -235,7 +270,9 @@ describe('toolbar tf switch (retimeChartParams — the re-anchor math\'s door)',
   it('no-ops on the same tf and survives an anchorless capture', () => {
     const attrs = buildWidgetEmbedAttrs('chart', { symbol: 'AMD', tf: '5' })
     expect(retimeChartParams(attrs, '5')).toBeNull()
-    const bare = retimeChartParams(buildWidgetEmbedAttrs('chart', { symbol: 'SPY', tf: 'D' }), '60')
+    // to: null = the explicit rolling window (the anchor default would
+    // otherwise stamp the insert moment).
+    const bare = retimeChartParams(buildWidgetEmbedAttrs('chart', { symbol: 'SPY', tf: 'D', to: null }), '60')
     expect(bare.params).toEqual({ symbol: 'SPY', tf: '60' })
     expect(bare.searchText).toBe('[chart: SPY 1h]')
   })
@@ -363,7 +400,9 @@ describe('WidgetEmbedView draw mode', () => {
     fireEvent.click(screen.getByTestId('emit-drawing'))
     fireEvent.click(screen.getByText('Done'))
     expect(refreeze()).toHaveLength(1)
-    expect(refreeze()[0][0].capturedAt).toBeTruthy()
+    // capturedAt is the EVIDENCE date — the re-freeze must NOT re-stamp it
+    // (panel finding: annotating March evidence relabeled it "captured June").
+    expect('capturedAt' in refreeze()[0][0]).toBe(false)
   })
 
   it('live-mode embeds skip the Done re-freeze (self-archive is snapshot-only); freezing with marks re-freezes', async () => {

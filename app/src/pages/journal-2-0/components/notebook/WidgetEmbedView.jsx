@@ -30,6 +30,8 @@ const EMBED_COMPONENTS = {
   fundamentals: lazy(() => import('./FundamentalsEmbed')),
   news: lazy(() => import('./NewsEmbed')),
   breadth: lazy(() => import('./BreadthEmbed')),
+  alerts: lazy(() => import('./AlertsEmbed')),
+  scanner: lazy(() => import('./ScannerEmbed')),
 }
 
 // The never-a-broken-embed rule, enforced at the React layer too: any render
@@ -137,10 +139,15 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
       // Freezing an ANNOTATED live embed: the stored archive predates the
       // marks — clear it so self-archive re-freezes what's shown now,
       // drawings included. Unannotated freezes keep their archive (it still
-      // matches the frozen params).
+      // matches the frozen params). ⛔ Only clear when the frozen params can
+      // still RENDER live: past a re-render ceiling the self-archive never
+      // re-arms, and clearing would destroy the only image with nothing to
+      // replace it — the same destructive class the Re-capture gate exists
+      // for (panel finding: this was a second door to it).
       const hasMarks = Array.isArray(attrs.annotations) && attrs.annotations.length > 0
-      if (hasMarks) archivedOnceRef.current = false
-      updateAttributes?.(hasMarks ? { mode: 'snapshot', fallback: null } : { mode: 'snapshot' })
+      const refreezable = resolveEmbedRender({ ...attrs, mode: 'snapshot' }).kind === 'live'
+      if (hasMarks && refreezable) archivedOnceRef.current = false
+      updateAttributes?.(hasMarks && refreezable ? { mode: 'snapshot', fallback: null } : { mode: 'snapshot' })
       return
     }
     // Count over the live ProseMirror doc, not editor.getJSON(): getJSON
@@ -169,8 +176,11 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   const recapture = () => {
     // Clearing the archive re-arms the self-archive effect: fresh settle,
     // fresh PNG, fresh upload — an explicit re-freeze of what's shown NOW.
+    // capturedAt is NOT touched: it is the EVIDENCE date the caption renders,
+    // and re-stamping it relabeled March evidence "captured June" the moment
+    // the user annotated it (panel finding).
     archivedOnceRef.current = false
-    updateAttributes?.({ fallback: null, capturedAt: new Date().toISOString() })
+    updateAttributes?.({ fallback: null })
     setToolbarMsg('re-capturing…')
   }
   // Timeframe switch (chart embeds; spec Phase 4): re-anchor around the SAME

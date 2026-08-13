@@ -12,6 +12,8 @@ import { useDeskVideoByYoutube } from '../../../../hooks/useDeskVideoByYoutube'
 import { useVideoInsights } from '../../../../hooks/useVideoInsights'
 import linkifyTimestamps from '../../lib/linkifyTimestamps'
 import UIcon from '../../../../components/ui/UIcon'
+import usePreferences, { parsePref } from '../../../../hooks/usePreferences'
+import { mergeChartSettings } from '../../../../components/chart/chartDefaults'
 import styles from './NoteEditorPage.module.css'
 
 // A note can carry its source video in heroImageUrl (set by the Desk "Save
@@ -193,12 +195,15 @@ export default function NoteEditorPage({ noteId, onBack }) {
     // reads the note id off editor storage for its archive upload
     // (see WidgetEmbedView's self-archive effect).
     onCreate: ({ editor: ed }) => {
-      ed.storage.uctJournalWidgets = { noteId }
+      ed.storage.uctJournalWidgets = { ...(ed.storage.uctJournalWidgets || {}), noteId }
       // "Send to Journal" from the charts page targets the LAST-ACTIVE note
       // (owner decision #9) — opening a note for editing is what makes it the
       // target. Title rides along for the capture toast.
       try {
-        localStorage.setItem('uct.jw.lastNote', JSON.stringify({ id: noteId, ts: Date.now() }))
+        localStorage.setItem('uct.jw.lastNote', JSON.stringify({
+          id: noteId, ts: Date.now(),
+          title: (note?.title || '').trim() || null,
+        }))
       } catch { /* private mode */ }
     },
     editorProps: {
@@ -239,6 +244,22 @@ export default function NoteEditorPage({ noteId, onBack }) {
   // empty editor so setContent is skipped). Guard + try/catch make it safe; the
   // editor was already created with this content via useEditor's `content`
   // option, so a swallowed first attempt still shows the note.
+
+  // The user's merged chart theme rides editor storage so the SLASH paths can
+  // freeze it at insert (the door captures always did — only typed inserts
+  // drifted with later re-themes; panel finding). Re-stamped whenever prefs
+  // land/change: onCreate alone raced the prefs fetch.
+  const { prefs } = usePreferences()
+  useEffect(() => {
+    if (!editor) return
+    try {
+      editor.storage.uctJournalWidgets = {
+        ...(editor.storage.uctJournalWidgets || {}),
+        chartSettings: mergeChartSettings(parsePref(prefs?.chart_settings, null) || {}),
+      }
+    } catch { /* storage not ready — the insert falls back to unset settings */ }
+  }, [editor, prefs])
+
   useEffect(() => {
     if (!editor || editor.isDestroyed || !note?.bodyJson || editor.isFocused) return
     try {

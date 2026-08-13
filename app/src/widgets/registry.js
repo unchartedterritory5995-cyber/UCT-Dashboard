@@ -206,9 +206,14 @@ export const WIDGET_REGISTRY = deepFreeze({
       { key: 'settings', type: 'json' },
       { key: 'cols', type: 'json' },
       { key: 'asOf', type: 'string' },                       // backend ET stamp shown in the footer
+      // The captured RESULT LIST (owner-approved payload freeze): ranked
+      // symbols with price/±% as they stood. Rendered by FrozenList — the
+      // live Watchlists-page table is a page-grade renderer (the P2
+      // disqualification), so the embed renders the payload, not the page.
+      { key: 'rows', type: 'json' },
     ],
     plainText: (p) => `[scanner: ${p.scanName || p.scanKey}]`,
-    reconstructable: false,                     // scans are strictly as-of-now, no date parameter
+    reconstructable: (p) => Array.isArray(p?.rows) && p.rows.length > 0,                     // scans are strictly as-of-now, no date parameter
     liveCapable: false,
   },
   fundamentals: {
@@ -322,7 +327,10 @@ export const WIDGET_REGISTRY = deepFreeze({
       { key: 'settings', type: 'json' },
     ],
     plainText: (p) => `[alerts: ${Array.isArray(p.alerts) ? p.alerts.length : 0} price alerts]`,
-    reconstructable: false,                     // deleted alerts are gone; strongest image-only case
+    // Owner-approved payload freeze: the captured list (with levelAtCapture/
+    // priceAtCapture per row) renders verbatim — deleted alerts are gone from
+    // the server, so the embed is the only durable record of the list.
+    reconstructable: (p) => Array.isArray(p?.alerts) && p.alerts.length > 0,
     liveCapable: false,
   },
   calendar: {

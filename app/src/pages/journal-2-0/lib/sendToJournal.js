@@ -18,6 +18,11 @@ export async function sendCaptureToJournal(widgetId, capture, { label } = {}) {
   const name = label || attrs.params?.symbol || widgetId
   let last = null
   try { last = JSON.parse(localStorage.getItem('uct.jw.lastNote') || 'null') } catch { /* noop */ }
+  // A note last opened DAYS ago is not "the note I'm working in" — appending
+  // there silently buries the capture (panel finding: a March post-mortem
+  // read overnight became Tuesday's capture target). Stale target → the
+  // inbox, the designed safe landing zone.
+  if (last?.ts && Date.now() - last.ts > 24 * 60 * 60 * 1000) last = null
   try {
     if (last?.id) {
       const res = await fetch(`/api/j2/notes/${last.id}/embeds`, {
@@ -26,7 +31,11 @@ export async function sendCaptureToJournal(widgetId, capture, { label } = {}) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ attrs }),
       })
-      if (res.ok) return `${name} sent to your last note`
+      if (res.ok) {
+        // Name the destination — "your last note" was unverifiable (panel
+        // finding, twice independently).
+        return last.title ? `${name} sent to “${last.title}”` : `${name} sent to your most recent note`
+      }
       // 404 = the note was deleted since — fall through to the inbox.
     }
     const res2 = await fetch('/api/j2/inbox', {

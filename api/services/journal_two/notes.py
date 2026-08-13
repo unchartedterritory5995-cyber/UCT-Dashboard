@@ -765,6 +765,14 @@ def create_capture(
     params = payload.get("params")
     if params is not None and not isinstance(params, dict):
         raise NoteValidationError("params must be an object")
+    # The ONLY Journal-Widgets write path without a byte ceiling until the
+    # launch audit caught it: notes cap at 1MB, but a scripted (or organic —
+    # a long aisearch thread) capture could bank arbitrarily large rows in the
+    # shared auth.db, x100 rows per user. 256KB comfortably fits every real
+    # capture (the largest organic payloads measure ~30KB).
+    _size = len(json.dumps(params or {}).encode("utf-8")) + len(str(payload.get("searchText") or "").encode("utf-8"))
+    if _size > 256 * 1024:
+        raise NoteValidationError("capture too large (>256KB)")
     owned = conn is None
     conn = conn or get_connection()
     try:

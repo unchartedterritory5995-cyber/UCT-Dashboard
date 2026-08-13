@@ -106,8 +106,13 @@ export function widgetItems(query) {
           title: `Chart — ${args.symbol} · ${args.tf}`,
           description: 'Insert a frozen chart snapshot',
           command: ({ editor, range }) => {
+            // settings: the user's merged chart theme, stamped into editor
+            // storage by NoteEditorPage — frozen at insert so a March embed
+            // never repaints when the user re-themes in April (panel finding;
+            // the door captures always froze it, only the typed paths drifted).
+            const settings = editor.storage?.uctJournalWidgets?.chartSettings
             editor.chain().focus().deleteRange(range)
-              .insertWidgetEmbed('chart', { symbol: args.symbol, tf: args.tf }).run()
+              .insertWidgetEmbed('chart', { symbol: args.symbol, tf: args.tf, ...(settings ? { settings } : {}) }).run()
           },
         })
       } else if (!rest) {
@@ -137,8 +142,9 @@ export function widgetItems(query) {
         title: `MTF stack — ${args.symbol} · D / 1h / 15m`,
         description: 'Three frozen charts, top-down',
         command: ({ editor, range }) => {
+          const settings = editor.storage?.uctJournalWidgets?.chartSettings
           editor.chain().focus().deleteRange(range)
-            .insertContent(args.tfs.map((tf) => widgetSlotNode('chart', { symbol: args.symbol, tf })))
+            .insertContent(args.tfs.map((tf) => widgetSlotNode('chart', { symbol: args.symbol, tf, ...(settings ? { settings } : {}) })))
             .run()
         },
       })
@@ -159,10 +165,15 @@ export function widgetItems(query) {
         title: `Before / after — ${args.symbol} @ ${args.day}`,
         description: 'Two half-width dailies: window ending that day vs now',
         command: ({ editor, range }) => {
+          const settings = editor.storage?.uctJournalWidgets?.chartSettings
+          const frozen = settings ? { settings } : {}
           editor.chain().focus().deleteRange(range).insertContent([
-            widgetSlotNode('chart', { symbol: args.symbol, tf: 'D', to: args.day },
+            widgetSlotNode('chart', { symbol: args.symbol, tf: 'D', to: args.day, ...frozen },
               { layout: { width: 'half' }, caption: `before · ${args.day}` }),
-            widgetSlotNode('chart', { symbol: args.symbol, tf: 'D' },
+            // to: null = the EXPLICIT rolling-window opt-out (buildWidgetEmbedAttrs
+            // stamps the insert moment on undefined) — "after · now" is the one
+            // embed whose caption promises it tracks now.
+            widgetSlotNode('chart', { symbol: args.symbol, tf: 'D', to: null, ...frozen },
               { layout: { width: 'half' }, caption: 'after · now' }),
           ]).run()
         },

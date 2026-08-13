@@ -122,11 +122,6 @@
    where Done now lives. The author is actively editing this embed — the badge
    returns on Done. */
 .annotating .liveBadge { display: none; }
-.toolBtnActive {
-  background: var(--ut-gold, #c9a84c);
-  color: #0c0c0c;
-  border-color: var(--ut-gold, #c9a84c);
-}
 .toolBtn {
   padding: 2px 8px;
   border-radius: 5px;
@@ -137,6 +132,14 @@
   cursor: pointer;
 }
 .toolBtn:hover { border-color: var(--ut-gold, #c9a84c); }
+/* AFTER .toolBtn in source order or the base shorthand clobbers all three
+   declarations at equal specificity — the Done button's gold was dead CSS
+   (panel finding). */
+.toolBtnActive {
+  background: var(--ut-gold, #c9a84c);
+  color: #0c0c0c;
+  border-color: var(--ut-gold, #c9a84c);
+}
 .toolSelect {
   padding: 2px 4px;
   border-radius: 5px;

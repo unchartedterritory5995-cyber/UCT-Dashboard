@@ -1,0 +1,62 @@
+/* Journal Widgets — the shared frozen-list renderer (scanner/watchlist
+   captures). House dark surface, gold symbols, chart-matched gain/loss. */
+
+.root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel, #101010);
+  color: var(--text, #cfcfcf);
+  font-size: 12.5px;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 12px 6px;
+  border-bottom: 1px solid var(--border, #2a2a2a);
+}
+.title {
+  font-weight: 700;
+  color: var(--ut-gold, #c9a84c);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+.subtitle { color: var(--text-dim, #8a8a8a); font-size: 11px; }
+.asOf { margin-left: auto; color: var(--text-dim, #8a8a8a); font-size: 10.5px; }
+
+.list { overflow-y: auto; flex: 1; min-height: 0; }
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+.sym {
+  font-weight: 600;
+  color: var(--ut-gold, #c9a84c);
+  min-width: 56px;
+}
+.note {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-dim, #9a9a9a);
+  font-size: 11.5px;
+}
+.extra { color: var(--text-dim, #9a9a9a); font-size: 11px; }
+.price { min-width: 62px; text-align: right; font-variant-numeric: tabular-nums; }
+.chg { min-width: 58px; text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+.up { color: var(--gain, #4ade80); }
+.down { color: var(--loss, #f87171); }
+
+.empty {
+  padding: 16px 12px;
+  color: var(--text-dim, #8a8a8a);
+  font-size: 12px;
+}

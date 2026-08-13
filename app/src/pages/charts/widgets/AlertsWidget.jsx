@@ -11,13 +11,14 @@
  * like the other widget settings; a widget with NO explicit look follows the app
  * theme (light → white canvas + dark text, OLED → black canvas + light text).
  */
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useEffect, useCallback, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { useWorkspace } from '../WorkspaceContext'
 import { useAuth } from '../../../context/AuthContext'
 import usePreferences from '../../../hooks/usePreferences'
 import useLivePrices from '../../../hooks/useLivePrices'
 import { menuThemeVars } from '../../../utils/dividerColor'
+import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import UIcon from '../../../components/ui/UIcon'
 import NewsSettingsPanel from './NewsSettingsPanel'
 import {
@@ -55,7 +56,14 @@ function levelNow(a) {
   return Number(a.target_price)
 }
 
-export default function AlertsWidget({ color, opts, onOptsChange }) {
+export default function AlertsWidget({
+  color, opts, onOptsChange,
+  // Frozen-embed mode (journal host): frozenAlerts is the captured list —
+  // each row carries levelAtCapture/priceAtCapture so the badges read the
+  // CAPTURED state, never the ambient clock or live prices. readOnly strips
+  // the quick-add (a real POST), row delete (a real DELETE), and the gear.
+  frozenAlerts = null, readOnly = false, journalDoor = true,
+}) {
   const { user } = useAuth()
   // One-directional link: clicking an alert row PUBLISHES its symbol to this
   // widget's color group (→ any chart on the same group jumps to it). We never
@@ -72,6 +80,13 @@ export default function AlertsWidget({ color, opts, onOptsChange }) {
     [opts?.settings, prefs.theme],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // Send-to-Journal toast (the capture door lives beside the gear).
+  const [journalMsg, setJournalMsg] = useState(null)
+  useEffect(() => {
+    if (!journalMsg) return undefined
+    const t = setTimeout(() => setJournalMsg(null), 2200)
+    return () => clearTimeout(t)
+  }, [journalMsg])
   const settingsBtnRef = useRef(null)
   const rootRef = useRef(null)
   const patchSettings = useCallback(
@@ -90,11 +105,14 @@ export default function AlertsWidget({ color, opts, onOptsChange }) {
 
   // ── Alerts data (active + triggered) — ALL of the user's, chart-independent ──
   const { data, mutate } = useSWR(
-    user ? '/api/watchlist-alerts?active_only=false' : null,
+    user && !frozenAlerts ? '/api/watchlist-alerts?active_only=false' : null,
     fetcher,
     { refreshInterval: 30000, dedupingInterval: 10000 },
   )
-  const allAlerts = useMemo(() => (Array.isArray(data) ? data : []), [data])
+  const allAlerts = useMemo(
+    () => (frozenAlerts ?? (Array.isArray(data) ? data : [])),
+    [frozenAlerts, data],
+  )
 
   const active = useMemo(() => allAlerts.filter(a => a.is_active), [allAlerts])
   const triggered = useMemo(
@@ -108,8 +126,11 @@ export default function AlertsWidget({ color, opts, onOptsChange }) {
     () => [...new Set(allAlerts.map(a => (a.sym || '').toUpperCase()).filter(Boolean))],
     [allAlerts],
   )
-  const { prices } = useLivePrices(priceSyms)
-  const liveFor = useCallback((s) => prices[(s || '').toUpperCase()]?.price ?? null, [prices])
+  const { prices } = useLivePrices(frozenAlerts ? [] : priceSyms)
+  const liveFor = useCallback(
+    (s) => (frozenAlerts ? null : (prices[(s || '').toUpperCase()]?.price ?? null)),
+    [frozenAlerts, prices],
+  )
 
   // ── Quick-add — any ticker, a level, above/below ──
   const [ticker, setTicker] = useState('')
@@ -140,15 +161,16 @@ export default function AlertsWidget({ color, opts, onOptsChange }) {
 
   const renderRow = (a, isTriggered) => {
     const dirCls = a.direction === 'above' ? styles.above : styles.below
-    const live = isTriggered ? null : liveFor(a.sym)
-    const priceAbove = live != null ? live >= levelNow(a) : null
+    const live = isTriggered ? null : (frozenAlerts ? (a.priceAtCapture ?? null) : liveFor(a.sym))
+    const level = frozenAlerts ? (a.levelAtCapture ?? Number(a.target_price)) : levelNow(a)
+    const priceAbove = live != null ? live >= level : null
     const dirWord = a.direction === 'above' ? 'above ' : 'below '
     return (
       <div
         key={a.id}
         className={`${styles.row}${isTriggered ? ' ' + styles.rowTriggered : ''}`}
-        onClick={() => goToSym(a.sym)}
-        title={`Show ${a.sym} on the linked chart`}
+        onClick={readOnly ? undefined : () => goToSym(a.sym)}
+        title={readOnly ? undefined : `Show ${a.sym} on the linked chart`}
       >
         <span className={`${styles.dirIcon} ${dirCls}`} title={a.direction === 'above' ? 'Cross above' : 'Cross below'} aria-hidden="true">
           {a.direction === 'above' ? '▲' : '▼'}
@@ -160,7 +182,7 @@ export default function AlertsWidget({ color, opts, onOptsChange }) {
               {a.alert_type === 'line'
                 ? <>{dirWord}line <span className={styles.target}>${fmtPrice(a.target_price)}</span></>
                 : a.alert_type === 'trendline'
-                  ? <>{dirWord}trendline <span className={styles.target}>${fmtPrice(levelNow(a))}</span></>
+                  ? <>{dirWord}trendline <span className={styles.target}>${fmtPrice(level)}</span></>
                   : <>{dirWord}<span className={styles.target}>${fmtPrice(a.target_price)}</span></>}
             </span>
           </div>
@@ -177,9 +199,11 @@ export default function AlertsWidget({ color, opts, onOptsChange }) {
             </span>
           </span>
         )}
+        {!readOnly && (
         <button type="button" className={styles.delBtn} onClick={(e) => { e.stopPropagation(); removeAlert(a.id) }} title="Delete alert" aria-label="Delete alert">
           <UIcon name="x" size={13} strokeWidth={2.4} gold={false} />
         </button>
+        )}
       </div>
     )
   }
@@ -216,6 +240,29 @@ export default function AlertsWidget({ color, opts, onOptsChange }) {
           <span className={styles.title}>Alerts</span>
           {active.length > 0 && <span className={styles.countBadge}>{active.length}</span>}
         </span>
+        {/* Send to Journal: freeze the alert list + live state into the note
+            (payload capture — deleted alerts are unrecoverable; the capture is
+            the only durable record of the list as it stood). */}
+        {journalDoor && !readOnly && allAlerts.length > 0 && (
+          <button
+            type="button"
+            className={styles.gearBtn}
+            style={{ position: 'static' }}
+            onClick={async () => {
+              setJournalMsg('sending…')
+              setJournalMsg(await sendCaptureToJournal('alerts', {
+                alerts: allAlerts.map((a) => ({
+                  ...a, levelAtCapture: levelNow(a), priceAtCapture: liveFor(a.sym),
+                })),
+                settings,
+              }, { label: `${active.length} alerts` }))
+            }}
+            title="Send to Journal"
+            aria-label="Send alerts to Journal"
+          ><UIcon name="journal" size={13} /></button>
+        )}
+        {journalMsg && <span className={styles.journalToast}>{journalMsg}</span>}
+        {!readOnly && (
         <button
           ref={settingsBtnRef}
           type="button"
@@ -223,9 +270,12 @@ export default function AlertsWidget({ color, opts, onOptsChange }) {
           onClick={() => setSettingsOpen(o => !o)}
           title="Alerts widget settings"
         ><UIcon name="gear" size={13} /></button>
+        )}
       </div>
 
-      {/* Quick-add — any ticker, a level, above/below */}
+      {/* Quick-add — any ticker, a level, above/below. Hidden in a frozen
+          embed: it is a REAL POST. */}
+      {!readOnly && (
       <div className={styles.quickAdd}>
         <input
           className={styles.tickerInput}
@@ -264,6 +314,7 @@ export default function AlertsWidget({ color, opts, onOptsChange }) {
           <UIcon name="bell" size={11} gold={false} /> Set
         </button>
       </div>
+      )}
 
       {/* Body */}
       <div className={styles.list}>

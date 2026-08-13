@@ -1,0 +1,19 @@
+/* The one Send-to-Journal toast chip (see useJournalToast.jsx). Hosts may
+   override top/right via inline style — the recipe is shared, the anchor is
+   theirs. Hidden (not unmounted) when empty so role="status" text changes
+   announce. */
+.toast {
+  position: absolute;
+  top: 30px;
+  right: 8px;
+  z-index: 40;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 11px;
+  white-space: nowrap;
+  background: rgba(12, 12, 12, 0.92);
+  border: 1px solid var(--ut-gold, #c9a84c);
+  color: var(--ut-gold, #c9a84c);
+  pointer-events: none;
+}
+.toast[data-empty='true'] { visibility: hidden; }

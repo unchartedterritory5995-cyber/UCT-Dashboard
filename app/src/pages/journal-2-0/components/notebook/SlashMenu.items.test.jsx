@@ -69,13 +69,15 @@ describe('composition presets (/mtf, /compare)', () => {
     const stack = insertedBy('mtf AMD')
     expect(stack.map((n) => n.type)).toEqual(['widgetEmbed', 'widgetEmbed', 'widgetEmbed'])
     expect(stack.map((n) => n.attrs.params.tf)).toEqual(['D', '60', '15'])
+    // Frozen means anchored: preset inserts stamp the insert moment.
+    for (const n of stack) expect(Number.isFinite(Number(n.attrs.params.to))).toBe(true)
     expect(new Set(stack.map((n) => n.attrs.params.symbol))).toEqual(new Set(['AMD']))
 
     const pair = insertedBy('compare AMD 3/13/2026')
     expect(pair).toHaveLength(2)
     expect(pair.map((n) => n.attrs.layout.width)).toEqual(['half', 'half'])
     expect(pair[0].attrs.params.to).toBeTruthy()               // before: window ends that day
-    expect(pair[1].attrs.params.to).toBeUndefined()            // after: current window
+    expect(pair[1].attrs.params.to == null).toBe(true)         // after: the explicit rolling opt-out
     expect(pair[0].attrs.caption).toBe('before · 2026-03-13')
   })
 })

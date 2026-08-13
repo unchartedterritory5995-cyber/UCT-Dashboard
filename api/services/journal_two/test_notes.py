@@ -415,3 +415,11 @@ def test_capture_inbox_crud(conn):
     assert svc.list_captures("u1", conn=conn) == []
     with pytest.raises(NoteValidationError):
         svc.create_capture("u1", {"params": {}}, conn=conn)
+    # The byte ceiling (launch-audit finding): the inbox was the only
+    # Journal-Widgets write path with no size cap on the shared auth.db.
+    with pytest.raises(NoteValidationError):
+        svc.create_capture(
+            "u1",
+            {"widgetId": "aisearch", "params": {"thread": [{"answer": "x" * (300 * 1024)}]}},
+            conn=conn,
+        )
