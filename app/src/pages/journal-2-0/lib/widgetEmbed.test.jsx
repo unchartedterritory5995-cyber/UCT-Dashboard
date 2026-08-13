@@ -55,6 +55,7 @@ import {
   resolveEmbedRender, embedAutoCaption, widgetSlotNode,
   reanchorRange, countLiveEmbeds, LIVE_EMBEDS_PER_ENTRY, retimeChartParams,
   embedRenderHeight, EMBED_LEGACY_DEFAULT_HEIGHT,
+  parseMtfSlashArgs, parseCompareSlashArgs, parseDayToken,
 } from './widgetEmbedCore'
 import WidgetEmbedView from '../components/notebook/WidgetEmbedView'
 
@@ -92,6 +93,24 @@ describe('slash arg parsing', () => {
     expect(parseChartSlashArgs('looks great')).toBeNull()
     expect(parseChartSlashArgs('AMD notatf')).toBeNull()
   })
+  it('parses the composition presets strictly (mtf / compare / day tokens)', () => {
+    expect(parseMtfSlashArgs('AMD')).toEqual({ symbol: 'AMD', tfs: ['D', '60', '15'] })
+    expect(parseMtfSlashArgs('amd nvda')).toBeNull()
+    expect(parseMtfSlashArgs('looks')).toEqual({ symbol: 'LOOKS', tfs: ['D', '60', '15'] })
+    expect(parseMtfSlashArgs('')).toBeNull()
+
+    expect(parseCompareSlashArgs('AMD 2026-03-13')).toEqual({ symbol: 'AMD', day: '2026-03-13' })
+    expect(parseCompareSlashArgs('amd 3/13/26')).toEqual({ symbol: 'AMD', day: '2026-03-13' })
+    const thisYear = new Date().getFullYear()
+    expect(parseCompareSlashArgs('amd 3/13')).toEqual({ symbol: 'AMD', day: `${thisYear}-03-13` })
+    expect(parseCompareSlashArgs('AMD notadate')).toBeNull()
+    expect(parseCompareSlashArgs('AMD 13/45')).toBeNull()
+    expect(parseCompareSlashArgs('AMD')).toBeNull()
+
+    expect(parseDayToken('2026-3-9')).toBe('2026-03-09')
+    expect(parseDayToken('2026-13-09')).toBeNull()
+  })
+
   it('maps timeframe tokens onto bars-API codes', () => {
     expect(parseTfToken('5m')).toBe('5')
     expect(parseTfToken('d')).toBe('D')

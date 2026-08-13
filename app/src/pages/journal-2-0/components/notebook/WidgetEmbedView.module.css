@@ -23,13 +23,33 @@
 @media (max-width: 900px) {
   .full { --embed-w: 100%; }
 }
-/* Two half-width embeds sit side by side for comparison; TipTap keeps them as
-   sibling blocks, so half floats and pairs pack. They stack on phones. */
-.half { width: calc(50% - 6px); display: inline-block; vertical-align: top; }
-.half + .half { margin-left: 12px; }
+/* Two half-width embeds sit side by side for comparison; they stack on
+   phones. ⛔ The pairing MUST live on TipTap's node-view WRAPPER
+   (div.react-renderer.node-widgetEmbed, display:block) — inline-block on the
+   frame inside it can never pair two embeds. That was latent from P6 (halves
+   always stacked) and surfaced the day /compare inserted a real pair. */
+.half { width: 100%; }
+:global(.react-renderer.node-widgetEmbed):has(> .half) {
+  display: inline-block;
+  vertical-align: top;
+  width: calc(50% - 6px);
+}
+:global(.react-renderer.node-widgetEmbed):has(> .half) + :global(.react-renderer.node-widgetEmbed):has(> .half) {
+  margin-left: 12px;
+}
+/* Draw mode outranks the pairing: the wrapper releases the embed so the
+   full-breakout width (below) has room to work. */
+:global(.react-renderer.node-widgetEmbed):has(> .annotating) {
+  display: block;
+  width: 100%;
+  margin-left: 0;
+}
 @media (max-width: 700px) {
-  .half { width: 100%; display: block; }
-  .half + .half { margin-left: 0; }
+  :global(.react-renderer.node-widgetEmbed):has(> .half) {
+    display: block;
+    width: 100%;
+    margin-left: 0;
+  }
 }
 .selected { border-color: var(--ut-gold, #c9a84c); }
 

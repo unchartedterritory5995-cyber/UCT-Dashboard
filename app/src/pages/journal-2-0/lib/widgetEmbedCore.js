@@ -73,6 +73,51 @@ export function parseChartSlashArgs(rest) {
   return { symbol: tokens[0].toUpperCase(), tf: tf || 'D' }
 }
 
+// ── Composition presets (spec Phase 6 #4/#5): one action → N chart nodes ──
+
+/** The MTF stack's timeframes, top-down (the house read: daily structure →
+ *  hourly context → 15m execution). One preset, not a config surface. */
+export const MTF_STACK_TFS = ['D', '60', '15']
+
+/** Parse the free text after '/mtf' — exactly one symbol → {symbol, tfs}.
+ *  Same strictness contract as /chart: prose must parse as NOTHING. */
+export function parseMtfSlashArgs(rest) {
+  const tokens = String(rest || '').trim().split(/\s+/).filter(Boolean)
+  if (tokens.length !== 1 || !SYMBOL_RE.test(tokens[0])) return null
+  return { symbol: tokens[0].toUpperCase(), tfs: [...MTF_STACK_TFS] }
+}
+
+function validDay(y, mo, d) {
+  if (!Number.isInteger(y) || !Number.isInteger(mo) || !Number.isInteger(d)) return null
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || y < 1990 || y > 2100) return null
+  return `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+}
+
+/** A day token → 'YYYY-MM-DD'. Accepts ISO, M/D (current year), M/D/YY[YY]. */
+export function parseDayToken(tok) {
+  const t = String(tok || '').trim()
+  let m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(t)
+  if (m) return validDay(+m[1], +m[2], +m[3])
+  m = /^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/.exec(t)
+  if (m) {
+    let y = m[3] ? +m[3] : new Date().getFullYear()
+    if (y < 100) y += 2000
+    return validDay(y, +m[1], +m[2])
+  }
+  return null
+}
+
+/** Parse the free text after '/compare' — SYMBOL DAY → the before/after pair
+ *  args ({symbol, day}). The "before" chart freezes its window at DAY via
+ *  replayCutoff; the "after" renders the current window. */
+export function parseCompareSlashArgs(rest) {
+  const tokens = String(rest || '').trim().split(/\s+/).filter(Boolean)
+  if (tokens.length !== 2 || !SYMBOL_RE.test(tokens[0])) return null
+  const day = parseDayToken(tokens[1])
+  if (!day) return null
+  return { symbol: tokens[0].toUpperCase(), day }
+}
+
 /** The render-path decision for one embed — the never-a-broken-embed chain.
  *  kind: 'live'        → mount the widget's embed component with frozen params
  *        'image'       → render the stored archive image

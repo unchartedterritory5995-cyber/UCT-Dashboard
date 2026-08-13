@@ -11,7 +11,9 @@ import Suggestion from '@tiptap/suggestion'
 import { ReactRenderer } from '@tiptap/react'
 import { useEffect, useImperativeHandle, useState, forwardRef } from 'react'
 import { WIDGET_REGISTRY, JOURNAL_MENU_TYPES } from '../../../../widgets/registry'
-import { parseChartSlashArgs } from '../../lib/widgetEmbedCore'
+import {
+  parseChartSlashArgs, parseMtfSlashArgs, parseCompareSlashArgs, widgetSlotNode,
+} from '../../lib/widgetEmbedCore'
 import styles from './SlashMenu.module.css'
 
 const ITEMS = [
@@ -120,6 +122,59 @@ export function widgetItems(query) {
           },
         })
       }
+    }
+  }
+
+  // ── Composition presets (spec Phase 6 #4/#5): one action → N chart nodes.
+  // Same two-regime matching + strictness contract as /chart: bare name
+  // completes, valid args insert, anything else offers NOTHING (Enter stays
+  // a newline — the '/chart looks great here' lesson).
+  const restAfterName = singleToken ? '' : raw.trim().slice(first.length).trim()
+  if (singleToken ? 'mtf'.startsWith(first) : first === 'mtf') {
+    const args = restAfterName ? parseMtfSlashArgs(restAfterName) : null
+    if (args) {
+      out.push({
+        title: `MTF stack — ${args.symbol} · D / 1h / 15m`,
+        description: 'Three frozen charts, top-down',
+        command: ({ editor, range }) => {
+          editor.chain().focus().deleteRange(range)
+            .insertContent(args.tfs.map((tf) => widgetSlotNode('chart', { symbol: args.symbol, tf })))
+            .run()
+        },
+      })
+    } else if (!restAfterName) {
+      out.push({
+        title: 'MTF stack',
+        description: 'Type a symbol — e.g. /mtf AMD (D + 1h + 15m)',
+        command: ({ editor, range }) => {
+          editor.chain().focus().deleteRange(range).insertContent('/mtf ').run()
+        },
+      })
+    }
+  }
+  if (singleToken ? 'compare'.startsWith(first) : first === 'compare') {
+    const args = restAfterName ? parseCompareSlashArgs(restAfterName) : null
+    if (args) {
+      out.push({
+        title: `Before / after — ${args.symbol} @ ${args.day}`,
+        description: 'Two half-width dailies: window ending that day vs now',
+        command: ({ editor, range }) => {
+          editor.chain().focus().deleteRange(range).insertContent([
+            widgetSlotNode('chart', { symbol: args.symbol, tf: 'D', to: args.day },
+              { layout: { width: 'half' }, caption: `before · ${args.day}` }),
+            widgetSlotNode('chart', { symbol: args.symbol, tf: 'D' },
+              { layout: { width: 'half' }, caption: 'after · now' }),
+          ]).run()
+        },
+      })
+    } else if (!restAfterName) {
+      out.push({
+        title: 'Before / after',
+        description: 'Type symbol + day — e.g. /compare AMD 3/13',
+        command: ({ editor, range }) => {
+          editor.chain().focus().deleteRange(range).insertContent('/compare ').run()
+        },
+      })
     }
   }
   return out
