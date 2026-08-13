@@ -77,10 +77,19 @@ WARM_TIME_BUDGET_SEC = float(os.environ.get("DARKPOOL_INTRADAY_WARM_TIME_BUDGET_
 # before the spike showed), and only PROMOTED to ongoing warm coverage if the
 # pull actually found dark prints (so we don't keep polling dead names).
 SCAN_SPIKE_MULT = float(os.environ.get("DARKPOOL_SCAN_SPIKE_MULT", "2.5"))
-SCAN_MIN_DOLLAR_VOL = float(os.environ.get("DARKPOOL_SCAN_MIN_DOLLAR_VOL", "40e6"))
+SCAN_MIN_DOLLAR_VOL = float(os.environ.get("DARKPOOL_SCAN_MIN_DOLLAR_VOL", "75e6"))
+# Min share price — cuts the micro-cap volume pumps ($2 names doubling volume is
+# noise, not an institutional dark block); a real $4M+ dark print lives on liquid,
+# real-priced names. Set 0 to disable.
+SCAN_MIN_PRICE = float(os.environ.get("DARKPOOL_SCAN_MIN_PRICE", "5.0"))
 SCAN_MAX_CANDIDATES = int(os.environ.get("DARKPOOL_SCAN_MAX_CANDIDATES", "60"))
 SCAN_TIME_BUDGET_SEC = float(os.environ.get("DARKPOOL_SCAN_TIME_BUDGET_SEC", "150"))
 SCAN_PROMOTED_MAX = int(os.environ.get("DARKPOOL_SCAN_PROMOTED_MAX", "300"))
+# Deep-pull only the last N minutes for a candidate, NOT the whole session — a
+# block big enough to spike volume just printed, so a recent window catches it in
+# ~2-3s instead of ~40s of full-day pagination. Once promoted, warm covers it
+# incrementally. (Bounded by max(session_start, now - window).)
+SCAN_RECENT_WINDOW_MIN = int(os.environ.get("DARKPOOL_SCAN_RECENT_WINDOW_MIN", "30"))
 
 # Smaller universe than the nightly 150 — polled every few minutes, so keep the
 # REST load bounded. Ranked by recent dark-pool notional (resolve_universe).
@@ -467,13 +476,15 @@ def run_scanner(time_budget_sec: float = SCAN_TIME_BUDGET_SEC) -> dict:
         pv = s.get("prev_vol") or 0
         tv = s.get("today_vol") or 0
         px = s.get("last_price") or 0
-        if pv <= 0 or tv <= 0 or px <= 0:
+        if pv <= 0 or tv <= 0 or px < SCAN_MIN_PRICE:
             continue
         if tv >= pv * SCAN_SPIKE_MULT and tv * px >= SCAN_MIN_DOLLAR_VOL:
             cands.append((tk, tv * px, tv / pv))
     cands.sort(key=lambda c: (c[2], c[1]), reverse=True)   # spike ratio, then $-vol
     cand_syms = [c[0] for c in cands[:SCAN_MAX_CANDIDATES]]
     hi_ns = _now_ns()
+    # Bounded recent window (not the whole session) so each pull is fast.
+    win_lo = max(session_start_ns, hi_ns - int(SCAN_RECENT_WINDOW_MIN * 60 * 1e9))
     rows_all: List[dict] = []
     confirmed: List[str] = []
     done = 0
@@ -482,7 +493,7 @@ def run_scanner(time_budget_sec: float = SCAN_TIME_BUDGET_SEC) -> dict:
             break
         _set_scan_phase("deep-pull %s (%d/%d)" % (tk, done + 1, len(cand_syms)))
         try:
-            prints = _fetch_window(tk, session_start_ns, hi_ns)
+            prints = _fetch_window(tk, win_lo, hi_ns)
         except Exception as e:
             logger.warning("[darkpool_intraday] scanner %s pull failed: %s", tk, e)
             continue
