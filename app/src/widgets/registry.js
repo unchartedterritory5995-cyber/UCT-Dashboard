@@ -170,9 +170,15 @@ export const WIDGET_REGISTRY = deepFreeze({
       { key: 'settings', type: 'json' },
       { key: 'cols', type: 'json' },            // column layout lives in localStorage, NOT opts — freeze it
       { key: 'symbols', type: 'json' },         // resolved membership at capture (lists mutate/delete)
+      // The captured LIST as it stood (owner-approved payload freeze, panel
+      // batch 3): {sym, note, price, chgPct} per row — lists mutate and
+      // delete, so the payload is the only durable record. Rendered by
+      // FrozenList (the live Watchlists page is a page-grade renderer — the
+      // P2 disqualification).
+      { key: 'rows', type: 'json' },
     ],
     plainText: (p) => `[watchlist: ${p.watchName || p.watchKey}${Array.isArray(p.symbols) ? ` — ${p.symbols.length} symbols` : ''}]`,
-    reconstructable: false,                     // membership is mutable; value columns are live-only
+    reconstructable: (p) => Array.isArray(p?.rows) && p.rows.length > 0,
     liveCapable: false,
   },
   themes: {
@@ -181,18 +187,21 @@ export const WIDGET_REGISTRY = deepFreeze({
     menus: { workspace: true, tab: true, mobile: true, journal: false },
     themeFollow: true,
     paramsSchema: [
-      // ⚠️ All of this is TRANSIENT React state in ThemeTrackerPage today (the
-      // widget has no opts at all) — capture needs the read-out hook that
-      // lands with the insertion workflows.
       { key: 'period', type: 'enum', options: ['1d', '1w', '1m', '3m', '1y', 'ytd'], default: '1d' },
       { key: 'sortDir', type: 'enum', options: ['asc', 'desc'], default: 'desc' },
       { key: 'openTheme', type: 'string' },
       { key: 'search', type: 'string' },
       { key: 'selectedSym', type: 'symbol' },
       { key: 'settings', type: 'json' },        // GLOBAL theme_tracker_settings — merged copy
+      // The captured LEADERBOARD as it stood (owner-approved payload freeze,
+      // panel batch 3): {sym: ETF ticker, note: theme name, chgPct: period
+      // return, extraValue: top holdings} per row. The taxonomy versions
+      // forward and returns have no as-of endpoint — the payload is the only
+      // honest record of that day's ranking. Rendered by FrozenList.
+      { key: 'rows', type: 'json' },
     ],
     plainText: (p) => `[themes: ${p.period}${p.openTheme ? ` — ${p.openTheme}` : ''}]`,
-    reconstructable: false,                     // taxonomy versions forward; no as-of endpoint
+    reconstructable: (p) => Array.isArray(p?.rows) && p.rows.length > 0,
     liveCapable: false,
   },
   scanner: {

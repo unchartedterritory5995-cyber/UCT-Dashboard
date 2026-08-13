@@ -5203,6 +5203,17 @@ async def lifespan(app: FastAPI):
                 print("[startup] j2 excursion backfill registered (03:10 ET Mon-Sat)")
         except Exception as e:
             print(f"[startup] j2 excursion backfill registration failed (non-fatal): {e}")
+        # Nightly orphaned note-attachment GC (Journal Widgets — re-captures
+        # and removed embeds leave PNGs behind forever otherwise). Ships dark
+        # (J2_ATTACHMENT_GC_ENABLED=0); 03:40 ET Mon-Sat, deliberately AFTER
+        # the 02:45 attachments backup so the last pre-sweep tarball still
+        # holds everything the sweep removes.
+        try:
+            from api.services.journal_two import attachment_gc
+            if attachment_gc.register_jobs(_scheduler):
+                print("[startup] j2 attachment GC registered (03:40 ET Mon-Sat)")
+        except Exception as e:
+            print(f"[startup] j2 attachment GC registration failed (non-fatal): {e}")
     else:
         print("[startup] APScheduler skipped -- lock held by another uvicorn worker (multi-worker mode)")
 

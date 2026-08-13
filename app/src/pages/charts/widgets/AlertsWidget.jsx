@@ -238,11 +238,14 @@ export default function AlertsWidget({
         {/* Send to Journal: freeze the alert list + live state into the note
             (payload capture — deleted alerts are unrecoverable; the capture is
             the only durable record of the list as it stood). */}
+        {/* Cluster note (panel finding): .gearBtn here is ABSOLUTE right:8 —
+            a position:static door floated beside the title instead of beside
+            the gear. right:34 pairs them, same geometry as the calendar's. */}
         {journalDoor && !readOnly && allAlerts.length > 0 && (
           <button
             type="button"
             className={styles.gearBtn}
-            style={{ position: 'static' }}
+            style={{ right: 34 }}
             onClick={async () => {
               setJournalMsg('sending…')
               setJournalMsg(await sendCaptureToJournal('alerts', {

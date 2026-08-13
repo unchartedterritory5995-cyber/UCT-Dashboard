@@ -20,6 +20,24 @@ describe('slash widget items', () => {
     expect(titles('chart amd')).toEqual(['Chart — AMD · D'])
   })
 
+  it('an optional date token anchors the insert and shows in the title', () => {
+    expect(titles('chart NVDA 15m 3/13/2026')).toEqual(['Chart — NVDA · 15m @ Mar 13, 2026'])
+    expect(titles('chart NVDA 2026-03-13')).toEqual(['Chart — NVDA · D @ Mar 13, 2026'])
+    expect(titles('chart NVDA 15m notaday')).toEqual([])
+    // The inserted node carries the day as its anchor (params.to), not the
+    // insert moment.
+    let captured = null
+    const chain = {
+      focus: () => chain, deleteRange: () => chain,
+      insertWidgetEmbed: (id, cap) => { captured = { id, cap }; return chain },
+      insertContent: () => chain, run: () => {},
+    }
+    widgetItems('chart NVDA 15m 3/13/2026')[0]
+      .command({ editor: { chain: () => chain, storage: {} }, range: {} })
+    expect(captured.id).toBe('chart')
+    expect(captured.cap.to).toBe('2026-03-13')
+  })
+
   it('prose after the name offers NOTHING — Enter must stay a newline', () => {
     expect(titles('chart looks great here')).toEqual([])
     expect(titles('chart AMD notatf')).toEqual([])
@@ -45,6 +63,8 @@ describe('composition presets (/mtf, /compare)', () => {
     expect(titles('mtf AMD')).toEqual(['MTF stack — AMD · D / 1h / 15m'])
     expect(titles('compare NVDA 2026-03-13')).toEqual(['Before / after — NVDA @ Mar 13, 2026'])
     expect(titles('compare nvda 3/13/2026')).toEqual(['Before / after — NVDA @ Mar 13, 2026'])
+    // Optional tf: compare at execution granularity (panel batch 3).
+    expect(titles('compare nvda 3/13/2026 15m')).toEqual(['Before / after — NVDA @ Mar 13, 2026 · 15m'])
   })
 
   it('the strictness contract holds — prose parses as NOTHING', () => {
@@ -79,5 +99,9 @@ describe('composition presets (/mtf, /compare)', () => {
     expect(pair[0].attrs.params.to).toBeTruthy()               // before: window ends that day
     expect(pair[1].attrs.params.to == null).toBe(true)         // after: the explicit rolling opt-out
     expect(pair[0].attrs.caption).toBe('before · 2026-03-13')
+
+    // The optional tf reaches BOTH halves.
+    const pair15 = insertedBy('compare AMD 3/13/2026 15m')
+    expect(pair15.map((n) => n.attrs.params.tf)).toEqual(['15', '15'])
   })
 })

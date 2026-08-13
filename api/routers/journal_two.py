@@ -1343,6 +1343,21 @@ def append_note_embed_endpoint(
     return {"note": note}
 
 
+@router.post("/notes/attachments/gc")
+def attachment_gc_endpoint(
+    dry_run: bool = True,
+    min_age_hours: float = 48.0,
+    user: dict = Depends(require_admin),
+) -> dict[str, Any]:
+    """Sweep attachment files no note references (admin). dry_run defaults
+    TRUE — the destructive form is an explicit opt-in (?dry_run=false); the
+    nightly cron (J2_ATTACHMENT_GC_ENABLED=1) runs the real sweep."""
+    from api.services.journal_two import attachment_gc
+    return attachment_gc.sweep_orphaned_attachments(
+        dry_run=dry_run, min_age_hours=max(1.0, min_age_hours),
+    )
+
+
 @router.get("/inbox")
 def list_captures_endpoint(user: dict = Depends(get_current_user)) -> dict[str, Any]:
     return {"captures": notes_service.list_captures(user["id"])}

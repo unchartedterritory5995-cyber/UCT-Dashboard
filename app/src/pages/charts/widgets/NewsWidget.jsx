@@ -269,12 +269,15 @@ export default function NewsWidget({
         </div>
         )}
         {/* → Journal: freeze the displayed feed into the note (payload capture —
-            owner decision; the shown list is the whole capture). */}
+            owner decision; the shown list is the whole capture). Cluster note
+            (panel finding): door + gear both carry .gearBtn's margin-left:auto,
+            which split the free space and floated the door mid-header — the
+            door keeps the auto, the gear drops to a 2px gap when the door
+            renders. */}
         {journalDoor && !readOnly && sym && events?.length > 0 && (
           <button
             type="button"
             className={styles.gearBtn}
-            style={{ position: 'static' }}
             onClick={async () => {
               setJournalMsg('sending…')
               setJournalMsg(await sendCaptureToJournal('news', {
@@ -291,6 +294,7 @@ export default function NewsWidget({
           ref={settingsBtnRef}
           type="button"
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
+          style={journalDoor && sym && events?.length > 0 ? { marginLeft: 2 } : undefined}
           onClick={() => setSettingsOpen(o => !o)}
           title="News widget settings"
         ><UIcon name="gear" size={13} /></button>

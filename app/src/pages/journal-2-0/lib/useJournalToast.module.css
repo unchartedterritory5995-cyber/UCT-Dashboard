@@ -1,19 +1,32 @@
 /* The one Send-to-Journal toast chip (see useJournalToast.jsx). Hosts may
    override top/right via inline style — the recipe is shared, the anchor is
    theirs. Hidden (not unmounted) when empty so role="status" text changes
-   announce. */
+   announce.
+
+   Typography/tint = the house flagToast recipe (Watchlists.module.css —
+   panel finding: the old free-styled chip read as a foreign system beside
+   the flag toasts). Two deliberate departures: a dark underlay beneath the
+   gold tint (this chip floats over arbitrary widget content, not a known
+   header), and no fade-out animation (the role="status" container clears
+   its TEXT on a timer instead — an opacity-0 chip that still announces to
+   screen readers is the exact silent-failure the shared hook exists to fix). */
 .toast {
   position: absolute;
   top: 30px;
   right: 8px;
   z-index: 40;
-  padding: 3px 9px;
-  border-radius: 6px;
-  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-family: var(--font-mono, 'Instrument Sans', sans-serif);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
   white-space: nowrap;
-  background: rgba(12, 12, 12, 0.92);
-  border: 1px solid var(--ut-gold, #c9a84c);
   color: var(--ut-gold, #c9a84c);
+  background:
+    linear-gradient(rgba(212, 170, 80, 0.12), rgba(212, 170, 80, 0.12)),
+    rgba(12, 12, 12, 0.92);
+  border: 1px solid rgba(212, 170, 80, 0.3);
   pointer-events: none;
 }
 .toast[data-empty='true'] { visibility: hidden; }

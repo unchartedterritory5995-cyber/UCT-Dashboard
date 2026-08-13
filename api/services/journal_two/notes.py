@@ -408,6 +408,43 @@ def _row_to_note(row: sqlite3.Row) -> dict[str, Any]:
     }
 
 
+# How much body_plain a LIST row carries — enough for a card preview line,
+# never the whole document.
+_LIST_PLAIN_CHARS = 400
+
+
+# The LIST projection's SELECT: every column EXCEPT body_json (substr caps
+# body_plain in SQL so the big text never crosses the row boundary at all).
+_NOTE_SUMMARY_COLS = (
+    "id, user_id, account_id, folder_id, title, subtitle, "
+    f"substr(coalesce(body_plain, ''), 1, {_LIST_PLAIN_CHARS}) AS body_plain, "
+    "hero_image_url, ticker, tags, created_at, updated_at"
+)
+
+
+def _row_to_note_summary(row: sqlite3.Row) -> dict[str, Any]:
+    """LIST-row projection: everything EXCEPT the document body. A widget-embed
+    note carries its multi-KB frozen settings blob in body_json, so a 100-note
+    list response was shipping megabytes nobody read — the list UI renders
+    title/subtitle/tags/hero only, and the editor fetches the single note
+    (which keeps full bodyJson). bodyJson is deliberately ABSENT (not {}):
+    an empty doc would look loadable."""
+    return {
+        "id": row["id"],
+        "userId": row["user_id"],
+        "accountId": row["account_id"],
+        "folderId": row["folder_id"],
+        "title": row["title"] or "",
+        "subtitle": row["subtitle"],
+        "bodyPlain": row["body_plain"] or "",
+        "heroImageUrl": row["hero_image_url"],
+        "ticker": row["ticker"],
+        "tags": json.loads(row["tags"] or "[]"),
+        "createdAt": row["created_at"],
+        "updatedAt": row["updated_at"],
+    }
+
+
 def _row_to_folder(row: sqlite3.Row) -> dict[str, Any]:
     return {
         "id": row["id"],
@@ -453,7 +490,7 @@ def list_notes(
     owned = conn is None
     conn = conn or get_connection()
     try:
-        sql = "SELECT * FROM j2_notes WHERE user_id = ?"
+        sql = f"SELECT {_NOTE_SUMMARY_COLS} FROM j2_notes WHERE user_id = ?"
         params: list[Any] = [user_id]
         if folder_id == "__unfiled__":
             sql += " AND folder_id IS NULL"
@@ -491,7 +528,7 @@ def list_notes(
         sql += f" ORDER BY {order_col} LIMIT ? OFFSET ?"
         params.extend([max(1, min(limit, 500)), max(0, offset)])
         rows = conn.execute(sql, params).fetchall()
-        return [_row_to_note(r) for r in rows]
+        return [_row_to_note_summary(r) for r in rows]
     finally:
         if owned:
             conn.close()

@@ -116,6 +116,30 @@ def test_list_notes_search_body(conn):
     assert [n["id"] for n in rows] == [a["id"]]
 
 
+def test_list_rows_project_out_the_document_body(conn):
+    """The LIST endpoint is a card index, not a document dump: a widget-embed
+    note drags a multi-KB frozen settings blob in bodyJson, so list rows must
+    not carry it (absent, not {} — an empty doc would look loadable). The
+    single-note GET keeps the full body; bodyPlain on list rows is capped to
+    a preview. Search still reaches the FULL body_plain (the WHERE clause
+    reads the real column, only the projection is capped)."""
+    body = {"type": "doc", "content": [
+        {"type": "paragraph", "content": [
+            {"type": "text", "text": "start " + ("x" * 900) + " needleword"},
+        ]},
+    ]}
+    n = svc.create_note("u1", {"title": "Big", "bodyJson": body}, conn=conn)
+    rows = svc.list_notes("u1", conn=conn)
+    assert rows and rows[0]["id"] == n["id"]
+    assert "bodyJson" not in rows[0]
+    assert len(rows[0]["bodyPlain"]) <= 400
+    # The capped preview must not break body search (cap is projection-only).
+    assert [r["id"] for r in svc.list_notes("u1", q="needleword", conn=conn)] == [n["id"]]
+    # The editor's single-note fetch still returns the whole document.
+    full = svc.get_note("u1", n["id"], conn=conn)
+    assert full["bodyJson"] == body
+
+
 def test_folder_crud(conn):
     f = svc.create_folder("u1", "Lessons", conn=conn)
     assert f["name"] == "Lessons"

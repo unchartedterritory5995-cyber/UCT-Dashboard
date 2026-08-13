@@ -263,9 +263,19 @@ describe('widget registry — params layer', () => {
     expect(isReconstructable('alerts', { alerts: [] })).toBe(false)
     expect(isReconstructable('scanner', normalizeParams('scanner', { ...CAPTURE_FIXTURES.scanner, rows: [{ sym: 'NVDA', price: 224.1, chgPct: 3.0 }] }))).toBe(true)
     expect(isReconstructable('scanner', normalizeParams('scanner', CAPTURE_FIXTURES.scanner))).toBe(false)
-    // Every OTHER non-chart type stays image-only (watchlist/themes render
-    // through page-grade components — their doors land with the page seams).
-    for (const id of WIDGET_IDS.filter(x => !['chart', 'calendar', 'aisearch', 'fundamentals', 'news', 'breadth', 'alerts', 'scanner'].includes(x))) {
+    // Watchlist + themes joined via the PAGE-SEAM doors (panel batch 3):
+    // frozen {sym, note, chgPct} rows render through FrozenList — live
+    // exactly when the captured rows exist.
+    expect(isReconstructable('watchlist', normalizeParams('watchlist', {
+      ...CAPTURE_FIXTURES.watchlist, rows: [{ sym: 'NVDA', price: 224.1, chgPct: 3.0 }],
+    }))).toBe(true)
+    expect(isReconstructable('watchlist', normalizeParams('watchlist', CAPTURE_FIXTURES.watchlist))).toBe(false)
+    expect(isReconstructable('themes', normalizeParams('themes', {
+      ...CAPTURE_FIXTURES.themes, rows: [{ sym: 'SMH', note: 'Semiconductors', chgPct: 2.1 }],
+    }))).toBe(true)
+    expect(isReconstructable('themes', normalizeParams('themes', CAPTURE_FIXTURES.themes))).toBe(false)
+    // Every OTHER non-chart type stays image-only.
+    for (const id of WIDGET_IDS.filter(x => !['chart', 'calendar', 'aisearch', 'fundamentals', 'news', 'breadth', 'alerts', 'scanner', 'watchlist', 'themes'].includes(x))) {
       expect(isReconstructable(id, normalizeParams(id, CAPTURE_FIXTURES[id])), id).toBe(false)
     }
     // Unknown/removed widget type: image, never a re-render attempt.

@@ -38,6 +38,8 @@ import useRealtimePrices from '../hooks/useRealtimePrices'
 import useWatchlistPerformance from '../hooks/useWatchlistPerformance'
 import useWatchlistMeta from '../hooks/useWatchlistMeta'
 import useWatchlistThemes from '../hooks/useWatchlistThemes'
+import { sendCaptureToJournal } from './journal-2-0/lib/sendToJournal'
+import { useJournalToast, JournalToast } from './journal-2-0/lib/useJournalToast'
 import { menuThemeVars } from '../utils/dividerColor'
 import useTickerTags from '../hooks/useTickerTags'
 import useWatchlistAlerts from '../hooks/useWatchlistAlerts'
@@ -889,6 +891,29 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     }
     return merged
   }, [feedPrices, readoutTick])
+  // ── Send a LIST to the Journal (page-seam capture door — panel batch 3).
+  // The widget has no chrome of its own (it IS this page), so the door lives
+  // on each accordion header. Payload freeze (owner-approved): {sym, note,
+  // price, chgPct} rows as they stand — lists mutate and delete, so the
+  // capture is the only durable record. Rendered read-only by FrozenList.
+  const [journalMsg, setJournalMsg] = useJournalToast()
+  const sendListToJournal = useCallback(async (watchKey, watchName, items) => {
+    setJournalMsg('sending…')
+    const rows = items.map((it) => {
+      const sym = typeof it === 'string' ? it : it.sym
+      const q = prices[sym]
+      return {
+        sym,
+        ...(typeof it === 'object' && it.notes ? { note: it.notes } : {}),
+        ...(Number.isFinite(q?.price) ? { price: q.price } : {}),
+        ...(Number.isFinite(q?.change_pct) ? { chgPct: q.change_pct } : {}),
+      }
+    })
+    setJournalMsg(await sendCaptureToJournal('watchlist', {
+      watchKey, watchName, symbols: rows.map((r) => r.sym), rows,
+    }, { label: watchName }))
+  }, [prices, setJournalMsg])
+
   // UCT breadth pseudo-tickers (UCTA50 etc.) render the compass brand mark instead of
   // a company logo/monogram — they have no company logo.
   const breadth = useBreadthSymbols()
@@ -1786,6 +1811,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           )}
           {isOwner && (
             <div className={styles.wlActions} onClick={e => e.stopPropagation()}>
+              {items.length > 0 && (
+                <button
+                  className={styles.wlActionBtn}
+                  onClick={() => sendListToJournal(wl.id, wl.name, items)}
+                  title={`Send ${wl.name} to Journal (frozen list)`}
+                  aria-label={`Send ${wl.name} to Journal`}
+                ><UIcon name="journal" size={13} /></button>
+              )}
               {!pickList && <button
                 className={`${styles.wlActionBtn}${addingToList === wl.id ? ' ' + styles.wlActionBtnActive : ''}`}
                 onClick={() => {
@@ -1929,6 +1962,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
           <span className={styles.flaggedHint}>Shift+F</span>
           {user && (
             <div className={styles.wlActions} onClick={e => e.stopPropagation()}>
+              {flagged.length > 0 && (
+                <button
+                  className={styles.wlActionBtn}
+                  onClick={() => sendListToJournal('flagged', flaggedName || 'Flagged', [...flagged])}
+                  title="Send Flagged to Journal (frozen list)"
+                  aria-label="Send Flagged to Journal"
+                ><UIcon name="journal" size={13} /></button>
+              )}
               {!pickList && <button
                 className={`${styles.wlActionBtn}${addingToList === 'flagged' ? ' ' + styles.wlActionBtnActive : ''}`}
                 onClick={() => {
@@ -2003,6 +2044,11 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
         setAddingToList(pickOwnedId)
       }}
     >
+      {/* Send-to-Journal confirmation for the list-header doors. Fixed: the
+          doors live on scrolling accordion rows in both hosts (page + widget),
+          so a viewport anchor is the one spot that always reads. Below the
+          popup band (8500+). */}
+      <JournalToast msg={journalMsg} style={{ position: 'fixed', top: 58, right: 16, zIndex: 8400 }} />
       {settingsOpen && (
         <WatchlistSettingsPanel
           settings={wlSettings}

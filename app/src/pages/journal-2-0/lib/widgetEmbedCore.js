@@ -73,19 +73,36 @@ export function parseTfToken(tok) {
 
 const SYMBOL_RE = /^[A-Za-z][A-Za-z.\-]{0,9}$/
 
-/** Parse the free text after '/chart' — "AMD 15m", "amd", "NVDA d" —
- *  → { symbol, tf } or null. STRICT on shape (review finding): with
- *  allowSpaces keeping a mid-text '/' suggestion alive, prose like
- *  "/chart looks great here" must parse as NOTHING (menu closes, Enter is a
- *  newline) — never as a LOOKS·D embed that eats the sentence. At most two
- *  tokens, and a second token must be a real timeframe. */
+/** Each trailing token after the symbol must claim exactly one unclaimed slot
+ *  (tf or day, either order). Anything else → null: the strictness contract
+ *  every slash parser shares ("/chart looks great here" parses as NOTHING). */
+function parseTfDayTokens(tokens) {
+  let tf = null
+  let day = null
+  for (const tok of tokens) {
+    const asTf = parseTfToken(tok)
+    if (asTf && !tf) { tf = asTf; continue }
+    const asDay = parseDayToken(tok)
+    if (asDay && !day) { day = asDay; continue }
+    return null
+  }
+  return { tf, day }
+}
+
+/** Parse the free text after '/chart' — "AMD 15m", "amd", "NVDA d 3/13",
+ *  "AMD 2026-03-13" — → { symbol, tf, day } or null. STRICT on shape (review
+ *  finding): with allowSpaces keeping a mid-text '/' suggestion alive, prose
+ *  like "/chart looks great here" must parse as NOTHING (menu closes, Enter
+ *  is a newline) — never as a LOOKS·D embed that eats the sentence. An
+ *  optional day token anchors the window at that date (panel batch 3):
+ *  reviewing March from August is one command, no toolbar surgery. */
 export function parseChartSlashArgs(rest) {
   const tokens = String(rest || '').trim().split(/\s+/).filter(Boolean)
-  if (!tokens.length || tokens.length > 2) return null
+  if (!tokens.length || tokens.length > 3) return null
   if (!SYMBOL_RE.test(tokens[0])) return null
-  const tf = tokens[1] ? parseTfToken(tokens[1]) : null
-  if (tokens[1] && !tf) return null
-  return { symbol: tokens[0].toUpperCase(), tf: tf || 'D' }
+  const slots = parseTfDayTokens(tokens.slice(1))
+  if (!slots) return null
+  return { symbol: tokens[0].toUpperCase(), tf: slots.tf || 'D', day: slots.day }
 }
 
 // ── Composition presets (spec Phase 6 #4/#5): one action → N chart nodes ──
@@ -130,15 +147,17 @@ export function parseDayToken(tok) {
   return null
 }
 
-/** Parse the free text after '/compare' — SYMBOL DAY → the before/after pair
- *  args ({symbol, day}). The "before" chart freezes its window at DAY via
- *  replayCutoff; the "after" renders the current window. */
+/** Parse the free text after '/compare' — SYMBOL DAY [tf] → the before/after
+ *  pair args ({symbol, day, tf}). The "before" chart freezes its window at
+ *  DAY via replayCutoff; the "after" renders the current window. The optional
+ *  tf (panel batch 3) compares at execution granularity — '/compare AMD 3/13
+ *  15m' — instead of always daily; a missing tf stays 'D'. */
 export function parseCompareSlashArgs(rest) {
   const tokens = String(rest || '').trim().split(/\s+/).filter(Boolean)
-  if (tokens.length !== 2 || !SYMBOL_RE.test(tokens[0])) return null
-  const day = parseDayToken(tokens[1])
-  if (!day) return null
-  return { symbol: tokens[0].toUpperCase(), day }
+  if (tokens.length < 2 || tokens.length > 3 || !SYMBOL_RE.test(tokens[0])) return null
+  const slots = parseTfDayTokens(tokens.slice(1))
+  if (!slots || !slots.day) return null
+  return { symbol: tokens[0].toUpperCase(), day: slots.day, tf: slots.tf || 'D' }
 }
 
 /** The render-path decision for one embed — the never-a-broken-embed chain.

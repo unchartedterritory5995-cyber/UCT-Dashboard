@@ -32,6 +32,8 @@ const EMBED_COMPONENTS = {
   breadth: lazy(() => import('./BreadthEmbed')),
   alerts: lazy(() => import('./AlertsEmbed')),
   scanner: lazy(() => import('./ScannerEmbed')),
+  watchlist: lazy(() => import('./WatchlistEmbed')),
+  themes: lazy(() => import('./ThemesEmbed')),
 }
 
 // The never-a-broken-embed rule, enforced at the React layer too: any render
@@ -66,6 +68,20 @@ function ArchivedImage({ attrs }) {
       </figcaption>
     </figure>
   )
+}
+
+// Live-rendered SNAPSHOTS carry no visible date — the archived image gets a
+// label and captions are user free-text, but a re-rendered March chart reads
+// like today's until the reader checks (panel finding). These types print
+// their own capture stamp inside the embed (FrozenList's asOf line), so the
+// chip would double-label them.
+const AS_OF_SELF_LABELED = new Set(['scanner', 'watchlist', 'themes'])
+
+function asOfDayText(capturedAt) {
+  if (!capturedAt) return null
+  const d = new Date(capturedAt)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function PlaceholderChip({ attrs, reason }) {
@@ -410,6 +426,17 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
           content-sized notebook parent collapses them to zero without this. */}
       <div ref={bodyRef} className={styles.body} style={decision.kind === 'live' ? { height } : undefined}>
         {body}
+        {/* "as of" chip: a live-RENDERED snapshot must say when it was frozen —
+            re-rendered March evidence reads like today's chart otherwise. Live
+            mode tracks now (the badge says so) and draw mode owns the frame.
+            Inside the body on purpose: a re-capture archives the date with
+            the pixels. */}
+        {decision.kind === 'live' && attrs.mode !== 'live' && !annotate
+          && !AS_OF_SELF_LABELED.has(attrs.widgetId) && asOfDayText(attrs.capturedAt) && (
+            <span className={styles.asOfChip} title="Frozen snapshot — captured this day">
+              as of {asOfDayText(attrs.capturedAt)}
+            </span>
+        )}
       </div>
       {(attrs.mode === 'live') && <span className={styles.liveBadge} title="Updates in real time — Snapshot freezes it">LIVE</span>}
       {attrs.caption ? <div className={styles.caption}>{attrs.caption}</div> : null}

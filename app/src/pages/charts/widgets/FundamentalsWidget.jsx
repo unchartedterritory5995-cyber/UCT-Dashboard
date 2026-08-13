@@ -260,7 +260,11 @@ export default function FundamentalsWidget({
         )}
         {/* → Journal: freeze the displayed reported rows into the note (payload
             capture — owner decision; the rows are immutable, few KB). Earnings-
-            table views only: analyst/ownership panels have no as-of data. */}
+            table views only: analyst/ownership panels have no as-of data.
+            Cluster note (panel finding): .gearBtn carries margin-left:auto, so
+            door + gear each pulling auto split the free space and the door
+            drifted mid-header — the door keeps the auto, the gear (below)
+            drops to a 2px gap whenever the door renders. */}
         {journalDoor && !readOnly && !isPanelView && (hasAnnual || hasQ) && (
           <button
             type="button"
@@ -284,6 +288,7 @@ export default function FundamentalsWidget({
           ref={settingsBtnRef}
           type="button"
           className={`${styles.gearBtn}${settingsOpen ? ' ' + styles.gearBtnActive : ''}`}
+          style={journalDoor && !isPanelView && (hasAnnual || hasQ) ? { marginLeft: 2 } : undefined}
           onClick={() => setSettingsOpen(o => !o)}
           title="Fundamentals settings"
         ><UIcon name="gear" size={13} /></button>

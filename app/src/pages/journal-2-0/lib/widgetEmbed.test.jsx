@@ -96,10 +96,10 @@ describe('frozen means anchored (panel finding)', () => {
 
 describe('slash arg parsing', () => {
   it('parses symbol + timeframe tokens', () => {
-    expect(parseChartSlashArgs('AMD 15m')).toEqual({ symbol: 'AMD', tf: '15' })
-    expect(parseChartSlashArgs('amd')).toEqual({ symbol: 'AMD', tf: 'D' })
-    expect(parseChartSlashArgs('NVDA 1h')).toEqual({ symbol: 'NVDA', tf: '60' })
-    expect(parseChartSlashArgs('brk.b w')).toEqual({ symbol: 'BRK.B', tf: 'W' })
+    expect(parseChartSlashArgs('AMD 15m')).toEqual({ symbol: 'AMD', tf: '15', day: null })
+    expect(parseChartSlashArgs('amd')).toEqual({ symbol: 'AMD', tf: 'D', day: null })
+    expect(parseChartSlashArgs('NVDA 1h')).toEqual({ symbol: 'NVDA', tf: '60', day: null })
+    expect(parseChartSlashArgs('brk.b w')).toEqual({ symbol: 'BRK.B', tf: 'W', day: null })
     expect(parseChartSlashArgs('')).toBeNull()
     expect(parseChartSlashArgs('123')).toBeNull()
     // Prose after '/chart' must parse as NOTHING — with allowSpaces the
@@ -109,6 +109,22 @@ describe('slash arg parsing', () => {
     expect(parseChartSlashArgs('looks great here')).toBeNull()
     expect(parseChartSlashArgs('looks great')).toBeNull()
     expect(parseChartSlashArgs('AMD notatf')).toBeNull()
+  })
+
+  it('an optional day token anchors /chart at that date (panel batch 3)', () => {
+    expect(parseChartSlashArgs('AMD 15m 3/13/2026'))
+      .toEqual({ symbol: 'AMD', tf: '15', day: '2026-03-13' })
+    // Either order — each token claims exactly one unclaimed slot.
+    expect(parseChartSlashArgs('AMD 2026-03-13 15m'))
+      .toEqual({ symbol: 'AMD', tf: '15', day: '2026-03-13' })
+    expect(parseChartSlashArgs('NVDA 2026-03-13'))
+      .toEqual({ symbol: 'NVDA', tf: 'D', day: '2026-03-13' })
+    // The strictness contract holds: a token that is neither tf nor day, or
+    // a DOUBLE claim of one slot, parses as NOTHING.
+    expect(parseChartSlashArgs('AMD 15m notaday')).toBeNull()
+    expect(parseChartSlashArgs('AMD 15m 5m')).toBeNull()
+    expect(parseChartSlashArgs('AMD 3/13 3/14')).toBeNull()
+    expect(parseChartSlashArgs('AMD 15m 3/13 extra')).toBeNull()
   })
   it('month-vs-minute is decided by case, like the chart labels (panel finding)', () => {
     expect(parseTfToken('1M')).toBe('M')   // one MONTH — was silently one minute
@@ -134,13 +150,22 @@ describe('slash arg parsing', () => {
     expect(parseMtfSlashArgs('looks')).toEqual({ symbol: 'LOOKS', tfs: ['D', '60', '15'] })
     expect(parseMtfSlashArgs('')).toBeNull()
 
-    expect(parseCompareSlashArgs('AMD 2026-03-13')).toEqual({ symbol: 'AMD', day: '2026-03-13' })
-    expect(parseCompareSlashArgs('amd 3/13/26')).toEqual({ symbol: 'AMD', day: '2026-03-13' })
-    const thisYear = new Date().getFullYear()
-    expect(parseCompareSlashArgs('amd 3/13')).toEqual({ symbol: 'AMD', day: `${thisYear}-03-13` })
+    expect(parseCompareSlashArgs('AMD 2026-03-13')).toEqual({ symbol: 'AMD', day: '2026-03-13', tf: 'D' })
+    expect(parseCompareSlashArgs('amd 3/13/26')).toEqual({ symbol: 'AMD', day: '2026-03-13', tf: 'D' })
+    // Yearless M/D resolves via the future-rollback rule — pin the M-D half
+    // and symbol so this doesn't time-bomb each January–March.
+    expect(parseCompareSlashArgs('amd 3/13').symbol).toBe('AMD')
+    expect(parseCompareSlashArgs('amd 3/13').day.endsWith('-03-13')).toBe(true)
     expect(parseCompareSlashArgs('AMD notadate')).toBeNull()
     expect(parseCompareSlashArgs('AMD 13/45')).toBeNull()
     expect(parseCompareSlashArgs('AMD')).toBeNull()
+    // Optional tf (panel batch 3): compare at execution granularity.
+    expect(parseCompareSlashArgs('AMD 3/13/2026 15m'))
+      .toEqual({ symbol: 'AMD', day: '2026-03-13', tf: '15' })
+    expect(parseCompareSlashArgs('AMD 15m 3/13/2026'))
+      .toEqual({ symbol: 'AMD', day: '2026-03-13', tf: '15' })
+    // A tf WITHOUT a day is still nothing — the day is the preset's anchor.
+    expect(parseCompareSlashArgs('AMD 15m')).toBeNull()
 
     expect(parseDayToken('2026-3-9')).toBe('2026-03-09')
     expect(parseDayToken('2026-13-09')).toBeNull()

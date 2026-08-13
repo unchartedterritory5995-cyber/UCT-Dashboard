@@ -23,6 +23,7 @@ import MultiChartMenu from './grid/MultiChartMenu'
 import useMultiChartState from './grid/useMultiChartState'
 import PopoutWindow from './popout/PopoutWindow'
 import PopoutShell from './popout/PopoutShell'
+import { useJournalToast, JournalToast } from '../journal-2-0/lib/useJournalToast'
 import PoppedLayout from './popout/PoppedLayout'
 import PeriodSortPanel from './PeriodSortPanel'
 import CompareSymbolsPanel from './CompareSymbolsPanel'
@@ -1112,6 +1113,27 @@ export default function ChartsWorkspace() {
   const gridSpikeRequested = isAdmin && typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).has('gridspike')
   const gridMode = mc.state.mode === 'grid' || gridSpikeRequested
+
+  // Ctrl+Alt+J with NO hovered chart: every ChartWidget declines (capture
+  // demands an explicit owner — see the widget's own listener) and the press
+  // died silently (panel finding: a no-op hotkey teaches "it's broken"). One
+  // workspace-level listener names the gesture. Grid cells don't implement
+  // capture, so the hint would mislead there.
+  const [jwHotkeyMsg, setJwHotkeyMsg] = useJournalToast()
+  const jwHotkeyCtx = useRef({ gridMode })
+  jwHotkeyCtx.current = { gridMode }
+  useEffect(() => {
+    const onKey = (e) => {
+      if (!(e.ctrlKey && e.altKey && (e.key === 'j' || e.key === 'J'))) return
+      if (jwHotkeyCtx.current.gridMode) return
+      if (activeChartRef.current != null) return
+      e.preventDefault()
+      setJwHotkeyMsg('Hover a chart first — Ctrl+Alt+J captures the hovered chart')
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   // Grid-kind templates live in the same /api/charts/layouts store; keep them
   // out of the workspace Open-layout menu (their {widgets:[]} shape would
   // apply as a blank board) — the Multi Charts dropdown lists them instead.
@@ -1244,6 +1266,9 @@ export default function ChartsWorkspace() {
   return (
     <WorkspaceContext.Provider value={workspaceValue}>
       <div className={styles.workspace} data-charts-theme={chartsTheme}>
+        {/* Workspace-level capture-hotkey hint (fixed: it answers a keypress
+            that has no widget anchor). Below the popup band (8500+). */}
+        <JournalToast msg={jwHotkeyMsg} style={{ position: 'fixed', top: 58, right: 16, zIndex: 8400 }} />
         <header className={styles.workspaceHeader}>
           <span className={styles.workspaceTitle}><UIcon name="equity" size={14} style={{ verticalAlign: '-2px', marginRight: 5 }} />Charts</span>
           {/* WIDGETS — add a widget (opens the widget-type menu) or merge the board. */}

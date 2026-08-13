@@ -1,6 +1,6 @@
 import { useEditor, EditorContent } from '@tiptap/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import useSWR from 'swr'
+import useSWR, { mutate as globalMutate } from 'swr'
 import { buildExtensions, uploadInlineImage } from '../../lib/tiptap'
 import { useJ2Note } from '../../hooks/useJ2Notes'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
@@ -34,16 +34,37 @@ const RETRY_BACKOFFS_MS = [1000, 2000, 4000, 8000, 15000, 30000]
 // The capture inbox tray: hotkey captures banked during the session, offered
 // for placement while writing. Renders nothing when the inbox is empty (the
 // common case costs one lightweight GET). Insert lands the embed at the
-// cursor and consumes the row; ✕ discards it.
+// cursor; the row is CONSUMED only after the save that persists the embed
+// succeeds (onPlaced → the page's commitSave) — deleting on insert lost the
+// capture on both ends whenever that save failed (panel finding). ✕ arms a
+// two-step confirm: the delete is unrecoverable and sat one misclick from
+// Insert (the 8/10 builder-sweep defect class).
 const _inboxFetcher = (url) => fetch(url, { credentials: 'include' }).then((r) => (r.ok ? r.json() : { captures: [] }))
-function CaptureInboxTray({ editor }) {
+// Age suffix for a capture chip ≥24h old — a stale capture inserted as
+// "today's" is wrong evidence (its capturedAt is honest; the CHIP wasn't).
+function _capAgeText(capturedAt) {
+  const t = Date.parse(capturedAt || '')
+  if (!Number.isFinite(t)) return null
+  const days = Math.floor((Date.now() - t) / (24 * 60 * 60 * 1000))
+  return days >= 1 ? `${days}d ago` : null
+}
+export function CaptureInboxTray({ editor, onPlaced }) {
   const { data, mutate } = useSWR('/api/j2/inbox', _inboxFetcher, {
     revalidateOnFocus: true, dedupingInterval: 15000,
   })
-  const captures = data?.captures || []
+  // Rows placed this session but not yet consumed (their DELETE waits on the
+  // next successful save) — a focus revalidation must not resurrect them.
+  const placedIdsRef = useRef(new Set())
+  const [confirmId, setConfirmId] = useState(null)
+  useEffect(() => {
+    if (confirmId == null) return undefined
+    const t = setTimeout(() => setConfirmId(null), 2500)
+    return () => clearTimeout(t)
+  }, [confirmId])
+  const captures = (data?.captures || []).filter((c) => !placedIdsRef.current.has(c.id))
   if (!editor || !captures.length) return null
 
-  const place = async (cap) => {
+  const place = (cap) => {
     // Insert AT THE CURSOR when the user has one, at the END otherwise —
     // with two guards (both review-found):
     // 1. Never insert into a NodeSelection (or the untouched initial
@@ -60,10 +81,17 @@ function CaptureInboxTray({ editor }) {
         fallback: cap.fallbackUrl ? { url: cap.fallbackUrl } : null,
       }).run()
     if (!ok) return
-    await fetch(`/api/j2/inbox/${cap.id}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
-    mutate()
+    placedIdsRef.current.add(cap.id)
+    onPlaced?.(cap.id)
+    // Hide locally now; the authoritative DELETE fires after the save lands.
+    mutate({ captures: (data?.captures || []).filter((c) => c.id !== cap.id) }, false)
   }
   const discard = async (cap) => {
+    if (confirmId !== cap.id) {
+      setConfirmId(cap.id)
+      return
+    }
+    setConfirmId(null)
     await fetch(`/api/j2/inbox/${cap.id}`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
     mutate()
   }
@@ -78,29 +106,35 @@ function CaptureInboxTray({ editor }) {
       <span style={{ color: 'var(--ut-gold, #c9a84c)', fontWeight: 700 }}>
         Notebook inbox ({captures.length})
       </span>
-      {captures.map((cap) => (
-        <span key={cap.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-          <button
-            type="button"
-            onClick={() => place(cap)}
-            title="Insert at cursor"
-            style={{
-              background: 'none', border: '1px solid var(--border, #333)', borderRadius: 6,
-              color: 'var(--text, #cfcfcf)', padding: '2px 8px', cursor: 'pointer', font: 'inherit',
-            }}
-          >
-            {cap.searchText || cap.widgetId}
-          </button>
-          <button
-            type="button"
-            onClick={() => discard(cap)}
-            aria-label="Discard capture"
-            style={{ background: 'none', border: 'none', color: 'var(--text-dim, #777)', cursor: 'pointer', font: 'inherit' }}
-          >
-            ✕
-          </button>
-        </span>
-      ))}
+      {captures.map((cap) => {
+        const age = _capAgeText(cap.capturedAt)
+        return (
+          <span key={cap.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            <button
+              type="button"
+              onClick={() => place(cap)}
+              title={`Insert at cursor${cap.capturedAt ? ` — captured ${new Date(cap.capturedAt).toLocaleDateString()}` : ''}`}
+              style={{
+                background: 'none', border: '1px solid var(--border, #333)', borderRadius: 6,
+                color: 'var(--text, #cfcfcf)', padding: '2px 8px', cursor: 'pointer', font: 'inherit',
+              }}
+            >
+              {cap.searchText || cap.widgetId}
+              {age && <span style={{ color: 'var(--text-dim, #777)', marginLeft: 5, fontSize: 11 }}>· {age}</span>}
+            </button>
+            <button
+              type="button"
+              onClick={() => discard(cap)}
+              aria-label={confirmId === cap.id ? 'Confirm discard' : 'Discard capture'}
+              style={confirmId === cap.id
+                ? { background: 'none', border: '1px solid var(--ut-gold, #c9a84c)', borderRadius: 6, color: 'var(--ut-gold, #c9a84c)', padding: '2px 7px', cursor: 'pointer', font: 'inherit', fontSize: 11 }
+                : { background: 'none', border: 'none', color: 'var(--text-dim, #777)', cursor: 'pointer', font: 'inherit' }}
+            >
+              {confirmId === cap.id ? 'Discard?' : '✕'}
+            </button>
+          </span>
+        )
+      })}
     </div>
   )
 }
@@ -120,6 +154,18 @@ export default function NoteEditorPage({ noteId, onBack }) {
   // after our baseline. We merge the missing embeds in and retry ONCE — a
   // second consecutive 409 surfaces as a save error instead of looping.
   const conflictRetriedRef = useRef(false)
+  // Inbox rows placed into the doc this session, consumed only AFTER the
+  // save that persists them succeeds — a failed save must leave the capture
+  // recoverable in the inbox (panel finding; the tray hides them locally).
+  const pendingInboxConsumeRef = useRef(new Set())
+  const consumePlacedCaptures = () => {
+    const ids = [...pendingInboxConsumeRef.current]
+    if (!ids.length) return
+    pendingInboxConsumeRef.current.clear()
+    Promise.all(ids.map((id) =>
+      fetch(`/api/j2/inbox/${id}`, { method: 'DELETE', credentials: 'include' }).catch(() => {}),
+    )).then(() => globalMutate('/api/j2/inbox')).catch(() => {})
+  }
   // Latest-callback refs. TipTap's useEditor freezes the `onUpdate` closure
   // at editor-creation time and React's setTimeout fires whichever closure
   // was scheduled — both routes capture stale `title`/`subtitle`. Reading
@@ -336,6 +382,8 @@ export default function NoteEditorPage({ noteId, onBack }) {
       setSaveStatus('saved')
       setSaveErrorMsg('')
       retryAttemptsRef.current = 0
+      // The embeds this save just persisted are safe — consume their inbox rows.
+      consumePlacedCaptures()
     } catch (e) {
       const status = e?.status
       if (status === 409 && !conflictRetriedRef.current) {
@@ -585,7 +633,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
           </div>
         )}
 
-        <CaptureInboxTray editor={editor} />
+        <CaptureInboxTray editor={editor} onPlaced={(id) => pendingInboxConsumeRef.current.add(id)} />
 
         <EditorContent editor={editor} />
 

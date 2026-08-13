@@ -55,18 +55,44 @@
 
 .body {
   /* The container-query root the workspace widgets expect (.widgetBody parity)
-     — plus a real height supplied inline when a live component mounts. */
+     — plus a real height supplied inline when a live component mounts.
+     position:relative anchors the as-of chip. */
   container-type: inline-size;
+  position: relative;
   min-height: 42px;
 }
 
 .archived { margin: 0; }
 .archivedImg { display: block; max-width: 100%; height: auto; }
-.archivedLabel {
-  padding: 4px 10px;
-  font-size: 11px;
-  color: var(--text-dim, #8a8a8a);
+
+/* ONE footer treatment (panel finding: the archived label and the caption
+   rendered as two systems — different size, color and padding on the same
+   frame edge). The archived label keeps only its identity, not its own look. */
+.archivedLabel,
+.caption {
+  padding: 5px 10px 7px;
+  font-size: 11.5px;
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+  color: var(--text-dim, #9a9a9a);
   border-top: 1px solid var(--border, #2a2a2a);
+}
+
+/* The frozen-evidence date on a live-RENDERED snapshot (bottom-left, over the
+   chart's time axis corner — small, dim, archived with the pixels). */
+.asOfChip {
+  position: absolute;
+  bottom: 6px;
+  left: 8px;
+  z-index: 2;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  color: var(--text-dim, #9a9a9a);
+  background: rgba(12, 12, 12, 0.72);
+  border: 1px solid var(--border, #2a2a2a);
+  pointer-events: none;
 }
 
 .placeholder {
@@ -74,6 +100,7 @@
   align-items: baseline;
   gap: 10px;
   padding: 12px 14px;
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
   font-size: 13px;
 }
 .placeholderLine { color: var(--text, #cfcfcf); font-weight: 600; }
@@ -91,8 +118,23 @@
   gap: 4px;
 }
 .frame:hover .toolbar,
+.frame:focus-within .toolbar,
 .selected .toolbar,
 .annotating .toolbar { display: inline-flex; }
+/* Touch has no hover: the toolbar is always visible and its controls meet the
+   44px tap floor (canonical --tap-min; panel finding — Freeze/Draw/Remove were
+   unreachable on phones). Desktop keeps the compact hover-reveal. */
+@media (hover: none) {
+  .toolbar { display: inline-flex; }
+  .toolBtn, .toolSelect {
+    min-height: var(--tap-min, 44px);
+    min-width: 34px;
+    padding: 8px 12px;
+  }
+  /* Doubled selector out-specifies the hover-state reposition below — a tap
+     can still set :hover on touch, and 32px would sit under the 44px toolbar. */
+  .frame .liveBadge, .frame:hover .liveBadge { top: 56px; }
+}
 /* While drawing, keep the frame visibly in-mode and its Done button findable. */
 .annotating { border-color: var(--ut-gold, #c9a84c); }
 /* Drawing needs canvas, not a postage stamp: while annotating, ANY embed
@@ -122,12 +164,15 @@
    where Done now lives. The author is actively editing this embed — the badge
    returns on Done. */
 .annotating .liveBadge { display: none; }
+/* Chrome inside the prose column inherits the editor's reading font — every
+   control/badge/label pins the app face instead (panel finding). */
 .toolBtn {
   padding: 2px 8px;
   border-radius: 5px;
   border: 1px solid var(--border, #333);
   background: var(--panel, rgba(12, 12, 12, 0.92));
   color: var(--text, #cfcfcf);
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
   font-size: 11px;
   cursor: pointer;
 }
@@ -146,12 +191,14 @@
   border: 1px solid var(--border, #333);
   background: var(--panel, rgba(12, 12, 12, 0.92));
   color: var(--text, #cfcfcf);
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
   font-size: 11px;
   cursor: pointer;
 }
 .toolSelect:hover { border-color: var(--ut-gold, #c9a84c); }
 .toolbarMsg {
   color: var(--ut-gold, #c9a84c);
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
   font-size: 11px;
   padding-right: 4px;
 }
@@ -164,6 +211,7 @@
   right: 8px;
   padding: 1px 7px;
   border-radius: 4px;
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -172,9 +220,3 @@
   pointer-events: none;
 }
 
-.caption {
-  padding: 5px 10px 7px;
-  font-size: 12px;
-  color: var(--text-dim, #9a9a9a);
-  border-top: 1px solid var(--border, #2a2a2a);
-}

@@ -20,6 +20,8 @@ import ThemeTrackerSettingsPanel from './theme-tracker/ThemeTrackerSettingsPanel
 import { THEME_TRACKER_SETTINGS_KEY, THEME_TRACKER_DEFAULTS, THEME_TRACKER_BASE_FONT_PX, mergeThemeTrackerSettings, themeTrackerStyleVars, themeTrackerDefaultsForTheme } from './theme-tracker/themeTrackerSettings'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import useRealtimeBarPrices, { pickFreshPrice } from '../hooks/useRealtimeBarPrices'
+import { sendCaptureToJournal } from './journal-2-0/lib/sendToJournal'
+import { useJournalToast, JournalToast } from './journal-2-0/lib/useJournalToast'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
 // market clock, timeframe bar, market-cap/earnings/UCT-rating meta, settings
@@ -483,6 +485,35 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
     return sortedThemes.filter(theme => themeMatches(theme, q))
   }, [sortedThemes, debouncedSearch, themeMatches])
 
+  // ── Send the ranking to the Journal (page-seam capture door — panel batch
+  // 3). The widget has no chrome of its own (it IS this page), so the door
+  // rides the search row beside the gear. Payload freeze (owner-approved):
+  // the VISIBLE leaderboard — ETF ticker, theme name, period return, top
+  // holdings — as it stands; the taxonomy versions forward and returns have
+  // no as-of endpoint, so the capture is the only record of that ranking.
+  const [journalMsg, setJournalMsg] = useJournalToast()
+  const sendThemesToJournal = useCallback(async () => {
+    setJournalMsg('sending…')
+    const rows = filteredThemes.slice(0, 40).map((t) => {
+      const pct = groupReturn(t, activeKey)
+      const top = [...(t.holdings || [])]
+        .sort((a, b) => (b.returns?.[activeKey] ?? -Infinity) - (a.returns?.[activeKey] ?? -Infinity))
+        .slice(0, 3).map((h) => h.sym).join(' · ')
+      return {
+        sym: t.ticker,
+        note: t.name,
+        ...(Number.isFinite(pct) ? { chgPct: pct } : {}),
+        ...(top ? { extraValue: top } : {}),
+      }
+    })
+    setJournalMsg(await sendCaptureToJournal('themes', {
+      period: activeKey, sortDir,
+      ...(openTheme ? { openTheme } : {}),
+      ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
+      rows,
+    }, { label: `Themes ${PERIOD_LABELS[activeKey] || activeKey}` }))
+  }, [filteredThemes, activeKey, sortDir, openTheme, debouncedSearch, setJournalMsg])
+
   // While searching, open the FIRST matching theme (accordion stays single-open).
   useEffect(() => {
     const q = debouncedSearch.trim().toLowerCase()
@@ -660,6 +691,9 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
           themeVars={ttMenuVars}
         />
       )}
+      {/* Send-to-Journal confirmation for the ranking door (fixed: reads the
+          same in page and widget hosts; below the popup band). */}
+      <JournalToast msg={journalMsg} style={{ position: 'fixed', top: 58, right: 16, zIndex: 8400 }} />
 
       {/* ── Left panel ── */}
       <div className={styles.leftPanel}>
@@ -687,6 +721,16 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
           />
           {search && (
             <button className={styles.searchClear} onClick={() => setSearch('')}>×</button>
+          )}
+          {/* → Journal: freeze the visible ranking into a note (payload
+              capture — owner decision). Door-left-of-gear, the house cluster. */}
+          {filteredThemes.length > 0 && (
+            <button
+              className={styles.settingsBtn}
+              onClick={sendThemesToJournal}
+              title="Send this ranking to Journal (frozen list)"
+              aria-label="Send this ranking to Journal"
+            ><UIcon name="journal" size={14} /></button>
           )}
           {/* ⚙ Theme Tracker settings — rides the search row (a gear on its own
               wrapped period-bar row wasted a full strip of vertical space). */}

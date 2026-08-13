@@ -111,8 +111,10 @@ export function widgetItems(query) {
       const args = parseChartSlashArgs(rest)
       if (args) {
         out.push({
-          title: `Chart — ${args.symbol} · ${tfText(args.tf)}`,
-          description: 'Insert a frozen chart snapshot',
+          title: `Chart — ${args.symbol} · ${tfText(args.tf)}${args.day ? ` @ ${fmtDayTitle(args.day)}` : ''}`,
+          description: args.day
+            ? 'Insert a chart anchored at that date'
+            : 'Insert a frozen chart snapshot',
           command: ({ editor, range }) => {
             // settings: the user's merged chart theme, stamped into editor
             // storage by NoteEditorPage — frozen at insert so a March embed
@@ -120,16 +122,23 @@ export function widgetItems(query) {
             // the door captures always froze it, only the typed paths drifted).
             const settings = editor.storage?.uctJournalWidgets?.chartSettings
             editor.chain().focus().deleteRange(range)
-              .insertWidgetEmbed('chart', { symbol: args.symbol, tf: args.tf, ...(settings ? { settings } : {}) }).run()
+              .insertWidgetEmbed('chart', {
+                symbol: args.symbol, tf: args.tf,
+                // An explicit day anchors the window there; otherwise
+                // buildWidgetEmbedAttrs stamps the insert moment (frozen
+                // means anchored).
+                ...(args.day ? { to: args.day } : {}),
+                ...(settings ? { settings } : {}),
+              }).run()
           },
         })
       } else if (!rest) {
         // The hint renders ONLY for a bare '/chart' — once free text follows
-        // that doesn't parse as SYMBOL [tf], the menu must offer NOTHING so
-        // Enter stays a newline and the prose survives.
+        // that doesn't parse as SYMBOL [tf] [date], the menu must offer
+        // NOTHING so Enter stays a newline and the prose survives.
         out.push({
           title: 'Chart',
-          description: 'Type a symbol — e.g. /chart AMD 15m',
+          description: 'Type a symbol — e.g. /chart AMD 15m or /chart AMD D 3/13',
           command: ({ editor, range }) => {
             editor.chain().focus().deleteRange(range).insertContent('/chart ').run()
           },
@@ -169,19 +178,20 @@ export function widgetItems(query) {
   if (singleToken ? 'compare'.startsWith(first) : first === 'compare') {
     const args = restAfterName ? parseCompareSlashArgs(restAfterName) : null
     if (args) {
+      const tfSuffix = args.tf !== 'D' ? ` · ${tfText(args.tf)}` : ''
       out.push({
-        title: `Before / after — ${args.symbol} @ ${fmtDayTitle(args.day)}`,
-        description: 'Two half-width dailies: window ending that day vs now',
+        title: `Before / after — ${args.symbol} @ ${fmtDayTitle(args.day)}${tfSuffix}`,
+        description: `Two half-width ${args.tf === 'D' ? 'dailies' : `${tfText(args.tf)} charts`}: window ending that day vs now`,
         command: ({ editor, range }) => {
           const settings = editor.storage?.uctJournalWidgets?.chartSettings
           const frozen = settings ? { settings } : {}
           editor.chain().focus().deleteRange(range).insertContent([
-            widgetSlotNode('chart', { symbol: args.symbol, tf: 'D', to: args.day, ...frozen },
+            widgetSlotNode('chart', { symbol: args.symbol, tf: args.tf, to: args.day, ...frozen },
               { layout: { width: 'half' }, caption: `before · ${args.day}` }),
             // to: null = the EXPLICIT rolling-window opt-out (buildWidgetEmbedAttrs
             // stamps the insert moment on undefined) — "after · now" is the one
             // embed whose caption promises it tracks now.
-            widgetSlotNode('chart', { symbol: args.symbol, tf: 'D', to: null, ...frozen },
+            widgetSlotNode('chart', { symbol: args.symbol, tf: args.tf, to: null, ...frozen },
               { layout: { width: 'half' }, caption: 'after · now' }),
           ]).run()
         },
@@ -189,7 +199,7 @@ export function widgetItems(query) {
     } else if (!restAfterName) {
       out.push({
         title: 'Before / after',
-        description: 'Type symbol + day — e.g. /compare AMD 3/13',
+        description: 'Type symbol + day — e.g. /compare AMD 3/13 (add 15m for intraday)',
         command: ({ editor, range }) => {
           editor.chain().focus().deleteRange(range).insertContent('/compare ').run()
         },
@@ -202,8 +212,16 @@ export function widgetItems(query) {
 const SlashList = forwardRef((props, ref) => {
   const [selectedIndex, setSelectedIndex] = useState(0)
   const items = props.items
+  const menuId = props.menuId || 'uct-slash-menu'
 
   useEffect(() => setSelectedIndex(0), [items])
+
+  // ARIA combobox wiring: the render() closure points the EDITOR's
+  // aria-activedescendant at the active option (the editor is the focused
+  // element — an activedescendant on the unfocused listbox itself is inert).
+  useEffect(() => {
+    props.onActiveChange?.(items.length ? `${menuId}-opt-${selectedIndex}` : null)
+  }, [selectedIndex, items, menuId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useImperativeHandle(ref, () => ({
     onKeyDown: ({ event }) => {
@@ -232,11 +250,14 @@ const SlashList = forwardRef((props, ref) => {
   if (!items.length) return null
 
   return (
-    <div className={styles.menu}>
+    <div className={styles.menu} role="listbox" id={menuId} aria-label="Insert block">
       {items.map((item, i) => (
         <button
           key={item.title}
           type="button"
+          role="option"
+          id={`${menuId}-opt-${i}`}
+          aria-selected={i === selectedIndex}
           className={`${styles.item} ${i === selectedIndex ? styles.itemActive : ''}`}
           onMouseDown={(e) => { e.preventDefault(); props.command(item) }}
           onMouseEnter={() => setSelectedIndex(i)}
@@ -275,45 +296,101 @@ export const SlashMenuExtension = Extension.create({
           return [...ITEMS.filter((it) => it.title.toLowerCase().includes(q)), ...widgets]
         },
         render: () => {
+          // One renderer object serves EVERY suggestion session, so all of
+          // this closure state must reset in onStart.
           let component
           let popup
+          let dismissed = false      // Esc hides for THIS session; next '/' re-arms
+          let getRect = null
+          let editorDom = null
+          const MENU_ID = 'uct-slash-menu'
+
+          // Fixed-position popup + a scrolling editor: without reposition the
+          // menu detaches from the caret the moment the note scrolls (the app
+          // scrolls the inner .main element, hence capture-phase). Clamp keeps
+          // it inside the viewport; when it would cross the bottom edge it
+          // flips above the caret.
+          const position = () => {
+            if (!popup || dismissed) return
+            const rect = getRect?.()
+            if (!rect) return
+            const menuW = popup.offsetWidth || 0
+            const menuH = popup.offsetHeight || 0
+            const left = Math.max(8, Math.min(rect.left, window.innerWidth - menuW - 8))
+            let top = rect.bottom + 6
+            if (menuH && top + menuH > window.innerHeight - 8) {
+              const above = rect.top - 6 - menuH
+              top = above >= 8 ? above : Math.max(8, window.innerHeight - 8 - menuH)
+            }
+            popup.style.left = `${left}px`
+            popup.style.top = `${top}px`
+          }
+          const onViewportChange = () => position()
+
+          // The editor is the focused element, so it carries the combobox
+          // wiring: aria-controls names the listbox, aria-activedescendant
+          // tracks the highlighted option (SlashList reports through
+          // onActiveChange). Cleared whenever the menu isn't offering items.
+          const setActiveDescendant = (id) => {
+            if (!editorDom) return
+            if (id && !dismissed) {
+              editorDom.setAttribute('aria-controls', MENU_ID)
+              editorDom.setAttribute('aria-activedescendant', id)
+            } else {
+              editorDom.removeAttribute('aria-controls')
+              editorDom.removeAttribute('aria-activedescendant')
+            }
+          }
+
           return {
             onStart: (props) => {
+              dismissed = false
+              getRect = props.clientRect
+              editorDom = props.editor?.view?.dom || null
               component = new ReactRenderer(SlashList, {
-                props,
+                props: { ...props, menuId: MENU_ID, onActiveChange: setActiveDescendant },
                 editor: props.editor,
               })
               popup = document.createElement('div')
               popup.className = styles.popupWrap
               popup.style.position = 'fixed'
               popup.style.zIndex = 9999
-              const rect = props.clientRect?.()
-              if (rect) {
-                popup.style.left = `${rect.left}px`
-                popup.style.top = `${rect.bottom + 6}px`
-              }
               popup.appendChild(component.element)
               document.body.appendChild(popup)
+              position()
+              // Post-mount second pass: the first ran before layout knew the
+              // menu's size, so the clamp/flip had nothing to measure.
+              requestAnimationFrame(position)
+              window.addEventListener('scroll', onViewportChange, true)
+              window.addEventListener('resize', onViewportChange)
             },
             onUpdate(props) {
-              component?.updateProps(props)
-              const rect = props.clientRect?.()
-              if (rect && popup) {
-                popup.style.left = `${rect.left}px`
-                popup.style.top = `${rect.bottom + 6}px`
-              }
+              getRect = props.clientRect
+              component?.updateProps({ ...props, menuId: MENU_ID, onActiveChange: setActiveDescendant })
+              position()
             },
             onKeyDown(props) {
               if (props.event.key === 'Escape') {
-                popup?.remove()
-                component?.destroy()
+                // Hide, don't destroy: the suggestion session stays alive (the
+                // '/' text is still there), so keep receiving updates silently
+                // and let every key fall through to the editor. The next
+                // '/' session re-arms via onStart.
+                dismissed = true
+                if (popup) popup.style.display = 'none'
+                setActiveDescendant(null)
                 return true
               }
+              if (dismissed) return false
               return component?.ref?.onKeyDown?.(props) ?? false
             },
             onExit() {
+              window.removeEventListener('scroll', onViewportChange, true)
+              window.removeEventListener('resize', onViewportChange)
+              setActiveDescendant(null)
               popup?.remove()
               component?.destroy()
+              popup = null
+              component = null
             },
           }
         },
