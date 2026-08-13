@@ -4,6 +4,7 @@ import {
   resolveEmbedRender, embedAutoCaption, countLiveEmbeds, LIVE_EMBEDS_PER_ENTRY,
   retimeChartParams, embedRenderHeight,
 } from '../../lib/widgetEmbedCore'
+import { widgetMeta } from '../../../../widgets/registry'
 import { captureElementPng, storeFallbackImage, kickSnapshotWarm } from '../../lib/embedArchive'
 import styles from './WidgetEmbedView.module.css'
 
@@ -20,8 +21,11 @@ const ARCHIVE_MAX_RETRIES = 5
 // The journal's widget-component bindings — which registry ids can mount LIVE
 // inside a note, and with what renderer. Everything else renders its archived
 // image. Lazy so opening a note with no live embeds never loads chart code.
+// ⚠️ A registry entry flipped reconstructable WITHOUT a binding here degrades
+// to its archive (never crashes) — flip both together.
 const EMBED_COMPONENTS = {
   chart: lazy(() => import('./ChartEmbed')),
+  calendar: lazy(() => import('./CalendarEmbed')),
 }
 
 // The never-a-broken-embed rule, enforced at the React layer too: any render
@@ -346,7 +350,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
               ))}
             </select>
           )}
-          {!annotate && (
+          {!annotate && widgetMeta(attrs.widgetId)?.liveCapable === true && (
             <button type="button" className={styles.toolBtn} onClick={toggleLive}
               title={attrs.mode === 'live' ? 'Freeze to snapshot' : `Go live (max ${LIVE_EMBEDS_PER_ENTRY}/entry)`}>
               {attrs.mode === 'live' ? 'Snapshot' : 'Live'}

@@ -17,6 +17,7 @@ import {
 } from '../chartTabs'
 import { buildWidgetEmbedAttrs } from '../../journal-2-0/lib/widgetEmbedCore'
 import { kickSnapshotWarm } from '../../journal-2-0/lib/embedArchive'
+import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 
 // LWC time → a ts param (epoch seconds intraday; 'YYYY-MM-DD' for the
 // business-day objects D/W/M ranges report). The registry's `ts` coercion
@@ -320,34 +321,10 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
 
   const handleSendToJournal = useCallback(async () => {
     closeCtx()
-    const attrs = buildWidgetEmbedAttrs('chart', buildJournalCapture())
-    kickSnapshotWarm(attrs.params)
-    let last = null
-    try { last = JSON.parse(localStorage.getItem('uct.jw.lastNote') || 'null') } catch { /* noop */ }
-    try {
-      if (last?.id) {
-        const res = await fetch(`/api/j2/notes/${last.id}/embeds`, {
-          method: 'POST', credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ attrs }),
-        })
-        if (res.ok) { setCtxToast(`${attrs.params.symbol} sent to your last note`); return }
-        // 404 = the note was deleted since — fall through to the inbox.
-      }
-      const res2 = await fetch('/api/j2/inbox', {
-        method: 'POST', credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          widgetId: 'chart', params: attrs.params,
-          searchText: attrs.searchText, capturedAt: attrs.capturedAt,
-        }),
-      })
-      setCtxToast(res2.ok
-        ? `${attrs.params.symbol} captured → Notebook inbox`
-        : 'Capture failed — try again')
-    } catch {
-      setCtxToast('Capture failed — try again')
-    }
+    // Shared wire (sendToJournal.js): last-active note → inbox fallback. The
+    // calendar widget's day-capture door rides the same helper — one flow,
+    // every widget type.
+    setCtxToast(await sendCaptureToJournal('chart', buildJournalCapture()))
   }, [buildJournalCapture, closeCtx])
 
   // One-keystroke capture (Ctrl+Alt+J) — rides the exact hotkey arbitration

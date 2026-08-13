@@ -323,7 +323,11 @@ export const WIDGET_REGISTRY = deepFreeze({
       { key: 'settings', type: 'json' },
     ],
     plainText: (p) => `[calendar: ${p.date}]`,
-    reconstructable: false,                     // #1 upgrade candidate: endpoints are date-parameterized (see plan ledger)
+    // The calendar endpoints are date-parameterized + backfilled, so a
+    // captured day re-renders live at any horizon (CalendarEmbed mounts the
+    // real widget under the frozen workspace host with the date restored).
+    // Residuals accepted: section sort state + live-mcap ordering.
+    reconstructable: true,
     liveCapable: false,
   },
   optionsflow: {
