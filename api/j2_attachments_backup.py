@@ -66,13 +66,15 @@ def _retain_days() -> int:
 
 
 def _attachment_root() -> Path:
-    """The tree to back up. Respects J2_ATTACHMENT_ROOT (same env calendar.py
-    reads); falls back to calendar's computed default so the two never diverge."""
-    env = os.environ.get("J2_ATTACHMENT_ROOT")
-    if env:
-        return Path(env)
-    from api.services.journal_two.calendar import _ATTACHMENT_ROOT
-    return Path(_ATTACHMENT_ROOT)
+    """The tree to back up — the ONE authority every attachment writer uses
+    (api/services/journal_two/attachment_root.py), so this can never tar a
+    different directory than the one being written to.
+
+    ⛔ It could before: the shared default was repo-relative, i.e. ephemeral
+    container storage on Railway, so this backup dutifully archived a tree that
+    every redeploy had just emptied."""
+    from api.services.journal_two.attachment_root import attachment_root
+    return attachment_root()
 
 
 # --- R2 client (reuses the bars-rail DATA_SYNC_* creds) ----------------------

@@ -28,12 +28,13 @@ MAX_TAGS = 30
 MAX_TICKER_LENGTH = 16
 MAX_FOLDER_DEPTH = 6
 
-_ATTACHMENT_ROOT = Path(
-    os.environ.get(
-        "J2_ATTACHMENT_ROOT",
-        str(Path(__file__).resolve().parents[3] / "data" / "j2_attachments"),
-    )
+from api.services.journal_two.attachment_root import (
+    attachment_root as _attachment_root, read_candidates as _read_candidates,
 )
+
+# ⛔ Was `<repo>/data/j2_attachments` — ephemeral container storage on Railway;
+# every redeploy wiped every note image. One authority now (attachment_root.py).
+_ATTACHMENT_ROOT = _attachment_root()
 _ALLOWED_IMAGE_MIMES = {"image/png", "image/jpeg", "image/gif", "image/webp"}
 _MAX_IMAGE_BYTES = 5 * 1024 * 1024
 _ALLOWED_FILE_MIMES = {
@@ -1215,15 +1216,19 @@ def serve_note_image_path(
         return None
     if "/" in filename or "\\" in filename or filename.startswith("."):
         return None
-    base = _ATTACHMENT_ROOT / user_id / "notes" / note_id / sub
-    target = (base / filename).resolve()
-    try:
-        target.relative_to(base.resolve())
-    except ValueError:
-        return None
-    if not target.exists():
-        return None
-    return target
+    rel = Path(user_id) / "notes" / note_id / sub
+    # Primary root first, then the LEGACY repo-relative tree — a box that still
+    # holds files in the old location keeps serving them after the root moved.
+    # The traversal guard is re-applied per candidate, never skipped.
+    for base in _read_candidates(rel):
+        target = (base / filename).resolve()
+        try:
+            target.relative_to(base.resolve())
+        except ValueError:
+            continue
+        if target.exists():
+            return target
+    return None
 
 
 # ── Playbook → TipTap converter (used by migration in db.py) ─────────────────

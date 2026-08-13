@@ -24,8 +24,12 @@ def conn():
 
 @pytest.fixture
 def root(tmp_path, monkeypatch):
+    """Point BOTH halves at a temp tree: writes read `_ATTACHMENT_ROOT`, reads
+    go through `_read_candidates` (the shared root resolver). Patching only the
+    constant leaves the read path on the real env-derived root."""
     r = tmp_path / "att"
     monkeypatch.setattr(notes_svc, "_ATTACHMENT_ROOT", r)
+    monkeypatch.setattr(notes_svc, "_read_candidates", lambda rel: [r / rel])
     return r
 
 
