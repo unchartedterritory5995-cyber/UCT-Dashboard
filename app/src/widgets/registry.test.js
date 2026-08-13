@@ -243,8 +243,15 @@ describe('widget registry — params layer', () => {
     // a re-render the rails can't serve; archive instead.
     expect(isReconstructable('chart', { symbol: 'A', tf: '45', to: daysAgo(10) })).toBe(false)
     expect(isReconstructable('chart', { symbol: 'A', tf: '45' })).toBe(true)
-    // Every non-chart type is image-only in v1.
-    for (const id of WIDGET_IDS.filter(x => x !== 'chart')) {
+    // Calendar joined chart on the live path (date-parameterized + backfilled
+    // endpoints; CalendarEmbed restores the captured day).
+    expect(isReconstructable('calendar', normalizeParams('calendar', CAPTURE_FIXTURES.calendar))).toBe(true)
+    // AI search replays its CAPTURED thread (never re-queried) — live only
+    // when a conversation actually exists.
+    expect(isReconstructable('aisearch', normalizeParams('aisearch', CAPTURE_FIXTURES.aisearch))).toBe(true)
+    expect(isReconstructable('aisearch', { thread: [] })).toBe(false)
+    // Every OTHER non-chart type stays image-only.
+    for (const id of WIDGET_IDS.filter(x => !['chart', 'calendar', 'aisearch'].includes(x))) {
       expect(isReconstructable(id, normalizeParams(id, CAPTURE_FIXTURES[id])), id).toBe(false)
     }
     // Unknown/removed widget type: image, never a re-render attempt.

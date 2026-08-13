@@ -35,14 +35,21 @@ const noopStore = () => {}
  * - liveUpdates only in mode:'live' (badged, capped); snapshots never
  *   subscribe to anything.
  */
-export default function ChartEmbed({ attrs, height = 320 }) {
+export default function ChartEmbed({
+  attrs, height = 320, annotate = false, onAnnotationsChange = null, onBarsReady = null,
+}) {
   const params = attrs?.params || {}
   const anchorDay = tsToAnchorDay(params.to)
   const live = attrs?.mode === 'live'
+  const annotations = Array.isArray(attrs?.annotations) ? attrs.annotations : []
   const stockChartProps = useMemo(() => ({
     height: '100%',
     liveUpdates: live,
     showDrawingTools: false,
+    // The 3M/6M/YTD range-selector pills float mid-frame at embed sizes and
+    // collide with the legend (owner feedback with screenshots) — an embed's
+    // window is its FROZEN range anyway, so the selector has no job here.
+    showRangeSelector: false,
     // ⭐ SNAPSHOTS USE replayCutoff, NOT anchorDate. anchorDate is view-only
     // framing — it never changes WHAT is fetched, so an old snapshot would
     // fetch a today-ending window, the anchor bar wouldn't be in it, and the
@@ -51,14 +58,33 @@ export default function ChartEmbed({ attrs, height = 320 }) {
     // post-cutoff bars — actual frozen-evidence semantics. Live embeds track
     // now and take no cutoff. ("What happened next" later = swap this for
     // anchorDate on demand.)
-    // ⛔ NO onBarsReady empty-check here: StockChart invokes it with ZERO
-    // arguments (contract '() => void'), so an arg-inspecting callback fires
-    // unconditionally and permanently pins archived embeds to their PNG
-    // (review finding on the first cut). An empty cutoff window rendering an
-    // empty chart is the accepted residual until a real emptiness signal
-    // exists.
+    // onBarsReady is a ZERO-ARG ready signal (contract '() => void') — the
+    // self-archive uses it to avoid rasterizing a still-painting chart.
+    // ⛔ It carries NO data: an arg-inspecting callback fires unconditionally
+    // and permanently pins archived embeds to their PNG (review finding on
+    // the first cut). An empty cutoff window rendering an empty chart is the
+    // accepted residual until a real emptiness signal exists.
+    ...(onBarsReady ? { onBarsReady } : {}),
     ...(!live && anchorDay ? { replayCutoff: anchorDay } : {}),
-  }), [live, anchorDay])
+    // ── Per-embed annotations (owner spec Phase 6 #1) ─────────────────────
+    // StockChart's CONTROLLED annotation layer (the Model Book authoring
+    // system): drawings render from the embed node's own attrs and edits
+    // bubble back via onAnnotationsChange — no localStorage, no global
+    // per-symbol drawing store, so marks on a journal snapshot can never
+    // bleed onto /charts (or vice versa). annotate=true adds the full
+    // drawing toolbar (lines, text, color/width, clear).
+    annotations,
+    annotationsVisible: true,
+    // ⛔ Without this, TEXT marks render at opacity 0 on every fresh mount:
+    // the overlay's textFadeRef starts at 0 and is normally driven by the
+    // Model Book focus-zoom. annotationsTextVisible=true is the designed
+    // no-zoom door (Setup Library uses it): snaps the fade to 1 on mount.
+    // (Authoring masked this — editing paths bypass the fade — so drawn text
+    // vanished only on the NEXT open. Live-audit finding.)
+    annotationsTextVisible: true,
+    annotationsEditable: !!annotate,
+    ...(onAnnotationsChange ? { onAnnotationsChange } : {}),
+  }), [live, anchorDay, annotations, annotate, onAnnotationsChange, onBarsReady])
 
   return (
     <div style={{ height }}>

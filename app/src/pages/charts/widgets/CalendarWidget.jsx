@@ -8,9 +8,10 @@
  * the other widget settings; an uncustomized widget follows the app theme
  * (light → white canvas + dark text, OLED → black canvas + light text).
  */
-import { memo, useCallback, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { useWorkspace } from '../WorkspaceContext'
+import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import usePreferences from '../../../hooks/usePreferences'
 import useTickerMeta from '../../../hooks/useTickerMeta'
 import { menuThemeVars } from '../../../utils/dividerColor'
@@ -223,7 +224,7 @@ function EarningsSection({ title, iconName, cls, items, imMap, mcapMap, onSelect
   )
 }
 
-export default function CalendarWidget({ color, opts, onOptsChange }) {
+export default function CalendarWidget({ color, opts, onOptsChange, journalDoor = true }) {
   const { setGroupSym } = useWorkspace() || {}
   const goToSym = useCallback((sym) => { if (sym && setGroupSym) setGroupSym(color, sym.toUpperCase()) }, [setGroupSym, color])
 
@@ -282,7 +283,12 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
   // OTHER question (`currentWeekMonday`, which rolls a weekend FORWARD), so the
   // two surfaces show different weeks on a Saturday BY DECLARATION. ──
   const todayView = useMemo(() => lastSessionDay(todayET()), [])
-  const [selected, setSelected] = useState(todayView)
+  // Frozen-embed restore seam (journal host): a captured day in opts wins
+  // over "today" — /charts never sets opts.date, so workspace behavior is
+  // byte-identical. Same idiom as aisearch's initialThread.
+  const [selected, setSelected] = useState(() => (
+    typeof opts?.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(opts.date) ? opts.date : todayView
+  ))
   const isToday = selected === todayView
   const [tbdOpen, setTbdOpen] = useState(false)
 
@@ -290,6 +296,22 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
   // Default 3★ (high-impact only) for a new widget; persists once the user changes it. ──
   const econStars = [1, 2, 3].includes(opts?.econStars) ? opts.econStars : 3
   const setEconStars = useCallback((n) => onOptsChange?.({ ...(opts || {}), econStars: n }), [opts, onOptsChange])
+
+  // ── Send this day to the Journal (the non-chart capture door — shares the
+  // chart context menu's exact wire: last-active note → inbox fallback).
+  // Hidden inside a journal embed (journalDoor={false}) — circular there. ──
+  const [journalMsg, setJournalMsg] = useState(null)
+  useEffect(() => {
+    if (!journalMsg) return undefined
+    const t = setTimeout(() => setJournalMsg(null), 2200)
+    return () => clearTimeout(t)
+  }, [journalMsg])
+  const sendDayToJournal = useCallback(async () => {
+    setJournalMsg('sending…')
+    setJournalMsg(await sendCaptureToJournal('calendar', {
+      date: selected, econStars, selectedSym, tbdOpen, settings,
+    }, { label: `Calendar ${selected}` }))
+  }, [selected, econStars, selectedSym, tbdOpen, settings])
 
   // ── Data — the whole week for the selected date (same-week nav reuses the cache).
   // full_impact=1 gets ALL econ impacts + an `impact` level for the star filter. ──
@@ -383,6 +405,14 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
           <span className={styles.dateSub}>{isToday ? <span className={styles.todayPill}>Today</span> : fmtWeekday(selected)}</span>
         </span>
         <button type="button" className={styles.navBtn} onClick={() => setSelected(addTradingDay(selected, 1))} aria-label="Next day">›</button>
+        {journalDoor && (
+          <button
+            type="button"
+            className={styles.gearBtn}
+            onClick={sendDayToJournal}
+            title="Send this day to Journal"
+          ><UIcon name="journal" size={13} /></button>
+        )}
         <button
           ref={settingsBtnRef}
           type="button"
@@ -390,6 +420,7 @@ export default function CalendarWidget({ color, opts, onOptsChange }) {
           onClick={() => setSettingsOpen(o => !o)}
           title="Calendar widget settings"
         ><UIcon name="gear" size={13} /></button>
+        {journalMsg && <span className={styles.journalToast}>{journalMsg}</span>}
       </div>
 
       {/* Body — tabIndex + onKeyDown make it arrow-navigable once a row is clicked. */}

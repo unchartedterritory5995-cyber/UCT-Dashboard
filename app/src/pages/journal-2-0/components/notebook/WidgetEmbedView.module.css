@@ -8,14 +8,48 @@
   overflow: hidden;
   background: var(--panel, #101010);
 }
-.full { width: 100%; }
-/* Two half-width embeds sit side by side for comparison; TipTap keeps them as
-   sibling blocks, so half floats and pairs pack. They stack on phones. */
-.half { width: calc(50% - 6px); display: inline-block; vertical-align: top; }
-.half + .half { margin-left: 12px; }
+/* Full-width embeds BREAK OUT of the prose column (owner feedback: charts in
+   a ~600px text column can never look like a chart-page screenshot). The
+   frame widens toward the viewport — capped so it never crowds the app
+   sidebar — and centers on the column via symmetric negative margins; the
+   view's ResizeObserver height then follows the measured width, so bigger
+   automatically means taller at the same chart-page aspect. clamp() floors at
+   the column width for small windows. */
+.full {
+  --embed-w: clamp(100%, calc(100vw - 220px), 1100px);
+  width: var(--embed-w);
+  margin-left: calc((100% - var(--embed-w)) / 2);
+}
+@media (max-width: 900px) {
+  .full { --embed-w: 100%; }
+}
+/* Two half-width embeds sit side by side for comparison; they stack on
+   phones. ⛔ The pairing MUST live on TipTap's node-view WRAPPER
+   (div.react-renderer.node-widgetEmbed, display:block) — inline-block on the
+   frame inside it can never pair two embeds. That was latent from P6 (halves
+   always stacked) and surfaced the day /compare inserted a real pair. */
+.half { width: 100%; }
+:global(.react-renderer.node-widgetEmbed):has(> .half) {
+  display: inline-block;
+  vertical-align: top;
+  width: calc(50% - 6px);
+}
+:global(.react-renderer.node-widgetEmbed):has(> .half) + :global(.react-renderer.node-widgetEmbed):has(> .half) {
+  margin-left: 12px;
+}
+/* Draw mode outranks the pairing: the wrapper releases the embed so the
+   full-breakout width (below) has room to work. */
+:global(.react-renderer.node-widgetEmbed):has(> .annotating) {
+  display: block;
+  width: 100%;
+  margin-left: 0;
+}
 @media (max-width: 700px) {
-  .half { width: 100%; display: block; }
-  .half + .half { margin-left: 0; }
+  :global(.react-renderer.node-widgetEmbed):has(> .half) {
+    display: block;
+    width: 100%;
+    margin-left: 0;
+  }
 }
 .selected { border-color: var(--ut-gold, #c9a84c); }
 
@@ -57,7 +91,42 @@
   gap: 4px;
 }
 .frame:hover .toolbar,
-.selected .toolbar { display: inline-flex; }
+.selected .toolbar,
+.annotating .toolbar { display: inline-flex; }
+/* While drawing, keep the frame visibly in-mode and its Done button findable. */
+.annotating { border-color: var(--ut-gold, #c9a84c); }
+/* Drawing needs canvas, not a postage stamp: while annotating, ANY embed
+   (half-width included — the drawing toolbar alone barely fits at ~630px)
+   takes the full breakout width; Done restores the stored layout. The
+   sibling of a half pair reflows for the duration — acceptable, and the
+   chart re-proportions automatically via the width-driven height. */
+.frame.annotating {
+  --embed-w: clamp(100%, calc(100vw - 220px), 1100px);
+  width: var(--embed-w);
+  margin-left: calc((100% - var(--embed-w)) / 2);
+  display: block;
+}
+@media (max-width: 900px) {
+  .frame.annotating { --embed-w: 100%; }
+}
+/* Draw mode: StockChart's drawing toolbar owns the embed's top strip (root
+   z-index 5, flyouts 10–20 — measured in ChartToolbar.module.css — and it
+   grows wider once a mark is selected), so at top:6 the embed toolbar is
+   painted over and Done, the only exit, becomes unclickable. Drop the lone
+   Done button below that row and above the toolbar's z-range. */
+.annotating .toolbar {
+  top: 38px;
+  z-index: 30;
+}
+/* The LIVE badge shares the same corner; while drawing it would sit exactly
+   where Done now lives. The author is actively editing this embed — the badge
+   returns on Done. */
+.annotating .liveBadge { display: none; }
+.toolBtnActive {
+  background: var(--ut-gold, #c9a84c);
+  color: #0c0c0c;
+  border-color: var(--ut-gold, #c9a84c);
+}
 .toolBtn {
   padding: 2px 8px;
   border-radius: 5px;

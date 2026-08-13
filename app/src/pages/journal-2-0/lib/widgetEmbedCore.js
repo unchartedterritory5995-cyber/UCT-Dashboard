@@ -29,7 +29,11 @@ export function buildWidgetEmbedAttrs(widgetId, capture = {}, extra = {}) {
     caption: extra.caption || null,             // user free-text only; auto-caption derives at render
     layout: {
       width: extra.layout?.width === 'half' ? 'half' : 'full',
-      height: Number.isFinite(extra.layout?.height) ? extra.layout.height : 320,
+      // null = AUTO: the view derives height from its rendered width at the
+      // chart page's aspect (embedRenderHeight), so an embed is proportioned
+      // like a screenshot of the real chart instead of a full-chrome chart
+      // crammed into a short box (owner feedback after first prod use).
+      height: Number.isFinite(extra.layout?.height) ? extra.layout.height : null,
     },
     searchText: paramsPlainText(widgetId, params),
   }
@@ -67,6 +71,51 @@ export function parseChartSlashArgs(rest) {
   const tf = tokens[1] ? parseTfToken(tokens[1]) : null
   if (tokens[1] && !tf) return null
   return { symbol: tokens[0].toUpperCase(), tf: tf || 'D' }
+}
+
+// ── Composition presets (spec Phase 6 #4/#5): one action → N chart nodes ──
+
+/** The MTF stack's timeframes, top-down (the house read: daily structure →
+ *  hourly context → 15m execution). One preset, not a config surface. */
+export const MTF_STACK_TFS = ['D', '60', '15']
+
+/** Parse the free text after '/mtf' — exactly one symbol → {symbol, tfs}.
+ *  Same strictness contract as /chart: prose must parse as NOTHING. */
+export function parseMtfSlashArgs(rest) {
+  const tokens = String(rest || '').trim().split(/\s+/).filter(Boolean)
+  if (tokens.length !== 1 || !SYMBOL_RE.test(tokens[0])) return null
+  return { symbol: tokens[0].toUpperCase(), tfs: [...MTF_STACK_TFS] }
+}
+
+function validDay(y, mo, d) {
+  if (!Number.isInteger(y) || !Number.isInteger(mo) || !Number.isInteger(d)) return null
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || y < 1990 || y > 2100) return null
+  return `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+}
+
+/** A day token → 'YYYY-MM-DD'. Accepts ISO, M/D (current year), M/D/YY[YY]. */
+export function parseDayToken(tok) {
+  const t = String(tok || '').trim()
+  let m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(t)
+  if (m) return validDay(+m[1], +m[2], +m[3])
+  m = /^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/.exec(t)
+  if (m) {
+    let y = m[3] ? +m[3] : new Date().getFullYear()
+    if (y < 100) y += 2000
+    return validDay(y, +m[1], +m[2])
+  }
+  return null
+}
+
+/** Parse the free text after '/compare' — SYMBOL DAY → the before/after pair
+ *  args ({symbol, day}). The "before" chart freezes its window at DAY via
+ *  replayCutoff; the "after" renders the current window. */
+export function parseCompareSlashArgs(rest) {
+  const tokens = String(rest || '').trim().split(/\s+/).filter(Boolean)
+  if (tokens.length !== 2 || !SYMBOL_RE.test(tokens[0])) return null
+  const day = parseDayToken(tokens[1])
+  if (!day) return null
+  return { symbol: tokens[0].toUpperCase(), day }
 }
 
 /** The render-path decision for one embed — the never-a-broken-embed chain.
@@ -137,6 +186,24 @@ export function tsToEpochSecondsPublic(v) {
 
 /** Live embeds allowed per entry (owner decision #11). */
 export const LIVE_EMBEDS_PER_ENTRY = 3
+
+// The v1 default embed height. Every embed created before auto-height stored
+// this literal (nobody ever CHOSE it — it was only ever the default), so the
+// renderer treats a stored 320 as auto too rather than freezing early embeds
+// in the cramped look this replaced.
+export const EMBED_LEGACY_DEFAULT_HEIGHT = 320
+
+/** The height an embed renders at. Explicit user-set heights win; null/legacy-
+ *  default derive from the rendered WIDTH at ~the chart page's proportions
+ *  (a full-width prose-column embed lands ~530px — screenshot-like; half-width
+ *  pairs scale down with their width, floored so candles stay readable). */
+export function embedRenderHeight(layoutHeight, width) {
+  if (Number.isFinite(layoutHeight) && layoutHeight > 0 && layoutHeight !== EMBED_LEGACY_DEFAULT_HEIGHT) {
+    return Math.round(layoutHeight)
+  }
+  const w = Number.isFinite(width) && width > 0 ? width : 966
+  return Math.max(300, Math.min(640, Math.round(w * 0.55)))
+}
 
 /** Count mode:'live' widgetEmbed nodes in a doc JSON. */
 export function countLiveEmbeds(doc) {

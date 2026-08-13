@@ -11,7 +11,9 @@ import Suggestion from '@tiptap/suggestion'
 import { ReactRenderer } from '@tiptap/react'
 import { useEffect, useImperativeHandle, useState, forwardRef } from 'react'
 import { WIDGET_REGISTRY, JOURNAL_MENU_TYPES } from '../../../../widgets/registry'
-import { parseChartSlashArgs } from '../../lib/widgetEmbedCore'
+import {
+  parseChartSlashArgs, parseMtfSlashArgs, parseCompareSlashArgs, widgetSlotNode,
+} from '../../lib/widgetEmbedCore'
 import styles from './SlashMenu.module.css'
 
 const ITEMS = [
@@ -80,18 +82,24 @@ const ITEMS = [
 // Registry-driven: every menus.journal type appears here automatically. The
 // query's trailing tokens are ARGUMENTS — `/chart AMD 15m` inserts an AMD 15m
 // snapshot directly (speed is the whole feature: no modal, no picker).
-function widgetItems(query) {
+export function widgetItems(query) {
   const raw = String(query || '')
-  const first = raw.trim().split(/\s+/)[0]?.toLowerCase() || ''
+  const tokens = raw.trim().split(/\s+/).filter(Boolean)
+  const first = tokens[0]?.toLowerCase() || ''
+  const singleToken = tokens.length <= 1
   const out = []
   for (const id of JOURNAL_MENU_TYPES) {
-    // EXACT type-name match only (review finding): with allowSpaces keeping a
-    // mid-sentence '/' suggestion alive to end of paragraph, prefix matching
-    // ('/c NVDA…') armed an Enter trap on ordinary prose. Typing the full
-    // '/chart' is the deliberate gesture that arms the command.
-    if (first !== id) continue
+    // Two matching regimes (the first cut of the Enter-trap fix demanded the
+    // exact word everywhere and killed discoverability — '/ch' showed nothing):
+    // - SINGLE token: prefix match. '/ch' offers Chart, and its command
+    //   COMPLETES the text to '/chart ' — there is no prose after the name
+    //   yet, so nothing can be eaten.
+    // - Once a SPACE exists (args/prose follow): the exact type name only.
+    //   With allowSpaces keeping a mid-sentence '/' suggestion alive, prefix
+    //   matching here ('/c NVDA…') armed an Enter trap on ordinary prose.
+    if (singleToken ? !id.startsWith(first) : first !== id) continue
     if (id === 'chart') {
-      const rest = raw.trim().slice(first.length).trim()
+      const rest = singleToken ? '' : raw.trim().slice(first.length).trim()
       const args = parseChartSlashArgs(rest)
       if (args) {
         out.push({
@@ -114,6 +122,59 @@ function widgetItems(query) {
           },
         })
       }
+    }
+  }
+
+  // ── Composition presets (spec Phase 6 #4/#5): one action → N chart nodes.
+  // Same two-regime matching + strictness contract as /chart: bare name
+  // completes, valid args insert, anything else offers NOTHING (Enter stays
+  // a newline — the '/chart looks great here' lesson).
+  const restAfterName = singleToken ? '' : raw.trim().slice(first.length).trim()
+  if (singleToken ? 'mtf'.startsWith(first) : first === 'mtf') {
+    const args = restAfterName ? parseMtfSlashArgs(restAfterName) : null
+    if (args) {
+      out.push({
+        title: `MTF stack — ${args.symbol} · D / 1h / 15m`,
+        description: 'Three frozen charts, top-down',
+        command: ({ editor, range }) => {
+          editor.chain().focus().deleteRange(range)
+            .insertContent(args.tfs.map((tf) => widgetSlotNode('chart', { symbol: args.symbol, tf })))
+            .run()
+        },
+      })
+    } else if (!restAfterName) {
+      out.push({
+        title: 'MTF stack',
+        description: 'Type a symbol — e.g. /mtf AMD (D + 1h + 15m)',
+        command: ({ editor, range }) => {
+          editor.chain().focus().deleteRange(range).insertContent('/mtf ').run()
+        },
+      })
+    }
+  }
+  if (singleToken ? 'compare'.startsWith(first) : first === 'compare') {
+    const args = restAfterName ? parseCompareSlashArgs(restAfterName) : null
+    if (args) {
+      out.push({
+        title: `Before / after — ${args.symbol} @ ${args.day}`,
+        description: 'Two half-width dailies: window ending that day vs now',
+        command: ({ editor, range }) => {
+          editor.chain().focus().deleteRange(range).insertContent([
+            widgetSlotNode('chart', { symbol: args.symbol, tf: 'D', to: args.day },
+              { layout: { width: 'half' }, caption: `before · ${args.day}` }),
+            widgetSlotNode('chart', { symbol: args.symbol, tf: 'D' },
+              { layout: { width: 'half' }, caption: 'after · now' }),
+          ]).run()
+        },
+      })
+    } else if (!restAfterName) {
+      out.push({
+        title: 'Before / after',
+        description: 'Type symbol + day — e.g. /compare AMD 3/13',
+        command: ({ editor, range }) => {
+          editor.chain().focus().deleteRange(range).insertContent('/compare ').run()
+        },
+      })
     }
   }
   return out

@@ -1141,7 +1141,7 @@ export function interpret(ast, bars, inputs, budget, scalars) {
       const n = nodes[i]
       if (keyOf.has(n)) continue
       if (!n || typeof n !== 'object' || Array.isArray(n)) {
-        keyOf.set(n, 'lit' + JSON.stringify(n ?? null))
+        keyOf.set(n, 'lit\u0001' + JSON.stringify(n ?? null))
         freeOf.set(n, true)
         continue
       }
@@ -1153,7 +1153,7 @@ export function interpret(ast, bars, inputs, budget, scalars) {
         parts.push(keyOf.get(a))
         if (!freeOf.get(a)) free = false
       }
-      keyOf.set(n, `${n.type}${n.name ?? ''}${n.value ?? ''}${parts.join('')}`)
+      keyOf.set(n, `${n.type}\u0001${n.name ?? ''}\u0001${n.value ?? ''}\u0001${parts.join('\u0002')}`)
       freeOf.set(n, free)
     }
   }

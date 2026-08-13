@@ -259,7 +259,10 @@ export const WIDGET_REGISTRY = deepFreeze({
       const last = Array.isArray(p.thread) && p.thread.length ? p.thread[p.thread.length - 1] : null
       return last?.q ? `[ai search: "${last.q}"]` : '[ai search]'
     },
-    reconstructable: false,                     // re-running the query returns a DIFFERENT answer
+    // The captured THREAD is the params (never re-queried — re-running would
+    // return a DIFFERENT answer): AiSearchEmbed re-renders the stored
+    // conversation read-only via the widget's own initialThread seam.
+    reconstructable: (p) => Array.isArray(p?.thread) && p.thread.length > 0,
     liveCapable: false,
   },
   news: {
@@ -323,7 +326,11 @@ export const WIDGET_REGISTRY = deepFreeze({
       { key: 'settings', type: 'json' },
     ],
     plainText: (p) => `[calendar: ${p.date}]`,
-    reconstructable: false,                     // #1 upgrade candidate: endpoints are date-parameterized (see plan ledger)
+    // The calendar endpoints are date-parameterized + backfilled, so a
+    // captured day re-renders live at any horizon (CalendarEmbed mounts the
+    // real widget under the frozen workspace host with the date restored).
+    // Residuals accepted: section sort state + live-mcap ordering.
+    reconstructable: true,
     liveCapable: false,
   },
   optionsflow: {
