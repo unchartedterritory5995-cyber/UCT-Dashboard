@@ -138,6 +138,15 @@ def _doc(text: str) -> dict:
         {"type": "paragraph", "content": [{"type": "text", "text": text}]}]}
 
 
+def _body(n):
+    """Full bodyJson for a note picked off a LIST row: list_notes projects
+    the document body out (widget-embed notes drag multi-KB settings blobs,
+    so list responses stopped shipping bodies — panel batch 3). The editor's
+    single-note fetch is the read path that keeps it, so tests read it the
+    same way."""
+    return notes_svc.get_note(n["userId"], n["id"])["bodyJson"]
+
+
 def _rn(remote_id, title, *, text=None, updated_at="2026-08-01T00:00:00+00:00",
         created_at="2026-07-01T00:00:00+00:00", media=None, links=None,
         tags=None, folder_path=None) -> RemoteNote:
@@ -224,7 +233,7 @@ async def test_initial_full_sync_creates_notes_folders_and_media(source, provide
     assert {"Trading", "Setups"} <= folders
 
     trading = next(n for n in notes if n["title"] == "Trading Notes")
-    imgs = [n for n in trading["bodyJson"]["content"] if n.get("type") == "image"]
+    imgs = [n for n in _body(trading)["content"] if n.get("type") == "image"]
     assert len(imgs) == 1
     assert imgs[0]["attrs"]["src"].startswith("/api/j2/notes/attachments/u1/")
     assert not imgs[0]["attrs"]["src"].startswith("import-ref://")
@@ -248,7 +257,7 @@ async def test_data_uri_media_decodes_directly_without_provider_fetch(source, pr
     assert provider.fetch_media_calls == []  # decoded directly, never round-tripped
 
     note = notes_svc.list_notes("u1")[0]
-    img = next(n for n in note["bodyJson"]["content"] if n.get("type") == "image")
+    img = next(n for n in _body(note)["content"] if n.get("type") == "image")
     assert img["attrs"]["src"].startswith("/api/j2/notes/attachments/u1/")
 
 
@@ -269,7 +278,7 @@ async def test_corrupt_base64_data_uri_is_a_named_failure_not_a_crash(source, pr
 
     note = notes_svc.list_notes("u1")[0]
     # dropped media -> the image node is removed by rewrite_body, no crash.
-    assert all(n.get("type") != "image" for n in note["bodyJson"]["content"])
+    assert all(n.get("type") != "image" for n in _body(note)["content"])
 
 
 # ---------------------------------------------------------------------------
@@ -755,7 +764,7 @@ async def test_import_link_placeholder_resolves_to_the_target_notes_url(source, 
                     return found
         return None
 
-    href = _find_link(page_one["bodyJson"])
+    href = _find_link(_body(page_one))
     assert href == f"/journal?j2tab=notebook&note={target_id}"
 
 
@@ -800,7 +809,7 @@ async def test_body_write_race_reroutes_resolved_content_to_a_sibling_preserving
     # the link resolved cleanly to the target's real URL on the clean path
     # (via the final link-resolution pass), proving the clean path itself
     # resolves correctly, not just that it "doesn't crash".
-    assert f"/journal?j2tab=notebook&note={target['id']}" in json.dumps(original["bodyJson"])
+    assert f"/journal?j2tab=notebook&note={target['id']}" in json.dumps(_body(original))
 
     # Second sync: remote content changes -> import_confirm will UPDATE this
     # note's placeholder body normally (no PRE-confirm conflict, since the
@@ -843,7 +852,7 @@ async def test_body_write_race_reroutes_resolved_content_to_a_sibling_preserving
     assert "sync-conflict" in kept_original["tags"]
     # the LOSING (resolved) write never applied -> the placeholder confirm
     # already wrote is still there, untouched by the race.
-    assert "import-link://" in json.dumps(kept_original["bodyJson"])
+    assert "import-link://" in json.dumps(_body(kept_original))
 
     all_notes = notes_svc.list_notes("u1")
     assert len(all_notes) == 3  # original + target + the new conflict sibling
@@ -851,7 +860,7 @@ async def test_body_write_race_reroutes_resolved_content_to_a_sibling_preserving
     assert "sync-conflict" in sibling["tags"]
     # the sibling holds the RESOLVED content (link resolved to the target,
     # same as the clean-path assertion above).
-    assert f"/journal?j2tab=notebook&note={target['id']}" in json.dumps(sibling["bodyJson"])
+    assert f"/journal?j2tab=notebook&note={target['id']}" in json.dumps(_body(sibling))
     assert sibling["bodyPlain"].strip().startswith("v2")
 
 
@@ -888,7 +897,7 @@ async def test_batch_2_confirm_exception_never_strands_batch_1s_already_resolved
     notes = notes_svc.list_notes("u1")
     assert len(notes) == 1
     assert notes[0]["title"] == "Batch One Note"
-    img = next(n for n in notes[0]["bodyJson"]["content"] if n.get("type") == "image")
+    img = next(n for n in _body(notes[0])["content"] if n.get("type") == "image")
     assert img["attrs"]["src"].startswith("/api/j2/notes/attachments/u1/")  # fully resolved
 
     log_row = _log_rows(source["id"])[-1]
@@ -931,7 +940,7 @@ async def test_a_hand_stranded_note_heals_on_the_next_sync(source, provider):
     assert result["skipped"] == 1  # content-wise, this WAS a skip
 
     healed = notes_svc.get_note("u1", note["id"])
-    assert "import-ref://" not in json.dumps(healed["bodyJson"])
+    assert "import-ref://" not in json.dumps(_body(healed))
 
 
 # Important 4 — an auth rejection marks BOTH the source and the connector
@@ -1047,8 +1056,8 @@ async def test_oversized_resolved_body_fails_validation_and_leaves_placeholder_i
 
     note = notes_svc.list_notes("u1")[0]
     # the placeholder body import_confirm wrote is still there, untouched.
-    assert "import-ref://img-1" in json.dumps(note["bodyJson"])
-    assert json.dumps(note["bodyJson"]) != json.dumps(huge_doc)
+    assert "import-ref://img-1" in json.dumps(_body(note))
+    assert json.dumps(_body(note)) != json.dumps(huge_doc)
 
 
 async def test_oversized_resolved_link_body_fails_validation_in_the_final_pass(
@@ -1089,8 +1098,8 @@ async def test_oversized_resolved_link_body_fails_validation_in_the_final_pass(
     assert any("validation" in f.lower() for f in result["failures"])
 
     source_note = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Oversize Link Source")
-    assert "import-link://" in json.dumps(source_note["bodyJson"])
-    assert json.dumps(source_note["bodyJson"]) != json.dumps(huge_doc)
+    assert "import-link://" in json.dumps(_body(source_note))
+    assert json.dumps(_body(source_note)) != json.dumps(huge_doc)
 
 
 # Minor 7 — conflicts count surfaced in the result dict + the log row.
@@ -1158,8 +1167,8 @@ async def test_cross_batch_forward_link_resolves_in_the_final_pass(source, provi
 
     note_a = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Note A")
     note_b = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Note B")
-    assert f"/journal?j2tab=notebook&note={note_b['id']}" in json.dumps(note_a["bodyJson"])
-    assert "import-link://" not in json.dumps(note_a["bodyJson"])
+    assert f"/journal?j2tab=notebook&note={note_b['id']}" in json.dumps(_body(note_a))
+    assert "import-link://" not in json.dumps(_body(note_a))
 
 
 async def test_final_pass_failure_leaves_the_mark_intact_and_self_heals_next_sync(
@@ -1198,7 +1207,7 @@ async def test_final_pass_failure_leaves_the_mark_intact_and_self_heals_next_syn
     assert any("link resolution pass failed" in f for f in result["failures"])
 
     note_a = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Note A")
-    assert "import-link://fake:fake-graph/b" in json.dumps(note_a["bodyJson"])  # intact, not stripped
+    assert "import-link://fake:fake-graph/b" in json.dumps(_body(note_a))  # intact, not stripped
 
     # Restore the real import_check and re-sync with IDENTICAL remote
     # content -> "a" hashes unchanged -> marked 'skipped' by import_confirm
@@ -1216,8 +1225,8 @@ async def test_final_pass_failure_leaves_the_mark_intact_and_self_heals_next_syn
     assert result2["status"] == "ok"
     note_a2 = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Note A")
     note_b = next(n for n in notes_svc.list_notes("u1") if n["title"] == "Note B")
-    assert f"/journal?j2tab=notebook&note={note_b['id']}" in json.dumps(note_a2["bodyJson"])
-    assert "import-link://" not in json.dumps(note_a2["bodyJson"])
+    assert f"/journal?j2tab=notebook&note={note_b['id']}" in json.dumps(_body(note_a2))
+    assert "import-link://" not in json.dumps(_body(note_a2))
 
 
 # ---------------------------------------------------------------------------

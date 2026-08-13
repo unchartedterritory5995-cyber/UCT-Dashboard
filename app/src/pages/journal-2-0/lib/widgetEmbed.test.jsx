@@ -34,7 +34,11 @@ vi.mock('./embedArchive', async (orig) => ({
 // probe that surfaces the two props under test.
 vi.mock('../components/notebook/ChartEmbed', () => ({
   default: (props) => (
-    <div data-testid="chart-embed-stub" data-annotate={String(!!props.annotate)}>
+    <div
+      data-testid="chart-embed-stub"
+      data-annotate={String(!!props.annotate)}
+      data-peek={String(!!props.peekToNow)}
+    >
       <button
         type="button"
         data-testid="emit-drawing"
@@ -371,6 +375,38 @@ describe('WidgetEmbedView draw mode', () => {
     }
   })
   afterAll(() => { globalThis.IntersectionObserver = RealIO })
+
+  it('Aftermath peeks the window through now — view-only, draw-exclusive, never persisted', async () => {
+    const updateAttributes = vi.fn()
+    render(<WidgetEmbedView node={{ attrs: liveChartAttrs() }} selected={false} updateAttributes={updateAttributes} />)
+    const stub = await screen.findByTestId('chart-embed-stub')
+    expect(stub.getAttribute('data-peek')).toBe('false')
+
+    fireEvent.click(screen.getByText('Aftermath'))
+    expect(screen.getByTestId('chart-embed-stub').getAttribute('data-peek')).toBe('true')
+    // View-only: nothing lands on the node.
+    expect(updateAttributes).not.toHaveBeenCalled()
+
+    // Draw mode claims the frame — entering it drops the peek (marks go on
+    // the EVIDENCE window) and the Aftermath button leaves the strip.
+    fireEvent.click(screen.getByText('Draw'))
+    expect(screen.getByTestId('chart-embed-stub').getAttribute('data-peek')).toBe('false')
+    expect(screen.queryByText('Aftermath')).toBeNull()
+    fireEvent.click(screen.getByText('Done'))
+
+    // Toggling back restores the frozen window.
+    fireEvent.click(screen.getByText('Aftermath'))
+    fireEvent.click(screen.getByText('Aftermath'))
+    expect(screen.getByTestId('chart-embed-stub').getAttribute('data-peek')).toBe('false')
+  })
+
+  it('Aftermath renders only where an anchor exists to peek past', async () => {
+    // to: null = the explicit rolling window (already tracks now).
+    const rolling = buildWidgetEmbedAttrs('chart', { symbol: 'NVDA', tf: 'D', to: null })
+    render(<WidgetEmbedView node={{ attrs: rolling }} selected={false} updateAttributes={() => {}} />)
+    await screen.findByTestId('chart-embed-stub')
+    expect(screen.queryByText('Aftermath')).toBeNull()
+  })
 
   it('Draw collapses the toolbar to the lone Done button (the chart drawing toolbar owns the top strip)', async () => {
     render(<WidgetEmbedView node={{ attrs: liveChartAttrs() }} selected={false} updateAttributes={() => {}} />)

@@ -238,6 +238,22 @@ export function tsToEpochSecondsPublic(v) {
 /** Live embeds allowed per entry (owner decision #11). */
 export const LIVE_EMBEDS_PER_ENTRY = 3
 
+/** The per-note crosshair bus (post-v1: linked crosshair, spec Phase 6 #6).
+ *  Same shape as the /charts workspace bus minus the color-group arg (notes
+ *  have no color groups): imperative pub/sub, NO React state — a setState
+ *  per mouse move is what made the first /charts cut step/skip. Mirrors the
+ *  house call from 2026-07-29: linking is GLOBAL across chart embeds (the
+ *  payload maps by ET day across timeframes), not symbol-scoped. Lives on
+ *  editor.storage.uctJournalWidgets so every embed node view in one note
+ *  shares one bus; lazily created by the first ChartEmbed that mounts. */
+export function makeCrosshairBus() {
+  const listeners = new Set()
+  return {
+    emit: (sourceId, payload) => listeners.forEach((fn) => fn({ sourceId, payload })),
+    subscribe: (fn) => { listeners.add(fn); return () => listeners.delete(fn) },
+  }
+}
+
 // The v1 default embed height. Every embed created before auto-height stored
 // this literal (nobody ever CHOSE it — it was only ever the default), so the
 // renderer treats a stored 320 as auto too rather than freezing early embeds

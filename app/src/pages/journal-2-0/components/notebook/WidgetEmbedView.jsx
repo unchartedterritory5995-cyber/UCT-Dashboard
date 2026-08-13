@@ -2,7 +2,7 @@ import { Component, Suspense, lazy, useCallback, useEffect, useRef, useState } f
 import { NodeViewWrapper } from '@tiptap/react'
 import {
   resolveEmbedRender, embedAutoCaption, countLiveEmbeds, LIVE_EMBEDS_PER_ENTRY,
-  retimeChartParams, embedRenderHeight,
+  retimeChartParams, embedRenderHeight, makeCrosshairBus,
 } from '../../lib/widgetEmbedCore'
 import { widgetMeta } from '../../../../widgets/registry'
 import { captureElementPng, storeFallbackImage, kickSnapshotWarm } from '../../lib/embedArchive'
@@ -104,6 +104,19 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   const archivedOnceRef = useRef(false)
   const [toolbarMsg, setToolbarMsg] = useState(null)
 
+  // Linked crosshair (spec Phase 6 #6): ONE bus per note, shared by every
+  // chart embed through editor.storage. Lazily created by the first embed
+  // that renders — the page's onCreate can run after node views mount, so
+  // stamping it there (the noteId pattern) would hand early mounts a null
+  // they never re-read.
+  let crosshairBus = editor?.storage?.uctJournalWidgets?.crosshairBus || null
+  if (!crosshairBus && editor?.storage) {
+    crosshairBus = makeCrosshairBus()
+    editor.storage.uctJournalWidgets = {
+      ...(editor.storage.uctJournalWidgets || {}), crosshairBus,
+    }
+  }
+
   // Screenshot-like proportions: with no explicit height, derive it from the
   // embed's own rendered width at ~the chart page's aspect. Track width via
   // ResizeObserver so Half/Full toggles and window resizes re-proportion.
@@ -151,6 +164,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   // ── Toolbar actions (owner spec Phase 5; explicit actions are the ONLY
   //    writes — scroll/zoom inside the chart never persist anything) ────────
   const toggleLive = () => {
+    setPeek(false) // mode changes make the peek moot (live already tracks now)
     if (attrs.mode === 'live') {
       // Freezing an ANNOTATED live embed: the stored archive predates the
       // marks — clear it so self-archive re-freezes what's shown now,
@@ -189,12 +203,29 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   const toggleWidth = () => {
     updateAttributes?.({ layout: { ...(attrs.layout || {}), width: half ? 'full' : 'half' } })
   }
+  // "What happened next" (spec Phase 6 #2): VIEW-ONLY peek that extends an
+  // anchored snapshot's window through today — anchorDate framing instead of
+  // the replayCutoff, nothing persisted, the reader sees the aftermath and
+  // toggles back. Local state on purpose: attrs never change, so the frozen
+  // evidence stays frozen and a reload always reopens anchored.
+  const [peek, setPeek] = useState(false)
+  const canPeek = attrs.widgetId === 'chart' && decision.kind === 'live'
+    && attrs.mode === 'snapshot' && attrs.params?.to != null
+  const togglePeek = () => {
+    // Entering the peek: a pending self-archive must never rasterize the
+    // extended view as the permanent PNG — needsArchive gates on !peek below,
+    // and resetting the once-latch re-arms the archive after the peek ends.
+    if (!peek) archivedOnceRef.current = false
+    setPeek(!peek)
+  }
+
   const recapture = () => {
     // Clearing the archive re-arms the self-archive effect: fresh settle,
     // fresh PNG, fresh upload — an explicit re-freeze of what's shown NOW.
     // capturedAt is NOT touched: it is the EVIDENCE date the caption renders,
     // and re-stamping it relabeled March evidence "captured June" the moment
     // the user annotated it (panel finding).
+    setPeek(false) // never archive the peeked (through-now) view
     archivedOnceRef.current = false
     updateAttributes?.({ fallback: null })
     setToolbarMsg('re-capturing…')
@@ -216,6 +247,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
     // re-freezes at the new one, and warm the new tf's history. The new tf's
     // bars haven't painted yet: reset the ready gate or the re-freeze could
     // rasterize the OLD tf mid-swap.
+    setPeek(false) // a fresh window starts anchored
     archivedOnceRef.current = false
     barsReadyRef.current = false
     kickSnapshotWarm(next.params)
@@ -232,7 +264,8 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   // holds only the grey loading skeleton — rasterizing THAT would upload a
   // blank PNG as the permanent archive. The settle clock starts once the
   // live component is actually mounting.
-  const needsArchive = decision.kind === 'live' && !attrs.fallback?.url && attrs.mode === 'snapshot' && inView
+  // !peek: the aftermath view must never become the permanent archive PNG.
+  const needsArchive = decision.kind === 'live' && !attrs.fallback?.url && attrs.mode === 'snapshot' && inView && !peek
   useEffect(() => {
     if (!needsArchive || archivedOnceRef.current) return undefined
     archivedOnceRef.current = true
@@ -298,6 +331,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   )
   const toggleAnnotate = () => {
     const exiting = annotate
+    if (!exiting) setPeek(false) // draw on the EVIDENCE window, never the peek
     setAnnotate(!annotate)
     // Done after changed marks: re-arm the self-archive so the fallback
     // re-freezes WITH the drawings — otherwise annotations exist only on the
@@ -343,6 +377,8 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
             annotate={annotate}
             onAnnotationsChange={annotate ? handleAnnotationsChange : null}
             onBarsReady={handleBarsReady}
+            crosshairBus={crosshairBus}
+            peekToNow={canPeek && peek}
           />
         </Suspense>
       </EmbedErrorBoundary>
@@ -404,6 +440,22 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
               {annotate ? 'Done' : 'Draw'}
             </button>
           )}
+          {/* "What happened next" — VIEW-ONLY aftermath peek on an anchored
+              chart snapshot (spec Phase 6 #2): the same window extended
+              through today; toggling back restores the frozen cutoff. Never
+              writes attrs — a reload always reopens anchored. */}
+          {!annotate && canPeek && (
+            <button
+              type="button"
+              className={`${styles.toolBtn} ${peek ? styles.toolBtnActive : ''}`}
+              onClick={togglePeek}
+              title={peek
+                ? 'Back to the frozen window'
+                : 'What happened next — show this window through today (view-only, nothing saved)'}
+            >
+              Aftermath
+            </button>
+          )}
           {/* Re-capture only where a NEW capture can actually happen — for
               image-only widget types the archive IS the capture, and clearing
               it would permanently destroy the only image with nothing to
@@ -433,8 +485,15 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
             the pixels. */}
         {decision.kind === 'live' && attrs.mode !== 'live' && !annotate
           && !AS_OF_SELF_LABELED.has(attrs.widgetId) && asOfDayText(attrs.capturedAt) && (
-            <span className={styles.asOfChip} title="Frozen snapshot — captured this day">
-              as of {asOfDayText(attrs.capturedAt)}
+            <span
+              className={styles.asOfChip}
+              title={peek && canPeek
+                ? 'Aftermath view — the frozen window extended through today (nothing saved)'
+                : 'Frozen snapshot — captured this day'}
+            >
+              {peek && canPeek
+                ? `as of ${asOfDayText(attrs.capturedAt)} → now`
+                : `as of ${asOfDayText(attrs.capturedAt)}`}
             </span>
         )}
       </div>

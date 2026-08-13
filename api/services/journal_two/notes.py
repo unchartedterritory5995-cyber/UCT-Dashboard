@@ -1096,9 +1096,17 @@ def save_note_image_bytes(
     sub = "hero" if kind == "hero" else "inline"
     target_dir = _ATTACHMENT_ROOT / user_id / "notes" / note_id / sub
     target_dir.mkdir(parents=True, exist_ok=True)
-    new_id = uuid.uuid4().hex
+    # Content-hash filename (post-v1 dedupe, designed for from day one via the
+    # fallback.url indirection): an identical byte-for-byte upload — e.g. the
+    # embed self-archive re-capturing an unchanged chart — lands on the SAME
+    # path and is a no-op instead of a new file. Truncated sha256 keeps the
+    # exact 32-hex shape uuid4().hex had, so the attachment GC's upload-name
+    # filter and every stored URL stay valid; changed pixels = new hash = new
+    # file, and the orphaned old one ages into the GC.
+    new_id = hashlib.sha256(data).hexdigest()[:32]
     target_path = target_dir / f"{new_id}{ext}"
-    target_path.write_bytes(data)
+    if not target_path.exists():
+        target_path.write_bytes(data)
 
     public_url = (
         f"/api/j2/notes/attachments/{user_id}/{note_id}/{sub}/{new_id}{ext}"

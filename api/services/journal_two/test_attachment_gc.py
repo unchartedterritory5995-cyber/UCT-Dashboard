@@ -130,3 +130,21 @@ def test_empty_dirs_fold_up_after_delete(conn, root):
     attachment_gc.sweep_orphaned_attachments(conn=conn)
     assert not (root / "u1" / "notes" / "n1" / "inline").exists()
     assert not (root / "u1" / "notes" / "n1").exists()
+
+
+def test_identical_image_uploads_dedupe_to_one_file(root):
+    """Content-hash filenames (post-v1 dedupe): the self-archive re-capturing
+    an unchanged chart re-uploads identical bytes — that must be a no-op on
+    the same path, not a new file. Changed bytes still get their own file
+    (whose predecessor ages into the GC), and the name keeps the 32-hex
+    shape the GC's upload filter matches."""
+    png = b"\x89PNG-fake-bytes-for-hashing"
+    a = notes_mod.save_note_image_bytes("u1", "n1", png, "x.png", "image/png")
+    b = notes_mod.save_note_image_bytes("u1", "n1", png, "y.png", "image/png")
+    c = notes_mod.save_note_image_bytes("u1", "n1", png + b"!", "z.png", "image/png")
+    assert a["url"] == b["url"]
+    assert c["url"] != a["url"]
+    inline = root / "u1" / "notes" / "n1" / "inline"
+    files = sorted(p.name for p in inline.iterdir())
+    assert len(files) == 2
+    assert all(attachment_gc._UPLOAD_NAME_RE.match(f) for f in files)

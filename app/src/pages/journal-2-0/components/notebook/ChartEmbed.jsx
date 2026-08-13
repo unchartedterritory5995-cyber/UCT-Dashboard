@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 import ChartPane from '../../../../components/chart/pane/ChartPane'
 
 // A ts param (epoch seconds or 'YYYY-MM-DD') → the ET SESSION day the cutoff
@@ -37,11 +37,33 @@ const noopStore = () => {}
  */
 export default function ChartEmbed({
   attrs, height = 320, annotate = false, onAnnotationsChange = null, onBarsReady = null,
+  // Linked crosshair (spec Phase 6 #6): the per-note bus every chart embed
+  // shares. StockChart owns both halves already — onCrosshairMove publishes,
+  // subscribeCrosshair applies payloads imperatively with echo suppression
+  // and ET-day mapping across timeframes (the exact /charts wire).
+  crosshairBus = null,
+  // "What happened next" (spec Phase 6 #2): VIEW-ONLY — swap the frozen
+  // cutoff for anchorDate framing, so the window shows the anchor day plus
+  // everything since. Never persisted; the toolbar toggle owns it.
+  peekToNow = false,
 }) {
   const params = attrs?.params || {}
   const anchorDay = tsToAnchorDay(params.to)
   const live = attrs?.mode === 'live'
   const annotations = Array.isArray(attrs?.annotations) ? attrs.annotations : []
+  // Stable per-embed id so an embed ignores its own broadcasts (the
+  // ChartWidget idiom — the bus is deliberately NOT React state).
+  const embedIdRef = useRef(null)
+  if (!embedIdRef.current) embedIdRef.current = `je${Math.random().toString(36).slice(2, 9)}`
+  const reportCrosshair = useCallback((payload) => {
+    crosshairBus?.emit(embedIdRef.current, payload)
+  }, [crosshairBus])
+  const subscribeCrosshair = useCallback((cb) => {
+    if (!crosshairBus) return () => {}
+    return crosshairBus.subscribe(({ sourceId, payload }) => {
+      if (sourceId !== embedIdRef.current) cb(payload)
+    })
+  }, [crosshairBus])
   const stockChartProps = useMemo(() => ({
     height: '100%',
     liveUpdates: live,
@@ -65,7 +87,13 @@ export default function ChartEmbed({
     // the first cut). An empty cutoff window rendering an empty chart is the
     // accepted residual until a real emptiness signal exists.
     ...(onBarsReady ? { onBarsReady } : {}),
-    ...(!live && anchorDay ? { replayCutoff: anchorDay } : {}),
+    // peekToNow swaps the cutoff for anchorDate: same anchor day FRAMED, but
+    // the fetch runs to now — the aftermath, exactly as the design note below
+    // promised ("swap this for anchorDate on demand").
+    ...(!live && anchorDay
+      ? (peekToNow ? { anchorDate: anchorDay } : { replayCutoff: anchorDay })
+      : {}),
+    ...(crosshairBus ? { onCrosshairMove: reportCrosshair, subscribeCrosshair } : {}),
     // ── Per-embed annotations (owner spec Phase 6 #1) ─────────────────────
     // StockChart's CONTROLLED annotation layer (the Model Book authoring
     // system): drawings render from the embed node's own attrs and edits
@@ -84,7 +112,8 @@ export default function ChartEmbed({
     annotationsTextVisible: true,
     annotationsEditable: !!annotate,
     ...(onAnnotationsChange ? { onAnnotationsChange } : {}),
-  }), [live, anchorDay, annotations, annotate, onAnnotationsChange, onBarsReady])
+  }), [live, anchorDay, annotations, annotate, onAnnotationsChange, onBarsReady,
+    peekToNow, crosshairBus, reportCrosshair, subscribeCrosshair])
 
   return (
     <div style={{ height }}>
