@@ -585,7 +585,21 @@ async def list_provider_folders(
         raise HTTPException(status_code=404, detail="this provider does not expose a folder picker")
     label = registry.get_entry(provider).label
     try:
-        creds = connections.get_token(user["id"], provider)
+        # Fix-round Important #3: a connected-but-sourceless OneDrive
+        # connector (the exact state this endpoint exists to complete) gets
+        # NO sync ticks -- nothing else ever calls `refresh_if_needed` for
+        # it -- so its ~60-90min Graph access token expires long before the
+        # user opens the picker again ("choose a folder tomorrow" 401s
+        # permanently otherwise). Route through `engine._resolve_credentials`
+        # (the SAME refresh-then-read helper every sync tick already uses)
+        # rather than the plain `connections.get_token` read this used to
+        # do -- a no-op for Dropbox (not `oauth.is_registered`, byte-
+        # identical to the old read) and for a still-fresh msgraph token
+        # (no `expiresAt`/not-yet-near-expiry -> `refresh_if_needed` itself
+        # short-circuits, per its own docstring).
+        creds = await engine._resolve_credentials(user["id"], provider)
+    except errors.NoteConnError as e:
+        _raise_for_provider_error(e)
     except Exception:  # noqa: BLE001 — crypto_box.CryptoBoxError etc. -> treat as needing reconnect
         raise HTTPException(status_code=409, detail=f"Reconnect {label} — stored credentials are unreadable.")
     if creds is None:

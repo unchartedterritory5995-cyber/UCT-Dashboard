@@ -1138,6 +1138,53 @@ def test_folders_onedrive_drills_into_a_nested_path(client, monkeypatch):
     assert fake.list_folders_calls == [({"accessToken": "tok"}, "item-sub")]
 
 
+def test_folders_onedrive_refreshes_an_expired_token_before_listing(client, monkeypatch):
+    """Fix-round Important #3: a connected-but-sourceless OneDrive connector
+    (exactly the state this endpoint exists to complete) gets NO sync
+    ticks -- nothing else ever calls `refresh_if_needed` for it -- so its
+    ~60-90min Graph access token can sit expired for days before the user
+    reopens the folder picker ("choose a folder tomorrow" 401ing forever
+    otherwise). Proves both that the PROVIDER sees the FRESH token and that
+    the refresh PERSISTS (an independent `connections.get_token` read shows
+    the rotated pair, not just what this one call happened to see)."""
+    monkeypatch.setenv("MSGRAPH_CLIENT_ID", "cid")
+    monkeypatch.setenv("MSGRAPH_CLIENT_SECRET", "csecret")
+    import api.routers.note_sync as ns
+    from datetime import datetime, timedelta, timezone
+    # Defensive: oauth.py's per-(user,provider) refresh locks are process-
+    # module-level and could otherwise carry a stale lock object bound to a
+    # different test's (closed) event loop (mirrors
+    # test_note_connectors_engine_oauth_refresh.py's own `db` fixture).
+    ns.oauth._refresh_locks.clear()
+
+    expired = (datetime.now(timezone.utc) - timedelta(seconds=30)).isoformat()
+    connections.upsert_connector("u1", "onedrive", {
+        "accessToken": "old-tok", "refreshToken": "refresh-old", "expiresAt": expired,
+    })
+
+    calls = {"n": 0}
+
+    async def fake_post_token(cfg, provider, client_id, client_secret, body, *, is_refresh, client):
+        calls["n"] += 1
+        assert is_refresh is True
+        assert body.get("grant_type") == "refresh_token"
+        return {"access_token": "new-tok", "refresh_token": "refresh-new", "expires_in": 3600}
+
+    monkeypatch.setattr(ns.oauth, "_post_token", fake_post_token)
+    fake = FakeFolderProvider(folders=[{"id": "item-1", "name": "Work"}])
+    monkeypatch.setattr(registry, "build_provider", lambda name, source=None: fake)
+
+    r = client.get("/api/j2/notes/connectors/onedrive/folders")
+    assert r.status_code == 200
+    assert r.json() == {"folders": [{"id": "item-1", "name": "Work"}]}
+    assert calls["n"] == 1, "the expired token must trigger exactly one refresh"
+    # The REFRESHED token is what the provider actually saw, not the stale one.
+    assert fake.list_folders_calls[0][0]["accessToken"] == "new-tok"
+    stored = connections.get_token("u1", "onedrive")
+    assert stored["accessToken"] == "new-tok"
+    assert stored["refreshToken"] == "refresh-new"
+
+
 def test_folders_onedrive_provider_error_maps_through_shared_taxonomy(client, monkeypatch):
     monkeypatch.setenv("MSGRAPH_CLIENT_ID", "cid")
     monkeypatch.setenv("MSGRAPH_CLIENT_SECRET", "csecret")

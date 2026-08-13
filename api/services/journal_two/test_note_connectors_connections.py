@@ -239,3 +239,58 @@ def test_record_sync_result_and_update_cursor(db):
     got = db.get_source("u1", src["id"])
     assert got["lastSyncStatus"] == "error"
     assert got["lastSyncError"] == "boom"
+
+
+# ── record_sync_result ok=True recovers a 'broken' source (fix-round,      ──
+# ── msgraph wave, Important #4) — shared by every provider, not msgraph-only ─
+
+def test_record_sync_result_ok_resets_a_broken_source_to_active(db):
+    db.upsert_connector("u1", "roam", _token())
+    src = db.create_source("u1", "roam", "graph-1")
+    db.set_source_status("u1", src["id"], "broken")
+    assert db.get_source("u1", src["id"])["status"] == "broken"
+
+    assert db.record_sync_result("u1", src["id"], ok=True) is True
+    assert db.get_source("u1", src["id"])["status"] == "active"
+
+
+def test_record_sync_result_ok_leaves_an_already_active_source_active(db):
+    db.upsert_connector("u1", "roam", _token())
+    src = db.create_source("u1", "roam", "graph-1")
+    assert db.get_source("u1", src["id"])["status"] == "active"
+
+    db.record_sync_result("u1", src["id"], ok=True)
+    assert db.get_source("u1", src["id"])["status"] == "active"
+
+
+def test_record_sync_result_failure_never_touches_status(db):
+    """`record_sync_result` itself never MARKS a source broken (that's
+    engine.py's separate `set_source_status` call on an auth error) — an
+    `ok=False` call must leave whatever status was already there untouched,
+    proving the recovery fix never weakens the failure path."""
+    db.upsert_connector("u1", "roam", _token())
+    src = db.create_source("u1", "roam", "graph-1")
+    db.set_source_status("u1", src["id"], "broken")
+
+    db.record_sync_result("u1", src["id"], ok=False, error="boom")
+    assert db.get_source("u1", src["id"])["status"] == "broken"
+
+
+def test_broken_source_rejoins_list_due_sources_after_an_ok_sync(db):
+    db.upsert_connector("u1", "roam", _token())
+    src = db.create_source("u1", "roam", "graph-1")
+    db.set_source_status("u1", src["id"], "broken")
+    assert src["id"] not in {s["id"] for s in db.list_due_sources(30)}
+
+    db.record_sync_result("u1", src["id"], ok=True)
+    # record_sync_result just set last_sync_at to "now" -- backdate it to
+    # simulate the interval elapsing (mirrors
+    # test_list_due_sources_honors_interval_flags_and_status's own idiom),
+    # isolating THIS test to the status-recovery question alone.
+    conn = auth_db.get_connection()
+    stale = (datetime.now(timezone.utc) - timedelta(minutes=120)).isoformat()
+    conn.execute("UPDATE j2_note_sources SET last_sync_at = ? WHERE id = ?", (stale, src["id"]))
+    conn.commit()
+    conn.close()
+
+    assert src["id"] in {s["id"] for s in db.list_due_sources(30)}
