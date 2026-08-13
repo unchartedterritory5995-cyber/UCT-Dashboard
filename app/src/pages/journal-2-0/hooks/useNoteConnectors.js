@@ -9,7 +9,7 @@
  *   GET    /api/j2/notes/connectors/status                — {enabled, providers: {name: {configured, connectKind, connected, status, accountLabel, sources[]}}}
  *   POST   /api/j2/notes/connectors/{provider}/connect     — token payload (roam/craft) OR {consent:true} to start OAuth (notion/dropbox) -> {redirectUrl}
  *   GET    /api/j2/notes/connectors/{provider}/callback    — OAuth return (backend-owned; the browser never calls this directly)
- *   GET    /api/j2/notes/connectors/{provider}/folders?path= — Dropbox-only folder picker; {folders: [{path_lower, name}]}; 404 for any other provider
+ *   GET    /api/j2/notes/connectors/{provider}/folders?path= — folder picker for the two folder-scoped providers (dropbox, onedrive); {folders: [{path_lower, name}]}; 404 for any other provider
  *   POST   /api/j2/notes/connectors/{provider}/sources     — {remoteId, displayName?, destFolderId?} -> {source}; 409 if not connected yet
  *   POST   /api/j2/notes/connectors/sources/{id}/sync      — manual sync, background=1 supported
  *   PUT    /api/j2/notes/connectors/sources/{id}           — sync_enabled / dest folder
@@ -19,8 +19,9 @@
  * #2). `normalizeStatus(raw)` is the single translation layer between
  * whatever `GET /status` returns and the stable shape every consumer
  * component reads: `providers[key] = { configured, connected, connectKind,
- * accountLabel, status, sources: [...] }` — always present for all four
- * wave-1 providers.
+ * accountLabel, status, sources: [...] }` — always present for all six
+ * registered providers (roam, craft, notion, dropbox, onenote, onedrive;
+ * see `registry.py::_REGISTRY`).
  *
  * ⚠️ **`connected` is CONNECTOR-level, read directly off the router — it is
  * NOT `sources.length > 0`** (Task 12b correction; the router literally

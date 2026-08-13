@@ -120,9 +120,9 @@ the actual (paced) content fetch, unchanged.
 
 ── Per-tick admission control (spec §10) — COMPLETE-OR-NOTHING enumeration ─
 
-`MSGRAPH_ONENOTE_MAX_REQUESTS_PER_TICK` (default 120) bounds the number of
+`MSGRAPH_ONENOTE_MAX_REQUESTS_PER_TICK` (default 500) bounds the number of
 Graph requests `list_changed`'s ENUMERATION pass will issue in one tick —
-guarding a pathologically large notebook (far more sections/pages than 120
+guarding a pathologically large notebook (far more sections/pages than 500
 requests × 100 pages/request can enumerate) against an unbounded request
 storm.
 
@@ -150,8 +150,8 @@ UNCHANGED. No partial credit, ever. Only when the complete walk finishes
 within budget does `list_changed` proceed to filter/sort/select — and at
 that point K only bounds the *returned* refs (i.e. paces **content**
 fetch), never the enumeration that computed the watermark, so the watermark
-is always correct by construction. Given the default budget (120 requests,
-enough for roughly ~119 sections' worth of listing, or many more pages —
+is always correct by construction. Given the default budget (500 requests,
+enough for roughly ~499 sections' worth of listing, or many more pages —
 each section needs only 1 request per 100 of its own pages), this makes
 "the tick makes zero progress" a real but rare, self-correcting outcome
 (the identical cheap enumeration just retries in full next tick) reserved
@@ -160,6 +160,18 @@ for pathologically large accounts — never the alternative of a silent skip.
 budget-gated here — K itself already bounds that cost, and Graph's own 429
 + this module's backoff is spec §10's named backstop against a burst of
 manual "Sync now" clicks.
+
+The safe-stall crossover point is bound by SECTION COUNT, not page count —
+each section costs >=1 cheap enumeration request no matter how many pages
+it holds (a section's own pages page via `$skip` at 100/request, so a big
+section is nearly free in request terms; a big NOTEBOOK, meaning many
+sections, is what actually spends the budget). 500 is sized to cover
+realistic multi-notebook power users (several notebooks x dozens of
+sections each) without spending a whole tick's budget just walking
+structure. `MSGRAPH_ONENOTE_MAX_REQUESTS_PER_TICK` remains the override for
+accounts that still exceed this. A stall from this ceiling is always a safe
+no-progress outcome (cursor republished unchanged, next tick retries the
+identical walk) — never data loss.
 
 `list_present_refs` deliberately has NO budget ceiling (it must be
 COMPLETE, unconditionally, per its own contract above) — only the shared
@@ -225,15 +237,21 @@ def _pages_per_tick() -> int:
 
 
 def _max_requests_per_tick() -> int:
-    """`MSGRAPH_ONENOTE_MAX_REQUESTS_PER_TICK`, default 120 -- read live on
-    every call (spec §13)."""
+    """`MSGRAPH_ONENOTE_MAX_REQUESTS_PER_TICK`, default 500 -- read live on
+    every call (spec §13). Default raised 120->500 2026-08-12: the safe-stall
+    crossover is bound by SECTION COUNT (each section costs >=1 cheap
+    enumeration request, independent of page count within it), not page
+    count, and 500 covers realistic multi-notebook power users. The env var
+    remains the override for extreme accounts; exhausting the budget is
+    always a safe no-progress stall, never data loss (see module docstring
+    "Per-tick admission control" above)."""
     raw = os.environ.get("MSGRAPH_ONENOTE_MAX_REQUESTS_PER_TICK")
     if not raw:
-        return 120
+        return 500
     try:
         return max(1, int(raw))
     except ValueError:
-        return 120
+        return 500
 
 
 # ── watermark cursor codec (the ONLY authority on this JSON shape) ─────────

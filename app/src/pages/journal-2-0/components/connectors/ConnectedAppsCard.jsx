@@ -106,8 +106,8 @@ export default function ConnectedAppsCard() {
       <TileCard icon="link" title="Connected Apps">
         <div className={styles.section}>
           <p className={styles.lead}>
-            Connect Roam, Craft, Notion, or Dropbox and your notes sync into the
-            Notebook automatically — no export, no drag-and-drop.
+            Connect Roam, Craft, Notion, Dropbox, OneNote, or OneDrive and your
+            notes sync into the Notebook automatically — no export, no drag-and-drop.
           </p>
           <p className={styles.muted}>Note Connectors is a premium feature.</p>
           <button className={styles.primaryBtn} onClick={() => startCheckout?.()}>
