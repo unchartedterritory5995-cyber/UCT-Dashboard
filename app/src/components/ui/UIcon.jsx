@@ -375,6 +375,34 @@ const ICONS = {
       <path d="M7 12h10" />
     </>
   ),
+
+  // ── Note connectors (Microsoft Graph wave) ─────────────────────────────
+  // Generic four-square "Microsoft family" mark — filled squares (not
+  // outlined, unlike `dashboard` above) so it reads as a distinct glyph
+  // rather than a re-skinned dashboard icon.
+  microsoft: (
+    <>
+      <rect x="3.5" y="3.5" width="7.4" height="7.4" fill="currentColor" stroke="none" />
+      <rect x="13.1" y="3.5" width="7.4" height="7.4" fill="currentColor" stroke="none" />
+      <rect x="3.5" y="13.1" width="7.4" height="7.4" fill="currentColor" stroke="none" />
+      <rect x="13.1" y="13.1" width="7.4" height="7.4" fill="currentColor" stroke="none" />
+    </>
+  ),
+  // Spiral notebook — a page with binding dots down the left edge, distinct
+  // from `document` (folded-corner page) and `journal` (plain ruled page).
+  onenote: (
+    <>
+      <rect x="6" y="3.5" width="14" height="17" rx="1.6" />
+      <circle cx="4.2" cy="7" r="1" fill="currentColor" stroke="none" />
+      <circle cx="4.2" cy="12" r="1" fill="currentColor" stroke="none" />
+      <circle cx="4.2" cy="17" r="1" fill="currentColor" stroke="none" />
+      <path d="M10 8.5h6M10 12h6M10 15.5h4" />
+    </>
+  ),
+  // Generic cloud-storage outline.
+  onedrive: (
+    <path d="M18 10.3h-1.3a8 8 0 1 0-7.7 10.2h9a5 5 0 0 0 0-10.2z" />
+  ),
 }
 
 export const UICON_NAMES = Object.keys(ICONS)

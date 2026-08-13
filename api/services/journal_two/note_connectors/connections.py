@@ -457,15 +457,48 @@ def record_sync_result(
     user_id: str, source_id: str, *, ok: bool, error: str | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> bool:
-    return _update_source_fields(
-        user_id, source_id,
-        {
-            "last_sync_at": _now_iso(),
-            "last_sync_status": "ok" if ok else "error",
-            "last_sync_error": None if ok else error,
-        },
-        conn,
-    )
+    """Fix-round (msgraph wave, Important #4): a SUCCESSFUL sync also clears
+    a prior 'broken' status back to 'active' — shared by every provider
+    (Notion/Dropbox/Roam/Craft/OneNote/OneDrive alike), not a msgraph-only
+    fix. Without this, a source that hit a mid-drain auth failure
+    (`engine.py`'s own `NoteConnAuthError` handler marks BOTH the source and
+    the connector 'broken') stayed 'broken' FOREVER even after the user
+    reconnected and a manual sync actually succeeded: `upsert_connector`
+    resets only the CONNECTOR's status on reconnect, and `create_source`'s
+    idempotent-return leaves an EXISTING source's status untouched — while
+    `list_due_sources`/`list_all_sources` both filter to `status='active'`,
+    so the source silently fell off the schedule permanently (a real trap
+    whenever Microsoft rotates/revokes a refresh token — Graph is the
+    provider family most likely to trip this).
+
+    Scoped to `'broken' -> 'active'` ONLY (the `WHERE status = 'broken'` in
+    the UPDATE below) — never touches any other status a future disable
+    path might set (e.g. 'disabled', reserved but not exercised by any
+    source today). A genuinely FAILING sync (`ok=False`) never touches
+    `status` at all here — marking 'broken' stays engine.py's own, separate
+    `set_source_status` call on an auth error; this function only ever
+    WIDENS what counts as recovered, never weakens what counts as broken."""
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        cur = conn.execute(
+            """
+            UPDATE j2_note_sources
+               SET last_sync_at = ?, last_sync_status = ?, last_sync_error = ?,
+                   status = CASE WHEN ? AND status = 'broken' THEN 'active' ELSE status END
+             WHERE id = ? AND user_id = ?
+            """,
+            (
+                _now_iso(), "ok" if ok else "error", None if ok else error,
+                1 if ok else 0,
+                source_id, user_id,
+            ),
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        if owned:
+            conn.close()
 
 
 def _update_source_fields(

@@ -28,6 +28,7 @@ from api.services.journal_two.note_connectors.providers import base as base_modu
 from api.services.journal_two.note_connectors.providers.base import (
     assert_public_https,
     guarded_media_get,
+    guarded_media_stream,
 )
 
 
@@ -197,3 +198,128 @@ async def test_guarded_media_get_wraps_a_transport_error_as_transient():
     client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     with pytest.raises(NoteConnTransient):
         await guarded_media_get(client, "https://8.8.8.8/img.png")
+
+
+# ---------------------------------------------------------------------------
+# guarded_media_stream — STREAMED, size-bounded sibling of guarded_media_get
+# (msgraph fix-round-1 Important #2: OneDrive's primary content path must
+# never fully buffer an oversized file in memory before checking the cap).
+# Mirrors dropbox.py's own `_download_streamed` size-enforcement tests
+# (`test_note_connectors_dropbox.py`'s "25MB attachment cap" section) at the
+# shared-primitive level, since this function now backs that same guarantee
+# for a second provider.
+# ---------------------------------------------------------------------------
+
+
+async def test_guarded_media_stream_returns_a_direct_200_unchanged(monkeypatch):
+    _stub_resolver(monkeypatch, ["142.250.0.1"])
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        # The stream helper is only ever handed a content-controlled URL
+        # with no credential attached -- same contract as guarded_media_get.
+        assert request.headers.get("authorization") is None
+        return httpx.Response(200, content=b"ok")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    content, response = await guarded_media_stream(
+        client, "https://cdn.example.com/img.png", max_bytes=1024,
+    )
+    assert content == b"ok"
+    assert response.status_code == 200
+
+
+async def test_guarded_media_stream_follows_a_redirect_to_a_public_host(monkeypatch):
+    _stub_resolver(monkeypatch, ["142.250.0.1"])
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        assert request.headers.get("authorization") is None
+        if str(request.url) == "https://a.example.com/img.png":
+            return httpx.Response(302, headers={"location": "https://8.8.8.8/final.png"})
+        return httpx.Response(200, content=b"final-bytes")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    content, response = await guarded_media_stream(
+        client, "https://a.example.com/img.png", max_bytes=1024,
+    )
+    assert content == b"final-bytes"
+    assert response.status_code == 200
+    assert calls == ["https://a.example.com/img.png", "https://8.8.8.8/final.png"]
+
+
+async def test_guarded_media_stream_refuses_a_redirect_to_a_private_host_before_the_second_request(monkeypatch):
+    _stub_resolver(monkeypatch, ["142.250.0.1"])
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(str(request.url))
+        if str(request.url) == "https://a.example.com/img.png":
+            return httpx.Response(302, headers={"location": "http://127.0.0.1:6379/"})
+        raise AssertionError("must never reach the redirect target")  # pragma: no cover
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    with pytest.raises(NoteConnUnsupported):
+        await guarded_media_stream(client, "https://a.example.com/img.png", max_bytes=1024)
+    assert calls == ["https://a.example.com/img.png"]
+
+
+async def test_guarded_media_stream_refuses_before_reading_a_large_body_via_content_length():
+    """A real over-cap body would be huge; keep the MOCK body small but
+    advertise the true size via Content-Length, proving the header check
+    rejects BEFORE the streamed-accumulation loop ever runs — mirrors
+    `test_download_rejects_a_file_over_the_cap_via_content_length_header`
+    in `test_note_connectors_dropbox.py` exactly, one level down (the
+    shared primitive both providers now route through)."""
+    over_cap_size = 10_000
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"x" * 10, headers={"content-length": str(over_cap_size)})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    with pytest.raises(NoteConnUnsupported):
+        await guarded_media_stream(client, "https://8.8.8.8/big.bin", max_bytes=100)
+
+
+async def test_guarded_media_stream_aborts_mid_stream_when_content_length_is_absent_or_lying():
+    """Backstop for when Content-Length is absent (as here) or understated:
+    the RUNNING TOTAL while streaming is the guaranteed enforcement point,
+    regardless of what (or whether) the header claims."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"y" * 5000)  # no content-length header at all
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    with pytest.raises(NoteConnUnsupported):
+        await guarded_media_stream(client, "https://8.8.8.8/big.bin", max_bytes=100)
+
+
+async def test_guarded_media_stream_succeeds_for_a_normal_small_file(monkeypatch):
+    _stub_resolver(monkeypatch, ["142.250.0.1"])
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, headers={"content-length": "5"}, content=b"hello")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    content, response = await guarded_media_stream(
+        client, "https://cdn.example.com/small.txt", max_bytes=1024,
+    )
+    assert content == b"hello"
+    assert response.status_code == 200
+
+
+async def test_guarded_media_stream_bounds_a_redirect_chain():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(302, headers={"location": "https://8.8.8.8/img.png"})
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    with pytest.raises(NoteConnUnsupported):
+        await guarded_media_stream(client, "https://8.8.8.8/img.png", max_redirects=3, max_bytes=1024)
+
+
+async def test_guarded_media_stream_wraps_a_transport_error_as_transient():
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("connection refused")
+
+    client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+    with pytest.raises(NoteConnTransient):
+        await guarded_media_stream(client, "https://8.8.8.8/img.png", max_bytes=1024)

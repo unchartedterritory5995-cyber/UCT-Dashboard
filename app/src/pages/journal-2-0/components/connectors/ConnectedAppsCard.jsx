@@ -1,23 +1,37 @@
 /**
  * ConnectedAppsCard — Settings panel for note connectors (spec §8, Task 12
- * + 12b). Mirrors BrokerConnectionsCard's shape: upsell when !isPaid,
- * per-provider tiles from GET /status, OAuth return-querystring self-heal.
+ * + 12b, widened to the Microsoft Graph wave in Task 7). Mirrors
+ * BrokerConnectionsCard's shape: upsell when !isPaid, per-provider tiles
+ * from GET /status, OAuth return-querystring self-heal.
  *
- * Card states (spec §8 / task brief, corrected by Task 12b):
- *   - !isPaid                                -> upsell
- *   - provider.configured === false          -> "Coming soon" tile (dark provider, no env creds yet)
- *   - configured, !connected                 -> "Connect" (token modal for roam/craft, consent panel + OAuth redirect for notion/dropbox)
- *   - dropbox, connected, sources.length===0 -> "Choose folder" CTA (amber, NOT the green Connected badge) -> DropboxFolderPicker
- *   - connected, sources.length>0            -> "Connected · N source(s)" + a SourceRow per source
+ * Card states (spec §8 / task brief, corrected by Task 12b, generalized by
+ * Task 7):
+ *   - !isPaid                                          -> upsell
+ *   - provider.configured === false                    -> "Coming soon" tile (dark provider, no env creds yet)
+ *   - configured, !connected                           -> "Connect" (token modal for roam/craft, consent panel + OAuth redirect for oauth providers)
+ *   - FOLDER_PICKER_PROVIDERS, connected, sources.length===0 -> "Choose folder" CTA (amber, NOT the green Connected badge) -> DropboxFolderPicker
+ *   - connected, sources.length>0                       -> "Connected · N source(s)" + a SourceRow per source
+ *
+ * `FOLDER_PICKER_PROVIDERS` (dropbox, onedrive) is the small, shared
+ * allow-set that decides both the "needs a folder" CTA gate below AND which
+ * provider's folders `DropboxFolderPicker` browses — imported from the hook
+ * so it can never drift from the backend's own `_FOLDER_PICKER_PROVIDERS`
+ * (note_sync.py) in spirit. OneNote is whole-account (Notion's shape, one
+ * implicit source auto-created by the callback) and is deliberately NOT in
+ * that set — a sourceless-connected OneNote would mean something actually
+ * failed, not "needs a folder," so it renders the ordinary connected/
+ * SourceRow states like Notion/Roam/Craft.
  *
  * OAuth return: the backend's own `/{provider}/callback` route does the code
  * exchange and redirects the browser back with `?connector=<provider>&connected=1`
  * (verified against the shipped router) — this card detects that querystring
  * the way BrokerConnectionsCard detects `?broker=connected`: refresh status,
- * strip the params, and — Task 12b — if the just-returned provider is
- * Dropbox and lands connected-but-sourceless, auto-open the folder picker
- * (the router's own comment: "Dropbox needs a FOLDER before a source can
- * exist"; the callback deliberately does NOT create one).
+ * strip the params, and — Task 12b, widened in Task 7 — if the just-returned
+ * provider is IN `FOLDER_PICKER_PROVIDERS` and lands connected-but-sourceless,
+ * auto-open the folder picker for THAT provider (the router's own comment:
+ * "Dropbox needs a FOLDER before a source can exist"; OneDrive is the
+ * identical shape; the callback deliberately does NOT create a source for
+ * either).
  *
  * Consent (fix-round 1, finding #1): OAuth providers don't get an immediate
  * redirect on "Connect" — first click reveals a `ConnectConsentPanel`
@@ -27,7 +41,7 @@
 import { useEffect, useRef, useState } from 'react'
 import TileCard from '../../../../components/TileCard'
 import { useAuth } from '../../../../context/AuthContext'
-import useNoteConnectors, { NOTE_CONNECTOR_PROVIDERS } from '../../hooks/useNoteConnectors'
+import useNoteConnectors, { FOLDER_PICKER_PROVIDERS, NOTE_CONNECTOR_PROVIDERS } from '../../hooks/useNoteConnectors'
 import ConnectConsentPanel from './ConnectConsentPanel'
 import ConnectTokenModal from './ConnectTokenModal'
 import DropboxFolderPicker from './DropboxFolderPicker'
@@ -46,13 +60,19 @@ export default function ConnectedAppsCard() {
   const [consentChecked, setConsentChecked] = useState(false)
   const [busyProvider, setBusyProvider] = useState(null)
   const [actionError, setActionError] = useState(null)
-  const [dropboxPickerOpen, setDropboxPickerOpen] = useState(false)
+  // Which FOLDER_PICKER_PROVIDERS key currently has its picker sheet open —
+  // null when closed. A single shared `DropboxFolderPicker` instance is
+  // parameterized by this (see the render below) rather than one boolean +
+  // one instance per provider, so a THIRD folder-picker provider (should one
+  // ever land) needs no new state variable here.
+  const [folderPickerProvider, setFolderPickerProvider] = useState(null)
 
   // OAuth return self-heal: ?connector=<provider>&connected=1 — the backend
-  // callback already created the source row for roam/craft/notion. Dropbox
-  // is the one exception (connector only, no source yet) — remember it here
-  // so the follow-up effect (below, once fresh `providers` lands) can
-  // auto-open the folder picker instead of leaving a silently-incomplete tile.
+  // callback already created the source row for roam/craft/notion/onenote.
+  // FOLDER_PICKER_PROVIDERS (dropbox, onedrive) are the exception
+  // (connector only, no source yet) — remember it here so the follow-up
+  // effect (below, once fresh `providers` lands) can auto-open the folder
+  // picker instead of leaving a silently-incomplete tile.
   const healedRef = useRef(false)
   const autoPickProviderRef = useRef(null)
   useEffect(() => {
@@ -73,10 +93,11 @@ export default function ConnectedAppsCard() {
   // the effect that triggers `refresh()` because `mutate()` is async — this
   // one reacts to the NEW `providers` value rather than racing it.
   useEffect(() => {
-    if (autoPickProviderRef.current !== 'dropbox' || isLoading) return
+    const p = autoPickProviderRef.current
+    if (!p || !FOLDER_PICKER_PROVIDERS.has(p) || isLoading) return
     autoPickProviderRef.current = null
-    if (providers.dropbox?.connected && providers.dropbox.sources.length === 0) {
-      setDropboxPickerOpen(true)
+    if (providers[p]?.connected && providers[p].sources.length === 0) {
+      setFolderPickerProvider(p)
     }
   }, [providers, isLoading])
 
@@ -85,8 +106,8 @@ export default function ConnectedAppsCard() {
       <TileCard icon="link" title="Connected Apps">
         <div className={styles.section}>
           <p className={styles.lead}>
-            Connect Roam, Craft, Notion, or Dropbox and your notes sync into the
-            Notebook automatically — no export, no drag-and-drop.
+            Connect Roam, Craft, Notion, Dropbox, OneNote, or OneDrive and your
+            notes sync into the Notebook automatically — no export, no drag-and-drop.
           </p>
           <p className={styles.muted}>Note Connectors is a premium feature.</p>
           <button className={styles.primaryBtn} onClick={() => startCheckout?.()}>
@@ -177,11 +198,14 @@ export default function ConnectedAppsCard() {
             const info = providers[p.key]
             const { configured, connected, sources } = info
             const showingConsent = p.tokenKind === 'oauth' && consentProvider === p.key
-            // Only Dropbox's connect flow can land connector-without-source
-            // today (Roam/Craft/Notion create both atomically — see the
-            // router) — scope the CTA to it rather than a state no other
-            // provider can currently reach.
-            const needsFolder = p.key === 'dropbox' && connected && sources.length === 0
+            // Only FOLDER_PICKER_PROVIDERS (dropbox, onedrive) can land
+            // connector-without-source today (Roam/Craft/Notion/OneNote
+            // create both atomically — see the router) — scope the CTA to
+            // that shared allow-set rather than a dropbox-only literal, so
+            // OneDrive lands the same "Choose folder" state Dropbox already
+            // had, and a future whole-account provider joining Notion/
+            // OneNote's shape never needs this gate touched.
+            const needsFolder = FOLDER_PICKER_PROVIDERS.has(p.key) && connected && sources.length === 0
             return (
               <div key={p.key} className={styles.tile} data-provider={p.key} data-testid={`connector-tile-${p.key}`}>
                 <div className={styles.tileHead}>
@@ -192,7 +216,7 @@ export default function ConnectedAppsCard() {
                     <button
                       type="button"
                       className={styles.chooseFolderBtn}
-                      onClick={() => setDropboxPickerOpen(true)}
+                      onClick={() => setFolderPickerProvider(p.key)}
                     >
                       Choose folder
                     </button>
@@ -259,10 +283,12 @@ export default function ConnectedAppsCard() {
       />
 
       <DropboxFolderPicker
-        open={dropboxPickerOpen}
+        open={!!folderPickerProvider}
+        provider={folderPickerProvider || 'dropbox'}
+        providerLabel={NOTE_CONNECTOR_PROVIDERS.find((p) => p.key === folderPickerProvider)?.label || 'Dropbox'}
         listFolders={listFolders}
         addSource={addSource}
-        onClose={() => setDropboxPickerOpen(false)}
+        onClose={() => setFolderPickerProvider(null)}
         onPicked={() => {}}
       />
     </TileCard>

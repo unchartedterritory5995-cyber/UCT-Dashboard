@@ -124,7 +124,14 @@ import httpx
 
 from ...notes import _MAX_FILE_BYTES
 from .. import errors
-from ..convert import ATTACHMENT_REF_PREFIX, LINK_PREFIX, REF_PREFIX, html_to_tiptap, md_to_tiptap
+from ..convert import (
+    ATTACHMENT_REF_PREFIX,
+    LINK_PREFIX,
+    REF_PREFIX,
+    html_to_tiptap,
+    md_to_tiptap,
+    txt_to_tiptap,
+)
 from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, guarded_media_get
 
 
@@ -1063,7 +1070,7 @@ class DropboxProvider(NoteProvider):
             converted = md_to_tiptap(text)
             converted = self._promote_md_attachments(converted)
         else:  # .txt
-            converted = _txt_to_tiptap(text)
+            converted = txt_to_tiptap(text)
 
         updated_at = _change_timestamp(entry) if entry else ref.updated_at
         return RemoteNote(
@@ -1140,36 +1147,6 @@ class DropboxProvider(NoteProvider):
             )
         content_type = response.headers.get("content-type", "application/octet-stream")
         return response.content, content_type
-
-
-def _txt_to_tiptap(text: str | None) -> dict[str, Any]:
-    """Plain-text (.txt) -> TipTap JSON with NO markdown parsing — every
-    character is literal (a `*`/`#`/`_` is never interpreted as syntax).
-    Blank-line-separated blocks become separate paragraphs; single newlines
-    within a block become explicit `hardBreak`s (preserves a plain-text
-    file's original line layout, which its author typically intends
-    verbatim, unlike markdown's line-reflow convention). No links/media are
-    possible in plain text, so both lists are always empty.
-
-    Private, Dropbox-only fallback per the task brief ("reuse the mddoc
-    helper if one exists, else escape+paragraphs") — `mddoc.py` has no
-    ready-made text-literal helper, and feeding raw `.txt` content through
-    `md_to_tiptap` would risk misinterpreting literal characters (a leading
-    `#`, a stray `*`) as markdown syntax."""
-    raw = (text or "").replace("\r\n", "\n").replace("\r", "\n").strip("\n")
-    if raw.strip() == "":
-        return {"doc": {"type": "doc", "content": []}, "media": [], "links": []}
-    content: list[dict[str, Any]] = []
-    for block in re.split(r"\n{2,}", raw):
-        lines = block.split("\n")
-        para: list[dict[str, Any]] = []
-        for i, line in enumerate(lines):
-            if i > 0:
-                para.append({"type": "hardBreak"})
-            if line:
-                para.append({"type": "text", "text": line})
-        content.append({"type": "paragraph", "content": para})
-    return {"doc": {"type": "doc", "content": content}, "media": [], "links": []}
 
 
 _CONTENT_TYPE_BY_EXT = {

@@ -12,13 +12,34 @@ boundaries in production code) so tests achieve isolation the same way
 to a temp file before any connection is opened.
 
 Flow per source, per sync:
-  1. `provider.list_changed(creds, cursor)` — the ONLY "what changed" signal.
+  1. `provider.list_changed(creds, cursor)` — the "what to FETCH" signal.
      The raw stored cursor is passed straight through; providers own their
      own overlap window internally (Craft: -1h; Roam: re-enumerates + diffs
-     edit-times) — the engine never adjusts it.
+     edit-times) — the engine never adjusts it. For a provider whose full
+     enumeration is cheap but whose content fetch is expensive (OneNote,
+     Task 6), this may be a BOUNDED content-fetch drain rather than the
+     complete remote set — see `list_present_refs` below.
+     ⚠️ Fix-round-1 Important #1 (Finding B): on a `full` pass, the cursor
+     handed to THIS call resets to `None` only for a provider WITHOUT
+     `list_present_refs` — the pre-existing "force a full re-list" mechanism.
+     A provider WITH the hook (OneNote) keeps its STORED cursor even on a
+     full pass, because that hook already supplies completeness for delete
+     detection/`_touch_remote_index` independently (step 2) — resetting
+     `list_changed`'s cursor too would, for a provider whose `list_changed`
+     is itself a bounded resumable drain (not a re-list), regress that
+     drain's progress backward every night. See the inline comment at the
+     cursor-decision line for the full incident writeup.
   2. Full syncs (`full=True`) run delete detection FIRST, against the
      PRE-sync remote_index snapshot (see `_run_delete_detection`), then
      every seen ref is upserted into remote_index (`_touch_remote_index`).
+     Task 4: an OPTIONAL `provider.list_present_refs(creds)` hook (checked
+     via `getattr`, mirrors `list_deleted` immediately below it) supplies
+     the COMPLETE current remote set for BOTH of those steps when present
+     and successful — `index_refs` in `_do_sync` — while `list_changed`'s
+     own (possibly bounded) result still drives content fetch, unchanged.
+     A raising hook, or a provider without one (Roam/Craft/Notion/Dropbox/
+     OneDrive define none), falls back to `list_changed`'s result driving
+     everything, today's unchanged behavior.
   3. Resolve refs -> RemoteNotes, preferring `provider.fetch_many` (batched)
      with a per-ref `fetch()` fallback so one bad ref in a batch yields one
      named failure, never the whole batch.
@@ -76,7 +97,7 @@ from typing import Any
 
 from api.services.auth_db import get_connection
 from api.services.journal_two import notes as notes_svc
-from api.services.journal_two.note_connectors import connections, errors
+from api.services.journal_two.note_connectors import connections, errors, oauth
 from api.services.journal_two.note_connectors.convert import rewrite_body
 from api.services.journal_two.note_connectors.providers.base import (
     NoteProvider, RemoteNote, RemoteRef,
@@ -322,6 +343,44 @@ async def sync_all_active_sources_full() -> None:
             log.exception("note-connector FULL sync failed for source %s", source["id"])
 
 
+# ── Credential resolution (Fix-round-1 Important #1) ────────────────────────
+
+async def _resolve_credentials(user_id: str, provider_name: str) -> dict[str, Any] | None:
+    """Returns the current, USABLE credentials dict for (user_id,
+    provider_name) — refreshing first when the provider is one `oauth.py`
+    knows how to refresh (`oauth.is_registered`) AND its stored token is
+    at/near expiry. `None` if there is no connected credential at all
+    (matches `connections.get_token`'s own contract).
+
+    `oauth.refresh_if_needed` (built in Task 1) already does the hard part —
+    lock-guarded, re-reads the stored credential after acquiring the lock,
+    and PERSISTS a refreshed (and, for Microsoft Graph, ROTATED)
+    refresh_token via `connections.upsert_connector` — but had ZERO call
+    sites before this. That gap is a correctness bug for Microsoft Graph
+    specifically, not just a missed optimization: Graph access tokens are
+    short-lived (~60-90min) AND redeeming the refresh token returns a NEW
+    refresh_token that immediately invalidates the old one. A provider that
+    refreshed reactively in its own `_send`/`send` on a bare 401 WITHOUT
+    persisting (Dropbox's `_try_refresh` shape — safe there only because
+    Dropbox refresh tokens do NOT rotate) would silently strand the OLD,
+    now-dead refresh_token in the DB the moment it refreshed once, breaking
+    the connector on the very next sync tick. Calling the already-built,
+    already-persisting `refresh_if_needed` HERE — before every sync tick,
+    for every provider `oauth.py` knows about — closes that gap for Notion,
+    OneNote, and OneDrive at once, with no per-provider code.
+
+    Providers `oauth.py` does NOT register (Dropbox — its own app key/secret
+    and refresh mechanics live entirely in `providers/dropbox.py` by
+    design) fall back to the plain `connections.get_token` read, BYTE-
+    IDENTICAL to this function's pre-fix-round-1 behavior. `refresh_if_needed`
+    is itself a safe no-op for a registered provider whose stored token
+    carries no `expiresAt` (Notion — tokens don't expire, so this makes
+    ZERO extra network calls for it, same as before) or no `refreshToken`."""
+    if oauth.is_registered(provider_name):
+        return await oauth.refresh_if_needed(user_id, provider_name)
+    return connections.get_token(user_id, provider_name)
+
+
 # ── Core per-source sync ─────────────────────────────────────────────────────
 
 async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any]:
@@ -338,15 +397,54 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
 
     try:
         provider = _provider_factory(source["provider"], source)
-        creds = connections.get_token(user_id, source["provider"])
+        creds = await _resolve_credentials(user_id, source["provider"])
         if creds is None:
             raise errors.NoteConnNotConfigured(
                 f"no connected credentials for provider {source['provider']!r}"
             )
 
+        # `list_present_refs` governs BOTH the cursor-reset decision right
+        # below AND (further down, on a full pass) the complete-set input to
+        # delete detection — computed ONCE, here, and reused in both places
+        # rather than two separate `getattr` calls that could theoretically
+        # read differently (this repo's own "a second authority over one
+        # value" defect shape).
+        present_fn = getattr(provider, "list_present_refs", None)
+
         # Raw cursor, unadjusted — providers own their own overlap window.
-        cursor = None if full else source.get("cursor")
+        # A provider WITHOUT `list_present_refs` (Roam/Craft/Notion/Dropbox/
+        # OneDrive) resets to None on every full pass — the pre-existing,
+        # unchanged mechanism for forcing a complete re-list on that provider's
+        # OWN `list_changed`.
+        #
+        # A provider WITH `list_present_refs` (OneNote) must NOT also reset
+        # here (fix-round-1 Important #1 / Finding B): that hook already
+        # supplies a COMPLETE remote set for delete detection + remote_index
+        # on every full pass (see below), so `list_changed` has no need to
+        # re-derive completeness itself — for OneNote specifically,
+        # `list_changed` is a bounded, RESUMABLE watermark drain, not a full
+        # re-list. Resetting its cursor to None on every nightly full pass
+        # would restart that drain from the epoch and regress the watermark
+        # BACKWARD from wherever incremental ticks had already reached —
+        # re-importing old content and, on any account bigger than
+        # K × (ticks between full passes), starving the newest edits forever
+        # (confirmed via `repro_fullpass.py`: incremental reached T99, one
+        # full pass dropped the cursor to T39). Passing the STORED cursor
+        # through on a full pass for such a provider lets its bounded drain
+        # continue exactly where it left off, while `list_present_refs`
+        # (below) independently supplies the completeness delete detection
+        # needs — the two concerns are already cleanly separated by design
+        # (spec §9); this is that separation actually holding on the cursor
+        # too, not just on `index_refs`.
+        cursor = None if (full and present_fn is None) else source.get("cursor")
         refs = await provider.list_changed(creds, cursor=cursor)
+        # Task 4: `index_refs` is what delete detection + remote_index
+        # bookkeeping actually see. Defaults to `refs` (today's behavior,
+        # unconditionally) and is ONLY ever overridden below, on a `full`
+        # pass, by a provider that exposes `list_present_refs` and whose
+        # call succeeds — so an incremental pass, or a provider without the
+        # hook, leaves this byte-for-byte equal to `refs`.
+        index_refs = refs
 
         if full:
             # Task 11 MUST-RESOLVE #4: when the provider exposes a
@@ -368,7 +466,38 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
                         f"list_deleted sweep failed (falling back to miss-streak "
                         f"delete detection): {e}"
                     )
-            dd = _run_delete_detection(user_id, source, refs, deleted_refs=deleted_refs)
+
+            # Task 4: an optional, full-pass-only hook for a provider whose
+            # full ENUMERATION is cheap but whose content FETCH is expensive
+            # (OneNote, Task 6) — it returns the COMPLETE current remote set
+            # while `list_changed` above returns only a bounded drain (a
+            # content-fetch budget, not a full listing). Mirrors the
+            # `list_deleted` seam immediately above EXACTLY: same `getattr`
+            # gating, same full-pass-only placement, same catch-and-fall-
+            # back-with-named-failure discipline. When present and
+            # successful, `index_refs` becomes this COMPLETE set, so delete
+            # detection (`_run_delete_detection`'s `seen_ids`) and
+            # `_touch_remote_index` see every item that still exists
+            # remotely — a present-but-not-yet-fetched item is correctly
+            # touched (miss_streak reset), never mistaken for missing/
+            # deleted just because this round's bounded drain didn't reach
+            # it. `refs` itself is UNCHANGED and still drives
+            # `_fetch_remote_notes` below — enumeration is complete, content
+            # fetch stays bounded. A raising hook, or a provider without the
+            # method (Roam/Craft/Notion/Dropbox/OneDrive define none), never
+            # aborts the sync — `index_refs` simply falls back to `refs`,
+            # today's behavior, unchanged. `present_fn` itself was already
+            # resolved once, above, before the cursor decision — reused here.
+            if present_fn is not None:
+                try:
+                    index_refs = await present_fn(creds)
+                except Exception as e:  # noqa: BLE001
+                    item_failures.append(
+                        f"list_present_refs sweep failed (falling back to "
+                        f"refs-drive-everything): {e}"
+                    )
+
+            dd = _run_delete_detection(user_id, source, index_refs, deleted_refs=deleted_refs)
             # `deleted` is meaningful even alongside a warning now (Fix-round-1
             # #1a): the explicit-sever cap can refuse the LIST_DELETED signal
             # for a subset of rows in the same pass unrelated 2-strike misses
@@ -380,7 +509,7 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
             if dd["status"] == "warning":
                 delete_guard_warning = dd["reason"]
 
-        _touch_remote_index(user_id, source, provider, refs)
+        _touch_remote_index(user_id, source, provider, index_refs)
 
         remote_notes, fetch_failures = await _fetch_remote_notes(provider, creds, refs)
         item_failures.extend(fetch_failures)

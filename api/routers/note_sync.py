@@ -380,9 +380,14 @@ def _start_oauth(provider: str, user_id: str) -> dict[str, Any]:
         state = _sign_state(user_id, provider)
     except errors.NoteConnNotConfigured as e:
         raise HTTPException(status_code=503, detail=str(e))
-    if provider == "notion":
-        url = oauth.authorize_url("notion", state)
-    else:  # dropbox
+    if provider in oauth._PROVIDERS:
+        # Generic path — Notion today, onenote/onedrive (Microsoft Graph)
+        # once their registry.py rows land (Task 3/7 of this plan): ZERO
+        # per-name code here, the branch is keyed on which providers
+        # `oauth.py` itself knows how to talk to.
+        url = oauth.authorize_url(provider, state)
+    else:  # dropbox -- owns its OAuth mechanics outside oauth.py, see this
+        # module's own docstring / oauth.py's docstring for why.
         from api.services.journal_two.note_connectors.providers.dropbox import authorize_url as dbx_authorize_url
         url = dbx_authorize_url(_dropbox_redirect_uri(), state)
     return {"redirectUrl": url}
@@ -402,6 +407,17 @@ async def connect(provider: str, body: ConnectBody, user: dict = Depends(_paid))
 
 
 # ── GET /{provider}/callback (OAuth) ──────────────────────────────────────────
+
+# Generic-OAuth providers (`provider in oauth._PROVIDERS`) whose OWN token
+# response carries no natural source-identifying field (Notion's
+# `workspaceId`/`botId` vocabulary), but which STILL need exactly ONE
+# whole-account source auto-created on callback (Task 7, msgraph wave --
+# the Notion pattern, not Dropbox/OneDrive's connector-only-then-folder-
+# picker shape). Today: just `onenote`. Deliberately does NOT include
+# `onedrive` -- OneDrive must stay sourceless -> folder-picker, same as
+# Dropbox (see `_FOLDER_PICKER_PROVIDERS` below).
+_MSGRAPH_WHOLE_ACCOUNT_PROVIDERS = frozenset({"onenote"})
+
 
 @router.get("/{provider}/callback")
 async def oauth_callback(
@@ -443,10 +459,50 @@ async def oauth_callback(
     entry = registry.get_entry(provider)
 
     try:
-        if provider == "notion":
-            creds = await oauth.exchange_code("notion", code)
-            account_label = creds.get("workspaceName") or "Notion"
-            remote_id: str | None = creds.get("workspaceId") or creds.get("botId") or "workspace"
+        if provider in oauth._PROVIDERS:
+            # Generic path (Task 1's own scope: Notion today, onenote/
+            # onedrive once their registry.py rows land) -- ZERO per-name
+            # code for the TOKEN EXCHANGE itself. `workspaceName`/
+            # `workspaceId`/`botId` are Notion's own fields
+            # (`_normalize_token_response` never invents them for a
+            # provider that doesn't return them, e.g. Microsoft Graph), so
+            # falling back to the registry's own label/None keeps this
+            # branch honest for a provider with no "workspace" concept at
+            # all rather than baking Notion's vocabulary into a generic
+            # branch.
+            creds = await oauth.exchange_code(provider, code)
+            account_label = creds.get("workspaceName") or entry.label
+            remote_id: str | None = creds.get("workspaceId") or creds.get("botId")
+            if remote_id is None and provider in _MSGRAPH_WHOLE_ACCOUNT_PROVIDERS:
+                # Task 7's named risk: OneNote is Notion-shaped ("the
+                # connector IS the one implicit source", spec §12), but
+                # unlike Notion its OAuth token response carries no
+                # workspace/bot id to key that source on -- Microsoft Graph
+                # has nothing resembling a "workspace." Left alone,
+                # `remote_id` would stay None and OneNote would land in
+                # Dropbox/OneDrive's connector-only, SOURCELESS state -- a
+                # dead end for a provider with no folder picker to complete
+                # it (OneNote is deliberately excluded from
+                # `_FOLDER_PICKER_PROVIDERS` below). `MSGraphClient.validate`
+                # (`GET /me`) is the SAME call every msgraph provider
+                # already makes for account-label resolution; its
+                # `AccountInfo.raw["id"]` is a real, stable Microsoft
+                # account id, reused here so the stored source reflects the
+                # actual connected account (and gives `account_label` a real
+                # display name instead of just repeating the registry's
+                # generic "OneNote" label) -- with a fixed "me" sentinel as
+                # a defensive fallback only if Graph's own `/me` response is
+                # ever missing its `id` field. A validate() failure here
+                # (e.g. a since-revoked token) is caught by the SAME
+                # `except errors.NoteConnError` below the dropbox branch,
+                # exactly like dropbox's own validate() call.
+                provider_obj = registry.build_provider(provider)
+                try:
+                    info = await provider_obj.validate(creds)
+                finally:
+                    await _aclose(provider_obj)
+                account_label = info.label or account_label
+                remote_id = (info.raw or {}).get("id") or "me"
         else:  # dropbox -- no oauth.py entry (see providers/dropbox.py's own OAuth
             # mechanics); exchanges directly against its documented private
             # helper (the module's own docstring invites this: "the router
@@ -512,22 +568,44 @@ async def oauth_callback(
     return RedirectResponse(f"{dashboard}/settings?connector={provider}&connected=1", status_code=302)
 
 
-# ── Dropbox folder picker (spec §7: "OWN folder picker") ─────────────────────
+# ── Folder picker (spec §7: "OWN folder picker") ──────────────────────────────
+# Dropbox originally; generalized to OneDrive (msgraph wave Task 3) — both
+# sync a PICKED FOLDER (source-level `remoteId`), unlike Notion/Roam/Craft/
+# OneNote which sync a whole workspace/graph/account and have no folder
+# concept to pick. Every provider in this set dispatches identically through
+# `provider_obj.list_folders` — no per-provider branch below.
+_FOLDER_PICKER_PROVIDERS = frozenset({"dropbox", "onedrive"})
+
 
 @router.get("/{provider}/folders")
 async def list_provider_folders(
     provider: str, path: str = "", user: dict = Depends(_paid),
 ) -> dict[str, Any]:
-    if provider != "dropbox":
-        raise HTTPException(status_code=404, detail="only dropbox exposes a folder picker")
+    if provider not in _FOLDER_PICKER_PROVIDERS:
+        raise HTTPException(status_code=404, detail="this provider does not expose a folder picker")
+    label = registry.get_entry(provider).label
     try:
-        creds = connections.get_token(user["id"], provider)
+        # Fix-round Important #3: a connected-but-sourceless OneDrive
+        # connector (the exact state this endpoint exists to complete) gets
+        # NO sync ticks -- nothing else ever calls `refresh_if_needed` for
+        # it -- so its ~60-90min Graph access token expires long before the
+        # user opens the picker again ("choose a folder tomorrow" 401s
+        # permanently otherwise). Route through `engine._resolve_credentials`
+        # (the SAME refresh-then-read helper every sync tick already uses)
+        # rather than the plain `connections.get_token` read this used to
+        # do -- a no-op for Dropbox (not `oauth.is_registered`, byte-
+        # identical to the old read) and for a still-fresh msgraph token
+        # (no `expiresAt`/not-yet-near-expiry -> `refresh_if_needed` itself
+        # short-circuits, per its own docstring).
+        creds = await engine._resolve_credentials(user["id"], provider)
+    except errors.NoteConnError as e:
+        _raise_for_provider_error(e)
     except Exception:  # noqa: BLE001 — crypto_box.CryptoBoxError etc. -> treat as needing reconnect
-        raise HTTPException(status_code=409, detail="Reconnect Dropbox — stored credentials are unreadable.")
+        raise HTTPException(status_code=409, detail=f"Reconnect {label} — stored credentials are unreadable.")
     if creds is None:
-        raise HTTPException(status_code=409, detail="Connect Dropbox first.")
+        raise HTTPException(status_code=409, detail=f"Connect {label} first.")
 
-    provider_obj = registry.build_provider("dropbox")
+    provider_obj = registry.build_provider(provider)
     try:
         folders = await provider_obj.list_folders(creds, path)
     except errors.NoteConnError as e:

@@ -420,9 +420,8 @@ describe('ConnectedAppsCard — Dropbox folder picker + sourceless-connected sta
       }],
       ['/dropbox/folders', { body: { folders: [{ path_lower: '/team notes', name: 'Team Notes' }] } }],
       ['/dropbox/sources', {
-        body: (opts) => {
+        body: () => {
           sourcesCreated = true
-          expect(JSON.parse(opts.body)).toEqual({ remoteId: '/team notes', displayName: 'Team Notes' })
           return { source: { id: 'dbx-1' } }
         },
       }],
@@ -436,6 +435,15 @@ describe('ConnectedAppsCard — Dropbox folder picker + sourceless-connected sta
       const call = global.fetch.mock.calls.find((c) => String(c[0]).includes('/dropbox/sources') && c[1]?.method === 'POST')
       expect(call).toBeTruthy()
     })
+    // Fix-round: the POST body is asserted HERE, outside any mock callback —
+    // a thrown assertion inside `resp.body()` is silently SWALLOWED by
+    // `addSource`'s `r.json().catch(() => ({}))`, which is exactly how an
+    // empty-remoteId regression could have gone undetected behind a green
+    // test (the bug class this fix-round exists to close).
+    const postCall = global.fetch.mock.calls.find(
+      (c) => String(c[0]).includes('/dropbox/sources') && c[1]?.method === 'POST'
+    )
+    expect(JSON.parse(postCall[1].body)).toEqual({ remoteId: '/team notes', displayName: 'Team Notes' })
     // Status re-fetched after the pick -> the tile flips to the healthy Connected state.
     expect(await screen.findByText(/Connected · 1 source/)).toBeInTheDocument()
   })
@@ -490,6 +498,211 @@ describe('ConnectedAppsCard — Dropbox folder picker + sourceless-connected sta
 
     expect(await screen.findByText(/Connected · 1 source/)).toBeInTheDocument()
     expect(screen.queryByText('Choose a Dropbox folder')).not.toBeInTheDocument()
+  })
+})
+
+describe('ConnectedAppsCard — OneNote/OneDrive tiles (Task 7, msgraph wave)', () => {
+  afterEach(() => {
+    window.history.replaceState({}, '', '/settings')
+    vi.restoreAllMocks()
+  })
+
+  const MSGRAPH_UNCONFIGURED_STATUS = {
+    providers: {
+      roam: { configured: false, connected: false, sources: [] },
+      craft: { configured: false, connected: false, sources: [] },
+      notion: { configured: false, connected: false, sources: [] },
+      dropbox: { configured: false, connected: false, sources: [] },
+      onenote: { configured: false, connected: false, sources: [] },
+      onedrive: { configured: false, connected: false, sources: [] },
+    },
+  }
+
+  it('renders "Coming soon" for both onenote and onedrive when the server reports them unconfigured', async () => {
+    mockFetch([['/api/j2/notes/connectors/status', { body: MSGRAPH_UNCONFIGURED_STATUS }]])
+    render(<ConnectedAppsCard />)
+    expect(await screen.findByTestId('connector-tile-onenote')).toHaveTextContent('Coming soon')
+    expect(screen.getByTestId('connector-tile-onedrive')).toHaveTextContent('Coming soon')
+    // Existing wave-1 tiles stay unregressed alongside the two new ones.
+    expect(screen.getByTestId('connector-tile-notion')).toHaveTextContent('Coming soon')
+    expect(screen.getByTestId('connector-tile-dropbox')).toHaveTextContent('Coming soon')
+  })
+
+  const MSGRAPH_CONFIGURED_STATUS = {
+    providers: {
+      roam: { configured: false, connected: false, sources: [] },
+      craft: { configured: false, connected: false, sources: [] },
+      notion: { configured: false, connected: false, sources: [] },
+      dropbox: { configured: false, connected: false, sources: [] },
+      onenote: { configured: true, connected: false, sources: [] },
+      onedrive: { configured: true, connected: false, sources: [] },
+    },
+  }
+
+  it('"Connect" on a configured onenote tile POSTs {consent:true} once consent is checked, starting the OAuth redirect', async () => {
+    mockFetch([
+      ['/api/j2/notes/connectors/status', { body: MSGRAPH_CONFIGURED_STATUS }],
+      ['/api/j2/notes/connectors/onenote/connect', { body: { redirectUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize?x=1' } }],
+    ])
+    render(<ConnectedAppsCard />)
+    const tile = await screen.findByTestId('connector-tile-onenote')
+    fireEvent.click(within(tile).getByRole('button', { name: /connect/i }))
+    fireEvent.click(await screen.findByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: /^continue$/i }))
+
+    await waitFor(() => {
+      const call = global.fetch.mock.calls.find((c) => String(c[0]).includes('/onenote/connect'))
+      expect(call).toBeTruthy()
+      expect(JSON.parse(call[1].body)).toEqual({ consent: true })
+    })
+  })
+
+  it('"Connect" on a configured onedrive tile POSTs {consent:true} once consent is checked, starting the OAuth redirect', async () => {
+    mockFetch([
+      ['/api/j2/notes/connectors/status', { body: MSGRAPH_CONFIGURED_STATUS }],
+      ['/api/j2/notes/connectors/onedrive/connect', { body: { redirectUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize?x=1' } }],
+    ])
+    render(<ConnectedAppsCard />)
+    const tile = await screen.findByTestId('connector-tile-onedrive')
+    fireEvent.click(within(tile).getByRole('button', { name: /connect/i }))
+    fireEvent.click(await screen.findByRole('checkbox'))
+    fireEvent.click(screen.getByRole('button', { name: /^continue$/i }))
+
+    await waitFor(() => {
+      const call = global.fetch.mock.calls.find((c) => String(c[0]).includes('/onedrive/connect'))
+      expect(call).toBeTruthy()
+      expect(JSON.parse(call[1].body)).toEqual({ consent: true })
+    })
+  })
+
+  // ── The two wiring subtleties this task exists to get right ──────────────
+
+  const ONENOTE_CONNECTED_STATUS = {
+    providers: {
+      roam: { configured: false, connected: false, sources: [] },
+      craft: { configured: false, connected: false, sources: [] },
+      notion: { configured: false, connected: false, sources: [] },
+      dropbox: { configured: false, connected: false, sources: [] },
+      onenote: {
+        configured: true, connected: true,
+        sources: [{
+          id: 'onenote-1', provider: 'onenote', displayName: 'OneNote — Patrick', remoteId: 'me',
+          syncEnabled: true, status: 'active', lastSyncAt: null, counts: {},
+        }],
+      },
+      onedrive: { configured: false, connected: false, sources: [] },
+    },
+  }
+
+  const ONEDRIVE_SOURCELESS_STATUS = {
+    providers: {
+      roam: { configured: false, connected: false, sources: [] },
+      craft: { configured: false, connected: false, sources: [] },
+      notion: { configured: false, connected: false, sources: [] },
+      dropbox: { configured: false, connected: false, sources: [] },
+      onenote: { configured: false, connected: false, sources: [] },
+      onedrive: { configured: true, connected: true, sources: [] },
+    },
+  }
+
+  it('a connected onenote tile renders a normal whole-account SourceRow, never the "Choose folder" CTA', async () => {
+    mockFetch([['/api/j2/notes/connectors/status', { body: ONENOTE_CONNECTED_STATUS }]])
+    render(<ConnectedAppsCard />)
+    const tile = await screen.findByTestId('connector-tile-onenote')
+    expect(within(tile).getByText('OneNote — Patrick')).toBeInTheDocument()
+    expect(within(tile).getByText(/Connected · 1 source/)).toBeInTheDocument()
+    expect(within(tile).queryByRole('button', { name: /choose folder/i })).not.toBeInTheDocument()
+  })
+
+  it('a connected-but-sourceless onedrive tile shows the "Choose folder" CTA (the folder-picker gate widened to onedrive)', async () => {
+    mockFetch([['/api/j2/notes/connectors/status', { body: ONEDRIVE_SOURCELESS_STATUS }]])
+    render(<ConnectedAppsCard />)
+    const tile = await screen.findByTestId('connector-tile-onedrive')
+    expect(within(tile).getByRole('button', { name: /choose folder/i })).toBeInTheDocument()
+    expect(within(tile).queryByText(/Connected · \d+ source/)).not.toBeInTheDocument()
+  })
+
+  it('clicking "Choose folder" on onedrive opens the picker against /onedrive/folders, not /dropbox/folders', async () => {
+    mockFetch([
+      ['/api/j2/notes/connectors/status', { body: ONEDRIVE_SOURCELESS_STATUS }],
+      ['/onedrive/folders', { body: { folders: [{ id: 'item-1', name: 'Work Notes' }] } }],
+    ])
+    render(<ConnectedAppsCard />)
+    const tile = await screen.findByTestId('connector-tile-onedrive')
+    fireEvent.click(within(tile).getByRole('button', { name: /choose folder/i }))
+
+    expect(await screen.findByText('Choose a OneDrive folder')).toBeInTheDocument()
+    expect(await screen.findByText('Work Notes')).toBeInTheDocument()
+    const call = global.fetch.mock.calls.find((c) => String(c[0]).includes('/onedrive/folders'))
+    expect(call).toBeTruthy()
+    expect(global.fetch.mock.calls.some((c) => String(c[0]).includes('/dropbox/folders'))).toBe(false)
+  })
+
+  it('picking an onedrive folder POSTs {remoteId, displayName} to /onedrive/sources, not /dropbox/sources', async () => {
+    let sourcesCreated = false
+    mockFetch([
+      ['/api/j2/notes/connectors/status', {
+        body: () => (sourcesCreated
+          ? {
+              providers: {
+                ...ONEDRIVE_SOURCELESS_STATUS.providers,
+                onedrive: {
+                  configured: true, connected: true,
+                  sources: [{ id: 'od-1', provider: 'onedrive', displayName: 'Work Notes', remoteId: 'item-1', syncEnabled: true, counts: {} }],
+                },
+              },
+            }
+          : ONEDRIVE_SOURCELESS_STATUS),
+      }],
+      ['/onedrive/folders', { body: { folders: [{ id: 'item-1', name: 'Work Notes' }] } }],
+      ['/onedrive/sources', {
+        body: () => {
+          sourcesCreated = true
+          return { source: { id: 'od-1' } }
+        },
+      }],
+    ])
+    render(<ConnectedAppsCard />)
+    const tile = await screen.findByTestId('connector-tile-onedrive')
+    fireEvent.click(within(tile).getByRole('button', { name: /choose folder/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /sync this folder/i }))
+
+    await waitFor(() => {
+      const call = global.fetch.mock.calls.find((c) => String(c[0]).includes('/onedrive/sources') && c[1]?.method === 'POST')
+      expect(call).toBeTruthy()
+    })
+    // Fix-round CRITICAL: asserted OUTSIDE the fetch mock's json() callback
+    // (see the matching dropbox test's comment above) — this is the exact
+    // assertion that would have caught the bug (remoteId reaching the
+    // backend as '' for every OneDrive folder) had it been written this way
+    // the first time.
+    const postCall = global.fetch.mock.calls.find(
+      (c) => String(c[0]).includes('/onedrive/sources') && c[1]?.method === 'POST'
+    )
+    expect(JSON.parse(postCall[1].body)).toEqual({ remoteId: 'item-1', displayName: 'Work Notes' })
+    expect(await screen.findByText(/Connected · 1 source/)).toBeInTheDocument()
+  })
+
+  it('OAuth return for onedrive auto-opens the folder picker when it lands connected-but-sourceless', async () => {
+    window.history.replaceState({}, '', '/settings?section=connections&connector=onedrive&connected=1')
+    mockFetch([
+      ['/api/j2/notes/connectors/status', { body: ONEDRIVE_SOURCELESS_STATUS }],
+      ['/onedrive/folders', { body: { folders: [] } }],
+    ])
+    render(<ConnectedAppsCard />)
+
+    // The picker opens WITHOUT any click — the self-heal drove it, and it's
+    // scoped to onedrive (not the Dropbox picker's default provider).
+    expect(await screen.findByText('Choose a OneDrive folder')).toBeInTheDocument()
+  })
+
+  it('OAuth return for onenote (whole-account, always gets its one source atomically) does NOT open any folder picker', async () => {
+    window.history.replaceState({}, '', '/settings?section=connections&connector=onenote&connected=1')
+    mockFetch([['/api/j2/notes/connectors/status', { body: ONENOTE_CONNECTED_STATUS }]])
+    render(<ConnectedAppsCard />)
+
+    expect(await screen.findByText(/Connected · 1 source/)).toBeInTheDocument()
+    expect(screen.queryByText(/Choose a .+ folder/)).not.toBeInTheDocument()
   })
 })
 

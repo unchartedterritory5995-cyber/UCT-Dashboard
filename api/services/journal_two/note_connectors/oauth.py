@@ -1,7 +1,18 @@
 """Generic OAuth2 client-credentials-grant module for note connectors.
 
-Notion is the only consumer. Only `"notion"` is registered in `_PROVIDERS`
-— Dropbox is a similarly-shaped OAuth2 provider but is DELIBERATELY NOT
+Three providers are registered in `_PROVIDERS`: `"notion"` (JSON body +
+HTTP Basic client credentials — the original shape) and `"onenote"` /
+`"onedrive"` (Microsoft Graph — form-encoded body + client_id/secret IN
+the body, per Microsoft's documented v2.0 token endpoint contract; both
+read the SAME `MSGRAPH_CLIENT_ID`/`MSGRAPH_CLIENT_SECRET` app credentials
+and differ only in their `scope`). `_OAuthProviderConfig.token_request_style`
+(`"json"`|`"form"`) and `.credentials_in` (`"basic"`|`"body"`) is what lets
+one `_post_token` serve both shapes — Notion's defaults (`"json"`/`"basic"`)
+are unchanged, so adding Microsoft Graph never touched Notion's wire
+behavior (see `test_control_notion_token_post_is_still_json_with_basic_auth`
+in `test_note_connectors_msgraph_oauth.py`).
+
+Dropbox is a similarly-shaped OAuth2 provider but is DELIBERATELY NOT
 here: its offline-refresh mechanics live as private helpers on the provider
 module itself (`providers/dropbox.py::_exchange_authorization_code`/
 `_refresh_access_token`, per that module's own "CONCURRENCY NOTE" —
@@ -31,11 +42,16 @@ Three entry points (task brief, verbatim signatures):
 
 ⚠️ CREDENTIAL-BOUNDARY: the client_id/secret and every bearer/access token
 this module handles are sent ONLY to the provider's own token endpoint
-(`api.notion.com` for Notion) over https — NEVER anywhere else. Nothing in
-this module ever logs a token, code, or client secret (error messages below
-carry the provider's own `error`/`message` fields, never request bodies).
+(`api.notion.com` for Notion, `login.microsoftonline.com` for OneNote/
+OneDrive) over https — NEVER anywhere else. Nothing in this module ever
+logs a token, code, or client secret (error messages below carry the
+provider's own `error`/`message` fields, never request bodies) — this
+holds regardless of whether the credentials travel via a Basic auth header
+or in the form body (Microsoft), since neither code path ever formats a
+credential into a log line.
 
-Env darkness: reading `NOTION_CLIENT_ID`/`NOTION_CLIENT_SECRET` happens
+Env darkness: reading `NOTION_CLIENT_ID`/`NOTION_CLIENT_SECRET` (or
+`MSGRAPH_CLIENT_ID`/`MSGRAPH_CLIENT_SECRET` for OneNote/OneDrive) happens
 ONLY inside function bodies (`os.environ.get`, live on every call — never
 cached at import or construction), so importing this module with no env
 vars set never raises. `configured(provider)` is the query primitive;
@@ -53,7 +69,7 @@ import asyncio
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import urlencode
 
 import httpx
@@ -82,6 +98,40 @@ class _OAuthProviderConfig:
     token_url: str
     extra_authorize_params: dict[str, str] = field(default_factory=dict)
     extra_token_headers: dict[str, str] = field(default_factory=dict)
+    # "json" (default): `Content-Type: application/json`, body sent via
+    # httpx's `json=`. "form": `Content-Type: application/x-www-form-
+    # urlencoded`, body sent via `data=` — Microsoft Graph's documented
+    # token-endpoint contract.
+    token_request_style: Literal["json", "form"] = "json"
+    # "basic" (default): client_id/secret sent as an HTTP Basic auth header
+    # (Notion's shape). "body": client_id/secret merged into the request
+    # body instead — no Authorization header at all — Microsoft Graph's
+    # documented contract (its token endpoint does not accept Basic auth
+    # for a confidential-client web app registration).
+    credentials_in: Literal["basic", "body"] = "basic"
+
+
+# Microsoft Graph — one shared app registration (`MSGRAPH_CLIENT_ID`/
+# `MSGRAPH_CLIENT_SECRET`) backs BOTH `onenote` and `onedrive`; the two
+# entries differ only in `scope`. `response_mode=query` is explicit (rather
+# than relying on the endpoint's own default) because a future consumer
+# could otherwise get `response_mode=fragment` on some Microsoft account
+# types, which a server-side redirect (this router's `GET .../callback`)
+# can never read.
+_MSGRAPH_AUTHORIZE_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize"
+_MSGRAPH_TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+
+
+def _msgraph_provider(scope: str) -> _OAuthProviderConfig:
+    return _OAuthProviderConfig(
+        client_id_env="MSGRAPH_CLIENT_ID",
+        client_secret_env="MSGRAPH_CLIENT_SECRET",
+        authorize_url=_MSGRAPH_AUTHORIZE_URL,
+        token_url=_MSGRAPH_TOKEN_URL,
+        extra_authorize_params={"scope": scope, "response_mode": "query"},
+        token_request_style="form",
+        credentials_in="body",
+    )
 
 
 _PROVIDERS: dict[str, _OAuthProviderConfig] = {
@@ -93,6 +143,8 @@ _PROVIDERS: dict[str, _OAuthProviderConfig] = {
         extra_authorize_params={"owner": "user"},
         extra_token_headers={"Notion-Version": NOTION_VERSION},
     ),
+    "onenote": _msgraph_provider("openid offline_access User.Read Notes.Read"),
+    "onedrive": _msgraph_provider("openid offline_access User.Read Files.Read"),
 }
 
 
@@ -130,6 +182,22 @@ def _parse_retry_after(value: str | None) -> float | None:
 
 
 # ── Provider config / configured() ──────────────────────────────────────────
+
+def is_registered(provider: str) -> bool:
+    """True iff `provider` has a `_PROVIDERS` entry — i.e. this module knows
+    how to `authorize_url`/`exchange_code`/`refresh_if_needed` it, REGARDLESS
+    of whether its app credentials are currently set (`configured()` answers
+    that separate question). Added for the msgraph fix-round-1 review
+    (Important #1): `engine.py::_resolve_credentials` uses this — not the
+    private `_PROVIDERS` dict directly — to decide whether a sync tick
+    should route a provider's stored credentials through the (persisting)
+    `refresh_if_needed` before use, or through the plain `connections.
+    get_token` read Dropbox/Roam/Craft always used. Dropbox is deliberately
+    NOT registered here (its own app key/secret and refresh mechanics live
+    entirely in `providers/dropbox.py` — see that module's docstring), so
+    this returns `False` for it, same as any other unregistered name."""
+    return provider in _PROVIDERS
+
 
 def configured(provider: str) -> bool:
     """True iff `provider` is a KNOWN OAuth provider AND both its client id
@@ -231,15 +299,34 @@ async def _post_token(
     cfg: _OAuthProviderConfig, provider: str, client_id: str, client_secret: str,
     body: dict[str, Any], *, is_refresh: bool, client: httpx.AsyncClient | None,
 ) -> dict[str, Any]:
+    """Sends the token-endpoint POST, shaped by `cfg.token_request_style`
+    (`"json"` body vs `"form"`-encoded) and `cfg.credentials_in`
+    (`"basic"` HTTP auth header vs merged into the `"body"`). Notion's
+    defaults (`"json"`/`"basic"`) reproduce the ORIGINAL, single-shape
+    behavior byte-for-byte — this function grew a branch, Notion's request
+    did not change."""
     owns_client = client is None
     http_client = client or httpx.AsyncClient(timeout=30.0)
+    request_body = dict(body)
+    auth: tuple[str, str] | None = None
+    if cfg.credentials_in == "body":
+        request_body["client_id"] = client_id
+        request_body["client_secret"] = client_secret
+    else:
+        auth = (client_id, client_secret)
+    if cfg.token_request_style == "form":
+        content_type = "application/x-www-form-urlencoded"
+        payload_kwargs: dict[str, Any] = {"data": request_body}
+    else:
+        content_type = "application/json"
+        payload_kwargs = {"json": request_body}
     try:
         try:
             response = await http_client.post(
                 cfg.token_url,
-                auth=(client_id, client_secret),
-                headers={"Content-Type": "application/json", **cfg.extra_token_headers},
-                json=body,
+                auth=auth,
+                headers={"Content-Type": content_type, **cfg.extra_token_headers},
+                **payload_kwargs,
             )
         except httpx.RequestError as exc:
             raise errors.NoteConnTransient(f"{provider} token request failed: {exc}") from exc

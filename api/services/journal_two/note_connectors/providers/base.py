@@ -329,3 +329,93 @@ async def guarded_media_get(
         f"Too many redirects fetching {what}",
         reason="Media reference redirected too many times",
     )
+
+
+async def guarded_media_stream(
+    client: httpx.AsyncClient, url: str, *, what: str = "media reference",
+    max_redirects: int = 5, max_bytes: int,
+) -> tuple[bytes, httpx.Response]:
+    """STREAMED sibling of `guarded_media_get`, added for the msgraph
+    fix-round-1 review (Important #2): `guarded_media_get` calls
+    `client.get(...)`, which httpx fully buffers into memory BEFORE the
+    caller ever gets a chance to check its size -- fine for a small note
+    body, but OneDrive's PRIMARY content path (both `fetch()`'s note bodies
+    and same-drive `fetch_media`) routes every download through the guarded
+    helper, so an ordinary large synced file would buffer whole and could
+    OOM the single web pod. This function bounds memory to `max_bytes`
+    (REQUIRED, no default -- every caller must be explicit about its cap,
+    mirroring `dropbox.py`'s own `_MAX_FILE_BYTES` usage) the same way
+    `DropboxProvider._download_streamed` already does: reject via
+    `Content-Length` BEFORE reading any body bytes when the server supplies
+    one, and unconditionally via a running total while streaming (the
+    backstop regardless of whether Content-Length was present/honest).
+
+    Redirect hops are followed manually, one at a time, exactly like
+    `guarded_media_get` -- `assert_public_https` re-runs on EVERY hop
+    (original URL and every subsequent Location), so a public-looking URL
+    that redirects to a private/metadata address is still refused before
+    ANY request reaches it. Only the FINAL (non-redirect) response is
+    streamed; a redirect hop's body (typically empty) is drained via
+    `aread()` without ever being size-checked against `max_bytes` (it isn't
+    the content being fetched).
+
+    Returns `(bytes, response)` on success -- the `response` object stays
+    valid (headers already arrived before body streaming starts) after this
+    function returns, so a caller can still inspect `.status_code`/
+    `.headers` (e.g. `content-type`) the same way `guarded_media_get`'s
+    callers do with THEIR returned response. Raises `NoteConnUnsupported`
+    on either size trip (never returns a partial or oversized buffer) and
+    `NoteConnTransient` on a network-level failure -- same taxonomy members
+    `guarded_media_get` and `DropboxProvider._download_streamed` already
+    use for the equivalent conditions, so no call site's error handling
+    needs a new branch.
+
+    ⚠️ Inherits `guarded_media_get`'s NOT-rebinding-proof caveat identically
+    (see that function's and `assert_public_https`'s own docstrings)."""
+    next_url = url
+    for _ in range(max_redirects + 1):
+        await assert_public_https(next_url, what=what)
+        try:
+            async with client.stream("GET", next_url, follow_redirects=False) as response:
+                if response.status_code in _REDIRECT_STATUSES:
+                    await response.aread()  # drain the (typically empty) redirect body
+                    location = response.headers.get("location")
+                    if not location:
+                        return response.content, response
+                    next_url = urljoin(next_url, location)
+                    continue
+                if response.status_code >= 400:
+                    # Error bodies are typically small -- safe to buffer so
+                    # the caller can still inspect status/content for
+                    # diagnostics, same as guarded_media_get's non-2xx path.
+                    await response.aread()
+                    return response.content, response
+                content_length = response.headers.get("content-length")
+                if content_length is not None:
+                    try:
+                        if int(content_length) > max_bytes:
+                            raise NoteConnUnsupported(
+                                f"Cannot fetch {what}: exceeds the {max_bytes}-byte cap "
+                                f"(reported size {content_length} bytes)",
+                                reason=f"{what} is larger than the allowed size limit",
+                            )
+                    except ValueError:
+                        pass  # unparseable header -- fall through to the streamed check
+                chunks: list[bytes] = []
+                total = 0
+                async for chunk in response.aiter_bytes():
+                    total += len(chunk)
+                    if total > max_bytes:
+                        raise NoteConnUnsupported(
+                            f"Cannot fetch {what}: exceeds the {max_bytes}-byte cap "
+                            "(exceeded while streaming)",
+                            reason=f"{what} is larger than the allowed size limit",
+                        )
+                    chunks.append(chunk)
+                return b"".join(chunks), response
+        except httpx.RequestError as exc:
+            raise NoteConnTransient(f"Failed to download {what}: {exc}") from exc
+    raise NoteConnUnsupported(
+        f"Too many redirects fetching {what}",
+        reason="Media reference redirected too many times",
+    )

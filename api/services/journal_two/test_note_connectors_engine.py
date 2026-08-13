@@ -967,6 +967,49 @@ async def test_token_expired_subclass_also_marks_broken(source, provider):
     assert engine.connections.get_connector("u1", "fake")["status"] == "broken"
 
 
+# Fix-round (msgraph wave, Important #4) — the other half of the two tests
+# above: once a source is marked 'broken' and the user reconnects + the NEXT
+# sync actually succeeds, the source must rejoin the active pool. Without
+# this, `create_source`'s idempotent-return on reconnect only reset the
+# CONNECTOR's status (via `upsert_connector`), never the SOURCE's, so a
+# source stayed permanently excluded from `list_due_sources`/
+# `list_all_sources` even after a real, successful sync.
+
+
+async def test_a_broken_source_recovers_to_active_after_a_successful_sync(source, provider):
+    provider.raise_on_list_changed = errors.NoteConnAuthError("token rejected")
+    with pytest.raises(errors.NoteConnAuthError):
+        await engine.sync_source(source["id"], full=True)
+    assert engine.connections.get_source_by_id(source["id"])["status"] == "broken"
+
+    # Reconnect + a real, successful sync (mirrors the real recovery path:
+    # the provider now accepts credentials again).
+    provider.raise_on_list_changed = None
+    result = await engine.sync_source(source["id"], full=True, manual=True)
+    assert result["status"] == "ok"
+
+    got = engine.connections.get_source_by_id(source["id"])
+    assert got["status"] == "active"
+    due_ids = {s["id"] for s in engine.connections.list_due_sources(0)}
+    assert source["id"] in due_ids, "recovered source must rejoin list_due_sources"
+    all_ids = {s["id"] for s in engine.connections.list_all_sources()}
+    assert source["id"] in all_ids, "recovered source must rejoin list_all_sources (nightly full pass)"
+
+
+async def test_a_failing_sync_still_marks_the_source_broken_no_regression(source, provider):
+    """Control for the recovery fix above — a genuinely failing sync must
+    still mark 'broken', proving the new ok=True recovery path never
+    weakened the existing ok=False failure path. Same shape as
+    `test_auth_error_marks_both_source_and_connector_broken`, kept here as
+    the explicit pair to the recovery test."""
+    provider.raise_on_list_changed = errors.NoteConnAuthError("token rejected")
+    with pytest.raises(errors.NoteConnAuthError):
+        await engine.sync_source(source["id"], full=True)
+
+    assert engine.connections.get_source_by_id(source["id"])["status"] == "broken"
+    assert engine.connections.get_connector("u1", "fake")["status"] == "broken"
+
+
 # Important 6 — validate the resolved body (1MB/shape backstop) before the
 # raw write; failure -> named error in the log, placeholder body left in
 # place so self-heal can retry after a fix.
