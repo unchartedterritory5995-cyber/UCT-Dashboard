@@ -275,6 +275,25 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
       if (attrs.mode === 'snapshot') recapture()
     }
   }
+  // The drawing overlay owns window keydown while editable — Ctrl+Z/V/Escape
+  // get preventDefault'd page-wide, and its input guard exempts only
+  // INPUT/TEXTAREA, NOT the contenteditable prose editor. Draw mode left on
+  // while writing would eat the editor's undo. Returning the caret to the
+  // prose is a natural Done — exit draw mode, re-freezing the archive if
+  // marks changed, exactly like the button.
+  useEffect(() => {
+    if (!annotate || typeof editor?.on !== 'function') return undefined
+    const exit = () => {
+      setAnnotate(false)
+      if (annotationsDirtyRef.current) {
+        annotationsDirtyRef.current = false
+        if (attrs.mode === 'snapshot') recapture()
+      }
+    }
+    editor.on('focus', exit)
+    return () => editor.off('focus', exit)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [annotate, editor])
 
   let body = archived
   if (decision.kind === 'live') {

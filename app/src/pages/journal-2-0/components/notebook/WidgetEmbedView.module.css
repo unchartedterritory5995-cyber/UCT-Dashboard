@@ -75,6 +75,20 @@
 .annotating .toolbar { display: inline-flex; }
 /* While drawing, keep the frame visibly in-mode and its Done button findable. */
 .annotating { border-color: var(--ut-gold, #c9a84c); }
+/* Drawing needs canvas, not a postage stamp: while annotating, ANY embed
+   (half-width included — the drawing toolbar alone barely fits at ~630px)
+   takes the full breakout width; Done restores the stored layout. The
+   sibling of a half pair reflows for the duration — acceptable, and the
+   chart re-proportions automatically via the width-driven height. */
+.frame.annotating {
+  --embed-w: clamp(100%, calc(100vw - 220px), 1100px);
+  width: var(--embed-w);
+  margin-left: calc((100% - var(--embed-w)) / 2);
+  display: block;
+}
+@media (max-width: 900px) {
+  .frame.annotating { --embed-w: 100%; }
+}
 /* Draw mode: StockChart's drawing toolbar owns the embed's top strip (root
    z-index 5, flyouts 10–20 — measured in ChartToolbar.module.css — and it
    grows wider once a mark is selected), so at top:6 the embed toolbar is

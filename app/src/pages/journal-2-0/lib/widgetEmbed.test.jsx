@@ -9,7 +9,8 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 // Same entry the importer's convert.js round-trips through.
 import { generateHTML, generateJSON } from '@tiptap/core'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
+import { canvasesLookPainted } from './embedArchive'
 
 vi.mock('@tiptap/react', async (orig) => {
   const mod = await orig()
@@ -19,8 +20,10 @@ vi.mock('@tiptap/react', async (orig) => {
 })
 
 // The self-archive pipeline does real fetches (bars warm, PNG upload) — keep
-// the durability plumbing out of jsdom.
-vi.mock('./embedArchive', () => ({
+// the durability plumbing out of jsdom. Partial mock: the pure paint verdict
+// (canvasesLookPainted) stays real so its tests hit the shipped code.
+vi.mock('./embedArchive', async (orig) => ({
+  ...(await orig()),
   captureElementPng: vi.fn(async () => null),
   storeFallbackImage: vi.fn(async () => ({ url: '/api/x.png' })),
   kickSnapshotWarm: vi.fn(),
@@ -364,6 +367,55 @@ describe('WidgetEmbedView draw mode', () => {
     // Freezing the annotated live embed re-freezes: mode + fallback together.
     fireEvent.click(screen.getByText('Snapshot'))
     expect(updateAttributes).toHaveBeenCalledWith({ mode: 'snapshot', fallback: null })
+  })
+
+  it('focusing the prose editor exits draw mode (the overlay eats editor undo while editable)', async () => {
+    const handlers = {}
+    const editor = {
+      isEditable: true,
+      storage: { uctJournalWidgets: { noteId: 'n1' } },
+      on: (ev, fn) => { handlers[ev] = fn },
+      off: (ev) => { delete handlers[ev] },
+    }
+    render(<WidgetEmbedView node={{ attrs: liveChartAttrs() }} selected={false} editor={editor} updateAttributes={vi.fn()} />)
+    await screen.findByTestId('chart-embed-stub')
+
+    fireEvent.click(screen.getByText('Draw'))
+    expect(screen.getByText('Done')).toBeTruthy()
+    expect(typeof handlers.focus).toBe('function')
+
+    await act(async () => { handlers.focus() })
+    expect(screen.getByText('Draw')).toBeTruthy()
+    expect(screen.queryByText('Done')).toBeNull()
+    // Listener detached once out of draw mode — no stale exit on later focus.
+    expect(handlers.focus).toBeUndefined()
+  })
+})
+
+describe('archive capture paint gate (canvasesLookPainted)', () => {
+  it('the observed failure shape — chart canvases blank, overlay carrying only marks — reads UNPAINTED', () => {
+    expect(canvasesLookPainted([
+      { w: 1098, h: 604, rectW: 1098, rectH: 604, opaqueRatio: 0 },        // LWC price pane, mid-cycle
+      { w: 1098, h: 604, rectW: 1098, rectH: 604, opaqueRatio: 0.001 },    // drawing overlay: one line + text
+      { w: 76, h: 28, rectW: 76, rectH: 28, opaqueRatio: 1 },              // axis stub — too small to vote
+    ])).toBe(false)
+  })
+  it('a painted pane passes even beside its legitimately-empty crosshair layer', () => {
+    expect(canvasesLookPainted([
+      { w: 1098, h: 604, rectW: 1098, rectH: 604, opaqueRatio: 0.9 },
+      { w: 1098, h: 604, rectW: 1098, rectH: 604, opaqueRatio: 0 },
+    ])).toBe(true)
+  })
+  it('an unsized default bitmap stretched over the pane votes by its CSS rect', () => {
+    expect(canvasesLookPainted([
+      { w: 300, h: 150, rectW: 1022, rectH: 576, opaqueRatio: 0 },
+      { w: 1098, h: 604, rectW: 1098, rectH: 604, opaqueRatio: 0.002 },
+    ])).toBe(false)
+  })
+  it('fails OPEN: unmeasurable contexts and DOM-only widgets never block a capture', () => {
+    expect(canvasesLookPainted([{ w: 1098, h: 604, rectW: 1098, rectH: 604, opaqueRatio: null }])).toBe(true)
+    expect(canvasesLookPainted([])).toBe(true)
+    expect(canvasesLookPainted([{ w: 16, h: 16, rectW: 16, rectH: 16, opaqueRatio: 0 }])).toBe(true)
   })
 })
 
