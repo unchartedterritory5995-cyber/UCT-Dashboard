@@ -223,18 +223,3 @@
 @container (max-width: 380px) { .qBlock:nth-last-child(n+4) { display: none; } }
 @container (max-width: 280px) { .qBlock:nth-last-child(n+3) { display: none; } }
 
-/* "Sent to Journal" confirmation — floats below the header, self-clears. */
-.journalToast {
-  position: absolute;
-  top: 30px;
-  right: 8px;
-  z-index: 5;
-  padding: 3px 9px;
-  border-radius: 6px;
-  font-size: 11px;
-  white-space: nowrap;
-  background: rgba(12, 12, 12, 0.92);
-  border: 1px solid var(--ut-gold, #c9a84c);
-  color: var(--ut-gold, #c9a84c);
-  pointer-events: none;
-}

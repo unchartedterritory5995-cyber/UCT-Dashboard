@@ -12,6 +12,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import useSWR from 'swr'
 import { useWorkspace } from '../WorkspaceContext'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import usePreferences from '../../../hooks/usePreferences'
 import useTickerMeta from '../../../hooks/useTickerMeta'
 import { menuThemeVars } from '../../../utils/dividerColor'
@@ -300,12 +301,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
   // ── Send this day to the Journal (the non-chart capture door — shares the
   // chart context menu's exact wire: last-active note → inbox fallback).
   // Hidden inside a journal embed (journalDoor={false}) — circular there. ──
-  const [journalMsg, setJournalMsg] = useState(null)
-  useEffect(() => {
-    if (!journalMsg) return undefined
-    const t = setTimeout(() => setJournalMsg(null), 2200)
-    return () => clearTimeout(t)
-  }, [journalMsg])
+  const [journalMsg, setJournalMsg] = useJournalToast()
   const sendDayToJournal = useCallback(async () => {
     setJournalMsg('sending…')
     setJournalMsg(await sendCaptureToJournal('calendar', {
@@ -422,7 +418,7 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
           onClick={() => setSettingsOpen(o => !o)}
           title="Calendar widget settings"
         ><UIcon name="gear" size={13} /></button>
-        {journalMsg && <span className={styles.journalToast}>{journalMsg}</span>}
+        <JournalToast msg={journalMsg} style={{ top: 'calc(100% + 4px)' }} />
       </div>
 
       {/* Body — tabIndex + onKeyDown make it arrow-navigable once a row is clicked. */}

@@ -89,7 +89,7 @@ const CHART_TF_CEILING_DAYS = { 1: 60, 5: 365, 15: 1000, 30: 3200, 60: 3200 }
 // Search-index text for a timeframe code. Deliberately LOCAL and minimal:
 // this is what lands in body_plain for search, not a UI label (the UI keeps
 // using components/chart/timeframes tfLabel).
-function tfText(tf) {
+export function tfText(tf) {
   const t = String(tf ?? 'D')
   return { 1: '1m', 5: '5m', 15: '15m', 30: '30m', 60: '1h' }[t] || t
 }

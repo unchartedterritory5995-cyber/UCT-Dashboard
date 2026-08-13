@@ -17,6 +17,7 @@ import useNewsCatalysts from '../../../hooks/useNewsCatalysts'
 import useTickerMeta from '../../../hooks/useTickerMeta'
 import * as drawingsStore from '../../../components/chart/drawingsStore'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import UIcon from '../../../components/ui/UIcon'
 import CompanyLogo from '../../../components/CompanyLogo'
 import NewsSettingsPanel from './NewsSettingsPanel'
@@ -116,13 +117,7 @@ export default function NewsWidget({
   const [placedKey, setPlacedKey] = useState(null)   // transient "✓ placed" flash
   const placedTimerRef = useRef(null)
   useEffect(() => () => { if (placedTimerRef.current) clearTimeout(placedTimerRef.current) }, [])
-  // Send-to-Journal toast (the capture door lives beside the ⚙).
-  const [journalMsg, setJournalMsg] = useState(null)
-  useEffect(() => {
-    if (!journalMsg) return undefined
-    const t = setTimeout(() => setJournalMsg(null), 2200)
-    return () => clearTimeout(t)
-  }, [journalMsg])
+  const [journalMsg, setJournalMsg] = useJournalToast()
   const placeOnChart = useCallback((e, rowKey) => {
     const date = e?.date && String(e.date).slice(0, 10)
     if (!sym || !date || !e?.title) return
@@ -286,11 +281,11 @@ export default function NewsWidget({
                 symbol: sym, filter, company, settings, events,
               }, { label: `${sym} news` }))
             }}
-            title="Send to Journal"
-            aria-label="Send news to Journal"
+            title="Send this feed to Journal"
+            aria-label="Send this feed to Journal"
           ><UIcon name="journal" size={13} /></button>
         )}
-        {journalMsg && <span className={styles.journalToast}>{journalMsg}</span>}
+        <JournalToast msg={journalMsg} />
         {!readOnly && (
         <button
           ref={settingsBtnRef}

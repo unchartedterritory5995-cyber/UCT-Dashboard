@@ -317,7 +317,7 @@ describe('WidgetEmbedView fallback rendering', () => {
   })
   it('derives the auto-caption from params, never from stored text', () => {
     const attrs = buildWidgetEmbedAttrs('chart', { symbol: 'AMD', tf: '5' }, { capturedAt: '2026-03-13T15:45:00Z' })
-    expect(embedAutoCaption(attrs)).toBe('chart: AMD 5m · captured Mar 13, 2026')
+    expect(embedAutoCaption(attrs)).toBe('Chart — AMD 5m · captured Mar 13, 2026')
   })
 })
 

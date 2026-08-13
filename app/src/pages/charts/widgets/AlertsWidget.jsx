@@ -19,6 +19,7 @@ import usePreferences from '../../../hooks/usePreferences'
 import useLivePrices from '../../../hooks/useLivePrices'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import UIcon from '../../../components/ui/UIcon'
 import NewsSettingsPanel from './NewsSettingsPanel'
 import {
@@ -80,13 +81,7 @@ export default function AlertsWidget({
     [opts?.settings, prefs.theme],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
-  // Send-to-Journal toast (the capture door lives beside the gear).
-  const [journalMsg, setJournalMsg] = useState(null)
-  useEffect(() => {
-    if (!journalMsg) return undefined
-    const t = setTimeout(() => setJournalMsg(null), 2200)
-    return () => clearTimeout(t)
-  }, [journalMsg])
+  const [journalMsg, setJournalMsg] = useJournalToast()
   const settingsBtnRef = useRef(null)
   const rootRef = useRef(null)
   const patchSettings = useCallback(
@@ -257,11 +252,11 @@ export default function AlertsWidget({
                 settings,
               }, { label: `${active.length} alerts` }))
             }}
-            title="Send to Journal"
-            aria-label="Send alerts to Journal"
+            title="Send these alerts to Journal"
+            aria-label="Send these alerts to Journal"
           ><UIcon name="journal" size={13} /></button>
         )}
-        {journalMsg && <span className={styles.journalToast}>{journalMsg}</span>}
+        <JournalToast msg={journalMsg} />
         {!readOnly && (
         <button
           ref={settingsBtnRef}

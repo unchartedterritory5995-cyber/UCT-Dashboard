@@ -6,6 +6,7 @@ import CompassOrb from '../../../components/voice/CompassOrb'
 import VoiceInputButton from '../../journal-2-0/components/VoiceInputButton'
 import ShareToFloor from '../../../components/community/ShareToFloor'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import UIcon from '../../../components/ui/UIcon'
 import NewsSettingsPanel from './NewsSettingsPanel'
 import { mergeBasicWidgetSettings, basicWidgetStyleVars, basicDefaultsForTheme } from './basicWidgetSettings'
@@ -280,12 +281,7 @@ export default function AiSearchWidget({
   // last-active note → inbox fallback). The THREAD is the frozen params;
   // AiSearchEmbed replays it read-only. Hidden until an answer exists and in
   // readOnly (an embed offering the door is circular). ──
-  const [journalMsg, setJournalMsg] = useState(null)
-  useEffect(() => {
-    if (!journalMsg) return undefined
-    const t = setTimeout(() => setJournalMsg(null), 2200)
-    return () => clearTimeout(t)
-  }, [journalMsg])
+  const [journalMsg, setJournalMsg] = useJournalToast()
   const gearRef = useRef(null)
   const rootRef = useRef(null)
   const rootStyle = useMemo(() => {
@@ -619,14 +615,14 @@ export default function AiSearchWidget({
           style={{ right: 30 }}
           onClick={async () => {
             setJournalMsg('sending…')
-            setJournalMsg(await sendCaptureToJournal('aisearch', { thread, settings: aisSettings },
+            setJournalMsg(await sendCaptureToJournal('aisearch', { thread: thread.slice(-10), settings: aisSettings },
               { label: thread[thread.length - 1]?.q ? `"${String(thread[thread.length - 1].q).slice(0, 32)}"` : 'AI answer' }))
           }}
           title="Send this conversation to Journal"
           aria-label="Send this conversation to Journal"
         ><UIcon name="journal" size={13} /></button>
       )}
-      {journalMsg && <span className={styles.journalToast}>{journalMsg}</span>}
+      <JournalToast msg={journalMsg} style={{ top: 26, right: 6 }} />
       {chrome && (
         <button
           ref={gearRef}

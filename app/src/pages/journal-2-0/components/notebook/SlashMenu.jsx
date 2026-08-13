@@ -10,7 +10,7 @@ import { Extension } from '@tiptap/react'
 import Suggestion from '@tiptap/suggestion'
 import { ReactRenderer } from '@tiptap/react'
 import { useEffect, useImperativeHandle, useState, forwardRef } from 'react'
-import { WIDGET_REGISTRY, JOURNAL_MENU_TYPES } from '../../../../widgets/registry'
+import { WIDGET_REGISTRY, JOURNAL_MENU_TYPES, tfText } from '../../../../widgets/registry'
 import {
   parseChartSlashArgs, parseMtfSlashArgs, parseCompareSlashArgs, widgetSlotNode,
 } from '../../lib/widgetEmbedCore'
@@ -78,6 +78,14 @@ const ITEMS = [
   },
 ]
 
+// 'YYYY-MM-DD' → 'Mar 13, 2026' for menu previews (UTC parts — no TZ drift).
+function fmtDayTitle(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''))
+  if (!m) return iso
+  return new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]))
+    .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
+}
+
 // ── Widget embeds (Journal Widgets) ─────────────────────────────────────────
 // Registry-driven: every menus.journal type appears here automatically. The
 // query's trailing tokens are ARGUMENTS — `/chart AMD 15m` inserts an AMD 15m
@@ -103,7 +111,7 @@ export function widgetItems(query) {
       const args = parseChartSlashArgs(rest)
       if (args) {
         out.push({
-          title: `Chart — ${args.symbol} · ${args.tf}`,
+          title: `Chart — ${args.symbol} · ${tfText(args.tf)}`,
           description: 'Insert a frozen chart snapshot',
           command: ({ editor, range }) => {
             // settings: the user's merged chart theme, stamped into editor
@@ -162,7 +170,7 @@ export function widgetItems(query) {
     const args = restAfterName ? parseCompareSlashArgs(restAfterName) : null
     if (args) {
       out.push({
-        title: `Before / after — ${args.symbol} @ ${args.day}`,
+        title: `Before / after — ${args.symbol} @ ${fmtDayTitle(args.day)}`,
         description: 'Two half-width dailies: window ending that day vs now',
         command: ({ editor, range }) => {
           const settings = editor.storage?.uctJournalWidgets?.chartSettings

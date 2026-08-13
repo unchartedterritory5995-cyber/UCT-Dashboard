@@ -73,7 +73,7 @@ function PlaceholderChip({ attrs, reason }) {
     <div className={styles.placeholder}>
       <span className={styles.placeholderLine}>{attrs.searchText || '[widget]'}</span>
       <span className={styles.placeholderWhy}>
-        {reason === 'unknown-widget' ? 'widget type unavailable' : 'no archive yet'}
+        {reason === 'unknown-widget' ? 'widget type unavailable' : 'snapshot image not captured yet'}
       </span>
     </div>
   )
@@ -165,7 +165,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
       liveCount = countLiveEmbeds(editor?.getJSON?.() || {})
     }
     if (liveCount >= LIVE_EMBEDS_PER_ENTRY) {
-      setToolbarMsg(`live cap: ${LIVE_EMBEDS_PER_ENTRY} per entry`)
+      setToolbarMsg(`Live limit: ${LIVE_EMBEDS_PER_ENTRY} per note`)
       return
     }
     updateAttributes?.({ mode: 'live' })
@@ -366,7 +366,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
           )}
           {!annotate && widgetMeta(attrs.widgetId)?.liveCapable === true && (
             <button type="button" className={styles.toolBtn} onClick={toggleLive}
-              title={attrs.mode === 'live' ? 'Freeze to snapshot' : `Go live (max ${LIVE_EMBEDS_PER_ENTRY}/entry)`}>
+              title={attrs.mode === 'live' ? 'Freeze to snapshot' : `Go live (max ${LIVE_EMBEDS_PER_ENTRY} per note)`}>
               {attrs.mode === 'live' ? 'Snapshot' : 'Live'}
             </button>
           )}
@@ -399,7 +399,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
             </button>
           )}
           {!annotate && (
-            <button type="button" className={styles.toolBtn} onClick={() => deleteNode?.()} title="Remove embed">
+            <button type="button" className={styles.toolBtn} onClick={() => deleteNode?.()} title="Remove embed" aria-label="Remove embed">
               ✕
             </button>
           )}
@@ -411,7 +411,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
       <div ref={bodyRef} className={styles.body} style={decision.kind === 'live' ? { height } : undefined}>
         {body}
       </div>
-      {(attrs.mode === 'live') && <span className={styles.liveBadge}>LIVE</span>}
+      {(attrs.mode === 'live') && <span className={styles.liveBadge} title="Updates in real time — Snapshot freezes it">LIVE</span>}
       {attrs.caption ? <div className={styles.caption}>{attrs.caption}</div> : null}
     </NodeViewWrapper>
   )

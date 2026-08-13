@@ -15,7 +15,7 @@ import { AttachmentChip } from './attachmentChip'
 import { WidgetEmbed } from './widgetEmbedNode'
 import { fmtTime } from '../../../components/video/playerUtils'
 
-export function buildExtensions({ placeholder = 'Start writing… or type / for blocks' } = {}) {
+export function buildExtensions({ placeholder = 'Start writing… or type / for blocks and charts' } = {}) {
   return [
     StarterKit.configure({
       heading: { levels: [1, 2, 3] },

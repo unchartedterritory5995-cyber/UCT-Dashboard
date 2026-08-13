@@ -16,7 +16,7 @@ describe('slash widget items', () => {
   })
 
   it('valid args produce the insert item', () => {
-    expect(titles('chart NVDA 15m')).toEqual(['Chart — NVDA · 15'])
+    expect(titles('chart NVDA 15m')).toEqual(['Chart — NVDA · 15m'])
     expect(titles('chart amd')).toEqual(['Chart — AMD · D'])
   })
 
@@ -43,8 +43,8 @@ describe('composition presets (/mtf, /compare)', () => {
 
   it('valid args produce one-action multi-insert items', () => {
     expect(titles('mtf AMD')).toEqual(['MTF stack — AMD · D / 1h / 15m'])
-    expect(titles('compare NVDA 2026-03-13')).toEqual(['Before / after — NVDA @ 2026-03-13'])
-    expect(titles('compare nvda 3/13/2026')).toEqual(['Before / after — NVDA @ 2026-03-13'])
+    expect(titles('compare NVDA 2026-03-13')).toEqual(['Before / after — NVDA @ Mar 13, 2026'])
+    expect(titles('compare nvda 3/13/2026')).toEqual(['Before / after — NVDA @ Mar 13, 2026'])
   })
 
   it('the strictness contract holds — prose parses as NOTHING', () => {

@@ -250,11 +250,19 @@ export function widgetSlotNode(widgetId, capture = {}, extra = {}) {
   return { type: 'widgetEmbed', attrs: buildWidgetEmbedAttrs(widgetId, capture, extra) }
 }
 
-/** The auto-caption ("AMD · 5m · captured Mar 13") — DERIVED from params at
- *  render, never stored (derive-don't-restate: no drift possible). */
+/** The auto-caption ("Chart — AMD 5m · captured Mar 13, 2026") — DERIVED
+ *  from params at render, never stored (derive-don't-restate). The DISPLAY
+ *  form maps the widget id through its header label — the raw plainText
+ *  line is the SEARCH INDEX, and its key-colon serialization leaking into
+ *  the UI was a panel finding. */
 export function embedAutoCaption(attrs) {
   const line = paramsPlainText(attrs?.widgetId, attrs?.params)
-  const inner = line.replace(/^\[|\]$/g, '')
+  const label = widgetMeta(attrs?.widgetId)?.labels?.header
+  let inner = line.replace(/^\[|\]$/g, '')
+  if (label) {
+    const colon = inner.indexOf(':')
+    inner = colon > -1 ? `${label} —${inner.slice(colon + 1)}` : `${label} — ${inner}`
+  }
   if (!attrs?.capturedAt) return inner
   const d = new Date(attrs.capturedAt)
   if (Number.isNaN(d.getTime())) return inner

@@ -6,6 +6,7 @@ import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
 import AnalystPanel from '../../../components/fundamentals/AnalystPanel'
 import OwnershipPanel from '../../../components/fundamentals/OwnershipPanel'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import UIcon from '../../../components/ui/UIcon'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import { menuThemeVars } from '../../../utils/dividerColor'
@@ -164,13 +165,7 @@ export default function FundamentalsWidget({
   // this ticker elsewhere, so SWR dedupes: no extra request).
   const { data: snap } = useFundamentalSnapshot(frozen ? null : sym)
   const company = frozen?.company || (snap?.name && snap.name !== sym ? snap.name : null)
-  // Send-to-Journal toast (the capture door lives beside the ⚙).
-  const [journalMsg, setJournalMsg] = useState(null)
-  useEffect(() => {
-    if (!journalMsg) return undefined
-    const t = setTimeout(() => setJournalMsg(null), 2200)
-    return () => clearTimeout(t)
-  }, [journalMsg])
+  const [journalMsg, setJournalMsg] = useJournalToast()
   // View choice persists per-widget through the workspace layout save path
   // (same opts mechanism ChartWidget uses for its timeframe). Default = quarterly.
   const view = ['annual', 'quarterly', 'analyst', 'ownership'].includes(opts?.view) ? opts.view : 'quarterly'
@@ -278,11 +273,11 @@ export default function FundamentalsWidget({
                 data: { annual: data?.annual || [], quarterly: data?.quarterly || [] },
               }, { label: `${sym} fundamentals` }))
             }}
-            title="Send to Journal"
-            aria-label="Send fundamentals to Journal"
+            title="Send these financials to Journal"
+            aria-label="Send these financials to Journal"
           ><UIcon name="journal" size={13} /></button>
         )}
-        {journalMsg && <span className={styles.journalToast}>{journalMsg}</span>}
+        <JournalToast msg={journalMsg} />
         {/* ⚙ Fundamentals settings — writes the GLOBAL pref; never inside an embed. */}
         {!readOnly && (
         <button

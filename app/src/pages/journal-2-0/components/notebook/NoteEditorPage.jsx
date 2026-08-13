@@ -76,7 +76,7 @@ function CaptureInboxTray({ editor }) {
       fontSize: 12,
     }}>
       <span style={{ color: 'var(--ut-gold, #c9a84c)', fontWeight: 700 }}>
-        Capture inbox ({captures.length})
+        Notebook inbox ({captures.length})
       </span>
       {captures.map((cap) => (
         <span key={cap.id} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>

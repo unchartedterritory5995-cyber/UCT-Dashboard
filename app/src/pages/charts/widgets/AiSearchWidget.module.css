@@ -317,18 +317,3 @@
 :global([data-charts-theme='sunrise']) .askBtn:hover:not(:disabled) { color: #5c460f; }
 :global([data-charts-theme='sunrise']) .ticker:hover { color: #5c460f; }
 
-/* "Sent to Journal" confirmation — floats under the header buttons, self-clears. */
-.journalToast {
-  position: absolute;
-  top: 26px;
-  right: 6px;
-  z-index: 41;
-  padding: 3px 9px;
-  border-radius: 6px;
-  font-size: 11px;
-  white-space: nowrap;
-  background: rgba(12, 12, 12, 0.92);
-  border: 1px solid var(--accent, #c9a84c);
-  color: var(--accent, #c9a84c);
-  pointer-events: none;
-}

@@ -21,6 +21,7 @@ import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import { useLiveBreadth } from '../../../hooks/useLiveBreadth'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
+import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import UIcon from '../../../components/ui/UIcon'
 import { HM_METRICS, TIER_SCORES, TIER_TIP_COLORS, TIER_CELL_COLORS, FFILL_KEYS } from '../../breadth/heatmapMetrics'
 import BreadthSettingsPanel from './BreadthSettingsPanel'
@@ -331,13 +332,7 @@ export default function BreadthWidget({
   if (data && data !== stampRef.current.data) stampRef.current = { data, at: Date.now() }
   const fetchedAt = stampRef.current.at
   const [refreshing, setRefreshing] = useState(false)
-  // Send-to-Journal toast (the capture door lives beside the gear).
-  const [journalMsg, setJournalMsg] = useState(null)
-  useEffect(() => {
-    if (!journalMsg) return undefined
-    const t = setTimeout(() => setJournalMsg(null), 2200)
-    return () => clearTimeout(t)
-  }, [journalMsg])
+  const [journalMsg, setJournalMsg] = useJournalToast()
   const refreshAll = useCallback(async () => {
     setRefreshing(true)
     try { await Promise.all([mutate(), globalMutate(LIVE_URL)]) } finally { setRefreshing(false) }
@@ -392,10 +387,10 @@ export default function BreadthWidget({
                   tileStyle, settings: bwSettings, row: currentRow, series, updated,
                 }, { label: 'Breadth' }))
               }}
-              title="Send to Journal" aria-label="Send breadth to Journal"
+              title="Send this snapshot to Journal" aria-label="Send this snapshot to Journal"
             ><UIcon name="journal" size={13} /></button>
           )}
-          {journalMsg && <span className={styles.journalToast}>{journalMsg}</span>}
+          <JournalToast msg={journalMsg} />
           {!readOnly && (
           <button
             ref={addBtnRef} type="button"

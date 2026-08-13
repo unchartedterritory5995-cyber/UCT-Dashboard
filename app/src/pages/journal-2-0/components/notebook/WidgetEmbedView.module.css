@@ -20,7 +20,7 @@
   width: var(--embed-w);
   margin-left: calc((100% - var(--embed-w)) / 2);
 }
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .full { --embed-w: 100%; }
 }
 /* Two half-width embeds sit side by side for comparison; they stack on
@@ -44,7 +44,7 @@
   width: 100%;
   margin-left: 0;
 }
-@media (max-width: 700px) {
+@media (max-width: 640px) {
   :global(.react-renderer.node-widgetEmbed):has(> .half) {
     display: block;
     width: 100%;
@@ -106,7 +106,7 @@
   margin-left: calc((100% - var(--embed-w)) / 2);
   display: block;
 }
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .frame.annotating { --embed-w: 100%; }
 }
 /* Draw mode: StockChart's drawing toolbar owns the embed's top strip (root

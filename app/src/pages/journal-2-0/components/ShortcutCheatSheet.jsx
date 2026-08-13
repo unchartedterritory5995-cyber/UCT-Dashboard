@@ -8,6 +8,7 @@ import styles from './ShortcutCheatSheet.module.css'
 // the old 8-tab shortcut to the new nested route, so the label names the
 // destination surface, not the retired tab.
 const NAVIGATION_SHORTCUTS = [
+  { keys: ['Ctrl', 'Alt', 'J'], label: 'Capture the hovered chart to your Notebook inbox' },
   { keys: ['g', 'o'], label: 'Go to Today' },
   { keys: ['g', 'p'], label: 'Go to Open Positions' },
   { keys: ['g', 'j'], label: 'Go to Closed Trades' },

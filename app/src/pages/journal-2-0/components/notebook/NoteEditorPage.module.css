@@ -12,7 +12,7 @@
   position: sticky;
   top: 0;
   background: var(--color-bg, #0b0d12);
-  z-index: 10;
+  z-index: 40; /* above in-content embed controls (draw-mode Done = 30) */
   flex-wrap: wrap;
 }
 .backBtn {
@@ -95,7 +95,7 @@
   margin-bottom: 12px;
   position: sticky;
   top: 56px;
-  z-index: 5;
+  z-index: 35; /* above in-content embed controls (draw-mode Done = 30) */
 }
 .toolBtn {
   background: transparent;
