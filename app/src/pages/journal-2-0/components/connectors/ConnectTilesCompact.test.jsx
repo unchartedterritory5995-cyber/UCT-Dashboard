@@ -85,12 +85,7 @@ describe('ConnectTilesCompact', () => {
     mockFetch([
       ['/api/j2/notes/connectors/status', { body: MSGRAPH_SOURCELESS_STATUS }],
       ['/onedrive/folders', { body: { folders: [{ id: 'item-1', name: 'Trading Notes' }] } }],
-      ['/onedrive/sources', {
-        body: (opts) => {
-          expect(JSON.parse(opts.body)).toEqual({ remoteId: 'item-1', displayName: 'Trading Notes' })
-          return { source: { id: 'od-1' } }
-        },
-      }],
+      ['/onedrive/sources', { body: { source: { id: 'od-1' } } }],
     ])
     render(<ConnectTilesCompact />)
     const tile = await screen.findByTestId('connect-tile-onedrive')
@@ -101,6 +96,15 @@ describe('ConnectTilesCompact', () => {
       const call = global.fetch.mock.calls.find((c) => String(c[0]).includes('/onedrive/sources') && c[1]?.method === 'POST')
       expect(call).toBeTruthy()
     })
+    // Fix-round CRITICAL: asserted OUTSIDE the fetch mock's json() callback
+    // — a thrown assertion inside `resp.body()` is silently SWALLOWED by
+    // `addSource`'s `r.json().catch(() => ({}))`, which is exactly how the
+    // empty-remoteId regression this fix-round closes went undetected
+    // behind a green test.
+    const postCall = global.fetch.mock.calls.find(
+      (c) => String(c[0]).includes('/onedrive/sources') && c[1]?.method === 'POST'
+    )
+    expect(JSON.parse(postCall[1].body)).toEqual({ remoteId: 'item-1', displayName: 'Trading Notes' })
   })
 
   const ONENOTE_CONFIGURED_STATUS = {

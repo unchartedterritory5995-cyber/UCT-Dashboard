@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeStatus, normalizeFolders, NOTE_CONNECTOR_PROVIDERS, FOLDER_PICKER_PROVIDERS } from './useNoteConnectors'
+import {
+  normalizeStatus, normalizeFolders, NOTE_CONNECTOR_PROVIDERS, FOLDER_PICKER_PROVIDERS,
+  FOLDER_PICKER_ROOT_REMOTE_ID,
+} from './useNoteConnectors'
 
 describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, corrected by Task 12b, widened to msgraph in Task 7)', () => {
   it('always returns all six provider keys, even from an empty/undefined payload', () => {
@@ -137,6 +140,16 @@ describe('FOLDER_PICKER_PROVIDERS (Task 7: widened from dropbox-only to {dropbox
   })
 })
 
+describe('FOLDER_PICKER_ROOT_REMOTE_ID (fix-round item #2: the "sync whole account" root affordance)', () => {
+  it('gives Dropbox its own "/" root sentinel — safe end-to-end (Dropbox\'s own API + provider already treat "/" as root)', () => {
+    expect(FOLDER_PICKER_ROOT_REMOTE_ID.dropbox).toBe('/')
+  })
+
+  it('has NO onedrive entry — OneDrive\'s whole-drive delta is a different, unwired Graph endpoint, so the UI requires drilling to a real folder instead', () => {
+    expect(FOLDER_PICKER_ROOT_REMOTE_ID.onedrive).toBeUndefined()
+  })
+})
+
 describe('normalizeStatus — enabled (final-review Item B: status.enabled had no consumer)', () => {
   it('defaults to true when the raw payload omits `enabled` or is itself absent — a missing/loading payload must never falsely trip the "sync is paused" notice', () => {
     for (const raw of [undefined, null, {}, { providers: {} }]) {
@@ -153,8 +166,8 @@ describe('normalizeStatus — enabled (final-review Item B: status.enabled had n
   })
 })
 
-describe('normalizeFolders — the Dropbox folder-picker contract (Task 12b)', () => {
-  it('translates GET /{provider}/folders\' {folders:[{path_lower,name}]} into camelCase', () => {
+describe('normalizeFolders — the provider-neutral folder contract (Task 12b, fixed in the fix-round: dropbox+onedrive disagreed on the raw key)', () => {
+  it('translates Dropbox\'s {folders:[{path_lower,name}]} into {name,remoteId,drillPath}, both keyed off path_lower', () => {
     const out = normalizeFolders({
       folders: [
         { path_lower: '/team notes', name: 'Team Notes' },
@@ -162,9 +175,28 @@ describe('normalizeFolders — the Dropbox folder-picker contract (Task 12b)', (
       ],
     })
     expect(out).toEqual([
-      { pathLower: '/team notes', name: 'Team Notes' },
-      { pathLower: '/journal', name: 'Journal' },
+      { name: 'Team Notes', remoteId: '/team notes', drillPath: '/team notes' },
+      { name: 'Journal', remoteId: '/journal', drillPath: '/journal' },
     ])
+  })
+
+  it('translates OneDrive\'s {folders:[{id,name}]} into {name,remoteId,drillPath}, both keyed off id — NEVER an empty pathLower fallback', () => {
+    // This is the exact shape the fix-round CRITICAL bug was found in: the
+    // old normalizeFolder only ever read pathLower/path_lower, so every
+    // OneDrive folder (which carries `id`, never `path_lower`) normalized
+    // to `pathLower: ''` -- every row collapsed to the SAME empty key.
+    const out = normalizeFolders({
+      folders: [
+        { id: 'item-1', name: 'Trading Notes' },
+        { id: 'item-2', name: 'Journal' },
+      ],
+    })
+    expect(out).toEqual([
+      { name: 'Trading Notes', remoteId: 'item-1', drillPath: 'item-1' },
+      { name: 'Journal', remoteId: 'item-2', drillPath: 'item-2' },
+    ])
+    // Never the old, broken fallback.
+    expect(out.some((f) => f.remoteId === '')).toBe(false)
   })
 
   it('returns an empty array for a missing/empty payload rather than crashing', () => {
@@ -175,6 +207,6 @@ describe('normalizeFolders — the Dropbox folder-picker contract (Task 12b)', (
 
   it('drops null/garbage entries', () => {
     const out = normalizeFolders({ folders: [null, { path_lower: '/x', name: 'X' }] })
-    expect(out).toEqual([{ pathLower: '/x', name: 'X' }])
+    expect(out).toEqual([{ name: 'X', remoteId: '/x', drillPath: '/x' }])
   })
 })

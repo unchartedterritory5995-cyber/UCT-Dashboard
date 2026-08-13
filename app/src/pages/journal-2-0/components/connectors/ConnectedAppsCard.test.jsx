@@ -420,9 +420,8 @@ describe('ConnectedAppsCard — Dropbox folder picker + sourceless-connected sta
       }],
       ['/dropbox/folders', { body: { folders: [{ path_lower: '/team notes', name: 'Team Notes' }] } }],
       ['/dropbox/sources', {
-        body: (opts) => {
+        body: () => {
           sourcesCreated = true
-          expect(JSON.parse(opts.body)).toEqual({ remoteId: '/team notes', displayName: 'Team Notes' })
           return { source: { id: 'dbx-1' } }
         },
       }],
@@ -436,6 +435,15 @@ describe('ConnectedAppsCard — Dropbox folder picker + sourceless-connected sta
       const call = global.fetch.mock.calls.find((c) => String(c[0]).includes('/dropbox/sources') && c[1]?.method === 'POST')
       expect(call).toBeTruthy()
     })
+    // Fix-round: the POST body is asserted HERE, outside any mock callback —
+    // a thrown assertion inside `resp.body()` is silently SWALLOWED by
+    // `addSource`'s `r.json().catch(() => ({}))`, which is exactly how an
+    // empty-remoteId regression could have gone undetected behind a green
+    // test (the bug class this fix-round exists to close).
+    const postCall = global.fetch.mock.calls.find(
+      (c) => String(c[0]).includes('/dropbox/sources') && c[1]?.method === 'POST'
+    )
+    expect(JSON.parse(postCall[1].body)).toEqual({ remoteId: '/team notes', displayName: 'Team Notes' })
     // Status re-fetched after the pick -> the tile flips to the healthy Connected state.
     expect(await screen.findByText(/Connected · 1 source/)).toBeInTheDocument()
   })
@@ -648,9 +656,8 @@ describe('ConnectedAppsCard — OneNote/OneDrive tiles (Task 7, msgraph wave)', 
       }],
       ['/onedrive/folders', { body: { folders: [{ id: 'item-1', name: 'Work Notes' }] } }],
       ['/onedrive/sources', {
-        body: (opts) => {
+        body: () => {
           sourcesCreated = true
-          expect(JSON.parse(opts.body)).toEqual({ remoteId: 'item-1', displayName: 'Work Notes' })
           return { source: { id: 'od-1' } }
         },
       }],
@@ -664,6 +671,15 @@ describe('ConnectedAppsCard — OneNote/OneDrive tiles (Task 7, msgraph wave)', 
       const call = global.fetch.mock.calls.find((c) => String(c[0]).includes('/onedrive/sources') && c[1]?.method === 'POST')
       expect(call).toBeTruthy()
     })
+    // Fix-round CRITICAL: asserted OUTSIDE the fetch mock's json() callback
+    // (see the matching dropbox test's comment above) — this is the exact
+    // assertion that would have caught the bug (remoteId reaching the
+    // backend as '' for every OneDrive folder) had it been written this way
+    // the first time.
+    const postCall = global.fetch.mock.calls.find(
+      (c) => String(c[0]).includes('/onedrive/sources') && c[1]?.method === 'POST'
+    )
+    expect(JSON.parse(postCall[1].body)).toEqual({ remoteId: 'item-1', displayName: 'Work Notes' })
     expect(await screen.findByText(/Connected · 1 source/)).toBeInTheDocument()
   })
 

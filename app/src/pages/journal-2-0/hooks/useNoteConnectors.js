@@ -9,7 +9,7 @@
  *   GET    /api/j2/notes/connectors/status                — {enabled, providers: {name: {configured, connectKind, connected, status, accountLabel, sources[]}}}
  *   POST   /api/j2/notes/connectors/{provider}/connect     — token payload (roam/craft) OR {consent:true} to start OAuth (notion/dropbox) -> {redirectUrl}
  *   GET    /api/j2/notes/connectors/{provider}/callback    — OAuth return (backend-owned; the browser never calls this directly)
- *   GET    /api/j2/notes/connectors/{provider}/folders?path= — folder picker for the two folder-scoped providers (dropbox, onedrive); {folders: [{path_lower, name}]}; 404 for any other provider
+ *   GET    /api/j2/notes/connectors/{provider}/folders?path= — folder picker for the two folder-scoped providers (dropbox, onedrive); {folders: [...]} where each entry is Dropbox's {path_lower, name} OR OneDrive's {id, name} (raw, provider-shaped — normalizeFolders below is what makes the two agree); 404 for any other provider
  *   POST   /api/j2/notes/connectors/{provider}/sources     — {remoteId, displayName?, destFolderId?} -> {source}; 409 if not connected yet
  *   POST   /api/j2/notes/connectors/sources/{id}/sync      — manual sync, background=1 supported
  *   PUT    /api/j2/notes/connectors/sources/{id}           — sync_enabled / dest folder
@@ -159,21 +159,66 @@ export function normalizeStatus(raw) {
   return { providers, enabled }
 }
 
-// ── Dropbox folder picker (Task 12b) ─────────────────────────────────────
+// ── Folder picker (Task 12b, widened to OneDrive in Task 7) ──────────────
+//
+// Fix-round CRITICAL: `GET /{provider}/folders` is NOT one shape across the
+// two folder-scoped providers — Dropbox's `list_folders` returns
+// `{path_lower, name}`, OneDrive's returns `{id, name}` (Graph addresses
+// everything by opaque item id, never a path). The OLD `normalizeFolder`
+// only ever read `pathLower`/`path_lower`, so every OneDrive folder
+// normalized to `pathLower: ''` — every row collapsed to the SAME (empty)
+// key, drilling into any of them re-listed the root forever, and picking one
+// POSTed `remoteId: ''` to `POST /{provider}/sources`, which the backend
+// rejects with a 400 ("remoteId is required"). The OneDrive folder picker
+// could not create a source at all.
+//
+// The provider-neutral contract every consumer reads instead:
+// `{name, remoteId, drillPath}` — `remoteId` is what `POST
+// /{provider}/sources` creates a source with; `drillPath` is what `GET
+// /{provider}/folders?path=` expects when drilling INTO this folder.
+// Dropbox: both = `path_lower`. OneDrive: both = the drive-item id. (The two
+// happen to always be equal per provider today — kept as two named fields,
+// not one, so a future provider whose "id to create a source with" and "id
+// to drill with" genuinely differ doesn't need this contract reshaped again.)
 
 function normalizeFolder(raw) {
   if (!raw) return null
+  // Dropbox carries `path_lower`; OneDrive carries `id` and has no
+  // `path_lower` field at all — `pick()`'s own fallback would silently
+  // resolve to `''` for OneDrive if only the first pair were checked, which
+  // is the exact bug this fixes, so `id` is a SEPARATE, explicit fallback
+  // rather than a fourth alias on the same `pick()` call.
+  const pathLower = pick(raw, 'pathLower', 'path_lower', null)
+  const value = pathLower != null ? pathLower : pick(raw, 'id', 'id', '')
   return {
-    pathLower: pick(raw, 'pathLower', 'path_lower', ''),
     name: raw.name || '',
+    remoteId: value,
+    drillPath: value,
   }
 }
 
-/** Translate `GET /{provider}/folders` -> `{folders}` into a stable camelCase list. */
+/** Translate `GET /{provider}/folders` -> `{folders}` into a stable
+ * `{name, remoteId, drillPath}` list — see the provider-neutral contract
+ * note above `normalizeFolder`. */
 export function normalizeFolders(raw) {
   const list = (raw && raw.folders) || []
   return list.map(normalizeFolder).filter(Boolean)
 }
+
+// Per-provider sentinel for "sync the whole account" (the folder-picker's
+// root-level pick, not a drilled-into subfolder). Dropbox's OWN API treats
+// `""` and `"/"` as equivalent references to the account root
+// (`_dropbox_api_path` on the backend normalizes both), and `"/"` — unlike
+// `""` — survives every truthiness check both here and in
+// `DropboxProvider._resolve_folder_path`, so it is safe to use end-to-end
+// with ZERO backend changes. OneDrive has NO entry here (fix-round decision,
+// documented on `DropboxFolderPicker.jsx`'s root-pick button): OneDrive's
+// whole-drive delta is Graph's `/me/drive/root/delta` endpoint, a DIFFERENT
+// shape than the folder-scoped `/me/drive/items/{id}/delta` this provider
+// implements today — wiring that safely is real provider work, out of scope
+// for this fix, so the UI requires drilling to a real folder for OneDrive
+// instead of accepting an unverified sentinel.
+export const FOLDER_PICKER_ROOT_REMOTE_ID = { dropbox: '/' }
 
 export default function useNoteConnectors() {
   const { data, error, isLoading, mutate } = useSWR(
@@ -265,9 +310,10 @@ export default function useNoteConnectors() {
     [mutate]
   )
 
-  // GET /{provider}/folders?path= — Dropbox-only (the router 404s any other
-  // provider); `path` omitted/'' lists the account root. Returns the
-  // normalized `{pathLower, name}[]` list, never raw keys.
+  // GET /{provider}/folders?path= — scoped to FOLDER_PICKER_PROVIDERS (the
+  // router 404s any other provider); `path` omitted/'' lists the account
+  // root. Returns the normalized `{name, remoteId, drillPath}[]` list, never
+  // raw provider-shaped keys.
   const listFolders = useCallback(async (provider, path = '') => {
     const qs = path ? `?path=${encodeURIComponent(path)}` : ''
     const r = await fetch(`/api/j2/notes/connectors/${provider}/folders${qs}`, {

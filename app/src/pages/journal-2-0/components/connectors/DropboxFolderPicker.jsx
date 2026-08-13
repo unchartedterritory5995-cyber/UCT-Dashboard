@@ -22,10 +22,25 @@
  * Errors from the list call render inline with a "Try again" retry (mirrors
  * `ImportWizard`'s error-step wording) rather than a toast — a 401/409 means
  * "reconnect {providerLabel}", which the user needs to actually read.
+ *
+ * Fix-round CRITICAL: every folder row read off `listFolders()` (which
+ * returns `useNoteConnectors.js::normalizeFolders`' output) is the
+ * provider-neutral `{name, remoteId, drillPath}` shape now — `remoteId` is
+ * what gets POSTed to create a source, `drillPath` is what's passed back to
+ * `listFolders` when the user drills into that row. Drilling and picking
+ * both key on those fields, NEVER a Dropbox-specific `pathLower` (the
+ * previous shape, which every OneDrive folder normalized to the SAME empty
+ * value — collapsing every row to one dup React key, re-listing the root on
+ * every "drill", and POSTing an empty `remoteId` that the backend 400s).
+ *
+ * The footer "sync the whole account" button picks root — that needs its
+ * OWN per-provider sentinel (`FOLDER_PICKER_ROOT_REMOTE_ID`, see that
+ * constant's own comment for why OneDrive doesn't have one yet).
  */
 import { useCallback, useEffect, useState } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
 import UIcon from '../../../../components/ui/UIcon'
+import { FOLDER_PICKER_ROOT_REMOTE_ID } from '../../hooks/useNoteConnectors'
 import styles from './DropboxFolderPicker.module.css'
 
 export default function DropboxFolderPicker({
@@ -72,9 +87,9 @@ export default function DropboxFolderPicker({
   }
 
   const openFolder = (folder) => {
-    setCrumbs((prev) => [...prev, { path: folder.pathLower, name: folder.name }])
-    setPath(folder.pathLower)
-    load(folder.pathLower)
+    setCrumbs((prev) => [...prev, { path: folder.drillPath, name: folder.name }])
+    setPath(folder.drillPath)
+    load(folder.drillPath)
   }
 
   const goToRoot = () => {
@@ -90,12 +105,23 @@ export default function DropboxFolderPicker({
     load(target.path)
   }
 
+  // Fix-round item #2: the ROOT case (`path === ''`, nothing drilled into
+  // yet) needs a provider-specific sentinel, not the bare (empty) `path`
+  // state — an empty string is indistinguishable from "missing" everywhere
+  // downstream (the router's own `if not remote_id: 400`), which is why
+  // "sync my whole Dropbox" 400ed even for Dropbox before this fix. A
+  // DRILLED folder's `path` is already a valid remoteId (drillPath ===
+  // remoteId per provider, see the module docstring), so only the root case
+  // needs the sentinel lookup.
+  const rootRemoteId = FOLDER_PICKER_ROOT_REMOTE_ID[provider]
+  const rootPickUnsupported = path === '' && !rootRemoteId
+
   const pick = async (folder) => {
-    if (busy) return
+    if (busy || (!folder && rootPickUnsupported)) return
     setBusy(true)
     setError(null)
     try {
-      const remoteId = folder ? folder.pathLower : path
+      const remoteId = folder ? folder.remoteId : (path === '' ? rootRemoteId : path)
       const displayName = folder
         ? folder.name
         : path === ''
@@ -111,7 +137,11 @@ export default function DropboxFolderPicker({
     }
   }
 
-  const currentLabel = path === '' ? `Sync my whole ${providerLabel}` : `Sync "${crumbs[crumbs.length - 1]?.name || path}"`
+  const currentLabel = rootPickUnsupported
+    ? `Pick a folder below to sync — ${providerLabel} doesn't support syncing the whole account yet`
+    : path === ''
+      ? `Sync my whole ${providerLabel}`
+      : `Sync "${crumbs[crumbs.length - 1]?.name || path}"`
 
   return (
     <Sheet
@@ -159,7 +189,7 @@ export default function DropboxFolderPicker({
           <ul className={styles.list}>
             {folders.length === 0 && !error && <li className={styles.muted}>No subfolders here.</li>}
             {folders.map((f) => (
-              <li key={f.pathLower} className={styles.row}>
+              <li key={f.remoteId} className={styles.row}>
                 <button type="button" className={styles.folderBtn} onClick={() => openFolder(f)}>
                   <UIcon name="library" size={14} gold={false} />
                   {f.name}
@@ -173,7 +203,12 @@ export default function DropboxFolderPicker({
         )}
 
         <div className={styles.footerRow}>
-          <button type="button" className={styles.primaryBtn} disabled={busy} onClick={() => pick(null)}>
+          <button
+            type="button"
+            className={styles.primaryBtn}
+            disabled={busy || rootPickUnsupported}
+            onClick={() => pick(null)}
+          >
             {busy ? 'Connecting…' : currentLabel}
           </button>
         </div>
