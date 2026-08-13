@@ -34,10 +34,11 @@
 // - menus.mobile   — membership in MobileWorkspace's add menu (the 5 types
 //                    that are usable at 375px).
 // - menus.journal  — offered by the notebook's slash menu / insert palette.
-//                    v1: chart only — it renders live from frozen params; the
-//                    other types embed via CAPTURE (params + archived image),
-//                    so slash-inserting one would create a dead placeholder.
-//                    Flip per-type as each gains an in-editor render path.
+//                    Chart only: it's the type whose params are TYPEABLE
+//                    (symbol + tf). Every other live-rendering type embeds
+//                    through its widget's Send-to-Journal door instead — a
+//                    capture needs the widget's on-screen state/payload,
+//                    which a slash command has no way to supply.
 // - themeFollow    — when uncustomized, the widget chrome re-flips to the app
 //                    theme's light tokens (every type except chart, whose
 //                    canvas always comes from its own settings blob).
@@ -61,9 +62,12 @@
 //                    what makes embeds findable in notebook search).
 // - reconstructable— boolean | (params) => boolean. Whether a months-old
 //                    snapshot can re-render from data instead of its stored
-//                    image. Only chart qualifies in v1, per-timeframe (see
-//                    CHART_TF_CEILING_DAYS). Image-only is a first-class
-//                    verdict, not a failure.
+//                    image. Chart is per-timeframe (CHART_TF_CEILING_DAYS);
+//                    calendar re-fetches its date-parameterized endpoints;
+//                    aisearch/fundamentals/news/breadth render their FROZEN
+//                    payload (owner-approved). Image-only is a first-class
+//                    verdict, not a failure — the remaining types are
+//                    point-in-time lists whose PNG is the honest capture.
 // - liveCapable    — whether mode:'live' embeds may mount this widget live in
 //                    the journal (v1: chart only — every other widget's data
 //                    hooks would open polls/streams inside a note).
