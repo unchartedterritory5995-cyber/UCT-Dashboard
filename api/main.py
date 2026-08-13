@@ -3632,6 +3632,35 @@ async def lifespan(app: FastAPI):
         except Exception as _e_dpint:
             print(f"[startup] darkpool intraday poller job skip: {_e_dpint}")
 
+        # -- Dark pool: TIERED warm poll + snapshot FAST-LANE (2026-08-13) ------
+        # Two more live streams, both self-gated on DARKPOOL_INTRADAY_ENABLED AND
+        # DARKPOOL_INTRADAY_TIERED_ENABLED (ships DARK). WARM re-polls the full
+        # ~288 base every 12 min; the SNAPSHOT SCANNER every 5 min reads the
+        # whole-market snapshot in ONE call and deep-pulls any off-radar name
+        # whose volume just spiked — so a big dark block on a ticker we don't
+        # normally watch is caught live instead of waiting for the T+1 flat file.
+        # Own run-locks (won't block the 3-min hot poll). WEB-side.
+        try:
+            from api.darkpool_intraday_ingest import (
+                scheduled_warm as _dp_warm_run,
+                scheduled_scanner as _dp_scan_run,
+            )
+            _scheduler.add_job(
+                _dp_warm_run,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9-16",
+                                    minute="*/12", timezone=_ET),
+                id="darkpool_intraday_warm", max_instances=1,
+                replace_existing=True, misfire_grace_time=600)
+            _scheduler.add_job(
+                _dp_scan_run,
+                trigger=CronTrigger(day_of_week="mon-fri", hour="9-16",
+                                    minute="*/5", timezone=_ET),
+                id="darkpool_intraday_scanner", max_instances=1,
+                replace_existing=True, misfire_grace_time=300)
+            print("[startup] darkpool tiered warm(12m) + snapshot fast-lane(5m) scheduled (gated)")
+        except Exception as _e_dptier:
+            print(f"[startup] darkpool tiered/scanner job skip: {_e_dptier}")
+
         # -- Dark pool: EOD / EOW summary card to Discord (2026-08-09) ----------
         # By-market-cap dark-pool summary, styled like the Top Flow options card.
         # EOD weekdays 20:10 ET — a safe margin AFTER the 19:20 nightly ingest has

@@ -552,6 +552,30 @@ async def intraday_ingest_status():
     return JSONResponse(get_run_state())
 
 
+@router.post("/intraday-scan")
+async def intraday_scan_now(_auth: dict = Depends(require_flow_admin)):
+    """Manually run the snapshot FAST-LANE now (bypasses the DARKPOOL_INTRADAY_
+    TIERED_ENABLED gate so it's testable before arming). Reads the whole-market
+    snapshot, deep-pulls off-radar volume spikes, promotes those with real dark
+    prints. Fire-and-forget — poll /intraday-ingest/status (the `scanner` block)."""
+    try:
+        from api.darkpool_intraday_ingest import run_scanner_background
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"intraday module unavailable: {e}")
+    return JSONResponse(run_scanner_background())
+
+
+@router.post("/intraday-warm")
+async def intraday_warm_now(_auth: dict = Depends(require_flow_admin)):
+    """Manually run the WARM poll now (full ~288 base minus hot + promoted).
+    Fire-and-forget — poll /intraday-ingest/status (the `warm` block)."""
+    try:
+        from api.darkpool_intraday_ingest import run_intraday_warm_background
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"intraday module unavailable: {e}")
+    return JSONResponse(run_intraday_warm_background())
+
+
 @router.get("/stats")
 async def darkpool_stats(_auth: dict = Depends(require_flow_user)):
     """Return database statistics."""
