@@ -246,6 +246,8 @@ class MSGraphClient:
         response = await self.send(credentials, "GET", "/me")
         if response.status_code != 200:
             raise_for_status(response)
-        data = response.json()
+        data = _safe_json(response)
+        if data is None:
+            raise errors.NoteConnTransient("Microsoft Graph returned a non-JSON success response")
         label = data.get("displayName") or data.get("userPrincipalName") or "Microsoft"
         return AccountInfo(label=label, raw={"id": data.get("id")})

@@ -44,6 +44,7 @@ from api.services.journal_two.note_connectors.convert import html_to_tiptap, md_
 from api.services.journal_two.note_connectors.errors import (
     NoteConnAuthError,
     NoteConnTokenExpired,
+    NoteConnTransient,
     NoteConnUnsupported,
 )
 from api.services.journal_two.note_connectors.providers.base import AccountInfo
@@ -670,3 +671,38 @@ async def test_list_folders_nested_hits_items_id_children():
     provider = _make_provider(handler)
     await provider.list_folders(CREDS, path="item-sub")
     assert captured == ["/v1.0/me/drive/items/item-sub/children"]
+
+
+# ---------------------------------------------------------------------------
+# JSON parsing guards on 2xx responses (Change 1 security hardening).
+# ---------------------------------------------------------------------------
+
+
+async def test_list_changed_non_json_200_response_raises_transient():
+    """A 200 response whose body is NOT valid JSON should raise NoteConnTransient,
+    not a raw ValueError."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == f"/v1.0/me/drive/items/{FOLDER_ID}/delta":
+            # Return a 200 with HTML instead of JSON (e.g., gateway error)
+            return httpx.Response(200, text="<html>gateway error</html>")
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    with pytest.raises(NoteConnTransient) as exc_info:
+        await provider.list_changed(CREDS)
+    assert "non-JSON success response" in str(exc_info.value)
+
+
+async def test_list_folders_non_json_200_response_raises_transient():
+    """A 200 response whose body is NOT valid JSON in list_folders should raise
+    NoteConnTransient."""
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/v1.0/me/drive/root/children":
+            # Return a 200 with plain text instead of JSON
+            return httpx.Response(200, text="not json")
+        return httpx.Response(404)
+
+    provider = _make_provider(handler)
+    with pytest.raises(NoteConnTransient) as exc_info:
+        await provider.list_folders(CREDS)
+    assert "non-JSON success response" in str(exc_info.value)
