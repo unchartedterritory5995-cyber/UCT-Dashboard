@@ -19,6 +19,16 @@ Flow per source, per sync:
      enumeration is cheap but whose content fetch is expensive (OneNote,
      Task 6), this may be a BOUNDED content-fetch drain rather than the
      complete remote set — see `list_present_refs` below.
+     ⚠️ Fix-round-1 Important #1 (Finding B): on a `full` pass, the cursor
+     handed to THIS call resets to `None` only for a provider WITHOUT
+     `list_present_refs` — the pre-existing "force a full re-list" mechanism.
+     A provider WITH the hook (OneNote) keeps its STORED cursor even on a
+     full pass, because that hook already supplies completeness for delete
+     detection/`_touch_remote_index` independently (step 2) — resetting
+     `list_changed`'s cursor too would, for a provider whose `list_changed`
+     is itself a bounded resumable drain (not a re-list), regress that
+     drain's progress backward every night. See the inline comment at the
+     cursor-decision line for the full incident writeup.
   2. Full syncs (`full=True`) run delete detection FIRST, against the
      PRE-sync remote_index snapshot (see `_run_delete_detection`), then
      every seen ref is upserted into remote_index (`_touch_remote_index`).
@@ -393,8 +403,40 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
                 f"no connected credentials for provider {source['provider']!r}"
             )
 
+        # `list_present_refs` governs BOTH the cursor-reset decision right
+        # below AND (further down, on a full pass) the complete-set input to
+        # delete detection — computed ONCE, here, and reused in both places
+        # rather than two separate `getattr` calls that could theoretically
+        # read differently (this repo's own "a second authority over one
+        # value" defect shape).
+        present_fn = getattr(provider, "list_present_refs", None)
+
         # Raw cursor, unadjusted — providers own their own overlap window.
-        cursor = None if full else source.get("cursor")
+        # A provider WITHOUT `list_present_refs` (Roam/Craft/Notion/Dropbox/
+        # OneDrive) resets to None on every full pass — the pre-existing,
+        # unchanged mechanism for forcing a complete re-list on that provider's
+        # OWN `list_changed`.
+        #
+        # A provider WITH `list_present_refs` (OneNote) must NOT also reset
+        # here (fix-round-1 Important #1 / Finding B): that hook already
+        # supplies a COMPLETE remote set for delete detection + remote_index
+        # on every full pass (see below), so `list_changed` has no need to
+        # re-derive completeness itself — for OneNote specifically,
+        # `list_changed` is a bounded, RESUMABLE watermark drain, not a full
+        # re-list. Resetting its cursor to None on every nightly full pass
+        # would restart that drain from the epoch and regress the watermark
+        # BACKWARD from wherever incremental ticks had already reached —
+        # re-importing old content and, on any account bigger than
+        # K × (ticks between full passes), starving the newest edits forever
+        # (confirmed via `repro_fullpass.py`: incremental reached T99, one
+        # full pass dropped the cursor to T39). Passing the STORED cursor
+        # through on a full pass for such a provider lets its bounded drain
+        # continue exactly where it left off, while `list_present_refs`
+        # (below) independently supplies the completeness delete detection
+        # needs — the two concerns are already cleanly separated by design
+        # (spec §9); this is that separation actually holding on the cursor
+        # too, not just on `index_refs`.
+        cursor = None if (full and present_fn is None) else source.get("cursor")
         refs = await provider.list_changed(creds, cursor=cursor)
         # Task 4: `index_refs` is what delete detection + remote_index
         # bookkeeping actually see. Defaults to `refs` (today's behavior,
@@ -444,8 +486,8 @@ async def _do_sync(user_id: str, source_id: str, *, full: bool) -> dict[str, Any
             # fetch stays bounded. A raising hook, or a provider without the
             # method (Roam/Craft/Notion/Dropbox/OneDrive define none), never
             # aborts the sync — `index_refs` simply falls back to `refs`,
-            # today's behavior, unchanged.
-            present_fn = getattr(provider, "list_present_refs", None)
+            # today's behavior, unchanged. `present_fn` itself was already
+            # resolved once, above, before the cursor decision — reused here.
             if present_fn is not None:
                 try:
                     index_refs = await present_fn(creds)

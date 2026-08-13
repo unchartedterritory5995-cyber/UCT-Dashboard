@@ -96,6 +96,12 @@ class FakeProvider(NoteProvider):
         self.list_changed_refs: list[RemoteRef] = []
         self.notes_by_id: dict[str, RemoteNote] = {}
         self.fetch_many_calls: list[list[str]] = []
+        # Every cursor value `list_changed` was actually called with, in
+        # order -- mirrors `test_note_connectors_engine.py`'s own
+        # `FakeProvider.list_changed_calls` field exactly, added here for
+        # fix-round-1's cursor-reset-gating test below (this file previously
+        # never needed to inspect what cursor the engine passed through).
+        self.list_changed_calls: list[str | None] = []
         self._enumerated = False
 
     async def validate(self, credentials):
@@ -103,6 +109,7 @@ class FakeProvider(NoteProvider):
 
     async def list_changed(self, credentials, cursor=None):
         self._enumerated = True
+        self.list_changed_calls.append(cursor)
         return list(self.list_changed_refs)
 
     async def fetch(self, credentials, ref):
@@ -348,3 +355,94 @@ async def test_control_provider_without_hook_matches_wave1_two_strike_behavior(s
     c_note = notes_svc.get_note("u1", c_note_id)
     assert "source-deleted" in c_note["tags"]
     assert notes_svc.get_note("u1", c_note_id) is not None  # never actually deleted
+
+
+# ---------------------------------------------------------------------------
+# 5. Fix-round-1 Important #1 (Finding B) — a full pass must NOT reset the
+#    `list_changed` cursor to None for a provider that exposes
+#    `list_present_refs`. Confirmed via `repro_fullpass.py` against the real
+#    OneNoteProvider: incremental ticks reached watermark T99, then one
+#    nightly full pass (which used to call `list_changed(cursor=None)`)
+#    regressed the cursor to T39 — re-draining old content and, on a large
+#    enough account, starving new edits forever. This suite proves the fix
+#    at the ENGINE level (the layer that owns the cursor-reset decision)
+#    using `FakeProvider.list_changed_calls`, which now records every
+#    cursor value the engine actually passed through.
+# ---------------------------------------------------------------------------
+
+async def test_full_pass_does_not_regress_the_cursor_for_a_present_refs_provider(source, provider):
+    """A OneNote-shaped provider: `list_changed` publishes a resumable
+    opaque watermark on itself (mirrors OneDrive/OneNote's `opaque_cursor`
+    convention) regardless of `full`. Round 1 (incremental) advances the
+    stored cursor to a watermark; round 2 (a NIGHTLY FULL PASS, with
+    `list_present_refs` wired) must hand that SAME stored watermark back to
+    `list_changed` — never `None` — so the bounded drain continues forward
+    instead of restarting from the epoch. `list_present_refs` independently
+    supplies the complete set delete detection needs, so nothing about
+    delete-detection correctness is traded away by keeping the cursor."""
+    refs_all = [RemoteRef(remote_id=f"p{i}", updated_at=T1) for i in (1, 2, 3, 4)]
+    provider.notes_by_id = {r.remote_id: _rn(r.remote_id, f"Note {r.remote_id}") for r in refs_all}
+
+    # Round 1 -- incremental tick, no cursor stored yet (source is brand
+    # new). The provider "reaches" watermark A this tick.
+    provider.list_changed_refs = [refs_all[0]]
+    provider.opaque_cursor = "onenote-watermark-A"
+    r1 = await engine.sync_source(source["id"], full=False)
+    assert r1["status"] == "ok"
+    assert provider.list_changed_calls == [None]  # nothing stored yet -- correct either way
+    got1 = engine.connections.get_source_by_id(source["id"])
+    assert got1["cursor"] == "onenote-watermark-A"
+
+    # Round 2 -- a NIGHTLY FULL PASS. `list_present_refs` is wired (the
+    # engine's own signal that this provider owns a resumable, bounded
+    # `list_changed` rather than needing a forced full re-list). The
+    # provider "reaches" watermark B this tick, continuing PAST A.
+    provider.list_changed_refs = [refs_all[1]]
+    provider.opaque_cursor = "onenote-watermark-B"
+
+    async def _present(credentials):
+        return refs_all
+
+    provider.list_present_refs = _present
+
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r2["status"] == "ok"
+
+    # THE FIX: the full pass must hand the STORED cursor (watermark A) back
+    # to list_changed -- NOT None. A regression here reintroduces the
+    # backward-cursor-jump `repro_fullpass.py` demonstrated against the
+    # real provider.
+    assert provider.list_changed_calls[-1] == "onenote-watermark-A"
+
+    # The opaque cursor this tick's (bounded) list_changed produced still
+    # persists unconditionally, exactly as before this fix -- advancing
+    # forward to watermark B, never backward.
+    got2 = engine.connections.get_source_by_id(source["id"])
+    assert got2["cursor"] == "onenote-watermark-B"
+
+    # And delete detection still saw the COMPLETE set via list_present_refs
+    # on this same full pass -- the two concerns stayed independent.
+    idx = {r["remote_id"]: r for r in _remote_index_rows(source["id"])}
+    assert set(idx) == {"p1", "p2", "p3", "p4"}
+    assert idx["p3"]["miss_streak"] == 0  # present via list_present_refs, not severed
+
+
+async def test_full_pass_still_resets_cursor_to_none_without_the_hook_control(source, provider):
+    """CONTROL, mirroring `test_control_provider_without_hook_matches_wave1_
+    two_strike_behavior` above: a provider WITHOUT `list_present_refs`
+    (Roam/Craft/Notion/Dropbox/OneDrive's own shape) must keep resetting to
+    `None` on every full pass -- byte-identical to pre-fix behavior. This
+    is what would fail if the cursor-reset gate were accidentally widened
+    to apply to every provider instead of just present-refs-having ones."""
+    assert getattr(provider, "list_present_refs", None) is None
+    provider.notes_by_id = {"p1": _rn("p1", "P1")}
+    provider.list_changed_refs = [RemoteRef(remote_id="p1", updated_at=T1)]
+
+    r1 = await engine.sync_source(source["id"], full=False)
+    assert r1["status"] == "ok"
+    got1 = engine.connections.get_source_by_id(source["id"])
+    assert got1["cursor"] == T1  # timestamp-mode cursor, derived from refs
+
+    r2 = await engine.sync_source(source["id"], full=True, manual=True)
+    assert r2["status"] == "ok"
+    assert provider.list_changed_calls[-1] is None  # full pass still resets -- unchanged
