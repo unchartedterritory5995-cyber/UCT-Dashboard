@@ -1,10 +1,19 @@
 /**
- * DropboxFolderPicker — Task 12b. Dropbox's OAuth callback creates the
+ * DropboxFolderPicker — Task 12b, widened to OneDrive in Task 7 (msgraph
+ * wave). Dropbox's (and now OneDrive's) OAuth callback creates the
  * connector WITHOUT a source ("Dropbox needs a FOLDER before a source can
- * exist" — `api/routers/note_sync.py`'s own comment); this is the step that
- * closes the gap: browse `GET /{provider}/folders?path=` (non-recursive,
- * Dropbox-only) and turn a pick into a real source via
- * `POST /{provider}/sources`.
+ * exist" — `api/routers/note_sync.py`'s own comment; OneDrive is the
+ * identical shape); this is the step that closes the gap: browse
+ * `GET /{provider}/folders?path=` (non-recursive, scoped to
+ * `_FOLDER_PICKER_PROVIDERS` server-side) and turn a pick into a real
+ * source via `POST /{provider}/sources`.
+ *
+ * `provider`/`providerLabel` parameterize which folder-picker provider is
+ * open — defaults to Dropbox (the original, still-only-caller-until-Task-7
+ * shape) so every existing call site/test that doesn't pass them is
+ * unaffected. OneNote is NOT a valid `provider` here (whole-account, no
+ * folder concept — see `ConnectedAppsCard`'s `FOLDER_PICKER_PROVIDERS`
+ * gate, which is what decides whether this ever opens for a given tile).
  *
  * `listFolders`/`addSource` are injected props (from `useNoteConnectors()`),
  * mirroring `ConnectTokenModal`'s `connectToken` prop — keeps this testable
@@ -12,15 +21,17 @@
  *
  * Errors from the list call render inline with a "Try again" retry (mirrors
  * `ImportWizard`'s error-step wording) rather than a toast — a 401/409 means
- * "reconnect Dropbox", which the user needs to actually read.
+ * "reconnect {providerLabel}", which the user needs to actually read.
  */
 import { useCallback, useEffect, useState } from 'react'
 import Sheet from '../../../../components/mobile/Sheet'
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './DropboxFolderPicker.module.css'
 
-export default function DropboxFolderPicker({ open, onClose, listFolders, addSource, onPicked }) {
-  const [path, setPath] = useState('') // '' = Dropbox root
+export default function DropboxFolderPicker({
+  open, onClose, listFolders, addSource, onPicked, provider = 'dropbox', providerLabel = 'Dropbox',
+}) {
+  const [path, setPath] = useState('') // '' = the provider's root
   const [crumbs, setCrumbs] = useState([]) // [{path, name}] — each entry's OWN path
   const [folders, setFolders] = useState([])
   const [loading, setLoading] = useState(false)
@@ -32,15 +43,15 @@ export default function DropboxFolderPicker({ open, onClose, listFolders, addSou
       setLoading(true)
       setError(null)
       try {
-        const list = await listFolders('dropbox', p)
+        const list = await listFolders(provider, p)
         setFolders(list)
       } catch (err) {
-        setError(err?.detail || err?.message || 'Could not load your Dropbox folders.')
+        setError(err?.detail || err?.message || `Could not load your ${providerLabel} folders.`)
       } finally {
         setLoading(false)
       }
     },
-    [listFolders]
+    [listFolders, provider, providerLabel]
   )
 
   // Fresh state every time the picker opens — mirrors ConnectTokenModal.
@@ -53,7 +64,7 @@ export default function DropboxFolderPicker({ open, onClose, listFolders, addSou
     setBusy(false)
     load('')
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  }, [open, provider])
 
   const handleClose = () => {
     if (busy) return
@@ -88,9 +99,9 @@ export default function DropboxFolderPicker({ open, onClose, listFolders, addSou
       const displayName = folder
         ? folder.name
         : path === ''
-          ? 'Dropbox (root)'
+          ? `${providerLabel} (root)`
           : crumbs[crumbs.length - 1]?.name || path
-      await addSource('dropbox', { remoteId, displayName })
+      await addSource(provider, { remoteId, displayName })
       onPicked?.()
       onClose?.()
     } catch (err) {
@@ -100,14 +111,14 @@ export default function DropboxFolderPicker({ open, onClose, listFolders, addSou
     }
   }
 
-  const currentLabel = path === '' ? 'Sync my whole Dropbox' : `Sync "${crumbs[crumbs.length - 1]?.name || path}"`
+  const currentLabel = path === '' ? `Sync my whole ${providerLabel}` : `Sync "${crumbs[crumbs.length - 1]?.name || path}"`
 
   return (
     <Sheet
       open={open}
       onClose={handleClose}
       variant="auto"
-      title="Choose a Dropbox folder"
+      title={`Choose a ${providerLabel} folder`}
       maxWidth={480}
       dismissOnBackdrop={!busy}
     >
@@ -116,7 +127,7 @@ export default function DropboxFolderPicker({ open, onClose, listFolders, addSou
 
         <div className={styles.crumbs}>
           <button type="button" className={styles.crumbBtn} onClick={goToRoot} disabled={path === ''}>
-            Dropbox
+            {providerLabel}
           </button>
           {crumbs.map((c, i) => (
             <span key={c.path}>

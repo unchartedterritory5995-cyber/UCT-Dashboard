@@ -28,9 +28,10 @@ def test_import_is_inert_with_zero_env_vars(monkeypatch):
         monkeypatch.delenv(var, raising=False)
     from api.services.journal_two.note_connectors import registry
     importlib.reload(registry)  # re-run module body with the clean env -- must not raise
-    assert registry.names() == ["roam", "craft", "notion", "dropbox", "onedrive"]
+    assert registry.names() == ["roam", "craft", "notion", "dropbox", "onenote", "onedrive"]
     assert registry.configured("notion") is False
     assert registry.configured("dropbox") is False
+    assert registry.configured("onenote") is False
     assert registry.configured("onedrive") is False
     assert registry.configured("roam") is True
     assert registry.configured("craft") is True
@@ -55,9 +56,11 @@ def test_configured_reflects_env_for_oauth_providers(monkeypatch):
     monkeypatch.delenv("MSGRAPH_CLIENT_ID", raising=False)
     monkeypatch.delenv("MSGRAPH_CLIENT_SECRET", raising=False)
     assert registry.configured("onedrive") is False
+    assert registry.configured("onenote") is False
     monkeypatch.setenv("MSGRAPH_CLIENT_ID", "mcid")
     monkeypatch.setenv("MSGRAPH_CLIENT_SECRET", "mcsecret")
     assert registry.configured("onedrive") is True
+    assert registry.configured("onenote") is True  # same Azure app backs both
 
 
 def test_configured_is_false_not_raising_for_an_unknown_provider():
@@ -72,12 +75,14 @@ def test_build_provider_dispatches_to_the_right_class():
     from api.services.journal_two.note_connectors.providers.craft import CraftProvider
     from api.services.journal_two.note_connectors.providers.notion import NotionProvider
     from api.services.journal_two.note_connectors.providers.dropbox import DropboxProvider
+    from api.services.journal_two.note_connectors.providers.onenote import OneNoteProvider
     from api.services.journal_two.note_connectors.providers.onedrive import OneDriveProvider
 
     assert isinstance(registry.build_provider("roam"), RoamProvider)
     assert isinstance(registry.build_provider("craft"), CraftProvider)
     assert isinstance(registry.build_provider("notion"), NotionProvider)
     assert isinstance(registry.build_provider("dropbox"), DropboxProvider)
+    assert isinstance(registry.build_provider("onenote"), OneNoteProvider)
     assert isinstance(registry.build_provider("onedrive"), OneDriveProvider)
 
 
@@ -111,6 +116,19 @@ def test_build_provider_ignores_source_for_token_providers():
     assert isinstance(p, RoamProvider)
 
 
+def test_build_provider_ignores_source_for_onenote():
+    """OneNote is whole-account (Notion's shape, `_build_onenote` mirrors
+    `_build_notion`) -- unlike Dropbox/OneDrive, there is no source-level
+    folder_path to thread through, so passing a source row must never raise
+    or change construction."""
+    from api.services.journal_two.note_connectors import registry
+    from api.services.journal_two.note_connectors.providers.onenote import OneNoteProvider
+    p = registry.build_provider("onenote", {"id": "src1", "remoteId": "me"})
+    assert isinstance(p, OneNoteProvider)
+    p2 = registry.build_provider("onenote", None)
+    assert isinstance(p2, OneNoteProvider)
+
+
 def test_build_provider_threads_the_source_row_folder_path_to_onedrive():
     """Same one-connector-backs-multiple-folder-sources shape as Dropbox
     (Task 3 of the msgraph wave, mirroring MUST-RESOLVE #3 verbatim):
@@ -133,4 +151,5 @@ def test_get_entry_exposes_connect_kind_for_the_router():
     assert registry.get_entry("craft").connect_kind == "token"
     assert registry.get_entry("notion").connect_kind == "oauth"
     assert registry.get_entry("dropbox").connect_kind == "oauth"
+    assert registry.get_entry("onenote").connect_kind == "oauth"
     assert registry.get_entry("onedrive").connect_kind == "oauth"

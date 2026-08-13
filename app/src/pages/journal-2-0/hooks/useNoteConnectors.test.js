@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { normalizeStatus, normalizeFolders, NOTE_CONNECTOR_PROVIDERS } from './useNoteConnectors'
+import { normalizeStatus, normalizeFolders, NOTE_CONNECTOR_PROVIDERS, FOLDER_PICKER_PROVIDERS } from './useNoteConnectors'
 
-describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, corrected by Task 12b)', () => {
-  it('always returns all four wave-1 provider keys, even from an empty/undefined payload', () => {
+describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, corrected by Task 12b, widened to msgraph in Task 7)', () => {
+  it('always returns all six provider keys, even from an empty/undefined payload', () => {
     for (const raw of [undefined, null, {}, { providers: {} }]) {
       const out = normalizeStatus(raw)
-      expect(Object.keys(out.providers).sort()).toEqual(['craft', 'dropbox', 'notion', 'roam'])
+      expect(Object.keys(out.providers).sort()).toEqual(['craft', 'dropbox', 'notion', 'onedrive', 'onenote', 'roam'])
       for (const p of NOTE_CONNECTOR_PROVIDERS) {
         expect(out.providers[p.key]).toEqual({
           configured: false, connected: false, connectKind: null, accountLabel: null, status: null, sources: [],
@@ -116,6 +116,24 @@ describe('normalizeStatus — the field-name contract (fix-round 1 finding #2, c
     })
     expect(out.providers.roam.sources).toHaveLength(1)
     expect(out.providers.roam.sources[0].id).toBe('ok')
+  })
+})
+
+describe('FOLDER_PICKER_PROVIDERS (Task 7: widened from dropbox-only to {dropbox, onedrive})', () => {
+  it('contains dropbox and onedrive, and nothing else', () => {
+    expect(FOLDER_PICKER_PROVIDERS.has('dropbox')).toBe(true)
+    expect(FOLDER_PICKER_PROVIDERS.has('onedrive')).toBe(true)
+    expect(FOLDER_PICKER_PROVIDERS.size).toBe(2)
+  })
+
+  it('excludes onenote — whole-account, never a folder-picker provider', () => {
+    expect(FOLDER_PICKER_PROVIDERS.has('onenote')).toBe(false)
+  })
+
+  it('excludes the token providers and notion', () => {
+    expect(FOLDER_PICKER_PROVIDERS.has('roam')).toBe(false)
+    expect(FOLDER_PICKER_PROVIDERS.has('craft')).toBe(false)
+    expect(FOLDER_PICKER_PROVIDERS.has('notion')).toBe(false)
   })
 })
 

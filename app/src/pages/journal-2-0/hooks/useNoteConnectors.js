@@ -38,15 +38,30 @@
 import { useCallback } from 'react'
 import useSWR from 'swr'
 
-// Wave-1 provider roster (spec §1/§7). `tokenKind` decides which connect UI
-// a tile opens: 'token' -> ConnectTokenModal (paste fields), 'oauth' ->
-// redirect to `redirectUrl` from the connect endpoint.
+// Provider roster (spec §1/§7, widened to the Microsoft Graph wave in
+// Task 7). `tokenKind` decides which connect UI a tile opens: 'token' ->
+// ConnectTokenModal (paste fields), 'oauth' -> redirect to `redirectUrl`
+// from the connect endpoint. Order matches `registry.py`'s `_REGISTRY`
+// insertion order (the backend's own "stable order" contract) — not load-
+// bearing for correctness, just keeps the two sides from silently drifting.
 export const NOTE_CONNECTOR_PROVIDERS = [
   { key: 'roam', label: 'Roam Research', tokenKind: 'token' },
   { key: 'craft', label: 'Craft', tokenKind: 'token' },
   { key: 'notion', label: 'Notion', tokenKind: 'oauth' },
   { key: 'dropbox', label: 'Dropbox', tokenKind: 'oauth' },
+  { key: 'onenote', label: 'OneNote', tokenKind: 'oauth' },
+  { key: 'onedrive', label: 'OneDrive', tokenKind: 'oauth' },
 ]
+
+// Providers whose sync unit is a PICKED FOLDER, not a whole account —
+// mirrors the backend's `_FOLDER_PICKER_PROVIDERS` frozenset
+// (`api/routers/note_sync.py`) exactly. A provider in this set can land
+// `connected: true, sources: []` (needs a folder before it's usable) and
+// gets the "Choose folder" CTA + `DropboxFolderPicker`. OneNote is
+// deliberately NOT in this set — it's whole-account (Notion's shape, one
+// implicit source auto-created on connect), so a sourceless-connected
+// OneNote tile means something actually failed, never "needs a folder."
+export const FOLDER_PICKER_PROVIDERS = new Set(['dropbox', 'onedrive'])
 
 const fetcher = (url) =>
   fetch(url, { credentials: 'include' }).then((r) => {

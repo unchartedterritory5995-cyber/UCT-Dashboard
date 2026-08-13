@@ -90,6 +90,23 @@ def _build_dropbox(source: dict[str, Any] | None) -> Any:
     return DropboxProvider(folder_path=folder_path)
 
 
+def _onenote_configured() -> bool:
+    from . import oauth
+    return oauth.configured("onenote")
+
+
+def _build_onenote(source: dict[str, Any] | None) -> Any:
+    from .providers.onenote import OneNoteProvider
+    # Whole-account provider (Notion's shape) -- `source` is ignored, same
+    # as `_build_notion` above: there is exactly one OneNote source per
+    # account ("page ids are globally unique within the account ... there
+    # is exactly one OneNote source per account", providers/onenote.py's
+    # own `import_key` docstring), so there is nothing source-level to
+    # thread through here (unlike Dropbox/OneDrive's per-source
+    # `folder_path`).
+    return OneNoteProvider()
+
+
 def _onedrive_configured() -> bool:
     from . import oauth
     return oauth.configured("onedrive")
@@ -112,6 +129,7 @@ _REGISTRY: dict[str, ProviderEntry] = {
     "craft": ProviderEntry("craft", "Craft", "token", _always_configured, _build_craft),
     "notion": ProviderEntry("notion", "Notion", "oauth", _notion_configured, _build_notion),
     "dropbox": ProviderEntry("dropbox", "Dropbox", "oauth", _dropbox_configured, _build_dropbox),
+    "onenote": ProviderEntry("onenote", "OneNote", "oauth", _onenote_configured, _build_onenote),
     "onedrive": ProviderEntry("onedrive", "OneDrive", "oauth", _onedrive_configured, _build_onedrive),
 }
 

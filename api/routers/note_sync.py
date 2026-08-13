@@ -408,6 +408,17 @@ async def connect(provider: str, body: ConnectBody, user: dict = Depends(_paid))
 
 # ── GET /{provider}/callback (OAuth) ──────────────────────────────────────────
 
+# Generic-OAuth providers (`provider in oauth._PROVIDERS`) whose OWN token
+# response carries no natural source-identifying field (Notion's
+# `workspaceId`/`botId` vocabulary), but which STILL need exactly ONE
+# whole-account source auto-created on callback (Task 7, msgraph wave --
+# the Notion pattern, not Dropbox/OneDrive's connector-only-then-folder-
+# picker shape). Today: just `onenote`. Deliberately does NOT include
+# `onedrive` -- OneDrive must stay sourceless -> folder-picker, same as
+# Dropbox (see `_FOLDER_PICKER_PROVIDERS` below).
+_MSGRAPH_WHOLE_ACCOUNT_PROVIDERS = frozenset({"onenote"})
+
+
 @router.get("/{provider}/callback")
 async def oauth_callback(
     provider: str, code: str | None = None, state: str | None = None, error: str | None = None,
@@ -451,16 +462,47 @@ async def oauth_callback(
         if provider in oauth._PROVIDERS:
             # Generic path (Task 1's own scope: Notion today, onenote/
             # onedrive once their registry.py rows land) -- ZERO per-name
-            # code. `workspaceName`/`workspaceId`/`botId` are Notion's own
-            # fields (`_normalize_token_response` never invents them for a
+            # code for the TOKEN EXCHANGE itself. `workspaceName`/
+            # `workspaceId`/`botId` are Notion's own fields
+            # (`_normalize_token_response` never invents them for a
             # provider that doesn't return them, e.g. Microsoft Graph), so
-            # falling back to the registry's own label/None is what keeps
-            # this branch honest for a provider with no "workspace" concept
-            # at all rather than baking Notion's vocabulary into a generic
+            # falling back to the registry's own label/None keeps this
+            # branch honest for a provider with no "workspace" concept at
+            # all rather than baking Notion's vocabulary into a generic
             # branch.
             creds = await oauth.exchange_code(provider, code)
             account_label = creds.get("workspaceName") or entry.label
             remote_id: str | None = creds.get("workspaceId") or creds.get("botId")
+            if remote_id is None and provider in _MSGRAPH_WHOLE_ACCOUNT_PROVIDERS:
+                # Task 7's named risk: OneNote is Notion-shaped ("the
+                # connector IS the one implicit source", spec §12), but
+                # unlike Notion its OAuth token response carries no
+                # workspace/bot id to key that source on -- Microsoft Graph
+                # has nothing resembling a "workspace." Left alone,
+                # `remote_id` would stay None and OneNote would land in
+                # Dropbox/OneDrive's connector-only, SOURCELESS state -- a
+                # dead end for a provider with no folder picker to complete
+                # it (OneNote is deliberately excluded from
+                # `_FOLDER_PICKER_PROVIDERS` below). `MSGraphClient.validate`
+                # (`GET /me`) is the SAME call every msgraph provider
+                # already makes for account-label resolution; its
+                # `AccountInfo.raw["id"]` is a real, stable Microsoft
+                # account id, reused here so the stored source reflects the
+                # actual connected account (and gives `account_label` a real
+                # display name instead of just repeating the registry's
+                # generic "OneNote" label) -- with a fixed "me" sentinel as
+                # a defensive fallback only if Graph's own `/me` response is
+                # ever missing its `id` field. A validate() failure here
+                # (e.g. a since-revoked token) is caught by the SAME
+                # `except errors.NoteConnError` below the dropbox branch,
+                # exactly like dropbox's own validate() call.
+                provider_obj = registry.build_provider(provider)
+                try:
+                    info = await provider_obj.validate(creds)
+                finally:
+                    await _aclose(provider_obj)
+                account_label = info.label or account_label
+                remote_id = (info.raw or {}).get("id") or "me"
         else:  # dropbox -- no oauth.py entry (see providers/dropbox.py's own OAuth
             # mechanics); exchanges directly against its documented private
             # helper (the module's own docstring invites this: "the router

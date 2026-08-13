@@ -97,15 +97,30 @@ def _free_user(client):
 
 # ── GET /status ────────────────────────────────────────────────────────────
 
-def test_status_open_to_logged_in_and_lists_all_five_providers(client):
+def test_status_open_to_logged_in_and_lists_all_six_providers(client):
     r = client.get("/api/j2/notes/connectors/status")
     assert r.status_code == 200
     body = r.json()
-    assert set(body["providers"].keys()) == {"roam", "craft", "notion", "dropbox", "onedrive"}
+    assert set(body["providers"].keys()) == {"roam", "craft", "notion", "dropbox", "onenote", "onedrive"}
     assert body["providers"]["roam"]["configured"] is True   # token providers always available
     assert body["providers"]["notion"]["configured"] is False  # no env creds in this fixture
     assert body["providers"]["roam"]["connected"] is False
     assert body["providers"]["roam"]["sources"] == []
+
+
+def test_status_onenote_configured_matrix_follows_msgraph_env(client, monkeypatch):
+    """Task 7 (msgraph wave): `onenote` is dark until `MSGRAPH_CLIENT_ID` +
+    `MSGRAPH_CLIENT_SECRET` are BOTH set -- the same env pair `onedrive`
+    shares (one Azure app registration backs both providers)."""
+    st = client.get("/api/j2/notes/connectors/status").json()
+    assert st["providers"]["onenote"]["configured"] is False
+    assert st["providers"]["onenote"]["connectKind"] == "oauth"
+    assert st["providers"]["onenote"]["connected"] is False
+
+    monkeypatch.setenv("MSGRAPH_CLIENT_ID", "mcid")
+    monkeypatch.setenv("MSGRAPH_CLIENT_SECRET", "mcsecret")
+    st2 = client.get("/api/j2/notes/connectors/status").json()
+    assert st2["providers"]["onenote"]["configured"] is True
 
 
 def test_status_onedrive_configured_matrix_follows_msgraph_env(client, monkeypatch):
@@ -300,38 +315,27 @@ def test_connect_notion_returns_a_redirect_url_with_signed_state(client, monkeyp
     assert "state=" in url
 
 
-# ── Task 1 (msgraph-wave plan): _start_oauth/oauth_callback generalize to  ───
-# ── `provider in oauth._PROVIDERS` instead of the literal `== "notion"`.  ───
+# ── OneNote (Task 7, msgraph wave): real registry entry + whole-account ──────
+# ── auto-source (Notion pattern), unlike OneDrive/Dropbox's sourceless-then- ──
+# ── folder-picker shape ────────────────────────────────────────────────────
 #
-# onenote's own `registry.py` row doesn't land until Task 3/7 of that plan --
-# these tests only need to prove THIS router's generic branch (Task 1's own
-# scope), so they install a throwaway `ProviderEntry` the same shape Task 3/7
-# eventually will, without touching registry.py itself. If a real "onenote"
-# row is ever added to `registry._REGISTRY` for real, `monkeypatch.setitem`
-# below simply overrides it for the duration of the test and restores
-# whatever was there afterward -- never a permanent mutation.
+# `registry._REGISTRY["onenote"]` is now a REAL, permanent row (Task 7 lands
+# it) -- these tests exercise it directly rather than installing a throwaway
+# `ProviderEntry` the way Task 1's tests had to before it existed.
 
-def _install_onenote_registry_entry(monkeypatch):
-    from api.services.journal_two.note_connectors import oauth as oauth_mod
-    from api.services.journal_two.note_connectors.registry import ProviderEntry
-
-    entry = ProviderEntry(
-        "onenote", "OneNote", "oauth", lambda: oauth_mod.configured("onenote"),
-        lambda source=None: None,
-    )
-    monkeypatch.setitem(registry._REGISTRY, "onenote", entry)
-
-
-def test_connect_onenote_not_configured_returns_503(client, monkeypatch):
-    _install_onenote_registry_entry(monkeypatch)
+def test_connect_onenote_not_configured_returns_503(client):
     r = client.post("/api/j2/notes/connectors/onenote/connect", json={"consent": True})
     assert r.status_code == 503
+
+
+def test_connect_onenote_requires_consent(client):
+    r = client.post("/api/j2/notes/connectors/onenote/connect", json={})
+    assert r.status_code == 400
 
 
 def test_connect_onenote_returns_a_redirect_url_to_microsoft(client, monkeypatch):
     monkeypatch.setenv("MSGRAPH_CLIENT_ID", "cid")
     monkeypatch.setenv("MSGRAPH_CLIENT_SECRET", "csecret")
-    _install_onenote_registry_entry(monkeypatch)
 
     r = client.post("/api/j2/notes/connectors/onenote/connect", json={"consent": True})
     assert r.status_code == 200
@@ -341,35 +345,17 @@ def test_connect_onenote_returns_a_redirect_url_to_microsoft(client, monkeypatch
     assert "Notes.Read" in url
 
 
-def test_callback_onenote_calls_exchange_code_and_upserts(client, monkeypatch):
+def test_connect_onenote_paid_gate_blocks_free_user(client, monkeypatch):
     monkeypatch.setenv("MSGRAPH_CLIENT_ID", "cid")
     monkeypatch.setenv("MSGRAPH_CLIENT_SECRET", "csecret")
-    _install_onenote_registry_entry(monkeypatch)
-    import api.routers.note_sync as ns
-    state = ns._sign_state("u1", "onenote")
-
-    calls = []
-
-    async def fake_exchange_code(provider, code, **kw):
-        calls.append((provider, code))
-        return {"accessToken": "msgraph-tok"}
-
-    monkeypatch.setattr(ns.oauth, "exchange_code", fake_exchange_code)
-
-    r = client.get("/api/j2/notes/connectors/onenote/callback",
-                    params={"code": "authcode", "state": state}, follow_redirects=False)
-    assert r.status_code == 302
-    assert "connected=1" in r.headers["location"]
-    assert calls == [("onenote", "authcode")]
-
-    st = client.get("/api/j2/notes/connectors/status").json()
-    assert st["providers"]["onenote"]["connected"] is True
+    _free_user(client)
+    r = client.post("/api/j2/notes/connectors/onenote/connect", json={"consent": True})
+    assert r.status_code == 403
 
 
-def test_callback_onenote_provider_error_redirects_with_status_error_not_500(client, monkeypatch):
+def test_callback_onenote_exchange_error_redirects_with_status_error_not_500(client, monkeypatch):
     monkeypatch.setenv("MSGRAPH_CLIENT_ID", "cid")
     monkeypatch.setenv("MSGRAPH_CLIENT_SECRET", "csecret")
-    _install_onenote_registry_entry(monkeypatch)
     import api.routers.note_sync as ns
     state = ns._sign_state("u1", "onenote")
 
@@ -385,22 +371,117 @@ def test_callback_onenote_provider_error_redirects_with_status_error_not_500(cli
     assert client.get("/api/j2/notes/connectors/status").json()["providers"]["onenote"]["connected"] is False
 
 
-def test_notion_connect_and_callback_regression_stays_green_alongside_onenote(client, monkeypatch):
-    """The router's generalized `provider in oauth._PROVIDERS` branch now
-    covers BOTH notion and onenote -- prove Notion's own connect+callback
-    round trip is unaffected when an onenote registry entry is ALSO
-    installed in the same process (guards against the branch accidentally
-    picking up cross-provider state)."""
+# ── Task 7's core subtlety: OneNote must land with EXACTLY ONE whole-account ─
+# ── source after OAuth -- never Dropbox/OneDrive's sourceless-connector shape ─
+
+def test_callback_onenote_auto_creates_exactly_one_whole_account_source(client, monkeypatch):
+    """OneNote's OAuth token response carries no workspace/bot id (that
+    vocabulary is Notion's alone -- `_normalize_token_response` never
+    invents one for Microsoft Graph), so the generic branch's
+    `creds.get("workspaceId") or creds.get("botId")` is always None for it.
+    Left there, OneNote would land connected-but-sourceless with NO folder
+    picker to complete it (OneNote is deliberately excluded from
+    `_FOLDER_PICKER_PROVIDERS`) -- a dead end. The callback must derive a
+    stable remote_id (here, via `provider.validate()`'s `AccountInfo.raw`)
+    and auto-create exactly one source, mirroring Notion/Roam/Craft."""
+    monkeypatch.setenv("MSGRAPH_CLIENT_ID", "cid")
+    monkeypatch.setenv("MSGRAPH_CLIENT_SECRET", "csecret")
+    import api.routers.note_sync as ns
+    state = ns._sign_state("u1", "onenote")
+
+    async def fake_exchange_code(provider, code, **kw):
+        assert provider == "onenote"
+        return {"accessToken": "msgraph-tok"}
+
+    monkeypatch.setattr(ns.oauth, "exchange_code", fake_exchange_code)
+    fake = FakeTokenProvider(label="Patrick")  # AccountInfo(label=...) with raw=None
+    monkeypatch.setattr(registry, "build_provider", lambda name, source=None: fake)
+
+    r = client.get("/api/j2/notes/connectors/onenote/callback",
+                    params={"code": "authcode", "state": state}, follow_redirects=False)
+    assert r.status_code == 302
+    assert "connected=1" in r.headers["location"]
+
+    st = client.get("/api/j2/notes/connectors/status").json()
+    assert st["providers"]["onenote"]["connected"] is True
+    sources = st["providers"]["onenote"]["sources"]
+    assert len(sources) == 1
+    # No real Graph account id available (raw=None) -- falls back to the
+    # documented "me" sentinel rather than leaving remote_id None/sourceless.
+    assert sources[0]["remoteId"] == "me"
+    assert st["providers"]["onenote"]["accountLabel"] == "Patrick"
+    assert fake.validate_calls == [{"accessToken": "msgraph-tok"}]
+
+
+def test_callback_onenote_remote_id_prefers_the_real_graph_account_id(client, monkeypatch):
+    """When `validate()`'s `AccountInfo.raw["id"]` IS available (the normal
+    case -- `MSGraphClient.validate` always populates it from `GET /me`),
+    the real Microsoft account id is used instead of the "me" sentinel, and
+    the account's own display name flows into `accountLabel`."""
+    monkeypatch.setenv("MSGRAPH_CLIENT_ID", "cid")
+    monkeypatch.setenv("MSGRAPH_CLIENT_SECRET", "csecret")
+    import api.routers.note_sync as ns
+    from api.services.journal_two.note_connectors.providers.base import AccountInfo
+    state = ns._sign_state("u1", "onenote")
+
+    async def fake_exchange_code(provider, code, **kw):
+        return {"accessToken": "msgraph-tok"}
+
+    monkeypatch.setattr(ns.oauth, "exchange_code", fake_exchange_code)
+
+    class FakeGraphProvider(FakeTokenProvider):
+        async def validate(self, credentials):
+            self.validate_calls.append(credentials)
+            return AccountInfo(label="Patrick B", raw={"id": "ms-account-42"})
+
+    fake = FakeGraphProvider()
+    monkeypatch.setattr(registry, "build_provider", lambda name, source=None: fake)
+
+    r = client.get("/api/j2/notes/connectors/onenote/callback",
+                    params={"code": "authcode", "state": state}, follow_redirects=False)
+    assert r.status_code == 302
+
+    st = client.get("/api/j2/notes/connectors/status").json()
+    sources = st["providers"]["onenote"]["sources"]
+    assert len(sources) == 1
+    assert sources[0]["remoteId"] == "ms-account-42"
+    assert st["providers"]["onenote"]["accountLabel"] == "Patrick B"
+
+
+def test_callback_onenote_validate_error_redirects_with_status_error_not_500(client, monkeypatch):
+    """A token that exchanges fine but fails `validate()` (e.g. rejected on
+    the very next call) must redirect `connected=0` -- same shape as an
+    exchange failure or Dropbox's own `validate()` failure -- and must
+    never leave a half-connected connector behind."""
+    monkeypatch.setenv("MSGRAPH_CLIENT_ID", "cid")
+    monkeypatch.setenv("MSGRAPH_CLIENT_SECRET", "csecret")
+    import api.routers.note_sync as ns
+    state = ns._sign_state("u1", "onenote")
+
+    async def fake_exchange_code(provider, code, **kw):
+        return {"accessToken": "msgraph-tok"}
+
+    monkeypatch.setattr(ns.oauth, "exchange_code", fake_exchange_code)
+    fake = FakeTokenProvider(raise_on_validate=errors.NoteConnAuthError("token rejected"))
+    monkeypatch.setattr(registry, "build_provider", lambda name, source=None: fake)
+
+    r = client.get("/api/j2/notes/connectors/onenote/callback",
+                    params={"code": "authcode", "state": state}, follow_redirects=False)
+    assert r.status_code == 302
+    assert "connected=0" in r.headers["location"]
+    st = client.get("/api/j2/notes/connectors/status").json()
+    assert st["providers"]["onenote"]["connected"] is False
+    assert st["providers"]["onenote"]["sources"] == []
+
+
+def test_notion_callback_never_takes_the_onenote_whole_account_branch(client, monkeypatch):
+    """Notion's remote_id always resolves from workspaceId/botId, so the
+    `_MSGRAPH_WHOLE_ACCOUNT_PROVIDERS` branch added for OneNote must never
+    fire for it (proven here by spying on `registry.build_provider` --
+    Notion's callback must call it ZERO times) -- guards against the new
+    branch accidentally widening to cover more than OneNote."""
     monkeypatch.setenv("NOTION_CLIENT_ID", "cid")
     monkeypatch.setenv("NOTION_CLIENT_SECRET", "csecret")
-    monkeypatch.setenv("MSGRAPH_CLIENT_ID", "mcid")
-    monkeypatch.setenv("MSGRAPH_CLIENT_SECRET", "mcsecret")
-    _install_onenote_registry_entry(monkeypatch)
-
-    r = client.post("/api/j2/notes/connectors/notion/connect", json={"consent": True})
-    assert r.status_code == 200
-    assert r.json()["redirectUrl"].startswith("https://api.notion.com/v1/oauth/authorize")
-
     import api.routers.note_sync as ns
     state = ns._sign_state("u1", "notion")
 
@@ -410,10 +491,20 @@ def test_notion_connect_and_callback_regression_stays_green_alongside_onenote(cl
 
     monkeypatch.setattr(ns.oauth, "exchange_code", fake_exchange_code)
 
-    r2 = client.get("/api/j2/notes/connectors/notion/callback",
-                     params={"code": "authcode", "state": state}, follow_redirects=False)
-    assert r2.status_code == 302
-    assert "connected=1" in r2.headers["location"]
+    build_calls = []
+    real_build = registry.build_provider
+
+    def spy_build(name, source=None):
+        build_calls.append(name)
+        return real_build(name, source)
+
+    monkeypatch.setattr(registry, "build_provider", spy_build)
+
+    r = client.get("/api/j2/notes/connectors/notion/callback",
+                    params={"code": "authcode", "state": state}, follow_redirects=False)
+    assert r.status_code == 302
+    assert "connected=1" in r.headers["location"]
+    assert build_calls == []
 
     st = client.get("/api/j2/notes/connectors/status").json()
     assert st["providers"]["notion"]["connected"] is True
@@ -978,6 +1069,16 @@ def test_folders_notion_still_404(client):
 
 def test_folders_roam_still_404(client):
     r = client.get("/api/j2/notes/connectors/roam/folders")
+    assert r.status_code == 404
+
+
+def test_folders_onenote_still_404(client, monkeypatch):
+    """OneNote is whole-account (Notion's shape) -- unlike its msgraph
+    sibling OneDrive, it must never get a folder-picker route, configured
+    or not."""
+    monkeypatch.setenv("MSGRAPH_CLIENT_ID", "cid")
+    monkeypatch.setenv("MSGRAPH_CLIENT_SECRET", "csecret")
+    r = client.get("/api/j2/notes/connectors/onenote/folders")
     assert r.status_code == 404
 
 
