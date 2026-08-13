@@ -3615,7 +3615,7 @@ async def lifespan(app: FastAPI):
             )
             _scheduler.add_job(
                 _dp_intraday_run,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="9-16",
+                trigger=CronTrigger(day_of_week="mon-fri", hour="7-16",
                                     minute="*/3", timezone=_ET),
                 id="darkpool_intraday_ingest", max_instances=1,
                 replace_existing=True, misfire_grace_time=120)
@@ -3628,7 +3628,7 @@ async def lifespan(app: FastAPI):
                                     timezone=_ET),
                 id="darkpool_intraday_roll", max_instances=1,
                 replace_existing=True, misfire_grace_time=3600)
-            print("[startup] darkpool intraday poller scheduled (weekdays every 3m, 9-16 ET)")
+            print("[startup] darkpool intraday poller scheduled (weekdays every 3m, 7-16 ET)")
         except Exception as _e_dpint:
             print(f"[startup] darkpool intraday poller job skip: {_e_dpint}")
 
@@ -3647,13 +3647,13 @@ async def lifespan(app: FastAPI):
             )
             _scheduler.add_job(
                 _dp_warm_run,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="9-16",
+                trigger=CronTrigger(day_of_week="mon-fri", hour="7-16",
                                     minute="*/12", timezone=_ET),
                 id="darkpool_intraday_warm", max_instances=1,
                 replace_existing=True, misfire_grace_time=600)
             _scheduler.add_job(
                 _dp_scan_run,
-                trigger=CronTrigger(day_of_week="mon-fri", hour="9-16",
+                trigger=CronTrigger(day_of_week="mon-fri", hour="7-16",
                                     minute="*/5", timezone=_ET),
                 id="darkpool_intraday_scanner", max_instances=1,
                 replace_existing=True, misfire_grace_time=300)
