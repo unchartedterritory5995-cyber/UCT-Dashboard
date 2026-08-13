@@ -2209,6 +2209,14 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
                       <span className={styles.wlCount}>{syms.length}</span>
                       {isColorShared(tc.key) && <span className={styles.pubBadge}>PUB</span>}
                       <div className={styles.wlActions} onClick={e => e.stopPropagation()}>
+                        {syms.length > 0 && (
+                          <button
+                            className={styles.wlActionBtn}
+                            onClick={() => sendListToJournal(`tag:${tc.key}`, tc.label, syms)}
+                            title={`Send ${tc.label} to Journal (frozen list)`}
+                            aria-label={`Send ${tc.label} to Journal`}
+                          ><UIcon name="journal" size={13} /></button>
+                        )}
                         <button
                           className={`${styles.wlActionBtn}${isColorShared(tc.key) ? ' ' + styles.wlActionBtnActive : ''}`}
                           onClick={() => toggleShareColor(tc.key)}

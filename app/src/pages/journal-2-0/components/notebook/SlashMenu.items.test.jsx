@@ -93,6 +93,11 @@ describe('composition presets (/mtf, /compare)', () => {
     for (const n of stack) expect(Number.isFinite(Number(n.attrs.params.to))).toBe(true)
     expect(new Set(stack.map((n) => n.attrs.params.symbol))).toEqual(new Set(['AMD']))
 
+    // An explicit day anchors the whole stack at that date instead.
+    expect(titles('mtf AMD 3/13/2026')).toEqual(['MTF stack — AMD · D / 1h / 15m @ Mar 13, 2026'])
+    const anchored = insertedBy('mtf AMD 3/13/2026')
+    expect(anchored.map((n) => n.attrs.params.to)).toEqual(['2026-03-13', '2026-03-13', '2026-03-13'])
+
     const pair = insertedBy('compare AMD 3/13/2026')
     expect(pair).toHaveLength(2)
     expect(pair.map((n) => n.attrs.layout.width)).toEqual(['half', 'half'])

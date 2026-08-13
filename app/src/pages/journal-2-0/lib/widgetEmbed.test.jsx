@@ -145,10 +145,15 @@ describe('slash arg parsing', () => {
   })
 
   it('parses the composition presets strictly (mtf / compare / day tokens)', () => {
-    expect(parseMtfSlashArgs('AMD')).toEqual({ symbol: 'AMD', tfs: ['D', '60', '15'] })
+    expect(parseMtfSlashArgs('AMD')).toEqual({ symbol: 'AMD', tfs: ['D', '60', '15'], day: null })
     expect(parseMtfSlashArgs('amd nvda')).toBeNull()
-    expect(parseMtfSlashArgs('looks')).toEqual({ symbol: 'LOOKS', tfs: ['D', '60', '15'] })
+    expect(parseMtfSlashArgs('looks')).toEqual({ symbol: 'LOOKS', tfs: ['D', '60', '15'], day: null })
     expect(parseMtfSlashArgs('')).toBeNull()
+    // Optional day anchors the whole stack; a TIMEFRAME token stays rejected
+    // (the stack's tfs are the preset, not a config surface).
+    expect(parseMtfSlashArgs('AMD 3/13/2026'))
+      .toEqual({ symbol: 'AMD', tfs: ['D', '60', '15'], day: '2026-03-13' })
+    expect(parseMtfSlashArgs('AMD 15m')).toBeNull()
 
     expect(parseCompareSlashArgs('AMD 2026-03-13')).toEqual({ symbol: 'AMD', day: '2026-03-13', tf: 'D' })
     expect(parseCompareSlashArgs('amd 3/13/26')).toEqual({ symbol: 'AMD', day: '2026-03-13', tf: 'D' })

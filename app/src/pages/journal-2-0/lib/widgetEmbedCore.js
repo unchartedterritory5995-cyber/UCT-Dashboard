@@ -111,12 +111,21 @@ export function parseChartSlashArgs(rest) {
  *  hourly context → 15m execution). One preset, not a config surface. */
 export const MTF_STACK_TFS = ['D', '60', '15']
 
-/** Parse the free text after '/mtf' — exactly one symbol → {symbol, tfs}.
- *  Same strictness contract as /chart: prose must parse as NOTHING. */
+/** Parse the free text after '/mtf' — SYMBOL [day] → {symbol, tfs, day}.
+ *  Same strictness contract as /chart: prose must parse as NOTHING. The
+ *  optional day (panel batch 3 follow-through: /chart and /compare speak
+ *  dates, so the stack does too) anchors all three charts at that date; a
+ *  TIMEFRAME token is deliberately NOT accepted — the stack's tfs are the
+ *  preset, not a config surface. */
 export function parseMtfSlashArgs(rest) {
   const tokens = String(rest || '').trim().split(/\s+/).filter(Boolean)
-  if (tokens.length !== 1 || !SYMBOL_RE.test(tokens[0])) return null
-  return { symbol: tokens[0].toUpperCase(), tfs: [...MTF_STACK_TFS] }
+  if (!tokens.length || tokens.length > 2 || !SYMBOL_RE.test(tokens[0])) return null
+  let day = null
+  if (tokens[1]) {
+    day = parseDayToken(tokens[1])
+    if (!day) return null
+  }
+  return { symbol: tokens[0].toUpperCase(), tfs: [...MTF_STACK_TFS], day }
 }
 
 function validDay(y, mo, d) {

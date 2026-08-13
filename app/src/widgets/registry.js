@@ -62,12 +62,17 @@
 //                    what makes embeds findable in notebook search).
 // - reconstructable— boolean | (params) => boolean. Whether a months-old
 //                    snapshot can re-render from data instead of its stored
-//                    image. Chart is per-timeframe (CHART_TF_CEILING_DAYS);
-//                    calendar re-fetches its date-parameterized endpoints;
-//                    aisearch/fundamentals/news/breadth render their FROZEN
-//                    payload (owner-approved). Image-only is a first-class
-//                    verdict, not a failure — the remaining types are
-//                    point-in-time lists whose PNG is the honest capture.
+//                    image. Three regimes — READ EACH ENTRY, don't trust a
+//                    roster typed here (an earlier version of this comment
+//                    named four payload types while eight shipped):
+//                    · re-fetch: chart (per-timeframe, CHART_TF_CEILING_DAYS)
+//                      and calendar (date-parameterized endpoints).
+//                    · payload freeze (owner-approved): reconstructable is a
+//                      fn over the entry's captured rows/payload — the frozen
+//                      data renders verbatim forever.
+//                    · image-only (literal false): a first-class verdict, not
+//                      a failure — point-in-time views whose PNG is the
+//                      honest capture.
 // - liveCapable    — whether mode:'live' embeds may mount this widget live in
 //                    the journal (v1: chart only — every other widget's data
 //                    hooks would open polls/streams inside a note).

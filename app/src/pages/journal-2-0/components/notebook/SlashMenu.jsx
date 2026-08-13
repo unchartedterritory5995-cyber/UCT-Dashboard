@@ -156,19 +156,23 @@ export function widgetItems(query) {
     const args = restAfterName ? parseMtfSlashArgs(restAfterName) : null
     if (args) {
       out.push({
-        title: `MTF stack — ${args.symbol} · D / 1h / 15m`,
-        description: 'Three frozen charts, top-down',
+        title: `MTF stack — ${args.symbol} · D / 1h / 15m${args.day ? ` @ ${fmtDayTitle(args.day)}` : ''}`,
+        description: args.day ? 'Three charts, top-down, anchored at that date' : 'Three frozen charts, top-down',
         command: ({ editor, range }) => {
           const settings = editor.storage?.uctJournalWidgets?.chartSettings
           editor.chain().focus().deleteRange(range)
-            .insertContent(args.tfs.map((tf) => widgetSlotNode('chart', { symbol: args.symbol, tf, ...(settings ? { settings } : {}) })))
+            .insertContent(args.tfs.map((tf) => widgetSlotNode('chart', {
+              symbol: args.symbol, tf,
+              ...(args.day ? { to: args.day } : {}),
+              ...(settings ? { settings } : {}),
+            })))
             .run()
         },
       })
     } else if (!restAfterName) {
       out.push({
         title: 'MTF stack',
-        description: 'Type a symbol — e.g. /mtf AMD (D + 1h + 15m)',
+        description: 'Type a symbol — e.g. /mtf AMD (D + 1h + 15m; add a date to anchor)',
         command: ({ editor, range }) => {
           editor.chain().focus().deleteRange(range).insertContent('/mtf ').run()
         },
