@@ -166,6 +166,7 @@ export function widgetItems(query) {
               ...(args.day ? { to: args.day } : {}),
               ...(settings ? { settings } : {}),
             })))
+            .caretAfterWidgetEmbed()
             .run()
         },
       })
@@ -197,7 +198,7 @@ export function widgetItems(query) {
             // embed whose caption promises it tracks now.
             widgetSlotNode('chart', { symbol: args.symbol, tf: args.tf, to: null, ...frozen },
               { layout: { width: 'half' }, caption: 'after · now' }),
-          ]).run()
+          ]).caretAfterWidgetEmbed().run()
         },
       })
     } else if (!restAfterName) {

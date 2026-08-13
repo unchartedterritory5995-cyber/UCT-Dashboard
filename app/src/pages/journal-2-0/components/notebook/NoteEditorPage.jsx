@@ -344,7 +344,9 @@ export default function NoteEditorPage({ noteId, onBack }) {
     walk(fresh.bodyJson)
     // focus('end') — the appends rail (widgetEmbedInsert.test.jsx): a text
     // position, never a NodeSelection that would swallow a trailing atom.
-    if (missing.length) editor.chain().focus('end').insertContent(missing).run()
+    // caretAfterWidgetEmbed: nor may the INSERT leave one armed (the typing-
+    // after-insert trap).
+    if (missing.length) editor.chain().focus('end').insertContent(missing).caretAfterWidgetEmbed().run()
     lastSavedRef.current.updatedAt = fresh.updatedAt || null
   }
 

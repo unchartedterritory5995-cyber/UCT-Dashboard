@@ -1,4 +1,5 @@
 import { Node, mergeAttributes } from '@tiptap/core'
+import { NodeSelection, TextSelection, Selection } from '@tiptap/pm/state'
 import { ReactNodeViewRenderer } from '@tiptap/react'
 import WidgetEmbedView from '../components/notebook/WidgetEmbedView'
 import { buildWidgetEmbedAttrs } from './widgetEmbedCore'
@@ -82,11 +83,37 @@ export const WidgetEmbed = Node.create({
 
   addCommands() {
     return {
-      insertWidgetEmbed: (widgetId, capture, extra) => ({ commands }) =>
-        commands.insertContent({
-          type: this.name,
-          attrs: buildWidgetEmbedAttrs(widgetId, capture, extra),
-        }),
+      insertWidgetEmbed: (widgetId, capture, extra) => ({ chain }) =>
+        chain()
+          .insertContent({
+            type: this.name,
+            attrs: buildWidgetEmbedAttrs(widgetId, capture, extra),
+          })
+          .caretAfterWidgetEmbed()
+          .run(),
+      // insertContent leaves a NodeSelection ON a freshly inserted atom, so
+      // the very NEXT keystroke replaced the embed the user just created —
+      // caught typing prose right after a /chart insert on prod (the most
+      // natural next action there is). Park the caret in the first text
+      // position after the embed instead; when the embed is the last node,
+      // give it a trailing paragraph to land in. Chain this after EVERY
+      // programmatic embed insert (the single-embed command above does it
+      // itself; the /mtf and /compare array inserts call it explicitly).
+      caretAfterWidgetEmbed: () => ({ tr, dispatch, editor }) => {
+        const sel = tr.selection
+        if (!(sel instanceof NodeSelection) || sel.node.type.name !== this.name) return true
+        if (!dispatch) return true
+        const after = Selection.findFrom(tr.doc.resolve(sel.to), 1, true)
+        if (after) {
+          tr.setSelection(after)
+          return true
+        }
+        const para = editor.schema.nodes.paragraph?.createAndFill()
+        if (!para) return true
+        tr.insert(sel.to, para)
+        tr.setSelection(TextSelection.create(tr.doc, sel.to + 1))
+        return true
+      },
     }
   },
 })

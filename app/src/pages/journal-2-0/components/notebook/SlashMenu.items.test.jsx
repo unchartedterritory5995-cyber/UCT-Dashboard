@@ -30,7 +30,9 @@ describe('slash widget items', () => {
     const chain = {
       focus: () => chain, deleteRange: () => chain,
       insertWidgetEmbed: (id, cap) => { captured = { id, cap }; return chain },
-      insertContent: () => chain, run: () => {},
+      insertContent: () => chain,
+      caretAfterWidgetEmbed: () => chain,
+      run: () => {},
     }
     widgetItems('chart NVDA 15m 3/13/2026')[0]
       .command({ editor: { chain: () => chain, storage: {} }, range: {} })
@@ -81,7 +83,11 @@ describe('composition presets (/mtf, /compare)', () => {
       const chain = {
         focus: () => chain, deleteRange: () => chain,
         insertContent: (c) => { captured = c; return chain },
-        insertWidgetEmbed: () => chain, run: () => {},
+        insertWidgetEmbed: () => chain,
+        // The new NodeSelection-exit rail (widgetEmbedInsert.test.jsx owns
+        // its behavior); the SlashMenu paths chain it after the insert.
+        caretAfterWidgetEmbed: () => chain,
+        run: () => {},
       }
       widgetItems(q)[0].command({ editor: { chain: () => chain }, range: {} })
       return captured
