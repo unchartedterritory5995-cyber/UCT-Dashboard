@@ -157,10 +157,10 @@ const CAPTURE_FIXTURES = {
   watchlist: { watchKey: 'user:42', watchName: 'AI Leaders', watchTab: 'mine', settings: { bg: '#111' }, cols: { order: ['flag', 'sym'], sort: { key: 'chg', dir: 'desc' } }, symbols: ['NVDA', 'AMD'] },
   themes: { period: '1m', sortDir: 'desc', openTheme: 'Quantum Computing', search: '', selectedSym: 'IONQ', settings: { bg: '#101010' } },
   scanner: { scanKey: 'top-gainers-30d', scanName: 'Top Gainers (30d)', settings: { bg: '#111' }, cols: { order: ['sym'] }, asOf: '2026-08-11 13:26 ET' },
-  fundamentals: { symbol: 'NVDA', view: 'quarterly', company: 'NVIDIA Corp', settings: { bg: '#141414' } },
+  fundamentals: { symbol: 'NVDA', view: 'quarterly', company: 'NVIDIA Corp', settings: { bg: '#141414' }, data: { annual: [{ label: 'FY25', eps_actual: 2.94, rev_actual: 130500 }], quarterly: [{ label: 'Q1 26', eps_actual: 0.81, eps_estimate: 0.75 }] } },
   breadth: { hiddenMetrics: ['naaim'], tileStyle: 'spark', settings: { bg: '#0f0f0f' }, row: { date: '2026-08-11', pct_above_50sma: 48.2 }, series: { pct_above_50sma: [44, 46, 48.2] }, updated: '1:26 PM ET' },
   aisearch: { thread: [{ id: 1, q: 'Why is SMCI moving today?', answer: 'Because…', citations: [] }], settings: { bg: '#101010' } },
-  news: { symbol: 'NVDA', filter: 'up', company: 'NVIDIA Corp', settings: { bg: '#101010' } },
+  news: { symbol: 'NVDA', filter: 'up', company: 'NVIDIA Corp', settings: { bg: '#101010' }, events: [{ type: 'earnings', date: '2026-08-05', title: 'Q2 beat and raise', direction: 'up', move_pct: 6.1, source: 'desk' }] },
   profile: { symbol: 'NVDA', company: 'NVIDIA Corp', statYear: 2026, settings: { bg: '#101010' } },
   alerts: { alerts: [{ id: 'a1', sym: 'NVDA', direction: 'above', target_price: 190, levelAtCapture: 190, priceAtCapture: 182.4, isActive: true }], settings: { bg: '#101010' } },
   calendar: { date: '2026-08-06', econStars: 3, selectedSym: 'AMD', tbdOpen: false, sections: { bmo: { sortBy: 'mcap', sortDir: 'desc', showAll: false }, amc: { sortBy: 'im', sortDir: 'desc', showAll: true } }, settings: { bg: '#101010' } },
@@ -250,8 +250,16 @@ describe('widget registry — params layer', () => {
     // when a conversation actually exists.
     expect(isReconstructable('aisearch', normalizeParams('aisearch', CAPTURE_FIXTURES.aisearch))).toBe(true)
     expect(isReconstructable('aisearch', { thread: [] })).toBe(false)
+    // Payload-frozen types (owner decision): the captured data renders
+    // verbatim forever — live exactly when the payload exists.
+    expect(isReconstructable('fundamentals', normalizeParams('fundamentals', CAPTURE_FIXTURES.fundamentals))).toBe(true)
+    expect(isReconstructable('fundamentals', { symbol: 'NVDA' })).toBe(false)
+    expect(isReconstructable('news', normalizeParams('news', CAPTURE_FIXTURES.news))).toBe(true)
+    expect(isReconstructable('news', { symbol: 'NVDA', events: [] })).toBe(false)
+    expect(isReconstructable('breadth', normalizeParams('breadth', CAPTURE_FIXTURES.breadth))).toBe(true)
+    expect(isReconstructable('breadth', {})).toBe(false)
     // Every OTHER non-chart type stays image-only.
-    for (const id of WIDGET_IDS.filter(x => !['chart', 'calendar', 'aisearch'].includes(x))) {
+    for (const id of WIDGET_IDS.filter(x => !['chart', 'calendar', 'aisearch', 'fundamentals', 'news', 'breadth'].includes(x))) {
       expect(isReconstructable(id, normalizeParams(id, CAPTURE_FIXTURES[id])), id).toBe(false)
     }
     // Unknown/removed widget type: image, never a re-render attempt.

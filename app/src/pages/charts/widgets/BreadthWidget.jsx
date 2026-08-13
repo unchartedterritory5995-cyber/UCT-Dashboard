@@ -20,6 +20,7 @@ import useMobileSWR from '../../../hooks/useMobileSWR'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import { useLiveBreadth } from '../../../hooks/useLiveBreadth'
 import { menuThemeVars } from '../../../utils/dividerColor'
+import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import UIcon from '../../../components/ui/UIcon'
 import { HM_METRICS, TIER_SCORES, TIER_TIP_COLORS, TIER_CELL_COLORS, FFILL_KEYS } from '../../breadth/heatmapMetrics'
 import BreadthSettingsPanel from './BreadthSettingsPanel'
@@ -136,10 +137,11 @@ function HeatmapView({ currentRow, visibleKeys, tileStyle, seriesFor, onDrill, o
                     type="button"
                     className={`${styles.hmTile}${backdrop ? ' ' + styles.hmTileBackdrop : ''}`}
                     style={{ background: cellColors[tier] ?? cellColors[''] }}
-                    onClick={() => onDrill(m)}
-                    title={`${m.label} — open Breadth`}
+                    onClick={() => onDrill?.(m)}
+                    title={onDrill ? `${m.label} — open Breadth` : m.label}
                   >
                     {backdrop && spark}
+                    {onRemove && (
                     <span
                       className={styles.hmTileX}
                       role="button"
@@ -148,6 +150,7 @@ function HeatmapView({ currentRow, visibleKeys, tileStyle, seriesFor, onDrill, o
                       title={`Remove ${m.label}`}
                       onClick={(e) => { e.stopPropagation(); onRemove(m.key) }}
                     ><UIcon name="x" size={9} gold={false} /></span>
+                    )}
                     <span className={styles.hmTileLabel}>{m.label}</span>
                     <span className={styles.hmTileVal} style={{ color: textColor || (score != null ? tipColors[score] : 'var(--bw-text-dim, #8b8674)') }}>
                       {m.getFmt(currentRow)}
@@ -232,14 +235,24 @@ function AddMenu({ hidden, onToggle, onClose, anchorEl, hostEl, themeVars }) {
   ), document.body)
 }
 
-export default function BreadthWidget({ opts, onOptsChange }) {
+export default function BreadthWidget({
+  opts, onOptsChange,
+  // Frozen-embed mode (journal host): `frozen` carries {row, series, settings,
+  // updated} — the captured heat-map verbatim. A mid-session capture holds
+  // the LIVE intraday row the 4:15 collector DISCARDS: this payload is the
+  // only record of it anywhere (owner-approved freeze). readOnly strips the
+  // gear (writes the GLOBAL settings pref), add/remove metric editing, tile
+  // drill (navigates away), and the footer refresh (globalMutate refetches
+  // app-wide — the structural-readOnly audit finding).
+  frozen = null, readOnly = false, journalDoor = true,
+}) {
   const navigate = useNavigate()
 
   // ── Appearance settings (⚙) ──
   const { prefs, setPref } = usePreferences()
   const bwSettings = useMemo(
-    () => mergeBreadthWidgetSettings(parsePref(prefs?.[BREADTH_WIDGET_SETTINGS_KEY], null) ?? breadthDefaultsForTheme(prefs?.theme)),
-    [prefs],
+    () => mergeBreadthWidgetSettings(frozen?.settings ?? parsePref(prefs?.[BREADTH_WIDGET_SETTINGS_KEY], null) ?? breadthDefaultsForTheme(prefs?.theme)),
+    [prefs, frozen],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
@@ -272,14 +285,15 @@ export default function BreadthWidget({ opts, onOptsChange }) {
   }, [opts, onOptsChange, hidden])
 
   // ── Data: stored history + LIVE intraday row on top (real-time, like /breadth) ──
-  const { data, mutate, isValidating } = useMobileSWR('/api/breadth-monitor?days=90', fetcher, {
+  const { data, mutate, isValidating } = useMobileSWR(frozen ? null : '/api/breadth-monitor?days=90', fetcher, {
     refreshInterval: 300_000, dedupingInterval: 60_000, revalidateOnFocus: false,
   })
   const rows = useMemo(() => data?.rows ?? [], [data])
-  const liveBreadth = useLiveBreadth({ enabled: true })
+  const liveBreadth = useLiveBreadth({ enabled: !frozen })
   // Live intraday row on top of stored history; forward-fill the sparse weekly
   // sentiment keys (AAII/NAAIM) from recent rows so those tiles aren't "—".
   const currentRow = useMemo(() => {
+    if (frozen?.row) return frozen.row
     const base = liveBreadth.row ? liveBreadth.row : rows[0]
     if (!base) return null
     const filled = { ...base }
@@ -289,7 +303,7 @@ export default function BreadthWidget({ opts, onOptsChange }) {
       }
     }
     return filled
-  }, [liveBreadth.row, rows])
+  }, [frozen, liveBreadth.row, rows])
 
   // Per-reading trend series for the sparkline tile styles: today's INTRADAY path
   // for the 7 live-sampled readings (real-time), else the last ~month of daily
@@ -300,12 +314,13 @@ export default function BreadthWidget({ opts, onOptsChange }) {
     [liveBreadth.row, currentRow, rows],
   )
   const seriesFor = useCallback((key) => {
+    if (frozen) return Array.isArray(frozen.series?.[key]) ? frozen.series[key] : []
     const p = liveBreadth.path?.[key]
     if (Array.isArray(p) && p.length >= 2) return p.map(x => x?.[1])
     const out = []
     for (let i = Math.min(TREND_N, trendBase.length) - 1; i >= 0; i--) out.push(trendBase[i]?.[key])
     return out
-  }, [liveBreadth.path, trendBase])
+  }, [frozen, liveBreadth.path, trendBase])
   const tileStyle = bwSettings.tileStyle || 'values'
 
   // When we last pulled the data (client-side), so the footer always shows a TIME
@@ -316,6 +331,13 @@ export default function BreadthWidget({ opts, onOptsChange }) {
   if (data && data !== stampRef.current.data) stampRef.current = { data, at: Date.now() }
   const fetchedAt = stampRef.current.at
   const [refreshing, setRefreshing] = useState(false)
+  // Send-to-Journal toast (the capture door lives beside the gear).
+  const [journalMsg, setJournalMsg] = useState(null)
+  useEffect(() => {
+    if (!journalMsg) return undefined
+    const t = setTimeout(() => setJournalMsg(null), 2200)
+    return () => clearTimeout(t)
+  }, [journalMsg])
   const refreshAll = useCallback(async () => {
     setRefreshing(true)
     try { await Promise.all([mutate(), globalMutate(LIVE_URL)]) } finally { setRefreshing(false) }
@@ -328,9 +350,11 @@ export default function BreadthWidget({ opts, onOptsChange }) {
     try { return new Date(ms).toLocaleTimeString('en-US', { timeZone: 'America/New_York', hour: 'numeric', minute: '2-digit' }) }
     catch { return null }
   }
-  const updated = liveBreadth.clock
-    ? `${liveBreadth.clock} ET`
-    : (fetchedAt ? `${fmtEtTime(fetchedAt)} ET` : (currentRow?.date || null))
+  const updated = frozen
+    ? (frozen.updated || currentRow?.date || null)
+    : liveBreadth.clock
+      ? `${liveBreadth.clock} ET`
+      : (fetchedAt ? `${fmtEtTime(fetchedAt)} ET` : (currentRow?.date || null))
 
   const drill = useCallback(() => navigate('/breadth'), [navigate])
 
@@ -353,16 +377,39 @@ export default function BreadthWidget({ opts, onOptsChange }) {
       <div className={styles.header}>
         <span className={styles.title}>Breadth Monitor</span>
         <div className={styles.headerBtns}>
+          {/* Send to Journal: freeze the shown heat-map into the note (payload
+              capture, owner decision). A mid-session capture preserves the live
+              intraday row the 4:15 collector discards. */}
+          {journalDoor && !readOnly && currentRow && (
+            <button
+              type="button" className={styles.iconBtn}
+              onClick={async () => {
+                setJournalMsg('sending…')
+                const series = {}
+                for (const k of visibleKeys) series[k] = seriesFor(k)
+                setJournalMsg(await sendCaptureToJournal('breadth', {
+                  hiddenMetrics: Array.isArray(opts?.hiddenMetrics) ? opts.hiddenMetrics : [],
+                  tileStyle, settings: bwSettings, row: currentRow, series, updated,
+                }, { label: 'Breadth' }))
+              }}
+              title="Send to Journal" aria-label="Send breadth to Journal"
+            ><UIcon name="journal" size={13} /></button>
+          )}
+          {journalMsg && <span className={styles.journalToast}>{journalMsg}</span>}
+          {!readOnly && (
           <button
             ref={addBtnRef} type="button"
             className={`${styles.iconBtn}${addOpen ? ' ' + styles.iconBtnActive : ''}`}
             onClick={() => setAddOpen(o => !o)} title="Add / remove readings" aria-label="Add or remove readings"
           ><UIcon name="plus" size={14} /></button>
+          )}
+          {!readOnly && (
           <button
             ref={settingsBtnRef} type="button"
             className={`${styles.iconBtn}${settingsOpen ? ' ' + styles.iconBtnActive : ''}`}
             onClick={() => setSettingsOpen(o => !o)} title="Breadth widget settings" aria-label="Breadth widget settings"
           ><UIcon name="gear" size={13} /></button>
+          )}
         </div>
         {addOpen && (
           <AddMenu
@@ -383,7 +430,7 @@ export default function BreadthWidget({ opts, onOptsChange }) {
             : <HeatmapView
                 currentRow={currentRow} visibleKeys={visibleKeys}
                 tileStyle={tileStyle} seriesFor={seriesFor}
-                onDrill={drill} onRemove={removeMetric}
+                onDrill={readOnly ? null : drill} onRemove={readOnly ? null : removeMetric}
                 cellColors={cellColors} tipColors={tipColors} textColor={bwSettings.valueColor || null}
               />}
         </div>
@@ -392,9 +439,11 @@ export default function BreadthWidget({ opts, onOptsChange }) {
       {/* Footer: last-updated + refresh (mirrors the Scanner widget). */}
       <div className={styles.footer}>
         <span className={styles.footerUpdated}>{updated ? `Updated ${updated}` : 'Live'}</span>
+        {!readOnly && (
         <button type="button" className={styles.footerRefresh} onClick={refreshAll} title="Refresh" aria-label="Refresh">
           <UIcon name="refresh" size={12} gold={false} className={spinning ? styles.footerRefreshSpin : undefined} />
         </button>
+        )}
       </div>
     </div>
   )

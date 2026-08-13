@@ -16,6 +16,7 @@ import { menuThemeVars } from '../../../utils/dividerColor'
 import useNewsCatalysts from '../../../hooks/useNewsCatalysts'
 import useTickerMeta from '../../../hooks/useTickerMeta'
 import * as drawingsStore from '../../../components/chart/drawingsStore'
+import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import UIcon from '../../../components/ui/UIcon'
 import CompanyLogo from '../../../components/CompanyLogo'
 import NewsSettingsPanel from './NewsSettingsPanel'
@@ -84,7 +85,15 @@ function chartText(e) {
   return lines.join('\n')
 }
 
-export default function NewsWidget({ color, opts, onOptsChange }) {
+export default function NewsWidget({
+  color, opts, onOptsChange,
+  // Frozen-embed mode (journal host): frozenEvents is the captured feed —
+  // rendered verbatim, never re-fetched (owner-approved payload freeze).
+  // readOnly strips the filter pills, the ⚙, and the PIN (placeOnChart
+  // writes the SHARED per-symbol drawings store — an embed reaching it
+  // would drop callouts onto the user's real charts).
+  frozenEvents = null, readOnly = false, journalDoor = true,
+}) {
   const { groupSyms } = useWorkspace()
   const sym = groupSyms?.[color] || null
   // Company name for the header (⚙ "Show" = ticker / company / both) + logo hint.
@@ -107,6 +116,13 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
   const [placedKey, setPlacedKey] = useState(null)   // transient "✓ placed" flash
   const placedTimerRef = useRef(null)
   useEffect(() => () => { if (placedTimerRef.current) clearTimeout(placedTimerRef.current) }, [])
+  // Send-to-Journal toast (the capture door lives beside the ⚙).
+  const [journalMsg, setJournalMsg] = useState(null)
+  useEffect(() => {
+    if (!journalMsg) return undefined
+    const t = setTimeout(() => setJournalMsg(null), 2200)
+    return () => clearTimeout(t)
+  }, [journalMsg])
   const placeOnChart = useCallback((e, rowKey) => {
     const date = e?.date && String(e.date).slice(0, 10)
     if (!sym || !date || !e?.title) return
@@ -171,7 +187,9 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
 
   // ── Data — poll fast while historical catalysts generate, then settle ──
   const [fastPoll, setFastPoll] = useState(false)
-  const { status, events } = useNewsCatalysts(sym, { generating: fastPoll })
+  const { status: liveStatus, events: liveEvents } = useNewsCatalysts(frozenEvents ? null : sym, { generating: fastPoll })
+  const status = frozenEvents ? 'ready' : liveStatus
+  const events = frozenEvents ?? liveEvents
   useEffect(() => { setFastPoll(status === 'generating') }, [status])
 
   const shown = useMemo(
@@ -243,6 +261,7 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
           {sym && company && settings.headerShow === 'company' && <span className={styles.sym}>{company}</span>}
           {sym && !company && settings.headerShow === 'company' && <span className={styles.sym}>{sym}</span>}
         </span>
+        {!readOnly && (
         <div className={styles.filters}>
           {FILTERS.map(f => (
             <button
@@ -253,6 +272,26 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
             >{f.label}</button>
           ))}
         </div>
+        )}
+        {/* → Journal: freeze the displayed feed into the note (payload capture —
+            owner decision; the shown list is the whole capture). */}
+        {journalDoor && !readOnly && sym && events?.length > 0 && (
+          <button
+            type="button"
+            className={styles.gearBtn}
+            style={{ position: 'static' }}
+            onClick={async () => {
+              setJournalMsg('sending…')
+              setJournalMsg(await sendCaptureToJournal('news', {
+                symbol: sym, filter, company, settings, events,
+              }, { label: `${sym} news` }))
+            }}
+            title="Send to Journal"
+            aria-label="Send news to Journal"
+          ><UIcon name="journal" size={13} /></button>
+        )}
+        {journalMsg && <span className={styles.journalToast}>{journalMsg}</span>}
+        {!readOnly && (
         <button
           ref={settingsBtnRef}
           type="button"
@@ -260,6 +299,7 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
           onClick={() => setSettingsOpen(o => !o)}
           title="News widget settings"
         ><UIcon name="gear" size={13} /></button>
+        )}
       </div>
 
       {generating && (
@@ -325,7 +365,7 @@ export default function NewsWidget({ color, opts, onOptsChange }) {
                       : <span className={styles.source}>{e.source}</span>}
                   </div>
                 </div>
-                {canPlace && (
+                {canPlace && !readOnly && (
                   <button
                     type="button"
                     className={`${styles.pinBtn}${justPlaced ? ' ' + styles.pinBtnOn : ''}`}

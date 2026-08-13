@@ -1,10 +1,11 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
 import SymbolSearch from '../../../components/chart/SymbolSearch'
 import useEarningsTable from '../../../hooks/useEarningsTable'
 import useFundamentalSnapshot from '../../../hooks/useFundamentalSnapshot'
 import AnalystPanel from '../../../components/fundamentals/AnalystPanel'
 import OwnershipPanel from '../../../components/fundamentals/OwnershipPanel'
+import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import UIcon from '../../../components/ui/UIcon'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
 import { menuThemeVars } from '../../../utils/dividerColor'
@@ -121,18 +122,27 @@ function QuarterBlock({ q }) {
   )
 }
 
-export default function FundamentalsWidget({ color, opts, onOptsChange }) {
+export default function FundamentalsWidget({
+  color, opts, onOptsChange,
+  // Frozen-embed mode (journal host): `frozen` carries the captured payload
+  // ({symbol, data, company, settings}) — reported rows are immutable, so a
+  // March capture re-renders March's table verbatim, no fetch. readOnly
+  // strips the view tabs and the ⚙ (which writes the GLOBAL settings pref —
+  // an embed must never reach it). journalDoor=false inside embeds.
+  frozen = null, readOnly = false, journalDoor = true,
+}) {
   const { groupSyms, setGroupSym } = useWorkspace()
-  const sym = groupSyms?.[color] || null
-  const { data } = useEarningsTable(sym)
+  const sym = frozen?.symbol || groupSyms?.[color] || null
+  const { data: liveData } = useEarningsTable(frozen ? null : sym)
+  const data = frozen?.data ?? liveData
 
   // ── Fundamentals appearance settings (⚙ panel) — mirrors the watchlist's ──
   const { prefs, setPref } = usePreferences()
   // Uncustomized (no saved pref) → the DEFAULTS FOR THE CURRENT APP THEME (light →
   // white canvas + dark text), so the ⚙ swatches and the surface follow the theme.
   const fwSettings = useMemo(
-    () => mergeFundamentalsSettings(parsePref(prefs?.[FUNDAMENTALS_SETTINGS_KEY], null) ?? fundamentalsDefaultsForTheme(prefs?.theme)),
-    [prefs],
+    () => mergeFundamentalsSettings(frozen?.settings ?? parsePref(prefs?.[FUNDAMENTALS_SETTINGS_KEY], null) ?? fundamentalsDefaultsForTheme(prefs?.theme)),
+    [prefs, frozen],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsBtnRef = useRef(null)
@@ -152,8 +162,15 @@ export default function FundamentalsWidget({ color, opts, onOptsChange }) {
   }, [fwSettings])
   // Company name for the header — from the shared snapshot (already fetched for
   // this ticker elsewhere, so SWR dedupes: no extra request).
-  const { data: snap } = useFundamentalSnapshot(sym)
-  const company = snap?.name && snap.name !== sym ? snap.name : null
+  const { data: snap } = useFundamentalSnapshot(frozen ? null : sym)
+  const company = frozen?.company || (snap?.name && snap.name !== sym ? snap.name : null)
+  // Send-to-Journal toast (the capture door lives beside the ⚙).
+  const [journalMsg, setJournalMsg] = useState(null)
+  useEffect(() => {
+    if (!journalMsg) return undefined
+    const t = setTimeout(() => setJournalMsg(null), 2200)
+    return () => clearTimeout(t)
+  }, [journalMsg])
   // View choice persists per-widget through the workspace layout save path
   // (same opts mechanism ChartWidget uses for its timeframe). Default = quarterly.
   const view = ['annual', 'quarterly', 'analyst', 'ownership'].includes(opts?.view) ? opts.view : 'quarterly'
@@ -204,6 +221,7 @@ export default function FundamentalsWidget({ color, opts, onOptsChange }) {
           <span className={styles.companySym}>{sym}</span>
           {company && <span className={styles.companyName}>{company}</span>}
         </div>
+        {!readOnly && (
         <div className={styles.toggle} role="tablist" aria-label="Fundamentals view">
         <button
           type="button"
@@ -244,7 +262,29 @@ export default function FundamentalsWidget({ color, opts, onOptsChange }) {
           Ownership
         </button>
         </div>
-        {/* ⚙ Fundamentals settings */}
+        )}
+        {/* → Journal: freeze the displayed reported rows into the note (payload
+            capture — owner decision; the rows are immutable, few KB). Earnings-
+            table views only: analyst/ownership panels have no as-of data. */}
+        {journalDoor && !readOnly && !isPanelView && (hasAnnual || hasQ) && (
+          <button
+            type="button"
+            className={styles.gearBtn}
+            onClick={async () => {
+              setJournalMsg('sending…')
+              setJournalMsg(await sendCaptureToJournal('fundamentals', {
+                symbol: sym, view: effectiveView, company,
+                settings: fwSettings,
+                data: { annual: data?.annual || [], quarterly: data?.quarterly || [] },
+              }, { label: `${sym} fundamentals` }))
+            }}
+            title="Send to Journal"
+            aria-label="Send fundamentals to Journal"
+          ><UIcon name="journal" size={13} /></button>
+        )}
+        {journalMsg && <span className={styles.journalToast}>{journalMsg}</span>}
+        {/* ⚙ Fundamentals settings — writes the GLOBAL pref; never inside an embed. */}
+        {!readOnly && (
         <button
           ref={settingsBtnRef}
           type="button"
@@ -252,6 +292,7 @@ export default function FundamentalsWidget({ color, opts, onOptsChange }) {
           onClick={() => setSettingsOpen(o => !o)}
           title="Fundamentals settings"
         ><UIcon name="gear" size={13} /></button>
+        )}
       </div>
 
       {effectiveView === 'analyst' ? (

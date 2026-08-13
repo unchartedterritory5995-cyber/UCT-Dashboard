@@ -27,6 +27,9 @@ const EMBED_COMPONENTS = {
   chart: lazy(() => import('./ChartEmbed')),
   calendar: lazy(() => import('./CalendarEmbed')),
   aisearch: lazy(() => import('./AiSearchEmbed')),
+  fundamentals: lazy(() => import('./FundamentalsEmbed')),
+  news: lazy(() => import('./NewsEmbed')),
+  breadth: lazy(() => import('./BreadthEmbed')),
 }
 
 // The never-a-broken-embed rule, enforced at the React layer too: any render

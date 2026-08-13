@@ -219,9 +219,13 @@ export const WIDGET_REGISTRY = deepFreeze({
       { key: 'view', type: 'enum', options: ['annual', 'quarterly', 'analyst', 'ownership'], default: 'quarterly' },
       { key: 'company', type: 'string' },
       { key: 'settings', type: 'json' },        // GLOBAL fundamentals_settings — merged copy
+      // The captured table itself ({annual[], quarterly[]}) — owner-approved
+      // payload freeze: reported rows are immutable and a few KB, and there
+      // is no as-of endpoint, so the payload IS the only honest re-render.
+      { key: 'data', type: 'json' },
     ],
     plainText: (p) => `[fundamentals: ${p.symbol} — ${String(p.view || 'quarterly').replace(/^./, c => c.toUpperCase())}]`,
-    reconstructable: false,                     // upgrade candidate: reported rows are immutable (see plan ledger)
+    reconstructable: (p) => !!(p?.data && (p.data.annual?.length || p.data.quarterly?.length)),
     liveCapable: false,
   },
   breadth: {
@@ -241,7 +245,10 @@ export const WIDGET_REGISTRY = deepFreeze({
       { key: 'updated', type: 'string' },
     ],
     plainText: (p) => `[breadth: heatmap${p.updated ? ` — ${p.updated}` : ''}]`,
-    reconstructable: false,                     // upgrade candidate: frozen-row re-render (see plan ledger)
+    // Owner-approved payload freeze: the row (and per-metric spark series)
+    // render the captured heat-map verbatim — including a mid-session live
+    // row the 4:15 collector discards, which exists nowhere else.
+    reconstructable: (p) => !!(p?.row && typeof p.row === 'object'),
     liveCapable: false,
   },
   aisearch: {
@@ -275,9 +282,12 @@ export const WIDGET_REGISTRY = deepFreeze({
       { key: 'filter', type: 'enum', options: ['all', 'up', 'down'], default: 'all' },
       { key: 'company', type: 'string' },
       { key: 'settings', type: 'json' },
+      // The captured feed itself — owner-approved payload freeze: headlines
+      // + moves as they read on capture day, rendered verbatim forever.
+      { key: 'events', type: 'json' },
     ],
     plainText: (p) => `[news: ${p.symbol}${p.filter && p.filter !== 'all' ? ` · ${p.filter}` : ''}]`,
-    reconstructable: false,                     // upgrade candidate via an eventsOverride seam
+    reconstructable: (p) => Array.isArray(p?.events) && p.events.length > 0,
     liveCapable: false,
   },
   profile: {
