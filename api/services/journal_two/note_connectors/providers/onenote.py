@@ -199,6 +199,7 @@ import httpx
 from .. import errors
 from ..convert import onenote_html_to_tiptap
 from . import msgraph_base
+from .msgraph_base import _graph_error_field
 from .base import AccountInfo, NoteProvider, RemoteNote, RemoteRef, guarded_media_get
 
 _ONENOTE_RES_SCHEME = "onenote-res://"
@@ -323,18 +324,6 @@ def _sort_key(value: str) -> tuple[int, Any]:
     last rather than crashing the whole drain over one bad value."""
     dt = _parse_dt(value)
     return (0, dt) if dt is not None else (1, value)
-
-
-def _graph_error_message(response: httpx.Response) -> str | None:
-    try:
-        body = response.json()
-    except ValueError:
-        return None
-    err = body.get("error") if isinstance(body, dict) else None
-    if isinstance(err, dict):
-        msg = err.get("message")
-        return str(msg) if msg else None
-    return None
 
 
 class OneNoteProvider(NoteProvider):
@@ -592,7 +581,7 @@ class OneNoteProvider(NoteProvider):
             # raise `NoteConnAuthError` for ANY 403, correct for a bad
             # token on `/me` but wrong here -- the token already proved
             # itself valid for every enumeration call this same tick made).
-            message = _graph_error_message(response) or "the page is encrypted or otherwise inaccessible"
+            message = _graph_error_field(response, "message") or "the page is encrypted or otherwise inaccessible"
             raise errors.NoteConnUnsupported(
                 f"OneNote page {page_id!r} could not be read: {message}", reason=message,
             )

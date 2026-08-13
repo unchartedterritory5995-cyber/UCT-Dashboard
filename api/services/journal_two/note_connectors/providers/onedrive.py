@@ -86,6 +86,7 @@ from ..convert import (
     txt_to_tiptap,
 )
 from . import msgraph_base
+from .msgraph_base import _safe_json
 from .base import (
     AccountInfo,
     NoteProvider,
@@ -275,7 +276,9 @@ class OneDriveProvider(NoteProvider):
                 raise _ResyncSignal()
             if response.status_code != 200:
                 msgraph_base.raise_for_status(response)
-            data = response.json()
+            data = _safe_json(response)
+            if data is None:
+                raise errors.NoteConnTransient("Microsoft Graph returned a non-JSON success response")
             items.extend(data.get("value") or [])
             pages += 1
             next_link = data.get("@odata.nextLink")
@@ -419,7 +422,9 @@ class OneDriveProvider(NoteProvider):
             response = await self._graph.send(credentials, "GET", next_url)
             if response.status_code != 200:
                 msgraph_base.raise_for_status(response)
-            data = response.json()
+            data = _safe_json(response)
+            if data is None:
+                raise errors.NoteConnTransient("Microsoft Graph returned a non-JSON success response")
             items.extend(data.get("value") or [])
             next_url = data.get("@odata.nextLink")
             pages += 1

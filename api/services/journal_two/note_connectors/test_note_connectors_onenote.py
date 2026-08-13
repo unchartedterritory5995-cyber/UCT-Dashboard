@@ -818,3 +818,29 @@ async def test_rate_limiter_is_invoked_during_enumeration():
     # capacity-1 bucket that refills at 3/sec -- the second acquire had to
     # wait, advancing the fake clock past 0.
     assert clock["t"] > 0.0
+
+
+# ---------------------------------------------------------------------------
+# Change 2: _graph_error_field extracts error message (deduped helper).
+# ---------------------------------------------------------------------------
+
+
+def test_graph_error_field_extracts_message_from_graph_error_body():
+    """Verify that _graph_error_field correctly extracts the message field
+    from a Graph error body, and that the deduped helper works as expected."""
+    from api.services.journal_two.note_connectors.providers.msgraph_base import _graph_error_field
+
+    # Test with a valid error body
+    response = httpx.Response(403, json={"error": {"code": "20117", "message": "The page is password protected."}})
+    message = _graph_error_field(response, "message")
+    assert message == "The page is password protected."
+
+    # Test with no message field
+    response_no_msg = httpx.Response(403, json={"error": {"code": "20117"}})
+    message_missing = _graph_error_field(response_no_msg, "message")
+    assert message_missing is None
+
+    # Test with non-JSON body
+    response_non_json = httpx.Response(403, text="<html>error</html>")
+    message_non_json = _graph_error_field(response_non_json, "message")
+    assert message_non_json is None
