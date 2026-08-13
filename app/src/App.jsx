@@ -22,6 +22,7 @@ import { useJ2Shell } from './pages/journal-2-0/shellFlag'
 // link button in `SaveScreenBar` builds its URL from this same module, so the
 // link a member sends and the route that answers it cannot drift apart.
 import { SHARED_SCREEN_ROUTE } from './pages/screener/screenShareLink'
+import { SHARED_NOTE_ROUTE } from './pages/journal-2-0/lib/noteShareLink'
 
 const Landing = lazy(() => import('./pages/Landing'))
 const ComingSoon = lazy(() => import('./pages/ComingSoon'))
@@ -38,6 +39,7 @@ const Calendar = lazy(() => import('./pages/Calendar'))
 const MyStocksHub = lazy(() => import('./pages/calendar/MyStocksHub'))
 const Screener = lazy(() => import('./pages/Screener'))
 const SharedScreen = lazy(() => import('./pages/screener/SharedScreen'))
+const SharedNotePage = lazy(() => import('./pages/journal-2-0/SharedNotePage'))
 const AiSearchPage = lazy(() => import('./pages/AiSearchPage'))
 const OptionsFlow = lazy(() => import('./pages/OptionsFlow'))
 const FlowScoreboard = lazy(() => import('./pages/FlowScoreboard'))
@@ -290,6 +292,15 @@ export default function App() {
                 value, so the route and the link cannot drift apart.
                 Rail: `app/src/pages/screener/sharedScreen.route.test.jsx`. */}
             <Route path={SHARED_SCREEN_ROUTE} element={<SharedScreen />} />
+
+            {/* The far end of a NOTEBOOK share link — same posture as the
+                screener share above: token IS the credential, OUTSIDE
+                AuthGuard, NOT behind PreLaunchGate (it would break every link
+                a member sent), route DERIVED from noteShareLink.js. The
+                server pair is additionally flag-gated (J2_SHARE_LINKS_ENABLED)
+                so the whole public surface has an env kill-switch.
+                Rail: journal-2-0/sharedNote.route.test.jsx. */}
+            <Route path={SHARED_NOTE_ROUTE} element={<SharedNotePage />} />
 
             {/* Headless, token-gated chart export for the Morning Wire → Substack
                 renderer (and future Discord charts). Renders the real StockChart

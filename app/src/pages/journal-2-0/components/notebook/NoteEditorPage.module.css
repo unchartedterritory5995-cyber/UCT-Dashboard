@@ -351,3 +351,39 @@
   .railLeft,
   .railRight { padding: 0 16px; }
 }
+
+/* ── Export / share chrome (post-v1 round 2) ─────────────────────────────── */
+.chromeBtn {
+  background: transparent;
+  border: 1px solid var(--border, #333);
+  color: var(--text, #cfcfcf);
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+}
+.chromeBtn:hover { border-color: var(--ut-gold, #c9a84c); }
+.chromeBtn:disabled { opacity: 0.5; cursor: default; }
+.chromeMsg {
+  color: var(--ut-gold, #c9a84c);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* ── Print isolation (the [data-print-root] recipe) ──────────────────────────
+   printNote() adds body.uct-print-note, prints, removes it. Visibility (not
+   display) keeps layout so the column geometry survives; the column is then
+   repositioned to the page origin. Editor chrome marked data-export-exclude
+   disappears from print too — one attribute serves both exporters. */
+@media print {
+  :global(body.uct-print-note) * { visibility: hidden; }
+  :global(body.uct-print-note) [data-print-root],
+  :global(body.uct-print-note) [data-print-root] * { visibility: visible; }
+  :global(body.uct-print-note) [data-print-root] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  :global(body.uct-print-note) [data-export-exclude] { display: none; }
+}

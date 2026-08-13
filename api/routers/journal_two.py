@@ -1358,6 +1358,55 @@ def attachment_gc_endpoint(
     )
 
 
+# ── Note share links (post-v1; screener-share idiom: token IS the credential).
+# Creation/status/revoke are owner-auth'd; the PUBLIC read pair is flag-gated
+# (J2_SHARE_LINKS_ENABLED, default OFF → 404, nothing reachable).
+from api.services.journal_two import note_shares
+
+
+@router.get("/notes/{note_id}/share")
+def get_note_share_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    return {"share": note_shares.get_share(user["id"], note_id)}
+
+
+@router.post("/notes/{note_id}/share")
+def create_note_share_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    share = note_shares.create_share(user["id"], note_id)
+    if share is None:
+        raise HTTPException(status_code=404, detail="note not found")
+    return {"share": share}
+
+
+@router.delete("/notes/{note_id}/share")
+def revoke_note_share_endpoint(note_id: str, user: dict = Depends(get_current_user)) -> dict[str, Any]:
+    return {"revoked": note_shares.revoke_share(user["id"], note_id)}
+
+
+@router.get("/shared/{token}")
+def resolve_shared_note_endpoint(token: str) -> dict[str, Any]:
+    """PUBLIC — no auth by design (a link that only opens for people with an
+    account is not sharing). The token is the credential; the payload is
+    sanitized; the flag is the master switch."""
+    if not note_shares.enabled():
+        raise HTTPException(status_code=404, detail="Not found")
+    payload = note_shares.resolve_share(token)
+    if payload is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"note": payload}
+
+
+@router.get("/shared/{token}/att/{sub}/{filename}")
+def serve_shared_attachment_endpoint(token: str, sub: str, filename: str) -> Any:
+    """PUBLIC image proxy for a shared note — images only, token-scoped to
+    exactly that note's directory, path-traversal guarded downstream."""
+    if not note_shares.enabled():
+        raise HTTPException(status_code=404, detail="Not found")
+    path = note_shares.resolve_share_attachment(token, sub, filename)
+    if path is None:
+        raise HTTPException(status_code=404, detail="Not found")
+    return FileResponse(str(path))
+
+
 @router.get("/inbox")
 def list_captures_endpoint(user: dict = Depends(get_current_user)) -> dict[str, Any]:
     return {"captures": notes_service.list_captures(user["id"])}

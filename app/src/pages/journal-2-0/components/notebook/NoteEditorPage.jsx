@@ -14,6 +14,9 @@ import linkifyTimestamps from '../../lib/linkifyTimestamps'
 import UIcon from '../../../../components/ui/UIcon'
 import usePreferences, { parsePref } from '../../../../hooks/usePreferences'
 import { mergeChartSettings } from '../../../../components/chart/chartDefaults'
+import { useAuth } from '../../../../context/AuthContext'
+import { exportNoteAsPng, printNote } from '../../lib/exportNote'
+import { sharedNoteUrl } from '../../lib/noteShareLink'
 import styles from './NoteEditorPage.module.css'
 
 // A note can carry its source video in heroImageUrl (set by the Desk "Save
@@ -97,7 +100,7 @@ export function CaptureInboxTray({ editor, onPlaced }) {
   }
 
   return (
-    <div style={{
+    <div data-export-exclude style={{
       display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8,
       margin: '8px 0 4px', padding: '7px 10px', borderRadius: 8,
       border: '1px solid var(--border, #2a2a2a)', background: 'var(--panel, #101010)',
@@ -142,8 +145,65 @@ export function CaptureInboxTray({ editor, onPlaced }) {
 export default function NoteEditorPage({ noteId, onBack }) {
   const { note, isLoading, update, refresh } = useJ2Note(noteId)
   const { folders } = useJ2NoteFolders()
+  const { user } = useAuth()
   const [saveStatus, setSaveStatus] = useState('saved')
   const [saveErrorMsg, setSaveErrorMsg] = useState('')
+  // ── Export + share (post-v1 round 2) ──────────────────────────────────────
+  const columnRef = useRef(null)
+  const [exportBusy, setExportBusy] = useState(false)
+  const [chromeMsg, setChromeMsg] = useState(null)
+  useEffect(() => {
+    if (!chromeMsg) return undefined
+    const t = setTimeout(() => setChromeMsg(null), 2400)
+    return () => clearTimeout(t)
+  }, [chromeMsg])
+  const savePng = async () => {
+    if (exportBusy) return
+    setExportBusy(true)
+    setChromeMsg('rendering…')
+    try {
+      const ok = await exportNoteAsPng(columnRef.current, title)
+      setChromeMsg(ok ? 'PNG saved' : 'export failed')
+    } catch {
+      setChromeMsg('export failed')
+    } finally {
+      setExportBusy(false)
+    }
+  }
+  // Share links: admin-only surface while the owner evaluates (the server
+  // pair is additionally flag-gated). One active token per note; Unshare
+  // revokes it — a leaked link dies instantly.
+  const isAdmin = user?.role === 'admin'
+  const [share, setShare] = useState(null)
+  useEffect(() => {
+    if (!isAdmin || !noteId) return undefined
+    let alive = true
+    fetch(`/api/j2/notes/${noteId}/share`, { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : { share: null }))
+      .then((b) => { if (alive) setShare(b.share) })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [isAdmin, noteId])
+  const copyShareLink = async () => {
+    try {
+      let s = share
+      if (!s) {
+        const res = await fetch(`/api/j2/notes/${noteId}/share`, { method: 'POST', credentials: 'include' })
+        if (!res.ok) throw new Error(String(res.status))
+        s = (await res.json()).share
+        setShare(s)
+      }
+      await navigator.clipboard.writeText(sharedNoteUrl(s.token))
+      setChromeMsg('Share link copied')
+    } catch {
+      setChromeMsg('share failed')
+    }
+  }
+  const unshare = async () => {
+    await fetch(`/api/j2/notes/${noteId}/share`, { method: 'DELETE', credentials: 'include' }).catch(() => {})
+    setShare(null)
+    setChromeMsg('Link revoked')
+  }
   const saveTimerRef = useRef(null)
   const retryTimerRef = useRef(null)
   const retryAttemptsRef = useRef(0)
@@ -501,6 +561,31 @@ export default function NoteEditorPage({ noteId, onBack }) {
           {saveStatus === 'error' && <><UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{`Save failed${saveErrorMsg ? `: ${saveErrorMsg}` : ''}`}</>}
         </div>
         <div className={styles.headerControls}>
+          {chromeMsg && <span className={styles.chromeMsg} role="status">{chromeMsg}</span>}
+          {/* Export: PNG rasterizes the note column (charts included); Print
+              rides the browser's Save-as-PDF via the print stylesheet. */}
+          <button type="button" className={styles.chromeBtn} onClick={savePng} disabled={exportBusy}
+            title="Download this note as a PNG image">
+            PNG
+          </button>
+          <button type="button" className={styles.chromeBtn} onClick={printNote}
+            title="Print — or Save as PDF from the print dialog">
+            Print
+          </button>
+          {isAdmin && (
+            <>
+              <button type="button" className={styles.chromeBtn} onClick={copyShareLink}
+                title={share ? 'Copy the public link to this note' : 'Create a public read-only link and copy it'}>
+                {share ? 'Copy link' : 'Share'}
+              </button>
+              {share && (
+                <button type="button" className={styles.chromeBtn} onClick={unshare}
+                  title="Revoke the public link — it stops working immediately">
+                  Unshare
+                </button>
+              )}
+            </>
+          )}
           <select
             className={styles.headerSelect}
             value={note.folderId || ''}
@@ -539,7 +624,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
         {hasLeftRail && (
           <div className={styles.railLeft}><NoteRailLeft insights={insights} /></div>
         )}
-        <div className={styles.column}>
+        <div className={styles.column} ref={columnRef} data-print-root>
         {ytId ? (
           <>
             <NoteVideoHero youtubeId={ytId} watchUrl={note.heroImageUrl} />
@@ -555,11 +640,15 @@ export default function NoteEditorPage({ noteId, onBack }) {
             )}
           </>
         ) : (
-          <HeroImagePicker
-            noteId={noteId}
-            value={note.heroImageUrl}
-            onChange={onHeroChange}
-          />
+          // Exclude the EMPTY picker (a dashed drop-zone) from exports; a
+          // chosen hero image is content and stays in.
+          <div {...(!note.heroImageUrl ? { 'data-export-exclude': '' } : {})}>
+            <HeroImagePicker
+              noteId={noteId}
+              value={note.heroImageUrl}
+              onChange={onHeroChange}
+            />
+          </div>
         )}
 
         <input
@@ -576,7 +665,7 @@ export default function NoteEditorPage({ noteId, onBack }) {
         />
 
         {editor && (
-          <div className={styles.toolbar}>
+          <div className={styles.toolbar} data-export-exclude>
             <ToolButton
               active={editor.isActive('bold')}
               onClick={() => editor.chain().focus().toggleBold().run()}

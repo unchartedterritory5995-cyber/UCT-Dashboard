@@ -529,6 +529,19 @@ CREATE TABLE IF NOT EXISTS j2_capture_inbox (
 CREATE INDEX IF NOT EXISTS idx_j2_capture_inbox_user
     ON j2_capture_inbox(user_id, created_at DESC);
 
+-- Public share links for notebook notes (post-v1; screener-share idiom: the
+-- token IS the credential). One active token per note; revocation keeps the
+-- row so a revoked link stays dead instead of being re-mintable by accident.
+CREATE TABLE IF NOT EXISTS j2_note_shares (
+    token       TEXT PRIMARY KEY,
+    note_id     TEXT NOT NULL,
+    user_id     TEXT NOT NULL,
+    created_at  TEXT NOT NULL,
+    revoked_at  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_j2_note_shares_note
+    ON j2_note_shares(note_id, user_id);
+
 -- ── Broker Sync (SnapTrade) ─────────────────────────────────────────────────
 -- One SnapTrade registration per UCT user (their "broker identity"). The
 -- userSecret is encrypted via api.services.crypto_box with a versioned prefix.

@@ -104,13 +104,19 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   const archivedOnceRef = useRef(false)
   const [toolbarMsg, setToolbarMsg] = useState(null)
 
+  // Public share page (SharedNotePage stamps shareView before the editor
+  // view exists): every embed renders its ARCHIVED IMAGE — a public reader
+  // never mounts live components that poll auth-scoped APIs. The durable
+  // image IS the shared artifact.
+  const shareView = !!editor?.storage?.uctJournalWidgets?.shareView
+
   // Linked crosshair (spec Phase 6 #6): ONE bus per note, shared by every
   // chart embed through editor.storage. Lazily created by the first embed
   // that renders — the page's onCreate can run after node views mount, so
   // stamping it there (the noteId pattern) would hand early mounts a null
-  // they never re-read.
+  // they never re-read. No bus on the share page (nothing live to link).
   let crosshairBus = editor?.storage?.uctJournalWidgets?.crosshairBus || null
-  if (!crosshairBus && editor?.storage) {
+  if (!crosshairBus && !shareView && editor?.storage) {
     crosshairBus = makeCrosshairBus()
     editor.storage.uctJournalWidgets = {
       ...(editor.storage.uctJournalWidgets || {}), crosshairBus,
@@ -265,7 +271,8 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   // blank PNG as the permanent archive. The settle clock starts once the
   // live component is actually mounting.
   // !peek: the aftermath view must never become the permanent archive PNG.
-  const needsArchive = decision.kind === 'live' && !attrs.fallback?.url && attrs.mode === 'snapshot' && inView && !peek
+  // !shareView: a public reader never uploads anything.
+  const needsArchive = decision.kind === 'live' && !attrs.fallback?.url && attrs.mode === 'snapshot' && inView && !peek && !shareView
   useEffect(() => {
     if (!needsArchive || archivedOnceRef.current) return undefined
     archivedOnceRef.current = true
@@ -364,7 +371,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   }, [annotate, editor])
 
   let body = archived
-  if (decision.kind === 'live') {
+  if (decision.kind === 'live' && !shareView) {
     const Live = EMBED_COMPONENTS[attrs.widgetId]
     body = !Live ? archived : !inView ? (
       <div className={styles.loading} style={{ height }} />
@@ -476,14 +483,14 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
       {/* Explicit pixel height + inline-size containment: every workspace
           widget root is height:100% and several use @container queries — a
           content-sized notebook parent collapses them to zero without this. */}
-      <div ref={bodyRef} className={styles.body} style={decision.kind === 'live' ? { height } : undefined}>
+      <div ref={bodyRef} className={styles.body} style={decision.kind === 'live' && !shareView ? { height } : undefined}>
         {body}
         {/* "as of" chip: a live-RENDERED snapshot must say when it was frozen —
             re-rendered March evidence reads like today's chart otherwise. Live
             mode tracks now (the badge says so) and draw mode owns the frame.
             Inside the body on purpose: a re-capture archives the date with
             the pixels. */}
-        {decision.kind === 'live' && attrs.mode !== 'live' && !annotate
+        {decision.kind === 'live' && !shareView && attrs.mode !== 'live' && !annotate
           && !AS_OF_SELF_LABELED.has(attrs.widgetId) && asOfDayText(attrs.capturedAt) && (
             <span
               className={styles.asOfChip}
