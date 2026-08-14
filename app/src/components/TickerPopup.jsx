@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import UIcon from './ui/UIcon'
 import { useDarkPoolBars } from './chart/useDarkPoolBars'
-import SymbolSearch from './chart/SymbolSearch'
 import { setVoicePageHint } from '../context/VoiceContext'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
@@ -56,7 +55,6 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
   const [searchSym, setSearchSym] = useState(null)
   const activeSym = searchSym || sym
   useEffect(() => { setSearchSym(null) }, [sym, modalOpen])
-  const searchRef = useRef(null) // imperative open() for the header magnifier
 
   // Dark-pool overlay toggle (only meaningful when `darkPool` is passed, e.g.
   // the Live Flow chart popup). Default ON, persisted so the choice sticks.
@@ -174,16 +172,10 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                 )}
               </div>
               <div className={styles.modalHeaderRight}>
-                {/* Predictive "Switch ticker" search — pull up any other chart in place. */}
-                <SymbolSearch
-                  ref={searchRef}
-                  sym={activeSym}
-                  displayLabel="Switch ticker…"
-                  badgeClassName={styles.switchPill}
-                  onSymbolChange={(s) => setSearchSym(String(s).toUpperCase())}
-                  hideIcon
-                  fullLabel
-                />
+                {/* Type a symbol → Enter (or click a match) pulls up that chart in
+                    place. A real <input>, not a click-to-open dropdown, so it's
+                    directly typeable inside the modal. */}
+                <SwitchTickerBox onPick={setSearchSym} />
                 <button
                   className={`${styles.flagBtn}${isFlagged(activeSym) ? ' ' + styles.flagBtnActive : ''}`}
                   onClick={() => { const willFlag = !isFlagged(activeSym); toggleFlag(activeSym); setFlagToast(willFlag ? 'added' : 'removed') }}
@@ -370,6 +362,93 @@ function DeskMentions({ sym, enabled, onOpen }) {
           <span className={styles.deskNote}>{m.note || m.title}</span>
         </button>
       ))}
+    </div>
+  )
+}
+
+// "Switch ticker…" search box in the popup header — a REAL text input (not a
+// click-to-open dropdown), so you type a symbol and Enter opens that chart in
+// place. Predictive matches from /api/ticker-search drop down beneath it; Enter
+// takes the typed symbol unless you've arrow-navigated to a suggestion. Rendered
+// inline (no portal) so it's reliably typeable + visible inside the modal.
+function SwitchTickerBox({ onPick }) {
+  const [q, setQ] = useState('')
+  const [results, setResults] = useState([])
+  const [open, setOpen] = useState(false)
+  const [active, setActive] = useState(0)
+  const boxRef = useRef(null)
+
+  useEffect(() => {
+    const t = q.trim()
+    if (!t) { setResults([]); return undefined }
+    const ctrl = new AbortController()
+    const id = setTimeout(() => {
+      fetch(`/api/ticker-search?q=${encodeURIComponent(t)}&limit=8`, { signal: ctrl.signal })
+        .then(r => (r.ok ? r.json() : null))
+        .then(d => { if (d) { setResults(d.results || []); setActive(0) } })
+        .catch(() => {})
+    }, 130)
+    return () => { clearTimeout(id); ctrl.abort() }
+  }, [q])
+
+  useEffect(() => {
+    if (!open) return undefined
+    const onDown = (e) => { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
+
+  const submit = (ticker) => {
+    const clean = String(ticker != null ? ticker : q).trim().toUpperCase()
+    if (clean) onPick(clean)
+    setQ(''); setResults([]); setOpen(false)
+  }
+
+  const onKey = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      // Enter takes the TYPED symbol unless you arrowed onto a suggestion.
+      submit(active > 0 ? (results[active]?.ticker || q) : q)
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault(); setActive(i => Math.min(i + 1, Math.max(0, results.length - 1)))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault(); setActive(i => Math.max(i - 1, 0))
+    } else if (e.key === 'Escape') {
+      setOpen(false)
+    }
+  }
+
+  return (
+    <div ref={boxRef} className={styles.switchWrap}>
+      <input
+        className={styles.switchInput}
+        value={q}
+        onChange={(e) => { setQ(e.target.value); setOpen(true) }}
+        onFocus={() => { if (results.length) setOpen(true) }}
+        onKeyDown={onKey}
+        placeholder="Switch ticker…"
+        aria-label="Switch ticker — type a symbol to open its chart"
+        spellCheck={false}
+        autoComplete="off"
+      />
+      {open && results.length > 0 && (
+        <div className={styles.switchMenu} role="listbox">
+          {results.map((r, i) => (
+            <button
+              type="button"
+              key={r.ticker}
+              className={`${styles.switchOpt} ${i === active ? styles.switchOptActive : ''}`}
+              onMouseDown={(e) => { e.preventDefault(); submit(r.ticker) }}
+              onMouseEnter={() => setActive(i)}
+              role="option"
+              aria-selected={i === active}
+            >
+              <span className={styles.switchOptSym}>{r.ticker}</span>
+              {r.name && <span className={styles.switchOptName}>{r.name}</span>}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

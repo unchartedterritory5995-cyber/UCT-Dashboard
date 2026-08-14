@@ -40,7 +40,7 @@ const POPULAR_RESULTS = [
   { ticker: 'SOXX',  name: 'iShares Semiconductor ETF' },
 ]
 
-const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, brandLogo = false, displayLabel = null, fullLabel = false, labelColor = null, boundsRef = null, themeVars = null, badgeClassName = null }, ref) {
+const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hideIcon = false, logoSym = null, brandLogo = false, displayLabel = null, fullLabel = false, labelColor = null, boundsRef = null, themeVars = null }, ref) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState(POPULAR_RESULTS)
@@ -228,7 +228,7 @@ const SymbolSearch = forwardRef(function SymbolSearch({ sym, onSymbolChange, hid
   return (
     <div ref={wrapRef} className={styles.wrap}>
       <button
-        className={badgeClassName ? `${styles.badge} ${badgeClassName}` : styles.badge}
+        className={styles.badge}
         style={hideIcon ? { justifyContent: fullLabel ? 'flex-start' : 'center', width: fullLabel ? 'auto' : '100%' } : undefined}
         onClick={() => { if (open) { setOpen(false) } else { setQuery(''); setOpen(true) } }}
         title={displayLabel ? `${sym} — click to search` : 'Search ticker'}
