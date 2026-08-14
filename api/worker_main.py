@@ -662,6 +662,14 @@ def main():
     _probe_flatfile_access()
     _start_wick_backfill()
     _start_memwatch()
+    # Universe Bars Pack builder — once/ET-day, repackages local bars.db D/W/M
+    # into a static R2 artifact so browsers pre-seed IndexedDB for instant
+    # first-view charts. Dark until BARSPACK_ENABLED=1; zero provider cost.
+    try:
+        from api.services.barspack import start_barspack_builder
+        start_barspack_builder()
+    except Exception as e:
+        log.warning(f"barspack builder failed to start (non-fatal): {e}")
 
     # Boot fingerprint — one grep-able line so an operator can confirm which
     # data-integrity guards are live in this worker deploy (mirrors the web's

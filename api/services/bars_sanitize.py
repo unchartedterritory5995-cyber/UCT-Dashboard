@@ -39,6 +39,8 @@ from __future__ import annotations
 import os
 import threading
 import logging
+import contextlib
+import contextvars
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 
@@ -56,6 +58,26 @@ _META_FAIL_TTL = 3600         # transient failure: retry in ~1h, don't hammer
 _warm_pool = ThreadPoolExecutor(max_workers=2, thread_name_prefix="barsan-warm")
 _warm_inflight: set[str] = set()
 _warm_lock = threading.Lock()
+
+# When set, a cold-metadata miss does NOT schedule a background FMP warm — the
+# caller wants cache-only sanitize with ZERO provider calls. The bars-pack
+# builder sweeps the whole universe; without this, a first build over
+# never-served long-tail tickers would schedule thousands of corporate-action
+# warms at once. Default False → serve-path behavior is unchanged.
+_suppress_warm: contextvars.ContextVar = contextvars.ContextVar("bars_sanitize_suppress_warm", default=False)
+
+
+@contextlib.contextmanager
+def suppress_meta_warm():
+    """Within this context, cold-metadata misses use the metadata-free sanitize
+    path and never schedule a provider fetch. Used by the bars-pack builder so a
+    universe sweep costs zero FMP calls; the metadata cache still warms naturally
+    on the normal serve/prewarm path."""
+    token = _suppress_warm.set(True)
+    try:
+        yield
+    finally:
+        _suppress_warm.reset(token)
 
 # ── Tunables ────────────────────────────────────────────────────────────────
 _GAP_MIN_DAYS = 21            # a gap this big + a listing-date match ⇒ reuse
@@ -198,6 +220,9 @@ def _fetch_meta(ticker: str) -> dict:
 
 
 def _warm_meta(ticker: str) -> None:
+    if _suppress_warm.get():
+        return  # caller wants cache-only sanitize (e.g. the bars-pack builder)
+
     def _run():
         try:
             meta = _fetch_meta(ticker)

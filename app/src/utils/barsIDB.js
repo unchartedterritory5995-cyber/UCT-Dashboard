@@ -53,7 +53,15 @@ const INTRADAY_STALE_BAR_SEC = 26 * 60 * 60  // 26h
 // Max age for daily/weekly/monthly. Without this, corrupted historical bars
 // (wrong company, pre-split, etc.) persist indefinitely because delta fetches
 // only ask for bars newer than the last cached timestamp.
-const DAILY_MAX_AGE_MS = 24 * 60 * 60 * 1000  // 24 hours
+//
+// 48h (was 24h, 2026-08-14): the Universe Bars Pack (idbImportPack) pre-seeds
+// D/W/M for the whole universe once per day, stamping savedAt at ingest. A
+// user who opens the app daily always has entries <24h old; 48h just adds a
+// full day of margin for a session that spans a day boundary before the next
+// pack re-ingest. This is safe because D/W/M ALWAYS full-refetch on chart open
+// (no `since=`), so the server replaces the entry within ~1s of a view
+// regardless of the age bound — the bound only backstops entries never opened.
+const DAILY_MAX_AGE_MS = 48 * 60 * 60 * 1000  // 48 hours
 
 let _db = null
 
@@ -79,7 +87,7 @@ async function _open() {
       _db = e.target.result
       // When another tab opens this DB at a higher version, close our handle
       // so the upgrade can proceed. Without this, version bumps deadlock.
-      _db.onversionchange = () => { try { _db.close() } catch {}; _db = null }
+      _db.onversionchange = () => { try { _db.close() } catch { /* already closed */ }; _db = null }
       resolve(_db)
     }
     req.onerror   = (e) => { clearTimeout(timeout); reject(e.target.error) }
@@ -210,6 +218,82 @@ export async function idbPut(sym, tf, bars) {
   } catch {
     // IDB writes are best-effort — never let them crash the chart
   }
+}
+
+/**
+ * Bulk-import a "Universe Bars Pack" of D/W/M bars in batched transactions.
+ *
+ * `entries` = [{ sym, tf, bars }] where `bars` is the SERVER bar shape
+ * [{t,o,h,l,c,v}] (t = ISO "YYYY-MM-DD" for D/W/M) — byte-identical to what a
+ * normal /api/bars full-fetch produces, so StockChart reads each as `_idbFresh`
+ * and paints instantly with zero network. Pre-seeds a brand-new user's cache so
+ * their FIRST view of any stock is instant.
+ *
+ * NEVER DOWNGRADES: an existing current-version entry that holds AT LEAST as
+ * many bars as the pack is left untouched. The pack is a shallow ~300-bar view
+ * pack; it must never shrink a deeper local series (a user who scrolled back, or
+ * a fresher per-session write).
+ *
+ * Quota-safe: writes in batches, each its own transaction, so a
+ * QuotaExceededError aborts only the CURRENT batch — every prior batch is
+ * already committed. On abort it stops early and reports what landed; callers
+ * fall back to per-ticker fetch for the rest. Never throws.
+ *
+ * Returns { written, skipped, aborted }.
+ */
+export async function idbImportPack(entries, { batchSize = 250 } = {}) {
+  if (!entries?.length) return { written: 0, skipped: 0, aborted: false }
+  let db
+  try { db = await _open() } catch { return { written: 0, skipped: 0, aborted: true } }
+  let written = 0, skipped = 0, aborted = false
+  for (let i = 0; i < entries.length && !aborted; i += batchSize) {
+    const res = await _importBatch(db, entries.slice(i, i + batchSize))
+    written += res.written
+    skipped += res.skipped
+    if (res.aborted) aborted = true  // quota / tx failure — keep prior batches, stop
+  }
+  return { written, skipped, aborted }
+}
+
+function _importBatch(db, batch) {
+  return new Promise((resolve) => {
+    let written = 0, skipped = 0
+    let tx
+    try {
+      tx = db.transaction(STORE, 'readwrite')
+    } catch {
+      return resolve({ written, skipped, aborted: true })
+    }
+    const store = tx.objectStore(STORE)
+    tx.oncomplete = () => resolve({ written, skipped, aborted: false })
+    tx.onerror    = () => resolve({ written, skipped, aborted: true })
+    tx.onabort    = () => resolve({ written, skipped, aborted: true })
+    for (const e of batch) {
+      const sym = e?.sym, tf = e?.tf, bars = e?.bars
+      if (!sym || !tf || !bars?.length) { skipped++; continue }
+      const key = _key(sym, tf)
+      const getReq = store.get(key)
+      getReq.onsuccess = () => {
+        const cur = getReq.result
+        // Never downgrade: keep a current-version local entry that is at least
+        // as deep as the pack (deeper scroll-back or a fresher session write).
+        if (cur && cur.v === CACHE_LOGIC_VERSION
+            && (cur.bars?.length || 0) >= bars.length) {
+          skipped++
+          return
+        }
+        store.put({
+          key,
+          bars,
+          lastT: bars[bars.length - 1]?.t,
+          savedAt: Date.now(),
+          v: CACHE_LOGIC_VERSION,
+        })
+        written++
+      }
+      getReq.onerror = () => { skipped++ }
+    }
+  })
 }
 
 /**
