@@ -7,11 +7,11 @@ import TimeframeMenu from '../../../pages/charts/widgets/TimeframeMenu'
 // explicit timeframe set has decided which intervals it supports — leaving the
 // chevron would let the user pick one the host never offered, silently
 // defeating the lock (Journal is Daily/Weekly by design, for example).
-export default function ChartTfBar({ tf, visibleTfs, onTf, menu = {}, showMenu = true, styles, children }) {
+export default function ChartTfBar({ tf, visibleTfs, onTf, menu = {}, showMenu = true, styles, children, rootRef = null }) {
   const [open, setOpen] = useState(false)
   const [anchor, setAnchor] = useState(null)
   return (
-    <div className={styles.tfBar}>
+    <div ref={rootRef} className={styles.tfBar}>
       {visibleTfs.map(([code, label]) => (
         <button
           key={code}

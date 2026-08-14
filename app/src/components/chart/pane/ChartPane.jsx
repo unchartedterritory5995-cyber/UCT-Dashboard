@@ -1,5 +1,5 @@
 import {
-  forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState,
+  forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState,
 } from 'react'
 import StockChart from '../../StockChart'
 import isModalOpen from '../../../utils/modalOpen'
@@ -291,6 +291,18 @@ function ChartPane({
   // that keeps paneWidth current is wired in an effect further down.)
   const paneRef = useRef(null)
   const [paneWidth, setPaneWidth] = useState(null)
+  // Timeframe/info collision measurement. The TF bar and the info row share one
+  // flex-wrap row; when they don't fit on one line it WRAPS (info + holdings drop
+  // to their own lines, stealing chart height). A width threshold can't see the
+  // info row's real width, so we MEASURE the wrap and shrink to fit: first drop
+  // timeframe buttons (furthest-from-active, into the ▾ menu) down to just the
+  // active TF + ▾, then — only if it still wraps — abbreviate the info labels.
+  // Both are monotonic within a given width/content and reset together when the
+  // width or info content changes, so the loop converges and never oscillates.
+  const tfBarRef = useRef(null)
+  const shownTfCountRef = useRef(0)
+  const [tfCap, setTfCap] = useState(99)
+  const [infoForceAbbrev, setInfoForceAbbrev] = useState(false)
 
   // Header customization (Chart Settings → Header). Title mode, visible timeframe
   // buttons, day-change, info stats, and the on-chart legend are all user-toggled.
@@ -338,9 +350,16 @@ function ChartPane({
   // trimmed (the host chose exactly those). The title-collapse override applies
   // only to a real ticker label — a theme/breadth/group label is already compact.
   const headerFit = computeHeaderFit(paneWidth, visibleTfs.length)
+  // The measured wrap cap (tfCap) is the precise driver; headerFit.maxTfs is a
+  // coarse width-only floor. A host-locked tfCodes set is never trimmed.
+  const measuredTfCap = Math.min(headerFit.maxTfs, tfCap)
   const responsiveTfs = Array.isArray(effTfCodes)
     ? visibleTfs
-    : trimTimeframes(visibleTfs, isBreadth ? breadthTf : tf, headerFit.maxTfs)
+    : trimTimeframes(visibleTfs, isBreadth ? breadthTf : tf, measuredTfCap)
+  shownTfCountRef.current = responsiveTfs.length
+  // Info labels abbreviate on the width threshold OR when the wrap-measurement
+  // forces it (timeframes already collapsed to just the active + ▾ and it still wraps).
+  const infoAbbrev = headerFit.infoAbbrev || infoForceAbbrev
   const effHeaderLabel = (headerFit.titleMode === 'ticker' && !_themeViewLabel && !isBreadth && !themeIdx.isIndex)
     ? sym
     : headerLabel
@@ -395,6 +414,32 @@ function ChartPane({
       return { key, label: f.label, short: f.short || f.label, value, color: finalColor }
     }).filter(Boolean)
   }, [infoFieldKeys, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, sym, companyName])
+
+  // ── Wrap-fit measurement (drives tfCap / infoForceAbbrev declared above) ──
+  // A signature of what occupies the row besides the timeframe buttons: the info
+  // items by label+value LENGTH (never the values themselves, so a same-width live
+  // tick doesn't reset the fit). A change here — or a pane resize — resets the
+  // shrink so the row re-measures from the full timeframe set. Deliberately does
+  // NOT depend on infoAbbrev/tfCap: those are OUR outputs, and keying the reset on
+  // them would oscillate (abbreviate → narrower → reset → un-abbreviate → …).
+  const infoSig = useMemo(
+    () => metaItems.map((i) => `${i.label.length}:${String(i.value ?? '').length}`).join(','),
+    [metaItems],
+  )
+  useLayoutEffect(() => { setTfCap(99); setInfoForceAbbrev(false) }, [paneWidth, infoSig])
+  useLayoutEffect(() => {
+    if (compact || mini || !showTfBar || Array.isArray(effTfCodes)) return
+    const el = tfBarRef.current
+    if (!el) return
+    // One row = min-height 32 + 1px border (~33); a second wrapped line pushes it
+    // well past 44. jsdom lays nothing out (offsetHeight 0) ⇒ never wrapped ⇒ inert.
+    if (el.offsetHeight <= 44) return
+    if (shownTfCountRef.current > 1) {
+      setTfCap((c) => Math.max(1, Math.min(c, shownTfCountRef.current) - 1))
+    } else if (!infoForceAbbrev && metaItems.length) {
+      setInfoForceAbbrev(true)
+    }
+  }, [tfCap, infoForceAbbrev, paneWidth, infoSig, compact, mini, showTfBar, effTfCodes, metaItems.length])
 
   // Chart-settings modal (opened by the gear, by StockChart's own settings entry
   // point, or imperatively by the host through the ref).
@@ -565,6 +610,7 @@ function ChartPane({
       )}
       {showTfBar && (
         <ChartTfBar
+          rootRef={tfBarRef}
           tf={isBreadth ? breadthTf : tf}
           visibleTfs={responsiveTfs}
           onTf={handleTf}
@@ -583,7 +629,7 @@ function ChartPane({
           styles={styles}
         >
           {!compact && !mini && (
-            <ChartMetaRow items={metaItems} abbrev={headerFit.infoAbbrev} styles={styles} />
+            <ChartMetaRow items={metaItems} abbrev={infoAbbrev} styles={styles} />
           )}
           <div className={styles.tfBarRight}>
             {/* Breadth-only Line/Candles quick-toggle. Flips JUST the breadth view
