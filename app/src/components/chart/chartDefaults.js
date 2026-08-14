@@ -186,6 +186,15 @@ export const CHART_DEFAULTS = {
   },
   countdown: false,
   showPatterns: false,
+  // Right-axis last-value labels. `showPriceLabels` = the boxed last-price tag on
+  // the main series (on by default — matches prior behavior). `showMaLabels` = a
+  // colored last-value chip per moving average (opt-in, off by default).
+  showPriceLabels: true,
+  showMaLabels: false,
+  // Dark-pool print bars overlaid on the chart (the Dark Pool page look, brought
+  // to any chart). OFF by default — opt-in, paid-gated. Bar + label colors are
+  // 8-digit hex so the color menu's opacity slider is stored inline.
+  darkPool: { enabled: false, barColor: '#c9a84ccc', labelColor: '#c9a84c' },
   // The three UCT signature overlays (dark-pool price levels, GEX walls, options
   // flow signals). All OFF by default — they are opt-in, so an existing user's
   // chart is unchanged until they turn one on.
@@ -434,6 +443,9 @@ export function mergeChartSettings(userSettings) {
     },
     countdown: parsed.countdown ?? CHART_DEFAULTS.countdown,
     showPatterns: parsed.showPatterns ?? CHART_DEFAULTS.showPatterns,
+    showPriceLabels: parsed.showPriceLabels ?? CHART_DEFAULTS.showPriceLabels,
+    showMaLabels: parsed.showMaLabels ?? CHART_DEFAULTS.showMaLabels,
+    darkPool: { ...CHART_DEFAULTS.darkPool, ...(parsed.darkPool || {}) },
     signature: { ...CHART_DEFAULTS.signature, ...(parsed.signature || {}) },
     // ⭐ ALWAYS 2 — the read heals, so what comes OUT is always the current
     // version whatever went in. `parsed.settingsVersion` is read once, above the
