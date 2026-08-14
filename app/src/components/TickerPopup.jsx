@@ -220,18 +220,6 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                   Desk
                 </button>
               </div>
-              {darkPool && view === 'chart' && (
-                <button
-                  className={`${styles.modalModeBtn} ${showDarkPool ? styles.modalModeBtnActive : ''}`}
-                  onClick={() => setShowDarkPool(v => !v)}
-                  title={showDarkPool ? 'Hide dark-pool prints on the chart' : 'Show dark-pool prints on the chart'}
-                  aria-pressed={showDarkPool}
-                  style={{ marginLeft: 8, display: 'inline-flex', alignItems: 'center', gap: 5, color: showDarkPool ? '#e6cd8a' : undefined }}
-                >
-                  <UIcon name="chart" size={14} gold={showDarkPool} />
-                  Dark Pools
-                </button>
-              )}
               {/* The timeframe row used to live here. ChartPane owns it now — it
                   renders the same bar /charts does, honouring the user's own
                   favourites, so a second row here would duplicate it. */}
@@ -251,6 +239,33 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                     tf={TAB_TO_TF[tab]}
                     onTfChange={next => setTab(TF_TO_TAB[next] || tab)}
                     stored={null}
+                    slots={darkPool ? {
+                      // Gold-pill "Dark Pools" toggle in the TF-bar right slot —
+                      // matches the OptionsFlow chart chrome (top-right, same style).
+                      tfBarRight: (
+                        <button
+                          onClick={() => setShowDarkPool(v => !v)}
+                          title={showDarkPool ? 'Hide dark-pool prints on the chart' : 'Show dark-pool prints on the chart'}
+                          aria-pressed={showDarkPool}
+                          style={{
+                            padding: '2px 8px', borderRadius: 3,
+                            border: '1px solid ' + (showDarkPool ? '#c9a84c' : '#ffffff30'),
+                            background: showDarkPool ? '#c9a84c22' : 'transparent',
+                            color: showDarkPool ? '#c9a84c' : '#8a8a90',
+                            fontSize: 9, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                            display: 'flex', alignItems: 'center', gap: 4,
+                          }}
+                        >
+                          <span style={{
+                            width: 6, height: 6, borderRadius: '50%',
+                            background: showDarkPool ? '#c9a84c' : 'transparent',
+                            border: '1px solid ' + (showDarkPool ? '#c9a84c' : '#8a8a90'),
+                            display: 'inline-block',
+                          }} />
+                          Dark Pools
+                        </button>
+                      ),
+                    } : undefined}
                     stockChartProps={{
                       height: 'min(650px, 70vh)',
                       markers,
