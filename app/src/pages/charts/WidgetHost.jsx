@@ -107,7 +107,16 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // current theme. Skipped under Sunrise (its own [data-charts-theme] palette owns the
   // look) and until prefs load (null → the live fallback holds for that first tick).
   const placedTheme = usePlacedTheme(active.opts?.placedTheme)
-  const frozenTheme = (themeFollow && chartsTheme !== 'sunrise' && placedTheme) ? placedTheme : null
+  // Provided to the whole widget subtree ALWAYS — even once the widget is customized —
+  // so surfaces that still resolve from the app theme (e.g. the picker's own chrome,
+  // reset handlers) keep using the PLACEMENT theme rather than falling back to the live
+  // one. (Only the chrome-token CLASS below is gated on themeFollow.)
+  const ctxTheme = (chartsTheme !== 'sunrise' && placedTheme) ? placedTheme : null
+  // The .widgetFrozenLight chrome-token class is only for an UNCUSTOMIZED light-placed
+  // widget; a customized widget carries its own canvas (opts.settings → widgetCanvasById
+  // for the chrome + --wl-bg for the body).
+  const frozenTheme = ctxTheme   // (name kept for the render below)
+  const frozenLightOn = themeFollow && ctxTheme === 'light'
   // Per-widget chrome wins (each widget owns its settings now); fall back to the
   // per-type global default for a widget that hasn't diverged.
   const chrome = widgetCanvasById?.[widget.id] || widgetCanvasByType?.[active.type] || null
@@ -208,9 +217,9 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
     <PlacedThemeContext.Provider value={frozenTheme}>
       <div
         className={`${styles.widget}${merged ? ' ' + styles.widgetMerged : ''}${
-          frozenTheme === 'light'
-            ? ' ' + styles.widgetFrozenLight            /* placed on light → force light regardless of app theme */
-            : (themeFollow && !frozenTheme ? ' ' + styles.widgetThemeFollow : '')  /* dark placement / loading: workspace dark default (widgetThemeFollow only as the live fallback) */
+          frozenLightOn
+            ? ' ' + styles.widgetFrozenLight            /* UNCUSTOMIZED light placement → force light chrome regardless of app theme */
+            : (themeFollow && !ctxTheme ? ' ' + styles.widgetThemeFollow : '')  /* loading/sunrise: live fallback */
         }`}
         style={chromeStyle}
       >
