@@ -3,6 +3,7 @@ import { useState, useEffect, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import UIcon from './ui/UIcon'
+import { useDarkPoolBars } from './chart/useDarkPoolBars'
 import { setVoicePageHint } from '../context/VoiceContext'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
@@ -27,7 +28,7 @@ const OwnershipPanel = lazy(() => import('./fundamentals/OwnershipPanel'))
 const TAB_TO_TF = { '1min': '1', '5min': '5', '15min': '15', '30min': '30', '1hr': '60', 'Daily': 'D', 'Weekly': 'W', 'Monthly': 'M' }
 const TF_TO_TAB = Object.fromEntries(Object.entries(TAB_TO_TF).map(([k, v]) => [v, k]))
 
-export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null, anchorDate = null, open: openProp, onClose }) {
+export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null, anchorDate = null, darkPool = false, open: openProp, onClose }) {
   // Controlled mode (open/onClose provided): no trigger element renders and the
   // parent owns open state — used for delegated $TICKER-chip clicks in The Floor,
   // where chips are sanitized static HTML, not React children. Uncontrolled mode
@@ -45,6 +46,16 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
   useEffect(() => { if (modalOpen) setAnchored(true) }, [modalOpen])
   const [flagToast, setFlagToast] = useState(null)
   const [compareSymbol, setCompareSymbol] = useState('')
+
+  // Dark-pool overlay toggle (only meaningful when `darkPool` is passed, e.g.
+  // the Live Flow chart popup). Default ON, persisted so the choice sticks.
+  const [showDarkPool, setShowDarkPool] = useState(() => {
+    try { return localStorage.getItem('uct_liveflow_show_darkpool') !== '0' } catch { return true }
+  })
+  useEffect(() => {
+    try { localStorage.setItem('uct_liveflow_show_darkpool', showDarkPool ? '1' : '0') } catch {}
+  }, [showDarkPool])
+  const darkPoolBars = useDarkPoolBars(sym, darkPool && showDarkPool && view === 'chart')
 
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const { getTag } = useTickerTags()
@@ -209,6 +220,18 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                   Desk
                 </button>
               </div>
+              {darkPool && view === 'chart' && (
+                <button
+                  className={`${styles.modalModeBtn} ${showDarkPool ? styles.modalModeBtnActive : ''}`}
+                  onClick={() => setShowDarkPool(v => !v)}
+                  title={showDarkPool ? 'Hide dark-pool prints on the chart' : 'Show dark-pool prints on the chart'}
+                  aria-pressed={showDarkPool}
+                  style={{ marginLeft: 8, display: 'inline-flex', alignItems: 'center', gap: 5, color: showDarkPool ? '#e6cd8a' : undefined }}
+                >
+                  <UIcon name="chart" size={14} gold={showDarkPool} />
+                  Dark Pools
+                </button>
+              )}
               {/* The timeframe row used to live here. ChartPane owns it now — it
                   renders the same bar /charts does, honouring the user's own
                   favourites, so a second row here would duplicate it. */}
@@ -232,6 +255,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                       height: 'min(650px, 70vh)',
                       markers,
                       priceLines,
+                      darkPoolBars,
                       compareSymbol: compareSymbol || null,
                       onCompareChange: setCompareSymbol,
                       ...(anchorDate && anchored ? {
