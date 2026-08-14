@@ -9,7 +9,7 @@ import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import UIcon from '../../../components/ui/UIcon'
 import NewsSettingsPanel from './NewsSettingsPanel'
-import { mergeBasicWidgetSettings, basicWidgetStyleVars, basicDefaultsForTheme } from './basicWidgetSettings'
+import { mergeBasicWidgetSettings, basicWidgetStyleVars, basicDefaultsForTheme, isLegacyBasicLightDefault } from './basicWidgetSettings'
 import styles from './AiSearchWidget.module.css'
 
 const AIS_SETTINGS_KEY = 'aisearch_settings'
@@ -273,7 +273,13 @@ export default function AiSearchWidget({
   // FOR THE CURRENT APP THEME (light → white canvas + dark text). ──
   const { prefs, setPref } = usePreferences()
   const aisSettings = useMemo(
-    () => mergeBasicWidgetSettings(parsePref(prefs?.[AIS_SETTINGS_KEY], null) ?? basicDefaultsForTheme(prefs?.theme)),
+    () => {
+      // Ignore the stale legacy white/black auto-default so the widget follows the
+      // app theme (dark on OLED) like the sibling widgets; genuine picks are kept.
+      const saved = parsePref(prefs?.[AIS_SETTINGS_KEY], null)
+      const eff = isLegacyBasicLightDefault(saved) ? null : saved
+      return mergeBasicWidgetSettings(eff ?? basicDefaultsForTheme(prefs?.theme))
+    },
     [prefs],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
