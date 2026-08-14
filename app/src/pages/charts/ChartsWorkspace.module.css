@@ -1213,6 +1213,11 @@
   container-type: inline-size;
 }
 
+/* While a custom resize is active, kill the 200ms item transition on EVERY widget
+   so the active widget tracks the cursor 1:1 and neighbours shrink crisply (RGL
+   only disables this for its own drags via .resizing; our resize sets this class). */
+:global(.charts-resizing) > :global(.react-grid-item) { transition: none !important; }
+
 /* react-grid-layout uses .react-grid-item — give the placeholder a visible style */
 :global(.react-grid-placeholder) {
   background: var(--accent, #c9a84c) !important;
@@ -1236,6 +1241,37 @@
 :global(.react-grid-item) > :global(.react-resizable-handle) {
   width: 16px !important;
   height: 16px !important;
+}
+
+/* ── Custom resize handles (main board) — replace RGL's built-in resize so a
+      neighbour can shrink live. These reproduce RGL's look: a translucent gold
+      placeholder while resizing + gold "L" marks in all four corners. ── */
+.rzHandle { position: absolute; z-index: 6; touch-action: none; }
+
+/* Gold "L" corner grab marks (mirrors the old .react-resizable-handle::after). */
+.rzCorner::after {
+  content: '';
+  position: absolute;
+  width: 6px; height: 6px;
+  border: 0 solid rgba(201, 168, 76, 0.55);
+  transition: border-color 0.12s ease;
+}
+:global(.react-grid-item):hover .rzCorner::after { border-color: rgba(201, 168, 76, 0.95); }
+.rz_nw::after { top: 3px;    left: 3px;    border-top-width: 2px;    border-left-width: 2px; }
+.rz_ne::after { top: 3px;    right: 3px;   border-top-width: 2px;    border-right-width: 2px; }
+.rz_sw::after { bottom: 3px; left: 3px;    border-bottom-width: 2px; border-left-width: 2px; }
+.rz_se::after { bottom: 3px; right: 3px;   border-bottom-width: 2px; border-right-width: 2px; }
+
+/* Translucent gold highlight shown over the widget being resized (matches the
+   old .react-grid-placeholder aesthetic). */
+.rzPlaceholder {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: var(--accent, #c9a84c);
+  opacity: 0.15;
+  border-radius: 4px;
+  pointer-events: none;
 }
 
 /* ── Mobile workspace (phone): tabbed widget stack ── */

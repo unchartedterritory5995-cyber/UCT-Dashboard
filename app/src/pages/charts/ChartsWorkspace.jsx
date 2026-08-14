@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import 'react-grid-layout/css/styles.css'
 import usePreferences, { parsePref } from '../../hooks/usePreferences'
@@ -258,20 +258,184 @@ function parseLayout(raw) {
   return null
 }
 
-// Keep every widget within the viewport-locked grid: no widget's bottom (y+h)
-// may exceed FIXED_ROWS, or it hangs off the bottom of the screen (the body is
-// overflow:hidden, so the overhang just vanishes — the fundamentals-widget bug).
-// Shrink h to fit the space below y; y is first clamped so at least minH fits.
-// Applied on load, add, template-open, and every layout change before persist.
+// Keep every widget FULLY within the viewport-locked grid — no widget may hang
+// off any edge. The body is overflow:hidden, so an overhang just vanishes (the
+// fundamentals-widget bug), and a widget shoved below FIXED_ROWS by a neighbor
+// disappears off the bottom. This clamps BOTH axes: x/w to the column count and
+// y/h to the row count, shrinking to fit after first clamping the origin so at
+// least the min size survives. Applied on load, add, template-open, seam-resize,
+// and every RGL layout change before persist — the single guarantee that nothing
+// leaves the visible canvas.
 function clampWidgetsToRows(widgets) {
   return widgets.map(w => {
-    const minH = WIDGET_DEFAULTS[w.type]?.minH || 3
+    const def = WIDGET_DEFAULTS[w.type] || {}
+    const minH = def.minH || 3
+    const minW = def.minW || 2
+    // Horizontal (columns).
+    const x = Math.max(0, Math.min(w.x || 0, GRID_COLS - minW))
+    let cw = Math.max(minW, Math.min(w.w || minW, GRID_COLS))
+    if (x + cw > GRID_COLS) cw = GRID_COLS - x  // x ≤ GRID_COLS-minW ⇒ cw ≥ minW
+    // Vertical (rows).
     const y = Math.max(0, Math.min(w.y || 0, FIXED_ROWS - minH))
     let h = Math.max(minH, Math.min(w.h || minH, FIXED_ROWS))
     if (y + h > FIXED_ROWS) h = FIXED_ROWS - y  // y ≤ FIXED_ROWS-minH ⇒ h ≥ minH
-    return { ...w, y, h }
+    return { ...w, x, y, w: cw, h }
   })
 }
+
+// tallest / widest widget in a list — used to pick which one yields space when a
+// new widget can't find a free slot (make-room strategies below).
+const tallestOf = (arr) => (arr || []).reduce((a, b) => (!a || b.h > a.h ? b : a), null)
+const widestOf  = (arr) => (arr || []).reduce((a, b) => (!a || b.w > a.w ? b : a), null)
+
+// Reserve a full-width strip across the BOTTOM of the grid for a newcomer of
+// height `needH`, shrinking every widget that crosses into the strip up so its
+// bottom rests at the cut line. This is the "add a fundamentals widget when the
+// grid is full" case: instead of the newcomer landing off the bottom, the chart
+// (and anything else reaching the bottom) shrinks up to open a full-width slot.
+// Returns { widgets, place } or null when it can't be done cleanly (a widget
+// would fall below its min, or one already sits inside the strip) — caller then
+// falls back to a single-widget split.
+function reserveBottomStrip(widgets, needH, cols) {
+  const stripH = Math.max(1, Math.min(needH, FIXED_ROWS - 1))
+  const cutY = FIXED_ROWS - stripH
+  const adjusted = []
+  for (const w of widgets) {
+    const minH = WIDGET_DEFAULTS[w.type]?.minH || 3
+    if ((w.y || 0) >= cutY) return null            // already occupies the strip
+    let h = w.h || minH
+    if ((w.y || 0) + h > cutY) h = cutY - (w.y || 0)
+    if (h < minH) return null                       // can't shrink this one enough
+    adjusted.push({ ...w, h })
+  }
+  return { widgets: adjusted, place: { x: 0, y: cutY, w: cols, h: stripH } }
+}
+
+// ── Resize "yield": shrink a neighbour instead of blocking / ejecting it ──────
+// When the user drags one widget's edge into a neighbour, the neighbour gives up
+// exactly the space the active widget grew into — its FAR edge stays pinned (so it
+// can never be pushed off-canvas), only the touched near-edge moves — down to the
+// neighbour's own min size. Once the neighbour bottoms out at its min, the active
+// widget's edge is pulled back so the resize STOPS there instead of overlapping.
+
+// Resolution is DIRECTIONAL — it acts along the axis the user is dragging (the
+// handle), never the "axis of least overlap". That distinction matters: a purely
+// VERTICAL resize must not shrink a side-neighbour's width or drag the active
+// sideways just because a widget sits beside it (the bug where a chart beside the
+// watchlist blocked the watchlist's top-edge drag). `axis` is 'h' | 'v' derived
+// from the handle; corners pass whichever the caller resolves first.
+function _resizeAxis(handle) {
+  const h = handle.includes('e') || handle.includes('w')
+  const v = handle.includes('n') || handle.includes('s')
+  return { h, v }
+}
+
+// Shrink neighbour B away from active widget A along the RESIZE axis. B's far edge
+// stays pinned (never pushed off-canvas); only the touched near edge moves, down to
+// B's own min. No overlap on the resize axis ⇒ B is untouched.
+function shrinkAwayFromActive(B, A, handle) {
+  const ox = Math.min(A.x + A.w, B.x + B.w) - Math.max(A.x, B.x)
+  const oy = Math.min(A.y + A.h, B.y + B.h) - Math.max(A.y, B.y)
+  if (ox <= 0 || oy <= 0) return B  // no overlap → untouched
+  const def = WIDGET_DEFAULTS[B.type] || {}
+  const minW = def.minW || 2
+  const minH = def.minH || 3
+  const { h: horiz, v: vert } = _resizeAxis(handle)
+  const useH = horiz && (!vert || ox <= oy)   // corner → axis of least overlap
+  if (useH) {
+    // B is only in a HORIZONTAL resize's path if it substantially shares ROWS with
+    // A (≥ half the smaller height). A widget merely beside A with a sliver of
+    // vertical overlap must not be dragged into the resize.
+    if (oy < 0.5 * Math.min(A.h, B.h)) return B
+    if ((B.x + B.w / 2) >= (A.x + A.w / 2)) {   // B is to the RIGHT of A
+      const right = B.x + B.w
+      const nx = Math.min(A.x + A.w, right - minW)
+      return { ...B, x: nx, w: right - nx }
+    }
+    return { ...B, w: Math.max(minW, A.x - B.x) }  // B is to the LEFT of A
+  }
+  if (vert) {
+    // B is only in a VERTICAL resize's path if it substantially shares COLUMNS with
+    // A (≥ half the smaller width) — the fix for a chart beside the watchlist
+    // blocking the watchlist's top-edge drag on a 1-column artifact overlap.
+    if (ox < 0.5 * Math.min(A.w, B.w)) return B
+    if ((B.y + B.h / 2) >= (A.y + A.h / 2)) {    // B is BELOW A
+      const bottom = B.y + B.h
+      const ny = Math.min(A.y + A.h, bottom - minH)
+      return { ...B, y: ny, h: bottom - ny }
+    }
+    return { ...B, h: Math.max(minH, A.y - B.y) } // B is ABOVE A
+  }
+  return B
+}
+
+// After neighbours have shrunk as far as they can, pull the ACTIVE widget's edge
+// back out of any neighbour it STILL overlaps (that neighbour hit its min), along
+// the resize axis, so the resize stops flush instead of overlapping.
+function clampActiveToNeighbors(widgets, activeId, handle) {
+  const idx = widgets.findIndex(w => w.id === activeId)
+  if (idx < 0) return widgets
+  const A = { ...widgets[idx] }
+  const aMinW = WIDGET_DEFAULTS[A.type]?.minW || 2
+  const aMinH = WIDGET_DEFAULTS[A.type]?.minH || 3
+  const { h: horiz, v: vert } = _resizeAxis(handle)
+  for (const B of widgets) {
+    if (B.id === activeId) continue
+    const ox = Math.min(A.x + A.w, B.x + B.w) - Math.max(A.x, B.x)
+    const oy = Math.min(A.y + A.h, B.y + B.h) - Math.max(A.y, B.y)
+    if (ox <= 0 || oy <= 0) continue
+    const useH = horiz && (!vert || ox <= oy)
+    if (useH) {
+      if (oy < 0.5 * Math.min(A.h, B.h)) continue   // beside, not stacked horizontally
+      if ((A.x + A.w / 2) <= (B.x + B.w / 2)) {  // A grew RIGHT into B
+        A.w = Math.max(aMinW, B.x - A.x)
+      } else {                                    // A grew LEFT into B
+        const aRight = A.x + A.w
+        A.x = B.x + B.w
+        A.w = Math.max(aMinW, aRight - A.x)
+      }
+    } else if (vert) {
+      if (ox < 0.5 * Math.min(A.w, B.w)) continue   // beside, not stacked vertically
+      if ((A.y + A.h / 2) <= (B.y + B.h / 2)) {   // A grew DOWN into B
+        A.h = Math.max(aMinH, B.y - A.y)
+      } else {                                     // A grew UP into B
+        const aBot = A.y + A.h
+        A.y = B.y + B.h
+        A.h = Math.max(aMinH, aBot - A.y)
+      }
+    }
+  }
+  return widgets.map(w => (w.id === activeId ? A : w))
+}
+
+// Full resize resolution: apply the active item's new geometry, shrink neighbours
+// to yield the space along the resize axis, stop the active at any neighbour that
+// hit its min, and clamp to the viewport. `active` is {i,x,y,w,h}; `handle` gives
+// the resize direction.
+function resolveResize(widgets, active, handle) {
+  const withActive = widgets.map(w =>
+    (w.id === active.i ? { ...w, x: active.x, y: active.y, w: active.w, h: active.h } : w))
+  const A = withActive.find(w => w.id === active.i)
+  if (!A) return clampWidgetsToRows(withActive)
+  const shrunk = withActive.map(B => (B.id === active.i ? B : shrinkAwayFromActive(B, A, handle)))
+  return clampWidgetsToRows(clampActiveToNeighbors(shrunk, active.i, handle))
+}
+
+// Custom resize-handle geometry — 4 edges (thin strips) + 4 corners (small
+// squares), positioned against each widget's RGL-item box. `dir` uses n/s/e/w
+// letters that applyResize tests with String.includes.
+const _RH = 8   // edge thickness (px)
+const _RC = 14  // corner size (px)
+const CUSTOM_RESIZE_HANDLES = [
+  { dir: 'n',  cursor: 'ns-resize',   style: { top: 0, left: _RC, right: _RC, height: _RH } },
+  { dir: 's',  cursor: 'ns-resize',   style: { bottom: 0, left: _RC, right: _RC, height: _RH } },
+  { dir: 'e',  cursor: 'ew-resize',   style: { top: _RC, bottom: _RC, right: 0, width: _RH } },
+  { dir: 'w',  cursor: 'ew-resize',   style: { top: _RC, bottom: _RC, left: 0, width: _RH } },
+  { dir: 'nw', cursor: 'nwse-resize', corner: true, style: { top: 0, left: 0, width: _RC, height: _RC } },
+  { dir: 'ne', cursor: 'nesw-resize', corner: true, style: { top: 0, right: 0, width: _RC, height: _RC } },
+  { dir: 'sw', cursor: 'nesw-resize', corner: true, style: { bottom: 0, left: 0, width: _RC, height: _RC } },
+  { dir: 'se', cursor: 'nwse-resize', corner: true, style: { bottom: 0, right: 0, width: _RC, height: _RC } },
+]
 
 // The watchlist column config (added columns / widths / order) lives in
 // localStorage (WL_COLS_LS in Watchlists.jsx), not a pref — read it for
@@ -341,6 +505,7 @@ export default function ChartsWorkspace() {
   // pixels to whole grid columns. Merged has no body padding, so the grid inner
   // width IS the body width; unmerged we still track it (harmless, unused there).
   const [gridWidth, setGridWidth] = useState(0)
+  const [resizingId, setResizingId] = useState(null)  // widget being custom-resized → shows the gold placeholder
 
   // The viewport-lock row-height math, extracted so a popped-out board can run
   // it against ITS OWN window. Sharing the main tab's rowHeight would size a
@@ -608,6 +773,9 @@ export default function ChartsWorkspace() {
 
   // react-grid-layout fires onLayoutChange with the new x/y/w/h array.
   // Merge it back into our widget objects.
+  // Drag-move + programmatic changes. RGL never reports overlaps here (drag-move is
+  // preventCollision-guarded, resize is our own overlay), so a straight merge +
+  // bounds-clamp is all this needs.
   const handleLayoutChange = useCallback((newGridLayout) => {
     setLayout(prev => {
       const byId = Object.fromEntries(newGridLayout.map(l => [l.i, l]))
@@ -624,6 +792,161 @@ export default function ChartsWorkspace() {
       return next
     })
   }, [scheduleSave])
+
+  // ── Custom resize (replaces RGL's) ────────────────────────────────────────
+  // RGL cannot shrink a neighbour during a live resize — it only blocks or
+  // push-moves, and it ignores layout-prop changes while a drag is active
+  // (getDerivedStateFromProps returns null). So we own the resize: our handles
+  // drive layout state directly, resolveResize shrinks the neighbour we grow into
+  // (far edge pinned → never off-canvas) and stops the active widget once the
+  // neighbour hits its min. Because there's no RGL activeDrag, every tick renders.
+  const resizeRef = useRef(null)
+  // Turn a pointer position into the widget's clamped target geometry (grid units).
+  const resizeGeomAt = useCallback((st, clientX, clientY) => {
+    const dCols = Math.round((clientX - st.startX) / st.unitW)
+    const dRows = Math.round((clientY - st.startY) / st.unitH)
+    let { x, y, w, h } = st.geom
+    const H = st.handle
+    if (H.includes('e')) w = st.geom.w + dCols
+    if (H.includes('s')) h = st.geom.h + dRows
+    if (H.includes('w')) { x = st.geom.x + dCols; w = st.geom.w - dCols }
+    if (H.includes('n')) { y = st.geom.y + dRows; h = st.geom.h - dRows }
+    const def = WIDGET_DEFAULTS[st.type] || {}
+    const minW = def.minW || 2, minH = def.minH || 3
+    if (w < minW) { if (H.includes('w')) x -= (minW - w); w = minW }   // keep anchored edge fixed
+    if (h < minH) { if (H.includes('n')) y -= (minH - h); h = minH }
+    if (x < 0) { w += x; x = 0 }
+    if (y < 0) { h += y; y = 0 }
+    if (x + w > GRID_COLS) w = GRID_COLS - x
+    if (y + h > FIXED_ROWS) h = FIXED_ROWS - y
+    return { i: st.id, x, y, w, h }
+  }, [])
+  // PIXEL-SMOOTH active widget: write the exact mouse-following box straight to the
+  // widget's DOM element (no React, no grid-snap) so its corner tracks the cursor
+  // 1:1 with zero lag — mirrors how react-grid-layout moved the real element during
+  // a resize. Grid-snap only decides where NEIGHBOURS yield + where it lands on drop.
+  const applyActivePx = useCallback((st) => {
+    const p = st.pixel, el = st.el
+    if (!p || !el) return
+    // transition:none is ESSENTIAL — .react-grid-item ships a `transition: all
+    // 200ms`, so without this every write animates over 200ms and the widget
+    // visibly lags the cursor. (RGL kills it via a `.resizing` class during its
+    // own drags; ours isn't RGL's, so we kill it ourselves — also via the
+    // .charts-resizing container class for the neighbours.)
+    el.style.transition = 'none'
+    el.style.left = `${p.left}px`; el.style.top = `${p.top}px`
+    el.style.width = `${p.width}px`; el.style.height = `${p.height}px`
+    el.style.zIndex = '7'
+  }, [])
+  // Re-assert the pixel box AFTER any React re-render during the resize (a neighbour
+  // shrink re-renders the grid, and RGL would repaint the active widget at its
+  // snapped size for one frame → a visible stutter). Runs before paint, so no flicker.
+  useLayoutEffect(() => { const st = resizeRef.current; if (st) applyActivePx(st) })
+  const startResize = useCallback((e, widget, handle) => {
+    e.preventDefault(); e.stopPropagation()
+    const el = e.currentTarget.parentElement
+    const op = el?.offsetParent
+    if (!el || !op || !widget.w || !widget.h) return
+    const gap = MARGIN_Y
+    const unitW = (el.offsetWidth + gap) / widget.w   // column pitch (colWidth + gap)
+    const unitH = (el.offsetHeight + gap) / widget.h  // row pitch
+    const aL = el.offsetLeft, aT = el.offsetTop
+    // Full-grid pixel bounds derived from the pitch — NOT op.clientHeight, which is
+    // RGL's content-fit container height (a short widget → short container → the
+    // pixel clamp would stop the bottom mid-canvas). originL/T is grid cell (0,0).
+    const originL = aL - widget.x * unitW
+    const originT = aT - widget.y * unitH
+    const def = WIDGET_DEFAULTS[widget.type] || {}
+    // The layout at resize START — the STABLE base every tick resolves against, so
+    // neighbour shrink never compounds and the resolve is deterministic.
+    const baseWidgets = layoutRef.current?.widgets || []
+    const st = {
+      id: widget.id, type: widget.type, handle, baseWidgets,
+      startX: e.clientX, startY: e.clientY,
+      geom: { x: widget.x, y: widget.y, w: widget.w, h: widget.h },
+      el, unitW, unitH,
+      // Pixel-follow is bounded ONLY by the canvas (+ the widget's own min) so it
+      // NEVER gets stuck against a neighbour mid-drag — it tracks the mouse the whole
+      // way. The neighbour still shrinks live, and the RELEASE (resolveResize) snaps
+      // the widget flush beside a genuine neighbour (or free of a side-neighbour).
+      minL: originL, minT: originT,
+      maxR: originL + GRID_COLS * unitW - gap,
+      maxB: originT + FIXED_ROWS * unitH - gap,
+      aL, aT, aW: el.offsetWidth, aH: el.offsetHeight,
+      minWpx: (def.minW || 2) * unitW - gap,
+      minHpx: (def.minH || 3) * unitH - gap,
+      pixel: null, snapKey: '', resolved: null, raf: 0,
+    }
+    const onMove = (ev) => {
+      if (resizeRef.current !== st) return
+      const dx = ev.clientX - st.startX, dy = ev.clientY - st.startY
+      // 1) Pixel box — exact mouse follow, written straight to the DOM every event.
+      let left = st.aL, top = st.aT, width = st.aW, height = st.aH
+      if (handle.includes('e')) width = st.aW + dx
+      if (handle.includes('s')) height = st.aH + dy
+      if (handle.includes('w')) { left = st.aL + dx; width = st.aW - dx }
+      if (handle.includes('n')) { top = st.aT + dy; height = st.aH - dy }
+      if (width < st.minWpx) { if (handle.includes('w')) left -= (st.minWpx - width); width = st.minWpx }
+      if (height < st.minHpx) { if (handle.includes('n')) top -= (st.minHpx - height); height = st.minHpx }
+      // Bound to the CANVAS only (never a neighbour) so the drag can't get stuck.
+      if (left < st.minL) { width += left - st.minL; left = st.minL }
+      if (top < st.minT) { height += top - st.minT; top = st.minT }
+      if (left + width > st.maxR) width = st.maxR - left
+      if (top + height > st.maxB) height = st.maxB - top
+      st.pixel = { left, top, width, height }
+      applyActivePx(st)
+      // 2) Snapped grid target — only re-render (neighbour shrink) on cell crossing,
+      //    resolved against the STABLE base so shrink never compounds.
+      const g = resizeGeomAt(st, ev.clientX, ev.clientY)
+      const key = `${g.x},${g.y},${g.w},${g.h}`
+      if (key !== st.snapKey) {
+        st.snapKey = key
+        // Keep the ACTIVE widget's React geom FROZEN at its start value during the
+        // drag — only the neighbours update live. Its box is owned entirely by the
+        // pixel-follow (applyActivePx + the useLayoutEffect), so letting RGL repaint
+        // it at interim snapped sizes just churns its contents (the chart's bottom
+        // jumping mid-corner-drag). It commits to its final geom on release.
+        const full = resolveResize(st.baseWidgets, g, handle)
+        st.resolved = full.map(w => (w.id === st.id
+          ? { ...w, x: st.geom.x, y: st.geom.y, w: st.geom.w, h: st.geom.h } : w))
+        if (!st.raf) st.raf = requestAnimationFrame(() => {
+          st.raf = 0
+          if (resizeRef.current === st && st.resolved) {
+            setLayout(prev => ({ ...prev, widgets: st.resolved }))
+          }
+        })
+      }
+    }
+    const onUp = (ev) => {
+      if (resizeRef.current !== st) return
+      if (st.raf) { cancelAnimationFrame(st.raf); st.raf = 0 }
+      const g = resizeGeomAt(st, ev.clientX, ev.clientY)
+      const resolved = resolveResize(st.baseWidgets, g, handle)
+      const rg = resolved.find(w => w.id === st.id) || g
+      // Pin the element to the RESOLVED (flush-against-neighbour) pixel box so it
+      // matches the committed grid geom exactly — do NOT clear width/left (that
+      // collapses the item to CSS `auto` width, and React skips the no-op re-render
+      // so it stays stuck narrow until an unrelated repaint).
+      el.style.left = `${st.minL + rg.x * st.unitW}px`
+      el.style.top = `${st.minT + rg.y * st.unitH}px`
+      el.style.width = `${rg.w * st.unitW - MARGIN_Y}px`
+      el.style.height = `${rg.h * st.unitH - MARGIN_Y}px`
+      el.style.zIndex = ''; el.style.transition = ''
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      resizeRef.current = null
+      setResizingId(null)
+      setLayout(prev => {
+        const next = { ...prev, widgets: resolved }
+        if (hydratedRef.current) scheduleSave(next)
+        return next
+      })
+    }
+    resizeRef.current = st
+    setResizingId(widget.id)
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }, [resizeGeomAt, applyActivePx, scheduleSave])
 
   const handleRemoveWidget = useCallback((id) => {
     setLayout(prev => {
@@ -715,14 +1038,29 @@ export default function ChartsWorkspace() {
       // widgets below the left column and overflows. findPlacement shrinks the
       // widget toward its min size to squeeze into a smaller gap rather than
       // falling off-screen; it bottom-packs only when the grid is genuinely full.
-      const { x, y, w, h } = findPlacement(prev.widgets, defaults, COLS.lg, FIXED_ROWS)
+      const fit = findPlacement(prev.widgets, defaults, COLS.lg, FIXED_ROWS)
+      let widgets = prev.widgets
+      let place = fit
+      // Grid full → findPlacement returns y:Infinity (would land off the bottom).
+      // Make room instead: reserve a full-width bottom strip (shrinks the chart /
+      // whatever reaches the bottom UP so the newcomer sits below it, on-screen —
+      // the "add fundamentals under the chart" case). Fall back to shrinking a
+      // single widget (below-split of the tallest, then side-split of the widest).
+      if (!Number.isFinite(fit.y) || fit.y + fit.h > FIXED_ROWS) {
+        const needH = Math.max(defaults.minH || 3, Math.min(defaults.h, Math.floor(FIXED_ROWS / 2)))
+        const room = reserveBottomStrip(prev.widgets, needH, COLS.lg)
+          || splitToFit(prev.widgets, defaults, tallestOf(prev.widgets))
+          || splitToSide(prev.widgets, defaults, widestOf(prev.widgets))
+        if (room) { widgets = room.widgets; place = room.place }
+        else { place = { x: 0, y: 0, w: defaults.w, h: defaults.h } }  // last resort (clamped below)
+      }
       const newWidget = {
         id: `w-${type}-${Date.now()}`,
         type, color,
-        x, y, w, h,
+        x: place.x, y: place.y, w: place.w, h: place.h,
         opts: seedOpts && typeof seedOpts === 'object' ? { ...seedOpts } : {},
       }
-      const next = { ...prev, widgets: clampWidgetsToRows([...prev.widgets, newWidget]) }
+      const next = { ...prev, widgets: clampWidgetsToRows([...widgets, newWidget]) }
       scheduleSave(next)
       return next
     })
@@ -1195,7 +1533,7 @@ export default function ChartsWorkspace() {
     const widthProps = widthOverride > 0 ? { width: widthOverride } : {}
     return (
     <GridComp
-      className="layout"
+      className={`layout${resizingId ? ' charts-resizing' : ''}`}
       {...widthProps}
       layouts={{
         lg: widgets.map(w => {
@@ -1214,8 +1552,20 @@ export default function ChartsWorkspace() {
       onLayoutChange={h.onLayoutChange}
       draggableHandle=".charts-widget-drag-handle"
       isDraggable={!merged}
-      isResizable={!merged}
-      compactType="vertical"
+      /* RGL's own resize is OFF when we supply custom handles (main board) — see
+         the "Custom resize" comment on startResize for why. Popped-out boards
+         (no onStartResize) keep RGL's built-in resize. */
+      isResizable={!merged && !h.onStartResize}
+      /* Free placement (no vertical compaction): a widget stays exactly where the
+         user drops or sizes it. Under the old "vertical" compaction, shrinking a
+         widget from its top edge made it float back up to fill the space above —
+         it wouldn't stay on the bottom half where the user put it. */
+      compactType={null}
+      /* DRAG-move: preventCollision keeps a dragged widget from shoving a neighbour
+         off the fixed-row viewport (it just can't drop onto occupied space).
+         Resize yield (shrink the neighbour) is handled by our custom overlay, not
+         RGL. Make-room-on-ADD is handled in handleAddWidget (reserveBottomStrip). */
+      preventCollision={true}
       margin={[gridGap, gridGap]}
       resizeHandles={['nw', 'ne', 'sw', 'se']}
       /* Position grid items with top/left, NOT transform: translate().
@@ -1247,6 +1597,19 @@ export default function ChartsWorkspace() {
               onReplaceWidget={h.onReplaceWidget}
               onPopOut={h.onPopOut ? () => h.onPopOut(w.id) : undefined}
             />
+            {/* Custom resize handles (main board only) — drive layout state
+                directly so a neighbour shrinks live as you drag an edge into it.
+                8 handles: 4 edges + 4 corners (corners carry the gold "L" mark). */}
+            {!merged && h.onStartResize && CUSTOM_RESIZE_HANDLES.map(({ dir, style, cursor, corner }) => (
+              <div
+                key={dir}
+                onPointerDown={(e) => h.onStartResize(e, w, dir)}
+                className={corner ? `${styles.rzHandle} ${styles.rzCorner} ${styles['rz_' + dir]}` : styles.rzHandle}
+                style={{ ...style, cursor }}
+              />
+            ))}
+            {/* Gold placeholder highlight while THIS widget is being resized. */}
+            {resizingId === w.id && <div className={styles.rzPlaceholder} />}
           </div>
         )
       })}
@@ -1256,6 +1619,7 @@ export default function ChartsWorkspace() {
 
   const mainGridHandlers = {
     onLayoutChange: handleLayoutChange,
+    onStartResize: startResize,
     onRemove: handleRemoveWidget,
     onColorChange: handleColorChange,
     onOptsChange: handleOptsChange,
