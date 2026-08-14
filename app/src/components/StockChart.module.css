@@ -250,7 +250,6 @@
 :global([data-charts-theme='sunrise']) .legendVertical { background: rgba(255, 255, 255, 0.88); box-shadow: none; }
 :global([data-charts-theme='sunrise']) .vlHead { color: #16212e; font-weight: 700; }
 :global([data-charts-theme='sunrise']) .vlLabel,
-:global([data-charts-theme='sunrise']) .vlCell,
 :global([data-charts-theme='sunrise']) .vlFull { color: #3f4a57; font-weight: 600; }
 :global([data-charts-theme='sunrise']) .vlVal { color: #12202c; font-weight: 700; }
 
@@ -304,12 +303,14 @@
   font-weight: 500;
   white-space: nowrap;
 }
-/* Compact vertical-legend cell: a combined "O 979" unit (dim letter + the shared
-   bright .vlVal), packed two-up in the 2-col grid when a short pane forces it. */
-.vlCell {
-  color: #a8a290;
-  font-weight: 500;
-  white-space: nowrap;
+/* Compact vertical legend (short pane): shrink the font + tighten the rows so the
+   single-column OHLCV takes less height. Stays narrow — the MA/indicator rows are
+   dropped in the JSX rather than the legend going wider. */
+.legendCompact {
+  font-size: 10px;
+  column-gap: 6px;
+  row-gap: 0;
+  padding: 3px 5px;
 }
 .vlVal {
   text-align: right;

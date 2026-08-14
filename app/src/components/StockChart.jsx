@@ -11229,6 +11229,11 @@ export default function StockChart({
   const [hideRangeForLegend, setHideRangeForLegend] = useState(false)
   const hideRangeForLegendRef = useRef(false)
   hideRangeForLegendRef.current = hideRangeForLegend
+  // Both legend decisions key off the FULL legend's bottom (recorded whenever it's
+  // NOT compact), never the compact height. Compact drops the MA rows — a big,
+  // variable height change — so comparing the shrunken height against the boundary
+  // would flip-flop. Remembering the full extent makes the restore stable.
+  const lastFullBottomRef = useRef(0)
 
   // Pin two volume-pane overlays to the LIVE price/volume pane boundary as the user
   // drags the separator: the date-range bar (3M/6M/YTD/…) just ABOVE the boundary,
@@ -11272,13 +11277,16 @@ export default function StockChart({
           const leg = legendRef.current
           if (verticalLegend && leg) {
             const legBottom = leg.getBoundingClientRect().bottom - container.getBoundingClientRect().top
+            // Record the FULL extent only while not compact; use it for both decisions.
+            if (!compactLegendRef.current) lastFullBottomRef.current = legBottom
+            const fullBottom = lastFullBottomRef.current || legBottom
             const rbTop = h0 - 34   // the range bar occupies ~34px just above the boundary
             const curHide = hideRangeForLegendRef.current
-            if (!curHide && legBottom > rbTop) setHideRangeForLegend(true)
-            else if (curHide && legBottom < rbTop - 12) setHideRangeForLegend(false)
+            if (!curHide && fullBottom > rbTop) setHideRangeForLegend(true)
+            else if (curHide && fullBottom < rbTop - 12) setHideRangeForLegend(false)
             const curCompact = compactLegendRef.current
-            if (!curCompact && legBottom > h0 - 2) setCompactLegend(true)
-            else if (curCompact && legBottom < h0 - 46) setCompactLegend(false)
+            if (!curCompact && fullBottom > h0 - 2) setCompactLegend(true)
+            else if (curCompact && fullBottom < h0 - 10) setCompactLegend(false)
           }
         }
       } catch { /* pane API missing → CSS fallback */ }
@@ -12573,7 +12581,7 @@ export default function StockChart({
         return (
         <div
           ref={legendRef}
-          className={`${styles.legend}${legendStacked ? ' ' + styles.legendVertical : ''}${legendFlat ? ' ' + styles.legendFlat : ''}`}
+          className={`${styles.legend}${legendStacked ? ' ' + styles.legendVertical : ''}${legendFlat ? ' ' + styles.legendFlat : ''}${compactLegend && legendStacked ? ' ' + styles.legendCompact : ''}`}
           /* Drop below the index pane so the OHLCV legend never covers it; reserve
              the right price-axis width so a horizontal legend wraps before it (the
              vertical stack is narrow + single-file, so it never needs the reserve). */
@@ -12643,35 +12651,25 @@ export default function StockChart({
               <span className={styles.vlChange} style={{ color: legChgColor }}>
                 {legUp ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)
               </span>
-              {compactLegend ? (
-                // Compact (short pane): pack OHLC two-up as combined "O 979" cells in
-                // the 2-col grid, single-letter labels, Vol on its own full-width row —
-                // ~3 rows instead of ~5 so it stops spilling into the volume pane.
-                <>
-                  <span className={styles.vlCell} style={legBase}>O <span className={styles.vlVal} style={legBase}>{crosshairData.open?.toFixed(2)}</span></span>
-                  <span className={styles.vlCell} style={legBase}>H <span className={styles.vlVal} style={legBase}>{crosshairData.high?.toFixed(2)}</span></span>
-                  <span className={styles.vlCell} style={legBase}>L <span className={styles.vlVal} style={legBase}>{crosshairData.low?.toFixed(2)}</span></span>
-                  <span className={styles.vlCell} style={legBase}>C <span className={styles.vlVal} style={legBase}>{crosshairData.close?.toFixed(2)}</span></span>
-                  {crosshairData.volume != null && (
-                    <span className={styles.vlCell} style={{ ...legBase, gridColumn: '1 / -1' }}>Vol <span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></span>
-                  )}
-                </>
-              ) : (
-                <>
-                  <span className={styles.vlLabel} style={legBase}>Open</span><span className={styles.vlVal} style={legBase}>{crosshairData.open?.toFixed(2)}</span>
-                  <span className={styles.vlLabel} style={legBase}>High</span><span className={styles.vlVal} style={legBase}>{crosshairData.high?.toFixed(2)}</span>
-                  <span className={styles.vlLabel} style={legBase}>Low</span><span className={styles.vlVal} style={legBase}>{crosshairData.low?.toFixed(2)}</span>
-                  <span className={styles.vlLabel} style={legBase}>Close</span><span className={styles.vlVal} style={legBase}>{crosshairData.close?.toFixed(2)}</span>
-                  {crosshairData.volume != null && (
-                    <><span className={styles.vlLabel} style={legBase}>Vol</span><span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></>
-                  )}
-                </>
+              {/* OHLCV stays SINGLE-COLUMN (narrow) in every density — the compact
+                  mode saves height by dropping the MA/indicator rows + shrinking the
+                  font (see .legendCompact + the overlay/chip guards below), never by
+                  going two-up (which got too wide and ate the chart). */}
+              <span className={styles.vlLabel} style={legBase}>{compactLegend ? 'O' : 'Open'}</span><span className={styles.vlVal} style={legBase}>{crosshairData.open?.toFixed(2)}</span>
+              <span className={styles.vlLabel} style={legBase}>{compactLegend ? 'H' : 'High'}</span><span className={styles.vlVal} style={legBase}>{crosshairData.high?.toFixed(2)}</span>
+              <span className={styles.vlLabel} style={legBase}>{compactLegend ? 'L' : 'Low'}</span><span className={styles.vlVal} style={legBase}>{crosshairData.low?.toFixed(2)}</span>
+              <span className={styles.vlLabel} style={legBase}>{compactLegend ? 'C' : 'Close'}</span><span className={styles.vlVal} style={legBase}>{crosshairData.close?.toFixed(2)}</span>
+              {crosshairData.volume != null && (
+                <><span className={styles.vlLabel} style={legBase}>{compactLegend ? 'V' : 'Vol'}</span><span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></>
               )}
-              {crosshairData.overlays.flatMap((ov, i) => [
+              {/* Compact mode drops the MA + indicator value rows (the tallest part —
+                  those lines are drawn on the chart anyway) so the legend stops
+                  spilling into the volume pane WITHOUT going wider. */}
+              {!compactLegend && crosshairData.overlays.flatMap((ov, i) => [
                 <span key={'l' + i} className={styles.vlLabel} style={{ color: ov.color }}>{ov.label}</span>,
                 <span key={'v' + i} className={styles.vlVal} style={{ color: ov.color }}>{ov.value?.toFixed(2)}</span>,
               ])}
-              {indChips.map((c, i) => (
+              {!compactLegend && indChips.map((c, i) => (
                 <IndicatorChip
                   key={`${c.instanceId}::${c.plotKey}`}
                   chip={c}
@@ -12679,7 +12677,7 @@ export default function StockChart({
                   {...chipHandlers}
                 />
               ))}
-              {overflow && (
+              {!compactLegend && overflow && (
                 <button type="button" className={chipStyles.chipMore}
                   onClick={() => setChipsExpanded(true)}
                   aria-label={`Show ${moreCount} more indicators`}

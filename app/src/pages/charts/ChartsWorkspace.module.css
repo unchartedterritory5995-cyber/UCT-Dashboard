@@ -460,11 +460,17 @@
 
 .tfBar {
   display: flex;
-  flex-wrap: wrap;
+  /* nowrap + hidden: the timeframe/info row NEVER wraps to a second line. When it
+     runs out of room ChartPane drops timeframe buttons into the ▾ menu (measured by
+     horizontal overflow) so the height is fixed at one row — no up-and-back jump as
+     buttons disappear, and the info row never gets shoved below. */
+  flex-wrap: nowrap;
+  overflow: hidden;
   align-items: center;
   gap: 2px;
   padding: 0 6px;
   min-height: 32px;   /* shared second-header-row height (aligns divider lines across widgets) */
+  height: 32px;
   box-sizing: border-box;
   background: var(--widget-canvas, var(--bg-elevated, #0d1218));
   border-bottom: 1px solid var(--widget-divider, var(--border, #1f2937));

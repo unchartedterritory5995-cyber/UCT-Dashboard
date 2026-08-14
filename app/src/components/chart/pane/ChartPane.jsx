@@ -438,9 +438,11 @@ function ChartPane({
     if (compact || mini || !showTfBar || Array.isArray(effTfCodes)) return
     const el = tfBarRef.current
     if (!el) return
-    // One row = min-height 32 + 1px border (~33); a second wrapped line pushes it
-    // well past 44. jsdom lays nothing out (offsetHeight 0) ⇒ never wrapped ⇒ inert.
-    if (el.offsetHeight <= 44) return
+    // The row is nowrap + overflow:hidden, so it stays ONE line and overflows instead
+    // of wrapping. scrollWidth>clientWidth = content clipped → shed a timeframe (then
+    // abbreviate info). Cascades synchronously before paint until it fits, so buttons
+    // vanish with no reflow/jump. jsdom lays nothing out (both 0) ⇒ inert in tests.
+    if (el.scrollWidth <= el.clientWidth + 1) return
     if (shownTfCountRef.current > 1) {
       setTfCap((c) => Math.max(1, Math.min(c, shownTfCountRef.current) - 1))
     } else if (!infoForceAbbrev && metaItems.length) {
