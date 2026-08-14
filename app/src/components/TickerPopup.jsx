@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import UIcon from './ui/UIcon'
 import { useDarkPoolBars } from './chart/useDarkPoolBars'
+import SymbolSearch from './chart/SymbolSearch'
 import { setVoicePageHint } from '../context/VoiceContext'
 import { useFlagged } from '../hooks/useFlagged'
 import useTickerTags from '../hooks/useTickerTags'
@@ -47,6 +48,15 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
   const [flagToast, setFlagToast] = useState(null)
   const [compareSymbol, setCompareSymbol] = useState('')
 
+  // Header symbol search. The popup opens on the caller's `sym`, but the header
+  // ticker is a search box (same predictive dropdown as /charts) so the user can
+  // pull up any other chart in place. `searchSym` overrides while the popup is
+  // open; it clears whenever the caller re-opens on a different symbol so the
+  // next chip-click always shows what was clicked, not the last thing searched.
+  const [searchSym, setSearchSym] = useState(null)
+  const activeSym = searchSym || sym
+  useEffect(() => { setSearchSym(null) }, [sym, modalOpen])
+
   // Dark-pool overlay toggle (only meaningful when `darkPool` is passed, e.g.
   // the Live Flow chart popup). Default ON, persisted so the choice sticks.
   const [showDarkPool, setShowDarkPool] = useState(() => {
@@ -55,19 +65,19 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
   useEffect(() => {
     try { localStorage.setItem('uct_liveflow_show_darkpool', showDarkPool ? '1' : '0') } catch {}
   }, [showDarkPool])
-  const darkPoolBars = useDarkPoolBars(sym, darkPool && showDarkPool && view === 'chart')
+  const darkPoolBars = useDarkPoolBars(activeSym, darkPool && showDarkPool && view === 'chart')
 
   const { isFlagged, toggle: toggleFlag } = useFlagged()
   const { getTag } = useTickerTags()
-  const tagColor = getTag(sym)
+  const tagColor = getTag(activeSym)
   const tickerActions = useTickerActions()
   const { openTicker } = useTickerHub()
   const isTouch = useIsTouch()
   const navigate = useNavigate()
 
   // Fetch live price only when modal is open
-  const { prices } = useRealtimePrices(modalOpen && sym ? [sym] : [])
-  const liveData = prices[sym]
+  const { prices } = useRealtimePrices(modalOpen && activeSym ? [activeSym] : [])
+  const liveData = prices[activeSym]
 
   // Clear flag toast after 1.5s
   useEffect(() => {
@@ -81,24 +91,24 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
     const handleKey = (e) => {
       if (e.key === 'Escape') { closeModal(); return }
       if (e.shiftKey && e.key === 'F') {
-        const willFlag = !isFlagged(sym)
-        toggleFlag(sym)
+        const willFlag = !isFlagged(activeSym)
+        toggleFlag(activeSym)
         setFlagToast(willFlag ? 'added' : 'removed')
       }
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [modalOpen, sym, isFlagged, toggleFlag])
+  }, [modalOpen, activeSym, isFlagged, toggleFlag])
 
   // P4-F unification: while this ticker modal is open, tell Compass the
   // user is looking at this symbol. So if they open the orb from inside
   // the modal, Compass starts the session knowing the ticker context.
   useEffect(() => {
-    if (!modalOpen || !sym) return
+    if (!modalOpen || !activeSym) return
     const tabHint = tab && tab !== 'Daily' ? `, ${tab}` : ''
-    setVoicePageHint(`chart of ${sym}${tabHint}`)
+    setVoicePageHint(`chart of ${activeSym}${tabHint}`)
     return () => setVoicePageHint(null)
-  }, [modalOpen, sym, tab])
+  }, [modalOpen, activeSym, tab])
 
   return (
     <>
@@ -142,11 +152,13 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
             onClick={e => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-label={`${sym} chart`}
+            aria-label={`${activeSym} chart`}
           >
             <div className={styles.modalHeader}>
               {tagColor && <span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: TAG_BY_KEY[tagColor]?.hex, marginRight: 5 }} />}
-              <span className={styles.modalSym}>{sym}</span>
+              <span className={styles.modalSym}>
+                <SymbolSearch sym={activeSym} onSymbolChange={(s) => setSearchSym(String(s).toUpperCase())} />
+              </span>
               {liveData && (
                 <>
                   <span className={styles.modalPrice}>${liveData.price?.toFixed(2)}</span>
@@ -161,12 +173,12 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                 </span>
               )}
               <button
-                className={`${styles.flagBtn}${isFlagged(sym) ? ' ' + styles.flagBtnActive : ''}`}
-                onClick={() => { const willFlag = !isFlagged(sym); toggleFlag(sym); setFlagToast(willFlag ? 'added' : 'removed') }}
-                title={isFlagged(sym) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
-                aria-label={isFlagged(sym) ? 'Remove from flagged list' : 'Add to flagged list'}
+                className={`${styles.flagBtn}${isFlagged(activeSym) ? ' ' + styles.flagBtnActive : ''}`}
+                onClick={() => { const willFlag = !isFlagged(activeSym); toggleFlag(activeSym); setFlagToast(willFlag ? 'added' : 'removed') }}
+                title={isFlagged(activeSym) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
+                aria-label={isFlagged(activeSym) ? 'Remove from flagged list' : 'Add to flagged list'}
               >
-                <UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{isFlagged(sym) ? 'Flagged' : 'Flag'}
+                <UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{isFlagged(activeSym) ? 'Flagged' : 'Flag'}
               </button>
               <button
                 className={styles.closeBtn}
@@ -231,11 +243,11 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                   {/* `stored={null}` with no `onStore` = THE user's own chart:
                       ChartPane reads and writes the global chart_settings blob, so
                       this popup renders whatever they configured on /charts.
-                      `onSymbolChange` is deliberately omitted — a TickerPopup shows
-                      the ticker its caller opened, so the identity row is a static
-                      label rather than a search box. */}
+                      `onSymbolChange` is deliberately omitted here — the popup's
+                      OWN header ticker is the search box (drives `activeSym`), so
+                      ChartPane's identity row stays a static company label. */}
                   <ChartPane
-                    sym={sym}
+                    sym={activeSym}
                     tf={TAB_TO_TF[tab]}
                     onTfChange={next => setTab(TF_TO_TAB[next] || tab)}
                     stored={null}
@@ -283,15 +295,15 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                 </Suspense>
               ) : view === 'analyst' ? (
                 <Suspense fallback={<div className={styles.chartLoading}>Loading analyst…</div>}>
-                  <AnalystPanel sym={sym} />
+                  <AnalystPanel sym={activeSym} />
                 </Suspense>
               ) : view === 'ownership' ? (
                 <Suspense fallback={<div className={styles.chartLoading}>Loading ownership…</div>}>
-                  <OwnershipPanel sym={sym} />
+                  <OwnershipPanel sym={activeSym} />
                 </Suspense>
               ) : view === 'desk' ? (
                 <DeskMentions
-                  sym={sym}
+                  sym={activeSym}
                   enabled={view === 'desk'}
                   onOpen={(m) => {
                     navigate(`/desk?section=videos&v=${m.youtube_id}&t=${m.t}`)
@@ -300,7 +312,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                 />
               ) : (
                 <Suspense fallback={<div className={styles.chartLoading}>Loading fundamentals…</div>}>
-                  <FundamentalSnapshot sym={sym} enabled={view === 'fundamentals'} />
+                  <FundamentalSnapshot sym={activeSym} enabled={view === 'fundamentals'} />
                 </Suspense>
               )}
             </div>
