@@ -14,6 +14,7 @@ import { useTickerHub } from './mobile/TickerHubContext'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import { prefetchAllTimeframes, prefetchBar } from '../utils/prefetchBars'
 import JournalBacklinks from './JournalBacklinks'
+import useAppFocus from '../hooks/useAppFocus'
 import styles from './TickerPopup.module.css'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
@@ -99,6 +100,16 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
   }, [modalOpen, activeSym, isFlagged, toggleFlag])
+
+  // App focus: opening a chart on a ticker IS "what I'm looking at", and this
+  // popup is the app's universal ticker surface — so it's the one writer that
+  // covers every list, table and tile at once. Storage is charts Group A (see
+  // useAppFocus), so this is the same value /charts already persists, not a
+  // second one. Set on OPEN only; a hover preview must never move focus.
+  const { setSymbol: setFocusSymbol } = useAppFocus()
+  useEffect(() => {
+    if (modalOpen && activeSym) setFocusSymbol(activeSym)
+  }, [modalOpen, activeSym, setFocusSymbol])
 
   // P4-F unification: while this ticker modal is open, tell Compass the
   // user is looking at this symbol. So if they open the orb from inside

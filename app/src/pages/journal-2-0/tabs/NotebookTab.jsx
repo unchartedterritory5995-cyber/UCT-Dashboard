@@ -11,6 +11,7 @@ import Sheet from '../../../components/mobile/Sheet'
 import UIcon from '../../../components/ui/UIcon'
 import { getTemplate } from '../lib/notebookTemplates'
 import { assembleTemplateContext } from '../lib/templateContext'
+import useAppFocus from '../../../hooks/useAppFocus'
 import styles from './NotebookTab.module.css'
 
 export default function NotebookTab() {
@@ -22,6 +23,8 @@ export default function NotebookTab() {
   const [q, setQ] = useState('')
   const [sort, setSort] = useState('updated')
   const [creating, setCreating] = useState(false)
+  // App focus (= charts Group A) seeds a new entry's ticker.
+  const { symbol: focusSymbol } = useAppFocus()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   // Bumped on a successful import to force-remount FolderSidebar, which owns
@@ -62,6 +65,10 @@ export default function NotebookTab() {
     setCreating(true)
     setPickerOpen(false)
     try {
+      // App focus (= charts Group A): charting AMD and then starting an entry
+      // should not make you retype AMD. An explicit ticker always wins; focus
+      // only fills the blank.
+      const seededTicker = ticker || focusSymbol || null
       const res = await fetch('/api/j2/notes', {
         method: 'POST',
         credentials: 'include',
@@ -70,7 +77,7 @@ export default function NotebookTab() {
           title,
           ...(bodyJson ? { bodyJson } : {}),
           ...(tags && tags.length ? { tags } : {}),
-          ...(ticker ? { ticker } : {}),
+          ...(seededTicker ? { ticker: seededTicker } : {}),
           ...(folderId && folderId !== '__unfiled__' ? { folderId } : {}),
         }),
       })
