@@ -694,6 +694,34 @@ export default function ChartSettingsModal({
           </section>
 
           <section className={styles.section}>
+            <div className={styles.sectionLabel}>Axis Labels</div>
+            <div className={styles.card}>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Price labels</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={settings.showPriceLabels !== false}
+                  aria-label="Show price labels on the axis"
+                  className={`${styles.toggle} ${settings.showPriceLabels !== false ? styles.toggleOn : ''}`}
+                  onClick={() => setSetting({ showPriceLabels: settings.showPriceLabels === false })}
+                ><span className={styles.toggleKnob} /></button>
+              </div>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Moving average labels</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={!!settings.showMaLabels}
+                  aria-label="Show moving average labels on the axis"
+                  className={`${styles.toggle} ${settings.showMaLabels ? styles.toggleOn : ''}`}
+                  onClick={() => setSetting({ showMaLabels: !settings.showMaLabels })}
+                ><span className={styles.toggleKnob} /></button>
+              </div>
+            </div>
+          </section>
+
+          <section className={styles.section}>
             <div className={styles.sectionLabel}>Watermark</div>
             <div className={styles.card}>
               <div className={styles.field}>

@@ -6893,7 +6893,7 @@ export default function StockChart({
         // Optional integer-only price axis (DarkPool page passes precision:0
         // for large-cap stocks so the axis shows "200" not "200.00").
         const _priceFormat = priceFormat ? { priceFormat } : {}
-        priceSeries.applyOptions({ priceLineVisible: !exactDateRange && !hidePriceLine, lastValueVisible: !hideLastValue, ..._bold, ..._priceFormat })
+        priceSeries.applyOptions({ priceLineVisible: !exactDateRange && !hidePriceLine, lastValueVisible: !hideLastValue && cs.showPriceLabels !== false, ..._bold, ..._priceFormat })
       } catch { /* older LWC */ }
 
       // ── colorByNetChange ── Color each candle by close-vs-PREVIOUS-close (TC2000 /
@@ -7895,8 +7895,10 @@ export default function StockChart({
       // candles only and a far 200MA clips off-screen instead of squashing price.
       const _ovAutoscale = fitPriceToCandles ? () => ({ priceRange: null }) : () => null
       if (i < overlaySeriesRefs.current.length) {
-        // Reuse existing series — always setData (even empty) to clear stale data
-        overlaySeriesRefs.current[i].applyOptions({ color, lineType: _ovLineType, lineWidth: _ovLineWidth, lineStyle: _ovLineStyle, autoscaleInfoProvider: _ovAutoscale })
+        // Reuse existing series — always setData (even empty) to clear stale data.
+        // lastValueVisible = the colored right-axis chip showing this MA's latest
+        // value (opt-in via cs.showMaLabels; the chip auto-uses the series color).
+        overlaySeriesRefs.current[i].applyOptions({ color, lineType: _ovLineType, lineWidth: _ovLineWidth, lineStyle: _ovLineStyle, lastValueVisible: !!cs.showMaLabels, autoscaleInfoProvider: _ovAutoscale })
         _applyData(overlaySeriesRefs.current[i], baseData)
       } else if (baseData.length) {
         // Add new series only if there's data to show
@@ -7907,7 +7909,7 @@ export default function StockChart({
           lineType: _ovLineType,
           crosshairMarkerVisible: false,
           priceLineVisible: false,
-          lastValueVisible: false,
+          lastValueVisible: !!cs.showMaLabels,
           autoscaleInfoProvider: _ovAutoscale,
         })
         ls.setData(baseData)
@@ -8856,7 +8858,10 @@ export default function StockChart({
       sessionTagRefs.current = []
       sessionTagSeriesRef.current = series
     }
-    const tags = activeSessionTags || []
+    // Price labels off ⇒ suppress the Pre/Post chip + locked RTH close too, so the
+    // one toggle governs every last-value tag on the axis. Empty list ⇒ the count
+    // check below tears down any existing session price lines.
+    const tags = cs.showPriceLabels === false ? [] : (activeSessionTags || [])
     const opts = (t) => ({
       price: t.price,
       color: t.color || cs.textColor,
@@ -8883,7 +8888,7 @@ export default function StockChart({
       try { series.removePriceLine(pl) } catch { /* series gone */ }
     }
     sessionTagRefs.current = tags.map((t) => series.createPriceLine(opts(t)))
-  }, [chartReady, activeSessionTags, cs.textColor, sessionTagsIntraday])
+  }, [chartReady, activeSessionTags, cs.textColor, sessionTagsIntraday, cs.showPriceLabels])
 
   // Glue the intraday Pre/Post axis chip to the developing candle IN REAL TIME. The
   // candle is painted from liveBarRef by whichever writer owns it (Finnhub tick /
@@ -8951,9 +8956,9 @@ export default function StockChart({
   const intradayExtTagActive = !!intradaySessionTagLines?.length
   useEffect(() => {
     if (!chartReady || !candleSeriesRef.current) return
-    const on = !hideLastValue && !sessionTagsActive && !intradayExtTagActive
+    const on = !hideLastValue && !sessionTagsActive && !intradayExtTagActive && cs.showPriceLabels !== false
     try { candleSeriesRef.current.applyOptions({ lastValueVisible: on }) } catch { /* older LWC */ }
-  }, [sessionTagsActive, intradayExtTagActive, hideLastValue, chartReady, cs.chartType])
+  }, [sessionTagsActive, intradayExtTagActive, hideLastValue, chartReady, cs.chartType, cs.showPriceLabels])
 
   // TradingView-style layering: keep the candle bodies ABOVE the MA / Bollinger /
   // VWAP overlays so those lines pass BEHIND the opaque bodies instead of drawing
