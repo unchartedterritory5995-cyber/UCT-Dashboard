@@ -8,6 +8,7 @@ import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries,
 import usePreferences from '../hooks/usePreferences'
 import { mergeChartSettings, mergeSettingsOverride } from './chart/chartDefaults'
 import { createWatermarkPrimitive, composeWatermarkLines } from './chart/watermarkPrimitive'
+import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
 import useTickerMeta from '../hooks/useTickerMeta'
 import useWatermarkDrag from '../hooks/useWatermarkDrag'
 import { panelFor, toolbarFor, sampleGradient, parseColor, luminance, menuThemeVars } from '../utils/dividerColor'
@@ -1744,13 +1745,57 @@ export default function StockChart({
   // Hover tooltip — fixed-position div near the cursor when hovering a bar.
   const [dpHover, setDpHover] = useState(null)
   const dpBarsContainerRef = useRef(null)
+  // Paid gate (also consumed by the signature indicators below). Declared here so
+  // the settings-driven dark-pool fetch can gate on it.
+  const isPaidUser = useIsPaid()
+
+  // Settings-driven dark-pool bars: when the user turns on cs.darkPool.enabled we
+  // bring the Dark Pool page's bar overlay to ANY interactive chart. Skipped when
+  // the page already supplies its own `darkPoolBars`, and on teaching/frozen
+  // charts (Model Book, exact-date-range exhibits) where the overlay isn't wanted.
+  const dpSettingEnabled = !!cs.darkPool?.enabled && isPaidUser && !darkPoolBars
+    && !exactDateRange && !frozen && !modelBookLook
+  const [dpSettingsBars, setDpSettingsBars] = useState(null)
+  useEffect(() => {
+    if (!dpSettingEnabled || !sym) { setDpSettingsBars(null); return }
+    let cancelled = false
+    // Lookback scales with timeframe: intraday needs only recent prints; D/W/M
+    // want a wider window so the levels span the visible history.
+    const days = (resolvedTf === 'W' || resolvedTf === 'M') ? 365 : (resolvedTf === 'D' ? 180 : 45)
+    fetch(`/api/darkpool/ticker-detail?sym=${encodeURIComponent(sym)}&days=${days}&limit=100`)
+      .then(r => r.ok ? r.json() : Promise.reject(new Error('dp fetch failed')))
+      .then(detail => {
+        if (cancelled) return
+        const prints = Array.isArray(detail?.prints) ? detail.prints : []
+        setDpSettingsBars(clusterDarkPoolPrints(prints))
+      })
+      .catch(() => { if (!cancelled) setDpSettingsBars(null) })
+    return () => { cancelled = true }
+  }, [dpSettingEnabled, sym, resolvedTf])
+
+  // The Dark Pool PAGE passes `darkPoolBars` directly (keeps its built-in gold/gray
+  // tiers); the in-chart setting supplies its own fetched set that gets recolored
+  // from cs.darkPool below.
+  const effectiveDarkPoolBars = darkPoolBars ?? (dpSettingEnabled ? dpSettingsBars : null)
+  // Split the user's 8-digit-hex color menu values (rgb + alpha) once. Null on the
+  // page path so its tiered coloring is left untouched.
+  const dpColorOverride = useMemo(() => {
+    if (darkPoolBars || !dpSettingEnabled) return null
+    const split = (v, dr) => {
+      const m8 = /^#?([0-9a-f]{6})([0-9a-f]{2})$/i.exec((v || '').trim())
+      if (m8) return { rgb: `#${m8[1]}`, a: parseInt(m8[2], 16) / 255 }
+      const m6 = /^#?([0-9a-f]{6})$/i.exec((v || '').trim())
+      return { rgb: m6 ? `#${m6[1]}` : dr, a: 1 }
+    }
+    return { bar: split(cs.darkPool?.barColor, '#c9a84c'), label: split(cs.darkPool?.labelColor, '#c9a84c') }
+  }, [darkPoolBars, dpSettingEnabled, cs.darkPool?.barColor, cs.darkPool?.labelColor])
 
   // Memoize the bar layout so onMouseEnter handlers don't recompute every
   // render. Sorts by notional desc, picks top 25, computes width/height/color
   // tier based on each bar's $ size relative to the largest in the set.
   const darkPoolBarsLayout = useMemo(() => {
-    if (!darkPoolBars || darkPoolBars.length === 0) return []
-    const sorted = [...darkPoolBars]
+    if (!effectiveDarkPoolBars || effectiveDarkPoolBars.length === 0) return []
+    const sorted = [...effectiveDarkPoolBars]
       .filter(b => b && b.price != null && b.notional != null && Number.isFinite(b.notional))
       .sort((a, b) => (b.notional || 0) - (a.notional || 0))
       .slice(0, 25)
@@ -1763,25 +1808,36 @@ export default function StockChart({
       const ratio = (b.notional || 0) / maxN
       const isGoldTier = idx < 5
       const showLabel = idx < 3   // only label the top 3 by notional
-      return {
-        ...b,
-        idx,
-        ratio,
-        width: ratio * darkPoolMaxBarWidth,
-        height: MIN_BAR_H + ratio * (MAX_BAR_H - MIN_BAR_H),
-        color: isGoldTier ? '#c9a84c' : '#9c9588',
+      // When the in-chart setting drives the overlay, every bar wears the user's
+      // chosen color; its picked alpha is the CEILING and still scales down with
+      // notional so the biggest prints read strongest (hierarchy preserved).
+      const color = dpColorOverride ? dpColorOverride.bar.rgb : (isGoldTier ? '#c9a84c' : '#9c9588')
+      const opacity = dpColorOverride
+        ? dpColorOverride.bar.a * (0.45 + 0.55 * ratio)
         // Bar opacity scales with notional ratio so the largest print is still
         // the most visible. Ceiling was 1.0 which fully solid-colored the top
         // 5 against dark candles — too dominant, drowned out the price action.
         // Iterated down: first cut to 0.65 was still bright, dropped again to
         // 0.50 max for the top tier (≈50% less bright than original at max),
         // 0.40 max for smaller bars.
-        opacity: isGoldTier ? 0.20 + ratio * 0.30 : 0.14 + ratio * 0.26,
+        : (isGoldTier ? 0.20 + ratio * 0.30 : 0.14 + ratio * 0.26)
+      return {
+        ...b,
+        idx,
+        ratio,
+        width: ratio * darkPoolMaxBarWidth,
+        height: MIN_BAR_H + ratio * (MAX_BAR_H - MIN_BAR_H),
+        color,
+        opacity,
+        // Labels: user label color at its picked alpha when setting-driven, else
+        // the page's default (bar color, boosted opacity for legibility).
+        labelColor: dpColorOverride ? dpColorOverride.label.rgb : color,
+        labelOpacity: dpColorOverride ? dpColorOverride.label.a : Math.min(1, opacity + 0.45),
         isGoldTier,
         showLabel,
       }
     })
-  }, [darkPoolBars, darkPoolMaxBarWidth])
+  }, [effectiveDarkPoolBars, darkPoolMaxBarWidth, dpColorOverride])
 
   // Position bars vertically by calling series.priceToCoordinate() on each
   // animation frame. Only the chart instance knows the exact pixel Y for a
@@ -1973,7 +2029,8 @@ export default function StockChart({
   // FCB signal would plant a confident arrow on the last candle of a 2016
   // teaching chart. An undefined cfg nulls all three SWR keys, which also saves
   // three paid fetches on every curated-chart view.
-  const isPaidUser = useIsPaid()
+  // isPaidUser is declared up in the Dark Pool overlay state block (also gates
+  // the settings-driven dark-pool fetch).
   const { dpLines, dpZones, gexLines, flowMarkers } =
     useSignatureIndicators(sym, exactDateRange ? undefined : cs.signature, isPaidUser, resolvedTf)
 
@@ -6509,7 +6566,10 @@ export default function StockChart({
         // Auto-contrast ink derived from the canvas — deliberately NOT the user's
         // scale color (see axisAuto).
         textColor: axisAuto.ink,
-        fontFamily: "'Instrument Sans', sans-serif",
+        // Tabular-figures build first so canvas-drawn axis labels (price + MA
+        // last-value chips) are equal-width and their boxes line up; falls back to
+        // the proportional face for any non-latin glyph. See index.html @font-face.
+        fontFamily: "'Instrument Sans Tab', 'Instrument Sans', sans-serif",
         fontSize: cs.textSize ?? 11,
         attributionLogo: false,  // hide built-in TradingView logo; we overlay the UCT mark instead
         // Model Book: subtle (not bold gray) pane divider; still draggable.
@@ -8959,6 +9019,24 @@ export default function StockChart({
     const on = !hideLastValue && !sessionTagsActive && !intradayExtTagActive && cs.showPriceLabels !== false
     try { candleSeriesRef.current.applyOptions({ lastValueVisible: on }) } catch { /* older LWC */ }
   }, [sessionTagsActive, intradayExtTagActive, hideLastValue, chartReady, cs.chartType, cs.showPriceLabels])
+
+  // Once the tabular-figures axis font ('Instrument Sans Tab') has actually
+  // loaded, force LWC to re-measure + repaint the axis. Canvas paints with the
+  // proportional fallback until the woff2 arrives (font-display: swap), so
+  // without this nudge the first paint keeps ragged-width numeric label boxes.
+  useEffect(() => {
+    if (!chartReady || !chartRef.current) return
+    const fonts = typeof document !== 'undefined' ? document.fonts : null
+    if (!fonts?.load) return
+    let cancelled = false
+    fonts.load("11px 'Instrument Sans Tab'").then(() => {
+      if (cancelled || !chartRef.current) return
+      // Re-applying the same fontFamily invalidates the model → full redraw, which
+      // re-measures every axis label against the now-loaded tabular face.
+      try { chartRef.current.applyOptions({ layout: { fontFamily: "'Instrument Sans Tab', 'Instrument Sans', sans-serif" } }) } catch { /* chart torn down */ }
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [chartReady])
 
   // TradingView-style layering: keep the candle bodies ABOVE the MA / Bollinger /
   // VWAP overlays so those lines pass BEHIND the opaque bodies instead of drawing
@@ -12222,11 +12300,12 @@ export default function StockChart({
                     right: b.width + 3,
                     top: -7,
                     fontSize: 9.5,
-                    color: b.color,
+                    color: b.labelColor ?? b.color,
                     fontWeight: 700,
-                    // Top 3 always need to be legible — bar opacity caps at
-                    // 0.50, so push label opacity to ~0.95 for high contrast.
-                    opacity: Math.min(1, b.opacity + 0.45),
+                    // Top 3 always need to be legible. Page path boosts bar
+                    // opacity for contrast; the setting path uses the user's
+                    // picked label alpha directly (both precomputed as labelOpacity).
+                    opacity: b.labelOpacity ?? Math.min(1, b.opacity + 0.45),
                     whiteSpace: 'nowrap',
                     fontFamily: "'Instrument Sans','SF Pro Display',system-ui,sans-serif",
                     pointerEvents: 'none',

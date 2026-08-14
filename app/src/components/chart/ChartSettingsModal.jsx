@@ -338,6 +338,10 @@ export default function ChartSettingsModal({
     pdlHighColor: ['prevDayLevels', 'high', 'color'],
     pdlLowColor: ['prevDayLevels', 'low', 'color'],
     pdlCloseColor: ['prevDayLevels', 'close', 'color'],
+    // Dark-pool overlay bar + label colors (Indicators tab). 8-digit hex so the
+    // color menu's opacity slider is stored inline; StockChart splits it.
+    dpBarColor: ['darkPool', 'barColor'],
+    dpLabelColor: ['darkPool', 'labelColor'],
   }
   const setColorTarget = (target, hex) => {
     if (isIndTarget(target)) {
@@ -438,6 +442,8 @@ export default function ChartSettingsModal({
       case 'pdlHighColor': return settings.prevDayLevels?.high?.color || '#3cb868'
       case 'pdlLowColor': return settings.prevDayLevels?.low?.color || '#e74c3c'
       case 'pdlCloseColor': return settings.prevDayLevels?.close?.color || '#9aa0a6'
+      case 'dpBarColor': return settings.darkPool?.barColor || '#c9a84ccc'
+      case 'dpLabelColor': return settings.darkPool?.labelColor || '#c9a84c'
       default: return '#1ae51a'
     }
   }
@@ -1060,6 +1066,33 @@ export default function ChartSettingsModal({
                   </div>
                 )
               })}
+            </div>
+          </section>
+
+          {/* Dark Pool — brings the Dark Pool page's print-level bars onto this
+              chart. Off by default; paid-gated at fetch (empty for free users).
+              Bar + label colors carry opacity via the color menu. */}
+          <section className={styles.section}>
+            <div className={styles.sectionLabel}>Dark pool</div>
+            <div className={styles.card}>
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Show dark pool bars</span>
+                <button
+                  type="button" role="switch" aria-checked={!!settings.darkPool?.enabled} aria-label="Show dark pool bars"
+                  className={`${styles.toggle} ${settings.darkPool?.enabled ? styles.toggleOn : ''}`}
+                  onClick={() => setSetting({ darkPool: { ...(settings.darkPool || {}), enabled: !settings.darkPool?.enabled } })}
+                ><span className={styles.toggleKnob} /></button>
+              </div>
+              {settings.darkPool?.enabled && (<>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Bar color</span>
+                  <div className={styles.hdrRowCtl}>{colorSwatch('dpBarColor', 'Bar color')}</div>
+                </div>
+                <div className={styles.field}>
+                  <span className={styles.fieldLabel}>Label color</span>
+                  <div className={styles.hdrRowCtl}>{colorSwatch('dpLabelColor', 'Label color')}</div>
+                </div>
+              </>)}
             </div>
           </section>
 
