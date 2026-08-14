@@ -984,6 +984,81 @@ def _start_darkpool_prewarm_background(delay_seconds: int = 60) -> None:
     threading.Thread(target=_delayed, daemon=True, name="darkpool-prewarm-warmer").start()
 
 
+def _scanner_warm_active_hours() -> bool:
+    """True during extended US market hours (weekday 4:00-20:00 ET) — when the
+    Scanner presets actually move and the 60s live cache must stay unbroken. Off
+    these hours the reference stays warm and the shared 30s snapshot cache keeps
+    an occasional open cheap, so we relax the re-warm cadence instead."""
+    now = datetime.now(_ET) if _ET else datetime.utcnow()
+    if now.weekday() >= 5:
+        return False
+    return 4 <= now.hour < 20
+
+
+def _start_scanner_warm_background(delay_seconds: int = 30) -> None:
+    """Keep the /charts Scanner presets HOT so a user never waits on a scan.
+
+    Each preset (highest-volume-1y/ever, ipo-1y, top-gainers-30/60/90d) has two
+    costs, both in-memory on THIS web pod (so warming must run here, not on the
+    worker):
+      * a per-ET-day REFERENCE build — a bulk bars.db aggregate + ETF/ADV lookups.
+        This is the ~1-minute "Building the volume baseline…" a cold first-opener
+        used to eat. Built once per day on a background thread, then cached.
+      * a ~60s-cached LIVE pass over the shared market snapshot.
+
+    This loops just UNDER the 60s live-scan TTL during extended market hours so the
+    result cache never lapses (instant open), and relaxes to 5-min off-hours. The
+    daily reference rebuild happens for free: the first cycle after ET midnight sees
+    the session date roll and kicks the rebuild. Gated by SCANNER_WARM_ENABLED
+    (default on); the readiness gate holds a deploy until the first fully-built
+    cycle so post-deploy openers hit a warm scanner too (with a safety self-release
+    so a stuck reference can never hold the deploy hostage)."""
+    if os.environ.get("SCANNER_WARM_ENABLED", "1") != "1":
+        readiness.mark_done("scanner")
+        return
+    import threading
+
+    def _delayed():
+        import time
+        time.sleep(delay_seconds)
+        from api.services import scan_volume, scan_ipo, scan_gainers
+        scans = [
+            ("highest-volume-1y", scan_volume.get_highest_volume_1y),
+            ("highest-volume-ever", scan_volume.get_highest_volume_ever),
+            ("ipo-1y", scan_ipo.get_ipo_last_1y),
+            ("top-gainers-30d", scan_gainers.get_top_gainers_30d),
+            ("top-gainers-60d", scan_gainers.get_top_gainers_60d),
+            ("top-gainers-90d", scan_gainers.get_top_gainers_90d),
+        ]
+        log = logging.getLogger(__name__)
+        started = time.time()
+        gate_released = False
+        while True:
+            building = 0
+            for name, fn in scans:
+                try:
+                    out = fn()
+                    if isinstance(out, dict) and out.get("status") == "computing":
+                        building += 1
+                except Exception:
+                    log.exception("[scanner-warm] %s failed", name)
+            # Release the deploy gate once every reference is built (building == 0),
+            # or after a 120s safety window so a stuck build can't hold the cutover.
+            if not gate_released and (building == 0 or time.time() - started > 120):
+                readiness.mark_done("scanner")
+                gate_released = True
+                log.info("[scanner-warm] presets warm (%d still building)", building)
+            # A reference still building lives in its own thread; re-poll soon so the
+            # result cache fills the moment it finishes rather than waiting a full
+            # cadence. Otherwise pace under the 60s live TTL during market hours.
+            if building:
+                time.sleep(5)
+                continue
+            time.sleep(50 if _scanner_warm_active_hours() else 300)
+
+    threading.Thread(target=_delayed, daemon=True, name="scanner-warmer").start()
+
+
 def _thread_groups() -> dict:
     """Normalized thread-name histogram. Shared by /api/health/threads and
     the burst watchdog below -- see the endpoint docstring for the rules."""
@@ -2165,6 +2240,16 @@ async def lifespan(app: FastAPI):
         logging.getLogger(__name__).info("[startup] darkpool prewarm scheduled (~60s after boot)")
     except Exception:
         logging.getLogger(__name__).exception("[startup] failed to schedule darkpool prewarm")
+
+    try:
+        readiness.register("scanner")
+        _start_scanner_warm_background()
+        logging.getLogger(__name__).info(
+            "[startup] scanner-preset warm scheduled (~30s after boot); "
+            "re-warm every 50s during market hours, 300s off-hours")
+    except Exception:
+        readiness.mark_done("scanner")
+        logging.getLogger(__name__).exception("[startup] failed to schedule scanner warm")
 
     # One-shot backfill of company NAMES for disk-cached ticker-meta entries that
     # the old partial-yfinance bug poisoned with name=None (sector/industry present

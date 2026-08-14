@@ -5,6 +5,7 @@ from api.services.cache import cache
 
 def _reset():
     cache.delete_prefix("scan_gainers")
+    cache.delete_prefix("scan_full_market_snapshot")  # shared 30s snapshot cache
     with sg._ref_lock:
         sg._ref_states.clear()
 

@@ -28,6 +28,7 @@ from api.services.cache import cache
 # Shared scan helpers (ET clock, symbology, ETF set, tradability floor).
 from api.services.scan_volume import (
     _now_et, _session_date, _snap_lookup, _etf_symbols, _avg_dollar_volume, _tradable,
+    full_market_snapshot,
 )
 
 # scan id → N completed sessions back (matches the frontend perf30d/60d/90d columns).
@@ -91,10 +92,7 @@ def _build_reference(n_sessions: int):
     adj = massive.get_grouped_daily_closes(_ymd_to_iso(ref_ymd), adjusted=True)
     if not adj:
         return None
-    try:
-        snap = massive._get_client().get_full_market_snapshot()
-    except Exception:
-        snap = {}
+    snap = full_market_snapshot()
     if not snap:
         return None
 
@@ -174,10 +172,7 @@ def _run_gainers(pid: str, n_sessions: int) -> dict:
     with _ref_lock:
         liquid = _state(pid).get("universe") or len(ref)
 
-    try:
-        snap = massive._get_client().get_full_market_snapshot()
-    except Exception:
-        snap = {}
+    snap = full_market_snapshot()
     if not snap:
         out = {"status": "ok", "results": [], "count": 0, "as_of": _now_et().isoformat()}
         cache.set(ck, out, ttl=15)

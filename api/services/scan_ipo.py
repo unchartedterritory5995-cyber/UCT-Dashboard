@@ -20,6 +20,7 @@ from api.services.cache import cache
 # Reuse the shared scan helpers (ET clock, symbology, ETF set, tradability floor).
 from api.services.scan_volume import (
     _now_et, _snap_lookup, _etf_symbols, _avg_dollar_volume, _tradable,
+    full_market_snapshot,
 )
 
 _LOCK = threading.Lock()
@@ -248,10 +249,7 @@ def get_ipo_last_1y() -> dict:
     if ipos is None:
         return {"status": "computing", "results": [], "count": 0, "as_of": None}
 
-    try:
-        snap = massive._get_client().get_full_market_snapshot()
-    except Exception:
-        snap = {}
+    snap = full_market_snapshot()
 
     etfs = _etf_symbols()   # ETFs/ETNs/funds to exclude (stocks-only scan)
     avg_dvol = _avg_dollar_volume()
