@@ -63,17 +63,30 @@ def test_evaluate_dedup_and_bigger(temp_db, monkeypatch):
     assert len(bb._evaluate([("AAA", 6_000_000, 40.0, "2026-08-15")])) == 1
 
 
-def test_evaluate_excludes_etf(temp_db, monkeypatch):
+def test_etf_gating_bond_out_heavy_index_in(temp_db, monkeypatch):
     monkeypatch.setenv("DARKPOOL_BIGBLOCK_PCT_ADV", "5")
     monkeypatch.setenv("DARKPOOL_BIGBLOCK_MIN_NOTIONAL", "4e6")
-    _patch_stats(monkeypatch, {"SPAB": 2_000_000, "BIRK": 2_000_000})
-    monkeypatch.setattr(bb, "_is_etf", lambda tk: tk.upper() == "SPAB")  # SPAB is a bond ETF
+    monkeypatch.setenv("DARKPOOL_BIGBLOCK_EQUITY_ONLY", "0")
+    monkeypatch.setenv("DARKPOOL_BIGBLOCK_ETF_MIN_NOTIONAL", "100e6")
+    _patch_stats(monkeypatch, {"SPAB": 10_000_000, "VUG": 2_000_000,
+                               "VOO": 5_000_000, "BIRK": 2_000_000})
+    monkeypatch.setattr(bb, "_is_etf", lambda tk: tk.upper() in {"SPAB", "VUG", "VOO"})
+    monkeypatch.setattr(bb, "_is_bond_etf", lambda tk: tk.upper() == "SPAB")
     d = "2026-08-14"
     prints = [
-        ("SPAB", 43_000_000, 25.0, d),  # 86% ADV but ETF → excluded
-        ("BIRK", 41_000_000, 39.0, d),  # 53% ADV, equity → fires
+        ("SPAB", 200_000_000, 25.0, d),   # bond ETF → excluded even though heavy
+        ("VUG",   57_000_000, 89.0, d),   # non-bond ETF < $100M → excluded
+        ("VOO",  402_000_000, 713.0, d),  # non-bond ETF ≥ $100M → INCLUDED
+        ("BIRK",  41_000_000, 39.0, d),   # equity → included
     ]
-    assert {e["ticker"] for e in bb._evaluate(prints)} == {"BIRK"}
+    assert {e["ticker"] for e in bb._evaluate(prints)} == {"VOO", "BIRK"}
+
+
+def test_is_bond_etf_is_network_free():
+    for b in ("SPAB", "USHY", "BNDX", "JPST", "MBB", "JAAA", "IGLB", "JMUB", "VTEB", "VCLT"):
+        assert bb._is_bond_etf(b) is True, b
+    for nb in ("VOO", "GLD", "SPY", "EFV", "VUG"):  # ETFs, but not bond
+        assert bb._is_bond_etf(nb) is False, nb
 
 
 def test_evaluate_max_pct_ceiling(temp_db, monkeypatch):

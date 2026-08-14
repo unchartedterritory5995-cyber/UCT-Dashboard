@@ -15,10 +15,13 @@ Dark by default: DARKPOOL_BIGBLOCK_ENABLED=1 to arm. Knobs:
   DARKPOOL_BIGBLOCK_PCT_ADV      (default 5.0)  — % of 50d avg daily $-volume
   DARKPOOL_BIGBLOCK_MIN_NOTIONAL (default 4e6)  — absolute floor (matches the
                                                   ingest's $4M off-exchange floor)
-  DARKPOOL_BIGBLOCK_EQUITY_ONLY  (default 1)    — skip ETFs (bond/index/commodity
-                                                  fund flow, not conviction); 0=include
   DARKPOOL_BIGBLOCK_MAX_PCT_ADV  (default 400)  — ceiling: above this, a print is a
                                                   creation/NAV/thin-ticker artifact
+  DARKPOOL_BIGBLOCK_ETF_MIN_NOTIONAL (default 100e6) — a NON-bond ETF must clear
+                                                  this heavier floor to alert (big
+                                                  index/broad blocks only). Bond ETFs
+                                                  are ALWAYS excluded.
+  DARKPOOL_BIGBLOCK_EQUITY_ONLY  (default 0)    — 1 = hard-exclude EVERY ETF
 """
 from __future__ import annotations
 
@@ -52,10 +55,20 @@ def _min_notional() -> float:
 
 
 def _equity_only() -> bool:
-    # Default ON: single-name equities only. A dark block in a bond/index/commodity
-    # ETF (SPAB, IGLB, VTEI, GLD, VOO) is fund/NAV/creation flow, not single-name
-    # conviction — owner doesn't want those. Set 0 to include ETFs again.
-    return os.getenv("DARKPOOL_BIGBLOCK_EQUITY_ONLY", "1") == "1"
+    # OFF by default now: equities always alert; NON-bond ETFs alert only when
+    # HEAVY (>= _etf_min_notional) — so big broad/index blocks (VOO, GLD, SPY) show
+    # but the fund/NAV noise doesn't. Bond ETFs are ALWAYS excluded regardless.
+    # Set 1 to hard-exclude every ETF (equities only).
+    return os.getenv("DARKPOOL_BIGBLOCK_EQUITY_ONLY", "0") == "1"
+
+
+def _etf_min_notional() -> float:
+    # A NON-bond ETF must clear this much heavier notional floor than an equity to
+    # alert — an index/broad ETF block is only interesting when it's genuinely big.
+    try:
+        return float(os.getenv("DARKPOOL_BIGBLOCK_ETF_MIN_NOTIONAL", "100e6"))
+    except (TypeError, ValueError):
+        return 100e6
 
 
 def _max_pct() -> float:
@@ -111,6 +124,32 @@ def _is_etf(ticker: str) -> bool:
     try:
         from api.darkpool_eod import _ticker_meta
         return (_ticker_meta(tk) or {}).get("isEtf") is True
+    except Exception:
+        return False
+
+
+# Bond/muni/income/CLO funds the aggregator's BOND_ETFS set misses (seen in the
+# BBS dark tape). These are ALWAYS excluded — no size floor lets them back in.
+_BOND_DARK_ETFS = {
+    "JAAA", "JMUB", "GMUB", "SUSB", "IGLB", "IGSB", "IBDY", "PMBS", "MBB", "VCLT",
+    "SCMB", "JBND", "JMST", "CGCB", "BKLN", "SRLN", "BAI", "JCPB", "PAUG", "TLTW",
+    "CORB", "XBB", "SKHY", "VCRB", "SMBS", "SPMB", "SPHY", "CWB", "EVLN", "SEIE",
+    "DIAL", "VTEI",
+}
+
+
+def _is_bond_etf(ticker: str) -> bool:
+    """Bond/muni/income fund — ALWAYS excluded (owner: 'don't care about bond
+    ETFs'), no matter how heavy. Network-free: static straggler set + the
+    aggregator's Bond ETFs category + its BOND_ETFS set."""
+    tk = (ticker or "").upper()
+    if not tk:
+        return False
+    if tk in _BOND_DARK_ETFS:
+        return True
+    try:
+        from api.darkpool_aggregator import classify_ticker, BOND_ETFS
+        return tk in BOND_ETFS or classify_ticker(tk, 0, 1) == "Bond ETFs"
     except Exception:
         return False
 
@@ -181,6 +220,7 @@ def _evaluate(prints: list[tuple]) -> list[dict]:
     floor_min = _min_notional()
     max_pct = _max_pct()
     equity_only = _equity_only()
+    etf_min = _etf_min_notional()
     _ensure_table()
     from api.darkpool_eod import _daily_stats
     c = _conn()
@@ -199,8 +239,13 @@ def _evaluate(prints: list[tuple]) -> list[dict]:
             pct = pct_adv(notional, price, avg50)
             if pct is None or pct < floor_pct or pct > max_pct:
                 continue  # below the floor, or an absurd-%ADV data artifact
-            if equity_only and _is_etf(tk):
-                continue  # bond/index/commodity ETF — fund flow, not conviction
+            if _is_etf(tk):
+                if equity_only:
+                    continue  # hard-exclude every ETF
+                if _is_bond_etf(tk):
+                    continue  # bond/muni/income fund — always out
+                if (notional or 0) < etf_min:
+                    continue  # non-bond ETF: only HEAVY index/broad blocks qualify
             if cur is None:
                 c.execute(
                     "INSERT INTO darkpool_bigblock_alerts "
