@@ -1199,7 +1199,7 @@ function AlertRow({ alert, isNew, hitCount, currentSpot, onClickTicker, onClickC
           aria-label={`Open chart for ${alert.ticker}`}
           style={{ background: "none", border: "none", padding: 0, margin: 0, lineHeight: 0, display: "inline-flex", flexShrink: 0, cursor: "pointer" }}
         >
-          <UIcon name="chart" size={12} />
+          <UIcon name="equity" size={12} />
         </button>
         {hitCount > 1 && (
           <span style={{
@@ -2978,7 +2978,7 @@ function ContractRow({ c, onClickTicker, onOpenChart, isAdmin, onPush, pushState
             aria-label={`Open chart for ${c.ticker}`}
             style={{ background: "none", border: "none", padding: 0, margin: 0, lineHeight: 0, display: "inline-flex", flexShrink: 0, cursor: "pointer" }}
           >
-            <UIcon name="chart" size={12} />
+            <UIcon name="equity" size={12} />
           </button>
           <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 5px", borderRadius: 3, background: P.ac + "30", color: P.ac, flexShrink: 0 }} title={`${c.hit_count} prints on this contract`}>
             ×{c.hit_count}
