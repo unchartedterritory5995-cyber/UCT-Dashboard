@@ -535,6 +535,65 @@ def list_notes(
             conn.close()
 
 
+def get_symbol_backlinks(
+    user_id: str,
+    symbol: str,
+    limit: int = 5,
+    conn: sqlite3.Connection | None = None,
+) -> dict[str, Any]:
+    """"Which of my entries reference this ticker?" — answered from the
+    j2_note_embeds sidecar (indexed on (user_id, symbol)).
+
+    The sidecar has been written on every note save since v1 and read by
+    exactly ONE consumer: the notes-list `embed_symbol` filter. This is the
+    read that lets the REST of the app see the journal — a ticker surface
+    anywhere can say "4 entries reference AMD" and link straight to them.
+
+    ⚠️ Same membership question as that list filter, so
+    `test_backlinks_and_the_list_filter_agree` pins the two together: if one
+    ever learns a rule the other doesn't, it goes red rather than quietly
+    disagreeing about which notes mention a symbol."""
+    sym = (symbol or "").strip().upper()
+    out: dict[str, Any] = {"symbol": sym, "count": 0, "notes": []}
+    if not sym:
+        return out
+    owned = conn is None
+    conn = conn or get_connection()
+    try:
+        row = conn.execute(
+            "SELECT COUNT(DISTINCT e.note_id) AS c FROM j2_note_embeds e"
+            " JOIN j2_notes n ON n.id = e.note_id AND n.user_id = e.user_id"
+            " WHERE e.user_id = ? AND e.symbol = ?",
+            (user_id, sym),
+        ).fetchone()
+        out["count"] = int(row["c"] or 0) if row else 0
+        if not out["count"]:
+            return out
+        rows = conn.execute(
+            "SELECT n.id, n.title, n.updated_at,"
+            "       COUNT(*) AS refs,"
+            "       GROUP_CONCAT(DISTINCT e.widget_id) AS widgets"
+            " FROM j2_note_embeds e"
+            " JOIN j2_notes n ON n.id = e.note_id AND n.user_id = e.user_id"
+            " WHERE e.user_id = ? AND e.symbol = ?"
+            " GROUP BY n.id"
+            " ORDER BY n.updated_at DESC"
+            " LIMIT ?",
+            (user_id, sym, max(1, min(limit, 25))),
+        ).fetchall()
+        out["notes"] = [{
+            "id": r["id"],
+            "title": r["title"] or "Untitled",
+            "updatedAt": r["updated_at"],
+            "refs": int(r["refs"] or 0),
+            "widgetIds": sorted((r["widgets"] or "").split(",")) if r["widgets"] else [],
+        } for r in rows]
+        return out
+    finally:
+        if owned:
+            conn.close()
+
+
 def get_note(
     user_id: str,
     note_id: str,

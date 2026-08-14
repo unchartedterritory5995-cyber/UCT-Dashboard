@@ -116,6 +116,65 @@ def test_list_notes_search_body(conn):
     assert [n["id"] for n in rows] == [a["id"]]
 
 
+def _note_with_embeds(conn, title, *symbols, user="u1"):
+    content = [{
+        "type": "widgetEmbed",
+        "attrs": {
+            "v": 1, "widgetId": "chart", "mode": "snapshot",
+            "params": {"symbol": s, "tf": "D"},
+            "capturedAt": "2026-08-13T12:00:00Z",
+            "searchText": f"[chart: {s} D]",
+        },
+    } for s in symbols]
+    return svc.create_note(user, {"title": title, "bodyJson": {"type": "doc", "content": content}}, conn=conn)
+
+
+def test_backlinks_answer_which_entries_reference_a_ticker(conn):
+    """The sidecar has been written since v1 and read by exactly one consumer.
+    This is the read that lets the rest of the app see the journal."""
+    a = _note_with_embeds(conn, "AMD post-mortem", "AMD", "AMD")   # two refs, ONE note
+    _note_with_embeds(conn, "NVDA only", "NVDA")
+    b = _note_with_embeds(conn, "Mixed", "AMD", "NVDA")
+
+    back = svc.get_symbol_backlinks("u1", "amd", conn=conn)        # case-insensitive in
+    assert back["symbol"] == "AMD"
+    assert back["count"] == 2                                       # NOTES, not embeds
+    assert {n["id"] for n in back["notes"]} == {a["id"], b["id"]}
+    got_a = next(n for n in back["notes"] if n["id"] == a["id"])
+    assert got_a["refs"] == 2 and got_a["widgetIds"] == ["chart"]
+    assert got_a["title"] == "AMD post-mortem"
+
+    # Another user's notes are invisible, and an unknown symbol is empty.
+    assert svc.get_symbol_backlinks("u2", "AMD", conn=conn)["count"] == 0
+    assert svc.get_symbol_backlinks("u1", "TSLA", conn=conn) == {"symbol": "TSLA", "count": 0, "notes": []}
+    assert svc.get_symbol_backlinks("u1", "", conn=conn)["count"] == 0
+
+
+def test_backlinks_and_the_list_filter_agree(conn):
+    """Two readers, ONE membership question ('which notes reference this
+    symbol'). A second authority over one value is this repo's most repeated
+    defect — so the two answers are pinned to each other rather than each
+    being pinned to a hand-typed expectation."""
+    _note_with_embeds(conn, "One", "AMD")
+    _note_with_embeds(conn, "Two", "AMD", "NVDA")
+    _note_with_embeds(conn, "Three", "NVDA")
+    for sym in ("AMD", "NVDA", "TSLA"):
+        via_list = {n["id"] for n in svc.list_notes("u1", embed_symbol=sym, conn=conn)}
+        back = svc.get_symbol_backlinks("u1", sym, limit=25, conn=conn)
+        assert {n["id"] for n in back["notes"]} == via_list, sym
+        assert back["count"] == len(via_list), sym
+
+
+def test_backlinks_deleting_the_embed_drops_the_backlink(conn):
+    """The sidecar is a projection of the body — editing the embed out must
+    retract the backlink, or the app advertises entries that no longer
+    reference the ticker."""
+    n = _note_with_embeds(conn, "Temp", "AMD")
+    assert svc.get_symbol_backlinks("u1", "AMD", conn=conn)["count"] == 1
+    svc.update_note("u1", n["id"], {"bodyJson": {"type": "doc", "content": []}}, conn=conn)
+    assert svc.get_symbol_backlinks("u1", "AMD", conn=conn)["count"] == 0
+
+
 def test_list_rows_project_out_the_document_body(conn):
     """The LIST endpoint is a card index, not a document dump: a widget-embed
     note drags a multi-KB frozen settings blob in bodyJson, so list rows must

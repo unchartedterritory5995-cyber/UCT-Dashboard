@@ -1327,6 +1327,21 @@ def list_notes_endpoint(
     return {"notes": rows}
 
 
+@router.get("/notes/backlinks")
+def note_backlinks_endpoint(
+    symbol: str,
+    limit: int = 5,
+    user: dict = Depends(get_current_user),
+) -> dict[str, Any]:
+    """"Which of my entries reference this ticker?" — the read that lets any
+    ticker surface in the app see the journal.
+
+    ⛔ MUST stay declared ABOVE `GET /notes/{note_id}`: FastAPI matches in
+    declaration order, and that route would swallow "backlinks" as a note id
+    (the live-drill route-order lesson, same shape)."""
+    return notes_service.get_symbol_backlinks(user["id"], symbol, limit=limit)
+
+
 @router.post("/notes/{note_id}/embeds")
 def append_note_embed_endpoint(
     note_id: str, payload: dict[str, Any], user: dict = Depends(get_current_user),

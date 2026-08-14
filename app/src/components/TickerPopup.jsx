@@ -12,6 +12,7 @@ import TickerActionsMenu, { useTickerActions } from './TickerActions'
 import { useTickerHub } from './mobile/TickerHubContext'
 import { useIsTouch } from '../hooks/useBreakpoint'
 import { prefetchAllTimeframes, prefetchBar } from '../utils/prefetchBars'
+import JournalBacklinks from './JournalBacklinks'
 import styles from './TickerPopup.module.css'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
@@ -149,6 +150,12 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                   <UIcon name="flag" size={12} style={{ verticalAlign: '-1px', marginRight: 3 }} />{flagToast === 'added' ? 'Flagged' : 'Removed'}
                 </span>
               )}
+              {/* The journal, visible from the app's universal ticker
+                  surface: "4 entries" → click through to them. enabled is
+                  tied to the MODAL being open — this component also renders
+                  a hover preview, and fetching there would fire a request
+                  per mouse-over of every ticker chip on screen. */}
+              <JournalBacklinks symbol={sym} enabled={modalOpen} style={{ marginLeft: 6 }} />
               <button
                 className={`${styles.flagBtn}${isFlagged(sym) ? ' ' + styles.flagBtnActive : ''}`}
                 onClick={() => { const willFlag = !isFlagged(sym); toggleFlag(sym); setFlagToast(willFlag ? 'added' : 'removed') }}

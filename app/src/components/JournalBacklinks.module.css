@@ -1,0 +1,56 @@
+/* "N entries" chip + its click-through list. Hosts position the wrap; the
+   popover is absolute inside it and stays UNDER the documented 8500–8800
+   popup band so it can never cover a TickerPopup-class modal. */
+.wrap { position: relative; display: inline-block; }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 5px;
+  border: 1px solid rgba(212, 170, 80, 0.3);
+  background: rgba(212, 170, 80, 0.12);
+  color: var(--ut-gold, #c9a84c);
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.chip:hover { border-color: var(--ut-gold, #c9a84c); }
+.chipOpen { background: var(--ut-gold, #c9a84c); color: #0c0c0c; }
+
+.pop {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  z-index: 60;
+  min-width: 230px;
+  max-width: 340px;
+  padding: 5px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #2a2a2a);
+  background: var(--panel, #101010);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+  font-family: var(--font-sans, 'Instrument Sans', sans-serif);
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 5px;
+  color: var(--text, #cfcfcf);
+  font-size: 12px;
+  text-decoration: none;
+}
+.row:hover { background: var(--bg-hover, rgba(255, 255, 255, 0.06)); }
+.rowTitle {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rowMeta { color: var(--text-dim, #8a8a8a); font-size: 11px; white-space: nowrap; }
+.more { padding: 4px 8px 6px; color: var(--text-dim, #8a8a8a); font-size: 11px; }
