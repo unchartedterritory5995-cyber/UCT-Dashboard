@@ -576,6 +576,25 @@ async def intraday_warm_now(_auth: dict = Depends(require_flow_admin)):
     return JSONResponse(run_intraday_warm_background())
 
 
+@router.post("/bigblock-scan")
+async def bigblock_scan_now(
+    date: str | None = None,
+    _auth: dict = Depends(require_flow_admin),
+):
+    """Manually run the %ADV big-block alert pass (Discord ping when a single dark
+    print is >= DARKPOOL_BIGBLOCK_PCT_ADV % of the name's 50d avg daily $-volume).
+    No `date` → scans today's live prints (darkpool_today); a `date` (M/D/YYYY) →
+    scans the authoritative darkpool_trades for that day. Self-gated on
+    DARKPOOL_BIGBLOCK_ENABLED; deduped per (date, ticker) so re-running is safe."""
+    try:
+        from api import darkpool_bigblock
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"bigblock module unavailable: {e}")
+    res = (darkpool_bigblock.refresh_from_trades(date) if date
+           else darkpool_bigblock.refresh_from_today())
+    return JSONResponse(res)
+
+
 @router.get("/stats")
 async def darkpool_stats(_auth: dict = Depends(require_flow_user)):
     """Return database statistics."""

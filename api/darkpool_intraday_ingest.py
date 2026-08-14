@@ -324,6 +324,16 @@ def run_intraday(top_n: int = INTRADAY_TOP_N,
             logger.info("[darkpool_intraday] records: %s", _rec)
     except Exception as e:
         logger.warning("[darkpool_intraday] records refresh skipped: %s", e)
+
+    # Size-relative %ADV big-block alerts (self-gated on DARKPOOL_BIGBLOCK_ENABLED;
+    # fail-soft — never break the poll).
+    try:
+        from api.darkpool_bigblock import refresh_from_today as _bigblock_refresh
+        _bb = _bigblock_refresh()
+        if _bb.get("ok") and _bb.get("alerts_sent"):
+            logger.info("[darkpool_intraday] bigblock: %s", _bb)
+    except Exception as e:
+        logger.warning("[darkpool_intraday] bigblock refresh skipped: %s", e)
     return out
 
 
@@ -408,6 +418,11 @@ def _commit_today(rows) -> dict:
         refresh_from_today()
     except Exception as e:
         logger.warning("[darkpool_intraday] records refresh skipped: %s", e)
+    try:
+        from api.darkpool_bigblock import refresh_from_today as _bigblock_refresh
+        _bigblock_refresh()
+    except Exception as e:
+        logger.warning("[darkpool_intraday] bigblock refresh skipped: %s", e)
     return result
 
 
