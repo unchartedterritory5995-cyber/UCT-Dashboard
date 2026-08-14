@@ -23,6 +23,7 @@ export default function ChartIdentityRow({
   session = null,
   showClock = true,
   rightSlot = null,
+  rootRef = null,
   styles,
 }) {
   // "2017-06-19" → "Jun 2017" for the delisted badge (best-effort; falls back to raw).
@@ -34,7 +35,7 @@ export default function ChartIdentityRow({
     return `${MON[Math.max(0, Math.min(11, parseInt(m[2], 10) - 1))]} ${m[1]}`
   })()
   return (
-    <div className={styles.chartHeaderTop}>
+    <div ref={rootRef} className={styles.chartHeaderTop}>
       <div className={styles.symbolSlot}>
         {onSymbolChange ? (
           <SymbolSearch

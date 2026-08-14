@@ -530,6 +530,10 @@
   gap: 8px;
   margin: 0 8px 0 6px;
   min-width: 0;
+  /* Never compress the day change — if the row runs out of room it must OVERFLOW
+     (measured by ChartPane, which then abbreviates the session buttons) rather than
+     letting the number squeeze and slide under the session toggle. */
+  flex-shrink: 0;
 }
 .chartDayGain {
   display: inline-flex;
@@ -542,6 +546,7 @@
   letter-spacing: 0.2px;
   white-space: nowrap;
   margin: 0;
+  flex-shrink: 0;   /* see .chartDayGainWrap — overflow, don't squeeze */
 }
 /* Extended-hours (pre/post-market) change — shaded pill beside the regular number,
    neutral background so it reads on both light and dark canvases. */

@@ -6,7 +6,7 @@ import isModalOpen from '../../../utils/modalOpen'
 import ChartMetaRow from './ChartMetaRow'
 import ChartIdentityRow from './ChartIdentityRow'
 import ChartTfBar from './ChartTfBar'
-import { computeHeaderFit, trimTimeframes } from './headerFit'
+import { trimTimeframes } from './headerFit'
 import useChartSurfaceSettings from './useChartSurfaceSettings'
 import ChartSettingsModal from '../ChartSettingsModal'
 import UIcon from '../../ui/UIcon'
@@ -303,6 +303,15 @@ function ChartPane({
   const shownTfCountRef = useRef(0)
   const [tfCap, setTfCap] = useState(99)
   const [infoForceAbbrev, setInfoForceAbbrev] = useState(false)
+  // Identity-row (title · % change · session toggle · clock) collision. That row
+  // is a fixed-height overflow:hidden nowrap flex, so it doesn't wrap — it CLIPS,
+  // and the session buttons visually overlap the live % change. Its overflow point
+  // depends on the live change width (a fixed px can't know it), so we measure
+  // scrollWidth>clientWidth and shed in the owner's order: FIRST abbreviate the
+  // session buttons (RTH / PRE|PM), THEN collapse the title to the ticker.
+  const identityRef = useRef(null)
+  const [sessionForceAbbrev, setSessionForceAbbrev] = useState(false)
+  const [titleForceCollapse, setTitleForceCollapse] = useState(false)
 
   // Header customization (Chart Settings → Header). Title mode, visible timeframe
   // buttons, day-change, info stats, and the on-chart legend are all user-toggled.
@@ -349,18 +358,16 @@ function ChartPane({
   // always kept when the TF bar thins; a host-locked `tfCodes` set is never
   // trimmed (the host chose exactly those). The title-collapse override applies
   // only to a real ticker label — a theme/breadth/group label is already compact.
-  const headerFit = computeHeaderFit(paneWidth, visibleTfs.length)
-  // The measured wrap cap (tfCap) is the precise driver; headerFit.maxTfs is a
-  // coarse width-only floor. A host-locked tfCodes set is never trimmed.
-  const measuredTfCap = Math.min(headerFit.maxTfs, tfCap)
+  // All header degradation is measurement-driven (see the collision effects below):
+  // tfCap thins the timeframe bar, infoForceAbbrev shortens the info labels, and the
+  // identity-row states collapse the title / abbreviate the session buttons. A
+  // host-locked tfCodes set is never trimmed.
   const responsiveTfs = Array.isArray(effTfCodes)
     ? visibleTfs
-    : trimTimeframes(visibleTfs, isBreadth ? breadthTf : tf, measuredTfCap)
+    : trimTimeframes(visibleTfs, isBreadth ? breadthTf : tf, tfCap)
   shownTfCountRef.current = responsiveTfs.length
-  // Info labels abbreviate on the width threshold OR when the wrap-measurement
-  // forces it (timeframes already collapsed to just the active + ▾ and it still wraps).
-  const infoAbbrev = headerFit.infoAbbrev || infoForceAbbrev
-  const effHeaderLabel = (headerFit.titleMode === 'ticker' && !_themeViewLabel && !isBreadth && !themeIdx.isIndex)
+  const infoAbbrev = infoForceAbbrev
+  const effHeaderLabel = (titleForceCollapse && !_themeViewLabel && !isBreadth && !themeIdx.isIndex)
     ? sym
     : headerLabel
   const customTfs = Array.isArray(hdr.customTimeframes) ? hdr.customTimeframes : []
@@ -440,6 +447,22 @@ function ChartPane({
       setInfoForceAbbrev(true)
     }
   }, [tfCap, infoForceAbbrev, paneWidth, infoSig, compact, mini, showTfBar, effTfCodes, metaItems.length])
+
+  // Identity-row collision. Measured EVERY render (no dep array) so it also catches
+  // the live %-change growing wide enough to touch the session buttons, not just
+  // resizes. Sheds monotonically: session buttons first, then the title. The reset
+  // below restores both when the pane widens or the symbol changes.
+  useLayoutEffect(() => {
+    if (mini) return
+    const el = identityRef.current
+    if (!el || el.scrollWidth <= el.clientWidth + 1) return
+    if (!sessionForceAbbrev) setSessionForceAbbrev(true)
+    else if (!titleForceCollapse) setTitleForceCollapse(true)
+  })
+  useLayoutEffect(() => {
+    setSessionForceAbbrev(false)
+    setTitleForceCollapse(false)
+  }, [paneWidth, headerLabel, sym])
 
   // Chart-settings modal (opened by the gear, by StockChart's own settings entry
   // point, or imperatively by the host through the ref).
@@ -584,6 +607,7 @@ function ChartPane({
           no room for it in a ~320px-tall pane. */}
       {!mini && (
         <ChartIdentityRow
+          rootRef={identityRef}
           searchRef={searchRef}
           sym={sym}
           displayLabel={effHeaderLabel}
@@ -601,8 +625,8 @@ function ChartPane({
             down: hdrColors.dayChangeDown || (resolvedTheme === 'sunrise' ? '#7d1620' : '#ff3b47'),
           }}
           session={compact ? null : (isDWMtf
-            ? { mode: 'dwm', view: sessionView, onView: setSessionView, extEnabled, extLabel, abbrev: headerFit.sessionAbbrev }
-            : { mode: 'intraday', extHoursOn, onExtHours: setExtHours, abbrev: headerFit.sessionAbbrev })}
+            ? { mode: 'dwm', view: sessionView, onView: setSessionView, extEnabled, extLabel, abbrev: sessionForceAbbrev }
+            : { mode: 'intraday', extHoursOn, onExtHours: setExtHours, abbrev: sessionForceAbbrev })}
           showClock={!compact}
           rightSlot={slots?.headerRight}
           styles={styles}
