@@ -355,14 +355,38 @@ export const CHART_LIGHT_DEFAULT = {
   grid: { ...CHART_DEFAULTS.grid, color: 'rgba(0,0,0,0.08)' },
   crosshair: { ...CHART_DEFAULTS.crosshair, color: '#999999' },
   candles: {
-    upColor: '#17a917', downColor: '#db000b',
-    upBorder: '#17a917', downBorder: '#db000b',
-    upWick: '#17a917', downWick: '#db000b',
+    ...CHART_DEFAULTS.candles,
+    upColor: '#17a917', downColor: '#db000b',   // green/red bodies
+    upBorder: '#000000', downBorder: '#000000', // black borders
+    upWick: '#000000', downWick: '#000000',     // black wicks
   },
-  volume: { ...CHART_DEFAULTS.volume, upColor: '#17a917', downColor: '#db000b' },
   header: {
     ...CHART_DEFAULTS.header,
-    colors: { ...(CHART_DEFAULTS.header?.colors || {}), dayChangeUp: '#17a917', dayChangeDown: '#db000b' },
+    titleMode: 'both',            // TICKER (Company Name)
+    fields: [],                   // info row: nothing selected
+    showMarketCap: false, showNextEarnings: false, showUctRating: false,
+    colors: {
+      title: '#000000',
+      legend: '#000000',
+      dayChangeUp: '#17a917',
+      dayChangeDown: '#db000b',
+    },
+  },
+  // Overlays merge POSITIONALLY — keep the same 5 slots/order, only recolor + toggle.
+  overlays: [
+    { enabled: true,  type: 'EMA', period: 9,   color: '#17a917', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line' },
+    { enabled: true,  type: 'EMA', period: 20,  color: '#d24ba8', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line' },
+    { enabled: true,  type: 'SMA', period: 50,  color: '#3f7fe0', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line' },
+    { enabled: true,  type: 'SMA', period: 200, color: '#e0862f', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line' },
+    { enabled: false, type: 'SMA', period: 5,   color: 'rgba(168,162,144,0.55)', lineWidth: 1, lineStyle: 'solid', offset: 0, plotStyle: 'line' },
+  ],
+  volume: { ...CHART_DEFAULTS.volume, upColor: '#17a917', downColor: '#db000b', maColor: '#000000' },
+  watermark: { ...CHART_DEFAULTS.watermark, color: '#9a9a9a', opacity: 1 },
+  markers: { ...CHART_DEFAULTS.markers, earnings: true, earningsBeat: '#17a917', earningsMiss: '#db000b' },
+  prevDayLevels: {
+    ...CHART_DEFAULTS.prevDayLevels,
+    high: { ...CHART_DEFAULTS.prevDayLevels.high, color: '#17a917' },
+    low:  { ...CHART_DEFAULTS.prevDayLevels.low,  color: '#db000b' },
   },
 }
 
