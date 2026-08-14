@@ -271,7 +271,7 @@ def _alert(events: list[dict]) -> int:
         px = e.get("price")
         _at = f" @ ${px:,.2f}" if px else ""
         _post_text(
-            f"📊 **{e['ticker']}** dark block **{_fmt_n(e['notional'])}**{_at} — "
+            f"🐋 **{e['ticker']}** dark block **{_fmt_n(e['notional'])}**{_at} — "
             f"**{e['pct_adv']:.0f}% of 50d ADV**")
         sent += 1
     return sent
