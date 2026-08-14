@@ -26,8 +26,8 @@ export const ALERTS_WIDGET_DEFAULTS = {
 export const ALERTS_WIDGET_LIGHT_OVERRIDES = {
   bg: '#ffffff',
   textColor: '#1f2328',
-  aboveColor: '#0a5c22',
-  belowColor: '#7d1620',
+  aboveColor: '#17a917',
+  belowColor: '#db000b',
 }
 
 /** The default settings blob for the current app theme ('light' → white canvas). */

@@ -73,10 +73,10 @@ const LEGACY_DEFAULT_BG = new Set(['#22251e', '#1a1c17'])
 export const WATCHLIST_LIGHT_OVERRIDES = {
   bg: '#ffffff',
   textColor: '#1f2328',
-  upColor: '#0a5c22',
-  downColor: '#7d1620',
-  tintUp: '#0a5c2226',
-  tintDown: '#7d162026',
+  upColor: '#17a917',
+  downColor: '#db000b',
+  tintUp: '#17a91726',
+  tintDown: '#db000b26',
 }
 /** The default settings blob for the current app theme ('light' → white canvas). */
 export function watchlistDefaultsForTheme(theme) {

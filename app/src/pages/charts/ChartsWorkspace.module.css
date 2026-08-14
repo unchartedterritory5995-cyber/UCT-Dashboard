@@ -981,10 +981,10 @@
   --ut-gold: #7a5c16;
   --ut-gold-dim: #7a5c161a;
   --ut-gold-glow: #7a5c1633;
-  --ut-green-bright: #0a5c22;
-  --ut-red-bright: #7d1620;
-  --gain: #0a5c22;
-  --loss: #7d1620;
+  --ut-green-bright: #17a917;
+  --ut-red-bright: #db000b;
+  --gain: #17a917;
+  --loss: #db000b;
 }
 
 /* FROZEN-LIGHT: a theme-following widget PLACED on the light app theme keeps its
@@ -1008,10 +1008,10 @@
   --ut-gold: #7a5c16;
   --ut-gold-dim: #7a5c161a;
   --ut-gold-glow: #7a5c1633;
-  --ut-green-bright: #0a5c22;
-  --ut-red-bright: #7d1620;
-  --gain: #0a5c22;
-  --loss: #7d1620;
+  --ut-green-bright: #17a917;
+  --ut-red-bright: #db000b;
+  --gain: #17a917;
+  --loss: #db000b;
 }
 
 /* ── TSDR — Sunrise light theme (workspace-wide) ─────────────────────────────

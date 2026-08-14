@@ -341,6 +341,36 @@ export const PRESETS = {
   },
 }
 
+// Theme-aware default for a NEW chart widget: a light-canvas version of the app's
+// standard look (white canvas + contrasting text/grid, the same MA overlays) with
+// the standard up/down colors, used when a chart widget is PLACED on the LIGHT app
+// theme. Stamped into the widget's opts.settings at creation so it FREEZES — a later
+// app-theme switch never recolors an existing chart — exactly like the other widgets.
+// Dark themes keep CHART_DEFAULTS (the current default).
+export const CHART_LIGHT_DEFAULT = {
+  ...CHART_DEFAULTS,
+  preset: 'custom',
+  background: '#ffffff',
+  textColor: '#1f2328',
+  grid: { ...CHART_DEFAULTS.grid, color: 'rgba(0,0,0,0.08)' },
+  crosshair: { ...CHART_DEFAULTS.crosshair, color: '#999999' },
+  candles: {
+    upColor: '#17a917', downColor: '#db000b',
+    upBorder: '#17a917', downBorder: '#db000b',
+    upWick: '#17a917', downWick: '#db000b',
+  },
+  volume: { ...CHART_DEFAULTS.volume, upColor: '#17a917', downColor: '#db000b' },
+  header: {
+    ...CHART_DEFAULTS.header,
+    colors: { ...(CHART_DEFAULTS.header?.colors || {}), dayChangeUp: '#17a917', dayChangeDown: '#db000b' },
+  },
+}
+
+/** The chart-settings blob a NEW chart widget starts from for the given app theme. */
+export function chartDefaultsForTheme(theme) {
+  return theme === 'light' ? CHART_LIGHT_DEFAULT : CHART_DEFAULTS
+}
+
 // ─── Deep merge user settings over defaults ──────────────────────────────────
 
 export function mergeChartSettings(userSettings) {

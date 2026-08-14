@@ -11,7 +11,7 @@ import { WATCHLIST_DEFAULTS } from '../watchlist/watchlistSettings'
 import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings, themeTrackerDefaultsForTheme } from '../theme-tracker/themeTrackerSettings'
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsForTheme } from './widgets/fundamentalsSettings'
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthDefaultsForTheme } from './widgets/breadthWidgetSettings'
-import { mergeChartSettings, CHART_DEFAULTS } from '../../components/chart/chartDefaults'
+import { mergeChartSettings, CHART_DEFAULTS, chartDefaultsForTheme } from '../../components/chart/chartDefaults'
 import { dividerFor, chromeFor, panelFor, toolbarFor } from '../../utils/dividerColor'
 import { widgetOwnChrome } from './widgetChrome'
 import MergedSeamOverlay from './MergedSeamOverlay'
@@ -1087,14 +1087,21 @@ export default function ChartsWorkspace() {
         if (room) { widgets = room.widgets; place = room.place }
         else { place = { x: 0, y: 0, w: defaults.w, h: defaults.h } }  // last resort (clamped below)
       }
+      // Stamp the app theme at placement so a theme-following widget freezes its
+      // look here (WidgetHost/usePlacedTheme read opts.placedTheme). seedOpts wins
+      // if it already carries a value.
+      const newOpts = { placedTheme: themeRef.current, ...(seedOpts && typeof seedOpts === 'object' ? seedOpts : {}) }
+      // A CHART widget placed on the LIGHT theme freezes into the light-canvas chart
+      // default (the chart has its own settings system, not the themeFollow class path).
+      // Dark placement keeps the current default (no stamp → the theme-invariant seed).
+      if (type === 'chart' && themeRef.current === 'light' && !newOpts.settings) {
+        newOpts.settings = chartDefaultsForTheme('light')
+      }
       const newWidget = {
         id: `w-${type}-${Date.now()}`,
         type, color,
         x: place.x, y: place.y, w: place.w, h: place.h,
-        // Stamp the app theme at placement so a theme-following widget freezes its
-        // look here (WidgetHost/usePlacedTheme read opts.placedTheme). seedOpts wins
-        // if it already carries one.
-        opts: { placedTheme: themeRef.current, ...(seedOpts && typeof seedOpts === 'object' ? seedOpts : {}) },
+        opts: newOpts,
       }
       const next = { ...prev, widgets: clampWidgetsToRows([...widgets, newWidget]) }
       scheduleSave(next)

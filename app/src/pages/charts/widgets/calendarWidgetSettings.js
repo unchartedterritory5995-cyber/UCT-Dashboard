@@ -28,8 +28,8 @@ export const CALENDAR_WIDGET_LIGHT_OVERRIDES = {
   bg: '#ffffff',
   textColor: '#1f2328',
   symbolColor: '#7a5c16',
-  posColor: '#0a5c22',
-  negColor: '#7d1620',
+  posColor: '#17a917',
+  negColor: '#db000b',
 }
 
 /** The default settings blob for the current app theme ('light' → white canvas). */
