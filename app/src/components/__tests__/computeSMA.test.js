@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest'
-import { computeSMA } from '../StockChart'
+import { computeSMA, sanitizeOverlayPeriods } from '../StockChart'
 
 // Reference (slow) implementation — what we're replacing.
 // Kept here so the test is self-contained and proves output equivalence.
@@ -133,5 +133,58 @@ describe('computeSMA', () => {
       const expected = (bars[0].c + bars[1].c + bars[2].c) / 3
       expect(result[2].value).toBe(expected)
     })
+  })
+
+  // Invalid period = the /charts crash: an MA length edited to 0/blank made
+  // `bars[period-1].t` read `.t` off an undefined bar. Must draw nothing, not throw.
+  describe('invalid period never crashes (reads .t off undefined bar)', () => {
+    const bars = makeBars(300)
+    for (const p of [0, -1, -50, NaN, undefined, null, '', 'abc']) {
+      test(`period=${JSON.stringify(p)} → [] (no throw)`, () => {
+        expect(() => computeSMA(bars, p)).not.toThrow()
+        expect(computeSMA(bars, p)).toEqual([])
+      })
+    }
+    test('fractional period floors (1.9 → 1)', () => {
+      expect(computeSMA(bars, 1.9)).toEqual(computeSMA(bars, 1))
+    })
+  })
+})
+
+describe('sanitizeOverlayPeriods (persist-boundary guard)', () => {
+  const prev = { overlays: [{ type: 'EMA', period: 9 }, { type: 'EMA', period: 20 }] }
+
+  test('reverts an invalid new period to the prior valid one at the same index', () => {
+    const next = { overlays: [{ type: 'EMA', period: 9 }, { type: 'EMA', period: 0 }] }
+    expect(sanitizeOverlayPeriods(next, prev).overlays[1].period).toBe(20)
+  })
+
+  test('falls back to 20 when there is no prior valid value', () => {
+    const next = { overlays: [{ type: 'EMA', period: 0 }] }
+    expect(sanitizeOverlayPeriods(next, {}).overlays[0].period).toBe(20)
+  })
+
+  test.each([0, -1, NaN, undefined, 501, '', 'x'])('coerces bad period %s away from crash range', (bad) => {
+    const next = { overlays: [{ type: 'SMA', period: bad }] }
+    const out = sanitizeOverlayPeriods(next, {}).overlays[0].period
+    expect(Number.isInteger(out) && out >= 1 && out <= 500).toBe(true)
+  })
+
+  test('returns the SAME reference when every period is valid (no churn)', () => {
+    const next = { overlays: [{ type: 'EMA', period: 9 }, { type: 'SMA', period: 200 }] }
+    expect(sanitizeOverlayPeriods(next, prev)).toBe(next)
+  })
+
+  test('passes through settings with no overlays untouched', () => {
+    const next = { chartType: 'candles' }
+    expect(sanitizeOverlayPeriods(next, prev)).toBe(next)
+    expect(sanitizeOverlayPeriods(null, prev)).toBe(null)
+  })
+
+  test('preserves other overlay fields (color/type) when fixing a period', () => {
+    const next = { overlays: [{ type: 'EMA', period: 0, color: '#abc' }] }
+    const fixed = sanitizeOverlayPeriods(next, {}).overlays[0]
+    expect(fixed).toMatchObject({ type: 'EMA', color: '#abc' })
+    expect(fixed.period).toBe(20)
   })
 })

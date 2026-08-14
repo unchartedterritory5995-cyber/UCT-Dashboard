@@ -710,6 +710,27 @@ function computeEMA(bars, period, fromStart = false) {
   return result
 }
 
+// Persist-boundary guard for MA overlay lengths. Every settings write routes
+// through handleUpdateChartSettings, so sanitizing here means NO edit UI (toolbar,
+// indicators dialog, a widget's own settings) can ever persist an invalid period —
+// the value that crashed /charts (an EMA saved with period 0 → computeEMA read `.t`
+// off an undefined bar). An out-of-range/blank period reverts to the PRIOR valid
+// value at the same index (mirrors the toolbar's `parseInt(v) || old`), falling back
+// to 20 only when there's no prior. Returns the same object reference when nothing
+// needed fixing, so it never churns identity on the common path.
+export function sanitizeOverlayPeriods(next, prev) {
+  if (!next || !Array.isArray(next.overlays)) return next
+  const okPeriod = (p) => { const n = Math.floor(Number(p)); return Number.isFinite(n) && n >= 1 && n <= 500 ? n : null }
+  let changed = false
+  const overlays = next.overlays.map((o, i) => {
+    if (okPeriod(o?.period) != null) return o
+    changed = true
+    const fallback = okPeriod(prev?.overlays?.[i]?.period) ?? 20
+    return { ...o, period: fallback }
+  })
+  return changed ? { ...next, overlays } : next
+}
+
 // O(n) HVC detection via monotonic deque — replaces O(n × lookback) slice+spread
 function computeHVC(bars) {
   const hvcSet = new Set()
@@ -2792,7 +2813,12 @@ export default function StockChart({
     setRepeatMode(val)
     try { localStorage.setItem('uct-draw-repeat', val ? 'true' : 'false') } catch {}
   }, [])
-  const handleUpdateChartSettings = useCallback((newSettings) => {
+  const handleUpdateChartSettings = useCallback((incoming) => {
+    // Guard the persist boundary against an invalid MA overlay period (0/neg/NaN/
+    // >500) BEFORE it can be written by ANY edit path — the crash-safety complement
+    // to computeSMA/computeEMA's read guard. Reverts a bad length to the prior valid
+    // one (or 20). Same-reference on the common path, so no needless churn.
+    const newSettings = sanitizeOverlayPeriods(incoming, cs)
     // Isolated-persist path (Chart widget extra tabs): route the whole new blob
     // to the owner instead of the global pref, so a tab's edits stay on that tab.
     // `newSettings` is already the fully-merged settings ({...cs, ...change}), so
