@@ -54,6 +54,7 @@ import usePreferences, { parsePref } from '../hooks/usePreferences'
 import WatchlistSettingsPanel from './watchlist/WatchlistSettingsPanel'
 import TickerCombobox from '../components/watchlist/TickerCombobox'
 import { WATCHLIST_SETTINGS_KEY, WATCHLIST_DEFAULTS, WATCHLIST_BASE_FONT_PX, mergeWatchlistSettings, watchlistStyleVars, watchlistDefaultsForTheme } from './watchlist/watchlistSettings'
+import usePlacedTheme from '../hooks/usePlacedTheme'
 import { useWatchlistTemplates, WL_COLS_LS } from './watchlist/watchlistTemplates'
 
 // ⛔ NOT `fetch(url).then(r => r.json())` — a 402 answers JSON too, and
@@ -535,12 +536,13 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
   // site theme. In WIDGET context (onSettingsPersist set) the legacy GLOBAL pref is
   // ignored — exactly like News/Profile — so a stale saved dark blob can't force the
   // widget dark on the light theme; the standalone page still reads the global.
+  const placedTheme = usePlacedTheme()
   const wlSettings = useMemo(() => {
-    const themeDefault = watchlistDefaultsForTheme(prefs?.theme)
+    const themeDefault = watchlistDefaultsForTheme(placedTheme)
     const base = settingsOverride
       ?? (onSettingsPersist ? themeDefault : (parsePref(prefs?.[WATCHLIST_SETTINGS_KEY], null) ?? themeDefault))
     return mergeWatchlistSettings(base)
-  }, [settingsOverride, onSettingsPersist, prefs])
+  }, [settingsOverride, onSettingsPersist, prefs, placedTheme])
   const [settingsOpen, setSettingsOpen] = useState(false)
   const settingsBtnRef = useRef(null)
   const [filterOpen, setFilterOpen] = useState(false)   // scanner "criteria" popover

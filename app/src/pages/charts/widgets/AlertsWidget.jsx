@@ -16,6 +16,7 @@ import useSWR from 'swr'
 import { useWorkspace } from '../WorkspaceContext'
 import { useAuth } from '../../../context/AuthContext'
 import usePreferences from '../../../hooks/usePreferences'
+import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import useLivePrices from '../../../hooks/useLivePrices'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
@@ -76,8 +77,9 @@ export default function AlertsWidget({
 
   // ── Appearance settings (⚙) — mirrors the News widget ──
   const { prefs } = usePreferences()
+  const placedTheme = usePlacedTheme()
   const settings = useMemo(
-    () => mergeAlertsWidgetSettings(opts?.settings ?? alertsDefaultsForTheme(prefs.theme)),
+    () => mergeAlertsWidgetSettings(opts?.settings ?? alertsDefaultsForTheme(placedTheme)),
     [opts?.settings, prefs.theme],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)

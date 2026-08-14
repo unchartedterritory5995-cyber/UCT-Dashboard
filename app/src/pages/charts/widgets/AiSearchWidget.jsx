@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
+import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import CompassOrb from '../../../components/voice/CompassOrb'
 import VoiceInputButton from '../../journal-2-0/components/VoiceInputButton'
@@ -272,13 +273,14 @@ export default function AiSearchWidget({
   // ── Basic appearance settings (⚙): canvas + text. Uncustomized → the DEFAULTS
   // FOR THE CURRENT APP THEME (light → white canvas + dark text). ──
   const { prefs, setPref } = usePreferences()
+  const placedTheme = usePlacedTheme()
   const aisSettings = useMemo(
     () => {
       // Ignore the stale legacy white/black auto-default so the widget follows the
       // app theme (dark on OLED) like the sibling widgets; genuine picks are kept.
       const saved = parsePref(prefs?.[AIS_SETTINGS_KEY], null)
       const eff = isLegacyBasicLightDefault(saved) ? null : saved
-      return mergeBasicWidgetSettings(eff ?? basicDefaultsForTheme(prefs?.theme))
+      return mergeBasicWidgetSettings(eff ?? basicDefaultsForTheme(placedTheme))
     },
     [prefs],
   )
@@ -295,7 +297,7 @@ export default function AiSearchWidget({
     return v['--basic-canvas'] ? { ...v, background: v['--basic-canvas'] } : v
   }, [aisSettings])
   const patchSettings = useCallback((patch) => setPref(AIS_SETTINGS_KEY, JSON.stringify({ ...aisSettings, ...patch })), [aisSettings, setPref])
-  const resetSettings = useCallback(() => setPref(AIS_SETTINGS_KEY, JSON.stringify(basicDefaultsForTheme(prefs?.theme))), [setPref, prefs])
+  const resetSettings = useCallback(() => setPref(AIS_SETTINGS_KEY, JSON.stringify(basicDefaultsForTheme(placedTheme))), [setPref, prefs])
   const menuVars = useMemo(() => {
     const canvas = aisSettings.bgMode === 'gradient' ? (aisSettings.bgGradient?.top || aisSettings.bg) : aisSettings.bg
     return menuThemeVars(canvas) || {}

@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router-dom'
 import { mutate as globalMutate } from 'swr'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
+import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import { useLiveBreadth } from '../../../hooks/useLiveBreadth'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
@@ -251,8 +252,9 @@ export default function BreadthWidget({
 
   // ── Appearance settings (⚙) ──
   const { prefs, setPref } = usePreferences()
+  const placedTheme = usePlacedTheme()
   const bwSettings = useMemo(
-    () => mergeBreadthWidgetSettings(frozen?.settings ?? parsePref(prefs?.[BREADTH_WIDGET_SETTINGS_KEY], null) ?? breadthDefaultsForTheme(prefs?.theme)),
+    () => mergeBreadthWidgetSettings(frozen?.settings ?? parsePref(prefs?.[BREADTH_WIDGET_SETTINGS_KEY], null) ?? breadthDefaultsForTheme(placedTheme)),
     [prefs, frozen],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -264,7 +266,7 @@ export default function BreadthWidget({
     setPref(BREADTH_WIDGET_SETTINGS_KEY, JSON.stringify({ ...bwSettings, ...patch }))
   }, [bwSettings, setPref])
   const resetSettings = useCallback(() => {
-    setPref(BREADTH_WIDGET_SETTINGS_KEY, JSON.stringify(breadthDefaultsForTheme(prefs?.theme)))
+    setPref(BREADTH_WIDGET_SETTINGS_KEY, JSON.stringify(breadthDefaultsForTheme(placedTheme)))
   }, [setPref, prefs])
   const bwStyle = useMemo(() => breadthWidgetStyleVars(bwSettings), [bwSettings])
   const bwMenuVars = useMemo(() => {

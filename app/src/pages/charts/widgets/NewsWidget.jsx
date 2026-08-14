@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
 import usePreferences from '../../../hooks/usePreferences'
+import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import useNewsCatalysts from '../../../hooks/useNewsCatalysts'
 import useTickerMeta from '../../../hooks/useTickerMeta'
@@ -153,8 +154,9 @@ export default function NewsWidget({
   // uses the DEFAULTS FOR THE CURRENT APP THEME (light → white canvas + dark text), so
   // both the ⚙ swatches AND the rendered widget follow the site theme until edited.
   const { prefs } = usePreferences()
+  const placedTheme = usePlacedTheme()
   const settings = useMemo(
-    () => mergeNewsWidgetSettings(opts?.settings ?? newsDefaultsForTheme(prefs.theme)),
+    () => mergeNewsWidgetSettings(opts?.settings ?? newsDefaultsForTheme(placedTheme)),
     [opts?.settings, prefs.theme],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)

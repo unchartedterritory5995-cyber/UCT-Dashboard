@@ -14,6 +14,7 @@ import { useWorkspace } from '../WorkspaceContext'
 import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import usePreferences from '../../../hooks/usePreferences'
+import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import useTickerMeta from '../../../hooks/useTickerMeta'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import UIcon from '../../../components/ui/UIcon'
@@ -258,8 +259,9 @@ export default function CalendarWidget({ color, opts, onOptsChange, journalDoor 
 
   // ── Appearance settings (⚙) ──
   const { prefs } = usePreferences()
+  const placedTheme = usePlacedTheme()
   const settings = useMemo(
-    () => mergeCalendarWidgetSettings(opts?.settings ?? calendarDefaultsForTheme(prefs.theme)),
+    () => mergeCalendarWidgetSettings(opts?.settings ?? calendarDefaultsForTheme(placedTheme)),
     [opts?.settings, prefs.theme],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)

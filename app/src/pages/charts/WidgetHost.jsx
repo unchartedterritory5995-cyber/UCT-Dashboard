@@ -13,6 +13,7 @@ import OptionsFlowWidget from './widgets/OptionsFlowWidget'
 import PeriodSortWidget from './widgets/PeriodSortWidget'
 import WidgetHeader from './WidgetHeader'
 import { useWorkspace } from './WorkspaceContext'
+import usePlacedTheme, { PlacedThemeContext } from '../../hooks/usePlacedTheme'
 import {
   resolveActiveTab, widgetTabList,
   addWidgetTab, closeWidgetTab, setActiveWidgetTab, renameWidgetTab,
@@ -95,7 +96,16 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // in the map, so Fundamentals / Theme Tracker / AI Search / Scanner get no variable
   // and keep the default tokens until they gain settings of their own. Setting this on
   // the workspace root instead would leak the chart's color into every widget.
-  const { widgetCanvasByType, widgetCanvasById } = useWorkspace() || {}
+  const { widgetCanvasByType, widgetCanvasById, chartsTheme } = useWorkspace() || {}
+  // FREEZE a theme-following widget's app theme at placement: stamp the widget's own
+  // `data-theme` (tokens.css keys these at element level, so the whole subtree — body
+  // + chrome — uses the FROZEN theme's tokens). This replaces the reactive
+  // `.widgetThemeFollow` class, which re-flipped live off the *app* [data-theme]; that
+  // recolored existing widgets on every theme switch. Only NEW widgets (a fresh
+  // usePlacedTheme capture) pick up the current theme. Skipped under Sunrise (its own
+  // [data-charts-theme='sunrise'] palette owns the look) and until prefs load (null).
+  const placedTheme = usePlacedTheme(active.opts?.placedTheme)
+  const frozenTheme = (themeFollow && chartsTheme !== 'sunrise' && placedTheme) ? placedTheme : null
   // Per-widget chrome wins (each widget owns its settings now); fall back to the
   // per-type global default for a widget that hasn't diverged.
   const chrome = widgetCanvasById?.[widget.id] || widgetCanvasByType?.[active.type] || null
@@ -193,13 +203,16 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // directly above this one, drop the drag/close bar to the BOTTOM so the two widgets
   // blend together at the seam (no header in the middle).
   return (
-    <div
-      className={`${styles.widget}${merged ? ' ' + styles.widgetMerged : ''}${themeFollow ? ' ' + styles.widgetThemeFollow : ''}`}
-      style={chromeStyle}
-    >
-      {merged
-        ? <>{mergedTabs}{body}</>
-        : (headerAtBottom ? <>{body}{header}</> : <>{header}{body}</>)}
-    </div>
+    <PlacedThemeContext.Provider value={frozenTheme}>
+      <div
+        className={`${styles.widget}${merged ? ' ' + styles.widgetMerged : ''}${themeFollow && !frozenTheme ? ' ' + styles.widgetThemeFollow : ''}`}
+        data-theme={frozenTheme || undefined}
+        style={chromeStyle}
+      >
+        {merged
+          ? <>{mergedTabs}{body}</>
+          : (headerAtBottom ? <>{body}{header}</> : <>{header}{body}</>)}
+      </div>
+    </PlacedThemeContext.Provider>
   )
 }

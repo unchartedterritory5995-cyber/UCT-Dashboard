@@ -486,6 +486,11 @@ function DeleteConfirm({ onYes, onCancel }) {
 export default function ChartsWorkspace() {
   const isMobile = useMediaQuery('(max-width: 640px)')
   const { prefs, setPref, loading: prefsLoading } = usePreferences()
+  // Current app theme, read live by handleAddWidget to STAMP a new widget with the
+  // theme it was placed under (persists in opts so a theme-following widget keeps its
+  // placement color across reloads; only NEW widgets pick up the current theme).
+  const themeRef = useRef(prefs?.theme)
+  themeRef.current = prefs?.theme
 
   // "Merge widgets": lock the board in place (no move / resize / delete / color
   // edits), drop every widget border + header bar, and tighten the inter-widget gap
@@ -1086,7 +1091,10 @@ export default function ChartsWorkspace() {
         id: `w-${type}-${Date.now()}`,
         type, color,
         x: place.x, y: place.y, w: place.w, h: place.h,
-        opts: seedOpts && typeof seedOpts === 'object' ? { ...seedOpts } : {},
+        // Stamp the app theme at placement so a theme-following widget freezes its
+        // look here (WidgetHost/usePlacedTheme read opts.placedTheme). seedOpts wins
+        // if it already carries one.
+        opts: { placedTheme: themeRef.current, ...(seedOpts && typeof seedOpts === 'object' ? seedOpts : {}) },
       }
       const next = { ...prev, widgets: clampWidgetsToRows([...widgets, newWidget]) }
       scheduleSave(next)

@@ -9,6 +9,7 @@ import { sendCaptureToJournal } from '../../journal-2-0/lib/sendToJournal'
 import { useJournalToast, JournalToast } from '../../journal-2-0/lib/useJournalToast'
 import UIcon from '../../../components/ui/UIcon'
 import usePreferences, { parsePref } from '../../../hooks/usePreferences'
+import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import FundamentalsSettingsPanel from './FundamentalsSettingsPanel'
 import { FUNDAMENTALS_SETTINGS_KEY, mergeFundamentalsSettings, fundamentalsStyleVars, fundamentalsDefaultsForTheme } from './fundamentalsSettings'
@@ -139,10 +140,11 @@ export default function FundamentalsWidget({
 
   // ── Fundamentals appearance settings (⚙ panel) — mirrors the watchlist's ──
   const { prefs, setPref } = usePreferences()
+  const placedTheme = usePlacedTheme()
   // Uncustomized (no saved pref) → the DEFAULTS FOR THE CURRENT APP THEME (light →
   // white canvas + dark text), so the ⚙ swatches and the surface follow the theme.
   const fwSettings = useMemo(
-    () => mergeFundamentalsSettings(frozen?.settings ?? parsePref(prefs?.[FUNDAMENTALS_SETTINGS_KEY], null) ?? fundamentalsDefaultsForTheme(prefs?.theme)),
+    () => mergeFundamentalsSettings(frozen?.settings ?? parsePref(prefs?.[FUNDAMENTALS_SETTINGS_KEY], null) ?? fundamentalsDefaultsForTheme(placedTheme)),
     [prefs, frozen],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
@@ -152,7 +154,7 @@ export default function FundamentalsWidget({
     setPref(FUNDAMENTALS_SETTINGS_KEY, JSON.stringify({ ...fwSettings, ...patch }))
   }, [fwSettings, setPref])
   const resetSettings = useCallback(() => {
-    setPref(FUNDAMENTALS_SETTINGS_KEY, JSON.stringify(fundamentalsDefaultsForTheme(prefs?.theme)))
+    setPref(FUNDAMENTALS_SETTINGS_KEY, JSON.stringify(fundamentalsDefaultsForTheme(placedTheme)))
   }, [setPref, prefs])
   const fwStyle = useMemo(() => fundamentalsStyleVars(fwSettings), [fwSettings])
   // Canvas-matched palette for the settings panel itself (same mechanism as the

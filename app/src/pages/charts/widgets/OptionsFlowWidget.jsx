@@ -22,6 +22,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useWorkspace } from '../WorkspaceContext'
 import usePreferences from '../../../hooks/usePreferences'
+import usePlacedTheme from '../../../hooks/usePlacedTheme'
 import useMobileSWR from '../../../hooks/useMobileSWR'
 import { menuThemeVars } from '../../../utils/dividerColor'
 import UIcon from '../../../components/ui/UIcon'
@@ -157,8 +158,9 @@ export default function OptionsFlowWidget({ color, opts, onOptsChange }) {
 
   // ── appearance settings (⚙) ──
   const { prefs } = usePreferences()
+  const placedTheme = usePlacedTheme()
   const settings = useMemo(
-    () => mergeOptionsFlowWidgetSettings(opts?.settings ?? optionsFlowDefaultsForTheme(prefs.theme)),
+    () => mergeOptionsFlowWidgetSettings(opts?.settings ?? optionsFlowDefaultsForTheme(placedTheme)),
     [opts?.settings, prefs.theme],
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
