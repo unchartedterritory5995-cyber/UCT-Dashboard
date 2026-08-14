@@ -4404,6 +4404,12 @@ _AUTO_PUSH_CFG = {
     "market_hours_only": True,    # never fire outside 9:30-16:00 ET, Mon-Fri
     "max_alert_age_sec": 600,     # single: don't fire a print older than 10 min
     "accum_max_age_sec": 0,       # accumulation: 0 = OFF (see _push_window_ok)
+    # MIN-age SETTLE (2026-08-14): don't push a single print until it's aged this
+    # many seconds, so co-printed multi-leg STRUCTURE legs are all ingested and
+    # the structure demote runs BEFORE this leg can push (AAPL 8/14 $325P — one of
+    # 6 legs in the SAME second — falsely pushed as Size Bear). Legs are within
+    # ~1s, so 10s closes the race with negligible delay. 0 disables.
+    "autopush_settle_sec": 10,
 }
 
 
@@ -4506,6 +4512,24 @@ def _push_window_ok(alert: dict, mode: str, cfg: dict) -> bool:
                     return False   # prior-session event — mark-only, don't re-blast
             except (TypeError, ValueError, OSError):
                 pass  # unparseable ts → abstain (don't block on a data gap)
+
+    # SETTLE (min-age) gate — 2026-08-14. Don't push a FRESH single print until it
+    # has aged a few seconds, so co-printed multi-leg STRUCTURE legs are all
+    # ingested and _demote_multileg_structures has run BEFORE this leg becomes
+    # push-eligible. Closes the race that pushed AAPL 8/14 $325P — one of SIX
+    # AAPL put legs printed in the SAME second (3:42:49) — as a directional "Size
+    # Bear" a moment before the structure was recognized (the feed then demoted
+    # it, but Discord already had it). Legs are within ~1s, so a small settle
+    # suffices; on the next scan the cluster is complete → the leg is
+    # _directionUnconfirmed → should_auto_push already rejects it. Single prints
+    # only (accumulations are multi-day rollups with a different age basis).
+    # Tunable via autopush_settle_sec; 0 disables.
+    if mode != "accumulation":
+        settle = cfg.get("autopush_settle_sec", 10)
+        if settle:
+            age = _alert_age_sec(alert, mode)
+            if age is not None and age < settle:
+                return False
 
     max_age = (cfg.get("accum_max_age_sec", 0) if mode == "accumulation"
                else cfg.get("max_alert_age_sec", 600))
@@ -5148,7 +5172,7 @@ async def set_auto_push_config(request: Request, _auth: dict = Depends(require_f
         raise HTTPException(400, f"Invalid JSON: {e}")
     if not isinstance(body, dict):
         raise HTTPException(400, "expected a JSON object")
-    for k in ("enabled", "alpha_gold", "grade_a", "size_sweep_enabled", "size_min_premium", "accum_enabled", "accum_min_premium"):
+    for k in ("enabled", "alpha_gold", "grade_a", "size_sweep_enabled", "size_min_premium", "accum_enabled", "accum_min_premium", "autopush_settle_sec"):
         if k in body:
             _AUTO_PUSH_CFG[k] = body[k]
     try:
