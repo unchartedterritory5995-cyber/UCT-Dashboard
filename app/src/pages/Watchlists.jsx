@@ -564,7 +564,7 @@ export default function Watchlists({ embedded = false, pickList = null, pickName
     // Clear back to the theme-following default (null override for a widget; the
     // theme default blob for the standalone page).
     if (onSettingsPersist) onSettingsPersist(null)
-    else setPref(WATCHLIST_SETTINGS_KEY, JSON.stringify(watchlistDefaultsForTheme(prefs?.theme)))
+    else setPref(WATCHLIST_SETTINGS_KEY, JSON.stringify(watchlistDefaultsForTheme(placedTheme)))
   }, [setPref, onSettingsPersist, prefs])
   const wlStyle = useMemo(() => watchlistStyleVars(wlSettings), [wlSettings])
   // Canvas-matched palette for the Watchlist Settings panel (light/gold on a light
