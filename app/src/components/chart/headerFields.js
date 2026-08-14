@@ -12,29 +12,32 @@
 // change). These get TWO color overrides — one for positive values, one for negative — stored
 // under `<colorKey>:pos` / `<colorKey>:neg` in header.colors, defaulting to green / red.
 
+// `short` is the abbreviated label shown when the pane narrows enough that the
+// info row would collide with the timeframe bar (see headerFit.js). Values are
+// never abbreviated — only these labels. Keep them terse + unambiguous.
 export const HEADER_FIELDS = [
-  { key: 'name', label: 'Company Name', colorKey: 'name', dflt: '#9b9684' },
-  { key: 'price', label: 'Price', colorKey: 'price', dflt: null },
-  { key: 'vol', label: 'Volume', colorKey: 'vol', dflt: null },
-  { key: 'chg', label: '% Change', colorKey: 'chg', dflt: null, signed: true },
-  { key: 'rvol', label: 'RVOL', colorKey: 'rvol', dflt: null },
-  { key: 'ipoDate', label: 'IPO Date', colorKey: 'ipoDate', dflt: null },
-  { key: 'mcap', label: 'Market Cap', colorKey: 'marketCap', dflt: '#c9a84c' },
-  { key: 'earn', label: 'Next Earnings', colorKey: 'nextEarnings', dflt: '#6ba3be' },
-  { key: 'rating', label: 'UCT Rating', colorKey: 'uctRating', dflt: '#1ae51a' },
-  { key: 'dchg', label: '$ Change', colorKey: 'dchg', dflt: null, signed: true },
-  { key: 'fromopen', label: '% from Open', colorKey: 'fromopen', dflt: null, signed: true },
-  { key: 'fromhigh', label: '% from High', colorKey: 'fromhigh', dflt: null, signed: true },
-  { key: 'fromlow', label: '% from Low', colorKey: 'fromlow', dflt: null, signed: true },
-  { key: 'dcr', label: 'Daily Closing Range', colorKey: 'dcr', dflt: null },
-  { key: 'dolvol', label: 'Dollar Volume', colorKey: 'dolvol', dflt: null },
-  { key: 'sector', label: 'Sector', colorKey: 'sector', dflt: '#9b9684' },
-  { key: 'industry', label: 'Industry', colorKey: 'industry', dflt: '#9b9684' },
-  { key: 'theme', label: 'Theme', colorKey: 'theme', dflt: '#9b9684' },
-  { key: 'perf5d', label: '5-Day Change', colorKey: 'perf5d', dflt: null, signed: true },
-  { key: 'perf30d', label: '30-Day Change', colorKey: 'perf30d', dflt: null, signed: true },
-  { key: 'perf60d', label: '60-Day Change', colorKey: 'perf60d', dflt: null, signed: true },
-  { key: 'perf90d', label: '90-Day Change', colorKey: 'perf90d', dflt: null, signed: true },
+  { key: 'name', label: 'Company Name', short: 'NAME', colorKey: 'name', dflt: '#9b9684' },
+  { key: 'price', label: 'Price', short: 'PX', colorKey: 'price', dflt: null },
+  { key: 'vol', label: 'Volume', short: 'VOL', colorKey: 'vol', dflt: null },
+  { key: 'chg', label: '% Change', short: '%CHG', colorKey: 'chg', dflt: null, signed: true },
+  { key: 'rvol', label: 'RVOL', short: 'RVOL', colorKey: 'rvol', dflt: null },
+  { key: 'ipoDate', label: 'IPO Date', short: 'IPO', colorKey: 'ipoDate', dflt: null },
+  { key: 'mcap', label: 'Market Cap', short: 'MC', colorKey: 'marketCap', dflt: '#c9a84c' },
+  { key: 'earn', label: 'Next Earnings', short: 'NE', colorKey: 'nextEarnings', dflt: '#6ba3be' },
+  { key: 'rating', label: 'UCT Rating', short: 'UCT', colorKey: 'uctRating', dflt: '#1ae51a' },
+  { key: 'dchg', label: '$ Change', short: '$CHG', colorKey: 'dchg', dflt: null, signed: true },
+  { key: 'fromopen', label: '% from Open', short: '%OPEN', colorKey: 'fromopen', dflt: null, signed: true },
+  { key: 'fromhigh', label: '% from High', short: '%HIGH', colorKey: 'fromhigh', dflt: null, signed: true },
+  { key: 'fromlow', label: '% from Low', short: '%LOW', colorKey: 'fromlow', dflt: null, signed: true },
+  { key: 'dcr', label: 'Daily Closing Range', short: 'DCR', colorKey: 'dcr', dflt: null },
+  { key: 'dolvol', label: 'Dollar Volume', short: '$VOL', colorKey: 'dolvol', dflt: null },
+  { key: 'sector', label: 'Sector', short: 'SECT', colorKey: 'sector', dflt: '#9b9684' },
+  { key: 'industry', label: 'Industry', short: 'IND', colorKey: 'industry', dflt: '#9b9684' },
+  { key: 'theme', label: 'Theme', short: 'THEME', colorKey: 'theme', dflt: '#9b9684' },
+  { key: 'perf5d', label: '5-Day Change', short: '5D', colorKey: 'perf5d', dflt: null, signed: true },
+  { key: 'perf30d', label: '30-Day Change', short: '30D', colorKey: 'perf30d', dflt: null, signed: true },
+  { key: 'perf60d', label: '60-Day Change', short: '60D', colorKey: 'perf60d', dflt: null, signed: true },
+  { key: 'perf90d', label: '90-Day Change', short: '90D', colorKey: 'perf90d', dflt: null, signed: true },
 ]
 
 export const HEADER_FIELD_BY_KEY = Object.fromEntries(HEADER_FIELDS.map((f) => [f.key, f]))

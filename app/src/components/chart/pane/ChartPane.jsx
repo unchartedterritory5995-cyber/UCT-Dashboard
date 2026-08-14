@@ -6,6 +6,7 @@ import isModalOpen from '../../../utils/modalOpen'
 import ChartMetaRow from './ChartMetaRow'
 import ChartIdentityRow from './ChartIdentityRow'
 import ChartTfBar from './ChartTfBar'
+import { computeHeaderFit, trimTimeframes } from './headerFit'
 import useChartSurfaceSettings from './useChartSurfaceSettings'
 import ChartSettingsModal from '../ChartSettingsModal'
 import UIcon from '../../ui/UIcon'
@@ -281,6 +282,16 @@ function ChartPane({
     writeActiveSettings(next)
   }, [breadthLineActive, writeActiveSettings, chartCs.chartType])
 
+  // ── Responsive header fit ──────────────────────────────────────────────────
+  // Measure the pane's own width so the header degrades gracefully as the widget
+  // narrows (see headerFit.js): collapse the title → ticker, abbreviate the
+  // session buttons (RTH / PRE|PM) + info labels (MC/NE/…), and thin the timeframe
+  // bar to just the active TF + ▾. null until measured ⇒ the ladder reports "full",
+  // so a chart never flashes a collapsed header on first paint. (The ResizeObserver
+  // that keeps paneWidth current is wired in an effect further down.)
+  const paneRef = useRef(null)
+  const [paneWidth, setPaneWidth] = useState(null)
+
   // Header customization (Chart Settings → Header). Title mode, visible timeframe
   // buttons, day-change, info stats, and the on-chart legend are all user-toggled.
   const hdr = chartCs.header
@@ -322,6 +333,17 @@ function ChartPane({
     codes.sort((a, b) => tfSortKey(a) - tfSortKey(b))
     return codes.map(c => [c, tfLabel(c)])
   })()
+  // Responsive header fit (drives the degradation ladder). The active code is
+  // always kept when the TF bar thins; a host-locked `tfCodes` set is never
+  // trimmed (the host chose exactly those). The title-collapse override applies
+  // only to a real ticker label — a theme/breadth/group label is already compact.
+  const headerFit = computeHeaderFit(paneWidth, visibleTfs.length)
+  const responsiveTfs = Array.isArray(effTfCodes)
+    ? visibleTfs
+    : trimTimeframes(visibleTfs, isBreadth ? breadthTf : tf, headerFit.maxTfs)
+  const effHeaderLabel = (headerFit.titleMode === 'ticker' && !_themeViewLabel && !isBreadth && !themeIdx.isIndex)
+    ? sym
+    : headerLabel
   const customTfs = Array.isArray(hdr.customTimeframes) ? hdr.customTimeframes : []
   const toggleTfFav = useCallback((code) => {
     const fav = Array.isArray(hdr.timeframes) ? hdr.timeframes : []
@@ -370,7 +392,7 @@ function ChartPane({
       } else {
         finalColor = (f.colorKey ? hdrColors[f.colorKey] : null) || color || f.dflt || null
       }
-      return { key, label: f.label, value, color: finalColor }
+      return { key, label: f.label, short: f.short || f.label, value, color: finalColor }
     }).filter(Boolean)
   }, [infoFieldKeys, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, sym, companyName])
 
@@ -414,6 +436,20 @@ function ChartPane({
 
   const searchRef = useRef(null)
   const focusableRef = useRef(null)
+  // ResizeObserver wiring for the responsive header fit (paneRef/paneWidth are
+  // declared higher up — before the header computation that reads paneWidth).
+  useEffect(() => {
+    const el = paneRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return undefined
+    const apply = (w) => setPaneWidth((prev) => (prev != null && Math.abs(prev - w) < 2 ? prev : Math.round(w)))
+    apply(el.getBoundingClientRect().width)
+    const ro = new ResizeObserver((entries) => {
+      const cr = entries[0]?.contentRect
+      if (cr) apply(cr.width)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
   // Last visible time-range StockChart reported (time-space {from,to}; LWC
   // time values — unix seconds intraday, business-day objects/strings on
   // D/W/M). Read on demand by ref.getViewState() so a capture ("send this
@@ -495,7 +531,7 @@ function ChartPane({
   }), [openSettings, handleSymbolChange])
 
   return (
-    <div className={styles.chartWidget} onPointerEnter={onActivate} onFocusCapture={onActivate}>
+    <div ref={paneRef} className={styles.chartWidget} onPointerEnter={onActivate} onFocusCapture={onActivate}>
       {slots?.top}
       {/* Top border row: logo + company name + day $/% change — sits above the
           timeframe/meta row so a long company name never pushes the session
@@ -505,7 +541,7 @@ function ChartPane({
         <ChartIdentityRow
           searchRef={searchRef}
           sym={sym}
-          displayLabel={headerLabel}
+          displayLabel={effHeaderLabel}
           labelColor={hdrColors.title || null}
           logoSym={(_themeViewLabel || synthDailyOnly) ? null : sym}
           brandLogo={themeIdx.isIndex || isBreadth}
@@ -520,8 +556,8 @@ function ChartPane({
             down: hdrColors.dayChangeDown || (resolvedTheme === 'sunrise' ? '#7d1620' : '#ff3b47'),
           }}
           session={compact ? null : (isDWMtf
-            ? { mode: 'dwm', view: sessionView, onView: setSessionView, extEnabled, extLabel }
-            : { mode: 'intraday', extHoursOn, onExtHours: setExtHours })}
+            ? { mode: 'dwm', view: sessionView, onView: setSessionView, extEnabled, extLabel, abbrev: headerFit.sessionAbbrev }
+            : { mode: 'intraday', extHoursOn, onExtHours: setExtHours, abbrev: headerFit.sessionAbbrev })}
           showClock={!compact}
           rightSlot={slots?.headerRight}
           styles={styles}
@@ -530,7 +566,7 @@ function ChartPane({
       {showTfBar && (
         <ChartTfBar
           tf={isBreadth ? breadthTf : tf}
-          visibleTfs={visibleTfs}
+          visibleTfs={responsiveTfs}
           onTf={handleTf}
           /* An explicit tfCodes set is a LOCK, so the overflow menu goes away
              with it — otherwise the host restricts the row and the user reaches
@@ -547,7 +583,7 @@ function ChartPane({
           styles={styles}
         >
           {!compact && !mini && (
-            <ChartMetaRow items={metaItems} styles={styles} />
+            <ChartMetaRow items={metaItems} abbrev={headerFit.infoAbbrev} styles={styles} />
           )}
           <div className={styles.tfBarRight}>
             {/* Breadth-only Line/Candles quick-toggle. Flips JUST the breadth view

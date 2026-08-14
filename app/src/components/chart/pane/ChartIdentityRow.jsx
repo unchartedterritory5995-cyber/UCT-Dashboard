@@ -94,14 +94,14 @@ export default function ChartIdentityRow({
               className={`${styles.sessionBtn} ${session.view === 'regular' ? styles.sessionBtnActive : ''}`}
               onClick={() => session.onView('regular')}
               title="Regular trading hours only"
-            >Regular Hours</button>
+            >{session.abbrev ? 'RTH' : 'Regular Hours'}</button>
             <button
               type="button"
               className={`${styles.sessionBtn} ${session.view === 'extended' ? styles.sessionBtnActive : ''}`}
               onClick={() => { if (session.extEnabled) session.onView('extended') }}
               disabled={!session.extEnabled}
               title={session.extEnabled ? session.extLabel : 'Available during pre-market and post-market'}
-            >{session.extLabel}</button>
+            >{session.abbrev ? (/pre/i.test(session.extLabel) ? 'PRE' : 'PM') : session.extLabel}</button>
           </div>
         )}
         {session?.mode === 'intraday' && (
@@ -111,13 +111,13 @@ export default function ChartIdentityRow({
               className={`${styles.sessionBtn} ${!session.extHoursOn ? styles.sessionBtnActive : ''}`}
               onClick={() => session.onExtHours(false)}
               title="Regular session only (9:30–4:00 ET), overnight gaps"
-            >Regular Hours</button>
+            >{session.abbrev ? 'RTH' : 'Regular Hours'}</button>
             <button
               type="button"
               className={`${styles.sessionBtn} ${session.extHoursOn ? styles.sessionBtnActive : ''}`}
               onClick={() => session.onExtHours(true)}
               title="Include pre-market + post-market bars"
-            >Extended Hours</button>
+            >{session.abbrev ? 'EXT' : 'Extended Hours'}</button>
           </div>
         )}
         {showClock && <ChartMarketClock />}
