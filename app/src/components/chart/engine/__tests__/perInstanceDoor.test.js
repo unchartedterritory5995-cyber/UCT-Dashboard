@@ -240,7 +240,16 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
     // ("Group only") added to CHART_DEFAULTS + mergeChartSettings. No per-definition
     // door changed — every corpus blob simply gained `compareHideBase:false`.
     // (Prior value: b73bd284369a0181773fc2c4e487636726f14cb3b1196e35f01f1eaa011303d7)
+    // 2026-08-14: re-pinned for the axis-label + dark-pool settings (fd0f43658 /
+    // cc945fc64). INVESTIGATED: the CHART_DEFAULTS diff across that batch has
+    // ZERO removals — every corpus blob simply gained showPriceLabels:true,
+    // showMaLabels:false and darkPool{enabled:false,…}. No per-definition door
+    // changed. ⚠️ A genuine finding DID come out of the same batch, in the
+    // sibling rail rather than here: `darkPool` was added to CHART_DEFAULTS but
+    // not to _OVERRIDE_SECTION_KEYS, so per-chart overrides replaced the whole
+    // section instead of merging it (fixed in instanceShape.js).
+    // (Prior value: 4cd29324dc8addd6bc54e3f5cbc23bbfcecdc8dc1fea4565d1dcd7eba5ae95f6)
     expect(digest(corpus().map(digest).join('|')))
-      .toBe('4cd29324dc8addd6bc54e3f5cbc23bbfcecdc8dc1fea4565d1dcd7eba5ae95f6')
+      .toBe('d32335e597cf5b1b4786783f2cf5da538b9f4f94e8d50b2eb6e7f624c9e7fbcb')
   })
 })

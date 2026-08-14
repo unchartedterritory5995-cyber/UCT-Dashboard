@@ -16,7 +16,9 @@ import { useState, useEffect, useMemo } from 'react';
 // Filter "Cancelled" prints AND the original print they reference, so the
 // chart only shows trades that actually settled (matches DarkPool's logic).
 function stripCancelledPrints(prints) {
-  if (!prints || prints.length === 0) return [];
+  // Array-shaped guard, not a truthy/length one: a non-array object passes
+  // `length === 0` and reaches .map() below (see the coercion in the hook).
+  if (!Array.isArray(prints) || prints.length === 0) return [];
   const readNum = (...vals) => { for (const v of vals) if (v != null && v !== "") return Number(v); return 0; };
   const readStr = (...vals) => { for (const v of vals) if (v != null) return String(v); return ""; };
   const readPrice  = p => readNum(p?.price, p?.p);
@@ -75,7 +77,7 @@ function stripCancelledPrints(prints) {
 // Cluster prints within 2% of each other into single zones. See DarkPool.jsx
 // for the rationale and full algorithm doc.
 function clusterDarkPoolPrintsForOverlay(prints, { zonePct = 0.02 } = {}) {
-  if (!prints || prints.length === 0) return [];
+  if (!Array.isArray(prints) || prints.length === 0) return [];
   const readPrice    = p => (p?.price ?? p?.p ?? 0);
   const readNotional = p => (p?.notional ?? p?.n ?? p?.premium ?? 0);
   const readVolume   = p => (p?.volume ?? p?.v ?? 0);
@@ -149,7 +151,16 @@ export function useDarkPoolBars(sym, enabled) {
     let cancelled = false;
     fetch(`/api/darkpool/ticker-detail?sym=${encodeURIComponent(sym)}&days=180&limit=100`)
       .then(r => r.ok ? r.json() : null)
-      .then(j => { if (!cancelled) setRaw(j?.prints || j || []); })
+      // ⛔ COERCE TO AN ARRAY. This was `j?.prints || j || []`, so a 200 whose
+      // body is an OBJECT without `prints` (an error payload, a shape change)
+      // stored the object itself; the helpers below guard on `.length === 0`,
+      // which a non-array passes, and the next `.map` threw
+      // "prints.map is not a function" — crashing <TickerPopup>, the app's
+      // universal ticker surface, for every caller.
+      .then(j => {
+        if (cancelled) return;
+        setRaw(Array.isArray(j?.prints) ? j.prints : Array.isArray(j) ? j : []);
+      })
       .catch(() => { if (!cancelled) setRaw([]); });
     return () => { cancelled = true; };
   }, [sym, enabled]);

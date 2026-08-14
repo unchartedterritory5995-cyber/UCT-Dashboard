@@ -68,10 +68,20 @@ export function isInstanceTombstone(inst) {
 // per-indicator two); arrays replace wholesale. Precedence: CHART_DEFAULTS <
 // global blob < override. Callers must pass a STABLE object (useMemo) — it is
 // a memo dependency inside StockChart.
+// ⚠️ HAND-MIRRORED from CHART_DEFAULTS' object-valued sections (it cannot be
+// derived here: chartDefaults.js imports THIS module, so reading CHART_DEFAULTS
+// back would be a cycle evaluated before it is initialized). A section missing
+// from this list falls through to the generic branch and REPLACES the whole
+// object instead of merging one level — i.e. a per-chart override silently
+// drops every sibling key the override didn't mention.
+// ⛔ ADD A NEW SECTION HERE THE SAME DAY YOU ADD IT TO CHART_DEFAULTS.
+// The rail is mergeSettingsOverride.test.js, which DERIVES the expected set
+// from CHART_DEFAULTS and names the missing key — that is how `darkPool`
+// (added 2026-08-14 with the dark-pool overlay) was caught here.
 const _OVERRIDE_SECTION_KEYS = [
   'candles', 'bgGradient', 'grid', 'crosshair', 'volume',
   'drawingDefaults', 'swingLabels', 'markers', 'positionCalc', 'header',
-  'signature', 'prevDayLevels',
+  'signature', 'prevDayLevels', 'darkPool',
 ]
 export function mergeSettingsOverride(base, partial) {
   if (!partial) return base

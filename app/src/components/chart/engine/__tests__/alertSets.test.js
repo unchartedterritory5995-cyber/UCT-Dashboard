@@ -227,8 +227,19 @@ describe('⭐ THE MEASUREMENT — a real stored blob gains no scope and loses no
   // Every merged blob gains `compareHideBase:false` — a new key nothing reads unless
   // the user enables it, so no pixel moves; the digest necessarily shifts by that one
   // additive field. (Prior value: 313352ceafb4fc29b556e053f3073463de387e96273bc4cf9b651e23db690875)
+  // 2026-08-14: re-pinned for the axis-label + dark-pool overlay settings
+  // (commits fd0f43658 / cc945fc64). INVESTIGATED, not refreshed: `git diff` of
+  // CHART_DEFAULTS across that batch contains ZERO removed lines — the merged
+  // blob gains exactly three top-level keys and loses none.
+  //   showPriceLabels: true   — the boxed last-price tag, documented in-file as
+  //                             "matches prior behavior", so nothing moves
+  //   showMaLabels: false     — opt-in, off by default
+  //   darkPool: {enabled:false,…} — opt-in + paid-gated, off by default
+  // Two default-OFF and one codifying what was already drawn ⇒ no pixel moves;
+  // the digest necessarily shifts by those additive fields.
+  // (Prior value: fe0106c948630eb11b2169fc61132292478ae106ca2406a605431a63e22e0818)
   const MERGED_BLOB_DIGEST_AT_HEAD =
-    'fe0106c948630eb11b2169fc61132292478ae106ca2406a605431a63e22e0818'
+    '2c97ddd7fc6703a5f621c0c4fdf7feea99198fbe0f7753b5dfa8aab3fa602639'
 
   it('⭐ the merged settings blob is BYTE-IDENTICAL to the tree before this task', () => {
     // ⚠️ A STATIC `node:crypto` IMPORT, NOT `await import()`. Under vitest's
