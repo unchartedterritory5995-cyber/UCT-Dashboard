@@ -207,7 +207,7 @@
 }
 .modalModeBtn:hover { color: var(--text-bright); }
 .modalModeBtnActive {
-  background: var(--ut-green-bright);
+  background: #c9a84c;
   color: #0a0e12 !important;
 }
 
