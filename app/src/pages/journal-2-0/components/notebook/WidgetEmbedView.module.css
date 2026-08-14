@@ -177,6 +177,9 @@
   cursor: pointer;
 }
 .toolBtn:hover { border-color: var(--ut-gold, #c9a84c); }
+/* The "Charts ↗" control is an <a> (middle-click opens a tab) — strip the
+   link underline so it reads as one of the buttons beside it. */
+a.toolBtn { text-decoration: none; line-height: 1.5; }
 /* AFTER .toolBtn in source order or the base shorthand clobbers all three
    declarations at equal specificity — the Done button's gold was dead CSS
    (panel finding). */

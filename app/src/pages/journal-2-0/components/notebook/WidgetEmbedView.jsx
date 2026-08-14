@@ -5,6 +5,7 @@ import {
   retimeChartParams, embedRenderHeight, makeCrosshairBus,
 } from '../../lib/widgetEmbedCore'
 import { widgetMeta } from '../../../../widgets/registry'
+import { chartsLinkPath } from '../../../../lib/chartDeepLink'
 import { captureElementPng, storeFallbackImage, kickSnapshotWarm } from '../../lib/embedArchive'
 import styles from './WidgetEmbedView.module.css'
 
@@ -446,6 +447,21 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
             >
               {annotate ? 'Done' : 'Draw'}
             </button>
+          )}
+          {/* → Charts: the REVERSE of the capture flow. Captures always went
+              charts → journal and nothing came back, so an embed was a dead
+              end — you could read March's AMD 15m but not pick the work back
+              up on the real workspace. Opens /charts pointed at this embed's
+              symbol + timeframe. A plain link (not a click handler) so
+              middle-click / ⌘-click open a tab, like any other link. */}
+          {!annotate && attrs.widgetId === 'chart' && attrs.params?.symbol && (
+            <a
+              className={styles.toolBtn}
+              href={chartsLinkPath({ symbol: attrs.params.symbol, tf: attrs.params.tf })}
+              title={`Open ${attrs.params.symbol} on the Charts page`}
+            >
+              Charts ↗
+            </a>
           )}
           {/* "What happened next" — VIEW-ONLY aftermath peek on an anchored
               chart snapshot (spec Phase 6 #2): the same window extended

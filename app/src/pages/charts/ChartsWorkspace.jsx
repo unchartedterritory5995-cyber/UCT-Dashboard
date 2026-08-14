@@ -24,6 +24,7 @@ import useMultiChartState from './grid/useMultiChartState'
 import PopoutWindow from './popout/PopoutWindow'
 import PopoutShell from './popout/PopoutShell'
 import { useJournalToast, JournalToast } from '../journal-2-0/lib/useJournalToast'
+import { readChartsLink, stripChartsLink } from '../../lib/chartDeepLink'
 import PoppedLayout from './popout/PoppedLayout'
 import PeriodSortPanel from './PeriodSortPanel'
 import CompareSymbolsPanel from './CompareSymbolsPanel'
@@ -1009,6 +1010,33 @@ export default function ChartsWorkspace() {
       return next
     })
   }, [scheduleSave])
+
+  // ── "Open on Charts" deep link (/charts?sym=AMD&tf=15) ───────────────────
+  // The reverse direction of the capture flow: a journal embed (or any other
+  // surface) can point the workspace at what it is showing. Applied through
+  // the authorities that already own these values — setGroupSym for the
+  // ticker, applyTfToCharts for the timeframe — never by writing layout here,
+  // so there stays ONE writer per value.
+  // ⏳ Waits for hydration: prefs land a beat after mount and would otherwise
+  // overwrite the applied symbol with the saved one (the same race the
+  // groups-from-prefs one-shot exists for).
+  // 🧹 Strips the params after applying, so a refresh is not a second
+  // instruction fighting whatever the user changed since.
+  // ⛔ Declared AFTER applyTfToCharts on purpose (it reads it).
+  const deepLinkAppliedRef = useRef(false)
+  useEffect(() => {
+    if (deepLinkAppliedRef.current || prefsLoading) return
+    const link = readChartsLink(typeof window !== 'undefined' ? window.location.search : '')
+    deepLinkAppliedRef.current = true
+    if (!link) return
+    if (link.symbol) setGroupSym('A', link.symbol)
+    if (link.tf) applyTfToCharts(link.tf)
+    try {
+      const rest = stripChartsLink(window.location.search)
+      window.history.replaceState({}, '', `${window.location.pathname}${rest}`)
+    } catch { /* history unavailable — lingering params are harmless */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefsLoading])
 
   // Replace a whole widget object in place — used by the widget-level tab system,
   // which routes every tab add/close/select and per-active-tab color/opts edit

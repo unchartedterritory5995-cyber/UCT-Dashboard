@@ -1,53 +1,39 @@
-// Journal Widgets — the one-action "send this widget to my journal" flow
-// (owner decisions #9/#10): last-active note first, Notebook inbox as the
-// fallback landing zone. Extracted from ChartWidget so every widget type's
+// Journal Widgets — the one-action "send this widget somewhere" flow
+// (owner decisions #9/#10). Extracted from ChartWidget so every widget type's
 // capture door shares ONE wire — a second hand-rolled copy of this flow is
 // how doors drift.
+//
+// The DESTINATION used to be baked in here (last-active note → inbox). It now
+// lives in captureTargets.js, so a destination added there is available from
+// every door at once and a widget added later gets all of them for free. This
+// module keeps the capture-building half: attrs, the bars warm, the label.
 
 import { buildWidgetEmbedAttrs } from './widgetEmbedCore'
 import { kickSnapshotWarm } from './embedArchive'
+import { CAPTURE_TARGETS } from './captureTargets'
 
-/** Capture → embed attrs → last-active note (`/embeds` append) → inbox
- *  fallback. Returns the toast line — the CALLER owns its toast surface.
- *  `label` names the capture in toasts (a symbol, a date…). */
-export async function sendCaptureToJournal(widgetId, capture, { label } = {}) {
+/** Build the frozen embed attrs for a capture (+ fire the bars warm for
+ *  charts). Split out so a caller that wants to offer a TARGET MENU can build
+ *  once and route to any target, instead of re-capturing per destination. */
+export function buildCapture(widgetId, capture) {
   const attrs = buildWidgetEmbedAttrs(widgetId, capture)
-  // Bars-history warm is a chart concept; other widget types have no (ticker,
-  // tf) to deep-fill.
+  // Bars-history warm is a chart concept; other widget types have no
+  // (ticker, tf) to deep-fill.
   if (widgetId === 'chart') kickSnapshotWarm(attrs.params)
+  return attrs
+}
+
+/** Capture → the chosen target. Returns the toast line — the CALLER owns its
+ *  toast surface. `label` names the capture in toasts (a symbol, a date…);
+ *  `target` selects a captureTargets entry and defaults to the historical
+ *  behavior (current note, inbox fallback), so every existing door is
+ *  byte-identical without passing anything. */
+export async function sendCaptureToJournal(widgetId, capture, { label, target = 'note' } = {}) {
+  const attrs = buildCapture(widgetId, capture)
   const name = label || attrs.params?.symbol || widgetId
-  let last = null
-  try { last = JSON.parse(localStorage.getItem('uct.jw.lastNote') || 'null') } catch { /* noop */ }
-  // A note last opened DAYS ago is not "the note I'm working in" — appending
-  // there silently buries the capture (panel finding: a March post-mortem
-  // read overnight became Tuesday's capture target). Stale target → the
-  // inbox, the designed safe landing zone.
-  if (last?.ts && Date.now() - last.ts > 24 * 60 * 60 * 1000) last = null
+  const t = CAPTURE_TARGETS[target] || CAPTURE_TARGETS.note
   try {
-    if (last?.id) {
-      const res = await fetch(`/api/j2/notes/${last.id}/embeds`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ attrs }),
-      })
-      if (res.ok) {
-        // Name the destination — "your last note" was unverifiable (panel
-        // finding, twice independently).
-        return last.title ? `${name} sent to “${last.title}”` : `${name} sent to your most recent note`
-      }
-      // 404 = the note was deleted since — fall through to the inbox.
-    }
-    const res2 = await fetch('/api/j2/inbox', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        widgetId, params: attrs.params,
-        searchText: attrs.searchText, capturedAt: attrs.capturedAt,
-      }),
-    })
-    return res2.ok ? `${name} captured → Notebook inbox` : 'Capture failed — try again'
+    return await t.run(attrs, { widgetId, label: name })
   } catch {
     return 'Capture failed — try again'
   }
