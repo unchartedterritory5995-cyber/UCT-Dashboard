@@ -195,10 +195,13 @@
   opacity: 0.7;
 }
 .econStats b { color: var(--cal-text, var(--text-bright, #e0dac8)); font-weight: 700; opacity: 1; }
-/* High-impact (3★) time in a colored badge (gold by default, ⚙-configurable). */
+/* High-impact (3★) time in a colored badge (red #ce000a by default, ⚙-configurable).
+   Fallbacks MUST match CALENDAR_WIDGET_DEFAULTS.highBoxColor in calendarWidgetSettings.js:
+   that file emits the CSS vars ONLY when the user picks a non-default color, so the
+   default look comes from these fallbacks. */
 .timeBox {
-  background: var(--cal-highbox, var(--ut-gold, #c9a84c));
-  color: var(--cal-highbox-text, #161616);
+  background: var(--cal-highbox, #ce000a);
+  color: var(--cal-highbox-text, #ffffff);
   padding: 1px 5px;
   border-radius: 4px;
   font-weight: 700;

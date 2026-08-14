@@ -17,7 +17,7 @@ export const CALENDAR_WIDGET_DEFAULTS = {
   symbolColor: '#c9a84c',                           // earnings tickers
   posColor: '#1ae51a',                              // upside surprise (EPS% / Rev% beat)
   negColor: '#ff5b5b',                              // downside surprise (EPS% / Rev% miss)
-  highBoxColor: '#c9a84c',                          // high-impact (3★) econ time box
+  highBoxColor: '#ce000a',                          // high-impact (3★) econ time box (red default)
   textSize: 'm',                                    // 's' | 'm' | 'l'
 }
 
@@ -66,7 +66,8 @@ export function calendarWidgetStyleVars(s) {
   if (s.posColor && s.posColor !== D.posColor) vars['--cal-pos'] = s.posColor
   if (s.negColor && s.negColor !== D.negColor) vars['--cal-neg'] = s.negColor
   // High-impact time box: emit the color + a contrasting text color (only when the
-  // user changes it; the default gold + dark text come from the CSS fallbacks).
+  // user changes it; the default red (#ce000a) + white text come from the CSS
+  // fallbacks — keep those in sync with D.highBoxColor above).
   if (s.highBoxColor && s.highBoxColor !== D.highBoxColor) {
     vars['--cal-highbox'] = s.highBoxColor
     const rgb = parseColor(s.highBoxColor)
