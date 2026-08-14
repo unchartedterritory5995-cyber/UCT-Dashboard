@@ -1,5 +1,5 @@
 // app/src/components/TickerPopup.jsx
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { useNavigate } from 'react-router-dom'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import UIcon from './ui/UIcon'
@@ -56,6 +56,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
   const [searchSym, setSearchSym] = useState(null)
   const activeSym = searchSym || sym
   useEffect(() => { setSearchSym(null) }, [sym, modalOpen])
+  const searchRef = useRef(null) // imperative open() for the header magnifier
 
   // Dark-pool overlay toggle (only meaningful when `darkPool` is passed, e.g.
   // the Live Flow chart popup). Default ON, persisted so the choice sticks.
@@ -156,8 +157,17 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
           >
             <div className={styles.modalHeader}>
               {tagColor && <span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: TAG_BY_KEY[tagColor]?.hex, marginRight: 5 }} />}
-              <span className={styles.modalSym}>
-                <SymbolSearch sym={activeSym} onSymbolChange={(s) => setSearchSym(String(s).toUpperCase())} />
+              <span className={styles.modalSym} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                <SymbolSearch ref={searchRef} sym={activeSym} onSymbolChange={(s) => setSearchSym(String(s).toUpperCase())} hideIcon fullLabel />
+                <button
+                  type="button"
+                  onClick={() => searchRef.current?.openWith('')}
+                  title="Search another chart"
+                  aria-label="Search another chart"
+                  style={{ display: 'inline-flex', alignItems: 'center', background: 'none', border: 'none', padding: 2, cursor: 'pointer', opacity: 0.75 }}
+                >
+                  <UIcon name="search" size={13} />
+                </button>
               </span>
               {liveData && (
                 <>
