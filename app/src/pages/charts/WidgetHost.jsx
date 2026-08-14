@@ -97,13 +97,15 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   // and keep the default tokens until they gain settings of their own. Setting this on
   // the workspace root instead would leak the chart's color into every widget.
   const { widgetCanvasByType, widgetCanvasById, chartsTheme } = useWorkspace() || {}
-  // FREEZE a theme-following widget's app theme at placement: stamp the widget's own
-  // `data-theme` (tokens.css keys these at element level, so the whole subtree — body
-  // + chrome — uses the FROZEN theme's tokens). This replaces the reactive
-  // `.widgetThemeFollow` class, which re-flipped live off the *app* [data-theme]; that
-  // recolored existing widgets on every theme switch. Only NEW widgets (a fresh
-  // usePlacedTheme capture) pick up the current theme. Skipped under Sunrise (its own
-  // [data-charts-theme='sunrise'] palette owns the look) and until prefs load (null).
+  // FREEZE a theme-following widget's app theme at placement. `frozenTheme` drives TWO
+  // things that must agree: the JS body colors (published on PlacedThemeContext, read by
+  // the widget's usePlacedTheme) and the chrome tokens (the .widgetFrozenLight class for
+  // a light placement — a dark placement needs none, the workspace default is already
+  // dark). This replaces the old reactive `.widgetThemeFollow`, which re-flipped live off
+  // the *app* [data-theme] and recolored existing widgets on every theme switch. Only NEW
+  // widgets (a fresh usePlacedTheme capture / a fresh opts.placedTheme stamp) pick up the
+  // current theme. Skipped under Sunrise (its own [data-charts-theme] palette owns the
+  // look) and until prefs load (null → the live fallback holds for that first tick).
   const placedTheme = usePlacedTheme(active.opts?.placedTheme)
   const frozenTheme = (themeFollow && chartsTheme !== 'sunrise' && placedTheme) ? placedTheme : null
   // Per-widget chrome wins (each widget owns its settings now); fall back to the
@@ -205,8 +207,11 @@ export default function WidgetHost({ widget, onRemove, onColorChange, onOptsChan
   return (
     <PlacedThemeContext.Provider value={frozenTheme}>
       <div
-        className={`${styles.widget}${merged ? ' ' + styles.widgetMerged : ''}${themeFollow && !frozenTheme ? ' ' + styles.widgetThemeFollow : ''}`}
-        data-theme={frozenTheme || undefined}
+        className={`${styles.widget}${merged ? ' ' + styles.widgetMerged : ''}${
+          frozenTheme === 'light'
+            ? ' ' + styles.widgetFrozenLight            /* placed on light → force light regardless of app theme */
+            : (themeFollow && !frozenTheme ? ' ' + styles.widgetThemeFollow : '')  /* dark placement / loading: workspace dark default (widgetThemeFollow only as the live fallback) */
+        }`}
         style={chromeStyle}
       >
         {merged

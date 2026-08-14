@@ -987,6 +987,33 @@
   --loss: #7d1620;
 }
 
+/* FROZEN-LIGHT: a theme-following widget PLACED on the light app theme keeps its
+   light look no matter what the app theme later becomes (WidgetHost stamps
+   .widgetFrozenLight from the widget's frozen placement theme). Unlike
+   .widgetThemeFollow above this is NOT scoped to the current app [data-theme], so it
+   holds on BOTH light and oled; `.widget.widgetFrozenLight` matches the dark
+   re-assertion's specificity (0,3,0) and, declared later, wins. A widget placed on a
+   DARK theme gets no class and keeps the workspace's dark default in either app theme. */
+[data-charts-theme='default'] .widget.widgetFrozenLight {
+  --bg: #ffffff;
+  --bg-surface: #f4f5f6;
+  --bg-elevated: #ffffff;
+  --bg-hover: rgba(0, 0, 0, 0.05);
+  --border: #e3e5e7;
+  --border-accent: #cbced1;
+  --text: #1f2328;
+  --text-muted: #57606a;
+  --text-bright: #0b0e11;
+  --text-heading: #161a1e;
+  --ut-gold: #7a5c16;
+  --ut-gold-dim: #7a5c161a;
+  --ut-gold-glow: #7a5c1633;
+  --ut-green-bright: #0a5c22;
+  --ut-red-bright: #7d1620;
+  --gain: #0a5c22;
+  --loss: #7d1620;
+}
+
 /* ── TSDR — Sunrise light theme (workspace-wide) ─────────────────────────────
    The chart CANVAS gets a light sky-gradient via StockChart's canvasTheme; here we
    flip the workspace chrome + every variable-driven widget (panels, headers, text,
