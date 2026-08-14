@@ -67,13 +67,50 @@ def _max_pct() -> float:
         return 400.0
 
 
+# Empirical dark-pool ETF/fund universe (every ticker BBS labels ETF/Fund in the
+# dark-pool tape). NETWORK-FREE — so ETF exclusion works even when FMP is down.
+# Superset of the aggregator's category sets; catches the style/intl/CLO stragglers
+# (EFV, SCZ, JAAA, SPYG, HGER, MBB, GOOGM…) FMP would otherwise be the only guard on.
+_KNOWN_DARK_ETFS = {
+    "ACLO", "AGG", "ARCP", "ARMS", "AVDV", "BAI", "BCI", "BHYB", "BIL", "BKGI",
+    "BKLC", "BKLN", "BND", "BNDX", "BSV", "CGBL", "CGCB", "CGCV", "CGGO", "CGMM",
+    "CORB", "CWB", "DFIS", "DIAL", "DRAM", "EEM", "EFA", "EFV", "EMB", "EUFN",
+    "EVLN", "EWJ", "EWY", "EWZ", "FLJP", "FLKR", "FLUD", "FLXR", "FTSM", "FXI",
+    "FXY", "GDX", "GGUS", "GLD", "GMUB", "GOOGM", "GOOGN", "GSEU", "GSID", "GSLC",
+    "GSUS", "GVUS", "HEFA", "HELO", "HGER", "HYG", "IAGG", "IBDY", "IBIT", "IEF",
+    "IEFA", "IEMG", "IGIB", "IGLB", "IGSB", "IHI", "IJH", "IUSB", "IVV", "IWF",
+    "IWM", "IWY", "IYR", "IYW", "JAAA", "JBND", "JCPB", "JIVE", "JMST", "JMUB",
+    "JPST", "KRE", "KWEB", "LQD", "MBB", "MMIT", "MUB", "MYCH", "NSCI", "PAUG",
+    "PICK", "PMBS", "PSQ", "PYLD", "QID", "QLD", "QQQ", "RECS", "SCHD", "SCHF",
+    "SCHI", "SCHP", "SCHR", "SCHX", "SCMB", "SCZ", "SEIE", "SGOV", "SH", "SHV",
+    "SHYG", "SKHY", "SLV", "SMBS", "SMCIP", "SNXX", "SOXQ", "SPAB", "SPHY", "SPMB",
+    "SPSB", "SPSM", "SPY", "SPYG", "SPYM", "SRLN", "SSO", "SUSB", "TAXS", "TLT",
+    "TLTW", "TUSI", "UAE", "USHY", "USO", "UUP", "VCLT", "VCRB", "VEU", "VGIT",
+    "VGSR", "VOO", "VT", "VTEB", "VTEI", "VTV", "VUG", "VXUS", "WCMI", "XBB",
+    "XCCC", "XLB", "XLC", "XLE", "XLF", "XLP", "XLU", "XLY", "XME",
+}
+
+
 def _is_etf(ticker: str) -> bool:
-    """True only when FMP positively flags the name an ETF/fund. Fail-OPEN: an
-    unknown (metadata hiccup) is treated as NOT an ETF so a real equity block is
-    never silently suppressed. Cached per name/day by darkpool_eod."""
+    """ETF/fund detection, resilient to FMP being unavailable. Order: (1) the
+    network-free static dark-pool ETF set + the aggregator's own fund categories +
+    the shared override, then (2) FMP isEtf for anything new. Fail-OPEN only when
+    ALL are silent (unknown → treated as equity, never suppress a real block)."""
+    tk = (ticker or "").upper()
+    if not tk:
+        return False
+    if tk in _KNOWN_DARK_ETFS:
+        return True
+    try:
+        from api.darkpool_eod import _ETF_CATS, _ETF_OVERRIDE
+        from api.darkpool_aggregator import classify_ticker
+        if tk in _ETF_OVERRIDE or classify_ticker(tk, 0, 1) in _ETF_CATS:
+            return True
+    except Exception:
+        pass
     try:
         from api.darkpool_eod import _ticker_meta
-        return (_ticker_meta(ticker) or {}).get("isEtf") is True
+        return (_ticker_meta(tk) or {}).get("isEtf") is True
     except Exception:
         return False
 
@@ -217,3 +254,16 @@ def refresh_from_today() -> dict:
 def refresh_from_trades(date_mdyyyy: str | None = None) -> dict:
     """Manual/backfill hook against the authoritative darkpool_trades for a date."""
     return _run("darkpool_trades", date_mdyyyy)
+
+
+def clear_dedup() -> int:
+    """Drop all per-(date,ticker) dedup rows so a manual re-scan re-alerts. Test aid
+    only — a live poll would simply re-ping already-seen blocks once."""
+    _ensure_table()
+    c = _conn()
+    try:
+        cur = c.execute("DELETE FROM darkpool_bigblock_alerts")
+        c.commit()
+        return cur.rowcount or 0
+    finally:
+        c.close()

@@ -579,19 +579,25 @@ async def intraday_warm_now(_auth: dict = Depends(require_flow_admin)):
 @router.post("/bigblock-scan")
 async def bigblock_scan_now(
     date: str | None = None,
+    reset: bool = False,
     _auth: dict = Depends(require_flow_admin),
 ):
     """Manually run the %ADV big-block alert pass (Discord ping when a single dark
-    print is >= DARKPOOL_BIGBLOCK_PCT_ADV % of the name's 50d avg daily $-volume).
-    No `date` → scans today's live prints (darkpool_today); a `date` (M/D/YYYY) →
-    scans the authoritative darkpool_trades for that day. Self-gated on
-    DARKPOOL_BIGBLOCK_ENABLED; deduped per (date, ticker) so re-running is safe."""
+    print is >= DARKPOOL_BIGBLOCK_PCT_ADV % of the name's 50d avg daily $-volume,
+    equity-only). No `date` → scans today's live prints (darkpool_today); a `date`
+    (M/D/YYYY) → scans the authoritative darkpool_trades for that day. Self-gated on
+    DARKPOOL_BIGBLOCK_ENABLED; deduped per (date, ticker) so re-running is safe.
+    `reset=1` clears the dedup first so a re-scan re-posts the (now ETF-filtered)
+    list — a test aid, not for routine use."""
     try:
         from api import darkpool_bigblock
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"bigblock module unavailable: {e}")
+    cleared = darkpool_bigblock.clear_dedup() if reset else 0
     res = (darkpool_bigblock.refresh_from_trades(date) if date
            else darkpool_bigblock.refresh_from_today())
+    if reset:
+        res = {**res, "dedup_cleared": cleared}
     return JSONResponse(res)
 
 

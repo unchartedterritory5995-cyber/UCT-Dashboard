@@ -90,6 +90,16 @@ def test_evaluate_max_pct_ceiling(temp_db, monkeypatch):
     assert {e["ticker"] for e in bb._evaluate(prints)} == {"REAL"}
 
 
+def test_is_etf_is_network_free():
+    # Known dark-pool ETFs are caught by the static set with NO FMP call — the
+    # resilience fix (FMP-only + fail-open let a wall of ETFs through once).
+    for etf in ("SPYG", "VUG", "VTV", "JAAA", "MBB", "EFV", "SCZ", "USHY", "BNDX", "XLC"):
+        assert bb._is_etf(etf) is True, etf
+    # Real equities are not flagged (fall through to aggregator/FMP → False).
+    for eq in ("ACN", "CRWD", "GE", "UAL"):
+        assert bb._is_etf(eq) is False, eq
+
+
 def test_disabled_short_circuits(monkeypatch):
     monkeypatch.delenv("DARKPOOL_BIGBLOCK_ENABLED", raising=False)
     assert bb.refresh_from_today() == {"ok": False, "reason": "disabled"}
