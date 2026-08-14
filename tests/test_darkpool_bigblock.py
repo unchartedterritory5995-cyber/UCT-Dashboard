@@ -20,6 +20,7 @@ def test_pct_adv_math():
 def temp_db(tmp_path, monkeypatch):
     db = str(tmp_path / "dp.db")
     monkeypatch.setattr(bb, "_conn", lambda: sqlite3.connect(db))
+    monkeypatch.setattr(bb, "_is_etf", lambda tk: False)  # no ETFs unless a test overrides
     return db
 
 
@@ -60,6 +61,33 @@ def test_evaluate_dedup_and_bigger(temp_db, monkeypatch):
     assert len(bb._evaluate([("AAA", 9_000_000, 40.0, d)])) == 1   # strictly bigger → re-alert
     # new day, same ticker → fires again (dedup is per (date, ticker)).
     assert len(bb._evaluate([("AAA", 6_000_000, 40.0, "2026-08-15")])) == 1
+
+
+def test_evaluate_excludes_etf(temp_db, monkeypatch):
+    monkeypatch.setenv("DARKPOOL_BIGBLOCK_PCT_ADV", "5")
+    monkeypatch.setenv("DARKPOOL_BIGBLOCK_MIN_NOTIONAL", "4e6")
+    _patch_stats(monkeypatch, {"SPAB": 2_000_000, "BIRK": 2_000_000})
+    monkeypatch.setattr(bb, "_is_etf", lambda tk: tk.upper() == "SPAB")  # SPAB is a bond ETF
+    d = "2026-08-14"
+    prints = [
+        ("SPAB", 43_000_000, 25.0, d),  # 86% ADV but ETF → excluded
+        ("BIRK", 41_000_000, 39.0, d),  # 53% ADV, equity → fires
+    ]
+    assert {e["ticker"] for e in bb._evaluate(prints)} == {"BIRK"}
+
+
+def test_evaluate_max_pct_ceiling(temp_db, monkeypatch):
+    monkeypatch.setenv("DARKPOOL_BIGBLOCK_PCT_ADV", "5")
+    monkeypatch.setenv("DARKPOOL_BIGBLOCK_MIN_NOTIONAL", "4e6")
+    monkeypatch.setenv("DARKPOOL_BIGBLOCK_MAX_PCT_ADV", "400")
+    # Thin-ticker artifact: tiny avg vol → absurd %ADV, must be dropped.
+    _patch_stats(monkeypatch, {"DYNC": 10_000, "REAL": 1_000_000})
+    d = "2026-08-14"
+    prints = [
+        ("DYNC", 4_400_000, 34.0, d),   # 129k sh / 10k avg = 1294% → artifact, skip
+        ("REAL", 6_000_000, 40.0, d),   # 150k sh / 1M avg = 15% → fires
+    ]
+    assert {e["ticker"] for e in bb._evaluate(prints)} == {"REAL"}
 
 
 def test_disabled_short_circuits(monkeypatch):

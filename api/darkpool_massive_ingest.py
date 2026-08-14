@@ -136,7 +136,29 @@ _BASE_SUPPLEMENT = [
     "USO", "UNG", "OIH", "XOP", "GDXJ", "XLB", "XLRE", "SOXL", "TQQQ", "SQQQ",
     "VXX", "UVXY", "ARKK", "GBTC", "MSTR", "COIN", "TIP",
 ]
-BASE_UNIVERSE = _dedup_upper(_BASE_ETFS + _BASE_STOCKS + _BASE_SUPPLEMENT + _BASE_EXTRA)
+# Liquid single-name equities that printed real dark SIZE on 2026-08-14 (BBS export)
+# but were absent from the base — ≥$4M notional, ≥5% of 30d ADV, ≥$25M avg daily
+# $-vol, ETFs excluded. Closes the coverage gap surfaced when BBS logged ~270 %ADV
+# blocks that day vs our 7 (we simply weren't polling these names). Refresh/reconcile
+# from a longer multi-week BBS export when one is available.
+_BASE_EQUITIES_0814 = [
+    "ABEV", "AEE", "AES", "AGIO", "AHR", "AIG", "ALHC", "ALL", "AMH", "AMT",
+    "AMX", "APGE", "ARI", "ARMK", "ARX", "ASO", "ATEN", "ATMU", "AUB", "BALL",
+    "BEKE", "BEN", "BIRK", "BNL", "BRO", "BSY", "BZ", "CB", "CBRS", "CCJ",
+    "CDW", "CELH", "CFR", "CHEF", "CNQ", "CPT", "CTAS", "CVE", "CYTK", "DIOD",
+    "DV", "ELAN", "EME", "EPD", "EQR", "ESTA", "EXEL", "FA", "FBRX", "FDS",
+    "FIX", "FOXA", "GFL", "GH", "GLOB", "GLPI", "GMAB", "GT", "GVA", "HAS",
+    "HDB", "HGV", "HQY", "HRB", "HSIC", "HUBS", "HZO", "INDV", "IT", "ITUB",
+    "J", "LAZ", "LEGN", "LEVI", "LFST", "LGN", "LNTH", "LTH", "LUMN", "MAC",
+    "MANH", "MGNI", "MKSI", "MSI", "MTDR", "MUR", "NCLH", "NIO", "NNN", "NOG",
+    "NOV", "NTES", "NUVB", "NVT", "NWG", "O", "OVV", "PAYO", "PII", "PPLI",
+    "PSX", "QSR", "RDDT", "RHI", "RJF", "RSI", "RYAN", "SAN", "SARO", "SFNC",
+    "SPG", "SRAD", "SRE", "ST", "SUNC", "TEL", "TGT", "TMO", "TPG", "TRI",
+    "TS", "TTEK", "UAL", "UGI", "VICI", "VIK", "VTR", "WES", "WH", "XEL",
+    "XPO", "YETI",
+]
+BASE_UNIVERSE = _dedup_upper(
+    _BASE_ETFS + _BASE_STOCKS + _BASE_SUPPLEMENT + _BASE_EQUITIES_0814 + _BASE_EXTRA)
 # Intraday core — kept SMALL (polled every few minutes): the top ETFs that block in
 # size (incl. commodity/rates like USO) + the megacaps. Extend via env.
 BASE_UNIVERSE_CORE = _dedup_upper([

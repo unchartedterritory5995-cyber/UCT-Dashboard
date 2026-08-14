@@ -15,6 +15,10 @@ Dark by default: DARKPOOL_BIGBLOCK_ENABLED=1 to arm. Knobs:
   DARKPOOL_BIGBLOCK_PCT_ADV      (default 5.0)  — % of 50d avg daily $-volume
   DARKPOOL_BIGBLOCK_MIN_NOTIONAL (default 4e6)  — absolute floor (matches the
                                                   ingest's $4M off-exchange floor)
+  DARKPOOL_BIGBLOCK_EQUITY_ONLY  (default 1)    — skip ETFs (bond/index/commodity
+                                                  fund flow, not conviction); 0=include
+  DARKPOOL_BIGBLOCK_MAX_PCT_ADV  (default 400)  — ceiling: above this, a print is a
+                                                  creation/NAV/thin-ticker artifact
 """
 from __future__ import annotations
 
@@ -45,6 +49,33 @@ def _min_notional() -> float:
         return float(os.getenv("DARKPOOL_BIGBLOCK_MIN_NOTIONAL", "4e6"))
     except (TypeError, ValueError):
         return 4e6
+
+
+def _equity_only() -> bool:
+    # Default ON: single-name equities only. A dark block in a bond/index/commodity
+    # ETF (SPAB, IGLB, VTEI, GLD, VOO) is fund/NAV/creation flow, not single-name
+    # conviction — owner doesn't want those. Set 0 to include ETFs again.
+    return os.getenv("DARKPOOL_BIGBLOCK_EQUITY_ONLY", "1") == "1"
+
+
+def _max_pct() -> float:
+    # Sanity ceiling: a single print above this % of avg daily volume is almost
+    # always a creation/NAV/thin-new-ticker artifact, not a real trade.
+    try:
+        return float(os.getenv("DARKPOOL_BIGBLOCK_MAX_PCT_ADV", "400"))
+    except (TypeError, ValueError):
+        return 400.0
+
+
+def _is_etf(ticker: str) -> bool:
+    """True only when FMP positively flags the name an ETF/fund. Fail-OPEN: an
+    unknown (metadata hiccup) is treated as NOT an ETF so a real equity block is
+    never silently suppressed. Cached per name/day by darkpool_eod."""
+    try:
+        from api.darkpool_eod import _ticker_meta
+        return (_ticker_meta(ticker) or {}).get("isEtf") is True
+    except Exception:
+        return False
 
 
 def _conn():
@@ -111,6 +142,8 @@ def _evaluate(prints: list[tuple]) -> list[dict]:
     lookup so an already-alerted ticker costs no Massive call."""
     floor_pct = _pct_floor()
     floor_min = _min_notional()
+    max_pct = _max_pct()
+    equity_only = _equity_only()
     _ensure_table()
     from api.darkpool_eod import _daily_stats
     c = _conn()
@@ -127,8 +160,10 @@ def _evaluate(prints: list[tuple]) -> list[dict]:
                 continue  # already pinged this ticker today at >= this size
             avg50 = (_daily_stats(tk) or {}).get("avg50") or 0.0
             pct = pct_adv(notional, price, avg50)
-            if pct is None or pct < floor_pct:
-                continue
+            if pct is None or pct < floor_pct or pct > max_pct:
+                continue  # below the floor, or an absurd-%ADV data artifact
+            if equity_only and _is_etf(tk):
+                continue  # bond/index/commodity ETF — fund flow, not conviction
             if cur is None:
                 c.execute(
                     "INSERT INTO darkpool_bigblock_alerts "
