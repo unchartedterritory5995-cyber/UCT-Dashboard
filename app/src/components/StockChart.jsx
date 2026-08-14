@@ -11217,6 +11217,19 @@ export default function StockChart({
   // time-axis height so it sits just left of the axis, at the date row.
   const rangeBarRef = useRef(null)
 
+  // Responsive vertical legend (short panes). When the legend's bottom reaches the
+  // range-selector band we hide that bar; when it reaches the price/volume boundary
+  // we compact the OHLC into a 2-up grid (O·H / L·C / Vol) so it stops spilling into
+  // the volume pane. Both are driven by the rAF boundary sampler below (which already
+  // knows the pane heights); refs mirror the state so that always-running loop reads
+  // the current value without being a dependency. Hysteresis prevents flip-flop.
+  const [compactLegend, setCompactLegend] = useState(false)
+  const compactLegendRef = useRef(false)
+  compactLegendRef.current = compactLegend
+  const [hideRangeForLegend, setHideRangeForLegend] = useState(false)
+  const hideRangeForLegendRef = useRef(false)
+  hideRangeForLegendRef.current = hideRangeForLegend
+
   // Pin two volume-pane overlays to the LIVE price/volume pane boundary as the user
   // drags the separator: the date-range bar (3M/6M/YTD/…) just ABOVE the boundary,
   // and the volume legend ($ vol + avg vol) just BELOW it (top-left of the volume
@@ -11226,7 +11239,7 @@ export default function StockChart({
   // re-render → no fight → smooth), so they slide with the divider in real time.
   const showVolLegend = showVolume && volInSeparatePane
   useEffect(() => {
-    if ((!showRangeSelector && !showVolLegend) || !chartReady) return
+    if ((!showRangeSelector && !showVolLegend && !verticalLegend) || !chartReady) return
     const chart = chartRef.current, container = containerRef.current
     if (!chart || !container) return
     // Track the last element too, not just the last value: on a symbol flip the
@@ -11251,13 +11264,29 @@ export default function StockChart({
             const top = Math.round(h0 + 5) // just below the boundary = volume pane top
             if (top !== lastTop || vl !== lastVl) { lastTop = top; lastVl = vl; vl.style.top = `${top}px` }
           }
+          // Responsive vertical legend: measure its bottom against the price/volume
+          // boundary (h0) and shed to fit. STAGE 1 — legend reaches the range-selector
+          // band (which sits just above the boundary) → hide that bar. STAGE 2 — legend
+          // still reaches the boundary → compact the OHLC. Hysteresis (a comfortable
+          // gap before restoring) stops it toggling on the boundary pixel.
+          const leg = legendRef.current
+          if (verticalLegend && leg) {
+            const legBottom = leg.getBoundingClientRect().bottom - container.getBoundingClientRect().top
+            const rbTop = h0 - 34   // the range bar occupies ~34px just above the boundary
+            const curHide = hideRangeForLegendRef.current
+            if (!curHide && legBottom > rbTop) setHideRangeForLegend(true)
+            else if (curHide && legBottom < rbTop - 12) setHideRangeForLegend(false)
+            const curCompact = compactLegendRef.current
+            if (!curCompact && legBottom > h0 - 2) setCompactLegend(true)
+            else if (curCompact && legBottom < h0 - 46) setCompactLegend(false)
+          }
         }
       } catch { /* pane API missing → CSS fallback */ }
       raf = requestAnimationFrame(tick)
     }
     tick()
     return () => { if (raf) cancelAnimationFrame(raf) }
-  }, [showRangeSelector, showVolLegend, chartReady])
+  }, [showRangeSelector, showVolLegend, verticalLegend, chartReady])
 
   useEffect(() => {
     const el = containerRef.current
@@ -12614,12 +12643,29 @@ export default function StockChart({
               <span className={styles.vlChange} style={{ color: legChgColor }}>
                 {legUp ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)
               </span>
-              <span className={styles.vlLabel} style={legBase}>Open</span><span className={styles.vlVal} style={legBase}>{crosshairData.open?.toFixed(2)}</span>
-              <span className={styles.vlLabel} style={legBase}>High</span><span className={styles.vlVal} style={legBase}>{crosshairData.high?.toFixed(2)}</span>
-              <span className={styles.vlLabel} style={legBase}>Low</span><span className={styles.vlVal} style={legBase}>{crosshairData.low?.toFixed(2)}</span>
-              <span className={styles.vlLabel} style={legBase}>Close</span><span className={styles.vlVal} style={legBase}>{crosshairData.close?.toFixed(2)}</span>
-              {crosshairData.volume != null && (
-                <><span className={styles.vlLabel} style={legBase}>Vol</span><span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></>
+              {compactLegend ? (
+                // Compact (short pane): pack OHLC two-up as combined "O 979" cells in
+                // the 2-col grid, single-letter labels, Vol on its own full-width row —
+                // ~3 rows instead of ~5 so it stops spilling into the volume pane.
+                <>
+                  <span className={styles.vlCell} style={legBase}>O <span className={styles.vlVal} style={legBase}>{crosshairData.open?.toFixed(2)}</span></span>
+                  <span className={styles.vlCell} style={legBase}>H <span className={styles.vlVal} style={legBase}>{crosshairData.high?.toFixed(2)}</span></span>
+                  <span className={styles.vlCell} style={legBase}>L <span className={styles.vlVal} style={legBase}>{crosshairData.low?.toFixed(2)}</span></span>
+                  <span className={styles.vlCell} style={legBase}>C <span className={styles.vlVal} style={legBase}>{crosshairData.close?.toFixed(2)}</span></span>
+                  {crosshairData.volume != null && (
+                    <span className={styles.vlCell} style={{ ...legBase, gridColumn: '1 / -1' }}>Vol <span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></span>
+                  )}
+                </>
+              ) : (
+                <>
+                  <span className={styles.vlLabel} style={legBase}>Open</span><span className={styles.vlVal} style={legBase}>{crosshairData.open?.toFixed(2)}</span>
+                  <span className={styles.vlLabel} style={legBase}>High</span><span className={styles.vlVal} style={legBase}>{crosshairData.high?.toFixed(2)}</span>
+                  <span className={styles.vlLabel} style={legBase}>Low</span><span className={styles.vlVal} style={legBase}>{crosshairData.low?.toFixed(2)}</span>
+                  <span className={styles.vlLabel} style={legBase}>Close</span><span className={styles.vlVal} style={legBase}>{crosshairData.close?.toFixed(2)}</span>
+                  {crosshairData.volume != null && (
+                    <><span className={styles.vlLabel} style={legBase}>Vol</span><span className={styles.vlVal} style={legBase}>{formatVolume(crosshairData.volume)}</span></>
+                  )}
+                </>
               )}
               {crosshairData.overlays.flatMap((ov, i) => [
                 <span key={'l' + i} className={styles.vlLabel} style={{ color: ov.color }}>{ov.label}</span>,
@@ -12834,7 +12880,7 @@ export default function StockChart({
           </div>
         </div>
       )}
-      {showRangeSelector && chartReady && filteredBars?.length > 1 && (
+      {showRangeSelector && chartReady && filteredBars?.length > 1 && !hideRangeForLegend && (
         <div ref={rangeBarRef} className={styles.rangeBar}>
           {RANGE_OPTS.map(([label, val], i) => (
             <button
