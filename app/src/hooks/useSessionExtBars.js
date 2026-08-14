@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { aggregateExtBars } from '../components/chart/sessionPreview'
+import { idbGet } from '../utils/barsIDB'
 
 // Today's ET calendar date ("YYYY-MM-DD").
 function todayEtStr() {
@@ -54,6 +55,7 @@ export default function useSessionExtBars(sym, session, active, anchorDate) {
       if (cancelled) return
       setState(s => (s.sym === sym ? { sym, agg: agg !== undefined ? agg : s.agg, ready: true } : s))
     }
+    const aggFrom = (bars) => aggregateExtBars(bars || [], { session, todayEt: anchorDate || todayEtStr() })
     const run = async () => {
       try {
         const r = await fetch(`/api/bars/${encodeURIComponent(sym)}?tf=5&bars=300`)
@@ -62,9 +64,29 @@ export default function useSessionExtBars(sym, session, active, anchorDate) {
         if (cancelled) return   // sym/session change cancels via cleanup below
         // Anchor to the trading day the extended data belongs to (overnight →
         // the just-closed day), falling back to today for the live 4pm–8pm window.
-        settle(aggregateExtBars(payload?.bars || [], { session, todayEt: anchorDate || todayEtStr() }))
+        settle(aggFrom(payload?.bars))
       } catch { settle(undefined) }
     }
+    // FAST PATH: paint from the WARM 5m IDB cache before the ~1s network round-trip.
+    // The workspace warms all TFs into IDB on symbol selection (prefetchAllTimeframes
+    // includes '5'), and /api/bars?tf=5 already carries pre/post-market prints — so on
+    // a revisit / once the warm lands, the real aggregate is computable in ~10ms and
+    // the pre-market candle appears instantly instead of after the fetch.
+    // Safety: idbGet already rejects stale/cold/gapped 5m (newest-bar-age, logic
+    // version, interior gaps), and we settle ONLY on a NON-NULL aggregate. A cold or
+    // prior-day cache yields null here (aggregateExtBars finds no bars for TODAY's
+    // session) → we do NOT settle, and fall through to the network exactly as before.
+    // This means the fast path can never trigger the flat-doji morph the ready-gate
+    // exists to prevent — it fires only when the true OHLC is already known.
+    const fastWarm = async () => {
+      try {
+        const entry = await idbGet(sym, '5')
+        if (cancelled || !entry?.bars?.length) return
+        const agg = aggFrom(entry.bars)
+        if (agg) settle(agg)   // instant, complete candle; run() still refines below
+      } catch { /* fall through to the network fetch */ }
+    }
+    fastWarm()
     run()
     const id = setInterval(run, 30_000)
     return () => { cancelled = true; clearInterval(id) }
