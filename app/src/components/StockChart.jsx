@@ -655,6 +655,14 @@ function formatDpNotional(v) {
 // used by the intraday popup, where a single session is too short to "waste"
 // the first `period` bars on warmup.
 export function computeSMA(bars, period, fromStart = false) {
+  // Guard against an invalid period (0, negative, NaN, fractional) — reachable
+  // mid-edit when the user clears/retypes an MA length in Chart Settings, and it
+  // can be PERSISTED to a chart_settings overlay before the field is corrected.
+  // Without this, `period - 1` indexes out of bounds and `bars[-1].t` / `bars[NaN].t`
+  // throws "Cannot read properties of undefined (reading 't')", crashing the whole
+  // /charts page. An invalid length must simply draw no line, never crash.
+  period = Math.floor(Number(period))
+  if (!Number.isFinite(period) || period < 1) return []
   if (bars.length < period && !fromStart) return []
   const result = []
   const start = fromStart ? 0 : period - 1
@@ -673,6 +681,11 @@ export function computeSMA(bars, period, fromStart = false) {
 // `fromStart`: seed the EMA from the first bar's close (rather than an SMA over
 // the first `period` bars) so the line begins at the chart's first bar.
 function computeEMA(bars, period, fromStart = false) {
+  // Same guard as computeSMA: an invalid period (0/neg/NaN/fractional) — reachable
+  // and persistable while editing an MA length — made `bars[period - 1].t` read
+  // `.t` off an undefined bar and crash the page. Draw nothing instead.
+  period = Math.floor(Number(period))
+  if (!Number.isFinite(period) || period < 1) return []
   if (bars.length < period && !fromStart) return []
   if (!bars.length) return []
   const k = 2 / (period + 1)
@@ -8937,9 +8950,12 @@ export default function StockChart({
       tags.forEach((t, i) => {
         const o = opts(t)
         // The INTRADAY Pre/Post chip's live price is owned by the rAF sync effect
-        // below (glued to the developing candle); this per-tick effect must not fight
-        // it on price, or the chip flickers between two feeds. Keep title/color fresh.
-        if (sessionTagsIntraday && t._sessionTag === 'ext') delete o.price
+        // below ONLY in Extended-hours mode, where it's glued to the developing ext
+        // candle; skip price here so the two feeds don't fight + flicker. In REGULAR
+        // -hours mode there is no ext candle — the developing bar is the frozen RTH
+        // close — so the rAF is inert and the chip MUST track the seeded ext price
+        // here (else it would sit at yesterday's RTH close, not the pre/post price).
+        if (sessionTagsIntraday && t._sessionTag === 'ext' && showExtended) delete o.price
         try { sessionTagRefs.current[i].applyOptions(o) } catch { /* series gone */ }
       })
       return
@@ -8948,7 +8964,7 @@ export default function StockChart({
       try { series.removePriceLine(pl) } catch { /* series gone */ }
     }
     sessionTagRefs.current = tags.map((t) => series.createPriceLine(opts(t)))
-  }, [chartReady, activeSessionTags, cs.textColor, sessionTagsIntraday, cs.showPriceLabels])
+  }, [chartReady, activeSessionTags, cs.textColor, sessionTagsIntraday, showExtended, cs.showPriceLabels])
 
   // Glue the intraday Pre/Post axis chip to the developing candle IN REAL TIME. The
   // candle is painted from liveBarRef by whichever writer owns it (Finnhub tick /
@@ -8956,9 +8972,14 @@ export default function StockChart({
   // previously read sessionExtPrice, a DIFFERENT feed, so during a fast pre/post-market
   // move the two showed different prices. A rAF loop mirrors the chip to the candle's
   // exact drawn close (liveBarRef.close) every frame, so they move in unison with no
-  // cross-feed lag. Intraday ext only; only writes when the value actually changes.
+  // cross-feed lag.
+  // ⚠️ EXTENDED-HOURS mode ONLY. In Regular-hours mode the developing candle is the
+  // frozen RTH bar (seeded into liveBarRef with yesterday's close), NOT the pre/post
+  // price — gluing the chip to it dragged the "Pre"/"Post" label down to the prior
+  // RTH close. In regular mode the applier above keeps the chip on the seeded ext
+  // price, so this loop must stay off.
   useEffect(() => {
-    if (!sessionTagsIntraday) return
+    if (!sessionTagsIntraday || !showExtended) return
     let raf = 0
     let lastPx = null
     const tick = () => {
@@ -8972,7 +8993,7 @@ export default function StockChart({
     }
     raf = requestAnimationFrame(tick)
     return () => { if (raf) cancelAnimationFrame(raf) }
-  }, [sessionTagsIntraday])
+  }, [sessionTagsIntraday, showExtended])
 
   // ── Writer F of the single-writer invariant (index @ barsPushActiveRef decl):
   // custom-TF live developing bar ──
