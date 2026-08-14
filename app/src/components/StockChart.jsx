@@ -2570,6 +2570,21 @@ export default function StockChart({
   // ── Drawing tools state ──
   // ── Crosshair legend state ──
   const [crosshairData, setCrosshairData] = useState(null)
+  // Responsive vertical legend. "Collapsed" = the legend's full height reaches the
+  // range-selector band (just above the price/volume boundary). At that point we
+  // (a) hide the range bar, (b) switch the legend to HOVER-ONLY (like a multi-chart
+  // cell) so it stops permanently covering candles, and (c) render it COMPACT when it
+  // pops up on hover. Declared HERE — above the crosshair effects that read it (they'd
+  // hit a TDZ if it were declared lower, where the rAF sampler that SETS it lives).
+  const [compactLegend, setCompactLegend] = useState(false)
+  const compactLegendRef = useRef(false)
+  compactLegendRef.current = compactLegend
+  // Decisions key off the FULL legend height (recorded while NOT collapsed) so the
+  // compact/hidden height can't make it flip-flop, and it survives the legend being
+  // hidden (nothing to measure while hover-only + off-hover).
+  const lastFullBottomRef = useRef(0)
+  // Off-hover legend persistence is suppressed while collapsed → hover-only.
+  const effAlwaysShow = alwaysShowLegend && !compactLegend
   // The `+N` fold, expanded in place. False on every mount on purpose: a strip
   // that reopens itself is a strip the user closed for nothing.
   const [chipsExpanded, setChipsExpanded] = useState(false)
@@ -10015,7 +10030,7 @@ export default function StockChart({
       const onCrosshairMove = onCrosshairMoveRef.current
 
       const priceData = candleSeriesRef.current ? param.seriesData.get(candleSeriesRef.current) : null
-      if (!priceData) { legendHoveringRef.current = false; setCrosshairData(alwaysShowLegend ? computeLatestCrosshair() : null); return }
+      if (!priceData) { legendHoveringRef.current = false; setCrosshairData((alwaysShowLegend && !compactLegendRef.current) ? computeLatestCrosshair() : null); return }
 
       // ── Multi-chart sync: broadcast FIRST, before the legend math ──
       // Everything below this point computes ~20 legend values and ends in a
@@ -10194,7 +10209,7 @@ export default function StockChart({
         if (crosshairRafRef.current != null) { cancelAnimationFrame(crosshairRafRef.current); crosshairRafRef.current = null }
         crosshairParamRef.current = null
         legendHoveringRef.current = false
-        setCrosshairData(alwaysShowLegend ? computeLatestCrosshair() : null)
+        setCrosshairData((alwaysShowLegend && !compactLegendRef.current) ? computeLatestCrosshair() : null)
         // Tell the sync bus the local user left the chart — but not when this
         // empty event was self-induced by applying an external crosshair.
         if (!applyingExternalRef.current && typeof onCrosshairMoveRef.current === 'function') {
@@ -10222,12 +10237,14 @@ export default function StockChart({
   }, [chartReady])
 
   // Keep the off-chart legend fresh with the latest bar when the cursor isn't hovering.
+  // When collapsed (effAlwaysShow=false → hover-only) this CLEARS it instead, so the
+  // legend vanishes off-hover and only reappears (compact) on crosshair move.
   useEffect(() => {
-    if (!alwaysShowLegend || !chartReady) return
+    if (!chartReady) return
     if (legendHoveringRef.current || externalCrosshairAppliedRef.current) return
-    setCrosshairData(computeLatestCrosshair())
+    setCrosshairData(effAlwaysShow ? computeLatestCrosshair() : null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [alwaysShowLegend, chartReady, ohlcData, overlayData])
+  }, [effAlwaysShow, chartReady, ohlcData, overlayData])
 
   // Live legend ticking. Two pieces, deliberately split so the legend tracks the
   // fast Massive feed (like the theme tracker) WITHOUT re-rendering the whole
@@ -10287,7 +10304,7 @@ export default function StockChart({
   }, [liveUpdates, sym, cs.heikinAshi, cs.chartType])
 
   useEffect(() => {
-    if (!alwaysShowLegend || !chartReady) return undefined
+    if (!effAlwaysShow || !chartReady) return undefined
     const id = setInterval(() => {
       // Hover — or a synced crosshair — owns the legend; don't fight it.
       if (legendHoveringRef.current || externalCrosshairAppliedRef.current) return
@@ -10305,7 +10322,7 @@ export default function StockChart({
     }, 500)
     return () => clearInterval(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [alwaysShowLegend, chartReady, sym])
+  }, [effAlwaysShow, chartReady, sym])
 
   // Publish the chart's EXACT displayed price + volume so the watchlist row for
   // this symbol can mirror it (real-time, to-the-share) instead of drifting on
@@ -11217,24 +11234,6 @@ export default function StockChart({
   // time-axis height so it sits just left of the axis, at the date row.
   const rangeBarRef = useRef(null)
 
-  // Responsive vertical legend (short panes). When the legend's bottom reaches the
-  // range-selector band we hide that bar; when it reaches the price/volume boundary
-  // we compact the OHLC into a 2-up grid (O·H / L·C / Vol) so it stops spilling into
-  // the volume pane. Both are driven by the rAF boundary sampler below (which already
-  // knows the pane heights); refs mirror the state so that always-running loop reads
-  // the current value without being a dependency. Hysteresis prevents flip-flop.
-  const [compactLegend, setCompactLegend] = useState(false)
-  const compactLegendRef = useRef(false)
-  compactLegendRef.current = compactLegend
-  const [hideRangeForLegend, setHideRangeForLegend] = useState(false)
-  const hideRangeForLegendRef = useRef(false)
-  hideRangeForLegendRef.current = hideRangeForLegend
-  // Both legend decisions key off the FULL legend's bottom (recorded whenever it's
-  // NOT compact), never the compact height. Compact drops the MA rows — a big,
-  // variable height change — so comparing the shrunken height against the boundary
-  // would flip-flop. Remembering the full extent makes the restore stable.
-  const lastFullBottomRef = useRef(0)
-
   // Pin two volume-pane overlays to the LIVE price/volume pane boundary as the user
   // drags the separator: the date-range bar (3M/6M/YTD/…) just ABOVE the boundary,
   // and the volume legend ($ vol + avg vol) just BELOW it (top-left of the volume
@@ -11274,19 +11273,24 @@ export default function StockChart({
           // band (which sits just above the boundary) → hide that bar. STAGE 2 — legend
           // still reaches the boundary → compact the OHLC. Hysteresis (a comfortable
           // gap before restoring) stops it toggling on the boundary pixel.
-          const leg = legendRef.current
-          if (verticalLegend && leg) {
-            const legBottom = leg.getBoundingClientRect().bottom - container.getBoundingClientRect().top
-            // Record the FULL extent only while not compact; use it for both decisions.
-            if (!compactLegendRef.current) lastFullBottomRef.current = legBottom
-            const fullBottom = lastFullBottomRef.current || legBottom
-            const rbTop = h0 - 34   // the range bar occupies ~34px just above the boundary
-            const curHide = hideRangeForLegendRef.current
-            if (!curHide && fullBottom > rbTop) setHideRangeForLegend(true)
-            else if (curHide && fullBottom < rbTop - 12) setHideRangeForLegend(false)
-            const curCompact = compactLegendRef.current
-            if (!curCompact && fullBottom > h0 - 2) setCompactLegend(true)
-            else if (curCompact && fullBottom < h0 - 10) setCompactLegend(false)
+          // Responsive legend collapse: when the FULL legend reaches the range-selector
+          // band (rbTop = ~34px above the boundary), collapse it (hide range bar +
+          // hover-only + compact); restore when there's clear room again. Record the
+          // full height only while NOT collapsed, and evaluate even when the legend is
+          // HIDDEN (hover-only + off-hover → no node) using that remembered height, so
+          // a growing pane can still un-collapse it.
+          if (verticalLegend) {
+            const leg = legendRef.current
+            if (leg && !compactLegendRef.current) {
+              lastFullBottomRef.current = leg.getBoundingClientRect().bottom - container.getBoundingClientRect().top
+            }
+            const fullBottom = lastFullBottomRef.current
+            if (fullBottom > 0) {
+              const rbTop = h0 - 34
+              const cur = compactLegendRef.current
+              if (!cur && fullBottom > rbTop) setCompactLegend(true)
+              else if (cur && fullBottom < rbTop - 12) setCompactLegend(false)
+            }
           }
         }
       } catch { /* pane API missing → CSS fallback */ }
@@ -12878,7 +12882,7 @@ export default function StockChart({
           </div>
         </div>
       )}
-      {showRangeSelector && chartReady && filteredBars?.length > 1 && !hideRangeForLegend && (
+      {showRangeSelector && chartReady && filteredBars?.length > 1 && !compactLegend && (
         <div ref={rangeBarRef} className={styles.rangeBar}>
           {RANGE_OPTS.map(([label, val], i) => (
             <button

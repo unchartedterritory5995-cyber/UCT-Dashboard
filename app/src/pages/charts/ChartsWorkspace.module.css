@@ -470,7 +470,6 @@
   gap: 2px;
   padding: 0 6px;
   min-height: 32px;   /* shared second-header-row height (aligns divider lines across widgets) */
-  height: 32px;
   box-sizing: border-box;
   background: var(--widget-canvas, var(--bg-elevated, #0d1218));
   border-bottom: 1px solid var(--widget-divider, var(--border, #1f2937));
@@ -488,6 +487,10 @@
   font-weight: 600;
   letter-spacing: 0.6px;
   cursor: pointer;
+  /* Never squeeze a timeframe button — the row OVERFLOWS (which ChartPane measures
+     and responds to by dropping whole buttons into the ▾ menu) instead of shrinking
+     them into unreadable slivers. */
+  flex-shrink: 0;
   /* No text-transform: labels carry their own case (minutes '1m'/'45m' lowercase,
      hours '1h', days/weeks/months '1D'/'2W'/'1M' uppercase) so 1-minute and
      1-month never both read as '1M'. */
@@ -675,7 +678,11 @@
   align-items: center;
   gap: 16px;
   margin-left: 18px;
-  flex-wrap: wrap;
+  /* Info row is ONE line and never shrinks: if it can't fit, ChartPane drops
+     timeframe buttons FIRST, then abbreviates these labels — it must never squeeze
+     or wrap the info (which the parent's overflow:hidden would then clip). */
+  flex-wrap: nowrap;
+  flex-shrink: 0;
 }
 .chartMetaItem {
   display: inline-flex;
@@ -702,6 +709,7 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;   /* the gear/＋/theme cluster stays whole — timeframes yield instead */
 }
 
 /* ── Right side of the TOP (ticker) row: session toggle + live market clock ── */
