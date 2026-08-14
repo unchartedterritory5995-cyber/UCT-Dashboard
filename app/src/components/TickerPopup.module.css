@@ -59,7 +59,30 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   margin-bottom: 12px;
+}
+.modalHeaderLeft { display: flex; align-items: center; min-width: 0; }
+.modalHeaderRight { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+
+/* "Switch ticker…" search pill (SymbolSearch badge, top-right of the header).
+   Looks like an input field: gold-outlined, muted placeholder text, brightens
+   on hover. !important overrides SymbolSearch's own .badge (gold 14px, no box). */
+.switchPill {
+  border: 1px solid #c9a84c55 !important;
+  border-radius: 6px !important;
+  padding: 5px 12px !important;
+  font-family: var(--font-sans) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.3px !important;
+  color: var(--text-muted) !important;
+  background: transparent !important;
+  transition: border-color 0.15s, color 0.15s !important;
+}
+.switchPill:hover {
+  border-color: #c9a84c !important;
+  color: var(--ut-cream) !important;
 }
 .modalSym {
   font-family: var(--font-mono);

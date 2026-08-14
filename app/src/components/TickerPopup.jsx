@@ -156,47 +156,50 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
             aria-label={`${activeSym} chart`}
           >
             <div className={styles.modalHeader}>
-              {tagColor && <span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: TAG_BY_KEY[tagColor]?.hex, marginRight: 5 }} />}
-              <span className={styles.modalSym} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                <SymbolSearch ref={searchRef} sym={activeSym} onSymbolChange={(s) => setSearchSym(String(s).toUpperCase())} hideIcon fullLabel />
-                <button
-                  type="button"
-                  onClick={() => searchRef.current?.openWith('')}
-                  title="Search another chart"
-                  aria-label="Search another chart"
-                  style={{ display: 'inline-flex', alignItems: 'center', background: 'none', border: 'none', padding: 2, cursor: 'pointer', opacity: 0.75 }}
-                >
-                  <UIcon name="search" size={13} />
-                </button>
-              </span>
-              {liveData && (
-                <>
-                  <span className={styles.modalPrice}>${liveData.price?.toFixed(2)}</span>
-                  <span className={`${styles.modalChange} ${liveData.change_pct >= 0 ? styles.modalChangeUp : styles.modalChangeDown}`}>
-                    {liveData.change_pct >= 0 ? '+' : ''}{liveData.change_pct?.toFixed(2)}%
+              <div className={styles.modalHeaderLeft}>
+                {tagColor && <span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: TAG_BY_KEY[tagColor]?.hex, marginRight: 5 }} />}
+                <span className={styles.modalSym}>{activeSym}</span>
+                {liveData && (
+                  <>
+                    <span className={styles.modalPrice}>${liveData.price?.toFixed(2)}</span>
+                    <span className={`${styles.modalChange} ${liveData.change_pct >= 0 ? styles.modalChangeUp : styles.modalChangeDown}`}>
+                      {liveData.change_pct >= 0 ? '+' : ''}{liveData.change_pct?.toFixed(2)}%
+                    </span>
+                  </>
+                )}
+                {flagToast && (
+                  <span className={`${styles.flagToast} ${flagToast === 'added' ? styles.flagToastAdded : styles.flagToastRemoved}`}>
+                    <UIcon name="flag" size={12} style={{ verticalAlign: '-1px', marginRight: 3 }} />{flagToast === 'added' ? 'Flagged' : 'Removed'}
                   </span>
-                </>
-              )}
-              {flagToast && (
-                <span className={`${styles.flagToast} ${flagToast === 'added' ? styles.flagToastAdded : styles.flagToastRemoved}`}>
-                  <UIcon name="flag" size={12} style={{ verticalAlign: '-1px', marginRight: 3 }} />{flagToast === 'added' ? 'Flagged' : 'Removed'}
-                </span>
-              )}
-              <button
-                className={`${styles.flagBtn}${isFlagged(activeSym) ? ' ' + styles.flagBtnActive : ''}`}
-                onClick={() => { const willFlag = !isFlagged(activeSym); toggleFlag(activeSym); setFlagToast(willFlag ? 'added' : 'removed') }}
-                title={isFlagged(activeSym) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
-                aria-label={isFlagged(activeSym) ? 'Remove from flagged list' : 'Add to flagged list'}
-              >
-                <UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{isFlagged(activeSym) ? 'Flagged' : 'Flag'}
-              </button>
-              <button
-                className={styles.closeBtn}
-                onClick={closeModal}
-                aria-label="Close chart"
-              >
-                {'×'} close
-              </button>
+                )}
+              </div>
+              <div className={styles.modalHeaderRight}>
+                {/* Predictive "Switch ticker" search — pull up any other chart in place. */}
+                <SymbolSearch
+                  ref={searchRef}
+                  sym={activeSym}
+                  displayLabel="Switch ticker…"
+                  badgeClassName={styles.switchPill}
+                  onSymbolChange={(s) => setSearchSym(String(s).toUpperCase())}
+                  hideIcon
+                  fullLabel
+                />
+                <button
+                  className={`${styles.flagBtn}${isFlagged(activeSym) ? ' ' + styles.flagBtnActive : ''}`}
+                  onClick={() => { const willFlag = !isFlagged(activeSym); toggleFlag(activeSym); setFlagToast(willFlag ? 'added' : 'removed') }}
+                  title={isFlagged(activeSym) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
+                  aria-label={isFlagged(activeSym) ? 'Remove from flagged list' : 'Add to flagged list'}
+                >
+                  <UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{isFlagged(activeSym) ? 'Flagged' : 'Flag'}
+                </button>
+                <button
+                  className={styles.closeBtn}
+                  onClick={closeModal}
+                  aria-label="Close chart"
+                >
+                  {'×'} close
+                </button>
+              </div>
             </div>
 
             <div className={styles.modalModeRow}>
