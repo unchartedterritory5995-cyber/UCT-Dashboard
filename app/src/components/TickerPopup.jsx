@@ -28,7 +28,7 @@ const TheStreetPanel = lazy(() => import('./fundamentals/TheStreetPanel'))
 const TAB_TO_TF = { '1min': '1', '5min': '5', '15min': '15', '30min': '30', '1hr': '60', 'Daily': 'D', 'Weekly': 'W', 'Monthly': 'M' }
 const TF_TO_TAB = Object.fromEntries(Object.entries(TAB_TO_TF).map(([k, v]) => [v, k]))
 
-export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null, anchorDate = null, darkPool = false, open: openProp, onClose }) {
+export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartFn, className, children, markers = null, priceLines = null, stopPrice = null, anchorDate = null, darkPool = false, flowMeta = null, open: openProp, onClose }) {
   // Controlled mode (open/onClose provided): no trigger element renders and the
   // parent owns open state — used for delegated $TICKER-chip clicks in The Floor,
   // where chips are sanitized static HTML, not React children. Uncontrolled mode
@@ -166,6 +166,18 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
               <div className={styles.modalHeaderLeft}>
                 {tagColor && <span style={{ display: 'inline-block', width: 9, height: 9, borderRadius: '50%', background: TAG_BY_KEY[tagColor]?.hex, marginRight: 5 }} />}
                 <span className={styles.modalSym}>{activeSym}</span>
+                {/* Flow context (BULL/BEAR · premium · trades) when opened from a flow
+                    row. Hidden once the user searches to a different ticker — the
+                    flow figures belong to the ticker the caller opened, not the next. */}
+                {flowMeta && !searchSym && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, marginLeft: 10 }}>
+                    <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.5, padding: '2px 7px', borderRadius: 4, color: '#0a0e12', background: flowMeta.bull ? '#34d399' : '#f2555a' }}>
+                      {flowMeta.bull ? 'BULL' : 'BEAR'}
+                    </span>
+                    {flowMeta.premium && <span style={{ fontSize: 12, fontWeight: 800, color: '#c9a84c', background: '#c9a84c18', padding: '2px 8px', borderRadius: 4 }}>{flowMeta.premium}</span>}
+                    {flowMeta.trades != null && <span style={{ fontSize: 11, color: '#8a8a90' }}>{flowMeta.trades} trades</span>}
+                  </span>
+                )}
                 {liveData && (
                   <>
                     <span className={styles.modalPrice}>${liveData.price?.toFixed(2)}</span>

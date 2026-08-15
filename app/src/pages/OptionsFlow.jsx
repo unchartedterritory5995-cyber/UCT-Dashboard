@@ -5806,102 +5806,18 @@ export default function OptionsFlowDashboard() {
               const sym = chartModal.sym;
               const tk = FD && FD.TICKER_DB ? FD.TICKER_DB.find(t => t.s === sym) : null;
               const tkBull = tk ? ((tk.b||0) >= (tk.r||0)) : true;
-              const dirC = tkBull ? P.bu : P.be;
+              // The shared TickerPopup owns the chart shell now — tabs (Chart /
+              // About / Fundamentals / The Street), dark-pool overlay, switch-ticker,
+              // flag and close. flowMeta preserves this modal's flow header
+              // (BULL/BEAR · premium · trades) for the ticker that was clicked.
               return (
-                <div onClick={e => { if (e.target === e.currentTarget) setChartModal(null); }}
-                  style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.8)",
-                    display:"flex", alignItems:"center", justifyContent:"center", padding:"24px" }}>
-                  <div onClick={e => e.stopPropagation()}
-                    style={{ width:"min(1100px, 96vw)", height:"min(720px, 92vh)",
-                      background:P.cd, borderRadius:12, overflow:"hidden",
-                      display:"flex", flexDirection:"column",
-                      boxShadow:"0 24px 80px rgba(0,0,0,0.9)", border:"1px solid "+P.bl }}>
-                    {/* Header — same row layout as renderDetailPanel */}
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between",
-                      padding:"10px 14px", borderBottom:"1px solid "+P.bd, background:P.cd, flexShrink:0 }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                        <span style={{ fontSize:16, fontWeight:900, color:P.wh }}>{sym}</span>
-                        {tk && (
-                          <>
-                            <Tag c={dirC}>{tkBull ? "BULL" : "BEAR"}</Tag>
-                            <span style={{ fontSize:11, fontWeight:900, color:P.ac, background:P.ac+"18", padding:"2px 8px", borderRadius:4 }}>
-                              {fmt((tk.b||0)+(tk.r||0))}
-                            </span>
-                            <span style={{ fontSize:10, color:P.dm }}>{tk.n||0} trades</span>
-                          </>
-                        )}
-                      </div>
-                      <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                        {/* Switch-ticker input — type a symbol and press Enter to load
-                            that chart in place. No close-and-reopen needed. */}
-                        <input type="text" value={chartModalSearch}
-                          onChange={e => setChartModalSearch(e.target.value.toUpperCase().replace(/[^A-Z]/g, ""))}
-                          onKeyDown={e => {
-                            if (e.key === "Enter" && chartModalSearch.trim()) {
-                              setChartModal({ sym: chartModalSearch.trim() });
-                              setChartModalSearch("");
-                            } else if (e.key === "Escape") {
-                              setChartModalSearch("");
-                            }
-                          }}
-                          placeholder="Switch ticker…"
-                          autoComplete="off" spellCheck={false}
-                          style={{ background:P.bg, border:"1px solid "+P.bd, color:P.wh,
-                            padding:"4px 10px", borderRadius:5, fontSize:11, fontWeight:700,
-                            fontFamily:"inherit", width:120, letterSpacing:1, outline:"none" }} />
-                        <button onClick={() => setChartModal(null)}
-                          style={{ background:"none", border:"none", color:P.dm, fontSize:18, cursor:"pointer", lineHeight:1, padding:"0 4px" }}>×</button>
-                      </div>
-                    </div>
-                    {/* Timeframe row — matches renderDetailPanel pattern */}
-                    <div style={{ display:"flex", gap:3, padding:"4px 6px", borderBottom:"1px solid "+P.bd, flexShrink:0, alignItems:"center" }}>
-                      {[['1','1m'],['5','5m'],['15','15m'],['30','30m'],['60','1h'],['D','D'],['W','W'],['M','M']].map(([val,label]) => (
-                        <button key={val} onClick={() => setChartInterval(val)}
-                          style={{ padding:"2px 7px", borderRadius:3, border:"1px solid "+(chartInterval===val?P.ac:P.bd+"80"),
-                            background:chartInterval===val?P.ac+"22":"transparent", color:chartInterval===val?P.ac:P.dm,
-                            fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
-                          {label}
-                        </button>
-                      ))}
-                      {/* Dark Pool toggle — applies globally (persists in localStorage). */}
-                      <button onClick={() => setShowDarkPool(v => !v)}
-                        title={showDarkPool ? "Hide dark pool zones on chart" : "Show dark pool zones on chart"}
-                        style={{ marginLeft:"auto", padding:"2px 8px", borderRadius:3,
-                          border:"1px solid "+(showDarkPool?"#c9a84c":P.bd+"80"),
-                          background:showDarkPool?"#c9a84c22":"transparent",
-                          color:showDarkPool?"#c9a84c":P.dm,
-                          fontSize:9, fontWeight:700, cursor:"pointer", fontFamily:"inherit",
-                          display:"flex", alignItems:"center", gap:4 }}>
-                        <span style={{ width:6, height:6, borderRadius:"50%",
-                          background:showDarkPool?"#c9a84c":"transparent",
-                          border:"1px solid "+(showDarkPool?"#c9a84c":P.dm), display:"inline-block" }} />
-                        Dark Pools
-                      </button>
-                    </div>
-                    <div style={{ flex:1, minHeight:0 }}>
-                      {/* The big chart modal — min(720px, 92vh) tall, so the full
-                          shell has room. darkPoolBars carries the print overlay and
-                          MUST survive: it rides stockChartProps, spread last. */}
-                      <ChartPane
-                        sym={sym}
-                        tf={chartInterval}
-                        onTfChange={setChartInterval}
-                        stored={null}
-                        stockChartProps={{
-                          height: "100%",
-                          liveUpdates: true,
-                          showDrawingTools: true,
-                          showVolume: true,
-                          darkPoolBars: chartModalDarkPoolBars,
-                          hideReplay: true,
-                          hidePatterns: true,
-                          hideCompare: true,
-                          hideCountdown: true,
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
+                <TickerPopup
+                  sym={sym}
+                  open
+                  darkPool
+                  flowMeta={tk ? { bull: tkBull, premium: fmt((tk.b || 0) + (tk.r || 0)), trades: tk.n || 0 } : null}
+                  onClose={() => setChartModal(null)}
+                />
               );
             })()}
           </div>
