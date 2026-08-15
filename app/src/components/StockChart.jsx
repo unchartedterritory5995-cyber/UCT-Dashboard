@@ -12509,10 +12509,23 @@ export default function StockChart({
                     : 'Dark Pool Print'}{dpHover.bar.isLatest ? ' · LATEST' : ''}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 10px' }}>
-              <span style={{ color: '#706b5e' }}>Date</span>
-              <span style={{ color: '#e0dac8', fontWeight: 600 }}>
-                {dpHover.bar.dateLong || dpHover.bar.dateRaw || dpHover.bar.date || '—'}
-              </span>
+              {(() => {
+                // A cluster spanning multiple days is an ACCUMULATION level — show
+                // the date SPAN (oldest→newest), not a single date, so it never
+                // reads as one recent print sitting far from the current price.
+                const ds = dpHover.bar.dateStart, de = dpHover.bar.dateEnd
+                const isSpan = dpHover.bar._isCluster && ds && de && ds !== de
+                return (
+                  <>
+                    <span style={{ color: '#706b5e' }}>{isSpan ? 'Dates' : 'Date'}</span>
+                    <span style={{ color: '#e0dac8', fontWeight: 600 }}>
+                      {isSpan
+                        ? `${ds} – ${de}`
+                        : (dpHover.bar.dateLong || dpHover.bar.dateRaw || dpHover.bar.date || '—')}
+                    </span>
+                  </>
+                )
+              })()}
               <span style={{ color: '#706b5e' }}>Price</span>
               <span style={{ color: '#c9a84c', fontWeight: 700 }}>
                 ${Number(dpHover.bar.price).toFixed(2)}

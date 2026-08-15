@@ -681,41 +681,50 @@ def _dp_dnum(date_raw) -> int:
 
 
 def _cluster_prints_to_zones(prints: list, zone_pct: float = 0.02) -> list:
-    """Server-side port of the client clusterDarkPoolPrintsForOverlay: a greedy
-    price-sorted merge where a print joins the current zone if it's within
-    ``zone_pct`` of the zone's running notional-weighted mean, SUMMING notional +
-    volume. So a level hit big across back-to-back days reports its true CUMULATIVE
-    notional. Uncapped by design — every print in the window contributes (the
-    display drilldown's row cap is what silently understated multi-day levels)."""
-    ps = sorted((p for p in prints if (p.get("price") or 0) > 0),
-                key=lambda p: p.get("price") or 0)
+    """Cluster prints into price-band zones, summing CUMULATIVE notional + volume.
+
+    ANCHORED clustering (mirrors api.services.signature.darkpool_levels): a print
+    joins the current zone only while it stays within one band-width of the zone's
+    LOWEST price (its anchor). Band width = ``zone_pct`` of the median price. This
+    is deliberately NOT a running-mean greedy merge: greedy lets a chain of
+    closely-spaced prints drift-merge into one arbitrarily-wide zone, which folds a
+    recent higher print into an old lower accumulation and mislabels the level
+    (SPY: a $460B stack at $742 tagged "Aug 12" from one recent print sucked in).
+
+    Every zone carries its full date SPAN (``dateStart``→``dateEnd``) so a multi-day
+    accumulation reads as one, not as a single recent print. Uncapped — every print
+    in the window contributes to its zone's cumulative notional.
+    """
+    rows = [p for p in prints
+            if (p.get("price") or 0) > 0 and (p.get("notional") or 0) > 0]
+    if not rows:
+        return []
+    prices = sorted(p["price"] for p in rows)
+    bin_w = prices[len(prices) // 2] * zone_pct   # median-based band width
+    if bin_w <= 0:
+        return []
     zones: list = []
     cur = None
-    for p in ps:
-        price = p.get("price") or 0
-        notional = p.get("notional") or 0
-        volume = p.get("volume") or 0
-        if cur is not None and abs(price - cur["price"]) <= cur["price"] * zone_pct:
-            cur["_members"].append(p)
-            cur["notional"] += notional
-            cur["volume"] += volume
-            wsum = sum((m.get("price") or 0) * ((m.get("volume") or 0) or 1) for m in cur["_members"])
-            wden = sum(((m.get("volume") or 0) or 1) for m in cur["_members"])
-            cur["price"] = wsum / wden if wden > 0 else price
-            cur["priceLow"] = min(cur["priceLow"], price)
-            cur["priceHigh"] = max(cur["priceHigh"], price)
-        else:
-            cur = {"price": price, "notional": notional, "volume": volume,
-                   "priceLow": price, "priceHigh": price, "_members": [p]}
+    for p in sorted(rows, key=lambda r: r["price"]):
+        price = p["price"]
+        if cur is None or price > cur["anchor"] + bin_w:
+            cur = {"anchor": price, "priceLow": price, "priceHigh": price,
+                   "notional": 0.0, "volume": 0.0, "_members": []}
             zones.append(cur)
+        cur["priceHigh"] = price               # prices ascend → last seen is highest
+        cur["notional"] += (p.get("notional") or 0)
+        cur["volume"] += (p.get("volume") or 0)
+        cur["_members"].append(p)
     out = []
     for z in zones:
         members = z.pop("_members")
-        # Label a merged zone by its MOST RECENT print (not the lowest-price seed),
-        # so a multi-day cluster reads as current, not as its oldest member.
-        latest = max(members, key=lambda m: _dp_dnum(m.get("dateRaw")))
+        wsum = sum((m.get("price") or 0) * (m.get("notional") or 0) for m in members)
+        price = wsum / (z["notional"] or 1)    # notional-weighted centre of the band
+        dated = [m for m in members if _dp_dnum(m.get("dateRaw")) > 0]
+        newest = max(dated, key=lambda m: _dp_dnum(m.get("dateRaw"))) if dated else members[-1]
+        oldest = min(dated, key=lambda m: _dp_dnum(m.get("dateRaw"))) if dated else members[0]
         out.append({
-            "price": round(z["price"], 4),
+            "price": round(price, 4),
             "priceLow": round(z["priceLow"], 4),
             "priceHigh": round(z["priceHigh"], 4),
             "notional": z["notional"],
@@ -724,11 +733,15 @@ def _cluster_prints_to_zones(prints: list, zone_pct: float = 0.02) -> list:
             "_clusterCount": len(members),
             "_isCluster": len(members) > 1,
             "biggestPrint": max((m.get("notional") or 0) for m in members),
-            "date": latest.get("date"),
-            "dateLong": latest.get("dateLong"),
-            "dateRaw": latest.get("dateRaw"),
-            "pctAvgVol": latest.get("pctAvgVol") or 0,
-            "type": latest.get("type"),
+            # newest drives isLatest + the single-print date; the SPAN below drives
+            # the tooltip so an accumulation zone never reads as one recent print.
+            "date": newest.get("date"),
+            "dateLong": newest.get("dateLong"),
+            "dateRaw": newest.get("dateRaw"),
+            "dateStart": oldest.get("dateLong") or oldest.get("dateRaw"),
+            "dateEnd": newest.get("dateLong") or newest.get("dateRaw"),
+            "pctAvgVol": newest.get("pctAvgVol") or 0,
+            "type": newest.get("type"),
         })
     return out
 

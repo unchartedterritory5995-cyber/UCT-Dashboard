@@ -27,13 +27,27 @@ def test_cluster_sums_cumulative_notional_across_prints():
     assert far["notional"] == 3e6 and far["printCount"] == 1 and far["_isCluster"] is False
 
 
-def test_zone_labeled_by_most_recent_member():
-    # A multi-day cluster carries its NEWEST print's date, not the seed's.
-    prints = [_p(200, 4e6, date="8/3/2026"), _p(200.5, 5e6, date="8/12/2026")]
+def test_zone_carries_date_span_not_single_date():
+    # A multi-day cluster carries its NEWEST date AND the oldest→newest span, so
+    # the tooltip reads as accumulation, not one recent print.
+    prints = [_p(200, 4e6, date="5/2/2026"), _p(200.5, 5e6, date="8/12/2026")]
     zones = _cluster_prints_to_zones(prints)
     assert len(zones) == 1
-    assert zones[0]["dateRaw"] == "8/12/2026"       # newest wins
+    assert zones[0]["dateRaw"] == "8/12/2026"        # newest drives isLatest/date
+    assert zones[0]["dateStart"] == "5/2/2026"       # span start (oldest)
+    assert zones[0]["dateEnd"] == "8/12/2026"        # span end (newest)
     assert zones[0]["notional"] == 9e6
+
+
+def test_anchored_clustering_does_not_chain_merge():
+    # A chain 1% apart would drift-merge under a running-mean greedy into ONE wide
+    # zone; anchored clustering caps each zone at ~one band, so it SPLITS instead —
+    # keeping a recent higher print out of an old lower accumulation.
+    prints = [_p(100, 1e6), _p(101, 1e6), _p(102, 1e6),
+              _p(103, 1e6), _p(104, 1e6), _p(105, 1e6)]
+    zones = _cluster_prints_to_zones(prints)  # median ~103, band ≈ $2.06
+    assert len(zones) >= 2                      # NOT one chained mega-zone
+    assert all(z["priceHigh"] - z["priceLow"] <= 103 * 0.02 + 1e-6 for z in zones)
 
 
 def test_empty_and_bad_prices_are_safe():
