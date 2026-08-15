@@ -4144,6 +4144,17 @@ export default function StockChart({
   const drawBarsRef = useRef(null)
   drawBarsRef.current = bars
   const loading = !bars && !error
+  // Delay the loading skeleton: a fast cache hit (pack / IDB / mem — ~tens of
+  // ms) swaps chart→chart before this fires, so there's NO grey flash between
+  // symbols. The skeleton appears only if a load genuinely drags (a cold
+  // network fetch for an uncached / off-pack ticker). Kills the "grey blip
+  // between stocks" when scanning a list of already-cached names.
+  const [showSkeleton, setShowSkeleton] = useState(false)
+  useEffect(() => {
+    if (!loading) { setShowSkeleton(false); return undefined }
+    const id = setTimeout(() => setShowSkeleton(true), 150)
+    return () => clearTimeout(id)
+  }, [loading])
   // First-bars latch: fire onBarsReady exactly once per mount, on the first
   // render where loading settles false — renderable bars OR fatal error both
   // count, so a dead ticker never starves the grid mount queue waiting on it.
@@ -12302,7 +12313,7 @@ export default function StockChart({
           })}
         </div>
       )}
-      {loading && <ChartSkeleton label={`Loading ${sym}…`} />}
+      {showSkeleton && <ChartSkeleton label={`Loading ${sym}…`} />}
       {showFatalError && (
         <div className={styles.error}>
           <span>Failed to load chart for {sym}</span>
