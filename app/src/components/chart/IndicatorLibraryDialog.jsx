@@ -132,7 +132,22 @@ export default function IndicatorLibraryDialog({ open, onClose, settings, onChan
 
   // Search-first: the box has focus the moment the dialog opens, so the flow is
   // "hit the chord, type three letters, Enter" without a pointer.
-  useEffect(() => { if (open) searchRef.current?.focus() }, [open])
+  //
+  // ⛔ AND IT OPENS EMPTY. This dialog is not unmounted on close — the host only
+  // toggles `open` — so `query` survives, and a member who searched once came
+  // back to a filtered library with no visible cause.
+  //
+  // ⚰️ MEASURED ON PRODUCTION 2026-08-14: searched `sma` (which matches nothing,
+  // because the moving averages are not in this library at all), closed, reopened
+  // — the box still read `sma` and the list still read "No indicator matches
+  // “sma”". Reproduced again with `macd`. A library that looks EMPTY is the worst
+  // possible thing for the surface whose whole job is "here is everything you can
+  // add", and the cause is one render old and invisible.
+  useEffect(() => {
+    if (!open) return
+    setQuery('')
+    searchRef.current?.focus()
+  }, [open])
 
   // ─── THE MEMBER'S STORED FORMULAS: WHAT INSTALLED, AND WHAT DID NOT ───────
   //

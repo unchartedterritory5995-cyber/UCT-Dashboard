@@ -2,6 +2,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
+import isModalOpen from '../../utils/modalOpen'
 
 // ─── Tool definitions ────────────────────────────────────────────────────────
 const POINT_COUNT = {
@@ -2273,6 +2274,23 @@ export default function ChartDrawingOverlay({
     if (readOnly) return undefined
     const handler = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
+      // ⭐ THE THIRD KEY HANDLER THAT IS NOT SCOPED TO THE CHART.
+      //
+      // This listener is on `window`, so it fires wherever focus is. The
+      // input-only test above is the exact guard the 2026-08-10 B1 sweep called
+      // wrong ("the guard has to be 'is a modal open', not 'did this come from an
+      // input'") — and the fix that followed enumerated TWO sites, `StockChart`'s
+      // document listener and `ChartPane`'s type-to-search, by hand. This one was
+      // missed, so the leak survived in a narrower form for four days.
+      //
+      // ⚰️ MEASURED ON PRODUCTION 2026-08-14, WMT 1D: with the MACD settings
+      // dialog open and focus on its panel (a DIV — none of INPUT/TEXTAREA),
+      // typing `AAPL` armed the **Pitchfork** tool and typing `t` armed the
+      // **Trendline**. The member then clicks the chart to carry on and starts
+      // drawing instead. `e.target.isContentEditable` is here for the same reason
+      // one level down: the builder's formula surfaces are not <input> either.
+      if (isModalOpen(e.target)) return
+      if (e.target.isContentEditable) return
 
       if (e.key === 'Escape') {
         if (isDragging) {

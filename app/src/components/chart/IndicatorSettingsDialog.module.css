@@ -104,8 +104,21 @@
 
 /* ── one input per row: label left, control right ─────────────────────────── */
 
+/* ⛔ `flex-wrap: wrap` IS LOAD-BEARING, NOT TIDYING. `.note` and `.tip` below
+   both declare `flex: 1 1 100%` — "take a whole line of your own" — and that
+   basis can only be honoured by a wrapping container. Without it they stayed on
+   the control's line and COMPETED for its width.
+
+   ⚰️ MEASURED ON PRODUCTION 2026-08-14: typing `999` into MACD's Fast clamps to
+   100 and prints "Maximum is 100", which is right — but the note appearing
+   dragged the input box from x≈943 to x≈800 while Slow and Signal stayed at 943.
+   The control jumped sideways under the cursor at the exact moment it reported an
+   error, so the member's next click landed on nothing. Same cause squeezed the
+   Visibility tab's tips into a ~110px column that wrapped one sentence over four
+   lines. */
 .row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   min-height: var(--tap-min);
@@ -204,7 +217,11 @@
   padding-right: 2px;
 }
 
+/* A whole line of its own, under the control it describes — see `.row`'s
+   `flex-wrap` note. As a content-sized flex item it was squeezed into whatever
+   space the control left, which on the Visibility tab was ~110px for a sentence. */
 .tip {
+  flex: 1 1 100%;
   display: block;
   font-size: 11px;
   color: var(--text-muted);

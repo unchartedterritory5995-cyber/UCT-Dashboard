@@ -281,9 +281,21 @@ describe('IndicatorSettingsDialog — spec §6\'s settings form, per INSTANCE', 
     await settle()
     expect(onChange).toHaveBeenCalled()
     expect(findInstance(latest(), RSI_INST).inputs.period).toBe(21)
-    // …and the SIBLING definition's stored inputs are untouched: this is an
-    // instance write, not a definition write.
-    expect(latest().indicators?.[RSI]?.period).toBeUndefined()
+    // …and the per-definition MIRROR follows, because this is the sole instance.
+    //
+    // 🔴 THIS ASSERTION WAS INVERTED (`toBeUndefined`) UNTIL 2026-08-14, under a
+    // comment calling `indicators[RSI]` "the SIBLING definition's stored inputs"
+    // — it is RSI's OWN mirror, the same definition being edited. Leaving it
+    // unwritten is what let a member's edit disappear: the mirror is what a share
+    // link, a preset, a reset and an off→on toggle all rebuild the instance from
+    // (`controlDoorCensus.test.js`; `instanceShape.js:51` keeps a tombstone
+    // minimal on purpose). Measured on production WMT 1D: Fast set to 33 here,
+    // toggled off and on, reopened at 20 — the value the GLOBAL modal had left in
+    // the mirror. The sibling case the old comment described is real and is still
+    // refused; it is pinned in `engine/__tests__/instanceInputSurvivesTheMirror.js`
+    // along with this survival, because the mirror genuinely cannot name two
+    // instances' periods.
+    expect(latest().indicators?.[RSI]?.period).toBe(21)
   })
 
   // 5. 250ms DEBOUNCE.

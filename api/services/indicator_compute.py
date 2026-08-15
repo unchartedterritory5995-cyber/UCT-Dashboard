@@ -245,35 +245,56 @@ def compute_macd_raw(
     MACD = EMA(fast) - EMA(slow).
     Signal = EMA of MACD over ``signal`` periods.
     Histogram = MACD - Signal.
+
+    ⛔ THE START BAR IS ``max(fast, slow) - 1``, NOT ``slow - 1``. The settings
+    form does not enforce ``fast < slow`` — Fast's declared max is 100 and Slow's
+    is 200 — so a member can set Fast above Slow. This loop used to start at
+    ``slow - 1``, where the FAST EMA is still ``None`` for
+    ``slow-1 <= i < fast-1``, and pushed ``0.0`` placeholders into ``macd_dense``
+    for those bars under a comment asserting it could not happen. ``macd_out``
+    was correctly left ``None`` there, so the LINE looked right while the SIGNAL
+    was an EMA **seeded on invented zeros**, decaying out of that error slowly and
+    returning numbers that look reasonable and are wrong.
+
+    The frontend's `computeMACD` had the mirror-image bug (negative index → NaN),
+    so the two lanes disagreed on the same inputs: the browser drew nothing, this
+    lane served a wrong number presented as right. Gate:
+    ``tests/test_indicator_macd_alignment.py``, whose oracle is the antisymmetry
+    ``macd(f,s) == -macd(s,f)`` — a property of the definition, so it cannot be
+    satisfied by clamping or swapping the inputs.
     """
     n = len(closes)
     macd_out: List[MaybeNum] = [None] * n
     sig_out: List[MaybeNum] = [None] * n
     hist_out: List[MaybeNum] = [None] * n
-    if n < slow + signal:
+    long_period = max(fast, slow)
+    if n < long_period + signal:
         return macd_out, sig_out, hist_out
 
     fast_ema = _ema_core(list(closes), fast)
     slow_ema = _ema_core(list(closes), slow)
 
-    # macd line is defined wherever both EMAs are defined → from i = slow-1
-    macd_dense: List[Number] = []   # condensed list aligned to bars[slow-1:]
-    for i in range(slow - 1, n):
+    # macd line is defined wherever BOTH EMAs are → from i = max(fast, slow) - 1
+    macd_dense: List[Number] = []   # condensed list aligned to bars[long_period-1:]
+    for i in range(long_period - 1, n):
         f = fast_ema[i]
         s = slow_ema[i]
         if f is None or s is None:
-            macd_dense.append(0.0)  # placeholder; should not happen for i>=slow-1
-        else:
-            macd_dense.append(f - s)
-            macd_out[i] = f - s
+            # Unreachable by construction now that the start bar is the LONGER
+            # period. Stop rather than fabricate: a placeholder here is what
+            # corrupted the signal seed, and truncating keeps every value that
+            # does get emitted aligned to its bar.
+            break
+        macd_dense.append(f - s)
+        macd_out[i] = f - s
 
-    # signal = EMA of macd_dense (length n - (slow-1))
+    # signal = EMA of macd_dense (length n - (long_period-1))
     sig_dense = _ema_core(macd_dense, signal)
-    # sig_dense[j] aligns to bars[slow-1 + j]
+    # sig_dense[j] aligns to bars[long_period-1 + j]
     for j, sv in enumerate(sig_dense):
         if sv is None:
             continue
-        bar_idx = slow - 1 + j
+        bar_idx = long_period - 1 + j
         sig_out[bar_idx] = sv
         m = macd_out[bar_idx]
         if m is not None:

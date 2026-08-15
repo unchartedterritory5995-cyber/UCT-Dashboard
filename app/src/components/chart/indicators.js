@@ -124,29 +124,53 @@ function _ema(values, period) {
 }
 
 export function computeMACD(bars, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
-  if (!bars || bars.length < slowPeriod + signalPeriod) return { macd: [], signal: [], histogram: [] }
+  // ⛔ THE LONGER PERIOD IS THE START BAR, AND IT IS NOT ALWAYS `slowPeriod`.
+  //
+  // Both the guard and the alignment below used to assume `slow >= fast`, which
+  // the settings form does not enforce — Fast's declared max is 100 and Slow's is
+  // 200, so a member can set Fast above Slow from the Inputs tab. When they did,
+  // `slowPeriod - fastPeriod` went NEGATIVE, `fastEMA[negative]` was `undefined`,
+  // and `undefined - s` seeded `macdValues` with NaN. Only the first `fast - slow`
+  // entries were NaN, so the MACD LINE STILL DREW — but those are exactly the
+  // seed window of the signal EMA (`_ema` starts from the mean of the first
+  // `period` values), so the signal seed was NaN and NaN propagated through every
+  // later value. Measured in production on WMT 1D: Fast 30 / Slow 26 printed
+  // `MACD 0.2008` beside a legend chip reading a bare `SIG` with no number.
+  //
+  // The fix aligns BOTH series onto the later of the two starts rather than
+  // assuming which one that is. For `slow >= fast` this is arithmetically
+  // identical to what it replaced (`slowOffset` is 0 and `fastOffset` is the old
+  // `offset`), which is why the golden fixtures and every default-parameter test
+  // are untouched. Gate: `indicators.macdAlignment.test.js`, whose oracle is the
+  // antisymmetry `macd(f,s) === -macd(s,f)` — a property of the definition, not
+  // of this code, so it cannot be satisfied by clamping or swapping the inputs.
+  const longPeriod = Math.max(fastPeriod, slowPeriod)
+  if (!bars || bars.length < longPeriod + signalPeriod) return { macd: [], signal: [], histogram: [] }
   const closes  = bars.map(b => b.c)
   const fastEMA = _ema(closes, fastPeriod)  // fastEMA[i] → bars[fastPeriod-1+i]
   const slowEMA = _ema(closes, slowPeriod)  // slowEMA[i] → bars[slowPeriod-1+i]
-  const offset  = slowPeriod - fastPeriod   // = 14 for default 12/26
-  // MACD line: aligned to bars[slowPeriod-1+i]
-  const macdValues = slowEMA.map((s, i) => fastEMA[i + offset] - s)
+  const fastOffset = longPeriod - fastPeriod
+  const slowOffset = longPeriod - slowPeriod
+  // MACD line: aligned to bars[longPeriod-1+i]
+  const span = Math.min(fastEMA.length - fastOffset, slowEMA.length - slowOffset)
+  const macdValues = []
+  for (let i = 0; i < span; i++) macdValues.push(fastEMA[i + fastOffset] - slowEMA[i + slowOffset])
   const signalEMA  = _ema(macdValues, signalPeriod)
   const sigOffset  = signalPeriod - 1
   const macd = blank(bars), signal = blank(bars), histogram = blank(bars)
-  // The MACD LINE exists wherever both EMAs do — from bars[slowPeriod-1], which
+  // The MACD LINE exists wherever both EMAs do — from bars[longPeriod-1], which
   // is `signalPeriod - 1` bars EARLIER than the signal line. This used to be
   // trimmed to the signal's start, and the golden fixtures caught it: the Python
-  // lane has always emitted the line from bars[slowPeriod-1], so the two
+  // lane has always emitted the line from bars[slow-1], so the two
   // implementations disagreed on 8 bars of a default 12/26/9 MACD.
   // The chart's look is unchanged — StockChart masks the line's head back to the
   // signal's first bar, which is a deliberate B1 pixel-parity hold, not this
   // function's business.
   for (let i = 0; i < macdValues.length; i++) {
-    macd[slowPeriod - 1 + i].value = macdValues[i]
+    macd[longPeriod - 1 + i].value = macdValues[i]
   }
   for (let i = 0; i < signalEMA.length; i++) {
-    const barIdx = slowPeriod - 1 + sigOffset + i
+    const barIdx = longPeriod - 1 + sigOffset + i
     signal[barIdx].value = signalEMA[i]
     // No per-point `color` here any more: the histogram's up/down colour is a
     // RENDER concern (StockChart derives it from the sign of this value, which

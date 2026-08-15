@@ -75,9 +75,13 @@
   vertical-align: bottom;
   transition: max-width 140ms ease-out, opacity 140ms ease-out, margin-left 140ms ease-out;
 }
+/* 82px, not 72px: three 16px buttons + two 1px gaps is 50px, and the 10px safety
+   margin in front of `.chipBtnDanger` (see below) takes it to 60px. The headroom
+   above that is what keeps the strip from clipping its own last control — the
+   failure this file's `overflow: hidden` would otherwise hide in silence. */
 .chip:hover .chipControls,
 .chip:focus-within .chipControls {
-  max-width: 72px;
+  max-width: 82px;
   opacity: 1;
   margin-left: 5px;
 }
@@ -98,6 +102,28 @@
 }
 .chipBtn:hover { opacity: 1; background: rgba(255, 255, 255, 0.14); }
 .chipBtn:focus-visible { outline: 1px solid rgba(201, 168, 76, 0.9); outline-offset: 1px; }
+
+/* ⛔ THE GAP IS A SAFETY MARGIN, NOT SPACING. This strip is laid out AFTER the
+   chip's text node, so every button's absolute x is a function of the width of a
+   LIVE number — and that number reflows under the pointer as the tape moves.
+ *
+ * ⚰️ MEASURED ON PRODUCTION 2026-08-14, MACD chip on WMT 1D:
+ *
+ *     chip text        Hide             Settings         Remove
+ *     MACD 0.1605      396.1–412.1      413.1–429.1      430.1–446.1
+ *     MACD -0.1458     401.5–417.5      418.5–434.5      435.5–451.5
+ *
+ * One extra glyph — the minus sign — moved every control +5.4px, and page-x
+ * 430.1–434.5 is `Remove` in the first row and `Settings` in the second. Aiming
+ * at Settings and hitting Remove is therefore a real event on a live chart; it
+ * happened during the sweep that found this. `tabular-nums` on `.chip` already
+ * equalises DIGITS and cannot help with a sign or a digit-count change.
+ *
+ * 10px of dead space in front of the destructive control means a drift of that
+ * size lands on nothing instead of on Remove. (The other half of the answer is
+ * that Remove no longer costs the member their settings — see
+ * `engine/instanceControls.js::setInstanceInput`.) */
+.chipBtnDanger { margin-left: 10px; }
 .chipBtnDanger:hover { background: rgba(196, 31, 45, 0.35); }
 
 /* GRAY = intentional (spec §6's colour language: red broken / amber degraded /

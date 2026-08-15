@@ -304,9 +304,30 @@ export function removeInstance(cs, instanceId, registry) {
  * the next paint. Refused writes return `cs` by IDENTITY so the caller can skip
  * persisting.
  *
- * ⛔ IT DOES NOT WRITE THE MIRROR. The mirror is per DEFINITION and cannot carry
- * two instances' periods; writing one of them there would make the settings row
- * and the `?indicators=` route show a number no line on the chart is drawn with.
+ * ⛔ IT DOES NOT WRITE THE MIRROR **WHILE A SIBLING EXISTS**. The mirror is per
+ * DEFINITION and cannot carry two instances' periods; writing one of them there
+ * would make the settings row and the `?indicators=` route show a number no line
+ * on the chart is drawn with. That objection is right, and it is kept — but it
+ * needs a sibling to bite, and it was being applied unconditionally.
+ *
+ * 🔴 WHAT THAT COST. With ONE instance the mirror was not ambiguous, just STALE,
+ * and the mirror is what survives a blob round trip: `controlDoorCensus.test.js`
+ * records that dropping `indicatorInstances` — "which is what a share link, a
+ * preset and a reset all do" — leaves the read-time migrator rebuilding from the
+ * mirror alone. `setIndicatorEnabled(…, false)` also tombstones the instance, and
+ * a tombstone is minimal ON PURPOSE (`instanceShape.js:51`), so turning an
+ * indicator off and on rebuilds `inputs` from the mirror too. An edit made here
+ * therefore vanished on a toggle, a share link, a preset and a reset alike.
+ * Measured in production 2026-08-14 (WMT 1D): MACD Fast set to 33 in this dialog,
+ * toggled off and on from the Indicators list, reopened at **20** — the value the
+ * GLOBAL modal had written into the mirror long before. Three doors, three
+ * different answers for one number.
+ *
+ * So the mirror write is conditioned on exactly the case the objection does not
+ * cover: the sole live instance of a definition, and that instance being the
+ * legacy one the migrator projects back to. Rail:
+ * `__tests__/instanceInputSurvivesTheMirror.test.js`, which pins BOTH halves —
+ * the survival, and the sibling cases where the mirror must stay untouched.
  */
 export function setInstanceInput(cs, instanceId, key, value, registry) {
   const inst = findInstance(cs, instanceId)
@@ -324,7 +345,16 @@ export function setInstanceInput(cs, instanceId, key, value, registry) {
   const next = cs.indicatorInstances.map(i => (
     i && i.instanceId === instanceId ? { ...i, inputs: { ...(i.inputs || {}), [key]: coerced } } : i
   ))
-  return withInstances(cs, next, registry)
+  const out = withInstances(cs, next, registry)
+
+  // Counted AFTER `withInstances` normalizes, so a sibling it drops cannot
+  // suppress a mirror write that is in fact unambiguous.
+  const live = (out.indicatorInstances || []).filter(i => isLiveInstance(i) && i.defId === inst.defId)
+  if (live.length !== 1 || instanceId !== legacyInstanceId(inst.defId)) return out
+
+  const indicators = { ...(out.indicators || {}) }
+  indicators[inst.defId] = { ...(indicators[inst.defId] || {}), [key]: coerced }
+  return { ...out, indicators }
 }
 
 /**

@@ -163,6 +163,9 @@ function resolvePlotColor(plot, inputs, def) {
 export function chipsFrom(entries, seriesData, registry, inputsFor) {
   const get = resolveRegistry(registry)
   const out = []
+  // Kept BESIDE the chips rather than on them: a consumer that enumerates a
+  // chip's keys must not start seeing a resolved-inputs blob it never had.
+  const inputsByChip = new Map()
 
   for (const e of (Array.isArray(entries) ? entries : [])) {
     if (!e || !e.series) continue
@@ -218,8 +221,74 @@ export function chipsFrom(entries, seriesData, registry, inputsFor) {
       value,
       text: `${label} ${value.toFixed(decimals)}`,
     })
+    inputsByChip.set(out.length - 1, inputs)
   }
-  return out
+  return disambiguateSiblings(out, inputsByChip)
+}
+
+/**
+ * Suffix the chips of a plot that has MORE THAN ONE instance on the chart, so a
+ * member can tell their two copies apart.
+ *
+ * ⚰️ MEASURED ON PRODUCTION 2026-08-14: "+ Add another" on MACD produced four
+ * legend chips reading `MACD`, `SIG`, `MACD`, `SIG`, every one titled
+ * `MACD — right-click for options`, with nothing on any surface saying which was
+ * 12/26/9 and which was 15/26/9. Running one indicator at two settings is the
+ * entire point of the feature.
+ *
+ * ⛔ THE SUFFIX NAMES WHAT ACTUALLY DIFFERS, NOT `meta.legendParams`. MACD
+ * declares no `legendParams` on purpose (`nativeRegistry.js:345` — `SIG` is not
+ * "MACD", and `shortName` cannot express two labels), so a disambiguator built on
+ * that field would do nothing for the definition that surfaced this. Comparing
+ * the siblings' resolved inputs works for every definition, user formulas
+ * included, and naming only the keys that differ keeps `slow`/`signal` out of the
+ * chip when only `fast` was changed.
+ *
+ * ⛔ AND A LONE CHIP IS RETURNED UNTOUCHED, BYTE FOR BYTE — the suffix appears
+ * only when a second instance of the same plot is genuinely on the chart. That is
+ * what keeps this out of the existing chart assertions, which are written against
+ * single-instance legends.
+ */
+function disambiguateSiblings(chips, inputsByChip) {
+  const groups = new Map()
+  for (let i = 0; i < chips.length; i++) {
+    const k = `${chips[i].defId}::${chips[i].plotKey}`
+    if (!groups.has(k)) groups.set(k, [])
+    groups.get(k).push(i)
+  }
+
+  for (const idxs of groups.values()) {
+    // One chip, or several rows for the SAME instance, is not an ambiguity.
+    const distinct = new Set(idxs.map(i => chips[i].instanceId))
+    if (idxs.length < 2 || distinct.size < 2) continue
+
+    // ⛔ AND NEITHER IS A DEFINITION THAT ALREADY TELLS THEM APART. RSI declares
+    // `legendParams: ['period']`, so two copies already print `RSI(14)` and
+    // `RSI(7)`; suffixing those would read `RSI(14) (period 14)`. Only a group
+    // whose labels COLLIDE needs help, which is exactly the MACD case — its plots
+    // carry explicit `legend.label`s that short-circuit `legendParams` entirely.
+    if (new Set(idxs.map(i => chips[i].label)).size === idxs.length) continue
+
+    const inputsFor = idxs.map(i => inputsByChip.get(i) || {})
+    const keys = [...new Set(inputsFor.flatMap(o => Object.keys(o)))].sort()
+    const differing = keys.filter((k) => {
+      const seen = new Set(inputsFor.map(o => JSON.stringify(o[k])))
+      return seen.size > 1
+    })
+
+    idxs.forEach((chipIdx, n) => {
+      const inputs = inputsFor[n]
+      // Identical siblings draw on top of each other; an ordinal is thin but it
+      // is not a lie, and it beats two chips claiming to be the same thing.
+      const suffix = differing.length
+        ? ` (${differing.map(k => `${k} ${inputs[k]}`).join(', ')})`
+        : ` #${n + 1}`
+      const label = `${chips[chipIdx].label}${suffix}`
+      chips[chipIdx].label = label
+      chips[chipIdx].text = `${label} ${chips[chipIdx].value.toFixed(chips[chipIdx].decimals)}`
+    })
+  }
+  return chips
 }
 
 /**
