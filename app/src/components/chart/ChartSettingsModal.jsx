@@ -808,9 +808,33 @@ export default function ChartSettingsModal({
                         if (f.showIf && !f.showIf(row.values)) return null
                         const val = row.values?.[f.key]
                         const dis = !!f.disabled
+                        // ⛔ THE REASON HAS TO REACH A SCREEN READER, NOT JUST A POINTER.
+                        //
+                        // `f.disabled` carries a sentence ("Coming soon — needs renderer
+                        // support", "Fixed by this chart's layout") and it was rendered
+                        // ONLY as a `title` on the row below — a hover tooltip. Measured
+                        // on production 2026-08-15: the five MA rows ship `Offset` and
+                        // `Plot style` inert, and the controls carried `disabled` with
+                        // NO `aria-disabled` and no description, so assistive tech got
+                        // "dimmed, no reason" while a mouse user got the sentence. The
+                        // toggle branch below already put the reason on the control; the
+                        // number and select branches did not, which is the same
+                        // inconsistency that let the toggle ship live-but-inert.
+                        //
+                        // `IndicatorSettingsDialog` states the rule this follows:
+                        // "`aria-disabled` alongside `disabled` so the reason reaches
+                        // assistive tech, which a bare `disabled` attribute does not
+                        // carry." The sentence is bound with `aria-describedby` to a
+                        // visually-hidden span (the global `.sr-only` in tokens.css), so
+                        // nothing about the rendered layout changes.
+                        const whyId = dis ? `ind-why-${row.id}-${f.key}` : undefined
+                        const inert = dis
+                          ? { disabled: true, 'aria-disabled': 'true', title: f.disabled, 'aria-describedby': whyId }
+                          : {}
                         return (
                           <div key={f.key} className={styles.indRow} title={f.disabled || undefined}>
                             <span className={`${styles.indLabel} ${dis ? styles.indLabelOff : ''}`}>{f.label}</span>
+                            {dis && <span id={whyId} className="sr-only">{f.disabled}</span>}
                             {f.type === 'color' && colorSwatch(indTarget(row.id, f.key), f.label, val)}
                             {f.type === 'toggle' && (
                               /* `disabled` is load-bearing, not decoration: a disabled
@@ -821,21 +845,21 @@ export default function ChartSettingsModal({
                                  could still look (and act) live. */
                               <button
                                 type="button" role="switch" aria-checked={val !== false} aria-label={f.label}
-                                disabled={dis} title={f.disabled || undefined}
+                                {...inert}
                                 className={`${styles.toggle} ${val !== false ? styles.toggleOn : ''} ${dis ? styles.toggleOff : ''}`}
                                 onClick={() => set({ [f.key]: val === false })}
                               ><span className={styles.toggleKnob} /></button>
                             )}
                             {f.type === 'number' && (
                               <input
-                                type="number" className={styles.indNum} disabled={dis}
+                                type="number" className={styles.indNum} {...inert}
                                 min={f.min} max={f.max} step={f.step} value={val ?? ''}
                                 onChange={(e) => set({ [f.key]: Number(e.target.value) })}
                               />
                             )}
                             {f.type === 'select' && (
                               <select
-                                className={styles.indSelect} disabled={dis} value={val ?? ''}
+                                className={styles.indSelect} {...inert} value={val ?? ''}
                                 onChange={(e) => {
                                   const raw = e.target.value
                                   const opt = f.options.find(([v]) => String(v) === raw)

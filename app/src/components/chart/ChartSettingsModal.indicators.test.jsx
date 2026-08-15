@@ -34,6 +34,58 @@ const WITH_INSTANCE = {
   }],
 }
 
+describe('an inert field says WHY, to a screen reader and not only to a pointer', () => {
+  // ⚰️ MEASURED ON PRODUCTION 2026-08-15. Every moving-average row ships `Offset`
+  // and `Plot style` disabled — deliberately: `indicatorRegistry.MA_FIELDS` marks
+  // them `disabled: NOT_WIRED` ("Coming soon — needs renderer support") because
+  // honouring them needs series-level work, and the file's own rule is that
+  // "showing them inert is honest; showing them live would silently do nothing".
+  //
+  // The reason was rendered only as a `title` on the ROW — a hover tooltip. The
+  // controls themselves carried a bare `disabled`: no `aria-disabled`, no
+  // description. So a mouse user got the sentence and a screen-reader user got
+  // "dimmed, no reason". The toggle branch already put the reason on its control;
+  // the number and select branches did not.
+  //
+  // `IndicatorSettingsDialog` states the rule: "`aria-disabled` alongside
+  // `disabled` so the reason reaches assistive tech, which a bare `disabled`
+  // attribute does not carry."
+  const disabledControls = () => [...document.body.querySelectorAll('input,select,button')]
+    .filter((e) => e.disabled)
+
+  it('every disabled control carries aria-disabled, the reason, and a resolvable description', () => {
+    render(<ChartSettingsModal open settings={base()} onChange={vi.fn()} />)
+    openIndicators()
+
+    const dis = disabledControls()
+    // ⛔ THE CONTROL. If nothing renders disabled, every assertion below is
+    // vacuous — and the MA rows are the reason this test exists.
+    expect(dis.length, 'no disabled control rendered — the sweep proves nothing').toBeGreaterThan(4)
+
+    for (const el of dis) {
+      const where = `${el.tagName}[${el.getAttribute('aria-describedby') || el.title || '?'}]`
+      expect(el.getAttribute('aria-disabled'), `${where}: disabled with no aria-disabled`).toBe('true')
+      expect(el.title, `${where}: disabled with no reason on the control`).toBeTruthy()
+
+      const id = el.getAttribute('aria-describedby')
+      expect(id, `${where}: no aria-describedby`).toBeTruthy()
+      const described = document.getElementById(id)
+      expect(described, `${where}: aria-describedby points at nothing`).toBeTruthy()
+      expect(described.textContent.trim(), `${where}: the description is empty`).toBe(el.title)
+    }
+  })
+
+  it('an ENABLED control gets none of it — the reason is not sprayed everywhere', () => {
+    render(<ChartSettingsModal open settings={base()} onChange={vi.fn()} />)
+    openIndicators()
+    const live = [...document.body.querySelectorAll('input,select')].filter((e) => !e.disabled)
+    expect(live.length, 'no enabled control rendered').toBeGreaterThan(4)
+    for (const el of live) {
+      expect(el.getAttribute('aria-disabled'), `${el.tagName} is live but marked aria-disabled`).toBeNull()
+    }
+  })
+})
+
 describe('ChartSettingsModal — the Indicators tab renders the generated row', () => {
   it('shows Moving averages, Volume and one section per indicator — from the ROWS', () => {
     render(<ChartSettingsModal open settings={base()} onChange={vi.fn()} />)
