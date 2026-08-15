@@ -64,13 +64,21 @@ export function hiddenByQuickFilters(rawCount, visibleCount, f) {
     (!!(f.q || '').trim() || f.minMcap > 0)
 }
 
+// Symbol is the final tiebreak on the DATA sorts so a field the provider left
+// null for a whole bucket can't collapse the comparator to 0 and leak the raw
+// API serialization through as the visible order. 'time' is exempt on purpose —
+// incoming order IS the answer there. See rankEntries() for the same rule on
+// the default ranked path.
+const bySym = (a, b) => (a.sym || '').localeCompare(b.sym || '')
+
 export function sortEntries(rows, sort) {
   const copy = [...rows]
-  if (sort === 'mcap') copy.sort((a, b) => (b.mc_b ?? 0) - (a.mc_b ?? 0))
+  if (sort === 'mcap') copy.sort((a, b) => ((b.mc_b ?? 0) - (a.mc_b ?? 0)) || bySym(a, b))
   else if (sort === 'move')
-    copy.sort((a, b) => (b.expected_move?.pct ?? -1) - (a.expected_move?.pct ?? -1))
+    copy.sort((a, b) =>
+      ((b.expected_move?.pct ?? -1) - (a.expected_move?.pct ?? -1)) || bySym(a, b))
   else if (sort === 'mine')
-    copy.sort((a, b) => (b.mine === true) - (a.mine === true))
+    copy.sort((a, b) => ((b.mine === true) - (a.mine === true)) || bySym(a, b))
   // 'time' = preserve incoming BMO/AMC order
   return copy
 }
