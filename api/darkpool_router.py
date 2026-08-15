@@ -67,8 +67,16 @@ import gzip
 import io
 import json
 import threading
+import time
 
 router = APIRouter(prefix="/api/darkpool", tags=["darkpool"])
+
+# Small per-(sym,window) TTL cache for the pre-clustered chart-overlay zones. A
+# chart re-open (or a second surface) shouldn't re-cluster; the underlying prints
+# only change on ingest, so a short TTL is safe. Bounded so RAM can't grow.
+_ZONES_CACHE: dict = {}
+_ZONES_TTL = 180.0
+_ZONES_CACHE_MAX = 128
 
 _DARKPOOL_CACHE_HEADERS = {
     "Cache-Control": "public, max-age=300, stale-while-revalidate=86400",
@@ -704,15 +712,27 @@ async def get_ticker_zones_endpoint(
     """
     try:
         s = sym.upper().strip()
+        key = (s, days, round(zone_pct, 4), limit)
+        now = time.time()
+        hit = _ZONES_CACHE.get(key)
+        if hit and hit[0] > now:
+            return JSONResponse(hit[1])
         zones = get_ticker_zones(s, days=days, zone_pct=zone_pct, limit=limit)
         total = sum(z.get("notional") or 0 for z in zones)
-        return JSONResponse({
+        payload = {
             "ticker": s,
             "days": days,
             "zonePct": zone_pct,
             "count": len(zones),
             "totalNotional": total,
             "zones": zones,
-        })
+        }
+        _ZONES_CACHE[key] = (now + _ZONES_TTL, payload)
+        if len(_ZONES_CACHE) > _ZONES_CACHE_MAX:  # drop expired, then oldest
+            for k in [k for k, (exp, _) in list(_ZONES_CACHE.items()) if exp <= now]:
+                _ZONES_CACHE.pop(k, None)
+            while len(_ZONES_CACHE) > _ZONES_CACHE_MAX:
+                _ZONES_CACHE.pop(next(iter(_ZONES_CACHE)), None)
+        return JSONResponse(payload)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"zones failed: {e}")

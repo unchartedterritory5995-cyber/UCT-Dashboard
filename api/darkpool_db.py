@@ -747,19 +747,52 @@ def _cluster_prints_to_zones(prints: list, zone_pct: float = 0.02) -> list:
 
 
 def get_ticker_zones(ticker: str, days: int = 180, zone_pct: float = 0.02,
-                     limit: int = 25) -> list:
-    """Full server-side dark-pool ZONE aggregation for the chart overlay.
+                     limit: int = 25, max_prints: int = 8000) -> list:
+    """Server-side dark-pool ZONE aggregation for the chart overlay.
 
-    Clusters EVERY print in the window (via get_ticker_prints_window — no per-print
-    cap) into ``zone_pct`` price bands, so a level accumulated across multiple days
-    shows its true cumulative notional (the client fetch was capped at the top-200
-    prints, understating multi-day accumulation levels). Returns the top ``limit``
-    zones by notional, newest-print zone flagged ``isLatest``.
+    Clusters the window's prints into ``zone_pct`` price bands, summing cumulative
+    notional so a level accumulated across many days shows its true total (the old
+    client fetch capped at the top-200 prints, understating multi-day levels).
+
+    Bounded to the top ``max_prints`` prints BY NOTIONAL — not for correctness but
+    for SPEED: a heavy dark-flow name (QQQ/SPY) has tens of thousands of prints per
+    window, and pulling + clustering all of them in Python made the overlay pop in
+    seconds late. The tail past the biggest few thousand adds negligible notional to
+    any zone, so zones stay accurate while first-paint stays fast. Returns the top
+    ``limit`` zones by notional, newest-print zone flagged ``isLatest``.
     """
-    prints = get_ticker_prints_window(ticker, days=days)
-    if not prints:
+    if not ticker:
         return []
-    zones = _cluster_prints_to_zones(prints, zone_pct=zone_pct)
+    ticker = ticker.upper().strip()
+    if not ticker.replace(".", "").isalnum():
+        return []
+    if days <= 0 or days > 365:
+        days = 30
+    conn = get_conn()
+    try:
+        recent = _resolve_dates(conn, days)
+        if not recent:
+            return []
+        placeholders = ",".join("?" for _ in recent)
+        cur = conn.execute(
+            f"""
+            SELECT date, timestamp, price, notional, pct_avg30, volume, type, message
+            FROM darkpool_trades
+            WHERE ticker = ?
+              AND date IN ({placeholders})
+              AND notional IS NOT NULL
+              AND price > 0
+            ORDER BY notional DESC
+            LIMIT ?
+            """,
+            (ticker, *recent, int(max_prints)),
+        )
+        rows = cur.fetchall()
+    finally:
+        conn.close()
+    if not rows:
+        return []
+    zones = _cluster_prints_to_zones([_print_row(r) for r in rows], zone_pct=zone_pct)
     if zones:
         newest = max(_dp_dnum(z.get("dateRaw")) for z in zones)
         for z in zones:
