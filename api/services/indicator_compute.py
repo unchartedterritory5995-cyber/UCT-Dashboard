@@ -814,13 +814,28 @@ def compute_ichimoku_raw(
     span_a: List[MaybeNum] = [None] * n
     span_b: List[MaybeNum] = [None] * n
     chikou: List[MaybeNum] = [None] * n
-    # See the section header: a period past the window would read a negative
-    # index, which JS throws on and Python would silently wrap.
+    # ⛔ THE FIRST COMPUTABLE BAR IS THE LONGEST PERIOD, AND SENKOU B IS NOT
+    # ALWAYS IT. The form does not enforce tenkan <= kijun <= senkou_b:
+    # `tenkanPeriod` declares max 75, `kijunPeriod` declares max 200, and
+    # `senkouBPeriod` goes down to 1.
+    #
+    # 🔴 THIS USED TO BAIL — five all-None series, drawing nothing, with no error —
+    # under a comment naming the FRONTEND crash as the reason ("a period past the
+    # window would read a negative index, which JS throws on and Python would
+    # silently wrap"). So the crash was known and the workaround was put in the
+    # OTHER lane, which left the two disagreeing on the same inputs: the browser
+    # raised a TypeError out of its render path while this one quietly returned
+    # nothing. `computeIchimoku` now starts at the longest period too, so neither
+    # can index behind the start of the series and both compute the same thing.
+    #
+    # The result was always well defined — the three lines are midpoints of three
+    # independent look-back windows, and nothing in the definition requires one to
+    # be longer than another. At the shipped 9/26/52 `longest` IS `senkou_b`, so
+    # every value on every existing chart is unchanged.
+    longest = max(tenkan_period, kijun_period, senkou_b_period)
     if min(tenkan_period, kijun_period, senkou_b_period) <= 0:
         return tenkan, kijun, span_a, span_b, chikou
-    if max(tenkan_period, kijun_period) > senkou_b_period:
-        return tenkan, kijun, span_a, span_b, chikou
-    if n < senkou_b_period:
+    if n < longest:
         return tenkan, kijun, span_a, span_b, chikou
 
     def _period_mid(end: int, period: int) -> float:
@@ -834,7 +849,7 @@ def compute_ichimoku_raw(
         return (hi + lo) / 2
 
     displacement = kijun_period
-    for i in range(senkou_b_period - 1, n):
+    for i in range(longest - 1, n):
         tk = _period_mid(i, tenkan_period)
         kj = _period_mid(i, kijun_period)
         tenkan[i] = tk

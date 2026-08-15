@@ -358,7 +358,26 @@ export function computeATR(bars, period = 14) {
 }
 
 export function computeIchimoku(bars, tenkanPeriod = 9, kijunPeriod = 26, senkouBPeriod = 52) {
-  if (!bars || bars.length < senkouBPeriod) return { tenkan: [], kijun: [], spanA: [], spanB: [], chikou: [] }
+  // ⛔ THE FIRST COMPUTABLE BAR IS THE LONGEST PERIOD, AND SENKOU B IS NOT ALWAYS IT.
+  //
+  // Both the guard and the loop below assumed `senkouBPeriod` was the largest of
+  // the three, because at the shipped 9/26/52 it is. The form does not enforce
+  // that: `tenkanPeriod` declares `max: 75`, `kijunPeriod` declares `max: 200`,
+  // and `senkouBPeriod` can be taken down to `1`. Set any of those and the loop
+  // started at `senkouBPeriod - 1`, where `periodMid(bars, i, kijunPeriod)` reads
+  // from `i - kijunPeriod + 1` — a NEGATIVE index. `bars[-n]` is `undefined` and
+  // `undefined.h` THROWS.
+  //
+  // ⚰️ That is worse than the sibling defect in `computeMACD`, which produced NaN
+  // and drew a blank line: this one raises a TypeError out of the render path.
+  // Found by `engine/__tests__/everyIndicatorParameterSweep.test.js`, which sweeps
+  // every definition across the range its own inputs advertise rather than
+  // trusting the defaults — the corner no fixture had ever visited.
+  //
+  // At 9/26/52 `longest === senkouBPeriod`, so the start bar, the guard and every
+  // emitted value are byte-identical to before for every shipped chart.
+  const longest = Math.max(tenkanPeriod, kijunPeriod, senkouBPeriod)
+  if (!bars || bars.length < longest) return { tenkan: [], kijun: [], spanA: [], spanB: [], chikou: [] }
 
   function periodMid(bars, end, period) {
     let hi = -Infinity, lo = Infinity
@@ -373,7 +392,7 @@ export function computeIchimoku(bars, tenkanPeriod = 9, kijunPeriod = 26, senkou
   const spanA = blank(bars), spanB = blank(bars), chikou = blank(bars)
   const displacement = kijunPeriod  // 26
 
-  for (let i = senkouBPeriod - 1; i < bars.length; i++) {
+  for (let i = longest - 1; i < bars.length; i++) {
     const tk = periodMid(bars, i, tenkanPeriod)
     const kj = periodMid(bars, i, kijunPeriod)
     tenkan[i].value = tk
