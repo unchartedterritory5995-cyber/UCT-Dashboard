@@ -330,7 +330,7 @@ def _load_wire_data() -> dict | None:
 def get_breadth() -> dict:
     cached = cache.get("breadth")
     if cached:
-        return cached
+        return _stamp_wire_status(cached)   # re-judge on every read, never cached
 
     state = _load_state()
 
@@ -363,7 +363,33 @@ def get_breadth() -> dict:
                     "market_phase": state.get("market_phase", ""),
                 }
 
+    # Stamp the payload with the wire run it came from. ⛔ Read it back off
+    # wire_data rather than assuming the branch above found one: the state-file
+    # and live-fetch branches legitimately have no wire behind them, and those
+    # must report "unknown", never a borrowed date. Best-effort — a breadth
+    # payload is worth serving even if the stamp can't be resolved.
+    try:
+        _w = _load_wire_data() or {}
+        breadth["wire_date"] = _w.get("date") or None
+    except Exception:  # noqa: BLE001
+        breadth["wire_date"] = None
+
     cache.set("breadth", breadth, ttl=3600)
+    return _stamp_wire_status(breadth)
+
+
+def _stamp_wire_status(breadth: dict) -> dict:
+    """Attach `wire_status`, computed at READ time.
+
+    ⛔ THE DATE IS CACHEABLE; THE VERDICT IS NOT. `wire_date` is a fact about the
+    payload and rides the 1-hour cache safely. `wire_status` is a function of NOW
+    — a payload cached at 09:29 ET reads "fresh" and is still saying so at 10:29,
+    which is a staleness indicator that itself goes stale: the exact defect this
+    whole change exists to remove. So it is stamped on the way out of every call,
+    cache hit included, and deliberately NOT stored.
+    """
+    if isinstance(breadth, dict):
+        breadth["wire_status"] = wire_freshness(breadth.get("wire_date"))
     return breadth
 
 
@@ -389,6 +415,54 @@ def _normalize_breadth(raw: dict, state: dict) -> dict:
         "market_phase":    state.get("market_phase", ""),
         "webster_phase":   state.get("webster_phase", state.get("market_phase", "")),
     }
+
+
+def expected_wire_date():
+    """The most recent ET trading day whose wire run should have landed.
+
+    The wire lands ~7:35 AM ET on weekdays; give it until 9:30 AM ET before
+    expecting today's run. Weekends expect Friday's. (Holiday-naive: a market
+    holiday reads as one calendar day of 'stale' — acceptable.)
+
+    🔑 MOVED HERE FROM `engine_data._expected_wire_date` SO THERE IS ONE COPY.
+    `/api/leadership` already judged staleness with this rule; the breadth and
+    exposure payloads now need the same judgement, and two implementations of
+    "is the wire late" would drift into two different answers on the same day.
+    The router keeps its old private name as an alias.
+    """
+    from datetime import datetime as _dt, timedelta
+    from zoneinfo import ZoneInfo
+    now = _dt.now(ZoneInfo("America/New_York"))
+    d = now.date()
+    if now.weekday() < 5 and (now.hour, now.minute) < (9, 30):
+        d = d - timedelta(days=1)
+    while d.weekday() >= 5:          # roll weekend back to Friday
+        d = d - timedelta(days=1)
+    return d
+
+
+def wire_freshness(wire_date_str) -> str:
+    """'fresh' | 'stale' | 'unknown' for a wire payload's own date stamp.
+
+    🔴 WHY THIS EXISTS. Nothing on the exposure tile rendered a date, and
+    `_normalize_exposure` emitted no timestamp at all — so a rating from a run
+    that never happened was pixel-identical to today's, and `score_delta` showed
+    yesterday's move as today's. On 2026-08-14 the 06:35 run crashed before
+    pushing and the dashboard served the prior day's rating all day with nothing
+    on screen, or in the payload, able to say so.
+
+    'unknown' is deliberately distinct from 'stale': an absent date means we
+    cannot tell, and claiming staleness we cannot support is the same class of
+    error as claiming freshness we cannot support.
+    """
+    from datetime import datetime as _dt
+    if not wire_date_str:
+        return "unknown"
+    try:
+        wire_d = _dt.fromisoformat(str(wire_date_str)[:10]).date()
+    except (ValueError, TypeError):
+        return "unknown"
+    return "fresh" if wire_d >= expected_wire_date() else "stale"
 
 
 def _normalize_exposure(raw: dict) -> dict:
