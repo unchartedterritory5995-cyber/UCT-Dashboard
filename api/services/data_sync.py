@@ -249,6 +249,19 @@ def put_bytes(key: str, data: bytes, content_type: str) -> bool:
         return False
 
 
+def get_bytes(key: str) -> Optional[bytes]:
+    """Download an R2 object's bytes, or None (missing / unconfigured / error).
+    Never raises — the caller decides how to degrade on a miss."""
+    cl = _client()
+    if not cl:
+        return None
+    try:
+        resp = cl.get_object(Bucket=_bucket(), Key=key)
+        return resp["Body"].read()
+    except Exception:
+        return None
+
+
 def credentials_ok() -> bool:
     """Public probe for misconfiguration. Returns True iff the env vars
     needed to talk to R2 are all set. Used by the worker's health endpoint

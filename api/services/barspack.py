@@ -192,7 +192,8 @@ def build(depth: int = PACK_DEPTH, num_shards: int = NUM_SHARDS,
         key = f"{_PREFIX}/{date}/{idx:03d}.json.gz"
         shards[key] = gz
         manifest_shards.append({
-            "name": key,
+            "idx": idx,           # client builds GET /api/barspack/{version}/{idx}
+            "name": key,          # raw R2 key (debug)
             "bytes": len(gz),
             "tickers": len(payload_tickers),
             "bars": shard_bars,
