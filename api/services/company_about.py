@@ -160,9 +160,35 @@ def get_brief(sym: str, profile: dict) -> dict:
     return brief
 
 
+def get_extras(sym: str) -> dict:
+    """Float / short-interest / next-earnings — from the (cached) yfinance-backed
+    fundamentals service, which the Fundamentals tab already warms. FMP's profile
+    doesn't carry these, so they're merged into the snapshot separately."""
+    c = _cache()
+    key = f"about_extras::{sym}"
+    hit = c.get(key)
+    if hit is not None:
+        return hit
+    out: dict = {}
+    try:
+        from api.services.fundamentals import get_fundamentals
+        f = get_fundamentals(sym) or {}
+        out = {
+            "floatShares": _num(f.get("float_shares")),
+            "sharesOutstanding": _num(f.get("shares_outstanding")),
+            "shortPctFloat": _num(f.get("short_pct_float")),
+            "nextEarnings": f.get("next_earnings"),
+        }
+    except Exception as e:  # noqa: BLE001
+        log.warning("[about] extras fetch failed for %s: %s", sym, e)
+    c.set(key, out, _PROFILE_TTL)
+    return out
+
+
 def get_about(sym: str) -> dict:
     sym = (sym or "").upper().strip()
-    profile = get_profile(sym)
+    profile = dict(get_profile(sym))   # copy — don't mutate the cached FMP dict
+    profile.update({k: v for k, v in get_extras(sym).items() if v is not None})
     return {
         "ticker": sym,
         "profile": profile,

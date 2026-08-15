@@ -16,10 +16,31 @@ const money = (v) => {
 }
 const num = (v) => (v == null || !isFinite(v) ? '—' : Number(v).toLocaleString())
 const cleanUrl = (u) => String(u || '').replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')
+const shares = (v) => {
+  if (v == null || !isFinite(v)) return '—'
+  const n = Math.abs(v)
+  if (n >= 1e9) return `${(v / 1e9).toFixed(2)}B`
+  if (n >= 1e6) return `${(v / 1e6).toFixed(1)}M`
+  if (n >= 1e3) return `${(v / 1e3).toFixed(0)}K`
+  return `${Math.round(v)}`
+}
+const fmtDate = (iso) => {
+  if (!iso) return null
+  const d = new Date(`${iso}T00:00:00`)
+  return isNaN(d) ? String(iso) : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+const daysUntil = (iso) => {
+  if (!iso) return null
+  const d = new Date(`${iso}T00:00:00`)
+  if (isNaN(d)) return null
+  const diff = Math.round((d - new Date()) / 86400000)
+  return diff >= 0 ? diff : null
+}
 
 const lblStyle = { fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: GOLD, fontWeight: 700, margin: '0 0 10px' }
 const kStyle = { color: DIM, fontSize: 13 }
 const vStyle = { color: CREAM, fontSize: 13, fontWeight: 600, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }
+const subStyle = { color: MUTED, fontWeight: 400, fontSize: 11 }
 const aiHead = { fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: GOLD_BRI, fontWeight: 700, margin: '0 0 5px' }
 const para = { fontSize: 13.5, lineHeight: 1.6, color: '#c8c3b6' }
 
@@ -55,6 +76,9 @@ export default function AboutPanel({ sym, onSwitch }) {
   const dollarVol = (p.avgVolume && p.price) ? p.avgVolume * p.price : null
   const founded = p.ipoDate ? String(p.ipoDate).slice(0, 4) : null
   const hq = [p.city, p.state || p.country].filter(Boolean).join(', ') || null
+  const floatPct = (p.floatShares && p.sharesOutstanding) ? (p.floatShares / p.sharesOutstanding * 100) : null
+  const earnDate = fmtDate(p.nextEarnings)
+  const earnDays = daysUntil(p.nextEarnings)
 
   return (
     <div style={{ padding: '18px 20px', maxHeight: '70vh', overflowY: 'auto', width: '100%', alignSelf: 'flex-start', fontFamily: "'Instrument Sans',system-ui,sans-serif" }}>
@@ -102,9 +126,12 @@ export default function AboutPanel({ sym, onSwitch }) {
           <p style={lblStyle}>Trader snapshot</p>
           <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '9px 16px' }}>
             <span style={kStyle}>Market cap</span><span style={vStyle}>{money(p.mktCap)}</span>
+            {p.floatShares != null && (<><span style={kStyle}>Float</span><span style={vStyle}>{shares(p.floatShares)}{floatPct != null ? <span style={subStyle}> {floatPct.toFixed(0)}% of shares</span> : null}</span></>)}
+            {p.shortPctFloat != null && (<><span style={kStyle}>Short float</span><span style={vStyle}>{p.shortPctFloat.toFixed(1)}%</span></>)}
             {p.beta != null && (<><span style={kStyle}>Beta</span><span style={vStyle}>{p.beta.toFixed(2)}</span></>)}
-            {dollarVol != null && (<><span style={kStyle}>Avg $ volume</span><span style={vStyle}>{money(dollarVol)}/day</span></>)}
+            {dollarVol != null && (<><span style={kStyle}>Avg $ volume</span><span style={vStyle}>{money(dollarVol)}<span style={subStyle}>/day</span></span></>)}
             <span style={kStyle}>Dividend</span><span style={vStyle}>{divYld != null && divYld > 0 ? `${divYld.toFixed(2)}%` : '—'}</span>
+            {earnDate && (<><span style={kStyle}>Next earnings</span><span style={vStyle}>{earnDate}{earnDays != null ? <span style={subStyle}> {earnDays}d</span> : null}</span></>)}
             {rangePct != null && (
               <div style={{ gridColumn: '1 / -1', marginTop: 6 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: DIM, marginBottom: 5 }}>
