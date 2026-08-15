@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { decodeShardPayload } from './barsPackClient'
+import { decodeShardPayload, _shardIdx } from './barsPackClient'
 
 // The decode must round-trip the SERVER columnar encoding back to the exact
 // [{t,o,h,l,c,v}] rows idbImportPack stores. This mirrors the Python builder's
@@ -31,6 +31,15 @@ describe('decodeShardPayload', () => {
     expect(decodeShardPayload({})).toEqual([])
     expect(decodeShardPayload({ tickers: { X: null } })).toEqual([])
     expect(decodeShardPayload({ tickers: { X: { D: { t: [] } } } })).toEqual([])
+  })
+
+  it('_shardIdx prefers idx but falls back to parsing the name', () => {
+    expect(_shardIdx({ idx: 3, name: 'barspack/2026-08-14/003.json.gz' })).toBe(3)
+    expect(_shardIdx({ idx: '5' })).toBe(5)
+    // pre-idx manifest: derive from the R2 name (the 2026-08-14 ingest bug)
+    expect(_shardIdx({ name: 'barspack/2026-08-14/007.json.gz' })).toBe(7)
+    expect(_shardIdx({ name: 'garbage' })).toBeNaN()
+    expect(_shardIdx({})).toBeNaN()
   })
 
   it('emits D, W, M independently per ticker', () => {

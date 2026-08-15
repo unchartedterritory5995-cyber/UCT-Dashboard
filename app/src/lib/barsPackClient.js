@@ -102,7 +102,7 @@ async function _ingestFull(version, shards) {
   async function worker() {
     while (cursor < queue.length && !aborted) {
       const s = queue[cursor++]
-      const shardIdx = typeof s.idx === 'number' ? s.idx : parseInt(s.idx, 10)
+      const shardIdx = _shardIdx(s)
       if (!Number.isFinite(shardIdx)) continue
       let entries
       try { entries = await _fetchShard(version, shardIdx) } catch { continue }
@@ -138,6 +138,21 @@ function _daysBetween(a, b) {
   const da = Date.parse(`${a}T00:00:00Z`), db = Date.parse(`${b}T00:00:00Z`)
   if (!Number.isFinite(da) || !Number.isFinite(db)) return Infinity
   return Math.abs(db - da) / 86400000
+}
+
+// Resolve a shard's numeric index. Prefers manifest `idx`, but falls back to
+// parsing it from the shard NAME ("barspack/<date>/NNN.json.gz") so the client
+// works with packs built before the manifest carried `idx` (the transition that
+// broke ingest 2026-08-14: the deployed client read undefined idx → skipped
+// every shard → nothing ever seeded).
+export function _shardIdx(s) {
+  if (typeof s?.idx === 'number' && Number.isFinite(s.idx)) return s.idx
+  if (typeof s?.idx === 'string' && s.idx.trim() !== '') {
+    const n = parseInt(s.idx, 10)
+    if (Number.isFinite(n)) return n
+  }
+  const mm = typeof s?.name === 'string' ? s.name.match(/\/(\d+)\.json\.gz$/) : null
+  return mm ? parseInt(mm[1], 10) : NaN
 }
 
 async function _fetchShard(version, shardIdx) {
