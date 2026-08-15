@@ -64,6 +64,37 @@ describe('the settings dialog row wraps, so a note cannot shove the control side
   })
 })
 
+describe('the compact legend can get back out again', () => {
+  // ⛔ ASSERTED ON THE SOURCE, because the decision it guards runs inside a rAF
+  // sampler that reads `getBoundingClientRect()` — jsdom returns zeroes for all of
+  // it, so a mounted test cannot tell a collapsed legend from an expanded one.
+  //
+  // ⚰️ THE BUG: `lastFullBottomRef` is written only while NOT compact, so once the
+  // legend collapses it remembers the height it had WHEN IT COLLAPSED. Removing
+  // indicators cannot refresh it — the rows are not rendered while compact, so
+  // there is nothing shorter to measure — and the legend stays collapsed with a
+  // single indicator on, taking every MA row, every chip and the settings gear
+  // with it. Measured on production 2026-08-15; a reload was the only cure.
+  const src = read('components/StockChart.jsx')
+
+  it('a change in how many rows the legend would draw drops the remembered height', () => {
+    expect(src, 'the row-count signature is gone').toMatch(/legendRowSigRef/)
+    // …and it must actually clear the memo and un-collapse, not merely record.
+    const block = /legendRowSigRef\.current = sig[\s\S]{0,200}/.exec(src)
+    expect(block, 'the signature is recorded but nothing resets on it').toBeTruthy()
+    expect(block[0]).toMatch(/lastFullBottomRef\.current = 0/)
+    expect(block[0]).toMatch(/setCompactLegend\(false\)/)
+  })
+
+  it('⛔ it ignores a null crosshair — otherwise every mouse-leave un-collapses', () => {
+    expect(src).toMatch(/if \(!crosshairData\) return/)
+  })
+
+  it('⛔ THE CONTROL — the reader can tell a name that is NOT in the source', () => {
+    expect(src).not.toMatch(/legendRowSigRefThatDoesNotExist/)
+  })
+})
+
 describe('the legend chip keeps dead space in front of its destructive control', () => {
   const css = read('components/chart/legend/IndicatorChip.module.css')
 

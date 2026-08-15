@@ -2583,6 +2583,45 @@ export default function StockChart({
   // compact/hidden height can't make it flip-flop, and it survives the legend being
   // hidden (nothing to measure while hover-only + off-hover).
   const lastFullBottomRef = useRef(0)
+
+  // ⚰️ …AND THAT MEMORY GOES STALE THE MOMENT THE LEGEND GETS SHORTER.
+  //
+  // `lastFullBottomRef` is written ONLY while `!compactLegendRef.current` (see the
+  // rAF sampler below), which is right for its original purpose — a compact or
+  // hidden legend must not overwrite the full height with its own smaller one, or
+  // the test would flip-flop. But it means the remembered height is the height the
+  // legend had WHEN IT COLLAPSED, and removing indicators never refreshes it: the
+  // rows are not rendered while compact, so there is nothing shorter to measure.
+  // The only way back out is for the PANE to grow past a height the legend no
+  // longer needs.
+  //
+  // MEASURED ON PRODUCTION 2026-08-15: with six indicators on, the legend went
+  // compact (correctly). Turning them off again left it compact with a SINGLE
+  // indicator on — every MA row, every chip and, with them, the gear that is the
+  // only per-instance settings door, all still gone. A page reload was the only
+  // cure, because a reload is the only thing that clears this ref.
+  //
+  // ⛔ THE FIX CANNOT BE "MEASURE HARDER". While compact the full rows do not
+  // exist, so the true full height is unmeasurable. So on a change to how many
+  // rows the legend WOULD draw, this drops the memory and un-collapses; the
+  // sampler then measures a real full height on the next frame and re-collapses if
+  // it is still too tall. One frame of optimism, and it is self-correcting —
+  // versus a stale number that never corrects at all.
+  //
+  // ⛔ KEYED ON THE ROW COUNTS, NOT ON `crosshairData` ITSELF, and null is ignored.
+  // That object is replaced on every crosshair move; resetting on each one would
+  // un-collapse and re-collapse the legend on every mouse motion, and treating
+  // "pointer left the chart" (null) as "the legend got shorter" would do it on
+  // every enter/leave.
+  const legendRowSigRef = useRef(null)
+  useEffect(() => {
+    if (!crosshairData) return
+    const sig = `${crosshairData.overlays?.length ?? 0}:${crosshairData.chips?.length ?? 0}`
+    if (legendRowSigRef.current === sig) return
+    legendRowSigRef.current = sig
+    lastFullBottomRef.current = 0
+    setCompactLegend(false)
+  }, [crosshairData])
   // Off-hover legend persistence is suppressed while collapsed → hover-only.
   const effAlwaysShow = alwaysShowLegend && !compactLegend
   // The `+N` fold, expanded in place. False on every mount on purpose: a strip
