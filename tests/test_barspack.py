@@ -115,6 +115,17 @@ def test_build_emits_delta_tail(monkeypatch):
             assert bars == full[-2:]  # tail of exactly the full series
 
 
+def test_build_seed_is_set_fingerprint(monkeypatch):
+    monkeypatch.setattr(barspack, "_sanitized_bars", _synthetic_bars)
+    monkeypatch.setattr(barspack, "MIN_TICKERS", 1)
+    monkeypatch.setattr(barspack, "MIN_BARS", 1)
+    seed = lambda ts: barspack.build(depth=50, num_shards=4, tickers=ts, date="2026-08-14")["manifest"]["seed"]
+    a = seed(["AAA", "BBB", "CCC"])
+    assert a == seed(["CCC", "BBB", "AAA"])   # order-independent
+    assert a != seed(["AAA", "BBB"])          # different SET → different seed
+    assert len(a) == 12
+
+
 def test_build_refuses_below_floor(monkeypatch):
     monkeypatch.setattr(barspack, "_sanitized_bars", _synthetic_bars)
     monkeypatch.setattr(barspack, "MIN_TICKERS", 10_000)  # unreachable

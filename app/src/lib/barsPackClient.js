@@ -22,6 +22,7 @@ import { idbImportPack, idbApplyDelta } from '../utils/barsIDB'
 
 const MANIFEST_URL = '/api/barspack/manifest'
 const VERSION_LS = 'barspack.version'
+const SEED_LS = 'barspack.seed'
 const TFS = ['D', 'W', 'M']
 const SHARD_CONCURRENCY = 2
 // If we're further behind than this many days, the delta tail (7 bars) can't
@@ -72,24 +73,31 @@ async function _run() {
     return
   }
   const version = manifest.version
-  let localV = null
-  try { localV = localStorage.getItem(VERSION_LS) } catch { /* ignore */ }
+  let localV = null, localSeed = null
+  try { localV = localStorage.getItem(VERSION_LS); localSeed = localStorage.getItem(SEED_LS) } catch { /* ignore */ }
 
-  // Already current → nothing to do (the common daily case for an open app).
-  if (localV === version) return
+  // Already current (same data AND same ticker set) → nothing to do.
+  if (localV === version && (!manifest.seed || localSeed === manifest.seed)) return
 
   // Best-effort persistent storage so the pack survives storage pressure.
   try { if (navigator.storage?.persist) await navigator.storage.persist() } catch { /* ignore */ }
 
-  // Returning browser that's only a few days behind → cheap delta. Otherwise
-  // (never seeded, or too far behind for the tail to bridge) → full pack.
-  const canDelta = localV && manifest.delta && _daysBetween(localV, version) <= MAX_DELTA_CATCHUP_DAYS
+  // The ticker SET changed (universe gained names, e.g. GRWG added) → a delta
+  // can't seed a brand-new ticker, so force a full re-ingest.
+  const seedChanged = !!manifest.seed && localSeed !== manifest.seed
+  // Returning browser only a few days behind (and same ticker set) → cheap delta.
+  // Otherwise (never seeded, seed changed, or too far behind) → full pack.
+  const canDelta = localV && manifest.delta && !seedChanged
+                   && _daysBetween(localV, version) <= MAX_DELTA_CATCHUP_DAYS
   const ok = canDelta ? await _ingestDelta(version) : await _ingestFull(version, manifest.shards)
 
-  // Stamp the version ONLY on a complete ingest; a partial (quota-aborted) run
-  // retries next load rather than declaring this version done.
+  // Stamp version + seed ONLY on a complete ingest; a partial (quota-aborted)
+  // run retries next load rather than declaring this version done.
   if (ok) {
-    try { localStorage.setItem(VERSION_LS, version) } catch { /* ignore */ }
+    try {
+      localStorage.setItem(VERSION_LS, version)
+      if (manifest.seed) localStorage.setItem(SEED_LS, manifest.seed)
+    } catch { /* ignore */ }
   }
 }
 

@@ -33,6 +33,7 @@ SAFETY
       existing warm-server fetch + skeleton. No regression is possible.
 """
 import gzip
+import hashlib
 import json
 import os
 import threading
@@ -97,16 +98,41 @@ def _et_today() -> str:
     return _now_et().date().isoformat()
 
 
+def _theme_holding_syms() -> set:
+    """Theme-tracker holding symbols from themes_taxonomy.json (repo root).
+
+    Folded into the pack universe so theme stocks OUTSIDE the $300M cap list —
+    e.g. small-cap cannabis names like GRWG that the Theme Tracker surfaces — are
+    covered too. Best-effort: returns empty on any error (→ pack is just the cap
+    universe). Only ~58 of these are net-new beyond cap_universe."""
+    try:
+        root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        with open(os.path.join(root, "themes_taxonomy.json"), encoding="utf-8") as f:
+            tax = json.load(f)
+        out: set = set()
+        for th in tax.get("themes", []) or []:
+            for h in th.get("holdings", []) or []:
+                s = h.get("sym") if isinstance(h, dict) else h
+                if s:
+                    out.add(str(s).upper())
+        return out
+    except Exception:
+        return set()
+
+
 def _universe() -> list[str]:
-    """The $300M+ cap universe (app-form tickers, e.g. BRK-B). Same source the
-    scans + prewarmer use."""
+    """Pack universe = the $300M+ cap list UNION the Theme Tracker's holdings, so
+    both the broad market AND the specific names the app surfaces in themes are
+    instant. Tickers with no bars in the worker's db are dropped later (empty
+    sanitize → skipped), so this only ever ADDS coverage, never empties."""
     path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data", "cap_universe.json")
+    base: set = set()
     try:
         with open(path) as f:
-            arr = json.load(f)
-        return [str(t).upper() for t in arr if t]
+            base = {str(t).upper() for t in json.load(f) if t}
     except Exception:
-        return []
+        base = set()
+    return sorted(base | _theme_holding_syms())
 
 
 def _shard_of(sym: str, num_shards: int) -> int:
@@ -175,6 +201,7 @@ def build(depth: int = PACK_DEPTH, num_shards: int = NUM_SHARDS,
     shards: dict[str, bytes] = {}
     manifest_shards: list[dict] = []
     delta_tickers: dict[str, dict] = {}   # last _DELTA_TAIL bars/series, all tickers
+    included: set = set()                 # exact ticker SET in the pack → seed
     total_tickers = 0
     total_bars = 0
 
@@ -209,6 +236,7 @@ def build(depth: int = PACK_DEPTH, num_shards: int = NUM_SHARDS,
             "tickers": len(payload_tickers),
             "bars": shard_bars,
         })
+        included.update(payload_tickers.keys())
         total_tickers += len(payload_tickers)
         total_bars += shard_bars
 
@@ -227,8 +255,15 @@ def build(depth: int = PACK_DEPTH, num_shards: int = NUM_SHARDS,
     delta_key = f"{_PREFIX}/{date}/delta.json.gz"
     shards[delta_key] = delta_gz
 
+    # Seed = a stable fingerprint of the exact ticker SET. When it changes (the
+    # universe gained/lost names), the client forces a FULL re-ingest instead of
+    # a delta — because the delta only maintains entries a browser already has and
+    # would never seed a newly-added ticker (e.g. GRWG on the day it's added).
+    seed = hashlib.md5(",".join(sorted(included)).encode()).hexdigest()[:12]
+
     manifest = {
         "version": date,
+        "seed": seed,
         "built_at": int(time.time()) if _ET else 0,
         "format": PACK_FORMAT,
         "depth": {tf: depth for tf in _TFS},
