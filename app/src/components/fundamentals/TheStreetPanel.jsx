@@ -7,7 +7,7 @@
 import AnalystPanel from './AnalystPanel'
 import OwnershipPanel from './OwnershipPanel'
 
-const col = { minWidth: 0, maxHeight: '72vh', overflowY: 'auto' }
+const col = { minWidth: 0, maxHeight: '82vh', overflowY: 'auto' }
 
 export default function TheStreetPanel({ sym }) {
   return (

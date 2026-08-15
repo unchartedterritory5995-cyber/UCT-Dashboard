@@ -49,11 +49,11 @@
   border: 1px solid var(--border-accent);
   border-radius: var(--radius-xl);
   padding: 16px;
-  /* Match the OptionsFlow chart modal footprint (min(1100px,96vw) × min(720px,92vh))
-     so the popup is contained, not near-full-screen. */
-  width: min(1100px, 96vw);
+  /* Large chart footprint — matches the roomy OptionsFlow chart so both surfaces
+     feel the same size, and tall enough that the About tab doesn't scroll. */
+  width: min(1500px, 96vw);
   max-width: 96vw;
-  max-height: min(720px, 92vh);
+  max-height: min(920px, 94vh);
   overflow-y: auto;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
 }
@@ -287,7 +287,7 @@
 /* Chart area */
 .chartArea {
   padding: 12px 16px;
-  min-height: 500px;
+  min-height: 560px;
   display: flex;
   align-items: center;
   justify-content: center;

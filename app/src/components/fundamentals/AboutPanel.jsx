@@ -81,7 +81,7 @@ export default function AboutPanel({ sym, onSwitch }) {
   const earnDays = daysUntil(p.nextEarnings)
 
   return (
-    <div style={{ padding: '18px 20px', maxHeight: '70vh', overflowY: 'auto', width: '100%', alignSelf: 'flex-start', fontFamily: "'Instrument Sans',system-ui,sans-serif" }}>
+    <div style={{ padding: '18px 20px', maxHeight: '82vh', overflowY: 'auto', width: '100%', alignSelf: 'flex-start', fontFamily: "'Instrument Sans',system-ui,sans-serif" }}>
       {(brief.whatTheyDo || brief.whatMovesIt) ? (
         <div style={{ border: '1px solid #c9a84c33', background: 'linear-gradient(180deg,#181610,#141310)', borderRadius: 10, padding: '14px 16px', marginBottom: 20 }}>
           <div style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: 10, letterSpacing: 1.2, textTransform: 'uppercase', color: GOLD, fontWeight: 700, marginBottom: 8 }}>
