@@ -49,11 +49,12 @@
   border: 1px solid var(--border-accent);
   border-radius: var(--radius-xl);
   padding: 16px;
-  /* Large chart footprint — matches the roomy OptionsFlow chart so both surfaces
-     feel the same size, and tall enough that the About tab doesn't scroll. */
-  width: min(1500px, 96vw);
+  /* Near-full-screen footprint on every window (owner preference): 96vw × 95vh
+     dominates until an ultra-wide screen hits the px cap, so both surfaces fill
+     the viewport with a small margin rather than sitting as a contained card. */
+  width: min(2000px, 96vw);
   max-width: 96vw;
-  max-height: min(920px, 94vh);
+  max-height: min(1300px, 95vh);
   overflow-y: auto;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
 }
