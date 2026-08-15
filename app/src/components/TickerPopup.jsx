@@ -211,14 +211,15 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                   title={isFlagged(activeSym) ? 'Remove from Flagged (Shift+F)' : 'Add to Flagged (Shift+F)'}
                   aria-label={isFlagged(activeSym) ? 'Remove from flagged list' : 'Add to flagged list'}
                 >
-                  <UIcon name="flag" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{isFlagged(activeSym) ? 'Flagged' : 'Flag'}
+                  <UIcon name="flag" size={14} gold={isFlagged(activeSym)} />
                 </button>
                 <button
                   className={styles.closeBtn}
                   onClick={closeModal}
+                  title="Close"
                   aria-label="Close chart"
                 >
-                  {'×'} close
+                  <UIcon name="x" size={15} gold={false} />
                 </button>
               </div>
             </div>
