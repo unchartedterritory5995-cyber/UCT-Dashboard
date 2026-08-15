@@ -57,6 +57,33 @@
    how a rollback becomes unreachable. */
 .body {
   max-height: 70vh;
+  /* ── AND A FLOOR, SO THE PANEL DOES NOT RESIZE WHEN YOU CHANGE TABS ───────
+   *
+   * ⚰️ MEASURED ON THE DEPLOYED BUILD 2026-08-15, MACD settings, by clicking each
+   * tab and reading `getBoundingClientRect()`:
+   *
+   *     tab          panel height   tab strip y   Done y
+   *     Inputs       339.0          328.0         536.0
+   *     Style        403.6          295.7         568.3
+   *     Visibility   313.0          341.0         523.0
+   *
+   * `Sheet` centres the panel and the three tabs have different content heights,
+   * so the TAB STRIP travelled 45.3px depending on which tab was open. Click
+   * Style, reach for Visibility, and the control has moved out from under the
+   * cursor — it misfired during the sweep that found this.
+   *
+   * 210px is measured, not guessed: those panels sit around ~200px of fixed
+   * chrome, so the Style tab's body — the tallest, because its chip box is a fixed
+   * block — is near 204px. Flooring just above that levels all three.
+   *
+   * ⚠️ A FLOOR IS A MITIGATION, NOT THE WHOLE ANSWER, and saying so is the point.
+   * An indicator with many declared inputs (Ichimoku) still makes Inputs the
+   * tallest tab and will still resize. The complete fix is to stack all three
+   * panes in one grid cell so the body is always the max of the three — that
+   * changes the `role="tabpanel"` structure this dialog's 37 tests are written
+   * against, so it is a deliberate follow-up, not something to slip in beside a
+   * CSS change. */
+  min-height: 210px;
   overflow-y: auto;
   overscroll-behavior: contain;
   display: flex;

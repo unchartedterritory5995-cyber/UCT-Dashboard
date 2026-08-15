@@ -45,6 +45,18 @@ describe('the settings dialog row wraps, so a note cannot shove the control side
     expect(ruleBody(css, '.tip')).toMatch(/flex:\s*1\s+1\s+100%/)
   })
 
+  it('`.body` is floored so the panel does not resize between tabs', () => {
+    // ⚰️ MEASURED ON THE DEPLOYED BUILD 2026-08-15, MACD settings: the three tab
+    // panels were 339 / 403.6 / 313px tall, and because `Sheet` centres the panel
+    // the TAB STRIP travelled 45.3px depending on which tab was open — you reach
+    // for Visibility and it has moved out from under the cursor.
+    const px = /min-height:\s*(\d+)px/.exec(ruleBody(css, '.body'))
+    expect(px, '.body lost its min-height floor').toBeTruthy()
+    // Style's body is the tallest at ~204px (its chip box is fixed); the floor has
+    // to clear that or the tallest tab still sets a different height.
+    expect(Number(px[1])).toBeGreaterThanOrEqual(204)
+  })
+
   it('⛔ THE CONTROL — the reader can tell a rule that lacks the property', () => {
     // Without this, a matcher that returned true for everything would pass above.
     expect(ruleBody(css, '.label')).not.toMatch(/flex-wrap:\s*wrap/)
