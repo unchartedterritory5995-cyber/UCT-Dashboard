@@ -12386,7 +12386,7 @@ export default function StockChart({
                   style={{
                     position: 'absolute',
                     right: b.width + 3,
-                    top: -7,
+                    top: -8,
                     fontSize: 9.5,
                     color: b.labelColor ?? b.color,
                     fontWeight: 700,
@@ -12397,6 +12397,12 @@ export default function StockChart({
                     whiteSpace: 'nowrap',
                     fontFamily: "'Instrument Sans','SF Pro Display',system-ui,sans-serif",
                     pointerEvents: 'none',
+                    // Dark pill so the notional stays readable over candles/wicks as
+                    // the chart is scrolled, zoomed, or price-scaled underneath it
+                    // (the label rides the same rAF y-repositioning as the bar).
+                    background: 'rgba(8,10,14,0.86)',
+                    padding: '1px 5px',
+                    borderRadius: 3,
                   }}>
                   {formatDpNotional(b.notional)}
                 </span>
