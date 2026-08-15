@@ -1264,11 +1264,29 @@
    only disables this for its own drags via .resizing; our resize sets this class). */
 :global(.charts-resizing) > :global(.react-grid-item) { transition: none !important; }
 
-/* react-grid-layout uses .react-grid-item — give the placeholder a visible style */
-:global(.react-grid-placeholder) {
-  background: var(--accent, #c9a84c) !important;
-  opacity: 0.15 !important;
+/* Drag (via the 6-dot handle): tint the WHOLE dragged widget gold — the same look
+   as resizing (.rzPlaceholder) — instead of RGL's separate placeholder box that
+   lagged behind the cursor. The ::after rides on the dragged item, so the tint
+   tracks it 1:1 with zero lag. RGL adds .react-draggable-dragging to the item
+   being dragged (custom resize uses .charts-resizing/.rzPlaceholder, so these
+   never collide). */
+:global(.react-grid-item.react-draggable-dragging)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: var(--accent, #c9a84c);
+  opacity: 0.15;
   border-radius: 4px;
+  pointer-events: none;
+}
+
+/* Hide RGL's drag placeholder box (the lagging gold rectangle) — the dragged
+   widget's own gold tint above now shows the move; neighbours still reflow to
+   indicate where it will land. */
+:global(.react-grid-placeholder) {
+  background: transparent !important;
+  opacity: 0 !important;
 }
 
 /* Brighten the corner resize indicators so they're visible on dark theme.
