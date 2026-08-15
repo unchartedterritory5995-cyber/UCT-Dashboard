@@ -1,5 +1,6 @@
 // app/src/components/TickerPopup.jsx
 import { useState, useEffect, useRef, lazy, Suspense } from 'react'
+import { createPortal } from 'react-dom'
 import useRealtimePrices from '../hooks/useRealtimePrices'
 import UIcon from './ui/UIcon'
 import { useDarkPoolBars } from './chart/useDarkPoolBars'
@@ -149,7 +150,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
       )}
       {tickerActions.menu && <TickerActionsMenu menu={tickerActions.menu} onClose={tickerActions.closeMenu} />}
 
-      {modalOpen && (
+      {modalOpen && createPortal(
         <div
           className={styles.overlay}
           onClick={closeModal}
@@ -339,7 +340,8 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
             </div>
 
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
