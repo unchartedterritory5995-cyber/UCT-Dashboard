@@ -306,7 +306,7 @@ export default function TickerPopup({ sym, tvSym, as: Tag = 'span', customChartF
                       ),
                     } : undefined}
                     stockChartProps={{
-                      height: 'min(650px, 70vh)',
+                      height: 'min(560px, 58vh)',
                       markers,
                       priceLines,
                       darkPoolBars,

@@ -49,9 +49,11 @@
   border: 1px solid var(--border-accent);
   border-radius: var(--radius-xl);
   padding: 16px;
-  width: min(1400px, 94vw);
-  max-width: 94vw;
-  max-height: 92vh;
+  /* Match the OptionsFlow chart modal footprint (min(1100px,96vw) × min(720px,92vh))
+     so the popup is contained, not near-full-screen. */
+  width: min(1100px, 96vw);
+  max-width: 96vw;
+  max-height: min(720px, 92vh);
   overflow-y: auto;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
 }
