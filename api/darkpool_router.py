@@ -54,7 +54,7 @@ from fastapi.concurrency import run_in_threadpool
 from collections import OrderedDict
 from api.darkpool_db import (
     insert_csv_rows, stream_csv, get_available_dates,
-    get_stats, prune_old_data, clear_all, get_ticker_prints
+    get_stats, prune_old_data, clear_all, get_ticker_prints, get_ticker_zones
 )
 from api.darkpool_aggregator import (
     get_aggregated as get_aggregated_payload,
@@ -681,3 +681,38 @@ async def get_ticker_detail(
         })
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"ticker-detail failed: {e}")
+
+
+# ── Member: Pre-clustered dark-pool ZONES for the chart overlay ───────────────
+@router.get("/zones")
+async def get_ticker_zones_endpoint(
+    sym: str = Query(..., description="Ticker symbol", min_length=1, max_length=10),
+    _auth: dict = Depends(require_flow_user),
+    days: int = Query(default=180, ge=5, le=365, description="Trading-day window"),
+    zone_pct: float = Query(default=0.02, ge=0.005, le=0.10, alias="zonePct",
+                            description="Price-band half-width as a fraction (0.02 = 2%)"),
+    limit: int = Query(default=25, ge=1, le=60, description="Max zones by notional"),
+):
+    """Dark-pool zones clustered SERVER-SIDE over every print in the window (no
+    per-print cap), so a level accumulated across multiple days shows its true
+    cumulative notional. Powers the chart overlay (useDarkPoolBars) — the browser
+    renders these directly instead of fetching capped prints and clustering itself.
+
+    Response: {ticker, days, zonePct, count, totalNotional, zones:[{price,
+    priceLow, priceHigh, notional, volume, printCount, biggestPrint, date,
+    dateLong, dateRaw, pctAvgVol, isLatest, ...}]} sorted by notional desc.
+    """
+    try:
+        s = sym.upper().strip()
+        zones = get_ticker_zones(s, days=days, zone_pct=zone_pct, limit=limit)
+        total = sum(z.get("notional") or 0 for z in zones)
+        return JSONResponse({
+            "ticker": s,
+            "days": days,
+            "zonePct": zone_pct,
+            "count": len(zones),
+            "totalNotional": total,
+            "zones": zones,
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"zones failed: {e}")

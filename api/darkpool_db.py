@@ -665,6 +665,96 @@ def get_ticker_prints_window(ticker: str, days: int = 30) -> list:
     return [_print_row(r) for r in rows]
 
 
+def _dp_dnum(date_raw) -> int:
+    """M/D/YYYY (or M/D) → sortable YYYYMMDD int for 'most recent print' picks."""
+    parts = str(date_raw or "").split("/")
+    if len(parts) < 2:
+        return 0
+    def _i(x):
+        try:
+            return int(x)
+        except (TypeError, ValueError):
+            return 0
+    m, d = _i(parts[0]), _i(parts[1])
+    y = _i(parts[2]) if len(parts) >= 3 else 0
+    return y * 10000 + m * 100 + d
+
+
+def _cluster_prints_to_zones(prints: list, zone_pct: float = 0.02) -> list:
+    """Server-side port of the client clusterDarkPoolPrintsForOverlay: a greedy
+    price-sorted merge where a print joins the current zone if it's within
+    ``zone_pct`` of the zone's running notional-weighted mean, SUMMING notional +
+    volume. So a level hit big across back-to-back days reports its true CUMULATIVE
+    notional. Uncapped by design — every print in the window contributes (the
+    display drilldown's row cap is what silently understated multi-day levels)."""
+    ps = sorted((p for p in prints if (p.get("price") or 0) > 0),
+                key=lambda p: p.get("price") or 0)
+    zones: list = []
+    cur = None
+    for p in ps:
+        price = p.get("price") or 0
+        notional = p.get("notional") or 0
+        volume = p.get("volume") or 0
+        if cur is not None and abs(price - cur["price"]) <= cur["price"] * zone_pct:
+            cur["_members"].append(p)
+            cur["notional"] += notional
+            cur["volume"] += volume
+            wsum = sum((m.get("price") or 0) * ((m.get("volume") or 0) or 1) for m in cur["_members"])
+            wden = sum(((m.get("volume") or 0) or 1) for m in cur["_members"])
+            cur["price"] = wsum / wden if wden > 0 else price
+            cur["priceLow"] = min(cur["priceLow"], price)
+            cur["priceHigh"] = max(cur["priceHigh"], price)
+        else:
+            cur = {"price": price, "notional": notional, "volume": volume,
+                   "priceLow": price, "priceHigh": price, "_members": [p]}
+            zones.append(cur)
+    out = []
+    for z in zones:
+        members = z.pop("_members")
+        # Label a merged zone by its MOST RECENT print (not the lowest-price seed),
+        # so a multi-day cluster reads as current, not as its oldest member.
+        latest = max(members, key=lambda m: _dp_dnum(m.get("dateRaw")))
+        out.append({
+            "price": round(z["price"], 4),
+            "priceLow": round(z["priceLow"], 4),
+            "priceHigh": round(z["priceHigh"], 4),
+            "notional": z["notional"],
+            "volume": z["volume"],
+            "printCount": len(members),
+            "_clusterCount": len(members),
+            "_isCluster": len(members) > 1,
+            "biggestPrint": max((m.get("notional") or 0) for m in members),
+            "date": latest.get("date"),
+            "dateLong": latest.get("dateLong"),
+            "dateRaw": latest.get("dateRaw"),
+            "pctAvgVol": latest.get("pctAvgVol") or 0,
+            "type": latest.get("type"),
+        })
+    return out
+
+
+def get_ticker_zones(ticker: str, days: int = 180, zone_pct: float = 0.02,
+                     limit: int = 25) -> list:
+    """Full server-side dark-pool ZONE aggregation for the chart overlay.
+
+    Clusters EVERY print in the window (via get_ticker_prints_window — no per-print
+    cap) into ``zone_pct`` price bands, so a level accumulated across multiple days
+    shows its true cumulative notional (the client fetch was capped at the top-200
+    prints, understating multi-day accumulation levels). Returns the top ``limit``
+    zones by notional, newest-print zone flagged ``isLatest``.
+    """
+    prints = get_ticker_prints_window(ticker, days=days)
+    if not prints:
+        return []
+    zones = _cluster_prints_to_zones(prints, zone_pct=zone_pct)
+    if zones:
+        newest = max(_dp_dnum(z.get("dateRaw")) for z in zones)
+        for z in zones:
+            z["isLatest"] = bool(newest > 0 and _dp_dnum(z.get("dateRaw")) == newest)
+    zones.sort(key=lambda z: z.get("notional") or 0, reverse=True)
+    return zones[:limit]
+
+
 # Auto-init tables on import (idempotent, fast — just CREATE IF NOT EXISTS).
 # The CSV seed is intentionally NOT triggered here — main.py runs it in a
 # background thread on startup to mirror the flow DB pattern.

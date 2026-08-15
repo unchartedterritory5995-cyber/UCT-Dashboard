@@ -1,10 +1,10 @@
 // The dark-pool overlay must never crash its host on an unexpected response.
 //
 // ⛔ THE BUG THIS EXISTS FOR (found 2026-08-14): the hook stored
-// `j?.prints || j || []`, so a 200 whose body is an OBJECT without a `prints`
+// `j?.zones || j || []`, so a 200 whose body is an OBJECT without a `zones`
 // key (an error payload, a shape change) stored the OBJECT. The filter helpers
-// guarded with `!prints || prints.length === 0`, which a non-array passes, and
-// the next `.map` threw "prints.map is not a function" — an uncaught error
+// guarded with `!zones || zones.length === 0`, which a non-array passes, and
+// the next `.map` threw "zones.map is not a function" — an uncaught error
 // inside <TickerPopup>, the app's UNIVERSAL ticker surface, so the whole chart
 // modal died for every caller. It surfaced as two LiveFlow popup tests failing
 // with "chart-modal not found", which is what an unmounted crash looks like.
@@ -59,7 +59,7 @@ describe('useDarkPoolBars survives every response shape', () => {
   const SHAPES = [
     ['an error payload object', { detail: 'not found' }],
     ['an empty object', {}],
-    ['a wrapper whose prints is not an array', { prints: { nope: 1 } }],
+    ['a wrapper whose zones is not an array', { zones: { nope: 1 } }],
     ['null', null],
     ['a bare string', 'nope'],
     ['a number', 42],
@@ -75,27 +75,26 @@ describe('useDarkPoolBars survives every response shape', () => {
     })
   }
 
-  it('still renders real prints — the guard did not just disable the feature', async () => {
-    respond({ prints: [
-      { price: 100, volume: 10, date: '8/13/2026', time: '10:00 AM' },
-      { price: 100.5, volume: 20, date: '8/13/2026', time: '10:05 AM' },
-      { price: 250, volume: 5, date: '8/13/2026', time: '11:00 AM' },
+  it('still renders real zones — the guard did not just disable the feature', async () => {
+    // Zones now arrive pre-clustered from the server; the hook renders them as-is.
+    respond({ zones: [
+      { price: 100, notional: 5e6, date: '8/13/2026' },
+      { price: 250, notional: 3e6, date: '8/13/2026' },
     ] })
     draw()
     const el = await expectNoCrash()
-    // The two near-identical prices cluster; the far one stays separate.
     await waitFor(() => expect(el.getAttribute('data-count')).toBe('2'))
   })
 
   it('a bare array body (no wrapper) still works', async () => {
-    respond([{ price: 100, volume: 10, date: '8/13/2026', time: '10:00 AM' }])
+    respond([{ price: 100, notional: 5e6, date: '8/13/2026' }])
     draw()
     const el = await expectNoCrash()
     await waitFor(() => expect(el.getAttribute('data-count')).toBe('1'))
   })
 
   it('disabled fetches nothing', async () => {
-    respond({ prints: [{ price: 1, volume: 1 }] })
+    respond({ zones: [{ price: 1, notional: 1 }] })
     draw({ enabled: false })
     const el = await expectNoCrash()
     expect(el.getAttribute('data-count')).toBe('0')
