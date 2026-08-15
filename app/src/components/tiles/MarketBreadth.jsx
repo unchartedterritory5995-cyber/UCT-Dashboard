@@ -79,6 +79,12 @@ export default function MarketBreadth({ data: propData }) {
   const expReason = data.exposure?.gate_reason ?? null
   const expBonus  = data.exposure?.bonus       ?? 0
 
+  // 'unknown' is NOT rendered as stale — an absent date means we cannot tell,
+  // and asserting staleness we can't support is the same error as asserting the
+  // freshness we couldn't support before.
+  const wireDate  = data.wire_date ?? null
+  const wireStale = data.wire_status === 'stale'
+
   return (
     <TileCard icon="breadth" title="UCT Exposure Rating">
       <ExposureBar
@@ -93,6 +99,20 @@ export default function MarketBreadth({ data: propData }) {
           <span className={styles.phaseDot} />
           <span className={styles.phaseLabel}>{phase}</span>
         </div>
+      )}
+
+      {/* 🔴 THE STAMP THAT WAS MISSING. On 2026-08-14 the 06:35 wire crashed
+          before pushing, the dashboard served the prior day's rating all day,
+          and nothing on this tile — or in the payload behind it — could say so:
+          a stale 55 was pixel-identical to a fresh 55, and the delta arrow
+          showed yesterday's move as today's. `wire_status` is judged server-side
+          against the trading calendar (the same rule /api/leadership uses) and
+          re-judged on every read, so it can never itself go stale. */}
+      {wireDate && (
+        <p className={`${styles.wireStamp} ${wireStale ? styles.wireStampStale : ''}`}>
+          {wireStale && <UIcon name="warning" size={11} style={{ verticalAlign: '-1px', marginRight: 4 }} />}
+          Wire {wireDate}{wireStale ? ' — no run since; this is not today\'s reading' : ''}
+        </p>
       )}
 
       {expNote && <p className={styles.scoreNote}>{expNote}</p>}

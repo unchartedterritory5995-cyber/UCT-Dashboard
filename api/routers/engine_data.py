@@ -52,21 +52,16 @@ def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
 
 
 def _expected_wire_date():
-    """The most recent ET trading day whose wire run should have landed.
+    """⛔ ALIAS ONLY — the rule now lives in `engine.expected_wire_date`.
 
-    The wire lands ~7:35 AM ET on weekdays; give it until 9:30 AM ET before
-    expecting today's list. Weekends expect Friday's list. (Holiday-naive:
-    a market holiday shows as one calendar day of 'stale' — acceptable.)
+    It moved because the breadth/exposure payload needs the same judgement that
+    `/api/leadership` has always made, and two implementations of "is the wire
+    late" drift into two different answers about the same morning. Kept under the
+    old private name so every existing caller in this module is unaffected.
+    Change the behaviour THERE, never by re-inlining it here.
     """
-    from datetime import timedelta
-    from zoneinfo import ZoneInfo
-    now = datetime.now(ZoneInfo("America/New_York"))
-    d = now.date()
-    if now.weekday() < 5 and (now.hour, now.minute) < (9, 30):
-        d = d - timedelta(days=1)
-    while d.weekday() >= 5:          # roll weekend back to Friday
-        d = d - timedelta(days=1)
-    return d
+    from api.services.engine import expected_wire_date
+    return expected_wire_date()
 
 
 def _leadership_status(stocks, wire_date_str):
