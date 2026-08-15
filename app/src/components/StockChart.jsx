@@ -1921,7 +1921,7 @@ export default function StockChart({
         // past the previous one, but never more than MAX_NUDGE from its bar (so a
         // label can't float off; a genuinely-tight cluster keeps a little overlap
         // rather than orphaning). Far-apart labels resolve to their natural -8.
-        const BASE = -8, MIN_GAP = 12, MAX_NUDGE = 26
+        const BASE = -8, MIN_GAP = 17, MAX_NUDGE = 30
         labels.sort((a, b) => a.y - b.y)
         let prev = -Infinity
         for (const it of labels) {
@@ -12453,24 +12453,26 @@ export default function StockChart({
                   data-dp-label=""
                   style={{
                     position: 'absolute',
-                    right: b.width + 3,
+                    right: b.width + 4,
                     top: -8,
-                    fontSize: 9.5,
+                    fontSize: 12.5,
                     color: b.labelColor ?? b.color,
                     fontWeight: 700,
                     // Top 3 always need to be legible. Page path boosts bar
                     // opacity for contrast; the setting path uses the user's
                     // picked label alpha directly (both precomputed as labelOpacity).
-                    opacity: b.labelOpacity ?? Math.min(1, b.opacity + 0.45),
+                    // Floor at 0.9 so a faint bar's (labeled) notional stays readable
+                    // on the now-large full-screen chart.
+                    opacity: Math.max(0.9, b.labelOpacity ?? Math.min(1, b.opacity + 0.45)),
                     whiteSpace: 'nowrap',
                     fontFamily: "'Instrument Sans','SF Pro Display',system-ui,sans-serif",
                     pointerEvents: 'none',
                     // Dark pill so the notional stays readable over candles/wicks as
                     // the chart is scrolled, zoomed, or price-scaled underneath it
                     // (the label rides the same rAF y-repositioning as the bar).
-                    background: 'rgba(8,10,14,0.86)',
-                    padding: '1px 5px',
-                    borderRadius: 3,
+                    background: 'rgba(8,10,14,0.88)',
+                    padding: '2px 7px',
+                    borderRadius: 4,
                   }}>
                   {formatDpNotional(b.notional)}
                 </span>
