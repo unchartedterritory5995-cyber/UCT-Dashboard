@@ -1887,11 +1887,11 @@ export default function StockChart({
   //     label clutter. Hover for $ amount via the existing tooltip.
   //   - Smaller bars stay as visual reference markers showing WHERE
   //     activity is concentrated. Hover to read the $ amount.
-  //   - No staggering — earlier iterations pushed labels far from their
-  //     bars and created the "floating disconnected label" failure mode.
-  //   - On the rare collision between top-3 labels, they overlap at their
-  //     natural Y; the user can zoom in or hover to disambiguate. Still
-  //     better than 200px of staggered orphans.
+  //   - Labels de-collide VERTICALLY but only BOUNDED (MIN_GAP apart, never more
+  //     than MAX_NUDGE from a label's natural Y) — so stacked zones a few dollars
+  //     apart (common on a weekly chart) stop hiding each other, without the old
+  //     "floating disconnected label" failure of an unbounded stagger. When zones
+  //     are far apart the loop leaves every label at its natural -8 offset.
   useEffect(() => {
     if (!chartReady) return
     if (!darkPoolBarsLayout || darkPoolBarsLayout.length === 0) return
@@ -1902,6 +1902,7 @@ export default function StockChart({
       const series = candleSeriesRef.current
       if (series) {
         const els = container.querySelectorAll('[data-dp-bar]')
+        const labels = []   // {y, el} for visible labeled bars, to de-collide
         for (const el of els) {
           const price = parseFloat(el.dataset.price || '')
           if (!Number.isFinite(price)) continue
@@ -1912,7 +1913,23 @@ export default function StockChart({
           } else {
             el.style.display = 'block'
             el.style.top = `${y}px`
+            const label = el.querySelector('[data-dp-label]')
+            if (label) labels.push({ y, el: label })
           }
+        }
+        // Bounded vertical de-collision: sort top→down and push each label just
+        // past the previous one, but never more than MAX_NUDGE from its bar (so a
+        // label can't float off; a genuinely-tight cluster keeps a little overlap
+        // rather than orphaning). Far-apart labels resolve to their natural -8.
+        const BASE = -8, MIN_GAP = 12, MAX_NUDGE = 26
+        labels.sort((a, b) => a.y - b.y)
+        let prev = -Infinity
+        for (const it of labels) {
+          let ly = it.y + BASE
+          if (ly < prev + MIN_GAP) ly = prev + MIN_GAP
+          if (ly > it.y + BASE + MAX_NUDGE) ly = it.y + BASE + MAX_NUDGE
+          prev = ly
+          it.el.style.top = `${Math.round(ly - it.y)}px`
         }
       }
       raf = requestAnimationFrame(update)
@@ -12433,6 +12450,7 @@ export default function StockChart({
               }}/>
               {b.showLabel && (
                 <span
+                  data-dp-label=""
                   style={{
                     position: 'absolute',
                     right: b.width + 3,
