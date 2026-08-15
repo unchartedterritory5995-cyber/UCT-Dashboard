@@ -188,23 +188,13 @@ export default function FundamentalSnapshot({ sym, enabled = true, showResearchL
         </div>
 
         <div className={styles.group}>
-          <div className={styles.groupLbl}>Balance &amp; Price</div>
+          {/* Beta / Div yld / 52wk moved to the About tab; the analyst block moved
+              to The Street tab — this stays the financial-statement view. */}
+          <div className={styles.groupLbl}>Balance Sheet</div>
           <Cell label="Debt/Eq" value={de(m.debt_to_equity)} />
           <Cell label="Curr ratio" value={ratio(m.current_ratio)} />
           <Cell label="Free CF" value={money(m.free_cash_flow)} />
-          <Cell label="Beta" value={ratio(m.beta)} />
-          <Cell label="Div yld" value={m.div_yield_pct != null ? pct(m.div_yield_pct, { digits: 2 }) : dash} />
-          <Cell label="52wk" value={(m.week52_low != null || m.week52_high != null) ? `${price(m.week52_low)}–${price(m.week52_high)}` : dash} />
         </div>
-
-        {(m.analyst_target_mean != null || m.analyst_recommendation) && (
-          <div className={styles.group}>
-            <div className={styles.groupLbl}>Analyst</div>
-            <Cell label="Target" value={price(m.analyst_target_mean)} color="#c9a84c" />
-            <Cell label="Rating" value={cap(m.analyst_recommendation)} />
-            <Cell label="# Analysts" value={m.analyst_count ?? dash} />
-          </div>
-        )}
       </div>
 
       {/* Stock Checkup */}

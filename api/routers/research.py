@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import APIRouter, Body, Depends
 
-from api.middleware.auth_middleware import require_admin
+from api.middleware.auth_middleware import require_admin, get_current_user
 from api.services.research.financials import get_financials
 from api.services.research.estimates import get_estimates
 from api.services.research.ownership import get_ownership
@@ -17,6 +17,18 @@ from api.services.research.snapshot import get_snapshot
 
 _logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+@router.get("/api/about/{sym}")
+def company_about_endpoint(sym: str, _user: dict = Depends(get_current_user)):
+    """Company 'About' tab: FMP profile facts + peers + a cached AI trader brief.
+
+    Powers the ticker-popup About tab. Logged-in gate (it can trigger one Haiku
+    call), but the brief is cached 30d per ticker so cost is bounded regardless.
+    Fail-soft end to end — a missing brief just renders facts only.
+    """
+    from api.services import company_about
+    return company_about.get_about(sym)
 
 
 @router.get("/api/research/news/{sym}")
