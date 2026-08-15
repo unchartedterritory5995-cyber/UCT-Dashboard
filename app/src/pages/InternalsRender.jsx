@@ -7,8 +7,16 @@
 //   treemap   — the breadth heatmap (TreemapView)
 //   combo     — exposure tile above the treemap
 //
-// Public route (no AuthGuard). /api/breadth and /api/breadth-monitor are public.
-// ?token= is checked against VITE_CHART_RENDER_TOKEN.
+// Public route (no AuthGuard). ?token= is checked against VITE_CHART_RENDER_TOKEN and
+// forwarded to the API.
+//
+// ⛔ Reads /api/r/breadth + /api/r/breadth-monitor, NOT the bare paths. Both bare
+// endpoints went behind `require_paid` in 9ff74f69 (2026-08-09) and this page renders
+// logged-OUT. ⚠️ Note both fetches below fall back to `{}` / `{rows: []}` on a
+// non-ok response — that is what turned a 401 into a silently BLANK panel rather than
+// an error, for a week. Keep the soft fallback (a half-rendered panel beats none) but
+// remember it means THIS PAGE CANNOT REPORT ITS OWN AUTH FAILURE: verify a change
+// here by looking at the rendered image, never by the absence of an exception.
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -64,11 +72,11 @@ export default function InternalsRender() {
     if (TOKEN && token !== TOKEN) { setErr('unauthorized'); return }
     const jobs = []
     if (needBreadth) {
-      jobs.push(fetch('/api/breadth').then((r) => (r.ok ? r.json() : {})).then(setBreadth).catch(() => setBreadth({})))
+      jobs.push(fetch(`/api/r/breadth?token=${encodeURIComponent(token)}`).then((r) => (r.ok ? r.json() : {})).then(setBreadth).catch(() => setBreadth({})))
     } else setBreadth({})
     if (needRow) {
       jobs.push(
-        fetch('/api/breadth-monitor?days=10')
+        fetch(`/api/r/breadth-monitor?days=10&token=${encodeURIComponent(token)}`)
           .then((r) => (r.ok ? r.json() : { rows: [] }))
           .then((d) => {
             const rows = (d.rows || []).slice().sort((a, b) => String(a.date).localeCompare(String(b.date)))

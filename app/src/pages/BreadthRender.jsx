@@ -4,8 +4,14 @@
 // 8-tier heat coloring the dashboard uses (reuses COLS from Breadth.jsx, so it never
 // drifts). Screenshotted into the Morning Wire → Substack "Market Internals" section.
 //
-// Public route (no AuthGuard). Data from /api/breadth-monitor?days=10 (public).
-// ?token= checked vs VITE_CHART_RENDER_TOKEN.
+// Public route (no AuthGuard). ?token= checked vs VITE_CHART_RENDER_TOKEN, and the
+// SAME token is forwarded to the API.
+//
+// ⛔ Data comes from /api/r/breadth-monitor, NOT /api/breadth-monitor. The plain
+// endpoint went behind `require_paid` in 9ff74f69 (2026-08-09) and this page renders
+// logged-OUT, so it fetched a 401 and shipped a blank panel for a week with nothing
+// reporting it. Any endpoint this page reads must be one of the token-gated /api/r/*
+// doors — a paid endpoint is unreachable from here by construction.
 
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
@@ -71,7 +77,7 @@ export default function BreadthRender() {
   useEffect(() => {
     window.__panelReady = false
     if (TOKEN && token !== TOKEN) { setErr('unauthorized'); return }
-    fetch(`/api/breadth-monitor?days=${days + 4}`)
+    fetch(`/api/r/breadth-monitor?days=${days + 4}&token=${encodeURIComponent(token)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((d) => {
         const rs = (Array.isArray(d.rows) ? d.rows : [])

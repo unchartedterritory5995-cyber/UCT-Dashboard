@@ -389,3 +389,53 @@ def chart_settings_for_render(token: str = ""):
         return {"chart_settings": _json.loads(raw) if isinstance(raw, str) else raw}
     except Exception as e:  # noqa: BLE001 -- a broken lookup must not fail the render
         return {"chart_settings": None, "reason": f"{type(e).__name__}"}
+
+
+# ── breadth reads for /r/breadth + /r/internals ──────────────────────────────
+#
+# 🔑 WHY THESE EXIST AS SEPARATE DOORS. `9ff74f69` (2026-08-09, the exposed-routes
+# audit) put `GET /api/breadth-monitor` and `GET /api/breadth` behind `require_paid`
+# — correctly: 3 MB of the tape was answering anonymous callers. But `/r/breadth`
+# and `/r/internals` render in a logged-OUT headless browser and fetch exactly those
+# two endpoints, so both pages went blank in production and nothing noticed. That
+# commit kept `/api/calendar` open precisely because `/r/calendar` needs it; the same
+# reasoning simply was not applied here.
+#
+# ⛔ THE FIX IS A NEW TOKEN-GATED DOOR, NOT A HOLE IN THE PAID ONE. Threading a
+# render-token bypass through `require_paid` would put a second authority on "may
+# this caller read the tape" inside the gate itself, and `tests/test_exposed_routes_
+# gated.py` measures that gate by calling it — a bypass is exactly what it exists to
+# refuse. The paid routes stay byte-identical; these serve the render pages only, at
+# the same effectively-public standard as every other `/r/*` read above (shared rate
+# limit, fail-CLOSED token check).
+#
+# ⚠️ Anything added here is EFFECTIVELY PUBLIC — the token ships inside the frontend
+# bundle. Both payloads below are the same aggregate breadth readings the newsletter
+# publishes weekly, which is why they are safe to hand back; do NOT extend these to
+# per-symbol constituent lists (the `*_list` drill fields) without re-deciding that.
+
+@router.get("/r/breadth-monitor")
+def render_breadth_monitor(token: str = "", days: int = 10):
+    """The rolling Breadth Monitor history behind `/r/breadth` (both halves) and
+    `/r/internals`. Mirrors `GET /api/breadth-monitor`'s shape exactly — same
+    service call, same `{rows, days}` envelope — so the render pages and the
+    Sunday-Scan generator can read it without reshaping anything."""
+    _check_token(token)
+    days = max(1, min(int(days or 10), 3650))
+    try:
+        from api.services import breadth_monitor as svc
+        return {"rows": svc.get_history(days), "days": days}
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+
+@router.get("/r/breadth")
+def render_breadth(token: str = ""):
+    """The engine's pushed breadth summary (UCT Exposure Rating + MA percentages)
+    behind `/r/internals`. Mirrors `GET /api/breadth`."""
+    _check_token(token)
+    try:
+        from api.services.engine import get_breadth
+        return get_breadth()
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=str(e))
