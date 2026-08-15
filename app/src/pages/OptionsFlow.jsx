@@ -5802,24 +5802,18 @@ export default function OptionsFlowDashboard() {
             })()}
 
             {/* ─── Chart Modal (uses StockChart — same colors as renderDetailPanel) ─── */}
-            {chartModal && chartModal.sym && (() => {
-              const sym = chartModal.sym;
-              const tk = FD && FD.TICKER_DB ? FD.TICKER_DB.find(t => t.s === sym) : null;
-              const tkBull = tk ? ((tk.b||0) >= (tk.r||0)) : true;
-              // The shared TickerPopup owns the chart shell now — tabs (Chart /
-              // About / Fundamentals / The Street), dark-pool overlay, switch-ticker,
-              // flag and close. flowMeta preserves this modal's flow header
-              // (BULL/BEAR · premium · trades) for the ticker that was clicked.
-              return (
-                <TickerPopup
-                  sym={sym}
-                  open
-                  darkPool
-                  flowMeta={tk ? { bull: tkBull, premium: fmt((tk.b || 0) + (tk.r || 0)), trades: tk.n || 0 } : null}
-                  onClose={() => setChartModal(null)}
-                />
-              );
-            })()}
+            {chartModal && chartModal.sym && (
+              // The shared TickerPopup owns the chart shell — tabs (Chart / About /
+              // Fundamentals / The Street), dark-pool overlay, switch-ticker, flag
+              // and close. Clean header (ticker · price · change) matching Live Flow;
+              // no flow badge (BULL/BEAR · premium · trades) per owner preference.
+              <TickerPopup
+                sym={chartModal.sym}
+                open
+                darkPool
+                onClose={() => setChartModal(null)}
+              />
+            )}
           </div>
         )}
 
