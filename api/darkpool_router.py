@@ -643,7 +643,9 @@ async def get_ticker_detail(
     sym: str = Query(..., description="Ticker symbol", min_length=1, max_length=10),
     _auth: dict = Depends(require_flow_user),
     days: int = Query(default=30, ge=5, le=365, description="Trading-day window"),
-    limit: int = Query(default=30, ge=5, le=100, description="Max prints to return"),
+    limit: int = Query(default=30, ge=5, le=200, description="Max prints to return"),
+    order: str = Query(default="date", pattern="^(date|notional)$",
+                       description="date = most recent first; notional = biggest first (zone overlay)"),
 ):
     """Return the dark pool print history for a single ticker.
 
@@ -666,7 +668,7 @@ async def get_ticker_detail(
         }
     """
     try:
-        prints = get_ticker_prints(sym.upper().strip(), days=days, limit=limit)
+        prints = get_ticker_prints(sym.upper().strip(), days=days, limit=limit, order=order)
         total = sum(p.get("notional") or 0 for p in prints)
         if prints:
             prints[0]["isLatest"] = True  # mark most-recent print

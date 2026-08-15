@@ -464,13 +464,16 @@ def _float(val):
         return None
 
 
-def get_ticker_prints(ticker: str, days: int = 30, limit: int = 30) -> list:
-    """Return top dark pool prints for a single ticker, ordered by date desc.
+def get_ticker_prints(ticker: str, days: int = 30, limit: int = 30, order: str = "date") -> list:
+    """Return top dark pool prints for a single ticker over the last ``days``.
 
-    For the ticker-detail endpoint that powers the Patterns Detected drilldown.
-    Returns the most recent ``limit`` prints over the last ``days`` trading days,
-    sorted by date descending then notional descending so the latest big prints
-    are first.
+    ``order`` controls which ``limit`` prints survive the cap:
+      - ``"date"`` (default): most RECENT first — for the Patterns drilldown, where
+        current activity is what matters.
+      - ``"notional"``: BIGGEST first, across the whole window — for the chart ZONE
+        overlay, whose display is already size-ranked. On a heavy dark-flow name
+        (e.g. SMH) a recency cap is used up by the last few days and hides large
+        historical zones at other price levels; ranking by notional surfaces them.
 
     Each row dict contains the fields the frontend needs to render print bars:
     date (M/D), price, notional, pctAvgVol, volume, type.
@@ -484,6 +487,9 @@ def get_ticker_prints(ticker: str, days: int = 30, limit: int = 30) -> list:
         days = 30
     if limit <= 0 or limit > 200:
         limit = 30
+    by_notional = (order == "notional")
+    _order_sql = ("notional DESC, parse_sort_date(date) DESC" if by_notional
+                  else "parse_sort_date(date) DESC, notional DESC")
 
     conn = get_conn()
     try:
@@ -491,7 +497,7 @@ def get_ticker_prints(ticker: str, days: int = 30, limit: int = 30) -> list:
         # the last N distinct dates, then pull all trades for the ticker on
         # those dates and let the caller filter / rank.
         cur = conn.execute(
-            """
+            f"""
             WITH recent_dates AS (
                 SELECT DISTINCT date FROM darkpool_trades
                 ORDER BY parse_sort_date(date) DESC LIMIT ?
@@ -501,7 +507,7 @@ def get_ticker_prints(ticker: str, days: int = 30, limit: int = 30) -> list:
             WHERE ticker = ?
               AND date IN (SELECT date FROM recent_dates)
               AND notional IS NOT NULL
-            ORDER BY parse_sort_date(date) DESC, notional DESC
+            ORDER BY {_order_sql}
             LIMIT ?
             """,
             (days, ticker, limit),
@@ -530,7 +536,10 @@ def get_ticker_prints(ticker: str, days: int = 30, limit: int = 30) -> list:
             (ticker, *recent),
         )
         raw = cur.fetchall()
-        raw.sort(key=lambda r: (parse_date_to_sortable(r[0]), r[3] or 0), reverse=True)
+        if by_notional:
+            raw.sort(key=lambda r: (r[3] or 0, parse_date_to_sortable(r[0])), reverse=True)
+        else:
+            raw.sort(key=lambda r: (parse_date_to_sortable(r[0]), r[3] or 0), reverse=True)
         rows = raw[:limit]
     finally:
         conn.close()

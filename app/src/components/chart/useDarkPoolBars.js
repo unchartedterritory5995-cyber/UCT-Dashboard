@@ -149,7 +149,11 @@ export function useDarkPoolBars(sym, enabled) {
   useEffect(() => {
     if (!enabled || !sym) { setRaw(null); return; }
     let cancelled = false;
-    fetch(`/api/darkpool/ticker-detail?sym=${encodeURIComponent(sym)}&days=180&limit=100`)
+    // order=notional: the overlay is size-ranked, so fetch the BIGGEST prints
+    // across the window (not just the most recent 100) — otherwise a heavy dark-flow
+    // name like SMH exhausts the cap on the last few days and hides large historical
+    // zones at other price levels. limit raised to 200 for more price-diverse zones.
+    fetch(`/api/darkpool/ticker-detail?sym=${encodeURIComponent(sym)}&days=180&limit=200&order=notional`)
       .then(r => r.ok ? r.json() : null)
       // ⛔ COERCE TO AN ARRAY. This was `j?.prints || j || []`, so a 200 whose
       // body is an OBJECT without `prints` (an error payload, a shape change)
