@@ -203,6 +203,7 @@ def get_fundamentals(ticker: str) -> dict[str, Any]:
         "float_shares": info.get("floatShares"),
         "shares_outstanding": info.get("sharesOutstanding"),
         "short_pct_float": _round_pct(info.get("shortPercentOfFloat")),
+        "days_to_cover": info.get("shortRatio"),   # short interest / avg daily vol
         # Company profile (free from .info)
         "employees": info.get("fullTimeEmployees"),
         "website": info.get("website"),

@@ -177,6 +177,7 @@ def get_extras(sym: str) -> dict:
             "floatShares": _num(f.get("float_shares")),
             "sharesOutstanding": _num(f.get("shares_outstanding")),
             "shortPctFloat": _num(f.get("short_pct_float")),
+            "daysToCover": _num(f.get("days_to_cover")),
             "nextEarnings": f.get("next_earnings"),
         }
     except Exception as e:  # noqa: BLE001

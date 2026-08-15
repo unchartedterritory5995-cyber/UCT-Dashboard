@@ -127,7 +127,7 @@ export default function AboutPanel({ sym, onSwitch }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '9px 16px' }}>
             <span style={kStyle}>Market cap</span><span style={vStyle}>{money(p.mktCap)}</span>
             {p.floatShares != null && (<><span style={kStyle}>Float</span><span style={vStyle}>{shares(p.floatShares)}{floatPct != null ? <span style={subStyle}> {floatPct.toFixed(0)}% of shares</span> : null}</span></>)}
-            {p.shortPctFloat != null && (<><span style={kStyle}>Short float</span><span style={vStyle}>{p.shortPctFloat.toFixed(1)}%</span></>)}
+            {p.shortPctFloat != null && (<><span style={kStyle}>Short float</span><span style={vStyle}>{p.shortPctFloat.toFixed(1)}%{p.daysToCover != null ? <span style={subStyle}> · {p.daysToCover.toFixed(1)}d to cover</span> : null}</span></>)}
             {p.beta != null && (<><span style={kStyle}>Beta</span><span style={vStyle}>{p.beta.toFixed(2)}</span></>)}
             {dollarVol != null && (<><span style={kStyle}>Avg $ volume</span><span style={vStyle}>{money(dollarVol)}<span style={subStyle}>/day</span></span></>)}
             <span style={kStyle}>Dividend</span><span style={vStyle}>{divYld != null && divYld > 0 ? `${divYld.toFixed(2)}%` : '—'}</span>
