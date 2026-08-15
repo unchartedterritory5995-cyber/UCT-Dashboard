@@ -297,6 +297,71 @@ function _importBatch(db, batch) {
 }
 
 /**
+ * Apply a daily pack DELTA (tail of each series) to already-seeded entries.
+ *
+ * For each { sym, tf, bars }: merge the tail into the existing IDB entry
+ * (mergeDelta — new/revised bars win) and RE-STAMP savedAt. Re-stamping every
+ * entry present in the delta is what keeps the whole universe from aging out of
+ * cache (DAILY_MAX_AGE_MS) — so D/W/M stay instant FOREVER, even for stocks the
+ * user never opens, at ~1MB/day instead of re-downloading the full pack.
+ *
+ * Only maintains entries that already exist at the current logic version — a
+ * short tail is too shallow to seed a chart on its own (a never-seeded ticker
+ * waits for the full pack). Batched + quota-safe like idbImportPack; never
+ * throws. Returns { updated, skipped, aborted }.
+ */
+export async function idbApplyDelta(entries, { batchSize = 250 } = {}) {
+  if (!entries?.length) return { updated: 0, skipped: 0, aborted: false }
+  let db
+  try { db = await _open() } catch { return { updated: 0, skipped: 0, aborted: true } }
+  let updated = 0, skipped = 0, aborted = false
+  for (let i = 0; i < entries.length && !aborted; i += batchSize) {
+    const res = await _deltaBatch(db, entries.slice(i, i + batchSize))
+    updated += res.updated
+    skipped += res.skipped
+    if (res.aborted) aborted = true
+  }
+  return { updated, skipped, aborted }
+}
+
+function _deltaBatch(db, batch) {
+  return new Promise((resolve) => {
+    let updated = 0, skipped = 0
+    let tx
+    try {
+      tx = db.transaction(STORE, 'readwrite')
+    } catch {
+      return resolve({ updated, skipped, aborted: true })
+    }
+    const store = tx.objectStore(STORE)
+    tx.oncomplete = () => resolve({ updated, skipped, aborted: false })
+    tx.onerror    = () => resolve({ updated, skipped, aborted: true })
+    tx.onabort    = () => resolve({ updated, skipped, aborted: true })
+    for (const e of batch) {
+      const sym = e?.sym, tf = e?.tf, bars = e?.bars
+      if (!sym || !tf || !bars?.length) { skipped++; continue }
+      const key = _key(sym, tf)
+      const getReq = store.get(key)
+      getReq.onsuccess = () => {
+        const cur = getReq.result
+        // Only maintain entries we already seeded at the current version.
+        if (!cur || cur.v !== CACHE_LOGIC_VERSION || !cur.bars?.length) { skipped++; return }
+        const merged = mergeDelta(cur.bars, bars)
+        store.put({
+          key,
+          bars: merged,
+          lastT: merged[merged.length - 1]?.t,
+          savedAt: Date.now(),
+          v: CACHE_LOGIC_VERSION,
+        })
+        updated++
+      }
+      getReq.onerror = () => { skipped++ }
+    }
+  })
+}
+
+/**
  * Merge a delta (new bars from server) into an existing bar array.
  * Delta bars REPLACE existing bars with the same timestamp — server data
  * is always fresher than a cached developing candle or stale IDB entry.

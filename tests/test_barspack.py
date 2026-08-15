@@ -75,20 +75,44 @@ def test_build_encodes_every_ticker_and_decodes_identically(monkeypatch):
     assert manifest["version"] == "2026-08-14"
     assert manifest["format"] == barspack.PACK_FORMAT
     assert manifest["ticker_count"] == 200
-    # Every shard named in the manifest is present, and vice-versa.
-    assert {s["name"] for s in manifest["shards"]} == set(shards.keys())
+    # Numbered shards: every one named in the manifest is present, and vice-versa
+    # (the delta file is tracked separately under manifest["delta"]).
+    numbered = {k for k in shards if not k.endswith("/delta.json.gz")}
+    assert {s["name"] for s in manifest["shards"]} == numbered
+    assert manifest["delta"]["name"] in shards
 
-    # Reconstruct the WHOLE universe from the shards and compare to source bars.
+    # Reconstruct the WHOLE universe from the numbered shards and compare.
     seen = {}
     total_bars = 0
-    for key, gz in shards.items():
-        for sym, tfs in _decode_shard(gz).items():
+    for key in numbered:
+        for sym, tfs in _decode_shard(shards[key]).items():
             seen[sym] = tfs
             for tf, bars in tfs.items():
                 total_bars += len(bars)
                 assert bars == _synthetic_bars(sym, tf, 300)  # byte-identical
     assert set(seen) == set(universe)
     assert total_bars == manifest["bar_count"]
+
+
+def test_build_emits_delta_tail(monkeypatch):
+    monkeypatch.setattr(barspack, "_sanitized_bars", _synthetic_bars)
+    monkeypatch.setattr(barspack, "MIN_TICKERS", 1)
+    monkeypatch.setattr(barspack, "MIN_BARS", 1)
+    monkeypatch.setattr(barspack, "_DELTA_TAIL", 2)
+    universe = [f"T{i:03d}" for i in range(50)]
+
+    built = barspack.build(depth=300, num_shards=4, tickers=universe, date="2026-08-14")
+    dkey = built["manifest"]["delta"]["name"]
+    assert dkey == "barspack/2026-08-14/delta.json.gz"
+    assert dkey in built["shards"]
+
+    # The delta holds the LAST _DELTA_TAIL bars of each series (or fewer).
+    dpayload = _decode_shard(built["shards"][dkey])
+    assert set(dpayload) == set(universe)
+    for sym, tfs in dpayload.items():
+        for tf, bars in tfs.items():
+            full = _synthetic_bars(sym, tf, 300)
+            assert bars == full[-2:]  # tail of exactly the full series
 
 
 def test_build_refuses_below_floor(monkeypatch):

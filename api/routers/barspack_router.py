@@ -57,6 +57,19 @@ def manifest():
     return Response(content=body, media_type="application/json", headers=_MANIFEST_HEADERS)
 
 
+@router.get("/{date}/delta")
+def delta(date: str):
+    """The day's small delta file (tail of every series) — immutable, gzipped.
+    Declared before /{date}/{idx} so the literal 'delta' wins over the numeric
+    shard route."""
+    if not _valid_date(date):
+        return Response(status_code=404, headers=_NO_CACHE)
+    body = data_sync.get_bytes(f"{_PREFIX}/{date}/delta.json.gz")
+    if not body:
+        return Response(status_code=404, headers=_NO_CACHE)
+    return Response(content=body, media_type="application/json", headers=_SHARD_HEADERS)
+
+
 @router.get("/{date}/{idx}")
 def shard(date: str, idx: str):
     """One immutable gzipped shard. Validates the path so it can only ever

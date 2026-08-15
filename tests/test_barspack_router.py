@@ -45,6 +45,24 @@ def test_shard_served_gzipped_and_decodes(monkeypatch):
     assert "immutable" in r.headers["cache-control"]
 
 
+def test_delta_served_and_decodes(monkeypatch):
+    payload = gzip.compress(json.dumps({"format": 1, "tail": 7, "tickers": {}}).encode())
+    seen = {}
+    monkeypatch.setattr(ds, "get_bytes", lambda k: (seen.__setitem__("key", k), payload)[1])
+    r = _client().get("/api/barspack/2026-08-14/delta")
+    assert r.status_code == 200
+    assert seen["key"] == "barspack/2026-08-14/delta.json.gz"
+    assert r.json()["tail"] == 7
+    assert "immutable" in r.headers["cache-control"]
+
+
+def test_delta_route_wins_over_numeric_shard(monkeypatch):
+    # 'delta' must not fall through to /{date}/{idx} (which requires digits).
+    monkeypatch.setattr(ds, "get_bytes", lambda k: None)
+    r = _client().get("/api/barspack/2026-08-14/delta")
+    assert r.status_code == 404  # reached the delta handler (missing obj), not a 422
+
+
 def test_shard_rejects_path_traversal(monkeypatch):
     monkeypatch.setattr(ds, "get_bytes", lambda k: b"should-not-be-reached")
     c = _client()

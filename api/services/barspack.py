@@ -75,6 +75,12 @@ MIN_TICKERS = _int_env("BARSPACK_MIN_TICKERS", 1500)
 MIN_BARS = _int_env("BARSPACK_MIN_BARS", 300_000)
 _GZIP_LEVEL = _int_env("BARSPACK_GZIP_LEVEL", 6)
 _KEEP_VERSIONS = _int_env("BARSPACK_KEEP", 2)
+# Daily-delta tail: the last N bars of each series, shipped as one small file so a
+# returning browser catches up (new daily bar + re-aggregated current W/M bar)
+# and re-stamps every entry's savedAt (→ never ages out → instant forever) for
+# ~1MB instead of re-downloading the full ~40MB pack. 7 covers a user up to ~a
+# week behind via mergeDelta; further-behind users re-pull the full pack.
+_DELTA_TAIL = _int_env("BARSPACK_DELTA_TAIL", 7)
 _SLEEP_SECONDS = _int_env("BARSPACK_LOOP_SECONDS", 1800)  # 30 min poll
 _BOOT_DELAY = _int_env("BARSPACK_BOOT_DELAY", 120)
 
@@ -168,6 +174,7 @@ def build(depth: int = PACK_DEPTH, num_shards: int = NUM_SHARDS,
 
     shards: dict[str, bytes] = {}
     manifest_shards: list[dict] = []
+    delta_tickers: dict[str, dict] = {}   # last _DELTA_TAIL bars/series, all tickers
     total_tickers = 0
     total_bars = 0
 
@@ -177,13 +184,17 @@ def build(depth: int = PACK_DEPTH, num_shards: int = NUM_SHARDS,
         shard_bars = 0
         for sym in syms:
             entry: dict[str, dict] = {}
+            dentry: dict[str, dict] = {}
             for tf in _TFS:
                 bars = _sanitized_bars(sym, tf, depth)
                 if bars:
                     entry[tf] = _columnar(bars)
+                    dentry[tf] = _columnar(bars[-_DELTA_TAIL:])
                     shard_bars += len(bars)
             if entry:
                 payload_tickers[sym] = entry
+            if dentry:
+                delta_tickers[sym] = dentry
         if not payload_tickers:
             continue
         raw = json.dumps({"format": PACK_FORMAT, "tickers": payload_tickers},
@@ -207,6 +218,15 @@ def build(depth: int = PACK_DEPTH, num_shards: int = NUM_SHARDS,
             f"(need >= {MIN_TICKERS} / {MIN_BARS}) — refusing to publish"
         )
 
+    # One small delta file (not sharded — it's ~1MB). Same sanitized data, just
+    # the tail of each series; a returning browser merges it (mergeDelta) and
+    # re-stamps savedAt instead of re-pulling the full pack.
+    delta_raw = json.dumps({"format": PACK_FORMAT, "tail": _DELTA_TAIL, "tickers": delta_tickers},
+                           separators=(",", ":")).encode("utf-8")
+    delta_gz = gzip.compress(delta_raw, compresslevel=_GZIP_LEVEL)
+    delta_key = f"{_PREFIX}/{date}/delta.json.gz"
+    shards[delta_key] = delta_gz
+
     manifest = {
         "version": date,
         "built_at": int(time.time()) if _ET else 0,
@@ -216,6 +236,8 @@ def build(depth: int = PACK_DEPTH, num_shards: int = NUM_SHARDS,
         "ticker_count": total_tickers,
         "bar_count": total_bars,
         "shards": manifest_shards,
+        "delta": {"name": delta_key, "bytes": len(delta_gz),
+                  "tail": _DELTA_TAIL, "tickers": len(delta_tickers)},
     }
     return {"manifest": manifest, "shards": shards}
 
