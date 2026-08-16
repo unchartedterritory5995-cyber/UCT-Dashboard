@@ -171,7 +171,11 @@ _FIXED_NOW_NS = 2_000_000_000_000_000_000
 
 def test_run_intraday_incremental_dedup(dp, monkeypatch):
     monkeypatch.setattr(intraday, "API_KEY", "test-key")
-    monkeypatch.setattr(intraday, "resolve_universe", lambda n: ["AAPL"])
+    # Signature-agnostic: `run_intraday` calls this with `base=` (the
+    # always-covered majors), and a positional-only stub made the real call
+    # raise INSIDE the try/except that degrades to an empty universe — so the
+    # failure surfaced as "ok is False", never as a bad signature.
+    monkeypatch.setattr(intraday, "resolve_universe", lambda *a, **kw: ["AAPL"])
     monkeypatch.setattr(intraday, "_get", _fake_get_factory())
     monkeypatch.setattr(intraday, "_print_to_row", _fake_print_to_row)
     monkeypatch.setattr(intraday, "_now_ns", lambda: _FIXED_NOW_NS)
@@ -201,7 +205,11 @@ def test_run_intraday_guards_missing_key(dp, monkeypatch):
 
 def test_roll_session_clears_preview(dp, monkeypatch):
     monkeypatch.setattr(intraday, "API_KEY", "test-key")
-    monkeypatch.setattr(intraday, "resolve_universe", lambda n: ["AAPL"])
+    # Signature-agnostic: `run_intraday` calls this with `base=` (the
+    # always-covered majors), and a positional-only stub made the real call
+    # raise INSIDE the try/except that degrades to an empty universe — so the
+    # failure surfaced as "ok is False", never as a bad signature.
+    monkeypatch.setattr(intraday, "resolve_universe", lambda *a, **kw: ["AAPL"])
     monkeypatch.setattr(intraday, "_get", _fake_get_factory())
     monkeypatch.setattr(intraday, "_print_to_row", _fake_print_to_row)
     monkeypatch.setattr(intraday, "_now_ns", lambda: _FIXED_NOW_NS)
