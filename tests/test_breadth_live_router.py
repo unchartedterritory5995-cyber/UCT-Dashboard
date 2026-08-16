@@ -11,7 +11,20 @@ keeping the wrong one poisons the session path rather than merely wasting a row:
 """
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 import pytest
+
+# DERIVED, NEVER TYPED. These were literal dates, and
+# `breadth_intraday.RETENTION_DAYS = 7`: eleven days after they were written,
+# `record()` stored the sample and `_maybe_prune()` deleted it in the SAME
+# call, so the session path came back empty. Worse, `_last_prune` is a module
+# global with a 1h guard, so only the FIRST test in the process paid the
+# prune — one order-dependent red that named a missing metric key rather than
+# an expired fixture. Same class as the calendar's
+# `test_month_unknown_hour_lands_in_tbd`.
+SESSION = date.today().isoformat()
+PREV = (date.today() - timedelta(days=1)).isoformat()
 
 from tests.authclients import PAID_MEMBER, authorize
 
@@ -25,9 +38,13 @@ def router(tmp_path, monkeypatch):
     from api.services import breadth_monitor as svc
 
     monkeypatch.setattr(bi, "_schema_ready", False)
+    # `_last_prune` is a module global with a 1h guard, so without this the
+    # retention sweep runs for exactly one test per process and which one is
+    # decided by collection order.
+    monkeypatch.setattr(bi, "_last_prune", 0.0)
     monkeypatch.setattr(bi, "MIN_SAMPLE_SECONDS", 0)
     monkeypatch.setattr(svc, "get_history", lambda days=90: [
-        {"date": "2026-08-04", "universe_count": 2720, "pct_above_50sma": 66.3,
+        {"date": PREV, "universe_count": 2720, "pct_above_50sma": 66.3,
          "up_4pct_today": 573, "down_4pct_today": 62, "adv_decline": 1218,
          "adv_decline_cum": 5000, "qqq_close": 723.85, "spy_close": 771.33,
          "avg_10d_cpc": 0.82, "naaim": 79.7},
@@ -39,8 +56,8 @@ def router(tmp_path, monkeypatch):
 def _payload(**over):
     base = {
         "ok": True, "provisional": True,
-        "as_of": "2026-08-05T13:44:00-04:00",
-        "session_date": "2026-08-05", "session_live": True,
+        "as_of": f"{SESSION}T13:44:00-04:00",
+        "session_date": SESSION, "session_live": True,
         "anchored": True, "degraded": False,
         # Carries enough scoring weight to produce a headline. Since 2026-08-07
         # `breadth_score` renormalizes over PRESENT inputs and withholds below
@@ -65,7 +82,7 @@ def _call(router, monkeypatch, **over):
 
 def test_a_live_sample_is_kept_and_comes_back_as_a_path(router, monkeypatch):
     out, bi = _call(router, monkeypatch)
-    assert bi.session_path("2026-08-05")["pct_above_50sma"][0][1] == 65.3
+    assert bi.session_path(SESSION)["pct_above_50sma"][0][1] == 65.3
     assert out["path"]["pct_above_50sma"]
     assert out["open"]["pct_above_50sma"] == 65.3
 
@@ -75,7 +92,7 @@ def test_the_stored_score_is_the_derived_one_not_a_raw_metric(router, monkeypatc
     raw metrics would leave the headline number with no path at all."""
     out, bi = _call(router, monkeypatch)
     assert out["row"]["breadth_score"] is not None
-    assert bi.session_path("2026-08-05")["breadth_score"][0][1] == out["row"]["breadth_score"]
+    assert bi.session_path(SESSION)["breadth_score"][0][1] == out["row"]["breadth_score"]
 
 
 @pytest.mark.parametrize("over,why", [
@@ -85,17 +102,17 @@ def test_the_stored_score_is_the_derived_one_not_a_raw_metric(router, monkeypatc
 ])
 def test_a_sample_that_would_poison_the_path_is_not_kept(router, monkeypatch, over, why):
     _, bi = _call(router, monkeypatch, **over)
-    assert bi.session_path("2026-08-05") == {}, why
+    assert bi.session_path(SESSION) == {}, why
 
 
 def test_nothing_is_kept_once_the_collector_has_written_the_day(router, monkeypatch):
     from api.services import breadth_monitor as svc
     monkeypatch.setattr(svc, "get_history", lambda days=90: [
-        {"date": "2026-08-05", "universe_count": 2739, "pct_above_50sma": 64.5},
+        {"date": SESSION, "universe_count": 2739, "pct_above_50sma": 64.5},
     ])
     out, bi = _call(router, monkeypatch)
     assert out["superseded"] is True
-    assert bi.session_path("2026-08-05") == {}
+    assert bi.session_path(SESSION) == {}
 
 
 def test_a_broken_store_still_serves_the_live_read(router, monkeypatch):
@@ -111,7 +128,7 @@ def test_a_broken_store_still_serves_the_live_read(router, monkeypatch):
 def test_carried_fields_are_separated_from_the_live_ones(router, monkeypatch):
     out, _ = _call(router, monkeypatch)
     assert out["carried"] == {"naaim": 79.7}
-    assert out["carried_from"] == "2026-08-04"
+    assert out["carried_from"] == PREV
     assert "naaim" not in out["metrics"]
 
 

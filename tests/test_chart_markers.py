@@ -108,9 +108,12 @@ class TestGetChartMarkersRevenue:
             # duplicate report date, no estimate → the estimate-bearing row wins
             {"date": d_recent, "epsActual": 12.20, "epsEstimated": None,
              "revenueActual": 23_860_000_000, "revenueEstimated": None},
-            # an upcoming quarter (nothing reported) → skipped
+            # Two upcoming quarters (nothing reported yet). Only the NEAREST is
+            # kept, as one grey estimate-only marker.
             {"date": (today + timedelta(days=40)).isoformat(),
              "epsActual": None, "epsEstimated": 1.0, "revenueActual": None, "revenueEstimated": None},
+            {"date": (today + timedelta(days=130)).isoformat(),
+             "epsActual": None, "epsEstimated": 1.4, "revenueActual": None, "revenueEstimated": None},
         ]
 
         def fake_fmp_get(path, params, timeout=10):
@@ -120,8 +123,21 @@ class TestGetChartMarkersRevenue:
              patch.object(earnings_estimates, "_fh_get", return_value=None):
             result = earnings_estimates.get_chart_markers("MU")
 
-        assert len(result["earnings"]) == 1              # deduped, upcoming dropped
-        e = result["earnings"][0]
+        # Reported quarters are deduped; the nearest upcoming one rides along as a
+        # grey estimate-only marker (the far one does NOT — a chart full of
+        # speculative markers is noise).
+        assert len(result["earnings"]) == 2
+        reported = [e for e in result["earnings"] if not e.get("estimate")]
+        upcoming = [e for e in result["earnings"] if e.get("estimate")]
+        assert len(reported) == 1 and len(upcoming) == 1
+        # ⛔ The forward marker must never claim a result it does not have:
+        # no actuals, no beat, no surprise — only the estimate.
+        u = upcoming[0]
+        assert u["date"] == (today + timedelta(days=40)).isoformat()
+        assert u["eps_estimate"] == 1.0
+        assert u["beat"] is None and u["surprise"] is None
+        assert u["eps_actual"] is None and u["revenue_actual"] is None
+        e = reported[0]
         assert e["beat"] is True
         assert e["eps_actual"] == 12.20 and e["eps_estimate"] == 9.186
         assert e["eps_surprise_pct"] == 32.8             # (12.20-9.186)/9.186*100

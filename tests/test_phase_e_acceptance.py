@@ -85,9 +85,44 @@ UNIVERSE = ("NVDA", "AMD", "INTC")
 INDICATOR_SOURCE = "sma(close, 50)"
 SCAN_SOURCE = "close > sma(close, 50)"
 
-#: The scalar spelling of the same idea, and the one the closed table REFUSES.
-#: design CORRECTION 1: `rsi` is not a table function; `rsi14` is the scalar.
-REFUSED_SOURCE = "rsi(close, 14) > 70"
+#: ⛔ DERIVED FROM THE TABLE, NEVER TYPED.
+#:
+#: This was literally `rsi(close, 14) > 70`, on the stated premise that "`rsi` is
+#: not a table function". Then `97c22842b` — *"feat(formula): the indicators
+#: become functions - a member can write `rsi(close, 14) > 70`"* — made it one.
+#: The tripwire fired exactly as it was built to, and its own failure message
+#: named the event ("the closed table has grown a per-bar `rsi`"). What it could
+#: not do was keep testing the invariant afterwards, because the refusal case
+#: was pinned to whichever name happened to be undeclared the day it was
+#: written. It is now derived, so the table can grow without this going red for
+#: the wrong reason — and an UNDECLARED function still has to refuse by name.
+CLOSED_TABLE_JSON = PARSE_JS.with_name("closedTable.json")
+
+
+def _undeclared_function() -> str:
+    declared = set(json.loads(
+        CLOSED_TABLE_JSON.read_text(encoding="utf-8")).get("functions") or {})
+    assert declared, (
+        f"{CLOSED_TABLE_JSON} declares no functions — this probe is reading the "
+        "wrong file, and every refusal below would pass vacuously")
+    for candidate in ("notATableFunction", "undeclaredFn", "zzzNotDeclared"):
+        if candidate not in declared:
+            return candidate
+    raise AssertionError(  # pragma: no cover — would mean the table ate the probe
+        f"every candidate name is declared: {sorted(declared)}")
+
+
+UNDECLARED_FUNCTION = _undeclared_function()
+REFUSED_SOURCE = f"{UNDECLARED_FUNCTION}(close, 14) > 70"
+
+#: ⭐ E-A9 SHIPPED. The per-bar indicators ARE table functions now, so this
+#: resolves. Carried as a source so the acceptance path states the capability
+#: out loud rather than leaving the next reader to infer it from a case that
+#: quietly changed meaning.
+INDICATOR_FUNCTION_SOURCE = "rsi(close, 14) > 70"
+
+#: The scalar spelling of the same idea — a different and equally legal way to
+#: write it, and the reason the refusal above is about the FUNCTION NAME.
 SCALAR_SOURCE = "rsi14 > 70"
 
 DEF_ID = "u_0123456789ab"
@@ -140,7 +175,8 @@ for (const source of payload.sources) {
 process.stdout.write(JSON.stringify({ ok: true, rows }))
 """
 
-_SOURCES = (INDICATOR_SOURCE, SCAN_SOURCE, REFUSED_SOURCE, SCALAR_SOURCE)
+_SOURCES = (INDICATOR_SOURCE, SCAN_SOURCE, REFUSED_SOURCE, SCALAR_SOURCE,
+            INDICATOR_FUNCTION_SOURCE)
 
 
 @pytest.fixture(scope="module")
@@ -513,19 +549,20 @@ def test_a_symbol_the_screen_could_not_ANSWER_is_not_a_hit(wired, parsed):
 
 # ═══ the refusals the path must keep ════════════════════════════════════════
 
-def test_the_comparison_uses_a_function_THE_TABLE_DECLARES__rsi_REFUSES(
-        wired, parsed):
+def test_the_comparison_uses_a_function_THE_TABLE_DECLARES(wired, parsed):
     """🔴 DESIGN CORRECTION 1, AND MUTATION M5's REASON.
 
-    `rsi(close, 14)` is not a table function and refuses at `resolve:function`;
-    `rsi14` is the SCALAR, which is a different and equally legal way to write
-    the same idea. A per-bar `rsi()` is not, and E-A9 — new FUNCTIONS in the
-    closed table — is out of scope for this task precisely because adding one
-    touches the repaint linter's central guarantee.
+    A function the closed table does NOT declare refuses at `resolve:function`,
+    in BOTH lanes, and takes the whole sweep down rather than 3,742 symbols one
+    at a time.
 
-    ⛔ SO A "FIX" THAT MADE THE ACCEPTANCE PATH USE `rsi(close, 14)` WOULD BUNDLE
-    E-A9, and this case is what says so out loud rather than leaving the next
-    agent to discover it from a green suite.
+    🔴 HISTORY, BECAUSE IT IS THE LESSON. This case used to BE `rsi(close, 14)`,
+    on the premise that a per-bar `rsi()` was out of scope for E-A9. `97c22842b`
+    shipped the indicators as table functions and the tripwire fired — correctly,
+    and with a message that named the event. But a refusal case pinned to ONE
+    typed name can only fire once; after that it is just red. The undeclared name
+    is DERIVED from the table now, so the table can keep growing while this keeps
+    testing the thing it was built to test.
 
     ⚠️ AND IT REFUSES AT THE **RESOLVE** DOOR, NOT AT THE PARSER — measured, and
     the correction is worth carrying: `parseFormula` CANONICALISES and happily
@@ -535,11 +572,16 @@ def test_the_comparison_uses_a_function_THE_TABLE_DECLARES__rsi_REFUSES(
     """
     refused = parsed[REFUSED_SOURCE]
     assert refused["ok"] is False, (
-        f"{REFUSED_SOURCE!r} RESOLVED — the closed table has grown a per-bar `rsi` "
-        "and E-A9 shipped without its own phase")
+        f"{REFUSED_SOURCE!r} RESOLVED — {UNDECLARED_FUNCTION!r} is supposed to be "
+        f"a name {CLOSED_TABLE_JSON.name} does not declare; if the table grew it, "
+        "point `_undeclared_function` at the next candidate rather than relaxing this")
     assert refused["stage"] == "resolve", refused
     assert refused["guard"] == "resolve:function", refused
-    assert "rsi" in str(refused["error"])
+    # ⛔ Assert the REFUSED name, not a name that merely appears in the message.
+    # This read `assert "rsi" in ...`, and once `rsi` joined the table it kept
+    # passing — the refusal text lists the KNOWN functions, so it matched on the
+    # allow-list rather than on the rejection.
+    assert UNDECLARED_FUNCTION in str(refused["error"])
 
     # ⭐ AND THE PYTHON LANE REFUSES THE SAME TREE AT THE SAME GATE. One of the
     # two lanes accepting a function the other does not is the cross-lane
@@ -556,8 +598,15 @@ def test_the_comparison_uses_a_function_THE_TABLE_DECLARES__rsi_REFUSES(
         scan_evaluator.evaluate_one(doc, TF, universe=UNIVERSE, as_of=SESSION)
     assert run.value.gate == "not-scannable"
 
-    # …and the scalar spelling is legal, so the refusal is about the FUNCTION
-    # rather than about the idea.
+    # ⭐ THE POSITIVE CONTROL, without which "everything refuses" passes this
+    # test: a function the table DOES declare resolves. `rsi(close, 14) > 70` is
+    # the member-facing spelling E-A9 shipped.
+    assert parsed[INDICATOR_FUNCTION_SOURCE]["ok"] is True, (
+        f"{INDICATOR_FUNCTION_SOURCE!r} no longer resolves — E-A9's capability "
+        "regressed, or this probe is reading a stale table")
+
+    # …and the scalar spelling is legal too, so the refusal is about the NAME
+    # rather than about the shape of the expression.
     assert parsed[SCALAR_SOURCE]["ok"] is True
 
 
