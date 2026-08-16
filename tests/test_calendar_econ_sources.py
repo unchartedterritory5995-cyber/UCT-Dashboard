@@ -20,6 +20,7 @@ FOMC statement 1:00 PM (2:00 ET), Core PCE / Advance GDP / Unemployment Claims
 ET would put every econ event on the board an hour early. Converted through
 `America/Chicago`, never a fixed -1 offset, so DST stays correct.
 """
+from datetime import timedelta
 from unittest import mock
 
 from api.routers import calendar as cal
@@ -116,20 +117,33 @@ def test_fmp_fills_a_week_forexfactory_has_no_feed_for():
 
 
 def test_fmp_does_not_overwrite_a_day_forexfactory_already_covered():
-    """FF is the richer source — the fallback fills GAPS, it does not replace."""
-    days = _empty_days("2026-08-03", "2026-08-04")
-    ff = {"2026-08-03": {"econ": [{"time": "8:30 AM", "event": "FF Event",
-                                   "estimate": None, "prior": None,
-                                   "actual": None, "is_key": True}], "fed": []}}
-    fmp = {"2026-08-03": [{"time": "9:00 AM", "event": "FMP Event", "estimate": None,
-                           "prior": None, "is_fed": False}],
-           "2026-08-04": [{"time": "10:00 AM", "event": "FMP Only Day", "estimate": None,
-                           "prior": None, "is_fed": False}]}
-    with mock.patch.object(cal, "_fetch_ff_events", return_value=ff), \
+    """FF is the richer source — the fallback fills GAPS, it does not replace.
+
+    ⚠️ The week is DERIVED from `_week_dates()`, not typed. `_curate_econ_events`
+    only consults ForexFactory within ±7 days of the current week (`ff_eligible`
+    — FF publishes `thisweek` only, so the fetch is pure request-path waste
+    anywhere else), and this test's hardcoded 2026-08-03 aged out of that window
+    on 2026-08-11. Past that date the FF mock was never called, FMP filled the
+    day, and the one gate that actually pins "FF wins where FF has data" went
+    red — the same hardcoded-fixture-date rot as `test_month_unknown_hour_lands_in_tbd`.
+    """
+    mon = cal._week_dates()[0]
+    d0, d1 = mon.isoformat(), (mon + timedelta(days=1)).isoformat()
+    days = _empty_days(d0, d1)
+    ff = {d0: {"econ": [{"time": "8:30 AM", "event": "FF Event",
+                         "estimate": None, "prior": None,
+                         "actual": None, "is_key": True}], "fed": []}}
+    fmp = {d0: [{"time": "9:00 AM", "event": "FMP Event", "estimate": None,
+                 "prior": None, "is_fed": False}],
+           d1: [{"time": "10:00 AM", "event": "FMP Only Day", "estimate": None,
+                 "prior": None, "is_fed": False}]}
+    with mock.patch.object(cal, "_fetch_ff_events", return_value=ff) as ff_mock, \
          mock.patch("api.services.econ_calendar_fmp.fetch_us_econ_week", return_value=fmp):
-        cal._curate_econ_events("2026-08-03", "2026-08-07", days)
-    assert [e["event"] for e in days["2026-08-03"]["econ"]] == ["FF Event"]
-    assert [e["event"] for e in days["2026-08-04"]["econ"]] == ["FMP Only Day"]
+        cal._curate_econ_events(d0, (mon + timedelta(days=4)).isoformat(), days)
+    # Non-vacuity: if FF is never consulted this test proves nothing about FF.
+    ff_mock.assert_called_once()
+    assert [e["event"] for e in days[d0]["econ"]] == ["FF Event"]
+    assert [e["event"] for e in days[d1]["econ"]] == ["FMP Only Day"]
 
 
 def test_a_fed_speaker_from_fmp_routes_to_the_fed_bucket():
