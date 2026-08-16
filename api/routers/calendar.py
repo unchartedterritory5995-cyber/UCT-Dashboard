@@ -1138,6 +1138,8 @@ def _supplement_live_days(days: dict, today_str: str, cap_uni: set | None) -> in
     call, up to five concurrent FMP day-chunks, one Finviz export — the same
     budget `_backfill_past_days` already spends on the other half of the week.
     """
+    global _LAST_LIVE_COVERAGE
+
     target = sorted(ds for ds in days if ds >= today_str and isinstance(days[ds], dict))
     if not target:
         return 0                     # nothing in this week is still ahead of us
@@ -1273,8 +1275,10 @@ def _supplement_live_days(days: dict, today_str: str, cap_uni: set | None) -> in
             _logger.info("Calendar: live-window supplement added %d reporters (%s -> %s)",
                          added, from_ds, to_ds)
 
-        _LAST_LIVE_COVERAGE.clear()
-        _LAST_LIVE_COVERAGE.update({
+        # REBIND, never clear()+update(): the coverage monitor reads this
+        # attribute on its own thread, and a reader landing between the two
+        # calls would see an EMPTY report and alert on a healthy week.
+        _LAST_LIVE_COVERAGE = {
             "as_of":        datetime.now(_ET).isoformat(timespec="seconds"),
             "today":        today_str,
             "window":       [from_ds, to_ds],
@@ -1282,19 +1286,18 @@ def _supplement_live_days(days: dict, today_str: str, cap_uni: set | None) -> in
             "days": {ds: {"served": len(_day_entries(days[ds])),
                           "schedule_only": schedule_only[ds]}
                      for ds in target},
-        })
+        }
     except Exception as exc:
         _logger.warning("Calendar: live-window supplement failed: %s", exc)
         # Say so, rather than leaving the previous build's numbers standing —
         # a monitor that goes quiet exactly when its subject breaks reads as
         # "nothing to report".
-        _LAST_LIVE_COVERAGE.clear()
-        _LAST_LIVE_COVERAGE.update({
+        _LAST_LIVE_COVERAGE = {
             "as_of":  datetime.now(_ET).isoformat(timespec="seconds"),
             "today":  today_str,
             "window": [from_ds, to_ds],
             "error":  f"{type(exc).__name__}: {exc}",
-        })
+        }
 
     return added
 

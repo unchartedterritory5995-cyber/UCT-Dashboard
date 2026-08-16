@@ -48,9 +48,11 @@ DEFECT this cycle when:
     monitor it would spend real Claude-summarization budget on every cycle
     for no user benefit. A cold cycle with nothing yet viewed reports
     `sample=0` (honest "not measured"), not a fabricated rate.
-  • `calendar_hour_resolved` / `enrichment_with_em` read ALREADY-COMPUTED,
-    cached state (`_days_for_date`, `calendar_enrichment_status()`) — this
-    module never triggers a fresh calendar build.
+  • `calendar_hour_resolved` / `enrichment_with_em` /
+    `calendar_forward_multisource` read ALREADY-COMPUTED, cached state
+    (`_days_for_date`, `calendar_enrichment_status()`,
+    `calendar._LAST_LIVE_COVERAGE`) — this module never triggers a fresh
+    calendar build.
   • `implied_fiscal_year` is a read-only SQLite query against
     `implied_snapshots` — no network at all.
   • `market_cap` / `avg_vol` call `calendar.get_day_metrics` for ONE recent
@@ -206,6 +208,12 @@ _FIELD_SPECS: dict[str, dict] = {
     "ticker_name":           {"floor": 0.95, "finnhub_touching": True,  "heal": _heal_meta},
     "ticker_industry":       {"floor": 0.90, "finnhub_touching": True,  "heal": _heal_meta},
     "calendar_hour_resolved": {"floor": 0.60, "finnhub_touching": True,  "heal": None},
+    # Floor 1.0: every still-future day of the current week that has any
+    # reporters at all is supposed to have been through the Finnhub+FMP+Finviz
+    # merge, so anything short of all of them is the 2026-08-16 shape coming
+    # back. Not Finnhub-touching for attribution purposes: a throttled Finnhub
+    # still leaves FMP and Finviz, so a 0% here is a WIRE fault, not a budget one.
+    "calendar_forward_multisource": {"floor": 1.0, "finnhub_touching": False, "heal": None},
     "enrichment_with_em":    {"floor": None, "finnhub_touching": True,  "heal": None},
     "implied_fiscal_year":   {"floor": 0.90, "finnhub_touching": False, "heal": None},
     "market_cap":            {"floor": 0.70, "finnhub_touching": False, "heal": None},
@@ -539,6 +547,65 @@ def _calendar_hour_rate(today: object = None, lookback_days: int = 5) -> dict:
     return {"observed": observed, "sample": total}
 
 
+def _calendar_forward_multisource_rate(today: object = None) -> dict:
+    """Of the current week's STILL-FUTURE days that have any reporters at all,
+    what fraction got MORE than the EarningsWhispers schedule alone knew?
+
+    ⛔ Why this field exists (2026-08-16). The current week's forward days were
+    served from EarningsWhispers ONLY, while every other week merged Finnhub +
+    FMP + Finviz across all five days. EW's `caldata` is an editorially-ranked
+    list, not a calendar — the served week held 71 in-universe reporters against
+    122 the providers knew, and carried NOT ONE symbol EW lacked. BABA, BIDU,
+    KLAR and FUTU were missing from a week Earnings Whispers' own graphic led
+    with. ⭐ **A single-source week is invisible from the calendar: it just
+    looks like a quiet week.** Nothing about it 500s, blanks, or 0%s any other
+    field here — which is exactly the shape this module exists for.
+
+    Reads two ALREADY-COMPUTED things and nothing else — `_days_for_date` (a
+    pure cache lookup, same idiom as `_calendar_hour_rate`) for the denominator,
+    and `calendar._LAST_LIVE_COVERAGE`, the report the merge itself writes, for
+    the numerator. No network, and it never triggers a calendar build.
+
+    Splitting them that way is deliberate: the denominator does NOT come from
+    the merge's own report, so **the merge being unwired reads as 0%**
+    (`blank` → always alerts) rather than as `sample=0` "not measured". A rail
+    whose subject can silence it by dying is not a rail.
+
+    A day with no reporters at all leaves the denominator (holiday / a dead
+    August Friday), so a genuinely quiet week reports "not measured" instead of
+    crying wolf.
+    """
+    from api.routers import calendar as _cal
+    if today is None:
+        today = datetime.now(_ET).date()
+    try:
+        week = _cal._week_dates()
+        report = (_cal._LAST_LIVE_COVERAGE or {}).get("days") or {}
+    except Exception:  # pragma: no cover — never break the cycle on this
+        return {"observed": None, "sample": 0}
+
+    n = hits = 0
+    for d in week:
+        ds = d.isoformat()
+        if ds < today.isoformat():
+            continue                      # finished days are the backfill's job
+        try:
+            day = _cal._days_for_date(ds)
+        except Exception:
+            day = None
+        if not day:
+            continue                      # cold cache — measured nothing, said so
+        served = (len(day.get("bmo") or []) + len(day.get("amc") or [])
+                  + len(day.get("tbd") or []))
+        if served <= 0:
+            continue                      # a day with no reporters proves nothing
+        n += 1
+        entry = report.get(ds) or {}
+        if entry.get("served", 0) > entry.get("schedule_only", 0):
+            hits += 1
+    return {"observed": (hits / n) if n > 0 else None, "sample": n}
+
+
 def _enrichment_with_em_rate() -> dict:
     """Reads the already-published `_ENRICH_STATS` telemetry (via the public
     `calendar_enrichment_status`) for the most recent date with `total > 0` —
@@ -696,6 +763,7 @@ def run_cycle(now=None) -> dict:
         "transcript":             _transcript_rate(syms),
         "analyst_actions":        _analyst_actions_rate(syms),
         "calendar_hour_resolved": _calendar_hour_rate(),
+        "calendar_forward_multisource": _calendar_forward_multisource_rate(),
         "enrichment_with_em":     _enrichment_with_em_rate(),
         "implied_fiscal_year":    _implied_fiscal_rate(),
         "market_cap":             _day_metrics_rate("mc_b"),

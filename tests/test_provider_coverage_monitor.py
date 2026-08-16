@@ -196,6 +196,8 @@ def _stub_measurers(monkeypatch, pcm, *, price_target_obs=0.9, price_target_n=20
     monkeypatch.setattr(pcm, "_analyst_actions_rate",
                         lambda syms: {"observed": analyst_obs, "sample": analyst_n, "missing": []})
     monkeypatch.setattr(pcm, "_calendar_hour_rate", lambda: {"observed": 0.7, "sample": 100})
+    monkeypatch.setattr(pcm, "_calendar_forward_multisource_rate",
+                        lambda: {"observed": 1.0, "sample": 4})
     monkeypatch.setattr(pcm, "_enrichment_with_em_rate", lambda: {"observed": 0.6, "sample": 200})
     monkeypatch.setattr(pcm, "_implied_fiscal_rate", lambda: {"observed": None, "sample": 0})
     monkeypatch.setattr(pcm, "_day_metrics_rate", lambda field: {"observed": 0.8, "sample": 50})
@@ -224,6 +226,8 @@ def test_run_cycle_flags_a_field_that_goes_to_zero(tmp_path, monkeypatch):
     monkeypatch.setattr(pcm, "_analyst_actions_rate",
                         lambda syms: {"observed": 1.0, "sample": 8, "missing": []})
     monkeypatch.setattr(pcm, "_calendar_hour_rate", lambda: {"observed": 0.7, "sample": 100})
+    monkeypatch.setattr(pcm, "_calendar_forward_multisource_rate",
+                        lambda: {"observed": 1.0, "sample": 4})
     monkeypatch.setattr(pcm, "_enrichment_with_em_rate", lambda: {"observed": 0.6, "sample": 200})
     monkeypatch.setattr(pcm, "_implied_fiscal_rate", lambda: {"observed": None, "sample": 0})
     monkeypatch.setattr(pcm, "_day_metrics_rate", lambda field: {"observed": 0.8, "sample": 50})
@@ -259,6 +263,8 @@ def test_run_cycle_tags_provider_throttled_when_denial_counter_moves(tmp_path, m
     monkeypatch.setattr(pcm, "_analyst_actions_rate",
                         lambda syms: {"observed": 0.5, "sample": 8, "missing": []})
     monkeypatch.setattr(pcm, "_calendar_hour_rate", lambda: {"observed": 0.7, "sample": 100})
+    monkeypatch.setattr(pcm, "_calendar_forward_multisource_rate",
+                        lambda: {"observed": 1.0, "sample": 4})
     monkeypatch.setattr(pcm, "_enrichment_with_em_rate", lambda: {"observed": 0.6, "sample": 200})
     monkeypatch.setattr(pcm, "_implied_fiscal_rate", lambda: {"observed": None, "sample": 0})
     monkeypatch.setattr(pcm, "_day_metrics_rate", lambda field: {"observed": 0.8, "sample": 50})
@@ -282,6 +288,8 @@ def test_run_cycle_self_heals_missing_cache_backed_tickers(tmp_path, monkeypatch
     monkeypatch.setattr(pcm, "_analyst_actions_rate",
                         lambda syms: {"observed": 0.5, "sample": 8, "missing": []})
     monkeypatch.setattr(pcm, "_calendar_hour_rate", lambda: {"observed": 0.7, "sample": 100})
+    monkeypatch.setattr(pcm, "_calendar_forward_multisource_rate",
+                        lambda: {"observed": 1.0, "sample": 4})
     monkeypatch.setattr(pcm, "_enrichment_with_em_rate", lambda: {"observed": 0.6, "sample": 200})
     monkeypatch.setattr(pcm, "_implied_fiscal_rate", lambda: {"observed": None, "sample": 0})
     monkeypatch.setattr(pcm, "_day_metrics_rate", lambda field: {"observed": 0.8, "sample": 50})
