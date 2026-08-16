@@ -2,9 +2,10 @@
 
 .toolbar {
   position: absolute;
-  /* Nudged right so the first tool button's icon lines up with the left edge of the
-     crosshair-legend data below it (the legend box sits ~8px in + its own padding). */
-  left: 8px;
+  /* Nudged right so the FIRST tool button's left edge lines up with the left edge of
+     the crosshair-legend data below it. Measured live: the flat legend's data text
+     ("2026-…") sits 12px in from the chart wrapper, so the toolbar starts there too. */
+  left: 12px;
   top: 4px;
   /* Clear the price scale on the right. LWC sizes it to the widest label in view
      (4-digit prices + padding run ~72px+), so 64px let the right-side action icons
