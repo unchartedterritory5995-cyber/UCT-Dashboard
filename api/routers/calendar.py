@@ -225,110 +225,22 @@ def _from_wire(wire_calendar: dict, week_dates: list[date], today: date, cap_uni
     return days
 
 
-# ── Finviz Elite live supplement ───────────────────────────────────────────────
-
-def _fetch_finviz_week(week_date_strs: list[str]) -> dict[str, dict]:
-    """Fetch this week's earners from Finviz Elite — single bulk call.
-
-    Returns {YYYY-MM-DD: {bmo: [{sym, eps_est, rev_est_m, timing}], amc: [...]}}
-    Only used in the live fallback path to supplement EarningsWhispers.
-    Silent no-op if FINVIZ_API_KEY absent or request fails.
-    """
-    token = os.environ.get("FINVIZ_API_KEY") or os.environ.get("FINVIZ_TOKEN")
-    if not token:
-        return {}
-
-    url = f"https://elite.finviz.com/export.ashx?v=111&f=earningsdate_thisweek&auth={token}"
-    try:
-        import requests, csv, io
-        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=15, allow_redirects=True)
-        if not r.ok:
-            _logger.warning("Finviz earnings fetch HTTP %d", r.status_code)
-            return {}
-        rows = list(csv.DictReader(io.StringIO(r.text)))
-    except Exception as exc:
-        _logger.warning("Finviz earnings fetch failed: %s", exc)
-        return {}
-
-    # Column lookup (case-insensitive)
-    def _gcol(row: dict, *names: str):
-        for n in names:
-            for k in row:
-                if k.strip().lower() == n.lower():
-                    v = row[k]
-                    return v.strip() if v else None
-        return None
-
-    result: dict[str, dict] = {}
-    for row in rows:
-        sym = _gcol(row, "Ticker")
-        if not sym:
-            continue
-
-        earnings_raw = _gcol(row, "Earnings") or ""
-        # Format: "Mar 25 BMO" or "Mar 25 AMC" or "Mar 25"
-        timing = "tbd"
-        date_str_fv = None
-        parts = earnings_raw.split()
-        if len(parts) >= 2:
-            try:
-                import calendar as _cal
-                months = {m.lower(): i for i, m in enumerate(_cal.month_abbr) if m}
-                mon_s = parts[0].lower()
-                day_s = parts[1]
-                if mon_s in months:
-                    mon_i = months[mon_s]
-                    day_i = int(day_s)
-                    # Find year by matching against week
-                    for ds in week_date_strs:
-                        d = date.fromisoformat(ds)
-                        if d.month == mon_i and d.day == day_i:
-                            date_str_fv = ds
-                            break
-            except (ValueError, IndexError):
-                pass
-            if len(parts) >= 3:
-                t = parts[2].lower()
-                if t == "bmo":
-                    timing = "bmo"
-                elif t == "amc":
-                    timing = "amc"
-
-        if not date_str_fv:
-            continue
-
-        eps_raw = _gcol(row, "EPS next Q", "EPS Next Q")
-        eps_est: float | None = None
-        try:
-            if eps_raw and eps_raw not in ("-", ""):
-                eps_est = float(eps_raw.replace("$", ""))
-        except ValueError:
-            pass
-
-        rev_raw = _gcol(row, "Sales next Q", "Sales Next Q", "Revenue next Q")
-        rev_est_m: float | None = None
-        try:
-            if rev_raw and rev_raw not in ("-", ""):
-                v = rev_raw.replace("$", "").replace(",", "")
-                if v.endswith("B"):
-                    rev_est_m = float(v[:-1]) * 1000
-                elif v.endswith("M"):
-                    rev_est_m = float(v[:-1])
-                else:
-                    rev_est_m = float(v)
-        except ValueError:
-            pass
-
-        if date_str_fv not in result:
-            result[date_str_fv] = {"bmo": [], "amc": [], "tbd": []}
-        result[date_str_fv][timing].append({
-            "sym":     sym,
-            "eps_est": eps_est,
-            "rev_est": rev_est_m,
-        })
-
-    return result
-
+# ── EarningsWhispers live path ────────────────────────────────────────────────
+#
+# ⚰️ `_fetch_finviz_week` lived here and was DEAD CODE that read as a second
+# source. It asked Finviz for preset view `v=111`, whose export carries no
+# `Earnings` column at all — measured live 2026-08-16, the columns are
+# No./Ticker/Company/Sector/Industry/Country/Market Cap/P/E/Price/Change/Volume.
+# `_gcol(row, "Earnings")` therefore returned None for all 944 rows, the date
+# parse never ran, and every row hit `if not date_str_fv: continue`. Production
+# confirmed it: the served week carried not one symbol EarningsWhispers lacked.
+# So `_build_live` was single-source in fact while looking two-source in the
+# code — which is exactly what hid the 2026-08-16 forward-week hole.
+#
+# The Finviz session leg that WORKS is `_fetch_finviz_past_sessions`
+# (`v=152&c=0,1,68`, which does carry Earnings Date); `_merge_finviz_sessions`
+# applies it, and `_supplement_live_days` now runs it over the forward days.
+# Do NOT reintroduce a second Finviz reader here.
 
 def _fetch_ew_day_resilient(ds: str) -> list:
     """Fetch one EarningsWhispers day with retries. EW connection-drops rapid
@@ -349,27 +261,19 @@ def _fetch_ew_day_resilient(ds: str) -> list:
     return []
 
 
-# ── Live EarningsWhispers + Finviz path ────────────────────────────────────────
+# ── Live EarningsWhispers schedule ────────────────────────────────────────────
 
 def _build_live(week_dates: list[date], today: date) -> dict:
-    """Sequential paced EarningsWhispers fetch + Finviz Elite supplement per weekday."""
-    week_date_strs = [d.strftime("%Y-%m-%d") for d in week_dates]
+    """Sequential paced EarningsWhispers fetch, one call per weekday.
+
+    ⚠️ This is a SCHEDULE, and a narrow one: EW's `caldata` is an editorially
+    ranked list, not a calendar (29 rows for Thu 2026-08-20 against FMP's 673).
+    It is the only leg here on purpose — breadth for today and the still-future
+    days is `_supplement_live_days`' job, and the finished days are
+    `_backfill_past_days`'. Never let this be the only thing a served week ran
+    through; see `_supplement_live_days`' docstring for what that cost.
+    """
     results: dict[str, dict] = {}
-
-    # Pre-fetch Finviz (one bulk call for the whole week) in parallel with EW threads
-    fv_result: dict[str, dict] = {}
-    fv_done = threading.Event()
-
-    def _fetch_fv():
-        try:
-            fv_result.update(_fetch_finviz_week(week_date_strs))
-        except Exception as exc:
-            _logger.warning("Finviz live supplement failed: %s", exc)
-        finally:
-            fv_done.set()
-
-    fv_thread = threading.Thread(target=_fetch_fv, daemon=True)
-    fv_thread.start()
 
     def _fetch(d: date) -> None:
         ds = d.strftime("%Y-%m-%d")
@@ -413,8 +317,7 @@ def _build_live(week_dates: list[date], today: date) -> dict:
             "is_today": d == today,
             "bmo":      bmo,
             "amc":      amc,
-            "tbd":      [],     # EW timing is binary; Finviz merge may add tbd names
-            "_seen":    seen,   # temp field for Finviz merge
+            "tbd":      [],     # EW timing is binary; the supplement adds tbd names
             "econ":     [],
             "fed":      [],
         }
@@ -427,33 +330,10 @@ def _build_live(week_dates: list[date], today: date) -> dict:
             _time.sleep(_EW_PACE_SECONDS)
         _fetch(d)
 
-    # Wait for the (parallel) Finviz bulk call
-    fv_done.wait(timeout=5)
-
-    # Merge Finviz tickers not already in EW, using Finviz estimates.
-    # A Finviz row with no session marker lands in "tbd" — an unknown session is
-    # rendered as unknown, never coerced into AMC (that lie burned us).
-    for ds, day in results.items():
-        seen = day.pop("_seen", set())
-        fv_day = fv_result.get(ds, {})
-        for timing_key in ("bmo", "amc", "tbd"):
-            for fv_entry in fv_day.get(timing_key, []):
-                sym = fv_entry["sym"]
-                if sym in seen:
-                    continue
-                seen.add(sym)
-                day[timing_key].append({
-                    "sym":     sym,
-                    "eps_est": fv_entry["eps_est"],
-                    "eps_act": None,
-                    "rev_est": fv_entry["rev_est"],
-                    "rev_act": None,
-                    "ew":      0,
-                })
-
+    for day in results.values():
         for bucket in ("bmo", "amc", "tbd"):
             day[bucket].sort(key=lambda x: x["ew"], reverse=True)
-            day[bucket] = day[bucket][:40]
+            day[bucket] = day[bucket][:_SCHEDULE_SESSION_CAP]
 
     return results
 
@@ -818,6 +698,12 @@ def _fh_get_month(from_date: str, to_date: str) -> dict | None:
 # only 96 of Wed 7/29's 240 in-universe reporters. 150 clears the observed
 # per-session max (132) with headroom and still bounds the payload.
 _PAST_SESSION_CAP = 150
+
+# …and its counterpart: what a still-FUTURE day takes. A forward schedule is
+# ranked by anticipation, so the tight cap is the point — and it must be the
+# SAME number on every week (`_build_range_week` applies it too) or "THU 9 · 21"
+# stops meaning the same thing when you page. One constant, three call sites.
+_SCHEDULE_SESSION_CAP = 40
 
 
 def _fetch_finviz_past_sessions(past_ds: set[str],
@@ -1196,42 +1082,67 @@ def _backfill_past_days(days: dict, week_dates: list[date], today: date,
     return added
 
 
-# ── Today-roster supplement (current week only) ───────────────────────────────
+# ── Live-window roster supplement (current week only) ─────────────────────────
 
-def _supplement_today_roster(days: dict, today_str: str, cap_uni: set | None) -> int:
-    """ADD every in-universe reporter the providers know for TODAY that the
-    live schedule missed. Returns the number of entries added. Never raises.
+# What the last `_build_current_week` actually served vs. what the supplement
+# had to add, per day. Read at GET /api/calendar/coverage-status. This is the
+# measurement that makes "the forward week went single-source again" a FACT
+# rather than an assumption: if this pass is ever unwired, `supplemented` sits
+# at 0 forever while `served` quietly halves.
+_LAST_LIVE_COVERAGE: dict = {}
 
-    The live schedule (EW+Finviz) under-covers the live session — measured
-    2026-08-11: it knew 59 names for the day against FMP's 104 in-universe
-    reporters, 87 of which had already PUBLISHED actuals (SLAB: EPS 0.71 vs
-    0.69 est, invisible). Nothing else was allowed to add a reporter to today:
-    `_patch_today_actuals` only fills fields on entries that already exist, and
-    `_backfill_past_days` deliberately stops at `d < today`. The earnings wire
-    builds its watchlist from this same payload (`detector.todays_reporters`),
-    so a reporter the schedule missed could never reach the feed until the day
-    rolled past.
 
-    Same two legs, same precedence as `_build_range_week`: Finnhub adds into
-    its stated session bucket (bmo/amc; anything else lands honestly in `tbd`),
-    then the FMP one-day chunk adds whatever is still missing into `tbd` (FMP
-    carries no session field — an unknown session is never coerced). ADD-ONLY:
-    entries the live schedule already owns are untouched — EW resolves the
-    session and carries the anticipation rank, and blank actuals on existing
-    entries are `_patch_today_actuals`' job, which runs right after this.
+def _supplement_live_days(days: dict, today_str: str, cap_uni: set | None) -> int:
+    """ADD every in-universe reporter the providers know for TODAY and for every
+    STILL-FUTURE day of the shown week that the live schedule missed. Returns
+    the number of entries added. Never raises.
 
-    Today then takes `_PAST_SESSION_CAP`, not the schedule's [:40]: once prints
-    land, the live session has no anticipation left to rank — cutting it just
-    hides reporters (the same argument `_backfill_past_days` records for
-    finished days). Existing EW-ranked entries sort ahead of the appended tail,
-    so the cap only ever cuts supplement adds.
+    ⛔ The current week used to be the ONLY week whose forward days had a single
+    earnings source. Three date regimes, three source sets:
 
-    Cost: one Finnhub call + one FMP day-chunk per `calendar_weekly` miss
-    (10-min TTL), matching the past-day backfill's budget.
+        past days of this week   Finnhub + FMP + Finviz  (`_backfill_past_days`)
+        today                    EW + Finnhub + FMP      (this pass, today-only)
+        still-future days        EarningsWhispers ONLY   <- the hole
+
+    while `_build_range_week` merged all three across all five days of every
+    other week. So a name absent from EW's calendar page was absent from our
+    current week outright — and the SAME date, once the week rolled past and it
+    became a range week, would show it. Measured on production 2026-08-16 for
+    the week of Aug 17: the served week held 71 in-universe reporters against
+    122 known to EW ∪ Finnhub ∪ FMP, and carried **not one symbol EW lacked**.
+    BABA, BIDU, KLAR and FUTU were all four in Finnhub AND FMP on the right days
+    (owner report). EW's `caldata` is an editorially-ranked list, not a
+    calendar: 29 rows for a Thursday against FMP's 673.
+
+    `_build_live`'s second leg could not cover for it either — it asked Finviz
+    for preset view `v=111`, whose export carries no `Earnings` column at all
+    (measured live 2026-08-16), so every row failed its date parse and the leg
+    contributed exactly nothing. That dead leg is gone; the working custom-view
+    implementation (`_merge_finviz_sessions`, `v=152&c=0,1,68`) runs here.
+
+    Same precedence as `_build_range_week`: Finnhub adds into its stated session
+    bucket (bmo/amc; anything else lands honestly in `tbd`), then the FMP range
+    chunk adds whatever is still missing into `tbd` (FMP carries no session
+    field — an unknown session is never coerced), then Finviz adds a third
+    independent opinion. ADD-ONLY: entries the live schedule already owns are
+    untouched — EW resolves the session and carries the anticipation rank, and
+    blank actuals on existing entries are `_patch_today_actuals`' job, which
+    runs right after this.
+
+    Finviz re-buckets only where the cap is LOOSE (today). The per-session cap
+    is applied AFTER the merge, so moving rows out of `tbd` under the tight
+    schedule cap pushes bmo/amc past it and the surplus is CUT — the same trade
+    `_merge_finviz_sessions` records for the range path's future days.
+
+    Cost per `calendar_weekly` miss (10-min TTL, so ~6/h): ONE Finnhub range
+    call, up to five concurrent FMP day-chunks, one Finviz export — the same
+    budget `_backfill_past_days` already spends on the other half of the week.
     """
-    day = days.get(today_str)
-    if not isinstance(day, dict):
-        return 0                     # weekend: the shown week has no 'today'
+    target = sorted(ds for ds in days if ds >= today_str and isinstance(days[ds], dict))
+    if not target:
+        return 0                     # nothing in this week is still ahead of us
+    target_set = set(target)
+    from_ds, to_ds = target[0], target[-1]
 
     def _keep(sym: str) -> bool:
         if cap_uni:
@@ -1253,73 +1164,137 @@ def _supplement_today_roster(days: dict, today_str: str, cap_uni: set | None) ->
 
     added = 0
     try:
-        seen = {e.get("sym") for e in _day_entries(day)}
+        seen: dict[str, set] = {
+            ds: {e.get("sym") for e in _day_entries(days[ds])} for ds in target}
+        # Snapshot BEFORE any leg runs — this is what the live schedule alone
+        # knew, and the number the coverage report is only meaningful against.
+        schedule_only = {ds: len(seen[ds]) for ds in target}
+        # sym -> entry per day, for the Finviz leg's own bookkeeping.
+        sym_index: dict[str, dict[str, dict]] = {ds: {} for ds in target}
 
         fh_rows: list = []
         try:
-            fh_rows = (_fh_get_month(today_str, today_str) or {}).get("earningsCalendar") or []
+            fh_rows = (_fh_get_month(from_ds, to_ds) or {}).get("earningsCalendar") or []
         except Exception as exc:
-            _logger.warning("Calendar: today-roster Finnhub leg failed: %s", exc)
+            _logger.warning("Calendar: live-window Finnhub leg failed: %s", exc)
         for row in fh_rows:
             sym = (row.get("symbol") or "").strip().upper()
-            if (not sym or sym in seen
-                    or str(row.get("date") or "")[:10] != today_str
-                    or not _keep(sym)):
+            ds  = str(row.get("date") or "")[:10]
+            if (not sym or ds not in target_set
+                    or sym in seen[ds] or not _keep(sym)):
                 continue
             hour = (row.get("hour") or "").lower()
             timing = hour if hour in ("bmo", "amc") else "tbd"
             rev_est_raw = row.get("revenueEstimate")
             rev_act_raw = row.get("revenueActual")
-            day[timing].append({
+            entry = {
                 "sym":     sym,
                 "eps_est": _clean_eps(row.get("epsEstimate")),
                 "eps_act": _clean_eps(row.get("epsActual")),
                 "rev_est": round(rev_est_raw / 1_000_000, 1) if rev_est_raw else None,
                 "rev_act": round(rev_act_raw / 1_000_000, 1) if rev_act_raw else None,
                 "ew":      0,
+                "mc_b":    None,
                 "time_et": None,
-            })
-            seen.add(sym)
+                # Same heuristic `_build_range_week` uses, so a projected date
+                # carries the same "est." chip (and is filtered out by "confirmed
+                # only") no matter which week you are looking at it from. Only on
+                # a still-FUTURE day: today's date cannot be an estimate.
+                **({"date_est": hour not in ("bmo", "amc", "dmh")}
+                   if ds > today_str else {}),
+            }
+            days[ds].setdefault(timing, []).append(entry)
+            seen[ds].add(sym)
+            sym_index[ds][sym] = entry
             added += 1
 
         fmp_rows = None
         try:
-            fmp_rows = _fmp_range_week(today_str, today_str)
+            fmp_rows = _fmp_range_week(from_ds, to_ds)
         except Exception as exc:
-            _logger.warning("Calendar: today-roster FMP leg failed: %s", exc)
+            _logger.warning("Calendar: live-window FMP leg failed: %s", exc)
         for row in fmp_rows or []:
             sym = (row.get("symbol") or "").strip().upper()
-            if (not sym or sym in seen
-                    or str(row.get("date") or "")[:10] != today_str
-                    or not _keep(sym)):
+            ds  = str(row.get("date") or "")[:10]
+            if (not sym or ds not in target_set
+                    or sym in seen[ds] or not _keep(sym)):
                 continue
             rev_est_raw = row.get("revenueEstimated")
             rev_act_raw = row.get("revenueActual")
-            day["tbd"].append({
+            entry = {
                 "sym":     sym,
                 "eps_est": _clean_eps(row.get("epsEstimated")),
                 "eps_act": _clean_eps(row.get("epsActual")),
                 "rev_est": round(rev_est_raw / 1_000_000, 1) if rev_est_raw else None,
                 "rev_act": round(rev_act_raw / 1_000_000, 1) if rev_act_raw else None,
                 "ew":      0,
+                "mc_b":    None,
                 "time_et": None,
-            })
-            seen.add(sym)
+                # FMP's range carries no session and no confirmation, so a
+                # future date from it is an estimate — same call as the range
+                # builder makes. Today's is not: the day is happening.
+                **({"date_est": True} if ds > today_str else {}),
+            }
+            days[ds].setdefault("tbd", []).append(entry)
+            seen[ds].add(sym)
+            sym_index[ds][sym] = entry
             added += 1
 
+        # ── Finviz Elite leg — the third independent source, on the CUSTOM view.
+        # Skipped entirely when no Finviz filter covers this week (it exposes
+        # only thisweek/prevweek, and on a weekend the shown week is the NEXT
+        # one) — an unrecognised filter token is DROPPED silently and would
+        # return the wrong week's rows.
+        try:
+            week_monday = date.fromisoformat(min(days))
+            fv_filt = _finviz_week_filter(week_monday, date.fromisoformat(today_str))
+        except (ValueError, TypeError):
+            fv_filt = None
+        if fv_filt:
+            fv_added, fv_moved = _merge_finviz_sessions(
+                days, target_set, fv_filt, _keep, sym_index,
+                rebucket_ds={today_str} if today_str in target_set else set())
+            added += fv_added
+            if fv_added or fv_moved:
+                _logger.info("Calendar: live-window Finviz added %d, re-bucketed %d",
+                             fv_added, fv_moved)
+
         if added:
-            for bucket in ("bmo", "amc", "tbd"):
-                bucket_rows = day.get(bucket) or []
-                bucket_rows.sort(key=lambda e: (
-                    -(e.get("ew") or 0),
-                    e.get("eps_est") is None and e.get("rev_est") is None,
-                    e.get("sym") or "",
-                ))
-                day[bucket] = bucket_rows[:_PAST_SESSION_CAP]
-            _logger.info("Calendar: today-roster supplement added %d reporters for %s",
-                         added, today_str)
+            for ds in target:
+                cap = _PAST_SESSION_CAP if ds <= today_str else _SCHEDULE_SESSION_CAP
+                for bucket in ("bmo", "amc", "tbd"):
+                    bucket_rows = days[ds].get(bucket) or []
+                    bucket_rows.sort(key=lambda e: (
+                        -(e.get("ew") or 0),
+                        e.get("eps_est") is None and e.get("rev_est") is None,
+                        e.get("sym") or "",
+                    ))
+                    days[ds][bucket] = bucket_rows[:cap]
+            _logger.info("Calendar: live-window supplement added %d reporters (%s -> %s)",
+                         added, from_ds, to_ds)
+
+        _LAST_LIVE_COVERAGE.clear()
+        _LAST_LIVE_COVERAGE.update({
+            "as_of":        datetime.now(_ET).isoformat(timespec="seconds"),
+            "today":        today_str,
+            "window":       [from_ds, to_ds],
+            "supplemented": added,
+            "days": {ds: {"served": len(_day_entries(days[ds])),
+                          "schedule_only": schedule_only[ds]}
+                     for ds in target},
+        })
     except Exception as exc:
-        _logger.warning("Calendar: today-roster supplement failed: %s", exc)
+        _logger.warning("Calendar: live-window supplement failed: %s", exc)
+        # Say so, rather than leaving the previous build's numbers standing —
+        # a monitor that goes quiet exactly when its subject breaks reads as
+        # "nothing to report".
+        _LAST_LIVE_COVERAGE.clear()
+        _LAST_LIVE_COVERAGE.update({
+            "as_of":  datetime.now(_ET).isoformat(timespec="seconds"),
+            "today":  today_str,
+            "window": [from_ds, to_ds],
+            "error":  f"{type(exc).__name__}: {exc}",
+        })
 
     return added
 
@@ -1782,7 +1757,7 @@ def _build_range_week(monday: date) -> dict:
     # belongs to is what made sessions DECAY once a week rolled over
     # (`calendar_hour_resolved` 100% for the live week, 18% one week back).
     for ds, day in days.items():
-        cap = _PAST_SESSION_CAP if ds in past_ds else 40
+        cap = _PAST_SESSION_CAP if ds in past_ds else _SCHEDULE_SESSION_CAP
         for bucket in ("bmo", "amc", "tbd"):
             day[bucket].sort(key=lambda e: (
                 e.get("eps_est") is None and e.get("rev_est") is None,
@@ -2139,12 +2114,15 @@ def _build_current_week() -> dict:
     #    wire-fallback decision above so it can never mask an empty live build.
     _backfill_past_days(days, week_dates, today, cap_uni)
 
-    # ── 3c. TODAY's roster from the provider calendars (add-only) ────────────
-    #    EW+Finviz under-cover the live session (59 names vs FMP's 104
-    #    in-universe on 2026-08-11) and the actuals patch below can only fill
-    #    entries that already exist. The earnings wire watches this payload —
-    #    a reporter missing here is structurally invisible to the feed.
-    _supplement_today_roster(days, today.isoformat(), cap_uni)
+    # ── 3c. TODAY + every STILL-FUTURE day, from the provider calendars ──────
+    #    EW is a narrow editorial schedule: it under-covers the live session
+    #    (59 names vs FMP's 104 in-universe on 2026-08-11) AND the days ahead
+    #    (71 of 122 in-universe reporters for the week of 2026-08-16 — BABA,
+    #    BIDU, KLAR and FUTU all present in Finnhub AND FMP, absent here).
+    #    Add-only, so the schedule keeps its sessions and its anticipation rank.
+    #    The earnings wire watches this payload — a reporter missing here is
+    #    structurally invisible to the feed.
+    _supplement_live_days(days, today.isoformat(), cap_uni)
 
     # ── 4. Finnhub actuals patch for today's pending reporters ───────────────
     #    Catches companies that report BMO after the 7:35 AM wire run.
@@ -2528,53 +2506,27 @@ def get_calendar_dividends(
 
 @router.post("/api/calendar/refresh")
 def refresh_calendar(user: dict = Depends(require_admin)):
-    """Rebuild the calendar cache immediately — earnings from EW, actuals from Finnhub, econ from ForexFactory."""
+    """Rebuild the calendar cache immediately, through the SAME build the normal
+    path uses.
+
+    ⛔ This was a second, hand-maintained copy of `_build_current_week` and it
+    had already drifted: no cap-universe filter, no `_backfill_past_days`, no
+    roster supplement. So an admin pressing refresh REPLACED the real week with
+    a thinner, differently-filtered one — at the exact moment someone is trying
+    to fix the calendar. Two authorities over one payload; there is now one.
+    `_build_current_week` owns the `set_by_completeness` write (a degraded
+    rebuild must not pin itself for the full TTL), so all that is left here is
+    invalidating first and refreshing the serve-stale slot after — without that,
+    the forced refresh would visibly un-apply itself when this entry lapses and
+    the PREVIOUS week resurfaced.
+    """
     cache.invalidate("calendar_weekly")
-
-    week_dates = _week_dates()
-    today      = _today_et()
-    week_start = week_dates[0].isoformat()
-    week_end   = week_dates[-1].isoformat()
-
-    days = _build_live(week_dates, today)
-    for d in week_dates:
-        ds = d.strftime("%Y-%m-%d")
-        if ds not in days:
-            days[ds] = _empty_day(d, today)
-
-    _patch_today_actuals(days, today.isoformat())
-    _restore_sticky_reporters(days, today.isoformat())
-    _merge_sticky_actuals(days, today.isoformat())
-    _curate_econ_events(week_start, week_end, days)
-    _attach_names(days)
-    _attach_date_moves(days)
-
-    result = {
-        "week_start":      week_start,
-        "week_end":        week_end,
-        "days":            days,
-        "source":          "refresh",
-        "is_current_week": True,
-    }
-    # The ONE calendar_weekly write that used to bypass `set_by_completeness`
-    # (the normal build path has used it since the cache-policy pass). An admin
-    # hitting refresh during a provider outage rebuilt a degraded week and then
-    # PINNED it for the full 10 minutes — the one moment someone is actively
-    # trying to fix the calendar is the worst moment to make it stick. Same
-    # goodness test the serve-stale slot below already applies, evaluated once.
-    good = _weekly_payload_is_good(result)
-    set_by_completeness(
-        "calendar_weekly", result,
-        complete=good, ttl_ok=_CACHE_TTL, ttl_partial=_CACHE_FAIL_TTL,
-    )
-    # This freshly-rebuilt week also becomes the serve-stale fallback. Without
-    # it the admin's forced refresh would leave the PREVIOUS week in the slot,
-    # which then resurfaces the moment this entry lapses — a manual refresh
-    # would visibly un-apply itself 10 minutes later.
-    if good:
+    result = _build_current_week()
+    if _weekly_payload_is_good(result):
         _WEEKLY_STALE.remember("current", result)
-    totals = {ds: {"bmo": len(d["bmo"]), "amc": len(d["amc"]),
-                   "tbd": len(d.get("tbd", [])), "econ": len(d["econ"])}
+    days = result.get("days") or {}
+    totals = {ds: {"bmo": len(d.get("bmo") or []), "amc": len(d.get("amc") or []),
+                   "tbd": len(d.get("tbd") or []), "econ": len(d.get("econ") or [])}
               for ds, d in days.items()}
     return {"ok": True, "totals": totals}
 
@@ -3328,6 +3280,28 @@ def _build_enrichment_for_date(target: str) -> dict:
 
     cache.set(ck, out, ttl=ttl)
     return out
+
+
+@router.get("/api/admin/calendar-coverage-status")
+def calendar_coverage_status():
+    """Did the current week's live window actually get more than one source?
+    (read-only, mirrors calendar-enrichment-status)
+
+    Per day of the last `_build_current_week`: `served` (what a member sees) and
+    `schedule_only` (what EarningsWhispers alone knew before the Finnhub/FMP/
+    Finviz legs ran), plus `supplemented` — how many entries those legs added.
+
+    ⭐ What this exists to catch: `supplemented` pinned at 0 across builds while
+    `served == schedule_only` every day is the 2026-08-16 shape — the forward
+    week silently back on one narrow source, which is invisible from the
+    calendar itself (it looks like a quiet week). ⛔ It is NOT a claim that the
+    week is complete: it reports what OUR merge produced, not what the market
+    actually scheduled. For that you have to ask the providers.
+
+    Empty until the first build after a restart — the calendar rebuilds on a
+    10-minute TTL, so an empty read means "no build yet", not "no coverage".
+    """
+    return dict(_LAST_LIVE_COVERAGE)
 
 
 @router.get("/api/admin/calendar-enrichment-status")

@@ -19,7 +19,8 @@ Denominator rules (the provider-coverage-monitor lessons):
 
 Each miss is classified by WHERE it was lost, because the fix differs:
 - `missing_not_on_roster` — the calendar day-list never knew the name (the
-  8/11 defect class; `_supplement_today_roster` is the fix).
+  8/11 defect class; `_supplement_live_days` is the fix — widened 8/16 from
+  today-only to today plus every still-future day of the shown week).
 - `missing_on_roster` — the roster has it but the detector has not written it
   (detector lag / not ticking — read `/api/calendar/wire-status`).
 - `numbers_pending_on_feed` — the row exists but still shows "numbers

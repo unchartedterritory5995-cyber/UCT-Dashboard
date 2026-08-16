@@ -10,17 +10,31 @@ entries that already exist — and `_backfill_past_days` deliberately stops at
 (`todays_reporters`), so all 38 already-reported names were structurally
 invisible to the feed until the day rolled past.
 
-`_supplement_today_roster` closes the gap with the SAME two provider legs the
+`_supplement_live_days` closes the gap with the SAME two provider legs the
 range-week builder already trusts: Finnhub adds into its stated session bucket,
 FMP adds what's still missing into `tbd` (it carries no session field — an
 unknown session renders as unknown, never coerced). ADD-ONLY: entries the live
 schedule already owns are never touched, so EW's session + anticipation rank
 always win.
+
+⚠️ This file pins TODAY's half of `_supplement_live_days`. The pass was widened
+on 2026-08-16 to cover today AND every still-future day of the shown week (the
+BABA/BIDU/KLAR/FUTU report — see `test_calendar_forward_week_coverage.py`), so
+the provider legs are now called over a RANGE, not a single day. Everything
+below about today's own bucket is unchanged and still load-bearing.
 """
 from datetime import date, timedelta
 from unittest import mock
 
+import pytest
+
 from api.routers import calendar as cal
+
+
+@pytest.fixture(autouse=True)
+def _no_finviz(monkeypatch):
+    """The third leg has its own suite; keep these assertions about Finnhub+FMP."""
+    monkeypatch.setattr(cal, "_merge_finviz_sessions", lambda *a, **kw: (0, 0))
 
 MON, TUE, WED, THU, FRI = (date(2026, 8, 10) + timedelta(days=i) for i in range(5))
 WEEK = [MON, TUE, WED, THU, FRI]
@@ -67,9 +81,10 @@ def test_a_reporter_only_fmp_knows_is_added_to_todays_tbd_with_its_numbers():
     days = _week_days(bmo=["SE"], amc=["CAH"])
     with mock.patch.object(cal, "_fh_get_month", return_value=None), \
          mock.patch.object(cal, "_fmp_range_week", return_value=[_fmp_row("SLAB")]) as fmp:
-        added = cal._supplement_today_roster(days, TODAY_S, CAP)
+        added = cal._supplement_live_days(days, TODAY_S, CAP)
 
-    assert fmp.call_args.args == (TODAY_S, TODAY_S)   # one day, never a range
+    # ONE range call from today to the end of the shown week (was today-only).
+    assert fmp.call_args.args == (TODAY_S, FRI.isoformat())
     assert added == 1
     tbd = days[TODAY_S]["tbd"]
     assert [e["sym"] for e in tbd] == ["SLAB"]
@@ -84,9 +99,9 @@ def test_a_finnhub_reporter_lands_in_its_stated_session_bucket():
                                _fh_row("SANA", "")]}
     with mock.patch.object(cal, "_fh_get_month", return_value=fh) as m, \
          mock.patch.object(cal, "_fmp_range_week", return_value=None):
-        added = cal._supplement_today_roster(days, TODAY_S, CAP)
+        added = cal._supplement_live_days(days, TODAY_S, CAP)
 
-    assert m.call_args.args == (TODAY_S, TODAY_S)
+    assert m.call_args.args == (TODAY_S, FRI.isoformat())
     assert added == 3
     day = days[TODAY_S]
     assert [e["sym"] for e in day["amc"]] == ["BGS"]
@@ -105,7 +120,7 @@ def test_the_live_schedules_entries_are_never_touched_or_duplicated():
     with mock.patch.object(cal, "_fh_get_month", return_value=fh), \
          mock.patch.object(cal, "_fmp_range_week",
                            return_value=[_fmp_row("NUE", eps_est=8.8)]):
-        added = cal._supplement_today_roster(days, TODAY_S, CAP)
+        added = cal._supplement_live_days(days, TODAY_S, CAP)
 
     assert added == 0
     day = days[TODAY_S]
@@ -121,7 +136,7 @@ def test_finnhub_wins_the_session_and_fmp_never_duplicates_its_add():
     fh = {"earningsCalendar": [_fh_row("BGS", "amc")]}
     with mock.patch.object(cal, "_fh_get_month", return_value=fh), \
          mock.patch.object(cal, "_fmp_range_week", return_value=[_fmp_row("BGS")]):
-        added = cal._supplement_today_roster(days, TODAY_S, CAP)
+        added = cal._supplement_live_days(days, TODAY_S, CAP)
 
     assert added == 1
     assert [e["sym"] for e in days[TODAY_S]["amc"]] == ["BGS"]
@@ -134,7 +149,7 @@ def test_the_same_universe_gate_as_every_other_week():
     with mock.patch.object(cal, "_fh_get_month", return_value=fh), \
          mock.patch.object(cal, "_fmp_range_week",
                            return_value=[_fmp_row("PNCINFRA.NS"), _fmp_row("SLAB")]):
-        cal._supplement_today_roster(days, TODAY_S, CAP)
+        cal._supplement_live_days(days, TODAY_S, CAP)
 
     day = days[TODAY_S]
     assert [e["sym"] for e in day["bmo"]] == ["BGS"]
@@ -146,18 +161,26 @@ def test_a_double_provider_failure_leaves_today_exactly_as_it_was():
     days = _week_days(bmo=["SE"])
     with mock.patch.object(cal, "_fh_get_month", side_effect=RuntimeError("429")), \
          mock.patch.object(cal, "_fmp_range_week", return_value=None):
-        assert cal._supplement_today_roster(days, TODAY_S, CAP) == 0
+        assert cal._supplement_live_days(days, TODAY_S, CAP) == 0
     assert [e["sym"] for e in days[TODAY_S]["bmo"]] == ["SE"]
 
 
-def test_a_today_outside_the_shown_week_is_a_noop_with_no_provider_call():
-    """Weekend: the current week rolls forward, so 'today' has no bucket."""
+def test_a_weekend_today_supplements_the_whole_upcoming_week():
+    """Behaviour CHANGE, recorded deliberately (2026-08-16).
+
+    `_current_week_monday` rolls a weekend forward, so on a Saturday or Sunday
+    the shown week has no 'today' at all and all five of its days are still
+    ahead. Under the today-only rule that made this a documented no-op — which
+    is exactly the state the BABA/BIDU/KLAR/FUTU report came from: the week of
+    Aug 17, viewed on Sunday Aug 16, ran through EarningsWhispers alone. The
+    whole week is now in the window."""
     days = _week_days()
-    with mock.patch.object(cal, "_fh_get_month") as fh, \
-         mock.patch.object(cal, "_fmp_range_week") as fmp:
-        assert cal._supplement_today_roster(days, "2026-08-08", CAP) == 0
-    fh.assert_not_called()
-    fmp.assert_not_called()
+    fh = {"earningsCalendar": [dict(_fh_row("BGS"), date=THU.isoformat())]}
+    with mock.patch.object(cal, "_fh_get_month", return_value=fh) as m, \
+         mock.patch.object(cal, "_fmp_range_week", return_value=None):
+        assert cal._supplement_live_days(days, "2026-08-08", CAP) == 1
+    assert m.call_args.args == (MON.isoformat(), FRI.isoformat())
+    assert [e["sym"] for e in days[THU.isoformat()]["bmo"]] == ["BGS"]
 
 
 def test_today_is_bounded_by_the_past_session_cap_and_ew_names_are_never_cut():
@@ -170,7 +193,7 @@ def test_today_is_bounded_by_the_past_session_cap_and_ew_names_are_never_cut():
     fh = {"earningsCalendar": [_fh_row(f"S{i:04d}") for i in range(n)]}
     with mock.patch.object(cal, "_fh_get_month", return_value=fh), \
          mock.patch.object(cal, "_fmp_range_week", return_value=None):
-        cal._supplement_today_roster(days, TODAY_S, cap)
+        cal._supplement_live_days(days, TODAY_S, cap)
 
     bmo = days[TODAY_S]["bmo"]
     assert len(bmo) == cal._PAST_SESSION_CAP

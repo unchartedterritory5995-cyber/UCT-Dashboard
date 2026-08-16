@@ -47,10 +47,13 @@ def test_ew_resilient_returns_empty_after_all_fail(monkeypatch):
 
 
 def test_build_live_populates_every_weekday_paced(monkeypatch):
-    # One synthetic reporter per weekday; Finviz stubbed to empty (no network).
+    # One synthetic reporter per weekday. `_build_live` makes NO network call
+    # other than EW now — its Finviz leg was removed on 2026-08-16 after being
+    # measured to contribute zero (preset view `v=111` carries no `Earnings`
+    # column, so every row failed the date parse). Breadth is
+    # `_supplement_live_days`' job.
     monkeypatch.setattr(cal, "_fetch_ew_day_resilient",
                         lambda ds: [_ew_item(f"T{ds[-2:]}")])
-    monkeypatch.setattr(cal, "_fetch_finviz_week", lambda strs: {})
     monkeypatch.setattr(cal, "_EW_PACE_SECONDS", 0)
 
     week = [date(2026, 6, 15) + timedelta(days=i) for i in range(5)]
@@ -58,3 +61,5 @@ def test_build_live_populates_every_weekday_paced(monkeypatch):
 
     total = sum(len(d["bmo"]) + len(d["amc"]) for d in days.values())
     assert total == 5                                  # one per weekday, none dropped
+    # No `_seen` scratch field may survive into the served payload.
+    assert all("_seen" not in d for d in days.values())
