@@ -12091,7 +12091,17 @@ export default function StockChart({
       const msPerBar = (lastMs - firstMs) / lastIdx
       const windowBars = msPerBar > 0 ? (lastMs - cutoffMs) / msPerBar : lastIdx
       if (!(windowBars >= 1)) return
-      ts.setVisibleLogicalRange({ from: lastIdx - windowBars, to: lastIdx + (rightPadBars || 3) })
+      // Anchor the newest candle at the SAME fractional position (lastCandlePos)
+      // as the default/reset view — NOT a fixed bars-of-right-pad. A fixed bar pad
+      // drifts the last candle left/right across ranges because bar spacing widens
+      // as fewer bars show (3M's 3-bar gap is wide; 5Y's 3-bar gap overlaps the
+      // price axis). Sizing `to` by the plot-width fraction keeps the right edge
+      // pinned so switching 3M→6M→1Y→5Y only zooms, never shifts the anchor.
+      const from = lastIdx - windowBars
+      const hist = lastIdx - from
+      const plotWidthPx = plotWidthOf(chartRef.current, containerRef.current)
+      const to = hist > 0 ? from + hist / lastCandlePos(plotWidthPx) : lastIdx + (rightPadBars || 3)
+      ts.setVisibleLogicalRange({ from, to })
     } catch { /* noop */ }
   }
   const _rangeVolPct = Math.min(45, Math.max(8, volumePaneHeightPct ?? cs.volume?.paneHeightPct ?? 22))
