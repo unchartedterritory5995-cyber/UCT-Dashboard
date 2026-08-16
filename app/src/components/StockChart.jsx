@@ -1732,9 +1732,18 @@ export default function StockChart({
     || _forcedScale
     || (cs.percentScale ? 'pct' : (cs.logScale ? 'log' : 'arith'))
   const setScale = (kind) => {
-    if (_forcedScale) {
-      setScaleOverride(kind)  // local only — don't rewrite the global pref
-    } else {
+    // ALWAYS take effect immediately via the local override. `effectiveScale`
+    // reads scaleOverride first, so this is robust on surfaces where the
+    // settings write is masked: an "own-chart" ChartPane (every popup — Options
+    // Flow / Live Massive) feeds StockChart a `settingsOverride` (ownChartSource,
+    // resolved from the workspace layout) that WINS over the global chart_settings
+    // blob the toggle persists to — so cs.logScale/cs.percentScale never flip and
+    // the A/L/% buttons appeared dead. The local override sidesteps that entirely.
+    setScaleOverride(kind)
+    // Still persist to the global pref where that path is authoritative (the
+    // /charts workspace + gear), so the choice survives a remount there. Skipped
+    // when a caller forces the scale (forceLogScale/forceScaleMode) — local only.
+    if (!_forcedScale) {
       handleUpdateChartSettings({ ...cs, logScale: kind === 'log', percentScale: kind === 'pct', preset: 'custom' })
     }
   }
