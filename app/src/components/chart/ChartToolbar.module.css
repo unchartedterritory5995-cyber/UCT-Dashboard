@@ -12,7 +12,12 @@
   z-index: 5;
   display: flex;
   flex-direction: row;
-  align-items: center;
+  /* Top-align (not center) so that when .tools shows a horizontal scrollbar as the
+     widget narrows, the scrollbar grows DOWNWARD, below the buttons — the drawing
+     tools never shift up and stay level with the right-side action buttons. The
+     padding-top preserves the old centered resting height (22px buttons in 26px). */
+  align-items: flex-start;
+  padding-top: 2px;
   gap: 1px;
   pointer-events: auto;
   /* ⭐⭐ RESTING OPACITY, RAISED FROM 0.3 — AND THE COLOURS WERE NEVER THE PROBLEM.
@@ -35,6 +40,9 @@
 .tools {
   display: flex;
   flex-direction: row;
+  /* Keep the buttons at the TOP of the tools box so a horizontal scrollbar renders
+     below them (never overlapping / lifting the buttons). */
+  align-items: flex-start;
   gap: 1px;
   /* Take the space the fixed actions group leaves, and be allowed to shrink BELOW
      the tools' natural width (min-width:0) so the row scrolls instead of pushing
@@ -56,6 +64,28 @@
   /* Fixed width, laid out AFTER the shrinking .tools — the tools yield space first,
      so these buttons stay fully visible and never sit on top of the drawing tools. */
   flex: 0 0 auto;
+}
+
+/* ── Toolbar show/hide toggle ─────────────────────────────────────────────────
+   A sibling of .tools/.actions, pinned to the far right (margin-left:auto). When
+   the toolbar is expanded, .tools flex-grows to fill so there is no free space and
+   it sits right after the last action button; when collapsed, .tools/.actions are
+   removed so the auto margin pushes it to the right edge — same spot either way. */
+.toggleBtn {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+/* Collapsed: hide the drawing tools + action buttons and let clicks fall through
+   the now-empty toolbar strip to the chart beneath — only the toggle stays live. */
+.collapsed .tools,
+.collapsed .actions {
+  display: none;
+}
+.collapsed {
+  pointer-events: none;
+}
+.collapsed .toggleBtn {
+  pointer-events: auto;
 }
 
 /* ── Button ── */

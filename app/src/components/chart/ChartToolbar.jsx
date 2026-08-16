@@ -54,6 +54,8 @@ const ICONS = {
   clear:      I(<><line x1="4" y1="4" x2="12" y2="12" /><line x1="12" y1="4" x2="4" y2="12" /></>),
   undo:       I(<><polyline points="6,4 2.5,7.5 6,11" /><path d="M2.5 7.5 H10 a3.5 3.5 0 0 1 0 7 H6.5" /></>),
   redo:       I(<><polyline points="10,4 13.5,7.5 10,11" /><path d="M13.5 7.5 H6 a3.5 3.5 0 0 0 0 7 H9.5" /></>),
+  chevronLeft:  I(<polyline points="10,3 5,8 10,13" fill="none" />),
+  chevronRight: I(<polyline points="6,3 11,8 6,13" fill="none" />),
   eye:        I(<><path d="M1 8s2.6-4.5 7-4.5S15 8 15 8s-2.6 4.5-7 4.5S1 8 1 8z" /><circle cx="8" cy="8" r="1.8" /></>),
   eyeOff:     I(<><path d="M1 8s2.6-4.5 7-4.5c1 0 1.9.2 2.7.6M15 8s-2.6 4.5-7 4.5c-1 0-1.9-.2-2.7-.6" /><line x1="2.5" y1="2.5" x2="13.5" y2="13.5" /></>),
   camera:     I(<><path d="M2 5.5h12v8H2z" /><circle cx="8" cy="9.5" r="2" /><path d="M5.5 5.5l1-2h3l1 2" /></>),
@@ -746,6 +748,9 @@ function ChartToolbar({
 }, ref) {
   const [showColors, setShowColors] = useState(false)
   const [colorPanelPos, setColorPanelPos] = useState({ left: 0, top: 0 })
+  // Toolbar collapse toggle — when true, everything but the toggle button hides so
+  // the chart underneath is unobstructed; the toggle stays to bring it back.
+  const [collapsed, setCollapsed] = useState(false)
   const [showWidths, setShowWidths] = useState(false)
   const [showFonts, setShowFonts] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
@@ -927,7 +932,7 @@ function ChartToolbar({
 
   return (
     <>
-    <div className={styles.toolbar} style={prominent ? { opacity: 1 } : undefined}>
+    <div className={`${styles.toolbar} ${collapsed ? styles.collapsed : ''}`} style={prominent ? { opacity: 1 } : undefined}>
       {/* ── Tool buttons ── */}
       <div className={styles.tools}>
         {(toolFilter ? TOOLS.filter(t => t !== 'sep' && toolFilter.includes(t.id)) : TOOLS).map((t, i) =>
@@ -1368,6 +1373,18 @@ function ChartToolbar({
           {ICONS.clear}
         </button>
       </div>
+
+      {/* Toolbar show/hide toggle — a sibling of .tools/.actions (NOT inside them),
+          so it stays visible when the toolbar collapses. Anchored to the far right;
+          click to slide the toolbar away and click again to bring it back. */}
+      <button
+        className={`${styles.btn} ${styles.toggleBtn}`}
+        onClick={() => setCollapsed(c => !c)}
+        title={collapsed ? 'Show toolbar' : 'Hide toolbar'}
+        aria-pressed={collapsed}
+      >
+        {collapsed ? ICONS.chevronLeft : ICONS.chevronRight}
+      </button>
     </div>
 
     {/* ── Replay controls bar ── */}
