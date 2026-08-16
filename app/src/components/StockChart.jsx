@@ -12475,9 +12475,10 @@ export default function StockChart({
                   width: Math.max(2, b.width * b.recentFrac),
                   height: b.height,
                   background: 'linear-gradient(90deg,#c9a84c,#e6cd8a)',
-                  opacity: Math.min(1, b.opacity + 0.5),
+                  // Brighter than the dim base bar, but softened: modest opacity
+                  // bump (capped) and NO glow — the bloom made it glaring.
+                  opacity: Math.min(0.62, b.opacity + 0.16),
                   borderRadius: 1,
-                  boxShadow: '0 0 6px rgba(230,205,138,0.45)',
                 }}/>
               )}
               {b.showLabel && (
