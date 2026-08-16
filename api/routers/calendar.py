@@ -1171,6 +1171,16 @@ def _supplement_live_days(days: dict, today_str: str, cap_uni: set | None) -> in
         # Snapshot BEFORE any leg runs — this is what the live schedule alone
         # knew, and the number the coverage report is only meaningful against.
         schedule_only = {ds: len(seen[ds]) for ds in target}
+        # ⛔ ONE PLACEMENT PER SYMBOL PER WEEK, across ALL days — not just the
+        # day being written. Providers disagree about DATES for the week ahead
+        # (measured on the live week of 2026-08-17: EW had XP on Monday and FMP
+        # projected it to Tuesday; Finnhub put ROST on Wednesday against EW's
+        # confirmed Thursday), and a per-day check renders the company TWICE in
+        # one week. The FIRST placement wins, and the schedule's placements are
+        # seeded here before any leg runs — so a confirmed date always beats a
+        # projected one, and Finnhub (which carries a session) beats FMP.
+        placed: set = {sym for d in days.values() if isinstance(d, dict)
+                       for e in _day_entries(d) for sym in [e.get("sym")] if sym}
         # sym -> entry per day, for the Finviz leg's own bookkeeping.
         sym_index: dict[str, dict[str, dict]] = {ds: {} for ds in target}
 
@@ -1183,7 +1193,7 @@ def _supplement_live_days(days: dict, today_str: str, cap_uni: set | None) -> in
             sym = (row.get("symbol") or "").strip().upper()
             ds  = str(row.get("date") or "")[:10]
             if (not sym or ds not in target_set
-                    or sym in seen[ds] or not _keep(sym)):
+                    or sym in placed or not _keep(sym)):
                 continue
             hour = (row.get("hour") or "").lower()
             timing = hour if hour in ("bmo", "amc") else "tbd"
@@ -1207,6 +1217,7 @@ def _supplement_live_days(days: dict, today_str: str, cap_uni: set | None) -> in
             }
             days[ds].setdefault(timing, []).append(entry)
             seen[ds].add(sym)
+            placed.add(sym)
             sym_index[ds][sym] = entry
             added += 1
 
@@ -1219,7 +1230,7 @@ def _supplement_live_days(days: dict, today_str: str, cap_uni: set | None) -> in
             sym = (row.get("symbol") or "").strip().upper()
             ds  = str(row.get("date") or "")[:10]
             if (not sym or ds not in target_set
-                    or sym in seen[ds] or not _keep(sym)):
+                    or sym in placed or not _keep(sym)):
                 continue
             rev_est_raw = row.get("revenueEstimated")
             rev_act_raw = row.get("revenueActual")
@@ -1239,6 +1250,7 @@ def _supplement_live_days(days: dict, today_str: str, cap_uni: set | None) -> in
             }
             days[ds].setdefault("tbd", []).append(entry)
             seen[ds].add(sym)
+            placed.add(sym)
             sym_index[ds][sym] = entry
             added += 1
 
@@ -1254,7 +1266,11 @@ def _supplement_live_days(days: dict, today_str: str, cap_uni: set | None) -> in
             fv_filt = None
         if fv_filt:
             fv_added, fv_moved = _merge_finviz_sessions(
-                days, target_set, fv_filt, _keep, sym_index,
+                days, target_set, fv_filt,
+                # Same one-placement-per-week rule; this leg only ever ADDS
+                # on a forward day, so a symbol already on the board stays
+                # where the earlier, better-sourced leg put it.
+                lambda s: _keep(s) and s not in placed, sym_index,
                 rebucket_ds={today_str} if today_str in target_set else set())
             added += fv_added
             if fv_added or fv_moved:

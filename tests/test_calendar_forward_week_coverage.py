@@ -124,6 +124,74 @@ def test_a_forward_day_reporter_only_fmp_knows_lands_in_tbd_with_its_numbers(mon
     assert tue["tbd"][1]["eps_est"] == -0.05
 
 
+def test_a_symbol_the_schedule_already_placed_is_never_added_on_another_day(monkeypatch):
+    """⛔ ONE PLACEMENT PER SYMBOL PER WEEK. Providers disagree about dates for
+    the week ahead — measured live on 2026-08-17 with the merge shipped and a
+    per-DAY check: EW had XP on Monday while FMP projected Tuesday, and Finnhub
+    put ROST on Wednesday against EW's confirmed Thursday. Five companies
+    rendered twice in one week. The schedule's confirmed date wins."""
+    _no_finviz(monkeypatch)
+    days = _week(**{THU.isoformat(): {"amc": ["DE"]}})
+    fh = {"earningsCalendar": [_fh_row("DE", WED.isoformat(), "bmo")]}
+    with mock.patch.object(cal, "_fh_get_month", return_value=fh), \
+         mock.patch.object(cal, "_fmp_range_week",
+                           return_value=[_fmp_row("DE", TUE.isoformat())]):
+        added = cal._supplement_live_days(days, SUNDAY_S, CAP)
+
+    assert added == 0
+    assert [e["sym"] for e in days[THU.isoformat()]["amc"]] == ["DE"]
+    assert days[WED.isoformat()]["bmo"] == [] and days[TUE.isoformat()]["tbd"] == []
+
+
+def test_finnhub_beats_fmp_when_the_two_disagree_about_the_day(monkeypatch):
+    """Neither leg's date is confirmed, so precedence decides — and Finnhub
+    goes first because it also carries the session."""
+    _no_finviz(monkeypatch)
+    days = _week()
+    fh = {"earningsCalendar": [_fh_row("NTES", WED.isoformat(), "bmo")]}
+    with mock.patch.object(cal, "_fh_get_month", return_value=fh), \
+         mock.patch.object(cal, "_fmp_range_week",
+                           return_value=[_fmp_row("NTES", THU.isoformat())]):
+        added = cal._supplement_live_days(days, SUNDAY_S, CAP)
+
+    assert added == 1
+    assert [e["sym"] for e in days[WED.isoformat()]["bmo"]] == ["NTES"]
+    assert days[THU.isoformat()]["tbd"] == []
+
+
+def test_a_name_that_already_reported_earlier_this_week_is_not_re_added_ahead(monkeypatch):
+    """Mid-week: a company on Monday's finished board must not reappear on
+    Thursday because a provider still carries a projected date for it."""
+    _no_finviz(monkeypatch)
+    days = _week(**{MON.isoformat(): {"bmo": ["WMT"]}})
+    fh = {"earningsCalendar": [_fh_row("WMT", THU.isoformat(), "bmo")]}
+    with mock.patch.object(cal, "_fh_get_month", return_value=fh), \
+         mock.patch.object(cal, "_fmp_range_week", return_value=None):
+        added = cal._supplement_live_days(days, WED.isoformat(), CAP)
+
+    assert added == 0
+    assert days[THU.isoformat()]["bmo"] == []
+    assert [e["sym"] for e in days[MON.isoformat()]["bmo"]] == ["WMT"]
+
+
+def test_the_finviz_leg_obeys_the_one_placement_rule_too(monkeypatch):
+    """It gets the same gate, wrapped into the `keep` callable it already takes."""
+    captured = {}
+
+    def _fake_merge(days_, target_ds, filt, keep, sym_index, rebucket_ds=None):
+        captured["keep_placed"] = keep("WMT")     # already on Thursday
+        captured["keep_fresh"] = keep("NTES")     # nowhere yet
+        return 0, 0
+
+    monkeypatch.setattr(cal, "_merge_finviz_sessions", _fake_merge)
+    days = _week(**{THU.isoformat(): {"bmo": ["WMT"]}})
+    with mock.patch.object(cal, "_fh_get_month", return_value=None), \
+         mock.patch.object(cal, "_fmp_range_week", return_value=None):
+        cal._supplement_live_days(days, WED.isoformat(), CAP)
+
+    assert captured == {"keep_placed": False, "keep_fresh": True}
+
+
 def test_a_projected_forward_date_is_flagged_as_an_estimate(monkeypatch):
     """The same rule `_build_range_week` applies, so a projected date carries
     the same "est." chip — and is excluded by the "confirmed only" filter —
