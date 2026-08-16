@@ -70,7 +70,8 @@ def test_ticker_meta_reaches_yfinance_through_the_guard(spy):
     from api.services import ticker_meta
     out = ticker_meta._from_yfinance("AAPL")
     assert spy.fired
-    assert out == {"name": None, "sector": None, "industry": None}
+    # `exchange` joined the shape in 3ca0f574a (the compare-symbols legend).
+    assert out == {"name": None, "sector": None, "industry": None, "exchange": None}
 
 
 def test_short_interest_reaches_yfinance_through_the_guard(spy):
