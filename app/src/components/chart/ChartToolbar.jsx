@@ -1,7 +1,9 @@
 // app/src/components/chart/ChartToolbar.jsx — TradingView-style horizontal drawing toolbar + settings panel
 import { useState, useRef, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react'
+import { createPortal } from 'react-dom'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from './chartDefaults'
 import ColorPicker, { PORTAL_POPUP_ATTR } from './ColorPicker'
+import ColorPanel from './ColorPanel'
 import ComparisonPicker from './ComparisonPicker'
 import UIcon from '../ui/UIcon'
 import IndicatorAlertPopover from './IndicatorAlertPopover'
@@ -88,11 +90,6 @@ const TOOLS = [
   { id: 'advance',    label: 'Advance % Label — click the setup candle, then the candle where the move tops' },
   'sep',
   { id: 'position',   label: 'Position Tool (P)' },
-]
-
-const COLORS = [
-  '#c9a84c', '#4ade80', '#ef4444', '#60a5fa',
-  '#f472b6', '#fb923c', '#a78bfa', '#e2e8f0', '#000000',
 ]
 
 const WIDTHS = [1, 2, 3]
@@ -740,8 +737,15 @@ function ChartToolbar({
   // skips the compute check on an empty list rather than refusing, so a mount
   // site with no bars still gets a parseable proposal.
   bars = null,
+  // Shared saved-color swatches (same list as Chart Settings + the right-click
+  // drawing menu) so the toolbar's color popup is the full ColorPanel, not the
+  // old 3×3 grid. Default `[]`/null → the panel simply omits the Saved row.
+  savedColors = [],
+  onSaveColor = null,
+  onDeleteColor = null,
 }, ref) {
   const [showColors, setShowColors] = useState(false)
+  const [colorPanelPos, setColorPanelPos] = useState({ left: 0, top: 0 })
   const [showWidths, setShowWidths] = useState(false)
   const [showFonts, setShowFonts] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
@@ -890,6 +894,27 @@ function ChartToolbar({
       setActiveTool(activeTool === 'cursor' ? null : 'cursor')
     } else {
       setActiveTool(activeTool === id ? null : id)
+    }
+  }
+
+  // Open/close the drawing-color ColorPanel. It portals to <body> (so it is never
+  // clipped by the toolbar/widget overflow), positioned just under the swatch
+  // button and flipped inward if it would overflow the right/bottom viewport edge.
+  const toggleColorPanel = () => {
+    if (!showColors) {
+      const r = colorRef.current?.getBoundingClientRect()
+      if (r) {
+        const PANEL_W = 258, PANEL_H = 420, M = 8
+        let left = r.left
+        if (left + PANEL_W > window.innerWidth - M) left = window.innerWidth - PANEL_W - M
+        let top = r.bottom + 4
+        if (top + PANEL_H > window.innerHeight - M) top = Math.max(M, r.top - PANEL_H - 4)
+        setColorPanelPos({ left: Math.max(M, left), top })
+      }
+      closeOthers('colors')
+      setShowColors(true)
+    } else {
+      setShowColors(false)
     }
   }
 
@@ -1192,22 +1217,28 @@ function ChartToolbar({
         <div ref={colorRef} className={styles.pickerWrap}>
           <button
             className={styles.btn}
-            onClick={() => { setShowColors(!showColors); closeOthers('colors') }}
+            onClick={toggleColorPanel}
             title="Color"
           >
             <div className={styles.colorSwatch} style={{ background: color }} />
           </button>
-          {showColors && (
-            <div className={styles.popup}>
-              {COLORS.map(c => (
-                <button
-                  key={c}
-                  className={`${styles.colorOption} ${c === color ? styles.colorActive : ''}`}
-                  style={{ background: c }}
-                  onClick={() => { setColor(c); setShowColors(false) }}
-                />
-              ))}
-            </div>
+          {showColors && createPortal(
+            <div
+              {...{ [PORTAL_POPUP_ATTR]: 'toolbar-color' }}
+              onPointerDown={(e) => e.stopPropagation()}
+              style={{ position: 'fixed', left: colorPanelPos.left, top: colorPanelPos.top, zIndex: 40 }}
+            >
+              <ColorPanel
+                title="Drawing"
+                value={color}
+                onChange={(hex) => setColor(hex)}
+                onClose={() => setShowColors(false)}
+                savedColors={savedColors}
+                onSaveColor={onSaveColor}
+                onDeleteColor={onDeleteColor}
+              />
+            </div>,
+            document.body,
           )}
         </div>
 

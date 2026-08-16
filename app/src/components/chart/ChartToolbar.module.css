@@ -36,6 +36,13 @@
   display: flex;
   flex-direction: row;
   gap: 1px;
+  /* Take the space the fixed actions group leaves, and be allowed to shrink BELOW
+     the tools' natural width (min-width:0) so the row scrolls instead of pushing
+     the actions off — the actions therefore never overlap the drawing tools as the
+     widget narrows. On a wide chart flex-grow fills the gap so actions stay right-
+     aligned. */
+  flex: 1 1 auto;
+  min-width: 0;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -46,8 +53,9 @@
   display: flex;
   flex-direction: row;
   gap: 1px;
-  flex-shrink: 0;
-  margin-left: auto;
+  /* Fixed width, laid out AFTER the shrinking .tools — the tools yield space first,
+     so these buttons stay fully visible and never sit on top of the drawing tools. */
+  flex: 0 0 auto;
 }
 
 /* ── Button ── */

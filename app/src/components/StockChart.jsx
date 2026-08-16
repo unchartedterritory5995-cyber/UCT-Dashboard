@@ -13182,6 +13182,9 @@ export default function StockChart({
             setColor={setDrawColor}
             lineWidth={drawWidth}
             setLineWidth={setDrawWidth}
+            savedColors={savedColors}
+            onSaveColor={onSaveColor}
+            onDeleteColor={onDeleteColor}
             hasSelection={!!selectedId}
             onDelete={() => { removeDrawing(selectedId); setSelectedId(null) }}
             onClearAll={clearAll}
@@ -13326,6 +13329,9 @@ export default function StockChart({
               setColor={setDrawColor}
               lineWidth={drawWidth}
               setLineWidth={setDrawWidth}
+              savedColors={savedColors}
+              onSaveColor={onSaveColor}
+              onDeleteColor={onDeleteColor}
               hasSelection={!!selectedId}
               onDelete={() => { annRemove(selectedId); setSelectedId(null) }}
               onClearAll={annClear}
@@ -13419,6 +13425,9 @@ export default function StockChart({
               setColor={setDrawColor}
               lineWidth={drawWidth}
               setLineWidth={setDrawWidth}
+              savedColors={savedColors}
+              onSaveColor={onSaveColor}
+              onDeleteColor={onDeleteColor}
               hasSelection={!!indexSelectedId}
               onDelete={() => { idxAnnRemove(indexSelectedId); setIndexSelectedId(null) }}
               onClearAll={idxAnnClear}

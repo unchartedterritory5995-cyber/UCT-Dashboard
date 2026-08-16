@@ -43,6 +43,37 @@ const _ANNOTATION_REMAP = {
 function brightenAnnotationColor(color) {
   return (color && _ANNOTATION_REMAP[color.toLowerCase()]) || color
 }
+// Perceived luminance (0..1) of a CSS hex or rgb()/rgba() color; null if unparseable.
+function _colorLuminance(c) {
+  if (!c || typeof c !== 'string') return null
+  const s = c.trim()
+  let r, g, b
+  if (s[0] === '#') {
+    let hex = s.slice(1)
+    if (hex.length === 3) hex = hex.split('').map(ch => ch + ch).join('')
+    if (hex.length < 6) return null
+    r = parseInt(hex.slice(0, 2), 16); g = parseInt(hex.slice(2, 4), 16); b = parseInt(hex.slice(4, 6), 16)
+  } else {
+    const m = s.match(/rgba?\(([^)]+)\)/i)
+    if (!m) return null
+    const parts = m[1].split(',').map(x => parseFloat(x))
+    ;[r, g, b] = parts
+  }
+  if (![r, g, b].every(Number.isFinite)) return null
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255
+}
+// Auto-ink for BARE text labels (the advance % label): black on a light canvas,
+// white on a dark one, so the label always contrasts the background without the
+// old shadow/outline. Reads the chart's ACTUAL applied background so a custom,
+// gradient, or light (sunrise) theme all resolve correctly. White when unreadable.
+function autoLabelInk(chart) {
+  try {
+    const bg = chart?.options?.().layout?.background
+    const lum = _colorLuminance(bg?.color ?? bg?.topColor)
+    if (lum == null) return '#ffffff'
+    return lum > 0.5 ? '#000000' : '#ffffff'
+  } catch { return '#ffffff' }
+}
 // Line tools whose right-click menu offers "Set level" (type an exact price) and,
 // for the sloped ones, "Make horizontal" (flatten to the left endpoint's price).
 const LEVEL_LINE_TYPES = new Set(['trendline', 'ray', 'extended', 'horizontal', 'hray'])
@@ -284,7 +315,7 @@ function computeAdvancePct(A, B) {
 
 // User-placed "+X%" advance label (manual version of the auto setup-advance label).
 // % = directional move between the 1st and 2nd clicked candles (see computeAdvancePct).
-function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16, canvasW = null) {
+function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16, canvasW = null, autoInk = '#ffffff') {
   if (!pts.length || drawing.advPct == null) return
   const p = pts[pts.length - 1]   // the "to" candle
   if (p.x == null) return
@@ -304,10 +335,11 @@ function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16, canvasW = null)
   const baseY = anchorY != null ? anchorY : p.y
   const y = isDecline ? baseY + offset : baseY - offset
   ctx.save()
-  ctx.font = '600 12px "Instrument Sans", system-ui, sans-serif'
+  // Match the swing price labels exactly (swingLabelsPrimitive): 600 11px
+  // Instrument Sans, no outline/shadow — just a clean fill.
+  ctx.font = '600 11px "Instrument Sans", sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = isDecline ? 'top' : 'bottom'
-  ctx.lineJoin = 'round'
   // Thousands separator for big moves: +1,156% (toLocaleString carries the sign).
   const n = Math.round(drawing.advPct)
   const text = `${n >= 0 ? '+' : ''}${n.toLocaleString('en-US')}%`
@@ -320,10 +352,9 @@ function renderAdvance(ctx, pts, drawing, toPixelY, offset = 16, canvasW = null)
     px = Math.max(half, Math.min(px, canvasW - half))
   }
   const py = Math.round(y)
-  ctx.lineWidth = 3
-  ctx.strokeStyle = 'rgba(0,0,0,0.85)'
-  ctx.strokeText(text, px, py)
-  ctx.fillStyle = '#ffffff'
+  // Color: a user-chosen color (right-click → Color) wins; otherwise auto-ink
+  // (black on a light canvas, white on a dark one). No stroke/shadow.
+  ctx.fillStyle = drawing.labelColor || autoInk
   ctx.fillText(text, px, py)
   ctx.restore()
 }
@@ -1414,6 +1445,10 @@ export default function ChartDrawingOverlay({
     ctx.rect(0, 0, plotRight, h)
     ctx.clip()
 
+    // Auto-ink for bare text labels (advance %) — white on dark canvas, black on
+    // light — computed once from the chart's actual background for this frame.
+    const autoInk = autoLabelInk(chartRef.current)
+
     // Focus-zoom fade (Model Book). `fadeVal` eases 0→1 over the last sliver of the
     // zoom-in (and out on zoom-out). When `fadeWholeLayer` (show-all OFF) the WHOLE
     // layer fades via globalAlpha; otherwise (show-all ON) only the text fades and
@@ -1610,7 +1645,7 @@ export default function ChartDrawingOverlay({
               if (pct != null) ad = { ...d, advPct: pct, advHigh: bars[bi].h, advLow: bars[bi].l }
             }
           }
-          renderAdvance(ctx, pts, ad, toPixelY, lineData ? 9 : 16, plotRight)
+          renderAdvance(ctx, pts, ad, toPixelY, lineData ? 9 : 16, plotRight, autoInk)
           break
         }
       }
@@ -1670,14 +1705,14 @@ export default function ChartDrawingOverlay({
             if (lineData) {
               const a = previewPts[0]?.rawPrice, b = previewPts[previewPts.length - 1]?.rawPrice
               if (a > 0 && b != null) {
-                renderAdvance(ctx, previewPts, { advPct: ((b - a) / a) * 100, advHigh: b }, toPixelY, 9, plotRight)
+                renderAdvance(ctx, previewPts, { advPct: ((b - a) / a) * 100, advHigh: b }, toPixelY, 9, plotRight, autoInk)
               }
             } else {
               const ai = timeToIndex.get(pendingPoints[0].time)
               const bi = timeToIndex.get(mouseCoords.time)
               if (ai != null && bi != null && bars[ai] && bars[bi]) {
                 const pct = computeAdvancePct(bars[ai], bars[bi])
-                if (pct != null) renderAdvance(ctx, previewPts, { advPct: pct, advHigh: bars[bi].h, advLow: bars[bi].l }, toPixelY, 16, plotRight)
+                if (pct != null) renderAdvance(ctx, previewPts, { advPct: pct, advHigh: bars[bi].h, advLow: bars[bi].l }, toPixelY, 16, plotRight, autoInk)
               }
             }
             break
@@ -2535,7 +2570,7 @@ export default function ChartDrawingOverlay({
               updateDrawing(ctxMenu.drawingId, { points: pts.map(p => ({ ...p, price: leftLevel, paneRelY: null })) })
               setCtxMenu(null)
             }}
-            onSetColor={(c) => updateDrawing(ctxMenu.drawingId, { color: c })}
+            onSetColor={(c) => updateDrawing(ctxMenu.drawingId, d.type === 'advance' ? { labelColor: c } : { color: c })}
             onSetWidth={(w) => updateDrawing(ctxMenu.drawingId, { lineWidth: w })}
             onSetStyle={(s) => updateDrawing(ctxMenu.drawingId, { lineStyle: s })}
             onSetFontSize={(n) => updateDrawing(ctxMenu.drawingId, { fontSize: n })}
@@ -2691,7 +2726,7 @@ function DrawingContextMenu({ x, y, sheet = false, drawing, onSetColor, onSetWid
   }, [onClose])
 
   const locked = !!drawing?.locked
-  const curColor = drawing?.color || '#c9a84c'
+  const curColor = (drawing?.type === 'advance' ? drawing?.labelColor : drawing?.color) || '#c9a84c'
   const curWidth = drawing?.lineWidth || 1
   const dashed = drawing?.lineStyle === 'dashed'
   const isText = drawing?.type === 'text'
