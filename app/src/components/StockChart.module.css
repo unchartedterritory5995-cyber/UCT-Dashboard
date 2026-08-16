@@ -206,6 +206,14 @@
   background: var(--chart-panel-bg, rgba(26, 28, 23, 0.88));
   padding: 3px 8px;
   border-radius: 3px;
+  /* Smoothly slide up/down when the drawing toolbar is hidden/shown. */
+  transition: transform 0.16s ease;
+}
+/* Drawing toolbar collapsed → reclaim its band: shift the crosshair legend
+   (horizontal, flat, or vertical — all share .legend) up toward the header. The
+   transform composes with each variant's own `top`, so one rule covers them all. */
+.legendToolbarHidden {
+  transform: translateY(-26px);
 }
 .legendTime {
   color: #a8a290;

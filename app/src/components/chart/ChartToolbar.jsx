@@ -745,12 +745,24 @@ function ChartToolbar({
   savedColors = [],
   onSaveColor = null,
   onDeleteColor = null,
+  // Toolbar collapse can be CONTROLLED by the parent (StockChart lifts it so the
+  // crosshair legend can slide up into the freed space). When `collapsed` is
+  // undefined the toolbar keeps its own internal collapse state.
+  collapsed: collapsedProp = undefined,
+  onToggleCollapsed = null,
 }, ref) {
   const [showColors, setShowColors] = useState(false)
   const [colorPanelPos, setColorPanelPos] = useState({ left: 0, top: 0 })
   // Toolbar collapse toggle — when true, everything but the toggle button hides so
   // the chart underneath is unobstructed; the toggle stays to bring it back.
-  const [collapsed, setCollapsed] = useState(false)
+  // Controlled by the parent when `collapsedProp` is provided, else self-managed.
+  const [collapsedInternal, setCollapsedInternal] = useState(false)
+  const collapsed = collapsedProp !== undefined ? collapsedProp : collapsedInternal
+  const toggleCollapsed = () => {
+    const next = !collapsed
+    onToggleCollapsed?.(next)
+    if (collapsedProp === undefined) setCollapsedInternal(next)
+  }
   const [showWidths, setShowWidths] = useState(false)
   const [showFonts, setShowFonts] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
@@ -1379,7 +1391,7 @@ function ChartToolbar({
           click to slide the toolbar away and click again to bring it back. */}
       <button
         className={`${styles.btn} ${styles.toggleBtn}`}
-        onClick={() => setCollapsed(c => !c)}
+        onClick={toggleCollapsed}
         title={collapsed ? 'Show toolbar' : 'Hide toolbar'}
         aria-pressed={collapsed}
       >

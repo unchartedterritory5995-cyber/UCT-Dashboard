@@ -2260,6 +2260,9 @@ export default function StockChart({
   // Width (px) of the right price axis — reserved so a horizontal legend wraps to
   // the next row BEFORE it slides under the price scale (measured reactively below).
   const [legendAxisReserve, setLegendAxisReserve] = useState(0)
+  // True when the drawing toolbar is collapsed via its show/hide toggle — the
+  // crosshair OHLCV legend then slides up into the freed toolbar band.
+  const [toolbarCollapsed, setToolbarCollapsed] = useState(false)
 
   useWatermarkDrag({
     containerRef,
@@ -12760,7 +12763,7 @@ export default function StockChart({
         return (
         <div
           ref={legendRef}
-          className={`${styles.legend}${legendStacked ? ' ' + styles.legendVertical : ''}${legendFlat ? ' ' + styles.legendFlat : ''}${compactLegend && legendStacked ? ' ' + styles.legendCompact : ''}`}
+          className={`${styles.legend}${legendStacked ? ' ' + styles.legendVertical : ''}${legendFlat ? ' ' + styles.legendFlat : ''}${compactLegend && legendStacked ? ' ' + styles.legendCompact : ''}${toolbarCollapsed ? ' ' + styles.legendToolbarHidden : ''}`}
           /* Drop below the index pane so the OHLCV legend never covers it; reserve
              the right price-axis width so a horizontal legend wraps before it (the
              vertical stack is narrow + single-file, so it never needs the reserve). */
@@ -13185,6 +13188,8 @@ export default function StockChart({
             savedColors={savedColors}
             onSaveColor={onSaveColor}
             onDeleteColor={onDeleteColor}
+            collapsed={toolbarCollapsed}
+            onToggleCollapsed={setToolbarCollapsed}
             hasSelection={!!selectedId}
             onDelete={() => { removeDrawing(selectedId); setSelectedId(null) }}
             onClearAll={clearAll}
