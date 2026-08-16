@@ -946,25 +946,22 @@ function ChartToolbar({
     <>
     <div className={`${styles.toolbar} ${collapsed ? styles.collapsed : ''}`} style={prominent ? { opacity: 1 } : undefined}>
       {/* ── Tool buttons ── */}
+      {/* Separators removed — every button is evenly spaced by the flex `gap`. */}
       <div className={styles.tools}>
-        {(toolFilter ? TOOLS.filter(t => t !== 'sep' && toolFilter.includes(t.id)) : TOOLS).map((t, i) =>
-          t === 'sep' ? <div key={`sep-${i}`} className={styles.sep} /> : (
-            <button
-              key={t.id}
-              className={`${styles.btn} ${activeTool === t.id ? styles.active : ''}`}
-              onClick={() => selectTool(t.id)}
-              title={t.label}
-            >
-              {ICONS[t.id]}
-            </button>
-          )
-        )}
+        {(toolFilter ? TOOLS.filter(t => t !== 'sep' && toolFilter.includes(t.id)) : TOOLS.filter(t => t !== 'sep')).map((t) => (
+          <button
+            key={t.id}
+            className={`${styles.btn} ${activeTool === t.id ? styles.active : ''}`}
+            onClick={() => selectTool(t.id)}
+            title={t.label}
+          >
+            {ICONS[t.id]}
+          </button>
+        ))}
       </div>
 
       {/* ── Bottom actions ── */}
       <div className={styles.actions}>
-        <div className={styles.sep} />
-
         {/* Magnet: snap drawings to nearest O/H/L/C */}
         {setMagnet && (
           <button
@@ -1228,8 +1225,6 @@ function ChartToolbar({
           />
         )}
 
-        <div className={styles.sep} />
-
         {/* Color picker */}
         <div ref={colorRef} className={styles.pickerWrap}>
           <button
@@ -1288,8 +1283,6 @@ function ChartToolbar({
             </div>
           )}
         </div>
-
-        <div className={styles.sep} />
 
         {/* Line style: applies to NEW lines you draw and (if one is selected) the selected line */}
         {setLineStyle && (

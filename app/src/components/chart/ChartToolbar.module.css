@@ -2,7 +2,9 @@
 
 .toolbar {
   position: absolute;
-  left: 4px;
+  /* Nudged right so the first tool button's icon lines up with the left edge of the
+     crosshair-legend data below it (the legend box sits ~8px in + its own padding). */
+  left: 8px;
   top: 4px;
   /* Clear the price scale on the right. LWC sizes it to the widest label in view
      (4-digit prices + padding run ~72px+), so 64px let the right-side action icons
@@ -18,7 +20,8 @@
      padding-top preserves the old centered resting height (22px buttons in 26px). */
   align-items: flex-start;
   padding-top: 2px;
-  gap: 1px;
+  /* Even spacing between every button now that the vertical separators are gone. */
+  gap: 2px;
   pointer-events: auto;
   /* ⭐⭐ RESTING OPACITY, RAISED FROM 0.3 — AND THE COLOURS WERE NEVER THE PROBLEM.
      `toolbarFor()` already derives ink from the canvas and returns `#5a5548` on the
@@ -43,7 +46,7 @@
   /* Keep the buttons at the TOP of the tools box so a horizontal scrollbar renders
      below them (never overlapping / lifting the buttons). */
   align-items: flex-start;
-  gap: 1px;
+  gap: 2px;
   /* Take the space the fixed actions group leaves, and be allowed to shrink BELOW
      the tools' natural width (min-width:0) so the row scrolls instead of pushing
      the actions off — the actions therefore never overlap the drawing tools as the
@@ -60,7 +63,7 @@
 .actions {
   display: flex;
   flex-direction: row;
-  gap: 1px;
+  gap: 2px;
   /* Fixed width, laid out AFTER the shrinking .tools — the tools yield space first,
      so these buttons stay fully visible and never sit on top of the drawing tools. */
   flex: 0 0 auto;
