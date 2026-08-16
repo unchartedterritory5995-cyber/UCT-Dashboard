@@ -13,6 +13,7 @@ import sqlite3
 import os
 import csv
 import io
+from datetime import datetime, timedelta
 
 # Railway persistent volume path (matches flow_db)
 DB_DIR = os.environ.get("RAILWAY_VOLUME_MOUNT_PATH", "/data")
@@ -680,7 +681,8 @@ def _dp_dnum(date_raw) -> int:
     return y * 10000 + m * 100 + d
 
 
-def _cluster_prints_to_zones(prints: list, zone_pct: float = 0.02) -> list:
+def _cluster_prints_to_zones(prints: list, zone_pct: float = 0.02,
+                             recent_days: int = 30) -> list:
     """Cluster prints into price-band zones, summing CUMULATIVE notional + volume.
 
     ANCHORED clustering (mirrors api.services.signature.darkpool_levels): a print
@@ -699,6 +701,12 @@ def _cluster_prints_to_zones(prints: list, zone_pct: float = 0.02) -> list:
             if (p.get("price") or 0) > 0 and (p.get("notional") or 0) > 0]
     if not rows:
         return []
+    # "Recent" window for each zone's fresh-notional accent (the chart recency
+    # cap) + the biggest/latest-print tooltip rows: a member counts as recent if
+    # its date is on/after (today − recent_days). YYYYMMDD ints are monotonic with
+    # the calendar, so comparing _dp_dnum to a cutoff dnum IS a valid date compare.
+    _cut = datetime.now() - timedelta(days=recent_days)
+    cutoff_dnum = _cut.year * 10000 + _cut.month * 100 + _cut.day
     prices = sorted(p["price"] for p in rows)
     bin_w = prices[len(prices) // 2] * zone_pct   # median-based band width
     if bin_w <= 0:
@@ -723,6 +731,12 @@ def _cluster_prints_to_zones(prints: list, zone_pct: float = 0.02) -> list:
         dated = [m for m in members if _dp_dnum(m.get("dateRaw")) > 0]
         newest = max(dated, key=lambda m: _dp_dnum(m.get("dateRaw"))) if dated else members[-1]
         oldest = min(dated, key=lambda m: _dp_dnum(m.get("dateRaw"))) if dated else members[0]
+        # Single biggest print in the band + notional traded in the recent window
+        # (drives the tooltip's ★ Biggest / Latest / Recent rows and the bar's
+        # recency cap = recentNotional / total).
+        biggest = max(members, key=lambda m: m.get("notional") or 0)
+        recent_notional = sum((m.get("notional") or 0) for m in members
+                              if _dp_dnum(m.get("dateRaw")) >= cutoff_dnum)
         out.append({
             "price": round(price, 4),
             "priceLow": round(z["priceLow"], 4),
@@ -732,7 +746,22 @@ def _cluster_prints_to_zones(prints: list, zone_pct: float = 0.02) -> list:
             "printCount": len(members),
             "_clusterCount": len(members),
             "_isCluster": len(members) > 1,
-            "biggestPrint": max((m.get("notional") or 0) for m in members),
+            "biggestPrint": biggest.get("notional") or 0,
+            # The single biggest + most-recent prints inside the band, and how much
+            # of the zone's notional is fresh (last `recent_days`). A 6-month zone
+            # can then show whether it's still being worked or is stale accumulation.
+            "topPrint": {
+                "notional": biggest.get("notional") or 0,
+                "date": biggest.get("dateLong"),
+                "price": biggest.get("price"),
+            },
+            "latestPrint": {
+                "notional": newest.get("notional") or 0,
+                "date": newest.get("dateLong"),
+                "price": newest.get("price"),
+            },
+            "recentNotional": recent_notional,
+            "recentDays": recent_days,
             # newest drives isLatest + the single-print date; the SPAN below drives
             # the tooltip so an accumulation zone never reads as one recent print.
             "date": newest.get("date"),

@@ -1878,6 +1878,12 @@ export default function StockChart({
         labelOpacity: dpColorOverride ? dpColorOverride.label.a : Math.min(1, opacity + 0.45),
         isGoldTier,
         showLabel,
+        // Share of this zone's notional that traded in the recent window (server
+        // `recentNotional`, last `recentDays`). Drives the bright-gold recency cap
+        // on the right end of the bar → live accumulation pops, stale shelves stay
+        // dim. 0 (no cap) when the field is absent (e.g. the chart-setting path).
+        recentFrac: (b.notional > 0 && Number.isFinite(b.recentNotional))
+          ? Math.min(1, (b.recentNotional || 0) / b.notional) : 0,
       }
     })
   }, [effectiveDarkPoolBars, darkPoolMaxBarWidth, dpColorOverride])
@@ -12457,6 +12463,23 @@ export default function StockChart({
                 opacity: b.opacity,
                 borderRadius: 1,
               }}/>
+              {/* Recency cap: bright-gold segment on the RIGHT end sized to the
+                  share of this zone's notional that's fresh (last recentDays). A
+                  live zone gets a bright tip; a stale shelf stays dim. Hidden when
+                  recentFrac is 0 (no recent size / field absent). */}
+              {b.recentFrac > 0 && (
+                <div style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: -b.height / 2,
+                  width: Math.max(2, b.width * b.recentFrac),
+                  height: b.height,
+                  background: 'linear-gradient(90deg,#c9a84c,#e6cd8a)',
+                  opacity: Math.min(1, b.opacity + 0.5),
+                  borderRadius: 1,
+                  boxShadow: '0 0 6px rgba(230,205,138,0.45)',
+                }}/>
+              )}
               {b.showLabel && (
                 <span
                   data-dp-label=""
@@ -12563,6 +12586,49 @@ export default function StockChart({
               <span style={{ color: '#6ba3be', fontWeight: 600 }}>
                 {formatDpNotional(dpHover.bar.notional)}
               </span>
+              {/* For an accumulation ZONE, surface the single biggest + most-recent
+                  prints and how much notional is fresh (server `recentNotional`,
+                  last `recentDays`) — so a 6-month zone reads as live vs stale. */}
+              {dpHover.bar._isCluster && (dpHover.bar.topPrint || dpHover.bar.latestPrint) && (
+                <span style={{ gridColumn: '1 / -1', height: 1, background: '#2a2e36', margin: '3px 0' }} />
+              )}
+              {dpHover.bar._isCluster && dpHover.bar.topPrint && (
+                <>
+                  <span style={{ color: '#c9a84c' }}>★ Biggest</span>
+                  <span style={{ color: '#e0dac8', fontWeight: 600 }}>
+                    {formatDpNotional(dpHover.bar.topPrint.notional)}
+                    {dpHover.bar.topPrint.date && (
+                      <span style={{ color: '#8b8e85', fontWeight: 400 }}>
+                        {' · '}{dpHover.bar.topPrint.date}
+                        {dpHover.bar.topPrint.price ? ` @ $${Number(dpHover.bar.topPrint.price).toFixed(2)}` : ''}
+                      </span>
+                    )}
+                  </span>
+                </>
+              )}
+              {dpHover.bar._isCluster && dpHover.bar.latestPrint && (
+                <>
+                  <span style={{ color: '#706b5e' }}>Latest</span>
+                  <span style={{ color: '#e0dac8', fontWeight: 600 }}>
+                    {formatDpNotional(dpHover.bar.latestPrint.notional)}
+                    {dpHover.bar.latestPrint.date && (
+                      <span style={{ color: '#8b8e85', fontWeight: 400 }}>{' · '}{dpHover.bar.latestPrint.date}</span>
+                    )}
+                  </span>
+                </>
+              )}
+              {dpHover.bar._isCluster && Number.isFinite(dpHover.bar.recentNotional) && dpHover.bar.recentNotional > 0 && (
+                <>
+                  <span style={{ color: '#706b5e' }}>Recent</span>
+                  <span style={{ color: '#e6cd8a', fontWeight: 700 }}>
+                    {formatDpNotional(dpHover.bar.recentNotional)}
+                    <span style={{ color: '#8b8e85', fontWeight: 400 }}>
+                      {' · last '}{dpHover.bar.recentDays || 30}d
+                      {dpHover.bar.notional > 0 ? ` (${Math.round(dpHover.bar.recentNotional / dpHover.bar.notional * 100)}%)` : ''}
+                    </span>
+                  </span>
+                </>
+              )}
               {dpHover.bar.pctAvgVol > 0 && (
                 <>
                   <span style={{ color: '#706b5e' }}>Vs avg vol</span>
