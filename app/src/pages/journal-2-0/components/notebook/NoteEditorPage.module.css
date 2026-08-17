@@ -119,26 +119,52 @@
   min-height: 400px;
   outline: none;
 }
-.proseEditor h1 { font-size: 30px; margin: 28px 0 14px; line-height: 1.2; }
-.proseEditor h2 { font-size: 24px; margin: 24px 0 12px; line-height: 1.25; }
-.proseEditor h3 { font-size: 20px; margin: 20px 0 10px; }
-.proseEditor p { margin: 12px 0; }
-.proseEditor a { color: #c9a84c; text-decoration: underline; }
-.proseEditor blockquote {
+/* ── PROSE TYPOGRAPHY STOPS AT A WIDGET EMBED ────────────────────────────────
+   Every rule below targets a BARE ELEMENT, so it reaches by descent into the
+   node views too — and a widget embed is not prose: it mounts a whole app
+   component (a chart, a scanner, a calendar) inside the editor. `.proseEditor
+   table` landed on Lightweight-Charts' internal LAYOUT <table> and pushed the
+   chart 14px down inside its own `overflow:hidden` box while `td {border:1px}`
+   grew it 4px past the bottom — 18px of the 29px time axis clipped, so the
+   date/time strip under every notebook chart was half-cut. `img {margin:14px 0}`
+   shifted the chart's absolutely-positioned brand mark by the same 14px, and
+   `a {color;underline}` re-skinned the "Charts ↗" toolbar button.
+
+   The guard is SUBTRACTIVE ONLY, and that is the whole point: it removes the
+   embed subtree from the match set and changes nothing else. `:where()` carries
+   zero specificity, so `:not(:where(…))` leaves each selector at exactly the
+   weight it had — no rule that used to win or lose flips. The widget's own CSS
+   module is then the SINGLE authority over its own internals; ⛔ never "fix"
+   this by restating neutral values inside the embed's stylesheet, which puts a
+   second authority on every one of these properties.
+
+   The hook is `data-widget-embed-view`, stamped on the NodeViewWrapper by
+   WidgetEmbedView — an attribute, so CSS Modules never rewrites it (a
+   `:global(.node-widgetEmbed)` here would be a hashing trap).
+
+   ⚠️ A NEW bare-element rule under `.proseEditor` needs this suffix too;
+   `proseEmbedIsolation.test.js` derives the element list from THIS file and
+   fails by name if one is missing. ── */
+.proseEditor h1:not(:where([data-widget-embed-view] *)) { font-size: 30px; margin: 28px 0 14px; line-height: 1.2; }
+.proseEditor h2:not(:where([data-widget-embed-view] *)) { font-size: 24px; margin: 24px 0 12px; line-height: 1.25; }
+.proseEditor h3:not(:where([data-widget-embed-view] *)) { font-size: 20px; margin: 20px 0 10px; }
+.proseEditor p:not(:where([data-widget-embed-view] *)) { margin: 12px 0; }
+.proseEditor a:not(:where([data-widget-embed-view] *)) { color: #c9a84c; text-decoration: underline; }
+.proseEditor blockquote:not(:where([data-widget-embed-view] *)) {
   border-left: 3px solid #c9a84c;
   padding: 4px 14px;
   margin: 14px 0;
   color: var(--color-text-muted, #98a0aa);
   font-style: italic;
 }
-.proseEditor code {
+.proseEditor code:not(:where([data-widget-embed-view] *)) {
   font-family: var(--font-mono);
   background: rgba(255, 255, 255, 0.05);
   padding: 1px 5px;
   border-radius: 3px;
   font-size: 14px;
 }
-.proseEditor pre {
+.proseEditor pre:not(:where([data-widget-embed-view] *)) {
   background: rgba(255, 255, 255, 0.04);
   padding: 12px;
   border-radius: 6px;
@@ -147,25 +173,27 @@
   font-size: 13px;
   line-height: 1.5;
 }
-.proseEditor img {
+.proseEditor img:not(:where([data-widget-embed-view] *)) {
   max-width: 100%;
   border-radius: 6px;
   margin: 14px 0;
 }
-.proseEditor ul, .proseEditor ol { padding-left: 24px; margin: 12px 0; }
-.proseEditor li { margin: 4px 0; }
-.proseEditor table {
+.proseEditor ul:not(:where([data-widget-embed-view] *)),
+.proseEditor ol:not(:where([data-widget-embed-view] *)) { padding-left: 24px; margin: 12px 0; }
+.proseEditor li:not(:where([data-widget-embed-view] *)) { margin: 4px 0; }
+.proseEditor table:not(:where([data-widget-embed-view] *)) {
   border-collapse: collapse;
   margin: 14px 0;
   width: 100%;
 }
-.proseEditor th, .proseEditor td {
+.proseEditor th:not(:where([data-widget-embed-view] *)),
+.proseEditor td:not(:where([data-widget-embed-view] *)) {
   border: 1px solid var(--color-border, #232932);
   padding: 6px 10px;
   text-align: left;
 }
-.proseEditor th { background: var(--color-surface, #14171c); font-weight: 600; }
-.proseEditor hr {
+.proseEditor th:not(:where([data-widget-embed-view] *)) { background: var(--color-surface, #14171c); font-weight: 600; }
+.proseEditor hr:not(:where([data-widget-embed-view] *)) {
   border: none;
   border-top: 1px solid var(--color-border, #232932);
   margin: 28px 0;

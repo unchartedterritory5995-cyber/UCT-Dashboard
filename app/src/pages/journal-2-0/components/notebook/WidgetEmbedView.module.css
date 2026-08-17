@@ -94,6 +94,15 @@
   border: 1px solid var(--border, #2a2a2a);
   pointer-events: none;
 }
+/* ...except on a CHART, whose own brand mark already owns that corner
+   (`StockChart.brandLogo`: bottom 6px, left 10px, height 22px) — 6+22+6 is the
+   first row above it. The corner only looked free because the notebook's prose
+   `img { margin: 14px 0 }` was shifting the mark up; that leak is the one
+   NoteEditorPage.module.css now holds off the embed, so the mark drops back
+   into place and the chip lands on top of it. Chart embeds only: no other
+   widget puts anything in that corner, and raising the chip there would just
+   float it mid-frame. */
+.frame[data-widget-embed-view='chart'] .asOfChip { bottom: 34px; }
 
 .placeholder {
   display: flex;
