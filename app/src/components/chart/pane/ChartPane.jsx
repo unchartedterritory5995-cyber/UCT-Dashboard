@@ -28,6 +28,7 @@ import {
 import usePreferences from '../../../hooks/usePreferences'
 import useThemeIndexBars from '../../../hooks/useThemeIndexBars'
 import useBreadthSymbols from '../../../hooks/useBreadthSymbols'
+import useEtfSymbols from '../../../hooks/useEtfSymbols'
 import useTickerMeta from '../../../hooks/useTickerMeta'
 import useDelisted from '../../../hooks/useDelisted'
 // Phase-A carried debt (see the design doc): the pane still reads the charts
@@ -146,6 +147,10 @@ function ChartPane({
   const breadth = useBreadthSymbols()
   const breadthRec = breadth.get(sym)
   const isBreadth = !!breadthRec
+  const { isEtf } = useEtfSymbols()
+  // Funds/indexes/breadth have no meaningful "market cap" — the info row shows a
+  // dash for them (like Next Earnings), only real stocks get a value.
+  const isFundLike = isEtf(sym) || themeIdx.isIndex || isBreadth || String(sym || '').startsWith('^')
   const breadthTf = DWM.includes(tf) ? tf : 'D'
   const synthDailyOnly = themeIdx.isIndex || isBreadth   // no live feed, D/W/M only
   // A theme index has no live-price feed (it's a synthetic pseudo-ticker), so
@@ -404,7 +409,7 @@ function ChartPane({
   const { themeData: hdrTheme } = useWatchlistThemes(wantsTheme ? [sym] : [])
   const { perfData } = useWatchlistPerformance(wantsPerf ? [sym] : [])
   const metaItems = useMemo(() => {
-    const ctx = { fund, quote: hdrPrices?.[sym], meta: hdrMeta?.[sym], perf: perfData?.[sym], theme: hdrTheme?.[sym], name: companyName }
+    const ctx = { fund, quote: hdrPrices?.[sym], meta: hdrMeta?.[sym], perf: perfData?.[sym], theme: hdrTheme?.[sym], name: companyName, isFundLike }
     return infoFieldKeys.map((key) => {
       const f = HEADER_FIELD_BY_KEY[key]
       if (!f) return null
@@ -420,7 +425,7 @@ function ChartPane({
       }
       return { key, label: f.label, short: f.short || f.label, value, color: finalColor }
     }).filter(Boolean)
-  }, [infoFieldKeys, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, sym, companyName])
+  }, [infoFieldKeys, hdrColors, fund, hdrPrices, hdrMeta, hdrTheme, perfData, sym, companyName, isFundLike])
 
   // ── Wrap-fit measurement (drives tfCap / infoForceAbbrev declared above) ──
   // A signature of what occupies the row besides the timeframe buttons: the info

@@ -249,7 +249,12 @@ def get_fundamentals(ticker: str) -> dict[str, Any]:
     # research_quote already trusts), so fill ONLY on a miss: yfinance stays
     # authoritative where it has the value, and the extra request is not paid on
     # the common path.
-    if result.get("market_cap") is None:
+    # EQUITIES ONLY — an ETF/index/fund has no meaningful market cap (FMP would
+    # return its net assets), so never backfill those. quoteType is 'EQUITY' for a
+    # stock; anything else (ETF/INDEX/MUTUALFUND/CURRENCY/…) is skipped. Unknown/
+    # missing quoteType is treated as an equity so a stock is never wrongly skipped.
+    _qt = str(info.get("quoteType") or "").upper()
+    if result.get("market_cap") is None and _qt in ("", "EQUITY"):
         try:
             from api.services.earnings_estimates import _fmp_get
             rows = _fmp_get("/stable/quote", {"symbol": sym}, timeout=10)

@@ -101,13 +101,14 @@ function fmtEarn(iso) {
 /** Resolve one field → { value, color }. `color` is set only for sign-tinted fields;
  *  ChartPane applies the per-field default/override otherwise. */
 export function resolveHeaderField(key, ctx) {
-  const { fund, quote, meta, perf, theme, name } = ctx || {}
+  const { fund, quote, meta, perf, theme, name, isFundLike } = ctx || {}
   const q = quote || {}
   const m = meta || {}
   const p = q.price
   switch (key) {
     case 'name': return { value: name || m.name || fund?.name || null }
-    case 'mcap': return { value: fund?.metrics?.market_cap || null }
+    // Funds/indexes/breadth have no meaningful market cap → dash (like Next Earnings).
+    case 'mcap': return { value: isFundLike ? null : (fund?.metrics?.market_cap || null) }
     case 'earn': return { value: fmtEarn(fund?.next_earnings) }
     case 'rating': return { value: num(fund?.composite) ? String(fund.composite) : null }
     case 'sector': return { value: fund?.sector || null }
