@@ -328,3 +328,19 @@
   .teamCard { padding: var(--space-md); }
   .teamPhoto, .teamPhotoFallback { width: 76px; height: 76px; }
 }
+
+/* Article card ticker preview. The excerpt is the same welcome paragraph on
+   every issue; the week's symbol list is the one thing that differs, and it is
+   what a trader scans an archive for. */
+.articleTickers { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0; }
+.articleTicker {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 10px; letter-spacing: 0.04em; line-height: 1;
+  padding: 3px 5px; border-radius: 4px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  color: var(--text-bright);
+}
+.articleTickerMore {
+  font-size: 10px; line-height: 1; padding: 3px 4px; color: var(--text-muted);
+  align-self: center;
+}

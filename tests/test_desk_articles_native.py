@@ -88,7 +88,11 @@ def test_the_stored_article_matches_the_source_post(store, seeded):
     assert row["image_count"] == 62
     assert row["word_count"] > 3_000
     assert row["reading_minutes"] == 18
-    assert len(json.loads(row["tickers_json"])) == 34
+    # 34 from the "Charts Covered" heading + 10 reached only by a chart label
+    # (the ETF walk, and names charted without making that list).
+    tickers = json.loads(row["tickers_json"])
+    assert len(tickers) == 44
+    assert tickers[:3] == ["INTC", "ALAB", "ARM"] and "QQQ" in tickers
     assert any(s["text"] == "WHAT WE WILL COVER TODAY"
                for s in json.loads(row["sections_json"]))
 

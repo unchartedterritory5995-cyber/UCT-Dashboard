@@ -43,7 +43,9 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 # Bump when the OUTPUT of convert() changes. Stored per row so a converter
 # improvement re-converts from the stored raw body with zero network traffic.
-CONVERTER_VERSION = 1
+#   1 -> 2: tickers also sourced from each chart's own label, not just the
+#           "Charts Covered" heading (which under half the archive carries).
+CONVERTER_VERSION = 2
 
 # Matches the max reader measure in ArticleReader.module.css. Kept as a module
 # constant rather than inlined so the two can be pinned together by a test.
@@ -126,6 +128,17 @@ _SAFE_SCHEMES = frozenset({"http", "https", "mailto"})
 _CHARTS_COVERED_RE = re.compile(r"charts?\s+covered", re.I)
 _TICKER_RE = re.compile(r"^[A-Z][A-Z.\-]{0,5}$")
 
+# The SECOND ticker source, and the one that actually generalises: every chart
+# in the letter is introduced by a label like "QQQ (Daily, Weekly, and Hourly)"
+# or "INTC (Daily)". Measured across the archive, the "Charts Covered" heading
+# appears in fewer than half the issues, so keying only on it leaves most of the
+# back catalogue with no symbols at all. Requiring the timeframe in parentheses
+# is what keeps this from matching ordinary prose.
+_CHART_LABEL_RE = re.compile(
+    r"^([A-Z][A-Z.\-]{0,5})\s*\(\s*(?:daily|weekly|hourly|monthly|\d+\s*(?:min|m|h)\b)",
+    re.I,
+)
+
 # A srcset candidate boundary: a comma followed by whitespace, or a comma
 # immediately preceding the next absolute URL. See _safe_srcset.
 _SRCSET_SPLIT_RE = re.compile(r",(?=\s)|,(?=https?://)")
@@ -145,6 +158,19 @@ class ConvertedArticle:
     words: int = 0
     reading_minutes: int = 0
     converter_version: int = CONVERTER_VERSION
+
+
+# Substack's own marker for an author-inserted call-to-action button. Note this
+# is the ONLY safe discriminator: `class="button primary"` sits on both this
+# anchor and the subscribe form's submit input, so keying on it would either
+# keep the dead email form or kill the membership CTA.
+_CTA_COMPONENT = "ButtonCreateButton"
+
+
+def _is_cta(attrs: dict[str, str]) -> bool:
+    if (attrs.get("data-component-name") or "") == _CTA_COMPONENT:
+        return True
+    return "button-wrapper" in (attrs.get("class") or "").lower()
 
 
 def _slugify(text: str) -> str:
@@ -230,7 +256,8 @@ class _Converter(HTMLParser):
 
         self._seen_slugs: dict[str, int] = {}
         self.sections: list[dict] = []
-        self.tickers: list[str] = []
+        self.tickers: list[str] = []          # from the "Charts Covered" heading
+        self.chart_symbols: list[str] = []    # from each chart's own label
         self.images = 0
         self._words = 0
         # Most recent short text run -- the chart label ("GLW (Daily)") that
@@ -288,6 +315,12 @@ class _Converter(HTMLParser):
 
         if tag in _ALLOWED:
             kept = self._keep_attrs(tag, attrs)
+            if _is_cta(attrs):
+                # The whitelist drops `class`, so without this the membership
+                # button arrives as a bare undecorated link in a wall of prose --
+                # which is the exact complaint these posts already collected on
+                # Substack. Re-tag it with OUR class so the reader can style it.
+                kept.append(("class", "uctArticleCta"))
             self._emit(f"<{tag}{self._attr_str(kept)}>")
             if tag not in _VOID:
                 self._stack.append((tag, tag))
@@ -338,7 +371,15 @@ class _Converter(HTMLParser):
             stripped = data.strip()
             if 0 < len(stripped) <= 60:
                 self._last_label = stripped
+                self._note_chart_label(stripped)
         self._emit(_html.escape(data, quote=False))
+
+    def _note_chart_label(self, text: str) -> None:
+        m = _CHART_LABEL_RE.match(text)
+        if m:
+            sym = m.group(1).upper()
+            if sym not in self.chart_symbols:
+                self.chart_symbols.append(sym)
 
     # -- element-specific emitters --------------------------------------------
     def _keep_attrs(self, tag: str, attrs: dict[str, str]) -> list[tuple[str, str]]:
@@ -484,10 +525,16 @@ def convert(raw_html: str, *, utm: dict[str, str] | None = None,
     parser.finish()
 
     words = parser.words
+    # The author's own "Charts Covered" list leads (it is curated and ordered);
+    # symbols found only on chart labels follow. Merging is what gives the back
+    # catalogue coverage — most issues have the labels and not the heading.
+    tickers = list(parser.tickers)
+    tickers += [s for s in parser.chart_symbols if s not in tickers]
+
     return ConvertedArticle(
         html=parser.html,
         sections=parser.sections,
-        tickers=parser.tickers,
+        tickers=tickers,
         images=parser.images,
         words=words,
         reading_minutes=max(1, round(words / _WORDS_PER_MINUTE)) if words else 0,

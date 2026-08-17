@@ -99,6 +99,15 @@ def test_whop_call_to_action_survives_with_tracking(art):
     assert "Get Started for $7" in art.html
 
 
+def test_the_cta_is_marked_so_it_can_be_styled_as_a_button(art):
+    """The whitelist drops `class`, so without a re-tag the membership button
+    lands as a bare link in a wall of prose — the same defect these posts
+    already collected on Substack."""
+    assert art.html.count("uctArticleCta") >= 4
+    cta = re.search(r'<a[^>]*uctArticleCta[^>]*>', art.html)
+    assert cta and "whop.com" in cta.group(0)
+
+
 def test_existing_query_params_are_not_clobbered_by_utm():
     out = sa.convert(
         '<p><a href="https://whop.com/x?utm_source=mine&amp;plan=7">go</a></p>',
@@ -177,9 +186,41 @@ def test_charts_covered_becomes_ticker_chips(art):
     assert "uctTickerChips" in art.html
     assert 'data-ticker="INTC"' in art.html
     assert 'href="/research/INTC"' in art.html
-    # The real 2026-08-16 issue covered 34 names.
-    assert len(art.tickers) == 34
-    assert art.tickers[0] == "INTC" and art.tickers[-1] == "EROC"
+    # The heading's own 34 names lead, in the author's order.
+    assert art.tickers[:34] == [
+        "INTC", "ALAB", "ARM", "DELL", "HPE", "MU", "MRVL", "AMD", "NBIS", "TER",
+        "RBRK", "SNOW", "PLTR", "FSLY", "ANET", "CRWD", "HNGE", "LLY", "BA",
+        "AMZN", "FROG", "RNG", "FIVN", "DOCN", "MDB", "TSEM", "NOW", "DDOG",
+        "AAOI", "BFLY", "UMAC", "CCXI", "CBRS", "EROC",
+    ]
+
+
+def test_chart_labels_are_a_second_ticker_source(art):
+    """"Charts Covered" appears in well under half the archive, so keying only
+    on it leaves most issues with no symbols. Every chart carries its own label
+    ("QQQ (Daily, Weekly, and Hourly)"), which generalises."""
+    # The ETF walk is labelled but absent from the Charts Covered line.
+    for etf in ("QQQ", "SPY", "IWM", "SMH", "XBI"):
+        assert etf in art.tickers, f"{etf} was charted but not surfaced"
+    assert len(art.tickers) > 34, "the label source added nothing"
+
+
+def test_the_label_source_works_with_no_charts_covered_heading():
+    body = ("<p><strong>QQQ (Daily, Weekly, and Hourly)</strong></p>"
+            "<p><strong>INTC (Daily)</strong></p>"
+            "<p><strong>ARM (Daily &amp; Weekly)</strong></p>")
+    assert sa.convert(body).tickers == ["QQQ", "INTC", "ARM"]
+
+
+@pytest.mark.parametrize("line", [
+    "Just good consistent participation, good to see.",
+    "UCT Breadth Monitor",
+    "A (nice) reminder",
+    "WHAT WE WILL COVER TODAY",
+])
+def test_ordinary_prose_is_not_read_as_a_chart_label(line):
+    """The timeframe in parentheses is what keeps this off normal sentences."""
+    assert sa.convert(f"<p>{line}</p>").tickers == []
 
 
 def test_an_ordinary_all_caps_heading_is_not_mistaken_for_tickers():

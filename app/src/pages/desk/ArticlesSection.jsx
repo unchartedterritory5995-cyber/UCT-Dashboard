@@ -2,6 +2,7 @@
 // The Desk → Articles: the firm's Substack posts as link-out cards. Admins
 // manage the source publications (RSS feeds) inline.
 import { useState, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import DeskSectionSkeleton from './DeskSectionSkeleton'
 import useSWR from 'swr'
 import { useAuth } from '../../context/AuthContext'
@@ -21,6 +22,59 @@ function fmtDate(unixSec) {
   } catch {
     return ''
   }
+}
+
+/* One card. Reads natively when we hold a converted body, and falls back to the
+ * Substack link when we don't — a post can be paywalled, brand new, or awaiting
+ * backfill, and none of those should render a card that opens an empty page. */
+function ArticleCard({ a }) {
+  const native = Boolean(a.has_body && a.slug)
+  const linkProps = native
+    ? { as: Link, to: `/desk/article/${a.slug}` }
+    : { as: 'a', href: a.url, target: '_blank', rel: 'noopener noreferrer' }
+  const { as: Tag, ...rest } = linkProps
+
+  // The author is "Uncharted Territory" on a publication called "Uncharted
+  // Territory", so printing both renders the same words twice.
+  const byline = a.author && a.author !== a.publication_name ? a.author : null
+
+  // Every issue opens with the same welcome paragraph, so the excerpt is
+  // identical on all 61 cards. The week's ticker list is the one thing that
+  // actually differs — and it is what a trader scans an archive for.
+  let tickers = []
+  try { tickers = JSON.parse(a.tickers_json || '[]') } catch { tickers = [] }
+
+  return (
+    <Tag className={styles.articleCard} {...rest}>
+      {a.hero_image
+        ? <img className={styles.articleHero} src={a.hero_image} alt="" loading="lazy" />
+        : <div className={styles.articleHeroFallback} aria-hidden="true"><ArticleIcon size={28} /></div>}
+      <div className={styles.articleBody}>
+        {/* Every Sunday Scans post is titled "SUNDAY SCANS" at the source, so
+            the grid is unreadable without the date-stamped display title. */}
+        <div className={styles.articleTitle}>{a.display_title || a.title}</div>
+        {tickers.length > 0
+          ? (
+            <div className={styles.articleTickers}>
+              {tickers.slice(0, 10).map((s) => (
+                <span key={s} className={styles.articleTicker}>{s}</span>
+              ))}
+              {tickers.length > 10 && (
+                <span className={styles.articleTickerMore}>+{tickers.length - 10}</span>
+              )}
+            </div>
+          )
+          : a.excerpt && <div className={styles.articleExcerpt}>{a.excerpt}</div>}
+        <div className={styles.articleMeta}>
+          {a.published_at ? <span>{fmtDate(a.published_at)}</span> : null}
+          {byline && <span>· {byline}</span>}
+          {native && a.reading_minutes ? <span>· {a.reading_minutes} min read</span> : null}
+          {native && a.image_count ? <span>· {a.image_count} charts</span> : null}
+          {!native && <span>· on Substack ↗</span>}
+        </div>
+      </div>
+    </Tag>
+  )
 }
 
 export default function ArticlesSection() {
@@ -70,28 +124,7 @@ export default function ArticlesSection() {
 
       {articles.length > 0 && (
         <div className={styles.cardGrid}>
-          {articles.map((a) => (
-            <a
-              key={a.id}
-              className={styles.articleCard}
-              href={a.url}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {a.hero_image
-                ? <img className={styles.articleHero} src={a.hero_image} alt="" loading="lazy" />
-                : <div className={styles.articleHeroFallback} aria-hidden="true"><ArticleIcon size={28} /></div>}
-              <div className={styles.articleBody}>
-                <div className={styles.articleTitle}>{a.title}</div>
-                {a.excerpt && <div className={styles.articleExcerpt}>{a.excerpt}</div>}
-                <div className={styles.articleMeta}>
-                  {a.publication_name && <span>{a.publication_name}</span>}
-                  {a.author && <span>· {a.author}</span>}
-                  {a.published_at ? <span>· {fmtDate(a.published_at)}</span> : null}
-                </div>
-              </div>
-            </a>
-          ))}
+          {articles.map((a) => <ArticleCard key={a.id} a={a} />)}
         </div>
       )}
 

@@ -173,7 +173,13 @@ def parse_archive_items(items: list, publication_id=None) -> list[dict]:
         if not url or not title:
             continue
         # Skip non-post types (podcasts/threads still welcome — keep newsletters + posts)
-        excerpt = (it.get("description") or it.get("subtitle") or "").strip()
+        # `truncated_body_text` FIRST: on this publication `description` and
+        # `subtitle` are literally the post's date ("August 9th, 2026") on all
+        # but the newest issue, so preferring them prints the date twice on a
+        # card that already carries it in the title. Measured against the live
+        # archive, not assumed.
+        excerpt = (it.get("truncated_body_text") or it.get("description")
+                   or it.get("subtitle") or "").strip()
         author = None
         bylines = it.get("publishedBylines") or it.get("publishedbylines")
         if isinstance(bylines, list) and bylines:
