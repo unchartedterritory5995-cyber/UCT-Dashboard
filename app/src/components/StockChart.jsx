@@ -8862,7 +8862,7 @@ export default function StockChart({
         // to the middle (SMH 1H bug).
         const _w = oldRange ? (oldRange.to - oldRange.from) : null
         pendingTfReframeRef.current = { tf: resolvedTf, width: (_w > 0 ? _w : null) }
-      } else if (keepPresentOnSymbolChange && !isFirstLoad && !entryDate && !exactDateRange && !_replayLocked && !userViewLockedRef.current) {
+      } else if (keepPresentOnSymbolChange && !isFirstLoad && !entryDate && !exactDateRange && !_replayLocked) {
         // SYMBOL switch on a "newest always at right" surface (Charts workspace). The
         // new ticker's bars arrive in PHASES (IDB cache → network → older-history
         // backfill), each a separate updateChart commit with a DIFFERENT bar count.
@@ -8903,12 +8903,6 @@ export default function StockChart({
         if (_replayLocked && replayLockedViewRef.current) {
           to = newBarCount - replayLockedViewRef.current.barsFromRight
           from = to - replayLockedViewRef.current.width
-        } else if (userViewLockedRef.current && userLockedViewRef.current) {
-          // NORMAL view lock (workspace): keep the user's EXACT right-relative window
-          // — same scroll position + zoom — on every ticker, overriding keepPresent's
-          // snap-to-present. Captured at pan/zoom time; cleared only by "Reset view".
-          to = newBarCount - userLockedViewRef.current.barsFromRight
-          from = to - userLockedViewRef.current.width
         } else if (keepPresentOnSymbolChange) {
           to = (newBarCount - 1) + width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
           from = to - width
@@ -8979,18 +8973,6 @@ export default function StockChart({
             const to = lastIdx + _pt.width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
             const from = to - _pt.width
             chart.timeScale().setVisibleLogicalRange({ from, to })
-          } else if (userViewLockedRef.current && userLockedViewRef.current && userLockedViewRef.current.width > 0) {
-            // A persisted view lock restored on refresh (first load, no prior view):
-            // open at the user's exact right-relative window, not the default.
-            const _nbc = filteredBars.length
-            const _to = _nbc - userLockedViewRef.current.barsFromRight
-            const _from = _to - userLockedViewRef.current.width
-            if (Number.isFinite(_from) && Number.isFinite(_to) && _to > 1 && _from < _nbc) {
-              try { chart.timeScale().setVisibleLogicalRange({ from: _from, to: _to }) } catch {}
-            } else {
-              const { from: _df, to: _dt } = computeDefaultLogicalRange(filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) })
-              chart.timeScale().setVisibleLogicalRange({ from: _df, to: _dt })
-            }
           } else {
             // First load (no prior view): canonical default zoom — newest candle at
             // LAST_CANDLE_POS, the timeframe's default history. Shared with "Reset view".
