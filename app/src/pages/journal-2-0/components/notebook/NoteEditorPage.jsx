@@ -142,7 +142,7 @@ export function CaptureInboxTray({ editor, onPlaced }) {
   )
 }
 
-export default function NoteEditorPage({ noteId, onBack }) {
+export default function NoteEditorPage({ noteId, onBack, showBack = true }) {
   const { note, isLoading, update, refresh } = useJ2Note(noteId)
   const { folders } = useJ2NoteFolders()
   const { user } = useAuth()
@@ -547,9 +547,11 @@ export default function NoteEditorPage({ noteId, onBack }) {
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <button type="button" className={styles.backBtn} onClick={onBack}>
-          ← Notebook
-        </button>
+        {showBack && (
+          <button type="button" className={styles.backBtn} onClick={onBack}>
+            ← Notebook
+          </button>
+        )}
         <div
           className={styles.saveStatus}
           title={saveErrorMsg || undefined}

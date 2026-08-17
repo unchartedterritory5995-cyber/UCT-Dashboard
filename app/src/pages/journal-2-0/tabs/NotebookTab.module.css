@@ -1,12 +1,86 @@
 .wrap {
   display: flex;
   min-height: 70vh;
+  position: relative;
 }
+
+/* Always-visible panel toggle, pinned top-left just to the left of "FOLDERS". */
+.sidebarToggle {
+  position: absolute;
+  top: 12px;
+  left: 10px;
+  z-index: 6;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: var(--color-surface, #14171c);
+  border: 1px solid var(--color-border, #232932);
+  border-radius: 7px;
+  color: var(--color-text-muted, #98a0aa);
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+.sidebarToggle:hover {
+  color: #c9a84c;
+  border-color: #c9a84c;
+  background: var(--color-surface-hover, #1c2028);
+}
+
+/* The collapsible panel. `slot` owns the reclaimable width; `inner` holds the
+ * panel at a fixed width and slides it left, so collapsing reads as a smooth
+ * slide-away while the main column expands to fill. */
+.sidebarSlot {
+  flex: 0 0 auto;
+  width: var(--nb-sb-w, 260px);
+  overflow: hidden;
+  transition: width 240ms ease;
+}
+.sidebarInner {
+  width: var(--nb-sb-w, 260px);
+  height: 100%;
+  transition: transform 240ms ease;
+}
+.wrap.collapsed .sidebarSlot { width: 0; }
+.wrap.collapsed .sidebarInner { transform: translateX(-100%); }
+
+/* Draggable divider between the panel and the notes. */
+.divider {
+  flex: 0 0 auto;
+  width: 6px;
+  align-self: stretch;
+  cursor: col-resize;
+  position: relative;
+  z-index: 4;
+}
+.divider::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: var(--color-border, #232932);
+  transition: background 120ms ease, width 120ms ease;
+}
+.divider:hover::before,
+.wrap.dragging .divider::before { background: #c9a84c; width: 2px; }
+.wrap.collapsed .divider { display: none; }
+
+/* During a drag, kill panel transitions so the width tracks the pointer 1:1. */
+.wrap.dragging .sidebarSlot,
+.wrap.dragging .sidebarInner { transition: none; }
+
 .main {
   flex: 1;
   padding: 16px 20px 40px;
   min-width: 0;
 }
+/* With the panel hidden, keep clear of the always-on toggle at top-left. */
+.wrap.collapsed .main { padding-left: 48px; }
 .toolbar {
   display: flex;
   gap: 10px;
@@ -125,6 +199,15 @@
 
 @media (max-width: 640px) {
   .wrap { flex-direction: column; }
+  /* Phones stack the panel above the notes and keep it always-open — the
+   * slide/resize affordances are desktop-only. */
+  .sidebarToggle { display: none; }
+  .divider { display: none; }
+  .sidebarSlot { width: 100% !important; overflow: visible; }
+  .sidebarInner { width: 100% !important; transform: none !important; }
+  .wrap.collapsed .sidebarSlot { width: 100% !important; }
+  .wrap.collapsed .sidebarInner { transform: none !important; }
+  .wrap.collapsed .main { padding-left: 20px; }
   /* 16px inputs avoid the iOS focus-zoom; let New note keep the row to itself */
   .search, .sortSelect { font-size: 16px; }
   .newWrap { margin-left: 0; }

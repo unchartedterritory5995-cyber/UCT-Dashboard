@@ -222,6 +222,7 @@ export default function FolderSidebar({
   onSelectTag,
   onOpenNote = () => {},
   activeNoteId = null,
+  labelInset = false,
 }) {
   const { folders, create, rename, remove } = useJ2NoteFolders()
   const [adding, setAdding] = useState(false)
@@ -336,7 +337,7 @@ export default function FolderSidebar({
   return (
     <aside className={styles.sidebar}>
       <div className={styles.section}>
-        <div className={styles.sectionLabel}>Folders</div>
+        <div className={`${styles.sectionLabel} ${labelInset ? styles.sectionLabelInset : ''}`}>Folders</div>
         <div className={styles.rowWrap}>
           <span className={styles.disclosureSpacer} aria-hidden="true" />
           <button
