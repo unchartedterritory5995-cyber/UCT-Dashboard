@@ -275,6 +275,15 @@ const ICONS = {
       <circle cx="12" cy="12" r="3" />
     </>
   ),
+  // The struck-through eye. Same lid geometry as `eye` so the two read as one
+  // control's two states rather than two different glyphs.
+  eyeOff: (
+    <>
+      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" />
+      <circle cx="12" cy="12" r="3" />
+      <path d="M4 20L20 4" />
+    </>
+  ),
   trash: <path d="M4 7h16M9 7V4.5h6V7M6.5 7l1 13h9l1-13" />,
   equity: <path d="M3.5 20.5h17M5 15l4-4 3.5 2.5L20 6M16 6h4v4" />,
   paperclip: (

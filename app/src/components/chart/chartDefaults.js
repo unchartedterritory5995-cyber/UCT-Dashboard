@@ -10,6 +10,11 @@
 // `./instanceShape`, which imports nothing; this file re-exports them.
 import { migrateLegacyToInstances, normalizeInstances, instanceScope } from './engine/instances'
 import * as engineRegistry from './engine/nativeRegistry'
+// The legend's one reader. Imported (never re-implemented) so the merge below
+// resolves `legendMode` by the SAME rule every surface reads it by — see the
+// header block in `mergeChartSettings`. `legendMode.js` imports nothing, so
+// this cannot start a cycle.
+import { legendModeOf } from './legendMode'
 
 export const CHART_DEFAULTS = {
   chartType: 'candles', // candles | hollow | bars | line | area
@@ -62,7 +67,17 @@ export const CHART_DEFAULTS = {
     showMarketCap: true,
     showNextEarnings: true,
     showUctRating: true,
+    // ⚠️ LEGACY, READ-ONLY. `legendMode` below supersedes this boolean and is the
+    // only key anything writes. It stays declared so a blob that predates the
+    // mode still merges cleanly, and `legendMode.js::legendModeOf` reads it as
+    // the fallback. Do NOT write it — two keys over one fact is the defect.
     showLegend: true,       // the on-chart OHLCV crosshair legend
+    // How that legend behaves. 'always' = on, following the crosshair on hover
+    // (the long-standing look); 'click' = the chart stays clean until the user
+    // clicks a candle, which pins the legend to that bar; 'off' = never drawn.
+    // ⭐ Read it through `legendModeOf(cs)` — never off this field directly, or
+    // the legacy `showLegend` blobs stop being honoured on that one surface.
+    legendMode: 'always',   // 'always' | 'click' | 'off'
     // Shape of that legend on the Charts workspace: 'vertical' = the stacked
     // label/value table down the left (the long-standing look); 'horizontal' =
     // a flat two-line strip (ticker · company · TF, then the values) with NO
@@ -449,6 +464,18 @@ export function mergeChartSettings(userSettings) {
       // stored partial `colors` (e.g. only marketCap set) would drop the others'
       // defaults. Same trap `timeframes` guards against — merge, never wholesale-swap.
       colors: { ...CHART_DEFAULTS.header.colors, ...(parsed.header?.colors || {}) },
+      // ⭐ RESOLVED FROM THE STORED BLOB, and it must be — `legendModeOf(parsed)`,
+      // never `legendModeOf(out)`. The spread above has already injected the
+      // default `legendMode: 'always'`, so re-reading the merged object would
+      // find that default and the legacy `showLegend: false` fallback would
+      // never fire: every user who had turned the legend OFF would get it back
+      // on their next page load. Same shape as `_legacyIndicators` below —
+      // capture the stored value before the allow-list overwrites it.
+      //
+      // ⛔ The rule itself is NOT restated here. `legendModeOf` is the one
+      // reader; this line only pre-resolves it so a merged blob and a raw blob
+      // give the same answer.
+      legendMode: legendModeOf(parsed),
     },
     // Positional merge, PADDED to the defaults' length: a stored blob written before a
     // slot was added is shorter, and .map alone would drop the new slot forever.

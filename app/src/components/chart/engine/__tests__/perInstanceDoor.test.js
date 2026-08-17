@@ -249,7 +249,19 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
     // not to _OVERRIDE_SECTION_KEYS, so per-chart overrides replaced the whole
     // section instead of merging it (fixed in instanceShape.js).
     // (Prior value: 4cd29324dc8addd6bc54e3f5cbc23bbfcecdc8dc1fea4565d1dcd7eba5ae95f6)
+    // 2026-08-16: re-pinned for `header.legendMode` (the on-chart legend's
+    // Always / On click / Off mode). INVESTIGATED BY MEASUREMENT rather than by
+    // eyeballing the diff: a throwaway rail rebuilt THIS corpus with
+    // `header.legendMode` — and only that key — stripped from every base blob,
+    // and reproduced the prior literal EXACTLY. So no per-definition door
+    // changed behaviour; each corpus blob simply gained one additive key.
+    // ⚠️ The sibling trap from the 8/14 batch was checked and does NOT apply:
+    // the new key lives inside `header`, which is already in
+    // `instanceShape.js::_OVERRIDE_SECTION_KEYS`, so a per-chart override merges
+    // the header section instead of replacing it and a grid cell cannot drop the
+    // user's mode.
+    // (Prior value: d32335e597cf5b1b4786783f2cf5da538b9f4f94e8d50b2eb6e7f624c9e7fbcb)
     expect(digest(corpus().map(digest).join('|')))
-      .toBe('d32335e597cf5b1b4786783f2cf5da538b9f4f94e8d50b2eb6e7f624c9e7fbcb')
+      .toBe('bdbb6ba2ce5a1d83b8790f4d51a72e2d23aaaaa8e818e2c0ae4fec65beb7b4e6')
   })
 })
