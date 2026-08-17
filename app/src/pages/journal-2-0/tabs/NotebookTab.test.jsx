@@ -160,13 +160,6 @@ describe('NotebookTab — import', () => {
     expect(screen.getByText(/Notion, Obsidian, Evernote/i)).toBeInTheDocument()
   })
 
-  it('a search filter suppresses the import pitch (filtered-empty is not truly-empty)', () => {
-    renderTab()
-    const search = screen.getByPlaceholderText(/search notes/i)
-    fireEvent.change(search, { target: { value: 'nonexistent query' } })
-    expect(screen.queryByText(/Notion, Obsidian, Evernote/i)).not.toBeInTheDocument()
-  })
-
   it('a completed import (ImportWizard calling onImported) refreshes notes', () => {
     renderTab()
     fireEvent.click(screen.getAllByRole('button', { name: /import/i })[0])

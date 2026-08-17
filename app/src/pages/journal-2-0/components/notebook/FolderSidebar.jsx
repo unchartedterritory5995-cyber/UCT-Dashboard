@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import useJ2NoteFolders from '../../hooks/useJ2NoteFolders'
 import styles from './FolderSidebar.module.css'
 
@@ -67,6 +67,41 @@ function NoteIcon() {
       />
       <path d="M13.5 2.5V7h4.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
       <path d="M8.5 12h7M8.5 15.5h7" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+// Collapse-panel glyph (rounded frame, left column filled) — the header's
+// "hide the panel" control.
+function PanelIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="3" y="4.75" width="18" height="14.5" rx="2.5" fill="none" stroke="currentColor" strokeWidth="1.7" />
+      <line x1="9.5" y1="4.75" x2="9.5" y2="19.25" stroke="currentColor" strokeWidth="1.7" />
+      <rect x="4.9" y="6.4" width="3.1" height="11.2" rx="1" fill="currentColor" opacity="0.5" />
+    </svg>
+  )
+}
+
+function FolderModeIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+      <path
+        d="M3 6.5a2 2 0 0 1 2-2h3.3l1.8 2H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+function SearchModeIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="10.5" cy="10.5" r="6" fill="none" stroke="currentColor" strokeWidth="1.7" />
+      <line x1="14.8" y1="14.8" x2="20" y2="20" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
     </svg>
   )
 }
@@ -222,7 +257,7 @@ export default function FolderSidebar({
   onSelectTag,
   onOpenNote = () => {},
   activeNoteId = null,
-  labelInset = false,
+  onToggleSidebar = () => {},
 }) {
   const { folders, create, rename, remove } = useJ2NoteFolders()
   const [adding, setAdding] = useState(false)
@@ -231,6 +266,14 @@ export default function FolderSidebar({
   const [editingId, setEditingId] = useState(null)
   const [editName, setEditName] = useState('')
   const [expandedIds, setExpandedIds] = useState(() => new Set())
+  // Panel mode: the folder tree, or a full-panel note search (Obsidian-style).
+  const [mode, setMode] = useState('folders')
+  const [query, setQuery] = useState('')
+  const searchInputRef = useRef(null)
+
+  useEffect(() => {
+    if (mode === 'search') searchInputRef.current?.focus()
+  }, [mode])
 
   const tree = useMemo(() => buildFolderTree(folders), [folders])
 
@@ -249,6 +292,19 @@ export default function FolderSidebar({
     }
     return m
   }, [notes])
+
+  // Client-side search over the full note set the sidebar already holds — title,
+  // body text, tags and ticker. Instant, no extra fetch.
+  const searchResults = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return []
+    return notes
+      .filter((n) => {
+        const hay = `${n.title || ''} ${n.bodyPlain || ''} ${(n.tags || []).join(' ')} ${n.ticker || ''}`.toLowerCase()
+        return hay.includes(q)
+      })
+      .slice(0, 100)
+  }, [notes, query])
 
   // Tag cloud from current note list (counts).
   const tagCounts = useMemo(() => {
@@ -336,91 +392,189 @@ export default function FolderSidebar({
 
   return (
     <aside className={styles.sidebar}>
-      <div className={styles.section}>
-        <div className={`${styles.sectionLabel} ${labelInset ? styles.sectionLabelInset : ''}`}>Folders</div>
-        <div className={styles.rowWrap}>
-          <span className={styles.disclosureSpacer} aria-hidden="true" />
+      {/* Header toolbar: collapse + mode switch (Folders / Search). */}
+      <div className={styles.sbHeader}>
+        <button
+          type="button"
+          className={styles.sbHeaderBtn}
+          onClick={onToggleSidebar}
+          aria-label="Hide folders panel"
+          title="Hide panel"
+        >
+          <PanelIcon />
+        </button>
+        <div className={styles.sbHeaderModes} role="tablist" aria-label="Panel view">
           <button
             type="button"
-            className={`${styles.row} ${activeFolderId == null && !activeTag ? styles.rowActive : ''}`}
-            onClick={() => { onSelectFolder(null); onSelectTag(null) }}
+            role="tab"
+            aria-selected={mode === 'folders'}
+            className={`${styles.sbHeaderBtn} ${mode === 'folders' ? styles.sbHeaderBtnActive : ''}`}
+            onClick={() => setMode('folders')}
+            title="Folders"
+            aria-label="Show folders"
           >
-            <span>All notes</span>
-            <span className={styles.count}>{notes.length}</span>
+            <FolderModeIcon />
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mode === 'search'}
+            className={`${styles.sbHeaderBtn} ${mode === 'search' ? styles.sbHeaderBtnActive : ''}`}
+            onClick={() => setMode('search')}
+            title="Search notes"
+            aria-label="Search notes"
+          >
+            <SearchModeIcon />
           </button>
         </div>
-        <div className={styles.rowWrap}>
-          <span className={styles.disclosureSpacer} aria-hidden="true" />
-          <button
-            type="button"
-            className={`${styles.row} ${activeFolderId === '__unfiled__' ? styles.rowActive : ''}`}
-            onClick={() => { onSelectFolder('__unfiled__'); onSelectTag(null) }}
-          >
-            <span>Unfiled</span>
-            <span className={styles.count}>{unfiledCount}</span>
-          </button>
-        </div>
-        {tree.map((node) => (
-          <FolderNode
-            key={node.id}
-            node={node}
-            depth={0}
-            activeFolderId={activeFolderId}
-            onSelectFolder={onSelectFolder}
-            onSelectTag={onSelectTag}
-            expandedIds={expandedIds}
-            toggleExpanded={toggleExpanded}
-            editingId={editingId}
-            editName={editName}
-            setEditingId={setEditingId}
-            setEditName={setEditName}
-            submitRename={submitRename}
-            onDelete={onDelete}
-            onStartAddChild={startAddChild}
-            addForm={addForm}
-            notesByFolder={notesByFolder}
-            onOpenNote={onOpenNote}
-            activeNoteId={activeNoteId}
-          />
-        ))}
-        {adding && parentForNew == null ? (
-          <form onSubmit={submitNew} className={styles.addForm}>
-            <input
-              autoFocus
-              className={styles.editInput}
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onBlur={() => { if (!newName.trim()) cancelAdd() }}
-              onKeyDown={(e) => { if (e.key === 'Escape') cancelAdd() }}
-              placeholder="Folder name"
-            />
-          </form>
-        ) : (
-          <button
-            type="button"
-            className={styles.addBtn}
-            onClick={() => { setParentForNew(null); setAdding(true); setNewName('') }}
-          >
-            + New folder
-          </button>
-        )}
       </div>
 
-      {tagCounts.length > 0 && (
-        <div className={styles.section}>
-          <div className={styles.sectionLabel}>Tags</div>
-          {tagCounts.map(([t, c]) => (
-            <button
-              key={t}
-              type="button"
-              className={`${styles.row} ${activeTag === t ? styles.rowActive : ''}`}
-              onClick={() => { onSelectTag(t); onSelectFolder(null) }}
-            >
-              <span>#{t}</span>
-              <span className={styles.count}>{c}</span>
-            </button>
-          ))}
+      {mode === 'search' ? (
+        <div className={styles.searchView}>
+          <div className={styles.searchInputWrap}>
+            <span className={styles.searchInputIcon} aria-hidden="true"><SearchModeIcon /></span>
+            <input
+              ref={searchInputRef}
+              type="text"
+              className={styles.searchInput}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search notes…"
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') { if (query) setQuery(''); else setMode('folders') }
+                if (e.key === 'Enter' && searchResults[0]) onOpenNote(searchResults[0])
+              }}
+            />
+            {query && (
+              <button
+                type="button"
+                className={styles.searchClear}
+                onClick={() => { setQuery(''); searchInputRef.current?.focus() }}
+                aria-label="Clear search"
+              >×</button>
+            )}
+          </div>
+
+          {query.trim() ? (
+            searchResults.length ? (
+              <div className={styles.searchResults}>
+                <div className={styles.searchCount}>
+                  {searchResults.length} result{searchResults.length === 1 ? '' : 's'}
+                </div>
+                {searchResults.map((n) => {
+                  const title = n.title?.trim() || 'Untitled'
+                  const snippet = (n.bodyPlain || '').trim().slice(0, 120)
+                  return (
+                    <button
+                      key={n.id}
+                      type="button"
+                      className={`${styles.searchResultRow} ${activeNoteId === n.id ? styles.rowActive : ''}`}
+                      onClick={() => onOpenNote(n)}
+                    >
+                      <NoteIcon />
+                      <span className={styles.searchResultBody}>
+                        <span className={styles.searchResultTitle}>{title}</span>
+                        {snippet && <span className={styles.searchResultSnippet}>{snippet}</span>}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className={styles.searchEmpty}>No notes match “{query.trim()}”.</div>
+            )
+          ) : (
+            <div className={styles.searchHint}>Search titles, content, tags, and tickers.</div>
+          )}
         </div>
+      ) : (
+        <>
+          <div className={styles.section}>
+            <div className={styles.rowWrap}>
+              <span className={styles.disclosureSpacer} aria-hidden="true" />
+              <button
+                type="button"
+                className={`${styles.row} ${activeFolderId == null && !activeTag ? styles.rowActive : ''}`}
+                onClick={() => { onSelectFolder(null); onSelectTag(null) }}
+              >
+                <span>All notes</span>
+                <span className={styles.count}>{notes.length}</span>
+              </button>
+            </div>
+            <div className={styles.rowWrap}>
+              <span className={styles.disclosureSpacer} aria-hidden="true" />
+              <button
+                type="button"
+                className={`${styles.row} ${activeFolderId === '__unfiled__' ? styles.rowActive : ''}`}
+                onClick={() => { onSelectFolder('__unfiled__'); onSelectTag(null) }}
+              >
+                <span>Unfiled</span>
+                <span className={styles.count}>{unfiledCount}</span>
+              </button>
+            </div>
+            {tree.map((node) => (
+              <FolderNode
+                key={node.id}
+                node={node}
+                depth={0}
+                activeFolderId={activeFolderId}
+                onSelectFolder={onSelectFolder}
+                onSelectTag={onSelectTag}
+                expandedIds={expandedIds}
+                toggleExpanded={toggleExpanded}
+                editingId={editingId}
+                editName={editName}
+                setEditingId={setEditingId}
+                setEditName={setEditName}
+                submitRename={submitRename}
+                onDelete={onDelete}
+                onStartAddChild={startAddChild}
+                addForm={addForm}
+                notesByFolder={notesByFolder}
+                onOpenNote={onOpenNote}
+                activeNoteId={activeNoteId}
+              />
+            ))}
+            {adding && parentForNew == null ? (
+              <form onSubmit={submitNew} className={styles.addForm}>
+                <input
+                  autoFocus
+                  className={styles.editInput}
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  onBlur={() => { if (!newName.trim()) cancelAdd() }}
+                  onKeyDown={(e) => { if (e.key === 'Escape') cancelAdd() }}
+                  placeholder="Folder name"
+                />
+              </form>
+            ) : (
+              <button
+                type="button"
+                className={styles.addBtn}
+                onClick={() => { setParentForNew(null); setAdding(true); setNewName('') }}
+              >
+                + New folder
+              </button>
+            )}
+          </div>
+
+          {tagCounts.length > 0 && (
+            <div className={styles.section}>
+              <div className={styles.sectionLabel}>Tags</div>
+              {tagCounts.map(([t, c]) => (
+                <button
+                  key={t}
+                  type="button"
+                  className={`${styles.row} ${activeTag === t ? styles.rowActive : ''}`}
+                  onClick={() => { onSelectTag(t); onSelectFolder(null) }}
+                >
+                  <span>#{t}</span>
+                  <span className={styles.count}>{c}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </aside>
   )

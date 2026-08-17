@@ -37,7 +37,6 @@ export default function NotebookTab() {
 
   const [folderId, setFolderId] = useState(null)
   const [tag, setTag] = useState(null)
-  const [q, setQ] = useState('')
   const [sort, setSort] = useState('updated')
   const [creating, setCreating] = useState(false)
   // App focus (= charts Group A) seeds a new entry's ticker.
@@ -103,13 +102,13 @@ export default function NotebookTab() {
   }
 
   const { notes, isLoading, error, refresh } = useJ2Notes({
-    folderId, tag, q: q || undefined, sort,
+    folderId, tag, sort,
   })
-  // The folder sidebar tree renders every folder's notes as leaf rows, so it
-  // needs the COMPLETE note set — not the filtered view above (which only
-  // holds the selected folder's notes). Separate unfiltered fetch for it.
+  // The folder sidebar renders every folder's notes as leaf rows AND runs its
+  // own search, so it needs the COMPLETE note set — not the filtered view above
+  // (which only holds the selected folder's notes). Separate unfiltered fetch.
   const { notes: allNotes, refresh: refreshAll } = useJ2Notes({ sort: 'title' })
-  const hasActiveFilters = Boolean(folderId || tag || q)
+  const hasActiveFilters = Boolean(folderId || tag)
 
   const openNote = (note) => {
     setSearchParams((prev) => {
@@ -233,16 +232,19 @@ export default function NotebookTab() {
       className={`${styles.wrap} ${sidebarOpen ? '' : styles.collapsed} ${dragging ? styles.dragging : ''}`}
       style={{ '--nb-sb-w': `${sidebarWidth}px` }}
     >
-      <button
-        type="button"
-        className={styles.sidebarToggle}
-        onClick={toggleSidebar}
-        aria-label={sidebarOpen ? 'Hide folders panel' : 'Show folders panel'}
-        aria-pressed={sidebarOpen}
-        title={sidebarOpen ? 'Hide folders' : 'Show folders'}
-      >
-        <SidebarToggleIcon />
-      </button>
+      {/* When the panel is hidden, a single floating button brings it back. When
+          open, the collapse control lives in the panel's own header toolbar. */}
+      {!sidebarOpen && (
+        <button
+          type="button"
+          className={styles.sidebarToggle}
+          onClick={toggleSidebar}
+          aria-label="Show folders panel"
+          title="Show folders"
+        >
+          <SidebarToggleIcon />
+        </button>
+      )}
 
       <div className={styles.sidebarSlot}>
         <div className={styles.sidebarInner}>
@@ -255,7 +257,7 @@ export default function NotebookTab() {
             onSelectTag={handleSelectTag}
             onOpenNote={openNote}
             activeNoteId={noteId}
-            labelInset
+            onToggleSidebar={toggleSidebar}
           />
         </div>
       </div>
@@ -276,13 +278,6 @@ export default function NotebookTab() {
         ) : (
           <>
         <div className={styles.toolbar}>
-          <input
-            type="text"
-            className={styles.search}
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search notes…"
-          />
           <select
             className={styles.sortSelect}
             value={sort}

@@ -15,9 +15,116 @@
   color: var(--color-text-muted, #98a0aa);
   padding: 0 8px 6px;
 }
-/* When NotebookTab overlays the always-on toggle button at the panel's top-left,
- * push the FOLDERS label right so the button sits just to its left. */
-.sectionLabelInset { padding-left: 32px; }
+
+/* ── Header toolbar: collapse + Folders/Search mode switch ─────────────────── */
+.sbHeader {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -16px -12px 0; /* span the panel's top + side edges */
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--color-border, #232932);
+}
+.sbHeaderModes {
+  display: flex;
+  gap: 2px;
+  margin-left: 4px;
+  padding-left: 6px;
+  border-left: 1px solid var(--color-border, #232932);
+}
+.sbHeaderBtn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--color-text-muted, #98a0aa);
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease, border-color 120ms ease;
+}
+.sbHeaderBtn:hover { color: #c9a84c; background: var(--color-surface-hover, #1c2028); }
+.sbHeaderBtnActive { color: #c9a84c; background: rgba(201, 168, 76, 0.14); }
+
+/* ── Search view (replaces the tree when Search mode is active) ────────────── */
+.searchView { display: flex; flex-direction: column; gap: 8px; }
+.searchInputWrap { position: relative; display: flex; align-items: center; }
+.searchInputIcon {
+  position: absolute;
+  left: 9px;
+  display: inline-flex;
+  color: var(--color-text-muted, #98a0aa);
+  pointer-events: none;
+}
+.searchInputIcon svg { width: 14px; height: 14px; }
+.searchInput {
+  width: 100%;
+  padding: 8px 28px 8px 30px;
+  background: var(--color-surface, #14171c);
+  border: 1px solid var(--color-border, #232932);
+  border-radius: 7px;
+  color: var(--color-text-primary, #e8eaed);
+  font-size: 13px;
+}
+.searchInput:focus { outline: none; border-color: #c9a84c; }
+.searchClear {
+  position: absolute;
+  right: 6px;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted, #98a0aa);
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 16px;
+  line-height: 1;
+}
+.searchClear:hover { color: #c9a84c; }
+.searchCount {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--color-text-muted, #98a0aa);
+  padding: 2px 4px 4px;
+}
+.searchResults { display: flex; flex-direction: column; gap: 2px; }
+.searchResultRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-primary, #e8eaed);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.searchResultRow:hover { background: var(--color-surface-hover, #1c2028); }
+.searchResultRow .noteIcon { margin-top: 2px; opacity: 0.75; flex: 0 0 auto; }
+.searchResultBody { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+.searchResultTitle { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.searchResultSnippet {
+  font-size: 11px;
+  color: var(--color-text-muted, #98a0aa);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.searchHint, .searchEmpty {
+  font-size: 12px;
+  color: var(--color-text-muted, #98a0aa);
+  padding: 12px 6px;
+  line-height: 1.5;
+}
 .row {
   display: flex;
   align-items: center;
@@ -118,8 +225,13 @@
   .actions { opacity: 1; }
 }
 @media (max-width: 640px) {
-  /* The toggle button is hidden on phones, so the label needs no inset. */
-  .sectionLabelInset { padding-left: 8px; }
+  /* Phones keep the panel always-open, so the collapse control is hidden; the
+   * Folders/Search mode switch (inside .sbHeaderModes) stays. 16px search input
+   * avoids the iOS focus-zoom. */
+  .sbHeader > .sbHeaderBtn { display: none; }
+  .sbHeaderModes { border-left: none; padding-left: 0; margin-left: 0; }
+  .searchInput { font-size: 16px; min-height: var(--tap-min, 44px); }
+  .searchResultRow { min-height: var(--tap-min, 44px); }
   .row { min-height: var(--tap-min, 44px); font-size: 16px; }
   .noteRow { min-height: var(--tap-min, 44px); font-size: 15px; }
   .addBtn { min-height: var(--tap-min, 44px); font-size: 14px; }
