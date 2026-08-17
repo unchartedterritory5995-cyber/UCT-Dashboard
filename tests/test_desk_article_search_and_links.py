@@ -110,6 +110,50 @@ def test_reindexing_is_idempotent(store, bodies, seeded):
     assert store.count_indexed_posts() == before, "re-storing duplicated the index row"
 
 
+def test_an_article_with_a_body_but_no_index_row_is_found_and_healed(store, bodies, seeded, raw):
+    """The index is younger than the archive, so every article stored before
+    search existed is in exactly this state. A search covering half the archive
+    is worse than none: "nothing found" reads as "he never wrote about it"."""
+    store.index_post_search  # noqa: B018 — presence check before we rely on it
+    with __import__("contextlib").closing(store._connect()) as c:
+        c.execute("DELETE FROM substack_posts_fts")
+        c.commit()
+    assert store.count_indexed_posts() == 0
+    assert [p["id"] for p in store.posts_missing_from_index()] == [URL]
+
+    out = bodies.index_missing()
+    assert out == {"pending": 1, "indexed": 1, "skipped": 0}
+    assert store.count_indexed_posts() == 1
+    assert store.search_posts("breadth")
+
+
+def test_healing_the_index_is_a_no_op_once_it_is_complete(store, bodies, seeded):
+    assert store.posts_missing_from_index() == []
+    assert bodies.index_missing() == {"pending": 0, "indexed": 0, "skipped": 0}
+
+
+def test_a_post_with_no_body_is_never_reported_as_missing_from_the_index(store, bodies, seeded):
+    """Otherwise the healer would chase link-out and paywalled posts forever."""
+    store.upsert_post({"id": "u-nobody", "title": "T", "url": "u", "published_at": 1})
+    assert "u-nobody" not in [p["id"] for p in store.posts_missing_from_index()]
+
+
+def test_the_poll_heals_the_index_without_the_network_budget(store, monkeypatch):
+    """Re-converts are local; bounding them by the FETCH budget would leave the
+    index behind for days after a backfill."""
+    from api.services import substack_poller
+    import api.services.substack_bodies as sb
+    monkeypatch.setenv("DESK_ARTICLE_BACKFILL_PER_POLL", "1")
+    calls = {}
+    monkeypatch.setattr(sb, "backfill_bodies", lambda **k: {"fetched": 0, "reconverted": 0,
+                                                           "deferred": 0, "refused": 0})
+    monkeypatch.setattr(sb, "index_missing",
+                        lambda **k: calls.setdefault("kw", k) or {"indexed": 3, "pending": 3})
+    substack_poller._backfill_slice()
+    assert "kw" in calls, "the poll never healed the index"
+    assert calls["kw"].get("max_fetches") is None
+
+
 def test_reindex_all_rebuilds_from_disk_without_network(store, bodies, seeded, monkeypatch):
     """The index is younger than the archive — articles stored before search
     existed have a body and no index row."""

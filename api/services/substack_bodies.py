@@ -188,6 +188,32 @@ def desk_store_title(post: dict, published_at: int) -> str:
     return display_title_for(post.get("title") or "", published_at)
 
 
+def index_missing(limit: int = 60) -> dict:
+    """Index articles that have a body but no search row. Local only, no network.
+
+    Runs on every poll beside the body backfill, so the index heals itself the
+    same way the archive does — an admin endpoint nobody remembers to call
+    leaves search quietly covering part of the archive, and a search that finds
+    nothing is indistinguishable from "he never wrote about it".
+    """
+    pending = desk_store.posts_missing_from_index(limit=limit)
+    out = {"pending": len(pending), "indexed": 0, "skipped": 0}
+    for post in pending:
+        raw = desk_store.get_post_raw(post["id"])
+        if not raw:
+            out["skipped"] += 1
+            continue
+        art = substack_article.convert(raw, utm=_UTM)
+        desk_store.index_post_search(
+            post["id"],
+            title=post.get("display_title") or post.get("title") or "",
+            tickers=art.tickers,
+            body=art.text,
+        )
+        out["indexed"] += 1
+    return out
+
+
 def reindex_all() -> dict:
     """Rebuild the search index from bodies already on disk. No network.
 

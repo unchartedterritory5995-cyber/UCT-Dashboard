@@ -551,6 +551,30 @@ def _fts_query(raw: str) -> str:
     return " ".join(quoted)
 
 
+def posts_missing_from_index(limit: int = 100) -> list:
+    """Posts that HAVE a body but no search-index row, newest first.
+
+    The index is younger than the archive, so every article stored before search
+    existed is in exactly this state — and an index that silently covers half the
+    archive is worse than none, because a search that finds nothing reads as
+    "he never wrote about it".
+    """
+    if not _FTS_READY:
+        return []
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            """SELECT p.id, p.display_title, p.title, p.tickers_json
+               FROM substack_posts p
+               WHERE p.body_html IS NOT NULL AND p.body_html != ''
+                 AND NOT EXISTS (SELECT 1 FROM substack_posts_fts f
+                                 WHERE f.post_id = p.id)
+               ORDER BY p.published_at DESC
+               LIMIT ?""",
+            (int(limit),),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
 def count_indexed_posts() -> int:
     if not _FTS_READY:
         return 0
