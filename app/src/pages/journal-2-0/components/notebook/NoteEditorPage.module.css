@@ -102,6 +102,16 @@
   top: 56px;
   z-index: 35; /* above in-content embed controls (draw-mode Done = 30) */
 }
+/* Formatting toolbar relocated into the header bar (next to "Saved"), so it's
+   out of the note flow. Compact inline row; sits between the save status and the
+   right-aligned controls. */
+.headerToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: center;
+}
+.headerToolbar .toolBtn { padding: 3px 8px; font-size: 12px; }
 .toolBtn {
   background: transparent;
   border: 1px solid transparent;

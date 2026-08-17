@@ -562,6 +562,65 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true }) {
           {saveStatus === 'reconnecting' && 'Reconnecting…'}
           {saveStatus === 'error' && <><UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{`Save failed${saveErrorMsg ? `: ${saveErrorMsg}` : ''}`}</>}
         </div>
+        {editor && (
+          <div className={styles.headerToolbar} data-export-exclude>
+            <ToolButton
+              active={editor.isActive('bold')}
+              onClick={() => editor.chain().focus().toggleBold().run()}
+              label="B"
+            />
+            <ToolButton
+              active={editor.isActive('italic')}
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+              label="I"
+            />
+            <ToolButton
+              active={editor.isActive('heading', { level: 1 })}
+              onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+              label="H1"
+            />
+            <ToolButton
+              active={editor.isActive('heading', { level: 2 })}
+              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+              label="H2"
+            />
+            <ToolButton
+              active={editor.isActive('bulletList')}
+              onClick={() => editor.chain().focus().toggleBulletList().run()}
+              label="• List"
+            />
+            <ToolButton
+              active={editor.isActive('orderedList')}
+              onClick={() => editor.chain().focus().toggleOrderedList().run()}
+              label="1. List"
+            />
+            <ToolButton
+              active={editor.isActive('blockquote')}
+              onClick={() => editor.chain().focus().toggleBlockquote().run()}
+              label="❝"
+            />
+            <ToolButton
+              active={editor.isActive('codeBlock')}
+              onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+              label="</>"
+            />
+            <ToolButton
+              onClick={() => {
+                const url = prompt('Link URL (https only):')
+                if (url) editor.chain().focus().setLink({ href: url }).run()
+              }}
+              label={<UIcon name="link" size={14} />}
+            />
+            <ToolButton
+              onClick={() => fileInputRef.current?.click()}
+              label={<UIcon name="document" size={14} />}
+            />
+            <ToolButton
+              onClick={() => editor.chain().focus().setHorizontalRule().run()}
+              label="―"
+            />
+          </div>
+        )}
         <div className={styles.headerControls}>
           {chromeMsg && <span className={styles.chromeMsg} role="status">{chromeMsg}</span>}
           {/* Export: PNG rasterizes the note column (charts included); Print
@@ -664,66 +723,6 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true }) {
           onChange={(e) => { setSubtitle(e.target.value); scheduleAutosave() }}
           placeholder="Subtitle (optional)"
         />
-
-        {editor && (
-          <div className={styles.toolbar} data-export-exclude>
-            <ToolButton
-              active={editor.isActive('bold')}
-              onClick={() => editor.chain().focus().toggleBold().run()}
-              label="B"
-            />
-            <ToolButton
-              active={editor.isActive('italic')}
-              onClick={() => editor.chain().focus().toggleItalic().run()}
-              label="I"
-            />
-            <ToolButton
-              active={editor.isActive('heading', { level: 1 })}
-              onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-              label="H1"
-            />
-            <ToolButton
-              active={editor.isActive('heading', { level: 2 })}
-              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-              label="H2"
-            />
-            <ToolButton
-              active={editor.isActive('bulletList')}
-              onClick={() => editor.chain().focus().toggleBulletList().run()}
-              label="• List"
-            />
-            <ToolButton
-              active={editor.isActive('orderedList')}
-              onClick={() => editor.chain().focus().toggleOrderedList().run()}
-              label="1. List"
-            />
-            <ToolButton
-              active={editor.isActive('blockquote')}
-              onClick={() => editor.chain().focus().toggleBlockquote().run()}
-              label="❝"
-            />
-            <ToolButton
-              active={editor.isActive('codeBlock')}
-              onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-              label="</>"
-            />
-            <ToolButton
-              onClick={() => {
-                const url = prompt('Link URL (https only):')
-                if (url) editor.chain().focus().setLink({ href: url }).run()
-              }}
-              label={<UIcon name="link" size={14} />}
-            />
-            <ToolButton
-              onClick={() => fileInputRef.current?.click()}
-              label={<UIcon name="document" size={14} />}
-            />
-            <ToolButton
-              onClick={() => editor.chain().focus().setHorizontalRule().run()}
-              label="―"
-            />
-          </div>
-        )}
 
         <CaptureInboxTray editor={editor} onPlaced={(id) => pendingInboxConsumeRef.current.add(id)} />
 
