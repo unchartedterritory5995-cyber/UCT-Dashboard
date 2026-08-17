@@ -6805,49 +6805,54 @@ export default function StockChart({
       const _isFirstLoad = zoomKeyRef.current === null
       const _tfChanged = lastTfRef.current !== null && lastTfRef.current !== resolvedTf
       const _isSymSwitch = !_isFirstLoad && !_tfChanged && zoomKeyRef.current !== _zoomKey
-      if (userViewLockedRef.current && userLockedViewRef.current && userLockedViewRef.current.top != null) {
-        // The user LOCKED a view (pan/zoom/price-drag) — or a persisted lock was
-        // restored on refresh. Use the vertical band captured at that moment (also
-        // wins on first load / tf-switch) rather than re-measuring at switch time.
-        vertMarginsRef.current = { top: userLockedViewRef.current.top, bottom: userLockedViewRef.current.bottom }
-      } else if (_isFirstLoad || _tfChanged) {
-        vertMarginsRef.current = null
-      } else if (_isSymSwitch && chart && candleSeriesRef.current) {
+      if (_isSymSwitch && chart && candleSeriesRef.current) {
+        // Capture the OUTGOING view so the next ticker opens EXACTLY where the user
+        // left this one. Horizontal (right-relative barsFromRight + width) ALWAYS
+        // carries — like a scroll position; vertical band carries only when it
+        // differs from the default headroom (a real price-scale drag). Reliable
+        // because it reads the SETTLED outgoing range at switch time (no pointer /
+        // no backfill interference). Cleared by right-click → "Reset view".
         try {
           const prevBars = prevBarsRef.current
           const vr = chart.timeScale().getVisibleLogicalRange()
-          if (prevBars && prevBars.length && vr) {
+          if (prevBars && prevBars.length && vr && (vr.to - vr.from) > 0) {
+            const oldN = prevBars.length
+            const bfr = oldN - vr.to
+            const w = vr.to - vr.from
+            let vTop = null, vBottom = null
             const s = Math.max(0, Math.floor(vr.from))
-            const e = Math.min(prevBars.length - 1, Math.ceil(vr.to))
+            const e = Math.min(oldN - 1, Math.ceil(vr.to))
             let hi = -Infinity, lo = Infinity
-            for (let i = s; i <= e; i++) {
-              const b = prevBars[i]
-              if (!b) continue
-              if (b.h > hi) hi = b.h
-              if (b.l < lo) lo = b.l
-            }
-            let paneH = 0
-            try { paneH = chart.paneSize().height } catch {}
+            for (let i = s; i <= e; i++) { const b = prevBars[i]; if (!b) continue; if (b.h > hi) hi = b.h; if (b.l < lo) lo = b.l }
+            let paneH = 0; try { paneH = chart.paneSize().height } catch {}
             if (!(paneH > 0)) { try { paneH = (containerRef.current?.clientHeight || 0) - chart.timeScale().height() } catch {} }
             const series = candleSeriesRef.current
             if (hi > lo && paneH > 8) {
-              const yHi = series.priceToCoordinate(hi)
-              const yLo = series.priceToCoordinate(lo)
+              const yHi = series.priceToCoordinate(hi), yLo = series.priceToCoordinate(lo)
               if (yHi != null && yLo != null) {
                 let top = Math.min(0.9, Math.max(0, yHi / paneH))
                 let bottom = Math.min(0.9, Math.max(0, (paneH - yLo) / paneH))
                 if (top + bottom > 0.95) { const k = 0.95 / (top + bottom); top *= k; bottom *= k }
                 const base = _mainMargins(paneLayoutRef.current, priceScaleTopMargin, volInSeparatePane ? priceScaleBottomMargin : null)
-                // Only treat as a custom placement if it meaningfully differs from default.
-                if (Math.abs(top - base.top) < 0.03 && Math.abs(bottom - base.bottom) < 0.03) {
-                  vertMarginsRef.current = null
-                } else {
-                  vertMarginsRef.current = { top: +top.toFixed(4), bottom: +bottom.toFixed(4) }
-                }
+                if (!(Math.abs(top - base.top) < 0.03 && Math.abs(bottom - base.bottom) < 0.03)) { vTop = +top.toFixed(4); vBottom = +bottom.toFixed(4) }
               }
             }
+            if (Number.isFinite(bfr) && w > 0) {
+              userViewLockedRef.current = true
+              userLockedViewRef.current = { barsFromRight: bfr, width: w, top: vTop, bottom: vBottom }
+              persistViewLock()
+            }
+            vertMarginsRef.current = vTop != null ? { top: vTop, bottom: vBottom } : null
           }
         } catch {}
+      } else if (userViewLockedRef.current && userLockedViewRef.current) {
+        // First-load restore (refresh) or a same-ticker phase change while locked:
+        // keep the lock's vertical band (null → autoscale the default headroom).
+        vertMarginsRef.current = userLockedViewRef.current.top != null
+          ? { top: userLockedViewRef.current.top, bottom: userLockedViewRef.current.bottom }
+          : null
+      } else if (_isFirstLoad || _tfChanged) {
+        vertMarginsRef.current = null
       }
     }
 
@@ -12115,43 +12120,6 @@ export default function StockChart({
         let range = null
         try { range = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
         if (!range) return
-        // ROBUST view-lock capture (workspace): a range change the USER drove
-        // (userViewMovedRef) that diverges from the current lock → update the lock's
-        // right-relative window. This is reliable across small drags where the
-        // pointer-settle capture was flaky, and it persists for refresh survival.
-        if (carryDragPlacement && !replayCutoffRef.current && userViewMovedRef.current) {
-          const n = lastBarCountRef.current || 0
-          const w = range.to - range.from
-          if (n > 0 && w > 0) {
-            const bfr = n - range.to
-            const cur = userLockedViewRef.current
-            const changed = !cur || Math.abs((cur.barsFromRight ?? 0) - bfr) > 0.5 || Math.abs((cur.width ?? 0) - w) > 0.5
-            if (changed) {
-              let top = cur?.top ?? null, bottom = cur?.bottom ?? null
-              try {
-                const bars = prevBarsRef.current, series = candleSeriesRef.current
-                if (bars && bars.length && series) {
-                  const s = Math.max(0, Math.floor(range.from)), e = Math.min(bars.length - 1, Math.ceil(range.to))
-                  let hi = -Infinity, lo = Infinity
-                  for (let i = s; i <= e; i++) { const b = bars[i]; if (!b) continue; if (b.h > hi) hi = b.h; if (b.l < lo) lo = b.l }
-                  let paneH = 0; try { paneH = chart.paneSize().height } catch {}
-                  if (!(paneH > 0)) { try { paneH = (containerRef.current?.clientHeight || 0) - chart.timeScale().height() } catch {} }
-                  if (hi > lo && paneH > 8) {
-                    const yHi = series.priceToCoordinate(hi), yLo = series.priceToCoordinate(lo)
-                    if (yHi != null && yLo != null) {
-                      let t = Math.min(0.9, Math.max(0, yHi / paneH)), bt = Math.min(0.9, Math.max(0, (paneH - yLo) / paneH))
-                      if (t + bt > 0.95) { const k = 0.95 / (t + bt); t *= k; bt *= k }
-                      top = +t.toFixed(4); bottom = +bt.toFixed(4)
-                    }
-                  }
-                }
-              } catch { /* vertical optional */ }
-              userViewLockedRef.current = true
-              userLockedViewRef.current = { barsFromRight: bfr, width: w, top, bottom }
-              persistViewLock()
-            }
-          }
-        }
         if (shouldBackfill({
           fromIndex: range.from,
           toIndex: range.to,
