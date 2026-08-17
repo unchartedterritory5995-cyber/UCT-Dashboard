@@ -1,5 +1,5 @@
 import { useEditor, EditorContent } from '@tiptap/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import useSWR, { mutate as globalMutate } from 'swr'
 import { buildExtensions, uploadInlineImage } from '../../lib/tiptap'
 import { useJ2Note } from '../../hooks/useJ2Notes'
@@ -377,6 +377,17 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // Keep the ref current so the paste/drop handlers (captured at creation) always
   // reach the live editor instance.
   editorRef.current = editor
+  // TipTap v3's useEditor does NOT re-render on transactions, so toolbar state
+  // read in render (font/size dropdowns, bold/italic active) goes stale. Bump a
+  // counter on every selection/mark change to keep the toolbar in sync.
+  const [, bumpToolbar] = useReducer((x) => x + 1, 0)
+  useEffect(() => {
+    if (!editor) return undefined
+    const update = () => bumpToolbar()
+    editor.on('transaction', update)
+    editor.on('selectionUpdate', update)
+    return () => { editor.off('transaction', update); editor.off('selectionUpdate', update) }
+  }, [editor])
 
   // Push fresh body into editor when note loads (one-shot per note).
   // Depends on `editor` (not just note.id) so it re-runs once the editor
