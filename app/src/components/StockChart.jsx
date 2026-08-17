@@ -1376,6 +1376,7 @@ export default function StockChart({
   forceExtendedHours = null,  // null = follow the user's extendedHoursShading setting (today's behavior). false = REGULAR HOURS ONLY, true = force extended. The headless export has no saved settings, so it silently took the ?? true default and rendered pre/post shading bands the owner does not publish.
   ema9MatchCandle = false,  // Charts workspace: paint the 9-EMA overlay in the candle up-color (MB_UP) so the fast MA matches the candles. Reliable regardless of saved overlay colors; scoped so Model Book is unaffected.
   carryDragPlacement = true, // carry the user's drag-repositioned vertical candle placement across ticker switches. false = each ticker autoscales fresh to the default margins (Charts workspace: prevents the price scale ballooning to a sliver and STICKING when scrolling tickers).
+  viewLockKey = null,       // localStorage key. When set (Charts workspace), the user's pan/zoom/price-scale view is PERSISTED here so it survives a page refresh — restored on load, cleared by "Reset view".
   keepPresentOnSymbolChange = false, // on a symbol switch, keep the zoom LEVEL but re-anchor the newest candle to the right so a newly-typed ticker always loads at present day (never inherits the prior symbol's scrolled-back/past view). Charts workspace opts in.
   centerWatermarkOnPlot = false, // center the watermark on the CANDLE PLOT AREA (chart.timeScale().width()/2), not 0.5×pane-width — the pane width includes the right price axis, so a plain 0.5 reads right-of-center. Exact at any widget width.
   rightPadBars = 3,          // bars of empty space between the last candle and the right price scale (rightOffset + default-zoom right pad). Charts workspace uses more for breathing room.
@@ -2529,6 +2530,29 @@ export default function StockChart({
   // the user actually left the chart at.
   const userViewLockedRef = useRef(false)
   const userLockedViewRef = useRef(null)    // { barsFromRight, width, top, bottom }
+  // Persist / restore the view lock so it survives a page refresh (viewLockKey set).
+  const viewLockKeyRef = useRef(viewLockKey); viewLockKeyRef.current = viewLockKey
+  const persistViewLock = () => {
+    try {
+      const k = viewLockKeyRef.current; if (!k) return
+      if (userViewLockedRef.current && userLockedViewRef.current) localStorage.setItem(k, JSON.stringify(userLockedViewRef.current))
+      else localStorage.removeItem(k)
+    } catch { /* storage disabled */ }
+  }
+  const readViewLock = () => {
+    try {
+      const k = viewLockKeyRef.current; if (!k) return null
+      const raw = localStorage.getItem(k); if (!raw) return null
+      const v = JSON.parse(raw)
+      if (v && typeof v.barsFromRight === 'number' && typeof v.width === 'number' && v.width > 0) return v
+    } catch { /* */ }
+    return null
+  }
+  // Restore a persisted lock on mount so a refresh keeps the user's view.
+  if (viewLockKey && !userViewLockedRef.current && userLockedViewRef.current === null) {
+    const _saved = readViewLock()
+    if (_saved) { userViewLockedRef.current = true; userLockedViewRef.current = _saved }
+  }
   const viewPointerRef = useRef(null)       // {x, y} of the in-flight press, else null
   const lastPointerDownAtRef = useRef(0)    // ms of the last press anywhere on the chart
   // Is the user's pointer physically over THIS chart? The ONLY trustworthy
@@ -3218,7 +3242,7 @@ export default function StockChart({
         // lock so the next replay ticker returns to the default replay frame.
         userViewMovedRef.current = false
         replayViewLockedRef.current = false; replayLockedViewRef.current = null
-        userViewLockedRef.current = false; userLockedViewRef.current = null
+        userViewLockedRef.current = false; userLockedViewRef.current = null; persistViewLock()
       } catch {}
     }
     const autoScale = () => {
@@ -6781,12 +6805,13 @@ export default function StockChart({
       const _isFirstLoad = zoomKeyRef.current === null
       const _tfChanged = lastTfRef.current !== null && lastTfRef.current !== resolvedTf
       const _isSymSwitch = !_isFirstLoad && !_tfChanged && zoomKeyRef.current !== _zoomKey
-      if (_isFirstLoad || _tfChanged) {
-        vertMarginsRef.current = null
-      } else if (userViewLockedRef.current && userLockedViewRef.current && userLockedViewRef.current.top != null) {
-        // The user LOCKED a view (pan/zoom/price-drag). Use the vertical band captured
-        // at that moment — reliable — rather than re-measuring at switch time.
+      if (userViewLockedRef.current && userLockedViewRef.current && userLockedViewRef.current.top != null) {
+        // The user LOCKED a view (pan/zoom/price-drag) — or a persisted lock was
+        // restored on refresh. Use the vertical band captured at that moment (also
+        // wins on first load / tf-switch) rather than re-measuring at switch time.
         vertMarginsRef.current = { top: userLockedViewRef.current.top, bottom: userLockedViewRef.current.bottom }
+      } else if (_isFirstLoad || _tfChanged) {
+        vertMarginsRef.current = null
       } else if (_isSymSwitch && chart && candleSeriesRef.current) {
         try {
           const prevBars = prevBarsRef.current
@@ -8897,13 +8922,6 @@ export default function StockChart({
           try {
             chart.timeScale().setVisibleLogicalRange({ from, to })
             didPreserve = true
-            if (userViewLockedRef.current) {
-              try {
-                window.__uctApplied = { from, to, newBarCount, locked: true }
-                requestAnimationFrame(() => { try { window.__uctFinal = chart.timeScale().getVisibleLogicalRange() } catch {} })
-                setTimeout(() => { try { window.__uctFinal2 = chart.timeScale().getVisibleLogicalRange() } catch {} }, 600)
-              } catch {}
-            }
           } catch {}
         }
       }
@@ -8956,6 +8974,18 @@ export default function StockChart({
             const to = lastIdx + _pt.width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
             const from = to - _pt.width
             chart.timeScale().setVisibleLogicalRange({ from, to })
+          } else if (userViewLockedRef.current && userLockedViewRef.current && userLockedViewRef.current.width > 0) {
+            // A persisted view lock restored on refresh (first load, no prior view):
+            // open at the user's exact right-relative window, not the default.
+            const _nbc = filteredBars.length
+            const _to = _nbc - userLockedViewRef.current.barsFromRight
+            const _from = _to - userLockedViewRef.current.width
+            if (Number.isFinite(_from) && Number.isFinite(_to) && _to > 1 && _from < _nbc) {
+              try { chart.timeScale().setVisibleLogicalRange({ from: _from, to: _to }) } catch {}
+            } else {
+              const { from: _df, to: _dt } = computeDefaultLogicalRange(filteredBars.length, resolvedTf, { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) })
+              chart.timeScale().setVisibleLogicalRange({ from: _df, to: _dt })
+            }
           } else {
             // First load (no prior view): canonical default zoom — newest candle at
             // LAST_CANDLE_POS, the timeframe's default history. Shared with "Reset view".
@@ -11473,7 +11503,7 @@ export default function StockChart({
             }
           } catch { /* vertical optional */ }
           userLockedViewRef.current = lock
-          try { window.__uctLock = { ...lock, sym } } catch {}
+          persistViewLock()
         } catch { /* mid-load */ }
       })
     }
@@ -11808,7 +11838,7 @@ export default function StockChart({
               }
               userViewMovedRef.current = false   // explicit reset re-arms the pinned-right net
               replayViewLockedRef.current = false; replayLockedViewRef.current = null // and releases the replay view lock
-              userViewLockedRef.current = false; userLockedViewRef.current = null // and the normal view lock
+              userViewLockedRef.current = false; userLockedViewRef.current = null; persistViewLock() // and the normal view lock (+ storage)
             } catch { /* noop */ }
           },
           openSettings: () => { try { toolbarRef.current?.openSettings() } catch { /* noop */ } },
@@ -12074,6 +12104,43 @@ export default function StockChart({
         let range = null
         try { range = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
         if (!range) return
+        // ROBUST view-lock capture (workspace): a range change the USER drove
+        // (userViewMovedRef) that diverges from the current lock → update the lock's
+        // right-relative window. This is reliable across small drags where the
+        // pointer-settle capture was flaky, and it persists for refresh survival.
+        if (carryDragPlacement && !replayCutoffRef.current && userViewMovedRef.current) {
+          const n = lastBarCountRef.current || 0
+          const w = range.to - range.from
+          if (n > 0 && w > 0) {
+            const bfr = n - range.to
+            const cur = userLockedViewRef.current
+            const changed = !cur || Math.abs((cur.barsFromRight ?? 0) - bfr) > 0.5 || Math.abs((cur.width ?? 0) - w) > 0.5
+            if (changed) {
+              let top = cur?.top ?? null, bottom = cur?.bottom ?? null
+              try {
+                const bars = prevBarsRef.current, series = candleSeriesRef.current
+                if (bars && bars.length && series) {
+                  const s = Math.max(0, Math.floor(range.from)), e = Math.min(bars.length - 1, Math.ceil(range.to))
+                  let hi = -Infinity, lo = Infinity
+                  for (let i = s; i <= e; i++) { const b = bars[i]; if (!b) continue; if (b.h > hi) hi = b.h; if (b.l < lo) lo = b.l }
+                  let paneH = 0; try { paneH = chart.paneSize().height } catch {}
+                  if (!(paneH > 0)) { try { paneH = (containerRef.current?.clientHeight || 0) - chart.timeScale().height() } catch {} }
+                  if (hi > lo && paneH > 8) {
+                    const yHi = series.priceToCoordinate(hi), yLo = series.priceToCoordinate(lo)
+                    if (yHi != null && yLo != null) {
+                      let t = Math.min(0.9, Math.max(0, yHi / paneH)), bt = Math.min(0.9, Math.max(0, (paneH - yLo) / paneH))
+                      if (t + bt > 0.95) { const k = 0.95 / (t + bt); t *= k; bt *= k }
+                      top = +t.toFixed(4); bottom = +bt.toFixed(4)
+                    }
+                  }
+                }
+              } catch { /* vertical optional */ }
+              userViewLockedRef.current = true
+              userLockedViewRef.current = { barsFromRight: bfr, width: w, top, bottom }
+              persistViewLock()
+            }
+          }
+        }
         if (shouldBackfill({
           fromIndex: range.from,
           toIndex: range.to,
