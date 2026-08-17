@@ -464,6 +464,17 @@
 :global([data-charts-theme='sunrise']) .rotBadgeIn { color: var(--tt-up, #0a5c22); }
 :global([data-charts-theme='sunrise']) .retNeg,
 :global([data-charts-theme='sunrise']) .rotBadgeOut { color: var(--tt-down, #7d1620); }
+/* Light app theme: default the % up/down (and the tick-flash tint) to the light-mode
+   green/red. The JS-emitted --tt-up/--tt-down/--tick-*-bg vars (set inline on .page
+   when the user customizes colors) still win. Needed because a saved settings blob
+   can equal the DARK defaults, in which case no var is emitted and the dark-green
+   fallback above would show on the white canvas. */
+:global([data-theme='light']) .page .retPos { color: var(--tt-up, #17a917); }
+:global([data-theme='light']) .page .retNeg { color: var(--tt-down, #db000b); }
+:global([data-theme='light']) .page {
+  --tick-up-bg: #17a91726;
+  --tick-down-bg: #db000b26;
+}
 .retFlat  { color: var(--tt-text, var(--text-muted)); }
 
 /* TC2000-style tick flash: the number goes bold for a beat and a colored tint
