@@ -296,6 +296,47 @@ def test_the_nearest_session_wins_when_two_are_in_range():
         "Sunday Scans — August 16, 2026", PUBLISHED_AT, two)["youtube_id"] == "near"
 
 
+def test_duplicate_uploads_of_one_session_resolve_DETERMINISTICALLY():
+    """Production carries THREE copies of the 2026-08-16 session. With every
+    candidate at gap 0, picking "the first one seen" hands back whatever order
+    the store happened to return — so the same article can pair differently
+    after an unrelated re-sort. Newest upload wins, both ways round."""
+    dupes = [
+        {"id": 11, "youtube_id": "first", "title": "Sunday Scans — August 16, 2026"},
+        {"id": 22, "youtube_id": "second", "title": "Sunday Scans — August 16, 2026"},
+        {"id": 33, "youtube_id": "third", "title": "Sunday Scans — August 16, 2026"},
+    ]
+    got = links.pick_related_video("Sunday Scans — August 16, 2026", PUBLISHED_AT, dupes)
+    assert got["youtube_id"] == "third"
+    # Same answer whatever order the rows arrive in — that IS the property.
+    assert links.pick_related_video(
+        "Sunday Scans — August 16, 2026", PUBLISHED_AT,
+        list(reversed(dupes)))["youtube_id"] == "third"
+
+
+def test_a_nearer_session_still_beats_a_newer_upload():
+    """The tiebreak must only apply to TIES — a newer upload from two days off
+    must never outrank the session actually published that day."""
+    got = links.pick_related_video("Sunday Scans — August 16, 2026", PUBLISHED_AT, [
+        {"id": 99, "youtube_id": "newer-but-two-days-off",
+         "title": "Sunday Scans — August 18, 2026"},
+        {"id": 1, "youtube_id": "same-day", "title": "Sunday Scans — August 16, 2026"},
+    ])
+    assert got["youtube_id"] == "same-day" and got["day_gap"] == 0
+
+
+def test_a_legacy_hand_titled_video_is_left_unpaired_rather_than_guessed():
+    """Videos predating the auto-publish pipeline carry hand-typed titles
+    ("SUNDAY SCANS", "Sunday Scans April 12th!") with no year or no date at all.
+    Guessing a year to pair them would be a confident wrong answer."""
+    legacy = [
+        {"id": 1, "youtube_id": "a", "title": "SUNDAY SCANS"},
+        {"id": 2, "youtube_id": "b", "title": "Sunday Scans April 12th!"},
+        {"id": 3, "youtube_id": "c", "title": "Sunday Scans - Uncharted Territory"},
+    ]
+    assert links.pick_related_video("Sunday Scans — August 16, 2026", PUBLISHED_AT, legacy) is None
+
+
 @pytest.mark.parametrize("videos", [[], None])
 def test_no_videos_means_no_pairing_not_a_crash(videos):
     assert links.pick_related_video("Sunday Scans — August 16, 2026", PUBLISHED_AT, videos) is None
