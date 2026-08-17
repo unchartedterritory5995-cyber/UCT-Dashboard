@@ -641,17 +641,16 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true }) {
               </div>
             )}
           </>
-        ) : (
-          // Exclude the EMPTY picker (a dashed drop-zone) from exports; a
-          // chosen hero image is content and stays in.
-          <div {...(!note.heroImageUrl ? { 'data-export-exclude': '' } : {})}>
-            <HeroImagePicker
-              noteId={noteId}
-              value={note.heroImageUrl}
-              onChange={onHeroChange}
-            />
-          </div>
-        )}
+        ) : note.heroImageUrl ? (
+          // A note that already has a hero image keeps showing it (it's content,
+          // still editable via the picker's controls). Notes without one start
+          // straight at the title — no empty drop-zone.
+          <HeroImagePicker
+            noteId={noteId}
+            value={note.heroImageUrl}
+            onChange={onHeroChange}
+          />
+        ) : null}
 
         <input
           className={styles.titleInput}

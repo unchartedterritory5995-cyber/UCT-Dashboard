@@ -7,7 +7,12 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 16px;
+  box-sizing: border-box;
+  /* Matches the sidebar's header toolbar height so the two header bars line up
+     bottom-to-bottom (NotebookTab zeroes .main's top padding while a note is
+     open, so this bar's top sits at the same y as the sidebar toolbar's). */
+  min-height: 47px;
+  padding: 6px 16px;
   border-bottom: 1px solid var(--color-border, #232932);
   position: sticky;
   top: 0;
@@ -56,10 +61,10 @@
 }
 .deleteBtn:hover { background: rgba(239, 68, 68, 0.1); }
 .column {
-  max-width: 720px;
+  max-width: none;
   width: 100%;
-  margin: 24px auto 80px;
-  padding: 0 24px;
+  margin: 22px 0 80px;
+  padding: 0 44px;
   display: flex;
   flex-direction: column;
 }

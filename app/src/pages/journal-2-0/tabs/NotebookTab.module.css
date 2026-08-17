@@ -79,6 +79,9 @@
   padding: 16px 20px 40px;
   min-width: 0;
 }
+/* While a note is open, drop the top padding so the editor's header bar starts
+   at the same y as the sidebar's header toolbar (their bottoms then line up). */
+.mainNote { padding-top: 0; }
 /* With the panel hidden, keep clear of the always-on toggle at top-left. */
 .wrap.collapsed .main { padding-left: 48px; }
 .toolbar {

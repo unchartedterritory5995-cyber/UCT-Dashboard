@@ -270,7 +270,7 @@ export default function NotebookTab() {
         aria-label="Resize folders panel"
       />
 
-      <div className={styles.main}>
+      <div className={`${styles.main} ${noteId ? styles.mainNote : ''}`}>
         {noteId ? (
           // Key by noteId so switching notes from the persistent sidebar remounts
           // the editor fresh (TipTap state + autosave), same as opening from the grid.
