@@ -145,7 +145,7 @@ const LEGEND_LAYOUTS = [
 // it is how a fourth mode ends up unreachable from the settings UI.
 const LEGEND_MODE_LABELS = {
   always: { label: 'Always', hint: 'On, following the crosshair as you hover' },
-  click: { label: 'On click', hint: 'Chart stays clean; click a candle to pin it' },
+  hold: { label: 'Hold', hint: 'Chart stays clean; press and hold to peek, release to hide' },
   off: { label: 'Off', hint: 'Never shown' },
 }
 

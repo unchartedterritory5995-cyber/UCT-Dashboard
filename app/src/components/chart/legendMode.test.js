@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { legendModeOf, LEGEND_MODES, nextLegendMode } from './legendMode'
+import { legendModeOf, LEGEND_MODES, nextLegendMode, DEFAULT_LEGEND_MODE } from './legendMode'
 import { mergeChartSettings, CHART_DEFAULTS } from './chartDefaults'
 
 // ── ONE AUTHORITY OVER "IS THE LEGEND SHOWING" ───────────────────────────────
@@ -10,12 +10,12 @@ import { mergeChartSettings, CHART_DEFAULTS } from './chartDefaults'
 // fallback — the alternative (keeping both writable and "syncing" them) is the
 // second-authority-over-one-value defect this repo keeps paying for.
 describe('legendModeOf — the single reader', () => {
-  it('a blob that has never heard of either key reads as ON CLICK — the shipped default', () => {
+  it('a blob that has never heard of either key reads as HOLD — the shipped default', () => {
     // ⭐ THE DEFAULT LIVES HERE, NOT IN `CHART_DEFAULTS`. `mergeChartSettings`
     // resolves `header.legendMode` by calling THIS function on the stored blob,
     // so the declaration in the schema is downstream of this line. Changing the
     // schema alone would have moved nothing — measured.
-    expect(legendModeOf(mergeChartSettings(JSON.stringify({})))).toBe('click')
+    expect(legendModeOf(mergeChartSettings(JSON.stringify({})))).toBe('hold')
   })
 
   it('a LEGACY blob with showLegend:false still means off', () => {
@@ -31,7 +31,7 @@ describe('legendModeOf — the single reader', () => {
     // existing user to the old behaviour forever. `showLegend: false` is the one
     // legacy value that carries a real decision, and it is honoured below.
     const cs = mergeChartSettings(JSON.stringify({ header: { showLegend: true } }))
-    expect(legendModeOf(cs)).toBe('click')
+    expect(legendModeOf(cs)).toBe('hold')
   })
 
   it('an explicit legendMode WINS over a contradicting legacy showLegend', () => {
@@ -39,9 +39,9 @@ describe('legendModeOf — the single reader', () => {
     // control while an old `showLegend: true` is still sitting in the blob.
     // Reading the legacy key first would silently discard the choice.
     const cs = mergeChartSettings(JSON.stringify({
-      header: { showLegend: true, legendMode: 'click' },
+      header: { showLegend: true, legendMode: 'hold' },
     }))
-    expect(legendModeOf(cs)).toBe('click')
+    expect(legendModeOf(cs)).toBe('hold')
   })
 
   it('an explicit legendMode:always WINS over the new default', () => {
@@ -74,9 +74,9 @@ describe('legendModeOf — the single reader', () => {
   })
 
   it('survives a missing header / null settings without throwing', () => {
-    expect(legendModeOf(null)).toBe('click')
-    expect(legendModeOf({})).toBe('click')
-    expect(legendModeOf({ header: null })).toBe('click')
+    expect(legendModeOf(null)).toBe('hold')
+    expect(legendModeOf({})).toBe('hold')
+    expect(legendModeOf({ header: null })).toBe('hold')
   })
 
   it('mergeChartSettings PRESERVES legendMode — the allow-list must not destroy it', () => {
@@ -84,24 +84,31 @@ describe('legendModeOf — the single reader', () => {
     // deleted on every read. `header` is spread wholesale, so this passes by
     // construction today — the test exists so a future tightening of the header
     // merge can't silently drop the user's choice.
-    const cs = mergeChartSettings(JSON.stringify({ header: { legendMode: 'click' } }))
-    expect(cs.header.legendMode).toBe('click')
+    const cs = mergeChartSettings(JSON.stringify({ header: { legendMode: 'hold' } }))
+    expect(cs.header.legendMode).toBe('hold')
   })
 
-  it('the DEFAULT blob declares the mode, so the settings UI has something to read', () => {
-    // Kept in step with the resolver's fallback ON PURPOSE — they are two views
-    // of one decision, and a schema that advertised a different default than the
-    // one users actually get is the drift this file exists to prevent.
-    expect(CHART_DEFAULTS.header.legendMode).toBe('click')
-    expect(legendModeOf({}), 'the schema default and the resolver fallback disagree')
-      .toBe(CHART_DEFAULTS.header.legendMode)
+  it('⛔ the DEFAULT blob does NOT declare the mode — declaring it froze real users', () => {
+    // A schema entry gets spread into every merged blob, and the merged blob is
+    // what every settings write persists. Declaring the default therefore RECORDS
+    // it as a user choice, after which no later default can outrank it — which is
+    // exactly what happened to the owner on 2026-08-16. The default lives in
+    // `DEFAULT_LEGEND_MODE` and is re-derived on every read.
+    expect(Object.prototype.hasOwnProperty.call(CHART_DEFAULTS.header, 'legendMode')).toBe(false)
+    expect(legendModeOf({})).toBe(DEFAULT_LEGEND_MODE)
+  })
+
+  it('a blob stored under the ONE-DAY name `click` still means hold', () => {
+    // It shipped as click-to-pin for a day before becoming press-and-hold; anyone
+    // who picked it then meant "not always, not off", which is what hold is.
+    expect(legendModeOf({ header: { legendMode: 'click' } })).toBe('hold')
   })
 })
 
 describe('nextLegendMode — what the toolbar button cycles through', () => {
-  it('cycles always -> click -> off -> always', () => {
-    expect(nextLegendMode('always')).toBe('click')
-    expect(nextLegendMode('click')).toBe('off')
+  it('cycles always -> hold -> off -> always', () => {
+    expect(nextLegendMode('always')).toBe('hold')
+    expect(nextLegendMode('hold')).toBe('off')
     expect(nextLegendMode('off')).toBe('always')
   })
 
@@ -110,6 +117,6 @@ describe('nextLegendMode — what the toolbar button cycles through', () => {
   })
 
   it('LEGEND_MODES is the enumeration the cycle walks — no fourth state', () => {
-    expect(LEGEND_MODES).toEqual(['always', 'click', 'off'])
+    expect(LEGEND_MODES).toEqual(['always', 'hold', 'off'])
   })
 })

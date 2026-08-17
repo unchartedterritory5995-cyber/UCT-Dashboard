@@ -45,7 +45,15 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 # improvement re-converts from the stored raw body with zero network traffic.
 #   1 -> 2: tickers also sourced from each chart's own label, not just the
 #           "Charts Covered" heading (which under half the archive carries).
-CONVERTER_VERSION = 2
+#   2 -> 3: links to another post on a Substack publication carry
+#           data-post-slug, so the reader can route them in-house.
+#   3 -> 4: Substack's own dead "Leave a comment" / "Share" buttons are
+#           dropped with their labels (148 of them across the archive).
+# ⛔ ANY change to what convert() EMITS needs a bump here. Shipping the furniture
+# drop without one left every stored row on the previous output and the
+# improvement applied to nothing -- silently, because a backfill with no version
+# change has no work to find.
+CONVERTER_VERSION = 4
 
 # Matches the max reader measure in ArticleReader.module.css. Kept as a module
 # constant rather than inlined so the two can be pinned together by a test.
@@ -172,6 +180,41 @@ def _is_cta(attrs: dict[str, str]) -> bool:
     if (attrs.get("data-component-name") or "") == _CTA_COMPONENT:
         return True
     return "button-wrapper" in (attrs.get("class") or "").lower()
+
+
+# A Substack post permalink: https://<pub>.substack.com/p/<slug>
+# ⛔ EXACTLY `/p/<slug>` — NOT `/p/<slug>/comments`. A comments link is a
+# different destination, and silently routing it to our reader would answer a
+# question the reader did not ask. (Those particular links are also broken at
+# the source: several point at the PREVIOUS week's slug.)
+_SUBSTACK_POST_RE = re.compile(r"^/p/([A-Za-z0-9][A-Za-z0-9._-]*)/?$")
+
+
+def _substack_post_slug(url: str) -> str | None:
+    parts = urlsplit(url)
+    if not parts.netloc.lower().endswith(".substack.com"):
+        return None
+    m = _SUBSTACK_POST_RE.match(parts.path or "")
+    return m.group(1) if m else None
+
+
+def _is_dead_substack_furniture(url: str) -> bool:
+    """Substack's own "Leave a comment" / "Share" links, which are FURNITURE.
+
+    Measured across the archive: 75 comment links and 73 share links against ONE
+    genuine cross-reference. Both were already ruled dead for the Sunday Scans
+    generator (owner call 2026-07-26) on the grounds that there is nothing
+    correct to copy -- the comment links carry the PREVIOUS week's slug, and the
+    share JWTs expired in 2025. Reproducing them faithfully just imports 148
+    broken buttons; rewriting them to our reader would be worse, turning "Share"
+    into a navigation the reader never asked for.
+    """
+    parts = urlsplit(url or "")
+    if not parts.netloc.lower().endswith(".substack.com"):
+        return False
+    if (parts.path or "").endswith("/comments"):
+        return True
+    return "action=share" in (parts.query or "")
 
 
 def _slugify(text: str) -> str:
@@ -308,6 +351,13 @@ class _Converter(HTMLParser):
                 self._drop_depth = 1
             return
 
+        # Drop Substack's own comment/share buttons WITH their label — the text
+        # ("Leave a comment", "Share") is furniture, so unwrapping would leave a
+        # bare word floating in the prose.
+        if tag == "a" and _is_dead_substack_furniture(attrs.get("href", "")):
+            self._drop_depth = 1
+            return
+
         if tag == "img":
             self._emit_img(attrs)
             return
@@ -400,6 +450,13 @@ class _Converter(HTMLParser):
                 if "whop.com" in url:
                     url = _with_utm(url, self._utm)
                 kept.append(("href", url))
+                # A link to ANOTHER post on a Substack publication is a link to
+                # something we may already hold. Tag it with the slug and let the
+                # READER decide -- resolving it here would freeze the answer at
+                # conversion time, and the target is often backfilled later.
+                slug = _substack_post_slug(url)
+                if slug:
+                    kept.append(("data-post-slug", slug))
                 if urlsplit(url).netloc:
                     kept.append(("target", "_blank"))
                     kept.append(("rel", "noopener noreferrer"))

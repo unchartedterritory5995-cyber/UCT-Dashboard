@@ -75,6 +75,15 @@ export default function ArticleReader() {
     if (img) {
       e.preventDefault()
       setLightbox({ src: img.currentSrc || img.src, alt: img.alt || '' })
+      return
+    }
+    // A reference to an earlier issue that the server resolved to our own
+    // reader. Without this it is a plain <a href>, so clicking would reload the
+    // whole SPA to land on a route we are already inside.
+    const link = e.target.closest?.('a[href^="/"]')
+    if (link && !link.getAttribute('target')) {
+      e.preventDefault()
+      navigate(link.getAttribute('href'))
     }
   }, [navigate])
 

@@ -208,6 +208,16 @@ def get_article(post_id: str, _user: dict = Depends(require_article_reader)):
         # No converted body: the reader must not render an empty page when a
         # perfectly good link-out exists.
         raise HTTPException(409, "Article body is not available yet")
+    # A reference to an earlier issue should open HERE, not bounce the reader to
+    # Substack to read something we are already hosting. Resolved on the way out
+    # so it stays correct as the archive backfills.
+    internal_links = 0
+    try:
+        from api.services import substack_internal_links
+        body, internal_links = substack_internal_links.rewrite(
+            body, desk_store.readable_slugs())
+    except Exception:  # noqa: BLE001 — a link is not worth losing the article over
+        pass
     return {
         "id": post["id"],
         "slug": post.get("slug"),
@@ -224,6 +234,7 @@ def get_article(post_id: str, _user: dict = Depends(require_article_reader)):
         "sections": _json_list(post.get("sections_json")),
         "tickers": _json_list(post.get("tickers_json")),
         "related_video": _related_video(post),
+        "internal_links": internal_links,
         "body_html": body,
     }
 

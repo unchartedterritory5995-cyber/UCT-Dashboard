@@ -63,17 +63,17 @@ describe('ChartToolbar — the legend mode button', () => {
     expect(spy).toHaveBeenCalledTimes(1)
   })
 
-  it('cycles always -> click', async () => {
+  it('cycles always -> hold', async () => {
     const user = userEvent.setup()
     mount(mergeChartSettings({ header: { legendMode: 'always' } }), spy)
     await user.click(legendBtn())
     expect(spy).toHaveBeenCalledTimes(1)
-    expect(legendModeOf(spy.mock.calls[0][0])).toBe('click')
+    expect(legendModeOf(spy.mock.calls[0][0])).toBe('hold')
   })
 
-  it('cycles click -> off', async () => {
+  it('cycles hold -> off', async () => {
     const user = userEvent.setup()
-    mount(mergeChartSettings({ header: { legendMode: 'click' } }), spy)
+    mount(mergeChartSettings({ header: { legendMode: 'hold' } }), spy)
     await user.click(legendBtn())
     expect(legendModeOf(spy.mock.calls[0][0])).toBe('off')
   })
