@@ -817,7 +817,15 @@ function ChartPane({
           verticalLegend
           lockWatermark
           alwaysShowLegend
-          hideLegend={!hdr.showLegend}
+          /* ⚰️ `hideLegend={!hdr.showLegend}` STOOD HERE, and it is DELETED rather
+             than translated to the new key. `hideLegend` is the HOST's veto — "my
+             canvas is too small for chrome" — and this pane's canvas is not. It was
+             standing in for the USER's preference, which meant the pane resolved
+             that preference from its own `hdr` while StockChart resolved the very
+             same blob independently: two readers, one fact, drifting the moment
+             either side learned about a mode the other didn't.
+             StockChart reads `legendModeOf(cs)` off the settings this pane already
+             hands it via `settingsOverride`, so the answer is computed once. */
           legendColor={hdrColors.legend || null}
           rightPadBars={6}
           dailyDefaultBars={126}

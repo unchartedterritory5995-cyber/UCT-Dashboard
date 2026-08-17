@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ColorPanel from './ColorPanel'
 import { CHART_DEFAULTS } from './chartDefaults'
+import { legendModeOf, LEGEND_MODES } from './legendMode'
 import {
   listAllIndicators, readEnabled, applyRowPatch, indTarget, splitIndTarget, isIndTarget,
 } from './indicatorRegistry'
@@ -138,6 +139,15 @@ const LEGEND_LAYOUTS = [
   { val: 'vertical', label: 'Vertical' },
   { val: 'horizontal', label: 'Horizontal' },
 ]
+// When the on-chart OHLCV legend shows. ⚠️ The VALUES are not written here —
+// `LEGEND_MODES` is the enumeration, and this only supplies each one's label and
+// its one-line explanation. A hand-typed value list beside the module that owns
+// it is how a fourth mode ends up unreachable from the settings UI.
+const LEGEND_MODE_LABELS = {
+  always: { label: 'Always', hint: 'On, following the crosshair as you hover' },
+  click: { label: 'On click', hint: 'Chart stays clean; click a candle to pin it' },
+  off: { label: 'Off', hint: 'Never shown' },
+}
 
 export default function ChartSettingsModal({
   open, onClose, settings, onChange, savedColors = [], onSaveColor, onDeleteColor, themeVars = null,
@@ -460,6 +470,10 @@ export default function ChartSettingsModal({
   // Header tab.
   const header = settings?.header || {}
   const setHeader = (patch) => setSetting({ header: { ...header, ...patch } })
+  // Through the resolver, never off `header.legendMode` — a user whose blob
+  // predates the mode carries only the legacy `showLegend`, and reading the field
+  // directly would show them "Always" while their chart draws nothing.
+  const legendMode = legendModeOf(settings)
   // Info Row — the picked fields (migrates a legacy show* blob); the picker menu state
   // lives up top with the other hooks (this code runs after the `!open` early return).
   const infoFields = headerFieldKeys(header)
@@ -913,10 +927,33 @@ export default function ChartSettingsModal({
           <section className={styles.section}>
             <div className={styles.sectionLabel}>Chart Legend</div>
             <div className={styles.card}>
-              {renderShowRow('showLegend', 'Chart legend', [['hdrLegend', 'Chart legend color']])}
+              {/* ⚰️ A SHOW/HIDE TOGGLE STOOD HERE (`renderShowRow('showLegend', …)`)
+                  and is replaced by a three-way control rather than joined by one.
+                  Two controls over one fact — a boolean AND a mode — is the defect
+                  the resolver exists to prevent; `header.showLegend` survives ONLY
+                  as a read-only fallback for blobs written before the mode, and
+                  nothing writes it any more. The toolbar's eye button cycles the
+                  same key. */}
+              <div className={styles.field}>
+                <span className={styles.fieldLabel}>Chart legend</span>
+                <div className={styles.hdrRowCtl}>
+                  {legendMode !== 'off' && colorSwatch('hdrLegend', 'Chart legend color')}
+                  <div className={styles.seg} role="tablist">
+                    {LEGEND_MODES.map((val) => (
+                      <button
+                        key={val} type="button" role="tab"
+                        aria-selected={legendMode === val}
+                        title={LEGEND_MODE_LABELS[val].hint}
+                        className={`${styles.segBtn} ${legendMode === val ? styles.segBtnActive : ''}`}
+                        onClick={() => setHeader({ legendMode: val })}
+                      >{LEGEND_MODE_LABELS[val].label}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
               {/* Legend shape. Only meaningful while the legend is shown, and only the
                   Charts workspace honors it (other surfaces keep their own inline row). */}
-              {header.showLegend !== false && (
+              {legendMode !== 'off' && (
                 <div className={styles.field}>
                   <span className={styles.fieldLabel}>Legend layout</span>
                   <div className={styles.seg} role="tablist">

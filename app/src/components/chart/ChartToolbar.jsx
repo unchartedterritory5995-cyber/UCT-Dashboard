@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback, forwardRef, useImperativeHandle } from 'react'
 import { createPortal } from 'react-dom'
 import { CHART_DEFAULTS, PRESETS, mergeChartSettings } from './chartDefaults'
+import { legendModeOf, nextLegendMode } from './legendMode'
 import ColorPicker, { PORTAL_POPUP_ATTR } from './ColorPicker'
 import ColorPanel from './ColorPanel'
 import ComparisonPicker from './ComparisonPicker'
@@ -973,6 +974,41 @@ function ChartToolbar({
             <UIcon name="magnet" size={15} />
           </button>
         )}
+
+        {/* ── OHLCV legend: Always / On click / Off ──────────────────────────
+            The mode lived only in Chart Settings → Header; this is its quick
+            control. Three states rather than a checkbox because "on click" is
+            the one people actually want — a clean chart that answers when asked.
+
+            ⛔ WRITES `header.legendMode` AND NOTHING ELSE. The legacy
+            `header.showLegend` boolean is deliberately left alone: it is a
+            read-only fallback for blobs written before the mode existed, and
+            "keeping them in sync" would put two keys on one fact. `legendModeOf`
+            reads the pair; only this line writes.
+
+            Rendered only where settings actually persist — a read-only mount
+            (Model Book, a grid cell) gets no button rather than one that writes
+            nowhere. */}
+        {chartSettings && onUpdateSettings && (() => {
+          const mode = legendModeOf(chartSettings)
+          const NEXT_LABEL = { always: 'on click', click: 'off', off: 'always' }
+          const ICON = { always: 'eye', click: 'pin', off: 'eyeOff' }
+          const STATE = { always: 'Always on', click: 'On click', off: 'Off' }
+          return (
+            <button
+              className={`${styles.btn} ${mode !== 'off' ? styles.active : ''}`}
+              onClick={() => onUpdateSettings({
+                ...chartSettings,
+                header: { ...chartSettings.header, legendMode: nextLegendMode(mode) },
+                preset: 'custom',
+              })}
+              title={`OHLCV legend: ${STATE[mode]} — click for ${NEXT_LABEL[mode]}`}
+              aria-label={`OHLCV legend: ${STATE[mode]}`}
+            >
+              <UIcon name={ICON[mode]} size={15} />
+            </button>
+          )
+        })()}
 
         {/* Repeat mode toggle */}
         <button

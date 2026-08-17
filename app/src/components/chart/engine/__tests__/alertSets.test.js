@@ -237,9 +237,24 @@ describe('⭐ THE MEASUREMENT — a real stored blob gains no scope and loses no
   //   darkPool: {enabled:false,…} — opt-in + paid-gated, off by default
   // Two default-OFF and one codifying what was already drawn ⇒ no pixel moves;
   // the digest necessarily shifts by those additive fields.
-  // (Prior value: fe0106c948630eb11b2169fc61132292478ae106ca2406a605431a63e22e0818)
+  // 2026-08-16: re-pinned for `header.legendMode` (the on-chart legend's
+  // Always / On click / Off mode). INVESTIGATED BY MEASUREMENT, not by reading
+  // the diff and hoping: a throwaway rail rebuilt this exact hash over these
+  // exact fixtures with `header.legendMode` — and ONLY that key — deleted from
+  // each merged blob, preserving key order so the emitted bytes matched, and it
+  // reproduced the prior literal EXACTLY. So every other byte of every fixture's
+  // merged blob is unchanged and nothing on this path answers differently.
+  //   legendMode: 'always'  — resolved by `legendMode.js::legendModeOf` from the
+  //                           legacy `header.showLegend`, so a stored blob that
+  //                           has never heard of the key merges to the behaviour
+  //                           it already had. Zero pixels move for any user.
+  // ⚠️ `showLegend` is deliberately still emitted beside it: it is the fallback
+  // INPUT the resolver reads, so removing it WOULD change the answer for every
+  // user who had turned the legend off, and would have shown up here as a
+  // non-additive move.
+  // (Prior value: 2c97ddd7fc6703a5f621c0c4fdf7feea99198fbe0f7753b5dfa8aab3fa602639)
   const MERGED_BLOB_DIGEST_AT_HEAD =
-    '2c97ddd7fc6703a5f621c0c4fdf7feea99198fbe0f7753b5dfa8aab3fa602639'
+    'e53ac95c032672199f1d737207a4ad129183f6b0851929e6a8a24059c8cd326a'
 
   it('⭐ the merged settings blob is BYTE-IDENTICAL to the tree before this task', () => {
     // ⚠️ A STATIC `node:crypto` IMPORT, NOT `await import()`. Under vitest's
