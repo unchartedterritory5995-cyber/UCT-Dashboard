@@ -14,7 +14,7 @@ import * as engineRegistry from './engine/nativeRegistry'
 // resolves `legendMode` by the SAME rule every surface reads it by — see the
 // header block in `mergeChartSettings`. `legendMode.js` imports nothing, so
 // this cannot start a cycle.
-import { legendModeOf } from './legendMode'
+import { legendModeOf, DEFAULT_LEGEND_MODE } from './legendMode'
 
 export const CHART_DEFAULTS = {
   chartType: 'candles', // candles | hollow | bars | line | area
@@ -77,7 +77,12 @@ export const CHART_DEFAULTS = {
     // clicks a candle, which pins the legend to that bar; 'off' = never drawn.
     // ⭐ Read it through `legendModeOf(cs)` — never off this field directly, or
     // the legacy `showLegend` blobs stop being honoured on that one surface.
-    legendMode: 'always',   // 'always' | 'click' | 'off'
+    // ⚠️ DERIVED, NOT TYPED. The real default is `DEFAULT_LEGEND_MODE` in
+    // `legendMode.js`: `mergeChartSettings` stamps this key from `legendModeOf`,
+    // so a literal here would be a second authority that only LOOKS like the
+    // default — and would read as the default in the settings UI while every
+    // chart did something else.
+    legendMode: DEFAULT_LEGEND_MODE,   // 'always' | 'click' | 'off'
     // Shape of that legend on the Charts workspace: 'vertical' = the stacked
     // label/value table down the left (the long-standing look); 'horizontal' =
     // a flat two-line strip (ticker · company · TF, then the values) with NO

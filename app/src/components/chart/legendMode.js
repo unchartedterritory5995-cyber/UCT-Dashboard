@@ -20,6 +20,21 @@
 /** The three states, in the order the toolbar button cycles them. */
 export const LEGEND_MODES = ['always', 'click', 'off']
 
+/**
+ * What a chart does when its settings say nothing.
+ *
+ * ⭐⭐ THE DEFAULT LIVES HERE, NOT IN `CHART_DEFAULTS`. `mergeChartSettings`
+ * resolves `header.legendMode` by calling `legendModeOf` on the STORED blob, so
+ * the schema's declaration is downstream of this constant — changing the schema
+ * alone moves nothing, which is measurable and is why the test asserts the two
+ * agree rather than asserting a literal in each place.
+ *
+ * ⚠️ CHANGING THIS CHANGES EVERY EXISTING USER whose blob carries no explicit
+ * mode — which, the day it flipped, was all of them. Owner call, 2026-08-16:
+ * a clean chart that answers when asked is the better out-of-box behaviour.
+ */
+export const DEFAULT_LEGEND_MODE = 'click'
+
 const _VALID = new Set(LEGEND_MODES)
 
 /**
@@ -39,9 +54,18 @@ export function legendModeOf(cs) {
     : null
   const mode = header?.legendMode
   if (_VALID.has(mode)) return mode
-  // Legacy fallback. `showLegend === false` is the ONLY off signal — an absent
-  // key means a blob written before either key existed, which was always-on.
-  return header?.showLegend === false ? 'off' : 'always'
+  // ── LEGACY FALLBACK, AND ONLY ONE LEGACY VALUE CARRIES A DECISION ─────────
+  //
+  // `showLegend === false` is somebody deliberately turning the legend OFF, and
+  // a change to what "unset" means must never quietly re-enable it.
+  //
+  // ⚠️ `showLegend === true` DOES NOT MEAN 'always'. It is the old checkbox's ON
+  // state, and that checkbox had no third option — it could not express the
+  // difference between "always" and "on click". Reading it as an explicit vote
+  // for 'always' would pin every pre-existing user to the old behaviour forever
+  // and make the default flip a no-op for exactly the people it is for. So
+  // everything except an explicit `false` takes the current default.
+  return header?.showLegend === false ? 'off' : DEFAULT_LEGEND_MODE
 }
 
 /** The next state in the cycle. An unknown input restarts at the head. */

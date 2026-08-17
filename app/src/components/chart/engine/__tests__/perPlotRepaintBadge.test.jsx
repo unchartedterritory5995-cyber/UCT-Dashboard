@@ -1,3 +1,4 @@
+import { legendAlways } from './legendProbe'
 // app/src/components/chart/engine/__tests__/perPlotRepaintBadge.test.jsx
 //
 // ─── 🔴 THE PER-PLOT REPAINT BADGE — THE RENDER SURFACE, AND ITS SEPARATION ──
@@ -409,7 +410,7 @@ describe('the chart\'s About page names the repainting COLUMN — including one 
   async function aboutTextFor(defId) {
     const view = render(
       <StockChart sym="PARITY" tf="D" barsOverride={BARS} liveUpdates={false} height={420}
-        settingsOverride={{ indicatorInstances: [instance(defId)] }} />)
+        settingsOverride={legendAlways({ indicatorInstances: [instance(defId)] })} />)
     expect(H.crosshairHandlers.length, 'nothing subscribed to crosshairMove — this case is vacuous',
     ).toBeGreaterThan(0)
 

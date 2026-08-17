@@ -252,9 +252,18 @@ describe('⭐ THE MEASUREMENT — a real stored blob gains no scope and loses no
   // INPUT the resolver reads, so removing it WOULD change the answer for every
   // user who had turned the legend off, and would have shown up here as a
   // non-additive move.
-  // (Prior value: 2c97ddd7fc6703a5f621c0c4fdf7feea99198fbe0f7753b5dfa8aab3fa602639)
+  // 2026-08-16 (same day, second move): the legend's DEFAULT flipped from
+  // 'always' to 'click' (owner call — a chart now starts clean and answers when a
+  // candle is clicked). So this is a VALUE change to the one key the previous
+  // re-pin ADDED, not a new key. PROVED THE SAME WAY: a throwaway rail rebuilt
+  // this hash with `header.legendMode` stripped from each merged blob and
+  // reproduced the PRE-FEATURE literal exactly, so nothing else on this path
+  // answers differently.
+  // ⚠️ `showLegend` still rides along unchanged — it is the resolver's fallback
+  // INPUT, and an explicit `false` in it still wins as 'off'.
+  // (Prior value: e53ac95c032672199f1d737207a4ad129183f6b0851929e6a8a24059c8cd326a)
   const MERGED_BLOB_DIGEST_AT_HEAD =
-    'e53ac95c032672199f1d737207a4ad129183f6b0851929e6a8a24059c8cd326a'
+    '3c251d8a7de169cced6285f1a2efbe8a1325be2b1deeaff88248a1c0c04900e0'
 
   it('⭐ the merged settings blob is BYTE-IDENTICAL to the tree before this task', () => {
     // ⚠️ A STATIC `node:crypto` IMPORT, NOT `await import()`. Under vitest's
