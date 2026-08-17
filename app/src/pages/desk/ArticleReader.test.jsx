@@ -246,6 +246,15 @@ test('walking to the NEXT article does not wipe its bookmark on the way in', () 
   expect(progress.load('sunday-scans-1ad')).not.toBeNull()
 })
 
+test('if the scroll itself fails, no pill is shown — we did not move them', () => {
+  // ⛔ Otherwise the pill says "picked up at Market Breadth Data" over a page
+  // sitting at the top: a claim about something that did not happen.
+  Element.prototype.scrollIntoView = vi.fn(() => { throw new Error('unsupported') })
+  progress.save('sunday-scans-da5', { sectionId: 'market-breadth-data', pct: 0.42 })
+  renderReader()
+  expect(screen.queryByRole('status')).toBeNull()
+})
+
 test('a first-time reader is never moved and sees no pill', () => {
   renderReader()
   expect(screen.queryByRole('status')).toBeNull()

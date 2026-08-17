@@ -31,11 +31,16 @@ describe('when NOT to offer a resume', () => {
   test('barely started — jumping is more disruptive than helpful', () => {
     p.save('s1', { sectionId: 'a', pct: 0.01 }, NOW)
     expect(p.load('s1', NOW)).toBeNull()
+    expect(JSON.parse(localStorage.getItem('uct.desk.article.progress'))).toEqual({})
   })
 
   test('effectively finished — never offer to resume the end', () => {
     p.save('s1', { sectionId: 'a', pct: 0.98 }, NOW)
     expect(p.load('s1', NOW)).toBeNull()
+    // ⛔ Assert the SAVE side too. load() applies the same range guard, so
+    // checking only load() passes even if save() happily stored the entry —
+    // and a stored 98% would resurface the moment either guard moved.
+    expect(JSON.parse(localStorage.getItem('uct.desk.article.progress'))).toEqual({})
   })
 
   test('reaching the end CLEARS an earlier bookmark', () => {
