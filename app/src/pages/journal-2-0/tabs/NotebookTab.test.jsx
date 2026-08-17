@@ -119,7 +119,7 @@ describe('NotebookTab — template picker', () => {
   })
 
   it('?new=<key> deep link auto-creates the template with its ticker', async () => {
-    renderTab('/journal?seg=notebook&new=earnings-play&ticker=gh')
+    renderTab('/journal/notebook?new=earnings-play&ticker=gh')
     await waitFor(() => expect(lastPostBody).not.toBeNull())
     expect(lastPostBody.title).toBe('Earnings Play — GH')
     expect(lastPostBody.tags).toEqual(['earnings'])
@@ -127,7 +127,7 @@ describe('NotebookTab — template picker', () => {
   })
 
   it('an unknown ?new= key strips quietly without creating anything', async () => {
-    renderTab('/journal?seg=notebook&new=not-a-template')
+    renderTab('/journal/notebook?new=not-a-template')
     // give the effect a tick to run
     await new Promise((r) => setTimeout(r, 50))
     expect(lastPostBody).toBeNull()
@@ -158,13 +158,6 @@ describe('NotebookTab — import', () => {
   it('empty state pitches the import path', () => {
     renderTab()
     expect(screen.getByText(/Notion, Obsidian, Evernote/i)).toBeInTheDocument()
-  })
-
-  it('a search filter suppresses the import pitch (filtered-empty is not truly-empty)', () => {
-    renderTab()
-    const search = screen.getByPlaceholderText(/search notes/i)
-    fireEvent.change(search, { target: { value: 'nonexistent query' } })
-    expect(screen.queryByText(/Notion, Obsidian, Evernote/i)).not.toBeInTheDocument()
   })
 
   it('a completed import (ImportWizard calling onImported) refreshes notes', () => {

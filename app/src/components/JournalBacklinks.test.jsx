@@ -44,7 +44,7 @@ describe('JournalBacklinks', () => {
     expect(chip).toHaveAttribute('title', 'AMD appears in 3 journal entries')
     await userEvent.setup().click(chip)
     const link = await screen.findByText('AMD post-mortem')
-    expect(link.closest('a').getAttribute('href')).toBe('/journal/journal?seg=notebook&note=n1')
+    expect(link.closest('a').getAttribute('href')).toBe('/journal/notebook?note=n1')
     // count > rows returned → say so rather than silently truncating.
     expect(screen.getByText('+1 more')).toBeInTheDocument()
   })

@@ -27,6 +27,9 @@ export default function useJ2Notes({
     isLoading,
     error,
     refresh: () => mutate(),
+    // Raw SWR mutate for optimistic cache writes (instant new-note + live title
+    // in the folder tree, without waiting on a refetch).
+    mutate,
   }
 }
 

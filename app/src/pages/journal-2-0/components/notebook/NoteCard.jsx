@@ -13,25 +13,24 @@ function relativeDate(iso) {
   return `${Math.floor(diffSec / (86400 * 30))}mo`
 }
 
+// The card's little preview glyph: the first inline image placed in the note,
+// or an existing still-image hero. Video heroes (YouTube) are skipped — they're
+// not a "photo or png".
+function cardThumb(note) {
+  if (note.firstImageUrl) return note.firstImageUrl
+  const h = note.heroImageUrl
+  if (typeof h === 'string' && h && !/youtube\.com|youtu\.be/.test(h)) return h
+  return null
+}
+
 export default function NoteCard({ note, onOpen }) {
   const title = note.title?.trim() || 'Untitled'
-  const initials = title.slice(0, 2).toUpperCase()
-  const snippet = (note.bodyPlain || '').slice(0, 160)
+  const thumb = cardThumb(note)
   return (
     <button type="button" className={styles.card} onClick={() => onOpen(note)}>
-      {note.heroImageUrl ? (
-        <div className={styles.hero}>
-          <img src={note.heroImageUrl} alt="" />
-        </div>
-      ) : (
-        <div className={styles.heroFallback}>
-          <span>{initials}</span>
-        </div>
-      )}
       <div className={styles.body}>
         <div className={styles.title}>{title}</div>
         {note.subtitle && <div className={styles.subtitle}>{note.subtitle}</div>}
-        {snippet && <div className={styles.snippet}>{snippet}</div>}
         <div className={styles.metaRow}>
           <span className={styles.date}>{relativeDate(note.updatedAt)}</span>
           {note.ticker && <span className={styles.ticker}>${note.ticker}</span>}
@@ -40,6 +39,11 @@ export default function NoteCard({ note, onOpen }) {
           ))}
         </div>
       </div>
+      {thumb && (
+        <div className={styles.thumb} aria-hidden="true">
+          <img src={thumb} alt="" loading="lazy" />
+        </div>
+      )}
     </button>
   )
 }

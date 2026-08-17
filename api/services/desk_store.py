@@ -551,6 +551,66 @@ def _fts_query(raw: str) -> str:
     return " ".join(quoted)
 
 
+# A symbol as it appears inside tickers_json. Normalised and character-checked
+# because it arrives from a URL path segment.
+_SYM_RE = re.compile(r"^[A-Z0-9][A-Z0-9.\-]{0,7}$")
+
+
+def posts_for_ticker(sym: str, limit: int = 12) -> list:
+    """Articles that covered this symbol, newest first.
+
+    Matches on the QUOTED token inside `tickers_json` (`"MU"`), so a substring
+    can never make MU match MU.TO or AMU — the JSON quoting is what gives an
+    exact-token test without parsing 91 blobs.
+    """
+    s = (sym or "").strip().upper()
+    if not _SYM_RE.match(s):
+        return []
+    cols = ", ".join(f"p.{c}" for c in _POST_LIST_COLS)
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            f"""SELECT {cols}, pub.name AS publication_name
+                FROM substack_posts p
+                LEFT JOIN substack_publications pub ON pub.id = p.publication_id
+                WHERE p.body_html IS NOT NULL AND p.body_html != ''
+                  AND p.tickers_json LIKE ?
+                ORDER BY p.published_at DESC
+                LIMIT ?""",
+            (f'%"{s}"%', int(limit)),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def count_posts_for_ticker(sym: str) -> int:
+    """Total coverage count — the list is capped, the headline number is not."""
+    s = (sym or "").strip().upper()
+    if not _SYM_RE.match(s):
+        return 0
+    with contextlib.closing(_connect()) as c:
+        return c.execute(
+            """SELECT COUNT(*) FROM substack_posts
+               WHERE body_html IS NOT NULL AND body_html != ''
+                 AND tickers_json LIKE ?""",
+            (f'%"{s}"%',),
+        ).fetchone()[0]
+
+
+def readable_slugs() -> set:
+    """Slugs of every post we can actually SERVE — i.e. that has a body.
+
+    Used to turn a link back to Substack into a link into our own reader. Keyed
+    on "has a body" rather than "exists", because sending a reader to an article
+    we hold only a card for is a worse outcome than letting them go to Substack.
+    """
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            """SELECT slug FROM substack_posts
+               WHERE slug IS NOT NULL AND slug != ''
+                 AND body_html IS NOT NULL AND body_html != ''"""
+        ).fetchall()
+        return {r["slug"] for r in rows}
+
+
 def posts_missing_from_index(limit: int = 100) -> list:
     """Posts that HAVE a body but no search-index row, newest first.
 

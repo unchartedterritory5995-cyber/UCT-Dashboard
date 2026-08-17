@@ -884,6 +884,12 @@ _PHASE_2_ALTERS = [
     "ALTER TABLE j2_trades ADD COLUMN analytics_excluded_reason TEXT",
     "CREATE INDEX IF NOT EXISTS idx_j2_trades_user_excl "
     "ON j2_trades(user_id, analytics_excluded)",
+    # Notebook card thumbnail: the src of the FIRST inline image in a note's
+    # body, cached so the (body_json-less) list projection can render a small
+    # preview glyph without shipping the whole document. Populated on every body
+    # save + lazily backfilled when a note is opened. NULL = no image (or not yet
+    # computed for a legacy note that hasn't been opened/saved since this shipped).
+    "ALTER TABLE j2_notes ADD COLUMN first_image_url TEXT",
 ]
 
 

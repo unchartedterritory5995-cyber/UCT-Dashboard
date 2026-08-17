@@ -1,5 +1,5 @@
 import { useEditor, EditorContent } from '@tiptap/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import useSWR, { mutate as globalMutate } from 'swr'
 import { buildExtensions, uploadInlineImage } from '../../lib/tiptap'
 import { useJ2Note } from '../../hooks/useJ2Notes'
@@ -33,6 +33,35 @@ const AUTOSAVE_MS = 800
 // After the last entry, retries continue at the cap forever (or until the
 // user edits / closes the tab). 4xx errors bypass retry entirely.
 const RETRY_BACKOFFS_MS = [1000, 2000, 4000, 8000, 15000, 30000]
+
+// Toolbar Font dropdown — a broad set of common web-safe families (each option
+// previews in its own face). Value is a full CSS font-family stack; '' clears.
+const FONT_OPTIONS = [
+  { label: 'Default', value: '' },
+  { label: 'Sans Serif', value: 'Instrument Sans, Arial, sans-serif' },
+  { label: 'Serif', value: 'Georgia, "Times New Roman", serif' },
+  { label: 'Monospace', value: 'Consolas, "Courier New", monospace' },
+  { label: 'Arial', value: 'Arial, Helvetica, sans-serif' },
+  { label: 'Helvetica', value: 'Helvetica, Arial, sans-serif' },
+  { label: 'Verdana', value: 'Verdana, Geneva, sans-serif' },
+  { label: 'Tahoma', value: 'Tahoma, Geneva, sans-serif' },
+  { label: 'Trebuchet MS', value: '"Trebuchet MS", Helvetica, sans-serif' },
+  { label: 'Calibri', value: 'Calibri, Candara, sans-serif' },
+  { label: 'Century Gothic', value: '"Century Gothic", sans-serif' },
+  { label: 'Georgia', value: 'Georgia, serif' },
+  { label: 'Times New Roman', value: '"Times New Roman", Times, serif' },
+  { label: 'Garamond', value: 'Garamond, serif' },
+  { label: 'Palatino', value: '"Palatino Linotype", "Book Antiqua", Palatino, serif' },
+  { label: 'Cambria', value: 'Cambria, Georgia, serif' },
+  { label: 'Baskerville', value: 'Baskerville, "Baskerville Old Face", serif' },
+  { label: 'Courier New', value: '"Courier New", Courier, monospace' },
+  { label: 'Consolas', value: 'Consolas, monospace' },
+  { label: 'Lucida Sans', value: '"Lucida Sans Unicode", "Lucida Grande", sans-serif' },
+  { label: 'Comic Sans MS', value: '"Comic Sans MS", "Comic Sans", cursive' },
+  { label: 'Impact', value: 'Impact, Haettenschweiler, sans-serif' },
+  { label: 'Brush Script MT', value: '"Brush Script MT", cursive' },
+]
+const FONT_SIZES = [12, 13, 14, 15, 16, 17, 18, 20, 22, 24, 28, 32, 36, 40, 48, 60, 72]
 
 // The capture inbox tray: hotkey captures banked during the session, offered
 // for placement while writing. Renders nothing when the inbox is empty (the
@@ -142,7 +171,7 @@ export function CaptureInboxTray({ editor, onPlaced }) {
   )
 }
 
-export default function NoteEditorPage({ noteId, onBack, showBack = true }) {
+export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitleChange = null }) {
   const { note, isLoading, update, refresh } = useJ2Note(noteId)
   const { folders } = useJ2NoteFolders()
   const { user } = useAuth()
@@ -266,11 +295,17 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true }) {
     saveTimerRef.current = setTimeout(() => commitSaveRef.current(), AUTOSAVE_MS)
   }
 
+  // The editor is read through a ref, NOT the `editor` const: handlePaste /
+  // handleDrop are captured in editorProps at editor-CREATION time, when the
+  // `editor` const is still null — so closing over it directly made paste throw
+  // "Cannot read properties of null (reading 'chain')". The ref is always fresh.
+  const editorRef = useRef(null)
   const handleImageInsert = async (file) => {
-    if (!editor) return
+    const ed = editorRef.current
+    if (!ed || !file) return
     try {
       const { url } = await uploadInlineImage(noteId, file)
-      editor.chain().focus().setImage({ src: url, alt: '' }).run()
+      ed.chain().focus().setImage({ src: url, alt: '' }).run()
     } catch (e) {
       alert(`Upload failed: ${e.message || e}`)
     }
@@ -339,6 +374,20 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true }) {
     },
     onUpdate: () => scheduleAutosaveRef.current(),
   }, [note?.id])
+  // Keep the ref current so the paste/drop handlers (captured at creation) always
+  // reach the live editor instance.
+  editorRef.current = editor
+  // TipTap v3's useEditor does NOT re-render on transactions, so toolbar state
+  // read in render (font/size dropdowns, bold/italic active) goes stale. Bump a
+  // counter on every selection/mark change to keep the toolbar in sync.
+  const [, bumpToolbar] = useReducer((x) => x + 1, 0)
+  useEffect(() => {
+    if (!editor) return undefined
+    const update = () => bumpToolbar()
+    editor.on('transaction', update)
+    editor.on('selectionUpdate', update)
+    return () => { editor.off('transaction', update); editor.off('selectionUpdate', update) }
+  }, [editor])
 
   // Push fresh body into editor when note loads (one-shot per note).
   // Depends on `editor` (not just note.id) so it re-runs once the editor
@@ -552,16 +601,105 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true }) {
             ← Notebook
           </button>
         )}
-        <div
-          className={styles.saveStatus}
-          title={saveErrorMsg || undefined}
-        >
-          {saveStatus === 'saved' && 'Saved'}
-          {saveStatus === 'saving' && 'Saving…'}
-          {saveStatus === 'dirty' && 'Editing'}
-          {saveStatus === 'reconnecting' && 'Reconnecting…'}
-          {saveStatus === 'error' && <><UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{`Save failed${saveErrorMsg ? `: ${saveErrorMsg}` : ''}`}</>}
-        </div>
+        {/* Only surface a PROBLEM (reconnecting / save failed) — the steady
+            "Saved"/"Saving"/"Editing" chatter is dropped so the formatting
+            toolbar sits at the far left of the header. */}
+        {(saveStatus === 'error' || saveStatus === 'reconnecting') && (
+          <div className={styles.saveStatus} title={saveErrorMsg || undefined}>
+            {saveStatus === 'reconnecting' && 'Reconnecting…'}
+            {saveStatus === 'error' && <><UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{`Save failed${saveErrorMsg ? `: ${saveErrorMsg}` : ''}`}</>}
+          </div>
+        )}
+        {editor && (
+          <div className={styles.headerToolbar} data-export-exclude>
+            <select
+              className={styles.fontSelect}
+              value={editor.getAttributes('textStyle').fontFamily || ''}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v) editor.chain().focus().setFontFamily(v).run()
+                else editor.chain().focus().unsetFontFamily().run()
+              }}
+              title="Font"
+              aria-label="Font family"
+            >
+              {FONT_OPTIONS.map((f) => (
+                <option key={f.label} value={f.value} style={f.value ? { fontFamily: f.value } : undefined}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className={styles.fontSizeSelect}
+              value={editor.getAttributes('textStyle').fontSize || ''}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v) editor.chain().focus().setFontSize(v).run()
+                else editor.chain().focus().unsetFontSize().run()
+              }}
+              title="Text size"
+              aria-label="Text size"
+            >
+              <option value="">Size</option>
+              {FONT_SIZES.map((s) => <option key={s} value={`${s}px`}>{s}</option>)}
+            </select>
+            <ToolButton
+              active={editor.isActive('bold')}
+              onClick={() => editor.chain().focus().toggleBold().run()}
+              label="B"
+            />
+            <ToolButton
+              active={editor.isActive('italic')}
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+              label="I"
+            />
+            <ToolButton
+              active={editor.isActive('heading', { level: 1 })}
+              onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+              label="H1"
+            />
+            <ToolButton
+              active={editor.isActive('heading', { level: 2 })}
+              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+              label="H2"
+            />
+            <ToolButton
+              active={editor.isActive('bulletList')}
+              onClick={() => editor.chain().focus().toggleBulletList().run()}
+              label="• List"
+            />
+            <ToolButton
+              active={editor.isActive('orderedList')}
+              onClick={() => editor.chain().focus().toggleOrderedList().run()}
+              label="1. List"
+            />
+            <ToolButton
+              active={editor.isActive('blockquote')}
+              onClick={() => editor.chain().focus().toggleBlockquote().run()}
+              label="❝"
+            />
+            <ToolButton
+              active={editor.isActive('codeBlock')}
+              onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+              label="</>"
+            />
+            <ToolButton
+              onClick={() => {
+                const url = prompt('Link URL (https only):')
+                if (url) editor.chain().focus().setLink({ href: url }).run()
+              }}
+              label={<UIcon name="link" size={14} />}
+            />
+            <ToolButton
+              onClick={() => fileInputRef.current?.click()}
+              label={<UIcon name="document" size={14} />}
+            />
+            <ToolButton
+              onClick={() => editor.chain().focus().setHorizontalRule().run()}
+              label="―"
+            />
+          </div>
+        )}
         <div className={styles.headerControls}>
           {chromeMsg && <span className={styles.chromeMsg} role="status">{chromeMsg}</span>}
           {/* Export: PNG rasterizes the note column (charts included); Print
@@ -641,22 +779,21 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true }) {
               </div>
             )}
           </>
-        ) : (
-          // Exclude the EMPTY picker (a dashed drop-zone) from exports; a
-          // chosen hero image is content and stays in.
-          <div {...(!note.heroImageUrl ? { 'data-export-exclude': '' } : {})}>
-            <HeroImagePicker
-              noteId={noteId}
-              value={note.heroImageUrl}
-              onChange={onHeroChange}
-            />
-          </div>
-        )}
+        ) : note.heroImageUrl ? (
+          // A note that already has a hero image keeps showing it (it's content,
+          // still editable via the picker's controls). Notes without one start
+          // straight at the title — no empty drop-zone.
+          <HeroImagePicker
+            noteId={noteId}
+            value={note.heroImageUrl}
+            onChange={onHeroChange}
+          />
+        ) : null}
 
         <input
           className={styles.titleInput}
           value={title}
-          onChange={(e) => { setTitle(e.target.value); scheduleAutosave() }}
+          onChange={(e) => { setTitle(e.target.value); scheduleAutosave(); onTitleChange?.(noteId, e.target.value) }}
           placeholder="Title"
         />
         <input
@@ -665,66 +802,6 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true }) {
           onChange={(e) => { setSubtitle(e.target.value); scheduleAutosave() }}
           placeholder="Subtitle (optional)"
         />
-
-        {editor && (
-          <div className={styles.toolbar} data-export-exclude>
-            <ToolButton
-              active={editor.isActive('bold')}
-              onClick={() => editor.chain().focus().toggleBold().run()}
-              label="B"
-            />
-            <ToolButton
-              active={editor.isActive('italic')}
-              onClick={() => editor.chain().focus().toggleItalic().run()}
-              label="I"
-            />
-            <ToolButton
-              active={editor.isActive('heading', { level: 1 })}
-              onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-              label="H1"
-            />
-            <ToolButton
-              active={editor.isActive('heading', { level: 2 })}
-              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-              label="H2"
-            />
-            <ToolButton
-              active={editor.isActive('bulletList')}
-              onClick={() => editor.chain().focus().toggleBulletList().run()}
-              label="• List"
-            />
-            <ToolButton
-              active={editor.isActive('orderedList')}
-              onClick={() => editor.chain().focus().toggleOrderedList().run()}
-              label="1. List"
-            />
-            <ToolButton
-              active={editor.isActive('blockquote')}
-              onClick={() => editor.chain().focus().toggleBlockquote().run()}
-              label="❝"
-            />
-            <ToolButton
-              active={editor.isActive('codeBlock')}
-              onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-              label="</>"
-            />
-            <ToolButton
-              onClick={() => {
-                const url = prompt('Link URL (https only):')
-                if (url) editor.chain().focus().setLink({ href: url }).run()
-              }}
-              label={<UIcon name="link" size={14} />}
-            />
-            <ToolButton
-              onClick={() => fileInputRef.current?.click()}
-              label={<UIcon name="document" size={14} />}
-            />
-            <ToolButton
-              onClick={() => editor.chain().focus().setHorizontalRule().run()}
-              label="―"
-            />
-          </div>
-        )}
 
         <CaptureInboxTray editor={editor} onPlaced={(id) => pendingInboxConsumeRef.current.add(id)} />
 

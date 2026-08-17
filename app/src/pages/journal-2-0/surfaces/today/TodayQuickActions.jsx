@@ -4,7 +4,7 @@
  * SHORTCUTS to existing flows, not new homes (§63):
  *   - "Log trade"     → opens the add flow (the parent surface owns the modal;
  *                        `onLogTrade` mirrors the "+ Log Trade" header path).
- *   - "Open Journal"  → `/journal/journal` (Calendar / Notebook surface).
+ *   - "Open Notebook" → `/journal/notebook` (the notes surface).
  *   - "Review a trade"→ `/journal/trades?seg=closed` (closed-trades segment).
  *
  * No emoji — every glyph is a `UIcon`. Phone stacks to a single column via CSS
@@ -33,10 +33,10 @@ export default function TodayQuickActions({ onLogTrade }) {
         type="button"
         data-testid="qa-open-journal"
         className={styles.action}
-        onClick={() => navigate('/journal/journal')}
+        onClick={() => navigate('/journal/notebook')}
       >
         <UIcon name="journal" size={15} aria-hidden="true" />
-        <span>Open Journal</span>
+        <span>Open Notebook</span>
       </button>
 
       <button

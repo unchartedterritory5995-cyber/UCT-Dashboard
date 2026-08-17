@@ -64,6 +64,8 @@ const JournalLayout = lazy(() => import('./pages/journal-2-0/JournalLayout'))
 // Suspense so a surface chunk load never blanks the whole shell).
 const TodaySurface = lazy(() => import('./pages/journal-2-0/surfaces/TodaySurface'))
 const TradesSurface = lazy(() => import('./pages/journal-2-0/surfaces/TradesSurface'))
+const CalendarSurface = lazy(() => import('./pages/journal-2-0/surfaces/CalendarSurface'))
+const NotebookSurface = lazy(() => import('./pages/journal-2-0/surfaces/NotebookSurface'))
 const JournalSurface = lazy(() => import('./pages/journal-2-0/surfaces/JournalSurface'))
 const InsightsSurface = lazy(() => import('./pages/journal-2-0/surfaces/InsightsSurface'))
 const CompassSurface = lazy(() => import('./pages/journal-2-0/surfaces/CompassSurface'))
@@ -387,6 +389,9 @@ export default function App() {
                 <Route path="/journal" element={<JournalShellSelector />}>
                   <Route index element={<TodaySurface />} />
                   <Route path="trades" element={<TradesSurface />} />
+                  <Route path="calendar" element={<CalendarSurface />} />
+                  <Route path="notebook" element={<NotebookSurface />} />
+                  {/* Legacy grouped route — redirects to calendar/notebook. */}
                   <Route path="journal" element={<JournalSurface />} />
                   <Route path="insights" element={<InsightsSurface />} />
                   <Route path="compass" element={<CompassSurface />} />

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import useJ2Notes from '../hooks/useJ2Notes'
 import NoteCard from '../components/notebook/NoteCard'
@@ -37,7 +37,6 @@ export default function NotebookTab() {
 
   const [folderId, setFolderId] = useState(null)
   const [tag, setTag] = useState(null)
-  const [q, setQ] = useState('')
   const [sort, setSort] = useState('updated')
   const [creating, setCreating] = useState(false)
   // App focus (= charts Group A) seeds a new entry's ticker.
@@ -103,13 +102,29 @@ export default function NotebookTab() {
   }
 
   const { notes, isLoading, error, refresh } = useJ2Notes({
-    folderId, tag, q: q || undefined, sort,
+    folderId, tag, sort,
   })
-  // The folder sidebar tree renders every folder's notes as leaf rows, so it
-  // needs the COMPLETE note set — not the filtered view above (which only
-  // holds the selected folder's notes). Separate unfiltered fetch for it.
-  const { notes: allNotes, refresh: refreshAll } = useJ2Notes({ sort: 'title' })
-  const hasActiveFilters = Boolean(folderId || tag || q)
+  // The folder sidebar renders every folder's notes as leaf rows AND runs its
+  // own search, so it needs the COMPLETE note set — not the filtered view above
+  // (which only holds the selected folder's notes). Separate unfiltered fetch.
+  const { notes: allNotes, refresh: refreshAll, mutate: mutateAllNotes } = useJ2Notes({ sort: 'title' })
+
+  // Live folder-tree updates without waiting on a refetch: drop a just-created
+  // note in immediately, and reflect the title as it's typed.
+  const addNoteToTree = useCallback((note) => {
+    if (!note) return
+    mutateAllNotes?.(
+      (d) => (d?.notes ? { ...d, notes: [note, ...d.notes.filter((n) => n.id !== note.id)] } : d),
+      { revalidate: false },
+    )
+  }, [mutateAllNotes])
+  const updateTreeNoteTitle = useCallback((id, title) => {
+    mutateAllNotes?.(
+      (d) => (d?.notes ? { ...d, notes: d.notes.map((n) => (n.id === id ? { ...n, title } : n)) } : d),
+      { revalidate: false },
+    )
+  }, [mutateAllNotes])
+  const hasActiveFilters = Boolean(folderId || tag)
 
   const openNote = (note) => {
     setSearchParams((prev) => {
@@ -167,6 +182,9 @@ export default function NotebookTab() {
       })
       if (!res.ok) throw new Error(`${res.status}`)
       const body = await res.json()
+      // Instant: put it in the tree now, then reconcile from the server.
+      addNoteToTree(body.note)
+      refreshAll()
       openNote(body.note)
     } catch (e) {
       alert(`Could not create note: ${e.message || e}`)
@@ -208,7 +226,7 @@ export default function NotebookTab() {
     setFolderRefreshKey((k) => k + 1)
   }
 
-  // Deep link: ?seg=notebook&new=<templateKey>[&ticker=SYM] — Today page, the
+  // Deep link: /journal/notebook?new=<templateKey>[&ticker=SYM] — Today page, the
   // EOD recap, and TradeDrawer open a pre-seeded template directly (plan §4).
   // Runs once; params are stripped either way so a stale key can't loop.
   const newKey = searchParams.get('new')
@@ -233,16 +251,19 @@ export default function NotebookTab() {
       className={`${styles.wrap} ${sidebarOpen ? '' : styles.collapsed} ${dragging ? styles.dragging : ''}`}
       style={{ '--nb-sb-w': `${sidebarWidth}px` }}
     >
-      <button
-        type="button"
-        className={styles.sidebarToggle}
-        onClick={toggleSidebar}
-        aria-label={sidebarOpen ? 'Hide folders panel' : 'Show folders panel'}
-        aria-pressed={sidebarOpen}
-        title={sidebarOpen ? 'Hide folders' : 'Show folders'}
-      >
-        <SidebarToggleIcon />
-      </button>
+      {/* When the panel is hidden, a single floating button brings it back. When
+          open, the collapse control lives in the panel's own header toolbar. */}
+      {!sidebarOpen && (
+        <button
+          type="button"
+          className={styles.sidebarToggle}
+          onClick={toggleSidebar}
+          aria-label="Show folders panel"
+          title="Show folders"
+        >
+          <SidebarToggleIcon />
+        </button>
+      )}
 
       <div className={styles.sidebarSlot}>
         <div className={styles.sidebarInner}>
@@ -255,7 +276,7 @@ export default function NotebookTab() {
             onSelectTag={handleSelectTag}
             onOpenNote={openNote}
             activeNoteId={noteId}
-            labelInset
+            onToggleSidebar={toggleSidebar}
           />
         </div>
       </div>
@@ -268,21 +289,14 @@ export default function NotebookTab() {
         aria-label="Resize folders panel"
       />
 
-      <div className={styles.main}>
+      <div className={`${styles.main} ${noteId ? styles.mainNote : ''}`}>
         {noteId ? (
           // Key by noteId so switching notes from the persistent sidebar remounts
           // the editor fresh (TipTap state + autosave), same as opening from the grid.
-          <NoteEditorPage key={noteId} noteId={noteId} onBack={closeNote} showBack={false} />
+          <NoteEditorPage key={noteId} noteId={noteId} onBack={closeNote} showBack={false} onTitleChange={updateTreeNoteTitle} />
         ) : (
           <>
         <div className={styles.toolbar}>
-          <input
-            type="text"
-            className={styles.search}
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search notes…"
-          />
           <select
             className={styles.sortSelect}
             value={sort}

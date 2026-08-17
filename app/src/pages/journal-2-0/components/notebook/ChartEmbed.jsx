@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react'
+import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from 'react'
 import ChartPane from '../../../../components/chart/pane/ChartPane'
 
 // A ts param (epoch seconds or 'YYYY-MM-DD') → the ET SESSION day the cutoff
@@ -35,8 +35,11 @@ const noopStore = () => {}
  * - liveUpdates only in mode:'live' (badged, capped); snapshots never
  *   subscribe to anything.
  */
-export default function ChartEmbed({
-  attrs, height = 320, annotate = false, onAnnotationsChange = null, onBarsReady = null,
+function ChartEmbed({
+  // `height` is intentionally NOT read here: the wrapper fills its parent
+  // (height:100%) so the chart tracks the embed's live size during a resize
+  // drag; the parent (WidgetEmbedView body) owns the pixel height.
+  attrs, annotate = false, onAnnotationsChange = null, onBarsReady = null,
   // Linked crosshair (spec Phase 6 #6): the per-note bus every chart embed
   // shares. StockChart owns both halves already — onCrosshairMove publishes,
   // subscribeCrosshair applies payloads imperatively with echo suppression
@@ -46,8 +49,16 @@ export default function ChartEmbed({
   // cutoff for anchorDate framing, so the window shows the anchor day plus
   // everything since. Never persisted; the toolbar toggle owns it.
   peekToNow = false,
-}) {
+  // Per-embed settings sink: the embed toolbar's gear opens ChartPane's Chart
+  // Settings modal (via the imperative ref below) and every edit lands here, so
+  // it persists to the note's OWN params.settings — never the global blob.
+  onStoreSettings = null,
+}, ref) {
   const params = attrs?.params || {}
+  const paneRef = useRef(null)
+  useImperativeHandle(ref, () => ({
+    openSettings: () => paneRef.current?.openSettings?.(),
+  }), [])
   const anchorDay = tsToAnchorDay(params.to)
   const live = attrs?.mode === 'live'
   const annotations = Array.isArray(attrs?.annotations) ? attrs.annotations : []
@@ -116,16 +127,19 @@ export default function ChartEmbed({
     peekToNow, crosshairBus, reportCrosshair, subscribeCrosshair])
 
   return (
-    <div style={{ height }}>
+    <div style={{ height: '100%' }}>
       <ChartPane
+        ref={paneRef}
         sym={params.symbol}
         tf={params.tf || 'D'}
         density="mini"
         showTfBar={false}
         stored={params.settings || null}
-        onStore={noopStore}
+        onStore={onStoreSettings || noopStore}
         stockChartProps={stockChartProps}
       />
     </div>
   )
 }
+
+export default forwardRef(ChartEmbed)

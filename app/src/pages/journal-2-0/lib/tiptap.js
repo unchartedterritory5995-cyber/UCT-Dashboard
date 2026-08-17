@@ -4,7 +4,8 @@
  */
 
 import StarterKit from '@tiptap/starter-kit'
-import Image from '@tiptap/extension-image'
+import { TextStyle, FontFamily, FontSize } from '@tiptap/extension-text-style'
+import { ResizableImage } from './resizableImage'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table'
@@ -27,7 +28,12 @@ export function buildExtensions({ placeholder = 'Start writing… or type / for 
       // explicit openOnClick:false below. Disabling it here is load-bearing.
       link: false,
     }),
-    Image.configure({ inline: false, allowBase64: false }),
+    // Text styling: a shared TextStyle mark carrying font-family + font-size,
+    // driven by the editor toolbar's Font + Size dropdowns.
+    TextStyle,
+    FontFamily,
+    FontSize,
+    ResizableImage.configure({ inline: false, allowBase64: false }),
     Link.configure({
       openOnClick: false,
       autolink: true,

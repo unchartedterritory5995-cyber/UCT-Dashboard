@@ -1,5 +1,6 @@
 import { lazy, Suspense } from 'react'
 import FundamentalSnapshot from '../../../components/FundamentalSnapshot'
+import DeskCoverage from '../DeskCoverage'
 import styles from '../ResearchPage.module.css'
 
 // The SAME chart the /charts workspace renders — identity row, session toggle,
@@ -22,6 +23,9 @@ export default function OverviewTab({ sym, stats, analyst, ai, row }) {
       <section className={styles.card}>
         <FundamentalSnapshot sym={sym} showResearchLink={false} />
       </section>
+      {/* What the desk has actually written about this name. Renders null when
+          the archive has never covered it. */}
+      <DeskCoverage sym={sym} />
       <section className={`${styles.card} ${styles.chartCard}`}>
         <div className={styles.ovChart}>
           {/* tf="D" is hardcoded — this page has no timeframe state and no

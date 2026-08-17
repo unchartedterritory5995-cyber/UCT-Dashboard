@@ -47,15 +47,18 @@ function summarizeCanvases(el) {
 }
 
 /** Rasterize an embed's DOM (chart canvases included — LWC canvases are
- *  same-origin and untainted) to a PNG Blob. 2× pixel ratio so the archive
- *  reads crisply when the entry is later viewed larger than the capture. */
+ *  same-origin and untainted) to a PNG Blob. Capture at the DEVICE PIXEL RATIO,
+ *  not a fixed 2×: a chart's <canvas> backing store is sized to CSS×DPR, so
+ *  scale=DPR reproduces it 1:1 (crystal clear). A fixed 2× up-scaled the 1×
+ *  canvas on a non-retina display and baked in blur (the frozen-chart bug). */
 export async function captureElementPng(el) {
   if (!el) return null
   for (let attempt = 0; attempt < PAINT_PROBE.retries; attempt += 1) {
     if (canvasesLookPainted(summarizeCanvases(el))) break
     await new Promise((r) => setTimeout(r, PAINT_PROBE.delayMs))
   }
-  return domToBlob(el, { type: 'image/png', scale: 2 })
+  const dpr = (typeof window !== 'undefined' && window.devicePixelRatio) || 1
+  return domToBlob(el, { type: 'image/png', scale: Math.max(1, dpr) })
 }
 
 /** Upload an archive PNG through the existing note-image pipeline (PNG is

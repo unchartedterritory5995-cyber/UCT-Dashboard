@@ -7,7 +7,12 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 16px;
+  box-sizing: border-box;
+  /* Matches the sidebar's header toolbar height so the two header bars line up
+     bottom-to-bottom (NotebookTab zeroes .main's top padding while a note is
+     open, so this bar's top sits at the same y as the sidebar toolbar's). */
+  min-height: 47px;
+  padding: 6px 16px;
   border-bottom: 1px solid var(--color-border, #232932);
   position: sticky;
   top: 0;
@@ -56,10 +61,10 @@
 }
 .deleteBtn:hover { background: rgba(239, 68, 68, 0.1); }
 .column {
-  max-width: 720px;
+  max-width: none;
   width: 100%;
-  margin: 24px auto 80px;
-  padding: 0 24px;
+  margin: 22px 0 80px;
+  padding: 0 44px;
   display: flex;
   flex-direction: column;
 }
@@ -97,6 +102,29 @@
   top: 56px;
   z-index: 35; /* above in-content embed controls (draw-mode Done = 30) */
 }
+/* Formatting toolbar relocated into the header bar (next to "Saved"), so it's
+   out of the note flow. Compact inline row; sits between the save status and the
+   right-aligned controls. */
+.headerToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: center;
+}
+.headerToolbar .toolBtn { padding: 3px 8px; font-size: 12px; }
+.fontSelect, .fontSizeSelect {
+  background: var(--color-surface, #14171c);
+  border: 1px solid var(--color-border, #232932);
+  color: var(--color-text-primary, #e8eaed);
+  border-radius: 5px;
+  padding: 3px 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.fontSelect { min-width: 104px; max-width: 150px; }
+.fontSizeSelect { width: 58px; }
+.fontSelect:focus, .fontSizeSelect:focus { outline: none; border-color: #c9a84c; }
+.fontSelect:hover, .fontSizeSelect:hover { border-color: #c9a84c; }
 .toolBtn {
   background: transparent;
   border: 1px solid transparent;
@@ -119,6 +147,9 @@
   min-height: 400px;
   outline: none;
 }
+/* The first block sits flush under the subtitle — so a divider (or heading)
+   inserted at the top doesn't leave a big gap above it. */
+.proseEditor > :first-child { margin-top: 0; }
 /* ── PROSE TYPOGRAPHY STOPS AT A WIDGET EMBED ────────────────────────────────
    Every rule below targets a BARE ELEMENT, so it reaches by descent into the
    node views too — and a widget embed is not prose: it mounts a whole app

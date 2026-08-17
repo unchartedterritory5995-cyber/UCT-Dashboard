@@ -2,7 +2,7 @@
 // The Desk → Articles: the firm's Substack posts as link-out cards. Admins
 // manage the source publications (RSS feeds) inline.
 import { useState, useCallback, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import DeskSectionSkeleton from './DeskSectionSkeleton'
 import useSWR from 'swr'
 import { useAuth } from '../../context/AuthContext'
@@ -152,7 +152,20 @@ export default function ArticlesSection() {
   const isAdmin = user?.role === 'admin'
   const { data, isLoading, mutate } = useSWR('/api/desk/articles', fetcher)
   const [managing, setManaging] = useState(false)
-  const [query, setQuery] = useState('')
+  // `?q=` lets another surface deep-link INTO the archive search — the research
+  // page's "see all N issues mentioning MU" link is the reason this exists.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [query, setQuery] = useState(() => (searchParams.get('q') || '').trim())
+
+  // Keep the URL honest as the query changes, without stacking history entries.
+  useEffect(() => {
+    const current = (searchParams.get('q') || '').trim()
+    if (current === query) return
+    const next = new URLSearchParams(searchParams)
+    if (query) next.set('q', query)
+    else next.delete('q')
+    setSearchParams(next, { replace: true })
+  }, [query])
 
   const articles = data?.articles || []
 

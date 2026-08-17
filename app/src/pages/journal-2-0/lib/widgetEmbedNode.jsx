@@ -57,6 +57,13 @@ export const WidgetEmbed = Node.create({
       capturedAt: stringAttr('data-captured-at'),
       mode: stringAttr('data-mode', 'snapshot'),
       fallback: jsonAttr('data-fallback', null),
+      // Frozen-to-image: renders the captured PNG at the embed's own size (no
+      // live chart, no toolbar), still resizable via the corner handle.
+      frozen: {
+        default: false,
+        parseHTML: (el) => el.getAttribute('data-frozen') === 'true',
+        renderHTML: (attrs) => (attrs.frozen ? { 'data-frozen': 'true' } : {}),
+      },
       tradeRef: stringAttr('data-trade-ref'),
       annotations: jsonAttr('data-annotations', []),
       caption: stringAttr('data-caption'),

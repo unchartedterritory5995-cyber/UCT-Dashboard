@@ -222,6 +222,36 @@ def _validate_body_json(raw: Any) -> dict[str, Any]:
     return raw
 
 
+def _extract_first_image(body_json: Any) -> str | None:
+    """The `src` of the FIRST picture in a TipTap doc (document order, depth
+    first), else None. Cached to `first_image_url` so the notebook card can show
+    a preview glyph without loading the whole body. Matches, in document order:
+      - the standard '@tiptap/extension-image' node (type=='image', attrs.src)
+      - a 'widgetEmbed' chart/widget node's captured snapshot (attrs.fallback.url)
+        — so a note whose only content is a /chart still gets a thumbnail."""
+    def walk(nodes: Any) -> str | None:
+        if not isinstance(nodes, list):
+            return None
+        for node in nodes:
+            if not isinstance(node, dict):
+                continue
+            if node.get("type") == "image":
+                src = (node.get("attrs") or {}).get("src")
+                if isinstance(src, str) and src:
+                    return src
+            if node.get("type") == "widgetEmbed":
+                fb = (node.get("attrs") or {}).get("fallback")
+                if isinstance(fb, dict) and isinstance(fb.get("url"), str) and fb["url"]:
+                    return fb["url"]
+            found = walk(node.get("content"))
+            if found:
+                return found
+        return None
+    if not isinstance(body_json, dict):
+        return None
+    return walk(body_json.get("content"))
+
+
 def _validate_ticker(raw: Any) -> str | None:
     if raw is None or raw == "":
         return None
@@ -339,6 +369,7 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                 raise NoteValidationError("importKey required on every note")
             body_json = _validate_body_json(n.get("bodyJson"))
             body_plain = extract_plain_text(body_json)
+            first_image = _extract_first_image(body_json)
             title = (n.get("title") or "Untitled").strip()[:MAX_TITLE_CHARS]
             tags = _validate_tags(n.get("tags"))
             ticker = _validate_ticker(n.get("ticker"))
@@ -359,10 +390,11 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
             if row:
                 conn.execute(
                     "UPDATE j2_notes SET title=?, subtitle=?, body_json=?, body_plain=?, "
-                    "folder_id=?, ticker=?, tags=?, import_hash=?, imported_at=?, updated_at=? "
+                    "first_image_url=?, folder_id=?, ticker=?, tags=?, import_hash=?, "
+                    "imported_at=?, updated_at=? "
                     "WHERE id=? AND user_id=?",
                     (title, n.get("subtitle") or None, json.dumps(body_json), body_plain,
-                     folder_id, ticker, json.dumps(tags), h, now, updated_at,
+                     first_image, folder_id, ticker, json.dumps(tags), h, now, updated_at,
                      row["id"], user_id))
                 _sync_note_embeds(conn, user_id, row["id"], body_json)
                 updated.append(item)
@@ -370,11 +402,11 @@ def import_confirm(user_id: str, payload: dict, conn: sqlite3.Connection | None 
                 new_id = uuid.uuid4().hex
                 conn.execute(
                     "INSERT INTO j2_notes (id, user_id, folder_id, title, subtitle, body_json, "
-                    "body_plain, ticker, tags, import_source, import_key, import_hash, "
+                    "body_plain, first_image_url, ticker, tags, import_source, import_key, import_hash, "
                     "imported_at, created_at, updated_at) "
-                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (new_id, user_id, folder_id, title, n.get("subtitle") or None,
-                     json.dumps(body_json), body_plain, ticker, json.dumps(tags),
+                     json.dumps(body_json), body_plain, first_image, ticker, json.dumps(tags),
                      source, key, h, now, created_at, updated_at))
                 _sync_note_embeds(conn, user_id, new_id, body_json)
                 item["id"] = new_id
@@ -402,6 +434,7 @@ def _row_to_note(row: sqlite3.Row) -> dict[str, Any]:
         "bodyJson": json.loads(row["body_json"] or '{"type":"doc","content":[]}'),
         "bodyPlain": row["body_plain"] or "",
         "heroImageUrl": row["hero_image_url"],
+        "firstImageUrl": row["first_image_url"],
         "ticker": row["ticker"],
         "tags": json.loads(row["tags"] or "[]"),
         "createdAt": row["created_at"],
@@ -419,7 +452,7 @@ _LIST_PLAIN_CHARS = 400
 _NOTE_SUMMARY_COLS = (
     "id, user_id, account_id, folder_id, title, subtitle, "
     f"substr(coalesce(body_plain, ''), 1, {_LIST_PLAIN_CHARS}) AS body_plain, "
-    "hero_image_url, ticker, tags, created_at, updated_at"
+    "hero_image_url, first_image_url, ticker, tags, created_at, updated_at"
 )
 
 
@@ -439,6 +472,7 @@ def _row_to_note_summary(row: sqlite3.Row) -> dict[str, Any]:
         "subtitle": row["subtitle"],
         "bodyPlain": row["body_plain"] or "",
         "heroImageUrl": row["hero_image_url"],
+        "firstImageUrl": row["first_image_url"],
         "ticker": row["ticker"],
         "tags": json.loads(row["tags"] or "[]"),
         "createdAt": row["created_at"],
@@ -606,7 +640,23 @@ def get_note(
             "SELECT * FROM j2_notes WHERE id = ? AND user_id = ?",
             (note_id, user_id),
         ).fetchone()
-        return _row_to_note(row) if row else None
+        if row is None:
+            return None
+        note = _row_to_note(row)
+        # Lazy backfill of the card thumbnail for notes saved before the
+        # first_image_url column existed. Writes ONLY that column (never
+        # updated_at, so opening a note can't shift its "updated" time). No-op
+        # once populated or when the note has no image.
+        if row["first_image_url"] is None:
+            first = _extract_first_image(note["bodyJson"])
+            if first:
+                conn.execute(
+                    "UPDATE j2_notes SET first_image_url = ? WHERE id = ? AND user_id = ?",
+                    (first, note_id, user_id),
+                )
+                conn.commit()
+                note["firstImageUrl"] = first
+        return note
     finally:
         if owned:
             conn.close()
@@ -630,6 +680,7 @@ def create_note(
             raise NoteValidationError("subtitle too long")
     body_json = _validate_body_json(payload.get("bodyJson"))
     body_plain = extract_plain_text(body_json)
+    first_image = _extract_first_image(body_json)
     folder_id = payload.get("folderId") or None
     ticker = _validate_ticker(payload.get("ticker"))
     tags = _validate_tags(payload.get("tags"))
@@ -652,13 +703,13 @@ def create_note(
             """
             INSERT INTO j2_notes (
                 id, user_id, account_id, folder_id, title, subtitle,
-                body_json, body_plain, hero_image_url, ticker, tags,
+                body_json, body_plain, hero_image_url, first_image_url, ticker, tags,
                 created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 new_id, user_id, account_id, folder_id, title, subtitle,
-                json.dumps(body_json), body_plain, hero, ticker,
+                json.dumps(body_json), body_plain, hero, first_image, ticker,
                 json.dumps(tags), now, now,
             ),
         )
@@ -722,6 +773,7 @@ def update_note(
             bp = extract_plain_text(bj)
             sets.append("body_json = ?"); params.append(json.dumps(bj))
             sets.append("body_plain = ?"); params.append(bp)
+            sets.append("first_image_url = ?"); params.append(_extract_first_image(bj))
         if "folderId" in patch:
             f = patch["folderId"] or None
             if f:

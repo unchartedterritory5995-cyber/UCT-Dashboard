@@ -154,10 +154,10 @@ describe('notebook templates catalog', () => {
     const flat = JSON.stringify(getTemplate('post-market-debrief').build(RICH_CTX))
     expect(flat).toContain('The morning plan said')
     expect(flat).toContain('If SPY holds 560, add')
-    expect(flat).toContain('/journal/journal?seg=notebook&note=n1')
+    expect(flat).toContain('/journal/notebook?note=n1')
     const bare = JSON.stringify(getTemplate('post-market-debrief').build({}))
     expect(bare).toContain('No game plan found')
-    expect(bare).not.toContain('seg=notebook&note=')
+    expect(bare).not.toContain('note=n1')
   })
 
   it('getTemplate resolves stable keys and rejects unknowns', () => {
