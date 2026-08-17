@@ -267,3 +267,30 @@
   padding: 3px 9px; cursor: pointer;
 }
 .tickerMore:hover { color: var(--ut-gold); border-color: var(--ut-gold); }
+
+/* That week's Desk session. The letter and the recording are produced by two
+   pipelines that never knew about each other; this is the only place a reader
+   sees them as one thing. */
+.sessionCard {
+  display: flex; align-items: center; gap: var(--space-md);
+  max-width: 760px; margin-top: var(--space-2xl);
+  padding: var(--space-md) var(--space-lg);
+  background: var(--bg-surface); border: 1px solid var(--border);
+  border-radius: 12px; text-decoration: none; color: var(--text);
+  min-height: var(--tap-min);
+}
+.sessionCard:hover { border-color: var(--ut-gold); }
+.sessionIcon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; flex-shrink: 0; border-radius: 50%;
+  background: var(--ut-gold-dim); border: 1px solid var(--ut-gold-glow);
+}
+.sessionText { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.sessionLabel {
+  font-size: var(--text-xs); letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ut-gold);
+}
+.sessionTitle {
+  font-size: var(--text-base); color: var(--text-bright); font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}

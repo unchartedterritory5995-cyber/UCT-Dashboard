@@ -169,7 +169,47 @@ def store_body(post: dict, raw: str, *, slug: str | None = None,
     })
     if excerpt:
         desk_store.upsert_post({**post, "excerpt": excerpt[:280]})
+    # Index for archive search in the same call that stores the body, so the two
+    # can never disagree about what the archive contains.
+    try:
+        desk_store.index_post_search(
+            post["id"],
+            title=desk_store_title(post, published_at),
+            tickers=art.tickers,
+            body=art.text,
+        )
+    except Exception:  # noqa: BLE001 — search is a bonus, the article is not
+        pass
     return art
+
+
+def desk_store_title(post: dict, published_at: int) -> str:
+    """The title the search index should match on — the one a member SEES."""
+    return display_title_for(post.get("title") or "", published_at)
+
+
+def reindex_all() -> dict:
+    """Rebuild the search index from bodies already on disk. No network.
+
+    Needed because the index is younger than the archive: every article stored
+    before search existed has a body and no index row.
+    """
+    out = {"indexed": 0, "skipped": 0}
+    for post in desk_store.list_posts(limit=5000):
+        raw = desk_store.get_post_raw(post["id"])
+        if not raw:
+            out["skipped"] += 1
+            continue
+        art = substack_article.convert(raw, utm=_UTM)
+        desk_store.index_post_search(
+            post["id"],
+            title=post.get("display_title") or post.get("title") or "",
+            tickers=art.tickers,
+            body=art.text,
+        )
+        out["indexed"] += 1
+    out["total_in_index"] = desk_store.count_indexed_posts()
+    return out
 
 
 def reconvert_stored(post: dict) -> bool:

@@ -13,7 +13,9 @@ Three tables:
 from __future__ import annotations
 
 import contextlib
+import html
 import os
+import re
 import sqlite3
 import threading
 import time
@@ -109,6 +111,27 @@ _MEMBER_FIELDS = ("name", "role", "bio", "years_trading", "trading_style",
                   "link_url", "sort_order", "enabled")
 
 
+# Full-text search over the archive. A standalone (non-content) FTS5 table keyed
+# on the post id: `substack_posts.id` is the post URL, which an external-content
+# table cannot use as a rowid.
+_FTS_SCHEMA = """
+CREATE VIRTUAL TABLE IF NOT EXISTS substack_posts_fts USING fts5(
+  post_id UNINDEXED,
+  title,
+  tickers,
+  body,
+  tokenize='porter unicode61'
+);
+"""
+
+# Whether this build of SQLite has FTS5. Resolved once, at init.
+_FTS_READY = False
+
+
+def fts_available() -> bool:
+    return _FTS_READY
+
+
 def _connect() -> sqlite3.Connection:
     conn = sqlite3.connect(_DB_PATH, timeout=10.0)
     conn.row_factory = sqlite3.Row
@@ -118,6 +141,7 @@ def _connect() -> sqlite3.Connection:
 
 
 def _init_db() -> None:
+    global _FTS_READY
     parent = os.path.dirname(_DB_PATH)
     if parent:
         os.makedirs(parent, exist_ok=True)
@@ -128,6 +152,15 @@ def _init_db() -> None:
                 c.execute(stmt)
             except sqlite3.OperationalError:
                 pass  # column already exists (fresh schema or prior run)
+        # FTS5 is compiled in on every build we run on, but an unguarded CREATE
+        # VIRTUAL TABLE here would take the WHOLE Desk down (articles, team) on a
+        # build without it. Search degrades; the hub keeps working.
+        try:
+            c.executescript(_FTS_SCHEMA)
+            _FTS_READY = True
+        except sqlite3.OperationalError as e:
+            print(f"[desk_store] FTS5 unavailable, archive search disabled: {e}")
+            _FTS_READY = False
         c.commit()
 
 
@@ -437,6 +470,88 @@ def posts_needing_body(converter_version: int, limit: int = 500) -> list[dict]:
             (int(converter_version), int(limit)),
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+def index_post_search(post_id: str, *, title: str, tickers: list, body: str) -> None:
+    """(Re)index one article for search. Idempotent: the old row is removed first,
+    so re-converting an article never leaves a stale duplicate behind."""
+    if not _FTS_READY:
+        return
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute("DELETE FROM substack_posts_fts WHERE post_id=?", (str(post_id),))
+        c.execute(
+            "INSERT INTO substack_posts_fts (post_id, title, tickers, body) VALUES (?,?,?,?)",
+            (str(post_id), title or "", " ".join(tickers or []), body or ""),
+        )
+        c.commit()
+
+
+def search_posts(query: str, limit: int = 30) -> list:
+    """Rank the archive against a query. Returns list rows + a highlighted snippet.
+
+    Deliberately NOT returning bodies — this feeds a result list, and the whole
+    reason list_posts selects explicit columns is that bodies are ~200 KB each.
+    """
+    q = (query or "").strip()
+    if not q or not _FTS_READY:
+        return []
+    cols = ", ".join(f"p.{c}" for c in _POST_LIST_COLS)
+    with contextlib.closing(_connect()) as c:
+        try:
+            rows = c.execute(
+                f"""SELECT {cols},
+                           pub.name AS publication_name,
+                           snippet(substack_posts_fts, 3, char(2), char(3), '…', 18) AS snippet,
+                           bm25(substack_posts_fts, 0.0, 8.0, 6.0, 1.0) AS rank
+                    FROM substack_posts_fts
+                    JOIN substack_posts p ON p.id = substack_posts_fts.post_id
+                    LEFT JOIN substack_publications pub ON pub.id = p.publication_id
+                    WHERE substack_posts_fts MATCH ?
+                    ORDER BY rank
+                    LIMIT ?""",
+                (_fts_query(q), int(limit)),
+            ).fetchall()
+        except sqlite3.OperationalError:
+            # A malformed FTS expression (stray quote, bare operator) is a user
+            # typing, not a server fault.
+            return []
+        return [_with_safe_snippet(dict(r)) for r in rows]
+
+
+# FTS5 marks the hit with delimiters we choose. We ask for two CONTROL CHARS,
+# escape the whole snippet, then swap them for <mark> — because the indexed body
+# is PLAIN TEXT in which `<` is a literal character (the converter decodes
+# entities), so asking SQLite for '<mark>' directly would emit unescaped author
+# text straight into dangerouslySetInnerHTML.
+_SNIPPET_OPEN, _SNIPPET_CLOSE = "\x02", "\x03"
+
+
+def _with_safe_snippet(row: dict) -> dict:
+    raw = row.get("snippet")
+    if raw:
+        safe = html.escape(str(raw), quote=False)
+        row["snippet"] = (safe.replace(_SNIPPET_OPEN, "<mark>")
+                              .replace(_SNIPPET_CLOSE, "</mark>"))
+    return row
+
+
+def _fts_query(raw: str) -> str:
+    """User text -> a safe FTS5 MATCH expression.
+
+    Every term is quoted, so `AND`/`OR`/`NEAR`/`*`/`:` typed by a member are
+    searched for literally instead of being parsed as operators (or raising).
+    A bare ticker still works because quoting a single token matches that token.
+    """
+    terms = [t for t in re.split(r"\s+", raw.strip()) if t]
+    quoted = ['"' + t.replace('"', '""') + '"' for t in terms[:12]]
+    return " ".join(quoted)
+
+
+def count_indexed_posts() -> int:
+    if not _FTS_READY:
+        return 0
+    with contextlib.closing(_connect()) as c:
+        return c.execute("SELECT COUNT(*) FROM substack_posts_fts").fetchone()[0]
 
 
 def get_post_raw(post_id: str) -> Optional[str]:

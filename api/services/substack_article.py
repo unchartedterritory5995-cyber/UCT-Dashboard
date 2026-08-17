@@ -152,6 +152,7 @@ _HEADINGS = frozenset({"h2", "h3", "h4", "h5", "h6"})
 class ConvertedArticle:
     """Everything the reader needs, derived in one pass over the source."""
     html: str = ""
+    text: str = ""            # plain text, for the full-text search index
     sections: list[dict] = field(default_factory=list)
     tickers: list[str] = field(default_factory=list)
     images: int = 0
@@ -259,7 +260,10 @@ class _Converter(HTMLParser):
         self.tickers: list[str] = []          # from the "Charts Covered" heading
         self.chart_symbols: list[str] = []    # from each chart's own label
         self.images = 0
-        self._words = 0
+        # Every text run, in order. The search index needs the article as
+        # PLAIN TEXT, and the word count is derived from the same list -- a
+        # separate counter would be a second authority over one number.
+        self._text_runs: list[str] = []
         # Most recent short text run -- the chart label ("GLW (Daily)") that
         # precedes each figure. Used as alt text, which Substack leaves empty.
         self._last_label = ""
@@ -364,7 +368,7 @@ class _Converter(HTMLParser):
     def handle_data(self, data: str) -> None:
         if self._drop_depth or not data:
             return
-        self._words += len(data.split())
+        self._text_runs.append(data)
         if self._heading is not None:
             self._heading["text"].append(data)
         else:
@@ -505,8 +509,12 @@ class _Converter(HTMLParser):
         return "".join(self._out)
 
     @property
+    def text(self) -> str:
+        return _WS_RE.sub(" ", "".join(self._text_runs)).strip()
+
+    @property
     def words(self) -> int:
-        return self._words
+        return len(self.text.split())
 
 
 def convert(raw_html: str, *, utm: dict[str, str] | None = None,
@@ -533,6 +541,7 @@ def convert(raw_html: str, *, utm: dict[str, str] | None = None,
 
     return ConvertedArticle(
         html=parser.html,
+        text=parser.text,
         sections=parser.sections,
         tickers=tickers,
         images=parser.images,

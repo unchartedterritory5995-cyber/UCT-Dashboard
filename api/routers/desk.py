@@ -152,6 +152,33 @@ def get_articles(limit: int = 500, _user: dict = Depends(require_article_reader)
             "access": article_access_mode()}
 
 
+@router.get("/articles/search")
+def search_articles(q: str = "", limit: int = 30,
+                    _user: dict = Depends(require_article_reader)):
+    """Full-text search across the archive.
+
+    Declared BEFORE `/articles/{post_id:path}` — that route matches greedily and
+    would otherwise swallow "search" as a post id and 404 every query.
+    """
+    limit = max(1, min(int(limit), 100))
+    query = (q or "").strip()
+    if not query:
+        return {"query": "", "results": [], "available": desk_store.fts_available()}
+    return {
+        "query": query,
+        "results": desk_store.search_posts(query, limit=limit),
+        "available": desk_store.fts_available(),
+        "indexed": desk_store.count_indexed_posts(),
+    }
+
+
+@router.post("/articles/reindex")
+def reindex_articles(_admin: dict = Depends(require_admin)):
+    """Rebuild the search index from stored bodies. No network."""
+    from api.services import substack_bodies
+    return substack_bodies.reindex_all()
+
+
 @router.post("/articles/backfill")
 def backfill_articles(limit: int = 200, _admin: dict = Depends(require_admin)):
     """Fetch + convert bodies for posts that don't have a current one.
@@ -196,8 +223,22 @@ def get_article(post_id: str, _user: dict = Depends(require_article_reader)):
         "image_count": post.get("image_count"),
         "sections": _json_list(post.get("sections_json")),
         "tickers": _json_list(post.get("tickers_json")),
+        "related_video": _related_video(post),
         "body_html": body,
     }
+
+
+def _related_video(post: dict) -> Optional[dict]:
+    """That week's Desk session, if one exists. Never raises — the article is
+    the page; the video is a bonus link on it."""
+    try:
+        from api.services import desk_article_links
+        return desk_article_links.related_video_for(
+            post.get("display_title") or post.get("title") or "",
+            post.get("published_at"),
+        )
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def _json_list(raw) -> list:
