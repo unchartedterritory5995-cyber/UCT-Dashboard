@@ -551,6 +551,22 @@ def _fts_query(raw: str) -> str:
     return " ".join(quoted)
 
 
+def readable_slugs() -> set:
+    """Slugs of every post we can actually SERVE — i.e. that has a body.
+
+    Used to turn a link back to Substack into a link into our own reader. Keyed
+    on "has a body" rather than "exists", because sending a reader to an article
+    we hold only a card for is a worse outcome than letting them go to Substack.
+    """
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            """SELECT slug FROM substack_posts
+               WHERE slug IS NOT NULL AND slug != ''
+                 AND body_html IS NOT NULL AND body_html != ''"""
+        ).fetchall()
+        return {r["slug"] for r in rows}
+
+
 def posts_missing_from_index(limit: int = 100) -> list:
     """Posts that HAVE a body but no search-index row, newest first.
 

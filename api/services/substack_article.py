@@ -45,7 +45,9 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 # improvement re-converts from the stored raw body with zero network traffic.
 #   1 -> 2: tickers also sourced from each chart's own label, not just the
 #           "Charts Covered" heading (which under half the archive carries).
-CONVERTER_VERSION = 2
+#   2 -> 3: links to another post on a Substack publication carry
+#           data-post-slug, so the reader can route them in-house.
+CONVERTER_VERSION = 3
 
 # Matches the max reader measure in ArticleReader.module.css. Kept as a module
 # constant rather than inlined so the two can be pinned together by a test.
@@ -172,6 +174,22 @@ def _is_cta(attrs: dict[str, str]) -> bool:
     if (attrs.get("data-component-name") or "") == _CTA_COMPONENT:
         return True
     return "button-wrapper" in (attrs.get("class") or "").lower()
+
+
+# A Substack post permalink: https://<pub>.substack.com/p/<slug>
+# ⛔ EXACTLY `/p/<slug>` — NOT `/p/<slug>/comments`. A comments link is a
+# different destination, and silently routing it to our reader would answer a
+# question the reader did not ask. (Those particular links are also broken at
+# the source: several point at the PREVIOUS week's slug.)
+_SUBSTACK_POST_RE = re.compile(r"^/p/([A-Za-z0-9][A-Za-z0-9._-]*)/?$")
+
+
+def _substack_post_slug(url: str) -> str | None:
+    parts = urlsplit(url)
+    if not parts.netloc.lower().endswith(".substack.com"):
+        return None
+    m = _SUBSTACK_POST_RE.match(parts.path or "")
+    return m.group(1) if m else None
 
 
 def _slugify(text: str) -> str:
@@ -400,6 +418,13 @@ class _Converter(HTMLParser):
                 if "whop.com" in url:
                     url = _with_utm(url, self._utm)
                 kept.append(("href", url))
+                # A link to ANOTHER post on a Substack publication is a link to
+                # something we may already hold. Tag it with the slug and let the
+                # READER decide -- resolving it here would freeze the answer at
+                # conversion time, and the target is often backfilled later.
+                slug = _substack_post_slug(url)
+                if slug:
+                    kept.append(("data-post-slug", slug))
                 if urlsplit(url).netloc:
                     kept.append(("target", "_blank"))
                     kept.append(("rel", "noopener noreferrer"))

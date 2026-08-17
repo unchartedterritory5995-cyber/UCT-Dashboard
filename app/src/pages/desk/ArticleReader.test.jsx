@@ -117,6 +117,22 @@ test('a ticker chip inside the injected body routes in-app instead of reloading'
   expect(navigate).toHaveBeenCalledWith('/research/INTC')
 })
 
+test('a reference to an earlier issue routes in-app, not a full page reload', () => {
+  mockData = {
+    ...ARTICLE,
+    body_html: BODY + '<p>See <a href="/desk/article/sunday-scans-1ad">last week</a>.</p>',
+  }
+  const { container } = renderReader()
+  fireEvent.click(container.querySelector('a[href="/desk/article/sunday-scans-1ad"]'))
+  expect(navigate).toHaveBeenCalledWith('/desk/article/sunday-scans-1ad')
+})
+
+test('an OUTBOUND link is left alone for the browser to handle', () => {
+  const { container } = renderReader()
+  fireEvent.click(container.querySelector('a.uctArticleCta'))
+  expect(navigate).not.toHaveBeenCalled()
+})
+
 test('clicking a chart opens the lightbox', () => {
   const { container } = renderReader()
   expect(container.querySelector('[role="dialog"]')).toBeNull()
