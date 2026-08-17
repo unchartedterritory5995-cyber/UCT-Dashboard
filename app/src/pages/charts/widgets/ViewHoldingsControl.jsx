@@ -3,7 +3,7 @@
 // ETFs, so the two never collide). Clicking opens a floating live-watchlist window of
 // the ETF's holdings. The panel is portaled to <body> so its position:fixed escapes
 // the react-grid-layout widget's transform (which would otherwise trap/clip it).
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import useEtfSymbols from '../../../hooks/useEtfSymbols'
 import EtfHoldingsPanel from './EtfHoldingsPanel'
@@ -47,11 +47,17 @@ export default function ViewHoldingsControl({ sym, candleColors = null }) {
   const [centerOn, setCenterOn] = useState(null)
   const [themeVars, setThemeVars] = useState(null)
   const [wlOverride, setWlOverride] = useState(null)
+  const [heldEtf, setHeldEtf] = useState(null)
   const btnRef = useRef(null)
-  // Not an ETF → render nothing (the panel, if it was open, unmounts with this). The
-  // open window follows the chart: while it stays an ETF, EtfHoldingsResults just
-  // refetches for the new sym.
-  if (!isEtf(sym)) return null
+  const symIsEtf = isEtf(sym)
+  // The panel shows the holdings of the ETF it was opened for. Follow chart changes
+  // while they stay on an ETF, but FREEZE on a non-ETF: clicking a holding navigates
+  // the chart to that stock, and the list must STAY on screen (only the × closes it).
+  useEffect(() => { if (symIsEtf) setHeldEtf(sym) }, [sym, symIsEtf])
+
+  // Hide the button on a non-ETF chart, but keep an already-OPEN panel alive so
+  // clicking a holding (→ a stock) doesn't dismiss the list.
+  if (!symIsEtf && !open) return null
 
   const toggle = () => {
     if (open) { setOpen(false); return }
@@ -88,24 +94,27 @@ export default function ViewHoldingsControl({ sym, candleColors = null }) {
       c = { cx: r.left + r.width / 2, cy: r.top + r.height / 2 }
     }
     setCenterOn(c)
+    setHeldEtf(sym)   // this ETF's holdings stay shown even after navigating to a stock
     setOpen(true)
   }
 
   return (
     <>
-      <button
-        ref={btnRef}
-        type="button"
-        className={styles.viewHoldingsBtn}
-        onClick={toggle}
-        title={`View ${String(sym).toUpperCase()} holdings`}
-        aria-pressed={open}
-      >
-        <UIcon name="library" size={12} gold={false} />
-        View Holdings
-      </button>
-      {open && createPortal(
-        <EtfHoldingsPanel sym={sym} centerOn={centerOn} themeVars={themeVars} wlOverride={wlOverride} onClose={() => setOpen(false)} />,
+      {symIsEtf && (
+        <button
+          ref={btnRef}
+          type="button"
+          className={styles.viewHoldingsBtn}
+          onClick={toggle}
+          title={`View ${String(sym).toUpperCase()} holdings`}
+          aria-pressed={open}
+        >
+          <UIcon name="library" size={12} gold={false} />
+          View Holdings
+        </button>
+      )}
+      {open && heldEtf && createPortal(
+        <EtfHoldingsPanel sym={heldEtf} centerOn={centerOn} themeVars={themeVars} wlOverride={wlOverride} onClose={() => setOpen(false)} />,
         document.body,
       )}
     </>
