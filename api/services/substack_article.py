@@ -105,9 +105,13 @@ _DROP_COMPONENT_NAMES = (
     "SubscribeWithCaptionToDOM",
 )
 
+# Per-tag attribute allowlist. NOTE: `img` is deliberately ABSENT -- images are
+# built attribute-by-attribute in _emit_img (which validates the srcset, rewrites
+# `sizes` and synthesises alt text), so an entry here would be a second,
+# unconsulted authority over which image attributes survive. Mutating one was
+# how this was found: the mutation changed nothing and the rail stayed green.
 _ATTRS: dict[str, tuple[str, ...]] = {
     "a": ("href", "title"),
-    "img": ("src", "srcset", "sizes", "width", "height", "alt", "loading", "decoding"),
     "td": ("colspan", "rowspan"),
     "th": ("colspan", "rowspan", "scope"),
     "ol": ("start",),

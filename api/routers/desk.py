@@ -22,6 +22,7 @@ Routes:
 """
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 from typing import Optional
@@ -31,7 +32,9 @@ from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 
 from api.middleware.auth_middleware import (
+    get_current_user_optional,
     get_current_user_with_plan,
+    get_user_plan,
     is_paid_user,
     require_admin,
 )
@@ -51,6 +54,46 @@ _TRANSPARENT_PIXEL = (
 
 
 def require_paid(user: dict = Depends(get_current_user_with_plan)) -> dict:
+    if not is_paid_user(user):
+        raise HTTPException(status_code=402, detail="The Desk requires a paid plan")
+    return user
+
+
+# Every post the reader renders is `audience=everyone` on Substack -- free to the
+# world at the source, and the top of the funnel. Gating it at `paid` makes our
+# version strictly worse than the free original; opening it makes the archive an
+# acquisition asset. That is a business call, not a code default, so it is an ENV
+# VAR whose default is today's behaviour: roll forward and roll back without a
+# deploy, the same contract as DESK_PUBLIC_SHOWS / ALERT_EVAL_MODE.
+#   paid (default) — unchanged: pro/premium/lifetime only
+#   free           — any signed-in account
+#   public         — no session required
+_ARTICLE_ACCESS_MODES = ("paid", "free", "public")
+
+
+def article_access_mode() -> str:
+    mode = (os.environ.get("DESK_ARTICLES_ACCESS") or "paid").strip().lower()
+    return mode if mode in _ARTICLE_ACCESS_MODES else "paid"
+
+
+def require_article_reader(user: Optional[dict] = Depends(get_current_user_optional)) -> dict:
+    """Read gate for the native article surfaces.
+
+    Built on `get_current_user_optional`, NOT `get_current_user_with_plan`: the
+    latter raises 401 before this function runs, so `public` mode could never
+    fire and the env var would be a control that silently does nothing.
+
+    Fails CLOSED — an unset, empty or unrecognised DESK_ARTICLES_ACCESS resolves
+    to `paid`, never to open.
+    """
+    mode = article_access_mode()
+    if mode == "public":
+        return user or {}
+    if not user:
+        raise HTTPException(status_code=401, detail="Sign in to read Desk articles")
+    if mode == "free":
+        return user
+    user["plan"] = get_user_plan(user["id"])
     if not is_paid_user(user):
         raise HTTPException(status_code=402, detail="The Desk requires a paid plan")
     return user
@@ -103,9 +146,68 @@ class MemberPatch(BaseModel):
 # ── Articles (Substack) ──────────────────────────────────────────────────────────
 
 @router.get("/articles")
-def get_articles(limit: int = 500, _user: dict = Depends(require_paid)):
+def get_articles(limit: int = 500, _user: dict = Depends(require_article_reader)):
     limit = max(1, min(int(limit), 1000))
-    return {"articles": desk_store.list_posts(limit=limit)}
+    return {"articles": desk_store.list_posts(limit=limit),
+            "access": article_access_mode()}
+
+
+@router.post("/articles/backfill")
+def backfill_articles(limit: int = 200, _admin: dict = Depends(require_admin)):
+    """Fetch + convert bodies for posts that don't have a current one.
+
+    Resumable and idempotent: the work list is derived from what is missing, so
+    re-running after an interruption continues rather than restarts.
+    """
+    from api.services import substack_bodies
+    limit = max(1, min(int(limit), 1000))
+    return substack_bodies.backfill_bodies(limit=limit)
+
+
+# Declared AFTER /articles/backfill: `:path` matches greedily, and a literal
+# sibling registered later would be shadowed by it.
+@router.get("/articles/{post_id:path}")
+def get_article(post_id: str, _user: dict = Depends(require_article_reader)):
+    """One article WITH its converted body — the native reader's payload.
+
+    `post_id` is `:path` because the store keys posts on their full URL. Tries
+    the slug first so /desk/article/sunday-scans-da5 is a readable link.
+    """
+    post = desk_store.get_post_by_slug(post_id) or desk_store.get_post(post_id)
+    if not post:
+        raise HTTPException(404, "Article not found")
+    body = post.get("body_html") or ""
+    if not body:
+        # No converted body: the reader must not render an empty page when a
+        # perfectly good link-out exists.
+        raise HTTPException(409, "Article body is not available yet")
+    return {
+        "id": post["id"],
+        "slug": post.get("slug"),
+        "title": post.get("display_title") or post.get("title"),
+        "source_title": post.get("title"),
+        "url": post.get("url"),
+        "author": post.get("author"),
+        "publication_name": post.get("publication_name"),
+        "hero_image": post.get("hero_image"),
+        "published_at": post.get("published_at"),
+        "word_count": post.get("word_count"),
+        "reading_minutes": post.get("reading_minutes"),
+        "image_count": post.get("image_count"),
+        "sections": _json_list(post.get("sections_json")),
+        "tickers": _json_list(post.get("tickers_json")),
+        "body_html": body,
+    }
+
+
+def _json_list(raw) -> list:
+    if not raw:
+        return []
+    try:
+        val = json.loads(raw)
+    except (TypeError, ValueError):
+        return []
+    return val if isinstance(val, list) else []
 
 
 @router.get("/publications")

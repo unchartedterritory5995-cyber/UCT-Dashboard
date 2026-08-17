@@ -107,6 +107,11 @@ def parse_feed(xml_text: str, publication_id=None) -> list[dict]:
             hero = _first_image(content, desc)
         excerpt = _strip_html(desc or content)[:280]
         out.append({
+            # The FULL post body, for the native article reader. Only RSS carries
+            # it in bulk (the archive listing's `body_html` is always empty), and
+            # only for the ~20 newest posts -- but it rides a request we already
+            # make, so recent bodies and edits cost nothing extra.
+            "body_raw": content or "",
             # Key on the post URL (stable across RSS + archive paths) so the same
             # post never gets two rows. (Was `guid` — Substack guid == link, but
             # the archive path used the numeric id → cross-path duplicates.)
@@ -210,6 +215,33 @@ def fetch_archive(feed_url: str, publication_id=None, max_posts: int = _ARCHIVE_
     return posts
 
 
+def _store_bodies(posts: list[dict]) -> dict:
+    """Hand RSS-parsed bodies to the article layer. Never raises: the roster is
+    the poller's job and must land even if the reader's bodies don't."""
+    try:
+        from api.services import substack_bodies  # local: avoids an import cycle
+        return substack_bodies.refresh_recent_bodies(posts)
+    except Exception as e:  # noqa: BLE001
+        return {"error": str(e)[:200]}
+
+
+def _refresh_recent_bodies(pub: dict) -> dict:
+    """Fetch the RSS feed purely for its bodies.
+
+    The archive API is the roster source but its `body_html` is always empty, so
+    the newest ~20 bodies need this one extra request per poll. That is far
+    cheaper than 20 per-post calls, and it is what notices an EDIT to a recent
+    post -- an archive-only poll would serve pre-edit text indefinitely.
+    """
+    try:
+        resp = requests.get(pub["feed_url"], headers=_HEADERS, timeout=_TIMEOUT)
+        resp.raise_for_status()
+        posts = parse_feed(resp.text, publication_id=pub["id"])
+    except Exception as e:  # noqa: BLE001 — bodies are best-effort
+        return {"error": str(e)[:200]}
+    return _store_bodies(posts)
+
+
 def poll_publication(pub: dict) -> dict:
     """Fetch + parse + store one publication, full history. Returns a summary dict.
     Never raises. Primary source = archive API (full back-catalog); falls back to
@@ -221,8 +253,9 @@ def poll_publication(pub: dict) -> dict:
         if posts:
             for p in posts:
                 desk_store.upsert_post(p)
+            bodies = _refresh_recent_bodies(pub)
             return {"publication": name, "stored": len(posts),
-                    "status": "ok", "source": "archive"}
+                    "status": "ok", "source": "archive", "bodies": bodies}
     except Exception as e:  # noqa: BLE001 — fall back to RSS
         archive_err = str(e)[:200]
     else:
@@ -234,8 +267,9 @@ def poll_publication(pub: dict) -> dict:
         posts = parse_feed(resp.text, publication_id=pub["id"])
         for p in posts:
             desk_store.upsert_post(p)
-        return {"publication": name, "stored": len(posts),
-                "status": "ok", "source": "rss", "archive_note": archive_err}
+        bodies = _store_bodies(posts)
+        return {"publication": name, "stored": len(posts), "status": "ok",
+                "source": "rss", "archive_note": archive_err, "bodies": bodies}
     except Exception as e:  # noqa: BLE001 — best-effort per feed
         return {"publication": name, "stored": 0, "status": "error",
                 "error": str(e)[:200]}
