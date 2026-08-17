@@ -3,6 +3,11 @@
 import { useEffect, useLayoutEffect, useRef, useCallback, useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import isModalOpen from '../utils/modalOpen'
+// Marks the frames this chart renders INSTEAD of a chart, so anything that
+// rasterizes it as durable evidence (the journal embed's self-archive) refuses
+// to freeze an error card or a loading skeleton as the snapshot. Inert on every
+// other surface — it is a data attribute nothing styles.
+import { RENDER_UNAVAILABLE } from '../lib/captureSafety'
 import useSWR, { mutate as globalMutate } from 'swr'
 import { createChart, CandlestickSeries, BarSeries, HistogramSeries, LineSeries, AreaSeries, BaselineSeries, ColorType, LineType, LineStyle } from 'lightweight-charts'
 import usePreferences from '../hooks/usePreferences'
@@ -12740,13 +12745,13 @@ export default function StockChart({
       )}
       {showSkeleton && <ChartSkeleton label={`Loading ${sym}…`} />}
       {showFatalError && (
-        <div className={styles.error}>
+        <div className={styles.error} {...RENDER_UNAVAILABLE}>
           <span>Failed to load chart for {sym}</span>
           <button className={styles.retryBtn} onClick={() => mutate()}>Retry</button>
         </div>
       )}
       {!loading && !showFatalError && selectedRangeEmpty && (
-        <div className={styles.error}>
+        <div className={styles.error} {...RENDER_UNAVAILABLE}>
           <span>No {sym} chart data for the selected dates.</span>
           <span style={{ fontSize: 10, opacity: 0.8, maxWidth: 280, textAlign: 'center', lineHeight: 1.5 }}>
             The data provider has no bars in this window (the ticker may have been

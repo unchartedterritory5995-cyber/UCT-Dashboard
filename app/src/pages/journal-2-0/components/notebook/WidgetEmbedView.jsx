@@ -7,6 +7,7 @@ import {
 import { widgetMeta } from '../../../../widgets/registry'
 import { chartsLinkPath } from '../../../../lib/chartDeepLink'
 import { captureElementPng, storeFallbackImage, kickSnapshotWarm } from '../../lib/embedArchive'
+import { RENDER_UNAVAILABLE, showsUnavailableFrame } from '../../../../lib/captureSafety'
 import styles from './WidgetEmbedView.module.css'
 
 // How long a live embed gets to settle (bars fetched, chart painted) before
@@ -53,8 +54,8 @@ class EmbedErrorBoundary extends Component {
   }
 }
 
-// ⭐ EVERY "this is NOT the live widget" frame carries FALLBACK_MARK, and the
-// self-archive refuses to rasterize a body that contains one. Without it the
+// ⭐ EVERY "this is NOT the live widget" frame carries RENDER_UNAVAILABLE, and
+// the self-archive refuses to rasterize a body that contains one. Without it the
 // archive pipeline will happily freeze the placeholder chip / grey skeleton /
 // archived-image-of-an-image as the permanent evidence PNG — which is exactly
 // what a double-clicked Re-capture did on 2026-08-16: the second click cleared
@@ -70,11 +71,16 @@ class EmbedErrorBoundary extends Component {
 // has no canvases at all, so `sized.length === 0` returns "painted" and it
 // waves the chip straight through. This one asks "is this the widget at all?"
 // and FAILS CLOSED. Different question, opposite default, both needed.
-const FALLBACK_MARK = { 'data-embed-fallback': '' }
+//
+// The mark is SHARED with the widgets themselves (lib/captureSafety): StockChart
+// stamps it on its own "Failed to load chart" / empty-range / skeleton frames,
+// which live INSIDE the live component and therefore look nothing like an embed
+// fallback from out here. Same question — "are these pixels the artifact?" —
+// so the same attribute and one selector, never a second string to keep in sync.
 
 function ArchivedImage({ attrs }) {
   return (
-    <figure className={styles.archived} {...FALLBACK_MARK}>
+    <figure className={styles.archived} {...RENDER_UNAVAILABLE}>
       <img
         className={styles.archivedImg}
         src={attrs.fallback.url}
@@ -106,7 +112,7 @@ function asOfDayText(capturedAt) {
 
 function PlaceholderChip({ attrs, reason }) {
   return (
-    <div className={styles.placeholder} {...FALLBACK_MARK}>
+    <div className={styles.placeholder} {...RENDER_UNAVAILABLE}>
       <span className={styles.placeholderLine}>{attrs.searchText || '[widget]'}</span>
       <span className={styles.placeholderWhy}>
         {reason === 'unknown-widget' ? 'widget type unavailable' : 'snapshot image not captured yet'}
@@ -306,7 +312,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
     // Reading the MARKUP, not component state, is the point: every route to a
     // fallback — !inView, Suspense, a thrown render caught by the error
     // boundary — lands here without the archive having to enumerate them.
-    const showingFallback = () => !!bodyRef.current?.querySelector('[data-embed-fallback]')
+    const showingFallback = () => showsUnavailableFrame(bodyRef.current)
     const fire = async () => {
       // Don't rasterize a chart that hasn't painted its bars yet — the settle
       // clock alone once archived a candle-less frame (live finding). After
@@ -412,10 +418,10 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   if (decision.kind === 'live' && !shareView) {
     const Live = EMBED_COMPONENTS[attrs.widgetId]
     body = !Live ? archived : !inView ? (
-      <div className={styles.loading} style={{ height }} {...FALLBACK_MARK} />
+      <div className={styles.loading} style={{ height }} {...RENDER_UNAVAILABLE} />
     ) : (
       <EmbedErrorBoundary fallback={archived}>
-        <Suspense fallback={<div className={styles.loading} style={{ height }} {...FALLBACK_MARK} />}>
+        <Suspense fallback={<div className={styles.loading} style={{ height }} {...RENDER_UNAVAILABLE} />}>
           <Live
             attrs={attrs}
             height={height}

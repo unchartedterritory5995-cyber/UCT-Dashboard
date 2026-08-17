@@ -11,6 +11,7 @@ import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import { generateHTML, generateJSON } from '@tiptap/core'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import { canvasesLookPainted } from './embedArchive'
+import { RENDER_UNAVAILABLE, RENDER_UNAVAILABLE_SELECTOR, showsUnavailableFrame } from '../../../lib/captureSafety'
 
 vi.mock('@tiptap/react', async (orig) => {
   const mod = await orig()
@@ -559,6 +560,43 @@ describe('archive capture paint gate (canvasesLookPainted)', () => {
   })
 })
 
+describe('capture safety: one mark, both producers', () => {
+  // The whole point of lib/captureSafety is that the widget and the node view
+  // stamp the SAME attribute, so the archive needs one selector and the string
+  // can never drift between files. Pin the contract, then prove each producer
+  // actually uses it — a constant nobody spreads is not a guard.
+  it('derives the selector from the attribute (no second string)', () => {
+    expect(RENDER_UNAVAILABLE_SELECTOR).toBe(`[${Object.keys(RENDER_UNAVAILABLE)[0]}]`)
+    expect(Object.keys(RENDER_UNAVAILABLE)).toHaveLength(1)
+  })
+
+  it('treats a subtree carrying the mark as unsafe, and a bare one as safe', () => {
+    const host = document.createElement('div')
+    expect(showsUnavailableFrame(host)).toBe(false)      // control
+    host.appendChild(Object.assign(document.createElement('div'), {}))
+      .setAttribute(Object.keys(RENDER_UNAVAILABLE)[0], '')
+    expect(showsUnavailableFrame(host)).toBe(true)
+    expect(showsUnavailableFrame(null)).toBe(true)        // nothing to capture
+  })
+
+  it('StockChart stamps every frame it renders INSTEAD of a chart', async () => {
+    // Derived, not typed: read the source and require the mark on each branch
+    // that replaces the chart. StockChart is far too heavy to mount in jsdom,
+    // and this is the half that regresses — someone adds a fourth empty state.
+    const { readFileSync } = await import('node:fs')
+    const { resolve } = await import('node:path')
+    const src = readFileSync(resolve(process.cwd(), 'src/components/StockChart.jsx'), 'utf8')
+    expect(src).toContain("from '../lib/captureSafety'")
+    // Both error cards carry it.
+    const errorCards = src.match(/<div className=\{styles\.error\}[^>]*>/g) || []
+    expect(errorCards.length).toBeGreaterThan(0)
+    for (const tag of errorCards) expect(tag).toContain('RENDER_UNAVAILABLE')
+    // The skeleton carries it at its own root (one element, no wrapper box).
+    const skel = readFileSync(resolve(process.cwd(), 'src/components/chart/ChartSkeleton.jsx'), 'utf8')
+    expect(skel).toContain('RENDER_UNAVAILABLE')
+  })
+})
+
 describe('WidgetEmbedView self-archive bars-ready gate', () => {
   const editor = { storage: { uctJournalWidgets: { noteId: 'note-1' } }, isEditable: true }
   const bareAttrs = () =>
@@ -624,7 +662,7 @@ describe('WidgetEmbedView self-archive bars-ready gate', () => {
     try {
       rerender(<WidgetEmbedView node={{ attrs: { ...attrs } }} selected={false} editor={editor} updateAttributes={updateAttributes} />)
       // The body is now the marked placeholder, not the widget.
-      await waitFor(() => expect(document.querySelector('[data-embed-fallback]')).toBeTruthy())
+      await waitFor(() => expect(document.querySelector(RENDER_UNAVAILABLE_SELECTOR)).toBeTruthy())
       // Well past ARCHIVE_SETTLE_MS (3.5s), where the unguarded code captured.
       await new Promise((r) => setTimeout(r, 6000))
       expect(captureElementPng).not.toHaveBeenCalled()
