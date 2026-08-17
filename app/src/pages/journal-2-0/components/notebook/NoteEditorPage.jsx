@@ -142,7 +142,7 @@ export function CaptureInboxTray({ editor, onPlaced }) {
   )
 }
 
-export default function NoteEditorPage({ noteId, onBack, showBack = true }) {
+export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitleChange = null }) {
   const { note, isLoading, update, refresh } = useJ2Note(noteId)
   const { folders } = useJ2NoteFolders()
   const { user } = useAuth()
@@ -722,7 +722,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true }) {
         <input
           className={styles.titleInput}
           value={title}
-          onChange={(e) => { setTitle(e.target.value); scheduleAutosave() }}
+          onChange={(e) => { setTitle(e.target.value); scheduleAutosave(); onTitleChange?.(noteId, e.target.value) }}
           placeholder="Title"
         />
         <input

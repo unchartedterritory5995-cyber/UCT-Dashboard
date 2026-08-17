@@ -134,6 +134,9 @@
   min-height: 400px;
   outline: none;
 }
+/* The first block sits flush under the subtitle — so a divider (or heading)
+   inserted at the top doesn't leave a big gap above it. */
+.proseEditor > :first-child { margin-top: 0; }
 /* ── PROSE TYPOGRAPHY STOPS AT A WIDGET EMBED ────────────────────────────────
    Every rule below targets a BARE ELEMENT, so it reaches by descent into the
    node views too — and a widget embed is not prose: it mounts a whole app

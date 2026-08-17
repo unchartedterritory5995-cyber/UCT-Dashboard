@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import useJ2Notes from '../hooks/useJ2Notes'
 import NoteCard from '../components/notebook/NoteCard'
@@ -107,7 +107,23 @@ export default function NotebookTab() {
   // The folder sidebar renders every folder's notes as leaf rows AND runs its
   // own search, so it needs the COMPLETE note set — not the filtered view above
   // (which only holds the selected folder's notes). Separate unfiltered fetch.
-  const { notes: allNotes, refresh: refreshAll } = useJ2Notes({ sort: 'title' })
+  const { notes: allNotes, refresh: refreshAll, mutate: mutateAllNotes } = useJ2Notes({ sort: 'title' })
+
+  // Live folder-tree updates without waiting on a refetch: drop a just-created
+  // note in immediately, and reflect the title as it's typed.
+  const addNoteToTree = useCallback((note) => {
+    if (!note) return
+    mutateAllNotes?.(
+      (d) => (d?.notes ? { ...d, notes: [note, ...d.notes.filter((n) => n.id !== note.id)] } : d),
+      { revalidate: false },
+    )
+  }, [mutateAllNotes])
+  const updateTreeNoteTitle = useCallback((id, title) => {
+    mutateAllNotes?.(
+      (d) => (d?.notes ? { ...d, notes: d.notes.map((n) => (n.id === id ? { ...n, title } : n)) } : d),
+      { revalidate: false },
+    )
+  }, [mutateAllNotes])
   const hasActiveFilters = Boolean(folderId || tag)
 
   const openNote = (note) => {
@@ -166,6 +182,9 @@ export default function NotebookTab() {
       })
       if (!res.ok) throw new Error(`${res.status}`)
       const body = await res.json()
+      // Instant: put it in the tree now, then reconcile from the server.
+      addNoteToTree(body.note)
+      refreshAll()
       openNote(body.note)
     } catch (e) {
       alert(`Could not create note: ${e.message || e}`)
@@ -274,7 +293,7 @@ export default function NotebookTab() {
         {noteId ? (
           // Key by noteId so switching notes from the persistent sidebar remounts
           // the editor fresh (TipTap state + autosave), same as opening from the grid.
-          <NoteEditorPage key={noteId} noteId={noteId} onBack={closeNote} showBack={false} />
+          <NoteEditorPage key={noteId} noteId={noteId} onBack={closeNote} showBack={false} onTitleChange={updateTreeNoteTitle} />
         ) : (
           <>
         <div className={styles.toolbar}>
