@@ -501,4 +501,35 @@ describe('view lock — no drift across ticker switches (apply-only)', () => {
       expect(Math.abs(anchorFracOf(lastRange()) - frac0)).toBeLessThan(0.02)
     }
   })
+
+  // A plain focus-click (used to focus the chart before type-to-search) must NOT
+  // capture — a capture there re-measures a possibly-transitioning chart and clobbers
+  // the lock (this is what nulled the vertical band on prod). The lock only changes on
+  // a real drag/zoom. Discriminates: without the moved-gate the click re-stores the
+  // (now-different) view and the assertion reds.
+  it('a plain click (no drag) never overwrites the stored lock', async () => {
+    const { container } = render(
+      <StockChart sym="AAPL" tf="D" barsOverride={FIXTURE_BARS}
+        carryDragPlacement keepPresentOnSymbolChange viewLockKey={LOCK_KEY} />)
+    await waitFor(() => expect(spy.setVisibleLogicalRange).toHaveBeenCalled(), { timeout: 3000 })
+
+    // Establish a lock with a genuine drag.
+    spy.last = { from: 40, to: 240 }
+    const el = container.querySelector('[class*="chart"]')
+    fireEvent.pointerDown(el, { clientX: 300, clientY: 200 })
+    fireEvent.pointerMove(el, { clientX: 120, clientY: 200 })
+    fireEvent.pointerUp(el, { clientX: 120, clientY: 200 })
+    await waitFor(() => expect(localStorage.getItem(LOCK_KEY)).toBeTruthy(), { timeout: 3000 })
+    const frac0 = JSON.parse(localStorage.getItem(LOCK_KEY)).anchorFrac
+
+    // Now the view is a DIFFERENT place (as it would be mid sym-switch), and the user
+    // merely CLICKS to focus — press + release, no movement.
+    spy.last = { from: 10, to: 210 } // (199-10)/200 = 0.945 — very different from 0.795
+    fireEvent.pointerDown(el, { clientX: 500, clientY: 300 })
+    fireEvent.pointerUp(el, { clientX: 500, clientY: 300 })
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+
+    // The stored lock is untouched — a click captured nothing.
+    expect(JSON.parse(localStorage.getItem(LOCK_KEY)).anchorFrac).toBe(frac0)
+  })
 })

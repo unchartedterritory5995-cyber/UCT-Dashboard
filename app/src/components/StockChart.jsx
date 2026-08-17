@@ -11489,7 +11489,7 @@ export default function StockChart({
     if (!el) return undefined
     const onDown = (e) => {
       lastPointerDownAtRef.current = Date.now()
-      viewPointerRef.current = { x: e.clientX, y: e.clientY }
+      viewPointerRef.current = { x: e.clientX, y: e.clientY, moved: false }
     }
     // Capture the CURRENT (settled) view as right-relative params for the replay lock.
     // rAF so we read AFTER lightweight-charts applies the pan/zoom, on THIS ticker's bars.
@@ -11519,17 +11519,24 @@ export default function StockChart({
           const doH = m.hLocked || wasH
           const doV = m.vLocked || wasV
           if (doH || doV) {
+            const prev = userLockedViewRef.current || {}
             userViewLockedRef.current = true
             userLockedViewRef.current = {
-              anchorFrac: doH ? m.anchorFrac : (userLockedViewRef.current?.anchorFrac ?? null),
-              width: doH ? m.width : (userLockedViewRef.current?.width ?? null),
+              // Update a dimension ONLY from a VALID new measurement; otherwise keep
+              // the stored value. A capture where a dimension reads "unlocked"
+              // (m.* null — a measurement taken mid sym-switch, or the band momentarily
+              // back at default) must NEVER null a lock the user set earlier. Only
+              // "Reset view" clears a dimension. (This is the "top:null wiped my
+              // compression on the next click" bug.)
+              anchorFrac: (doH && m.anchorFrac != null) ? m.anchorFrac : (prev.anchorFrac ?? null),
+              width: (doH && m.width > 0) ? m.width : (prev.width ?? null),
               // Tag the horizontal lock with the tf it was captured on — `width`
               // is in logical BARS, so a daily 232-bar window must NOT be applied
               // on a weekly chart. The framing branch only applies horizontal when
               // this tf matches the current one.
-              tf: doH ? resolvedTf : (userLockedViewRef.current?.tf ?? null),
-              top: doV ? m.top : (userLockedViewRef.current?.top ?? null),
-              bottom: doV ? m.bottom : (userLockedViewRef.current?.bottom ?? null),
+              tf: (doH && m.anchorFrac != null) ? resolvedTf : (prev.tf ?? null),
+              top: (doV && m.top != null) ? m.top : (prev.top ?? null),
+              bottom: (doV && m.bottom != null) ? m.bottom : (prev.bottom ?? null),
             }
             persistViewLock()
           }
@@ -11540,13 +11547,19 @@ export default function StockChart({
       const p = viewPointerRef.current
       if (!p) return
       if (Math.abs(e.clientX - p.x) > 4 || Math.abs(e.clientY - p.y) > 4) {
+        p.moved = true                                    // gesture-scoped: this press actually dragged
         userViewMovedRef.current = true
         if (replayCutoffRef.current) replayViewLockedRef.current = true   // lock this view for the whole sort
       }
     }
     const onUp = () => {
-      if (viewPointerRef.current && replayCutoffRef.current && replayViewLockedRef.current) _captureReplayLock()
-      if (viewPointerRef.current) _captureUserLock()
+      const gestured = viewPointerRef.current && viewPointerRef.current.moved
+      if (gestured && replayCutoffRef.current && replayViewLockedRef.current) _captureReplayLock()
+      // ONLY a press that actually MOVED changes the view. A plain focus-click (used
+      // to focus the chart before type-to-search a new ticker) changes nothing — and
+      // its rAF would otherwise land mid sym-switch and re-measure a transitioning
+      // chart, clobbering the lock. So capture on a real drag only; wheel handles zoom.
+      if (gestured) _captureUserLock()
       viewPointerRef.current = null
     }
     const onWheel = () => {
