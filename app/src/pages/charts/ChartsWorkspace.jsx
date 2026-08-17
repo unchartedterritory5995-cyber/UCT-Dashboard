@@ -7,7 +7,7 @@ import useChartLayouts from '../../hooks/useChartLayouts'
 import { useAuth } from '../../context/AuthContext'
 import UIcon from '../../components/ui/UIcon'
 import { WorkspaceContext } from './WorkspaceContext'
-import { WATCHLIST_DEFAULTS } from '../watchlist/watchlistSettings'
+import { WATCHLIST_DEFAULTS, watchlistDefaultsForTheme } from '../watchlist/watchlistSettings'
 import { THEME_TRACKER_DEFAULTS, mergeThemeTrackerSettings, themeTrackerDefaultsForTheme } from '../theme-tracker/themeTrackerSettings'
 import { FUNDAMENTALS_DEFAULTS, mergeFundamentalsSettings, fundamentalsDefaultsForTheme } from './widgets/fundamentalsSettings'
 import { BREADTH_WIDGET_DEFAULTS, mergeBreadthWidgetSettings, breadthDefaultsForTheme } from './widgets/breadthWidgetSettings'
@@ -1272,16 +1272,19 @@ export default function ChartsWorkspace() {
     const normalized = parseLayout(UCT_DEFAULT_LAYOUT) || UCT_DEFAULT_LAYOUT
     setLayout(normalized)
     setPref('charts_workspace_layout', JSON.stringify(normalized))
-    // Restore the exact chart settings baked into the default (parsed fresh each
-    // apply so the frozen constant is never mutated).
-    setPref('chart_settings', uctDefaultChartSettings())
-    // Watchlist / Theme Tracker / Fundamentals appearance are part of the frozen
-    // default too → reset them, so no personal widget styling leaks onto the
-    // locked UCT Default.
-    setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS))
-    setPref('theme_tracker_settings', JSON.stringify(THEME_TRACKER_DEFAULTS))
-    setPref('fundamentals_settings', JSON.stringify(FUNDAMENTALS_DEFAULTS))
-    setPref('breadth_widget_settings', JSON.stringify(BREADTH_WIDGET_DEFAULTS))
+    // On the LIGHT app theme, UCT Default paints a WHITE chart (chartDefaultsForTheme
+    // 'light') and light-theme widget appearances; on dark it keeps the frozen owner
+    // capture + the dark defaults. Parsed fresh each apply so the constants are never
+    // mutated.
+    const appTheme = prefs.theme === 'light' ? 'light' : 'dark'
+    setPref('chart_settings', appTheme === 'light' ? JSON.stringify(chartDefaultsForTheme('light')) : uctDefaultChartSettings())
+    // Watchlist / Theme Tracker / Fundamentals / Breadth appearance are part of the
+    // default too → reset them to the theme-appropriate defaults (light = white canvas
+    // + #17a917/#db000b up/down), so no personal widget styling leaks onto UCT Default.
+    setPref('watchlist_settings', JSON.stringify(watchlistDefaultsForTheme(appTheme)))
+    setPref('theme_tracker_settings', JSON.stringify(themeTrackerDefaultsForTheme(appTheme)))
+    setPref('fundamentals_settings', JSON.stringify(fundamentalsDefaultsForTheme(appTheme)))
+    setPref('breadth_widget_settings', JSON.stringify(breadthDefaultsForTheme(appTheme)))
     setChartsTheme('default')
     try { localStorage.removeItem('uct.watchlist.cols') } catch { /* ignore */ }  // reset columns too (mirrors WL_COLS_LS)
     // Volume-pane height is a SEPARATE global per-user override (charts_vol_pane_pct)
@@ -1291,7 +1294,7 @@ export default function ChartsWorkspace() {
     setPref('charts_active_template', 'null')
     setOpenMenuOpen(false)
     flashSaved()
-  }, [setPref, setChartsTheme, flashSaved])
+  }, [setPref, setChartsTheme, flashSaved, prefs.theme])
 
   // The "default" layout (new users / no saved layout) = the frozen UCT Default
   // arrangement. (A DB "chart" prebuilt template, if one is ever added, still wins.)
@@ -1733,14 +1736,6 @@ export default function ChartsWorkspace() {
                   <div className={styles.menuSection}>Prebuilt</div>
                   <div className={styles.menuRow}>
                     <button type="button" className={styles.addMenuItem} style={{ flex: 1 }} onClick={() => { applyUctDefault(); closeToolbarMenus() }}>UCT Default</button>
-                  </div>
-                  <div className={styles.menuRow}>
-                    <button
-                      type="button"
-                      className={styles.addMenuItem}
-                      style={{ flex: 1, ...(chartsTheme === 'sunrise' ? { color: 'var(--ut-green-bright, #1ae51a)' } : {}) }}
-                      onClick={() => { setChartsTheme('sunrise'); setPref('watchlist_settings', JSON.stringify(WATCHLIST_DEFAULTS)); closeToolbarMenus() }}
-                    >{chartsTheme === 'sunrise' ? '✓ ' : ''}TSDR — Sunset</button>
                   </div>
                   {wsGlobalLayouts.map(t => (
                     <div key={`g${t.id}`} className={styles.menuRow}>
