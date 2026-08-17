@@ -811,7 +811,12 @@ function ChartPane({
              "unset" → the pane's strong 0.82; any value the user picks wins. */
           watermarkOpacity={chartCs.watermark.opacity === 0.07 ? 0.82 : chartCs.watermark.opacity}
           centerWatermarkOnPlot
-          carryDragPlacement={false}
+          /* Carry the user's manual price-scale placement (a price-axis drag that
+             compresses/repositions the candles) across ticker switches — the
+             captured margins are PROPORTIONAL (scaleMargins + autoScale), so each
+             new ticker auto-fits into the same vertical band scaled to its own
+             range. Cleared only by right-click → "Reset view" (vertMarginsRef). */
+          carryDragPlacement
           keepPresentOnSymbolChange
           dragMeasure
           verticalLegend
