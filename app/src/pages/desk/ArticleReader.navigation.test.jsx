@@ -18,9 +18,14 @@ const SECTIONS = [
   { id: 'market-breadth-data', text: 'Market Breadth Data', level: 2 },
   { id: 'charts-covered', text: 'Charts Covered', level: 3 },
 ]
-const BODY = '<h2 id="intro">INTRO</h2><p>a</p>' +
-  '<h2 id="market-breadth-data">Market Breadth Data</h2><p>b</p>' +
-  '<h3 id="charts-covered">Charts Covered</h3><p>c</p>'
+// ⛔ The two issues MUST carry different bodies. The scroll-spy effect keys on
+// `data.body_html`, so identical fixtures mean it never re-runs on navigation —
+// and the ordering bug this file exists to catch never gets a chance to happen.
+// Real issues always differ.
+const body = (slug) =>
+  `<h2 id="intro">INTRO</h2><p>opening of ${slug}</p>` +
+  `<h2 id="market-breadth-data">Market Breadth Data</h2><p>breadth for ${slug}</p>` +
+  `<h3 id="charts-covered">Charts Covered</h3><p>charts for ${slug}</p>`
 
 const article = (slug) => ({
   id: `https://sub.test/p/${slug}`, slug,
@@ -28,7 +33,7 @@ const article = (slug) => ({
   published_at: 1786902774, reading_minutes: 14, image_count: 20,
   sections: SECTIONS, tickers: [], related_video: null,
   adjacent: { previous: null, next: { slug: 'next-issue', title: 'Sunday Scans — next' } },
-  body_html: BODY,
+  body_html: body(slug),
 })
 
 beforeEach(() => {

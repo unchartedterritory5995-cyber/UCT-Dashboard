@@ -208,6 +208,20 @@ test('one neighbour still renders the block', () => {
   expect(screen.queryByText(/Next issue/)).toBeNull()
 })
 
+test('scrolling through an article CREATES a bookmark', async () => {
+  // The most basic rail, and the one that was missing: does it save at all?
+  // jsdom reports zero heights, so the scroll-spy computes pct=0 and correctly
+  // declines to store — the page has to be given a real size for the save path
+  // to be exercised at all.
+  const dim = (k, v) => Object.defineProperty(document.documentElement, k,
+    { value: v, configurable: true, writable: true })
+  dim('scrollHeight', 2000); dim('clientHeight', 800); dim('scrollTop', 600)
+  renderReader()
+  fireEvent.scroll(window)
+  await waitFor(() => expect(progress.load('sunday-scans-da5')).not.toBeNull())
+  expect(progress.load('sunday-scans-da5').pct).toBeCloseTo(0.5, 2)
+})
+
 test('a returning reader is put back, and TOLD where they were put', () => {
   // ⛔ Moving someone silently is worse than not moving them: the pill names
   // the section and offers the way back.
