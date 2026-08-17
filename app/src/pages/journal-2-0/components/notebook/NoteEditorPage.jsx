@@ -34,6 +34,35 @@ const AUTOSAVE_MS = 800
 // user edits / closes the tab). 4xx errors bypass retry entirely.
 const RETRY_BACKOFFS_MS = [1000, 2000, 4000, 8000, 15000, 30000]
 
+// Toolbar Font dropdown — a broad set of common web-safe families (each option
+// previews in its own face). Value is a full CSS font-family stack; '' clears.
+const FONT_OPTIONS = [
+  { label: 'Default', value: '' },
+  { label: 'Sans Serif', value: 'Instrument Sans, Arial, sans-serif' },
+  { label: 'Serif', value: 'Georgia, "Times New Roman", serif' },
+  { label: 'Monospace', value: 'Consolas, "Courier New", monospace' },
+  { label: 'Arial', value: 'Arial, Helvetica, sans-serif' },
+  { label: 'Helvetica', value: 'Helvetica, Arial, sans-serif' },
+  { label: 'Verdana', value: 'Verdana, Geneva, sans-serif' },
+  { label: 'Tahoma', value: 'Tahoma, Geneva, sans-serif' },
+  { label: 'Trebuchet MS', value: '"Trebuchet MS", Helvetica, sans-serif' },
+  { label: 'Calibri', value: 'Calibri, Candara, sans-serif' },
+  { label: 'Century Gothic', value: '"Century Gothic", sans-serif' },
+  { label: 'Georgia', value: 'Georgia, serif' },
+  { label: 'Times New Roman', value: '"Times New Roman", Times, serif' },
+  { label: 'Garamond', value: 'Garamond, serif' },
+  { label: 'Palatino', value: '"Palatino Linotype", "Book Antiqua", Palatino, serif' },
+  { label: 'Cambria', value: 'Cambria, Georgia, serif' },
+  { label: 'Baskerville', value: 'Baskerville, "Baskerville Old Face", serif' },
+  { label: 'Courier New', value: '"Courier New", Courier, monospace' },
+  { label: 'Consolas', value: 'Consolas, monospace' },
+  { label: 'Lucida Sans', value: '"Lucida Sans Unicode", "Lucida Grande", sans-serif' },
+  { label: 'Comic Sans MS', value: '"Comic Sans MS", "Comic Sans", cursive' },
+  { label: 'Impact', value: 'Impact, Haettenschweiler, sans-serif' },
+  { label: 'Brush Script MT', value: '"Brush Script MT", cursive' },
+]
+const FONT_SIZES = [12, 13, 14, 15, 16, 17, 18, 20, 22, 24, 28, 32, 36, 40, 48, 60, 72]
+
 // The capture inbox tray: hotkey captures banked during the session, offered
 // for placement while writing. Renders nothing when the inbox is empty (the
 // common case costs one lightweight GET). Insert lands the embed at the
@@ -572,6 +601,37 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
         )}
         {editor && (
           <div className={styles.headerToolbar} data-export-exclude>
+            <select
+              className={styles.fontSelect}
+              value={editor.getAttributes('textStyle').fontFamily || ''}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v) editor.chain().focus().setFontFamily(v).run()
+                else editor.chain().focus().unsetFontFamily().run()
+              }}
+              title="Font"
+              aria-label="Font family"
+            >
+              {FONT_OPTIONS.map((f) => (
+                <option key={f.label} value={f.value} style={f.value ? { fontFamily: f.value } : undefined}>
+                  {f.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className={styles.fontSizeSelect}
+              value={editor.getAttributes('textStyle').fontSize || ''}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v) editor.chain().focus().setFontSize(v).run()
+                else editor.chain().focus().unsetFontSize().run()
+              }}
+              title="Text size"
+              aria-label="Text size"
+            >
+              <option value="">Size</option>
+              {FONT_SIZES.map((s) => <option key={s} value={`${s}px`}>{s}</option>)}
+            </select>
             <ToolButton
               active={editor.isActive('bold')}
               onClick={() => editor.chain().focus().toggleBold().run()}

@@ -112,6 +112,19 @@
   align-items: center;
 }
 .headerToolbar .toolBtn { padding: 3px 8px; font-size: 12px; }
+.fontSelect, .fontSizeSelect {
+  background: var(--color-surface, #14171c);
+  border: 1px solid var(--color-border, #232932);
+  color: var(--color-text-primary, #e8eaed);
+  border-radius: 5px;
+  padding: 3px 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.fontSelect { min-width: 104px; max-width: 150px; }
+.fontSizeSelect { width: 58px; }
+.fontSelect:focus, .fontSizeSelect:focus { outline: none; border-color: #c9a84c; }
+.fontSelect:hover, .fontSizeSelect:hover { border-color: #c9a84c; }
 .toolBtn {
   background: transparent;
   border: 1px solid transparent;
