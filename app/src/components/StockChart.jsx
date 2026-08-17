@@ -11466,6 +11466,7 @@ export default function StockChart({
             }
           } catch { /* vertical optional */ }
           userLockedViewRef.current = lock
+          try { window.__uctLock = { ...lock, sym } } catch {}
         } catch { /* mid-load */ }
       })
     }
