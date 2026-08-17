@@ -36,7 +36,10 @@ const noopStore = () => {}
  *   subscribe to anything.
  */
 function ChartEmbed({
-  attrs, height = 320, annotate = false, onAnnotationsChange = null, onBarsReady = null,
+  // `height` is intentionally NOT read here: the wrapper fills its parent
+  // (height:100%) so the chart tracks the embed's live size during a resize
+  // drag; the parent (WidgetEmbedView body) owns the pixel height.
+  attrs, annotate = false, onAnnotationsChange = null, onBarsReady = null,
   // Linked crosshair (spec Phase 6 #6): the per-note bus every chart embed
   // shares. StockChart owns both halves already — onCrosshairMove publishes,
   // subscribeCrosshair applies payloads imperatively with echo suppression
@@ -124,7 +127,7 @@ function ChartEmbed({
     peekToNow, crosshairBus, reportCrosshair, subscribeCrosshair])
 
   return (
-    <div style={{ height }}>
+    <div style={{ height: '100%' }}>
       <ChartPane
         ref={paneRef}
         sym={params.symbol}

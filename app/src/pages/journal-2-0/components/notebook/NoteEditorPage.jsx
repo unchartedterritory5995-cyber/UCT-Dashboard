@@ -552,16 +552,15 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true }) {
             ← Notebook
           </button>
         )}
-        <div
-          className={styles.saveStatus}
-          title={saveErrorMsg || undefined}
-        >
-          {saveStatus === 'saved' && 'Saved'}
-          {saveStatus === 'saving' && 'Saving…'}
-          {saveStatus === 'dirty' && 'Editing'}
-          {saveStatus === 'reconnecting' && 'Reconnecting…'}
-          {saveStatus === 'error' && <><UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{`Save failed${saveErrorMsg ? `: ${saveErrorMsg}` : ''}`}</>}
-        </div>
+        {/* Only surface a PROBLEM (reconnecting / save failed) — the steady
+            "Saved"/"Saving"/"Editing" chatter is dropped so the formatting
+            toolbar sits at the far left of the header. */}
+        {(saveStatus === 'error' || saveStatus === 'reconnecting') && (
+          <div className={styles.saveStatus} title={saveErrorMsg || undefined}>
+            {saveStatus === 'reconnecting' && 'Reconnecting…'}
+            {saveStatus === 'error' && <><UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{`Save failed${saveErrorMsg ? `: ${saveErrorMsg}` : ''}`}</>}
+          </div>
+        )}
         {editor && (
           <div className={styles.headerToolbar} data-export-exclude>
             <ToolButton
