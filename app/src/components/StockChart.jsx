@@ -8897,6 +8897,13 @@ export default function StockChart({
           try {
             chart.timeScale().setVisibleLogicalRange({ from, to })
             didPreserve = true
+            if (userViewLockedRef.current) {
+              try {
+                window.__uctApplied = { from, to, newBarCount, locked: true }
+                requestAnimationFrame(() => { try { window.__uctFinal = chart.timeScale().getVisibleLogicalRange() } catch {} })
+                setTimeout(() => { try { window.__uctFinal2 = chart.timeScale().getVisibleLogicalRange() } catch {} }, 600)
+              } catch {}
+            }
           } catch {}
         }
       }
