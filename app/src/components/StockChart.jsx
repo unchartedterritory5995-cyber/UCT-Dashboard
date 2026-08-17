@@ -541,6 +541,21 @@ const barsSwrOnErrorRetry = (error, _key, _config, revalidate, { retryCount }) =
 
 // ─── Legend helpers ─────────────────────────────────────────────────────────
 
+// Strip any alpha from a color so a legend label shows the overlay's HUE at full
+// opacity. An MA's line opacity should fade the LINE on the chart, never its
+// legend label — the label is a name+reading a trader must always read clearly.
+function opaqueColor(c) {
+  if (!c || typeof c !== 'string') return c
+  const s = c.trim()
+  const m8 = /^#([0-9a-f]{6})[0-9a-f]{2}$/i.exec(s)      // #rrggbbaa → #rrggbb
+  if (m8) return `#${m8[1]}`
+  const m4 = /^#([0-9a-f]{3})[0-9a-f]$/i.exec(s)         // #rgba → #rgb
+  if (m4) return `#${m4[1]}`
+  const mr = /^rgba\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*[\d.]+\s*\)$/i.exec(s)
+  if (mr) return `rgb(${mr[1]}, ${mr[2]}, ${mr[3]})`     // rgba(r,g,b,a) → rgb(r,g,b)
+  return s
+}
+
 function formatLegendTime(time) {
   if (typeof time === 'string') return time
   const d = new Date(time * 1000)
@@ -12820,7 +12835,7 @@ export default function StockChart({
                   </span>
                 )}
                 {crosshairData.overlays.map((ov, i) => (
-                  <span key={'ov' + i} style={{ color: ov.color }}>{ov.label} <strong>{ov.value?.toFixed(2)}</strong></span>
+                  <span key={'ov' + i} style={{ color: opaqueColor(ov.color) }}>{ov.label} <strong>{ov.value?.toFixed(2)}</strong></span>
                 ))}
               </div>
             </>
@@ -12848,8 +12863,8 @@ export default function StockChart({
                   those lines are drawn on the chart anyway) so the legend stops
                   spilling into the volume pane WITHOUT going wider. */}
               {!compactLegend && crosshairData.overlays.flatMap((ov, i) => [
-                <span key={'l' + i} className={styles.vlLabel} style={{ color: ov.color }}>{ov.label}</span>,
-                <span key={'v' + i} className={styles.vlVal} style={{ color: ov.color }}>{ov.value?.toFixed(2)}</span>,
+                <span key={'l' + i} className={styles.vlLabel} style={{ color: opaqueColor(ov.color) }}>{ov.label}</span>,
+                <span key={'v' + i} className={styles.vlVal} style={{ color: opaqueColor(ov.color) }}>{ov.value?.toFixed(2)}</span>,
               ])}
               {!compactLegend && indChips.map((c, i) => (
                 <IndicatorChip
@@ -12895,7 +12910,7 @@ export default function StockChart({
             {parseFloat(crosshairData.change) >= 0 ? '+' : ''}{crosshairData.change} ({crosshairData.changePct}%)
           </span>
           {crosshairData.overlays.map((ov, i) => (
-            <span key={i} style={{ color: ov.color }}>{ov.label} <strong>{ov.value?.toFixed(2)}</strong></span>
+            <span key={i} style={{ color: opaqueColor(ov.color) }}>{ov.label} <strong>{ov.value?.toFixed(2)}</strong></span>
           ))}
           {indChips.map((c, i) => (
             <IndicatorChip
