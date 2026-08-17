@@ -169,14 +169,25 @@ const pump = async (fn) => {
 const hover = (view, close) => pump(() => {
   for (const fn of [...H.crosshairHandlers]) fn(eventAt(close))
 })
-const clickCandle = (view, close) => pump(() => {
-  for (const fn of [...H.clickHandlers]) fn(eventAt(close))
+
+/** The peek gesture, driven on the real chart container the component listens on. */
+const chartEl = () => {
+  const el = H.chartContainers.at(-1)
+  expect(el, 'no chart container recorded — the chart never mounted').toBeTruthy()
+  return el
+}
+const pressDown = (view, close) => pump(() => {
+  // ⚠️ `mouseenter` FIRST, AND IT IS NOT DECORATION. `pointerOverRef` only turns
+  // true on a real container mouseenter, and it is what latches
+  // `legendHoveringRef` so the off-hover refreshers stand down. Without it the
+  // 500ms latest-bar refresher overwrites the hovered bar and the "follows the
+  // cursor" case reads the wrong values — a harness artefact, since a real press
+  // is always preceded by the pointer being over the chart.
+  fireEvent.mouseEnter(chartEl())
+  fireEvent.pointerDown(chartEl(), { button: 0 })
+  for (const fn of [...H.crosshairHandlers]) fn(eventAt(close))
 })
-const clickEmpty = () => pump(() => {
-  // Lightweight-charts fires a click with no `time` when the user clicks off the
-  // series — the same shape the crosshair handler already treats as "left".
-  for (const fn of [...H.clickHandlers]) fn({ time: undefined, point: { x: 5, y: 5 }, seriesData: new Map() })
-})
+const releaseUp = () => pump(() => { fireEvent.pointerUp(window) })
 
 describe("legendMode 'always' — the control, and today's behavior", () => {
   it('draws the legend on hover', async () => {
@@ -186,101 +197,65 @@ describe("legendMode 'always' — the control, and today's behavior", () => {
   })
 })
 
-describe("legendMode 'click' — the chart stays clean until a candle is clicked", () => {
-  it('a HOVER draws no legend at all', async () => {
-    const view = draw('click')
+describe("legendMode 'hold' — press to peek, release to hide", () => {
+  it('a HOVER alone draws no legend at all', async () => {
+    const view = draw('hold')
     await hover(view, 1.5)
     expect(legendTextOf(view)).toBe('')
   })
 
-  it('a CLICK on a candle pins the legend to that bar', async () => {
-    const view = draw('click')
-    await clickCandle(view, 1.5)
+  it('PRESSING shows the legend for the bar under the cursor', async () => {
+    const view = draw('hold')
+    await pressDown(view, 1.5)
     expect(legendTextOf(view)).toMatch(/O\s*1/)
     expect(legendTextOf(view)).toContain('1.50')
   })
 
-  it('once pinned, moving the crosshair leaves the legend on the CLICKED bar', async () => {
-    // ⭐ THE ASSERTION THAT SEPARATES "PINNED" FROM "TURNED ON". A click that
-    // merely re-enabled the hover legend would pass every other case in this
-    // block and then follow the cursor — which is the behavior the owner
-    // explicitly did not pick.
-    const view = draw('click')
-    await clickCandle(view, 1.5)
+  it('RELEASING hides it again — the whole point of the gesture', async () => {
+    const view = draw('hold')
+    await pressDown(view, 1.5)
+    expect(legendTextOf(view)).toMatch(/O\s*1/)
+    await releaseUp()
+    expect(legendTextOf(view), 'the legend outlived the press — this is a peek, not a pin').toBe('')
+  })
+
+  it('while HELD it FOLLOWS the cursor, so you can drag across bars and read them', async () => {
+    // ⭐ THE ASSERTION THAT SEPARATES "PEEK" FROM "PIN". The predecessor latched
+    // the legend to the pressed bar and ignored the cursor; that was the wrong
+    // feature. Holding and moving must track.
+    const view = draw('hold')
+    await pressDown(view, 1.5)
     await hover(view, 9.9)
-    expect(legendTextOf(view)).toContain('1.50')
-    expect(legendTextOf(view)).not.toContain('9.90')
+    expect(legendTextOf(view)).toContain('9.90')
+    expect(legendTextOf(view)).not.toContain('1.50')
   })
 
-  it('clicking empty space clears the pin', async () => {
-    const view = draw('click')
-    await clickCandle(view, 1.5)
-    expect(legendTextOf(view)).toMatch(/O\s*1/)
-    await clickEmpty()
+  it('a release that lands OUTSIDE the chart still ends the peek', async () => {
+    // ⛔ THE REGRESSION THIS EXISTS FOR. `pointerup` is listened for on `window`,
+    // not the chart: press, drag onto the price axis or off the widget, release —
+    // an element-scoped listener never fires and the legend sticks on forever.
+    const view = draw('hold')
+    await pressDown(view, 1.5)
+    await pump(() => { fireEvent.pointerUp(document.body) })
     expect(legendTextOf(view)).toBe('')
   })
 
-  it('Escape clears the pin', async () => {
-    const view = draw('click')
-    await clickCandle(view, 1.5)
-    expect(legendTextOf(view)).toMatch(/O\s*1/)
-    await act(async () => {
-      fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' })
-      await new Promise(r => setTimeout(r, 20))
+  it('a RIGHT-press does not flash the legend under the context menu', async () => {
+    const view = draw('hold')
+    await pump(() => {
+      fireEvent.pointerDown(chartEl(), { button: 2 })
+      for (const fn of [...H.crosshairHandlers]) fn(eventAt(1.5))
     })
     expect(legendTextOf(view)).toBe('')
   })
 
   it('`alwaysShowLegend` does NOT reinstate it — the mode overrules the host prop', async () => {
-    // ⛔ THE REGRESSION THIS EXISTS FOR. `/charts` passes `alwaysShowLegend`, and
-    // two separate code paths seed the legend from the LATEST bar whenever the
-    // cursor is off the chart. Miss either one and 'click' mode looks like it
-    // works on a popup and does nothing at all on the workspace — the surface
-    // the owner actually asked about.
-    const view = draw('click')
-    // No hover, no click: just let every mount effect run.
+    // `/charts` passes `alwaysShowLegend`, and two code paths seed the legend from
+    // the LATEST bar when the cursor is off the chart. Miss either and 'hold' looks
+    // right on a popup and does nothing on the workspace.
+    const view = draw('hold')
     await pump(() => {})
     expect(legendTextOf(view)).toBe('')
-  })
-})
-
-describe("legendMode 'off' — never drawn", () => {
-  it('neither a hover nor a click draws it', async () => {
-    const view = draw('off')
-    await hover(view, 1.5)
-    expect(legendTextOf(view)).toBe('')
-    await clickCandle(view, 1.5)
-    expect(legendTextOf(view)).toBe('')
-  })
-})
-
-// ─── 🔴 REGRESSION: A CLICK HANDLER THAT THROWS TAKES ITS NEIGHBOURS DOWN ────
-//
-// `subscribeCrosshairMove` always hands over a `seriesData` Map, so the payload
-// builder read `param.seriesData.get(...)` unguarded for as long as a HOVER was
-// its only caller. Routing clicks through it broke that assumption: a click param
-// without `seriesData` threw, and because LWC runs its click subscribers in a
-// list, the throw took out every handler registered after this one.
-//
-// ⛔ THE DAMAGE WAS TWO SUBSCRIBERS AWAY FROM THE LEGEND: `StockChart` also
-// subscribes clicks for desk markers, earnings badges and callouts, and the
-// symptom that surfaced was "clicking a desk marker navigates nowhere". A new
-// subscriber on a shared bus owes the bus a handler that cannot throw.
-describe('a click param without seriesData is survivable', () => {
-  it('does not throw, and leaves the chart usable', async () => {
-    const view = draw('click')
-    expect(H.clickHandlers.length,
-      'nothing subscribed to click — this case is vacuous').toBeGreaterThan(0)
-    await act(async () => {
-      for (const fn of [...H.clickHandlers]) {
-        // Exactly the shape that crashed: a real point, a real time, no map.
-        fn({ time: BARS.at(-1).t, point: { x: 100, y: 100 } })
-      }
-      await new Promise(r => setTimeout(r, 20))
-    })
-    // And the chart still answers a normal click afterwards.
-    await clickCandle(view, 1.5)
-    expect(legendTextOf(view)).toMatch(/O\s*1/)
   })
 })
 
@@ -318,8 +293,8 @@ describe("the volume pane's readout is NOT the OHLC legend", () => {
       .toMatch(/Vol/)
   })
 
-  it("'on click' with nothing pinned: the OHLC legend is hidden and the volume strip is NOT", async () => {
-    const view = drawWithVolPane('click')
+  it("'hold' with nothing pressed: the OHLC legend is hidden and the volume strip is NOT", async () => {
+    const view = drawWithVolPane('hold')
     await hover(view, 1.5)
     expect(legendTextOf(view)).toBe('')
     expect(volStripText(view),
@@ -368,10 +343,10 @@ const legendSubmenu = (sections) => {
 
 describe('the right-click menu carries the same three modes', () => {
   it('offers exactly the three modes, with the current one ticked', () => {
-    const view = draw('click')
+    const view = draw('hold')
     const rows = legendSubmenu(openMenu(view))
-    expect(rows.map(r => r.id)).toEqual(['legend-always', 'legend-click', 'legend-off'])
-    expect(rows.filter(r => r.checked).map(r => r.id)).toEqual(['legend-click'])
+    expect(rows.map(r => r.id)).toEqual(['legend-always', 'legend-hold', 'legend-off'])
+    expect(rows.filter(r => r.checked).map(r => r.id)).toEqual(['legend-hold'])
   })
 
   it('picking a row writes legendMode and leaves the legacy boolean alone', () => {

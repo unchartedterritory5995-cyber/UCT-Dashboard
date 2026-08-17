@@ -991,9 +991,9 @@ function ChartToolbar({
             nowhere. */}
         {chartSettings && onUpdateSettings && (() => {
           const mode = legendModeOf(chartSettings)
-          const NEXT_LABEL = { always: 'on click', click: 'off', off: 'always' }
-          const ICON = { always: 'eye', click: 'pin', off: 'eyeOff' }
-          const STATE = { always: 'Always on', click: 'On click', off: 'Off' }
+          const NEXT_LABEL = { always: 'hold to peek', hold: 'off', off: 'always' }
+          const ICON = { always: 'eye', hold: 'pin', off: 'eyeOff' }
+          const STATE = { always: 'Always on', hold: 'Hold to peek', off: 'Off' }
           return (
             <button
               className={`${styles.btn} ${styles.btnStacked} ${mode !== 'off' ? styles.active : ''}`}

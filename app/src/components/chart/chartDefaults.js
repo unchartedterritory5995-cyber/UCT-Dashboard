@@ -14,7 +14,7 @@ import * as engineRegistry from './engine/nativeRegistry'
 // resolves `legendMode` by the SAME rule every surface reads it by — see the
 // header block in `mergeChartSettings`. `legendMode.js` imports nothing, so
 // this cannot start a cycle.
-import { legendModeOf, DEFAULT_LEGEND_MODE } from './legendMode'
+import { explicitLegendMode } from './legendMode'
 
 export const CHART_DEFAULTS = {
   chartType: 'candles', // candles | hollow | bars | line | area
@@ -72,17 +72,13 @@ export const CHART_DEFAULTS = {
     // mode still merges cleanly, and `legendMode.js::legendModeOf` reads it as
     // the fallback. Do NOT write it — two keys over one fact is the defect.
     showLegend: true,       // the on-chart OHLCV crosshair legend
-    // How that legend behaves. 'always' = on, following the crosshair on hover
-    // (the long-standing look); 'click' = the chart stays clean until the user
-    // clicks a candle, which pins the legend to that bar; 'off' = never drawn.
-    // ⭐ Read it through `legendModeOf(cs)` — never off this field directly, or
-    // the legacy `showLegend` blobs stop being honoured on that one surface.
-    // ⚠️ DERIVED, NOT TYPED. The real default is `DEFAULT_LEGEND_MODE` in
-    // `legendMode.js`: `mergeChartSettings` stamps this key from `legendModeOf`,
-    // so a literal here would be a second authority that only LOOKS like the
-    // default — and would read as the default in the settings UI while every
-    // chart did something else.
-    legendMode: DEFAULT_LEGEND_MODE,   // 'always' | 'click' | 'off'
+    // ⛔ `legendMode` IS DELIBERATELY NOT DECLARED HERE. Its default lives in
+    // `legendMode.js::DEFAULT_LEGEND_MODE` and is resolved on every READ by
+    // `legendModeOf`. Declaring it would spread it into every merged blob, and
+    // the merged blob is what every settings write persists — so the default
+    // would be recorded as a user choice and could never be changed again for
+    // anyone who had saved. Measured in production 2026-08-16; see
+    // `legendStamp.test.js`.
     // Shape of that legend on the Charts workspace: 'vertical' = the stacked
     // label/value table down the left (the long-standing look); 'horizontal' =
     // a flat two-line strip (ticker · company · TF, then the values) with NO
@@ -480,7 +476,12 @@ export function mergeChartSettings(userSettings) {
       // ⛔ The rule itself is NOT restated here. `legendModeOf` is the one
       // reader; this line only pre-resolves it so a merged blob and a raw blob
       // give the same answer.
-      legendMode: legendModeOf(parsed),
+      // ⭐ ONLY AN EXPLICIT CHOICE IS CARRIED THROUGH — never a resolved default.
+      // `explicitLegendMode` returns undefined when the user never picked one, and
+      // spreading `{}` leaves the key ABSENT so `legendModeOf` re-derives it on
+      // every read. Emitting `legendModeOf(parsed)` here is what froze the old
+      // default into real users' settings.
+      ...(explicitLegendMode(parsed) ? { legendMode: explicitLegendMode(parsed) } : {}),
     },
     // Positional merge, PADDED to the defaults' length: a stored blob written before a
     // slot was added is shorter, and .map alone would drop the new slot forever.
