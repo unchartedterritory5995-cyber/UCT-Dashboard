@@ -60,9 +60,14 @@ export default function ArticleReader() {
   const restoreSettledRef = useRef(false)
   const armedForRef = useRef(null)
   // Re-armed DURING RENDER, not in an effect. Walking prev/next swaps the
-  // article without unmounting, and effects run in declaration order — an
-  // effect here would fire AFTER the scroll-spy had already overwritten the
-  // incoming article's bookmark at scroll position 0.
+  // article without unmounting, so the gate has to close before the scroll-spy
+  // effect gets a chance to save at scroll position 0 and wipe the incoming
+  // article's bookmark.
+  //
+  // An effect HERE would also work — effects run in declaration order and this
+  // sits above the scroll-spy — but only for as long as it stays above it.
+  // Doing it during render is correct no matter where the effects below get
+  // moved to, which is the kind of ordering nobody re-checks later.
   if (armedForRef.current !== slug) {
     armedForRef.current = slug
     restoreSettledRef.current = false
