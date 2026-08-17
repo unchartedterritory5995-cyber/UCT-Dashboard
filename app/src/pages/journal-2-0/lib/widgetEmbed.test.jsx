@@ -29,11 +29,16 @@ vi.mock('./embedArchive', async (orig) => ({
   kickSnapshotWarm: vi.fn(),
 }))
 
+// Lets one test push the live renderer through the VIEW's own error boundary,
+// which is how a real embed ends up showing its placeholder while the archive
+// timer is armed. Default off — every other test gets the plain stub.
+const chartStub = vi.hoisted(() => ({ throwOnRender: false }))
+
 // The live chart renderer drags ChartPane/StockChart into jsdom; draw-mode
 // tests are about the VIEW's toolbar + annotation wiring, so stub it with a
 // probe that surfaces the two props under test.
 vi.mock('../components/notebook/ChartEmbed', () => ({
-  default: (props) => (
+  default: (props) => (chartStub.throwOnRender ? (() => { throw new Error('chart render blew up') })() : (
     <div
       data-testid="chart-embed-stub"
       data-annotate={String(!!props.annotate)}
@@ -50,7 +55,7 @@ vi.mock('../components/notebook/ChartEmbed', () => ({
         onClick={() => props.onBarsReady?.()}
       />
     </div>
-  ),
+  )),
 }))
 
 import { buildExtensions, extractPlainText } from './tiptap'
@@ -141,11 +146,22 @@ describe('slash arg parsing', () => {
   })
 
   it('a yearless M/D in the future rolls back a year (Dec setups reviewed in Jan)', () => {
-    const tomorrow = new Date(Date.now() + 86400000)
-    const tok = `${tomorrow.getMonth() + 1}/${tomorrow.getDate()}`
-    const parsed = parseDayToken(tok)
+    // ⛔ ONE basis, ET — the same one parseDayToken measures against. Deriving
+    // "tomorrow" from local getMonth/getDate and comparing it to a UTC
+    // toISOString() day made this rail red every evening after 7pm CT, and the
+    // red was REAL: the parser had that same split basis and was accepting a
+    // future cutoff. Mixing them here would have hidden the fix.
+    const etDay = (ms) => new Date(ms).toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+    const todayET = etDay(Date.now())
+    const tomorrowET = etDay(Date.now() + 86400000)
+    const [ty, tm, td] = tomorrowET.split('-')
+    const parsed = parseDayToken(`${+tm}/${+td}`)
     expect(parsed).toBeTruthy()
-    expect(parsed < new Date().toISOString().slice(0, 10)).toBe(true)   // last year
+    expect(parsed < todayET).toBe(true)
+    // Specifically LAST year's same calendar day — "some day in the past"
+    // would also pass a parser that returned 1990.
+    expect(parsed.slice(5)).toBe(`${tm}-${td}`)
+    expect(+parsed.slice(0, 4)).toBe(+ty - 1)
   })
 
   it('parses the composition presets strictly (mtf / compare / day tokens)', () => {
@@ -583,4 +599,41 @@ describe('WidgetEmbedView self-archive bars-ready gate', () => {
       fallback: { url: '/api/fresh.png', w: 800, h: 400 },
     }), { timeout: 2000 })
   }, 12000)
+
+  // The prod defect (2026-08-16): a double-clicked Re-capture cleared `fallback`
+  // while the chart was still re-settling, the error boundary dropped the body to
+  // its placeholder chip, and because `barsReadyRef` is STICKY within a mount the
+  // bars gate was already satisfied — so the settle timer rasterized
+  // "snapshot image not captured yet" as the permanent evidence PNG.
+  // ⚠️ embedArchive's canvasesLookPainted cannot catch this: a placeholder has no
+  // canvases at all, so it reports "painted" and fails open.
+  it('refuses to rasterize a body showing a fallback, even with bars already ready', async () => {
+    const { captureElementPng, storeFallbackImage } = await import('./embedArchive')
+    captureElementPng.mockClear()
+    storeFallbackImage.mockClear()
+    captureElementPng.mockResolvedValue(new Blob(['x'], { type: 'image/png' }))
+    const updateAttributes = vi.fn()
+    const attrs = bareAttrs()
+    const { rerender } = render(
+      <WidgetEmbedView node={{ attrs }} selected={false} editor={editor} updateAttributes={updateAttributes} />,
+    )
+    // Bars painted once → the sticky ready flag is set, exactly as it is on a
+    // re-capture of an embed the reader has already been looking at.
+    fireEvent.click(await screen.findByTestId('emit-bars-ready'))
+    chartStub.throwOnRender = true
+    try {
+      rerender(<WidgetEmbedView node={{ attrs: { ...attrs } }} selected={false} editor={editor} updateAttributes={updateAttributes} />)
+      // The body is now the marked placeholder, not the widget.
+      await waitFor(() => expect(document.querySelector('[data-embed-fallback]')).toBeTruthy())
+      // Well past ARCHIVE_SETTLE_MS (3.5s), where the unguarded code captured.
+      await new Promise((r) => setTimeout(r, 6000))
+      expect(captureElementPng).not.toHaveBeenCalled()
+      expect(storeFallbackImage).not.toHaveBeenCalled()
+      expect(updateAttributes).not.toHaveBeenCalledWith(
+        expect.objectContaining({ fallback: expect.anything() }),
+      )
+    } finally {
+      chartStub.throwOnRender = false
+    }
+  }, 15000)
 })
