@@ -8,7 +8,27 @@ import { createPortal } from 'react-dom'
 import useEtfSymbols from '../../../hooks/useEtfSymbols'
 import EtfHoldingsPanel from './EtfHoldingsPanel'
 import UIcon from '../../../components/ui/UIcon'
+import { watchlistDefaultsForTheme } from '../../watchlist/watchlistSettings'
 import styles from '../ChartsWorkspace.module.css'
+
+// Perceived-luminance test for a #hex or rgb() color → is this a light canvas?
+function _isLightCanvas(c) {
+  if (!c || typeof c !== 'string') return false
+  const s = c.trim()
+  let r, g, b
+  if (s[0] === '#') {
+    let h = s.slice(1)
+    if (h.length === 3) h = h.split('').map((x) => x + x).join('')
+    if (h.length < 6) return false
+    r = parseInt(h.slice(0, 2), 16); g = parseInt(h.slice(2, 4), 16); b = parseInt(h.slice(4, 6), 16)
+  } else {
+    const m = s.match(/rgba?\(([^)]+)\)/i)
+    if (!m) return false
+    ;[r, g, b] = m[1].split(',').map((x) => parseFloat(x))
+  }
+  if (![r, g, b].every(Number.isFinite)) return false
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.5
+}
 
 // The per-widget canvas vars WidgetHost publishes on the chart widget subtree. The
 // holdings panel is portaled to <body> (outside that subtree), so we snapshot these
@@ -21,11 +41,12 @@ const WIDGET_VARS = [
   '--widget-accent-bg', '--widget-row-hover', '--widget-popup-bg', '--widget-popup-border',
 ]
 
-export default function ViewHoldingsControl({ sym }) {
+export default function ViewHoldingsControl({ sym, candleColors = null }) {
   const { isEtf } = useEtfSymbols()
   const [open, setOpen] = useState(false)
   const [centerOn, setCenterOn] = useState(null)
   const [themeVars, setThemeVars] = useState(null)
+  const [wlOverride, setWlOverride] = useState(null)
   const btnRef = useRef(null)
   // Not an ETF → render nothing (the panel, if it was open, unmounts with this). The
   // open window follows the chart: while it stays an ETF, EtfHoldingsResults just
@@ -44,6 +65,22 @@ export default function ViewHoldingsControl({ sym }) {
       const vars = {}
       for (const n of WIDGET_VARS) { const v = cs.getPropertyValue(n).trim(); if (v) vars[n] = v }
       setThemeVars(Object.keys(vars).length ? vars : null)
+      // Build a watchlist settings override so the holdings LIST (not just the panel
+      // chrome) paints the chart's canvas + text, and its %-change up/down colors
+      // match the chart's candle up/down colors.
+      const canvas = vars['--widget-canvas']
+      if (canvas) {
+        const base = watchlistDefaultsForTheme(_isLightCanvas(canvas) ? 'light' : 'dark')
+        setWlOverride({
+          ...base,
+          bgMode: 'solid',
+          bg: canvas,
+          upColor: candleColors?.up || base.upColor,
+          downColor: candleColors?.down || base.downColor,
+        })
+      } else {
+        setWlOverride(null)
+      }
     }
     const cell = el?.closest('.react-grid-item')
     if (cell) {
@@ -68,7 +105,7 @@ export default function ViewHoldingsControl({ sym }) {
         View Holdings
       </button>
       {open && createPortal(
-        <EtfHoldingsPanel sym={sym} centerOn={centerOn} themeVars={themeVars} onClose={() => setOpen(false)} />,
+        <EtfHoldingsPanel sym={sym} centerOn={centerOn} themeVars={themeVars} wlOverride={wlOverride} onClose={() => setOpen(false)} />,
         document.body,
       )}
     </>

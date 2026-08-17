@@ -465,7 +465,7 @@ export default function ChartWidget({ color, opts, onOptsChange, chartId = null 
               {/* ETF-only: takes the (absent) leverage pill's seat and opens a floating
                   live watchlist of the fund's holdings. Mutually exclusive with the
                   leverage pill — a symbol is a stock-with-family OR an ETF, never both. */}
-              {!isThemeIndex && <ViewHoldingsControl sym={sym} />}
+              {!isThemeIndex && <ViewHoldingsControl sym={sym} candleColors={{ up: chartCs.candles?.upColor, down: chartCs.candles?.downColor }} />}
               {/* Add-tab entry point — only when the strip isn't showing yet (0
                   extra tabs). Once a tab exists, the strip's own + button takes over. */}
               {extraTabs.length === 0 && (
