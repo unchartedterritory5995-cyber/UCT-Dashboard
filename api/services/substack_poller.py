@@ -320,5 +320,12 @@ def _backfill_slice() -> None:
             print(f"[substack] article bodies: fetched={got['fetched']} "
                   f"reconverted={got['reconverted']} deferred={got.get('deferred', 0)} "
                   f"refused={got['refused']}")
+        # Heal the SEARCH INDEX too. Local only (re-converts stored raw), so it
+        # is not bounded by the network budget above — an index covering half
+        # the archive returns "nothing found" for articles we hold in full.
+        idx = substack_bodies.index_missing()
+        if idx.get("indexed"):
+            print(f"[substack] search index: indexed={idx['indexed']} "
+                  f"pending={idx['pending']}")
     except Exception as e:  # noqa: BLE001 — never break the poll over a body
         print(f"[substack] backfill slice failed (non-fatal): {str(e)[:200]}")

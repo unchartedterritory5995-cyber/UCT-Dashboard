@@ -66,6 +66,16 @@ def _series_of(title: str) -> str:
     return _TITLE_DATE_RE.sub("", (title or "").strip()).strip(" —-").lower()
 
 
+def _sort_key(video: dict) -> tuple:
+    """Total order over candidate videos: id first, then youtube_id as a
+    fallback so rows without a numeric id still compare deterministically."""
+    try:
+        vid = int(video.get("id") or 0)
+    except (TypeError, ValueError):
+        vid = 0
+    return (vid, str(video.get("youtube_id") or ""))
+
+
 def pick_related_video(article_title: str, published_at: int | None,
                        videos: list[dict]) -> dict | None:
     """The session that goes with this letter, or None.
@@ -94,7 +104,14 @@ def pick_related_video(article_title: str, published_at: int | None,
         gap = abs((vd - target).days)
         if gap > _MAX_DAY_GAP:
             continue
-        if best_gap is None or gap < best_gap:
+        # ⛔ A TIE MUST NOT LEAK THE STORE'S ROW ORDER. Duplicate uploads of one
+        # session do happen (production carries three copies of 2026-08-16), and
+        # `gap < best_gap` alone would silently hand whichever row the DB
+        # returned first — so the same article could pair differently after an
+        # unrelated re-sort. Break ties on the highest video id: newest upload,
+        # deterministic, and a total order.
+        if best_gap is None or gap < best_gap or (
+                gap == best_gap and _sort_key(v) > _sort_key(best)):
             best, best_gap = v, gap
 
     if not best:
