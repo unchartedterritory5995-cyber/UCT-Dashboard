@@ -266,11 +266,17 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true }) {
     saveTimerRef.current = setTimeout(() => commitSaveRef.current(), AUTOSAVE_MS)
   }
 
+  // The editor is read through a ref, NOT the `editor` const: handlePaste /
+  // handleDrop are captured in editorProps at editor-CREATION time, when the
+  // `editor` const is still null — so closing over it directly made paste throw
+  // "Cannot read properties of null (reading 'chain')". The ref is always fresh.
+  const editorRef = useRef(null)
   const handleImageInsert = async (file) => {
-    if (!editor) return
+    const ed = editorRef.current
+    if (!ed || !file) return
     try {
       const { url } = await uploadInlineImage(noteId, file)
-      editor.chain().focus().setImage({ src: url, alt: '' }).run()
+      ed.chain().focus().setImage({ src: url, alt: '' }).run()
     } catch (e) {
       alert(`Upload failed: ${e.message || e}`)
     }
@@ -339,6 +345,9 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true }) {
     },
     onUpdate: () => scheduleAutosaveRef.current(),
   }, [note?.id])
+  // Keep the ref current so the paste/drop handlers (captured at creation) always
+  // reach the live editor instance.
+  editorRef.current = editor
 
   // Push fresh body into editor when note loads (one-shot per note).
   // Depends on `editor` (not just note.id) so it re-runs once the editor

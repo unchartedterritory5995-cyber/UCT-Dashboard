@@ -15,13 +15,12 @@
    view's ResizeObserver height then follows the measured width, so bigger
    automatically means taller at the same chart-page aspect. clamp() floors at
    the column width for small windows. */
+/* Fill the note column — which is now full-width — so the chart extends as far
+   right as the text. (The old clamp(…,1100px) breakout dates from the narrow
+   720px column and left the chart narrower than the text.) */
 .full {
-  --embed-w: clamp(100%, calc(100vw - 220px), 1100px);
-  width: var(--embed-w);
-  margin-left: calc((100% - var(--embed-w)) / 2);
-}
-@media (max-width: 1024px) {
-  .full { --embed-w: 100%; }
+  width: 100%;
+  margin-left: 0;
 }
 /* Two half-width embeds sit side by side for comparison; they stack on
    phones. ⛔ The pairing MUST live on TipTap's node-view WRAPPER
@@ -164,13 +163,9 @@
    sibling of a half pair reflows for the duration — acceptable, and the
    chart re-proportions automatically via the width-driven height. */
 .frame.annotating {
-  --embed-w: clamp(100%, calc(100vw - 220px), 1100px);
-  width: var(--embed-w);
-  margin-left: calc((100% - var(--embed-w)) / 2);
+  width: 100%;
+  margin-left: 0;
   display: block;
-}
-@media (max-width: 1024px) {
-  .frame.annotating { --embed-w: 100%; }
 }
 /* Draw mode: StockChart's drawing toolbar owns the embed's top strip (root
    z-index 5, flyouts 10–20 — measured in ChartToolbar.module.css — and it
