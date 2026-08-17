@@ -68,10 +68,13 @@ export default function DeskCoverage({ sym }) {
       </ul>
 
       {total > shown && (
-        // The list is capped; the count is not. Send the rest through search
-        // rather than pretending the newest few are all there is.
+        // The list is capped; the count is not. Send the rest onward — but do
+        // NOT promise "all {total}": this badge counts issues that CHARTED the
+        // symbol, while the destination is a full-text search that also finds
+        // it mentioned in prose. Two honest measures, different numbers. Naming
+        // one and delivering the other is how a link starts lying.
         <Link className={styles.deskCovMore} to={`/desk?section=articles&q=${encodeURIComponent(sym)}`}>
-          See all {total} issues mentioning {sym} →
+          Search the archive for {sym} →
         </Link>
       )}
     </section>

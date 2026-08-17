@@ -56,15 +56,22 @@ test('one issue is not pluralised', () => {
   expect(screen.getByText('1 issue')).toBeTruthy()
 })
 
-test('when coverage exceeds the list, it links onward instead of implying that is all', () => {
+test('when coverage exceeds the list it links onward WITHOUT promising a count', () => {
+  // ⛔ The badge counts issues that CHARTED the symbol; the destination is a
+  // full-text search that also finds it mentioned in prose. Measured on the
+  // real archive: badge 17, search 30. Naming one and delivering the other is
+  // how a link starts lying.
   mockData = { ...mockData, total: 43 }
   renderCard()
-  const more = screen.getByText(/See all 43 issues mentioning MU/)
-  // deep-links INTO the archive search, which ArticlesSection reads from ?q=
+  const more = screen.getByText(/Search the archive for MU/)
   expect(more.closest('a').getAttribute('href')).toBe('/desk?section=articles&q=MU')
+  expect(more.textContent).not.toMatch(/43/)
 })
 
 test('no onward link when the list already shows everything', () => {
+  // Matches the copy the component ACTUALLY renders — a stale probe for text
+  // that exists nowhere would pass no matter what the component did.
   renderCard()
-  expect(screen.queryByText(/See all/)).toBeNull()
+  expect(screen.queryByText(/Search the archive for/)).toBeNull()
+  expect(screen.getAllByRole('link').length).toBe(2)   // the two issue rows only
 })
