@@ -68,8 +68,22 @@ const renderReader = () => render(
 // "picked up at…" pill ONLY when the scroll succeeded, so without this stub the
 // resume tests would be asserting against a component that correctly declined
 // to claim something it hadn't done.
+// jsdom lays nothing out and implements no scrolling, so the defaults below
+// model a working browser: a page taller than the viewport, and a
+// scrollIntoView that actually moves it. Without that the reader correctly
+// declines to claim a jump, and every resume assertion fails for the right
+// reason at the wrong time.
+//
+// They are reset per test because a test that stubs them leaks into every test
+// after it.
+const dim = (k, v) => Object.defineProperty(document.documentElement, k,
+  { value: v, configurable: true, writable: true })
+
+const resetDoc = () => { dim('scrollHeight', 2000); dim('clientHeight', 800); dim('scrollTop', 0) }
+
 beforeEach(() => {
-  Element.prototype.scrollIntoView = vi.fn()
+  resetDoc()
+  Element.prototype.scrollIntoView = vi.fn(() => dim('scrollTop', 900))
   navigate.mockClear()
   localStorage.clear()
   mockData = ARTICLE
@@ -213,30 +227,33 @@ test('scrolling through an article CREATES a bookmark', async () => {
   // jsdom reports zero heights, so the scroll-spy computes pct=0 and correctly
   // declines to store — the page has to be given a real size for the save path
   // to be exercised at all.
-  const dim = (k, v) => Object.defineProperty(document.documentElement, k,
-    { value: v, configurable: true, writable: true })
-  dim('scrollHeight', 2000); dim('clientHeight', 800); dim('scrollTop', 600)
+  dim('scrollTop', 600)
   renderReader()
-  fireEvent.scroll(window)
+  // Dispatch on the element the component RESOLVED as its scroller. Firing at
+  // `window` would miss a listener bound to documentElement and the test would
+  // fail for a reason that has nothing to do with saving.
+  fireEvent.scroll(document.documentElement)
   await waitFor(() => expect(progress.load('sunday-scans-da5')).not.toBeNull())
   expect(progress.load('sunday-scans-da5').pct).toBeCloseTo(0.5, 2)
 })
 
-test('a returning reader is put back, and TOLD where they were put', () => {
+test('a returning reader is put back, and TOLD where they were put', async () => {
   // ⛔ Moving someone silently is worse than not moving them: the pill names
   // the section and offers the way back.
   const el = { scrollIntoView: vi.fn() }
   const spy = vi.spyOn(HTMLElement.prototype, 'querySelector')
   progress.save('sunday-scans-da5', { sectionId: 'market-breadth-data', pct: 0.42 })
   renderReader()
-  expect(screen.getByRole('status').textContent).toContain('Market Breadth Data')
+  await waitFor(() => expect(screen.getByRole('status').textContent)
+    .toContain('Market Breadth Data'))
   spy.mockRestore()
   void el
 })
 
-test('"start from the top" forgets the place so it is not offered again', () => {
+test('"start from the top" forgets the place so it is not offered again', async () => {
   progress.save('sunday-scans-da5', { sectionId: 'market-breadth-data', pct: 0.42 })
   renderReader()
+  await waitFor(() => screen.getByText('Start from the top'))
   fireEvent.click(screen.getByText('Start from the top'))
   expect(screen.queryByRole('status')).toBeNull()
   expect(progress.load('sunday-scans-da5')).toBeNull()
@@ -260,13 +277,30 @@ test('walking to the NEXT article does not wipe its bookmark on the way in', () 
   expect(progress.load('sunday-scans-1ad')).not.toBeNull()
 })
 
-test('if the scroll itself fails, no pill is shown — we did not move them', () => {
+test('if the scroll itself fails, no pill is shown — we did not move them', async () => {
   // ⛔ Otherwise the pill says "picked up at Market Breadth Data" over a page
   // sitting at the top: a claim about something that did not happen.
   Element.prototype.scrollIntoView = vi.fn(() => { throw new Error('unsupported') })
   progress.save('sunday-scans-da5', { sectionId: 'market-breadth-data', pct: 0.42 })
   renderReader()
   expect(screen.queryByRole('status')).toBeNull()
+})
+
+test('a scroll that does not stick on the first frame is RE-ASSERTED', async () => {
+  // ⛔ Production hits this every time: the effect fires before the browser has
+  // laid out ~100 KB of article HTML, so the container is not yet tall enough
+  // and the first scrollIntoView silently no-ops.
+  let landed = false
+  dim('scrollTop', 0)
+  let calls = 0
+  Element.prototype.scrollIntoView = vi.fn(() => {
+    if (++calls >= 3) { landed = true; dim('scrollTop', 900) }
+  })
+  progress.save('sunday-scans-da5', { sectionId: 'market-breadth-data', pct: 0.42 })
+  renderReader()
+  await waitFor(() => expect(screen.queryByRole('status')).not.toBeNull())
+  expect(landed).toBe(true)
+  expect(calls).toBeGreaterThanOrEqual(3)
 })
 
 test('a first-time reader is never moved and sees no pill', () => {

@@ -3,7 +3,7 @@
 // deliberately does NOT mock useNavigate: <Link> needs the real one to actually
 // move the router, and a mocked navigate would make the test pass by never
 // navigating at all.
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { beforeEach, expect, test, vi } from 'vitest'
 
@@ -36,8 +36,15 @@ const article = (slug) => ({
   body_html: body(slug),
 })
 
+// Same browser-shaped defaults as ArticleReader.test.jsx: jsdom neither lays
+// out nor scrolls, and the reader deliberately refuses to claim a jump that did
+// not happen.
+const dim = (k, v) => Object.defineProperty(document.documentElement, k,
+  { value: v, configurable: true, writable: true })
+
 beforeEach(() => {
-  Element.prototype.scrollIntoView = vi.fn()
+  dim('scrollHeight', 2000); dim('clientHeight', 800); dim('scrollTop', 0)
+  Element.prototype.scrollIntoView = vi.fn(() => dim('scrollTop', 900))
   localStorage.clear()
   mockData = article('first-issue')
 })
@@ -62,7 +69,7 @@ test('stepping to the next issue does not erase ITS saved place', () => {
   expect(progress.load('next-issue').sectionId).toBe('market-breadth-data')
 })
 
-test('and it puts the reader back in that issue', () => {
+test('and it puts the reader back in that issue', async () => {
   progress.save('next-issue', { sectionId: 'market-breadth-data', pct: 0.5 })
   render(
     <MemoryRouter initialEntries={['/desk/article/first-issue']}>
@@ -71,5 +78,6 @@ test('and it puts the reader back in that issue', () => {
   )
   mockData = article('next-issue')
   fireEvent.click(screen.getByText('Sunday Scans — next').closest('a'))
-  expect(screen.getByRole('status').textContent).toContain('Market Breadth Data')
+  await waitFor(() => expect(screen.getByRole('status').textContent)
+    .toContain('Market Breadth Data'))
 })

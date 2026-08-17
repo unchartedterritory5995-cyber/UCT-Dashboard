@@ -16,6 +16,7 @@ import UIcon from '../../components/ui/UIcon'
 // Named `bookmark`, not `progress`: the component already has a `progress`
 // state for the reading BAR, which would shadow a module called the same.
 import * as bookmark from './articleProgress'
+import { findScrollContainer, scrollMetrics } from './scrollContainer'
 import styles from './ArticleReader.module.css'
 
 // A Sunday Scans issue covers ~44 names; the rest sit behind a toggle so the
@@ -115,15 +116,22 @@ export default function ArticleReader() {
   // this app scrolls an inner .main element (see Layout.module.css).
   useEffect(() => {
     if (!data?.body_html) return undefined
-    const scroller = bodyRef.current?.closest('[data-scroll-root]')
-      || document.querySelector('.main')
-      || window
-    const heads = Array.from(bodyRef.current?.querySelectorAll('h2[id], h3[id]') || [])
+    // ⛔ MEASURED, never named. The app's scroller is a CSS Module, so its class
+    // is hashed and a literal '.main' matches nothing — which silently pinned
+    // scrollTop at 0 and killed the progress bar, the scroll-spy AND the saved
+    // position at once, with every test still green.
+    const scroller = findScrollContainer(bodyRef.current)
 
     let frame = 0
     const measure = () => {
       frame = 0
-      const el = scroller === window ? document.documentElement : scroller
+      // ⛔ Query the headings EVERY TIME, never capture them once. A captured
+      // NodeList goes stale the moment React re-renders the injected body, and
+      // a detached node reports a zero rect — every heading then looks "above
+      // the fold" and the spy silently reports the LAST one in the document.
+      // Nine elements per throttled frame is free; the staleness is not.
+      const heads = Array.from(bodyRef.current?.querySelectorAll('h2[id], h3[id]') || [])
+      const el = scrollMetrics(scroller)
       const max = el.scrollHeight - el.clientHeight
       setProgress(max > 0 ? Math.min(1, Math.max(0, el.scrollTop / max)) : 0)
       const top = el.getBoundingClientRect ? el.getBoundingClientRect().top : 0
@@ -167,25 +175,61 @@ export default function ArticleReader() {
     if (!saved) return settle()
     const el = bodyRef.current?.querySelector(`#${CSS.escape(saved.sectionId)}`)
     if (!el) return settle()
-    // Only claim we moved them if we actually did — a pill saying "picked up
-    // at X" over an un-scrolled page is a lie, and scrollIntoView is exactly the
-    // kind of API that is absent in some environments.
-    try {
-      el.scrollIntoView({ block: 'start' })
-    } catch {
-      return settle()
-    }
+    // ⛔ ONE scrollIntoView HERE IS DROPPED. The effect fires the moment ~100 KB
+    // of article HTML is committed, before the browser has laid it out, so the
+    // scroll container is not yet tall enough to scroll and the call silently
+    // no-ops — leaving the reader at the top under a pill claiming otherwise.
+    // Re-assert across a few frames until it actually lands, and only then say
+    // so. (Same shape as the chart that discards an early setVisibleLogicalRange.)
+    // The TOC omits very long headings, so a saved section can be absent from
+    // it — fall back to the heading's own words rather than showing no pill.
     const label = (data.sections || []).find((s) => s.id === saved.sectionId)?.text
-    setResumedAt(label || null)
-    settle()
+      || (el.textContent || '').trim().slice(0, 48) || null
+    let cancelled = false
+    let frame = 0
+    // A WALL-CLOCK budget, not a frame count: how long the browser takes to lay
+    // out ~100 KB of article and 60+ charts varies hugely by machine, and a
+    // 30-frame (~0.5s) budget expired before the container was even scrollable.
+    const deadline = Date.now() + 3000
+    // If the reader starts scrolling, they have chosen their own position —
+    // stop re-asserting rather than yanking them.
+    const abort = () => { cancelled = true }
+    const stamp = () => {
+      if (cancelled) return
+      const metrics = scrollMetrics(findScrollContainer(bodyRef.current))
+      try {
+        el.scrollIntoView({ block: 'start' })
+      } catch {
+        return settle()
+      }
+      if (metrics && metrics.scrollTop > 0) {
+        setResumedAt(label || null)
+        return settle()
+      }
+      if (Date.now() < deadline) frame = setTimeout(stamp, 60)
+      else settle()   // gave up — never claim a jump that did not happen
+    }
+    window.addEventListener('wheel', abort, { passive: true, once: true })
+    window.addEventListener('touchstart', abort, { passive: true, once: true })
+    // ⛔ TIMERS, NOT requestAnimationFrame. rAF does not fire while a tab is not
+    // painting, so an article opened in a BACKGROUND TAB would never restore —
+    // the reader switches to it and finds themselves at the top. Measured:
+    // 17 rAF callbacks scheduled, 0 run. Timers still fire (throttled) there.
+    frame = setTimeout(stamp, 0)
+    return () => {
+      cancelled = true
+      window.removeEventListener('wheel', abort)
+      window.removeEventListener('touchstart', abort)
+      if (frame) clearTimeout(frame)
+    }
   }, [data?.body_html, slug])
 
   const startFromTop = useCallback(() => {
     bookmark.clear(slug)
     setResumedAt(null)
-    const scroller = document.querySelector('.main')
-    if (scroller) scroller.scrollTop = 0
-    else window.scrollTo({ top: 0 })
+    const scroller = findScrollContainer(bodyRef.current)
+    if (scroller === window) window.scrollTo({ top: 0 })
+    else scroller.scrollTop = 0
   }, [slug])
 
   const jumpTo = (id) => {
