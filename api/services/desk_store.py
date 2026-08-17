@@ -76,6 +76,33 @@ _TEAM_ALTERS = (
     "ALTER TABLE team_members ADD COLUMN teaching_focus TEXT",
 )
 
+# Native article reader. `body_raw` is the publisher's HTML exactly as fetched;
+# `body_html` is our converted output. Keeping BOTH is what makes a converter
+# improvement a local re-render instead of re-scraping the publication.
+_POST_ALTERS = (
+    "ALTER TABLE substack_posts ADD COLUMN body_raw TEXT",
+    "ALTER TABLE substack_posts ADD COLUMN body_html TEXT",
+    "ALTER TABLE substack_posts ADD COLUMN body_hash TEXT",
+    "ALTER TABLE substack_posts ADD COLUMN sections_json TEXT",
+    "ALTER TABLE substack_posts ADD COLUMN tickers_json TEXT",
+    "ALTER TABLE substack_posts ADD COLUMN display_title TEXT",
+    "ALTER TABLE substack_posts ADD COLUMN slug TEXT",
+    "ALTER TABLE substack_posts ADD COLUMN word_count INTEGER",
+    "ALTER TABLE substack_posts ADD COLUMN reading_minutes INTEGER",
+    "ALTER TABLE substack_posts ADD COLUMN image_count INTEGER",
+    "ALTER TABLE substack_posts ADD COLUMN converter_version INTEGER",
+    "ALTER TABLE substack_posts ADD COLUMN body_fetched_at INTEGER",
+)
+
+# Columns the ARTICLE LIST is allowed to select. `SELECT p.*` here would put
+# every row's ~200 KB body into a payload that renders cards -- roughly 20 MB
+# per page load for an 84-post archive. The reader endpoint fetches one row.
+_POST_LIST_COLS = (
+    "id", "publication_id", "title", "display_title", "slug", "excerpt", "url",
+    "hero_image", "author", "published_at", "ingested_at",
+    "word_count", "reading_minutes", "image_count", "tickers_json",
+)
+
 _PUB_FIELDS = ("name", "feed_url", "enabled", "sort_order")
 _MEMBER_FIELDS = ("name", "role", "bio", "years_trading", "trading_style",
                   "teaching_focus", "twitter_url", "substack_url", "email",
@@ -96,7 +123,7 @@ def _init_db() -> None:
         os.makedirs(parent, exist_ok=True)
     with contextlib.closing(_connect()) as c:
         c.executescript(_SCHEMA)
-        for stmt in _TEAM_ALTERS:
+        for stmt in _TEAM_ALTERS + _POST_ALTERS:
             try:
                 c.execute(stmt)
             except sqlite3.OperationalError:
@@ -288,10 +315,17 @@ def upsert_post(post: dict) -> None:
 def list_posts(limit: int = 60) -> list[dict]:
     """Newest-first posts, deduped by URL. Read-time dedupe guarantees the page
     never shows the same post twice even if legacy rows exist under two ids
-    (early RSS rows keyed by guid + archive rows keyed by numeric id)."""
+    (early RSS rows keyed by guid + archive rows keyed by numeric id).
+
+    Selects columns EXPLICITLY, never `p.*`: the body columns live on this table
+    and a card grid that shipped them would be ~20 MB per load.
+    """
+    cols = ", ".join(f"p.{c}" for c in _POST_LIST_COLS)
     with contextlib.closing(_connect()) as c:
         rows = c.execute(
-            """SELECT p.*, pub.name AS publication_name
+            f"""SELECT {cols},
+                       pub.name AS publication_name,
+                       (p.body_html IS NOT NULL AND p.body_html != '') AS has_body
                FROM substack_posts p
                LEFT JOIN substack_publications pub ON pub.id = p.publication_id
                ORDER BY p.published_at DESC""",
@@ -334,6 +368,84 @@ def delete_posts_for_publication(pub_id: int) -> int:
         cur = c.execute("DELETE FROM substack_posts WHERE publication_id=?", (int(pub_id),))
         c.commit()
         return cur.rowcount
+
+
+# ── Native article bodies ───────────────────────────────────────────────────────
+
+def get_post(post_id: str) -> Optional[dict]:
+    """One post WITH its converted body — the reader endpoint's row."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            """SELECT p.*, pub.name AS publication_name
+               FROM substack_posts p
+               LEFT JOIN substack_publications pub ON pub.id = p.publication_id
+               WHERE p.id = ?""",
+            (str(post_id),),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def get_post_by_slug(slug: str) -> Optional[dict]:
+    """Reader lookup by the URL-facing slug (falls back to id at the router)."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            """SELECT p.*, pub.name AS publication_name
+               FROM substack_posts p
+               LEFT JOIN substack_publications pub ON pub.id = p.publication_id
+               WHERE p.slug = ?
+               ORDER BY p.published_at DESC LIMIT 1""",
+            (str(slug),),
+        ).fetchone()
+        return dict(row) if row else None
+
+
+def save_post_body(post_id: str, fields: dict) -> None:
+    """Store a converted body against an existing post row.
+
+    Deliberately UPDATE-only: the roster is owned by the poller, so a body for a
+    post we never listed would create a half-row the article list can't render.
+    """
+    allowed = ("body_raw", "body_html", "body_hash", "sections_json", "tickers_json",
+               "display_title", "slug", "word_count", "reading_minutes",
+               "image_count", "converter_version", "body_fetched_at")
+    payload = {k: fields[k] for k in allowed if k in fields}
+    if not payload:
+        return
+    sets = ", ".join(f"{k}=:{k}" for k in payload)
+    payload["id"] = str(post_id)
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        c.execute(f"UPDATE substack_posts SET {sets} WHERE id=:id", payload)
+        c.commit()
+
+
+def posts_needing_body(converter_version: int, limit: int = 500) -> list[dict]:
+    """Posts whose body is absent or was built by an older converter.
+
+    Ordered newest-first so a partial backfill leaves the archive useful from the
+    top rather than from 2025. Returns only what the fetcher needs.
+    """
+    with contextlib.closing(_connect()) as c:
+        rows = c.execute(
+            """SELECT id, url, title, published_at, body_hash, converter_version,
+                      (body_raw IS NOT NULL AND body_raw != '') AS has_raw
+               FROM substack_posts
+               WHERE body_html IS NULL OR body_html = ''
+                  OR converter_version IS NULL
+                  OR converter_version < ?
+               ORDER BY published_at DESC
+               LIMIT ?""",
+            (int(converter_version), int(limit)),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
+def get_post_raw(post_id: str) -> Optional[str]:
+    """The stored publisher HTML, for re-converting without a network call."""
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT body_raw FROM substack_posts WHERE id=?", (str(post_id),)
+        ).fetchone()
+        return (row["body_raw"] if row else None) or None
 
 
 # ── Team members ────────────────────────────────────────────────────────────────

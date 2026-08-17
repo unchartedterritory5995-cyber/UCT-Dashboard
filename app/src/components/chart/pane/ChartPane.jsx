@@ -817,6 +817,9 @@ function ChartPane({
              new ticker auto-fits into the same vertical band scaled to its own
              range. Cleared only by right-click → "Reset view" (vertMarginsRef). */
           carryDragPlacement
+          /* Persist that manual view (pan/zoom + price-scale) so it survives a page
+             refresh; restored on load, cleared by "Reset view". */
+          viewLockKey="uct.charts.viewLock"
           keepPresentOnSymbolChange
           dragMeasure
           verticalLegend

@@ -52,6 +52,7 @@ const PostMarket = lazy(() => import('./pages/PostMarket'))
 const ModelBook = lazy(() => import('./pages/ModelBook'))
 const SetupLibrary = lazy(() => import('./pages/SetupLibrary'))
 const Desk = lazy(() => import('./pages/desk/Desk'))
+const ArticleReader = lazy(() => import('./pages/desk/ArticleReader'))
 const Journal = lazy(() => import('./pages/journal-2-0/JournalTwoRoot'))
 // A2: the new nested-route shell (v5). Renders a header + 5-item primary nav +
 // <Outlet/>; the child routes below render into that Outlet. The legacy
@@ -377,6 +378,7 @@ export default function App() {
                 <Route path="/model-book" element={<ModelBook />} />
                 <Route path="/setup-library" element={<SetupLibrary />} />
                 <Route path="/desk" element={<Desk />} />
+                <Route path="/desk/article/:slug" element={<ArticleReader />} />
                 <Route path="/educational-videos" element={<Navigate to="/desk?section=videos" replace />} />
                 {/* /journal is a nested-route parent under the v5 shell. The
                     selector renders JournalLayout (with <Outlet/>) for v5, or

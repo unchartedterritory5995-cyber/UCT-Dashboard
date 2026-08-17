@@ -7,6 +7,7 @@ on guid/url. Best-effort: one bad feed never kills the run.
 """
 from __future__ import annotations
 
+import os
 import re
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
@@ -107,6 +108,11 @@ def parse_feed(xml_text: str, publication_id=None) -> list[dict]:
             hero = _first_image(content, desc)
         excerpt = _strip_html(desc or content)[:280]
         out.append({
+            # The FULL post body, for the native article reader. Only RSS carries
+            # it in bulk (the archive listing's `body_html` is always empty), and
+            # only for the ~20 newest posts -- but it rides a request we already
+            # make, so recent bodies and edits cost nothing extra.
+            "body_raw": content or "",
             # Key on the post URL (stable across RSS + archive paths) so the same
             # post never gets two rows. (Was `guid` — Substack guid == link, but
             # the archive path used the numeric id → cross-path duplicates.)
@@ -168,7 +174,13 @@ def parse_archive_items(items: list, publication_id=None) -> list[dict]:
         if not url or not title:
             continue
         # Skip non-post types (podcasts/threads still welcome — keep newsletters + posts)
-        excerpt = (it.get("description") or it.get("subtitle") or "").strip()
+        # `truncated_body_text` FIRST: on this publication `description` and
+        # `subtitle` are literally the post's date ("August 9th, 2026") on all
+        # but the newest issue, so preferring them prints the date twice on a
+        # card that already carries it in the title. Measured against the live
+        # archive, not assumed.
+        excerpt = (it.get("truncated_body_text") or it.get("description")
+                   or it.get("subtitle") or "").strip()
         author = None
         bylines = it.get("publishedBylines") or it.get("publishedbylines")
         if isinstance(bylines, list) and bylines:
@@ -210,6 +222,33 @@ def fetch_archive(feed_url: str, publication_id=None, max_posts: int = _ARCHIVE_
     return posts
 
 
+def _store_bodies(posts: list[dict]) -> dict:
+    """Hand RSS-parsed bodies to the article layer. Never raises: the roster is
+    the poller's job and must land even if the reader's bodies don't."""
+    try:
+        from api.services import substack_bodies  # local: avoids an import cycle
+        return substack_bodies.refresh_recent_bodies(posts)
+    except Exception as e:  # noqa: BLE001
+        return {"error": str(e)[:200]}
+
+
+def _refresh_recent_bodies(pub: dict) -> dict:
+    """Fetch the RSS feed purely for its bodies.
+
+    The archive API is the roster source but its `body_html` is always empty, so
+    the newest ~20 bodies need this one extra request per poll. That is far
+    cheaper than 20 per-post calls, and it is what notices an EDIT to a recent
+    post -- an archive-only poll would serve pre-edit text indefinitely.
+    """
+    try:
+        resp = requests.get(pub["feed_url"], headers=_HEADERS, timeout=_TIMEOUT)
+        resp.raise_for_status()
+        posts = parse_feed(resp.text, publication_id=pub["id"])
+    except Exception as e:  # noqa: BLE001 — bodies are best-effort
+        return {"error": str(e)[:200]}
+    return _store_bodies(posts)
+
+
 def poll_publication(pub: dict) -> dict:
     """Fetch + parse + store one publication, full history. Returns a summary dict.
     Never raises. Primary source = archive API (full back-catalog); falls back to
@@ -221,8 +260,9 @@ def poll_publication(pub: dict) -> dict:
         if posts:
             for p in posts:
                 desk_store.upsert_post(p)
+            bodies = _refresh_recent_bodies(pub)
             return {"publication": name, "stored": len(posts),
-                    "status": "ok", "source": "archive"}
+                    "status": "ok", "source": "archive", "bodies": bodies}
     except Exception as e:  # noqa: BLE001 — fall back to RSS
         archive_err = str(e)[:200]
     else:
@@ -234,8 +274,9 @@ def poll_publication(pub: dict) -> dict:
         posts = parse_feed(resp.text, publication_id=pub["id"])
         for p in posts:
             desk_store.upsert_post(p)
-        return {"publication": name, "stored": len(posts),
-                "status": "ok", "source": "rss", "archive_note": archive_err}
+        bodies = _store_bodies(posts)
+        return {"publication": name, "stored": len(posts), "status": "ok",
+                "source": "rss", "archive_note": archive_err, "bodies": bodies}
     except Exception as e:  # noqa: BLE001 — best-effort per feed
         return {"publication": name, "stored": 0, "status": "error",
                 "error": str(e)[:200]}
@@ -251,4 +292,33 @@ def poll_all() -> list[dict]:
         desk_store.dedupe_posts()
     except Exception:
         pass
+    _backfill_slice()
     return results
+
+
+def _backfill_slice() -> None:
+    """Walk the back catalogue a few posts per poll so the archive fills itself.
+
+    RSS hands us the newest ~20 bodies for free; everything older needs one
+    request each. Doing that as a bounded slice per hourly poll means the
+    archive completes on its own (~9 hours for an 84-post catalogue) with no
+    manual step and no burst against Substack — rather than sitting half-native
+    until someone remembers to call the admin endpoint.
+
+    Set DESK_ARTICLE_BACKFILL_PER_POLL=0 to turn the walk off.
+    """
+    try:
+        per_poll = int(os.environ.get("DESK_ARTICLE_BACKFILL_PER_POLL", "8"))
+    except ValueError:
+        per_poll = 8
+    if per_poll <= 0:
+        return
+    try:
+        from api.services import substack_bodies
+        got = substack_bodies.backfill_bodies(limit=400, max_fetches=per_poll)
+        if got.get("fetched") or got.get("reconverted"):
+            print(f"[substack] article bodies: fetched={got['fetched']} "
+                  f"reconverted={got['reconverted']} deferred={got.get('deferred', 0)} "
+                  f"refused={got['refused']}")
+    except Exception as e:  # noqa: BLE001 — never break the poll over a body
+        print(f"[substack] backfill slice failed (non-fatal): {str(e)[:200]}")
