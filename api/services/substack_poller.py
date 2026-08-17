@@ -7,6 +7,7 @@ on guid/url. Best-effort: one bad feed never kills the run.
 """
 from __future__ import annotations
 
+import os
 import re
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
@@ -291,4 +292,33 @@ def poll_all() -> list[dict]:
         desk_store.dedupe_posts()
     except Exception:
         pass
+    _backfill_slice()
     return results
+
+
+def _backfill_slice() -> None:
+    """Walk the back catalogue a few posts per poll so the archive fills itself.
+
+    RSS hands us the newest ~20 bodies for free; everything older needs one
+    request each. Doing that as a bounded slice per hourly poll means the
+    archive completes on its own (~9 hours for an 84-post catalogue) with no
+    manual step and no burst against Substack — rather than sitting half-native
+    until someone remembers to call the admin endpoint.
+
+    Set DESK_ARTICLE_BACKFILL_PER_POLL=0 to turn the walk off.
+    """
+    try:
+        per_poll = int(os.environ.get("DESK_ARTICLE_BACKFILL_PER_POLL", "8"))
+    except ValueError:
+        per_poll = 8
+    if per_poll <= 0:
+        return
+    try:
+        from api.services import substack_bodies
+        got = substack_bodies.backfill_bodies(limit=400, max_fetches=per_poll)
+        if got.get("fetched") or got.get("reconverted"):
+            print(f"[substack] article bodies: fetched={got['fetched']} "
+                  f"reconverted={got['reconverted']} deferred={got.get('deferred', 0)} "
+                  f"refused={got['refused']}")
+    except Exception as e:  # noqa: BLE001 — never break the poll over a body
+        print(f"[substack] backfill slice failed (non-fatal): {str(e)[:200]}")

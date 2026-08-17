@@ -188,6 +188,72 @@ def test_a_body_for_an_unknown_post_is_not_stored_as_a_half_row(store, bodies, r
     assert store.list_posts(limit=10) == []
 
 
+# ── the self-healing backfill slice ───────────────────────────────────────────
+
+def _seed_bodyless(store, n: int, *, with_raw: bool = False, raw: str = "") -> None:
+    for i in range(n):
+        url = f"https://unchartedterritoryy.substack.com/p/old-{i}"
+        store.upsert_post({"id": url, "title": "SUNDAY SCANS", "url": url,
+                           "published_at": 1_700_000_000 + i})
+        if with_raw:
+            store.save_post_body(url, {"body_raw": raw, "converter_version": 0})
+
+
+def test_the_backfill_walks_a_bounded_slice_per_pass(store, bodies, monkeypatch):
+    """One request per old post, so an 84-post catalogue must not go out as a
+    burst. A bounded slice per hourly poll fills it in ~9 hours."""
+    _seed_bodyless(store, 20)
+    calls = []
+    monkeypatch.setattr(bodies, "fetch_body",
+                        lambda url: calls.append(url) or {"raw": "<p>x</p>", "slug": "s"})
+    out = bodies.backfill_bodies(limit=400, max_fetches=8, pace=0)
+    assert out["fetched"] == 8 and len(calls) == 8
+    assert out["deferred"] == 12, "the remainder must be reported, not silently dropped"
+
+
+def test_successive_passes_resume_rather_than_restart(store, bodies, monkeypatch):
+    seen = []
+    monkeypatch.setattr(bodies, "fetch_body",
+                        lambda url: seen.append(url) or {"raw": "<p>x</p>", "slug": "s"})
+    _seed_bodyless(store, 20)
+    for _ in range(3):
+        bodies.backfill_bodies(limit=400, max_fetches=8, pace=0)
+    assert len(seen) == 20, "a resumed walk re-fetched posts it already had"
+    assert len(set(seen)) == 20
+    assert bodies.backfill_bodies(limit=400, max_fetches=8, pace=0)["fetched"] == 0
+
+
+def test_a_converter_bump_is_NOT_throttled_by_the_network_bound(store, bodies, monkeypatch, raw):
+    """Re-converts are local and free. Throttling them the way a cold archive
+    walk is throttled would make a CONVERTER_VERSION bump take days to apply."""
+    _seed_bodyless(store, 20, with_raw=True, raw=raw)
+    monkeypatch.setattr(bodies, "fetch_body",
+                        lambda url: pytest.fail("re-convert must not hit the network"))
+    out = bodies.backfill_bodies(limit=400, max_fetches=2, pace=0)
+    assert out["reconverted"] == 20 and out["fetched"] == 0 and out["deferred"] == 0
+
+
+def test_the_poll_never_fails_because_a_body_did(store, monkeypatch):
+    """The roster is the poller's job; bodies are a bonus. A broken backfill
+    must not cost us the article list."""
+    from api.services import substack_poller
+    monkeypatch.setenv("DESK_ARTICLE_BACKFILL_PER_POLL", "4")
+    monkeypatch.setattr(substack_poller.desk_store, "list_publications", lambda **k: [])
+    import api.services.substack_bodies as sb
+    monkeypatch.setattr(sb, "backfill_bodies",
+                        lambda **k: (_ for _ in ()).throw(RuntimeError("substack down")))
+    assert substack_poller.poll_all() == []
+
+
+def test_the_walk_can_be_switched_off_with_an_env_var(store, monkeypatch):
+    from api.services import substack_poller
+    monkeypatch.setenv("DESK_ARTICLE_BACKFILL_PER_POLL", "0")
+    import api.services.substack_bodies as sb
+    monkeypatch.setattr(sb, "backfill_bodies",
+                        lambda **k: pytest.fail("walk ran while switched off"))
+    substack_poller._backfill_slice()
+
+
 # ── the access gate ───────────────────────────────────────────────────────────
 
 @pytest.fixture()

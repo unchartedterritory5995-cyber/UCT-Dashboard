@@ -216,23 +216,33 @@ def refresh_recent_bodies(posts: list[dict]) -> dict:
     return summary
 
 
-def backfill_bodies(limit: int = 200, *, pace: float = _BACKFILL_PACE_SECONDS) -> dict:
+def backfill_bodies(limit: int = 200, *, pace: float = _BACKFILL_PACE_SECONDS,
+                    max_fetches: int | None = None) -> dict:
     """Give every post missing a current body one, newest-first.
 
     Resumable by construction: the work list is derived from what is actually
-    missing, so an interrupted run picks up where it stopped and a completed run
+    MISSING, so an interrupted run picks up where it stopped and a completed run
     is a no-op. Posts whose raw body we already hold are re-converted locally
     and never re-fetched.
+
+    `max_fetches` bounds only the NETWORK half. Re-converts are local and cost
+    nothing, so a converter bump must not be throttled the way a cold archive
+    walk is — otherwise bumping the version would take days to take effect.
     """
     pending = desk_store.posts_needing_body(substack_article.CONVERTER_VERSION, limit=limit)
     summary = {"pending": len(pending), "reconverted": 0, "fetched": 0,
-               "refused": 0, "failed": 0, "refused_urls": [], "failed_urls": []}
+               "refused": 0, "failed": 0, "deferred": 0,
+               "refused_urls": [], "failed_urls": []}
 
     for post in pending:
         if post.get("has_raw"):
             if reconvert_stored(post):
                 summary["reconverted"] += 1
                 continue
+        if max_fetches is not None and summary["fetched"] >= max_fetches:
+            # Bounded slice: the rest is picked up by the next scheduled pass.
+            summary["deferred"] += 1
+            continue
         fetched = fetch_body(post.get("url") or "")
         if not fetched:
             # Paywalled or unreachable — the link-out card stays. Name it, so a
