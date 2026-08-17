@@ -38,6 +38,23 @@ describe('folder tree', () => {
     fireEvent.click(screen.getByLabelText('Collapse Trading'))
     expect(screen.queryByText('Setups')).not.toBeInTheDocument()
   })
+
+  it('a folder with only notes still gets a disclosure arrow that reveals + opens its notes', () => {
+    const onOpenNote = vi.fn()
+    // 'Journal' (c) has no child folders — only a note. It must still expand.
+    render(<FolderSidebar
+      notes={[{ id: 'n1', title: 'Commentary', folderId: 'c', tags: [] }]}
+      activeFolderId={null} onSelectFolder={() => {}}
+      activeTag={null} onSelectTag={() => {}} onOpenNote={onOpenNote} />)
+    expect(screen.queryByText('Commentary')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Expand Journal'))
+    const noteBtn = screen.getByText('Commentary')
+    expect(noteBtn).toBeInTheDocument()
+    fireEvent.click(noteBtn)
+    expect(onOpenNote).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'n1', folderId: 'c' }),
+    )
+  })
 })
 
 describe('folder delete error surfacing', () => {

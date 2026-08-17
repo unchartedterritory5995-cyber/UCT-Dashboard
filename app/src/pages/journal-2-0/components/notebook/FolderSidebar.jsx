@@ -49,6 +49,28 @@ function Chevron({ expanded }) {
   )
 }
 
+function NoteIcon() {
+  return (
+    <svg
+      className={styles.noteIcon}
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+    >
+      <path
+        d="M6 2.5h8L18.5 7v14.5H6z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinejoin="round"
+      />
+      <path d="M13.5 2.5V7h4.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M8.5 12h7M8.5 15.5h7" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 function FolderNode({
   node,
   depth,
@@ -65,8 +87,15 @@ function FolderNode({
   onDelete,
   onStartAddChild,
   addForm,
+  notesByFolder,
+  onOpenNote,
+  activeNoteId,
 }) {
-  const hasChildren = node.children.length > 0
+  const folderNotes = notesByFolder.get(node.id) || []
+  // A folder is expandable when it holds subfolders OR notes — so a subfolder
+  // that contains only notes still gets a disclosure arrow (matches the folder
+  // tree the user asked for).
+  const hasChildren = node.children.length > 0 || folderNotes.length > 0
   const isExpanded = expandedIds.has(node.id)
   const isEditing = editingId === node.id
   const isAddingHere = addForm.parentId === node.id && addForm.active
@@ -143,7 +172,28 @@ function FolderNode({
               onDelete={onDelete}
               onStartAddChild={onStartAddChild}
               addForm={addForm}
+              notesByFolder={notesByFolder}
+              onOpenNote={onOpenNote}
+              activeNoteId={activeNoteId}
             />
+          ))}
+          {folderNotes.map((note) => (
+            <div
+              key={note.id}
+              className={styles.rowWrap}
+              style={{ paddingLeft: (depth + 1) * 14 }}
+            >
+              <span className={styles.disclosureSpacer} aria-hidden="true" />
+              <button
+                type="button"
+                className={`${styles.noteRow} ${activeNoteId === note.id ? styles.rowActive : ''}`}
+                onClick={() => onOpenNote(note)}
+                title={note.title?.trim() || 'Untitled'}
+              >
+                <NoteIcon />
+                <span className={styles.noteTitle}>{note.title?.trim() || 'Untitled'}</span>
+              </button>
+            </div>
           ))}
           {isAddingHere && (
             <form onSubmit={addForm.onSubmit} className={styles.addForm} style={{ paddingLeft: (depth + 1) * 14 }}>
@@ -170,6 +220,9 @@ export default function FolderSidebar({
   onSelectFolder,
   activeTag,
   onSelectTag,
+  onOpenNote = () => {},
+  activeNoteId = null,
+  labelInset = false,
 }) {
   const { folders, create, rename, remove } = useJ2NoteFolders()
   const [adding, setAdding] = useState(false)
@@ -180,6 +233,22 @@ export default function FolderSidebar({
   const [expandedIds, setExpandedIds] = useState(() => new Set())
 
   const tree = useMemo(() => buildFolderTree(folders), [folders])
+
+  // Group notes under their folder so the tree can render them as leaf rows.
+  // Sorted by title for a stable, scannable order.
+  const notesByFolder = useMemo(() => {
+    const m = new Map()
+    for (const n of notes) {
+      if (!n.folderId) continue
+      if (!m.has(n.folderId)) m.set(n.folderId, [])
+      m.get(n.folderId).push(n)
+    }
+    for (const list of m.values()) {
+      list.sort((a, b) =>
+        String(a.title || '').localeCompare(String(b.title || '')))
+    }
+    return m
+  }, [notes])
 
   // Tag cloud from current note list (counts).
   const tagCounts = useMemo(() => {
@@ -268,7 +337,7 @@ export default function FolderSidebar({
   return (
     <aside className={styles.sidebar}>
       <div className={styles.section}>
-        <div className={styles.sectionLabel}>Folders</div>
+        <div className={`${styles.sectionLabel} ${labelInset ? styles.sectionLabelInset : ''}`}>Folders</div>
         <div className={styles.rowWrap}>
           <span className={styles.disclosureSpacer} aria-hidden="true" />
           <button
@@ -309,6 +378,9 @@ export default function FolderSidebar({
             onDelete={onDelete}
             onStartAddChild={startAddChild}
             addForm={addForm}
+            notesByFolder={notesByFolder}
+            onOpenNote={onOpenNote}
+            activeNoteId={activeNoteId}
           />
         ))}
         {adding && parentForNew == null ? (
