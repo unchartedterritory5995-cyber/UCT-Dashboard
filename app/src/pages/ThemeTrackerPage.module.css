@@ -83,6 +83,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;   /* keep the journal / ⚙ buttons full-size; the search box yields instead */
   margin-left: 6px;
   background: none;
   border: none;
@@ -119,6 +120,7 @@
 
 .searchInput {
   flex: 1;
+  min-width: 0;   /* let the box shrink so the ⚙ / journal buttons never clip off the right edge */
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--tt-divider, var(--border));
   border-radius: 3px;
