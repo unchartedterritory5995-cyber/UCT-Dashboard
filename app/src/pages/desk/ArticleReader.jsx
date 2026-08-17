@@ -230,6 +230,22 @@ export default function ArticleReader() {
         />
       </div>
 
+      {data.related_video && (
+        <Link
+          className={styles.sessionCard}
+          to={`/desk?section=videos&v=${data.related_video.youtube_id}`}
+        >
+          <span className={styles.sessionIcon} aria-hidden="true">
+            <UIcon name="play" size={18} />
+          </span>
+          <span className={styles.sessionText}>
+            <span className={styles.sessionLabel}>Watch the session</span>
+            <span className={styles.sessionTitle}>{data.related_video.title}</span>
+          </span>
+          <UIcon name="chevronRight" size={16} />
+        </Link>
+      )}
+
       <footer className={styles.foot}>
         Originally published on{' '}
         <a href={data.url} target="_blank" rel="noopener noreferrer">Substack</a>.

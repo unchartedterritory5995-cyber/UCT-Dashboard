@@ -1,7 +1,7 @@
 // app/src/pages/desk/ArticlesSection.jsx
 // The Desk → Articles: the firm's Substack posts as link-out cards. Admins
 // manage the source publications (RSS feeds) inline.
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import DeskSectionSkeleton from './DeskSectionSkeleton'
 import useSWR from 'swr'
@@ -27,7 +27,7 @@ function fmtDate(unixSec) {
 /* One card. Reads natively when we hold a converted body, and falls back to the
  * Substack link when we don't — a post can be paywalled, brand new, or awaiting
  * backfill, and none of those should render a card that opens an empty page. */
-function ArticleCard({ a }) {
+function ArticleCard({ a, snippet }) {
   const native = Boolean(a.has_body && a.slug)
   const linkProps = native
     ? { as: Link, to: `/desk/article/${a.slug}` }
@@ -53,7 +53,17 @@ function ArticleCard({ a }) {
         {/* Every Sunday Scans post is titled "SUNDAY SCANS" at the source, so
             the grid is unreadable without the date-stamped display title. */}
         <div className={styles.articleTitle}>{a.display_title || a.title}</div>
-        {tickers.length > 0
+        {snippet
+          ? (
+            <div
+              className={styles.articleSnippet}
+              // Server-built from FTS5 snippet(); the only markup it can contain
+              // is the <mark> this app asked for -- the body text around it is
+              // escaped by the same converter that renders the article.
+              dangerouslySetInnerHTML={{ __html: snippet }}
+            />
+          )
+          : tickers.length > 0
           ? (
             <div className={styles.articleTickers}>
               {tickers.slice(0, 10).map((s) => (
@@ -77,11 +87,72 @@ function ArticleCard({ a }) {
   )
 }
 
+/* Full-text search across the archive. The question a trader actually brings to
+   a back catalogue is "what did he say about MU in May?", which a date-ordered
+   grid of 91 cards cannot answer at all. */
+function ArchiveSearch({ query, setQuery }) {
+  const [draft, setDraft] = useState(query)
+  useEffect(() => { setDraft(query) }, [query])
+  // Debounced so typing doesn't fire a query per keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(draft.trim()), 250)
+    return () => clearTimeout(t)
+  }, [draft, setQuery])
+
+  return (
+    <div className={styles.searchWrap}>
+      <input
+        className={styles.searchInput}
+        type="search"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        placeholder="Search the archive — a ticker, a setup, a phrase…"
+        aria-label="Search articles"
+      />
+      {draft && (
+        <button type="button" className={styles.searchClear}
+                onClick={() => setDraft('')} aria-label="Clear search">×</button>
+      )}
+    </div>
+  )
+}
+
+function SearchResults({ query }) {
+  const { data, isLoading } = useSWR(
+    query ? `/api/desk/articles/search?q=${encodeURIComponent(query)}` : null,
+    fetcher,
+  )
+  if (isLoading) return <div className={styles.searchNote}>Searching…</div>
+  const results = data?.results || []
+
+  if (data && data.available === false) {
+    return <div className={styles.searchNote}>Archive search isn’t available right now.</div>
+  }
+  if (!results.length) {
+    return (
+      <div className={styles.searchNote}>
+        Nothing in the archive matches “{query}”.
+      </div>
+    )
+  }
+  return (
+    <>
+      <div className={styles.searchNote}>
+        {results.length} {results.length === 1 ? 'article' : 'articles'} matching “{query}”
+      </div>
+      <div className={styles.cardGrid}>
+        {results.map((a) => <ArticleCard key={a.id} a={a} snippet={a.snippet} />)}
+      </div>
+    </>
+  )
+}
+
 export default function ArticlesSection() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
   const { data, isLoading, mutate } = useSWR('/api/desk/articles', fetcher)
   const [managing, setManaging] = useState(false)
+  const [query, setQuery] = useState('')
 
   const articles = data?.articles || []
 
@@ -103,7 +174,11 @@ export default function ArticlesSection() {
         )}
       </div>
 
+      {articles.length > 0 && <ArchiveSearch query={query} setQuery={setQuery} />}
+
       {isLoading && <DeskSectionSkeleton cards={6} />}
+
+      {query && <SearchResults query={query} />}
 
       {!isLoading && articles.length === 0 && (
         <div className={styles.empty}>
@@ -122,7 +197,7 @@ export default function ArticlesSection() {
         </div>
       )}
 
-      {articles.length > 0 && (
+      {!query && articles.length > 0 && (
         <div className={styles.cardGrid}>
           {articles.map((a) => <ArticleCard key={a.id} a={a} />)}
         </div>
