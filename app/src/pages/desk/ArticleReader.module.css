@@ -294,3 +294,30 @@
   font-size: var(--text-base); color: var(--text-bright); font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+
+/* Previous / next issue. An archive is a sequence; the only exit from an
+   18-minute read used to be the back link. */
+.adjacent {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);
+  max-width: 760px; margin-top: var(--space-2xl);
+}
+.adjPrev, .adjNext {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: var(--space-md); border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg-surface); text-decoration: none; min-height: var(--tap-min);
+  min-width: 0;
+}
+.adjNext { text-align: right; }
+.adjPrev:hover, .adjNext:hover { border-color: var(--ut-gold); }
+.adjLabel {
+  font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ut-gold);
+}
+.adjTitle {
+  font-size: var(--text-sm); color: var(--text-bright);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .adjacent { grid-template-columns: 1fr; }
+  .adjNext { text-align: left; }
+}

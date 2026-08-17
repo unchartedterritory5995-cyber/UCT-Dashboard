@@ -255,6 +255,25 @@ export default function ArticleReader() {
         </Link>
       )}
 
+      {/* An archive is a sequence. Without this the only exit from an 18-minute
+          read is the back link. */}
+      {(data.adjacent?.previous || data.adjacent?.next) && (
+        <nav className={styles.adjacent} aria-label="More issues">
+          {data.adjacent.previous ? (
+            <Link className={styles.adjPrev} to={`/desk/article/${data.adjacent.previous.slug}`}>
+              <span className={styles.adjLabel}>← Previous issue</span>
+              <span className={styles.adjTitle}>{data.adjacent.previous.title}</span>
+            </Link>
+          ) : <span />}
+          {data.adjacent.next && (
+            <Link className={styles.adjNext} to={`/desk/article/${data.adjacent.next.slug}`}>
+              <span className={styles.adjLabel}>Next issue →</span>
+              <span className={styles.adjTitle}>{data.adjacent.next.title}</span>
+            </Link>
+          )}
+        </nav>
+      )}
+
       <footer className={styles.foot}>
         Originally published on{' '}
         <a href={data.url} target="_blank" rel="noopener noreferrer">Substack</a>.

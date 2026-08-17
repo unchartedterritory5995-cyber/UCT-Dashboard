@@ -170,6 +170,37 @@ test('no session card is invented when there is no matching video', () => {
   expect(screen.queryByText('Watch the session')).toBeNull()
 })
 
+test('the archive can be walked in both directions from the foot of an article', () => {
+  mockData = {
+    ...ARTICLE,
+    adjacent: {
+      previous: { slug: 'sunday-scans-1ad', title: 'Sunday Scans — August 9, 2026' },
+      next: { slug: 'sunday-scans-zzz', title: 'Sunday Scans — August 23, 2026' },
+    },
+  }
+  renderReader()
+  expect(screen.getByText('Sunday Scans — August 9, 2026').closest('a').getAttribute('href'))
+    .toBe('/desk/article/sunday-scans-1ad')
+  expect(screen.getByText('Sunday Scans — August 23, 2026').closest('a').getAttribute('href'))
+    .toBe('/desk/article/sunday-scans-zzz')
+})
+
+test('the newest issue offers no Next, and the block is not rendered empty', () => {
+  mockData = { ...ARTICLE, adjacent: { previous: null, next: null } }
+  renderReader()
+  expect(screen.queryByLabelText('More issues')).toBeNull()
+})
+
+test('one neighbour still renders the block', () => {
+  mockData = {
+    ...ARTICLE,
+    adjacent: { previous: { slug: 's1', title: 'Sunday Scans — August 9, 2026' }, next: null },
+  }
+  renderReader()
+  expect(screen.getByLabelText('More issues')).toBeTruthy()
+  expect(screen.queryByText(/Next issue/)).toBeNull()
+})
+
 test('the Substack origin is credited', () => {
   renderReader()
   expect(screen.getByText('Substack').getAttribute('href')).toBe(ARTICLE.url)

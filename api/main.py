@@ -4338,6 +4338,26 @@ async def lifespan(app: FastAPI):
                                id="substack_poll_sunday_burst", max_instances=1, replace_existing=True)
             print("[scheduler] substack poll job registered (hourly + Sunday burst)")
 
+            # "Did the article pipeline actually run?" — every stage above is
+            # fail-soft by design, so a total outage looks exactly like a quiet
+            # week. One daily artifact re-read at 09:10 ET, offset from the
+            # sessions audit at 09:00. Silent when healthy.
+            def _article_audit():
+                try:
+                    from api.services import desk_article_audit as _daa
+                    out = _daa.run_audit_and_alert()
+                    n = len(out.get("problems") or [])
+                    if n:
+                        print(f"[desk-articles] audit flagged {n} problem(s)")
+                except Exception as e:
+                    print(f"[desk-articles] audit error (non-fatal): {e}")
+
+            _scheduler.add_job(_article_audit,
+                               trigger=CronTrigger(hour=9, minute=10, timezone=_ET),
+                               id="desk_article_audit", max_instances=1,
+                               replace_existing=True)
+            print("[scheduler] desk article audit registered (09:10 ET)")
+
         # -- The Desk: Daily Sessions auto-publish (v2: Zoom cloud record) --
         _desk_sessions_on = os.environ.get("DESK_DAILY_SESSION_ENABLED", "0") == "1"
         if _desk_sessions_on:

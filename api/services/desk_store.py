@@ -595,6 +595,36 @@ def count_posts_for_ticker(sym: str) -> int:
         ).fetchone()[0]
 
 
+def adjacent_posts(post_id: str) -> dict:
+    """The readable issues either side of this one, by publish date.
+
+    An archive is a SEQUENCE, and the reader had no exit but the back link.
+    Ordered by (published_at, id) so two issues sharing a date still have a
+    deterministic order rather than leaking the store's row order.
+    """
+    with contextlib.closing(_connect()) as c:
+        row = c.execute(
+            "SELECT published_at, id FROM substack_posts WHERE id=?", (str(post_id),)
+        ).fetchone()
+        if not row:
+            return {"previous": None, "next": None}
+        at, pid = row["published_at"], row["id"]
+        cols = ", ".join(f"p.{col}" for col in _POST_LIST_COLS)
+        base = (f"SELECT {cols} FROM substack_posts p "
+                "WHERE p.body_html IS NOT NULL AND p.body_html != '' ")
+        older = c.execute(
+            base + "AND (p.published_at < ? OR (p.published_at = ? AND p.id < ?)) "
+                   "ORDER BY p.published_at DESC, p.id DESC LIMIT 1",
+            (at, at, pid)).fetchone()
+        newer = c.execute(
+            base + "AND (p.published_at > ? OR (p.published_at = ? AND p.id > ?)) "
+                   "ORDER BY p.published_at ASC, p.id ASC LIMIT 1",
+            (at, at, pid)).fetchone()
+        pick = lambda r: ({"slug": r["slug"], "title": r["display_title"] or r["title"],
+                           "published_at": r["published_at"]} if r and r["slug"] else None)
+        return {"previous": pick(older), "next": pick(newer)}
+
+
 def readable_slugs() -> set:
     """Slugs of every post we can actually SERVE — i.e. that has a body.
 
