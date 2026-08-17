@@ -185,7 +185,18 @@
 .disclosureBtn:hover { color: #c9a84c; background: var(--color-surface-hover, #1c2028); }
 .chevron { transform: rotate(-90deg); transition: transform 150ms ease; }
 .chevronOpen { transform: rotate(0deg); }
-.childrenList { display: flex; flex-direction: column; gap: 2px; }
+.childrenList { display: flex; flex-direction: column; gap: 2px; position: relative; }
+/* Obsidian-style vertical indent guide: a faint line down the left of an
+   expanded folder's children, positioned at this level's indent. */
+.childrenList::before {
+  content: '';
+  position: absolute;
+  left: var(--guide-x, 7px);
+  top: 0;
+  bottom: 2px;
+  width: 1px;
+  background: var(--color-border, #2a2f3a);
+}
 .noteRow {
   display: flex;
   align-items: center;

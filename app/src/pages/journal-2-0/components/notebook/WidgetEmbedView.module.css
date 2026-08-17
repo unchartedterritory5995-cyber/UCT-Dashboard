@@ -72,10 +72,10 @@
 
 .archived { margin: 0; }
 .archivedImg { display: block; max-width: 100%; height: auto; }
-/* Frozen-to-image render: the captured PNG fills the embed's width (which is
-   locked to the chart's size at freeze time); a downscaled 2× capture stays
-   crystal clear. Height follows aspect so the SE handle resizes by width. */
-.frozenImg { display: block; width: 100%; height: auto; }
+/* Frozen chart: still the real chart canvas (always crystal clear), just made
+   static — pointer-events off means no crosshair and no scroll/zoom. Clicks pass
+   through to the frame so the node stays selectable + resizable. */
+.frozen .body { pointer-events: none; }
 
 /* ONE footer treatment (panel finding: the archived label and the caption
    rendered as two systems — different size, color and padding on the same

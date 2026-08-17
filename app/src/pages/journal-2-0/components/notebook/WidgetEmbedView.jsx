@@ -11,11 +11,13 @@ import { RENDER_UNAVAILABLE, showsUnavailableFrame } from '../../../../lib/captu
 import UIcon from '../../../../components/ui/UIcon'
 import styles from './WidgetEmbedView.module.css'
 
-// Free-resize bounds (px).
+// Free-resize bounds (px). MAX_W is generous so a resize can reach the full
+// note-column width on wide screens; `.sized { max-width: 100% }` keeps it
+// responsive (never wider than the column).
 const EMBED_MIN_W = 260
-const EMBED_MAX_W = 1400
+const EMBED_MAX_W = 3200
 const EMBED_MIN_H = 160
-const EMBED_MAX_H = 900
+const EMBED_MAX_H = 1400
 
 // How long a live embed gets to settle (bars fetched, chart painted) before
 // the self-archive rasterizes it. A late capture is fine — a blank one isn't.
@@ -309,36 +311,11 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   }, [updateAttributes])
   const openEmbedSettings = () => chartRef.current?.openSettings?.()
 
-  // Freeze to PNG: rasterize exactly what the chart shows now and render THAT
-  // image at the embed's current size — a static, non-interactive picture (no
-  // crosshair, no toolbar), still resizable via the corner handle. Rendering at
-  // the frame width (a downscaled 2× capture) keeps it crystal clear, unlike a
-  // plain full-width image node which up-scaled the capture and blurred it.
-  const freezeToImage = async () => {
-    const noteId = editor?.storage?.uctJournalWidgets?.noteId
-    if (!noteId) { setToolbarMsg('cannot freeze here'); return }
-    if (showsUnavailableFrame(bodyRef.current)) { setToolbarMsg('chart still loading…'); return }
-    setToolbarMsg('freezing…')
-    try {
-      const blob = await captureElementPng(bodyRef.current)
-      if (!blob) { setToolbarMsg('freeze failed'); return }
-      const up = await storeFallbackImage(noteId, blob)
-      // Lock the CURRENT rendered width so the frozen image is the exact size
-      // the chart was.
-      const curW = wrapRef.current
-        ? Math.round(wrapRef.current.getBoundingClientRect().width)
-        : (typeof attrsRef.current.layout?.width === 'number' ? attrsRef.current.layout.width : null)
-      updateAttributes?.({
-        frozen: true,
-        fallback: { url: up.url, w: up.width || null, h: up.height || null },
-        layout: { ...(attrsRef.current.layout || {}), ...(curW ? { width: curW } : {}) },
-      })
-      setToolbarMsg(null)
-    } catch (e) {
-      setToolbarMsg('freeze failed')
-      console.debug('[widget-embed] freeze failed: %s', e?.message || e)
-    }
-  }
+  // Freeze: keep the chart as a REAL chart (never rasterize — a PNG loses
+  // quality), just make it static — toolbar hidden, pointer-events off so there's
+  // no crosshair and no scroll/zoom. It stays crystal clear because it's still
+  // the live canvas. Resizable via the corner handle like any chart.
+  const freezeChart = () => updateAttributes?.({ frozen: true })
 
   // Corner resize (all four corners). Live width/height are written straight to
   // the DOM during the drag (no React churn), then committed to attrs.layout on
@@ -362,9 +339,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
       liveW = Math.max(EMBED_MIN_W, Math.min(EMBED_MAX_W, startW + signX * (ev.clientX - startX)))
       liveH = Math.max(EMBED_MIN_H, Math.min(EMBED_MAX_H, startH + signY * (ev.clientY - startY)))
       frame.style.width = `${liveW}px`
-      // A frozen image sizes by width (height:auto keeps its aspect); a live
-      // chart tracks the explicit body height in real time.
-      if (body && !frozen) body.style.height = `${liveH}px`
+      if (body) body.style.height = `${liveH}px`
     }
     const onUp = () => {
       window.removeEventListener('pointermove', onMove)
@@ -372,11 +347,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
       document.body.style.cursor = prevCursor
       setResizing(false)
       updateAttributes?.({
-        layout: {
-          ...(attrsRef.current.layout || {}),
-          width: Math.round(liveW),
-          ...(frozen ? {} : { height: Math.round(liveH) }),
-        },
+        layout: { ...(attrsRef.current.layout || {}), width: Math.round(liveW), height: Math.round(liveH) },
       })
     }
     window.addEventListener('pointermove', onMove)
@@ -535,17 +506,10 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
     )
   }
 
-  // Frozen-to-image: the captured PNG at the embed's own width, crystal clear
-  // (a downscaled 2× capture) and non-interactive. Still resizable via the SE
-  // handle (width-driven; height keeps the image's aspect).
-  if (frozen && attrs.fallback?.url) {
-    body = <img className={styles.frozenImg} src={attrs.fallback.url} alt={attrs.caption || 'chart'} draggable={false} />
-  }
-
   return (
     <NodeViewWrapper
       ref={wrapRef}
-      className={`${styles.frame} ${sizedWidth ? styles.sized : (half ? styles.half : styles.full)} ${selected ? styles.selected : ''} ${annotate ? styles.annotating : ''} ${resizing ? styles.resizing : ''}`}
+      className={`${styles.frame} ${sizedWidth ? styles.sized : (half ? styles.half : styles.full)} ${selected ? styles.selected : ''} ${annotate ? styles.annotating : ''} ${resizing ? styles.resizing : ''} ${frozen ? styles.frozen : ''}`}
       style={sizedWidth ? { width: sizedWidth } : undefined}
       data-widget-embed-view={attrs.widgetId || 'unknown'}
     >
@@ -665,8 +629,8 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
           {/* Freeze to a static PNG — replaces the live embed with a plain,
               non-interactive image (no crosshair, no toolbar). */}
           {!annotate && decision.kind === 'live' && (
-            <button type="button" className={styles.toolBtn} onClick={freezeToImage}
-              title="Freeze to a static image (PNG) — no crosshair, not interactive">
+            <button type="button" className={styles.toolBtn} onClick={freezeChart}
+              title="Freeze — make the chart static (no crosshair, not interactive); stays crystal clear">
               Freeze
             </button>
           )}
@@ -681,7 +645,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
       {/* Explicit pixel height + inline-size containment: every workspace
           widget root is height:100% and several use @container queries — a
           content-sized notebook parent collapses them to zero without this. */}
-      <div ref={bodyRef} className={styles.body} style={!frozen && decision.kind === 'live' && !shareView ? { height } : undefined}>
+      <div ref={bodyRef} className={styles.body} style={decision.kind === 'live' && !shareView ? { height } : undefined}>
         {body}
       </div>
       {(attrs.mode === 'live') && !frozen && <span className={styles.liveBadge} title="Updates in real time — Snapshot freezes it">LIVE</span>}

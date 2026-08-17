@@ -188,7 +188,7 @@ function FolderNode({
         )}
       </div>
       {isExpanded && (
-        <div className={styles.childrenList}>
+        <div className={styles.childrenList} style={{ '--guide-x': `${depth * 14 + 7}px` }}>
           {node.children.map((child) => (
             <FolderNode
               key={child.id}
