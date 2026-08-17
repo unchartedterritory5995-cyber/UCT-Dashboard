@@ -11,7 +11,7 @@ const DEF_W = 520, DEF_H = 560, MIN_W = 180, MIN_H = 40
 const COLORS = ['A', 'B', 'C', 'D', 'N']
 const COLOR_HEX = { A: '#c9a84c', B: '#60a5fa', C: '#4ade80', D: '#c084fc', N: '#6b7280' }
 
-export default function EtfHoldingsPanel({ sym, onClose, centerOn = null }) {
+export default function EtfHoldingsPanel({ sym, onClose, centerOn = null, themeVars = null }) {
   const [pos, setPos] = useState(() => {
     const vw = window.innerWidth, vh = window.innerHeight
     // Center on the chart widget when we were handed its center; else the viewport.
@@ -57,7 +57,7 @@ export default function EtfHoldingsPanel({ sym, onClose, centerOn = null }) {
   }
 
   return (
-    <div className={styles.panel} style={{ left: pos.x, top: pos.y, width: size.w, height: size.h }}>
+    <div className={styles.panel} style={{ left: pos.x, top: pos.y, width: size.w, height: size.h, ...(themeVars || {}) }}>
       <div className={styles.header} onPointerDown={onHeaderPointerDown}>
         <span className={styles.grip} aria-hidden="true" />
         <button
