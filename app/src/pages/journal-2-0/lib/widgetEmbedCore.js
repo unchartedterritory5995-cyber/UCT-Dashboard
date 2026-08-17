@@ -134,21 +134,41 @@ function validDay(y, mo, d) {
   return `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`
 }
 
-/** A day token → 'YYYY-MM-DD'. Accepts ISO, M/D (current year), M/D/YY[YY]. */
+/** TODAY as the ET SESSION day — the one basis every cutoff in this file is
+ *  measured against.
+ *  ⛔ Never `toISOString()` here, and never the LOCAL year: this function used
+ *  to default the year from `new Date().getFullYear()` (local) and then test
+ *  "is it in the future?" against `new Date().toISOString()` (UTC). Two bases
+ *  for one question — so every evening after 7pm CT, once UTC had rolled over,
+ *  a yearless M/D for TOMORROW compared equal-not-greater and skipped the
+ *  roll-back, accepting a FUTURE cutoff. That is precisely the case the
+ *  roll-back exists to prevent ("a future cutoff renders identical
+ *  before/after halves with no warning"). en-CA renders YYYY-MM-DD; the same
+ *  ET/en-CA idiom as tsToAnchorDay. */
+function etToday() {
+  try {
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+  } catch {
+    return new Date().toISOString().slice(0, 10)
+  }
+}
+
+/** A day token → 'YYYY-MM-DD'. Accepts ISO, M/D (current ET year), M/D/YY[YY]. */
 export function parseDayToken(tok) {
   const t = String(tok || '').trim()
   let m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(t)
   if (m) return validDay(+m[1], +m[2], +m[3])
   m = /^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/.exec(t)
   if (m) {
-    let y = m[3] ? +m[3] : new Date().getFullYear()
+    const today = etToday()
+    let y = m[3] ? +m[3] : +today.slice(0, 4)
     if (y < 100) y += 2000
     let day = validDay(y, +m[1], +m[2])
     // A YEARLESS M/D that lands in the future means LAST year's date —
     // reviewing a late-December setup on Jan 2 must not anchor at NEXT
     // December (panel finding: a future cutoff renders identical
     // before/after halves with no warning).
-    if (day && !m[3] && day > new Date().toISOString().slice(0, 10)) {
+    if (day && !m[3] && day > today) {
       day = validDay(y - 1, +m[1], +m[2])
     }
     return day

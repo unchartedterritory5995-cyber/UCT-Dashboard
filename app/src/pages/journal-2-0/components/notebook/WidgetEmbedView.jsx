@@ -53,9 +53,28 @@ class EmbedErrorBoundary extends Component {
   }
 }
 
+// ⭐ EVERY "this is NOT the live widget" frame carries FALLBACK_MARK, and the
+// self-archive refuses to rasterize a body that contains one. Without it the
+// archive pipeline will happily freeze the placeholder chip / grey skeleton /
+// archived-image-of-an-image as the permanent evidence PNG — which is exactly
+// what a double-clicked Re-capture did on 2026-08-16: the second click cleared
+// `fallback` while the live chart was still re-settling, the sticky
+// `barsReadyRef` meant the bars gate was already satisfied, and the settle
+// timer rasterized "[chart: AMD D] · snapshot image not captured yet" over a
+// real chart. A marker on the markup (not a guess at component state) is what
+// makes that structurally impossible.
+//
+// ⚠️ This is NOT a duplicate of embedArchive's `canvasesLookPainted` probe, and
+// the two must not be collapsed. That one asks "are this widget's canvases
+// blank?" and FAILS OPEN (a late frame beats no archive) — and a placeholder
+// has no canvases at all, so `sized.length === 0` returns "painted" and it
+// waves the chip straight through. This one asks "is this the widget at all?"
+// and FAILS CLOSED. Different question, opposite default, both needed.
+const FALLBACK_MARK = { 'data-embed-fallback': '' }
+
 function ArchivedImage({ attrs }) {
   return (
-    <figure className={styles.archived}>
+    <figure className={styles.archived} {...FALLBACK_MARK}>
       <img
         className={styles.archivedImg}
         src={attrs.fallback.url}
@@ -87,7 +106,7 @@ function asOfDayText(capturedAt) {
 
 function PlaceholderChip({ attrs, reason }) {
   return (
-    <div className={styles.placeholder}>
+    <div className={styles.placeholder} {...FALLBACK_MARK}>
       <span className={styles.placeholderLine}>{attrs.searchText || '[widget]'}</span>
       <span className={styles.placeholderWhy}>
         {reason === 'unknown-widget' ? 'widget type unavailable' : 'snapshot image not captured yet'}
@@ -282,14 +301,32 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
     kickSnapshotWarm(attrs.params)
     let timer = null
     let retries = 0
+    // The body is showing one of the NOT-the-live-widget frames (placeholder
+    // chip, grey skeleton, an archived image) rather than the widget itself.
+    // Reading the MARKUP, not component state, is the point: every route to a
+    // fallback — !inView, Suspense, a thrown render caught by the error
+    // boundary — lands here without the archive having to enumerate them.
+    const showingFallback = () => !!bodyRef.current?.querySelector('[data-embed-fallback]')
     const fire = async () => {
       // Don't rasterize a chart that hasn't painted its bars yet — the settle
       // clock alone once archived a candle-less frame (live finding). After
       // the retry budget, capture anyway: non-chart live embeds have no bars
       // signal, and a best-effort late frame beats no archive at all.
-      if (!barsReadyRef.current && retries < ARCHIVE_MAX_RETRIES) {
+      if ((!barsReadyRef.current || showingFallback()) && retries < ARCHIVE_MAX_RETRIES) {
         retries += 1
         timer = setTimeout(fire, ARCHIVE_RETRY_MS)
+        return
+      }
+      // ⛔ …but the fallback check does NOT expire into "capture anyway".
+      // `barsReadyRef` is sticky within a mount, so on a RE-capture the bars
+      // gate is already satisfied and the budget above would wave a placeholder
+      // straight through — freezing "snapshot image not captured yet" as the
+      // permanent evidence PNG (observed in prod, 2026-08-16). No archive is
+      // strictly better than a wrong one: the embed still renders live, and
+      // clearing the once-latch re-arms the whole pipeline on the next open.
+      if (showingFallback()) {
+        archivedOnceRef.current = false
+        console.debug('[widget-embed] archive skipped (body is a fallback, not the live widget)')
         return
       }
       // Resolve the gates HERE, after the settle window — node-view effects
@@ -375,10 +412,10 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   if (decision.kind === 'live' && !shareView) {
     const Live = EMBED_COMPONENTS[attrs.widgetId]
     body = !Live ? archived : !inView ? (
-      <div className={styles.loading} style={{ height }} />
+      <div className={styles.loading} style={{ height }} {...FALLBACK_MARK} />
     ) : (
       <EmbedErrorBoundary fallback={archived}>
-        <Suspense fallback={<div className={styles.loading} style={{ height }} />}>
+        <Suspense fallback={<div className={styles.loading} style={{ height }} {...FALLBACK_MARK} />}>
           <Live
             attrs={attrs}
             height={height}
