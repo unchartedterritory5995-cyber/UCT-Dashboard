@@ -223,10 +223,12 @@ def _validate_body_json(raw: Any) -> dict[str, Any]:
 
 
 def _extract_first_image(body_json: Any) -> str | None:
-    """The `src` of the FIRST inline image node in a TipTap doc (document order,
-    depth-first), else None. Matches the standard '@tiptap/extension-image' node
-    (type == 'image', attrs.src). Cached to `first_image_url` so the notebook
-    card can show a preview glyph without loading the whole body."""
+    """The `src` of the FIRST picture in a TipTap doc (document order, depth
+    first), else None. Cached to `first_image_url` so the notebook card can show
+    a preview glyph without loading the whole body. Matches, in document order:
+      - the standard '@tiptap/extension-image' node (type=='image', attrs.src)
+      - a 'widgetEmbed' chart/widget node's captured snapshot (attrs.fallback.url)
+        — so a note whose only content is a /chart still gets a thumbnail."""
     def walk(nodes: Any) -> str | None:
         if not isinstance(nodes, list):
             return None
@@ -237,6 +239,10 @@ def _extract_first_image(body_json: Any) -> str | None:
                 src = (node.get("attrs") or {}).get("src")
                 if isinstance(src, str) and src:
                     return src
+            if node.get("type") == "widgetEmbed":
+                fb = (node.get("attrs") or {}).get("fallback")
+                if isinstance(fb, dict) and isinstance(fb.get("url"), str) and fb["url"]:
+                    return fb["url"]
             found = walk(node.get("content"))
             if found:
                 return found

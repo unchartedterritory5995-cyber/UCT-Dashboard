@@ -51,7 +51,16 @@
     margin-left: 0;
   }
 }
-.selected { border-color: var(--ut-gold, #c9a84c); }
+/* Selection feedback is a subtle neutral now — no gold outline on the chart. */
+.selected { border-color: #3a4048; }
+
+/* Free-resized embeds: an explicit pixel width from the corner handles wins over
+   the full/half breakout system (inline width is supplied by the view). */
+.sized {
+  width: auto;
+  max-width: 100%;
+  margin-left: 0;
+}
 
 .body {
   /* The container-query root the workspace widgets expect (.widgetBody parity)
@@ -120,11 +129,13 @@
 .toolbar {
   position: absolute;
   top: 6px;
-  right: 8px;
-  z-index: 3;
+  left: 8px;
+  z-index: 5; /* above the corner resize handles (z 4) */
   display: none;
   align-items: center;
   gap: 4px;
+  flex-wrap: wrap;
+  max-width: calc(100% - 16px);
 }
 .frame:hover .toolbar,
 .frame:focus-within .toolbar,
@@ -140,12 +151,9 @@
     min-width: 34px;
     padding: 8px 12px;
   }
-  /* Doubled selector out-specifies the hover-state reposition below — a tap
-     can still set :hover on touch, and 32px would sit under the 44px toolbar. */
-  .frame .liveBadge, .frame:hover .liveBadge { top: 56px; }
 }
 /* While drawing, keep the frame visibly in-mode and its Done button findable. */
-.annotating { border-color: var(--ut-gold, #c9a84c); }
+.annotating { border-color: #3a4048; }
 /* Drawing needs canvas, not a postage stamp: while annotating, ANY embed
    (half-width included — the drawing toolbar alone barely fits at ~630px)
    takes the full breakout width; Done restores the stored layout. The
@@ -214,8 +222,38 @@ a.toolBtn { text-decoration: none; line-height: 1.5; }
   font-size: 11px;
   padding-right: 4px;
 }
-/* The toolbar shares the corner with the LIVE badge — drop the badge below it. */
-.frame:hover .liveBadge, .selected .liveBadge { top: 32px; }
+
+/* Corner resize handles (all four corners) — small grab zones over the frame
+   edges. Shown on hover / when selected, like the toolbar. */
+.resizeHandle {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  z-index: 4;
+  display: none;
+}
+.frame:hover .resizeHandle,
+.frame:focus-within .resizeHandle,
+.selected .resizeHandle { display: block; }
+.annotating .resizeHandle { display: none; }
+.hNW { top: -2px; left: -2px; cursor: nwse-resize; }
+.hNE { top: -2px; right: -2px; cursor: nesw-resize; }
+.hSW { bottom: -2px; left: -2px; cursor: nesw-resize; }
+.hSE { bottom: -2px; right: -2px; cursor: nwse-resize; }
+/* A faint corner tick so the grab zone is discoverable. */
+.resizeHandle::after {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 2px solid #6b7280;
+  border-radius: 2px;
+}
+.hNW::after { top: 3px; left: 3px; border-right: none; border-bottom: none; }
+.hNE::after { top: 3px; right: 3px; border-left: none; border-bottom: none; }
+.hSW::after { bottom: 3px; left: 3px; border-right: none; border-top: none; }
+.hSE::after { bottom: 3px; right: 3px; border-left: none; border-top: none; }
+.frame.resizing { user-select: none; margin-left: 0; }
 
 .liveBadge {
   position: absolute;

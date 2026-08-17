@@ -8,7 +8,14 @@ import { widgetMeta } from '../../../../widgets/registry'
 import { chartsLinkPath } from '../../../../lib/chartDeepLink'
 import { captureElementPng, storeFallbackImage, kickSnapshotWarm } from '../../lib/embedArchive'
 import { RENDER_UNAVAILABLE, showsUnavailableFrame } from '../../../../lib/captureSafety'
+import UIcon from '../../../../components/ui/UIcon'
 import styles from './WidgetEmbedView.module.css'
+
+// Free-resize bounds (px).
+const EMBED_MIN_W = 260
+const EMBED_MAX_W = 1400
+const EMBED_MIN_H = 160
+const EMBED_MAX_H = 900
 
 // How long a live embed gets to settle (bars fetched, chart painted) before
 // the self-archive rasterizes it. A late capture is fine — a blank one isn't.
@@ -121,14 +128,23 @@ function PlaceholderChip({ attrs, reason }) {
   )
 }
 
-export default function WidgetEmbedView({ node, selected, editor, updateAttributes, deleteNode }) {
+export default function WidgetEmbedView({ node, selected, editor, updateAttributes, deleteNode, getPos }) {
   const attrs = node.attrs || {}
   const decision = resolveEmbedRender(attrs)
   const half = attrs.layout?.width === 'half'
+  // An explicit pixel width (from the corner handles) wins over the full/half
+  // breakout system; number = free-sized, string ('full'|'half') = preset.
+  const sizedWidth = typeof attrs.layout?.width === 'number' ? attrs.layout.width : null
   const bodyRef = useRef(null)
   const wrapRef = useRef(null)
+  const chartRef = useRef(null)          // ChartEmbed imperative handle (openSettings)
+  const attrsRef = useRef(attrs)
+  attrsRef.current = attrs
   const archivedOnceRef = useRef(false)
   const [toolbarMsg, setToolbarMsg] = useState(null)
+  // Toolbar collapse toggle (per the charts "Hide toolbar" affordance).
+  const [toolbarOpen, setToolbarOpen] = useState(true)
+  const [resizing, setResizing] = useState(false)
 
   // Public share page (SharedNotePage stamps shareView before the editor
   // view exists): every embed renders its ARCHIVED IMAGE — a public reader
@@ -286,6 +302,79 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
     updateAttributes?.({ params: next.params, searchText: next.searchText, fallback: null })
   }
 
+  // Per-chart settings (spec: the embed's gear opens the standard Chart Settings
+  // modal, scoped to THIS chart). ChartPane persists every settings edit through
+  // onStore → here, into the embed's OWN params.settings — never the reader's
+  // global chart_settings. The stored blob is also the chart's settingsOverride
+  // base, so the change applies live to this chart only. The archive is left as
+  // is (Re-capture re-freezes it) to avoid churning the capture pipeline on
+  // every colour pick.
+  const onEmbedSettings = useCallback((next) => {
+    if (!next) return
+    updateAttributes?.({ params: { ...(attrsRef.current.params || {}), settings: next } })
+  }, [updateAttributes])
+  const openEmbedSettings = () => chartRef.current?.openSettings?.()
+
+  // Freeze to PNG: rasterize exactly what the chart shows now and REPLACE the
+  // live embed with a plain image node — a frozen, non-interactive picture (no
+  // crosshair, no toolbar). Also makes it count as the note's first image.
+  const freezeToImage = async () => {
+    const noteId = editor?.storage?.uctJournalWidgets?.noteId
+    const pos = typeof getPos === 'function' ? getPos() : null
+    if (!noteId || pos == null) { setToolbarMsg('cannot freeze here'); return }
+    if (showsUnavailableFrame(bodyRef.current)) { setToolbarMsg('chart still loading…'); return }
+    setToolbarMsg('freezing…')
+    try {
+      const blob = await captureElementPng(bodyRef.current)
+      if (!blob) { setToolbarMsg('freeze failed'); return }
+      const up = await storeFallbackImage(noteId, blob)
+      editor.chain().focus().insertContentAt(
+        { from: pos, to: pos + node.nodeSize },
+        { type: 'image', attrs: { src: up.url } },
+      ).run()
+    } catch (e) {
+      setToolbarMsg('freeze failed')
+      console.debug('[widget-embed] freeze failed: %s', e?.message || e)
+    }
+  }
+
+  // Corner resize (all four corners). Live width/height are written straight to
+  // the DOM during the drag (no React churn), then committed to attrs.layout on
+  // release — so the size persists and re-renders match. First resize converts a
+  // full/half preset into an explicit pixel size.
+  const startResize = (corner) => (e) => {
+    e.preventDefault(); e.stopPropagation()
+    const frame = wrapRef.current
+    const body = bodyRef.current
+    if (!frame) return
+    const startW = frame.getBoundingClientRect().width
+    const startH = body ? body.getBoundingClientRect().height : height
+    const startX = e.clientX, startY = e.clientY
+    const signX = (corner === 'ne' || corner === 'se') ? 1 : -1
+    const signY = (corner === 'sw' || corner === 'se') ? 1 : -1
+    let liveW = startW, liveH = startH
+    const prevCursor = document.body.style.cursor
+    document.body.style.cursor = (corner === 'ne' || corner === 'sw') ? 'nesw-resize' : 'nwse-resize'
+    setResizing(true)
+    const onMove = (ev) => {
+      liveW = Math.max(EMBED_MIN_W, Math.min(EMBED_MAX_W, startW + signX * (ev.clientX - startX)))
+      liveH = Math.max(EMBED_MIN_H, Math.min(EMBED_MAX_H, startH + signY * (ev.clientY - startY)))
+      frame.style.width = `${liveW}px`
+      if (body) body.style.height = `${liveH}px`
+    }
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      document.body.style.cursor = prevCursor
+      setResizing(false)
+      updateAttributes?.({
+        layout: { ...(attrsRef.current.layout || {}), width: Math.round(liveW), height: Math.round(liveH) },
+      })
+    }
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
   // ── Self-archive + capture-time warm (the durability pipeline) ────────────
   // A freshly-inserted snapshot has no archive yet: once the live render has
   // settled, rasterize the embed, upload through the note-image pipeline, and
@@ -423,6 +512,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
       <EmbedErrorBoundary fallback={archived}>
         <Suspense fallback={<div className={styles.loading} style={{ height }} {...RENDER_UNAVAILABLE} />}>
           <Live
+            ref={attrs.widgetId === 'chart' ? chartRef : undefined}
             attrs={attrs}
             height={height}
             annotate={annotate}
@@ -430,6 +520,7 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
             onBarsReady={handleBarsReady}
             crosshairBus={crosshairBus}
             peekToNow={canPeek && peek}
+            onStoreSettings={onEmbedSettings}
           />
         </Suspense>
       </EmbedErrorBoundary>
@@ -439,12 +530,28 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
   return (
     <NodeViewWrapper
       ref={wrapRef}
-      className={`${styles.frame} ${half ? styles.half : styles.full} ${selected ? styles.selected : ''} ${annotate ? styles.annotating : ''}`}
+      className={`${styles.frame} ${sizedWidth ? styles.sized : (half ? styles.half : styles.full)} ${selected ? styles.selected : ''} ${annotate ? styles.annotating : ''} ${resizing ? styles.resizing : ''}`}
+      style={sizedWidth ? { width: sizedWidth } : undefined}
       data-widget-embed-view={attrs.widgetId || 'unknown'}
     >
       {editor?.isEditable !== false && (
         <div className={styles.toolbar} contentEditable={false}>
           {toolbarMsg && <span className={styles.toolbarMsg}>{toolbarMsg}</span>}
+          {/* Collapse toggle — hide/show the rest of the toolbar (the charts
+              "Hide toolbar" affordance). Absent in draw mode (Done is the only
+              control there). */}
+          {!annotate && (
+            <button
+              type="button"
+              className={styles.toolBtn}
+              onClick={() => setToolbarOpen((o) => !o)}
+              title={toolbarOpen ? 'Hide toolbar' : 'Show toolbar'}
+              aria-label={toolbarOpen ? 'Hide toolbar' : 'Show toolbar'}
+            >
+              {toolbarOpen ? '‹' : '›'}
+            </button>
+          )}
+          {(annotate || toolbarOpen) && (<>
           {/* TF switch — chart embeds, live render path only (the archive of
               an out-of-ceiling snapshot shows the OLD tf; switchTf refuses).
               Native tfs only — custom multipliers skip both durability rails.
@@ -532,11 +639,28 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
               Re-capture
             </button>
           )}
+          {/* Chart settings — opens the standard Chart Settings modal, scoped to
+              THIS chart only. */}
+          {!annotate && attrs.widgetId === 'chart' && decision.kind === 'live' && (
+            <button type="button" className={styles.toolBtn} onClick={openEmbedSettings}
+              title="Chart settings (this chart only)" aria-label="Chart settings">
+              <UIcon name="gear" size={13} gold={false} />
+            </button>
+          )}
+          {/* Freeze to a static PNG — replaces the live embed with a plain,
+              non-interactive image (no crosshair, no toolbar). */}
+          {!annotate && decision.kind === 'live' && (
+            <button type="button" className={styles.toolBtn} onClick={freezeToImage}
+              title="Freeze to a static image (PNG) — no crosshair, not interactive">
+              Freeze
+            </button>
+          )}
           {!annotate && (
             <button type="button" className={styles.toolBtn} onClick={() => deleteNode?.()} title="Remove embed" aria-label="Remove embed">
               ✕
             </button>
           )}
+          </>)}
         </div>
       )}
       {/* Explicit pixel height + inline-size containment: every workspace
@@ -565,6 +689,15 @@ export default function WidgetEmbedView({ node, selected, editor, updateAttribut
       </div>
       {(attrs.mode === 'live') && <span className={styles.liveBadge} title="Updates in real time — Snapshot freezes it">LIVE</span>}
       {attrs.caption ? <div className={styles.caption}>{attrs.caption}</div> : null}
+      {/* Four-corner resize handles (editable + not drawing). */}
+      {editor?.isEditable !== false && !annotate && (
+        <>
+          <div className={`${styles.resizeHandle} ${styles.hNW}`} onPointerDown={startResize('nw')} aria-hidden="true" />
+          <div className={`${styles.resizeHandle} ${styles.hNE}`} onPointerDown={startResize('ne')} aria-hidden="true" />
+          <div className={`${styles.resizeHandle} ${styles.hSW}`} onPointerDown={startResize('sw')} aria-hidden="true" />
+          <div className={`${styles.resizeHandle} ${styles.hSE}`} onPointerDown={startResize('se')} aria-hidden="true" />
+        </>
+      )}
     </NodeViewWrapper>
   )
 }

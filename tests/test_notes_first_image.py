@@ -27,12 +27,25 @@ def test_extract_first_image_walks_nested_content():
     assert _extract_first_image(_doc({"type": "blockquote", "content": [_img(IMG)]})) == IMG
 
 
+def test_extract_first_image_uses_a_chart_embed_snapshot():
+    doc = _doc({"type": "widgetEmbed", "attrs": {"widgetId": "chart", "fallback": {"url": "https://cdn.example.com/chart.png"}}})
+    assert _extract_first_image(doc) == "https://cdn.example.com/chart.png"
+
+
+def test_extract_first_image_prefers_earliest_picture_across_types():
+    # A real image before a chart embed still wins (document order).
+    doc = _doc(_img(IMG), {"type": "widgetEmbed", "attrs": {"fallback": {"url": "https://cdn.example.com/chart.png"}}})
+    assert _extract_first_image(doc) == IMG
+
+
 def test_extract_first_image_none_when_no_image():
     assert _extract_first_image(_doc(_p("just text"))) is None
     assert _extract_first_image(None) is None
     assert _extract_first_image({}) is None
     # An image node with no usable src is not a match.
     assert _extract_first_image(_doc({"type": "image", "attrs": {}})) is None
+    # A widget embed without a captured snapshot yet is not a match.
+    assert _extract_first_image(_doc({"type": "widgetEmbed", "attrs": {"fallback": None}})) is None
 
 
 def test_create_and_list_carry_first_image_url():
