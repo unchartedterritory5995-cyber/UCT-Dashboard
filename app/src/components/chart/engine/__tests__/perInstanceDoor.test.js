@@ -260,8 +260,13 @@ describe('⭐ the per-DEFINITION doors did not move — an equality, not an opin
     // `instanceShape.js::_OVERRIDE_SECTION_KEYS`, so a per-chart override merges
     // the header section instead of replacing it and a grid cell cannot drop the
     // user's mode.
-    // (Prior value: d32335e597cf5b1b4786783f2cf5da538b9f4f94e8d50b2eb6e7f624c9e7fbcb)
+    // 2026-08-16 (second move, same day): the legend DEFAULT flipped 'always' ->
+    // 'click'. A VALUE change to the key the previous re-pin added, not a new key.
+    // INVESTIGATED BY MEASUREMENT again: rebuilding this corpus with
+    // `header.legendMode` stripped reproduces the PRE-FEATURE literal exactly, so
+    // no per-definition door changed behaviour.
+    // (Prior value: bdbb6ba2ce5a1d83b8790f4d51a72e2d23aaaaa8e818e2c0ae4fec65beb7b4e6)
     expect(digest(corpus().map(digest).join('|')))
-      .toBe('bdbb6ba2ce5a1d83b8790f4d51a72e2d23aaaaa8e818e2c0ae4fec65beb7b4e6')
+      .toBe('6c6ce89c2ec7918c97a76a2b45d0b35effb96cb47ee339a544275ba5c81ba65c')
   })
 })

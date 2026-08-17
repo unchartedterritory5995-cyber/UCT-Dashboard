@@ -4,7 +4,7 @@ import bars200 from '../../../../pages/parityBars/ramp200.json'
 import intraday5m from '../../../../pages/parityBars/intraday5m.json'
 // THE legend read, shared with `legendFromDefinitions.test.jsx` — see the note
 // where `settledLegend` is wrapped below.
-import { legendTextOf, settledLegend as settledLegendWith, LEGEND_RENDERED } from './legendProbe'
+import { legendTextOf, settledLegend as settledLegendWith, LEGEND_RENDERED, legendAlways } from './legendProbe'
 // ⭐ PHASE D TASK 8 — the one place a registry count lives. See the loop-counter
 // note far below for why this is NOT the tautology the literal was guarding
 // against: `REGISTRY_SIZES` is a hand-written manifest's arithmetic, not the set
@@ -350,7 +350,7 @@ const tfFor = (defId) => {
 const barsFor = (tf) => (tf === 'D' ? BARS : INTRADAY_BARS)
 
 const draw = (settingsOverride, tf = 'D') => render(
-  <StockChart sym="AAPL" tf={tf} barsOverride={barsFor(tf)} settingsOverride={settingsOverride} />,
+  <StockChart sym="AAPL" tf={tf} barsOverride={barsFor(tf)} settingsOverride={legendAlways(settingsOverride)} />,
 )
 
 /**
@@ -448,7 +448,7 @@ const renderChart = ({ settings = null, tf = 'D', ...props } = {}) => {
   const persisted = []
   const view = render(
     <StockChart sym="AAPL" tf={tf} barsOverride={barsFor(tf)}
-      settingsOverride={settings}
+      settingsOverride={legendAlways(settings)}
       onSettingsPersist={(s) => persisted.push(s)}
       {...props} />,
   )
@@ -1253,7 +1253,7 @@ describe('hide-all-indicators reaches engine series through the binding map', ()
     // complete option set, `visible` included. If the toggle's state does not
     // reach the binder, that paint silently shows the indicator again.
     const settings = { indicators: { rsi: { enabled: true } }, indicatorInstances: [RSI_INSTANCE] }
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(settings)} />)
     expect(H.syncCalls.at(-1).indicatorsHidden).toBe(false)
 
     act(() => { fireEvent.keyDown(document, { altKey: true, shiftKey: true, code: 'KeyI' }) })
@@ -1261,7 +1261,7 @@ describe('hide-all-indicators reaches engine series through the binding map', ()
     // Force another `updateChart` pass the way a data poll would: new bars.
     const before = H.syncCalls.length
     view.rerender(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS.slice(0, BARS.length - 1)} settingsOverride={settings} />,
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS.slice(0, BARS.length - 1)} settingsOverride={legendAlways(settings)} />,
     )
     expect(H.syncCalls.length, 'no further sync happened — the assertion below would be vacuous')
       .toBeGreaterThan(before)
@@ -1671,27 +1671,27 @@ describe('the settings round-trip — what a user changes after the flip', () =>
     // lightweight-charts#2049 is open: a mass removeSeries is a 2-4s main-thread
     // block. The pool exists so a restyle is an applyOptions, and the only way to
     // see that from here is that no SECOND series was ever created.
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(settings())} />)
     expect(rsiSeries()).toHaveLength(1)
     const before = rsiSeries()[0].series
 
     view.rerender(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings({
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(settings({
         indicatorInstances: [{ ...RSI_INSTANCE, inputs: { period: 14, color: '#ff0000' } }],
-      })} />,
+      }))} />,
     )
     expect(rsiSeries(), 'the engine created a second RSI line instead of restyling').toHaveLength(1)
     expect(H.binderApis[0].bindings()[0].series, 'the binding changed series').toBe(before)
   })
 
   it('a PERIOD change keeps one series and re-binds it', () => {
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(settings())} />)
     const before = rsiSeries()[0].series
 
     view.rerender(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings({
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(settings({
         indicatorInstances: [{ ...RSI_INSTANCE, inputs: { period: 7, color: '#7b68ee' } }],
-      })} />,
+      }))} />,
     )
     expect(rsiSeries()).toHaveLength(1)
     expect(H.binderApis[0].bindings()[0].series).toBe(before)
@@ -1709,7 +1709,7 @@ describe('the settings round-trip — what a user changes after the flip', () =>
     // hold in every combination is unchanged: the user never ends up looking at
     // two RSI lines or at an orphan.
     const base = settings()
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={base} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(base)} />)
     expect(rsiSeries()).toHaveLength(1)
     const first = rsiSeries()[0].series
 
@@ -1717,13 +1717,13 @@ describe('the settings round-trip — what a user changes after the flip', () =>
     expect(off.indicators.rsi.enabled, 'the mirror was not written').toBe(false)
     // `rsiSeries()` counts addSeries CALLS and never shrinks, so "the line went
     // away" has to be read off the REMOVAL and off what the binder still holds.
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={off} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(off)} />)
     expect(H.binderApis[0].bindings(), 'turned off: the engine still holds a series').toHaveLength(0)
     expect(H.removedSeries, 'the engine\'s RSI line is still on the chart').toContain(first)
     expect(rsiSeries(), 'and nothing drew a replacement').toHaveLength(1)
 
     const backOn = setIndicatorEnabled(off, 'rsi', true, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={backOn} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(backOn)} />)
     expect(H.binderApis[0].bindings(), 'turned back on: the engine draws it again').toHaveLength(1)
     expect(rsiSeries(), 'turned back on: exactly one more, and nothing else drew its own').toHaveLength(2)
   })
@@ -1734,11 +1734,11 @@ describe('the settings round-trip — what a user changes after the flip', () =>
     // likely to surprise a reader of the case above. An un-migrated surface that
     // writes `cs.indicators.rsi.enabled = false` (the screener, an old tab) can
     // no longer delete a stored instance; it can only ever fail to project one.
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(settings())} />)
     expect(H.binderApis[0].bindings()).toHaveLength(1)
     view.rerender(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={settings({ indicators: { rsi: { enabled: false } } })} />,
+        settingsOverride={legendAlways(settings({ indicators: { rsi: { enabled: false } } }))} />,
     )
     expect(H.binderApis[0].bindings(),
       'the mirror overrode the instance — the authority is the wrong way round').toHaveLength(1)
@@ -1759,7 +1759,7 @@ describe('the settings round-trip — what a user changes after the flip', () =>
     // them dead, and a picture that still looks plausible.
     const projectedOnly = { ...RSI_ON, indicatorInstances: [] }
     const view = render(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={projectedOnly} />,
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(projectedOnly)} />,
     )
     const projected = H.binderApis[0].bindings()
     expect(projected, 'the migrator drew nothing — this case is vacuous').toHaveLength(1)
@@ -1769,7 +1769,7 @@ describe('the settings round-trip — what a user changes after the flip', () =>
 
     view.rerender(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={{ ...projectedOnly, indicatorInstances: [RSI_INSTANCE] }} />,
+        settingsOverride={legendAlways({ ...projectedOnly, indicatorInstances: [RSI_INSTANCE] })} />,
     )
 
     const bound = H.binderApis[0].bindings()
@@ -1789,14 +1789,14 @@ describe('the settings round-trip — what a user changes after the flip', () =>
     // indicator the settings still say is enabled.
     const withStored = { ...RSI_ON, indicatorInstances: [RSI_INSTANCE] }
     const view = render(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={withStored} />,
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(withStored)} />,
     )
     const before = H.binderApis[0].bindings()
     expect(before).toHaveLength(1)
 
     view.rerender(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={{ ...withStored, indicatorInstances: [] }} />,
+        settingsOverride={legendAlways({ ...withStored, indicatorInstances: [] })} />,
     )
     const after = H.binderApis[0].bindings()
     expect(after, 'the RSI vanished when the stored instance was removed').toHaveLength(1)
@@ -1826,7 +1826,7 @@ describe('the settings round-trip — what a user changes after the flip', () =>
       indicators: { ...BB_CONTROL, rsi: { enabled: false, period: 14, color: '#7b68ee' } },
       indicatorInstances: [],
     }
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={off} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(off)} />)
     // BB declares THREE plots (upper / middle / lower), so the control is three
     // bindings and RSI's are found by key rather than by count.
     expect(bound(), 'the control instance did not draw — every phase below is vacuous')
@@ -1834,13 +1834,13 @@ describe('the settings round-trip — what a user changes after the flip', () =>
     expect(bandNow(), 'a band was reserved for an RSI nobody asked for').toBeUndefined()
 
     const on = setIndicatorEnabled(off, 'rsi', true, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={on} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(on)} />)
     const withRsi = bound().filter(b => b.key.includes('rsi'))
     expect(withRsi, 'arriving mid-session drew nothing').toHaveLength(1)
     expect(bandNow(), 'arriving mid-session reserved no band').toEqual({ top: 0.85, bottom: 0 })
 
     const offAgain = setIndicatorEnabled(on, 'rsi', false, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={offAgain} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(offAgain)} />)
     expect(bound().filter(b => b.key.includes('rsi')),
       'departing mid-session left the line behind').toHaveLength(0)
     expect(H.removedSeries).toContain(withRsi[0].series)
@@ -2001,7 +2001,7 @@ describe('the reserved band — the instance reserves it, and the engine lands i
     const withControl = settings({ indicators: { ...RSI_ON.indicators, ...BB_CONTROL } })
     const view = render(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={withControl} onSettingsPersist={(s) => persisted.push(s)} />,
+        settingsOverride={legendAlways(withControl)} onSettingsPersist={(s) => persisted.push(s)} />,
     )
     expect(rsiSeries(), 'nothing drawn to hide — vacuous').toHaveLength(1)
 
@@ -2014,7 +2014,7 @@ describe('the reserved band — the instance reserves it, and the engine lands i
       .toContainEqual({ instanceId: 'engine-test:rsi', deleted: true })
 
     view.unmount(); cleanup(); H.reset()
-    render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={next} />)
+    render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(next)} />)
     expect(rsiSeries(), "Ctrl+I left the engine's RSI on the chart").toHaveLength(0)
     expect(bound().filter(b => b.key.includes('rsi'))).toHaveLength(0)
     const after = H.syncCalls.at(-1)
@@ -2245,7 +2245,7 @@ describe('the crossover keyboard + toggles reach all THREE Bollinger lines', () 
     const persisted = []
     const view = render(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={settings()} onSettingsPersist={(s) => persisted.push(s)} />,
+        settingsOverride={legendAlways(settings())} onSettingsPersist={(s) => persisted.push(s)} />,
     )
     expect(purple(), 'nothing drawn to hide — vacuous').toHaveLength(3)
 
@@ -2258,7 +2258,7 @@ describe('the crossover keyboard + toggles reach all THREE Bollinger lines', () 
       .toContainEqual({ instanceId: 'legacy:bb', deleted: true })
 
     view.unmount(); cleanup(); H.reset()
-    render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={next} />)
+    render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(next)} />)
     expect(purple(), "Ctrl+B left the engine's bands on the chart").toHaveLength(0)
     expect(H.binderApis[0] ? H.binderApis[0].bindings() : []).toHaveLength(0)
   })
@@ -2269,20 +2269,20 @@ describe('the crossover keyboard + toggles reach all THREE Bollinger lines', () 
     // What must hold in every combination is unchanged: the user never ends up
     // looking at six purple lines or at three orphans.
     const base = settings()
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={base} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(base)} />)
     expect(purple()).toHaveLength(3)
     const first = H.binderApis[0].bindings().map(b => b.series)
 
     // `purple()` counts addSeries CALLS and never shrinks, so "the bands went
     // away" has to be read off the REMOVAL and off what the binder still holds.
     const off = setIndicatorEnabled(base, 'bb', false, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={off} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(off)} />)
     expect(H.binderApis[0].bindings(), 'turned off: the engine still holds series').toHaveLength(0)
     for (const ser of first) expect(H.removedSeries, 'a band is still on the chart').toContain(ser)
     expect(purple(), 'and nothing drew a replacement').toHaveLength(3)
 
     const backOn = setIndicatorEnabled(off, 'bb', true, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={backOn} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(backOn)} />)
     expect(H.binderApis[0].bindings(), 'turned back on: the engine draws them again').toHaveLength(3)
     expect(purple(), 'turned back on: three more, and nothing else added its own').toHaveLength(6)
   })
@@ -2293,12 +2293,12 @@ describe('the crossover keyboard + toggles reach all THREE Bollinger lines', () 
     // so what has to hold is that the candles' own framing is untouched — which is
     // the `autoscaleInfoProvider` seam, asserted here at the component level.
     const off = { indicators: { bb: { enabled: false, period: 20, stdDev: 2, color: BB_COLOUR } }, indicatorInstances: [] }
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={off} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(off)} />)
     expect(H.binderApis[0] ? H.binderApis[0].bindings() : []).toHaveLength(0)
     expect(purple(), 'something drew BB while it was off').toHaveLength(0)
 
     const on = setIndicatorEnabled(off, 'bb', true, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={on} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(on)} />)
     const bound = H.binderApis[0].bindings()
     expect(bound, 'arriving mid-session drew no bands').toHaveLength(3)
     // …on the CANDLES' scale, and excluded from its autoscale. Read off the
@@ -2313,7 +2313,7 @@ describe('the crossover keyboard + toggles reach all THREE Bollinger lines', () 
     }
 
     const offAgain = setIndicatorEnabled(on, 'bb', false, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={offAgain} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(offAgain)} />)
     expect(H.binderApis[0].bindings(), 'departing mid-session left bands behind').toHaveLength(0)
     for (const b of bound) expect(H.removedSeries).toContain(b.series)
   })
@@ -2328,7 +2328,7 @@ describe('the crossover keyboard + toggles reach all THREE Bollinger lines', () 
     // override, a share link.
     const projectedOnly = { ...BB_ON, indicatorInstances: [] }
     const view = render(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={projectedOnly} />,
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(projectedOnly)} />,
     )
     const projected = H.binderApis[0].bindings()
     expect(projected, 'the migrator drew nothing — this case is vacuous').toHaveLength(3)
@@ -2337,10 +2337,10 @@ describe('the crossover keyboard + toggles reach all THREE Bollinger lines', () 
 
     view.rerender(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={{
+        settingsOverride={legendAlways({
           ...projectedOnly,
           indicatorInstances: [{ ...BB_INSTANCE, inputs: { ...BB_INSTANCE.inputs, period: 34 } }],
-        }} />,
+        })} />,
     )
 
     const after = H.binderApis[0].bindings()
@@ -2357,14 +2357,14 @@ describe('the crossover keyboard + toggles reach all THREE Bollinger lines', () 
     // projection did not take back over, removing an instance would delete an
     // indicator the settings still say is on.
     const view = render(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />,
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(settings())} />,
     )
     const before = H.binderApis[0].bindings().map(b => b.series)
     expect(before).toHaveLength(3)
 
     view.rerender(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={{ ...settings(), indicatorInstances: [] }} />,
+        settingsOverride={legendAlways({ ...settings(), indicatorInstances: [] })} />,
     )
     const after = H.binderApis[0].bindings()
     expect(after, 'the bands vanished when the stored instance was removed').toHaveLength(3)
@@ -2377,14 +2377,14 @@ describe('the crossover keyboard + toggles reach all THREE Bollinger lines', () 
     // lightweight-charts#2049: a mass removeSeries is a 2-4s main-thread block,
     // and a price overlay is three series rather than one, so the pool matters
     // three times as much here.
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(settings())} />)
     const before = H.binderApis[0].bindings().map(b => b.series)
     expect(before).toHaveLength(3)
 
     view.rerender(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings({
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(settings({
         indicatorInstances: [{ ...BB_INSTANCE, inputs: { period: 20, stdDev: 2, color: '#00ff00' } }],
-      })} />,
+      }))} />,
     )
     expect(H.binderApis[0].bindings().map(b => b.series),
       'the engine created new series instead of restyling').toEqual(before)
@@ -2393,14 +2393,14 @@ describe('the crossover keyboard + toggles reach all THREE Bollinger lines', () 
   })
 
   it('a PERIOD or STD-DEV change keeps the same three series and re-binds them', () => {
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(settings())} />)
     const before = H.binderApis[0].bindings().map(b => b.series)
     expect(before).toHaveLength(3)
 
     view.rerender(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings({
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(settings({
         indicatorInstances: [{ ...BB_INSTANCE, inputs: { period: 10, stdDev: 3, color: BB_COLOUR } }],
-      })} />,
+      }))} />,
     )
     expect(H.binderApis[0].bindings().map(b => b.series)).toEqual(before)
     expect(purple(), 'a fourth purple line appeared').toHaveLength(3)
@@ -2552,7 +2552,7 @@ describe('C-2 — RSI off and BB on in ONE settings write, from the component', 
 
   it("the re-purposed series is moved to the CANDLES' scale and excluded from it", () => {
     const view = render(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={rsiOnly} />,
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(rsiOnly)} />,
     )
     const drawnRsi = H.binderApis[0].bindings().map(b => b.series)
     expect(drawnRsi, 'the engine drew no RSI — nothing to re-purpose').toHaveLength(1)
@@ -2561,7 +2561,7 @@ describe('C-2 — RSI off and BB on in ONE settings write, from the component', 
 
     // ONE write: the RSI instance leaves and the BB instance arrives together.
     view.rerender(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={bbOnly} />,
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(bbOnly)} />,
     )
 
     const bound = H.binderApis[0].bindings()
@@ -2593,13 +2593,13 @@ describe('C-2 — RSI off and BB on in ONE settings write, from the component', 
     // The other half of the same write. If the band survived the write, the user
     // would be looking at a permanently short price pane with nothing under it.
     const view = render(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={rsiOnly} />,
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(rsiOnly)} />,
     )
     expect(H.binderApis[0].bindings()).toHaveLength(1)
     expect(H.syncCalls.at(-1).paneMargins.rsi, 'no band to vacate — vacuous').toEqual({ top: 0.85, bottom: 0 })
 
     view.rerender(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={bbOnly} />,
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(bbOnly)} />,
     )
     expect(H.binderApis[0].bindings().every(b => b.defId === 'bb')).toBe(true)
     expect(H.binderApis[0].bindings()).toHaveLength(3)
@@ -2902,7 +2902,7 @@ describe('what pixels cannot see, for MACD', () => {
     const persisted = []
     const view = render(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={settings()} onSettingsPersist={(s) => persisted.push(s)} />,
+        settingsOverride={legendAlways(settings())} onSettingsPersist={(s) => persisted.push(s)} />,
     )
     expect(onMacdScale(), 'nothing drawn to hide — vacuous').toHaveLength(3)
 
@@ -2923,7 +2923,7 @@ describe('what pixels cannot see, for MACD', () => {
       .toContainEqual({ instanceId: 'legacy:macd', deleted: true })
 
     view.unmount(); cleanup(); H.reset()
-    render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={next} />)
+    render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(next)} />)
     expect(onMacdScale(), 'Ctrl+O left the engine\'s MACD on the chart').toHaveLength(0)
     // `bound()`, not `H.binderApis[0].bindings()`: since B5 Task 4 a chart holding
     // nothing constructs no binder at all, which is the same claim and stronger.
@@ -2942,18 +2942,18 @@ describe('what pixels cannot see, for MACD', () => {
     expect(off.indicatorInstances, 'the writer did not tombstone the instance')
       .toContainEqual({ instanceId: 'legacy:macd', deleted: true })
 
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={on} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(on)} />)
     expect(onMacdScale()).toHaveLength(3)
     const first = H.binderApis[0].bindings().map(b => b.series)
 
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={off} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(off)} />)
     expect(H.binderApis[0].bindings(), 'off: the engine still holds series').toHaveLength(0)
     for (const s of first) expect(H.removedSeries, 'a MACD plot is still on the chart').toContain(s)
     expect(onMacdScale(), 'and nothing drew a replacement').toHaveLength(3)
     expect(H.syncCalls.at(-1).paneMargins.macd, 'off: the band is still reserved').toBeUndefined()
 
     const backOn = setIndicatorEnabled(off, 'macd', true, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={backOn} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(backOn)} />)
     expect(H.binderApis[0].bindings(), 'toggled back on: the engine draws them again').toHaveLength(3)
     expect(onMacdScale(), 'toggled back on: three more, and nothing else added any').toHaveLength(6)
     expect(H.syncCalls.at(-1).paneMargins.macd, 'back on: no band').toBeTruthy()
@@ -2974,7 +2974,7 @@ describe('what pixels cannot see, for MACD', () => {
     // of them stale, plus a second zero guide invisible under the first.
     const projected = { ...MACD_ON, indicatorInstances: [] }
     const view = render(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={projected} />,
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(projected)} />,
     )
     const first = H.binderApis[0].bindings()
     expect(first, 'the projection drew nothing — nothing to hand over').toHaveLength(3)
@@ -2990,7 +2990,7 @@ describe('what pixels cannot see, for MACD', () => {
     }
     view.rerender(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={{ ...projected, indicatorInstances: [stored] }} />,
+        settingsOverride={legendAlways({ ...projected, indicatorInstances: [stored] })} />,
     )
 
     const after = H.binderApis[0].bindings()
@@ -3022,7 +3022,7 @@ describe('what pixels cannot see, for MACD', () => {
     }
     const withStored = { ...MACD_ON, indicatorInstances: [stored] }
     const view = render(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={withStored} />,
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(withStored)} />,
     )
     const before = H.binderApis[0].bindings()
     expect(before).toHaveLength(3)
@@ -3030,7 +3030,7 @@ describe('what pixels cannot see, for MACD', () => {
 
     view.rerender(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={{ ...withStored, indicatorInstances: [] }} />,
+        settingsOverride={legendAlways({ ...withStored, indicatorInstances: [] })} />,
     )
     const after = H.binderApis[0].bindings()
     expect(after, 'MACD vanished when the stored instance was removed').toHaveLength(3)
@@ -3045,14 +3045,14 @@ describe('what pixels cannot see, for MACD', () => {
 
   it('a COLOUR change re-styles the SAME three series — never destroys and recreates', () => {
     // lightweight-charts#2049: a mass removeSeries is a 2-4s main-thread block.
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(settings())} />)
     const before = H.binderApis[0].bindings().map(b => b.series)
     expect(before).toHaveLength(3)
 
     view.rerender(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings({
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(settings({
         indicatorInstances: [{ ...MACD_INSTANCE, inputs: { ...MACD_INSTANCE.inputs, macdColor: '#00ff00' } }],
-      })} />,
+      }))} />,
     )
     expect(H.binderApis[0].bindings().map(b => b.series),
       'the engine created new series instead of restyling').toEqual(before)
@@ -3061,17 +3061,17 @@ describe('what pixels cannot see, for MACD', () => {
   })
 
   it('a PERIOD change keeps the same three series and re-binds them', () => {
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(settings())} />)
     const before = H.binderApis[0].bindings().map(b => b.series)
     expect(before).toHaveLength(3)
 
     view.rerender(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings({
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(settings({
         indicatorInstances: [{
           ...MACD_INSTANCE,
           inputs: { ...MACD_INSTANCE.inputs, fastPeriod: 5, slowPeriod: 35, signalPeriod: 4 },
         }],
-      })} />,
+      }))} />,
     )
     expect(H.binderApis[0].bindings().map(b => b.series)).toEqual(before)
     expect(onMacdScale(), 'a fourth series appeared in the band').toHaveLength(3)
@@ -3292,7 +3292,7 @@ const vwapLines = (color = '#26C6DA') =>
   H.addSeriesCalls.filter(c => c.options && c.options.color === color && c.ctor === 'LineSeries')
 const liveVwapLines = (color) => vwapLines(color).filter(c => !H.removedSeries.includes(c.series))
 const drawIntraday = (settingsOverride) => render(
-  <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settingsOverride} />,
+  <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={legendAlways(settingsOverride)} />,
 )
 
 describe('VWAP Flip A — the legacy block stands down on an intraday chart', () => {
@@ -3400,7 +3400,7 @@ describe('what pixels cannot see, for VWAP', () => {
     const persisted = []
     const view = render(
       <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS}
-        settingsOverride={settings()} onSettingsPersist={(s) => persisted.push(s)} />,
+        settingsOverride={legendAlways(settings())} onSettingsPersist={(s) => persisted.push(s)} />,
     )
     expect(bound(), 'nothing drawn to hide — vacuous').toHaveLength(1)
 
@@ -3418,7 +3418,7 @@ describe('what pixels cannot see, for VWAP', () => {
       .toContainEqual({ instanceId: 'legacy:vwap', deleted: true })
 
     view.unmount(); cleanup(); H.reset()
-    render(<StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={next} />)
+    render(<StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={legendAlways(next)} />)
     expect(bound(), 'Alt+U left the engine\'s VWAP on the chart').toHaveLength(0)
     expect(vwapLines(), 'Alt+U left a legacy VWAP behind instead').toHaveLength(0)
   })
@@ -3434,13 +3434,13 @@ describe('what pixels cannot see, for VWAP', () => {
       .toContainEqual({ instanceId: 'legacy:vwap', deleted: true })
 
     const view = render(
-      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={on} />,
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={legendAlways(on)} />,
     )
     expect(H.binderApis[0].bindings()).toHaveLength(1)
     const first = H.binderApis[0].bindings().map(b => b.series)
 
     view.rerender(
-      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={off} />,
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={legendAlways(off)} />,
     )
     expect(H.binderApis[0].bindings(), 'off: the engine still holds a series').toHaveLength(0)
     for (const s of first) expect(H.removedSeries, 'a VWAP line is still on the chart').toContain(s)
@@ -3448,7 +3448,7 @@ describe('what pixels cannot see, for VWAP', () => {
 
     const backOn = setIndicatorEnabled(off, 'vwap', true, registry)
     view.rerender(
-      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={backOn} />,
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={legendAlways(backOn)} />,
     )
     expect(H.binderApis[0].bindings(), 'toggled back on: the engine draws it again').toHaveLength(1)
     expect(liveVwapLines(), 'toggled back on: TWO cyan lines').toHaveLength(1)
@@ -3462,7 +3462,7 @@ describe('what pixels cannot see, for VWAP', () => {
     // scale, which reads as a slightly bolder line and nothing else.
     const projected = { ...VWAP_ON, indicatorInstances: [] }
     const view = render(
-      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={projected} />,
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={legendAlways(projected)} />,
     )
     const first = H.binderApis[0].bindings()
     expect(first, 'the projection drew nothing — nothing to hand over').toHaveLength(1)
@@ -3476,7 +3476,7 @@ describe('what pixels cannot see, for VWAP', () => {
     }
     view.rerender(
       <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS}
-        settingsOverride={{ ...projected, indicatorInstances: [stored] }} />,
+        settingsOverride={legendAlways({ ...projected, indicatorInstances: [stored] })} />,
     )
 
     const after = H.binderApis[0].bindings()
@@ -3497,7 +3497,7 @@ describe('what pixels cannot see, for VWAP', () => {
     }
     const withStored = { ...VWAP_ON, indicatorInstances: [stored] }
     const view = render(
-      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={withStored} />,
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={legendAlways(withStored)} />,
     )
     const before = H.binderApis[0].bindings()
     expect(before).toHaveLength(1)
@@ -3505,7 +3505,7 @@ describe('what pixels cannot see, for VWAP', () => {
 
     view.rerender(
       <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS}
-        settingsOverride={{ ...withStored, indicatorInstances: [] }} />,
+        settingsOverride={legendAlways({ ...withStored, indicatorInstances: [] })} />,
     )
     const after = H.binderApis[0].bindings()
     expect(after, 'VWAP vanished when the stored instance was removed').toHaveLength(1)
@@ -3518,18 +3518,18 @@ describe('what pixels cannot see, for VWAP', () => {
     // A user switching 5m -> D -> 5m must not accumulate lines, and must not lose
     // the indicator when they come back.
     const view = render(
-      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings()} />,
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={legendAlways(settings())} />,
     )
     const first = H.binderApis[0].bindings().map(b => b.series)
     expect(first).toHaveLength(1)
 
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings()} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(settings())} />)
     expect(H.binderApis[0].bindings(), 'the engine kept a session VWAP on daily bars').toHaveLength(0)
     for (const s of first) expect(H.removedSeries, 'the engine\'s line survived the tf change').toContain(s)
     expect(liveVwapLines(), 'the legacy block picked it up on daily bars').toHaveLength(0)
 
     view.rerender(
-      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings()} />,
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={legendAlways(settings())} />,
     )
     expect(H.binderApis[0].bindings(), 'VWAP never came back on the intraday chart').toHaveLength(1)
     expect(liveVwapLines(), 'and legacy drew a second one alongside it').toHaveLength(1)
@@ -3538,15 +3538,15 @@ describe('what pixels cannot see, for VWAP', () => {
   it('a COLOUR change re-styles the SAME series — never destroys and recreates', () => {
     // lightweight-charts#2049.
     const view = render(
-      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings()} />,
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={legendAlways(settings())} />,
     )
     const before = H.binderApis[0].bindings().map(b => b.series)
     expect(before).toHaveLength(1)
 
     view.rerender(
-      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings({
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={legendAlways(settings({
         indicatorInstances: [{ ...VWAP_INSTANCE, inputs: { ...VWAP_INSTANCE.inputs, color: '#00ff00' } }],
-      })} />,
+      }))} />,
     )
     expect(H.binderApis[0].bindings().map(b => b.series),
       'the engine created a new series instead of restyling').toEqual(before)
@@ -3559,15 +3559,15 @@ describe('what pixels cannot see, for VWAP', () => {
     // composed into the colour by `eligibility` — so "the series was re-bound" is
     // not enough: the string it was re-bound WITH is the assertion.
     const view = render(
-      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings()} />,
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={legendAlways(settings())} />,
     )
     const before = H.binderApis[0].bindings().map(b => b.series)
     expect(vwapLines('#26C6DA'), 'the full-strength colour is not the base string').toHaveLength(1)
 
     view.rerender(
-      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings({
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={legendAlways(settings({
         indicatorInstances: [{ ...VWAP_INSTANCE, inputs: { ...VWAP_INSTANCE.inputs, opacity: 40 } }],
-      })} />,
+      }))} />,
     )
     expect(H.binderApis[0].bindings().map(b => b.series)).toEqual(before)
     // ⚠️ The LAST applyOptions on a series is not necessarily the STYLE one — the
@@ -3586,15 +3586,15 @@ describe('what pixels cannot see, for VWAP', () => {
     // and the parity case both go through paths a reader can dismiss as synthetic:
     // this is `cs.indicatorInstances` -> the real chart -> the real series option.
     const view = render(
-      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings()} />,
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={legendAlways(settings())} />,
     )
     const before = H.binderApis[0].bindings().map(b => b.series)
     expect(vwapLines()[0].options.lineStyle, 'solid is not 0 — the map moved').toBe(0)
 
     view.rerender(
-      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={settings({
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={legendAlways(settings({
         indicatorInstances: [{ ...VWAP_INSTANCE, inputs: { ...VWAP_INSTANCE.inputs, lineStyle: 'dashed' } }],
-      })} />,
+      }))} />,
     )
     const styled = H.applyOptionsCalls.filter(c => c.series === before[0] && c.options && 'lineStyle' in c.options)
     expect(styled.length, 'the series was never re-styled at all').toBeGreaterThan(0)
@@ -3638,7 +3638,7 @@ describe('an engine-drawn VWAP prints ONE chip, and the flip does not change it'
   const legendOf = (over) => {
     cleanup(); H.reset()
     const view = render(
-      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={over} alwaysShowLegend />,
+      <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS} settingsOverride={legendAlways(over)} alwaysShowLegend />,
     )
     const vwap = vwapLines()[0]
     return settledLegend(view, crosshairAt(INTRADAY_BARS, vwap ? [[vwap.series, { value: 101.5 }]] : []))
@@ -3688,7 +3688,7 @@ describe('vwapOverride — the enable signal that is not a toggle', () => {
   // settings key, and getting it wrong is silent: the popup simply loses its VWAP.
   const withOverride = (settingsOverride, override) => render(
     <StockChart sym="AAPL" tf={VWAP_TF} barsOverride={INTRADAY_BARS}
-      settingsOverride={settingsOverride} vwapOverride={override} />,
+      settingsOverride={legendAlways(settingsOverride)} vwapOverride={override} />,
   )
 
   it('LEGACY draws a forced white VWAP with the toggle OFF — the control', () => {
@@ -3771,7 +3771,7 @@ describe('vwapOverride — the enable signal that is not a toggle', () => {
     // outer `&&`.
     render(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={{ indicatorInstances: [] }} vwapOverride={{ color: '#ffffff' }} />,
+        settingsOverride={legendAlways({ indicatorInstances: [] })} vwapOverride={{ color: '#ffffff' }} />,
     )
     expect(bound()).toHaveLength(0)
     expect(vwapLines('#ffffff')).toHaveLength(0)
@@ -4055,7 +4055,7 @@ describe('the Flip-B machinery, live (Task 10)', () => {
     const persisted = []
     const view = render(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={{ indicators: { rsi: { enabled: true } } }}
+        settingsOverride={legendAlways({ indicators: { rsi: { enabled: true } } })}
         onSettingsPersist={(s) => persisted.push(s)} />,
     )
     act(() => { fireEvent.keyDown(document, { ctrlKey: true, key: 'i' }) })
@@ -4234,7 +4234,7 @@ describe('B4 Task 4 — one dispatch serves every indicator chord', () => {
 
   const paint = (settings, tf) => {
     cleanup(); H.reset()
-    render(<StockChart sym="AAPL" tf={tf} barsOverride={barsFor(tf)} settingsOverride={settings} />)
+    render(<StockChart sym="AAPL" tf={tf} barsOverride={barsFor(tf)} settingsOverride={legendAlways(settings)} />)
     return H.binderApis[0] ? H.binderApis[0].bindings() : []
   }
 
@@ -4671,13 +4671,13 @@ describe('B5 Task 5 — stoch and atr are engine-drawn, at the component', () =>
       indicators: { ...BB_CONTROL, stoch: { ...STOCH_ON.stoch, enabled: false } },
       indicatorInstances: [],
     }
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={off} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(off)} />)
     expect(bound(), 'the control instance did not draw — every phase below is vacuous').toHaveLength(3)
     expect(bandNow('stoch'), 'a band was reserved for a Stochastic nobody asked for').toBeUndefined()
     expect(onScale('stoch'), 'something drew Stochastic while it was off').toHaveLength(0)
 
     const on = setIndicatorEnabled(off, 'stoch', true, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={on} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(on)} />)
     const arrived = boundFor('stoch')
     expect(arrived, 'arriving mid-session drew neither %K nor %D').toHaveLength(2)
     expect(arrived.map(b => b.plotKey), 'arriving drew one line, not two').toEqual(['k', 'd'])
@@ -4685,7 +4685,7 @@ describe('B5 Task 5 — stoch and atr are engine-drawn, at the component', () =>
     expect(onScale('stoch'), 'a third line appeared on the stoch scale').toHaveLength(2)
 
     const offAgain = setIndicatorEnabled(on, 'stoch', false, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={offAgain} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(offAgain)} />)
     expect(boundFor('stoch'), 'departing mid-session left a line behind').toHaveLength(0)
     for (const b of arrived) {
       expect(H.removedSeries, 'a departed Stochastic line is still on the chart').toContain(b.series)
@@ -4702,19 +4702,19 @@ describe('B5 Task 5 — stoch and atr are engine-drawn, at the component', () =>
       indicators: { ...BB_CONTROL, atr: { ...ATR_ON.atr, enabled: false } },
       indicatorInstances: [],
     }
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={off} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(off)} />)
     expect(bound()).toHaveLength(3)
     expect(bandNow('atr')).toBeUndefined()
 
     const on = setIndicatorEnabled(off, 'atr', true, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={on} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(on)} />)
     const arrived = boundFor('atr')
     expect(arrived, 'arriving mid-session drew nothing').toHaveLength(1)
     expect(bandNow('atr'), 'ATR did not get its own 0.13-high band').toEqual({ top: 0.87, bottom: 0 })
     expect(bandNow('atr'), 'ATR was handed a Stochastic-shaped band').not.toEqual({ top: 0.85, bottom: 0 })
 
     const offAgain = setIndicatorEnabled(on, 'atr', false, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={offAgain} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(offAgain)} />)
     expect(boundFor('atr'), 'departing mid-session left the line behind').toHaveLength(0)
     expect(H.removedSeries).toContain(arrived[0].series)
     expect(bandNow('atr'), 'departing mid-session left its band reserved').toBeUndefined()
@@ -4726,7 +4726,7 @@ describe('B5 Task 5 — stoch and atr are engine-drawn, at the component', () =>
     // absorbed one plot and recreated the other reads as a plausible chart.
     const projectedOnly = { indicators: { ...STOCH_ON }, indicatorInstances: [] }
     const view = render(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={projectedOnly} />)
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(projectedOnly)} />)
     const projected = boundFor('stoch')
     expect(projected, 'the migrator drew nothing — this case is vacuous').toHaveLength(2)
     expect(projected[0].key, 'the projection did not build `legacy:stoch`').toContain('legacy:stoch')
@@ -4734,7 +4734,7 @@ describe('B5 Task 5 — stoch and atr are engine-drawn, at the component', () =>
 
     view.rerender(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={{ ...projectedOnly, indicatorInstances: [STOCH_INSTANCE] }} />)
+        settingsOverride={legendAlways({ ...projectedOnly, indicatorInstances: [STOCH_INSTANCE] })} />)
 
     const after = boundFor('stoch')
     expect(after, 'the stored instance did not take over — or BOTH are drawn').toHaveLength(2)
@@ -4749,13 +4749,13 @@ describe('B5 Task 5 — stoch and atr are engine-drawn, at the component', () =>
   it('…and the reverse — the stored stoch instance leaving hands it back to the projection', () => {
     const withStored = { indicators: { ...STOCH_ON }, indicatorInstances: [STOCH_INSTANCE] }
     const view = render(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={withStored} />)
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(withStored)} />)
     const before = boundFor('stoch')
     expect(before).toHaveLength(2)
 
     view.rerender(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={{ ...withStored, indicatorInstances: [] }} />)
+        settingsOverride={legendAlways({ ...withStored, indicatorInstances: [] })} />)
     const after = boundFor('stoch')
     expect(after, 'Stochastic vanished when the stored instance was removed').toHaveLength(2)
     for (const b of after) expect(b.key, 'nothing projected it back').toContain('legacy:stoch')
@@ -4766,7 +4766,7 @@ describe('B5 Task 5 — stoch and atr are engine-drawn, at the component', () =>
   it('⭐ the same crossover for ATR, both directions', () => {
     const projectedOnly = { indicators: { ...ATR_ON }, indicatorInstances: [] }
     const view = render(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={projectedOnly} />)
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(projectedOnly)} />)
     const projected = boundFor('atr')
     expect(projected, 'the migrator drew nothing — this case is vacuous').toHaveLength(1)
     expect(projected[0].key).toContain('legacy:atr')
@@ -4774,7 +4774,7 @@ describe('B5 Task 5 — stoch and atr are engine-drawn, at the component', () =>
 
     view.rerender(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={{ ...projectedOnly, indicatorInstances: [ATR_INSTANCE] }} />)
+        settingsOverride={legendAlways({ ...projectedOnly, indicatorInstances: [ATR_INSTANCE] })} />)
     const stored = boundFor('atr')
     expect(stored, 'the stored instance did not take over — or BOTH are drawn').toHaveLength(1)
     expect(stored[0].key).toContain('engine-test:atr')
@@ -4783,7 +4783,7 @@ describe('B5 Task 5 — stoch and atr are engine-drawn, at the component', () =>
 
     view.rerender(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={{ ...projectedOnly, indicatorInstances: [] }} />)
+        settingsOverride={legendAlways({ ...projectedOnly, indicatorInstances: [] })} />)
     const back = boundFor('atr')
     expect(back, 'ATR vanished when the stored instance was removed').toHaveLength(1)
     expect(back[0].key, 'nothing projected it back').toContain('legacy:atr')
@@ -4797,18 +4797,18 @@ describe('B5 Task 5 — stoch and atr are engine-drawn, at the component', () =>
     // 2-4 s main-thread block. A period change is the harder half — it changes
     // the NUMBERS, so a naive implementation recreates.
     const base = { indicators: { ...STOCH_ON, ...ATR_ON }, indicatorInstances: [STOCH_INSTANCE, ATR_INSTANCE] }
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={base} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(base)} />)
     const before = bound().map(b => b.series)
     expect(before, 'nothing was drawn — this case is vacuous').toHaveLength(3)
     const createdBefore = H.addSeriesCalls.length
 
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={{
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways({
       ...base,
       indicatorInstances: [
         { ...STOCH_INSTANCE, inputs: { ...STOCH_INSTANCE.inputs, kColor: '#00ff00' } },
         { ...ATR_INSTANCE, inputs: { period: 34, color: '#0000ff' } },
       ],
-    }} />)
+    })} />)
 
     expect(bound().map(b => b.series).sort(), 'a restyle destroyed and recreated a series')
       .toEqual([...before].sort())
@@ -4823,7 +4823,7 @@ describe('B5 Task 5 — stoch and atr are engine-drawn, at the component', () =>
     // extended hours, so the toggle's state has to reach `binder.sync` or the
     // next paint silently re-shows what the user just hid.
     const settings = { indicators: { ...STOCH_ON, ...ATR_ON } }
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(settings)} />)
     const series = bound().map(b => b.series)
     expect(series, 'nothing was bound — this case is vacuous').toHaveLength(3)
     expect(H.syncCalls.at(-1).indicatorsHidden).toBe(false)
@@ -4837,7 +4837,7 @@ describe('B5 Task 5 — stoch and atr are engine-drawn, at the component', () =>
     const before = H.syncCalls.length
     view.rerender(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS.slice(0, BARS.length - 1)}
-        settingsOverride={settings} />)
+        settingsOverride={legendAlways(settings)} />)
     expect(H.syncCalls.length, 'no further sync — the assertion below would be vacuous')
       .toBeGreaterThan(before)
     expect(H.syncCalls.at(-1).indicatorsHidden, 'the next paint would re-show them').toBe(true)
@@ -4907,7 +4907,7 @@ describe('B5 Task 5 — stoch and atr are engine-drawn, at the component', () =>
       volumeOverlayIndicators: ['stoch'],
       indicators: { stoch: { enabled: true, kPeriod: 14, dPeriod: 3, kColor: '#FF6B6B', dColor: '#4ECDC4' } },
     }
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={overlaid} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(overlaid)} />)
     const onLeft = H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'left')
     expect(onLeft, 'the overlay path drew neither %K nor %D on the volume pane\'s left axis')
       .toHaveLength(2)
@@ -4919,7 +4919,7 @@ describe('B5 Task 5 — stoch and atr are engine-drawn, at the component', () =>
     // volume-overlay strip.
     view.rerender(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={{ ...overlaid, volumeOverlayIndicators: [] }} />)
+        settingsOverride={legendAlways({ ...overlaid, volumeOverlayIndicators: [] })} />)
     const after = bound()
     expect(after, 'the oscillator vanished when it left the volume pane').toHaveLength(2)
     // ⚠️ #2049, AND THE DIFFERENCE FROM LEGACY, STATED: the hand-written block
@@ -5056,13 +5056,13 @@ describe('B5 Task 7 — mfi, cci and williamsR are engine-drawn, at the componen
       indicators: { ...BB_CONTROL, mfi: { ...MFI_ON.mfi, enabled: false } },
       indicatorInstances: [],
     }
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={off} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(off)} />)
     expect(bound(), 'the control instance did not draw — every phase below is vacuous').toHaveLength(3)
     expect(bandNow('mfi'), 'a band was reserved for an MFI nobody asked for').toBeUndefined()
     expect(onScale('mfi'), 'something drew MFI while it was off').toHaveLength(0)
 
     const on = setIndicatorEnabled(off, 'mfi', true, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={on} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(on)} />)
     const arrived = boundFor('mfi')
     expect(arrived, 'arriving mid-session drew nothing').toHaveLength(1)
     expect(bandNow('mfi'), 'arriving mid-session reserved no band').toEqual({ top: 0.85, bottom: 0 })
@@ -5070,7 +5070,7 @@ describe('B5 Task 7 — mfi, cci and williamsR are engine-drawn, at the componen
     expect(onScale('mfi'), 'a second line appeared on the mfi scale').toHaveLength(1)
 
     const offAgain = setIndicatorEnabled(on, 'mfi', false, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={offAgain} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(offAgain)} />)
     expect(boundFor('mfi'), 'departing mid-session left the line behind').toHaveLength(0)
     expect(H.removedSeries, 'a departed MFI line is still on the chart').toContain(arrived[0].series)
     expect(bandNow('mfi'), 'departing mid-session left its band reserved').toBeUndefined()
@@ -5085,12 +5085,12 @@ describe('B5 Task 7 — mfi, cci and williamsR are engine-drawn, at the componen
       indicators: { ...BB_CONTROL, cci: { ...CCI_ON.cci, enabled: false } },
       indicatorInstances: [],
     }
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={off} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(off)} />)
     expect(bound()).toHaveLength(3)
     expect(bandNow('cci')).toBeUndefined()
 
     const on = setIndicatorEnabled(off, 'cci', true, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={on} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(on)} />)
     const arrived = boundFor('cci')
     expect(arrived, 'arriving mid-session drew nothing').toHaveLength(1)
     expect(bandNow('cci'), 'CCI did not get its band').toEqual({ top: 0.85, bottom: 0 })
@@ -5099,7 +5099,7 @@ describe('B5 Task 7 — mfi, cci and williamsR are engine-drawn, at the componen
     expect(guidesOn(arrived).map(g => g.lineStyle)).toEqual([2, 2, 3])
 
     const offAgain = setIndicatorEnabled(on, 'cci', false, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={offAgain} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(offAgain)} />)
     expect(boundFor('cci'), 'departing mid-session left the line behind').toHaveLength(0)
     expect(H.removedSeries).toContain(arrived[0].series)
     expect(bandNow('cci'), 'departing mid-session left its band reserved').toBeUndefined()
@@ -5116,12 +5116,12 @@ describe('B5 Task 7 — mfi, cci and williamsR are engine-drawn, at the componen
       indicators: { ...BB_CONTROL, williamsR: { ...WR_ON.williamsR, enabled: false } },
       indicatorInstances: [],
     }
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={off} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(off)} />)
     expect(bound()).toHaveLength(3)
     expect(bandNow('williamsR')).toBeUndefined()
 
     const on = setIndicatorEnabled(off, 'williamsR', true, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={on} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(on)} />)
     const arrived = boundFor('williamsR')
     expect(arrived, 'arriving mid-session drew nothing').toHaveLength(1)
     expect(arrived[0].plotKey, 'the snake_case plot key was harmonised — this binds nothing')
@@ -5138,7 +5138,7 @@ describe('B5 Task 7 — mfi, cci and williamsR are engine-drawn, at the componen
     expect(Math.min(...finite)).toBeGreaterThanOrEqual(-100)
 
     const offAgain = setIndicatorEnabled(on, 'williamsR', false, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={offAgain} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(offAgain)} />)
     expect(boundFor('williamsR'), 'departing mid-session left the line behind').toHaveLength(0)
     expect(H.removedSeries).toContain(arrived[0].series)
     expect(bandNow('williamsR'), 'departing mid-session left its band reserved').toBeUndefined()
@@ -5153,7 +5153,7 @@ describe('B5 Task 7 — mfi, cci and williamsR are engine-drawn, at the componen
       const on = { ...MFI_ON, ...CCI_ON, ...WR_ON }
       const projectedOnly = { indicators: { [id]: on[id] }, indicatorInstances: [] }
       const view = render(
-        <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={projectedOnly} />)
+        <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(projectedOnly)} />)
       const projected = boundFor(id)
       expect(projected, id + ': the migrator drew nothing — this case is vacuous').toHaveLength(1)
       expect(projected[0].key, id + ': the projection did not build `legacy:' + id + '`')
@@ -5162,7 +5162,7 @@ describe('B5 Task 7 — mfi, cci and williamsR are engine-drawn, at the componen
 
       view.rerender(
         <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-          settingsOverride={{ ...projectedOnly, indicatorInstances: [instance] }} />)
+          settingsOverride={legendAlways({ ...projectedOnly, indicatorInstances: [instance] })} />)
       const stored = boundFor(id)
       expect(stored, id + ': the stored instance did not take over — or BOTH are drawn').toHaveLength(1)
       expect(stored[0].key).toContain('engine-test:' + id)
@@ -5174,7 +5174,7 @@ describe('B5 Task 7 — mfi, cci and williamsR are engine-drawn, at the componen
       // projection, on the SAME series.
       view.rerender(
         <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-          settingsOverride={{ ...projectedOnly, indicatorInstances: [] }} />)
+          settingsOverride={legendAlways({ ...projectedOnly, indicatorInstances: [] })} />)
       const back = boundFor(id)
       expect(back, id + ': it vanished when the stored instance was removed').toHaveLength(1)
       expect(back[0].key, id + ': nothing projected it back').toContain('legacy:' + id)
@@ -5195,21 +5195,21 @@ describe('B5 Task 7 — mfi, cci and williamsR are engine-drawn, at the componen
       indicators: { ...MFI_ON, ...CCI_ON, ...WR_ON },
       indicatorInstances: [MFI_INSTANCE, CCI_INSTANCE, WR_INSTANCE],
     }
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={base} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(base)} />)
     const before = bound().map(b => b.series)
     expect(before, 'nothing was drawn — this case is vacuous').toHaveLength(3)
     const createdBefore = H.addSeriesCalls.length
     const guidesBefore = H.priceLineCalls.length
     expect(guidesBefore, 'no guides at all — the churn assertion below is vacuous').toBe(7)
 
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={{
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways({
       ...base,
       indicatorInstances: [
         { ...MFI_INSTANCE, inputs: { period: 34, color: '#00ff00' } },
         { ...CCI_INSTANCE, inputs: { period: 55, color: '#0000ff' } },
         { ...WR_INSTANCE, inputs: { period: 34, color: '#ff00ff' } },
       ],
-    }} />)
+    })} />)
 
     expect(bound().map(b => b.series).sort(), 'a restyle destroyed and recreated a series')
       .toEqual([...before].sort())
@@ -5228,7 +5228,7 @@ describe('B5 Task 7 — mfi, cci and williamsR are engine-drawn, at the componen
     // a hand-written list with no build-time check, and the whole reason these
     // definitions can leave it is that the engine's bindings are ITERATED.
     const settings = { indicators: { ...MFI_ON, ...CCI_ON, ...WR_ON } }
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(settings)} />)
     const series = bound().map(b => b.series)
     expect(series, 'nothing was bound — this case is vacuous').toHaveLength(3)
     expect(H.syncCalls.at(-1).indicatorsHidden).toBe(false)
@@ -5242,7 +5242,7 @@ describe('B5 Task 7 — mfi, cci and williamsR are engine-drawn, at the componen
     const before = H.syncCalls.length
     view.rerender(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS.slice(0, BARS.length - 1)}
-        settingsOverride={settings} />)
+        settingsOverride={legendAlways(settings)} />)
     expect(H.syncCalls.length, 'no further sync — the assertion below would be vacuous')
       .toBeGreaterThan(before)
     expect(H.syncCalls.at(-1).indicatorsHidden, 'the next paint would re-show them').toBe(true)
@@ -5307,7 +5307,7 @@ describe('B5 Task 7 — mfi, cci and williamsR are engine-drawn, at the componen
       volumeOverlayIndicators: ['mfi'],
       indicators: { ...MFI_ON },
     }
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={overlaid} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(overlaid)} />)
     const onLeft = H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'left')
     expect(onLeft, 'the overlay path drew nothing on the volume pane\'s left axis').toHaveLength(1)
     expect(onLeft[0].paneIndex, 'an overlaid line landed off the volume pane').toBe(1)
@@ -5316,7 +5316,7 @@ describe('B5 Task 7 — mfi, cci and williamsR are engine-drawn, at the componen
 
     view.rerender(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={{ ...overlaid, volumeOverlayIndicators: [] }} />)
+        settingsOverride={legendAlways({ ...overlaid, volumeOverlayIndicators: [] })} />)
     const after = bound()
     expect(after, 'the oscillator vanished when it left the volume pane').toHaveLength(1)
     // ⚠️ #2049, AND THE DIFFERENCE FROM LEGACY: the hand-written block DESTROYED
@@ -5488,13 +5488,13 @@ describe('B5 Task 8 — adx, obv and donchian are engine-drawn, at the component
       indicators: { ...BB_CONTROL, adx: { ...ADX_ON.adx, enabled: false } },
       indicatorInstances: [],
     }
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={off} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(off)} />)
     expect(bound(), 'the control instance did not draw — every phase below is vacuous').toHaveLength(3)
     expect(bandNow('adx'), 'a band was reserved for an ADX nobody asked for').toBeUndefined()
     expect(onScale('adx'), 'something drew ADX while it was off').toHaveLength(0)
 
     const on = setIndicatorEnabled(off, 'adx', true, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={on} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(on)} />)
     const arrived = boundFor('adx')
     expect(arrived, 'arriving mid-session drew the wrong number of lines').toHaveLength(3)
     expect(bandNow('adx'), 'arriving mid-session reserved no band').toEqual({ top: 0.85, bottom: 0 })
@@ -5502,7 +5502,7 @@ describe('B5 Task 8 — adx, obv and donchian are engine-drawn, at the component
     expect(onScale('adx'), 'a fourth line appeared on the adx scale').toHaveLength(3)
 
     const offAgain = setIndicatorEnabled(on, 'adx', false, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={offAgain} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(offAgain)} />)
     expect(boundFor('adx'), 'departing mid-session left a line behind').toHaveLength(0)
     for (const b of arrived) {
       expect(H.removedSeries, 'a departed ADX line is still on the chart').toContain(b.series)
@@ -5519,12 +5519,12 @@ describe('B5 Task 8 — adx, obv and donchian are engine-drawn, at the component
       indicators: { ...BB_CONTROL, obv: { ...OBV_ON.obv, enabled: false } },
       indicatorInstances: [],
     }
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={off} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(off)} />)
     expect(bound()).toHaveLength(3)
     expect(bandNow('obv')).toBeUndefined()
 
     const on = setIndicatorEnabled(off, 'obv', true, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={on} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(on)} />)
     const arrived = boundFor('obv')
     expect(arrived, 'arriving mid-session drew nothing').toHaveLength(1)
     // ⭐ `paneMargins.PANES` gives obv `baseH: 0.13`, NOT the 0.15 every
@@ -5543,7 +5543,7 @@ describe('B5 Task 8 — adx, obv and donchian are engine-drawn, at the component
       .toEqual({ time: data.data[0].time, value: 0 })
 
     const offAgain = setIndicatorEnabled(on, 'obv', false, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={offAgain} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(offAgain)} />)
     expect(boundFor('obv'), 'departing mid-session left the line behind').toHaveLength(0)
     expect(H.removedSeries).toContain(arrived[0].series)
     expect(bandNow('obv'), 'departing mid-session left its band reserved').toBeUndefined()
@@ -5558,12 +5558,12 @@ describe('B5 Task 8 — adx, obv and donchian are engine-drawn, at the component
       indicators: { ...BB_CONTROL, donchian: { ...DON_ON.donchian, enabled: false } },
       indicatorInstances: [],
     }
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={off} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(off)} />)
     expect(bound()).toHaveLength(3)
     const mainBefore = bandNow('main')
 
     const on = setIndicatorEnabled(off, 'donchian', true, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={on} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(on)} />)
     const arrived = boundFor('donchian')
     expect(arrived, 'arriving mid-session drew the wrong number of lines').toHaveLength(3)
     expect(bandNow('donchian'), 'a price overlay reserved a band').toBeUndefined()
@@ -5583,7 +5583,7 @@ describe('B5 Task 8 — adx, obv and donchian are engine-drawn, at the component
     }
 
     const offAgain = setIndicatorEnabled(on, 'donchian', false, registry)
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={offAgain} />)
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(offAgain)} />)
     expect(boundFor('donchian'), 'departing mid-session left a line behind').toHaveLength(0)
     for (const b of arrived) expect(H.removedSeries).toContain(b.series)
   })
@@ -5600,7 +5600,7 @@ describe('B5 Task 8 — adx, obv and donchian are engine-drawn, at the component
       cleanup(); H.reset()
       const projectedOnly = { indicators: { ...ADX_ON, ...OBV_ON, ...DON_ON } }
       const view = render(
-        <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={projectedOnly} />)
+        <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(projectedOnly)} />)
       const before = boundFor(id)
       expect(before, id + ': the projection drew the wrong number of lines').toHaveLength(count)
       expect(before[0].key, id + ': it was not the PROJECTED instance').toContain('legacy:' + id)
@@ -5608,7 +5608,7 @@ describe('B5 Task 8 — adx, obv and donchian are engine-drawn, at the component
 
       view.rerender(
         <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-          settingsOverride={{ ...projectedOnly, indicatorInstances: [instance] }} />)
+          settingsOverride={legendAlways({ ...projectedOnly, indicatorInstances: [instance] })} />)
       const stored = boundFor(id)
       expect(stored, id + ': the stored instance drew the wrong number of lines').toHaveLength(count)
       expect(stored[0].key, id + ': the projection is still drawing beside the stored instance')
@@ -5617,7 +5617,7 @@ describe('B5 Task 8 — adx, obv and donchian are engine-drawn, at the component
 
       view.rerender(
         <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-          settingsOverride={{ ...projectedOnly, indicatorInstances: [] }} />)
+          settingsOverride={legendAlways({ ...projectedOnly, indicatorInstances: [] })} />)
       const back = boundFor(id)
       expect(back, id + ': it vanished when the stored instance was removed').toHaveLength(count)
       expect(back[0].key, id + ': nothing projected it back').toContain('legacy:' + id)
@@ -5640,21 +5640,21 @@ describe('B5 Task 8 — adx, obv and donchian are engine-drawn, at the component
       indicators: { ...ADX_ON, ...OBV_ON, ...DON_ON },
       indicatorInstances: [ADX_INSTANCE, OBV_INSTANCE, DON_INSTANCE],
     }
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={base} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(base)} />)
     const before = bound().map(b => b.series)
     expect(before, 'nothing was drawn — this case is vacuous').toHaveLength(7)
     const createdBefore = H.addSeriesCalls.length
     const guidesBefore = H.priceLineCalls.length
     expect(guidesBefore, 'no guides at all — the churn assertion below is vacuous').toBe(1)
 
-    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={{
+    view.rerender(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways({
       ...base,
       indicatorInstances: [
         { ...ADX_INSTANCE, inputs: { ...ADX_INSTANCE.inputs, period: 34, adxColor: '#00ff00' } },
         { ...OBV_INSTANCE, inputs: { color: '#0000ff' } },
         { ...DON_INSTANCE, inputs: { period: 89, color: '#ff00ff' } },
       ],
-    }} />)
+    })} />)
 
     expect(bound().map(b => b.series).sort(), 'a restyle destroyed and recreated a series')
       .toEqual([...before].sort())
@@ -5688,7 +5688,7 @@ describe('B5 Task 8 — adx, obv and donchian are engine-drawn, at the component
       volume: { visible: true },
       indicators: { ...ADX_ON, ...OBV_ON, ...DON_ON },
     }
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(settings)} />)
     const series = bound().map(b => b.series)
     expect(series, 'nothing was bound — this case is vacuous').toHaveLength(7)
     const volume = H.addSeriesCalls.find(
@@ -5707,7 +5707,7 @@ describe('B5 Task 8 — adx, obv and donchian are engine-drawn, at the component
     const before = H.syncCalls.length
     view.rerender(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS.slice(0, BARS.length - 1)}
-        settingsOverride={settings} />)
+        settingsOverride={legendAlways(settings)} />)
     expect(H.syncCalls.length, 'no further sync — the assertion below would be vacuous')
       .toBeGreaterThan(before)
     expect(H.syncCalls.at(-1).indicatorsHidden, 'the next paint would re-show them').toBe(true)
@@ -5769,7 +5769,7 @@ describe('B5 Task 8 — adx, obv and donchian are engine-drawn, at the component
       volumeOverlayIndicators: ['adx'],
       indicators: { ...ADX_ON },
     }
-    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={overlaid} />)
+    const view = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(overlaid)} />)
     const onLeft = H.addSeriesCalls.filter(c => c.options && c.options.priceScaleId === 'left')
     expect(onLeft, 'the overlay path drew the wrong number of lines on the left axis').toHaveLength(3)
     for (const c of onLeft) expect(c.paneIndex, 'an overlaid line landed off the volume pane').toBe(1)
@@ -5778,7 +5778,7 @@ describe('B5 Task 8 — adx, obv and donchian are engine-drawn, at the component
 
     view.rerender(
       <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-        settingsOverride={{ ...overlaid, volumeOverlayIndicators: [] }} />)
+        settingsOverride={legendAlways({ ...overlaid, volumeOverlayIndicators: [] })} />)
     const after = bound()
     expect(after, 'a line vanished when the oscillator left the volume pane').toHaveLength(3)
     // ⚠️ #2049, AND THE DIFFERENCE FROM LEGACY: the hand-written block DESTROYED

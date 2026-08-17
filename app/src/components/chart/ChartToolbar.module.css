@@ -64,6 +64,9 @@
 .actions {
   display: flex;
   flex-direction: row;
+  /* Centered so a LABELLED (taller) button grows symmetrically instead of
+     stretching its unlabelled neighbours to match — see .btnStacked. */
+  align-items: center;
   gap: 2px;
   /* Fixed width, laid out AFTER the shrinking .tools — the tools yield space first,
      so these buttons stay fully visible and never sit on top of the drawing tools. */
@@ -121,6 +124,36 @@
   cursor: default;
   pointer-events: none;
 }
+/* ── A LABELLED action button (icon over a caption) ───────────────────────────
+   For MODE controls, which have to announce what they are rather than relying on
+   a tooltip. The legend control shipped as a bare icon in a row of seven
+   near-identical bare icons and was reported missing by the person who asked for
+   it; the sibling extended-hours toggle has always used text (EXT/RTH) for the
+   same reason.
+
+   ⚠️ It is TALLER than its neighbours by design — that is the accepted cost of a
+   findable control. `.actions` centers its children so the extra height grows
+   symmetrically instead of shoving the row's baseline. */
+.btnStacked {
+  width: auto;
+  height: auto;
+  min-width: 24px;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 4px 1px;
+  line-height: 1;
+}
+.btnCaption {
+  font-size: 7px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  /* Inherits the button's color, so it goes gold with `.active` and dims with the
+     button when the legend is off — one visual state, not two. */
+  opacity: 0.85;
+  pointer-events: none;
+}
+
 .btn.active {
   background: rgba(201, 168, 76, 0.25);
   color: #c9a84c;

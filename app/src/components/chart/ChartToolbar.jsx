@@ -996,7 +996,7 @@ function ChartToolbar({
           const STATE = { always: 'Always on', click: 'On click', off: 'Off' }
           return (
             <button
-              className={`${styles.btn} ${mode !== 'off' ? styles.active : ''}`}
+              className={`${styles.btn} ${styles.btnStacked} ${mode !== 'off' ? styles.active : ''}`}
               onClick={() => onUpdateSettings({
                 ...chartSettings,
                 header: { ...chartSettings.header, legendMode: nextLegendMode(mode) },
@@ -1005,7 +1005,14 @@ function ChartToolbar({
               title={`OHLCV legend: ${STATE[mode]} — click for ${NEXT_LABEL[mode]}`}
               aria-label={`OHLCV legend: ${STATE[mode]}`}
             >
-              <UIcon name={ICON[mode]} size={15} />
+              <UIcon name={ICON[mode]} size={13} />
+              {/* ⭐ A VISIBLE CAPTION, NOT JUST A TOOLTIP. This shipped as a bare
+                  15px eye among seven near-identical unlabelled icons and the
+                  owner reported the feature missing while looking straight at it
+                  — a tooltip only helps someone who already suspects the button
+                  is there. The icon still carries the STATE (eye / pin / struck
+                  eye, gold while on); the caption carries the IDENTITY. */}
+              <span className={styles.btnCaption} aria-hidden="true">Legend</span>
             </button>
           )
         })()}

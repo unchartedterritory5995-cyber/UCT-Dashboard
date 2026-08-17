@@ -10281,7 +10281,18 @@ export default function StockChart({
       const pinnedElsewhere = legendModeRef.current === 'click'
         && legendPinnedRef.current && !fromClick
 
-      const priceData = candleSeriesRef.current ? param.seriesData.get(candleSeriesRef.current) : null
+      // ⛔ `param.seriesData` IS OPTIONAL ON A CLICK, AND ASSUMING IT CRASHED THE
+      // WHOLE CHART. `subscribeCrosshairMove` always supplies the Map, so this
+      // read was safe for as long as a hover was the only caller. The moment the
+      // click pin started routing clicks through here, a click param without it
+      // threw — and a throw inside ONE `subscribeClick` subscriber takes out the
+      // handlers registered after it: `StockChart.deskmarkers.test.jsx` caught it
+      // as "clicking a desk marker navigates nowhere", which is a feature two
+      // subscribers away from anything to do with the legend.
+      const seriesData = param && param.seriesData
+      const priceData = (seriesData && candleSeriesRef.current)
+        ? seriesData.get(candleSeriesRef.current)
+        : null
       if (!priceData) {
         legendHoveringRef.current = false
         // A CLICK that lands on no bar (empty space beyond the candles) arrives
@@ -10335,7 +10346,7 @@ export default function StockChart({
       // render that shows the values is the same one that flips the gate.
       if (fromClick && legendModeRef.current === 'click') setLegendPinned(true)
 
-      const volSeriesData = volumeSeriesRef.current ? param.seriesData.get(volumeSeriesRef.current) : null
+      const volSeriesData = volumeSeriesRef.current ? seriesData.get(volumeSeriesRef.current) : null
       // If volume is 0 or missing (developing bar), use session volume from live data
       let vol = volSeriesData?.value
       if ((!vol || vol === 0) && livePrices[sym]?.volume) {
@@ -10344,7 +10355,7 @@ export default function StockChart({
 
       // Get overlay values (SMA/EMA) — if missing for current bar, use last available
       const ovValues = overlaySeriesRefs.current.map((s, i) => {
-        let d = param.seriesData.get(s)
+        let d = seriesData.get(s)
         if (!d && overlayData[i]?.data?.length) {
           // Developing bar has no MA point — use the last computed value
           const lastOv = overlayData[i].data[overlayData[i].data.length - 1]
@@ -10416,7 +10427,7 @@ export default function StockChart({
       let chips = EMPTY_CHIPS
       try {
         const engine = engineRef.current
-          ? legendChips(engineRef.current.binder.bindings(), param.seriesData,
+          ? legendChips(engineRef.current.binder.bindings(), seriesData,
               engineRegistry, engineInstancesRef.current)
           : EMPTY_CHIPS
         if (engine.length) chips = engine
@@ -10424,13 +10435,13 @@ export default function StockChart({
 
       let compareValue = null
       if (compareSeriesRef.current) {
-        const dc = param.seriesData.get(compareSeriesRef.current)
+        const dc = seriesData.get(compareSeriesRef.current)
         compareValue = dc?.value ?? (comparisonData.at(-1)?.value ?? null)
       }
 
       let volAvg = null
       if (volMaSeriesRef.current) {
-        const dm = param.seriesData.get(volMaSeriesRef.current)
+        const dm = seriesData.get(volMaSeriesRef.current)
         const vma = volMaDataRef.current
         volAvg = dm?.value ?? ((vma && vma.length) ? vma[vma.length - 1].value : null)
       }

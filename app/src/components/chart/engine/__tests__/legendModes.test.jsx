@@ -254,6 +254,36 @@ describe("legendMode 'off' — never drawn", () => {
   })
 })
 
+// ─── 🔴 REGRESSION: A CLICK HANDLER THAT THROWS TAKES ITS NEIGHBOURS DOWN ────
+//
+// `subscribeCrosshairMove` always hands over a `seriesData` Map, so the payload
+// builder read `param.seriesData.get(...)` unguarded for as long as a HOVER was
+// its only caller. Routing clicks through it broke that assumption: a click param
+// without `seriesData` threw, and because LWC runs its click subscribers in a
+// list, the throw took out every handler registered after this one.
+//
+// ⛔ THE DAMAGE WAS TWO SUBSCRIBERS AWAY FROM THE LEGEND: `StockChart` also
+// subscribes clicks for desk markers, earnings badges and callouts, and the
+// symptom that surfaced was "clicking a desk marker navigates nowhere". A new
+// subscriber on a shared bus owes the bus a handler that cannot throw.
+describe('a click param without seriesData is survivable', () => {
+  it('does not throw, and leaves the chart usable', async () => {
+    const view = draw('click')
+    expect(H.clickHandlers.length,
+      'nothing subscribed to click — this case is vacuous').toBeGreaterThan(0)
+    await act(async () => {
+      for (const fn of [...H.clickHandlers]) {
+        // Exactly the shape that crashed: a real point, a real time, no map.
+        fn({ time: BARS.at(-1).t, point: { x: 100, y: 100 } })
+      }
+      await new Promise(r => setTimeout(r, 20))
+    })
+    // And the chart still answers a normal click afterwards.
+    await clickCandle(view, 1.5)
+    expect(legendTextOf(view)).toMatch(/O\s*1/)
+  })
+})
+
 // ─── 🔴 REGRESSION: THE VOLUME PANE HAS ITS OWN READOUT ──────────────────────
 //
 // MEASURED ON SCREEN 2026-08-16, and by NOTHING in 5,110 green chart tests: the

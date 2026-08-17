@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import bars200 from '../../../../pages/parityBars/ramp200.json'
-import { legendTextOf, settledLegend as settledLegendWith, shippedLegendChips } from './legendProbe'
+import { legendTextOf, settledLegend as settledLegendWith, shippedLegendChips, legendAlways } from './legendProbe'
 import { stripComments } from './sourceScan'
 
 /** `StockChart.jsx`, resolved from THIS file rather than from `process.cwd()` —
@@ -229,7 +229,7 @@ const ALL_NINE_ON = () => mergeChartSettings({
 })
 
 const draw = (settings) => render(
-  <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={settings} />,
+  <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(settings)} />,
 )
 
 const settledLegend = (view, param, ready) => settledLegendWith(view, param, H.crosshairHandlers, ready)
@@ -829,7 +829,7 @@ describe('B4 Task 10 — the legend renders from the definitions, on both lanes'
     // refresher effect and reads what it left. The values come from
     // `binding.lastValue` — the binder's own record of the final point it set.
     const view = render(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={ALL_NINE_ON()} alwaysShowLegend />)
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(ALL_NINE_ON())} alwaysShowLegend />)
     let texts = []
     for (let i = 0; i < 40; i++) {
       await act(async () => { await new Promise(r => setTimeout(r, 20)) })
@@ -988,7 +988,7 @@ describe('B4 Task 10 — the legend renders from the definitions, on both lanes'
     // case would pass by finding nothing rather than by the chip being right.
     vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ bars: BARS }) })))
     const view = render(
-      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={ALL_NINE_ON()} compareSymbol="SPY" />)
+      <StockChart sym="AAPL" tf="D" barsOverride={BARS} settingsOverride={legendAlways(ALL_NINE_ON())} compareSymbol="SPY" />)
     await act(async () => { await new Promise(r => setTimeout(r, 60)) })
     // ⚠️ BY ITS PRICE SCALE, not only its colour: the index pane draws a second
     // `#fb923c` line, and picking the wrong one would feed the value to a series
@@ -1357,7 +1357,7 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
    *  does in production, not a test-only seam. */
   const drawObserved = (settings, onPersist, extra) => render(
     <StockChart sym="AAPL" tf="D" barsOverride={BARS}
-      settingsOverride={settings} onSettingsPersist={onPersist} {...extra} />)
+      settingsOverride={legendAlways(settings)} onSettingsPersist={onPersist} {...extra} />)
 
   const chipFor = (view, label) => {
     const el = chipEls(view).find(e => (e.textContent || '').startsWith(label))
@@ -1588,7 +1588,7 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
 
   it('⭐ TWO RSIs at different periods draw TWO lines, in ONE pane, with TWO chips', async () => {
     const two = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS}
-      settingsOverride={TWO_RSI()} alwaysShowLegend />)
+      settingsOverride={legendAlways(TWO_RSI())} alwaysShowLegend />)
     const labels = (await offCursorChips(two)).map(t => t.split(' ')[0])
     expect(labels, 'the second instance printed no chip of its own')
       .toEqual(['RSI(14)', 'RSI(7)'])
@@ -1608,7 +1608,7 @@ describe('⭐ chart-UX-walls TASK 4 — the chip controls, on a real chart', () 
     // here is a regression, not a feature, because the pane manifest is what the
     // pixel gate diffs.
     const one = render(<StockChart sym="AAPL" tf="D" barsOverride={BARS}
-      settingsOverride={mergeChartSettings({ indicators: { rsi: { enabled: true } } })}
+      settingsOverride={legendAlways(mergeChartSettings({ indicators: { rsi: { enabled: true } } }))}
       alwaysShowLegend />)
     expect((await offCursorChips(one)).length, 'the one-RSI control drew nothing').toBe(1)
     expect(H.addSeriesCalls.filter(c => c.options && c.options.color === rsiColor),

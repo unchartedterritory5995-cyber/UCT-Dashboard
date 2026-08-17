@@ -40,6 +40,29 @@ describe('ChartToolbar — the legend mode button', () => {
     expect(legendBtn().getAttribute('title')).toMatch(/always/i)
   })
 
+  it('⭐ carries a VISIBLE text label — the owner could not find it as a bare icon', () => {
+    // 🔴 MEASURED IN PRODUCTION 2026-08-16: shipped as a 15px monochrome eye in a
+    // row of seven near-identical unlabelled icons, and the person who ASKED for
+    // the feature reported it missing while looking straight at it. A control
+    // nobody can find is not shipped. The sibling extended-hours toggle in this
+    // same toolbar has always used TEXT (`EXT`/`RTH`) for exactly this reason:
+    // a mode has to announce itself.
+    //
+    // ⚠️ Asserted on RENDERED TEXT, not on a class or a `title` — a tooltip is
+    // invisible until you already suspect the button is there, which is the
+    // failure being fixed.
+    mount(mergeChartSettings({ header: { legendMode: 'always' } }), spy)
+    expect(legendBtn().textContent.trim().toLowerCase()).toContain('legend')
+  })
+
+  it('the label does not turn into a second control — one click still cycles once', async () => {
+    // A caption nested in the button must not swallow or double the click.
+    const user = userEvent.setup()
+    mount(mergeChartSettings({ header: { legendMode: 'always' } }), spy)
+    await user.click(legendBtn())
+    expect(spy).toHaveBeenCalledTimes(1)
+  })
+
   it('cycles always -> click', async () => {
     const user = userEvent.setup()
     mount(mergeChartSettings({ header: { legendMode: 'always' } }), spy)
