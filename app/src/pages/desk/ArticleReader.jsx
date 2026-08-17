@@ -13,6 +13,9 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import useSWR from 'swr'
 import { ArticleIcon } from '../education/icons'
 import UIcon from '../../components/ui/UIcon'
+// Named `bookmark`, not `progress`: the component already has a `progress`
+// state for the reading BAR, which would shadow a module called the same.
+import * as bookmark from './articleProgress'
 import styles from './ArticleReader.module.css'
 
 // A Sunday Scans issue covers ~44 names; the rest sit behind a toggle so the
@@ -48,6 +51,22 @@ export default function ArticleReader() {
   const [progress, setProgress] = useState(0)
   const [lightbox, setLightbox] = useState(null)
   const [showAllTickers, setShowAllTickers] = useState(false)
+  const [resumedAt, setResumedAt] = useState(null)   // section we jumped to, if any
+  // ⛔ The scroll-spy effect is declared BEFORE the restore effect, so on mount
+  // it runs first — at scroll position 0. Saving then would write pct=0 and
+  // DELETE the bookmark before restore ever reads it, which is exactly how this
+  // feature would have shipped broken. Nothing is written until restore has had
+  // its turn.
+  const restoreSettledRef = useRef(false)
+  const armedForRef = useRef(null)
+  // Re-armed DURING RENDER, not in an effect. Walking prev/next swaps the
+  // article without unmounting, and effects run in declaration order — an
+  // effect here would fire AFTER the scroll-spy had already overwritten the
+  // incoming article's bookmark at scroll position 0.
+  if (armedForRef.current !== slug) {
+    armedForRef.current = slug
+    restoreSettledRef.current = false
+  }
 
   const { data, error, isLoading } = useSWR(
     slug ? `/api/desk/articles/${encodeURIComponent(slug)}` : null,
@@ -109,6 +128,11 @@ export default function ArticleReader() {
         else break
       }
       setActiveId(current)
+      // The scroll-spy already knows the section and the percentage; saving
+      // here means the bookmark can never disagree with what the TOC says.
+      if (slug && restoreSettledRef.current) {
+        bookmark.save(slug, { sectionId: current, pct: max > 0 ? el.scrollTop / max : 0 })
+      }
     }
     const onScroll = () => { if (!frame) frame = requestAnimationFrame(measure) }
     measure()
@@ -125,6 +149,39 @@ export default function ArticleReader() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [lightbox])
+
+  // Put the reader back where they were. Runs once per article, AFTER the body
+  // is in the DOM — and anchors on a HEADING, so the 99 lazily-loaded charts
+  // growing the page underneath cannot move the target.
+  useEffect(() => {
+    if (!data?.body_html || !slug) return
+    // Whatever happens below, saving resumes after this runs — otherwise a
+    // reader who has no bookmark could never create one.
+    const settle = () => { restoreSettledRef.current = true }
+    const saved = bookmark.load(slug)
+    if (!saved) return settle()
+    const el = bodyRef.current?.querySelector(`#${CSS.escape(saved.sectionId)}`)
+    if (!el) return settle()
+    // Only claim we moved them if we actually did — a pill saying "picked up
+    // at X" over an un-scrolled page is a lie, and scrollIntoView is exactly the
+    // kind of API that is absent in some environments.
+    try {
+      el.scrollIntoView({ block: 'start' })
+    } catch {
+      return settle()
+    }
+    const label = (data.sections || []).find((s) => s.id === saved.sectionId)?.text
+    setResumedAt(label || null)
+    settle()
+  }, [data?.body_html, slug])
+
+  const startFromTop = useCallback(() => {
+    bookmark.clear(slug)
+    setResumedAt(null)
+    const scroller = document.querySelector('.main')
+    if (scroller) scroller.scrollTop = 0
+    else window.scrollTo({ top: 0 })
+  }, [slug])
 
   const jumpTo = (id) => {
     const el = bodyRef.current?.querySelector(`#${CSS.escape(id)}`)
@@ -174,6 +231,17 @@ export default function ArticleReader() {
       <Link className={styles.back} to="/desk?section=articles">
         <UIcon name="chevronRight" size={16} className={styles.backIcon} /> Articles
       </Link>
+
+      {/* Never move someone silently: say where they landed and offer the way
+          back. Auto-dismisses by being trivially dismissible, not on a timer. */}
+      {resumedAt && (
+        <div className={styles.resumed} role="status">
+          <span>Picked up at <strong>{resumedAt}</strong></span>
+          <button type="button" className={styles.resumedBtn} onClick={startFromTop}>
+            Start from the top
+          </button>
+        </div>
+      )}
 
       <header className={styles.head}>
         <div className={styles.eyebrow}>{data.publication_name || 'UCT Intelligence'}</div>

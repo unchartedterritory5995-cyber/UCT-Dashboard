@@ -14,6 +14,7 @@ vi.mock('swr', () => ({
   default: () => ({ data: mockData, error: mockError, isLoading: false }),
 }))
 
+import * as progress from './articleProgress'
 import ArticleReader from './ArticleReader'
 
 // The body is what the server converter emits, including the classes the reader
@@ -63,8 +64,14 @@ const renderReader = () => render(
   </MemoryRouter>,
 )
 
+// jsdom does not implement scrollIntoView. The reader deliberately shows the
+// "picked up at…" pill ONLY when the scroll succeeded, so without this stub the
+// resume tests would be asserting against a component that correctly declined
+// to claim something it hadn't done.
 beforeEach(() => {
+  Element.prototype.scrollIntoView = vi.fn()
   navigate.mockClear()
+  localStorage.clear()
   mockData = ARTICLE
   mockError = null
 })
@@ -199,6 +206,57 @@ test('one neighbour still renders the block', () => {
   renderReader()
   expect(screen.getByLabelText('More issues')).toBeTruthy()
   expect(screen.queryByText(/Next issue/)).toBeNull()
+})
+
+test('a returning reader is put back, and TOLD where they were put', () => {
+  // ⛔ Moving someone silently is worse than not moving them: the pill names
+  // the section and offers the way back.
+  const el = { scrollIntoView: vi.fn() }
+  const spy = vi.spyOn(HTMLElement.prototype, 'querySelector')
+  progress.save('sunday-scans-da5', { sectionId: 'market-breadth-data', pct: 0.42 })
+  renderReader()
+  expect(screen.getByRole('status').textContent).toContain('Market Breadth Data')
+  spy.mockRestore()
+  void el
+})
+
+test('"start from the top" forgets the place so it is not offered again', () => {
+  progress.save('sunday-scans-da5', { sectionId: 'market-breadth-data', pct: 0.42 })
+  renderReader()
+  fireEvent.click(screen.getByText('Start from the top'))
+  expect(screen.queryByRole('status')).toBeNull()
+  expect(progress.load('sunday-scans-da5')).toBeNull()
+})
+
+test('walking to the NEXT article does not wipe its bookmark on the way in', () => {
+  // ⛔ Prev/next swaps the article without unmounting. The scroll-spy effect
+  // re-runs first, at scroll position 0 — if the gate were re-armed in an
+  // effect it would fire too late and erase the incoming article's place.
+  progress.save('sunday-scans-1ad', { sectionId: 'market-breadth-data', pct: 0.5 })
+  const { rerender } = render(
+    <MemoryRouter initialEntries={['/desk/article/sunday-scans-1ad']}>
+      <Routes><Route path="/desk/article/:slug" element={<ArticleReader />} /></Routes>
+    </MemoryRouter>,
+  )
+  rerender(
+    <MemoryRouter initialEntries={['/desk/article/sunday-scans-1ad']}>
+      <Routes><Route path="/desk/article/:slug" element={<ArticleReader />} /></Routes>
+    </MemoryRouter>,
+  )
+  expect(progress.load('sunday-scans-1ad')).not.toBeNull()
+})
+
+test('a first-time reader is never moved and sees no pill', () => {
+  renderReader()
+  expect(screen.queryByRole('status')).toBeNull()
+})
+
+test('a section that no longer exists does not strand the reader', () => {
+  // The letter was re-converted and that heading is gone. Render normally.
+  progress.save('sunday-scans-da5', { sectionId: 'a-heading-that-vanished', pct: 0.42 })
+  const { container } = renderReader()
+  expect(screen.queryByRole('status')).toBeNull()
+  expect(container.querySelector('article')).toBeTruthy()
 })
 
 test('the Substack origin is credited', () => {
