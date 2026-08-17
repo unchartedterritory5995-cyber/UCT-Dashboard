@@ -17,7 +17,7 @@ import { legendModeOf, LEGEND_MODES } from './chart/legendMode'
 // Menu labels for the three legend modes. Keyed BY the enumeration, so a mode
 // added to `LEGEND_MODES` without a label here renders as `undefined` in the
 // right-click menu rather than silently not being offered at all.
-const LEGEND_MODE_MENU_LABELS = { always: 'Always', click: 'On click', off: 'Off' }
+const LEGEND_MODE_MENU_LABELS = { always: 'Always', hold: 'Hold to peek', off: 'Off' }
 import { createWatermarkPrimitive, composeWatermarkLines } from './chart/watermarkPrimitive'
 import { clusterDarkPoolPrints } from './chart/darkPoolCluster'
 import useTickerMeta from '../hooks/useTickerMeta'
@@ -2793,22 +2793,57 @@ export default function StockChart({
   // down with it.
   //
   // ⭐ THE MODE BELONGS ON THE LEGEND'S RENDER GATE, NOT ON THE DATA. The payload
-  // keeps its original lifecycle for every consumer; `legendPinned` below is what
+  // keeps its original lifecycle for every consumer; `legendHeld` below is what
   // decides whether the OHLC box is drawn.
   const effAlwaysShow = alwaysShowLegend && !compactLegend
-  // ── 'On click' mode: is a bar currently PINNED? ───────────────────────────
-  // False until the user clicks a candle; cleared by a click on empty space, by
-  // Escape, and by leaving the mode. Only ever consulted while
-  // `legendMode === 'click'` — in the other two modes the render gate does not
-  // read it, so it cannot strand a legend on or off.
-  const [legendPinned, setLegendPinned] = useState(false)
-  const legendPinnedRef = useRef(false)
-  legendPinnedRef.current = legendPinned
-  // Leaving 'on click' must not strand the pin: a user who switches to Always
-  // and back should not find a bar from ten minutes ago still pinned.
+  // ── 'Hold' mode: is the pointer currently DOWN on the chart? ─────────────
+  //
+  // The legend is a PEEK: press to see the bar under the cursor, release and it
+  // is gone. Only ever consulted while `legendMode === 'hold'`.
+  //
+  // ⚰️ THIS WAS `legendPinned` FOR ONE DAY, and the difference is the whole
+  // feature. A pin LATCHED the legend to the clicked bar until you dismissed it
+  // (Esc / click-away) and suppressed hover updates while latched; the owner's
+  // actual ask was "click to see and when I release the click it goes away".
+  // Hold needs none of that machinery — no dismissal, no suppression — so the
+  // click subscription, the Esc handler and the hover-blocking guard were all
+  // DELETED rather than adapted. `crosshairData` now behaves identically in every
+  // mode and only the render gate differs.
+  const [legendHeld, setLegendHeld] = useState(false)
   useEffect(() => {
-    if (legendMode !== 'click' && legendPinned) setLegendPinned(false)
-  }, [legendMode, legendPinned])
+    if (legendMode !== 'hold' && legendHeld) setLegendHeld(false)
+  }, [legendMode, legendHeld])
+  // ── The peek gesture: pointer down shows, pointer up hides ────────────────
+  //
+  // ⚠️ RELEASE IS LISTENED FOR ON `window`, NOT ON THE CHART. A press that ends
+  // with the cursor off the canvas — dragged onto the price axis, off the widget,
+  // out of the window — still has to end the peek, and an element-scoped
+  // `pointerup` never fires there. That is the difference between a legend that
+  // clears and one that sticks on forever after one sloppy drag.
+  //
+  // ⛔ NO `preventDefault`, NO POINTER CAPTURE, NO `stopPropagation`. Lightweight
+  // Charts pans on the same press and the drawing tools draw on it; this only
+  // OBSERVES. Peeking while you drag the chart is a feature, not a conflict.
+  //
+  // Primary button only — a right-click opens the context menu, and flashing the
+  // legend underneath it would be noise.
+  useEffect(() => {
+    if (legendMode !== 'hold') return undefined
+    const el = containerRef.current
+    if (!el) return undefined
+    const down = (e) => { if (e.button === 0) setLegendHeld(true) }
+    const up = () => setLegendHeld(false)
+    el.addEventListener('pointerdown', down)
+    window.addEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
+    return () => {
+      el.removeEventListener('pointerdown', down)
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
+      // A mode change or unmount mid-press must not strand the peek on screen.
+      setLegendHeld(false)
+    }
+  }, [legendMode, chartReady])
   // The `+N` fold, expanded in place. False on every mount on purpose: a strip
   // that reopens itself is a strip the user closed for nothing.
   const [chipsExpanded, setChipsExpanded] = useState(false)
@@ -2988,15 +3023,13 @@ export default function StockChart({
    * Is something already OWNING the readout, so the off-hover refreshers must
    * stand down?
    *
-   * Three owners, and the third is new: a local hover, an externally-synced
-   * crosshair, and a bar PINNED by 'on click' mode. ⛔ The pin has to be here or
-   * the 500ms latest-bar refresher below overwrites the user's clicked bar within
-   * half a second — measured, and the reason the pinned-bar test exists.
+   * Two owners: a local hover and an externally-synced crosshair. (A third —
+   * a PINNED bar — lived here for a day; 'hold' mode needs no such ownership
+   * because releasing the pointer is what ends the peek.)
    */
   const readoutIsOwned = () => (
     legendHoveringRef.current
     || externalCrosshairAppliedRef.current
-    || (legendModeRef.current === 'click' && legendPinnedRef.current)
   )
   const crosshairSubRef = useRef(null)
   const crosshairRafRef = useRef(null)
@@ -5059,15 +5092,6 @@ export default function StockChart({
         if (target.isContentEditable) return
       }
 
-      // Escape releases a bar pinned by 'on click' mode. Deliberately does NOT
-      // return: Escape already clears the active drawing tool further down, and
-      // "cancel whatever is active" should keep meaning both. Scoped to the mode
-      // so it is a no-op everywhere else; setting false on an already-false state
-      // is a React bail-out, not a render.
-      //
-      // ⚠️ Releases the PIN, never `crosshairData` — clearing the payload would
-      // take the volume pane's own readout down with it.
-      if (e.key === 'Escape' && legendModeRef.current === 'click') setLegendPinned(false)
 
       // Alt-based chart toggles. Alt is rejected by matchShortcut (so browser
       // Alt shortcuts keep working), so these are handled here. Keyed on e.code
@@ -10327,7 +10351,7 @@ export default function StockChart({
     // and the crosshair visibly lags behind the cursor. Coalesce via rAF so
     // we update at most once per animation frame (~60Hz). Read data from refs
     // so the subscription survives live ticks without tearing down.
-    const processCrosshair = (param, fromClick = false) => {
+    const processCrosshair = (param) => {
       const overlayData = overlayDataRef.current
       const comparisonData = comparisonDataRef.current
       const livePrices = livePricesRef.current
@@ -10335,38 +10359,13 @@ export default function StockChart({
       const sym = symRef.current
       const onCrosshairMove = onCrosshairMoveRef.current
 
-      // ── A PINNED BAR OWNS THE READOUT UNTIL IT IS RELEASED ────────────────
-      //
-      // While 'on click' mode has a bar pinned, a hover writes NOTHING — not the
-      // legend and not the volume strip, which is right: the two readouts then
-      // describe the same bar rather than disagreeing. Not merely "doesn't draw"
-      // but "doesn't CLEAR" either, or sliding the cursor onto the price axis
-      // (a no-priceData event) would unpin the bar the user deliberately clicked.
-      //
-      // ⚠️ The sync-bus broadcast below is deliberately OUTSIDE this: a linked
-      // chart must keep tracking this cursor whatever this chart has pinned.
-      const pinnedElsewhere = legendModeRef.current === 'click'
-        && legendPinnedRef.current && !fromClick
-
-      // ⛔ `param.seriesData` IS OPTIONAL ON A CLICK, AND ASSUMING IT CRASHED THE
-      // WHOLE CHART. `subscribeCrosshairMove` always supplies the Map, so this
-      // read was safe for as long as a hover was the only caller. The moment the
-      // click pin started routing clicks through here, a click param without it
-      // threw — and a throw inside ONE `subscribeClick` subscriber takes out the
-      // handlers registered after it: `StockChart.deskmarkers.test.jsx` caught it
-      // as "clicking a desk marker navigates nowhere", which is a feature two
-      // subscribers away from anything to do with the legend.
       const seriesData = param && param.seriesData
       const priceData = (seriesData && candleSeriesRef.current)
         ? seriesData.get(candleSeriesRef.current)
         : null
       if (!priceData) {
         legendHoveringRef.current = false
-        // A CLICK that lands on no bar (empty space beyond the candles) arrives
-        // here with fromClick=true — releasing the pin is exactly the "click away
-        // to dismiss" gesture.
-        if (fromClick) setLegendPinned(false)
-        if (!pinnedElsewhere) setCrosshairData(offHoverCrosshair())
+        setCrosshairData(offHoverCrosshair())
         return
       }
 
@@ -10401,17 +10400,6 @@ export default function StockChart({
         })
       }
 
-      // The sync bus has its frame; a hover over a chart with a pinned bar ends
-      // here. Returning BEFORE the ~20 legend values (rather than skipping only
-      // the setState at the bottom) means a pinned chart also stops formatting
-      // chips and resolving overlays on every mouse move.
-      if (pinnedElsewhere) {
-        if (pointerOverRef.current) legendHoveringRef.current = true
-        return
-      }
-      // A click on a real bar pins it. Set BEFORE the payload write below so the
-      // render that shows the values is the same one that flips the gate.
-      if (fromClick && legendModeRef.current === 'click') setLegendPinned(true)
 
       const volSeriesData = volumeSeriesRef.current ? seriesData.get(volumeSeriesRef.current) : null
       // If volume is 0 or missing (developing bar), use session volume from live data
@@ -10559,11 +10547,7 @@ export default function StockChart({
         if (crosshairRafRef.current != null) { cancelAnimationFrame(crosshairRafRef.current); crosshairRafRef.current = null }
         crosshairParamRef.current = null
         legendHoveringRef.current = false
-        // ⛔ A PINNED BAR SURVIVES THE POINTER LEAVING THE CHART — reaching for
-        // the toolbar must not throw away the bar the user clicked.
-        if (!(legendModeRef.current === 'click' && legendPinnedRef.current)) {
-          setCrosshairData(offHoverCrosshair())
-        }
+        setCrosshairData(offHoverCrosshair())
         // Tell the sync bus the local user left the chart — but not when this
         // empty event was self-induced by applying an external crosshair.
         if (!applyingExternalRef.current && typeof onCrosshairMoveRef.current === 'function') {
@@ -10577,35 +10561,11 @@ export default function StockChart({
       }
     }
 
-    // ── THE PIN: 'on click' mode's only way to write the legend ──────────────
-    //
-    // ⭐ SUBSCRIBED IN THIS EFFECT ON PURPOSE, so it reuses `processCrosshair`'s
-    // closure rather than a second copy of ~120 lines of legend math. LWC hands
-    // `subscribeClick` the same `{time, point, seriesData}` shape it hands
-    // `subscribeCrosshairMove`, so `fromClick` is the only difference between
-    // the two paths — and the pinned readout is byte-identical to the hovered
-    // one by construction.
-    const clickHandler = (param) => {
-      if (legendModeRef.current !== 'click') return
-      // Drop any hover frame still queued behind this click. Without it the
-      // pending rAF flushes a moment later and — because a hover can't write in
-      // this mode — does nothing, but the cancel keeps the two paths from
-      // racing on `crosshairParamRef` at all.
-      if (crosshairRafRef.current != null) {
-        cancelAnimationFrame(crosshairRafRef.current)
-        crosshairRafRef.current = null
-      }
-      crosshairParamRef.current = null
-      processCrosshair(param, true)
-    }
-
     chart.subscribeCrosshairMove(handler)
-    chart.subscribeClick(clickHandler)
     crosshairSubRef.current = handler
 
     return () => {
       try { chart.unsubscribeCrosshairMove(handler) } catch {}
-      try { chart.unsubscribeClick(clickHandler) } catch {}
       if (crosshairRafRef.current != null) {
         cancelAnimationFrame(crosshairRafRef.current)
         crosshairRafRef.current = null
@@ -13049,7 +13009,7 @@ export default function StockChart({
       {/* ⛔ THREE INDEPENDENT VETOES, AND THEY ARE NOT THE SAME QUESTION.
           `hideLegend` is the HOST's ("my canvas is too small for chrome" —
           IntradayDayPopover, ChartsGallery, Model Book, the video dock).
-          `legendMode` is the USER's. `legendPinned` is the MOMENT's. Collapsing
+          `legendMode` is the USER's. `legendHeld` is the MOMENT's. Collapsing
           any of them into another would let a host's layout decision overwrite a
           preference, or a preference re-enable a legend on a 320px popup.
 
@@ -13059,7 +13019,7 @@ export default function StockChart({
           invisible to every test). The data keeps its lifecycle; the box is what
           this decides. */}
       {crosshairData && !hideLegend && legendMode !== 'off'
-        && (legendMode !== 'click' || legendPinned) && (() => {
+        && (legendMode !== 'hold' || legendHeld) && (() => {
         // User override for the BASE legend text (time + O/H/L/C/V). Inline so it beats
         // the base classes' own color; change%/overlays/indicators are intentionally
         // left to their semantic colors. undefined = keep the CSS-class default.
