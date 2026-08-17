@@ -2546,7 +2546,7 @@ export default function StockChart({
       const v = JSON.parse(raw)
       const hOK = typeof v?.anchorFrac === 'number' && typeof v?.width === 'number' && v.width > 0
       const vOK = typeof v?.top === 'number' && typeof v?.bottom === 'number'
-      if (v && (hOK || vOK)) return { anchorFrac: hOK ? v.anchorFrac : null, width: hOK ? v.width : null, top: vOK ? v.top : null, bottom: vOK ? v.bottom : null }
+      if (v && (hOK || vOK)) return { anchorFrac: hOK ? v.anchorFrac : null, width: hOK ? v.width : null, tf: hOK ? (typeof v?.tf === 'string' ? v.tf : null) : null, top: vOK ? v.top : null, bottom: vOK ? v.bottom : null }
     } catch { /* */ }
     return null
   }
@@ -6849,50 +6849,22 @@ export default function StockChart({
       // data), ballooning the price scale until the candles are a sliver.
       vertMarginsRef.current = null
     } else {
-      const _zoomKey = `${sym}_${resolvedTf}`
-      const _isFirstLoad = zoomKeyRef.current === null
-      const _tfChanged = lastTfRef.current !== null && lastTfRef.current !== resolvedTf
-      const _isSymSwitch = !_isFirstLoad && !_tfChanged && zoomKeyRef.current !== _zoomKey
-      if (_isSymSwitch && chart && candleSeriesRef.current) {
-        // Capture the OUTGOING view so the next ticker opens EXACTLY where the user
-        // left this one. Horizontal (right-relative barsFromRight + width) ALWAYS
-        // carries — like a scroll position; vertical band carries only when it
-        // differs from the default headroom (a real price-scale drag). Reliable
-        // because it reads the SETTLED outgoing range at switch time (no pointer /
-        // no backfill interference). Cleared by right-click → "Reset view".
-        try {
-          const _lock = _measureViewLock(chart, prevBarsRef.current)
-          if (_lock) {
-            // Once a dimension is locked it STAYS locked (re-captured from the
-            // outgoing view each switch, so it tracks further adjustments) until
-            // "Reset view". A dimension that is at DEFAULT (h/vLocked false and not
-            // already locked) is left to keepPresent / autoscale.
-            const wasH = userViewLockedRef.current && userLockedViewRef.current && userLockedViewRef.current.anchorFrac != null
-            const wasV = userViewLockedRef.current && userLockedViewRef.current && userLockedViewRef.current.top != null
-            const doH = _lock.hLocked || wasH
-            const doV = _lock.vLocked || wasV
-            if (doH || doV) {
-              userViewLockedRef.current = true
-              userLockedViewRef.current = {
-                anchorFrac: doH ? _lock.anchorFrac : null,
-                width: doH ? _lock.width : null,
-                top: doV ? _lock.top : null,
-                bottom: doV ? _lock.bottom : null,
-              }
-              persistViewLock()
-            }
-            vertMarginsRef.current = (doV ? _lock.top : null) != null ? { top: _lock.top, bottom: _lock.bottom } : null
-          }
-        } catch {}
-      } else if (userViewLockedRef.current && userLockedViewRef.current) {
-        // First-load restore (refresh) or a same-ticker phase change while locked:
-        // keep the lock's vertical band (null → autoscale the default headroom).
-        vertMarginsRef.current = userLockedViewRef.current.top != null
-          ? { top: userLockedViewRef.current.top, bottom: userLockedViewRef.current.bottom }
-          : null
-      } else if (_isFirstLoad || _tfChanged) {
-        vertMarginsRef.current = null
-      }
+      // ── APPLY-ONLY view lock ──────────────────────────────────────────────
+      // The view lock is a FIXED target, written ONLY by an explicit user
+      // drag / zoom (the pointer-up + wheel capture, _captureUserLock below).
+      // A ticker (or phase / tf) switch must NEVER re-measure and re-store it.
+      // Re-measuring the freshly re-framed outgoing view round-trips
+      // imperfectly — future-axis padding, rightBarStaysOnScroll and the
+      // whitespace future-bars all nudge the settled range by a hair — so
+      // re-storing that nudged value on EVERY switch compounds into months of
+      // leftward drift (the "sends me back in time with each search" bug).
+      // Here we only APPLY: the vertical band (a proportional fraction, so it
+      // is TF-independent and carries across ticker AND timeframe switches),
+      // and the horizontal anchorFrac is applied straight from the stored value
+      // in the framing branch. Cleared only by right-click → "Reset view".
+      vertMarginsRef.current = (userViewLockedRef.current && userLockedViewRef.current && userLockedViewRef.current.top != null)
+        ? { top: userLockedViewRef.current.top, bottom: userLockedViewRef.current.bottom }
+        : null
     }
 
     // ── Create or update chart instance ──
@@ -8882,6 +8854,12 @@ export default function StockChart({
       // uses the normal default; a plain ticker switch WITHIN replay keeps it locked.
       if (!replayCutoff || tfChanged) { replayViewLockedRef.current = false; replayLockedViewRef.current = null }
       const _replayLocked = replayCutoff && replayViewLockedRef.current
+      // Horizontal view lock is applicable only when its captured timeframe matches
+      // the current one (`width` is in logical BARS — a daily 232-bar window means
+      // nothing on a weekly chart). A legacy lock with no tf tag applies on any tf.
+      const _hLockActive = !!(userViewLockedRef.current && userLockedViewRef.current
+        && userLockedViewRef.current.anchorFrac != null && userLockedViewRef.current.width > 0
+        && (userLockedViewRef.current.tf == null || userLockedViewRef.current.tf === resolvedTf))
       // New symbol/timeframe = a fresh view, so re-arm the pinned-right safety net that a
       // user pan on the PREVIOUS symbol had latched off — EXCEPT under the replay lock,
       // where keeping it latched is exactly what stops the settling/pinned-right guards
@@ -8902,7 +8880,7 @@ export default function StockChart({
         const _w = oldRange ? (oldRange.to - oldRange.from) : null
         pendingTfReframeRef.current = { tf: resolvedTf, width: (_w > 0 ? _w : null) }
       } else if (keepPresentOnSymbolChange && !isFirstLoad && !entryDate && !exactDateRange && !_replayLocked) {
-        if (userViewLockedRef.current && userLockedViewRef.current && userLockedViewRef.current.anchorFrac != null) {
+        if (_hLockActive) {
           // Horizontal lock owns the frame across phases (via the anchorFrac branch).
           // CLEAR any stale settling guard so it can't re-pin newest-at-right over it.
           pendingTfReframeRef.current = null
@@ -8944,7 +8922,7 @@ export default function StockChart({
         if (_replayLocked && replayLockedViewRef.current) {
           to = newBarCount - replayLockedViewRef.current.barsFromRight
           from = to - replayLockedViewRef.current.width
-        } else if (userViewLockedRef.current && userLockedViewRef.current && userLockedViewRef.current.anchorFrac != null && userLockedViewRef.current.width > 0) {
+        } else if (_hLockActive) {
           // NORMAL horizontal lock (workspace): place the NEWEST bar at the same
           // SCREEN FRACTION the user left it — drift-proof (a fraction, not a bar
           // count), so deep-history backfill never shifts it. Cleared by "Reset view".
@@ -9021,7 +8999,7 @@ export default function StockChart({
             const to = lastIdx + _pt.width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
             const from = to - _pt.width
             chart.timeScale().setVisibleLogicalRange({ from, to })
-          } else if (userViewLockedRef.current && userLockedViewRef.current && userLockedViewRef.current.anchorFrac != null && userLockedViewRef.current.width > 0) {
+          } else if (_hLockActive) {
             // A persisted horizontal lock restored on refresh (first load): open at
             // the user's exact position — newest bar at its saved screen fraction.
             const _w = userLockedViewRef.current.width
@@ -9148,8 +9126,12 @@ export default function StockChart({
         // chart snap back to the default window on the very next live commit —
         // i.e. panning left was impossible. The latch clears on symbol/timeframe
         // change and on an explicit "Reset view" (see userViewMovedRef).
-        const _hLocked = userViewLockedRef.current && userLockedViewRef.current && userLockedViewRef.current.anchorFrac != null
-        if (wasViewingLatest && !userViewMovedRef.current && !_hLocked) {
+        // Horizontal lock active for THIS tf (see the same-named var in updateChart;
+        // this settling block is a separate closure, so recompute it locally).
+        const _hLockActive = !!(userViewLockedRef.current && userLockedViewRef.current
+          && userLockedViewRef.current.anchorFrac != null && userLockedViewRef.current.width > 0
+          && (userLockedViewRef.current.tf == null || userLockedViewRef.current.tf === resolvedTf))
+        if (wasViewingLatest && !userViewMovedRef.current && !_hLockActive) {
           let fr = null
           try { fr = chart.timeScale().getVisibleLogicalRange() } catch { /* mid-load */ }
           if (fr) {
@@ -11539,10 +11521,15 @@ export default function StockChart({
           if (doH || doV) {
             userViewLockedRef.current = true
             userLockedViewRef.current = {
-              anchorFrac: doH ? m.anchorFrac : null,
-              width: doH ? m.width : null,
-              top: doV ? m.top : null,
-              bottom: doV ? m.bottom : null,
+              anchorFrac: doH ? m.anchorFrac : (userLockedViewRef.current?.anchorFrac ?? null),
+              width: doH ? m.width : (userLockedViewRef.current?.width ?? null),
+              // Tag the horizontal lock with the tf it was captured on — `width`
+              // is in logical BARS, so a daily 232-bar window must NOT be applied
+              // on a weekly chart. The framing branch only applies horizontal when
+              // this tf matches the current one.
+              tf: doH ? resolvedTf : (userLockedViewRef.current?.tf ?? null),
+              top: doV ? m.top : (userLockedViewRef.current?.top ?? null),
+              bottom: doV ? m.bottom : (userLockedViewRef.current?.bottom ?? null),
             }
             persistViewLock()
           }
