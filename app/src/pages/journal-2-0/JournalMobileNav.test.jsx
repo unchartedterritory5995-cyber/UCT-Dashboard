@@ -35,14 +35,14 @@ beforeEach(() => {
 })
 
 describe('JournalMobileNav', () => {
-  it('renders the 5 primary sections as NavLinks (paid)', () => {
+  it('renders the 6 primary sections as NavLinks (paid)', () => {
     renderNav('/journal', { paid: true })
     const nav = screen.getByRole('navigation', { name: 'Journal sections (mobile)' })
-    for (const label of ['Today', 'Trades', 'Journal', 'Insights', 'Compass']) {
+    for (const label of ['Today', 'Trades', 'Calendar', 'Notebook', 'Insights', 'Compass']) {
       expect(screen.getByRole('link', { name: label })).toBeInTheDocument()
     }
-    // Exactly the 5 labels, in order (icon-over-label; no stray text).
-    expect(nav.textContent).toBe('TodayTradesJournalInsightsCompass')
+    // Exactly the 6 labels, in order (icon-over-label; no stray text).
+    expect(nav.textContent).toBe('TodayTradesCalendarNotebookInsightsCompass')
   })
 
   it('clicking a section navigates to its route', () => {

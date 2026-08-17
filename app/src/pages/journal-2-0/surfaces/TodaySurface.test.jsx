@@ -294,10 +294,10 @@ describe('TodaySurface — B3 secondary modules (week strip / goals / quick acti
     expect(screen.queryByTestId('qa-log-trade')).not.toBeInTheDocument()
   })
 
-  it('quick action "Open Journal" navigates to /journal/journal', () => {
+  it('quick action "Open Notebook" navigates to /journal/notebook', () => {
     renderToday()
     fireEvent.click(screen.getByTestId('qa-open-journal'))
-    expect(navigateSpy).toHaveBeenCalledWith('/journal/journal')
+    expect(navigateSpy).toHaveBeenCalledWith('/journal/notebook')
   })
 
   it('quick action "Review a trade" navigates to the closed-trades segment', () => {

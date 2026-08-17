@@ -208,7 +208,7 @@ export default function NotebookTab() {
     setFolderRefreshKey((k) => k + 1)
   }
 
-  // Deep link: ?seg=notebook&new=<templateKey>[&ticker=SYM] — Today page, the
+  // Deep link: /journal/notebook?new=<templateKey>[&ticker=SYM] — Today page, the
   // EOD recap, and TradeDrawer open a pre-seeded template directly (plan §4).
   // Runs once; params are stripped either way so a stale key can't loop.
   const newKey = searchParams.get('new')

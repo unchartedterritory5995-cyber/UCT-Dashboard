@@ -112,6 +112,8 @@ import {
 } from '../lib/localStorageMigrate'
 import TodaySurface from '../surfaces/TodaySurface'
 import TradesSurface from '../surfaces/TradesSurface'
+import CalendarSurface from '../surfaces/CalendarSurface'
+import NotebookSurface from '../surfaces/NotebookSurface'
 import JournalSurface from '../surfaces/JournalSurface'
 import InsightsSurface from '../surfaces/InsightsSurface'
 import CompassSurface from '../surfaces/CompassSurface'
@@ -126,12 +128,14 @@ function LocationProbe() {
   return <div data-testid="loc">{`${loc.pathname}${loc.search}`}</div>
 }
 
-// The 5 nested child routes under the v5 shell — mirrors App.jsx exactly.
+// The nested child routes under the v5 shell — mirrors App.jsx exactly.
 function journalRoutes() {
   return (
     <Route path="/journal" element={<JournalLayout />}>
       <Route index element={<TodaySurface />} />
       <Route path="trades" element={<TradesSurface />} />
+      <Route path="calendar" element={<CalendarSurface />} />
+      <Route path="notebook" element={<NotebookSurface />} />
       <Route path="journal" element={<JournalSurface />} />
       <Route path="insights" element={<InsightsSurface />} />
       <Route path="compass" element={<CompassSurface />} />
@@ -166,8 +170,8 @@ function searchToObj(search) {
 const REDIRECT_MATRIX = [
   { name: 'positions',        query: 'j2tab=positions',                    path: '/journal/trades',    params: { seg: 'open' },                          surface: 'open-positions' },
   { name: 'journal',          query: 'j2tab=journal',                      path: '/journal/trades',    params: { seg: 'closed' },                        surface: 'trade-journal' },
-  { name: 'calendar',         query: 'j2tab=calendar',                     path: '/journal/journal',   params: { seg: 'calendar' },                      surface: 'calendar' },
-  { name: 'notebook+note',    query: 'j2tab=notebook&note=abc',            path: '/journal/journal',   params: { seg: 'notebook', note: 'abc' },         surface: 'notebook' },
+  { name: 'calendar',         query: 'j2tab=calendar',                     path: '/journal/calendar',  params: {},                                       surface: 'calendar' },
+  { name: 'notebook+note',    query: 'j2tab=notebook&note=abc',            path: '/journal/notebook',  params: { note: 'abc' },                          surface: 'notebook' },
   { name: 'analytics+ins',    query: 'j2tab=analytics&ins=edge',           path: '/journal/insights',  params: { ins: 'edge' },                          surface: 'analytics' },
   { name: 'journal+sc_*',     query: 'j2tab=journal&sc_setup=VCP&sc_v=1',  path: '/journal/trades',    params: { seg: 'closed', sc_setup: 'VCP', sc_v: '1' }, surface: 'trade-journal' },
   { name: 'accounts',         query: 'j2tab=accounts',                     path: '/journal/accounts',  params: {},                                       surface: 'accounts' },
@@ -247,8 +251,8 @@ describe('P4 gate · 2. hotkey drill — the g> chord→route map', () => {
       'g>o': '/journal',
       'g>p': '/journal/trades?seg=open',
       'g>j': '/journal/trades?seg=closed',
-      'g>a': '/journal/journal?seg=calendar',
-      'g>n': '/journal/journal?seg=notebook',
+      'g>a': '/journal/calendar',
+      'g>n': '/journal/notebook',
       'g>y': '/journal/insights',
       'g>t': '/journal/accounts',
       'g>k': '/journal/compass',
@@ -389,7 +393,7 @@ describe('P4 gate · 4. kill-switch drill — selector swaps the shell at runtim
     // Flip to v5 in-tab (no reload) → the REAL new nested-route shell mounts.
     act(() => setJ2Shell('v5'))
     const nav = screen.getByRole('navigation', { name: 'Journal sections' })
-    for (const label of ['Today', 'Trades', 'Journal', 'Insights', 'Compass']) {
+    for (const label of ['Today', 'Trades', 'Calendar', 'Notebook', 'Insights', 'Compass']) {
       expect(within(nav).getByText(label)).toBeInTheDocument()
     }
     expect(screen.queryByTestId('legacy-shell')).not.toBeInTheDocument()

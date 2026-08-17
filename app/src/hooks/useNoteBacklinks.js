@@ -30,8 +30,9 @@ export default function useNoteBacklinks(symbol, enabled = false) {
   }
 }
 
-/** Deep link to one entry — the MODERN notebook route (the legacy
- *  `?j2tab=notebook` form only survives through a redirect shim). */
+/** Deep link to one entry — the MODERN notebook route (Notebook is its own
+ *  top-level Journal tab; the legacy `?j2tab=notebook` and `/journal/journal`
+ *  forms only survive through redirect shims). */
 export function notePath(noteId) {
-  return `/journal/journal?seg=notebook&note=${encodeURIComponent(noteId)}`
+  return `/journal/notebook?note=${encodeURIComponent(noteId)}`
 }

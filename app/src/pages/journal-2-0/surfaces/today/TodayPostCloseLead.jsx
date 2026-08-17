@@ -44,7 +44,7 @@ export default function TodayPostCloseLead({ account, overview }) {
     <section className={styles.card} data-testid="today-postclose" aria-label="End-of-day recap">
       <div className={styles.postHead}>
         <h2 className={styles.cardTitle}>Today’s recap</h2>
-        <NavLink to="/journal/journal?seg=calendar" className={styles.checkBtn}>
+        <NavLink to="/journal/calendar" className={styles.checkBtn}>
           <UIcon name="edit" size={13} style={{ verticalAlign: '-2px', marginRight: 5 }} />
           Reflect on today
         </NavLink>
