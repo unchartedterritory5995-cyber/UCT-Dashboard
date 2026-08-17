@@ -501,6 +501,10 @@ def search_posts(query: str, limit: int = 30) -> list:
             rows = c.execute(
                 f"""SELECT {cols},
                            pub.name AS publication_name,
+                           -- MUST match list_posts: without it every search
+                           -- result renders as a link OUT to Substack, even
+                           -- though only articles WITH a body are indexed.
+                           (p.body_html IS NOT NULL AND p.body_html != '') AS has_body,
                            snippet(substack_posts_fts, 3, char(2), char(3), '…', 18) AS snippet,
                            bm25(substack_posts_fts, 0.0, 8.0, 6.0, 1.0) AS rank
                     FROM substack_posts_fts

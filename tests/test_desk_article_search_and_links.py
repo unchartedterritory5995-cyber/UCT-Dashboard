@@ -79,6 +79,22 @@ def test_search_misses_what_is_not_there(store, seeded):
     assert store.search_posts("cryptocurrency arbitrage seminar") == []
 
 
+def test_a_search_result_links_INTO_the_reader_not_out_to_substack(store, seeded):
+    """`has_body` decides whether a card opens our reader or Substack. It is
+    computed in list_posts; a search result missing it renders "on Substack ↗"
+    for an article we hold in full — and only the indexed ones can match at all."""
+    hit = store.search_posts("breadth")[0]
+    assert hit["has_body"] == 1
+    assert hit["slug"], "no slug means the card cannot build an in-app link"
+
+
+def test_a_search_result_carries_the_same_shape_as_a_list_row(store, seeded):
+    """The two feed the SAME card component; a key present in one and absent in
+    the other is a card that renders differently depending on how you got to it."""
+    listed, found = store.list_posts(limit=1)[0], store.search_posts("breadth")[0]
+    assert set(listed) - set(found) == set(), "search rows are missing list keys"
+
+
 def test_search_results_never_carry_article_bodies(store, seeded):
     """Same trap as the card grid: a result list must not ship ~200 KB a row."""
     hit = store.search_posts("breadth")[0]
@@ -116,6 +132,24 @@ def test_a_member_typing_fts_operators_gets_a_result_not_a_500(store, seeded, q)
 
 def test_quoting_still_lets_an_ordinary_search_work(store, seeded):
     assert store.search_posts("market breadth")
+
+
+def test_every_term_is_quoted_so_operators_are_searched_LITERALLY(store):
+    """⛔ The "doesn't 500" test above CANNOT see this: `search_posts` swallows
+    OperationalError and returns [], so an unquoted query that RAISES is
+    indistinguishable from a quoted one that found nothing. Assert the
+    expression itself, and the outcome below."""
+    assert store._fts_query("MU AND") == '"MU" "AND"'
+    assert store._fts_query('a"b') == '"a""b"'
+    assert store._fts_query("  MU   NEAR( ") == '"MU" "NEAR("'
+
+
+def test_an_operator_word_in_a_real_query_still_RETURNS_the_article(store, seeded):
+    """The behavioural half. Unquoted, `breadth AND` is a dangling operator: FTS
+    raises, the except swallows it, and the member sees "no results" for an
+    article that plainly matches. Quoted, both words are searched as words."""
+    assert [h["id"] for h in store.search_posts("breadth AND")] == [URL]
+    assert [h["id"] for h in store.search_posts("market OR")] == [URL]
 
 
 # ── the snippet lands in dangerouslySetInnerHTML ──────────────────────────────
