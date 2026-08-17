@@ -35,7 +35,6 @@ def test_a_trailing_slash_still_marks():
 
 
 @pytest.mark.parametrize("href", [
-    f"{PUB}/p/sunday-scans-4d1/comments",   # a real one from the archive
     f"{PUB}/subscribe?",
     f"{PUB}/archive",
     "https://whop.com/checkout/plan_x",
@@ -43,11 +42,37 @@ def test_a_trailing_slash_still_marks():
     "/research/MU",
 ])
 def test_things_that_are_not_a_post_permalink_are_not_marked(href):
-    """⛔ `/p/<slug>/comments` especially: it is a DIFFERENT destination, and
-    routing it to our reader would answer a question the reader didn't ask.
-    (Those links are also broken at the source — several carry last week's
-    slug.)"""
     assert "data-post-slug" not in convert(f'<p><a href="{href}">x</a></p>')
+
+
+# ── Substack's own comment / share buttons are FURNITURE, not references ─────
+
+@pytest.mark.parametrize("href,label", [
+    (f"{PUB}/p/sunday-scans-4d1/comments", "Leave a comment"),
+    (f"{PUB}/p/sunday-scans-4d1?utm_source=substack&amp;action=share", "Share"),
+])
+def test_a_dead_substack_button_is_dropped_with_its_label(href, label):
+    """Measured on the real archive: 75 "Leave a comment" and 73 "Share" against
+    ONE genuine cross-reference. Both were already ruled dead for the generator
+    (owner call 2026-07-26) — the comment links carry the PREVIOUS week's slug
+    and the share JWTs expired in 2025.
+
+    ⛔ Rewriting these to our reader would be WORSE than leaving them: it turns
+    "Share" into a navigation the reader never asked for. And the LABEL must go
+    with the anchor, or a bare "Share" floats in the prose.
+    """
+    out = convert(f'<p>Before. <a href="{href}">{label}</a> After.</p>')
+    assert label not in out
+    assert "substack.com/p/" not in out
+    assert "data-post-slug" not in out
+    assert "Before." in out and "After." in out
+
+
+def test_a_genuine_cross_reference_still_survives_and_is_marked():
+    """The one real reference in the archive reads like prose, not a button."""
+    out = convert(f'<p>See <a href="{PUB}/p/sunday-scans-1ad">Sunday Scans, June 8th</a>.</p>')
+    assert "Sunday Scans, June 8th" in out
+    assert 'data-post-slug="sunday-scans-1ad"' in out
 
 
 def test_marking_does_not_disturb_the_href_or_the_safety_attributes():
@@ -82,13 +107,15 @@ def test_a_post_we_do_NOT_hold_keeps_working_as_an_outbound_link():
     assert "/desk/article/never-fetched" not in html
 
 
-def test_only_the_marked_anchors_move():
-    body = (f'<p><a href="{PUB}/p/sunday-scans-1ad">a</a>'
-            f'<a href="https://whop.com/x">b</a>'
-            f'<a href="{PUB}/p/sunday-scans-4d1/comments">c</a></p>')
+def test_only_the_marked_anchors_move_and_furniture_is_gone():
+    body = (f'<p><a href="{PUB}/p/sunday-scans-1ad">a real reference</a>'
+            f'<a href="https://whop.com/x">the membership CTA</a>'
+            f'<a href="{PUB}/p/sunday-scans-4d1/comments">Leave a comment</a></p>')
     html, n = il.rewrite(convert(body), HELD)
     assert n == 1
-    assert "whop.com/x" in html and "sunday-scans-4d1/comments" in html
+    assert 'href="/desk/article/sunday-scans-1ad"' in html   # reference -> our reader
+    assert "whop.com/x" in html                              # CTA untouched
+    assert "Leave a comment" not in html                     # furniture removed
 
 
 def test_several_links_in_one_article_all_resolve():
