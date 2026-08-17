@@ -36,6 +36,10 @@ export default function NotebookTab() {
   const { notes, isLoading, error, refresh } = useJ2Notes({
     folderId, tag, q: q || undefined, sort,
   })
+  // The folder sidebar tree renders every folder's notes as leaf rows, so it
+  // needs the COMPLETE note set — not the filtered view above (which only
+  // holds the selected folder's notes). Separate unfiltered fetch for it.
+  const { notes: allNotes, refresh: refreshAll } = useJ2Notes({ sort: 'title' })
   const hasActiveFilters = Boolean(folderId || tag || q)
 
   const openNote = (note) => {
@@ -57,6 +61,7 @@ export default function NotebookTab() {
       return next
     }, { replace: false })
     refresh()
+    refreshAll()
   }
 
   // Create a note. Blank note passes no title/body; a template seeds both
@@ -120,6 +125,7 @@ export default function NotebookTab() {
   // here, so a key bump remounts it and its SWR hook re-fetches fresh.
   const handleImported = () => {
     refresh()
+    refreshAll()
     setFolderRefreshKey((k) => k + 1)
   }
 
@@ -150,11 +156,12 @@ export default function NotebookTab() {
     <div className={styles.wrap}>
       <FolderSidebar
         key={folderRefreshKey}
-        notes={notes}
+        notes={allNotes}
         activeFolderId={folderId}
         onSelectFolder={setFolderId}
         activeTag={tag}
         onSelectTag={setTag}
+        onOpenNote={openNote}
       />
       <div className={styles.main}>
         <div className={styles.toolbar}>

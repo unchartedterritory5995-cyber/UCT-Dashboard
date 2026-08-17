@@ -77,6 +77,24 @@
 .chevron { transform: rotate(-90deg); transition: transform 150ms ease; }
 .chevronOpen { transform: rotate(0deg); }
 .childrenList { display: flex; flex-direction: column; gap: 2px; }
+.noteRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  padding: 5px 10px;
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted, #98a0aa);
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 12.5px;
+  text-align: left;
+}
+.noteRow:hover { background: var(--color-surface-hover, #1c2028); color: var(--color-text-primary, #e8eaed); }
+.noteIcon { flex: 0 0 auto; opacity: 0.75; }
+.noteTitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .actions { display: flex; gap: 4px; opacity: 0; transition: opacity 100ms ease; }
 .row:hover .actions { opacity: 1; }
 .iconBtn {
@@ -99,6 +117,7 @@
 }
 @media (max-width: 640px) {
   .row { min-height: var(--tap-min, 44px); font-size: 16px; }
+  .noteRow { min-height: var(--tap-min, 44px); font-size: 15px; }
   .addBtn { min-height: var(--tap-min, 44px); font-size: 14px; }
   .editInput { font-size: 16px; min-height: var(--tap-min, 44px); }
   .iconBtn { min-width: var(--tap-min, 44px); min-height: var(--tap-min, 44px); padding: 0; }
