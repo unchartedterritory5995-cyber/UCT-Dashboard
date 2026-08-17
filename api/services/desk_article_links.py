@@ -28,8 +28,16 @@ _ET = ZoneInfo("America/New_York")
 
 # "Sunday Scans — August 16, 2026" / "Live Trading Session - August 16, 2026".
 # Accepts an em dash or a hyphen because only the DATE half is the contract.
+#
+# ⛔ THE TRAILING `(...)` IS LOAD-BEARING. A session that drops and restarts
+# produces two recordings for one evening, and the human fix is to retitle them
+# "… (Part 1)" / "… (Part 2)". Anchoring the date strictly to end-of-string made
+# BOTH parts unparseable the moment that happened, which silently unpaired the
+# article — the same shape as the 2026-07-29 workshop bug, where a pinned alias
+# that rewrote the name broke every behaviour keyed on that name. An optional
+# suffix is what keeps a human-readable rename from switching a feature off.
 _TITLE_DATE_RE = re.compile(
-    r"[—-]\s*([A-Z][a-z]+)\s+(\d{1,2}),\s*(\d{4})\s*$"
+    r"[—-]\s*([A-Z][a-z]+)\s+(\d{1,2}),\s*(\d{4})\s*(?:\([^)]*\))?\s*$"
 )
 
 # How far a session may sit from the letter and still be "that week's session".

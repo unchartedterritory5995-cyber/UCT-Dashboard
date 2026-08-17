@@ -296,6 +296,34 @@ def test_the_nearest_session_wins_when_two_are_in_range():
         "Sunday Scans — August 16, 2026", PUBLISHED_AT, two)["youtube_id"] == "near"
 
 
+@pytest.mark.parametrize("title,expected", [
+    ("Sunday Scans — August 16, 2026", "2026-08-16"),
+    ("Sunday Scans — August 16, 2026 (Part 1)", "2026-08-16"),
+    ("Sunday Scans — August 16, 2026 (Part 2)", "2026-08-16"),
+    ("Sunday Scans — August 16, 2026 (rerun)", "2026-08-16"),
+    ("Live Trading Session - August 16, 2026", "2026-08-16"),
+])
+def test_a_human_rename_must_not_switch_the_pairing_off(title, expected):
+    """A session that drops and restarts yields two recordings for one evening,
+    and the human fix is "… (Part 1)" / "… (Part 2)". Anchoring the date strictly
+    to end-of-string made BOTH unparseable and silently unpaired the article —
+    the 2026-07-29 workshop shape, where rewriting a name broke everything keyed
+    on that name. This happened FOR REAL on 2026-08-17."""
+    assert str(links.parse_session_date(title)) == expected
+    assert links._series_of(title) == title.split("—")[0].split(" - ")[0].strip().lower()
+
+
+def test_a_split_session_pairs_with_the_MAIN_part():
+    """Both parts sit at gap 0, so the id tiebreak decides — and the later
+    upload is the full session, not the five-minute opening that got cut off."""
+    parts = [
+        {"id": 324, "youtube_id": "opening", "title": "Sunday Scans — August 16, 2026 (Part 1)"},
+        {"id": 325, "youtube_id": "main", "title": "Sunday Scans — August 16, 2026 (Part 2)"},
+    ]
+    got = links.pick_related_video("Sunday Scans — August 16, 2026", PUBLISHED_AT, parts)
+    assert got["youtube_id"] == "main" and got["day_gap"] == 0
+
+
 def test_duplicate_uploads_of_one_session_resolve_DETERMINISTICALLY():
     """Production carries THREE copies of the 2026-08-16 session. With every
     candidate at gap 0, picking "the first one seen" hands back whatever order
