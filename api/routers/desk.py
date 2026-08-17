@@ -172,6 +172,22 @@ def search_articles(q: str = "", limit: int = 30,
     }
 
 
+@router.get("/articles/for-ticker/{sym}")
+def articles_for_ticker(sym: str, limit: int = 8,
+                        _user: dict = Depends(require_article_reader)):
+    """Which issues covered this symbol — the archive, reachable from research.
+
+    Declared BEFORE `/articles/{post_id:path}`, which matches greedily and would
+    otherwise swallow "for-ticker" as a post id.
+    """
+    limit = max(1, min(int(limit), 50))
+    return {
+        "ticker": (sym or "").strip().upper(),
+        "total": desk_store.count_posts_for_ticker(sym),
+        "articles": desk_store.posts_for_ticker(sym, limit=limit),
+    }
+
+
 @router.post("/articles/reindex")
 def reindex_articles(_admin: dict = Depends(require_admin)):
     """Rebuild the search index from stored bodies. No network."""
