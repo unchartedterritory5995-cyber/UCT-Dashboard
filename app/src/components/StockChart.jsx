@@ -2516,6 +2516,16 @@ export default function StockChart({
   // undo a deliberate pan (that was the "drag left and it snaps straight back"
   // bug — the net re-fired on the next live data commit).
   const userViewMovedRef = useRef(false)
+  // ── Manual PRICE-scale latch (the vertical analog of userViewMovedRef) ──
+  // When the user drags the price axis to set a fixed vertical range, LWC's
+  // `setData()` (which updateChart uses for any non-incremental commit) re-fits
+  // the scale to the data — so during live hours every full-repaint poll wiped
+  // their manual scale ("keeps shrinking after I let go"). Latch the manual range
+  // and pin it through the series' autoscaleInfoProvider so setData/update honour
+  // it. Cleared by a double-click on the axis (reset to auto) or a symbol/TF switch.
+  const priceManualRef = useRef(false)
+  const priceManualRangeRef = useRef(null)   // { minValue, maxValue } captured on axis-drag end
+  const axisPressRef = useRef(null)          // in-progress axis drag: { dragging }
   // REPLAY view lock: once the user pans/zooms while in replay, every subsequent ticker
   // in the sort keeps that exact view (right-relative) instead of snapping back to the
   // default replay frame. Persists across ticker switches; cleared by "Reset view" or on
@@ -5340,12 +5350,69 @@ export default function StockChart({
       let axisW = 0; try { axisW = chart.priceScale('right').width() || 0 } catch { /* no axis */ }
       const r = el.getBoundingClientRect()
       if (axisW > 0 && (e.clientX - r.left) >= r.width - axisW - 2) {
+        // Release the manual pin so the scale returns to auto-fit.
+        priceManualRef.current = false
+        priceManualRangeRef.current = null
         try { mainPriceScale()?.applyOptions({ autoScale: true }) } catch { /* disposed */ }
       }
     }
     el.addEventListener('dblclick', onDbl)
     return () => el.removeEventListener('dblclick', onDbl)
   }, [chartReady, mainPriceScale])
+
+  // Detect a manual PRICE-axis drag/pinch → latch the resulting vertical range so
+  // live data commits (setData, which re-autofits) can't wipe it. Mirrors the
+  // dblclick axis-region detection. While dragging we release the pin so LWC's own
+  // axis scaling runs free; on release we capture the settled range from the price
+  // pane's pixel extent and re-latch it (the autoscaleInfoProvider preserves it).
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || !chartReady) return undefined
+    const inAxis = (e) => {
+      const chart = chartRef.current
+      if (!chart) return false
+      let axisW = 0; try { axisW = chart.priceScale('right').width() || 0 } catch { return false }
+      const r = el.getBoundingClientRect()
+      return axisW > 0 && (e.clientX - r.left) >= r.width - axisW - 2
+    }
+    const onDown = (e) => { if (inAxis(e)) axisPressRef.current = { dragging: false, x: e.clientX, y: e.clientY } }
+    const onMove = (e) => {
+      const p = axisPressRef.current
+      if (!p || p.dragging) return
+      if (Math.abs(e.clientY - p.y) > 3 || Math.abs(e.clientX - p.x) > 3) {
+        p.dragging = true
+        priceManualRef.current = false   // free the drag; re-capture on release
+      }
+    }
+    const onUp = () => {
+      const p = axisPressRef.current
+      axisPressRef.current = null
+      if (!p || !p.dragging) return
+      try {
+        const series = candleSeriesRef.current
+        const chart = chartRef.current
+        if (!series || !chart) return
+        // Price pane pixel height → top coord = high, bottom coord = low.
+        let paneH = 0
+        try { paneH = chart.panes?.()[0]?.getHeight?.() || 0 } catch { paneH = 0 }
+        if (paneH <= 0) return
+        const hi = series.coordinateToPrice(0)
+        const lo = series.coordinateToPrice(paneH)
+        if (Number.isFinite(hi) && Number.isFinite(lo) && hi > lo) {
+          priceManualRangeRef.current = { minValue: lo, maxValue: hi }
+          priceManualRef.current = true
+        }
+      } catch { /* mapping unavailable — leave unpinned, no worse than before */ }
+    }
+    el.addEventListener('pointerdown', onDown)
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    return () => {
+      el.removeEventListener('pointerdown', onDown)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+    }
+  }, [chartReady])
 
   // ── Replay auto-advance interval ──
   useEffect(() => {
@@ -8879,6 +8946,10 @@ export default function StockChart({
 
       zoomKeyRef.current = zoomKey
       lastTfRef.current = resolvedTf
+      // A fresh symbol/timeframe re-frames — drop any manual price-scale pin so the
+      // new chart auto-fits its own range instead of inheriting the old vertical.
+      priceManualRef.current = false
+      priceManualRangeRef.current = null
       // Exiting replay (or a TF change) clears the replay view lock so the next frame
       // uses the normal default; a plain ticker switch WITHIN replay keeps it locked.
       if (!replayCutoff || tfChanged) { replayViewLockedRef.current = false; replayLockedViewRef.current = null }
@@ -9484,6 +9555,12 @@ export default function StockChart({
     try {
       series.applyOptions({
         autoscaleInfoProvider: (orig) => {
+          // Manual price-scale pin wins — preserve the user's dragged vertical
+          // range across setData()'s re-autofit (the live-hours "keeps shrinking").
+          const pm = priceManualRef.current ? priceManualRangeRef.current : null
+          if (pm && Number.isFinite(pm.minValue) && Number.isFinite(pm.maxValue) && pm.maxValue > pm.minValue) {
+            return { priceRange: { minValue: pm.minValue, maxValue: pm.maxValue } }
+          }
           const r = focusPriceRangeRef.current
           if (r && Number.isFinite(r.lo) && Number.isFinite(r.hi) && r.hi > r.lo) {
             return { priceRange: { minValue: r.lo, maxValue: r.hi } }
@@ -9629,6 +9706,10 @@ export default function StockChart({
         try {
           series.applyOptions({
             autoscaleInfoProvider: (orig) => {
+              const pm = priceManualRef.current ? priceManualRangeRef.current : null
+              if (pm && Number.isFinite(pm.minValue) && Number.isFinite(pm.maxValue) && pm.maxValue > pm.minValue) {
+                return { priceRange: { minValue: pm.minValue, maxValue: pm.maxValue } }
+              }
               const r = focusPriceRangeRef.current
               if (r && Number.isFinite(r.lo) && Number.isFinite(r.hi) && r.hi > r.lo) {
                 return { priceRange: { minValue: r.lo, maxValue: r.hi } }
@@ -9786,6 +9867,10 @@ export default function StockChart({
       try {
         series.applyOptions({
           autoscaleInfoProvider: (orig) => {
+            const pm = priceManualRef.current ? priceManualRangeRef.current : null
+            if (pm && Number.isFinite(pm.minValue) && Number.isFinite(pm.maxValue) && pm.maxValue > pm.minValue) {
+              return { priceRange: { minValue: pm.minValue, maxValue: pm.maxValue } }
+            }
             const r = focusPriceRangeRef.current
             if (r && Number.isFinite(r.lo) && Number.isFinite(r.hi) && r.hi > r.lo) {
               return { priceRange: { minValue: r.lo, maxValue: r.hi } }

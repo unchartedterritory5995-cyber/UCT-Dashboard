@@ -28,6 +28,10 @@ export const PROFILE_WIDGET_LIGHT_OVERRIDES = {
   headerColor: '#1f2328',
   upColor: '#17a917',
   downColor: '#db000b',
+  // Earnings-surprise %s follow the same light-theme green/red as everything else
+  // (the dark default is a blue/red pair that reads wrong on a white canvas).
+  surpUpColor: '#17a917',
+  surpDownColor: '#db000b',
 }
 /** The default settings blob for the current app theme ('light' → white canvas). */
 export function profileDefaultsForTheme(theme) {
