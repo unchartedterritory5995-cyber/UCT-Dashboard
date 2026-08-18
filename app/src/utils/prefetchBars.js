@@ -212,18 +212,35 @@ export function prefetchGridWarm(tickers) {
 }
 
 // Warm a list of tickers' bars into IndexedDB for instant, refresh-proof loads.
-export function prefetchBarsToIDB(tickers, tf = 'D') {
+//
+// Options:
+//   priority  — put these at the FRONT of the queue (and pull any already-queued
+//               copies forward), so a group the user just opened warms before the
+//               background catalog trickle. Preserves caller order at the head.
+//   immediate — start the pump NOW instead of waiting for the idle callback. Use
+//               only when a click on this exact set is imminent (e.g. a theme just
+//               expanded) — the chart being left is already loaded, so the burst
+//               competes with no active cold fetch.
+export function prefetchBarsToIDB(tickers, tf = 'D', { priority = false, immediate = false } = {}) {
   if (!tickers?.length) return
+  const front = []
   for (const sym of tickers) {
     if (!sym) continue
     const key = `${sym}_${tf}`
-    if (_idbSeen.has(key)) continue           // in-flight/recent — don't pile up
-    _idbSeen.add(key)
-    setTimeout(() => _idbSeen.delete(key), 60000)
-    _idbQueue.push({ sym, tf })
+    const at = _idbQueue.findIndex(j => j.sym === sym && j.tf === tf)
+    if (at >= 0) {                              // already queued
+      if (priority && at > 0) front.push(_idbQueue.splice(at, 1)[0]) // jump the line
+      continue
+    }
+    if (_idbSeen.has(key) && !priority) continue // in-flight/recent — don't pile up
+    if (!_idbSeen.has(key)) { _idbSeen.add(key); setTimeout(() => _idbSeen.delete(key), 60000) }
+    if (priority) front.push({ sym, tf })
+    else _idbQueue.push({ sym, tf })
     prefetchTickerMeta(sym)
   }
-  _idbKickSoon()
+  if (front.length) _idbQueue.unshift(...front) // caller order, at the head
+  if (immediate) _idbPump()                      // a click on this set is imminent
+  else _idbKickSoon()
 }
 
 // ── IDB → mem promotion (no network) ─────────────────────────────────────────

@@ -27,6 +27,7 @@ from api.services.cache_policy import set_by_completeness
 from api.services.engine import _load_wire_data
 from api.services.massive import get_agg_bars
 from api.services import theme_db
+from api.services import delisted_registry
 
 import re
 
@@ -127,8 +128,14 @@ def load_persisted_on_startup() -> None:
 def _resolve_holdings(etf_key: str, theme_data: dict, wire: dict) -> list[str]:
     if etf_key == "UCT20":
         leadership = wire.get("leadership", [])
-        return [e["sym"] for e in leadership if isinstance(e, dict) and "sym" in e]
-    return [h["sym"] for h in theme_data.get("holdings", []) if isinstance(h, dict) and h.get("sym")]
+        syms = [e["sym"] for e in leadership if isinstance(e, dict) and "sym" in e]
+    else:
+        syms = [h["sym"] for h in theme_data.get("holdings", [])
+                if isinstance(h, dict) and h.get("sym")]
+    # A ticker that no longer trades (delisted / taken-private / merged) must never
+    # sit in the Theme Tracker — the chart itself already flags it "Delisted". Drop
+    # it here so it's never priced or rolled into a theme's aggregate returns.
+    return [s for s in syms if not delisted_registry.is_delisted(s)]
 
 
 def _compute_returns_with_refs(bars: list[dict]) -> tuple[dict, dict]:
@@ -610,6 +617,28 @@ def _enrich_with_taxonomy(result: dict) -> dict:
     return result
 
 
+def _strip_delisted(result: dict) -> dict:
+    """Remove delisted holdings from every theme at serve time.
+
+    Belt-and-suspenders to _resolve_holdings' source filter: this catches names
+    that live in an already-cached disk result (which won't recompute for hours)
+    and any delisted members _enrich_with_taxonomy appends from the taxonomy DB —
+    so a delisted ticker disappears the moment the registry knows it, not on the
+    next recompute. Registry lookups are in-memory and O(1)."""
+    try:
+        for theme in result.get("themes", []):
+            holdings = theme.get("holdings")
+            if not holdings:
+                continue
+            theme["holdings"] = [
+                h for h in holdings
+                if not delisted_registry.is_delisted(h.get("sym"))
+            ]
+    except Exception as e:
+        _logger.warning("[themes] delisted strip failed: %s", e)
+    return result
+
+
 def get_theme_performance() -> dict:
     """Return theme performance data. Never blocks — always returns immediately.
 
@@ -626,7 +655,7 @@ def get_theme_performance() -> dict:
     # 1. In-memory cache hit (fast path) — overlay live 1d, enrich, memoize
     cached = cache.get(_CACHE_KEY)
     if cached is not None:
-        out = _enrich_with_taxonomy(_apply_live_returns(cached))
+        out = _strip_delisted(_enrich_with_taxonomy(_apply_live_returns(cached)))
         out["live_as_of"] = datetime.now(timezone.utc).isoformat()  # when live prices were applied
         cache.set(_OVERLAID_KEY, out, ttl=_LIVE_1D_TTL)
         return out
@@ -635,7 +664,7 @@ def get_theme_performance() -> dict:
     disk_data = _load_from_disk()
     if disk_data:
         cache.set(_CACHE_KEY, disk_data, ttl=_CACHE_TTL)
-        out = _enrich_with_taxonomy(_apply_live_returns(disk_data))
+        out = _strip_delisted(_enrich_with_taxonomy(_apply_live_returns(disk_data)))
         out["live_as_of"] = datetime.now(timezone.utc).isoformat()  # when live prices were applied
         cache.set(_OVERLAID_KEY, out, ttl=_LIVE_1D_TTL)
         return out

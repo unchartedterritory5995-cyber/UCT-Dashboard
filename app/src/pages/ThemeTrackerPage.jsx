@@ -410,13 +410,17 @@ export default function ThemeTrackerPage({ embedded = false, activeRef = null, w
       const theme = data?.themes?.find(t => t.ticker === ticker)
       if (theme?.holdings?.length) {
         const syms = theme.holdings.map(h => h.sym)
+        // Daily is the TF a click lands on. Warm it for the WHOLE just-opened group
+        // at HIGH priority and START immediately (no idle defer) — this is the fix
+        // for the black-screen flash while arrowing fast through a group: by the
+        // time the first click commits, every holding's Daily bars are already in
+        // IDB, so the chart paints instantly instead of cold-fetching on black.
+        prefetchBarsToIDB(syms, 'D', { priority: true, immediate: true })
         prefetchBars(syms, chartPeriod)
         // Durable warm of the WHOLE group into IndexedDB so arrowing through it
         // (even with the keyboard, faster than hover) is instant — and survives a
-        // page reload, unlike the in-memory prefetch above. Also warm Daily since
-        // that's the default chart TF a click lands on.
-        prefetchBarsToIDB(syms, chartPeriod)
-        if (chartPeriod !== 'D') prefetchBarsToIDB(syms, 'D')
+        // page reload, unlike the in-memory prefetch above.
+        if (chartPeriod !== 'D') prefetchBarsToIDB(syms, chartPeriod)
         // Warm the whole group across ALL scan timeframes (intraday too) into
         // durable IDB so scrolling this theme is instant on 5m/30m/1h, not just
         // daily. Bounded/idle-deferred — never competes with the active chart.

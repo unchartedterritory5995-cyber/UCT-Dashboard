@@ -602,10 +602,12 @@ def _normalize_themes(raw, period: str = "1W") -> dict:
         pct_str = f"{pct_val:+.2f}%" if isinstance(pct_val, (int, float)) else str(pct_val)
         bar = min(100, max(0, abs(pct_val) * 8)) if isinstance(pct_val, (int, float)) else 50
 
+        from api.services import delisted_registry
         raw_holdings = data.get("holdings", [])
         holdings = [
             h["sym"] for h in raw_holdings
             if isinstance(h, dict) and h.get("sym")
+            and not delisted_registry.is_delisted(h["sym"])
         ]
 
         raw_intl = data.get("intl_holdings", [])
