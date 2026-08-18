@@ -172,6 +172,17 @@ def search_articles(q: str = "", limit: int = 30,
     }
 
 
+@router.get("/articles/audit")
+def article_audit(_admin: dict = Depends(require_admin)):
+    """Re-read the artifacts and report what didn't land. Read-only.
+
+    Declared before `/articles/{post_id:path}`, which would otherwise swallow
+    "audit" as a post id.
+    """
+    from api.services import desk_article_audit
+    return desk_article_audit.audit_articles()
+
+
 @router.get("/articles/for-ticker/{sym}")
 def articles_for_ticker(sym: str, limit: int = 8,
                         _user: dict = Depends(require_article_reader)):
@@ -250,6 +261,7 @@ def get_article(post_id: str, _user: dict = Depends(require_article_reader)):
         "sections": _json_list(post.get("sections_json")),
         "tickers": _json_list(post.get("tickers_json")),
         "related_video": _related_video(post),
+        "adjacent": desk_store.adjacent_posts(post["id"]),
         "internal_links": internal_links,
         "body_html": body,
     }

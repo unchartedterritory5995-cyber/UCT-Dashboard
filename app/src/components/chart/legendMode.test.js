@@ -10,12 +10,20 @@ import { mergeChartSettings, CHART_DEFAULTS } from './chartDefaults'
 // fallback — the alternative (keeping both writable and "syncing" them) is the
 // second-authority-over-one-value defect this repo keeps paying for.
 describe('legendModeOf — the single reader', () => {
-  it('a blob that has never heard of either key reads as HOLD — the shipped default', () => {
+  it('⭐ THE ONE PLACE THE DEFAULT IS SPELLED OUT — changing it is deliberate', () => {
+    // Every other default assertion in this file DERIVES from this constant, so a
+    // future flip is a one-line change and cannot leave a stale literal behind
+    // asserting the old answer. TradingView ships its legend always-on and users
+    // expect that on arrival — owner call 2026-08-17.
+    expect(DEFAULT_LEGEND_MODE).toBe('always')
+  })
+
+  it('a blob that has never heard of either key reads as the shipped default', () => {
     // ⭐ THE DEFAULT LIVES HERE, NOT IN `CHART_DEFAULTS`. `mergeChartSettings`
     // resolves `header.legendMode` by calling THIS function on the stored blob,
     // so the declaration in the schema is downstream of this line. Changing the
     // schema alone would have moved nothing — measured.
-    expect(legendModeOf(mergeChartSettings(JSON.stringify({})))).toBe('hold')
+    expect(legendModeOf(mergeChartSettings(JSON.stringify({})))).toBe(DEFAULT_LEGEND_MODE)
   })
 
   it('a LEGACY blob with showLegend:false still means off', () => {
@@ -23,7 +31,7 @@ describe('legendModeOf — the single reader', () => {
     expect(legendModeOf(cs)).toBe('off')
   })
 
-  it('a LEGACY blob with showLegend:true takes the NEW default, not always', () => {
+  it('a LEGACY blob with showLegend:true takes the CURRENT default, whatever it is', () => {
     // ⚠️ A DELIBERATE, OWNER-APPROVED BEHAVIOUR CHANGE FOR EXISTING USERS.
     // `showLegend: true` only ever meant "not off" — it is the old checkbox's ON
     // state, and the old UI had no third option to distinguish "always" from
@@ -31,7 +39,7 @@ describe('legendModeOf — the single reader', () => {
     // existing user to the old behaviour forever. `showLegend: false` is the one
     // legacy value that carries a real decision, and it is honoured below.
     const cs = mergeChartSettings(JSON.stringify({ header: { showLegend: true } }))
-    expect(legendModeOf(cs)).toBe('hold')
+    expect(legendModeOf(cs)).toBe(DEFAULT_LEGEND_MODE)
   })
 
   it('an explicit legendMode WINS over a contradicting legacy showLegend', () => {
@@ -74,9 +82,9 @@ describe('legendModeOf — the single reader', () => {
   })
 
   it('survives a missing header / null settings without throwing', () => {
-    expect(legendModeOf(null)).toBe('hold')
-    expect(legendModeOf({})).toBe('hold')
-    expect(legendModeOf({ header: null })).toBe('hold')
+    expect(legendModeOf(null)).toBe(DEFAULT_LEGEND_MODE)
+    expect(legendModeOf({})).toBe(DEFAULT_LEGEND_MODE)
+    expect(legendModeOf({ header: null })).toBe(DEFAULT_LEGEND_MODE)
   })
 
   it('mergeChartSettings PRESERVES legendMode — the allow-list must not destroy it', () => {

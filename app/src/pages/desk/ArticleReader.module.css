@@ -294,3 +294,47 @@
   font-size: var(--text-base); color: var(--text-bright); font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+
+/* Previous / next issue. An archive is a sequence; the only exit from an
+   18-minute read used to be the back link. */
+.adjacent {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);
+  max-width: 760px; margin-top: var(--space-2xl);
+}
+.adjPrev, .adjNext {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: var(--space-md); border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg-surface); text-decoration: none; min-height: var(--tap-min);
+  min-width: 0;
+}
+.adjNext { text-align: right; }
+.adjPrev:hover, .adjNext:hover { border-color: var(--ut-gold); }
+.adjLabel {
+  font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ut-gold);
+}
+.adjTitle {
+  font-size: var(--text-sm); color: var(--text-bright);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+@media (max-width: 640px) {
+  .adjacent { grid-template-columns: 1fr; }
+  .adjNext { text-align: left; }
+}
+
+/* "Picked up where you left off." Shown because moving a reader silently is
+   worse than not moving them at all. */
+.resumed {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-md);
+  max-width: 760px; margin-bottom: var(--space-lg);
+  padding: 8px var(--space-md); border-radius: 8px;
+  background: var(--ut-gold-dim); border: 1px solid var(--ut-gold-glow);
+  font-size: var(--text-sm); color: var(--text);
+}
+.resumed strong { color: var(--ut-gold); font-weight: 600; }
+.resumedBtn {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  color: var(--text-muted); font-family: inherit; font-size: var(--text-sm);
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.resumedBtn:hover { color: var(--ut-gold); }

@@ -40,10 +40,16 @@ const _LEGACY_ALIAS = { click: 'hold' }
  * the flip. `legendStamp.test.js` is the rail.
  *
  * ⚠️ CHANGING THIS CHANGES EVERY EXISTING USER whose blob carries no explicit
- * mode — which, the day it flipped, was all of them. Owner call, 2026-08-16:
- * a clean chart that answers when asked is the better out-of-box behaviour.
+ * mode. That is the intent — but it only WORKS because the merge no longer
+ * stamps the resolved answer into stored settings (see below). While it did, a
+ * flip reached nobody who had ever saved a chart setting, which is how the
+ * 2026-08-16 change to `hold` failed silently in production.
+ *
+ * ⭐ `'always'` — owner call 2026-08-17, from user feedback: TradingView shows its
+ * legend on arrival and people expect the same here. `hold` and `off` remain one
+ * click away for anyone who wants a clean chart.
  */
-export const DEFAULT_LEGEND_MODE = 'hold'
+export const DEFAULT_LEGEND_MODE = 'always'
 
 const _VALID = new Set(LEGEND_MODES)
 

@@ -13,6 +13,10 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import useSWR from 'swr'
 import { ArticleIcon } from '../education/icons'
 import UIcon from '../../components/ui/UIcon'
+// Named `bookmark`, not `progress`: the component already has a `progress`
+// state for the reading BAR, which would shadow a module called the same.
+import * as bookmark from './articleProgress'
+import { findScrollContainer, scrollMetrics } from './scrollContainer'
 import styles from './ArticleReader.module.css'
 
 // A Sunday Scans issue covers ~44 names; the rest sit behind a toggle so the
@@ -48,6 +52,27 @@ export default function ArticleReader() {
   const [progress, setProgress] = useState(0)
   const [lightbox, setLightbox] = useState(null)
   const [showAllTickers, setShowAllTickers] = useState(false)
+  const [resumedAt, setResumedAt] = useState(null)   // section we jumped to, if any
+  // ⛔ The scroll-spy effect is declared BEFORE the restore effect, so on mount
+  // it runs first — at scroll position 0. Saving then would write pct=0 and
+  // DELETE the bookmark before restore ever reads it, which is exactly how this
+  // feature would have shipped broken. Nothing is written until restore has had
+  // its turn.
+  const restoreSettledRef = useRef(false)
+  const armedForRef = useRef(null)
+  // Re-armed DURING RENDER, not in an effect. Walking prev/next swaps the
+  // article without unmounting, so the gate has to close before the scroll-spy
+  // effect gets a chance to save at scroll position 0 and wipe the incoming
+  // article's bookmark.
+  //
+  // An effect HERE would also work — effects run in declaration order and this
+  // sits above the scroll-spy — but only for as long as it stays above it.
+  // Doing it during render is correct no matter where the effects below get
+  // moved to, which is the kind of ordering nobody re-checks later.
+  if (armedForRef.current !== slug) {
+    armedForRef.current = slug
+    restoreSettledRef.current = false
+  }
 
   const { data, error, isLoading } = useSWR(
     slug ? `/api/desk/articles/${encodeURIComponent(slug)}` : null,
@@ -91,15 +116,22 @@ export default function ArticleReader() {
   // this app scrolls an inner .main element (see Layout.module.css).
   useEffect(() => {
     if (!data?.body_html) return undefined
-    const scroller = bodyRef.current?.closest('[data-scroll-root]')
-      || document.querySelector('.main')
-      || window
-    const heads = Array.from(bodyRef.current?.querySelectorAll('h2[id], h3[id]') || [])
+    // ⛔ MEASURED, never named. The app's scroller is a CSS Module, so its class
+    // is hashed and a literal '.main' matches nothing — which silently pinned
+    // scrollTop at 0 and killed the progress bar, the scroll-spy AND the saved
+    // position at once, with every test still green.
+    const scroller = findScrollContainer(bodyRef.current)
 
     let frame = 0
     const measure = () => {
       frame = 0
-      const el = scroller === window ? document.documentElement : scroller
+      // ⛔ Query the headings EVERY TIME, never capture them once. A captured
+      // NodeList goes stale the moment React re-renders the injected body, and
+      // a detached node reports a zero rect — every heading then looks "above
+      // the fold" and the spy silently reports the LAST one in the document.
+      // Nine elements per throttled frame is free; the staleness is not.
+      const heads = Array.from(bodyRef.current?.querySelectorAll('h2[id], h3[id]') || [])
+      const el = scrollMetrics(scroller)
       const max = el.scrollHeight - el.clientHeight
       setProgress(max > 0 ? Math.min(1, Math.max(0, el.scrollTop / max)) : 0)
       const top = el.getBoundingClientRect ? el.getBoundingClientRect().top : 0
@@ -109,6 +141,11 @@ export default function ArticleReader() {
         else break
       }
       setActiveId(current)
+      // The scroll-spy already knows the section and the percentage; saving
+      // here means the bookmark can never disagree with what the TOC says.
+      if (slug && restoreSettledRef.current) {
+        bookmark.save(slug, { sectionId: current, pct: max > 0 ? el.scrollTop / max : 0 })
+      }
     }
     const onScroll = () => { if (!frame) frame = requestAnimationFrame(measure) }
     measure()
@@ -125,6 +162,75 @@ export default function ArticleReader() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [lightbox])
+
+  // Put the reader back where they were. Runs once per article, AFTER the body
+  // is in the DOM — and anchors on a HEADING, so the 99 lazily-loaded charts
+  // growing the page underneath cannot move the target.
+  useEffect(() => {
+    if (!data?.body_html || !slug) return
+    // Whatever happens below, saving resumes after this runs — otherwise a
+    // reader who has no bookmark could never create one.
+    const settle = () => { restoreSettledRef.current = true }
+    const saved = bookmark.load(slug)
+    if (!saved) return settle()
+    const el = bodyRef.current?.querySelector(`#${CSS.escape(saved.sectionId)}`)
+    if (!el) return settle()
+    // ⛔ ONE scrollIntoView HERE IS DROPPED. The effect fires the moment ~100 KB
+    // of article HTML is committed, before the browser has laid it out, so the
+    // scroll container is not yet tall enough to scroll and the call silently
+    // no-ops — leaving the reader at the top under a pill claiming otherwise.
+    // Re-assert across a few frames until it actually lands, and only then say
+    // so. (Same shape as the chart that discards an early setVisibleLogicalRange.)
+    // The TOC omits very long headings, so a saved section can be absent from
+    // it — fall back to the heading's own words rather than showing no pill.
+    const label = (data.sections || []).find((s) => s.id === saved.sectionId)?.text
+      || (el.textContent || '').trim().slice(0, 48) || null
+    let cancelled = false
+    let frame = 0
+    // A WALL-CLOCK budget, not a frame count: how long the browser takes to lay
+    // out ~100 KB of article and 60+ charts varies hugely by machine, and a
+    // 30-frame (~0.5s) budget expired before the container was even scrollable.
+    const deadline = Date.now() + 3000
+    // If the reader starts scrolling, they have chosen their own position —
+    // stop re-asserting rather than yanking them.
+    const abort = () => { cancelled = true }
+    const stamp = () => {
+      if (cancelled) return
+      const metrics = scrollMetrics(findScrollContainer(bodyRef.current))
+      try {
+        el.scrollIntoView({ block: 'start' })
+      } catch {
+        return settle()
+      }
+      if (metrics && metrics.scrollTop > 0) {
+        setResumedAt(label || null)
+        return settle()
+      }
+      if (Date.now() < deadline) frame = setTimeout(stamp, 60)
+      else settle()   // gave up — never claim a jump that did not happen
+    }
+    window.addEventListener('wheel', abort, { passive: true, once: true })
+    window.addEventListener('touchstart', abort, { passive: true, once: true })
+    // ⛔ TIMERS, NOT requestAnimationFrame. rAF does not fire while a tab is not
+    // painting, so an article opened in a BACKGROUND TAB would never restore —
+    // the reader switches to it and finds themselves at the top. Measured:
+    // 17 rAF callbacks scheduled, 0 run. Timers still fire (throttled) there.
+    frame = setTimeout(stamp, 0)
+    return () => {
+      cancelled = true
+      window.removeEventListener('wheel', abort)
+      window.removeEventListener('touchstart', abort)
+      if (frame) clearTimeout(frame)
+    }
+  }, [data?.body_html, slug])
+
+  const startFromTop = useCallback(() => {
+    bookmark.clear(slug)
+    setResumedAt(null)
+    const scroller = findScrollContainer(bodyRef.current)
+    if (scroller === window) window.scrollTo({ top: 0 })
+    else scroller.scrollTop = 0
+  }, [slug])
 
   const jumpTo = (id) => {
     const el = bodyRef.current?.querySelector(`#${CSS.escape(id)}`)
@@ -174,6 +280,17 @@ export default function ArticleReader() {
       <Link className={styles.back} to="/desk?section=articles">
         <UIcon name="chevronRight" size={16} className={styles.backIcon} /> Articles
       </Link>
+
+      {/* Never move someone silently: say where they landed and offer the way
+          back. Auto-dismisses by being trivially dismissible, not on a timer. */}
+      {resumedAt && (
+        <div className={styles.resumed} role="status">
+          <span>Picked up at <strong>{resumedAt}</strong></span>
+          <button type="button" className={styles.resumedBtn} onClick={startFromTop}>
+            Start from the top
+          </button>
+        </div>
+      )}
 
       <header className={styles.head}>
         <div className={styles.eyebrow}>{data.publication_name || 'UCT Intelligence'}</div>
@@ -253,6 +370,25 @@ export default function ArticleReader() {
           </span>
           <UIcon name="chevronRight" size={16} />
         </Link>
+      )}
+
+      {/* An archive is a sequence. Without this the only exit from an 18-minute
+          read is the back link. */}
+      {(data.adjacent?.previous || data.adjacent?.next) && (
+        <nav className={styles.adjacent} aria-label="More issues">
+          {data.adjacent.previous ? (
+            <Link className={styles.adjPrev} to={`/desk/article/${data.adjacent.previous.slug}`}>
+              <span className={styles.adjLabel}>← Previous issue</span>
+              <span className={styles.adjTitle}>{data.adjacent.previous.title}</span>
+            </Link>
+          ) : <span />}
+          {data.adjacent.next && (
+            <Link className={styles.adjNext} to={`/desk/article/${data.adjacent.next.slug}`}>
+              <span className={styles.adjLabel}>Next issue →</span>
+              <span className={styles.adjTitle}>{data.adjacent.next.title}</span>
+            </Link>
+          )}
+        </nav>
       )}
 
       <footer className={styles.foot}>
