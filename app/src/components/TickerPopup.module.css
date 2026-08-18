@@ -49,12 +49,11 @@
   border: 1px solid var(--border-accent);
   border-radius: var(--radius-xl);
   padding: 16px;
-  /* Near-full-screen footprint on every window (owner preference): 96vw × 95vh
-     dominates until an ultra-wide screen hits the px cap, so both surfaces fill
-     the viewport with a small margin rather than sitting as a contained card. */
-  width: min(2000px, 96vw);
-  max-width: 96vw;
-  max-height: min(1300px, 95vh);
+  /* Contained card (owner preference): large and chart-forward but clearly
+     centered with margins, not edge-to-edge. Caps only bite on ultra-wide/tall. */
+  width: min(1440px, 85vw);
+  max-width: 85vw;
+  max-height: min(1150px, 88vh);
   overflow-y: auto;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
 }
