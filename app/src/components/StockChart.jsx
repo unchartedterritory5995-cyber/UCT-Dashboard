@@ -461,6 +461,7 @@ import { streamStatus } from '../utils/streamStatus'
 import brandMark from './intro/assets/compass-mark.png'
 import { idbGet, idbPut, mergeDelta } from '../utils/barsIDB'
 import { memPeek, memPut } from '../utils/barsMemCache'
+import { isDailyTailStale } from '../utils/marketSession'
 import { resample, resampleForSpec } from '../utils/resampleBars'
 import { isNativeTf, fetchTf, resampleSpec, parseTf } from './chart/timeframes'
 import { barsRenderPlan } from './chart/renderPlan'
@@ -4153,26 +4154,13 @@ export default function StockChart({
   // is an ISO 'YYYY-MM-DD' string; reject it if it's older than the most recent
   // ET session that should be present. Weekend/pre-open aware (a rare holiday
   // only costs a brief spinner, never stale data).
-  let _expectedSessionET = null
-  if (resolvedTf === 'D') {
-    const _n = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
-    const _dow = _n.getDay()               // 0 Sun … 6 Sat
-    const _mn = _n.getHours() * 60 + _n.getMinutes()
-    const _d = new Date(_n)
-    if (!(_dow >= 1 && _dow <= 5 && _mn >= 570)) { // not a weekday at/after 9:30 ET
-      do { _d.setDate(_d.getDate() - 1) } while (_d.getDay() === 0 || _d.getDay() === 6)
-    }
-    const _p = (x) => String(x).padStart(2, '0')
-    _expectedSessionET = `${_d.getFullYear()}-${_p(_d.getMonth() + 1)}-${_p(_d.getDate())}`
-  }
-  const idbStaleDaily = _expectedSessionET != null
+  const idbStaleDaily = resolvedTf === 'D'
     && typeof idbSinceRef.current === 'string'
-    && idbSinceRef.current.slice(0, 10) < _expectedSessionET
+    && isDailyTailStale(idbSinceRef.current)
   const _memTailStaleDaily = (arr) => (
-    _expectedSessionET != null
+    resolvedTf === 'D'
     && Array.isArray(arr) && arr.length
-    && typeof arr[arr.length - 1]?.t === 'string'
-    && arr[arr.length - 1].t.slice(0, 10) < _expectedSessionET
+    && isDailyTailStale(arr[arr.length - 1]?.t)
   )
   let _sinceParam = null
   if (isIntraday && typeof idbSinceRef.current === 'number' && !idbStaleIntraday) {

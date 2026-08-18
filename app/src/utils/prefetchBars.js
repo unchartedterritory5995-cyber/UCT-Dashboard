@@ -11,9 +11,10 @@
 // chart's own SWR fetch wins first.
 import { preload } from 'swr'
 import { prefetchTickerMeta } from '../hooks/useTickerMeta'
-import { idbGet, idbPut } from './barsIDB'
+import { idbGet, idbPut, mergeDelta } from './barsIDB'
 import { memHas, memPut } from './barsMemCache'
 import { FIRST_PAINT_BARS, fullBarsFor } from './barsBackfill'
+import { isDailyTailStale } from './marketSession'
 
 const fetcher = url => fetch(url).then(r => r.json())
 
@@ -153,13 +154,23 @@ function _idbPump() {
 async function _idbWarmOne({ sym, tf }) {
   try {
     const have = await idbGet(sym, tf)
-    if (have?.bars?.length) return                 // already durable — no fetch
+    // A DAILY entry missing recent sessions is NOT fresh: the chart's daily
+    // staleness gate refuses to paint it, so leaving it here is what makes the
+    // NEXT click cold-load on a black screen. Refresh it so scanning keeps the
+    // daily cache current and the click paints instantly. (Intraday is already
+    // handled: idbGet returns null for a stale-intraday entry → `have` is null.)
+    const staleDaily = tf === 'D' && have?.bars?.length && isDailyTailStale(have.lastT)
+    if (have?.bars?.length && !staleDaily) return  // already durable + fresh — no fetch
     const json = await preload(_url(sym, tf), fetcher)  // dedupes with prefetchBars
-    // Prefetch URLs carry no `since`, so the response is always a full (non-delta)
-    // set — exactly what StockChart's own D/W/M full-fetch path writes to IDB.
     if (json?.bars?.length && !json.delta) {
-      await idbPut(sym, tf, json.bars)
-      memPut(sym, tf, json.bars)   // also warm the synchronous mem cache
+      // On a stale-daily refresh, PRESERVE any deeper history already in IDB and
+      // heal only the recent tail (fresh wins on overlap) — idbPut REPLACES, so a
+      // bare shallow write would truncate a deep-warmed series back to ~600 bars.
+      const next = (staleDaily && have?.bars?.length > json.bars.length)
+        ? mergeDelta(have.bars, json.bars)
+        : json.bars
+      await idbPut(sym, tf, next)
+      memPut(sym, tf, next)   // also warm the synchronous mem cache
     }
   } catch { /* best-effort; the chart's own fetch remains the source of truth */ }
 }
@@ -230,7 +241,10 @@ export function prefetchBarsToIDB(tickers, tf = 'D') {
 // promoting it would flash an old session mid-scan. D/W/M always promote.
 const _INTRADAY_TFS = new Set(['1', '5', '15', '30', '60'])
 function _memPromoteFresh(tf, lastT) {
-  if (!_INTRADAY_TFS.has(String(tf))) return true
+  // Daily: reject a tail missing recent sessions (mirrors the chart's gate — a
+  // stale daily promoted to mem would just be suppressed, or flash old data).
+  if (String(tf) === 'D') return !isDailyTailStale(lastT)
+  if (!_INTRADAY_TFS.has(String(tf))) return true   // W/M always promote
   if (typeof lastT !== 'number') return false
   const tfSec = Math.max(60, (Number(tf) || 5) * 60)
   return (Date.now() / 1000 - lastT) <= Math.max(6 * tfSec, 20 * 60)
@@ -356,8 +370,13 @@ async function _warmIntentNow(sym, tf) {
     }
     const json = await preload(_url(sym, tf), fetcher) // dedupes + warms SWR cache
     if (json?.bars?.length && !json.delta) {
-      memPut(sym, tf, json.bars)
-      await idbPut(sym, tf, json.bars)                 // durable too
+      // Preserve deeper history on a stale-daily refresh (see _idbWarmOne).
+      const staleDaily = tf === 'D' && have?.bars?.length && isDailyTailStale(have.lastT)
+      const next = (staleDaily && have?.bars?.length > json.bars.length)
+        ? mergeDelta(have.bars, json.bars)
+        : json.bars
+      memPut(sym, tf, next)
+      await idbPut(sym, tf, next)                       // durable too
     }
   } catch { /* best-effort; the chart's own fetch remains source of truth */ }
 }
