@@ -9,10 +9,56 @@ overwriting a good one.
 """
 import gzip
 import json
+from datetime import datetime
 
 import pytest
 
 from api.services import barspack
+
+
+def _et(y, mo, d, h, mi):
+    return datetime(y, mo, d, h, mi, tzinfo=barspack._ET)
+
+
+# 2026-08-18 = Tue, 08-17 = Mon, 08-14 = Fri, 08-15 = Sat, 08-16 = Sun.
+
+def test_last_complete_session_post_close_is_today():
+    assert barspack._last_complete_session_ymd(_et(2026, 8, 18, 17, 0)) == 20260818
+
+
+def test_last_complete_session_midsession_is_prior_day():
+    # Mid-session (before 16:30 ET) → today's bar is partial → last COMPLETE is Monday.
+    assert barspack._last_complete_session_ymd(_et(2026, 8, 18, 14, 0)) == 20260817
+
+
+def test_last_complete_session_weekend_is_friday():
+    assert barspack._last_complete_session_ymd(_et(2026, 8, 15, 12, 0)) == 20260814  # Sat
+    assert barspack._last_complete_session_ymd(_et(2026, 8, 16, 12, 0)) == 20260814  # Sun
+
+
+def test_safe_to_build_never_mid_session():
+    assert barspack._safe_to_build(_et(2026, 8, 18, 17, 0)) is True   # post-close weekday
+    assert barspack._safe_to_build(_et(2026, 8, 18, 14, 0)) is False  # mid-session weekday
+    assert barspack._safe_to_build(_et(2026, 8, 15, 12, 0)) is True   # weekend
+
+
+def test_should_build_rebuilds_after_close(monkeypatch):
+    monkeypatch.setattr(barspack, "_read_session_marker", lambda: 20260817)  # Mon published
+    assert barspack._should_build_now(_et(2026, 8, 18, 17, 0)) is True   # Tue closed → new session
+    monkeypatch.setattr(barspack, "_read_session_marker", lambda: 20260818)  # Tue already published
+    assert barspack._should_build_now(_et(2026, 8, 18, 17, 0)) is False
+
+
+def test_should_build_never_mid_session_even_when_stale(monkeypatch):
+    monkeypatch.setattr(barspack, "_read_session_marker", lambda: 20260101)  # very stale
+    assert barspack._should_build_now(_et(2026, 8, 18, 14, 0)) is False  # market open → never build
+
+
+def test_should_build_self_heals_a_behind_pack_on_weekend(monkeypatch):
+    monkeypatch.setattr(barspack, "_read_session_marker", lambda: 20260813)  # behind Friday
+    assert barspack._should_build_now(_et(2026, 8, 15, 12, 0)) is True     # Sat → rebuild to Fri
+    monkeypatch.setattr(barspack, "_read_session_marker", lambda: 20260814)  # already at Friday
+    assert barspack._should_build_now(_et(2026, 8, 15, 12, 0)) is False
 
 
 def _synthetic_bars(sym, tf, depth):

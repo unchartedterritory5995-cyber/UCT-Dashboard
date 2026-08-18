@@ -39,7 +39,7 @@ import os
 import threading
 import time
 import zlib
-from datetime import datetime
+from datetime import datetime, timedelta
 
 try:
     import zoneinfo
@@ -54,7 +54,13 @@ log = logging.getLogger(__name__)
 # ── Config (env-overridable) ─────────────────────────────────────────────────
 _PREFIX = "barspack"                 # R2 key prefix
 PACK_FORMAT = 1                      # bump if the shard encoding changes
-_MARKER_FILE = ".last_barspack_day"  # once-per-ET-day dedup marker (worker volume)
+_MARKER_FILE = ".last_barspack_day"  # legacy once-per-ET-day marker (kept for status)
+# Session marker = YYYYMMDD of the latest daily session the last PUBLISHED pack
+# carried. Drives the rebuild trigger: rebuild whenever a newer CLOSED session
+# exists than what we published (i.e. right after each 4pm close, and as a
+# self-heal if the pack ever fell behind). Distinct file so the transition off the
+# legacy day-marker is clean (a fresh worker has no session marker → builds once).
+_SESSION_MARKER_FILE = ".last_barspack_session"
 _TFS = ("D", "W", "M")
 
 
@@ -330,6 +336,7 @@ def build(depth: int = PACK_DEPTH, num_shards: int = NUM_SHARDS,
         "num_shards": num_shards,
         "ticker_count": total_tickers,
         "bar_count": total_bars,
+        "newest_session": newest_daily_ymd,   # YYYYMMDD of the pack's latest daily bar
         "shards": manifest_shards,
         "delta": {"name": delta_key, "bytes": len(delta_gz),
                   "tail": _DELTA_TAIL, "tickers": len(delta_tickers)},
@@ -428,23 +435,108 @@ def _write_marker(day: str) -> None:
         pass
 
 
+def _session_marker_path() -> str:
+    return os.path.join(os.environ.get("DATA_DIR", "/data"), _SESSION_MARKER_FILE)
+
+
+def _read_session_marker() -> int:
+    """YYYYMMDD of the last published pack's newest daily session, or 0 if never
+    published (a fresh worker → 0 → first complete session builds immediately)."""
+    try:
+        with open(_session_marker_path()) as f:
+            return int((f.read().strip() or "0"))
+    except Exception:
+        return 0
+
+
+def _write_session_marker(session_ymd: int) -> None:
+    try:
+        with open(_session_marker_path(), "w") as f:
+            f.write(str(int(session_ymd)))
+    except Exception:
+        pass
+
+
+def _is_trading_day(d: datetime) -> bool:
+    if d.weekday() >= 5:
+        return False
+    try:
+        from api.services.bars_fetch import _is_nyse_holiday
+        return not _is_nyse_holiday(int(d.strftime("%Y%m%d")))
+    except Exception:
+        return True  # holiday calendar unavailable → treat weekdays as trading
+
+
+def _prior_trading_session_ymd(d: datetime) -> int:
+    """YYYYMMDD of the most recent trading day STRICTLY BEFORE d's date."""
+    x = d - timedelta(days=1)
+    for _ in range(14):
+        if _is_trading_day(x):
+            return int(x.strftime("%Y%m%d"))
+        x -= timedelta(days=1)
+    return int(x.strftime("%Y%m%d"))
+
+
+# 16:30 ET — past the 4pm close plus provider finalization. Only after this do we
+# treat today's daily bar as COMPLETE and safe to bake into the pack; building
+# before it would freeze a partial mid-session bar into every browser's cache.
+_SESSION_COMPLETE_MIN = _int_env("BARSPACK_SESSION_COMPLETE_MIN", 16 * 60 + 30)
+
+
+def _last_complete_session_ymd(now: datetime | None = None) -> int | None:
+    """YYYYMMDD of the most recent COMPLETE daily session — today once it has closed
+    (a trading day at/after 16:30 ET), else the prior trading session (weekend,
+    holiday, or a weekday still before the close). Returns None ONLY when there is
+    no tz (local/test without _ET) so scheduling never runs off a bare UTC clock.
+
+    Pure + injectable so the build cadence is unit-testable without wall-clock."""
+    if now is None:
+        if not _ET:
+            return None
+        now = datetime.now(_ET)
+    if _is_trading_day(now) and (now.hour * 60 + now.minute) >= _SESSION_COMPLETE_MIN:
+        return int(now.strftime("%Y%m%d"))   # today's session has closed
+    return _prior_trading_session_ymd(now)   # mid-session / weekend / holiday → prior
+
+
 def status() -> dict:
     """Diagnostics for the worker health surface."""
     return {
         "enabled": os.environ.get("BARSPACK_ENABLED", "0") == "1",
         "last_built_day": _read_marker(),
+        "published_session": _read_session_marker(),
+        "target_session": _last_complete_session_ymd(),
+        "should_build_now": _should_build_now(),
         "depth": PACK_DEPTH,
         "num_shards": NUM_SHARDS,
     }
 
 
-def _should_build_now() -> bool:
-    """Build once per ET day, AFTER the active data window closes (post ~8pm ET
-    or weekend) so the day's bars are complete. The marker dedups within a day."""
-    from api.services import data_sync
-    if _read_marker() == _et_today():
+def _safe_to_build(now: datetime) -> bool:
+    """True only when today's daily bar can't be mid-session partial: a trading day
+    AT/AFTER the close (>= _SESSION_COMPLETE_MIN), or any non-trading day (the last
+    session already closed). Building mid-session would freeze a partial today bar
+    into every browser's cache — this is the hard guard against that."""
+    if not _is_trading_day(now):
+        return True
+    return (now.hour * 60 + now.minute) >= _SESSION_COMPLETE_MIN
+
+
+def _should_build_now(now: datetime | None = None) -> bool:
+    """Rebuild whenever a newer CLOSED session exists than the last published pack
+    carried — i.e. right after each 4pm close (so evening/overnight/pre-market
+    scanning is instant, not just intraday), and as a self-heal if the pack ever
+    fell behind. Never builds mid-session (partial-bar guard). The session marker
+    (last published newest-daily-YYYYMMDD) replaces the old once-per-ET-day marker,
+    so a stale or failed publish naturally retries until it lands fresh."""
+    if now is None:
+        if not _ET:
+            return False
+        now = datetime.now(_ET)
+    if not _safe_to_build(now):
         return False
-    return not data_sync.in_active_data_window()
+    sess = _last_complete_session_ymd(now)
+    return sess is not None and sess > _read_session_marker()
 
 
 def _loop() -> None:
@@ -458,9 +550,14 @@ def _loop() -> None:
                 today = _et_today()
                 m = build_and_upload()
                 _write_marker(today)
+                # Mark the session we actually PUBLISHED (may trail the target if
+                # the prewarmer hasn't captured today's close yet — then the next
+                # poll rebuilds for the newer session). This is what gates rebuilds.
+                _write_session_marker(m.get("newest_session") or 0)
                 log.info(
-                    "[barspack] published %s: %d tickers, %d bars, %d shards",
-                    today, m["ticker_count"], m["bar_count"], len(m["shards"]),
+                    "[barspack] published %s (session %s): %d tickers, %d bars, %d shards",
+                    today, m.get("newest_session"), m["ticker_count"], m["bar_count"],
+                    len(m["shards"]),
                 )
         except BarsPackError as e:
             log.warning("[barspack] not published: %s", e)
