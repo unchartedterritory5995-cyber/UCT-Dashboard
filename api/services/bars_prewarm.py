@@ -7,6 +7,115 @@ import os
 import json
 import shutil
 import sqlite3
+import threading
+import time as _time
+
+
+# ── Prewarmer liveness heartbeat ─────────────────────────────────────────────
+# The prewarmer is the sole thing keeping the worker's bars.db warm. It ran for
+# WEEKS as an UNSUPERVISED daemon thread whose refresh-loop body had no try/except,
+# so a single `get_last_ts` raise (e.g. a transient `database is locked`) escaped
+# `while True` and killed warming permanently while the process stayed up and the
+# uploader kept shipping the now-frozen db — invisible to every monitor (the
+# 2026-08-11 week-long daily freeze). This heartbeat + the loop guard + the
+# supervisor below make that failure loud and self-healing.
+_STATE_LOCK = threading.Lock()
+_PREWARM_STATE = {
+    "started_ts": None,     # when run_prewarmer_forever last (re)entered its loop
+    "last_beat_ts": None,   # top of the most recent loop iteration (liveness)
+    "last_refresh_ts": None,  # last cycle that actually refreshed >=1 entry
+    "iterations": 0,
+    "restarts": 0,
+    "last_error": None,
+}
+
+
+def _beat(refreshed: int = 0) -> None:
+    with _STATE_LOCK:
+        now = _time.time()
+        _PREWARM_STATE["last_beat_ts"] = now
+        _PREWARM_STATE["iterations"] += 1
+        if refreshed:
+            _PREWARM_STATE["last_refresh_ts"] = now
+
+
+def prewarm_heartbeat() -> dict:
+    """Snapshot of prewarmer liveness for the worker health endpoint + watchdog.
+
+    `alive` = the loop iterated within the last ~45 min (covers the 1800s off-hours
+    idle sleep with margin). A stale beat means the warming thread has died."""
+    with _STATE_LOCK:
+        s = dict(_PREWARM_STATE)
+    beat = s.get("last_beat_ts")
+    s["age_seconds"] = (_time.time() - beat) if beat else None
+    s["alive"] = bool(beat and (_time.time() - beat) < 2700)
+    return s
+
+
+# Small, always-liquid, always-in-universe sample for the daily-freshness probe.
+# A frozen DAILY store is exactly what the intraday hot-set watchdog can't see, so
+# this is the signal the 2026-08-11 freeze needed.
+_LIQUID_SAMPLE = ["AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA",
+                  "SPY", "QQQ", "IWM", "AMD", "JPM", "XOM", "BAC", "DIA"]
+
+
+def daily_freshness_report(sample: int = 12) -> dict:
+    """Sample liquid tickers' newest DAILY bar in the LOCAL store and report how
+    stale it is vs the last expected session. `days_behind` is a calendar-day proxy
+    (median across the sample); `stale` fires only past a multi-session gap so a
+    normal same-day lag never false-alarms. Read by the worker health endpoint AND
+    the freshness watchdog — the direct check the intraday-only watchdog lacks."""
+    out = {"sampled": 0, "newest_session": None, "expected_session": None,
+           "days_behind": None, "stale": None}
+    try:
+        from api.services import bars_sqlite as _sqlite
+        from api.services.bars_fetch import _expected_latest_session_yyyymmdd
+        from datetime import date
+        newest = []
+        for s in _LIQUID_SAMPLE[:sample]:
+            try:
+                ts = _sqlite.get_last_ts(s, "D")   # daily last_ts is a YYYYMMDD int
+                if ts:
+                    newest.append(int(ts))
+            except Exception:
+                pass
+        if not newest:
+            return out
+        newest.sort()
+        median = newest[len(newest) // 2]
+        expected = _expected_latest_session_yyyymmdd()
+
+        def _d(y):
+            return date(y // 10000, (y // 100) % 100, y % 100)
+        days_behind = max(0, (_d(expected) - _d(median)).days)
+        out.update({"sampled": len(newest), "newest_session": median,
+                    "expected_session": expected, "days_behind": days_behind,
+                    "stale": days_behind > 4})
+    except Exception as e:
+        out["error"] = str(e)[:180]
+    return out
+
+
+def run_prewarmer_supervised():
+    """Run the prewarmer, restarting it (bounded backoff) if it ever exits or
+    raises — so warming can never stop permanently from a single unhandled error.
+    This is what the worker should spawn instead of the bare loop."""
+    backoff = 5
+    while True:
+        try:
+            run_prewarmer_forever()
+            # Returned normally = the enable flag is off (nothing to supervise).
+            return
+        except Exception as e:  # pragma: no cover - defensive top-level guard
+            with _STATE_LOCK:
+                _PREWARM_STATE["restarts"] += 1
+                _PREWARM_STATE["last_error"] = f"restart: {str(e)[:180]}"
+            try:
+                print(f"[prewarm] loop crashed — restarting in {backoff}s: {e}")
+            except Exception:
+                pass
+            _time.sleep(backoff)
+            backoff = min(backoff * 2, 300)
 
 
 def run_prewarmer_forever():
@@ -242,67 +351,84 @@ def run_prewarmer_forever():
             if i % 500 == 0:
                 print(f"[prewarm] Progress {i}/{len(jobs)} — {warmed} fetched, {skipped} cached")
     print(f"[prewarm] First pass complete: {warmed} fetched, {skipped} cached, {len(jobs)} total")
+    with _STATE_LOCK:
+        _PREWARM_STATE["started_ts"] = _t.time()
     while True:
-        # Market-hours gate: overnight + weekends, bars are static, so the
-        # ~14k-job freshness scan below is pure SQLite-read churn (nothing is
-        # stale, nothing gets fetched). Idle on a long sleep and skip the scan
-        # entirely. The boot warm above already populated the cache; the
-        # per-entry _needs_fresh gate would no-op anyway — this just avoids
-        # spinning the whole scan every 5 min around the clock.
-        from api.services import data_sync as _ds_window
-        if not _ds_window.in_active_data_window():
-            _t.sleep(1800)
-            continue
-        _t.sleep(300)
-        # Augment the static job list with intraday for the live hot-set —
-        # the tickers users are actually flipping through. Without this,
-        # anything outside ticker_list[:200] only ever refreshed when a
-        # user happened to hit it twice (the universe-freeze bug). Tuple
-        # set-union dedups against the static jobs.
-        cycle_jobs = jobs
+        # Beat FIRST so liveness is proven every iteration; the whole body is then
+        # GUARDED so a single stale-read / DB-locked raise can never kill warming
+        # (the 2026-08-11 freeze, where an unguarded get_last_ts raise escaped this
+        # loop and froze the universe for a week). On a body crash we log +
+        # short-backoff + continue instead of letting the thread die.
+        _beat()
         try:
-            from api.services.bars_fetch import get_hot_intraday_tickers
-            hot = get_hot_intraday_tickers(500)
-            # P-2: this prewarmer runs in the WORKER process, so its own
-            # get_hot_intraday_tickers() is empty (the web process records
-            # views). Union the web-published hot-set from R2 so what
-            # users actually flip through is refreshed first.
+            # Market-hours gate: overnight + weekends, bars are static, so the
+            # ~14k-job freshness scan below is pure SQLite-read churn (nothing is
+            # stale, nothing gets fetched). Idle on a long sleep and skip the scan
+            # entirely. The boot warm above already populated the cache; the
+            # per-entry _needs_fresh gate would no-op anyway — this just avoids
+            # spinning the whole scan every 5 min around the clock.
+            from api.services import data_sync as _ds_window
+            if not _ds_window.in_active_data_window():
+                _t.sleep(1800)
+                continue
+            _t.sleep(300)
+            # Augment the static job list with intraday for the live hot-set —
+            # the tickers users are actually flipping through. Without this,
+            # anything outside ticker_list[:200] only ever refreshed when a
+            # user happened to hit it twice (the universe-freeze bug). Tuple
+            # set-union dedups against the static jobs.
+            cycle_jobs = jobs
             try:
-                from api.services import data_sync as _ds
-                _r2_hot = _ds.get_hotset()
-                if _r2_hot:
-                    hot = list({*hot, *_r2_hot})
-            except Exception:
-                pass
-            if hot:
-                # Order matters. The old code did `list({*jobs, *hot_jobs})` — a
-                # set union that SCRAMBLED the queue, so a long-tail static daily
-                # could run before the dailies of tickers users are actually
-                # looking at. Right after the 4pm ET close that left freshly-
-                # viewed charts cold-stale for the ~15-30min a full universe
-                # daily sweep takes (4 workers x ~1-2s/yf-tail-fill x ~3700) —
-                # the "daily not recognizing today" reports (2026-06-15). Build
-                # an ORDERED, de-duplicated queue that puts hot-set DAILIES
-                # first (the reported surface), then hot-set intraday, then the
-                # static universe — so the charts users open are refreshed to
-                # today's session before the long tail.
-                hot_daily = [(s, 'D', 5000) for s in hot]
-                hot_intraday = [(s, tf, 5000) for s in hot for tf in _INTRADAY_TFS]
-                seen = set()
-                cycle_jobs = []
-                for j in (*hot_daily, *hot_intraday, *jobs):
-                    if j not in seen:
-                        seen.add(j)
-                        cycle_jobs.append(j)
-                print(f"[prewarm] Hot-set: +{len(hot)} user-viewed tickers "
-                      f"(dailies prioritized; {len(cycle_jobs) - len(jobs)} extra jobs)")
-        except Exception as _e:
-            print(f"[prewarm] Hot-set lookup failed (non-fatal): {_e}")
-        refresh_jobs = [j for j in cycle_jobs if _needs_fresh(_sqlite.get_last_ts(j[0].upper(), j[1]), j[1])]
-        if not refresh_jobs: continue
-        refreshed = 0
-        with _PrewarmTPE(max_workers=_PREWARM_WORKERS, thread_name_prefix="prewarm-refresh") as ex:
-            for status, _sym, _tf in ex.map(_warm_one, refresh_jobs):
-                if status == 'warmed': refreshed += 1
-        if refreshed:
-            print(f"[prewarm] Refresh pass: {refreshed} of {len(refresh_jobs)} entries refilled")
+                from api.services.bars_fetch import get_hot_intraday_tickers
+                hot = get_hot_intraday_tickers(500)
+                # P-2: this prewarmer runs in the WORKER process, so its own
+                # get_hot_intraday_tickers() is empty (the web process records
+                # views). Union the web-published hot-set from R2 so what
+                # users actually flip through is refreshed first.
+                try:
+                    from api.services import data_sync as _ds
+                    _r2_hot = _ds.get_hotset()
+                    if _r2_hot:
+                        hot = list({*hot, *_r2_hot})
+                except Exception:
+                    pass
+                if hot:
+                    # Order matters. The old code did `list({*jobs, *hot_jobs})` — a
+                    # set union that SCRAMBLED the queue, so a long-tail static daily
+                    # could run before the dailies of tickers users are actually
+                    # looking at. Right after the 4pm ET close that left freshly-
+                    # viewed charts cold-stale for the ~15-30min a full universe
+                    # daily sweep takes (4 workers x ~1-2s/yf-tail-fill x ~3700) —
+                    # the "daily not recognizing today" reports (2026-06-15). Build
+                    # an ORDERED, de-duplicated queue that puts hot-set DAILIES
+                    # first (the reported surface), then hot-set intraday, then the
+                    # static universe — so the charts users open are refreshed to
+                    # today's session before the long tail.
+                    hot_daily = [(s, 'D', 5000) for s in hot]
+                    hot_intraday = [(s, tf, 5000) for s in hot for tf in _INTRADAY_TFS]
+                    seen = set()
+                    cycle_jobs = []
+                    for j in (*hot_daily, *hot_intraday, *jobs):
+                        if j not in seen:
+                            seen.add(j)
+                            cycle_jobs.append(j)
+                    print(f"[prewarm] Hot-set: +{len(hot)} user-viewed tickers "
+                          f"(dailies prioritized; {len(cycle_jobs) - len(jobs)} extra jobs)")
+            except Exception as _e:
+                print(f"[prewarm] Hot-set lookup failed (non-fatal): {_e}")
+            refresh_jobs = [j for j in cycle_jobs if _needs_fresh(_sqlite.get_last_ts(j[0].upper(), j[1]), j[1])]
+            if not refresh_jobs:
+                continue
+            refreshed = 0
+            with _PrewarmTPE(max_workers=_PREWARM_WORKERS, thread_name_prefix="prewarm-refresh") as ex:
+                for status, _sym, _tf in ex.map(_warm_one, refresh_jobs):
+                    if status == 'warmed': refreshed += 1
+            if refreshed:
+                with _STATE_LOCK:
+                    _PREWARM_STATE["last_refresh_ts"] = _t.time()
+                print(f"[prewarm] Refresh pass: {refreshed} of {len(refresh_jobs)} entries refilled")
+        except Exception as _cycle_err:
+            with _STATE_LOCK:
+                _PREWARM_STATE["last_error"] = str(_cycle_err)[:200]
+            print(f"[prewarm] refresh cycle crashed (non-fatal, continuing): {_cycle_err}")
+            _t.sleep(60)
