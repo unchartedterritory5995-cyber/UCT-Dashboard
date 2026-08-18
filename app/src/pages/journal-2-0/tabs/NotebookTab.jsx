@@ -101,6 +101,30 @@ export default function NotebookTab() {
     window.addEventListener('pointerup', onUp)
   }
 
+  // Lock the panel to the viewport height (desktop) so the folder sidebar and the
+  // notes/editor scroll on their own instead of scrolling the whole page. Measured
+  // from the wrap's live top offset so it's exact under whatever chrome is above.
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return undefined
+    let raf = 0
+    const fit = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        const node = wrapRef.current
+        if (!node) return
+        if (window.innerWidth <= 640) { node.style.height = ''; return } // phones: page scroll
+        const top = node.getBoundingClientRect().top
+        // Leave room for the journal layout's bottom padding so the page itself
+        // never gains a scrollbar (44 ≈ .root padding-bottom).
+        node.style.height = `${Math.max(360, window.innerHeight - top - 44)}px`
+      })
+    }
+    fit()
+    window.addEventListener('resize', fit)
+    return () => { window.removeEventListener('resize', fit); cancelAnimationFrame(raf) }
+  }, [])
+
   const { notes, isLoading, error, refresh } = useJ2Notes({
     folderId, tag, sort,
   })

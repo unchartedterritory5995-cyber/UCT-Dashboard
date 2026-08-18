@@ -2,6 +2,9 @@
   display: flex;
   min-height: 70vh;
   position: relative;
+  /* Height is set in JS to fill the viewport below the journal chrome; overflow
+     hidden so the sidebar and notes scroll INTERNALLY instead of the page. */
+  overflow: hidden;
 }
 
 /* Always-visible panel toggle, pinned top-left just to the left of "FOLDERS". */
@@ -78,6 +81,9 @@
   flex: 1;
   padding: 16px 20px 40px;
   min-width: 0;
+  /* Scroll the notes/editor on their own. */
+  min-height: 0;
+  overflow-y: auto;
 }
 /* While a note is open, drop the top padding so the editor's header bar starts
    at the same y as the sidebar's header toolbar (their bottoms then line up). */
@@ -201,7 +207,9 @@
 }
 
 @media (max-width: 640px) {
-  .wrap { flex-direction: column; }
+  /* Phones keep normal page scroll — no viewport-locked panels. */
+  .wrap { flex-direction: column; height: auto !important; overflow: visible; }
+  .main { overflow: visible; }
   /* Phones stack the panel above the notes and keep it always-open — the
    * slide/resize affordances are desktop-only. */
   .sidebarToggle { display: none; }
