@@ -70,10 +70,57 @@ from api.services.bars_fetch import (
     _expected_latest_session_yyyymmdd,
     _is_cold_stale_intraday,
     _is_cold_stale_daily,
+    _last_closed_session_yyyymmdd,
+    _daily_deblockable,
     _paginate_massive_aggs,
 )
+from api.services import bars_fetch as _bf
 
 _ET = ZoneInfo("America/New_York")
+
+
+def _et_dt(y, m, d, hh, mm):
+    return datetime(y, m, d, hh, mm, tzinfo=_ET)
+
+
+class TestLastClosedSession:
+    """Close-anchored session calendar (16:00 ET) that gates Phase-1 daily
+    de-block. 2026-08-18 = Tue, 08-17 = Mon, 08-14 = Fri, 08-15 = Sat."""
+
+    def test_weekday_before_close_is_prior_day(self):
+        assert _last_closed_session_yyyymmdd(_et_dt(2026, 8, 18, 14, 0)) == 20260817
+
+    def test_weekday_after_close_is_today(self):
+        assert _last_closed_session_yyyymmdd(_et_dt(2026, 8, 18, 16, 0)) == 20260818
+
+    def test_weekend_rolls_to_friday(self):
+        assert _last_closed_session_yyyymmdd(_et_dt(2026, 8, 15, 12, 0)) == 20260814
+
+
+class TestDailyDeblockable:
+    """Phase 1: only a daily missing ONLY today's forming bar is deblockable;
+    a daily missing an earlier closed session, or any non-daily, is not."""
+
+    def test_off_by_default(self, monkeypatch):
+        monkeypatch.delenv("BARS_DAILY_ASYNC_HEAL", raising=False)
+        monkeypatch.setattr(_bf, "_last_closed_session_yyyymmdd", lambda now=None: 20260817)
+        assert _daily_deblockable("D", 20260817) is False
+
+    def test_deblocks_last_closed_session_when_enabled(self, monkeypatch):
+        monkeypatch.setenv("BARS_DAILY_ASYNC_HEAL", "1")
+        monkeypatch.setattr(_bf, "_last_closed_session_yyyymmdd", lambda now=None: 20260817)
+        assert _daily_deblockable("D", 20260817) is True   # ends last closed session → only today missing
+
+    def test_not_deblockable_when_missing_earlier_session(self, monkeypatch):
+        monkeypatch.setenv("BARS_DAILY_ASYNC_HEAL", "1")
+        monkeypatch.setattr(_bf, "_last_closed_session_yyyymmdd", lambda now=None: 20260817)
+        assert _daily_deblockable("D", 20260814) is False  # missing Mon → must stay synchronous
+
+    def test_never_deblocks_non_daily(self, monkeypatch):
+        monkeypatch.setenv("BARS_DAILY_ASYNC_HEAL", "1")
+        monkeypatch.setattr(_bf, "_last_closed_session_yyyymmdd", lambda now=None: 20260817)
+        assert _daily_deblockable("W", 20260817) is False
+        assert _daily_deblockable("5", 1_700_000_000) is False
 
 
 def _et_ts(y, m, d, hh, mm):

@@ -557,6 +557,56 @@ def _is_cold_stale_daily(tf: str, last_ts: int | None, now=None) -> bool:
         return False
 
 
+def _last_closed_session_yyyymmdd(now=None) -> int:
+    """ET date (YYYYMMDD int) of the most recent CLOSED daily session: today only
+    once today's regular session has closed (>= 16:00 ET on a trading weekday),
+    else the prior trading day. Weekend/holiday aware. Mirrors the CLIENT's
+    marketSession close-threshold, so origin and chart agree on 'is a daily ending
+    here missing only today's still-forming bar?' (vs an earlier closed session)."""
+    et = _ZI("America/New_York")
+    now = now or datetime.now(et)
+    wd = now.weekday()
+    if wd == 5:
+        d = now - timedelta(days=1)
+    elif wd == 6:
+        d = now - timedelta(days=2)
+    else:
+        if now.hour * 100 + now.minute < 1600:   # before 4pm ET → today's session not closed yet
+            d = now - timedelta(days=1)
+            if d.weekday() == 5:
+                d -= timedelta(days=1)
+            elif d.weekday() == 6:
+                d -= timedelta(days=2)
+        else:
+            d = now
+    for _ in range(14):
+        ymd = int(d.strftime("%Y%m%d"))
+        if d.weekday() < 5 and not _is_nyse_holiday(ymd):
+            return ymd
+        d -= timedelta(days=1)
+    return int(d.strftime("%Y%m%d"))
+
+
+def _daily_deblockable(tf, last_ts) -> bool:
+    """PHASE 1 (flag: BARS_DAILY_ASYNC_HEAL): a cold-stale DAILY is safe to serve
+    stale-then-heal (non-blocking) — instead of a synchronous provider fetch — ONLY
+    when it already carries the last CLOSED session and is 'stale' merely because
+    today's still-forming bar is absent. The client paints that instantly (2026-08-18
+    close-threshold gate + Writer-E new-session guard), the live feed adds today's
+    candle, and the bg _delta_daily heal lands on the next poll. A daily missing an
+    EARLIER closed session is NOT deblockable — serving it would pin stale data for
+    the 300s daily SWR window (the 'fetch once per mount' trap), so it stays
+    synchronous. Default OFF; flip the env to roll out, unset to roll back."""
+    if tf != "D" or last_ts is None:
+        return False
+    if _os.environ.get("BARS_DAILY_ASYNC_HEAL", "0") != "1":
+        return False
+    try:
+        return int(last_ts) >= _last_closed_session_yyyymmdd()
+    except (TypeError, ValueError):
+        return False
+
+
 def _fmt_sqlite_bars(rows: list[tuple], tf: str, ticker: str | None = None) -> list[dict]:
     """Convert SQLite (ts, o, h, l, c, v) tuples to LightweightCharts format.
 
@@ -2397,7 +2447,7 @@ def _get_bars_inner(ticker: str, tf: str, bars: int):  # noqa: C901
     if (
         stored_rows and last_ts
         and not _is_cold_stale_intraday(tf, last_ts)
-        and not _is_cold_stale_daily(tf, last_ts)
+        and (not _is_cold_stale_daily(tf, last_ts) or _daily_deblockable(tf, last_ts))
     ):
         # Partial cache: SQLite has SOME rows but fewer than the chart asked
         # for. The block above ("len(stored_rows) >= bars * 0.9") falls
