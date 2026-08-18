@@ -10731,6 +10731,17 @@ export default function StockChart({
         const series = candleSeriesRef.current
         const last = lastBarRef.current
         if (!series || !last) return
+        // NEW-SESSION GUARD (writer E is otherwise NOT date-aware — writers A/D
+        // compute today via classifyLiveBar, but A defers to E while the 1-min
+        // feed is fresh). If the loaded series still ends at a PRIOR session/period
+        // — e.g. a closed-only pack/cache painted during RTH before the initial
+        // fetch adds today's bar — NEVER fold this tick into that prior bar: that
+        // is the "Frankenstein candle" (today's price on yesterday's candle). Bail;
+        // the initial SWR fetch (Massive daily agg carries today's developing bar)
+        // re-seeds lastBarRef to today via setData, then this writer resumes on the
+        // current session. computeBarTime returns the ET day (D) / Friday (W) /
+        // 1st-of-month (M) key, directly comparable to last.time.
+        if (computeBarTime(tf, Math.floor(Date.now() / 1000)) !== last.time) return
         if (!isSaneLivePrice(c, last.close, lastServerCloseRef.current)) return
         const updated = {
           time: last.time,
