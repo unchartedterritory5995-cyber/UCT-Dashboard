@@ -4145,6 +4145,35 @@ export default function StockChart({
   const idbStaleIntraday = isIntraday
     && typeof idbSinceRef.current === 'number'
     && (Date.now() / 1000 - idbSinceRef.current) > Math.max(3 * _tfSecStale, 180)
+  // Daily staleness gate — the analog of idbStaleIntraday for tf='D'. Without it
+  // a symbol switch during RTH paints a daily cache that's missing the last few
+  // sessions (each ticker's IDB is only as fresh as the last time it was viewed),
+  // then the forced full refetch swaps in the current days ~1-2s later — the
+  // "chart loads to Friday's close on a Tuesday afternoon" flash. The daily tail
+  // is an ISO 'YYYY-MM-DD' string; reject it if it's older than the most recent
+  // ET session that should be present. Weekend/pre-open aware (a rare holiday
+  // only costs a brief spinner, never stale data).
+  let _expectedSessionET = null
+  if (resolvedTf === 'D') {
+    const _n = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/New_York' }))
+    const _dow = _n.getDay()               // 0 Sun … 6 Sat
+    const _mn = _n.getHours() * 60 + _n.getMinutes()
+    const _d = new Date(_n)
+    if (!(_dow >= 1 && _dow <= 5 && _mn >= 570)) { // not a weekday at/after 9:30 ET
+      do { _d.setDate(_d.getDate() - 1) } while (_d.getDay() === 0 || _d.getDay() === 6)
+    }
+    const _p = (x) => String(x).padStart(2, '0')
+    _expectedSessionET = `${_d.getFullYear()}-${_p(_d.getMonth() + 1)}-${_p(_d.getDate())}`
+  }
+  const idbStaleDaily = _expectedSessionET != null
+    && typeof idbSinceRef.current === 'string'
+    && idbSinceRef.current.slice(0, 10) < _expectedSessionET
+  const _memTailStaleDaily = (arr) => (
+    _expectedSessionET != null
+    && Array.isArray(arr) && arr.length
+    && typeof arr[arr.length - 1]?.t === 'string'
+    && arr[arr.length - 1].t.slice(0, 10) < _expectedSessionET
+  )
   let _sinceParam = null
   if (isIntraday && typeof idbSinceRef.current === 'number' && !idbStaleIntraday) {
     _sinceParam = Math.max(0, idbSinceRef.current - 1)
@@ -4384,7 +4413,7 @@ export default function StockChart({
   // updateChart clears the series) instead of the wrong stock.
   const _symU = sym ? sym.toUpperCase() : ''
   const _netMatches = data?.bars?.length && (!data.ticker || data.ticker === _symU)
-  const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}` && !idbStaleIntraday
+  const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}` && !idbStaleIntraday && !idbStaleDaily
   // Provisional stale-intraday paint: cached bars for THE CURRENT sym+tf that are
   // too stale to trust as live (idbStaleIntraday) are normally suppressed to avoid
   // fusing a live-price spike onto an old tail — but that left an intraday sym-switch
@@ -4399,7 +4428,10 @@ export default function StockChart({
   // last fallback (when net+IDB haven't resolved for the current key yet) so a
   // warm switch paints on the first frame instead of flashing the loading
   // overlay. Keyed to the current sym+tf → cannot show another ticker's data.
-  const _memBars = (!_overrideArr && !barsOverridePending) ? memPeek(sym, resolvedTf) : null
+  const _memBarsRaw = (!_overrideArr && !barsOverridePending) ? memPeek(sym, resolvedTf) : null
+  // Don't fall back to a stale daily mem entry either (prefetch's _memPromoteFresh
+  // always promotes D/W/M, so mem can hold a multi-session-old daily just like IDB).
+  const _memBars = _memTailStaleDaily(_memBarsRaw) ? null : _memBarsRaw
   // Phase-A A4: optimistic same-frame TF switch. Switching to Weekly/Monthly on a
   // ticker whose Daily is already in the sync mem cache normally still costs a
   // full /api/bars round-trip (skeleton flash) for the W/M payload. Instead,
