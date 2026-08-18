@@ -133,6 +133,18 @@ def test_build_refuses_below_floor(monkeypatch):
         barspack.build(depth=300, num_shards=4, tickers=["AAPL", "MSFT"], date="2026-08-14")
 
 
+def test_build_refuses_stale_pack(monkeypatch):
+    """Freshness floor: a pack whose newest daily bar is well behind the built-for
+    day's expected session must be refused (the worker-bars.db-frozen guard).
+    _synthetic_bars ends ~2026-08-15; building it FOR 2026-09-15 makes it a month
+    stale → BarsPackError."""
+    monkeypatch.setattr(barspack, "_sanitized_bars", _synthetic_bars)
+    monkeypatch.setattr(barspack, "MIN_TICKERS", 1)
+    monkeypatch.setattr(barspack, "MIN_BARS", 1)
+    with pytest.raises(barspack.BarsPackError, match="stale"):
+        barspack.build(depth=50, num_shards=4, tickers=["AAA", "BBB"], date="2026-09-15")
+
+
 def test_build_skips_tickers_with_no_bars(monkeypatch):
     def _sparse(sym, tf, depth):
         return _synthetic_bars(sym, tf, depth) if sym == "AAPL" else []

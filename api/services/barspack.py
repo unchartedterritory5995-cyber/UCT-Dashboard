@@ -74,6 +74,16 @@ NUM_SHARDS = _int_env("BARSPACK_SHARDS", 12)
 # must never overwrite a good latest.json (the delta-exporter's shippable gate).
 MIN_TICKERS = _int_env("BARSPACK_MIN_TICKERS", 1500)
 MIN_BARS = _int_env("BARSPACK_MIN_BARS", 300_000)
+# FRESHNESS floor: refuse to publish a pack whose newest DAILY bar is more than
+# this many calendar days behind the last expected trading session. The builder
+# reads bars.db raw (no per-ticker freshness top-up), trusting the worker's
+# universe warm — but if that warm stalls, the build silently packages week-old
+# data that every browser then ingests and my daily-staleness gate rejects on
+# sight (→ refetch → black screen). This turns that silent failure LOUD: a stale
+# build raises BarsPackError, leaving the last good latest.json in place instead
+# of overwriting it with staler data. 4 days tolerates a normal Fri→Mon weekend
+# gap (build runs ~00:07 ET) while catching a genuine multi-session freeze.
+MAX_STALE_DAYS = _int_env("BARSPACK_MAX_STALE_DAYS", 4)
 _GZIP_LEVEL = _int_env("BARSPACK_GZIP_LEVEL", 6)
 _KEEP_VERSIONS = _int_env("BARSPACK_KEEP", 2)
 # Daily-delta tail: the last N bars of each series, shipped as one small file so a
@@ -141,6 +151,41 @@ def _shard_of(sym: str, num_shards: int) -> int:
     return zlib.crc32(sym.encode()) % max(1, num_shards)
 
 
+def _ymd_int(iso: str | None) -> int:
+    """'2026-08-11' → 20260811; 0 on anything unparseable."""
+    try:
+        return int(str(iso)[:10].replace("-", ""))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _stale_days(newest_daily_ymd: int, for_date: str | None = None) -> int:
+    """Calendar days the pack's newest daily bar is behind the last expected
+    trading session. A huge number when the pack has no daily bars at all (0) so
+    the freshness floor refuses it. Reuses the serve path's session calendar so
+    the builder and the chart agree on 'what session should be present'.
+
+    `for_date` (the ET day being built, 'YYYY-MM-DD') anchors the reference: the
+    build runs ~00:07 ET, before the open, so the last expected session is the
+    PRIOR trading day. Anchoring on the build date (not wall-clock now) keeps the
+    check correct across the midnight boundary and deterministic in tests."""
+    if not newest_daily_ymd:
+        return 10_000
+    try:
+        from api.services.bars_fetch import _expected_latest_session_yyyymmdd
+        from datetime import date, datetime
+        ref = None
+        if for_date and _ET:
+            y, m, d = (int(x) for x in str(for_date)[:10].split("-"))
+            ref = datetime(y, m, d, 0, 30, tzinfo=_ET)
+        exp = _expected_latest_session_yyyymmdd(ref)
+        e = date(exp // 10000, (exp // 100) % 100, exp % 100)
+        n = date(newest_daily_ymd // 10000, (newest_daily_ymd // 100) % 100, newest_daily_ymd % 100)
+        return max(0, (e - n).days)
+    except Exception:
+        return 0  # never let a freshness-calc error block a build
+
+
 def _sanitized_bars(sym: str, tf: str, depth: int) -> list[dict]:
     """Up to `depth` most-recent serve-shaped, SANITIZED bars for (sym, tf),
     read-only from bars.db. Returns [] on any miss/error. ZERO provider calls —
@@ -204,6 +249,7 @@ def build(depth: int = PACK_DEPTH, num_shards: int = NUM_SHARDS,
     included: set = set()                 # exact ticker SET in the pack → seed
     total_tickers = 0
     total_bars = 0
+    newest_daily_ymd = 0                  # max daily bar date seen (freshness floor)
 
     for idx in range(num_shards):
         syms = by_shard.get(idx, [])
@@ -218,6 +264,8 @@ def build(depth: int = PACK_DEPTH, num_shards: int = NUM_SHARDS,
                     entry[tf] = _columnar(bars)
                     dentry[tf] = _columnar(bars[-_DELTA_TAIL:])
                     shard_bars += len(bars)
+                    if tf == "D":
+                        newest_daily_ymd = max(newest_daily_ymd, _ymd_int(bars[-1].get("t")))
             if entry:
                 payload_tickers[sym] = entry
             if dentry:
@@ -244,6 +292,18 @@ def build(depth: int = PACK_DEPTH, num_shards: int = NUM_SHARDS,
         raise BarsPackError(
             f"pack below floor: {total_tickers} tickers / {total_bars} bars "
             f"(need >= {MIN_TICKERS} / {MIN_BARS}) — refusing to publish"
+        )
+
+    # FRESHNESS floor — refuse a stale pack (see MAX_STALE_DAYS). A pack whose
+    # newest daily bar is a week old ships week-old charts to every browser and
+    # my daily-staleness gate rejects them on sight. Better to keep the last good
+    # pack live and alert than to overwrite it with staler data.
+    stale_days = _stale_days(newest_daily_ymd, date)
+    if stale_days > MAX_STALE_DAYS:
+        raise BarsPackError(
+            f"pack too stale: newest daily bar {newest_daily_ymd or 'none'} is "
+            f"~{stale_days}d behind the expected session (max {MAX_STALE_DAYS}d) — "
+            f"worker bars.db daily warm has likely stalled; refusing to publish"
         )
 
     # One small delta file (not sharded — it's ~1MB). Same sanitized data, just
