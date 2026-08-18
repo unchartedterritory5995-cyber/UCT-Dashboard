@@ -10,6 +10,29 @@ Pack initiative — the Pack stays as a zero‑latency cherry on top, not a crut
 
 ---
 
+## PROGRESS (2026‑08‑18)
+
+- ✅ **Phase 0 — DONE & LIVE** (`a95a81610`): prewarmer guarded + supervised
+  (`run_prewarmer_supervised`), heartbeat (`prewarm_heartbeat`), daily-freshness
+  sampler (`daily_freshness_report`), worker health exposes both, and a
+  worker-side watchdog pages Discord on a dead prewarmer / stale daily store.
+- ✅ **Observability (Phase 0/2) — DONE & LIVE** (`37e37b2c4`): `chart_health_alerts`
+  critical alerts now PAGE Discord (own cooldown); web-side `bars_continuous_audit`
+  gained a DAILY store freshness check (the gap its intraday sample was blind to).
+  → **The 2026‑08‑11 freeze can no longer happen silently on either pod.**
+- ✅ **Phase 1, increment 1 — DONE & LIVE, DARK** (`9c5a884ef`): cold-stale DAILY
+  first paint serves-local + async-heals when `BARS_DAILY_ASYNC_HEAL=1` (only when
+  the daily is missing solely today's forming bar; a multi-session-stale daily stays
+  synchronous). Default OFF — flip on the web pod + watch `Server-Timing: bars` cold-
+  serve ratio.
+- ⏭ **NEXT:** flip `BARS_DAILY_ASYNC_HEAL=1` (web) once the store is verified fresh;
+  then Phase 1 increments 2–4 (intraday cold-stale, `since=` poll, replay — each
+  flag-gated), Phase 2 (always-warm), Phase 3 (edge cache immutable closed-daily).
+  Intraday de-block needs the 2487 same-session sync block gated too + client
+  provisionalStaleRef verification before enabling — do it supervised.
+
+---
+
 ## The reframe — we are NOT missing a fast engine
 
 The audit's single most important finding: **when the data is warm, the origin is
