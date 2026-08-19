@@ -14,7 +14,11 @@ import useSWR from 'swr'
 import { ArticleIcon } from '../education/icons'
 import UIcon from '../../components/ui/UIcon'
 import TickerPopup from '../../components/TickerPopup'
+import TickerActionsMenu, { useTickerActions } from '../../components/TickerActions'
+import ReadAloudButton from '../../components/voice/ReadAloudButton'
+import useReadAloudFollow from '../../hooks/useReadAloudFollow'
 import useLivePrices from '../../hooks/useLivePrices'
+import useUserTickerSet from '../../hooks/useUserTickerSet'
 import { prefetchBar } from '../../utils/prefetchBars'
 // Named `bookmark`, not `progress`: the component already has a `progress`
 // state for the reading BAR, which would shadow a module called the same.
@@ -59,6 +63,19 @@ export default function ArticleReader() {
   // ChartPane with stored=null resolves their /charts widget settings), rather
   // than navigating away mid-read. One popup per page, never per chip.
   const [chartSym, setChartSym] = useState(null)
+  // Right-click / long-press a ticker → the universal flag/tag/watchlist/alert
+  // menu. Reading the letter is exactly when a watchlist gets built.
+  const tickerActions = useTickerActions()
+  const userSet = useUserTickerSet()
+  // What the covered chips show beside each symbol: today's move, or the move
+  // since the issue was published ("did the call already run").
+  const [chipLens, setChipLensState] = useState(() => {
+    try { return localStorage.getItem('uct.desk.articles.chipLens') === 'since' ? 'since' : 'today' } catch { return 'today' }
+  })
+  const setChipLens = (v) => {
+    setChipLensState(v)
+    try { localStorage.setItem('uct.desk.articles.chipLens', v) } catch { /* private mode */ }
+  }
   const [resumedAt, setResumedAt] = useState(null)   // section we jumped to, if any
   // ⛔ The scroll-spy effect is declared BEFORE the restore effect, so on mount
   // it runs first — at scroll position 0. Saving then would write pct=0 and
@@ -92,6 +109,13 @@ export default function ArticleReader() {
     [data],
   )
 
+  // ⛔ MEMOIZED IDENTITY, not just a stable string. React 19 diffs
+  // dangerouslySetInnerHTML by OBJECT identity, so an inline {__html} literal
+  // re-sets the article's entire innerHTML on EVERY re-render — wiping any
+  // marking an effect put on the injected chips, and re-parsing ~100 KB of
+  // HTML on each scroll-driven progress tick.
+  const bodyHtml = useMemo(() => ({ __html: data?.body_html || '' }), [data?.body_html])
+
   // The Covered chips carry today's move, so the masthead answers "which of
   // these names is doing something RIGHT NOW" before the reader commits 18
   // minutes. Only the chips on screen join the shared live-price poll.
@@ -100,6 +124,42 @@ export default function ArticleReader() {
     return showAllTickers ? t : t.slice(0, TICKER_PREVIEW)
   }, [data, showAllTickers])
   const { prices: livePx } = useLivePrices(visibleTickers)
+
+  // Anchor closes (daily close on/before publish) for the "since issue" lens.
+  // Immutable server-side, so no revalidation. The live half of the number is
+  // livePx above — never a second price authority.
+  const { data: anchorData } = useSWR(
+    slug ? `/api/desk/articles/anchors/${encodeURIComponent(slug)}` : null,
+    fetcher,
+    { revalidateOnFocus: false },
+  )
+  const anchors = anchorData?.anchors || {}
+
+  // What one chip shows under the current lens, or null for "render bare".
+  const chipChange = (sym) => {
+    const live = livePx[sym]
+    if (chipLens === 'since') {
+      const a = anchors[sym]
+      if (!(Number.isFinite(a) && a > 0) || !Number.isFinite(live?.price)) return null
+      return ((live.price - a) / a) * 100
+    }
+    return Number.isFinite(live?.change_pct) ? live.change_pct : null
+  }
+
+  // Follow-along highlight + auto-scroll while this article is being read aloud.
+  const readTrackId = `desk-article-${slug}`
+  useReadAloudFollow({ containerRef: bodyRef, trackId: readTrackId })
+
+  // Mark the reader's own names inside the injected body. The chips are static
+  // HTML, so membership is applied to the DOM, not through React props.
+  useEffect(() => {
+    if (!data?.body_html) return
+    const chips = bodyRef.current?.querySelectorAll('.uctTickerChip') || []
+    chips.forEach((el) => {
+      const sym = el.getAttribute('data-ticker')
+      el.classList.toggle('uctChipMine', Boolean(sym && userSet.has(sym)))
+    })
+  }, [data?.body_html, userSet])
 
   // ── one delegated listener for every affordance inside the injected HTML ──
   const onBodyClick = useCallback((e) => {
@@ -141,6 +201,14 @@ export default function ArticleReader() {
   const onBodyHover = useCallback((e) => {
     warmChip(e.target.closest?.('.uctTickerChip')?.getAttribute('data-ticker'))
   }, [warmChip])
+  // Right-click (and Android long-press, which fires contextmenu) on a body
+  // chip opens the ticker-actions menu. iOS long-press on the STATIC body
+  // chips is a known gap — the React-rendered Covered chips carry the full
+  // longPressProps binding and cover that device.
+  const onBodyContextMenu = (e) => {
+    const sym = e.target.closest?.('.uctTickerChip')?.getAttribute('data-ticker')
+    if (sym) tickerActions.openMenu(e, sym)
+  }
 
   // Scroll-spy + reading progress. Reads the SCROLL CONTAINER, not window —
   // this app scrolls an inner .main element (see Layout.module.css).
@@ -332,22 +400,52 @@ export default function ArticleReader() {
           {data.published_at ? <span>{fmtDate(data.published_at)}</span> : null}
           {data.reading_minutes ? <span>{data.reading_minutes} min read</span> : null}
           {data.image_count ? <span>{data.image_count} charts</span> : null}
+          <ReadAloudButton
+            trackId={readTrackId}
+            label={data.title}
+            textProvider={() => (bodyRef.current?.textContent || '').replace(/\s+/g, ' ').trim()}
+          >
+            Listen
+          </ReadAloudButton>
         </div>
         {data.tickers?.length > 0 && (
           <div className={styles.tickerRow}>
             <span className={styles.tickerRowLabel}>Covered</span>
+            {/* One number per chip; the reader picks the lens. Two numbers on
+                44 chips is noise. */}
+            <div className={styles.lensToggle} role="group" aria-label="Chip change basis">
+              <button
+                type="button"
+                className={chipLens === 'today' ? styles.lensActive : styles.lensBtn}
+                onClick={() => setChipLens('today')}
+              >
+                Today
+              </button>
+              <button
+                type="button"
+                className={chipLens === 'since' ? styles.lensActive : styles.lensBtn}
+                onClick={() => setChipLens('since')}
+              >
+                Since issue
+              </button>
+            </div>
             <div className={styles.tickerRowChips}>
               {/* A Sunday Scans issue covers ~44 names. Showing all of them
                   costs roughly a phone screen of chips BEFORE the reader sees a
                   word of the article, so the tail is behind a toggle. */}
               {visibleTickers.map((sym) => {
-                const chg = livePx[sym]?.change_pct
+                const chg = chipChange(sym)
                 return (
                   <button
                     key={sym} type="button" className={styles.tickerChip}
+                    data-sym={sym}
                     onClick={() => setChartSym(sym)}
                     onMouseEnter={() => warmChip(sym)}
+                    {...tickerActions.longPressProps(sym)}
                   >
+                    {userSet.has(sym) && (
+                      <span className={styles.chipStar} aria-label="On your lists">★</span>
+                    )}
                     {sym}
                     {Number.isFinite(chg) && (
                       <span className={chg >= 0 ? styles.chipGain : styles.chipLoss}>
@@ -397,7 +495,8 @@ export default function ArticleReader() {
           className={styles.body}
           onClick={onBodyClick}
           onMouseOver={onBodyHover}
-          dangerouslySetInnerHTML={{ __html: data.body_html }}
+          onContextMenu={onBodyContextMenu}
+          dangerouslySetInnerHTML={bodyHtml}
         />
       </div>
 
@@ -464,6 +563,10 @@ export default function ArticleReader() {
 
       {chartSym && (
         <TickerPopup sym={chartSym} open onClose={() => setChartSym(null)} />
+      )}
+
+      {tickerActions.menu && (
+        <TickerActionsMenu menu={tickerActions.menu} onClose={tickerActions.closeMenu} />
       )}
 
       {lightbox && (

@@ -20,6 +20,14 @@ import { formatETDate } from '../utils/timeAgo'
 import UIcon from '../components/ui/UIcon'
 import styles from './Settings.module.css'
 
+// Memoized {__html} object — the TOTP screen re-renders on every keystroke of
+// the 6-digit code, and React 19 diffs dangerouslySetInnerHTML by OBJECT
+// identity, so an inline literal re-parses the QR SVG per keypress.
+function TotpQr({ svg }) {
+  const html = useMemo(() => ({ __html: svg }), [svg])
+  return <div className={styles.totpQrBox} dangerouslySetInnerHTML={html} />
+}
+
 const TF_OPTIONS = [
   { value: '5', label: '5 min' },
   { value: '30', label: '30 min' },
@@ -1033,7 +1041,7 @@ function TwoFactorPanel() {
           Scan this with your authenticator app (Google Authenticator, 1Password,
           Authy…), then enter the 6-digit code it shows to finish.
         </p>
-        <div className={styles.totpQrBox} dangerouslySetInnerHTML={{ __html: setup.qr_svg }} />
+        <TotpQr svg={setup.qr_svg} />
         <p className={styles.hint}>
           Can't scan? Enter this key manually:{' '}
           <span className={styles.totpSecret}>{setup.secret}</span>

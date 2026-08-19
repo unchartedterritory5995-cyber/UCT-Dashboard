@@ -641,6 +641,18 @@ def _enrichment_with_em_rate() -> dict:
     dates = status.get("dates") or {}
     for ds in sorted(dates, reverse=True):
         d = dates[ds] or {}
+        # ⭐ Expected move is FORWARD-ONLY — it is the implied move BEFORE a
+        # report, so a finished day has nothing left to price and reads 0 by
+        # construction (measured 2026-08-18: 0 priced across 1,656 reporters on
+        # 10 past dates, while every upcoming date read 57-97%). Grading one is
+        # measuring the absence of a question, and a cold enrichment cache right
+        # after a redeploy can leave a past date newest — which is what paged
+        # the owner at 8:59 PM that night.
+        # 🔑 The calendar's own collapse flag already leads with `not is_past`;
+        # this is that same authority, not a second opinion. A record with no
+        # `past` key predates the field and keeps its old reading.
+        if d.get("past"):
+            continue
         total = int(d.get("total") or 0)
         if total > 0:
             with_em = int(d.get("with_em") or 0)
