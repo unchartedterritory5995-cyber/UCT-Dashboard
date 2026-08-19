@@ -54,3 +54,43 @@ export function isDailyTailStale(isoTail) {
   if (typeof isoTail !== 'string' || !isoTail) return false
   return isoTail.slice(0, 10) < expectedLatestDailySessionET()
 }
+
+// ET calendar date ('YYYY-MM-DD') of a unix-SECONDS timestamp (intraday bars carry
+// `t` as unix seconds). Used to compare an intraday tail's SESSION against the last
+// closed daily session — the session model both daily and intraday freshness share.
+function _etDateOfUnix(unixSec) {
+  const d = new Date(new Date(unixSec * 1000).toLocaleString('en-US', { timeZone: 'America/New_York' }))
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
+}
+
+/**
+ * True when an INTRADAY series' newest-bar timestamp (unix SECONDS) is too stale to
+ * paint. The intraday analog of isDailyTailStale, and the reason a pre-seeded
+ * intraday pack can paint instantly like daily. Session/weekend/holiday-aware via
+ * expectedLatestDailySessionET() (the last CLOSED trading session), NOT a flat age:
+ *
+ *   - tail BEFORE the last closed session          → STALE (missing a whole session).
+ *   - tail == the last closed session              → FRESH. Prior sessions are
+ *       complete; today's bars ride the live feed / a since-fetch fills them. This is
+ *       what lets a Monday pre-seed holding FRIDAY's 15:55 bar paint — the old flat
+ *       26h / max(3*tf,180s) gates wrongly killed it (65h over a weekend).
+ *   - tail in TODAY's still-open session (> expected) → apply the intra-session
+ *       recency gate (max(3*tf,180s)); a series missing the last few CLOSED bars of
+ *       the CURRENT session still refetches (the noon-cutoff guard, preserved).
+ *
+ * The anti-spike safety is unchanged and lives elsewhere (classifyLiveBar's
+ * >1-bucket contiguity guard + provisionalStaleRef): "fresh for prior sessions" only
+ * authorizes PAINTING the tail + filling today, never fusing a live tick onto it.
+ */
+export function isIntradayTailStale(lastTUnixSec, tf) {
+  if (typeof lastTUnixSec !== 'number' || !Number.isFinite(lastTUnixSec)) return true
+  const tailDate = _etDateOfUnix(lastTUnixSec)
+  const expected = expectedLatestDailySessionET()   // last CLOSED trading session (ET date)
+  if (tailDate < expected) return true               // missing a whole closed session
+  if (tailDate > expected) {                         // tail is in TODAY's still-open session
+    const tfSec = Math.max(60, (Number(tf) || 5) * 60)
+    return (Date.now() / 1000 - lastTUnixSec) > Math.max(3 * tfSec, 180)
+  }
+  return false                                       // tail == last closed session → fresh
+}

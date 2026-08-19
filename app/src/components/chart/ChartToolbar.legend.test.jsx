@@ -40,19 +40,24 @@ describe('ChartToolbar — the legend mode button', () => {
     expect(legendBtn().getAttribute('title')).toMatch(/always/i)
   })
 
-  it('⭐ carries a VISIBLE text label — the owner could not find it as a bare icon', () => {
-    // 🔴 MEASURED IN PRODUCTION 2026-08-16: shipped as a 15px monochrome eye in a
-    // row of seven near-identical unlabelled icons, and the person who ASKED for
-    // the feature reported it missing while looking straight at it. A control
-    // nobody can find is not shipped. The sibling extended-hours toggle in this
-    // same toolbar has always used TEXT (`EXT`/`RTH`) for exactly this reason:
-    // a mode has to announce itself.
-    //
-    // ⚠️ Asserted on RENDERED TEXT, not on a class or a `title` — a tooltip is
-    // invisible until you already suspect the button is there, which is the
-    // failure being fixed.
+  it('⭐ announces its mode with a DISTINCT per-mode icon, and stays findable by its accessible name', () => {
+    // 🔴 SUPERSEDES the earlier "must carry a visible text LABEL" rule. The owner then
+    // asked (2026-08-17) for the mode to be shown by the ICON changing per mode
+    // (eye = always on · pin = hold to peek · struck-through eye = off) instead of a
+    // gold light-up, and for the button to match the other icon-only toolbar controls —
+    // so the visible caption was intentionally removed. Discoverability is preserved by
+    // the aria-label / title (see the title test above), which is why legendBtn() still
+    // finds it by accessible name. This asserts the icon ACTUALLY differs by mode, so a
+    // "same icon, invisible state" regression (the original discoverability failure)
+    // still fails the suite.
     mount(mergeChartSettings({ header: { legendMode: 'always' } }), spy)
-    expect(legendBtn().textContent.trim().toLowerCase()).toContain('legend')
+    const iconAlways = legendBtn().querySelector('svg')?.outerHTML
+    expect(iconAlways).toBeTruthy()
+    cleanup()
+    mount(mergeChartSettings({ header: { legendMode: 'off' } }), spy)
+    const iconOff = legendBtn().querySelector('svg')?.outerHTML
+    expect(iconOff).toBeTruthy()
+    expect(iconOff).not.toBe(iconAlways)   // the icon encodes the mode (eye vs struck-through eye)
   })
 
   it('the label does not turn into a second control — one click still cycles once', async () => {

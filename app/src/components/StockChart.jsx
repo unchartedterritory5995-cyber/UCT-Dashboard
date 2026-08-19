@@ -2494,6 +2494,14 @@ export default function StockChart({
   const volPctSettingRef = useRef(null)
   const volMaTailSeriesRef = useRef(null)  // candleFrameFade: post-setup tail of the volume MA (crossfades with everything else)
   const lastBarRef = useRef(null)
+  // Symbol that lastBarRef/liveBarRef's developing bar belongs to. The refs are
+  // symbol-LESS and are reset on a switch by a DEFERRED effect, while the live feeds
+  // (Finnhub tick / registry / the ~4Hz legend) fire on their own clock — so a tick
+  // for the NEW sym can fuse onto the PREVIOUS sym's same-bucket bar (the LRCX-O/H-on-
+  // ARM "close below low" bug). Set to `sym` exactly where lastBarRef is seeded from
+  // the (gated, current-sym) bars in updateChart; nulled in the switch reset. Every
+  // intraday live-overlay consults it and refuses to fuse across symbols.
+  const lastBarSymRef = useRef(null)
   const prevChartTypeRef = useRef(null)
   const zoomKeyRef = useRef(null)  // Track sym+tf to only zoom on initial load, not refetches
   const lastTfRef = useRef(null)   // Last resolved timeframe — distinguishes tf change from ticker switch
@@ -2897,10 +2905,17 @@ export default function StockChart({
     const last = bars[bars.length - 1]
     let o = last.o, h = last.h, l = last.l
     let c = last.c
+    // SYMBOL GUARD: lastBarRef (and prevBarsRef, read above) carry no symbol, and on a
+    // ticker switch symRef updates BEFORE the bars do — so overlaying livePrices[symRef]
+    // (the NEW sym) onto the OLD sym's bar mixes tickers into an impossible candle (the
+    // LRCX-O/H-on-ARM "close below low" readout). Only adopt the developing bar and
+    // overlay the live price when the bar is confirmed to own the CURRENT sym; otherwise
+    // show the base bar as-is for the one frame until the new sym's bars land.
+    const _legendSymOk = lastBarSymRef.current === symRef.current
     // Prefer the live developing bar the CANDLE is showing (lastBarRef), so the
     // legend tracks the candle exactly rather than a separate/stale source.
     const lb = lastBarRef.current
-    if (lb && lb.time === adjustTime(last.t) && Number.isFinite(lb.close)) {
+    if (_legendSymOk && lb && lb.time === adjustTime(last.t) && Number.isFinite(lb.close)) {
       o = lb.open; h = lb.high; l = lb.low; c = lb.close
     }
     const lp = livePricesRef.current?.[symRef.current]
@@ -2923,11 +2938,11 @@ export default function StockChart({
     )
     if (_rthLock) {
       // keep c / h / l from the frozen RTH bar
-    } else if (fastFresh && isSaneLivePrice(ft.price, c, lastServerCloseRef.current)) {
+    } else if (_legendSymOk && fastFresh && isSaneLivePrice(ft.price, c, lastServerCloseRef.current)) {
       c = ft.price
       if (Number.isFinite(h)) h = Math.max(h, ft.price)
       if (Number.isFinite(l)) l = Math.min(l, ft.price)
-    } else if (lp?.price && isSaneLivePrice(lp.price, c, lastServerCloseRef.current)) {
+    } else if (_legendSymOk && lp?.price && isSaneLivePrice(lp.price, c, lastServerCloseRef.current)) {
       c = lp.price
     }
     let vol = last.v
@@ -6243,6 +6258,7 @@ export default function StockChart({
   // producing a wrong wick on the first candle of the new ticker.
   useEffect(() => {
     lastBarRef.current = null
+    lastBarSymRef.current = null   // developing bar no longer belongs to any sym until updateChart re-seeds it
     liveBarRef.current = null
     barStartVolRef.current = 0
     latestLiveRef.current = null
@@ -6269,6 +6285,13 @@ export default function StockChart({
     // Freeze while a provisional stale-intraday cache is on screen — no live tick
     // may grow a phantom candle on the old tail before the full refetch swaps in.
     if (provisionalStaleRef.current) return
+    // SYMBOL GUARD (intraday only — daily's Writer E has its own new-session guard):
+    // lastBarRef/liveBarRef carry no symbol and a switch resets them via a DEFERRED
+    // effect while this tick fires on its own clock, so a tick for the NEW sym could
+    // fuse onto the PREVIOUS sym's same-bucket bar (the LRCX-O/H-on-ARM "close below
+    // low" bug — a time-only guard can't tell two symbols' same 5m bucket apart). Only
+    // fuse once lastBarRef is confirmed to own THIS sym.
+    if (!['D', 'W', 'M'].includes(resolvedTf) && lastBarSymRef.current !== sym) return
     // NOTE: the D/W/M "defer the candle write to Writer E" early-return USED to sit
     // here — above the latestLiveRef update below. That stranded latestLiveRef at the
     // mount-time price on D/W/M (Writer A returned before ever updating it once Writer
@@ -7576,6 +7599,10 @@ export default function StockChart({
       const last = filteredBars[filteredBars.length - 1]
       // Use adjustTime so lastBarRef.time matches the chart series + computeBarTime
       lastBarRef.current = { time: adjustTime(last.t), open: last.o, high: last.h, low: last.l, close: last.c, volume: last.v || 0 }
+      // filteredBars is gated to the CURRENT sym (idbReady/_netMatches/memPeek(sym)), so
+      // the bar we just seeded owns `sym` — tag it. The live-overlay consumers refuse to
+      // fuse when this != their sym (the cross-ticker developing-bar contamination guard).
+      lastBarSymRef.current = sym
       // Trustworthy baseline for live-tick sanity gates: server bars are
       // validated/quarantined upstream and proven clean. Unlike
       // lastBarRef (which a bad tick can bake bad, then good ticks get
@@ -12496,6 +12523,11 @@ export default function StockChart({
           const lb = liveBarRef.current
           const last = lastBarRef.current
           if (!lb || !last || lb.time !== last.time) return
+          // SYMBOL GUARD: the refs carry no symbol and a switch resets them via a
+          // deferred effect while this registry tick fires on its own clock — so an ARM
+          // tick could fuse onto LRCX's same-bucket bar. Only fuse when the developing
+          // bar is confirmed to own THIS sym (5/15/30/60 is intraday; daily is elsewhere).
+          if (lastBarSymRef.current !== sym) return
           const newHigh = Math.max(lb.high, price)
           const newLow = Math.min(lb.low, price)
           liveBarRef.current = { ...lb, high: newHigh, low: newLow, close: price }
