@@ -456,12 +456,22 @@ def run_prewarmer_forever():
         # the active top-1500 (heaviest queue, least long-tail-critical).
         # Worker count held at 4 (the prior bump to 8 saturated Massive/worker
         # CPU and starved the web pod, see reverted commit 68392f4).
+        #
+        # PHASE 4 (2026-08-19): 5m and 1m are now warmed for DIFFERENT breadths.
+        # 5m is the timeframe users actually SCAN intraday, so widen its coverage
+        # toward the universe — warming a ticker's 5m even ONCE per session makes its
+        # first-open instant (the serve then rides the same-session SWR fast path; it
+        # need not stay perfectly fresh). 1m is the heaviest series + the least-viewed,
+        # so it stays capped. Both env-tunable: raise PREWARM_5M_CAP toward the full
+        # universe (e.g. 99999) once Massive throughput is confirmed to absorb it.
         _CORE_INTRADAY_TICKERS = ticker_list
-        _DEEP_INTRADAY_TICKERS = _active_intraday[:1500]
+        _FIVEMIN_TICKERS = ticker_list[:int(os.environ.get("PREWARM_5M_CAP", "2500"))]
+        _ONEMIN_TICKERS = _active_intraday[:int(os.environ.get("PREWARM_1M_CAP", "1500"))]
         _PREWARM_WORKERS = 4
     else:
         _CORE_INTRADAY_TICKERS = ticker_list[:200]
-        _DEEP_INTRADAY_TICKERS = ticker_list[:200]
+        _FIVEMIN_TICKERS = ticker_list[:200]
+        _ONEMIN_TICKERS = ticker_list[:200]
         _PREWARM_WORKERS = 2
     def _warm_one(args):
         sym, tf, bar_count = args
@@ -483,11 +493,11 @@ def run_prewarmer_forever():
     for sym in ticker_list: jobs.append((sym, 'M', 5000))
     for sym in _CORE_INTRADAY_TICKERS:
         for tf in _CORE_INTRADAY_TFS: jobs.append((sym, tf, 5000))
-    for sym in _DEEP_INTRADAY_TICKERS:
-        for tf in _DEEP_INTRADAY_TFS: jobs.append((sym, tf, 5000))
+    for sym in _FIVEMIN_TICKERS: jobs.append((sym, '5', 5000))   # 5m: wide (scanned TF)
+    for sym in _ONEMIN_TICKERS: jobs.append((sym, '1', 5000))    # 1m: capped (heaviest)
     print(f"[prewarm] {len(jobs)} jobs queued (worker={_IS_WORKER}; D/W/M all "
           f"+ {len(_CORE_INTRADAY_TICKERS)}x{len(_CORE_INTRADAY_TFS)} core "
-          f"+ {len(_DEEP_INTRADAY_TICKERS)}x{len(_DEEP_INTRADAY_TFS)} deep intraday)")
+          f"+ {len(_FIVEMIN_TICKERS)} 5m + {len(_ONEMIN_TICKERS)} 1m)")
     fast_path_size_jobs = (len(_PRIORITY) + len(_FAST_PATH))
     with _PrewarmTPE(max_workers=_PREWARM_WORKERS, thread_name_prefix="prewarm-bars") as ex:
         warmed, skipped = _run_boot_pass(
