@@ -45,3 +45,37 @@ def test_mark_uploaded_sets_youtube_id(db):
     db.mark_uploaded("u", "VIDY")
     rows = db.list_recent()
     assert rows[0]["youtube_id"] == "VIDY"
+
+
+# ── requeue ──────────────────────────────────────────────────────────────────────
+
+def test_requeue_flips_skipped_back_to_pending_and_corrects_topic(db):
+    db.enqueue("u", "TEST", "2026-08-19T01:00:09Z", "http://dl", "tok")
+    db.claim_next(); db.mark_skipped("u", "test recording: TEST")
+    row = db.requeue("u", topic="Evening Update")
+    assert row["status"] == "pending" and row["topic"] == "Evening Update"
+    assert row["error"] is None and row["attempts"] == 0
+    # and the processor can actually claim it again
+    job = db.claim_next()
+    assert job["meeting_uuid"] == "u" and job["topic"] == "Evening Update"
+
+def test_requeue_without_topic_keeps_stored_topic(db):
+    db.enqueue("u", "Evening Update", "s", "http://dl", "tok")
+    db.claim_next(); db.mark_error("u", "boom"); db.mark_error("u", "boom"); db.mark_error("u", "boom")
+    assert db.count_status("error") == 1
+    row = db.requeue("u")
+    assert row["status"] == "pending" and row["topic"] == "Evening Update"
+
+def test_requeue_refuses_non_terminal_statuses(db):
+    db.enqueue("u", "t", "s", "http://dl", "tok")
+    assert db.requeue("u") is None            # pending
+    db.claim_next()
+    assert db.requeue("u") is None            # processing
+    db.mark_done("u", "VID")
+    assert db.requeue("u") is None            # done
+    assert db.requeue("nope") is None         # missing
+
+def test_get_job_returns_row_or_none(db):
+    db.enqueue("u", "t", "s", "http://dl", "tok")
+    assert db.get_job("u")["meeting_uuid"] == "u"
+    assert db.get_job("nope") is None

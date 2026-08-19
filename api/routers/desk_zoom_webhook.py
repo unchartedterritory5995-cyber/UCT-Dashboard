@@ -79,6 +79,49 @@ async def sessions_status(request: Request):
     return {"jobs": desk_session_jobs.list_recent(20)}
 
 
+@router.post("/session-requeue")
+async def session_requeue(request: Request):
+    """Recovery: put a terminal (skipped/error) recording job back in the queue,
+    optionally correcting its topic. Exists because mark_skipped is terminal by
+    design — a real session recorded in a webinar named "TEST" (the dry-run
+    guard's pattern) has no other path back to publishing. Body:
+    {"meeting_uuid": "...", "topic": "Evening Update"} — topic optional.
+    Gated by the PUSH_SECRET bearer like sessions-status."""
+    from fastapi.responses import JSONResponse
+    expected = os.environ.get("PUSH_SECRET", "")
+    auth = request.headers.get("authorization", "")
+    if not expected or auth != f"Bearer {expected}":
+        return Response(status_code=401)
+    import json as _json
+    try:
+        body = _json.loads((await request.body()).decode("utf-8") or "{}")
+    except ValueError:
+        return JSONResponse({"error": "invalid JSON body"}, status_code=400)
+    uuid = (body.get("meeting_uuid") or "").strip()
+    if not uuid:
+        return JSONResponse({"error": "meeting_uuid required"}, status_code=400)
+    topic = body.get("topic")
+    current = desk_session_jobs.get_job(uuid)
+    if current is None:
+        return JSONResponse({"error": "no job with that meeting_uuid"}, status_code=404)
+    # The skip decision belongs to desk_daily_session — consult it, never copy
+    # its pattern here. Requeueing a topic the processor will immediately
+    # re-skip is a silent no-op loop; refuse it with the reason instead.
+    from api.services.desk_daily_session import _is_test_recording
+    effective_topic = topic if topic is not None else current.get("topic")
+    if _is_test_recording(effective_topic):
+        return JSONResponse(
+            {"error": f"topic {effective_topic!r} still matches the test-recording "
+                      f"skip rule; pass a corrected topic"}, status_code=400)
+    row = desk_session_jobs.requeue(uuid, topic)
+    if row is None:
+        return JSONResponse(
+            {"error": f"job status is {current.get('status')!r} — only skipped/error "
+                      f"jobs can be requeued"}, status_code=409)
+    return {"requeued": True, "job": {k: row.get(k) for k in
+                                      ("meeting_uuid", "topic", "start_time", "status")}}
+
+
 @router.get("/session-audit")
 def session_audit(request: Request):
     """Did everything land? Re-reads the ARTIFACTS for every published session
