@@ -369,7 +369,6 @@ export default function UCT20Performance() {
                       <span className={styles.alignRight}>EXIT $</span>
                       <span className={styles.alignRight}>RETURN</span>
                       <span className={styles.alignRight}>DAYS</span>
-                      <span className={styles.alignRight}>REASON</span>
                     </div>
                     {trades.map((t, i) => (
                       <div key={i} className={`${styles.tradesRow} ${t.win ? styles.tradeWin : styles.tradeLoss}`}>
@@ -382,9 +381,6 @@ export default function UCT20Performance() {
                           {fmtPct(t.pct_return)}
                         </span>
                         <span className={styles.alignRight}>{t.days_held}d</span>
-                        <span className={`${styles.alignRight} ${t.exit_reason === 'stop_loss' ? styles.stopTag : styles.listTag}`}>
-                          {t.exit_reason === 'stop_loss' ? 'STOP' : 'LIST'}
-                        </span>
                       </div>
                     ))}
                   </div>

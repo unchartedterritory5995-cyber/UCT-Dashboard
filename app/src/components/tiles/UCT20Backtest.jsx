@@ -126,10 +126,6 @@ export default function UCT20Backtest() {
               <span className={styles.keyVal}>{data.profit_factor ?? '—'}</span>
             </div>
             <div className={styles.keyStat}>
-              <span className={styles.keyLabel}>STOP-OUT RATE</span>
-              <span className={styles.keyVal}>{data.stop_out_rate ?? 0}%</span>
-            </div>
-            <div className={styles.keyStat}>
               <span className={styles.keyLabel}>WIN STREAK</span>
               <span className={`${styles.keyVal} ${styles.gain}`}>{data.max_win_streak ?? 0}</span>
             </div>
