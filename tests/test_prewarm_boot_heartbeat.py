@@ -248,3 +248,21 @@ def test_THE_CONTROL_a_dead_but_ENABLED_prewarmer_still_says_redeploy():
     msg = wm._bars_alert_text("stale", hb, _STALE)
     assert "redeploy revives it" in msg
     assert "BARS_PREWARM_ENABLED" not in msg
+
+
+def test_the_lifecycle_is_enumerated_in_ONE_place_and_validated():
+    """⛔ The alert branches on these strings. A typo'd phase would silently take
+    the wrong branch and print the wrong remedy — the exact defect this file was
+    changed to fix, reintroduced one layer down. Derive the set, never retype it.
+    """
+    import inspect
+    assert set(pw._PHASES) == {"boot", "steady", "disabled"}
+
+    with pytest.raises(ValueError):
+        pw._set_phase("bootting")
+
+    # every phase the alert text branches on must be a real one
+    alert_src = inspect.getsource(wm._bars_alert_text)
+    for phase in ("boot", "disabled"):
+        assert f'"{phase}"' in alert_src
+        assert phase in pw._PHASES

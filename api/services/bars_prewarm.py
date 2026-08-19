@@ -31,7 +31,7 @@ _PREWARM_FRESH_STATE = {
     "started_ts": None,     # when the prewarmer last BEGAN working (boot entry)
     "last_beat_ts": None,   # most recent unit of work (liveness)
     "last_refresh_ts": None,  # last cycle that actually refreshed >=1 entry
-    "phase": None,          # None -> "boot" (first full pass) -> "steady"
+    "phase": None,          # None until start; then one of _PHASES (below)
     "boot_done": 0,         # jobs consumed by the boot pass so far
     "boot_total": 0,        # jobs the boot pass was handed
     "iterations": 0,        # STEADY-loop iterations (unchanged meaning)
@@ -49,12 +49,24 @@ def _reset_prewarm_state() -> None:
         _PREWARM_STATE.update(_PREWARM_FRESH_STATE)
 
 
+# The lifecycle, and the ONE place it is enumerated. The alert branches on these
+# strings, so a typo'd phase would fall through to the wrong remedy silently —
+# which is the whole defect this file was changed to fix. _set_phase raises instead.
+_PHASES = (
+    "boot",      # first full pass over the universe; a redeploy RESTARTS it
+    "steady",    # refresh loop; a redeploy costs one cycle
+    "disabled",  # BARS_PREWARM_ENABLED != 1; no redeploy can help
+)
+
+
 def _set_phase(phase: str, *, total: int = 0, beat: bool = True) -> None:
     """Move the prewarmer between lifecycle phases, beating as it goes.
 
     ⛔ `beat=False` for any phase that is NOT work — "disabled" must never look
     alive, or the watchdog would report a healthy prewarmer that does nothing.
     """
+    if phase not in _PHASES:
+        raise ValueError(f"unknown prewarm phase {phase!r}; expected one of {_PHASES}")
     with _STATE_LOCK:
         now = _time.time()
         _PREWARM_STATE["phase"] = phase
