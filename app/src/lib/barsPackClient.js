@@ -29,7 +29,15 @@ const MAX_DELTA_CATCHUP_DAYS = 6
 // intraday (5m/60m) pack (Phase 4). Each is a separate R2 artifact with its own
 // route prefix + localStorage version/seed. The intraday pack no-ops on the client
 // until the worker publishes it (manifest → {available:false}), so it's dark-safe.
-const PACK_DAILY = { base: '/api/barspack', versionKey: 'barspack.version', seedKey: 'barspack.seed' }
+// Daily is a large FIRST-VISIT ingest too — a new user downloads the whole-universe D/W/M
+// pack and writes it in one go. Ingest in small YIELDING batches so it never write-locks
+// the 'bars' store long enough to stall a chart read (the "new user waits 3-5s scrolling
+// the theme tracker" — the same lock the intraday ingest hit). Returning users skip the
+// ingest (already stamped), so this only affects the one-time first-visit warm.
+const PACK_DAILY = {
+  base: '/api/barspack', versionKey: 'barspack.version', seedKey: 'barspack.seed',
+  ingestBatchSize: 60, ingestYield: true,
+}
 // The intraday pack is a large FRESH ingest (5m+60m, whole universe) that runs
 // mid-session the first time it's enabled — so it ingests in SMALL, YIELDING batches so
 // the readwrite train never write-locks the 'bars' store long enough to stall a ticker

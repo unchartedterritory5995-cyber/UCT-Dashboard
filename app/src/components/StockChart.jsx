@@ -13649,8 +13649,13 @@ export default function StockChart({
           />
         </div>
       )}
-      {showDrawingTools && bars?.length > 0 && (
+      {showDrawingTools && (
         <>
+          {/* The drawing OVERLAY needs bars to draw; the TOOLBAR (below) does not. Gate
+              only the overlay on bars — keeping the toolbar mounted across the brief
+              bars=null gap between tickers is what stops the "toolbar flashes on every
+              fast switch" (an unmount→remount replays the .toolbar opacity fade-in). */}
+          {bars?.length > 0 && (
           <ChartDrawingOverlay
             chartRef={chartRef}
             seriesRef={candleSeriesRef}
@@ -13679,6 +13684,7 @@ export default function StockChart({
             onSaveColor={onSaveColor}
             onDeleteColor={onDeleteColor}
           />
+          )}
           <ChartToolbar
             ref={toolbarRef}
             /* ⭐ THE `instance_id` PRODUCER (Phase C Task 15). Task 10 shipped
