@@ -214,3 +214,37 @@ def test_the_skip_has_a_kill_switch(monkeypatch):
     monkeypatch.setattr(pw, "_in_active_data_window", lambda: False)
     monkeypatch.setattr(pw, "_expected_session", lambda: 20260818)
     assert pw._boot_can_skip(20260818, "D") is False
+
+
+# --------------------------------------------------------------------------- #
+# a SWITCHED-OFF prewarmer is a third thing, and no redeploy fixes it
+# --------------------------------------------------------------------------- #
+
+def test_a_disabled_prewarmer_is_NOT_reported_as_alive(monkeypatch):
+    """⛔ The phase must not be allowed to fake liveness. If "disabled" beat like
+    every other phase, the watchdog would grade a prewarmer that does nothing as
+    healthy — the exact blind spot this whole file exists to close."""
+    monkeypatch.delenv("BARS_PREWARM_ENABLED", raising=False)
+    pw.run_prewarmer_forever()          # returns immediately at the enable gate
+    hb = pw.prewarm_heartbeat()
+    assert hb["phase"] == "disabled"
+    assert hb["alive"] is False
+
+
+def test_the_alert_names_the_SWITCH_instead_of_prescribing_a_redeploy():
+    """⛔ Same defect class as the boot-pass advice: a remedy that cannot work
+    sends an operator round a loop. A flag-off prewarmer needs the flag, and
+    every redeploy in the world will not supply it."""
+    hb = {"alive": False, "phase": "disabled", "age_seconds": None}
+    msg = wm._bars_alert_text("stale", hb, _STALE)
+    assert "BARS_PREWARM_ENABLED" in msg
+    assert "redeploy revives it" not in msg
+
+
+def test_THE_CONTROL_a_dead_but_ENABLED_prewarmer_still_says_redeploy():
+    """⛔ Proves the branch above is selecting on the phase, not muting the
+    redeploy advice outright."""
+    hb = {"alive": False, "phase": "steady", "age_seconds": 4000}
+    msg = wm._bars_alert_text("stale", hb, _STALE)
+    assert "redeploy revives it" in msg
+    assert "BARS_PREWARM_ENABLED" not in msg

@@ -455,7 +455,10 @@ def _bars_alert_text(event, hb, fr):
     if hb.get("last_error"):
         reasons.append(f"last error: {hb.get('last_error')}")
 
-    if not hb.get("alive"):
+    if hb.get("phase") == "disabled":
+        tail = ("The prewarmer is DISABLED (BARS_PREWARM_ENABLED != 1) — "
+                "no redeploy can start it; set the flag.")
+    elif not hb.get("alive"):
         tail = "Warming has stopped; a worker redeploy revives it."
     elif hb.get("phase") == "boot":
         tail = (f"Warming is RUNNING — boot pass {hb.get('boot_done')}/{hb.get('boot_total')}; "

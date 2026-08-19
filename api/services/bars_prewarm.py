@@ -49,12 +49,17 @@ def _reset_prewarm_state() -> None:
         _PREWARM_STATE.update(_PREWARM_FRESH_STATE)
 
 
-def _set_phase(phase: str, *, total: int = 0) -> None:
-    """Move the prewarmer between lifecycle phases, beating as it goes."""
+def _set_phase(phase: str, *, total: int = 0, beat: bool = True) -> None:
+    """Move the prewarmer between lifecycle phases, beating as it goes.
+
+    ⛔ `beat=False` for any phase that is NOT work — "disabled" must never look
+    alive, or the watchdog would report a healthy prewarmer that does nothing.
+    """
     with _STATE_LOCK:
         now = _time.time()
         _PREWARM_STATE["phase"] = phase
-        _PREWARM_STATE["last_beat_ts"] = now
+        if beat:
+            _PREWARM_STATE["last_beat_ts"] = now
         if phase == "boot":
             _PREWARM_STATE["started_ts"] = now
             _PREWARM_STATE["boot_total"] = total
@@ -246,6 +251,10 @@ def run_prewarmer_forever():
     silently failed (NameError swallowed by except). It is now properly
     imported here so wire_data tickers are actually included."""
     if os.environ.get("BARS_PREWARM_ENABLED", "0") != "1":
+        # Recorded, NOT beaten: a switched-off prewarmer is genuinely not warming.
+        # Naming it is what stops the alert from sending an operator into a
+        # redeploy loop for a condition no redeploy can fix.
+        _set_phase("disabled", beat=False)
         print("[prewarm] Skipped (set BARS_PREWARM_ENABLED=1 to enable).")
         return
     from api.services import bars_disk_cache as _disk
