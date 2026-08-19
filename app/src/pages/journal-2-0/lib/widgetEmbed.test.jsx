@@ -903,3 +903,23 @@ describe('chartInsertNodes', () => {
     expect(after.attrs.caption).toBe('after · now')
   })
 })
+
+// ── Review round 2: fail-closed + one time-basis ──
+describe('chartInsertNodes fails CLOSED on an unknown kind', () => {
+  it('returns [] for a kind it has no builder for — never a mislabeled chart node', async () => {
+    const { chartInsertNodes } = await import('./widgetEmbedCore')
+    expect(chartInsertNodes('news', { symbol: 'AMD', tf: 'D' }, null)).toEqual([])
+    expect(chartInsertNodes(undefined, { symbol: 'AMD', tf: 'D' }, null)).toEqual([])
+  })
+})
+
+describe('etTodayIso', () => {
+  it('is the ET session day — the SAME basis parseDayToken measures against', async () => {
+    const { etTodayIso } = await import('./widgetEmbedCore')
+    const today = etTodayIso()
+    expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    // A yearless M/D of today must parse to today (not roll back a year).
+    const [, m, d] = today.split('-')
+    expect(parseDayToken(`${Number(m)}/${Number(d)}`)).toBe(today)
+  })
+})

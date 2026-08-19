@@ -112,6 +112,11 @@ export function CaptureInboxTray({ editor, onPlaced }) {
       .insertWidgetEmbed(cap.widgetId, cap.params, {
         capturedAt: cap.capturedAt,
         fallback: cap.fallbackUrl ? { url: cap.fallbackUrl } : null,
+        // Capture-time drawings from the row — an explicit array (even empty)
+        // wins over buildWidgetEmbedAttrs' live-store re-seed, so the embed
+        // shows what was on screen at CAPTURE, not at placement (review
+        // finding). Legacy rows without the field keep the re-seed.
+        ...(Array.isArray(cap.annotations) ? { annotations: cap.annotations } : {}),
       }).run()
     if (!ok) return
     placedIdsRef.current.add(cap.id)
@@ -184,6 +189,21 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const [chromeMsg, setChromeMsg] = useState(null)
   // Widget palette (point-and-click inserts) — toggled from the toolbar row.
   const [paletteOpen, setPaletteOpen] = useState(false)
+  // The sticky chrome's MEASURED height, published as --uct-chrome-h on the
+  // page root: the watch rails' sticky offset reads it (a literal there goes
+  // stale the moment the header wraps — review finding).
+  const chromeRef = useRef(null)
+  const pageRef = useRef(null)
+  useEffect(() => {
+    const chrome = chromeRef.current
+    const page = pageRef.current
+    if (!chrome || !page || typeof ResizeObserver === 'undefined') return undefined
+    const set = () => page.style.setProperty('--uct-chrome-h', `${chrome.offsetHeight}px`)
+    const ro = new ResizeObserver(set)
+    ro.observe(chrome)
+    set()
+    return () => ro.disconnect()
+  }, [])
   useEffect(() => {
     if (!chromeMsg) return undefined
     const t = setTimeout(() => setChromeMsg(null), 2400)
@@ -603,8 +623,8 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   }
 
   return (
-    <div className={styles.page}>
-      <div className={styles.chrome}>
+    <div className={styles.page} ref={pageRef}>
+      <div className={styles.chrome} ref={chromeRef}>
       <header className={styles.header}>
         {showBack && (
           <button type="button" className={styles.backBtn} onClick={onBack}>
@@ -784,11 +804,14 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
           </div>
         </div>
       )}
-      </div>
-
+      {/* Absolute child of the sticky chrome — anchored to its bottom edge,
+          so it follows the pinned chrome regardless of how many rows the
+          header wraps to (review finding: a fixed viewport offset here
+          duplicated the chrome height by hand). */}
       {paletteOpen && editor && (
         <WidgetPalette editor={editor} onClose={() => setPaletteOpen(false)} />
       )}
+      </div>
 
       <div
         className={

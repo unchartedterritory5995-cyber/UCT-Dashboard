@@ -506,3 +506,31 @@ def test_capture_inbox_crud(conn):
             {"widgetId": "aisearch", "params": {"thread": [{"answer": "x" * (300 * 1024)}]}},
             conn=conn,
         )
+
+
+def test_capture_inbox_carries_capture_time_annotations(conn):
+    # Chart-parity review finding: the inbox wire dropped annotations, so the
+    # tray's place() re-seeded drawings from the LIVE store at placement time —
+    # an embed labeled "captured Monday" carried Tuesday's drawings while the
+    # append-to-note route kept Monday's. The row must carry the capture-time
+    # copy end to end.
+    marks = [{"id": "d1", "type": "horizontal", "points": [{"price": 123.4}]}]
+    svc.create_capture("u1", {
+        "widgetId": "chart", "params": {"symbol": "AMD", "tf": "5"},
+        "annotations": marks}, conn=conn)
+    rows = svc.list_captures("u1", conn=conn)
+    assert rows[0]["annotations"] == marks
+    # Absent stays a clean empty list (legacy rows included), not None.
+    svc.create_capture("u1", {"widgetId": "chart"}, conn=conn)
+    fresh = svc.list_captures("u1", conn=conn)[0]
+    assert fresh["annotations"] == []
+    # Malformed shape is refused, not stored.
+    with pytest.raises(NoteValidationError):
+        svc.create_capture("u1", {"widgetId": "chart", "annotations": "not-a-list"}, conn=conn)
+    # Annotations count toward the 256KB ceiling — they ride the same row.
+    with pytest.raises(NoteValidationError):
+        svc.create_capture(
+            "u1",
+            {"widgetId": "chart", "annotations": [{"note": "x" * (300 * 1024)}]},
+            conn=conn,
+        )
