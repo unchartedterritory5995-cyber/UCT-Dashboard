@@ -112,8 +112,22 @@
   color: var(--chart-toolbar-text, #a8a290);
   cursor: pointer;
   padding: 0;
-  transition: background 0.12s, color 0.12s;
+  /* width/opacity/margin are animated so show/hide of a drawing tool collapses
+     smoothly (see .toolHidden) instead of popping in/out. */
+  transition: background 0.12s, color 0.12s, width 0.18s ease, opacity 0.18s ease, margin 0.18s ease;
   flex-shrink: 0;
+}
+/* A tool the user has hidden via the Favorite Drawings menu: kept in the DOM (so
+   the collapse animates) but shrunk to zero width and made non-interactive. The
+   negative margins swallow the flex gap so no sliver is left behind. */
+.toolHidden {
+  width: 0 !important;
+  min-width: 0;
+  opacity: 0;
+  margin-left: -1px;
+  margin-right: -1px;
+  overflow: hidden;
+  pointer-events: none;
 }
 .btn:hover {
   background: var(--chart-toolbar-bg-hover, rgba(46, 49, 39, 0.95));
