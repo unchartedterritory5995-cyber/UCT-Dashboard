@@ -70,6 +70,14 @@ const CACHE_LOGIC_VERSION = 6
 // (no `since=`), so the server replaces the entry within ~1s of a view
 // regardless of the age bound — the bound only backstops entries never opened.
 const DAILY_MAX_AGE_MS = 48 * 60 * 60 * 1000  // 48 hours
+// Render cap for INTRADAY series handed to the chart. A dwell-warm/backfill (and the
+// intraday pack + since-fetch merges) can grow a 5m entry to ~20k bars (≈a year of 5m),
+// and rendering + re-merging that many candles on EVERY ticker switch is the 5-10s
+// intraday stall (idbGet itself is 1-4ms — the cost is downstream in the chart). The
+// chart only needs the recent window for the first paint; deep scroll-back re-fetches on
+// pan. idbGet slices to the last INTRADAY_MAX_BARS. Daily/Weekly/Monthly are uncapped
+// (they render fine and their history is bounded).
+const INTRADAY_MAX_BARS = 3000
 
 let _db = null
 
@@ -190,11 +198,21 @@ export async function idbGet(sym, tf) {
           // (wrong company / pre-split); refetched within DAILY_MAX_AGE_MS.
           return resolve(null)
         }
-        // Mid-session gap guard: delta-merge cannot heal interior gaps,
-        // so a cached series with one is permanently broken until a full
-        // refetch. Treat as absent → caller refetches without `since`.
-        if (_hasIntradayGap(entry.bars, tf)) return resolve(null)
-        resolve(entry)
+        // RENDER CAP (intraday): hand back only the recent window so a bloated ~20k-bar
+        // entry can't stall the chart. Freshness above used entry.lastT (the true tail,
+        // unaffected by slicing the FRONT), so it stays correct. Run the gap guard on the
+        // CAPPED window — a gap deep in the pruned history is irrelevant (deep scroll-back
+        // re-fetches), and this also stops a deep-history gap from nulling the whole entry
+        // into a slow full refetch.
+        let bars = entry.bars
+        if (isIntraday && bars.length > INTRADAY_MAX_BARS) {
+          bars = bars.slice(bars.length - INTRADAY_MAX_BARS)
+        }
+        // Mid-session gap guard: delta-merge cannot heal interior gaps, so a cached series
+        // with one is permanently broken until a full refetch. Treat as absent → caller
+        // refetches without `since`.
+        if (_hasIntradayGap(bars, tf)) return resolve(null)
+        resolve(bars === entry.bars ? entry : { ...entry, bars, lastT: bars[bars.length - 1]?.t })
       }
       req.onerror = () => resolve(null)
     })
