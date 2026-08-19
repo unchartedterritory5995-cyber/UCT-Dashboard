@@ -36,8 +36,8 @@ log_prefix = "[uni-crawler]"
 _STATE_LOCK = threading.Lock()
 _STATE: dict = {
     "enabled": None, "last_beat_ts": None, "warmed_total": 0, "skipped_total": 0,
-    "passes": 0, "cursor": 0, "universe": 0, "last_warm_sym": None, "last_error": None,
-    "restarts": 0,
+    "empty_total": 0, "empty_parked": 0, "passes": 0, "cursor": 0, "universe": 0,
+    "last_warm_sym": None, "last_error": None, "restarts": 0,
 }
 
 
@@ -82,26 +82,32 @@ def load_universe() -> list[str]:
 
 
 def crawl_pass(universe, cursor, *, is_stale, warm, pace, beat=lambda: None,
-               on_warm=lambda sym: None, budget=None):
+               on_warm=lambda sym: None, on_empty=lambda sym: None, budget=None):
     """ONE sweep of the universe starting at `cursor`, warming only stale/missing 5m.
 
     Pure control flow with every side-effect INJECTED, so the pacing + skip logic is
     unit-testable without a network, SQLite, or real sleeps:
       • is_stale(sym) -> bool : True when this ticker's 5m needs warming (missing or a
-        whole session behind). Fresh tickers are skipped INSTANTLY (no pace() call).
-      • warm(sym)             : perform the single, synchronous shallow 5m fetch+store.
-      • pace()               : the rate-limit — called ONLY after an actual warm.
+        whole session behind) AND is not in the no-data cooldown. Skipped tickers cost
+        nothing (no pace()).
+      • warm(sym) -> bool     : perform the single synchronous shallow 5m fetch+store;
+        return True if rows were actually stored, False if the fetch came back EMPTY
+        (thin/inactive ticker with no valid recent 5m — nothing to warm).
+      • pace()               : the rate-limit — called after every ATTEMPT (fill OR
+        empty), because both hit the provider. Skips never pace.
       • beat()               : liveness heartbeat, called each step.
-      • budget (int|None)     : stop after this many warms this pass (None = full sweep).
+      • on_warm(sym)/on_empty(sym): telemetry + the no-data cooldown hook.
+      • budget (int|None)     : stop after this many ATTEMPTS this pass (None = full).
 
-    Returns (new_cursor, warmed, skipped). new_cursor resumes where this pass stopped,
-    so coverage rotates fairly across restarts.
+    Returns (new_cursor, filled, skipped, empty). new_cursor resumes where this pass
+    stopped, so coverage rotates fairly across restarts.
     """
     n = len(universe)
-    warmed = skipped = 0
+    filled = skipped = empty = 0
     if n == 0:
-        return cursor, 0, 0
+        return cursor, 0, 0, 0
     i = cursor % n
+    attempts = 0
     for _ in range(n):
         sym = universe[i]
         i = (i + 1) % n
@@ -110,22 +116,50 @@ def crawl_pass(universe, cursor, *, is_stale, warm, pace, beat=lambda: None,
             if not is_stale(sym):
                 skipped += 1
                 continue
-            warm(sym)
-            warmed += 1
-            on_warm(sym)
+            ok = warm(sym)
+            if ok:
+                filled += 1
+                on_warm(sym)
+            else:
+                empty += 1
+                on_empty(sym)   # cooldown so we don't retry a no-data ticker every pass
             pace()
+            attempts += 1
         except Exception:
             # A bad ticker never stops the sweep; it retries next pass.
             skipped += 1
-        if budget is not None and warmed >= budget:
+        if budget is not None and attempts >= budget:
             break
-    return i, warmed, skipped
+    return i, filled, skipped, empty
+
+
+# Tickers that came back EMPTY (no valid recent 5m — thin/inactive) are parked here
+# until `expiry_ts` so the crawler doesn't burn a provider call retrying them every
+# pass. This is what lets a run SETTLE: once the warmable tickers are warm and the
+# unwarmable ones are parked, a sweep is all-skips → the daemon idles.
+_NO_DATA_UNTIL: dict[str, float] = {}
+
+
+def _empty_cooldown_secs() -> int:
+    return int(os.environ.get("BARS_CRAWLER_EMPTY_COOLDOWN_SEC", "21600"))  # 6h
+
+
+def _mark_empty(sym: str) -> None:
+    _NO_DATA_UNTIL[sym] = _time.time() + _empty_cooldown_secs()
+    with _STATE_LOCK:
+        _STATE["empty_parked"] = len(_NO_DATA_UNTIL)
 
 
 def _default_is_stale(sym: str) -> bool:
-    """5m needs warming when it is MISSING entirely or missing >=1 whole session.
-    Same-session-fresh tickers (already warmed today) are skipped. Uses the serve
-    path's own cold-stale predicate so the crawler and the chart agree."""
+    """5m needs warming when it is MISSING entirely or missing >=1 whole session AND
+    it isn't parked in the no-data cooldown. Same-session-fresh tickers (already warmed
+    today) are skipped. Uses the serve path's own cold-stale predicate so the crawler
+    and the chart agree."""
+    exp = _NO_DATA_UNTIL.get(sym)
+    if exp is not None:
+        if _time.time() < exp:
+            return False           # parked: known no-data, don't retry yet
+        _NO_DATA_UNTIL.pop(sym, None)   # cooldown elapsed → allow one retry
     from api.services import bars_sqlite as _sqlite
     from api.services.bars_fetch import _is_cold_stale_intraday
     last_ts = _sqlite.get_last_ts(sym, "5")
@@ -134,11 +168,17 @@ def _default_is_stale(sym: str) -> bool:
     return _is_cold_stale_intraday("5", last_ts)
 
 
-def _default_warm(sym: str, depth: int) -> None:
+def _default_warm(sym: str, depth: int) -> bool:
     """The single synchronous shallow 5m warm. On the WORKER (async-heal flag off) this
-    fetches + stores inline, so the crawler's pace() genuinely rate-limits the fetch."""
+    fetches + stores inline, so the crawler's pace() genuinely rate-limits the fetch.
+    Returns True iff rows were actually stored (fill), False if the fetch was empty."""
     from api.routers.bars import _get_bars_inner
+    from api.services import bars_sqlite as _sqlite
+    before = _sqlite.get_last_ts(sym, "5")
     _get_bars_inner(sym, "5", depth)
+    after = _sqlite.get_last_ts(sym, "5")
+    # Filled if we now have rows we didn't before (new ticker), or the tail advanced.
+    return after is not None and (before is None or after > before)
 
 
 def run_universe_crawler_forever():
@@ -176,19 +216,21 @@ def run_universe_crawler_forever():
                 _STATE["last_warm_sym"] = sym
 
         try:
-            cursor, warmed, skipped = crawl_pass(
+            cursor, filled, skipped, empty = crawl_pass(
                 universe, cursor,
                 is_stale=_default_is_stale,
                 warm=lambda s: _default_warm(s, depth),
-                pace=_pace, beat=_beat, on_warm=_on_warm,
+                pace=_pace, beat=_beat, on_warm=_on_warm, on_empty=_mark_empty,
             )
             with _STATE_LOCK:
                 _STATE["passes"] += 1
                 _STATE["cursor"] = cursor
                 _STATE["skipped_total"] += skipped
-            print(f"{log_prefix} pass complete: {warmed} warmed, {skipped} skipped")
-            if warmed == 0:
-                # Whole universe already fresh — idle instead of hot-looping the skips.
+                _STATE["empty_total"] += empty
+            print(f"{log_prefix} pass complete: {filled} filled, {empty} empty(parked), "
+                  f"{skipped} skipped, {len(_NO_DATA_UNTIL)} parked total")
+            if filled == 0 and empty == 0:
+                # Whole universe already fresh/parked — idle instead of hot-looping skips.
                 _time.sleep(idle_sleep)
         except Exception as e:  # pragma: no cover - defensive
             with _STATE_LOCK:
