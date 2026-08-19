@@ -130,6 +130,7 @@ from api.alert_tester import router as alert_tester_router
 from api.csv_ingest import router as csv_ingest_router
 from api.darkpool_router import router as darkpool_router
 from api.routers.barspack_router import router as barspack_router
+from api.routers.intradaypack_router import router as intradaypack_router
 from api.discord_watchlist import register_discord_routes
 from api.services.auth_db import init_db as _init_auth_db
 from api.services.voice_audio_cache import purge_expired as _voice_cache_purge
@@ -5745,6 +5746,7 @@ app.include_router(alert_tester_router)
 app.include_router(csv_ingest_router)
 app.include_router(darkpool_router)
 app.include_router(barspack_router)
+app.include_router(intradaypack_router)
 app.include_router(tweets_router.router)
 app.include_router(admin_twitter_router.router)
 app.include_router(admin_purge_router.router)
