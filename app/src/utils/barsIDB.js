@@ -39,7 +39,15 @@ const STORE      = 'bars'
 // NVDA 30m 07-08 14:30). So every browser kept showing the gap even though the
 // server now has the bar. This bump invalidates those stale caches → one clean
 // full refetch → complete data.
-const CACHE_LOGIC_VERSION = 5
+//
+// Bumped 5→6 (2026-08-19): stale WRONG-SCALE daily bars — a server-side ticker-reuse
+// cutoff / split self-heal applied at serve time (WYFI cached ~$220 vs the correct
+// ~$27, HIVE ~$43 vs ~$2.78) — were stuck in caches indefinitely: the pack importer
+// never-downgrades a deep-enough entry, and an up-to-date browser only takes the tail
+// delta, so the corrected pack never overwrote the old values. This forces one clean
+// full re-ingest of the (correct, sanitized) pack. Paired with the heal-on-mismatch
+// guard in _importBatch (below) so FUTURE corrections self-heal without another bump.
+const CACHE_LOGIC_VERSION = 6
 
 // Max age by SAVE time — secondary bound only. The PRIMARY intraday
 // guard is bar-data freshness (newest bar age), checked in idbGet:
@@ -255,6 +263,27 @@ export async function idbImportPack(entries, { batchSize = 250 } = {}) {
   return { written, skipped, aborted }
 }
 
+// Detect a cached series that predates a SERVER-SIDE price correction (ticker-reuse
+// cutoff / split self-heal). Compare the pack's authoritative last (CLOSED) bar to the
+// cached bar at the same timestamp: a material close mismatch means the cache holds the
+// pre-correction, wrong-scale values (e.g. WYFI cached ~$220 vs the corrected ~$27).
+// Scan only the tail (the shared ts sits at/near the cached series' end) → O(1) per
+// ticker on ingest.
+export function _findRecentBarByT(bars, t) {
+  if (!bars?.length || t == null) return null
+  const ts = String(t)
+  for (let i = bars.length - 1, stop = Math.max(0, bars.length - 8); i >= stop; i--) {
+    if (String(bars[i].t) === ts) return bars[i]
+  }
+  return null
+}
+export function _closeMismatch(a, b) {
+  if (!a || !b) return false                        // no shared bar to compare → don't force a heal
+  const ac = +a.c, bc = +b.c
+  if (!Number.isFinite(ac) || !Number.isFinite(bc) || bc === 0) return false
+  return Math.abs(ac - bc) / Math.abs(bc) > 0.02    // >2% at a shared CLOSED session = stale/wrong scale
+}
+
 function _importBatch(db, batch) {
   return new Promise((resolve) => {
     let written = 0, skipped = 0
@@ -275,10 +304,17 @@ function _importBatch(db, batch) {
       const getReq = store.get(key)
       getReq.onsuccess = () => {
         const cur = getReq.result
-        // Never downgrade: keep a current-version local entry that is at least
-        // as deep as the pack (deeper scroll-back or a fresher session write).
+        // Never downgrade: keep a current-version local entry that is at least as deep
+        // as the pack (deeper scroll-back or a fresher session write) — UNLESS the pack's
+        // authoritative tail DISAGREES with the cached values. A stale wrong-scale series
+        // (server-side ticker-reuse cutoff / split-heal applied AFTER this browser cached
+        // the old prices) is internally consistent, so nothing else catches it and the
+        // skip would preserve it — and its wrong DEEP history — forever. On a material
+        // close mismatch at the shared session, fall through and REPLACE with the
+        // sanitized pack (the discarded deep history re-warms on demand).
         if (cur && cur.v === CACHE_LOGIC_VERSION
-            && (cur.bars?.length || 0) >= bars.length) {
+            && (cur.bars?.length || 0) >= bars.length
+            && !_closeMismatch(_findRecentBarByT(cur.bars, bars[bars.length - 1]?.t), bars[bars.length - 1])) {
           skipped++
           return
         }
