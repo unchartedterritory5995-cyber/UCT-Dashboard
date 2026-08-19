@@ -18,7 +18,7 @@
  * swallowed and falls through to the existing warm-server fetch + skeleton, so
  * the pack is strictly additive and can never regress a chart.
  */
-import { idbImportPack, idbApplyDelta } from '../utils/barsIDB'
+import { idbImportPack, idbApplyDelta, idbDeleteIntraday } from '../utils/barsIDB'
 
 const SHARD_CONCURRENCY = 2
 // If we're further behind than this many days, the delta tail can't bridge the gap
@@ -44,8 +44,23 @@ let _started = false
 export function initBarsPack() {
   if (_started) return
   _started = true
+  // One-time: purge bloated/leftover intraday IDB entries (the ~20k-bar 5m series that
+  // stalled the chart). Runs once per browser via a localStorage flag.
+  _purgeIntradayOnce()
   _whenIdle(() => { _run(PACK_DAILY).catch(() => {}) })
-  _whenIdle(() => { _run(PACK_INTRADAY).catch(() => {}) })
+  // ⛔ CLIENT INTRADAY PACK DISABLED (2026-08-19). The pre-seed painted instantly for
+  // some tickers but the two-step live-fill path (bloat + framing + ingest lock) proved
+  // too fragile to land via live iteration. Server 5m serves fast (~0.15s), so 5m loads
+  // on-demand reliably. Re-enable only after an OFFLINE reproduction + fix.
+  // _whenIdle(() => { _run(PACK_INTRADAY).catch(() => {}) })
+}
+
+async function _purgeIntradayOnce() {
+  try {
+    if (localStorage.getItem('barsIDB.intradayPurge.v1') === '1') return
+    await idbDeleteIntraday()
+    localStorage.setItem('barsIDB.intradayPurge.v1', '1')
+  } catch { /* best-effort */ }
 }
 
 function _whenIdle(fn) {

@@ -222,6 +222,30 @@ export async function idbGet(sym, tf) {
 }
 
 /**
+ * Delete ALL intraday entries (*_1/_5/_15/_30/_60). One-time cleanup to drop the
+ * bloated ~20k-bar 5m series (and any leftover intraday pack) that stalled the chart;
+ * daily/weekly/monthly are left intact. Best-effort; never throws.
+ */
+export async function idbDeleteIntraday() {
+  let db
+  try { db = await _open() } catch { return }
+  return new Promise((resolve) => {
+    let tx
+    try { tx = db.transaction(STORE, 'readwrite') } catch { return resolve() }
+    const store = tx.objectStore(STORE)
+    const req = store.getAllKeys()
+    req.onsuccess = () => {
+      for (const k of req.result || []) {
+        if (/_(1|5|15|30|60)$/.test(String(k))) { try { store.delete(k) } catch { /* ignore */ } }
+      }
+    }
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => resolve()
+    tx.onabort = () => resolve()
+  })
+}
+
+/**
  * Write bars for (sym, tf) to IDB.
  * lastT = last bar's `t` value (used as the `since` param on next fetch).
  */
