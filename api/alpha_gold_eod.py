@@ -215,9 +215,10 @@ def _exp_mdy(exp) -> str:
 
 
 def _is_weekly(exp) -> bool:
-    """True when the expiration is NOT a standard monthly (3rd-Friday) expiry —
-    i.e., a weekly/daily contract. Monthlies and LEAPs (always the 3rd Friday) are
-    False; so are unparseable dates (never tagged/trimmed as weekly by mistake)."""
+    """True for a WEEKLY option: it expires on a FRIDAY (the week's last day) that
+    is NOT the monthly 3rd Friday. So monthlies + LEAPs (always the 3rd Friday),
+    and any non-Friday settlement (quarter-end Wednesday, special LEAP dates like a
+    Thursday), are NOT weekly. Unparseable dates → False (never mis-tagged)."""
     parts = str(exp or "").split("/")
     if len(parts) < 3:
         return False
@@ -226,9 +227,12 @@ def _is_weekly(exp) -> bool:
         m, d, y = int(parts[0]), int(parts[1]), int(parts[2])
         if y < 100:
             y += 2000
+        dt = date(y, m, d)
+        if dt.weekday() != 4:                          # 4 == Friday
+            return False                               # weeklies expire on a Friday
         first = date(y, m, 1)
-        first_fri = 1 + ((4 - first.weekday()) % 7)   # Mon=0..Fri=4
-        return d != (first_fri + 14)                  # 3rd Friday == monthly
+        first_fri = 1 + ((4 - first.weekday()) % 7)    # Mon=0..Fri=4
+        return d != (first_fri + 14)                   # a Friday, but not the 3rd (monthly)
     except (ValueError, IndexError):
         return False
 
@@ -555,8 +559,13 @@ def run_eod_summary(*, force: bool = False, post: bool = True,
         # cap, drop weeklies first. Fail-open on a cold ER cache.
         er_days = int(os.getenv("ALPHA_GOLD_EOD_ER_TAG_DAYS", "7"))
         er_syms = _earnings_soon_syms(er_days)
+        # Weekly = a Friday non-monthly expiry (_is_weekly) OR anything under
+        # `wk_dte` days (near-term speculative, regardless of expiry weekday).
+        wk_dte = int(os.getenv("ALPHA_GOLD_EOD_WEEKLY_DTE", "5"))
         for a in alerts:
-            a["_weekly"] = _is_weekly(a.get("exp"))
+            _d = a.get("dte")
+            a["_weekly"] = (_is_weekly(a.get("exp"))
+                            or (isinstance(_d, (int, float)) and _d < wk_dte))
             a["_earn"] = (a.get("ticker") or "").upper() in er_syms
         date_text = _date_text(day)
         stock_cap = int(os.getenv("ALPHA_GOLD_EOD_STOCK_CAP", "15"))
