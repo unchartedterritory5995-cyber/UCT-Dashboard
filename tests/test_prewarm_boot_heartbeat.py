@@ -266,3 +266,93 @@ def test_the_lifecycle_is_enumerated_in_ONE_place_and_validated():
     for phase in ("boot", "disabled"):
         assert f'"{phase}"' in alert_src
         assert phase in pw._PHASES
+
+
+# --------------------------------------------------------------------------- #
+# the BEHAVIOURAL wire test — drives the real entry point
+# --------------------------------------------------------------------------- #
+
+class _StopLoop(BaseException):
+    """BaseException on purpose: the steady loop body is wrapped in
+    `except Exception`, which would swallow a normal exception and spin."""
+
+
+def test_run_prewarmer_forever_REALLY_beats_through_its_boot_pass(tmp_path, monkeypatch):
+    """⭐ THE BEHAVIOURAL WIRE TEST.
+
+    `test_the_wire_is_load_bearing` reads the SOURCE for `_run_boot_pass(` — a
+    structural guard, and this repo has a lesson naming that exact blind spot
+    (`lesson_structural_guard_misses_behavioural_clobber`): the call can survive
+    while what it observes is broken. This drives `run_prewarmer_forever` itself
+    and watches liveness from INSIDE the boot pass.
+
+    Hermetic: DATA_DIR is a tmp dir, the cache-nuke branch is disabled by
+    pre-creating its flag file, the universe files are hidden so the job list
+    stays small, and every job is answered from memory — no network, no /data.
+    """
+    monkeypatch.setenv("BARS_PREWARM_ENABLED", "1")
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    # The one-shot `shutil.rmtree(bars_cache)` runs only when this flag is absent.
+    (tmp_path / ".cache_nuked_v2").write_text("done")
+
+    import os as _os
+    from api.services import bars_disk_cache
+    from api.services import bars_sqlite
+    from api.routers import bars as bars_router
+
+    monkeypatch.setattr(bars_disk_cache, "purge_empty", lambda: 0)
+
+    # Hide the two big universe files so the job list is the ~24 priority names.
+    real_exists = _os.path.exists
+    monkeypatch.setattr(_os.path, "exists", lambda q: False if (
+        "cap_universe" in str(q) or "themes_taxonomy" in str(q)) else real_exists(q))
+
+    monkeypatch.setattr(bars_sqlite, "get_last_ts", lambda *a, **k: 20260818)
+
+    seen = []
+
+    def _fake_needs_fresh(last_ts, tf):
+        # Called once per job, INSIDE the boot pass — the watchdog's vantage point.
+        seen.append(pw.prewarm_heartbeat())
+        return False        # 'skipped' → no fetch, no network
+
+    monkeypatch.setattr(bars_router, "_needs_fresh", _fake_needs_fresh)
+    monkeypatch.setattr(bars_router, "_get_bars_inner",
+                        lambda *a, **k: pytest.fail("the boot pass hit the network"))
+
+    import time as _time_mod
+    monkeypatch.setattr(_time_mod, "sleep", lambda *_a: (_ for _ in ()).throw(_StopLoop()))
+
+    with pytest.raises(_StopLoop):
+        pw.run_prewarmer_forever()
+
+    assert seen, "the boot pass consumed no jobs — the test proved nothing"
+    assert all(h["alive"] for h in seen), (
+        "the real prewarmer reported dead while its own boot pass was running"
+    )
+    assert seen[0]["phase"] == "boot"
+    # It reached the steady loop, and got there through the boot phase.
+    hb = pw.prewarm_heartbeat()
+    assert hb["phase"] == "steady"
+    assert hb["boot_total"] > 0 and hb["boot_done"] == hb["boot_total"]
+    assert hb["iterations"] >= 1, "the steady loop never beat"
+
+
+def test_THE_CONTROL_the_harness_can_observe_a_silent_boot_pass(tmp_path, monkeypatch):
+    """⛔ Without this, the test above could pass because `seen` is populated by
+    something other than real liveness. Break the beat and it must go RED."""
+    monkeypatch.setattr(pw, "_beat", lambda *a, **k: None)
+    monkeypatch.setattr(pw, "_set_phase", lambda *a, **k: None)
+
+    seen = []
+
+    def _results():
+        for _ in range(3):
+            seen.append(pw.prewarm_heartbeat())
+            yield ("skipped", "SPY", "D")
+
+    pw._run_boot_pass(_results(), total=3, fast_path_size=1)
+    assert not any(h["alive"] for h in seen), (
+        "liveness was reported with the heartbeat disabled — the probe is not "
+        "reading the heartbeat at all"
+    )
