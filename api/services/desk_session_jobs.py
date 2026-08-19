@@ -83,6 +83,33 @@ def mark_skipped(meeting_uuid, reason=""):
                   "updated_at=? WHERE meeting_uuid=?",
                   (str(reason)[:500], int(time.time()), meeting_uuid)); c.commit()
 
+def get_job(meeting_uuid):
+    with contextlib.closing(_connect()) as c:
+        row = c.execute("SELECT * FROM desk_session_jobs WHERE meeting_uuid=?",
+                        (meeting_uuid,)).fetchone()
+        return dict(row) if row else None
+
+def requeue(meeting_uuid, topic=None):
+    """Flip a terminal ('skipped'|'error') job back to 'pending', optionally
+    correcting its topic — a real session recorded under a webinar name the
+    dry-run guard matches (e.g. "TEST") is otherwise skipped forever. Only
+    terminal rows qualify: requeueing a pending/processing/done job would race
+    the processor or re-publish. Returns the updated row, or None if no
+    terminal job with that uuid exists."""
+    now = int(time.time())
+    with _WRITE_LOCK, contextlib.closing(_connect()) as c:
+        cur = c.execute(
+            "UPDATE desk_session_jobs SET status='pending', attempts=0, error=NULL, "
+            "topic=COALESCE(?, topic), updated_at=? "
+            "WHERE meeting_uuid=? AND status IN ('skipped','error')",
+            (topic, now, meeting_uuid))
+        c.commit()
+        if cur.rowcount != 1:
+            return None
+        row = c.execute("SELECT * FROM desk_session_jobs WHERE meeting_uuid=?",
+                        (meeting_uuid,)).fetchone()
+        return dict(row) if row else None
+
 def mark_error(meeting_uuid, error):
     with _WRITE_LOCK, contextlib.closing(_connect()) as c:
         row = c.execute("SELECT attempts FROM desk_session_jobs WHERE meeting_uuid=?",
