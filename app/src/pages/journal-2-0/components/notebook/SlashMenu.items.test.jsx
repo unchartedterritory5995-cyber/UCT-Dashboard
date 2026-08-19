@@ -25,19 +25,21 @@ describe('slash widget items', () => {
     expect(titles('chart NVDA 2026-03-13')).toEqual(['Chart — NVDA · D @ Mar 13, 2026'])
     expect(titles('chart NVDA 15m notaday')).toEqual([])
     // The inserted node carries the day as its anchor (params.to), not the
-    // insert moment.
+    // insert moment. (Wire: the shared chartInsertNodes builder →
+    // insertContent — the same payload the widget palette inserts.)
     let captured = null
     const chain = {
       focus: () => chain, deleteRange: () => chain,
-      insertWidgetEmbed: (id, cap) => { captured = { id, cap }; return chain },
-      insertContent: () => chain,
+      insertContent: (nodes) => { captured = nodes; return chain },
       caretAfterWidgetEmbed: () => chain,
       run: () => {},
     }
     widgetItems('chart NVDA 15m 3/13/2026')[0]
       .command({ editor: { chain: () => chain, storage: {} }, range: {} })
-    expect(captured.id).toBe('chart')
-    expect(captured.cap.to).toBe('2026-03-13')
+    expect(captured).toHaveLength(1)
+    expect(captured[0].type).toBe('widgetEmbed')
+    expect(captured[0].attrs.widgetId).toBe('chart')
+    expect(captured[0].attrs.params).toMatchObject({ symbol: 'NVDA', tf: '15', to: '2026-03-13' })
   })
 
   it('prose after the name offers NOTHING — Enter must stay a newline', () => {

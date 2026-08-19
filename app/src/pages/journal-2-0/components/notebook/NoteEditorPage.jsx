@@ -12,10 +12,11 @@ import { useDeskVideoByYoutube } from '../../../../hooks/useDeskVideoByYoutube'
 import { useVideoInsights } from '../../../../hooks/useVideoInsights'
 import linkifyTimestamps from '../../lib/linkifyTimestamps'
 import UIcon from '../../../../components/ui/UIcon'
-import usePreferences, { parsePref } from '../../../../hooks/usePreferences'
-import { mergeChartSettings } from '../../../../components/chart/chartDefaults'
+import usePreferences from '../../../../hooks/usePreferences'
 import { useAuth } from '../../../../context/AuthContext'
 import { exportNoteAsPng, printNote } from '../../lib/exportNote'
+import { stampChartSettings } from '../../lib/widgetEmbedCore'
+import WidgetPalette from './WidgetPalette'
 import { sharedNoteUrl } from '../../lib/noteShareLink'
 import styles from './NoteEditorPage.module.css'
 
@@ -181,6 +182,8 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   const columnRef = useRef(null)
   const [exportBusy, setExportBusy] = useState(false)
   const [chromeMsg, setChromeMsg] = useState(null)
+  // Widget palette (point-and-click inserts) — toggled from the toolbar row.
+  const [paletteOpen, setPaletteOpen] = useState(false)
   useEffect(() => {
     if (!chromeMsg) return undefined
     const t = setTimeout(() => setChromeMsg(null), 2400)
@@ -400,19 +403,16 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
   // editor was already created with this content via useEditor's `content`
   // option, so a swallowed first attempt still shows the note.
 
-  // The user's merged chart theme rides editor storage so the SLASH paths can
-  // freeze it at insert (the door captures always did — only typed inserts
-  // drifted with later re-themes; panel finding). Re-stamped whenever prefs
-  // land/change: onCreate alone raced the prefs fetch.
+  // The user's RESOLVED own-chart settings ride editor storage so the SLASH
+  // paths can freeze them at insert (the door captures always did — only
+  // typed inserts drifted; panel finding). Re-stamped whenever prefs
+  // land/change: onCreate alone raced the prefs fetch. The stamp lives in
+  // widgetEmbedCore (one authority) and resolves the workspace WIDGET
+  // settings, not the bare chart_settings seed — stamping the seed here was
+  // how journal charts lost the user's MAs/legend/colors (chart-parity round).
   const { prefs } = usePreferences()
   useEffect(() => {
-    if (!editor) return
-    try {
-      editor.storage.uctJournalWidgets = {
-        ...(editor.storage.uctJournalWidgets || {}),
-        chartSettings: mergeChartSettings(parsePref(prefs?.chart_settings, null) || {}),
-      }
-    } catch { /* storage not ready — the insert falls back to unset settings */ }
+    stampChartSettings(editor, prefs)
   }, [editor, prefs])
 
   useEffect(() => {
@@ -595,6 +595,7 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
 
   return (
     <div className={styles.page}>
+      <div className={styles.chrome}>
       <header className={styles.header}>
         {showBack && (
           <button type="button" className={styles.backBtn} onClick={onBack}>
@@ -610,8 +611,58 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
             {saveStatus === 'error' && <><UIcon name="warning" size={13} style={{ verticalAlign: '-2px', marginRight: 4 }} />{`Save failed${saveErrorMsg ? `: ${saveErrorMsg}` : ''}`}</>}
           </div>
         )}
-        {editor && (
-          <div className={styles.headerToolbar} data-export-exclude>
+        <div className={styles.headerControls}>
+          {isAdmin && (
+            <>
+              <button type="button" className={styles.chromeBtn} onClick={copyShareLink}
+                title={share ? 'Copy the public link to this note' : 'Create a public read-only link and copy it'}>
+                {share ? 'Copy link' : 'Share'}
+              </button>
+              {share && (
+                <button type="button" className={styles.chromeBtn} onClick={unshare}
+                  title="Revoke the public link — it stops working immediately">
+                  Unshare
+                </button>
+              )}
+            </>
+          )}
+          <select
+            className={styles.headerSelect}
+            value={note.folderId || ''}
+            onChange={(e) => onFolderChange(e.target.value)}
+          >
+            <option value="">Unfiled</option>
+            {folders.map((f) => (
+              <option key={f.id} value={f.id}>{f.name}</option>
+            ))}
+          </select>
+          <input
+            className={styles.headerInput}
+            placeholder="Ticker"
+            defaultValue={note.ticker || ''}
+            onBlur={(e) => onTickerChange(e.target.value)}
+            style={{ width: 84 }}
+          />
+          <input
+            className={styles.headerInput}
+            placeholder="Tags (comma sep)"
+            defaultValue={(note.tags || []).join(', ')}
+            onBlur={(e) => onTagsChange(e.target.value)}
+            style={{ width: 200 }}
+          />
+          <button type="button" className={styles.deleteBtn} onClick={onDelete}>
+            Delete
+          </button>
+        </div>
+      </header>
+
+      {/* The editor toolbar ROW (owner ask, chart-parity round): the font/
+          formatting cluster and the PNG/Print exports grouped as ONE
+          discoverable surface, full-width under the header instead of split
+          across a crowded header line. Sticky via the shared .chrome wrapper;
+          data-export-exclude keeps the row out of the PNG rasterization. */}
+      {editor && (
+        <div className={styles.toolbarRow} role="toolbar" aria-label="Editor toolbar" data-export-exclude>
             <select
               className={styles.fontSelect}
               value={editor.getAttributes('textStyle').fontFamily || ''}
@@ -698,63 +749,37 @@ export default function NoteEditorPage({ noteId, onBack, showBack = true, onTitl
               onClick={() => editor.chain().focus().setHorizontalRule().run()}
               label="―"
             />
-          </div>
-        )}
-        <div className={styles.headerControls}>
-          {chromeMsg && <span className={styles.chromeMsg} role="status">{chromeMsg}</span>}
-          {/* Export: PNG rasterizes the note column (charts included); Print
-              rides the browser's Save-as-PDF via the print stylesheet. */}
-          <button type="button" className={styles.chromeBtn} onClick={savePng} disabled={exportBusy}
-            title="Download this note as a PNG image">
-            PNG
-          </button>
-          <button type="button" className={styles.chromeBtn} onClick={printNote}
-            title="Print — or Save as PDF from the print dialog">
-            Print
-          </button>
-          {isAdmin && (
-            <>
-              <button type="button" className={styles.chromeBtn} onClick={copyShareLink}
-                title={share ? 'Copy the public link to this note' : 'Create a public read-only link and copy it'}>
-                {share ? 'Copy link' : 'Share'}
-              </button>
-              {share && (
-                <button type="button" className={styles.chromeBtn} onClick={unshare}
-                  title="Revoke the public link — it stops working immediately">
-                  Unshare
-                </button>
-              )}
-            </>
-          )}
-          <select
-            className={styles.headerSelect}
-            value={note.folderId || ''}
-            onChange={(e) => onFolderChange(e.target.value)}
+          {/* Widget palette door — point-and-click inserts for people who
+              don't reach for slash commands (owner ask). */}
+          <button
+            type="button"
+            className={`${styles.toolBtn} ${paletteOpen ? styles.toolBtnActive : ''}`}
+            onClick={() => setPaletteOpen((o) => !o)}
+            title="Insert a chart or preset — pick ticker and timeframe by clicking"
+            aria-label="Insert widget"
           >
-            <option value="">Unfiled</option>
-            {folders.map((f) => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </select>
-          <input
-            className={styles.headerInput}
-            placeholder="Ticker"
-            defaultValue={note.ticker || ''}
-            onBlur={(e) => onTickerChange(e.target.value)}
-            style={{ width: 84 }}
-          />
-          <input
-            className={styles.headerInput}
-            placeholder="Tags (comma sep)"
-            defaultValue={(note.tags || []).join(', ')}
-            onBlur={(e) => onTagsChange(e.target.value)}
-            style={{ width: 200 }}
-          />
-          <button type="button" className={styles.deleteBtn} onClick={onDelete}>
-            Delete
+            ⊞ Insert
           </button>
+          <div className={styles.toolbarExports}>
+            {chromeMsg && <span className={styles.chromeMsg} role="status">{chromeMsg}</span>}
+            {/* Export: PNG rasterizes the note column (charts included); Print
+                rides the browser's Save-as-PDF via the print stylesheet. */}
+            <button type="button" className={styles.chromeBtn} onClick={savePng} disabled={exportBusy}
+              title="Download this note as a PNG image">
+              PNG
+            </button>
+            <button type="button" className={styles.chromeBtn} onClick={printNote}
+              title="Print — or Save as PDF from the print dialog">
+              Print
+            </button>
+          </div>
         </div>
-      </header>
+      )}
+      </div>
+
+      {paletteOpen && editor && (
+        <WidgetPalette editor={editor} onClose={() => setPaletteOpen(false)} />
+      )}
 
       <div
         className={

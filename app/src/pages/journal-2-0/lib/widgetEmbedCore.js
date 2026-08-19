@@ -6,6 +6,8 @@
 import {
   widgetMeta, normalizeParams, validateParams, paramsPlainText, isReconstructable,
 } from '../../../widgets/registry'
+import { peekDrawings } from '../../../components/chart/drawingsStore'
+import { resolveOwnChartMergedSettings } from '../../../components/chart/pane/ownChartSettings'
 
 // The embed document schema, v1 (see the plan doc: "expensive to change
 // later"). Every stored notebook doc carries these attrs verbatim.
@@ -33,7 +35,14 @@ export function buildWidgetEmbedAttrs(widgetId, capture = {}, extra = {}) {
     mode: extra.mode === 'live' ? 'live' : 'snapshot',
     fallback: extra.fallback || null,           // {url, w, h} once the archive lands
     tradeRef: extra.tradeRef || null,
-    annotations: Array.isArray(extra.annotations) ? extra.annotations : [],
+    // A chart capture freezes a COPY of the symbol's /charts drawings (the
+    // annotation layer renders the same ChartDrawingOverlay objects the global
+    // store holds). One-way by design: journal edits land on the node's own
+    // attrs, never back in the store. An explicit extra.annotations (recapture
+    // paths carrying existing marks) always wins over the store read.
+    annotations: Array.isArray(extra.annotations)
+      ? extra.annotations
+      : (widgetId === 'chart' && params.symbol ? peekDrawings(params.symbol) : []),
     caption: extra.caption || null,             // user free-text only; auto-caption derives at render
     layout: {
       width: extra.layout?.width === 'half' ? 'half' : 'full',
@@ -45,6 +54,26 @@ export function buildWidgetEmbedAttrs(widgetId, capture = {}, extra = {}) {
     },
     searchText: paramsPlainText(widgetId, params),
   }
+}
+
+/** Stamp the user's RESOLVED own-chart settings onto editor storage — the
+ *  blob SlashMenu's /chart, /mtf and /compare commands freeze into typed
+ *  inserts. Resolution rides ownChartSettings.js (named default widget →
+ *  board scan → chart_settings seed → defaults) — the SAME order ChartPane
+ *  renders by, so a typed insert and a widget-door capture can never look
+ *  different. ⛔ Never stamp the bare chart_settings seed: it is only what an
+ *  untouched widget starts from, and stamping it is how journal charts lost
+ *  the user's MAs/legend/colors (chart-parity round). NoteEditorPage calls
+ *  this whenever prefs land/change; never throws (storage not ready → the
+ *  insert falls back to unset settings). */
+export function stampChartSettings(editor, prefs) {
+  if (!editor) return
+  try {
+    editor.storage.uctJournalWidgets = {
+      ...(editor.storage.uctJournalWidgets || {}),
+      chartSettings: resolveOwnChartMergedSettings(prefs || {}),
+    }
+  } catch { /* storage not ready — the insert falls back to unset settings */ }
 }
 
 // Slash-command timeframe tokens → the tf codes the bars API speaks.
@@ -312,6 +341,40 @@ export function countLiveEmbeds(doc) {
  *  and the node renders/serializes exactly like a hand-inserted embed. */
 export function widgetSlotNode(widgetId, capture = {}, extra = {}) {
   return { type: 'widgetEmbed', attrs: buildWidgetEmbedAttrs(widgetId, capture, extra) }
+}
+
+/** ONE node builder for every chart insert — the slash commands and the
+ *  widget palette both ride it, so the insert payload can never fork into
+ *  hand-written copies (the "one grammar, four copies" defect class).
+ *  kind: 'chart' (one snapshot) · 'mtf' (D/60/15 stack, top-down) ·
+ *  'compare' (half-width before/after pair — before anchored at day, after
+ *  the ONE explicit rolling window, its caption says so).
+ *  `settings` is the caller's frozen blob (editor storage stamp); day rides
+ *  params.to; a missing day lets buildWidgetEmbedAttrs stamp the insert
+ *  moment (frozen means anchored). Returns an array ready for
+ *  insertContent(...).caretAfterWidgetEmbed(). */
+export function chartInsertNodes(kind, args, settings) {
+  const frozen = settings ? { settings } : {}
+  const anchored = args.day ? { to: args.day } : {}
+  if (kind === 'mtf') {
+    return MTF_STACK_TFS.map((tf) => widgetSlotNode('chart', {
+      symbol: args.symbol, tf, ...anchored, ...frozen,
+    }))
+  }
+  if (kind === 'compare') {
+    return [
+      widgetSlotNode('chart', { symbol: args.symbol, tf: args.tf, to: args.day, ...frozen },
+        { layout: { width: 'half' }, caption: `before · ${args.day}` }),
+      // to: null = the EXPLICIT rolling-window opt-out (buildWidgetEmbedAttrs
+      // stamps the insert moment on undefined) — "after · now" is the one
+      // embed whose caption promises it tracks now.
+      widgetSlotNode('chart', { symbol: args.symbol, tf: args.tf, to: null, ...frozen },
+        { layout: { width: 'half' }, caption: 'after · now' }),
+    ]
+  }
+  return [widgetSlotNode('chart', {
+    symbol: args.symbol, tf: args.tf || 'D', ...anchored, ...frozen,
+  })]
 }
 
 /** The auto-caption ("Chart — AMD 5m · captured Mar 13, 2026") — DERIVED

@@ -12,7 +12,7 @@ import { ReactRenderer } from '@tiptap/react'
 import { useEffect, useImperativeHandle, useState, forwardRef } from 'react'
 import { WIDGET_REGISTRY, JOURNAL_MENU_TYPES, tfText } from '../../../../widgets/registry'
 import {
-  parseChartSlashArgs, parseMtfSlashArgs, parseCompareSlashArgs, widgetSlotNode,
+  parseChartSlashArgs, parseMtfSlashArgs, parseCompareSlashArgs, chartInsertNodes,
 } from '../../lib/widgetEmbedCore'
 import styles from './SlashMenu.module.css'
 
@@ -116,20 +116,16 @@ export function widgetItems(query) {
             ? 'Insert a chart anchored at that date'
             : 'Insert a frozen chart snapshot',
           command: ({ editor, range }) => {
-            // settings: the user's merged chart theme, stamped into editor
-            // storage by NoteEditorPage — frozen at insert so a March embed
-            // never repaints when the user re-themes in April (panel finding;
-            // the door captures always froze it, only the typed paths drifted).
+            // settings: the user's RESOLVED own-chart blob, stamped into
+            // editor storage by NoteEditorPage — frozen at insert so a March
+            // embed never repaints when the user re-themes in April. Node
+            // payload comes from chartInsertNodes — ONE builder shared with
+            // the widget palette, never a second hand-written copy.
             const settings = editor.storage?.uctJournalWidgets?.chartSettings
             editor.chain().focus().deleteRange(range)
-              .insertWidgetEmbed('chart', {
-                symbol: args.symbol, tf: args.tf,
-                // An explicit day anchors the window there; otherwise
-                // buildWidgetEmbedAttrs stamps the insert moment (frozen
-                // means anchored).
-                ...(args.day ? { to: args.day } : {}),
-                ...(settings ? { settings } : {}),
-              }).run()
+              .insertContent(chartInsertNodes('chart', args, settings))
+              .caretAfterWidgetEmbed()
+              .run()
           },
         })
       } else if (!rest) {
@@ -161,11 +157,7 @@ export function widgetItems(query) {
         command: ({ editor, range }) => {
           const settings = editor.storage?.uctJournalWidgets?.chartSettings
           editor.chain().focus().deleteRange(range)
-            .insertContent(args.tfs.map((tf) => widgetSlotNode('chart', {
-              symbol: args.symbol, tf,
-              ...(args.day ? { to: args.day } : {}),
-              ...(settings ? { settings } : {}),
-            })))
+            .insertContent(chartInsertNodes('mtf', args, settings))
             .caretAfterWidgetEmbed()
             .run()
         },
@@ -189,16 +181,10 @@ export function widgetItems(query) {
         description: `Two half-width ${args.tf === 'D' ? 'dailies' : `${tfText(args.tf)} charts`}: window ending that day vs now`,
         command: ({ editor, range }) => {
           const settings = editor.storage?.uctJournalWidgets?.chartSettings
-          const frozen = settings ? { settings } : {}
-          editor.chain().focus().deleteRange(range).insertContent([
-            widgetSlotNode('chart', { symbol: args.symbol, tf: args.tf, to: args.day, ...frozen },
-              { layout: { width: 'half' }, caption: `before · ${args.day}` }),
-            // to: null = the EXPLICIT rolling-window opt-out (buildWidgetEmbedAttrs
-            // stamps the insert moment on undefined) — "after · now" is the one
-            // embed whose caption promises it tracks now.
-            widgetSlotNode('chart', { symbol: args.symbol, tf: args.tf, to: null, ...frozen },
-              { layout: { width: 'half' }, caption: 'after · now' }),
-          ]).caretAfterWidgetEmbed().run()
+          editor.chain().focus().deleteRange(range)
+            .insertContent(chartInsertNodes('compare', args, settings))
+            .caretAfterWidgetEmbed()
+            .run()
         },
       })
     } else if (!restAfterName) {

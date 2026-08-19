@@ -6,7 +6,7 @@
 // buildExtensions the editor uses); (3) the client plain-text serializer
 // emits the stored searchText line — the same line the server serializer
 // reads — so notebook search sees embeds identically on both sides.
-import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, vi, beforeAll, afterAll, beforeEach } from 'vitest'
 // Same entry the importer's convert.js round-trips through.
 import { generateHTML, generateJSON } from '@tiptap/core'
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
@@ -58,6 +58,18 @@ vi.mock('../components/notebook/ChartEmbed', () => ({
     </div>
   )),
 }))
+
+// The Sync-from-my-chart tests shape prefs per-test; everything else in this
+// file ignores preferences. Mirrors the real module's surface (default hook +
+// parsePref) so any transitively-imported consumer keeps working.
+const mockJournalPrefs = vi.hoisted(() => ({ value: {} }))
+vi.mock('../../../hooks/usePreferences', async (orig) => {
+  const mod = await orig()
+  return {
+    ...mod,
+    default: () => ({ prefs: mockJournalPrefs.value, setPref: () => {}, loading: false }),
+  }
+})
 
 import { buildExtensions, extractPlainText } from './tiptap'
 import {
@@ -674,4 +686,195 @@ describe('WidgetEmbedView self-archive bars-ready gate', () => {
       chartStub.throwOnRender = false
     }
   }, 15000)
+})
+
+// ── Chart captures carry the user's /charts drawings (chart-parity round) ──
+// The embed's annotation layer renders ChartDrawingOverlay drawing objects —
+// the same shape the global per-symbol store holds — so a capture freezes a
+// COPY of the symbol's drawings into attrs.annotations. One-way by design:
+// journal edits write the node's own attrs, never back to the store.
+describe('buildWidgetEmbedAttrs — drawings ride the chart capture', () => {
+  const STORE_KEY = 'uct-chart-drawings'
+  beforeEach(async () => {
+    localStorage.clear()
+    const drawingsStore = await import('../../../components/chart/drawingsStore')
+    drawingsStore._reset()
+  })
+
+  it('seeds annotations from the symbol\'s stored drawings', () => {
+    const line = { id: 'd1', type: 'horizontal', points: [{ price: 123.45 }] }
+    localStorage.setItem(STORE_KEY, JSON.stringify({ AMD: [line] }))
+    const attrs = buildWidgetEmbedAttrs('chart', { symbol: 'AMD', tf: 'D' })
+    expect(attrs.annotations).toHaveLength(1)
+    expect(attrs.annotations[0]).toMatchObject({ id: 'd1', type: 'horizontal' })
+  })
+
+  it('an explicit extra.annotations wins over the store', () => {
+    localStorage.setItem(STORE_KEY, JSON.stringify({ AMD: [{ id: 'store-line' }] }))
+    const attrs = buildWidgetEmbedAttrs('chart', { symbol: 'AMD', tf: 'D' }, { annotations: [{ id: 'explicit' }] })
+    expect(attrs.annotations).toEqual([{ id: 'explicit' }])
+  })
+
+  it('non-chart captures never seed drawings', () => {
+    localStorage.setItem(STORE_KEY, JSON.stringify({ AMD: [{ id: 'd1' }] }))
+    const attrs = buildWidgetEmbedAttrs('news', { symbol: 'AMD', events: [] })
+    expect(attrs.annotations).toEqual([])
+  })
+
+  it('a symbol with no drawings → empty array', () => {
+    const attrs = buildWidgetEmbedAttrs('chart', { symbol: 'NVDA', tf: 'D' })
+    expect(attrs.annotations).toEqual([])
+  })
+})
+
+// ── stampChartSettings — the ONE stamp every typed insert path reads ──
+// SlashMenu's /chart, /mtf and /compare commands freeze
+// editor.storage.uctJournalWidgets.chartSettings into the embed. The stamp
+// must carry the user's RESOLVED own chart (workspace widget settings — MAs,
+// legend, colors), never the bare chart_settings seed: the seed is only what
+// an untouched widget starts from, and stamping it is how journal charts
+// rendered "defaults" beside a customized /charts board.
+describe('stampChartSettings', () => {
+  it('stamps the resolved own-chart blob (widget settings beat the seed), merged over defaults', async () => {
+    const { stampChartSettings } = await import('./widgetEmbedCore')
+    const editor = { storage: {} }
+    stampChartSettings(editor, {
+      chart_settings: { background: '#111111' },
+      charts_workspace_layout: {
+        widgets: [{ id: 'w1', type: 'chart', opts: { settings: { background: '#abc123' } } }],
+      },
+    })
+    const stamped = editor.storage.uctJournalWidgets.chartSettings
+    expect(stamped.background).toBe('#abc123')
+    expect(stamped.header).toBeTruthy() // merged, not the raw fragment
+  })
+
+  it('preserves other uctJournalWidgets storage keys (crosshair bus, shareView…)', async () => {
+    const { stampChartSettings } = await import('./widgetEmbedCore')
+    const bus = { emit: () => {} }
+    const editor = { storage: { uctJournalWidgets: { crosshairBus: bus } } }
+    stampChartSettings(editor, { chart_settings: { background: '#222222' } })
+    expect(editor.storage.uctJournalWidgets.crosshairBus).toBe(bus)
+    expect(editor.storage.uctJournalWidgets.chartSettings.background).toBe('#222222')
+  })
+
+  it('never throws — null editor, broken storage, absent prefs', async () => {
+    const { stampChartSettings } = await import('./widgetEmbedCore')
+    expect(() => stampChartSettings(null, {})).not.toThrow()
+    const hostile = {}
+    Object.defineProperty(hostile, 'storage', { get() { throw new Error('not ready') } })
+    expect(() => stampChartSettings(hostile, {})).not.toThrow()
+    expect(() => stampChartSettings({ storage: {} })).not.toThrow()
+  })
+})
+
+// ── "Sync from my chart" — the heal-and-refresh door (chart-parity round) ──
+// Existing embeds froze whatever settings their insert path carried (often the
+// bare seed). One click re-freezes params.settings from the user's CURRENT
+// resolved own chart and re-copies the symbol's /charts drawings — the
+// deliberate way to pull later Charts-page adjustments into a journal embed
+// without live-coupling frozen snapshots to the workspace.
+describe('WidgetEmbedView — Sync from my chart', () => {
+  const liveChartAttrs = () =>
+    buildWidgetEmbedAttrs('chart', { symbol: 'NVDA', tf: '5', from: nowSec - 3600, to: nowSec })
+
+  let RealIO
+  beforeAll(() => {
+    RealIO = globalThis.IntersectionObserver
+    globalThis.IntersectionObserver = class {
+      constructor(cb) { this.cb = cb }
+      observe() { this.cb([{ isIntersecting: true }], this) }
+      unobserve() {}
+      disconnect() {}
+    }
+  })
+  afterAll(() => { globalThis.IntersectionObserver = RealIO })
+
+  beforeEach(async () => {
+    localStorage.clear()
+    const drawingsStore = await import('../../../components/chart/drawingsStore')
+    drawingsStore._reset()
+    mockJournalPrefs.value = {
+      chart_settings: { background: '#111111' },
+      charts_workspace_layout: {
+        widgets: [{ id: 'w1', type: 'chart', opts: { settings: { background: '#abc123' } } }],
+      },
+    }
+  })
+
+  it('re-freezes settings from the resolved own chart, re-copies drawings, clears the stale archive', async () => {
+    localStorage.setItem('uct-chart-drawings', JSON.stringify({ NVDA: [{ id: 'sync-line', type: 'horizontal', points: [{ price: 5 }] }] }))
+    const updateAttributes = vi.fn()
+    const attrs = { ...liveChartAttrs(), annotations: [], fallback: { url: '/api/old.png', w: 800, h: 400 } }
+    attrs.params = { ...attrs.params, settings: { background: '#seed99' } }
+    render(<WidgetEmbedView node={{ attrs }} selected={false} updateAttributes={updateAttributes} />)
+    await screen.findByTestId('chart-embed-stub')
+
+    fireEvent.click(screen.getByText('Sync'))
+    const call = updateAttributes.mock.calls.find(([a]) => a?.params?.settings)
+    expect(call).toBeTruthy()
+    const [patch] = call
+    expect(patch.params.settings.background).toBe('#abc123')   // resolved widget blob, not the old frozen seed
+    expect(patch.params.settings.header).toBeTruthy()          // merged over defaults
+    expect(patch.params.symbol).toBe('NVDA')                   // rest of params untouched
+    expect(patch.annotations).toEqual([expect.objectContaining({ id: 'sync-line' })])
+    expect(patch.fallback).toBeNull()                          // stale archive cleared for re-freeze
+  })
+
+  it('renders only on chart embeds on the live render path, and leaves the strip in draw mode', async () => {
+    render(<WidgetEmbedView node={{ attrs: liveChartAttrs() }} selected={false} updateAttributes={() => {}} />)
+    await screen.findByTestId('chart-embed-stub')
+    expect(screen.getByText('Sync')).toBeTruthy()
+    fireEvent.click(screen.getByText('Draw'))
+    expect(screen.queryByText('Sync')).toBeNull()
+    fireEvent.click(screen.getByText('Done'))
+
+    const news = buildWidgetEmbedAttrs('breadth', {}, { fallback: { url: '/b.png' } })
+    render(<WidgetEmbedView node={{ attrs: news }} selected={false} updateAttributes={() => {}} />)
+    expect(screen.queryAllByText('Sync')).toHaveLength(1) // still only the chart embed's
+  })
+})
+
+// ── chartInsertNodes — ONE builder for every chart insert (slash + palette) ──
+// The slash commands and the widget palette must share one node builder, or
+// the insert payload becomes the next "one grammar, four hand-written copies".
+describe('chartInsertNodes', () => {
+  const SETTINGS = { background: '#abc123' }
+
+  it('chart: one node carrying symbol/tf/day/settings', async () => {
+    const { chartInsertNodes } = await import('./widgetEmbedCore')
+    const nodes = chartInsertNodes('chart', { symbol: 'AMD', tf: '15', day: '2026-03-13' }, SETTINGS)
+    expect(nodes).toHaveLength(1)
+    expect(nodes[0].type).toBe('widgetEmbed')
+    expect(nodes[0].attrs.params).toMatchObject({ symbol: 'AMD', tf: '15', to: '2026-03-13' })
+    expect(nodes[0].attrs.params.settings).toEqual(SETTINGS)
+  })
+
+  it('chart with no day stamps the insert moment (frozen means anchored)', async () => {
+    const { chartInsertNodes } = await import('./widgetEmbedCore')
+    const [node] = chartInsertNodes('chart', { symbol: 'AMD', tf: 'D', day: null }, null)
+    expect(Math.abs(Date.now() / 1000 - Number(node.attrs.params.to))).toBeLessThan(60)
+  })
+
+  it('mtf: three nodes, top-down D/60/15, all anchored at the day', async () => {
+    const { chartInsertNodes } = await import('./widgetEmbedCore')
+    const nodes = chartInsertNodes('mtf', { symbol: 'NVDA', day: '2026-03-13' }, SETTINGS)
+    expect(nodes.map((n) => n.attrs.params.tf)).toEqual(['D', '60', '15'])
+    nodes.forEach((n) => {
+      expect(n.attrs.params.symbol).toBe('NVDA')
+      expect(n.attrs.params.to).toBe('2026-03-13')
+      expect(n.attrs.params.settings).toEqual(SETTINGS)
+    })
+  })
+
+  it('compare: half-width before/after pair — before anchored, after explicitly rolling', async () => {
+    const { chartInsertNodes } = await import('./widgetEmbedCore')
+    const [before, after] = chartInsertNodes('compare', { symbol: 'AMD', tf: 'D', day: '2026-03-13' }, null)
+    expect(before.attrs.params.to).toBe('2026-03-13')
+    expect(before.attrs.layout.width).toBe('half')
+    expect(before.attrs.caption).toBe('before · 2026-03-13')
+    expect(after.attrs.params.to == null).toBe(true)
+    expect(after.attrs.layout.width).toBe('half')
+    expect(after.attrs.caption).toBe('after · now')
+  })
 })

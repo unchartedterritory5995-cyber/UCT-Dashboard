@@ -3,6 +3,15 @@
   flex-direction: column;
   min-height: 70vh;
 }
+/* One sticky chrome unit: the header line + the editor toolbar row stack and
+   stick TOGETHER (two independent sticky bars at top:0 would overlap; a fixed
+   second offset breaks the moment the header wraps). */
+.chrome {
+  position: sticky;
+  top: 0;
+  z-index: 40; /* above in-content embed controls (draw-mode Done = 30) */
+  background: var(--color-bg, #0b0d12);
+}
 .header {
   display: flex;
   align-items: center;
@@ -14,11 +23,26 @@
   min-height: 47px;
   padding: 6px 16px;
   border-bottom: 1px solid var(--color-border, #232932);
-  position: sticky;
-  top: 0;
   background: var(--color-bg, #0b0d12);
-  z-index: 40; /* above in-content embed controls (draw-mode Done = 30) */
   flex-wrap: wrap;
+}
+/* The editor toolbar ROW — the font/formatting cluster + PNG/Print exports as
+   one full-width surface under the header (owner ask, chart-parity round). */
+.toolbarRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: center;
+  padding: 3px 16px 5px;
+  border-bottom: 1px solid var(--color-border, #232932);
+  background: var(--color-bg, #0b0d12);
+}
+.toolbarRow .toolBtn { padding: 3px 8px; font-size: 12px; }
+.toolbarExports {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
 .backBtn {
   background: transparent;
@@ -102,16 +126,6 @@
   top: 56px;
   z-index: 35; /* above in-content embed controls (draw-mode Done = 30) */
 }
-/* Formatting toolbar relocated into the header bar (next to "Saved"), so it's
-   out of the note flow. Compact inline row; sits between the save status and the
-   right-aligned controls. */
-.headerToolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  align-items: center;
-}
-.headerToolbar .toolBtn { padding: 3px 8px; font-size: 12px; }
 .fontSelect, .fontSizeSelect {
   background: var(--color-surface, #14171c);
   border: 1px solid var(--color-border, #232932);
