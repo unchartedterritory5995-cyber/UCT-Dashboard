@@ -236,6 +236,26 @@ def test_blank_public_shows_env_makes_nothing_public(edu_db, jobs_db, monkeypatc
     assert _privacy_after_publishing("SUNDAY SCANS", edu_db, jobs_db) == "unlisted"
 
 
+def test_wildcard_public_shows_makes_every_show_public(edu_db, jobs_db, monkeypatch):
+    # Owner decision 2026-08-19: DESK_PUBLIC_SHOWS="*" uploads EVERY show public.
+    # Derived from the routing registry, same as the unlisted-default rail above.
+    monkeypatch.setenv("DESK_PUBLIC_SHOWS", "*")
+    topics = [kw for kw, _section in dds._HOST_AWARE]
+    topics += [kw for kw, _s, _p, _e in dds._RULES]
+    topics += ["Some Brand New Show", ""]          # auto-derived + default routes
+    still_private = []
+    for i, topic in enumerate(topics):
+        if _privacy_after_publishing(topic, edu_db, jobs_db, uuid=f"UW{i}") != "public":
+            still_private.append(repr(topic))
+    assert not still_private, "wildcard left these unlisted: " + ", ".join(still_private)
+
+
+def test_wildcard_must_be_the_whole_entry_not_a_substring(edu_db, jobs_db, monkeypatch):
+    # A stray "*" inside a real entry must not blow the doors open on every show.
+    monkeypatch.setenv("DESK_PUBLIC_SHOWS", "sunday scans*")
+    assert _privacy_after_publishing("LIVE TRADING TODAY", edu_db, jobs_db) == "unlisted"
+
+
 def test_process_pending_publishes_and_cleans(edu_db, jobs_db):
     jobs_db.enqueue("U1", "Live Trading Session", "2026-06-24T13:30:00Z", "http://dl", "tok")
     z = _FakeZoom(); yt = _FakeYT()

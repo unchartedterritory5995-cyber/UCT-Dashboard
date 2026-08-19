@@ -103,7 +103,9 @@ def _route(topic: str | None) -> tuple[str, str, str]:
 #
 # A blank DESK_PUBLIC_SHOWS makes NOTHING public — same contract as
 # DESK_TSDR_ANNOUNCE_SHOWS: the failure direction is private, never a leak. That
-# also makes rollback an env var rather than a deploy.
+# also makes rollback an env var rather than a deploy. The single value "*"
+# makes EVERY show public (owner decision 2026-08-19) — the wildcard must be
+# the whole entry, so no section name can drift into matching it by substring.
 _PUBLIC_SHOWS_DEFAULT = "sunday scans"
 
 
@@ -114,8 +116,11 @@ def public_shows() -> list[str]:
 
 def privacy_for_section(section: str | None) -> str:
     """The YouTube privacyStatus a routed section should be uploaded with."""
+    shows = public_shows()
+    if "*" in shows:
+        return "public"
     hay = _WS.sub(" ", (section or "")).strip().lower()
-    return "public" if any(s in hay for s in public_shows()) else "unlisted"
+    return "public" if any(s in hay for s in shows) else "unlisted"
 
 
 def _to_et(started_at_iso: str | None, *, now: datetime | None = None) -> datetime:
