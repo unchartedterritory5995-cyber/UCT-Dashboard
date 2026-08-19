@@ -356,3 +356,82 @@ def test_THE_CONTROL_the_harness_can_observe_a_silent_boot_pass(tmp_path, monkey
         "liveness was reported with the heartbeat disabled — the probe is not "
         "reading the heartbeat at all"
     )
+
+
+# --------------------------------------------------------------------------- #
+# the SAME hole, one loop down — the steady refresh pass
+# --------------------------------------------------------------------------- #
+
+def test_the_refresh_pass_is_ALIVE_WHILE_IT_RUNS():
+    """🔴 2026-08-19, FOUND ON THE LIVE POD AFTER THE BOOT-PASS FIX SHIPPED.
+
+        phase=steady  iterations=11  last_error=None  age_seconds=4896
+
+    81 minutes into a healthy refresh pass with `alive` already false at the
+    2700s threshold — the watchdog was about to call a working prewarmer DEAD.
+    Fixing the boot pass did NOT close this: `_beat()` sat only at the top of
+    `while True`, and this pass runs underneath it.
+
+    ⭐ THE RULE: any region that can outlast the liveness threshold must beat
+    INSIDE it. A heartbeat at the top of a loop proves the loop turned over,
+    never that the body is still moving.
+    """
+    seen = []
+
+    def _results():
+        for _ in range(5):
+            seen.append(pw.prewarm_heartbeat())
+            yield ("warmed", "SPY", "D")
+
+    pw._run_refresh_pass(_results(), total=5)
+
+    assert seen, "the refresh pass consumed nothing"
+    assert all(h["alive"] for h in seen), (
+        "the prewarmer went dead mid-refresh while it was working"
+    )
+
+
+def test_the_refresh_pass_does_NOT_inflate_the_iteration_count():
+    """⛔ `iterations` means STEADY-LOOP CYCLES and an operator reads it that
+    way. A 20,000-job pass counting as 20,000 iterations destroys the one number
+    that says how many times the loop actually went round."""
+    before = pw.prewarm_heartbeat()["iterations"]
+    pw._run_refresh_pass(iter([("warmed", "A", "D")] * 7), total=7)
+    assert pw.prewarm_heartbeat()["iterations"] == before
+
+
+def test_the_refresh_pass_publishes_its_progress_and_tally():
+    progress = []
+
+    def _results():
+        for _ in range(4):
+            hb = pw.prewarm_heartbeat()
+            progress.append((hb["refresh_done"], hb["refresh_total"]))
+            yield ("warmed", "SPY", "D")
+        yield ("skipped", "MSFT", "D")
+
+    assert pw._run_refresh_pass(_results(), total=5) == 4
+    assert [p[1] for p in progress] == [5, 5, 5, 5], "the total is not published"
+    assert [p[0] for p in progress] == [0, 1, 2, 3], "progress does not advance"
+
+
+def test_the_freshness_SCAN_beats_too():
+    """⛔ Also inside the unbeaten region: ~25k SQLite reads before the executor
+    starts. That is the exact call that raised and killed the loop in the
+    2026-08-11 freeze, so a lock-contended scan is when liveness matters most."""
+    pw._reset_prewarm_state()
+    assert pw.prewarm_heartbeat()["alive"] is False   # control: starts dead
+
+    jobs = [(f"T{i}", "D", 5000) for i in range(1200)]
+    out = pw._scan_stale(jobs, lambda ts, tf: True, lambda s, tf: 20260818)
+
+    assert len(out) == 1200
+    assert pw.prewarm_heartbeat()["alive"] is True, "the scan never beat"
+
+
+def test_the_wire_is_load_bearing_for_the_refresh_pass_too():
+    """⭐ Reds when the wire is cut while both halves stay correct."""
+    import inspect
+    src = inspect.getsource(pw.run_prewarmer_forever)
+    assert "_run_refresh_pass(" in src, "the refresh pass no longer beats"
+    assert "_scan_stale(" in src, "the freshness scan no longer beats"

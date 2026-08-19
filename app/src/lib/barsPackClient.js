@@ -20,21 +20,25 @@
  */
 import { idbImportPack, idbApplyDelta } from '../utils/barsIDB'
 
-const MANIFEST_URL = '/api/barspack/manifest'
-const VERSION_LS = 'barspack.version'
-const SEED_LS = 'barspack.seed'
-const TFS = ['D', 'W', 'M']
 const SHARD_CONCURRENCY = 2
-// If we're further behind than this many days, the delta tail (7 bars) can't
-// bridge the gap without leaving a hole → re-pull the full pack instead.
+// If we're further behind than this many days, the delta tail can't bridge the gap
+// without leaving a hole → re-pull the full pack instead.
 const MAX_DELTA_CATCHUP_DAYS = 6
+
+// TWO packs share this client, ingested identically: the D/W/M pack and the
+// intraday (5m/60m) pack (Phase 4). Each is a separate R2 artifact with its own
+// route prefix + localStorage version/seed. The intraday pack no-ops on the client
+// until the worker publishes it (manifest → {available:false}), so it's dark-safe.
+const PACK_DAILY = { base: '/api/barspack', versionKey: 'barspack.version', seedKey: 'barspack.seed' }
+const PACK_INTRADAY = { base: '/api/intradaypack', versionKey: 'intradaypack.version', seedKey: 'intradaypack.seed' }
 
 let _started = false
 
 export function initBarsPack() {
   if (_started) return
   _started = true
-  _whenIdle(() => { _run().catch(() => {}) })
+  _whenIdle(() => { _run(PACK_DAILY).catch(() => {}) })
+  _whenIdle(() => { _run(PACK_INTRADAY).catch(() => {}) })
 }
 
 function _whenIdle(fn) {
@@ -58,12 +62,12 @@ function _connectionTooCostly() {
   return false
 }
 
-async function _run() {
+async function _run(cfg) {
   if (_connectionTooCostly()) return
 
   let manifest
   try {
-    const r = await fetch(MANIFEST_URL, { credentials: 'omit' })
+    const r = await fetch(`${cfg.base}/manifest`, { credentials: 'omit' })
     if (!r.ok) return
     manifest = await r.json()
   } catch { return }
@@ -74,7 +78,7 @@ async function _run() {
   }
   const version = manifest.version
   let localV = null, localSeed = null
-  try { localV = localStorage.getItem(VERSION_LS); localSeed = localStorage.getItem(SEED_LS) } catch { /* ignore */ }
+  try { localV = localStorage.getItem(cfg.versionKey); localSeed = localStorage.getItem(cfg.seedKey) } catch { /* ignore */ }
 
   // Already current (same data AND same ticker set) → nothing to do.
   if (localV === version && (!manifest.seed || localSeed === manifest.seed)) return
@@ -89,21 +93,21 @@ async function _run() {
   // Otherwise (never seeded, seed changed, or too far behind) → full pack.
   const canDelta = localV && manifest.delta && !seedChanged
                    && _daysBetween(localV, version) <= MAX_DELTA_CATCHUP_DAYS
-  const ok = canDelta ? await _ingestDelta(version) : await _ingestFull(version, manifest.shards)
+  const ok = canDelta ? await _ingestDelta(cfg, version) : await _ingestFull(cfg, version, manifest.shards)
 
   // Stamp version + seed ONLY on a complete ingest; a partial (quota-aborted)
   // run retries next load rather than declaring this version done.
   if (ok) {
     try {
-      localStorage.setItem(VERSION_LS, version)
-      if (manifest.seed) localStorage.setItem(SEED_LS, manifest.seed)
+      localStorage.setItem(cfg.versionKey, version)
+      if (manifest.seed) localStorage.setItem(cfg.seedKey, manifest.seed)
     } catch { /* ignore */ }
   }
 }
 
 // Full pack: download every shard (bounded concurrency), import each as it
 // arrives so a partial download still yields partial instant coverage.
-async function _ingestFull(version, shards) {
+async function _ingestFull(cfg, version, shards) {
   const queue = shards.slice()
   let cursor = 0
   let aborted = false
@@ -113,7 +117,7 @@ async function _ingestFull(version, shards) {
       const shardIdx = _shardIdx(s)
       if (!Number.isFinite(shardIdx)) continue
       let entries
-      try { entries = await _fetchShard(version, shardIdx) } catch { continue }
+      try { entries = await _fetchShard(cfg, version, shardIdx) } catch { continue }
       if (!entries.length) continue
       try {
         const res = await idbImportPack(entries)
@@ -126,10 +130,10 @@ async function _ingestFull(version, shards) {
 }
 
 // Delta: one small file, merged into existing entries + re-stamps savedAt.
-async function _ingestDelta(version) {
+async function _ingestDelta(cfg, version) {
   let entries
   try {
-    const r = await fetch(`/api/barspack/${version}/delta`, { credentials: 'omit' })
+    const r = await fetch(`${cfg.base}/${version}/delta`, { credentials: 'omit' })
     if (!r.ok) return false
     entries = decodeShardPayload(await r.json())
   } catch { return false }
@@ -163,8 +167,8 @@ export function _shardIdx(s) {
   return mm ? parseInt(mm[1], 10) : NaN
 }
 
-async function _fetchShard(version, shardIdx) {
-  const r = await fetch(`/api/barspack/${version}/${shardIdx}`, { credentials: 'omit' })
+async function _fetchShard(cfg, version, shardIdx) {
+  const r = await fetch(`${cfg.base}/${version}/${shardIdx}`, { credentials: 'omit' })
   if (!r.ok) return []
   const obj = await r.json()  // browser transparently gunzips Content-Encoding: gzip
   return decodeShardPayload(obj)
@@ -183,8 +187,10 @@ export function decodeShardPayload(obj) {
   for (const sym in tickers) {
     const tfs = tickers[sym]
     if (!tfs) continue
-    for (let k = 0; k < TFS.length; k++) {
-      const tf = TFS[k]
+    // Iterate the tf keys the shard actually carries — so this decodes the D/W/M
+    // pack AND the intraday pack ('5'/'60') with the same code (for daily shards
+    // Object.keys is exactly ['D','W','M'], so behaviour is unchanged).
+    for (const tf of Object.keys(tfs)) {
       const cols = tfs[tf]
       if (!cols || !cols.t || !cols.t.length) continue
       const n = cols.t.length

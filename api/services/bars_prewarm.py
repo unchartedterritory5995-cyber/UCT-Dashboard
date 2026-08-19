@@ -34,6 +34,8 @@ _PREWARM_FRESH_STATE = {
     "phase": None,          # None until start; then one of _PHASES (below)
     "boot_done": 0,         # jobs consumed by the boot pass so far
     "boot_total": 0,        # jobs the boot pass was handed
+    "refresh_done": 0,      # jobs consumed by the CURRENT steady refresh pass
+    "refresh_total": 0,     # jobs that pass was handed
     "iterations": 0,        # STEADY-loop iterations (unchanged meaning)
     "restarts": 0,
     "last_error": None,
@@ -78,21 +80,76 @@ def _set_phase(phase: str, *, total: int = 0, beat: bool = True) -> None:
             _PREWARM_STATE["boot_done"] = 0
 
 
-def _beat(refreshed: int = 0, *, boot_done: int | None = None) -> None:
+def _beat(refreshed: int = 0, *, boot_done: int | None = None,
+          refresh_done: int | None = None) -> None:
     """Prove the prewarmer is doing work.
 
-    `boot_done` is passed by the boot pass; it advances the progress counter
-    WITHOUT inflating `iterations`, which keeps meaning "steady-loop cycles".
+    Three callers, one meaning — "I am alive right now":
+      * the steady loop, once per cycle          -> advances `iterations`
+      * the boot pass, per job                   -> advances `boot_done`
+      * the steady REFRESH pass, per job         -> advances `refresh_done`
+
+    ⛔ Only the bare call counts an iteration. `iterations` means "steady-loop
+    cycles" and an operator reads it that way; letting a 20,000-job pass inflate
+    it would destroy the one number that says how many times the loop went round.
     """
     with _STATE_LOCK:
         now = _time.time()
         _PREWARM_STATE["last_beat_ts"] = now
-        if boot_done is None:
-            _PREWARM_STATE["iterations"] += 1
-        else:
+        if boot_done is not None:
             _PREWARM_STATE["boot_done"] = boot_done
+        elif refresh_done is not None:
+            _PREWARM_STATE["refresh_done"] = refresh_done
+        else:
+            _PREWARM_STATE["iterations"] += 1
         if refreshed:
             _PREWARM_STATE["last_refresh_ts"] = now
+
+
+def _run_refresh_pass(results, total: int) -> int:
+    """Consume a steady-loop refresh pass, BEATING on every job.
+
+    🔴 2026-08-19: THE SAME HOLE THE BOOT PASS HAD, ONE LOOP DOWN, AND THE FIX
+    FOR THE BOOT PASS DID NOT CLOSE IT. `_beat()` sat only at the top of
+    `while True`, and this pass — an unbounded `ex.map` over every stale entry —
+    ran underneath it with nothing proving liveness. Measured on the live pod:
+    `phase=steady, iterations=11, last_error=None, age_seconds=4896` — 81 minutes
+    into a healthy refresh with `alive` already false at the 2700s threshold, so
+    the watchdog was about to report a working prewarmer as DEAD.
+
+    ⭐ THE RULE, STATED ONCE: any region that can outlast the liveness threshold
+    must beat inside it. A heartbeat at the top of a loop only proves the loop
+    turned over, never that the body is still moving.
+    """
+    refreshed = 0
+    with _STATE_LOCK:
+        _PREWARM_STATE["refresh_total"] = total
+        _PREWARM_STATE["refresh_done"] = 0
+    # Entering the pass IS work — beat before the first job so liveness never
+    # depends on how long the executor takes to yield its first result.
+    _beat(refresh_done=0)
+    for i, (status, _sym, _tf) in enumerate(results, start=1):
+        if status == 'warmed':
+            refreshed += 1
+        _beat(refresh_done=i)
+    return refreshed
+
+
+def _scan_stale(cycle_jobs, needs_fresh, last_ts) -> list:
+    """The freshness scan, beating as it walks.
+
+    Also inside the unbeaten region: ~25k SQLite reads before the executor even
+    starts. Fast when the DB is healthy, and exactly the call that raised and
+    killed the loop in the 2026-08-11 freeze — so a slow or lock-contended scan
+    is precisely when liveness matters most.
+    """
+    out = []
+    for i, j in enumerate(cycle_jobs, start=1):
+        if needs_fresh(last_ts(j[0].upper(), j[1]), j[1]):
+            out.append(j)
+        if i % 500 == 0:
+            _beat(refresh_done=0)
+    return out
 
 
 def _run_boot_pass(results, total: int, fast_path_size: int):
@@ -456,12 +513,22 @@ def run_prewarmer_forever():
         # the active top-1500 (heaviest queue, least long-tail-critical).
         # Worker count held at 4 (the prior bump to 8 saturated Massive/worker
         # CPU and starved the web pod, see reverted commit 68392f4).
+        #
+        # PHASE 4 (2026-08-19): 5m and 1m are now warmed for DIFFERENT breadths.
+        # 5m is the timeframe users actually SCAN intraday, so widen its coverage
+        # toward the universe — warming a ticker's 5m even ONCE per session makes its
+        # first-open instant (the serve then rides the same-session SWR fast path; it
+        # need not stay perfectly fresh). 1m is the heaviest series + the least-viewed,
+        # so it stays capped. Both env-tunable: raise PREWARM_5M_CAP toward the full
+        # universe (e.g. 99999) once Massive throughput is confirmed to absorb it.
         _CORE_INTRADAY_TICKERS = ticker_list
-        _DEEP_INTRADAY_TICKERS = _active_intraday[:1500]
+        _FIVEMIN_TICKERS = ticker_list[:int(os.environ.get("PREWARM_5M_CAP", "2500"))]
+        _ONEMIN_TICKERS = _active_intraday[:int(os.environ.get("PREWARM_1M_CAP", "1500"))]
         _PREWARM_WORKERS = 4
     else:
         _CORE_INTRADAY_TICKERS = ticker_list[:200]
-        _DEEP_INTRADAY_TICKERS = ticker_list[:200]
+        _FIVEMIN_TICKERS = ticker_list[:200]
+        _ONEMIN_TICKERS = ticker_list[:200]
         _PREWARM_WORKERS = 2
     def _warm_one(args):
         sym, tf, bar_count = args
@@ -483,12 +550,19 @@ def run_prewarmer_forever():
     for sym in ticker_list: jobs.append((sym, 'M', 5000))
     for sym in _CORE_INTRADAY_TICKERS:
         for tf in _CORE_INTRADAY_TFS: jobs.append((sym, tf, 5000))
-    for sym in _DEEP_INTRADAY_TICKERS:
-        for tf in _DEEP_INTRADAY_TFS: jobs.append((sym, tf, 5000))
+    for sym in _FIVEMIN_TICKERS: jobs.append((sym, '5', 5000))   # 5m: wide (scanned TF)
+    for sym in _ONEMIN_TICKERS: jobs.append((sym, '1', 5000))    # 1m: capped (heaviest)
     print(f"[prewarm] {len(jobs)} jobs queued (worker={_IS_WORKER}; D/W/M all "
           f"+ {len(_CORE_INTRADAY_TICKERS)}x{len(_CORE_INTRADAY_TFS)} core "
-          f"+ {len(_DEEP_INTRADAY_TICKERS)}x{len(_DEEP_INTRADAY_TFS)} deep intraday)")
+          f"+ {len(_FIVEMIN_TICKERS)} 5m + {len(_ONEMIN_TICKERS)} 1m)")
     fast_path_size_jobs = (len(_PRIORITY) + len(_FAST_PATH))
+    # ⛔ BEFORE the executor exists. `ex.map(...)` is evaluated as an ARGUMENT and
+    # ThreadPoolExecutor.map submits every job immediately, so workers are already
+    # running `_warm_one` before `_run_boot_pass` is entered. Establishing liveness
+    # inside the helper therefore leaves a window where the prewarmer is doing work
+    # and its own heartbeat still reads dead — small in production, but it is the
+    # very state this file exists to make impossible, so it is closed here.
+    _set_phase("boot", total=len(jobs))
     with _PrewarmTPE(max_workers=_PREWARM_WORKERS, thread_name_prefix="prewarm-bars") as ex:
         warmed, skipped = _run_boot_pass(
             ex.map(_warm_one, jobs), len(jobs), fast_path_size_jobs)
@@ -556,13 +630,12 @@ def run_prewarmer_forever():
                           f"(dailies prioritized; {len(cycle_jobs) - len(jobs)} extra jobs)")
             except Exception as _e:
                 print(f"[prewarm] Hot-set lookup failed (non-fatal): {_e}")
-            refresh_jobs = [j for j in cycle_jobs if _needs_fresh(_sqlite.get_last_ts(j[0].upper(), j[1]), j[1])]
+            refresh_jobs = _scan_stale(cycle_jobs, _needs_fresh, _sqlite.get_last_ts)
             if not refresh_jobs:
                 continue
-            refreshed = 0
             with _PrewarmTPE(max_workers=_PREWARM_WORKERS, thread_name_prefix="prewarm-refresh") as ex:
-                for status, _sym, _tf in ex.map(_warm_one, refresh_jobs):
-                    if status == 'warmed': refreshed += 1
+                refreshed = _run_refresh_pass(
+                    ex.map(_warm_one, refresh_jobs), len(refresh_jobs))
             if refreshed:
                 with _STATE_LOCK:
                     _PREWARM_STATE["last_refresh_ts"] = _t.time()

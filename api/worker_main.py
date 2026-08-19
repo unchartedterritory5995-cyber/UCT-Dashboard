@@ -787,6 +787,15 @@ def main():
     except Exception as e:
         log.warning(f"barspack builder failed to start (non-fatal): {e}")
 
+    # Intraday Bars Pack builder (Phase 4) — packs PRIOR CLOSED 5m/60m sessions for
+    # the universe so intraday scroll-back is instant too; today's session rides the
+    # live feed. Dark until INTRADAYPACK_ENABLED=1; zero provider cost.
+    try:
+        from api.services.intradaypack import start_intradaypack_builder
+        start_intradaypack_builder()
+    except Exception as e:
+        log.warning(f"intradaypack builder failed to start (non-fatal): {e}")
+
     # Boot fingerprint — one grep-able line so an operator can confirm which
     # data-integrity guards are live in this worker deploy (mirrors the web's
     # "[startup] chart-realtime-mode:" line). The R2 upload integrity gate
