@@ -4157,6 +4157,24 @@ export default function StockChart({
   const idbStaleDaily = resolvedTf === 'D'
     && typeof idbSinceRef.current === 'string'
     && isDailyTailStale(idbSinceRef.current)
+  // VALUE-SANITY gate for the instant daily paint (complements the timestamp gate
+  // above). A cached daily bar can be internally corrupt — right DATE, wrong OHLC:
+  // e.g. a stale ~$32 open persisted in IDB while the stock trades ~$21 (the 8/19
+  // readout anomaly — a fake "monthly-look" 33→21 candle). idbStaleDaily only
+  // inspects the tail's date, so such a bar reads fresh and paints instantly until
+  // the healing full refetch (REPLACE) lands. Reject an IDB daily series whose LAST
+  // bar breaks OHLC ordering, or whose open sits implausibly far (>50%) from its
+  // close, and fall through to the refetch instead of flashing the corrupt candle.
+  // Daily only + last bar only (cheap, and the only bar the live writer seeds from).
+  const _idbDailyLastInsane = resolvedTf === 'D' && Array.isArray(idbBars) && idbBars.length > 0
+    && (() => {
+      const b = idbBars[idbBars.length - 1]; if (!b) return false
+      const o = +(b.o ?? b.open), h = +(b.h ?? b.high), l = +(b.l ?? b.low), c = +(b.c ?? b.close)
+      if (![o, h, l, c].every(Number.isFinite) || o <= 0 || h <= 0 || l <= 0 || c <= 0) return true
+      if (h < Math.max(o, c) - 1e-9 || l > Math.min(o, c) + 1e-9) return true   // OHLC ordering broken
+      if (Math.abs(o - c) / c > 0.5) return true                               // open >50% off close = phantom
+      return false
+    })()
   const _memTailStaleDaily = (arr) => (
     resolvedTf === 'D'
     && Array.isArray(arr) && arr.length
@@ -4401,7 +4419,7 @@ export default function StockChart({
   // updateChart clears the series) instead of the wrong stock.
   const _symU = sym ? sym.toUpperCase() : ''
   const _netMatches = data?.bars?.length && (!data.ticker || data.ticker === _symU)
-  const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}` && !idbStaleIntraday && !idbStaleDaily
+  const _idbFresh = idbBars?.length && idbReadyForRef.current === `${sym}_${resolvedTf}` && !idbStaleIntraday && !idbStaleDaily && !_idbDailyLastInsane
   // Provisional stale-intraday paint: cached bars for THE CURRENT sym+tf that are
   // too stale to trust as live (idbStaleIntraday) are normally suppressed to avoid
   // fusing a live-price spike onto an old tail — but that left an intraday sym-switch
@@ -9049,6 +9067,21 @@ export default function StockChart({
           const _w = userLockedViewRef.current.width
           from = (newBarCount - 1) - userLockedViewRef.current.anchorFrac * _w
           to = from + _w
+          // BACK-IN-TIME GUARD: anchorFrac > 1 means the stored view had the newest
+          // candle scrolled OFF the right edge (equivalently to < lastIdx). Restoring
+          // that on a ticker switch lands THIS ticker on old bars with the latest
+          // price off-screen, and autoScale then fits the old price band → a black
+          // chart "sent back in time on every search" (the 8/19 RTH incident, exposed
+          // once instant paint stopped forcing a view-resetting refetch). Only in-range
+          // locks (0 ≤ anchorFrac ≤ 1, newest stays visible) are legitimate to carry;
+          // otherwise re-anchor to the latest-bars default.
+          if (to < (newBarCount - 1) - 0.5) {
+            const _def = computeDefaultLogicalRange(
+              newBarCount, resolvedTf,
+              { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) }
+            )
+            from = _def.from; to = _def.to
+          }
         } else if (keepPresentOnSymbolChange) {
           to = (newBarCount - 1) + width * (1 - lastCandlePos(plotWidthOf(chart, containerRef.current)))
           from = to - width
@@ -9123,8 +9156,18 @@ export default function StockChart({
             // A persisted horizontal lock restored on refresh (first load): open at
             // the user's exact position — newest bar at its saved screen fraction.
             const _w = userLockedViewRef.current.width
-            const _from = (filteredBars.length - 1) - userLockedViewRef.current.anchorFrac * _w
-            const _to = _from + _w
+            let _from = (filteredBars.length - 1) - userLockedViewRef.current.anchorFrac * _w
+            let _to = _from + _w
+            // Same back-in-time guard as the symbol-switch path (see there): a stored
+            // anchorFrac > 1 (newest off the right edge) would open a fresh load
+            // scrolled into the past with the latest price off-screen → black chart.
+            if (_to < (filteredBars.length - 1) - 0.5) {
+              const _def = computeDefaultLogicalRange(
+                filteredBars.length, resolvedTf,
+                { dailyDefaultBars, leftBarPad, rightPadBars, visibleBarsOverride, plotWidthPx: plotWidthOf(chart, containerRef.current) }
+              )
+              _from = _def.from; _to = _def.to
+            }
             if (Number.isFinite(_from) && Number.isFinite(_to)) { try { chart.timeScale().setVisibleLogicalRange({ from: _from, to: _to }) } catch { /* mid-load */ } }
           } else {
             // First load (no prior view): canonical default zoom — newest candle at
