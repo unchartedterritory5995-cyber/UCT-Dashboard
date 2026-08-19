@@ -433,6 +433,14 @@ def _bars_freshness_decision(prev, healthy, now, *, renag_s=BARS_FRESHNESS_RENAG
 
 
 def _bars_alert_text(event, hb, fr):
+    """Render the page.
+
+    ⛔ THE REMEDY USED TO BE UNCONDITIONAL, AND IT WAS THE BUG. Every alert ended
+    "Warming has stopped; a worker redeploy revives it." — but the most common way
+    to see this alert is DURING the boot pass, and a redeploy restarts that pass
+    from zero. On 2026-08-18 that advice, followed, would have looped forever.
+    The tail is now derived from what the prewarmer is actually doing.
+    """
     if event == "recovered":
         return (f"🟢 **Bars store recovered** — prewarmer alive, daily fresh "
                 f"(newest {fr.get('newest_session')}, expected {fr.get('expected_session')}).")
@@ -446,7 +454,15 @@ def _bars_alert_text(event, hb, fr):
                        f"(newest {fr.get('newest_session')} vs expected {fr.get('expected_session')})")
     if hb.get("last_error"):
         reasons.append(f"last error: {hb.get('last_error')}")
-    return f"{head} — " + "; ".join(reasons or ["unknown"]) + ". Warming has stopped; a worker redeploy revives it."
+
+    if not hb.get("alive"):
+        tail = "Warming has stopped; a worker redeploy revives it."
+    elif hb.get("phase") == "boot":
+        tail = (f"Warming is RUNNING — boot pass {hb.get('boot_done')}/{hb.get('boot_total')}; "
+                f"a redeploy would restart that pass from zero, so let it finish.")
+    else:
+        tail = "Warming is running; the store should catch up on the next refresh cycle."
+    return f"{head} — " + "; ".join(reasons or ["unknown"]) + ". " + tail
 
 
 def _start_bars_freshness_watchdog():

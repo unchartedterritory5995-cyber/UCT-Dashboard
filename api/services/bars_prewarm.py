@@ -20,30 +20,147 @@ import time as _time
 # 2026-08-11 week-long daily freeze). This heartbeat + the loop guard + the
 # supervisor below make that failure loud and self-healing.
 _STATE_LOCK = threading.Lock()
-_PREWARM_STATE = {
-    "started_ts": None,     # when run_prewarmer_forever last (re)entered its loop
-    "last_beat_ts": None,   # top of the most recent loop iteration (liveness)
+# 🔴 2026-08-18: the heartbeat below existed ONLY in the steady refresh loop, and
+# that loop is entered only AFTER the boot pass — 25,482 jobs, ~140 jobs/min,
+# ~3 HOURS. The watchdog reaches its first verdict ~25 min in, so every worker
+# deploy produced 2.5h of "prewarmer never started" while warming ran at full
+# tilt. Liveness now begins the moment the prewarmer starts WORKING, and `phase`
+# separates "starting up" from "steady state" so the alert can tell an operator
+# whether a redeploy helps (dead) or hurts (booting).
+_PREWARM_FRESH_STATE = {
+    "started_ts": None,     # when the prewarmer last BEGAN working (boot entry)
+    "last_beat_ts": None,   # most recent unit of work (liveness)
     "last_refresh_ts": None,  # last cycle that actually refreshed >=1 entry
-    "iterations": 0,
+    "phase": None,          # None -> "boot" (first full pass) -> "steady"
+    "boot_done": 0,         # jobs consumed by the boot pass so far
+    "boot_total": 0,        # jobs the boot pass was handed
+    "iterations": 0,        # STEADY-loop iterations (unchanged meaning)
     "restarts": 0,
     "last_error": None,
 }
+_PREWARM_STATE = dict(_PREWARM_FRESH_STATE)
 
 
-def _beat(refreshed: int = 0) -> None:
+def _reset_prewarm_state() -> None:
+    """Restore the pristine heartbeat. Test seam — a module global that carries
+    over between tests makes every `alive` assertion pass vacuously."""
+    with _STATE_LOCK:
+        _PREWARM_STATE.clear()
+        _PREWARM_STATE.update(_PREWARM_FRESH_STATE)
+
+
+def _set_phase(phase: str, *, total: int = 0) -> None:
+    """Move the prewarmer between lifecycle phases, beating as it goes."""
+    with _STATE_LOCK:
+        now = _time.time()
+        _PREWARM_STATE["phase"] = phase
+        _PREWARM_STATE["last_beat_ts"] = now
+        if phase == "boot":
+            _PREWARM_STATE["started_ts"] = now
+            _PREWARM_STATE["boot_total"] = total
+            _PREWARM_STATE["boot_done"] = 0
+
+
+def _beat(refreshed: int = 0, *, boot_done: int | None = None) -> None:
+    """Prove the prewarmer is doing work.
+
+    `boot_done` is passed by the boot pass; it advances the progress counter
+    WITHOUT inflating `iterations`, which keeps meaning "steady-loop cycles".
+    """
     with _STATE_LOCK:
         now = _time.time()
         _PREWARM_STATE["last_beat_ts"] = now
-        _PREWARM_STATE["iterations"] += 1
+        if boot_done is None:
+            _PREWARM_STATE["iterations"] += 1
+        else:
+            _PREWARM_STATE["boot_done"] = boot_done
         if refreshed:
             _PREWARM_STATE["last_refresh_ts"] = now
+
+
+def _run_boot_pass(results, total: int, fast_path_size: int):
+    """Consume the first-pass results, BEATING on every job.
+
+    ⭐ THE WHOLE POINT: this used to be an inline `for` in run_prewarmer_forever
+    with no beat in it, so the prewarmer looked dead for the entire pass. Extracted
+    so liveness can be tested from INSIDE the pass — the moment the watchdog
+    samples it — instead of after it returns, which was never the broken reading.
+    """
+    warmed = 0
+    skipped = 0
+    _set_phase("boot", total=total)
+    for i, (status, _sym, _tf) in enumerate(results, start=1):
+        if status == 'warmed':
+            warmed += 1
+        elif status == 'skipped':
+            skipped += 1
+        _beat(boot_done=i)
+        if i == fast_path_size:
+            print(f"[prewarm] ★ Fast-path complete ({i} jobs) — Breadth scanning is hot. Continuing with long-tail in background.")
+        if i % 500 == 0:
+            print(f"[prewarm] Progress {i}/{total} — {warmed} fetched, {skipped} cached")
+    # Only on a clean finish. A raise here propagates to run_prewarmer_supervised,
+    # which restarts and re-enters "boot" — marking "steady" in a `finally` would
+    # report a steady loop that is not running.
+    _set_phase("steady")
+    return warmed, skipped
+
+
+def _in_active_data_window() -> bool:
+    """THE one authority on "can market data still change right now". The steady
+    refresh loop already throttles on it; the boot pass now agrees with it rather
+    than holding a second opinion."""
+    from api.services.data_sync import in_active_data_window
+    return in_active_data_window()
+
+
+def _expected_session() -> int:
+    """THE one authority on "which session should the newest bar be" — the same
+    call the daily-freshness watchdog grades the store against."""
+    from api.services.bars_fetch import _expected_latest_session_yyyymmdd
+    return _expected_latest_session_yyyymmdd()
+
+
+_BOOT_SETTLED_TFS = ("D", "W", "M")
+
+
+def _boot_can_skip(last_ts, tf) -> bool:
+    """True when a boot-pass D/W/M job is provably a no-op fetch.
+
+    ⭐ WHY THE BOOT PASS TOOK 3 HOURS. `_needs_fresh` answers `last_ts <= today`
+    for D/W/M — deliberately True even when the stored bar IS today's, because an
+    open session's high/low/close keep drifting. That is right during the session,
+    where the in-memory 5-min TTL absorbs the repeats. The boot pass has a COLD
+    in-memory cache, so nothing absorbs them: ~12,000 guaranteed no-op vendor
+    fetches on every single deploy, which is what kept the steady loop from ever
+    starting.
+
+    Outside the active data window that bar can no longer change — the steady loop
+    already skips its whole scan for exactly this reason. Kill switch:
+    PREWARM_BOOT_SKIP_SETTLED=0.
+    """
+    if os.environ.get("PREWARM_BOOT_SKIP_SETTLED", "1") != "1":
+        return False
+    if tf not in _BOOT_SETTLED_TFS or last_ts is None:
+        return False
+    try:
+        if _in_active_data_window():
+            return False
+        return int(last_ts) >= _expected_session()
+    except Exception:
+        # Never fail CLOSED into "skip" — under-skipping costs a redundant fetch,
+        # over-skipping re-creates the frozen store this whole file exists to stop.
+        return False
 
 
 def prewarm_heartbeat() -> dict:
     """Snapshot of prewarmer liveness for the worker health endpoint + watchdog.
 
-    `alive` = the loop iterated within the last ~45 min (covers the 1800s off-hours
-    idle sleep with margin). A stale beat means the warming thread has died."""
+    `alive` = the prewarmer did a unit of work within the last ~45 min (covers the
+    1800s off-hours idle sleep with margin). A stale beat means warming has died.
+
+    ⛔ `alive` alone is NOT enough to act on: read `phase` with it. "boot" means a
+    first pass is in flight and a redeploy would restart it from zero."""
     with _STATE_LOCK:
         s = dict(_PREWARM_STATE)
     beat = s.get("last_beat_ts")
@@ -321,6 +438,9 @@ def run_prewarmer_forever():
         sym, tf, bar_count = args
         try:
             last_ts = _sqlite.get_last_ts(sym.upper(), tf)
+            # Settled D/W/M outside the data window: provably nothing to fetch.
+            if _boot_can_skip(last_ts, tf):
+                return ('skipped', sym, tf)
             if not _needs_fresh(last_ts, tf):
                 return ('skipped', sym, tf)
             _get_bars_inner(sym.upper(), tf, bar_count)
@@ -339,20 +459,11 @@ def run_prewarmer_forever():
     print(f"[prewarm] {len(jobs)} jobs queued (worker={_IS_WORKER}; D/W/M all "
           f"+ {len(_CORE_INTRADAY_TICKERS)}x{len(_CORE_INTRADAY_TFS)} core "
           f"+ {len(_DEEP_INTRADAY_TICKERS)}x{len(_DEEP_INTRADAY_TFS)} deep intraday)")
-    warmed = 0
-    skipped = 0
     fast_path_size_jobs = (len(_PRIORITY) + len(_FAST_PATH))
     with _PrewarmTPE(max_workers=_PREWARM_WORKERS, thread_name_prefix="prewarm-bars") as ex:
-        for i, (status, _sym, _tf) in enumerate(ex.map(_warm_one, jobs), start=1):
-            if status == 'warmed': warmed += 1
-            elif status == 'skipped': skipped += 1
-            if i == fast_path_size_jobs:
-                print(f"[prewarm] ★ Fast-path complete ({i} jobs) — Breadth scanning is hot. Continuing with long-tail in background.")
-            if i % 500 == 0:
-                print(f"[prewarm] Progress {i}/{len(jobs)} — {warmed} fetched, {skipped} cached")
+        warmed, skipped = _run_boot_pass(
+            ex.map(_warm_one, jobs), len(jobs), fast_path_size_jobs)
     print(f"[prewarm] First pass complete: {warmed} fetched, {skipped} cached, {len(jobs)} total")
-    with _STATE_LOCK:
-        _PREWARM_STATE["started_ts"] = _t.time()
     while True:
         # Beat FIRST so liveness is proven every iteration; the whole body is then
         # GUARDED so a single stale-read / DB-locked raise can never kill warming
