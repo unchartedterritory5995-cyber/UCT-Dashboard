@@ -18,7 +18,7 @@
  * swallowed and falls through to the existing warm-server fetch + skeleton, so
  * the pack is strictly additive and can never regress a chart.
  */
-import { idbImportPack, idbApplyDelta, idbDeleteIntraday } from '../utils/barsIDB'
+import { idbImportPack, idbApplyDelta } from '../utils/barsIDB'
 
 const SHARD_CONCURRENCY = 2
 // If we're further behind than this many days, the delta tail can't bridge the gap
@@ -44,23 +44,15 @@ let _started = false
 export function initBarsPack() {
   if (_started) return
   _started = true
-  // One-time: purge bloated/leftover intraday IDB entries (the ~20k-bar 5m series that
-  // stalled the chart). Runs once per browser via a localStorage flag.
-  _purgeIntradayOnce()
   _whenIdle(() => { _run(PACK_DAILY).catch(() => {}) })
-  // ⛔ CLIENT INTRADAY PACK DISABLED (2026-08-19). The pre-seed painted instantly for
-  // some tickers but the two-step live-fill path (bloat + framing + ingest lock) proved
-  // too fragile to land via live iteration. Server 5m serves fast (~0.15s), so 5m loads
-  // on-demand reliably. Re-enable only after an OFFLINE reproduction + fix.
-  // _whenIdle(() => { _run(PACK_INTRADAY).catch(() => {}) })
-}
-
-async function _purgeIntradayOnce() {
-  try {
-    if (localStorage.getItem('barsIDB.intradayPurge.v1') === '1') return
-    await idbDeleteIntraday()
-    localStorage.setItem('barsIDB.intradayPurge.v1', '1')
-  } catch { /* best-effort */ }
+  // Intraday pack RE-ENABLED (2026-08-19). An offline Playwright harness
+  // (tools/intraday_repro.py) proved the client path is sound: the prior-session pack
+  // paints in ~200ms (render cap slices any bloat to 3k), the since-fetch fills today,
+  // and the candles frame correctly. The earlier "10s stall / black" was NOT the client
+  // — it was the server 5m serve hanging under Massive saturation from over-aggressive
+  // prewarming (PREWARM_5M_CAP), now dialed back so 5m serves ~0.15s. The non-blocking
+  // ingest below keeps a fresh full ingest from write-locking the store.
+  _whenIdle(() => { _run(PACK_INTRADAY).catch(() => {}) })
 }
 
 function _whenIdle(fn) {
